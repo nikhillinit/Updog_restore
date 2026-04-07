@@ -2,7 +2,7 @@ import { and, eq, inArray, sql } from 'drizzle-orm';
 import { db } from '../db';
 import { logger } from '../lib/logger';
 import { ensureAttributedFundMetricsForCalcRun } from './fund-metrics-attribution-service';
-import { jobOutbox, alertRules, type JobOutbox } from '@shared/schema';
+import { jobOutbox, alertRules, variancePlannerLeader, type JobOutbox } from '@shared/schema';
 import { varianceTrackingService } from './variance-tracking';
 import { VarianceAlertEvaluationService } from './variance-alert-evaluation';
 
@@ -23,6 +23,9 @@ type AlertAutomationHealth = {
     lastStartedAt: string | null;
     lastCompletedAt: string | null;
     lastError: string | null;
+    isLeader: boolean;
+    leaseExpiresAt: string | null;
+    lastElectedAt: string | null;
   };
   processor: {
     running: boolean;
@@ -46,6 +49,9 @@ const RECOVERY_SWEEP_MS = 5 * 60 * 1000;
 const DEFAULT_PLANNER_INTERVAL_MS = 5 * 60 * 1000;
 const DEFAULT_PROCESSOR_INTERVAL_MS = 30 * 1000;
 const DEFAULT_STEP_TIMEOUT_MS = 30 * 1000;
+const DEFAULT_VARIANCE_PLANNER_LEASE_MS = 10 * 60 * 1000;
+const DEFAULT_VARIANCE_PLANNER_RENEWAL_MS = 2.5 * 60 * 1000;
+const LEADER_ROW_ID = 'variance-planner';
 
 function toIsoOrNull(value: Date | null): string | null {
   return value ? value.toISOString() : null;
@@ -82,6 +88,17 @@ function withTimeout<T>(
         reject(error);
       });
   });
+}
+
+function computeInstanceIdentity(): string {
+  // D-01 Claude's Discretion: instance identity format.
+  // Use `${hostname}:${pid}` so logs are immediately debuggable in multi-instance
+  // deployments, and append a short random suffix to disambiguate fast restarts
+  // where the OS reuses the PID within the same lease window.
+  const hostname = process.env['HOSTNAME'] || process.env['COMPUTERNAME'] || 'unknown-host';
+  const pid = process.pid;
+  const random = Math.random().toString(36).slice(2, 8);
+  return `${hostname}:${pid}:${random}`;
 }
 
 function getPeriodicWindowStart(now: Date, frequency: PeriodicAlertFrequency): Date {
@@ -146,6 +163,12 @@ export class VarianceAlertAutomationService {
   private plannerInFlight = false;
   private processorInFlight = false;
   private enabled = false;
+  private leaderRenewalTimer: NodeJS.Timeout | null = null;
+  private readonly instanceId: string = computeInstanceIdentity();
+  private isLeader = false;
+  private leaseExpiresAt: Date | null = null;
+  private lastElectedAt: Date | null = null;
+  private leaderRenewalInFlight = false;
   private readonly healthState: {
     planner: { lastStartedAt: Date | null; lastCompletedAt: Date | null; lastError: string | null };
     processor: {
@@ -207,10 +230,24 @@ export class VarianceAlertAutomationService {
       void this.recoverStaleProcessingJobs();
     }, RECOVERY_SWEEP_MS);
 
+    const leaderRenewalMs = parsePositiveIntEnv(
+      'VARIANCE_PLANNER_RENEWAL_MS',
+      DEFAULT_VARIANCE_PLANNER_RENEWAL_MS
+    );
+    this.leaderRenewalTimer = setInterval(() => {
+      void this.runLeaderRenewalCycle();
+    }, leaderRenewalMs);
+
     void this.runPlannerCycle();
     void this.runProcessorCycle();
     log.info(
-      { plannerIntervalMs, processorIntervalMs, recoverySweepMs: RECOVERY_SWEEP_MS },
+      {
+        plannerIntervalMs,
+        processorIntervalMs,
+        recoverySweepMs: RECOVERY_SWEEP_MS,
+        leaderRenewalMs,
+        instanceId: this.instanceId,
+      },
       'Variance alert automation started'
     );
   }
@@ -218,6 +255,10 @@ export class VarianceAlertAutomationService {
   async stop(): Promise<void> {
     this.enabled = false;
 
+    if (this.leaderRenewalTimer) {
+      clearInterval(this.leaderRenewalTimer);
+      this.leaderRenewalTimer = null;
+    }
     if (this.plannerTimer) {
       clearInterval(this.plannerTimer);
       this.plannerTimer = null;
@@ -230,6 +271,8 @@ export class VarianceAlertAutomationService {
       clearInterval(this.recoveryTimer);
       this.recoveryTimer = null;
     }
+
+    await this.releaseLease();
   }
 
   getHealth(): AlertAutomationHealth {
@@ -240,6 +283,9 @@ export class VarianceAlertAutomationService {
         lastStartedAt: toIsoOrNull(this.healthState.planner.lastStartedAt),
         lastCompletedAt: toIsoOrNull(this.healthState.planner.lastCompletedAt),
         lastError: this.healthState.planner.lastError,
+        isLeader: this.isLeader,
+        leaseExpiresAt: toIsoOrNull(this.leaseExpiresAt),
+        lastElectedAt: toIsoOrNull(this.lastElectedAt),
       },
       processor: {
         running: this.processorInFlight,
@@ -583,6 +629,17 @@ export class VarianceAlertAutomationService {
       return;
     }
 
+    // D-04: planner loop is gated on leader status. Processor and recovery
+    // continue to run on every instance regardless of leadership.
+    const leader = await this.tryAcquireOrRenewLease();
+    if (!leader) {
+      log.debug(
+        { event: 'alert.planner.skipped', reason: 'not_leader', instanceId: this.instanceId },
+        'Variance planner cycle skipped - not leader'
+      );
+      return;
+    }
+
     this.plannerInFlight = true;
     this.healthState.planner.lastStartedAt = new Date();
 
@@ -640,6 +697,210 @@ export class VarianceAlertAutomationService {
       log.error({ err: error }, 'Variance alert processor cycle failed');
     } finally {
       this.processorInFlight = false;
+    }
+  }
+
+  /**
+   * Attempts to acquire a new leader lease OR renew the current one.
+   * Returns true if this instance now holds the lease, false otherwise.
+   *
+   * Uses a single atomic INSERT ... ON CONFLICT DO UPDATE with a WHERE
+   * predicate on the UPDATE clause: the takeover is conditional on the
+   * existing lease being expired OR already held by this instance. If a
+   * different instance holds an unexpired lease, the UPDATE is a no-op and
+   * this instance is NOT leader.
+   *
+   * Fail-safe: any DB error or timeout demotes this instance. See CONTEXT.md
+   * D-01 (atomic takeover discipline) and specifics "Fail-safe on renewal
+   * error".
+   */
+  private async tryAcquireOrRenewLease(now: Date = new Date()): Promise<boolean> {
+    const leaseMs = parsePositiveIntEnv(
+      'VARIANCE_PLANNER_LEASE_MS',
+      DEFAULT_VARIANCE_PLANNER_LEASE_MS
+    );
+    const newExpiresAt = new Date(now.getTime() + leaseMs);
+    const wasLeader = this.isLeader;
+
+    try {
+      const result = await withTimeout('variancePlannerLeader.acquire', () =>
+        db.execute(sql`
+          INSERT INTO ${variancePlannerLeader} (
+            id, instance_id, acquired_at, lease_expires_at, last_renewed_at, created_at, updated_at
+          )
+          VALUES (
+            ${LEADER_ROW_ID},
+            ${this.instanceId},
+            ${now.toISOString()},
+            ${newExpiresAt.toISOString()},
+            ${now.toISOString()},
+            ${now.toISOString()},
+            ${now.toISOString()}
+          )
+          ON CONFLICT (id) DO UPDATE
+          SET
+            instance_id = CASE
+              WHEN variance_planner_leader.instance_id = ${this.instanceId} THEN variance_planner_leader.instance_id
+              ELSE EXCLUDED.instance_id
+            END,
+            acquired_at = CASE
+              WHEN variance_planner_leader.instance_id = ${this.instanceId} THEN variance_planner_leader.acquired_at
+              ELSE EXCLUDED.acquired_at
+            END,
+            lease_expires_at = EXCLUDED.lease_expires_at,
+            last_renewed_at = EXCLUDED.last_renewed_at,
+            updated_at = EXCLUDED.updated_at
+          WHERE
+            variance_planner_leader.lease_expires_at < ${now.toISOString()}::timestamptz
+            OR variance_planner_leader.instance_id = ${this.instanceId}
+          RETURNING instance_id, acquired_at, lease_expires_at
+        `)
+      );
+
+      const row = result.rows[0] as
+        | { instance_id: string; acquired_at: string | Date; lease_expires_at: string | Date }
+        | undefined;
+
+      if (!row || row.instance_id !== this.instanceId) {
+        // Either the UPDATE was skipped (another instance holds an unexpired
+        // lease) or the row was claimed by someone else between INSERT and
+        // RETURNING. We are not leader.
+        if (wasLeader) {
+          this.isLeader = false;
+          this.leaseExpiresAt = null;
+          log.info(
+            {
+              event: 'alert.planner.leader.demoted',
+              instanceId: this.instanceId,
+              reason: 'takeover_lost',
+            },
+            'Variance planner leader demoted (takeover lost to another instance)'
+          );
+        }
+        return false;
+      }
+
+      this.isLeader = true;
+      this.leaseExpiresAt = new Date(row.lease_expires_at);
+
+      if (!wasLeader) {
+        this.lastElectedAt = new Date(row.acquired_at);
+        log.info(
+          {
+            event: 'alert.planner.leader.elected',
+            instanceId: this.instanceId,
+            leaseExpiresAt: this.leaseExpiresAt.toISOString(),
+            acquiredAt: this.lastElectedAt.toISOString(),
+          },
+          'Variance planner leader elected'
+        );
+      } else {
+        // Log at info level (NOT debug) so the most frequent transition is
+        // visible in production pino streams. Phase 1 success criterion 1
+        // requires leader state be observable via logs, and most pino configs
+        // filter to info and above in production.
+        log.info(
+          {
+            event: 'alert.planner.leader.renewed',
+            instanceId: this.instanceId,
+            leaseExpiresAt: this.leaseExpiresAt.toISOString(),
+          },
+          'Variance planner leader lease renewed'
+        );
+      }
+
+      return true;
+    } catch (error) {
+      // Fail-safe: any DB error or timeout -> demote. Favors false-negatives
+      // over split-brain. See CONTEXT.md specifics "Fail-safe on renewal
+      // error".
+      if (wasLeader) {
+        this.isLeader = false;
+        this.leaseExpiresAt = null;
+        log.warn(
+          {
+            event: 'alert.planner.leader.demoted',
+            instanceId: this.instanceId,
+            reason: 'db_error',
+            err: error instanceof Error ? error.message : String(error),
+          },
+          'Variance planner leader demoted due to DB error during acquire/renew'
+        );
+      } else {
+        log.debug(
+          {
+            instanceId: this.instanceId,
+            err: error instanceof Error ? error.message : String(error),
+          },
+          'Variance planner leader acquisition attempt failed (will retry)'
+        );
+      }
+      return false;
+    }
+  }
+
+  /**
+   * Releases the lease held by this instance on graceful shutdown. Sets
+   * lease_expires_at = now() so followers can take over immediately on the
+   * next planner tick. Safe to call when not leader - the WHERE clause is a
+   * no-op.
+   *
+   * See CONTEXT.md specifics "Graceful shutdown matters".
+   */
+  private async releaseLease(): Promise<void> {
+    const wasLeader = this.isLeader;
+    try {
+      await withTimeout('variancePlannerLeader.release', () =>
+        db.execute(sql`
+          UPDATE ${variancePlannerLeader}
+          SET
+            lease_expires_at = NOW(),
+            updated_at = NOW()
+          WHERE id = ${LEADER_ROW_ID}
+            AND instance_id = ${this.instanceId}
+        `)
+      );
+      if (wasLeader) {
+        log.info(
+          {
+            event: 'alert.planner.leader.demoted',
+            instanceId: this.instanceId,
+            reason: 'stop',
+          },
+          'Variance planner leader released on stop()'
+        );
+      }
+    } catch (error) {
+      log.warn(
+        {
+          event: 'alert.planner.leader.demoted',
+          instanceId: this.instanceId,
+          reason: 'release_failed',
+          err: error instanceof Error ? error.message : String(error),
+        },
+        'Variance planner leader release failed on stop() (lease will expire naturally)'
+      );
+    } finally {
+      this.isLeader = false;
+      this.leaseExpiresAt = null;
+    }
+  }
+
+  /**
+   * Periodic renewal heartbeat. Called by the leaderRenewalTimer. If the
+   * instance is not currently leader, this doubles as a takeover attempt.
+   * Serialized with leaderRenewalInFlight to prevent overlapping renewals
+   * under event-loop stalls.
+   */
+  private async runLeaderRenewalCycle(): Promise<void> {
+    if (!this.enabled || this.leaderRenewalInFlight) {
+      return;
+    }
+    this.leaderRenewalInFlight = true;
+    try {
+      await this.tryAcquireOrRenewLease();
+    } finally {
+      this.leaderRenewalInFlight = false;
     }
   }
 
