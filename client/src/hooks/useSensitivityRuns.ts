@@ -15,6 +15,8 @@ import type {
   SensitivityRunKind,
   TwoWayAnalysisRequestV1,
   TwoWayAnalysisResultV1,
+  StressAnalysisRequestV1,
+  StressAnalysisResultV1,
 } from '@shared/contracts/sensitivity-run-v1.contract';
 
 // =====================
@@ -29,6 +31,11 @@ export interface OneWayRunResponse {
 export interface TwoWayRunResponse {
   run: SensitivityRunV1;
   result: TwoWayAnalysisResultV1;
+}
+
+export interface StressRunResponse {
+  run: SensitivityRunV1;
+  result: StressAnalysisResultV1;
 }
 
 export interface SensitivityErrorBody {
@@ -89,6 +96,27 @@ async function postTwoWayRun(
   }
 
   return (await res.json()) as TwoWayRunResponse;
+}
+
+async function postStressRun(
+  fundId: number,
+  body: StressAnalysisRequestV1
+): Promise<StressRunResponse> {
+  const res = await fetch(`/api/funds/${fundId}/sensitivity/stress`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+
+  if (!res.ok) {
+    const errorBody = (await res.json().catch(() => ({}))) as Partial<SensitivityErrorBody>;
+    const error = new Error(errorBody.message ?? `HTTP ${res.status}`) as SensitivityHookError;
+    error.code = errorBody.code ?? 'UNKNOWN';
+    error.status = res.status;
+    throw error;
+  }
+
+  return (await res.json()) as StressRunResponse;
 }
 
 async function fetchSensitivityHistory(
@@ -164,6 +192,31 @@ export function useTwoWayRun(fundId: number | null) {
       if (fundId !== null) {
         queryClient.invalidateQueries({
           queryKey: ['sensitivity-runs', fundId, 'two_way'],
+        });
+      }
+    },
+  });
+}
+
+/**
+ * Mutation to POST a stress test request. Mirrors useTwoWayRun's error-shape
+ * contract: thrown errors carry the server's `code` and HTTP status so callers
+ * can branch on tier-2 codes without re-parsing the body.
+ */
+export function useStressRun(fundId: number | null) {
+  const queryClient = useQueryClient();
+
+  return useMutation<StressRunResponse, SensitivityHookError, StressAnalysisRequestV1>({
+    mutationFn: async (body) => {
+      if (fundId === null) {
+        throw new Error('fundId is required');
+      }
+      return postStressRun(fundId, body);
+    },
+    onSuccess: () => {
+      if (fundId !== null) {
+        queryClient.invalidateQueries({
+          queryKey: ['sensitivity-runs', fundId, 'stress'],
         });
       }
     },

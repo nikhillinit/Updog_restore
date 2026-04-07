@@ -12,7 +12,11 @@
  */
 
 import { z } from 'zod';
-import { SensitivityVariableIdSchema, SensitivityMetricIdSchema } from './sensitivity-variables-v1';
+import {
+  SensitivityVariableIdSchema,
+  SensitivityMetricIdSchema,
+  SensitivityStressScenarioIdSchema,
+} from './sensitivity-variables-v1';
 
 export const SensitivityRunKindSchema = z.enum(['one_way', 'two_way', 'stress']);
 export const SensitivityRunStatusSchema = z.enum(['pending', 'running', 'completed', 'failed']);
@@ -176,3 +180,57 @@ export type TwoWayAnalysisRequestV1 = z.infer<typeof TwoWayAnalysisRequestV1Sche
 export type TwoWayAnalysisResultV1 = z.infer<typeof TwoWayAnalysisResultV1Schema>;
 export type TwoWayAnalysisDatapoint = z.infer<typeof TwoWayAnalysisDatapointSchema>;
 export type TwoWayAnalysisSummary = z.infer<typeof TwoWayAnalysisSummarySchema>;
+
+// =====================
+// STRESS ANALYSIS (Phase 4)
+// =====================
+
+/**
+ * Caller-supplied parameters for a stress analysis request. Stress scenarios
+ * are pre-defined library entries (see SUPPORTED_STRESS_SCENARIOS); the
+ * caller picks one or more by id and the engine applies each scenario's
+ * bundled overrides to the deterministic base config.
+ */
+export const StressAnalysisRequestV1Schema = z
+  .object({
+    scenarioIds: z.array(SensitivityStressScenarioIdSchema).min(1),
+    metricId: SensitivityMetricIdSchema,
+  })
+  .strict();
+
+export const StressAnalysisDatapointSchema = z
+  .object({
+    scenarioId: SensitivityStressScenarioIdSchema,
+    scenarioLabel: z.string(),
+    metricValue: z.number(),
+    /** metricValue minus the baseline metric on the unmodified config. */
+    baselineDelta: z.number(),
+  })
+  .strict();
+
+export const StressAnalysisSummarySchema = z
+  .object({
+    worstCase: z.number(),
+    bestCase: z.number(),
+    range: z.number(),
+    worstScenarioId: SensitivityStressScenarioIdSchema,
+    bestScenarioId: SensitivityStressScenarioIdSchema,
+  })
+  .strict();
+
+export const StressAnalysisResultV1Schema = z
+  .object({
+    scenarioIds: z.array(SensitivityStressScenarioIdSchema),
+    metricId: SensitivityMetricIdSchema,
+    /** Metric value computed from the unmodified base config. */
+    baselineValue: z.number(),
+    datapoints: z.array(StressAnalysisDatapointSchema),
+    summary: StressAnalysisSummarySchema,
+    computedAt: z.string().datetime(),
+  })
+  .strict();
+
+export type StressAnalysisRequestV1 = z.infer<typeof StressAnalysisRequestV1Schema>;
+export type StressAnalysisResultV1 = z.infer<typeof StressAnalysisResultV1Schema>;
+export type StressAnalysisDatapoint = z.infer<typeof StressAnalysisDatapointSchema>;
+export type StressAnalysisSummary = z.infer<typeof StressAnalysisSummarySchema>;
