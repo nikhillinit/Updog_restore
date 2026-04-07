@@ -1,8 +1,41 @@
 ---
-last_updated: 2026-04-03
+last_updated: 2026-04-07
 ---
 
 # Phase 1C.2 Alert Scheduling And Remaining-Capital UI Plan
+
+## Status (2026-04-07)
+
+All slices shipped. Implementation landed in commit `5c002e3c` (2026-04-02) with
+three hardening follow-ups: `b8d3bd60` (current-baseline alert filter),
+`c554ddca` (baseline creation hardening), and `3e9a360c` (variance automation
+proof trustworthiness). Slice-level state in current main:
+
+- Slice 0 - Alert authoring parity: DONE (`shared/variance-validation.ts`
+  exposes `alertMetricNameSchema`, variance-tracking page uses constrained
+  `Select`)
+- Slice 0.5 - Calc-run handler cutover: DONE
+  (`server/services/calc-run-completion-handlers.ts`)
+- Slice 1 - Frequency-gated automation + execution ledger: DONE
+  (`server/services/variance-alert-automation.ts`,
+  `server/services/variance-alert-evaluation.ts`,
+  `migrations/0005_phase1c2_alert_automation.sql`)
+- Slice 2 - Outbox-backed periodic scheduling: DONE (`job_outbox.dedupe_key`
+  column, atomic claim, planner/processor loops,
+  `tests/unit/services/variance-alert-automation.test.ts`)
+- Slice 3 - Remaining-capital UI: DONE (`client/src/pages/variance-tracking.tsx`
+  renders the card via `useFundMetrics`; pure helper extracted to
+  `client/src/lib/variance-remaining-capital.ts` with
+  `tests/unit/lib/variance-remaining-capital.test.ts` covering deployable math,
+  plan delta, clamp, and null-input edge cases)
+
+Deferred items moved to a focused backlog at
+`docs/plans/2026-04-07-phase-1c3-variance-automation-followons-backlog.md`:
+planner leader election, baseline-scoped incident auto-resolution, and a
+dedicated worker process for the scheduler.
+
+The remainder of this document is preserved as the original implementation
+strategy for historical context.
 
 ## Context
 
