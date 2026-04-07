@@ -604,3 +604,111 @@ describe('BacktestingService', () => {
     });
   });
 });
+
+// ============================================================================
+// Phase 2 baseline capture (opt-in only)
+//
+// This describe block runs ONLY when CAPTURE_BASELINE=1 is set in the env.
+// It captures the analytic-rescale percentiles produced by the CURRENT
+// runScenarioComparisons code path (BEFORE the Plan 02-03 rewrite removes
+// applyMarketAdjustment) and writes them to a committed JSON file under
+// .planning/phases/02-backtesting-scenario-comparison-rewrite-p1/_baselines/.
+//
+// The committed JSON is consumed by Plan 02-06's plan doc to populate the
+// before/after percentile comparison table required by D-12.
+//
+// Why opt-in: this describe writes a file via fs.writeFileSync, which is a
+// side effect we do not want in normal CI runs. The gate keeps normal runs
+// pure and lets the operator opt in explicitly via:
+//
+//   CAPTURE_BASELINE=1 npm test -- backtesting-service
+//
+// IMPORTANT: this block MUST be removed (or kept as a permanent capture
+// fixture) only after Plan 02-06 has consumed the JSON. Once the rewrite in
+// Plan 02-03 lands, re-running this with CAPTURE_BASELINE=1 will OVERWRITE
+// the file with the post-rewrite SAMPLE percentiles instead of the analytic
+// rescales -- losing the "before" half of the comparison forever.
+// ============================================================================
+
+if (process.env['CAPTURE_BASELINE'] === '1') {
+  describe('Phase 2 baseline capture (opt-in)', () => {
+    it('captures simulatedPerformance for all five historical scenarios into _baselines/before-percentiles.json', async () => {
+      // IMPORTANT: tests/setup/node-setup.ts globally mocks 'fs' for all
+      // server-side tests, replacing writeFileSync/readFileSync with stubs
+      // that return undefined. We MUST use vi.importActual to get the real
+      // node:fs module so the baseline capture actually persists to disk.
+      // Lazy imports so the gate is the only branch that pulls fs/path into
+      // the module graph during normal runs.
+      const fs = await vi.importActual<typeof import('node:fs')>('node:fs');
+      const path = await import('node:path');
+
+      const service = new BacktestingService();
+
+      // Re-stub the engine mock to a fixed deterministic shape so the captured
+      // numbers are stable across reruns. Use the same mockSimulationResult
+      // already defined at the top of this file (lines 105-158).
+      vi.mocked(unifiedMonteCarloService.runSimulation).mockResolvedValue(
+        mockSimulationResult as Awaited<ReturnType<typeof unifiedMonteCarloService.runSimulation>>
+      );
+
+      const scenarios = [
+        'financial_crisis_2008',
+        'dotcom_bust_2000',
+        'covid_2020',
+        'bull_market_2021',
+        'rate_hikes_2022',
+      ] as const;
+
+      const result = await service.compareScenarios(
+        1,
+        scenarios as unknown as Parameters<typeof service.compareScenarios>[1],
+        5000
+      );
+
+      // Expect all five scenarios captured (none should land in failedScenarios
+      // because the engine is mocked to a successful result).
+      expect(result).toHaveLength(5);
+
+      const baselineRecord = {
+        capturedAt: new Date().toISOString(),
+        codePath: 'analytic-rescale (pre Plan 02-03 rewrite)',
+        notes:
+          'These percentiles are produced by applyMarketAdjustment in server/services/backtesting-service.ts (lines 704-738). Plan 02-03 will delete that method and replace with sample percentiles from per-scenario MC runs. Plan 02-06 reads this file to populate the before/after comparison table required by D-12.',
+        engineMock: {
+          irr: {
+            statistics: mockSimulationResult.irr.statistics,
+            percentiles: mockSimulationResult.irr.percentiles,
+          },
+        },
+        scenarios: result.map((scenario) => ({
+          scenario: scenario.scenario,
+          simulatedPerformance: scenario.simulatedPerformance,
+          marketParameters: scenario.marketParameters,
+        })),
+      };
+
+      const outDir = path.resolve(
+        process.cwd(),
+        '.planning/phases/02-backtesting-scenario-comparison-rewrite-p1/_baselines'
+      );
+      fs.mkdirSync(outDir, { recursive: true });
+      const outPath = path.join(outDir, 'before-percentiles.json');
+      const serialized = JSON.stringify(baselineRecord, null, 2);
+      // Defensive: JSON.stringify can return undefined for non-serializable
+      // values; throw a clear error rather than writing the literal string
+      // "undefined" to disk and confusing downstream readers.
+      if (typeof serialized !== 'string') {
+        throw new Error(
+          `Phase 2 baseline capture: JSON.stringify returned ${typeof serialized}; refusing to write fixture`
+        );
+      }
+      fs.writeFileSync(outPath, `${serialized}\n`);
+
+      // Sanity check: the file is non-empty and parses.
+      const written = fs.readFileSync(outPath, 'utf-8');
+      const parsed = JSON.parse(written);
+      expect(parsed.scenarios).toHaveLength(5);
+      expect(parsed.scenarios[0].scenario).toBe('financial_crisis_2008');
+    });
+  });
+}

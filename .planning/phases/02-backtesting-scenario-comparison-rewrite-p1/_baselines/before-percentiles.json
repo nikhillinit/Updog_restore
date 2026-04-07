@@ -1,0 +1,129 @@
+{
+  "capturedAt": "2026-04-07T23:15:27.524Z",
+  "codePath": "analytic-rescale (pre Plan 02-03 rewrite)",
+  "notes": "These percentiles are produced by applyMarketAdjustment in server/services/backtesting-service.ts (lines 704-738). Plan 02-03 will delete that method and replace with sample percentiles from per-scenario MC runs. Plan 02-06 reads this file to populate the before/after comparison table required by D-12.",
+  "engineMock": {
+    "irr": {
+      "statistics": {
+        "mean": 0.18,
+        "standardDeviation": 0.08,
+        "min": -0.1,
+        "max": 0.5
+      },
+      "percentiles": {
+        "p5": 0.05,
+        "p25": 0.12,
+        "p50": 0.18,
+        "p75": 0.25,
+        "p95": 0.35
+      }
+    }
+  },
+  "scenarios": [
+    {
+      "scenario": "financial_crisis_2008",
+      "simulatedPerformance": {
+        "mean": 0.08639999999999999,
+        "median": 0.08207999999999999,
+        "p5": 0.006453,
+        "p25": 0.053595,
+        "p75": 0.11920499999999998,
+        "p95": 0.16634699999999997,
+        "min": -0.03509999999999998,
+        "max": 0.20789999999999997,
+        "standardDeviation": 0.04859999999999999
+      },
+      "marketParameters": {
+        "exitMultiplierMean": 1.2,
+        "exitMultiplierVolatility": 1.5,
+        "failureRate": 0.45,
+        "followOnProbability": 0.3,
+        "holdPeriodYears": 8
+      }
+    },
+    {
+      "scenario": "dotcom_bust_2000",
+      "simulatedPerformance": {
+        "mean": 0.0576,
+        "median": 0.05472,
+        "p5": -0.013464000000000004,
+        "p25": 0.028439999999999997,
+        "p75": 0.08676,
+        "p95": 0.128664,
+        "min": -0.050400000000000014,
+        "max": 0.16560000000000002,
+        "standardDeviation": 0.0432
+      },
+      "marketParameters": {
+        "exitMultiplierMean": 0.8,
+        "exitMultiplierVolatility": 2,
+        "failureRate": 0.55,
+        "followOnProbability": 0.2,
+        "holdPeriodYears": 9
+      }
+    },
+    {
+      "scenario": "covid_2020",
+      "simulatedPerformance": {
+        "mean": 0.1296,
+        "median": 0.12312,
+        "p5": 0.0336636,
+        "p25": 0.090234,
+        "p75": 0.168966,
+        "p95": 0.22553639999999997,
+        "min": -0.016199999999999992,
+        "max": 0.2754,
+        "standardDeviation": 0.05831999999999999
+      },
+      "marketParameters": {
+        "exitMultiplierMean": 1.8,
+        "exitMultiplierVolatility": 1.2,
+        "failureRate": 0.3,
+        "followOnProbability": 0.5,
+        "holdPeriodYears": 5
+      }
+    },
+    {
+      "scenario": "bull_market_2021",
+      "simulatedPerformance": {
+        "mean": 0.288,
+        "median": 0.27359999999999995,
+        "p5": 0.181404,
+        "p25": 0.24425999999999998,
+        "p75": 0.33174,
+        "p95": 0.39459599999999995,
+        "min": 0.12600000000000003,
+        "max": 0.44999999999999996,
+        "standardDeviation": 0.06479999999999998
+      },
+      "marketParameters": {
+        "exitMultiplierMean": 4,
+        "exitMultiplierVolatility": 0.6,
+        "failureRate": 0.15,
+        "followOnProbability": 0.8,
+        "holdPeriodYears": 3.5
+      }
+    },
+    {
+      "scenario": "rate_hikes_2022",
+      "simulatedPerformance": {
+        "mean": 0.108,
+        "median": 0.1026,
+        "p5": 0.04137750000000001,
+        "p25": 0.0806625,
+        "p75": 0.1353375,
+        "p95": 0.17462249999999999,
+        "min": 0.00675000000000002,
+        "max": 0.20925,
+        "standardDeviation": 0.040499999999999994
+      },
+      "marketParameters": {
+        "exitMultiplierMean": 1.5,
+        "exitMultiplierVolatility": 1,
+        "failureRate": 0.35,
+        "followOnProbability": 0.4,
+        "holdPeriodYears": 6.5
+      }
+    }
+  ]
+}
