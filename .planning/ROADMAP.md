@@ -148,6 +148,20 @@ because they share the same surface and are cheap.
 after schema changes as a regression check, even though calc paths shouldn't be
 affected.
 
+**Plans:** 2 plans
+
+Plans:
+
+- [ ] 06-01-PLAN.md — Reconcile shared/schema.ts against live Neon endpoint via
+      drizzle-kit introspect; delete 11 hard-delete phantom tables, unmount
+      /api/cohorts route, delete dead routes/services/tests, apply LP cluster
+      verdict per introspect, handle jobOutbox migration (REQ-DRIFT-01)
+- [ ] 06-02-PLAN.md — Update stale baseline numbers and remove hardcoded phoenix
+      counts in 6 .planning/ doc files; retarget REQ-DRIFT-03 from CLAUDE.md
+      (which is NOT a drift target) to .planning/PROJECT.md and
+      .planning/codebase/{CONCERNS,CONVENTIONS,INTEGRATIONS}.md (REQ-DRIFT-02,
+      REQ-DRIFT-03)
+
 ### Phase 7: Bounded Debt Drawdown
 
 **Goal:** Halve the two smaller lint baselines (console: 39 → ≤19, file-level
