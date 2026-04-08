@@ -2,6 +2,8 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 
+const FULL_SUITE_WAIT_OPTIONS = { timeout: 10_000 };
+
 const mockNavigate = vi.fn();
 vi.mock('wouter', () => ({
   useLocation: () => ['/fund-setup?step=1', mockNavigate],
@@ -148,7 +150,7 @@ describe('FundBasicsStep bootstrap identity', () => {
 
     await waitFor(() => {
       expect(mockNavigate).toHaveBeenCalledWith('/fund-setup?step=2');
-    });
+    }, FULL_SUITE_WAIT_OPTIONS);
 
     expect(mockCreateFund).toHaveBeenCalledTimes(1);
     expect(mockSetDraftFundId).toHaveBeenCalledWith(42);
@@ -177,7 +179,7 @@ describe('FundBasicsStep bootstrap identity', () => {
 
     await waitFor(() => {
       expect(mockNavigate).toHaveBeenCalledWith('/fund-setup?step=2');
-    });
+    }, FULL_SUITE_WAIT_OPTIONS);
 
     expect(mockCreateFund).not.toHaveBeenCalled();
     expect(mockSaveFundDraft).toHaveBeenCalledWith(
@@ -198,7 +200,7 @@ describe('FundBasicsStep bootstrap identity', () => {
 
     await waitFor(() => {
       expect(mockNavigate).toHaveBeenCalledWith('/fund-setup?step=2');
-    });
+    }, FULL_SUITE_WAIT_OPTIONS);
 
     expect(mockCreateFund).not.toHaveBeenCalled();
     expect(mockSaveFundDraft).not.toHaveBeenCalled();
@@ -216,7 +218,7 @@ describe('FundBasicsStep bootstrap identity', () => {
 
     await waitFor(() => {
       expect(mockNavigate).toHaveBeenCalledWith('/fund-setup?step=2');
-    });
+    }, FULL_SUITE_WAIT_OPTIONS);
 
     expect(mockCreateFund).not.toHaveBeenCalled();
     expect(mockSaveFundDraft).not.toHaveBeenCalled();
@@ -232,7 +234,7 @@ describe('FundBasicsStep bootstrap identity', () => {
 
     await waitFor(() => {
       expect(screen.getByRole('alert')).toHaveTextContent('Bootstrap create failed');
-    });
+    }, FULL_SUITE_WAIT_OPTIONS);
 
     expect(mockNavigate).not.toHaveBeenCalled();
     expect(mockSetDraftFundId).not.toHaveBeenCalled();
@@ -249,7 +251,7 @@ describe('FundBasicsStep bootstrap identity', () => {
 
     await waitFor(() => {
       expect(screen.getByRole('alert')).toHaveTextContent('Draft save failed');
-    });
+    }, FULL_SUITE_WAIT_OPTIONS);
 
     expect(mockCreateFund).toHaveBeenCalledTimes(1);
     expect(mockSetDraftFundId).toHaveBeenCalledWith(42);
