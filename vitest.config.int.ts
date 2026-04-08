@@ -44,8 +44,6 @@ export default defineConfig({
       'tests/integration/cache-monitoring.integration.test.ts',
       'tests/integration/scenarioGeneratorWorker.test.ts',
       'tests/integration/migration-runner.test.ts',
-      // Quarantined: 6/6 tests timeout at 30s each, causing cascade resource exhaustion
-      'tests/integration/fund-idempotency.spec.ts',
     ],
     environment: 'node',
     testTimeout: 30000,
