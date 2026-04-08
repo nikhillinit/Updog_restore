@@ -5,8 +5,7 @@ last_updated: 2026-04-05
 
 # ADR-014: Snapshot Governance
 
-**Date**: 2026-04-05
-**Status**: Accepted
+**Date**: 2026-04-05 **Status**: Accepted
 
 ## Context
 
@@ -105,4 +104,5 @@ The current-main remediation queue should:
 - `server/services/fund-state-read-service.ts`
 - `server/services/time-travel-analytics.ts`
 - `server/services/backtesting-service.ts`
-- `docs/plans/2026-04-05-todo-report-remediation-strategy.md`
+- `docs/archive/2026-q2/2026-04-05-todo-report-remediation-strategy.md`
+  (archived 2026-04-08 per Phase 3 close-via-archive)

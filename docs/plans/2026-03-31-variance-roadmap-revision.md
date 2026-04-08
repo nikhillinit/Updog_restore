@@ -30,9 +30,14 @@ statuses below are out of date:**
   attributed `fund_metrics`, baseline idempotency, and system actor seeding are
   shipped. See `2026-04-03-phase-1a2-baseline-automation-hardening-validated.md`
   for the active hardening work that sits on top.
-- **Phase 0.P Cleanup**: partially shipped per line 27-37 below; remaining items
-  (wire `_reportsData`, remove `mockVarianceData`, gate restore UI) overlap with
-  Worktrack A/B of `2026-04-05-todo-report-remediation-strategy.md`.
+- **Phase 0.P Cleanup**: settled on main as of 2026-04-08. The remaining items
+  flagged below (`_reportsData`, `mockVarianceData`, restore UI) and the
+  Worktrack A/B of the original strategy doc are no longer present in
+  `client/src` — see
+  `docs/archive/2026-q2/2026-04-05-todo-report-remediation-strategy.md`
+  (archived 2026-04-08 per
+  `.planning/phases/03-todo-report-remediation/03-CONTEXT.md` D-01
+  close-via-archive).
 - **Phase 1A.1**: implementation recorded in
   `2026-04-01-variance-phase1a1c-implementation-plan.md`.
 - **Phase 1A.2**: hardening in
