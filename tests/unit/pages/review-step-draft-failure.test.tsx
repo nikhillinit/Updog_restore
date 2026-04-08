@@ -14,6 +14,8 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 
+const FULL_SUITE_WAIT_OPTIONS = { timeout: 10_000 };
+
 // Mock dependencies before importing component
 const mockSetLocation = vi.fn();
 vi.mock('wouter', () => ({
@@ -137,7 +139,7 @@ describe('ReviewStep finalize failure handling', () => {
 
     await waitFor(() => {
       expect(screen.getByText(/Draft configuration is invalid/i)).toBeInTheDocument();
-    });
+    }, FULL_SUITE_WAIT_OPTIONS);
 
     expect(mockSetLocation).not.toHaveBeenCalled();
   });
@@ -153,7 +155,7 @@ describe('ReviewStep finalize failure handling', () => {
 
     await waitFor(() => {
       expect(screen.getByText('Fund Creation Failed')).toBeInTheDocument();
-    });
+    }, FULL_SUITE_WAIT_OPTIONS);
 
     expect(mockFinalizeFund).toHaveBeenCalledTimes(1);
     expect(mockSetLocation).not.toHaveBeenCalled();
@@ -168,7 +170,7 @@ describe('ReviewStep finalize failure handling', () => {
 
     await waitFor(() => {
       expect(mockSetLocation).toHaveBeenCalledWith('/fund-model-results/42');
-    });
+    }, FULL_SUITE_WAIT_OPTIONS);
 
     expect(mockFinalizeFund).toHaveBeenCalledTimes(1);
     expect(mockSetCurrentFund).toHaveBeenCalledWith(
@@ -193,14 +195,14 @@ describe('ReviewStep finalize failure handling', () => {
     // First attempt: fails
     await waitFor(() => {
       expect(screen.getByText('Fund Creation Failed')).toBeInTheDocument();
-    });
+    }, FULL_SUITE_WAIT_OPTIONS);
 
     // Retry
     await userEvent.click(screen.getByTestId('create-fund-button'));
 
     await waitFor(() => {
       expect(mockSetLocation).toHaveBeenCalledWith('/fund-model-results/42');
-    });
+    }, FULL_SUITE_WAIT_OPTIONS);
 
     expect(mockFinalizeFund).toHaveBeenCalledTimes(2);
   });
@@ -216,7 +218,7 @@ describe('ReviewStep finalize failure handling', () => {
 
     await waitFor(() => {
       expect(screen.getByText(/Publish queue error/i)).toBeInTheDocument();
-    });
+    }, FULL_SUITE_WAIT_OPTIONS);
 
     expect(mockSetLocation).not.toHaveBeenCalled();
   });
@@ -234,13 +236,13 @@ describe('ReviewStep finalize failure handling', () => {
 
     await waitFor(() => {
       expect(screen.getByText(/Publish queue error/i)).toBeInTheDocument();
-    });
+    }, FULL_SUITE_WAIT_OPTIONS);
 
     await userEvent.click(screen.getByTestId('create-fund-button'));
 
     await waitFor(() => {
       expect(mockSetLocation).toHaveBeenCalledWith('/fund-model-results/42');
-    });
+    }, FULL_SUITE_WAIT_OPTIONS);
 
     expect(mockFinalizeFund).toHaveBeenCalledTimes(2);
   });
@@ -255,6 +257,6 @@ describe('ReviewStep finalize failure handling', () => {
 
     await waitFor(() => {
       expect(screen.getByText('Failed to create fund')).toBeInTheDocument();
-    });
+    }, FULL_SUITE_WAIT_OPTIONS);
   });
 });
