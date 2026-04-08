@@ -79,6 +79,15 @@ output. Plan 02-06 SUMMARY explicitly flagged it as out-of-scope for M8.
 **Phoenix-specific:** Phase 5 does not touch calc paths, so `phoenix:truth` is a
 pass-through. Just verify the suite still exits 0 after the threshold fix.
 
+**Plans:** 2 plans
+
+Plans:
+
+- [ ] 05-01-PLAN.md — Fix trackMemoryUsage bytes-as-duration bug in
+      server/middleware/performance-monitor.ts (REQ-TEST-02)
+- [ ] 05-02-PLAN.md — Unquarantine tests/integration/fund-idempotency.spec.ts
+      and branch on outcome (REQ-TEST-01)
+
 ### Phase 6: Schema, Docs, and Baseline Drift Cleanup
 
 **Goal:** Reconcile `shared/schema.ts` against the live Neon endpoint
