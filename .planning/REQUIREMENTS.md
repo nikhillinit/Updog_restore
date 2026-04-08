@@ -86,15 +86,15 @@ Source: in-flight commits `9e134b5f` (stress tab), `bc592b38` (two-way panel),
 `7633fb51` (one-way panel), `2772dce9` (OneWayPanel internals refactor),
 `e4707353` (REFL-033)
 
-- [ ] **REQ-SENS-01**: Finalize the sensitivity surface trio (one-way / two-way
+- [x] **REQ-SENS-01**: Finalize the sensitivity surface trio (one-way / two-way
       / stress) — confirm error status mapping is consistent across the three
       engines, the three panels share polish (loading states, empty states,
       error messaging), and the sensitivity routes are covered by integration
       tests.
-- [ ] **REQ-SENS-02**: Surface the new sensitivity tabs in IA/navigation per the
+- [x] **REQ-SENS-02**: Surface the new sensitivity tabs in IA/navigation per the
       recent `+ IA cleanup` commit, and verify no orphan pages remain (e.g., the
       deleted `pages/monte-carlo.tsx` wrapper in `35b63a47`).
-- [ ] **REQ-SENS-03**: Capture any sensitivity-specific REFL learnings (REFL-033
+- [x] **REQ-SENS-03**: Capture any sensitivity-specific REFL learnings (REFL-033
       already exists for this surface) and ensure new patterns make it into the
       appropriate cheatsheet or REFL.
 
@@ -156,9 +156,9 @@ See `PROJECT.md` § Out of Scope for the canonical list. Highlights:
 | REQ-BCK-03  | 2     | Active                                          |
 | REQ-TODO-01 | 3     | Settled on main (closed-via-archive 2026-04-08) |
 | REQ-TODO-02 | 3     | Settled on main (closed-via-archive 2026-04-08) |
-| REQ-SENS-01 | 4     | Active                                          |
-| REQ-SENS-02 | 4     | Active                                          |
-| REQ-SENS-03 | 4     | Active                                          |
+| REQ-SENS-01 | 4     | Validated                                       |
+| REQ-SENS-02 | 4     | Validated                                       |
+| REQ-SENS-03 | 4     | Validated                                       |
 
 100% of v1 requirements mapped to a phase.
 
