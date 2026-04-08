@@ -22,7 +22,6 @@ import {
   getScenarioByName,
   getScenarioMarketParameters,
   getAvailableScenarios,
-  getDefaultMarketParameters,
 } from '../data/historical-scenarios';
 import {
   backtestResults,
@@ -32,6 +31,7 @@ import {
 } from '@shared/schema';
 import type { BacktestResultRecord, InsertBacktestResultRecord } from '@shared/schema';
 import { safeDivide, calculateNormalizedError } from '@shared/validation/backtesting-schemas';
+import { logger } from '../lib/logger';
 import type {
   BacktestConfig,
   BacktestResult,
@@ -48,6 +48,9 @@ import type {
   BacktestingJobStage,
   ScenarioComparisonSummary,
 } from '@shared/types/backtesting';
+
+// Module-level child logger for structured scenario-comparison events (Phase 2 D-05, D-11).
+const backtestingLog = logger.child({ module: 'backtesting' });
 
 // ============================================================================
 // BACKTESTING SERVICE
@@ -233,16 +236,21 @@ export class BacktestingService {
 
   /**
    * Compare multiple historical scenarios with failure metadata.
+   *
+   * @param options Optional per-call overrides. `randomSeed` is forwarded to the
+   *   underlying Monte Carlo engine so Phase 2 truth cases (Plan 02-05) can lock
+   *   determinism. The option is not plumbed from the HTTP route layer.
    */
   async compareScenariosDetailed(
     fundId: number,
     scenarios: HistoricalScenarioName[],
-    simulationRuns: number = 5000
+    simulationRuns: number = 5000,
+    options?: { randomSeed?: number }
   ): Promise<{
     comparisons: ScenarioComparison[];
     failedScenarios: HistoricalScenarioName[];
   }> {
-    return this.runScenarioComparisons(fundId, scenarios, simulationRuns);
+    return this.runScenarioComparisons(fundId, scenarios, simulationRuns, options);
   }
 
   /**
@@ -251,9 +259,10 @@ export class BacktestingService {
   async compareScenarios(
     fundId: number,
     scenarios: HistoricalScenarioName[],
-    simulationRuns: number = 5000
+    simulationRuns: number = 5000,
+    options?: { randomSeed?: number }
   ): Promise<ScenarioComparison[]> {
-    const outcome = await this.compareScenariosDetailed(fundId, scenarios, simulationRuns);
+    const outcome = await this.compareScenariosDetailed(fundId, scenarios, simulationRuns, options);
     return outcome.comparisons;
   }
 
@@ -288,23 +297,12 @@ export class BacktestingService {
     const metrics: Partial<Record<BacktestMetric, DistributionSummary>> = {};
 
     for (const metric of config.comparisonMetrics) {
-      const data = result[metric as keyof typeof result];
-      if (data && typeof data === 'object' && 'statistics' in data && 'percentiles' in data) {
-        const typedData = data as {
-          statistics: { mean: number; standardDeviation: number; min: number; max: number };
-          percentiles: { p5: number; p25: number; p50: number; p75: number; p95: number };
-        };
-        metrics[metric] = {
-          mean: typedData.statistics.mean,
-          median: typedData.percentiles.p50,
-          p5: typedData.percentiles.p5,
-          p25: typedData.percentiles.p25,
-          p75: typedData.percentiles.p75,
-          p95: typedData.percentiles.p95,
-          min: typedData.statistics.min,
-          max: typedData.statistics.max,
-          standardDeviation: typedData.statistics.standardDeviation,
-        };
+      const summary = this.simulationResultToDistributionSummary(
+        result,
+        metric as 'irr' | 'multiple' | 'dpi' | 'tvpi' | 'totalValue'
+      );
+      if (summary) {
+        metrics[metric] = summary;
       }
     }
 
@@ -313,6 +311,43 @@ export class BacktestingService {
       metrics,
       engineUsed: result.performance.engineUsed,
       executionTimeMs: result.performance.executionTimeMs,
+    };
+  }
+
+  /**
+   * Map a Monte Carlo PerformanceDistribution to the public DistributionSummary
+   * shape. Handles the (statistics, percentiles) -> (mean, p5, p25, p50, p75, p95)
+   * translation that BOTH extractSimulationSummary AND runScenarioComparisons
+   * need. Phase 2 D-03 requires sample percentiles from the scenario-aware run,
+   * so this helper reads from result[metric].percentiles directly -- never from
+   * a post-hoc analytic rescale.
+   *
+   * Returns null if the metric is not present on the result (defensive -- the
+   * traditional and streaming engines both populate irr/multiple/dpi/tvpi/totalValue
+   * but a future refactor could legitimately omit one).
+   */
+  private simulationResultToDistributionSummary(
+    result: Awaited<ReturnType<typeof unifiedMonteCarloService.runSimulation>>,
+    metric: 'irr' | 'multiple' | 'dpi' | 'tvpi' | 'totalValue'
+  ): DistributionSummary | null {
+    const data = result[metric];
+    if (!data || typeof data !== 'object' || !('statistics' in data) || !('percentiles' in data)) {
+      return null;
+    }
+    const typedData = data as {
+      statistics: { mean: number; standardDeviation: number; min: number; max: number };
+      percentiles: { p5: number; p25: number; p50: number; p75: number; p95: number };
+    };
+    return {
+      mean: typedData.statistics.mean,
+      median: typedData.percentiles.p50,
+      p5: typedData.percentiles.p5,
+      p25: typedData.percentiles.p25,
+      p75: typedData.percentiles.p75,
+      p95: typedData.percentiles.p95,
+      min: typedData.statistics.min,
+      max: typedData.statistics.max,
+      standardDeviation: typedData.statistics.standardDeviation,
     };
   }
 
@@ -645,13 +680,20 @@ export class BacktestingService {
   private async runScenarioComparisons(
     fundId: number,
     scenarios: HistoricalScenarioName[],
-    simulationRuns: number
+    simulationRuns: number,
+    options?: { randomSeed?: number }
   ): Promise<{
     comparisons: ScenarioComparison[];
     failedScenarios: HistoricalScenarioName[];
   }> {
     const comparisons: ScenarioComparison[] = [];
     const failedScenarios: HistoricalScenarioName[] = [];
+
+    // Preserve the existing per-scenario allocation (D-02 - runsPerScenario floor at 1000).
+    const runsPerScenario = Math.max(
+      1000,
+      Math.floor(simulationRuns / Math.max(1, scenarios.length))
+    );
 
     for (const scenarioName of scenarios) {
       if (scenarioName === 'custom') {
@@ -667,74 +709,93 @@ export class BacktestingService {
 
       const marketParams = getScenarioMarketParameters(scenarioName);
 
-      // Run simulation for this scenario
-      const runsPerScenario = Math.max(1000, Math.floor(simulationRuns / scenarios.length));
+      backtestingLog.info(
+        {
+          event: 'backtesting.scenario_comparison.started',
+          fundId,
+          scenario: scenarioName,
+          runs: runsPerScenario,
+          marketParamsSummary: {
+            exitMultiplierMean: marketParams.exitMultiplierMean,
+            failureRate: marketParams.failureRate,
+            holdPeriodYears: marketParams.holdPeriodYears,
+          },
+        },
+        'Running scenario-aware Monte Carlo comparison'
+      );
 
       try {
+        // D-01 + D-02: inject scenario-specific market parameters AND honor a
+        // randomSeed for deterministic truth-case runs. Use the spread pattern
+        // for the optional randomSeed field per REFL-021 (exactOptionalPropertyTypes).
         const result = await unifiedMonteCarloService.runSimulation({
           fundId,
           runs: runsPerScenario,
           timeHorizonYears: 5,
           forceEngine: 'auto',
+          marketParameters: marketParams,
+          ...(options?.randomSeed !== undefined ? { randomSeed: options.randomSeed } : {}),
         });
 
-        // Apply market parameter adjustments to simulated results
-        const adjustedPerformance = this.applyMarketAdjustment(result, marketParams);
+        // D-03: pull SAMPLE percentiles from the scenario-aware run -- no
+        // analytic rescale, no post-hoc adjustment. The helper extracts the
+        // same shape extractSimulationSummary used to compute inline.
+        const sampledPerformance = this.simulationResultToDistributionSummary(result, 'irr');
+        if (!sampledPerformance) {
+          backtestingLog.warn(
+            {
+              event: 'backtesting.scenario_comparison.failed',
+              fundId,
+              scenario: scenarioName,
+              reason: 'irr_distribution_missing',
+            },
+            'Scenario comparison run returned no irr distribution'
+          );
+          failedScenarios.push(scenarioName);
+          continue;
+        }
 
         comparisons.push({
           scenario: scenarioName,
-          simulatedPerformance: adjustedPerformance,
+          simulatedPerformance: sampledPerformance,
           description: scenario.description || `Scenario: ${scenarioName}`,
           keyInsights: this.generateScenarioInsights(
             scenarioName,
-            adjustedPerformance,
+            sampledPerformance,
             marketParams
           ),
           marketParameters: marketParams,
         });
+
+        backtestingLog.info(
+          {
+            event: 'backtesting.scenario_comparison.completed',
+            fundId,
+            scenario: scenarioName,
+            runs: runsPerScenario,
+            irrMean: sampledPerformance.mean,
+            irrP5: sampledPerformance.p5,
+            irrP95: sampledPerformance.p95,
+          },
+          'Scenario-aware Monte Carlo comparison completed'
+        );
       } catch (error) {
-        console.error(`Failed to run scenario comparison for ${scenarioName}:`, error);
+        // D-05: structured Pino log replaces the previous std-err write; preserve
+        // failedScenarios append behavior so callers see the same shape.
+        backtestingLog.warn(
+          {
+            event: 'backtesting.scenario_comparison.failed',
+            fundId,
+            scenario: scenarioName,
+            err: error instanceof Error ? error.message : String(error),
+          },
+          'Scenario comparison run failed'
+        );
         failedScenarios.push(scenarioName);
       }
     }
 
     return { comparisons, failedScenarios };
-  }
-
-  private applyMarketAdjustment(
-    result: Awaited<ReturnType<typeof unifiedMonteCarloService.runSimulation>>,
-    marketParams: MarketParameters
-  ): DistributionSummary {
-    const defaultParams = getDefaultMarketParameters();
-
-    // Get base IRR from result
-    const baseIRR =
-      result.irr && typeof result.irr === 'object' && 'statistics' in result.irr
-        ? (result.irr as { statistics: { mean: number } }).statistics.mean
-        : 0.15;
-
-    // Adjust based on market parameters relative to defaults
-    const exitMultiplierRatio =
-      safeDivide(marketParams.exitMultiplierMean, defaultParams.exitMultiplierMean) ?? 1;
-    const adjustedMean = baseIRR * exitMultiplierRatio;
-
-    // Scale volatility
-    const volatilityRatio =
-      safeDivide(marketParams.exitMultiplierVolatility, defaultParams.exitMultiplierVolatility) ??
-      1;
-    const adjustedStdDev = Math.abs(adjustedMean) * 0.3 * volatilityRatio;
-
-    return {
-      mean: adjustedMean,
-      median: adjustedMean * 0.95,
-      p5: adjustedMean - 1.645 * adjustedStdDev,
-      p25: adjustedMean - 0.675 * adjustedStdDev,
-      p75: adjustedMean + 0.675 * adjustedStdDev,
-      p95: adjustedMean + 1.645 * adjustedStdDev,
-      min: adjustedMean - 2.5 * adjustedStdDev,
-      max: adjustedMean + 2.5 * adjustedStdDev,
-      standardDeviation: adjustedStdDev,
-    };
   }
 
   private generateScenarioInsights(
