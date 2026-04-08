@@ -151,6 +151,6 @@
     "summary": "runScenarioComparisons in backtesting-service.ts exists but does NOT pass marketParams to unifiedMonteCarloService.runSimulation. Instead it runs the default simulation and applies post-hoc ratio scaling via applyMarketAdjustment. This is a fixed-function approximation, not a real per-scenario MC run.",
     "location": "server/services/backtesting-service.ts:645-738",
     "severity": "P1",
-    "actionRequired": "FIXED in Phase 2 (.planning/phases/02-backtesting-scenario-comparison-rewrite-p1) -- runScenarioComparisons now injects scenario-specific marketParameters per scenario via Plan 02-03, applyMarketAdjustment is deleted, and a Phoenix truth case under tests/unit/truth-cases/ validates the rewrite end-to-end. See docs/plans/2026-04-XX-backtesting-scenario-comparison-rewrite.md for the before/after comparison."
+    "actionRequired": "FIXED in Phase 2 (.planning/phases/02-backtesting-scenario-comparison-rewrite-p1) -- runScenarioComparisons now injects scenario-specific marketParameters per scenario via Plan 02-03, applyMarketAdjustment is deleted, and a Phoenix truth case under tests/unit/truth-cases/ validates the rewrite end-to-end. See docs/plans/2026-04-08-backtesting-scenario-comparison-rewrite.md for the before/after comparison."
   }
 }
