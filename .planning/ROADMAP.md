@@ -83,9 +83,9 @@ pass-through. Just verify the suite still exits 0 after the threshold fix.
 
 Plans:
 
-- [ ] 05-01-PLAN.md — Fix trackMemoryUsage bytes-as-duration bug in
+- [x] 05-01-PLAN.md — Fix trackMemoryUsage bytes-as-duration bug in
       server/middleware/performance-monitor.ts (REQ-TEST-02)
-- [ ] 05-02-PLAN.md — Unquarantine tests/integration/fund-idempotency.spec.ts
+- [x] 05-02-PLAN.md — Unquarantine tests/integration/fund-idempotency.spec.ts
       and branch on outcome (REQ-TEST-01)
 
 ### Phase 6: Schema, Docs, and Baseline Drift Cleanup

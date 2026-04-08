@@ -2,14 +2,14 @@
 gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: cleanup-and-decay-reduction
-status: Defining requirements
-last_updated: '2026-04-08T05:30:00.000Z'
+status: Phase 05 Complete
+last_updated: '2026-04-08T07:15:00.000Z'
 progress:
   total_phases: 3
-  completed_phases: 0
-  total_plans: 0
-  completed_plans: 0
-  percent: 0
+  completed_phases: 1
+  total_plans: 2
+  completed_plans: 2
+  percent: 33
 ---
 
 # GSD State — Updog
@@ -22,13 +22,13 @@ See: `.planning/PROJECT.md` (last updated 2026-04-07)
 fund result without leaving the browser, with results that are statistically
 defensible and traceable to the inputs that produced them.
 
-**Current focus:** **Milestone M9 — v1.1 Cleanup and Decay Reduction**, just
-opened 2026-04-08 via `/gsd-new-milestone` after M8 closed clean (all 11 v1
-requirements satisfied; see `MILESTONE_SUMMARY-v1.0.md` for the full M8 record).
-M9 is a 3-phase cleanup milestone: test hygiene resurrection,
-schema/docs/baseline drift cleanup, and bounded debt drawdown of two small lint
-baselines. Phase numbering continues from M8 (5, 6, 7). Status: defining
-requirements complete; ready to discuss/plan Phase 5.
+**Current focus:** **Milestone M9 — v1.1 Cleanup and Decay Reduction**, Phase 5
+shipped 2026-04-08 (REQ-TEST-01 re-quarantined with accurate stale-contract
+comment + FINDINGS.md; REQ-TEST-02 trackMemoryUsage bytes-as-duration bug fixed
+with RED→GREEN TDD regression test). M9 is a 3-phase cleanup milestone: test
+hygiene resurrection, schema/docs/baseline drift cleanup, and bounded debt
+drawdown of two small lint baselines. Phase numbering continues from M8 (5, 6,
+7). Status: Phase 5 complete (2/2 plans), ready to discuss/plan Phase 6.
 
 ## Codebase Reference
 
@@ -174,6 +174,27 @@ canonical record for non-derivable gotchas. Most relevant on `main` right now:
 - Planning Docs Drift From Main
 
 ## Last Updated
+
+2026-04-08 — **Phase 05 (Test Hygiene Resurrection) COMPLETE.** 2/2 plans
+shipped, 6 atomic commits (`f0dda58a` test, `776925b9` fix, `d6984ee6` docs for
+05-01; `6d1874cc` chore, `f137df95` chore, `11ab2971` docs for 05-02). All 3
+roadmap success criteria verified by `gsd-verifier` against live codebase: (1)
+`fund-idempotency.spec.ts` re-quarantined with accurate 2026-04-08
+stale-contract comment + FINDINGS.md documenting three drift categories (unit
+drift on managementFee/carryPercentage, .strict() rejection of
+deployedCapital/status/ termYears, { success, data } response envelope change vs
+flat expectation); cascade fix verified real via 10.62s isolated run on
+ephemeral port 51278 with no hang. (2) `trackMemoryUsage` bytes-as-duration bug
+fixed in `server/middleware/performance-monitor.ts:361` — now passes `0` as
+duration with heap values in metadata (Option A.i); phoenix:truth output has
+zero `memory_simulation_complete.*critical` lines, suite still exits 0 at
+262/262 across 6 test files. (3) `npm run validate:core`, `npm run check`, and
+`scripts/check-orphan-tests.mjs` all exit 0. Regression test at
+`tests/unit/middleware/performance-monitor.test.ts` locks the fix. Key discovery
+during planning: ROADMAP.md Phase 5 section pointed REQ-TEST-02 at the wrong
+file (the truth-case test) — actual bug was in production middleware. Caught by
+orchestrator pre-planning source audit. REFL-038 reserved for future test
+rewrite (>30 min effort, deferred to M9-spillover or v1.2).
 
 2026-04-08 — **Milestone M9 (v1.1 Cleanup and Decay Reduction) OPENED** via
 `/gsd-new-milestone` after M8 closed clean. 3 phases / 7 requirements scoped:
