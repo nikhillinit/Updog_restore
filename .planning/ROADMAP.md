@@ -23,12 +23,12 @@ new orphan tests under disallowed `__tests__/` paths (per the new pre-push
 
 ## Phase Overview
 
-| #   | Phase                                        | Goal                                                                                                                            | Requirements                          | Success Criteria | Touched code paths                                                        |
-| --- | -------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------- | ---------------- | ------------------------------------------------------------------------- |
-| 1   | Variance Automation 1C.3 Follow-Ons          | Execute the three deferred items from the 1C.2 known-tradeoffs list, starting with planner-loop leader election                 | REQ-VAR-01, REQ-VAR-02, REQ-VAR-03    | 4                | `server/services/variance-*`, `server/queues/`, `server/workers/`         |
-| 2   | Backtesting Scenario Comparison Rewrite (P1) | Replace the post-hoc analytic rescaling in `runScenarioComparisons` with a true scenario-aware Monte Carlo re-run               | REQ-BCK-01, REQ-BCK-02, REQ-BCK-03    | 5                | `server/services/backtesting-service.ts`, `.a5c/processes/sensitivity-*`  |
-| 3   | TODO Report Remediation                      | Wire live `_reportsData`, remove `mockVarianceData`, gate the report-restore UI, and execute Workstream B from the strategy doc | REQ-TODO-01, REQ-TODO-02              | 4                | `client/src/pages/reports*`, related variance components                  |
-| 4   | Sensitivity Surface Polish                   | Finish the in-flight one-way / two-way / stress trio: consistent error mapping, integration tests, IA cleanup, REFL capture     | REQ-SENS-01, REQ-SENS-02, REQ-SENS-03 | 4                | `client/src/pages/sensitivity-analysis*`, `server/services/*sensitivity*` |
+| #   | Phase                                        | Goal                                                                                                                          | Requirements                          | Success Criteria | Touched code paths                                                        |
+| --- | -------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------- | ------------------------------------- | ---------------- | ------------------------------------------------------------------------- |
+| 1   | Variance Automation 1C.3 Follow-Ons          | Execute the three deferred items from the 1C.2 known-tradeoffs list, starting with planner-loop leader election               | REQ-VAR-01, REQ-VAR-02, REQ-VAR-03    | 4                | `server/services/variance-*`, `server/queues/`, `server/workers/`         |
+| 2   | Backtesting Scenario Comparison Rewrite (P1) | Replace the post-hoc analytic rescaling in `runScenarioComparisons` with a true scenario-aware Monte Carlo re-run             | REQ-BCK-01, REQ-BCK-02, REQ-BCK-03    | 5                | `server/services/backtesting-service.ts`, `.a5c/processes/sensitivity-*`  |
+| 3   | TODO Report Remediation                      | CLOSED 2026-04-08 via archive — every worktrack from the strategy doc is settled on current main; planning artifacts archived | REQ-TODO-01, REQ-TODO-02              | 1                | `docs/archive/2026-q2/`                                                   |
+| 4   | Sensitivity Surface Polish                   | Finish the in-flight one-way / two-way / stress trio: consistent error mapping, integration tests, IA cleanup, REFL capture   | REQ-SENS-01, REQ-SENS-02, REQ-SENS-03 | 4                | `client/src/pages/sensitivity-analysis*`, `server/services/*sensitivity*` |
 
 ## Phase Details
 
@@ -183,46 +183,69 @@ Plans:
 
 ---
 
-### Phase 3: TODO Report Remediation
+### Phase 3: TODO Report Remediation [CLOSED 2026-04-08 — close-via-archive]
 
-**Goal:** Execute Workstreams A and B from
-`docs/plans/2026-04-05-todo-report-remediation-strategy.md` — wire the live
-report data source, remove the variance mock, gate the restore UI, and complete
-Workstream B.
+**Status:** CLOSED via Plan 03-01 (archive). Every worktrack from the strategy
+doc is already settled on current `main`; there is no executable work left. The
+two stale planning artifacts have been moved to `docs/archive/2026-q2/` and
+active references updated.
+
+**Goal (closed):** Close Phase 3 cleanly without fabricating verification work
+by archiving the two stale planning artifacts
+(`2026-04-05-todo-report-remediation-strategy.md` and
+`todo-report-accuracy-review-2026-04-05.md`), updating active references to
+point at the archived paths, marking REQ-TODO-01 and REQ-TODO-02 satisfied with
+the rationale "Settled on main; planning artifacts archived to
+`docs/archive/2026-q2/`", and running the standard exit gates.
 
 **Requirements:**
 
-- REQ-TODO-01 — Workstream A: wire `_reportsData`, remove `mockVarianceData`,
-  gate restore UI behind a proper feature flag
-- REQ-TODO-02 — Workstream B: confirm scope during `/gsd-discuss-phase 3` and
-  execute
+- REQ-TODO-01 — Settled on main. The mocks/identifiers named in the original
+  requirement (`mockVarianceData`, `_reportsData`, restore UI) do not exist in
+  `client/src` on current `main`. Verified by direct grep on 2026-04-08.
+- REQ-TODO-02 — Settled on main. Workstream B's targeted wording on
+  `client/src/pages/sensitivity-analysis.tsx` (`COMING_SOON_TABS`,
+  `planned but not yet wired`) and `client/src/pages/time-travel.tsx`
+  (`Restore Unavailable`, `versioned restore workflow`) returns zero hits on
+  current `main`. Worktrack C1 — `actual-metrics-calculator.ts` already imports
+  the canonical `xirrNewtonBisection` from `@shared/lib/finance/xirr`;
+  `metrics-aggregator.ts` only carries `targetIRR` config fields, no local IRR
+  algorithm. Worktracks C2 and D were declared "settled-on-main reference lanes"
+  by the strategy doc itself.
 
-**Background:** Workstream A overlaps with the variance 0.P cleanup tail noted
-in `2026-03-31-variance-roadmap-revision.md` lines 27-37. Workstream B's exact
-scope must be re-derived from the 2026-04-05 strategy doc during phase discuss
-because the strategy doc defines two parallel workstreams that may have evolved
-since.
+**Closure path (Plan 03-01):**
 
-**Touchpoints:**
+- `git mv` both docs into `docs/archive/2026-q2/` (history preserved)
+- update active references in `.planning/ROADMAP.md`,
+  `.planning/REQUIREMENTS.md`, `.planning/PROJECT.md`,
+  `docs/STABILIZATION-ROADMAP.md`, `docs/adr/ADR-014-snapshot-governance.md`,
+  and `docs/plans/2026-03-31-variance-roadmap-revision.md`
+- mark REQ-TODO-01 and REQ-TODO-02 as `[x]` in REQUIREMENTS.md
+- run Phase 3 exit gates: `npm run check`, `npm run validate:core`,
+  `npm run phoenix:truth`
 
-- `client/src/pages/reports.tsx` and any sub-pages
-- Variance components that consume `mockVarianceData` (grep in `client/src/`)
-- Feature flag wiring in `client/src/core/flags/unifiedClientFlags.ts`
-- Tests: `tests/unit/pages/reports*.test.tsx`, plus any new tests for the wired
-  data path
+**Touchpoints:** `docs/archive/2026-q2/` (new),
+`docs/plans/2026-03-31-variance-roadmap-revision.md` (link update only),
+`docs/adr/ADR-014-snapshot-governance.md` (link update only),
+`docs/STABILIZATION-ROADMAP.md` (link update only).
 
-**Success criteria (4):**
+**Success criteria (1):**
 
-1. `mockVarianceData` is removed from `client/src/`; grep returns zero hits.
-2. The report surface consumes `_reportsData` end-to-end (with appropriate
-   loading/empty/error states).
-3. The report-restore UI is gated behind a proper feature flag (defaulting to
-   off in production).
-4. Workstream B is executed or explicitly closed with a status note in
-   `STATE.md`. `npm run validate:core` is green.
+1. Both docs archived, all references updated, REQ-TODO-01 and REQ-TODO-02
+   marked complete in REQUIREMENTS.md with rationale, and Phase 3 exit gates
+   green. See `.planning/phases/03-todo-report-remediation/03-01-SUMMARY.md` for
+   the close-out record.
 
-**UI hint:** yes (report surface changes; consider running `/gsd-ui-phase 3` if
-visual contract review is needed)
+**UI hint:** no (documentation-only closure; no UI change)
+
+**Plans:** 1 plan
+
+Plans:
+
+- [x] 03-01-archive-stale-docs-PLAN.md — Archive the two stale TODO report
+      remediation planning docs into `docs/archive/2026-q2/`, update active
+      references, mark REQ-TODO-01 and REQ-TODO-02 satisfied, run Phase 3 exit
+      gates
 
 ---
 

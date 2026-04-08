@@ -57,19 +57,28 @@ Source: `docs/plans/2026-04-07-backtesting-scenario-comparison-correctness.md`
       `docs/plans/2026-04-XX-backtesting-scenario-comparison-rewrite.md` plan
       doc, with before/after percentile comparisons against historical regimes.
 
-### TODO Report Remediation
+### TODO Report Remediation [SETTLED ON MAIN — closed via Phase 3 archive 2026-04-08]
 
-Source: `docs/plans/2026-04-05-todo-report-remediation-strategy.md`
+Source (archived):
+`docs/archive/2026-q2/2026-04-05-todo-report-remediation-strategy.md`
 
-- [ ] **REQ-TODO-01**: Workstream A — wire the live `_reportsData` source,
-      remove the `mockVarianceData` placeholder, and gate the report-restore UI
-      behind the proper feature flag (overlap with the variance 0.P cleanup tail
-      noted in `2026-03-31-variance-roadmap-revision.md`). Acceptance: the
-      report surface no longer references mock variance data; the restore UI is
-      gated; tests for the wired data path exist.
-- [ ] **REQ-TODO-02**: Workstream B — confirm and execute against
-      `2026-04-05-todo-report-remediation-strategy.md` Workstream B (specific
-      scope to be confirmed during phase discuss; read the strategy doc first).
+- [x] **REQ-TODO-01**: Settled on main; planning artifacts archived to
+      `docs/archive/2026-q2/` (Phase 3 close-via-archive 2026-04-08). The
+      mocks/identifiers named in this requirement (`mockVarianceData`,
+      `_reportsData`, restore UI) do not exist in `client/src` on current
+      `main`. Verified by direct grep on 2026-04-08. See
+      `.planning/phases/03-todo-report-remediation/03-CONTEXT.md` D-01 for
+      closure rationale.
+- [x] **REQ-TODO-02**: Settled on main; planning artifacts archived to
+      `docs/archive/2026-q2/` (Phase 3 close-via-archive 2026-04-08). Workstream
+      B's targeted wording on `client/src/pages/sensitivity-analysis.tsx`
+      (`COMING_SOON_TABS`, `planned but not yet wired`) and
+      `client/src/pages/time-travel.tsx` (`Restore Unavailable`,
+      `versioned restore workflow`) returns zero hits on current `main`.
+      Worktracks C2 and D were declared "settled-on-main reference lanes" by the
+      strategy doc itself. See
+      `.planning/phases/03-todo-report-remediation/03-CONTEXT.md` D-01 for
+      closure rationale.
 
 ### Sensitivity Surface Polish
 
@@ -137,19 +146,19 @@ See `PROJECT.md` § Out of Scope for the canonical list. Highlights:
 
 ## Traceability (filled by roadmap)
 
-| REQ-ID      | Phase | Status |
-| ----------- | ----- | ------ |
-| REQ-VAR-01  | 1     | Active |
-| REQ-VAR-02  | 1     | Active |
-| REQ-VAR-03  | 1     | Active |
-| REQ-BCK-01  | 2     | Active |
-| REQ-BCK-02  | 2     | Active |
-| REQ-BCK-03  | 2     | Active |
-| REQ-TODO-01 | 3     | Active |
-| REQ-TODO-02 | 3     | Active |
-| REQ-SENS-01 | 4     | Active |
-| REQ-SENS-02 | 4     | Active |
-| REQ-SENS-03 | 4     | Active |
+| REQ-ID      | Phase | Status                                          |
+| ----------- | ----- | ----------------------------------------------- |
+| REQ-VAR-01  | 1     | Active                                          |
+| REQ-VAR-02  | 1     | Active                                          |
+| REQ-VAR-03  | 1     | Active                                          |
+| REQ-BCK-01  | 2     | Active                                          |
+| REQ-BCK-02  | 2     | Active                                          |
+| REQ-BCK-03  | 2     | Active                                          |
+| REQ-TODO-01 | 3     | Settled on main (closed-via-archive 2026-04-08) |
+| REQ-TODO-02 | 3     | Settled on main (closed-via-archive 2026-04-08) |
+| REQ-SENS-01 | 4     | Active                                          |
+| REQ-SENS-02 | 4     | Active                                          |
+| REQ-SENS-03 | 4     | Active                                          |
 
 100% of v1 requirements mapped to a phase.
 

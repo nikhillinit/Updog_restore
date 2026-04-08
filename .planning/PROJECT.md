@@ -121,11 +121,17 @@ Open backlog from `docs/plans/` (most recent first). Each maps to a phase in
 - [ ] **REQ-BCK-02**: Reclassify `alphaFinding` severity from `informational` to
       its proper P1 tier in
       `.a5c/processes/sensitivity-stress-panel.inputs.json`
-- [ ] **REQ-TODO-01**: Workstream A from
-      `docs/plans/2026-04-05-todo-report-remediation-strategy.md` — wire
-      `_reportsData`, remove `mockVarianceData`, gate restore UI
-- [ ] **REQ-TODO-02**: Workstream B from
-      `docs/plans/2026-04-05-todo-report-remediation-strategy.md`
+- [x] **REQ-TODO-01**: Settled on main; closed via Phase 3 archive 2026-04-08.
+      The mocks/identifiers (`mockVarianceData`, `_reportsData`, restore UI) do
+      not exist in `client/src` on current `main`. Strategy doc archived to
+      `docs/archive/2026-q2/2026-04-05-todo-report-remediation-strategy.md`
+      (settled-on-main; archived 2026-04-08). See
+      `.planning/phases/03-todo-report-remediation/03-CONTEXT.md` D-01.
+- [x] **REQ-TODO-02**: Settled on main; closed via Phase 3 archive 2026-04-08.
+      Workstream B's targeted wording is no longer present on `main`; strategy
+      doc archived to
+      `docs/archive/2026-q2/2026-04-05-todo-report-remediation-strategy.md`
+      (settled-on-main; archived 2026-04-08).
 - [ ] **REQ-SENS-01**: Continue sensitivity surface polish on top of in-flight
       one-way/two-way/stress panels (recent commits `9e134b5f`, `bc592b38`,
       `7633fb51`, `2772dce9`, `e4707353`)
