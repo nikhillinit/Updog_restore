@@ -1,344 +1,226 @@
-# Roadmap — Updog Post-Stabilization (Milestone M8: Post-Stabilization Cleanup)
+# Roadmap — Updog Cleanup and Decay Reduction (Milestone M9 — v1.1)
 
-> **4 phases** | **11 requirements mapped** | All v1 requirements covered ✓
+> **3 phases** | **7 requirements mapped** | All v1.1 requirements covered ✓
 >
-> Generated 2026-04-07 from `REQUIREMENTS.md`. Coarse granularity per
-> `.planning/config.json`. The seven historical stabilization milestones
-> (`M0A`-`M7`) are COMPLETE and tracked in `docs/STABILIZATION-ROADMAP.md`; this
-> roadmap covers the next milestone (`M8`).
+> Generated 2026-04-08 from `REQUIREMENTS.md`. Coarse granularity per
+> `.planning/config.json`. Phase numbering continues from M8 (which used phases
+> 1-4) → M9 starts at phase 5.
 
 ## Milestone Context
 
-**Milestone M8 — Post-Stabilization Cleanup**
+**Milestone M9 — v1.1 Cleanup and Decay Reduction**
 
-Goal: clear the four open backlog streams from `docs/plans/2026-04-*` while
-staying inside the stabilized perimeter. No new product surfaces. No reopening
-of LP/KPI/Compass. Each phase ends with `npm run validate:core` green and
-`npm run phoenix:truth` green where calc paths are touched.
+Goal: pay down accumulated decay (test hygiene, schema/docs drift, lint
+baselines) without adding new product surfaces. M8 closed clean on 2026-04-08
+with all 11 v1 requirements satisfied; M9 keeps the codebase healthy before the
+next feature push.
 
-Exit gate: all 11 v1 REQs validated (moved to `PROJECT.md` § Validated), all
-four phase verifiers passing, no regression in the 374/132 ratchet baselines, no
-new orphan tests under disallowed `__tests__/` paths (per the new pre-push
-`scripts/check-orphan-tests.mjs` hook).
+Exit gate: all 7 v1.1 REQs validated (moved to `PROJECT.md` § Validated), all
+three phase verifiers passing, no regression in `validate:core` /
+`phoenix:truth`, lint baselines reduced as targeted, no new orphan tests.
 
 ## Phase Overview
 
-| #   | Phase                                        | Goal                                                                                                                          | Requirements                          | Success Criteria | Touched code paths                                                        |
-| --- | -------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------- | ------------------------------------- | ---------------- | ------------------------------------------------------------------------- |
-| 1   | Variance Automation 1C.3 Follow-Ons          | Execute the three deferred items from the 1C.2 known-tradeoffs list, starting with planner-loop leader election               | REQ-VAR-01, REQ-VAR-02, REQ-VAR-03    | 4                | `server/services/variance-*`, `server/queues/`, `server/workers/`         |
-| 2   | Backtesting Scenario Comparison Rewrite (P1) | Replace the post-hoc analytic rescaling in `runScenarioComparisons` with a true scenario-aware Monte Carlo re-run             | REQ-BCK-01, REQ-BCK-02, REQ-BCK-03    | 5                | `server/services/backtesting-service.ts`, `.a5c/processes/sensitivity-*`  |
-| 3   | TODO Report Remediation                      | CLOSED 2026-04-08 via archive — every worktrack from the strategy doc is settled on current main; planning artifacts archived | REQ-TODO-01, REQ-TODO-02              | 1                | `docs/archive/2026-q2/`                                                   |
-| 4   | Sensitivity Surface Polish                   | Finish the in-flight one-way / two-way / stress trio: consistent error mapping, integration tests, IA cleanup, REFL capture   | REQ-SENS-01, REQ-SENS-02, REQ-SENS-03 | 4                | `client/src/pages/sensitivity-analysis*`, `server/services/*sensitivity*` |
+| #   | Phase                                    | Goal                                                                                                             | Requirements                             | Success Criteria | Touched code paths                                                                                                             |
+| --- | ---------------------------------------- | ---------------------------------------------------------------------------------------------------------------- | ---------------------------------------- | ---------------- | ------------------------------------------------------------------------------------------------------------------------------ |
+| 5   | Test Hygiene Resurrection                | Re-enable a dormant integration test and silence a misconfigured slow-test threshold warning                     | REQ-TEST-01, REQ-TEST-02                 | 3                | `vitest.config.int.ts`, `tests/integration/fund-idempotency.spec.ts`, `tests/unit/truth-cases/backtesting-scenario.test.ts`    |
+| 6   | Schema, Docs, and Baseline Drift Cleanup | Reconcile `shared/schema.ts` against the live Neon endpoint; fix doc references that lie about reality           | REQ-DRIFT-01, REQ-DRIFT-02, REQ-DRIFT-03 | 4                | `shared/schema.ts`, `server/db/migrations/`, `CLAUDE.md`, `docs/**`, `cheatsheets/**`                                          |
+| 7   | Bounded Debt Drawdown                    | Halve the console and file-level eslint-disable baselines. Explicitly NOT touching the 363 explicit-any baseline | REQ-DEBT-01, REQ-DEBT-02                 | 3                | `server/services/**`, `client/src/**`, `.baselines/console-prod-baseline.json`, `.baselines/eslint-file-disable-baseline.json` |
 
 ## Phase Details
 
-### Phase 1: Variance Automation 1C.3 Follow-Ons
+### Phase 5: Test Hygiene Resurrection
 
-**Goal:** Execute the three deferred items from `1C.2`'s Known Tradeoffs list as
-captured in
-`docs/plans/2026-04-07-phase-1c3-variance-automation-followons-backlog.md`.
-Start with the leader-election item (Item A) — it's the most concrete and most
-operationally visible.
+**Goal:** Re-enable the `fund-idempotency.spec.ts` integration test that was
+disabled with the original REFL-024 cascade comment (no longer applies after the
+global-setup migration), and fix the noisy slow-test threshold warning in the
+backtesting scenario truth-case suite. Both items were deferred from M8 with
+explicit pointers in the M8 summary.
 
 **Requirements:**
 
-- REQ-VAR-01 — Planner-loop leader election (Item A)
-- REQ-VAR-02 — Item B (confirm scope during `/gsd-discuss-phase 1`)
-- REQ-VAR-03 — Item C (confirm scope during `/gsd-discuss-phase 1`)
+- REQ-TEST-01 — Re-enable `tests/integration/fund-idempotency.spec.ts`
+- REQ-TEST-02 — Fix the slow-test threshold warning in
+  `tests/unit/truth-cases/backtesting-scenario.test.ts`
 
-**Background:** `1C.2` shipped in `5c002e3c` (2026-04-02) with hardening
-follow-ups `b8d3bd60`, `c554ddca`, `3e9a360c`. The three deferred items are
-independent and should not be bundled into one PR. Item A is the most likely
-entry point because the trigger condition (multi-instance planner churn) is
-already starting to be visible in the operational signal.
+**Background:** REQ-TEST-01 is a free-win-or-bug-discovery item. The original
+exclusion comment cited REFL-024 (the per-file integration test server spawn
+cascade) which was fixed in 2026-03 by the global-setup migration. Either the
+test now just works, OR it surfaces a real bug that's been hiding for months —
+either outcome is valuable. REQ-TEST-02 is pure cosmetic noise: the test passes
+in well under a second but a misconfigured threshold prints a
+`took 36110552ms (critical)` warning every run, polluting `phoenix:truth`
+output. Plan 02-06 SUMMARY explicitly flagged it as out-of-scope for M8.
 
 **Touchpoints:**
 
-- `server/services/variance-tracking.ts`, `variance-alert-evaluation.ts`,
-  `variance-alert-automation.ts`
-- `server/queues/` (planner enqueue dedupe)
-- `server/workers/` (planner loop entry)
-- New: leader-election primitive (advisory locks vs dedicated table row vs
-  external coordinator — decided in `/gsd-discuss-phase 1`)
-- Tests: `tests/unit/services/variance-*.test.ts`, `tests/integration/`
-  (multi-instance scenarios)
+- `vitest.config.int.ts` — exclude list (remove the `fund-idempotency.spec.ts`
+  entry; verify no other entries are stale)
+- `tests/integration/fund-idempotency.spec.ts` — actual test file (may need
+  small fixes if it surfaces a real failure)
+- `tests/unit/truth-cases/backtesting-scenario.test.ts` — the slow-test
+  threshold setup
+- Tests: the file under test IS the test; no new test files unless a real
+  failure surfaces
 
-**Success criteria (4):**
+**Success criteria (3):**
 
-1. A single elected leader runs the variance planner loop per window; the
-   elected leader is observable via metrics and logs.
-2. Correctness is preserved across leader crash mid-window (verified by an
-   integration test that crashes the leader and asserts the next election picks
-   up cleanly).
-3. `npm run phoenix:truth` and `npm run validate:core` are green.
-4. Items B and C from the 1C.3 backlog are either shipped, explicitly
-   re-deferred to a later milestone with rationale, or split into a follow-on
-   phase.
+1. `tests/integration/fund-idempotency.spec.ts` is no longer in the
+   `vitest.config.int.ts` exclude list and the test file is exercised by
+   `npx vitest run -c vitest.config.int.ts` (visible in the run output).
+2. `npm run phoenix:truth` no longer prints the
+   `memory_simulation_complete took 36110552ms (critical)` warning, and the
+   truth-case suite still exits 0 with 262/262 passing.
+3. `npm run validate:core` is green; no new orphan tests under disallowed
+   `__tests__/` paths.
 
 **UI hint:** no
 
-**Plans:** 5 plans
+**Phoenix-specific:** Phase 5 does not touch calc paths, so `phoenix:truth` is a
+pass-through. Just verify the suite still exits 0 after the threshold fix.
 
-Plans:
+### Phase 6: Schema, Docs, and Baseline Drift Cleanup
 
-- [x] 01-01-leader-table-schema-PLAN.md — Drizzle table, hand-written migration,
-      and db:push for variance_planner_leader
-- [x] 01-02-leader-lease-manager-PLAN.md — Lease manager, planner gate, renewal
-      timer, release-on-stop, getHealth extension, Pino events
-- [x] 01-03-leader-unit-tests-PLAN.md — Unit tests for acquisition, renewal,
-      takeover, demotion, release, D-04 processor regression guard
-- [x] 01-04-leader-integration-test-PLAN.md — Crash-takeover integration test
-      against real Postgres (no child process)
-- [x] 01-05-backlog-doc-and-verification-PLAN.md — Update 1C.3 backlog doc per
-      D-05/D-06/D-07 and run validate:core + phoenix:truth
-
----
-
-### Phase 2: Backtesting Scenario Comparison Rewrite (P1)
-
-**Goal:** Replace the post-hoc analytic rescaling in
-`BacktestingService.runScenarioComparisons` with a true scenario-aware Monte
-Carlo re-run, satisfying the original P0 requirement that was missed in the
-2026-01 integration plan.
+**Goal:** Reconcile `shared/schema.ts` against the live Neon endpoint
+(eliminating the phantom-table landmine surfaced by Plan 01-01), remove
+hardcoded Phoenix truth-case counts from documentation, and update CLAUDE.md
+baseline numbers to match reality.
 
 **Requirements:**
 
-- REQ-BCK-01 — Inject scenario-specific market parameters into the simulation
-  config and re-run the Monte Carlo
-- REQ-BCK-02 — Reclassify `alphaFinding` severity from `informational` to P1 in
-  `.a5c/processes/sensitivity-stress-panel.inputs.json`
-- REQ-BCK-03 — Document the rewrite outcome in a new
-  `docs/plans/2026-04-XX-backtesting-scenario-comparison-rewrite.md`
+- REQ-DRIFT-01 — Reconcile `shared/schema.ts` against live Neon endpoint
+- REQ-DRIFT-02 — Remove hardcoded Phoenix truth-case counts from docs
+- REQ-DRIFT-03 — Update CLAUDE.md baseline numbers (374→39, 132→29, ~400→363)
 
-**Background:** Per
-`docs/plans/2026-04-07-backtesting-scenario-comparison-correctness.md`, the
-current implementation at `server/services/backtesting-service.ts:645-738` runs
-the **default** simulation once and applies a fixed-function
-`applyMarketAdjustment` (rescaled mean + hardcoded volatility coefficient). The
-percentiles surfaced as
-`scenarioComparison.simulatedPerformance.{p5,p25,p50,p75,p95}` are NOT sample
-percentiles — they're an analytic 2-parameter approximation. This is
-statistically incorrect and user-visible (persisted to `backtest_results`,
-served through the API, surfaced in scenario comparison UI).
+**Background:** Plan 01-01 (Phase 1 of M8) discovered that `shared/schema.ts`
+references several tables that do not exist in the live Neon endpoint
+(`scenario_matrices`, `optimization_sessions`, `cohort_definitions`, possibly
+more). Today nothing crashes because no live code path queries them, but the day
+someone writes a feature that does, it explodes at runtime. The user-facing
+symptom Plan 01-01 hit was `npm run db:push` prompting to rename
+`drizzle_migrations` into `cohort_definitions` — destructive if answered wrong.
+Phase 6 makes a per-table decision for each phantom and stops the landmine from
+being live. The doc-drift items (REQ-DRIFT-02 and REQ-DRIFT-03) ride along
+because they share the same surface and are cheap.
 
 **Touchpoints:**
 
-- `server/services/backtesting-service.ts:645-738` — `runScenarioComparisons`
-  and `applyMarketAdjustment`
-- `server/services/backtesting-service.ts:240-246` — public
-  `compareScenariosDetailed` wrapper
-- `server/services/monte-carlo-service-unified.ts` — must accept
-  scenario-specific market parameter overrides
-- `convertToBacktestResult` and `/api/backtesting/*` route surface
-- `.a5c/processes/sensitivity-stress-panel.inputs.json` — severity
-  reclassification
-- Tests: new truth case for at least one historical market regime; existing
-  `tests/integration/backtesting-api.test.ts`
-
-**Success criteria (5):**
-
-1. `runScenarioComparisons` injects scenario-specific market parameters into the
-   simulation config and re-runs the Monte Carlo for each scenario (no
-   `applyMarketAdjustment` post-hoc rescaling).
-2. The persisted `scenarioComparison.simulatedPerformance.{p5,p25,p50,p75,p95}`
-   values are sample percentiles from the scenario-aware run.
-3. A new truth case under `tests/unit/truth-cases/` covers at least one
-   historical market regime end-to-end and passes.
-4. `alphaFinding` severity in
-   `.a5c/processes/sensitivity-stress-panel.inputs.json` is reclassified to P1.
-5. A new plan doc
-   `docs/plans/2026-04-XX-backtesting-scenario-comparison-rewrite.md` exists
-   with before/after percentile comparisons and a clear "this satisfies the
-   2026-01 P0 requirement" note. `npm run phoenix:truth` and
-   `npm run validate:core` are green.
-
-**UI hint:** no (server-side correctness only; the scenario comparison UI should
-re-render automatically with corrected data)
-
-**Phoenix-specific:** Phoenix truth cases must pass before merging. Spawn
-`phoenix-precision-guardian` for review of the rewrite. Spawn
-`phoenix-truth-case-runner` to validate.
-
-**Plans:** 6 plans
-
-Plans:
-
-- [x] 02-01-baseline-capture-PLAN.md — Capture analytic-rescale baseline
-      percentiles for the GFC scenario before the rewrite removes the analytic
-      code path
-- [x] 02-02-engine-market-params-override-PLAN.md — Add
-      SimulationConfig.marketParameters override and wire calibrateDistributions
-      consumption in both Monte Carlo engines
-- [x] 02-03-runscenariocomparisons-rewrite-PLAN.md — Rewrite
-      runScenarioComparisons to inject per-scenario marketParameters, delete
-      applyMarketAdjustment, replace console.error with Pino structured logs
-- [x] 02-04-severity-reclassification-PLAN.md — Reclassify alphaFinding severity
-      from informational to P1 in
-      .a5c/processes/sensitivity-stress-panel.inputs.json
-- [x] 02-05-phoenix-truth-case-PLAN.md — Add Phoenix truth case for 2008 GFC
-      scenario with fixed randomSeed and snapshot-locked sample percentiles
-- [x] 02-06-plan-doc-and-verification-PLAN.md — Author
-      docs/plans/2026-04-XX-backtesting-scenario-comparison-rewrite.md with
-      before/after table and live verification gate counts
-
----
-
-### Phase 3: TODO Report Remediation [CLOSED 2026-04-08 — close-via-archive]
-
-**Status:** CLOSED via Plan 03-01 (archive). Every worktrack from the strategy
-doc is already settled on current `main`; there is no executable work left. The
-two stale planning artifacts have been moved to `docs/archive/2026-q2/` and
-active references updated.
-
-**Goal (closed):** Close Phase 3 cleanly without fabricating verification work
-by archiving the two stale planning artifacts
-(`2026-04-05-todo-report-remediation-strategy.md` and
-`todo-report-accuracy-review-2026-04-05.md`), updating active references to
-point at the archived paths, marking REQ-TODO-01 and REQ-TODO-02 satisfied with
-the rationale "Settled on main; planning artifacts archived to
-`docs/archive/2026-q2/`", and running the standard exit gates.
-
-**Requirements:**
-
-- REQ-TODO-01 — Settled on main. The mocks/identifiers named in the original
-  requirement (`mockVarianceData`, `_reportsData`, restore UI) do not exist in
-  `client/src` on current `main`. Verified by direct grep on 2026-04-08.
-- REQ-TODO-02 — Settled on main. Workstream B's targeted wording on
-  `client/src/pages/sensitivity-analysis.tsx` (`COMING_SOON_TABS`,
-  `planned but not yet wired`) and `client/src/pages/time-travel.tsx`
-  (`Restore Unavailable`, `versioned restore workflow`) returns zero hits on
-  current `main`. Worktrack C1 — `actual-metrics-calculator.ts` already imports
-  the canonical `xirrNewtonBisection` from `@shared/lib/finance/xirr`;
-  `metrics-aggregator.ts` only carries `targetIRR` config fields, no local IRR
-  algorithm. Worktracks C2 and D were declared "settled-on-main reference lanes"
-  by the strategy doc itself.
-
-**Closure path (Plan 03-01):**
-
-- `git mv` both docs into `docs/archive/2026-q2/` (history preserved)
-- update active references in `.planning/ROADMAP.md`,
-  `.planning/REQUIREMENTS.md`, `.planning/PROJECT.md`,
-  `docs/STABILIZATION-ROADMAP.md`, `docs/adr/ADR-014-snapshot-governance.md`,
-  and `docs/plans/2026-03-31-variance-roadmap-revision.md`
-- mark REQ-TODO-01 and REQ-TODO-02 as `[x]` in REQUIREMENTS.md
-- run Phase 3 exit gates: `npm run check`, `npm run validate:core`,
-  `npm run phoenix:truth`
-
-**Touchpoints:** `docs/archive/2026-q2/` (new),
-`docs/plans/2026-03-31-variance-roadmap-revision.md` (link update only),
-`docs/adr/ADR-014-snapshot-governance.md` (link update only),
-`docs/STABILIZATION-ROADMAP.md` (link update only).
-
-**Success criteria (1):**
-
-1. Both docs archived, all references updated, REQ-TODO-01 and REQ-TODO-02
-   marked complete in REQUIREMENTS.md with rationale, and Phase 3 exit gates
-   green. See `.planning/phases/03-todo-report-remediation/03-01-SUMMARY.md` for
-   the close-out record.
-
-**UI hint:** no (documentation-only closure; no UI change)
-
-**Plans:** 1 plan
-
-Plans:
-
-- [x] 03-01-archive-stale-docs-PLAN.md — Archive the two stale TODO report
-      remediation planning docs into `docs/archive/2026-q2/`, update active
-      references, mark REQ-TODO-01 and REQ-TODO-02 satisfied, run Phase 3 exit
-      gates
-
----
-
-### Phase 4: Sensitivity Surface Polish
-
-**Goal:** Finalize the sensitivity analysis surface trio (one-way / two-way /
-stress) that landed across the recent commit burst (`9e134b5f`, `bc592b38`,
-`7633fb51`, `2772dce9`, `e4707353`, `3a6fe301`). Make the three panels
-consistent, add integration test coverage, and capture any new patterns into a
-REFL.
-
-**Requirements:**
-
-- REQ-SENS-01 — Consistent error status mapping across the three engines;
-  consistent loading/empty/error UI across the three panels; integration tests
-  for the routes
-- REQ-SENS-02 — IA/navigation cleanup verified; no orphan pages
-- REQ-SENS-03 — Capture new patterns as a REFL or cheatsheet update (REFL-033 is
-  already this surface — extend or add a sibling)
-
-**Background:** This work is already in flight via direct commits over the last
-week. This phase formalizes what's left: polish, tests, and learnings capture.
-Phase 4 is intentionally last because it depends on the other three having
-validated the planning workflow first; it's also the lowest-risk phase, so if
-anything goes wrong with the workflow, this is where we get the cheapest signal.
-
-**Touchpoints:**
-
-- `client/src/pages/sensitivity-analysis.tsx` and panel components
-  (`OneWayPanel`, `TwoWayPanel`, `StressPanel`)
-- `server/services/{one-way-sensitivity-engine,two-way-sensitivity-engine,stress-test-engine,sensitivity-run-service}.ts`
-- `server/routes/sensitivity.ts`
-- Tests: new `tests/integration/sensitivity-routes.test.ts` if missing; new
-  component tests under `tests/unit/components/sensitivity*`
-- `docs/skills/REFL-033-*.md` and possibly REFL-036+ if new patterns emerge
+- `shared/schema.ts` — phantom table definitions (delete or keep)
+- `server/db/migrations/` — possibly new hand-written migration if any phantom
+  table is decided to live in the live DB
+- `shared/schema-lp-reporting.ts`, `shared/schema-lp-sprint3.ts` — sibling
+  schema files; verify no phantoms live there too
+- `CLAUDE.md` — three numbers to update (console / eslint-disable / any)
+- `docs/**`, `cheatsheets/**`, `README*`, `.planning/codebase/**` — grep for
+  hardcoded `\d+/\d+` truth-case counts and replace with live-command pointer
+- Tests: any test that currently relies on a phantom table existing (planner
+  verifies via grep before touching the schema)
 
 **Success criteria (4):**
 
-1. The three sensitivity engines map errors to HTTP status codes consistently
-   (verified by a single shared mapping helper or three duplicate-but-aligned
-   blocks).
-2. The three panels share polish: consistent loading skeletons, consistent empty
-   states, consistent error messaging copy.
-3. Integration tests cover all three sensitivity routes (one-way, two-way,
-   stress) including at least one error path each.
-4. Any new pattern from the surface (e.g., engine error remap, panel state
-   machine) is captured in a REFL or extends REFL-033. `npm run validate:core`
-   is green and no new orphan tests are added under disallowed `__tests__/`
-   paths (per the `scripts/check-orphan-tests.mjs` pre-push hook).
+1. A schema-introspection pass against the live Neon endpoint reports zero
+   unexpected creates AND zero rename prompts. No phantom tables remain in
+   `shared/schema.ts` (or all phantoms have a corresponding live-DB migration).
+2. A grep for hardcoded Phoenix truth-case counts (regex `\d+/\d+ truth`,
+   `phoenix.*\d{2,3}/\d{2,3}`, etc.) returns only deliberate references to the
+   live command output, not committed numbers.
+3. CLAUDE.md baseline section reflects the actual numbers from
+   `.baselines/console-prod-baseline.json` (39),
+   `.baselines/eslint-file-disable-baseline.json` (29), and the current
+   explicit-`any` count (363 per `.baselines/eslint-output.json`).
+4. `npm run check` exits 0; `npm run validate:core` exits 0;
+   `npm run phoenix:truth` stays at 262/262 (or whatever the live count is on
+   the day Phase 6 lands).
 
-**UI hint:** yes (sensitivity panels; `/gsd-ui-phase 4` may be useful if the
-polish work needs a visual contract)
+**UI hint:** no
+
+**Phoenix-specific:** Phase 6 does not touch calc paths but it DOES touch
+`shared/schema.ts`, which is a Drizzle source-of-truth file. Run `phoenix:truth`
+after schema changes as a regression check, even though calc paths shouldn't be
+affected.
+
+### Phase 7: Bounded Debt Drawdown
+
+**Goal:** Halve the two smaller lint baselines (console: 39 → ≤19, file-level
+eslint-disable: 29 → ≤14). Explicitly NOT touching the 363 explicit-`any`
+baseline — that is its own milestone-sized fight.
+
+**Requirements:**
+
+- REQ-DEBT-01 — Halve the console baseline (39 → ≤19)
+- REQ-DEBT-02 — Halve the file-level eslint-disable baseline (29 → ≤14)
+
+**Background:** Phase 7 is intentionally last because it is the most expandable
+and the lowest-risk. If Phases 5 and 6 ate more than expected, we can shrink
+Phase 7's targets without losing anything. If they left time on the table, Phase
+7 absorbs it cleanly (e.g., go past the halve target). The baselines are smaller
+than CLAUDE.md claimed (Phase 6 fixes the doc); the real numbers make halving
+them a single-day exercise.
+
+**Touchpoints:**
+
+- `server/services/**` — primary console.log location
+- `client/src/**` — primary file-level eslint-disable location
+- `.baselines/console-prod-baseline.json` — regenerated at end of phase
+- `.baselines/eslint-file-disable-baseline.json` — regenerated at end of phase
+- Pino logger: `server/lib/logger.ts` (or wherever the project's child-logger
+  factory lives) — used as the replacement for console.log in server code
+
+**Success criteria (3):**
+
+1. `node -e "console.log(require('./.baselines/console-prod-baseline.json').total)"`
+   prints a number ≤19 (down from 39), and the regenerated baseline is
+   committed.
+2. `node -e "console.log(require('./.baselines/eslint-file-disable-baseline.json').total)"`
+   prints a number ≤14 (down from 29), and the regenerated baseline is
+   committed.
+3. `npm run validate:core` exits 0; `npm run lint` exits clean; the 363
+   explicit-`any` baseline is **unchanged** (verified by an explicit read of the
+   eslint output before/after).
+
+**UI hint:** no
+
+**Phoenix-specific:** Phase 7 does not touch calc paths (server/services
+includes some calc-adjacent code, but the console replacements are
+log-statement-level, not algorithm-level). Run `phoenix:truth` as a pass-through
+verification.
 
 ---
 
 ## Coverage Validation
 
-| REQ-ID      | Phase | Validated |
-| ----------- | ----- | --------- |
-| REQ-VAR-01  | 1     | ✓         |
-| REQ-VAR-02  | 1     | ✓         |
-| REQ-VAR-03  | 1     | ✓         |
-| REQ-BCK-01  | 2     | ✓         |
-| REQ-BCK-02  | 2     | ✓         |
-| REQ-BCK-03  | 2     | ✓         |
-| REQ-TODO-01 | 3     | ✓         |
-| REQ-TODO-02 | 3     | ✓         |
-| REQ-SENS-01 | 4     | ✓         |
-| REQ-SENS-02 | 4     | ✓         |
-| REQ-SENS-03 | 4     | ✓         |
+| REQ-ID       | Phase | Validated |
+| ------------ | ----- | --------- |
+| REQ-TEST-01  | 5     | ✓         |
+| REQ-TEST-02  | 5     | ✓         |
+| REQ-DRIFT-01 | 6     | ✓         |
+| REQ-DRIFT-02 | 6     | ✓         |
+| REQ-DRIFT-03 | 6     | ✓         |
+| REQ-DEBT-01  | 7     | ✓         |
+| REQ-DEBT-02  | 7     | ✓         |
 
-**Coverage: 11/11 v1 requirements mapped to a phase.**
+**Coverage: 7/7 v1.1 requirements mapped to a phase.**
 
 ## Phase Sequencing Rationale
 
-1. **Phase 1 first (Variance):** Operationally visible, well-scoped, and the
-   deferred items have clear acceptance criteria from the 1C.2 plan. Gives GSD a
-   clean win on a familiar surface.
-2. **Phase 2 second (Backtesting P1):** Highest-impact correctness fix. Phoenix
-   truth cases provide a strong gate. Doing this second (not first) lets Phase 1
-   prove the GSD workflow on a less-risky change before the calc-path rewrite.
-3. **Phase 3 third (TODO Reports):** Frontend cleanup with light backend
-   touchpoints. Lower risk. Workstream B's scope ambiguity benefits from running
-   after the workflow is proven.
-4. **Phase 4 last (Sensitivity Polish):** Already in-flight; this phase
-   formalizes the tail. Lowest risk. If GSD itself has bugs, we discover them on
-   the safest phase.
+1. **Phase 5 first (Test Hygiene):** If the dormant test surfaces a real bug,
+   that may dictate Phase 6 priorities (e.g., if the bug is in a schema-touching
+   path, the schema reconciliation might need to handle it). Doing this first
+   gives Phase 6 the most up-to-date context.
+2. **Phase 6 second (Drift Cleanup):** Highest-risk phase (touches
+   `shared/schema.ts` which can have ripple effects). Doing it second lets Phase
+   5 prove the workflow on a less-risky change first. Also, the CLAUDE.md
+   baseline update in REQ-DRIFT-03 unblocks Phase 7 by giving it the correct
+   starting numbers.
+3. **Phase 7 last (Debt Drawdown):** Most expandable, lowest-risk. If the first
+   two phases ate more than expected, Phase 7's targets can shrink without
+   losing milestone scope. If time is left over, Phase 7 absorbs it cleanly by
+   going past the halve target.
 
-Each phase ends with `npm run validate:core` and (where applicable)
-`npm run phoenix:truth` green. No phase reopens an archived surface.
+Each phase ends with `npm run validate:core` green. Phases 5-6 explicitly re-run
+`npm run phoenix:truth` even though they don't touch calc paths.
 
 ---
 
-_Generated 2026-04-07 by `/gsd-new-project` brownfield onboarding. Run
-`/gsd-discuss-phase 1` to begin Phase 1, or `/gsd-plan-phase 1` to skip
-discussion._
+_Generated 2026-04-08 by `/gsd-new-milestone`. Run `/gsd-discuss-phase 5` to
+begin Phase 5, or `/gsd-plan-phase 5` to skip discussion._
