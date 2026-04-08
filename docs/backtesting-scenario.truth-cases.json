@@ -1,0 +1,26 @@
+[
+  {
+    "id": "backtesting-scenario-01-financial-crisis-2008",
+    "scenario": "financial_crisis_2008",
+    "tags": ["backtesting", "monte-carlo", "scenario-comparison", "phase-2"],
+    "notes": "Phase 2 D-09 truth case: 2008 Global Financial Crisis scenario validation. Pins forceEngine to traditional via NODE_ENV=test (RESEARCH Pitfall #1: streaming engine patches Math.random globally and is non-deterministic) and uses randomSeed 12345 for determinism. Snapshot-locked on first green run with the Plan 02-02 option (a) failureRate translation (irr.mean scaled by 1 - failureRate). Tolerances are 4 decimals (RESEARCH Q12 recommendation). Re-locking these numbers requires re-running this test with the SNAPSHOT_CAPTURE block re-enabled (see backtesting-scenario.test.ts).",
+    "input": {
+      "fundId": 1,
+      "scenarios": ["financial_crisis_2008"],
+      "simulationRuns": 1000,
+      "options": { "randomSeed": 12345 }
+    },
+    "expected": {
+      "scenario": "financial_crisis_2008",
+      "simulatedPerformance": {
+        "mean": 0.08086158888888005,
+        "p5": -0.0530794158687712,
+        "p25": 0.029315112985174738,
+        "median": 0.08226558113635811,
+        "p75": 0.1342445708700794,
+        "p95": 0.21076219337864854
+      }
+    },
+    "category": "scenario-aware-monte-carlo"
+  }
+]
