@@ -3,13 +3,13 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: in_progress
-last_updated: '2026-04-08T00:33:15.638Z'
+last_updated: '2026-04-08T00:50:41.011Z'
 progress:
   total_phases: 4
-  completed_phases: 1
+  completed_phases: 2
   total_plans: 11
-  completed_plans: 10
-  percent: 91
+  completed_plans: 11
+  percent: 100
 ---
 
 # GSD State — Updog
@@ -22,19 +22,25 @@ See: `.planning/PROJECT.md` (last updated 2026-04-07)
 fund result without leaving the browser, with results that are statistically
 defensible and traceable to the inputs that produced them.
 
-**Current focus:** Phase 02 — backtesting-scenario-comparison-rewrite-p1
-(BacktestingService.runScenarioComparisons rewrite). Phase 01 (variance
-automation 1C.3 follow-ons) is COMPLETE. Plans 02-01 (baseline capture), 02-02
-(engine marketParameters override), 02-04 (severity reclassification), and 02-03
-(runScenarioComparisons rewrite) are COMPLETE. Plan 02-03 (landed 2026-04-08 at
-8f1d0cce) replaced the analytic 2-parameter rescale with true per-scenario MC
-runs injecting marketParameters via the Plan 02-02 seam; scenario
-simulatedPerformance is now sample percentiles from the scenario-aware run;
-applyMarketAdjustment is deleted; console.error replaced with three Pino
-structured events (backtesting.scenario_comparison.{started,completed,failed}).
-REQ-BCK-01 is satisfied. Phoenix truth holds at 258/258. Remaining: Plan 02-05
-(new GFC truth case consuming the optional randomSeed plumbing) and Plan 02-06
-(plan-doc + before/after verification).
+**Current focus:** Phase 03 — TODO Report Remediation (next phase per ROADMAP).
+Phase 01 (variance automation 1C.3 follow-ons) and Phase 02
+(backtesting-scenario-comparison-rewrite-p1) are both COMPLETE. Phase 02 closed
+2026-04-08 at `e704f56a` after Plan 02-06 authored
+`docs/plans/2026-04-08-backtesting-scenario-comparison-rewrite.md` and ran the
+exit gates: `npm run phoenix:truth` 262/262 across 6 files (was 258/258 across 5
+files pre-Phase 2; Plan 02-05 added the GFC truth case suite),
+`npm run validate:core` exit 0. All three REQ-BCK-\* requirements satisfied. The
+rewrite replaced the analytic 2-parameter rescale in
+`BacktestingService.runScenarioComparisons` with true per-scenario MC runs
+injecting `marketParameters` via the new `SimulationConfig.marketParameters?`
+seam; `applyMarketAdjustment` is deleted; sample percentiles are read from
+`result.irr.percentiles`; three Pino structured events
+(`backtesting.scenario_comparison.{started,completed,failed}`) replace the prior
+`console.error`; the GFC truth case is snapshot-locked at `randomSeed: 12345`
+with the option (a) failureRate translation. The plan doc surfaces the
+gitignored `.a5c/processes/sensitivity-stress-panel.inputs.json` planning defect
+with three resolution paths for the user to decide at phase close. Phase 03 is
+unblocked.
 
 ## Codebase Reference
 
@@ -84,34 +90,16 @@ quality workflow (research + plan-check + verifier all enabled),
 
 ## Active Phase
 
-**Phase 1 — Variance Automation 1C.3 Follow-Ons** (context gathered 2026-04-07,
-ready for `/gsd-plan-phase 1`)
+**Phase 03 — TODO Report Remediation** (next phase per ROADMAP after Phase 02
+closure 2026-04-08).
 
-Context file:
-`.planning/phases/01-variance-automation-1c3-followons/01-CONTEXT.md`
+Phases 01 and 02 are COMPLETE. Phase 02 closed at commit `e704f56a` with the
+Phase 2 plan doc at
+`docs/plans/2026-04-08-backtesting-scenario-comparison-rewrite.md`. Both Phase 2
+exit gates green: `npm run phoenix:truth` 262/262, `npm run validate:core`
+exit 0. All three REQ-BCK-\* requirements satisfied.
 
-Source plan:
-`docs/plans/2026-04-07-phase-1c3-variance-automation-followons-backlog.md`
-
-Read first: parent plan
-`docs/plans/2026-04-02-phase-1c2-alert-scheduling-and-remaining-capital-plan.md`
-(Known Tradeoffs section), to understand why each item was deferred from 1C.2.
-
-**Key decisions from `/gsd-discuss-phase 1` (2026-04-07):**
-
-- Item A (leader election) ships; Items B and C re-deferred with updated
-  triggers
-
-- Heartbeat table row (`variance_planner_leader`), not advisory locks (Neon
-  PgBouncer transaction-mode incompatible) and not Redis (split-brain risk)
-
-- Lease 10 min / renewal 2.5 min, env-tunable
-- Single global leader across hourly/daily/weekly
-- Leader gates `runPlannerCycle()` only; processor and recovery sweep keep
-  running on every instance for resilience
-
-- Crash test uses lease-expiry simulation, not child-process spawning (REFL-024
-  cascade-failure lesson)
+To start Phase 03, run `/gsd-discuss-phase 3` or `/gsd-plan-phase 3`.
 
 ## Authoritative Documents
 
@@ -194,10 +182,21 @@ canonical record for non-derivable gotchas. Most relevant on `main` right now:
 
 ## Last Updated
 
+2026-04-08 — **Phase 02 CLOSED** at commit `e704f56a` after Plan 02-06 authored
+`docs/plans/2026-04-08-backtesting-scenario-comparison-rewrite.md` and ran the
+Phase 2 exit gates: `npm run phoenix:truth` 262/262 across 6 test files (was
+258/258 across 5 files pre-Phase 2; Plan 02-05 added the GFC truth case suite),
+`npm run validate:core` exit 0 (type check baseline 0 errors,
+wizard-to-results-e2e integration test 1/1, lint:phase4:strict --max-warnings 0
+green, worker warnings 41 <= baseline 55). All three REQ-BCK-\*\* requirements
+satisfied. Plan doc surfaces the gitignored
+`.a5c/processes/sensitivity-stress-panel.inputs.json` planning defect with three
+resolution paths for the user to pick. Next phase per ROADMAP: Phase 03 (TODO
+Report Remediation).
+
 2026-04-08 — Plan 02-03 (runScenarioComparisons rewrite) landed at `8f1d0cce`.
 Phoenix truth 258/258, type check clean, 21/21 unit tests + 25/25 integration
-tests passing. REQ-BCK-01 marked complete in REQUIREMENTS.md. Remaining Phase 2
-work: Plans 02-05 (GFC truth case) and 02-06 (plan doc + verification).
+tests passing. REQ-BCK-01 marked complete in REQUIREMENTS.md.
 
 2026-04-07 — initialized via `/gsd-new-project` brownfield onboarding (option 1:
 onboard onto existing codebase).
