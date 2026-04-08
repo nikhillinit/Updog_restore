@@ -1,168 +1,159 @@
-# Requirements — Updog Post-Stabilization Backlog
+# Requirements — Updog Cleanup and Decay Reduction (M9 — v1.1)
 
-> **Scope:** This document lists the **active** requirements (the open backlog
-> GSD will plan and execute), **validated** requirements (already shipped on
-> `main`), and explicit **out of scope** items.
+> **Scope:** This document lists the **active** v1 requirements for the current
+> milestone (M9 — v1.1 Cleanup and Decay Reduction). Validated requirements from
+> prior milestones (including M8) live in `PROJECT.md` § Validated for
+> institutional memory.
 >
-> Validated requirements live in `PROJECT.md` for institutional memory. This
-> file is the GSD-managed working set, with REQ-IDs that the roadmap maps to
-> phases.
->
-> Generated 2026-04-07 from `docs/plans/2026-04-*` and
-> `docs/STABILIZATION-ROADMAP.md`.
+> Generated 2026-04-08 by `/gsd-new-milestone` after M8 closed.
 
-## v1 Requirements (active backlog)
+## v1.1 Requirements (M9 active backlog)
 
-### Variance Automation (1C.3 follow-ons)
+### Test Hygiene Resurrection
 
-Source:
-`docs/plans/2026-04-07-phase-1c3-variance-automation-followons-backlog.md`
+Source: M8 leftovers and discovery during the M9 milestone-summary pass.
 
-- [ ] **REQ-VAR-01**: Implement planner-loop leader election so multi-instance
-      variance planners do not duplicate work. Currently the
-      `job_outbox.dedupe_key` unique index plus atomic claim protocol prevent
-      correctness bugs, but multiple processors still wake up and attempt the
-      same work — wasteful and visible in logs once instance count grows.
-      Acceptance: a single elected leader runs the planner loop per window;
-      correctness is preserved across leader crashes; observable
-      health/transitions.
-- [x] **REQ-VAR-02**: Resolve 1C.2 deferred Item B from the variance automation
-      follow-ons backlog (specific scope to be confirmed during
-      `/gsd-discuss-phase` for Phase 1 — read parent doc Items B/C before
-      planning).
-- [x] **REQ-VAR-03**: Resolve 1C.2 deferred Item C from the variance automation
-      follow-ons backlog (same — confirm during phase discuss).
+- [ ] **REQ-TEST-01**: Re-enable `tests/integration/fund-idempotency.spec.ts`.
+      Currently in `vitest.config.int.ts` exclude list with the original
+      cascade-failure comment that no longer applies. The cascade was fixed by
+      the global-setup migration months ago (REFL-024); the exclusion is dead
+      weight. Acceptance: the file is removed from the exclude list, the test
+      runs in the integration suite, and either it passes (free win) or any
+      failure is diagnosed and either fixed or re-excluded with a NEW comment
+      that describes the actual current failure mode (not the stale REFL-024
+      reference).
 
-### Backtesting Correctness (P1 debt)
+- [ ] **REQ-TEST-02**: Fix the slow-test threshold warning in
+      `tests/unit/truth-cases/backtesting-scenario.test.ts`. The
+      `memory_simulation_complete took 36110552ms (critical)` warning is a
+      misconfigured threshold; the test passes in well under a second.
+      Documented as out-of-scope for Phase 2 in `02-06-SUMMARY.md` § "Issues
+      Encountered". Acceptance: the warning no longer prints during
+      `npm run phoenix:truth`, the threshold reflects actual measured runtime +
+      reasonable headroom, and the truth-case suite still exits 0.
 
-Source: `docs/plans/2026-04-07-backtesting-scenario-comparison-correctness.md`
+### Schema, Docs, and Baseline Drift Cleanup
 
-- [x] **REQ-BCK-01**: Rewrite `BacktestingService.runScenarioComparisons`
-      (`server/services/backtesting-service.ts:645-738`) so each scenario
-      injects scenario-specific market parameters into the simulation config and
-      re-runs the Monte Carlo, instead of running the default simulation once
-      and applying `applyMarketAdjustment` post-hoc. The persisted percentiles
-      surfaced as `scenarioComparison.simulatedPerformance.{p5,p25,p50,p75,p95}`
-      must be **sample percentiles from a scenario-aware run**, not a
-      2-parameter analytic approximation. Acceptance: the original P0
-      requirement from
-      `docs/archive/plans/2026-01-04-monte-carlo-backtesting-integration.md:69`
-      is satisfied; truth case for at least one historical market regime passes;
-      persisted output is statistically defensible.
-- [x] **REQ-BCK-02**: Reclassify the `alphaFinding` severity in
-      `.a5c/processes/sensitivity-stress-panel.inputs.json` from `informational`
-      to its proper P1 tier so the finding can no longer be triaged into the
-      wrong queue.
-- [x] **REQ-BCK-03**: Document the rewrite outcome in a new
-      `docs/plans/2026-04-XX-backtesting-scenario-comparison-rewrite.md` plan
-      doc, with before/after percentile comparisons against historical regimes.
+Source: Plan 01-01 SUMMARY follow-up flag, M8 milestone summary discovery, and a
+baseline mismatch surfaced while scoping this milestone.
 
-### TODO Report Remediation [SETTLED ON MAIN — closed via Phase 3 archive 2026-04-08]
+- [ ] **REQ-DRIFT-01**: Reconcile `shared/schema.ts` against the live Neon
+      endpoint. Plan 01-01 surfaced this when `npm run db:push` prompted to
+      rename `drizzle_migrations` into `cohort_definitions` — symptom of the
+      schema referencing tables that do not exist in the live DB. Per-table
+      decision required for each phantom table (`scenario_matrices`,
+      `optimization_sessions`, `cohort_definitions`, plus any others surfaced by
+      a fresh `db:push --dry-run`-style pass). Each phantom table is resolved by
+      ONE of: (a) create the table in the live DB via a new hand-written
+      migration; (b) delete from `shared/schema.ts` if no code references it;
+      (c) gate behind a feature flag if it's planned for a future phase.
+      Acceptance: a follow-up `db:push --dry-run` (or equivalent schema
+      introspection) reports zero unexpected creates AND zero rename prompts;
+      `npm run check` stays at 0 errors; no runtime regressions.
 
-Source (archived):
-`docs/archive/2026-q2/2026-04-05-todo-report-remediation-strategy.md`
+- [ ] **REQ-DRIFT-02**: Remove hardcoded Phoenix truth case counts from docs;
+      replace with pointers to `npm run phoenix:truth` for the live count. Two
+      historical snapshots disagree (118/118 vs 107/107 vs the current 262/262);
+      CLAUDE.md memory note "Phoenix truth case count is in drift" already warns
+      against quoting numbers from docs. Acceptance: a grep for hardcoded
+      `\d+/\d+` truth-case counts across `docs/`, `cheatsheets/`, `README*`, and
+      `CLAUDE.md` returns only the live-command pointer (or the count is
+      captured in a generated file that the live command refreshes).
 
-- [x] **REQ-TODO-01**: Settled on main; planning artifacts archived to
-      `docs/archive/2026-q2/` (Phase 3 close-via-archive 2026-04-08). The
-      mocks/identifiers named in this requirement (`mockVarianceData`,
-      `_reportsData`, restore UI) do not exist in `client/src` on current
-      `main`. Verified by direct grep on 2026-04-08. See
-      `.planning/phases/03-todo-report-remediation/03-CONTEXT.md` D-01 for
-      closure rationale.
-- [x] **REQ-TODO-02**: Settled on main; planning artifacts archived to
-      `docs/archive/2026-q2/` (Phase 3 close-via-archive 2026-04-08). Workstream
-      B's targeted wording on `client/src/pages/sensitivity-analysis.tsx`
-      (`COMING_SOON_TABS`, `planned but not yet wired`) and
-      `client/src/pages/time-travel.tsx` (`Restore Unavailable`,
-      `versioned restore workflow`) returns zero hits on current `main`.
-      Worktracks C2 and D were declared "settled-on-main reference lanes" by the
-      strategy doc itself. See
-      `.planning/phases/03-todo-report-remediation/03-CONTEXT.md` D-01 for
-      closure rationale.
+- [ ] **REQ-DRIFT-03**: Update `CLAUDE.md` baseline numbers to match the actual
+      `.baselines/` files. Current claims are stale by ~10x: CLAUDE.md says "374
+      / 132 baselines" but `.baselines/console-prod-baseline.json` is **39** and
+      `.baselines/eslint-file-disable-baseline.json` is **29**. The claim of
+      "~400 baselined `any` violations" should become **363** per
+      `.baselines/eslint-output.json`. Acceptance: CLAUDE.md numbers match what
+      `node -e "console.log(require('./.baselines/console-prod-baseline.json').total)"`
+      and the equivalent for the eslint-disable baseline return on the day of
+      the commit.
 
-### Sensitivity Surface Polish
+### Bounded Debt Drawdown
 
-Source: in-flight commits `9e134b5f` (stress tab), `bc592b38` (two-way panel),
-`7633fb51` (one-way panel), `2772dce9` (OneWayPanel internals refactor),
-`e4707353` (REFL-033)
+Source: stale numbers in CLAUDE.md inflated the perceived size of this backlog.
+Real numbers are small enough to halve in a single phase.
 
-- [x] **REQ-SENS-01**: Finalize the sensitivity surface trio (one-way / two-way
-      / stress) — confirm error status mapping is consistent across the three
-      engines, the three panels share polish (loading states, empty states,
-      error messaging), and the sensitivity routes are covered by integration
-      tests.
-- [x] **REQ-SENS-02**: Surface the new sensitivity tabs in IA/navigation per the
-      recent `+ IA cleanup` commit, and verify no orphan pages remain (e.g., the
-      deleted `pages/monte-carlo.tsx` wrapper in `35b63a47`).
-- [x] **REQ-SENS-03**: Capture any sensitivity-specific REFL learnings (REFL-033
-      already exists for this surface) and ensure new patterns make it into the
-      appropriate cheatsheet or REFL.
+- [ ] **REQ-DEBT-01**: Halve the console baseline from **39 → ≤19** (drop ≥20).
+      Source of truth: `.baselines/console-prod-baseline.json` (currently
+      `total: 39`, all of which are `console.log`). Approach: replace with the
+      existing Pino logger child where the call site already has logger access;
+      delete entries that are dead code; convert one-shot bootstrap diagnostics
+      to structured logs. Acceptance: regenerate the baseline
+      (`npm run baseline:console:save` or equivalent), the new total is ≤19, and
+      `npm run validate:core` stays green.
+
+- [ ] **REQ-DEBT-02**: Halve the file-level `eslint-disable` baseline from **29
+      → ≤14** (drop ≥15). Source of truth:
+      `.baselines/eslint-file-disable-baseline.json` (currently `total: 29`).
+      Approach: open each file in the baseline, identify the rule that triggered
+      the disable, and either fix the underlying issue or convert the file-level
+      disable to a tighter line-level `eslint-disable-next-line` with a comment
+      explaining why. Acceptance: regenerate the baseline, the new total is ≤14,
+      and `npm run lint` exits clean.
+
+- **EXPLICITLY NOT in scope:** the **363** explicit-`any` baseline drawdown.
+  That is its own milestone-sized fight (the baseline is ~10x larger than the
+  console + eslint-disable baselines combined) and conflating the two would blow
+  M9's scope. Captured in v2 for follow-up.
 
 ## v2 Requirements (deferred — known but not committed)
 
-These are real backlog items but explicitly out of v1 scope. They remain visible
-so they are not lost.
+These remain visible so they are not lost. Same shape as the M8 v2 list, trimmed
+for items M9 absorbs.
 
-- **Vite 6 audit sweep**: the `pdfTheme` circular import was the visible
-  symptom. A targeted dependency-cruiser sweep across PDF and chart modules
-  would surface other latent circulars before they bite at build time. Recent
-  commits: `18b93aa8`, `1e4506c3`, `6462ea5d`.
-- **Console / eslint-disable ratchet drawdown**: the 374 / 132 baselines exist
-  precisely so they can be drawn down. Worth a dedicated phase later, but not
-  blocking active work.
-- **`any` type drawdown**: ~400 baselined `any` violations. Same shape as the
-  console ratchet drawdown.
-- **Stale cheatsheet refresh**: `cheatsheets/pr-merge-verification.md`
-  references a 2025-11-17 baseline that is ~5 months stale; would mislead any
-  PR-merge decision based on it.
-- **Re-enable `tests/integration/fund-idempotency.spec.ts`**: still in the
-  integration exclude list with the original cascade comment, despite the
-  global-setup migration that supposedly removed the cause.
-- **Phoenix truth case count reconciliation**: two historical snapshots (118/118
-  vs 107/107) disagree; live count comes from `npm run phoenix:truth`. Not a
-  bug, but a docs reconciliation that should land before the next
-  architecture-level review.
-- **LP portal expansion**: explicitly archived per Milestone 1; revisit only if
-  the perimeter is re-opened by an explicit decision.
-- **KPI manager / KPI submission resurrection**: same.
-- **Compass productionization**: experimental, unmounted; revisit only if an
-  explicit perimeter decision is made.
+- **`any` type drawdown** — the 363 explicit-`any` baseline. Separate
+  milestone-sized effort.
+- **Variance 1C.3 Item B** (auto-resolve superseded baseline-scoped incidents) —
+  re-deferred from M8 per `01-CONTEXT.md` D-05; trigger documented in
+  `docs/plans/2026-04-07-phase-1c3-variance-automation-followons-backlog.md`.
+- **Variance 1C.3 Item C** (move scheduler to dedicated worker process) —
+  re-deferred from M8 per `01-CONTEXT.md` D-06; the M8 leader-election shipped
+  in Phase 1 is the scaffolding this item will build on when its trigger fires.
+- **Vite 6 audit sweep** — speculative dependency-cruiser pass for latent
+  circulars across PDF and chart modules. One known issue (`pdfTheme`) was
+  already fixed; revisit when a real second issue surfaces.
+- **`.a5c/processes/sensitivity-stress-panel.inputs.json` whitelist decision** —
+  Phase 2 used `git add -f` workaround. 30-min decision, not a milestone item;
+  resolve inline whenever it next becomes friction.
+- **Phoenix truth case count reconciliation** — partially absorbed by
+  REQ-DRIFT-02 above; the deeper "audit historical snapshots and reconcile" work
+  stays deferred.
+- **LP portal expansion / KPI manager / Compass productionization** — archived
+  secondary surfaces. Revisit only if the perimeter is reopened by an explicit
+  decision.
 
 ## Out of Scope
 
-See `PROJECT.md` § Out of Scope for the canonical list. Highlights:
+See `PROJECT.md` § Out of Scope for the canonical list. M9-specific exclusions
+(in addition to the perimeter exclusions):
 
-- LP / KPI / Compass surface expansion (archived, do not reopen without an
-  explicit perimeter decision)
-- Client-owned publish/recalc orchestration (server owns the lifecycle per
-  Milestone 4)
-- Removing the `validate:core` or `phoenix:truth` gates
-- Greenfield rewrite of any existing engine (`shared/core/*` is authoritative
-  per Milestone 3)
-- Direct `decimal.js` imports / floating-point in `core/reserves/**` /
-  `parseFloat` in P0 paths
-- Mocking the database in tests that depend on real schema/migration behavior
-- Emoji in any artifact
+- The 363 explicit-`any` drawdown (separate milestone-sized fight)
+- Adding any new product surfaces
+- Reopening any of M8's re-deferred items (REQ-VAR-02, REQ-VAR-03)
+- Anything in the historical "Out of Scope" perimeter list (LP / KPI / Compass /
+  client-owned lifecycle / removing validate:core / greenfield engine rewrites /
+  mocking the DB in schema-dependent tests / emoji)
 
 ## Traceability (filled by roadmap)
 
-| REQ-ID      | Phase | Status                                          |
-| ----------- | ----- | ----------------------------------------------- |
-| REQ-VAR-01  | 1     | Active                                          |
-| REQ-VAR-02  | 1     | Active                                          |
-| REQ-VAR-03  | 1     | Active                                          |
-| REQ-BCK-01  | 2     | Active                                          |
-| REQ-BCK-02  | 2     | Active                                          |
-| REQ-BCK-03  | 2     | Active                                          |
-| REQ-TODO-01 | 3     | Settled on main (closed-via-archive 2026-04-08) |
-| REQ-TODO-02 | 3     | Settled on main (closed-via-archive 2026-04-08) |
-| REQ-SENS-01 | 4     | Validated                                       |
-| REQ-SENS-02 | 4     | Validated                                       |
-| REQ-SENS-03 | 4     | Validated                                       |
+| REQ-ID       | Phase | Status |
+| ------------ | ----- | ------ |
+| REQ-TEST-01  | 5     | Active |
+| REQ-TEST-02  | 5     | Active |
+| REQ-DRIFT-01 | 6     | Active |
+| REQ-DRIFT-02 | 6     | Active |
+| REQ-DRIFT-03 | 6     | Active |
+| REQ-DEBT-01  | 7     | Active |
+| REQ-DEBT-02  | 7     | Active |
 
-100% of v1 requirements mapped to a phase.
+100% of v1.1 requirements mapped to a phase. Phase numbers continue from M8
+(which used 1-4); M9 starts at 5.
 
 ---
 
-_Generated 2026-04-07 by `/gsd-new-project` (brownfield onboarding mode). Open
-`docs/plans/` for full per-item context before running `/gsd-discuss-phase N`._
+_Generated 2026-04-08 by `/gsd-new-milestone` after M8 closed clean (all 11 v1
+requirements satisfied). Phase numbering continues from M8. Research was
+intentionally skipped — M9 is cleanup of known items, no domain learning
+needed._
