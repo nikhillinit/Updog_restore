@@ -169,7 +169,7 @@ Plans:
 - [x] 02-02-engine-market-params-override-PLAN.md — Add
       SimulationConfig.marketParameters override and wire calibrateDistributions
       consumption in both Monte Carlo engines
-- [ ] 02-03-runscenariocomparisons-rewrite-PLAN.md — Rewrite
+- [x] 02-03-runscenariocomparisons-rewrite-PLAN.md — Rewrite
       runScenarioComparisons to inject per-scenario marketParameters, delete
       applyMarketAdjustment, replace console.error with Pino structured logs
 - [x] 02-04-severity-reclassification-PLAN.md — Reclassify alphaFinding severity
