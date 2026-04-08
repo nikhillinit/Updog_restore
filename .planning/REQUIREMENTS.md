@@ -37,7 +37,7 @@ Source:
 
 Source: `docs/plans/2026-04-07-backtesting-scenario-comparison-correctness.md`
 
-- [ ] **REQ-BCK-01**: Rewrite `BacktestingService.runScenarioComparisons`
+- [x] **REQ-BCK-01**: Rewrite `BacktestingService.runScenarioComparisons`
       (`server/services/backtesting-service.ts:645-738`) so each scenario
       injects scenario-specific market parameters into the simulation config and
       re-runs the Monte Carlo, instead of running the default simulation once

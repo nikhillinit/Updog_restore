@@ -3,13 +3,13 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: in_progress
-last_updated: '2026-04-07T23:50:07.905Z'
+last_updated: '2026-04-08T00:05:30.000Z'
 progress:
   total_phases: 4
   completed_phases: 1
   total_plans: 11
-  completed_plans: 8
-  percent: 73
+  completed_plans: 9
+  percent: 82
 ---
 
 # GSD State — Updog
@@ -24,11 +24,17 @@ defensible and traceable to the inputs that produced them.
 
 **Current focus:** Phase 02 — backtesting-scenario-comparison-rewrite-p1
 (BacktestingService.runScenarioComparisons rewrite). Phase 01 (variance
-automation 1C.3 follow-ons) is COMPLETE. Plan 02-01 (baseline capture) landed
-2026-04-07 followed by Plan 02-02 (engine marketParameters override) —
-SimulationConfig.marketParameters is now wired through BOTH MC engines'
-calibrateDistributions via a shared distribution-overrides helper. Next up: Plan
-02-03 (runScenarioComparisons rewrite) to consume the seam.
+automation 1C.3 follow-ons) is COMPLETE. Plans 02-01 (baseline capture), 02-02
+(engine marketParameters override), 02-04 (severity reclassification), and 02-03
+(runScenarioComparisons rewrite) are COMPLETE. Plan 02-03 (landed 2026-04-08 at
+8f1d0cce) replaced the analytic 2-parameter rescale with true per-scenario MC
+runs injecting marketParameters via the Plan 02-02 seam; scenario
+simulatedPerformance is now sample percentiles from the scenario-aware run;
+applyMarketAdjustment is deleted; console.error replaced with three Pino
+structured events (backtesting.scenario_comparison.{started,completed,failed}).
+REQ-BCK-01 is satisfied. Phoenix truth holds at 258/258. Remaining: Plan 02-05
+(new GFC truth case consuming the optional randomSeed plumbing) and Plan 02-06
+(plan-doc + before/after verification).
 
 ## Codebase Reference
 
@@ -187,6 +193,11 @@ canonical record for non-derivable gotchas. Most relevant on `main` right now:
 - Planning Docs Drift From Main
 
 ## Last Updated
+
+2026-04-08 — Plan 02-03 (runScenarioComparisons rewrite) landed at `8f1d0cce`.
+Phoenix truth 258/258, type check clean, 21/21 unit tests + 25/25 integration
+tests passing. REQ-BCK-01 marked complete in REQUIREMENTS.md. Remaining Phase 2
+work: Plans 02-05 (GFC truth case) and 02-06 (plan doc + verification).
 
 2026-04-07 — initialized via `/gsd-new-project` brownfield onboarding (option 1:
 onboard onto existing codebase).
