@@ -175,7 +175,7 @@ Plans:
 - [x] 02-04-severity-reclassification-PLAN.md — Reclassify alphaFinding severity
       from informational to P1 in
       .a5c/processes/sensitivity-stress-panel.inputs.json
-- [ ] 02-05-phoenix-truth-case-PLAN.md — Add Phoenix truth case for 2008 GFC
+- [x] 02-05-phoenix-truth-case-PLAN.md — Add Phoenix truth case for 2008 GFC
       scenario with fixed randomSeed and snapshot-locked sample percentiles
 - [ ] 02-06-plan-doc-and-verification-PLAN.md — Author
       docs/plans/2026-04-XX-backtesting-scenario-comparison-rewrite.md with
