@@ -20,6 +20,35 @@ If everything else fails, the
 `/fund-setup → review → publish → /fund-model-results/:fundId` lifecycle must
 work and produce truthful numbers.
 
+## Current Milestone: v1.1 Cleanup and Decay Reduction
+
+**Goal:** Pay down accumulated decay (test hygiene, schema/docs drift, lint
+baselines) without adding new product surfaces. M8 closed clean; M9 keeps the
+codebase healthy before the next feature push.
+
+**Target outcomes:**
+
+- A dormant integration test (`tests/integration/fund-idempotency.spec.ts`)
+  comes back online; a noisy slow-test threshold warning is silenced.
+- `shared/schema.ts` matches the live Neon endpoint (no phantom tables); doc
+  references to live-counted Phoenix truth cases stop hardcoding stale numbers;
+  CLAUDE.md baseline numbers reflect reality (374→39, 132→29, ~400→363).
+- Two lint baselines are halved (console 39→≤19, file-level eslint-disable
+  29→≤14). The 363 explicit-`any` baseline is intentionally NOT touched in this
+  milestone.
+
+**Out of scope for v1.1:**
+
+- The 363 explicit-`any` drawdown (separate, larger fight)
+- Variance 1C.3 Items B and C (re-deferred from M8 with explicit triggers; no
+  trigger has fired)
+- Vite 6 audit sweep (speculative; revisit when a real issue surfaces)
+- The `.a5c/processes/...inputs.json` gitignore decision (30-min decision, not a
+  milestone item)
+- Anything in the stabilized perimeter exclusion list (LP/KPI/Compass/etc.)
+
+**Phase numbering:** continues from M8 → phases 05, 06, 07.
+
 ## Requirements
 
 ### Validated
@@ -99,42 +128,82 @@ These capabilities exist on `main` and are in production use. Inferred from
 - ✓ Dual-build target (React default, Preact opt-in via `BUILD_WITH_PREACT=1`) —
   existing
 
-### Active
+**M8 — Post-Stabilization Cleanup (complete 2026-04-08, all 11 v1 reqs):**
 
-Open backlog from `docs/plans/` (most recent first). Each maps to a phase in
-`ROADMAP.md`:
+- ✓ **REQ-VAR-01** Variance planner leader election (`variance_planner_leader`
+  table, lease manager, planner-only gate, full unit + live-Neon integration
+  test coverage) — Phase 1 (Plans 01-01..01-05)
+- ✓ **REQ-BCK-01** `runScenarioComparisons` rewrite — scenarios now inject
+  market parameters and re-run Monte Carlo per scenario; sample percentiles
+  replace analytic 2-parameter approximation; `applyMarketAdjustment` deleted;
+  satisfies the original 2026-01 P0 requirement — Phase 2 (Plan 02-03)
+- ✓ **REQ-BCK-02** `alphaFinding` severity reclassified `informational` → P1 in
+  `.a5c/processes/sensitivity-stress-panel.inputs.json` — Phase 2 (Plan 02-04)
+- ✓ **REQ-BCK-03** Durable Phase 2 plan doc at
+  `docs/plans/2026-04-08-backtesting-scenario-comparison-rewrite.md` with
+  before/after percentile table and verbatim "satisfies the 2026-01 P0
+  requirement" cross-reference — Phase 2 (Plan 02-06)
+- ✓ **REQ-TODO-01 / REQ-TODO-02** Settled-on-main; planning artifacts archived
+  to `docs/archive/2026-q2/` (close-via-archive) — Phase 3 (Plan 03-01)
+- ✓ **REQ-SENS-01..03** Sensitivity surface polish —
+  `tests/integration/ sensitivity-routes.test.ts` (8 tests covering all 3
+  routes); REFL-037 captures the dynamic-import seam pattern; panel + engine
+  consistency verified — Phase 4 (executed inline)
+- ✓ **Phoenix truth cases:** 258 → 262 (Plan 02-05 added 4 GFC scenario tests
+  with deterministic seed)
+- ✓ **Milestone summary:** `.planning/reports/MILESTONE_SUMMARY-v1.0.md`
+  (local-only; gitignored under `reports/`)
 
-- [ ] **REQ-VAR-01**: Phase 1C.3 — Implement planner-loop leader election so
-      multi-instance variance planners stop doing duplicate work (currently
-      de-duped, but wasteful) —
-      `docs/plans/2026-04-07-phase-1c3-variance-automation-followons-backlog.md`
-      Item A
-- [ ] **REQ-VAR-02**: Phase 1C.3 — Address remaining 1C.2 deferred items B and C
-      from the variance automation follow-ons backlog
-- [ ] **REQ-BCK-01**: Rewrite `BacktestingService.runScenarioComparisons` so
-      scenarios inject scenario-specific market parameters into the simulation
-      config and re-run, instead of post-hoc analytic rescaling. The persisted
-      percentiles must be sample percentiles from a scenario-aware Monte Carlo,
-      not derived from a 2-parameter analytic approximation. —
-      `docs/plans/2026-04-07-backtesting-scenario-comparison-correctness.md`
-      (P1)
-- [ ] **REQ-BCK-02**: Reclassify `alphaFinding` severity from `informational` to
-      its proper P1 tier in
-      `.a5c/processes/sensitivity-stress-panel.inputs.json`
-- [x] **REQ-TODO-01**: Settled on main; closed via Phase 3 archive 2026-04-08.
-      The mocks/identifiers (`mockVarianceData`, `_reportsData`, restore UI) do
-      not exist in `client/src` on current `main`. Strategy doc archived to
-      `docs/archive/2026-q2/2026-04-05-todo-report-remediation-strategy.md`
-      (settled-on-main; archived 2026-04-08). See
-      `.planning/phases/03-todo-report-remediation/03-CONTEXT.md` D-01.
-- [x] **REQ-TODO-02**: Settled on main; closed via Phase 3 archive 2026-04-08.
-      Workstream B's targeted wording is no longer present on `main`; strategy
-      doc archived to
-      `docs/archive/2026-q2/2026-04-05-todo-report-remediation-strategy.md`
-      (settled-on-main; archived 2026-04-08).
-- [ ] **REQ-SENS-01**: Continue sensitivity surface polish on top of in-flight
-      one-way/two-way/stress panels (recent commits `9e134b5f`, `bc592b38`,
-      `7633fb51`, `2772dce9`, `e4707353`)
+### Active (M9 — v1.1 Cleanup and Decay Reduction)
+
+Open backlog for the current milestone. Each maps to a phase in `ROADMAP.md`.
+
+**Phase 5 — Test hygiene resurrection:**
+
+- [ ] **REQ-TEST-01**: Re-enable `tests/integration/fund-idempotency.spec.ts`.
+      Currently in `vitest.config.int.ts` exclude list with the original
+      cascade-failure comment that no longer applies (REFL-024 was fixed by the
+      global-setup migration months ago). Either it just works (free win) or
+      surfaces a real bug that's been hiding.
+- [ ] **REQ-TEST-02**: Fix the noisy slow-test threshold warning in
+      `tests/unit/truth-cases/backtesting-scenario.test.ts`. The
+      `memory_simulation_complete took 36110552ms (critical)` warning is a
+      misconfigured threshold; the test passes. Documented as out-of-scope for
+      Phase 2 in `02-06-SUMMARY.md`.
+
+**Phase 6 — Schema, docs, and baseline drift cleanup:**
+
+- [ ] **REQ-DRIFT-01**: Reconcile `shared/schema.ts` against the live Neon
+      endpoint. Phantom tables (`scenario_matrices`, `optimization_sessions`,
+      `cohort_definitions`, possibly more) are referenced in the schema but
+      absent from the live DB. Per-table decision required: create in DB, delete
+      from schema, or gate behind a flag. Surfaced by Plan 01-01 SUMMARY § "Flag
+      for follow-up".
+- [ ] **REQ-DRIFT-02**: Remove hardcoded Phoenix truth case counts from docs;
+      replace with pointers to `npm run phoenix:truth` for the live count. Two
+      historical snapshots disagree (118/118 vs 107/107); current live count is
+      262/262.
+- [ ] **REQ-DRIFT-03**: Update CLAUDE.md baseline numbers to match reality.
+      CLAUDE.md says "374 / 132 baselines" for console / eslint-disable but
+      `.baselines/console-prod-baseline.json` is **39** and
+      `.baselines/eslint-file-disable-baseline.json` is **29**. The `~400 any`
+      claim should become `363` (per `.baselines/eslint-output.json`).
+
+**Phase 7 — Bounded debt drawdown:**
+
+- [ ] **REQ-DEBT-01**: Halve the console baseline from **39 → ≤19** (drop ≥20).
+      Source of truth: `.baselines/console-prod-baseline.json`. Focus areas:
+      server/services and worker boot paths where Pino is already wired.
+- [ ] **REQ-DEBT-02**: Halve the file-level `eslint-disable` baseline from **29
+      → ≤14** (drop ≥15). Source of truth:
+      `.baselines/eslint-file-disable-baseline.json`. Focus areas: client/src.
+
+**Re-deferred from M8 (kept visible, NOT in M9 scope):**
+
+- **REQ-VAR-02 / REQ-VAR-03**: Variance 1C.3 Items B and C. Re-deferred per
+  `01-CONTEXT.md` D-05/D-06 with explicit triggers in
+  `docs/plans/2026-04-07-phase-1c3-variance-automation-followons-backlog.md`.
+  Neither trigger has fired. Revisit when one does.
 
 ### Out of Scope
 
@@ -263,5 +332,8 @@ This document evolves at phase transitions and milestone boundaries.
 
 ---
 
-_Last updated: 2026-04-07 after GSD brownfield onboarding (option 1 from
-`/gsd-new-project` opener)_
+_Last updated: 2026-04-08 — M8 closed (all 11 v1 reqs satisfied), M9 (v1.1
+Cleanup and Decay Reduction) opened with 7 reqs across phases 5-7 via
+`/gsd-new-milestone`. M8 shipped requirements moved to Validated with phase
+references; M9 active backlog scoped to test hygiene + drift cleanup + bounded
+debt drawdown._

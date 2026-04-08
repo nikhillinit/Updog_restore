@@ -1,15 +1,15 @@
 ---
 gsd_state_version: 1.0
-milestone: v1.0
-milestone_name: milestone
-status: Executing Phase 04
-last_updated: '2026-04-08T04:57:29.144Z'
+milestone: v1.1
+milestone_name: cleanup-and-decay-reduction
+status: Defining requirements
+last_updated: '2026-04-08T05:30:00.000Z'
 progress:
-  total_phases: 4
-  completed_phases: 4
-  total_plans: 13
-  completed_plans: 13
-  percent: 100
+  total_phases: 3
+  completed_phases: 0
+  total_plans: 0
+  completed_plans: 0
+  percent: 0
 ---
 
 # GSD State — Updog
@@ -22,21 +22,13 @@ See: `.planning/PROJECT.md` (last updated 2026-04-07)
 fund result without leaving the browser, with results that are statistically
 defensible and traceable to the inputs that produced them.
 
-**Current focus:** Phase 04 — sensitivity-surface-polish ROADMAP). Phases 01,
-02, and 03 are all COMPLETE. Phase 03 closed 2026-04-08 via
-**close-via-archive**: every worktrack from
-`docs/archive/2026-q2/2026-04-05-todo-report-remediation-strategy.md` (A, B, C1)
-verified settled on current `main`, and C2/D were declared settled-on-main
-reference lanes by the strategy doc itself. Plan 03-01 archived both stale
-planning artifacts (`2026-04-05-todo-report-remediation-strategy.md` and
-`todo-report-accuracy-review-2026-04-05.md`) into `docs/archive/2026-q2/` via
-`git mv` (history preserved), updated 6 active reference files (ROADMAP,
-REQUIREMENTS, PROJECT, STABILIZATION-ROADMAP, ADR-014,
-variance-roadmap-revision) to point at the archived paths, and marked
-REQ-TODO-01 and REQ-TODO-02 as `[x]` with closure rationale. All three Phase 3
-exit gates green: `npm run check` 0 TS errors, `npm run validate:core` 37/37
-unit + 1/1 integration, `npm run phoenix:truth` 262/262 across 6 files. Phase 04
-is unblocked.
+**Current focus:** **Milestone M9 — v1.1 Cleanup and Decay Reduction**, just
+opened 2026-04-08 via `/gsd-new-milestone` after M8 closed clean (all 11 v1
+requirements satisfied; see `MILESTONE_SUMMARY-v1.0.md` for the full M8 record).
+M9 is a 3-phase cleanup milestone: test hygiene resurrection,
+schema/docs/baseline drift cleanup, and bounded debt drawdown of two small lint
+baselines. Phase numbering continues from M8 (5, 6, 7). Status: defining
+requirements complete; ready to discuss/plan Phase 5.
 
 ## Codebase Reference
 
@@ -68,14 +60,22 @@ Detailed brownfield map at `.planning/codebase/`:
 updated 2026-03-28). The project is now in Milestone M8 (post-stabilization
 cleanup) tracked in `.planning/ROADMAP.md`.
 
-## Current Roadmap (M8)
+## Current Roadmap (M9 — v1.1)
 
-`.planning/ROADMAP.md` — 4 phases, 11 requirements, coarse granularity:
+`.planning/ROADMAP.md` — 3 phases, 7 requirements, coarse granularity. Phase
+numbering continues from M8 (which used 1-4):
 
-1. **Phase 1**: Variance Automation 1C.3 Follow-Ons (REQ-VAR-01..03)
-2. **Phase 2**: Backtesting Scenario Comparison Rewrite — P1 (REQ-BCK-01..03)
-3. **Phase 3**: TODO Report Remediation (REQ-TODO-01..02)
-4. **Phase 4**: Sensitivity Surface Polish (REQ-SENS-01..03)
+1. **Phase 5**: Test Hygiene Resurrection (REQ-TEST-01, REQ-TEST-02)
+2. **Phase 6**: Schema, Docs, and Baseline Drift Cleanup (REQ-DRIFT-01..03)
+3. **Phase 7**: Bounded Debt Drawdown (REQ-DEBT-01, REQ-DEBT-02)
+
+## Previous Roadmap (M8 — v1.0, COMPLETE 2026-04-08)
+
+M8 shipped 4 phases / 13 plans / 11 requirements over 2026-04-07..08. Full
+record at `.planning/reports/MILESTONE_SUMMARY-v1.0.md` (gitignored local-only)
+and in the per-phase SUMMARY files at `.planning/phases/01..04-*/`. M8 phases:
+Variance Automation 1C.3 Follow-Ons, Backtesting Scenario Comparison Rewrite
+(P1), TODO Report Remediation (close-via-archive), Sensitivity Surface Polish.
 
 ## Configuration
 
@@ -86,20 +86,13 @@ quality workflow (research + plan-check + verifier all enabled),
 
 ## Active Phase
 
-**Phase 04 — Sensitivity Surface Polish** (next phase per ROADMAP after Phase 03
-closure 2026-04-08).
+**Phase 5 — Test Hygiene Resurrection** (first phase of M9 per ROADMAP).
 
-Phases 01, 02, and 03 are all COMPLETE. Phase 03 closed at commit `a067ad08`
-(reference updates) on top of `98563f09` (archive moves) and `e85cc90d`
-(CONTEXT + plan), all on 2026-04-08, via close-via-archive. The two stale
-planning artifacts now live at
-`docs/archive/2026-q2/2026-04-05-todo-report-remediation-strategy.md` and
-`docs/archive/2026-q2/todo-report-accuracy-review-2026-04-05.md`. REQ-TODO-01
-and REQ-TODO-02 are marked `[x]` in REQUIREMENTS.md and PROJECT.md with closure
-rationale. All three Phase 3 exit gates green: `npm run check` 0 TS errors,
-`npm run validate:core` exit 0, `npm run phoenix:truth` 262/262.
+M8 is COMPLETE (all 4 phases / 13 plans / 11 requirements; closed 2026-04-08 at
+commit `46be2c37`). M9 just opened via `/gsd-new-milestone` and is ready to
+plan.
 
-To start Phase 04, run `/gsd-discuss-phase 4` or `/gsd-plan-phase 4`.
+To start Phase 5, run `/gsd-discuss-phase 5` or `/gsd-plan-phase 5`.
 
 ## Authoritative Documents
 
@@ -181,6 +174,27 @@ canonical record for non-derivable gotchas. Most relevant on `main` right now:
 - Planning Docs Drift From Main
 
 ## Last Updated
+
+2026-04-08 — **Milestone M9 (v1.1 Cleanup and Decay Reduction) OPENED** via
+`/gsd-new-milestone` after M8 closed clean. 3 phases / 7 requirements scoped:
+Phase 5 (Test Hygiene Resurrection — REQ-TEST-01/02), Phase 6 (Schema, Docs, and
+Baseline Drift Cleanup — REQ-DRIFT-01/02/03), Phase 7 (Bounded Debt Drawdown —
+REQ-DEBT-01/02). Phase numbering continues from M8 (which used 1-4). Research
+intentionally skipped — M9 is cleanup of known items. Key discovery during
+scoping: CLAUDE.md baseline numbers (374 console / 132 eslint-disable / ~400
+any) are stale by ~10x — actual values from `.baselines/` are 39 / 29 / 363,
+captured as REQ-DRIFT-03. PROJECT.md updated with Current Milestone section + M8
+shipped reqs moved to Validated with phase references; REQUIREMENTS.md and
+ROADMAP.md replaced with M9 content; M8 phase directories at
+`.planning/phases/01..04-*/` left in place as institutional memory (deviation
+from workflow Step 6 `phases clear` — intentional). Status: defining
+requirements complete; ready to discuss/plan Phase 5.
+
+2026-04-08 — **M8 (v1.0) CLOSED** at commit `46be2c37` with all 4 phases
+complete. 11/11 v1 requirements satisfied. Full record in
+`.planning/reports/MILESTONE_SUMMARY-v1.0.md` (gitignored, local-only). Phoenix
+truth cases ended at 262/262 (started milestone at 258/258). Total M8 spend: 69
+commits, 112 files changed (+22566 / -1213).
 
 2026-04-08 — **Phase 03 CLOSED via close-via-archive** through Plan 03-01.
 Commits `e85cc90d` (CONTEXT + plan), `98563f09` (archive moves), `a067ad08`
