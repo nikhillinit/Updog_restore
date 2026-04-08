@@ -345,8 +345,20 @@ export class MonteCarloPerformanceTracker {
     });
   }
 
+  /**
+   * Record memory usage as a gauge metric.
+   *
+   * NOTE: `PerformanceMonitor.track` takes a `duration: number` in milliseconds.
+   * Memory usage is not a duration — it is a gauge. We pass `0` for duration so
+   * the threshold check in `track()` never marks this metric as slow/critical
+   * (which would otherwise fire bogus `performance_alert` events every simulation,
+   * polluting `npm run phoenix:truth` output). Heap values are carried in metadata
+   * where any real consumer can read them.
+   *
+   * See REQ-TEST-02 in `.planning/phases/05-test-hygiene-resurrection/`.
+   */
   trackMemoryUsage(operation: string, memoryUsage: NodeJS.MemoryUsage) {
-    monitor.track(`memory_${operation}`, memoryUsage.heapUsed, 'computation', {
+    monitor.track(`memory_${operation}`, 0, 'computation', {
       heapTotal: memoryUsage.heapTotal,
       heapUsed: memoryUsage.heapUsed,
       external: memoryUsage.external,
