@@ -123,8 +123,8 @@ from `*_INPUT_COST` / `*_OUTPUT_COST` env vars.
 
 - `pino` + `pino-http` + `pino-pretty` (Pino is the standard per ADR-019)
 - Server logger: `server/logger.ts`, `server/lib/logger.ts`
-- Console-call ratchet at `scripts/guardrails/console-ratchet.mjs` (baseline 374
-  disallowed calls)
+- Console-call ratchet at `scripts/guardrails/console-ratchet.mjs` (baseline 39
+  disallowed calls per `.baselines/console-prod-baseline.json`)
 
 ## Authentication / Authorization
 

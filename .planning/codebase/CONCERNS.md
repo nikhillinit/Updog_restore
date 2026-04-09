@@ -59,14 +59,17 @@ flags this as P1 technical debt.
 The codebase carries baselined warnings rather than errors for the following —
 new code must NOT increase the count, but pre-existing violations remain:
 
-- **`@typescript-eslint/no-explicit-any`** — `warn` (target: `error`); ~400
-  pre-existing `any` types as of `eslint.config.js:181`
+- **`@typescript-eslint/no-explicit-any`** — `warn` (target: `error`); 363
+  pre-existing `any` types per `.baselines/eslint-output.json` (counted at the
+  `eslint.config.js:181` rule)
 - **`@typescript-eslint/no-unsafe-{assignment,member-access,call,return,argument}`**
   — all `warn`
-- **`no-console`** — `warn` with `allow: ['warn','error']`; **374 disallowed
-  calls** at baseline (`scripts/guardrails/console-ratchet.mjs`)
-- **`eslint-disable` directives** — **132 file-level disables** at baseline
-  (`scripts/guardrails/eslint-disable-ratchet.mjs`)
+- **`no-console`** — `warn` with `allow: ['warn','error']`; **39 disallowed
+  calls** at baseline per `.baselines/console-prod-baseline.json` (enforced by
+  `scripts/guardrails/console-ratchet.mjs`)
+- **`eslint-disable` directives** — **29 file-level disables** at baseline per
+  `.baselines/eslint-file-disable-baseline.json` (enforced by
+  `scripts/guardrails/eslint-disable-ratchet.mjs`)
 - **Other warns** (pre-existing patterns to fix incrementally):
   - `require-atomic-updates` — many false positives for singletons
   - `no-misleading-character-class`, `no-case-declarations`,
