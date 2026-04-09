@@ -11,8 +11,9 @@
   `noFallthroughCasesInSwitch: true`)
 - **No `any`:** project policy is "NEVER use `any`" per CLAUDE.md. ESLint
   currently has `@typescript-eslint/no-explicit-any` at **`warn`** because of
-  ~400 pre-existing baselines (`eslint.config.js:181`); the policy goal is
-  `error`. New code MUST not introduce `any`.
+  363 pre-existing baselines per `.baselines/eslint-output.json` (rule at
+  `eslint.config.js:181`); the policy goal is `error`. New code MUST not
+  introduce `any`.
 - **`exactOptionalPropertyTypes` pattern:** spread-conditional, never pass
   `undefined` directly. See REFL-021.
   ```ts
@@ -107,7 +108,8 @@
 - **Standard:** Pino (per ADR-019)
 - **Console gate:** `no-console` is `warn` with `allow: ['warn', 'error']`.
   There's a guardrail ratchet at `scripts/guardrails/console-ratchet.mjs`
-  (baseline 374 disallowed calls — new code cannot add to it).
+  (baseline 39 disallowed calls per `.baselines/console-prod-baseline.json` —
+  new code cannot add to it).
 - **Client-side:** Sentry breadcrumbs when DSN configured;
   `client/src/monitoring/noop.ts` shim otherwise
 
