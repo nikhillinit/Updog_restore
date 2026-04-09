@@ -51,24 +51,31 @@ baseline mismatch surfaced while scoping this milestone.
       introspection) reports zero unexpected creates AND zero rename prompts;
       `npm run check` stays at 0 errors; no runtime regressions.
 
-- [ ] **REQ-DRIFT-02**: Remove hardcoded Phoenix truth case counts from docs;
-      replace with pointers to `npm run phoenix:truth` for the live count. Two
-      historical snapshots disagree (118/118 vs 107/107 vs the current 262/262);
-      CLAUDE.md memory note "Phoenix truth case count is in drift" already warns
-      against quoting numbers from docs. Acceptance: a grep for hardcoded
-      `\d+/\d+` truth-case counts across `docs/`, `cheatsheets/`, `README*`, and
-      `CLAUDE.md` returns only the live-command pointer (or the count is
-      captured in a generated file that the live command refreshes).
+- [ ] **REQ-DRIFT-02**: Remove hardcoded Phoenix truth case counts from
+      forward-looking planning docs; replace with pointers to
+      `npm run phoenix:truth` for the live count. Historical snapshots disagree
+      (118/118 vs 107/107); the CLAUDE.md memory note "Phoenix truth case count
+      is in drift" already warns against quoting numbers from docs. Scope:
+      forward-looking prescriptions in `.planning/ROADMAP.md`,
+      `.planning/REQUIREMENTS.md`, and `.planning/PROJECT.md` only. Historical
+      records in `*-SUMMARY.md`, `*-CONTEXT.md`, `*-PLAN.md`, `STATE.md`,
+      `CHANGELOG.md`, and `docs/archive/**` are deferred-by-policy and remain.
+      Acceptance: a grep for `phoenix.*\d{2,3}/\d{2,3}` and
+      `\d{2,3}/\d{2,3}\s+truth` across the 3 forward-looking files returns only
+      the live-command pointer.
 
-- [ ] **REQ-DRIFT-03**: Update `CLAUDE.md` baseline numbers to match the actual
-      `.baselines/` files. Current claims are stale by ~10x: CLAUDE.md says "374
-      / 132 baselines" but `.baselines/console-prod-baseline.json` is **39** and
-      `.baselines/eslint-file-disable-baseline.json` is **29**. The claim of
-      "~400 baselined `any` violations" should become **363** per
-      `.baselines/eslint-output.json`. Acceptance: CLAUDE.md numbers match what
-      `node -e "console.log(require('./.baselines/console-prod-baseline.json').total)"`
-      and the equivalent for the eslint-disable baseline return on the day of
-      the commit.
+- [ ] **REQ-DRIFT-03**: Update stale console / eslint-disable / explicit-any
+      baseline numbers in `.planning/PROJECT.md` and
+      `.planning/codebase/{CONCERNS,CONVENTIONS,INTEGRATIONS}.md` to match the
+      live `.baselines/` files. Current totals are console **39** per
+      `.baselines/console-prod-baseline.json`, eslint-disable **29** per
+      `.baselines/eslint-file-disable-baseline.json`, and explicit-any **363**
+      per `.baselines/eslint-output.json`. **Note:** CLAUDE.md at the project
+      root does NOT contain the stale baseline numbers anywhere — the original
+      ROADMAP phrasing that named CLAUDE.md was wrong and is being corrected in
+      this same plan. Acceptance: the four `.planning/` doc files contain `39`,
+      `29`, and `363` (or whatever the live baselines return on the day of the
+      commit) AND zero stale baseline numbers remain in those four files.
 
 ### Bounded Debt Drawdown
 

@@ -70,7 +70,8 @@ output. Plan 02-06 SUMMARY explicitly flagged it as out-of-scope for M8.
    `npx vitest run -c vitest.config.int.ts` (visible in the run output).
 2. `npm run phoenix:truth` no longer prints the
    `memory_simulation_complete took 36110552ms (critical)` warning, and the
-   truth-case suite still exits 0 with 262/262 passing.
+   truth-case suite still exits 0 (run `npm run phoenix:truth` for the live
+   count — do not commit a number).
 3. `npm run validate:core` is green; no new orphan tests under disallowed
    `__tests__/` paths.
 
@@ -99,7 +100,10 @@ baseline numbers to match reality.
 
 - REQ-DRIFT-01 — Reconcile `shared/schema.ts` against live Neon endpoint
 - REQ-DRIFT-02 — Remove hardcoded Phoenix truth-case counts from docs
-- REQ-DRIFT-03 — Update CLAUDE.md baseline numbers (374→39, 132→29, ~400→363)
+- REQ-DRIFT-03 — Update stale `.planning/` doc baseline numbers (console,
+  eslint-disable, explicit-any) to match `.baselines/*.json` reality, in
+  PROJECT.md, CONCERNS.md, CONVENTIONS.md, INTEGRATIONS.md. CLAUDE.md is NOT a
+  target — original phrasing was wrong.
 
 **Background:** Plan 01-01 (Phase 1 of M8) discovered that `shared/schema.ts`
 references several tables that do not exist in the live Neon endpoint
@@ -133,13 +137,16 @@ because they share the same surface and are cheap.
 2. A grep for hardcoded Phoenix truth-case counts (regex `\d+/\d+ truth`,
    `phoenix.*\d{2,3}/\d{2,3}`, etc.) returns only deliberate references to the
    live command output, not committed numbers.
-3. CLAUDE.md baseline section reflects the actual numbers from
-   `.baselines/console-prod-baseline.json` (39),
+3. `.planning/PROJECT.md` and
+   `.planning/codebase/{CONCERNS,CONVENTIONS,INTEGRATIONS}.md` reflect the
+   actual numbers from `.baselines/console-prod-baseline.json` (39),
    `.baselines/eslint-file-disable-baseline.json` (29), and the current
-   explicit-`any` count (363 per `.baselines/eslint-output.json`).
+   explicit-`any` count (363 per `.baselines/eslint-output.json`). CLAUDE.md at
+   project root is NOT a target — original phrasing was wrong.
 4. `npm run check` exits 0; `npm run validate:core` exits 0;
-   `npm run phoenix:truth` stays at 262/262 (or whatever the live count is on
-   the day Phase 6 lands).
+   `npm run phoenix:truth` exits 0 with the live count unchanged from the
+   pre-phase baseline (run `npm run phoenix:truth` for the live count — do not
+   commit a number).
 
 **UI hint:** no
 
