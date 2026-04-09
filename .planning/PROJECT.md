@@ -32,7 +32,10 @@ codebase healthy before the next feature push.
   comes back online; a noisy slow-test threshold warning is silenced.
 - `shared/schema.ts` matches the live Neon endpoint (no phantom tables); doc
   references to live-counted Phoenix truth cases stop hardcoding stale numbers;
-  CLAUDE.md baseline numbers reflect reality (374→39, 132→29, ~400→363).
+  Codebase doc baseline numbers reflect reality (console 39, eslint-disable 29,
+  explicit-any 363) per `.baselines/console-prod-baseline.json`,
+  `.baselines/eslint-file-disable-baseline.json`, and
+  `.baselines/eslint-output.json`.
 - Two lint baselines are halved (console 39→≤19, file-level eslint-disable
   29→≤14). The 363 explicit-`any` baseline is intentionally NOT touched in this
   milestone.
@@ -107,8 +110,8 @@ These capabilities exist on `main` and are in production use. Inferred from
   client/jsdom) — current
 - ✓ Phoenix truth cases gate calculation merges (`npm run phoenix:truth`) —
   existing
-- ✓ Console + eslint-disable ratchets prevent debt regression (374 / 132
-  baselines) — 2026-02-17
+- ✓ Console + eslint-disable ratchets prevent debt regression (current totals 39
+  / 29 per `.baselines/*.json`) — 2026-02-17
 - ✓ Pre-push baseline gate via `./scripts/validate-pr.sh` — existing
 - ✓ Integration test global server lifecycle (no per-file spawn ceiling) —
   Milestone 0A migration 2026-03-26
@@ -180,14 +183,19 @@ Open backlog for the current milestone. Each maps to a phase in `ROADMAP.md`.
       from schema, or gate behind a flag. Surfaced by Plan 01-01 SUMMARY § "Flag
       for follow-up".
 - [ ] **REQ-DRIFT-02**: Remove hardcoded Phoenix truth case counts from docs;
-      replace with pointers to `npm run phoenix:truth` for the live count. Two
-      historical snapshots disagree (118/118 vs 107/107); current live count is
-      262/262.
-- [ ] **REQ-DRIFT-03**: Update CLAUDE.md baseline numbers to match reality.
-      CLAUDE.md says "374 / 132 baselines" for console / eslint-disable but
-      `.baselines/console-prod-baseline.json` is **39** and
-      `.baselines/eslint-file-disable-baseline.json` is **29**. The `~400 any`
-      claim should become `363` (per `.baselines/eslint-output.json`).
+      replace with pointers to `npm run phoenix:truth` for the live count.
+      Historical snapshots disagree (118/118 vs 107/107); always run
+      `npm run phoenix:truth` for the authoritative current count instead of
+      committing a number.
+- [ ] **REQ-DRIFT-03**: Update stale console / eslint-disable / explicit-any
+      baseline numbers in `.planning/PROJECT.md` and
+      `.planning/codebase/{CONCERNS,CONVENTIONS,INTEGRATIONS}.md` to match the
+      live `.baselines/*.json` files. Current totals are console **39** per
+      `.baselines/console-prod-baseline.json`, eslint-disable **29** per
+      `.baselines/eslint-file-disable-baseline.json`, and explicit-any **363**
+      per `.baselines/eslint-output.json`. **Note:** CLAUDE.md at the project
+      root does NOT contain the stale baseline numbers — the original ROADMAP
+      phrasing that named CLAUDE.md was wrong.
 
 **Phase 7 — Bounded debt drawdown:**
 
@@ -283,8 +291,10 @@ and `docs/plans/2026-03-30-post-stabilization-priorities.md` planning rules. Do
 - **Baseline gate:** `npm run baseline:check` enforces 0 TypeScript errors via
   the pre-push hook (`./scripts/validate-pr.sh`). Pre-push compiles
   client/server/shared separately and is stricter than local `tsc --noEmit`.
-- **Logging:** Pino only (per ADR-019). New code cannot increase the 374
-  disallowed-`console` baseline or the 132 file-level `eslint-disable` baseline.
+- **Logging:** Pino only (per ADR-019). New code cannot increase the
+  disallowed-`console` or file-level `eslint-disable` baselines (current totals
+  39 and 29 per `.baselines/console-prod-baseline.json` and
+  `.baselines/eslint-file-disable-baseline.json`).
 - **Decimal math:** runtime code must import `Decimal` from
   `@shared/lib/decimal-config` (not `decimal.js` directly).
 - **JSONB vs columns:** before writing structured data into JSONB, check the
