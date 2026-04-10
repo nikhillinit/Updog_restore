@@ -8,7 +8,7 @@
  * const value: number | undefined = getSomeValue();
  * if (isDefined(value)) {
  *   // TypeScript knows value is number here
- *   console.log(value.toFixed(2));
+ *   value.toFixed(2);
  * }
  */
 export function isDefined<T>(v: T | null | undefined): v is T {

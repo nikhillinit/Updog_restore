@@ -1,5 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
-
 import { BarChart } from 'recharts/es6/chart/BarChart';
 import { Bar } from 'recharts/es6/cartesian/Bar';
 import { XAxis } from 'recharts/es6/cartesian/XAxis';
@@ -596,14 +594,14 @@ export default function PortfolioConstruction() {
                 <ResponsiveContainer width="100%" height="100%">
                   <AreaChart data={returnFundData}>
                     <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="fundSize" tickFormatter={(value: any) => `$${value}K`} />
-                    <YAxis tickFormatter={(value: any) => `$${value}B`} />
+                    <XAxis dataKey="fundSize" tickFormatter={(value: number | string) => `$${value}K`} />
+                    <YAxis tickFormatter={(value: number | string) => `$${value}B`} />
                     <Tooltip
                       formatter={(value) => [
                         value !== undefined ? `$${Number(value).toFixed(1)}B` : '',
                         'Exit Value Required',
                       ]}
-                      labelFormatter={(label: any) => `Fund Size: $${label}K`}
+                      labelFormatter={(label) => `Fund Size: $${String(label)}K`}
                     />
                     <Area
                       type="monotone"

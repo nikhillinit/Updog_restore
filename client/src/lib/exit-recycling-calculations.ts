@@ -152,7 +152,7 @@ export interface ValidationResult {
  * @example
  * ```typescript
  * const maxRecyclable = calculateMaxRecyclableCapital(100, 15);
- * console.log(maxRecyclable); // 15 (15% of $100M)
+ * maxRecyclable; // 15 (15% of $100M)
  * ```
  */
 export function calculateMaxRecyclableCapital(
@@ -394,8 +394,8 @@ export function calculateMgmtFeeRecycling(
  *   [] // No exits yet
  * );
  *
- * console.log(calculations.capacity.maxRecyclableCapital); // 15
- * console.log(calculations.extendedInvestmentCapacity); // 15
+ * calculations.capacity.maxRecyclableCapital; // 15
+ * calculations.extendedInvestmentCapacity; // 15
  * ```
  */
 export function calculateExitRecycling(

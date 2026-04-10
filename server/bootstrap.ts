@@ -1,5 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */ // Application bootstrap
-
 /**
  * Bootstrap - Ensures env + providers are settled before any Redis access.
  * Eliminates side-effect imports that auto-connect to Redis.
@@ -141,12 +139,12 @@ export async function bootstrap() {
     process['on']('SIGINT', () => gracefulShutdown('SIGINT'));
 
     // Handle uncaught errors
-    process['on']('uncaughtException', (error: any) => {
+    process['on']('uncaughtException', (error: unknown) => {
       logger.fatal({ err: error }, 'Uncaught Exception');
       gracefulShutdown('uncaughtException');
     });
 
-    process['on']('unhandledRejection', (reason: any, _promise: any) => {
+    process['on']('unhandledRejection', (reason: unknown, _promise: Promise<unknown>) => {
       logger.error({ err: reason }, 'Unhandled Rejection');
       // Don't exit on unhandled rejections in dev, but log them
       if (cfg.NODE_ENV === 'production') {

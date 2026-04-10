@@ -40,7 +40,7 @@ export interface BrentResult {
  * ```ts
  * const f = (x: number) => x * x - 2; // Find sqrt(2)
  * const result = brent(f, 0, 2);
- * console.log(result.root); // ~1.414
+ * result.root; // approximately 1.414
  * ```
  */
 export function brent(

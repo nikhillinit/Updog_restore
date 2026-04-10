@@ -2,15 +2,16 @@ import type { RequestHandler, Response as ExResponse } from 'express-serve-stati
 
 // Generic route helper — matches Express v4/v5 type shapes without locking to one.
 // Express generic defaults require `any` to match RequestHandler's built-in signatures.
-/* eslint-disable @typescript-eslint/no-explicit-any */
 export type Route<
   Params = Record<string, string>,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   ResBody = any,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   ReqBody = any,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   ReqQuery = any,
   Locals extends Record<string, unknown> = Record<string, unknown>,
 > = RequestHandler<Params, ResBody, ReqBody, ReqQuery, Locals>;
-/* eslint-enable @typescript-eslint/no-explicit-any */
 
 // Small response helpers without Response<T> generics (cross-version safe).
 export function ok<T>(res: ExResponse, body: T) {

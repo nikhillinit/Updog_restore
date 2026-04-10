@@ -473,8 +473,8 @@ export function transformWizardToReserveRequest(
  *   fullSectorProfiles,
  *   fullCapitalAllocation
  * );
- * console.log('Engine recommends:', engineResult.allocations);
- * console.log('Expected MOIC:', engineResult.portfolioMetrics.expectedPortfolioMOIC);
+ * engineResult.allocations;
+ * engineResult.portfolioMetrics.expectedPortfolioMOIC;
  * ```
  */
 export async function calculateEngineComparison(

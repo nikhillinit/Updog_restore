@@ -209,8 +209,8 @@ export class LotService {
    *   lotType: 'follow_on',
    *   limit: 20,
    * });
-   * console.log(result.lots); // Max 20 items
-   * console.log(result.hasMore); // true if more results available
+   * result.lots; // Max 20 items
+   * result.hasMore; // true if more results available
    */
   async list(fundId: number, filter: ListLotsFilter): Promise<PaginatedLots> {
     const limit = filter.limit ?? 50;

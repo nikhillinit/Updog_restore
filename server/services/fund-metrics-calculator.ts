@@ -64,9 +64,9 @@ export interface CalculatedFundMetrics {
  * @example
  * ```typescript
  * const metrics = await calculateFundMetrics(1);
- * console.log(`Fund MOIC: ${metrics.moic.toFixed(2)}x`);
- * console.log(`IRR: ${(metrics.irr * 100).toFixed(1)}%`);
- * console.log(`DPI: ${metrics.dpi.toFixed(2)}x`);
+ * metrics.moic.toFixed(2); // Fund MOIC
+ * metrics.irr != null ? (metrics.irr * 100).toFixed(1) : null; // IRR percentage
+ * metrics.dpi.toFixed(2); // DPI multiple
  * ```
  */
 export async function calculateFundMetrics(fundId: number): Promise<CalculatedFundMetrics> {

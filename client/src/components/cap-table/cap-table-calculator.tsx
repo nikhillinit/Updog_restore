@@ -1,4 +1,3 @@
-/* eslint-disable react-hooks/exhaustive-deps */
 import { useState, useEffect } from 'react';
 import { forEach } from '../../utils/array-safety';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -197,6 +196,7 @@ export default function CapTableCalculator() {
     setSafesNotes(convertedInstruments);
   };
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     generateProForma();
   }, [preMoneyValuation, roundSize, optionPoolIncrease, currentCapTable, safesNotes]);
@@ -510,4 +510,3 @@ export default function CapTableCalculator() {
     </div>
   );
 }
-

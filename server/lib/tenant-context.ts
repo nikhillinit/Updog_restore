@@ -95,7 +95,7 @@ export async function resetTenant(db: NodePgDatabase): Promise<void> {
  * @example
  * ```typescript
  * const context = await getCurrentTenant(db);
- * console.log(`Current tenant: ${context?.orgName} (${context?.orgSlug})`);
+ * `${context?.orgName} (${context?.orgSlug})`;
  * ```
  */
 export async function getCurrentTenant(db: NodePgDatabase): Promise<TenantContext | null> {
@@ -176,7 +176,7 @@ export async function withTenantContextById<T>(
  * ```typescript
  * const orgs = await listOrganizations(db);
  * for (const org of orgs) {
- *   console.log(`${org.name} (${org.slug})`);
+ *   `${org.name} (${org.slug})`;
  * }
  * ```
  */
@@ -243,7 +243,7 @@ export async function verifyRLS(
  *
  * @example
  * ```typescript
- * console.log(await getTenantIndicator(db));
+ * await getTenantIndicator(db);
  * // Output: "[TENANT: tech-ventures (Tech Ventures LLC)]"
  * ```
  */

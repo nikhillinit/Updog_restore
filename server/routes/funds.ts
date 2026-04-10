@@ -1,5 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */ // Fund CRUD routes
-
 import { Router } from 'express';
 import type { Request, Response, NextFunction } from 'express';
 import { eq } from 'drizzle-orm';
@@ -184,7 +182,7 @@ router['post']('/funds/calculate', async (req: Request, res: Response, next: Nex
     const { status, promise } = await getOrStart(
       idem,
       key,
-      async (_signal: any) => {
+      async (_signal: unknown) => {
         const model = new EnhancedFundModel(dto);
         const out = await model.calculate();
         return out;
