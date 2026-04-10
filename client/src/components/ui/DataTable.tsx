@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 /**
  * DataTable Component
  * Generic, reusable table with sorting, sticky headers, and Press On Ventures styling
@@ -25,7 +24,7 @@ interface SortState<T> {
   direction: SortDirection;
 }
 
-export function DataTable<T extends Record<string, any>>({
+export function DataTable<T extends object>({
   columns,
   rows
 }: DataTableProps<T>) {

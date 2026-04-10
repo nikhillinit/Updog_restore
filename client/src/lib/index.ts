@@ -1,8 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
- 
- 
- 
- 
 export * from '../utils/async-iteration';
 export * from './type-guards';
 export * from './validation-helpers';
@@ -23,7 +18,7 @@ export const api = {
     return response.json() as unknown as T;
   },
 
-  async post<T>(url: string, data?: any): Promise<T> {
+  async post<T>(url: string, data?: unknown): Promise<T> {
     const response = await fetch(url, {
       method: 'POST',
       headers: {
@@ -40,4 +35,3 @@ export const api = {
     return response.json() as unknown as T;
   }
 };
-

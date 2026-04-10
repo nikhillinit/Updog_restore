@@ -1,4 +1,3 @@
-/* eslint-disable react-hooks/exhaustive-deps */
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -91,6 +90,7 @@ export default function PortfolioFlowChart({ fundData }: PortfolioFlowChartProps
   ];
 
   // Simulate portfolio flow over time
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     if (isRunning && currentMonth <= 36) {
       const timer = setTimeout(() => {

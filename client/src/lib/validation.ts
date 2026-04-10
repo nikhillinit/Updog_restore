@@ -48,7 +48,7 @@ export function zodErrorsToMap(err: ZodError): FieldErrors {
  * @example
  * const firstError = getFirstError(errors);
  * if (firstError) {
- *   console.log(`Fix: ${firstError.message}`);
+ *   showBanner(firstError.message);
  *   focusField(firstError.field);
  * }
  */

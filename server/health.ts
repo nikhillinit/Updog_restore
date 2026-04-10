@@ -1,5 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */ // Health check endpoints
-
 import type { Request, Response } from 'express';
 import { db } from './db';
 import { healthStatus } from './metrics';
@@ -12,7 +10,7 @@ interface HealthComponent {
   name: string;
   status: 'healthy' | 'unhealthy';
   message?: string;
-  details?: Record<string, any>;
+  details?: Record<string, unknown>;
 }
 
 interface HealthResponse {

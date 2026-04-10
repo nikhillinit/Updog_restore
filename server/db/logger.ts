@@ -1,8 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */ // Database logger types
- 
- 
- 
- 
 // Simple logger for database operations
 import { createLogger, format, transports } from 'winston';
 
@@ -30,8 +25,8 @@ export const logger = createLogger({
 
 // Export a simplified interface for use in the application
 export default {
-  info: (message: string, meta?: Record<string, any>) => logger.info(message, meta),
-  error: (message: string, meta?: Record<string, any>) => logger.error(message, meta),
-  warn: (message: string, meta?: Record<string, any>) => logger.warn(message, meta),
-  debug: (message: string, meta?: Record<string, any>) => logger.debug(message, meta)
+  info: (message: string, meta?: Record<string, unknown>) => logger.info(message, meta),
+  error: (message: string, meta?: Record<string, unknown>) => logger.error(message, meta),
+  warn: (message: string, meta?: Record<string, unknown>) => logger.warn(message, meta),
+  debug: (message: string, meta?: Record<string, unknown>) => logger.debug(message, meta)
 };

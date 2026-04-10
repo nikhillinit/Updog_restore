@@ -157,7 +157,7 @@ export const ReferenceFormulas = {
  * @example
  * const outputs = runFundModel(inputs);
  * const ref = computeReferenceMetrics(outputs);
- * console.log(ref.TVPI.toNumber()); // => 1.3
+ * ref.TVPI.toNumber(); // => 1.3
  */
 export function computeReferenceMetrics(outputs: FundModelOutputs): Record<MetricKey, Decimal> {
   if (outputs.periodResults.length === 0) {

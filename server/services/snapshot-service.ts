@@ -201,8 +201,8 @@ export class SnapshotService {
    *   status: 'complete',
    *   limit: 20,
    * });
-   * console.log(result.snapshots); // Max 20 items
-   * console.log(result.hasMore); // true if more results available
+   * result.snapshots; // Max 20 items
+   * result.hasMore; // true if more results available
    */
   async list(fundId: number, filter: ListSnapshotsFilter): Promise<PaginatedSnapshots> {
     // Verify fund exists
@@ -293,7 +293,7 @@ export class SnapshotService {
    *   calculatedMetrics: { irr: 0.18 },
    *   version: BigInt(1), // Current version
    * });
-   * console.log(updated.version); // BigInt(2)
+   * updated.version; // BigInt(2)
    */
   async update(snapshotId: string, data: UpdateSnapshotData): Promise<ForecastSnapshot> {
     // Get current snapshot to verify existence and version

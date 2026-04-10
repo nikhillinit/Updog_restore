@@ -432,12 +432,10 @@ export function selectIRR(data: FundData, asOf?: string): number {
  * @example
  * ```typescript
  * const kpis = selectAllKPIs(fundData);
- * console.log(`Fund Performance:
- *   TVPI: ${kpis.tvpi.toFixed(2)}x
- *   DPI: ${kpis.dpi.toFixed(2)}x
- *   IRR: ${(kpis.irr * 100).toFixed(1)}%
- *   NAV: $${(kpis.nav / 1e6).toFixed(1)}M
- * `);
+ * kpis.tvpi.toFixed(2); // TVPI multiple
+ * kpis.dpi.toFixed(2); // DPI multiple
+ * (kpis.irr * 100).toFixed(1); // IRR percentage
+ * (kpis.nav / 1e6).toFixed(1); // NAV in millions
  * ```
  */
 export function selectAllKPIs(data: FundData, asOf?: string): FundKPIs {

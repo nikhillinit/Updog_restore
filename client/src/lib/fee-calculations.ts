@@ -511,8 +511,8 @@ export function calculateTotalAdminExpenses(
  * @example
  * ```ts
  * const impact = calculateFeeImpact(100, feeStructure, 10, 250, 90);
- * console.log(`Net MOIC: ${impact.netMOIC.toFixed(2)}x`);
- * console.log(`Fee drag: ${impact.feeDragBps} bps`);
+ * impact.netMOIC.toFixed(2); // Net MOIC
+ * impact.feeDragBps; // Fee drag in basis points
  * ```
  */
 export function calculateFeeImpact(

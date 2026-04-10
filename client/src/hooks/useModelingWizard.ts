@@ -332,12 +332,8 @@ export function useModelingWizard(options: UseModelingWizardOptions = {}): UseMo
  *   const wizard = useModelingWizard({
  *     skipOptionalSteps: false,
  *     autoSaveInterval: 30000,
- *     onComplete: (data) => {
- *       console.log('Wizard completed!', data);
- *     },
- *     onError: (error) => {
- *       console.error('Wizard error:', error);
- *     }
+ *     onComplete: (_data) => {},
+ *     onError: (_error) => {}
  *   });
  *
  *   return (

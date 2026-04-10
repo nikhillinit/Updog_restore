@@ -1,5 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */ // AI thinking endpoint types
-
 /**
  * Interleaved Thinking API
  *
@@ -59,7 +57,7 @@ interface QueryResponse {
   success: boolean;
   response?: string;
   thinking?: string[];
-  toolUses?: Array<{ name: string; input: any; output: any }>;
+  toolUses?: Array<{ name: string; input: unknown; output: unknown }>;
   usage?: {
     input_tokens: number;
     output_tokens: number;
@@ -232,7 +230,7 @@ async function handleThinkingQuery(
   ];
 
   const thinkingBlocks: string[] = [];
-  const toolExecutions: Array<{ name: string; input: any; output: any }> = [];
+  const toolExecutions: Array<{ name: string; input: unknown; output: unknown }> = [];
   const totalUsage = {
     input_tokens: 0,
     output_tokens: 0,
