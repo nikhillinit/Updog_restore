@@ -1,3 +1,5 @@
+import { withApiBase } from '@/lib/api-url';
+
 // Simple runtime detection for demo mode
 function isStubModeResponse(value: unknown): value is { stubMode?: boolean } {
   return typeof value === 'object' && value !== null && 'stubMode' in value;
@@ -5,7 +7,7 @@ function isStubModeResponse(value: unknown): value is { stubMode?: boolean } {
 
 export async function isStubMode(): Promise<boolean> {
   try {
-    const response = await fetch('/api/stub-status');
+    const response = await fetch(withApiBase('/api/stub-status'));
     if (!response.ok) return false;
     const data: unknown = await response.json();
     return isStubModeResponse(data) && data.stubMode === true;

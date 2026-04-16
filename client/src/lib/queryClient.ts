@@ -1,5 +1,6 @@
 import type { QueryFunction } from '@tanstack/react-query';
 import { QueryClient } from '@tanstack/react-query';
+import { withApiBase } from '@/lib/api-url';
 
 /**
  * Structured API error that preserves server response details.
@@ -69,7 +70,7 @@ export async function apiRequest<TResponse = unknown>(
     options.body = JSON.stringify(body);
   }
 
-  const response = await fetch(url, options);
+  const response = await fetch(withApiBase(url), options);
 
   if (!response.ok) {
     type ErrorBody = {
@@ -89,7 +90,7 @@ export async function apiRequest<TResponse = unknown>(
 type UnauthorizedBehavior = 'returnNull' | 'throw';
 export function getQueryFn<T>(options: { on401: UnauthorizedBehavior }): QueryFunction<T | null> {
   return async ({ queryKey }) => {
-    const res = await fetch(queryKey.join('/') as string, {
+    const res = await fetch(withApiBase(queryKey.join('/') as string), {
       credentials: 'include',
     });
 

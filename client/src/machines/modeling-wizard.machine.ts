@@ -16,6 +16,7 @@
 
 import { setup, assign, fromPromise } from 'xstate';
 import { z } from 'zod';
+import { withApiBase } from '@/lib/api-url';
 import {
   calculateReservesForWizard,
   validateWizardPortfolio,
@@ -600,7 +601,7 @@ const submitFundModel = fromPromise(async ({ input }: { input: ModelingWizardCon
   };
 
   try {
-    const response = await fetch('/api/funds', {
+    const response = await fetch(withApiBase('/api/funds'), {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

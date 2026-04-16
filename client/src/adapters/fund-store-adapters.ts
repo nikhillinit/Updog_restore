@@ -190,7 +190,9 @@ export function fundStoreToCreateV1(state: FundStateSlice): FundCreateV1 {
   if (state.vintageYear == null) defaultedFields.push('vintageYear');
 
   if (defaultedFields.length > 0) {
-    console.warn('create-defaults-applied', { defaultedFields });
+    if (import.meta.env.DEV) {
+      console.warn('create-defaults-applied', { defaultedFields });
+    }
   }
 
   return {

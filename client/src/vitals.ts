@@ -2,6 +2,7 @@ import type { Metric } from 'web-vitals';
 import { onLCP, onINP, onCLS, onFCP, onTTFB } from 'web-vitals';
 import { Sentry } from '@/monitoring';
 import { logger } from '@/lib/logger';
+import { withApiBase } from '@/lib/api-url';
 
 interface VitalMetric extends Omit<Metric, 'navigationType'> {
   navigationType?: string;
@@ -75,6 +76,37 @@ function isTelemetryAllowed(): boolean {
   return true;
 }
 
+const RUM_ENDPOINT = withApiBase('/metrics/rum');
+let rumEndpointDisabled = false;
+
+function sendRumMetric(body: Record<string, unknown>): void {
+  if (rumEndpointDisabled) {
+    return;
+  }
+
+  fetch(RUM_ENDPOINT, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+    keepalive: true,
+  })
+    .then((response) => {
+      if (response.status === 404 || response.status === 405) {
+        rumEndpointDisabled = true;
+        logger.warn('rum_endpoint_disabled', {
+          endpoint: RUM_ENDPOINT,
+          status: response.status,
+        });
+      }
+    })
+    .catch((error: unknown) => {
+      logger.warn('web_vital_transport_failed', {
+        endpoint: RUM_ENDPOINT,
+        error: getErrorMessage(error),
+      });
+    });
+}
+
 /**
  * Send Core Web Vitals to monitoring backends
  */
@@ -122,25 +154,7 @@ function sendToAnalytics(metric: VitalMetric) {
     });
   });
 
-  // Send to backend RUM endpoint
-  if (typeof navigator.sendBeacon === 'function') {
-    const url = '/metrics/rum';
-    const blob = new Blob([JSON.stringify(body)], { type: 'application/json' });
-    navigator.sendBeacon(url, blob);
-  } else {
-    // Fallback for older browsers
-    fetch('/metrics/rum', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body),
-      keepalive: true,
-    }).catch((error: unknown) => {
-      logger.warn('web_vital_transport_failed', {
-        name: metric.name,
-        error: getErrorMessage(error),
-      });
-    });
-  }
+  sendRumMetric(body);
 
   // Log to console in development
   if (import.meta.env.DEV) {
