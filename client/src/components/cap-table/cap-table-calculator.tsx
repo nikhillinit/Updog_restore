@@ -16,7 +16,6 @@ import {
   TableRow,
 } from '@/components/ui/table';
 
-
 import { Plus, Calculator, Download, Users, TrendingUp, DollarSign, Percent } from 'lucide-react';
 import SAFENoteEditor from './safe-note-editor';
 
@@ -63,9 +62,9 @@ const SAMPLE_SAFES_NOTES: SAFENote[] = [
     type: 'safe',
     principal: 500000,
     valuationCap: 8000000,
-    discount: 0.20,
+    discount: 0.2,
     holderName: 'Angel Investor 1',
-    investmentDate: '2024-01-15'
+    investmentDate: '2024-01-15',
   },
   {
     id: 'safe-2',
@@ -74,7 +73,7 @@ const SAMPLE_SAFES_NOTES: SAFENote[] = [
     valuationCap: 10000000,
     discount: 0.15,
     holderName: 'Angel Investor 2',
-    investmentDate: '2024-02-01'
+    investmentDate: '2024-02-01',
   },
   {
     id: 'note-1',
@@ -83,8 +82,8 @@ const SAMPLE_SAFES_NOTES: SAFENote[] = [
     valuationCap: 12000000,
     discount: 0.25,
     holderName: 'Convertible Note Holder',
-    investmentDate: '2024-03-10'
-  }
+    investmentDate: '2024-03-10',
+  },
 ];
 
 export default function CapTableCalculator() {
@@ -92,7 +91,7 @@ export default function CapTableCalculator() {
   const [safesNotes, setSafesNotes] = useState<SAFENote[]>(SAMPLE_SAFES_NOTES);
   const [proFormaCapTable, setProFormaCapTable] = useState<Shareholder[]>([]);
   const [consolidate, setConsolidate] = useState(true);
-  
+
   // Next Round Parameters
   const [preMoneyValuation, setPreMoneyValuation] = useState(15000000);
   const [roundSize, setRoundSize] = useState(5000000);
@@ -101,11 +100,12 @@ export default function CapTableCalculator() {
   // Calculate cap table metrics
   const calculateMetrics = () => {
     const totalShares = currentCapTable.reduce<number>((sum, sh) => sum + sh.shares, 0);
-    const totalOptions = currentCapTable.find(sh => sh.type === 'option-pool')?.shares ?? 0;
+    const totalOptions = currentCapTable.find((sh) => sh.type === 'option-pool')?.shares ?? 0;
     const fullyDilutedShares = totalShares;
 
     // Calculate price per share for next round
-    const pricePerShare = (preMoneyValuation + optionPoolIncrease) / (fullyDilutedShares + optionPoolIncrease);
+    const pricePerShare =
+      (preMoneyValuation + optionPoolIncrease) / (fullyDilutedShares + optionPoolIncrease);
     const newInvestorShares = roundSize / pricePerShare;
     const postMoneyValuation = preMoneyValuation + roundSize;
 
@@ -115,22 +115,24 @@ export default function CapTableCalculator() {
       fullyDilutedShares,
       pricePerShare,
       newInvestorShares,
-      postMoneyValuation
+      postMoneyValuation,
     };
   };
 
   // Convert SAFEs and Notes
   const convertSafesNotes = (pricePerShare: number) => {
-    return safesNotes.map(instrument => {
+    return safesNotes.map((instrument) => {
       // Calculate cap-based price
       const fullyDilutedShares = currentCapTable.reduce((sum, sh) => sum + sh.shares, 0);
-      const capBasedPrice = instrument.valuationCap ? 
-        instrument.valuationCap / fullyDilutedShares : Infinity;
-      
+      const capBasedPrice = instrument.valuationCap
+        ? instrument.valuationCap / fullyDilutedShares
+        : Infinity;
+
       // Calculate discount-based price
-      const discountBasedPrice = instrument.discount ? 
-        pricePerShare * (1 - instrument.discount) : Infinity;
-      
+      const discountBasedPrice = instrument.discount
+        ? pricePerShare * (1 - instrument.discount)
+        : Infinity;
+
       // Take the lower of the two (better for investor)
       const conversionPrice = Math.min(capBasedPrice, discountBasedPrice);
       const shares = instrument.principal / conversionPrice;
@@ -138,7 +140,7 @@ export default function CapTableCalculator() {
       return {
         ...instrument,
         conversionPrice,
-        shares
+        shares,
       };
     });
   };
@@ -147,34 +149,34 @@ export default function CapTableCalculator() {
   const generateProForma = () => {
     const metrics = calculateMetrics();
     const convertedInstruments = convertSafesNotes(metrics.pricePerShare);
-    
+
     // Start with current cap table
     let proForma = [...currentCapTable];
-    
+
     // Add new investor
     proForma.push({
       id: 'new-investor',
       name: 'New Investor',
       type: 'investor',
       shares: metrics.newInvestorShares,
-      percentage: 0
+      percentage: 0,
     });
 
     // Add converted SAFEs/Notes
-    forEach(convertedInstruments, instrument => {
+    forEach(convertedInstruments, (instrument) => {
       proForma.push({
         id: instrument.id,
         name: instrument.holderName,
         type: instrument.type === 'safe' ? 'safe' : 'note',
         shares: instrument.shares || 0,
         percentage: 0,
-        isConverted: true
+        isConverted: true,
       });
     });
 
     // Add option pool increase if any
     if (optionPoolIncrease > 0) {
-      const optionPoolIndex = proForma.findIndex(sh => sh.type === 'option-pool');
+      const optionPoolIndex = proForma.findIndex((sh) => sh.type === 'option-pool');
       if (optionPoolIndex >= 0 && proForma[optionPoolIndex]) {
         proForma[optionPoolIndex].shares += optionPoolIncrease;
       }
@@ -184,9 +186,9 @@ export default function CapTableCalculator() {
     const newTotalShares = proForma.reduce((sum, sh) => sum + sh.shares, 0);
 
     // Recalculate all percentages
-    proForma = proForma.map(shareholder => ({
+    proForma = proForma.map((shareholder) => ({
       ...shareholder,
-      percentage: (shareholder.shares / newTotalShares) * 100
+      percentage: (shareholder.shares / newTotalShares) * 100,
     }));
 
     // Sort by percentage (descending)
@@ -196,9 +198,10 @@ export default function CapTableCalculator() {
     setSafesNotes(convertedInstruments);
   };
 
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     generateProForma();
+    // generateProForma is intentionally excluded — it reads the deps below and sets state
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [preMoneyValuation, roundSize, optionPoolIncrease, currentCapTable, safesNotes]);
 
   const metrics = calculateMetrics();
@@ -223,13 +226,20 @@ export default function CapTableCalculator() {
 
   const getShareholderTypeColor = (type: string) => {
     switch (type) {
-      case 'founder': return 'bg-blue-100 text-blue-800';
-      case 'employee': return 'bg-green-100 text-green-800';
-      case 'investor': return 'bg-purple-100 text-purple-800';
-      case 'safe': return 'bg-orange-100 text-orange-800';
-      case 'note': return 'bg-red-100 text-red-800';
-      case 'option-pool': return 'bg-gray-100 text-gray-800';
-      default: return 'bg-gray-100 text-gray-800';
+      case 'founder':
+        return 'bg-blue-100 text-blue-800';
+      case 'employee':
+        return 'bg-green-100 text-green-800';
+      case 'investor':
+        return 'bg-purple-100 text-purple-800';
+      case 'safe':
+        return 'bg-orange-100 text-orange-800';
+      case 'note':
+        return 'bg-red-100 text-red-800';
+      case 'option-pool':
+        return 'bg-gray-100 text-gray-800';
+      default:
+        return 'bg-gray-100 text-gray-800';
     }
   };
 
@@ -320,29 +330,29 @@ export default function CapTableCalculator() {
                 id="pre-money"
                 type="number"
                 value={preMoneyValuation}
-                onChange={e => setPreMoneyValuation(Number(e.target.value))}
+                onChange={(e) => setPreMoneyValuation(Number(e.target.value))}
                 className="border-yellow-300 bg-yellow-50"
               />
             </div>
-            
+
             <div>
               <Label htmlFor="round-size">Round Size</Label>
               <Input
                 id="round-size"
                 type="number"
                 value={roundSize}
-                onChange={e => setRoundSize(Number(e.target.value))}
+                onChange={(e) => setRoundSize(Number(e.target.value))}
                 className="border-yellow-300 bg-yellow-50"
               />
             </div>
-            
+
             <div>
               <Label htmlFor="option-pool">Option Pool Increase</Label>
               <Input
                 id="option-pool"
                 type="number"
                 value={optionPoolIncrease}
-                onChange={e => setOptionPoolIncrease(Number(e.target.value))}
+                onChange={(e) => setOptionPoolIncrease(Number(e.target.value))}
                 className="border-yellow-300 bg-yellow-50"
               />
             </div>
@@ -400,11 +410,15 @@ export default function CapTableCalculator() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {currentCapTable.map(shareholder => (
+                  {currentCapTable.map((shareholder) => (
                     <TableRow key={shareholder.id}>
                       <TableCell className="font-medium">{shareholder.name}</TableCell>
-                      <TableCell className="text-right">{formatShares(shareholder.shares)}</TableCell>
-                      <TableCell className="text-right">{formatPercentage(shareholder.percentage)}</TableCell>
+                      <TableCell className="text-right">
+                        {formatShares(shareholder.shares)}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        {formatPercentage(shareholder.percentage)}
+                      </TableCell>
                       <TableCell>
                         <Badge className={getShareholderTypeColor(shareholder.type)}>
                           {shareholder.type}
@@ -432,11 +446,7 @@ export default function CapTableCalculator() {
                   <p className="text-sm text-gray-600">Pro Forma Cap Table after conversions.</p>
                 </div>
                 <div className="flex items-center space-x-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setConsolidate(!consolidate)}
-                  >
+                  <Button variant="outline" size="sm" onClick={() => setConsolidate(!consolidate)}>
                     Consolidate {consolidate ? '✓' : ''}
                   </Button>
                   <Button size="sm">
@@ -457,11 +467,15 @@ export default function CapTableCalculator() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {proFormaCapTable.map(shareholder => (
+                  {proFormaCapTable.map((shareholder) => (
                     <TableRow key={shareholder.id}>
                       <TableCell className="font-medium">{shareholder.name}</TableCell>
-                      <TableCell className="text-right">{formatShares(shareholder.shares)}</TableCell>
-                      <TableCell className="text-right">{formatPercentage(shareholder.percentage)}</TableCell>
+                      <TableCell className="text-right">
+                        {formatShares(shareholder.shares)}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        {formatPercentage(shareholder.percentage)}
+                      </TableCell>
                       <TableCell>
                         <Button size="sm" variant="ghost">
                           + Ownership Update
@@ -469,30 +483,42 @@ export default function CapTableCalculator() {
                       </TableCell>
                     </TableRow>
                   ))}
-                  
+
                   {/* Summary Rows */}
                   <TableRow className="border-t-2 border-gray-300">
                     <TableCell className="font-bold">Total Shares Excluding Options</TableCell>
                     <TableCell className="text-right font-bold">
-                      {formatShares(proFormaCapTable.filter(sh => sh.type !== 'option-pool').reduce((sum, sh) => sum + sh.shares, 0))}
+                      {formatShares(
+                        proFormaCapTable
+                          .filter((sh) => sh.type !== 'option-pool')
+                          .reduce((sum, sh) => sum + sh.shares, 0)
+                      )}
                     </TableCell>
                     <TableCell className="text-right font-bold">
-                      {formatPercentage(proFormaCapTable.filter(sh => sh.type !== 'option-pool').reduce((sum, sh) => sum + sh.percentage, 0))}
+                      {formatPercentage(
+                        proFormaCapTable
+                          .filter((sh) => sh.type !== 'option-pool')
+                          .reduce((sum, sh) => sum + sh.percentage, 0)
+                      )}
                     </TableCell>
                     <TableCell></TableCell>
                   </TableRow>
-                  
+
                   <TableRow>
                     <TableCell>Unallocated Options</TableCell>
                     <TableCell className="text-right">
-                      {formatShares(proFormaCapTable.find(sh => sh.type === 'option-pool')?.shares || 0)}
+                      {formatShares(
+                        proFormaCapTable.find((sh) => sh.type === 'option-pool')?.shares || 0
+                      )}
                     </TableCell>
                     <TableCell className="text-right">
-                      {formatPercentage(proFormaCapTable.find(sh => sh.type === 'option-pool')?.percentage || 0)}
+                      {formatPercentage(
+                        proFormaCapTable.find((sh) => sh.type === 'option-pool')?.percentage || 0
+                      )}
                     </TableCell>
                     <TableCell></TableCell>
                   </TableRow>
-                  
+
                   <TableRow className="border-t border-gray-300">
                     <TableCell className="font-bold">Total</TableCell>
                     <TableCell className="text-right font-bold">

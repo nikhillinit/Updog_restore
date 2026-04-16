@@ -164,6 +164,7 @@ Default Parameters/
 playwright-report/
 test-results/
 coverage/
+regenerate_todo.txt
 
 # ESLint wave execution artifacts (ephemeral - regenerated per wave)
 .artifacts/
