@@ -1,16 +1,10 @@
-import { useState, useEffect } from "react";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Progress } from "@/components/ui/progress";
-import { Separator } from "@/components/ui/separator";
-import { 
-  ArrowRight,
-  TrendingUp,
-  Play,
-  Pause,
-  RotateCcw
-} from "lucide-react";
+import { useState, useEffect, useMemo } from 'react';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Progress } from '@/components/ui/progress';
+import { Separator } from '@/components/ui/separator';
+import { ArrowRight, TrendingUp, Play, Pause, RotateCcw } from 'lucide-react';
 
 interface PortfolioFlowChartProps {
   fundData: {
@@ -46,51 +40,54 @@ export default function PortfolioFlowChart({ fundData }: PortfolioFlowChartProps
   const [isRunning, setIsRunning] = useState(false);
   const [flowData, setFlowData] = useState<FlowStep[]>([]);
 
-  const stages: Stage[] = [
-    {
-      id: "pre-seed",
-      name: "Pre-Seed",
-      color: "bg-gray-500",
-      graduationRate: 35, // 35% graduate to Seed
-      exitRate: 0, // No exits at pre-seed
-      currentDeals: 54,
-      monthlyGraduations: 0.5,
-      monthlyExits: 0
-    },
-    {
-      id: "seed",
-      name: "Seed", 
-      color: "bg-blue-500",
-      graduationRate: 50, // 50% graduate to Series A
-      exitRate: 5, // 5% exit at seed
-      currentDeals: 18,
-      monthlyGraduations: 0.25,
-      monthlyExits: 0.05
-    },
-    {
-      id: "series-a",
-      name: "Series A",
-      color: "bg-green-500", 
-      graduationRate: 60, // 60% graduate to Series B
-      exitRate: 15, // 15% exit at Series A
-      currentDeals: 9,
-      monthlyGraduations: 0.15,
-      monthlyExits: 0.15
-    },
-    {
-      id: "series-b",
-      name: "Series B",
-      color: "bg-purple-500",
-      graduationRate: 0, // Final stage
-      exitRate: 25, // 25% exit at Series B
-      currentDeals: 5,
-      monthlyGraduations: 0,
-      monthlyExits: 0.25
-    }
-  ];
+  const stages: Stage[] = useMemo(
+    () => [
+      {
+        id: 'pre-seed',
+        name: 'Pre-Seed',
+        color: 'bg-gray-500',
+        graduationRate: 35, // 35% graduate to Seed
+        exitRate: 0, // No exits at pre-seed
+        currentDeals: 54,
+        monthlyGraduations: 0.5,
+        monthlyExits: 0,
+      },
+      {
+        id: 'seed',
+        name: 'Seed',
+        color: 'bg-blue-500',
+        graduationRate: 50, // 50% graduate to Series A
+        exitRate: 5, // 5% exit at seed
+        currentDeals: 18,
+        monthlyGraduations: 0.25,
+        monthlyExits: 0.05,
+      },
+      {
+        id: 'series-a',
+        name: 'Series A',
+        color: 'bg-green-500',
+        graduationRate: 60, // 60% graduate to Series B
+        exitRate: 15, // 15% exit at Series A
+        currentDeals: 9,
+        monthlyGraduations: 0.15,
+        monthlyExits: 0.15,
+      },
+      {
+        id: 'series-b',
+        name: 'Series B',
+        color: 'bg-purple-500',
+        graduationRate: 0, // Final stage
+        exitRate: 25, // 25% exit at Series B
+        currentDeals: 5,
+        monthlyGraduations: 0,
+        monthlyExits: 0.25,
+      },
+    ],
+    []
+  );
 
   // Simulate portfolio flow over time
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+
   useEffect(() => {
     if (isRunning && currentMonth <= 36) {
       const timer = setTimeout(() => {
@@ -98,13 +95,13 @@ export default function PortfolioFlowChart({ fundData }: PortfolioFlowChartProps
           month: currentMonth,
           preSeedInvestments: fundData.monthlyInvestmentRate,
           seedGraduations: stages[0]?.monthlyGraduations ?? 0,
-          seriesAGraduations: stages[1]?.monthlyGraduations ?? 0, 
+          seriesAGraduations: stages[1]?.monthlyGraduations ?? 0,
           seriesBGraduations: stages[2]?.monthlyGraduations ?? 0,
-          totalExits: stages.reduce((sum, stage) => sum + stage.monthlyExits, 0)
+          totalExits: stages.reduce((sum, stage) => sum + stage.monthlyExits, 0),
         };
-        
-        setFlowData(prev => [...prev, newStep]);
-        setCurrentMonth(prev => prev + 1);
+
+        setFlowData((prev) => [...prev, newStep]);
+        setCurrentMonth((prev) => prev + 1);
       }, 500); // 500ms per month for demo
 
       return () => clearTimeout(timer);
@@ -126,9 +123,11 @@ export default function PortfolioFlowChart({ fundData }: PortfolioFlowChartProps
   const calculateCumulativeStats = () => {
     const totalInvested = flowData.reduce((sum, step) => sum + step.preSeedInvestments, 0);
     const totalExits = flowData.reduce((sum, step) => sum + step.totalExits, 0);
-    const totalGraduations = flowData.reduce((sum, step) => 
-      sum + step.seedGraduations + step.seriesAGraduations + step.seriesBGraduations, 0);
-    
+    const totalGraduations = flowData.reduce(
+      (sum, step) => sum + step.seedGraduations + step.seriesAGraduations + step.seriesBGraduations,
+      0
+    );
+
     return { totalInvested, totalExits, totalGraduations };
   };
 
@@ -188,7 +187,8 @@ export default function PortfolioFlowChart({ fundData }: PortfolioFlowChartProps
         <CardHeader>
           <CardTitle>Investment Flow Visualization</CardTitle>
           <CardDescription>
-            {fundData.totalDeals} pre-seed deals • {fundData.monthlyInvestmentRate} deals/month • Repeated for 36 months
+            {fundData.totalDeals} pre-seed deals • {fundData.monthlyInvestmentRate} deals/month •
+            Repeated for 36 months
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -219,10 +219,14 @@ export default function PortfolioFlowChart({ fundData }: PortfolioFlowChartProps
                     {/* Stage Card */}
                     <Card className="border-2 hover:shadow-md transition-shadow">
                       <CardContent className="p-4">
-                        <div className={`w-full h-16 ${stage.color} rounded-lg flex items-center justify-center text-white font-bold text-lg mb-3`}>
-                          {index === 0 ? `${fundData.monthlyInvestmentRate} deals` : 
-                           index === stages.length - 1 ? `${stage.monthlyExits.toFixed(2)} exits` :
-                           `${stage.monthlyGraduations.toFixed(2)} grads`}
+                        <div
+                          className={`w-full h-16 ${stage.color} rounded-lg flex items-center justify-center text-white font-bold text-lg mb-3`}
+                        >
+                          {index === 0
+                            ? `${fundData.monthlyInvestmentRate} deals`
+                            : index === stages.length - 1
+                              ? `${stage.monthlyExits.toFixed(2)} exits`
+                              : `${stage.monthlyGraduations.toFixed(2)} grads`}
                         </div>
 
                         <div className="space-y-2 text-sm">
@@ -233,7 +237,7 @@ export default function PortfolioFlowChart({ fundData }: PortfolioFlowChartProps
                               </Badge>
                             </div>
                           )}
-                          
+
                           {stage.exitRate > 0 && (
                             <div className="text-center">
                               <Badge variant="secondary" className="bg-green-100 text-green-800">
@@ -269,10 +273,12 @@ export default function PortfolioFlowChart({ fundData }: PortfolioFlowChartProps
 
                 <div className="grid grid-cols-12 gap-1">
                   {Array.from({ length: 36 }, (_, i) => (
-                    <div 
+                    <div
                       key={i}
                       className={`h-8 rounded flex items-center justify-center text-xs font-medium ${
-                        i + 1 <= currentMonth ? 'bg-blue-500 text-white' : 'bg-gray-200 text-gray-600'
+                        i + 1 <= currentMonth
+                          ? 'bg-blue-500 text-white'
+                          : 'bg-gray-200 text-gray-600'
                       }`}
                     >
                       {i + 1}
@@ -290,7 +296,9 @@ export default function PortfolioFlowChart({ fundData }: PortfolioFlowChartProps
         <Card>
           <CardHeader>
             <CardTitle>Portfolio Flow Statistics</CardTitle>
-            <CardDescription>Cumulative metrics from {flowData.length} months of investments</CardDescription>
+            <CardDescription>
+              Cumulative metrics from {flowData.length} months of investments
+            </CardDescription>
           </CardHeader>
           <CardContent>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
@@ -298,17 +306,19 @@ export default function PortfolioFlowChart({ fundData }: PortfolioFlowChartProps
                 <div className="text-2xl font-bold text-blue-600">{totalInvested.toFixed(1)}</div>
                 <div className="text-sm text-muted-foreground">Total Deals Invested</div>
               </div>
-              
+
               <div className="text-center">
-                <div className="text-2xl font-bold text-green-600">{totalGraduations.toFixed(1)}</div>
+                <div className="text-2xl font-bold text-green-600">
+                  {totalGraduations.toFixed(1)}
+                </div>
                 <div className="text-sm text-muted-foreground">Total Graduations</div>
               </div>
-              
+
               <div className="text-center">
                 <div className="text-2xl font-bold text-purple-600">{totalExits.toFixed(2)}</div>
                 <div className="text-sm text-muted-foreground">Total Exits</div>
               </div>
-              
+
               <div className="text-center">
                 <div className="text-2xl font-bold text-orange-600">
                   {totalInvested > 0 ? ((totalExits / totalInvested) * 100).toFixed(1) : 0}%
@@ -323,15 +333,21 @@ export default function PortfolioFlowChart({ fundData }: PortfolioFlowChartProps
             <div className="space-y-2">
               <h5 className="font-medium">Recent Monthly Activity</h5>
               <div className="max-h-32 overflow-y-auto space-y-1">
-                {flowData.slice(-6).reverse().map((step) => (
-                  <div key={step.month} className="flex justify-between items-center text-sm p-2 bg-gray-50 rounded">
-                    <span className="font-medium">Month {step.month}</span>
-                    <div className="flex space-x-4">
-                      <span className="text-blue-600">{step.preSeedInvestments} invested</span>
-                      <span className="text-green-600">{step.totalExits.toFixed(2)} exits</span>
+                {flowData
+                  .slice(-6)
+                  .reverse()
+                  .map((step) => (
+                    <div
+                      key={step.month}
+                      className="flex justify-between items-center text-sm p-2 bg-gray-50 rounded"
+                    >
+                      <span className="font-medium">Month {step.month}</span>
+                      <div className="flex space-x-4">
+                        <span className="text-blue-600">{step.preSeedInvestments} invested</span>
+                        <span className="text-green-600">{step.totalExits.toFixed(2)} exits</span>
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  ))}
               </div>
             </div>
           </CardContent>
