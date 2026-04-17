@@ -227,6 +227,18 @@ export default defineConfig(({ mode }: { mode: string }) => {
           target: apiTarget,
           changeOrigin: true,
         },
+        '/metrics': {
+          target: apiTarget,
+          changeOrigin: true,
+        },
+        '/healthz': {
+          target: apiTarget,
+          changeOrigin: true,
+        },
+        '/readyz': {
+          target: apiTarget,
+          changeOrigin: true,
+        },
       },
     },
     plugins: [
