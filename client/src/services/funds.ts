@@ -5,6 +5,7 @@
 import { clampPct, clampInt } from '../lib/coerce';
 import * as Telemetry from '../lib/telemetry';
 import { startInFlight, isInFlight, cancelInFlight } from '../lib/inflight';
+import { withApiBase } from '../lib/api-url';
 
 type Json = Record<string, unknown> | unknown[] | string | number | boolean | null | undefined;
 
@@ -40,7 +41,7 @@ export interface CreateFundResult {
   durationMs: number;
 }
 
-const DEFAULT_ENDPOINT = '/api/funds';
+const DEFAULT_ENDPOINT = withApiBase('/api/funds');
 const DEFAULT_TIMEOUT = 10_000;
 
 // ---------- Stable stringify + FNV-1a hash (deterministic) ----------
@@ -234,6 +235,7 @@ async function executeCreateFund(
     const res = await fetch(endpoint, {
       method,
       signal,
+      credentials: 'include',
       headers: {
         'Content-Type': 'application/json',
         'Idempotency-Key': hash, // Server-side deduplication
@@ -369,8 +371,9 @@ export async function createFundWithToast(payload: Json, options?: CreateFundOpt
 export async function finalizeFund(
   payload: import('@shared/contracts/fund-finalize-v1.contract').FundFinalizeV1
 ): Promise<import('@shared/contracts/fund-finalize-v1.contract').FundFinalizeResponseV1> {
-  const response = await fetch('/api/funds/finalize', {
+  const response = await fetch(withApiBase('/api/funds/finalize'), {
     method: 'POST',
+    credentials: 'include',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload),
   });
