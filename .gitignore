@@ -39,6 +39,11 @@ logs
 # Claude Code temporary files
 tmpclaude-*-cwd
 
+# Control plane artifacts (ephemeral)
+.claude/artifacts/metrics.jsonl
+.claude/artifacts/.session-files.json
+.claude/locks/
+
 # Runtime data
 pids
 *.pid

@@ -1,0 +1,66 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://updog.internal/schemas/telemetry-event.schema.json",
+  "title": "Control Plane Telemetry Event",
+  "description": "Schema for telemetry events emitted by the Claude Code control plane",
+  "type": "object",
+  "required": [
+    "event",
+    "ts",
+    "repoRoot",
+    "branch",
+    "headSha",
+    "mode",
+    "success"
+  ],
+  "properties": {
+    "event": {
+      "type": "string",
+      "enum": [
+        "frame_brief_created",
+        "verification_run",
+        "checkpoint_written",
+        "handoff_written",
+        "git_audit_generated",
+        "large_file_warned",
+        "large_file_blocked",
+        "force_push_blocked",
+        "bypass_logged",
+        "parallel_reconciler_completed",
+        "hooks_disabled",
+        "explore_mode_used",
+        "lite_mode_selected",
+        "full_mode_selected",
+        "lock_contention",
+        "staleness_detected"
+      ]
+    },
+    "ts": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "repoRoot": {
+      "type": "string"
+    },
+    "worktreePath": {
+      "type": ["string", "null"]
+    },
+    "branch": {
+      "type": "string"
+    },
+    "headSha": {
+      "type": "string"
+    },
+    "mode": {
+      "type": "string",
+      "enum": ["lite", "full", "explore"]
+    },
+    "success": {
+      "type": "boolean"
+    },
+    "details": {
+      "type": "object",
+      "additionalProperties": true
+    }
+  }
+}

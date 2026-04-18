@@ -311,3 +311,68 @@ Consult OpenAI Codex (GPT-5.3, xhigh reasoning) for complex tasks:
 - TZ=UTC required for all test runs
 - No emoji in code, docs, or logs
 - Conventional commits (feat:, fix:, refactor:, chore:, docs:, test:)
+
+## Operating Loop
+
+**Canonical loop**: Frame -> Verify -> Execute -> Reconcile -> Git Safety ->
+Checkpoint
+
+See [docs/claude/operating-loop.md](docs/claude/operating-loop.md) for full
+details.
+
+| Command        | Purpose                            |
+| -------------- | ---------------------------------- |
+| `/frame-brief` | Create frame brief before work     |
+| `/checkpoint`  | Checkpoint before risky operations |
+| `/handoff`     | Session handoff artifact           |
+| `/reconcile`   | Verify after parallel work         |
+| `/explore`     | Non-executing discovery mode       |
+| `/bias-audit`  | Evidence/audience enforcement      |
+
+## Full vs Lite Mode
+
+**Lite mode** (all must be true): clear scope, 1-2 files, no risky git, no
+unknown state, no parallel fan-out, no claims.
+
+**Full mode** (any true): ambiguous scope, 3+ files, uncertain state, risky git,
+parallel execution, claims-heavy output.
+
+See
+[.claude/skills/control-plane/SKILL.md](.claude/skills/control-plane/SKILL.md).
+
+## Git Safety
+
+- **Large files**: warn 5-10MB, block >10MB
+- **Force push**: blocked unless `CLAUDE_ACK_GIT_RISK=1`
+- **Post-rewrite**: audit for dropped remote files
+- **Artifacts**: `.claude/artifacts/git-audits/`
+
+## Evidence and Audience Checks
+
+For audit/playbook/claims work, use `/bias-audit`:
+
+- Audience statement (who it is for, who it is NOT for)
+- Claim inventory (only/first/best claims)
+- Evidence status (citation_required, inference_allowed, opinion_only)
+
+See [.claude/skills/bias-audit/SKILL.md](.claude/skills/bias-audit/SKILL.md).
+
+## Handoff and Checkpoint
+
+Checkpoints include resume metadata with staleness detection:
+
+- TTL expiration
+- HEAD SHA change
+- Branch change
+- Git status hash change
+
+On stale resume: re-derive state from repo, regenerate artifact before
+continuing.
+
+Artifacts: `HANDOFF.json`, `HANDOFF.md`, `.claude/artifacts/checkpoints/`
+
+## Escape Valve and Kill Switch
+
+- `/explore` - non-executing discovery mode
+- `CLAUDE_HOOKS_DISABLE=1` - disable all control plane hooks (logged)
+- All bypasses logged to `.claude/artifacts/metrics.jsonl`

@@ -6,11 +6,22 @@ fi
 
 set -euo pipefail
 
-echo "🔍 Checking changed files against origin/main..."
+echo "Checking changed files against origin/main..."
 
 # Ensure origin/main is up to date for accurate comparison
 git fetch origin main 2>/dev/null || true
 BASE_BRANCH="origin/main"
+
+# Control plane: Large file scan (unless hooks disabled)
+if [ -z "${CLAUDE_HOOKS_DISABLE:-}" ]; then
+  echo "Scanning for large files..."
+  node scripts/control-plane/git-safety.mjs pre-push "$BASE_BRANCH" "HEAD" || {
+    echo ""
+    echo "Large file check failed. See above for details."
+    echo "Add files to .claude/large-file-allowlist.json if intentional."
+    exit 1
+  }
+fi
 
 # Get changed files since the common ancestor
 CHANGED=$(git diff --name-only $BASE_BRANCH...HEAD || echo "")
