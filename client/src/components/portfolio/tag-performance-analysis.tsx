@@ -213,7 +213,7 @@ export default function TagPerformanceAnalysis({ className = '' }: TagPerformanc
 
   const chartData = getChartData();
 
-  const formatTooltip = createTupleFormatter<number | string>(
+  const formatTooltip = createTupleFormatter(
     (value) => {
       const displayValue =
         chartData.find((datum) => datum.value === value)?.display ?? String(value ?? '');
