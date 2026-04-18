@@ -5,6 +5,7 @@
 
 import type { EngineAllocation } from '@/core/reserves/types';
 import type { ParityDataset, ParityValidationResult } from '@/lib/excel-parity-validator';
+import { getApiBaseUrl } from '@/lib/api-url';
 import { logger } from '@/lib/logger';
 
 interface ApiClientConfig {
@@ -89,7 +90,7 @@ export class ResilientApiClient {
 
   constructor(config: ApiClientConfig = {}) {
     this.config = {
-      baseUrl: config.baseUrl || (import.meta.env.VITE_API_BASE_URL as string | undefined) || '',
+      baseUrl: config.baseUrl || getApiBaseUrl(),
       timeoutMs: config.timeoutMs || 15000,
       maxRetries: config.maxRetries || 3,
       baseDelayMs: config.baseDelayMs || 1000,
