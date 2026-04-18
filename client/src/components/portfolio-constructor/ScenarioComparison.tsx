@@ -27,9 +27,12 @@ import {
   Radar,
   Legend,
 } from 'recharts';
-import type { TooltipContentProps } from 'recharts';
 import { Copy, Trash2, Plus } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import type {
+  RechartsTooltipContentProps as TooltipContentProps,
+  RechartsTooltipPayloadEntry as TooltipPayloadEntry,
+} from '@/lib/recharts-types';
 import { spreadIfDefined } from '@/lib/ts/spreadIfDefined';
 import type { PortfolioState } from '@/pages/portfolio-constructor';
 
@@ -64,11 +67,6 @@ interface ScenarioComparisonProps {
 
 type ComparisonMetric = 'irr' | 'multiple' | 'risk' | 'timeline';
 type ChartDataPoint = Record<string, number | string>;
-type TooltipEntry = {
-  color?: string;
-  dataKey?: string | number;
-  value?: number;
-};
 type CustomTooltipProps = Partial<TooltipContentProps<number, string>>;
 
 const defaultScenarios: Scenario[] = [
@@ -296,10 +294,12 @@ export function ScenarioComparison({
       return (
         <div className="bg-white p-3 border border-gray-200 rounded-lg shadow-lg">
           <p className="font-medium text-gray-900">{label}</p>
-          {payload.map((entry: TooltipEntry, index: number) => (
+          {payload.map((entry: TooltipPayloadEntry<number, string>, index: number) => (
             <p key={index} className="text-sm" style={{ color: entry.color }}>
-              {entry.dataKey}:{' '}
-              <span className="font-medium">{(entry.value as number).toFixed(2)}x</span>
+              {String(entry.dataKey)}:{' '}
+              <span className="font-medium">
+                {typeof entry.value === 'number' ? entry.value.toFixed(2) : Number(entry.value ?? 0).toFixed(2)}x
+              </span>
             </p>
           ))}
         </div>
