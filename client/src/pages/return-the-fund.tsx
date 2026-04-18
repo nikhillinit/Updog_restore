@@ -46,12 +46,12 @@ const formatOwnershipTick = (value: number | string): string =>
 
 const formatReturnTheFundTick = (value: number | string): string => `$${Number(value)}mm`;
 
-const formatOwnershipTooltip = createTupleFormatter<ChartValue>(
+const formatOwnershipTooltip = createTupleFormatter(
   (value) => `${getNumericChartValue(value).toFixed(2)}%`,
   'Ownership'
 );
 
-const formatReturnTheFundTooltip = createTupleFormatter<ChartValue>(
+const formatReturnTheFundTooltip = createTupleFormatter(
   (value) => `$${getNumericChartValue(value)}mm`,
   'Return the Fund'
 );
