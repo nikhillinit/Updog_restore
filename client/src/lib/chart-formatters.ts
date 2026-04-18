@@ -20,10 +20,11 @@
 
 import type { ReactNode } from 'react';
 import type {
-  Formatter,
-  ValueType,
-  NameType,
-} from 'recharts/types/component/DefaultTooltipContent';
+  RechartsFormatter as Formatter,
+  RechartsNameType as NameType,
+  RechartsTooltipPayloadEntry as TooltipPayloadEntry,
+  RechartsValueType as ValueType,
+} from '@/lib/recharts-types';
 
 /**
  * Creates a type-safe Recharts formatter that handles undefined values.
@@ -118,6 +119,32 @@ export function createDynamicFormatter<
     }
     return fn(value, name);
   };
+}
+
+/**
+ * Creates a formatter that needs access to the full tooltip payload entry.
+ *
+ * Use this when the rendered value depends on entry metadata or `payload`.
+ */
+export function createPayloadFormatter<
+  T extends ValueType = number,
+  N extends NameType = string,
+>(
+  fn: (
+    value: T | undefined,
+    name: N | undefined,
+    item: TooltipPayloadEntry<T, N>,
+    index: number,
+    payload: ReadonlyArray<TooltipPayloadEntry<T, N>>
+  ) => [ReactNode, N] | ReactNode
+): Formatter<T, N> {
+  return (
+    value: T | undefined,
+    name: N | undefined,
+    item: TooltipPayloadEntry<T, N>,
+    index: number,
+    payload: ReadonlyArray<TooltipPayloadEntry<T, N>>
+  ) => fn(value, name, item, index, payload);
 }
 
 /**
