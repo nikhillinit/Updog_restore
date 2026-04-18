@@ -4,6 +4,7 @@ import { Cell } from 'recharts/es6/component/Cell';
 import { LazyResponsiveContainer as ResponsiveContainer } from '@/components/charts/LazyResponsiveContainer';
 import { Tooltip } from 'recharts/es6/component/Tooltip';
 import ChartContainer from './chart-container';
+import { createPayloadFormatter } from '@/lib/chart-formatters';
 
 interface SectorData {
   name: string;
@@ -26,17 +27,13 @@ interface InvestmentBreakdownChartProps {
   height?: number;
 }
 
-const formatTooltipValue = (
-  value: number | undefined,
-  _name?: string,
-  props?: { payload?: SectorData }
-) => {
-  const amount = props?.payload?.amount;
+const formatTooltipValue = createPayloadFormatter<number, string>((value, _name, item) => {
+  const amount = (item.payload as SectorData | undefined)?.amount;
   return [
     value !== undefined ? `${value}% ${amount ? `($${amount}M)` : ''}` : '',
     'Portfolio Allocation',
   ];
-};
+});
 
 export default function InvestmentBreakdownChart({
   data = sectorData,
