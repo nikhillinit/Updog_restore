@@ -24,7 +24,7 @@ interface EnhancedPerformanceChartProps {
   height?: number;
 }
 
-const formatTooltipValue = createDynamicFormatter<number, string>((value, name) => {
+const formatTooltipValue = createDynamicFormatter((value, name) => {
   if (typeof value !== 'number') {
     return ['', name ?? 'Value'];
   }
