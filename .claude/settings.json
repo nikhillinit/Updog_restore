@@ -57,6 +57,17 @@
         ]
       }
     ],
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node scripts/control-plane/git-guard-hook.mjs"
+          }
+        ]
+      }
+    ],
     "PostToolUse": [
       {
         "matcher": "Edit",
@@ -64,6 +75,16 @@
           {
             "type": "command",
             "command": "npm run lint:fix"
+          }
+        ]
+      },
+      {
+        "matcher": "Edit|Write|MultiEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node scripts/control-plane/post-edit-hook.mjs",
+            "timeout": 5
           }
         ]
       }

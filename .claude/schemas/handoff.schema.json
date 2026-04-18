@@ -1,0 +1,161 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://updog.internal/schemas/handoff.schema.json",
+  "title": "Handoff/Checkpoint Schema",
+  "description": "Schema for handoff and checkpoint artifacts in the Claude Code control plane",
+  "type": "object",
+  "required": [
+    "version",
+    "type",
+    "reason",
+    "generatedAt",
+    "repoRoot",
+    "branch",
+    "headSha",
+    "dirty",
+    "gitStatusPorcelain",
+    "gitStatusHash",
+    "lastCommit",
+    "tests",
+    "resume",
+    "currentState",
+    "nextTask"
+  ],
+  "properties": {
+    "version": {
+      "type": "string",
+      "const": "1.0"
+    },
+    "type": {
+      "type": "string",
+      "enum": ["handoff", "checkpoint"]
+    },
+    "reason": {
+      "type": "string",
+      "enum": [
+        "manual",
+        "phase_boundary",
+        "before_risky_git",
+        "before_long_run",
+        "session_end",
+        "before_large_change",
+        "after_milestone",
+        "other"
+      ]
+    },
+    "generatedAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "repoRoot": {
+      "type": "string"
+    },
+    "worktreePath": {
+      "type": ["string", "null"]
+    },
+    "branch": {
+      "type": "string"
+    },
+    "headSha": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{40}$"
+    },
+    "upstream": {
+      "type": ["string", "null"]
+    },
+    "dirty": {
+      "type": "boolean"
+    },
+    "gitStatusPorcelain": {
+      "type": "string"
+    },
+    "gitStatusHash": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$",
+      "description": "SHA-256 of git status --porcelain output"
+    },
+    "lastCommit": {
+      "type": "object",
+      "required": ["sha", "subject"],
+      "properties": {
+        "sha": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{40}$"
+        },
+        "subject": {
+          "type": "string"
+        }
+      }
+    },
+    "tests": {
+      "type": "object",
+      "required": ["status"],
+      "properties": {
+        "status": {
+          "type": "string",
+          "enum": ["pass", "fail", "not_run"]
+        },
+        "commands": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "summary": {
+          "type": "string"
+        }
+      }
+    },
+    "resume": {
+      "type": "object",
+      "required": ["ttlMinutes", "expiresAt", "staleIf", "onStale"],
+      "properties": {
+        "ttlMinutes": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 10080
+        },
+        "expiresAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "staleIf": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": [
+              "head_sha_changed",
+              "branch_changed",
+              "git_status_hash_changed",
+              "ttl_expired"
+            ]
+          }
+        },
+        "onStale": {
+          "type": "string",
+          "const": "rederive_state_from_repo_then_refresh_artifact_before_continuing"
+        }
+      }
+    },
+    "currentState": {
+      "type": "string"
+    },
+    "nextTask": {
+      "type": "string"
+    },
+    "blockers": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "filesInFlight": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "openQuestions": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "notes": {
+      "type": "array",
+      "items": { "type": "string" }
+    }
+  }
+}
