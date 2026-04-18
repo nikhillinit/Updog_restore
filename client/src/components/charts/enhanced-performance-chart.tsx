@@ -8,6 +8,7 @@ import { LazyResponsiveContainer as ResponsiveContainer } from '@/components/cha
 import { Area } from 'recharts/es6/cartesian/Area';
 import { AreaChart } from 'recharts/es6/chart/AreaChart';
 import ChartContainer from './chart-container';
+import { createDynamicFormatter } from '@/lib/chart-formatters';
 
 interface PerformanceData {
   date: string;
@@ -23,8 +24,10 @@ interface EnhancedPerformanceChartProps {
   height?: number;
 }
 
-const formatTooltipValue = (value: number | undefined, name?: string) => {
-  if (typeof value !== 'number') return [value, name ?? ''];
+const formatTooltipValue = createDynamicFormatter((value, name) => {
+  if (typeof value !== 'number') {
+    return ['', name ?? 'Value'];
+  }
 
   switch (name) {
     case 'IRR':
@@ -36,9 +39,9 @@ const formatTooltipValue = (value: number | undefined, name?: string) => {
     case 'TVPI':
       return [`${value.toFixed(2)}x`, 'Total Value to Paid-In'];
     default:
-      return [value.toFixed(2), name ?? ''];
+      return [value.toFixed(2), name ?? 'Value'];
   }
-};
+});
 
 export default function EnhancedPerformanceChart({
   data,

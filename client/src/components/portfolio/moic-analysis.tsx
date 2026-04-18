@@ -31,6 +31,17 @@ type MOICData = {
   stage: string;
 };
 
+type TooltipLabelPayload = ReadonlyArray<{
+  payload?: {
+    name?: string;
+  };
+}>;
+
+const formatReserveTooltipLabel = (_value: unknown, payload: TooltipLabelPayload): string => {
+  const [firstPoint] = payload;
+  return typeof firstPoint?.payload?.name === 'string' ? firstPoint.payload.name : '';
+};
+
 const sampleMOICData: MOICData[] = [
   {
     companyName: "AlphaTech",
@@ -349,11 +360,7 @@ export default function MOICAnalysis() {
                         if (name === 'expectedMOIC') return [`${value}x`, 'Expected MOIC on Reserves'];
                         return [value, name];
                       }}
-                      labelFormatter={(_value, payload) => {
-                        if (!Array.isArray(payload) || payload.length === 0) return '';
-                        const data = payload[0]?.payload as { name?: string } | undefined;
-                        return data?.name ?? '';
-                      }}
+                      labelFormatter={formatReserveTooltipLabel}
                       contentStyle={{ 
                         backgroundColor: 'white',
                         border: '1px solid #e5e7eb',

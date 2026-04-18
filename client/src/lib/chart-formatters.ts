@@ -21,8 +21,9 @@
 import type { ReactNode } from 'react';
 import type {
   Formatter,
-  ValueType,
   NameType,
+  Payload,
+  ValueType,
 } from 'recharts/types/component/DefaultTooltipContent';
 
 /**
@@ -41,11 +42,11 @@ import type {
  * <Tooltip formatter={createFormatter(formatCurrency)} />
  * ```
  */
-export function createFormatter<T extends ValueType = number>(
-  fn: (value: T) => ReactNode,
+export function createFormatter(
+  fn: (value: ValueType) => ReactNode,
   fallback: ReactNode = ''
-): Formatter<T, NameType> {
-  return (value: T | undefined): ReactNode => {
+): Formatter<ValueType, NameType> {
+  return (value: ValueType | undefined): ReactNode => {
     if (value === undefined) return fallback;
     return fn(value);
   };
@@ -68,15 +69,12 @@ export function createFormatter<T extends ValueType = number>(
  * <Tooltip formatter={createTupleFormatter(formatCurrency, 'Amount')} />
  * ```
  */
-export function createTupleFormatter<
-  T extends ValueType = number,
-  N extends NameType = string,
->(
-  fn: (value: T) => ReactNode,
-  label: N,
+export function createTupleFormatter(
+  fn: (value: ValueType) => ReactNode,
+  label: NameType,
   fallback: ReactNode = ''
-): Formatter<T, N> {
-  return (value: T | undefined): [ReactNode, N] => {
+): Formatter<ValueType, NameType> {
+  return (value: ValueType | undefined): [ReactNode, NameType] => {
     if (value === undefined) return [fallback, label];
     return [fn(value), label];
   };
@@ -104,20 +102,39 @@ export function createTupleFormatter<
  * ])} />
  * ```
  */
-export function createDynamicFormatter<
-  T extends ValueType = number,
-  N extends NameType = string,
->(
-  fn: (value: T, name: N | undefined) => [ReactNode, N],
+export function createDynamicFormatter(
+  fn: (value: ValueType, name: NameType | undefined) => [ReactNode, NameType],
   fallback: ReactNode = ''
-): Formatter<T, N> {
-  return (value: T | undefined, name: N | undefined): [ReactNode, N] => {
+): Formatter<ValueType, NameType> {
+  return (value: ValueType | undefined, name: NameType | undefined): [ReactNode, NameType] => {
     if (value === undefined) {
-      // Return fallback with empty string cast as N for type safety
-      return [fallback, (name ?? '') as N];
+      return [fallback, name ?? ''];
     }
     return fn(value, name);
   };
+}
+
+/**
+ * Creates a formatter that needs access to the full tooltip payload entry.
+ *
+ * Use this when the rendered value depends on entry metadata or `payload`.
+ */
+export function createPayloadFormatter(
+  fn: (
+    value: ValueType | undefined,
+    name: NameType | undefined,
+    item: Payload<ValueType, NameType>,
+    index: number,
+    payload: ReadonlyArray<Payload<ValueType, NameType>>
+  ) => [ReactNode, NameType] | ReactNode
+): Formatter<ValueType, NameType> {
+  return (
+    value: ValueType | undefined,
+    name: NameType | undefined,
+    item: Payload<ValueType, NameType>,
+    index: number,
+    payload: ReadonlyArray<Payload<ValueType, NameType>>
+  ) => fn(value, name, item, index, payload);
 }
 
 /**
@@ -138,15 +155,15 @@ export function createDynamicFormatter<
  * // Outputs: "$100M"
  * ```
  */
-export function createSimpleFormatter<T extends ValueType = number>(options: {
+export function createSimpleFormatter(options: {
   prefix?: string;
   suffix?: string;
   decimals?: number;
   fallback?: ReactNode;
-} = {}): Formatter<T, NameType> {
+} = {}): Formatter<ValueType, NameType> {
   const { prefix = '', suffix = '', decimals, fallback = '' } = options;
 
-  return (value: T | undefined): ReactNode => {
+  return (value: ValueType | undefined): ReactNode => {
     if (value === undefined) return fallback;
 
     let formatted: string;
