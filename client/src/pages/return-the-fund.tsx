@@ -22,7 +22,7 @@ import { Target, Info, BarChart3, Building2 } from 'lucide-react';
 import { createTupleFormatter } from '@/lib/chart-formatters';
 
 type ReturnTheFundTab = 'construction' | 'portfolio' | 'reserves';
-type ChartValue = number | string | Array<number | string>;
+type ChartValue = number | string | ReadonlyArray<number | string>;
 
 const FALLBACK_RETURN_THE_FUND_DATA: ReturnTheFundData = {
   round: '0.00%',
