@@ -38,8 +38,13 @@ const explicitJwtJwksUrlMarker = process.env['_EXPLICIT_JWT_JWKS_URL'];
 
 // TEMP FIX: Windows system has NODE_ENV=production set globally, override it
 const shouldOverrideEnv = true;
-// Load .env file; allow opt-in overriding via DOTENV_OVERRIDE
-loadDotenv({ override: shouldOverrideEnv });
+// Load base env file, then layer the mode-specific file so local development
+// can override defaults such as REQUIRE_AUTH without mutating `.env`.
+loadDotenv({ path: '.env', override: shouldOverrideEnv });
+const requestedNodeEnv = explicitNodeEnvMarker ? explicitNodeEnv : process.env.NODE_ENV;
+if (requestedNodeEnv) {
+  loadDotenv({ path: `.env.${requestedNodeEnv}`, override: shouldOverrideEnv });
+}
 
 // Restore explicitly-set PORT if .env tried to override it
 // This prevents integration tests from being forced to use .env's PORT

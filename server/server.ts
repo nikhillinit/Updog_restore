@@ -223,30 +223,21 @@ export async function createServer(
   // Guards run in order: origin check -> rate limit -> sampling -> privacy (in router)
   app.use(rumOriginGuard, rumLimiter, rumSamplingGuard, metricsRumRouter);
 
-  // Centralized public-path matcher (mount-relative, no /api prefix)
-  // Normalizes trailing slashes for consistent matching
-  const PUBLIC_EXACT = new Set(['/healthz', '/readyz', '/flags', '/flags/status']);
-  const PUBLIC_PREFIXES = ['/health/', '/health'];
-
-  function isPublicPath(mountRelativePath: string): boolean {
-    const p =
-      mountRelativePath.endsWith('/') && mountRelativePath.length > 1
-        ? mountRelativePath.slice(0, -1)
-        : mountRelativePath;
-    if (PUBLIC_EXACT.has(p)) return true;
-    return PUBLIC_PREFIXES.some((prefix) => p === prefix || p.startsWith(prefix));
-  }
+  // Centralized public-route matcher (mount-relative, no /api prefix).
+  // Keep this boundary narrow: canonical /api/funds* endpoints stay behind
+  // auth, and local development bootstrap relies on NODE_ENV=development with
+  // REQUIRE_AUTH=0 from env layering instead of making those routes public.
 
   // Apply authentication and RLS middleware to protected routes
   // Note: Some routes like /healthz and /metrics are public
   app.use('/api', (req: Request, res: Response, next: NextFunction) => {
     // Skip auth for public endpoints (req.path is mount-relative under /api)
-    if (isPublicPath(req.path)) {
+    if (isPublicApiPath(req.method, req.path)) {
       return next();
     }
 
     // For development, you might want to bypass auth - remove this in production!
-    if (config.NODE_ENV === 'development' && !process.env['REQUIRE_AUTH']) {
+    if (config.NODE_ENV === 'development' && !config.REQUIRE_AUTH) {
       // Mock context for development
       const fundId = firstString(req.params['fundId']) ?? firstString(req.query['fundId']);
       req.context = {
@@ -267,7 +258,7 @@ export async function createServer(
   app.use('/api', (req: Request, res: Response, next: NextFunction) => {
     // Skip for public endpoints (mount-relative paths)
     // /flags and /flags/status are public; /flags/admin/* requires auth+RLS
-    if (isPublicPath(req.path)) {
+    if (isPublicApiPath(req.method, req.path)) {
       return next();
     }
 
@@ -343,4 +334,31 @@ export async function createServer(
 
   log.info('Express application created successfully');
   return httpServer;
+}
+
+const ALWAYS_PUBLIC_EXACT = new Set(['/healthz', '/readyz', '/flags', '/flags/status']);
+const ALWAYS_PUBLIC_PREFIXES = ['/health/', '/health'];
+
+function normalizeMountRelativePath(mountRelativePath: string): string {
+  if (mountRelativePath.endsWith('/') && mountRelativePath.length > 1) {
+    return mountRelativePath.slice(0, -1);
+  }
+  return mountRelativePath;
+}
+
+export function isPublicApiPath(_method: string, mountRelativePath: string): boolean {
+  const normalizedPath = normalizeMountRelativePath(mountRelativePath);
+
+  if (ALWAYS_PUBLIC_EXACT.has(normalizedPath)) {
+    return true;
+  }
+
+  if (
+    ALWAYS_PUBLIC_PREFIXES.some(
+      (prefix) => normalizedPath === prefix || normalizedPath.startsWith(prefix)
+    )
+  ) {
+    return true;
+  }
+  return false;
 }
