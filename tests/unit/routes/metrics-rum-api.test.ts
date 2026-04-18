@@ -42,6 +42,7 @@ describe('RUM metrics routes', () => {
     app = express();
     app.use(express.json());
     app.use(metricsRumRouter);
+    app.use('/api', metricsRumRouter);
 
     vi.clearAllMocks();
     executeMock.mockImplementation(async (fn: () => Promise<boolean>) => fn());
@@ -76,6 +77,25 @@ describe('RUM metrics routes', () => {
       expect.objectContaining({
         pathname: '/funds/:id',
         timestamp: expect.any(Number),
+      })
+    );
+  });
+
+  it('accepts the api-prefixed alias used by browser telemetry on Vercel', async () => {
+    await request(app)
+      .post('/api/metrics/rum')
+      .send({
+        name: 'INP',
+        value: 180,
+        pathname: '/fund-setup',
+      })
+      .expect(204);
+
+    expect(processMetricMock).toHaveBeenCalledWith(
+      'INP',
+      180,
+      expect.objectContaining({
+        pathname: '/fund-setup',
       })
     );
   });
