@@ -15,9 +15,21 @@ import {
   type FundDataForReserves,
 } from '@/core/reserves/computeReservesFromGraduation';
 import { Calculator, TrendingUp, Target, AlertTriangle } from 'lucide-react';
+import { createDynamicFormatter } from '@/lib/chart-formatters';
 
 type GraduationRates = FundDataForReserves['graduationRates'];
 type GraduationStage = keyof GraduationRates;
+
+const formatComparisonTooltip = createDynamicFormatter<number | string, string | number>(
+  (value, name) => {
+    if (name === 'reserveRatio') {
+      return [value !== undefined ? `${value}%` : '', 'Reserve Ratio'];
+    }
+
+    return [value !== undefined ? `$${value}M` : '', typeof name === 'string' ? name : 'Value'];
+  }
+);
+
 interface Scenario {
   name: string;
   description: string;
@@ -288,16 +300,7 @@ export default function GraduationReservesDemo() {
                   orientation="right"
                   label={{ value: 'Reserve Ratio (%)', angle: 90, position: 'insideRight' }}
                 />
-                <Tooltip
-                  formatter={(
-                    value: number | string | undefined,
-                    name: string | number | undefined
-                  ) => {
-                    if (name === 'reserveRatio')
-                      return [value !== undefined ? `${value}%` : '', 'Reserve Ratio'];
-                    return [value !== undefined ? `$${value}M` : '', name ?? ''];
-                  }}
-                />
+                <Tooltip formatter={formatComparisonTooltip} />
                 <Legend />
                 <Bar
                   yAxisId="left"
