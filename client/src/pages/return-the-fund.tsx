@@ -19,6 +19,7 @@ import {
 import { Label } from '@/components/ui/label';
 import { Slider } from '@/components/ui/slider';
 import { Target, Info, BarChart3, Building2 } from 'lucide-react';
+import { createTupleFormatter } from '@/lib/chart-formatters';
 
 type ReturnTheFundTab = 'construction' | 'portfolio' | 'reserves';
 type ChartValue = number | string | Array<number | string>;
@@ -45,15 +46,15 @@ const formatOwnershipTick = (value: number | string): string =>
 
 const formatReturnTheFundTick = (value: number | string): string => `$${Number(value)}mm`;
 
-const formatOwnershipTooltip = (value: ChartValue | undefined): [string, string] => [
-  `${getNumericChartValue(value ?? 0).toFixed(2)}%`,
-  'Ownership',
-];
+const formatOwnershipTooltip = createTupleFormatter<ChartValue>(
+  (value) => `${getNumericChartValue(value).toFixed(2)}%`,
+  'Ownership'
+);
 
-const formatReturnTheFundTooltip = (value: ChartValue | undefined): [string, string] => [
-  `$${getNumericChartValue(value ?? 0)}mm`,
-  'Return the Fund',
-];
+const formatReturnTheFundTooltip = createTupleFormatter<ChartValue>(
+  (value) => `$${getNumericChartValue(value)}mm`,
+  'Return the Fund'
+);
 
 interface ReturnTheFundData {
   round: string;
