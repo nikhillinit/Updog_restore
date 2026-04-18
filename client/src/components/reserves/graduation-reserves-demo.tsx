@@ -20,7 +20,7 @@ import { createDynamicFormatter } from '@/lib/chart-formatters';
 type GraduationRates = FundDataForReserves['graduationRates'];
 type GraduationStage = keyof GraduationRates;
 
-const formatComparisonTooltip = createDynamicFormatter<number | string, string | number>(
+const formatComparisonTooltip = createDynamicFormatter(
   (value, name) => {
     if (name === 'reserveRatio') {
       return [value !== undefined ? `${value}%` : '', 'Reserve Ratio'];
