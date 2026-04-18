@@ -27,6 +27,7 @@ import {
 } from '@/components/ui/select';
 import { Tag, TrendingUp, DollarSign, Target } from 'lucide-react';
 import { getChartColor } from '@/lib/chart-theme';
+import { createTupleFormatter } from '@/lib/chart-formatters';
 
 interface TagPerformance {
   tag: string;
@@ -212,12 +213,15 @@ export default function TagPerformanceAnalysis({ className = '' }: TagPerformanc
 
   const chartData = getChartData();
 
-  const formatTooltip = (value: number | string | undefined): [string, string] => {
-    const displayValue =
-      chartData.find((datum) => datum.value === value)?.display ?? String(value ?? '');
+  const formatTooltip = createTupleFormatter(
+    (value) => {
+      const displayValue =
+        chartData.find((datum) => datum.value === value)?.display ?? String(value ?? '');
 
-    return [displayValue, getMetricLabel()];
-  };
+      return displayValue;
+    },
+    getMetricLabel()
+  );
 
   // Removed hardcoded COLORS - now using getChartColor() from chart-theme
 
