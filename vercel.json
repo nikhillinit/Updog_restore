@@ -13,6 +13,10 @@
   
   "rewrites": [
     {
+      "source": "/metrics/:path*",
+      "destination": "/api/metrics/:path*"
+    },
+    {
       "source": "/api/:path*",
       "destination": "/api/:path*"
     },
