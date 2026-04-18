@@ -27,7 +27,7 @@ interface InvestmentBreakdownChartProps {
   height?: number;
 }
 
-const formatTooltipValue = createPayloadFormatter<number, string>((value, _name, item) => {
+const formatTooltipValue = createPayloadFormatter((value, _name, item) => {
   const amount = (item.payload as SectorData | undefined)?.amount;
   return [
     value !== undefined ? `${value}% ${amount ? `($${amount}M)` : ''}` : '',
