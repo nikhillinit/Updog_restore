@@ -278,8 +278,13 @@ implicit storage mode.
 **Goal:** Make the repo operable without archaeology.
 
 - [x] Inventory scripts into supported, internal migration, and archive.
-      Classification recorded in `docs/script-classification.json`. 340 scripts
-      triaged: 65 supported, 21 internal-migration, 254 archived.
+      Historical classification was recorded in
+      `docs/archive/2026-q2/generated-inventory-snapshots/script-classification.json`.
+      That generated file is currently a stale snapshot from an older repo state
+      and is not authoritative until regeneration is unblocked by the Node
+      runtime issue. Current repo truth is 90 root npm scripts; the older
+      `340 scripts / 65 supported / 21     internal-migration / 254 archived`
+      split is preserved only as historical milestone context.
 - [x] Keep a small supported command set in `README.md` and
       `docs/BUILD_READINESS.md`. Dead `test:run` reference removed from
       `CLAUDE.md`. All docs now reference only scripts that exist.

@@ -6,7 +6,7 @@ last_updated: 2026-01-19
 # Monte Carlo Simulation Engine - Overview
 
 **Document Version**: 1.0.0 **Last Updated**: 2025-11-06 **Status**: Production
-**Related ADRs**: ADR-010 (Validation Strategy)
+**Related ADRs**: ADR-017 (Validation Strategy)
 
 ## Table of Contents
 
@@ -354,7 +354,7 @@ performance and extensibility:
 - Inverse transform sampling for power law tail
 - Deterministic seeding via PRNG for reproducibility
 
-**3. Input Validation (ADR-010)**
+**3. Input Validation (ADR-017)**
 
 - Three-tier validation: type check → finite check → range check
 - Fail-fast with descriptive errors (no silent coercion)
@@ -485,7 +485,7 @@ const results = await Promise.all(batchPromises);
 // ~2.5x faster than sequential
 ```
 
-**2. Early Validation** ADR-010 validation strategy prevents wasted computation
+**2. Early Validation** ADR-017 validation strategy prevents wasted computation
 on invalid inputs (fails in <1ms vs running 5,000 invalid scenarios for 2
 seconds).
 
@@ -671,8 +671,8 @@ Continue to:
 
 ## References
 
-- **ADR-010**: Monte Carlo Validation Strategy
-  (`docs/adr/ADR-010-monte-carlo-validation-strategy.md`)
+- **ADR-017**: Monte Carlo Validation Strategy
+  (`docs/adr/ADR-017-monte-carlo-validation-strategy.md`)
 - **Implementation**: `server/services/monte-carlo-engine.ts`
 - **Power Law Distribution**: `server/services/power-law-distribution.ts`
 - **Tests**: `tests/unit/services/monte-carlo-engine.test.ts`

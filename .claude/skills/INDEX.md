@@ -6,7 +6,7 @@ last_updated: 2026-04-03
 
 # Skill Index
 
-**56 skills** discovered across 3 scan patterns.
+Generated skill listing across flat markdown skills and `SKILL.md` manifests.
 
 | Name                               | Format          | Status | Path                                                          |
 | ---------------------------------- | --------------- | ------ | ------------------------------------------------------------- |

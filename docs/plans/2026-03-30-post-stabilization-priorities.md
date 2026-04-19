@@ -174,7 +174,9 @@ Ensure the supported command path and archived-doc boundaries stay current.
 
 Scope:
 
-- update `docs/script-classification.json` when supported scripts change
+- update the archived script-classification snapshot reference
+  (`docs/archive/2026-q2/generated-inventory-snapshots/script-classification.json`)
+  or regenerate a new active inventory when supported scripts change
 - keep README / BUILD_READINESS / CLAUDE command docs aligned
 - archive new stale planning artifacts instead of letting them accumulate
 

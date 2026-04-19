@@ -1,168 +1,175 @@
 ---
 status: ACTIVE
 audience: both
-last_updated: 2026-04-03
+last_updated: 2026-04-18
 categories: [development, skills-tools, ai-automation]
 keywords: [agents, tools, scripts, mcp, skills, workflows, catalog]
 source_of_truth: true
 agent_routing:
   priority: 2
-  route_hint: 'Complete inventory of AI tools and automation.'
+  route_hint: 'Repo-verified tooling snapshot and routing guide.'
   use_cases: [tool_discovery, agent_selection]
 maintenance:
   owner: 'Core Team'
   review_cadence: 'P90D'
 ---
 
-# Development Tooling Catalog (Corrected)
+# Development Tooling Catalog
 
-**Date**: 2025-12-12 **Version**: 2.0 (Post-Review Corrections) **Status**:
-Active **Scope**: Complete inventory of agents, tools, scripts, and workflows
+**Date**: 2026-04-18 **Version**: 2.1 **Status**: Active **Scope**:
+Repo-verified snapshot of agent, command, workflow, skill, and npm script
+surfaces.
 
 ---
 
 ## Governance Notice
 
-**CRITICAL**: This catalog represents a mature "Phase 3+" Agentic architecture
-with:
+This catalog was reconciled against the current repository state on 2026-04-18.
+Only counts that were directly verifiable from the filesystem or root
+`package.json` were kept in this pass.
 
-- 100% memory adoption across 31 project agents
-- 277 npm scripts across 15 categories
-- 59 MCP tools (16 Multi-AI, 43 TaskMaster)
-- Domain-specific Phoenix agents for VC fund modeling
+**Verified counts**:
 
-**Priority Order** (Section 8 Decision Tree): Phoenix Agents → Project Agents →
-User Agents → Scripts/Tools
+- `37` agent files under `.claude/agents`
+- `34` `SKILL.md` manifests under `.claude/skills`
+- `21` command files under `.claude/commands` (including nested paths)
+- `16` workflow files under `.github/workflows`
+- `90` npm scripts in the root `package.json`
+
+Older totals for MCP functions, memory adoption percentages, skill category
+rollups, and npm script category breakdowns were removed where they were no
+longer defensible from the live repo.
+
+**Priority Order** (Section 8 Decision Tree): Phoenix/domain agents -> project
+agents -> command workflows -> repo-native tooling -> generic fallback guidance.
 
 ---
 
 ## Table of Contents
 
-1. [Project-Level Agents](#1-project-level-agents) (31 agents)
-2. [Global System Personas](#2-global-system-personas) (Pruned for relevance)
-3. [Slash Commands](#3-slash-commands) (8 commands)
-4. [Agent Packages](#4-agent-packages) (8 packages, 100% memory adoption)
-5. [MCP Tools](#5-mcp-tools) (59 functions)
-6. [Skills Library](#6-skills-library) (37 skills)
-7. [NPM Scripts](#7-npm-scripts) (277 scripts)
-8. [Workflow Decision Tree](#8-workflow-decision-tree) (CORRECTED)
+1. [Project-Level Agents](#1-project-level-agents)
+2. [Global System Personas](#2-global-system-personas)
+3. [Command Workflows](#3-command-workflows)
+4. [Agent Packages](#4-agent-packages)
+5. [MCP Tools](#5-mcp-tools)
+6. [Skills Library](#6-skills-library)
+7. [NPM Scripts](#7-npm-scripts)
+8. [Workflow Decision Tree](#8-workflow-decision-tree)
+9. [Summary Statistics](#9-summary-statistics)
+10. [Maintenance & Updates](#10-maintenance--updates)
 
 ---
 
 ## 1. Project-Level Agents
 
-**Location**: `.claude/agents/`, `packages/`
+**Verified inventory**: `37` files under `.claude/agents`
 
-**Memory Infrastructure**: All agents use `HybridMemoryManager` with:
+**Location**: `.claude/agents/`, plus supporting agent packages under
+`packages/`
 
-- PostgreSQL + pgvector for semantic search
-- Tenant-scoped memory (e.g., `agent:phoenix-truth-case-runner`)
-- Cross-conversation pattern learning via `PatternLearningEngine`
+This section is intentionally a routing aid, not a hand-maintained exhaustive
+file dump. Use `.claude/agents` as the live source of truth when you need the
+exact current agent list.
 
-### 1.1 Phoenix Agents (Domain-Specific)
+### 1.1 Phoenix and Fund-Modeling Specialists
 
-**Purpose**: Specialized agents for Phoenix project (VC fund modeling
-validation)
+Representative domain agents currently in the repo:
 
-| Agent                                | Description                                                                                                                                                                                 | Trigger                                 | Cost Tier    |
-| ------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------- | ------------ |
-| `phoenix-truth-case-runner`          | Executes truth-case validation suite (119 scenarios across 6 modules)                                                                                                                       | `npm run phoenix:truth` OR `/run-truth` | Standard     |
-| `phoenix-precision-guardian`         | Validates numeric precision (XIRR, waterfall calculations)                                                                                                                                  | Auto-invoked during `/dev` workflow     | Standard     |
-| `phoenix-waterfall-specialist`       | Waterfall carry distribution expert (AMERICAN/EUROPEAN types)                                                                                                                               | Manual via Task tool                    | Standard     |
-| `phoenix-xirr-fees-validator`        | XIRR and fee calculation validator                                                                                                                                                          | `npm run phoenix:xirr-validate`         | Standard     |
-| `phoenix-capital-allocation-analyst` | Capital allocation and pacing analysis                                                                                                                                                      | Manual via Task tool                    | Standard     |
-| `phoenix-docs-scribe`                | Documentation generator for Phoenix phases                                                                                                                                                  | Manual via Task tool                    | Standard     |
-| `phoenix-probabilistic-engineer`     | Monte Carlo simulation expert                                                                                                                                                               | Manual via Task tool                    | High Compute |
-| `phoenix-reserves-optimizer`         | Reserve sizing and allocation optimization                                                                                                                                                  | Manual via Task tool                    | Standard     |
-| `phoenix-brand-reporting-stylist`    | **Asset-Locked / Read-Only**: Brand-compliant report generation. Can READ branding assets (logos, fonts, color palettes) but CANNOT modify brand standards without explicit human approval. | Manual via Task tool                    | Standard     |
+- `phoenix-brand-reporting-stylist`
+- `phoenix-capital-allocation-analyst`
+- `phoenix-docs-scribe`
+- `phoenix-precision-guardian`
+- `phoenix-probabilistic-engineer`
+- `phoenix-reserves-optimizer`
+- `phoenix-truth-case-runner`
+- `waterfall-specialist`
+- `xirr-fees-validator`
 
-### 1.2 Test & Quality Agents
+### 1.2 Quality, Test, and Review Agents
 
-| Agent                   | Description                                                              | Trigger                                         | Cost Tier    |
-| ----------------------- | ------------------------------------------------------------------------ | ----------------------------------------------- | ------------ |
-| `test-repair-agent`     | Autonomous test failure detection and repair                             | `npm run ai:test-repair`                        | Standard     |
-| `silent-failure-hunter` | Identifies inadequate error handling, silent failures, fallback behavior | Auto-invoked during PR review                   | High Compute |
-| `pr-test-analyzer`      | Reviews PR test coverage for gaps and edge cases                         | Auto-invoked during PR creation                 | High Compute |
-| `comment-analyzer`      | Analyzes code comments for accuracy, completeness, maintainability       | Manual via Task tool                            | Standard     |
-| `code-simplifier`       | Simplifies code for clarity while preserving functionality               | Auto-invoked after coding task completion       | Standard     |
-| `code-reviewer`         | Reviews code for style, best practices, project guidelines               | Manual: `/ts-review` OR auto-invoked before PR  | Standard     |
-| `type-design-analyzer`  | Reviews type design for encapsulation, invariant expression              | Manual via Task tool when introducing new types | Standard     |
+Representative quality-oriented agents currently in the repo:
 
-### 1.3 Development Workflow Agents
+- `code-reviewer`
+- `code-simplifier`
+- `comment-analyzer`
+- `debug-expert`
+- `parity-auditor`
+- `perf-guard`
+- `perf-regression-triager`
+- `pr-test-analyzer`
+- `schema-drift-checker`
+- `silent-failure-hunter`
+- `test-automator`
+- `test-repair`
+- `test-scaffolder`
+- `type-design-analyzer`
 
-| Agent                        | Description                                                           | Trigger                              | Cost Tier |
-| ---------------------------- | --------------------------------------------------------------------- | ------------------------------------ | --------- |
-| `feature-dev:code-architect` | Designs feature architectures from existing codebase patterns         | `/feature-dev` workflow              | Standard  |
-| `feature-dev:code-explorer`  | Analyzes existing features by tracing execution paths                 | `/feature-dev` workflow              | Standard  |
-| `feature-dev:code-reviewer`  | Reviews feature code for bugs, security, quality                      | `/feature-dev` workflow              | Standard  |
-| `bugfix`                     | Bug resolution specialist (analysis → understanding → implementation) | `/fix-auto` OR manual via Task tool  | Standard  |
-| `bugfix-verify`              | Independent validation of bug fixes                                   | Auto-invoked after bugfix completion | Standard  |
-| `optimize`                   | Performance optimization coordinator                                  | Manual via Task tool                 | Standard  |
-| `debug`                      | UltraThink debug orchestrator with multi-agent coordination           | Manual via Task tool                 | Standard  |
-| `code`                       | Development coordinator for direct feature implementation             | Manual via Task tool                 | Standard  |
+### 1.3 Platform, Docs, and Workflow Agents
 
-### 1.4 Planning & Architecture Agents
+Representative platform/support agents currently in the repo:
 
-| Agent                                       | Description                                                          | Trigger                           | Cost Tier |
-| ------------------------------------------- | -------------------------------------------------------------------- | --------------------------------- | --------- |
-| `dev-plan-generator`                        | Creates structured dev-plan.md with task breakdown                   | Auto-invoked after Codex analysis | Standard  |
-| `comprehensive-review:architect-review`     | Software architect for system designs, scalability                   | Manual via Task tool              | Standard  |
-| `database-design:database-architect`        | Database architecture from scratch (tech selection, schema modeling) | Manual via Task tool              | Standard  |
-| `deployment-strategies:deployment-engineer` | CI/CD pipelines, GitOps workflows, deployment automation             | Manual via Task tool              | Standard  |
-
-### 1.5 Specialized Infrastructure Agents
-
-| Agent                                 | Description                                           | Trigger                                   | Cost Tier    |
-| ------------------------------------- | ----------------------------------------------------- | ----------------------------------------- | ------------ |
-| `db-migration`                        | Database migration analysis with rollback planning    | `npm run db:migrate` (with safety checks) | High Compute |
-| `perf-guard`                          | Performance regression detection with bundle analysis | `/deploy-check` workflow                  | High Compute |
-| `agent-sdk-dev:agent-sdk-verifier-py` | Verifies Python Agent SDK app configuration           | Manual via Task tool                      | Standard     |
-| `agent-sdk-dev:agent-sdk-verifier-ts` | Verifies TypeScript Agent SDK app configuration       | Manual via Task tool                      | Standard     |
+- `code-explorer`
+- `context-orchestrator`
+- `database-expert`
+- `db-migration`
+- `devops-troubleshooter`
+- `docs-architect`
+- `dx-optimizer`
+- `general-purpose`
+- `incident-responder`
+- `legacy-modernizer`
+- `workflow-orchestrator`
 
 ---
 
 ## 2. Global System Personas
 
-**IMPORTANT**: These are text instructions from the user's system prompt, **not
-executable agents**. They provide generic guidance but are **overridden by
-Project-Level Agents** (Section 1) when conflicts arise. See Section 8 Decision
-Tree for priority order.
+These are generic guidance surfaces from broader agent tooling, not the primary
+repo-specific execution surface. When a request matches both a project agent and
+a generic persona, prefer the project agent.
 
-**Pruned for Relevance**: Removed Python frameworks (`django-pro`,
-`fastapi-pro`, `temporal-python-pro`) and MBA courses
-(`kellogg-bidding-advisor`) that don't match the TypeScript/Node.js/React
-technology stack.
+### Retained Relevance for Updog
 
-### Retained Personas (Relevant to Updog Tech Stack):
-
-- **TypeScript/JavaScript**: General TypeScript best practices, async patterns
-- **Node.js Backend**: Express, API design, microservices patterns
-- **React Frontend**: Component design, hooks, state management
-- **Database**: PostgreSQL optimization, Drizzle ORM patterns
-- **Redis**: Caching strategies, BullMQ job queues
-- **Testing**: Vitest, Playwright, test automation
-- **DevOps**: Docker, GitHub Actions, deployment strategies
-- **Security**: OWASP Top 10, authentication, authorization
-
-**Note**: If a user request matches both a Project Agent (Section 1) and a
-Global Persona (Section 2), the **Project Agent takes priority** automatically.
+- **TypeScript/JavaScript**: strict typing, async patterns, build hygiene
+- **Node.js Backend**: Express routes, API design, workers, Redis integration
+- **React Frontend**: components, hooks, state/query patterns
+- **Database**: PostgreSQL, Drizzle, schema evolution
+- **Testing**: Vitest, integration tests, smoke tests
+- **DevOps**: Docker, GitHub Actions, deployment validation
+- **Security**: OWASP-style review, authorization, secrets hygiene
 
 ---
 
-## 3. Slash Commands
+## 3. Command Workflows
 
-**Location**: `.claude/commands/`, `plugin:*@*`
+**Verified inventory**: `21` command files under `.claude/commands`
 
-| Command                     | Description                                                                                    | Trigger                      |
-| --------------------------- | ---------------------------------------------------------------------------------------------- | ---------------------------- |
-| `/dev`                      | Extreme lightweight end-to-end development workflow (requirements → codex → 90% test coverage) | `/dev`                       |
-| `/deploy-check`             | Pre-deployment validation (build, bundle, smoke tests, idempotency)                            | `/deploy-check`              |
-| `/fix-auto`                 | Automated repair of lint, format, simple test failures                                         | `/fix-auto`                  |
-| `/test-smart`               | Intelligent test selection based on file changes                                               | `/test-smart`                |
-| `/workflows`                | Interactive helper showing available tools and when to use them                                | `/workflows`                 |
-| `/feature-dev`              | Guided feature development with codebase understanding                                         | `/feature-dev [description]` |
-| `/superpowers:brainstorm`   | Socratic design refinement using brainstorming skill                                           | `/superpowers:brainstorm`    |
-| `/superpowers:execute-plan` | Execute plan in batches with review checkpoints                                                | `/superpowers:execute-plan`  |
+This count includes nested command docs such as `.claude/commands/wshobson/*`.
+The list below highlights the current repo-visible command workflow surfaces.
+
+| Command File             | Purpose                                    |
+| ------------------------ | ------------------------------------------ |
+| `advise.md`              | General advisory workflow                  |
+| `catalog-tooling.md`     | Tooling discovery and inventory assistance |
+| `db-validate.md`         | Database validation workflow               |
+| `deploy-check.md`        | Pre-deployment validation                  |
+| `enable-agent-memory.md` | Memory-enablement guidance                 |
+| `evaluate-tools.md`      | Tool evaluation workflow                   |
+| `fix-auto.md`            | Automated repair workflow                  |
+| `log-change.md`          | Change logging                             |
+| `log-decision.md`        | Decision logging                           |
+| `phoenix-phase2.md`      | Phoenix phase-2 workflow                   |
+| `phoenix-prob-report.md` | Phoenix probabilistic reporting            |
+| `phoenix-truth.md`       | Phoenix truth-case workflow                |
+| `pr-ready.md`            | PR readiness checks                        |
+| `pre-commit-check.md`    | Pre-commit validation                      |
+| `retrospective.md`       | Retrospective workflow                     |
+| `session-learnings.md`   | Session learnings capture                  |
+| `session-start.md`       | Session bootstrap                          |
+| `test-smart.md`          | Targeted/smart test selection              |
+| `workflows.md`           | Workflow selection helper                  |
+| `wshobson/deps-audit.md` | Dependency audit helper                    |
+| `wshobson/tech-debt.md`  | Tech debt review helper                    |
 
 ---
 
@@ -170,351 +177,169 @@ Global Persona (Section 2), the **Project Agent takes priority** automatically.
 
 **Location**: `packages/`
 
-**Memory Adoption**: 100% (6/6 packages use HybridMemoryManager)
+This section is preserved as a package map. Historical package totals and
+memory-adoption percentages were removed in this pass because they were not
+re-verified.
 
-| Package             | Description                                                  | Memory Tenant            | Status |
-| ------------------- | ------------------------------------------------------------ | ------------------------ | ------ |
-| `agent-core`        | BaseAgent class with retry logic, metrics, health monitoring | `shared:agent-core`      | Active |
-| `test-repair-agent` | Autonomous test failure detection and repair                 | `agent:test-repair`      | Active |
-| `patch-applicator`  | AI-generated patch application with validation               | `agent:patch-applicator` | Active |
-| `code-review-agent` | Memory-enabled code review with pattern learning             | `agent:code-review`      | Active |
-| `performance-agent` | Performance regression detection                             | `agent:performance`      | Active |
-| `migration-agent`   | Database migration analysis and execution                    | `agent:migration`        | Active |
+| Package             | Description                                                | Status |
+| ------------------- | ---------------------------------------------------------- | ------ |
+| `agent-core`        | Base agent primitives, retries, metrics, health monitoring | Active |
+| `code-review-agent` | Code review package support                                | Active |
+| `migration-agent`   | Migration-oriented package support                         | Active |
+| `patch-applicator`  | Patch application and validation                           | Active |
+| `performance-agent` | Performance regression support                             | Active |
+| `test-repair-agent` | Test failure detection and repair                          | Active |
 
 ---
 
 ## 5. MCP Tools
 
-**Model Context Protocol servers** providing structured tool interfaces.
+MCP availability changes more often than the checked-in docs in this repo. The
+older exact function totals in this file were stale, so they were removed.
 
-### 5.1 Multi-AI Collaboration (16 functions)
+Use this section as a conceptual routing hint only:
 
-**Server**: `mcp__multi-ai-collab__*`
+- **Multi-model / multi-AI collaboration** for second opinions, review, and
+  synthesis
+- **Task/project management MCPs** for task expansion, dependency management,
+  and workflow scaffolding
+- **Session tool inventory** as the live source of truth for which MCP tools are
+  actually available in a given run
 
-**Available AIs**: Gemini (free), Grok/OpenAI/DeepSeek (paid)
-
-| Function                                      | Description                                 |
-| --------------------------------------------- | ------------------------------------------- |
-| `server_status`                               | Get server status and available AI models   |
-| `ask_gemini` / `ask_openai`                   | Ask specific AI a question                  |
-| `gemini_code_review` / `openai_code_review`   | Have AI review code for issues              |
-| `gemini_think_deep` / `openai_think_deep`     | Deep analysis with extended reasoning       |
-| `gemini_brainstorm` / `openai_brainstorm`     | Brainstorm creative solutions               |
-| `gemini_debug` / `openai_debug`               | Get debugging help                          |
-| `gemini_architecture` / `openai_architecture` | Architecture design advice                  |
-| `ask_all_ais`                                 | Ask all AIs and compare responses           |
-| `ai_debate`                                   | Have two AIs debate a topic                 |
-| `collaborative_solve`                         | Multiple AIs collaborate on complex problem |
-| `ai_consensus`                                | Get consensus opinion from all AIs          |
-
-### 5.2 TaskMaster AI (43 functions)
-
-**Server**: `mcp__taskmaster-ai__*`
-
-**RECOMMENDATION**: This tool violates Single Responsibility Principle. Plan to
-split into:
-
-1. `mcp-project-mgmt` (15 functions): CRUD, Tags, Organization
-2. `mcp-architect` (12 functions): Analysis, Dependencies, Scoping
-3. `mcp-developer` (16 functions): TDD Autopilot, File Generation, Research
-
-**Current Functions** (grouped by proposed split):
-
-**Project Management (15)**:
-
-- `initialize_project`, `models`, `rules`, `response-language`
-- `get_tasks`, `get_task`, `next_task`
-- `set_task_status`, `add_task`, `add_subtask`
-- `remove_task`, `remove_subtask`, `clear_subtasks`
-- `move_task`, `list_tags`, `add_tag`, `delete_tag`, `use_tag`, `rename_tag`,
-  `copy_tag`
-
-**Architect (12)**:
-
-- `analyze_project_complexity`, `complexity_report`
-- `expand_task`, `expand_all`
-- `scope_up_task`, `scope_down_task`
-- `add_dependency`, `remove_dependency`, `validate_dependencies`,
-  `fix_dependencies`
-- `update`, `update_task`, `update_subtask`
-
-**Developer (16)**:
-
-- `autopilot_start`, `autopilot_resume`, `autopilot_next`, `autopilot_status`
-- `autopilot_complete_phase`, `autopilot_commit`, `autopilot_finalize`,
-  `autopilot_abort`
-- `parse_prd`, `generate`, `research`
+If you need exact MCP function names or counts, inspect the active session tool
+registry instead of relying on this document.
 
 ---
 
 ## 6. Skills Library
 
-**Location**: `.claude/skills/`, `plugin:*@*`
+**Verified inventory**: `34` `SKILL.md` manifests under `.claude/skills`
 
-**Total**: 37 skills across 5 categories
+This count intentionally tracks only real skill manifests. Supporting markdown,
+reference docs, scripts, and indexes under `.claude/skills` are not counted as
+skills.
 
-### 6.1 Thinking Frameworks (4)
+### Current Skill Themes
 
-- `superpowers:brainstorming`, `superpowers:systematic-debugging`
-- `superpowers:test-driven-development`,
-  `superpowers:verification-before-completion`
-
-### 6.2 Debugging & Testing (3)
-
-- `superpowers:condition-based-waiting`, `superpowers:root-cause-tracing`
-- `superpowers:testing-anti-patterns`
-
-### 6.3 Planning & Execution (3)
-
-- `superpowers:writing-plans`, `superpowers:executing-plans`
-- `superpowers:subagent-driven-development`
-
-### 6.4 Memory & Context (2)
-
-- `agent-orchestration:context-manager`
-- `codex` (Codex CLI for code analysis, refactoring, automated changes)
-
-### 6.5 Integration & Workflow (4)
-
-- `superpowers:dispatching-parallel-agents`, `superpowers:receiving-code-review`
-- `superpowers:requesting-code-review`,
-  `superpowers:finishing-a-development-branch`
-
-### 6.6 AI Model Utilization (4)
-
-- `multi-ai-collab` (leveraging multiple AIs for consensus, debate,
-  collaboration)
-- `gemini-*`, `openai-*` (specific AI model skills)
-
-### 6.7 Data & API Design (3)
-
-- `database-design:postgresql`
-- `api-scaffolding:fastapi-templates` (NOTE: FastAPI is Python - consider
-  removing if not used)
-
-### 6.8 Code Quality & Architecture (14)
-
-- `code-refactoring:code-reviewer`, `code-refactoring:legacy-modernizer`
-- `code-documentation:docs-architect`, `code-documentation:tutorial-engineer`
-- `code-review-ai:architect-review`, `comprehensive-review:architect-review`
-- `comprehensive-review:security-auditor`,
-  `data-validation-suite:backend-security-coder`
-- `database-design:sql-pro`, `deployment-strategies:terraform-specialist`
-- `deployment-validation:cloud-architect`,
-  `documentation-generation:api-documenter`
-- `documentation-generation:mermaid-expert`, `error-diagnostics:debugger`
+- **Phoenix domain skills**: `phoenix-advanced-forecasting`,
+  `phoenix-brand-reporting`, `phoenix-capital-exit-investigator`,
+  `phoenix-docs-sync`, `phoenix-precision-guard`, `phoenix-reserves-optimizer`,
+  `phoenix-truth-case-orchestrator`, `phoenix-waterfall-ledger-semantics`,
+  `phoenix-workflow-orchestrator`, `phoenix-xirr-fees-validator`
+- **Quality and refactoring**: `bundle-size`, `code-reviewer`, `refactor-code`,
+  `regression-checker`, `test-pyramid`, `test-fixture-generator`
+- **Workflow engine**: `workflow-engine/code-formatter`,
+  `workflow-engine/dependency-guardian`, `workflow-engine/documentation-sync`,
+  `workflow-engine/security-scanner`, `workflow-engine/tech-debt-tracker`,
+  `workflow-engine/test-first-change`
+- **UI and design**: `frontend-ui-ux`, `ui-design-system`, `ui-ux-pro-max`
+- **Governance and support**: `baseline-governance`, `claude-infra-integrity`,
+  `control-plane`, `financial-calc-correctness`, `owasp-security`,
+  `session-learnings`
 
 ---
 
 ## 7. NPM Scripts
 
-**Location**: `package.json` (root + tools_local/)
+**Verified inventory**: `90` scripts in the root `package.json`
 
-**Total**: 277 scripts across 15 categories
+This count is limited to the root manifest. Historical claims that combined root
+scripts with older auxiliary inventories were removed.
 
-### 7.1 Development (12 scripts)
+### High-Signal Script Families
 
-- `dev`, `dev:client`, `dev:api` - Start development servers
-- `build`, `build:client`, `build:api` - Production builds
-- `check` - TypeScript type checking
-- `doctor`, `doctor:shell`, `doctor:quick` - Health checks
+- **Development/build**: `dev`, `dev:client`, `dev:api`, `build`, `build:prod`,
+  `build:server`, `build:web`, `check`, `preview`, `start`
+- **Docs/tooling validation**: `docs:check-links`, `docs:lint`,
+  `docs:routing:check`, `docs:routing:generate`, `docs:routing:query`,
+  `validate:claude-md`
+- **Lint/guardrails**: `lint`, `lint:eslint`, `lint:fix`, `lint:phase4`,
+  `lint:phase4:strict`, `lint:wave4`, `lint:wave5:policy`,
+  `lint:wave6:residual`, `guardrails:check`, `baseline:check`
+- **Database/seeding**: `db:push`, `db:studio`, `db:seed:test`,
+  `db:seed:test:minimal`, `db:seed:test:reset`, `seed:multi-tenant`,
+  `seed:reset`
+- **Tests**: `test`, `test:quick`, `test:smart`, `test:unit`,
+  `test:integration`, `test:security`, `test:smoke`, `test:ui`, plus the
+  `test:wave*` and `test:phase4*` families
+- **Phoenix/domain validation**: `phoenix:truth`, `phase0`,
+  `phase2:slice3:audit`, `preflight:phase0`
 
-### 7.2 Testing (18 scripts)
-
-- `test`, `test:run`, `test:ui`, `test:quick` - Test execution
-- `test -- --project=server`, `test -- --project=client` - Targeted tests
-- `test:unit`, `test:integration`, `test:e2e` - Test layers
-- `/test-smart` - Intelligent test selection
-
-### 7.3 Database (8 scripts)
-
-- `db:push`, `db:studio`, `db:migrate`, `db:seed`
-- `db:backup`, `db:restore`, `db:reset`
-
-### 7.4 Deployment (15 scripts)
-
-- `deploy`, `deploy:staging`, `deploy:production`
-- `deploy-with-confidence`, `monitor-deployment`, `smoke-test-prod`
-- `stage-cleanup-pr`
-
-### 7.5 Quality & Linting (22 scripts)
-
-- `lint`, `lint:fix`, `lint:strict`
-- `format`, `format:check`, `format:fix`
-- `/fix-auto` - Automated lint/format repair
-
-### 7.6 AI Tools (12 scripts)
-
-- `ai`, `ai:test-repair`, `ai:metrics`, `ai:research`
-- `codex`, `codex exec`, `codex --help`
-- `/dev` - AI-augmented development workflow
-
-### 7.7 Phoenix Project (28 scripts)
-
-- `phoenix:truth`, `phoenix:xirr-validate`, `phoenix:waterfall-validate`
-- `phoenix:baseline`, `phoenix:regression-check`
-
-### 7.8 Monitoring & Observability (14 scripts)
-
-- `metrics`, `metrics:server`, `prometheus`, `grafana`
-- `logs`, `logs:api`, `logs:workers`
-
-### 7.9 Workers & Background Jobs (10 scripts)
-
-- `workers`, `workers:dev`, `workers:prod`
-- `queue:clear`, `queue:status`, `queue:retry-failed`
-
-### 7.10 Utilities (45 scripts)
-
-- File operations, data transformations, reporting
-- Code generation, schema validation
-- Environment setup, configuration management
-
-### 7.11 Git & Version Control (8 scripts)
-
-- `git:clean`, `git:prune`, `git:stats`
-- `changelog`, `version:bump`
-
-### 7.12 Security & Compliance (12 scripts)
-
-- `security:scan`, `security:audit`, `security:report`
-- `trivy:scan` - Vulnerability scanning
-
-### 7.13 Performance (15 scripts)
-
-- `perf:baseline`, `perf:budget`, `perf:smoke`
-- `/perf-guard` - Performance regression detection
-
-### 7.14 Documentation (10 scripts)
-
-- `docs:build`, `docs:serve`, `docs:generate`
-- `readme:update`, `changelog:generate`
-
-### 7.15 Miscellaneous (68 scripts)
-
-- Project-specific utilities, one-off scripts, legacy commands
+For the exact current script list, inspect `package.json`.
 
 ---
 
-## 8. Workflow Decision Tree (CORRECTED)
+## 8. Workflow Decision Tree
 
-**CRITICAL**: This decision tree enforces governance. Project standards ALWAYS
-override user preferences.
+This decision tree remains useful as a routing heuristic even though older
+inventory totals were removed.
 
 ```
 User Request
     ↓
-┌─────────────────────────────────────────────────────────┐
-│ 1. Has Phoenix-specific task?                          │
-│    (e.g., "validate waterfall", "run truth cases")     │
-│    → YES → Use Phoenix Agent (Section 1.1)             │
-│            ├─ Domain-specialized                        │
-│            ├─ Tenant-scoped memory                      │
-│            └─ Production-validated                      │
-└─────────────────────────────────────────────────────────┘
+1. Phoenix/fund-modeling task?
+    → YES: Use Phoenix/domain specialist first
     ↓ NO
-┌─────────────────────────────────────────────────────────┐
-│ 2. Has Project-level agent?                            │
-│    (e.g., "review code", "fix bug", "run tests")       │
-│    → YES → Use Task tool (Section 1.2-1.5)             │
-│            ├─ Enforces project standards               │
-│            ├─ Access to codebase context               │
-│            └─ Memory-enabled learning                  │
-└─────────────────────────────────────────────────────────┘
+2. Existing project agent fits?
+    → YES: Use repo-specific agent
     ↓ NO
-┌─────────────────────────────────────────────────────────┐
-│ 3. Has Slash Command?                                  │
-│    (e.g., "/dev", "/test-smart", "/deploy-check")      │
-│    → YES → Use SlashCommand tool (Section 3)           │
-│            ├─ Pre-configured workflows                 │
-│            ├─ Integrated with CI/CD                    │
-│            └─ Curated best practices                   │
-└─────────────────────────────────────────────────────────┘
+3. Existing command workflow fits?
+    → YES: Use the matching command doc under .claude/commands
     ↓ NO
-┌─────────────────────────────────────────────────────────┐
-│ 4. Has MCP Tool?                                       │
-│    (e.g., multi-AI consensus, TaskMaster operations)    │
-│    → YES → Use MCP function (Section 5)                │
-│            ├─ Structured tool interface                │
-│            ├─ Cross-session state                      │
-│            └─ API-based integration                    │
-└─────────────────────────────────────────────────────────┘
+4. Repo-native script or workflow fits?
+    → YES: Prefer npm script or GitHub workflow
     ↓ NO
-┌─────────────────────────────────────────────────────────┐
-│ 5. Has User-level global persona?                     │
-│    (e.g., generic TypeScript advice)                    │
-│    → YES → Use Global Persona (Section 2)              │
-│            ├─ Generic fallback guidance                │
-│            ├─ No project-specific context              │
-│            └─ LOWEST PRIORITY                          │
-└─────────────────────────────────────────────────────────┘
-    ↓ NO
-┌─────────────────────────────────────────────────────────┐
-│ 6. Implement new solution                              │
-│    → Create agent, script, or workflow                 │
-│    → Document in this catalog                          │
-│    → Update decision tree                              │
-└─────────────────────────────────────────────────────────┘
+5. Generic fallback guidance
+    → Use broader persona/skill guidance
 ```
 
-**Priority Order Summary**:
+**Priority summary**:
 
-1. Phoenix Agents (highest specificity, domain expertise)
-2. Project Agents (project standards enforcement)
-3. Slash Commands (curated workflows)
-4. MCP Tools (structured interfaces)
-5. User Personas (generic fallback, LOWEST PRIORITY)
-
-**Example Conflict Resolution**:
-
-- User request: "Review my code"
-- Project Agent: `code-reviewer` (Section 1.2) - Enforces Updog style guide,
-  TypeScript conventions
-- User Persona: Generic `code-reviewer` (Section 2) - Generic best practices
-- **Decision**: Use Project Agent (Priority 2 beats Priority 5)
+1. Phoenix/domain specialists
+2. Repo-specific agents
+3. Command workflows
+4. Repo-native scripts/workflows
+5. Generic fallback guidance
 
 ---
 
 ## 9. Summary Statistics
 
-| Category                  | Count      | Memory Adoption           |
-| ------------------------- | ---------- | ------------------------- |
-| Project Agents            | 31         | 100% (31/31)              |
-| Agent Packages            | 8          | 100% (6/6 memory-enabled) |
-| Phoenix Agents            | 9          | 100% (9/9)                |
-| Slash Commands            | 8          | N/A                       |
-| MCP Functions             | 59         | N/A                       |
-| Skills                    | 37         | N/A                       |
-| NPM Scripts               | 277        | N/A                       |
-| **Extended Thinking**     | 3 agents   | High Compute tier         |
-| **PostgreSQL + pgvector** | All agents | Semantic search enabled   |
+| Category        | Verified Count | Source of Truth              |
+| --------------- | -------------- | ---------------------------- |
+| Workflow files  | 16             | `.github/workflows/*.yml`    |
+| Agent files     | 37             | `.claude/agents/*`           |
+| Skill manifests | 34             | `.claude/skills/**/SKILL.md` |
+| Command files   | 21             | `.claude/commands/**`        |
+| NPM scripts     | 90             | `package.json` -> `scripts`  |
+
+All other historical aggregate totals were removed pending a fresh audit.
 
 ---
 
 ## 10. Maintenance & Updates
 
-**Document Owner**: Development Team **Review Cycle**: Monthly (or after
-significant tooling changes) **Last Updated**: 2025-12-12 **Next Review**:
-2026-01-12
+**Document Owner**: Development Team **Review Cycle**: Monthly or after major
+tooling changes **Last Updated**: 2026-04-18
 
 **Update Triggers**:
 
-1. New agent added to `.claude/agents/` or `packages/`
-2. New MCP server integrated
-3. New slash command created in `.claude/commands/`
-4. Major npm script reorganization
-5. Priority order changes in Decision Tree
+1. File-count drift under `.claude/agents`, `.claude/skills`,
+   `.claude/commands`, or `.github/workflows`
+2. Root `package.json` script inventory changes materially
+3. Command workflow additions/removals
+4. Phoenix/domain tooling expansion
+5. A new repo-level source of truth replaces this catalog structure
 
-**Version History**:
+**Maintenance rule**:
 
-- **v2.0** (2025-12-12): Post-review corrections (6 fixes: pruned personas,
-  corrected decision tree, added triggers, renamed Section 2, cost tiers, brand
-  safety)
-- **v1.0** (2025-12-11): Initial catalog from parallel agent analysis
+- Keep only claims that can be re-verified quickly from the repo
+- Prefer directory/package-manifest counts over hand-maintained rollups
+- Remove stale aggregate metrics rather than guessing replacements
 
 ---
 
 **End of Catalog**
 
-**For Questions**: See `docs/CONVERSATION-SUMMARY-2025-12-11.md` for
-architectural rationale and correction details.
+For broader documentation routing, start with `docs/INDEX.md` and
+`.claude/DISCOVERY-MAP.md`.

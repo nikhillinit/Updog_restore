@@ -1,7 +1,7 @@
 ---
 status: ACTIVE
 audience: both
-last_updated: 2026-04-02
+last_updated: 2026-04-18
 categories: [documentation, navigation]
 keywords: [index, docs, navigation, routing, documentation]
 source_of_truth: true
@@ -17,7 +17,7 @@ maintenance:
 # Documentation Index
 
 **Purpose**: Central routing table for all project documentation **Audience**:
-Humans AND Agents **Last Updated**: 2026-04-02
+Humans AND Agents **Last Updated**: 2026-04-18
 
 ---
 
@@ -135,31 +135,32 @@ Hardening baseline)
 
 **Status**: [ACTIVE] **Audience**: Humans + Agents
 
-| Document                                                             | Description                                             | When to Use                                |
-| -------------------------------------------------------------------- | ------------------------------------------------------- | ------------------------------------------ |
-| [DECISIONS.md](../DECISIONS.md)                                      | Architectural Decision Records (ADRs)                   | Understanding technical rationale          |
-| [adr/](adr/)                                                         | Additional ADRs (12 files)                              | Monte Carlo, mem0, stages                  |
-| [DEVELOPMENT_STRATEGY.md](DEVELOPMENT_STRATEGY.md)                   | Long-term development strategy                          | Strategic planning                         |
-| [MULTI-AI-DEVELOPMENT-WORKFLOW.md](MULTI-AI-DEVELOPMENT-WORKFLOW.md) | Multi-AI collaboration patterns                         | Leveraging multiple AIs                    |
-| [schema.md](schema.md)                                               | Database schema, relationships, and design patterns     | Understanding persisted data model         |
-| [IDEMPOTENCY_GUIDE.md](IDEMPOTENCY_GUIDE.md)                         | Request deduplication and exactly-once processing guide | Designing safe write paths                 |
-| [RLS-DEVELOPMENT-GUIDE.md](RLS-DEVELOPMENT-GUIDE.md)                 | Multi-tenant Row-Level Security development guide       | Building or testing tenant-scoped features |
+| Document                                                             | Description                                             | When to Use                                 |
+| -------------------------------------------------------------------- | ------------------------------------------------------- | ------------------------------------------- |
+| [DECISIONS.md](../DECISIONS.md)                                      | Architectural Decision Records (ADRs)                   | Understanding technical rationale           |
+| [adr/](adr/)                                                         | Standalone ADR files (15 files)                         | Architecture decisions outside DECISIONS.md |
+| [DEVELOPMENT_STRATEGY.md](DEVELOPMENT_STRATEGY.md)                   | Long-term development strategy                          | Strategic planning                          |
+| [MULTI-AI-DEVELOPMENT-WORKFLOW.md](MULTI-AI-DEVELOPMENT-WORKFLOW.md) | Multi-AI collaboration patterns                         | Leveraging multiple AIs                     |
+| [schema.md](schema.md)                                               | Database schema, relationships, and design patterns     | Understanding persisted data model          |
+| [IDEMPOTENCY_GUIDE.md](IDEMPOTENCY_GUIDE.md)                         | Request deduplication and exactly-once processing guide | Designing safe write paths                  |
+| [RLS-DEVELOPMENT-GUIDE.md](RLS-DEVELOPMENT-GUIDE.md)                 | Multi-tenant Row-Level Security development guide       | Building or testing tenant-scoped features  |
 
 **Key ADRs**:
 
 - ADR-011: Anti-Pattern Prevention Strategy (DECISIONS.md)
 - ADR-014: PR Merge Criteria (baseline comparison)
 
-**Standalone ADRs (docs/adr/)**:
+**Standalone ADRs (`docs/adr/`)**:
 
-| ADR | Title                                           |
-| --- | ----------------------------------------------- |
-| 017 | Monte Carlo Validation Strategy                 |
-| 018 | Typed Stage Normalization & Statistical Testing |
-| 019 | mem0 Integration for AI Agent Memory Management |
+| ADR | Title                                                       |
+| --- | ----------------------------------------------------------- |
+| 017 | Monte Carlo Validation Strategy                             |
+| 018 | Typed Stage Normalization & Statistical Monte Carlo Testing |
+| 019 | mem0 Integration for AI Agent Memory Management             |
 
-_Note: ADR-017/018/019 were renumbered from 010/011/012 to avoid conflicts with
-DECISIONS.md (2026-01-19)._
+_Routing note: `DECISIONS.md` also has separate ADR-017/018/019 entries on
+different decisions. Reference standalone ADRs by `docs/adr/...` path and title,
+not by number alone._
 
 ---
 
@@ -181,7 +182,7 @@ DECISIONS.md (2026-01-19)._
 | ----------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------- | ------------------------------------ |
 | [ai-utils/README.md](../ai-utils/README.md)                                                                                         | Memory-enabled code review system                       | Code review automation               |
 | [ai/prompt/README.md](../ai/prompt/README.md)                                                                                       | Type-safe prompt templates                              | Portfolio QA, Reserve Sizing         |
-| [.claude/skills/INDEX.md](../.claude/skills/INDEX.md)                                                                               | 56 skills catalog                                       | Finding skills for workflows         |
+| [.claude/skills/INDEX.md](../.claude/skills/INDEX.md)                                                                               | Skills index                                            | Finding skills for workflows         |
 | [.claude/DISCOVERY-MAP.md](../.claude/DISCOVERY-MAP.md)                                                                             | Agent-facing routing, including Phoenix quick reference | Finding Phoenix agents and workflows |
 | [archive/2026-q1/unused-code/claude_code-multi-AI-MCP/README.md](../archive/2026-q1/unused-code/claude_code-multi-AI-MCP/README.md) | Archived Multi-AI collaboration prototype               | Historical consensus/debate tooling  |
 
@@ -199,20 +200,20 @@ DECISIONS.md (2026-01-19)._
 
 | Document                                                                     | Description                             | When to Use                              |
 | ---------------------------------------------------------------------------- | --------------------------------------- | ---------------------------------------- |
-| [workflows/README.md](workflows/README.md)                                   | 55 GitHub Actions workflows inventory   | Understanding CI/CD pipelines            |
+| [workflows/README.md](workflows/README.md)                                   | Current GitHub Actions workflow index   | Understanding CI/CD pipelines            |
 | [workflows/PRODUCTION_SCRIPTS.md](workflows/PRODUCTION_SCRIPTS.md)           | Deployment system (progressive rollout) | Production deployments                   |
 | [workflows/PAIRED-AGENT-VALIDATION.md](workflows/PAIRED-AGENT-VALIDATION.md) | Paired-agent quality workflow           | Deletions, structural changes, bulk mods |
 
-**Key Stats**:
+**Current snapshot**:
 
-- 55 workflows (8,621 YAML lines, 108 secrets)
-- 54 active, 1 broken (ci-optimized.yml)
-- Consolidation opportunity: 67% reduction (55 → 18 workflows)
+- 16 workflow files currently present in `.github/workflows`
+- `workflows/README.md` is the maintained repo-verified index
+- the archived workflow inventory snapshot is for historical reference only
 
 **Pattern Routing**:
 
 - **Deploy/Production** → PRODUCTION_SCRIPTS.md
-- **CI/GitHub Actions** → README.md + inventory.generated.json
+- **CI/GitHub Actions** → README.md
 - **Quality/Validation** → PAIRED-AGENT-VALIDATION.md
 
 ---
@@ -221,18 +222,17 @@ DECISIONS.md (2026-01-19)._
 
 **Status**: [ACTIVE] **Audience**: Humans + Agents
 
-| Document                                  | Description                          | When to Use                |
-| ----------------------------------------- | ------------------------------------ | -------------------------- |
-| [package.json](../package.json)           | 277 npm scripts across 15 categories | Finding available commands |
-| [scripts/README.md](../scripts/README.md) | Deployment scripts documentation     | Deployment automation      |
+| Document                                  | Description                      | When to Use                |
+| ----------------------------------------- | -------------------------------- | -------------------------- |
+| [package.json](../package.json)           | Current npm script inventory     | Finding available commands |
+| [scripts/README.md](../scripts/README.md) | Deployment scripts documentation | Deployment automation      |
 
-**Key Categories**:
+**Current snapshot**:
 
-- Development (12 scripts): `dev`, `build`, `check`, `doctor`
-- Testing (18 scripts): `test`, `test:run`, `test:ui`, `/test-smart`
-- Database (8 scripts): `db:push`, `db:studio`, `db:migrate`
-- Deployment (15 scripts): `deploy`, `deploy:staging`, `deploy:production`
-- AI Tools (12 scripts): `ai`, `ai:test-repair`, `codex`
+- 90 scripts are currently defined in the root `package.json`
+- Use `package.json` as the source of truth for exact script names
+- The highest-signal families are development/build, lint/guardrails,
+  test/validation, database/seeding, docs/routing, and Phoenix/domain checks
 - Phoenix (28 scripts): `phoenix:truth`, `phoenix:xirr-validate`
 
 ---
@@ -307,11 +307,11 @@ parity work
 
 **Status**: [ACTIVE] **Audience**: Agents
 
-| Document                                                         | Description                                               | When to Use            |
-| ---------------------------------------------------------------- | --------------------------------------------------------- | ---------------------- |
-| [DEVELOPMENT-TOOLING-CATALOG.md](DEVELOPMENT-TOOLING-CATALOG.md) | Complete inventory (31 agents, 277 scripts, 59 MCP tools) | Finding the right tool |
-| [.claude/skills/INDEX.md](../.claude/skills/INDEX.md)            | 56 skills catalog                                         | Skill selection        |
-| [cheatsheets/](../cheatsheets/)                                  | Implementation guides                                     | How-to documentation   |
+| Document                                                         | Description                                      | When to Use            |
+| ---------------------------------------------------------------- | ------------------------------------------------ | ---------------------- |
+| [DEVELOPMENT-TOOLING-CATALOG.md](DEVELOPMENT-TOOLING-CATALOG.md) | Repo-verified tooling snapshot and routing guide | Finding the right tool |
+| [.claude/skills/INDEX.md](../.claude/skills/INDEX.md)            | Skills index                                     | Skill selection        |
+| [cheatsheets/](../cheatsheets/)                                  | Implementation guides                            | How-to documentation   |
 
 **Decision Tree Priority**:
 
@@ -412,7 +412,7 @@ for complete workflow
 ## Maintenance
 
 **Document Owner**: Development Team **Review Cycle**: Monthly (or after major
-structural changes) **Last Updated**: 2026-04-02 **Next Review**: 2026-05-02
+structural changes) **Last Updated**: 2026-04-18 **Next Review**: 2026-05-18
 
 **Update Triggers**:
 

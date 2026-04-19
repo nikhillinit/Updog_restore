@@ -1,13 +1,36 @@
 ---
 status: ACTIVE
-last_updated: 2026-01-19
+last_updated: 2026-04-18
 ---
 
 # Development Environment Reset Guide
 
 ## Overview
 
-This guide provides a tiered approach to resolving persistent cache, styling, or dependency issues in the Updog development environment on Windows.
+This guide provides a tiered approach to resolving persistent cache, styling, or
+dependency issues in the Updog development environment on Windows.
+
+## Status Note
+
+The npm wrapper commands referenced below (`dev:force`, `reset`, `reset:hard`,
+`reset:full`, `kill:ports`) are not present in the current `package.json`. Treat
+this document as a manual reset playbook until those scripts are restored or the
+guide is rewritten against the live script surface.
+
+## Current Windows Doctor-Path Guidance
+
+For the current constrained-shell / doctor-path issue class, use this as the
+canonical verification command on Windows:
+
+```powershell
+& .\scripts\windows-node-env.ps1 npm.cmd run doctor
+```
+
+Use raw `npm.cmd run doctor` only as an informational probe unless it classifies
+failures cleanly. For the current issue history and environment pattern, start
+with [REFL-038](skills/REFL-038-windows-agent-shell-env-missing.md). For the
+older 2025 node_modules corruption incident, see
+[WINDOWS_NODE_CORRUPTION_PREVENTION.md](WINDOWS_NODE_CORRUPTION_PREVENTION.md).
 
 ## Quick Reference
 
@@ -34,10 +57,13 @@ When you encounter minor styling or cache issues:
 1. **Stop the dev server** (Ctrl+C in terminal)
 
 2. **Restart with force flag:**
+
    ```bash
    npm run dev:force
    ```
-   This uses Vite's built-in `--force` flag to clear the dependency cache without deleting `node_modules`.
+
+   This uses Vite's built-in `--force` flag to clear the dependency cache
+   without deleting `node_modules`.
 
 3. **Clear browser cache:**
    - Open DevTools (F12)
@@ -53,15 +79,19 @@ For persistent caching or dependency issues:
 1. **Stop all development servers** (close terminal windows)
 
 2. **Free occupied ports** (if needed):
+
    ```bash
    npm run kill:ports
    ```
+
    This safely terminates processes on ports 3000, 5173, and 5000.
 
 3. **Run the reset script:**
+
    ```bash
    npm run reset
    ```
+
    This removes:
    - `node_modules/`
    - `.vite/` (Vite dependency cache)
@@ -69,6 +99,7 @@ For persistent caching or dependency issues:
    - Then clears npm cache and reinstalls dependencies
 
 4. **Restart servers:**
+
    ```bash
    npm run dev
    ```
@@ -84,10 +115,13 @@ For persistent caching or dependency issues:
 When transitive dependencies might be corrupted:
 
 1. **Run the hard reset:**
+
    ```bash
    npm run reset:hard
    ```
-   This additionally removes `package-lock.json` to force npm to re-resolve all dependencies from scratch.
+
+   This additionally removes `package-lock.json` to force npm to re-resolve all
+   dependencies from scratch.
 
 2. **Restart servers and clear browser cache** (see Level 2 steps 4-5)
 
@@ -100,6 +134,7 @@ npm run reset:full
 ```
 
 This script:
+
 1. Kills processes on dev ports (3000, 5173, 5000)
 2. Removes node_modules, package-lock.json, .vite, dist
 3. Clears npm cache
@@ -117,6 +152,7 @@ This script:
 ### Manual Port Operations
 
 **Check what's using a port:**
+
 ```powershell
 # PowerShell
 Get-NetTCPConnection -LocalPort 5173
@@ -128,6 +164,7 @@ netstat -ano | findstr :5173
 ```
 
 **Kill specific process by PID:**
+
 ```powershell
 # PowerShell
 Stop-Process -Id <PID> -Force
@@ -139,6 +176,7 @@ taskkill /F /PID <PID>
 ```
 
 **Safe port-specific termination:**
+
 ```powershell
 # PowerShell - kills only processes on specific ports
 Get-NetTCPConnection -LocalPort 5173 -ErrorAction SilentlyContinue |
@@ -226,6 +264,7 @@ NODE_ENV=development
 ```
 
 **Backup .env files before Level 3+ resets:**
+
 ```bash
 copy .env .env.backup
 copy .env.local .env.local.backup
@@ -236,6 +275,7 @@ copy .env.local .env.local.backup
 ### For Daily Development
 
 1. **Use the quick force restart:**
+
    ```bash
    npm run dev:force
    ```
@@ -250,19 +290,24 @@ copy .env.local .env.local.backup
 
 ### For Team Consistency
 
-1. **Commit lock file changes:**
-   Always commit `package-lock.json` changes to ensure team has identical dependency versions.
+1. **Commit lock file changes:** Always commit `package-lock.json` changes to
+   ensure team has identical dependency versions.
 
-2. **Document custom configurations:**
-   If you modify Vite config, Tailwind config, or tsconfig, update this documentation.
+2. **Document custom configurations:** If you modify Vite config, Tailwind
+   config, or tsconfig, update this documentation.
 
 3. **Use consistent Node/npm versions:**
-   - Node: 20.x (see `engines` in package.json)
-   - npm: >=10.9.0
+   - Supported contract: Node `>=20.19.0`, npm `>=10.8.0`
+   - Preferred local baseline: `.nvmrc` -> `v20.19.5`
+   - Pinned automation/toolchain line: `volta` -> Node `20.19.0`, npm `10.9.2`
+   - Tolerated but non-baseline: Node 22 may satisfy `engines`, but re-verify
+     with `& .\scripts\windows-node-env.ps1 npm.cmd run doctor` before using it
+     for troubleshooting
 
 ## Docker Alternative (Future)
 
-For the most reliable environment consistency, consider containerizing development:
+For the most reliable environment consistency, consider containerizing
+development:
 
 ```dockerfile
 # Dockerfile.dev (example)
@@ -278,13 +323,13 @@ This eliminates host-specific caching and environment issues entirely.
 
 ## Script Reference
 
-| Script | Purpose | Speed | When to Use |
-|--------|---------|-------|-------------|
-| `dev:force` | Vite force restart | 30s | Minor cache issues |
-| `kill:ports` | Free dev ports | 5s | Port conflicts |
-| `reset` | Full cache clear + reinstall | 2-5m | Styling/dep issues |
-| `reset:hard` | + Lock file regeneration | 3-7m | Transitive dep issues |
-| `reset:full` | Complete automated reset | 3-7m | Stubborn issues |
+| Script       | Purpose                      | Speed | When to Use           |
+| ------------ | ---------------------------- | ----- | --------------------- |
+| `dev:force`  | Vite force restart           | 30s   | Minor cache issues    |
+| `kill:ports` | Free dev ports               | 5s    | Port conflicts        |
+| `reset`      | Full cache clear + reinstall | 2-5m  | Styling/dep issues    |
+| `reset:hard` | + Lock file regeneration     | 3-7m  | Transitive dep issues |
+| `reset:full` | Complete automated reset     | 3-7m  | Stubborn issues       |
 
 ## Troubleshooting the Reset Scripts
 
@@ -316,27 +361,31 @@ npm install --save-dev rimraf
 If reset procedures don't resolve your issue:
 
 1. **Check recent commits:**
+
    ```bash
    git log --oneline -10
    ```
+
    See if a recent change introduced the issue.
 
 2. **Check Git status:**
+
    ```bash
    git status
    ```
+
    Uncommitted config changes can cause issues.
 
 3. **Verify Node/npm versions:**
+
    ```bash
-   node --version  # Should be 20.x
-   npm --version   # Should be >=10.9.0
+   node --version  # Preferred local baseline is 20.19.x
+   npm --version   # Supported floor is >=10.8.0; Volta pins 10.9.2
    ```
 
-4. **Create an issue:**
-   Document exact steps, error messages, and environment details.
+4. **Create an issue:** Document exact steps, error messages, and environment
+   details.
 
 ---
 
-**Last Updated:** 2025-10-04
-**Maintainer:** Development Team
+**Last Updated:** 2026-04-18 **Maintainer:** Development Team
