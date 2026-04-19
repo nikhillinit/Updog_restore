@@ -27,6 +27,32 @@ import type {
 } from 'recharts/types/component/DefaultTooltipContent';
 
 /**
+ * Creates a type-safe Recharts formatter that handles undefined values.
+ *
+ * @param fn - Formatter function that receives guaranteed non-undefined value
+ * @param fallback - Optional fallback for undefined values (default: '')
+ * @returns A Recharts-compatible Formatter function
+ *
+ * @example
+ * ```tsx
+ * // Before (type error)
+ * <Tooltip formatter={(value: number) => formatCurrency(value)} />
+ *
+ * // After (type-safe)
+ * <Tooltip formatter={createFormatter(formatCurrency)} />
+ * ```
+ */
+export function createFormatter(
+  fn: (value: ValueType) => ReactNode,
+  fallback: ReactNode = ''
+): Formatter<ValueType, NameType> {
+  return (value: ValueType | undefined): ReactNode => {
+    if (value === undefined) return fallback;
+    return fn(value);
+  };
+}
+
+/**
  * Creates a tuple-returning formatter [formattedValue, label].
  *
  * @param fn - Formatter function that formats the value
@@ -110,3 +136,61 @@ export function createPayloadFormatter(
     payload: ReadonlyArray<Payload<ValueType, NameType>>
   ) => fn(value, name, item, index, payload);
 }
+
+/**
+ * Creates a formatter that uses value as-is with optional string conversion.
+ *
+ * @param suffix - Optional suffix to append (e.g., '%', 'x')
+ * @param prefix - Optional prefix to prepend (e.g., '$')
+ * @param decimals - Number of decimal places for number formatting
+ * @param fallback - Fallback for undefined values
+ * @returns A simple formatting function
+ *
+ * @example
+ * ```tsx
+ * <Tooltip formatter={createSimpleFormatter({ suffix: '%', decimals: 2 })} />
+ * // Outputs: "12.34%"
+ *
+ * <Tooltip formatter={createSimpleFormatter({ prefix: '$', suffix: 'M' })} />
+ * // Outputs: "$100M"
+ * ```
+ */
+export function createSimpleFormatter(
+  options: {
+    prefix?: string;
+    suffix?: string;
+    decimals?: number;
+    fallback?: ReactNode;
+  } = {}
+): Formatter<ValueType, NameType> {
+  const { prefix = '', suffix = '', decimals, fallback = '' } = options;
+
+  return (value: ValueType | undefined): ReactNode => {
+    if (value === undefined) return fallback;
+
+    let formatted: string;
+    if (typeof value === 'number' && decimals !== undefined) {
+      formatted = value.toFixed(decimals);
+    } else {
+      formatted = String(value);
+    }
+
+    return `${prefix}${formatted}${suffix}`;
+  };
+}
+
+/**
+ * Type-safe identity formatter that passes through values unchanged.
+ * Useful when you just need type compatibility without transformation.
+ *
+ * @example
+ * ```tsx
+ * <Tooltip formatter={identityFormatter} />
+ * ```
+ */
+export const identityFormatter: Formatter<ValueType, NameType> = (
+  value: ValueType | undefined
+): ReactNode => {
+  if (value === undefined) return '';
+  return String(value);
+};
