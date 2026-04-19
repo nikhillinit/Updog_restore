@@ -25,14 +25,6 @@ vi.mock('../../../server/routes/metrics-rum-v2.js', () => ({
   },
 }));
 
-vi.mock('../../../server/lib/logger.js', () => ({
-  logger: {
-    info: vi.fn(),
-    warn: vi.fn(),
-    error: vi.fn(),
-  },
-}));
-
 import { metricsRumRouter } from '../../../server/routes/metrics-rum';
 
 describe('RUM metrics routes', () => {

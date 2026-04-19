@@ -30,6 +30,7 @@ import { registerRoutes } from './routes.js';
 import { serveStatic, setupVite } from './vite.js';
 import { errorHandler } from './errors.js';
 import { metricsRouter } from './routes/metrics-endpoint.js';
+import { installRumIngressGuards } from './routes/metrics-rum-ingress.js';
 import type { Providers } from './providers.js';
 
 const log = logger.child({ module: 'server' });
@@ -214,16 +215,12 @@ export async function createServer(
   // Metrics endpoints (public, no auth required)
   app.use('/metrics', metricsRouter);
   app.use('/api', metricsRouter);
+  installRumIngressGuards(app);
 
   // RUM metrics endpoint (public, for browser telemetry)
   const { metricsRumRouter } = await import('./routes/metrics-rum.js');
-  const { rumOriginGuard, rumSamplingGuard, rumLimiter } =
-    await import('./routes/metrics-rum.guard.js');
-
-  // Apply guards and router together at the same path to prevent path resolution issues
-  // Guards run in order: origin check -> rate limit -> sampling -> privacy (in router)
-  app.use(rumOriginGuard, rumLimiter, rumSamplingGuard, metricsRumRouter);
-  app.use('/api', rumOriginGuard, rumLimiter, rumSamplingGuard, metricsRumRouter);
+  app.use(metricsRumRouter);
+  app.use('/api', metricsRumRouter);
 
   // Centralized public-route matcher (mount-relative, no /api prefix).
   // Keep this boundary narrow: canonical /api/funds* endpoints stay behind

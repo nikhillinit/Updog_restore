@@ -28,8 +28,8 @@ import { dealPipelineRouter } from './routes/deal-pipeline.js';
 import cohortAnalysisRouter from './routes/cohort-analysis.js';
 import sensitivityRouter from './routes/sensitivity.js';
 import metricsRouter from './routes/metrics-endpoint.js';
+import { installRumIngressGuards } from './routes/metrics-rum-ingress.js';
 import { metricsRumRouter } from './routes/metrics-rum.js';
-import { rumOriginGuard, rumSamplingGuard, rumLimiter } from './routes/metrics-rum.guard.js';
 import { swaggerSpec } from './config/swagger.js';
 import { cspDirectives, securityHeaders } from './config/csp.js';
 
@@ -155,8 +155,9 @@ export function makeApp() {
   // Metrics endpoints (public, no auth required)
   app.use('/metrics', metricsRouter);
   app.use('/api', metricsRouter);
-  app.use(rumOriginGuard, rumLimiter, rumSamplingGuard, metricsRumRouter);
-  app.use('/api', rumOriginGuard, rumLimiter, rumSamplingGuard, metricsRumRouter);
+  installRumIngressGuards(app);
+  app.use(metricsRumRouter);
+  app.use('/api', metricsRumRouter);
 
   // Feature flags API
   app.use('/api/flags', flagsRouter);
