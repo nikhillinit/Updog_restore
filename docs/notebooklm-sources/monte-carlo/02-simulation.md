@@ -6,7 +6,7 @@ last_updated: 2026-01-19
 # Monte Carlo Simulation - Algorithm Deep Dive
 
 **Document Version**: 1.0.0 **Last Updated**: 2025-11-06 **Related**:
-[01-overview.md](./01-overview.md), ADR-010
+[01-overview.md](./01-overview.md), ADR-017
 
 ## Table of Contents
 
@@ -32,7 +32,7 @@ parameters into thousands of portfolio outcomes:
 ```typescript
 // File: server/services/monte-carlo-engine.ts:196-226
 async runPortfolioSimulation(config: SimulationConfig): Promise<SimulationResults> {
-  // 1. Validate configuration (ADR-010 three-tier validation)
+  // 1. Validate configuration (ADR-017 three-tier validation)
   this.validateConfig(config);
 
   // 2. Retrieve baseline data and historical variance
@@ -1007,7 +1007,7 @@ Continue to:
 
 - **[03-statistics.md](./03-statistics.md)**: Statistical properties, risk
   metrics, percentiles
-- **[04-validation.md](./04-validation.md)**: Validation strategy from ADR-010
+- **[04-validation.md](./04-validation.md)**: Validation strategy from ADR-017
 
 ## Code References
 
@@ -1029,7 +1029,7 @@ Continue to:
 
 ## References
 
-- **ADR-010**: Validation Strategy
+- **ADR-017**: Validation Strategy
 - **Kauffman Foundation**: Seed-stage failure rate data (68-70%)
 - **Numerical Recipes**: LCG parameters (a=1664525, c=1013904223)
 - **Box-Muller Transform**: Normal distribution sampling

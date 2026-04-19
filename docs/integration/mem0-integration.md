@@ -154,7 +154,7 @@ C:/dev/Updog_restore/
 │   └── 20251031_add_agent_memories.sql    # NEW: Database schema
 ├── docs/
 │   └── adr/
-│       └── ADR-012-mem0-integration.md    # Architecture decision
+│       └── ADR-019-mem0-integration.md    # Architecture decision
 └── MEM0_INTEGRATION_SUMMARY.md            # This file
 ```
 
@@ -233,7 +233,7 @@ npm run dev
 
 ## References
 
-- [ADR-012: mem0 Integration](docs/adr/ADR-012-mem0-integration.md)
+- [ADR-019: mem0 Integration](docs/adr/ADR-019-mem0-integration.md)
 - [Phase 1 Results](packages/memory-manager/PHASE1_RESULTS.md)
 - [MemoryManager README](packages/memory-manager/README.md)
 - [pgvector Documentation](https://github.com/pgvector/pgvector)

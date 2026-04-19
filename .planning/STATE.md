@@ -1,15 +1,15 @@
 ---
 gsd_state_version: 1.0
 milestone: v1.1
-milestone_name: cleanup-and-decay-reduction
-status: Phase 05 Complete
-last_updated: '2026-04-08T07:15:00.000Z'
+milestone_name: milestone
+status: Ready to execute
+last_updated: '2026-04-08T09:25:45.655Z'
 progress:
   total_phases: 3
-  completed_phases: 1
-  total_plans: 2
-  completed_plans: 2
-  percent: 33
+  completed_phases: 2
+  total_plans: 4
+  completed_plans: 4
+  percent: 67
 ---
 
 # GSD State — Updog
@@ -22,13 +22,15 @@ See: `.planning/PROJECT.md` (last updated 2026-04-07)
 fund result without leaving the browser, with results that are statistically
 defensible and traceable to the inputs that produced them.
 
-**Current focus:** **Milestone M9 — v1.1 Cleanup and Decay Reduction**, Phase 5
-shipped 2026-04-08 (REQ-TEST-01 re-quarantined with accurate stale-contract
-comment + FINDINGS.md; REQ-TEST-02 trackMemoryUsage bytes-as-duration bug fixed
-with RED→GREEN TDD regression test). M9 is a 3-phase cleanup milestone: test
-hygiene resurrection, schema/docs/baseline drift cleanup, and bounded debt
-drawdown of two small lint baselines. Phase numbering continues from M8 (5, 6,
-7). Status: Phase 5 complete (2/2 plans), ready to discuss/plan Phase 6.
+**Current focus:** **Milestone M9 — v1.1 Cleanup and Decay Reduction**, Phase 6
+shipped 2026-04-09 (Plan 06-02: 18 doc hit-points cleaned, stale baselines
+replaced with live values, hardcoded Phoenix counts removed; Plan 06-01:
+invalidated by live Neon introspect, Notion cluster deleted, 4 remaining
+clusters deferred as active product surfaces). M9 is a 3-phase cleanup
+milestone: test hygiene resurrection, schema/docs/baseline drift cleanup, and
+bounded debt drawdown of two small lint baselines. Phase numbering continues
+from M8 (5, 6, 7). Status: Phases 5+6 complete (4/4 plans), ready to
+discuss/plan Phase 7.
 
 ## Codebase Reference
 
@@ -86,13 +88,12 @@ quality workflow (research + plan-check + verifier all enabled),
 
 ## Active Phase
 
-**Phase 5 — Test Hygiene Resurrection** (first phase of M9 per ROADMAP).
+**Phase 7 — Bounded Debt Drawdown** (third and final phase of M9 per ROADMAP).
 
-M8 is COMPLETE (all 4 phases / 13 plans / 11 requirements; closed 2026-04-08 at
-commit `46be2c37`). M9 just opened via `/gsd-new-milestone` and is ready to
-plan.
+Phase 5 (Test Hygiene Resurrection) shipped 2026-04-08; Phase 6 (Schema, Docs,
+and Baseline Drift Cleanup) shipped 2026-04-09. Phase 7 is the last M9 phase.
 
-To start Phase 5, run `/gsd-discuss-phase 5` or `/gsd-plan-phase 5`.
+To start Phase 7, run `/gsd-discuss-phase 7` or `/gsd-plan-phase 7`.
 
 ## Authoritative Documents
 
@@ -174,6 +175,24 @@ canonical record for non-derivable gotchas. Most relevant on `main` right now:
 - Planning Docs Drift From Main
 
 ## Last Updated
+
+2026-04-09 — **Phase 06 (Schema, Docs, and Baseline Drift Cleanup) COMPLETE.**
+Plan 06-02 landed fully: 4 commits, 18 hit-points cleaned across 6 planning docs
+(stale baselines 374/132/~400 replaced with live values 39/29/363, hardcoded
+Phoenix truth counts removed, CLAUDE.md retarget noted). REQ-DRIFT-02 and
+REQ-DRIFT-03 fully satisfied. Plan 06-01 was invalidated by live Neon introspect
+(plan expected 11 phantoms but reality was 30 across 12+ schema files). Notion
+cluster safe-deleted (4 phantom tables + notion-service.ts, 1403 lines removed,
+commit 6fbfdb1e). Remaining 4 clusters (cohort, portfolio-optimization, LP,
+shares/sensitivity/snapshots) all deferred — they are active product surfaces
+with missing DB backing, not dead code. V2 audit plan authored and all 4 tasks
+completed; all clusters got DEFER verdicts. REQ-DRIFT-01 partially satisfied
+(Notion done, remainder filed as follow-on schema-drift remediation). 8 commits
+total across both plans. Phase 6 success criteria: (1) partially met — Notion
+phantoms eliminated, remaining phantoms reframed as active-surface drift; (2)
+met — grep shows no hardcoded counts; (3) met — PROJECT.md and codebase docs
+reflect live baseline values; (4) pending full `npm test` run (Vite/Vitest EPERM
+in previous session).
 
 2026-04-08 — **Phase 05 (Test Hygiene Resurrection) COMPLETE.** 2/2 plans
 shipped, 6 atomic commits (`f0dda58a` test, `776925b9` fix, `d6984ee6` docs for

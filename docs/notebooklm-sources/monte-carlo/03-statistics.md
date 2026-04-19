@@ -1152,7 +1152,7 @@ if (standardDeviation / mean > 3.0) {
 Continue to:
 
 - **[04-validation.md](./04-validation.md)**: Complete validation strategy from
-  ADR-010
+  ADR-017
 - **[01-overview.md](./01-overview.md)**: Return to overview
 - **[02-simulation.md](./02-simulation.md)**: Review simulation algorithm
 
@@ -1180,7 +1180,7 @@ Continue to:
 
 ## References
 
-- **ADR-010**: Monte Carlo Validation Strategy
+- **ADR-017**: Monte Carlo Validation Strategy
 - **Tests**: `tests/unit/services/monte-carlo-engine.test.ts` (risk metrics
   tests)
 - **Validation**: `scripts/validation/monte-carlo-validation.yaml` (variance

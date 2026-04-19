@@ -1,6 +1,6 @@
 ---
 status: ACTIVE
-last_updated: 2026-03-27
+last_updated: 2026-04-18
 ---
 
 # Claude Code Standard Workflow
@@ -91,7 +91,7 @@ them.**
 Before ANY commit, run all three quality gates:
 
 ```bash
-# 1. Linting (MUST show 0 errors, 0 warnings)
+# 1. Linting
 npm run lint
 
 # 2. Type Checking (MUST show 0 type errors)
@@ -101,21 +101,40 @@ npm run check
 npm test -- --run
 ```
 
+### Enforcement Reality
+
+The repo's **quality intent is stricter than current automated enforcement**.
+
+- Local workflow target: zero new lint debt, zero type errors, passing tests
+- Current CI enforcement is still operating with baseline ceilings in
+  `.github/workflows/code-quality.yml`
+- As of 2026-04-18, CI allows `MAX_ESLINT_ERRORS: 4700` and warns at
+  `WARNING_ANY_TYPES: 5000`
+- These thresholds are **temporary ratchet ceilings for legacy debt**, not
+  permission to add new violations
+- Do not rely on baseline-tolerant CI to justify regressions in touched code
+
 ### Type Safety Rules
 
-This project enforces **STRICT type safety**:
+This project enforces **TypeScript strict mode** and a **ratchet toward stricter
+lint enforcement**:
 
-- NEVER use `any` type (eslint.config.js enforces
-  `@typescript-eslint/no-explicit-any: 'error'`)
+- Runtime/application code should avoid `any` and prefer `unknown` + type guards
+- `eslint.config.js` currently sets `@typescript-eslint/no-explicit-any` to
+  `warn` in the main TypeScript block and `off` for test files
+- Treat `any` as an exception to be minimized and justified, not a normal tool
+- The enforcement direction is to ratchet `any` back toward hard-fail status as
+  baseline debt is reduced
 - Use `unknown` + type guards for truly dynamic data
-- Reference tsconfig.json (strict mode enabled: line 32)
+- Reference `tsconfig.json` for strict mode settings
 - Use proper Drizzle ORM types from `@shared/schema`
 - Consult cheatsheets/anti-pattern-prevention.md (24 cataloged patterns)
 
 ### Commit Protocol
 
 - **NEVER** use `git commit --no-verify` to bypass hooks
-- **NEVER** commit with known linting violations
+- **NEVER** use current CI baselines to justify new lint or type debt
+- **NEVER** commit with new or unexplained linting violations in touched code
 - **NEVER** defer type safety fixes to "followup commit"
 - Fix all violations inline before committing
 
@@ -123,8 +142,8 @@ This project enforces **STRICT type safety**:
 
 Before implementing TypeScript changes:
 
-1. Read `eslint.config.js` lines 132-138 (type safety rules)
-2. Read `tsconfig.json` line 32 (strict mode confirmation)
+1. Read `eslint.config.js` type-safety rules and current severities
+2. Read `tsconfig.json` strict mode settings
 3. Read `cheatsheets/anti-pattern-prevention.md` (anti-patterns)
 4. Use proper types from `@shared/schema` (Drizzle ORM tables)
 
@@ -134,8 +153,8 @@ If any gate fails:
 
 1. **Stop** - Do not proceed to commit
 2. **Review** - Analyze violations/errors
-3. **Fix** - Address root cause (no workarounds)
-4. **Re-run** - Verify all gates pass
-5. **Then commit** - Only after all gates are green
+3. **Fix** - Address root cause and remove any new debt in touched code
+4. **Re-run** - Verify typecheck and tests are green, and lint is not regressing
+5. **Then commit** - Only after the change set meets local quality expectations
 
 Use `/pre-commit-check` command for automated validation.

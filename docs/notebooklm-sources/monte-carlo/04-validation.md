@@ -5,7 +5,7 @@ last_updated: 2026-01-19
 
 # Monte Carlo Simulation - Validation Strategy
 
-**Document Version**: 1.0.0 **Last Updated**: 2025-11-06 **Related**: ADR-010
+**Document Version**: 1.0.0 **Last Updated**: 2025-11-06 **Related**: ADR-017
 (Monte Carlo Validation Strategy)
 
 ## Table of Contents
@@ -23,7 +23,7 @@ last_updated: 2026-01-19
 
 ## Validation Strategy Overview
 
-**Source**: ADR-010 (Monte Carlo Validation Strategy)
+**Source**: ADR-017 (Monte Carlo Validation Strategy)
 
 Monte Carlo simulations for portfolio modeling require **robust input validation
 and NaN prevention** to ensure stable, reproducible results. Power law
@@ -31,7 +31,7 @@ distributions used in venture capital return modeling are particularly sensitive
 to edge cases (zero values, infinite results, division by zero) that can
 propagate through calculations and corrupt entire simulation runs.
 
-### Core Principles (from ADR-010:47-55)
+### Core Principles (from ADR-017:47-55)
 
 1. **Fail fast**: Reject invalid inputs immediately with descriptive errors
 2. **Type safety**: Validate both type (number) and mathematical properties
@@ -41,7 +41,7 @@ propagate through calculations and corrupt entire simulation runs.
 4. **Explicit bounds**: Document valid ranges in code comments and error
    messages
 
-### Business Impact (from ADR-010:29-35)
+### Business Impact (from ADR-017:29-35)
 
 - **Fund modeling accuracy**: LP reports require 10,000+ Monte Carlo scenarios
   with 99.9%+ success rate
@@ -99,7 +99,7 @@ if (!Number.isFinite(portfolioSize) || !Number.isFinite(scenarios)) {
 }
 ```
 
-**Why isFinite()?** (from ADR-010:146-163)
+**Why isFinite()?** (from ADR-017:146-163)
 
 `Number.isFinite(x)` checks both:
 
@@ -144,7 +144,7 @@ if (portfolioSize <= 0 || scenarios <= 0) {
 }
 ```
 
-**Domain Constraints by Parameter** (from ADR-010:167-179):
+**Domain Constraints by Parameter** (from ADR-017:167-179):
 
 ```typescript
 // Portfolio size: Number of investments (1+)
@@ -172,7 +172,7 @@ if (multiple < 0) {
 
 ### Complete Validation Pattern
 
-**Template** (from ADR-010:287-293):
+**Template** (from ADR-017:287-293):
 
 ```typescript
 function monteCarloFunction(input: number, scenarios: number): Result {
@@ -212,7 +212,7 @@ function monteCarloFunction(input: number, scenarios: number): Result {
 
 ## NaN Prevention
 
-**Problem** (from ADR-010:10-27): Without comprehensive validation:
+**Problem** (from ADR-017:10-27): Without comprehensive validation:
 
 - **Invalid inputs** (negative portfolio sizes, non-finite exponents) cause
   simulation crashes
@@ -248,7 +248,7 @@ const irr = Math.pow(multiple, 1 / years) - 1; // NaN if multiple < 0
 ### Sentinel Values
 
 **Pattern**: Use explicit sentinel values for valid edge cases (from
-ADR-010:309-318).
+ADR-017:309-318).
 
 ```typescript
 // File: server/services/power-law-distribution.ts:316-322
@@ -751,7 +751,7 @@ it('should find optimal reserve allocation', async () => {
 
 ### Pitfall 1: Silent Type Coercion
 
-**Problem** (from ADR-010:132-138):
+**Problem** (from ADR-017:132-138):
 
 ```typescript
 // ❌ Silently coerces invalid inputs
@@ -765,7 +765,7 @@ const scenarios = input || defaultValue; // Turns null into default
 - Unpredictable (`null`, `undefined`, `NaN` behave differently)
 - No audit trail (no record that invalid input was received)
 
-**Solution** (from ADR-010:139-143):
+**Solution** (from ADR-017:139-143):
 
 ```typescript
 // ✅ Fail fast with explicit validation
@@ -794,7 +794,7 @@ if (x > 0) { ... }
 if (!isNaN(x)) { ... }
 ```
 
-**Solution** (from ADR-010:154-163):
+**Solution** (from ADR-017:154-163):
 
 ```typescript
 // ✅ Complete: Rejects both NaN and Infinity
@@ -803,7 +803,7 @@ if (Number.isFinite(x) && x > 0) { ... }
 
 ### Pitfall 3: Try-Catch at Simulation Level
 
-**Problem** (from ADR-010:203-218):
+**Problem** (from ADR-017:203-218):
 
 ```typescript
 // ❌ Wrap entire simulation in try-catch, discard failed scenarios
@@ -835,7 +835,7 @@ errors.
 
 ### Pitfall 4: Warning Logs Instead of Errors
 
-**Problem** (from ADR-010:221-233):
+**Problem** (from ADR-017:221-233):
 
 ```typescript
 // ❌ Log warnings but continue calculation
@@ -1033,7 +1033,7 @@ Monte Carlo documentation should achieve:
 
 - **98%+ Promptfoo validation pass rate** (highest standard due to complexity)
 - All 5 test cases from `monte-carlo-validation.yaml` passing
-- ADR-010 validation strategy fully documented
+- ADR-017 validation strategy fully documented
 - Code references use `file:line` format
 - Cross-references to DECISIONS.md ADRs included
 - Edge cases from tests documented
@@ -1043,7 +1043,7 @@ Monte Carlo documentation should achieve:
 ### Validation Workflow
 
 1. **Initial Draft**: Create documentation
-2. **Self-Check**: Verify all ADR-010 requirements covered
+2. **Self-Check**: Verify all ADR-017 requirements covered
 3. **Promptfoo Validation**: Run validation suite
    ```bash
    promptfoo eval --config scripts/validation/monte-carlo-validation.yaml
@@ -1101,8 +1101,8 @@ Documentation enables:
 
 ## References
 
-- **ADR-010**: Monte Carlo Validation Strategy
-  (`docs/adr/ADR-010-monte-carlo-validation-strategy.md`)
+- **ADR-017**: Monte Carlo Validation Strategy
+  (`docs/adr/ADR-017-monte-carlo-validation-strategy.md`)
 - **DECISIONS.md**: PowerLawDistribution API Design
 - **HANDOFF-MEMO**: Phase 2 strategy and quality targets
 - **Tests**: Comprehensive validation test suite

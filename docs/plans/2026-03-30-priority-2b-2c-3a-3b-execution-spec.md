@@ -64,10 +64,11 @@ Concretely, these slices must:
    and no scenario-scoped audit read model.
 7. There is no durable "last sync note" or "simple change summary" beyond the
    single scenario-level `notes` field.
-8. `docs/script-classification.json`, `README.md`, `docs/BUILD_READINESS.md`,
-   and `CLAUDE.md` already encode the stabilized perimeter and supported command
-   path. Priority `3A` must keep those files aligned rather than inventing a new
-   documentation center of gravity.
+8. `docs/archive/2026-q2/generated-inventory-snapshots/script-classification.json`,
+   `README.md`, `docs/BUILD_READINESS.md`, and `CLAUDE.md` already encode the
+   stabilized perimeter and supported command path. Priority `3A` must keep
+   those files aligned rather than inventing a new documentation center of
+   gravity.
 9. `npm run validate:core` is already the hard delivery gate and must stay green
    through these slices.
 
@@ -583,7 +584,7 @@ boundaries current as feature work resumes.
 
 The guardrail artifacts already exist:
 
-- `docs/script-classification.json`
+- `docs/archive/2026-q2/generated-inventory-snapshots/script-classification.json`
 - `README.md`
 - `docs/BUILD_READINESS.md`
 - `CLAUDE.md`
@@ -596,7 +597,7 @@ PRs that land `2B`, `2C`, and any later post-stabilization slices.
 
 1. If a PR changes supported scripts, validation commands, or the recommended
    developer path, it must update:
-   - `docs/script-classification.json`
+   - `docs/archive/2026-q2/generated-inventory-snapshots/script-classification.json`
    - `README.md`
    - `docs/BUILD_READINESS.md`
    - `CLAUDE.md`
@@ -1053,7 +1054,7 @@ Purpose:
 
 Owned files only as needed:
 
-- `docs/script-classification.json`
+- `docs/archive/2026-q2/generated-inventory-snapshots/script-classification.json`
 - `README.md`
 - `docs/BUILD_READINESS.md`
 - `CLAUDE.md`

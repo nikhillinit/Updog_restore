@@ -159,15 +159,16 @@ affected.
 
 Plans:
 
-- [ ] 06-01-PLAN.md — Reconcile shared/schema.ts against live Neon endpoint via
-      drizzle-kit introspect; delete 11 hard-delete phantom tables, unmount
-      /api/cohorts route, delete dead routes/services/tests, apply LP cluster
-      verdict per introspect, handle jobOutbox migration (REQ-DRIFT-01)
-- [ ] 06-02-PLAN.md — Update stale baseline numbers and remove hardcoded phoenix
-      counts in 6 .planning/ doc files; retarget REQ-DRIFT-03 from CLAUDE.md
-      (which is NOT a drift target) to .planning/PROJECT.md and
-      .planning/codebase/{CONCERNS,CONVENTIONS,INTEGRATIONS}.md (REQ-DRIFT-02,
-      REQ-DRIFT-03)
+- [x] 06-01-PLAN.md — Invalidated by live Neon introspect (plan expected 11
+      phantoms, reality was 30 across 12+ schema files). Notion cluster deleted
+      (4 tables + notion-service.ts, 1403 lines). Remaining 4 clusters deferred
+      as active product surfaces requiring schema-drift remediation, not code
+      deletion. Closed with findings + v2 audit plan (REQ-DRIFT-01 partially
+      satisfied — Notion safe-delete done, remainder filed as follow-on)
+- [x] 06-02-PLAN.md — 18 hit-points cleaned across 6 planning docs; stale
+      baselines (374/132/~400) replaced with live values (39/29/363); hardcoded
+      Phoenix truth counts removed; CLAUDE.md retarget noted. 4 commits.
+      (REQ-DRIFT-02, REQ-DRIFT-03 fully satisfied)
 
 ### Phase 7: Bounded Debt Drawdown
 

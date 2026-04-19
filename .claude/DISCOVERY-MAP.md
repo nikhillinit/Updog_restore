@@ -1,7 +1,7 @@
 ---
 status: ACTIVE
 audience: agents
-last_updated: 2026-03-27
+last_updated: 2026-04-18
 owner: 'Platform Team'
 review_cadence: P30D
 categories: [discovery, agents, routing]
@@ -59,23 +59,24 @@ VC fund modeling knowledge.
 
 ---
 
-# WARNING: ADR Number Conflicts
+# ADR Routing Note
 
-**Status:** Requires resolution (renumbering needed)
+`DECISIONS.md` and `docs/adr/` both contain ADRs, and their numbering is not a
+single shared sequence. The overlap is an active routing constraint, not a
+pending renumbering task.
 
-ADR-010, ADR-011, ADR-012 exist in BOTH locations with DIFFERENT content:
+Current overlapping numbers to watch:
 
-| ADR | In DECISIONS.md                  | In docs/adr/                    |
-| --- | -------------------------------- | ------------------------------- |
-| 010 | PowerLawDistribution API Design  | Monte Carlo Validation Strategy |
-| 011 | Anti-Pattern Prevention Strategy | Typed Stage Normalization       |
-| 012 | Evidence-Based Document Reviews  | mem0 Integration                |
+| ADR | In DECISIONS.md                                                     | In docs/adr/                                                |
+| --- | ------------------------------------------------------------------- | ----------------------------------------------------------- |
+| 017 | Export Strategy - BullMQ Async Pipeline with Unified Data Model     | Monte Carlo Validation Strategy                             |
+| 018 | Phase 3C Truthful Rich Results - Track A                            | Typed Stage Normalization & Statistical Monte Carlo Testing |
+| 019 | Operational Guardrails, Pino Standardization, and Policy Exclusions | mem0 Integration for AI Agent Memory Management             |
 
-**Resolution:** docs/adr/ ADRs should be renumbered to ADR-017, ADR-018,
-ADR-019.
+**Action:** Reference ADRs by path and title, not by number alone.
 
-**Action:** When referencing ADRs, specify the file path explicitly until
-resolved.
+- `DECISIONS.md#adr-017-export-strategy---bullmq-async-pipeline-with-unified-data-model`
+- `docs/adr/ADR-017-monte-carlo-validation-strategy.md`
 
 ---
 

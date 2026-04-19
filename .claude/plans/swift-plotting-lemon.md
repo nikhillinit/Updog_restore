@@ -80,7 +80,8 @@ internal-migration, or archive.
 **1E — Execute script cleanup**
 
 - Remove `archive`-classified scripts from `package.json`
-- Write classification to sidecar manifest `docs/script-classification.json`
+- Write classification to the archived sidecar snapshot
+  `docs/archive/2026-q2/generated-inventory-snapshots/script-classification.json`
   (NOT package.json — JSON does not support comments). Manifest records
   `{ supported: [...], internalMigration: [...], archived: [...] }` with reason
   per entry
@@ -215,7 +216,8 @@ scripts in `.github/`, `CLAUDE.md`, `cheatsheets/`
 - "Historical docs no longer competing with live docs" — no stale plan in an
   active directory that could be mistaken for current guidance
 - "Inventory scripts into supported, internal migration, and archive" —
-  `docs/script-classification.json` exists with every script classified
+  `docs/archive/2026-q2/generated-inventory-snapshots/script-classification.json`
+  records the historical classification snapshot
 - All archived files have manifest entries in
   `docs/archive/m7-cleanup/MANIFEST.md`
 
@@ -291,5 +293,6 @@ explicitly in a follow-up change rather than implied by this plan.
 4. No grep hits for removed scripts in `.github/`, `CLAUDE.md`, `cheatsheets/`
 5. README/BUILD_READINESS document only scripts that exist in package.json
 6. No stale plan in an active directory competes with live guidance
-7. `docs/script-classification.json` classifies every original script
+7. `docs/archive/2026-q2/generated-inventory-snapshots/script-classification.json`
+   preserves the historical classification snapshot
 8. `docs/archive/m7-cleanup/MANIFEST.md` exists and is complete
