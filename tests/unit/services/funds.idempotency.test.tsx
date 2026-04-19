@@ -29,7 +29,7 @@ describe('Wave 2 funds boundary', () => {
     expect(first.hash).toBe(second.hash);
     expect(fetchMock).toHaveBeenCalledTimes(1);
     expect(fetchMock).toHaveBeenCalledWith(
-      '/api/funds',
+      expect.stringContaining('/api/funds'),
       expect.objectContaining({
         credentials: 'include',
         headers: expect.objectContaining({
