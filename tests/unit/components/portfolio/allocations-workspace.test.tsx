@@ -1,6 +1,6 @@
 import React from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { AllocationsTab } from '../../../../client/src/components/portfolio/tabs/AllocationsTab';
@@ -100,12 +100,15 @@ vi.mock('../../../../client/src/components/portfolio/tabs/hooks/useAllocationSce
   }),
 }));
 
-vi.mock('../../../../client/src/components/portfolio/tabs/hooks/useReserveIcPacketEvidence', () => ({
-  useReserveIcPacketEvidence: () => ({
-    publishedResultsQuery: reserveIcPublishedResultsHookMock(),
-    comparisonQuery: reserveIcComparisonHookMock(),
-  }),
-}));
+vi.mock(
+  '../../../../client/src/components/portfolio/tabs/hooks/useReserveIcPacketEvidence',
+  () => ({
+    useReserveIcPacketEvidence: () => ({
+      publishedResultsQuery: reserveIcPublishedResultsHookMock(),
+      comparisonQuery: reserveIcComparisonHookMock(),
+    }),
+  })
+);
 
 vi.mock('../../../../client/src/components/portfolio/tabs/hooks/useUpdateAllocations', () => ({
   useUpdateAllocations: () => ({
@@ -401,6 +404,10 @@ function renderWithQuery(ui: React.ReactElement) {
   return render(<QueryClientProvider client={queryClient}>{ui}</QueryClientProvider>);
 }
 
+function setControlValue(control: HTMLElement, value: string) {
+  fireEvent.change(control, { target: { value } });
+}
+
 describe('portfolio reserve planning workspace', () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -460,15 +467,17 @@ describe('portfolio reserve planning workspace', () => {
     expect(screen.getByText('Reserve IC Decisions')).toBeInTheDocument();
     expect(screen.getByText('Last synced Feb 15, 2024')).toBeInTheDocument();
     expect(screen.getByText('Synced Mar 29, 2026 by system')).toBeInTheDocument();
-    expect(screen.getByText('Applied Mar 27, 2026 by analyst@example.com (v7)')).toBeInTheDocument();
+    expect(
+      screen.getByText('Applied Mar 27, 2026 by analyst@example.com (v7)')
+    ).toBeInTheDocument();
   });
 
   it('creates a scenario from the current workspace snapshot', async () => {
     const user = userEvent.setup();
     renderWithQuery(<AllocationsTab />);
 
-    await user.type(screen.getByLabelText(/scenario name/i), 'Fresh scenario');
-    await user.type(screen.getByLabelText(/scenario notes/i), 'Seeded from live workspace');
+    setControlValue(screen.getByLabelText(/scenario name/i), 'Fresh scenario');
+    setControlValue(screen.getByLabelText(/scenario notes/i), 'Seeded from live workspace');
     await user.click(screen.getByRole('button', { name: /save scenario/i }));
 
     await waitFor(() => {
@@ -492,10 +501,7 @@ describe('portfolio reserve planning workspace', () => {
     renderWithQuery(<AllocationsTab />);
 
     await user.click(screen.getByRole('button', { name: /resume/i }));
-
-    await waitFor(() => {
-      expect(screen.getByText('Scenario: Upside reserve plan')).toBeInTheDocument();
-    });
+    await screen.findByText('Scenario: Upside reserve plan');
 
     expect(screen.getByLabelText(/scenario notes/i)).toHaveValue(
       'Resume this for aggressive follow-ons.'
@@ -511,10 +517,7 @@ describe('portfolio reserve planning workspace', () => {
 
     const editButtons = screen.getAllByRole('button', { name: /edit/i });
     await user.click(editButtons[0]!);
-
-    await waitFor(() => {
-      expect(screen.getByRole('button', { name: /save to scenario/i })).toBeInTheDocument();
-    });
+    await screen.findByRole('button', { name: /save to scenario/i });
     expect(screen.getByLabelText(/planned reserves/i)).toHaveValue(2500000);
   });
 
@@ -523,13 +526,10 @@ describe('portfolio reserve planning workspace', () => {
     renderWithQuery(<AllocationsTab />);
 
     await user.click(screen.getByRole('button', { name: /resume/i }));
-    await waitFor(() => {
-      expect(screen.getByDisplayValue('Upside reserve plan')).toBeInTheDocument();
-    });
+    await screen.findByDisplayValue('Upside reserve plan');
 
     const nameInput = screen.getByLabelText(/scenario name/i);
-    await user.clear(nameInput);
-    await user.type(nameInput, 'Board upside reserve plan');
+    setControlValue(nameInput, 'Board upside reserve plan');
     await user.click(screen.getByRole('button', { name: /rename scenario/i }));
 
     await waitFor(() => {
@@ -545,16 +545,13 @@ describe('portfolio reserve planning workspace', () => {
     renderWithQuery(<AllocationsTab />);
 
     await user.click(screen.getByRole('button', { name: /resume/i }));
-    await waitFor(() => {
-      expect(screen.getByText('Scenario: Upside reserve plan')).toBeInTheDocument();
-    });
+    await screen.findByText('Scenario: Upside reserve plan');
 
     const editButtons = screen.getAllByRole('button', { name: /edit/i });
     await user.click(editButtons[0]!);
 
     const plannedReservesInput = await screen.findByLabelText(/planned reserves/i);
-    await user.clear(plannedReservesInput);
-    await user.type(plannedReservesInput, '2600000');
+    setControlValue(plannedReservesInput, '2600000');
     await user.click(screen.getByRole('button', { name: /save to scenario/i }));
 
     expect(liveAllocationMutateMock).not.toHaveBeenCalled();
@@ -571,11 +568,9 @@ describe('portfolio reserve planning workspace', () => {
     renderWithQuery(<AllocationsTab />);
 
     await user.click(screen.getByRole('button', { name: /resume/i }));
-    await waitFor(() => {
-      expect(screen.getByText('Scenario: Upside reserve plan')).toBeInTheDocument();
-    });
+    await screen.findByText('Scenario: Upside reserve plan');
 
-    await user.type(screen.getByLabelText(/action note/i), 'Committee approved apply');
+    setControlValue(screen.getByLabelText(/action note/i), 'Committee approved apply');
     await user.click(screen.getByRole('button', { name: /preview apply/i }));
 
     await waitFor(() => {
@@ -600,11 +595,9 @@ describe('portfolio reserve planning workspace', () => {
     renderWithQuery(<AllocationsTab />);
 
     await user.click(screen.getByRole('button', { name: /resume/i }));
-    await waitFor(() => {
-      expect(screen.getByText('Scenario: Upside reserve plan')).toBeInTheDocument();
-    });
+    await screen.findByText('Scenario: Upside reserve plan');
 
-    await user.type(screen.getByLabelText(/action note/i), 'Refresh from IC feedback');
+    setControlValue(screen.getByLabelText(/action note/i), 'Refresh from IC feedback');
     await user.click(screen.getByRole('button', { name: /sync from live/i }));
 
     await waitFor(() => {
@@ -619,16 +612,13 @@ describe('portfolio reserve planning workspace', () => {
     renderWithQuery(<AllocationsTab />);
 
     await user.click(screen.getByRole('button', { name: /resume/i }));
-    await waitFor(() => {
-      expect(screen.getByText('Scenario: Upside reserve plan')).toBeInTheDocument();
-    });
+    await screen.findByText('Scenario: Upside reserve plan');
 
     const editButtons = screen.getAllByRole('button', { name: /edit/i });
     await user.click(editButtons[0]!);
 
     const plannedReservesInput = await screen.findByLabelText(/planned reserves/i);
-    await user.clear(plannedReservesInput);
-    await user.type(plannedReservesInput, '2600000');
+    setControlValue(plannedReservesInput, '2600000');
     await user.click(screen.getByRole('button', { name: /save to scenario/i }));
 
     expect(screen.getByRole('button', { name: /preview apply/i })).toBeDisabled();
@@ -642,16 +632,13 @@ describe('portfolio reserve planning workspace', () => {
     renderWithQuery(<AllocationsTab />);
 
     await user.click(screen.getByRole('button', { name: /resume/i }));
-    await waitFor(() => {
-      expect(screen.getByText('Scenario: Upside reserve plan')).toBeInTheDocument();
-    });
+    await screen.findByText('Scenario: Upside reserve plan');
 
     const editButtons = screen.getAllByRole('button', { name: /edit/i });
     await user.click(editButtons[0]!);
 
     const plannedReservesInput = await screen.findByLabelText(/planned reserves/i);
-    await user.clear(plannedReservesInput);
-    await user.type(plannedReservesInput, '2600000');
+    setControlValue(plannedReservesInput, '2600000');
     await user.click(screen.getByRole('button', { name: /save to scenario/i }));
 
     const updateDecisionButton = screen.getByRole('button', { name: /update decision/i });
@@ -682,12 +669,9 @@ describe('portfolio reserve planning workspace', () => {
     renderWithQuery(<AllocationsTab />);
 
     await user.click(screen.getByRole('button', { name: /resume/i }));
-    await waitFor(() => {
-      expect(screen.getByText('Scenario: Upside reserve plan')).toBeInTheDocument();
-    });
+    await screen.findByText('Scenario: Upside reserve plan');
 
-    await user.clear(screen.getByLabelText(/decision rationale/i));
-    await user.type(
+    setControlValue(
       screen.getByLabelText(/decision rationale/i),
       'Reserve for a larger Series B check'
     );
@@ -711,9 +695,7 @@ describe('portfolio reserve planning workspace', () => {
     renderWithQuery(<AllocationsTab />);
 
     await user.click(screen.getByRole('button', { name: /resume/i }));
-    await waitFor(() => {
-      expect(screen.getByText('Scenario: Upside reserve plan')).toBeInTheDocument();
-    });
+    await screen.findByText('Scenario: Upside reserve plan');
 
     await user.selectOptions(screen.getByLabelText(/decision status/i), 'approved');
     await user.click(screen.getByRole('button', { name: /update decision/i }));

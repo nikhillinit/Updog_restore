@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useEffect, useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -35,69 +35,65 @@ interface FlowStep {
   totalExits: number;
 }
 
+const STAGES: Stage[] = [
+  {
+    id: 'pre-seed',
+    name: 'Pre-Seed',
+    color: 'bg-gray-500',
+    graduationRate: 35,
+    exitRate: 0,
+    currentDeals: 54,
+    monthlyGraduations: 0.5,
+    monthlyExits: 0,
+  },
+  {
+    id: 'seed',
+    name: 'Seed',
+    color: 'bg-blue-500',
+    graduationRate: 50,
+    exitRate: 5,
+    currentDeals: 18,
+    monthlyGraduations: 0.25,
+    monthlyExits: 0.05,
+  },
+  {
+    id: 'series-a',
+    name: 'Series A',
+    color: 'bg-green-500',
+    graduationRate: 60,
+    exitRate: 15,
+    currentDeals: 9,
+    monthlyGraduations: 0.15,
+    monthlyExits: 0.15,
+  },
+  {
+    id: 'series-b',
+    name: 'Series B',
+    color: 'bg-purple-500',
+    graduationRate: 0,
+    exitRate: 25,
+    currentDeals: 5,
+    monthlyGraduations: 0,
+    monthlyExits: 0.25,
+  },
+];
+
 export default function PortfolioFlowChart({ fundData }: PortfolioFlowChartProps) {
   const [currentMonth, setCurrentMonth] = useState(1);
   const [isRunning, setIsRunning] = useState(false);
   const [flowData, setFlowData] = useState<FlowStep[]>([]);
 
-  const stages: Stage[] = useMemo(
-    () => [
-      {
-        id: 'pre-seed',
-        name: 'Pre-Seed',
-        color: 'bg-gray-500',
-        graduationRate: 35, // 35% graduate to Seed
-        exitRate: 0, // No exits at pre-seed
-        currentDeals: 54,
-        monthlyGraduations: 0.5,
-        monthlyExits: 0,
-      },
-      {
-        id: 'seed',
-        name: 'Seed',
-        color: 'bg-blue-500',
-        graduationRate: 50, // 50% graduate to Series A
-        exitRate: 5, // 5% exit at seed
-        currentDeals: 18,
-        monthlyGraduations: 0.25,
-        monthlyExits: 0.05,
-      },
-      {
-        id: 'series-a',
-        name: 'Series A',
-        color: 'bg-green-500',
-        graduationRate: 60, // 60% graduate to Series B
-        exitRate: 15, // 15% exit at Series A
-        currentDeals: 9,
-        monthlyGraduations: 0.15,
-        monthlyExits: 0.15,
-      },
-      {
-        id: 'series-b',
-        name: 'Series B',
-        color: 'bg-purple-500',
-        graduationRate: 0, // Final stage
-        exitRate: 25, // 25% exit at Series B
-        currentDeals: 5,
-        monthlyGraduations: 0,
-        monthlyExits: 0.25,
-      },
-    ],
-    []
-  );
-
   // Simulate portfolio flow over time
-
   useEffect(() => {
     if (isRunning && currentMonth <= 36) {
       const timer = setTimeout(() => {
         const newStep: FlowStep = {
           month: currentMonth,
           preSeedInvestments: fundData.monthlyInvestmentRate,
-          seedGraduations: stages[0]?.monthlyGraduations ?? 0,
-          seriesAGraduations: stages[1]?.monthlyGraduations ?? 0,
-          seriesBGraduations: stages[2]?.monthlyGraduations ?? 0,
-          totalExits: stages.reduce((sum, stage) => sum + stage.monthlyExits, 0),
+          seedGraduations: STAGES[0]?.monthlyGraduations ?? 0,
+          seriesAGraduations: STAGES[1]?.monthlyGraduations ?? 0,
+          seriesBGraduations: STAGES[2]?.monthlyGraduations ?? 0,
+          totalExits: STAGES.reduce((sum, stage) => sum + stage.monthlyExits, 0),
         };
 
         setFlowData((prev) => [...prev, newStep]);
@@ -108,7 +104,7 @@ export default function PortfolioFlowChart({ fundData }: PortfolioFlowChartProps
     } else if (currentMonth > 36) {
       setIsRunning(false);
     }
-  }, [currentMonth, isRunning, fundData.monthlyInvestmentRate, stages]);
+  }, [currentMonth, isRunning, fundData.monthlyInvestmentRate]);
 
   const resetFlow = () => {
     setCurrentMonth(1);
@@ -204,12 +200,12 @@ export default function PortfolioFlowChart({ fundData }: PortfolioFlowChartProps
             <div className="relative">
               {/* Stages Row */}
               <div className="grid grid-cols-4 gap-6">
-                {stages.map((stage, index) => (
+                {STAGES.map((stage, index) => (
                   <div key={stage.id} className="text-center space-y-4">
                     {/* Stage Header */}
                     <div>
                       <h3 className="font-semibold text-lg">{stage.name}</h3>
-                      {index < stages.length - 1 && (
+                      {index < STAGES.length - 1 && (
                         <div className="text-sm text-muted-foreground mt-1">
                           <span className="text-blue-600">{stage.name} Graduation %</span>
                         </div>
@@ -224,13 +220,13 @@ export default function PortfolioFlowChart({ fundData }: PortfolioFlowChartProps
                         >
                           {index === 0
                             ? `${fundData.monthlyInvestmentRate} deals`
-                            : index === stages.length - 1
+                            : index === STAGES.length - 1
                               ? `${stage.monthlyExits.toFixed(2)} exits`
                               : `${stage.monthlyGraduations.toFixed(2)} grads`}
                         </div>
 
                         <div className="space-y-2 text-sm">
-                          {index < stages.length - 1 && (
+                          {index < STAGES.length - 1 && (
                             <div className="text-center">
                               <Badge variant="secondary" className="bg-blue-100 text-blue-800">
                                 {stage.graduationRate}% grad rate
@@ -255,7 +251,7 @@ export default function PortfolioFlowChart({ fundData }: PortfolioFlowChartProps
                     </Card>
 
                     {/* Arrow to next stage */}
-                    {index < stages.length - 1 && (
+                    {index < STAGES.length - 1 && (
                       <div className="flex justify-center">
                         <ArrowRight className="h-6 w-6 text-muted-foreground" />
                       </div>

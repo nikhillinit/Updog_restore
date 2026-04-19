@@ -1,4 +1,5 @@
 // @vitest-environment jsdom
+
 /**
  * Storage Layer Tests
  * Comprehensive test suite for production-grade localStorage wrapper

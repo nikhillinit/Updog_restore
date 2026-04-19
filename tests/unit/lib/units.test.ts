@@ -116,9 +116,7 @@ describe('units.ts - Percentage Conversions', () => {
     });
 
     it('rounds to nearest basis point', () => {
-      // Note: 0.35005 is actually 0.35004999999999996 in IEEE-754, so it rounds DOWN to 3500.
-      // Use a value that survives float representation to test rounding-up.
-      expect(decimalToBps(0.35005)).toBe(3500); // Rounds down due to float precision
+      expect(decimalToBps(0.35005)).toBe(3500); // Float precision: 0.35005 is actually 0.35004999... in IEEE-754, rounds to 3500
       expect(decimalToBps(0.35004)).toBe(3500); // Rounds down
     });
   });
@@ -219,7 +217,7 @@ describe('units.ts - Validated Conversions', () => {
       expect(() => dollarsToCentsValidated(-100)).toThrow('cannot be negative');
     });
 
-    // SKIP: production bug - allowNegative flag is ineffective because min defaults to 0, so the 'dollars < min' check at units.ts:185 catches negative values before the flag matters. Fix: when allowNegative is true, default min should be -Infinity (or the flag should skip the min check). Unskip when production is fixed.
+    // SKIP: Production dollarsToCentsValidated has allowNegative bug - default min=0 at line 175 of units.ts always blocks negatives even when allowNegative=true. The min check at line 185 fires before allowNegative can take effect. Test is correct, production is buggy. Tracked for follow-up. Unskip when allowNegative properly suppresses the min default.
     it.skip('allows negative amounts with allowNegative flag', () => {
       // TODO(units-allowNegative-ineffective): See SKIP comment. dollarsToCentsValidated min default blocks the flag.
       expect(dollarsToCentsValidated(-100, { allowNegative: true })).toBe(-10000);
@@ -238,7 +236,7 @@ describe('units.ts - Validated Conversions', () => {
       expect(() => dollarsToCentsValidated(Infinity)).toThrow('Invalid dollar amount');
     });
 
-    // SKIP: test asserts an unreachable production branch. dollarsToCentsValidated's unsafe integer check at units.ts:195-197 cannot fire because the max check at units.ts:189-190 (default max = MAX_SAFE_INTEGER/100) catches values earlier. Either the unsafe check is dead code to remove, or max defaults need relaxing. Unskip when the dead-code concern is resolved.
+    // SKIP: Unsafe integer check at units.ts:195-197 is unreachable dead code under default options - max default is MAX_SAFE_INTEGER/100, so max check at line 189 always fires first. Test cannot reach the unsafe-integer code path. Tracked for follow-up - either the dead check should be removed from production or the test should verify a code path that can actually be triggered.
     it.skip('rejects unsafe integers', () => {
       // TODO(units-unsafe-integer-dead-code): See SKIP comment. The intended branch is unreachable at current max defaults.
       const tooBig = Number.MAX_SAFE_INTEGER; // Already in cents scale

@@ -7,12 +7,12 @@ import { Tooltip } from 'recharts/es6/component/Tooltip';
 import { LazyResponsiveContainer as ResponsiveContainer } from '@/components/charts/LazyResponsiveContainer';
 import { ScatterChart } from 'recharts/es6/chart/ScatterChart';
 import { Scatter } from 'recharts/es6/cartesian/Scatter';
-import { useState } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { TrendingUp, Calculator, Target, Info } from "lucide-react";
+import { useState } from 'react';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { TrendingUp, Calculator, Target, Info } from 'lucide-react';
 
 type MOICData = {
   companyName: string;
@@ -31,9 +31,20 @@ type MOICData = {
   stage: string;
 };
 
+type TooltipLabelPayload = ReadonlyArray<{
+  payload?: {
+    name?: string;
+  };
+}>;
+
+const formatReserveTooltipLabel = (_value: unknown, payload: TooltipLabelPayload): string => {
+  const [firstPoint] = payload;
+  return typeof firstPoint?.payload?.name === 'string' ? firstPoint.payload.name : '';
+};
+
 const sampleMOICData: MOICData[] = [
   {
-    companyName: "AlphaTech",
+    companyName: 'AlphaTech',
     currentMOIC: 3.5,
     currentMOICOnInitial: 4.2,
     currentMOICOnDeployedReserves: 2.8,
@@ -45,11 +56,11 @@ const sampleMOICData: MOICData[] = [
     initialInvestment: 1000000,
     deployedReserves: 1500000,
     plannedReserves: 2000000,
-    sector: "SaaS",
-    stage: "Series B"
+    sector: 'SaaS',
+    stage: 'Series B',
   },
   {
-    companyName: "BetaCorp",
+    companyName: 'BetaCorp',
     currentMOIC: 2.4,
     currentMOICOnInitial: 2.8,
     currentMOICOnDeployedReserves: 1.9,
@@ -61,11 +72,11 @@ const sampleMOICData: MOICData[] = [
     initialInvestment: 750000,
     deployedReserves: 1050000,
     plannedReserves: 1200000,
-    sector: "Fintech",
-    stage: "Series A"
+    sector: 'Fintech',
+    stage: 'Series A',
   },
   {
-    companyName: "GammaSoft",
+    companyName: 'GammaSoft',
     currentMOIC: 2.0,
     currentMOICOnInitial: 2.0,
     currentMOICOnDeployedReserves: 0,
@@ -77,11 +88,11 @@ const sampleMOICData: MOICData[] = [
     initialInvestment: 750000,
     deployedReserves: 0,
     plannedReserves: 500000,
-    sector: "Healthcare",
-    stage: "Seed"
+    sector: 'Healthcare',
+    stage: 'Seed',
   },
   {
-    companyName: "DeltaFlow",
+    companyName: 'DeltaFlow',
     currentMOIC: 4.5,
     currentMOICOnInitial: 5.8,
     currentMOICOnDeployedReserves: 3.2,
@@ -93,51 +104,59 @@ const sampleMOICData: MOICData[] = [
     initialInvestment: 2000000,
     deployedReserves: 3000000,
     plannedReserves: 2500000,
-    sector: "E-commerce",
-    stage: "Series C"
-  }
+    sector: 'E-commerce',
+    stage: 'Series C',
+  },
 ];
 
 const moicDefinitions = [
   {
-    name: "Current MOIC",
-    formula: "(Unrealized FMV today + Realized Proceeds) / (Total Invested Capital to Date)",
-    description: "The MOIC today on total invested capital to date - the return for every $1 of investment"
+    name: 'Current MOIC',
+    formula: '(Unrealized FMV today + Realized Proceeds) / (Total Invested Capital to Date)',
+    description:
+      'The MOIC today on total invested capital to date - the return for every $1 of investment',
   },
   {
-    name: "Current MOIC on Initial",
-    formula: "Current Share Price / Purchase Price at Entry Round",
-    description: "The MOIC on only the initial investment, excluding follow-on investments"
+    name: 'Current MOIC on Initial',
+    formula: 'Current Share Price / Purchase Price at Entry Round',
+    description: 'The MOIC on only the initial investment, excluding follow-on investments',
   },
   {
-    name: "Current MOIC on Deployed Reserves",
-    formula: "Current Share Price / Weighted Average Purchase Price Per Share in Follow-On Rounds",
-    description: "The performance of deployed reserves to date - return for every $1 of follow-on investments"
+    name: 'Current MOIC on Deployed Reserves',
+    formula: 'Current Share Price / Weighted Average Purchase Price Per Share in Follow-On Rounds',
+    description:
+      'The performance of deployed reserves to date - return for every $1 of follow-on investments',
   },
   {
-    name: "Exit MOIC",
-    formula: "Expected Exit Proceeds / Expected Total Invested Capital By Exit",
-    description: "Expected MOIC at exit on total invested capital - expected return at exit for every $1"
+    name: 'Exit MOIC',
+    formula: 'Expected Exit Proceeds / Expected Total Invested Capital By Exit',
+    description:
+      'Expected MOIC at exit on total invested capital - expected return at exit for every $1',
   },
   {
-    name: "Exit MOIC on Initial",
-    formula: "Expected Exit Share Price / Purchase Price at Entry Round",
-    description: "Expected MOIC at exit on initial investment only - expected return for every $1 of initial investment"
+    name: 'Exit MOIC on Initial',
+    formula: 'Expected Exit Share Price / Purchase Price at Entry Round',
+    description:
+      'Expected MOIC at exit on initial investment only - expected return for every $1 of initial investment',
   },
   {
-    name: "Exit MOIC on Follow-Ons",
-    formula: "Expected Exit Share Price / Weighted Average Purchase Price Per Share in Follow-On Rounds",
-    description: "Expected MOIC at exit on follow-on investments only - expected return for every $1 of follow-on investment"
+    name: 'Exit MOIC on Follow-Ons',
+    formula:
+      'Expected Exit Share Price / Weighted Average Purchase Price Per Share in Follow-On Rounds',
+    description:
+      'Expected MOIC at exit on follow-on investments only - expected return for every $1 of follow-on investment',
   },
   {
-    name: "Exit MOIC on Planned Reserves",
-    formula: "Expected Exit Share Price / Weighted Average Purchase Price Per Share of Future Follow-Ons",
-    description: "Expected performance on future reserves - expected return for every $1 of future follow-on investments"
-  }
+    name: 'Exit MOIC on Planned Reserves',
+    formula:
+      'Expected Exit Share Price / Weighted Average Purchase Price Per Share of Future Follow-Ons',
+    description:
+      'Expected performance on future reserves - expected return for every $1 of future follow-on investments',
+  },
 ];
 
 export default function MOICAnalysis() {
-  const [selectedMOICType, setSelectedMOICType] = useState("current");
+  const [selectedMOICType, setSelectedMOICType] = useState('current');
 
   const formatCurrency = (amount: number) => {
     if (amount >= 1000000) {
@@ -147,37 +166,37 @@ export default function MOICAnalysis() {
   };
 
   const getMOICColor = (value: number) => {
-    if (value >= 5) return "text-green-600";
-    if (value >= 3) return "text-blue-600";
-    if (value >= 2) return "text-yellow-600";
-    return "text-red-600";
+    if (value >= 5) return 'text-green-600';
+    if (value >= 3) return 'text-blue-600';
+    if (value >= 2) return 'text-yellow-600';
+    return 'text-red-600';
   };
 
   const getCurrentMOICChartData = () => {
-    return sampleMOICData.map(company => ({
+    return sampleMOICData.map((company) => ({
       name: company.companyName,
-      "Current MOIC": company.currentMOIC,
-      "Current MOIC on Initial": company.currentMOICOnInitial,
-      "Current MOIC on Deployed Reserves": company.currentMOICOnDeployedReserves || 0
+      'Current MOIC': company.currentMOIC,
+      'Current MOIC on Initial': company.currentMOICOnInitial,
+      'Current MOIC on Deployed Reserves': company.currentMOICOnDeployedReserves || 0,
     }));
   };
 
   const getExitMOICChartData = () => {
-    return sampleMOICData.map(company => ({
+    return sampleMOICData.map((company) => ({
       name: company.companyName,
-      "Exit MOIC": company.exitMOIC,
-      "Exit MOIC on Initial": company.exitMOICOnInitial,
-      "Exit MOIC on Follow-Ons": company.exitMOICOnFollowOns || 0,
-      "Exit MOIC on Planned Reserves": company.exitMOICOnPlannedReserves
+      'Exit MOIC': company.exitMOIC,
+      'Exit MOIC on Initial': company.exitMOICOnInitial,
+      'Exit MOIC on Follow-Ons': company.exitMOICOnFollowOns || 0,
+      'Exit MOIC on Planned Reserves': company.exitMOICOnPlannedReserves,
     }));
   };
 
   const getPlannedReservesData = () => {
-    return sampleMOICData.map(company => ({
+    return sampleMOICData.map((company) => ({
       name: company.companyName,
       plannedReserves: company.plannedReserves / 1000000,
       expectedMOIC: company.exitMOICOnPlannedReserves,
-      sector: company.sector
+      sector: company.sector,
     }));
   };
 
@@ -188,7 +207,8 @@ export default function MOICAnalysis() {
         <div>
           <h2 className="text-2xl font-bold text-gray-900">Investment MOICs Analysis</h2>
           <p className="text-gray-600 mt-1">
-            Track seven different MOIC calculations for comprehensive investment performance analysis
+            Track seven different MOIC calculations for comprehensive investment performance
+            analysis
           </p>
         </div>
         <div className="flex items-center space-x-2">
@@ -271,10 +291,15 @@ export default function MOICAnalysis() {
               <CardContent>
                 <div className="space-y-4">
                   {sampleMOICData.map((company, index) => (
-                    <div key={index} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                    <div
+                      key={index}
+                      className="flex items-center justify-between p-3 bg-gray-50 rounded-lg"
+                    >
                       <div>
                         <div className="font-medium">{company.companyName}</div>
-                        <div className="text-sm text-gray-600">{company.sector} • {company.stage}</div>
+                        <div className="text-sm text-gray-600">
+                          {company.sector} • {company.stage}
+                        </div>
                       </div>
                       <div className="text-right">
                         <div className={`text-lg font-bold ${getMOICColor(company.currentMOIC)}`}>
@@ -324,7 +349,8 @@ export default function MOICAnalysis() {
             <CardHeader>
               <CardTitle>Exit MOIC on Planned Reserves</CardTitle>
               <p className="text-sm text-gray-600">
-                Expected return for every $1 of future follow-on investments - key metric for optimal reserve deployment
+                Expected return for every $1 of future follow-on investments - key metric for
+                optimal reserve deployment
               </p>
             </CardHeader>
             <CardContent>
@@ -332,32 +358,33 @@ export default function MOICAnalysis() {
                 <ResponsiveContainer width="100%" height="100%">
                   <ScatterChart data={getPlannedReservesData()}>
                     <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-                    <XAxis 
-                      dataKey="plannedReserves" 
-                      stroke="#666" 
+                    <XAxis
+                      dataKey="plannedReserves"
+                      stroke="#666"
                       fontSize={12}
-                      label={{ value: 'Planned Reserves ($M)', position: 'insideBottom', offset: -5 }}
+                      label={{
+                        value: 'Planned Reserves ($M)',
+                        position: 'insideBottom',
+                        offset: -5,
+                      }}
                     />
-                    <YAxis 
+                    <YAxis
                       dataKey="expectedMOIC"
-                      stroke="#666" 
+                      stroke="#666"
                       fontSize={12}
                       label={{ value: 'Expected MOIC', angle: -90, position: 'insideLeft' }}
                     />
                     <Tooltip
                       formatter={(value, name) => {
-                        if (name === 'expectedMOIC') return [`${value}x`, 'Expected MOIC on Reserves'];
+                        if (name === 'expectedMOIC')
+                          return [`${value}x`, 'Expected MOIC on Reserves'];
                         return [value, name];
                       }}
-                      labelFormatter={(_value, payload) => {
-                        if (!Array.isArray(payload) || payload.length === 0) return '';
-                        const data = payload[0]?.payload as { name?: string } | undefined;
-                        return data?.name ?? '';
-                      }}
-                      contentStyle={{ 
+                      labelFormatter={formatReserveTooltipLabel}
+                      contentStyle={{
                         backgroundColor: 'white',
                         border: '1px solid #e5e7eb',
-                        borderRadius: '6px'
+                        borderRadius: '6px',
                       }}
                     />
                     <Scatter dataKey="expectedMOIC" fill="#3b82f6" />
@@ -377,7 +404,10 @@ export default function MOICAnalysis() {
                   {sampleMOICData
                     .sort((a, b) => b.exitMOICOnPlannedReserves - a.exitMOICOnPlannedReserves)
                     .map((company, index) => (
-                      <div key={index} className="flex items-center justify-between p-3 bg-green-50 rounded-lg">
+                      <div
+                        key={index}
+                        className="flex items-center justify-between p-3 bg-green-50 rounded-lg"
+                      >
                         <div>
                           <div className="font-medium">{company.companyName}</div>
                           <div className="text-sm text-gray-600">
@@ -410,17 +440,31 @@ export default function MOICAnalysis() {
                       <span className="font-medium text-blue-900">Highest Expected Return</span>
                     </div>
                     <div className="text-2xl font-bold text-blue-600">
-                      {Math.max(...sampleMOICData.map(c => c.exitMOICOnPlannedReserves)).toFixed(1)}x
+                      {Math.max(...sampleMOICData.map((c) => c.exitMOICOnPlannedReserves)).toFixed(
+                        1
+                      )}
+                      x
                     </div>
                     <div className="text-sm text-blue-700">
-                      on {sampleMOICData.find(c => c.exitMOICOnPlannedReserves === Math.max(...sampleMOICData.map(d => d.exitMOICOnPlannedReserves)))?.companyName}
+                      on{' '}
+                      {
+                        sampleMOICData.find(
+                          (c) =>
+                            c.exitMOICOnPlannedReserves ===
+                            Math.max(...sampleMOICData.map((d) => d.exitMOICOnPlannedReserves))
+                        )?.companyName
+                      }
                     </div>
                   </div>
-                  
+
                   <div className="p-4 bg-amber-50 rounded-lg">
                     <div className="font-medium text-amber-900 mb-2">Average Expected MOIC</div>
                     <div className="text-2xl font-bold text-amber-600">
-                      {(sampleMOICData.reduce((sum, c) => sum + c.exitMOICOnPlannedReserves, 0) / sampleMOICData.length).toFixed(1)}x
+                      {(
+                        sampleMOICData.reduce((sum, c) => sum + c.exitMOICOnPlannedReserves, 0) /
+                        sampleMOICData.length
+                      ).toFixed(1)}
+                      x
                     </div>
                     <div className="text-sm text-amber-700">across all planned reserves</div>
                   </div>
@@ -428,9 +472,13 @@ export default function MOICAnalysis() {
                   <div className="p-4 bg-gray-50 rounded-lg">
                     <div className="font-medium text-gray-900 mb-2">Total Planned Reserves</div>
                     <div className="text-2xl font-bold text-gray-700">
-                      {formatCurrency(sampleMOICData.reduce((sum, c) => sum + c.plannedReserves, 0))}
+                      {formatCurrency(
+                        sampleMOICData.reduce((sum, c) => sum + c.plannedReserves, 0)
+                      )}
                     </div>
-                    <div className="text-sm text-gray-600">across {sampleMOICData.length} companies</div>
+                    <div className="text-sm text-gray-600">
+                      across {sampleMOICData.length} companies
+                    </div>
                   </div>
                 </div>
               </CardContent>
@@ -472,7 +520,9 @@ export default function MOICAnalysis() {
                           </span>
                         </td>
                         <td className="p-3">
-                          <span className={`font-medium ${getMOICColor(company.currentMOICOnInitial)}`}>
+                          <span
+                            className={`font-medium ${getMOICColor(company.currentMOICOnInitial)}`}
+                          >
                             {company.currentMOICOnInitial.toFixed(1)}x
                           </span>
                         </td>
@@ -482,12 +532,16 @@ export default function MOICAnalysis() {
                           </span>
                         </td>
                         <td className="p-3">
-                          <span className={`font-medium ${getMOICColor(company.exitMOICOnInitial)}`}>
+                          <span
+                            className={`font-medium ${getMOICColor(company.exitMOICOnInitial)}`}
+                          >
                             {company.exitMOICOnInitial.toFixed(1)}x
                           </span>
                         </td>
                         <td className="p-3">
-                          <span className={`font-medium ${getMOICColor(company.exitMOICOnPlannedReserves)}`}>
+                          <span
+                            className={`font-medium ${getMOICColor(company.exitMOICOnPlannedReserves)}`}
+                          >
                             {company.exitMOICOnPlannedReserves.toFixed(1)}x
                           </span>
                         </td>

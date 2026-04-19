@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useMemo, useState } from 'react';
 import { forEach } from '../../utils/array-safety';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -89,7 +89,6 @@ const SAMPLE_SAFES_NOTES: SAFENote[] = [
 export default function CapTableCalculator() {
   const [currentCapTable] = useState<Shareholder[]>(SAMPLE_CAP_TABLE);
   const [safesNotes, setSafesNotes] = useState<SAFENote[]>(SAMPLE_SAFES_NOTES);
-  const [proFormaCapTable, setProFormaCapTable] = useState<Shareholder[]>([]);
   const [consolidate, setConsolidate] = useState(true);
 
   // Next Round Parameters
@@ -97,8 +96,7 @@ export default function CapTableCalculator() {
   const [roundSize, setRoundSize] = useState(5000000);
   const [optionPoolIncrease, setOptionPoolIncrease] = useState(500000);
 
-  // Calculate cap table metrics
-  const calculateMetrics = () => {
+  const metrics = useMemo(() => {
     const totalShares = currentCapTable.reduce<number>((sum, sh) => sum + sh.shares, 0);
     const totalOptions = currentCapTable.find((sh) => sh.type === 'option-pool')?.shares ?? 0;
     const fullyDilutedShares = totalShares;
@@ -117,10 +115,9 @@ export default function CapTableCalculator() {
       newInvestorShares,
       postMoneyValuation,
     };
-  };
+  }, [currentCapTable, optionPoolIncrease, preMoneyValuation, roundSize]);
 
-  // Convert SAFEs and Notes
-  const convertSafesNotes = (pricePerShare: number) => {
+  const convertedInstruments = useMemo(() => {
     return safesNotes.map((instrument) => {
       // Calculate cap-based price
       const fullyDilutedShares = currentCapTable.reduce((sum, sh) => sum + sh.shares, 0);
@@ -130,7 +127,7 @@ export default function CapTableCalculator() {
 
       // Calculate discount-based price
       const discountBasedPrice = instrument.discount
-        ? pricePerShare * (1 - instrument.discount)
+        ? metrics.pricePerShare * (1 - instrument.discount)
         : Infinity;
 
       // Take the lower of the two (better for investor)
@@ -143,13 +140,9 @@ export default function CapTableCalculator() {
         shares,
       };
     });
-  };
+  }, [currentCapTable, metrics.pricePerShare, safesNotes]);
 
-  // Generate pro-forma cap table
-  const generateProForma = () => {
-    const metrics = calculateMetrics();
-    const convertedInstruments = convertSafesNotes(metrics.pricePerShare);
-
+  const proFormaCapTable = useMemo(() => {
     // Start with current cap table
     let proForma = [...currentCapTable];
 
@@ -194,17 +187,8 @@ export default function CapTableCalculator() {
     // Sort by percentage (descending)
     proForma.sort((a, b) => b.percentage - a.percentage);
 
-    setProFormaCapTable(proForma);
-    setSafesNotes(convertedInstruments);
-  };
-
-  useEffect(() => {
-    generateProForma();
-    // generateProForma is intentionally excluded — it reads the deps below and sets state
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [preMoneyValuation, roundSize, optionPoolIncrease, currentCapTable, safesNotes]);
-
-  const metrics = calculateMetrics();
+    return proForma;
+  }, [convertedInstruments, currentCapTable, metrics.newInvestorShares, optionPoolIncrease]);
   const totalSAFEsNotes = safesNotes.reduce<number>((sum, inst) => sum + inst.principal, 0);
 
   const formatCurrency = (amount: number) => {

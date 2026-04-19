@@ -107,6 +107,13 @@ vi.mock('@/services/fund-drafts', () => ({
   saveFundDraft: (...args: unknown[]) => mockSaveFundDraft(...args),
 }));
 
+import FundBasicsStep from '@/pages/FundBasicsStep';
+
+async function clickNextStep() {
+  const user = userEvent.setup();
+  await user.click(screen.getByTestId('next-step'));
+}
+
 describe('FundBasicsStep bootstrap identity', () => {
   beforeEach(() => {
     mockNavigate.mockReset();
@@ -143,60 +150,56 @@ describe('FundBasicsStep bootstrap identity', () => {
   });
 
   it('bootstraps a canonical fund identity and saves the authoritative draft before advancing', async () => {
-    const { default: FundBasicsStep } = await import('@/pages/FundBasicsStep');
     render(<FundBasicsStep />);
 
-    await userEvent.click(screen.getByTestId('next-step'));
+    await clickNextStep();
 
     await waitFor(() => {
+      expect(mockCreateFund).toHaveBeenCalledTimes(1);
+      expect(mockSetDraftFundId).toHaveBeenCalledWith(42);
+      expect(mockSaveFundDraft).toHaveBeenCalledWith(
+        42,
+        expect.objectContaining({ fundName: 'Bootstrap Fund' })
+      );
+      expect(mockSetDraftServerReady).toHaveBeenCalledWith(true);
+      expect(mockSetCurrentFund).toHaveBeenCalledWith(
+        expect.objectContaining({
+          id: 42,
+          name: 'Bootstrap Fund',
+          status: 'draft',
+        })
+      );
       expect(mockNavigate).toHaveBeenCalledWith('/fund-setup?step=2');
     }, FULL_SUITE_WAIT_OPTIONS);
-
-    expect(mockCreateFund).toHaveBeenCalledTimes(1);
-    expect(mockSetDraftFundId).toHaveBeenCalledWith(42);
-    expect(mockSaveFundDraft).toHaveBeenCalledWith(
-      42,
-      expect.objectContaining({ fundName: 'Bootstrap Fund' })
-    );
-    expect(mockSetDraftServerReady).toHaveBeenCalledWith(true);
-    expect(mockSetCurrentFund).toHaveBeenCalledWith(
-      expect.objectContaining({
-        id: 42,
-        name: 'Bootstrap Fund',
-        status: 'draft',
-      })
-    );
   });
 
   it('reuses an existing draft identity and saves it when the server snapshot is not ready yet', async () => {
     mockFundState.draftFundId = 77;
     mockFundState.draftServerReady = false;
 
-    const { default: FundBasicsStep } = await import('@/pages/FundBasicsStep');
     render(<FundBasicsStep />);
 
-    await userEvent.click(screen.getByTestId('next-step'));
+    await clickNextStep();
 
     await waitFor(() => {
+      expect(mockSaveFundDraft).toHaveBeenCalledWith(
+        77,
+        expect.objectContaining({ fundName: 'Bootstrap Fund' })
+      );
+      expect(mockSetDraftServerReady).toHaveBeenCalledWith(true);
       expect(mockNavigate).toHaveBeenCalledWith('/fund-setup?step=2');
     }, FULL_SUITE_WAIT_OPTIONS);
 
     expect(mockCreateFund).not.toHaveBeenCalled();
-    expect(mockSaveFundDraft).toHaveBeenCalledWith(
-      77,
-      expect.objectContaining({ fundName: 'Bootstrap Fund' })
-    );
-    expect(mockSetDraftServerReady).toHaveBeenCalledWith(true);
   });
 
   it('reuses an existing authoritative draft identity and skips redundant create/save work', async () => {
     mockFundState.draftFundId = 77;
     mockFundState.draftServerReady = true;
 
-    const { default: FundBasicsStep } = await import('@/pages/FundBasicsStep');
     render(<FundBasicsStep />);
 
-    await userEvent.click(screen.getByTestId('next-step'));
+    await clickNextStep();
 
     await waitFor(() => {
       expect(mockNavigate).toHaveBeenCalledWith('/fund-setup?step=2');
@@ -211,10 +214,9 @@ describe('FundBasicsStep bootstrap identity', () => {
     mockFundState.fundName = '';
     mockFundState.fundSize = undefined;
 
-    const { default: FundBasicsStep } = await import('@/pages/FundBasicsStep');
     render(<FundBasicsStep />);
 
-    await userEvent.click(screen.getByTestId('next-step'));
+    await clickNextStep();
 
     await waitFor(() => {
       expect(mockNavigate).toHaveBeenCalledWith('/fund-setup?step=2');
@@ -227,10 +229,9 @@ describe('FundBasicsStep bootstrap identity', () => {
   it('stays on step 1 and shows an error when bootstrap creation fails', async () => {
     mockCreateFund.mockRejectedValueOnce(new Error('Bootstrap create failed'));
 
-    const { default: FundBasicsStep } = await import('@/pages/FundBasicsStep');
     render(<FundBasicsStep />);
 
-    await userEvent.click(screen.getByTestId('next-step'));
+    await clickNextStep();
 
     await waitFor(() => {
       expect(screen.getByRole('alert')).toHaveTextContent('Bootstrap create failed');
@@ -244,10 +245,9 @@ describe('FundBasicsStep bootstrap identity', () => {
   it('stays on step 1 and shows an error when authoritative draft save fails', async () => {
     mockSaveFundDraft.mockRejectedValueOnce(new Error('Draft save failed'));
 
-    const { default: FundBasicsStep } = await import('@/pages/FundBasicsStep');
     render(<FundBasicsStep />);
 
-    await userEvent.click(screen.getByTestId('next-step'));
+    await clickNextStep();
 
     await waitFor(() => {
       expect(screen.getByRole('alert')).toHaveTextContent('Draft save failed');

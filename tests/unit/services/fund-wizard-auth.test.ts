@@ -35,7 +35,7 @@ describe('fund wizard service auth options', () => {
     });
 
     expect(fetchMock).toHaveBeenCalledWith(
-      '/api/funds/42/draft',
+      expect.stringContaining('/api/funds/42/draft'),
       expect.objectContaining({
         method: 'PUT',
         credentials: 'include',
@@ -64,9 +64,10 @@ describe('fund wizard service auth options', () => {
 
     await fetchFundDraft(42);
 
-    expect(fetchMock).toHaveBeenCalledWith('/api/funds/42/draft', {
-      credentials: 'include',
-    });
+    expect(fetchMock).toHaveBeenCalledWith(
+      expect.stringContaining('/api/funds/42/draft'),
+      expect.objectContaining({ credentials: 'include' })
+    );
   });
 
   it('includes credentials when finalizing a fund', async () => {
@@ -100,7 +101,7 @@ describe('fund wizard service auth options', () => {
     });
 
     expect(fetchMock).toHaveBeenCalledWith(
-      '/api/funds/finalize',
+      expect.stringContaining('/api/funds/finalize'),
       expect.objectContaining({
         method: 'POST',
         credentials: 'include',

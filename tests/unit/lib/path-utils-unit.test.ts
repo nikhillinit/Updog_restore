@@ -254,7 +254,7 @@ describe('deepMerge', () => {
     expect(obj).toEqual({ a: { x: 1 } });
   });
 
-  // SKIP: production bug - deepMerge(obj, '', value) at empty path returns a new object via spread instead of mutating in place, unlike other deepMerge paths which mutate via deepSet. See client/src/lib/path-utils.ts:263-266 for the inconsistency. Unskip after production is fixed to mutate consistently at root level.
+  // SKIP: Production deepMerge has root-path inconsistency - non-empty paths mutate via deepSet but empty path returns new object via spread. See client/src/lib/path-utils.ts:263-266. Test is correct, production is buggy. Tracked for follow-up. Unskip when production deepMerge mutates consistently at root.
   it.skip('merges at root level', () => {
     // TODO(path-utils-deepmerge-root): See SKIP comment. Production deepMerge is inconsistent at empty path.
     const obj = { a: 1, b: 2 };

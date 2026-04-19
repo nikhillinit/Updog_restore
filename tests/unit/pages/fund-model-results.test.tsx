@@ -14,6 +14,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import React from 'react';
 import { createWouterWrapper } from '../../utils/withWouter';
+import FundModelResultsPage from '../../../client/src/pages/fund-model-results';
 
 describe('FundModelResultsPage (server-backed)', () => {
   let fetchSpy: ReturnType<typeof vi.fn>;
@@ -44,8 +45,6 @@ describe('FundModelResultsPage (server-backed)', () => {
   });
 
   async function renderPage(path: string) {
-    const { default: FundModelResultsPage } =
-      await import('../../../client/src/pages/fund-model-results');
     const { Wrapper } = createWouterWrapper(path);
     return render(<FundModelResultsPage />, { wrapper: Wrapper });
   }
@@ -64,20 +63,24 @@ describe('FundModelResultsPage (server-backed)', () => {
     results?: ReturnType<typeof readyResponse>;
     history?: ReturnType<typeof lifecycleHistoryResponse>;
     comparison?: ReturnType<typeof resultsComparisonResponse>;
-    recalculateResponse?: { success: boolean; correlationId: string; runId: number; dispatchState: string };
+    recalculateResponse?: {
+      success: boolean;
+      correlationId: string;
+      runId: number;
+      dispatchState: string;
+    };
     recalculateStatus?: number;
   }) {
     const results = options?.results ?? readyResponse();
     const history = options?.history ?? lifecycleHistoryResponse();
     const comparison = options?.comparison ?? resultsComparisonResponse();
     const recalculateStatus = options?.recalculateStatus ?? 200;
-    const recalculateResponse =
-      options?.recalculateResponse ?? {
-        success: true,
-        correlationId: 'recalc-corr-id',
-        runId: 88,
-        dispatchState: 'dispatched',
-      };
+    const recalculateResponse = options?.recalculateResponse ?? {
+      success: true,
+      correlationId: 'recalc-corr-id',
+      runId: 88,
+      dispatchState: 'dispatched',
+    };
 
     fetchSpy.mockImplementation((input: RequestInfo | URL, init?: RequestInit) => {
       const url = typeof input === 'string' ? input : input.toString();
@@ -507,9 +510,13 @@ describe('FundModelResultsPage (server-backed)', () => {
         /Published configuration exists, but the latest calculation failed/i
       )
     ).toBeInTheDocument();
-    expect(within(diagnosticsCard).getByText(/run 10 did not complete successfully/i)).toBeInTheDocument();
+    expect(
+      within(diagnosticsCard).getByText(/run 10 did not complete successfully/i)
+    ).toBeInTheDocument();
     expect(within(diagnosticsCard).getByText('test-corr-id')).toBeInTheDocument();
-    expect(await screen.findByText(/Worker timed out during reserve snapshot generation/i)).toBeInTheDocument();
+    expect(
+      await screen.findByText(/Worker timed out during reserve snapshot generation/i)
+    ).toBeInTheDocument();
   });
 
   it('renders publish history entries when expanded', async () => {
@@ -541,8 +548,8 @@ describe('FundModelResultsPage (server-backed)', () => {
     expect(within(comparisonCard).getByText('$100M')).toBeInTheDocument();
     expect(within(comparisonCard).getByText('Previous $80M')).toBeInTheDocument();
     expect(
-      within(comparisonCard).getByText((_, element) =>
-        element?.textContent === 'Delta +$20M (+25.0%)'
+      within(comparisonCard).getByText(
+        (_, element) => element?.textContent === 'Delta +$20M (+25.0%)'
       )
     ).toBeInTheDocument();
   });
@@ -802,7 +809,9 @@ describe('FundModelResultsPage (server-backed)', () => {
     fetchSpy.mockImplementation((input: RequestInfo | URL) => {
       const url = typeof input === 'string' ? input : input.toString();
       if (url.endsWith('/results')) {
-        return Promise.resolve(jsonResponse(responses.shift() ?? calculatingResponse({ runId: 11 })));
+        return Promise.resolve(
+          jsonResponse(responses.shift() ?? calculatingResponse({ runId: 11 }))
+        );
       }
       if (url.endsWith('/lifecycle-history')) {
         return Promise.resolve(jsonResponse(lifecycleHistoryResponse()));
@@ -1059,8 +1068,7 @@ function failedResponse() {
   const resp = readyResponse();
   resp.status = 'failed';
   resp.lifecycle.calculationState.status = 'failed';
-  resp.lifecycle.calculationState.lastError =
-    'Worker timed out during reserve snapshot generation';
+  resp.lifecycle.calculationState.lastError = 'Worker timed out during reserve snapshot generation';
   resp.sections.reserve = {
     status: 'failed',
     reason: 'Reserve calculation failed for the latest published version',
