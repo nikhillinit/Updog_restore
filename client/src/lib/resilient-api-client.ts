@@ -323,7 +323,7 @@ export const reservesApi = {
    * Calculate reserve allocations
    */
   calculate: async (data: ReserveCalculationInput) => {
-    return apiClient.post<ReserveCalculationResponse>('/v1/reserves/calculate', data);
+    return apiClient.post<ReserveCalculationResponse>('/api/v1/reserves/calculate', data);
   },
 
   /**
@@ -344,6 +344,6 @@ export const reservesApi = {
    * Get API configuration
    */
   config: async () => {
-    return apiClient.get<ReservesConfigResponse>('/v1/reserves/config');
+    return apiClient.get<ReservesConfigResponse>('/api/v1/reserves/config');
   },
 };

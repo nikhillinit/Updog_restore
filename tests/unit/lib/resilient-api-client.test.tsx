@@ -11,7 +11,7 @@ vi.mock('@/lib/logger', () => ({
   logger: loggerMocks,
 }));
 
-import { ResilientApiClient } from '@/lib/resilient-api-client';
+import { apiClient, ResilientApiClient, reservesApi } from '@/lib/resilient-api-client';
 
 describe('Wave 2 resilient-api client boundary', () => {
   const fetchMock = vi.fn();
@@ -21,6 +21,7 @@ describe('Wave 2 resilient-api client boundary', () => {
     vi.clearAllMocks();
     vi.stubGlobal('fetch', fetchMock);
     consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    apiClient.resetCircuitBreaker();
   });
 
   afterEach(() => {
@@ -29,14 +30,12 @@ describe('Wave 2 resilient-api client boundary', () => {
   });
 
   it('retries retryable failures before succeeding', async () => {
-    fetchMock
-      .mockRejectedValueOnce(new TypeError('network down'))
-      .mockResolvedValueOnce(
-        new Response(JSON.stringify({ status: 'ok' }), {
-          status: 200,
-          headers: { 'Content-Type': 'application/json' },
-        })
-      );
+    fetchMock.mockRejectedValueOnce(new TypeError('network down')).mockResolvedValueOnce(
+      new Response(JSON.stringify({ status: 'ok' }), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      })
+    );
 
     const client = new ResilientApiClient({
       baseUrl: 'https://example.test',
@@ -67,5 +66,41 @@ describe('Wave 2 resilient-api client boundary', () => {
     await expect(client.get('/health')).rejects.toThrow('still down');
     await expect(client.get('/health')).rejects.toThrow('Circuit breaker is OPEN');
     expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('targets the api-prefixed reserve calculate route for the singleton client', async () => {
+    fetchMock.mockResolvedValue(
+      new Response(
+        JSON.stringify({ allocations: [], totalAllocated: 0, remaining: 0, rid: 'rid-1' }),
+        {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        }
+      )
+    );
+
+    await reservesApi.calculate({} as Parameters<typeof reservesApi.calculate>[0]);
+
+    const [requestUrl, requestInit] = fetchMock.mock.calls[0] as [string, RequestInit];
+    expect(new URL(requestUrl, 'http://localhost').pathname).toBe('/api/v1/reserves/calculate');
+    expect(requestInit).toEqual(expect.objectContaining({ method: 'POST' }));
+  });
+
+  it('targets the api-prefixed reserve config route for the singleton client', async () => {
+    fetchMock.mockResolvedValue(
+      new Response(
+        JSON.stringify({ '/healthz': 'http://localhost:3001', '/readyz': 'http://localhost:3001' }),
+        {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        }
+      )
+    );
+
+    await reservesApi.config();
+
+    const [requestUrl, requestInit] = fetchMock.mock.calls[0] as [string, RequestInit];
+    expect(new URL(requestUrl, 'http://localhost').pathname).toBe('/api/v1/reserves/config');
+    expect(requestInit).toEqual(expect.objectContaining({ method: 'GET' }));
   });
 });
