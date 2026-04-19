@@ -1,5 +1,6 @@
 import type { Metric } from 'web-vitals';
 import { onLCP, onINP, onCLS, onFCP, onTTFB } from 'web-vitals';
+import { withApiBase } from '@/lib/api-url';
 import { Sentry } from '@/monitoring';
 import { logger } from '@/lib/logger';
 
@@ -106,6 +107,7 @@ function sendToAnalytics(metric: VitalMetric) {
     env: import.meta.env.MODE,
     cid,
   };
+  const rumEndpoint = withApiBase('/api/metrics/rum');
 
   // Send to Sentry as custom measurement (if privacy allows)
   Sentry.withScope((scope) => {
@@ -124,12 +126,11 @@ function sendToAnalytics(metric: VitalMetric) {
 
   // Send to backend RUM endpoint
   if (typeof navigator.sendBeacon === 'function') {
-    const url = '/metrics/rum';
     const blob = new Blob([JSON.stringify(body)], { type: 'application/json' });
-    navigator.sendBeacon(url, blob);
+    navigator.sendBeacon(rumEndpoint, blob);
   } else {
     // Fallback for older browsers
-    fetch('/metrics/rum', {
+    fetch(rumEndpoint, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body),

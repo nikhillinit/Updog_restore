@@ -213,6 +213,7 @@ export async function createServer(
 
   // Metrics endpoints (public, no auth required)
   app.use('/metrics', metricsRouter);
+  app.use('/api', metricsRouter);
 
   // RUM metrics endpoint (public, for browser telemetry)
   const { metricsRumRouter } = await import('./routes/metrics-rum.js');
@@ -222,6 +223,7 @@ export async function createServer(
   // Apply guards and router together at the same path to prevent path resolution issues
   // Guards run in order: origin check -> rate limit -> sampling -> privacy (in router)
   app.use(rumOriginGuard, rumLimiter, rumSamplingGuard, metricsRumRouter);
+  app.use('/api', rumOriginGuard, rumLimiter, rumSamplingGuard, metricsRumRouter);
 
   // Centralized public-route matcher (mount-relative, no /api prefix).
   // Keep this boundary narrow: canonical /api/funds* endpoints stay behind
