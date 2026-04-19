@@ -62,9 +62,9 @@ export function createPolymorphicComponent<DefaultTag extends ElementType, Extra
  * Type guard to check if a component accepts a specific prop
  */
 export function hasProperty<T extends ElementType, K extends string>(
-  Component: T,
+  _Component: T,
   _propName: K
-): Component is T & { [_P in K]: unknown } {
+): _Component is T & { [_P in K]: unknown } {
   // This is a runtime check - in practice you'd implement based on your needs
   return true; // Simplified for type-level usage
 }

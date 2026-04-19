@@ -139,6 +139,12 @@ describe('useDealDragDrop', () => {
     const { result } = renderHook(() => useDealDragDrop(), {
       wrapper: createWrapper(),
     });
+    let resolveRequest: ((value: { id: number; status: string }) => void) | null = null;
+    mockApiRequest.mockReturnValueOnce(
+      new Promise((resolve) => {
+        resolveRequest = resolve;
+      })
+    );
 
     const event = {
       active: {
@@ -148,15 +154,16 @@ describe('useDealDragDrop', () => {
       over: { id: 'qualified' }, // different from mockDeal.status ('lead')
     } as unknown as DragEndEvent;
 
-    act(() => {
+    await act(async () => {
       result.current.handleDragEnd(event);
-    });
-
-    // Wait for the mutation to fire
-    await vi.waitFor(() => {
-      expect(mockApiRequest).toHaveBeenCalledWith('POST', '/api/deals/1/stage', {
-        status: 'qualified',
+      await vi.waitFor(() => {
+        expect(mockApiRequest).toHaveBeenCalledWith('POST', '/api/deals/1/stage', {
+          status: 'qualified',
+        });
       });
+      resolveRequest?.({ id: 1, status: 'qualified' });
+      await Promise.resolve();
+      await Promise.resolve();
     });
   });
 });

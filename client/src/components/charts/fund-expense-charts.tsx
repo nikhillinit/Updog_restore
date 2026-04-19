@@ -37,6 +37,18 @@ interface ExpenseRatioData {
   totalRatio: number;
 }
 
+interface ExpenseChartDatum {
+  date: string;
+  legal: number;
+  administration: number;
+  tax: number;
+  audit: number;
+  software: number;
+  setup: number;
+  other: number;
+  total: number;
+}
+
 interface FundExpenseChartsProps {
   className?: string;
 }
@@ -122,6 +134,21 @@ export default function FundExpenseCharts({ className }: FundExpenseChartsProps)
     totalRatio: (item.total / fundSize) * 100,
   }));
 
+  const chartData: ExpenseChartDatum[] =
+    viewType === 'expenses'
+      ? expenseData
+      : expenseRatioData.map((item) => ({
+          date: item.date,
+          legal: item.legalRatio,
+          administration: item.administrationRatio,
+          tax: item.taxRatio,
+          audit: item.auditRatio,
+          software: item.softwareRatio,
+          setup: item.setupRatio,
+          other: item.otherRatio,
+          total: item.totalRatio,
+        }));
+
   // Color scheme for expense categories
   const expenseColors = {
     legal: '#60a5fa', // Blue
@@ -152,10 +179,7 @@ export default function FundExpenseCharts({ className }: FundExpenseChartsProps)
     label?: string;
   }) => {
     if (active && payload && payload.length) {
-      const currentData =
-        viewType === 'expenses'
-          ? expenseData.find((d) => d.date === label)
-          : expenseRatioData.find((d) => d.date === label);
+      const currentData = chartData.find((d) => d.date === label);
 
       if (!currentData) return null;
 
@@ -164,10 +188,7 @@ export default function FundExpenseCharts({ className }: FundExpenseChartsProps)
         return date.toLocaleDateString('en-US', { year: 'numeric', month: 'short' });
       };
 
-      const totalValue =
-        viewType === 'expenses'
-          ? (currentData as ExpenseData).total
-          : (currentData as ExpenseRatioData).totalRatio;
+      const totalValue = currentData.total;
 
       return (
         <div className="bg-white p-4 border border-gray-200 rounded-lg shadow-lg max-w-xs">
@@ -272,10 +293,7 @@ export default function FundExpenseCharts({ className }: FundExpenseChartsProps)
             <TabsContent value="cumulative" className="space-y-4">
               <div className="h-96">
                 <ResponsiveContainer width="100%" height="100%">
-                  <AreaChart
-                    data={viewType === 'expenses' ? expenseData : expenseRatioData}
-                    margin={{ top: 20, right: 30, left: 20, bottom: 5 }}
-                  >
+                  <AreaChart data={chartData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
                     <CartesianGrid strokeDasharray="3 3" />
                     <XAxis
                       dataKey="date"
@@ -299,49 +317,49 @@ export default function FundExpenseCharts({ className }: FundExpenseChartsProps)
                     {/* Stacked areas for all categories */}
                     <Area
                       type="monotone"
-                      dataKey={viewType === 'expenses' ? 'legal' : 'legalRatio'}
+                      dataKey="legal"
                       stackId="1"
                       stroke={expenseColors.legal}
                       fill={expenseColors.legal}
                     />
                     <Area
                       type="monotone"
-                      dataKey={viewType === 'expenses' ? 'administration' : 'administrationRatio'}
+                      dataKey="administration"
                       stackId="1"
                       stroke={expenseColors.administration}
                       fill={expenseColors.administration}
                     />
                     <Area
                       type="monotone"
-                      dataKey={viewType === 'expenses' ? 'tax' : 'taxRatio'}
+                      dataKey="tax"
                       stackId="1"
                       stroke={expenseColors.tax}
                       fill={expenseColors.tax}
                     />
                     <Area
                       type="monotone"
-                      dataKey={viewType === 'expenses' ? 'audit' : 'auditRatio'}
+                      dataKey="audit"
                       stackId="1"
                       stroke={expenseColors.audit}
                       fill={expenseColors.audit}
                     />
                     <Area
                       type="monotone"
-                      dataKey={viewType === 'expenses' ? 'software' : 'softwareRatio'}
+                      dataKey="software"
                       stackId="1"
                       stroke={expenseColors.software}
                       fill={expenseColors.software}
                     />
                     <Area
                       type="monotone"
-                      dataKey={viewType === 'expenses' ? 'setup' : 'setupRatio'}
+                      dataKey="setup"
                       stackId="1"
                       stroke={expenseColors.setup}
                       fill={expenseColors.setup}
                     />
                     <Area
                       type="monotone"
-                      dataKey={viewType === 'expenses' ? 'other' : 'otherRatio'}
+                      dataKey="other"
                       stackId="1"
                       stroke={expenseColors.other}
                       fill={expenseColors.other}
@@ -355,9 +373,7 @@ export default function FundExpenseCharts({ className }: FundExpenseChartsProps)
               <div className="h-96">
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart
-                    data={
-                      viewType === 'expenses' ? expenseData.slice(-12) : expenseRatioData.slice(-12)
-                    }
+                    data={chartData.slice(-12)}
                     margin={{ top: 20, right: 30, left: 20, bottom: 5 }}
                   >
                     <CartesianGrid strokeDasharray="3 3" />
@@ -378,41 +394,13 @@ export default function FundExpenseCharts({ className }: FundExpenseChartsProps)
                     <Tooltip content={<CustomTooltip />} />
 
                     {/* Stacked bars for recent periods */}
-                    <Bar
-                      dataKey={viewType === 'expenses' ? 'legal' : 'legalRatio'}
-                      stackId="a"
-                      fill={expenseColors.legal}
-                    />
-                    <Bar
-                      dataKey={viewType === 'expenses' ? 'administration' : 'administrationRatio'}
-                      stackId="a"
-                      fill={expenseColors.administration}
-                    />
-                    <Bar
-                      dataKey={viewType === 'expenses' ? 'tax' : 'taxRatio'}
-                      stackId="a"
-                      fill={expenseColors.tax}
-                    />
-                    <Bar
-                      dataKey={viewType === 'expenses' ? 'audit' : 'auditRatio'}
-                      stackId="a"
-                      fill={expenseColors.audit}
-                    />
-                    <Bar
-                      dataKey={viewType === 'expenses' ? 'software' : 'softwareRatio'}
-                      stackId="a"
-                      fill={expenseColors.software}
-                    />
-                    <Bar
-                      dataKey={viewType === 'expenses' ? 'setup' : 'setupRatio'}
-                      stackId="a"
-                      fill={expenseColors.setup}
-                    />
-                    <Bar
-                      dataKey={viewType === 'expenses' ? 'other' : 'otherRatio'}
-                      stackId="a"
-                      fill={expenseColors.other}
-                    />
+                    <Bar dataKey="legal" stackId="a" fill={expenseColors.legal} />
+                    <Bar dataKey="administration" stackId="a" fill={expenseColors.administration} />
+                    <Bar dataKey="tax" stackId="a" fill={expenseColors.tax} />
+                    <Bar dataKey="audit" stackId="a" fill={expenseColors.audit} />
+                    <Bar dataKey="software" stackId="a" fill={expenseColors.software} />
+                    <Bar dataKey="setup" stackId="a" fill={expenseColors.setup} />
+                    <Bar dataKey="other" stackId="a" fill={expenseColors.other} />
                   </BarChart>
                 </ResponsiveContainer>
               </div>

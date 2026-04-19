@@ -39,6 +39,7 @@ describe('Modeling Wizard - Persistence Before Navigation (RED PHASE)', () => {
     removeItem: ReturnType<typeof vi.fn>;
     clear: ReturnType<typeof vi.fn>;
   };
+  let consoleErrorSpy: ReturnType<typeof vi.spyOn>;
 
   beforeEach(() => {
     // Create fresh localStorage mock for each test
@@ -56,8 +57,11 @@ describe('Modeling Wizard - Persistence Before Navigation (RED PHASE)', () => {
       configurable: true,
     });
 
-    // Clear all console mocks to see actual test output
     vi.clearAllMocks();
+
+    // These tests intentionally exercise storage failures; silence expected
+    // error-path logging so the suite only reports assertion failures.
+    consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
   });
 
   afterEach(() => {
@@ -198,6 +202,10 @@ describe('Modeling Wizard - Persistence Before Navigation (RED PHASE)', () => {
 
     // This assertion will FAIL with current implementation
     expect(snapshot.context.currentStep).toBe('generalInfo');
+    expect(consoleErrorSpy).toHaveBeenCalledWith(
+      '[ModelingWizard] Storage quota exceeded:',
+      quotaError
+    );
 
     if (snapshot.context.currentStep !== 'generalInfo') {
       console.error('[EXPECTED FAILURE] Navigation happened despite persistence failure');
@@ -532,63 +540,69 @@ describe('Modeling Wizard - Persistence Before Navigation (RED PHASE)', () => {
    * - No exponential backoff
    */
   it('[RED] should implement exponential backoff for retries', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-01-01T00:00:00.000Z'));
+
     const actor = createActor(modelingWizardMachine, {
       input: { skipOptionalSteps: false, autoSaveInterval: 999999 },
     });
 
-    actor.start();
-    actor.send({ type: 'NEXT' });
-    await waitFor(actor, (state) => state.matches('active'));
+    try {
+      actor.start();
+      actor.send({ type: 'NEXT' });
+      await waitFor(actor, (state) => state.matches('active'));
 
-    actor.send({
-      type: 'SAVE_STEP',
-      step: 'generalInfo',
-      data: {
-        fundName: 'Test Fund',
-        vintageYear: 2024,
-        fundSize: 100000000,
-        currency: 'USD' as const,
-        establishmentDate: '2024-01-01',
-        isEvergreen: false,
-      },
-    });
+      actor.send({
+        type: 'SAVE_STEP',
+        step: 'generalInfo',
+        data: {
+          fundName: 'Test Fund',
+          vintageYear: 2024,
+          fundSize: 100000000,
+          currency: 'USD' as const,
+          establishmentDate: '2024-01-01',
+          isEvergreen: false,
+        },
+      });
 
-    // Track retry timing
-    const retryTimestamps: number[] = [];
-    localStorageMock.setItem.mockImplementation(() => {
-      retryTimestamps.push(Date.now());
-      throw new Error('Persistence failed');
-    });
+      // Track retry timing
+      const retryTimestamps: number[] = [];
+      localStorageMock.setItem.mockImplementation(() => {
+        retryTimestamps.push(Date.now());
+        throw new Error('Persistence failed');
+      });
 
-    // Trigger NEXT
-    actor.send({ type: 'NEXT' });
+      // Trigger NEXT
+      actor.send({ type: 'NEXT' });
 
-    // Wait for all retries to complete (1s + 2s + 4s = 7s)
-    await new Promise((resolve) => setTimeout(resolve, 8000));
+      // Advance through the 1s + 2s + 4s retry schedule without relying on wall-clock time.
+      await vi.advanceTimersByTimeAsync(8000);
 
-    const _snapshot = actor.getSnapshot();
+      const _snapshot = actor.getSnapshot();
 
-    // TODO: After invoke refactor, verify retry timing
-    // Expected: retryTimestamps show exponential backoff
-    // Current: Only 1 call (no retries)
+      // TODO: After invoke refactor, verify retry timing
+      // Expected: retryTimestamps show exponential backoff
+      // Current: Only 1 call (no retries)
 
-    if (retryTimestamps.length < 3) {
-      console.warn('[EXPECTED FAILURE] Retry mechanism not implemented');
-      console.warn('Retry attempts:', retryTimestamps.length);
-      console.warn('Expected: 3 retries with exponential backoff');
-      throw new Error('Exponential backoff not implemented');
+      if (retryTimestamps.length < 3) {
+        console.warn('[EXPECTED FAILURE] Retry mechanism not implemented');
+        console.warn('Retry attempts:', retryTimestamps.length);
+        console.warn('Expected: 3 retries with exponential backoff');
+        throw new Error('Exponential backoff not implemented');
+      }
+
+      // Verify exponential spacing
+      const delay1 = retryTimestamps[1] - retryTimestamps[0];
+      const delay2 = retryTimestamps[2] - retryTimestamps[1];
+
+      expect(delay1).toBeGreaterThanOrEqual(900); // ~1s
+      expect(delay1).toBeLessThan(1500);
+      expect(delay2).toBeGreaterThanOrEqual(1900); // ~2s
+      expect(delay2).toBeLessThan(2500);
+    } finally {
+      actor.stop();
+      vi.useRealTimers();
     }
-
-    // Verify exponential spacing
-    const delay1 = retryTimestamps[1] - retryTimestamps[0];
-    const delay2 = retryTimestamps[2] - retryTimestamps[1];
-
-    expect(delay1).toBeGreaterThanOrEqual(900); // ~1s
-    expect(delay1).toBeLessThan(1500);
-    expect(delay2).toBeGreaterThanOrEqual(1900); // ~2s
-    expect(delay2).toBeLessThan(2500);
-
-    actor.stop();
   }, 10000); // Extend timeout for retry test
 
   /**

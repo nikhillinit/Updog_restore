@@ -31,6 +31,7 @@ describe('Wave 2 funds boundary', () => {
     expect(fetchMock).toHaveBeenCalledWith(
       '/api/funds',
       expect.objectContaining({
+        credentials: 'include',
         headers: expect.objectContaining({
           'Idempotency-Key': first.hash,
         }),

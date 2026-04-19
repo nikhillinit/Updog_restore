@@ -107,6 +107,8 @@ vi.mock('@/lib/formatting', () => ({
   formatUSD: (v: number) => `$${v.toLocaleString()}`,
 }));
 
+import ReviewStep from '@/pages/ReviewStep';
+
 describe('ReviewStep single-submit via finalize', () => {
   beforeEach(() => {
     mockSetLocation.mockReset();
@@ -147,8 +149,7 @@ describe('ReviewStep single-submit via finalize', () => {
     vi.restoreAllMocks();
   });
 
-  it('renders the review step with fund data summary', async () => {
-    const { default: ReviewStep } = await import('@/pages/ReviewStep');
+  it('renders the review step with fund data summary', () => {
     render(<ReviewStep />);
 
     expect(screen.getByTestId('review-step')).toBeInTheDocument();
@@ -159,7 +160,6 @@ describe('ReviewStep single-submit via finalize', () => {
   });
 
   it('calls finalizeFund with correct payload on submit', async () => {
-    const { default: ReviewStep } = await import('@/pages/ReviewStep');
     render(<ReviewStep />);
 
     const button = screen.getByTestId('create-fund-button');
@@ -191,7 +191,6 @@ describe('ReviewStep single-submit via finalize', () => {
       })
     );
 
-    const { default: ReviewStep } = await import('@/pages/ReviewStep');
     render(<ReviewStep />);
 
     const button = screen.getByTestId('create-fund-button');
@@ -210,7 +209,6 @@ describe('ReviewStep single-submit via finalize', () => {
   });
 
   it('navigates to results page on success', async () => {
-    const { default: ReviewStep } = await import('@/pages/ReviewStep');
     render(<ReviewStep />);
 
     await userEvent.click(screen.getByTestId('create-fund-button'));
@@ -230,7 +228,6 @@ describe('ReviewStep single-submit via finalize', () => {
   it('shows error message on failure', async () => {
     mockFinalizeFund.mockReset().mockRejectedValue(new Error('Validation failed: fund name'));
 
-    const { default: ReviewStep } = await import('@/pages/ReviewStep');
     render(<ReviewStep />);
 
     await userEvent.click(screen.getByTestId('create-fund-button'));
@@ -252,7 +249,6 @@ describe('ReviewStep single-submit via finalize', () => {
       })
     );
 
-    const { default: ReviewStep } = await import('@/pages/ReviewStep');
     render(<ReviewStep />);
 
     const button = screen.getByTestId('create-fund-button');
@@ -275,7 +271,6 @@ describe('ReviewStep single-submit via finalize', () => {
       data: { fundId: 99, configVersion: 1, correlationId: 'test', published: true },
     });
 
-    const { default: ReviewStep } = await import('@/pages/ReviewStep');
     render(<ReviewStep />);
 
     await userEvent.click(screen.getByTestId('create-fund-button'));

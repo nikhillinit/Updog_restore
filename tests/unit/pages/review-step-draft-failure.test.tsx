@@ -106,6 +106,8 @@ vi.mock('@/adapters/fund-store-adapters', () => ({
   fundStoreToDraftWriteV1: vi.fn(),
 }));
 
+import ReviewStep from '@/pages/ReviewStep';
+
 const successResponse = {
   success: true as const,
   data: {
@@ -131,7 +133,6 @@ describe('ReviewStep finalize failure handling', () => {
   it('shows error when finalize returns validation error', async () => {
     mockFinalizeFund.mockReset().mockRejectedValue(new Error('Draft configuration is invalid'));
 
-    const { default: ReviewStep } = await import('@/pages/ReviewStep');
     render(<ReviewStep />);
 
     const button = screen.getByTestId('create-fund-button');
@@ -147,7 +148,6 @@ describe('ReviewStep finalize failure handling', () => {
   it('shows error when finalize returns server error, no navigation', async () => {
     mockFinalizeFund.mockReset().mockRejectedValue(new Error('Finalize failed (HTTP 500)'));
 
-    const { default: ReviewStep } = await import('@/pages/ReviewStep');
     render(<ReviewStep />);
 
     const button = screen.getByTestId('create-fund-button');
@@ -162,7 +162,6 @@ describe('ReviewStep finalize failure handling', () => {
   });
 
   it('navigates to results route after successful finalize', async () => {
-    const { default: ReviewStep } = await import('@/pages/ReviewStep');
     render(<ReviewStep />);
 
     const button = screen.getByTestId('create-fund-button');
@@ -186,7 +185,6 @@ describe('ReviewStep finalize failure handling', () => {
       .mockRejectedValueOnce(new Error('Finalize failed (HTTP 500)'))
       .mockResolvedValueOnce(successResponse);
 
-    const { default: ReviewStep } = await import('@/pages/ReviewStep');
     render(<ReviewStep />);
 
     const button = screen.getByTestId('create-fund-button');
@@ -210,7 +208,6 @@ describe('ReviewStep finalize failure handling', () => {
   it('shows error when publish queue fails via finalize', async () => {
     mockFinalizeFund.mockReset().mockRejectedValue(new Error('Publish queue error'));
 
-    const { default: ReviewStep } = await import('@/pages/ReviewStep');
     render(<ReviewStep />);
 
     const button = screen.getByTestId('create-fund-button');
@@ -228,7 +225,6 @@ describe('ReviewStep finalize failure handling', () => {
       .mockRejectedValueOnce(new Error('Publish queue error'))
       .mockResolvedValueOnce(successResponse);
 
-    const { default: ReviewStep } = await import('@/pages/ReviewStep');
     render(<ReviewStep />);
 
     const button = screen.getByTestId('create-fund-button');
@@ -250,7 +246,6 @@ describe('ReviewStep finalize failure handling', () => {
   it('uses fallback message for non-Error thrown values', async () => {
     mockFinalizeFund.mockReset().mockRejectedValue('raw string error');
 
-    const { default: ReviewStep } = await import('@/pages/ReviewStep');
     render(<ReviewStep />);
 
     await userEvent.click(screen.getByTestId('create-fund-button'));

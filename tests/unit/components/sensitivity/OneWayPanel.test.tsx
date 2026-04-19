@@ -7,6 +7,12 @@ import { installRadixSelectShim } from '../../../helpers/radix-select-shim';
 
 beforeAll(installRadixSelectShim);
 
+vi.mock('@/components/charts/LazyResponsiveContainer', () => ({
+  LazyResponsiveContainer: ({ children }: { children: React.ReactNode }) => (
+    <div data-testid="responsive-container">{children}</div>
+  ),
+}));
+
 import { OneWayPanel } from '@/components/sensitivity/OneWayPanel';
 import { SUPPORTED_VARIABLES, SUPPORTED_METRICS } from '@shared/contracts/sensitivity-variables-v1';
 import type {
