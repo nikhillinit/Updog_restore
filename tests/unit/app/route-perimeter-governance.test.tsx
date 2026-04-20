@@ -66,6 +66,9 @@ async function loadApp(flagOverrides: FlagOverrides = {}) {
   vi.doMock('@/pages/dashboard', () => ({ default: () => <div>Dashboard Page</div> }));
   vi.doMock('@/pages/fund-setup', () => ({ default: () => <div>Fund Setup Page</div> }));
   vi.doMock('@/pages/portfolio', () => ({ default: () => <div>Portfolio Page</div> }));
+  vi.doMock('@/pages/portfolio-company-summary', () => ({
+    default: () => <div>Portfolio Company Summary Page</div>,
+  }));
   vi.doMock('@/pages/performance', () => ({ default: () => <div>Performance Page</div> }));
   vi.doMock('@/pages/financial-modeling', () => ({
     default: () => <div>Financial Modeling Page</div>,
@@ -120,6 +123,7 @@ describe('route perimeter governance', () => {
   it.each([
     ['/dashboard', 'Dashboard Page'],
     ['/portfolio', 'Portfolio Page'],
+    ['/portfolio/company/1', 'Portfolio Company Summary Page'],
     ['/performance', 'Performance Page'],
     ['/pipeline', 'Pipeline Page'],
     ['/financial-modeling', 'Financial Modeling Page'],
@@ -158,6 +162,7 @@ describe('route perimeter governance', () => {
     '/notion-integration',
     '/scenario-builder',
     '/dev-dashboard',
+    '/portfolio/1',
   ])('removes non-core internal route %s from the default runtime perimeter', async (path) => {
     await renderAt(path);
 

@@ -35,6 +35,27 @@ describe('portfolio company and activity route extraction', () => {
       }),
     });
 
+    const detailRead = await request(app).get('/api/portfolio-companies/1?fundId=1').expect(200);
+    expect(detailRead.body).toMatchObject({
+      id: 1,
+      fundId: 1,
+      name: expect.any(String),
+    });
+
+    const invalidDetailFund = await request(app)
+      .get('/api/portfolio-companies/1?fundId=abc')
+      .expect(400);
+    expect(invalidDetailFund.body).toMatchObject({
+      error: 'Invalid fund ID query',
+    });
+
+    const crossFundDetail = await request(app)
+      .get('/api/portfolio-companies/1?fundId=999')
+      .expect(404);
+    expect(crossFundDetail.body).toMatchObject({
+      error: 'Company not found',
+    });
+
     const created = await request(app)
       .post('/api/portfolio-companies')
       .send({

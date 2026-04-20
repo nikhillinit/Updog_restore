@@ -4,11 +4,11 @@ import type { PortfolioCompany } from '@shared/schema';
 import { KpiCard } from '@/components/ui/KpiCard';
 import { SwipeableMetricCards } from '@/components/ui/SwipeableMetricCards';
 import type { MetricCardData } from '@/components/ui/SwipeableMetricCards';
-import { DataTable } from '@/components/ui/DataTable';
 import { PremiumCard } from '@/components/ui/PremiumCard';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import {
   Select,
   SelectContent,
@@ -108,6 +108,12 @@ function buildPortfolioRow(company: PortfolioCompany): PortfolioRow {
   };
 }
 
+function getDetailButtonLabel(companyName: string, isHistoricalMode: boolean): string {
+  return isHistoricalMode
+    ? `${companyName} details unavailable while viewing historical data`
+    : `View ${companyName} details`;
+}
+
 function EmptyState({ onGetStarted }: { onGetStarted: () => void }) {
   return (
     <div className="flex flex-col items-center justify-center py-16 px-4 text-center">
@@ -130,7 +136,17 @@ function EmptyState({ onGetStarted }: { onGetStarted: () => void }) {
   );
 }
 
-function PortfolioCard({ company, onView }: { company: PortfolioRow; onView: () => void }) {
+function PortfolioCard({
+  canViewDetails,
+  company,
+  disabledLabel,
+  onView,
+}: {
+  canViewDetails: boolean;
+  company: PortfolioRow;
+  disabledLabel: string;
+  onView: () => void;
+}) {
   return (
     <div className="bg-white border border-presson-borderSubtle rounded-lg p-4 space-y-3">
       <div className="flex justify-between items-start gap-3">
@@ -164,9 +180,19 @@ function PortfolioCard({ company, onView }: { company: PortfolioRow; onView: () 
         </div>
       </div>
 
-      <Button variant="outline" size="sm" className="w-full mt-2" onClick={onView}>
+      <Button
+        variant="outline"
+        size="sm"
+        className="w-full mt-2"
+        data-testid={`portfolio-company-detail-button-${company.id}`}
+        disabled={!canViewDetails}
+        aria-label={
+          canViewDetails ? getDetailButtonLabel(company.company, false) : disabledLabel
+        }
+        onClick={canViewDetails ? onView : undefined}
+      >
         <Eye className="h-4 w-4 mr-2" />
-        View Details
+        {canViewDetails ? 'View details' : 'Details unavailable'}
       </Button>
     </div>
   );
@@ -285,28 +311,6 @@ export function OverviewTab() {
     },
   ];
 
-  const tableColumns = [
-    { key: 'company' as const, label: 'Company' },
-    { key: 'sector' as const, label: 'Sector' },
-    { key: 'stage' as const, label: 'Stage' },
-    { key: 'invested' as const, label: 'Invested', align: 'right' as const },
-    {
-      key: 'currentValue' as const,
-      label: isHistoricalMode ? 'Historical Value' : 'Current Value',
-      align: 'right' as const,
-    },
-    { key: 'moic' as const, label: 'MOIC', align: 'right' as const },
-  ];
-
-  const tableRows = filteredCompanies.map((company) => ({
-    company: company.company,
-    sector: company.sector,
-    stage: company.stage,
-    invested: formatCurrency(company.invested),
-    currentValue: formatCurrency(company.currentValue),
-    moic: `${company.moic.toFixed(2)}x`,
-  }));
-
   const setAsOfValue = (nextAsOf: string | null) => {
     const nextParams = new URLSearchParams(searchParams);
     nextParams.set('tab', 'companies');
@@ -338,8 +342,12 @@ export function OverviewTab() {
     setShowAddCompanyDialog(true);
   };
 
-  const handleViewCompany = (_id: number) => {
-    // TODO: navigate to company detail
+  const handleViewCompany = (id: number) => {
+    if (isHistoricalMode) {
+      return;
+    }
+
+    setLocation(`/portfolio/company/${id}`);
   };
 
   const renderHistoricalNotice = () => {
@@ -566,7 +574,56 @@ export function OverviewTab() {
               }
             >
               {filteredCompanies.length > 0 ? (
-                <DataTable columns={tableColumns} rows={tableRows} />
+                <Table>
+                  <TableHeader>
+                    <TableRow className="hover:bg-transparent">
+                      <TableHead>Company</TableHead>
+                      <TableHead>Sector</TableHead>
+                      <TableHead>Stage</TableHead>
+                      <TableHead className="text-right">Invested</TableHead>
+                      <TableHead className="text-right">
+                        {isHistoricalMode ? 'Historical Value' : 'Current Value'}
+                      </TableHead>
+                      <TableHead className="text-right">MOIC</TableHead>
+                      <TableHead className="text-right">Details</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {filteredCompanies.map((company) => (
+                      <TableRow key={company.id}>
+                        <TableCell className="font-medium text-presson-text">
+                          {company.company}
+                        </TableCell>
+                        <TableCell>{company.sector}</TableCell>
+                        <TableCell>{company.stage}</TableCell>
+                        <TableCell className="text-right font-mono">
+                          {formatCurrency(company.invested)}
+                        </TableCell>
+                        <TableCell className="text-right font-mono">
+                          {formatCurrency(company.currentValue)}
+                        </TableCell>
+                        <TableCell className="text-right font-mono">
+                          {company.moic.toFixed(2)}x
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            data-testid={`portfolio-company-detail-button-${company.id}`}
+                            disabled={isHistoricalMode}
+                            aria-label={getDetailButtonLabel(company.company, isHistoricalMode)}
+                            onClick={
+                              isHistoricalMode ? undefined : () => handleViewCompany(company.id)
+                            }
+                          >
+                            <Eye className="h-4 w-4 mr-2" />
+                            {isHistoricalMode ? 'Unavailable' : 'View details'}
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
               ) : (
                 <div className="text-center py-8 text-presson-textMuted">
                   No companies match your filters
@@ -586,7 +643,9 @@ export function OverviewTab() {
               filteredCompanies.map((company) => (
                 <PortfolioCard
                   key={company.id}
+                  canViewDetails={!isHistoricalMode}
                   company={company}
+                  disabledLabel={getDetailButtonLabel(company.company, true)}
                   onView={() => handleViewCompany(company.id)}
                 />
               ))

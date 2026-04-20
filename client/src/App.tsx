@@ -22,6 +22,7 @@ import DynamicFundHeader from '@/components/layout/dynamic-fund-header';
 // Page components - Heavy routes lazy loaded for bundle optimization
 const Dashboard = React.lazy(() => import('@/pages/dashboard'));
 const Portfolio = React.lazy(() => import('@/pages/portfolio'));
+const PortfolioCompanySummary = React.lazy(() => import('@/pages/portfolio-company-summary'));
 const PerformancePage = React.lazy(() => import('@/pages/performance'));
 // Lazy load non-critical routes for bundle optimization
 const FundSetup = React.lazy(() => import('@/pages/fund-setup'));
@@ -196,6 +197,7 @@ export interface AppRouteEntry {
 export const APP_ROUTES: AppRouteEntry[] = [
   { path: '/fund-setup', component: FundSetup },
   { path: '/dashboard', component: Dashboard, isProtected: true },
+  { path: '/portfolio/company/:id', component: PortfolioCompanySummary, isProtected: true },
   { path: '/portfolio', component: Portfolio, isProtected: true },
   { path: '/performance', component: PerformancePage, isProtected: true },
   { path: '/financial-modeling', component: FinancialModelingPage, isProtected: true },
