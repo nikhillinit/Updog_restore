@@ -4,7 +4,7 @@
  */
 
 import type { EngineAllocation } from '@/core/reserves/types';
-import type { ParityDataset, ParityValidationResult } from '@/lib/excel-parity-validator';
+import type { ParityDataset } from '@/lib/excel-parity-validator';
 import { getApiBaseUrl } from '@/lib/api-url';
 import { logger } from '@/lib/logger';
 
@@ -40,22 +40,6 @@ interface ReserveCalculationResponse {
   totalAllocated: number;
   remaining: number;
   rid: string;
-}
-
-interface ParityValidationSummary {
-  passed: number;
-  failed: number;
-  results: ParityValidationResult[];
-  overallPassRate: number;
-}
-
-type ParityValidationResponse = ParityValidationResult | ParityValidationSummary;
-
-interface ReservesHealthResponse {
-  status?: 'ok' | 'degraded' | 'down';
-  features?: Record<string, boolean>;
-  version?: string;
-  timestamp?: string;
 }
 
 interface ReservesConfigResponse {
@@ -324,20 +308,6 @@ export const reservesApi = {
    */
   calculate: async (data: ReserveCalculationInput) => {
     return apiClient.post<ReserveCalculationResponse>('/api/v1/reserves/calculate', data);
-  },
-
-  /**
-   * Validate parity with Excel
-   */
-  validateParity: async (dataset?: ParityDataset | ParityDataset[]) => {
-    return apiClient.post<ParityValidationResponse>('/v1/reserves/validate-parity', { dataset });
-  },
-
-  /**
-   * Get API health status
-   */
-  health: async () => {
-    return apiClient.get<ReservesHealthResponse>('/v1/reserves/health');
   },
 
   /**

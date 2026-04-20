@@ -86,6 +86,10 @@ describe('Wave 2 resilient-api client boundary', () => {
     expect(requestInit).toEqual(expect.objectContaining({ method: 'POST' }));
   });
 
+  it('exposes only the real reserve-backed singleton methods', () => {
+    expect(Object.keys(reservesApi)).toEqual(['calculate', 'config']);
+  });
+
   it('targets the api-prefixed reserve config route for the singleton client', async () => {
     fetchMock.mockResolvedValue(
       new Response(
