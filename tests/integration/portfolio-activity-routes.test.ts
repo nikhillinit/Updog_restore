@@ -38,6 +38,7 @@ describe('portfolio company and activity route extraction', () => {
     const created = await request(app)
       .post('/api/portfolio-companies')
       .send({
+        fundId: 1,
         name: 'Route Extraction Co',
         sector: 'AI',
         stage: 'Seed',
@@ -46,10 +47,23 @@ describe('portfolio company and activity route extraction', () => {
       .expect(201);
 
     expect(created.body).toMatchObject({
+      fundId: 1,
       name: 'Route Extraction Co',
       sector: 'AI',
       stage: 'Seed',
     });
+
+    const filteredRead = await request(app).get('/api/portfolio-companies?fundId=1').expect(200);
+    expect(filteredRead.body.companies).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          name: 'Route Extraction Co',
+          sector: 'AI',
+          stage: 'Seed',
+          fundId: 1,
+        }),
+      ])
+    );
   });
 
   it('preserves activity validation and descending read order', async () => {
