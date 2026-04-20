@@ -31,18 +31,20 @@ if [ -z "$CHANGED" ]; then
   exit 0
 fi
 
-# Define patterns for files that do NOT impact tests (Docs, certain configs)
-NON_TEST_IMPACTING_PATTERN='^(docs/|\.md$|\.ya?ml$|\.toml$|\.gitignore$|CLAUDE\.md$)'
+CLASSIFICATION=$(printf '%s\n' "$CHANGED" | node scripts/pre-push-classification.mjs)
 
-# Check if ALL changed files match the exclusion patterns
-# We use double negation: check if any file does NOT match the pattern. If none are found, we skip tests.
-if ! echo "$CHANGED" | grep -v -E "$NON_TEST_IMPACTING_PATTERN" | grep -q '.'; then
+case "$CLASSIFICATION" in
+  docs-only-skip)
     echo "✅ Docs/config-only changes; skipping tests"
     exit 0
-fi
-
-# Define patterns for files that require a full test run (Core configs, packages)
-FULL_RUN_PATTERN='(vitest\.config\.ts|vite\.config\.ts|tsconfig\.json|package\.json|package-lock\.json)'
+    ;;
+  full-run|type-fix-only-skip|targeted)
+    ;;
+  *)
+    echo "❌ Unknown pre-push classification: $CLASSIFICATION"
+    exit 1
+    ;;
+esac
 
 # Documentation freshness check (warning only, non-blocking)
 echo "📄 Checking documentation freshness..."
@@ -78,7 +80,7 @@ if [ -n "$ORPHAN_CHECK_FILES" ]; then
 fi
 
 # If core configuration files changed, run the full test suite
-if echo "$CHANGED" | grep -qE "$FULL_RUN_PATTERN"; then
+if [ "$CLASSIFICATION" = "full-run" ]; then
   echo "⚠️  Core configuration changed, running full validation..."
 
   # Build verification
@@ -94,7 +96,7 @@ fi
 # Otherwise, run only affected tests (smart mode)
 echo "🧪 Running targeted tests for changed files..."
 # For error boundary and CHANGELOG changes, skip all tests (type-safety already verified)
-if echo "$CHANGED" | grep -qE '(ErrorBoundary|LoadingState|CHANGELOG)'; then
+if [ "$CLASSIFICATION" = "type-fix-only-skip" ]; then
   echo "ℹ️  Type-fix only changes detected (ErrorBoundary/LoadingState/CHANGELOG)"
   echo "   TypeScript baseline check already passed"
   echo "   Skipping test suite (no behavioral changes)"

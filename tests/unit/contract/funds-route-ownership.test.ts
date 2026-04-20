@@ -22,6 +22,8 @@ import {
 } from '../../../server/contracts/funds-endpoint-ownership';
 
 let app: express.Express;
+// Structural guardrail: keep this contiguous prewarm block above any future
+// vi.mock or env mutation intended to affect these route modules at import time.
 const fundRoutesModulePromise = import('../../../server/routes/funds');
 const registerRoutesModulePromise = import('../../../server/routes');
 
