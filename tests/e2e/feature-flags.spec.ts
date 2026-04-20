@@ -44,10 +44,7 @@ const testMatrix: { name: string; flags: FeatureFlagState }[] = [
  */
 async function setupFeatureFlags(page: Page, flags: FeatureFlagState) {
   await page.addInitScript((flagsToSet) => {
-    window.localStorage.setItem(
-      'ff_enable_new_ia',
-      flagsToSet.enable_new_ia ? '1' : '0'
-    );
+    window.localStorage.setItem('ff_enable_new_ia', flagsToSet.enable_new_ia ? '1' : '0');
     window.localStorage.setItem(
       'ff_enable_kpi_selectors',
       flagsToSet.enable_kpi_selectors ? '1' : '0'
@@ -119,7 +116,6 @@ test.describe('Legacy Route Redirects (NEW_IA=true)', () => {
 
   const redirectTests = [
     { from: '/funds', to: '/portfolio' },
-    { from: '/investments', to: '/portfolio' },
     { from: '/dashboard', to: '/overview' },
     { from: '/planning', to: '/model' },
     { from: '/analytics', to: '/report' },

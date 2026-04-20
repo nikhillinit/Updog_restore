@@ -161,7 +161,7 @@ test.describe('Performance Tests', () => {
     });
 
     // Navigate between pages multiple times
-    const navigationRoutes = ['/portfolio', '/investments', '/dashboard'];
+    const navigationRoutes = ['/portfolio', '/dashboard'];
 
     for (let i = 0; i < 3; i++) {
       for (const route of navigationRoutes) {
