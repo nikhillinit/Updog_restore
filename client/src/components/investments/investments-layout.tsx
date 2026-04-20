@@ -276,14 +276,7 @@ export default function InvestmentsLayout() {
                         </Button>
                       </div>
                     </TableCell>
-                    <TableCell className="font-medium">
-                      <a
-                        href={`/investments/company/${investment.id}`}
-                        className="text-blue-600 hover:text-blue-800 cursor-pointer"
-                      >
-                        {investment.name}
-                      </a>
-                    </TableCell>
+                    <TableCell className="font-medium text-gray-900">{investment.name}</TableCell>
                     <TableCell>
                       <Badge className={cn('text-xs border', getStatusBadge(investment.status))}>
                         {investment.status}
