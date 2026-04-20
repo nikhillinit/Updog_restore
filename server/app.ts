@@ -24,6 +24,8 @@ import interleavedThinkingRouter from './routes/interleaved-thinking.js';
 import scenarioAnalysisRouter from './routes/scenario-analysis.js';
 import allocationsRouter from './routes/allocations.js';
 import allocationScenariosRouter from './routes/allocation-scenarios.js';
+import fundsRouter from './routes/funds.js';
+import { registerFundConfigRoutes } from './routes/fund-config.js';
 import { dealPipelineRouter } from './routes/deal-pipeline.js';
 import cohortAnalysisRouter from './routes/cohort-analysis.js';
 import sensitivityRouter from './routes/sensitivity.js';
@@ -86,7 +88,7 @@ export function makeApp() {
       res['setHeader']('Vary', 'Origin');
       res['setHeader']('Access-Control-Allow-Credentials', 'true');
       res['setHeader']('Access-Control-Allow-Headers', 'content-type, authorization, x-request-id');
-      res['setHeader']('Access-Control-Allow-Methods', 'GET,POST,PATCH,OPTIONS');
+      res['setHeader']('Access-Control-Allow-Methods', 'GET,POST,PUT,PATCH,DELETE,OPTIONS');
     }
     if (req.method === 'OPTIONS') return res.sendStatus(ok ? 200 : 403);
     if (!ok && origin) return res.sendStatus(403);
@@ -179,6 +181,11 @@ export function makeApp() {
 
   // Scenario Analysis API (Construction vs Current, deal modeling)
   app.use('/api', scenarioAnalysisRouter);
+
+  // Keep the makeApp/serverless surface aligned with the canonical fund routes
+  // used by the wizard bootstrap flow.
+  app.use('/api', fundsRouter);
+  registerFundConfigRoutes(app);
 
   // Fund Allocation Management API (Phase 1b - Reserve allocations with optimistic locking)
   app.use('/api', allocationsRouter);

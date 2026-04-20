@@ -216,30 +216,34 @@ export default defineConfig(({ mode }: { mode: string }) => {
   const clientPort = parsePort(process.env['VITE_CLIENT_PORT'], 5173);
   const apiPort = parsePort(process.env['VITE_API_PORT'] ?? process.env['PORT'], 5000);
   const apiTarget = process.env['VITE_API_URL'] ?? `http://localhost:${apiPort}`;
+  const apiProxy = {
+    '/api': {
+      target: apiTarget,
+      changeOrigin: true,
+    },
+    '/metrics': {
+      target: apiTarget,
+      changeOrigin: true,
+    },
+    '/healthz': {
+      target: apiTarget,
+      changeOrigin: true,
+    },
+    '/readyz': {
+      target: apiTarget,
+      changeOrigin: true,
+    },
+  };
 
   return {
     base: '/', // Ensure absolute paths for assets
     server: {
       port: clientPort,
       strictPort: true,
-      proxy: {
-        '/api': {
-          target: apiTarget,
-          changeOrigin: true,
-        },
-        '/metrics': {
-          target: apiTarget,
-          changeOrigin: true,
-        },
-        '/healthz': {
-          target: apiTarget,
-          changeOrigin: true,
-        },
-        '/readyz': {
-          target: apiTarget,
-          changeOrigin: true,
-        },
-      },
+      proxy: apiProxy,
+    },
+    preview: {
+      proxy: apiProxy,
     },
     plugins: [
       // Dev telemetry stub - always returns 204 for telemetry endpoints
