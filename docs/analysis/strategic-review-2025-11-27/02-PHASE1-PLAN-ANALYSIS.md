@@ -86,7 +86,7 @@ Our Work: Builds modular components that fit into unified /portfolio route
 
 ```text
 Phase 3: Information Architecture Consolidation (Week 1-6)
-Target: Consolidate /investments, /investment-table, /cap-table
+Target: Consolidate the legacy investment list/table routes and /cap-table
 Lot tracking: NOT MENTIONED in Phoenix timeline
 ```
 
@@ -101,9 +101,9 @@ Lot tracking: NOT MENTIONED in Phoenix timeline
 
 The plan creates:
 
-- ✅ Backend services (LotService, MOICCalculator)
-- ✅ Frontend hooks (useLots, useCreateLot, useLotMOIC)
-- ✅ React components (LotTracking, MOICBreakdown)
+- PASS: Backend services (LotService, MOICCalculator)
+- PASS: Frontend hooks (useLots, useCreateLot, useLotMOIC)
+- PASS: React components (LotTracking, MOICBreakdown)
 - ❌ **API routes** (GET /api/funds/:fundId/portfolio/lots)
 - ❌ **Zod schemas** (ListLotsRequestSchema, MOICResponseSchema)
 

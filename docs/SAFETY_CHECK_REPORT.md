@@ -1,11 +1,16 @@
 ---
 status: HISTORICAL
-last_updated: 2026-04-03
+last_updated: 2026-04-20
 ---
 
 # Safety Check Report - Phase 1 Integration
 
 **Date**: 2025-10-03 **Branch**: `demo-tomorrow` **Status**: SAFE TO PROCEED\*\*
+
+> Current state note (2026-04-20): this report records a 2025 demo-branch safety
+> snapshot. On `main`, the legacy investments-family route is retired from
+> active front-end route metadata and should not be interpreted from this
+> document as current router guidance.
 
 ---
 
@@ -69,7 +74,7 @@ VITE_ENABLE_LP_REPORTING=false      # Safe (disabled)
 
 ---
 
-### **3. Current Navigation State**
+### **3. Historical Navigation State**
 
 **Active Navigation Items** (from `sidebar.tsx:36-63`):
 
@@ -121,15 +126,20 @@ integrated.
 
 ---
 
-### **4. KPI Header State**
+### **4. Historical KPI Header State**
 
-**Current Fund Page** (from `App.tsx:16-23`):
+**Current Fund Page** (from the 2025 snapshot):
 
 ```tsx
 const Dashboard = React.lazy(() => import('@/pages/dashboard'));
 const Portfolio = React.lazy(() => import('@/pages/portfolio'));
-const Investments = React.lazy(() => import('@/pages/investments'));
+const LegacyInvestmentsPage = React.lazy(
+  () => import('[legacy investments page]')
+);
 ```
+
+**Historical snapshot only**: this import reflected the 2025 `demo-tomorrow`
+branch state and is not the current `main` front-end route contract.
 
 **Header Component**: `DynamicFundHeader` (line 13)
 

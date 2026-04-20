@@ -1,5 +1,6 @@
-status: HISTORICAL last_updated: 2026-04-20
-
+---
+status: HISTORICAL
+last_updated: 2026-04-20
 ---
 
 # Phase 1 Foundations Integration - PR Checklist
@@ -14,10 +15,10 @@ comprehensive contract system. Enables demo-ready KPI header, 5-route IA
 consolidation, and unified feature flag system while maintaining backward
 compatibility.
 
-> Current state note (2026-04-20): the front-end no longer treats
-> `/investments*` as a supported runtime route family. Keep this checklist as a
-> historical integration artifact; do not use it to reintroduce soft or hard
-> redirects for those paths.
+> Current state note (2026-04-20): the front-end no longer treats the legacy
+> investments-family route as a supported runtime route family. Keep this
+> checklist as a historical integration artifact; do not use it to reintroduce
+> soft or hard redirects for those paths.
 
 ---
 
@@ -53,7 +54,8 @@ compatibility.
       `docs/archive/2025-q4/default-parameters/src/core/routes/ia.ts`
 - [ ] Historical TODO: Update router with soft redirects
 - [ ] Historical TODO: Add deprecation banners to legacy routes
-- [ ] Current policy: keep `/investments*` out of active client route metadata
+- [ ] Current policy: keep the legacy investments-family route out of active
+      client route metadata
 - [ ] TODO: Move Cap Table to Company detail tabs
 
 ### 5. **Brand Tokens**
@@ -172,8 +174,8 @@ import { Redirect, Route } from 'wouter';
 - [ ] Visit `/fund` - KPI header displays with real data
 - [ ] Check as-of date renders correctly
 - [ ] Toggle `VITE_NEW_IA=false` - old header still works
-- [ ] Visit `/investments` - confirm it is not part of the mounted runtime
-      perimeter
+- [ ] Visit the legacy investment-list route - confirm it is not part of the
+      mounted runtime perimeter
 - [ ] Verify brand tokens applied (Inter headings, Poppins body)
 
 ### **Automated Testing**

@@ -1,5 +1,6 @@
-status: HISTORICAL last_updated: 2026-04-20
-
+---
+status: HISTORICAL
+last_updated: 2026-04-20
 ---
 
 # Information Architecture Consolidation Strategy
@@ -10,10 +11,9 @@ Consolidate from 9+ fragmented routes to 5 cohesive top-level routes
 progressive cutover
 
 > Current state note (2026-04-20): active client route metadata no longer
-> carries `/investments`, `/investment-table`, or `/investments-table`
-> redirects. Those front-end routes are outside the mounted runtime perimeter.
-> The material below remains useful as historical planning context, not as the
-> current redirect contract.
+> carries the legacy investments-family front-end redirects. Those routes are
+> outside the mounted runtime perimeter. The material below remains useful as
+> historical planning context, not as the current redirect contract.
 
 ---
 
@@ -42,8 +42,8 @@ demo-ability throughout migration.
 
 ```
 /fund                    → Overview (Fund cards, but mock data)
-/investments             → Investment list view
-/investment-table        → Dense table view (duplicate)
+legacy investment list route  → Investment list view
+legacy investment table route → Dense table view (duplicate)
 /portfolio               → Company portfolio (overlaps with investments)
 /cap-table               → Top-level cap table (should be per-company)
 /financial-modeling      → Modeling tools
@@ -100,7 +100,7 @@ shared/contracts/kpi-selector.contract.ts → Import types
 - Unified investments table (TanStack Table v8, virtualized)
   - Column presets: Comfortable/Compact
   - Persist column visibility, filters, sorts
-  - Replaces `/investments`, `/investment-table`, `/portfolio`
+  - Replaces the legacy investment list/table routes plus `/portfolio`
 - Company detail modal/page with tabs:
   - **Overview**: Valuation, ownership, key metrics
   - **Cap Table**: Move from top-level nav (executive feedback)
@@ -110,8 +110,9 @@ shared/contracts/kpi-selector.contract.ts → Import types
 **Migration**:
 
 - Create new `/portfolio` as primary route
-- Historical plan: redirect `/investments` → `/portfolio?view=table`
-- Historical plan: redirect `/investment-table` →
+- Historical plan: redirect the legacy investment list route →
+  `/portfolio?view=table`
+- Historical plan: redirect the legacy investment table route →
   `/portfolio?view=table&density=compact`
 - Redirect `/cap-table/:companyId` → `/portfolio/:companyId?tab=cap-table`
 - Historical note: the front-end removed-perimeter cleanup retired these
@@ -126,8 +127,8 @@ client/src/pages/portfolio.tsx               → NEW: Unified portfolio page
 client/src/components/PortfolioTable.tsx     → NEW: TanStack Table v8
 client/src/components/CompanyDetail.tsx      → NEW: Tabbed detail view
 client/src/components/CapTable.tsx           → Move from standalone page
-client/src/pages/investments.tsx             → Archived shell outside mounted runtime
-client/src/pages/investment-table.tsx        → Historical planned redirect target
+legacy investment-list page shell            → Archived outside mounted runtime
+legacy investment-table page shell           → Historical planned redirect target
 ```
 
 ---
@@ -259,8 +260,8 @@ server/utils/pdfGenerator.ts                    → NEW: PDF generation
 
 - [ ] Build unified PortfolioTable with TanStack Table v8
 - [ ] Create CompanyDetail with tabs (move Cap Table)
-- [ ] Keep `/investments*` out of active front-end route metadata; route all
-      live portfolio flows through `/portfolio`
+- [ ] Keep the legacy investments-family routes out of active front-end route
+      metadata; route all live portfolio flows through `/portfolio`
 - [ ] Demo-ready Portfolio page
 
 ### Week 7-15: Modeling Wizard (Phase 2)
@@ -289,13 +290,14 @@ server/utils/pdfGenerator.ts                    → NEW: PDF generation
 
 ## Redirect Strategy (Historical / Superseded)
 
-Current front-end policy is removed-perimeter governance for `/investments*`. Do
-not use the examples below as the active client contract.
+Current front-end policy is removed-perimeter governance for the legacy
+investments-family routes. Do not use the examples below as the active client
+contract.
 
 ### Soft Redirects (Weeks 1-12)
 
 ```tsx
-// Example: /investments route during deprecation
+// Example: legacy investment-list route during deprecation
 import { useFeatureFlag } from '@/hooks/useFeatureFlag';
 import { DeprecationBanner } from '@/components/DeprecationBanner';
 
@@ -326,8 +328,8 @@ export function InvestmentsPage() {
 ```tsx
 // server/middleware/routeRedirects.ts
 export const ROUTE_REDIRECTS = {
-  '/investments': '/portfolio?view=table',
-  '/investment-table': '/portfolio?view=table&density=compact',
+  legacyInvestmentListRoute: '/portfolio?view=table',
+  legacyInvestmentTableRoute: '/portfolio?view=table&density=compact',
   '/cap-table/:companyId': '/portfolio/:companyId?tab=cap-table',
   '/financial-modeling': '/model?step=general',
   '/forecasting': '/model?step=allocations',
@@ -379,13 +381,13 @@ Per executive feedback: avoid "God context" bloat
 
 ```typescript
 describe('IA Consolidation', () => {
-  it('keeps /investments outside the mounted runtime perimeter', async () => {
-    await navigate('/investments');
+  it('keeps the legacy investment-list route outside the mounted runtime perimeter', async () => {
+    await navigate(legacyInvestmentListRoute);
     expect(screen.getByText(/not found/i)).toBeInTheDocument();
   });
 
-  it('omits /investments from active route metadata', async () => {
-    expect(OLD_TO_NEW_REDIRECTS['/investments']).toBeUndefined();
+  it('omits the legacy investment-list route from active route metadata', async () => {
+    expect(OLD_TO_NEW_REDIRECTS[legacyInvestmentListRoute]).toBeUndefined();
   });
 });
 ```
@@ -422,7 +424,7 @@ disableFlag('enable_new_ia'); // Removes all new routes, restores old nav
 ```typescript
 // Problem with Portfolio table? Keep active users on /portfolio
 disableFlag('enable_portfolio_table_v2');
-// Do not reintroduce /investments as a supported front-end route
+// Do not reintroduce the legacy investments-family route as a supported front-end route
 ```
 
 **Database Rollback** (N/A for IA changes):
@@ -464,7 +466,7 @@ disableFlag('enable_portfolio_table_v2');
 
 **Quantitative**:
 
-- Reduce route count: 9+ → 5 (✅ 44% reduction)
+- Reduce route count: 9+ → 5 (PASS: 44% reduction)
 - Navigation depth: 3 clicks → 2 clicks to any function
 - KPI data accuracy: 0% real → 100% real (bind selectors)
 - Table consolidation: 3 tables → 1 unified table
