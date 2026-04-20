@@ -3,18 +3,10 @@
  *
  * Comprehensive unit tests for Portfolio Intelligence RESTful API endpoints
  * Tests portfolio construction modeling, scenario planning, reserve optimization, and performance forecasting
- *
- * FIXME: Route handlers in server/routes/portfolio-intelligence.ts are incomplete.
- * All POST routes are missing res.send() calls, causing tests to timeout.
- * Need to implement actual route handler logic for:
- * - POST /api/portfolio/strategies
- * - POST /api/portfolio/scenarios
- * - POST /api/portfolio/scenarios/compare
- * - POST /api/portfolio/scenarios/:id/simulate
- * - POST /api/portfolio/reserves/optimize
- * - POST /api/portfolio/reserves/backtest
- * - POST /api/portfolio/forecasts
- * And error handling routes
+ * This suite verifies the currently implemented handlers in
+ * server/routes/portfolio-intelligence.ts, including the POST
+ * mutation paths that previously timed out before their response
+ * contracts were completed.
  * @group integration
  */
 
