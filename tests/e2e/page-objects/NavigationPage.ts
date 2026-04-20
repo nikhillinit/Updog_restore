@@ -1,4 +1,4 @@
-import type { Page, Locator} from '@playwright/test';
+import type { Page, Locator } from '@playwright/test';
 import { expect } from '@playwright/test';
 import { BasePage } from './BasePage';
 
@@ -9,62 +9,86 @@ export class NavigationPage extends BasePage {
 
   // Navigation elements
   get mainNavigation(): Locator {
-    return this.page.locator('[data-testid="main-nav"], nav[role="navigation"], .main-navigation').first();
+    return this.page
+      .locator('[data-testid="main-nav"], nav[role="navigation"], .main-navigation')
+      .first();
   }
 
   get fundNameHeader(): Locator {
-    return this.page.locator('[data-testid="fund-name"], .fund-name, .header-fund-name, h1, h2').first();
+    return this.page
+      .locator('[data-testid="fund-name"], .fund-name, .header-fund-name, h1, h2')
+      .first();
   }
 
   get dashboardLink(): Locator {
-    return this.page.locator('[data-testid="nav-dashboard"], a[href*="dashboard"], :has-text("Dashboard")').first();
+    return this.page
+      .locator('[data-testid="nav-dashboard"], a[href*="dashboard"], :has-text("Dashboard")')
+      .first();
   }
 
   get portfolioLink(): Locator {
-    return this.page.locator('[data-testid="nav-portfolio"], a[href*="portfolio"], :has-text("Portfolio")').first();
-  }
-
-  get investmentsLink(): Locator {
-    return this.page.locator('[data-testid="nav-investments"], a[href*="investments"], :has-text("Investments")').first();
+    return this.page
+      .locator('[data-testid="nav-portfolio"], a[href*="portfolio"], :has-text("Portfolio")')
+      .first();
   }
 
   get analyticsLink(): Locator {
-    return this.page.locator('[data-testid="nav-analytics"], a[href*="analytics"], :has-text("Analytics")').first();
+    return this.page
+      .locator('[data-testid="nav-analytics"], a[href*="analytics"], :has-text("Analytics")')
+      .first();
   }
 
   get fundSetupLink(): Locator {
-    return this.page.locator('[data-testid="nav-fund-setup"], a[href*="fund-setup"], :has-text("Fund Setup")').first();
+    return this.page
+      .locator('[data-testid="nav-fund-setup"], a[href*="fund-setup"], :has-text("Fund Setup")')
+      .first();
   }
 
   get settingsLink(): Locator {
-    return this.page.locator('[data-testid="nav-settings"], a[href*="settings"], :has-text("Settings")').first();
+    return this.page
+      .locator('[data-testid="nav-settings"], a[href*="settings"], :has-text("Settings")')
+      .first();
   }
 
   // Mobile navigation
   get mobileMenuButton(): Locator {
-    return this.page.locator('[data-testid="mobile-menu"], .mobile-menu-toggle, .hamburger, button[aria-label*="menu"]').first();
+    return this.page
+      .locator(
+        '[data-testid="mobile-menu"], .mobile-menu-toggle, .hamburger, button[aria-label*="menu"]'
+      )
+      .first();
   }
 
   get mobileMenu(): Locator {
-    return this.page.locator('[data-testid="mobile-menu-panel"], .mobile-menu-panel, .mobile-nav').first();
+    return this.page
+      .locator('[data-testid="mobile-menu-panel"], .mobile-menu-panel, .mobile-nav')
+      .first();
   }
 
   // User menu
   get userMenuButton(): Locator {
-    return this.page.locator('[data-testid="user-menu"], .user-menu, .profile-menu, button[aria-label*="user"]').first();
+    return this.page
+      .locator('[data-testid="user-menu"], .user-menu, .profile-menu, button[aria-label*="user"]')
+      .first();
   }
 
   get userDropdown(): Locator {
-    return this.page.locator('[data-testid="user-dropdown"], .user-dropdown, .profile-dropdown').first();
+    return this.page
+      .locator('[data-testid="user-dropdown"], .user-dropdown, .profile-dropdown')
+      .first();
   }
 
   get logoutButton(): Locator {
-    return this.page.locator('[data-testid="logout"], button:has-text("Logout"), a:has-text("Sign out")').first();
+    return this.page
+      .locator('[data-testid="logout"], button:has-text("Logout"), a:has-text("Sign out")')
+      .first();
   }
 
   // Breadcrumbs
   get breadcrumbs(): Locator {
-    return this.page.locator('[data-testid="breadcrumbs"], .breadcrumbs, nav[aria-label="Breadcrumb"]').first();
+    return this.page
+      .locator('[data-testid="breadcrumbs"], .breadcrumbs, nav[aria-label="Breadcrumb"]')
+      .first();
   }
 
   // Actions
@@ -78,12 +102,6 @@ export class NavigationPage extends BasePage {
     await this.portfolioLink.click();
     await this.waitForNavigation();
     await expect(this.page).toHaveURL(/.*portfolio.*/);
-  }
-
-  async navigateToInvestments() {
-    await this.investmentsLink.click();
-    await this.waitForNavigation();
-    await expect(this.page).toHaveURL(/.*investments.*/);
   }
 
   async navigateToAnalytics() {
@@ -129,7 +147,7 @@ export class NavigationPage extends BasePage {
   async verifyActiveNavigation(expectedPath: string) {
     const currentUrl = await this.page.url();
     expect(currentUrl).toContain(expectedPath);
-    
+
     // Check for active navigation state
     const activeNav = this.page.locator('.active, .current, [aria-current="page"]');
     await expect(activeNav).toBeVisible();
@@ -138,11 +156,11 @@ export class NavigationPage extends BasePage {
   async verifyNavigationAccessibility() {
     // Check that navigation is keyboard accessible
     await this.page.keyboard.press('Tab');
-    
+
     // Verify focus indicators
     const focusedElement = await this.page.locator(':focus');
     await expect(focusedElement).toBeVisible();
-    
+
     // Check ARIA labels
     const navElement = this.mainNavigation;
     const ariaLabel = await navElement.getAttribute('aria-label');
@@ -158,7 +176,7 @@ export class NavigationPage extends BasePage {
     // Test mobile navigation
     await this.page.setViewportSize({ width: 375, height: 667 });
     await expect(this.mobileMenuButton).toBeVisible();
-    
+
     // Test mobile menu functionality
     await this.openMobileMenu();
     await expect(this.dashboardLink).toBeVisible();

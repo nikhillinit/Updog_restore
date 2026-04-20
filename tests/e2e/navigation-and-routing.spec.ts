@@ -47,7 +47,6 @@ test.describe('Navigation and Routing', () => {
     // Test navigation to each module if available
     const navigationTests = [
       { name: 'Portfolio', method: 'navigateToPortfolio', urlPattern: /.*portfolio.*/ },
-      { name: 'Investments', method: 'navigateToInvestments', urlPattern: /.*investments.*/ },
       { name: 'Analytics', method: 'navigateToAnalytics', urlPattern: /.*analytics.*/ },
       { name: 'Settings', method: 'navigateToSettings', urlPattern: /.*settings.*/ },
     ];

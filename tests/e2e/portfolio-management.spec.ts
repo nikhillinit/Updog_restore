@@ -62,9 +62,11 @@ test.describe('Portfolio Management', () => {
 
         // Should navigate to investment creation or show modal
         const currentUrl = await portfolioPage.page.url();
-        const hasModal = await portfolioPage.page.locator('[role="dialog"], .modal').isVisible();
+        const hasModal = await portfolioPage.page
+          .locator('[data-testid="portfolio-add-company-dialog"], [role="dialog"], .modal')
+          .isVisible();
 
-        expect(currentUrl.includes('/investments') || hasModal).toBeTruthy();
+        expect(currentUrl.includes('/portfolio/company/') || hasModal).toBeTruthy();
       }
     }
   });
@@ -175,12 +177,11 @@ test.describe('Portfolio Management', () => {
 
       // Should navigate to investment form or show modal
       const currentUrl = await portfolioPage.page.url();
-      const hasModal = await portfolioPage.page.locator('[role="dialog"], .modal').isVisible();
-      const isInvestmentForm =
-        currentUrl.includes('/investments') &&
-        (currentUrl.includes('/add') || currentUrl.includes('/new'));
+      const hasModal = await portfolioPage.page
+        .locator('[data-testid="portfolio-add-company-dialog"], [role="dialog"], .modal')
+        .isVisible();
 
-      expect(hasModal || isInvestmentForm).toBeTruthy();
+      expect(hasModal || currentUrl.includes('/portfolio/company/')).toBeTruthy();
 
       // Take screenshot of add investment flow
       await portfolioPage.takeScreenshot('add-investment-flow');
@@ -202,7 +203,7 @@ test.describe('Portfolio Management', () => {
 
       const currentUrl = await portfolioPage.page.url();
       const hasModal = await portfolioPage.page.locator('[role="dialog"], .modal').isVisible();
-      const isDetailView = currentUrl.includes('/investments/') || hasModal;
+      const isDetailView = currentUrl.includes('/portfolio/company/') || hasModal;
 
       if (isDetailView) {
         // Take screenshot of investment details
