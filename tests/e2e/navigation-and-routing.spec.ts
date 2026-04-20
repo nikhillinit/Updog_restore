@@ -87,14 +87,7 @@ test.describe('Navigation and Routing', () => {
 
   test('should handle direct URL navigation', async () => {
     // Test direct navigation to various routes
-    const routes = [
-      '/dashboard',
-      '/portfolio',
-      '/investments',
-      '/analytics',
-      '/fund-setup',
-      '/settings',
-    ];
+    const routes = ['/dashboard', '/portfolio', '/analytics', '/fund-setup', '/settings'];
 
     for (const route of routes) {
       try {
@@ -218,7 +211,7 @@ test.describe('Navigation and Routing', () => {
   });
 
   test('should handle page refresh on different routes', async () => {
-    const routes = ['dashboard', 'portfolio', 'investments'];
+    const routes = ['dashboard', 'portfolio'];
 
     for (const route of routes) {
       try {

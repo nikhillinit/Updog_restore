@@ -1,8 +1,3 @@
- 
- 
- 
- 
- 
 import { useFundContext } from '@/contexts/FundContext';
 import { Button } from '@/components/ui/button';
 import { ArrowLeft } from 'lucide-react';
@@ -33,13 +28,9 @@ export default function InvestmentsTable() {
         <div className="max-w-7xl mx-auto px-6 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-4">
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => setLocation('/investments')}
-              >
+              <Button variant="ghost" size="sm" onClick={() => setLocation('/portfolio')}>
                 <ArrowLeft className="h-4 w-4 mr-2" />
-                Back to Investments
+                Back to Portfolio
               </Button>
               <div>
                 <h1 className="text-2xl font-bold text-gray-900">Enhanced Investments Table</h1>

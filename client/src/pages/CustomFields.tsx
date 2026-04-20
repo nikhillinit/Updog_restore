@@ -82,7 +82,7 @@ export default function CustomFields() {
       const confirmed = window.confirm('You have unsaved changes. Are you sure you want to leave?');
       if (!confirmed) return;
     }
-    setLocation('/investments');
+    setLocation('/portfolio');
   };
 
   if (!currentFund) {
@@ -107,7 +107,7 @@ export default function CustomFields() {
             <div className="flex items-center space-x-4">
               <Button variant="ghost" size="sm" onClick={handleCancel}>
                 <ArrowLeft className="h-4 w-4 mr-2" />
-                Back to Investments
+                Back to Portfolio
               </Button>
               <div>
                 <h1 className="text-2xl font-bold text-gray-900">Custom Fields</h1>
