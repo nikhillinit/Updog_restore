@@ -131,5 +131,8 @@ describe('route governance registry', () => {
     expect(getRouteGovernanceEntry('/notion-integration')).toBeUndefined();
     expect(getRouteGovernanceEntry('/scenario-builder')).toBeUndefined();
     expect(getRouteGovernanceEntry('/dev-dashboard')).toBeUndefined();
+    expect(getRouteGovernanceEntry('/investments')).toBeUndefined();
+    expect(getRouteGovernanceEntry('/investments/:id')).toBeUndefined();
+    expect(getRouteGovernanceEntry('/investments/company/:id')).toBeUndefined();
   });
 });

@@ -163,6 +163,9 @@ describe('route perimeter governance', () => {
     '/scenario-builder',
     '/dev-dashboard',
     '/portfolio/1',
+    '/investments',
+    '/investments/1',
+    '/investments/company/1',
   ])('removes non-core internal route %s from the default runtime perimeter', async (path) => {
     await renderAt(path);
 
