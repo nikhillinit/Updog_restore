@@ -22,6 +22,8 @@ import {
 } from '../../../server/contracts/funds-endpoint-ownership';
 
 let app: express.Express;
+const fundRoutesModulePromise = import('../../../server/routes/funds');
+const registerRoutesModulePromise = import('../../../server/routes');
 
 describe('funds endpoint ownership manifest', () => {
   it('declares one supported canonical owner per endpoint on registerRoutes', () => {
@@ -72,7 +74,7 @@ beforeAll(async () => {
   app.use(express.json({ limit: '1mb' }));
 
   // Mount funds router at /api (same as routes.ts:40-41)
-  const fundRoutes = await import('../../../server/routes/funds');
+  const fundRoutes = await fundRoutesModulePromise;
   app.use('/api', fundRoutes.default);
 });
 
@@ -160,7 +162,7 @@ describe('registerRoutes() smoke proof', () => {
     smokeApp.set('trust proxy', false);
     smokeApp.use(express.json({ limit: '1mb' }));
 
-    const { registerRoutes } = await import('../../../server/routes');
+    const { registerRoutes } = await registerRoutesModulePromise;
     smokeServer = await registerRoutes(smokeApp);
   }, 30_000);
 

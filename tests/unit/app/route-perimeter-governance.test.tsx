@@ -1,5 +1,5 @@
 import React from 'react';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, render, screen } from '@testing-library/react';
 
 function passthrough(children: React.ReactNode) {
@@ -12,105 +12,121 @@ type FlagOverrides = Partial<{
   ui_catalog: boolean;
 }>;
 
-async function loadApp(flagOverrides: FlagOverrides = {}) {
-  vi.resetModules();
+const mocks = vi.hoisted(() => ({
+  flags: {
+    enable_lp_reporting: false,
+    onboarding_tour: false,
+    ui_catalog: false,
+  },
+  currentFund: { id: 42, name: 'Fund Forty Two', size: 50_000_000 },
+}));
 
-  const resolvedFlags = {
-    enable_lp_reporting: flagOverrides.enable_lp_reporting ?? false,
-    onboarding_tour: flagOverrides.onboarding_tour ?? false,
-    ui_catalog: flagOverrides.ui_catalog ?? false,
-  } as const;
-
-  vi.doMock('@/app/route-control-flags', () => ({
-    resolveRouteControlFlag: (flag: keyof typeof resolvedFlags) => resolvedFlags[flag],
-    useRouteControlFlag: (flag: keyof typeof resolvedFlags) => resolvedFlags[flag],
-  }));
-
-  vi.doMock('@/contexts/FundContext', () => ({
-    FundProvider: ({ children }: { children: React.ReactNode }) => passthrough(children),
-    useFundContext: () => ({
-      needsSetup: false,
-      isLoading: false,
-      currentFund: { id: 42, name: 'Fund Forty Two', size: 50_000_000 },
-    }),
-  }));
-  vi.doMock('@/contexts/LPContext', () => ({
-    LPProvider: ({ children }: { children: React.ReactNode }) => passthrough(children),
-  }));
-  vi.doMock('@/providers/FeatureFlagProvider', () => ({
-    FeatureFlagProvider: ({ children }: { children: React.ReactNode }) => passthrough(children),
-  }));
-  vi.doMock('@/lib/chart-theme/chart-theme-provider', () => ({
-    BrandChartThemeProvider: ({ children }: { children: React.ReactNode }) => passthrough(children),
-  }));
-  vi.doMock('@/components/ui/error-boundary', () => ({
-    ErrorBoundary: ({ children }: { children: React.ReactNode }) => passthrough(children),
-  }));
-  vi.doMock('@/components/ui/tooltip', () => ({
-    TooltipProvider: ({ children }: { children: React.ReactNode }) => passthrough(children),
-  }));
-  vi.doMock('@/components/layout/sidebar', () => ({
-    default: ({ activeModule }: { activeModule: string }) => (
-      <div data-testid="sidebar">{activeModule}</div>
-    ),
-  }));
-  vi.doMock('@/components/layout/dynamic-fund-header', () => ({ default: () => null }));
-  vi.doMock('@/components/StagingRibbon', () => ({ StagingRibbon: () => null }));
-  vi.doMock('@/components/demo/DemoBanner', () => ({ default: () => null }));
-  vi.doMock('@/components/onboarding/GuidedTour', () => ({ GuidedTour: () => null }));
-  vi.doMock('@/components/ui/toaster', () => ({ Toaster: () => null }));
-  vi.doMock('@/components/AdminRoute', () => ({
-    AdminRoute: ({ children }: { children: React.ReactNode }) => passthrough(children),
-  }));
-
-  vi.doMock('@/pages/dashboard', () => ({ default: () => <div>Dashboard Page</div> }));
-  vi.doMock('@/pages/fund-setup', () => ({ default: () => <div>Fund Setup Page</div> }));
-  vi.doMock('@/pages/portfolio', () => ({ default: () => <div>Portfolio Page</div> }));
-  vi.doMock('@/pages/portfolio-company-summary', () => ({
-    default: () => <div>Portfolio Company Summary Page</div>,
-  }));
-  vi.doMock('@/pages/performance', () => ({ default: () => <div>Performance Page</div> }));
-  vi.doMock('@/pages/financial-modeling', () => ({
-    default: () => <div>Financial Modeling Page</div>,
-  }));
-  vi.doMock('@/pages/pipeline', () => ({ default: () => <div>Pipeline Page</div> }));
-  vi.doMock('@/pages/reports', () => ({ default: () => <div>Reports Page</div> }));
-  vi.doMock('@/pages/sensitivity-analysis', () => ({
-    default: () => <div>Sensitivity Analysis Page</div>,
-  }));
-  vi.doMock('@/pages/settings', () => ({ default: () => <div>Settings Page</div> }));
-  vi.doMock('@/pages/help', () => ({ default: () => <div>Help Page</div> }));
-  vi.doMock('@/pages/reserves-demo', () => ({ default: () => <div>Reserves Demo Page</div> }));
-  vi.doMock('@/pages/fund-model-results', () => ({
-    default: () => <div>Fund Model Results Page</div>,
-  }));
-  vi.doMock('@/pages/planning', () => ({ default: () => <div>Planning Page</div> }));
-  vi.doMock('@/pages/kpi-manager', () => ({ default: () => <div>KPI Manager Page</div> }));
-  vi.doMock('@/pages/kpi-submission', () => ({ default: () => <div>KPI Submission Page</div> }));
-  vi.doMock('@/pages/lp/dashboard', () => ({ default: () => <div>LP Dashboard Page</div> }));
-  vi.doMock('@/pages/shared-dashboard', () => ({
-    default: () => <div>Shared Dashboard Page</div>,
-  }));
-  vi.doMock('@/pages/portal/access-denied', () => ({
-    default: () => <div>Portal Access Denied Page</div>,
-  }));
-  vi.doMock('@/pages/not-found', () => ({ default: () => <div>Not Found Page</div> }));
-
-  return (await import('@/App')).default;
+function setFlags(flagOverrides: FlagOverrides = {}) {
+  mocks.flags.enable_lp_reporting = flagOverrides.enable_lp_reporting ?? false;
+  mocks.flags.onboarding_tour = flagOverrides.onboarding_tour ?? false;
+  mocks.flags.ui_catalog = flagOverrides.ui_catalog ?? false;
 }
 
+vi.mock('@/app/route-control-flags', () => ({
+  resolveRouteControlFlag: (flag: keyof typeof mocks.flags) => mocks.flags[flag],
+  useRouteControlFlag: (flag: keyof typeof mocks.flags) => mocks.flags[flag],
+}));
+
+vi.mock('@/contexts/FundContext', () => ({
+  FundProvider: ({ children }: { children: React.ReactNode }) => passthrough(children),
+  useFundContext: () => ({
+    needsSetup: false,
+    isLoading: false,
+    currentFund: mocks.currentFund,
+  }),
+}));
+
+vi.mock('@/contexts/LPContext', () => ({
+  LPProvider: ({ children }: { children: React.ReactNode }) => passthrough(children),
+}));
+
+vi.mock('@/providers/FeatureFlagProvider', () => ({
+  FeatureFlagProvider: ({ children }: { children: React.ReactNode }) => passthrough(children),
+}));
+
+vi.mock('@/lib/chart-theme/chart-theme-provider', () => ({
+  BrandChartThemeProvider: ({ children }: { children: React.ReactNode }) => passthrough(children),
+}));
+
+vi.mock('@/components/ui/error-boundary', () => ({
+  ErrorBoundary: ({ children }: { children: React.ReactNode }) => passthrough(children),
+}));
+
+vi.mock('@/components/ui/tooltip', () => ({
+  TooltipProvider: ({ children }: { children: React.ReactNode }) => passthrough(children),
+}));
+
+vi.mock('@/components/layout/sidebar', () => ({
+  default: ({ activeModule }: { activeModule: string }) => (
+    <div data-testid="sidebar">{activeModule}</div>
+  ),
+}));
+
+vi.mock('@/components/layout/dynamic-fund-header', () => ({ default: () => null }));
+vi.mock('@/components/StagingRibbon', () => ({ StagingRibbon: () => null }));
+vi.mock('@/components/demo/DemoBanner', () => ({ default: () => null }));
+vi.mock('@/components/onboarding/GuidedTour', () => ({ GuidedTour: () => null }));
+vi.mock('@/components/ui/toaster', () => ({ Toaster: () => null }));
+vi.mock('@/components/AdminRoute', () => ({
+  AdminRoute: ({ children }: { children: React.ReactNode }) => passthrough(children),
+}));
+
+vi.mock('@/pages/dashboard', () => ({ default: () => <div>Dashboard Page</div> }));
+vi.mock('@/pages/fund-setup', () => ({ default: () => <div>Fund Setup Page</div> }));
+vi.mock('@/pages/portfolio', () => ({ default: () => <div>Portfolio Page</div> }));
+vi.mock('@/pages/portfolio-company-summary', () => ({
+  default: () => <div>Portfolio Company Summary Page</div>,
+}));
+vi.mock('@/pages/performance', () => ({ default: () => <div>Performance Page</div> }));
+vi.mock('@/pages/financial-modeling', () => ({
+  default: () => <div>Financial Modeling Page</div>,
+}));
+vi.mock('@/pages/pipeline', () => ({ default: () => <div>Pipeline Page</div> }));
+vi.mock('@/pages/reports', () => ({ default: () => <div>Reports Page</div> }));
+vi.mock('@/pages/sensitivity-analysis', () => ({
+  default: () => <div>Sensitivity Analysis Page</div>,
+}));
+vi.mock('@/pages/settings', () => ({ default: () => <div>Settings Page</div> }));
+vi.mock('@/pages/help', () => ({ default: () => <div>Help Page</div> }));
+vi.mock('@/pages/reserves-demo', () => ({ default: () => <div>Reserves Demo Page</div> }));
+vi.mock('@/pages/fund-model-results', () => ({
+  default: () => <div>Fund Model Results Page</div>,
+}));
+vi.mock('@/pages/planning', () => ({ default: () => <div>Planning Page</div> }));
+vi.mock('@/pages/kpi-manager', () => ({ default: () => <div>KPI Manager Page</div> }));
+vi.mock('@/pages/kpi-submission', () => ({ default: () => <div>KPI Submission Page</div> }));
+vi.mock('@/pages/lp/dashboard', () => ({ default: () => <div>LP Dashboard Page</div> }));
+vi.mock('@/pages/shared-dashboard', () => ({
+  default: () => <div>Shared Dashboard Page</div>,
+}));
+vi.mock('@/pages/portal/access-denied', () => ({
+  default: () => <div>Portal Access Denied Page</div>,
+}));
+vi.mock('@/pages/not-found', () => ({ default: () => <div>Not Found Page</div> }));
+
 async function renderAt(path: string, flags?: FlagOverrides) {
+  setFlags(flags);
   window.history.pushState({}, '', path);
-  const App = await loadApp(flags);
+  const App = (await import('@/App')).default;
   render(<App />);
 }
 
 describe('route perimeter governance', () => {
+  beforeEach(() => {
+    setFlags();
+    vi.clearAllMocks();
+    vi.resetModules();
+  });
+
   afterEach(() => {
     cleanup();
     localStorage.clear();
     window.history.pushState({}, '', '/');
-    vi.resetModules();
   });
 
   it('keeps the home route live as the entrypoint into the core workflow', async () => {
@@ -135,6 +151,7 @@ describe('route perimeter governance', () => {
     ['/fund-model-results/42', 'Fund Model Results Page'],
   ])('keeps mounted route %s live', async (path, expectedText) => {
     await renderAt(path);
+
     expect(await screen.findByText(expectedText)).toBeInTheDocument();
   });
 
