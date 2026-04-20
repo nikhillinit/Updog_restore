@@ -13,8 +13,6 @@ export const LEGACY_ROUTE_MAP = new Map<string, string>([
 
   // Portfolio-related → Portfolio
   ['/portfolio', '/portfolio'], // Already correct
-  ['/investments', '/portfolio'],
-  ['/investments-table', '/portfolio'],
   ['/cap-tables', '/portfolio'], // Now a tab in company detail
   ['/companies', '/portfolio'],
   ['/portfolio-analytics', '/portfolio'],

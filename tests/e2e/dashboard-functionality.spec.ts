@@ -84,16 +84,6 @@ test.describe('Dashboard Functionality', () => {
     // Return to dashboard
     await navigationPage.navigateToDashboard();
 
-    // Test navigation to investments
-    const investmentsNavVisible = await dashboardPage.investmentsNavButton.isVisible();
-    if (investmentsNavVisible) {
-      await dashboardPage.navigateToInvestments();
-      await expect(dashboardPage.page).toHaveURL(/\/investments/);
-    }
-
-    // Return to dashboard
-    await navigationPage.navigateToDashboard();
-
     // Test navigation to analytics
     const analyticsNavVisible = await dashboardPage.analyticsNavButton.isVisible();
     if (analyticsNavVisible) {
@@ -115,8 +105,8 @@ test.describe('Dashboard Functionality', () => {
         .first()
         .isVisible();
 
-      // Either we navigate to investments page or a modal appears
-      const hasInvestmentFlow = currentUrl.includes('/investments') || modalVisible;
+      // The removed-perimeter policy keeps investment creation inside owned portfolio flows.
+      const hasInvestmentFlow = currentUrl.includes('/portfolio/company/') || modalVisible;
       expect(hasInvestmentFlow).toBeTruthy();
     }
   });
