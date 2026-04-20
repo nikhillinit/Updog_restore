@@ -16,6 +16,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { AddCompanyDialog } from './AddCompanyDialog';
 import { useFundContext } from '@/contexts/FundContext';
 import { usePortfolioCompanies } from '@/hooks/use-fund-data';
 import {
@@ -129,13 +130,7 @@ function EmptyState({ onGetStarted }: { onGetStarted: () => void }) {
   );
 }
 
-function PortfolioCard({
-  company,
-  onView,
-}: {
-  company: PortfolioRow;
-  onView: () => void;
-}) {
+function PortfolioCard({ company, onView }: { company: PortfolioRow; onView: () => void }) {
   return (
     <div className="bg-white border border-presson-borderSubtle rounded-lg p-4 space-y-3">
       <div className="flex justify-between items-start gap-3">
@@ -184,6 +179,7 @@ export function OverviewTab() {
   const searchParams = useMemo(() => new URLSearchParams(search), [search]);
   const activeAsOf = searchParams.get('asOf');
 
+  const [showAddCompanyDialog, setShowAddCompanyDialog] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState('all');
   const [filterSector, setFilterSector] = useState('all');
@@ -322,7 +318,9 @@ export function OverviewTab() {
     }
 
     const nextSearch = nextParams.toString();
-    setLocation(`${location.split('?')[0]}${nextSearch ? `?${nextSearch}` : ''}`, { replace: true });
+    setLocation(`${location.split('?')[0]}${nextSearch ? `?${nextSearch}` : ''}`, {
+      replace: true,
+    });
   };
 
   const handleMonthChange = (monthValue: string) => {
@@ -334,7 +332,10 @@ export function OverviewTab() {
   };
 
   const handleAddCompany = () => {
-    // TODO: navigate to add company flow
+    if (isHistoricalMode) {
+      return;
+    }
+    setShowAddCompanyDialog(true);
   };
 
   const handleViewCompany = (_id: number) => {
@@ -463,6 +464,8 @@ export function OverviewTab() {
               size="sm"
               className="bg-presson-accent hover:bg-presson-accent/90 text-presson-accentOn"
               onClick={handleAddCompany}
+              disabled={isHistoricalMode}
+              data-testid="portfolio-add-company-button"
             >
               <Plus className="h-4 w-4 mr-2" />
               Add Company
@@ -471,11 +474,20 @@ export function OverviewTab() {
         </div>
       </PremiumCard>
 
+      <AddCompanyDialog
+        fundId={fundId}
+        open={showAddCompanyDialog}
+        onOpenChange={setShowAddCompanyDialog}
+      />
+
       {isLoading ? (
         <div className="space-y-4">
           <div className="grid gap-4 md:grid-cols-4">
             {Array.from({ length: 4 }).map((_, index) => (
-              <div key={index} className="h-28 rounded-lg border border-presson-borderSubtle bg-white" />
+              <div
+                key={index}
+                className="h-28 rounded-lg border border-presson-borderSubtle bg-white"
+              />
             ))}
           </div>
           <div className="h-72 rounded-lg border border-presson-borderSubtle bg-white" />
@@ -516,7 +528,9 @@ export function OverviewTab() {
             <KpiCard
               label="Total Invested"
               value={formatCurrency(portfolioMetrics.totalInvested)}
-              delta={isHistoricalMode ? `As of ${historicalLabel}` : 'Capital deployed across portfolio'}
+              delta={
+                isHistoricalMode ? `As of ${historicalLabel}` : 'Capital deployed across portfolio'
+              }
               intent="neutral"
             />
             <KpiCard

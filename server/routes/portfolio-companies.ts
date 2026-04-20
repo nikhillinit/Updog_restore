@@ -143,13 +143,7 @@ router.post('/portfolio-companies', async (req: Request, res: Response) => {
       return res['status'](400)['json'](error);
     }
 
-    const companyData = {
-      name: result.data.name,
-      sector: result.data.sector,
-      stage: result.data.stage,
-      investmentAmount: result.data.investmentAmount,
-    };
-    const company = await storage.createPortfolioCompany(companyData);
+    const company = await storage.createPortfolioCompany(result.data);
     return res['status'](201)['json'](company);
   } catch (error) {
     const apiError: ApiError = {

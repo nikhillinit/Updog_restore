@@ -83,7 +83,11 @@ export default defineConfig({
     // Extended functionality
     {
       name: 'extended',
-      testMatch: ['**/user-authentication.spec.ts', '**/portfolio-management.spec.ts'],
+      testMatch: [
+        '**/user-authentication.spec.ts',
+        '**/portfolio-management.spec.ts',
+        '**/portfolio-add-company.spec.ts',
+      ],
       use: { ...devices['Desktop Chrome'] },
       dependencies: ['core'],
     },

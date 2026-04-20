@@ -114,6 +114,19 @@ export interface IStorage {
   createActivity(_activity: InsertActivity): Promise<Activity>;
 }
 
+type NormalizedInsertPortfolioCompany = {
+  fundId?: number | null;
+  name: string;
+  sector: string;
+  stage: string;
+  investmentAmount: string | number;
+  currentValuation?: string | number | null;
+  foundedYear?: number | null;
+  status?: string | null;
+  description?: string | null;
+  dealTags?: string[] | null;
+};
+
 export class MemStorage implements IStorage {
   readonly kind = 'memory' as const;
   readonly capabilities = {
@@ -349,17 +362,24 @@ export class MemStorage implements IStorage {
   }
 
   async createPortfolioCompany(insertCompany: InsertPortfolioCompany): Promise<PortfolioCompany> {
+    const normalizedCompany = insertCompany as NormalizedInsertPortfolioCompany;
     const id = this.currentCompanyId++;
     const company: PortfolioCompany = {
-      ...insertCompany,
       id,
+      fundId: normalizedCompany.fundId ?? null,
+      name: normalizedCompany.name,
+      sector: normalizedCompany.sector,
+      stage: normalizedCompany.stage,
+      investmentAmount: String(normalizedCompany.investmentAmount),
+      currentValuation:
+        normalizedCompany.currentValuation != null
+          ? String(normalizedCompany.currentValuation)
+          : null,
+      foundedYear: normalizedCompany.foundedYear ?? null,
       createdAt: new Date(),
-      status: 'active', // Default value from schema
-      description: null, // Optional field
-      fundId: null, // Optional field
-      currentValuation: null, // Optional field
-      foundedYear: null, // Optional field
-      dealTags: null, // Optional field
+      status: normalizedCompany.status ?? 'active',
+      description: normalizedCompany.description ?? null,
+      dealTags: normalizedCompany.dealTags ?? null,
     };
     this.portfolioCompanies.set(id, company);
     return company;
@@ -545,15 +565,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createPortfolioCompany(insertCompany: InsertPortfolioCompany): Promise<PortfolioCompany> {
-    const [company] = await db
-      .insert(portfolioCompanies)
-      .values({
-        name: insertCompany.name,
-        sector: insertCompany.sector,
-        stage: insertCompany.stage,
-        investmentAmount: insertCompany.investmentAmount.toString(),
-      })
-      .returning();
+    const [company] = await db.insert(portfolioCompanies).values(insertCompany).returning();
     if (!company) throw new Error('Failed to create portfolio company');
     return company;
   }
