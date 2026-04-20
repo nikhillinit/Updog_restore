@@ -42,6 +42,7 @@ describe('route governance registry', () => {
         '/fund-setup',
         '/dashboard',
         '/portfolio',
+        '/portfolio/company/:id',
         '/pipeline',
         '/fund-model-results/:fundId',
         '/reports',

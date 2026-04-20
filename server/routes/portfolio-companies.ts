@@ -94,7 +94,9 @@ router['get']('/portfolio-companies', async (req: Request, res: Response) => {
 router['get']('/portfolio-companies/:id', async (req: Request, res: Response) => {
   try {
     const idParam = req.params['id'];
+    const fundIdQuery = req.query['fundId'];
     const id = toNumber(idParam, 'ID');
+    let fundId: number | undefined;
 
     if (id <= 0) {
       const error: ApiError = {
@@ -104,11 +106,26 @@ router['get']('/portfolio-companies/:id', async (req: Request, res: Response) =>
       return res['status'](400)['json'](error);
     }
 
+    if (fundIdQuery) {
+      const parsedFundId = toNumber(fundIdQuery as string, 'fund ID');
+      if (parsedFundId <= 0) {
+        const error: ApiError = {
+          error: 'Invalid fund ID query',
+          message: `Fund ID must be a positive integer, received: ${fundIdQuery}`,
+        };
+        return res['status'](400)['json'](error);
+      }
+      fundId = parsedFundId;
+    }
+
     const company = await storage.getPortfolioCompany(id);
-    if (!company) {
+    if (!company || (fundId !== undefined && company.fundId !== fundId)) {
       const error: ApiError = {
         error: 'Company not found',
-        message: `No portfolio company exists with ID: ${id}`,
+        message:
+          fundId !== undefined
+            ? `No portfolio company exists for fund ${fundId} with ID: ${id}`
+            : `No portfolio company exists with ID: ${id}`,
       };
       return res['status'](404)['json'](error);
     }
@@ -117,7 +134,9 @@ router['get']('/portfolio-companies/:id', async (req: Request, res: Response) =>
   } catch (error) {
     if (error instanceof NumberParseError) {
       const apiError: ApiError = {
-        error: 'Invalid company ID',
+        error: error.message.toLowerCase().includes('fund id')
+          ? 'Invalid fund ID query'
+          : 'Invalid company ID',
         message: error.message,
       };
       return res['status'](400)['json'](apiError);

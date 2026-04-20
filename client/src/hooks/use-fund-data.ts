@@ -40,6 +40,29 @@ export interface PortfolioCompaniesResponse {
   meta: PortfolioCompaniesMeta;
 }
 
+export function usePortfolioCompany(fundId?: number, companyId?: number) {
+  const { data, isLoading, error } = useQuery<PortfolioCompany>({
+    queryKey: ['portfolio-company', fundId ?? null, companyId ?? null],
+    enabled: !!fundId && !!companyId,
+    queryFn: async () => {
+      const searchParams = new URLSearchParams();
+      searchParams.set('fundId', String(fundId));
+
+      return apiRequest<PortfolioCompany>(
+        'GET',
+        `/api/portfolio-companies/${companyId}?${searchParams.toString()}`
+      );
+    },
+    staleTime: 60_000,
+  });
+
+  return {
+    company: data ?? null,
+    isLoading,
+    error,
+  };
+}
+
 export function usePortfolioCompanies(
   fundId?: number,
   options: { asOf?: string } = {}

@@ -88,6 +88,58 @@ describe('OverviewTab', () => {
     expect(screen.getAllByText('Total Invested').length).toBeGreaterThan(0);
     expect(screen.getAllByText('Current Value').length).toBeGreaterThan(0);
     expect(screen.getAllByText('Average MOIC').length).toBeGreaterThan(0);
+    const detailButtons = screen.getAllByRole('button', { name: /view techcorp details/i });
+    expect(detailButtons.length).toBeGreaterThan(0);
+    for (const button of detailButtons) {
+      expect(button).not.toBeDisabled();
+    }
+  });
+
+  it('navigates to the mounted company summary route from live detail controls', () => {
+    mockUsePortfolioCompanies.mockReturnValue({
+      portfolioCompanies: [
+        {
+          id: 1,
+          fundId: 1,
+          name: 'TechCorp',
+          sector: 'Fintech',
+          stage: 'Series B',
+          currentStage: 'Series B',
+          investmentAmount: '5000000',
+          investmentDate: new Date('2024-01-15T00:00:00.000Z'),
+          currentValuation: '12500000',
+          foundedYear: 2019,
+          status: 'Growing',
+          description: null,
+          dealTags: ['B2B'],
+          createdAt: new Date('2024-01-15T00:00:00.000Z'),
+          deployedReservesCents: 0,
+          plannedReservesCents: 0,
+          exitMoicBps: null,
+          ownershipCurrentPct: '8.5000',
+          allocationCapCents: null,
+          allocationReason: null,
+          allocationIteration: 0,
+          lastAllocationAt: null,
+          allocationVersion: 1,
+        },
+      ],
+      meta: {
+        mode: 'live',
+        requestedAsOf: null,
+        resolvedAsOf: null,
+        source: 'live',
+        historicalAvailable: false,
+      },
+      isLoading: false,
+      error: null,
+    });
+
+    renderOverviewTab();
+
+    fireEvent.click(screen.getAllByRole('button', { name: /view techcorp details/i })[0]!);
+
+    expect(mockSetLocation).toHaveBeenCalledWith('/portfolio/company/1');
   });
 
   it('shows historical-mode notice and resets URL state back to today', () => {
@@ -214,7 +266,33 @@ describe('OverviewTab', () => {
 
   it('keeps company creation disabled in historical mode', () => {
     mockUsePortfolioCompanies.mockReturnValue({
-      portfolioCompanies: [],
+      portfolioCompanies: [
+        {
+          id: 1,
+          fundId: 1,
+          name: 'TechCorp',
+          sector: 'Fintech',
+          stage: 'Series B',
+          currentStage: 'Series B',
+          investmentAmount: '5000000',
+          investmentDate: new Date('2024-01-15T00:00:00.000Z'),
+          currentValuation: '9800000',
+          foundedYear: 2019,
+          status: 'Growing',
+          description: null,
+          dealTags: ['B2B'],
+          createdAt: new Date('2024-01-15T00:00:00.000Z'),
+          deployedReservesCents: 0,
+          plannedReservesCents: 0,
+          exitMoicBps: null,
+          ownershipCurrentPct: '8.5000',
+          allocationCapCents: null,
+          allocationReason: null,
+          allocationIteration: 0,
+          lastAllocationAt: null,
+          allocationVersion: 1,
+        },
+      ],
       meta: {
         mode: 'historical',
         requestedAsOf: '2025-03',
@@ -229,5 +307,11 @@ describe('OverviewTab', () => {
     renderOverviewTab();
 
     expect(screen.getByRole('button', { name: /^add company$/i })).toBeDisabled();
+    const unavailableDetails = screen.getAllByRole('button', {
+      name: /details unavailable while viewing historical data/i,
+    });
+    for (const button of unavailableDetails) {
+      expect(button).toBeDisabled();
+    }
   });
 });
