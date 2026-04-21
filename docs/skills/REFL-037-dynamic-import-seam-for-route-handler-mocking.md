@@ -1,6 +1,8 @@
 ---
 id: REFL-037
 title: Dynamic-Import Seam for Route-Handler Mocking
+status: DRAFT
+date: 2026-04-08
 severity: medium
 category: Test Infrastructure
 discovered: 2026-04-08
