@@ -145,7 +145,9 @@ canonical Windows verification path:
 
 The repo should still harden the parts it controls:
 
-- `.npmrc` should pin `script-shell=C:\Windows\System32\cmd.exe`
+- Repo-level `.npmrc` should NOT pin `script-shell=C:\Windows\System32\cmd.exe`;
+  Windows shell hardening should live in user-level npm config or a Windows-only
+  bootstrap helper
 - Windows-sensitive Vite scripts should prefer `npx vite`
 - Reset guides must not reference npm scripts that do not exist
 

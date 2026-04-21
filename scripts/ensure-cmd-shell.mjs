@@ -1,5 +1,6 @@
 // scripts/ensure-cmd-shell.mjs
-// Auto-configures npm to use cmd.exe on Windows (prevents Git Bash shim issues)
+// Auto-configures npm to use cmd.exe on Windows at user scope
+// (prevents Git Bash shim issues without poisoning cross-platform repo config)
 
 import { execSync } from "node:child_process";
 import os from "node:os";
@@ -9,7 +10,9 @@ if (os.platform() === "win32") {
     const out = execSync("npm config get script-shell", { encoding: "utf-8" }).trim().toLowerCase();
 
     if (!out.includes("cmd.exe")) {
-      execSync('npm config set script-shell "C:\\Windows\\System32\\cmd.exe"', { stdio: "inherit" });
+      execSync('npm config set --location=user script-shell "C:\\Windows\\System32\\cmd.exe"', {
+        stdio: "inherit",
+      });
       console.log("[ensure-cmd-shell] ✅ Set npm script-shell to cmd.exe");
     } else {
       console.log("[ensure-cmd-shell] ✅ npm script-shell already configured correctly");
