@@ -1,6 +1,8 @@
 ---
 id: REFL-031
 title: as-const Literal Types Prevent Arithmetic Reassignment
+status: DRAFT
+date: 2026-03-23
 severity: medium
 category: Infrastructure
 discovered: 2026-03-23

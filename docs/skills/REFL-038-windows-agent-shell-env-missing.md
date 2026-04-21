@@ -1,6 +1,8 @@
 ---
 id: REFL-038
 title: Windows Agent Execution Paths Can Lose COMSPEC and Profile Env
+status: DRAFT
+date: 2026-04-10
 severity: high
 category: Development Environment
 discovered: 2026-04-10

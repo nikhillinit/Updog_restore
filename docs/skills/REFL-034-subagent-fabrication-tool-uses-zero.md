@@ -3,6 +3,8 @@ id: REFL-034
 title:
   Subagent Can Fabricate Success With tool_uses=0 — Verify File System Before
   Posting
+status: DRAFT
+date: 2026-04-07
 severity: high
 category: Infrastructure
 discovered: 2026-04-07
