@@ -23,12 +23,13 @@
 import { randomUUID } from 'node:crypto';
 import { vi } from 'vitest';
 import type { SQL } from 'drizzle-orm';
+import { safeMockClearAllMocks } from '../../shared/utils/safe-property-access';
 
 // Postgres-compatible error class for constraint violations
 class PostgresError extends Error {
   code: string;
-  constraint?: string;
-  table?: string;
+  constraint: string | undefined;
+  table: string | undefined;
 
   constructor(message: string, code: string, constraint?: string, table?: string) {
     super(message);
@@ -42,6 +43,37 @@ class PostgresError extends Error {
 // Mock result types
 interface MockQueryResult {
   id?: string | number;
+  analysis_end?: unknown;
+  analysis_start?: unknown;
+  base_snapshot_id?: unknown;
+  baseline_id?: unknown;
+  confidence?: unknown;
+  confidence_score?: unknown;
+  created_by?: unknown;
+  data_integrity_score?: unknown;
+  data_quality_score?: unknown;
+  escalation_level?: unknown;
+  fund_id?: unknown;
+  idempotency_key?: unknown;
+  is_active?: unknown;
+  is_default?: unknown;
+  lot_type?: unknown;
+  name?: unknown;
+  occurrence_count?: unknown;
+  operator?: unknown;
+  period_end?: unknown;
+  period_start?: unknown;
+  restoration_duration_ms?: unknown;
+  secondary_threshold?: unknown;
+  severity?: unknown;
+  source_run_id?: unknown;
+  status?: unknown;
+  suppression_period_minutes?: unknown;
+  target_snapshot_id?: unknown;
+  trigger_count?: unknown;
+  updatedAt?: unknown;
+  updated_at?: unknown;
+  variance_report_id?: unknown;
   [key: string]: unknown;
 }
 
@@ -53,11 +85,8 @@ interface MockExecuteResult extends Array<MockQueryResult> {
 }
 
 // Constraint validation types
-type ConstraintCheckFn = (row: Record<string, unknown>) => boolean;
-type ConstraintUniqueFn = (
-  row: Record<string, unknown>,
-  existingData: Record<string, unknown>[]
-) => boolean;
+type ConstraintCheckFn = (row: MockQueryResult) => boolean;
+type ConstraintUniqueFn = (row: MockQueryResult, existingData: MockQueryResult[]) => boolean;
 
 interface TableConstraints {
   enums?: Record<string, string[]>;
@@ -155,7 +184,7 @@ class DatabaseMock {
         status: ['active', 'archived', 'processing', 'failed'],
       },
       checks: {
-        data_integrity_score: (row: Record<string, unknown>) => {
+        data_integrity_score: (row: MockQueryResult) => {
           if (row.data_integrity_score === undefined || row.data_integrity_score === null)
             return true;
           const score = parseFloat(String(row.data_integrity_score));
@@ -175,12 +204,12 @@ class DatabaseMock {
         ],
       },
       checks: {
-        confidence_score: (row: Record<string, unknown>) => {
+        confidence_score: (row: MockQueryResult) => {
           if (row.confidence_score === undefined || row.confidence_score === null) return true;
           const score = parseFloat(String(row.confidence_score));
           return score >= 0.0 && score <= 1.0;
         },
-        self_comparison: (row: Record<string, unknown>) => {
+        self_comparison: (row: MockQueryResult) => {
           return row.base_snapshot_id !== row.target_snapshot_id;
         },
       },
@@ -208,7 +237,7 @@ class DatabaseMock {
         status: ['pending', 'in_progress', 'completed', 'failed', 'cancelled'],
       },
       checks: {
-        restoration_duration_ms: (row: Record<string, unknown>) => {
+        restoration_duration_ms: (row: MockQueryResult) => {
           if (row.restoration_duration_ms === undefined || row.restoration_duration_ms === null)
             return true;
           return parseFloat(String(row.restoration_duration_ms)) >= 0;
@@ -243,13 +272,13 @@ class DatabaseMock {
         baseline_type: ['initial', 'quarterly', 'annual', 'milestone', 'custom'],
       },
       checks: {
-        period_ordering: (row: Record<string, unknown>) => {
+        period_ordering: (row: MockQueryResult) => {
           if (row.period_start && row.period_end) {
             return new Date(String(row.period_end)) > new Date(String(row.period_start));
           }
           return true;
         },
-        confidence_bounds: (row: Record<string, unknown>) => {
+        confidence_bounds: (row: MockQueryResult) => {
           if (row.confidence !== undefined && row.confidence !== null) {
             const conf = parseFloat(String(row.confidence));
             return conf >= 0.0 && conf <= 1.0;
@@ -258,10 +287,7 @@ class DatabaseMock {
         },
       },
       unique: {
-        fund_baselines_default_unique: (
-          row: Record<string, unknown>,
-          existingData: Record<string, unknown>[]
-        ) => {
+        fund_baselines_default_unique: (row: MockQueryResult, existingData: MockQueryResult[]) => {
           // Only one default baseline per fund
           const isDefault =
             row.is_default === true || row.is_default === 'true' || row.is_default === 1;
@@ -272,7 +298,7 @@ class DatabaseMock {
             row.is_active === 'true' ||
             row.is_active === 1;
           if (isDefault && isActive) {
-            const existingDefault = existingData.find((r: Record<string, unknown>) => {
+            const existingDefault = existingData.find((r: MockQueryResult) => {
               const rIsDefault =
                 r.is_default === true || r.is_default === 'true' || r.is_default === 1;
               const rIsActive =
@@ -290,14 +316,14 @@ class DatabaseMock {
           return true;
         },
         fund_baselines_source_run_unique: (
-          row: Record<string, unknown>,
-          existingData: Record<string, unknown>[]
+          row: MockQueryResult,
+          existingData: MockQueryResult[]
         ) => {
           if (row.source_run_id === undefined || row.source_run_id === null) {
             return true;
           }
 
-          const existingRunBaseline = existingData.find((r: Record<string, unknown>) => {
+          const existingRunBaseline = existingData.find((r: MockQueryResult) => {
             return r.fund_id === row.fund_id && r.source_run_id === row.source_run_id;
           });
 
@@ -324,13 +350,13 @@ class DatabaseMock {
         risk_level: ['low', 'medium', 'high', 'critical'],
       },
       checks: {
-        analysis_ordering: (row: Record<string, unknown>) => {
+        analysis_ordering: (row: MockQueryResult) => {
           if (row.analysis_start && row.analysis_end) {
             return new Date(String(row.analysis_end)) >= new Date(String(row.analysis_start));
           }
           return true;
         },
-        data_quality_bounds: (row: Record<string, unknown>) => {
+        data_quality_bounds: (row: MockQueryResult) => {
           if (row.data_quality_score !== undefined && row.data_quality_score !== null) {
             const score = parseFloat(String(row.data_quality_score));
             return score >= 0.0 && score <= 1.0;
@@ -352,13 +378,13 @@ class DatabaseMock {
         status: ['active', 'acknowledged', 'resolved', 'dismissed'],
       },
       checks: {
-        occurrence_count_min: (row: Record<string, unknown>) => {
+        occurrence_count_min: (row: MockQueryResult) => {
           if (row.occurrence_count !== undefined && row.occurrence_count !== null) {
             return parseInt(String(row.occurrence_count)) >= 1;
           }
           return true;
         },
-        escalation_level_min: (row: Record<string, unknown>) => {
+        escalation_level_min: (row: MockQueryResult) => {
           if (row.escalation_level !== undefined && row.escalation_level !== null) {
             return parseInt(String(row.escalation_level)) >= 0;
           }
@@ -380,7 +406,7 @@ class DatabaseMock {
         check_frequency: ['realtime', 'hourly', 'daily', 'weekly'],
       },
       checks: {
-        suppression_period_min: (row: Record<string, unknown>) => {
+        suppression_period_min: (row: MockQueryResult) => {
           if (
             row.suppression_period_minutes !== undefined &&
             row.suppression_period_minutes !== null
@@ -389,13 +415,13 @@ class DatabaseMock {
           }
           return true;
         },
-        trigger_count_min: (row: Record<string, unknown>) => {
+        trigger_count_min: (row: MockQueryResult) => {
           if (row.trigger_count !== undefined && row.trigger_count !== null) {
             return parseInt(String(row.trigger_count)) >= 0;
           }
           return true;
         },
-        between_operator_requires_secondary: (row: Record<string, unknown>) => {
+        between_operator_requires_secondary: (row: MockQueryResult) => {
           if (row.operator === 'between') {
             return row.secondary_threshold !== undefined && row.secondary_threshold !== null;
           }
@@ -410,11 +436,11 @@ class DatabaseMock {
     // Investment lots constraints
     this.constraints.set('investment_lots', {
       checks: {
-        lot_type_valid: (row: Record<string, unknown>) => {
+        lot_type_valid: (row: MockQueryResult) => {
           if (row.lot_type === undefined || row.lot_type === null) return true;
           return ['initial', 'follow_on', 'secondary'].includes(String(row.lot_type));
         },
-        idempotency_key_length: (row: Record<string, unknown>) => {
+        idempotency_key_length: (row: MockQueryResult) => {
           if (row.idempotency_key !== undefined && row.idempotency_key !== null) {
             const len = String(row.idempotency_key).length;
             return len >= 1 && len <= 128;
@@ -424,8 +450,8 @@ class DatabaseMock {
       },
       unique: {
         investment_lots_idempotency_unique: (
-          row: Record<string, unknown>,
-          existingData: Record<string, unknown>[]
+          row: MockQueryResult,
+          existingData: MockQueryResult[]
         ) => {
           if (row.idempotency_key === undefined || row.idempotency_key === null) return true;
           const key = String(row.idempotency_key);
@@ -446,7 +472,7 @@ class DatabaseMock {
 
     this.constraints.set('forecast_snapshots', {
       checks: {
-        status_valid: (row: Record<string, unknown>) => {
+        status_valid: (row: MockQueryResult) => {
           if (row.status === undefined || row.status === null) return true;
           return ['pending', 'calculating', 'complete', 'error'].includes(String(row.status));
         },
@@ -2467,7 +2493,7 @@ class DatabaseMock {
   reset(): void {
     this.clearMockData();
     this.clearCallHistory();
-    vi.clearAllMocks();
+    safeMockClearAllMocks(vi);
   }
 }
 
