@@ -1,6 +1,8 @@
 ---
 id: REFL-036
 title: Silent Test Discovery Loss From __tests__ Directories Outside tests/unit/
+status: DRAFT
+date: 2026-04-07
 severity: high
 category: Test Infrastructure
 discovered: 2026-04-07

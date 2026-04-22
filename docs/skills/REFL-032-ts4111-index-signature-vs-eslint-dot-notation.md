@@ -1,6 +1,8 @@
 ---
 id: REFL-032
 title: TS4111 Index Signature Access Conflicts with ESLint Dot Notation
+status: DRAFT
+date: 2026-03-23
 severity: medium
 category: Infrastructure
 discovered: 2026-03-23

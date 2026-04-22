@@ -3,6 +3,8 @@ id: REFL-033
 title:
   Defensive Grep Before Destructive Action (and "Plan Complete" ≠ "Plan
   Binding")
+status: DRAFT
+date: 2026-04-06
 severity: high
 category: Process
 discovered: 2026-04-06

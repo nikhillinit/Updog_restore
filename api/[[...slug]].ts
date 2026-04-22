@@ -4,9 +4,10 @@
  */
 
 import type { VercelRequest, VercelResponse } from './_types';
+import type { Express } from 'express';
 
 // Lazy-load the app to handle potential ESM/CJS issues
-let app: any;
+let app: Express | undefined;
 
 async function getApp() {
   if (!app) {
@@ -15,7 +16,7 @@ async function getApp() {
 
     // Dynamic import for ESM compatibility
     const appModule = await import('../server/app.js');
-    const makeApp = appModule.makeApp || appModule.default?.makeApp;
+    const makeApp = appModule.makeApp ?? appModule.default;
 
     if (!makeApp) {
       throw new Error('Could not find makeApp export from server/app.js');
@@ -24,7 +25,7 @@ async function getApp() {
     app = makeApp();
 
     // Additional production optimizations for Vercel
-    if (process.env.VERCEL) {
+    if (process.env['VERCEL']) {
       app.disable('x-powered-by');
       app.set('trust proxy', 1);
     }
@@ -50,7 +51,12 @@ export default async (req: VercelRequest, res: VercelResponse) => {
     console.error('Failed to initialize Express app:', error);
     res.status(500).json({
       error: 'Internal Server Error',
-      message: process.env.NODE_ENV === 'development' ? error.message : undefined,
+      message:
+        process.env.NODE_ENV === 'development'
+          ? error instanceof Error
+            ? error.message
+            : String(error)
+          : undefined,
     });
   }
 };

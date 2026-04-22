@@ -1,6 +1,8 @@
 ---
 id: REFL-035
 title: Defensive Grep for Recovered Process Drafts Before Scoping Work
+status: DRAFT
+date: 2026-04-07
 severity: medium
 category: Process
 discovered: 2026-04-07

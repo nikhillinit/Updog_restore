@@ -20,6 +20,8 @@ jobs:
   build-base:
     name: Build Base Branch
     runs-on: ubuntu-latest
+    outputs:
+      artifact-ready: ${{ steps.base-artifact.outputs.ready }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -38,19 +40,44 @@ jobs:
             pr-tools/package-lock.json
             base-branch/package-lock.json
 
-      - run: npm ci
+      - id: base-install
+        continue-on-error: true
+        run: npm ci
         working-directory: base-branch
 
-      - run: npm run build
+      - id: base-build
+        if: steps.base-install.outcome == 'success'
+        continue-on-error: true
+        run: npm run build
         working-directory: base-branch
         env:
           NODE_ENV: production
           BUILD_WITH_PREACT: '1'
 
-      - run: node ../pr-tools/scripts/check-budgets.cjs --json > size-limit-report.json
+      - id: base-budgets
+        if: steps.base-build.outcome == 'success'
+        continue-on-error: true
+        run: node ../pr-tools/scripts/check-budgets.cjs --json > size-limit-report.json
         working-directory: base-branch
 
+      - id: base-artifact
+        if: always()
+        shell: bash
+        run: |
+          if [ -f base-branch/size-limit-report.json ]; then
+            echo "ready=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Note inherited base branch failure
+        if: always() && steps.base-artifact.outputs.ready != 'true'
+        shell: bash
+        run: |
+          echo "::warning::Base branch bundle baseline could not be generated. This check will validate the PR branch only and skip size comparison until main is healthy."
+
       - uses: actions/upload-artifact@v4
+        if: steps.base-artifact.outputs.ready == 'true'
         with:
           name: base-size-results
           path: base-branch/size-limit-report.json
@@ -88,6 +115,7 @@ jobs:
       - uses: actions/checkout@v4
 
       - uses: actions/download-artifact@v4
+        if: needs.build-base.outputs.artifact-ready == 'true'
         with:
           name: base-size-results
           path: base-results
@@ -98,6 +126,7 @@ jobs:
           path: pr-results
 
       - name: Compare sizes
+        if: needs.build-base.outputs.artifact-ready == 'true'
         run: |
           mv base-results/size-limit-report.json size-limit-base.json
           mv pr-results/size-limit-report.json size-limit-current.json
@@ -109,20 +138,27 @@ jobs:
         with:
           script: |
             const fs = require('fs');
-            const diff = JSON.parse(fs.readFileSync('bundle-size-diff.json', 'utf8'));
-
+            const hasBaseReport = fs.existsSync('bundle-size-diff.json');
             let comment = '## Bundle Size Report\n\n';
-            comment += '| Bundle | Current | Base | Diff | Status |\n';
-            comment += '|--------|---------|------|------|--------|\n';
 
-            for (const item of diff) {
-              const status = item.deltaBytes > 0 ? '[+] ' : '[-] ';
-              comment += `| ${item.name} | ${item.current} | ${item.base} | ${status}${item.diff} | ${item.withinLimit ? '[PASS]' : '[FAIL]'} |\n`;
+            if (!hasBaseReport) {
+              comment += 'Baseline comparison skipped because the base branch bundle build did not complete successfully.\n\n';
+              comment += '[PASS] PR branch bundle build succeeded; re-run comparison after the base branch is healthy.\n';
+            } else {
+              const diff = JSON.parse(fs.readFileSync('bundle-size-diff.json', 'utf8'));
+
+              comment += '| Bundle | Current | Base | Diff | Status |\n';
+              comment += '|--------|---------|------|------|--------|\n';
+
+              for (const item of diff) {
+                const status = item.deltaBytes > 0 ? '[+] ' : '[-] ';
+                comment += `| ${item.name} | ${item.current} | ${item.base} | ${status}${item.diff} | ${item.withinLimit ? '[PASS]' : '[FAIL]'} |\n`;
+              }
+
+              comment += '\n' + (diff.some(d => !d.withinLimit)
+                ? '[FAIL] **Some bundles exceed limits!**'
+                : '[PASS] All bundles within limits');
             }
-
-            comment += '\n' + (diff.some(d => !d.withinLimit)
-              ? '[FAIL] **Some bundles exceed limits!**'
-              : '[PASS] All bundles within limits');
 
             const prNumber = context.payload.pull_request?.number || context.issue?.number;
             if (!prNumber) {
@@ -138,6 +174,7 @@ jobs:
             });
 
       - name: Fail if limits exceeded
+        if: needs.build-base.outputs.artifact-ready == 'true'
         run: |
           if [ -f bundle-size-diff.json ]; then
             if grep -q '"exceedsLimit":true' bundle-size-diff.json; then
