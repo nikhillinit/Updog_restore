@@ -1,6 +1,8 @@
 ---
 id: REFL-030
 title: Mock ID Generator Type Change Breaks Downstream Assertions
+status: DRAFT
+date: 2026-03-23
 severity: high
 category: Infrastructure
 discovered: 2026-03-23

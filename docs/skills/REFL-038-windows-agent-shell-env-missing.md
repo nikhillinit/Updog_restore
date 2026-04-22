@@ -1,6 +1,8 @@
 ---
 id: REFL-038
 title: Windows Agent Execution Paths Can Lose COMSPEC and Profile Env
+status: DRAFT
+date: 2026-04-10
 severity: high
 category: Development Environment
 discovered: 2026-04-10
@@ -145,7 +147,9 @@ canonical Windows verification path:
 
 The repo should still harden the parts it controls:
 
-- `.npmrc` should pin `script-shell=C:\Windows\System32\cmd.exe`
+- Repo-level `.npmrc` should NOT pin `script-shell=C:\Windows\System32\cmd.exe`;
+  Windows shell hardening should live in user-level npm config or a Windows-only
+  bootstrap helper
 - Windows-sensitive Vite scripts should prefer `npx vite`
 - Reset guides must not reference npm scripts that do not exist
 
