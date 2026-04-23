@@ -20,72 +20,19 @@ import {
   TrendingDown,
   Minus,
 } from 'lucide-react';
-
-interface DevHealthMetrics {
-  typescript: {
-    errorCount: number;
-    errors: Array<{ file: string; line: number; message: string }>;
-    trend: 'improving' | 'stable' | 'degrading';
-  };
-  tests: {
-    status: 'passing' | 'failing' | 'unknown';
-    passCount: number;
-    failCount: number;
-    coverage: number;
-    performance: {
-      avgDuration: number;
-      slowTests: Array<{ name: string; duration: number }>;
-    };
-  };
-  build: {
-    status: 'success' | 'failed' | 'building';
-    duration: number;
-    size: {
-      client: number;
-      server: number;
-    };
-    warnings: number;
-  };
-  monteCarlo: {
-    status: 'healthy' | 'degraded' | 'offline';
-    avgLatency: number;
-    throughput: number;
-    errorRate: number;
-  };
-  database: {
-    status: 'connected' | 'disconnected' | 'degraded';
-    latency: number;
-    connectionCount: number;
-  };
-  devServer: {
-    status: 'running' | 'stopped' | 'error';
-    port: number;
-    memory: number;
-    uptime: number;
-  };
-  git: {
-    branch: string;
-    uncommittedChanges: number;
-    lastCommit: {
-      hash: string;
-      message: string;
-      timestamp: string;
-    };
-  };
-}
-
-interface DashboardData {
-  timestamp: string;
-  overall: 'healthy' | 'warning' | 'critical';
-  metrics: DevHealthMetrics;
-}
+import type {
+  DashboardData,
+  DashboardOverall,
+  DevDashboardQuickFixResponse,
+  DevHealthMetrics,
+} from '@shared/types/dev-dashboard';
 
 type JsonRecord = Record<string, unknown>;
 
 const isRecord = (value: unknown): value is JsonRecord =>
   typeof value === 'object' && value !== null;
 
-const isDashboardOverall = (value: unknown): value is DashboardData['overall'] =>
+const isDashboardOverall = (value: unknown): value is DashboardOverall =>
   value === 'healthy' || value === 'warning' || value === 'critical';
 
 function parseDashboardData(value: unknown): DashboardData {
@@ -109,7 +56,7 @@ function parseDashboardData(value: unknown): DashboardData {
   };
 }
 
-function parseQuickFixResponse(value: unknown): { success: boolean; message: string } {
+function parseQuickFixResponse(value: unknown): DevDashboardQuickFixResponse {
   const success = isRecord(value) ? value['success'] : undefined;
   const message = isRecord(value) ? value['message'] : undefined;
 

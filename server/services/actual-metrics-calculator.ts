@@ -19,6 +19,7 @@ import type { ActualMetrics } from '@shared/types/metrics';
 import type { PortfolioCompany } from '@shared/schema';
 import { Decimal, toDecimal } from '@shared/lib/decimal-utils';
 import { xirrNewtonBisection, type CashFlow as XirrCashFlow } from '@shared/lib/finance/xirr';
+import { monthsSince } from '../lib/date-helpers';
 
 export class ActualMetricsCalculator {
   /**
@@ -77,7 +78,7 @@ export class ActualMetricsCalculator {
 
     // Calculate fund age (approximate using vintage year)
     const fundAgeMonths = fund.vintageYear
-      ? this.calculateMonthsSince(new Date(fund.vintageYear, 0, 1)) // Jan 1 of vintage year
+      ? monthsSince(new Date(fund.vintageYear, 0, 1)) // Jan 1 of vintage year
       : undefined;
 
     return {
@@ -152,8 +153,8 @@ export class ActualMetricsCalculator {
 
     cashflows.sort((a, b) => a.date.getTime() - b.date.getTime());
 
-    const meaningful = cashflows.filter((cashflow) =>
-      Number.isFinite(cashflow.amount) && cashflow.amount !== 0
+    const meaningful = cashflows.filter(
+      (cashflow) => Number.isFinite(cashflow.amount) && cashflow.amount !== 0
     );
     if (meaningful.length < 2) {
       return null;
@@ -171,16 +172,6 @@ export class ActualMetricsCalculator {
     }
 
     return new Decimal(result.irr);
-  }
-
-  /**
-   * Calculate months since a given date
-   */
-  private calculateMonthsSince(date: Date): number {
-    const now = new Date();
-    const years = now.getFullYear() - date.getFullYear();
-    const months = now.getMonth() - date.getMonth();
-    return years * 12 + months;
   }
 
   /**

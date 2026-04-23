@@ -6,10 +6,12 @@ import { isRecord } from '@shared/utils/type-guards';
  * @returns The message string if present, undefined otherwise
  */
 export function getErrorMessage(payload: unknown): string | undefined {
-  if (isRecord(payload) && typeof payload['message'] === 'string') {
-    return payload['message'];
+  if (!isRecord(payload)) {
+    return undefined;
   }
-  return undefined;
+
+  const message = payload['message'];
+  return typeof message === 'string' ? message : undefined;
 }
 
 /**
@@ -19,8 +21,5 @@ export function getErrorMessage(payload: unknown): string | undefined {
  */
 export async function readJsonResponse(response: Response): Promise<unknown> {
   const text = await response.text();
-  if (text.trim() === '') {
-    return null;
-  }
-  return JSON.parse(text) as unknown;
+  return text.trim() === '' ? null : (JSON.parse(text) as unknown);
 }
