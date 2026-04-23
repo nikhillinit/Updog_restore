@@ -5,15 +5,16 @@ import { createRequire } from 'module';
 import { promisify } from 'util';
 import { logger } from '../logger';
 import { isRecord } from '@shared/utils/type-guards';
+import type {
+  DevDashboardEvent,
+  DevDashboardRealtimeMetrics,
+  DashboardOverall,
+  MetricsUpdateEvent,
+  TypeScriptErrorMetric,
+} from '@shared/types/dev-dashboard';
 
 const execAsync = promisify(exec);
 const require = createRequire(import.meta.url);
-
-interface TypeScriptErrorMetric {
-  file: string;
-  line: number;
-  message: string;
-}
 
 interface TypeScriptMetrics {
   errorCount: number;
@@ -25,17 +26,7 @@ interface GitMetrics {
   uncommittedChanges: number;
 }
 
-interface DevServerMetrics {
-  status: 'running';
-  memory: number;
-  uptime: number;
-}
-
-interface CollectedMetrics {
-  typescript: TypeScriptMetrics;
-  git: GitMetrics;
-  devServer: DevServerMetrics;
-}
+type CollectedMetrics = DevDashboardRealtimeMetrics;
 
 interface FileWatcher {
   on(event: 'change', listener: () => void): FileWatcher;
@@ -74,38 +65,9 @@ function parseQuickTestSummary(raw: string): { passed: number; failed: number } 
   }
 }
 
-interface DevMetricsUpdate {
-  type: 'metrics_update';
-  data: {
-    timestamp: string;
-    overall: 'healthy' | 'warning' | 'critical';
-    changedMetrics: string[];
-    metrics: CollectedMetrics;
-  };
-}
-
-interface BuildEvent {
-  type: 'build_started' | 'build_completed' | 'build_failed';
-  data: {
-    timestamp: string;
-    duration?: number;
-    errors?: string[];
-  };
-}
-
-interface TestEvent {
-  type: 'test_started' | 'test_completed' | 'test_failed';
-  data: {
-    timestamp: string;
-    results?: {
-      passed: number;
-      failed: number;
-      coverage: number;
-    };
-  };
-}
-
-type DevDashboardEvent = DevMetricsUpdate | BuildEvent | TestEvent;
+type DevMetricsUpdate = Omit<MetricsUpdateEvent, 'data'> & {
+  data: Omit<MetricsUpdateEvent['data'], 'metrics'> & { metrics: CollectedMetrics };
+};
 
 class DevDashboardWebSocket {
   private io: SocketIOServer;
@@ -337,7 +299,7 @@ class DevDashboardWebSocket {
     return changes;
   }
 
-  private calculateOverallHealth(metrics: CollectedMetrics): 'healthy' | 'warning' | 'critical' {
+  private calculateOverallHealth(metrics: CollectedMetrics): DashboardOverall {
     const issues = [metrics.typescript?.errorCount > 0];
 
     const criticalIssues = issues.filter(Boolean).length;

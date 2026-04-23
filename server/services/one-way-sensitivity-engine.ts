@@ -15,7 +15,6 @@
  * @module server/services/one-way-sensitivity-engine
  */
 
-import { runFundModel } from '@shared/lib/fund-calc';
 import { FundModelInputsSchema, type FundModelInputs } from '@shared/schemas/fund-model';
 import {
   getVariableDefinition,
@@ -29,6 +28,7 @@ import type {
 import { db } from '../db';
 import { fundConfigs } from '@shared/schema';
 import { eq, and } from 'drizzle-orm';
+import { computeSensitivityMetric } from './sensitivity-helpers';
 
 /** Typed engine error so route handlers can map error codes to HTTP statuses. */
 export class SensitivityEngineError extends Error {
@@ -100,10 +100,10 @@ export class OneWaySensitivityEngine {
   }
 
   private computeMetric(config: FundModelInputs, metricDef: SensitivityMetricDefinition): number {
-    const outputs = runFundModel(config);
-    return this.extractByPath(
-      outputs as unknown as Record<string, unknown>,
-      metricDef.fundMetricPath
+    return computeSensitivityMetric(
+      config,
+      metricDef,
+      (code, message) => new SensitivityEngineError(code, message)
     );
   }
 
@@ -123,32 +123,6 @@ export class OneWaySensitivityEngine {
       'UNSUPPORTED_VARIABLE_PATH',
       `Nested override paths not supported in Phase 1A: ${path}`
     );
-  }
-
-  private extractByPath(obj: Record<string, unknown>, path: string): number {
-    const segments = path.split('.');
-    let current: unknown = obj;
-    for (const segment of segments) {
-      if (
-        current &&
-        typeof current === 'object' &&
-        segment in (current as Record<string, unknown>)
-      ) {
-        current = (current as Record<string, unknown>)[segment];
-      } else {
-        throw new SensitivityEngineError(
-          'METRIC_PATH_NOT_FOUND',
-          `Could not extract metric at path ${path}`
-        );
-      }
-    }
-    if (typeof current !== 'number') {
-      throw new SensitivityEngineError(
-        'METRIC_NOT_NUMBER',
-        `Metric at path ${path} is not a number: ${typeof current}`
-      );
-    }
-    return current;
   }
 }
 

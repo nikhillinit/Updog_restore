@@ -45,6 +45,12 @@ interface DecisionRouteContext extends ScenarioRouteContext {
   decisionId: string;
 }
 
+interface DecisionAuditFields {
+  decidedByUserId: number | null | undefined;
+  decidedByLabel: string | null | undefined;
+  decidedAt: string | null | undefined;
+}
+
 const router = Router();
 
 function routeHandler(
@@ -238,41 +244,88 @@ function parseActor(req: Request) {
   };
 }
 
+function assertDecisionFundMatchesRoute(fundId: number, decisionFundId: number) {
+  if (decisionFundId !== fundId) {
+    throw Object.assign(new Error('Decision fundId must match the route fundId'), {
+      statusCode: 400,
+      code: 'invalid_decision_fund',
+    });
+  }
+}
+
+function assertDecisionProvenanceMatchesScenario(
+  scenarioId: string,
+  sourceScenarioId: string | null | undefined
+) {
+  if (
+    sourceScenarioId === undefined ||
+    sourceScenarioId === null ||
+    sourceScenarioId === scenarioId
+  ) {
+    return;
+  }
+
+  throw Object.assign(
+    new Error('Decision provenance sourceScenarioId must match the route scenario'),
+    {
+      statusCode: 400,
+      code: 'invalid_decision_provenance',
+    }
+  );
+}
+
+function getDecisionAuditDefaults(
+  actor: ReturnType<typeof parseActor>,
+  needsDecisionAudit: boolean,
+  emptyValue: null | undefined
+): DecisionAuditFields {
+  if (!needsDecisionAudit) {
+    return {
+      decidedByUserId: emptyValue,
+      decidedByLabel: emptyValue,
+      decidedAt: emptyValue,
+    };
+  }
+
+  return {
+    decidedByUserId: actor.user_id ?? emptyValue,
+    decidedByLabel: actor.label ?? emptyValue,
+    decidedAt: new Date().toISOString(),
+  };
+}
+
+function mergeDecisionAuditFields<T extends Partial<DecisionAuditFields>>(
+  payload: T,
+  defaults: DecisionAuditFields
+) {
+  return {
+    decidedByUserId: payload.decidedByUserId ?? defaults.decidedByUserId,
+    decidedByLabel: payload.decidedByLabel ?? defaults.decidedByLabel,
+    decidedAt: payload.decidedAt ?? defaults.decidedAt,
+  };
+}
+
 function normalizeReserveIcCreatePayload(
   fundId: number,
   scenarioId: string,
   payload: z.infer<typeof CreateReserveIcDecisionV1Schema>,
   actor: ReturnType<typeof parseActor>
 ) {
-  if (payload.fundId !== fundId) {
-    throw Object.assign(new Error('Decision fundId must match the route fundId'), {
-      statusCode: 400,
-      code: 'invalid_decision_fund',
-    });
-  }
+  assertDecisionFundMatchesRoute(fundId, payload.fundId);
+  assertDecisionProvenanceMatchesScenario(scenarioId, payload.provenance.sourceScenarioId);
 
-  if (
-    payload.provenance.sourceScenarioId !== null &&
-    payload.provenance.sourceScenarioId !== scenarioId
-  ) {
-    throw Object.assign(
-      new Error('Decision provenance sourceScenarioId must match the route scenario'),
-      {
-        statusCode: 400,
-        code: 'invalid_decision_provenance',
-      }
-    );
-  }
-
-  const needsDecisionAudit =
-    payload.decisionStatus === 'approved' || payload.decisionStatus === 'rejected';
+  const auditFields = mergeDecisionAuditFields(
+    payload,
+    getDecisionAuditDefaults(
+      actor,
+      payload.decisionStatus === 'approved' || payload.decisionStatus === 'rejected',
+      null
+    )
+  );
 
   return {
     ...payload,
-    decidedByUserId:
-      payload.decidedByUserId ?? (needsDecisionAudit ? (actor.user_id ?? null) : null),
-    decidedByLabel: payload.decidedByLabel ?? (needsDecisionAudit ? (actor.label ?? null) : null),
-    decidedAt: payload.decidedAt ?? (needsDecisionAudit ? new Date().toISOString() : null),
+    ...auditFields,
     provenance: {
       ...payload.provenance,
       sourceScenarioId: scenarioId,
@@ -285,30 +338,20 @@ function normalizeReserveIcUpdatePayload(
   payload: z.infer<typeof UpdateReserveIcDecisionV1Schema>,
   actor: ReturnType<typeof parseActor>
 ) {
-  if (
-    payload.provenance?.sourceScenarioId !== undefined &&
-    payload.provenance.sourceScenarioId !== null &&
-    payload.provenance.sourceScenarioId !== scenarioId
-  ) {
-    throw Object.assign(
-      new Error('Decision provenance sourceScenarioId must match the route scenario'),
-      {
-        statusCode: 400,
-        code: 'invalid_decision_provenance',
-      }
-    );
-  }
+  assertDecisionProvenanceMatchesScenario(scenarioId, payload.provenance?.sourceScenarioId);
 
-  const nextStatus = payload.decisionStatus;
-  const needsDecisionAudit = nextStatus === 'approved' || nextStatus === 'rejected';
+  const auditFields = mergeDecisionAuditFields(
+    payload,
+    getDecisionAuditDefaults(
+      actor,
+      payload.decisionStatus === 'approved' || payload.decisionStatus === 'rejected',
+      undefined
+    )
+  );
 
   return {
     ...payload,
-    decidedByUserId:
-      payload.decidedByUserId ?? (needsDecisionAudit ? (actor.user_id ?? null) : undefined),
-    decidedByLabel:
-      payload.decidedByLabel ?? (needsDecisionAudit ? (actor.label ?? null) : undefined),
-    decidedAt: payload.decidedAt ?? (needsDecisionAudit ? new Date().toISOString() : undefined),
+    ...auditFields,
     provenance:
       payload.provenance !== undefined
         ? {

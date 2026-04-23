@@ -8,16 +8,6 @@
 import type { Response } from 'express';
 import type { ZodError } from 'zod';
 
-interface ValidationErrorResponse {
-  error: string;
-  message: string;
-  details: ReturnType<ZodError['format']>;
-}
-
-function sendValidationError(res: Response, payload: ValidationErrorResponse) {
-  return res.status(400).json(payload);
-}
-
 /**
  * Send a 400 response for an invalid request body
  * @param res Express response object
@@ -28,7 +18,7 @@ export function sendBodyValidationError(
   error: ZodError,
   message: string = 'Invalid request body'
 ) {
-  return sendValidationError(res, {
+  return res.status(400).json({
     error: 'invalid_request_body',
     message,
     details: error.format(),
@@ -41,7 +31,7 @@ export function sendBodyValidationError(
  * @param error Zod validation error
  */
 export function sendQueryValidationError(res: Response, error: ZodError) {
-  return sendValidationError(res, {
+  return res.status(400).json({
     error: 'invalid_query_parameters',
     message: 'Invalid query parameters',
     details: error.format(),

@@ -26,6 +26,10 @@ import { sanitizeForLogging } from '../lib/crypto/pii-sanitizer';
 import { lpAuditLogger } from '../services/lp-audit-logger';
 import { recordLPRequest, recordError, startTimer } from '../observability/lp-metrics';
 import { firstString } from '../lib/request-values';
+import {
+  createLPApiErrorResponse as createErrorResponse,
+  respondInvalidCursor,
+} from '../lib/lp-api-helpers';
 
 const router = Router();
 
@@ -64,29 +68,6 @@ const PaymentSubmissionSchema = z.object({
   receiptUrl: z.string().url().optional(),
   idempotencyKey: z.string().optional(),
 });
-
-// ============================================================================
-// HELPER FUNCTIONS
-// ============================================================================
-
-interface LPApiError {
-  error: string;
-  message: string;
-  field?: string;
-  timestamp: string;
-}
-
-function createErrorResponse(code: string, message: string, field?: string): LPApiError {
-  const response: LPApiError = {
-    error: code,
-    message,
-    timestamp: new Date().toISOString(),
-  };
-  if (field !== undefined) {
-    response.field = field;
-  }
-  return response;
-}
 
 function formatCentsAsString(cents: bigint | null | undefined): string {
   return (cents ?? 0n).toString();
@@ -134,14 +115,7 @@ router.get(
           const cursorPayload = verifyCursor<{ offset: number; limit: number }>(query.cursor);
           startOffset = cursorPayload.offset;
         } catch {
-          const duration = endTimer();
-          recordLPRequest(endpoint, 'GET', 400, duration, lpId);
-          recordError(endpoint, 'INVALID_CURSOR', 400);
-          return res
-            .status(400)
-            .json(
-              createErrorResponse('INVALID_CURSOR', 'Pagination cursor is invalid or tampered')
-            );
+          return respondInvalidCursor({ res, endTimer, endpoint, lpId });
         }
       }
 
