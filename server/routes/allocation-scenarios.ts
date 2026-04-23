@@ -19,12 +19,30 @@ import {
   UpdateReserveIcDecisionV1Schema,
 } from '@shared/contracts/reserve-ic-decision-v1.contract';
 import { FundIdParamSchema } from '@shared/schemas/portfolio-route';
+import { sendBodyValidationError } from '../lib/validation-response.js';
 
 interface HttpError extends Error {
   statusCode?: number;
   code?: string;
   details?: unknown;
   conflicts?: Array<{ company_id: number; expected_version: number; actual_version: number }>;
+}
+
+interface ValidationFailure {
+  error: string;
+  message: string;
+}
+
+interface FundRouteContext {
+  fundId: number;
+}
+
+interface ScenarioRouteContext extends FundRouteContext {
+  scenarioId: string;
+}
+
+interface DecisionRouteContext extends ScenarioRouteContext {
+  decisionId: string;
 }
 
 const router = Router();
@@ -108,46 +126,90 @@ const ApplyAllocationScenarioSchema = SyncAllocationScenarioSchema.extend({
   preview_token: z.string().regex(/^[a-f0-9]{64}$/),
 });
 
-function parseFundId(req: Request, res: Response): number | null {
-  const result = FundIdParamSchema.safeParse(req.params);
+function parseWithSchema<T>(
+  res: Response,
+  result: z.SafeParseReturnType<unknown, T>,
+  validationFailure: ValidationFailure
+): T | null {
   if (!result.success) {
     res.status(400).json({
-      error: 'invalid_fund_id',
-      message: 'Fund ID must be a positive integer',
+      error: validationFailure.error,
+      message: validationFailure.message,
       details: result.error.format(),
     });
     return null;
   }
 
-  return result.data.fundId;
+  return result.data;
 }
 
-function parseScenarioId(req: Request, res: Response): string | null {
-  const result = ScenarioIdParamSchema.safeParse(req.params);
-  if (!result.success) {
-    res.status(400).json({
-      error: 'invalid_scenario_id',
-      message: 'Scenario ID must be a UUID',
-      details: result.error.format(),
-    });
+function parseFundRoute(req: Request, res: Response): FundRouteContext | null {
+  const params = parseWithSchema(res, FundIdParamSchema.safeParse(req.params), {
+    error: 'invalid_fund_id',
+    message: 'Fund ID must be a positive integer',
+  });
+  if (!params) {
     return null;
   }
 
-  return result.data.scenarioId;
+  return {
+    fundId: params.fundId,
+  };
 }
 
-function parseDecisionId(req: Request, res: Response): string | null {
-  const result = DecisionIdParamSchema.safeParse(req.params);
-  if (!result.success) {
-    res.status(400).json({
-      error: 'invalid_decision_id',
-      message: 'Decision ID must be a UUID',
-      details: result.error.format(),
-    });
+function parseScenarioRoute(req: Request, res: Response): ScenarioRouteContext | null {
+  const fundRoute = parseFundRoute(req, res);
+  if (!fundRoute) {
     return null;
   }
 
-  return result.data.decisionId;
+  const params = parseWithSchema(res, ScenarioIdParamSchema.safeParse(req.params), {
+    error: 'invalid_scenario_id',
+    message: 'Scenario ID must be a UUID',
+  });
+  if (!params) {
+    return null;
+  }
+
+  return {
+    ...fundRoute,
+    scenarioId: params.scenarioId,
+  };
+}
+
+function parseDecisionRoute(req: Request, res: Response): DecisionRouteContext | null {
+  const scenarioRoute = parseScenarioRoute(req, res);
+  if (!scenarioRoute) {
+    return null;
+  }
+
+  const params = parseWithSchema(res, DecisionIdParamSchema.safeParse(req.params), {
+    error: 'invalid_decision_id',
+    message: 'Decision ID must be a UUID',
+  });
+  if (!params) {
+    return null;
+  }
+
+  return {
+    ...scenarioRoute,
+    decisionId: params.decisionId,
+  };
+}
+
+function parseBody<TOutput>(
+  res: Response,
+  schema: z.ZodType<TOutput, z.ZodTypeDef, unknown>,
+  payload: unknown,
+  message: string
+): TOutput | null {
+  const body = schema.safeParse(payload);
+  if (!body.success) {
+    sendBodyValidationError(res, body.error, message);
+    return null;
+  }
+
+  return body.data;
 }
 
 function parseActor(req: Request) {
@@ -257,15 +319,26 @@ function normalizeReserveIcUpdatePayload(
   };
 }
 
+function getErrorKey(statusCode?: number) {
+  switch (statusCode) {
+    case 400:
+      return 'invalid_request';
+    case 404:
+      return 'not_found';
+    default:
+      return 'internal_error';
+  }
+}
+
 router.get(
   '/funds/:fundId/allocation-scenarios',
   routeHandler(async (req: Request, res: Response) => {
-    const fundId = parseFundId(req, res);
-    if (fundId === null) {
+    const route = parseFundRoute(req, res);
+    if (!route) {
       return;
     }
 
-    const scenarios = await listAllocationScenarios(fundId);
+    const scenarios = await listAllocationScenarios(route.fundId);
     res.status(200).json({ scenarios });
   })
 );
@@ -273,17 +346,12 @@ router.get(
 router.get(
   '/funds/:fundId/allocation-scenarios/:scenarioId',
   routeHandler(async (req: Request, res: Response) => {
-    const fundId = parseFundId(req, res);
-    if (fundId === null) {
+    const route = parseScenarioRoute(req, res);
+    if (!route) {
       return;
     }
 
-    const scenarioId = parseScenarioId(req, res);
-    if (scenarioId === null) {
-      return;
-    }
-
-    const scenario = await getAllocationScenario(fundId, scenarioId);
+    const scenario = await getAllocationScenario(route.fundId, route.scenarioId);
     res.status(200).json(scenario);
   })
 );
@@ -291,17 +359,12 @@ router.get(
 router.get(
   '/funds/:fundId/allocation-scenarios/:scenarioId/decisions',
   routeHandler(async (req: Request, res: Response) => {
-    const fundId = parseFundId(req, res);
-    if (fundId === null) {
+    const route = parseScenarioRoute(req, res);
+    if (!route) {
       return;
     }
 
-    const scenarioId = parseScenarioId(req, res);
-    if (scenarioId === null) {
-      return;
-    }
-
-    const decisions = await listReserveIcDecisions(fundId, scenarioId);
+    const decisions = await listReserveIcDecisions(route.fundId, route.scenarioId);
     res.status(200).json({ decisions });
   })
 );
@@ -309,17 +372,12 @@ router.get(
 router.get(
   '/funds/:fundId/allocation-scenarios/:scenarioId/apply-preview',
   routeHandler(async (req: Request, res: Response) => {
-    const fundId = parseFundId(req, res);
-    if (fundId === null) {
+    const route = parseScenarioRoute(req, res);
+    if (!route) {
       return;
     }
 
-    const scenarioId = parseScenarioId(req, res);
-    if (scenarioId === null) {
-      return;
-    }
-
-    const preview = await getAllocationScenarioApplyPreview(fundId, scenarioId);
+    const preview = await getAllocationScenarioApplyPreview(route.fundId, route.scenarioId);
     res.status(200).json(preview);
   })
 );
@@ -327,21 +385,22 @@ router.get(
 router.post(
   '/funds/:fundId/allocation-scenarios',
   routeHandler(async (req: Request, res: Response) => {
-    const fundId = parseFundId(req, res);
-    if (fundId === null) {
+    const route = parseFundRoute(req, res);
+    if (!route) {
       return;
     }
 
-    const body = CreateAllocationScenarioSchema.safeParse(req.body);
-    if (!body.success) {
-      return res.status(400).json({
-        error: 'invalid_request_body',
-        message: 'Invalid allocation scenario payload',
-        details: body.error.format(),
-      });
+    const body = parseBody(
+      res,
+      CreateAllocationScenarioSchema,
+      req.body,
+      'Invalid allocation scenario payload'
+    );
+    if (!body) {
+      return;
     }
 
-    const scenario = await createAllocationScenario(fundId, body.data);
+    const scenario = await createAllocationScenario(route.fundId, body);
     return res.status(201).json(scenario);
   })
 );
@@ -349,29 +408,25 @@ router.post(
 router.post(
   '/funds/:fundId/allocation-scenarios/:scenarioId/decisions',
   routeHandler(async (req: Request, res: Response) => {
-    const fundId = parseFundId(req, res);
-    if (fundId === null) {
+    const route = parseScenarioRoute(req, res);
+    if (!route) {
       return;
     }
 
-    const scenarioId = parseScenarioId(req, res);
-    if (scenarioId === null) {
+    const body = parseBody(
+      res,
+      CreateReserveIcDecisionV1Schema,
+      req.body,
+      'Invalid Reserve IC decision payload'
+    );
+    if (!body) {
       return;
-    }
-
-    const body = CreateReserveIcDecisionV1Schema.safeParse(req.body);
-    if (!body.success) {
-      return res.status(400).json({
-        error: 'invalid_request_body',
-        message: 'Invalid Reserve IC decision payload',
-        details: body.error.format(),
-      });
     }
 
     const decision = await createReserveIcDecision(
-      fundId,
-      scenarioId,
-      normalizeReserveIcCreatePayload(fundId, scenarioId, body.data, parseActor(req))
+      route.fundId,
+      route.scenarioId,
+      normalizeReserveIcCreatePayload(route.fundId, route.scenarioId, body, parseActor(req))
     );
     return res.status(201).json(decision);
   })
@@ -380,26 +435,22 @@ router.post(
 router.patch(
   '/funds/:fundId/allocation-scenarios/:scenarioId',
   routeHandler(async (req: Request, res: Response) => {
-    const fundId = parseFundId(req, res);
-    if (fundId === null) {
+    const route = parseScenarioRoute(req, res);
+    if (!route) {
       return;
     }
 
-    const scenarioId = parseScenarioId(req, res);
-    if (scenarioId === null) {
+    const body = parseBody(
+      res,
+      UpdateAllocationScenarioSchema,
+      req.body,
+      'Invalid allocation scenario payload'
+    );
+    if (!body) {
       return;
     }
 
-    const body = UpdateAllocationScenarioSchema.safeParse(req.body);
-    if (!body.success) {
-      return res.status(400).json({
-        error: 'invalid_request_body',
-        message: 'Invalid allocation scenario payload',
-        details: body.error.format(),
-      });
-    }
-
-    const scenario = await updateAllocationScenario(fundId, scenarioId, body.data);
+    const scenario = await updateAllocationScenario(route.fundId, route.scenarioId, body);
     return res.status(200).json(scenario);
   })
 );
@@ -407,35 +458,26 @@ router.patch(
 router.patch(
   '/funds/:fundId/allocation-scenarios/:scenarioId/decisions/:decisionId',
   routeHandler(async (req: Request, res: Response) => {
-    const fundId = parseFundId(req, res);
-    if (fundId === null) {
+    const route = parseDecisionRoute(req, res);
+    if (!route) {
       return;
     }
 
-    const scenarioId = parseScenarioId(req, res);
-    if (scenarioId === null) {
+    const body = parseBody(
+      res,
+      UpdateReserveIcDecisionV1Schema,
+      req.body,
+      'Invalid Reserve IC decision payload'
+    );
+    if (!body) {
       return;
-    }
-
-    const decisionId = parseDecisionId(req, res);
-    if (decisionId === null) {
-      return;
-    }
-
-    const body = UpdateReserveIcDecisionV1Schema.safeParse(req.body);
-    if (!body.success) {
-      return res.status(400).json({
-        error: 'invalid_request_body',
-        message: 'Invalid Reserve IC decision payload',
-        details: body.error.format(),
-      });
     }
 
     const decision = await updateReserveIcDecision(
-      fundId,
-      scenarioId,
-      decisionId,
-      normalizeReserveIcUpdatePayload(scenarioId, body.data, parseActor(req))
+      route.fundId,
+      route.scenarioId,
+      route.decisionId,
+      normalizeReserveIcUpdatePayload(route.scenarioId, body, parseActor(req))
     );
     return res.status(200).json(decision);
   })
@@ -444,27 +486,23 @@ router.patch(
 router.post(
   '/funds/:fundId/allocation-scenarios/:scenarioId/sync',
   routeHandler(async (req: Request, res: Response) => {
-    const fundId = parseFundId(req, res);
-    if (fundId === null) {
+    const route = parseScenarioRoute(req, res);
+    if (!route) {
       return;
     }
 
-    const scenarioId = parseScenarioId(req, res);
-    if (scenarioId === null) {
+    const body = parseBody(
+      res,
+      SyncAllocationScenarioSchema,
+      req.body ?? {},
+      'Invalid allocation scenario action payload'
+    );
+    if (!body) {
       return;
     }
 
-    const body = SyncAllocationScenarioSchema.safeParse(req.body ?? {});
-    if (!body.success) {
-      return res.status(400).json({
-        error: 'invalid_request_body',
-        message: 'Invalid allocation scenario action payload',
-        details: body.error.format(),
-      });
-    }
-
-    const result = await syncAllocationScenario(fundId, scenarioId, {
-      ...body.data,
+    const result = await syncAllocationScenario(route.fundId, route.scenarioId, {
+      ...body,
       actor: parseActor(req),
     });
     return res.status(200).json(result);
@@ -474,27 +512,23 @@ router.post(
 router.post(
   '/funds/:fundId/allocation-scenarios/:scenarioId/apply',
   routeHandler(async (req: Request, res: Response) => {
-    const fundId = parseFundId(req, res);
-    if (fundId === null) {
+    const route = parseScenarioRoute(req, res);
+    if (!route) {
       return;
     }
 
-    const scenarioId = parseScenarioId(req, res);
-    if (scenarioId === null) {
+    const body = parseBody(
+      res,
+      ApplyAllocationScenarioSchema,
+      req.body,
+      'Invalid allocation scenario action payload'
+    );
+    if (!body) {
       return;
     }
 
-    const body = ApplyAllocationScenarioSchema.safeParse(req.body);
-    if (!body.success) {
-      return res.status(400).json({
-        error: 'invalid_request_body',
-        message: 'Invalid allocation scenario action payload',
-        details: body.error.format(),
-      });
-    }
-
-    const result = await applyAllocationScenario(fundId, scenarioId, {
-      ...body.data,
+    const result = await applyAllocationScenario(route.fundId, route.scenarioId, {
+      ...body,
       actor: parseActor(req),
     });
     return res.status(200).json(result);
@@ -513,12 +547,7 @@ router.use((error: HttpError, _req: Request, res: Response, _next: unknown) => {
   }
 
   res.status(error.statusCode ?? 500).json({
-    error:
-      error.statusCode === 400
-        ? 'invalid_request'
-        : error.statusCode === 404
-          ? 'not_found'
-          : 'internal_error',
+    error: getErrorKey(error.statusCode),
     ...(error.code ? { code: error.code } : {}),
     message: error.message,
     ...(error.details !== undefined ? { details: error.details } : {}),

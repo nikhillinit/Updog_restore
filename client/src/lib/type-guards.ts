@@ -216,34 +216,4 @@ export function getValidProperty<T extends object, K extends keyof T, V>(
 // ============================================================================
 
 export { isRecord } from '@shared/utils/type-guards';
-
-// ============================================================================
-// API Response Helpers
-// ============================================================================
-
-import { isRecord } from '@shared/utils/type-guards';
-
-/**
- * Extract an error message string from an unknown payload
- * @param payload The unknown response payload
- * @returns The message string if present, undefined otherwise
- */
-export function getErrorMessage(payload: unknown): string | undefined {
-  if (isRecord(payload) && typeof payload['message'] === 'string') {
-    return payload['message'];
-  }
-  return undefined;
-}
-
-/**
- * Read and parse JSON from a fetch Response
- * @param response The fetch Response object
- * @returns Parsed JSON or null for empty bodies
- */
-export async function readJsonResponse(response: Response): Promise<unknown> {
-  const text = await response.text();
-  if (text.trim() === '') {
-    return null;
-  }
-  return JSON.parse(text) as unknown;
-}
+export { getErrorMessage, readJsonResponse } from './http-response';
