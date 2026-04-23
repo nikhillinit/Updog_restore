@@ -7,6 +7,7 @@ import {
   sendQueryValidationError,
 } from '../../lib/validation-response.js';
 import {
+  FundIdParamSchema,
   CreateSnapshotRequestSchema,
   ListSnapshotsRequestSchema,
   UpdateSnapshotRequestSchema,
@@ -24,10 +25,6 @@ const snapshotService = new SnapshotService();
 // ============================================================================
 // Validation Schemas (Path Params)
 // ============================================================================
-
-const FundIdParamSchema = z.object({
-  fundId: z.string().regex(/^\d+$/).transform(Number),
-});
 
 const SnapshotIdParamSchema = z.object({
   snapshotId: z.string().uuid(),

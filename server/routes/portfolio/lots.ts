@@ -1,12 +1,12 @@
 import { Router } from 'express';
 import type { Request, Response } from 'express';
-import { z } from 'zod';
 import { asyncHandler } from '../../middleware/async.js';
 import {
   sendBodyValidationError,
   sendQueryValidationError,
 } from '../../lib/validation-response.js';
 import {
+  FundIdParamSchema,
   CreateLotRequestSchema,
   ListLotsRequestSchema,
 } from '../../../shared/schemas/portfolio-route.js';
@@ -20,14 +20,6 @@ import {
 
 const router = Router();
 const lotService = new LotService();
-
-// ============================================================================
-// Validation Schemas (Path Params)
-// ============================================================================
-
-const FundIdParamSchema = z.object({
-  fundId: z.string().regex(/^\d+$/).transform(Number),
-});
 
 // ============================================================================
 // Route Handlers
