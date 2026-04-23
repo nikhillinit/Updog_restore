@@ -24,6 +24,8 @@ import {
   mapDefined,
   safeObjectAccess,
   getValidProperty,
+  getErrorMessage,
+  readJsonResponse,
 } from '@/lib/type-guards';
 
 describe('Type Guards', () => {
@@ -283,6 +285,32 @@ describe('Type Guards', () => {
         (v): v is string => typeof v === 'string'
       );
       expect(result).toBeUndefined();
+    });
+  });
+
+  describe('API response helpers', () => {
+    it('extracts an error message from a record payload', () => {
+      expect(getErrorMessage({ message: 'Request failed' })).toBe('Request failed');
+    });
+
+    it('returns undefined when payload does not contain a string message', () => {
+      expect(getErrorMessage({ message: 42 })).toBeUndefined();
+      expect(getErrorMessage('not-an-object')).toBeUndefined();
+      expect(getErrorMessage(null)).toBeUndefined();
+    });
+
+    it('parses JSON from a non-empty response body', async () => {
+      const response = new Response(JSON.stringify({ ok: true }), {
+        headers: { 'Content-Type': 'application/json' },
+      });
+
+      await expect(readJsonResponse(response)).resolves.toEqual({ ok: true });
+    });
+
+    it('returns null for an empty response body', async () => {
+      const response = new Response('');
+
+      await expect(readJsonResponse(response)).resolves.toBeNull();
     });
   });
 });
