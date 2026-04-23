@@ -1,5 +1,8 @@
 #!/usr/bin/env sh
 
+REPO_ROOT=$(git rev-parse --show-toplevel)
+PATH="$REPO_ROOT/node_modules/.bin:$PATH"
+
 echo "[PRE-COMMIT] Running checks..."
 
 # Check for emoji in staged files (exclude legacy CHANGELOG and emoji documentation)
@@ -38,8 +41,18 @@ if [ -n "$SCHEMA_FILES" ]; then
   fi
 fi
 
+echo "[CHECK] Running staged-file lint and format..."
+git diff --cached --name-only -z --diff-filter=ACMR -- '*.ts' '*.tsx' '*.js' '*.jsx' \
+  | xargs -0 -r eslint --fix --max-warnings 0 --cache --no-warn-ignored
+git diff --cached --name-only -z --diff-filter=ACMR -- '*.ts' '*.tsx' '*.js' '*.jsx' \
+  | xargs -0 -r node node_modules/prettier/bin/prettier.cjs --write
+git diff --cached --name-only -z --diff-filter=ACMR -- '*.ts' '*.tsx' '*.js' '*.jsx' \
+  | xargs -0 -r git add --
 
-npx lint-staged
+git diff --cached --name-only -z --diff-filter=ACMR -- '*.json' '*.md' '*.yml' '*.yaml' \
+  | xargs -0 -r node node_modules/prettier/bin/prettier.cjs --write
+git diff --cached --name-only -z --diff-filter=ACMR -- '*.json' '*.md' '*.yml' '*.yaml' \
+  | xargs -0 -r git add --
 
 # Optional: AI code review (set AI_REVIEW_ENABLED=1 to enable)
 if [ "$AI_REVIEW_ENABLED" = "1" ]; then

@@ -6,6 +6,9 @@ fi
 
 set -euo pipefail
 
+REPO_ROOT=$(git rev-parse --show-toplevel)
+PATH="$REPO_ROOT/node_modules/.bin:$PATH"
+
 echo "Checking changed files against origin/main..."
 
 # Ensure origin/main is up to date for accurate comparison
@@ -108,5 +111,5 @@ mapfile -t CHANGED_FILES < <(printf '%s\n' "$CHANGED" | sed '/^$/d')
 # Run only tests related to the changed file set. Calling Vitest directly avoids
 # npm script argument forwarding quirks that can silently fall back to the full
 # unit suite.
-npx vitest related "${CHANGED_FILES[@]}" --run --project=server --project=client
+npx vitest related "${CHANGED_FILES[@]}" --run --config "$REPO_ROOT/vitest.config.mjs" --configLoader native --project=server --project=client
 exit $?
