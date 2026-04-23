@@ -4,6 +4,7 @@ import { exec } from 'child_process';
 import { createRequire } from 'module';
 import { promisify } from 'util';
 import { logger } from '../logger';
+import { isRecord } from '@shared/utils/type-guards';
 
 const execAsync = promisify(exec);
 const require = createRequire(import.meta.url);
@@ -46,10 +47,6 @@ interface ChokidarModule {
     paths: string[],
     options: { ignored: RegExp; persistent: boolean; ignoreInitial: boolean }
   ): FileWatcher;
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null;
 }
 
 function isChokidarModule(value: unknown): value is ChokidarModule {

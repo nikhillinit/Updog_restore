@@ -35,6 +35,7 @@ import type {
   ScenariosInput,
 } from '@/schemas/modeling-wizard.schemas';
 import type { Waterfall } from '@shared/types';
+import { isRecord } from '@shared/utils/type-guards';
 
 // ============================================================================
 // TYPES & INTERFACES
@@ -192,10 +193,6 @@ interface PersistedWizardStorage {
 // ============================================================================
 // HELPER FUNCTIONS
 // ============================================================================
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null;
-}
 
 function isWizardStep(value: unknown): value is WizardStep {
   return typeof value === 'string' && STEP_ORDER.includes(value as WizardStep);
@@ -451,11 +448,6 @@ function clearStorage(): void {
  */
 function validateStepData(step: WizardStep, data: unknown): string[] {
   const errors: string[] = [];
-
-  // Type guard to check if data is a record
-  const isRecord = (val: unknown): val is Record<string, unknown> => {
-    return typeof val === 'object' && val !== null;
-  };
 
   // Import validation schemas dynamically to avoid circular dependencies
   // In production, these would call the Zod schemas from modeling-wizard.schemas.ts

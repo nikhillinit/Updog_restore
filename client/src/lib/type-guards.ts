@@ -212,17 +212,16 @@ export function getValidProperty<T extends object, K extends keyof T, V>(
 }
 
 // ============================================================================
+// Re-exports from shared utilities
+// ============================================================================
+
+export { isRecord } from '@shared/utils/type-guards';
+
+// ============================================================================
 // API Response Helpers
 // ============================================================================
 
-/**
- * Type guard to check if a value is a plain object record
- * @param value The value to check
- * @returns True if the value is a non-null object
- */
-export function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null;
-}
+import { isRecord } from '@shared/utils/type-guards';
 
 /**
  * Extract an error message string from an unknown payload
