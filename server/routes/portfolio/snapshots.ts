@@ -4,11 +4,11 @@ import { z } from 'zod';
 import { asyncHandler } from '../../middleware/async.js';
 
 import {
-  FundIdParamSchema,
   sendBodyValidationError,
   sendQueryValidationError,
 } from '../../lib/validation-response.js';
 import {
+  FundIdParamSchema,
   CreateSnapshotRequestSchema,
   ListSnapshotsRequestSchema,
   UpdateSnapshotRequestSchema,

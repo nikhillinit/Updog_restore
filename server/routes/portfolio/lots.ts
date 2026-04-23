@@ -3,11 +3,11 @@ import type { Request, Response } from 'express';
 import { asyncHandler } from '../../middleware/async.js';
 
 import {
-  FundIdParamSchema,
   sendBodyValidationError,
   sendQueryValidationError,
 } from '../../lib/validation-response.js';
 import {
+  FundIdParamSchema,
   CreateLotRequestSchema,
   ListLotsRequestSchema,
 } from '../../../shared/schemas/portfolio-route.js';
