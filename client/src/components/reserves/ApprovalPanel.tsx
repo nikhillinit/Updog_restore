@@ -5,6 +5,7 @@
 
 import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { isRecord } from '@/lib/type-guards';
 import {
   Card,
   CardContent,
@@ -76,10 +77,6 @@ interface ApprovalDetails extends Approval {
 interface PendingApprovalsResponse {
   total: number;
   approvals: Approval[];
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null;
 }
 
 async function readJsonResponse(response: Response): Promise<unknown> {

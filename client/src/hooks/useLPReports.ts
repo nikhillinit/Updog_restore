@@ -8,6 +8,7 @@
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useLPContext } from '@/contexts/LPContext';
+import { getErrorMessage, readJsonResponse } from '@/lib/type-guards';
 import type {
   ReportListResponse,
   ReportGenerationRequest,
@@ -15,28 +16,6 @@ import type {
   GeneratedReport,
   ReportType,
 } from '@shared/types/lp-api';
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null;
-}
-
-function getErrorMessage(payload: unknown): string | undefined {
-  if (isRecord(payload) && typeof payload['message'] === 'string') {
-    return payload['message'];
-  }
-
-  return undefined;
-}
-
-async function readJsonResponse(response: Response): Promise<unknown> {
-  const text = await response.text();
-
-  if (text.trim() === '') {
-    return null;
-  }
-
-  return JSON.parse(text) as unknown;
-}
 
 // ============================================================================
 // LIST HOOK

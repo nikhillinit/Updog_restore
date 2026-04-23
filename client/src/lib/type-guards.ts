@@ -174,10 +174,7 @@ export function filterDefined<T>(array: (T | null | undefined)[]): T[] {
  * @param mapper The mapping function
  * @returns Array with only defined mapped results
  */
-export function mapDefined<T, U>(
-  array: T[],
-  mapper: (item: T) => U | null | undefined
-): U[] {
+export function mapDefined<T, U>(array: T[], mapper: (item: T) => U | null | undefined): U[] {
   return filterDefined(array.map(mapper));
 }
 
@@ -212,4 +209,42 @@ export function getValidProperty<T extends object, K extends keyof T, V>(
 ): V | undefined {
   const value = safeObjectAccess(obj, key);
   return validator(value) ? value : undefined;
+}
+
+// ============================================================================
+// API Response Helpers
+// ============================================================================
+
+/**
+ * Type guard to check if a value is a plain object record
+ * @param value The value to check
+ * @returns True if the value is a non-null object
+ */
+export function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null;
+}
+
+/**
+ * Extract an error message string from an unknown payload
+ * @param payload The unknown response payload
+ * @returns The message string if present, undefined otherwise
+ */
+export function getErrorMessage(payload: unknown): string | undefined {
+  if (isRecord(payload) && typeof payload['message'] === 'string') {
+    return payload['message'];
+  }
+  return undefined;
+}
+
+/**
+ * Read and parse JSON from a fetch Response
+ * @param response The fetch Response object
+ * @returns Parsed JSON or null for empty bodies
+ */
+export async function readJsonResponse(response: Response): Promise<unknown> {
+  const text = await response.text();
+  if (text.trim() === '') {
+    return null;
+  }
+  return JSON.parse(text) as unknown;
 }
