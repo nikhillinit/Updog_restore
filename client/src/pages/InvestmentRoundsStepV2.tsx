@@ -24,12 +24,14 @@ import { InvestmentValidationCallout } from '@/components/wizard/InvestmentValid
 import { InfoBanner } from '@/components/wizard/InfoBanner';
 import { ProfileHeader } from '@/components/wizard/ProfileHeader';
 import { useFundAction } from '@/stores/useFundSelector';
-import { cloneDefaultStages, DEFAULT_PROFILES } from './investment-rounds-defaults';
+import { DEFAULT_PROFILES, DEFAULT_STAGES } from './constants';
 
 export default function InvestmentRoundsStepV2() {
   const [, navigate] = useLocation();
   const [activeProfileId, setActiveProfileId] = useState('default');
-  const [stages, setStages] = useState<StageData[]>(() => cloneDefaultStages());
+  const [stages, setStages] = useState<StageData[]>(() =>
+    DEFAULT_STAGES.map((stage) => ({ ...stage }))
+  );
   const [validationStatus, setValidationStatus] = useState<'success' | 'warning' | 'error'>(
     'success'
   );
@@ -71,7 +73,7 @@ export default function InvestmentRoundsStepV2() {
 
   // Reset stage to defaults
   const handleResetStage = useCallback((id: string) => {
-    const defaultStage = cloneDefaultStages().find((s) => s.id === id);
+    const defaultStage = DEFAULT_STAGES.find((s) => s.id === id);
     if (defaultStage) {
       setStages((prev) => prev.map((stage) => (stage.id === id ? { ...defaultStage } : stage)));
     }

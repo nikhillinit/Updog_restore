@@ -66,7 +66,3 @@ export const DEFAULT_STAGES: StageData[] = [
     exitRate: 25,
   },
 ];
-
-export function cloneDefaultStages(): StageData[] {
-  return DEFAULT_STAGES.map((stage) => ({ ...stage }));
-}
