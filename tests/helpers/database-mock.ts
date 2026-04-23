@@ -172,6 +172,22 @@ class DatabaseMock {
     this.setupConstraints();
   }
 
+  private isNullish(value: unknown): value is null | undefined {
+    return value === undefined || value === null;
+  }
+
+  private isBooleanishTrue(value: unknown): boolean {
+    return value === true || value === 'true' || value === 1;
+  }
+
+  private isDefaultBaseline(row: MockQueryResult): boolean {
+    return this.isBooleanishTrue(row.is_default);
+  }
+
+  private isActiveBaseline(row: MockQueryResult): boolean {
+    return this.isNullish(row.is_active) || this.isBooleanishTrue(row.is_active);
+  }
+
   /**
    * Setup database constraints for validation
    */
@@ -288,31 +304,21 @@ class DatabaseMock {
       },
       unique: {
         fund_baselines_default_unique: (row: MockQueryResult, existingData: MockQueryResult[]) => {
-          // Only one default baseline per fund
-          const isDefault =
-            row.is_default === true || row.is_default === 'true' || row.is_default === 1;
-          const isActive =
-            row.is_active === undefined ||
-            row.is_active === null ||
-            row.is_active === true ||
-            row.is_active === 'true' ||
-            row.is_active === 1;
-          if (isDefault && isActive) {
-            const existingDefault = existingData.find((r: MockQueryResult) => {
-              const rIsDefault =
-                r.is_default === true || r.is_default === 'true' || r.is_default === 1;
-              const rIsActive =
-                r.is_active === undefined ||
-                r.is_active === null ||
-                r.is_active === true ||
-                r.is_active === 'true' ||
-                r.is_active === 1;
-              return r.fund_id === row.fund_id && rIsDefault && rIsActive;
-            });
-            if (existingDefault) {
-              throw new Error('Violates unique constraint: only one default baseline per fund');
-            }
+          if (!this.isDefaultBaseline(row) || !this.isActiveBaseline(row)) {
+            return true;
           }
+
+          const existingDefault = existingData.find(
+            (candidate) =>
+              candidate.fund_id === row.fund_id &&
+              this.isDefaultBaseline(candidate) &&
+              this.isActiveBaseline(candidate)
+          );
+
+          if (existingDefault) {
+            throw new Error('Violates unique constraint: only one default baseline per fund');
+          }
+
           return true;
         },
         fund_baselines_source_run_unique: (
