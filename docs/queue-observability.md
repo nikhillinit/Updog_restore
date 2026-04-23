@@ -11,12 +11,10 @@ Environment:
 
 - `ENABLE_QUEUES=1` enables the queue subsystem.
 - `QUEUE_REDIS_URL` overrides `REDIS_URL` for BullMQ only.
-- `ENABLE_QUEUE_DASHBOARD=1` enables the Bull Board admin UI.
 
 Runtime surfaces:
 
 - Health: `/api/health/queues`
-- Admin dashboard: `/api/admin/queues`
 
 Coverage:
 

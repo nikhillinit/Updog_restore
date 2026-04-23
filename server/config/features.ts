@@ -12,7 +12,6 @@ export const FEATURES = {
   // Redis enabled whenever not explicitly in memory mode
   redis: (process.env['REDIS_URL'] ?? 'memory://') !== 'memory://',
   queues: flag(process.env['ENABLE_QUEUES'], false),
-  queueDashboard: flag(process.env['ENABLE_QUEUE_DASHBOARD'], false),
   sessions: flag(process.env['ENABLE_SESSIONS'], false),
   metrics: flag(process.env['ENABLE_METRICS'], true), // enable locally by default
   statGating: flag(process.env['ENABLE_STAT_GATING'], false),

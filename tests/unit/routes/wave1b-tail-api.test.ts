@@ -2,16 +2,10 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import express from 'express';
 import request from 'supertest';
 
-const {
-  getUnifiedMetricsMock,
-  invalidateCacheMock,
-  loggerInfoMock,
-  setQueuesMock,
-} = vi.hoisted(() => ({
+const { getUnifiedMetricsMock, invalidateCacheMock, loggerInfoMock } = vi.hoisted(() => ({
   getUnifiedMetricsMock: vi.fn(),
   invalidateCacheMock: vi.fn(),
   loggerInfoMock: vi.fn(),
-  setQueuesMock: vi.fn(),
 }));
 
 vi.mock('../../../server/lib/auth/jwt', () => ({
@@ -45,53 +39,9 @@ vi.mock('../../../server/lib/logger.js', () => ({
   },
 }));
 
-vi.mock('@bull-board/api', () => ({
-  createBullBoard: () => ({
-    setQueues: setQueuesMock,
-  }),
-}));
-
-vi.mock('@bull-board/api/bullMQAdapter', () => ({
-  BullMQAdapter: class BullMQAdapter {
-    constructor(
-      public readonly queue: unknown,
-      public readonly options: Record<string, unknown>
-    ) {}
-  },
-}));
-
-vi.mock('@bull-board/express', () => ({
-  ExpressAdapter: class ExpressAdapter {
-    setBasePath(_path: string) {
-      return undefined;
-    }
-
-    getRouter() {
-      return (req: express.Request, res: express.Response) => {
-        res.json({ ok: true, path: req.path });
-      };
-    }
-  },
-}));
-
-vi.mock('../../../server/queues/registry', () => ({
-  getQueueCatalog: () => [
-    {
-      key: 'reports',
-      displayName: 'Reports',
-      owner: 'route',
-      healthMode: 'producer',
-    },
-  ],
-  getRegisteredQueueRuntime: () => ({
-    getQueue: () => ({ name: 'reports' }),
-  }),
-}));
-
 import graduationRouter from '../../../server/routes/graduation';
 import { readinessHandler } from '../../../server/routes/readiness';
 import fundMetricsRouter from '../../../server/routes/fund-metrics';
-import queueDashboardRouter from '../../../server/routes/admin/queue-dashboard';
 
 describe('Wave 1B route tail', () => {
   beforeEach(() => {
@@ -139,9 +89,7 @@ describe('Wave 1B route tail', () => {
     app.use(express.json());
     app.use(fundMetricsRouter);
 
-    const response = await request(app)
-      .get('/api/funds/12/metrics?skipCache=true')
-      .expect(200);
+    const response = await request(app).get('/api/funds/12/metrics?skipCache=true').expect(200);
 
     expect(response.body).toEqual({
       irr: 0.21,
@@ -159,16 +107,5 @@ describe('Wave 1B route tail', () => {
       }),
       'metrics skipCache override'
     );
-  });
-
-  it('refreshes bull-board queues before serving the admin dashboard router', async () => {
-    const app = express();
-    app.use(queueDashboardRouter);
-
-    const response = await request(app).get('/').expect(200);
-
-    expect(response.body).toEqual({ ok: true, path: '/' });
-    expect(setQueuesMock).toHaveBeenCalledTimes(1);
-    expect(setQueuesMock.mock.calls[0]?.[0]).toHaveLength(1);
   });
 });
