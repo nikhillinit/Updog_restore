@@ -50,6 +50,10 @@ import { sanitizeForLogging } from '../lib/crypto/pii-sanitizer';
 import { enforceSchemaIsolation, handleSchemaViolation } from '../middleware/schema-isolation';
 import { logger } from '../lib/logger.js';
 import { firstString } from '../lib/request-values';
+import {
+  createLPApiErrorResponse as createErrorResponse,
+  respondInvalidCursor,
+} from '../lib/lp-api-helpers';
 
 const router = Router();
 
@@ -78,33 +82,6 @@ const lpLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
 });
-
-// ============================================================================
-// HELPER FUNCTIONS
-// ============================================================================
-
-interface LPApiError {
-  error: string;
-  message: string;
-  field?: string;
-  timestamp: string;
-}
-
-function createErrorResponse(
-  code: string,
-  message: string,
-  field?: string | undefined
-): LPApiError {
-  const response: LPApiError = {
-    error: code,
-    message,
-    timestamp: new Date().toISOString(),
-  };
-  if (field !== undefined) {
-    response.field = field;
-  }
-  return response;
-}
 
 // ============================================================================
 // ROUTES
@@ -273,14 +250,7 @@ router.get(
           const cursorPayload = verifyCursor<{ offset: number; limit: number }>(query.cursor);
           startOffset = cursorPayload.offset;
         } catch {
-          const duration = endTimer();
-          recordLPRequest(endpoint, 'GET', 400, duration, lpId);
-          recordError(endpoint, 'INVALID_CURSOR', 400);
-          return res
-            .status(400)
-            .json(
-              createErrorResponse('INVALID_CURSOR', 'Pagination cursor is invalid or tampered')
-            );
+          return respondInvalidCursor({ res, endTimer, endpoint, lpId });
         }
       }
 
@@ -836,7 +806,10 @@ router.post(
           // Report is still created in pending state, can be retried
         }
       } else {
-        logger.info({ reportId, lpId }, '[LP-API] report queue unavailable, leaving report pending');
+        logger.info(
+          { reportId, lpId },
+          '[LP-API] report queue unavailable, leaving report pending'
+        );
       }
 
       res.setHeader('Content-Type', 'application/json');
@@ -1237,10 +1210,7 @@ router.put(
 
       // TODO: Persist settings to database
       // For now, just validate and echo back
-      logger.info(
-        { lpId, settings: sanitizeForLogging(settings) },
-        '[LP-API] settings update'
-      );
+      logger.info({ lpId, settings: sanitizeForLogging(settings) }, '[LP-API] settings update');
 
       // SECURITY: Log settings change for audit
       await lpAuditLogger.logSettingsUpdate(lpId, req.user?.id, req);

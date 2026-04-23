@@ -1,4 +1,5 @@
 import * as client from 'prom-client';
+import { isRecord } from '@shared/utils/type-guards';
 
 export interface SLOConfig {
   name: string;
@@ -28,10 +29,6 @@ type PrometheusQueryResponse = {
     result?: PrometheusQueryResult[];
   };
 };
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null;
-}
 
 function extractPrometheusValue(payload: unknown): string | null {
   if (!isRecord(payload)) {

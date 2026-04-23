@@ -6,6 +6,7 @@ import type { Request, Response, NextFunction, RequestHandler } from 'express';
 import viteConfig from '../vite.config';
 import { nanoid } from 'nanoid';
 import { fileURLToPath } from 'url';
+import { isRecord } from '@shared/utils/type-guards';
 
 const serverDir = path.dirname(fileURLToPath(import.meta.url));
 
@@ -22,10 +23,6 @@ interface ViteServerLike {
 interface ViteModuleLike {
   createServer(config: Record<string, unknown>): Promise<unknown>;
   createLogger(): unknown;
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null;
 }
 
 function isViteLogger(value: unknown): value is ViteLogger {

@@ -1,8 +1,13 @@
 import { Router } from 'express';
 import type { Request, Response } from 'express';
-import { z } from 'zod';
 import { asyncHandler } from '../../middleware/async.js';
+
 import {
+  sendBodyValidationError,
+  sendQueryValidationError,
+} from '../../lib/validation-response.js';
+import {
+  FundIdParamSchema,
   CreateLotRequestSchema,
   ListLotsRequestSchema,
 } from '../../../shared/schemas/portfolio-route.js';
@@ -16,14 +21,6 @@ import {
 
 const router = Router();
 const lotService = new LotService();
-
-// ============================================================================
-// Validation Schemas (Path Params)
-// ============================================================================
-
-const FundIdParamSchema = z.object({
-  fundId: z.string().regex(/^\d+$/).transform(Number),
-});
 
 // ============================================================================
 // Route Handlers
@@ -42,11 +39,7 @@ router.post(
     // 2. Validate request body
     const bodyResult = CreateLotRequestSchema.safeParse(req.body);
     if (!bodyResult.success) {
-      return res.status(400).json({
-        error: 'invalid_request_body',
-        message: 'Invalid request body',
-        details: bodyResult.error.format(),
-      });
+      return sendBodyValidationError(res, bodyResult.error);
     }
 
     const {
@@ -121,11 +114,7 @@ router.get(
     // 2. Validate query params
     const queryResult = ListLotsRequestSchema.safeParse(req.query);
     if (!queryResult.success) {
-      return res.status(400).json({
-        error: 'invalid_query_parameters',
-        message: 'Invalid query parameters',
-        details: queryResult.error.format(),
-      });
+      return sendQueryValidationError(res, queryResult.error);
     }
 
     const { cursor, limit, investmentId, lotType } = queryResult.data;

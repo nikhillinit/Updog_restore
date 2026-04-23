@@ -12,6 +12,7 @@ import type {
   Stage,
   TransitionProbabilities,
 } from '@shared/core/graduation';
+import { isRecord } from '@shared/utils/type-guards';
 
 interface ProjectionInput {
   initialCompanies?: number;
@@ -29,10 +30,6 @@ const VALID_STAGES: ReadonlySet<Stage> = new Set([
   'exit',
   'failed',
 ]);
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null;
-}
 
 function asNumber(value: unknown): number | undefined {
   return typeof value === 'number' && Number.isFinite(value) ? value : undefined;

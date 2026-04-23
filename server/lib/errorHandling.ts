@@ -16,6 +16,7 @@ import { createErrorBody, type ApiErrorBody } from './apiError.js';
 import { businessMetrics } from '../metrics/businessMetrics.js';
 import { tracer } from './tracing.js';
 import { logger } from './logger.js';
+import { isObject } from '@shared/utils/type-guards';
 
 // Error severity levels
 export enum ErrorSeverity {
@@ -67,10 +68,6 @@ function toError(error: unknown): Error {
 
 function getErrorMessage(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
 // Enhanced error context
@@ -386,7 +383,7 @@ export class UnifiedErrorHandler {
       return value.map((entry) => this.removeSensitiveFields(entry));
     }
 
-    if (!isRecord(value)) {
+    if (!isObject(value)) {
       return value;
     }
 
@@ -403,7 +400,7 @@ export class UnifiedErrorHandler {
 
   private sanitizeMetadata(metadata: ErrorMetadata): ErrorMetadata {
     const sanitized = this.removeSensitiveFields(metadata);
-    return isRecord(sanitized) ? sanitized : {};
+    return isObject(sanitized) ? sanitized : {};
   }
 
   // Sanitize context in place

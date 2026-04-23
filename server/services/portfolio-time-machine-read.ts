@@ -2,6 +2,7 @@ import { db } from '../db';
 import { NotFoundError } from '../errors';
 import { storage } from '../storage';
 import { TimeTravelAnalyticsService } from './time-travel-analytics';
+import { isRecord } from '@shared/utils/type-guards';
 
 type StoredPortfolioCompany = Awaited<ReturnType<typeof storage.getPortfolioCompanies>>[number];
 
@@ -37,10 +38,6 @@ type HistoricalCompanyState = {
   investmentAmount?: number | string | null;
   ownershipCurrentPct?: number | string | null;
 };
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null;
-}
 
 function coerceDecimalString(value: unknown, fallback: string | null = '0'): string | null {
   if (value == null) {
@@ -158,7 +155,9 @@ function mergeHistoricalCompany(
       coerceDecimalString(
         historicalCompany.currentValuation ?? historicalCompany.valuation,
         null
-      ) ?? liveMatch?.currentValuation ?? null,
+      ) ??
+      liveMatch?.currentValuation ??
+      null,
     foundedYear: liveMatch?.foundedYear ?? null,
     status: historicalCompany.status ?? liveMatch?.status ?? 'Historical',
     description: liveMatch?.description ?? null,

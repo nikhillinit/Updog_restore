@@ -18,6 +18,7 @@
  */
 
 import type { z } from 'zod';
+import { isRecord } from '@shared/utils/type-guards';
 
 // ============================================================================
 // CONFIGURATION
@@ -59,10 +60,6 @@ const MIGRATIONS: Record<number, Migrator> = {
     data: raw.data,
   }),
 };
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null;
-}
 
 function isPersistedEnvelope(value: unknown): value is PersistedUnknown {
   return (
@@ -211,11 +208,7 @@ export function loadFromStorage<T>(key: string, schema: z.ZodType<T>): T | null 
  *   // Handle save failure (quota exceeded, validation failed, etc.)
  * }
  */
-export function saveToStorage<T>(
-  key: string,
-  data: T,
-  schema?: z.ZodType<T>
-): boolean {
+export function saveToStorage<T>(key: string, data: T, schema?: z.ZodType<T>): boolean {
   if (!hasStorage()) return false;
 
   if (!ALLOWED_KEYS.has(key)) {
@@ -227,7 +220,10 @@ export function saveToStorage<T>(
   if (schema) {
     const validation = schema.safeParse(data);
     if (!validation.success) {
-      console.error(`[Storage] Refusing to save invalid data for key: ${key}`, validation.error.errors);
+      console.error(
+        `[Storage] Refusing to save invalid data for key: ${key}`,
+        validation.error.errors
+      );
       return false;
     }
   }
@@ -236,7 +232,7 @@ export function saveToStorage<T>(
   const payload: Persisted<T> = {
     v: CURRENT_VERSION,
     at: Date.now(),
-    data
+    data,
   };
 
   try {

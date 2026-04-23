@@ -10,6 +10,7 @@
 import type { ReactNode } from 'react';
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
+import { getErrorMessage } from '@/lib/http-response';
 import { logger } from '@/lib/logger';
 import type { LPProfile, LPProfileResponse } from '@shared/types/lp-api';
 
@@ -38,18 +39,6 @@ interface LPProviderProps {
   children: ReactNode;
   /** Optional LP ID override (e.g., from route params) */
   lpId?: number;
-}
-
-function readErrorMessage(payload: unknown): string | undefined {
-  if (
-    typeof payload === 'object' &&
-    payload !== null &&
-    typeof (payload as { message?: unknown }).message === 'string'
-  ) {
-    return (payload as { message: string }).message;
-  }
-
-  return undefined;
 }
 
 export function LPProvider({ children, lpId: providedLpId }: LPProviderProps) {
@@ -101,7 +90,7 @@ export function LPProvider({ children, lpId: providedLpId }: LPProviderProps) {
       if (!response.ok) {
         const errorData: unknown = await response.json().catch(() => null);
         throw new Error(
-          readErrorMessage(errorData) || `HTTP ${response.status}: Failed to fetch LP profile`
+          getErrorMessage(errorData) || `HTTP ${response.status}: Failed to fetch LP profile`
         );
       }
 
@@ -123,9 +112,7 @@ export function LPProvider({ children, lpId: providedLpId }: LPProviderProps) {
 
       // Auto-select first active fund if none selected
       if (!selectedFundId && profileData.profile.commitments.length > 0) {
-        const firstActiveFund = profileData.profile.commitments.find(
-          (c) => c.status === 'active'
-        );
+        const firstActiveFund = profileData.profile.commitments.find((c) => c.status === 'active');
         if (firstActiveFund) {
           setSelectedFundId(firstActiveFund.fundId);
         }
@@ -134,9 +121,8 @@ export function LPProvider({ children, lpId: providedLpId }: LPProviderProps) {
   }, [profileData, lpId, selectedFundId]);
 
   // Compute active fund IDs
-  const activeFundIds = lpProfile?.commitments
-    .filter((c) => c.status === 'active')
-    .map((c) => c.fundId) || [];
+  const activeFundIds =
+    lpProfile?.commitments.filter((c) => c.status === 'active').map((c) => c.fundId) || [];
 
   const value: LPContextType = {
     lpProfile,
