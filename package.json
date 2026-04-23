@@ -48,7 +48,7 @@
     "rls:quickstart": "bash scripts/rls-quickstart.sh",
     "rls:quickstart:ps": "powershell -ExecutionPolicy Bypass -File scripts/rls-quickstart.ps1",
     "test": "npm run test:unit",
-    "test:unit": "cross-env TZ=UTC vitest run --project=server --project=client",
+    "test:unit": "cross-env TZ=UTC vitest run --config vitest.config.mjs --configLoader native --project=server --project=client",
     "test:integration": "cross-env TZ=UTC vitest run -c vitest.config.int.ts",
     "test:integration:routes": "cross-env TZ=UTC vitest run -c vitest.config.route-int.ts",
     "test:integration:phase0-dbproof": "cross-env TZ=UTC vitest run -c vitest.config.phase0-dbproof.ts tests/integration/phase0-migrated-postgres.test.ts",
