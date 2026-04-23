@@ -28,6 +28,7 @@ import type {
 } from '@shared/types';
 import { ConstructionForecastCalculator } from './construction-forecast-calculator';
 import { Decimal, toDecimal } from '@shared/lib/decimal-utils';
+import { monthsSince } from '../lib/date-helpers';
 
 // Local interface for reserve calculation results used by this service
 interface ReserveResults {
@@ -203,7 +204,7 @@ export class ProjectedMetricsCalculator {
       const fundSize = toDecimal(fund.size.toString());
       const deployed = toDecimal(fund.deployedCapital?.toString() || '0');
       const fundAgeMonths = fund.establishmentDate
-        ? this.monthsSince(new Date(fund.establishmentDate))
+        ? monthsSince(new Date(fund.establishmentDate))
         : 0;
 
       // Calculate current deployment quarter
@@ -384,16 +385,6 @@ export class ProjectedMetricsCalculator {
     pacingResults: { pace: 'ahead' | 'on-track' | 'behind' } | null
   ): 'ahead' | 'on-track' | 'behind' {
     return pacingResults?.pace || 'on-track';
-  }
-
-  /**
-   * Calculate months since a date
-   */
-  private monthsSince(date: Date): number {
-    const now = new Date();
-    const years = now.getFullYear() - date.getFullYear();
-    const months = now.getMonth() - date.getMonth();
-    return years * 12 + months;
   }
 
   /**

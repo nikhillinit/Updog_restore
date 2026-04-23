@@ -17,6 +17,7 @@ import type { UseQueryResult } from '@tanstack/react-query';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import type { UnifiedFundMetrics } from '@shared/types/metrics';
 import { useFundContext } from '@/contexts/FundContext';
+import { getErrorMessage } from '@/lib/http-response';
 
 interface UseFundMetricsOptions {
   /** Skip expensive projection calculations for fast loading */
@@ -25,18 +26,6 @@ interface UseFundMetricsOptions {
   enabled?: boolean;
   /** Custom refetch interval in ms (default: 5 minutes) */
   refetchInterval?: number;
-}
-
-function readErrorMessage(payload: unknown): string | undefined {
-  if (
-    typeof payload === 'object' &&
-    payload !== null &&
-    typeof (payload as { message?: unknown }).message === 'string'
-  ) {
-    return (payload as { message: string }).message;
-  }
-
-  return undefined;
 }
 
 /**
@@ -87,7 +76,7 @@ export function useFundMetrics(
       if (!response.ok) {
         const errorData: unknown = await response.json().catch(() => null);
         throw new Error(
-          readErrorMessage(errorData) || `HTTP ${response.status}: Failed to fetch metrics`
+          getErrorMessage(errorData) || `HTTP ${response.status}: Failed to fetch metrics`
         );
       }
 

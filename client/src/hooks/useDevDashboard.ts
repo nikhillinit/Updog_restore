@@ -2,116 +2,15 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import type { Socket } from 'socket.io-client';
 import { io } from 'socket.io-client';
 import { logger } from '@/lib/logger';
-
-interface DevHealthMetrics {
-  typescript: {
-    errorCount: number;
-    errors: Array<{ file: string; line: number; message: string }>;
-    trend: 'improving' | 'stable' | 'degrading';
-  };
-  tests: {
-    status: 'passing' | 'failing' | 'unknown';
-    passCount: number;
-    failCount: number;
-    coverage: number;
-    performance: {
-      avgDuration: number;
-      slowTests: Array<{ name: string; duration: number }>;
-    };
-  };
-  build: {
-    status: 'success' | 'failed' | 'building';
-    duration: number;
-    size: {
-      client: number;
-      server: number;
-    };
-    warnings: number;
-  };
-  monteCarlo: {
-    status: 'healthy' | 'degraded' | 'offline';
-    avgLatency: number;
-    throughput: number;
-    errorRate: number;
-  };
-  database: {
-    status: 'connected' | 'disconnected' | 'degraded';
-    latency: number;
-    connectionCount: number;
-  };
-  devServer: {
-    status: 'running' | 'stopped' | 'error';
-    port: number;
-    memory: number;
-    uptime: number;
-  };
-  git: {
-    branch: string;
-    uncommittedChanges: number;
-    lastCommit: {
-      hash: string;
-      message: string;
-      timestamp: string;
-    };
-  };
-}
-
-interface DashboardData {
-  timestamp: string;
-  overall: 'healthy' | 'warning' | 'critical';
-  metrics: DevHealthMetrics;
-}
-
-type DashboardOverall = DashboardData['overall'];
-type DevDashboardEventType =
-  | 'metrics_update'
-  | 'build_started'
-  | 'build_completed'
-  | 'build_failed'
-  | 'test_started'
-  | 'test_completed'
-  | 'test_failed';
-
-interface MetricsUpdateEvent {
-  type: 'metrics_update';
-  data: {
-    timestamp: string;
-    overall: DashboardOverall;
-    changedMetrics: string[];
-    metrics: Partial<Pick<DevHealthMetrics, 'typescript' | 'git' | 'devServer'>>;
-    message?: string;
-  };
-}
-
-interface BuildStatusEvent {
-  type: 'build_started' | 'build_completed' | 'build_failed';
-  data: {
-    timestamp: string;
-    duration?: number;
-    errors?: string[];
-    message?: string;
-  };
-}
-
-interface TestStatusEvent {
-  type: 'test_started' | 'test_completed' | 'test_failed';
-  data: {
-    timestamp: string;
-    results?: {
-      passed: number;
-      failed: number;
-      coverage: number;
-    };
-    message?: string;
-  };
-}
-
-type DevDashboardEvent = MetricsUpdateEvent | BuildStatusEvent | TestStatusEvent;
-
-interface QuickFixResponse {
-  success: boolean;
-  message: string;
-}
+import type {
+  DashboardData,
+  DashboardOverall,
+  DevDashboardEvent,
+  DevDashboardEventType,
+  DevDashboardQuickFixResponse,
+  DevHealthMetrics,
+  MetricsUpdateEvent,
+} from '@shared/types/dev-dashboard';
 
 interface QuickFixAction {
   id: string;
@@ -163,7 +62,7 @@ function parseDashboardData(value: unknown): DashboardData {
   };
 }
 
-function parseQuickFixResponse(value: unknown): QuickFixResponse {
+function parseQuickFixResponse(value: unknown): DevDashboardQuickFixResponse {
   const success = isRecord(value) ? value['success'] : undefined;
   const message = isRecord(value) ? value['message'] : undefined;
 
@@ -425,7 +324,25 @@ export const useDevDashboard = () => {
             overall: event.data.overall,
             metrics: {
               ...prev.metrics,
-              ...event.data.metrics,
+              ...(event.data.metrics.typescript !== undefined
+                ? { typescript: event.data.metrics.typescript }
+                : {}),
+              ...(event.data.metrics.git !== undefined
+                ? {
+                    git: {
+                      ...prev.metrics.git,
+                      ...event.data.metrics.git,
+                    },
+                  }
+                : {}),
+              ...(event.data.metrics.devServer !== undefined
+                ? {
+                    devServer: {
+                      ...prev.metrics.devServer,
+                      ...event.data.metrics.devServer,
+                    },
+                  }
+                : {}),
             },
           };
         });

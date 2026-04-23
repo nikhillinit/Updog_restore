@@ -14,6 +14,7 @@ import type { TooltipProps } from 'recharts/types/component/Tooltip';
 import { cn } from '@/lib/utils';
 import type { ChartConfig } from './chart-core';
 import { getPayloadConfigFromPayload, useChart } from './chart-core';
+import { isRecord } from '@shared/utils/type-guards';
 
 // Re-export all Recharts components that are used in the app
 export { ResponsiveContainer } from 'recharts/es6/component/ResponsiveContainer';
@@ -88,10 +89,6 @@ type ChartLegendContentProps = React.ComponentProps<'div'> & {
   hideIcon?: boolean;
   nameKey?: string;
 };
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null;
-}
 
 function isTooltipPayloadList(payload: unknown): payload is TooltipPayloadList {
   return Array.isArray(payload) && payload.every(isRecord);

@@ -149,11 +149,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Portfolio Intelligence API routes (feature-flagged)
   // Routes use /api/portfolio/* prefix internally
   const { FEATURES } = await import('./config/features.js');
-  if (FEATURES.queueDashboard) {
-    const queueDashboardRoutes = await import('./routes/admin/queue-dashboard.js');
-    app.use('/api/admin/queues', queueDashboardRoutes.default);
-  }
-
   if (FEATURES.portfolioIntelligence) {
     const portfolioIntelligenceRoutes = await import('./routes/portfolio-intelligence.js');
     app.use(portfolioIntelligenceRoutes.default);

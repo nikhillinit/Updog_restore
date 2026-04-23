@@ -213,3 +213,10 @@ export function getValidProperty<T extends object, K extends keyof T, V>(
   const value = safeObjectAccess(obj, key);
   return validator(value) ? value : undefined;
 }
+
+// ============================================================================
+// Re-exports from shared utilities
+// ============================================================================
+
+export { isRecord } from '@shared/utils/type-guards';
+export { getErrorMessage, readJsonResponse } from './http-response';

@@ -1,13 +1,10 @@
 import type IORedis from 'ioredis';
+import { isRecord } from '@shared/utils/type-guards';
 
 export interface BullMQRedisConnection {
   host: string;
   port: number;
   password?: string;
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null;
 }
 
 export function getBullMQConnection(redisConnection: IORedis): BullMQRedisConnection {

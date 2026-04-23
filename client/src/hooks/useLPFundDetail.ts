@@ -8,6 +8,7 @@
 
 import { useQuery } from '@tanstack/react-query';
 import { useLPContext } from '@/contexts/LPContext';
+import { getErrorMessage } from '@/lib/http-response';
 import type { LPFundDetailResponse } from '@shared/types/lp-api';
 
 // ============================================================================
@@ -18,18 +19,6 @@ interface UseLPFundDetailOptions {
   fundId: number;
   asOfDate?: string;
   enabled?: boolean;
-}
-
-function readErrorMessage(payload: unknown): string | undefined {
-  if (
-    typeof payload === 'object' &&
-    payload !== null &&
-    typeof (payload as { message?: unknown }).message === 'string'
-  ) {
-    return (payload as { message: string }).message;
-  }
-
-  return undefined;
 }
 
 /**
@@ -69,7 +58,7 @@ export function useLPFundDetail(options: UseLPFundDetailOptions) {
       if (!response.ok) {
         const errorData: unknown = await response.json().catch(() => null);
         throw new Error(
-          readErrorMessage(errorData) || `HTTP ${response.status}: Failed to fetch fund detail`
+          getErrorMessage(errorData) || `HTTP ${response.status}: Failed to fetch fund detail`
         );
       }
 

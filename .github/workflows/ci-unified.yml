@@ -462,7 +462,11 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          fetch-depth: 0
+          # The guards job only inspects files and changed-file metadata.
+          # A shallow fetch is enough and is more resilient when GitHub has
+          # transient fetch/packfile failures during checkout.
+          fetch-depth: 2
+          fetch-tags: false
 
       - name: Validate Badge URLs
         run: |

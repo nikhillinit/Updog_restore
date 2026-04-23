@@ -365,6 +365,9 @@ describe('Allocation scenarios API', () => {
       scenarioId,
       expect.objectContaining({
         ...payload,
+        decidedByUserId: null,
+        decidedByLabel: null,
+        decidedAt: null,
       })
     );
   });
@@ -430,7 +433,12 @@ describe('Allocation scenarios API', () => {
       1,
       scenarioId,
       reserveIcDecision.id,
-      expect.objectContaining(payload)
+      expect.objectContaining({
+        ...payload,
+        decidedByUserId: 17,
+        decidedByLabel: 'analyst@example.com',
+        decidedAt: expect.any(String),
+      })
     );
   });
 

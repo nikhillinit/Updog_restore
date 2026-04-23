@@ -26,8 +26,7 @@ import type {
   PublishedVersionSummary,
 } from '@shared/contracts/fund-results-comparison-v1.contract';
 import { COMPARISON_METRIC_KEYS } from '@shared/contracts/fund-results-comparison-v1.contract';
-import type { CalculationStatus } from '@shared/contracts/fund-state-read-v1.contract';
-import type { DispatchState } from '@shared/schema/fund';
+import { deriveRunStatus, toDispatchState } from './fund-run-status';
 
 const METRIC_DISPLAY_NAMES: Record<MetricDelta['metric'], string> = {
   fundSize: 'Fund Size',
@@ -35,23 +34,6 @@ const METRIC_DISPLAY_NAMES: Record<MetricDelta['metric'], string> = {
   avgConfidence: 'Average Confidence',
   yearsToFullDeploy: 'Years To Full Deploy',
 };
-
-function deriveRunStatus(run: {
-  dispatchState: string;
-  completedAt: Date | null;
-  failedAt: Date | null;
-}): CalculationStatus {
-  if (run.failedAt) return 'failed';
-  if (run.completedAt) return 'ready';
-  if (run.dispatchState === 'dispatched' || run.dispatchState === 'partial') return 'calculating';
-  if (run.dispatchState === 'pending') return 'submitted';
-  return 'calculating';
-}
-
-function toDispatchState(raw: string): DispatchState | null {
-  const valid: DispatchState[] = ['pending', 'dispatched', 'partial', 'failed'];
-  return (valid as string[]).includes(raw) ? (raw as DispatchState) : null;
-}
 
 function toMetricDelta(
   metric: MetricDelta['metric'],
@@ -141,11 +123,7 @@ export class FundResultsComparisonService {
       };
     }
 
-    const currentVersion = await this.loadVersionSummary(
-      fundId,
-      Number(fund.size),
-      currentConfig
-    );
+    const currentVersion = await this.loadVersionSummary(fundId, Number(fund.size), currentConfig);
     const previousConfig = publishedConfigs[1] ?? null;
 
     if (!previousConfig) {
@@ -158,7 +136,11 @@ export class FundResultsComparisonService {
       };
     }
 
-    const previousVersion = await this.loadVersionSummary(fundId, Number(fund.size), previousConfig);
+    const previousVersion = await this.loadVersionSummary(
+      fundId,
+      Number(fund.size),
+      previousConfig
+    );
 
     return {
       fundId,
@@ -181,12 +163,14 @@ export class FundResultsComparisonService {
   ): Promise<PublishedVersionSummary> {
     const configBlob = (publishedConfig.config ?? null) as Record<string, unknown> | null;
     const configuredFundSize = configBlob?.['fundSize'];
-    const fundSize =
-      typeof configuredFundSize === 'number' ? configuredFundSize : fallbackFundSize;
+    const fundSize = typeof configuredFundSize === 'number' ? configuredFundSize : fallbackFundSize;
 
     const [latestRun, reserveSnapshot, pacingSnapshot] = await Promise.all([
       db.query.calcRuns.findFirst({
-        where: and(eq(calcRuns.fundId, fundId), eq(calcRuns.configVersion, publishedConfig.version)),
+        where: and(
+          eq(calcRuns.fundId, fundId),
+          eq(calcRuns.configVersion, publishedConfig.version)
+        ),
         orderBy: desc(calcRuns.requestedAt),
       }),
       db.query.fundSnapshots.findFirst({

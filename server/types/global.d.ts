@@ -24,7 +24,6 @@ declare namespace NodeJS {
     REDIS_URL?: string;
     REDIS_CLUSTER?: string;
     ENABLE_QUEUES?: string;
-    ENABLE_QUEUE_DASHBOARD?: string;
     QUEUE_REDIS_URL?: string;
 
     // Security & Auth

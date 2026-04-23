@@ -21,7 +21,6 @@
  * @module server/services/stress-test-engine
  */
 
-import { runFundModel } from '@shared/lib/fund-calc';
 import { type FundModelInputs } from '@shared/schemas/fund-model';
 import {
   SUPPORTED_STRESS_SCENARIOS,
@@ -42,6 +41,7 @@ import {
   SensitivityEngineError,
   type ConfigLoader,
 } from './one-way-sensitivity-engine';
+import { computeSensitivityMetric } from './sensitivity-helpers';
 
 // Use getVariableDefinition + SensitivityVariableId immediately at module
 // scope so the ESLint auto-fix hook keeps the imports (it strips imports
@@ -166,10 +166,10 @@ export class StressTestEngine {
   }
 
   private computeMetric(config: FundModelInputs, metricDef: SensitivityMetricDefinition): number {
-    const outputs = runFundModel(config);
-    return this.extractByPath(
-      outputs as unknown as Record<string, unknown>,
-      metricDef.fundMetricPath
+    return computeSensitivityMetric(
+      config,
+      metricDef,
+      (code, message) => new SensitivityEngineError(code, message)
     );
   }
 
@@ -188,32 +188,6 @@ export class StressTestEngine {
       'UNSUPPORTED_VARIABLE_PATH',
       `Nested override paths not supported in Phase 4 stress: ${path}`
     );
-  }
-
-  private extractByPath(obj: Record<string, unknown>, path: string): number {
-    const segments = path.split('.');
-    let current: unknown = obj;
-    for (const segment of segments) {
-      if (
-        current &&
-        typeof current === 'object' &&
-        segment in (current as Record<string, unknown>)
-      ) {
-        current = (current as Record<string, unknown>)[segment];
-      } else {
-        throw new SensitivityEngineError(
-          'METRIC_PATH_NOT_FOUND',
-          `Could not extract metric at path ${path}`
-        );
-      }
-    }
-    if (typeof current !== 'number') {
-      throw new SensitivityEngineError(
-        'METRIC_NOT_NUMBER',
-        `Metric at path ${path} is not a number: ${typeof current}`
-      );
-    }
-    return current;
   }
 }
 

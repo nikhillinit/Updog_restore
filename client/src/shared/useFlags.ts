@@ -20,13 +20,10 @@
 
 import { useSyncExternalStore } from 'react';
 import { ALL_FLAGS, type FlagKey } from '@shared/feature-flags/flag-definitions';
+import { isRecord } from '@shared/utils/type-guards';
 
 type FlagName = Extract<FlagKey, string>;
 type FlagSnapshot = Record<FlagName, boolean>;
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null;
-}
 
 function isRuntimeFlagValue(value: string | null): value is '0' | '1' {
   return value === '0' || value === '1';
@@ -94,11 +91,7 @@ export function getFlagSnapshot(): FlagSnapshot {
   const snapshot = {} as FlagSnapshot;
 
   for (const key of Object.keys(ALL_FLAGS) as FlagName[]) {
-    snapshot[key] =
-      getRuntimeFlag(key) ??
-      getEnvFlag(key) ??
-      ALL_FLAGS[key]?.enabled ??
-      false;
+    snapshot[key] = getRuntimeFlag(key) ?? getEnvFlag(key) ?? ALL_FLAGS[key]?.enabled ?? false;
   }
 
   return snapshot;

@@ -5,10 +5,11 @@ import fs from 'fs/promises';
 import path from 'path';
 import { storage } from '../storage';
 import type { Request, Response } from 'express';
+import { isRecord } from '@shared/utils/type-guards';
+import type { DevHealthMetrics, TypeScriptErrorMetric } from '@shared/types/dev-dashboard';
 
 const router = Router();
 const execAsync = promisify(exec);
-type TypeScriptErrorEntry = DevHealthMetrics['typescript']['errors'][number];
 
 interface ErrorHistoryEntry {
   timestamp: number;
@@ -23,63 +24,6 @@ interface QuickTestSuiteResult {
 interface QuickTestResult {
   failed?: boolean;
   testResults?: QuickTestSuiteResult[];
-}
-
-interface DevHealthMetrics {
-  typescript: {
-    errorCount: number;
-    errors: Array<{ file: string; line: number; message: string }>;
-    trend: 'improving' | 'stable' | 'degrading';
-  };
-  tests: {
-    status: 'passing' | 'failing' | 'unknown';
-    passCount: number;
-    failCount: number;
-    coverage: number;
-    performance: {
-      avgDuration: number;
-      slowTests: Array<{ name: string; duration: number }>;
-    };
-  };
-  build: {
-    status: 'success' | 'failed' | 'building';
-    duration: number;
-    size: {
-      client: number;
-      server: number;
-    };
-    warnings: number;
-  };
-  monteCarlo: {
-    status: 'healthy' | 'degraded' | 'offline';
-    avgLatency: number;
-    throughput: number;
-    errorRate: number;
-  };
-  database: {
-    status: 'connected' | 'disconnected' | 'degraded';
-    latency: number;
-    connectionCount: number;
-  };
-  devServer: {
-    status: 'running' | 'stopped' | 'error';
-    port: number;
-    memory: number;
-    uptime: number;
-  };
-  git: {
-    branch: string;
-    uncommittedChanges: number;
-    lastCommit: {
-      hash: string;
-      message: string;
-      timestamp: string;
-    };
-  };
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null;
 }
 
 function isErrorHistoryEntry(value: unknown): value is ErrorHistoryEntry {
@@ -139,7 +83,7 @@ async function getTypeScriptErrors(): Promise<DevHealthMetrics['typescript']> {
 
     // Parse TypeScript errors
     const errorRegex = /(.+)\((\d+),\d+\): error TS\d+: (.+)/g;
-    const errors: TypeScriptErrorEntry[] = [];
+    const errors: TypeScriptErrorMetric[] = [];
     let match: RegExpExecArray | null;
 
     while ((match = errorRegex.exec(output)) !== null) {

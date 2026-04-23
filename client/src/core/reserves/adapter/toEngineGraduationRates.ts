@@ -1,4 +1,5 @@
 import { clampPct, clampInt } from '@/lib/coerce';
+import { isRecord } from '@shared/utils/type-guards';
 
 export interface Stage {
   id: string;
@@ -31,10 +32,6 @@ type FundCreationPayload = {
     stages: Stage[];
   };
 };
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null;
-}
 
 function getStagesSource(input: Record<string, unknown>): unknown[] {
   if (Array.isArray(input['stages'])) {

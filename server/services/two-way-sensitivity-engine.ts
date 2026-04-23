@@ -14,7 +14,6 @@
  * @module server/services/two-way-sensitivity-engine
  */
 
-import { runFundModel } from '@shared/lib/fund-calc';
 import { type FundModelInputs } from '@shared/schemas/fund-model';
 import {
   getVariableDefinition,
@@ -30,6 +29,7 @@ import {
   SensitivityEngineError,
   type ConfigLoader,
 } from './one-way-sensitivity-engine';
+import { computeSensitivityMetric } from './sensitivity-helpers';
 
 // Re-export so the route's dynamic import resolves SensitivityEngineError from
 // either engine module without forcing a separate import line.
@@ -109,10 +109,10 @@ export class TwoWaySensitivityEngine {
   }
 
   private computeMetric(config: FundModelInputs, metricDef: SensitivityMetricDefinition): number {
-    const outputs = runFundModel(config);
-    return this.extractByPath(
-      outputs as unknown as Record<string, unknown>,
-      metricDef.fundMetricPath
+    return computeSensitivityMetric(
+      config,
+      metricDef,
+      (code, message) => new SensitivityEngineError(code, message)
     );
   }
 
@@ -131,32 +131,6 @@ export class TwoWaySensitivityEngine {
       'UNSUPPORTED_VARIABLE_PATH',
       `Nested override paths not supported in Phase 2 two-way: ${path}`
     );
-  }
-
-  private extractByPath(obj: Record<string, unknown>, path: string): number {
-    const segments = path.split('.');
-    let current: unknown = obj;
-    for (const segment of segments) {
-      if (
-        current &&
-        typeof current === 'object' &&
-        segment in (current as Record<string, unknown>)
-      ) {
-        current = (current as Record<string, unknown>)[segment];
-      } else {
-        throw new SensitivityEngineError(
-          'METRIC_PATH_NOT_FOUND',
-          `Could not extract metric at path ${path}`
-        );
-      }
-    }
-    if (typeof current !== 'number') {
-      throw new SensitivityEngineError(
-        'METRIC_NOT_NUMBER',
-        `Metric at path ${path} is not a number: ${typeof current}`
-      );
-    }
-    return current;
   }
 }
 

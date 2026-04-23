@@ -10,6 +10,7 @@
 import { Router } from 'express';
 import type { Request, Response } from 'express';
 import { asyncHandler } from '../../middleware/async.js';
+import { sendBodyValidationError } from '../../lib/validation-response.js';
 import {
   SnapshotVersionService,
   RestoreConflictError,
@@ -58,11 +59,7 @@ router.post(
     // 2. Validate request body
     const bodyResult = CreateVersionRequestSchema.safeParse(req.body);
     if (!bodyResult.success) {
-      return res.status(400).json({
-        error: 'invalid_request_body',
-        message: 'Invalid request body',
-        details: bodyResult.error.format(),
-      });
+      return sendBodyValidationError(res, bodyResult.error);
     }
 
     const { snapshotId } = paramsResult.data;
@@ -357,11 +354,7 @@ router.post(
 
     const bodyResult = RestoreVersionRequestSchema.safeParse(req.body);
     if (!bodyResult.success) {
-      return res.status(400).json({
-        error: 'invalid_request_body',
-        message: 'Invalid request body',
-        details: bodyResult.error.format(),
-      });
+      return sendBodyValidationError(res, bodyResult.error);
     }
 
     const { snapshotId, versionId } = paramsResult.data;
@@ -557,11 +550,7 @@ router.post(
   asyncHandler(async (req: Request, res: Response) => {
     const bodyResult = CompareVersionsRequestSchema.safeParse(req.body);
     if (!bodyResult.success) {
-      return res.status(400).json({
-        error: 'invalid_request_body',
-        message: 'Invalid request body',
-        details: bodyResult.error.format(),
-      });
+      return sendBodyValidationError(res, bodyResult.error);
     }
 
     const { baseVersionId, comparisonVersionId, metrics } = bodyResult.data;

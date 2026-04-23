@@ -18,31 +18,7 @@ import type {
   FundLifecycleHistoryV1,
   LifecycleHistoryEntry,
 } from '@shared/contracts/fund-lifecycle-history-v1.contract';
-import type { CalculationStatus } from '@shared/contracts/fund-state-read-v1.contract';
-import type { DispatchState } from '@shared/schema/fund';
-
-/**
- * Derive a simplified calculation status from a calcRun row.
- * Full lifecycle derivation lives in fund-state-derivation.ts and checks
- * snapshots; this is a lightweight per-entry summary.
- */
-function deriveRunStatus(run: {
-  dispatchState: string;
-  completedAt: Date | null;
-  failedAt: Date | null;
-}): CalculationStatus {
-  if (run.failedAt) return 'failed';
-  if (run.completedAt) return 'ready';
-  if (run.dispatchState === 'dispatched' || run.dispatchState === 'partial') return 'calculating';
-  if (run.dispatchState === 'pending') return 'submitted';
-  return 'calculating';
-}
-
-/** Narrow a raw string to the DispatchState union, returning null on mismatch */
-function toDispatchState(raw: string): DispatchState | null {
-  const valid: DispatchState[] = ['pending', 'dispatched', 'partial', 'failed'];
-  return (valid as string[]).includes(raw) ? (raw as DispatchState) : null;
-}
+import { deriveRunStatus, toDispatchState } from './fund-run-status';
 
 export class FundLifecycleHistoryService {
   /**
@@ -77,20 +53,14 @@ export class FundLifecycleHistoryService {
     for (const pc of publishedConfigs) {
       // Latest calcRun targeting this configVersion
       const latestRun = await db.query.calcRuns.findFirst({
-        where: and(
-          eq(calcRuns.fundId, fundId),
-          eq(calcRuns.configVersion, pc.version)
-        ),
+        where: and(eq(calcRuns.fundId, fundId), eq(calcRuns.configVersion, pc.version)),
         orderBy: desc(calcRuns.requestedAt),
       });
 
       // Best-effort publisher lookup from fund_events (PUBLISHED event
       // closest in time to this config's publishedAt)
       const publishEvent = await db.query.fundEvents.findFirst({
-        where: and(
-          eq(fundEvents.fundId, fundId),
-          eq(fundEvents.eventType, 'PUBLISHED')
-        ),
+        where: and(eq(fundEvents.fundId, fundId), eq(fundEvents.eventType, 'PUBLISHED')),
         orderBy: desc(fundEvents.eventTime),
       });
 
@@ -102,9 +72,7 @@ export class FundLifecycleHistoryService {
       // Extract numCompanies from capitalPlanAllocations array length
       const rawAllocations = configBlob?.['capitalPlanAllocations'];
       const numCompanies =
-        Array.isArray(rawAllocations) && rawAllocations.length > 0
-          ? rawAllocations.length
-          : null;
+        Array.isArray(rawAllocations) && rawAllocations.length > 0 ? rawAllocations.length : null;
 
       // Build calcRun sub-object
       let calcRunEntry: LifecycleHistoryEntry['calcRun'] = null;

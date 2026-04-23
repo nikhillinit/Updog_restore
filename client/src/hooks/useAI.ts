@@ -1,4 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { isRecord } from '@shared/utils/type-guards';
 
 export type ModelName = 'claude' | 'gpt' | 'gemini' | 'deepseek';
 
@@ -29,10 +30,6 @@ interface AIUsageResponse {
 }
 
 const MODEL_NAMES: ReadonlySet<ModelName> = new Set(['claude', 'gpt', 'gemini', 'deepseek']);
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null;
-}
 
 function asNumber(value: unknown): number | undefined {
   return typeof value === 'number' && Number.isFinite(value) ? value : undefined;
