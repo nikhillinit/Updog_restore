@@ -18,88 +18,18 @@ import { Button } from '@/components/ui/button';
 import { ModernStepContainer } from '@/components/wizard/ModernStepContainer';
 import type { StageData } from '@/components/wizard/StageAccordionRow';
 import { StageAccordionRow } from '@/components/wizard/StageAccordionRow';
-import type { SectorProfile } from '@/components/wizard/SectorProfileSwitcher';
 import { SectorProfileSwitcher } from '@/components/wizard/SectorProfileSwitcher';
 import type { ValidationIssue } from '@/components/wizard/InvestmentValidationCallout';
 import { InvestmentValidationCallout } from '@/components/wizard/InvestmentValidationCallout';
 import { InfoBanner } from '@/components/wizard/InfoBanner';
 import { ProfileHeader } from '@/components/wizard/ProfileHeader';
 import { useFundAction } from '@/stores/useFundSelector';
-
-// Default sector profiles
-const DEFAULT_PROFILES: SectorProfile[] = [
-  { id: 'default', name: 'Default profile', stagesCount: 5, isDefault: true },
-  { id: 'saas', name: 'B2B SaaS', stagesCount: 5, isTemplate: false },
-  { id: 'deeptech', name: 'Deep tech / Hardware', stagesCount: 6, isTemplate: false },
-  { id: 'consumer', name: 'Consumer social', stagesCount: 4, isTemplate: false },
-];
-
-function buildDefaultStages(): StageData[] {
-  return [
-    {
-      id: '1',
-      name: 'Pre-Seed',
-      roundSize: 0.7,
-      valuation: 3.1,
-      valuationType: 'Pre',
-      esop: 9,
-      gradRate: 50,
-      monthsToNext: 12,
-      exitRate: 5,
-    },
-    {
-      id: '2',
-      name: 'Seed',
-      roundSize: 2.5,
-      valuation: 12.0,
-      valuationType: 'Post',
-      esop: 10,
-      gradRate: 40,
-      monthsToNext: 18,
-      exitRate: 10,
-    },
-    {
-      id: '3',
-      name: 'Series A',
-      roundSize: 8.0,
-      valuation: 35.0,
-      valuationType: 'Pre',
-      esop: 10,
-      gradRate: 60,
-      monthsToNext: 18,
-      exitRate: 15,
-    },
-    {
-      id: '4',
-      name: 'Series B',
-      roundSize: 25.0,
-      valuation: 120.0,
-      valuationType: 'Pre',
-      esop: 5,
-      gradRate: 70,
-      monthsToNext: 24,
-      exitRate: 20,
-    },
-    {
-      id: '5',
-      name: 'Series C',
-      roundSize: 60.0,
-      valuation: 350.0,
-      valuationType: 'Pre',
-      esop: 5,
-      // Terminal stage must stay valid on first render and match store invariants.
-      gradRate: 0,
-      monthsToNext: 24,
-      exitRate: 25,
-    },
-  ];
-}
+import { cloneDefaultStages, DEFAULT_PROFILES } from './investment-rounds-defaults';
 
 export default function InvestmentRoundsStepV2() {
   const [, navigate] = useLocation();
   const [activeProfileId, setActiveProfileId] = useState('default');
-  const [stages, setStages] = useState<StageData[]>(() => buildDefaultStages());
-  const [profiles] = useState<SectorProfile[]>(DEFAULT_PROFILES);
+  const [stages, setStages] = useState<StageData[]>(() => cloneDefaultStages());
   const [validationStatus, setValidationStatus] = useState<'success' | 'warning' | 'error'>(
     'success'
   );
@@ -109,8 +39,8 @@ export default function InvestmentRoundsStepV2() {
   const fromInvestmentStrategy = useFundAction((s) => s.fromInvestmentStrategy);
 
   const activeProfile = useMemo(
-    () => profiles.find((p) => p.id === activeProfileId) || profiles[0]!,
-    [profiles, activeProfileId]
+    () => DEFAULT_PROFILES.find((p) => p.id === activeProfileId) || DEFAULT_PROFILES[0]!,
+    [activeProfileId]
   );
 
   // Handle stage field changes
@@ -141,7 +71,7 @@ export default function InvestmentRoundsStepV2() {
 
   // Reset stage to defaults
   const handleResetStage = useCallback((id: string) => {
-    const defaultStage = buildDefaultStages().find((s) => s.id === id);
+    const defaultStage = cloneDefaultStages().find((s) => s.id === id);
     if (defaultStage) {
       setStages((prev) => prev.map((stage) => (stage.id === id ? { ...defaultStage } : stage)));
     }
@@ -224,7 +154,7 @@ export default function InvestmentRoundsStepV2() {
       <div className="flex flex-1 overflow-hidden -mx-6 -mt-6">
         {/* Left Sidebar - Sector Profiles */}
         <SectorProfileSwitcher
-          profiles={profiles.map((p) => ({
+          profiles={DEFAULT_PROFILES.map((p) => ({
             ...p,
             stagesCount: p.id === activeProfileId ? stages.length : p.stagesCount,
           }))}
