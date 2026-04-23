@@ -14,6 +14,18 @@
 import { z } from 'zod';
 
 // =====================
+// REUSABLE PARAM SCHEMAS
+// =====================
+
+/**
+ * Fund ID path parameter schema
+ * Validates that fundId is a numeric string and transforms to Number
+ */
+export const FundIdParamSchema = z.object({
+  fundId: z.string().regex(/^\d+$/).transform(Number),
+});
+
+// =====================
 // REUSABLE SCHEMAS
 // =====================
 

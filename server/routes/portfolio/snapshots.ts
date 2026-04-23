@@ -2,7 +2,9 @@ import { Router } from 'express';
 import type { Request, Response } from 'express';
 import { z } from 'zod';
 import { asyncHandler } from '../../middleware/async.js';
+
 import {
+  FundIdParamSchema,
   CreateSnapshotRequestSchema,
   ListSnapshotsRequestSchema,
   UpdateSnapshotRequestSchema,
@@ -20,10 +22,6 @@ const snapshotService = new SnapshotService();
 // ============================================================================
 // Validation Schemas (Path Params)
 // ============================================================================
-
-const FundIdParamSchema = z.object({
-  fundId: z.string().regex(/^\d+$/).transform(Number),
-});
 
 const SnapshotIdParamSchema = z.object({
   snapshotId: z.string().uuid(),

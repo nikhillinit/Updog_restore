@@ -17,6 +17,7 @@ import { db } from '../db';
 import { logger } from '../lib/logger.js';
 import { applyAllocationUpdates } from '../services/allocation-write-service.js';
 import { portfolioCompanies } from '@shared/schema';
+import { FundIdParamSchema } from '@shared/schemas/portfolio-route';
 import { eq, lt, sql, desc, asc, and } from 'drizzle-orm';
 import type { SQL } from 'drizzle-orm';
 // Stage normalization and validation
@@ -82,13 +83,6 @@ const UpdateAllocationRequestSchema = z
       message: 'allocation_cap_cents must be >= planned_reserves_cents when set',
     }
   );
-
-/**
- * Schema for validating fundId path parameter
- */
-const FundIdParamSchema = z.object({
-  fundId: z.string().regex(/^\d+$/).transform(Number),
-});
 
 /**
  * Query parameter schema for company list endpoint

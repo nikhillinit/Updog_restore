@@ -18,6 +18,7 @@ import {
   CreateReserveIcDecisionV1Schema,
   UpdateReserveIcDecisionV1Schema,
 } from '@shared/contracts/reserve-ic-decision-v1.contract';
+import { FundIdParamSchema } from '@shared/schemas/portfolio-route';
 
 interface HttpError extends Error {
   statusCode?: number;
@@ -35,10 +36,6 @@ function routeHandler(
     Promise.resolve(handler(req, res, next)).catch(next);
   };
 }
-
-const FundIdParamSchema = z.object({
-  fundId: z.string().regex(/^\d+$/).transform(Number),
-});
 
 const ScenarioIdParamSchema = z.object({
   scenarioId: z.string().uuid(),
@@ -196,10 +193,13 @@ function normalizeReserveIcCreatePayload(
     payload.provenance.sourceScenarioId !== null &&
     payload.provenance.sourceScenarioId !== scenarioId
   ) {
-    throw Object.assign(new Error('Decision provenance sourceScenarioId must match the route scenario'), {
-      statusCode: 400,
-      code: 'invalid_decision_provenance',
-    });
+    throw Object.assign(
+      new Error('Decision provenance sourceScenarioId must match the route scenario'),
+      {
+        statusCode: 400,
+        code: 'invalid_decision_provenance',
+      }
+    );
   }
 
   const needsDecisionAudit =
@@ -208,9 +208,8 @@ function normalizeReserveIcCreatePayload(
   return {
     ...payload,
     decidedByUserId:
-      payload.decidedByUserId ?? (needsDecisionAudit ? actor.user_id ?? null : null),
-    decidedByLabel:
-      payload.decidedByLabel ?? (needsDecisionAudit ? actor.label ?? null : null),
+      payload.decidedByUserId ?? (needsDecisionAudit ? (actor.user_id ?? null) : null),
+    decidedByLabel: payload.decidedByLabel ?? (needsDecisionAudit ? (actor.label ?? null) : null),
     decidedAt: payload.decidedAt ?? (needsDecisionAudit ? new Date().toISOString() : null),
     provenance: {
       ...payload.provenance,
@@ -229,10 +228,13 @@ function normalizeReserveIcUpdatePayload(
     payload.provenance.sourceScenarioId !== null &&
     payload.provenance.sourceScenarioId !== scenarioId
   ) {
-    throw Object.assign(new Error('Decision provenance sourceScenarioId must match the route scenario'), {
-      statusCode: 400,
-      code: 'invalid_decision_provenance',
-    });
+    throw Object.assign(
+      new Error('Decision provenance sourceScenarioId must match the route scenario'),
+      {
+        statusCode: 400,
+        code: 'invalid_decision_provenance',
+      }
+    );
   }
 
   const nextStatus = payload.decisionStatus;
@@ -241,11 +243,10 @@ function normalizeReserveIcUpdatePayload(
   return {
     ...payload,
     decidedByUserId:
-      payload.decidedByUserId ?? (needsDecisionAudit ? actor.user_id ?? null : undefined),
+      payload.decidedByUserId ?? (needsDecisionAudit ? (actor.user_id ?? null) : undefined),
     decidedByLabel:
-      payload.decidedByLabel ?? (needsDecisionAudit ? actor.label ?? null : undefined),
-    decidedAt:
-      payload.decidedAt ?? (needsDecisionAudit ? new Date().toISOString() : undefined),
+      payload.decidedByLabel ?? (needsDecisionAudit ? (actor.label ?? null) : undefined),
+    decidedAt: payload.decidedAt ?? (needsDecisionAudit ? new Date().toISOString() : undefined),
     provenance:
       payload.provenance !== undefined
         ? {
