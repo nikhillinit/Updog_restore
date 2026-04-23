@@ -5,6 +5,7 @@ import fs from 'fs/promises';
 import path from 'path';
 import { storage } from '../storage';
 import type { Request, Response } from 'express';
+import { isRecord } from '@shared/utils/type-guards';
 
 const router = Router();
 const execAsync = promisify(exec);
@@ -76,10 +77,6 @@ interface DevHealthMetrics {
       timestamp: string;
     };
   };
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null;
 }
 
 function isErrorHistoryEntry(value: unknown): value is ErrorHistoryEntry {
