@@ -5,6 +5,10 @@ import { asyncHandler } from '../../middleware/async.js';
 
 import {
   FundIdParamSchema,
+  sendBodyValidationError,
+  sendQueryValidationError,
+} from '../../lib/validation-response.js';
+import {
   CreateSnapshotRequestSchema,
   ListSnapshotsRequestSchema,
   UpdateSnapshotRequestSchema,
@@ -44,11 +48,7 @@ router.post(
     // 2. Validate request body
     const bodyResult = CreateSnapshotRequestSchema.safeParse(req.body);
     if (!bodyResult.success) {
-      return res.status(400).json({
-        error: 'invalid_request_body',
-        message: 'Invalid request body',
-        details: bodyResult.error.format(),
-      });
+      return sendBodyValidationError(res, bodyResult.error);
     }
 
     const { name, idempotencyKey } = bodyResult.data;
@@ -103,11 +103,7 @@ router.get(
     // 2. Validate query params
     const queryResult = ListSnapshotsRequestSchema.safeParse(req.query);
     if (!queryResult.success) {
-      return res.status(400).json({
-        error: 'invalid_query_parameters',
-        message: 'Invalid query parameters',
-        details: queryResult.error.format(),
-      });
+      return sendQueryValidationError(res, queryResult.error);
     }
 
     const { cursor, limit, status } = queryResult.data;
@@ -209,11 +205,7 @@ router.put(
     // 2. Validate request body
     const bodyResult = UpdateSnapshotRequestSchema.safeParse(req.body);
     if (!bodyResult.success) {
-      return res.status(400).json({
-        error: 'invalid_request_body',
-        message: 'Invalid request body',
-        details: bodyResult.error.format(),
-      });
+      return sendBodyValidationError(res, bodyResult.error);
     }
 
     const { name, status, calculatedMetrics, version } = bodyResult.data;
