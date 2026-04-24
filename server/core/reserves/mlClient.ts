@@ -223,7 +223,7 @@ export class MlClient {
     try {
       const res = await fetch(`${this.config.baseUrl}${path}`, {
         ...options,
-        signal: controller.signal as unknown as RequestInit['signal'],
+        signal: controller.signal as Exclude<RequestInit['signal'], undefined>,
       });
       return res;
     } catch (error) {

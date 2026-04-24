@@ -131,7 +131,30 @@ function getJwtErrorDetails(err: unknown): { name?: string; message: string } {
   return { message: String(err ?? 'Unknown error') };
 }
 
+function assignDevelopmentUser(req: Request): void {
+  if (req.user) {
+    return;
+  }
+
+  req.user = {
+    id: 'dev-user',
+    sub: 'dev-user',
+    email: 'dev@example.com',
+    role: 'admin',
+    roles: ['admin'],
+    fundIds: [],
+    ip: req.ip || 'unknown',
+    userAgent: req.header('user-agent') || 'unknown',
+  };
+}
+
 export const requireAuth = () => async (req: Request, res: Response, next: NextFunction) => {
+  const cfg = getJwtConfig();
+  if (cfg.NODE_ENV === 'development' && !cfg.REQUIRE_AUTH) {
+    assignDevelopmentUser(req);
+    return next();
+  }
+
   const h = req.header('authorization') || '';
   const token = h.startsWith('Bearer ') ? h.slice(7) : undefined;
 

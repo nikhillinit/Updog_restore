@@ -35,6 +35,8 @@ import { installRumIngressGuards } from './routes/metrics-rum-ingress.js';
 import { metricsRumRouter } from './routes/metrics-rum.js';
 import { swaggerSpec } from './config/swagger.js';
 import { cspDirectives, securityHeaders } from './config/csp.js';
+import { requireAuth } from './lib/auth/jwt.js';
+import { isPublicApiPath } from './lib/public-api-boundary.js';
 
 export function makeApp() {
   const app = express();
@@ -161,6 +163,18 @@ export function makeApp() {
   installRumIngressGuards(app);
   app.use(metricsRumRouter);
   app.use('/api', metricsRumRouter);
+
+  const requireApiAuth = requireAuth();
+
+  // Keep the makeApp/serverless surface aligned with the canonical /api boundary:
+  // health/flags status/metrics remain public, while fund data stays authenticated.
+  app.use('/api', (req: Request, res: Response, next: NextFunction) => {
+    if (isPublicApiPath(req.method, req.path)) {
+      return next();
+    }
+
+    return requireApiAuth(req, res, next);
+  });
 
   // Feature flags API
   app.use('/api/flags', flagsRouter);
