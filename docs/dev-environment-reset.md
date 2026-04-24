@@ -297,12 +297,15 @@ copy .env.local .env.local.backup
    config, or tsconfig, update this documentation.
 
 3. **Use consistent Node/npm versions:**
-   - Supported contract: Node `>=20.19.0`, npm `>=10.8.0`
+   - Supported contract: Node `>=20.19.0 <23`, npm `>=10.8.0`
    - Preferred local baseline: `.nvmrc` -> `v20.19.5`
    - Pinned automation/toolchain line: `volta` -> Node `20.19.0`, npm `10.9.2`
    - Tolerated but non-baseline: Node 22 may satisfy `engines`, but re-verify
      with `& .\scripts\windows-node-env.ps1 npm.cmd run doctor` before using it
      for troubleshooting
+   - Unsupported: Node 23+ and Node 24+ are outside the repo contract. Test
+     output from those runtimes can help exploration, but it is not canonical
+     completion evidence.
 
 ## Docker Alternative (Future)
 
@@ -379,7 +382,7 @@ If reset procedures don't resolve your issue:
 3. **Verify Node/npm versions:**
 
    ```bash
-   node --version  # Preferred local baseline is 20.19.x
+   node --version  # Canonical validation uses Node 20.19.x or Node 22.x, never Node 24+
    npm --version   # Supported floor is >=10.8.0; Volta pins 10.9.2
    ```
 
