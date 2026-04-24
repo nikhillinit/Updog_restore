@@ -88,6 +88,7 @@ vi.mock('@/pages/financial-modeling', () => ({
 }));
 vi.mock('@/pages/pipeline', () => ({ default: () => <div>Pipeline Page</div> }));
 vi.mock('@/pages/reports', () => ({ default: () => <div>Reports Page</div> }));
+vi.mock('@/pages/variance-tracking', () => ({ default: () => <div>Variance Tracking Page</div> }));
 vi.mock('@/pages/sensitivity-analysis', () => ({
   default: () => <div>Sensitivity Analysis Page</div>,
 }));
@@ -144,6 +145,7 @@ describe('route perimeter governance', () => {
     ['/pipeline', 'Pipeline Page'],
     ['/financial-modeling', 'Financial Modeling Page'],
     ['/reports', 'Reports Page'],
+    ['/variance-tracking', 'Variance Tracking Page'],
     ['/sensitivity-analysis', 'Sensitivity Analysis Page'],
     ['/settings', 'Settings Page'],
     ['/help', 'Help Page'],
