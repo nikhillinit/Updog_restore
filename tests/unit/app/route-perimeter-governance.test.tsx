@@ -86,6 +86,9 @@ vi.mock('@/pages/performance', () => ({ default: () => <div>Performance Page</di
 vi.mock('@/pages/financial-modeling', () => ({
   default: () => <div>Financial Modeling Page</div>,
 }));
+vi.mock('@/pages/forecasting', () => ({
+  default: () => <div>Forecasting Page</div>,
+}));
 vi.mock('@/pages/pipeline', () => ({ default: () => <div>Pipeline Page</div> }));
 vi.mock('@/pages/reports', () => ({ default: () => <div>Reports Page</div> }));
 vi.mock('@/pages/variance-tracking', () => ({ default: () => <div>Variance Tracking Page</div> }));
@@ -97,6 +100,9 @@ vi.mock('@/pages/help', () => ({ default: () => <div>Help Page</div> }));
 vi.mock('@/pages/reserves-demo', () => ({ default: () => <div>Reserves Demo Page</div> }));
 vi.mock('@/pages/fund-model-results', () => ({
   default: () => <div>Fund Model Results Page</div>,
+}));
+vi.mock('@/pages/model-results', () => ({
+  default: () => <div>Model Results Compatibility Page</div>,
 }));
 vi.mock('@/pages/planning', () => ({ default: () => <div>Planning Page</div> }));
 vi.mock('@/pages/kpi-manager', () => ({ default: () => <div>KPI Manager Page</div> }));
@@ -143,7 +149,9 @@ describe('route perimeter governance', () => {
     ['/portfolio/company/1', 'Portfolio Company Summary Page'],
     ['/performance', 'Performance Page'],
     ['/pipeline', 'Pipeline Page'],
+    ['/forecasting', 'Forecasting Page'],
     ['/financial-modeling', 'Financial Modeling Page'],
+    ['/model-results', 'Model Results Compatibility Page'],
     ['/reports', 'Reports Page'],
     ['/variance-tracking', 'Variance Tracking Page'],
     ['/sensitivity-analysis', 'Sensitivity Analysis Page'],
@@ -174,7 +182,6 @@ describe('route perimeter governance', () => {
 
   it.each([
     '/analytics',
-    '/forecasting',
     '/monte-carlo',
     '/time-travel',
     '/secondary-market',

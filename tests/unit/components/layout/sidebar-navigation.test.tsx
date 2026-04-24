@@ -102,6 +102,8 @@ describe('sidebar results navigation', () => {
 
     expect(getActiveNavigationId('/fund-model-results/42')).toBe('model-results');
     expect(getActiveNavigationId('/fund-model-results/42?tab=summary')).toBe('model-results');
+    expect(getActiveNavigationId('/model-results')).toBe('model-results');
+    expect(getActiveNavigationId('/forecasting')).toBe('financial-modeling');
     expect(getActiveNavigationId('/sensitivity-analysis')).toBe('sensitivity-analysis');
   });
 
@@ -142,7 +144,7 @@ describe('sidebar results navigation', () => {
     expect(link).toHaveAttribute('aria-current', 'page');
   });
 
-  it('renders a disabled results control when no fund can be resolved', async () => {
+  it('links to the model-results recovery route when no fund can be resolved', async () => {
     mockFundContext = {
       currentFund: null,
       needsSetup: false,
@@ -158,10 +160,7 @@ describe('sidebar results navigation', () => {
 
     hoverSidebar(container);
 
-    expect(screen.queryByRole('link', { name: /model results/i })).not.toBeInTheDocument();
-
-    const disabledButton = screen.getByRole('button', { name: /model results/i });
-    expect(disabledButton).toBeDisabled();
-    expect(disabledButton).toHaveAttribute('aria-disabled', 'true');
+    const link = screen.getByRole('link', { name: /model results/i });
+    expect(link.getAttribute('href')).toBe('/model-results');
   });
 });

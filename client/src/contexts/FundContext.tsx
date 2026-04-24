@@ -46,9 +46,12 @@ export function FundProvider({ children }: FundProviderProps) {
   const [location] = useLocation();
   const routeFundId = React.useMemo(() => extractFundResultsRouteId(location), [location]);
   const pathname = React.useMemo(() => getLocationPathname(location), [location]);
-  // The canonical deterministic route must not silently inherit an implicit
-  // first-fund selection from unrelated surfaces like /dashboard.
-  const suppressImplicitFundSelection = pathname === '/financial-modeling';
+  // Deterministic model routes must not silently inherit an implicit first-fund
+  // selection from unrelated surfaces like /dashboard.
+  const suppressImplicitFundSelection =
+    pathname === '/financial-modeling' ||
+    pathname === '/forecasting' ||
+    pathname === '/model-results';
 
   // Fetch fund data
   const {

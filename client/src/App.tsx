@@ -32,6 +32,8 @@ const NotFound = React.lazy(() => import('@/pages/not-found'));
 // Fund Model Results (post-wizard output)
 const FundModelResults = React.lazy(() => import('@/pages/fund-model-results'));
 const FinancialModelingPage = React.lazy(() => import('@/pages/financial-modeling'));
+const ForecastingPage = React.lazy(() => import('@/pages/forecasting'));
+const ModelResultsPage = React.lazy(() => import('@/pages/model-results'));
 const SensitivityAnalysisPage = React.lazy(() => import('@/pages/sensitivity-analysis'));
 const ReservesDemo = React.lazy(() => import('@/pages/reserves-demo'));
 // LP Sharing
@@ -201,7 +203,9 @@ export const APP_ROUTES: AppRouteEntry[] = [
   { path: '/portfolio/company/:id', component: PortfolioCompanySummary, isProtected: true },
   { path: '/portfolio', component: Portfolio, isProtected: true },
   { path: '/performance', component: PerformancePage, isProtected: true },
+  { path: '/forecasting', component: ForecastingPage, isProtected: true },
   { path: '/financial-modeling', component: FinancialModelingPage, isProtected: true },
+  { path: '/model-results', component: ModelResultsPage, isProtected: true },
   { path: '/fund-model-results/:fundId', component: FundModelResults, isProtected: true },
   { path: '/sensitivity-analysis', component: SensitivityAnalysisPage, isProtected: true },
   { path: '/reports', component: Reports, isProtected: true },

@@ -16,6 +16,15 @@ const ENV_KEYS = [
   '_EXPLICIT_JWT_AUDIENCE',
   'JWT_JWKS_URL',
   '_EXPLICIT_JWT_JWKS_URL',
+  'REDIS_URL',
+  '_EXPLICIT_REDIS_URL',
+  'ENABLE_QUEUES',
+  'ALLOW_MEMORY_STORAGE',
+  'DATABASE_URL',
+  'NEON_DATABASE_URL',
+  'RATE_LIMIT_REDIS_URL',
+  'QUEUE_REDIS_URL',
+  'SESSION_REDIS_URL',
 ] as const;
 
 type EnvKey = (typeof ENV_KEYS)[number];
@@ -36,6 +45,15 @@ function setAuthEnv(nodeEnv: 'development' | 'test', requireAuth: '0' | '1'): vo
   process.env._EXPLICIT_JWT_AUDIENCE = 'updog-app-test';
   delete process.env.JWT_JWKS_URL;
   delete process.env._EXPLICIT_JWT_JWKS_URL;
+  process.env.REDIS_URL = 'memory://';
+  process.env._EXPLICIT_REDIS_URL = process.env.REDIS_URL;
+  process.env.ENABLE_QUEUES = '0';
+  process.env.ALLOW_MEMORY_STORAGE = '1';
+  delete process.env.DATABASE_URL;
+  delete process.env.NEON_DATABASE_URL;
+  delete process.env.RATE_LIMIT_REDIS_URL;
+  delete process.env.QUEUE_REDIS_URL;
+  delete process.env.SESSION_REDIS_URL;
 }
 
 async function loadApp() {
@@ -78,7 +96,7 @@ describe('makeApp bootstrap surface', () => {
   it('accepts browser RUM beacons on /api/metrics/rum', async () => {
     const app = await loadApp();
 
-    const res = await request(app).post('/api/metrics/rum').send({
+    const res = await request(app).post('/api/metrics/rum').set('x-rum-sample', '1').send({
       name: 'LCP',
       value: 1200,
       pathname: '/fund-setup',
