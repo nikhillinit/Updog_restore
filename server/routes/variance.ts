@@ -1076,7 +1076,8 @@ router['get']('/api/funds/:id/variance-dashboard', async (req: Request, res: Res
         recentBaselines: baselines.slice(0, 5),
         activeAlerts: clientAlerts,
         alertsBySeverity,
-        alertsByseverity: alertsBySeverity,
+        // Preserve the historical misspelled field without reusing the same object reference.
+        alertsByseverity: { ...alertsBySeverity },
         summary: {
           totalBaselines: baselines.length,
           totalActiveAlerts: activeAlerts.length,

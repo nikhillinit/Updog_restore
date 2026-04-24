@@ -32,6 +32,9 @@ import { errorHandler } from './errors.js';
 import { metricsRouter } from './routes/metrics-endpoint.js';
 import { installRumIngressGuards } from './routes/metrics-rum-ingress.js';
 import type { Providers } from './providers.js';
+import { isPublicApiPath } from './lib/public-api-boundary.js';
+
+export { isPublicApiPath } from './lib/public-api-boundary.js';
 
 const log = logger.child({ module: 'server' });
 
@@ -333,31 +336,4 @@ export async function createServer(
 
   log.info('Express application created successfully');
   return httpServer;
-}
-
-const ALWAYS_PUBLIC_EXACT = new Set(['/healthz', '/readyz', '/flags', '/flags/status']);
-const ALWAYS_PUBLIC_PREFIXES = ['/health/', '/health'];
-
-function normalizeMountRelativePath(mountRelativePath: string): string {
-  if (mountRelativePath.endsWith('/') && mountRelativePath.length > 1) {
-    return mountRelativePath.slice(0, -1);
-  }
-  return mountRelativePath;
-}
-
-export function isPublicApiPath(_method: string, mountRelativePath: string): boolean {
-  const normalizedPath = normalizeMountRelativePath(mountRelativePath);
-
-  if (ALWAYS_PUBLIC_EXACT.has(normalizedPath)) {
-    return true;
-  }
-
-  if (
-    ALWAYS_PUBLIC_PREFIXES.some(
-      (prefix) => normalizedPath === prefix || normalizedPath.startsWith(prefix)
-    )
-  ) {
-    return true;
-  }
-  return false;
 }

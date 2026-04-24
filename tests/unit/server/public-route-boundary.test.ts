@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { isPublicApiPath } from '../../../server/server.js';
+import { isPublicApiPath } from '../../../server/lib/public-api-boundary.js';
 
 describe('server public API route boundary', () => {
   it.each([
@@ -21,6 +21,7 @@ describe('server public API route boundary', () => {
     ['GET', '/funds/1/draft'],
     ['PUT', '/funds/1/draft'],
     ['GET', '/funds/1/metrics'],
+    ['GET', '/funds/1/variance-dashboard'],
     ['GET', '/funds/finalize'],
     ['GET', '/funds/calculate'],
     ['POST', '/funds/1/allocations'],
