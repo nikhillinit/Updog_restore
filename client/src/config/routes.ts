@@ -13,14 +13,11 @@ export const LEGACY_ROUTE_MAP = new Map<string, string>([
 
   // Portfolio-related → Portfolio
   ['/portfolio', '/portfolio'], // Already correct
-  ['/cap-tables', '/portfolio'], // Now a tab in company detail
   ['/companies', '/portfolio'],
-  ['/portfolio-analytics', '/portfolio'],
   ['/portfolio-constructor', '/portfolio'],
 
   // Operations/Management → Operate
   ['/kpi-manager', '/operate'],
-  ['/cash-management', '/operate'],
   ['/variance-tracking', '/operate'],
   ['/notion-integration', '/operate'],
   ['/dev-dashboard', '/operate'],

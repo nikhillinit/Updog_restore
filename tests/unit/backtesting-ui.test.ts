@@ -3,6 +3,7 @@ import {
   toJobViewModel,
   toResultViewModel,
   toRenderableMetric,
+  toSubmitErrorViewModel,
   classifyErrorTier,
   ERROR_TIER_MESSAGES,
   type RenderableDistribution,
@@ -343,8 +344,41 @@ describe('classifyErrorTier', () => {
     expect(classifyErrorTier('SYSTEM_EXECUTION_FAILURE')).toBe('system_error');
   });
 
+  it('maps QUEUE_UNAVAILABLE to system_error', () => {
+    expect(classifyErrorTier('QUEUE_UNAVAILABLE')).toBe('system_error');
+  });
+
   it('defaults null to system_error', () => {
     expect(classifyErrorTier(null)).toBe('system_error');
+  });
+});
+
+describe('toSubmitErrorViewModel', () => {
+  it('preserves queue-unavailable API errors as retryable submit failures', () => {
+    const vm = toSubmitErrorViewModel({
+      status: 503,
+      errorCode: 'QUEUE_UNAVAILABLE',
+      message: 'Backtesting queue is unavailable',
+    });
+
+    expect(vm).toEqual({
+      status: 503,
+      errorCode: 'QUEUE_UNAVAILABLE',
+      errorMessage: 'Backtesting queue is unavailable',
+      isRetryable: true,
+    });
+  });
+
+  it('classifies bare 503 submit failures as queue unavailable', () => {
+    expect(
+      toSubmitErrorViewModel({
+        status: 503,
+        message: 'Service unavailable',
+      })
+    ).toMatchObject({
+      errorCode: 'QUEUE_UNAVAILABLE',
+      isRetryable: true,
+    });
   });
 });
 

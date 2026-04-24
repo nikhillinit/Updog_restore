@@ -1,7 +1,7 @@
 import React from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { renderHook, waitFor } from '@testing-library/react';
+import { act, renderHook, waitFor } from '@testing-library/react';
 import type {
   BacktestJobStatusResponse,
   BacktestResult,
@@ -186,5 +186,39 @@ describe('useBacktestLifecycle', () => {
     expect(result.current.activeJobId).toBe('job-123');
     expect(result.current.jobStatus.phase).toBe('completed');
     expect(result.current.resumeMismatch).toBeNull();
+  });
+
+  it('surfaces queue-unavailable submit failures without creating an active job', async () => {
+    apiRequestMock.mockRejectedValue(
+      Object.assign(new Error('Backtesting queue is unavailable'), {
+        status: 503,
+        errorCode: 'QUEUE_UNAVAILABLE',
+      })
+    );
+
+    const { Wrapper } = createHookWrapper('/sensitivity-analysis');
+    const { result } = renderHook(() => useBacktestLifecycle(7), { wrapper: Wrapper });
+
+    act(() => {
+      result.current.startBacktest({
+        fundId: 7,
+        startDate: '2020-01-01',
+        endDate: '2025-01-01',
+        simulationRuns: 1000,
+        comparisonMetrics: ['irr'],
+      });
+    });
+
+    await waitFor(() => {
+      expect(result.current.submitError).toMatchObject({
+        status: 503,
+        errorCode: 'QUEUE_UNAVAILABLE',
+        errorMessage: 'Backtesting queue is unavailable',
+        isRetryable: true,
+      });
+    });
+
+    expect(result.current.activeJobId).toBeNull();
+    expect(result.current.jobStatus.phase).toBe('idle');
   });
 });

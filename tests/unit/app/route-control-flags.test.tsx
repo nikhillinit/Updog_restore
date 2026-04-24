@@ -28,6 +28,7 @@ describe('route control flags', () => {
   });
 
   it('honors environment overrides through the generated registry path', async () => {
+    vi.stubEnv('VITE_ENV', 'development');
     vi.stubEnv('VITE_ENABLE_LP_REPORTING', 'true');
     vi.stubEnv('VITE_ONBOARDING_TOUR', 'true');
     vi.stubEnv('VITE_UI_CATALOG', 'true');
@@ -37,5 +38,18 @@ describe('route control flags', () => {
     expect(resolveRouteControlFlag('enable_lp_reporting')).toBe(true);
     expect(resolveRouteControlFlag('onboarding_tour')).toBe(true);
     expect(resolveRouteControlFlag('ui_catalog')).toBe(true);
+  });
+
+  it('ignores route exposure environment overrides outside development', async () => {
+    vi.stubEnv('VITE_ENV', 'production');
+    vi.stubEnv('VITE_ENABLE_LP_REPORTING', 'true');
+    vi.stubEnv('VITE_ONBOARDING_TOUR', 'true');
+    vi.stubEnv('VITE_UI_CATALOG', 'true');
+
+    const { resolveRouteControlFlag } = await import('@/app/route-control-flags');
+
+    expect(resolveRouteControlFlag('enable_lp_reporting')).toBe(false);
+    expect(resolveRouteControlFlag('onboarding_tour')).toBe(false);
+    expect(resolveRouteControlFlag('ui_catalog')).toBe(false);
   });
 });

@@ -22,6 +22,9 @@ describe('IA route story metadata', () => {
 
     expect(CLIENT_OLD_TO_NEW_REDIRECTS['/financial-modeling']).toBeUndefined();
     expect(CLIENT_OLD_TO_NEW_REDIRECTS['/forecasting']).toBeUndefined();
+    expect(CLIENT_OLD_TO_NEW_REDIRECTS['/cash-management']).toBeUndefined();
+    expect(CLIENT_OLD_TO_NEW_REDIRECTS['/portfolio-analytics']).toBeUndefined();
+    expect(CLIENT_OLD_TO_NEW_REDIRECTS['/cap-tables']).toBeUndefined();
     expect(Object.values(CLIENT_OLD_TO_NEW_REDIRECTS)).not.toContain('/model');
     expect(MIRROR_OLD_TO_NEW_REDIRECTS['/financial-modeling']).toBe('/model');
     expect(MIRROR_OLD_TO_NEW_REDIRECTS['/forecasting']).toBe('/model');
