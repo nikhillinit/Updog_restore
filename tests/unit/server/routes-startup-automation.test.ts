@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import express from 'express';
+import request from 'supertest';
 
 const { mockRegisterCompletionHandlers, mockAutomationStart } = vi.hoisted(() => ({
   mockRegisterCompletionHandlers: vi.fn(),
@@ -45,5 +46,19 @@ describe('registerRoutes automation startup', () => {
 
     expect(mockRegisterCompletionHandlers).toHaveBeenCalledTimes(1);
     expect(mockAutomationStart).toHaveBeenCalledTimes(1);
+  }, 30_000);
+
+  it('mounts the deal pipeline router on the registerRoutes surface', async () => {
+    const app = express();
+    app.set('trust proxy', false);
+    app.use(express.json({ limit: '1mb' }));
+
+    const { registerRoutes } = await import('../../../server/routes');
+    server = await registerRoutes(app);
+
+    const res = await request(app).get('/api/deals/opportunities?limit=abc');
+
+    expect(res.status).toBe(400);
+    expect(res.body).toHaveProperty('error', 'validation_error');
   }, 30_000);
 });

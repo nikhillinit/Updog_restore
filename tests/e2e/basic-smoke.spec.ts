@@ -14,9 +14,71 @@ const SMOKE_FUND = {
   termYears: 10,
 };
 
+const EMPTY_VARIANCE_DASHBOARD = {
+  success: true,
+  data: {
+    defaultBaseline: null,
+    recentBaselines: [],
+    activeAlerts: [],
+    alertsBySeverity: {
+      critical: 0,
+      warning: 0,
+      info: 0,
+      urgent: 0,
+    },
+    alertsByseverity: {
+      critical: 0,
+      warning: 0,
+      info: 0,
+      urgent: 0,
+    },
+    summary: {
+      totalBaselines: 0,
+      totalActiveAlerts: 0,
+      lastAnalysisDate: null,
+      overallRiskLevel: 'low',
+      trendDirection: 'stable',
+    },
+    recentReports: [],
+  },
+};
+
+const EMPTY_VARIANCE_LIST = {
+  success: true,
+  data: [],
+  count: 0,
+};
+
 async function installSmokeApiStubs(page: Page) {
   await page.route('**/api/telemetry/wizard', async (route) => {
     await route.fulfill({ status: 204, body: '' });
+  });
+
+  await page.route('**/api/deals/opportunities**', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        success: true,
+        data: [],
+        pagination: {
+          hasMore: false,
+          nextCursor: null,
+          count: 0,
+        },
+      }),
+    });
+  });
+
+  await page.route('**/api/deals/stages', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        success: true,
+        data: [],
+      }),
+    });
   });
 
   await page.route('**/api/funds*', async (route) => {
@@ -40,6 +102,52 @@ async function installSmokeApiStubs(page: Page) {
           avgCheckSize: 0,
           deploymentRate: 0,
           remainingCapital: SMOKE_FUND.size,
+        }),
+      });
+      return;
+    }
+
+    if (request.method() === 'GET' && url.pathname === '/api/funds/1/variance-dashboard') {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify(EMPTY_VARIANCE_DASHBOARD),
+      });
+      return;
+    }
+
+    if (
+      request.method() === 'GET' &&
+      (url.pathname === '/api/funds/1/variance-reports' ||
+        url.pathname === '/api/funds/1/baselines' ||
+        url.pathname === '/api/funds/1/alerts')
+    ) {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify(EMPTY_VARIANCE_LIST),
+      });
+      return;
+    }
+
+    if (request.method() === 'GET' && url.pathname === '/api/funds/1/metrics') {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          actual: {
+            totalCommitted: SMOKE_FUND.size,
+            totalDeployed: 0,
+          },
+          projected: null,
+          target: null,
+          variance: null,
+          _status: {
+            engines: {
+              target: 'idle',
+              variance: 'idle',
+            },
+          },
         }),
       });
       return;
@@ -104,5 +212,30 @@ test.describe('Basic Smoke Tests', () => {
       path: 'test-results/reserves-demo.png',
       fullPage: true,
     });
+  });
+
+  test('pipeline route renders the pipeline workspace', async ({ page }) => {
+    await page.goto('/pipeline', { waitUntil: 'domcontentloaded', timeout: 10000 });
+
+    await expect(page).toHaveURL(/\/pipeline\b/);
+    await expect(page.getByRole('heading', { name: /deal pipeline/i })).toBeVisible();
+    await expect(page.getByTestId('pipeline-toolbar')).toBeVisible();
+  });
+
+  test('reports baseline CTA opens the variance tracking workspace', async ({ page }) => {
+    await page.goto('/reports', { waitUntil: 'domcontentloaded', timeout: 10000 });
+
+    await expect(page).toHaveURL(/\/reports\b/);
+    await expect(page.getByRole('heading', { name: /reports & documentation/i })).toBeVisible();
+    await expect(page.getByText(/baseline required/i)).toBeVisible();
+
+    const openVarianceTrackingButton = page.getByRole('button', {
+      name: /^open variance tracking$/i,
+    });
+    await expect(openVarianceTrackingButton).toBeVisible();
+    await openVarianceTrackingButton.click();
+
+    await expect(page).toHaveURL(/\/variance-tracking\?tab=reports/);
+    await expect(page.getByText(/404 page not found/i)).not.toBeVisible();
   });
 });

@@ -27,6 +27,7 @@ const PerformancePage = React.lazy(() => import('@/pages/performance'));
 // Lazy load non-critical routes for bundle optimization
 const FundSetup = React.lazy(() => import('@/pages/fund-setup'));
 const Reports = React.lazy(() => import('@/pages/reports'));
+const VarianceTrackingPage = React.lazy(() => import('@/pages/variance-tracking'));
 const NotFound = React.lazy(() => import('@/pages/not-found'));
 // Fund Model Results (post-wizard output)
 const FundModelResults = React.lazy(() => import('@/pages/fund-model-results'));
@@ -204,6 +205,7 @@ export const APP_ROUTES: AppRouteEntry[] = [
   { path: '/fund-model-results/:fundId', component: FundModelResults, isProtected: true },
   { path: '/sensitivity-analysis', component: SensitivityAnalysisPage, isProtected: true },
   { path: '/reports', component: Reports, isProtected: true },
+  { path: '/variance-tracking', component: VarianceTrackingPage, isProtected: true },
   { path: '/pipeline', component: PipelinePage, isProtected: true },
   { path: '/settings', component: SettingsPage, isProtected: true },
   { path: '/help', component: HelpPage },

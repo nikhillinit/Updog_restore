@@ -38,4 +38,13 @@ describe('makeApp bootstrap surface', () => {
     expect(res.body).toHaveProperty('data.id');
     expect(res.body).toHaveProperty('message', 'Fund created successfully');
   });
+
+  it('surfaces the variance dashboard route on the bootstrap app', async () => {
+    const app = makeApp();
+
+    const res = await request(app).get('/api/funds/abc/variance-dashboard');
+
+    expect(res.status).toBe(400);
+    expect(res.body).toHaveProperty('error', 'Invalid fund ID');
+  });
 });
