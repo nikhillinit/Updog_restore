@@ -344,6 +344,7 @@ export function formatCents(
       style: 'currency',
       currency,
       notation: 'compact',
+      minimumFractionDigits: 1,
       maximumFractionDigits: 1,
     }).format(dollars);
   }
@@ -368,10 +369,7 @@ export function formatCents(
  * formatBps(3500, { decimals: 1 })     // => "35.0%"
  * formatBps(50, { decimals: 2 })       // => "0.50%"
  */
-export function formatBps(
-  bps: number,
-  options: { decimals?: number } = {}
-): string {
+export function formatBps(bps: number, options: { decimals?: number } = {}): string {
   const { decimals = 2 } = options;
   const percent = bpsToPercent(bps);
   return `${percent.toFixed(decimals)}%`;
@@ -389,10 +387,7 @@ export function formatBps(
  * formatMoic(100000, { decimals: 1 })  // => "10.0x"
  * formatMoic(5000, { decimals: 2 })    // => "0.50x"
  */
-export function formatMoic(
-  bps: number,
-  options: { decimals?: number } = {}
-): string {
+export function formatMoic(bps: number, options: { decimals?: number } = {}): string {
   const { decimals = 2 } = options;
   const moic = bpsToMoic(bps);
   return `${moic.toFixed(decimals)}x`;

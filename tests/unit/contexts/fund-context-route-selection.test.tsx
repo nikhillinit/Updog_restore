@@ -113,6 +113,38 @@ describe('FundProvider route-aware selection', () => {
     });
   });
 
+  it('does not silently inherit the first fund on /forecasting', async () => {
+    const { Wrapper } = createWouterWrapper('/forecasting');
+
+    render(
+      <Wrapper>
+        <FundProvider>
+          <Consumer />
+        </FundProvider>
+      </Wrapper>
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText('none:none:false:false')).toBeInTheDocument();
+    });
+  });
+
+  it('does not silently inherit the first fund on /model-results', async () => {
+    const { Wrapper } = createWouterWrapper('/model-results');
+
+    render(
+      <Wrapper>
+        <FundProvider>
+          <Consumer />
+        </FundProvider>
+      </Wrapper>
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText('none:none:false:false')).toBeInTheDocument();
+    });
+  });
+
   it('drops an implicit first-fund selection when navigating from /dashboard to /financial-modeling', async () => {
     const { Wrapper, goto } = createWouterWrapper('/dashboard');
 
@@ -154,6 +186,30 @@ describe('FundProvider route-aware selection', () => {
 
     act(() => {
       goto('/financial-modeling');
+    });
+
+    await waitFor(() => {
+      expect(screen.getByText('2:Route Fund:false:false')).toBeInTheDocument();
+    });
+  });
+
+  it('preserves a route-addressed fund when navigating from results to /model-results', async () => {
+    const { Wrapper, goto } = createWouterWrapper('/fund-model-results/2');
+
+    render(
+      <Wrapper>
+        <FundProvider>
+          <Consumer />
+        </FundProvider>
+      </Wrapper>
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText('2:Route Fund:false:false')).toBeInTheDocument();
+    });
+
+    act(() => {
+      goto('/model-results');
     });
 
     await waitFor(() => {

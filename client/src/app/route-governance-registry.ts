@@ -44,6 +44,8 @@ const CORE_LIVE_ROUTE_PATHS = [
   '/portfolio',
   '/portfolio/company/:id',
   '/pipeline',
+  '/forecasting',
+  '/model-results',
   '/fund-model-results/:fundId',
   '/reports',
   '/settings',

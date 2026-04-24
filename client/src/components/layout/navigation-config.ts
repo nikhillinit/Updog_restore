@@ -20,7 +20,8 @@ type StaticNavigationTarget = {
 type FundResultsNavigationTarget = {
   kind: 'fund-results';
   basePath: '/fund-model-results';
-  matchPrefixes: readonly ['/fund-model-results'];
+  compatibilityPath: '/model-results';
+  matchPrefixes: readonly ['/fund-model-results', '/model-results'];
 };
 
 type NavigationTarget = StaticNavigationTarget | FundResultsNavigationTarget;
@@ -48,7 +49,8 @@ function staticTarget(
 const FUND_RESULTS_TARGET: FundResultsNavigationTarget = {
   kind: 'fund-results',
   basePath: '/fund-model-results',
-  matchPrefixes: ['/fund-model-results'],
+  compatibilityPath: '/model-results',
+  matchPrefixes: ['/fund-model-results', '/model-results'],
 };
 
 const MODEL_RESULTS_ITEM: NavigationItem = {
@@ -71,7 +73,7 @@ const CORE_NAV: readonly NavigationItem[] = [
     id: 'financial-modeling',
     label: 'Forecasting',
     icon: Calculator,
-    target: staticTarget('/financial-modeling'),
+    target: staticTarget('/forecasting', ['/forecasting', '/financial-modeling']),
   },
   MODEL_RESULTS_ITEM,
   {
@@ -103,7 +105,7 @@ function matchesNavigationItem(item: NavigationItem, location: string): boolean 
 
 function resolveFundResultsHref(context: NavigationContext): string | null {
   const preferredFundId = extractFundResultsRouteId(context.location) ?? context.currentFundId;
-  return preferredFundId != null ? `/fund-model-results/${preferredFundId}` : null;
+  return preferredFundId != null ? `/fund-model-results/${preferredFundId}` : '/model-results';
 }
 
 export function resolveNavigationHref(
@@ -123,7 +125,7 @@ export function isNavigationItemEnabled(item: NavigationItem, context: Navigatio
   }
 
   if (item.target.kind === 'fund-results') {
-    return resolveFundResultsHref(context) != null;
+    return true;
   }
 
   return true;

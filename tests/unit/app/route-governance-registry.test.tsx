@@ -44,6 +44,8 @@ describe('route governance registry', () => {
         '/portfolio',
         '/portfolio/company/:id',
         '/pipeline',
+        '/forecasting',
+        '/model-results',
         '/fund-model-results/:fundId',
         '/reports',
         '/settings',
@@ -63,6 +65,19 @@ describe('route governance registry', () => {
   it('governs /financial-modeling as an intentionally mounted internal-live canonical surface', () => {
     expect(getRouteGovernanceEntry('/financial-modeling')).toMatchObject({
       exposure: 'internal-live',
+      surface: 'app-route',
+      isProtected: true,
+    });
+  });
+
+  it('governs GP compatibility entrypoints as protected core-live surfaces', () => {
+    expect(getRouteGovernanceEntry('/forecasting')).toMatchObject({
+      exposure: 'core-live',
+      surface: 'app-route',
+      isProtected: true,
+    });
+    expect(getRouteGovernanceEntry('/model-results')).toMatchObject({
+      exposure: 'core-live',
       surface: 'app-route',
       isProtected: true,
     });
@@ -132,7 +147,6 @@ describe('route governance registry', () => {
 
   it('does not govern routes that were removed from the default runtime perimeter', () => {
     expect(getRouteGovernanceEntry('/analytics')).toBeUndefined();
-    expect(getRouteGovernanceEntry('/forecasting')).toBeUndefined();
     expect(getRouteGovernanceEntry('/monte-carlo')).toBeUndefined();
     expect(getRouteGovernanceEntry('/time-travel')).toBeUndefined();
     expect(getRouteGovernanceEntry('/secondary-market')).toBeUndefined();

@@ -16,11 +16,143 @@ import CashflowDashboard from '@/components/dashboard/CashflowDashboard';
 import { TargetMetricsSnapshot } from '@/components/metrics/TargetMetricsSnapshot';
 import ShareConfigModal from '@/components/sharing/ShareConfigModal';
 import type { CreateShareLinkRequest } from '@shared/sharing-schema';
+import { useFundMetrics } from '@/hooks/useFundMetrics';
+import { dollarsToCents, formatCents } from '@/lib/units';
+import type { UnifiedFundMetrics } from '@shared/types/metrics';
+
+function formatDollars(value: number): string {
+  return formatCents(dollarsToCents(value), { compact: true });
+}
+
+function formatRate(value: number | null | undefined): string {
+  return value == null ? 'N/A' : `${(value * 100).toFixed(1)}%`;
+}
+
+function formatMultiple(value: number | null | undefined): string {
+  return value == null ? 'N/A' : `${value.toFixed(2)}x`;
+}
+
+function MetricTile({ label, value, detail }: { label: string; value: string; detail: string }) {
+  return (
+    <div className="rounded-md border border-slate-200 bg-white p-4">
+      <p className="text-sm text-slate-600">{label}</p>
+      <p className="mt-2 text-2xl font-semibold text-slate-950">{value}</p>
+      <p className="mt-1 text-xs text-slate-500">{detail}</p>
+    </div>
+  );
+}
+
+function MetricsUnavailable({ error }: { error: Error | null | undefined }) {
+  return (
+    <div className="rounded-md border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
+      <p className="font-medium">Dashboard metrics are temporarily unavailable.</p>
+      <p className="mt-1">
+        {error?.message || 'The unified metrics layer did not return a supported snapshot.'}
+      </p>
+    </div>
+  );
+}
+
+function OverviewMetricsPanel({
+  metrics,
+  isLoading,
+  error,
+}: {
+  metrics: UnifiedFundMetrics | undefined;
+  isLoading: boolean;
+  error: Error | null | undefined;
+}) {
+  if (isLoading) {
+    return <p className="text-sm text-slate-600">Loading dashboard metrics...</p>;
+  }
+
+  if (error || !metrics) {
+    return <MetricsUnavailable error={error} />;
+  }
+
+  return (
+    <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+      <MetricTile
+        label="Total committed"
+        value={formatDollars(metrics.actual.totalCommitted)}
+        detail="Fund commitments from the unified metrics layer"
+      />
+      <MetricTile
+        label="Capital deployed"
+        value={formatDollars(metrics.actual.totalDeployed)}
+        detail={`${metrics.actual.deploymentRate.toFixed(1)}% deployment rate`}
+      />
+      <MetricTile
+        label="Current NAV"
+        value={formatDollars(metrics.actual.currentNAV)}
+        detail="Reported portfolio fair value"
+      />
+      <MetricTile
+        label="Active companies"
+        value={String(metrics.actual.activeCompanies)}
+        detail={`${metrics.actual.totalCompanies} total companies tracked`}
+      />
+    </div>
+  );
+}
+
+function PerformanceMetricsPanel({
+  metrics,
+  isLoading,
+  error,
+}: {
+  metrics: UnifiedFundMetrics | undefined;
+  isLoading: boolean;
+  error: Error | null | undefined;
+}) {
+  if (isLoading) {
+    return <p className="text-sm text-slate-600">Loading dashboard metrics...</p>;
+  }
+
+  if (error || !metrics) {
+    return <MetricsUnavailable error={error} />;
+  }
+
+  return (
+    <div className="space-y-4">
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+        <MetricTile
+          label="IRR"
+          value={formatRate(metrics.actual.irr)}
+          detail={`Target ${formatRate(metrics.variance.performanceVariance.targetIRR)}`}
+        />
+        <MetricTile
+          label="TVPI"
+          value={formatMultiple(metrics.actual.tvpi)}
+          detail="Total value to paid-in"
+        />
+        <MetricTile
+          label="DPI"
+          value={formatMultiple(metrics.actual.dpi)}
+          detail="Distributions to paid-in"
+        />
+        <MetricTile
+          label="RVPI"
+          value={formatMultiple(metrics.actual.rvpi)}
+          detail="Residual value to paid-in"
+        />
+      </div>
+      <div className="rounded-md border border-slate-200 bg-slate-50 p-4 text-sm text-slate-700">
+        <p className="font-medium text-slate-900">Benchmark and attribution unavailable</p>
+        <p className="mt-1">
+          Public benchmark rank, attribution, and quartile claims remain hidden until an
+          authoritative benchmark source is wired.
+        </p>
+      </div>
+    </div>
+  );
+}
 
 export default function ModernDashboard() {
   const { currentFund, isLoading } = useFundContext();
   const [timeframe, setTimeframe] = useState('12m');
   const [activeView, setActiveView] = useState('overview');
+  const metricsQuery = useFundMetrics({ enabled: Boolean(currentFund) });
 
   // Mock function to create share links - replace with actual API call
   const handleCreateShare = async (
@@ -155,39 +287,28 @@ export default function ModernDashboard() {
           {/* Overview Tab */}
           <TabsContent value="overview" className="space-y-8">
             <PremiumCard
-              title="Overview remains deferred"
-              subtitle="Dashboard overview cards and charts require authoritative portfolio analytics inputs"
+              title="Supported overview metrics"
+              subtitle="Backed by the unified metrics layer for the selected fund"
             >
-              <div className="space-y-4 text-sm text-[#292929]/75">
-                <p>
-                  This dashboard no longer presents hardcoded portfolio value, IRR, MOIC, or
-                  sector-allocation visuals as live data.
-                </p>
-                <p>
-                  Use the live forecasting surface for deterministic fund data and the model results
-                  surface for publish-backed comparison until dashboard analytics are wired to
-                  trustworthy backend inputs.
-                </p>
-              </div>
+              <OverviewMetricsPanel
+                metrics={metricsQuery.data}
+                isLoading={metricsQuery.isLoading}
+                error={metricsQuery.error}
+              />
             </PremiumCard>
           </TabsContent>
 
           {/* Performance Tab */}
           <TabsContent value="performance" className="space-y-8">
             <PremiumCard
-              title="Performance analytics remain deferred"
-              subtitle="Benchmark and attribution panels are hidden until they can be backed by real portfolio analytics"
+              title="Supported performance metrics"
+              subtitle="Current fund performance from supported metrics contracts"
             >
-              <div className="space-y-4 text-sm text-[#292929]/75">
-                <p>
-                  Benchmark, DPI/TVPI, and attribution panels stay hidden until they can be backed
-                  by authoritative portfolio analytics inputs rather than static sample values.
-                </p>
-                <p>
-                  This keeps the live dashboard from implying benchmarked performance claims that
-                  the current backend does not yet support truthfully.
-                </p>
-              </div>
+              <PerformanceMetricsPanel
+                metrics={metricsQuery.data}
+                isLoading={metricsQuery.isLoading}
+                error={metricsQuery.error}
+              />
             </PremiumCard>
           </TabsContent>
 
