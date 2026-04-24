@@ -269,6 +269,60 @@ export function classifyErrorTier(errorCode: BacktestingJobErrorCode | null): Er
   }
 }
 
+export interface BacktestSubmitErrorViewModel {
+  status: number | null;
+  errorCode: BacktestingJobErrorCode | null;
+  errorMessage: string;
+  isRetryable: boolean;
+}
+
+const BACKTESTING_ERROR_CODES: ReadonlySet<BacktestingJobErrorCode> = new Set([
+  'VALIDATION_ERROR',
+  'DATA_QUALITY_LIMITATION',
+  'SYSTEM_EXECUTION_FAILURE',
+  'QUEUE_UNAVAILABLE',
+]);
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null;
+}
+
+function normalizeBacktestingErrorCode(
+  code: unknown,
+  status: number | null
+): BacktestingJobErrorCode | null {
+  if (typeof code === 'string' && BACKTESTING_ERROR_CODES.has(code as BacktestingJobErrorCode)) {
+    return code as BacktestingJobErrorCode;
+  }
+
+  if (status === 503) {
+    return 'QUEUE_UNAVAILABLE';
+  }
+
+  return null;
+}
+
+export function toSubmitErrorViewModel(error: unknown): BacktestSubmitErrorViewModel | null {
+  if (!error) {
+    return null;
+  }
+
+  const payload = isRecord(error) ? error : {};
+  const status = typeof payload['status'] === 'number' ? payload['status'] : null;
+  const errorCode = normalizeBacktestingErrorCode(payload['errorCode'] ?? payload['error'], status);
+  const errorMessage =
+    typeof payload['message'] === 'string' && payload['message'].trim()
+      ? payload['message']
+      : 'Backtest run could not be submitted';
+
+  return {
+    status,
+    errorCode,
+    errorMessage,
+    isRetryable: errorCode === 'QUEUE_UNAVAILABLE' || errorCode === 'SYSTEM_EXECUTION_FAILURE',
+  };
+}
+
 export const ERROR_TIER_MESSAGES: Record<ErrorTier, { title: string; guidance: string }> = {
   user_fixable: {
     title: 'Configuration Error',

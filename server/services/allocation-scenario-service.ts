@@ -1,6 +1,7 @@
 import { createHash } from 'node:crypto';
 import type { PoolClient } from 'pg';
 import { transaction } from '../db/pg-circuit.js';
+import { withAllocationScenarioReadTransaction } from './allocation-scenario-repository.js';
 import {
   applyAllocationUpdates,
   type AllocationWriteConflict,
@@ -334,7 +335,9 @@ function mapLiveAllocationSnapshotItem(row: LiveAllocationSnapshotRow): LiveAllo
   };
 }
 
-function mapLiveItemToScenarioItem(item: LiveAllocationSnapshotItem): AllocationScenarioSnapshotItem {
+function mapLiveItemToScenarioItem(
+  item: LiveAllocationSnapshotItem
+): AllocationScenarioSnapshotItem {
   return {
     company_id: item.company_id,
     planned_reserves_cents: item.planned_reserves_cents,
@@ -403,9 +406,7 @@ function parseChangeSummary(raw: unknown): AllocationScenarioChangeSummary {
   const value =
     typeof raw === 'string' ? (JSON.parse(raw) as Partial<AllocationScenarioChangeSummary>) : raw;
   const summary =
-    value && typeof value === 'object'
-      ? (value as Partial<AllocationScenarioChangeSummary>)
-      : {};
+    value && typeof value === 'object' ? (value as Partial<AllocationScenarioChangeSummary>) : {};
 
   return {
     companies_changed: summary.companies_changed ?? 0,
@@ -997,10 +998,7 @@ async function buildAllocationScenarioPreviewContext(
       fund_id: fundId,
       company_count: liveItems.length,
       total_planned_cents: liveItems.reduce((sum, item) => sum + item.planned_reserves_cents, 0),
-      total_deployed_cents: liveItems.reduce(
-        (sum, item) => sum + item.deployed_reserves_cents,
-        0
-      ),
+      total_deployed_cents: liveItems.reduce((sum, item) => sum + item.deployed_reserves_cents, 0),
       max_allocation_version: maxAllocationVersion,
       last_updated_at: lastUpdatedAt,
     },
@@ -1036,33 +1034,36 @@ export async function getAllocationScenarioApplyPreview(
 export async function listAllocationScenarios(
   fundId: number
 ): Promise<AllocationScenarioSummary[]> {
-  return transaction(async (client) => {
-    await verifyFundExists(client, fundId);
+  return withAllocationScenarioReadTransaction(
+    async (client) => {
+      await verifyFundExists(client, fundId);
 
-    const result = await client.query<AllocationScenarioHeaderRow>(
-      `SELECT
-         id,
-         fund_id,
-         name,
-         notes,
-         source_allocation_version,
-         company_count,
-         total_planned_cents,
-         last_applied_at,
-         last_applied_by,
-         last_applied_allocation_version,
-         last_synced_at,
-         last_synced_by,
-         created_at,
-         updated_at
-       FROM allocation_scenarios
-       WHERE fund_id = $1
-       ORDER BY updated_at DESC, id DESC`,
-      [fundId]
-    );
+      const result = await client.query<AllocationScenarioHeaderRow>(
+        `SELECT
+           id,
+           fund_id,
+           name,
+           notes,
+           source_allocation_version,
+           company_count,
+           total_planned_cents,
+           last_applied_at,
+           last_applied_by,
+           last_applied_allocation_version,
+           last_synced_at,
+           last_synced_by,
+           created_at,
+           updated_at
+         FROM allocation_scenarios
+         WHERE fund_id = $1
+         ORDER BY updated_at DESC, id DESC`,
+        [fundId]
+      );
 
-    return result.rows.map(mapScenarioHeader);
-  });
+      return result.rows.map(mapScenarioHeader);
+    },
+    async () => []
+  );
 }
 
 export async function getAllocationScenario(
@@ -1167,9 +1168,13 @@ export async function updateReserveIcDecision(
     });
 
     if (input.provenance?.sourceScenarioId && input.provenance.sourceScenarioId !== scenarioId) {
-      throw createHttpError(400, 'Decision provenance sourceScenarioId must match the route scenario', {
-        code: 'invalid_decision_provenance',
-      });
+      throw createHttpError(
+        400,
+        'Decision provenance sourceScenarioId must match the route scenario',
+        {
+          code: 'invalid_decision_provenance',
+        }
+      );
     }
 
     const result = await client.query<ReserveIcDecisionRow>(
@@ -1428,7 +1433,9 @@ export async function applyAllocationScenario(
       );
     }
 
-    const liveByCompanyId = new Map(context.liveItems.map((item) => [item.company_id, item] as const));
+    const liveByCompanyId = new Map(
+      context.liveItems.map((item) => [item.company_id, item] as const)
+    );
     const updates = context.scenario.snapshot_items
       .map((item) => {
         const liveItem = liveByCompanyId.get(item.company_id);
@@ -1526,9 +1533,7 @@ export async function applyAllocationScenario(
 
     const scenario = await fetchScenarioDetail(client, fundId, scenarioId);
     const currentLiveItems =
-      updates.length > 0
-        ? await getLiveAllocationSnapshot(client, fundId)
-        : context.liveItems;
+      updates.length > 0 ? await getLiveAllocationSnapshot(client, fundId) : context.liveItems;
 
     return {
       scenario,

@@ -13,7 +13,7 @@ export default function InvestmentsTable() {
       <div className="p-6">
         <div className="text-center py-12">
           <p className="text-gray-500">Please select a fund to view investments.</p>
-          <Button className="mt-4" onClick={() => setLocation('/setup')}>
+          <Button className="mt-4" onClick={() => setLocation('/fund-setup')}>
             Set Up Fund
           </Button>
         </div>

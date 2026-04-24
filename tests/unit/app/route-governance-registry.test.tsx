@@ -91,9 +91,24 @@ describe('route governance registry', () => {
     });
   });
 
+  it('governs restored operational entrypoints as intentionally mounted internal-live surfaces', () => {
+    for (const pathname of [
+      '/allocation-manager',
+      '/cash-management',
+      '/portfolio-analytics',
+      '/cap-tables',
+    ]) {
+      expect(getRouteGovernanceEntry(pathname)).toMatchObject({
+        exposure: 'internal-live',
+        surface: 'app-route',
+        isProtected: true,
+      });
+    }
+  });
+
   it('tracks archived placeholder routes as redirect-only entrypoints', () => {
     expect(sorted(ARCHIVED_PLACEHOLDER_GOVERNED_PATHS)).toEqual(
-      sorted(['/planning', '/kpi-manager', '/kpi-submission'])
+      sorted(['/planning', '/kpi-manager', '/kpi-submission', '/investments'])
     );
 
     expect(getRouteGovernanceEntry('/planning')).toMatchObject({
@@ -110,6 +125,11 @@ describe('route governance registry', () => {
       exposure: 'archived-placeholder',
       surface: 'archived-placeholder',
       redirectTarget: '/dashboard',
+    });
+    expect(getRouteGovernanceEntry('/investments')).toMatchObject({
+      exposure: 'archived-placeholder',
+      surface: 'archived-placeholder',
+      redirectTarget: '/portfolio',
     });
   });
 
@@ -153,7 +173,6 @@ describe('route governance registry', () => {
     expect(getRouteGovernanceEntry('/notion-integration')).toBeUndefined();
     expect(getRouteGovernanceEntry('/scenario-builder')).toBeUndefined();
     expect(getRouteGovernanceEntry('/dev-dashboard')).toBeUndefined();
-    expect(getRouteGovernanceEntry('/investments')).toBeUndefined();
     expect(getRouteGovernanceEntry('/investments/:id')).toBeUndefined();
     expect(getRouteGovernanceEntry('/investments/company/:id')).toBeUndefined();
   });

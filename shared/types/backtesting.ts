@@ -295,7 +295,8 @@ export type BacktestingJobStatus = BacktestingJobStage | BacktestingJobTerminalS
 export type BacktestingJobErrorCode =
   | 'VALIDATION_ERROR'
   | 'DATA_QUALITY_LIMITATION'
-  | 'SYSTEM_EXECUTION_FAILURE';
+  | 'SYSTEM_EXECUTION_FAILURE'
+  | 'QUEUE_UNAVAILABLE';
 
 export interface BacktestingJobError {
   code: BacktestingJobErrorCode;

@@ -36,6 +36,10 @@ const ForecastingPage = React.lazy(() => import('@/pages/forecasting'));
 const ModelResultsPage = React.lazy(() => import('@/pages/model-results'));
 const SensitivityAnalysisPage = React.lazy(() => import('@/pages/sensitivity-analysis'));
 const ReservesDemo = React.lazy(() => import('@/pages/reserves-demo'));
+const AllocationManager = React.lazy(() => import('@/pages/allocation-manager'));
+const CashManagement = React.lazy(() => import('@/pages/cash-management'));
+const PortfolioAnalytics = React.lazy(() => import('@/pages/portfolio-analytics'));
+const CapTables = React.lazy(() => import('@/pages/CapTables'));
 // LP Sharing
 const SharedDashboard = React.lazy(() => import('@/pages/shared-dashboard'));
 // New IA pages (Codex-validated restructure)
@@ -208,6 +212,10 @@ export const APP_ROUTES: AppRouteEntry[] = [
   { path: '/model-results', component: ModelResultsPage, isProtected: true },
   { path: '/fund-model-results/:fundId', component: FundModelResults, isProtected: true },
   { path: '/sensitivity-analysis', component: SensitivityAnalysisPage, isProtected: true },
+  { path: '/allocation-manager', component: AllocationManager, isProtected: true },
+  { path: '/cash-management', component: CashManagement, isProtected: true },
+  { path: '/portfolio-analytics', component: PortfolioAnalytics, isProtected: true },
+  { path: '/cap-tables', component: CapTables, isProtected: true },
   { path: '/reports', component: Reports, isProtected: true },
   { path: '/variance-tracking', component: VarianceTrackingPage, isProtected: true },
   { path: '/pipeline', component: PipelinePage, isProtected: true },
@@ -238,6 +246,12 @@ export const ARCHIVED_PLACEHOLDER_ROUTES: ArchivedPlaceholderRouteEntry[] = [
     path: '/kpi-submission',
     redirectTarget: '/dashboard',
     notes: 'Legacy KPI submission is archived until there is an owned, persistent KPI workflow.',
+  },
+  {
+    path: '/investments',
+    redirectTarget: '/portfolio',
+    notes:
+      'Investments are managed inside the portfolio workspace; this compatibility route preserves direct links.',
   },
 ];
 
@@ -334,7 +348,7 @@ function Router() {
         {lpRoutes.map(renderLPRoute)}
         <Route path={ADMIN_GATED_ROUTES.uiCatalog}>
           {() => (
-            <AdminRoute flag="ui_catalog">
+            <AdminRoute flag="ui_catalog" devOnly>
               <UICatalog />
             </AdminRoute>
           )}

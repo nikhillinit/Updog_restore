@@ -11,7 +11,7 @@ import { ConfigForm } from '@/components/monte-carlo/ConfigForm';
 import { cn } from '@/lib/utils';
 import { classifyErrorTier, ERROR_TIER_MESSAGES, toResultViewModel } from '@/types/backtesting-ui';
 import type { BacktestConfig, HistoricalScenarioName } from '@shared/types/backtesting';
-import type { BacktestResultViewModel } from '@/types/backtesting-ui';
+import type { BacktestResultViewModel, BacktestSubmitErrorViewModel } from '@/types/backtesting-ui';
 
 const SCENARIO_LABELS: Record<HistoricalScenarioName, string> = {
   financial_crisis_2008: '2008 Financial Crisis',
@@ -183,6 +183,32 @@ function RunnerPanel(props: RunnerPanelProps) {
         />
         {correlationId && (
           <p className="mt-1 font-mono text-[10px] text-gray-400">{correlationId}</p>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+function SubmitErrorPanel({
+  error,
+  onRetry,
+}: {
+  error: BacktestSubmitErrorViewModel | null;
+  onRetry?: () => void;
+}) {
+  if (!error) return null;
+
+  return (
+    <Card className="border-red-200">
+      <CardContent className="px-4 py-3">
+        <ErrorDisplay errorCode={error.errorCode} errorMessage={error.errorMessage} />
+        {error.status && (
+          <p className="mt-1 font-mono text-[10px] text-gray-400">HTTP {error.status}</p>
+        )}
+        {error.isRetryable && onRetry && (
+          <Button variant="outline" size="sm" onClick={onRetry} className="mt-2">
+            Retry
+          </Button>
         )}
       </CardContent>
     </Card>
@@ -367,6 +393,7 @@ function useBacktestingWorkspaceState(fundId: number | null) {
     result: liveResult,
     isRunning,
     isSubmitting,
+    submitError,
     resumeMismatch,
   } = useBacktestLifecycle(fundId);
 
@@ -407,6 +434,7 @@ function useBacktestingWorkspaceState(fundId: number | null) {
     jobStatus,
     isRunning,
     isSubmitting,
+    submitError,
     displayedResult,
     lastConfig,
     resumeMismatch,
@@ -460,6 +488,7 @@ function BacktestingMainPanel({
           the currently selected fund.
         </div>
       )}
+      <SubmitErrorPanel error={state.submitError} onRetry={state.handleRetry} />
       <RunnerPanel
         phase={state.jobStatus.phase}
         stage={state.jobStatus.stage}
@@ -472,7 +501,7 @@ function BacktestingMainPanel({
         onRetry={state.handleRetry}
       />
       {state.displayedResult && <ResultsSection result={state.displayedResult} />}
-      {!state.displayedResult && state.jobStatus.phase === 'idle' && (
+      {!state.displayedResult && !state.submitError && state.jobStatus.phase === 'idle' && (
         <div className="flex h-48 items-center justify-center rounded-lg border border-dashed border-gray-300">
           <p className="text-sm text-gray-400">Configure and run a backtest to see results</p>
         </div>

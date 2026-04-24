@@ -18,7 +18,7 @@ import type {
   HistoricalScenarioName,
   ScenarioCompareResponse,
 } from '@shared/types/backtesting';
-import { toJobViewModel, toResultViewModel } from '@/types/backtesting-ui';
+import { toJobViewModel, toResultViewModel, toSubmitErrorViewModel } from '@/types/backtesting-ui';
 
 // ============================================================================
 // QUERY KEY NAMESPACE
@@ -259,10 +259,13 @@ export function useBacktestLifecycle(fundId: number | null) {
   // Auto-fetch result when job completes
   const backtestId = hasResumeMismatch ? null : effectiveJobViewModel.backtestId;
   const result = useBacktestResult(backtestId);
+  const submitError = useMemo(() => toSubmitErrorViewModel(asyncRun.error), [asyncRun.error]);
 
   const startBacktest = useCallback(
     (config: BacktestConfig) => {
       setResumeMismatch(null);
+      setLocalJob(null);
+      asyncRun.reset();
       asyncRun.mutate(config, {
         onSuccess: (response) => {
           setLocalJob({ jobId: response.jobId, fundId: config.fundId });
@@ -283,7 +286,7 @@ export function useBacktestLifecycle(fundId: number | null) {
     rawResult: result.data?.result ?? null,
     isRunning,
     isSubmitting: asyncRun.isPending,
-    submitError: asyncRun.error,
+    submitError,
     resumeMismatch,
   };
 }

@@ -53,12 +53,12 @@ function getEnvOverride(flag: FlagKey): boolean | undefined {
 }
 
 function baseFlagState(flag: FlagKey): boolean {
-  const override = getEnvOverride(flag);
+  const env = getRuntimeEnvironment();
+  const override = env === 'development' ? getEnvOverride(flag) : undefined;
   if (override !== undefined) {
     return override;
   }
 
-  const env = getRuntimeEnvironment();
   return FLAG_DEFINITIONS[flag].environments[env] ?? FLAG_DEFINITIONS[flag].default;
 }
 

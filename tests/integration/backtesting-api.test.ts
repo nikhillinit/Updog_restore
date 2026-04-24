@@ -203,9 +203,7 @@ function makeBacktestResult(overrides: Partial<BacktestResult> = {}): BacktestRe
   };
 }
 
-function makeCompletedJobStatus(
-  overrides: Partial<RouteJobSnapshot> = {}
-): RouteJobSnapshot {
+function makeCompletedJobStatus(overrides: Partial<RouteJobSnapshot> = {}): RouteJobSnapshot {
   return {
     jobId: 'job-123',
     fundId: 1,
@@ -224,9 +222,7 @@ function makeCompletedJobStatus(
   };
 }
 
-function makeQueuedJobStatus(
-  overrides: Partial<RouteJobSnapshot> = {}
-): RouteJobSnapshot {
+function makeQueuedJobStatus(overrides: Partial<RouteJobSnapshot> = {}): RouteJobSnapshot {
   return {
     jobId: 'job-123',
     fundId: 1,
@@ -330,11 +326,13 @@ beforeEach(() => {
     deduplicated: false,
   });
   mockGetBacktestJobStatus.mockResolvedValue(makeCompletedJobStatus());
-  mockSubscribeToBacktestJob.mockImplementation((_jobId: string, callbacks: SubscriptionCallbacks) => {
-    callbacks.onStatus?.(makeQueuedJobStatus({ progressPercent: 40, stage: 'simulating' }));
-    callbacks.onComplete?.(makeCompletedJobStatus());
-    return vi.fn();
-  });
+  mockSubscribeToBacktestJob.mockImplementation(
+    (_jobId: string, callbacks: SubscriptionCallbacks) => {
+      callbacks.onStatus?.(makeQueuedJobStatus({ progressPercent: 40, stage: 'simulating' }));
+      callbacks.onComplete?.(makeCompletedJobStatus());
+      return vi.fn();
+    }
+  );
 });
 
 describe('Backtesting API', () => {
@@ -372,7 +370,9 @@ describe('Backtesting API', () => {
         fundIds: [2],
       });
 
-      const response = await authPost('/api/backtesting/run', limitedToken).send(validBacktestConfig);
+      const response = await authPost('/api/backtesting/run', limitedToken).send(
+        validBacktestConfig
+      );
 
       expect(response.status).toBe(403);
       expect(response.body.error).toBe('FORBIDDEN');
@@ -461,9 +461,11 @@ describe('Backtesting API', () => {
     });
 
     it('returns 403 when the backtest belongs to an inaccessible fund', async () => {
-      mockGetBacktestById.mockResolvedValueOnce(makeBacktestResult({
-        config: { ...validBacktestConfig, fundId: 9 },
-      }));
+      mockGetBacktestById.mockResolvedValueOnce(
+        makeBacktestResult({
+          config: { ...validBacktestConfig, fundId: 9 },
+        })
+      );
 
       const response = await authGet(
         '/api/backtesting/result/550e8400-e29b-41d4-a716-446655440000'
@@ -539,10 +541,13 @@ describe('Backtesting API', () => {
     it('returns 503 when the queue is unavailable', async () => {
       mockIsBacktestingQueueInitialized.mockReturnValueOnce(false);
 
-      const response = await authPost('/api/backtesting/run/async').send(validBacktestConfig);
+      const response = await authPost('/api/backtesting/run/async')
+        .set('x-correlation-id', 'corr-queue-503')
+        .send(validBacktestConfig);
 
       expect(response.status).toBe(503);
       expect(response.body.error).toBe('QUEUE_UNAVAILABLE');
+      expect(response.body.correlationId).toBe('corr-queue-503');
     });
 
     it('returns 202 with Location and Retry-After for queued jobs', async () => {

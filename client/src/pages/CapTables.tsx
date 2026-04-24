@@ -142,7 +142,7 @@ export default function CapTables() {
       <div className="p-6">
         <div className="text-center py-12">
           <p className="text-gray-500">Please select a fund to manage cap tables.</p>
-          <Button className="mt-4" onClick={() => (window.location.href = '/setup')}>
+          <Button className="mt-4" onClick={() => (window.location.href = '/fund-setup')}>
             Set Up Fund
           </Button>
         </div>

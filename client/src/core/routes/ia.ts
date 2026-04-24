@@ -7,6 +7,4 @@ export const NEW_ROUTES: NavRoute[] = [
 ];
 export const OLD_TO_NEW_REDIRECTS: Record<string, string> = {
   '/portfolio/companies': '/portfolio',
-  '/cap-tables': '/portfolio',
-  '/cash-management': '/operate',
 };

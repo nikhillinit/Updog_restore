@@ -233,15 +233,16 @@ router.post(
   monitorPerformance,
   validateRequest(BacktestConfigSchema),
   asyncHandler(async (req: Request, res: Response) => {
+    const config = (req as Request & { validatedBody: BacktestConfig }).validatedBody;
+    const correlationId = header(req.headers, 'x-correlation-id') ?? `bt_async_${Date.now()}`;
+
     if (!isBacktestingQueueInitialized()) {
       return res.status(503).json({
         error: 'QUEUE_UNAVAILABLE',
         message: 'Backtesting queue is unavailable',
+        correlationId,
       });
     }
-
-    const config = (req as Request & { validatedBody: BacktestConfig }).validatedBody;
-    const correlationId = header(req.headers, 'x-correlation-id') ?? `bt_async_${Date.now()}`;
 
     if (!hasFundAccess(req, config.fundId)) {
       return res.status(403).json({

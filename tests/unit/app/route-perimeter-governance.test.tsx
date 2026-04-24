@@ -73,7 +73,13 @@ vi.mock('@/components/demo/DemoBanner', () => ({ default: () => null }));
 vi.mock('@/components/onboarding/GuidedTour', () => ({ GuidedTour: () => null }));
 vi.mock('@/components/ui/toaster', () => ({ Toaster: () => null }));
 vi.mock('@/components/AdminRoute', () => ({
-  AdminRoute: ({ children }: { children: React.ReactNode }) => passthrough(children),
+  AdminRoute: ({
+    children,
+    flag,
+  }: {
+    children: React.ReactNode;
+    flag: keyof typeof mocks.flags;
+  }) => (mocks.flags[flag] ? passthrough(children) : <div>Admin Access Denied Page</div>),
 }));
 
 vi.mock('@/pages/dashboard', () => ({ default: () => <div>Dashboard Page</div> }));
@@ -98,6 +104,14 @@ vi.mock('@/pages/sensitivity-analysis', () => ({
 vi.mock('@/pages/settings', () => ({ default: () => <div>Settings Page</div> }));
 vi.mock('@/pages/help', () => ({ default: () => <div>Help Page</div> }));
 vi.mock('@/pages/reserves-demo', () => ({ default: () => <div>Reserves Demo Page</div> }));
+vi.mock('@/pages/allocation-manager', () => ({
+  default: () => <div>Allocation Manager Page</div>,
+}));
+vi.mock('@/pages/cash-management', () => ({ default: () => <div>Cash Management Page</div> }));
+vi.mock('@/pages/portfolio-analytics', () => ({
+  default: () => <div>Portfolio Analytics Page</div>,
+}));
+vi.mock('@/pages/CapTables', () => ({ default: () => <div>Cap Tables Page</div> }));
 vi.mock('@/pages/fund-model-results', () => ({
   default: () => <div>Fund Model Results Page</div>,
 }));
@@ -108,6 +122,7 @@ vi.mock('@/pages/planning', () => ({ default: () => <div>Planning Page</div> }))
 vi.mock('@/pages/kpi-manager', () => ({ default: () => <div>KPI Manager Page</div> }));
 vi.mock('@/pages/kpi-submission', () => ({ default: () => <div>KPI Submission Page</div> }));
 vi.mock('@/pages/lp/dashboard', () => ({ default: () => <div>LP Dashboard Page</div> }));
+vi.mock('@/pages/admin/ui-catalog', () => ({ default: () => <div>UI Catalog Page</div> }));
 vi.mock('@/pages/shared-dashboard', () => ({
   default: () => <div>Shared Dashboard Page</div>,
 }));
@@ -158,6 +173,10 @@ describe('route perimeter governance', () => {
     ['/settings', 'Settings Page'],
     ['/help', 'Help Page'],
     ['/reserves-demo', 'Reserves Demo Page'],
+    ['/allocation-manager', 'Allocation Manager Page'],
+    ['/cash-management', 'Cash Management Page'],
+    ['/portfolio-analytics', 'Portfolio Analytics Page'],
+    ['/cap-tables', 'Cap Tables Page'],
     ['/fund-model-results/42', 'Fund Model Results Page'],
   ])('keeps mounted route %s live', async (path, expectedText) => {
     await renderAt(path);
@@ -169,6 +188,7 @@ describe('route perimeter governance', () => {
     ['/planning', '/portfolio', '?tab=reserve-planning', 'Portfolio Page'],
     ['/kpi-manager', '/dashboard', '', 'Dashboard Page'],
     ['/kpi-submission', '/dashboard', '', 'Dashboard Page'],
+    ['/investments', '/portfolio', '', 'Portfolio Page'],
   ])(
     'redirects archived placeholder route %s to %s%s',
     async (path, expectedPathname, expectedSearch, expectedText) => {
@@ -189,7 +209,6 @@ describe('route perimeter governance', () => {
     '/scenario-builder',
     '/dev-dashboard',
     '/portfolio/1',
-    '/investments',
     '/investments/1',
     '/investments/company/1',
   ])('removes non-core internal route %s from the default runtime perimeter', async (path) => {
@@ -225,5 +244,19 @@ describe('route perimeter governance', () => {
 
     expect(await screen.findByText('Portal Access Denied Page')).toBeInTheDocument();
     expect(window.location.pathname).toBe('/portal/demo');
+  });
+
+  it('hides the admin UI catalog when its explicit admin flag is disabled', async () => {
+    await renderAt('/admin/ui-catalog', { ui_catalog: false });
+
+    expect(await screen.findByText('Admin Access Denied Page')).toBeInTheDocument();
+    expect(window.location.pathname).toBe('/admin/ui-catalog');
+  });
+
+  it('keeps the admin UI catalog reachable when its explicit admin flag is enabled', async () => {
+    await renderAt('/admin/ui-catalog', { ui_catalog: true });
+
+    expect(await screen.findByText('UI Catalog Page')).toBeInTheDocument();
+    expect(window.location.pathname).toBe('/admin/ui-catalog');
   });
 });

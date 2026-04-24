@@ -330,6 +330,7 @@ export const BacktestingJobErrorCodeSchema = z.enum([
   'VALIDATION_ERROR',
   'DATA_QUALITY_LIMITATION',
   'SYSTEM_EXECUTION_FAILURE',
+  'QUEUE_UNAVAILABLE',
 ]);
 
 export const BacktestingJobErrorSchema = z

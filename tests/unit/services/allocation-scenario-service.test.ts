@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const { transactionMock, queryMock, applyAllocationUpdatesMock } = vi.hoisted(() => ({
   transactionMock: vi.fn(),
@@ -26,6 +26,10 @@ import {
   updateAllocationScenario,
   updateReserveIcDecision,
 } from '../../../server/services/allocation-scenario-service';
+
+afterEach(() => {
+  vi.unstubAllEnvs();
+});
 
 const scenarioId = '00000000-0000-0000-0000-000000000101';
 const reserveIcDecisionId = '00000000-0000-0000-0000-000000000301';
@@ -95,19 +99,21 @@ function queuePreviewQueries(options: {
     .mockResolvedValueOnce({ rows: options.liveRows });
 }
 
-function buildReserveIcDecisionRow(options?: Partial<{
-  decision_type: 'follow_on' | 'defer' | 'cut_reserve' | 'no_action';
-  decision_status: 'draft' | 'proposed' | 'approved' | 'rejected';
-  rationale: string;
-  proposed_planned_reserves_cents: string | null;
-  final_planned_reserves_cents: string | null;
-  decided_by_user_id: number | null;
-  decided_by_label: string | null;
-  decided_at: Date | null;
-  source_allocation_version: number | null;
-  live_allocation_version: number | null;
-  updated_at: Date;
-}>) {
+function buildReserveIcDecisionRow(
+  options?: Partial<{
+    decision_type: 'follow_on' | 'defer' | 'cut_reserve' | 'no_action';
+    decision_status: 'draft' | 'proposed' | 'approved' | 'rejected';
+    rationale: string;
+    proposed_planned_reserves_cents: string | null;
+    final_planned_reserves_cents: string | null;
+    decided_by_user_id: number | null;
+    decided_by_label: string | null;
+    decided_at: Date | null;
+    source_allocation_version: number | null;
+    live_allocation_version: number | null;
+    updated_at: Date;
+  }>
+) {
   return {
     id: reserveIcDecisionId,
     fund_id: 1,
@@ -563,8 +569,7 @@ describe('reserve IC decisions', () => {
               sourceAllocationVersion: 1,
               companyCount: scenarioHeaderReads === 1 ? 2 : 1,
               totalPlannedCents: scenarioHeaderReads === 1 ? '1300000' : '500000',
-              lastSyncedAt:
-                scenarioHeaderReads === 1 ? null : new Date('2026-03-30T18:15:00.000Z'),
+              lastSyncedAt: scenarioHeaderReads === 1 ? null : new Date('2026-03-30T18:15:00.000Z'),
               lastSyncedBy: scenarioHeaderReads === 1 ? null : 'analyst@example.com',
             }),
           ],
@@ -701,6 +706,17 @@ describe('allocation scenario read model metadata', () => {
       async (callback: (client: { query: typeof queryMock }) => unknown) =>
         callback({ query: queryMock })
     );
+  });
+
+  it('returns an empty list in local mock database mode without opening a pg transaction', async () => {
+    vi.stubEnv('NODE_ENV', 'development');
+    vi.stubEnv('DATABASE_URL', 'postgresql://mock:mock@localhost/mock');
+
+    const result = await listAllocationScenarios(1);
+
+    expect(result).toEqual([]);
+    expect(transactionMock).not.toHaveBeenCalled();
+    expect(queryMock).not.toHaveBeenCalled();
   });
 
   it('maps last apply and sync metadata in list reads', async () => {
