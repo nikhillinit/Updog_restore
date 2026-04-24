@@ -548,6 +548,7 @@ describe('Backtesting API', () => {
       expect(response.status).toBe(503);
       expect(response.body.error).toBe('QUEUE_UNAVAILABLE');
       expect(response.body.correlationId).toBe('corr-queue-503');
+      expect(mockEnqueueBacktestJob).not.toHaveBeenCalled();
     });
 
     it('returns 202 with Location and Retry-After for queued jobs', async () => {
@@ -585,6 +586,16 @@ describe('Backtesting API', () => {
   });
 
   describe('GET /api/backtesting/jobs/:jobId', () => {
+    it('returns 503 without polling job state when the queue is unavailable', async () => {
+      mockIsBacktestingQueueInitialized.mockReturnValueOnce(false);
+
+      const response = await authGet('/api/backtesting/jobs/job-123');
+
+      expect(response.status).toBe(503);
+      expect(response.body.error).toBe('QUEUE_UNAVAILABLE');
+      expect(mockGetBacktestJobStatus).not.toHaveBeenCalled();
+    });
+
     it('returns 404 for unknown jobs', async () => {
       mockGetBacktestJobStatus.mockResolvedValueOnce({
         jobId: 'missing-job',
@@ -632,6 +643,8 @@ describe('Backtesting API', () => {
 
       expect(response.status).toBe(503);
       expect(response.body.error).toBe('QUEUE_UNAVAILABLE');
+      expect(mockGetBacktestJobStatus).not.toHaveBeenCalled();
+      expect(mockSubscribeToBacktestJob).not.toHaveBeenCalled();
     });
 
     it('returns 404 for unknown jobs', async () => {

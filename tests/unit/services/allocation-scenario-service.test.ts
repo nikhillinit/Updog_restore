@@ -719,6 +719,38 @@ describe('allocation scenario read model metadata', () => {
     expect(queryMock).not.toHaveBeenCalled();
   });
 
+  it('keeps detail reads on the pg transaction path in local mock database mode', async () => {
+    vi.stubEnv('NODE_ENV', 'development');
+    vi.stubEnv('DATABASE_URL', 'postgresql://mock:mock@localhost/mock');
+    const detailResult = { id: scenarioId, source: 'pg-transaction' };
+    transactionMock.mockResolvedValueOnce(detailResult);
+
+    const result = await getAllocationScenario(1, scenarioId);
+
+    expect(result).toEqual(detailResult);
+    expect(transactionMock).toHaveBeenCalledTimes(1);
+    expect(queryMock).not.toHaveBeenCalled();
+  });
+
+  it('keeps apply mutations on the pg transaction path in local mock database mode', async () => {
+    vi.stubEnv('NODE_ENV', 'development');
+    vi.stubEnv('DATABASE_URL', 'postgresql://mock:mock@localhost/mock');
+    const applyResult = {
+      scenario: { id: scenarioId },
+      event: { id: '00000000-0000-0000-0000-000000000202' },
+      live: { updated_count: 0 },
+    };
+    transactionMock.mockResolvedValueOnce(applyResult);
+
+    const result = await applyAllocationScenario(1, scenarioId, {
+      preview_token: 'preview-token',
+    });
+
+    expect(result).toEqual(applyResult);
+    expect(transactionMock).toHaveBeenCalledTimes(1);
+    expect(queryMock).not.toHaveBeenCalled();
+  });
+
   it('maps last apply and sync metadata in list reads', async () => {
     queryMock.mockResolvedValueOnce({ rows: [{ id: 1 }] }).mockResolvedValueOnce({
       rows: [
