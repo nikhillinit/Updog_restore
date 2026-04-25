@@ -184,12 +184,8 @@ export class VarianceCalculator {
     const targetCompanies = target.targetCompanyCount;
     const variance = actualCompanies - targetCompanies;
 
-    // Determine if on track based on deployment progress
-    const deploymentProgress =
-      target.targetFundSize > 0 ? actual.totalDeployed / target.targetFundSize : 0;
-
-    const expectedCompanies = Math.round(targetCompanies * deploymentProgress);
-    const onTrack = Math.abs(actualCompanies - expectedCompanies) <= 2; // Allow 2 company tolerance
+    const completionRatio = targetCompanies > 0 ? actualCompanies / targetCompanies : 1;
+    const onTrack = completionRatio >= 0.9;
 
     return {
       actualCompanies,

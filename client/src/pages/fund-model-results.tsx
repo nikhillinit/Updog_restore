@@ -11,8 +11,15 @@
  */
 
 import React, { useRef, useState, useEffect, useCallback } from 'react';
-import { useRoute, useLocation } from 'wouter';
-import { AlertCircle, ArrowLeft, ChevronDown, ChevronRight, History, RefreshCw } from 'lucide-react';
+import { Link, useRoute, useLocation } from 'wouter';
+import {
+  AlertCircle,
+  ArrowLeft,
+  ChevronDown,
+  ChevronRight,
+  History,
+  RefreshCw,
+} from 'lucide-react';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -24,9 +31,7 @@ import type {
   WaterfallSetupSection,
 } from '@shared/contracts/fund-results-v1.contract';
 import type { FundStateReadV1 } from '@shared/contracts/fund-state-read-v1.contract';
-import type {
-  FundLifecycleHistoryV1,
-} from '@shared/contracts/fund-lifecycle-history-v1.contract';
+import type { FundLifecycleHistoryV1 } from '@shared/contracts/fund-lifecycle-history-v1.contract';
 import type {
   FundResultsComparisonV1,
   MetricDelta,
@@ -172,96 +177,99 @@ function useFundResults(fundId: string | null) {
     stateRef.current = state;
   }, [state]);
 
-  const fetchResults = useCallback(async (options: FetchOptions = {}) => {
-    if (!fundId || fundId === 'latest') return;
+  const fetchResults = useCallback(
+    async (options: FetchOptions = {}) => {
+      if (!fundId || fundId === 'latest') return;
 
-    if (options.resetBackoff) {
-      attemptRef.current = 0;
-      clearScheduledPoll();
-    }
-
-    if (abortRef.current) {
-      if (options.background) {
-        return;
+      if (options.resetBackoff) {
+        attemptRef.current = 0;
+        clearScheduledPoll();
       }
-      cancelInFlight();
-    }
 
-    const controller = new AbortController();
-    abortRef.current = controller;
-
-    try {
-      const res = await fetch(`/api/funds/${fundId}/results`, {
-        signal: controller.signal,
-      });
-
-      if (res.status === 404) {
-        if (stateRef.current.kind !== 'data' || options.initial) {
-          setState({ kind: 'error', message: 'Fund not found' });
+      if (abortRef.current) {
+        if (options.background) {
+          return;
         }
-        return;
+        cancelInFlight();
       }
-      if (!res.ok) {
+
+      const controller = new AbortController();
+      abortRef.current = controller;
+
+      try {
+        const res = await fetch(`/api/funds/${fundId}/results`, {
+          signal: controller.signal,
+        });
+
+        if (res.status === 404) {
+          if (stateRef.current.kind !== 'data' || options.initial) {
+            setState({ kind: 'error', message: 'Fund not found' });
+          }
+          return;
+        }
+        if (!res.ok) {
+          if (stateRef.current.kind !== 'data' || options.initial) {
+            setState({ kind: 'error', message: `Server error (${res.status})` });
+          } else if (
+            stateRef.current.kind === 'data' &&
+            isActiveCalculationStatus(stateRef.current.results.lifecycle.calculationState.status)
+          ) {
+            scheduleNextPoll();
+          }
+          return;
+        }
+
+        const data = (await res.json()) as FundResultsReadV1;
+        setState({ kind: 'data', results: data });
+
+        const currentLifecycleKey: LifecyclePollingKey = {
+          fundId,
+          status: data.lifecycle.calculationState.status,
+          runId: data.lifecycle.calculationState.runId,
+          configVersion: data.lifecycle.calculationState.configVersion,
+        };
+        const previousLifecycleKey = lastLifecycleKeyRef.current;
+        const shouldResetBackoff =
+          options.resetBackoff === true ||
+          previousLifecycleKey == null ||
+          previousLifecycleKey.fundId !== currentLifecycleKey.fundId ||
+          previousLifecycleKey.runId !== currentLifecycleKey.runId ||
+          previousLifecycleKey.configVersion !== currentLifecycleKey.configVersion ||
+          (!isActiveCalculationStatus(previousLifecycleKey.status) &&
+            isActiveCalculationStatus(currentLifecycleKey.status));
+
+        lastLifecycleKeyRef.current = currentLifecycleKey;
+
+        if (isActiveCalculationStatus(currentLifecycleKey.status)) {
+          if (shouldResetBackoff) {
+            attemptRef.current = 0;
+          }
+          scheduleNextPoll();
+        } else {
+          attemptRef.current = 0;
+          clearScheduledPoll();
+        }
+      } catch (error) {
+        if (controller.signal.aborted) return;
+
         if (stateRef.current.kind !== 'data' || options.initial) {
-          setState({ kind: 'error', message: `Server error (${res.status})` });
+          setState({ kind: 'error', message: 'Network error' });
         } else if (
           stateRef.current.kind === 'data' &&
           isActiveCalculationStatus(stateRef.current.results.lifecycle.calculationState.status)
         ) {
           scheduleNextPoll();
+        } else if (error instanceof Error) {
+          void error;
         }
-        return;
-      }
-
-      const data = (await res.json()) as FundResultsReadV1;
-      setState({ kind: 'data', results: data });
-
-      const currentLifecycleKey: LifecyclePollingKey = {
-        fundId,
-        status: data.lifecycle.calculationState.status,
-        runId: data.lifecycle.calculationState.runId,
-        configVersion: data.lifecycle.calculationState.configVersion,
-      };
-      const previousLifecycleKey = lastLifecycleKeyRef.current;
-      const shouldResetBackoff =
-        options.resetBackoff === true ||
-        previousLifecycleKey == null ||
-        previousLifecycleKey.fundId !== currentLifecycleKey.fundId ||
-        previousLifecycleKey.runId !== currentLifecycleKey.runId ||
-        previousLifecycleKey.configVersion !== currentLifecycleKey.configVersion ||
-        (!isActiveCalculationStatus(previousLifecycleKey.status) &&
-          isActiveCalculationStatus(currentLifecycleKey.status));
-
-      lastLifecycleKeyRef.current = currentLifecycleKey;
-
-      if (isActiveCalculationStatus(currentLifecycleKey.status)) {
-        if (shouldResetBackoff) {
-          attemptRef.current = 0;
+      } finally {
+        if (abortRef.current === controller) {
+          abortRef.current = null;
         }
-        scheduleNextPoll();
-      } else {
-        attemptRef.current = 0;
-        clearScheduledPoll();
       }
-    } catch (error) {
-      if (controller.signal.aborted) return;
-
-      if (stateRef.current.kind !== 'data' || options.initial) {
-        setState({ kind: 'error', message: 'Network error' });
-      } else if (
-        stateRef.current.kind === 'data' &&
-        isActiveCalculationStatus(stateRef.current.results.lifecycle.calculationState.status)
-      ) {
-        scheduleNextPoll();
-      } else if (error instanceof Error) {
-        void error;
-      }
-    } finally {
-      if (abortRef.current === controller) {
-        abortRef.current = null;
-      }
-    }
-  }, [cancelInFlight, clearScheduledPoll, fundId, scheduleNextPoll]);
+    },
+    [cancelInFlight, clearScheduledPoll, fundId, scheduleNextPoll]
+  );
 
   fetchResultsRef.current = fetchResults;
 
@@ -395,10 +403,7 @@ function useFundResultsComparison(fundId: string | null) {
   return { state, refresh: fetchComparison };
 }
 
-function useRecalculatePublished(
-  fundId: string | null,
-  onSuccess: () => void
-) {
+function useRecalculatePublished(fundId: string | null, onSuccess: () => void) {
   const [state, setState] = useState<RecalculateState>({ kind: 'idle' });
 
   const recalculate = useCallback(async () => {
@@ -408,17 +413,15 @@ function useRecalculatePublished(
       const res = await fetch(`/api/funds/${fundId}/recalculate`, {
         method: 'POST',
       });
-      const payload = (await res.json().catch(() => null)) as
-        | { message?: string; error?: string }
-        | null;
+      const payload = (await res.json().catch(() => null)) as {
+        message?: string;
+        error?: string;
+      } | null;
 
       if (!res.ok) {
         setState({
           kind: 'error',
-          message:
-            payload?.message ??
-            payload?.error ??
-            `Failed to recalculate (${res.status})`,
+          message: payload?.message ?? payload?.error ?? `Failed to recalculate (${res.status})`,
         });
         return;
       }
@@ -702,9 +705,7 @@ function hasStaleEvidence(lifecycle: FundStateReadV1) {
   const publishedVersion = lifecycle.configState.publishedVersion;
   const calculationVersion = lifecycle.calculationState.configVersion;
   return (
-    publishedVersion != null &&
-    calculationVersion != null &&
-    calculationVersion < publishedVersion
+    publishedVersion != null && calculationVersion != null && calculationVersion < publishedVersion
   );
 }
 
@@ -724,7 +725,9 @@ function diagnosticAlertClasses(tone: 'neutral' | 'warning' | 'danger' | 'succes
 function getLifecycleDiagnostic(lifecycle: FundStateReadV1) {
   const { configState, calculationState } = lifecycle;
   const publishedVersion =
-    configState.publishedVersion != null ? `v${configState.publishedVersion}` : 'an unpublished draft';
+    configState.publishedVersion != null
+      ? `v${configState.publishedVersion}`
+      : 'an unpublished draft';
   const runLabel =
     calculationState.runId != null ? `run ${calculationState.runId}` : 'the next calculation run';
 
@@ -784,9 +787,9 @@ function ConfigDiffBanner({ lifecycle }: { lifecycle: FundStateReadV1 }) {
       <AlertCircle className="h-4 w-4 text-amber-700" />
       <AlertTitle>Results are stale</AlertTitle>
       <AlertDescription className="font-poppins text-amber-900">
-        Latest published configuration is v{lifecycle.configState.publishedVersion}, but the
-        current calculation is still on v{lifecycle.calculationState.configVersion}. Recalculate
-        to refresh the published results.
+        Latest published configuration is v{lifecycle.configState.publishedVersion}, but the current
+        calculation is still on v{lifecycle.calculationState.configVersion}. Recalculate to refresh
+        the published results.
       </AlertDescription>
     </Alert>
   );
@@ -795,7 +798,9 @@ function ConfigDiffBanner({ lifecycle }: { lifecycle: FundStateReadV1 }) {
 function PublishHistoryCard({ historyState }: { historyState: LifecycleHistoryState }) {
   const [isOpen, setIsOpen] = useState(false);
   const entryCount =
-    historyState.kind === 'data' ? historyState.history.entries.length : historyState.history?.entries.length ?? 0;
+    historyState.kind === 'data'
+      ? historyState.history.entries.length
+      : (historyState.history?.entries.length ?? 0);
 
   return (
     <div
@@ -818,11 +823,7 @@ function PublishHistoryCard({ historyState }: { historyState: LifecycleHistorySt
 
           <CollapsibleTrigger asChild>
             <Button variant="outline" size="sm" disabled={entryCount === 0}>
-              {isOpen ? (
-                <ChevronDown className="h-4 w-4" />
-              ) : (
-                <ChevronRight className="h-4 w-4" />
-              )}
+              {isOpen ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
               {isOpen ? 'Hide history' : 'Show history'}
             </Button>
           </CollapsibleTrigger>
@@ -877,11 +878,7 @@ function PublishHistoryCard({ historyState }: { historyState: LifecycleHistorySt
   );
 }
 
-function PublishComparisonCard({
-  comparisonState,
-}: {
-  comparisonState: ResultsComparisonState;
-}) {
+function PublishComparisonCard({ comparisonState }: { comparisonState: ResultsComparisonState }) {
   return (
     <div
       className="bg-white rounded-lg border border-beige-200 p-6 space-y-4"
@@ -1101,6 +1098,23 @@ function LifecycleStatusCard({
           {diagnostic.description}
         </AlertDescription>
       </Alert>
+
+      {!configState.hasPublished && (
+        <div className="rounded-md border border-beige-200 bg-white p-4">
+          <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+            <div>
+              <p className="font-medium text-charcoal">Publish the fund configuration</p>
+              <p className="mt-1 text-sm text-charcoal-500 font-poppins">
+                Review the current setup, publish it, then return here to request lifecycle-backed
+                calculations.
+              </p>
+            </div>
+            <Button asChild>
+              <Link href={`/fund-setup?fundId=${lifecycle.fundId}`}>Review and publish</Link>
+            </Button>
+          </div>
+        </div>
+      )}
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <FactTile

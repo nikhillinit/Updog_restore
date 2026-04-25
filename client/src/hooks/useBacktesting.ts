@@ -89,6 +89,23 @@ export function useBacktestAsyncRun() {
   });
 }
 
+export function useBacktestSyncRun() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (config: BacktestConfig) => {
+      return apiRequest<{ result: BacktestResult }>('POST', '/api/backtesting/run', config);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: KEYS.all });
+    },
+  });
+}
+
+function isQueueUnavailableError(error: unknown): boolean {
+  return toSubmitErrorViewModel(error)?.errorCode === 'QUEUE_UNAVAILABLE';
+}
+
 /**
  * Poll job status. Refetches every 2s while non-terminal.
  * Automatically stops polling when job reaches terminal state.
@@ -196,7 +213,9 @@ export function useBacktestLifecycle(fundId: number | null) {
   const searchString = useSearch();
   const resumeJobId = useResumeJobId();
   const asyncRun = useBacktestAsyncRun();
+  const syncRun = useBacktestSyncRun();
   const [localJob, setLocalJob] = useState<{ jobId: string; fundId: number } | null>(null);
+  const [syncResult, setSyncResult] = useState<BacktestResult | null>(null);
   const [dismissedResumeJobId, setDismissedResumeJobId] = useState<string | null>(null);
   const [resumeMismatch, setResumeMismatch] = useState<{
     jobId: string;
@@ -259,20 +278,43 @@ export function useBacktestLifecycle(fundId: number | null) {
   // Auto-fetch result when job completes
   const backtestId = hasResumeMismatch ? null : effectiveJobViewModel.backtestId;
   const result = useBacktestResult(backtestId);
-  const submitError = useMemo(() => toSubmitErrorViewModel(asyncRun.error), [asyncRun.error]);
+  const syncResultViewModel = useMemo(
+    () => (syncResult ? toResultViewModel(syncResult) : null),
+    [syncResult]
+  );
+  const submitError = useMemo(() => {
+    if (syncRun.isPending || syncResult) {
+      return null;
+    }
+
+    return toSubmitErrorViewModel(syncRun.error ?? asyncRun.error);
+  }, [asyncRun.error, syncRun.error, syncRun.isPending, syncResult]);
 
   const startBacktest = useCallback(
     (config: BacktestConfig) => {
       setResumeMismatch(null);
       setLocalJob(null);
+      setSyncResult(null);
       asyncRun.reset();
+      syncRun.reset();
       asyncRun.mutate(config, {
         onSuccess: (response) => {
           setLocalJob({ jobId: response.jobId, fundId: config.fundId });
         },
+        onError: (error) => {
+          if (!isQueueUnavailableError(error)) {
+            return;
+          }
+
+          syncRun.mutate(config, {
+            onSuccess: (response) => {
+              setSyncResult(response.result);
+            },
+          });
+        },
       });
     },
-    [asyncRun]
+    [asyncRun, syncRun]
   );
 
   const isRunning =
@@ -282,10 +324,10 @@ export function useBacktestLifecycle(fundId: number | null) {
     startBacktest,
     activeJobId: hasResumeMismatch ? null : activeJobId,
     jobStatus: effectiveJobViewModel,
-    result: result.viewModel,
-    rawResult: result.data?.result ?? null,
+    result: syncResultViewModel ?? result.viewModel,
+    rawResult: syncResult ?? result.data?.result ?? null,
     isRunning,
-    isSubmitting: asyncRun.isPending,
+    isSubmitting: asyncRun.isPending || syncRun.isPending,
     submitError,
     resumeMismatch,
   };

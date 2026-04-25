@@ -129,6 +129,27 @@ describe('FundProvider route-aware selection', () => {
     });
   });
 
+  it('uses the only available fund on /forecasting', async () => {
+    mockUseQuery.mockReturnValue({
+      data: [mockFunds[0]],
+      isLoading: false,
+      error: null,
+    });
+    const { Wrapper } = createWouterWrapper('/forecasting');
+
+    render(
+      <Wrapper>
+        <FundProvider>
+          <Consumer />
+        </FundProvider>
+      </Wrapper>
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText('1:First Fund:false:false')).toBeInTheDocument();
+    });
+  });
+
   it('uses an explicit route-scoped fund ID on /forecasting', async () => {
     const { Wrapper } = createWouterWrapper('/forecasting?fundId=2');
 
@@ -174,6 +195,27 @@ describe('FundProvider route-aware selection', () => {
 
     await waitFor(() => {
       expect(screen.getByText('none:none:false:false')).toBeInTheDocument();
+    });
+  });
+
+  it('uses the only available fund on /model-results', async () => {
+    mockUseQuery.mockReturnValue({
+      data: [mockFunds[0]],
+      isLoading: false,
+      error: null,
+    });
+    const { Wrapper } = createWouterWrapper('/model-results');
+
+    render(
+      <Wrapper>
+        <FundProvider>
+          <Consumer />
+        </FundProvider>
+      </Wrapper>
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText('1:First Fund:false:false')).toBeInTheDocument();
     });
   });
 

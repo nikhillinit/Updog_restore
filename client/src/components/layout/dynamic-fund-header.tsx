@@ -20,9 +20,9 @@ interface FundMetrics {
   totalCommitted: number;
   totalInvested: number;
   totalValue: number;
-  irr: number;
+  irr: number | null;
   moic: number;
-  dpi: number;
+  dpi: number | null;
   tvpi: number;
   activeInvestments: number;
   exited: number;
@@ -44,9 +44,9 @@ function toHeaderMetrics(
     totalCommitted,
     totalInvested,
     totalValue,
-    irr: actual?.irr ?? 0,
+    irr: actual?.irr ?? null,
     moic: totalInvested > 0 ? totalValue / totalInvested : 0,
-    dpi: actual?.dpi ?? 0,
+    dpi: actual?.dpi ?? null,
     tvpi: actual?.tvpi ?? 0,
     activeInvestments: actual?.activeCompanies ?? 0,
     exited: actual?.exitedCompanies ?? 0,
@@ -91,10 +91,10 @@ export default function DynamicFundHeader() {
   const formatMetricCurrency = (value: number | undefined) =>
     metricUnavailable || metricsLoading ? 'N/A' : formatCurrency(value);
 
-  const formatPercentage = (value: number | undefined) => {
-    if (!value && value !== 0) return '0.0%';
+  const formatPercentage = (value: number | null | undefined) => {
+    if (value === null || value === undefined) return 'N/A';
     const num = Number(value);
-    if (isNaN(num)) return '0.0%';
+    if (isNaN(num)) return 'N/A';
     const percent = Math.abs(num) <= 1 ? num * 100 : num;
     return `${percent.toFixed(1)}%`;
   };
