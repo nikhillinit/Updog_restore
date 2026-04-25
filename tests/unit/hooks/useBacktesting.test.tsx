@@ -188,13 +188,21 @@ describe('useBacktestLifecycle', () => {
     expect(result.current.resumeMismatch).toBeNull();
   });
 
-  it('surfaces queue-unavailable submit failures without creating an active job', async () => {
-    apiRequestMock.mockRejectedValue(
-      Object.assign(new Error('Backtesting queue is unavailable'), {
-        status: 503,
-        errorCode: 'QUEUE_UNAVAILABLE',
-      })
-    );
+  it('falls back to a sync run when the async queue is unavailable', async () => {
+    apiRequestMock.mockImplementation(async (_method: string, url: string) => {
+      if (url === '/api/backtesting/run/async') {
+        throw Object.assign(new Error('Backtesting queue is unavailable'), {
+          status: 503,
+          errorCode: 'QUEUE_UNAVAILABLE',
+        });
+      }
+
+      if (url === '/api/backtesting/run') {
+        return { result: makeBacktestResult() };
+      }
+
+      throw new Error(`Unexpected request: ${url}`);
+    });
 
     const { Wrapper } = createHookWrapper('/sensitivity-analysis');
     const { result } = renderHook(() => useBacktestLifecycle(7), { wrapper: Wrapper });
@@ -210,15 +218,21 @@ describe('useBacktestLifecycle', () => {
     });
 
     await waitFor(() => {
-      expect(result.current.submitError).toMatchObject({
-        status: 503,
-        errorCode: 'QUEUE_UNAVAILABLE',
-        errorMessage: 'Backtesting queue is unavailable',
-        isRetryable: true,
-      });
+      expect(result.current.result?.backtestId).toBe('bt-123');
     });
 
+    expect(result.current.submitError).toBeNull();
     expect(result.current.activeJobId).toBeNull();
     expect(result.current.jobStatus.phase).toBe('idle');
+    expect(apiRequestMock).toHaveBeenCalledWith(
+      'POST',
+      '/api/backtesting/run/async',
+      expect.objectContaining({ fundId: 7 })
+    );
+    expect(apiRequestMock).toHaveBeenCalledWith(
+      'POST',
+      '/api/backtesting/run',
+      expect.objectContaining({ fundId: 7 })
+    );
   });
 });

@@ -1,6 +1,7 @@
 import { extractFundResultsRouteId, getLocationPathname } from '@/lib/fund-routes';
 import {
   FileText,
+  Activity,
   Settings,
   Calculator,
   Briefcase,
@@ -69,6 +70,12 @@ const CORE_NAV: readonly NavigationItem[] = [
   },
   { id: 'portfolio', label: 'Portfolio', icon: Briefcase, target: staticTarget('/portfolio') },
   { id: 'pipeline', label: 'Pipeline', icon: LineChart, target: staticTarget('/pipeline') },
+  {
+    id: 'performance',
+    label: 'Performance',
+    icon: Activity,
+    target: staticTarget('/performance'),
+  },
   {
     id: 'financial-modeling',
     label: 'Forecasting',

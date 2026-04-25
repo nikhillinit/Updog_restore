@@ -64,9 +64,9 @@ export class ActualMetricsCalculator {
     const rvpi = totalCalled.gt(0) ? currentNAV.div(totalCalled) : new Decimal(0);
 
     // Calculate portfolio composition
-    const activeCompanies = companies.filter((c) => c.status === 'active').length;
-    const exitedCompanies = companies.filter((c) => c.status === 'exited').length;
-    const writtenOffCompanies = companies.filter((c) => c.status === 'written-off').length;
+    const activeCompanies = companies.filter((c) => this.isLivePortfolioCompany(c)).length;
+    const exitedCompanies = companies.filter((c) => this.isExitedCompany(c)).length;
+    const writtenOffCompanies = companies.filter((c) => this.isWrittenOffCompany(c)).length;
     const totalCompanies = companies.length;
 
     // Calculate deployment metrics
@@ -112,13 +112,43 @@ export class ActualMetricsCalculator {
     companies: Pick<PortfolioCompany, 'status' | 'currentValuation'>[]
   ): Decimal {
     return companies
-      .filter((c) => c.status === 'active')
+      .filter((c) => this.isLivePortfolioCompany(c))
       .reduce((sum, company) => {
         const valuation = company.currentValuation
           ? this.parseDecimal(company.currentValuation)
           : new Decimal(0);
         return sum.plus(valuation);
       }, new Decimal(0));
+  }
+
+  private normalizeCompanyStatus(status: string | null | undefined): string {
+    return (status ?? 'active')
+      .trim()
+      .toLowerCase()
+      .replace(/[\s_]+/g, '-');
+  }
+
+  private isExitedCompany(company: Pick<PortfolioCompany, 'status'>): boolean {
+    const status = this.normalizeCompanyStatus(company.status);
+    return (
+      status === 'exited' || status === 'exit' || status === 'realized' || status === 'realised'
+    );
+  }
+
+  private isWrittenOffCompany(company: Pick<PortfolioCompany, 'status'>): boolean {
+    const status = this.normalizeCompanyStatus(company.status);
+    return (
+      status === 'written-off' ||
+      status === 'write-off' ||
+      status === 'writtenoff' ||
+      status === 'failed' ||
+      status === 'lost' ||
+      status === 'inactive'
+    );
+  }
+
+  private isLivePortfolioCompany(company: Pick<PortfolioCompany, 'status'>): boolean {
+    return !this.isExitedCompany(company) && !this.isWrittenOffCompany(company);
   }
 
   /**

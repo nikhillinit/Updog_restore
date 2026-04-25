@@ -37,3 +37,17 @@ describe('navigation-config sensitivity item', () => {
     }
   });
 });
+
+describe('navigation-config performance item', () => {
+  it('exposes the Performance sidebar item for the live performance route', () => {
+    const items = getNavigationItems();
+    const item = items.find((i) => i.id === 'performance');
+
+    expect(item).toBeDefined();
+    expect(item?.label).toBe('Performance');
+    expect(item?.target.kind).toBe('static');
+    if (item?.target.kind === 'static') {
+      expect(item.target.path).toBe('/performance');
+    }
+  });
+});

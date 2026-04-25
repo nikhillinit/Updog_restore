@@ -67,6 +67,7 @@ describe('sidebar results navigation', () => {
       'dashboard',
       'portfolio',
       'pipeline',
+      'performance',
       'financial-modeling',
       'model-results',
       'sensitivity-analysis',

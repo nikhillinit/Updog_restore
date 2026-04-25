@@ -73,9 +73,9 @@ export function FundProvider({ children }: FundProviderProps) {
     if (funds && Array.isArray(funds) && funds.length > 0) {
       // Keep route-addressed or explicitly chosen funds, but ignore any carried
       // implicit first-fund selection on the canonical deterministic route.
-      const preferredFundId =
-        routeFundId ??
-        (suppressImplicitFundSelection && fundSelectionSource === 'implicit' ? null : fundId);
+      const suppressesImplicitFirstFund =
+        suppressImplicitFundSelection && fundSelectionSource === 'implicit' && funds.length > 1;
+      const preferredFundId = routeFundId ?? (suppressesImplicitFirstFund ? null : fundId);
 
       if (preferredFundId) {
         // Find specific fund by ID
@@ -95,7 +95,7 @@ export function FundProvider({ children }: FundProviderProps) {
             return;
           }
 
-          if (suppressImplicitFundSelection) {
+          if (suppressImplicitFundSelection && funds.length > 1) {
             setCurrentFund(null);
             setFundId(null);
             setFundSelectionSource(null);
@@ -107,7 +107,7 @@ export function FundProvider({ children }: FundProviderProps) {
           setFundSelectionSource('implicit');
         }
       } else {
-        if (suppressImplicitFundSelection) {
+        if (suppressImplicitFundSelection && funds.length > 1) {
           setCurrentFund(null);
           setFundId(null);
           setFundSelectionSource(null);
@@ -150,7 +150,11 @@ export function FundProvider({ children }: FundProviderProps) {
   const awaitingResolvedFundSelection =
     hasResolvedFunds && !currentFund && routeFundId == null && !suppressImplicitFundSelection;
   const allowsMissingActiveFund =
-    hasResolvedFunds && !currentFund && routeFundId == null && suppressImplicitFundSelection;
+    hasResolvedFunds &&
+    !currentFund &&
+    routeFundId == null &&
+    suppressImplicitFundSelection &&
+    funds.length > 1;
 
   // Consider "loading" until the first resolved fund has been copied into context
   // or demo mode has fully initialized. This prevents ProtectedRoute/HomeRoute from
