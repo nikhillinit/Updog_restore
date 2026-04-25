@@ -1,11 +1,11 @@
 import { useFlag } from '@/hooks/useUnifiedFlag';
 import HeaderKpis from './HeaderKpis';
 import { useFundContext } from '@/contexts/FundContext';
-import { useQuery } from '@tanstack/react-query';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
 import { formatDPI } from '@/lib/format-metrics';
+import { useFundMetrics } from '@/hooks/useFundMetrics';
 import {
   TrendingUp,
   Target,
@@ -31,56 +31,51 @@ interface FundMetrics {
   remainingCapital: number;
 }
 
+function toHeaderMetrics(
+  currentFundSize: number,
+  metrics: ReturnType<typeof useFundMetrics>['data']
+): FundMetrics {
+  const actual = metrics?.actual;
+  const totalCommitted = actual?.totalCommitted ?? currentFundSize;
+  const totalInvested = actual?.totalDeployed ?? 0;
+  const totalValue = actual?.totalValue ?? actual?.currentNAV ?? 0;
+
+  return {
+    totalCommitted,
+    totalInvested,
+    totalValue,
+    irr: actual?.irr ?? 0,
+    moic: totalInvested > 0 ? totalValue / totalInvested : 0,
+    dpi: actual?.dpi ?? 0,
+    tvpi: actual?.tvpi ?? 0,
+    activeInvestments: actual?.activeCompanies ?? 0,
+    exited: actual?.exitedCompanies ?? 0,
+    avgCheckSize: actual?.averageCheckSize ?? 0,
+    deploymentRate: actual?.deploymentRate ?? 0,
+    remainingCapital: actual?.totalUncalled ?? Math.max(0, totalCommitted - totalInvested),
+  };
+}
+
 export default function DynamicFundHeader() {
   // Call all hooks BEFORE any conditional returns
   const { currentFund } = useFundContext();
   const useCompactHeader = useFlag('enable_kpi_selectors', { withDependencies: true });
 
-  // Fetch real-time fund metrics from calculated-metrics endpoint
-  const { data: metrics } = useQuery<FundMetrics>({
-    queryKey: ['/api/funds', currentFund?.id, 'calculated-metrics'],
-    enabled: !!currentFund?.id && !useCompactHeader, // Only fetch if not using compact header
-    refetchInterval: 30000, // Refresh every 30 seconds
+  const {
+    data: metrics,
+    isLoading: metricsLoading,
+    error: metricsError,
+  } = useFundMetrics({
+    enabled: !!currentFund?.id && !useCompactHeader,
+    skipProjections: true,
+    refetchInterval: 30000,
   });
+  const metricUnavailable = metricsError != null;
 
   // If KPI selector flag is enabled, use new compact header
   if (useCompactHeader) {
     return <HeaderKpis />;
   }
-
-  // Default metrics for new fund (no investments yet)
-  const sampleMetrics: FundMetrics = {
-    totalCommitted: currentFund?.size || 0,
-    totalInvested: 0,
-    totalValue: 0,
-    irr: 0,
-    moic: 0,
-    dpi: 0,
-    tvpi: 0,
-    activeInvestments: 0,
-    exited: 0,
-    avgCheckSize: 0,
-    deploymentRate: 0,
-    remainingCapital: currentFund?.size || 0,
-  };
-
-  // Ensure all values are properly defined
-  const safeMetrics: FundMetrics = {
-    totalCommitted: (metrics?.totalCommitted ?? sampleMetrics.totalCommitted) || 0,
-    totalInvested: (metrics?.totalInvested ?? sampleMetrics.totalInvested) || 0,
-    totalValue: (metrics?.totalValue ?? sampleMetrics.totalValue) || 0,
-    irr: (metrics?.irr ?? sampleMetrics.irr) || 0,
-    moic: (metrics?.moic ?? sampleMetrics.moic) || 0,
-    dpi: (metrics?.dpi ?? sampleMetrics.dpi) || 0,
-    tvpi: (metrics?.tvpi ?? sampleMetrics.tvpi) || 0,
-    activeInvestments: (metrics?.activeInvestments ?? sampleMetrics.activeInvestments) || 0,
-    exited: (metrics?.exited ?? sampleMetrics.exited) || 0,
-    avgCheckSize: (metrics?.avgCheckSize ?? sampleMetrics.avgCheckSize) || 0,
-    deploymentRate: (metrics?.deploymentRate ?? sampleMetrics.deploymentRate) || 0,
-    remainingCapital: (metrics?.remainingCapital ?? sampleMetrics.remainingCapital) || 0,
-  };
-
-  const displayMetrics = safeMetrics;
 
   const formatCurrency = (value: number | undefined) => {
     if (!value && value !== 0) return '$0';
@@ -93,16 +88,22 @@ export default function DynamicFundHeader() {
     return `$${num.toLocaleString()}`;
   };
 
+  const formatMetricCurrency = (value: number | undefined) =>
+    metricUnavailable || metricsLoading ? 'N/A' : formatCurrency(value);
+
   const formatPercentage = (value: number | undefined) => {
     if (!value && value !== 0) return '0.0%';
     const num = Number(value);
     if (isNaN(num)) return '0.0%';
-    return `${num.toFixed(1)}%`;
+    const percent = Math.abs(num) <= 1 ? num * 100 : num;
+    return `${percent.toFixed(1)}%`;
   };
 
   if (!currentFund) {
     return null;
   }
+
+  const displayMetrics = toHeaderMetrics(currentFund.size || 0, metrics);
 
   return (
     <div className="sticky top-0 z-50 bg-white border-b border-gray-200 shadow-sm">
@@ -128,7 +129,9 @@ export default function DynamicFundHeader() {
               Active
             </Badge>
             <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-300">
-              {(displayMetrics.deploymentRate || 0).toFixed(0)}% Deployed
+              {metricUnavailable
+                ? 'Metrics unavailable'
+                : `${displayMetrics.deploymentRate.toFixed(0)}% Deployed`}
             </Badge>
           </div>
         </div>
@@ -142,7 +145,7 @@ export default function DynamicFundHeader() {
                 <div>
                   <p className="text-xs text-charcoal-600 font-medium">Total Invested</p>
                   <p className="text-sm font-bold text-charcoal-900">
-                    {formatCurrency(displayMetrics.totalInvested)}
+                    {formatMetricCurrency(displayMetrics.totalInvested)}
                   </p>
                 </div>
                 <DollarSign className="h-4 w-4 text-charcoal-500" />
@@ -156,7 +159,7 @@ export default function DynamicFundHeader() {
                 <div>
                   <p className="text-xs text-charcoal-700 font-medium">Current Value</p>
                   <p className="text-sm font-bold text-charcoal-900">
-                    {formatCurrency(displayMetrics.totalValue)}
+                    {formatMetricCurrency(displayMetrics.totalValue)}
                   </p>
                 </div>
                 <TrendingUp className="h-4 w-4 text-charcoal-600" />
@@ -170,7 +173,9 @@ export default function DynamicFundHeader() {
                 <div>
                   <p className="text-xs text-charcoal-600 font-medium">Net IRR</p>
                   <p className="text-sm font-bold text-charcoal-900">
-                    {formatPercentage(displayMetrics.irr)}
+                    {metricUnavailable || metricsLoading
+                      ? 'N/A'
+                      : formatPercentage(displayMetrics.irr)}
                   </p>
                 </div>
                 <BarChart3 className="h-4 w-4 text-charcoal-500" />
@@ -184,7 +189,9 @@ export default function DynamicFundHeader() {
                 <div>
                   <p className="text-xs text-charcoal-700 font-medium">TVPI</p>
                   <p className="text-sm font-bold text-charcoal-900">
-                    {(displayMetrics.tvpi || 0).toFixed(2)}x
+                    {metricUnavailable || metricsLoading
+                      ? 'N/A'
+                      : `${displayMetrics.tvpi.toFixed(2)}x`}
                   </p>
                 </div>
                 <Target className="h-4 w-4 text-charcoal-600" />
@@ -198,7 +205,7 @@ export default function DynamicFundHeader() {
                 <div>
                   <p className="text-xs text-charcoal-600 font-medium">DPI</p>
                   <p className="text-sm font-bold text-charcoal-900">
-                    {formatDPI(displayMetrics.dpi)}
+                    {metricUnavailable || metricsLoading ? 'N/A' : formatDPI(displayMetrics.dpi)}
                   </p>
                 </div>
                 <PieChart className="h-4 w-4 text-charcoal-500" />
@@ -212,7 +219,7 @@ export default function DynamicFundHeader() {
                 <div>
                   <p className="text-xs text-charcoal-700 font-medium">Active</p>
                   <p className="text-sm font-bold text-charcoal-900">
-                    {displayMetrics.activeInvestments || 0}
+                    {metricUnavailable || metricsLoading ? 'N/A' : displayMetrics.activeInvestments}
                   </p>
                 </div>
                 <Activity className="h-4 w-4 text-charcoal-600" />
@@ -226,7 +233,7 @@ export default function DynamicFundHeader() {
                 <div>
                   <p className="text-xs text-charcoal-600 font-medium">Avg Check</p>
                   <p className="text-sm font-bold text-charcoal-900">
-                    {formatCurrency(displayMetrics.avgCheckSize)}
+                    {formatMetricCurrency(displayMetrics.avgCheckSize)}
                   </p>
                 </div>
                 <DollarSign className="h-4 w-4 text-charcoal-500" />
@@ -240,7 +247,7 @@ export default function DynamicFundHeader() {
                 <div>
                   <p className="text-xs text-charcoal-700 font-medium">Remaining</p>
                   <p className="text-sm font-bold text-charcoal-900">
-                    {formatCurrency(displayMetrics.remainingCapital)}
+                    {formatMetricCurrency(displayMetrics.remainingCapital)}
                   </p>
                 </div>
                 <Calendar className="h-4 w-4 text-charcoal-600" />
@@ -252,10 +259,22 @@ export default function DynamicFundHeader() {
         {/* Real-time Status Indicators */}
         <div className="flex items-center justify-between mt-3 text-xs text-gray-500">
           <div className="flex items-center space-x-4">
-            <span>Last updated: {new Date().toLocaleTimeString()}</span>
+            <span>
+              {metricUnavailable
+                ? 'Metrics source unavailable'
+                : `Last updated: ${
+                    metrics?.lastUpdated
+                      ? new Date(metrics.lastUpdated).toLocaleTimeString()
+                      : new Date().toLocaleTimeString()
+                  }`}
+            </span>
             <div className="flex items-center space-x-1">
-              <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
-              <span>Real-time data</span>
+              <div
+                className={`w-2 h-2 rounded-full ${
+                  metricUnavailable ? 'bg-red-500' : 'bg-green-500 animate-pulse'
+                }`}
+              ></div>
+              <span>{metricUnavailable ? 'Metrics unavailable' : 'Live metrics'}</span>
             </div>
           </div>
         </div>

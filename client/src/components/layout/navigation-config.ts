@@ -108,12 +108,22 @@ function resolveFundResultsHref(context: NavigationContext): string | null {
   return preferredFundId != null ? `/fund-model-results/${preferredFundId}` : '/model-results';
 }
 
+function resolveForecastingHref(context: NavigationContext): string {
+  return context.currentFundId != null
+    ? `/forecasting?fundId=${context.currentFundId}`
+    : '/forecasting';
+}
+
 export function resolveNavigationHref(
   item: NavigationItem,
   context: NavigationContext
 ): string | null {
   if (item.target.kind === 'fund-results') {
     return resolveFundResultsHref(context);
+  }
+
+  if (item.id === 'financial-modeling') {
+    return resolveForecastingHref(context);
   }
 
   return item.target.path;

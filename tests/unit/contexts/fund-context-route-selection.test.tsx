@@ -129,6 +129,38 @@ describe('FundProvider route-aware selection', () => {
     });
   });
 
+  it('uses an explicit route-scoped fund ID on /forecasting', async () => {
+    const { Wrapper } = createWouterWrapper('/forecasting?fundId=2');
+
+    render(
+      <Wrapper>
+        <FundProvider>
+          <Consumer />
+        </FundProvider>
+      </Wrapper>
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText('2:Route Fund:false:false')).toBeInTheDocument();
+    });
+  });
+
+  it('uses an explicit route-scoped fund ID on /financial-modeling', async () => {
+    const { Wrapper } = createWouterWrapper('/financial-modeling?fundId=2');
+
+    render(
+      <Wrapper>
+        <FundProvider>
+          <Consumer />
+        </FundProvider>
+      </Wrapper>
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText('2:Route Fund:false:false')).toBeInTheDocument();
+    });
+  });
+
   it('does not silently inherit the first fund on /model-results', async () => {
     const { Wrapper } = createWouterWrapper('/model-results');
 

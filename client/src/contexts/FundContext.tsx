@@ -1,9 +1,9 @@
 import type { ReactNode } from 'react';
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { useLocation } from 'wouter';
+import { useLocation, useSearch } from 'wouter';
 import { logger } from '@/lib/logger';
-import { extractFundResultsRouteId, getLocationPathname } from '@/lib/fund-routes';
+import { extractRouteScopedFundId, getLocationPathname } from '@/lib/fund-routes';
 import { isDemoMode as resolveDemoMode } from '@/core/demo/persona';
 
 export interface Fund {
@@ -44,7 +44,11 @@ export function FundProvider({ children }: FundProviderProps) {
   const isDemoMode = resolveDemoMode();
 
   const [location] = useLocation();
-  const routeFundId = React.useMemo(() => extractFundResultsRouteId(location), [location]);
+  const search = useSearch();
+  const routeFundId = React.useMemo(
+    () => extractRouteScopedFundId(location, search),
+    [location, search]
+  );
   const pathname = React.useMemo(() => getLocationPathname(location), [location]);
   // Deterministic model routes must not silently inherit an implicit first-fund
   // selection from unrelated surfaces like /dashboard.

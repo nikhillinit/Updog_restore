@@ -154,7 +154,7 @@ describe('ReviewStep finalize failure handling', () => {
     await userEvent.click(button);
 
     await waitFor(() => {
-      expect(screen.getByText('Fund Creation Failed')).toBeInTheDocument();
+      expect(screen.getByText('Fund Creation and Publish Failed')).toBeInTheDocument();
     }, FULL_SUITE_WAIT_OPTIONS);
 
     expect(mockFinalizeFund).toHaveBeenCalledTimes(1);
@@ -192,7 +192,7 @@ describe('ReviewStep finalize failure handling', () => {
 
     // First attempt: fails
     await waitFor(() => {
-      expect(screen.getByText('Fund Creation Failed')).toBeInTheDocument();
+      expect(screen.getByText('Fund Creation and Publish Failed')).toBeInTheDocument();
     }, FULL_SUITE_WAIT_OPTIONS);
 
     // Retry
