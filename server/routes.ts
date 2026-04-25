@@ -43,6 +43,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   const allocationScenarioRoutes = await import('./routes/allocation-scenarios.js');
   app.use('/api', allocationScenarioRoutes.default);
 
+  const allocationsRoutes = await import('./routes/allocations.js');
+  app.use('/api', allocationsRoutes.default);
+
   const activitiesRoutes = await import('./routes/activities.js');
   app.use('/api', activitiesRoutes.default);
 
@@ -67,6 +70,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Backtesting routes (Monte Carlo validation)
   const backtestingRoutes = await import('./routes/backtesting.js');
   app.use('/api/backtesting', backtestingRoutes.default);
+
+  const sensitivityRoutes = await import('./routes/sensitivity.js');
+  app.use('/api', sensitivityRoutes.default);
 
   // MOIC Calculator routes
   const moicRoutes = await import('./routes/moic.js');
@@ -174,6 +180,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
     const devDashboardRoutes = await import('./routes/dev-dashboard.js');
     app.use('/api/dev-dashboard', devDashboardRoutes.default);
   }
+
+  app.use('/api', (_req: Request, res: Response) => {
+    res.status(404).json({
+      error: 'not_found',
+      message: 'API route not found',
+    });
+  });
 
   // Express app is compatible with http.RequestListener
   const httpServer = createServer(app as unknown as RequestListener);

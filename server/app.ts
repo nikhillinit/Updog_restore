@@ -24,6 +24,7 @@ import interleavedThinkingRouter from './routes/interleaved-thinking.js';
 import scenarioAnalysisRouter from './routes/scenario-analysis.js';
 import allocationsRouter from './routes/allocations.js';
 import allocationScenariosRouter from './routes/allocation-scenarios.js';
+import backtestingRouter from './routes/backtesting.js';
 import fundsRouter from './routes/funds.js';
 import varianceRouter from './routes/variance.js';
 import { registerFundConfigRoutes } from './routes/fund-config.js';
@@ -215,6 +216,9 @@ export function makeApp() {
 
   // Sensitivity Analysis API (Phase 1A - one-way sweeps; fund-scoped)
   app.use('/api', sensitivityRouter);
+
+  // Backtesting API (Monte Carlo validation)
+  app.use('/api/backtesting', backtestingRouter);
 
   // API version endpoint for deployment verification
   app['get']('/api/version', (_req: Request, res: Response) =>
