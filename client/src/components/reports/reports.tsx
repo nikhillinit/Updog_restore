@@ -59,6 +59,14 @@ const REPORT_SURFACES: ReportSurface[] = [
     icon: BarChart3,
   },
   {
+    id: 'performance-dashboard',
+    title: 'Fund Performance',
+    description: 'Live IRR, TVPI, DPI, and portfolio breakdown charts for the active fund.',
+    helperText: 'Backed by the live performance dashboard route.',
+    status: 'live',
+    icon: TrendingUp,
+  },
+  {
     id: 'tear-sheets',
     title: 'Portfolio Tear Sheets',
     description: 'Company tear sheets and PDF export flow for portfolio review packs.',
@@ -510,6 +518,14 @@ export default function Reports() {
                             }
                           >
                             Generate
+                          </Button>
+                        </div>
+                      )}
+
+                      {surface.id === 'performance-dashboard' && (
+                        <div className="flex flex-wrap gap-2 pt-1">
+                          <Button size="sm" variant="outline" onClick={() => setLocation('/performance')}>
+                            Open Performance
                           </Button>
                         </div>
                       )}

@@ -77,8 +77,8 @@ test.describe('Wizard Review Step', () => {
     const createButton = page.getByTestId('create-fund-button');
     await expect(createButton).toBeVisible();
 
-    // Button should have "Create Fund" text
-    await expect(createButton).toContainText(/create fund/i);
+    // Button should make the publish-and-results action explicit
+    await expect(createButton).toContainText(/create.*publish.*view results/i);
   });
 
   test('step 7 is accessible in wizard flow', async ({ page }) => {

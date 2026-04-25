@@ -221,8 +221,8 @@ export default function ReviewStep() {
       <div className="space-y-2">
         <h1 className="text-2xl font-bold text-presson-text">Review & Create Fund</h1>
         <p className="text-presson-textMuted">
-          Review your fund configuration before creating. You can go back to any step to make
-          changes.
+          Review your fund configuration before creating and publishing it. This final action saves
+          the fund, publishes the configuration, starts calculations, and opens model results.
         </p>
       </div>
 
@@ -290,7 +290,7 @@ export default function ReviewStep() {
       {submitState === 'error' && submitError && (
         <Alert className="border-l-4 border-l-red-500 bg-red-50">
           <AlertTriangle className="h-5 w-5 text-red-500" />
-          <AlertTitle>Fund Creation Failed</AlertTitle>
+          <AlertTitle>Fund Creation and Publish Failed</AlertTitle>
           <AlertDescription>{submitError}</AlertDescription>
         </Alert>
       )}
@@ -316,12 +316,12 @@ export default function ReviewStep() {
             {isSubmitting ? (
               <>
                 <Loader2 className="h-4 w-4 animate-spin" />
-                Creating Fund...
+                Creating, Publishing, and Starting Calculations...
               </>
             ) : (
               <>
                 <Rocket className="h-4 w-4" />
-                {submitState === 'error' ? 'Retry' : 'Create Fund'}
+                {submitState === 'error' ? 'Retry Publish' : 'Create, Publish, and View Results'}
               </>
             )}
           </Button>

@@ -198,7 +198,9 @@ describe('ReviewStep single-submit via finalize', () => {
 
     // Should show loading text
     await waitFor(() => {
-      expect(screen.getByText(/Creating Fund/i)).toBeInTheDocument();
+      expect(
+        screen.getByText(/Creating, Publishing, and Starting Calculations/i)
+      ).toBeInTheDocument();
     });
 
     // Resolve to prevent hanging
@@ -233,7 +235,7 @@ describe('ReviewStep single-submit via finalize', () => {
     await userEvent.click(screen.getByTestId('create-fund-button'));
 
     await waitFor(() => {
-      expect(screen.getByText('Fund Creation Failed')).toBeInTheDocument();
+      expect(screen.getByText('Fund Creation and Publish Failed')).toBeInTheDocument();
       expect(screen.getByText(/Validation failed: fund name/)).toBeInTheDocument();
     });
 
@@ -276,11 +278,11 @@ describe('ReviewStep single-submit via finalize', () => {
     await userEvent.click(screen.getByTestId('create-fund-button'));
 
     await waitFor(() => {
-      expect(screen.getByText('Fund Creation Failed')).toBeInTheDocument();
+      expect(screen.getByText('Fund Creation and Publish Failed')).toBeInTheDocument();
     });
 
     // Button should show Retry
-    expect(screen.getByText('Retry')).toBeInTheDocument();
+    expect(screen.getByText('Retry Publish')).toBeInTheDocument();
 
     // Click retry
     await userEvent.click(screen.getByTestId('create-fund-button'));

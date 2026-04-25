@@ -122,6 +122,21 @@ describe('sidebar results navigation', () => {
     expect(link.getAttribute('href')).toBe('/fund-model-results/7');
   });
 
+  it('renders a fund-scoped forecasting link when a current fund is available', async () => {
+    const { Sidebar } = await loadNavigationModules();
+    const { Wrapper } = createWouterWrapper('/dashboard');
+    const { container } = render(
+      <Wrapper>
+        <Sidebar activeModule="dashboard" />
+      </Wrapper>
+    );
+
+    hoverSidebar(container);
+
+    const link = screen.getByRole('link', { name: /forecasting/i });
+    expect(link.getAttribute('href')).toBe('/forecasting?fundId=7');
+  });
+
   it('keeps the results navigation active and linkable on a deep-linked results route before currentFund hydrates', async () => {
     mockFundContext = {
       currentFund: null,
@@ -162,5 +177,25 @@ describe('sidebar results navigation', () => {
 
     const link = screen.getByRole('link', { name: /model results/i });
     expect(link.getAttribute('href')).toBe('/model-results');
+  });
+
+  it('links to the forecasting recovery route when no fund can be resolved', async () => {
+    mockFundContext = {
+      currentFund: null,
+      needsSetup: false,
+    };
+
+    const { Sidebar } = await loadNavigationModules();
+    const { Wrapper } = createWouterWrapper('/dashboard');
+    const { container } = render(
+      <Wrapper>
+        <Sidebar activeModule="dashboard" />
+      </Wrapper>
+    );
+
+    hoverSidebar(container);
+
+    const link = screen.getByRole('link', { name: /forecasting/i });
+    expect(link.getAttribute('href')).toBe('/forecasting');
   });
 });
