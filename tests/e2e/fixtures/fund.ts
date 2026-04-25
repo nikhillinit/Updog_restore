@@ -88,7 +88,25 @@ async function seedTestFund(baseURL: string): Promise<FundFixture> {
  * });
  * ```
  */
-export const test = base.extend<{ fund: FundFixture }>({
+export const test = base.extend<{ fund: FundFixture; demoMode: void }>({
+  // Auto fixture: enable demo mode before any navigation so the app does not
+  // depend on a live API. Paired with VITE_E2E_DEMO_ENABLED in the Playwright
+  // webServer env (see playwright.config.ts) and the gate in persona.ts.
+  demoMode: [
+    async ({ page }, use) => {
+      await page.addInitScript(() => {
+        try {
+          window.localStorage.setItem('DEMO_TOOLBAR', '1');
+        } catch {
+          // localStorage may be unavailable in some contexts; demo mode will
+          // still resolve via the ?demo query param if tests opt in.
+        }
+      });
+
+      await use();
+    },
+    { auto: true },
+  ],
   fund: async ({ baseURL }, use) => {
     const fund = await seedTestFund(baseURL!);
     // eslint-disable-next-line react-hooks/rules-of-hooks -- Playwright fixture use(), not React
