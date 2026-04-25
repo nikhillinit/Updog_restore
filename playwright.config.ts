@@ -151,7 +151,12 @@ export default defineConfig({
         url: PREVIEW_URL,
         reuseExistingServer: !process.env.CI,
         timeout: 120_000,
-        env: { PORT: PREVIEW_PORT },
+        env: {
+          PORT: PREVIEW_PORT,
+          // Allow demo-mode activation against production-style builds so
+          // Playwright suites can bypass the API. See persona.ts:isDemoMode.
+          VITE_E2E_DEMO_ENABLED: '1',
+        },
       },
 
   /* Global timeout for the whole test suite */
