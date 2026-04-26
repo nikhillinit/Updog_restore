@@ -153,6 +153,41 @@ describe('DynamicFundHeader', () => {
     expect(screen.getAllByText('Metrics unavailable').length).toBeGreaterThanOrEqual(1);
   });
 
+  it('suppresses stale metric values while legacy header metrics are loading', () => {
+    mockUseFundMetrics.mockReturnValue({
+      data: makeMetrics(),
+      isLoading: true,
+      error: null,
+    });
+
+    render(<DynamicFundHeader />);
+
+    expect(metricLabel('Total Invested').parentElement).toHaveTextContent('N/A');
+    expect(metricLabel('Current Value').parentElement).toHaveTextContent('N/A');
+    expect(metricLabel('TVPI').parentElement).toHaveTextContent('N/A');
+    expect(screen.getAllByText('Metrics loading').length).toBeGreaterThanOrEqual(2);
+    expect(screen.queryByText('$12M')).not.toBeInTheDocument();
+    expect(screen.queryByText('2.30x')).not.toBeInTheDocument();
+  });
+
+  it('suppresses stale metric values when legacy header metrics error', () => {
+    mockUseFundMetrics.mockReturnValue({
+      data: makeMetrics(),
+      isLoading: false,
+      error: new Error('metrics unavailable'),
+    });
+
+    render(<DynamicFundHeader />);
+
+    expect(metricLabel('Total Invested').parentElement).toHaveTextContent('N/A');
+    expect(metricLabel('Current Value').parentElement).toHaveTextContent('N/A');
+    expect(metricLabel('TVPI').parentElement).toHaveTextContent('N/A');
+    expect(screen.getAllByText('Metrics unavailable').length).toBeGreaterThanOrEqual(2);
+    expect(screen.getByText('Metrics source unavailable')).toBeInTheDocument();
+    expect(screen.queryByText('$12M')).not.toBeInTheDocument();
+    expect(screen.queryByText('2.30x')).not.toBeInTheDocument();
+  });
+
   it('renders genuine zeroes and populated actual metrics when actual data exists', () => {
     render(<DynamicFundHeader />);
 
