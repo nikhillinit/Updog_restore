@@ -337,7 +337,8 @@ export function AllocationsTab() {
   const [scenarioActionNote, setScenarioActionNote] = useState('');
   const [selectedDecisionCompanyId, setSelectedDecisionCompanyId] = useState<number | null>(null);
   const [decisionType, setDecisionType] = useState<ReserveIcDecision['decisionType']>('follow_on');
-  const [decisionStatus, setDecisionStatus] = useState<ReserveIcDecision['decisionStatus']>('draft');
+  const [decisionStatus, setDecisionStatus] =
+    useState<ReserveIcDecision['decisionStatus']>('draft');
   const [decisionRationale, setDecisionRationale] = useState('');
   const [decisionProposedCents, setDecisionProposedCents] = useState('');
   const [decisionFinalCents, setDecisionFinalCents] = useState('');
@@ -365,14 +366,17 @@ export function AllocationsTab() {
 
   const liveCompanies = useMemo(() => data?.companies ?? [], [data?.companies]);
   const displayedCompanies = workspaceCompanies.length > 0 ? workspaceCompanies : liveCompanies;
+  const missingAllocationFactsCount = useMemo(
+    () => displayedCompanies.filter((company) => Boolean(company.allocation_facts_missing)).length,
+    [displayedCompanies]
+  );
   const activeScenarioSummary =
     activeScenarioDetail.data ??
     scenarios.find((scenario) => scenario.id === activeScenarioId) ??
     null;
   const activeScenarioContext: AllocationScenarioCollaborationContext | null =
     activeScenarioDetail.data?.context ?? null;
-  const reserveIcDecisions =
-    reserveIcDecisionsQuery.data?.decisions ?? EMPTY_RESERVE_IC_DECISIONS;
+  const reserveIcDecisions = reserveIcDecisionsQuery.data?.decisions ?? EMPTY_RESERVE_IC_DECISIONS;
   const isScenarioPending =
     createScenarioMutation.isPending ||
     createReserveIcDecisionMutation.isPending ||
@@ -441,12 +445,15 @@ export function AllocationsTab() {
 
   const selectedDecisionCompany = useMemo(
     () =>
-      displayedCompanies.find((company) => company.company_id === selectedDecisionCompanyId) ?? null,
+      displayedCompanies.find((company) => company.company_id === selectedDecisionCompanyId) ??
+      null,
     [displayedCompanies, selectedDecisionCompanyId]
   );
 
   const selectedDecisionRecord = useMemo(
-    () => reserveIcDecisions.find((decision) => decision.companyId === selectedDecisionCompanyId) ?? null,
+    () =>
+      reserveIcDecisions.find((decision) => decision.companyId === selectedDecisionCompanyId) ??
+      null,
     [reserveIcDecisions, selectedDecisionCompanyId]
   );
 
@@ -894,7 +901,10 @@ export function AllocationsTab() {
       });
 
       setWorkspaceCompanies((current) =>
-        hydrateScenarioWorkspace(liveCompanies.length > 0 ? liveCompanies : current, result.scenario)
+        hydrateScenarioWorkspace(
+          liveCompanies.length > 0 ? liveCompanies : current,
+          result.scenario
+        )
       );
       setWorkspaceDirty(false);
       setWorkspaceSourceLabel(`Scenario: ${result.scenario.name}`);
@@ -919,7 +929,14 @@ export function AllocationsTab() {
         variant: 'destructive',
       });
     }
-  }, [activeScenarioId, liveCompanies, scenarioActionNote, syncScenarioMutation, toast, workspaceDirty]);
+  }, [
+    activeScenarioId,
+    liveCompanies,
+    scenarioActionNote,
+    syncScenarioMutation,
+    toast,
+    workspaceDirty,
+  ]);
 
   const handleApplyScenario = useCallback(async () => {
     if (!activeScenarioId || !applyPreview) {
@@ -956,7 +973,10 @@ export function AllocationsTab() {
       });
 
       setWorkspaceCompanies((current) =>
-        hydrateScenarioWorkspace(liveCompanies.length > 0 ? liveCompanies : current, result.scenario)
+        hydrateScenarioWorkspace(
+          liveCompanies.length > 0 ? liveCompanies : current,
+          result.scenario
+        )
       );
       setWorkspaceDirty(false);
       setWorkspaceSourceLabel(`Scenario: ${result.scenario.name}`);
@@ -1059,8 +1079,10 @@ export function AllocationsTab() {
         </CardHeader>
         <CardContent>
           <div className="text-center py-12 text-gray-500">
-            <p className="text-lg font-medium mb-2">No companies found</p>
-            <p className="text-sm">There are no companies with allocation data for this fund.</p>
+            <p className="text-lg font-medium mb-2">No portfolio companies found</p>
+            <p className="text-sm">
+              Add portfolio companies to this fund before creating reserve allocations.
+            </p>
           </div>
         </CardContent>
       </Card>
@@ -1081,6 +1103,17 @@ export function AllocationsTab() {
           Refresh
         </Button>
       </div>
+
+      {missingAllocationFactsCount > 0 ? (
+        <Alert className="border-amber-200 bg-amber-50 text-amber-950">
+          <AlertCircle className="h-4 w-4" />
+          <AlertDescription>
+            Allocation facts are missing for {missingAllocationFactsCount}{' '}
+            {missingAllocationFactsCount === 1 ? 'company' : 'companies'}. Rows remain visible with
+            missing reserve values until allocation facts are recorded.
+          </AlertDescription>
+        </Alert>
+      ) : null}
 
       <Card className="border-purple-200 bg-purple-50/50">
         <CardHeader className="pb-3">
@@ -1212,8 +1245,8 @@ export function AllocationsTab() {
                     <Alert>
                       <AlertCircle className="h-4 w-4" />
                       <AlertDescription>
-                        Save or discard local scenario edits before syncing from live or applying
-                        to the live allocation surface.
+                        Save or discard local scenario edits before syncing from live or applying to
+                        the live allocation surface.
                       </AlertDescription>
                     </Alert>
                   ) : null}
@@ -1299,7 +1332,8 @@ export function AllocationsTab() {
                         <Button
                           onClick={handleApplyScenario}
                           disabled={
-                            applyPreview.apply_state === 'blocked' || applyScenarioMutation.isPending
+                            applyPreview.apply_state === 'blocked' ||
+                            applyScenarioMutation.isPending
                           }
                         >
                           {applyScenarioMutation.isPending ? 'Applying...' : 'Confirm Apply'}
@@ -1379,7 +1413,9 @@ export function AllocationsTab() {
                         <select
                           id="reserve-ic-company"
                           value={selectedDecisionCompanyId ?? ''}
-                          onChange={(event) => setSelectedDecisionCompanyId(Number(event.target.value))}
+                          onChange={(event) =>
+                            setSelectedDecisionCompanyId(Number(event.target.value))
+                          }
                           className="px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                         >
                           {displayedCompanies.map((company) => (
@@ -1397,7 +1433,9 @@ export function AllocationsTab() {
                             id="reserve-ic-type"
                             value={decisionType}
                             onChange={(event) =>
-                              setDecisionType(event.target.value as ReserveIcDecision['decisionType'])
+                              setDecisionType(
+                                event.target.value as ReserveIcDecision['decisionType']
+                              )
                             }
                             className="px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                           >
@@ -1415,7 +1453,9 @@ export function AllocationsTab() {
                             id="reserve-ic-status"
                             value={decisionStatus}
                             onChange={(event) =>
-                              setDecisionStatus(event.target.value as ReserveIcDecision['decisionStatus'])
+                              setDecisionStatus(
+                                event.target.value as ReserveIcDecision['decisionStatus']
+                              )
                             }
                             className="px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                           >
@@ -1461,11 +1501,15 @@ export function AllocationsTab() {
 
                       <div className="flex flex-wrap items-center gap-2 text-xs text-slate-600">
                         <Badge variant="outline" className="border-slate-300 text-slate-700">
-                          Live planned {formatCents(selectedDecisionCompany.planned_reserves_cents, { compact: true })}
+                          Live planned{' '}
+                          {formatCents(selectedDecisionCompany.planned_reserves_cents, {
+                            compact: true,
+                          })}
                         </Badge>
                         {selectedDecisionRecord ? (
                           <Badge variant="outline" className="border-slate-300 text-slate-700">
-                            Existing {formatDecisionStatusLabel(selectedDecisionRecord.decisionStatus)}
+                            Existing{' '}
+                            {formatDecisionStatusLabel(selectedDecisionRecord.decisionStatus)}
                           </Badge>
                         ) : (
                           <Badge variant="outline" className="border-slate-300 text-slate-700">
@@ -1525,11 +1569,9 @@ export function AllocationsTab() {
                 packet={reserveIcPacket}
                 isLoading={
                   !!activeScenarioId &&
-                  (
-                    publishedResultsQuery.isLoading ||
+                  (publishedResultsQuery.isLoading ||
                     comparisonQuery.isLoading ||
-                    reserveIcDecisionsQuery.isLoading
-                  )
+                    reserveIcDecisionsQuery.isLoading)
                 }
                 error={reserveIcPacketError}
               />

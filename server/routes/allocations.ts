@@ -148,11 +148,14 @@ interface _LatestAllocationResponse {
     allocation_reason: string | null;
     allocation_version: number;
     last_allocation_at: string | null;
+    allocation_facts_missing: boolean;
+    missing_allocation_fields: string[];
   }>;
   metadata: {
     total_planned_cents: number;
     total_deployed_cents: number;
     companies_count: number;
+    allocation_facts_missing_count: number;
     last_updated_at: string | null;
   };
 }
@@ -224,6 +227,18 @@ function parseActorUserId(req: Request): number | null {
   }
 
   return null;
+}
+
+function missingAllocationFields(row: {
+  planned_reserves_cents: number | bigint | string | null;
+  deployed_reserves_cents: number | bigint | string | null;
+  allocation_version: number | null;
+}): string[] {
+  const fields: string[] = [];
+  if (row.planned_reserves_cents == null) fields.push('planned_reserves_cents');
+  if (row.deployed_reserves_cents == null) fields.push('deployed_reserves_cents');
+  if (row.allocation_version == null) fields.push('allocation_version');
+  return fields;
 }
 
 // ============================================================================
@@ -512,21 +527,29 @@ router['get'](
         .where(eq(portfolioCompanies.fundId, fundId))
         .orderBy(asc(portfolioCompanies.id));
 
-      const companies = rows.map((row) => ({
-        company_id: row.company_id,
-        company_name: row.company_name,
-        sector: row.sector,
-        stage: row.stage,
-        status: row.status,
-        invested_amount_cents: Math.round(parseFloat(row.invested_amount || '0') * 100),
-        planned_reserves_cents: Number(row.planned_reserves_cents || 0),
-        deployed_reserves_cents: Number(row.deployed_reserves_cents || 0),
-        allocation_cap_cents:
-          row.allocation_cap_cents != null ? Number(row.allocation_cap_cents) : null,
-        allocation_reason: row.allocation_reason,
-        allocation_version: row.allocation_version,
-        last_allocation_at: row.last_allocation_at ? row.last_allocation_at.toISOString() : null,
-      }));
+      const companies = rows.map((row) => {
+        const missingFields = missingAllocationFields(row);
+
+        return {
+          company_id: row.company_id,
+          company_name: row.company_name,
+          sector: row.sector,
+          stage: row.stage,
+          status: row.status,
+          invested_amount_cents: Math.round(parseFloat(row.invested_amount || '0') * 100),
+          planned_reserves_cents:
+            row.planned_reserves_cents != null ? Number(row.planned_reserves_cents) : 0,
+          deployed_reserves_cents:
+            row.deployed_reserves_cents != null ? Number(row.deployed_reserves_cents) : 0,
+          allocation_cap_cents:
+            row.allocation_cap_cents != null ? Number(row.allocation_cap_cents) : null,
+          allocation_reason: row.allocation_reason,
+          allocation_version: row.allocation_version ?? 0,
+          last_allocation_at: row.last_allocation_at ? row.last_allocation_at.toISOString() : null,
+          allocation_facts_missing: missingFields.length > 0,
+          missing_allocation_fields: missingFields,
+        };
+      });
 
       const total_planned_cents = companies.reduce((sum, c) => sum + c.planned_reserves_cents, 0);
       const total_deployed_cents = companies.reduce((sum, c) => sum + c.deployed_reserves_cents, 0);
@@ -544,6 +567,8 @@ router['get'](
           total_planned_cents,
           total_deployed_cents,
           companies_count: companies.length,
+          allocation_facts_missing_count: companies.filter((c) => c.allocation_facts_missing)
+            .length,
           last_updated_at,
         },
       });

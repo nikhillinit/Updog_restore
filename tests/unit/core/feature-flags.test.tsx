@@ -17,10 +17,19 @@ describe('legacy feature-flags compatibility', () => {
   });
 
   it('prefers a localStorage override for remaining compatibility flags', async () => {
-    localStorage.setItem('FF_NEW_IA', 'true');
+    localStorage.setItem('FF_NEW_IA', 'false');
 
     const { FLAGS } = await import('@/core/flags/featureFlags');
 
+    expect(FLAGS.NEW_IA).toBe(false);
+  });
+
+  it('uses generated development defaults for GP modernization flags', async () => {
+    const { FLAGS } = await import('@/core/flags/featureFlags');
+
     expect(FLAGS.NEW_IA).toBe(true);
+    expect(FLAGS.ENABLE_SELECTOR_KPIS).toBe(true);
+    expect(FLAGS.ENABLE_MODELING_WIZARD).toBe(true);
+    expect(FLAGS.ENABLE_OPERATIONS_HUB).toBe(true);
   });
 });

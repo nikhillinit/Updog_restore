@@ -2,59 +2,61 @@
  * FEATURE FLAG ADAPTER
  *
  * Maps lightweight Vite ENV flags to comprehensive flag system.
- * Single source of truth: shared/feature-flags/flag-definitions.ts
+ * Single source of truth: flags/registry.yaml -> shared/generated/flag-defaults.ts
  *
  * This adapter allows starter kit components to work while
  * maintaining our dependency-aware, rollout-ready flag system.
  */
 
-import { isFlagEnabled, type FlagKey, ALL_FLAGS } from '@shared/feature-flags/flag-definitions';
+import {
+  CLIENT_FLAG_KEYS,
+  type ClientFlagKey,
+  type FlagKey as GeneratedFlagKey,
+  type FlagRecord,
+} from '@shared/generated/flag-types';
+import { FLAG_DEFINITIONS, resolveFlagWithDependencies } from '@shared/generated/flag-defaults';
+
+type LegacyCompatibilityFlagKey =
+  | 'enable_wizard_step_sectors'
+  | 'enable_wizard_step_allocations'
+  | 'enable_wizard_step_recycling'
+  | 'enable_route_redirects'
+  | 'enable_observability';
+
+export type FlagKey = GeneratedFlagKey | LegacyCompatibilityFlagKey;
+
+const LEGACY_FLAG_MAP: Partial<Record<LegacyCompatibilityFlagKey, ClientFlagKey>> = {
+  enable_wizard_step_sectors: 'enable_wizard_step_sizing',
+  enable_wizard_step_allocations: 'enable_wizard_step_reserves',
+  enable_wizard_step_recycling: 'enable_wizard_step_waterfall',
+};
+
+type RuntimeEnvironment = 'development' | 'staging' | 'production';
 
 // ============================================================================
 // ENV FLAG → COMPREHENSIVE FLAG MAPPING
 // ============================================================================
 
 /**
- * Initialize flag states from Vite environment variables
- * Falls back to flag defaults if env var not set
+ * Initialize flag states from Vite environment variables.
+ * Falls back to generated environment defaults if env vars are absent.
  */
 export function getInitialFlagStates(): Record<string, boolean> {
-  /** Read env var; return flag-definition default when var is absent. */
-  const envFlag = (envKey: string, flagKey: string): boolean => {
-    const raw = import.meta.env[envKey] as string | undefined;
-    if (raw === undefined || raw === '') {
-      return ALL_FLAGS[flagKey]?.enabled ?? false;
-    }
-    return String(raw).toLowerCase() === 'true';
-  };
+  const states: Record<string, boolean> = {};
 
-  return {
-    // Foundation flags
-    enable_new_ia: envFlag('VITE_NEW_IA', 'enable_new_ia'),
-    enable_kpi_selectors: envFlag('VITE_ENABLE_SELECTOR_KPIS', 'enable_kpi_selectors'),
-    enable_cap_table_tabs: ALL_FLAGS['enable_cap_table_tabs']?.enabled ?? false,
-    enable_brand_tokens: true, // Always on (non-breaking CSS)
+  for (const key of CLIENT_FLAG_KEYS) {
+    states[key] = resolveBaseFlag(key);
+  }
 
-    // Build flags
-    enable_modeling_wizard: envFlag('VITE_ENABLE_MODELING_WIZARD', 'enable_modeling_wizard'),
-    enable_wizard_step_general: false,
-    enable_wizard_step_sectors: false,
-    enable_wizard_step_allocations: false,
-    enable_wizard_step_fees: false,
-    enable_wizard_step_recycling: false,
-    enable_wizard_step_waterfall: false,
-    enable_wizard_step_results: false,
-    enable_reserve_engine: false,
-    enable_portfolio_table_v2: false,
-    enable_operations_hub: envFlag('VITE_ENABLE_OPERATIONS_HUB', 'enable_operations_hub'),
+  for (const [legacyKey, canonicalKey] of Object.entries(LEGACY_FLAG_MAP)) {
+    states[legacyKey] = states[canonicalKey] ?? false;
+  }
 
-    // Polish flags
-    enable_pipeline_bulk_actions: false,
-    enable_pipeline_dnd: envFlag('VITE_ENABLE_PIPELINE_DND', 'enable_pipeline_dnd'),
-    enable_lp_reporting: envFlag('VITE_ENABLE_LP_REPORTING', 'enable_lp_reporting'),
-    enable_route_redirects: false,
-    enable_observability: false,
-  };
+  states['enable_brand_tokens'] = true; // Always on (non-breaking CSS).
+  states['enable_route_redirects'] = false;
+  states['enable_observability'] = false;
+
+  return states;
 }
 
 /**
@@ -83,4 +85,67 @@ export const FLAGS = {
 /**
  * Export for direct access in components
  */
-export { isFlagEnabled, type FlagKey };
+export function isFlagEnabled(flagKey: FlagKey, flagStates: Record<string, boolean>): boolean {
+  const canonicalKey = toCanonicalClientFlag(flagKey);
+  if (!canonicalKey) {
+    return flagStates[flagKey] ?? false;
+  }
+
+  return resolveFlagWithDependencies(canonicalKey, flagStates as Partial<FlagRecord>);
+}
+
+function toCanonicalClientFlag(flagKey: FlagKey): ClientFlagKey | null {
+  if (CLIENT_FLAG_KEYS.includes(flagKey as ClientFlagKey)) {
+    return flagKey as ClientFlagKey;
+  }
+
+  return LEGACY_FLAG_MAP[flagKey as LegacyCompatibilityFlagKey] ?? null;
+}
+
+function resolveBaseFlag(key: ClientFlagKey): boolean {
+  const envOverride = getEnvOverride(key);
+  if (envOverride !== undefined) {
+    return envOverride;
+  }
+
+  const definition = FLAG_DEFINITIONS[key];
+  return definition.environments[getRuntimeEnvironment()] ?? definition.default;
+}
+
+function getEnvOverride(key: ClientFlagKey): boolean | undefined {
+  const definition = FLAG_DEFINITIONS[key];
+  const envKeys = new Set<string>([
+    ...(definition.aliases ?? []).map((alias) => `VITE_${alias}`),
+    `VITE_${key.toUpperCase()}`,
+  ]);
+
+  for (const envKey of envKeys) {
+    const raw = import.meta.env[envKey] as string | undefined;
+    const parsed = parseBoolean(raw);
+    if (parsed !== undefined) {
+      return parsed;
+    }
+  }
+
+  return undefined;
+}
+
+function parseBoolean(raw: string | undefined): boolean | undefined {
+  if (raw == null || raw === '') return undefined;
+  const normalized = raw.toLowerCase();
+  if (normalized === 'true' || normalized === '1' || normalized === 'yes') return true;
+  if (normalized === 'false' || normalized === '0' || normalized === 'no') return false;
+  return undefined;
+}
+
+function getRuntimeEnvironment(): RuntimeEnvironment {
+  const explicit = String(import.meta.env['VITE_ENV'] ?? '').toLowerCase();
+  if (explicit === 'production' || explicit === 'staging' || explicit === 'development') {
+    return explicit;
+  }
+
+  const mode = String(import.meta.env['MODE'] ?? '').toLowerCase();
+  if (mode === 'production') return 'production';
+  if (mode === 'staging') return 'staging';
+  return 'development';
+}

@@ -54,6 +54,19 @@ flags:
     dependencies: []
     expiresAt: null
 
+  enable_cap_table_tabs:
+    default: false
+    description: 'Cap table access inside company detail tabs'
+    owner: 'gp-team'
+    risk: low
+    exposeToClient: true
+    environments:
+      development: true
+      staging: false
+      production: false
+    dependencies: ['enable_new_ia']
+    expiresAt: null
+
   # ============================================
   # BUILD FLAGS (Phase 2)
   # ============================================
@@ -111,6 +124,19 @@ flags:
       staging: false
       production: false
     dependencies: ['enable_kpi_selectors']
+    expiresAt: null
+
+  enable_portfolio_table_v2:
+    default: false
+    description: 'Unified portfolio table with virtualization'
+    owner: 'gp-team'
+    risk: medium
+    exposeToClient: true
+    environments:
+      development: true
+      staging: false
+      production: false
+    dependencies: ['enable_new_ia']
     expiresAt: null
 
   enable_engine_integration:
@@ -242,6 +268,32 @@ flags:
     dependencies: []
     expiresAt: null
 
+  enable_pipeline_bulk_actions:
+    default: false
+    description: 'Pipeline selection and bulk status actions'
+    owner: 'gp-team'
+    risk: medium
+    exposeToClient: true
+    environments:
+      development: false
+      staging: false
+      production: false
+    dependencies: []
+    expiresAt: null
+
+  enable_pipeline_dnd:
+    default: false
+    description: 'Drag deal cards between pipeline status columns'
+    owner: 'gp-team'
+    risk: medium
+    exposeToClient: true
+    environments:
+      development: false
+      staging: false
+      production: false
+    dependencies: []
+    expiresAt: null
+
   # ============================================
   # ADMIN FLAGS (no localStorage override)
   # ============================================
@@ -334,6 +386,7 @@ flags:
       production: false
     dependencies: ['enable_modeling_wizard']
     expiresAt: null
+    aliases: ['ENABLE_WIZARD_STEP_GENERAL']
 
   enable_wizard_step_sizing:
     default: false
@@ -347,6 +400,7 @@ flags:
       production: false
     dependencies: ['enable_wizard_step_general']
     expiresAt: null
+    aliases: ['ENABLE_WIZARD_STEP_SIZING', 'ENABLE_WIZARD_STEP_SECTORS']
 
   enable_wizard_step_pacing:
     default: false
@@ -360,6 +414,7 @@ flags:
       production: false
     dependencies: ['enable_wizard_step_sizing']
     expiresAt: null
+    aliases: ['ENABLE_WIZARD_STEP_PACING']
 
   enable_wizard_step_reserves:
     default: false
@@ -373,6 +428,7 @@ flags:
       production: false
     dependencies: ['enable_wizard_step_pacing']
     expiresAt: null
+    aliases: ['ENABLE_WIZARD_STEP_RESERVES', 'ENABLE_WIZARD_STEP_ALLOCATIONS']
 
   enable_wizard_step_fees:
     default: false
@@ -386,6 +442,7 @@ flags:
       production: false
     dependencies: ['enable_wizard_step_reserves']
     expiresAt: null
+    aliases: ['ENABLE_WIZARD_STEP_FEES']
 
   enable_wizard_step_waterfall:
     default: false
@@ -399,6 +456,7 @@ flags:
       production: false
     dependencies: ['enable_wizard_step_fees']
     expiresAt: null
+    aliases: ['ENABLE_WIZARD_STEP_WATERFALL', 'ENABLE_WIZARD_STEP_RECYCLING']
 
   enable_wizard_step_results:
     default: false
@@ -412,6 +470,7 @@ flags:
       production: false
     dependencies: ['enable_wizard_step_waterfall']
     expiresAt: null
+    aliases: ['ENABLE_WIZARD_STEP_RESULTS']
 
 # ============================================
 # DEPRECATED FLAGS (to be removed)

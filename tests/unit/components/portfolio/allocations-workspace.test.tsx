@@ -472,6 +472,69 @@ describe('portfolio reserve planning workspace', () => {
     ).toBeInTheDocument();
   });
 
+  it('renders a true empty state only when the fund has no portfolio companies', () => {
+    latestAllocationsHookMock.mockReturnValue({
+      data: {
+        companies: [],
+        metadata: {
+          total_planned_cents: 0,
+          total_deployed_cents: 0,
+          companies_count: 0,
+          allocation_facts_missing_count: 0,
+          last_updated_at: null,
+        },
+      },
+      isLoading: false,
+      error: null,
+      refetch: mockRefetch,
+    });
+
+    renderWithQuery(<AllocationsTab />);
+
+    expect(screen.getByText('No portfolio companies found')).toBeInTheDocument();
+    expect(
+      screen.getByText('Add portfolio companies to this fund before creating reserve allocations.')
+    ).toBeInTheDocument();
+    expect(screen.queryByText('Reserve Planning Workspace')).not.toBeInTheDocument();
+  });
+
+  it('keeps company rows visible when allocation facts are missing', () => {
+    latestAllocationsHookMock.mockReturnValue({
+      data: {
+        companies: [
+          {
+            ...mockAllocationsData.companies[0]!,
+            planned_reserves_cents: 0,
+            deployed_reserves_cents: 0,
+            allocation_version: 0,
+            allocation_facts_missing: true,
+            missing_allocation_fields: [
+              'planned_reserves_cents',
+              'deployed_reserves_cents',
+              'allocation_version',
+            ],
+          },
+        ],
+        metadata: {
+          total_planned_cents: 0,
+          total_deployed_cents: 0,
+          companies_count: 1,
+          allocation_facts_missing_count: 1,
+          last_updated_at: null,
+        },
+      },
+      isLoading: false,
+      error: null,
+      refetch: mockRefetch,
+    });
+
+    renderWithQuery(<AllocationsTab />);
+
+    expect(screen.getByText(/Allocation facts are missing for 1 company/)).toBeInTheDocument();
+    expect(screen.getByText('TechCorp')).toBeInTheDocument();
+    expect(screen.getAllByText('Missing').length).toBeGreaterThanOrEqual(2);
+  });
+
   it('creates a scenario from the current workspace snapshot', async () => {
     const user = userEvent.setup();
     renderWithQuery(<AllocationsTab />);
