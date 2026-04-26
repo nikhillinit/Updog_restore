@@ -96,6 +96,23 @@ export interface ActualMetrics {
 
   /** Months since fund establishment - Source: DATEDIFF(NOW(), funds.establishment_date) */
   fundAgeMonths?: number;
+
+  /** Availability and source metadata for nullable actual metrics */
+  availability?: ActualMetricAvailability;
+}
+
+export type MetricAvailabilityStatus = 'available' | 'unavailable' | 'fallback';
+
+export interface MetricAvailabilityDetail {
+  status: MetricAvailabilityStatus;
+  source: 'cashflows' | 'distributions' | 'portfolio_nav' | 'database' | 'fallback';
+  reason?: string;
+  message?: string;
+}
+
+export interface ActualMetricAvailability {
+  irr: MetricAvailabilityDetail;
+  dpi: MetricAvailabilityDetail;
 }
 
 /**

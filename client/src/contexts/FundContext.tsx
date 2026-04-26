@@ -74,7 +74,7 @@ export function FundProvider({ children }: FundProviderProps) {
       // Keep route-addressed or explicitly chosen funds, but ignore any carried
       // implicit first-fund selection on the canonical deterministic route.
       const suppressesImplicitFirstFund =
-        suppressImplicitFundSelection && fundSelectionSource === 'implicit' && funds.length > 1;
+        suppressImplicitFundSelection && fundSelectionSource === 'implicit' && !isDemoMode;
       const preferredFundId = routeFundId ?? (suppressesImplicitFirstFund ? null : fundId);
 
       if (preferredFundId) {
@@ -95,7 +95,7 @@ export function FundProvider({ children }: FundProviderProps) {
             return;
           }
 
-          if (suppressImplicitFundSelection && funds.length > 1) {
+          if (suppressImplicitFundSelection && !isDemoMode) {
             setCurrentFund(null);
             setFundId(null);
             setFundSelectionSource(null);
@@ -107,7 +107,7 @@ export function FundProvider({ children }: FundProviderProps) {
           setFundSelectionSource('implicit');
         }
       } else {
-        if (suppressImplicitFundSelection && funds.length > 1) {
+        if (suppressImplicitFundSelection && !isDemoMode) {
           setCurrentFund(null);
           setFundId(null);
           setFundSelectionSource(null);
@@ -133,6 +133,7 @@ export function FundProvider({ children }: FundProviderProps) {
     error,
     suppressImplicitFundSelection,
     fundSelectionSource,
+    isDemoMode,
   ]);
 
   const handleSetCurrentFund = (fund: Fund | null) => {
@@ -150,11 +151,7 @@ export function FundProvider({ children }: FundProviderProps) {
   const awaitingResolvedFundSelection =
     hasResolvedFunds && !currentFund && routeFundId == null && !suppressImplicitFundSelection;
   const allowsMissingActiveFund =
-    hasResolvedFunds &&
-    !currentFund &&
-    routeFundId == null &&
-    suppressImplicitFundSelection &&
-    funds.length > 1;
+    hasResolvedFunds && !currentFund && routeFundId == null && suppressImplicitFundSelection;
 
   // Consider "loading" until the first resolved fund has been copied into context
   // or demo mode has fully initialized. This prevents ProtectedRoute/HomeRoute from

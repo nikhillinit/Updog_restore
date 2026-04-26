@@ -12,11 +12,10 @@ import type { Request, Response, NextFunction } from 'express';
 import { z } from 'zod';
 import { asyncHandler } from '../middleware/async';
 import { transaction } from '../db/pg-circuit';
-import type { PoolClient } from 'pg';
 import { db } from '../db';
 import { logger } from '../lib/logger.js';
 import { applyAllocationUpdates } from '../services/allocation-write-service.js';
-import { portfolioCompanies } from '@shared/schema';
+import { funds, portfolioCompanies } from '@shared/schema';
 import { FundIdParamSchema } from '@shared/schemas/portfolio-route';
 import { eq, lt, sql, desc, asc, and } from 'drizzle-orm';
 import type { SQL } from 'drizzle-orm';
@@ -110,21 +109,6 @@ const CompanyListQuerySchema = z.object({
 
 type _UpdateAllocationRequest = z.infer<typeof UpdateAllocationRequestSchema>;
 
-interface CompanyAllocationRow {
-  company_id: number;
-  company_name: string;
-  sector: string;
-  stage: string;
-  status: string;
-  invested_amount: string;
-  planned_reserves_cents: string;
-  deployed_reserves_cents: string;
-  allocation_cap_cents: string | null;
-  allocation_reason: string | null;
-  allocation_version: number;
-  last_allocation_at: Date | null;
-}
-
 interface _LatestAllocationResponse {
   fund_id: number;
   companies: Array<{
@@ -189,18 +173,13 @@ interface CompanyListResponse {
 // Helper Functions
 // ============================================================================
 
-/**
- * Verify that a fund exists and return its ID
- * @throws {Error} with 404 status if fund not found
- */
-async function verifyFundExists(client: PoolClient, fundId: number): Promise<void> {
-  const fundCheck = await client.query('SELECT id FROM funds WHERE id = $1', [fundId]);
-
-  if (fundCheck.rows.length === 0) {
-    const error = new Error(`Fund ${fundId} not found`) as HttpError;
-    error.statusCode = 404;
-    throw error;
+function safeAllocationErrorMessage(error: unknown): string {
+  const message = error instanceof Error ? error.message : String(error);
+  if (/password authentication failed|database|postgres|sql|connection/i.test(message)) {
+    return 'Reserve allocation data is temporarily unavailable. Please retry after the data service is available.';
   }
+
+  return 'Reserve allocation data is temporarily unavailable. Please retry.';
 }
 
 function parseActorUserId(req: Request): number | null {
@@ -472,51 +451,55 @@ router['get'](
 
     const { fundId } = paramValidation.data;
 
-    // Execute query in transaction for consistency
-    const result = await transaction(async (client) => {
-      // Verify fund exists
-      await verifyFundExists(client, fundId);
+    try {
+      const [fund] = await db
+        .select({ id: funds.id })
+        .from(funds)
+        .where(eq(funds.id, fundId))
+        .limit(1);
 
-      // Get all companies with their allocation data
-      const companiesResult = await client.query<CompanyAllocationRow>(
-        `SELECT
-           id as company_id,
-           name as company_name,
-           sector,
-           stage,
-           status,
-           investment_amount as invested_amount,
-           planned_reserves_cents,
-           deployed_reserves_cents,
-           allocation_cap_cents,
-           allocation_reason,
-           allocation_version,
-           last_allocation_at
-         FROM portfoliocompanies
-         WHERE fund_id = $1
-         ORDER BY id ASC`,
-        [fundId]
-      );
+      if (!fund) {
+        return res['status'](404)['json']({
+          error: 'fund_not_found',
+          message: `Fund with ID ${fundId} was not found`,
+        });
+      }
 
-      // Convert database strings to numbers
-      const companies = companiesResult.rows.map((row) => ({
+      const rows = await db
+        .select({
+          company_id: portfolioCompanies.id,
+          company_name: portfolioCompanies.name,
+          sector: portfolioCompanies.sector,
+          stage: portfolioCompanies.stage,
+          status: portfolioCompanies.status,
+          invested_amount: portfolioCompanies.investmentAmount,
+          planned_reserves_cents: portfolioCompanies.plannedReservesCents,
+          deployed_reserves_cents: portfolioCompanies.deployedReservesCents,
+          allocation_cap_cents: portfolioCompanies.allocationCapCents,
+          allocation_reason: portfolioCompanies.allocationReason,
+          allocation_version: portfolioCompanies.allocationVersion,
+          last_allocation_at: portfolioCompanies.lastAllocationAt,
+        })
+        .from(portfolioCompanies)
+        .where(eq(portfolioCompanies.fundId, fundId))
+        .orderBy(asc(portfolioCompanies.id));
+
+      const companies = rows.map((row) => ({
         company_id: row.company_id,
         company_name: row.company_name,
         sector: row.sector,
         stage: row.stage,
         status: row.status,
         invested_amount_cents: Math.round(parseFloat(row.invested_amount || '0') * 100),
-        planned_reserves_cents: parseInt(row.planned_reserves_cents, 10),
-        deployed_reserves_cents: parseInt(row.deployed_reserves_cents, 10),
-        allocation_cap_cents: row.allocation_cap_cents
-          ? parseInt(row.allocation_cap_cents, 10)
-          : null,
+        planned_reserves_cents: Number(row.planned_reserves_cents || 0),
+        deployed_reserves_cents: Number(row.deployed_reserves_cents || 0),
+        allocation_cap_cents:
+          row.allocation_cap_cents != null ? Number(row.allocation_cap_cents) : null,
         allocation_reason: row.allocation_reason,
         allocation_version: row.allocation_version,
         last_allocation_at: row.last_allocation_at ? row.last_allocation_at.toISOString() : null,
       }));
 
-      // Calculate metadata
       const total_planned_cents = companies.reduce((sum, c) => sum + c.planned_reserves_cents, 0);
       const total_deployed_cents = companies.reduce((sum, c) => sum + c.deployed_reserves_cents, 0);
       const last_updated_at =
@@ -526,7 +509,7 @@ router['get'](
           .sort()
           .reverse()[0] || null;
 
-      return {
+      return res['status'](200)['json']({
         fund_id: fundId,
         companies,
         metadata: {
@@ -535,10 +518,22 @@ router['get'](
           companies_count: companies.length,
           last_updated_at,
         },
-      };
-    });
+      });
+    } catch (error) {
+      logger.warn(
+        {
+          requestId: req.rid ?? 'unknown',
+          fundId,
+          error: error instanceof Error ? error.message : String(error),
+        },
+        'latest allocation read failed'
+      );
 
-    return res['status'](200)['json'](result);
+      return res['status'](503)['json']({
+        error: 'allocation_data_unavailable',
+        message: safeAllocationErrorMessage(error),
+      });
+    }
   })
 );
 
@@ -627,7 +622,8 @@ router['use']((err: unknown, req: Request, res: Response, next: NextFunction) =>
   // Handle other HTTP errors
   if (isHttpError(err) && err.statusCode) {
     return res['status'](err.statusCode)['json']({
-      error: err.message,
+      error: err.statusCode === 404 ? 'fund_not_found' : 'allocation_error',
+      message: err.message,
     });
   }
 

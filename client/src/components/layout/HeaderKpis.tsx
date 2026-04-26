@@ -3,6 +3,14 @@ import { TrendingUp, Target, DollarSign } from 'lucide-react';
 import { useState } from 'react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useFundMetrics } from '@/hooks/useFundMetrics';
+import type { MetricAvailabilityDetail } from '@shared/types/metrics';
+
+function formatUnavailableMetric(availability: MetricAvailabilityDetail | undefined): string {
+  if (!availability) return 'N/A';
+  if (availability?.reason === 'no_distributions_recorded') return 'No distributions';
+  if (availability?.reason === 'insufficient_dated_cashflows') return 'Needs history';
+  return availability?.message ?? 'Unavailable';
+}
 
 export default function HeaderKpis() {
   const { currentFund } = useFundContext();
@@ -27,6 +35,16 @@ export default function HeaderKpis() {
       color: 'text-green-600',
       description: 'Distributions to Paid-In',
       isCurrency: false,
+      availability:
+        actual?.availability?.dpi ??
+        (actual && actual.dpi == null
+          ? {
+              status: 'unavailable' as const,
+              source: 'distributions' as const,
+              reason: 'no_distributions_recorded',
+              message: 'No distributions recorded',
+            }
+          : undefined),
     },
     tvpi: {
       label: 'TVPI',
@@ -35,6 +53,7 @@ export default function HeaderKpis() {
       color: 'text-blue-600',
       description: 'Total Value to Paid-In',
       isCurrency: false,
+      availability: undefined,
     },
     nav: {
       label: 'NAV',
@@ -43,6 +62,7 @@ export default function HeaderKpis() {
       color: 'text-purple-600',
       isCurrency: true,
       description: 'Net Asset Value',
+      availability: undefined,
     },
   };
 
@@ -86,7 +106,7 @@ export default function HeaderKpis() {
                 ? 'N/A'
                 : `$${(selected.value / 1_000_000).toFixed(1)}M`
               : selected.value == null || error
-                ? 'N/A'
+                ? formatUnavailableMetric(selected.availability)
                 : selected.value.toFixed(2)}
           </span>
         )}

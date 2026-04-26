@@ -129,7 +129,7 @@ describe('FundProvider route-aware selection', () => {
     });
   });
 
-  it('uses the only available fund on /forecasting', async () => {
+  it('does not silently select the only available production fund on /forecasting', async () => {
     mockUseQuery.mockReturnValue({
       data: [mockFunds[0]],
       isLoading: false,
@@ -146,7 +146,7 @@ describe('FundProvider route-aware selection', () => {
     );
 
     await waitFor(() => {
-      expect(screen.getByText('1:First Fund:false:false')).toBeInTheDocument();
+      expect(screen.getByText('none:none:false:false')).toBeInTheDocument();
     });
   });
 
@@ -198,7 +198,7 @@ describe('FundProvider route-aware selection', () => {
     });
   });
 
-  it('uses the only available fund on /model-results', async () => {
+  it('does not silently select the only available production fund on /model-results', async () => {
     mockUseQuery.mockReturnValue({
       data: [mockFunds[0]],
       isLoading: false,
@@ -215,7 +215,7 @@ describe('FundProvider route-aware selection', () => {
     );
 
     await waitFor(() => {
-      expect(screen.getByText('1:First Fund:false:false')).toBeInTheDocument();
+      expect(screen.getByText('none:none:false:false')).toBeInTheDocument();
     });
   });
 

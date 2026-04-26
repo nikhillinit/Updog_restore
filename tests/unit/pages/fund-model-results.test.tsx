@@ -498,6 +498,10 @@ describe('FundModelResultsPage (server-backed)', () => {
     expect(within(diagnosticsCard).getAllByText('Not published').length).toBeGreaterThanOrEqual(1);
     expect(within(diagnosticsCard).getAllByText('Not available').length).toBeGreaterThanOrEqual(1);
     expect(within(diagnosticsCard).getByText('None yet')).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /review and publish/i })).toHaveAttribute(
+      'href',
+      '/fund-setup?step=7&fundId=123'
+    );
   });
 
   it('shows failed-run diagnostics when a published calculation fails', async () => {

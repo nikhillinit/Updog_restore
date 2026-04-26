@@ -6,6 +6,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
 import { formatDPI } from '@/lib/format-metrics';
 import { useFundMetrics } from '@/hooks/useFundMetrics';
+import type { MetricAvailabilityDetail } from '@shared/types/metrics';
 import {
   TrendingUp,
   Target,
@@ -29,6 +30,23 @@ interface FundMetrics {
   avgCheckSize: number | null;
   deploymentRate: number | null;
   remainingCapital: number | null;
+  availability: {
+    irr: MetricAvailabilityDetail;
+    dpi: MetricAvailabilityDetail;
+  };
+}
+
+function unavailableMetric(
+  source: MetricAvailabilityDetail['source'],
+  message = 'Metric unavailable',
+  reason = 'source_unavailable'
+): MetricAvailabilityDetail {
+  return {
+    status: 'unavailable',
+    source,
+    reason,
+    message,
+  };
 }
 
 function toHeaderMetrics(
@@ -50,6 +68,10 @@ function toHeaderMetrics(
       avgCheckSize: null,
       deploymentRate: null,
       remainingCapital: null,
+      availability: {
+        irr: unavailableMetric('cashflows', 'Metrics unavailable'),
+        dpi: unavailableMetric('distributions', 'Metrics unavailable'),
+      },
     };
   }
 
@@ -73,6 +95,26 @@ function toHeaderMetrics(
     avgCheckSize: actual.averageCheckSize ?? null,
     deploymentRate: actual.deploymentRate ?? null,
     remainingCapital: actual.totalUncalled ?? null,
+    availability: {
+      irr:
+        actual.availability?.irr ??
+        (actual.irr == null
+          ? unavailableMetric(
+              'cashflows',
+              'Insufficient cash-flow history',
+              'insufficient_dated_cashflows'
+            )
+          : { status: 'available', source: 'cashflows' }),
+      dpi:
+        actual.availability?.dpi ??
+        (actual.dpi == null
+          ? unavailableMetric(
+              'distributions',
+              'No distributions recorded',
+              'no_distributions_recorded'
+            )
+          : { status: 'available', source: 'distributions' }),
+    },
   };
 }
 
@@ -117,6 +159,18 @@ export default function DynamicFundHeader() {
 
   const formatMetricMultiple = (value: number | null | undefined) =>
     metricDisplayUnavailable || value == null ? 'N/A' : `${value.toFixed(2)}x`;
+
+  const formatNullablePerformanceMetric = (
+    value: number | null | undefined,
+    availability: MetricAvailabilityDetail,
+    formatter: (_value: number) => string
+  ) => {
+    if (metricDisplayUnavailable) return 'N/A';
+    if (value != null && availability.status === 'available') return formatter(value);
+    if (availability.reason === 'insufficient_dated_cashflows') return 'Needs history';
+    if (availability.reason === 'no_distributions_recorded') return 'No distributions';
+    return availability.message ?? 'Unavailable';
+  };
 
   const formatPercentage = (value: number | null | undefined) => {
     if (value === null || value === undefined) return 'N/A';
@@ -201,8 +255,15 @@ export default function DynamicFundHeader() {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-xs text-charcoal-600 font-medium">Net IRR</p>
-                  <p className="text-sm font-bold text-charcoal-900">
-                    {metricDisplayUnavailable ? 'N/A' : formatPercentage(displayMetrics.irr)}
+                  <p
+                    className="text-sm font-bold text-charcoal-900 leading-tight"
+                    title={displayMetrics.availability.irr.message}
+                  >
+                    {formatNullablePerformanceMetric(
+                      displayMetrics.irr,
+                      displayMetrics.availability.irr,
+                      formatPercentage
+                    )}
                   </p>
                 </div>
                 <BarChart3 className="h-4 w-4 text-charcoal-500" />
@@ -229,8 +290,15 @@ export default function DynamicFundHeader() {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-xs text-charcoal-600 font-medium">DPI</p>
-                  <p className="text-sm font-bold text-charcoal-900">
-                    {metricDisplayUnavailable ? 'N/A' : formatDPI(displayMetrics.dpi)}
+                  <p
+                    className="text-sm font-bold text-charcoal-900 leading-tight"
+                    title={displayMetrics.availability.dpi.message}
+                  >
+                    {formatNullablePerformanceMetric(
+                      displayMetrics.dpi,
+                      displayMetrics.availability.dpi,
+                      formatDPI
+                    )}
                   </p>
                 </div>
                 <PieChart className="h-4 w-4 text-charcoal-500" />
