@@ -45,6 +45,14 @@ const isHttpError = (error: unknown): error is HttpError => {
 
 const router = Router();
 
+const ALLOCATION_ERROR_MAPPINGS = [
+  {
+    pattern: /password authentication failed|database|postgres|sql|connection/i,
+    message:
+      'Reserve allocation data is temporarily unavailable. Please retry after the data service is available.',
+  },
+] as const;
+
 // ============================================================================
 // Validation Schemas
 // ============================================================================
@@ -175,11 +183,10 @@ interface CompanyListResponse {
 
 function safeAllocationErrorMessage(error: unknown): string {
   const message = error instanceof Error ? error.message : String(error);
-  if (/password authentication failed|database|postgres|sql|connection/i.test(message)) {
-    return 'Reserve allocation data is temporarily unavailable. Please retry after the data service is available.';
-  }
-
-  return 'Reserve allocation data is temporarily unavailable. Please retry.';
+  return (
+    ALLOCATION_ERROR_MAPPINGS.find((mapping) => mapping.pattern.test(message))?.message ??
+    'Reserve allocation data is temporarily unavailable. Please retry.'
+  );
 }
 
 function parseActorUserId(req: Request): number | null {
