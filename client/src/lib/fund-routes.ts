@@ -7,6 +7,13 @@ const ROUTE_SCOPED_FUND_CONTEXT_PATHS = new Set([
   '/model-results',
 ]);
 
+const FUND_CONTEXT_RECOVERY_PATHS = new Set([
+  '/financial-modeling',
+  '/forecasting',
+  '/model-results',
+  '/performance',
+]);
+
 export function getLocationPathname(location: string): string {
   const [pathname = '/'] = location.split(QUERY_OR_HASH_PREFIX, 1);
   return pathname || '/';
@@ -63,4 +70,8 @@ export function extractRouteScopedFundId(location: string, search = ''): number 
 
   const parsed = Number(fundIdParam);
   return Number.isInteger(parsed) && parsed > 0 ? parsed : null;
+}
+
+export function requiresFundContextRecovery(location: string): boolean {
+  return FUND_CONTEXT_RECOVERY_PATHS.has(getLocationPathname(location));
 }

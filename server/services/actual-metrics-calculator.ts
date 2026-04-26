@@ -101,6 +101,38 @@ export class ActualMetricsCalculator {
       deploymentRate: deploymentRate.toNumber(),
       averageCheckSize: averageCheckSize.toNumber(),
       ...(fundAgeMonths !== undefined && { fundAgeMonths }),
+      availability: {
+        irr:
+          irr !== null
+            ? {
+                status: 'available',
+                source: 'cashflows',
+              }
+            : {
+                status: 'unavailable',
+                source: 'cashflows',
+                reason: 'insufficient_dated_cashflows',
+                message: 'Insufficient cash-flow history',
+              },
+        dpi:
+          dpi !== null
+            ? {
+                status: 'available',
+                source: 'distributions',
+              }
+            : {
+                status: 'unavailable',
+                source: 'distributions',
+                reason:
+                  totalDistributions.gt(0) && totalCalled.lte(0)
+                    ? 'paid_in_capital_unavailable'
+                    : 'no_distributions_recorded',
+                message:
+                  totalDistributions.gt(0) && totalCalled.lte(0)
+                    ? 'Paid-in capital unavailable'
+                    : 'No distributions recorded',
+              },
+      },
     };
   }
 
