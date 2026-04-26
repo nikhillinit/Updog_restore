@@ -18,11 +18,12 @@ export default function HeaderKpis() {
     refetchInterval: 15000,
   });
 
+  const actual = metrics?.actual;
   const kpiConfig = {
     dpi: {
       label: 'DPI',
       icon: DollarSign,
-      value: metrics?.actual.dpi ?? null,
+      value: actual?.dpi ?? null,
       color: 'text-green-600',
       description: 'Distributions to Paid-In',
       isCurrency: false,
@@ -30,7 +31,7 @@ export default function HeaderKpis() {
     tvpi: {
       label: 'TVPI',
       icon: TrendingUp,
-      value: metrics?.actual.tvpi ?? null,
+      value: actual && actual.totalCalled > 0 ? actual.tvpi : null,
       color: 'text-blue-600',
       description: 'Total Value to Paid-In',
       isCurrency: false,
@@ -38,7 +39,7 @@ export default function HeaderKpis() {
     nav: {
       label: 'NAV',
       icon: Target,
-      value: metrics?.actual.currentNAV ?? null,
+      value: actual?.currentNAV ?? null,
       color: 'text-purple-600',
       isCurrency: true,
       description: 'Net Asset Value',

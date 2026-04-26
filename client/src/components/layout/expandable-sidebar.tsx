@@ -118,7 +118,7 @@ export default function ExpandableSidebar({
   const resolveItemHref = (item: NavigationItem) => {
     if (item.id === 'model-results') {
       const fundId = extractFundResultsRouteId(location) ?? currentFund?.id ?? null;
-      return fundId != null ? `/fund-model-results/${fundId}` : '/fund-setup';
+      return fundId != null ? `/fund-model-results/${fundId}` : '/model-results';
     }
 
     return item.path ?? `/${item.id}`;
@@ -216,11 +216,7 @@ export default function ExpandableSidebar({
                 <div className={cn('space-y-1', isExpanded && 'ml-2')}>
                   {section.items.map((item) => {
                     const isActive = activeModule === item.id;
-                    const isDisabled =
-                      (needsSetup && item.id !== 'fund-setup') ||
-                      (item.id === 'model-results' &&
-                        extractFundResultsRouteId(location) == null &&
-                        currentFund == null);
+                    const isDisabled = needsSetup && item.id !== 'fund-setup';
 
                     return (
                       <Link key={item.id} href={resolveItemHref(item)}>

@@ -4,20 +4,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { useFundContext } from '@/contexts/FundContext';
 import type { AllocationsResponse } from '../types';
-
-interface ApiErrorBody {
-  message?: string;
-  error?: string;
-}
-
-async function readJsonResponse<T>(response: Response, fallbackMessage: string): Promise<T> {
-  const contentType = response.headers?.get?.('content-type') ?? '';
-  if (contentType && !contentType.toLowerCase().includes('application/json')) {
-    throw new Error(`${fallbackMessage}: expected JSON but received ${contentType}`);
-  }
-
-  return response.json() as Promise<T>;
-}
+import { buildErrorMessage, readApiErrorBody, readJsonResponse } from './jsonResponse';
 
 export function useLatestAllocations() {
   const { fundId } = useFundContext();
@@ -32,11 +19,8 @@ export function useLatestAllocations() {
       const response = await fetch(`/api/funds/${fundId}/allocations/latest`);
 
       if (!response.ok) {
-        const errorData = await readJsonResponse<ApiErrorBody>(
-          response,
-          'Failed to fetch allocations'
-        ).catch(() => null);
-        throw new Error(errorData?.message || errorData?.error || 'Failed to fetch allocations');
+        const errorData = await readApiErrorBody(response, 'Failed to fetch allocations');
+        throw new Error(buildErrorMessage(errorData, 'Failed to fetch allocations'));
       }
 
       return readJsonResponse<AllocationsResponse>(response, 'Failed to fetch allocations');

@@ -1,9 +1,10 @@
 import React from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { act, renderHook } from '@testing-library/react';
+import { act, renderHook, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   useApplyAllocationScenario,
+  useAllocationScenarioList,
   useSyncAllocationScenario,
   useUpdateAllocationScenario,
 } from '../../../client/src/components/portfolio/tabs/hooks/useAllocationScenarios';
@@ -232,5 +233,59 @@ describe('allocation scenario hook cache invalidation', () => {
       ['allocations', 'scenarios', 1, scenarioId],
       mockApplyResult.scenario
     );
+  });
+
+  it('reports HTML scenario list responses as JSON contract errors', async () => {
+    fetchMock.mockResolvedValueOnce({
+      ok: true,
+      headers: new Headers({ 'content-type': 'text/html' }),
+      json: async () => {
+        throw new SyntaxError("Unexpected token '<'");
+      },
+    });
+
+    const queryClient = new QueryClient({
+      defaultOptions: {
+        queries: { retry: false },
+        mutations: { retry: false },
+      },
+    });
+
+    const { result } = renderHook(() => useAllocationScenarioList(), {
+      wrapper: createWrapper(queryClient),
+    });
+
+    await waitFor(() => {
+      expect(result.current.error).toBeInstanceOf(Error);
+    });
+
+    expect(result.current.error?.message).toMatch(/expected JSON but received text\/html/i);
+  });
+
+  it('reports HTML mutation errors as JSON contract errors', async () => {
+    fetchMock.mockResolvedValueOnce({
+      ok: false,
+      headers: new Headers({ 'content-type': 'text/html' }),
+      json: async () => {
+        throw new SyntaxError("Unexpected token '<'");
+      },
+    });
+
+    const queryClient = new QueryClient({
+      defaultOptions: {
+        queries: { retry: false },
+        mutations: { retry: false },
+      },
+    });
+
+    const { result } = renderHook(() => useUpdateAllocationScenario(scenarioId), {
+      wrapper: createWrapper(queryClient),
+    });
+
+    await act(async () => {
+      await expect(result.current.mutateAsync({ name: 'Renamed scenario' })).rejects.toThrow(
+        /expected JSON but received text\/html/i
+      );
+    });
   });
 });

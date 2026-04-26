@@ -15,14 +15,7 @@ import type {
   UpdateReserveIcDecisionPayload,
   UpdateAllocationScenarioPayload,
 } from '../types';
-
-interface ApiErrorBody {
-  message?: string;
-}
-
-function buildErrorMessage(errorData: ApiErrorBody, fallback: string) {
-  return errorData.message || fallback;
-}
+import { buildErrorMessage, readApiErrorBody, readJsonResponse } from './jsonResponse';
 
 function getScenarioDetailQueryKey(fundId: number | null | undefined, scenarioId: string | null) {
   return ['allocations', 'scenarios', fundId, scenarioId] as const;
@@ -56,11 +49,14 @@ export function useAllocationScenarioList() {
       const response = await fetch(`/api/funds/${fundId}/allocation-scenarios`);
 
       if (!response.ok) {
-        const errorData = (await response.json().catch(() => ({}))) as ApiErrorBody;
+        const errorData = await readApiErrorBody(response, 'Failed to fetch allocation scenarios');
         throw new Error(buildErrorMessage(errorData, 'Failed to fetch allocation scenarios'));
       }
 
-      return response.json() as Promise<AllocationScenarioListResponse>;
+      return readJsonResponse<AllocationScenarioListResponse>(
+        response,
+        'Failed to fetch allocation scenarios'
+      );
     },
     enabled: !!fundId,
     staleTime: 1000 * 30,
@@ -83,11 +79,14 @@ export function useAllocationScenarioDetail(
       const response = await fetch(`/api/funds/${fundId}/allocation-scenarios/${scenarioId}`);
 
       if (!response.ok) {
-        const errorData = (await response.json().catch(() => ({}))) as ApiErrorBody;
+        const errorData = await readApiErrorBody(response, 'Failed to fetch allocation scenario');
         throw new Error(buildErrorMessage(errorData, 'Failed to fetch allocation scenario'));
       }
 
-      return response.json() as Promise<AllocationScenarioDetail>;
+      return readJsonResponse<AllocationScenarioDetail>(
+        response,
+        'Failed to fetch allocation scenario'
+      );
     },
     enabled: !!fundId && !!scenarioId && (options?.enabled ?? true),
     staleTime: 0,
@@ -107,14 +106,19 @@ export function useAllocationScenarioDecisions(
         throw new Error('Fund ID and scenario ID are required');
       }
 
-      const response = await fetch(`/api/funds/${fundId}/allocation-scenarios/${scenarioId}/decisions`);
+      const response = await fetch(
+        `/api/funds/${fundId}/allocation-scenarios/${scenarioId}/decisions`
+      );
 
       if (!response.ok) {
-        const errorData = (await response.json().catch(() => ({}))) as ApiErrorBody;
+        const errorData = await readApiErrorBody(response, 'Failed to fetch Reserve IC decisions');
         throw new Error(buildErrorMessage(errorData, 'Failed to fetch Reserve IC decisions'));
       }
 
-      return response.json() as Promise<ReserveIcDecisionListResponse>;
+      return readJsonResponse<ReserveIcDecisionListResponse>(
+        response,
+        'Failed to fetch Reserve IC decisions'
+      );
     },
     enabled: !!fundId && !!scenarioId && (options?.enabled ?? true),
     staleTime: 0,
@@ -138,11 +142,14 @@ export function useCreateAllocationScenario() {
       });
 
       if (!response.ok) {
-        const errorData = (await response.json().catch(() => ({}))) as ApiErrorBody;
+        const errorData = await readApiErrorBody(response, 'Failed to create allocation scenario');
         throw new Error(buildErrorMessage(errorData, 'Failed to create allocation scenario'));
       }
 
-      return response.json() as Promise<AllocationScenarioDetail>;
+      return readJsonResponse<AllocationScenarioDetail>(
+        response,
+        'Failed to create allocation scenario'
+      );
     },
     onSuccess: async (scenario) => {
       await queryClient.invalidateQueries({ queryKey: getScenarioListQueryKey(fundId) });
@@ -161,22 +168,27 @@ export function useCreateReserveIcDecision(scenarioId: string | null) {
         throw new Error('Fund ID and scenario ID are required');
       }
 
-      const response = await fetch(`/api/funds/${fundId}/allocation-scenarios/${scenarioId}/decisions`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-      });
+      const response = await fetch(
+        `/api/funds/${fundId}/allocation-scenarios/${scenarioId}/decisions`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        }
+      );
 
       if (!response.ok) {
-        const errorData = (await response.json().catch(() => ({}))) as ApiErrorBody;
+        const errorData = await readApiErrorBody(response, 'Failed to create Reserve IC decision');
         throw new Error(buildErrorMessage(errorData, 'Failed to create Reserve IC decision'));
       }
 
-      return response.json() as Promise<ReserveIcDecision>;
+      return readJsonResponse<ReserveIcDecision>(response, 'Failed to create Reserve IC decision');
     },
     onSuccess: async () => {
       await Promise.all([
-        queryClient.invalidateQueries({ queryKey: getScenarioDecisionListQueryKey(fundId, scenarioId) }),
+        queryClient.invalidateQueries({
+          queryKey: getScenarioDecisionListQueryKey(fundId, scenarioId),
+        }),
         queryClient.invalidateQueries({ queryKey: getScenarioDetailQueryKey(fundId, scenarioId) }),
       ]);
     },
@@ -200,11 +212,14 @@ export function useUpdateAllocationScenario(scenarioId: string | null) {
       });
 
       if (!response.ok) {
-        const errorData = (await response.json().catch(() => ({}))) as ApiErrorBody;
+        const errorData = await readApiErrorBody(response, 'Failed to update allocation scenario');
         throw new Error(buildErrorMessage(errorData, 'Failed to update allocation scenario'));
       }
 
-      return response.json() as Promise<AllocationScenarioDetail>;
+      return readJsonResponse<AllocationScenarioDetail>(
+        response,
+        'Failed to update allocation scenario'
+      );
     },
     onSuccess: async (scenario) => {
       await Promise.all([
@@ -244,15 +259,17 @@ export function useUpdateReserveIcDecision(scenarioId: string | null) {
       );
 
       if (!response.ok) {
-        const errorData = (await response.json().catch(() => ({}))) as ApiErrorBody;
+        const errorData = await readApiErrorBody(response, 'Failed to update Reserve IC decision');
         throw new Error(buildErrorMessage(errorData, 'Failed to update Reserve IC decision'));
       }
 
-      return response.json() as Promise<ReserveIcDecision>;
+      return readJsonResponse<ReserveIcDecision>(response, 'Failed to update Reserve IC decision');
     },
     onSuccess: async () => {
       await Promise.all([
-        queryClient.invalidateQueries({ queryKey: getScenarioDecisionListQueryKey(fundId, scenarioId) }),
+        queryClient.invalidateQueries({
+          queryKey: getScenarioDecisionListQueryKey(fundId, scenarioId),
+        }),
         queryClient.invalidateQueries({ queryKey: getScenarioDetailQueryKey(fundId, scenarioId) }),
       ]);
     },
@@ -273,13 +290,19 @@ export function useAllocationScenarioApplyPreview(scenarioId: string | null) {
       );
 
       if (!response.ok) {
-        const errorData = (await response.json().catch(() => ({}))) as ApiErrorBody;
+        const errorData = await readApiErrorBody(
+          response,
+          'Failed to preview allocation scenario apply'
+        );
         throw new Error(
           buildErrorMessage(errorData, 'Failed to preview allocation scenario apply')
         );
       }
 
-      return response.json() as Promise<AllocationScenarioApplyPreview>;
+      return readJsonResponse<AllocationScenarioApplyPreview>(
+        response,
+        'Failed to preview allocation scenario apply'
+      );
     },
   });
 }
@@ -301,11 +324,14 @@ export function useSyncAllocationScenario(scenarioId: string | null) {
       });
 
       if (!response.ok) {
-        const errorData = (await response.json().catch(() => ({}))) as ApiErrorBody;
+        const errorData = await readApiErrorBody(response, 'Failed to sync allocation scenario');
         throw new Error(buildErrorMessage(errorData, 'Failed to sync allocation scenario'));
       }
 
-      return response.json() as Promise<AllocationScenarioSyncResult>;
+      return readJsonResponse<AllocationScenarioSyncResult>(
+        response,
+        'Failed to sync allocation scenario'
+      );
     },
     onSuccess: async (result) => {
       await Promise.all([
@@ -314,7 +340,10 @@ export function useSyncAllocationScenario(scenarioId: string | null) {
           queryKey: getScenarioDecisionListQueryKey(fundId, result.scenario.id),
         }),
       ]);
-      queryClient.setQueryData(getScenarioDetailQueryKey(fundId, result.scenario.id), result.scenario);
+      queryClient.setQueryData(
+        getScenarioDetailQueryKey(fundId, result.scenario.id),
+        result.scenario
+      );
     },
   });
 }
@@ -329,18 +358,24 @@ export function useApplyAllocationScenario(scenarioId: string | null) {
         throw new Error('Fund ID and scenario ID are required');
       }
 
-      const response = await fetch(`/api/funds/${fundId}/allocation-scenarios/${scenarioId}/apply`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-      });
+      const response = await fetch(
+        `/api/funds/${fundId}/allocation-scenarios/${scenarioId}/apply`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        }
+      );
 
       if (!response.ok) {
-        const errorData = (await response.json().catch(() => ({}))) as ApiErrorBody;
+        const errorData = await readApiErrorBody(response, 'Failed to apply allocation scenario');
         throw new Error(buildErrorMessage(errorData, 'Failed to apply allocation scenario'));
       }
 
-      return response.json() as Promise<AllocationScenarioApplyResult>;
+      return readJsonResponse<AllocationScenarioApplyResult>(
+        response,
+        'Failed to apply allocation scenario'
+      );
     },
     onSuccess: async (result) => {
       await Promise.all([
@@ -350,7 +385,10 @@ export function useApplyAllocationScenario(scenarioId: string | null) {
           queryKey: getScenarioDecisionListQueryKey(fundId, result.scenario.id),
         }),
       ]);
-      queryClient.setQueryData(getScenarioDetailQueryKey(fundId, result.scenario.id), result.scenario);
+      queryClient.setQueryData(
+        getScenarioDetailQueryKey(fundId, result.scenario.id),
+        result.scenario
+      );
     },
   });
 }

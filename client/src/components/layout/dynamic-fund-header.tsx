@@ -18,17 +18,17 @@ import {
 
 interface FundMetrics {
   totalCommitted: number;
-  totalInvested: number;
-  totalValue: number;
+  totalInvested: number | null;
+  totalValue: number | null;
   irr: number | null;
-  moic: number;
+  moic: number | null;
   dpi: number | null;
-  tvpi: number;
-  activeInvestments: number;
+  tvpi: number | null;
+  activeInvestments: number | null;
   exited: number;
-  avgCheckSize: number;
-  deploymentRate: number;
-  remainingCapital: number;
+  avgCheckSize: number | null;
+  deploymentRate: number | null;
+  remainingCapital: number | null;
 }
 
 function toHeaderMetrics(
@@ -36,23 +36,43 @@ function toHeaderMetrics(
   metrics: ReturnType<typeof useFundMetrics>['data']
 ): FundMetrics {
   const actual = metrics?.actual;
-  const totalCommitted = actual?.totalCommitted ?? currentFundSize;
-  const totalInvested = actual?.totalDeployed ?? 0;
-  const totalValue = actual?.totalValue ?? actual?.currentNAV ?? 0;
+  if (!actual) {
+    return {
+      totalCommitted: currentFundSize,
+      totalInvested: null,
+      totalValue: null,
+      irr: null,
+      moic: null,
+      dpi: null,
+      tvpi: null,
+      activeInvestments: null,
+      exited: 0,
+      avgCheckSize: null,
+      deploymentRate: null,
+      remainingCapital: null,
+    };
+  }
+
+  const totalCommitted = actual.totalCommitted ?? currentFundSize;
+  const totalInvested = actual.totalDeployed ?? null;
+  const totalValue = actual.totalValue ?? actual.currentNAV ?? null;
 
   return {
     totalCommitted,
     totalInvested,
     totalValue,
-    irr: actual?.irr ?? null,
-    moic: totalInvested > 0 ? totalValue / totalInvested : 0,
-    dpi: actual?.dpi ?? null,
-    tvpi: actual?.tvpi ?? 0,
-    activeInvestments: actual?.activeCompanies ?? 0,
-    exited: actual?.exitedCompanies ?? 0,
-    avgCheckSize: actual?.averageCheckSize ?? 0,
-    deploymentRate: actual?.deploymentRate ?? 0,
-    remainingCapital: actual?.totalUncalled ?? Math.max(0, totalCommitted - totalInvested),
+    irr: actual.irr ?? null,
+    moic:
+      totalInvested != null && totalInvested > 0 && totalValue != null
+        ? totalValue / totalInvested
+        : null,
+    dpi: actual.dpi ?? null,
+    tvpi: actual.totalCalled != null && actual.totalCalled > 0 ? actual.tvpi : null,
+    activeInvestments: actual.activeCompanies ?? null,
+    exited: actual.exitedCompanies ?? 0,
+    avgCheckSize: actual.averageCheckSize ?? null,
+    deploymentRate: actual.deploymentRate ?? null,
+    remainingCapital: actual.totalUncalled ?? null,
   };
 }
 
@@ -70,7 +90,8 @@ export default function DynamicFundHeader() {
     skipProjections: true,
     refetchInterval: 30000,
   });
-  const metricUnavailable = metricsError != null;
+  const metricUnavailable = metricsError != null || (!metricsLoading && metrics?.actual == null);
+  const metricDisplayUnavailable = metricsLoading || metricUnavailable;
 
   // If KPI selector flag is enabled, use new compact header
   if (useCompactHeader) {
@@ -88,8 +109,14 @@ export default function DynamicFundHeader() {
     return `$${num.toLocaleString()}`;
   };
 
-  const formatMetricCurrency = (value: number | undefined) =>
-    metricUnavailable || metricsLoading ? 'N/A' : formatCurrency(value);
+  const formatMetricCurrency = (value: number | null | undefined) =>
+    metricDisplayUnavailable || value == null ? 'N/A' : formatCurrency(value);
+
+  const formatMetricCount = (value: number | null | undefined) =>
+    metricDisplayUnavailable || value == null ? 'N/A' : value.toLocaleString();
+
+  const formatMetricMultiple = (value: number | null | undefined) =>
+    metricDisplayUnavailable || value == null ? 'N/A' : `${value.toFixed(2)}x`;
 
   const formatPercentage = (value: number | null | undefined) => {
     if (value === null || value === undefined) return 'N/A';
@@ -129,9 +156,11 @@ export default function DynamicFundHeader() {
               Active
             </Badge>
             <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-300">
-              {metricUnavailable
-                ? 'Metrics unavailable'
-                : `${displayMetrics.deploymentRate.toFixed(0)}% Deployed`}
+              {metricsLoading
+                ? 'Metrics loading'
+                : metricUnavailable
+                  ? 'Metrics unavailable'
+                  : `${displayMetrics.deploymentRate?.toFixed(0) ?? 'N/A'}% Deployed`}
             </Badge>
           </div>
         </div>
@@ -173,9 +202,7 @@ export default function DynamicFundHeader() {
                 <div>
                   <p className="text-xs text-charcoal-600 font-medium">Net IRR</p>
                   <p className="text-sm font-bold text-charcoal-900">
-                    {metricUnavailable || metricsLoading
-                      ? 'N/A'
-                      : formatPercentage(displayMetrics.irr)}
+                    {metricDisplayUnavailable ? 'N/A' : formatPercentage(displayMetrics.irr)}
                   </p>
                 </div>
                 <BarChart3 className="h-4 w-4 text-charcoal-500" />
@@ -189,9 +216,7 @@ export default function DynamicFundHeader() {
                 <div>
                   <p className="text-xs text-charcoal-700 font-medium">TVPI</p>
                   <p className="text-sm font-bold text-charcoal-900">
-                    {metricUnavailable || metricsLoading
-                      ? 'N/A'
-                      : `${displayMetrics.tvpi.toFixed(2)}x`}
+                    {formatMetricMultiple(displayMetrics.tvpi)}
                   </p>
                 </div>
                 <Target className="h-4 w-4 text-charcoal-600" />
@@ -205,7 +230,7 @@ export default function DynamicFundHeader() {
                 <div>
                   <p className="text-xs text-charcoal-600 font-medium">DPI</p>
                   <p className="text-sm font-bold text-charcoal-900">
-                    {metricUnavailable || metricsLoading ? 'N/A' : formatDPI(displayMetrics.dpi)}
+                    {metricDisplayUnavailable ? 'N/A' : formatDPI(displayMetrics.dpi)}
                   </p>
                 </div>
                 <PieChart className="h-4 w-4 text-charcoal-500" />
@@ -219,7 +244,7 @@ export default function DynamicFundHeader() {
                 <div>
                   <p className="text-xs text-charcoal-700 font-medium">Active</p>
                   <p className="text-sm font-bold text-charcoal-900">
-                    {metricUnavailable || metricsLoading ? 'N/A' : displayMetrics.activeInvestments}
+                    {formatMetricCount(displayMetrics.activeInvestments)}
                   </p>
                 </div>
                 <Activity className="h-4 w-4 text-charcoal-600" />
@@ -260,13 +285,15 @@ export default function DynamicFundHeader() {
         <div className="flex items-center justify-between mt-3 text-xs text-gray-500">
           <div className="flex items-center space-x-4">
             <span>
-              {metricUnavailable
-                ? 'Metrics source unavailable'
-                : `Last updated: ${
-                    metrics?.lastUpdated
-                      ? new Date(metrics.lastUpdated).toLocaleTimeString()
-                      : new Date().toLocaleTimeString()
-                  }`}
+              {metricsLoading
+                ? 'Loading metrics'
+                : metricUnavailable
+                  ? 'Metrics source unavailable'
+                  : `Last updated: ${
+                      metrics?.lastUpdated
+                        ? new Date(metrics.lastUpdated).toLocaleTimeString()
+                        : new Date().toLocaleTimeString()
+                    }`}
             </span>
             <div className="flex items-center space-x-1">
               <div
@@ -274,7 +301,13 @@ export default function DynamicFundHeader() {
                   metricUnavailable ? 'bg-red-500' : 'bg-green-500 animate-pulse'
                 }`}
               ></div>
-              <span>{metricUnavailable ? 'Metrics unavailable' : 'Live metrics'}</span>
+              <span>
+                {metricsLoading
+                  ? 'Metrics loading'
+                  : metricUnavailable
+                    ? 'Metrics unavailable'
+                    : 'Live metrics'}
+              </span>
             </div>
           </div>
         </div>

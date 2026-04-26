@@ -8,10 +8,15 @@ interface TargetMetricsSnapshotProps {
   subtitle: string;
 }
 
-export function TargetMetricsSnapshot({
-  title,
-  subtitle,
-}: TargetMetricsSnapshotProps) {
+function getPortfolioConstructionStatus(actual: number, target: number) {
+  if (target <= 0) {
+    return 'on-track';
+  }
+
+  return actual / target >= 0.9 ? 'on-track' : 'behind';
+}
+
+export function TargetMetricsSnapshot({ title, subtitle }: TargetMetricsSnapshotProps) {
   const { data, isLoading, error } = useFundMetrics({ skipProjections: true });
 
   if (isLoading) {
@@ -65,7 +70,10 @@ export function TargetMetricsSnapshot({
           actual={data.actual.totalCompanies}
           target={data.target.targetCompanyCount}
           format="number"
-          status={data.variance.portfolioVariance.onTrack ? 'on-track' : 'behind'}
+          status={getPortfolioConstructionStatus(
+            data.actual.totalCompanies,
+            data.target.targetCompanyCount
+          )}
           icon={<Target className="h-4 w-4" />}
         />
       </div>
