@@ -1110,7 +1110,7 @@ function LifecycleStatusCard({
               </p>
             </div>
             <Button asChild>
-              <Link href={`/fund-setup?fundId=${lifecycle.fundId}`}>Review and publish</Link>
+              <Link href={`/fund-setup?step=7&fundId=${lifecycle.fundId}`}>Review and publish</Link>
             </Button>
           </div>
         </div>

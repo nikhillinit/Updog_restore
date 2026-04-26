@@ -81,6 +81,8 @@ export interface FinalizeResult {
   fundId: number;
   configVersion: number;
   correlationId: string;
+  runId: number;
+  dispatchState: DispatchState;
   published: boolean;
 }
 
@@ -327,6 +329,8 @@ export class FundPersistenceService {
       fundId: fund.id,
       configVersion: draft.version,
       correlationId: publishResult.correlationId,
+      runId: publishResult.run.id,
+      dispatchState: publishResult.run.dispatchState,
       published: true,
     };
   }

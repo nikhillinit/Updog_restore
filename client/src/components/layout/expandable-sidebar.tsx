@@ -47,6 +47,7 @@ const NAVIGATION_STRUCTURE = {
     icon: LayoutDashboard,
     items: [
       { id: 'dashboard', label: 'Dashboard', icon: BarChart3 },
+      { id: 'performance', label: 'Performance', icon: Activity, path: '/performance' },
       { id: 'construction', label: 'Construction', icon: Settings },
       { id: 'investments', label: 'Investments', icon: TrendingUp },
       { id: 'model-view', label: 'Model View', icon: Calculator },

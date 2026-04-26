@@ -40,6 +40,18 @@ export function TargetMetricsSnapshot({ title, subtitle }: TargetMetricsSnapshot
     );
   }
 
+  if (!data.target || !data.variance?.deploymentVariance) {
+    return (
+      <Alert>
+        <AlertTriangle className="h-4 w-4" />
+        <AlertDescription>
+          Target-aware metrics require a published target snapshot before plan comparisons can be
+          shown.
+        </AlertDescription>
+      </Alert>
+    );
+  }
+
   return (
     <section aria-label={title} className="space-y-4">
       <div>

@@ -138,7 +138,7 @@ describe('wizard to results flow', () => {
             ? input.url
             : String(input);
 
-      if (url === '/api/funds/finalize') {
+      if (url.endsWith('/api/funds/finalize')) {
         return new Response(
           JSON.stringify({
             success: true,
@@ -146,6 +146,8 @@ describe('wizard to results flow', () => {
               fundId: 42,
               configVersion: 1,
               correlationId: 'corr-finalize-42',
+              runId: 10,
+              dispatchState: 'dispatched',
               published: true,
             },
           }),
@@ -156,21 +158,21 @@ describe('wizard to results flow', () => {
         );
       }
 
-      if (url === '/api/funds/42/results') {
+      if (url.endsWith('/api/funds/42/results')) {
         return new Response(JSON.stringify(readyResponse()), {
           status: 200,
           headers: { 'Content-Type': 'application/json' },
         });
       }
 
-      if (url === '/api/funds/42/lifecycle-history') {
+      if (url.endsWith('/api/funds/42/lifecycle-history')) {
         return new Response(JSON.stringify(lifecycleHistoryResponse()), {
           status: 200,
           headers: { 'Content-Type': 'application/json' },
         });
       }
 
-      if (url === '/api/funds/42/results-comparison') {
+      if (url.endsWith('/api/funds/42/results-comparison')) {
         return new Response(JSON.stringify(resultsComparisonResponse()), {
           status: 200,
           headers: { 'Content-Type': 'application/json' },
@@ -194,6 +196,9 @@ describe('wizard to results flow', () => {
       });
 
       expect(screen.getByText(/Vintage 2026/)).toBeTruthy();
+      expect(screen.queryByText(/No published configuration yet/i)).toBeNull();
+      expect(screen.getAllByText('v1').length).toBeGreaterThan(0);
+      expect(screen.getAllByText(/Run 10/i).length).toBeGreaterThan(0);
       expect(screen.getAllByText('No authoritative source')).toHaveLength(3);
 
       firstRender.unmount();
@@ -211,23 +216,34 @@ describe('wizard to results flow', () => {
         );
 
       expect(sessionCalls).toHaveLength(0);
-      expect(mockFetch).toHaveBeenCalledWith(
-        '/api/funds/finalize',
-        expect.objectContaining({
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: expect.any(String),
-        })
-      );
-      expect(mockFetch).toHaveBeenCalledWith(
-        '/api/funds/42/results',
-        expect.objectContaining({ signal: expect.any(AbortSignal) })
-      );
-      expect(mockFetch).toHaveBeenCalledWith('/api/funds/42/lifecycle-history');
-      expect(mockFetch).toHaveBeenCalledWith('/api/funds/42/results-comparison');
+      expectFetchCall('/api/funds/finalize', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: expect.any(String),
+      });
+      expectFetchCall('/api/funds/42/results', { signal: expect.any(AbortSignal) });
+      expectFetchCall('/api/funds/42/lifecycle-history');
+      expectFetchCall('/api/funds/42/results-comparison');
     });
   });
 });
+
+function expectFetchCall(path: string, init?: Record<string, unknown>) {
+  const matchingCall = mockFetch.mock.calls.find(([input]) => {
+    const url =
+      typeof input === 'string' || input instanceof URL
+        ? String(input)
+        : input instanceof Request
+          ? input.url
+          : String(input);
+    return url.endsWith(path);
+  });
+
+  expect(matchingCall).toBeDefined();
+  if (init !== undefined) {
+    expect(matchingCall?.[1]).toEqual(expect.objectContaining(init));
+  }
+}
 
 function renderFlow(initialPath: string) {
   const { Wrapper, location } = createWouterWrapper(initialPath);

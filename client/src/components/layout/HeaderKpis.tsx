@@ -1,99 +1,117 @@
-import { useFundContext } from '@/contexts/FundContext';
-import { TrendingUp, Target, DollarSign } from 'lucide-react';
+import type { LucideIcon } from 'lucide-react';
+import { DollarSign, Target, TrendingUp } from 'lucide-react';
 import { useState } from 'react';
 import { Skeleton } from '@/components/ui/skeleton';
+import { useFundContext } from '@/contexts/FundContext';
 import { useFundMetrics } from '@/hooks/useFundMetrics';
+import {
+  buildCompactHeaderViewModel,
+  shouldFetchCompactMetrics,
+  type CompactHeaderViewModel,
+  type CompactKpiItemModel,
+  type CompactKpiKey,
+  type CompactKpiSelectedModel,
+  type HeaderMetricIcon,
+} from './fund-header-metrics';
+
+const COMPACT_ICON_COMPONENTS: Partial<Record<HeaderMetricIcon, LucideIcon>> = {
+  dollar: DollarSign,
+  target: Target,
+  'trending-up': TrendingUp,
+};
+
+function getButtonClassName(isSelected: boolean) {
+  if (isSelected) return 'bg-slate-900 text-white shadow-sm';
+  return 'bg-white text-slate-600 hover:bg-slate-100 border border-slate-200';
+}
+
+function CompactKpiButton({
+  item,
+  onSelect,
+}: {
+  item: CompactKpiItemModel;
+  onSelect: (_key: CompactKpiKey) => void;
+}) {
+  return (
+    <button
+      key={item.key}
+      onClick={() => onSelect(item.key)}
+      className={`px-3 py-1 rounded-md text-sm font-medium transition-all ${getButtonClassName(
+        item.isSelected
+      )}`}
+      title={item.description}
+    >
+      {item.label}
+    </button>
+  );
+}
+
+function CompactKpiDisplay({
+  selected,
+  isLoading,
+}: {
+  selected: CompactKpiSelectedModel;
+  isLoading: boolean;
+}) {
+  if (isLoading) return <Skeleton className="h-7 w-24" />;
+
+  return (
+    <span className={`text-xl font-bold ${selected.colorClassName} live-pulse-kpi`}>
+      {selected.displayValue}
+    </span>
+  );
+}
+
+function SelectedKpiPanel({ viewModel }: { viewModel: CompactHeaderViewModel }) {
+  const Icon = COMPACT_ICON_COMPONENTS[viewModel.selected.icon] ?? DollarSign;
+
+  return (
+    <div className="flex items-center gap-2 ml-4 px-4 py-2 bg-white rounded-lg shadow-sm border border-slate-200">
+      <Icon className={`h-5 w-5 ${viewModel.selected.colorClassName}`} />
+      <span className="text-sm text-slate-600">{viewModel.selected.label}:</span>
+      <CompactKpiDisplay selected={viewModel.selected} isLoading={viewModel.isLoading} />
+    </div>
+  );
+}
 
 export default function HeaderKpis() {
   const { currentFund } = useFundContext();
-  const [selectedKPI, setSelectedKPI] = useState<'dpi' | 'tvpi' | 'nav'>('dpi');
+  const [selectedKPI, setSelectedKPI] = useState<CompactKpiKey>('dpi');
+  const shouldFetchMetrics = shouldFetchCompactMetrics(currentFund);
 
   const {
     data: metrics,
     isLoading,
     error,
   } = useFundMetrics({
-    enabled: !!currentFund?.id,
+    enabled: shouldFetchMetrics,
     skipProjections: true,
     refetchInterval: 15000,
   });
-
-  const actual = metrics?.actual;
-  const kpiConfig = {
-    dpi: {
-      label: 'DPI',
-      icon: DollarSign,
-      value: actual?.dpi ?? null,
-      color: 'text-green-600',
-      description: 'Distributions to Paid-In',
-      isCurrency: false,
-    },
-    tvpi: {
-      label: 'TVPI',
-      icon: TrendingUp,
-      value: actual && actual.totalCalled > 0 ? actual.tvpi : null,
-      color: 'text-blue-600',
-      description: 'Total Value to Paid-In',
-      isCurrency: false,
-    },
-    nav: {
-      label: 'NAV',
-      icon: Target,
-      value: actual?.currentNAV ?? null,
-      color: 'text-purple-600',
-      isCurrency: true,
-      description: 'Net Asset Value',
-    },
-  };
-
-  const selected = kpiConfig[selectedKPI];
-  const Icon = selected.icon;
 
   if (!currentFund) {
     return null;
   }
 
+  const viewModel = buildCompactHeaderViewModel(
+    currentFund.name,
+    metrics?.actual,
+    selectedKPI,
+    isLoading,
+    error != null
+  );
+
   return (
     <div className="flex items-center gap-4 px-6 py-3 bg-gradient-to-r from-slate-50 to-white border-b">
-      {/* KPI Selector */}
       <div className="flex gap-2">
-        {(Object.keys(kpiConfig) as Array<keyof typeof kpiConfig>).map((key) => (
-          <button
-            key={key}
-            onClick={() => setSelectedKPI(key)}
-            className={`px-3 py-1 rounded-md text-sm font-medium transition-all ${
-              selectedKPI === key
-                ? 'bg-slate-900 text-white shadow-sm'
-                : 'bg-white text-slate-600 hover:bg-slate-100 border border-slate-200'
-            }`}
-            title={kpiConfig[key].description}
-          >
-            {kpiConfig[key].label}
-          </button>
+        {viewModel.items.map((item) => (
+          <CompactKpiButton key={item.key} item={item} onSelect={setSelectedKPI} />
         ))}
       </div>
 
-      {/* Selected KPI Display */}
-      <div className="flex items-center gap-2 ml-4 px-4 py-2 bg-white rounded-lg shadow-sm border border-slate-200">
-        <Icon className={`h-5 w-5 ${selected.color}`} />
-        <span className="text-sm text-slate-600">{selected.label}:</span>
-        {isLoading ? (
-          <Skeleton className="h-7 w-24" />
-        ) : (
-          <span className={`text-xl font-bold ${selected.color} live-pulse-kpi`}>
-            {selected.isCurrency
-              ? selected.value == null || error
-                ? 'N/A'
-                : `$${(selected.value / 1_000_000).toFixed(1)}M`
-              : selected.value == null || error
-                ? 'N/A'
-                : selected.value.toFixed(2)}
-          </span>
-        )}
-      </div>
+      <SelectedKpiPanel viewModel={viewModel} />
 
-      {/* Fund Name */}
-      <div className="ml-auto text-sm text-slate-600">{currentFund.name}</div>
+      <div className="ml-auto text-sm text-slate-600">{viewModel.fundName}</div>
     </div>
   );
 }

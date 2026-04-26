@@ -50,7 +50,7 @@ function NavItemContent({
 
   return (
     <>
-      <Icon className="h-5 w-5 flex-shrink-0" />
+      <Icon className="h-5 w-5 flex-shrink-0 pointer-events-none" />
       {isHovered && (
         <span className={cn('text-sm whitespace-nowrap', isActive && 'font-medium')}>
           {item.label}
@@ -79,7 +79,7 @@ function FooterNavItemContent({
 
   return (
     <>
-      <Icon className="h-4 w-4 flex-shrink-0" />
+      <Icon className="h-4 w-4 flex-shrink-0 pointer-events-none" />
       {isHovered && (
         <span className={cn('text-sm whitespace-nowrap', isActive && 'font-medium')}>
           {item.label}
@@ -111,6 +111,7 @@ function NavigationButton({
   compact?: boolean;
 }) {
   const title = !isHovered ? item.label : undefined;
+  const ariaLabel = !isHovered ? item.label : undefined;
   const className = compact
     ? cn(
         'w-full flex items-center rounded-md transition-colors font-poppins relative group',
@@ -128,6 +129,7 @@ function NavigationButton({
       <Link
         href={href}
         title={title}
+        aria-label={ariaLabel}
         className={className}
         aria-current={isActive ? 'page' : undefined}
         data-active={isActive ? 'true' : 'false'}
@@ -146,6 +148,7 @@ function NavigationButton({
       type="button"
       disabled
       title={title}
+      aria-label={ariaLabel}
       aria-disabled="true"
       data-active={isActive ? 'true' : 'false'}
       className={className}

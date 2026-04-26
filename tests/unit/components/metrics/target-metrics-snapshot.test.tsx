@@ -99,4 +99,31 @@ describe('TargetMetricsSnapshot', () => {
 
     expect(screen.getAllByText('On Track').length).toBeGreaterThanOrEqual(1);
   });
+
+  it('shows a truthful warning instead of crashing when target snapshots are unavailable', () => {
+    mockUseFundMetrics.mockReturnValue({
+      data: {
+        actual: {
+          totalDeployed: 18_000_000,
+          tvpi: 1.4,
+          totalCompanies: 3,
+        },
+        target: null,
+        variance: null,
+      },
+      isLoading: false,
+      error: null,
+    });
+
+    render(
+      <TargetMetricsSnapshot
+        title="Target-Aware Snapshot"
+        subtitle="Truthful live metrics sourced from the unified metrics layer."
+      />
+    );
+
+    expect(
+      screen.getByText(/require a published target snapshot before plan comparisons can be shown/i)
+    ).toBeInTheDocument();
+  });
 });
