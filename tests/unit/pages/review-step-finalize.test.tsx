@@ -14,6 +14,10 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 
+const { mockInvalidateQueries } = vi.hoisted(() => ({
+  mockInvalidateQueries: vi.fn(),
+}));
+
 // Mock dependencies before importing component
 const mockSetLocation = vi.fn();
 vi.mock('wouter', () => ({
@@ -22,7 +26,7 @@ vi.mock('wouter', () => ({
 
 vi.mock('@tanstack/react-query', () => ({
   useQueryClient: () => ({
-    invalidateQueries: vi.fn().mockResolvedValue(undefined),
+    invalidateQueries: mockInvalidateQueries,
   }),
 }));
 
@@ -113,6 +117,7 @@ describe('ReviewStep single-submit via finalize', () => {
   beforeEach(() => {
     mockSetLocation.mockReset();
     mockSetCurrentFund.mockReset();
+    mockInvalidateQueries.mockReset().mockResolvedValue(undefined);
     mockFundState.draftFundId = null;
 
     // Default: finalizeFund succeeds
@@ -219,6 +224,8 @@ describe('ReviewStep single-submit via finalize', () => {
       expect(mockSetLocation).toHaveBeenCalledWith('/fund-model-results/99');
     });
 
+    expect(mockInvalidateQueries).toHaveBeenCalledWith({ queryKey: ['/api/funds'] });
+    expect(mockInvalidateQueries).toHaveBeenCalledWith({ queryKey: ['funds'] });
     expect(mockSetCurrentFund).toHaveBeenCalledWith(
       expect.objectContaining({
         id: 99,

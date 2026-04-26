@@ -150,7 +150,10 @@ export default function ReviewStep() {
   const finalizeSuccessfulPublish = useCallback(
     async (fundId: number) => {
       try {
-        await queryClient.invalidateQueries({ queryKey: ['funds'] });
+        await Promise.all([
+          queryClient.invalidateQueries({ queryKey: ['/api/funds'] }),
+          queryClient.invalidateQueries({ queryKey: ['funds'] }),
+        ]);
       } catch (error) {
         console.warn('[ReviewStep] Failed to invalidate funds query after publish', error);
       }

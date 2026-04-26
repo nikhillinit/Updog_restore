@@ -80,4 +80,19 @@ describe('registerRoutes automation startup', () => {
     expect(sensitivityRes.type).toMatch(/json/);
     expect(sensitivityRes.body).toHaveProperty('code', 'INVALID_FUND_ID');
   }, 30_000);
+
+  it('returns JSON for unknown API routes instead of falling through to HTML', async () => {
+    const app = express();
+    app.set('trust proxy', false);
+    app.use(express.json({ limit: '1mb' }));
+
+    const { registerRoutes } = await import('../../../server/routes');
+    server = await registerRoutes(app);
+
+    const res = await request(app).get('/api/not-a-mounted-route');
+
+    expect(res.status).toBe(404);
+    expect(res.type).toMatch(/json/);
+    expect(res.body).toHaveProperty('error', 'not_found');
+  }, 30_000);
 });
