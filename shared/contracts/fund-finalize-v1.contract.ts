@@ -128,6 +128,8 @@ export const FundFinalizeResponseV1Schema = z
       fundId: z.number().int().positive(),
       configVersion: z.number().int().positive(),
       correlationId: z.string().uuid(),
+      runId: z.number().int().positive().optional(),
+      dispatchState: z.enum(['pending', 'dispatched', 'partial', 'failed']).optional(),
       published: z.boolean(),
     }),
   })

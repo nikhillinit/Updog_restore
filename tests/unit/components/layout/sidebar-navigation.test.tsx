@@ -139,6 +139,21 @@ describe('sidebar results navigation', () => {
     expect(link.getAttribute('href')).toBe('/forecasting?fundId=7');
   });
 
+  it('keeps Performance discoverable by accessible name while collapsed', async () => {
+    const { Sidebar } = await loadNavigationModules();
+    const { Wrapper } = createWouterWrapper('/dashboard');
+
+    render(
+      <Wrapper>
+        <Sidebar activeModule="dashboard" />
+      </Wrapper>
+    );
+
+    const link = screen.getByRole('link', { name: /performance/i });
+    expect(link.getAttribute('href')).toBe('/performance');
+    expect(link).toHaveAttribute('title', 'Performance');
+  });
+
   it('keeps the results navigation active and linkable on a deep-linked results route before currentFund hydrates', async () => {
     mockFundContext = {
       currentFund: null,

@@ -38,7 +38,8 @@ const mockFunds = [
 ];
 
 function Consumer() {
-  const { currentFund, needsSetup, isLoading, isDemoMode } = useFundContext();
+  const { currentFund, needsSetup, isLoading, isDemoMode, fundLoadError, fundLoadErrorMessage } =
+    useFundContext();
 
   if (isLoading) {
     return <div>loading</div>;
@@ -46,8 +47,12 @@ function Consumer() {
 
   return (
     <div>
-      {currentFund?.id ?? 'none'}:{currentFund?.name ?? 'none'}:{String(needsSetup)}:
-      {String(isDemoMode)}
+      <span>
+        {currentFund?.id ?? 'none'}:{currentFund?.name ?? 'none'}:{String(needsSetup)}:
+        {String(isDemoMode)}
+      </span>
+      <div data-testid="fund-load-error">{String(fundLoadError)}</div>
+      <div data-testid="fund-load-error-message">{fundLoadErrorMessage ?? 'none'}</div>
     </div>
   );
 }
@@ -310,6 +315,29 @@ describe('FundProvider route-aware selection', () => {
 
     await waitFor(() => {
       expect(screen.getByText('none:none:true:false')).toBeInTheDocument();
+    });
+  });
+
+  it('exposes a distinguishable fund load error on deterministic model routes', async () => {
+    mockUseQuery.mockReturnValue({
+      data: null,
+      isLoading: false,
+      error: new Error('API unavailable'),
+    });
+
+    const { Wrapper } = createWouterWrapper('/model-results');
+
+    render(
+      <Wrapper>
+        <FundProvider>
+          <Consumer />
+        </FundProvider>
+      </Wrapper>
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId('fund-load-error')).toHaveTextContent('true');
+      expect(screen.getByTestId('fund-load-error-message')).toHaveTextContent('API unavailable');
     });
   });
 

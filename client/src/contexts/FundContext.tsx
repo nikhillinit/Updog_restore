@@ -26,6 +26,8 @@ interface FundContextType {
   setCurrentFund: (_fund: Fund | null) => void;
   isLoading: boolean;
   needsSetup: boolean;
+  fundLoadError: boolean;
+  fundLoadErrorMessage: string | null;
   fundId: number | null;
   isDemoMode: boolean;
 }
@@ -148,6 +150,9 @@ export function FundProvider({ children }: FundProviderProps) {
   };
 
   const hasResolvedFunds = Array.isArray(funds) && funds.length > 0;
+  const fundLoadError = !isLoading && error != null;
+  const fundLoadErrorMessage =
+    error instanceof Error ? error.message : fundLoadError ? 'Unable to load funds' : null;
   const awaitingResolvedFundSelection =
     hasResolvedFunds && !currentFund && routeFundId == null && !suppressImplicitFundSelection;
   const allowsMissingActiveFund =
@@ -169,6 +174,8 @@ export function FundProvider({ children }: FundProviderProps) {
     setCurrentFund: handleSetCurrentFund,
     isLoading: isInitializing,
     needsSetup,
+    fundLoadError,
+    fundLoadErrorMessage,
     fundId,
     isDemoMode,
   };
