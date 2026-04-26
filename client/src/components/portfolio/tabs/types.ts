@@ -21,12 +21,15 @@ export interface AllocationCompany {
   allocation_reason: string | null;
   allocation_version: number;
   last_allocation_at: string | null;
+  allocation_facts_missing?: boolean;
+  missing_allocation_fields?: string[];
 }
 
 export interface AllocationMetadata {
   total_planned_cents: number;
   total_deployed_cents: number;
   companies_count: number;
+  allocation_facts_missing_count?: number;
   last_updated_at: string | null;
 }
 

@@ -16,10 +16,13 @@
 
 import { storage } from '../storage';
 import type { ActualMetrics } from '@shared/types/metrics';
-import type { PortfolioCompany } from '@shared/schema';
+import { fundDistributions, type Investment, type PortfolioCompany } from '@shared/schema';
 import { Decimal, toDecimal } from '@shared/lib/decimal-utils';
 import { xirrNewtonBisection, type CashFlow as XirrCashFlow } from '@shared/lib/finance/xirr';
 import { monthsSince } from '../lib/date-helpers';
+import { db } from '../db';
+import { eq } from 'drizzle-orm';
+import { logger } from '../lib/logger';
 
 export class ActualMetricsCalculator {
   /**
@@ -260,15 +263,30 @@ export class ActualMetricsCalculator {
    * TODO: This should be added to storage interface
    */
   private async getInvestments(fundId: number): Promise<Array<{ date: Date; amount: number }>> {
-    // For now, derive from portfolio companies
-    // In production, this would query an investments table
+    const investmentRows = await storage.getInvestments(fundId);
+    const datedInvestments = investmentRows
+      .map((investment) =>
+        this.toDatedAmount(investment.investmentDate, investment.amount, 'investment')
+      )
+      .filter((record): record is { date: Date; amount: number } => record !== null);
+
+    if (datedInvestments.length > 0) {
+      return datedInvestments;
+    }
+
     const companies = await storage.getPortfolioCompanies(fundId);
     return companies
-      .filter((c) => c.createdAt) // Use createdAt as proxy for investment date
-      .map((c) => ({
-        date: new Date(c.createdAt!),
-        amount: c.investmentAmount ? toDecimal(c.investmentAmount.toString()).toNumber() : 0,
-      }));
+      .map((company) => {
+        const datedCompany = company as PortfolioCompany & {
+          investmentDate?: Date | string | null;
+        };
+        return this.toDatedAmount(
+          datedCompany.investmentDate,
+          datedCompany.investmentAmount,
+          'portfolio company'
+        );
+      })
+      .filter((record): record is { date: Date; amount: number } => record !== null);
   }
 
   /**
@@ -286,10 +304,54 @@ export class ActualMetricsCalculator {
    * Fetch distributions for a fund
    * TODO: This should be added to storage interface
    */
-  private async getDistributions(_fundId: number): Promise<Array<{ date: Date; amount: number }>> {
-    // For now, return empty array
-    // In production, this would query a distributions table
-    // TODO: Add distributions table to schema and storage layer
-    return [];
+  private async getDistributions(fundId: number): Promise<Array<{ date: Date; amount: number }>> {
+    try {
+      const rows = await db
+        .select({
+          date: fundDistributions.distributionDate,
+          amount: fundDistributions.amount,
+        })
+        .from(fundDistributions)
+        .where(eq(fundDistributions.fundId, fundId));
+
+      return rows
+        .map((distribution) =>
+          this.toDatedAmount(distribution.date, distribution.amount, 'distribution')
+        )
+        .filter((record): record is { date: Date; amount: number } => record !== null);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      if (/does not exist|relation .*fund_distributions/i.test(message)) {
+        logger.debug(
+          { fundId },
+          '[actual-metrics] fund_distributions is unavailable; DPI remains unavailable'
+        );
+      } else {
+        logger.warn(
+          { fundId, error: message },
+          '[actual-metrics] failed to read fund distributions; DPI remains unavailable'
+        );
+      }
+      return [];
+    }
+  }
+
+  private toDatedAmount(
+    dateValue: Date | string | null | undefined,
+    amountValue: Investment['amount'] | PortfolioCompany['investmentAmount'] | null | undefined,
+    source: string
+  ): { date: Date; amount: number } | null {
+    if (!dateValue || amountValue == null) {
+      return null;
+    }
+
+    const date = dateValue instanceof Date ? dateValue : new Date(dateValue);
+    const amount = toDecimal(amountValue.toString()).toNumber();
+    if (!Number.isFinite(date.getTime()) || !Number.isFinite(amount) || amount === 0) {
+      logger.debug({ source }, '[actual-metrics] skipped invalid dated cash-flow fact');
+      return null;
+    }
+
+    return { date, amount };
   }
 }

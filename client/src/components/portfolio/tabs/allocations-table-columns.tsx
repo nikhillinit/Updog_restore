@@ -20,6 +20,12 @@ export interface Column {
   toggleSorting: () => void;
 }
 
+function hasMissingAllocationField(company: AllocationCompany, field: string) {
+  return Boolean(
+    company.allocation_facts_missing && company.missing_allocation_fields?.includes(field)
+  );
+}
+
 export const createAllocationsColumns = (
   onEdit: (company: AllocationCompany) => void
 ): ColumnDef<AllocationCompany>[] => [
@@ -36,9 +42,7 @@ export const createAllocationsColumns = (
         <ArrowUpDown className="ml-2 h-4 w-4" />
       </Button>
     ),
-    cell: ({ row }) => (
-      <div className="font-medium text-gray-900">{row.original.company_name}</div>
-    ),
+    cell: ({ row }) => <div className="font-medium text-gray-900">{row.original.company_name}</div>,
     sortable: true,
   },
   {
@@ -65,9 +69,7 @@ export const createAllocationsColumns = (
     id: 'stage',
     accessorKey: 'stage',
     header: 'Stage',
-    cell: ({ row }) => (
-      <span className="text-gray-600">{row.original.stage}</span>
-    ),
+    cell: ({ row }) => <span className="text-gray-600">{row.original.stage}</span>,
   },
   {
     id: 'status',
@@ -116,11 +118,18 @@ export const createAllocationsColumns = (
     id: 'deployed_reserves_cents',
     accessorKey: 'deployed_reserves_cents',
     header: 'Deployed Reserves',
-    cell: ({ row }) => (
-      <div className="text-right font-medium text-blue-600">
-        {formatCents(row.original.deployed_reserves_cents, { compact: true })}
-      </div>
-    ),
+    cell: ({ row }) => {
+      const missing = hasMissingAllocationField(row.original, 'deployed_reserves_cents');
+      return (
+        <div className="text-right font-medium text-blue-600">
+          {missing ? (
+            <span className="text-gray-400 italic">Missing</span>
+          ) : (
+            formatCents(row.original.deployed_reserves_cents, { compact: true })
+          )}
+        </div>
+      );
+    },
   },
   {
     id: 'planned_reserves_cents',
@@ -135,11 +144,18 @@ export const createAllocationsColumns = (
         <ArrowUpDown className="ml-2 h-4 w-4" />
       </Button>
     ),
-    cell: ({ row }) => (
-      <div className="text-right font-medium text-purple-600">
-        {formatCents(row.original.planned_reserves_cents, { compact: true })}
-      </div>
-    ),
+    cell: ({ row }) => {
+      const missing = hasMissingAllocationField(row.original, 'planned_reserves_cents');
+      return (
+        <div className="text-right font-medium text-purple-600">
+          {missing ? (
+            <span className="text-gray-400 italic">Missing</span>
+          ) : (
+            formatCents(row.original.planned_reserves_cents, { compact: true })
+          )}
+        </div>
+      );
+    },
     sortable: true,
   },
   {
@@ -148,10 +164,11 @@ export const createAllocationsColumns = (
     header: 'Allocation Cap',
     cell: ({ row }) => (
       <div className="text-right font-medium text-gray-700">
-        {row.original.allocation_cap_cents
-          ? formatCents(row.original.allocation_cap_cents, { compact: true })
-          : <span className="text-gray-400 italic">No cap</span>
-        }
+        {row.original.allocation_cap_cents ? (
+          formatCents(row.original.allocation_cap_cents, { compact: true })
+        ) : (
+          <span className="text-gray-400 italic">No cap</span>
+        )}
       </div>
     ),
   },
@@ -178,10 +195,11 @@ export const createAllocationsColumns = (
       const lastUpdated = row.original.last_allocation_at;
       return (
         <div className="text-sm text-gray-500">
-          {lastUpdated
-            ? formatDistanceToNow(new Date(lastUpdated), { addSuffix: true })
-            : <span className="text-gray-400 italic">Never</span>
-          }
+          {lastUpdated ? (
+            formatDistanceToNow(new Date(lastUpdated), { addSuffix: true })
+          ) : (
+            <span className="text-gray-400 italic">Never</span>
+          )}
         </div>
       );
     },
@@ -190,12 +208,7 @@ export const createAllocationsColumns = (
     id: 'actions',
     header: 'Actions',
     cell: ({ row }) => (
-      <Button
-        variant="ghost"
-        size="sm"
-        onClick={() => onEdit(row.original)}
-        className="h-8 px-3"
-      >
+      <Button variant="ghost" size="sm" onClick={() => onEdit(row.original)} className="h-8 px-3">
         <Pencil className="h-4 w-4 mr-1" />
         Edit
       </Button>

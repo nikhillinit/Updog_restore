@@ -4,11 +4,21 @@ const { storageMock } = vi.hoisted(() => ({
   storageMock: {
     getFund: vi.fn(),
     getPortfolioCompanies: vi.fn(),
+    getInvestments: vi.fn(),
   },
 }));
 
 vi.mock('../../../server/storage', () => ({
   storage: storageMock,
+}));
+
+vi.mock('../../../server/db', () => ({
+  db: {
+    select: vi.fn(() => ({
+      from: vi.fn().mockReturnThis(),
+      where: vi.fn().mockResolvedValue([]),
+    })),
+  },
 }));
 
 import { ActualMetricsCalculator } from '../../../server/services/actual-metrics-calculator';
@@ -56,6 +66,32 @@ describe('ActualMetricsCalculator live company status semantics', () => {
         currentValuation: '25500000',
         status: 'Scaling',
         createdAt: new Date('2025-04-01T00:00:00.000Z'),
+      },
+    ]);
+    storageMock.getInvestments.mockResolvedValue([
+      {
+        id: 1,
+        fundId: 1,
+        companyId: 1,
+        investmentDate: new Date('2025-02-01T00:00:00.000Z'),
+        amount: '5000000',
+        round: 'Series B',
+      },
+      {
+        id: 2,
+        fundId: 1,
+        companyId: 2,
+        investmentDate: new Date('2025-03-01T00:00:00.000Z'),
+        amount: '3200000',
+        round: 'Series A',
+      },
+      {
+        id: 3,
+        fundId: 1,
+        companyId: 3,
+        investmentDate: new Date('2025-04-01T00:00:00.000Z'),
+        amount: '8500000',
+        round: 'Series C',
       },
     ]);
   });
