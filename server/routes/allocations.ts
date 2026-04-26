@@ -197,10 +197,6 @@ interface CompanyListResponse {
 // Helper Functions
 // ============================================================================
 
-function safeAllocationErrorMessage(error: unknown): string {
-  return allocationErrorMappingMessage(findAllocationErrorMapping(allocationErrorText(error)));
-}
-
 function allocationErrorText(error: unknown): string {
   if (error instanceof Error) return error.message;
   return String(error);
@@ -563,7 +559,9 @@ router['get'](
 
       return res['status'](503)['json']({
         error: 'allocation_data_unavailable',
-        message: safeAllocationErrorMessage(error),
+        message: allocationErrorMappingMessage(
+          findAllocationErrorMapping(allocationErrorText(error))
+        ),
       });
     }
   })
