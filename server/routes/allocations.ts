@@ -45,13 +45,29 @@ const isHttpError = (error: unknown): error is HttpError => {
 
 const router = Router();
 
-const ALLOCATION_ERROR_MAPPINGS = [
-  {
-    pattern: /password authentication failed|database|postgres|sql|connection/i,
-    message:
-      'Reserve allocation data is temporarily unavailable. Please retry after the data service is available.',
-  },
+const DEFAULT_ALLOCATION_ERROR_MESSAGE =
+  'Reserve allocation data is temporarily unavailable. Please retry.';
+const DATA_SERVICE_ALLOCATION_ERROR_MESSAGE =
+  'Reserve allocation data is temporarily unavailable. Please retry after the data service is available.';
+const ALLOCATION_DATA_SERVICE_ERROR_PATTERNS = [
+  /password authentication failed/i,
+  /database/i,
+  /postgres/i,
+  /sql/i,
+  /connection/i,
 ] as const;
+
+interface AllocationErrorMapping {
+  pattern: RegExp;
+  message: string;
+}
+
+const ALLOCATION_ERROR_MAPPINGS = [
+  ...ALLOCATION_DATA_SERVICE_ERROR_PATTERNS.map((pattern) => ({
+    pattern,
+    message: DATA_SERVICE_ALLOCATION_ERROR_MESSAGE,
+  })),
+] satisfies AllocationErrorMapping[];
 
 // ============================================================================
 // Validation Schemas
@@ -182,11 +198,20 @@ interface CompanyListResponse {
 // ============================================================================
 
 function safeAllocationErrorMessage(error: unknown): string {
-  const message = error instanceof Error ? error.message : String(error);
-  return (
-    ALLOCATION_ERROR_MAPPINGS.find((mapping) => mapping.pattern.test(message))?.message ??
-    'Reserve allocation data is temporarily unavailable. Please retry.'
-  );
+  return allocationErrorMappingMessage(findAllocationErrorMapping(allocationErrorText(error)));
+}
+
+function allocationErrorText(error: unknown): string {
+  if (error instanceof Error) return error.message;
+  return String(error);
+}
+
+function findAllocationErrorMapping(message: string): AllocationErrorMapping | undefined {
+  return ALLOCATION_ERROR_MAPPINGS.find((mapping) => mapping.pattern.test(message));
+}
+
+function allocationErrorMappingMessage(mapping: AllocationErrorMapping | undefined): string {
+  return mapping?.message ?? DEFAULT_ALLOCATION_ERROR_MESSAGE;
 }
 
 function parseActorUserId(req: Request): number | null {
