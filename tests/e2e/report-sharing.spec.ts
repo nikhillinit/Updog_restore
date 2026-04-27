@@ -15,7 +15,8 @@ import { test, expect } from '@playwright/test';
 
 test.describe('Share API', () => {
   const baseUrl = '/api/shares';
-  const testFundId = 'test-fund-123';
+  const publicBaseUrl = '/api/public/shares';
+  const testFundId = '1';
 
   test.describe('Create Share', () => {
     test('creates a basic share link', async ({ request }) => {
@@ -24,6 +25,7 @@ test.describe('Share API', () => {
           fundId: testFundId,
           accessLevel: 'view_only',
           requirePasskey: false,
+          hiddenMetrics: ['irr'],
         },
       });
 
@@ -33,7 +35,8 @@ test.describe('Share API', () => {
       expect(body.share).toBeDefined();
       expect(body.share.fundId).toBe(testFundId);
       expect(body.share.accessLevel).toBe('view_only');
-      expect(body.share.shareUrl).toMatch(/^\/share\//);
+      expect(body.share.shareUrl).toMatch(/^\/shared\//);
+      expect(body.share.version).toBe(1);
     });
 
     test('creates a passkey-protected share', async ({ request }) => {
@@ -116,8 +119,8 @@ test.describe('Share API', () => {
     });
   });
 
-  test.describe('Get Share', () => {
-    test('returns share details for public access', async ({ request }) => {
+  test.describe('Public Share', () => {
+    test('returns public snapshot without private fund id', async ({ request }) => {
       // First create a share
       const createResponse = await request.post(baseUrl, {
         data: {
@@ -130,13 +133,17 @@ test.describe('Share API', () => {
       const shareId = created.share.id;
 
       // Then retrieve it
-      const response = await request.get(`${baseUrl}/${shareId}`);
+      const response = await request.get(`${publicBaseUrl}/${shareId}`);
 
       expect(response.status()).toBe(200);
       const body = await response.json();
       expect(body.success).toBe(true);
       expect(body.share.id).toBe(shareId);
-      expect(body.share.fundId).toBe(testFundId);
+      expect(body.share.fundId).toBeUndefined();
+      expect(body.share.snapshot).toBeDefined();
+      expect(
+        body.share.snapshot.metrics.every((metric: { id: string }) => metric.id !== 'irr')
+      ).toBe(true);
     });
 
     test('returns limited info for passkey-protected share', async ({ request }) => {
@@ -152,16 +159,17 @@ test.describe('Share API', () => {
       const shareId = created.share.id;
 
       // Get without passkey
-      const response = await request.get(`${baseUrl}/${shareId}`);
+      const response = await request.get(`${publicBaseUrl}/${shareId}`);
 
       expect(response.status()).toBe(200);
       const body = await response.json();
       expect(body.share.requirePasskey).toBe(true);
-      expect(body.share.fundId).toBeUndefined(); // Shouldn't expose fundId without passkey
+      expect(body.share.fundId).toBeUndefined();
+      expect(body.share.snapshot).toBeUndefined();
     });
 
     test('returns 404 for non-existent share', async ({ request }) => {
-      const response = await request.get(`${baseUrl}/non-existent-id`);
+      const response = await request.get(`${publicBaseUrl}/non-existent-id`);
 
       expect(response.status()).toBe(404);
     });
@@ -181,14 +189,15 @@ test.describe('Share API', () => {
       const shareId = created.share.id;
 
       // Verify with correct passkey
-      const response = await request.post(`${baseUrl}/${shareId}/verify`, {
+      const response = await request.post(`${publicBaseUrl}/${shareId}/verify`, {
         data: { passkey: 'correctpasskey' },
       });
 
       expect(response.status()).toBe(200);
       const body = await response.json();
       expect(body.success).toBe(true);
-      expect(body.share.fundId).toBe(testFundId); // Now fundId is exposed
+      expect(body.share.fundId).toBeUndefined();
+      expect(body.share.snapshot).toBeDefined();
     });
 
     test('rejects incorrect passkey', async ({ request }) => {
@@ -204,7 +213,7 @@ test.describe('Share API', () => {
       const shareId = created.share.id;
 
       // Verify with wrong passkey
-      const response = await request.post(`${baseUrl}/${shareId}/verify`, {
+      const response = await request.post(`${publicBaseUrl}/${shareId}/verify`, {
         data: { passkey: 'wrongpasskey' },
       });
 
@@ -225,9 +234,11 @@ test.describe('Share API', () => {
       });
       const created = await createResponse.json();
       const shareId = created.share.id;
+      const etag = createResponse.headers()['etag'];
 
       // Update it
       const response = await request.patch(`${baseUrl}/${shareId}`, {
+        headers: { 'If-Match': etag ?? '"1"' },
         data: {
           accessLevel: 'view_with_details',
           customTitle: 'Updated Title',
@@ -250,9 +261,11 @@ test.describe('Share API', () => {
       });
       const created = await createResponse.json();
       const shareId = created.share.id;
+      const etag = createResponse.headers()['etag'];
 
       // Add passkey
       const response = await request.patch(`${baseUrl}/${shareId}`, {
+        headers: { 'If-Match': etag ?? '"1"' },
         data: {
           requirePasskey: true,
           passkey: 'newpasskey',
@@ -275,16 +288,19 @@ test.describe('Share API', () => {
       });
       const created = await createResponse.json();
       const shareId = created.share.id;
+      const etag = createResponse.headers()['etag'];
 
       // Revoke it
-      const response = await request.delete(`${baseUrl}/${shareId}`);
+      const response = await request.delete(`${baseUrl}/${shareId}`, {
+        headers: { 'If-Match': etag ?? '"1"' },
+      });
 
       expect(response.status()).toBe(200);
       const body = await response.json();
       expect(body.success).toBe(true);
 
       // Verify it's no longer accessible
-      const getResponse = await request.get(`${baseUrl}/${shareId}`);
+      const getResponse = await request.get(`${publicBaseUrl}/${shareId}`);
       expect(getResponse.status()).toBe(410); // Gone
     });
   });

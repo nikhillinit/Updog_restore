@@ -29,6 +29,7 @@ import { createInsertSchema } from 'drizzle-zod';
 export * from './schema/fund';
 export * from './schema/portfolio';
 export * from './schema/scenario';
+export * from './schema/shares';
 
 // Import tables for FK references and schema definitions
 import { funds, fundConfigs, fundSnapshots, calcRuns } from './schema/fund';

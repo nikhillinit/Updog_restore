@@ -5,14 +5,30 @@
  * Enables secure sharing of fund dashboards with Limited Partners.
  */
 
-import { pgTable, text, timestamp, boolean, integer, jsonb, index } from 'drizzle-orm/pg-core';
+import { sql } from 'drizzle-orm';
+import {
+  pgTable,
+  text,
+  timestamp,
+  boolean,
+  integer,
+  jsonb,
+  index,
+  uniqueIndex,
+} from 'drizzle-orm/pg-core';
 import { createInsertSchema, createSelectSchema } from 'drizzle-zod';
 import { z } from 'zod';
 import { funds } from './fund';
+import type { PublicShareSnapshotPayload } from '../contracts/public-share-snapshot.contract';
 
 // Access level enum values
-export const SHARE_ACCESS_LEVELS = ['view_only', 'view_with_details', 'collaborator', 'admin'] as const;
-export type ShareAccessLevel = typeof SHARE_ACCESS_LEVELS[number];
+export const SHARE_ACCESS_LEVELS = [
+  'view_only',
+  'view_with_details',
+  'collaborator',
+  'admin',
+] as const;
+export type ShareAccessLevel = (typeof SHARE_ACCESS_LEVELS)[number];
 
 /**
  * Shares table - stores share link configurations
@@ -43,6 +59,9 @@ export const shares = pgTable(
 
     // Status
     isActive: boolean('is_active').notNull().default(true),
+    version: integer('version').notNull().default(1),
+    idempotencyKey: text('idempotency_key'),
+    idempotencyRequestHash: text('idempotency_request_hash'),
 
     // Timestamps
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
@@ -52,6 +71,48 @@ export const shares = pgTable(
     fundIdIdx: index('shares_fund_id_idx').on(table.fundId),
     createdByIdx: index('shares_created_by_idx').on(table.createdBy),
     activeIdx: index('shares_active_idx').on(table.isActive),
+    idempotencyUniqueIdx: uniqueIndex('shares_creator_idempotency_key_idx')
+      .on(table.createdBy, table.idempotencyKey)
+      .where(sql`${table.idempotencyKey} IS NOT NULL`),
+  })
+);
+
+/**
+ * Immutable public payloads generated from private fund read models.
+ *
+ * Public routes must return this payload, not the private fund id or private
+ * dashboard API response that was used to generate it.
+ */
+export const shareSnapshots = pgTable(
+  'share_snapshots',
+  {
+    id: text('id').primaryKey(), // UUID
+    shareId: text('share_id')
+      .notNull()
+      .references(() => shares.id, { onDelete: 'cascade' }),
+    fundIdInternal: text('fund_id_internal').notNull(),
+    payloadVersion: text('payload_version').notNull().default('public-share-snapshot.v1'),
+    asOfDate: timestamp('as_of_date', { withTimezone: true }).notNull(),
+    sourceCalculationRunIds: jsonb('source_calculation_run_ids')
+      .$type<string[]>()
+      .notNull()
+      .default([]),
+    hiddenMetricPolicy: jsonb('hidden_metric_policy')
+      .$type<{ requested: string[]; applied: string[] }>()
+      .notNull(),
+    generatedBy: text('generated_by').notNull(),
+    generatedAt: timestamp('generated_at', { withTimezone: true }).notNull().defaultNow(),
+    expiresAt: timestamp('expires_at', { withTimezone: true }),
+    revokedAt: timestamp('revoked_at', { withTimezone: true }),
+    payloadHash: text('payload_hash').notNull(),
+    payload: jsonb('payload').$type<PublicShareSnapshotPayload>().notNull(),
+  },
+  (table) => ({
+    shareGeneratedIdx: index('share_snapshots_share_generated_idx').on(
+      table.shareId,
+      table.generatedAt
+    ),
+    payloadHashIdx: index('share_snapshots_payload_hash_idx').on(table.payloadHash),
   })
 );
 
@@ -85,6 +146,8 @@ export const selectShareSchema = createSelectSchema(shares);
 
 export const insertShareAnalyticsSchema = createInsertSchema(shareAnalytics);
 export const selectShareAnalyticsSchema = createSelectSchema(shareAnalytics);
+export const insertShareSnapshotSchema = createInsertSchema(shareSnapshots);
+export const selectShareSnapshotSchema = createSelectSchema(shareSnapshots);
 
 // Extended validation schema with proper types
 export const createShareSchema = z.object({
@@ -103,3 +166,5 @@ export type Share = typeof shares.$inferSelect;
 export type NewShare = typeof shares.$inferInsert;
 export type ShareAnalyticsRecord = typeof shareAnalytics.$inferSelect;
 export type NewShareAnalyticsRecord = typeof shareAnalytics.$inferInsert;
+export type ShareSnapshotRecord = typeof shareSnapshots.$inferSelect;
+export type NewShareSnapshotRecord = typeof shareSnapshots.$inferInsert;

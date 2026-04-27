@@ -19,6 +19,7 @@ import type { CreateShareLinkRequest } from '@shared/sharing-schema';
 import { useFundMetrics } from '@/hooks/useFundMetrics';
 import { dollarsToCents, formatCents } from '@/lib/units';
 import type { UnifiedFundMetrics } from '@shared/types/metrics';
+import { getErrorMessage } from '@/lib/http-response';
 
 function formatDollars(value: number): string {
   return formatCents(dollarsToCents(value), { compact: true });
@@ -154,20 +155,32 @@ export default function ModernDashboard() {
   const [activeView, setActiveView] = useState('overview');
   const metricsQuery = useFundMetrics({ enabled: Boolean(currentFund) });
 
-  // Mock function to create share links - replace with actual API call
   const handleCreateShare = async (
     config: CreateShareLinkRequest
   ): Promise<{ shareUrl: string; shareId: string }> => {
-    void config;
+    const response = await fetch('/api/shares', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Idempotency-Key': crypto.randomUUID(),
+      },
+      body: JSON.stringify(config),
+    });
 
-    // Simulate API call
-    const shareId = 'demo-share-123';
-    const shareUrl = `${window.location.origin}/shared/${shareId}`;
+    const body = (await response.json()) as unknown;
+    if (!response.ok) {
+      throw new Error(getErrorMessage(body) ?? 'Failed to create share link');
+    }
 
-    // Simulate delay
-    await new Promise((resolve) => setTimeout(resolve, 1000));
+    const share = (body as { share?: { id?: string; shareUrl?: string } }).share;
+    if (!share?.id || !share.shareUrl) {
+      throw new Error('Share API returned an invalid response');
+    }
 
-    return { shareUrl, shareId };
+    return {
+      shareId: share.id,
+      shareUrl: `${window.location.origin}${share.shareUrl}`,
+    };
   };
 
   if (isLoading || !currentFund) {
