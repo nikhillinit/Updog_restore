@@ -117,6 +117,8 @@ const VerifyPasskeySchema = z.object({
   passkey: z.string().min(1),
 });
 
+type CreateShareRequest = z.infer<typeof CreateShareRequestSchema>;
+
 function versionETag(share: Pick<Share, 'version'>): string {
   return `"${share.version}"`;
 }
@@ -197,6 +199,102 @@ function serializeManagementShare(share: Share) {
     createdAt: share.createdAt,
     updatedAt: share.updatedAt,
   };
+}
+
+function resolveCreateExpiresAt(expiresInDays: CreateShareRequest['expiresInDays']): Date | null {
+  if (!expiresInDays) return null;
+
+  const expiresAt = new Date();
+  expiresAt.setDate(expiresAt.getDate() + expiresInDays);
+  return expiresAt;
+}
+
+function resolveCreatePasskeyHash(
+  body: Pick<CreateShareRequest, 'requirePasskey' | 'passkey'>
+): string | null {
+  if (!body.requirePasskey || !body.passkey) return null;
+  return hashPasskey(body.passkey);
+}
+
+function buildShareInsertValues(params: {
+  body: CreateShareRequest;
+  shareId: string;
+  userId: string;
+  expiresAt: Date | null;
+  idempotencyKey: string | undefined;
+  idempotencyRequestHash: string;
+  now: Date;
+}): typeof shares.$inferInsert {
+  const { body, shareId, userId, expiresAt, idempotencyKey, idempotencyRequestHash, now } = params;
+
+  return {
+    id: shareId,
+    fundId: body.fundId,
+    createdBy: userId,
+    accessLevel: body.accessLevel,
+    requirePasskey: body.requirePasskey,
+    passkeyHash: resolveCreatePasskeyHash(body),
+    expiresAt,
+    hiddenMetrics: body.hiddenMetrics,
+    customTitle: body.customTitle ?? null,
+    customMessage: body.customMessage ?? null,
+    idempotencyKey: idempotencyKey ?? null,
+    idempotencyRequestHash: idempotencyKey ? idempotencyRequestHash : null,
+    version: 1,
+    createdAt: now,
+    updatedAt: now,
+  };
+}
+
+async function createShareWithSnapshot(
+  values: typeof shares.$inferInsert,
+  generatedBy: string
+): Promise<Share> {
+  return db.transaction(async (tx) => {
+    const [createdShare] = await tx.insert(shares).values(values).returning();
+
+    if (!createdShare) {
+      throw new Error('Failed to create share');
+    }
+
+    await createShareSnapshot(createdShare, generatedBy, tx);
+    return createdShare;
+  });
+}
+
+async function findIdempotentShare(
+  userId: string,
+  idempotencyKey: string
+): Promise<Share | undefined> {
+  const [existingShare] = await db
+    .select()
+    .from(shares)
+    .where(and(eq(shares.createdBy, userId), eq(shares.idempotencyKey, idempotencyKey)))
+    .limit(1);
+
+  return existingShare;
+}
+
+function isIdempotencyConflict(existingShare: Share, requestHash: string): boolean {
+  return Boolean(
+    existingShare.idempotencyRequestHash && existingShare.idempotencyRequestHash !== requestHash
+  );
+}
+
+function sendIdempotentShareResponse(res: Response, existingShare: Share, requestHash: string) {
+  if (isIdempotencyConflict(existingShare, requestHash)) {
+    return res.status(409).json({
+      success: false,
+      error: 'idempotency_key_reused',
+      message: 'Idempotency key was already used with a different share request',
+    });
+  }
+
+  res.setHeader('ETag', versionETag(existingShare));
+  return res.status(200).json({
+    success: true,
+    share: serializeManagementShare(existingShare),
+  });
 }
 
 async function findShare(shareId: string): Promise<Share | undefined> {
@@ -309,73 +407,26 @@ managementRouter.post('/', async (req: Request, res: Response, next: NextFunctio
     const idempotencyKey = firstString(req.headers['idempotency-key']) ?? body.clientRequestId;
     const idempotencyRequestHash = createShareRequestHash(body);
     if (idempotencyKey) {
-      const [existingShare] = await db
-        .select()
-        .from(shares)
-        .where(and(eq(shares.createdBy, userId), eq(shares.idempotencyKey, idempotencyKey)))
-        .limit(1);
-
+      const existingShare = await findIdempotentShare(userId, idempotencyKey);
       if (existingShare) {
-        if (
-          existingShare.idempotencyRequestHash &&
-          existingShare.idempotencyRequestHash !== idempotencyRequestHash
-        ) {
-          return res.status(409).json({
-            success: false,
-            error: 'idempotency_key_reused',
-            message: 'Idempotency key was already used with a different share request',
-          });
-        }
-
-        res.setHeader('ETag', versionETag(existingShare));
-        return res.status(200).json({
-          success: true,
-          share: serializeManagementShare(existingShare),
-        });
+        return sendIdempotentShareResponse(res, existingShare, idempotencyRequestHash);
       }
-    }
-
-    let expiresAt: Date | null = null;
-    if (body.expiresInDays) {
-      expiresAt = new Date();
-      expiresAt.setDate(expiresAt.getDate() + body.expiresInDays);
     }
 
     const shareId = uuidv4();
     const now = new Date();
-    const share = await db.transaction(async (tx) => {
-      const [createdShare] = await tx
-        .insert(shares)
-        .values({
-          id: shareId,
-          fundId: body.fundId,
-          createdBy: userId,
-          accessLevel: body.accessLevel,
-          requirePasskey: body.requirePasskey,
-          passkeyHash: body.requirePasskey && body.passkey ? hashPasskey(body.passkey) : null,
-          expiresAt,
-          hiddenMetrics: body.hiddenMetrics,
-          customTitle: body.customTitle ?? null,
-          customMessage: body.customMessage ?? null,
-          idempotencyKey: idempotencyKey ?? null,
-          idempotencyRequestHash: idempotencyKey ? idempotencyRequestHash : null,
-          version: 1,
-          createdAt: now,
-          updatedAt: now,
-        })
-        .returning();
-
-      if (!createdShare) {
-        throw new Error('Failed to create share');
-      }
-
-      await createShareSnapshot(createdShare, userId, tx);
-      return createdShare;
-    });
-
-    if (!share) {
-      return res.status(500).json({ success: false, error: 'Failed to create share' });
-    }
+    const share = await createShareWithSnapshot(
+      buildShareInsertValues({
+        body,
+        shareId,
+        userId,
+        expiresAt: resolveCreateExpiresAt(body.expiresInDays),
+        idempotencyKey,
+        idempotencyRequestHash,
+        now,
+      }),
+      userId
+    );
 
     res.setHeader('ETag', versionETag(share));
 

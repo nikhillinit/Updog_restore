@@ -25,6 +25,34 @@ interface ShareApiResponse {
   share?: ShareData;
 }
 
+type ShareResponseState =
+  | { kind: 'error'; message: string }
+  | { kind: 'passkey'; share: ShareData }
+  | { kind: 'snapshot'; share: ShareData; snapshot: PublicShareSnapshotPayload };
+
+function shareResponseError(body: ShareApiResponse, fallback: string): string {
+  return body.message ?? body.error ?? fallback;
+}
+
+function classifyShareResponse(body: ShareApiResponse): ShareResponseState {
+  if (!body.success || !body.share) {
+    return { kind: 'error', message: shareResponseError(body, 'Failed to load share') };
+  }
+
+  const { share } = body;
+  const { snapshot } = share;
+
+  if (share.requirePasskey && !snapshot) {
+    return { kind: 'passkey', share };
+  }
+
+  if (!snapshot) {
+    return { kind: 'error', message: 'Public share snapshot is unavailable' };
+  }
+
+  return { kind: 'snapshot', share, snapshot };
+}
+
 const useSharedDashboard = (shareId: string) => {
   const [shareData, setShareData] = useState<ShareData | null>(null);
   const [snapshot, setSnapshot] = useState<PublicShareSnapshotPayload | null>(null);
@@ -33,25 +61,22 @@ const useSharedDashboard = (shareId: string) => {
   const [requiresPasskey, setRequiresPasskey] = useState(false);
 
   const applyShareResponse = useCallback((body: ShareApiResponse) => {
-    if (!body.success || !body.share) {
-      setError(body.message ?? body.error ?? 'Failed to load share');
+    const state = classifyShareResponse(body);
+
+    if (state.kind === 'error') {
+      setError(state.message);
       return false;
     }
 
-    setShareData(body.share);
-    if (body.share.requirePasskey && !body.share.snapshot) {
+    setShareData(state.share);
+    if (state.kind === 'passkey') {
       setRequiresPasskey(true);
       setSnapshot(null);
       return true;
     }
 
-    if (!body.share.snapshot) {
-      setError('Public share snapshot is unavailable');
-      return false;
-    }
-
     setRequiresPasskey(false);
-    setSnapshot(body.share.snapshot);
+    setSnapshot(state.snapshot);
     return true;
   }, []);
 
@@ -64,7 +89,7 @@ const useSharedDashboard = (shareId: string) => {
         const body = (await response.json()) as ShareApiResponse;
 
         if (!response.ok) {
-          setError(body.message ?? body.error ?? 'Failed to load share');
+          setError(shareResponseError(body, 'Failed to load share'));
           return;
         }
 
@@ -96,7 +121,7 @@ const useSharedDashboard = (shareId: string) => {
         const body = (await response.json()) as ShareApiResponse;
 
         if (!response.ok) {
-          setError(body.message ?? body.error ?? 'Verification failed');
+          setError(shareResponseError(body, 'Verification failed'));
           return false;
         }
 

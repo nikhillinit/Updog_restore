@@ -15,6 +15,9 @@ exclude_paths:
   - 'dist/**'
   - 'build/**'
   - 'coverage/**'
+  # This is a PostgreSQL rollback migration; Codacy's SQL Server rules request
+  # T-SQL SET directives that would make the migration invalid.
+  - 'server/migrations/20260427_public_share_snapshots.down.sql'
   - '**/*.test.ts'
   - '**/*.test.tsx'
   - '**/*.spec.ts'
