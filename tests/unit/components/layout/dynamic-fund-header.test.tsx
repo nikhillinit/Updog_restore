@@ -125,6 +125,11 @@ function metricLabel(name: string) {
   return matches[matches.length - 1];
 }
 
+function compactMetricLabel(name: string) {
+  const matches = screen.getAllByText(name, { selector: 'span' });
+  return matches[matches.length - 1];
+}
+
 describe('DynamicFundHeader', () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -253,7 +258,7 @@ describe('DynamicFundHeader', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'TVPI' }));
 
-    expect(screen.getByText('TVPI:').parentElement).toHaveTextContent('N/A');
+    expect(compactMetricLabel('TVPI').parentElement).toHaveTextContent('N/A');
     expect(screen.queryByText('0.00')).not.toBeInTheDocument();
   });
 
@@ -262,6 +267,6 @@ describe('DynamicFundHeader', () => {
 
     render(<DynamicFundHeader />);
 
-    expect(screen.getByText('DPI:').parentElement).toHaveTextContent('No distributions');
+    expect(compactMetricLabel('DPI').parentElement).toHaveTextContent('No distributions');
   });
 });

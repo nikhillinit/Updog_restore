@@ -149,6 +149,8 @@ describe('sidebar results navigation', () => {
       </Wrapper>
     );
 
+    fireEvent.click(screen.getByRole('button', { name: /collapse navigation/i }));
+
     const link = screen.getByRole('link', { name: /performance/i });
     expect(link.getAttribute('href')).toBe('/performance');
     expect(link).toHaveAttribute('title', 'Performance');
