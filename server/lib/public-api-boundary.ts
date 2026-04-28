@@ -9,10 +9,19 @@ function normalizeMountRelativePath(mountRelativePath: string): string {
   return mountRelativePath;
 }
 
-export function isPublicApiPath(_method: string, mountRelativePath: string): boolean {
+export function isPublicApiPath(method: string, mountRelativePath: string): boolean {
   const normalizedPath = normalizeMountRelativePath(mountRelativePath);
+  const normalizedMethod = method.toUpperCase();
 
   if (ALWAYS_PUBLIC_EXACT.has(normalizedPath)) {
+    return true;
+  }
+
+  if (normalizedMethod === 'GET' && /^\/public\/shares\/[^/]+$/.test(normalizedPath)) {
+    return true;
+  }
+
+  if (normalizedMethod === 'POST' && /^\/public\/shares\/[^/]+\/verify$/.test(normalizedPath)) {
     return true;
   }
 

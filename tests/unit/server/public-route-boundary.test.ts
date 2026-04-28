@@ -7,11 +7,19 @@ describe('server public API route boundary', () => {
     ['GET', '/flags'],
     ['GET', '/flags/status'],
     ['GET', '/health/details'],
+    ['GET', '/public/shares/share-123'],
+    ['POST', '/public/shares/share-123/verify'],
   ])('treats %s %s as public', (method, path) => {
     expect(isPublicApiPath(method, path)).toBe(true);
   });
 
   it.each([
+    ['GET', '/shares/share-123'],
+    ['POST', '/shares/share-123/verify'],
+    ['POST', '/public/shares'],
+    ['PATCH', '/public/shares/share-123'],
+    ['DELETE', '/public/shares/share-123'],
+    ['GET', '/public/shares/share-123/analytics'],
     ['GET', '/funds'],
     ['POST', '/funds'],
     ['GET', '/funds/1'],
