@@ -11,19 +11,11 @@ import {
   type NavigationContext,
   type NavigationItem,
 } from './navigation-config';
-import { ChevronDown, ChevronRight, Plus } from 'lucide-react';
+import { Plus } from 'lucide-react';
 
 interface SidebarProps {
   activeModule: string;
 }
-
-const chartCategories = [
-  { id: 'basic', label: 'Basic Charts' },
-  { id: 'statistical', label: 'Statistical' },
-  { id: 'hierarchical', label: 'Hierarchical' },
-  { id: 'flow', label: 'Flow Charts' },
-  { id: 'advanced', label: 'Advanced' },
-];
 
 function baseNavClassName(isHovered: boolean, isActive: boolean, isDisabled: boolean): string {
   return cn(
@@ -163,7 +155,6 @@ function NavigationButton({
 }
 
 export default function Sidebar({ activeModule }: SidebarProps) {
-  const [isChartsExpanded, setIsChartsExpanded] = useState(false);
   const [isHovered, setIsHovered] = useState(false);
   const [location] = useLocation();
   const { needsSetup, currentFund } = useFundContext();
@@ -248,34 +239,6 @@ export default function Sidebar({ activeModule }: SidebarProps) {
             );
           })}
         </ul>
-
-        {isHovered && (
-          <div className="mt-6 pt-4 border-t border-lightGray">
-            <button
-              onClick={() => setIsChartsExpanded(!isChartsExpanded)}
-              className="w-full flex items-center justify-between px-2 py-2 text-xs font-medium text-charcoal/70 uppercase tracking-wider hover:text-charcoal transition-colors"
-            >
-              <span>Chart Types</span>
-              {isChartsExpanded ? (
-                <ChevronDown className="h-4 w-4" />
-              ) : (
-                <ChevronRight className="h-4 w-4" />
-              )}
-            </button>
-
-            {isChartsExpanded && (
-              <ul className="mt-3 space-y-1">
-                {chartCategories.map((category) => (
-                  <li key={category.id}>
-                    <button className="w-full text-left px-2 py-1 text-sm text-charcoal/70 hover:text-charcoal hover:bg-lightGray rounded-md transition-colors">
-                      {category.label}
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </div>
-        )}
       </nav>
 
       {footerItems.length > 0 && (

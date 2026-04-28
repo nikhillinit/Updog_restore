@@ -76,7 +76,7 @@ function OverviewMetricsPanel({
       <MetricTile
         label="Total committed"
         value={formatDollars(metrics.actual.totalCommitted)}
-        detail="Fund commitments from the unified metrics layer"
+        detail="Fund commitments"
       />
       <MetricTile
         label="Capital deployed"
@@ -186,11 +186,7 @@ export default function ModernDashboard() {
   if (isLoading || !currentFund) {
     return (
       <div className="min-h-screen bg-pov-gray">
-        <POVBrandHeader
-          title="Dashboard"
-          subtitle="Real-time fund performance and portfolio analytics"
-          variant="light"
-        />
+        <POVBrandHeader title="Dashboard" />
         <div className="max-w-7xl mx-auto px-6 py-8">
           <div className="animate-pulse space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
@@ -207,18 +203,11 @@ export default function ModernDashboard() {
 
   return (
     <div className="min-h-screen bg-slate-100">
-      <POVBrandHeader
-        title="Dashboard"
-        subtitle="Fund workspace and truthful live surfaces"
-        variant="light"
-      />
+      <POVBrandHeader title="Dashboard" />
 
       {/* Main Content */}
       <div className="max-w-7xl mx-auto px-6 py-8">
-        <TargetMetricsSnapshot
-          title="Target-Aware Snapshot"
-          subtitle="Truthful live metrics sourced from the unified metrics layer."
-        />
+        <TargetMetricsSnapshot title="Snapshot" />
 
         {/* Top Controls */}
         <div className="mt-8 flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8">

@@ -5,7 +5,7 @@ import { useFundMetrics } from '@/hooks/useFundMetrics';
 
 interface TargetMetricsSnapshotProps {
   title: string;
-  subtitle: string;
+  subtitle?: string;
 }
 
 function getPortfolioConstructionStatus(actual: number, target: number) {
@@ -16,7 +16,7 @@ function getPortfolioConstructionStatus(actual: number, target: number) {
   return actual / target >= 0.9 ? 'on-track' : 'behind';
 }
 
-export function TargetMetricsSnapshot({ title, subtitle }: TargetMetricsSnapshotProps) {
+export function TargetMetricsSnapshot({ title }: TargetMetricsSnapshotProps) {
   const { data, isLoading, error } = useFundMetrics({ skipProjections: true });
 
   if (isLoading) {
@@ -54,14 +54,9 @@ export function TargetMetricsSnapshot({ title, subtitle }: TargetMetricsSnapshot
 
   return (
     <section aria-label={title} className="space-y-4">
-      <div>
-        <h2 className="text-xl font-semibold text-[#292929]">{title}</h2>
-        <p className="text-sm text-[#292929]/70">{subtitle}</p>
-      </div>
       <div className="grid gap-4 md:grid-cols-3">
         <MetricsCard
           title="Deployment vs Plan"
-          description="Actual deployed capital against age-adjusted plan."
           actual={data.actual.totalDeployed}
           target={data.variance.deploymentVariance.target}
           format="currency"
@@ -70,7 +65,6 @@ export function TargetMetricsSnapshot({ title, subtitle }: TargetMetricsSnapshot
         />
         <MetricsCard
           title="TVPI vs Target"
-          description="Actual multiple versus configured target multiple."
           actual={data.actual.tvpi}
           target={data.target.targetTVPI}
           format="multiple"
@@ -78,7 +72,6 @@ export function TargetMetricsSnapshot({ title, subtitle }: TargetMetricsSnapshot
         />
         <MetricsCard
           title="Companies vs Target"
-          description="Current company count against construction target."
           actual={data.actual.totalCompanies}
           target={data.target.targetCompanyCount}
           format="number"

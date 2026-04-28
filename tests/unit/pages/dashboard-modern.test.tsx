@@ -81,7 +81,6 @@ describe('ModernDashboard', () => {
   it('renders supported overview metrics instead of broad deferred copy', () => {
     render(<ModernDashboard />);
 
-    expect(screen.getByText('Target-Aware Snapshot')).toBeInTheDocument();
     expect(screen.getByText(/supported overview metrics/i)).toBeInTheDocument();
     expect(screen.getByText('Total committed')).toBeInTheDocument();
     expect(screen.getByText('$50.0M')).toBeInTheDocument();

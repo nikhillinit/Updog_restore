@@ -53,14 +53,9 @@ describe('TargetMetricsSnapshot', () => {
       staleOnTrack: false,
     });
 
-    render(
-      <TargetMetricsSnapshot
-        title="Target-Aware Snapshot"
-        subtitle="Truthful live metrics sourced from the unified metrics layer."
-      />
-    );
+    render(<TargetMetricsSnapshot title="Target-Aware Snapshot" />);
 
-    expect(screen.getByText('Target-Aware Snapshot')).toBeInTheDocument();
+    expect(screen.getByLabelText('Target-Aware Snapshot')).toBeInTheDocument();
     expect(screen.getByText('Deployment vs Plan')).toBeInTheDocument();
     expect(screen.getByText('TVPI vs Target')).toBeInTheDocument();
     expect(screen.getByText('Companies vs Target')).toBeInTheDocument();
@@ -73,12 +68,7 @@ describe('TargetMetricsSnapshot', () => {
       staleOnTrack: true,
     });
 
-    render(
-      <TargetMetricsSnapshot
-        title="Target-Aware Snapshot"
-        subtitle="Truthful live metrics sourced from the unified metrics layer."
-      />
-    );
+    render(<TargetMetricsSnapshot title="Target-Aware Snapshot" />);
 
     expect(screen.getByText('Behind Plan')).toBeInTheDocument();
   });
@@ -90,12 +80,7 @@ describe('TargetMetricsSnapshot', () => {
       staleOnTrack: false,
     });
 
-    render(
-      <TargetMetricsSnapshot
-        title="Target-Aware Snapshot"
-        subtitle="Truthful live metrics sourced from the unified metrics layer."
-      />
-    );
+    render(<TargetMetricsSnapshot title="Target-Aware Snapshot" />);
 
     expect(screen.getAllByText('On Track').length).toBeGreaterThanOrEqual(1);
   });
@@ -115,12 +100,7 @@ describe('TargetMetricsSnapshot', () => {
       error: null,
     });
 
-    render(
-      <TargetMetricsSnapshot
-        title="Target-Aware Snapshot"
-        subtitle="Truthful live metrics sourced from the unified metrics layer."
-      />
-    );
+    render(<TargetMetricsSnapshot title="Target-Aware Snapshot" />);
 
     expect(
       screen.getByText(/require a published target snapshot before plan comparisons can be shown/i)

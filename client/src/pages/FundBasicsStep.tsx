@@ -194,7 +194,7 @@ export default function FundBasicsStep() {
           </div>
 
           <NumericInput
-            label="Capital Committed ($M) *"
+            label="Capital Committed ($M)"
             value={fundSize}
             onChange={(value: number | undefined) => handleInputChange('fundSize', value)}
             mode="number"
