@@ -1,118 +1,99 @@
-/**
- * Shared Dashboard for LP Access
- * Displays fund metrics with LP-appropriate visibility controls
- *
- * Uses the shares API:
- * - GET /api/shares/:shareId - Get share details
- * - POST /api/shares/:shareId/verify - Verify passkey
- */
-
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { useRoute } from 'wouter';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Shield, Eye, Clock, AlertCircle, CheckCircle, Printer } from 'lucide-react';
+import type {
+  PublicMetricValue,
+  PublicShareSnapshotPayload,
+} from '@shared/contracts/public-share-snapshot.contract';
 
 interface ShareData {
   id: string;
-  fundId?: string;
-  accessLevel?: string;
   requirePasskey: boolean;
-  hiddenMetrics?: string[];
   customTitle?: string | null;
   customMessage?: string | null;
+  expiresAt?: string | null;
+  snapshot?: PublicShareSnapshotPayload;
 }
 
 interface ShareApiResponse {
   success?: boolean;
   error?: string;
+  message?: string;
   share?: ShareData;
 }
 
-interface DashboardApiResponse {
-  fund?: {
-    name?: string;
-    size?: string;
-    deployedCapital?: string;
-  };
-  summary?: {
-    currentIRR?: number;
-    totalCompanies?: number;
-  };
-  metrics?: {
-    irr?: number;
-    moic?: number;
-    dpi?: number;
-    rvpi?: number;
-  };
-  portfolioCompanies?: Array<{
-    name: string;
-    stage?: string;
-    moic?: number;
-    status?: string;
-  }>;
+type ShareResponseState =
+  | { kind: 'error'; message: string }
+  | { kind: 'passkey'; share: ShareData }
+  | { kind: 'snapshot'; share: ShareData; snapshot: PublicShareSnapshotPayload };
+
+function shareResponseError(body: ShareApiResponse, fallback: string): string {
+  return body.message ?? body.error ?? fallback;
 }
 
-interface DashboardData {
-  fundName: string;
-  totalCommitments: number;
-  totalCalled: number;
-  totalDistributed: number;
-  nav: number;
-  portfolioCompanies: number;
-  metrics: {
-    irr: number;
-    moic: number;
-    dpi: number;
-    rvpi: number;
-  };
-  topPerformers: Array<{
-    name: string;
-    stage: string;
-    moic: number;
-    status: string;
-  }>;
+function classifyShareResponse(body: ShareApiResponse): ShareResponseState {
+  if (!body.success || !body.share) {
+    return { kind: 'error', message: shareResponseError(body, 'Failed to load share') };
+  }
+
+  const { share } = body;
+  const { snapshot } = share;
+
+  if (share.requirePasskey && !snapshot) {
+    return { kind: 'passkey', share };
+  }
+
+  if (!snapshot) {
+    return { kind: 'error', message: 'Public share snapshot is unavailable' };
+  }
+
+  return { kind: 'snapshot', share, snapshot };
 }
 
-// Hook to fetch share data from API
 const useSharedDashboard = (shareId: string) => {
   const [shareData, setShareData] = useState<ShareData | null>(null);
-  const [dashboardData, setDashboardData] = useState<DashboardData | null>(null);
+  const [snapshot, setSnapshot] = useState<PublicShareSnapshotPayload | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [requiresPasskey, setRequiresPasskey] = useState(false);
 
-  // Initial fetch - get share info
+  const applyShareResponse = useCallback((body: ShareApiResponse) => {
+    const state = classifyShareResponse(body);
+
+    if (state.kind === 'error') {
+      setError(state.message);
+      return false;
+    }
+
+    setShareData(state.share);
+    if (state.kind === 'passkey') {
+      setRequiresPasskey(true);
+      setSnapshot(null);
+      return true;
+    }
+
+    setRequiresPasskey(false);
+    setSnapshot(state.snapshot);
+    return true;
+  }, []);
+
   useEffect(() => {
     const fetchShare = async () => {
       try {
         setIsLoading(true);
-        const response = await fetch(`/api/shares/${shareId}`);
+        setError(null);
+        const response = await fetch(`/api/public/shares/${shareId}`);
         const body = (await response.json()) as ShareApiResponse;
 
         if (!response.ok) {
-          if (response.status === 404) {
-            setError('Share link not found');
-          } else if (response.status === 410) {
-            setError(body.error ?? 'Share has expired or been revoked');
-          } else {
-            setError(body.error ?? 'Failed to load share');
-          }
+          setError(shareResponseError(body, 'Failed to load share'));
           return;
         }
 
-        if (body.success && body.share) {
-          setShareData(body.share);
-
-          // If passkey required and no fundId returned, need passkey verification
-          if (body.share.requirePasskey && !body.share.fundId) {
-            setRequiresPasskey(true);
-          } else if (body.share.fundId) {
-            // No passkey required - fetch dashboard data
-            await fetchDashboardData(body.share.fundId);
-          }
-        }
+        applyShareResponse(body);
       } catch {
         setError('Failed to connect to server');
       } finally {
@@ -123,16 +104,15 @@ const useSharedDashboard = (shareId: string) => {
     if (shareId) {
       fetchShare();
     }
-  }, [shareId]);
+  }, [applyShareResponse, shareId]);
 
-  // Verify passkey and get full share data
   const verifyPasskey = useCallback(
     async (passkey: string): Promise<boolean> => {
       try {
         setIsLoading(true);
         setError(null);
 
-        const response = await fetch(`/api/shares/${shareId}/verify`, {
+        const response = await fetch(`/api/public/shares/${shareId}/verify`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ passkey }),
@@ -141,22 +121,11 @@ const useSharedDashboard = (shareId: string) => {
         const body = (await response.json()) as ShareApiResponse;
 
         if (!response.ok) {
-          if (response.status === 401) {
-            setError('Invalid passkey');
-            return false;
-          }
-          setError(body.error ?? 'Verification failed');
+          setError(shareResponseError(body, 'Verification failed'));
           return false;
         }
 
-        if (body.success && body.share && body.share.fundId) {
-          setShareData(body.share);
-          setRequiresPasskey(false);
-          await fetchDashboardData(body.share.fundId);
-          return true;
-        }
-
-        return false;
+        return applyShareResponse(body);
       } catch {
         setError('Failed to verify passkey');
         return false;
@@ -164,70 +133,12 @@ const useSharedDashboard = (shareId: string) => {
         setIsLoading(false);
       }
     },
-    [shareId]
+    [applyShareResponse, shareId]
   );
-
-  // Fetch fund dashboard data
-  const fetchDashboardData = async (fundId: string) => {
-    try {
-      // Fetch fund metrics from the fund API
-      const response = await fetch(`/api/dashboard-summary/${fundId}`);
-
-      if (response.ok) {
-        const data = (await response.json()) as DashboardApiResponse;
-        // Transform API response to dashboard format
-        setDashboardData({
-          fundName: data.fund?.name ?? 'Fund',
-          totalCommitments: parseFloat(data.fund?.size ?? '0'),
-          totalCalled: parseFloat(data.fund?.deployedCapital ?? '0'),
-          totalDistributed: data.summary?.currentIRR ? parseFloat(data.fund?.size ?? '0') * 0.3 : 0,
-          nav: parseFloat(data.fund?.size ?? '0') * 1.2,
-          portfolioCompanies: data.summary?.totalCompanies ?? 0,
-          metrics: {
-            irr: data.metrics?.irr ?? data.summary?.currentIRR ?? 0,
-            moic: data.metrics?.moic ?? 1.0,
-            dpi: data.metrics?.dpi ?? 0,
-            rvpi: data.metrics?.rvpi ?? 1.0,
-          },
-          topPerformers:
-            data.portfolioCompanies?.slice(0, 5).map((c) => ({
-              name: c.name,
-              stage: c.stage ?? 'Active',
-              moic: c.moic ?? 1.0,
-              status: c.status ?? 'Active',
-            })) ?? [],
-        });
-      } else {
-        // Use placeholder data if fund API not available
-        setDashboardData({
-          fundName: 'Venture Fund',
-          totalCommitments: 50000000,
-          totalCalled: 35000000,
-          totalDistributed: 15000000,
-          nav: 45000000,
-          portfolioCompanies: 25,
-          metrics: { irr: 18.5, moic: 1.4, dpi: 0.43, rvpi: 1.29 },
-          topPerformers: [],
-        });
-      }
-    } catch {
-      // Use placeholder on error
-      setDashboardData({
-        fundName: 'Venture Fund',
-        totalCommitments: 50000000,
-        totalCalled: 35000000,
-        totalDistributed: 15000000,
-        nav: 45000000,
-        portfolioCompanies: 25,
-        metrics: { irr: 18.5, moic: 1.4, dpi: 0.43, rvpi: 1.29 },
-        topPerformers: [],
-      });
-    }
-  };
 
   return {
     shareConfig: shareData,
-    dashboardData,
+    snapshot,
     isLoading,
     error,
     requiresPasskey,
@@ -235,28 +146,68 @@ const useSharedDashboard = (shareId: string) => {
   };
 };
 
+function formatMetric(metric: PublicMetricValue): string {
+  if (metric.availability !== 'available' || metric.value === null) {
+    return 'Unavailable';
+  }
+
+  if (metric.unit === 'currency') {
+    return `$${(metric.value / 1000000).toFixed(1)}M`;
+  }
+
+  if (metric.unit === 'percent') {
+    return `${metric.value.toFixed(1)}%`;
+  }
+
+  if (metric.unit === 'multiple') {
+    return `${metric.value.toFixed(2)}x`;
+  }
+
+  return String(metric.value);
+}
+
+function MetricCard({ metric }: { metric: PublicMetricValue }) {
+  const unavailable = metric.availability !== 'available';
+
+  return (
+    <Card>
+      <CardHeader className="pb-3">
+        <CardTitle className="text-sm font-medium text-gray-600">{metric.label}</CardTitle>
+      </CardHeader>
+      <CardContent>
+        <div className={`text-2xl font-bold ${unavailable ? 'text-gray-500' : 'text-gray-900'}`}>
+          {formatMetric(metric)}
+        </div>
+        <p className="mt-2 text-xs text-gray-500">
+          {unavailable
+            ? (metric.unavailableReason ?? 'Source data unavailable')
+            : `${metric.source} as of ${new Date(metric.asOfDate).toLocaleDateString()}`}
+        </p>
+      </CardContent>
+    </Card>
+  );
+}
+
 const SharedDashboard: React.FC = () => {
   const [, params] = useRoute('/shared/:shareId');
   const shareId = params?.shareId ?? '';
   const [enteredPasskey, setEnteredPasskey] = useState('');
   const [passkeyError, setPasskeyError] = useState<string | null>(null);
 
-  const { shareConfig, dashboardData, isLoading, error, requiresPasskey, verifyPasskey } =
+  const { shareConfig, snapshot, isLoading, error, requiresPasskey, verifyPasskey } =
     useSharedDashboard(shareId);
 
-  // Track view analytics (server-side via recordShareView)
   useEffect(() => {
-    if (shareConfig && dashboardData && !isLoading) {
+    if (shareConfig && snapshot && !isLoading) {
       const startTime = Date.now();
       return () => {
         const duration = Math.round((Date.now() - startTime) / 1000);
-        // Duration could be sent to analytics endpoint
         if (duration > 5) {
           // Duration is intentionally tracked for future analytics integration.
         }
       };
     }
-  }, [shareConfig, dashboardData, isLoading]);
+  }, [shareConfig, snapshot, isLoading]);
 
   const handlePasskeySubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -350,23 +301,18 @@ const SharedDashboard: React.FC = () => {
     );
   }
 
-  if (!shareConfig || !dashboardData) {
+  if (!snapshot) {
     return null;
   }
 
   return (
     <div className="min-h-screen bg-gray-50 print:bg-white">
-      {/* Header */}
       <div className="bg-white border-b print:border-0">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
           <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-2xl font-bold text-gray-900">
-                {shareConfig?.customTitle || `${dashboardData?.fundName || 'Fund'} Dashboard`}
-              </h1>
-              {shareConfig?.customMessage && (
-                <p className="text-gray-600 mt-1">{shareConfig.customMessage}</p>
-              )}
+              <h1 className="text-2xl font-bold text-gray-900">{snapshot.title}</h1>
+              {snapshot.message && <p className="text-gray-600 mt-1">{snapshot.message}</p>}
             </div>
             <div className="flex items-center gap-4 no-print">
               <Button
@@ -387,149 +333,60 @@ const SharedDashboard: React.FC = () => {
         </div>
       </div>
 
-      {/* Dashboard Content */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Fund Overview */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-          <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="text-sm font-medium text-gray-600">Total Commitments</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">
-                ${(dashboardData.totalCommitments / 1000000).toFixed(1)}M
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="text-sm font-medium text-gray-600">Capital Called</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">
-                ${(dashboardData.totalCalled / 1000000).toFixed(1)}M
-              </div>
-              <div className="text-sm text-gray-500">
-                {((dashboardData.totalCalled / dashboardData.totalCommitments) * 100).toFixed(1)}%
-                of commitments
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="text-sm font-medium text-gray-600">Distributions</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">
-                ${(dashboardData.totalDistributed / 1000000).toFixed(1)}M
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="text-sm font-medium text-gray-600">Current NAV</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">${(dashboardData.nav / 1000000).toFixed(1)}M</div>
-            </CardContent>
-          </Card>
+          {snapshot.metrics.map((metric) => (
+            <MetricCard key={metric.id} metric={metric} />
+          ))}
         </div>
 
-        {/* Performance Metrics */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-          <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="text-sm font-medium text-gray-600">IRR</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-green-600">
-                {dashboardData.metrics.irr.toFixed(1)}%
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="text-sm font-medium text-gray-600">MOIC</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{dashboardData.metrics.moic.toFixed(1)}x</div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="text-sm font-medium text-gray-600">DPI</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{dashboardData.metrics.dpi.toFixed(2)}x</div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="text-sm font-medium text-gray-600">RVPI</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{dashboardData.metrics.rvpi.toFixed(2)}x</div>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Top Performers */}
         <Card>
           <CardHeader>
-            <CardTitle>Top Portfolio Companies</CardTitle>
+            <CardTitle>Public Portfolio Snapshot</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead>
-                  <tr className="border-b">
-                    <th className="text-left py-2">Company</th>
-                    <th className="text-left py-2">Stage</th>
-                    <th className="text-left py-2">MOIC</th>
-                    <th className="text-left py-2">Status</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {dashboardData.topPerformers.map((company, index) => (
-                    <tr key={index} className="border-b">
-                      <td className="py-3 font-medium">{company.name}</td>
-                      <td className="py-3">{company.stage}</td>
-                      <td className="py-3 font-bold">{company.moic.toFixed(1)}x</td>
-                      <td className="py-3">
-                        <span
-                          className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
-                            company.status === 'Active'
-                              ? 'bg-green-100 text-green-800'
-                              : 'bg-blue-100 text-blue-800'
-                          }`}
-                        >
-                          {company.status}
-                        </span>
-                      </td>
+            {snapshot.portfolioCompanies.length === 0 ? (
+              <div className="rounded-md border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
+                Portfolio company details are unavailable in this public snapshot.
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead>
+                    <tr className="border-b">
+                      <th className="text-left py-2">Company</th>
+                      <th className="text-left py-2">Stage</th>
+                      <th className="text-left py-2">MOIC</th>
+                      <th className="text-left py-2">Status</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                  </thead>
+                  <tbody>
+                    {snapshot.portfolioCompanies.map((company) => (
+                      <tr key={company.name} className="border-b">
+                        <td className="py-3 font-medium">{company.name}</td>
+                        <td className="py-3">{company.stage ?? 'Unavailable'}</td>
+                        <td className="py-3 font-bold">
+                          {company.moic === null ? 'Unavailable' : `${company.moic.toFixed(1)}x`}
+                        </td>
+                        <td className="py-3">{company.status ?? 'Unavailable'}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
           </CardContent>
         </Card>
 
-        {/* Footer */}
         <div className="mt-12 pt-8 border-t text-center text-sm text-gray-500">
           <div className="flex items-center justify-center gap-4">
             <div className="flex items-center gap-1">
               <CheckCircle className="h-4 w-4 text-green-500" />
-              Secure Access
+              Server-authorized Snapshot
             </div>
             <div className="flex items-center gap-1">
               <Clock className="h-4 w-4" />
-              Last Updated: {new Date().toLocaleDateString()}
+              As of {new Date(snapshot.asOfDate).toLocaleDateString()}
             </div>
           </div>
           <p className="mt-2">

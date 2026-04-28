@@ -121,6 +121,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Shares routes (fund sharing system)
   const sharesRoutes = await import('./routes/shares.js');
   app.use('/api/shares', sharesRoutes.sharesRouter);
+  app.use('/api/public/shares', sharesRoutes.publicSharesRouter);
 
   // Middleware to record HTTP metrics
   app.use((req: Request, res: Response, next: NextFunction) => {
