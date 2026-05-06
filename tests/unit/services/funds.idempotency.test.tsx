@@ -1,5 +1,10 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { computeCreateFundHash, startCreateFund } from '@/services/funds';
+import {
+  computeCreateFundHash,
+  computeFinalizeFundHash,
+  finalizeFund,
+  startCreateFund,
+} from '@/services/funds';
 
 describe('Wave 2 funds boundary', () => {
   afterEach(() => {
@@ -59,5 +64,84 @@ describe('Wave 2 funds boundary', () => {
     };
 
     expect(computeCreateFundHash(baseline)).not.toBe(computeCreateFundHash(variant));
+  });
+});
+
+describe('finalizeFund idempotency', () => {
+  it('produces stable finalize hashes for equivalent payloads', () => {
+    const payload = {
+      draftFundId: 77,
+      name: 'Test Fund',
+      size: 50_000_000,
+      managementFee: 0.02,
+      carryPercentage: 0.2,
+      vintageYear: 2026,
+    };
+    const reorderedPayload = {
+      vintageYear: 2026,
+      carryPercentage: 0.2,
+      managementFee: 0.02,
+      size: 50_000_000,
+      name: 'Test Fund',
+      draftFundId: 77,
+    };
+
+    expect(computeFinalizeFundHash(payload)).toBe(computeFinalizeFundHash(reorderedPayload));
+  });
+
+  it('includes draft identity in finalize hash scope', () => {
+    const payload = {
+      draftFundId: 77,
+      name: 'Test Fund',
+      size: 50_000_000,
+      managementFee: 0.02,
+      carryPercentage: 0.2,
+      vintageYear: 2026,
+    };
+
+    expect(computeFinalizeFundHash(payload)).not.toBe(
+      computeFinalizeFundHash({ ...payload, draftFundId: 78 })
+    );
+  });
+
+  it('sends an idempotency key on finalize', async () => {
+    const payload = {
+      draftFundId: 77,
+      name: 'Test Fund',
+      size: 50_000_000,
+      managementFee: 0.02,
+      carryPercentage: 0.2,
+      vintageYear: 2026,
+    };
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          success: true,
+          data: {
+            fundId: 77,
+            configVersion: 1,
+            correlationId: '550e8400-e29b-41d4-a716-446655440000',
+            published: true,
+          },
+        }),
+        {
+          status: 201,
+          headers: { 'Content-Type': 'application/json' },
+        }
+      )
+    );
+    vi.stubGlobal('fetch', fetchMock);
+
+    await finalizeFund(payload);
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      expect.stringContaining('/api/funds/finalize'),
+      expect.objectContaining({
+        credentials: 'include',
+        headers: expect.objectContaining({
+          'Idempotency-Key': computeFinalizeFundHash(payload),
+        }),
+      })
+    );
   });
 });

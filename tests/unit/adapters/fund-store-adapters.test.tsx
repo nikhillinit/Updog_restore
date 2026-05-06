@@ -13,9 +13,11 @@ import {
   fundDraftWriteV1ToStoreHydrationPatch,
   fundStoreToCreateV1,
   fundStoreToDraftWriteV1,
+  fundStoreToFinalizeV1,
 } from '@/adapters/fund-store-adapters';
 import { FundCreateV1Schema } from '@shared/contracts/fund-create-v1.contract';
 import { FundDraftWriteV1Schema } from '@shared/contracts/fund-draft-write-v1.contract';
+import { FundFinalizeV1Schema } from '@shared/contracts/fund-finalize-v1.contract';
 
 afterEach(() => {
   vi.restoreAllMocks();
@@ -53,6 +55,8 @@ const baseState: Parameters<typeof fundStoreToCreateV1>[0] = {
   allowFutureRecycling: undefined,
   feeProfiles: [],
   fundExpenses: [],
+  draftFundId: null,
+  draftServerReady: false,
 };
 
 const hydrationDefaults = {
@@ -168,6 +172,29 @@ describe('fundStoreToDraftWriteV1', () => {
     const result = fundStoreToDraftWriteV1(baseState);
     const parsed = FundDraftWriteV1Schema.safeParse(result);
     expect(parsed.success).toBe(true);
+  });
+});
+
+describe('fundStoreToFinalizeV1', () => {
+  it('includes authoritative draftFundId when the server draft is ready', () => {
+    const result = fundStoreToFinalizeV1({
+      ...baseState,
+      draftFundId: 77,
+      draftServerReady: true,
+    });
+
+    expect(result.draftFundId).toBe(77);
+    expect(FundFinalizeV1Schema.safeParse(result).success).toBe(true);
+  });
+
+  it('omits draftFundId until the server draft is authoritative', () => {
+    const result = fundStoreToFinalizeV1({
+      ...baseState,
+      draftFundId: 77,
+      draftServerReady: false,
+    });
+
+    expect(result.draftFundId).toBeUndefined();
   });
 });
 

@@ -118,13 +118,14 @@ describe('ReviewStep single-submit via finalize', () => {
     mockSetLocation.mockReset();
     mockSetCurrentFund.mockReset();
     mockInvalidateQueries.mockReset().mockResolvedValue(undefined);
-    mockFundState.draftFundId = null;
+    mockFundState.draftFundId = 77;
+    mockFundState.draftServerReady = true;
 
     // Default: finalizeFund succeeds
     mockFinalizeFund.mockReset().mockResolvedValue({
       success: true,
       data: {
-        fundId: 99,
+        fundId: 77,
         configVersion: 1,
         correlationId: 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee',
         published: true,
@@ -134,6 +135,7 @@ describe('ReviewStep single-submit via finalize', () => {
     // Default: adapter returns a valid payload
     mockFundStoreToFinalizeV1.mockReset().mockReturnValue({
       name: 'Finalize Test Fund',
+      draftFundId: 77,
       size: 75_000_000,
       managementFee: 0.025,
       carryPercentage: 0.2,
@@ -178,6 +180,7 @@ describe('ReviewStep single-submit via finalize', () => {
     expect(mockFinalizeFund).toHaveBeenCalledTimes(1);
     expect(mockFinalizeFund).toHaveBeenCalledWith(
       expect.objectContaining({
+        draftFundId: 77,
         name: 'Finalize Test Fund',
         size: 75_000_000,
         managementFee: 0.025,
@@ -211,7 +214,7 @@ describe('ReviewStep single-submit via finalize', () => {
     // Resolve to prevent hanging
     resolveFinalize({
       success: true,
-      data: { fundId: 99, configVersion: 1, correlationId: 'test', published: true },
+      data: { fundId: 77, configVersion: 1, correlationId: 'test', published: true },
     });
   });
 
@@ -221,14 +224,14 @@ describe('ReviewStep single-submit via finalize', () => {
     await userEvent.click(screen.getByTestId('create-fund-button'));
 
     await waitFor(() => {
-      expect(mockSetLocation).toHaveBeenCalledWith('/fund-model-results/99');
+      expect(mockSetLocation).toHaveBeenCalledWith('/fund-model-results/77');
     });
 
     expect(mockInvalidateQueries).toHaveBeenCalledWith({ queryKey: ['/api/funds'] });
     expect(mockInvalidateQueries).toHaveBeenCalledWith({ queryKey: ['funds'] });
     expect(mockSetCurrentFund).toHaveBeenCalledWith(
       expect.objectContaining({
-        id: 99,
+        id: 77,
         name: 'Finalize Test Fund',
       })
     );
@@ -270,14 +273,39 @@ describe('ReviewStep single-submit via finalize', () => {
     // Resolve to prevent hanging
     resolveFinalize({
       success: true,
-      data: { fundId: 99, configVersion: 1, correlationId: 'test', published: true },
+      data: { fundId: 77, configVersion: 1, correlationId: 'test', published: true },
+    });
+  });
+
+  it('does not submit twice while a finalize request is in flight', async () => {
+    let resolveFinalize!: (v: unknown) => void;
+    mockFinalizeFund.mockReset().mockReturnValue(
+      new Promise((resolve) => {
+        resolveFinalize = resolve;
+      })
+    );
+
+    render(<ReviewStep />);
+
+    const button = screen.getByTestId('create-fund-button');
+    await userEvent.click(button);
+    await userEvent.click(button);
+
+    await waitFor(() => {
+      expect(button).toBeDisabled();
+      expect(mockFinalizeFund).toHaveBeenCalledTimes(1);
+    });
+
+    resolveFinalize({
+      success: true,
+      data: { fundId: 77, configVersion: 1, correlationId: 'test', published: true },
     });
   });
 
   it('shows Retry text after error and allows resubmission', async () => {
     mockFinalizeFund.mockRejectedValueOnce(new Error('Server error')).mockResolvedValueOnce({
       success: true,
-      data: { fundId: 99, configVersion: 1, correlationId: 'test', published: true },
+      data: { fundId: 77, configVersion: 1, correlationId: 'test', published: true },
     });
 
     render(<ReviewStep />);
@@ -295,7 +323,7 @@ describe('ReviewStep single-submit via finalize', () => {
     await userEvent.click(screen.getByTestId('create-fund-button'));
 
     await waitFor(() => {
-      expect(mockSetLocation).toHaveBeenCalledWith('/fund-model-results/99');
+      expect(mockSetLocation).toHaveBeenCalledWith('/fund-model-results/77');
     });
 
     expect(mockFinalizeFund).toHaveBeenCalledTimes(2);

@@ -29,6 +29,12 @@ const draftConfigFields = FundDraftWriteV1Schema.omit({
 
 export const FundFinalizeV1Schema = z
   .object({
+    /**
+     * Existing draft fund identity created by the routed setup wizard.
+     * When present, finalize publishes this draft instead of creating a new fund.
+     */
+    draftFundId: z.number().int().positive().optional(),
+
     // ── Required fund-level fields (from FundCreateV1) ──
 
     /** Fund display name */

@@ -78,6 +78,13 @@ export function computeCreateFundHash(payload: Json): string {
   return fnv1a(namespace + stableStringify(payload));
 }
 
+export function computeFinalizeFundHash(
+  payload: import('@shared/contracts/fund-finalize-v1.contract').FundFinalizeV1
+): string {
+  const namespace = `${import.meta.env.MODE || 'unknown-env'}|fund-finalize|`;
+  return fnv1a(namespace + stableStringify(payload));
+}
+
 // ---------- Compose timeout + external AbortSignal ----------
 function _composeSignal(timeoutMs: number, external?: AbortSignal) {
   const ctrl = new AbortController();
@@ -371,10 +378,11 @@ export async function createFundWithToast(payload: Json, options?: CreateFundOpt
 export async function finalizeFund(
   payload: import('@shared/contracts/fund-finalize-v1.contract').FundFinalizeV1
 ): Promise<import('@shared/contracts/fund-finalize-v1.contract').FundFinalizeResponseV1> {
+  const idempotencyKey = computeFinalizeFundHash(payload);
   const response = await fetch(withApiBase('/api/funds/finalize'), {
     method: 'POST',
     credentials: 'include',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', 'Idempotency-Key': idempotencyKey },
     body: JSON.stringify(payload),
   });
   if (!response.ok) {

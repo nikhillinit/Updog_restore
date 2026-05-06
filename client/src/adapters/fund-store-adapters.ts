@@ -46,6 +46,8 @@ type FundStateSlice = Pick<
   | 'allowFutureRecycling'
   | 'feeProfiles'
   | 'fundExpenses'
+  | 'draftFundId'
+  | 'draftServerReady'
 >;
 
 type DraftHydrationDefaults = Pick<
@@ -342,6 +344,10 @@ export function fundStoreToFinalizeV1(
     carryPercentage: (state.carriedInterest ?? 0) / 100,
     vintageYear: state.vintageYear ?? currentYear,
   };
+
+  if (state.draftServerReady && state.draftFundId != null) {
+    result.draftFundId = state.draftFundId;
+  }
 
   // ── Optional draft config fields (same logic as fundStoreToDraftWriteV1) ──
   if (state.establishmentDate != null) result.establishmentDate = state.establishmentDate;

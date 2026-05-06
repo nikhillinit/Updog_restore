@@ -67,6 +67,7 @@ const inlineExecutionByEngine: Record<
 };
 
 export interface FinalizeInput {
+  draftFundId?: number | undefined;
   name: string;
   size: number;
   managementFee?: number | undefined;
@@ -299,6 +300,7 @@ export class FundPersistenceService {
 
     // Extract draft config fields (everything except fund-level fields)
     const {
+      draftFundId: _draftFundId,
       name: _name,
       size: _size,
       managementFee: _mf,
@@ -319,6 +321,25 @@ export class FundPersistenceService {
       ...draftConfig,
     };
 
+    const draftFundId =
+      Number.isInteger(input.draftFundId) && Number(input.draftFundId) > 0
+        ? Number(input.draftFundId)
+        : null;
+
+    if (draftFundId != null) {
+      await this.syncExistingDraftForFinalize(draftFundId, fundInput, configInput);
+      const publishResult = await this.publishDraft(draftFundId, queues);
+
+      return {
+        fundId: draftFundId,
+        configVersion: publishResult.published.version,
+        correlationId: publishResult.correlationId,
+        runId: publishResult.run.id,
+        dispatchState: publishResult.run.dispatchState,
+        published: true,
+      };
+    }
+
     // Step 1+2: Create fund with initial draft containing full config
     const { fund, draft } = await this.createFundWithInitialDraft(fundInput, configInput);
 
@@ -333,6 +354,53 @@ export class FundPersistenceService {
       dispatchState: publishResult.run.dispatchState,
       published: true,
     };
+  }
+
+  private async syncExistingDraftForFinalize(
+    fundId: number,
+    fundInput: CreateFundInput,
+    configInput: Record<string, unknown>
+  ): Promise<FundConfig | null> {
+    return await db.transaction(async (tx) => {
+      const [draft] = await tx
+        .update(fundConfigs)
+        .set({ config: configInput, updatedAt: new Date() })
+        .where(and(eq(fundConfigs.fundId, fundId), eq(fundConfigs.isDraft, true)))
+        .returning();
+
+      if (!draft) {
+        return null;
+      }
+
+      const updateValues: Partial<typeof funds.$inferInsert> = {
+        name: fundInput.name,
+        size: fundInput.size,
+        managementFee: fundInput.managementFee,
+        carryPercentage: fundInput.carryPercentage,
+        vintageYear: fundInput.vintageYear,
+      };
+      if (fundInput.engineResults != null) {
+        updateValues.engineResults = fundInput.engineResults;
+      }
+
+      const [fund] = await tx
+        .update(funds)
+        .set(updateValues)
+        .where(eq(funds.id, fundId))
+        .returning();
+
+      if (!fund) {
+        throw new Error(`No fund exists with ID: ${fundId}`);
+      }
+
+      await tx.insert(fundEvents).values({
+        fundId,
+        eventType: 'DRAFT_SAVED',
+        eventTime: new Date(),
+      });
+
+      return draft;
+    });
   }
 
   async recalculatePublished(
