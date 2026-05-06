@@ -105,7 +105,10 @@ describe('fund wizard service auth options', () => {
       expect.objectContaining({
         method: 'POST',
         credentials: 'include',
-        headers: { 'Content-Type': 'application/json' },
+        headers: expect.objectContaining({
+          'Content-Type': 'application/json',
+          'Idempotency-Key': expect.any(String),
+        }),
       })
     );
   });

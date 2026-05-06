@@ -120,6 +120,7 @@ class MemoryIdempotencyStore {
 }
 
 const memoryStore = new MemoryIdempotencyStore();
+const inProcessLocks = new Set<string>();
 
 /**
  * Get idempotency key from request
@@ -309,6 +310,16 @@ export function idempotency(options: IdempotencyOptions = {}) {
 
     // Atomic PENDING lock for in-flight requests
     const lockKey = `${config.prefix}:${key}:lock`;
+    const processLockKey = `${config.prefix}:${key}`;
+    if (inProcessLocks.has(processLockKey)) {
+      return res['setHeader']('Retry-After', '30').status(409).json({
+        error: 'request_in_progress',
+        message: 'Request with this idempotency key is currently being processed',
+        retryAfter: 30,
+      });
+    }
+
+    inProcessLocks.add(processLockKey);
     let locked = false;
 
     try {
@@ -324,6 +335,7 @@ export function idempotency(options: IdempotencyOptions = {}) {
 
         if (!locked) {
           // Another request is processing this key
+          inProcessLocks.delete(processLockKey);
           return res['setHeader']('Retry-After', '30').status(409).json({
             error: 'request_in_progress',
             message: 'Request with this idempotency key is currently being processed',
@@ -346,6 +358,7 @@ export function idempotency(options: IdempotencyOptions = {}) {
 
     // Clean up lock when response completes or fails
     const cleanupLock = async () => {
+      inProcessLocks.delete(processLockKey);
       if (redisClient && locked) {
         try {
           await redisClient.del(lockKey);
@@ -420,6 +433,7 @@ export function idempotency(options: IdempotencyOptions = {}) {
  */
 export function clearIdempotencyCache(): void {
   memoryStore.clear();
+  inProcessLocks.clear();
   logger.info('[Idempotency] Memory cache cleared');
 }
 

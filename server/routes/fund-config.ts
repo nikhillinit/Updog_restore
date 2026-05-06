@@ -50,6 +50,7 @@ function ensureProducerQueuesRegistered(): void {
 
 import { FundDraftWriteV1Schema } from '@shared/contracts/fund-draft-write-v1.contract';
 import { sendApiError } from '../lib/apiError';
+import idempotency from '../middleware/idempotency';
 
 type RequestWithOptionalUser = Request & { user?: { id?: string } };
 
@@ -57,7 +58,7 @@ export function registerFundConfigRoutes(app: Express) {
   ensureProducerQueuesRegistered();
 
   // Atomic finalize: create fund + save config + publish in one call
-  app.post('/api/funds/finalize', async (req: Request, res: Response) => {
+  app.post('/api/funds/finalize', idempotency, async (req: Request, res: Response) => {
     try {
       const { FundFinalizeV1Schema: Schema } =
         await import('@shared/contracts/fund-finalize-v1.contract');

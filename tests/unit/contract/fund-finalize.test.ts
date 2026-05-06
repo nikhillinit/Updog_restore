@@ -66,6 +66,27 @@ describe('FundFinalizeV1Schema', () => {
     }
   });
 
+  it('accepts draftFundId for routed wizard finalize', () => {
+    const result = FundFinalizeV1Schema.safeParse({
+      ...minimalFinalizePayload,
+      draftFundId: 77,
+    });
+
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.draftFundId).toBe(77);
+    }
+  });
+
+  it('rejects invalid draftFundId', () => {
+    const result = FundFinalizeV1Schema.safeParse({
+      ...minimalFinalizePayload,
+      draftFundId: 0,
+    });
+
+    expect(result.success).toBe(false);
+  });
+
   it('rejects missing name', () => {
     const result = FundFinalizeV1Schema.safeParse({ size: 50_000_000 });
     expect(result.success).toBe(false);
@@ -318,6 +339,91 @@ describe('FundPersistenceService.finalize behavior', () => {
     );
   });
 
+  it('publishes the existing draft fund when draftFundId is provided', async () => {
+    const service = new FundPersistenceService();
+    const draftRow = {
+      id: 177,
+      fundId: 77,
+      version: 2,
+      config: {},
+      isDraft: true,
+      isPublished: false,
+    };
+    const fundRow = {
+      id: 77,
+      name: 'Existing Draft Fund',
+      size: '50000000',
+      managementFee: '0.02',
+      carryPercentage: '0.2',
+      vintageYear: 2026,
+    };
+    const publishedRow = { ...draftRow, isDraft: false, isPublished: true };
+    const calcRunRow = {
+      id: 277,
+      fundId: 77,
+      configId: 177,
+      configVersion: 2,
+      correlationId: 'finalize-correlation-id',
+      engines: ['reserve', 'pacing'],
+      dispatchState: 'pending',
+      requestedAt: new Date(),
+    };
+    const dispatchedRun = {
+      ...calcRunRow,
+      dispatchState: 'dispatched',
+      lastError: null,
+    };
+
+    let syncUpdateMock: ReturnType<typeof vi.fn> | null = null;
+    let txCallCount = 0;
+    mockDb.transaction.mockImplementation(
+      async (callback: (tx: Record<string, unknown>) => Promise<unknown>) => {
+        txCallCount++;
+        if (txCallCount === 1) {
+          const updateMock = vi
+            .fn()
+            .mockReturnValueOnce(whereReturning([draftRow]))
+            .mockReturnValueOnce(whereReturning([fundRow]));
+          syncUpdateMock = updateMock;
+          return callback({
+            update: updateMock,
+            insert: vi.fn().mockReturnValueOnce(valuesResolved(undefined)),
+          });
+        }
+
+        const tx = {
+          query: { fundConfigs: { findFirst: vi.fn().mockResolvedValue(draftRow) } },
+          update: vi
+            .fn()
+            .mockReturnValueOnce(whereReturning([]))
+            .mockReturnValueOnce(whereReturning([publishedRow])),
+          insert: vi
+            .fn()
+            .mockReturnValueOnce(valuesReturning([calcRunRow]))
+            .mockReturnValueOnce(valuesResolved(undefined))
+            .mockReturnValueOnce(valuesResolved(undefined)),
+        };
+        return callback(tx);
+      }
+    );
+    mockDb.update.mockReturnValue(whereReturning([dispatchedRun]));
+
+    const result = await service.finalize(
+      {
+        ...validFinalizePayload,
+        draftFundId: 77,
+      },
+      nullQueues
+    );
+
+    expect(result.fundId).toBe(77);
+    expect(result.configVersion).toBe(2);
+    expect(result.runId).toBe(277);
+    expect(syncUpdateMock).not.toBeNull();
+    expect(syncUpdateMock).toHaveBeenCalledTimes(2);
+    expect(mockDb.transaction).toHaveBeenCalledTimes(2);
+  });
+
   it('passes draft config fields to createFundWithInitialDraft configInput', async () => {
     const service = new FundPersistenceService();
 
@@ -424,6 +530,7 @@ describe('FundPersistenceService.finalize behavior', () => {
 
 import express from 'express';
 import request from 'supertest';
+import { clearIdempotencyCache } from '../../../server/middleware/idempotency';
 
 describe('POST /api/funds/finalize route contract', () => {
   let app: express.Express;
@@ -437,6 +544,7 @@ describe('POST /api/funds/finalize route contract', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    clearIdempotencyCache();
   });
 
   it('returns 400 for invalid payload (missing name)', async () => {
@@ -463,7 +571,10 @@ describe('POST /api/funds/finalize route contract', () => {
       published: true,
     });
 
-    const res = await request(app).post('/api/funds/finalize').send(minimalFinalizePayload);
+    const res = await request(app)
+      .post('/api/funds/finalize')
+      .set('Idempotency-Key', 'finalize-unexpected-error')
+      .send(minimalFinalizePayload);
 
     expect(res.status).toBe(201);
     expect(res.body).toMatchObject({
@@ -475,6 +586,35 @@ describe('POST /api/funds/finalize route contract', () => {
         published: true,
       },
     });
+  });
+
+  it('replays completed duplicate finalize requests with the same idempotency key', async () => {
+    const mod = await import('../../../server/services/fund-persistence-service');
+    const finalizeSpy = vi.spyOn(mod.fundPersistenceService, 'finalize').mockResolvedValue({
+      fundId: 77,
+      configVersion: 2,
+      correlationId: '550e8400-e29b-41d4-a716-446655440000',
+      runId: 277,
+      dispatchState: 'dispatched',
+      published: true,
+    });
+    const payload = { ...minimalFinalizePayload, draftFundId: 77 };
+
+    const first = await request(app)
+      .post('/api/funds/finalize')
+      .set('Idempotency-Key', 'finalize-77-stable')
+      .send(payload);
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    const second = await request(app)
+      .post('/api/funds/finalize')
+      .set('Idempotency-Key', 'finalize-77-stable')
+      .send(payload);
+
+    expect(first.status).toBe(201);
+    expect(second.status).toBe(201);
+    expect(second.headers['idempotency-replay']).toBe('true');
+    expect(second.body.data.fundId).toBe(77);
+    expect(finalizeSpy).toHaveBeenCalledTimes(1);
   });
 
   it('returns 500 when service throws unexpected error', async () => {
