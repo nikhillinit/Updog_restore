@@ -50,6 +50,9 @@ type LeaseManagerHarness = {
 let VarianceAlertAutomationService: typeof import('../../server/services/variance-alert-automation').VarianceAlertAutomationService;
 let realPool: Pool;
 let realDb: NodePgDatabase<CombinedSchema>;
+let originalUseRealDbInVitest: string | undefined;
+let originalDatabaseUrl: string | undefined;
+let originalNeonDatabaseUrl: string | undefined;
 
 function asHarness(
   service: InstanceType<typeof VarianceAlertAutomationService>
@@ -109,15 +112,19 @@ describe('VarianceAlertAutomationService leader election (integration)', () => {
   const runningServices: InstanceType<typeof VarianceAlertAutomationService>[] = [];
 
   beforeAll(async () => {
+    originalUseRealDbInVitest = process.env.USE_REAL_DB_IN_VITEST;
+    originalDatabaseUrl = process.env.DATABASE_URL;
+    originalNeonDatabaseUrl = process.env.NEON_DATABASE_URL;
+
     // Worker-process env hydration: vitest workers do NOT auto-load .env files,
     // and tests/integration/global-setup.ts assigns DATABASE_URL with an
     // `env.DATABASE_URL || 'postgresql://...localhost.../povc_test'` fallback.
-    // Without this override, the worker would silently target localhost even
-    // when the orchestrator wrote a Neon URL into .env. dotenv is loaded via a
-    // dynamic import to avoid the project's eslint-auto-fix hook stripping it
-    // from the import block.
+    // dotenv is loaded via a dynamic import to avoid the project's
+    // eslint-auto-fix hook stripping it from the import block. Do not override
+    // CI-provided DATABASE_URL; the unified CI integration lane provisions its
+    // own local Postgres service.
     const dotenv = await import('dotenv');
-    dotenv.config({ override: true });
+    dotenv.config();
 
     const connectionString = process.env.DATABASE_URL;
     if (!connectionString) {
@@ -171,6 +178,22 @@ describe('VarianceAlertAutomationService leader election (integration)', () => {
       if (realPool) {
         await realPool.end();
       }
+      if (originalUseRealDbInVitest === undefined) {
+        delete process.env.USE_REAL_DB_IN_VITEST;
+      } else {
+        process.env.USE_REAL_DB_IN_VITEST = originalUseRealDbInVitest;
+      }
+      if (originalDatabaseUrl === undefined) {
+        delete process.env.DATABASE_URL;
+      } else {
+        process.env.DATABASE_URL = originalDatabaseUrl;
+      }
+      if (originalNeonDatabaseUrl === undefined) {
+        delete process.env.NEON_DATABASE_URL;
+      } else {
+        process.env.NEON_DATABASE_URL = originalNeonDatabaseUrl;
+      }
+      vi.resetModules();
     }
   });
 
