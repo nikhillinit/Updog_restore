@@ -112,6 +112,13 @@ class NoPublishableDraftError extends Error {
   }
 }
 
+export class NoActiveDraftForFinalizeError extends Error {
+  constructor(fundId: number) {
+    super(`No active draft exists for fund ID: ${fundId}`);
+    this.name = 'NoActiveDraftForFinalizeError';
+  }
+}
+
 class PublishDraftRaceLostError extends Error {
   constructor() {
     super('Draft was already published by another request');
@@ -327,7 +334,11 @@ export class FundPersistenceService {
         : null;
 
     if (draftFundId != null) {
-      await this.syncExistingDraftForFinalize(draftFundId, fundInput, configInput);
+      const draft = await this.syncExistingDraftForFinalize(draftFundId, fundInput, configInput);
+      if (!draft) {
+        throw new NoActiveDraftForFinalizeError(draftFundId);
+      }
+
       const publishResult = await this.publishDraft(draftFundId, queues);
 
       return {

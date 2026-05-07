@@ -207,7 +207,10 @@ vi.mock('../../../server/services/pacing-calculation-service', () => ({
   runPacingCalculation: mockRunPacingCalculation,
 }));
 
-import { FundPersistenceService } from '../../../server/services/fund-persistence-service';
+import {
+  FundPersistenceService,
+  NoActiveDraftForFinalizeError,
+} from '../../../server/services/fund-persistence-service';
 import type { PublishQueues } from '../../../server/services/fund-persistence-service';
 
 // Drizzle chain helpers (matching fund-recalculate.test.ts pattern)
@@ -424,6 +427,29 @@ describe('FundPersistenceService.finalize behavior', () => {
     expect(mockDb.transaction).toHaveBeenCalledTimes(2);
   });
 
+  it('rejects draft finalize when no active draft exists', async () => {
+    const service = new FundPersistenceService();
+
+    mockDb.transaction.mockImplementationOnce(
+      async (callback: (tx: Record<string, unknown>) => Promise<unknown>) =>
+        callback({
+          update: vi.fn().mockReturnValueOnce(whereReturning([])),
+          insert: vi.fn(),
+        })
+    );
+
+    await expect(
+      service.finalize(
+        {
+          ...validFinalizePayload,
+          draftFundId: 77,
+        },
+        nullQueues
+      )
+    ).rejects.toThrow(NoActiveDraftForFinalizeError);
+    expect(mockDb.transaction).toHaveBeenCalledTimes(1);
+  });
+
   it('passes draft config fields to createFundWithInitialDraft configInput', async () => {
     const service = new FundPersistenceService();
 
@@ -562,6 +588,43 @@ describe('POST /api/funds/finalize route contract', () => {
     expect(res.body).toHaveProperty('error');
   });
 
+  it('returns 403 when user cannot access the requested draft fund', async () => {
+    const mod = await import('../../../server/services/fund-persistence-service');
+    const finalizeSpy = vi.spyOn(mod.fundPersistenceService, 'finalize').mockResolvedValue({
+      fundId: 77,
+      configVersion: 2,
+      correlationId: '550e8400-e29b-41d4-a716-446655440000',
+      runId: 277,
+      dispatchState: 'dispatched',
+      published: true,
+    });
+    const restrictedApp = express();
+    restrictedApp.use(express.json());
+    restrictedApp.use((req, _res, next) => {
+      req.user = {
+        id: 'user-7',
+        sub: 'user-7',
+        email: 'user7@example.com',
+        roles: [],
+        fundIds: [99],
+        ip: '127.0.0.1',
+        userAgent: 'vitest',
+      };
+      next();
+    });
+    const { registerFundConfigRoutes } = await import('../../../server/routes/fund-config');
+    registerFundConfigRoutes(restrictedApp);
+
+    const res = await request(restrictedApp)
+      .post('/api/funds/finalize')
+      .set('Idempotency-Key', 'finalize-forbidden-draft')
+      .send({ ...minimalFinalizePayload, draftFundId: 77 });
+
+    expect(res.status).toBe(403);
+    expect(res.body.code).toBe('FUND_ACCESS_DENIED');
+    expect(finalizeSpy).not.toHaveBeenCalled();
+  });
+
   it('returns 201 with correct response shape on success', async () => {
     const mod = await import('../../../server/services/fund-persistence-service');
     vi.spyOn(mod.fundPersistenceService, 'finalize').mockResolvedValue({
@@ -617,6 +680,21 @@ describe('POST /api/funds/finalize route contract', () => {
     expect(finalizeSpy).toHaveBeenCalledTimes(1);
   });
 
+  it('returns 409 when draftFundId has no active draft to publish', async () => {
+    const mod = await import('../../../server/services/fund-persistence-service');
+    vi.spyOn(mod.fundPersistenceService, 'finalize').mockRejectedValue(
+      new NoActiveDraftForFinalizeError(77)
+    );
+
+    const res = await request(app)
+      .post('/api/funds/finalize')
+      .set('Idempotency-Key', 'finalize-no-active-draft')
+      .send({ ...minimalFinalizePayload, draftFundId: 77 });
+
+    expect(res.status).toBe(409);
+    expect(res.body.code).toBe('NO_ACTIVE_DRAFT');
+  });
+
   it('returns 500 when service throws unexpected error', async () => {
     const mod = await import('../../../server/services/fund-persistence-service');
     vi.spyOn(mod.fundPersistenceService, 'finalize').mockRejectedValue(
@@ -627,5 +705,25 @@ describe('POST /api/funds/finalize route contract', () => {
 
     expect(res.status).toBe(500);
     expect(res.body).toHaveProperty('error');
+  });
+
+  it('releases idempotency locks after uncached finalize errors', async () => {
+    const mod = await import('../../../server/services/fund-persistence-service');
+    const finalizeSpy = vi
+      .spyOn(mod.fundPersistenceService, 'finalize')
+      .mockRejectedValue(new Error('Database connection lost'));
+
+    const first = await request(app)
+      .post('/api/funds/finalize')
+      .set('Idempotency-Key', 'finalize-error-lock-release')
+      .send(minimalFinalizePayload);
+    const second = await request(app)
+      .post('/api/funds/finalize')
+      .set('Idempotency-Key', 'finalize-error-lock-release')
+      .send(minimalFinalizePayload);
+
+    expect(first.status).toBe(500);
+    expect(second.status).toBe(500);
+    expect(finalizeSpy).toHaveBeenCalledTimes(2);
   });
 });
