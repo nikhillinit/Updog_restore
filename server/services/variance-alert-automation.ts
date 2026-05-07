@@ -841,9 +841,9 @@ export class VarianceAlertAutomationService {
 
   /**
    * Releases the lease held by this instance on graceful shutdown. Sets
-   * lease_expires_at = now() so followers can take over immediately on the
-   * next planner tick. Safe to call when not leader - the WHERE clause is a
-   * no-op.
+   * lease_expires_at in the recent past so followers can take over immediately
+   * on the next planner tick. Safe to call when not leader - the WHERE clause
+   * is a no-op.
    *
    * See CONTEXT.md specifics "Graceful shutdown matters".
    */
@@ -854,7 +854,7 @@ export class VarianceAlertAutomationService {
         db.execute(sql`
           UPDATE ${variancePlannerLeader}
           SET
-            lease_expires_at = NOW(),
+            lease_expires_at = NOW() - INTERVAL '1 second',
             updated_at = NOW()
           WHERE id = ${LEADER_ROW_ID}
             AND instance_id = ${this.instanceId}

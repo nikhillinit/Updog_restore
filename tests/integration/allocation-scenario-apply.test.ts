@@ -1,7 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { beforeAll, beforeEach, afterEach, describe, expect, it } from 'vitest';
-import request from 'supertest';
+import request, { type Test } from 'supertest';
 import type { Express } from 'express';
 import type { Pool } from 'pg';
 
@@ -12,6 +12,11 @@ let app: Express;
 let testFundId: number;
 let companyOneId: number;
 let companyTwoId: number;
+let authHeader: string;
+
+function withAuth(test: Test): Test {
+  return test.set('Authorization', authHeader);
+}
 
 async function ensureScenarioSchema() {
   await pool.query('CREATE EXTENSION IF NOT EXISTS pgcrypto');
@@ -92,6 +97,13 @@ describe('allocation scenario sync/apply integration', () => {
 
   beforeEach(async () => {
     app = makeApp();
+    const { signToken } = await import('../../server/lib/auth/jwt');
+    authHeader = `Bearer ${signToken({
+      sub: 'allocation-scenario-integration-user',
+      email: 'allocation-scenario-integration@example.com',
+      role: 'admin',
+      fundIds: [],
+    })}`;
 
     const fundResult = await pool.query(
       `INSERT INTO funds (name, size, management_fee, carry_percentage, vintage_year)
@@ -138,8 +150,9 @@ describe('allocation scenario sync/apply integration', () => {
   });
 
   it('applies a previewed scenario to live allocations and records both audit trails', async () => {
-    const createResponse = await request(app)
-      .post(`/api/funds/${testFundId}/allocation-scenarios`)
+    const createResponse = await withAuth(
+      request(app).post(`/api/funds/${testFundId}/allocation-scenarios`)
+    )
       .send({
         name: 'Committee upside plan',
         notes: 'Increase Alpha for follow-on support',
@@ -163,9 +176,9 @@ describe('allocation scenario sync/apply integration', () => {
 
     const scenarioId = createResponse.body.id as string;
 
-    const previewResponse = await request(app)
-      .get(`/api/funds/${testFundId}/allocation-scenarios/${scenarioId}/apply-preview`)
-      .expect(200);
+    const previewResponse = await withAuth(
+      request(app).get(`/api/funds/${testFundId}/allocation-scenarios/${scenarioId}/apply-preview`)
+    ).expect(200);
 
     expect(previewResponse.body).toMatchObject({
       drift_status: 'exact_match',
@@ -176,8 +189,9 @@ describe('allocation scenario sync/apply integration', () => {
       },
     });
 
-    const applyResponse = await request(app)
-      .post(`/api/funds/${testFundId}/allocation-scenarios/${scenarioId}/apply`)
+    const applyResponse = await withAuth(
+      request(app).post(`/api/funds/${testFundId}/allocation-scenarios/${scenarioId}/apply`)
+    )
       .send({
         preview_token: previewResponse.body.live_token,
         note: 'Apply after IC approval',
@@ -265,8 +279,9 @@ describe('allocation scenario sync/apply integration', () => {
   });
 
   it('syncs a saved scenario from live allocations without mutating live rows', async () => {
-    const createResponse = await request(app)
-      .post(`/api/funds/${testFundId}/allocation-scenarios`)
+    const createResponse = await withAuth(
+      request(app).post(`/api/funds/${testFundId}/allocation-scenarios`)
+    )
       .send({
         name: 'Stale scenario',
         notes: 'Will be refreshed from live',
@@ -290,8 +305,9 @@ describe('allocation scenario sync/apply integration', () => {
 
     const scenarioId = createResponse.body.id as string;
 
-    const syncResponse = await request(app)
-      .post(`/api/funds/${testFundId}/allocation-scenarios/${scenarioId}/sync`)
+    const syncResponse = await withAuth(
+      request(app).post(`/api/funds/${testFundId}/allocation-scenarios/${scenarioId}/sync`)
+    )
       .send({
         note: 'Refresh from current live state',
       })
@@ -340,14 +356,23 @@ describe('allocation scenario sync/apply integration', () => {
     );
 
     expect(liveRows.rows).toEqual([
-      expect.objectContaining({ id: companyOneId, planned_reserves_cents: '500000', allocation_version: 1 }),
-      expect.objectContaining({ id: companyTwoId, planned_reserves_cents: '800000', allocation_version: 1 }),
+      expect.objectContaining({
+        id: companyOneId,
+        planned_reserves_cents: '500000',
+        allocation_version: 1,
+      }),
+      expect.objectContaining({
+        id: companyTwoId,
+        planned_reserves_cents: '800000',
+        allocation_version: 1,
+      }),
     ]);
   });
 
   it('persists Reserve IC decisions under the scenario boundary and returns them to the client', async () => {
-    const createScenarioResponse = await request(app)
-      .post(`/api/funds/${testFundId}/allocation-scenarios`)
+    const createScenarioResponse = await withAuth(
+      request(app).post(`/api/funds/${testFundId}/allocation-scenarios`)
+    )
       .send({
         name: 'IC decision scenario',
         notes: 'Committee packet ready',
@@ -371,8 +396,9 @@ describe('allocation scenario sync/apply integration', () => {
 
     const scenarioId = createScenarioResponse.body.id as string;
 
-    const createDecisionResponse = await request(app)
-      .post(`/api/funds/${testFundId}/allocation-scenarios/${scenarioId}/decisions`)
+    const createDecisionResponse = await withAuth(
+      request(app).post(`/api/funds/${testFundId}/allocation-scenarios/${scenarioId}/decisions`)
+    )
       .send({
         fundId: testFundId,
         companyId: companyOneId,
@@ -396,8 +422,9 @@ describe('allocation scenario sync/apply integration', () => {
       decisionStatus: 'proposed',
     });
 
-    const createRemovedCompanyDecisionResponse = await request(app)
-      .post(`/api/funds/${testFundId}/allocation-scenarios/${scenarioId}/decisions`)
+    const createRemovedCompanyDecisionResponse = await withAuth(
+      request(app).post(`/api/funds/${testFundId}/allocation-scenarios/${scenarioId}/decisions`)
+    )
       .send({
         fundId: testFundId,
         companyId: companyTwoId,
@@ -414,10 +441,11 @@ describe('allocation scenario sync/apply integration', () => {
       })
       .expect(201);
 
-    const updateDecisionResponse = await request(app)
-      .patch(
+    const updateDecisionResponse = await withAuth(
+      request(app).patch(
         `/api/funds/${testFundId}/allocation-scenarios/${scenarioId}/decisions/${createDecisionResponse.body.id}`
       )
+    )
       .send({
         decisionStatus: 'approved',
         rationale: 'Approved for follow-on',
@@ -436,8 +464,9 @@ describe('allocation scenario sync/apply integration', () => {
       finalPlannedReservesCents: 700000,
     });
 
-    const updateScenarioResponse = await request(app)
-      .patch(`/api/funds/${testFundId}/allocation-scenarios/${scenarioId}`)
+    const updateScenarioResponse = await withAuth(
+      request(app).patch(`/api/funds/${testFundId}/allocation-scenarios/${scenarioId}`)
+    )
       .send({
         snapshot_items: [
           {
@@ -455,9 +484,9 @@ describe('allocation scenario sync/apply integration', () => {
       company_count: 1,
     });
 
-    const listResponse = await request(app)
-      .get(`/api/funds/${testFundId}/allocation-scenarios/${scenarioId}/decisions`)
-      .expect(200);
+    const listResponse = await withAuth(
+      request(app).get(`/api/funds/${testFundId}/allocation-scenarios/${scenarioId}/decisions`)
+    ).expect(200);
 
     expect(listResponse.body).toEqual({
       decisions: [

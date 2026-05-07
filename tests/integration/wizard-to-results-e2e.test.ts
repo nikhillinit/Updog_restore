@@ -218,7 +218,11 @@ describe('wizard to results flow', () => {
       expect(sessionCalls).toHaveLength(0);
       expectFetchCall('/api/funds/finalize', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        headers: expect.objectContaining({
+          'Content-Type': 'application/json',
+          'Idempotency-Key': expect.any(String),
+        }),
         body: expect.any(String),
       });
       expectFetchCall('/api/funds/42/results', { signal: expect.any(AbortSignal) });
