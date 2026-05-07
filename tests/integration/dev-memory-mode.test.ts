@@ -5,9 +5,45 @@
  * Tests: Memory-only providers, Redis-free operation, server initialization
  */
 
-import { describe, it, expect, beforeAll, afterAll } from 'vitest';
+import { describe, it, expect, beforeAll, afterAll, vi } from 'vitest';
 import request from 'supertest';
 import type { Server } from 'node:http';
+
+const MEMORY_MODE_ENV_KEYS = [
+  'NODE_ENV',
+  '_EXPLICIT_NODE_ENV',
+  'REDIS_URL',
+  '_EXPLICIT_REDIS_URL',
+  'ENABLE_QUEUES',
+  'ALLOW_MEMORY_STORAGE',
+  'DATABASE_URL',
+  'NEON_DATABASE_URL',
+  'RATE_LIMIT_REDIS_URL',
+  'QUEUE_REDIS_URL',
+  'SESSION_REDIS_URL',
+  'SHUTDOWN_RETRY_AFTER_SECONDS',
+] as const;
+
+type MemoryModeEnvKey = (typeof MEMORY_MODE_ENV_KEYS)[number];
+
+const originalEnv = new Map<MemoryModeEnvKey, string | undefined>();
+
+function snapshotEnv(): void {
+  originalEnv.clear();
+  for (const key of MEMORY_MODE_ENV_KEYS) {
+    originalEnv.set(key, process.env[key]);
+  }
+}
+
+function restoreEnv(): void {
+  for (const [key, value] of originalEnv) {
+    if (value === undefined) {
+      delete process.env[key];
+    } else {
+      process.env[key] = value;
+    }
+  }
+}
 
 describe('Dev memory mode', () => {
   let app: Server;
@@ -17,8 +53,11 @@ describe('Dev memory mode', () => {
   let createServer: typeof import('../../server/server.js').createServer;
 
   beforeAll(async () => {
+    snapshotEnv();
+
     // Set up memory-only environment
     process.env.NODE_ENV = 'development';
+    process.env._EXPLICIT_NODE_ENV = 'development';
     process.env.REDIS_URL = 'memory://';
     process.env._EXPLICIT_REDIS_URL = process.env.REDIS_URL;
     process.env.ENABLE_QUEUES = '0';
@@ -44,7 +83,12 @@ describe('Dev memory mode', () => {
   });
 
   afterAll(async () => {
-    await providers?.teardown?.();
+    try {
+      await providers?.teardown?.();
+    } finally {
+      restoreEnv();
+      vi.resetModules();
+    }
   });
 
   it('providers should be in memory mode', () => {

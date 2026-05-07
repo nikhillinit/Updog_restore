@@ -8,6 +8,10 @@
 // Set JWT config BEFORE any imports to ensure modules pick up the test config
 const TEST_JWT_SECRET = 'test-secret-key-for-integration-tests';
 const originalJwtSecret = process.env.JWT_SECRET;
+const originalJwtAlg = process.env.JWT_ALG;
+const originalExplicitJwtAlg = process.env._EXPLICIT_JWT_ALG;
+const originalJwtIssuer = process.env.JWT_ISSUER;
+const originalJwtAudience = process.env.JWT_AUDIENCE;
 process.env.JWT_SECRET = TEST_JWT_SECRET;
 process.env.JWT_ALG = 'HS256';
 process.env._EXPLICIT_JWT_ALG = 'HS256';
@@ -29,9 +33,26 @@ describe('Hardened Flag System', () => {
     } else {
       delete process.env.JWT_SECRET;
     }
-    delete process.env.JWT_ALG;
-    delete process.env.JWT_ISSUER;
-    delete process.env.JWT_AUDIENCE;
+    if (originalJwtAlg) {
+      process.env.JWT_ALG = originalJwtAlg;
+    } else {
+      delete process.env.JWT_ALG;
+    }
+    if (originalExplicitJwtAlg) {
+      process.env._EXPLICIT_JWT_ALG = originalExplicitJwtAlg;
+    } else {
+      delete process.env._EXPLICIT_JWT_ALG;
+    }
+    if (originalJwtIssuer) {
+      process.env.JWT_ISSUER = originalJwtIssuer;
+    } else {
+      delete process.env.JWT_ISSUER;
+    }
+    if (originalJwtAudience) {
+      process.env.JWT_AUDIENCE = originalJwtAudience;
+    } else {
+      delete process.env.JWT_AUDIENCE;
+    }
   });
 
   beforeEach(() => {

@@ -10,7 +10,7 @@
  */
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import request from 'supertest';
+import request, { type Test } from 'supertest';
 import type { Application } from 'express';
 import Anthropic from '@anthropic-ai/sdk';
 
@@ -37,6 +37,7 @@ vi.mock('../../server/db', () => ({
 describe('Interleaved Thinking API', () => {
   let app: Application;
   let mockAnthropicCreate: ReturnType<typeof vi.fn>;
+  let authHeader: string;
 
   beforeEach(async () => {
     vi.clearAllMocks();
@@ -54,12 +55,23 @@ describe('Interleaved Thinking API', () => {
 
     // Import app after mocking
     const { makeApp } = await import('../../server/app');
+    const { signToken } = await import('../../server/lib/auth/jwt');
+    authHeader = `Bearer ${signToken({
+      sub: 'interleaved-integration-user',
+      email: 'interleaved-integration@example.com',
+      role: 'admin',
+      fundIds: [],
+    })}`;
     app = makeApp();
   });
 
   afterEach(() => {
     delete process.env.ANTHROPIC_API_KEY;
   });
+
+  function withAuth(test: Test): Test {
+    return test.set('Authorization', authHeader);
+  }
 
   describe('POST /api/interleaved-thinking/query', () => {
     it('should execute a simple query without tools', async () => {
@@ -86,8 +98,7 @@ describe('Interleaved Thinking API', () => {
         stop_reason: 'end_turn',
       });
 
-      const response = await request(app)
-        .post('/api/interleaved-thinking/query')
+      const response = await withAuth(request(app).post('/api/interleaved-thinking/query'))
         .send({
           query: 'What is the meaning of life?',
         })
@@ -160,8 +171,7 @@ describe('Interleaved Thinking API', () => {
         stop_reason: 'end_turn',
       });
 
-      const response = await request(app)
-        .post('/api/interleaved-thinking/query')
+      const response = await withAuth(request(app).post('/api/interleaved-thinking/query'))
         .send({
           query: 'Calculate 15% of $1,000,000',
           options: {
@@ -191,8 +201,7 @@ describe('Interleaved Thinking API', () => {
     });
 
     it('should validate query request schema', async () => {
-      const response = await request(app)
-        .post('/api/interleaved-thinking/query')
+      const response = await withAuth(request(app).post('/api/interleaved-thinking/query'))
         .send({
           query: '', // Empty query - should fail validation
         })
@@ -221,8 +230,7 @@ describe('Interleaved Thinking API', () => {
       });
 
       // Valid options
-      await request(app)
-        .post('/api/interleaved-thinking/query')
+      await withAuth(request(app).post('/api/interleaved-thinking/query'))
         .send({
           query: 'Test query',
           options: {
@@ -237,8 +245,7 @@ describe('Interleaved Thinking API', () => {
     it('should handle API errors gracefully', async () => {
       mockAnthropicCreate.mockRejectedValue(new Error('Rate limit exceeded'));
 
-      const response = await request(app)
-        .post('/api/interleaved-thinking/query')
+      const response = await withAuth(request(app).post('/api/interleaved-thinking/query'))
         .send({
           query: 'Test query',
         })
@@ -254,8 +261,7 @@ describe('Interleaved Thinking API', () => {
       const { makeApp } = await import('../../server/app');
       const testApp = makeApp();
 
-      const response = await request(testApp)
-        .post('/api/interleaved-thinking/query')
+      const response = await withAuth(request(testApp).post('/api/interleaved-thinking/query'))
         .send({
           query: 'Test query',
         })
@@ -290,8 +296,7 @@ describe('Interleaved Thinking API', () => {
         stop_reason: 'end_turn',
       });
 
-      const response = await request(app)
-        .post('/api/interleaved-thinking/analyze')
+      const response = await withAuth(request(app).post('/api/interleaved-thinking/analyze'))
         .send({
           topic: 'Portfolio concentration risk',
           depth: 'quick',
@@ -332,8 +337,7 @@ describe('Interleaved Thinking API', () => {
         stop_reason: 'end_turn',
       });
 
-      const response = await request(app)
-        .post('/api/interleaved-thinking/analyze')
+      const response = await withAuth(request(app).post('/api/interleaved-thinking/analyze'))
         .send({
           topic: 'Portfolio construction strategy',
           depth: 'deep',
@@ -362,8 +366,7 @@ describe('Interleaved Thinking API', () => {
     });
 
     it('should validate analyze request schema', async () => {
-      const response = await request(app)
-        .post('/api/interleaved-thinking/analyze')
+      const response = await withAuth(request(app).post('/api/interleaved-thinking/analyze'))
         .send({
           topic: '', // Empty topic - should fail validation
         })
@@ -391,8 +394,7 @@ describe('Interleaved Thinking API', () => {
         stop_reason: 'end_turn',
       });
 
-      const response = await request(app)
-        .post('/api/interleaved-thinking/analyze')
+      const response = await withAuth(request(app).post('/api/interleaved-thinking/analyze'))
         .send({
           topic: 'Test topic',
         })
@@ -404,7 +406,9 @@ describe('Interleaved Thinking API', () => {
 
   describe('GET /api/interleaved-thinking/usage', () => {
     it('should return available tools and pricing', async () => {
-      const response = await request(app).get('/api/interleaved-thinking/usage').expect(200);
+      const response = await withAuth(request(app).get('/api/interleaved-thinking/usage')).expect(
+        200
+      );
 
       expect(response.body).toMatchObject({
         success: true,
@@ -440,7 +444,9 @@ describe('Interleaved Thinking API', () => {
 
   describe('GET /api/interleaved-thinking/health', () => {
     it('should return healthy status when API key and DB are configured', async () => {
-      const response = await request(app).get('/api/interleaved-thinking/health').expect(200);
+      const response = await withAuth(request(app).get('/api/interleaved-thinking/health')).expect(
+        200
+      );
 
       expect(response.body).toMatchObject({
         success: true,
@@ -458,7 +464,9 @@ describe('Interleaved Thinking API', () => {
       const { makeApp } = await import('../../server/app');
       const testApp = makeApp();
 
-      const response = await request(testApp).get('/api/interleaved-thinking/health').expect(200);
+      const response = await withAuth(
+        request(testApp).get('/api/interleaved-thinking/health')
+      ).expect(200);
 
       expect(response.body).toMatchObject({
         success: true,
@@ -517,8 +525,7 @@ describe('Interleaved Thinking API', () => {
         stop_reason: 'end_turn',
       });
 
-      const response = await request(app)
-        .post('/api/interleaved-thinking/query')
+      const response = await withAuth(request(app).post('/api/interleaved-thinking/query'))
         .send({
           query: 'How many funds are in the database?',
         })
@@ -564,8 +571,7 @@ describe('Interleaved Thinking API', () => {
         stop_reason: 'end_turn',
       });
 
-      const response = await request(app)
-        .post('/api/interleaved-thinking/query')
+      const response = await withAuth(request(app).post('/api/interleaved-thinking/query'))
         .send({
           query: 'Delete a fund',
         })
@@ -614,8 +620,7 @@ describe('Interleaved Thinking API', () => {
         stop_reason: 'end_turn',
       });
 
-      const response = await request(app)
-        .post('/api/interleaved-thinking/query')
+      const response = await withAuth(request(app).post('/api/interleaved-thinking/query'))
         .send({
           query: 'Calculate sqrt(144) + mean([10, 20, 30])',
         })
@@ -660,8 +665,7 @@ describe('Interleaved Thinking API', () => {
         stop_reason: 'end_turn',
       });
 
-      const response = await request(app)
-        .post('/api/interleaved-thinking/query')
+      const response = await withAuth(request(app).post('/api/interleaved-thinking/query'))
         .send({
           query: 'Calculate invalid_function(123)',
         })

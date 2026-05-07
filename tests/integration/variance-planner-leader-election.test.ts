@@ -61,6 +61,25 @@ async function cleanLeaderRow(): Promise<void> {
   await realDb.execute(sql`DELETE FROM variance_planner_leader WHERE id = 'variance-planner'`);
 }
 
+async function ensureLeaderSchema(): Promise<void> {
+  await realDb.execute(sql`
+    CREATE TABLE IF NOT EXISTS variance_planner_leader (
+      id                VARCHAR(64) PRIMARY KEY,
+      instance_id       VARCHAR(255) NOT NULL,
+      acquired_at       TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      lease_expires_at  TIMESTAMPTZ NOT NULL,
+      last_renewed_at   TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      created_at        TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      updated_at        TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `);
+
+  await realDb.execute(sql`
+    CREATE INDEX IF NOT EXISTS idx_variance_planner_leader_lease_expires
+      ON variance_planner_leader (lease_expires_at)
+  `);
+}
+
 async function readLeaderRow(): Promise<{
   instance_id: string;
   acquired_at: Date;
@@ -124,6 +143,7 @@ describe('VarianceAlertAutomationService leader election (integration)', () => {
     VarianceAlertAutomationService = mod.VarianceAlertAutomationService;
 
     // Sanity probe: confirm the table exists and the connection is real.
+    await ensureLeaderSchema();
     await realDb.execute(sql`SELECT 1 FROM variance_planner_leader LIMIT 1`);
   });
 

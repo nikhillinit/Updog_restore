@@ -6,8 +6,10 @@ import { sendApiError } from '../lib/apiError';
 const ALLOW = (path: string) =>
   path === '/healthz' || path === '/readyz' || path === '/metrics' || path.startsWith('/health/');
 
-// Configurable retry-after for shutdown
-const SHUTDOWN_RETRY_AFTER = Number(process.env['SHUTDOWN_RETRY_AFTER_SECONDS'] ?? 30);
+function shutdownRetryAfterSeconds(): number {
+  const retryAfter = Number(process.env['SHUTDOWN_RETRY_AFTER_SECONDS'] ?? 30);
+  return Number.isFinite(retryAfter) && retryAfter > 0 ? retryAfter : 30;
+}
 
 /**
  * Middleware that returns 503 during shutdown
@@ -18,8 +20,9 @@ const SHUTDOWN_RETRY_AFTER = Number(process.env['SHUTDOWN_RETRY_AFTER_SECONDS'] 
 export function shutdownGuard() {
   return (req: Request, res: Response, next: NextFunction) => {
     if (!isReady() && !ALLOW(req.path)) {
+      const retryAfter = shutdownRetryAfterSeconds();
       res['setHeader']('Connection', 'close');
-      res['setHeader']('Retry-After', String(SHUTDOWN_RETRY_AFTER));
+      res['setHeader']('Retry-After', String(retryAfter));
       res['setHeader']('Cache-Control', 'no-store');
       return sendApiError(res, 503, {
         error: 'Service Unavailable',
