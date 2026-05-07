@@ -355,16 +355,37 @@ export function idempotency(options: IdempotencyOptions = {}) {
 
     let _responseBody: unknown;
     let responseCaptured = false;
+    let processLockReleased = false;
+    let cleanupStarted = false;
 
-    // Clean up lock when response completes or fails
-    const cleanupLock = async () => {
+    const releaseProcessLock = () => {
+      if (processLockReleased) {
+        return;
+      }
+      processLockReleased = true;
       inProcessLocks.delete(processLockKey);
+    };
+
+    // Clean up distributed lock after uncached completion or cache persistence.
+    const cleanupLock = async () => {
+      releaseProcessLock();
+      if (cleanupStarted) {
+        return;
+      }
+      cleanupStarted = true;
       if (redisClient && locked) {
         try {
           await redisClient.del(lockKey);
         } catch (error) {
           console.warn('[Idempotency] Failed to cleanup lock:', error);
         }
+      }
+    };
+
+    const cleanupResponseLock = () => {
+      releaseProcessLock();
+      if (!responseCaptured) {
+        void cleanupLock();
       }
     };
 
@@ -420,8 +441,9 @@ export function idempotency(options: IdempotencyOptions = {}) {
       return originalJson.call(this, body);
     };
 
-    // Handle request abortion or errors
-    req['on']('close', cleanupLock);
+    // Handle responses that are not cached plus abnormal request/response termination.
+    res['once']('finish', cleanupResponseLock);
+    res['once']('close', cleanupResponseLock);
     req['on']('error', cleanupLock);
 
     next();

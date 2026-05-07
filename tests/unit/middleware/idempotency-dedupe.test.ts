@@ -20,10 +20,12 @@ describe('Idempotency Middleware', () => {
     app.use(express.json());
 
     // Apply idempotency middleware
-    app.use(idempotency({
-      ttl: 60,
-      memoryFallback: true,
-    }));
+    app.use(
+      idempotency({
+        ttl: 60,
+        memoryFallback: true,
+      })
+    );
 
     // Test endpoint
     app.post('/api/funds', (req, res) => {
@@ -39,10 +41,18 @@ describe('Idempotency Middleware', () => {
     // Slow endpoint for in-flight testing
     app.post('/api/funds/slow', async (req, res) => {
       requestCount++;
-      await new Promise(resolve => setTimeout(resolve, 200));
+      await new Promise((resolve) => setTimeout(resolve, 200));
       res.status(201).json({
         id: 'fund-slow',
         name: req.body.name,
+        requestCount,
+      });
+    });
+
+    app.post('/api/funds/error', (req, res) => {
+      requestCount++;
+      res.status(500).json({
+        error: 'failed',
         requestCount,
       });
     });
@@ -68,7 +78,7 @@ describe('Idempotency Middleware', () => {
     requestCount = 0;
     clearIdempotencyCache();
   });
-  
+
   describe('Header-based Idempotency', () => {
     it('should return same response for duplicate requests with same key', async () => {
       const idempotencyKey = 'test-key-123';
@@ -87,46 +97,46 @@ describe('Idempotency Middleware', () => {
       expect(response1.headers['idempotency-key']).toBe(idempotencyKey);
 
       // Wait for async storage to complete (storeResponse is fire-and-forget)
-      await new Promise(resolve => setTimeout(resolve, 50));
+      await new Promise((resolve) => setTimeout(resolve, 50));
 
       // Duplicate request with same key
       const response2 = await request(app)
         .post('/api/funds')
         .set('Idempotency-Key', idempotencyKey)
         .send(payload);
-      
+
       expect(response2.status).toBe(201);
       expect(response2.body.id).toBe('fund-123');
       expect(response2.body.requestCount).toBe(1); // Same as first
       expect(response2.headers['idempotency-replay']).toBe('true');
-      
+
       // Handler should only be called once
       expect(requestCount).toBe(1);
     });
-    
+
     it('should process different idempotency keys separately', async () => {
       const payload = { name: 'Test Fund' };
-      
+
       // First request
       const response1 = await request(app)
         .post('/api/funds')
         .set('Idempotency-Key', 'key-1')
         .send(payload);
-      
+
       expect(response1.body.requestCount).toBe(1);
-      
+
       // Different key
       const response2 = await request(app)
         .post('/api/funds')
         .set('Idempotency-Key', 'key-2')
         .send(payload);
-      
+
       expect(response2.body.requestCount).toBe(2);
-      
+
       // Handler called twice
       expect(requestCount).toBe(2);
     });
-    
+
     it('should support alternative header names', async () => {
       const idempotencyKey = 'alt-key-123';
       const payload = { name: 'Test Fund' };
@@ -140,7 +150,7 @@ describe('Idempotency Middleware', () => {
       expect(response1.status).toBe(201);
 
       // Wait for async storage to complete
-      await new Promise(resolve => setTimeout(resolve, 50));
+      await new Promise((resolve) => setTimeout(resolve, 50));
 
       // Same key with alternative header
       const response2 = await request(app)
@@ -151,24 +161,20 @@ describe('Idempotency Middleware', () => {
       expect(response2.headers['idempotency-replay']).toBe('true');
       expect(requestCount).toBe(1);
     });
-    
+
     it('should process requests without idempotency key normally', async () => {
       // Use /api/other which doesn't trigger auto-key-generation
       // (unlike /api/funds which is in the criticalPaths list)
       const payload = { name: 'Test Fund' };
 
       // First request without key
-      const response1 = await request(app)
-        .post('/api/other')
-        .send(payload);
+      const response1 = await request(app).post('/api/other').send(payload);
 
       expect(response1.status).toBe(201);
       expect(response1.body.requestCount).toBe(1);
 
       // Second request without key
-      const response2 = await request(app)
-        .post('/api/other')
-        .send(payload);
+      const response2 = await request(app).post('/api/other').send(payload);
 
       expect(response2.status).toBe(201);
       expect(response2.body.requestCount).toBe(2);
@@ -177,7 +183,7 @@ describe('Idempotency Middleware', () => {
       expect(requestCount).toBe(2);
     });
   });
-  
+
   describe('Production Scenarios - AP-IDEM-01 (Stable Fingerprinting)', () => {
     it('should return 422 for same key with different payload (fingerprint mismatch)', async () => {
       const idempotencyKey = 'fingerprint-test';
@@ -215,7 +221,7 @@ describe('Idempotency Middleware', () => {
       expect(response1.status).toBe(201);
 
       // Wait for async storage to complete
-      await new Promise(resolve => setTimeout(resolve, 50));
+      await new Promise((resolve) => setTimeout(resolve, 50));
 
       // Second request with same data but different key order
       const response2 = await request(app)
@@ -242,7 +248,7 @@ describe('Idempotency Middleware', () => {
         .send(payload);
 
       // Wait 50ms, then start duplicate request while first is in-flight
-      await new Promise(resolve => setTimeout(resolve, 50));
+      await new Promise((resolve) => setTimeout(resolve, 50));
 
       const promise2 = request(app)
         .post('/api/funds/slow')
@@ -264,6 +270,26 @@ describe('Idempotency Middleware', () => {
 
       // Handler only called once
       expect(requestCount).toBe(1);
+    });
+
+    it('should release in-process locks after uncached error responses', async () => {
+      const idempotencyKey = 'error-release-test';
+      const payload = { name: 'Error Fund' };
+
+      const response1 = await request(app)
+        .post('/api/funds/error')
+        .set('Idempotency-Key', idempotencyKey)
+        .send(payload);
+
+      const response2 = await request(app)
+        .post('/api/funds/error')
+        .set('Idempotency-Key', idempotencyKey)
+        .send(payload);
+
+      expect(response1.status).toBe(500);
+      expect(response2.status).toBe(500);
+      expect(response2.body.error).toBe('failed');
+      expect(requestCount).toBe(2);
     });
   });
 
@@ -288,19 +314,19 @@ describe('Idempotency Middleware', () => {
         .post('/api/test')
         .set('Idempotency-Key', `${testPrefix}-1`)
         .send({ id: 1 });
-      await new Promise(resolve => setTimeout(resolve, 100));
+      await new Promise((resolve) => setTimeout(resolve, 100));
 
       await request(smallCacheApp)
         .post('/api/test')
         .set('Idempotency-Key', `${testPrefix}-2`)
         .send({ id: 2 });
-      await new Promise(resolve => setTimeout(resolve, 100));
+      await new Promise((resolve) => setTimeout(resolve, 100));
 
       await request(smallCacheApp)
         .post('/api/test')
         .set('Idempotency-Key', `${testPrefix}-3`)
         .send({ id: 3 });
-      await new Promise(resolve => setTimeout(resolve, 100));
+      await new Promise((resolve) => setTimeout(resolve, 100));
 
       // Access key-1 again (should move to end of LRU)
       const response1 = await request(smallCacheApp)
@@ -340,21 +366,21 @@ describe('Idempotency Middleware', () => {
         .set('Idempotency-Key', 'lru-key-A')
         .send({ id: 'A' })
         .expect(200);
-      await new Promise(resolve => setTimeout(resolve, 50));
+      await new Promise((resolve) => setTimeout(resolve, 50));
 
       await request(lruApp)
         .post('/api/lru-test')
         .set('Idempotency-Key', 'lru-key-B')
         .send({ id: 'B' })
         .expect(200);
-      await new Promise(resolve => setTimeout(resolve, 50));
+      await new Promise((resolve) => setTimeout(resolve, 50));
 
       await request(lruApp)
         .post('/api/lru-test')
         .set('Idempotency-Key', 'lru-key-C')
         .send({ id: 'C' })
         .expect(200);
-      await new Promise(resolve => setTimeout(resolve, 50));
+      await new Promise((resolve) => setTimeout(resolve, 50));
 
       expect(requestCount).toBe(3); // All 3 requests processed
 
@@ -434,7 +460,7 @@ describe('Idempotency Middleware', () => {
         .send({ name: 'Test' });
 
       // Wait for async storage to complete
-      await new Promise(resolve => setTimeout(resolve, 50));
+      await new Promise((resolve) => setTimeout(resolve, 50));
 
       const response2 = await request(app)
         .post('/api/funds')
@@ -460,7 +486,7 @@ describe('Idempotency Middleware', () => {
       const timestamp1 = response1.body.timestamp;
 
       // Wait a bit
-      await new Promise(resolve => setTimeout(resolve, 100));
+      await new Promise((resolve) => setTimeout(resolve, 100));
 
       // Replay with SAME payload (different payload triggers 422 per AP-IDEM-01)
       const response2 = await request(app)
@@ -473,7 +499,7 @@ describe('Idempotency Middleware', () => {
       expect(response2.body.timestamp).toBe(timestamp1);
       expect(response2.body.name).toBe('Cached Fund');
     });
-    
+
     it('should preserve response headers', async () => {
       const customApp = express();
       customApp.use(express.json());
@@ -497,7 +523,7 @@ describe('Idempotency Middleware', () => {
       expect(response1.headers['x-rate-limit']).toBe('100');
 
       // Wait for async storage to complete
-      await new Promise(resolve => setTimeout(resolve, 50));
+      await new Promise((resolve) => setTimeout(resolve, 50));
 
       // Cached request
       const response2 = await request(customApp)
@@ -516,25 +542,27 @@ describe('Idempotency Middleware', () => {
 describe('Request Deduplication Middleware', () => {
   let app: Express;
   let simulationCount = 0;
-  
+
   beforeAll(() => {
     app = express();
     app.use(express.json());
-    
+
     // Apply deduplication middleware
-    app.use(dedupe({
-      ttl: 60,
-      memoryFallback: true,
-      useSingleflight: true,
-    }));
-    
+    app.use(
+      dedupe({
+        ttl: 60,
+        memoryFallback: true,
+        useSingleflight: true,
+      })
+    );
+
     // Simulation endpoint
     app.post('/api/simulations', async (req, res) => {
       simulationCount++;
-      
+
       // Simulate processing time
-      await new Promise(resolve => setTimeout(resolve, 100));
-      
+      await new Promise((resolve) => setTimeout(resolve, 100));
+
       res.json({
         id: 'sim-123',
         params: req.body,
@@ -543,12 +571,12 @@ describe('Request Deduplication Middleware', () => {
       });
     });
   });
-  
+
   beforeEach(() => {
     simulationCount = 0;
     clearDedupeCache();
   });
-  
+
   describe('Request Hash Deduplication', () => {
     it('should dedupe identical POST requests', async () => {
       const payload = {
@@ -556,74 +584,62 @@ describe('Request Deduplication Middleware', () => {
         deploymentPeriod: 3,
         targetMultiple: 3.0,
       };
-      
+
       // First request
-      const response1 = await request(app)
-        .post('/api/simulations')
-        .send(payload);
-      
+      const response1 = await request(app).post('/api/simulations').send(payload);
+
       expect(response1.status).toBe(200);
       expect(response1.body.simulationCount).toBe(1);
       expect(response1.headers['x-dedup-key']).toBeDefined();
-      
+
       // Duplicate request (same payload)
-      const response2 = await request(app)
-        .post('/api/simulations')
-        .send(payload);
-      
+      const response2 = await request(app).post('/api/simulations').send(payload);
+
       expect(response2.status).toBe(200);
       expect(response2.body.simulationCount).toBe(1); // Same as first
       expect(response2.headers['x-request-dedup']).toBe('true');
       expect(response2.headers['x-dedup-count']).toBe('2');
-      
+
       // Handler only called once
       expect(simulationCount).toBe(1);
     });
-    
+
     it('should process different payloads separately', async () => {
       const payload1 = { fundSize: 50000000 };
       const payload2 = { fundSize: 100000000 };
-      
+
       // First request
-      const response1 = await request(app)
-        .post('/api/simulations')
-        .send(payload1);
-      
+      const response1 = await request(app).post('/api/simulations').send(payload1);
+
       expect(response1.body.simulationCount).toBe(1);
-      
+
       // Different payload
-      const response2 = await request(app)
-        .post('/api/simulations')
-        .send(payload2);
-      
+      const response2 = await request(app).post('/api/simulations').send(payload2);
+
       expect(response2.body.simulationCount).toBe(2);
-      
+
       // Both processed
       expect(simulationCount).toBe(2);
     });
-    
+
     it('should include query parameters in hash', async () => {
       const payload = { fundSize: 50000000 };
-      
+
       // Request with query param
-      const response1 = await request(app)
-        .post('/api/simulations?version=1')
-        .send(payload);
-      
+      const response1 = await request(app).post('/api/simulations?version=1').send(payload);
+
       expect(response1.body.simulationCount).toBe(1);
-      
+
       // Same payload, different query
-      const response2 = await request(app)
-        .post('/api/simulations?version=2')
-        .send(payload);
-      
+      const response2 = await request(app).post('/api/simulations?version=2').send(payload);
+
       expect(response2.body.simulationCount).toBe(2);
-      
+
       // Both processed (different hashes)
       expect(simulationCount).toBe(2);
     });
   });
-  
+
   describe('Singleflight Pattern', () => {
     it('should coalesce concurrent identical requests', async () => {
       // Use unique payload to avoid cross-test cache pollution
@@ -631,104 +647,92 @@ describe('Request Deduplication Middleware', () => {
       const payload = { fundSize: 99999999, testId: `singleflight-${Date.now()}` };
 
       // Launch multiple concurrent requests
-      const promises = Array(5).fill(null).map(() =>
-        request(app)
-          .post('/api/simulations')
-          .send(payload)
-      );
-      
+      const promises = Array(5)
+        .fill(null)
+        .map(() => request(app).post('/api/simulations').send(payload));
+
       const responses = await Promise.all(promises);
-      
+
       // All should get same response
       const firstResponse = responses[0].body;
-      responses.forEach(response => {
+      responses.forEach((response) => {
         expect(response.body).toEqual(firstResponse);
       });
-      
+
       // Handler only called once
       expect(simulationCount).toBe(1);
-      
+
       // Some should be marked as in-flight dedup
-      const inflightResponses = responses.filter(r => 
-        r.headers['x-request-dedup'] === 'inflight'
+      const inflightResponses = responses.filter(
+        (r) => r.headers['x-request-dedup'] === 'inflight'
       );
       expect(inflightResponses.length).toBeGreaterThan(0);
     });
-    
+
     it('should handle in-flight request failures', async () => {
       const failApp = express();
       failApp.use(express.json());
       failApp.use(dedupe({ useSingleflight: true }));
-      
+
       let callCount = 0;
       failApp.post('/api/fail', async (req, res) => {
         callCount++;
         if (callCount === 1) {
           // First request fails
-          await new Promise(resolve => setTimeout(resolve, 50));
+          await new Promise((resolve) => setTimeout(resolve, 50));
           res.status(500).json({ error: 'Failed' });
         } else {
           // Subsequent request succeeds
           res.json({ success: true, callCount });
         }
       });
-      
+
       // First request (will fail)
-      const promise1 = request(failApp)
-        .post('/api/fail')
-        .send({ test: true });
-      
+      const promise1 = request(failApp).post('/api/fail').send({ test: true });
+
       // Second request (concurrent, should not wait for failed request)
-      await new Promise(resolve => setTimeout(resolve, 10));
-      const promise2 = request(failApp)
-        .post('/api/fail')
-        .send({ test: true });
-      
+      await new Promise((resolve) => setTimeout(resolve, 10));
+      const promise2 = request(failApp).post('/api/fail').send({ test: true });
+
       const [response1, response2] = await Promise.all([promise1, promise2]);
-      
+
       expect(response1.status).toBe(500);
       expect(response2.status).toBe(200);
       expect(callCount).toBe(2); // Both processed
     });
   });
-  
+
   describe('TTL and Expiration', () => {
     it('should expire cached responses after TTL', async () => {
       const ttlApp = express();
       ttlApp.use(express.json());
       ttlApp.use(dedupe({ ttl: 1, memoryFallback: true })); // 1 second TTL
-      
+
       let callCount = 0;
       ttlApp.post('/api/ttl', (req, res) => {
         callCount++;
         res.json({ callCount });
       });
-      
+
       const payload = { test: true };
-      
+
       // First request
-      const response1 = await request(ttlApp)
-        .post('/api/ttl')
-        .send(payload);
-      
+      const response1 = await request(ttlApp).post('/api/ttl').send(payload);
+
       expect(response1.body.callCount).toBe(1);
-      
+
       // Immediate duplicate (should be cached)
-      const response2 = await request(ttlApp)
-        .post('/api/ttl')
-        .send(payload);
-      
+      const response2 = await request(ttlApp).post('/api/ttl').send(payload);
+
       expect(response2.body.callCount).toBe(1);
       expect(response2.headers['x-request-dedup']).toBe('true');
-      
+
       // Wait for expiration
-      await new Promise(resolve => setTimeout(resolve, 1100));
-      
+      await new Promise((resolve) => setTimeout(resolve, 1100));
+
       // Should process new request
-      const response3 = await request(ttlApp)
-        .post('/api/ttl')
-        .send(payload);
-      
+      const response3 = await request(ttlApp).post('/api/ttl').send(payload);
+
       expect(response3.body.callCount).toBe(2);
       expect(response3.headers['x-request-dedup']).toBeUndefined();
     });
@@ -738,15 +742,15 @@ describe('Request Deduplication Middleware', () => {
 describe('Idempotency + Deduplication Combined', () => {
   let app: Express;
   let processCount = 0;
-  
+
   beforeAll(() => {
     app = express();
     app.use(express.json());
-    
+
     // Apply both middlewares
     app.use(idempotency());
     app.use(dedupe());
-    
+
     app.post('/api/critical', (req, res) => {
       processCount++;
       res.status(201).json({
@@ -755,13 +759,13 @@ describe('Idempotency + Deduplication Combined', () => {
       });
     });
   });
-  
+
   beforeEach(() => {
     processCount = 0;
     clearIdempotencyCache();
     clearDedupeCache();
   });
-  
+
   it('should handle both idempotency key and request deduplication', async () => {
     const payload = { amount: 1000 };
 
@@ -774,7 +778,7 @@ describe('Idempotency + Deduplication Combined', () => {
     expect(response1.body.processCount).toBe(1);
 
     // Wait for async storage to complete
-    await new Promise(resolve => setTimeout(resolve, 50));
+    await new Promise((resolve) => setTimeout(resolve, 50));
 
     // Same idempotency key (handled by idempotency middleware)
     const response2 = await request(app)
@@ -786,9 +790,7 @@ describe('Idempotency + Deduplication Combined', () => {
     expect(response2.body.processCount).toBe(1);
 
     // No idempotency key but same payload (handled by dedupe middleware)
-    const response3 = await request(app)
-      .post('/api/critical')
-      .send(payload);
+    const response3 = await request(app).post('/api/critical').send(payload);
 
     expect(response3.headers['x-request-dedup']).toBe('true');
     expect(response3.body.processCount).toBe(1);

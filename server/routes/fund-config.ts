@@ -52,7 +52,13 @@ import { FundDraftWriteV1Schema } from '@shared/contracts/fund-draft-write-v1.co
 import { sendApiError } from '../lib/apiError';
 import idempotency from '../middleware/idempotency';
 
-type RequestWithOptionalUser = Request & { user?: { id?: string } };
+type RequestWithOptionalUser = Request & { user?: { id?: string; fundIds?: number[] } };
+
+function requestUserCanAccessFund(req: RequestWithOptionalUser, fundId: number): boolean {
+  const userFundIds = Array.isArray(req.user?.fundIds) ? req.user.fundIds : [];
+
+  return userFundIds.length === 0 || userFundIds.includes(fundId);
+}
 
 export function registerFundConfigRoutes(app: Express) {
   ensureProducerQueuesRegistered();
@@ -71,6 +77,17 @@ export function registerFundConfigRoutes(app: Express) {
         });
       }
 
+      const draftFundId = validation.data.draftFundId;
+      if (
+        draftFundId != null &&
+        !requestUserCanAccessFund(req as RequestWithOptionalUser, draftFundId)
+      ) {
+        return sendApiError(res, 403, {
+          error: `You do not have access to fund ${draftFundId}`,
+          code: 'FUND_ACCESS_DENIED',
+        });
+      }
+
       const { fundPersistenceService } = await import('../services/fund-persistence-service');
       const result = await fundPersistenceService.finalize(validation.data, {
         reserve: reserveQueue,
@@ -83,6 +100,13 @@ export function registerFundConfigRoutes(app: Express) {
         data: result,
       });
     } catch (error) {
+      if (error instanceof Error && error.name === 'NoActiveDraftForFinalizeError') {
+        return sendApiError(res, 409, {
+          error: error.message,
+          code: 'NO_ACTIVE_DRAFT',
+        });
+      }
+
       console.error('Finalize error:', error);
       const apiError: ApiError = {
         error: 'Failed to finalize fund',
