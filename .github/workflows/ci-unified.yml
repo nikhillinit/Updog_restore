@@ -559,7 +559,7 @@ jobs:
 
       - name: Comment guard results
         if: always()
-        uses: actions/github-script@v7
+        uses: actions/github-script@v9
         with:
           script: |
             const flagsBlocked = "${{ steps.flags-guard.outcome }}" === "failure";
@@ -609,7 +609,7 @@ jobs:
 
       - name: Comment PR status
         if: github.event_name == 'pull_request'
-        uses: actions/github-script@v7
+        uses: actions/github-script@v9
         with:
           script: |
             const status = "${{ steps.status.outcome }}";
