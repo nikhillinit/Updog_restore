@@ -32,6 +32,7 @@
 
 import fs from 'node:fs/promises';
 import path from 'node:path';
+import { execFileSync } from 'node:child_process';
 import { parse as parseYamlContent } from 'yaml';
 
 // =============================================================================
@@ -206,6 +207,52 @@ function stableStringify(value: unknown): string {
   return JSON.stringify(value, (_key, val) => sortObjectKeys(val), 2);
 }
 
+function getRouterDocPaths(value: unknown): string[] {
+  if (!isPlainObject(value) || !Array.isArray(value.docs)) {
+    return [];
+  }
+
+  return value.docs
+    .map((entry) => {
+      if (!isPlainObject(entry) || typeof entry.path !== 'string') {
+        return null;
+      }
+      return normalizePath(entry.path);
+    })
+    .filter((entry): entry is string => entry !== null)
+    .sort(compareStrings);
+}
+
+function getRouterTotalDocs(value: unknown): number | null {
+  if (!isPlainObject(value) || !isPlainObject(value.stats)) {
+    return null;
+  }
+  return typeof value.stats.total_docs === 'number' ? value.stats.total_docs : null;
+}
+
+function getUntrackedPaths(paths: string[], trackedFiles: Set<string>): string[] {
+  return paths.filter((filePath) => !trackedFiles.has(filePath)).sort(compareStrings);
+}
+
+function findUntrackedLocalPathMentions(content: string, trackedFiles: Set<string>): string[] {
+  const matches = new Set<string>();
+  const localPathPatterns = [
+    /QA-Test-Report-2026-04-25[^`|"'()\s]*\.md/g,
+    /\.claude\/memory\/[^`|"'()\s]*\.md/g,
+  ];
+
+  for (const pattern of localPathPatterns) {
+    for (const match of content.matchAll(pattern)) {
+      const normalized = normalizePath(match[0]);
+      if (!trackedFiles.has(normalized)) {
+        matches.add(normalized);
+      }
+    }
+  }
+
+  return [...matches].sort(compareStrings);
+}
+
 function normalizeLineEndings(content: string): string {
   // Cross-platform determinism: normalize CRLF to LF before parsing.
   return content.replace(/\r\n/g, '\n');
@@ -318,11 +365,101 @@ function parseFrontmatter(content: string): { data: Record<string, unknown>; con
   }
 }
 
+function escapeRegExpLiteral(value: string): string {
+  return value.replace(/[\\^$.*+?()[\]{}|]/g, '\\$&');
+}
+
+function globPatternToRegExp(pattern: string): RegExp {
+  const normalized = normalizePath(pattern);
+  let regex = '';
+
+  for (let index = 0; index < normalized.length; index++) {
+    const char = normalized[index];
+    const next = normalized[index + 1];
+
+    if (char === '*' && next === '*') {
+      const afterGlobstar = normalized[index + 2];
+      if (afterGlobstar === '/') {
+        regex += '(?:.*/)?';
+        index += 2;
+      } else {
+        regex += '.*';
+        index += 1;
+      }
+      continue;
+    }
+
+    if (char === '*') {
+      regex += '[^/]*';
+      continue;
+    }
+
+    regex += escapeRegExpLiteral(char);
+  }
+
+  return new RegExp(`^${regex}$`);
+}
+
+function pathMatchesGlob(filePath: string, pattern: string): boolean {
+  return globPatternToRegExp(pattern).test(normalizePath(filePath));
+}
+
+function validateGlobSentinels(): void {
+  const expectedMatches: Array<[string, string]> = [
+    ['cheatsheets/**/*.md', 'cheatsheets/daily-workflow.md'],
+    ['cheatsheets/**/*.md', 'cheatsheets/nested/example.md'],
+    ['.claude/**/*.md', '.claude/AGENT-DIRECTORY.md'],
+    ['.claude/**/*.md', '.claude/agents/code-reviewer.md'],
+    ['docs/**/archive/**', 'docs/archive/2026-q2/example.md'],
+    ['docs/**/archive/**', 'docs/observability/archive/example.md'],
+    ['**/node_modules/**', 'node_modules/pkg/README.md'],
+    ['**/node_modules/**', 'packages/pkg/node_modules/pkg/README.md'],
+  ];
+
+  const expectedNonMatches: Array<[string, string]> = [
+    ['cheatsheets/**/*.md', 'cheatsheets/daily-workflow.txt'],
+    ['cheatsheets/**/*.md', 'docs/cheatsheets/daily-workflow.md'],
+    ['.claude/**/*.md', 'docs/.claude/AGENT-DIRECTORY.md'],
+  ];
+
+  for (const [pattern, filePath] of expectedMatches) {
+    if (!pathMatchesGlob(filePath, pattern)) {
+      throw new Error(`Glob sentinel failed: expected ${pattern} to match ${filePath}`);
+    }
+  }
+
+  for (const [pattern, filePath] of expectedNonMatches) {
+    if (pathMatchesGlob(filePath, pattern)) {
+      throw new Error(`Glob sentinel failed: expected ${pattern} not to match ${filePath}`);
+    }
+  }
+}
+
+function getTrackedFileSet(): Set<string> {
+  try {
+    const output = execFileSync('git', ['ls-files', '-z'], { encoding: 'buffer' });
+    const files = output.toString('utf8').split('\0').map(normalizePath).filter(Boolean);
+
+    if (files.length === 0) {
+      throw new Error('git ls-files returned no tracked files');
+    }
+
+    return new Set(files);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    throw new Error(
+      `Unable to determine tracked documentation files from git ls-files; aborting discovery generation. ${message}`
+    );
+  }
+}
+
 /**
  * Simple glob pattern matching
  * In production, use fast-glob package
  */
 async function globFiles(patterns: string[], excludes: string[]): Promise<string[]> {
+  const includeRegexes = patterns.map(globPatternToRegExp);
+  const excludeRegexes = excludes.map(globPatternToRegExp);
   const results: string[] = [];
 
   async function walkDir(dir: string): Promise<void> {
@@ -334,20 +471,14 @@ async function globFiles(patterns: string[], excludes: string[]): Promise<string
         const relativePath = normalizePath(fullPath);
 
         // Check excludes
-        const isExcluded = excludes.some((exc) => {
-          const pattern = normalizePath(exc).replace(/\*\*/g, '.*').replace(/\*/g, '[^/]*');
-          return new RegExp(pattern).test(relativePath);
-        });
+        const isExcluded = excludeRegexes.some((regex) => regex.test(relativePath));
         if (isExcluded) continue;
 
         if (entry.isDirectory()) {
           await walkDir(fullPath);
         } else if (entry.name.endsWith('.md')) {
           // Check if matches any pattern
-          const matches = patterns.some((pat) => {
-            const pattern = normalizePath(pat).replace(/\*\*/g, '.*').replace(/\*/g, '[^/]*');
-            return new RegExp(pattern).test(relativePath);
-          });
+          const matches = includeRegexes.some((regex) => regex.test(relativePath));
           if (matches) {
             results.push(relativePath);
           }
@@ -379,8 +510,7 @@ async function globFiles(patterns: string[], excludes: string[]): Promise<string
       for (const entry of entries) {
         if (!entry.isDirectory() && entry.name.endsWith('.md')) {
           const matches = patterns.some((pat) => {
-            const patternRegex = normalizePath(pat).replace(/\*\*/g, '.*').replace(/\*/g, '[^/]*');
-            return new RegExp(`^${patternRegex}$`).test(entry.name);
+            return pathMatchesGlob(entry.name, pat);
           });
           if (matches) {
             results.push(entry.name);
@@ -396,7 +526,7 @@ async function globFiles(patterns: string[], excludes: string[]): Promise<string
     await walkDir(dir);
   }
 
-  return results.sort(compareStrings);
+  return [...new Set(results)].sort(compareStrings);
 }
 
 /**
@@ -680,6 +810,9 @@ async function main(): Promise<void> {
   console.log(`Discovery Map Generator ${isCheckMode ? '(check mode)' : '(generate mode)'}`);
   console.log('---');
 
+  validateGlobSentinels();
+  const trackedFiles = getTrackedFileSet();
+
   // 1. Load Source Config
   let rawConfig: string;
   try {
@@ -743,7 +876,9 @@ async function main(): Promise<void> {
   console.log('Scanning documentation files...');
   const files = (
     await globFiles(config.configuration.scan_paths, config.configuration.exclude_paths)
-  ).sort(compareStrings);
+  )
+    .filter((file) => trackedFiles.has(normalizePath(file)))
+    .sort(compareStrings);
 
   if (isVerbose) {
     console.log(`Found ${files.length} files`);
@@ -877,9 +1012,14 @@ async function main(): Promise<void> {
   const fastOutput = stableStringify(routerFast);
 
   // 5. Generate Staleness Report
-  let mdOutput = `# Staleness Report
+  const generatedDate = generatedAt.split('T')[0];
+  let mdOutput = `---
+last_updated: ${generatedDate}
+---
 
-*Generated: ${new Date().toISOString()}*
+# Staleness Report
+
+*Generated: ${generatedAt}*
 *Source: ${SOURCE_FILE}*
 
 ## Summary
@@ -990,50 +1130,100 @@ Documents without proper YAML frontmatter:
       // File doesn't exist
     }
 
-    // For check mode, we compare structure, not timestamps
-    const existingParsed = existingJson ? JSON.parse(existingJson) : null;
-    const newParsed = JSON.parse(jsonOutput);
-    const existingFastParsed = existingFast ? JSON.parse(existingFast) : null;
-    const newFastParsed = JSON.parse(fastOutput);
+    // For check mode, compare deterministic structure and doc path inventory,
+    // not timestamps or staleness volatility.
+    const existingParsed: unknown = existingJson ? JSON.parse(existingJson) : null;
+    const newParsed: unknown = JSON.parse(jsonOutput);
+    const existingFastParsed: unknown = existingFast ? JSON.parse(existingFast) : null;
+    const newFastParsed: unknown = JSON.parse(fastOutput);
 
-    // Compare only the structural routing payload. Doc inventory and timestamps
-    // vary by environment and are intentionally excluded from sync checks.
-    function toStructuralRouterIndex(obj: any): Record<string, unknown> | null {
+    function toStructuralRouterIndex(obj: unknown): Record<string, unknown> | null {
       if (!obj || typeof obj !== 'object') return null;
+      const record = obj as Record<string, unknown>;
       return {
-        version: obj.version ?? null,
-        config: obj.config ?? null,
-        decision_tree: obj.decision_tree ?? null,
-        patterns: obj.patterns ?? null,
-        agents: obj.agents ?? null,
+        version: record.version ?? null,
+        config: record.config ?? null,
+        decision_tree: record.decision_tree ?? null,
+        patterns: record.patterns ?? null,
+        agents: record.agents ?? null,
       };
     }
 
-    function toStructuralRouterFast(obj: any): Record<string, unknown> | null {
+    function toStructuralRouterFast(obj: unknown): Record<string, unknown> | null {
       if (!obj || typeof obj !== 'object') return null;
+      const record = obj as Record<string, unknown>;
       return {
-        version: obj.version ?? null,
-        scoring: obj.scoring ?? null,
-        config: obj.config ?? null,
-        patterns: obj.patterns ?? null,
-        keyword_to_docs: obj.keyword_to_docs ?? null,
+        version: record.version ?? null,
+        scoring: record.scoring ?? null,
+        config: record.config ?? null,
+        patterns: record.patterns ?? null,
+        keyword_to_docs: record.keyword_to_docs ?? null,
       };
     }
+
+    const existingDocPaths = getRouterDocPaths(existingParsed);
+    const newDocPaths = getRouterDocPaths(newParsed);
+    const existingUntrackedDocPaths = getUntrackedPaths(existingDocPaths, trackedFiles);
+    const localPollutionMentions = [
+      ...findUntrackedLocalPathMentions(existingJson, trackedFiles).map(
+        (filePath) => `${OUT_JSON}: ${filePath}`
+      ),
+      ...findUntrackedLocalPathMentions(existingStaleness, trackedFiles).map(
+        (filePath) => `${OUT_STALENESS}: ${filePath}`
+      ),
+    ].sort(compareStrings);
 
     const jsonMatch =
       stableStringify(toStructuralRouterIndex(existingParsed)) ===
       stableStringify(toStructuralRouterIndex(newParsed));
+    const docsInventoryMatch = stableStringify(existingDocPaths) === stableStringify(newDocPaths);
+    const existingStatsMatch = getRouterTotalDocs(existingParsed) === existingDocPaths.length;
+    const newStatsMatch = getRouterTotalDocs(newParsed) === newDocPaths.length;
     const fastMatch =
       stableStringify(toStructuralRouterFast(existingFastParsed)) ===
       stableStringify(toStructuralRouterFast(newFastParsed));
 
     // For staleness report, just check if it exists (content will differ due to timestamps)
     const stalenessExists = existingStaleness.length > 0;
+    const trackedInventoryOnly = existingUntrackedDocPaths.length === 0;
+    const noLocalPollutionMentions = localPollutionMentions.length === 0;
 
-    if (!jsonMatch || !fastMatch || !stalenessExists) {
+    if (
+      !jsonMatch ||
+      !docsInventoryMatch ||
+      !existingStatsMatch ||
+      !newStatsMatch ||
+      !trackedInventoryOnly ||
+      !noLocalPollutionMentions ||
+      !fastMatch ||
+      !stalenessExists
+    ) {
       console.error('ERROR: Generated files are out of sync with source!');
       console.error('Run: npm run docs:routing:generate');
       if (!jsonMatch) console.error('  - router-index.json needs regeneration');
+      if (!docsInventoryMatch) {
+        console.error('  - router-index.json doc inventory differs from deterministic scan');
+      }
+      if (!existingStatsMatch) {
+        console.error('  - existing router-index.json stats.total_docs does not match docs.length');
+      }
+      if (!newStatsMatch) {
+        console.error(
+          '  - generated router-index.json stats.total_docs does not match docs.length'
+        );
+      }
+      if (!trackedInventoryOnly) {
+        console.error('  - existing router-index.json contains untracked doc paths:');
+        for (const filePath of existingUntrackedDocPaths) {
+          console.error(`    - ${filePath}`);
+        }
+      }
+      if (!noLocalPollutionMentions) {
+        console.error('  - generated artifacts contain untracked local path mentions:');
+        for (const mention of localPollutionMentions) {
+          console.error(`    - ${mention}`);
+        }
+      }
       if (!fastMatch) console.error('  - router-fast.json needs regeneration');
       if (!stalenessExists) console.error('  - staleness-report.md is missing');
       process.exit(1);

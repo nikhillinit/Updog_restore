@@ -4199,10 +4199,10 @@ CI Validation | None | Automated | New capability |
 
 ### Implementation
 
-**Files Created:**
+**Files Created (archived 2026-05-08):**
 
 ```
-docs/analysis/strategic-review-2025-11-27/
+docs/archive/2026-q2/stale-docs/docs/analysis/strategic-review-2025-11-27/
 ├── 00-INDEX.md (navigation hub, 2-min read)
 ├── 01-EXECUTIVE-SUMMARY.md (1-min overview)
 ├── 02-PHASE1-PLAN-ANALYSIS.md (4 blockers)
