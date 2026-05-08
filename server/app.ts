@@ -31,6 +31,7 @@ import { registerFundConfigRoutes } from './routes/fund-config.js';
 import { dealPipelineRouter } from './routes/deal-pipeline.js';
 import cohortAnalysisRouter from './routes/cohort-analysis.js';
 import sensitivityRouter from './routes/sensitivity.js';
+import lpReportingImportsRouter from './routes/lp-reporting/imports.js';
 import metricsRouter from './routes/metrics-endpoint.js';
 import { installRumIngressGuards } from './routes/metrics-rum-ingress.js';
 import { metricsRumRouter } from './routes/metrics-rum.js';
@@ -216,6 +217,7 @@ export function makeApp() {
 
   // Sensitivity Analysis API (Phase 1A - one-way sweeps; fund-scoped)
   app.use('/api', sensitivityRouter);
+  app.use(lpReportingImportsRouter);
 
   // Backtesting API (Monte Carlo validation)
   app.use('/api/backtesting', backtestingRouter);
