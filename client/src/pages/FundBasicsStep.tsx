@@ -12,6 +12,7 @@ import { fundStore } from '@/stores/fundStore';
 import { fundStoreToCreateV1, fundStoreToDraftWriteV1 } from '@/adapters/fund-store-adapters';
 import { createFund, normalizeCreateFundResponse } from '@/services/funds';
 import { saveFundDraft } from '@/services/fund-drafts';
+import { useFlag } from '@/hooks/useUnifiedFlag';
 import { ModernStepContainer } from '@/components/wizard/ModernStepContainer';
 import { NumericInput } from '@/components/ui/NumericInput';
 import { WizardCard } from '@/components/wizard/WizardCard';
@@ -33,6 +34,7 @@ export default function FundBasicsStep() {
   const vintageYear = useFundSelector((s) => s.vintageYear);
   const draftFundId = useFundSelector((s) => s.draftFundId);
   const draftServerReady = useFundSelector((s) => s.draftServerReady);
+  const economicsEnabled = useFlag('enable_gp_economics_engine', { withDependencies: true });
 
   // Actions
   const updateFundBasics = useFundAction((s) => s.updateFundBasics);
@@ -153,7 +155,9 @@ export default function FundBasicsStep() {
       setBootstrapStage('saving');
 
       try {
-        const draftPayload = fundStoreToDraftWriteV1(fundStore.getState());
+        const draftPayload = fundStoreToDraftWriteV1(fundStore.getState(), {
+          includeEconomicsAssumptions: economicsEnabled,
+        });
         await saveFundDraft(activeDraftFundId, draftPayload);
         setDraftServerReady(true);
       } catch (error) {

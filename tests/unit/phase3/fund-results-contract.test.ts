@@ -27,6 +27,7 @@ describe('FundResultsReadV1 contract shape', () => {
         scorecard: { status: 'unavailable', reason: 'No authoritative source' },
         scenarios: { status: 'unavailable', reason: 'No authoritative source' },
         waterfall: { status: 'unavailable', reason: 'No authoritative source' },
+        economics: economicsUnavailableSection(),
       },
     };
 
@@ -46,6 +47,7 @@ describe('FundResultsReadV1 contract shape', () => {
         scorecard: { status: 'unavailable', reason: 'No authoritative source' },
         scenarios: { status: 'unavailable', reason: 'No authoritative source' },
         waterfall: { status: 'unavailable', reason: 'No authoritative source' },
+        economics: economicsUnavailableSection(),
       },
     };
 
@@ -65,6 +67,7 @@ describe('FundResultsReadV1 contract shape', () => {
         scorecard: { status: 'unavailable', reason: 'No authoritative source' },
         scenarios: { status: 'unavailable', reason: 'No authoritative source' },
         waterfall: { status: 'unavailable', reason: 'No authoritative source' },
+        economics: economicsUnavailableSection(),
       },
     };
 
@@ -112,6 +115,7 @@ describe('FundResultsReadV1 contract shape', () => {
         scorecard: { status: 'unavailable', reason: 'ok' },
         scenarios: { status: 'unavailable', reason: 'ok' },
         waterfall: { status: 'unavailable', reason: 'ok' },
+        economics: economicsUnavailableSection(),
       },
     };
 
@@ -257,6 +261,34 @@ describe('FundResultsReadV1 contract shape', () => {
 
     expect(parsed.success).toBe(true);
   });
+
+  it('economics section accepts available snapshot-backed results', () => {
+    const parsed = FundResultsReadV1Schema.safeParse({
+      ...validFullResponse(),
+      sections: {
+        ...allUnavailableSections(),
+        economics: validEconomicsSection(),
+      },
+    });
+
+    expect(parsed.success).toBe(true);
+  });
+
+  it('economics section rejects non-economics reason codes', () => {
+    const parsed = FundResultsReadV1Schema.safeParse({
+      ...validFullResponse(),
+      sections: {
+        ...allUnavailableSections(),
+        economics: {
+          status: 'unavailable',
+          reason: 'Wrong code',
+          reasonCode: 'NO_AUTHORITATIVE_SOURCE',
+        },
+      },
+    });
+
+    expect(parsed.success).toBe(false);
+  });
 });
 
 // -- Fixtures --
@@ -371,6 +403,77 @@ function validWaterfallSection() {
   };
 }
 
+function validEconomicsSection() {
+  return {
+    status: 'available' as const,
+    source: 'fund_snapshots' as const,
+    configVersion: 1,
+    calculatedAt: '2026-03-20T12:30:00.000Z',
+    payload: {
+      version: 'v1' as const,
+      annual: [
+        {
+          year: 1,
+          lpCapitalCalls: 9_800_000,
+          gpCommitmentCalls: 200_000,
+          grossExitProceeds: 0,
+          beginningCash: 0,
+          investments: 8_000_000,
+          feesPaidToManager: 2_000_000,
+          expensesPaid: 0,
+          recycledProceeds: 0,
+          endingCash: 0,
+          lpDistributions: 0,
+          gpInvestmentDistributions: 0,
+          gpCarryDistributed: 0,
+          gpCarryEscrowed: 0,
+          gpCarryReleasedFromEscrow: 0,
+          clawbackPaid: 0,
+          grossNav: 8_000_000,
+          lpNetNav: 7_840_000,
+          dpi: 0,
+          rvpi: 0.8,
+          tvpi: 0.8,
+          conservationDelta: 0,
+        },
+      ],
+      summary: {
+        grossIrr: 0.2,
+        lpNetIrr: 0.15,
+        gpNetIrr: null,
+        totalLpPaidIn: 9_800_000,
+        totalGpCommitmentCalled: 200_000,
+        totalManagementFees: 2_000_000,
+        totalExpenses: 0,
+        totalRecycled: 0,
+        totalLpDistributions: 0,
+        totalGpInvestmentDistributions: 0,
+        totalGpCarryDistributed: 0,
+        totalGpFeeIncome: 2_000_000,
+        finalDpi: 0,
+        finalRvpi: 0.8,
+        finalTvpi: 0.8,
+        finalClawbackDue: 0,
+        maxEscrowAvailable: 0,
+        netGpCarryAfterClawback: 0,
+      },
+      checks: {
+        passed: true,
+        tolerance: 0.01,
+        errors: [],
+      },
+    },
+  };
+}
+
+function economicsUnavailableSection() {
+  return {
+    status: 'unavailable' as const,
+    reason: 'GP economics is disabled',
+    reasonCode: 'ECONOMICS_DISABLED' as const,
+  };
+}
+
 function validFullResponse() {
   return {
     status: 'ready' as const,
@@ -383,6 +486,7 @@ function validFullResponse() {
       scorecard: { status: 'unavailable' as const, reason: 'No authoritative source' },
       scenarios: { status: 'unavailable' as const, reason: 'No authoritative source' },
       waterfall: { status: 'unavailable' as const, reason: 'No authoritative source' },
+      economics: economicsUnavailableSection(),
     },
   };
 }
@@ -394,5 +498,6 @@ function allUnavailableSections() {
     scorecard: { status: 'unavailable' as const, reason: 'No authoritative source' },
     scenarios: { status: 'unavailable' as const, reason: 'No authoritative source' },
     waterfall: { status: 'unavailable' as const, reason: 'No authoritative source' },
+    economics: economicsUnavailableSection(),
   };
 }

@@ -14,8 +14,9 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 
-const { mockInvalidateQueries } = vi.hoisted(() => ({
+const { mockInvalidateQueries, mockUseFlag } = vi.hoisted(() => ({
   mockInvalidateQueries: vi.fn(),
+  mockUseFlag: vi.fn(),
 }));
 
 // Mock dependencies before importing component
@@ -35,6 +36,10 @@ vi.mock('@/contexts/FundContext', () => ({
   useFundContext: () => ({
     setCurrentFund: mockSetCurrentFund,
   }),
+}));
+
+vi.mock('@/hooks/useUnifiedFlag', () => ({
+  useFlag: (...args: unknown[]) => mockUseFlag(...args),
 }));
 
 const mockFundState = {
@@ -78,6 +83,7 @@ const mockFundState = {
 
 vi.mock('@/stores/useFundSelector', () => ({
   useFundSelector: (selector: (s: typeof mockFundState) => unknown) => selector(mockFundState),
+  useFundTuple: (selector: (s: typeof mockFundState) => unknown) => selector(mockFundState),
 }));
 
 vi.mock('@/stores/fundStore', () => ({
@@ -96,14 +102,15 @@ vi.mock('@/services/funds', () => ({
   normalizeCreateFundResponse: vi.fn(),
 }));
 
-// Mock adapters -- only fundStoreToFinalizeV1 is used in the refactored component
+// Mock adapters used by submit and economics dry-run paths
 const mockFundStoreToFinalizeV1 = vi.fn();
+const mockFundStoreToDraftWriteV1 = vi.fn();
 
 vi.mock('@/adapters/fund-store-adapters', () => ({
   fundStoreToFinalizeV1: (...args: unknown[]) => mockFundStoreToFinalizeV1(...args),
+  fundStoreToDraftWriteV1: (...args: unknown[]) => mockFundStoreToDraftWriteV1(...args),
   // Keep legacy exports
   fundStoreToCreateV1: vi.fn(),
-  fundStoreToDraftWriteV1: vi.fn(),
 }));
 
 // Mock formatting
@@ -118,6 +125,7 @@ describe('ReviewStep single-submit via finalize', () => {
     mockSetLocation.mockReset();
     mockSetCurrentFund.mockReset();
     mockInvalidateQueries.mockReset().mockResolvedValue(undefined);
+    mockUseFlag.mockReset().mockReturnValue(true);
     mockFundState.draftFundId = 77;
     mockFundState.draftServerReady = true;
 
@@ -150,6 +158,17 @@ describe('ReviewStep single-submit via finalize', () => {
       investmentPeriod: 5,
       gpCommitment: 3_750_000,
     });
+    mockFundStoreToDraftWriteV1.mockReset().mockReturnValue({
+      fundName: 'Finalize Test Fund',
+      fundSize: 75_000_000,
+      managementFeeRate: 2.5,
+      carriedInterest: 20,
+      vintageYear: 2026,
+      fundLife: 10,
+      investmentPeriod: 5,
+      gpCommitment: 3_750_000,
+      economicsAssumptions: { version: 'v1' },
+    });
   });
 
   afterEach(() => {
@@ -174,7 +193,9 @@ describe('ReviewStep single-submit via finalize', () => {
 
     await waitFor(() => {
       expect(mockFundStoreToFinalizeV1).toHaveBeenCalledTimes(1);
-      expect(mockFundStoreToFinalizeV1).toHaveBeenCalledWith(mockFundState);
+      expect(mockFundStoreToFinalizeV1).toHaveBeenCalledWith(mockFundState, {
+        includeEconomicsAssumptions: true,
+      });
     });
 
     expect(mockFinalizeFund).toHaveBeenCalledTimes(1);
@@ -188,6 +209,85 @@ describe('ReviewStep single-submit via finalize', () => {
         vintageYear: 2026,
       })
     );
+  });
+
+  it('blocks submit when the economics dry-run fails validation', async () => {
+    mockFundStoreToDraftWriteV1.mockReturnValue({
+      fundName: 'Finalize Test Fund',
+      fundSize: 75_000_000,
+      managementFeeRate: 2.5,
+      carriedInterest: 20,
+      vintageYear: 2026,
+      fundLife: 10,
+      investmentPeriod: 5,
+      gpCommitment: 3_750_000,
+      feeProfiles: [
+        {
+          id: 'legacy-profile',
+          name: 'Legacy profile',
+          feeTiers: [
+            {
+              id: 'legacy-tier',
+              name: 'Period called fee',
+              percentage: 2,
+              feeBasis: 'called_capital_period',
+              startMonth: 1,
+            },
+          ],
+        },
+      ],
+      economicsAssumptions: {
+        version: 'v1',
+        feeModel: { source: 'legacy_fee_profiles' },
+      },
+    });
+
+    render(<ReviewStep />);
+
+    expect(screen.getByText('Economics validation failed')).toBeInTheDocument();
+    expect(screen.getByTestId('create-fund-button')).toBeDisabled();
+    expect(mockFinalizeFund).not.toHaveBeenCalled();
+  });
+
+  it('skips economics dry-run blocking when the economics flag is disabled', async () => {
+    mockUseFlag.mockReturnValue(false);
+    mockFundStoreToDraftWriteV1.mockReturnValue({
+      fundName: 'Finalize Test Fund',
+      fundSize: 75_000_000,
+      feeProfiles: [
+        {
+          id: 'legacy-profile',
+          name: 'Legacy profile',
+          feeTiers: [
+            {
+              id: 'legacy-tier',
+              name: 'Period called fee',
+              percentage: 2,
+              feeBasis: 'called_capital_period',
+              startMonth: 1,
+            },
+          ],
+        },
+      ],
+      economicsAssumptions: {
+        version: 'v1',
+        feeModel: { source: 'legacy_fee_profiles' },
+      },
+    });
+
+    render(<ReviewStep />);
+
+    expect(screen.queryByTestId('economics-dry-run-card')).not.toBeInTheDocument();
+
+    await userEvent.click(screen.getByTestId('create-fund-button'));
+
+    await waitFor(() => {
+      expect(mockFinalizeFund).toHaveBeenCalledTimes(1);
+    });
+
+    expect(mockFundStoreToFinalizeV1).toHaveBeenCalledWith(mockFundState, {
+      includeEconomicsAssumptions: false,
+    });
   });
 
   it('shows loading text during submission', async () => {

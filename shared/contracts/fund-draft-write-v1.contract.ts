@@ -11,6 +11,7 @@
  */
 
 import { z } from 'zod';
+import { EconomicsAssumptionsV1Schema } from './economics-v1.contract';
 
 // ---------------------------------------------------------------------------
 // Sub-schemas (deep .strict())
@@ -246,6 +247,9 @@ export const FundDraftWriteV1Schema = z
     // Fees & Expenses
     feeProfiles: uniqueIds(z.array(FeeProfileSchema), 'feeProfiles').optional(),
     fundExpenses: uniqueIds(z.array(FundExpenseSchema), 'fundExpenses').optional(),
+
+    // Experimental GP economics assumptions (P0, non-authoritative)
+    economicsAssumptions: EconomicsAssumptionsV1Schema.optional(),
   })
   .strict();
 

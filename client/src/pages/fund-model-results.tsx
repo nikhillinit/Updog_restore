@@ -30,6 +30,7 @@ import type {
   ScorecardPayload,
   WaterfallSetupSection,
 } from '@shared/contracts/fund-results-v1.contract';
+import type { EconomicsResultV1 } from '@shared/contracts/economics-v1.contract';
 import type { FundStateReadV1 } from '@shared/contracts/fund-state-read-v1.contract';
 import type { FundLifecycleHistoryV1 } from '@shared/contracts/fund-lifecycle-history-v1.contract';
 import type {
@@ -453,6 +454,14 @@ const REASON_COPY: Record<string, string> = {
   STALE_EVIDENCE: 'A newer configuration was published. Request recalculation to update.',
   INVALID_PUBLISHED_CONFIG: 'The published configuration has validation issues.',
   NO_AUTHORITATIVE_SOURCE: 'This section is not yet available for your fund.',
+  ECONOMICS_DISABLED: 'GP economics is currently disabled for this environment.',
+  ECONOMICS_NOT_CONFIGURED: 'Publish economics assumptions to see GP economics.',
+  ECONOMICS_SNAPSHOT_PENDING: 'Economics is configured and waiting for a calculation snapshot.',
+  ECONOMICS_INPUT_INVALID: 'The published economics assumptions have validation issues.',
+  ECONOMICS_ENGINE_FAILED: 'The economics engine failed before producing a valid result.',
+  ECONOMICS_INVARIANT_FAILED: 'The economics engine found a reconciliation issue.',
+  ECONOMICS_STALE_CONFIG_VERSION:
+    'Economics results belong to an older published configuration. Recalculate to update.',
 };
 
 function reasonCopyFor(section: { [key: string]: unknown }): string {
@@ -572,6 +581,190 @@ function WaterfallSetupCard({ payload }: { payload: WaterfallSetupSection }) {
   );
 }
 
+function EconomicsResultsCard({ payload }: { payload: EconomicsResultV1 }) {
+  const { summary, annual, checks } = payload;
+
+  return (
+    <div className="space-y-6" data-testid="economics-results-card">
+      <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
+        <FactTile label="Gross IRR" value={formatNullablePercent(summary.grossIrr)} />
+        <FactTile label="Net LP IRR" value={formatNullablePercent(summary.lpNetIrr)} />
+        <FactTile label="Net GP IRR" value={formatNullablePercent(summary.gpNetIrr)} />
+        <FactTile
+          label="Total GP Carry"
+          value={formatCompactMoney(summary.totalGpCarryDistributed)}
+        />
+        <FactTile label="Management Fees" value={formatCompactMoney(summary.totalManagementFees)} />
+        <FactTile label="DPI" value={formatMultiple(summary.finalDpi)} />
+        <FactTile label="TVPI" value={formatMultiple(summary.finalTvpi)} />
+        <FactTile label="Clawback Exposure" value={formatCompactMoney(summary.finalClawbackDue)} />
+      </div>
+
+      <div className="rounded-md border border-beige-200 p-4">
+        <div className="mb-3 flex items-center justify-between gap-4">
+          <h3 className="font-medium text-charcoal">Economics Cashflows</h3>
+          <Badge variant={checks.passed ? 'secondary' : 'destructive'}>
+            {checks.passed ? 'Invariants Passed' : `${checks.errors.length} Invariant Issues`}
+          </Badge>
+        </div>
+        <EconomicsCashflowChart rows={annual} />
+      </div>
+
+      <div className="rounded-md border border-beige-200 p-4">
+        <h3 className="mb-3 font-medium text-charcoal">DPI / RVPI / TVPI</h3>
+        <EconomicsJCurveChart rows={annual} />
+      </div>
+
+      <div className="rounded-md border border-beige-200 p-4">
+        <h3 className="mb-3 font-medium text-charcoal">Waterfall and Carry</h3>
+        <EconomicsCarryTable rows={annual} />
+      </div>
+    </div>
+  );
+}
+
+function EconomicsCashflowChart({ rows }: { rows: EconomicsResultV1['annual'] }) {
+  const maxAbs = Math.max(
+    1,
+    ...rows.flatMap((row) => [
+      row.lpCapitalCalls,
+      row.gpCommitmentCalls,
+      row.lpDistributions,
+      row.gpInvestmentDistributions,
+      row.gpCarryDistributed,
+      row.feesPaidToManager,
+      row.expensesPaid,
+    ])
+  );
+  const series = [
+    { key: 'lpCapitalCalls', label: 'LP Calls', color: 'bg-charcoal-300' },
+    { key: 'gpCommitmentCalls', label: 'GP Calls', color: 'bg-stone-400' },
+    { key: 'lpDistributions', label: 'LP Distributions', color: 'bg-green-600' },
+    { key: 'gpInvestmentDistributions', label: 'GP Investment', color: 'bg-blue-500' },
+    { key: 'gpCarryDistributed', label: 'GP Carry', color: 'bg-purple-500' },
+    { key: 'feesPaidToManager', label: 'Fees', color: 'bg-amber-500' },
+    { key: 'expensesPaid', label: 'Expenses', color: 'bg-red-400' },
+  ] as const;
+
+  return (
+    <div className="space-y-4">
+      <div className="flex flex-wrap gap-3">
+        {series.map((item) => (
+          <div key={item.key} className="flex items-center gap-2 text-xs text-charcoal-500">
+            <span className={cn('h-2.5 w-2.5 rounded-sm', item.color)} />
+            {item.label}
+          </div>
+        ))}
+      </div>
+      <div className="space-y-3">
+        {rows.map((row) => (
+          <div key={row.year} className="grid grid-cols-[3rem_1fr] items-center gap-3">
+            <div className="text-xs font-medium text-charcoal-500">Y{row.year}</div>
+            <div className="grid h-14 grid-cols-7 items-end gap-1 rounded-md bg-beige-50 px-2 py-1">
+              {series.map((item) => {
+                const value = row[item.key];
+                const heightPct = Math.max(4, (value / maxAbs) * 100);
+                return (
+                  <div
+                    key={item.key}
+                    className={cn('rounded-sm', item.color)}
+                    style={{ height: `${heightPct}%` }}
+                    title={`${item.label}: ${formatCompactMoney(value)}`}
+                  />
+                );
+              })}
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function EconomicsJCurveChart({ rows }: { rows: EconomicsResultV1['annual'] }) {
+  const maxMultiple = Math.max(1, ...rows.map((row) => Math.max(row.dpi, row.rvpi, row.tvpi)));
+  const metrics = [
+    { key: 'dpi', label: 'DPI', color: 'bg-green-600' },
+    { key: 'rvpi', label: 'RVPI', color: 'bg-blue-500' },
+    { key: 'tvpi', label: 'TVPI', color: 'bg-charcoal-500' },
+  ] as const;
+
+  return (
+    <div className="space-y-3">
+      {rows.map((row) => (
+        <div key={row.year} className="grid grid-cols-[3rem_1fr] gap-3">
+          <div className="text-xs font-medium text-charcoal-500">Y{row.year}</div>
+          <div className="space-y-1.5">
+            {metrics.map((metric) => (
+              <div key={metric.key} className="grid grid-cols-[3rem_1fr_3rem] items-center gap-2">
+                <span className="text-xs text-charcoal-400">{metric.label}</span>
+                <div className="h-2 overflow-hidden rounded-full bg-beige-100">
+                  <div
+                    className={cn('h-full rounded-full', metric.color)}
+                    style={{ width: `${Math.max(1, (row[metric.key] / maxMultiple) * 100)}%` }}
+                  />
+                </div>
+                <span className="text-right text-xs text-charcoal-500">
+                  {formatMultiple(row[metric.key])}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function EconomicsCarryTable({ rows }: { rows: EconomicsResultV1['annual'] }) {
+  return (
+    <div className="overflow-x-auto">
+      <table className="min-w-full text-left text-sm">
+        <thead className="border-b border-beige-200 text-xs text-charcoal-400">
+          <tr>
+            <th className="py-2 pr-4 font-medium">Year</th>
+            <th className="py-2 pr-4 font-medium">LP Dist.</th>
+            <th className="py-2 pr-4 font-medium">GP Inv. Dist.</th>
+            <th className="py-2 pr-4 font-medium">GP Carry</th>
+            <th className="py-2 pr-4 font-medium">Escrowed</th>
+            <th className="py-2 pr-4 font-medium">Released</th>
+            <th className="py-2 pr-4 font-medium">Clawback</th>
+            <th className="py-2 pr-4 font-medium">DPI</th>
+            <th className="py-2 pr-4 font-medium">TVPI</th>
+          </tr>
+        </thead>
+        <tbody className="divide-y divide-beige-100">
+          {rows.map((row) => (
+            <tr key={row.year}>
+              <td className="py-2 pr-4 font-medium text-charcoal">Y{row.year}</td>
+              <td className="py-2 pr-4 text-charcoal-500">
+                {formatCompactMoney(row.lpDistributions)}
+              </td>
+              <td className="py-2 pr-4 text-charcoal-500">
+                {formatCompactMoney(row.gpInvestmentDistributions)}
+              </td>
+              <td className="py-2 pr-4 text-charcoal-500">
+                {formatCompactMoney(row.gpCarryDistributed)}
+              </td>
+              <td className="py-2 pr-4 text-charcoal-500">
+                {formatCompactMoney(row.gpCarryEscrowed)}
+              </td>
+              <td className="py-2 pr-4 text-charcoal-500">
+                {formatCompactMoney(row.gpCarryReleasedFromEscrow)}
+              </td>
+              <td className="py-2 pr-4 text-charcoal-500">
+                {formatCompactMoney(row.clawbackPaid)}
+              </td>
+              <td className="py-2 pr-4 text-charcoal-500">{formatMultiple(row.dpi)}</td>
+              <td className="py-2 pr-4 text-charcoal-500">{formatMultiple(row.tvpi)}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
 function percent(value: number) {
   return `${(value * 100).toFixed(1)}%`;
 }
@@ -582,6 +775,22 @@ function percentPoints(value: number) {
 
 function capitalize(value: string) {
   return value.charAt(0).toUpperCase() + value.slice(1);
+}
+
+function formatCompactMoney(value: number) {
+  const abs = Math.abs(value);
+  if (abs >= 1_000_000_000) return `$${(value / 1_000_000_000).toFixed(1)}B`;
+  if (abs >= 1_000_000) return `$${(value / 1_000_000).toFixed(1)}M`;
+  if (abs >= 1_000) return `$${(value / 1_000).toFixed(0)}K`;
+  return `$${value.toFixed(0)}`;
+}
+
+function formatNullablePercent(value: number | null) {
+  return value == null ? 'N/A' : `${(value * 100).toFixed(1)}%`;
+}
+
+function formatMultiple(value: number) {
+  return `${value.toFixed(2)}x`;
 }
 
 function FactTile({ label, value }: { label: string; value: string }) {
@@ -1430,6 +1639,15 @@ function FundModelResultsPage() {
           title="Waterfall Setup"
           section={results.sections.waterfall}
           renderPayload={(p) => <WaterfallSetupCard payload={p as WaterfallSetupSection} />}
+        />
+      </FadeInSection>
+
+      {/* Economics section */}
+      <FadeInSection>
+        <SectionRenderer
+          title="GP Economics"
+          section={results.sections.economics}
+          renderPayload={(p) => <EconomicsResultsCard payload={p as EconomicsResultV1} />}
         />
       </FadeInSection>
     </div>

@@ -192,6 +192,11 @@ const publishedResults: FundResultsReadV1 = {
       reason: 'Not configured',
       reasonCode: 'NO_PUBLISHED_CONFIG',
     },
+    economics: {
+      status: 'unavailable',
+      reason: 'GP economics is disabled',
+      reasonCode: 'ECONOMICS_DISABLED',
+    },
   },
 };
 

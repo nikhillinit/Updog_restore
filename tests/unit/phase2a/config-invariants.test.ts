@@ -60,9 +60,15 @@ describe('Queue name consistency', () => {
     expect(reserveEntry!.queueName).toBe('reserve-calc');
   });
 
+  it('registry defines economics-calc with hyphen', () => {
+    const economicsEntry = QUEUE_CATALOG.find((e) => e.key === 'economics-calc');
+    expect(economicsEntry).toBeDefined();
+    expect(economicsEntry!.queueName).toBe('economics-calc');
+  });
+
   it('all calc queue names use hyphen separator consistently', () => {
     const calcQueues = QUEUE_CATALOG.filter((e) => e.key.endsWith('-calc'));
-    expect(calcQueues.length).toBe(3);
+    expect(calcQueues.length).toBe(4);
     for (const entry of calcQueues) {
       expect(entry.queueName).toMatch(/^[a-z]+-calc$/);
     }

@@ -51,6 +51,7 @@ function ensureProducerQueuesRegistered(): void {
 import { FundDraftWriteV1Schema } from '@shared/contracts/fund-draft-write-v1.contract';
 import { sendApiError } from '../lib/apiError';
 import idempotency from '../middleware/idempotency';
+import { omitEconomicsAssumptionsWhenDisabled } from '../services/economics-feature-gate';
 
 type RequestWithOptionalUser = Request & { user?: { id?: string; fundIds?: number[] } };
 
@@ -162,7 +163,8 @@ export function registerFundConfigRoutes(app: Express) {
         .orderBy(desc(fundConfigs.version))
         .limit(1);
 
-      const fieldCount = Object.keys(validation.data).length;
+      const gatedConfig = omitEconomicsAssumptionsWhenDisabled(validation.data);
+      const fieldCount = Object.keys(gatedConfig).length;
       let savedConfig;
 
       if (existingDraft) {
@@ -172,7 +174,7 @@ export function registerFundConfigRoutes(app: Express) {
         console.warn('draft-save', { fundId, fieldCount, priorFieldCount });
 
         const updateValues: Partial<typeof fundConfigs.$inferInsert> = {
-          config: validation.data,
+          config: gatedConfig,
           updatedAt: new Date(),
         };
         const [updated] = await db
@@ -197,7 +199,7 @@ export function registerFundConfigRoutes(app: Express) {
             .values({
               fundId,
               version: nextVersion,
-              config: validation.data,
+              config: gatedConfig,
             })
             .returning();
           savedConfig = inserted;
@@ -210,7 +212,7 @@ export function registerFundConfigRoutes(app: Express) {
             .limit(1);
           if (retryDraft) {
             const retryValues: Partial<typeof fundConfigs.$inferInsert> = {
-              config: validation.data,
+              config: gatedConfig,
               updatedAt: new Date(),
             };
             const [updated] = await db

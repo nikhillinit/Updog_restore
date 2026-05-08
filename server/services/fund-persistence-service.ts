@@ -17,12 +17,16 @@ import {
   AUTHORITATIVE_ENGINE_KEYS,
   getCalculationEngineDescriptor,
   isAuthoritativeEngineKey,
-  type AuthoritativeEngineKey,
+  type FundCalculationEngineKey,
 } from '@shared/contracts/fund-authoritative-calculations.contract';
+import { FundDraftWriteV1Schema } from '@shared/contracts/fund-draft-write-v1.contract';
+import { isFlagEnabled } from '@shared/flags/getFlag';
 import type { Queue } from 'bullmq';
 import { runReserveCalculation } from './reserve-calculation-service';
 import { runPacingCalculation } from './pacing-calculation-service';
+import { runEconomicsCalculation } from './economics-calculation-service';
 import { fundStateReadService } from './fund-state-read-service';
+import { omitEconomicsAssumptionsWhenDisabled } from './economics-feature-gate';
 
 export interface CreateFundInput {
   name: string;
@@ -42,6 +46,7 @@ export interface PublishQueues {
   reserve: Queue | null;
   pacing: Queue | null;
   cohort: Queue | null;
+  economics?: Queue | null;
 }
 
 export interface PublishResult {
@@ -58,12 +63,12 @@ interface PublishJobData {
   configVersion: number;
 }
 
-const inlineExecutionByEngine: Record<
-  AuthoritativeEngineKey,
-  (jobData: PublishJobData) => Promise<unknown>
+const inlineExecutionByEngine: Partial<
+  Record<FundCalculationEngineKey, (jobData: PublishJobData) => Promise<unknown>>
 > = {
   reserve: runReserveCalculation,
   pacing: runPacingCalculation,
+  economics: runEconomicsCalculation,
 };
 
 export interface FinalizeInput {
@@ -130,6 +135,8 @@ export class FundPersistenceService {
     fundInput: CreateFundInput,
     configInput?: Record<string, unknown>
   ): Promise<CreateFundResult> {
+    const gatedConfigInput = omitEconomicsAssumptionsWhenDisabled(configInput ?? {});
+
     return await db.transaction(async (tx) => {
       const [fund] = await tx
         .insert(funds)
@@ -152,7 +159,7 @@ export class FundPersistenceService {
         .values({
           fundId: fund.id,
           version: 1,
-          config: configInput ?? {},
+          config: gatedConfigInput,
           isDraft: true,
           isPublished: false,
         })
@@ -191,7 +198,6 @@ export class FundPersistenceService {
   ): Promise<PublishResult> {
     const { v4: generateUuid } = await import('uuid');
     const correlationId = generateUuid();
-    const engines = [...AUTHORITATIVE_ENGINE_KEYS];
 
     try {
       const created = await db.transaction(async (tx) => {
@@ -203,6 +209,8 @@ export class FundPersistenceService {
         if (!draft) {
           throw new NoPublishableDraftError();
         }
+
+        const engines = this.getEnginesForConfig(draft.config);
 
         await tx
           .update(fundConfigs)
@@ -372,10 +380,12 @@ export class FundPersistenceService {
     fundInput: CreateFundInput,
     configInput: Record<string, unknown>
   ): Promise<FundConfig | null> {
+    const gatedConfigInput = omitEconomicsAssumptionsWhenDisabled(configInput);
+
     return await db.transaction(async (tx) => {
       const [draft] = await tx
         .update(fundConfigs)
-        .set({ config: configInput, updatedAt: new Date() })
+        .set({ config: gatedConfigInput, updatedAt: new Date() })
         .where(and(eq(fundConfigs.fundId, fundId), eq(fundConfigs.isDraft, true)))
         .returning();
 
@@ -420,7 +430,6 @@ export class FundPersistenceService {
     userId?: number
   ): Promise<RecalcResult> {
     const { v4: generateUuid } = await import('uuid');
-    const engines = [...AUTHORITATIVE_ENGINE_KEYS];
 
     // 1. Load fund state to check preconditions
     const state = await fundStateReadService.getState(fundId);
@@ -442,6 +451,8 @@ export class FundPersistenceService {
     if (!publishedConfig) {
       throw new NoPublishedConfigError();
     }
+
+    const engines = this.getEnginesForConfig(publishedConfig.config);
 
     // 3. Check for existing calcRun for this configVersion
     const existingRun = await db.query.calcRuns.findFirst({
@@ -526,6 +537,7 @@ export class FundPersistenceService {
       reserve: queues.reserve,
       pacing: queues.pacing,
       cohort: queues.cohort,
+      economics: queues.economics ?? null,
     };
 
     let dispatched = 0;
@@ -548,20 +560,19 @@ export class FundPersistenceService {
         }
       }
 
-      if (isAuthoritativeEngineKey(engine)) {
-        const descriptor = getCalculationEngineDescriptor(engine);
-        if (descriptor.syncCapable) {
-          try {
-            await inlineExecutionByEngine[engine](jobData);
-            dispatched++;
-            continue;
-          } catch (err) {
-            failed++;
-            const detail = err instanceof Error ? err.message : String(err);
-            lastError = `Inline ${engine} calculation failed: ${detail}`;
-            console.error(`Failed inline ${engine} calculation for run ${run.id}:`, err);
-            continue;
-          }
+      const descriptor = getCalculationEngineDescriptor(engine);
+      const inlineExecution = inlineExecutionByEngine[engine];
+      if (descriptor.syncCapable && inlineExecution) {
+        try {
+          await inlineExecution(jobData);
+          dispatched++;
+          continue;
+        } catch (err) {
+          failed++;
+          const detail = err instanceof Error ? err.message : String(err);
+          lastError = `Inline ${engine} calculation failed: ${detail}`;
+          console.error(`Failed inline ${engine} calculation for run ${run.id}:`, err);
+          continue;
         }
       }
 
@@ -632,12 +643,30 @@ export class FundPersistenceService {
     return { published, run };
   }
 
+  private getEnginesForConfig(config: unknown): FundCalculationEngineKey[] {
+    const engines: FundCalculationEngineKey[] = [...AUTHORITATIVE_ENGINE_KEYS];
+    if (!isFlagEnabled('enable_gp_economics_engine')) {
+      return engines;
+    }
+
+    const parsedConfig = FundDraftWriteV1Schema.safeParse(config);
+    if (parsedConfig.success && parsedConfig.data.economicsAssumptions != null) {
+      engines.push('economics');
+    }
+
+    return engines;
+  }
+
+  private isDispatchableEngineKey(engine: string): engine is FundCalculationEngineKey {
+    return isAuthoritativeEngineKey(engine) || engine === 'economics';
+  }
+
   private async getDispatchTargets(
     run: CalcRun,
     redispatchExistingRun: boolean
-  ): Promise<AuthoritativeEngineKey[]> {
-    const runEngines = run.engines.filter((engine): engine is AuthoritativeEngineKey =>
-      isAuthoritativeEngineKey(engine)
+  ): Promise<FundCalculationEngineKey[]> {
+    const runEngines = run.engines.filter((engine): engine is FundCalculationEngineKey =>
+      this.isDispatchableEngineKey(engine)
     );
 
     if (!redispatchExistingRun || run.dispatchState !== 'partial') {
