@@ -5,6 +5,7 @@ import { clampPct, clampInt } from '../lib/coerce';
 import { normalizeNumber, eq } from '../utils/state-utils';
 import dequal from 'fast-deep-equal';
 import type { SectorProfile, Allocation, InvestmentStrategy } from '@shared/types';
+import type { EconomicsAssumptionsV1 } from '@shared/contracts/economics-v1.contract';
 
 export type StrategyStage = {
   id: string;
@@ -177,6 +178,9 @@ export type FundState = {
   feeProfiles: FeeProfile[];
   fundExpenses: FundExpense[];
 
+  // Experimental GP economics assumptions
+  economicsAssumptions?: EconomicsAssumptionsV1 | undefined;
+
   // Fund Basics actions
   updateFundBasics: (
     patch: Partial<
@@ -245,6 +249,9 @@ export type FundState = {
   addFundExpense: (expense: FundExpense) => void;
   updateFundExpense: (id: string, patch: Partial<FundExpense>) => void;
   removeFundExpense: (id: string) => void;
+
+  // Experimental GP economics actions
+  updateEconomicsAssumptions: (economicsAssumptions?: EconomicsAssumptionsV1) => void;
 
   // Capital Plan actions (Step 3)
   setCapitalStageAllocations: (rows: CapitalStageAllocation[]) => void;
@@ -587,6 +594,7 @@ function createFundStore() {
             },
           ],
           fundExpenses: [],
+          economicsAssumptions: undefined,
 
           // Fund Basics actions
           updateFundBasics: (patch: FundBasicsPatch) => set((state) => ({ ...state, ...patch })),
@@ -728,6 +736,9 @@ function createFundStore() {
                 (existingExpense: FundExpense) => existingExpense.id !== id
               ),
             })),
+
+          updateEconomicsAssumptions: (economicsAssumptions?: EconomicsAssumptionsV1) =>
+            set({ economicsAssumptions }),
 
           // Capital Plan actions (Step 3)
           setCapitalStageAllocations: (rows: CapitalStageAllocation[]) =>

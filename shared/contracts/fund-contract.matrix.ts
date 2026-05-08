@@ -65,6 +65,7 @@ export const DRAFT_CONFIG_FIELDS = [
   'allowFutureRecycling',
   'feeProfiles',
   'fundExpenses',
+  'economicsAssumptions',
 ] as const;
 
 // Suppress unused-variable warnings for type assertions

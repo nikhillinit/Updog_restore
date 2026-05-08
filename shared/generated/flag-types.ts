@@ -1,7 +1,7 @@
 /**
  * AUTO-GENERATED FILE - DO NOT EDIT
  * Generated from: flags/registry.yaml
- * Generated at: 2026-04-26T21:09:49.870Z
+ * Generated at: 2026-05-08T03:13:17.918Z
  *
  * Run `npm run flags:generate` to regenerate
  */
@@ -20,6 +20,7 @@ export type FlagKey =
   | 'enable_reserve_engine'
   | 'enable_portfolio_table_v2'
   | 'enable_engine_integration'
+  | 'enable_gp_economics_engine'
   | 'ts_reserves'
   | 'wasm_reserves'
   | 'shadow_compare'
@@ -57,6 +58,7 @@ export type ClientFlagKey =
   | 'enable_reserve_engine'
   | 'enable_portfolio_table_v2'
   | 'enable_engine_integration'
+  | 'enable_gp_economics_engine'
   | 'ts_reserves'
   | 'wasm_reserves'
   | 'shadow_compare'
@@ -137,6 +139,7 @@ export const ALL_FLAG_KEYS: readonly FlagKey[] = [
   'enable_reserve_engine',
   'enable_portfolio_table_v2',
   'enable_engine_integration',
+  'enable_gp_economics_engine',
   'ts_reserves',
   'wasm_reserves',
   'shadow_compare',
@@ -175,6 +178,7 @@ export const CLIENT_FLAG_KEYS: readonly ClientFlagKey[] = [
   'enable_reserve_engine',
   'enable_portfolio_table_v2',
   'enable_engine_integration',
+  'enable_gp_economics_engine',
   'ts_reserves',
   'wasm_reserves',
   'shadow_compare',

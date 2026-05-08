@@ -4,6 +4,7 @@ import {
   fundStoreToDraftWriteV1,
 } from '@/adapters/fund-store-adapters';
 import { fetchFundDraft, saveFundDraft } from '@/services/fund-drafts';
+import { useFlag } from '@/hooks/useUnifiedFlag';
 import { fundStore } from '@/stores/fundStore';
 import { useFundTuple } from '@/stores/useFundSelector';
 
@@ -32,6 +33,7 @@ export function useFundDraftSync({
   const [hydrated, draftFundId, draftServerReady] = useFundTuple(
     (s) => [s.hydrated, s.draftFundId, s.draftServerReady] as const
   );
+  const economicsEnabled = useFlag('enable_gp_economics_engine', { withDependencies: true });
   const [status, setStatus] = React.useState<DraftSyncStatus>('idle');
   const [error, setError] = React.useState<string | null>(null);
   const [retryNonce, setRetryNonce] = React.useState(0);
@@ -56,7 +58,9 @@ export function useFundDraftSync({
       return;
     }
 
-    const payload = fundStoreToDraftWriteV1(state);
+    const payload = fundStoreToDraftWriteV1(state, {
+      includeEconomicsAssumptions: economicsEnabled,
+    });
     const nextSignature = JSON.stringify(payload);
     if (nextSignature === lastSavedSignatureRef.current) {
       setStatus('synced');
@@ -78,7 +82,7 @@ export function useFundDraftSync({
       setError(readErrorMessage(draftError, 'Draft save failed'));
       setStatus('error');
     }
-  }, [clearPendingSave]);
+  }, [clearPendingSave, economicsEnabled]);
 
   const retry = React.useCallback(() => {
     if (
@@ -126,10 +130,14 @@ export function useFundDraftSync({
       recoveredDraftIdRef.current !== draftFundId &&
       lastSavedSignatureRef.current == null
     ) {
-      lastSavedSignatureRef.current = JSON.stringify(fundStoreToDraftWriteV1(fundStore.getState()));
+      lastSavedSignatureRef.current = JSON.stringify(
+        fundStoreToDraftWriteV1(fundStore.getState(), {
+          includeEconomicsAssumptions: economicsEnabled,
+        })
+      );
       setStatus('synced');
     }
-  }, [clearPendingSave, draftFundId, draftServerReady, hydrated]);
+  }, [clearPendingSave, draftFundId, draftServerReady, economicsEnabled, hydrated]);
 
   React.useEffect(() => {
     if (!hydrated) {
@@ -206,7 +214,11 @@ export function useFundDraftSync({
         return;
       }
 
-      const signature = JSON.stringify(fundStoreToDraftWriteV1(state));
+      const signature = JSON.stringify(
+        fundStoreToDraftWriteV1(state, {
+          includeEconomicsAssumptions: economicsEnabled,
+        })
+      );
       if (signature === lastSavedSignatureRef.current) {
         return;
       }
@@ -223,7 +235,7 @@ export function useFundDraftSync({
       unsubscribe();
       clearPendingSave();
     };
-  }, [clearPendingSave, debounceMs, draftFundId, hydrated, persistCurrentDraft]);
+  }, [clearPendingSave, debounceMs, draftFundId, economicsEnabled, hydrated, persistCurrentDraft]);
 
   React.useEffect(() => {
     if (previousStepKeyRef.current === stepKey) {

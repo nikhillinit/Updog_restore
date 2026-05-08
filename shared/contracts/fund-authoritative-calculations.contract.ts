@@ -20,6 +20,14 @@ export const FUND_CALCULATION_ENGINE_CATALOG = [
     authority: 'experimental',
     syncCapable: false,
   },
+  {
+    engine: 'economics',
+    snapshotType: 'ECONOMICS',
+    queueKey: 'economics-calc',
+    authority: 'experimental',
+    syncCapable: true,
+    featureFlag: 'enable_gp_economics_engine',
+  },
 ] as const;
 
 export type FundCalculationEngineDescriptor = (typeof FUND_CALCULATION_ENGINE_CATALOG)[number];

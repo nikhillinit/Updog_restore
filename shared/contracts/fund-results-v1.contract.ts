@@ -11,6 +11,7 @@
  */
 
 import { z } from 'zod';
+import { EconomicsResultReasonCodeSchema, EconomicsResultV1Schema } from './economics-v1.contract';
 import { FundStateReadV1Schema } from './fund-state-read-v1.contract';
 
 // ── Section discriminated-union schemas ──
@@ -167,6 +168,25 @@ const WaterfallSectionSchema = z.union([
   SectionUnavailableSchema,
 ]);
 
+export const EconomicsResultsSectionSchema = z.union([
+  z
+    .object({
+      status: z.literal('available'),
+      source: z.literal('fund_snapshots'),
+      configVersion: z.number().int(),
+      calculatedAt: z.string().nullable(),
+      payload: EconomicsResultV1Schema,
+    })
+    .strict(),
+  z
+    .object({
+      status: z.enum(['pending', 'unavailable', 'failed']),
+      reason: z.string(),
+      reasonCode: EconomicsResultReasonCodeSchema.optional(),
+    })
+    .strict(),
+]);
+
 /** Top-level fund results read DTO */
 export const FundResultsReadV1Schema = z
   .object({
@@ -187,6 +207,7 @@ export const FundResultsReadV1Schema = z
         scorecard: ScorecardSectionSchema,
         scenarios: SectionUnavailableSchema,
         waterfall: WaterfallSectionSchema,
+        economics: EconomicsResultsSectionSchema,
       })
       .strict(),
   })
@@ -199,4 +220,5 @@ export type ReserveResultsSection = z.infer<typeof ReserveResultsSectionSchema>;
 export type PacingResultsSection = z.infer<typeof PacingResultsSectionSchema>;
 export type ScorecardPayload = z.infer<typeof ScorecardPayloadSchema>;
 export type WaterfallSetupSection = z.infer<typeof WaterfallSetupSectionSchema>;
+export type EconomicsResultsSection = z.infer<typeof EconomicsResultsSectionSchema>;
 export type FundResultsReadV1 = z.infer<typeof FundResultsReadV1Schema>;

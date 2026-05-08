@@ -15,6 +15,9 @@ import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 
 const FULL_SUITE_WAIT_OPTIONS = { timeout: 10_000 };
+const { mockUseFlag } = vi.hoisted(() => ({
+  mockUseFlag: vi.fn(),
+}));
 
 // Mock dependencies before importing component
 const mockSetLocation = vi.fn();
@@ -33,6 +36,10 @@ vi.mock('@/contexts/FundContext', () => ({
   useFundContext: () => ({
     setCurrentFund: mockSetCurrentFund,
   }),
+}));
+
+vi.mock('@/hooks/useUnifiedFlag', () => ({
+  useFlag: (...args: unknown[]) => mockUseFlag(...args),
 }));
 
 const mockFundState = {
@@ -76,6 +83,7 @@ const mockFundState = {
 
 vi.mock('@/stores/useFundSelector', () => ({
   useFundSelector: (selector: (s: typeof mockFundState) => unknown) => selector(mockFundState),
+  useFundTuple: (selector: (s: typeof mockFundState) => unknown) => selector(mockFundState),
 }));
 
 vi.mock('@/stores/fundStore', () => ({
@@ -86,6 +94,7 @@ vi.mock('@/stores/fundStore', () => ({
 
 // Mock finalizeFund
 const mockFinalizeFund = vi.fn();
+const mockFundStoreToDraftWriteV1 = vi.fn();
 
 vi.mock('@/services/funds', () => ({
   finalizeFund: (...args: unknown[]) => mockFinalizeFund(...args),
@@ -103,7 +112,7 @@ vi.mock('@/adapters/fund-store-adapters', () => ({
     vintageYear: 2026,
   }),
   fundStoreToCreateV1: vi.fn(),
-  fundStoreToDraftWriteV1: vi.fn(),
+  fundStoreToDraftWriteV1: (...args: unknown[]) => mockFundStoreToDraftWriteV1(...args),
 }));
 
 import ReviewStep from '@/pages/ReviewStep';
@@ -122,8 +131,20 @@ describe('ReviewStep finalize failure handling', () => {
   beforeEach(() => {
     mockSetLocation.mockReset();
     mockSetCurrentFund.mockReset();
+    mockUseFlag.mockReset().mockReturnValue(true);
     mockFundState.draftFundId = null;
     mockFinalizeFund.mockReset().mockResolvedValue(successResponse);
+    mockFundStoreToDraftWriteV1.mockReset().mockReturnValue({
+      fundName: 'Test Fund',
+      fundSize: 50_000_000,
+      managementFeeRate: 2,
+      carriedInterest: 20,
+      vintageYear: 2026,
+      fundLife: 10,
+      investmentPeriod: 5,
+      gpCommitment: 2_500_000,
+      economicsAssumptions: { version: 'v1' },
+    });
   });
 
   afterEach(() => {

@@ -1,7 +1,7 @@
 /**
  * AUTO-GENERATED FILE - DO NOT EDIT
  * Generated from: flags/registry.yaml
- * Generated at: 2026-04-26T21:09:49.872Z
+ * Generated at: 2026-05-08T03:13:17.920Z
  *
  * Run `npm run flags:generate` to regenerate
  */
@@ -167,6 +167,22 @@ export const FLAG_DEFINITIONS: Record<FlagKey, FlagDefinition> = {
     dependencies: [],
     expiresAt: null,
     aliases: ['ENABLE_ENGINE_INTEGRATION'],
+  },
+  enable_gp_economics_engine: {
+    default: false,
+    description: 'Experimental GP economics engine and results section',
+    owner: 'analytics',
+    risk: 'high',
+    exposeToClient: true,
+
+    environments: {
+      development: true,
+      staging: false,
+      production: false,
+    },
+    dependencies: [],
+    expiresAt: null,
+    aliases: ['ENABLE_GP_ECONOMICS_ENGINE'],
   },
   ts_reserves: {
     default: true,
@@ -529,6 +545,7 @@ export const FLAG_DEFAULTS: FlagRecord = {
   enable_reserve_engine: false,
   enable_portfolio_table_v2: false,
   enable_engine_integration: false,
+  enable_gp_economics_engine: false,
   ts_reserves: true,
   wasm_reserves: false,
   shadow_compare: false,
@@ -623,6 +640,7 @@ export const FLAG_ALIASES: Record<string, FlagKey> = {
   ENABLE_OPERATIONS_HUB: 'enable_operations_hub',
   ENABLE_LP_REPORTING: 'enable_lp_reporting',
   ENABLE_ENGINE_INTEGRATION: 'enable_engine_integration',
+  ENABLE_GP_ECONOMICS_ENGINE: 'enable_gp_economics_engine',
   UI_CATALOG: 'ui_catalog',
   ONBOARDING_TOUR: 'onboarding_tour',
   ENABLE_WIZARD_STEP_GENERAL: 'enable_wizard_step_general',

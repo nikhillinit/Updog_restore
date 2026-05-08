@@ -11,6 +11,7 @@
 
 import type { FundCreateV1 } from '@shared/contracts/fund-create-v1.contract';
 import type { FundDraftWriteV1 } from '@shared/contracts/fund-draft-write-v1.contract';
+import type { EconomicsAssumptionsV1 } from '@shared/contracts/economics-v1.contract';
 import { spreadIfDefined } from '@/lib/ts/spreadIfDefined';
 import type { FundState } from '@/stores/fundStore';
 
@@ -46,6 +47,7 @@ type FundStateSlice = Pick<
   | 'allowFutureRecycling'
   | 'feeProfiles'
   | 'fundExpenses'
+  | 'economicsAssumptions'
   | 'draftFundId'
   | 'draftServerReady'
 >;
@@ -71,6 +73,7 @@ type DraftHydrationDefaults = Pick<
   | 'allowFutureRecycling'
   | 'feeProfiles'
   | 'fundExpenses'
+  | 'economicsAssumptions'
 >;
 
 type DraftLPClass = NonNullable<FundDraftWriteV1['lpClasses']>[number];
@@ -80,6 +83,116 @@ type DraftWaterfallTier = NonNullable<FundDraftWriteV1['waterfallTiers']>[number
 type DraftFeeProfile = NonNullable<FundDraftWriteV1['feeProfiles']>[number];
 type DraftFeeTier = DraftFeeProfile['feeTiers'][number];
 type DraftFundExpense = NonNullable<FundDraftWriteV1['fundExpenses']>[number];
+
+interface EconomicsAdapterOptions {
+  includeEconomicsAssumptions?: boolean;
+}
+
+function percentToRatio(value: number | undefined): number {
+  if (value == null) return 0;
+  return value > 1 ? value / 100 : value;
+}
+
+function recyclingCapToRatio(value: number | undefined, fundSize: number): number {
+  if (value == null || value <= 0 || fundSize <= 0) return 0;
+  if (value <= 1) return value;
+  if (value <= 100) return value / 100;
+  return value / fundSize;
+}
+
+function defaultExitDistribution(fundLifeYears: number, investmentPeriodYears: number): number[] {
+  const distribution = Array.from({ length: fundLifeYears }, () => 0);
+  const startYear = Math.min(fundLifeYears, Math.max(1, investmentPeriodYears + 1));
+  const count = fundLifeYears - startYear + 1;
+  if (count <= 0) {
+    distribution[fundLifeYears - 1] = 1;
+    return distribution;
+  }
+  for (let year = startYear; year <= fundLifeYears; year++) {
+    distribution[year - 1] = 1 / count;
+  }
+  return distribution;
+}
+
+function recyclingSources(
+  recyclingType: FundStateSlice['recyclingType']
+): Array<'management_fees' | 'exit_proceeds'> {
+  if (recyclingType === 'fees') return ['management_fees'];
+  if (recyclingType === 'both') return ['management_fees', 'exit_proceeds'];
+  return ['exit_proceeds'];
+}
+
+function buildEconomicsAssumptionsFromState(
+  state: FundStateSlice
+): EconomicsAssumptionsV1 | undefined {
+  if (state.economicsAssumptions != null) {
+    return state.economicsAssumptions;
+  }
+  if (state.fundSize == null || state.fundSize <= 0) {
+    return undefined;
+  }
+  if (state.waterfallType === 'hybrid') {
+    return undefined;
+  }
+
+  const fundLifeYears = state.fundLife ?? 10;
+  const investmentPeriodYears = Math.min(fundLifeYears, state.investmentPeriod ?? 5);
+  const primaryTier =
+    state.waterfallTiers.find((tier) => tier.gpSplit > 0) ?? state.waterfallTiers[0];
+
+  return {
+    version: 'v1',
+    timeline: {
+      fundLifeYears,
+      period: 'annual',
+      ...spreadIfDefined('vintageYear', state.vintageYear),
+    },
+    feeModel: {
+      source: 'legacy_fee_profiles',
+      defaultRate: percentToRatio(state.managementFeeRate),
+      defaultBasis: 'committed_capital',
+    },
+    expenseModel: {
+      source: 'legacy_fund_expenses',
+    },
+    exitModel: {
+      mode: 'cohort',
+      cohort: {
+        exitDistributionByYear: defaultExitDistribution(fundLifeYears, investmentPeriodYears),
+        grossMultiple: 2.5,
+        lossRatio: 0,
+      },
+    },
+    recyclingModel: {
+      enabled: state.recyclingEnabled ?? false,
+      sources: recyclingSources(state.recyclingType),
+      capPctOfCommitments: recyclingCapToRatio(state.recyclingCap, state.fundSize),
+      ...(state.recyclingPeriod != null && {
+        eligibleThroughYear: Math.max(1, Math.ceil(state.recyclingPeriod)),
+      }),
+      exitProceedsRecyclePct: percentToRatio(state.exitRecyclingRate),
+      timing: 'before_waterfall',
+    },
+    waterfallModel: {
+      type: 'american',
+      carryPct: percentToRatio(primaryTier?.gpSplit ?? state.carriedInterest ?? 20),
+      hurdleRate: percentToRatio(primaryTier?.preferredReturn ?? 8),
+      prefType: primaryTier?.preferredReturn === 0 ? 'none' : 'compounded',
+      prefCompounding: 'annual',
+      prefCatchUp: (primaryTier?.catchUp ?? 0) > 0,
+      catchUpRate: percentToRatio(primaryTier?.catchUp ?? 100),
+      catchUpTargetCarryPct: percentToRatio(primaryTier?.gpSplit ?? state.carriedInterest ?? 20),
+      clawbackEnabled: true,
+      clawbackTrigger: 'final_liquidation',
+      escrowPct: 0,
+      feeOffsetTreatment: 'none',
+    },
+    gpCommitmentModel: {
+      commitmentAmount: state.gpCommitment ?? 0,
+      participatesInInvestmentReturns: true,
+    },
+  };
+}
 
 function hydrateLPClasses(
   lpClasses: NonNullable<FundDraftWriteV1['lpClasses']>
@@ -212,7 +325,10 @@ export function fundStoreToCreateV1(state: FundStateSlice): FundCreateV1 {
  * Full-replace PUT semantics: missing = "not set".
  * This fixes the data-loss bug where ReviewStep previously sent ~10 of ~30 fields.
  */
-export function fundStoreToDraftWriteV1(state: FundStateSlice): FundDraftWriteV1 {
+export function fundStoreToDraftWriteV1(
+  state: FundStateSlice,
+  options: EconomicsAdapterOptions = {}
+): FundDraftWriteV1 {
   const draft: FundDraftWriteV1 = {
     fundName: state.fundName?.trim() || 'Untitled Fund',
   };
@@ -261,6 +377,12 @@ export function fundStoreToDraftWriteV1(state: FundStateSlice): FundDraftWriteV1
   // Fees & Expenses
   if (state.feeProfiles.length > 0) draft.feeProfiles = state.feeProfiles;
   if (state.fundExpenses.length > 0) draft.fundExpenses = state.fundExpenses;
+  if (options.includeEconomicsAssumptions === true) {
+    const economicsAssumptions = buildEconomicsAssumptionsFromState(state);
+    if (economicsAssumptions != null) {
+      draft.economicsAssumptions = economicsAssumptions;
+    }
+  }
 
   return draft;
 }
@@ -296,6 +418,7 @@ export function fundDraftWriteV1ToStoreHydrationPatch(
     fundExpenses: draft.fundExpenses
       ? hydrateFundExpenses(draft.fundExpenses)
       : defaults.fundExpenses,
+    economicsAssumptions: draft.economicsAssumptions ?? defaults.economicsAssumptions,
     ...spreadIfDefined('fundSize', draft.fundSize),
     ...spreadIfDefined('vintageYear', draft.vintageYear),
     ...spreadIfDefined('managementFeeRate', draft.managementFeeRate),
@@ -332,7 +455,8 @@ export function fundDraftWriteV1ToStoreHydrationPatch(
  * @unit carryPercentage: decimal ratio (store percent / 100)
  */
 export function fundStoreToFinalizeV1(
-  state: FundStateSlice
+  state: FundStateSlice,
+  options: EconomicsAdapterOptions = {}
 ): import('@shared/contracts/fund-finalize-v1.contract').FundFinalizeV1 {
   const currentYear = new Date().getFullYear();
 
@@ -389,6 +513,12 @@ export function fundStoreToFinalizeV1(
   // Fees & Expenses
   if (state.feeProfiles.length > 0) result.feeProfiles = state.feeProfiles;
   if (state.fundExpenses.length > 0) result.fundExpenses = state.fundExpenses;
+  if (options.includeEconomicsAssumptions === true) {
+    const economicsAssumptions = buildEconomicsAssumptionsFromState(state);
+    if (economicsAssumptions != null) {
+      result.economicsAssumptions = economicsAssumptions;
+    }
+  }
 
   return result;
 }

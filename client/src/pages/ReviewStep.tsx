@@ -15,12 +15,19 @@ import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { CheckCircle, AlertTriangle, ArrowLeft, Rocket, Loader2 } from 'lucide-react';
 import { useFundContext } from '@/contexts/FundContext';
-import { useFundSelector } from '@/stores/useFundSelector';
+import { useFundSelector, useFundTuple } from '@/stores/useFundSelector';
 import { fundStore } from '@/stores/fundStore';
-import { fundStoreToFinalizeV1 } from '@/adapters/fund-store-adapters';
+import { fundStoreToDraftWriteV1, fundStoreToFinalizeV1 } from '@/adapters/fund-store-adapters';
 import { finalizeFund } from '@/services/funds';
+import { useFlag } from '@/hooks/useUnifiedFlag';
 import { cn } from '@/lib/utils';
 import { formatUSD } from '@/lib/formatting';
+import {
+  EconomicsInputValidationError,
+  EconomicsInvariantError,
+  runEconomicsModel,
+} from '@shared/lib/economics/economics-engine';
+import type { EconomicsResultV1 } from '@shared/contracts/economics-v1.contract';
 
 interface SummarySection {
   title: string;
@@ -28,11 +35,15 @@ interface SummarySection {
 }
 
 type SubmitState = 'idle' | 'submitting' | 'error';
+type EconomicsDryRunState =
+  | { status: 'available'; result: EconomicsResultV1 }
+  | { status: 'failed'; title: string; message: string };
 
 export default function ReviewStep() {
   const [, setLocation] = useLocation();
   const queryClient = useQueryClient();
   const { setCurrentFund } = useFundContext();
+  const economicsEnabled = useFlag('enable_gp_economics_engine', { withDependencies: true });
 
   // Read wizard state from fundStore
   const fundName = useFundSelector((s) => s.fundName);
@@ -45,6 +56,20 @@ export default function ReviewStep() {
   const stages = useFundSelector((s) => s.stages);
   const waterfallType = useFundSelector((s) => s.waterfallType);
   const recyclingEnabled = useFundSelector((s) => s.recyclingEnabled);
+  const _economicsDryRunRevision = useFundTuple((s) => [
+    s.investmentPeriod,
+    s.gpCommitment,
+    s.waterfallTiers,
+    s.recyclingType,
+    s.recyclingCap,
+    s.recyclingPeriod,
+    s.exitRecyclingRate,
+    s.mgmtFeeRecyclingRate,
+    s.allowFutureRecycling,
+    s.feeProfiles,
+    s.fundExpenses,
+    s.economicsAssumptions,
+  ]);
 
   const [submitState, setSubmitState] = useState<SubmitState>('idle');
   const [submitError, setSubmitError] = useState<string | null>(null);
@@ -143,6 +168,39 @@ export default function ReviewStep() {
     return { ok, warnings, missing, total: allItems.length };
   }, [sections]);
 
+  const economicsDryRun: EconomicsDryRunState | null = (() => {
+    if (!economicsEnabled) return null;
+
+    try {
+      const draft = fundStoreToDraftWriteV1(fundStore.getState(), {
+        includeEconomicsAssumptions: true,
+      });
+      return { status: 'available', result: runEconomicsModel(draft) };
+    } catch (error) {
+      if (error instanceof EconomicsInputValidationError) {
+        return {
+          status: 'failed',
+          title: 'Economics validation failed',
+          message: error.issues
+            .map((issue) => `${issue.path.join('.')}: ${issue.message}`)
+            .join('; '),
+        };
+      }
+      if (error instanceof EconomicsInvariantError) {
+        return {
+          status: 'failed',
+          title: 'Economics invariant failed',
+          message: error.checks.errors.map((issue) => issue.message).join('; '),
+        };
+      }
+      return {
+        status: 'failed',
+        title: 'Economics dry-run failed',
+        message: error instanceof Error ? error.message : 'Unexpected economics engine error',
+      };
+    }
+  })();
+
   const handleBack = useCallback(() => {
     setLocation('/fund-setup?step=6');
   }, [setLocation]);
@@ -187,12 +245,19 @@ export default function ReviewStep() {
 
   const handleCreate = useCallback(async () => {
     if (submitState === 'submitting') return;
+    if (economicsEnabled && economicsDryRun?.status !== 'available') {
+      setSubmitError(economicsDryRun?.message ?? 'Economics dry-run failed');
+      setSubmitState('error');
+      return;
+    }
 
     setSubmitError(null);
     setSubmitState('submitting');
 
     try {
-      const payload = fundStoreToFinalizeV1(fundStore.getState());
+      const payload = fundStoreToFinalizeV1(fundStore.getState(), {
+        includeEconomicsAssumptions: economicsEnabled,
+      });
       const result = await finalizeFund(payload);
       const fundId = result.data.fundId;
       await finalizeSuccessfulPublish(fundId);
@@ -201,7 +266,7 @@ export default function ReviewStep() {
       setSubmitError(message);
       setSubmitState('error');
     }
-  }, [submitState, finalizeSuccessfulPublish]);
+  }, [submitState, finalizeSuccessfulPublish, economicsDryRun, economicsEnabled]);
 
   const getStatusIcon = (status?: 'ok' | 'warning' | 'missing') => {
     switch (status) {
@@ -217,6 +282,7 @@ export default function ReviewStep() {
   };
 
   const isSubmitting = submitState === 'submitting';
+  const economicsBlocksSubmit = economicsEnabled && economicsDryRun?.status !== 'available';
 
   return (
     <div className="space-y-6 pb-8" data-testid="review-step">
@@ -287,6 +353,58 @@ export default function ReviewStep() {
         ))}
       </div>
 
+      {economicsEnabled && economicsDryRun && (
+        <Card className="border-presson-borderSubtle" data-testid="economics-dry-run-card">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-lg text-presson-text">Economics Dry Run</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {economicsDryRun.status === 'available' ? (
+              <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+                <DryRunMetric
+                  label="Net LP IRR"
+                  value={formatNullablePercent(economicsDryRun.result.summary.lpNetIrr)}
+                />
+                <DryRunMetric
+                  label="Net GP IRR"
+                  value={formatNullablePercent(economicsDryRun.result.summary.gpNetIrr)}
+                />
+                <DryRunMetric
+                  label="Management Fees"
+                  value={formatUSD(economicsDryRun.result.summary.totalManagementFees)}
+                />
+                <DryRunMetric
+                  label="Total GP Carry"
+                  value={formatUSD(economicsDryRun.result.summary.totalGpCarryDistributed)}
+                />
+                <DryRunMetric
+                  label="Final DPI"
+                  value={`${economicsDryRun.result.summary.finalDpi.toFixed(2)}x`}
+                />
+                <DryRunMetric
+                  label="Final TVPI"
+                  value={`${economicsDryRun.result.summary.finalTvpi.toFixed(2)}x`}
+                />
+                <DryRunMetric
+                  label="Clawback Exposure"
+                  value={formatUSD(economicsDryRun.result.summary.finalClawbackDue)}
+                />
+                <DryRunMetric
+                  label="Invariant Status"
+                  value={economicsDryRun.result.checks.passed ? 'Passed' : 'Failed'}
+                />
+              </div>
+            ) : (
+              <Alert className="border-l-4 border-l-red-500 bg-red-50">
+                <AlertTriangle className="h-5 w-5 text-red-500" />
+                <AlertTitle>{economicsDryRun.title}</AlertTitle>
+                <AlertDescription>{economicsDryRun.message}</AlertDescription>
+              </Alert>
+            )}
+          </CardContent>
+        </Card>
+      )}
+
       <Separator />
 
       {/* Error display */}
@@ -312,7 +430,7 @@ export default function ReviewStep() {
 
           <Button
             onClick={handleCreate}
-            disabled={validationSummary.missing > 0 || isSubmitting}
+            disabled={validationSummary.missing > 0 || economicsBlocksSubmit || isSubmitting}
             className="gap-2 bg-presson-accent text-presson-accentOn hover:bg-presson-accent/90"
             data-testid="create-fund-button"
           >
@@ -332,4 +450,17 @@ export default function ReviewStep() {
       </div>
     </div>
   );
+}
+
+function DryRunMetric({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-md bg-presson-background p-3">
+      <p className="text-xs text-presson-textMuted">{label}</p>
+      <p className="text-sm font-medium text-presson-text">{value}</p>
+    </div>
+  );
+}
+
+function formatNullablePercent(value: number | null) {
+  return value == null ? 'N/A' : `${(value * 100).toFixed(1)}%`;
 }

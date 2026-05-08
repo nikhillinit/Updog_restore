@@ -10,9 +10,11 @@
 
 import type { ReserveSummary, PacingSummary } from '@shared/types';
 import type {
+  EconomicsResultsSection,
   ReserveResultsSection,
   PacingResultsSection,
 } from '@shared/contracts/fund-results-v1.contract';
+import { EconomicsResultV1Schema } from '@shared/contracts/economics-v1.contract';
 
 /**
  * Map a ReserveSummary snapshot to the ReserveResultsSection payload.
@@ -52,4 +54,10 @@ export function mapPacingSnapshot(snapshot: PacingSummary): PacingResultsSection
       note: d.note,
     })),
   };
+}
+
+export function mapEconomicsSnapshot(
+  snapshot: Record<string, unknown>
+): Extract<EconomicsResultsSection, { status: 'available' }>['payload'] {
+  return EconomicsResultV1Schema.parse(snapshot);
 }

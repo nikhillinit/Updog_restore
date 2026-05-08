@@ -1,24 +1,26 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-const { mockDb, mockRunReserveCalculation, mockRunPacingCalculation } = vi.hoisted(() => ({
-  mockDb: {
-    query: {
-      fundConfigs: {
-        findFirst: vi.fn(),
+const { mockDb, mockRunReserveCalculation, mockRunPacingCalculation, mockRunEconomicsCalculation } =
+  vi.hoisted(() => ({
+    mockDb: {
+      query: {
+        fundConfigs: {
+          findFirst: vi.fn(),
+        },
+        calcRuns: {
+          findFirst: vi.fn(),
+        },
+        fundSnapshots: {
+          findMany: vi.fn(),
+        },
       },
-      calcRuns: {
-        findFirst: vi.fn(),
-      },
-      fundSnapshots: {
-        findMany: vi.fn(),
-      },
+      transaction: vi.fn(),
+      update: vi.fn(),
     },
-    transaction: vi.fn(),
-    update: vi.fn(),
-  },
-  mockRunReserveCalculation: vi.fn(),
-  mockRunPacingCalculation: vi.fn(),
-}));
+    mockRunReserveCalculation: vi.fn(),
+    mockRunPacingCalculation: vi.fn(),
+    mockRunEconomicsCalculation: vi.fn(),
+  }));
 
 vi.mock('../../../server/db', () => ({
   db: mockDb,
@@ -34,6 +36,10 @@ vi.mock('../../../server/services/reserve-calculation-service', () => ({
 
 vi.mock('../../../server/services/pacing-calculation-service', () => ({
   runPacingCalculation: mockRunPacingCalculation,
+}));
+
+vi.mock('../../../server/services/economics-calculation-service', () => ({
+  runEconomicsCalculation: mockRunEconomicsCalculation,
 }));
 
 import { FundPersistenceService } from '../../../server/services/fund-persistence-service';
@@ -71,6 +77,11 @@ describe('FundPersistenceService publishDraft behavior', () => {
     vi.clearAllMocks();
     mockRunReserveCalculation.mockResolvedValue({ snapshotId: 501 });
     mockRunPacingCalculation.mockResolvedValue({ snapshotId: 502 });
+    mockRunEconomicsCalculation.mockResolvedValue({ snapshotId: 503 });
+  });
+
+  afterEach(() => {
+    delete process.env['ENABLE_GP_ECONOMICS_ENGINE'];
   });
 
   it('runs authoritative calculations inline when no producer queues are available', async () => {
@@ -135,6 +146,88 @@ describe('FundPersistenceService publishDraft behavior', () => {
     expect(result.run.lastError).toBeNull();
     expect(mockRunReserveCalculation).toHaveBeenCalledTimes(1);
     expect(mockRunPacingCalculation).toHaveBeenCalledTimes(1);
+  });
+
+  it('runs experimental economics inline when the flag and assumptions are present', async () => {
+    process.env['ENABLE_GP_ECONOMICS_ENGINE'] = 'true';
+    const service = new FundPersistenceService();
+    const config = {
+      fundName: 'Economics Fund',
+      fundSize: 125_000_000,
+      economicsAssumptions: { version: 'v1' },
+    };
+    const draft = {
+      id: 12,
+      fundId: 1,
+      version: 4,
+      config,
+    };
+    const published = {
+      id: 12,
+      fundId: 1,
+      version: 4,
+      config,
+      isDraft: false,
+      isPublished: true,
+    };
+    const pendingRun = {
+      id: 45,
+      fundId: 1,
+      configId: 12,
+      configVersion: 4,
+      correlationId: 'new-correlation-id',
+      engines: ['reserve', 'pacing', 'economics'],
+      dispatchState: 'pending',
+      requestedAt: new Date('2026-03-22T10:00:00.000Z'),
+      lastError: null,
+    };
+    const dispatchedRun = {
+      ...pendingRun,
+      dispatchState: 'dispatched',
+      dispatchedAt: new Date('2026-03-22T10:00:01.000Z'),
+      lastError: null,
+    };
+
+    const tx = {
+      query: {
+        fundConfigs: {
+          findFirst: vi.fn().mockResolvedValue(draft),
+        },
+      },
+      update: vi
+        .fn()
+        .mockReturnValueOnce(whereResolved(undefined))
+        .mockReturnValueOnce(whereReturning([published])),
+      insert: vi
+        .fn()
+        .mockReturnValueOnce(valuesReturning([pendingRun]))
+        .mockReturnValueOnce(valuesResolved(undefined))
+        .mockReturnValueOnce(valuesResolved(undefined)),
+    };
+
+    mockDb.transaction.mockImplementation(async (callback: (tx: typeof tx) => Promise<unknown>) =>
+      callback(tx)
+    );
+    mockDb.update.mockReturnValue(whereReturning([dispatchedRun]));
+
+    const result = await service.publishDraft(
+      1,
+      { reserve: null, pacing: null, cohort: null, economics: null },
+      99
+    );
+
+    expect(result.run.dispatchState).toBe('dispatched');
+    expect(mockRunReserveCalculation).toHaveBeenCalledTimes(1);
+    expect(mockRunPacingCalculation).toHaveBeenCalledTimes(1);
+    expect(mockRunEconomicsCalculation).toHaveBeenCalledTimes(1);
+    expect(mockRunEconomicsCalculation).toHaveBeenCalledWith(
+      expect.objectContaining({
+        fundId: 1,
+        runId: 45,
+        configId: 12,
+        configVersion: 4,
+      })
+    );
   });
 
   it('re-dispatches partial runs using only missing authoritative engines', async () => {

@@ -222,6 +222,11 @@ function validReadyResponse() {
       scorecard: { status: 'unavailable' as const, reason: 'No authoritative source' },
       scenarios: { status: 'unavailable' as const, reason: 'No authoritative source' },
       waterfall: { status: 'unavailable' as const, reason: 'No authoritative source' },
+      economics: {
+        status: 'unavailable' as const,
+        reason: 'GP economics is disabled',
+        reasonCode: 'ECONOMICS_DISABLED' as const,
+      },
     },
   };
 }

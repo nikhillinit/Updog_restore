@@ -7,7 +7,8 @@ export type QueueRegistryKey =
   | 'backtesting'
   | 'reserve-calc'
   | 'pacing-calc'
-  | 'cohort-calc';
+  | 'cohort-calc'
+  | 'economics-calc';
 
 export type QueueHealthMode = 'worker' | 'producer';
 export type QueueOwner = 'providers' | 'route';
@@ -69,6 +70,14 @@ export const QUEUE_CATALOG: readonly QueueCatalogEntry[] = [
     key: 'cohort-calc',
     queueName: 'cohort-calc',
     displayName: 'Cohort Calculations',
+    healthMode: 'producer',
+    owner: 'route',
+    fundCalculationAuthority: 'experimental',
+  },
+  {
+    key: 'economics-calc',
+    queueName: 'economics-calc',
+    displayName: 'GP Economics Calculations',
     healthMode: 'producer',
     owner: 'route',
     fundCalculationAuthority: 'experimental',

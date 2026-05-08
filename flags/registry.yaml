@@ -153,6 +153,20 @@ flags:
     expiresAt: null
     aliases: ['ENABLE_ENGINE_INTEGRATION']
 
+  enable_gp_economics_engine:
+    default: false
+    description: 'Experimental GP economics engine and results section'
+    owner: 'analytics'
+    risk: high
+    exposeToClient: true
+    environments:
+      development: true
+      staging: false
+      production: false
+    dependencies: []
+    expiresAt: null
+    aliases: ['ENABLE_GP_ECONOMICS_ENGINE']
+
   # ============================================
   # ENGINE FLAGS
   # ============================================

@@ -55,6 +55,7 @@ describe('FundResultsReadService', () => {
   });
 
   afterEach(async () => {
+    delete process.env['ENABLE_GP_ECONOMICS_ENGINE'];
     await sandbox.abort();
   });
 
@@ -357,6 +358,111 @@ describe('FundResultsReadService', () => {
       reason: 'No authoritative source',
       reasonCode: 'NO_AUTHORITATIVE_SOURCE',
     });
+    expect(result?.sections.economics).toEqual({
+      status: 'unavailable',
+      reason: 'GP economics engine is disabled',
+      reasonCode: 'ECONOMICS_DISABLED',
+    });
+  });
+
+  it('returns available economics results from a current-version snapshot', async () => {
+    process.env['ENABLE_GP_ECONOMICS_ENGINE'] = 'true';
+    mockFundStateReadService.getState.mockResolvedValue(
+      lifecycle({
+        calculationState: {
+          status: 'ready',
+          configVersion: 3,
+          dispatchState: 'dispatched',
+          lastError: null,
+          legacyEvidence: false,
+          availableSnapshotTypes: ['RESERVE', 'PACING'],
+        },
+        configState: {
+          publishedVersion: 3,
+          hasPublished: true,
+        },
+      })
+    );
+
+    mockDb.query.fundSnapshots.findFirst
+      .mockResolvedValueOnce(reserveSnapshot({ configVersion: 3 }))
+      .mockResolvedValueOnce(pacingSnapshot({ configVersion: 3 }))
+      .mockResolvedValueOnce(economicsSnapshot({ configVersion: 3 }));
+    mockDb.query.fundConfigs.findFirst.mockResolvedValue(
+      publishedConfigRow({
+        version: 3,
+        config: {
+          economicsAssumptions: validEconomicsAssumptions(),
+        },
+      })
+    );
+
+    const result = await fundResultsReadService.getResults(1);
+
+    expect(result?.sections.economics.status).toBe('available');
+    if (result?.sections.economics.status === 'available') {
+      expect(result.sections.economics.source).toBe('fund_snapshots');
+      expect(result.sections.economics.configVersion).toBe(3);
+      expect(result.sections.economics.payload.summary.totalManagementFees).toBe(2_000_000);
+    }
+  });
+
+  it('returns not configured economics when the published config has no economics assumptions', async () => {
+    process.env['ENABLE_GP_ECONOMICS_ENGINE'] = 'true';
+    mockFundStateReadService.getState.mockResolvedValue(lifecycle());
+    mockDb.query.fundSnapshots.findFirst
+      .mockResolvedValueOnce(reserveSnapshot())
+      .mockResolvedValueOnce(pacingSnapshot());
+    mockDb.query.fundConfigs.findFirst.mockResolvedValue(publishedConfigRow());
+
+    const result = await fundResultsReadService.getResults(1);
+
+    expect(result?.sections.economics).toEqual({
+      status: 'unavailable',
+      reason: 'Published economics assumptions are not configured',
+      reasonCode: 'ECONOMICS_NOT_CONFIGURED',
+    });
+  });
+
+  it('marks economics as stale when only prior-version economics snapshots exist', async () => {
+    process.env['ENABLE_GP_ECONOMICS_ENGINE'] = 'true';
+    mockFundStateReadService.getState.mockResolvedValue(
+      lifecycle({
+        configState: {
+          publishedVersion: 2,
+          hasPublished: true,
+        },
+        calculationState: {
+          status: 'ready',
+          configVersion: 2,
+          dispatchState: 'dispatched',
+          lastError: null,
+          legacyEvidence: false,
+          availableSnapshotTypes: ['RESERVE', 'PACING'],
+        },
+      })
+    );
+    mockDb.query.fundSnapshots.findFirst
+      .mockResolvedValueOnce(reserveSnapshot({ configVersion: 2 }))
+      .mockResolvedValueOnce(pacingSnapshot({ configVersion: 2 }))
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce(economicsSnapshot({ configVersion: 1 }));
+    mockDb.query.fundConfigs.findFirst.mockResolvedValue(
+      publishedConfigRow({
+        version: 2,
+        config: {
+          economicsAssumptions: validEconomicsAssumptions(),
+        },
+      })
+    );
+
+    const result = await fundResultsReadService.getResults(1);
+
+    expect(result?.sections.economics).toEqual({
+      status: 'pending',
+      reason: 'Economics snapshot is stale for the latest published configuration',
+      reasonCode: 'ECONOMICS_STALE_CONFIG_VERSION',
+    });
   });
 
   // -- State matrix driven tests (plan lines 354-363) --
@@ -651,6 +757,77 @@ function pacingSnapshot(overrides: Record<string, unknown> = {}) {
     createdAt,
     configVersion: 1,
     ...overrides,
+  };
+}
+
+function economicsSnapshot(overrides: Record<string, unknown> = {}) {
+  const createdAt = new Date('2026-03-20T12:30:00.000Z');
+
+  return {
+    payload: {
+      version: 'v1',
+      annual: [
+        {
+          year: 1,
+          lpCapitalCalls: 9_800_000,
+          gpCommitmentCalls: 200_000,
+          grossExitProceeds: 0,
+          beginningCash: 0,
+          investments: 8_000_000,
+          feesPaidToManager: 2_000_000,
+          expensesPaid: 0,
+          recycledProceeds: 0,
+          endingCash: 0,
+          lpDistributions: 0,
+          gpInvestmentDistributions: 0,
+          gpCarryDistributed: 0,
+          gpCarryEscrowed: 0,
+          gpCarryReleasedFromEscrow: 0,
+          clawbackPaid: 0,
+          grossNav: 8_000_000,
+          lpNetNav: 7_840_000,
+          dpi: 0,
+          rvpi: 0.8,
+          tvpi: 0.8,
+          conservationDelta: 0,
+        },
+      ],
+      summary: {
+        grossIrr: 0.2,
+        lpNetIrr: 0.15,
+        gpNetIrr: null,
+        totalLpPaidIn: 9_800_000,
+        totalGpCommitmentCalled: 200_000,
+        totalManagementFees: 2_000_000,
+        totalExpenses: 0,
+        totalRecycled: 0,
+        totalLpDistributions: 0,
+        totalGpInvestmentDistributions: 0,
+        totalGpCarryDistributed: 0,
+        totalGpFeeIncome: 2_000_000,
+        finalDpi: 0,
+        finalRvpi: 0.8,
+        finalTvpi: 0.8,
+        finalClawbackDue: 0,
+        maxEscrowAvailable: 0,
+        netGpCarryAfterClawback: 0,
+      },
+      checks: {
+        passed: true,
+        tolerance: 0.01,
+        errors: [],
+      },
+    },
+    snapshotTime: createdAt,
+    createdAt,
+    configVersion: 1,
+    ...overrides,
+  };
+}
+
+function validEconomicsAssumptions() {
+  return {
+    version: 'v1' as const,
   };
 }
 

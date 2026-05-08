@@ -218,6 +218,22 @@ describe('FundModelResultsPage (server-backed)', () => {
     expect(screen.getByText('Enabled')).toBeInTheDocument();
   });
 
+  it('renders economics KPIs and tables when economics results are available', async () => {
+    const resp = readyResponse();
+    resp.sections.economics = validEconomicsSection();
+    mockFundPageFetches({ results: resp });
+    await renderPage('/fund-model-results/123');
+
+    await waitFor(() => {
+      expect(screen.getByText('GP Economics')).toBeInTheDocument();
+    });
+    expect(screen.getByTestId('economics-results-card')).toBeInTheDocument();
+    expect(screen.getByText('Gross IRR')).toBeInTheDocument();
+    expect(screen.getByText('Total GP Carry')).toBeInTheDocument();
+    expect(screen.getByText('Economics Cashflows')).toBeInTheDocument();
+    expect(screen.getByText('Waterfall and Carry')).toBeInTheDocument();
+  });
+
   // -- Unavailable sections --
 
   it('renders overview section with typed scorecard facts', async () => {
@@ -371,6 +387,12 @@ describe('FundModelResultsPage (server-backed)', () => {
           },
           scenarios: { status: 'unavailable', reason: 'No authoritative source' },
           waterfall: { status: 'unavailable', reason: 'No authoritative source' },
+          economics: {
+            status: 'pending',
+            reason:
+              'Economics snapshot has not been produced for the latest published configuration',
+            reasonCode: 'ECONOMICS_SNAPSHOT_PENDING',
+          },
         },
       },
     });
@@ -1040,6 +1062,74 @@ function readyResponse() {
       },
       scenarios: { status: 'unavailable' as const, reason: 'No authoritative source' },
       waterfall: { status: 'unavailable' as const, reason: 'No authoritative source' },
+      economics: {
+        status: 'unavailable' as const,
+        reason: 'GP economics is disabled',
+        reasonCode: 'ECONOMICS_DISABLED' as const,
+      },
+    },
+  };
+}
+
+function validEconomicsSection() {
+  return {
+    status: 'available' as const,
+    source: 'fund_snapshots' as const,
+    configVersion: 1,
+    calculatedAt: '2026-03-20T12:30:00.000Z',
+    payload: {
+      version: 'v1' as const,
+      annual: [
+        {
+          year: 1,
+          lpCapitalCalls: 9_800_000,
+          gpCommitmentCalls: 200_000,
+          grossExitProceeds: 0,
+          beginningCash: 0,
+          investments: 8_000_000,
+          feesPaidToManager: 2_000_000,
+          expensesPaid: 0,
+          recycledProceeds: 0,
+          endingCash: 0,
+          lpDistributions: 0,
+          gpInvestmentDistributions: 0,
+          gpCarryDistributed: 0,
+          gpCarryEscrowed: 0,
+          gpCarryReleasedFromEscrow: 0,
+          clawbackPaid: 0,
+          grossNav: 8_000_000,
+          lpNetNav: 7_840_000,
+          dpi: 0,
+          rvpi: 0.8,
+          tvpi: 0.8,
+          conservationDelta: 0,
+        },
+      ],
+      summary: {
+        grossIrr: 0.2,
+        lpNetIrr: 0.15,
+        gpNetIrr: null,
+        totalLpPaidIn: 9_800_000,
+        totalGpCommitmentCalled: 200_000,
+        totalManagementFees: 2_000_000,
+        totalExpenses: 0,
+        totalRecycled: 0,
+        totalLpDistributions: 0,
+        totalGpInvestmentDistributions: 0,
+        totalGpCarryDistributed: 0,
+        totalGpFeeIncome: 2_000_000,
+        finalDpi: 0,
+        finalRvpi: 0.8,
+        finalTvpi: 0.8,
+        finalClawbackDue: 0,
+        maxEscrowAvailable: 0,
+        netGpCarryAfterClawback: 0,
+      },
+      checks: {
+        passed: true,
+        tolerance: 0.01,
+        errors: [],
+      },
     },
   };
 }

@@ -118,6 +118,9 @@ export const FundFinalizeV1Schema = z
     // Fees & Expenses
     feeProfiles: draftConfigFields.shape.feeProfiles,
     fundExpenses: draftConfigFields.shape.fundExpenses,
+
+    // Experimental GP economics assumptions (P0, non-authoritative)
+    economicsAssumptions: draftConfigFields.shape.economicsAssumptions,
   })
   .strict();
 

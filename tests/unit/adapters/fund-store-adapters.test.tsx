@@ -140,6 +140,7 @@ describe('fundStoreToDraftWriteV1', () => {
     expect(result.stages).toHaveLength(1);
     expect(result.followOnChecks).toEqual({ A: 1, B: 2, C: 3 });
     expect(result.waterfallType).toBe('american');
+    expect(result.economicsAssumptions).toBeUndefined();
     // Empty arrays should NOT be included
     expect(result.lpClasses).toBeUndefined();
     expect(result.lps).toBeUndefined();
@@ -173,6 +174,73 @@ describe('fundStoreToDraftWriteV1', () => {
     const parsed = FundDraftWriteV1Schema.safeParse(result);
     expect(parsed.success).toBe(true);
   });
+
+  it('derives economics assumptions while preserving legacy draft fields', () => {
+    const result = fundStoreToDraftWriteV1(
+      {
+        ...baseState,
+        fundSize: 100_000_000,
+        managementFeeRate: 2,
+        recyclingEnabled: true,
+        recyclingType: 'exits',
+        recyclingCap: 20_000_000,
+        recyclingPeriod: 4,
+        exitRecyclingRate: 75,
+      },
+      { includeEconomicsAssumptions: true }
+    );
+
+    expect(result.recyclingCap).toBe(20_000_000);
+    expect(result.economicsAssumptions).toMatchObject({
+      version: 'v1',
+      feeModel: {
+        source: 'legacy_fee_profiles',
+        defaultRate: 0.02,
+      },
+      recyclingModel: {
+        enabled: true,
+        capPctOfCommitments: 0.2,
+        eligibleThroughYear: 4,
+        exitProceedsRecyclePct: 0.75,
+      },
+      gpCommitmentModel: {
+        commitmentAmount: 2_500_000,
+      },
+    });
+  });
+
+  it('passes explicit economics assumptions through unchanged', () => {
+    const economicsAssumptions = {
+      version: 'v1' as const,
+      feeModel: {
+        source: 'economics_override' as const,
+        defaultRate: 0.015,
+        defaultBasis: 'invested_capital' as const,
+      },
+    };
+
+    const result = fundStoreToDraftWriteV1(
+      {
+        ...baseState,
+        economicsAssumptions,
+      },
+      { includeEconomicsAssumptions: true }
+    );
+
+    expect(result.economicsAssumptions).toBe(economicsAssumptions);
+  });
+
+  it('does not synthesize economics assumptions for unsupported hybrid waterfalls', () => {
+    const result = fundStoreToDraftWriteV1(
+      {
+        ...baseState,
+        waterfallType: 'hybrid',
+      },
+      { includeEconomicsAssumptions: true }
+    );
+
+    expect(result.economicsAssumptions).toBeUndefined();
+  });
 });
 
 describe('fundStoreToFinalizeV1', () => {
@@ -195,6 +263,21 @@ describe('fundStoreToFinalizeV1', () => {
     });
 
     expect(result.draftFundId).toBeUndefined();
+  });
+
+  it('includes economics assumptions only when explicitly requested', () => {
+    expect(fundStoreToFinalizeV1(baseState).economicsAssumptions).toBeUndefined();
+
+    const result = fundStoreToFinalizeV1(baseState, {
+      includeEconomicsAssumptions: true,
+    });
+
+    expect(result.economicsAssumptions).toMatchObject({
+      version: 'v1',
+      waterfallModel: {
+        type: 'american',
+      },
+    });
   });
 });
 
@@ -220,6 +303,27 @@ describe('fundDraftWriteV1ToStoreHydrationPatch', () => {
     expect(patch.sectorProfiles).toEqual(hydrationDefaults.sectorProfiles);
     expect(patch.followOnChecks).toEqual({ A: 100, B: 200, C: 300 });
     expect(patch.waterfallType).toBe('american');
+  });
+
+  it('hydrates economics assumptions from a server draft', () => {
+    const economicsAssumptions = {
+      version: 'v1' as const,
+      feeModel: {
+        source: 'economics_override' as const,
+        defaultRate: 0.015,
+        defaultBasis: 'invested_capital' as const,
+      },
+    };
+
+    const patch = fundDraftWriteV1ToStoreHydrationPatch(
+      {
+        fundName: 'Recovered Fund',
+        economicsAssumptions,
+      },
+      hydrationDefaults
+    );
+
+    expect(patch.economicsAssumptions).toBe(economicsAssumptions);
   });
 });
 
