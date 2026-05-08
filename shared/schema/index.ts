@@ -17,3 +17,4 @@ export * from './fund';
 export * from './portfolio';
 export * from './scenario';
 export * from './shares';
+export * from './lp-reporting-evidence';
