@@ -4,7 +4,7 @@
  */
 
 import * as Sentry from '@sentry/node';
-import type { Event } from '@sentry/types';
+import type { ErrorEvent } from '@sentry/node';
 
 const sentryDSN = process.env['SENTRY_DSN'];
 
@@ -19,7 +19,7 @@ if (sentryDSN) {
     integrations: [Sentry.httpIntegration()],
 
     // Privacy: Scrub sensitive data
-    beforeSend(event: Event) {
+    beforeSend(event: ErrorEvent) {
       // Remove auth headers
       if (event.request?.headers) {
         delete event.request.headers['authorization'];
@@ -33,7 +33,7 @@ if (sentryDSN) {
         const scrubbed = stringified
           .replace(/postgresql:\/\/[^@]+@[^/]+/g, 'postgresql://[redacted]')
           .replace(/redis:\/\/[^@]+@[^/]+/g, 'redis://[redacted]');
-        const scrubbedExtra = JSON.parse(scrubbed) as NonNullable<Event['extra']>;
+        const scrubbedExtra = JSON.parse(scrubbed) as NonNullable<ErrorEvent['extra']>;
         event.extra = scrubbedExtra;
       }
 
