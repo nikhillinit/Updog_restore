@@ -215,9 +215,10 @@ Open backlog for the current milestone. Each maps to a phase in `ROADMAP.md`.
 
 ### Out of Scope
 
-These are explicit non-goals per `docs/STABILIZATION-ROADMAP.md` global rules
-and `docs/plans/2026-03-30-post-stabilization-priorities.md` planning rules. Do
-**not** reopen them as part of any GSD phase without an explicit user override.
+These are explicit non-goals per `docs/STABILIZATION-ROADMAP.md` global rules.
+The archived March 30 planning notes remain historical context only under
+`docs/archive/2026-q2/stale-docs/docs/plans/`. Do **not** reopen these items as
+part of any GSD phase without an explicit user override.
 
 - **LP portal expansion** — surfaces archived as part of Milestone 1; reopening
   violates "stay inside the stabilized perimeter"
@@ -230,8 +231,9 @@ and `docs/plans/2026-03-30-post-stabilization-priorities.md` planning rules. Do
   pass `npm run phoenix:truth`
 - **Greenfield rewrite of any existing engine** — reuse `shared/core/*`
   (Milestone 3 authority)
-- **Adding a second authoritative async/status path** — keep one
-  (`docs/plans/2026-03-30` planning rule)
+- **Adding a second authoritative async/status path** — keep one authoritative
+  async/status path; historical March 30 planning notes are archived context
+  only
 - **Mocking the database in tests** that depend on real schema/migration
   behavior (per CLAUDE.md memory)
 - **Direct `decimal.js` imports in runtime code** — must go through

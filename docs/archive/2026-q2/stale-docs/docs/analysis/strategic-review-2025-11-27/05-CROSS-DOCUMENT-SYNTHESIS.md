@@ -57,8 +57,8 @@ friction emerges.
 **Phoenix Phase 1**
 ([Documentation Excellence](04-PHOENIX-STRATEGY-ANALYSIS.md#phase-1-documentation-excellence-claimed-90-complete)):
 
-- ✅ 5 modules documented at 96-99% quality
-- ❌ Code implementations not verified against docs
+- [OK] 5 modules documented at 96-99% quality
+- [FAIL] Code implementations not verified against docs
 - **Assumption**: "Gold-standard docs = production-ready code"
 - **Reality**: Docs describe INTENT, code shows REALITY
 
@@ -86,9 +86,9 @@ graph TD
 
 **Legend**:
 
-- 🟢 Green: COMPLETE (Phase 0A)
-- 🟡 Yellow: READY but not started (Phase 1, Sidecar, IA)
-- 🔴 Red: BLOCKED (Cutover, Quality Gates)
+- [GREEN] Green: COMPLETE (Phase 0A)
+- [WARN] Yellow: READY but not started (Phase 1, Sidecar, IA)
+- [CRITICAL] Red: BLOCKED (Cutover, Quality Gates)
 
 **Critical Path**:
 
