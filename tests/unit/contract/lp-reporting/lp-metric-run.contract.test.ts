@@ -1,5 +1,6 @@
 /**
- * Contract tests for LpMetricRunCreateSchema (LP Reporting Phase 0.3).
+ * Contract tests for LpMetricRunCreateSchema (LP Reporting Phase 0.3,
+ * with Phase 1.1 locked resultsJson + diagnosticsJson shapes).
  */
 import { describe, expect, it } from 'vitest';
 
@@ -8,7 +9,33 @@ import {
   LpMetricRunPerspectiveSchema,
   LpMetricRunStatusSchema,
   LpMetricRunTypeSchema,
+  type LpMetricRunResults,
+  type XirrDiagnostic,
 } from '@shared/contracts/lp-reporting/lp-metric-run.contract';
+
+const validXirrDiagnostic: XirrDiagnostic = {
+  convergence: 'converged',
+  iterations: 8,
+  method: 'newton',
+  boundHit: null,
+  failureReason: null,
+};
+
+const validResults: LpMetricRunResults = {
+  asOfDate: '2026-03-31',
+  currency: 'USD',
+  dpi: '0.500000',
+  rvpi: '1.250000',
+  tvpi: '1.750000',
+  moic: '1.750000',
+  netIrr: '0.148700',
+  grossIrr: '0.182300',
+  xirrDiagnostic: { net: validXirrDiagnostic, gross: validXirrDiagnostic },
+  contributionsTotal: '10000000.000000',
+  distributionsTotal: '5000000.000000',
+  currentNav: '12500000.000000',
+  markConfidenceMix: { high: 5, medium: 2, low: 1 },
+};
 
 const happyPath = {
   fundId: 1,
@@ -18,7 +45,7 @@ const happyPath = {
   inputsHash: 'abc123def456',
   methodologyVersion: 'v1.0.0',
   calculationVersion: 'v1.0.0',
-  resultsJson: { dpi: 0.5 },
+  resultsJson: validResults,
 };
 
 describe('LpMetricRunCreateSchema -- round-trip', () => {
@@ -37,21 +64,25 @@ describe('LpMetricRunCreateSchema -- round-trip', () => {
     ).not.toThrow();
   });
 
-  it('resultsJson accepts arbitrary unknown shape (Phase 1 fills the schema)', () => {
+  it('resultsJson rejects arbitrary unknown shape (Phase 1.1 locked the schema)', () => {
     expect(() =>
       LpMetricRunCreateSchema.parse({
         ...happyPath,
         resultsJson: { whatever: ['anything', 1, true, null, { nested: true }] },
       })
-    ).not.toThrow();
+    ).toThrow();
   });
 
-  it('diagnosticsJson is optional', () => {
+  it('diagnosticsJson is optional and conforms to LpMetricRunDiagnosticsSchema', () => {
     const parsed = LpMetricRunCreateSchema.parse({
       ...happyPath,
-      diagnosticsJson: { warnings: ['none'] },
+      diagnosticsJson: {
+        engineVersion: 'lp-reporting-engine@1.1.0',
+        decimalPrecision: 6,
+      },
     });
-    expect(parsed.diagnosticsJson).toEqual({ warnings: ['none'] });
+    expect(parsed.diagnosticsJson?.engineVersion).toBe('lp-reporting-engine@1.1.0');
+    expect(parsed.diagnosticsJson?.warnings).toEqual([]);
   });
 });
 
