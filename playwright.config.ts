@@ -108,6 +108,17 @@ export default defineConfig({
       dependencies: ['smoke'],
     },
 
+    // GP usability audit gates - scoped route/content truthfulness checks
+    {
+      name: 'gp-usability',
+      testMatch: [
+        '**/gp-usability-audit-regression.spec.ts',
+        '**/visual-audit-screenshots.spec.ts',
+      ],
+      use: { ...devices['Desktop Chrome'] },
+      dependencies: ['smoke'],
+    },
+
     // Production smoke tests (when BASE_URL is external)
     {
       name: 'production',

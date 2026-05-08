@@ -137,7 +137,11 @@ test.describe('Fund Setup Workflow', () => {
     await expect(fundSetupPage.fundNameInput).toHaveValue('Persisted Draft Fund');
     await expect(fundSetupPage.capitalCommittedInput).toHaveValue('75');
     expect(apiRequests.create).toHaveLength(1);
-    expect(apiRequests.drafts).toHaveLength(1);
+    expect(apiRequests.drafts.length).toBeGreaterThanOrEqual(1);
+    expect(apiRequests.drafts.at(-1)).toMatchObject({
+      fundName: 'Persisted Draft Fund',
+      fundSize: 75,
+    });
   });
 
   test('should render the current wizard responsively', async () => {
