@@ -237,6 +237,8 @@ CREATE TABLE IF NOT EXISTS narrative_runs (
   )
 );
 
+CREATE INDEX IF NOT EXISTS idx_narrative_runs_metric_run ON narrative_runs(metric_run_id);
+
 -- ============================================================================
 -- 6. evidence_records (typed FKs with num_nonnulls = 1)
 -- ============================================================================
@@ -306,6 +308,7 @@ CREATE INDEX IF NOT EXISTS idx_evidence_fund ON evidence_records(fund_id);
 CREATE INDEX IF NOT EXISTS idx_evidence_valuation_mark ON evidence_records(valuation_mark_id);
 CREATE INDEX IF NOT EXISTS idx_evidence_company ON evidence_records(company_id);
 CREATE INDEX IF NOT EXISTS idx_evidence_metric_run ON evidence_records(metric_run_id);
+CREATE INDEX IF NOT EXISTS idx_evidence_narrative_run ON evidence_records(narrative_run_id);
 CREATE INDEX IF NOT EXISTS idx_evidence_expiration_date ON evidence_records(expiration_date);
 CREATE INDEX IF NOT EXISTS idx_evidence_confidence ON evidence_records(confidence_level);
 CREATE INDEX IF NOT EXISTS idx_evidence_confidentiality ON evidence_records(confidentiality);
@@ -339,6 +342,8 @@ CREATE TABLE IF NOT EXISTS lp_vehicle_participation (
   )
 );
 
+CREATE INDEX IF NOT EXISTS idx_lp_vehicle_participation_vehicle ON lp_vehicle_participation(vehicle_id);
+
 -- ============================================================================
 -- 8. lp_vehicle_participation_history
 -- ============================================================================
@@ -351,3 +356,6 @@ CREATE TABLE IF NOT EXISTS lp_vehicle_participation_history (
   changed_at            TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   reason                TEXT
 );
+
+CREATE INDEX IF NOT EXISTS idx_lp_vehicle_participation_history_parent_changed_at
+  ON lp_vehicle_participation_history(lp_vehicle_participation_id, changed_at DESC);

@@ -46,8 +46,9 @@ import {
   varchar,
 } from 'drizzle-orm/pg-core';
 
-import { funds, users } from '../schema';
+import { funds } from './fund';
 import { portfolioCompanies } from './portfolio';
+import { users } from './user';
 import { limitedPartners } from '../schema-lp-reporting';
 
 // ============================================================================
@@ -346,6 +347,7 @@ export const narrativeRuns = pgTable(
       'narrative_status_check',
       sql`${table.status} IN ('draft', 'reviewed', 'approved', 'exported')`
     ),
+    metricRunIdx: index('idx_narrative_runs_metric_run').on(table.metricRunId),
   })
 );
 
@@ -427,6 +429,7 @@ export const evidenceRecords = pgTable(
     valuationMarkIdx: index('idx_evidence_valuation_mark').on(table.valuationMarkId),
     companyIdx: index('idx_evidence_company').on(table.companyId),
     metricRunIdx: index('idx_evidence_metric_run').on(table.metricRunId),
+    narrativeRunIdx: index('idx_evidence_narrative_run').on(table.narrativeRunId),
     expirationIdx: index('idx_evidence_expiration_date').on(table.expirationDate),
     confidenceIdx: index('idx_evidence_confidence').on(table.confidenceLevel),
     confidentialityIdx: index('idx_evidence_confidentiality').on(table.confidentiality),
@@ -462,6 +465,7 @@ export const lpVehicleParticipation = pgTable(
   },
   (table) => ({
     lpVehicleUnique: unique('lp_participation_lp_vehicle_unique').on(table.lpId, table.vehicleId),
+    vehicleIdx: index('idx_lp_vehicle_participation_vehicle').on(table.vehicleId),
     statusCheck: check(
       'lp_participation_status_check',
       sql`${table.status} IN ('main_fund_aligned', 'spv_only', 'exploratory', 'high_conversion_prospect', 'low_conversion_prospect', 'committed_to_fund_ii', 'declined')`
@@ -476,17 +480,26 @@ export type InsertLpVehicleParticipation = typeof lpVehicleParticipation.$inferI
 // LP VEHICLE PARTICIPATION HISTORY
 // ============================================================================
 
-export const lpVehicleParticipationHistory = pgTable('lp_vehicle_participation_history', {
-  id: serial('id').primaryKey(),
-  lpVehicleParticipationId: integer('lp_vehicle_participation_id')
-    .notNull()
-    .references(() => lpVehicleParticipation.id, { onDelete: 'cascade' }),
-  fromStatus: varchar('from_status', { length: 32 }),
-  toStatus: varchar('to_status', { length: 32 }).notNull(),
-  changedBy: integer('changed_by').references(() => users.id),
-  changedAt: timestamp('changed_at', { withTimezone: true }).defaultNow(),
-  reason: text('reason'),
-});
+export const lpVehicleParticipationHistory = pgTable(
+  'lp_vehicle_participation_history',
+  {
+    id: serial('id').primaryKey(),
+    lpVehicleParticipationId: integer('lp_vehicle_participation_id')
+      .notNull()
+      .references(() => lpVehicleParticipation.id, { onDelete: 'cascade' }),
+    fromStatus: varchar('from_status', { length: 32 }),
+    toStatus: varchar('to_status', { length: 32 }).notNull(),
+    changedBy: integer('changed_by').references(() => users.id),
+    changedAt: timestamp('changed_at', { withTimezone: true }).defaultNow(),
+    reason: text('reason'),
+  },
+  (table) => ({
+    participationChangedIdx: index('idx_lp_vehicle_participation_history_parent_changed_at').on(
+      table.lpVehicleParticipationId,
+      table.changedAt.desc()
+    ),
+  })
+);
 
 export type LpVehicleParticipationHistory = typeof lpVehicleParticipationHistory.$inferSelect;
 export type InsertLpVehicleParticipationHistory = typeof lpVehicleParticipationHistory.$inferInsert;

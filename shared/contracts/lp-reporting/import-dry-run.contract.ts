@@ -19,7 +19,7 @@
 import { z } from 'zod';
 import { DecimalStringSchema, MoneyStringSchema } from './cash-flow-event.contract';
 
-export const SourceTypeSchema = z.enum(['csv', 'excel', 'notion']);
+export const SourceTypeSchema = z.enum(['csv', 'notion']);
 export const ImportSeveritySchema = z.enum(['error', 'warning']);
 
 export type SourceType = z.infer<typeof SourceTypeSchema>;
@@ -106,6 +106,7 @@ export type ImportDryRunResponse = z.infer<typeof ImportDryRunResponseSchema>;
 export const ImportDryRunRequestSchema = z
   .object({
     sourceType: SourceTypeSchema,
+    payload: z.string().min(1),
   })
   .strict();
 

@@ -6,7 +6,7 @@
  */
 import fs from 'node:fs';
 import path from 'node:path';
-import { describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { ImportDryRunResponseSchema } from '@shared/contracts/lp-reporting';
 import {
@@ -25,6 +25,15 @@ const FIXTURES_DIR = path.join(process.cwd(), 'tests', 'fixtures', 'lp-reporting
 function loadFixture(name: string): Buffer {
   return fs.readFileSync(path.join(FIXTURES_DIR, name));
 }
+
+beforeEach(() => {
+  vi.useFakeTimers();
+  vi.setSystemTime(new Date('2026-05-08T00:00:00.000Z'));
+});
+
+afterEach(() => {
+  vi.useRealTimers();
+});
 
 describe('parseLedgerCsv -- sample-ledger.csv', () => {
   const buffer = loadFixture('sample-ledger.csv');
@@ -46,6 +55,20 @@ describe('parseLedgerCsv -- sample-ledger.csv', () => {
     expect(types).toContain('lp_distribution');
     expect(types).toContain('portfolio_investment');
     expect(types).toContain('fund_expense');
+  });
+
+  it('rejects malformed optional IDs instead of leaking NaN or truncated IDs', () => {
+    const csv = Buffer.from(
+      [
+        'event_type,amount,currency,event_date,perspective,company_id,lp_id,vehicle_id',
+        'portfolio_investment,1.000000,USD,2026-01-01,company,abc,42x,0',
+      ].join('\n')
+    );
+    const parsed = parseLedgerCsv(csv, 1);
+    expect(parsed.rows).toHaveLength(0);
+    expect(parsed.parseErrors.map((e) => e.column)).toEqual(
+      expect.arrayContaining(['company_id', 'lp_id', 'vehicle_id'])
+    );
   });
 });
 
@@ -119,6 +142,20 @@ describe('parseValuationMarksCsv -- sample-valuation-marks.csv', () => {
       (w) => w.code === 'CONFIDENCE_DOWNGRADED'
     );
     expect(downgradedWarnings.length).toBeGreaterThan(0);
+  });
+
+  it('rejects malformed company_id and vehicle_id values', () => {
+    const csv = Buffer.from(
+      [
+        'company_id,mark_date,as_of_date,fair_value,currency,mark_source,confidence_level,valuation_method,vehicle_id',
+        '42x,2026-01-01,2026-01-01,100.000000,USD,financing_round,high,priced_round,abc',
+      ].join('\n')
+    );
+    const parsed = parseValuationMarksCsv(csv, 1);
+    expect(parsed.rows).toHaveLength(0);
+    expect(parsed.parseErrors.map((e) => e.column)).toEqual(
+      expect.arrayContaining(['company_id', 'vehicle_id'])
+    );
   });
 });
 

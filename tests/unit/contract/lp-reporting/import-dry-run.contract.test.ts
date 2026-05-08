@@ -7,6 +7,7 @@ import { describe, expect, it } from 'vitest';
 import {
   ImportDryRunResponseSchema,
   ImportErrorSchema,
+  ImportDryRunRequestSchema,
   ImportPreviewRowSchema,
   ImportWarningSchema,
   ReconciliationSummarySchema,
@@ -52,12 +53,35 @@ describe('ImportDryRunResponseSchema -- round-trip', () => {
 });
 
 describe('SourceTypeSchema enum coverage', () => {
-  it.each(['csv', 'excel', 'notion'])('accepts %s', (v) => {
+  it.each(['csv', 'notion'])('accepts %s', (v) => {
     expect(() => SourceTypeSchema.parse(v)).not.toThrow();
   });
 
   it('rejects an unknown source type', () => {
     expect(() => SourceTypeSchema.parse('json')).toThrow();
+  });
+
+  it('rejects excel until an Excel parser is wired into dry-run imports', () => {
+    expect(() => SourceTypeSchema.parse('excel')).toThrow();
+  });
+});
+
+describe('ImportDryRunRequestSchema', () => {
+  it('requires the base64 payload used by the dry-run routes', () => {
+    expect(() =>
+      ImportDryRunRequestSchema.parse({
+        sourceType: 'csv',
+        payload: Buffer.from('a,b\n1,2\n').toString('base64'),
+      })
+    ).not.toThrow();
+  });
+
+  it('rejects a contract-valid-looking body when payload is missing', () => {
+    expect(() =>
+      ImportDryRunRequestSchema.parse({
+        sourceType: 'csv',
+      })
+    ).toThrow();
   });
 });
 

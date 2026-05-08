@@ -11,7 +11,8 @@
  *   requireAuth() -> requireFundAccess -> rateLimit(20/hour/user)
  *   -> handler
  *
- * Body: JSON `{ sourceType: "csv" | "excel" | "notion", payload: <base64> }`.
+ * Body: JSON `{ sourceType: "csv" | "notion", payload: <base64> }`.
+ * Valuation mark dry-runs support `csv` only until a Notion mark mapping exists.
  * Phase 0 uses a JSON wrapper with base64-encoded file content rather than
  * multipart/form-data so we don't drag in a multipart parser as a Phase 0
  * dependency. Phase 1 (commit endpoint) can switch to multipart if needed.
@@ -26,7 +27,10 @@ import { z } from 'zod';
 
 import { requireAuth, requireFundAccess } from '../../lib/auth/jwt';
 import { firstString } from '../../lib/request-values';
-import { ImportDryRunResponseSchema, SourceTypeSchema } from '@shared/contracts/lp-reporting';
+import {
+  ImportDryRunRequestSchema,
+  ImportDryRunResponseSchema,
+} from '@shared/contracts/lp-reporting';
 import {
   runLedgerDryRun,
   runValuationMarkDryRun,
@@ -34,12 +38,9 @@ import {
 
 const router = Router();
 
-const importBodySchema = z
-  .object({
-    sourceType: SourceTypeSchema,
-    payload: z.string().min(1),
-  })
-  .strict();
+const valuationMarkImportBodySchema = ImportDryRunRequestSchema.extend({
+  sourceType: z.literal('csv'),
+});
 
 const importLimiter = rateLimit({
   windowMs: 60 * 60 * 1000,
@@ -71,7 +72,7 @@ router.post(
   requireFundAccess,
   importLimiter,
   async (req: Request, res: Response) => {
-    const parsedBody = importBodySchema.safeParse(req.body);
+    const parsedBody = ImportDryRunRequestSchema.safeParse(req.body);
     if (!parsedBody.success) {
       return res.status(400).json({
         error: 'INVALID_BODY',
@@ -103,7 +104,7 @@ router.post(
   requireFundAccess,
   importLimiter,
   async (req: Request, res: Response) => {
-    const parsedBody = importBodySchema.safeParse(req.body);
+    const parsedBody = valuationMarkImportBodySchema.safeParse(req.body);
     if (!parsedBody.success) {
       return res.status(400).json({
         error: 'INVALID_BODY',

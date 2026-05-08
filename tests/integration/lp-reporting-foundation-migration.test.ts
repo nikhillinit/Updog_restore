@@ -88,6 +88,17 @@ async function tableExists(name: string): Promise<boolean> {
   return res.rows[0]!.exists;
 }
 
+async function indexExists(name: string): Promise<boolean> {
+  const res = await pool.query<{ exists: boolean }>(
+    `SELECT EXISTS (
+       SELECT 1 FROM pg_indexes
+       WHERE schemaname = 'public' AND indexname = $1
+     ) AS exists`,
+    [name]
+  );
+  return res.rows[0]!.exists;
+}
+
 async function insertFund(): Promise<number> {
   const res = await pool.query<{ id: number }>(
     `INSERT INTO funds (name) VALUES ($1) RETURNING id`,
@@ -145,6 +156,17 @@ describe.skipIf(skipTest)('Phase 0.2: LP Reporting Foundation migration round-tr
   describe('up.sql creates all 8 LP-reporting tables', () => {
     it.each(LP_TABLE_NAMES)('table %s exists', async (name) => {
       expect(await tableExists(name)).toBe(true);
+    });
+  });
+
+  describe('up.sql creates FK support indexes', () => {
+    it.each([
+      'idx_narrative_runs_metric_run',
+      'idx_evidence_narrative_run',
+      'idx_lp_vehicle_participation_vehicle',
+      'idx_lp_vehicle_participation_history_parent_changed_at',
+    ])('index %s exists', async (name) => {
+      expect(await indexExists(name)).toBe(true);
     });
   });
 

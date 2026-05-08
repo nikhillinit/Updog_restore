@@ -27,6 +27,7 @@ import type {
 const DECIMAL_REGEX = /^-?\d+(\.\d{1,6})?$/;
 const ISO_DATE_REGEX = /^\d{4}-\d{2}-\d{2}$/;
 const ISO_DATETIME_REGEX = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?Z$/;
+const POSITIVE_INTEGER_REGEX = /^[1-9]\d*$/;
 const SUPPORTED_CURRENCIES = new Set(['USD']);
 
 const LEDGER_EVENT_TYPES = new Set([
@@ -158,6 +159,30 @@ function normalizeHeaders(header: string[], mapping: Record<string, string>): st
   return header.map((h) => mapping[h] ?? h);
 }
 
+function parseOptionalPositiveInteger(
+  raw: string | undefined,
+  column: string,
+  rowIndex: number,
+  parseErrors: ImportError[]
+): number | undefined {
+  if (raw === undefined || raw === '') {
+    return undefined;
+  }
+
+  if (!POSITIVE_INTEGER_REGEX.test(raw)) {
+    parseErrors.push({
+      row: rowIndex,
+      column,
+      code: 'MALFORMED_INTEGER_ID',
+      message: `${column} "${raw}" must be a positive integer.`,
+      severity: 'error',
+    });
+    return undefined;
+  }
+
+  return Number.parseInt(raw, 10);
+}
+
 // ============================================================================
 // LEDGER PARSING
 // ============================================================================
@@ -253,6 +278,27 @@ function parseLedgerRows(header: string[], rows: string[][]): ParseResult<Parsed
       isInvalid = true;
     }
 
+    const companyId = parseOptionalPositiveInteger(
+      companyIdRaw,
+      'company_id',
+      rowIndex,
+      parseErrors
+    );
+    const lpId = parseOptionalPositiveInteger(lpIdRaw, 'lp_id', rowIndex, parseErrors);
+    const vehicleId = parseOptionalPositiveInteger(
+      vehicleIdRaw,
+      'vehicle_id',
+      rowIndex,
+      parseErrors
+    );
+    if (
+      (companyIdRaw && companyId === undefined) ||
+      (lpIdRaw && lpId === undefined) ||
+      (vehicleIdRaw && vehicleId === undefined)
+    ) {
+      isInvalid = true;
+    }
+
     if (isInvalid) {
       continue;
     }
@@ -264,9 +310,9 @@ function parseLedgerRows(header: string[], rows: string[][]): ParseResult<Parsed
       currency,
       eventDate,
       perspective: perspective || 'fund_gross',
-      ...(companyIdRaw && { companyId: Number.parseInt(companyIdRaw, 10) }),
-      ...(lpIdRaw && { lpId: Number.parseInt(lpIdRaw, 10) }),
-      ...(vehicleIdRaw && { vehicleId: Number.parseInt(vehicleIdRaw, 10) }),
+      ...(companyId !== undefined && { companyId }),
+      ...(lpId !== undefined && { lpId }),
+      ...(vehicleId !== undefined && { vehicleId }),
       ...(description !== undefined && { description }),
     });
   }
@@ -351,8 +397,13 @@ export function parseValuationMarksCsv(
       });
       isInvalid = true;
     }
-    const companyId = Number.parseInt(companyIdRaw, 10);
-    if (!companyIdRaw || Number.isNaN(companyId) || companyId <= 0) {
+    const companyId = parseOptionalPositiveInteger(
+      companyIdRaw,
+      'company_id',
+      rowIndex,
+      parseErrors
+    );
+    if (companyIdRaw === '') {
       parseErrors.push({
         row: rowIndex,
         column: 'company_id',
@@ -360,6 +411,18 @@ export function parseValuationMarksCsv(
         message: 'company_id is required and must be a positive integer.',
         severity: 'error',
       });
+      isInvalid = true;
+    }
+    if (companyIdRaw !== '' && companyId === undefined) {
+      isInvalid = true;
+    }
+    const vehicleId = parseOptionalPositiveInteger(
+      vehicleIdRaw,
+      'vehicle_id',
+      rowIndex,
+      parseErrors
+    );
+    if (vehicleIdRaw && vehicleId === undefined) {
       isInvalid = true;
     }
     if (markSource === '') {
@@ -397,7 +460,7 @@ export function parseValuationMarksCsv(
 
     parsed.push({
       rowIndex,
-      companyId,
+      companyId: companyId!,
       markDate,
       asOfDate,
       fairValue,
@@ -405,7 +468,7 @@ export function parseValuationMarksCsv(
       markSource,
       confidenceLevel,
       valuationMethod,
-      ...(vehicleIdRaw && { vehicleId: Number.parseInt(vehicleIdRaw, 10) }),
+      ...(vehicleId !== undefined && { vehicleId }),
       ...(costBasis !== undefined && { costBasis }),
     });
   }

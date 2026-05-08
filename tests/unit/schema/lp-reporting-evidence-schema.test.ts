@@ -168,6 +168,32 @@ describe('LP Reporting Foundation Schema -- Drizzle bindings', () => {
     });
   });
 
+  describe('Foreign-key lookup indexes', () => {
+    it('indexes every evidence target FK, including narrative_run_id', () => {
+      const config = getTableConfig(schema.evidenceRecords);
+      const names = config.indexes.map((idx) => idx.config.name);
+      expect(names).toContain('idx_evidence_valuation_mark');
+      expect(names).toContain('idx_evidence_company');
+      expect(names).toContain('idx_evidence_metric_run');
+      expect(names).toContain('idx_evidence_narrative_run');
+    });
+
+    it('indexes parent FKs used by narrative and participation history flows', () => {
+      const narrativeConfig = getTableConfig(schema.narrativeRuns);
+      const participationConfig = getTableConfig(schema.lpVehicleParticipation);
+      const historyConfig = getTableConfig(schema.lpVehicleParticipationHistory);
+      expect(narrativeConfig.indexes.map((idx) => idx.config.name)).toContain(
+        'idx_narrative_runs_metric_run'
+      );
+      expect(participationConfig.indexes.map((idx) => idx.config.name)).toContain(
+        'idx_lp_vehicle_participation_vehicle'
+      );
+      expect(historyConfig.indexes.map((idx) => idx.config.name)).toContain(
+        'idx_lp_vehicle_participation_history_parent_changed_at'
+      );
+    });
+  });
+
   describe('Type inference compiles', () => {
     it('produces $inferSelect / $inferInsert types for each table', () => {
       // Compile-time assertions via type-only declarations. Existence at
