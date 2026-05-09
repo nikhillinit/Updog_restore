@@ -71,6 +71,8 @@ vi.mock('@/contexts/FundContext', () => ({
 
 vi.mock('@/stores/useFundSelector', () => ({
   useFundSelector: (selector: (s: typeof mockFundState) => unknown) => selector(mockFundState),
+  useFundTuple: (selector: (s: typeof mockFundState) => readonly unknown[]) =>
+    selector(mockFundState),
 }));
 
 vi.mock('@/stores/fundStore', () => ({

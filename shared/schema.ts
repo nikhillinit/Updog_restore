@@ -30,11 +30,14 @@ export * from './schema/fund';
 export * from './schema/portfolio';
 export * from './schema/scenario';
 export * from './schema/shares';
+export * from './schema/user';
+export * from './schema/lp-reporting-evidence';
 
 // Import tables for FK references and schema definitions
 import { funds, fundConfigs, fundSnapshots, calcRuns } from './schema/fund';
 import { portfolioCompanies, investments } from './schema/portfolio';
 import type { scenarios, scenarioCases, scenarioAuditLogs } from './schema/scenario';
+import { users } from './schema/user';
 
 // Fund events for audit trail
 export const fundEvents = pgTable(
@@ -468,17 +471,6 @@ export const insertActivitySchema = createInsertSchema(activities).omit({
   createdAt: true,
 });
 
-// Users table
-export const users = pgTable('users', {
-  id: serial('id').primaryKey(),
-  username: text('username').notNull().unique(),
-  password: text('password').notNull(),
-});
-
-export const insertUserSchema = createInsertSchema(users).omit({
-  id: true,
-});
-
 // Pipeline Insert Schemas
 export const insertDealOpportunitySchema = createInsertSchema(dealOpportunities).omit({
   id: true,
@@ -572,8 +564,6 @@ export type FundMetrics = typeof fundMetrics.$inferSelect;
 export type InsertFundMetrics = typeof fundMetrics.$inferInsert;
 export type Activity = typeof activities.$inferSelect;
 export type InsertActivity = typeof activities.$inferInsert;
-export type User = typeof users.$inferSelect;
-export type InsertUser = typeof users.$inferInsert;
 export type CustomField = typeof customFields.$inferSelect;
 export type InsertCustomField = typeof customFields.$inferInsert;
 export type CustomFieldValue = typeof customFieldValues.$inferSelect;
