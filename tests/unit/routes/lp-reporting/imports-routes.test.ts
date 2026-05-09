@@ -1,5 +1,5 @@
 /**
- * Route tests for LP Reporting import dry-run endpoints (Phase 0.4).
+ * Route tests for LP Reporting import dry-run and commit endpoints.
  *
  * Verifies:
  *   - 401 when unauthenticated.
@@ -7,7 +7,7 @@
  *   - 200 happy path with the sample fixture.
  *   - DB spy: no INSERT into cash_flow_events or valuation_marks fires
  *     during the dry-run handler.
- *   - Source grep: no /commit endpoint exists; no /api/public/* added.
+ *   - Source grep: only ledger / valuation commit endpoints exist; no /api/public/* added.
  */
 import fs from 'node:fs';
 import path from 'node:path';
@@ -21,6 +21,28 @@ const authState = {
   fundIds: [1, 2] as number[],
 };
 let nextUserId = 700;
+
+const commitServiceMock = vi.hoisted(() => {
+  class MockImportCommitError extends Error {
+    readonly status: number;
+    readonly code: string;
+    readonly details?: unknown;
+
+    constructor(status: number, code: string, message: string, details?: unknown) {
+      super(message);
+      this.name = 'ImportCommitError';
+      this.status = status;
+      this.code = code;
+      this.details = details;
+    }
+  }
+
+  return {
+    commitLedgerImport: vi.fn(),
+    commitValuationMarkImport: vi.fn(),
+    ImportCommitError: MockImportCommitError,
+  };
+});
 
 vi.mock('../../../../server/lib/auth/jwt', () => ({
   requireAuth: () => (req: Request, res: Response, next: NextFunction) => {
@@ -56,6 +78,8 @@ vi.mock('../../../../server/lib/auth/jwt', () => ({
   },
 }));
 
+vi.mock('../../../../server/services/lp-reporting/import-commit-service', () => commitServiceMock);
+
 import importsRouter from '../../../../server/routes/lp-reporting/imports';
 
 const FIXTURES_DIR = path.join(process.cwd(), 'tests', 'fixtures', 'lp-reporting');
@@ -65,6 +89,7 @@ const ledgerCsvBase64 = fs
 const valuationCsvBase64 = fs
   .readFileSync(path.join(FIXTURES_DIR, 'sample-valuation-marks.csv'))
   .toString('base64');
+const previewHash = 'a'.repeat(64);
 
 function buildValuationCsvWithFutureMark(): string {
   const futureYear = new Date().getUTCFullYear() + 1;
@@ -94,6 +119,8 @@ beforeEach(() => {
 
 afterEach(() => {
   vi.restoreAllMocks();
+  commitServiceMock.commitLedgerImport.mockReset();
+  commitServiceMock.commitValuationMarkImport.mockReset();
 });
 
 describe('POST /api/funds/:fundId/imports/ledger/dry-run', () => {
@@ -119,6 +146,7 @@ describe('POST /api/funds/:fundId/imports/ledger/dry-run', () => {
     expect(res.status).toBe(200);
     expect(res.body.sourceType).toBe('csv');
     expect(typeof res.body.importId).toBe('string');
+    expect(res.body.previewHash).toMatch(/^[a-f0-9]{64}$/);
     expect(res.body.parsedRows).toBeGreaterThan(0);
     expect(res.body.duplicateRows).toBe(1);
     expect(res.body.invalidRows).toBe(1);
@@ -167,6 +195,110 @@ describe('POST /api/funds/:fundId/imports/ledger/dry-run', () => {
       .post('/api/funds/1/imports/ledger/dry-run')
       .send({ sourceType: 'csv', payload: ledgerCsvBase64 });
     expect(otherUser.status).toBe(200);
+  });
+});
+
+describe('POST /api/funds/:fundId/imports/ledger/commit', () => {
+  it('returns 401 when unauthenticated', async () => {
+    authState.authenticated = false;
+    const res = await request(buildApp())
+      .post('/api/funds/1/imports/ledger/commit')
+      .send({ sourceType: 'csv', payload: ledgerCsvBase64, previewHash });
+    expect(res.status).toBe(401);
+  });
+
+  it('returns 403 on cross-fund access', async () => {
+    const res = await request(buildApp())
+      .post('/api/funds/99/imports/ledger/commit')
+      .send({ sourceType: 'csv', payload: ledgerCsvBase64, previewHash });
+    expect(res.status).toBe(403);
+  });
+
+  it('passes fundId, numeric userId, payload, and previewHash to the commit service', async () => {
+    commitServiceMock.commitLedgerImport.mockResolvedValueOnce({
+      importBatchId: '11111111-2222-3333-4444-555555555555',
+      previewHash,
+      insertedCount: 2,
+      skippedExistingCount: 0,
+      skippedDuplicateCount: 1,
+      skippedExcludedCount: 0,
+      insertedIds: [10, 11],
+    });
+
+    const res = await request(buildApp())
+      .post('/api/funds/1/imports/ledger/commit')
+      .send({ sourceType: 'csv', payload: ledgerCsvBase64, previewHash });
+
+    expect(res.status).toBe(201);
+    expect(res.body.insertedCount).toBe(2);
+    expect(commitServiceMock.commitLedgerImport).toHaveBeenCalledWith({
+      fundId: 1,
+      userId: authState.userId,
+      sourceType: 'csv',
+      payload: ledgerCsvBase64,
+      previewHash,
+    });
+  });
+
+  it('returns 400 when previewHash is missing', async () => {
+    const res = await request(buildApp())
+      .post('/api/funds/1/imports/ledger/commit')
+      .send({ sourceType: 'csv', payload: ledgerCsvBase64 });
+    expect(res.status).toBe(400);
+    expect(commitServiceMock.commitLedgerImport).not.toHaveBeenCalled();
+  });
+
+  it('maps preview hash mismatch to 409', async () => {
+    commitServiceMock.commitLedgerImport.mockRejectedValueOnce(
+      new commitServiceMock.ImportCommitError(
+        409,
+        'PREVIEW_HASH_MISMATCH',
+        'Dry-run preview hash no longer matches the submitted payload.'
+      )
+    );
+
+    const res = await request(buildApp())
+      .post('/api/funds/1/imports/ledger/commit')
+      .send({ sourceType: 'csv', payload: ledgerCsvBase64, previewHash });
+
+    expect(res.status).toBe(409);
+    expect(res.body.error).toBe('PREVIEW_HASH_MISMATCH');
+  });
+});
+
+describe('POST /api/funds/:fundId/imports/valuation-marks/commit', () => {
+  it('commits valuation mark imports through the valuation service', async () => {
+    commitServiceMock.commitValuationMarkImport.mockResolvedValueOnce({
+      importBatchId: '11111111-2222-3333-4444-555555555555',
+      previewHash,
+      insertedCount: 1,
+      skippedExistingCount: 0,
+      skippedDuplicateCount: 0,
+      skippedExcludedCount: 1,
+      insertedIds: [12],
+    });
+
+    const res = await request(buildApp())
+      .post('/api/funds/1/imports/valuation-marks/commit')
+      .send({ sourceType: 'csv', payload: valuationCsvBase64, previewHash });
+
+    expect(res.status).toBe(201);
+    expect(res.body.skippedExcludedCount).toBe(1);
+    expect(commitServiceMock.commitValuationMarkImport).toHaveBeenCalledWith({
+      fundId: 1,
+      userId: authState.userId,
+      sourceType: 'csv',
+      payload: valuationCsvBase64,
+      previewHash,
+    });
+  });
+
+  it('rejects notion valuation commits until a mark mapping exists', async () => {
+    const res = await request(buildApp())
+      .post('/api/funds/1/imports/valuation-marks/commit')
+      .send({ sourceType: 'notion', payload: valuationCsvBase64, previewHash });
+    expect(res.status).toBe(400);
+    expect(commitServiceMock.commitValuationMarkImport).not.toHaveBeenCalled();
   });
 });
 
@@ -232,14 +364,16 @@ describe('DB-write absence -- no INSERT runs during dry-run', () => {
   });
 });
 
-describe('Source grep -- no commit endpoint, no /api/public', () => {
+describe('Source grep -- bounded commit endpoints, no /api/public', () => {
   const routerSource = fs.readFileSync(
     path.join(process.cwd(), 'server', 'routes', 'lp-reporting', 'imports.ts'),
     'utf8'
   );
 
-  it('does not declare a /commit endpoint', () => {
-    expect(routerSource).not.toMatch(/['"][^'"]*\/commit['"]/);
+  it('declares ledger and valuation commit endpoints only', () => {
+    expect(routerSource).toMatch(/\/api\/funds\/:fundId\/imports\/ledger\/commit/);
+    expect(routerSource).toMatch(/\/api\/funds\/:fundId\/imports\/valuation-marks\/commit/);
+    expect(routerSource).not.toMatch(/metric-runs\/commit/);
   });
 
   it('does not add any /api/public route', () => {
@@ -251,7 +385,7 @@ describe('Source grep -- no commit endpoint, no /api/public', () => {
       routerSource.match(/router\.(post|get|put|delete|patch)\(\s*['"]([^'"]+)['"]/g) ?? [];
     expect(matches.length).toBeGreaterThan(0);
     for (const m of matches) {
-      expect(m).toMatch(/\/api\/funds\/:fundId\/imports\/[^/]+\/dry-run/);
+      expect(m).toMatch(/\/api\/funds\/:fundId\/imports\/[^/]+\/(dry-run|commit)/);
     }
   });
 });

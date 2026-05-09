@@ -42,6 +42,7 @@ import {
   text,
   timestamp,
   unique,
+  uniqueIndex,
   uuid,
   varchar,
 } from 'drizzle-orm/pg-core';
@@ -165,6 +166,9 @@ export const cashFlowEvents = pgTable(
     companyDateIdx: index('idx_cash_flow_company_date').on(table.companyId, table.eventDate.desc()),
     eventTypeIdx: index('idx_cash_flow_event_type').on(table.eventType, table.eventDate.desc()),
     importBatchIdx: index('idx_cash_flow_import_batch').on(table.importBatchId),
+    sourceHashUniqueIdx: uniqueIndex('cash_flow_events_fund_source_hash_unique')
+      .on(table.fundId, table.sourceHash)
+      .where(sql`${table.sourceHash} IS NOT NULL`),
   })
 );
 
@@ -235,6 +239,9 @@ export const valuationMarks = pgTable(
       table.asOfDate.desc()
     ),
     importBatchIdx: index('idx_valuation_marks_import_batch').on(table.importBatchId),
+    sourceHashUniqueIdx: uniqueIndex('valuation_marks_fund_source_hash_unique')
+      .on(table.fundId, table.sourceHash)
+      .where(sql`${table.sourceHash} IS NOT NULL`),
   })
 );
 

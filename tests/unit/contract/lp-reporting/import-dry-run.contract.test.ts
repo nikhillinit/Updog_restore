@@ -17,6 +17,7 @@ import {
 const happyPath = {
   importId: '11111111-2222-3333-4444-555555555555',
   sourceType: 'csv' as const,
+  previewHash: 'a'.repeat(64),
   parsedRows: 5,
   validRows: 4,
   invalidRows: 1,
@@ -44,6 +45,12 @@ describe('ImportDryRunResponseSchema -- round-trip', () => {
   it('rejects malformed importId', () => {
     expect(() =>
       ImportDryRunResponseSchema.parse({ ...happyPath, importId: 'not-a-uuid' })
+    ).toThrow();
+  });
+
+  it('rejects malformed previewHash', () => {
+    expect(() =>
+      ImportDryRunResponseSchema.parse({ ...happyPath, previewHash: 'not-a-hash' })
     ).toThrow();
   });
 

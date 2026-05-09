@@ -21,9 +21,11 @@ import { DecimalStringSchema, MoneyStringSchema } from './cash-flow-event.contra
 
 export const SourceTypeSchema = z.enum(['csv', 'notion']);
 export const ImportSeveritySchema = z.enum(['error', 'warning']);
+export const PreviewHashSchema = z.string().regex(/^[a-f0-9]{64}$/);
 
 export type SourceType = z.infer<typeof SourceTypeSchema>;
 export type ImportSeverity = z.infer<typeof ImportSeveritySchema>;
+export type PreviewHash = z.infer<typeof PreviewHashSchema>;
 
 export const ImportWarningSchema = z
   .object({
@@ -90,6 +92,7 @@ export const ImportDryRunResponseSchema = z
   .object({
     importId: z.string().uuid(),
     sourceType: SourceTypeSchema,
+    previewHash: PreviewHashSchema,
     parsedRows: z.number().int().nonnegative(),
     validRows: z.number().int().nonnegative(),
     invalidRows: z.number().int().nonnegative(),
