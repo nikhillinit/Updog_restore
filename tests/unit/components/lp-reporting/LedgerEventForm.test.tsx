@@ -63,7 +63,6 @@ function makeDryRunResponse(): ImportDryRunResponse {
         excluded: false,
       },
     ],
-    previewHash: '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef',
   };
 }
 

@@ -18,7 +18,6 @@
 
 import { z } from 'zod';
 import { DecimalStringSchema, MoneyStringSchema } from './cash-flow-event.contract';
-import { PreviewHashSchema } from './import-commit.contract';
 
 export const SourceTypeSchema = z.enum(['csv', 'notion']);
 export const ImportSeveritySchema = z.enum(['error', 'warning']);
@@ -99,12 +98,6 @@ export const ImportDryRunResponseSchema = z
     errors: z.array(ImportErrorSchema).default([]),
     reconciliation: ReconciliationSummarySchema,
     preview: z.array(ImportPreviewRowSchema).default([]),
-    /**
-     * sha256 hex of the (sorted, normalized) parsed rows. The client
-     * echoes this back on commit so the server can detect drift between
-     * the dry-run preview and the committed payload (Phase 1c.1).
-     */
-    previewHash: PreviewHashSchema,
   })
   .strict();
 

@@ -12,7 +12,7 @@
  * @see docs/adr/ADR-011-decimal-string-api-convention.md
  */
 
-import { createHash, randomUUID } from 'node:crypto';
+import { randomUUID } from 'node:crypto';
 
 import { Decimal } from '@shared/lib/decimal-config';
 import type {
@@ -626,7 +626,6 @@ export function runLedgerDryRun(
     errors: parsed.parseErrors,
     reconciliation,
     preview: buildLedgerPreview(parsed.rows, duplicates),
-    previewHash: computePreviewHash(parsed.rows),
   };
 }
 
@@ -649,20 +648,5 @@ export function runValuationMarkDryRun(
     errors: parsed.parseErrors,
     reconciliation,
     preview: buildValuationMarkPreview(parsed.rows),
-    previewHash: computePreviewHash(parsed.rows),
   };
-}
-
-/**
- * sha256 hex of the canonical (JSON-serialized) parsed rows. The client
- * echoes this back on commit so the server can detect drift between the
- * dry-run preview and the committed payload (Phase 1c.1). Replaced with
- * a sorted, normalized hash in Phase 1c.3 when the commit handler ships.
- *
- * Exported (Phase 1c.2) so the commit service can recompute the same
- * hash against a fresh parse of the payload without reimplementing the
- * canonicalization rule.
- */
-export function computePreviewHash(rows: readonly unknown[]): string {
-  return createHash('sha256').update(JSON.stringify(rows)).digest('hex');
 }
