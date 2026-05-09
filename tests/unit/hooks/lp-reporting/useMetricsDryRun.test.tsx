@@ -2,7 +2,8 @@
  * LP Reporting -- useMetricsDryRun hook tests.
  *
  * MSW-style fetch stubbing (mirrors `useSensitivityRuns.test.tsx`):
- * - Happy path: hook returns the parsed `LpMetricRunResults` shape.
+ * - Happy path: hook returns the full dry-run response envelope.
+ * - Commit path: hook posts the original request plus preview hash.
  * - 401 path: hook surfaces the typed error envelope with status +
  *   code from the server response body.
  * - Synchronous null fundId: the mutation rejects without making a
@@ -15,9 +16,13 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { renderHook, waitFor } from '@testing-library/react';
 
-import { useMetricsDryRun } from '@/hooks/lp-reporting';
+import { useMetricRunCommit, useMetricsDryRun } from '@/hooks/lp-reporting';
 import type { MetricsDryRunRequest } from '@/hooks/lp-reporting';
-import type { LpMetricRunResults } from '@shared/contracts/lp-reporting';
+import type {
+  LpMetricRunResults,
+  MetricRunCommitResponse,
+  MetricRunDryRunResponse,
+} from '@shared/contracts/lp-reporting';
 
 function makeWrapper() {
   const queryClient = new QueryClient({
@@ -67,7 +72,35 @@ function makeCanonicalResults(): LpMetricRunResults {
 const baseRequest: MetricsDryRunRequest = {
   asOfDate: '2026-03-31',
   perspective: 'lp_net',
+  runType: 'quarterly_report',
+  sourceEventIds: [],
+  sourceMarkIds: [],
 };
+
+function makeDryRunResponse(): MetricRunDryRunResponse {
+  return {
+    results: makeCanonicalResults(),
+    diagnostics: {
+      engineVersion: 'lp-reporting-engine@1.2.0',
+      decimalPrecision: 6,
+      excludedFutureMarks: [],
+      warnings: [],
+    },
+    inputsHash: 'a'.repeat(64),
+    runType: 'quarterly_report',
+    previewHash: 'b'.repeat(64),
+  };
+}
+
+function makeCommitResponse(): MetricRunCommitResponse {
+  return {
+    metricRunId: 17,
+    status: 'draft',
+    inputsHash: 'a'.repeat(64),
+    previewHash: 'b'.repeat(64),
+    inserted: true,
+  };
+}
 
 describe('useMetricsDryRun', () => {
   afterEach(() => {
@@ -75,21 +108,11 @@ describe('useMetricsDryRun', () => {
   });
 
   it('POSTs to /api/funds/:id/metric-runs/dry-run and parses the response', async () => {
-    // Server returns an envelope { results, diagnostics, inputsHash, runType };
-    // the hook unwraps and returns just the results.
     const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
-      new Response(
-        JSON.stringify({
-          results: makeCanonicalResults(),
-          diagnostics: { warnings: [] },
-          inputsHash: 'sha256:test',
-          runType: 'quarterly_report',
-        }),
-        {
-          status: 200,
-          headers: { 'Content-Type': 'application/json' },
-        }
-      )
+      new Response(JSON.stringify(makeDryRunResponse()), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      })
     );
 
     const { Wrapper } = makeWrapper();
@@ -108,9 +131,10 @@ describe('useMetricsDryRun', () => {
     expect((init?.headers as Record<string, string>)['Content-Type']).toBe('application/json');
     expect(JSON.parse(init?.body as string)).toEqual(baseRequest);
 
-    expect(result.current.data?.tvpi).toBe('1.700000');
-    expect(result.current.data?.xirrDiagnostic.net.convergence).toBe('converged');
-    expect(result.current.data?.markConfidenceMix.high).toBe(8);
+    expect(result.current.data?.previewHash).toBe('b'.repeat(64));
+    expect(result.current.data?.results.tvpi).toBe('1.700000');
+    expect(result.current.data?.results.xirrDiagnostic.net.convergence).toBe('converged');
+    expect(result.current.data?.results.markConfidenceMix.high).toBe(8);
   });
 
   it('surfaces a typed error envelope on 401 unauthorized', async () => {
@@ -172,5 +196,67 @@ describe('useMetricsDryRun', () => {
     });
 
     expect(result.current.error?.code).toBe('CONTRACT_PARSE_ERROR');
+  });
+});
+
+describe('useMetricRunCommit', () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it('POSTs to /api/funds/:id/metric-runs/commit with original request plus preview hash', async () => {
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response(JSON.stringify(makeCommitResponse()), {
+        status: 201,
+        headers: { 'Content-Type': 'application/json' },
+      })
+    );
+
+    const { Wrapper } = makeWrapper();
+    const { result } = renderHook(() => useMetricRunCommit(7), { wrapper: Wrapper });
+
+    result.current.mutate({ ...baseRequest, previewHash: 'b'.repeat(64) });
+
+    await waitFor(() => {
+      expect(result.current.isSuccess).toBe(true);
+    });
+
+    expect(fetchSpy).toHaveBeenCalledTimes(1);
+    const [url, init] = fetchSpy.mock.calls[0]!;
+    expect(url).toBe('/api/funds/7/metric-runs/commit');
+    expect(init?.method).toBe('POST');
+    expect(JSON.parse(init?.body as string)).toEqual({
+      ...baseRequest,
+      previewHash: 'b'.repeat(64),
+    });
+    expect(result.current.data?.metricRunId).toBe(17);
+    expect(result.current.data?.inserted).toBe(true);
+  });
+
+  it('surfaces preview mismatch errors from commit', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          error: 'PREVIEW_HASH_MISMATCH',
+          message: 'Metric-run preview hash no longer matches.',
+        }),
+        {
+          status: 409,
+          headers: { 'Content-Type': 'application/json' },
+        }
+      )
+    );
+
+    const { Wrapper } = makeWrapper();
+    const { result } = renderHook(() => useMetricRunCommit(7), { wrapper: Wrapper });
+
+    result.current.mutate({ ...baseRequest, previewHash: 'b'.repeat(64) });
+
+    await waitFor(() => {
+      expect(result.current.isError).toBe(true);
+    });
+
+    expect(result.current.error?.status).toBe(409);
+    expect(result.current.error?.code).toBe('PREVIEW_HASH_MISMATCH');
   });
 });

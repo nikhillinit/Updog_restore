@@ -9,6 +9,10 @@ import {
   LpMetricRunPerspectiveSchema,
   LpMetricRunStatusSchema,
   LpMetricRunTypeSchema,
+  MetricRunCommitRequestSchema,
+  MetricRunCommitResponseSchema,
+  MetricRunDryRunRequestSchema,
+  MetricRunDryRunResponseSchema,
   type LpMetricRunResults,
   type XirrDiagnostic,
 } from '@shared/contracts/lp-reporting/lp-metric-run.contract';
@@ -48,6 +52,15 @@ const happyPath = {
   resultsJson: validResults,
 };
 
+const validDiagnostics = {
+  engineVersion: 'lp-reporting-engine@1.1.0',
+  decimalPrecision: 6,
+  excludedFutureMarks: [],
+  warnings: [],
+};
+
+const hex64 = 'a'.repeat(64);
+
 describe('LpMetricRunCreateSchema -- round-trip', () => {
   it('accepts a minimal happy path', () => {
     expect(() => LpMetricRunCreateSchema.parse(happyPath)).not.toThrow();
@@ -83,6 +96,112 @@ describe('LpMetricRunCreateSchema -- round-trip', () => {
     });
     expect(parsed.diagnosticsJson?.engineVersion).toBe('lp-reporting-engine@1.1.0');
     expect(parsed.diagnosticsJson?.warnings).toEqual([]);
+  });
+});
+
+describe('Metric-run dry-run and commit endpoint contracts', () => {
+  it('parses a strict dry-run request', () => {
+    const parsed = MetricRunDryRunRequestSchema.parse({
+      asOfDate: '2026-03-31',
+      runType: 'quarterly_report',
+      perspective: 'lp_net',
+      sourceEventIds: [2, 1],
+      sourceMarkIds: [10],
+    });
+
+    expect(parsed.sourceEventIds).toEqual([2, 1]);
+    expect(parsed.sourceMarkIds).toEqual([10]);
+  });
+
+  it('dry-run response wrapper requires results, diagnostics, inputsHash, runType, and previewHash', () => {
+    const parsed = MetricRunDryRunResponseSchema.parse({
+      results: validResults,
+      diagnostics: validDiagnostics,
+      inputsHash: hex64,
+      runType: 'quarterly_report',
+      previewHash: hex64,
+    });
+
+    expect(parsed.previewHash).toBe(hex64);
+    expect(parsed.inputsHash).toBe(hex64);
+  });
+
+  it('commit request requires the original request fields plus previewHash', () => {
+    const parsed = MetricRunCommitRequestSchema.parse({
+      asOfDate: '2026-03-31',
+      runType: 'quarterly_report',
+      perspective: 'fund_gross',
+      sourceEventIds: [],
+      sourceMarkIds: [],
+      previewHash: hex64,
+    });
+
+    expect(parsed.previewHash).toBe(hex64);
+  });
+
+  it('commit request rejects client-submitted results, diagnostics, and generatedBy', () => {
+    expect(() =>
+      MetricRunCommitRequestSchema.parse({
+        asOfDate: '2026-03-31',
+        runType: 'quarterly_report',
+        perspective: 'lp_net',
+        previewHash: hex64,
+        results: validResults,
+      })
+    ).toThrow();
+
+    expect(() =>
+      MetricRunCommitRequestSchema.parse({
+        asOfDate: '2026-03-31',
+        runType: 'quarterly_report',
+        perspective: 'lp_net',
+        previewHash: hex64,
+        diagnostics: validDiagnostics,
+      })
+    ).toThrow();
+
+    expect(() =>
+      MetricRunCommitRequestSchema.parse({
+        asOfDate: '2026-03-31',
+        runType: 'quarterly_report',
+        perspective: 'lp_net',
+        previewHash: hex64,
+        generatedBy: 7,
+      })
+    ).toThrow();
+  });
+
+  it('commit response distinguishes inserted and idempotent existing rows', () => {
+    const inserted = MetricRunCommitResponseSchema.parse({
+      metricRunId: 10,
+      status: 'draft',
+      inputsHash: hex64,
+      previewHash: hex64,
+      inserted: true,
+    });
+    const existing = MetricRunCommitResponseSchema.parse({
+      metricRunId: 10,
+      status: 'draft',
+      inputsHash: hex64,
+      previewHash: hex64,
+      inserted: false,
+    });
+
+    expect(inserted.inserted).toBe(true);
+    expect(existing.inserted).toBe(false);
+  });
+
+  it('rejects unknown write-path keys', () => {
+    expect(() =>
+      MetricRunCommitResponseSchema.parse({
+        metricRunId: 10,
+        status: 'draft',
+        inputsHash: hex64,
+        previewHash: hex64,
+        inserted: true,
+        unexpected: true,
+      })
+    ).toThrow();
   });
 });
 

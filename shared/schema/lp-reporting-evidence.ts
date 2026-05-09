@@ -310,6 +310,13 @@ export const lpMetricRuns = pgTable(
       table.asOfDate.desc()
     ),
     statusIdx: index('idx_lp_metric_runs_status').on(table.status),
+    runInputsUniqueIdx: uniqueIndex('lp_metric_runs_fund_run_inputs_unique').on(
+      table.fundId,
+      table.runType,
+      table.perspective,
+      table.asOfDate,
+      table.inputsHash
+    ),
   })
 );
 

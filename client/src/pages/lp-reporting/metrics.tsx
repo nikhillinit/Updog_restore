@@ -15,7 +15,7 @@
  * was wrong, but we re-parse here per the design (defense in depth at
  * the page level).
  *
- * NO commit / persistence affordance. Persistence ships in Phase 1c.
+ * Successful previews can be committed as draft metric runs.
  *
  * @module client/pages/lp-reporting/metrics
  */
@@ -23,13 +23,20 @@
 import { useCallback, useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { Button } from '@/components/ui/button';
 import { MetricRunForm } from '@/components/lp-reporting/MetricRunForm';
 import { MetricsCards } from '@/components/lp-reporting/MetricsCards';
 import { XirrDiagnosticPanel } from '@/components/lp-reporting/XirrDiagnosticPanel';
 import { MarkConfidenceMix } from '@/components/lp-reporting/MarkConfidenceMix';
 import { useFundContext } from '@/contexts/FundContext';
-import { LpMetricRunResultsSchema, type LpMetricRunResults } from '@shared/contracts/lp-reporting';
-import type { LpReportingHookError } from '@/hooks/lp-reporting';
+import {
+  LpMetricRunResultsSchema,
+  MetricRunDryRunResponseSchema,
+  type MetricRunCommitResponse,
+  type MetricRunDryRunRequest,
+  type MetricRunDryRunResponse,
+} from '@shared/contracts/lp-reporting';
+import { useMetricRunCommit, type LpReportingHookError } from '@/hooks/lp-reporting';
 
 interface ErrorEnvelope {
   title: string;
@@ -39,6 +46,20 @@ interface ErrorEnvelope {
 const XIRR_PANEL_DOM_ID = 'lp-reporting-xirr-diagnostic-panel';
 
 function envelopeFor(err: LpReportingHookError): ErrorEnvelope {
+  if (err.code === 'PREVIEW_HASH_MISMATCH') {
+    return {
+      title: 'Preview changed',
+      description: 'The selected source rows changed after preview. Run metrics again.',
+    };
+  }
+  if (err.code === 'CONTRACT_PARSE_ERROR') {
+    return {
+      title: 'Unexpected response',
+      description:
+        'The server response did not match the locked contract. This is a bug -- please flag it.',
+    };
+  }
+
   switch (err.status) {
     case 401:
       return {
@@ -54,22 +75,15 @@ function envelopeFor(err: LpReportingHookError): ErrorEnvelope {
     case 429:
       return {
         title: 'Rate limit reached',
-        description: 'Metric-run dry-runs are limited to 20 per hour per user. Try again shortly.',
+        description: 'Metric-run requests are limited to 20 per hour per user. Try again shortly.',
       };
     case 500:
       return {
-        title: 'Dry-run failed',
+        title: 'Metric run failed',
         description:
           err.message || 'The server could not compute metrics. Check your inputs and try again.',
       };
     default:
-      if (err.code === 'CONTRACT_PARSE_ERROR') {
-        return {
-          title: 'Unexpected response',
-          description:
-            'The server response did not match the locked contract. This is a bug -- please flag it.',
-        };
-      }
       return {
         title: 'Unable to compute metrics',
         description: err.message || 'An unknown error occurred. Try again.',
@@ -79,31 +93,64 @@ function envelopeFor(err: LpReportingHookError): ErrorEnvelope {
 
 export default function LpReportingMetricsPage() {
   const { fundId } = useFundContext();
-  const [results, setResults] = useState<LpMetricRunResults | null>(null);
-  const [error, setError] = useState<LpReportingHookError | null>(null);
+  const commitMutation = useMetricRunCommit(fundId);
+  const [dryRun, setDryRun] = useState<MetricRunDryRunResponse | null>(null);
+  const [dryRunRequest, setDryRunRequest] = useState<MetricRunDryRunRequest | null>(null);
+  const [dryRunError, setDryRunError] = useState<LpReportingHookError | null>(null);
+  const [commitResult, setCommitResult] = useState<MetricRunCommitResponse | null>(null);
+  const [commitError, setCommitError] = useState<LpReportingHookError | null>(null);
 
-  const handleSuccess = useCallback((response: LpMetricRunResults) => {
-    // Defensive parse at the trust boundary. The hook already validates
-    // with safeParse; re-parsing here guards against any local mutation
-    // and makes the contract dependency explicit at the page level.
-    const parsed = LpMetricRunResultsSchema.parse(response);
-    setError(null);
-    setResults(parsed);
-  }, []);
+  const handleSuccess = useCallback(
+    (response: MetricRunDryRunResponse, request: MetricRunDryRunRequest) => {
+      // Defensive parse at the trust boundary. The hook already validates
+      // with safeParse; re-parsing here guards against any local mutation
+      // and makes the contract dependency explicit at the page level.
+      const parsedEnvelope = MetricRunDryRunResponseSchema.parse(response);
+      const parsedResults = LpMetricRunResultsSchema.parse(parsedEnvelope.results);
+      setDryRun({ ...parsedEnvelope, results: parsedResults });
+      setDryRunRequest(request);
+      setDryRunError(null);
+      setCommitError(null);
+      setCommitResult(null);
+    },
+    []
+  );
 
   const handleError = useCallback((err: LpReportingHookError) => {
-    setError(err);
+    setDryRunError(err);
+    setCommitError(null);
+    setCommitResult(null);
   }, []);
 
-  const envelope = error ? envelopeFor(error) : null;
+  const handleCommit = useCallback(async () => {
+    if (!dryRun || !dryRunRequest) {
+      return;
+    }
+    try {
+      const result = await commitMutation.mutateAsync({
+        ...dryRunRequest,
+        previewHash: dryRun.previewHash,
+      });
+      setCommitResult(result);
+      setCommitError(null);
+    } catch (err) {
+      if (err && typeof err === 'object') {
+        setCommitError(err as LpReportingHookError);
+      }
+    }
+  }, [commitMutation, dryRun, dryRunRequest]);
+
+  const results = dryRun?.results ?? null;
+  const envelope = dryRunError ? envelopeFor(dryRunError) : null;
+  const commitEnvelope = commitError ? envelopeFor(commitError) : null;
 
   return (
     <div className="p-8 space-y-6">
       <header>
         <h1 className="text-3xl font-bold font-inter text-charcoal">Metrics</h1>
         <p className="text-charcoal/70 font-poppins mt-1">
-          DPI, RVPI, TVPI, MOIC, Net IRR, Gross IRR with XIRR convergence diagnostics. No INSERT
-          happens in this view; persistence ships in Phase 1c.
+          DPI, RVPI, TVPI, MOIC, Net IRR, Gross IRR with XIRR convergence diagnostics and draft
+          metric-run persistence.
         </p>
       </header>
 
@@ -121,7 +168,7 @@ export default function LpReportingMetricsPage() {
         <Alert
           variant="destructive"
           data-testid="metrics-error-envelope"
-          data-error-status={error?.status ?? ''}
+          data-error-status={dryRunError?.status ?? ''}
         >
           <AlertTitle>{envelope.title}</AlertTitle>
           <AlertDescription>{envelope.description}</AlertDescription>
@@ -132,9 +179,8 @@ export default function LpReportingMetricsPage() {
         <CardHeader>
           <CardTitle>Run metrics</CardTitle>
           <CardDescription>
-            Select an as-of date, run type, and perspective. Click{' '}
-            <span className="font-semibold">Run metrics</span> to compute headline metrics + XIRR
-            diagnostics. Nothing is persisted.
+            Select an as-of date, run type, and perspective. A successful preview can be committed
+            as a draft metric run.
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -142,8 +188,57 @@ export default function LpReportingMetricsPage() {
         </CardContent>
       </Card>
 
-      {results ? (
+      {dryRun && results ? (
         <div className="space-y-6" data-testid="metrics-results">
+          <Card data-testid="metrics-commit-card">
+            <CardHeader>
+              <CardTitle>Draft metric run</CardTitle>
+              <CardDescription>
+                Preview hash {dryRun.previewHash.slice(0, 12)}... | inputs hash{' '}
+                {dryRun.inputsHash.slice(0, 12)}...
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <p className="text-sm text-charcoal/70 font-poppins">
+                  Commit the current preview as a draft reporting snapshot.
+                </p>
+                <Button
+                  type="button"
+                  onClick={() => void handleCommit()}
+                  disabled={commitMutation.isPending}
+                  data-testid="metrics-commit-button"
+                >
+                  {commitMutation.isPending ? 'Committing...' : 'Commit draft'}
+                </Button>
+              </div>
+
+              {commitEnvelope ? (
+                <Alert
+                  variant="destructive"
+                  data-testid="metrics-commit-error-envelope"
+                  data-error-status={commitError?.status ?? ''}
+                >
+                  <AlertTitle>{commitEnvelope.title}</AlertTitle>
+                  <AlertDescription>{commitEnvelope.description}</AlertDescription>
+                </Alert>
+              ) : null}
+
+              {commitResult ? (
+                <Alert
+                  data-testid="metrics-commit-result"
+                  data-inserted={String(commitResult.inserted)}
+                >
+                  <AlertTitle>Draft saved</AlertTitle>
+                  <AlertDescription>
+                    Metric run #{commitResult.metricRunId} is {commitResult.status}. Inputs hash{' '}
+                    {commitResult.inputsHash.slice(0, 12)}...
+                  </AlertDescription>
+                </Alert>
+              ) : null}
+            </CardContent>
+          </Card>
+
           <Card>
             <CardHeader>
               <CardTitle>Headline metrics</CardTitle>

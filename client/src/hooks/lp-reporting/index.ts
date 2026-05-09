@@ -5,6 +5,7 @@
  */
 
 export {
+  useMetricRunCommit,
   useMetricsDryRun,
   type MetricsDryRunRequest,
   type DryRunErrorBody,
