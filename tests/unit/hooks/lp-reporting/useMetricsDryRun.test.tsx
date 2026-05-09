@@ -75,11 +75,21 @@ describe('useMetricsDryRun', () => {
   });
 
   it('POSTs to /api/funds/:id/metric-runs/dry-run and parses the response', async () => {
+    // Server returns an envelope { results, diagnostics, inputsHash, runType };
+    // the hook unwraps and returns just the results.
     const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
-      new Response(JSON.stringify(makeCanonicalResults()), {
-        status: 200,
-        headers: { 'Content-Type': 'application/json' },
-      })
+      new Response(
+        JSON.stringify({
+          results: makeCanonicalResults(),
+          diagnostics: { warnings: [] },
+          inputsHash: 'sha256:test',
+          runType: 'quarterly_report',
+        }),
+        {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        }
+      )
     );
 
     const { Wrapper } = makeWrapper();
