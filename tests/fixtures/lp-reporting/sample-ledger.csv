@@ -1,0 +1,7 @@
+event_type,amount,currency,event_date,perspective,company_id,lp_id,description
+lp_capital_call,1000000.000000,USD,2026-01-15T00:00:00.000Z,lp_net,,1,Q1 2026 capital call
+lp_distribution,250000.000000,USD,2026-02-20T00:00:00.000Z,lp_net,,1,Q1 2026 distribution
+portfolio_investment,500000.000000,USD,2026-03-10T00:00:00.000Z,company,42,,Series A round
+fund_expense,12500.000000,USD,2026-03-31T00:00:00.000Z,fund_gross,,,Q1 audit fee
+lp_capital_call,1000000.000000,USD,2026-01-15T00:00:00.000Z,lp_net,,1,Q1 2026 capital call duplicate
+lp_distribution,180000.000000,USD,not-a-date,lp_net,,1,Malformed date row

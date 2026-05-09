@@ -4,7 +4,15 @@
  * Canonical implementation for both client and server use.
  * Provides a 3-tier fallback solver: Newton -> Brent -> Bisection
  *
+ * Policy: day-count Actual/365.25; rate bounds [-0.999999, 200];
+ * out-of-bounds rates clamp; LP Reporting xirr-diagnostic-service
+ * (Phase 1) wraps this solver and surfaces structured failure reasons.
+ * See docs/adr/ADR-010-xirr-day-count-and-bounds.md.
+ *
  * @module shared/lib/finance/xirr
+ * @see docs/adr/ADR-005-xirr-excel-parity.md
+ * @see docs/adr/ADR-010-xirr-day-count-and-bounds.md
+ * @see docs/adr/ADR-015-XIRR-BOUNDED-RATES.md
  */
 
 import { brent } from './brent-solver';
@@ -47,7 +55,11 @@ type XIRRStrategy = 'hybrid' | 'newton' | 'bisection';
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
 
 // Rate bounds: from -99.9999% to +20,000%
-// Extended to handle extreme returns (e.g., 10x in 6 months = ~9,900% IRR)
+// Extended to handle extreme returns (e.g., 10x in 6 months = ~9,900% IRR).
+// Locked by ADR-010 (docs/adr/ADR-010-xirr-day-count-and-bounds.md):
+// MIN_RATE = -0.999999, MAX_RATE = 200. Out-of-bounds rates clamp here;
+// LP Reporting xirr-diagnostic-service (Phase 1) classifies the clamped
+// result as OUT_OF_BOUNDS_HIGH / OUT_OF_BOUNDS_LOW.
 const MIN_RATE = -0.999999;
 const MAX_RATE = 200;
 
@@ -63,6 +75,9 @@ function serialDayUtc(date: Date): number {
  * Excel-compatible Actual/365.25 year fraction with UTC-normalized dates.
  * Uses 365.25 denominator to match Excel XIRR behavior empirically.
  * Note: Excel documentation says 365, but testing shows 365.25 matches output.
+ * Locked by ADR-010 (docs/adr/ADR-010-xirr-day-count-and-bounds.md);
+ * the LP Reporting design's "Actual/365" claim is reconciled to 365.25
+ * in that ADR.
  */
 function yearFraction(start: Date, current: Date): number {
   const startSerial = serialDayUtc(start);

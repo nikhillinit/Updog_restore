@@ -5889,6 +5889,36 @@
       "docType": "doc",
       "exists": true,
       "frontmatter": {
+        "last_updated": "2026-05-08",
+        "status": "ACTIVE"
+      },
+      "hasExecutionClaims": false,
+      "isStale": false,
+      "lastUpdated": "2026-05-08",
+      "owner": null,
+      "path": "docs/adr/ADR-010-xirr-day-count-and-bounds.md",
+      "staleDays": 0,
+      "status": "ACTIVE"
+    },
+    {
+      "docType": "doc",
+      "exists": true,
+      "frontmatter": {
+        "last_updated": "2026-05-08",
+        "status": "ACTIVE"
+      },
+      "hasExecutionClaims": false,
+      "isStale": false,
+      "lastUpdated": "2026-05-08",
+      "owner": null,
+      "path": "docs/adr/ADR-011-decimal-string-api-convention.md",
+      "staleDays": 0,
+      "status": "ACTIVE"
+    },
+    {
+      "docType": "doc",
+      "exists": true,
+      "frontmatter": {
         "last_updated": "2026-04-03",
         "status": "ACTIVE"
       },
@@ -11811,7 +11841,7 @@
       "status": "ACTIVE"
     }
   ],
-  "generatedAt": "2026-05-08T08:57:06.482Z",
+  "generatedAt": "2026-05-08T21:30:28.413Z",
   "patterns": [
     {
       "category": "Security",
@@ -12900,7 +12930,7 @@
   "stats": {
     "by_status": {
       "ACCEPTED": 1,
-      "ACTIVE": 488,
+      "ACTIVE": 490,
       "ARCHIVED": 1,
       "BACKLOG": 1,
       "DRAFT": 31,
@@ -12917,7 +12947,7 @@
     },
     "missing_frontmatter": 12,
     "stale_docs": 104,
-    "total_docs": 699
+    "total_docs": 701
   },
   "version": "2.0"
 }

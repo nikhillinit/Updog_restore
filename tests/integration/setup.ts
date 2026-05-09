@@ -5,8 +5,16 @@
  * global-setup.ts (runs once for the entire suite via globalSetup).
  */
 
+import { config as loadDotenv } from 'dotenv';
+import { resolve } from 'node:path';
+
 import { beforeAll } from 'vitest';
 import { resolveIntegrationBaseUrl } from './base-url';
+
+// Load test-only env vars (e.g. TEST_DATABASE_URL for the LP reporting migration
+// round-trip) from .env.test.local. override:false so CI-injected values win.
+// This must run before any test module's top-level reads of process.env.
+loadDotenv({ path: resolve(process.cwd(), '.env.test.local'), override: false });
 
 // Guard against whatwg-fetch pollution: some transitive dependencies
 // import whatwg-fetch which overwrites globalThis.fetch with a browser-only
