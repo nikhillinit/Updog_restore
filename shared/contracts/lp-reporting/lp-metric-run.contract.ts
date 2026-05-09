@@ -19,6 +19,7 @@
 import { z } from 'zod';
 
 import { DecimalStringSchema } from './cash-flow-event.contract';
+import { PreviewHashSchema } from './import-commit.contract';
 
 export const LpMetricRunTypeSchema = z.enum([
   'quarterly_report',
@@ -173,3 +174,29 @@ export const LpMetricRunCreateSchema = z
   .strict();
 
 export type LpMetricRunCreate = z.infer<typeof LpMetricRunCreateSchema>;
+
+// ---------------------------------------------------------------------------
+// Dry-run response wrapper (Phase 1c.1).
+//
+// The server's POST /api/funds/:fundId/metric-runs/dry-run handler returns
+// { results, diagnostics, inputsHash, runType, previewHash }. previewHash
+// was added in Phase 1c.1 so the client can echo it back on commit and the
+// server can detect drift between the dry-run preview and the committed
+// metric-run inputs.
+// ---------------------------------------------------------------------------
+
+export const LpMetricRunDryRunResponseSchema = z
+  .object({
+    results: LpMetricRunResultsSchema,
+    diagnostics: LpMetricRunDiagnosticsSchema,
+    inputsHash: z.string().regex(/^[a-f0-9]{64}$/),
+    runType: LpMetricRunTypeSchema,
+    /**
+     * sha256 hex of the (sorted, normalized) source IDs + asOfDate +
+     * runType + perspective. Echoed back on commit (Phase 1c.1).
+     */
+    previewHash: PreviewHashSchema,
+  })
+  .strict();
+
+export type LpMetricRunDryRunResponse = z.infer<typeof LpMetricRunDryRunResponseSchema>;

@@ -30,6 +30,9 @@ const happyPath = {
     explanations: [],
   },
   preview: [],
+  // Phase 1c.1: previewHash is required on the dry-run response so the
+  // client can echo it back on commit for drift detection.
+  previewHash: '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef',
 };
 
 describe('ImportDryRunResponseSchema -- round-trip', () => {
