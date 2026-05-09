@@ -21,6 +21,7 @@ import {
   Monitor,
   LayoutDashboard,
   LineChart,
+  Upload,
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 
@@ -59,6 +60,20 @@ export const LEGACY_NAV_ITEMS: NavItem[] = [
   { id: 'portfolio-constructor', label: 'Portfolio Constructor', icon: Settings },
   { id: 'dev-dashboard', label: 'Dev Dashboard', icon: Monitor },
   { id: 'reports', label: 'Reports', icon: FileText },
+  { id: 'lp-reporting-ledger', label: 'LP Ledger', icon: FileText, path: '/lp-reporting/ledger' },
+  {
+    id: 'lp-reporting-valuations',
+    label: 'LP Valuations',
+    icon: BarChart3,
+    path: '/lp-reporting/valuations',
+  },
+  {
+    id: 'lp-reporting-metrics',
+    label: 'LP Metrics',
+    icon: LineChart,
+    path: '/lp-reporting/metrics',
+  },
+  { id: 'lp-reporting-imports', label: 'LP Imports', icon: Upload, path: '/lp-reporting/imports' },
 ];
 
 /**
@@ -100,6 +115,30 @@ export const NEW_IA_NAV_ITEMS: NavItem[] = [
     label: 'Reports',
     icon: FileText,
     path: '/reports',
+  },
+  {
+    id: 'lp-reporting-ledger',
+    label: 'LP Ledger',
+    icon: FileText,
+    path: '/lp-reporting/ledger',
+  },
+  {
+    id: 'lp-reporting-valuations',
+    label: 'LP Valuations',
+    icon: BarChart3,
+    path: '/lp-reporting/valuations',
+  },
+  {
+    id: 'lp-reporting-metrics',
+    label: 'LP Metrics',
+    icon: LineChart,
+    path: '/lp-reporting/metrics',
+  },
+  {
+    id: 'lp-reporting-imports',
+    label: 'LP Imports',
+    icon: Upload,
+    path: '/lp-reporting/imports',
   },
 ];
 
