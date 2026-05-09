@@ -1,25 +1,25 @@
 ---
-last_updated: 2026-05-08
+last_updated: 2026-05-09
 ---
 
 # Staleness Report
 
-_Generated: 2026-05-08T21:30:28.413Z_ _Source: docs/DISCOVERY-MAP.source.yaml_
+_Generated: 2026-05-09T17:00:17.120Z_ _Source: docs/DISCOVERY-MAP.source.yaml_
 
 ## Summary
 
 | Metric              | Value |
 | ------------------- | ----- |
-| Total Documents     | 701   |
-| Stale Documents     | 104   |
-| Missing Frontmatter | 12    |
+| Total Documents     | 702   |
+| Stale Documents     | 105   |
+| Missing Frontmatter | 13    |
 
 ### By Status
 
 | Status                  | Count |
 | ----------------------- | ----- |
 | ACTIVE                  | 490   |
-| UNKNOWN                 | 123   |
+| UNKNOWN                 | 124   |
 | HISTORICAL              | 35    |
 | DRAFT                   | 31    |
 | VERIFIED                | 9     |
@@ -45,6 +45,7 @@ Documents that need review (older than their cadence threshold):
 | `docs/CA-PACING-ORACLE.md`                                                   | Never        | 999      | No                   | Unassigned |
 | `docs/claude/mcp-setup.md`                                                   | Never        | 999      | No                   | Unassigned |
 | `docs/claude/operating-loop.md`                                              | Never        | 999      | No                   | Unassigned |
+| `docs/lp-reporting/PHASE-1B-PLAN.md`                                         | Never        | 999      | No                   | Unassigned |
 | `docs/phase2-calibration-benchmarks.md`                                      | Never        | 999      | No                   | Unassigned |
 | `docs/plans/2026-04-03-phase-1a2-baseline-automation-hardening-validated.md` | Never        | 999      | No                   | Unassigned |
 | `docs/plans/2026-04-06-phase-4-closeout.md`                                  | Never        | 999      | No                   | Unassigned |
@@ -76,36 +77,35 @@ Documents that need review (older than their cadence threshold):
 | `docs/skills/SKILLS_INDEX.md`                                                | Never        | 999      | No                   | Unassigned |
 | `docs/skills/WIZARD_INDEX.md`                                                | Never        | 999      | No                   | Unassigned |
 | `docs/skills/template-refl.md`                                               | Never        | 999      | No                   | Unassigned |
-| `.claude/skills/planning-with-files/CHANGELOG.md`                            | 2026-01-19   | 109      | No                   | Unassigned |
-| `cheatsheets/agent-architecture.md`                                          | 2026-01-19   | 109      | No                   | Unassigned |
-| `cheatsheets/agent-memory/database-expert-schema-tdd.md`                     | 2026-01-19   | 109      | No                   | Unassigned |
-| `cheatsheets/ai-code-review.md`                                              | 2026-01-19   | 109      | No                   | Unassigned |
-| `cheatsheets/anti-pattern-prevention.md`                                     | 2026-01-19   | 109      | No                   | Unassigned |
-| `cheatsheets/api.md`                                                         | 2026-01-19   | 109      | No                   | Unassigned |
-| `cheatsheets/baseline-governance.md`                                         | 2026-01-19   | 109      | YES - verify!        | Unassigned |
-| `cheatsheets/capability-checklist.md`                                        | 2026-01-19   | 109      | No                   | Unassigned |
-| `cheatsheets/ci-validator-guide.md`                                          | 2026-01-19   | 109      | No                   | Unassigned |
-| `cheatsheets/claude-commands.md`                                             | 2026-01-19   | 109      | No                   | Unassigned |
-| `cheatsheets/claude-md-guidelines.md`                                        | 2026-01-19   | 109      | No                   | Unassigned |
-| `cheatsheets/codex-collaboration-protocol.md`                                | 2026-01-19   | 109      | No                   | Unassigned |
-| `cheatsheets/coding-pairs-playbook.md`                                       | 2026-01-19   | 109      | No                   | Unassigned |
-| `cheatsheets/command-summary.md`                                             | 2026-01-19   | 109      | No                   | Unassigned |
+| `.claude/skills/planning-with-files/CHANGELOG.md`                            | 2026-01-19   | 110      | No                   | Unassigned |
+| `cheatsheets/agent-architecture.md`                                          | 2026-01-19   | 110      | No                   | Unassigned |
+| `cheatsheets/agent-memory/database-expert-schema-tdd.md`                     | 2026-01-19   | 110      | No                   | Unassigned |
+| `cheatsheets/ai-code-review.md`                                              | 2026-01-19   | 110      | No                   | Unassigned |
+| `cheatsheets/anti-pattern-prevention.md`                                     | 2026-01-19   | 110      | No                   | Unassigned |
+| `cheatsheets/api.md`                                                         | 2026-01-19   | 110      | No                   | Unassigned |
+| `cheatsheets/baseline-governance.md`                                         | 2026-01-19   | 110      | YES - verify!        | Unassigned |
+| `cheatsheets/capability-checklist.md`                                        | 2026-01-19   | 110      | No                   | Unassigned |
+| `cheatsheets/ci-validator-guide.md`                                          | 2026-01-19   | 110      | No                   | Unassigned |
+| `cheatsheets/claude-commands.md`                                             | 2026-01-19   | 110      | No                   | Unassigned |
+| `cheatsheets/claude-md-guidelines.md`                                        | 2026-01-19   | 110      | No                   | Unassigned |
+| `cheatsheets/codex-collaboration-protocol.md`                                | 2026-01-19   | 110      | No                   | Unassigned |
+| `cheatsheets/coding-pairs-playbook.md`                                       | 2026-01-19   | 110      | No                   | Unassigned |
 
-_...and 54 more stale documents._
+_...and 55 more stale documents._
 
 ## Documents with Execution Claims (Need Verification)
 
 These documents contain phrases like "tests pass", "PR merged", etc. and should
 be verified:
 
-- [ ] **CHANGELOG.md** (33 days old)
-- [ ] **cheatsheets/baseline-governance.md** (109 days old)
-- [ ] **cheatsheets/emoji-free-documentation.md** (109 days old)
-- [ ] **cheatsheets/schema-alignment.md** (109 days old)
-- [ ] **docs/notebooklm-sources/reserves/01-overview.md** (109 days old)
-- [ ] **docs/notebooklm-sources/waterfall.md** (109 days old)
-- [ ] **docs/notebooklm-sources/xirr.md** (109 days old)
-- [ ] **docs/observability/EDITORIAL-V2-CHANGELOG.md** (109 days old)
+- [ ] **CHANGELOG.md** (34 days old)
+- [ ] **cheatsheets/baseline-governance.md** (110 days old)
+- [ ] **cheatsheets/emoji-free-documentation.md** (110 days old)
+- [ ] **cheatsheets/schema-alignment.md** (110 days old)
+- [ ] **docs/notebooklm-sources/reserves/01-overview.md** (110 days old)
+- [ ] **docs/notebooklm-sources/waterfall.md** (110 days old)
+- [ ] **docs/notebooklm-sources/xirr.md** (110 days old)
+- [ ] **docs/observability/EDITORIAL-V2-CHANGELOG.md** (110 days old)
 - [ ] **docs/session-learning-reports/2026-04-07.md** (999 days old)
 - [ ] **docs/skills/REFL-003-cross-platform-file-enumeration-fragility.md** (999
       days old)
@@ -123,6 +123,7 @@ Documents without proper YAML frontmatter:
 - [ ] `docs/CA-PACING-ORACLE.md`
 - [ ] `docs/claude/mcp-setup.md`
 - [ ] `docs/claude/operating-loop.md`
+- [ ] `docs/lp-reporting/PHASE-1B-PLAN.md`
 - [ ] `docs/phase2-calibration-benchmarks.md`
 - [ ] `docs/plans/2026-04-03-phase-1a2-baseline-automation-hardening-validated.md`
 - [ ] `docs/plans/2026-04-06-phase-4-closeout.md`
