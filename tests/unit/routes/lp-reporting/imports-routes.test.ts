@@ -204,12 +204,11 @@ describe('POST /api/funds/:fundId/imports/valuation-marks/dry-run', () => {
   });
 });
 
-describe('DB-write absence -- no INSERT runs during dry-run', () => {
-  it('the imports router does NOT import the db module', () => {
-    const routerSource = fs.readFileSync(
-      path.join(process.cwd(), 'server', 'routes', 'lp-reporting', 'imports.ts'),
-      'utf8'
-    );
+describe('DB-write absence -- reconciliation service is read-only', () => {
+  it('import-reconciliation-service.ts does NOT import the db module', () => {
+    // The reconciliation/dry-run service must remain pure. The Phase 1c.2
+    // commit handlers live in import-commit-service.ts; this gate keeps
+    // the dry-run path from acquiring DB writes.
     const serviceSource = fs.readFileSync(
       path.join(
         process.cwd(),
@@ -220,27 +219,17 @@ describe('DB-write absence -- no INSERT runs during dry-run', () => {
       ),
       'utf8'
     );
-    // The dry-run path should not pull in the db module at all. If a future
-    // change wires in the db, this guard fails the gate so the verifier
-    // catches it before the change reaches main.
-    expect(routerSource).not.toMatch(/from\s+['"]\.\.\/\.\.\/db['"]/);
-    expect(routerSource).not.toMatch(/INSERT\s+INTO/i);
-    expect(routerSource).not.toMatch(/db\.insert\(/);
     expect(serviceSource).not.toMatch(/from\s+['"]\.\.\/\.\.\/db['"]/);
     expect(serviceSource).not.toMatch(/INSERT\s+INTO/i);
     expect(serviceSource).not.toMatch(/db\.insert\(/);
   });
 });
 
-describe('Source grep -- no commit endpoint, no /api/public', () => {
+describe('Source grep -- no /api/public, dry-run + commit prefix only', () => {
   const routerSource = fs.readFileSync(
     path.join(process.cwd(), 'server', 'routes', 'lp-reporting', 'imports.ts'),
     'utf8'
   );
-
-  it('does not declare a /commit endpoint', () => {
-    expect(routerSource).not.toMatch(/['"][^'"]*\/commit['"]/);
-  });
 
   it('does not add any /api/public route', () => {
     expect(routerSource).not.toMatch(/\/api\/public/);
@@ -251,7 +240,8 @@ describe('Source grep -- no commit endpoint, no /api/public', () => {
       routerSource.match(/router\.(post|get|put|delete|patch)\(\s*['"]([^'"]+)['"]/g) ?? [];
     expect(matches.length).toBeGreaterThan(0);
     for (const m of matches) {
-      expect(m).toMatch(/\/api\/funds\/:fundId\/imports\/[^/]+\/dry-run/);
+      // Phase 1c.2 added /commit endpoints alongside /dry-run.
+      expect(m).toMatch(/\/api\/funds\/:fundId\/imports\/[^/]+\/(dry-run|commit)/);
     }
   });
 });

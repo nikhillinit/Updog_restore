@@ -658,7 +658,11 @@ export function runValuationMarkDryRun(
  * echoes this back on commit so the server can detect drift between the
  * dry-run preview and the committed payload (Phase 1c.1). Replaced with
  * a sorted, normalized hash in Phase 1c.3 when the commit handler ships.
+ *
+ * Exported (Phase 1c.2) so the commit service can recompute the same
+ * hash against a fresh parse of the payload without reimplementing the
+ * canonicalization rule.
  */
-function computePreviewHash(rows: readonly unknown[]): string {
+export function computePreviewHash(rows: readonly unknown[]): string {
   return createHash('sha256').update(JSON.stringify(rows)).digest('hex');
 }

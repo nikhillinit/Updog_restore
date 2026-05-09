@@ -1,40 +1,49 @@
 /**
- * LP Reporting -- Import dry-run routes.
+ * LP Reporting -- Import dry-run + commit routes.
  *
- * Two protected POST endpoints. NO commit endpoints (Phase 1 work).
- * NO database writes anywhere on this code path.
- *
+ * Four protected POST endpoints:
  *   POST /api/funds/:fundId/imports/ledger/dry-run
  *   POST /api/funds/:fundId/imports/valuation-marks/dry-run
+ *   POST /api/funds/:fundId/imports/ledger/commit            (Phase 1c.2)
+ *   POST /api/funds/:fundId/imports/valuation-marks/commit   (Phase 1c.2)
  *
- * Middleware chain (existing primitives only):
+ * Middleware chain:
  *   requireAuth() -> requireFundAccess -> rateLimit(20/hour/user)
- *   -> handler
+ *   [-> auditLog -> idempotency -> handler]  (commit endpoints only)
  *
- * Body: JSON `{ sourceType: "csv" | "notion", payload: <base64> }`.
- * Valuation mark dry-runs support `csv` only until a Notion mark mapping exists.
- * Phase 0 uses a JSON wrapper with base64-encoded file content rather than
- * multipart/form-data so we don't drag in a multipart parser as a Phase 0
- * dependency. Phase 1 (commit endpoint) can switch to multipart if needed.
+ * Body: JSON `{ sourceType: "csv" | "notion", payload: <base64>, ... }`.
+ * Valuation mark imports support `csv` only until a Notion mark mapping exists.
  *
  * @module server/routes/lp-reporting/imports
  * @see docs/adr/ADR-011-decimal-string-api-convention.md
  */
 
-import { Router, type Request, type Response } from 'express';
+import { Router, type NextFunction, type Request, type Response } from 'express';
 import rateLimit from 'express-rate-limit';
 import { z } from 'zod';
 
 import { requireAuth, requireFundAccess } from '../../lib/auth/jwt';
 import { firstString } from '../../lib/request-values';
+import { auditLog } from '../../middleware/auditLog';
+import { idempotency } from '../../middleware/idempotency';
+import { db } from '../../db';
 import {
   ImportDryRunRequestSchema,
   ImportDryRunResponseSchema,
+  LedgerImportCommitRequestSchema,
+  ValuationMarkImportCommitRequestSchema,
 } from '@shared/contracts/lp-reporting';
 import {
   runLedgerDryRun,
   runValuationMarkDryRun,
 } from '../../services/lp-reporting/import-reconciliation-service';
+import {
+  commitLedgerImport,
+  commitValuationMarkImport,
+  EmptyPayloadError,
+  PreviewDriftError,
+  type DrizzleDb,
+} from '../../services/lp-reporting/import-commit-service';
 
 const router = Router();
 
@@ -64,6 +73,26 @@ const importLimiter = rateLimit({
 
 function decodePayload(payload: string): Buffer {
   return Buffer.from(payload, 'base64');
+}
+
+/**
+ * Resolve the authenticated user's id as an integer for createdBy. The
+ * JWT user.id is a string ('sub'); legacy mocks set a numeric userId.
+ * Falls back to NaN -> 0 for environments where neither is populated;
+ * in production both branches are populated by requireAuth().
+ */
+function resolveUserIdInt(req: Request): number {
+  const u = req.user as (typeof req.user & { userId?: number }) | undefined;
+  if (u?.userId !== undefined && Number.isFinite(u.userId)) {
+    return u.userId;
+  }
+  if (u?.id !== undefined) {
+    const parsed = Number.parseInt(String(u.id), 10);
+    if (Number.isFinite(parsed)) {
+      return parsed;
+    }
+  }
+  return 0;
 }
 
 router.post(
@@ -126,6 +155,110 @@ router.post(
         error: 'IMPORT_DRY_RUN_FAILED',
         message,
       });
+    }
+  }
+);
+
+// ---------------------------------------------------------------------------
+// Commit endpoints (Phase 1c.2)
+// ---------------------------------------------------------------------------
+
+router.post(
+  '/api/funds/:fundId/imports/ledger/commit',
+  requireAuth(),
+  requireFundAccess,
+  importLimiter,
+  auditLog({ includeBody: false }),
+  // 24h TTL: long enough that an LP-facing client can replay after a
+  // browser restart, short enough to bound the dedup window.
+  idempotency({ ttl: 86400, prefix: 'lp-reporting:ledger-commit' }),
+  async (req: Request, res: Response, next: NextFunction) => {
+    const fundId = Number.parseInt(firstString(req.params['fundId']) ?? '', 10);
+
+    const parsedBody = LedgerImportCommitRequestSchema.safeParse({
+      ...(req.body as Record<string, unknown>),
+      fundId,
+    });
+    if (!parsedBody.success) {
+      return res.status(400).json({
+        error: 'INVALID_BODY',
+        message: 'Body must conform to LedgerImportCommitRequestSchema.',
+        issues: parsedBody.error.issues,
+      });
+    }
+
+    try {
+      const result = await commitLedgerImport(parsedBody.data, {
+        db: db as unknown as DrizzleDb,
+        userId: resolveUserIdInt(req),
+      });
+      return res.status(200).json(result);
+    } catch (err) {
+      if (err instanceof PreviewDriftError) {
+        return res.status(409).json(err.toJSON());
+      }
+      if (err instanceof EmptyPayloadError) {
+        return res.status(400).json({
+          error: 'EMPTY_PAYLOAD',
+          message: 'Decoded CSV contains no rows.',
+        });
+      }
+      if (err instanceof Error && err.message.startsWith('MALFORMED_PAYLOAD')) {
+        return res.status(400).json({
+          error: 'MALFORMED_PAYLOAD',
+          message: err.message,
+        });
+      }
+      return next(err);
+    }
+  }
+);
+
+router.post(
+  '/api/funds/:fundId/imports/valuation-marks/commit',
+  requireAuth(),
+  requireFundAccess,
+  importLimiter,
+  auditLog({ includeBody: false }),
+  idempotency({ ttl: 86400, prefix: 'lp-reporting:valuation-mark-commit' }),
+  async (req: Request, res: Response, next: NextFunction) => {
+    const fundId = Number.parseInt(firstString(req.params['fundId']) ?? '', 10);
+
+    const parsedBody = ValuationMarkImportCommitRequestSchema.safeParse({
+      ...(req.body as Record<string, unknown>),
+      fundId,
+    });
+    if (!parsedBody.success) {
+      return res.status(400).json({
+        error: 'INVALID_BODY',
+        message: 'Body must conform to ValuationMarkImportCommitRequestSchema.',
+        issues: parsedBody.error.issues,
+      });
+    }
+
+    try {
+      const result = await commitValuationMarkImport(parsedBody.data, {
+        db: db as unknown as DrizzleDb,
+        userId: resolveUserIdInt(req),
+      });
+      return res.status(200).json(result);
+    } catch (err) {
+      if (err instanceof PreviewDriftError) {
+        return res.status(409).json(err.toJSON());
+      }
+      if (err instanceof EmptyPayloadError) {
+        return res.status(400).json({
+          error: 'EMPTY_PAYLOAD',
+          message: 'Decoded CSV contains no rows.',
+        });
+      }
+      if (err instanceof Error && err.message.startsWith('MALFORMED_PAYLOAD')) {
+        return res.status(400).json({
+          error: 'MALFORMED_PAYLOAD',
+          message: err.message,
+        });
+      }
+      return next(err);
     }
   }
 );
