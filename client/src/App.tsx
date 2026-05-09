@@ -47,6 +47,19 @@ const SharedDashboard = React.lazy(() => import('@/pages/shared-dashboard'));
 const PipelinePage = React.lazy(() => import('@/pages/pipeline'));
 const SettingsPage = React.lazy(() => import('@/pages/settings'));
 const HelpPage = React.lazy(() => import('@/pages/help'));
+// LP Reporting (Phase 1b) -- placeholder pages
+const LpReportingLedgerPage = React.lazy(() =>
+  import('@/pages/lp-reporting').then((mod) => ({ default: mod.LpReportingLedgerPage }))
+);
+const LpReportingValuationsPage = React.lazy(() =>
+  import('@/pages/lp-reporting').then((mod) => ({ default: mod.LpReportingValuationsPage }))
+);
+const LpReportingMetricsPage = React.lazy(() =>
+  import('@/pages/lp-reporting').then((mod) => ({ default: mod.LpReportingMetricsPage }))
+);
+const LpReportingImportsPage = React.lazy(() =>
+  import('@/pages/lp-reporting').then((mod) => ({ default: mod.LpReportingImportsPage }))
+);
 // LP Reporting Dashboard
 const LPDashboard = React.lazy(() => import('@/pages/lp/dashboard'));
 const LPFundDetail = React.lazy(() => import('@/pages/lp/fund-detail'));
@@ -247,6 +260,10 @@ export const APP_ROUTES: AppRouteEntry[] = [
   { path: '/reports', component: Reports, isProtected: true },
   { path: '/variance-tracking', component: VarianceTrackingPage, isProtected: true },
   { path: '/pipeline', component: PipelinePage, isProtected: true },
+  { path: '/lp-reporting/ledger', component: LpReportingLedgerPage, isProtected: true },
+  { path: '/lp-reporting/valuations', component: LpReportingValuationsPage, isProtected: true },
+  { path: '/lp-reporting/metrics', component: LpReportingMetricsPage, isProtected: true },
+  { path: '/lp-reporting/imports', component: LpReportingImportsPage, isProtected: true },
   { path: '/settings', component: SettingsPage, isProtected: true },
   { path: '/help', component: HelpPage },
   { path: '/reserves-demo', component: ReservesDemo },
