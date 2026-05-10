@@ -1,0 +1,187 @@
+/**
+ * Contract tests for LP Reporting report-package endpoint shapes.
+ */
+import { describe, expect, it } from 'vitest';
+
+import {
+  ReportPackageAssembleRequestSchema,
+  ReportPackageAssembleResponseSchema,
+  ReportPackageGetResponseSchema,
+  ReportPackagePayloadSchema,
+  ReportPackageRecordSchema,
+  ReportPackageStatusSchema,
+  type LpMetricRunDiagnostics,
+  type LpMetricRunResults,
+} from '@shared/contracts/lp-reporting';
+
+const xirrDiagnostic = {
+  convergence: 'converged',
+  iterations: 5,
+  method: 'newton',
+  boundHit: null,
+  failureReason: null,
+} as const;
+
+const results: LpMetricRunResults = {
+  asOfDate: '2026-03-31',
+  currency: 'USD',
+  dpi: '0.450000',
+  rvpi: '1.250000',
+  tvpi: '1.700000',
+  moic: '1.700000',
+  netIrr: '0.150000',
+  grossIrr: '0.180000',
+  xirrDiagnostic: {
+    net: xirrDiagnostic,
+    gross: xirrDiagnostic,
+  },
+  contributionsTotal: '50000000.000000',
+  distributionsTotal: '22500000.000000',
+  currentNav: '62500000.000000',
+  markConfidenceMix: { high: 8, medium: 3, low: 1 },
+};
+
+const diagnostics: LpMetricRunDiagnostics = {
+  engineVersion: 'lp-reporting-engine@1.2.0',
+  decimalPrecision: 6,
+  excludedFutureMarks: [],
+  warnings: [],
+};
+
+const textHash = 'a'.repeat(64);
+
+const narrativeRef = {
+  narrativeType: 'methodology',
+  narrativeRunId: 101,
+  narrativeVersion: 3,
+  approvedBy: 7,
+  approvedAt: '2026-05-10T01:00:00.000Z',
+  textHash,
+} as const;
+
+const payload = {
+  payloadVersion: 1,
+  results,
+  diagnostics,
+  sourceEventIds: [1, 2],
+  sourceMarkIds: [10],
+  evidenceRecordIds: [301],
+  narratives: [
+    {
+      ...narrativeRef,
+      effectiveText: 'Approved methodology copy.',
+    },
+  ],
+} as const;
+
+const record = {
+  reportPackageId: 501,
+  fundId: 1,
+  metricRunId: 11,
+  status: 'assembled',
+  asOfDate: '2026-03-31',
+  metricRunVersion: 4,
+  metricRunLockedBy: 7,
+  metricRunLockedAt: '2026-05-10T00:30:00.000Z',
+  narrativeRefs: [narrativeRef],
+  payload,
+  assembledBy: 7,
+  assembledAt: '2026-05-10T01:05:00.000Z',
+  version: 1,
+  createdAt: '2026-05-10T01:05:00.000Z',
+  updatedAt: '2026-05-10T01:05:00.000Z',
+} as const;
+
+describe('report package enums', () => {
+  it('accepts assembled status only', () => {
+    expect(ReportPackageStatusSchema.parse('assembled')).toBe('assembled');
+    expect(() => ReportPackageStatusSchema.parse('exported')).toThrow();
+  });
+});
+
+describe('ReportPackageAssembleRequestSchema', () => {
+  it('accepts expected metric-run version and narrative refs only', () => {
+    const parsed = ReportPackageAssembleRequestSchema.parse({
+      expectedMetricRunVersion: 4,
+      expectedNarratives: [
+        { narrativeType: 'methodology', narrativeRunId: 101, expectedVersion: 3 },
+      ],
+    });
+    expect(parsed.expectedMetricRunVersion).toBe(4);
+  });
+
+  it.each([
+    'fundId',
+    'metricRunId',
+    'reportPackageId',
+    'status',
+    'assembledBy',
+    'assembledAt',
+    'payload',
+    'narrativeRefs',
+    'version',
+    'createdAt',
+    'updatedAt',
+  ])('rejects route-owned field %s', (field) => {
+    expect(() =>
+      ReportPackageAssembleRequestSchema.parse({
+        expectedMetricRunVersion: 4,
+        expectedNarratives: [
+          { narrativeType: 'methodology', narrativeRunId: 101, expectedVersion: 3 },
+        ],
+        [field]: field.endsWith('At') ? '2026-05-10T00:00:00.000Z' : 7,
+      })
+    ).toThrow();
+  });
+});
+
+describe('ReportPackagePayloadSchema', () => {
+  it('parses exact metric results, diagnostics, refs, and narrative text', () => {
+    const parsed = ReportPackagePayloadSchema.parse(payload);
+    expect(parsed.payloadVersion).toBe(1);
+    expect(parsed.results.dpi).toBe('0.450000');
+    expect(parsed.narratives[0]?.textHash).toBe(textHash);
+  });
+
+  it('rejects untyped metric summaries', () => {
+    expect(() =>
+      ReportPackagePayloadSchema.parse({
+        ...payload,
+        results: { dpi: '0.450000' },
+      })
+    ).toThrow();
+  });
+
+  it('rejects unknown payload fields', () => {
+    expect(() => ReportPackagePayloadSchema.parse({ ...payload, exportUrl: 'x' })).toThrow();
+  });
+});
+
+describe('ReportPackageRecordSchema', () => {
+  it('parses the response record shape', () => {
+    const parsed = ReportPackageRecordSchema.parse(record);
+    expect(parsed.reportPackageId).toBe(501);
+    expect(parsed.status).toBe('assembled');
+    expect(parsed.payload.diagnostics.engineVersion).toBe('lp-reporting-engine@1.2.0');
+  });
+
+  it('rejects unknown record fields', () => {
+    expect(() => ReportPackageRecordSchema.parse({ ...record, downloadUrl: 'nope' })).toThrow();
+  });
+});
+
+describe('report package response envelopes', () => {
+  it('parses nullable GET response', () => {
+    expect(ReportPackageGetResponseSchema.parse({ record: null })).toEqual({ record: null });
+    expect(ReportPackageGetResponseSchema.parse({ record }).record?.reportPackageId).toBe(501);
+  });
+
+  it('parses assemble inserted marker', () => {
+    expect(
+      ReportPackageAssembleResponseSchema.parse({
+        record,
+        inserted: false,
+      }).inserted
+    ).toBe(false);
+  });
+});

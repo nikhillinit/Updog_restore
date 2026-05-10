@@ -468,6 +468,56 @@ export type EvidenceRecord = typeof evidenceRecords.$inferSelect;
 export type InsertEvidenceRecord = typeof evidenceRecords.$inferInsert;
 
 // ============================================================================
+// LP REPORT PACKAGES
+// ============================================================================
+
+export const lpReportPackages = pgTable(
+  'lp_report_packages',
+  {
+    id: serial('id').primaryKey(),
+    fundId: integer('fund_id')
+      .notNull()
+      .references(() => funds.id, { onDelete: 'cascade' }),
+    metricRunId: integer('metric_run_id')
+      .notNull()
+      .references(() => lpMetricRuns.id, { onDelete: 'cascade' }),
+
+    status: varchar('status', { length: 32 }).notNull().default('assembled'),
+    asOfDate: date('as_of_date').notNull(),
+    metricRunVersion: integer('metric_run_version').notNull(),
+    metricRunLockedBy: integer('metric_run_locked_by').references(() => users.id),
+    metricRunLockedAt: timestamp('metric_run_locked_at', { withTimezone: true }),
+
+    narrativeRefs: jsonb('narrative_refs')
+      .notNull()
+      .default(sql`'[]'::jsonb`),
+    payload: jsonb('payload')
+      .notNull()
+      .default(sql`'{}'::jsonb`),
+
+    assembledBy: integer('assembled_by')
+      .notNull()
+      .references(() => users.id),
+    assembledAt: timestamp('assembled_at', { withTimezone: true }).notNull().defaultNow(),
+    version: integer('version').notNull().default(1),
+    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow(),
+  },
+  (table) => ({
+    statusCheck: check('lp_report_package_status_check', sql`${table.status} IN ('assembled')`),
+    metricRunUniqueIdx: uniqueIndex('lp_report_packages_metric_run_unique').on(table.metricRunId),
+    fundMetricIdx: index('idx_lp_report_packages_fund_metric').on(table.fundId, table.metricRunId),
+    assembledAtIdx: index('idx_lp_report_packages_fund_assembled_at').on(
+      table.fundId,
+      table.assembledAt.desc()
+    ),
+  })
+);
+
+export type LpReportPackage = typeof lpReportPackages.$inferSelect;
+export type InsertLpReportPackage = typeof lpReportPackages.$inferInsert;
+
+// ============================================================================
 // LP VEHICLE PARTICIPATION
 // ============================================================================
 

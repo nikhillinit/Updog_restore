@@ -30,6 +30,8 @@ import {
   useMetricRunNarrativeEdit,
   useMetricRunNarrativeList,
   useMetricRunNarrativeReview,
+  useMetricRunReportPackage,
+  useMetricRunReportPackageAssemble,
   useMetricsDryRun,
 } from '@/hooks/lp-reporting';
 import type { MetricsDryRunRequest } from '@/hooks/lp-reporting';
@@ -46,6 +48,9 @@ import type {
   NarrativeRunLifecycleResponse,
   NarrativeRunListResponse,
   NarrativeRunRecord,
+  ReportPackageAssembleResponse,
+  ReportPackageGetResponse,
+  ReportPackageRecord,
 } from '@shared/contracts/lp-reporting';
 
 function makeWrapper() {
@@ -251,6 +256,67 @@ function makeLifecycleResponse(
   return {
     metricRun: makeMetricRunDetail(overrides),
     changed: true,
+  };
+}
+
+function makeReportPackageRecord(): ReportPackageRecord {
+  const narrative = makeNarrativeRecord({
+    status: 'approved',
+    editedText: 'Approved methodology copy.',
+    approvedBy: 7,
+    approvedAt: '2026-05-10T01:00:00.000Z',
+    version: 3,
+  });
+  const narrativeRef = {
+    narrativeType: narrative.narrativeType,
+    narrativeRunId: narrative.narrativeRunId,
+    narrativeVersion: narrative.version,
+    approvedBy: narrative.approvedBy,
+    approvedAt: narrative.approvedAt!,
+    textHash: 'a'.repeat(64),
+  };
+  return {
+    reportPackageId: 501,
+    fundId: 7,
+    metricRunId: 17,
+    status: 'assembled',
+    asOfDate: '2026-03-31',
+    metricRunVersion: 4,
+    metricRunLockedBy: 7,
+    metricRunLockedAt: '2026-05-10T00:30:00.000Z',
+    narrativeRefs: [narrativeRef],
+    payload: {
+      payloadVersion: 1,
+      results: makeCanonicalResults(),
+      diagnostics: makeDryRunResponse().diagnostics,
+      sourceEventIds: [1, 2],
+      sourceMarkIds: [10],
+      evidenceRecordIds: [1000],
+      narratives: [
+        {
+          ...narrativeRef,
+          effectiveText: 'Approved methodology copy.',
+        },
+      ],
+    },
+    assembledBy: 7,
+    assembledAt: '2026-05-10T01:05:00.000Z',
+    version: 1,
+    createdAt: '2026-05-10T01:05:00.000Z',
+    updatedAt: '2026-05-10T01:05:00.000Z',
+  };
+}
+
+function makeReportPackageGetResponse(
+  record: ReportPackageRecord | null
+): ReportPackageGetResponse {
+  return { record };
+}
+
+function makeReportPackageAssembleResponse(inserted = true): ReportPackageAssembleResponse {
+  return {
+    record: makeReportPackageRecord(),
+    inserted,
   };
 }
 
@@ -917,5 +983,120 @@ describe('metric-run narrative hooks', () => {
     });
 
     expect(result.current.error?.code).toBe('CONTRACT_PARSE_ERROR');
+  });
+});
+
+describe('metric-run report package hooks', () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it('GETs the route-scoped report package and parses nullable responses', async () => {
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response(JSON.stringify(makeReportPackageGetResponse(null)), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      })
+    );
+
+    const { Wrapper } = makeWrapper();
+    const { result } = renderHook(() => useMetricRunReportPackage(7, 17), {
+      wrapper: Wrapper,
+    });
+
+    await waitFor(() => {
+      expect(result.current.isSuccess).toBe(true);
+    });
+
+    expect(fetchSpy).toHaveBeenCalledTimes(1);
+    const [url, init] = fetchSpy.mock.calls[0]!;
+    expect(url).toBe('/api/funds/7/metric-runs/17/report-package');
+    expect(init?.method).toBe('GET');
+    expect(result.current.data?.record).toBeNull();
+  });
+
+  it('keeps the report package query disabled without metricRunId', () => {
+    const fetchSpy = vi.spyOn(globalThis, 'fetch');
+
+    const { Wrapper } = makeWrapper();
+    const { result } = renderHook(() => useMetricRunReportPackage(7, null), {
+      wrapper: Wrapper,
+    });
+
+    expect(result.current.fetchStatus).toBe('idle');
+    expect(fetchSpy).not.toHaveBeenCalled();
+  });
+
+  it('POSTs assemble refs and invalidates report-package/detail queries', async () => {
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response(JSON.stringify(makeReportPackageAssembleResponse(false)), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      })
+    );
+
+    const { Wrapper, queryClient } = makeWrapper();
+    const invalidateSpy = vi.spyOn(queryClient, 'invalidateQueries');
+    const { result } = renderHook(() => useMetricRunReportPackageAssemble(7, 17), {
+      wrapper: Wrapper,
+    });
+
+    const request = {
+      expectedMetricRunVersion: 4,
+      expectedNarratives: [
+        { narrativeType: 'methodology' as const, narrativeRunId: 41, expectedVersion: 3 },
+      ],
+    };
+    result.current.mutate(request);
+
+    await waitFor(() => {
+      expect(result.current.isSuccess).toBe(true);
+    });
+
+    const [url, init] = fetchSpy.mock.calls[0]!;
+    expect(url).toBe('/api/funds/7/metric-runs/17/report-package');
+    expect(init?.method).toBe('POST');
+    expect(JSON.parse(init?.body as string)).toEqual(request);
+    expect(result.current.data?.inserted).toBe(false);
+    expect(invalidateSpy).toHaveBeenCalledWith({
+      queryKey: ['lp-reporting', 'metric-run-report-package', 7, 17],
+    });
+    expect(invalidateSpy).toHaveBeenCalledWith({
+      queryKey: ['lp-reporting', 'metric-runs', 'detail', 7, 17],
+    });
+  });
+
+  it('preserves report package conflict codes', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          error: 'REPORT_PACKAGE_ALREADY_ASSEMBLED',
+          message: 'A package already exists.',
+        }),
+        {
+          status: 409,
+          headers: { 'Content-Type': 'application/json' },
+        }
+      )
+    );
+
+    const { Wrapper } = makeWrapper();
+    const { result } = renderHook(() => useMetricRunReportPackageAssemble(7, 17), {
+      wrapper: Wrapper,
+    });
+
+    result.current.mutate({
+      expectedMetricRunVersion: 4,
+      expectedNarratives: [
+        { narrativeType: 'methodology', narrativeRunId: 41, expectedVersion: 3 },
+      ],
+    });
+
+    await waitFor(() => {
+      expect(result.current.isError).toBe(true);
+    });
+
+    expect(result.current.error?.status).toBe(409);
+    expect(result.current.error?.code).toBe('REPORT_PACKAGE_ALREADY_ASSEMBLED');
   });
 });
