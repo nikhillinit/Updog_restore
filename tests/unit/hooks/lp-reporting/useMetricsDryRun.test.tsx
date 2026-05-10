@@ -16,12 +16,19 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { renderHook, waitFor } from '@testing-library/react';
 
-import { useMetricRunCommit, useMetricsDryRun } from '@/hooks/lp-reporting';
+import {
+  useMetricRunCommit,
+  useMetricRunEvidenceCreate,
+  useMetricRunEvidenceList,
+  useMetricsDryRun,
+} from '@/hooks/lp-reporting';
 import type { MetricsDryRunRequest } from '@/hooks/lp-reporting';
 import type {
   LpMetricRunResults,
   MetricRunCommitResponse,
   MetricRunDryRunResponse,
+  MetricRunEvidenceCreateResponse,
+  MetricRunEvidenceListResponse,
 } from '@shared/contracts/lp-reporting';
 
 function makeWrapper() {
@@ -98,6 +105,44 @@ function makeCommitResponse(): MetricRunCommitResponse {
     status: 'draft',
     inputsHash: 'a'.repeat(64),
     previewHash: 'b'.repeat(64),
+    inserted: true,
+  };
+}
+
+function makeEvidenceRecord() {
+  return {
+    id: 1000,
+    fundId: 7,
+    metricRunId: 17,
+    idempotencyKey: 'metric-run-17-evidence-0',
+    evidenceSource: 'board_update' as const,
+    sourceDate: '2026-03-31',
+    receivedDate: null,
+    expirationDate: null,
+    confidenceLevel: 'medium' as const,
+    materialityLevel: 'high' as const,
+    confidentiality: 'internal' as const,
+    redactionRequired: false,
+    documentHash: null,
+    valuationPolicyVersion: null,
+    description: 'Q1 board materials',
+    internalNotes: null,
+    lpObjection: null,
+    uploadedBy: 7,
+    createdAt: '2026-05-10T00:00:00.000Z',
+    updatedAt: '2026-05-10T00:00:00.000Z',
+  };
+}
+
+function makeEvidenceListResponse(): MetricRunEvidenceListResponse {
+  return {
+    records: [makeEvidenceRecord()],
+  };
+}
+
+function makeEvidenceCreateResponse(): MetricRunEvidenceCreateResponse {
+  return {
+    record: makeEvidenceRecord(),
     inserted: true,
   };
 }
@@ -258,5 +303,111 @@ describe('useMetricRunCommit', () => {
 
     expect(result.current.error?.status).toBe(409);
     expect(result.current.error?.code).toBe('PREVIEW_HASH_MISMATCH');
+  });
+});
+
+describe('metric-run evidence hooks', () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it('GETs /api/funds/:id/metric-runs/:metricRunId/evidence-records and parses the response', async () => {
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response(JSON.stringify(makeEvidenceListResponse()), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      })
+    );
+
+    const { Wrapper } = makeWrapper();
+    const { result } = renderHook(() => useMetricRunEvidenceList(7, 17), { wrapper: Wrapper });
+
+    await waitFor(() => {
+      expect(result.current.isSuccess).toBe(true);
+    });
+
+    expect(fetchSpy).toHaveBeenCalledTimes(1);
+    const [url, init] = fetchSpy.mock.calls[0]!;
+    expect(url).toBe('/api/funds/7/metric-runs/17/evidence-records');
+    expect(init?.method).toBe('GET');
+    expect(result.current.data?.records[0]?.idempotencyKey).toBe('metric-run-17-evidence-0');
+  });
+
+  it('does not fetch the evidence list until both fundId and metricRunId exist', async () => {
+    const fetchSpy = vi.spyOn(globalThis, 'fetch');
+
+    const { Wrapper } = makeWrapper();
+    const { result } = renderHook(() => useMetricRunEvidenceList(7, null), { wrapper: Wrapper });
+
+    expect(result.current.fetchStatus).toBe('idle');
+    expect(fetchSpy).not.toHaveBeenCalled();
+  });
+
+  it('POSTs metric-run evidence metadata with the explicit idempotency key', async () => {
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response(JSON.stringify(makeEvidenceCreateResponse()), {
+        status: 201,
+        headers: { 'Content-Type': 'application/json' },
+      })
+    );
+
+    const { Wrapper } = makeWrapper();
+    const { result } = renderHook(() => useMetricRunEvidenceCreate(7, 17), { wrapper: Wrapper });
+
+    result.current.mutate({
+      idempotencyKey: 'metric-run-17-evidence-0',
+      evidenceSource: 'board_update',
+      sourceDate: '2026-03-31',
+      materialityLevel: 'high',
+      description: 'Q1 board materials',
+    });
+
+    await waitFor(() => {
+      expect(result.current.isSuccess).toBe(true);
+    });
+
+    expect(fetchSpy).toHaveBeenCalledTimes(1);
+    const [url, init] = fetchSpy.mock.calls[0]!;
+    expect(url).toBe('/api/funds/7/metric-runs/17/evidence-records');
+    expect(init?.method).toBe('POST');
+    expect(JSON.parse(init?.body as string)).toEqual({
+      idempotencyKey: 'metric-run-17-evidence-0',
+      evidenceSource: 'board_update',
+      sourceDate: '2026-03-31',
+      materialityLevel: 'high',
+      description: 'Q1 board materials',
+    });
+    expect(result.current.data?.record.metricRunId).toBe(17);
+  });
+
+  it('surfaces METRIC_RUN_NOT_EDITABLE evidence create errors', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          error: 'METRIC_RUN_NOT_EDITABLE',
+          message: 'Evidence records can only be added to draft metric runs.',
+        }),
+        {
+          status: 409,
+          headers: { 'Content-Type': 'application/json' },
+        }
+      )
+    );
+
+    const { Wrapper } = makeWrapper();
+    const { result } = renderHook(() => useMetricRunEvidenceCreate(7, 17), { wrapper: Wrapper });
+
+    result.current.mutate({
+      idempotencyKey: 'metric-run-17-evidence-0',
+      evidenceSource: 'board_update',
+      sourceDate: '2026-03-31',
+    });
+
+    await waitFor(() => {
+      expect(result.current.isError).toBe(true);
+    });
+
+    expect(result.current.error?.status).toBe(409);
+    expect(result.current.error?.code).toBe('METRIC_RUN_NOT_EDITABLE');
   });
 });

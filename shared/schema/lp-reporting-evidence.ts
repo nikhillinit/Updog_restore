@@ -392,6 +392,7 @@ export const evidenceRecords = pgTable(
     narrativeRunId: integer('narrative_run_id').references(() => narrativeRuns.id, {
       onDelete: 'cascade',
     }),
+    idempotencyKey: varchar('idempotency_key', { length: 128 }),
 
     evidenceSource: varchar('evidence_source', { length: 64 }).notNull(),
     sourceDate: date('source_date').notNull(),
@@ -443,6 +444,9 @@ export const evidenceRecords = pgTable(
     valuationMarkIdx: index('idx_evidence_valuation_mark').on(table.valuationMarkId),
     companyIdx: index('idx_evidence_company').on(table.companyId),
     metricRunIdx: index('idx_evidence_metric_run').on(table.metricRunId),
+    metricRunIdempotencyUniqueIdx: uniqueIndex('evidence_records_metric_run_idempotency_unique')
+      .on(table.fundId, table.metricRunId, table.idempotencyKey)
+      .where(sql`${table.idempotencyKey} IS NOT NULL`),
     narrativeRunIdx: index('idx_evidence_narrative_run').on(table.narrativeRunId),
     expirationIdx: index('idx_evidence_expiration_date').on(table.expirationDate),
     confidenceIdx: index('idx_evidence_confidence').on(table.confidenceLevel),

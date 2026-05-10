@@ -118,6 +118,31 @@ function makeCommitResponse(): MetricRunCommitResponse {
   };
 }
 
+function makeEvidenceRecord() {
+  return {
+    id: 1000,
+    fundId: 7,
+    metricRunId: 17,
+    idempotencyKey: 'metric-run-17-evidence-0',
+    evidenceSource: 'board_update',
+    sourceDate: '2026-03-31',
+    receivedDate: null,
+    expirationDate: null,
+    confidenceLevel: 'medium',
+    materialityLevel: 'high',
+    confidentiality: 'internal',
+    redactionRequired: false,
+    documentHash: null,
+    valuationPolicyVersion: null,
+    description: 'Q1 board materials',
+    internalNotes: null,
+    lpObjection: null,
+    uploadedBy: 7,
+    createdAt: '2026-05-10T00:00:00.000Z',
+    updatedAt: '2026-05-10T00:00:00.000Z',
+  };
+}
+
 describe('LpReportingMetricsPage', () => {
   beforeEach(() => {
     fundContextMock.fundId = 7;
@@ -193,6 +218,12 @@ describe('LpReportingMetricsPage', () => {
           status: 201,
           headers: { 'Content-Type': 'application/json' },
         })
+      )
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify({ records: [] }), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        })
       );
 
     renderPage();
@@ -218,6 +249,93 @@ describe('LpReportingMetricsPage', () => {
       previewHash: 'b'.repeat(64),
     });
     expect(screen.getByTestId('metrics-commit-result').textContent).toMatch(/metric run #17/i);
+    await waitFor(() => {
+      expect(screen.getByTestId('metric-run-evidence-card')).toBeInTheDocument();
+    });
+  });
+
+  it('adds evidence metadata after a draft metric run is committed', async () => {
+    let evidenceListCalls = 0;
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockImplementation(async (input, init) => {
+      const url = String(input);
+      if (url.endsWith('/metric-runs/dry-run')) {
+        return new Response(JSON.stringify(makeDryRunResponse()), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        });
+      }
+      if (url.endsWith('/metric-runs/commit')) {
+        return new Response(JSON.stringify(makeCommitResponse()), {
+          status: 201,
+          headers: { 'Content-Type': 'application/json' },
+        });
+      }
+      if (url.endsWith('/metric-runs/17/evidence-records') && init?.method === 'POST') {
+        return new Response(JSON.stringify({ record: makeEvidenceRecord(), inserted: true }), {
+          status: 201,
+          headers: { 'Content-Type': 'application/json' },
+        });
+      }
+      if (url.endsWith('/metric-runs/17/evidence-records')) {
+        evidenceListCalls += 1;
+        return new Response(
+          JSON.stringify({
+            records: evidenceListCalls === 1 ? [] : [makeEvidenceRecord()],
+          }),
+          {
+            status: 200,
+            headers: { 'Content-Type': 'application/json' },
+          }
+        );
+      }
+      return new Response(JSON.stringify({ error: 'UNEXPECTED_URL' }), { status: 500 });
+    });
+
+    renderPage();
+
+    fireEvent.click(screen.getByRole('button', { name: /run metrics/i }));
+    await waitFor(() => {
+      expect(screen.getByTestId('metrics-commit-button')).toBeEnabled();
+    });
+    fireEvent.click(screen.getByTestId('metrics-commit-button'));
+    await waitFor(() => {
+      expect(screen.getByTestId('metric-run-evidence-card')).toBeInTheDocument();
+    });
+    await waitFor(() => {
+      expect(screen.getByTestId('metric-run-evidence-empty')).toBeInTheDocument();
+    });
+
+    fireEvent.change(screen.getByLabelText(/^description/i), {
+      target: { value: 'Q1 board materials' },
+    });
+    fireEvent.click(screen.getByTestId('metric-run-evidence-submit'));
+
+    await waitFor(() => {
+      expect(screen.getByTestId('metric-run-evidence-record')).toBeInTheDocument();
+    });
+
+    const postCall = fetchSpy.mock.calls.find(
+      ([url, init]) =>
+        String(url).endsWith('/metric-runs/17/evidence-records') && init?.method === 'POST'
+    );
+    expect(postCall).toBeTruthy();
+    const body = JSON.parse(postCall?.[1]?.body as string) as Record<string, unknown>;
+    expect(body).toMatchObject({
+      evidenceSource: 'board_update',
+      sourceDate: '2026-03-31',
+      confidenceLevel: 'medium',
+      materialityLevel: 'medium',
+      confidentiality: 'internal',
+      redactionRequired: false,
+      description: 'Q1 board materials',
+    });
+    expect(body.idempotencyKey).toEqual(expect.stringMatching(/^metric-run-17-evidence-/));
+    expect(body).not.toHaveProperty('fundId');
+    expect(body).not.toHaveProperty('metricRunId');
+    expect(body).not.toHaveProperty('attachments');
+    expect(screen.getByTestId('metric-run-evidence-record').textContent).toMatch(
+      /q1 board materials/i
+    );
   });
 
   it('renders the commit error envelope on preview mismatch', async () => {
