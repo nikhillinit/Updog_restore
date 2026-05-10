@@ -32,6 +32,7 @@ import {
   useMetricRunNarrativeReview,
   useMetricRunReportPackage,
   useMetricRunReportPackageAssemble,
+  useMetricRunReportPackageJsonExport,
   useMetricRunReportPackageRenderModel,
   useMetricsDryRun,
 } from '@/hooks/lp-reporting';
@@ -51,6 +52,7 @@ import type {
   NarrativeRunRecord,
   ReportPackageAssembleResponse,
   ReportPackageGetResponse,
+  ReportPackageJsonExportResponse,
   ReportPackageRecord,
   ReportPackageRenderModelResponse,
 } from '@shared/contracts/lp-reporting';
@@ -389,6 +391,20 @@ function makeReportPackageRenderModelResponse(): ReportPackageRenderModelRespons
         evidenceRecordIds: [1000],
         narrativeRunIds: [narrativeRef.narrativeRunId],
       },
+    },
+  };
+}
+
+function makeReportPackageJsonExportResponse(): ReportPackageJsonExportResponse {
+  const renderModelResponse = makeReportPackageRenderModelResponse();
+  return {
+    export: {
+      exportVersion: 1,
+      format: 'json',
+      source: renderModelResponse.renderModel.source,
+      renderModel: renderModelResponse.renderModel,
+      contentHashAlgorithm: 'sha256',
+      contentHash: 'c'.repeat(64),
     },
   };
 }
@@ -1134,6 +1150,99 @@ describe('metric-run report package hooks', () => {
 
     expect(result.current.fetchStatus).toBe('idle');
     expect(fetchSpy).not.toHaveBeenCalled();
+  });
+
+  it('fetches the route-scoped package JSON export on demand', async () => {
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response(JSON.stringify(makeReportPackageJsonExportResponse()), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      })
+    );
+
+    const { Wrapper } = makeWrapper();
+    const { result } = renderHook(() => useMetricRunReportPackageJsonExport(7, 17), {
+      wrapper: Wrapper,
+    });
+
+    expect(result.current.fetchStatus).toBe('idle');
+    expect(fetchSpy).not.toHaveBeenCalled();
+
+    const response = await result.current.refetch();
+
+    expect(fetchSpy).toHaveBeenCalledTimes(1);
+    const [url, init] = fetchSpy.mock.calls[0]!;
+    expect(url).toBe('/api/funds/7/metric-runs/17/report-package/export/json');
+    expect(init?.method).toBe('GET');
+    expect(response.data?.export.format).toBe('json');
+    expect(response.data?.export.contentHash).toBe('c'.repeat(64));
+  });
+
+  it('keeps the package JSON export query disabled without metricRunId', () => {
+    const fetchSpy = vi.spyOn(globalThis, 'fetch');
+
+    const { Wrapper } = makeWrapper();
+    const { result } = renderHook(() => useMetricRunReportPackageJsonExport(7, null), {
+      wrapper: Wrapper,
+    });
+
+    expect(result.current.fetchStatus).toBe('idle');
+    expect(fetchSpy).not.toHaveBeenCalled();
+  });
+
+  it('preserves package JSON export blockers on 409 responses', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          error: 'REPORT_PACKAGE_JSON_EXPORT_BLOCKED',
+          message: 'Report package JSON export is blocked by readiness checks.',
+          blockers: [
+            {
+              code: 'EVIDENCE_REFERENCE_INVALID',
+              message: 'One or more evidence references could not be resolved.',
+              evidenceRecordIds: [1000],
+            },
+          ],
+        }),
+        {
+          status: 409,
+          headers: { 'Content-Type': 'application/json' },
+        }
+      )
+    );
+
+    const { Wrapper } = makeWrapper();
+    const { result } = renderHook(() => useMetricRunReportPackageJsonExport(7, 17), {
+      wrapper: Wrapper,
+    });
+
+    const response = await result.current.refetch();
+
+    expect(response.error?.status).toBe(409);
+    expect(response.error?.code).toBe('REPORT_PACKAGE_JSON_EXPORT_BLOCKED');
+    expect(response.error?.blockers?.[0]).toEqual({
+      code: 'EVIDENCE_REFERENCE_INVALID',
+      message: 'One or more evidence references could not be resolved.',
+      evidenceRecordIds: [1000],
+    });
+  });
+
+  it('flags package JSON export contract drift with CONTRACT_PARSE_ERROR', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response(JSON.stringify({ export: { bad: true } }), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      })
+    );
+
+    const { Wrapper } = makeWrapper();
+    const { result } = renderHook(() => useMetricRunReportPackageJsonExport(7, 17), {
+      wrapper: Wrapper,
+    });
+
+    const response = await result.current.refetch();
+
+    expect(response.error?.code).toBe('CONTRACT_PARSE_ERROR');
   });
 
   it('POSTs assemble refs and invalidates report-package/detail queries', async () => {

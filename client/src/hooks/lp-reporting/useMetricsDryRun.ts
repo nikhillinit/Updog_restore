@@ -32,6 +32,8 @@ import {
   ReportPackageAssembleRequestSchema,
   ReportPackageAssembleResponseSchema,
   ReportPackageGetResponseSchema,
+  ReportPackageJsonExportBlockedResponseSchema,
+  ReportPackageJsonExportResponseSchema,
   ReportPackageRenderModelResponseSchema,
   type LatestMetricRunQuery,
   type LatestMetricRunResponse,
@@ -57,6 +59,8 @@ import {
   type ReportPackageAssembleRequest,
   type ReportPackageAssembleResponse,
   type ReportPackageGetResponse,
+  type ReportPackageJsonExportBlocker,
+  type ReportPackageJsonExportResponse,
   type ReportPackageRenderModelResponse,
 } from '@shared/contracts/lp-reporting';
 
@@ -85,6 +89,7 @@ export interface DryRunErrorBody {
 export type LpReportingHookError = Error & {
   code?: string;
   status?: number;
+  blockers?: ReportPackageJsonExportBlocker[];
 };
 
 interface ContractResponseSchema<TResponse> {
@@ -116,6 +121,42 @@ async function readContractResponse<TResponse>(
   const parsed = schema.safeParse(raw);
   if (!parsed.success) {
     const error = new Error(contractErrorMessage) as LpReportingHookError;
+    error.code = 'CONTRACT_PARSE_ERROR';
+    error.status = res.status;
+    throw error;
+  }
+
+  return parsed.data;
+}
+
+async function readReportPackageJsonExportResponse(
+  res: Response
+): Promise<ReportPackageJsonExportResponse> {
+  const raw = (await res.json().catch(() => ({}))) as unknown;
+
+  if (!res.ok) {
+    const blocked = ReportPackageJsonExportBlockedResponseSchema.safeParse(raw);
+    if (blocked.success) {
+      const error = buildHookError(
+        res.status,
+        {
+          error: blocked.data.error,
+          message: blocked.data.message,
+        },
+        `HTTP ${res.status}`
+      );
+      error.blockers = blocked.data.blockers;
+      throw error;
+    }
+
+    throw buildHookError(res.status, raw as Partial<DryRunErrorBody>, `HTTP ${res.status}`);
+  }
+
+  const parsed = ReportPackageJsonExportResponseSchema.safeParse(raw);
+  if (!parsed.success) {
+    const error = new Error(
+      'Metric-run report package JSON export response did not match the locked contract.'
+    ) as LpReportingHookError;
     error.code = 'CONTRACT_PARSE_ERROR';
     error.status = res.status;
     throw error;
@@ -187,6 +228,13 @@ function metricRunReportPackageRenderModelQueryKey(
   metricRunId: number | null
 ) {
   return ['lp-reporting', 'metric-run-report-package-render-model', fundId, metricRunId] as const;
+}
+
+function metricRunReportPackageJsonExportQueryKey(
+  fundId: number | null,
+  metricRunId: number | null
+) {
+  return ['lp-reporting', 'metric-run-report-package-json-export', fundId, metricRunId] as const;
 }
 
 function invalidateMetricRunNarrativeQueries(
@@ -339,6 +387,21 @@ async function getMetricRunReportPackageRenderModel(
     ReportPackageRenderModelResponseSchema,
     'Metric-run report package render-model response did not match the locked contract.'
   );
+}
+
+async function getMetricRunReportPackageJsonExport(
+  fundId: number,
+  metricRunId: number
+): Promise<ReportPackageJsonExportResponse> {
+  const res = await fetch(
+    `/api/funds/${fundId}/metric-runs/${metricRunId}/report-package/export/json`,
+    {
+      method: 'GET',
+      credentials: 'include',
+    }
+  );
+
+  return readReportPackageJsonExportResponse(res);
 }
 
 async function postMetricRunApprove(
@@ -675,6 +738,25 @@ export function useMetricRunReportPackageRenderModel(
   });
 }
 
+export function useMetricRunReportPackageJsonExport(
+  fundId: number | null,
+  metricRunId: number | null
+) {
+  return useQuery<ReportPackageJsonExportResponse, LpReportingHookError>({
+    queryKey: metricRunReportPackageJsonExportQueryKey(fundId, metricRunId),
+    enabled: false,
+    retry: false,
+    queryFn: async () => {
+      if (fundId === null || metricRunId === null) {
+        const error = new Error('fundId and metricRunId are required') as LpReportingHookError;
+        error.code = 'MISSING_METRIC_RUN_REPORT_PACKAGE_JSON_EXPORT_SCOPE';
+        throw error;
+      }
+      return getMetricRunReportPackageJsonExport(fundId, metricRunId);
+    },
+  });
+}
+
 export function useMetricRunApprove(fundId: number | null, metricRunId: number | null) {
   const queryClient = useQueryClient();
 
@@ -898,5 +980,7 @@ export type {
   ReportPackageAssembleRequest,
   ReportPackageAssembleResponse,
   ReportPackageGetResponse,
+  ReportPackageJsonExportBlocker,
+  ReportPackageJsonExportResponse,
   ReportPackageRenderModelResponse,
 };
