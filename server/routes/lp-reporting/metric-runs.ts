@@ -3,6 +3,10 @@
  *
  *   POST /api/funds/:fundId/metric-runs/dry-run
  *   POST /api/funds/:fundId/metric-runs/commit
+ *   GET  /api/funds/:fundId/metric-runs/latest
+ *   GET  /api/funds/:fundId/metric-runs/:metricRunId
+ *   POST /api/funds/:fundId/metric-runs/:metricRunId/approve
+ *   POST /api/funds/:fundId/metric-runs/:metricRunId/lock
  *   GET  /api/funds/:fundId/metric-runs/:metricRunId/evidence-records
  *   POST /api/funds/:fundId/metric-runs/:metricRunId/evidence-records
  *
@@ -23,11 +27,17 @@ import { firstString } from '../../lib/request-values';
 import {
   MetricRunCommitRequestSchema,
   MetricRunCommitResponseSchema,
+  MetricRunDetailResponseSchema,
   MetricRunDryRunRequestSchema,
   MetricRunDryRunResponseSchema,
+  LatestMetricRunQuerySchema,
+  LatestMetricRunResponseSchema,
+  MetricRunApproveRequestSchema,
   MetricRunEvidenceCreateRequestSchema,
   MetricRunEvidenceCreateResponseSchema,
   MetricRunEvidenceListResponseSchema,
+  MetricRunLifecycleResponseSchema,
+  MetricRunLockRequestSchema,
 } from '@shared/contracts/lp-reporting';
 import {
   buildMetricRunDryRun,
@@ -38,6 +48,12 @@ import {
   createMetricRunEvidence,
   listMetricRunEvidence,
 } from '../../services/lp-reporting/metric-run-evidence-service';
+import {
+  approveMetricRun,
+  getLatestMetricRun,
+  getMetricRunDetail,
+  lockMetricRun,
+} from '../../services/lp-reporting/metric-run-lifecycle-service';
 
 const router = Router();
 
@@ -110,6 +126,10 @@ function sendMetricRunError(
   fallbackCode:
     | 'METRIC_RUN_DRY_RUN_FAILED'
     | 'METRIC_RUN_COMMIT_FAILED'
+    | 'METRIC_RUN_DETAIL_FAILED'
+    | 'METRIC_RUN_LATEST_FAILED'
+    | 'METRIC_RUN_APPROVE_FAILED'
+    | 'METRIC_RUN_LOCK_FAILED'
     | 'METRIC_RUN_EVIDENCE_CREATE_FAILED'
     | 'METRIC_RUN_EVIDENCE_LIST_FAILED'
 ): Response {
@@ -178,6 +198,114 @@ router.post(
       return res.status(validated.inserted ? 201 : 200).json(validated);
     } catch (err) {
       return sendMetricRunError(res, err, 'METRIC_RUN_COMMIT_FAILED');
+    }
+  }
+);
+
+router.get(
+  '/api/funds/:fundId/metric-runs/latest',
+  requireAuth(),
+  requireFundAccess,
+  metricRunLimiter,
+  async (req: Request, res: Response) => {
+    const parsed = LatestMetricRunQuerySchema.safeParse({
+      runType: firstString(req.query['runType']),
+      perspective: firstString(req.query['perspective']),
+      asOfDate: firstString(req.query['asOfDate']),
+    });
+    if (!parsed.success) {
+      return res.status(400).json({
+        error: 'INVALID_REQUEST_QUERY',
+        issues: parsed.error.issues,
+      });
+    }
+
+    try {
+      const result = await getLatestMetricRun({
+        fundId: parseFundId(req),
+        ...parsed.data,
+      });
+      const validated = LatestMetricRunResponseSchema.parse(result);
+      return res.status(200).json(validated);
+    } catch (err) {
+      return sendMetricRunError(res, err, 'METRIC_RUN_LATEST_FAILED');
+    }
+  }
+);
+
+router.get(
+  '/api/funds/:fundId/metric-runs/:metricRunId',
+  requireAuth(),
+  requireFundAccess,
+  metricRunLimiter,
+  async (req: Request, res: Response) => {
+    try {
+      const result = await getMetricRunDetail({
+        fundId: parseFundId(req),
+        metricRunId: parseMetricRunId(req),
+      });
+      const validated = MetricRunDetailResponseSchema.parse(result);
+      return res.status(200).json(validated);
+    } catch (err) {
+      return sendMetricRunError(res, err, 'METRIC_RUN_DETAIL_FAILED');
+    }
+  }
+);
+
+router.post(
+  '/api/funds/:fundId/metric-runs/:metricRunId/approve',
+  requireAuth(),
+  requireFundAccess,
+  metricRunLimiter,
+  async (req: Request, res: Response) => {
+    const parsed = MetricRunApproveRequestSchema.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({
+        error: 'INVALID_REQUEST_BODY',
+        issues: parsed.error.issues,
+      });
+    }
+
+    try {
+      const result = await approveMetricRun({
+        fundId: parseFundId(req),
+        metricRunId: parseMetricRunId(req),
+        userId: resolveAuthenticatedUserId(req),
+        expectedVersion: parsed.data.expectedVersion,
+      });
+      const validated = MetricRunLifecycleResponseSchema.parse(result);
+      return res.status(200).json(validated);
+    } catch (err) {
+      return sendMetricRunError(res, err, 'METRIC_RUN_APPROVE_FAILED');
+    }
+  }
+);
+
+router.post(
+  '/api/funds/:fundId/metric-runs/:metricRunId/lock',
+  requireAuth(),
+  requireFundAccess,
+  metricRunLimiter,
+  async (req: Request, res: Response) => {
+    const parsed = MetricRunLockRequestSchema.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({
+        error: 'INVALID_REQUEST_BODY',
+        issues: parsed.error.issues,
+      });
+    }
+
+    try {
+      const result = await lockMetricRun({
+        fundId: parseFundId(req),
+        metricRunId: parseMetricRunId(req),
+        userId: resolveAuthenticatedUserId(req),
+        expectedVersion: parsed.data.expectedVersion,
+      });
+      const validated = MetricRunLifecycleResponseSchema.parse(result);
+      return res.status(200).json(validated);
+    } catch (err) {
+      return sendMetricRunError(res, err, 'METRIC_RUN_LOCK_FAILED');
     }
   }
 );

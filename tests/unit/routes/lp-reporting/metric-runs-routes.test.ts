@@ -9,9 +9,11 @@ import request from 'supertest';
 
 import {
   MetricRunCommitResponseSchema,
+  MetricRunDetailResponseSchema,
   MetricRunDryRunResponseSchema,
   MetricRunEvidenceCreateResponseSchema,
   MetricRunEvidenceListResponseSchema,
+  MetricRunLifecycleResponseSchema,
 } from '@shared/contracts/lp-reporting';
 
 const authState = vi.hoisted(() => ({
@@ -100,6 +102,18 @@ interface MockMetricRunRow {
   asOfDate: string;
   status: string;
   inputsHash: string;
+  sourceEventIds?: number[];
+  sourceMarkIds?: number[];
+  sourceEvidenceIds?: number[];
+  generatedBy?: number | null;
+  approvedBy?: number | null;
+  approvedAt?: Date | null;
+  lockedBy?: number | null;
+  lockedAt?: Date | null;
+  exportedAt?: Date | null;
+  version?: number;
+  createdAt?: Date | null;
+  updatedAt?: Date | null;
 }
 
 interface MockEvidenceRow {
@@ -143,6 +157,18 @@ vi.mock('@shared/schema/lp-reporting-evidence', () => ({
     asOfDate: 'lpMetricRuns.asOfDate',
     status: 'lpMetricRuns.status',
     inputsHash: 'lpMetricRuns.inputsHash',
+    sourceEventIds: 'lpMetricRuns.sourceEventIds',
+    sourceMarkIds: 'lpMetricRuns.sourceMarkIds',
+    sourceEvidenceIds: 'lpMetricRuns.sourceEvidenceIds',
+    generatedBy: 'lpMetricRuns.generatedBy',
+    approvedBy: 'lpMetricRuns.approvedBy',
+    approvedAt: 'lpMetricRuns.approvedAt',
+    lockedBy: 'lpMetricRuns.lockedBy',
+    lockedAt: 'lpMetricRuns.lockedAt',
+    exportedAt: 'lpMetricRuns.exportedAt',
+    version: 'lpMetricRuns.version',
+    createdAt: 'lpMetricRuns.createdAt',
+    updatedAt: 'lpMetricRuns.updatedAt',
   },
   evidenceRecords: {
     _kind: 'evidenceRecords',
@@ -179,8 +205,27 @@ function rowsFor(table: { _kind?: string }): Array<Record<string, unknown>> {
     return dbState.metricRuns.map((row) => ({
       id: row.id,
       fundId: row.fundId,
+      runType: row.runType,
+      perspective: row.perspective,
+      asOfDate: row.asOfDate,
       status: row.status,
       inputsHash: row.inputsHash,
+      sourceEventIds: row.sourceEventIds ?? [],
+      sourceMarkIds: row.sourceMarkIds ?? [],
+      sourceEvidenceIds: row.sourceEvidenceIds ?? [],
+      resultsJson: {},
+      diagnosticsJson: {},
+      methodologyVersion: 'lp-reporting-methodology-v1',
+      calculationVersion: 'lp-reporting-metrics-engine-1.0.0',
+      generatedBy: row.generatedBy ?? authState.userId,
+      approvedBy: row.approvedBy ?? null,
+      approvedAt: row.approvedAt ?? null,
+      lockedBy: row.lockedBy ?? null,
+      lockedAt: row.lockedAt ?? null,
+      exportedAt: row.exportedAt ?? null,
+      version: row.version ?? 1,
+      createdAt: row.createdAt ?? new Date('2026-05-10T00:00:00Z'),
+      updatedAt: row.updatedAt ?? new Date('2026-05-10T00:00:00Z'),
     }));
   }
   if (table?._kind === 'evidenceRecords') {
@@ -189,8 +234,44 @@ function rowsFor(table: { _kind?: string }): Array<Record<string, unknown>> {
   return [];
 }
 
-vi.mock('../../../../server/db', () => ({
-  db: {
+vi.mock('../../../../server/db', () => {
+  const dbMock = {
+    transaction: vi.fn(async (callback: (tx: unknown) => Promise<unknown>) => callback(dbMock)),
+    execute: vi.fn(async () => []),
+    update: vi.fn((table: { _kind?: string }) => ({
+      set: vi.fn((values: Record<string, unknown>) => ({
+        where: vi.fn(() => ({
+          returning: vi.fn(async () => {
+            if (table?._kind !== 'lpMetricRuns') {
+              return [];
+            }
+            const current = dbState.metricRuns.find((row) => row.id === 500 && row.fundId === 1);
+            if (!current) {
+              return [];
+            }
+            const nextVersion =
+              typeof values['version'] === 'number' ? (values['version'] as number) : undefined;
+            const expectedVersion = nextVersion !== undefined ? nextVersion - 1 : current.version;
+            const validApprove =
+              values['status'] === 'approved' &&
+              current.status === 'draft' &&
+              (current.version ?? 1) === expectedVersion;
+            const validLock =
+              values['status'] === 'locked' &&
+              current.status === 'approved' &&
+              (current.version ?? 1) === expectedVersion;
+            if (!validApprove && !validLock) {
+              return [];
+            }
+            const updated = { ...current, ...values } as MockMetricRunRow;
+            dbState.metricRuns = dbState.metricRuns.map((row) =>
+              row.id === updated.id ? updated : row
+            );
+            return rowsFor({ _kind: 'lpMetricRuns' }).filter((row) => row['id'] === updated.id);
+          }),
+        })),
+      })),
+    })),
     insert: vi.fn((table: { _kind?: string }) => {
       dbState.insertCalls += 1;
       return {
@@ -248,6 +329,13 @@ vi.mock('../../../../server/db', () => ({
                 asOfDate: row['asOfDate'] as string,
                 status: row['status'] as string,
                 inputsHash: row['inputsHash'] as string,
+                sourceEventIds: (row['sourceEventIds'] as number[] | undefined) ?? [],
+                sourceMarkIds: (row['sourceMarkIds'] as number[] | undefined) ?? [],
+                sourceEvidenceIds: (row['sourceEvidenceIds'] as number[] | undefined) ?? [],
+                generatedBy: (row['generatedBy'] as number | undefined) ?? authState.userId,
+                version: 1,
+                createdAt: new Date('2026-05-10T00:00:00Z'),
+                updatedAt: new Date('2026-05-10T00:00:00Z'),
               };
               dbState.metricRuns.push(metricRun);
               dbState.insertedMetricRows.push(row);
@@ -262,8 +350,9 @@ vi.mock('../../../../server/db', () => ({
         where: vi.fn(() => queryResult(rowsFor(table))),
       })),
     })),
-  },
-}));
+  };
+  return { db: dbMock };
+});
 
 vi.mock('drizzle-orm', async () => {
   const actual = await vi.importActual<typeof import('drizzle-orm')>('drizzle-orm');
@@ -714,6 +803,186 @@ describe('metric-run evidence routes', () => {
   });
 });
 
+describe('metric-run lifecycle routes', () => {
+  it('GET latest requires exact metric-run context filters', async () => {
+    const res = await request(buildApp()).get('/api/funds/1/metric-runs/latest');
+
+    expect(res.status).toBe(400);
+    expect(res.body.error).toBe('INVALID_REQUEST_QUERY');
+  });
+
+  it('GET latest returns null when no exact context matches', async () => {
+    dbState.metricRuns.push({
+      id: 500,
+      fundId: 1,
+      runType: 'fundraise_pack',
+      perspective: 'lp_net',
+      asOfDate: '2026-03-31',
+      status: 'draft',
+      inputsHash: 'a'.repeat(64),
+    });
+
+    const res = await request(buildApp()).get(
+      '/api/funds/1/metric-runs/latest?runType=quarterly_report&perspective=lp_net&asOfDate=2026-03-31'
+    );
+
+    expect(res.status).toBe(200);
+    expect(res.body.metricRun).toBeNull();
+  });
+
+  it('GET detail returns the requested committed metric run by ID', async () => {
+    dbState.metricRuns.push(
+      {
+        id: 500,
+        fundId: 1,
+        runType: 'quarterly_report',
+        perspective: 'lp_net',
+        asOfDate: '2026-03-31',
+        status: 'draft',
+        inputsHash: 'a'.repeat(64),
+        version: 1,
+      },
+      {
+        id: 501,
+        fundId: 1,
+        runType: 'quarterly_report',
+        perspective: 'lp_net',
+        asOfDate: '2026-03-31',
+        status: 'approved',
+        inputsHash: 'b'.repeat(64),
+        version: 2,
+        createdAt: new Date('2026-05-11T00:00:00Z'),
+      }
+    );
+    dbState.evidenceRecords.push({
+      ...evidenceBody(),
+      id: 1000,
+      fundId: 1,
+      valuationMarkId: null,
+      companyId: null,
+      metricRunId: 500,
+      narrativeRunId: null,
+      receivedDate: null,
+      expirationDate: null,
+      confidenceLevel: 'medium',
+      confidentiality: 'internal',
+      redactionRequired: false,
+      documentHash: null,
+      valuationPolicyVersion: null,
+      internalNotes: null,
+      lpObjection: null,
+      attachments: [],
+      uploadedBy: authState.userId,
+      approvedBy: null,
+      approvedAt: null,
+      createdAt: new Date('2026-05-10T00:00:00Z'),
+      updatedAt: new Date('2026-05-10T00:00:00Z'),
+    } as MockEvidenceRow);
+
+    const res = await request(buildApp()).get('/api/funds/1/metric-runs/500');
+
+    expect(res.status).toBe(200);
+    const parsed = MetricRunDetailResponseSchema.parse(res.body);
+    expect(parsed.metricRunId).toBe(500);
+    expect(parsed.status).toBe('draft');
+    expect(parsed.evidenceCount).toBe(1);
+  });
+
+  it('POST approve returns lifecycle response and snapshots evidence IDs', async () => {
+    dbState.metricRuns.push({
+      id: 500,
+      fundId: 1,
+      runType: 'quarterly_report',
+      perspective: 'lp_net',
+      asOfDate: '2026-03-31',
+      status: 'draft',
+      inputsHash: 'a'.repeat(64),
+      version: 1,
+    });
+    dbState.evidenceRecords.push({
+      ...evidenceBody(),
+      id: 1000,
+      fundId: 1,
+      valuationMarkId: null,
+      companyId: null,
+      metricRunId: 500,
+      narrativeRunId: null,
+      receivedDate: null,
+      expirationDate: null,
+      confidenceLevel: 'medium',
+      confidentiality: 'internal',
+      redactionRequired: false,
+      documentHash: null,
+      valuationPolicyVersion: null,
+      internalNotes: null,
+      lpObjection: null,
+      attachments: [],
+      uploadedBy: authState.userId,
+      approvedBy: null,
+      approvedAt: null,
+      createdAt: new Date('2026-05-10T00:00:00Z'),
+      updatedAt: new Date('2026-05-10T00:00:00Z'),
+    } as MockEvidenceRow);
+
+    const res = await request(buildApp())
+      .post('/api/funds/1/metric-runs/500/approve')
+      .send({ expectedVersion: 1 });
+
+    expect(res.status).toBe(200);
+    const parsed = MetricRunLifecycleResponseSchema.parse(res.body);
+    expect(parsed.changed).toBe(true);
+    expect(parsed.metricRun.status).toBe('approved');
+    expect(parsed.metricRun.version).toBe(2);
+    expect(parsed.metricRun.sourceEvidenceIds).toEqual([1000]);
+  });
+
+  it('POST approve returns 409 when evidence is missing', async () => {
+    dbState.metricRuns.push({
+      id: 500,
+      fundId: 1,
+      runType: 'quarterly_report',
+      perspective: 'lp_net',
+      asOfDate: '2026-03-31',
+      status: 'draft',
+      inputsHash: 'a'.repeat(64),
+      version: 1,
+    });
+
+    const res = await request(buildApp())
+      .post('/api/funds/1/metric-runs/500/approve')
+      .send({ expectedVersion: 1 });
+
+    expect(res.status).toBe(409);
+    expect(res.body.error).toBe('METRIC_RUN_EVIDENCE_REQUIRED');
+  });
+
+  it('POST lock returns lifecycle response for approved metric runs', async () => {
+    dbState.metricRuns.push({
+      id: 500,
+      fundId: 1,
+      runType: 'quarterly_report',
+      perspective: 'lp_net',
+      asOfDate: '2026-03-31',
+      status: 'approved',
+      inputsHash: 'a'.repeat(64),
+      sourceEvidenceIds: [1000],
+      approvedBy: authState.userId,
+      approvedAt: new Date('2026-05-10T00:00:00Z'),
+      version: 2,
+    });
+
+    const res = await request(buildApp())
+      .post('/api/funds/1/metric-runs/500/lock')
+      .send({ expectedVersion: 2 });
+
+    expect(res.status).toBe(200);
+    const parsed = MetricRunLifecycleResponseSchema.parse(res.body);
+    expect(parsed.metricRun.status).toBe('locked');
+    expect(parsed.metricRun.lockedBy).toBe(authState.userId);
+    expect(parsed.metricRun.version).toBe(3);
+  });
+});
+
 describe('Source grep -- metric-run route boundaries', () => {
   const routerSource = fs.readFileSync(
     path.join(process.cwd(), 'server', 'routes', 'lp-reporting', 'metric-runs.ts'),
@@ -729,6 +998,8 @@ describe('Source grep -- metric-run route boundaries', () => {
     expect(paths).toEqual([
       '/api/funds/:fundId/metric-runs/dry-run',
       '/api/funds/:fundId/metric-runs/commit',
+      '/api/funds/:fundId/metric-runs/:metricRunId/approve',
+      '/api/funds/:fundId/metric-runs/:metricRunId/lock',
       '/api/funds/:fundId/metric-runs/:metricRunId/evidence-records',
     ]);
 
@@ -737,7 +1008,11 @@ describe('Source grep -- metric-run route boundaries', () => {
         .match(/router\.get\(\s*['"]([^'"]+)['"]/g)
         ?.map((match) => match.replace(/router\.get\(\s*['"]/, '').replace(/['"]$/, '')) ?? [];
 
-    expect(getPaths).toEqual(['/api/funds/:fundId/metric-runs/:metricRunId/evidence-records']);
+    expect(getPaths).toEqual([
+      '/api/funds/:fundId/metric-runs/latest',
+      '/api/funds/:fundId/metric-runs/:metricRunId',
+      '/api/funds/:fundId/metric-runs/:metricRunId/evidence-records',
+    ]);
   });
 
   it('does not add any /api/public route', () => {
