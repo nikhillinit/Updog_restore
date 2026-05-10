@@ -51,6 +51,11 @@ describe('LP Reporting Foundation Schema -- Drizzle bindings', () => {
       expect(typeof schema.lpReportPackages).toBe('object');
     });
 
+    it('lpReportPackageExports table is accessible', () => {
+      expect(schema.lpReportPackageExports).toBeDefined();
+      expect(typeof schema.lpReportPackageExports).toBe('object');
+    });
+
     it('lpVehicleParticipation table is accessible', () => {
       expect(schema.lpVehicleParticipation).toBeDefined();
       expect(typeof schema.lpVehicleParticipation).toBe('object');
@@ -71,6 +76,7 @@ describe('LP Reporting Foundation Schema -- Drizzle bindings', () => {
       ['narrative_runs', schema.narrativeRuns],
       ['evidence_records', schema.evidenceRecords],
       ['lp_report_packages', schema.lpReportPackages],
+      ['lp_report_package_exports', schema.lpReportPackageExports],
       ['lp_vehicle_participation', schema.lpVehicleParticipation],
       ['lp_vehicle_participation_history', schema.lpVehicleParticipationHistory],
     ])('table %s has matching SQL name', (sqlName, table) => {
@@ -179,6 +185,17 @@ describe('LP Reporting Foundation Schema -- Drizzle bindings', () => {
       expect(names).toContain('lp_report_package_status_check');
     });
 
+    it('lp_report_package_exports declares format, version, status, hash, and size CHECKs', () => {
+      const config = getTableConfig(schema.lpReportPackageExports);
+      const names = config.checks.map((c) => c.name);
+      expect(names).toContain('lp_report_package_export_format_check');
+      expect(names).toContain('lp_report_package_export_version_check');
+      expect(names).toContain('lp_report_package_export_status_check');
+      expect(names).toContain('lp_report_package_export_hash_algorithm_check');
+      expect(names).toContain('lp_report_package_export_hash_check');
+      expect(names).toContain('lp_report_package_export_artifact_size_check');
+    });
+
     it('lp_vehicle_participation declares the status CHECK', () => {
       const config = getTableConfig(schema.lpVehicleParticipation);
       const names = config.checks.map((c) => c.name);
@@ -217,6 +234,15 @@ describe('LP Reporting Foundation Schema -- Drizzle bindings', () => {
       expect(names).toContain('lp_report_packages_metric_run_unique');
       expect(names).toContain('idx_lp_report_packages_fund_metric');
       expect(names).toContain('idx_lp_report_packages_fund_assembled_at');
+    });
+
+    it('indexes report package exports by natural key and route scope', () => {
+      const config = getTableConfig(schema.lpReportPackageExports);
+      const names = config.indexes.map((idx) => idx.config.name);
+      expect(names).toContain('lp_report_package_exports_package_format_version_unique');
+      expect(names).toContain('idx_lp_report_package_exports_fund_metric');
+      expect(names).toContain('idx_lp_report_package_exports_fund_metric_package');
+      expect(names).toContain('idx_lp_report_package_exports_fund_ready_at');
     });
 
     it('indexes parent FKs used by narrative and participation history flows', () => {
@@ -334,6 +360,52 @@ describe('LP Reporting Foundation Schema -- Drizzle bindings', () => {
     });
   });
 
+  describe('Report-package export migration', () => {
+    it('creates and drops the stored JSON export table, indexes, and constraints', () => {
+      const up = fs.readFileSync(
+        path.join(
+          process.cwd(),
+          'server',
+          'migrations',
+          '20260510_z_lp_reporting_report_package_exports_v1.up.sql'
+        ),
+        'utf8'
+      );
+      const down = fs.readFileSync(
+        path.join(
+          process.cwd(),
+          'server',
+          'migrations',
+          '20260510_z_lp_reporting_report_package_exports_v1.down.sql'
+        ),
+        'utf8'
+      );
+
+      expect(up).toMatch(/CREATE TABLE IF NOT EXISTS lp_report_package_exports/i);
+      expect(up).toMatch(/artifact_payload JSONB NOT NULL/i);
+      expect(up).toMatch(/CONSTRAINT lp_report_package_export_format_check CHECK/i);
+      expect(up).toMatch(
+        /CREATE UNIQUE INDEX IF NOT EXISTS lp_report_package_exports_package_format_version_unique/i
+      );
+      expect(up).toMatch(/ON lp_report_package_exports\(fund_id, metric_run_id\)/i);
+      expect(down).toMatch(/DROP TABLE IF EXISTS lp_report_package_exports/i);
+    });
+
+    it('sorts after the report package migration it references', () => {
+      const names = fs
+        .readdirSync(path.join(process.cwd(), 'server', 'migrations'))
+        .filter((name) => name.includes('lp_reporting_report_package'))
+        .sort();
+      const packageUp = '20260510_lp_reporting_report_packages_v1.up.sql';
+      const packageDown = '20260510_lp_reporting_report_packages_v1.down.sql';
+      const exportsUp = '20260510_z_lp_reporting_report_package_exports_v1.up.sql';
+      const exportsDown = '20260510_z_lp_reporting_report_package_exports_v1.down.sql';
+
+      expect(names.indexOf(packageUp)).toBeLessThan(names.indexOf(exportsUp));
+      expect(names.indexOf(packageDown)).toBeLessThan(names.indexOf(exportsDown));
+    });
+  });
+
   describe('Type inference compiles', () => {
     it('produces $inferSelect / $inferInsert types for each table', () => {
       // Compile-time assertions via type-only declarations. Existence at
@@ -345,6 +417,7 @@ describe('LP Reporting Foundation Schema -- Drizzle bindings', () => {
       const nrSelect: schema.NarrativeRun | null = null;
       const erSelect: schema.EvidenceRecord | null = null;
       const rpkSelect: schema.LpReportPackage | null = null;
+      const rpkeSelect: schema.LpReportPackageExport | null = null;
       const lvpSelect: schema.LpVehicleParticipation | null = null;
       const lvphSelect: schema.LpVehicleParticipationHistory | null = null;
       expect([
@@ -355,9 +428,10 @@ describe('LP Reporting Foundation Schema -- Drizzle bindings', () => {
         nrSelect,
         erSelect,
         rpkSelect,
+        rpkeSelect,
         lvpSelect,
         lvphSelect,
-      ]).toHaveLength(9);
+      ]).toHaveLength(10);
     });
   });
 });

@@ -19,9 +19,14 @@ import {
   NarrativeRunLifecycleResponseSchema,
   NarrativeRunListResponseSchema,
   ReportPackageAssembleResponseSchema,
+  ReportPackageExportContentHashConflictResponseSchema,
+  ReportPackageExportNotFoundResponseSchema,
   ReportPackageGetResponseSchema,
   ReportPackageJsonExportBlockedResponseSchema,
   ReportPackageJsonExportResponseSchema,
+  ReportPackageJsonStoredArtifactResponseSchema,
+  ReportPackageJsonStoredExportGetResponseSchema,
+  ReportPackageJsonStoredExportResponseSchema,
   ReportPackageRenderModelResponseSchema,
 } from '@shared/contracts/lp-reporting';
 
@@ -37,17 +42,20 @@ const dbState = vi.hoisted(() => ({
   evidenceRecords: [] as MockEvidenceRow[],
   narrativeRuns: [] as MockNarrativeRow[],
   reportPackages: [] as MockReportPackageRow[],
+  reportPackageExports: [] as MockReportPackageExportRow[],
   funds: [] as MockFundRow[],
   users: [7] as number[],
   insertedMetricRows: [] as unknown[],
   insertedEvidenceRows: [] as unknown[],
   insertedNarrativeRows: [] as unknown[],
   insertedReportPackageRows: [] as unknown[],
+  insertedReportPackageExportRows: [] as unknown[],
   insertCalls: 0,
   nextMetricRunId: 500,
   nextEvidenceId: 1000,
   nextNarrativeId: 2000,
   nextReportPackageId: 3000,
+  nextReportPackageExportId: 4000,
   dropNextInsert: false,
 }));
 let nextUserId = 800;
@@ -202,6 +210,24 @@ interface MockReportPackageRow {
   updatedAt: Date;
 }
 
+interface MockReportPackageExportRow {
+  id: number;
+  fundId: number;
+  metricRunId: number;
+  reportPackageId: number;
+  format: string;
+  exportVersion: number;
+  status: string;
+  contentHashAlgorithm: string;
+  contentHash: string;
+  artifactPayload: unknown;
+  artifactSizeBytes: number;
+  createdBy: number;
+  readyAt: Date;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
 interface MockFundRow {
   id: number;
   name: string;
@@ -256,6 +282,16 @@ vi.mock('@shared/schema/lp-reporting-evidence', () => ({
     fundId: 'lpReportPackages.fundId',
     metricRunId: 'lpReportPackages.metricRunId',
     status: 'lpReportPackages.status',
+  },
+  lpReportPackageExports: {
+    _kind: 'lpReportPackageExports',
+    id: 'lpReportPackageExports.id',
+    fundId: 'lpReportPackageExports.fundId',
+    metricRunId: 'lpReportPackageExports.metricRunId',
+    reportPackageId: 'lpReportPackageExports.reportPackageId',
+    format: 'lpReportPackageExports.format',
+    exportVersion: 'lpReportPackageExports.exportVersion',
+    status: 'lpReportPackageExports.status',
   },
 }));
 
@@ -395,6 +431,9 @@ function rowsFor(table: { _kind?: string }): Array<Record<string, unknown>> {
   }
   if (table?._kind === 'lpReportPackages') {
     return [...dbState.reportPackages] as unknown as Array<Record<string, unknown>>;
+  }
+  if (table?._kind === 'lpReportPackageExports') {
+    return [...dbState.reportPackageExports] as unknown as Array<Record<string, unknown>>;
   }
   return [];
 }
@@ -576,6 +615,43 @@ vi.mock('../../../../server/db', () => {
                 }
                 dbState.insertedReportPackageRows.push(row);
                 return [reportPackageRow];
+              }
+              if (table?._kind === 'lpReportPackageExports') {
+                const existing = dbState.reportPackageExports.find(
+                  (candidate) =>
+                    candidate.reportPackageId === row['reportPackageId'] &&
+                    candidate.format === row['format'] &&
+                    candidate.exportVersion === row['exportVersion']
+                );
+                if (existing) {
+                  return [];
+                }
+                const now = new Date('2026-05-10T04:00:00Z');
+                const reportPackageExportRow: MockReportPackageExportRow = {
+                  id: dbState.nextReportPackageExportId++,
+                  fundId: row['fundId'] as number,
+                  metricRunId: row['metricRunId'] as number,
+                  reportPackageId: row['reportPackageId'] as number,
+                  format: (row['format'] as string | undefined) ?? 'json',
+                  exportVersion: (row['exportVersion'] as number | undefined) ?? 1,
+                  status: (row['status'] as string | undefined) ?? 'ready',
+                  contentHashAlgorithm:
+                    (row['contentHashAlgorithm'] as string | undefined) ?? 'sha256',
+                  contentHash: row['contentHash'] as string,
+                  artifactPayload: row['artifactPayload'],
+                  artifactSizeBytes: row['artifactSizeBytes'] as number,
+                  createdBy: row['createdBy'] as number,
+                  readyAt: (row['readyAt'] as Date | undefined) ?? now,
+                  createdAt: (row['createdAt'] as Date | undefined) ?? now,
+                  updatedAt: (row['updatedAt'] as Date | undefined) ?? now,
+                };
+                dbState.reportPackageExports.push(reportPackageExportRow);
+                if (dbState.dropNextInsert) {
+                  dbState.dropNextInsert = false;
+                  return [];
+                }
+                dbState.insertedReportPackageExportRows.push(row);
+                return [reportPackageExportRow];
               }
               if (table?._kind !== 'lpMetricRuns') {
                 return [];
@@ -819,6 +895,7 @@ beforeEach(() => {
   dbState.evidenceRecords = [];
   dbState.narrativeRuns = [];
   dbState.reportPackages = [];
+  dbState.reportPackageExports = [];
   dbState.funds = [
     {
       id: 1,
@@ -832,11 +909,13 @@ beforeEach(() => {
   dbState.insertedEvidenceRows = [];
   dbState.insertedNarrativeRows = [];
   dbState.insertedReportPackageRows = [];
+  dbState.insertedReportPackageExportRows = [];
   dbState.insertCalls = 0;
   dbState.nextMetricRunId = 500;
   dbState.nextEvidenceId = 1000;
   dbState.nextNarrativeId = 2000;
   dbState.nextReportPackageId = 3000;
+  dbState.nextReportPackageExportId = 4000;
   dbState.dropNextInsert = false;
 });
 
@@ -1566,6 +1645,155 @@ describe('metric-run report package routes', () => {
     expect(res.body.export).not.toHaveProperty('signedUrl');
   });
 
+  it('stores, replays, reads, and returns a package JSON artifact without changing the live handoff route', async () => {
+    seedLockedMetricRun();
+    seedApprovedNarratives();
+    seedMetricRunEvidence();
+    const app = buildApp();
+
+    const assemble = await request(app)
+      .post('/api/funds/1/metric-runs/500/report-package')
+      .send(reportPackageBody());
+    expect(assemble.status).toBe(201);
+
+    const missingMetadata = await request(app).get(
+      '/api/funds/1/metric-runs/500/report-package/exports/json'
+    );
+    expect(missingMetadata.status).toBe(200);
+    expect(ReportPackageJsonStoredExportGetResponseSchema.parse(missingMetadata.body)).toEqual({
+      record: null,
+    });
+
+    const missingArtifact = await request(app).get(
+      '/api/funds/1/metric-runs/500/report-package/exports/json/artifact'
+    );
+    expect(missingArtifact.status).toBe(404);
+    expect(ReportPackageExportNotFoundResponseSchema.parse(missingArtifact.body).error).toBe(
+      'REPORT_PACKAGE_EXPORT_NOT_FOUND'
+    );
+
+    const created = await request(app).post(
+      '/api/funds/1/metric-runs/500/report-package/exports/json'
+    );
+    expect(created.status).toBe(201);
+    const createdParsed = ReportPackageJsonStoredExportResponseSchema.parse(created.body);
+    expect(createdParsed.inserted).toBe(true);
+    expect(createdParsed.record.reportPackageExportId).toBe(4000);
+    expect(createdParsed.record.reportPackageId).toBe(3000);
+    expect(dbState.insertedReportPackageExportRows).toHaveLength(1);
+    expect(created.body.record).not.toHaveProperty('artifactPayload');
+    expect(created.body.record).not.toHaveProperty('storageKey');
+    expect(created.body.record).not.toHaveProperty('signedUrl');
+
+    const replay = await request(app).post(
+      '/api/funds/1/metric-runs/500/report-package/exports/json'
+    );
+    expect(replay.status).toBe(200);
+    expect(ReportPackageJsonStoredExportResponseSchema.parse(replay.body).inserted).toBe(false);
+    expect(dbState.insertedReportPackageExportRows).toHaveLength(1);
+
+    const metadata = await request(app).get(
+      '/api/funds/1/metric-runs/500/report-package/exports/json'
+    );
+    expect(metadata.status).toBe(200);
+    expect(
+      ReportPackageJsonStoredExportGetResponseSchema.parse(metadata.body).record
+    ).toMatchObject({
+      reportPackageExportId: 4000,
+      status: 'ready',
+      contentHashAlgorithm: 'sha256',
+    });
+    expect(metadata.body.record).not.toHaveProperty('artifactPayload');
+
+    const artifactRes = await request(app).get(
+      '/api/funds/1/metric-runs/500/report-package/exports/json/artifact'
+    );
+    expect(artifactRes.status).toBe(200);
+    const artifactParsed = ReportPackageJsonStoredArtifactResponseSchema.parse(artifactRes.body);
+    expect(artifactParsed.record.reportPackageExportId).toBe(4000);
+    expect(artifactParsed.export.source.reportPackageId).toBe(3000);
+    expect(artifactParsed.export.contentHash).toBe(createdParsed.record.contentHash);
+
+    const live = await request(app).get('/api/funds/1/metric-runs/500/report-package/export/json');
+    expect(live.status).toBe(200);
+    expect(ReportPackageJsonExportResponseSchema.parse(live.body).export).not.toHaveProperty(
+      'reportPackageExportId'
+    );
+  });
+
+  it('POST stored JSON export rejects route-owned body fields and blocked packages', async () => {
+    seedLockedMetricRun();
+    seedApprovedNarratives();
+    const app = buildApp();
+
+    const assemble = await request(app)
+      .post('/api/funds/1/metric-runs/500/report-package')
+      .send(reportPackageBody());
+    expect(assemble.status).toBe(201);
+
+    const invalid = await request(app)
+      .post('/api/funds/1/metric-runs/500/report-package/exports/json')
+      .send({ contentHash: 'c'.repeat(64) });
+    expect(invalid.status).toBe(400);
+    expect(invalid.body.error).toBe('INVALID_REQUEST_BODY');
+
+    const blocked = await request(app).post(
+      '/api/funds/1/metric-runs/500/report-package/exports/json'
+    );
+    expect(blocked.status).toBe(409);
+    const parsed = ReportPackageJsonExportBlockedResponseSchema.parse(blocked.body);
+    expect(parsed.error).toBe('REPORT_PACKAGE_JSON_EXPORT_BLOCKED');
+    expect(blocked.body).not.toHaveProperty('export');
+    expect(blocked.body).not.toHaveProperty('renderModel');
+    expect(dbState.insertedReportPackageExportRows).toHaveLength(0);
+  });
+
+  it('POST stored JSON export rejects deterministic hash drift without overwriting', async () => {
+    seedLockedMetricRun();
+    seedApprovedNarratives();
+    seedMetricRunEvidence();
+    const app = buildApp();
+
+    const assemble = await request(app)
+      .post('/api/funds/1/metric-runs/500/report-package')
+      .send(reportPackageBody());
+    expect(assemble.status).toBe(201);
+
+    const live = await request(app).get('/api/funds/1/metric-runs/500/report-package/export/json');
+    expect(live.status).toBe(200);
+    const liveExport = ReportPackageJsonExportResponseSchema.parse(live.body);
+    const { contentHash, contentHashAlgorithm, ...artifactPayload } = liveExport.export;
+    dbState.reportPackageExports.push({
+      id: 4000,
+      fundId: 1,
+      metricRunId: 500,
+      reportPackageId: 3000,
+      format: 'json',
+      exportVersion: 1,
+      status: 'ready',
+      contentHashAlgorithm,
+      contentHash: 'd'.repeat(64),
+      artifactPayload,
+      artifactSizeBytes: 123,
+      createdBy: authState.userId,
+      readyAt: new Date('2026-05-10T04:00:00Z'),
+      createdAt: new Date('2026-05-10T04:00:00Z'),
+      updatedAt: new Date('2026-05-10T04:00:00Z'),
+    });
+
+    const conflict = await request(app).post(
+      '/api/funds/1/metric-runs/500/report-package/exports/json'
+    );
+    expect(conflict.status).toBe(409);
+    const parsed = ReportPackageExportContentHashConflictResponseSchema.parse(conflict.body);
+    expect(parsed.error).toBe('EXPORT_CONTENT_HASH_CONFLICT');
+    expect(parsed.storedContentHash).toBe('d'.repeat(64));
+    expect(parsed.currentContentHash).toBe(contentHash);
+    expect(conflict.body).not.toHaveProperty('export');
+    expect(conflict.body).not.toHaveProperty('renderModel');
+    expect(dbState.insertedReportPackageExportRows).toHaveLength(0);
+  });
+
   it('GET render-model returns REPORT_PACKAGE_NOT_FOUND before assembly', async () => {
     seedLockedMetricRun();
 
@@ -1886,6 +2114,7 @@ describe('Source grep -- metric-run route boundaries', () => {
       '/api/funds/:fundId/metric-runs/commit',
       '/api/funds/:fundId/metric-runs/:metricRunId/approve',
       '/api/funds/:fundId/metric-runs/:metricRunId/lock',
+      '/api/funds/:fundId/metric-runs/:metricRunId/report-package/exports/json',
       '/api/funds/:fundId/metric-runs/:metricRunId/report-package',
       '/api/funds/:fundId/metric-runs/:metricRunId/evidence-records',
       '/api/funds/:fundId/metric-runs/:metricRunId/narrative-runs',
@@ -1913,6 +2142,8 @@ describe('Source grep -- metric-run route boundaries', () => {
       '/api/funds/:fundId/metric-runs/:metricRunId/report-package',
       '/api/funds/:fundId/metric-runs/:metricRunId/report-package/render-model',
       '/api/funds/:fundId/metric-runs/:metricRunId/report-package/export/json',
+      '/api/funds/:fundId/metric-runs/:metricRunId/report-package/exports/json',
+      '/api/funds/:fundId/metric-runs/:metricRunId/report-package/exports/json/artifact',
       '/api/funds/:fundId/metric-runs/:metricRunId/evidence-records',
       '/api/funds/:fundId/metric-runs/:metricRunId/narrative-runs',
       '/api/funds/:fundId/metric-runs/:metricRunId/narrative-runs/:narrativeRunId',

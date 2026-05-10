@@ -47,7 +47,11 @@ import type {
   MetricRunDryRunResponse,
   MetricRunLifecycleResponse,
   NarrativeRunRecord,
+  ReportPackageExportRecord,
   ReportPackageJsonExportResponse,
+  ReportPackageJsonStoredArtifactResponse,
+  ReportPackageJsonStoredExportGetResponse,
+  ReportPackageJsonStoredExportResponse,
   ReportPackageRecord,
   ReportPackageRenderModelResponse,
 } from '@shared/contracts/lp-reporting';
@@ -416,6 +420,47 @@ function makeReportPackageJsonExportResponse(): ReportPackageJsonExportResponse 
       contentHashAlgorithm: 'sha256',
       contentHash: 'c'.repeat(64),
     },
+  };
+}
+
+function makeReportPackageStoredExportRecord(): ReportPackageExportRecord {
+  return {
+    reportPackageExportId: 4100,
+    fundId: 7,
+    metricRunId: 17,
+    reportPackageId: 501,
+    format: 'json',
+    exportVersion: 1,
+    status: 'ready',
+    contentHashAlgorithm: 'sha256',
+    contentHash: 'c'.repeat(64),
+    artifactSizeBytes: 1234,
+    createdBy: 7,
+    readyAt: '2026-05-10T04:00:00.000Z',
+    createdAt: '2026-05-10T04:00:00.000Z',
+    updatedAt: '2026-05-10T04:00:00.000Z',
+  };
+}
+
+function makeReportPackageStoredExportGetResponse(
+  record: ReportPackageExportRecord | null
+): ReportPackageJsonStoredExportGetResponse {
+  return { record };
+}
+
+function makeReportPackageStoredExportResponse(
+  inserted = true
+): ReportPackageJsonStoredExportResponse {
+  return {
+    record: makeReportPackageStoredExportRecord(),
+    inserted,
+  };
+}
+
+function makeReportPackageStoredArtifactResponse(): ReportPackageJsonStoredArtifactResponse {
+  return {
+    record: makeReportPackageStoredExportRecord(),
+    export: makeReportPackageJsonExportResponse().export,
   };
 }
 
@@ -974,6 +1019,7 @@ describe('LpReportingMetricsPage', () => {
 
   it('assembles an approved report package from approved locked-run narratives', async () => {
     let reportPackage: ReportPackageRecord | null = null;
+    let storedExport: ReportPackageExportRecord | null = null;
     const approvedNarratives = makeApprovedNarratives();
     const fetchSpy = vi.spyOn(globalThis, 'fetch').mockImplementation(async (input, init) => {
       const url = String(input);
@@ -1032,6 +1078,28 @@ describe('LpReportingMetricsPage', () => {
           status: 200,
           headers: { 'Content-Type': 'application/json' },
         });
+      }
+      if (url.endsWith('/metric-runs/17/report-package/exports/json/artifact')) {
+        return new Response(JSON.stringify(makeReportPackageStoredArtifactResponse()), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        });
+      }
+      if (url.endsWith('/metric-runs/17/report-package/exports/json') && init?.method === 'POST') {
+        storedExport = makeReportPackageStoredExportRecord();
+        return new Response(JSON.stringify(makeReportPackageStoredExportResponse(true)), {
+          status: 201,
+          headers: { 'Content-Type': 'application/json' },
+        });
+      }
+      if (url.endsWith('/metric-runs/17/report-package/exports/json')) {
+        return new Response(
+          JSON.stringify(makeReportPackageStoredExportGetResponse(storedExport)),
+          {
+            status: 200,
+            headers: { 'Content-Type': 'application/json' },
+          }
+        );
       }
       if (url.endsWith('/metric-runs/17/report-package/export/json')) {
         return new Response(JSON.stringify(makeReportPackageJsonExportResponse()), {
@@ -1130,6 +1198,32 @@ describe('LpReportingMetricsPage', () => {
     expect(appendedAnchor?.download).toBe('lp-report-package-7-17-json-v1.json');
     expect(clickSpy).toHaveBeenCalledTimes(1);
     expect(revokeObjectURLMock).toHaveBeenCalledWith('blob:lp-report-json');
+
+    fireEvent.click(screen.getByTestId('metric-run-report-package-store-json'));
+
+    await waitFor(() => {
+      expect(
+        screen.getByTestId('metric-run-report-package-stored-json-result')
+      ).toBeInTheDocument();
+    });
+    const storeCall = fetchSpy.mock.calls.find(
+      ([url, init]) =>
+        String(url).endsWith('/metric-runs/17/report-package/exports/json') &&
+        init?.method === 'POST'
+    );
+    expect(storeCall).toBeDefined();
+    expect(screen.getByTestId('metric-run-report-package-stored-json-result').textContent).toMatch(
+      /ready/i
+    );
+
+    fireEvent.click(screen.getByTestId('metric-run-report-package-export-stored-json'));
+    await waitFor(() => {
+      expect(
+        fetchSpy.mock.calls.some(([url]) =>
+          String(url).endsWith('/metric-runs/17/report-package/exports/json/artifact')
+        )
+      ).toBe(true);
+    });
   });
 
   it('keeps report package assembly disabled until all narratives are approved', async () => {
@@ -1265,6 +1359,12 @@ describe('LpReportingMetricsPage', () => {
       }
       if (url.endsWith('/metric-runs/17/report-package/render-model')) {
         return new Response(JSON.stringify(makeReportPackageRenderModelResponse()), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        });
+      }
+      if (url.endsWith('/metric-runs/17/report-package/exports/json')) {
+        return new Response(JSON.stringify(makeReportPackageStoredExportGetResponse(null)), {
           status: 200,
           headers: { 'Content-Type': 'application/json' },
         });

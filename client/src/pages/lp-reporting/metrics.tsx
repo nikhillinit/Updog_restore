@@ -64,6 +64,9 @@ import {
   useMetricRunReportPackageAssemble,
   useMetricRunReportPackageJsonExport,
   useMetricRunReportPackageRenderModel,
+  useMetricRunReportPackageStoredJsonArtifact,
+  useMetricRunReportPackageStoredJsonExport,
+  useMetricRunReportPackageStoredJsonExportCreate,
   type LpReportingHookError,
 } from '@/hooks/lp-reporting';
 
@@ -327,6 +330,19 @@ export default function LpReportingMetricsPage() {
     fundId,
     reportPackageRecord === null ? null : lockedMetricRunId
   );
+  const reportPackageStoredJsonExportQuery = useMetricRunReportPackageStoredJsonExport(
+    fundId,
+    reportPackageRecord === null ? null : lockedMetricRunId
+  );
+  const reportPackageStoredJsonArtifactQuery = useMetricRunReportPackageStoredJsonArtifact(
+    fundId,
+    reportPackageRecord === null ? null : lockedMetricRunId
+  );
+  const reportPackageStoredJsonExportCreateMutation =
+    useMetricRunReportPackageStoredJsonExportCreate(
+      fundId,
+      reportPackageRecord === null ? null : lockedMetricRunId
+    );
 
   const handleSuccess = useCallback(
     (response: MetricRunDryRunResponse, request: MetricRunDryRunRequest) => {
@@ -560,6 +576,25 @@ export default function LpReportingMetricsPage() {
     }
   }, [fundId, lockedMetricRunId, reportPackageJsonExportQuery]);
 
+  const handleReportPackageStoredJsonCreate = useCallback(async () => {
+    try {
+      await reportPackageStoredJsonExportCreateMutation.mutateAsync();
+    } catch {
+      // The mutation error is rendered from reportPackageStoredJsonExportCreateMutation.error.
+    }
+  }, [reportPackageStoredJsonExportCreateMutation]);
+
+  const handleReportPackageStoredJsonExport = useCallback(async () => {
+    if (fundId === null || lockedMetricRunId === null) {
+      return;
+    }
+
+    const result = await reportPackageStoredJsonArtifactQuery.refetch();
+    if (result.data) {
+      saveReportPackageJsonExport({ export: result.data.export }, fundId, lockedMetricRunId);
+    }
+  }, [fundId, lockedMetricRunId, reportPackageStoredJsonArtifactQuery]);
+
   const results = dryRun?.results ?? null;
   const envelope = dryRunError ? envelopeFor(dryRunError) : null;
   const commitEnvelope = commitError ? envelopeFor(commitError) : null;
@@ -587,6 +622,19 @@ export default function LpReportingMetricsPage() {
   const reportPackageJsonExportEnvelope =
     reportPackageJsonExportError && reportPackageJsonExportBlockers.length === 0
       ? envelopeFor(reportPackageJsonExportError)
+      : null;
+  const reportPackageStoredJsonRecord =
+    reportPackageStoredJsonExportCreateMutation.data?.record ??
+    reportPackageStoredJsonExportQuery.data?.record ??
+    null;
+  const reportPackageStoredJsonError =
+    reportPackageStoredJsonExportCreateMutation.error ??
+    (reportPackageStoredJsonArtifactQuery.error as LpReportingHookError | null) ??
+    (reportPackageStoredJsonExportQuery.error as LpReportingHookError | null);
+  const reportPackageStoredJsonBlockers = reportPackageStoredJsonError?.blockers ?? [];
+  const reportPackageStoredJsonEnvelope =
+    reportPackageStoredJsonError && reportPackageStoredJsonBlockers.length === 0
+      ? envelopeFor(reportPackageStoredJsonError)
       : null;
   const approvedNarrativeCount = narrativeRecords.filter(
     (record) => record.status === 'approved'
@@ -657,6 +705,16 @@ export default function LpReportingMetricsPage() {
     fundId !== null &&
     lockedMetricRunId !== null &&
     !reportPackageJsonExportQuery.isFetching;
+  const canStoreReportPackageJson =
+    reportPackageRenderModel !== null &&
+    fundId !== null &&
+    lockedMetricRunId !== null &&
+    !reportPackageStoredJsonExportCreateMutation.isPending;
+  const canExportStoredReportPackageJson =
+    reportPackageStoredJsonRecord !== null &&
+    fundId !== null &&
+    lockedMetricRunId !== null &&
+    !reportPackageStoredJsonArtifactQuery.isFetching;
   const reportPackageError =
     reportPackageAssembleMutation.error ??
     (reportPackageQuery.error as LpReportingHookError | null) ??
@@ -1408,6 +1466,43 @@ export default function LpReportingMetricsPage() {
                           </Alert>
                         ) : null}
 
+                        {reportPackageStoredJsonBlockers.length > 0 ? (
+                          <Alert
+                            variant="destructive"
+                            data-testid="metric-run-report-package-stored-json-blocked"
+                          >
+                            <AlertTitle>Stored JSON blocked</AlertTitle>
+                            <AlertDescription>
+                              <ul className="list-disc space-y-1 pl-5">
+                                {reportPackageStoredJsonBlockers.map((blocker, index) => (
+                                  <li key={`${blocker.code}-${index}`}>
+                                    {blocker.message}
+                                    {blocker.evidenceRecordId
+                                      ? ` Evidence #${blocker.evidenceRecordId}.`
+                                      : ''}
+                                    {blocker.evidenceRecordIds
+                                      ? ` Evidence refs ${blocker.evidenceRecordIds.join(', ')}.`
+                                      : ''}
+                                  </li>
+                                ))}
+                              </ul>
+                            </AlertDescription>
+                          </Alert>
+                        ) : null}
+
+                        {reportPackageStoredJsonEnvelope ? (
+                          <Alert
+                            variant="destructive"
+                            data-testid="metric-run-report-package-stored-json-error"
+                            data-error-status={reportPackageStoredJsonError?.status ?? ''}
+                          >
+                            <AlertTitle>{reportPackageStoredJsonEnvelope.title}</AlertTitle>
+                            <AlertDescription>
+                              {reportPackageStoredJsonEnvelope.description}
+                            </AlertDescription>
+                          </Alert>
+                        ) : null}
+
                         {reportPackageJsonExportHash ? (
                           <Alert data-testid="metric-run-report-package-json-export-result">
                             <AlertTitle>JSON handoff ready</AlertTitle>
@@ -1417,22 +1512,60 @@ export default function LpReportingMetricsPage() {
                           </Alert>
                         ) : null}
 
+                        {reportPackageStoredJsonRecord ? (
+                          <Alert data-testid="metric-run-report-package-stored-json-result">
+                            <AlertTitle>Stored JSON ready</AlertTitle>
+                            <AlertDescription>
+                              Status {reportPackageStoredJsonRecord.status}; SHA-256{' '}
+                              {reportPackageStoredJsonRecord.contentHash.slice(0, 12)}...; created{' '}
+                              {reportPackageStoredJsonRecord.createdAt} by user #
+                              {reportPackageStoredJsonRecord.createdBy}.
+                            </AlertDescription>
+                          </Alert>
+                        ) : null}
+
                         <div className="flex flex-col gap-3 border-t border-slate-200 pt-3 sm:flex-row sm:items-center sm:justify-between">
                           <p className="text-sm text-charcoal/70 font-poppins">
                             Create the package JSON handoff for this locked metric run.
                           </p>
-                          <Button
-                            type="button"
-                            variant="outline"
-                            onClick={() => void handleReportPackageJsonExport()}
-                            disabled={!canExportReportPackageJson}
-                            data-testid="metric-run-report-package-export-json"
-                          >
-                            <FileJson className="mr-2 h-4 w-4" aria-hidden="true" />
-                            {reportPackageJsonExportQuery.isFetching
-                              ? 'Preparing...'
-                              : 'Export JSON'}
-                          </Button>
+                          <div className="flex flex-wrap gap-2">
+                            <Button
+                              type="button"
+                              variant="outline"
+                              onClick={() => void handleReportPackageJsonExport()}
+                              disabled={!canExportReportPackageJson}
+                              data-testid="metric-run-report-package-export-json"
+                            >
+                              <FileJson className="mr-2 h-4 w-4" aria-hidden="true" />
+                              {reportPackageJsonExportQuery.isFetching
+                                ? 'Preparing...'
+                                : 'Export JSON'}
+                            </Button>
+                            <Button
+                              type="button"
+                              variant="outline"
+                              onClick={() => void handleReportPackageStoredJsonCreate()}
+                              disabled={!canStoreReportPackageJson}
+                              data-testid="metric-run-report-package-store-json"
+                            >
+                              <Save className="mr-2 h-4 w-4" aria-hidden="true" />
+                              {reportPackageStoredJsonExportCreateMutation.isPending
+                                ? 'Storing...'
+                                : 'Store JSON'}
+                            </Button>
+                            <Button
+                              type="button"
+                              variant="outline"
+                              onClick={() => void handleReportPackageStoredJsonExport()}
+                              disabled={!canExportStoredReportPackageJson}
+                              data-testid="metric-run-report-package-export-stored-json"
+                            >
+                              <FileJson className="mr-2 h-4 w-4" aria-hidden="true" />
+                              {reportPackageStoredJsonArtifactQuery.isFetching
+                                ? 'Preparing...'
+                                : 'Export stored JSON'}
+                            </Button>
+                          </div>
                         </div>
                       </div>
                     ) : null}

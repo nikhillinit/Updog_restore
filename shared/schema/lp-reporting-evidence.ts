@@ -75,8 +75,8 @@ export const vehicles = pgTable(
       .notNull()
       .default(sql`'{}'::jsonb`),
     adminBurdenScore: integer('admin_burden_score'),
-    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
-    updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow(),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
   },
   (table) => ({
     fundSlugUnique: unique('vehicles_fund_slug_unique').on(table.fundId, table.vehicleSlug),
@@ -516,6 +516,79 @@ export const lpReportPackages = pgTable(
 
 export type LpReportPackage = typeof lpReportPackages.$inferSelect;
 export type InsertLpReportPackage = typeof lpReportPackages.$inferInsert;
+
+// ============================================================================
+// LP REPORT PACKAGE EXPORTS
+// ============================================================================
+
+export const lpReportPackageExports = pgTable(
+  'lp_report_package_exports',
+  {
+    id: serial('id').primaryKey(),
+    fundId: integer('fund_id')
+      .notNull()
+      .references(() => funds.id, { onDelete: 'cascade' }),
+    metricRunId: integer('metric_run_id')
+      .notNull()
+      .references(() => lpMetricRuns.id, { onDelete: 'cascade' }),
+    reportPackageId: integer('report_package_id')
+      .notNull()
+      .references(() => lpReportPackages.id, { onDelete: 'cascade' }),
+
+    format: varchar('format', { length: 16 }).notNull().default('json'),
+    exportVersion: integer('export_version').notNull().default(1),
+    status: varchar('status', { length: 32 }).notNull().default('ready'),
+    contentHashAlgorithm: varchar('content_hash_algorithm', { length: 16 })
+      .notNull()
+      .default('sha256'),
+    contentHash: varchar('content_hash', { length: 64 }).notNull(),
+    artifactPayload: jsonb('artifact_payload').notNull(),
+    artifactSizeBytes: integer('artifact_size_bytes').notNull(),
+
+    createdBy: integer('created_by')
+      .notNull()
+      .references(() => users.id),
+    readyAt: timestamp('ready_at', { withTimezone: true }).notNull().defaultNow(),
+    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow(),
+  },
+  (table) => ({
+    formatCheck: check('lp_report_package_export_format_check', sql`${table.format} IN ('json')`),
+    versionCheck: check('lp_report_package_export_version_check', sql`${table.exportVersion} = 1`),
+    statusCheck: check('lp_report_package_export_status_check', sql`${table.status} IN ('ready')`),
+    hashAlgorithmCheck: check(
+      'lp_report_package_export_hash_algorithm_check',
+      sql`${table.contentHashAlgorithm} IN ('sha256')`
+    ),
+    hashCheck: check(
+      'lp_report_package_export_hash_check',
+      sql`${table.contentHash} ~ '^[a-f0-9]{64}$'`
+    ),
+    artifactSizeCheck: check(
+      'lp_report_package_export_artifact_size_check',
+      sql`${table.artifactSizeBytes} >= 0`
+    ),
+    reportPackageFormatVersionUniqueIdx: uniqueIndex(
+      'lp_report_package_exports_package_format_version_unique'
+    ).on(table.reportPackageId, table.format, table.exportVersion),
+    fundMetricIdx: index('idx_lp_report_package_exports_fund_metric').on(
+      table.fundId,
+      table.metricRunId
+    ),
+    fundMetricPackageIdx: index('idx_lp_report_package_exports_fund_metric_package').on(
+      table.fundId,
+      table.metricRunId,
+      table.reportPackageId
+    ),
+    fundReadyAtIdx: index('idx_lp_report_package_exports_fund_ready_at').on(
+      table.fundId,
+      table.readyAt.desc()
+    ),
+  })
+);
+
+export type LpReportPackageExport = typeof lpReportPackageExports.$inferSelect;
+export type InsertLpReportPackageExport = typeof lpReportPackageExports.$inferInsert;
 
 // ============================================================================
 // LP VEHICLE PARTICIPATION
