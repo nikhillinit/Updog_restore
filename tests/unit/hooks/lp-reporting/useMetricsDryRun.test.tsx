@@ -17,18 +17,24 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { renderHook, waitFor } from '@testing-library/react';
 
 import {
+  useLatestMetricRun,
+  useMetricRunApprove,
   useMetricRunCommit,
+  useMetricRunDetail,
   useMetricRunEvidenceCreate,
   useMetricRunEvidenceList,
+  useMetricRunLock,
   useMetricsDryRun,
 } from '@/hooks/lp-reporting';
 import type { MetricsDryRunRequest } from '@/hooks/lp-reporting';
 import type {
   LpMetricRunResults,
   MetricRunCommitResponse,
+  MetricRunDetailResponse,
   MetricRunDryRunResponse,
   MetricRunEvidenceCreateResponse,
   MetricRunEvidenceListResponse,
+  MetricRunLifecycleResponse,
 } from '@shared/contracts/lp-reporting';
 
 function makeWrapper() {
@@ -144,6 +150,43 @@ function makeEvidenceCreateResponse(): MetricRunEvidenceCreateResponse {
   return {
     record: makeEvidenceRecord(),
     inserted: true,
+  };
+}
+
+function makeMetricRunDetail(
+  overrides: Partial<MetricRunDetailResponse> = {}
+): MetricRunDetailResponse {
+  return {
+    metricRunId: 17,
+    fundId: 7,
+    asOfDate: '2026-03-31',
+    runType: 'quarterly_report',
+    perspective: 'lp_net',
+    status: 'draft',
+    inputsHash: 'a'.repeat(64),
+    sourceEventIds: [],
+    sourceMarkIds: [],
+    sourceEvidenceIds: [],
+    evidenceCount: 0,
+    generatedBy: 7,
+    approvedBy: null,
+    approvedAt: null,
+    lockedBy: null,
+    lockedAt: null,
+    exportedAt: null,
+    version: 1,
+    createdAt: '2026-05-10T00:00:00.000Z',
+    updatedAt: '2026-05-10T00:00:00.000Z',
+    ...overrides,
+  };
+}
+
+function makeLifecycleResponse(
+  overrides: Partial<MetricRunDetailResponse> = {}
+): MetricRunLifecycleResponse {
+  return {
+    metricRun: makeMetricRunDetail(overrides),
+    changed: true,
   };
 }
 
@@ -303,6 +346,142 @@ describe('useMetricRunCommit', () => {
 
     expect(result.current.error?.status).toBe(409);
     expect(result.current.error?.code).toBe('PREVIEW_HASH_MISMATCH');
+  });
+});
+
+describe('metric-run lifecycle hooks', () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it('GETs exact-context latest metric-run state', async () => {
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response(JSON.stringify({ metricRun: makeMetricRunDetail() }), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      })
+    );
+
+    const { Wrapper } = makeWrapper();
+    const { result } = renderHook(
+      () =>
+        useLatestMetricRun(7, {
+          asOfDate: '2026-03-31',
+          runType: 'quarterly_report',
+          perspective: 'lp_net',
+        }),
+      { wrapper: Wrapper }
+    );
+
+    await waitFor(() => {
+      expect(result.current.isSuccess).toBe(true);
+    });
+
+    expect(fetchSpy).toHaveBeenCalledTimes(1);
+    const [url, init] = fetchSpy.mock.calls[0]!;
+    expect(url).toBe(
+      '/api/funds/7/metric-runs/latest?runType=quarterly_report&perspective=lp_net&asOfDate=2026-03-31'
+    );
+    expect(init?.method).toBe('GET');
+    expect(result.current.data?.metricRun?.version).toBe(1);
+  });
+
+  it('does not fetch latest until all filters exist', () => {
+    const fetchSpy = vi.spyOn(globalThis, 'fetch');
+
+    const { Wrapper } = makeWrapper();
+    const { result } = renderHook(() => useLatestMetricRun(7, null), { wrapper: Wrapper });
+
+    expect(result.current.fetchStatus).toBe('idle');
+    expect(fetchSpy).not.toHaveBeenCalled();
+  });
+
+  it('GETs metric-run detail by committed run ID', async () => {
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response(JSON.stringify(makeMetricRunDetail({ evidenceCount: 1 })), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      })
+    );
+
+    const { Wrapper } = makeWrapper();
+    const { result } = renderHook(() => useMetricRunDetail(7, 17), { wrapper: Wrapper });
+
+    await waitFor(() => {
+      expect(result.current.isSuccess).toBe(true);
+    });
+
+    expect(fetchSpy).toHaveBeenCalledTimes(1);
+    const [url, init] = fetchSpy.mock.calls[0]!;
+    expect(url).toBe('/api/funds/7/metric-runs/17');
+    expect(init?.method).toBe('GET');
+    expect(result.current.data?.metricRunId).toBe(17);
+    expect(result.current.data?.evidenceCount).toBe(1);
+  });
+
+  it('POSTs expectedVersion to approve endpoint', async () => {
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response(
+        JSON.stringify(
+          makeLifecycleResponse({
+            status: 'approved',
+            approvedBy: 7,
+            approvedAt: '2026-05-10T01:00:00.000Z',
+            version: 2,
+          })
+        ),
+        {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        }
+      )
+    );
+
+    const { Wrapper } = makeWrapper();
+    const { result } = renderHook(() => useMetricRunApprove(7, 17), { wrapper: Wrapper });
+
+    result.current.mutate({ expectedVersion: 1 });
+
+    await waitFor(() => {
+      expect(result.current.isSuccess).toBe(true);
+    });
+
+    const [url, init] = fetchSpy.mock.calls[0]!;
+    expect(url).toBe('/api/funds/7/metric-runs/17/approve');
+    expect(init?.method).toBe('POST');
+    expect(JSON.parse(init?.body as string)).toEqual({ expectedVersion: 1 });
+    expect(result.current.data?.metricRun.status).toBe('approved');
+  });
+
+  it('POSTs expectedVersion to lock endpoint and preserves 409 server code', async () => {
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(
+      new Response(
+        JSON.stringify({
+          error: 'METRIC_RUN_VERSION_CONFLICT',
+          message: 'Metric run version no longer matches the request.',
+        }),
+        {
+          status: 409,
+          headers: { 'Content-Type': 'application/json' },
+        }
+      )
+    );
+
+    const { Wrapper } = makeWrapper();
+    const { result } = renderHook(() => useMetricRunLock(7, 17), { wrapper: Wrapper });
+
+    result.current.mutate({ expectedVersion: 2 });
+
+    await waitFor(() => {
+      expect(result.current.isError).toBe(true);
+    });
+
+    const [url, init] = fetchSpy.mock.calls[0]!;
+    expect(url).toBe('/api/funds/7/metric-runs/17/lock');
+    expect(init?.method).toBe('POST');
+    expect(JSON.parse(init?.body as string)).toEqual({ expectedVersion: 2 });
+    expect(result.current.error?.status).toBe(409);
+    expect(result.current.error?.code).toBe('METRIC_RUN_VERSION_CONFLICT');
   });
 });
 

@@ -23,6 +23,7 @@
 import { useCallback, useState, type FormEvent } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { MetricRunForm } from '@/components/lp-reporting/MetricRunForm';
 import { MetricsCards } from '@/components/lp-reporting/MetricsCards';
@@ -33,15 +34,21 @@ import {
   LpMetricRunResultsSchema,
   MetricRunDryRunResponseSchema,
   type ConfidenceLevel,
+  type MetricRunDetailResponse,
   type MetricRunCommitResponse,
   type MetricRunDryRunRequest,
   type MetricRunDryRunResponse,
   type MetricRunEvidenceCreateRequest,
+  type MetricRunLifecycleResponse,
 } from '@shared/contracts/lp-reporting';
 import {
+  useLatestMetricRun,
+  useMetricRunApprove,
   useMetricRunCommit,
+  useMetricRunDetail,
   useMetricRunEvidenceCreate,
   useMetricRunEvidenceList,
+  useMetricRunLock,
   type LpReportingHookError,
 } from '@/hooks/lp-reporting';
 
@@ -105,6 +112,24 @@ function createEvidenceIdempotencyKey(metricRunId: number): string {
 }
 
 function envelopeFor(err: LpReportingHookError): ErrorEnvelope {
+  if (err.code === 'METRIC_RUN_EVIDENCE_REQUIRED') {
+    return {
+      title: 'Evidence required',
+      description: 'Add at least one evidence record before approving this metric run.',
+    };
+  }
+  if (err.code === 'METRIC_RUN_VERSION_CONFLICT') {
+    return {
+      title: 'Metric run changed',
+      description: 'The metric run changed since this page loaded. Refresh the lifecycle state.',
+    };
+  }
+  if (err.code === 'METRIC_RUN_STATUS_CONFLICT') {
+    return {
+      title: 'Metric run status changed',
+      description: 'This lifecycle action is no longer valid for the metric run status.',
+    };
+  }
   if (err.code === 'METRIC_RUN_NOT_EDITABLE') {
     return {
       title: 'Metric run not editable',
@@ -164,12 +189,37 @@ export default function LpReportingMetricsPage() {
   const [dryRunError, setDryRunError] = useState<LpReportingHookError | null>(null);
   const [commitResult, setCommitResult] = useState<MetricRunCommitResponse | null>(null);
   const [commitError, setCommitError] = useState<LpReportingHookError | null>(null);
+  const [lifecycleResult, setLifecycleResult] = useState<MetricRunLifecycleResponse | null>(null);
+  const [lifecycleError, setLifecycleError] = useState<LpReportingHookError | null>(null);
   const [evidenceForm, setEvidenceForm] = useState<EvidenceFormState>(() =>
     makeEvidenceFormState()
   );
   const [evidenceIdempotencyKey, setEvidenceIdempotencyKey] = useState<string | null>(null);
   const [evidenceError, setEvidenceError] = useState<LpReportingHookError | null>(null);
   const committedMetricRunId = commitResult?.metricRunId ?? null;
+  const latestQuery = useLatestMetricRun(
+    fundId,
+    dryRunRequest
+      ? {
+          asOfDate: dryRunRequest.asOfDate,
+          runType: dryRunRequest.runType,
+          perspective: dryRunRequest.perspective,
+        }
+      : null
+  );
+  const latestMetricRun = latestQuery.data?.metricRun ?? null;
+  const committedMetricRunQuery = useMetricRunDetail(fundId, committedMetricRunId);
+  const committedMetricRun = committedMetricRunQuery.data ?? null;
+  const latestMatchesCommitted =
+    latestMetricRun !== null &&
+    (committedMetricRunId === null || latestMetricRun.metricRunId === committedMetricRunId);
+  const activeMetricRun: MetricRunDetailResponse | null =
+    lifecycleResult?.metricRun ??
+    committedMetricRun ??
+    (latestMatchesCommitted ? latestMetricRun : null);
+  const lifecycleMetricRunId = activeMetricRun?.metricRunId ?? committedMetricRunId;
+  const approveMutation = useMetricRunApprove(fundId, lifecycleMetricRunId);
+  const lockMutation = useMetricRunLock(fundId, lifecycleMetricRunId);
   const evidenceListQuery = useMetricRunEvidenceList(fundId, committedMetricRunId);
   const evidenceCreateMutation = useMetricRunEvidenceCreate(fundId, committedMetricRunId);
 
@@ -185,6 +235,8 @@ export default function LpReportingMetricsPage() {
       setDryRunError(null);
       setCommitError(null);
       setCommitResult(null);
+      setLifecycleResult(null);
+      setLifecycleError(null);
       setEvidenceError(null);
       setEvidenceIdempotencyKey(null);
       setEvidenceForm(makeEvidenceFormState(parsedResults.asOfDate));
@@ -196,6 +248,8 @@ export default function LpReportingMetricsPage() {
     setDryRunError(err);
     setCommitError(null);
     setCommitResult(null);
+    setLifecycleResult(null);
+    setLifecycleError(null);
     setEvidenceError(null);
   }, []);
 
@@ -210,6 +264,8 @@ export default function LpReportingMetricsPage() {
       });
       setCommitResult(result);
       setCommitError(null);
+      setLifecycleResult(null);
+      setLifecycleError(null);
       setEvidenceError(null);
       setEvidenceIdempotencyKey(createEvidenceIdempotencyKey(result.metricRunId));
       setEvidenceForm(makeEvidenceFormState(dryRun.results.asOfDate));
@@ -220,6 +276,42 @@ export default function LpReportingMetricsPage() {
     }
   }, [commitMutation, dryRun, dryRunRequest]);
 
+  const handleApprove = useCallback(async () => {
+    if (!activeMetricRun) {
+      return;
+    }
+    try {
+      const result = await approveMutation.mutateAsync({
+        expectedVersion: activeMetricRun.version,
+      });
+      setLifecycleResult(result);
+      setLifecycleError(null);
+      setEvidenceError(null);
+    } catch (err) {
+      if (err && typeof err === 'object') {
+        setLifecycleError(err as LpReportingHookError);
+      }
+    }
+  }, [activeMetricRun, approveMutation]);
+
+  const handleLock = useCallback(async () => {
+    if (!activeMetricRun) {
+      return;
+    }
+    try {
+      const result = await lockMutation.mutateAsync({
+        expectedVersion: activeMetricRun.version,
+      });
+      setLifecycleResult(result);
+      setLifecycleError(null);
+      setEvidenceError(null);
+    } catch (err) {
+      if (err && typeof err === 'object') {
+        setLifecycleError(err as LpReportingHookError);
+      }
+    }
+  }, [activeMetricRun, lockMutation]);
+
   const handleEvidenceSubmit = useCallback(
     async (event: FormEvent<HTMLFormElement>) => {
       event.preventDefault();
@@ -228,6 +320,7 @@ export default function LpReportingMetricsPage() {
       }
       const idempotencyKey =
         evidenceIdempotencyKey ?? createEvidenceIdempotencyKey(committedMetricRunId);
+      const description = optionalText(evidenceForm.description);
 
       const request: MetricRunEvidenceCreateRequest = {
         idempotencyKey,
@@ -237,9 +330,7 @@ export default function LpReportingMetricsPage() {
         materialityLevel: evidenceForm.materialityLevel,
         confidentiality: evidenceForm.confidentiality,
         redactionRequired: evidenceForm.redactionRequired,
-        ...(optionalText(evidenceForm.description) !== undefined && {
-          description: optionalText(evidenceForm.description),
-        }),
+        ...(description !== undefined && { description }),
       };
 
       try {
@@ -265,6 +356,7 @@ export default function LpReportingMetricsPage() {
   const results = dryRun?.results ?? null;
   const envelope = dryRunError ? envelopeFor(dryRunError) : null;
   const commitEnvelope = commitError ? envelopeFor(commitError) : null;
+  const lifecycleEnvelope = lifecycleError ? envelopeFor(lifecycleError) : null;
   const evidenceQueryError =
     evidenceListQuery.error && committedMetricRunId !== null ? evidenceListQuery.error : null;
   const evidenceEnvelope = evidenceError
@@ -273,6 +365,14 @@ export default function LpReportingMetricsPage() {
       ? envelopeFor(evidenceQueryError)
       : null;
   const evidenceRecords = evidenceListQuery.data?.records ?? [];
+  const activeEvidenceCount = Math.max(activeMetricRun?.evidenceCount ?? 0, evidenceRecords.length);
+  const canApprove =
+    activeMetricRun?.status === 'draft' &&
+    activeEvidenceCount > 0 &&
+    !approveMutation.isPending &&
+    !latestQuery.isFetching;
+  const canLock = activeMetricRun?.status === 'approved' && !lockMutation.isPending;
+  const isEvidenceEditable = activeMetricRun === null || activeMetricRun.status === 'draft';
 
   return (
     <div className="p-8 space-y-6">
@@ -370,11 +470,104 @@ export default function LpReportingMetricsPage() {
           </Card>
 
           {commitResult ? (
+            <Card data-testid="metric-run-lifecycle-card">
+              <CardHeader>
+                <CardTitle>Metric-run lifecycle</CardTitle>
+                <CardDescription>
+                  Approval and lock state for metric run #{commitResult.metricRunId}.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {lifecycleEnvelope ? (
+                  <Alert
+                    variant="destructive"
+                    data-testid="metric-run-lifecycle-error-envelope"
+                    data-error-status={lifecycleError?.status ?? ''}
+                  >
+                    <AlertTitle>{lifecycleEnvelope.title}</AlertTitle>
+                    <AlertDescription>{lifecycleEnvelope.description}</AlertDescription>
+                  </Alert>
+                ) : null}
+
+                {activeMetricRun ? (
+                  <div
+                    className="grid gap-3 rounded-md border border-slate-200 p-3 text-sm md:grid-cols-2"
+                    data-testid="metric-run-lifecycle-panel"
+                  >
+                    <div>
+                      <p className="text-xs uppercase tracking-wide text-charcoal/60">Status</p>
+                      <div className="mt-1 flex items-center gap-2">
+                        <Badge variant="outline" data-testid="metric-run-status-badge">
+                          {activeMetricRun.status}
+                        </Badge>
+                        <span className="text-xs text-charcoal/60">
+                          version {activeMetricRun.version}
+                        </span>
+                      </div>
+                    </div>
+                    <div>
+                      <p className="text-xs uppercase tracking-wide text-charcoal/60">Evidence</p>
+                      <p className="mt-1 font-medium" data-testid="metric-run-evidence-count">
+                        {activeEvidenceCount} record{activeEvidenceCount === 1 ? '' : 's'}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-xs uppercase tracking-wide text-charcoal/60">Approved</p>
+                      <p className="mt-1 text-charcoal/70" data-testid="metric-run-approved-at">
+                        {activeMetricRun.approvedAt ?? 'Not approved'}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-xs uppercase tracking-wide text-charcoal/60">Locked</p>
+                      <p className="mt-1 text-charcoal/70" data-testid="metric-run-locked-at">
+                        {activeMetricRun.lockedAt ?? 'Not locked'}
+                      </p>
+                    </div>
+                  </div>
+                ) : (
+                  <p className="text-sm text-charcoal/70 font-poppins">
+                    Loading lifecycle status...
+                  </p>
+                )}
+
+                {activeMetricRun?.status === 'draft' && activeEvidenceCount === 0 ? (
+                  <Alert data-testid="metric-run-approval-blocked">
+                    <AlertTitle>Approval blocked</AlertTitle>
+                    <AlertDescription>
+                      Add at least one evidence record before approving this metric run.
+                    </AlertDescription>
+                  </Alert>
+                ) : null}
+
+                <div className="flex flex-col gap-3 sm:flex-row">
+                  <Button
+                    type="button"
+                    onClick={() => void handleApprove()}
+                    disabled={!canApprove}
+                    data-testid="metric-run-approve-button"
+                  >
+                    {approveMutation.isPending ? 'Approving...' : 'Approve'}
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => void handleLock()}
+                    disabled={!canLock}
+                    data-testid="metric-run-lock-button"
+                  >
+                    {lockMutation.isPending ? 'Locking...' : 'Lock'}
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          ) : null}
+
+          {commitResult ? (
             <Card data-testid="metric-run-evidence-card">
               <CardHeader>
                 <CardTitle>Metric-run evidence</CardTitle>
                 <CardDescription>
-                  Metadata records attached to draft metric run #{commitResult.metricRunId}.
+                  Metadata records attached to metric run #{commitResult.metricRunId}.
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
@@ -389,147 +582,156 @@ export default function LpReportingMetricsPage() {
                   </Alert>
                 ) : null}
 
-                <form
-                  className="grid gap-4 md:grid-cols-2"
-                  onSubmit={(event) => void handleEvidenceSubmit(event)}
-                  data-testid="metric-run-evidence-form"
-                >
-                  <label className="space-y-1 text-sm font-medium text-charcoal">
-                    Evidence source
-                    <select
-                      className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm"
-                      value={evidenceForm.evidenceSource}
-                      onChange={(event) =>
-                        setEvidenceForm((current) => ({
-                          ...current,
-                          evidenceSource: event.target.value as EvidenceSource,
-                        }))
-                      }
-                    >
-                      <option value="board_update">Board update</option>
-                      <option value="audited_financials">Audited financials</option>
-                      <option value="financing_round">Financing round</option>
-                      <option value="management_report">Management report</option>
-                      <option value="gp_estimate">GP estimate</option>
-                      <option value="third_party_priced">Third-party priced</option>
-                      <option value="signed_loi">Signed LOI</option>
-                      <option value="revenue_milestone">Revenue milestone</option>
-                      <option value="strategic_partnership">Strategic partnership</option>
-                      <option value="secondary_transaction">Secondary transaction</option>
-                      <option value="customer_contract">Customer contract</option>
-                      <option value="auditor_confirmation">Auditor confirmation</option>
-                    </select>
-                  </label>
+                {isEvidenceEditable ? (
+                  <form
+                    className="grid gap-4 md:grid-cols-2"
+                    onSubmit={(event) => void handleEvidenceSubmit(event)}
+                    data-testid="metric-run-evidence-form"
+                  >
+                    <label className="space-y-1 text-sm font-medium text-charcoal">
+                      Evidence source
+                      <select
+                        className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm"
+                        value={evidenceForm.evidenceSource}
+                        onChange={(event) =>
+                          setEvidenceForm((current) => ({
+                            ...current,
+                            evidenceSource: event.target.value as EvidenceSource,
+                          }))
+                        }
+                      >
+                        <option value="board_update">Board update</option>
+                        <option value="audited_financials">Audited financials</option>
+                        <option value="financing_round">Financing round</option>
+                        <option value="management_report">Management report</option>
+                        <option value="gp_estimate">GP estimate</option>
+                        <option value="third_party_priced">Third-party priced</option>
+                        <option value="signed_loi">Signed LOI</option>
+                        <option value="revenue_milestone">Revenue milestone</option>
+                        <option value="strategic_partnership">Strategic partnership</option>
+                        <option value="secondary_transaction">Secondary transaction</option>
+                        <option value="customer_contract">Customer contract</option>
+                        <option value="auditor_confirmation">Auditor confirmation</option>
+                      </select>
+                    </label>
 
-                  <label className="space-y-1 text-sm font-medium text-charcoal">
-                    Source date
-                    <input
-                      className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm"
-                      type="date"
-                      required
-                      value={evidenceForm.sourceDate}
-                      onChange={(event) =>
-                        setEvidenceForm((current) => ({
-                          ...current,
-                          sourceDate: event.target.value,
-                        }))
-                      }
-                    />
-                  </label>
+                    <label className="space-y-1 text-sm font-medium text-charcoal">
+                      Source date
+                      <input
+                        className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm"
+                        type="date"
+                        required
+                        value={evidenceForm.sourceDate}
+                        onChange={(event) =>
+                          setEvidenceForm((current) => ({
+                            ...current,
+                            sourceDate: event.target.value,
+                          }))
+                        }
+                      />
+                    </label>
 
-                  <label className="space-y-1 text-sm font-medium text-charcoal">
-                    Confidence
-                    <select
-                      className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm"
-                      value={evidenceForm.confidenceLevel}
-                      onChange={(event) =>
-                        setEvidenceForm((current) => ({
-                          ...current,
-                          confidenceLevel: event.target.value as ConfidenceLevel,
-                        }))
-                      }
-                    >
-                      <option value="high">High</option>
-                      <option value="medium">Medium</option>
-                      <option value="low">Low</option>
-                    </select>
-                  </label>
+                    <label className="space-y-1 text-sm font-medium text-charcoal">
+                      Confidence
+                      <select
+                        className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm"
+                        value={evidenceForm.confidenceLevel}
+                        onChange={(event) =>
+                          setEvidenceForm((current) => ({
+                            ...current,
+                            confidenceLevel: event.target.value as ConfidenceLevel,
+                          }))
+                        }
+                      >
+                        <option value="high">High</option>
+                        <option value="medium">Medium</option>
+                        <option value="low">Low</option>
+                      </select>
+                    </label>
 
-                  <label className="space-y-1 text-sm font-medium text-charcoal">
-                    Materiality
-                    <select
-                      className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm"
-                      value={evidenceForm.materialityLevel}
-                      onChange={(event) =>
-                        setEvidenceForm((current) => ({
-                          ...current,
-                          materialityLevel: event.target.value as MaterialityLevel,
-                        }))
-                      }
-                    >
-                      <option value="high">High</option>
-                      <option value="medium">Medium</option>
-                      <option value="low">Low</option>
-                    </select>
-                  </label>
+                    <label className="space-y-1 text-sm font-medium text-charcoal">
+                      Materiality
+                      <select
+                        className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm"
+                        value={evidenceForm.materialityLevel}
+                        onChange={(event) =>
+                          setEvidenceForm((current) => ({
+                            ...current,
+                            materialityLevel: event.target.value as MaterialityLevel,
+                          }))
+                        }
+                      >
+                        <option value="high">High</option>
+                        <option value="medium">Medium</option>
+                        <option value="low">Low</option>
+                      </select>
+                    </label>
 
-                  <label className="space-y-1 text-sm font-medium text-charcoal">
-                    Confidentiality
-                    <select
-                      className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm"
-                      value={evidenceForm.confidentiality}
-                      onChange={(event) =>
-                        setEvidenceForm((current) => ({
-                          ...current,
-                          confidentiality: event.target.value as Confidentiality,
-                        }))
-                      }
-                    >
-                      <option value="internal">Internal</option>
-                      <option value="lp_shareable">LP shareable</option>
-                      <option value="restricted">Restricted</option>
-                    </select>
-                  </label>
+                    <label className="space-y-1 text-sm font-medium text-charcoal">
+                      Confidentiality
+                      <select
+                        className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm"
+                        value={evidenceForm.confidentiality}
+                        onChange={(event) =>
+                          setEvidenceForm((current) => ({
+                            ...current,
+                            confidentiality: event.target.value as Confidentiality,
+                          }))
+                        }
+                      >
+                        <option value="internal">Internal</option>
+                        <option value="lp_shareable">LP shareable</option>
+                        <option value="restricted">Restricted</option>
+                      </select>
+                    </label>
 
-                  <label className="flex items-center gap-2 text-sm font-medium text-charcoal md:mt-7">
-                    <input
-                      type="checkbox"
-                      checked={evidenceForm.redactionRequired}
-                      onChange={(event) =>
-                        setEvidenceForm((current) => ({
-                          ...current,
-                          redactionRequired: event.target.checked,
-                        }))
-                      }
-                    />
-                    Redaction required
-                  </label>
+                    <label className="flex items-center gap-2 text-sm font-medium text-charcoal md:mt-7">
+                      <input
+                        type="checkbox"
+                        checked={evidenceForm.redactionRequired}
+                        onChange={(event) =>
+                          setEvidenceForm((current) => ({
+                            ...current,
+                            redactionRequired: event.target.checked,
+                          }))
+                        }
+                      />
+                      Redaction required
+                    </label>
 
-                  <label className="space-y-1 text-sm font-medium text-charcoal md:col-span-2">
-                    Description
-                    <textarea
-                      className="min-h-24 w-full rounded-md border border-slate-300 px-3 py-2 text-sm"
-                      maxLength={2000}
-                      value={evidenceForm.description}
-                      onChange={(event) =>
-                        setEvidenceForm((current) => ({
-                          ...current,
-                          description: event.target.value,
-                        }))
-                      }
-                    />
-                  </label>
+                    <label className="space-y-1 text-sm font-medium text-charcoal md:col-span-2">
+                      Description
+                      <textarea
+                        className="min-h-24 w-full rounded-md border border-slate-300 px-3 py-2 text-sm"
+                        maxLength={2000}
+                        value={evidenceForm.description}
+                        onChange={(event) =>
+                          setEvidenceForm((current) => ({
+                            ...current,
+                            description: event.target.value,
+                          }))
+                        }
+                      />
+                    </label>
 
-                  <div className="md:col-span-2">
-                    <Button
-                      type="submit"
-                      disabled={evidenceCreateMutation.isPending}
-                      data-testid="metric-run-evidence-submit"
-                    >
-                      {evidenceCreateMutation.isPending ? 'Saving...' : 'Add evidence'}
-                    </Button>
-                  </div>
-                </form>
+                    <div className="md:col-span-2">
+                      <Button
+                        type="submit"
+                        disabled={evidenceCreateMutation.isPending}
+                        data-testid="metric-run-evidence-submit"
+                      >
+                        {evidenceCreateMutation.isPending ? 'Saving...' : 'Add evidence'}
+                      </Button>
+                    </div>
+                  </form>
+                ) : (
+                  <Alert data-testid="metric-run-evidence-readonly">
+                    <AlertTitle>Evidence locked</AlertTitle>
+                    <AlertDescription>
+                      Evidence can be reviewed but not added after approval.
+                    </AlertDescription>
+                  </Alert>
+                )}
 
                 <div className="space-y-3" data-testid="metric-run-evidence-list">
                   {evidenceListQuery.isLoading ? (

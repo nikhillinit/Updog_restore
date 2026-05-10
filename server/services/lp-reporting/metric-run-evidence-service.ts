@@ -8,7 +8,7 @@
  * @module server/services/lp-reporting/metric-run-evidence-service
  */
 
-import { and, eq } from 'drizzle-orm';
+import { and, eq, sql } from 'drizzle-orm';
 
 import { db } from '../../db';
 import {
@@ -46,11 +46,50 @@ export interface MetricRunEvidenceListInput {
 
 interface MetricRunEvidenceServiceOptions {
   database?: MetricRunEvidenceDatabase;
+  skipTransaction?: boolean;
 }
 
 type MetricRunLookupRow = Pick<LpMetricRun, 'id' | 'fundId' | 'status'>;
+type TransactionCapableDatabase = MetricRunEvidenceDatabase & {
+  transaction?: <TResult>(
+    callback: (tx: MetricRunEvidenceDatabase) => Promise<TResult>
+  ) => Promise<TResult>;
+};
+type ExecuteCapableDatabase = MetricRunEvidenceDatabase & {
+  execute?: (query: unknown) => Promise<unknown>;
+};
 
 const EDITABLE_METRIC_RUN_STATUSES = new Set(['draft']);
+
+function withTransaction<TResult>(
+  database: MetricRunEvidenceDatabase,
+  skipTransaction: boolean,
+  callback: (tx: MetricRunEvidenceDatabase) => Promise<TResult>
+): Promise<TResult> {
+  const transactionCapable = database as TransactionCapableDatabase;
+  if (!skipTransaction && typeof transactionCapable.transaction === 'function') {
+    return transactionCapable.transaction((tx) => callback(tx));
+  }
+  return callback(database);
+}
+
+async function lockMetricRunRow(
+  database: MetricRunEvidenceDatabase,
+  fundId: number,
+  metricRunId: number
+): Promise<void> {
+  const executeCapable = database as ExecuteCapableDatabase;
+  if (typeof executeCapable.execute !== 'function') {
+    return;
+  }
+  await executeCapable.execute(sql`
+    SELECT id
+      FROM lp_metric_runs
+     WHERE fund_id = ${fundId}
+       AND id = ${metricRunId}
+     FOR UPDATE
+  `);
+}
 
 function isoDateTime(value: Date | string | null | undefined, field: string): string {
   if (value instanceof Date) {
@@ -232,46 +271,49 @@ export async function createMetricRunEvidence(
   options: MetricRunEvidenceServiceOptions = {}
 ): Promise<MetricRunEvidenceCreateResponse> {
   const database = options.database ?? db;
-  const body = MetricRunEvidenceCreateRequestSchema.parse(input.body);
-  const metricRun = await loadMetricRun(database, input.fundId, input.metricRunId);
-  assertMetricRunEditable(metricRun);
-  await assertUserExists(database, input.userId);
+  return withTransaction(database, options.skipTransaction === true, async (tx) => {
+    const body = MetricRunEvidenceCreateRequestSchema.parse(input.body);
+    await lockMetricRunRow(tx, input.fundId, input.metricRunId);
+    const metricRun = await loadMetricRun(tx, input.fundId, input.metricRunId);
+    assertMetricRunEditable(metricRun);
+    await assertUserExists(tx, input.userId);
 
-  const existing = await findEvidenceByIdempotencyKey(
-    database,
-    input.fundId,
-    input.metricRunId,
-    body.idempotencyKey
-  );
-  if (existing) {
-    return { record: toMetricRunEvidenceRecord(existing), inserted: false };
-  }
+    const existing = await findEvidenceByIdempotencyKey(
+      tx,
+      input.fundId,
+      input.metricRunId,
+      body.idempotencyKey
+    );
+    if (existing) {
+      return { record: toMetricRunEvidenceRecord(existing), inserted: false };
+    }
 
-  const inserted = await database
-    .insert(evidenceRecords)
-    .values(evidenceInsertValues({ ...input, body }))
-    .onConflictDoNothing()
-    .returning();
-  const insertedRow = (inserted as EvidenceRecord[])[0];
-  if (insertedRow) {
-    return { record: toMetricRunEvidenceRecord(insertedRow), inserted: true };
-  }
+    const inserted = await tx
+      .insert(evidenceRecords)
+      .values(evidenceInsertValues({ ...input, body }))
+      .onConflictDoNothing()
+      .returning();
+    const insertedRow = (inserted as EvidenceRecord[])[0];
+    if (insertedRow) {
+      return { record: toMetricRunEvidenceRecord(insertedRow), inserted: true };
+    }
 
-  const racedExisting = await findEvidenceByIdempotencyKey(
-    database,
-    input.fundId,
-    input.metricRunId,
-    body.idempotencyKey
-  );
-  if (racedExisting) {
-    return { record: toMetricRunEvidenceRecord(racedExisting), inserted: false };
-  }
+    const racedExisting = await findEvidenceByIdempotencyKey(
+      tx,
+      input.fundId,
+      input.metricRunId,
+      body.idempotencyKey
+    );
+    if (racedExisting) {
+      return { record: toMetricRunEvidenceRecord(racedExisting), inserted: false };
+    }
 
-  throw new MetricRunCommitError(
-    409,
-    'METRIC_RUN_EVIDENCE_CONFLICT',
-    'Evidence create conflicted but no existing row could be loaded.'
-  );
+    throw new MetricRunCommitError(
+      409,
+      'METRIC_RUN_EVIDENCE_CONFLICT',
+      'Evidence create conflicted but no existing row could be loaded.'
+    );
+  });
 }
 
 export async function listMetricRunEvidence(

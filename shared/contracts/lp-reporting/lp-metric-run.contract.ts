@@ -187,6 +187,71 @@ export type MetricRunDryRunResponse = z.infer<typeof MetricRunDryRunResponseSche
 export type MetricRunCommitRequest = z.infer<typeof MetricRunCommitRequestSchema>;
 export type MetricRunCommitResponse = z.infer<typeof MetricRunCommitResponseSchema>;
 
+export const MetricRunDetailResponseSchema = z
+  .object({
+    metricRunId: z.number().int().positive(),
+    fundId: z.number().int().positive(),
+    asOfDate: z.string().date(),
+    runType: LpMetricRunTypeSchema,
+    perspective: LpMetricRunPerspectiveSchema,
+    status: LpMetricRunStatusSchema,
+    inputsHash: z.string().min(1).max(128),
+    sourceEventIds: z.array(z.number().int().positive()),
+    sourceMarkIds: z.array(z.number().int().positive()),
+    sourceEvidenceIds: z.array(z.number().int().positive()),
+    evidenceCount: z.number().int().nonnegative(),
+    generatedBy: z.number().int().positive().nullable(),
+    approvedBy: z.number().int().positive().nullable(),
+    approvedAt: z.string().datetime().nullable(),
+    lockedBy: z.number().int().positive().nullable(),
+    lockedAt: z.string().datetime().nullable(),
+    exportedAt: z.string().datetime().nullable(),
+    version: z.number().int().positive(),
+    createdAt: z.string().datetime().nullable(),
+    updatedAt: z.string().datetime().nullable(),
+  })
+  .strict();
+
+export const MetricRunApproveRequestSchema = z
+  .object({
+    expectedVersion: z.number().int().positive(),
+  })
+  .strict();
+
+export const MetricRunLockRequestSchema = z
+  .object({
+    expectedVersion: z.number().int().positive(),
+  })
+  .strict();
+
+export const MetricRunLifecycleResponseSchema = z
+  .object({
+    metricRun: MetricRunDetailResponseSchema,
+    changed: z.boolean(),
+  })
+  .strict();
+
+export const LatestMetricRunQuerySchema = z
+  .object({
+    asOfDate: z.string().date(),
+    runType: LpMetricRunTypeSchema,
+    perspective: LpMetricRunPerspectiveSchema,
+  })
+  .strict();
+
+export const LatestMetricRunResponseSchema = z
+  .object({
+    metricRun: MetricRunDetailResponseSchema.nullable(),
+  })
+  .strict();
+
+export type MetricRunDetailResponse = z.infer<typeof MetricRunDetailResponseSchema>;
+export type MetricRunApproveRequest = z.infer<typeof MetricRunApproveRequestSchema>;
+export type MetricRunLockRequest = z.infer<typeof MetricRunLockRequestSchema>;
+export type MetricRunLifecycleResponse = z.infer<typeof MetricRunLifecycleResponseSchema>;
+export type LatestMetricRunQuery = z.infer<typeof LatestMetricRunQuerySchema>;
+export type LatestMetricRunResponse = z.infer<typeof LatestMetricRunResponseSchema>;
+
 // ---------------------------------------------------------------------------
 // CREATE request (mirrors lp_metric_runs row insert).
 // ---------------------------------------------------------------------------

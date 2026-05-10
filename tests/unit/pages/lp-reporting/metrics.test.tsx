@@ -43,7 +43,9 @@ import LpReportingMetricsPage from '@/pages/lp-reporting/metrics';
 import type {
   LpMetricRunResults,
   MetricRunCommitResponse,
+  MetricRunDetailResponse,
   MetricRunDryRunResponse,
+  MetricRunLifecycleResponse,
 } from '@shared/contracts/lp-reporting';
 
 function renderPage() {
@@ -143,6 +145,43 @@ function makeEvidenceRecord() {
   };
 }
 
+function makeMetricRunDetail(
+  overrides: Partial<MetricRunDetailResponse> = {}
+): MetricRunDetailResponse {
+  return {
+    metricRunId: 17,
+    fundId: 7,
+    asOfDate: '2026-03-31',
+    runType: 'internal_review',
+    perspective: 'lp_net',
+    status: 'draft',
+    inputsHash: 'a'.repeat(64),
+    sourceEventIds: [],
+    sourceMarkIds: [],
+    sourceEvidenceIds: [],
+    evidenceCount: 0,
+    generatedBy: 7,
+    approvedBy: null,
+    approvedAt: null,
+    lockedBy: null,
+    lockedAt: null,
+    exportedAt: null,
+    version: 1,
+    createdAt: '2026-05-10T00:00:00.000Z',
+    updatedAt: '2026-05-10T00:00:00.000Z',
+    ...overrides,
+  };
+}
+
+function makeLifecycleResponse(
+  overrides: Partial<MetricRunDetailResponse> = {}
+): MetricRunLifecycleResponse {
+  return {
+    metricRun: makeMetricRunDetail(overrides),
+    changed: true,
+  };
+}
+
 describe('LpReportingMetricsPage', () => {
   beforeEach(() => {
     fundContextMock.fundId = 7;
@@ -205,26 +244,40 @@ describe('LpReportingMetricsPage', () => {
   });
 
   it('commits the successful preview and renders the saved draft result', async () => {
-    const fetchSpy = vi
-      .spyOn(globalThis, 'fetch')
-      .mockResolvedValueOnce(
-        new Response(JSON.stringify(makeDryRunResponse()), {
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockImplementation(async (input) => {
+      const url = String(input);
+      if (url.endsWith('/metric-runs/dry-run')) {
+        return new Response(JSON.stringify(makeDryRunResponse()), {
           status: 200,
           headers: { 'Content-Type': 'application/json' },
-        })
-      )
-      .mockResolvedValueOnce(
-        new Response(JSON.stringify(makeCommitResponse()), {
+        });
+      }
+      if (url.includes('/metric-runs/latest')) {
+        return new Response(JSON.stringify({ metricRun: makeMetricRunDetail() }), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        });
+      }
+      if (url.endsWith('/metric-runs/commit')) {
+        return new Response(JSON.stringify(makeCommitResponse()), {
           status: 201,
           headers: { 'Content-Type': 'application/json' },
-        })
-      )
-      .mockResolvedValueOnce(
-        new Response(JSON.stringify({ records: [] }), {
+        });
+      }
+      if (url.endsWith('/metric-runs/17')) {
+        return new Response(JSON.stringify(makeMetricRunDetail()), {
           status: 200,
           headers: { 'Content-Type': 'application/json' },
-        })
-      );
+        });
+      }
+      if (url.endsWith('/metric-runs/17/evidence-records')) {
+        return new Response(JSON.stringify({ records: [] }), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        });
+      }
+      return new Response(JSON.stringify({ error: 'UNEXPECTED_URL' }), { status: 500 });
+    });
 
     renderPage();
 
@@ -239,7 +292,11 @@ describe('LpReportingMetricsPage', () => {
       expect(screen.getByTestId('metrics-commit-result')).toBeInTheDocument();
     });
 
-    const [, commitInit] = fetchSpy.mock.calls[1]!;
+    const commitCall = fetchSpy.mock.calls.find(([url]) =>
+      String(url).endsWith('/metric-runs/commit')
+    );
+    expect(commitCall).toBeTruthy();
+    const [, commitInit] = commitCall!;
     expect(JSON.parse(commitInit?.body as string)).toMatchObject({
       asOfDate: expect.stringMatching(/^\d{4}-\d{2}-\d{2}$/),
       runType: 'internal_review',
@@ -252,6 +309,94 @@ describe('LpReportingMetricsPage', () => {
     await waitFor(() => {
       expect(screen.getByTestId('metric-run-evidence-card')).toBeInTheDocument();
     });
+  });
+
+  it('uses committed run detail when latest returns a newer same-context run', async () => {
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockImplementation(async (input, init) => {
+      const url = String(input);
+      if (url.endsWith('/metric-runs/dry-run')) {
+        return new Response(JSON.stringify(makeDryRunResponse()), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        });
+      }
+      if (url.includes('/metric-runs/latest')) {
+        return new Response(
+          JSON.stringify({
+            metricRun: makeMetricRunDetail({
+              metricRunId: 99,
+              evidenceCount: 2,
+              version: 4,
+            }),
+          }),
+          {
+            status: 200,
+            headers: { 'Content-Type': 'application/json' },
+          }
+        );
+      }
+      if (url.endsWith('/metric-runs/commit')) {
+        return new Response(JSON.stringify({ ...makeCommitResponse(), inserted: false }), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        });
+      }
+      if (url.endsWith('/metric-runs/17')) {
+        return new Response(JSON.stringify(makeMetricRunDetail({ evidenceCount: 1 })), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        });
+      }
+      if (url.endsWith('/metric-runs/17/approve') && init?.method === 'POST') {
+        return new Response(
+          JSON.stringify(
+            makeLifecycleResponse({
+              status: 'approved',
+              evidenceCount: 1,
+              sourceEvidenceIds: [1000],
+              approvedBy: 7,
+              approvedAt: '2026-05-10T01:00:00.000Z',
+              version: 2,
+            })
+          ),
+          {
+            status: 200,
+            headers: { 'Content-Type': 'application/json' },
+          }
+        );
+      }
+      if (url.endsWith('/metric-runs/17/evidence-records')) {
+        return new Response(JSON.stringify({ records: [makeEvidenceRecord()] }), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        });
+      }
+      return new Response(JSON.stringify({ error: 'UNEXPECTED_URL' }), { status: 500 });
+    });
+
+    renderPage();
+
+    fireEvent.click(screen.getByRole('button', { name: /run metrics/i }));
+    await waitFor(() => {
+      expect(screen.getByTestId('metrics-commit-button')).toBeEnabled();
+    });
+    fireEvent.click(screen.getByTestId('metrics-commit-button'));
+
+    await waitFor(() => {
+      expect(screen.getByTestId('metric-run-approve-button')).toBeEnabled();
+    });
+    fireEvent.click(screen.getByTestId('metric-run-approve-button'));
+
+    await waitFor(() => {
+      expect(screen.getByTestId('metric-run-status-badge').textContent).toBe('approved');
+    });
+
+    const approveCall = fetchSpy.mock.calls.find(([url]) =>
+      String(url).endsWith('/metric-runs/17/approve')
+    );
+    expect(approveCall).toBeTruthy();
+    expect(JSON.parse(approveCall?.[1]?.body as string)).toEqual({ expectedVersion: 1 });
+    expect(screen.getByTestId('metrics-commit-result').textContent).toMatch(/metric run #17/i);
   });
 
   it('adds evidence metadata after a draft metric run is committed', async () => {
@@ -269,6 +414,26 @@ describe('LpReportingMetricsPage', () => {
           status: 201,
           headers: { 'Content-Type': 'application/json' },
         });
+      }
+      if (url.includes('/metric-runs/latest')) {
+        return new Response(
+          JSON.stringify({
+            metricRun: makeMetricRunDetail({ evidenceCount: evidenceListCalls > 1 ? 1 : 0 }),
+          }),
+          {
+            status: 200,
+            headers: { 'Content-Type': 'application/json' },
+          }
+        );
+      }
+      if (url.endsWith('/metric-runs/17')) {
+        return new Response(
+          JSON.stringify(makeMetricRunDetail({ evidenceCount: evidenceListCalls > 1 ? 1 : 0 })),
+          {
+            status: 200,
+            headers: { 'Content-Type': 'application/json' },
+          }
+        );
       }
       if (url.endsWith('/metric-runs/17/evidence-records') && init?.method === 'POST') {
         return new Response(JSON.stringify({ record: makeEvidenceRecord(), inserted: true }), {
@@ -338,16 +503,123 @@ describe('LpReportingMetricsPage', () => {
     );
   });
 
-  it('renders the commit error envelope on preview mismatch', async () => {
-    vi.spyOn(globalThis, 'fetch')
-      .mockResolvedValueOnce(
-        new Response(JSON.stringify(makeDryRunResponse()), {
+  it('approves after evidence and then locks the metric run', async () => {
+    let latestStatus: MetricRunDetailResponse = makeMetricRunDetail({ evidenceCount: 1 });
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockImplementation(async (input, init) => {
+      const url = String(input);
+      if (url.endsWith('/metric-runs/dry-run')) {
+        return new Response(JSON.stringify(makeDryRunResponse()), {
           status: 200,
           headers: { 'Content-Type': 'application/json' },
-        })
-      )
-      .mockResolvedValueOnce(
-        new Response(
+        });
+      }
+      if (url.endsWith('/metric-runs/commit')) {
+        return new Response(JSON.stringify(makeCommitResponse()), {
+          status: 201,
+          headers: { 'Content-Type': 'application/json' },
+        });
+      }
+      if (url.includes('/metric-runs/latest')) {
+        return new Response(JSON.stringify({ metricRun: latestStatus }), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        });
+      }
+      if (url.endsWith('/metric-runs/17')) {
+        return new Response(JSON.stringify(latestStatus), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        });
+      }
+      if (url.endsWith('/metric-runs/17/approve') && init?.method === 'POST') {
+        latestStatus = makeMetricRunDetail({
+          status: 'approved',
+          evidenceCount: 1,
+          sourceEvidenceIds: [1000],
+          approvedBy: 7,
+          approvedAt: '2026-05-10T01:00:00.000Z',
+          version: 2,
+        });
+        return new Response(JSON.stringify(makeLifecycleResponse(latestStatus)), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        });
+      }
+      if (url.endsWith('/metric-runs/17/lock') && init?.method === 'POST') {
+        latestStatus = makeMetricRunDetail({
+          ...latestStatus,
+          status: 'locked',
+          lockedBy: 7,
+          lockedAt: '2026-05-10T02:00:00.000Z',
+          version: 3,
+        });
+        return new Response(JSON.stringify(makeLifecycleResponse(latestStatus)), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        });
+      }
+      if (url.endsWith('/metric-runs/17/evidence-records')) {
+        return new Response(JSON.stringify({ records: [makeEvidenceRecord()] }), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        });
+      }
+      return new Response(JSON.stringify({ error: 'UNEXPECTED_URL' }), { status: 500 });
+    });
+
+    renderPage();
+
+    fireEvent.click(screen.getByRole('button', { name: /run metrics/i }));
+    await waitFor(() => {
+      expect(screen.getByTestId('metrics-commit-button')).toBeEnabled();
+    });
+    fireEvent.click(screen.getByTestId('metrics-commit-button'));
+
+    await waitFor(() => {
+      expect(screen.getByTestId('metric-run-approve-button')).toBeEnabled();
+    });
+    fireEvent.click(screen.getByTestId('metric-run-approve-button'));
+
+    await waitFor(() => {
+      expect(screen.getByTestId('metric-run-status-badge').textContent).toBe('approved');
+    });
+    expect(screen.queryByTestId('metric-run-evidence-form')).toBeNull();
+    expect(screen.getByTestId('metric-run-evidence-readonly')).toBeInTheDocument();
+    expect(screen.getByTestId('metric-run-lock-button')).toBeEnabled();
+
+    fireEvent.click(screen.getByTestId('metric-run-lock-button'));
+
+    await waitFor(() => {
+      expect(screen.getByTestId('metric-run-status-badge').textContent).toBe('locked');
+    });
+
+    const approveCall = fetchSpy.mock.calls.find(([url]) =>
+      String(url).endsWith('/metric-runs/17/approve')
+    );
+    const lockCall = fetchSpy.mock.calls.find(([url]) =>
+      String(url).endsWith('/metric-runs/17/lock')
+    );
+    expect(JSON.parse(approveCall?.[1]?.body as string)).toEqual({ expectedVersion: 1 });
+    expect(JSON.parse(lockCall?.[1]?.body as string)).toEqual({ expectedVersion: 2 });
+  });
+
+  it('renders the commit error envelope on preview mismatch', async () => {
+    vi.spyOn(globalThis, 'fetch').mockImplementation(async (input) => {
+      const url = String(input);
+      if (url.endsWith('/metric-runs/dry-run')) {
+        return new Response(JSON.stringify(makeDryRunResponse()), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        });
+      }
+      if (url.includes('/metric-runs/latest')) {
+        return new Response(JSON.stringify({ metricRun: null }), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        });
+      }
+      if (url.endsWith('/metric-runs/commit')) {
+        return new Response(
           JSON.stringify({
             error: 'PREVIEW_HASH_MISMATCH',
             message: 'Metric-run preview hash no longer matches.',
@@ -356,8 +628,10 @@ describe('LpReportingMetricsPage', () => {
             status: 409,
             headers: { 'Content-Type': 'application/json' },
           }
-        )
-      );
+        );
+      }
+      return new Response(JSON.stringify({ error: 'UNEXPECTED_URL' }), { status: 500 });
+    });
 
     renderPage();
 

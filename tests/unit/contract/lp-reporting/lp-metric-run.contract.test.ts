@@ -9,10 +9,15 @@ import {
   LpMetricRunPerspectiveSchema,
   LpMetricRunStatusSchema,
   LpMetricRunTypeSchema,
+  LatestMetricRunResponseSchema,
+  MetricRunApproveRequestSchema,
   MetricRunCommitRequestSchema,
   MetricRunCommitResponseSchema,
+  MetricRunDetailResponseSchema,
   MetricRunDryRunRequestSchema,
   MetricRunDryRunResponseSchema,
+  MetricRunLifecycleResponseSchema,
+  MetricRunLockRequestSchema,
   type LpMetricRunResults,
   type XirrDiagnostic,
 } from '@shared/contracts/lp-reporting/lp-metric-run.contract';
@@ -202,6 +207,83 @@ describe('Metric-run dry-run and commit endpoint contracts', () => {
         unexpected: true,
       })
     ).toThrow();
+  });
+});
+
+describe('Metric-run lifecycle endpoint contracts', () => {
+  const detail = {
+    metricRunId: 17,
+    fundId: 7,
+    asOfDate: '2026-03-31',
+    runType: 'quarterly_report',
+    perspective: 'lp_net',
+    status: 'draft',
+    inputsHash: hex64,
+    sourceEventIds: [1, 2],
+    sourceMarkIds: [10],
+    sourceEvidenceIds: [],
+    evidenceCount: 0,
+    generatedBy: 7,
+    approvedBy: null,
+    approvedAt: null,
+    lockedBy: null,
+    lockedAt: null,
+    exportedAt: null,
+    version: 1,
+    createdAt: '2026-05-10T00:00:00.000Z',
+    updatedAt: '2026-05-10T00:00:00.000Z',
+  };
+
+  it('approve request requires a positive expectedVersion and rejects unknown keys', () => {
+    expect(MetricRunApproveRequestSchema.parse({ expectedVersion: 1 })).toEqual({
+      expectedVersion: 1,
+    });
+    expect(() => MetricRunApproveRequestSchema.parse({ expectedVersion: 0 })).toThrow();
+    expect(() =>
+      MetricRunApproveRequestSchema.parse({ expectedVersion: 1, status: 'draft' })
+    ).toThrow();
+  });
+
+  it('lock request requires a positive expectedVersion and rejects unknown keys', () => {
+    expect(MetricRunLockRequestSchema.parse({ expectedVersion: 2 })).toEqual({
+      expectedVersion: 2,
+    });
+    expect(() => MetricRunLockRequestSchema.parse({ expectedVersion: -1 })).toThrow();
+    expect(() => MetricRunLockRequestSchema.parse({ expectedVersion: 2, lockedBy: 7 })).toThrow();
+  });
+
+  it('detail response includes lifecycle fields and evidence snapshot fields', () => {
+    const parsed = MetricRunDetailResponseSchema.parse({
+      ...detail,
+      status: 'approved',
+      sourceEvidenceIds: [1000],
+      evidenceCount: 1,
+      approvedBy: 7,
+      approvedAt: '2026-05-10T01:00:00.000Z',
+      version: 2,
+    });
+
+    expect(parsed.sourceEvidenceIds).toEqual([1000]);
+    expect(parsed.evidenceCount).toBe(1);
+    expect(parsed.version).toBe(2);
+    expect(parsed.lockedBy).toBeNull();
+  });
+
+  it('lifecycle response wraps detail plus changed flag', () => {
+    const parsed = MetricRunLifecycleResponseSchema.parse({
+      metricRun: detail,
+      changed: true,
+    });
+
+    expect(parsed.metricRun.metricRunId).toBe(17);
+    expect(parsed.changed).toBe(true);
+  });
+
+  it('latest response accepts null and strict detail payloads', () => {
+    expect(LatestMetricRunResponseSchema.parse({ metricRun: null })).toEqual({
+      metricRun: null,
+    });
+    expect(LatestMetricRunResponseSchema.parse({ metricRun: detail }).metricRun?.version).toBe(1);
   });
 });
 

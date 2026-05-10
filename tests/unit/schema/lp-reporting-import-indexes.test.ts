@@ -69,3 +69,38 @@ describe('LP reporting metric-run idempotency index', () => {
     expect(schema).toMatch(/uniqueIndex\('lp_metric_runs_fund_run_inputs_unique'\)/);
   });
 });
+
+describe('LP reporting metric-run lifecycle migration', () => {
+  it('adds version, updated_at, and locked_by columns in the lifecycle migration', () => {
+    const migration = fs.readFileSync(
+      path.join(
+        process.cwd(),
+        'server',
+        'migrations',
+        '20260510_lp_reporting_metric_run_lifecycle_v1.up.sql'
+      ),
+      'utf8'
+    );
+
+    expect(migration).toMatch(/ADD COLUMN IF NOT EXISTS version integer NOT NULL DEFAULT 1/i);
+    expect(migration).toMatch(/ADD COLUMN IF NOT EXISTS updated_at timestamptz DEFAULT now\(\)/i);
+    expect(migration).toMatch(/ADD COLUMN IF NOT EXISTS locked_by integer REFERENCES users\(id\)/i);
+  });
+
+  it('rolls back only the lifecycle columns', () => {
+    const migration = fs.readFileSync(
+      path.join(
+        process.cwd(),
+        'server',
+        'migrations',
+        '20260510_lp_reporting_metric_run_lifecycle_v1.down.sql'
+      ),
+      'utf8'
+    );
+
+    expect(migration).toMatch(/DROP COLUMN IF EXISTS locked_by/i);
+    expect(migration).toMatch(/DROP COLUMN IF EXISTS updated_at/i);
+    expect(migration).toMatch(/DROP COLUMN IF EXISTS version/i);
+    expect(migration).not.toMatch(/DROP TABLE/i);
+  });
+});

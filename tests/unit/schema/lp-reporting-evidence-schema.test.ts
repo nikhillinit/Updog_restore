@@ -131,6 +131,14 @@ describe('LP Reporting Foundation Schema -- Drizzle bindings', () => {
       expect(names).toContain('lp_metric_run_status_check');
     });
 
+    it('lp_metric_runs exposes lifecycle concurrency and lock audit columns', () => {
+      const config = getTableConfig(schema.lpMetricRuns);
+      const names = config.columns.map((c) => c.name);
+      expect(names).toContain('version');
+      expect(names).toContain('updated_at');
+      expect(names).toContain('locked_by');
+    });
+
     it('narrative_runs declares 2 CHECKs (type, status)', () => {
       const config = getTableConfig(schema.narrativeRuns);
       const names = config.checks.map((c) => c.name);

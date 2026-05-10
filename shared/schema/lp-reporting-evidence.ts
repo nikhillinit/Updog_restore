@@ -287,9 +287,12 @@ export const lpMetricRuns = pgTable(
     generatedBy: integer('generated_by').references(() => users.id),
     approvedBy: integer('approved_by').references(() => users.id),
     approvedAt: timestamp('approved_at', { withTimezone: true }),
+    lockedBy: integer('locked_by').references(() => users.id),
     lockedAt: timestamp('locked_at', { withTimezone: true }),
     exportedAt: timestamp('exported_at', { withTimezone: true }),
+    version: integer('version').notNull().default(1),
     createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow(),
   },
   (table) => ({
     runTypeCheck: check(

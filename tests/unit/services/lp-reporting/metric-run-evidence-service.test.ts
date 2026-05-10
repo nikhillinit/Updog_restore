@@ -25,6 +25,7 @@ interface State {
   insertValues: InsertEvidenceRecord[];
   nextEvidenceId: number;
   dropNextInsert: boolean;
+  operations: string[];
 }
 
 const state: State = {
@@ -34,6 +35,7 @@ const state: State = {
   insertValues: [],
   nextEvidenceId: 1000,
   dropNextInsert: false,
+  operations: [],
 };
 
 function evidenceRow(overrides: Partial<EvidenceRecord> = {}): EvidenceRecord {
@@ -91,6 +93,14 @@ function queryResult<T>(rows: T[]): Promise<T[]> & { limit: (count: number) => P
 
 function makeDatabase(): typeof db {
   return {
+    transaction: async (callback: (tx: typeof db) => Promise<unknown>) => {
+      state.operations.push('transaction');
+      return callback(makeDatabase());
+    },
+    execute: async () => {
+      state.operations.push('lock-parent');
+      return [];
+    },
     select: () => ({
       from: (table: unknown) => ({
         where: () => queryResult(rowsFor(table)),
@@ -141,6 +151,7 @@ beforeEach(() => {
   state.insertValues = [];
   state.nextEvidenceId = 1000;
   state.dropNextInsert = false;
+  state.operations = [];
 });
 
 describe('createMetricRunEvidence', () => {
@@ -177,6 +188,7 @@ describe('createMetricRunEvidence', () => {
     expect(state.insertValues[0]?.companyId).toBeUndefined();
     expect(state.insertValues[0]?.narrativeRunId).toBeUndefined();
     expect(state.insertValues[0]?.approvedBy).toBeUndefined();
+    expect(state.operations).toEqual(['transaction', 'lock-parent']);
   });
 
   it('returns an existing row without inserting when the idempotency key was already used', async () => {
