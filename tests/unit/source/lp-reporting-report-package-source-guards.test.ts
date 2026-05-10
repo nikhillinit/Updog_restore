@@ -21,6 +21,9 @@ describe('LP Reporting report-package source guards', () => {
     expect(hookSource).toContain(
       '/api/funds/${fundId}/metric-runs/${metricRunId}/report-package/render-model'
     );
+    expect(hookSource).toContain(
+      '/api/funds/${fundId}/metric-runs/${metricRunId}/report-package/export/json'
+    );
     expect(hookSource).not.toMatch(/postMetricRunReportPackage[\s\S]*\/evidence-records/);
     expect(hookSource).not.toContain('@/hooks/useLPReports');
   });
@@ -38,10 +41,16 @@ describe('LP Reporting report-package source guards', () => {
     const serviceSource = read(
       'server/services/lp-reporting/report-package-render-model-service.ts'
     );
+    const jsonExportServiceSource = read(
+      'server/services/lp-reporting/report-package-json-export-service.ts'
+    );
     const metricsPageSource = read('client/src/pages/lp-reporting/metrics.tsx');
 
     expect(routeSource).toContain(
       '/api/funds/:fundId/metric-runs/:metricRunId/report-package/render-model'
+    );
+    expect(routeSource).toContain(
+      '/api/funds/:fundId/metric-runs/:metricRunId/report-package/export/json'
     );
     expect(routeSource).not.toContain('/api/lp/reports/generate');
     expect(routeSource).not.toMatch(
@@ -54,6 +63,13 @@ describe('LP Reporting report-package source guards', () => {
     expect(serviceSource).not.toMatch(/storageKey|signedUrl|downloadUrl|publicUrl/);
     expect(serviceSource).not.toMatch(/\bQueue\b|report-generation/);
     expect(serviceSource).not.toMatch(/\.(insert|update|delete)\(/);
+
+    expect(jsonExportServiceSource).not.toMatch(
+      /report-generation-queue|pdf-generation-service|xlsx-generation-service|routes\/lp-api/
+    );
+    expect(jsonExportServiceSource).not.toMatch(/storageKey|signedUrl|downloadUrl|publicUrl/);
+    expect(jsonExportServiceSource).not.toMatch(/\bQueue\b|report-generation/);
+    expect(jsonExportServiceSource).not.toMatch(/\b(?:db|database)\.(insert|update|delete)\(/);
 
     expect(metricsPageSource).not.toContain('@/hooks/useLPReports');
     expect(metricsPageSource).not.toMatch(

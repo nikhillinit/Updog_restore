@@ -7,6 +7,8 @@ import {
   ReportPackageAssembleRequestSchema,
   ReportPackageAssembleResponseSchema,
   ReportPackageGetResponseSchema,
+  ReportPackageJsonExportBlockedResponseSchema,
+  ReportPackageJsonExportResponseSchema,
   ReportPackagePayloadSchema,
   ReportPackageRecordSchema,
   ReportPackageRenderModelResponseSchema,
@@ -274,4 +276,62 @@ describe('ReportPackageRenderModelResponseSchema', () => {
       ).toThrow();
     }
   );
+
+  it('parses JSON export success with deterministic artifact metadata', () => {
+    const parsed = ReportPackageJsonExportResponseSchema.parse({
+      export: {
+        exportVersion: 1,
+        format: 'json',
+        source: renderModelResponse.renderModel.source,
+        renderModel: renderModelResponse.renderModel,
+        contentHashAlgorithm: 'sha256',
+        contentHash: 'b'.repeat(64),
+      },
+    });
+
+    expect(parsed.export.source.reportPackageId).toBe(501);
+    expect(parsed.export.format).toBe('json');
+    expect(parsed.export.contentHashAlgorithm).toBe('sha256');
+  });
+
+  it.each(['exportedAt', 'storageKey', 'signedUrl', 'queueJobId'])(
+    'rejects JSON export lifecycle field %s',
+    (field) => {
+      expect(() =>
+        ReportPackageJsonExportResponseSchema.parse({
+          export: {
+            exportVersion: 1,
+            format: 'json',
+            source: renderModelResponse.renderModel.source,
+            renderModel: renderModelResponse.renderModel,
+            contentHashAlgorithm: 'sha256',
+            contentHash: 'b'.repeat(64),
+            [field]: 'not-a-handoff-field',
+          },
+        })
+      ).toThrow();
+    }
+  );
+
+  it('parses JSON export blocker responses without artifact fields', () => {
+    const blocked = ReportPackageJsonExportBlockedResponseSchema.parse({
+      error: 'REPORT_PACKAGE_JSON_EXPORT_BLOCKED',
+      message: 'Report package JSON export is blocked by readiness checks.',
+      blockers: [
+        {
+          code: 'EVIDENCE_REFERENCE_INVALID',
+          message: 'One or more evidence references could not be resolved.',
+          evidenceRecordIds: [301],
+        },
+      ],
+    });
+
+    expect(blocked.blockers[0]?.code).toBe('EVIDENCE_REFERENCE_INVALID');
+    expect(() =>
+      ReportPackageJsonExportBlockedResponseSchema.parse({
+        ...blocked,
+        renderModel: renderModelResponse.renderModel,
+      })
+    ).toThrow();
+  });
 });

@@ -20,6 +20,7 @@ export {
   useMetricRunNarrativeReview,
   useMetricRunReportPackage,
   useMetricRunReportPackageAssemble,
+  useMetricRunReportPackageJsonExport,
   useMetricRunReportPackageRenderModel,
   useMetricsDryRun,
   type MetricsDryRunRequest,
@@ -49,6 +50,8 @@ export {
   type ReportPackageAssembleRequest,
   type ReportPackageAssembleResponse,
   type ReportPackageGetResponse,
+  type ReportPackageJsonExportBlocker,
+  type ReportPackageJsonExportResponse,
   type ReportPackageRenderModelResponse,
 } from './useMetricsDryRun';
 export { useLedgerImportDryRun } from './useLedgerImportDryRun';

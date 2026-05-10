@@ -20,6 +20,8 @@ import {
   NarrativeRunListResponseSchema,
   ReportPackageAssembleResponseSchema,
   ReportPackageGetResponseSchema,
+  ReportPackageJsonExportBlockedResponseSchema,
+  ReportPackageJsonExportResponseSchema,
   ReportPackageRenderModelResponseSchema,
 } from '@shared/contracts/lp-reporting';
 
@@ -696,6 +698,38 @@ function evidenceBody() {
     materialityLevel: 'high',
     description: 'Q1 board materials',
   };
+}
+
+function seedMetricRunEvidence(overrides: Partial<MockEvidenceRow> = {}) {
+  dbState.evidenceRecords.push({
+    id: 1000,
+    fundId: 1,
+    valuationMarkId: null,
+    companyId: null,
+    metricRunId: 500,
+    narrativeRunId: null,
+    idempotencyKey: 'metric-run-500-evidence-seeded',
+    evidenceSource: 'board_update',
+    sourceDate: '2026-03-31',
+    receivedDate: null,
+    expirationDate: null,
+    confidenceLevel: 'medium',
+    materialityLevel: 'high',
+    confidentiality: 'lp_shareable',
+    redactionRequired: false,
+    documentHash: null,
+    valuationPolicyVersion: null,
+    description: 'Q1 board materials',
+    internalNotes: null,
+    lpObjection: null,
+    attachments: [],
+    uploadedBy: authState.userId,
+    approvedBy: null,
+    approvedAt: null,
+    createdAt: new Date('2026-05-10T00:00:00Z'),
+    updatedAt: new Date('2026-05-10T00:00:00Z'),
+    ...overrides,
+  });
 }
 
 function seedLockedMetricRun(overrides: Partial<MockMetricRunRow> = {}) {
@@ -1502,6 +1536,36 @@ describe('metric-run report package routes', () => {
     ]);
   });
 
+  it('GET JSON export returns a package-scoped handoff for an assembled package', async () => {
+    seedLockedMetricRun();
+    seedApprovedNarratives();
+    seedMetricRunEvidence();
+    const app = buildApp();
+
+    const assemble = await request(app)
+      .post('/api/funds/1/metric-runs/500/report-package')
+      .send(reportPackageBody());
+    expect(assemble.status).toBe(201);
+
+    const res = await request(app).get('/api/funds/1/metric-runs/500/report-package/export/json');
+
+    expect(res.status).toBe(200);
+    const parsed = ReportPackageJsonExportResponseSchema.parse(res.body);
+    expect(parsed.export.exportVersion).toBe(1);
+    expect(parsed.export.format).toBe('json');
+    expect(parsed.export.source.reportPackageId).toBe(3000);
+    expect(parsed.export.source.fundId).toBe(1);
+    expect(parsed.export.source.metricRunId).toBe(500);
+    expect(parsed.export.renderModel.narrativeSections.map((section) => section.sectionId)).toEqual(
+      ['no_dpi', 'methodology', 'portfolio_update', 'risk_disclosure']
+    );
+    expect(parsed.export.renderModel.references.evidenceRecordIds).toEqual([1000]);
+    expect(parsed.export.contentHashAlgorithm).toBe('sha256');
+    expect(parsed.export.contentHash).toMatch(/^[a-f0-9]{64}$/);
+    expect(res.body.export).not.toHaveProperty('storageKey');
+    expect(res.body.export).not.toHaveProperty('signedUrl');
+  });
+
   it('GET render-model returns REPORT_PACKAGE_NOT_FOUND before assembly', async () => {
     seedLockedMetricRun();
 
@@ -1511,6 +1575,73 @@ describe('metric-run report package routes', () => {
 
     expect(res.status).toBe(404);
     expect(res.body.error).toBe('REPORT_PACKAGE_NOT_FOUND');
+  });
+
+  it('GET JSON export returns REPORT_PACKAGE_NOT_FOUND before assembly', async () => {
+    seedLockedMetricRun();
+
+    const res = await request(buildApp()).get(
+      '/api/funds/1/metric-runs/500/report-package/export/json'
+    );
+
+    expect(res.status).toBe(404);
+    expect(res.body.error).toBe('REPORT_PACKAGE_NOT_FOUND');
+  });
+
+  it('GET JSON export blocks unresolved package evidence refs without artifact fields', async () => {
+    seedLockedMetricRun();
+    seedApprovedNarratives();
+    const app = buildApp();
+
+    const assemble = await request(app)
+      .post('/api/funds/1/metric-runs/500/report-package')
+      .send(reportPackageBody());
+    expect(assemble.status).toBe(201);
+
+    const res = await request(app).get('/api/funds/1/metric-runs/500/report-package/export/json');
+
+    expect(res.status).toBe(409);
+    const parsed = ReportPackageJsonExportBlockedResponseSchema.parse(res.body);
+    expect(parsed.error).toBe('REPORT_PACKAGE_JSON_EXPORT_BLOCKED');
+    expect(parsed.blockers).toEqual([
+      {
+        code: 'EVIDENCE_REFERENCE_INVALID',
+        message: 'One or more evidence references could not be resolved for this report package.',
+        evidenceRecordIds: [1000],
+      },
+    ]);
+    expect(res.body).not.toHaveProperty('export');
+    expect(res.body).not.toHaveProperty('renderModel');
+  });
+
+  it('GET JSON export blocks restricted and redaction-required same-scope evidence', async () => {
+    seedLockedMetricRun({ sourceEvidenceIds: [1000, 1001] });
+    seedApprovedNarratives();
+    seedMetricRunEvidence({ id: 1000, confidentiality: 'restricted' });
+    seedMetricRunEvidence({ id: 1001, redactionRequired: true });
+    const app = buildApp();
+
+    const assemble = await request(app)
+      .post('/api/funds/1/metric-runs/500/report-package')
+      .send(reportPackageBody());
+    expect(assemble.status).toBe(201);
+
+    const res = await request(app).get('/api/funds/1/metric-runs/500/report-package/export/json');
+
+    expect(res.status).toBe(409);
+    const parsed = ReportPackageJsonExportBlockedResponseSchema.parse(res.body);
+    expect(parsed.blockers).toEqual([
+      {
+        code: 'EVIDENCE_RESTRICTED',
+        message: 'Evidence is restricted and cannot be included in the JSON handoff.',
+        evidenceRecordId: 1000,
+      },
+      {
+        code: 'EVIDENCE_REDACTION_REQUIRED',
+        message: 'Evidence requires redaction before the JSON handoff can be produced.',
+        evidenceRecordId: 1001,
+      },
+    ]);
   });
 
   it('POST returns inserted false for same-input retry', async () => {
@@ -1781,6 +1912,7 @@ describe('Source grep -- metric-run route boundaries', () => {
       '/api/funds/:fundId/metric-runs/:metricRunId',
       '/api/funds/:fundId/metric-runs/:metricRunId/report-package',
       '/api/funds/:fundId/metric-runs/:metricRunId/report-package/render-model',
+      '/api/funds/:fundId/metric-runs/:metricRunId/report-package/export/json',
       '/api/funds/:fundId/metric-runs/:metricRunId/evidence-records',
       '/api/funds/:fundId/metric-runs/:metricRunId/narrative-runs',
       '/api/funds/:fundId/metric-runs/:metricRunId/narrative-runs/:narrativeRunId',

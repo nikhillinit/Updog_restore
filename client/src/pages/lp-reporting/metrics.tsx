@@ -21,7 +21,7 @@
  */
 
 import { useCallback, useState, type FormEvent } from 'react';
-import { CheckCircle2, Save } from 'lucide-react';
+import { CheckCircle2, FileJson, Save } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
@@ -44,6 +44,7 @@ import {
   type MetricRunLifecycleResponse,
   type NarrativeRunRecord,
   type NarrativeType,
+  type ReportPackageJsonExportResponse,
   type ReportPackageRenderMetricRow,
 } from '@shared/contracts/lp-reporting';
 import {
@@ -61,6 +62,7 @@ import {
   useMetricRunNarrativeReview,
   useMetricRunReportPackage,
   useMetricRunReportPackageAssemble,
+  useMetricRunReportPackageJsonExport,
   useMetricRunReportPackageRenderModel,
   type LpReportingHookError,
 } from '@/hooks/lp-reporting';
@@ -238,6 +240,24 @@ function formatRenderMetricValue(row: ReportPackageRenderMetricRow): string {
   }).format(numeric);
 }
 
+function saveReportPackageJsonExport(
+  response: ReportPackageJsonExportResponse,
+  fundId: number,
+  metricRunId: number
+): void {
+  const blob = new Blob([JSON.stringify(response, null, 2)], {
+    type: 'application/json',
+  });
+  const url = URL.createObjectURL(blob);
+  const anchor = document.createElement('a');
+  anchor.href = url;
+  anchor.download = `lp-report-package-${fundId}-${metricRunId}-json-v1.json`;
+  document.body.append(anchor);
+  anchor.click();
+  anchor.remove();
+  URL.revokeObjectURL(url);
+}
+
 export default function LpReportingMetricsPage() {
   const { fundId } = useFundContext();
   const commitMutation = useMetricRunCommit(fundId);
@@ -256,6 +276,9 @@ export default function LpReportingMetricsPage() {
   const [narrativeDraftText, setNarrativeDraftText] = useState<Record<number, string>>({});
   const [narrativeOverrides, setNarrativeOverrides] = useState<Record<number, NarrativeRunRecord>>(
     {}
+  );
+  const [reportPackageJsonExportHash, setReportPackageJsonExportHash] = useState<string | null>(
+    null
   );
   const committedMetricRunId = commitResult?.metricRunId ?? null;
   const latestQuery = useLatestMetricRun(
@@ -300,6 +323,10 @@ export default function LpReportingMetricsPage() {
     fundId,
     reportPackageRecord === null ? null : lockedMetricRunId
   );
+  const reportPackageJsonExportQuery = useMetricRunReportPackageJsonExport(
+    fundId,
+    reportPackageRecord === null ? null : lockedMetricRunId
+  );
 
   const handleSuccess = useCallback(
     (response: MetricRunDryRunResponse, request: MetricRunDryRunRequest) => {
@@ -319,6 +346,7 @@ export default function LpReportingMetricsPage() {
       setEvidenceIdempotencyKey(null);
       setNarrativeDraftText({});
       setNarrativeOverrides({});
+      setReportPackageJsonExportHash(null);
       setEvidenceForm(makeEvidenceFormState(parsedResults.asOfDate));
     },
     []
@@ -333,6 +361,7 @@ export default function LpReportingMetricsPage() {
     setEvidenceError(null);
     setNarrativeDraftText({});
     setNarrativeOverrides({});
+    setReportPackageJsonExportHash(null);
   }, []);
 
   const handleCommit = useCallback(async () => {
@@ -352,6 +381,7 @@ export default function LpReportingMetricsPage() {
       setEvidenceIdempotencyKey(createEvidenceIdempotencyKey(result.metricRunId));
       setNarrativeDraftText({});
       setNarrativeOverrides({});
+      setReportPackageJsonExportHash(null);
       setEvidenceForm(makeEvidenceFormState(dryRun.results.asOfDate));
     } catch (err) {
       if (err && typeof err === 'object') {
@@ -514,6 +544,22 @@ export default function LpReportingMetricsPage() {
     [mergeNarrativeRecord, narrativeApproveMutation]
   );
 
+  const handleReportPackageJsonExport = useCallback(async () => {
+    if (fundId === null || lockedMetricRunId === null) {
+      return;
+    }
+
+    const result = await reportPackageJsonExportQuery.refetch();
+    if (result.error) {
+      setReportPackageJsonExportHash(null);
+      return;
+    }
+    if (result.data) {
+      saveReportPackageJsonExport(result.data, fundId, lockedMetricRunId);
+      setReportPackageJsonExportHash(result.data.export.contentHash);
+    }
+  }, [fundId, lockedMetricRunId, reportPackageJsonExportQuery]);
+
   const results = dryRun?.results ?? null;
   const envelope = dryRunError ? envelopeFor(dryRunError) : null;
   const commitEnvelope = commitError ? envelopeFor(commitError) : null;
@@ -535,6 +581,13 @@ export default function LpReportingMetricsPage() {
     reportPackageRenderModelQuery.error?.code === 'REPORT_PACKAGE_NOT_FOUND'
       ? null
       : (reportPackageRenderModelQuery.error as LpReportingHookError | null);
+  const reportPackageJsonExportError =
+    reportPackageJsonExportQuery.error as LpReportingHookError | null;
+  const reportPackageJsonExportBlockers = reportPackageJsonExportError?.blockers ?? [];
+  const reportPackageJsonExportEnvelope =
+    reportPackageJsonExportError && reportPackageJsonExportBlockers.length === 0
+      ? envelopeFor(reportPackageJsonExportError)
+      : null;
   const approvedNarrativeCount = narrativeRecords.filter(
     (record) => record.status === 'approved'
   ).length;
@@ -599,6 +652,11 @@ export default function LpReportingMetricsPage() {
     reportPackageRecord === null &&
     !reportPackageQuery.isLoading &&
     !reportPackageAssembleMutation.isPending;
+  const canExportReportPackageJson =
+    reportPackageRenderModel !== null &&
+    fundId !== null &&
+    lockedMetricRunId !== null &&
+    !reportPackageJsonExportQuery.isFetching;
   const reportPackageError =
     reportPackageAssembleMutation.error ??
     (reportPackageQuery.error as LpReportingHookError | null) ??
@@ -1311,6 +1369,70 @@ export default function LpReportingMetricsPage() {
                             {reportPackageRenderModel.references.sourceEventIds.length +
                               reportPackageRenderModel.references.sourceMarkIds.length}
                           </span>
+                        </div>
+
+                        {reportPackageJsonExportBlockers.length > 0 ? (
+                          <Alert
+                            variant="destructive"
+                            data-testid="metric-run-report-package-json-export-blocked"
+                          >
+                            <AlertTitle>JSON handoff blocked</AlertTitle>
+                            <AlertDescription>
+                              <ul className="list-disc space-y-1 pl-5">
+                                {reportPackageJsonExportBlockers.map((blocker, index) => (
+                                  <li key={`${blocker.code}-${index}`}>
+                                    {blocker.message}
+                                    {blocker.evidenceRecordId
+                                      ? ` Evidence #${blocker.evidenceRecordId}.`
+                                      : ''}
+                                    {blocker.evidenceRecordIds
+                                      ? ` Evidence refs ${blocker.evidenceRecordIds.join(', ')}.`
+                                      : ''}
+                                  </li>
+                                ))}
+                              </ul>
+                            </AlertDescription>
+                          </Alert>
+                        ) : null}
+
+                        {reportPackageJsonExportEnvelope ? (
+                          <Alert
+                            variant="destructive"
+                            data-testid="metric-run-report-package-json-export-error"
+                            data-error-status={reportPackageJsonExportError?.status ?? ''}
+                          >
+                            <AlertTitle>{reportPackageJsonExportEnvelope.title}</AlertTitle>
+                            <AlertDescription>
+                              {reportPackageJsonExportEnvelope.description}
+                            </AlertDescription>
+                          </Alert>
+                        ) : null}
+
+                        {reportPackageJsonExportHash ? (
+                          <Alert data-testid="metric-run-report-package-json-export-result">
+                            <AlertTitle>JSON handoff ready</AlertTitle>
+                            <AlertDescription>
+                              SHA-256 {reportPackageJsonExportHash.slice(0, 12)}...
+                            </AlertDescription>
+                          </Alert>
+                        ) : null}
+
+                        <div className="flex flex-col gap-3 border-t border-slate-200 pt-3 sm:flex-row sm:items-center sm:justify-between">
+                          <p className="text-sm text-charcoal/70 font-poppins">
+                            Create the package JSON handoff for this locked metric run.
+                          </p>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            onClick={() => void handleReportPackageJsonExport()}
+                            disabled={!canExportReportPackageJson}
+                            data-testid="metric-run-report-package-export-json"
+                          >
+                            <FileJson className="mr-2 h-4 w-4" aria-hidden="true" />
+                            {reportPackageJsonExportQuery.isFetching
+                              ? 'Preparing...'
+                              : 'Export JSON'}
+                          </Button>
                         </div>
                       </div>
                     ) : null}

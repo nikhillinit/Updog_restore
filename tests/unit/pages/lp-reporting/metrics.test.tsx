@@ -47,6 +47,7 @@ import type {
   MetricRunDryRunResponse,
   MetricRunLifecycleResponse,
   NarrativeRunRecord,
+  ReportPackageJsonExportResponse,
   ReportPackageRecord,
   ReportPackageRenderModelResponse,
 } from '@shared/contracts/lp-reporting';
@@ -400,6 +401,20 @@ function makeReportPackageRenderModelResponse(): ReportPackageRenderModelRespons
         evidenceRecordIds: [1000],
         narrativeRunIds: record.narrativeRefs.map((ref) => ref.narrativeRunId),
       },
+    },
+  };
+}
+
+function makeReportPackageJsonExportResponse(): ReportPackageJsonExportResponse {
+  const renderModelResponse = makeReportPackageRenderModelResponse();
+  return {
+    export: {
+      exportVersion: 1,
+      format: 'json',
+      source: renderModelResponse.renderModel.source,
+      renderModel: renderModelResponse.renderModel,
+      contentHashAlgorithm: 'sha256',
+      contentHash: 'c'.repeat(64),
     },
   };
 }
@@ -1018,6 +1033,12 @@ describe('LpReportingMetricsPage', () => {
           headers: { 'Content-Type': 'application/json' },
         });
       }
+      if (url.endsWith('/metric-runs/17/report-package/export/json')) {
+        return new Response(JSON.stringify(makeReportPackageJsonExportResponse()), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        });
+      }
       if (url.endsWith('/metric-runs/17/report-package')) {
         return new Response(JSON.stringify({ record: reportPackage }), {
           status: 200,
@@ -1072,6 +1093,43 @@ describe('LpReportingMetricsPage', () => {
     expect(preview.getByText('Press On Fund I')).toBeInTheDocument();
     expect(preview.getByText('0.45x')).toBeInTheDocument();
     expect(preview.getByText('Approved methodology copy.')).toBeInTheDocument();
+
+    const createObjectURLMock = vi.fn().mockReturnValue('blob:lp-report-json');
+    const revokeObjectURLMock = vi.fn();
+    Object.defineProperty(URL, 'createObjectURL', {
+      configurable: true,
+      value: createObjectURLMock,
+    });
+    Object.defineProperty(URL, 'revokeObjectURL', {
+      configurable: true,
+      value: revokeObjectURLMock,
+    });
+    const clickSpy = vi
+      .spyOn(HTMLAnchorElement.prototype, 'click')
+      .mockImplementation(() => undefined);
+    let appendedAnchor: HTMLAnchorElement | null = null;
+    vi.spyOn(document.body, 'append').mockImplementation((...nodes: Array<Node | string>) => {
+      const anchor = nodes.find(
+        (node): node is HTMLAnchorElement => node instanceof HTMLAnchorElement
+      );
+      appendedAnchor = anchor ?? null;
+    });
+
+    fireEvent.click(screen.getByTestId('metric-run-report-package-export-json'));
+
+    await waitFor(() => {
+      expect(
+        screen.getByTestId('metric-run-report-package-json-export-result')
+      ).toBeInTheDocument();
+    });
+    const exportCall = fetchSpy.mock.calls.find(([url]) =>
+      String(url).endsWith('/metric-runs/17/report-package/export/json')
+    );
+    expect(exportCall?.[1]?.method).toBe('GET');
+    expect(createObjectURLMock).toHaveBeenCalledWith(expect.any(Blob));
+    expect(appendedAnchor?.download).toBe('lp-report-package-7-17-json-v1.json');
+    expect(clickSpy).toHaveBeenCalledTimes(1);
+    expect(revokeObjectURLMock).toHaveBeenCalledWith('blob:lp-report-json');
   });
 
   it('keeps report package assembly disabled until all narratives are approved', async () => {
@@ -1155,6 +1213,113 @@ describe('LpReportingMetricsPage', () => {
     expect(screen.getByTestId('metric-run-report-package-assemble')).toBeDisabled();
     expect(screen.getByTestId('metric-run-report-package-readiness').textContent).toMatch(
       /reviewed/i
+    );
+  });
+
+  it('renders JSON export blockers inside the report package card', async () => {
+    const approvedNarratives = makeApprovedNarratives();
+    vi.spyOn(globalThis, 'fetch').mockImplementation(async (input) => {
+      const url = String(input);
+      const locked = makeMetricRunDetail({
+        status: 'locked',
+        evidenceCount: 1,
+        lockedBy: 7,
+        lockedAt: '2026-05-10T02:00:00.000Z',
+        version: 4,
+      });
+      if (url.endsWith('/metric-runs/dry-run')) {
+        return new Response(JSON.stringify(makeDryRunResponse()), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        });
+      }
+      if (url.endsWith('/metric-runs/commit')) {
+        return new Response(JSON.stringify(makeCommitResponse()), {
+          status: 201,
+          headers: { 'Content-Type': 'application/json' },
+        });
+      }
+      if (url.includes('/metric-runs/latest')) {
+        return new Response(JSON.stringify({ metricRun: locked }), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        });
+      }
+      if (url.endsWith('/metric-runs/17')) {
+        return new Response(JSON.stringify(locked), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        });
+      }
+      if (url.endsWith('/metric-runs/17/evidence-records')) {
+        return new Response(JSON.stringify({ records: [makeEvidenceRecord()] }), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        });
+      }
+      if (url.endsWith('/metric-runs/17/narrative-runs')) {
+        return new Response(JSON.stringify({ records: approvedNarratives }), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        });
+      }
+      if (url.endsWith('/metric-runs/17/report-package/render-model')) {
+        return new Response(JSON.stringify(makeReportPackageRenderModelResponse()), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        });
+      }
+      if (url.endsWith('/metric-runs/17/report-package/export/json')) {
+        return new Response(
+          JSON.stringify({
+            error: 'REPORT_PACKAGE_JSON_EXPORT_BLOCKED',
+            message: 'Report package JSON export is blocked by readiness checks.',
+            blockers: [
+              {
+                code: 'EVIDENCE_REDACTION_REQUIRED',
+                message: 'Evidence requires redaction before the JSON handoff can be produced.',
+                evidenceRecordId: 1000,
+              },
+            ],
+          }),
+          {
+            status: 409,
+            headers: { 'Content-Type': 'application/json' },
+          }
+        );
+      }
+      if (url.endsWith('/metric-runs/17/report-package')) {
+        return new Response(JSON.stringify({ record: makeReportPackageRecord() }), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        });
+      }
+      return new Response(JSON.stringify({ error: 'UNEXPECTED_URL' }), { status: 500 });
+    });
+
+    renderPage();
+
+    fireEvent.click(screen.getByRole('button', { name: /run metrics/i }));
+    await waitFor(() => {
+      expect(screen.getByTestId('metrics-commit-button')).toBeEnabled();
+    });
+    fireEvent.click(screen.getByTestId('metrics-commit-button'));
+
+    await waitFor(() => {
+      expect(screen.getByTestId('metric-run-report-package-render-preview')).toBeInTheDocument();
+    });
+    fireEvent.click(screen.getByTestId('metric-run-report-package-export-json'));
+
+    await waitFor(() => {
+      expect(
+        screen.getByTestId('metric-run-report-package-json-export-blocked')
+      ).toBeInTheDocument();
+    });
+    expect(screen.getByTestId('metric-run-report-package-json-export-blocked').textContent).toMatch(
+      /requires redaction/i
+    );
+    expect(screen.getByTestId('metric-run-report-package-json-export-blocked').textContent).toMatch(
+      /Evidence #1000/i
     );
   });
 
