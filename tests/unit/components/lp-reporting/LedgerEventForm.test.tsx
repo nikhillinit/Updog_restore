@@ -41,6 +41,7 @@ function makeDryRunResponse(): ImportDryRunResponse {
   return {
     importId: '11111111-2222-3333-4444-555555555555',
     sourceType: 'csv',
+    previewHash: 'a'.repeat(64),
     parsedRows: 1,
     validRows: 1,
     invalidRows: 0,

@@ -22,6 +22,7 @@ function makeResponse(): ImportDryRunResponse {
   return {
     importId: '11111111-2222-3333-4444-555555555555',
     sourceType: 'csv',
+    previewHash: 'a'.repeat(64),
     parsedRows: 4,
     validRows: 2,
     invalidRows: 1,
@@ -91,6 +92,7 @@ function emptyResponse(): ImportDryRunResponse {
   return {
     importId: 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee',
     sourceType: 'csv',
+    previewHash: 'a'.repeat(64),
     parsedRows: 0,
     validRows: 0,
     invalidRows: 0,

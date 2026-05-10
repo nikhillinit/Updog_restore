@@ -8,24 +8,32 @@
  *   - `<CsvUploader sourceType="ledger" />`         -> POST /imports/ledger/dry-run
  *   - `<CsvUploader sourceType="valuation-marks" />` -> POST /imports/valuation-marks/dry-run
  *
- * Each tab maintains its own preview / error state so switching tabs
+ * Each tab maintains its own preview / commit / error state so switching tabs
  * does not lose the other source's results.
- *
- * NO commit affordance anywhere. Persistence ships in Phase 1c.
  *
  * @module client/pages/lp-reporting/imports
  */
 
 import { useCallback, useState } from 'react';
+import { CheckCircle2 } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { CsvUploader } from '@/components/lp-reporting/CsvUploader';
 import { ImportPreviewPanel } from '@/components/lp-reporting/ImportPreviewPanel';
 import { ImportWarningsList } from '@/components/lp-reporting/ImportWarningsList';
 import { useFundContext } from '@/contexts/FundContext';
-import type { ImportDryRunResponse } from '@shared/contracts/lp-reporting';
-import type { LpReportingHookError } from '@/hooks/lp-reporting';
+import type {
+  ImportCommitResponse,
+  ImportDryRunRequest,
+  ImportDryRunResponse,
+} from '@shared/contracts/lp-reporting';
+import {
+  useLedgerImportCommit,
+  useValuationMarkImportCommit,
+  type LpReportingHookError,
+} from '@/hooks/lp-reporting';
 
 interface ErrorEnvelope {
   title: string;
@@ -65,6 +73,20 @@ function envelopeFor(err: LpReportingHookError): ErrorEnvelope {
           err.message ||
           'The server could not validate the upload. Check the file contents and try again.',
       };
+    case 409:
+      return {
+        title: 'Preview changed',
+        description:
+          err.message ||
+          'The committed payload no longer matches the dry-run preview. Run the dry-run again.',
+      };
+    case 422:
+      return {
+        title: 'Import validation failed',
+        description:
+          err.message ||
+          'One or more import rows did not satisfy the commit contract. Review the warnings and dry-run again.',
+      };
     default:
       if (err.code === 'CONTRACT_PARSE_ERROR') {
         return {
@@ -82,18 +104,29 @@ function envelopeFor(err: LpReportingHookError): ErrorEnvelope {
 
 interface SourceTabState {
   preview: ImportDryRunResponse | null;
+  request: ImportDryRunRequest | null;
+  commit: ImportCommitResponse | null;
   error: LpReportingHookError | null;
+  commitError: LpReportingHookError | null;
 }
 
-const INITIAL_STATE: SourceTabState = { preview: null, error: null };
+const INITIAL_STATE: SourceTabState = {
+  preview: null,
+  request: null,
+  commit: null,
+  error: null,
+  commitError: null,
+};
 
 interface ImportTabProps {
   testIdPrefix: string;
   sourceType: 'ledger' | 'valuation-marks';
   fundId: number | null;
   state: SourceTabState;
-  onPreview: (response: ImportDryRunResponse) => void;
+  onPreview: (response: ImportDryRunResponse, request: ImportDryRunRequest) => void;
   onError: (error: LpReportingHookError) => void;
+  onCommitSuccess: (response: ImportCommitResponse) => void;
+  onCommitError: (error: LpReportingHookError) => void;
 }
 
 function ImportTab({
@@ -103,8 +136,39 @@ function ImportTab({
   state,
   onPreview,
   onError,
+  onCommitSuccess,
+  onCommitError,
 }: ImportTabProps) {
   const envelope = state.error ? envelopeFor(state.error) : null;
+  const commitEnvelope = state.commitError ? envelopeFor(state.commitError) : null;
+  const ledgerCommit = useLedgerImportCommit(fundId);
+  const valuationCommit = useValuationMarkImportCommit(fundId);
+  const commitMutation = sourceType === 'ledger' ? ledgerCommit : valuationCommit;
+  const hasBlockingErrors = (state.preview?.errors.length ?? 0) > 0;
+  const canCommit =
+    fundId !== null &&
+    state.preview !== null &&
+    state.request !== null &&
+    !hasBlockingErrors &&
+    state.preview.validRows > 0 &&
+    !commitMutation.isPending;
+
+  const handleCommit = useCallback(async () => {
+    if (!state.preview || !state.request) {
+      return;
+    }
+    try {
+      const response = await commitMutation.mutateAsync({
+        ...state.request,
+        previewHash: state.preview.previewHash,
+      });
+      onCommitSuccess(response);
+    } catch (err) {
+      if (err && typeof err === 'object') {
+        onCommitError(err as LpReportingHookError);
+      }
+    }
+  }, [commitMutation, onCommitError, onCommitSuccess, state.preview, state.request]);
 
   return (
     <div className="space-y-6" data-testid={`${testIdPrefix}-tab-content`}>
@@ -152,6 +216,45 @@ function ImportTab({
               <ImportWarningsList warnings={state.preview.warnings} errors={state.preview.errors} />
             </CardContent>
           </Card>
+          <Card data-testid={`${testIdPrefix}-commit-card`}>
+            <CardHeader>
+              <CardTitle className="text-base">Commit</CardTitle>
+              <CardDescription>Persist eligible rows from this validated import.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {commitEnvelope ? (
+                <Alert
+                  variant="destructive"
+                  data-testid={`${testIdPrefix}-commit-error-envelope`}
+                  data-error-status={state.commitError?.status ?? ''}
+                  data-error-code={state.commitError?.code ?? ''}
+                >
+                  <AlertTitle>{commitEnvelope.title}</AlertTitle>
+                  <AlertDescription>{commitEnvelope.description}</AlertDescription>
+                </Alert>
+              ) : null}
+              {state.commit ? (
+                <Alert data-testid={`${testIdPrefix}-commit-result`}>
+                  <AlertTitle>Import committed</AlertTitle>
+                  <AlertDescription>
+                    Inserted {state.commit.insertedCount} row(s), skipped{' '}
+                    {state.commit.skippedExistingCount + state.commit.skippedDuplicateCount}{' '}
+                    duplicate row(s), and skipped {state.commit.skippedExcludedCount} excluded
+                    row(s).
+                  </AlertDescription>
+                </Alert>
+              ) : null}
+              <Button
+                type="button"
+                onClick={() => void handleCommit()}
+                disabled={!canCommit}
+                data-testid={`${testIdPrefix}-commit-button`}
+              >
+                <CheckCircle2 className="mr-2 h-4 w-4" aria-hidden="true" />
+                {commitMutation.isPending ? 'Committing...' : 'Commit import'}
+              </Button>
+            </CardContent>
+          </Card>
         </>
       ) : null}
     </div>
@@ -163,17 +266,41 @@ export default function LpReportingImportsPage() {
   const [ledgerState, setLedgerState] = useState<SourceTabState>(INITIAL_STATE);
   const [valuationState, setValuationState] = useState<SourceTabState>(INITIAL_STATE);
 
-  const handleLedgerPreview = useCallback((response: ImportDryRunResponse) => {
-    setLedgerState({ preview: response, error: null });
-  }, []);
+  const handleLedgerPreview = useCallback(
+    (response: ImportDryRunResponse, request: ImportDryRunRequest) => {
+      setLedgerState({ preview: response, request, commit: null, error: null, commitError: null });
+    },
+    []
+  );
   const handleLedgerError = useCallback((error: LpReportingHookError) => {
-    setLedgerState((prev) => ({ preview: prev.preview, error }));
+    setLedgerState((prev) => ({ ...prev, error }));
   }, []);
-  const handleValuationPreview = useCallback((response: ImportDryRunResponse) => {
-    setValuationState({ preview: response, error: null });
+  const handleLedgerCommitSuccess = useCallback((response: ImportCommitResponse) => {
+    setLedgerState((prev) => ({ ...prev, commit: response, commitError: null }));
   }, []);
+  const handleLedgerCommitError = useCallback((error: LpReportingHookError) => {
+    setLedgerState((prev) => ({ ...prev, commitError: error }));
+  }, []);
+  const handleValuationPreview = useCallback(
+    (response: ImportDryRunResponse, request: ImportDryRunRequest) => {
+      setValuationState({
+        preview: response,
+        request,
+        commit: null,
+        error: null,
+        commitError: null,
+      });
+    },
+    []
+  );
   const handleValuationError = useCallback((error: LpReportingHookError) => {
-    setValuationState((prev) => ({ preview: prev.preview, error }));
+    setValuationState((prev) => ({ ...prev, error }));
+  }, []);
+  const handleValuationCommitSuccess = useCallback((response: ImportCommitResponse) => {
+    setValuationState((prev) => ({ ...prev, commit: response, commitError: null }));
+  }, []);
+  const handleValuationCommitError = useCallback((error: LpReportingHookError) => {
+    setValuationState((prev) => ({ ...prev, commitError: error }));
   }, []);
 
   return (
@@ -181,8 +308,8 @@ export default function LpReportingImportsPage() {
       <header>
         <h1 className="text-3xl font-bold font-inter text-charcoal">Imports</h1>
         <p className="text-charcoal/70 font-poppins mt-1">
-          Validate ledger and valuation-mark uploads via the protected dry-run endpoints. Preview
-          before commit; persistence ships in Phase 1c.
+          Validate ledger and valuation-mark uploads, inspect the preview, then commit eligible
+          rows.
         </p>
       </header>
 
@@ -214,6 +341,8 @@ export default function LpReportingImportsPage() {
             state={ledgerState}
             onPreview={handleLedgerPreview}
             onError={handleLedgerError}
+            onCommitSuccess={handleLedgerCommitSuccess}
+            onCommitError={handleLedgerCommitError}
           />
         </TabsContent>
 
@@ -225,6 +354,8 @@ export default function LpReportingImportsPage() {
             state={valuationState}
             onPreview={handleValuationPreview}
             onError={handleValuationError}
+            onCommitSuccess={handleValuationCommitSuccess}
+            onCommitError={handleValuationCommitError}
           />
         </TabsContent>
       </Tabs>

@@ -24,6 +24,7 @@ import { monitor, monteCarloTracker } from '../middleware/performance-monitor.js
 import { PRNG } from '@shared/utils/prng';
 import type { MarketParameters } from '@shared/types/backtesting';
 import { applyMarketParametersOverride } from './lib/distribution-overrides';
+import { performance } from 'node:perf_hooks';
 
 // ============================================================================
 // DEMO MODE CONFIGURATION
@@ -282,7 +283,7 @@ export class MonteCarloEngine {
    * Run portfolio construction simulation
    */
   async runPortfolioSimulation(config: SimulationConfig): Promise<SimulationResults> {
-    const startTime = Date.now();
+    const startTime = performance.now();
     const simulationId = uuidv4();
 
     // Start performance tracking
@@ -339,7 +340,7 @@ export class MonteCarloEngine {
       const results: SimulationResults = {
         simulationId,
         config,
-        executionTimeMs: Date.now() - startTime,
+        executionTimeMs: Math.max(1, Math.ceil(performance.now() - startTime)),
         irr: performanceResults.irr,
         multiple: performanceResults.multiple,
         dpi: performanceResults.dpi,
