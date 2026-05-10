@@ -14,6 +14,9 @@ import {
   MetricRunEvidenceCreateResponseSchema,
   MetricRunEvidenceListResponseSchema,
   MetricRunLifecycleResponseSchema,
+  NarrativeRunCreateResponseSchema,
+  NarrativeRunDetailResponseSchema,
+  NarrativeRunListResponseSchema,
 } from '@shared/contracts/lp-reporting';
 
 const authState = vi.hoisted(() => ({
@@ -26,12 +29,15 @@ const dbState = vi.hoisted(() => ({
   marks: [] as MockMarkRow[],
   metricRuns: [] as MockMetricRunRow[],
   evidenceRecords: [] as MockEvidenceRow[],
+  narrativeRuns: [] as MockNarrativeRow[],
   users: [7] as number[],
   insertedMetricRows: [] as unknown[],
   insertedEvidenceRows: [] as unknown[],
+  insertedNarrativeRows: [] as unknown[],
   insertCalls: 0,
   nextMetricRunId: 500,
   nextEvidenceId: 1000,
+  nextNarrativeId: 2000,
   dropNextInsert: false,
 }));
 let nextUserId = 800;
@@ -114,6 +120,8 @@ interface MockMetricRunRow {
   version?: number;
   createdAt?: Date | null;
   updatedAt?: Date | null;
+  resultsJson?: unknown;
+  diagnosticsJson?: unknown;
 }
 
 interface MockEvidenceRow {
@@ -141,6 +149,24 @@ interface MockEvidenceRow {
   uploadedBy: number | null;
   approvedBy: number | null;
   approvedAt: Date | null;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+interface MockNarrativeRow {
+  id: number;
+  fundId: number;
+  metricRunId: number;
+  asOfDate: string;
+  narrativeType: string;
+  generatedText: string;
+  editedText: string | null;
+  status: string;
+  generatedBy: number | null;
+  editedBy: number | null;
+  approvedBy: number | null;
+  approvedAt: Date | null;
+  exportedAt: Date | null;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -177,6 +203,13 @@ vi.mock('@shared/schema/lp-reporting-evidence', () => ({
     metricRunId: 'evidenceRecords.metricRunId',
     idempotencyKey: 'evidenceRecords.idempotencyKey',
   },
+  narrativeRuns: {
+    _kind: 'narrativeRuns',
+    id: 'narrativeRuns.id',
+    fundId: 'narrativeRuns.fundId',
+    metricRunId: 'narrativeRuns.metricRunId',
+    narrativeType: 'narrativeRuns.narrativeType',
+  },
 }));
 
 vi.mock('@shared/schema/user', () => ({
@@ -189,6 +222,69 @@ function queryResult<T>(rows: T[]): Promise<T[]> & { limit: (count: number) => P
   };
   promise.limit = (count: number) => Promise.resolve(rows.slice(0, count));
   return promise;
+}
+
+function makeMetricResults() {
+  return {
+    asOfDate: '2026-03-31',
+    currency: 'USD',
+    dpi: '0.250000',
+    rvpi: '1.000000',
+    tvpi: '1.250000',
+    moic: '1.250000',
+    netIrr: '0.110000',
+    grossIrr: '0.140000',
+    xirrDiagnostic: {
+      net: {
+        convergence: 'converged',
+        iterations: 5,
+        method: 'newton',
+        boundHit: null,
+        failureReason: null,
+      },
+      gross: {
+        convergence: 'converged',
+        iterations: 4,
+        method: 'newton',
+        boundHit: null,
+        failureReason: null,
+      },
+    },
+    contributionsTotal: '4000000.000000',
+    distributionsTotal: '1000000.000000',
+    currentNav: '4000000.000000',
+    markConfidenceMix: { high: 1, medium: 0, low: 0 },
+  };
+}
+
+function makeMetricDiagnostics() {
+  return {
+    engineVersion: 'lp-reporting-engine@1.2.0',
+    decimalPrecision: 6,
+    excludedFutureMarks: [],
+    warnings: [],
+  };
+}
+
+function makeNarrativeRow(overrides: Partial<MockNarrativeRow> = {}): MockNarrativeRow {
+  return {
+    id: 2000,
+    fundId: 1,
+    metricRunId: 500,
+    asOfDate: '2026-03-31',
+    narrativeType: 'methodology',
+    generatedText: 'Methodology draft as of 2026-03-31.',
+    editedText: null,
+    status: 'draft',
+    generatedBy: authState.userId,
+    editedBy: null,
+    approvedBy: null,
+    approvedAt: null,
+    exportedAt: null,
+    createdAt: new Date('2026-05-10T00:00:00Z'),
+    updatedAt: new Date('2026-05-10T00:00:00Z'),
+    ...overrides,
+  };
 }
 
 function rowsFor(table: { _kind?: string }): Array<Record<string, unknown>> {
@@ -213,8 +309,8 @@ function rowsFor(table: { _kind?: string }): Array<Record<string, unknown>> {
       sourceEventIds: row.sourceEventIds ?? [],
       sourceMarkIds: row.sourceMarkIds ?? [],
       sourceEvidenceIds: row.sourceEvidenceIds ?? [],
-      resultsJson: {},
-      diagnosticsJson: {},
+      resultsJson: row.resultsJson ?? makeMetricResults(),
+      diagnosticsJson: row.diagnosticsJson ?? makeMetricDiagnostics(),
       methodologyVersion: 'lp-reporting-methodology-v1',
       calculationVersion: 'lp-reporting-metrics-engine-1.0.0',
       generatedBy: row.generatedBy ?? authState.userId,
@@ -230,6 +326,9 @@ function rowsFor(table: { _kind?: string }): Array<Record<string, unknown>> {
   }
   if (table?._kind === 'evidenceRecords') {
     return [...dbState.evidenceRecords] as unknown as Array<Record<string, unknown>>;
+  }
+  if (table?._kind === 'narrativeRuns') {
+    return [...dbState.narrativeRuns] as unknown as Array<Record<string, unknown>>;
   }
   return [];
 }
@@ -316,6 +415,35 @@ vi.mock('../../../../server/db', () => {
                 dbState.evidenceRecords.push(evidenceRow);
                 dbState.insertedEvidenceRows.push(row);
                 return [evidenceRow];
+              }
+              if (table?._kind === 'narrativeRuns') {
+                const existing = dbState.narrativeRuns.find(
+                  (candidate) =>
+                    candidate.metricRunId === row['metricRunId'] &&
+                    candidate.narrativeType === row['narrativeType']
+                );
+                if (existing) {
+                  return [];
+                }
+                const id = dbState.nextNarrativeId++;
+                const narrativeRow = makeNarrativeRow({
+                  id,
+                  fundId: row['fundId'] as number,
+                  metricRunId: row['metricRunId'] as number,
+                  asOfDate: row['asOfDate'] as string,
+                  narrativeType: row['narrativeType'] as string,
+                  generatedText: row['generatedText'] as string,
+                  editedText: (row['editedText'] as string | undefined) ?? null,
+                  status: (row['status'] as string | undefined) ?? 'draft',
+                  generatedBy: (row['generatedBy'] as number | undefined) ?? null,
+                });
+                dbState.narrativeRuns.push(narrativeRow);
+                if (dbState.dropNextInsert) {
+                  dbState.dropNextInsert = false;
+                  return [];
+                }
+                dbState.insertedNarrativeRows.push(row);
+                return [narrativeRow];
               }
               if (table?._kind !== 'lpMetricRuns') {
                 return [];
@@ -440,6 +568,25 @@ function evidenceBody() {
   };
 }
 
+function seedLockedMetricRun(overrides: Partial<MockMetricRunRow> = {}) {
+  dbState.metricRuns.push({
+    id: 500,
+    fundId: 1,
+    runType: 'quarterly_report',
+    perspective: 'lp_net',
+    asOfDate: '2026-03-31',
+    status: 'locked',
+    inputsHash: 'a'.repeat(64),
+    sourceEventIds: [101, 102],
+    sourceMarkIds: [201],
+    sourceEvidenceIds: [1000],
+    lockedBy: authState.userId,
+    lockedAt: new Date('2026-05-10T02:00:00Z'),
+    version: 3,
+    ...overrides,
+  });
+}
+
 beforeEach(() => {
   authState.authenticated = true;
   authState.userId = nextUserId++;
@@ -448,12 +595,15 @@ beforeEach(() => {
   dbState.marks = [];
   dbState.metricRuns = [];
   dbState.evidenceRecords = [];
+  dbState.narrativeRuns = [];
   dbState.users = [authState.userId];
   dbState.insertedMetricRows = [];
   dbState.insertedEvidenceRows = [];
+  dbState.insertedNarrativeRows = [];
   dbState.insertCalls = 0;
   dbState.nextMetricRunId = 500;
   dbState.nextEvidenceId = 1000;
+  dbState.nextNarrativeId = 2000;
   dbState.dropNextInsert = false;
 });
 
@@ -803,6 +953,134 @@ describe('metric-run evidence routes', () => {
   });
 });
 
+describe('metric-run narrative routes', () => {
+  it('POST creates a narrative draft for a locked metric run', async () => {
+    seedLockedMetricRun();
+
+    const res = await request(buildApp())
+      .post('/api/funds/1/metric-runs/500/narrative-runs')
+      .send({ narrativeType: 'methodology' });
+
+    expect(res.status).toBe(201);
+    const parsed = NarrativeRunCreateResponseSchema.parse(res.body);
+    expect(parsed.inserted).toBe(true);
+    expect(parsed.record.metricRunId).toBe(500);
+    expect(parsed.record.narrativeType).toBe('methodology');
+    expect(parsed.record.generatedBy).toBe(authState.userId);
+    expect(parsed.record.generatedText).toContain('Engine version: lp-reporting-engine@1.2.0');
+    expect(dbState.insertedNarrativeRows).toHaveLength(1);
+    expect(dbState.insertedNarrativeRows[0]).toMatchObject({
+      fundId: 1,
+      metricRunId: 500,
+      asOfDate: '2026-03-31',
+      narrativeType: 'methodology',
+      generatedBy: authState.userId,
+      status: 'draft',
+    });
+    expect(dbState.insertedNarrativeRows[0]).not.toHaveProperty('approvedAt');
+    expect(dbState.insertedNarrativeRows[0]).not.toHaveProperty('exportedAt');
+  });
+
+  it('POST returns 200 for duplicate narrative create without mutating text', async () => {
+    seedLockedMetricRun();
+    dbState.narrativeRuns.push(
+      makeNarrativeRow({
+        id: 2001,
+        metricRunId: 500,
+        narrativeType: 'no_dpi',
+        generatedText: 'Existing no DPI draft.',
+      })
+    );
+
+    const res = await request(buildApp())
+      .post('/api/funds/1/metric-runs/500/narrative-runs')
+      .send({ narrativeType: 'no_dpi' });
+
+    expect(res.status).toBe(200);
+    const parsed = NarrativeRunCreateResponseSchema.parse(res.body);
+    expect(parsed.inserted).toBe(false);
+    expect(parsed.record.generatedText).toBe('Existing no DPI draft.');
+    expect(dbState.insertedNarrativeRows).toHaveLength(0);
+  });
+
+  it('POST rejects route-owned fields and unlocked metric runs', async () => {
+    seedLockedMetricRun({ status: 'approved' });
+
+    const invalidBody = await request(buildApp())
+      .post('/api/funds/1/metric-runs/500/narrative-runs')
+      .send({ narrativeType: 'no_dpi', metricRunId: 500 });
+    expect(invalidBody.status).toBe(400);
+    expect(invalidBody.body.error).toBe('INVALID_REQUEST_BODY');
+
+    const unlocked = await request(buildApp())
+      .post('/api/funds/1/metric-runs/500/narrative-runs')
+      .send({ narrativeType: 'no_dpi' });
+    expect(unlocked.status).toBe(409);
+    expect(unlocked.body.error).toBe('METRIC_RUN_NOT_LOCKED');
+    expect(dbState.insertedNarrativeRows).toHaveLength(0);
+  });
+
+  it('POST returns AUTH_USER_ID_UNRESOLVED when the numeric app user is missing', async () => {
+    seedLockedMetricRun();
+    dbState.users = [];
+
+    const res = await request(buildApp())
+      .post('/api/funds/1/metric-runs/500/narrative-runs')
+      .send({ narrativeType: 'risk_disclosure' });
+
+    expect(res.status).toBe(401);
+    expect(res.body.error).toBe('AUTH_USER_ID_UNRESOLVED');
+    expect(dbState.insertedNarrativeRows).toHaveLength(0);
+  });
+
+  it('GET lists route-scoped narrative drafts', async () => {
+    seedLockedMetricRun();
+    dbState.narrativeRuns.push(
+      makeNarrativeRow({ id: 2001, metricRunId: 500, narrativeType: 'risk_disclosure' }),
+      makeNarrativeRow({ id: 2002, metricRunId: 500, narrativeType: 'no_dpi' }),
+      makeNarrativeRow({ id: 2003, metricRunId: 501, narrativeType: 'methodology' })
+    );
+
+    const res = await request(buildApp()).get('/api/funds/1/metric-runs/500/narrative-runs');
+
+    expect(res.status).toBe(200);
+    const parsed = NarrativeRunListResponseSchema.parse(res.body);
+    expect(parsed.records.map((record) => record.narrativeType)).toEqual([
+      'no_dpi',
+      'risk_disclosure',
+    ]);
+  });
+
+  it('GET detail returns the route-scoped narrative and 404s cross-metric reads', async () => {
+    seedLockedMetricRun();
+    dbState.narrativeRuns.push(
+      makeNarrativeRow({ id: 2001, metricRunId: 500, narrativeType: 'portfolio_update' }),
+      makeNarrativeRow({ id: 2002, metricRunId: 501, narrativeType: 'portfolio_update' })
+    );
+
+    const detail = await request(buildApp()).get(
+      '/api/funds/1/metric-runs/500/narrative-runs/2001'
+    );
+    expect(detail.status).toBe(200);
+    expect(NarrativeRunDetailResponseSchema.parse(detail.body).record.narrativeRunId).toBe(2001);
+
+    const crossMetric = await request(buildApp()).get(
+      '/api/funds/1/metric-runs/500/narrative-runs/2002'
+    );
+    expect(crossMetric.status).toBe(404);
+    expect(crossMetric.body.error).toBe('NARRATIVE_RUN_NOT_FOUND');
+  });
+
+  it('returns 400 INVALID_NARRATIVE_RUN_ID for invalid detail IDs', async () => {
+    seedLockedMetricRun();
+
+    const res = await request(buildApp()).get('/api/funds/1/metric-runs/500/narrative-runs/abc');
+
+    expect(res.status).toBe(400);
+    expect(res.body.error).toBe('INVALID_NARRATIVE_RUN_ID');
+  });
+});
+
 describe('metric-run lifecycle routes', () => {
   it('GET latest requires exact metric-run context filters', async () => {
     const res = await request(buildApp()).get('/api/funds/1/metric-runs/latest');
@@ -1001,6 +1279,7 @@ describe('Source grep -- metric-run route boundaries', () => {
       '/api/funds/:fundId/metric-runs/:metricRunId/approve',
       '/api/funds/:fundId/metric-runs/:metricRunId/lock',
       '/api/funds/:fundId/metric-runs/:metricRunId/evidence-records',
+      '/api/funds/:fundId/metric-runs/:metricRunId/narrative-runs',
     ]);
 
     const getPaths =
@@ -1012,6 +1291,8 @@ describe('Source grep -- metric-run route boundaries', () => {
       '/api/funds/:fundId/metric-runs/latest',
       '/api/funds/:fundId/metric-runs/:metricRunId',
       '/api/funds/:fundId/metric-runs/:metricRunId/evidence-records',
+      '/api/funds/:fundId/metric-runs/:metricRunId/narrative-runs',
+      '/api/funds/:fundId/metric-runs/:metricRunId/narrative-runs/:narrativeRunId',
     ]);
   });
 

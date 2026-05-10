@@ -40,6 +40,8 @@ import {
   type MetricRunDryRunResponse,
   type MetricRunEvidenceCreateRequest,
   type MetricRunLifecycleResponse,
+  type NarrativeRunRecord,
+  type NarrativeType,
 } from '@shared/contracts/lp-reporting';
 import {
   useLatestMetricRun,
@@ -49,6 +51,8 @@ import {
   useMetricRunEvidenceCreate,
   useMetricRunEvidenceList,
   useMetricRunLock,
+  useMetricRunNarrativeCreate,
+  useMetricRunNarrativeList,
   type LpReportingHookError,
 } from '@/hooks/lp-reporting';
 
@@ -58,6 +62,13 @@ interface ErrorEnvelope {
 }
 
 const XIRR_PANEL_DOM_ID = 'lp-reporting-xirr-diagnostic-panel';
+
+const NARRATIVE_TYPES: Array<{ value: NarrativeType; label: string }> = [
+  { value: 'no_dpi', label: 'No DPI' },
+  { value: 'methodology', label: 'Methodology' },
+  { value: 'portfolio_update', label: 'Portfolio update' },
+  { value: 'risk_disclosure', label: 'Risk disclosure' },
+];
 
 type EvidenceSource =
   | 'financing_round'
@@ -222,6 +233,10 @@ export default function LpReportingMetricsPage() {
   const lockMutation = useMetricRunLock(fundId, lifecycleMetricRunId);
   const evidenceListQuery = useMetricRunEvidenceList(fundId, committedMetricRunId);
   const evidenceCreateMutation = useMetricRunEvidenceCreate(fundId, committedMetricRunId);
+  const lockedMetricRunId =
+    activeMetricRun?.status === 'locked' ? activeMetricRun.metricRunId : null;
+  const narrativeListQuery = useMetricRunNarrativeList(fundId, lockedMetricRunId);
+  const narrativeCreateMutation = useMetricRunNarrativeCreate(fundId, lockedMetricRunId);
 
   const handleSuccess = useCallback(
     (response: MetricRunDryRunResponse, request: MetricRunDryRunRequest) => {
@@ -353,6 +368,17 @@ export default function LpReportingMetricsPage() {
     ]
   );
 
+  const handleNarrativeCreate = useCallback(
+    async (narrativeType: NarrativeType) => {
+      try {
+        await narrativeCreateMutation.mutateAsync({ narrativeType });
+      } catch {
+        // The mutation error is rendered from narrativeCreateMutation.error.
+      }
+    },
+    [narrativeCreateMutation]
+  );
+
   const results = dryRun?.results ?? null;
   const envelope = dryRunError ? envelopeFor(dryRunError) : null;
   const commitEnvelope = commitError ? envelopeFor(commitError) : null;
@@ -365,6 +391,10 @@ export default function LpReportingMetricsPage() {
       ? envelopeFor(evidenceQueryError)
       : null;
   const evidenceRecords = evidenceListQuery.data?.records ?? [];
+  const narrativeRecords = narrativeListQuery.data?.records ?? [];
+  const narrativeTypesWithDrafts = new Set(
+    narrativeRecords.map((record: NarrativeRunRecord) => record.narrativeType)
+  );
   const activeEvidenceCount = Math.max(activeMetricRun?.evidenceCount ?? 0, evidenceRecords.length);
   const canApprove =
     activeMetricRun?.status === 'draft' &&
@@ -373,6 +403,9 @@ export default function LpReportingMetricsPage() {
     !latestQuery.isFetching;
   const canLock = activeMetricRun?.status === 'approved' && !lockMutation.isPending;
   const isEvidenceEditable = activeMetricRun === null || activeMetricRun.status === 'draft';
+  const narrativeError =
+    narrativeCreateMutation.error ?? (narrativeListQuery.error as LpReportingHookError | null);
+  const narrativeEnvelope = narrativeError ? envelopeFor(narrativeError) : null;
 
   return (
     <div className="p-8 space-y-6">
@@ -765,6 +798,86 @@ export default function LpReportingMetricsPage() {
                       </p>
                     </div>
                   ))}
+                </div>
+              </CardContent>
+            </Card>
+          ) : null}
+
+          {lockedMetricRunId !== null ? (
+            <Card data-testid="metric-run-narrative-card">
+              <CardHeader>
+                <CardTitle>Narrative drafts</CardTitle>
+                <CardDescription>
+                  Draft narrative rows for metric run #{lockedMetricRunId}.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {narrativeEnvelope ? (
+                  <Alert
+                    variant="destructive"
+                    data-testid="metric-run-narrative-error-envelope"
+                    data-error-status={narrativeError?.status ?? ''}
+                  >
+                    <AlertTitle>{narrativeEnvelope.title}</AlertTitle>
+                    <AlertDescription>{narrativeEnvelope.description}</AlertDescription>
+                  </Alert>
+                ) : null}
+
+                <div className="flex flex-wrap gap-2">
+                  {NARRATIVE_TYPES.map((type) => (
+                    <Button
+                      key={type.value}
+                      type="button"
+                      variant={narrativeTypesWithDrafts.has(type.value) ? 'outline' : 'default'}
+                      disabled={
+                        narrativeTypesWithDrafts.has(type.value) ||
+                        narrativeCreateMutation.isPending ||
+                        narrativeListQuery.isLoading
+                      }
+                      onClick={() => void handleNarrativeCreate(type.value)}
+                      data-testid={`metric-run-narrative-create-${type.value}`}
+                    >
+                      {narrativeTypesWithDrafts.has(type.value)
+                        ? `${type.label} drafted`
+                        : type.label}
+                    </Button>
+                  ))}
+                </div>
+
+                <div className="space-y-3" data-testid="metric-run-narrative-list">
+                  {narrativeListQuery.isLoading ? (
+                    <p className="text-sm text-charcoal/70 font-poppins">Loading drafts...</p>
+                  ) : null}
+                  {!narrativeListQuery.isLoading && narrativeRecords.length === 0 ? (
+                    <p
+                      className="text-sm text-charcoal/70 font-poppins"
+                      data-testid="metric-run-narrative-empty"
+                    >
+                      No narrative drafts yet.
+                    </p>
+                  ) : null}
+                  {narrativeRecords.map((record) => {
+                    const type = NARRATIVE_TYPES.find(
+                      (item) => item.value === record.narrativeType
+                    );
+                    return (
+                      <div
+                        key={record.narrativeRunId}
+                        className="rounded-md border border-slate-200 px-3 py-2"
+                        data-testid="metric-run-narrative-record"
+                      >
+                        <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+                          <p className="text-sm font-medium text-charcoal">
+                            {type?.label ?? record.narrativeType}
+                          </p>
+                          <Badge variant="outline">{record.status}</Badge>
+                        </div>
+                        <p className="mt-2 whitespace-pre-wrap text-sm text-charcoal/75">
+                          {record.generatedText}
+                        </p>
+                      </div>
+                    );
+                  })}
                 </div>
               </CardContent>
             </Card>

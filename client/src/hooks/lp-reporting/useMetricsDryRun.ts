@@ -21,6 +21,10 @@ import {
   MetricRunEvidenceListResponseSchema,
   MetricRunLifecycleResponseSchema,
   MetricRunLockRequestSchema,
+  NarrativeRunCreateRequestSchema,
+  NarrativeRunCreateResponseSchema,
+  NarrativeRunDetailResponseSchema,
+  NarrativeRunListResponseSchema,
   type LatestMetricRunQuery,
   type LatestMetricRunResponse,
   type MetricRunApproveRequest,
@@ -34,6 +38,10 @@ import {
   type MetricRunEvidenceListResponse,
   type MetricRunLifecycleResponse,
   type MetricRunLockRequest,
+  type NarrativeRunCreateRequest,
+  type NarrativeRunCreateResponse,
+  type NarrativeRunDetailResponse,
+  type NarrativeRunListResponse,
 } from '@shared/contracts/lp-reporting';
 
 export type MetricsDryRunRequest = MetricRunDryRunRequest;
@@ -128,6 +136,18 @@ function metricRunEvidenceQueryKey(fundId: number | null, metricRunId: number | 
   return ['lp-reporting', 'metric-run-evidence', fundId, metricRunId] as const;
 }
 
+function metricRunNarrativeQueryKey(fundId: number | null, metricRunId: number | null) {
+  return ['lp-reporting', 'metric-run-narratives', fundId, metricRunId] as const;
+}
+
+function metricRunNarrativeDetailQueryKey(
+  fundId: number | null,
+  metricRunId: number | null,
+  narrativeRunId: number | null
+) {
+  return ['lp-reporting', 'metric-run-narratives', fundId, metricRunId, narrativeRunId] as const;
+}
+
 function latestMetricRunQueryKey(fundId: number | null, query: LatestMetricRunQuery | null) {
   return [
     'lp-reporting',
@@ -197,6 +217,42 @@ async function getMetricRunEvidenceList(
   );
 }
 
+async function getMetricRunNarrativeList(
+  fundId: number,
+  metricRunId: number
+): Promise<NarrativeRunListResponse> {
+  const res = await fetch(`/api/funds/${fundId}/metric-runs/${metricRunId}/narrative-runs`, {
+    method: 'GET',
+    credentials: 'include',
+  });
+
+  return readContractResponse(
+    res,
+    NarrativeRunListResponseSchema,
+    'Metric-run narrative list response did not match the locked contract.'
+  );
+}
+
+async function getMetricRunNarrativeDetail(
+  fundId: number,
+  metricRunId: number,
+  narrativeRunId: number
+): Promise<NarrativeRunDetailResponse> {
+  const res = await fetch(
+    `/api/funds/${fundId}/metric-runs/${metricRunId}/narrative-runs/${narrativeRunId}`,
+    {
+      method: 'GET',
+      credentials: 'include',
+    }
+  );
+
+  return readContractResponse(
+    res,
+    NarrativeRunDetailResponseSchema,
+    'Metric-run narrative detail response did not match the locked contract.'
+  );
+}
+
 async function postMetricRunApprove(
   fundId: number,
   metricRunId: number,
@@ -257,6 +313,27 @@ async function postMetricRunEvidence(
     res,
     MetricRunEvidenceCreateResponseSchema,
     'Metric-run evidence create response did not match the locked contract.'
+  );
+}
+
+async function postMetricRunNarrative(
+  fundId: number,
+  metricRunId: number,
+  body: NarrativeRunCreateRequest
+): Promise<NarrativeRunCreateResponse> {
+  NarrativeRunCreateRequestSchema.parse(body);
+
+  const res = await fetch(`/api/funds/${fundId}/metric-runs/${metricRunId}/narrative-runs`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    credentials: 'include',
+    body: JSON.stringify(body),
+  });
+
+  return readContractResponse(
+    res,
+    NarrativeRunCreateResponseSchema,
+    'Metric-run narrative create response did not match the locked contract.'
   );
 }
 
@@ -343,6 +420,44 @@ export function useMetricRunEvidenceList(fundId: number | null, metricRunId: num
   });
 }
 
+export function useMetricRunNarrativeList(fundId: number | null, metricRunId: number | null) {
+  return useQuery<NarrativeRunListResponse, LpReportingHookError>({
+    queryKey: metricRunNarrativeQueryKey(fundId, metricRunId),
+    enabled: fundId !== null && metricRunId !== null,
+    queryFn: async () => {
+      if (fundId === null || metricRunId === null) {
+        const error = new Error('fundId and metricRunId are required') as LpReportingHookError;
+        error.code = 'MISSING_METRIC_RUN_NARRATIVE_SCOPE';
+        throw error;
+      }
+
+      return getMetricRunNarrativeList(fundId, metricRunId);
+    },
+  });
+}
+
+export function useMetricRunNarrativeDetail(
+  fundId: number | null,
+  metricRunId: number | null,
+  narrativeRunId: number | null
+) {
+  return useQuery<NarrativeRunDetailResponse, LpReportingHookError>({
+    queryKey: metricRunNarrativeDetailQueryKey(fundId, metricRunId, narrativeRunId),
+    enabled: fundId !== null && metricRunId !== null && narrativeRunId !== null,
+    queryFn: async () => {
+      if (fundId === null || metricRunId === null || narrativeRunId === null) {
+        const error = new Error(
+          'fundId, metricRunId, and narrativeRunId are required'
+        ) as LpReportingHookError;
+        error.code = 'MISSING_METRIC_RUN_NARRATIVE_SCOPE';
+        throw error;
+      }
+
+      return getMetricRunNarrativeDetail(fundId, metricRunId, narrativeRunId);
+    },
+  });
+}
+
 export function useMetricRunApprove(fundId: number | null, metricRunId: number | null) {
   const queryClient = useQueryClient();
 
@@ -405,6 +520,32 @@ export function useMetricRunEvidenceCreate(fundId: number | null, metricRunId: n
   });
 }
 
+export function useMetricRunNarrativeCreate(fundId: number | null, metricRunId: number | null) {
+  const queryClient = useQueryClient();
+
+  return useMutation<NarrativeRunCreateResponse, LpReportingHookError, NarrativeRunCreateRequest>({
+    mutationFn: async (request) => {
+      if (fundId === null || metricRunId === null) {
+        const error = new Error('fundId and metricRunId are required') as LpReportingHookError;
+        error.code = 'MISSING_METRIC_RUN_NARRATIVE_SCOPE';
+        throw error;
+      }
+
+      return postMetricRunNarrative(fundId, metricRunId, request);
+    },
+    onSuccess: (response) => {
+      queryClient.invalidateQueries({ queryKey: metricRunNarrativeQueryKey(fundId, metricRunId) });
+      queryClient.invalidateQueries({
+        queryKey: metricRunNarrativeDetailQueryKey(
+          fundId,
+          metricRunId,
+          response.record.narrativeRunId
+        ),
+      });
+    },
+  });
+}
+
 export type {
   LatestMetricRunQuery,
   LatestMetricRunResponse,
@@ -415,4 +556,8 @@ export type {
   MetricRunEvidenceListResponse,
   MetricRunLifecycleResponse,
   MetricRunLockRequest,
+  NarrativeRunCreateRequest,
+  NarrativeRunCreateResponse,
+  NarrativeRunDetailResponse,
+  NarrativeRunListResponse,
 };

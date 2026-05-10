@@ -24,6 +24,9 @@ import {
   useMetricRunEvidenceCreate,
   useMetricRunEvidenceList,
   useMetricRunLock,
+  useMetricRunNarrativeCreate,
+  useMetricRunNarrativeDetail,
+  useMetricRunNarrativeList,
   useMetricsDryRun,
 } from '@/hooks/lp-reporting';
 import type { MetricsDryRunRequest } from '@/hooks/lp-reporting';
@@ -35,6 +38,9 @@ import type {
   MetricRunEvidenceCreateResponse,
   MetricRunEvidenceListResponse,
   MetricRunLifecycleResponse,
+  NarrativeRunCreateResponse,
+  NarrativeRunDetailResponse,
+  NarrativeRunListResponse,
 } from '@shared/contracts/lp-reporting';
 
 function makeWrapper() {
@@ -150,6 +156,45 @@ function makeEvidenceCreateResponse(): MetricRunEvidenceCreateResponse {
   return {
     record: makeEvidenceRecord(),
     inserted: true,
+  };
+}
+
+function makeNarrativeRecord() {
+  return {
+    narrativeRunId: 41,
+    fundId: 7,
+    metricRunId: 17,
+    asOfDate: '2026-03-31',
+    narrativeType: 'methodology' as const,
+    generatedText: 'Methodology draft as of 2026-03-31.',
+    editedText: null,
+    status: 'draft' as const,
+    generatedBy: 7,
+    editedBy: null,
+    approvedBy: null,
+    approvedAt: null,
+    exportedAt: null,
+    createdAt: '2026-05-10T00:00:00.000Z',
+    updatedAt: '2026-05-10T00:00:00.000Z',
+  };
+}
+
+function makeNarrativeListResponse(): NarrativeRunListResponse {
+  return {
+    records: [makeNarrativeRecord()],
+  };
+}
+
+function makeNarrativeCreateResponse(): NarrativeRunCreateResponse {
+  return {
+    record: makeNarrativeRecord(),
+    inserted: true,
+  };
+}
+
+function makeNarrativeDetailResponse(): NarrativeRunDetailResponse {
+  return {
+    record: makeNarrativeRecord(),
   };
 }
 
@@ -588,5 +633,152 @@ describe('metric-run evidence hooks', () => {
 
     expect(result.current.error?.status).toBe(409);
     expect(result.current.error?.code).toBe('METRIC_RUN_NOT_EDITABLE');
+  });
+});
+
+describe('metric-run narrative hooks', () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it('GETs route-scoped narrative drafts and parses the response', async () => {
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response(JSON.stringify(makeNarrativeListResponse()), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      })
+    );
+
+    const { Wrapper } = makeWrapper();
+    const { result } = renderHook(() => useMetricRunNarrativeList(7, 17), {
+      wrapper: Wrapper,
+    });
+
+    await waitFor(() => {
+      expect(result.current.isSuccess).toBe(true);
+    });
+
+    expect(fetchSpy).toHaveBeenCalledTimes(1);
+    const [url, init] = fetchSpy.mock.calls[0]!;
+    expect(url).toBe('/api/funds/7/metric-runs/17/narrative-runs');
+    expect(init?.method).toBe('GET');
+    expect(result.current.data?.records[0]?.narrativeType).toBe('methodology');
+  });
+
+  it('keeps the narrative list disabled without fundId or metricRunId', () => {
+    const fetchSpy = vi.spyOn(globalThis, 'fetch');
+
+    const { Wrapper } = makeWrapper();
+    const { result } = renderHook(() => useMetricRunNarrativeList(7, null), {
+      wrapper: Wrapper,
+    });
+
+    expect(result.current.fetchStatus).toBe('idle');
+    expect(fetchSpy).not.toHaveBeenCalled();
+  });
+
+  it('GETs narrative detail by route-scoped ID', async () => {
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response(JSON.stringify(makeNarrativeDetailResponse()), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      })
+    );
+
+    const { Wrapper } = makeWrapper();
+    const { result } = renderHook(() => useMetricRunNarrativeDetail(7, 17, 41), {
+      wrapper: Wrapper,
+    });
+
+    await waitFor(() => {
+      expect(result.current.isSuccess).toBe(true);
+    });
+
+    const [url, init] = fetchSpy.mock.calls[0]!;
+    expect(url).toBe('/api/funds/7/metric-runs/17/narrative-runs/41');
+    expect(init?.method).toBe('GET');
+    expect(result.current.data?.record.narrativeRunId).toBe(41);
+  });
+
+  it('POSTs only narrativeType and invalidates narrative queries', async () => {
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response(JSON.stringify(makeNarrativeCreateResponse()), {
+        status: 201,
+        headers: { 'Content-Type': 'application/json' },
+      })
+    );
+
+    const { Wrapper, queryClient } = makeWrapper();
+    const invalidateSpy = vi.spyOn(queryClient, 'invalidateQueries');
+    const { result } = renderHook(() => useMetricRunNarrativeCreate(7, 17), {
+      wrapper: Wrapper,
+    });
+
+    result.current.mutate({ narrativeType: 'methodology' });
+
+    await waitFor(() => {
+      expect(result.current.isSuccess).toBe(true);
+    });
+
+    expect(fetchSpy).toHaveBeenCalledTimes(1);
+    const [url, init] = fetchSpy.mock.calls[0]!;
+    expect(url).toBe('/api/funds/7/metric-runs/17/narrative-runs');
+    expect(init?.method).toBe('POST');
+    expect(JSON.parse(init?.body as string)).toEqual({ narrativeType: 'methodology' });
+    expect(invalidateSpy).toHaveBeenCalledWith({
+      queryKey: ['lp-reporting', 'metric-run-narratives', 7, 17],
+    });
+    expect(invalidateSpy).toHaveBeenCalledWith({
+      queryKey: ['lp-reporting', 'metric-run-narratives', 7, 17, 41],
+    });
+  });
+
+  it('preserves narrative create server error codes', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          error: 'METRIC_RUN_NOT_LOCKED',
+          message: 'Narrative drafts can only be generated from locked metric runs.',
+        }),
+        {
+          status: 409,
+          headers: { 'Content-Type': 'application/json' },
+        }
+      )
+    );
+
+    const { Wrapper } = makeWrapper();
+    const { result } = renderHook(() => useMetricRunNarrativeCreate(7, 17), {
+      wrapper: Wrapper,
+    });
+
+    result.current.mutate({ narrativeType: 'risk_disclosure' });
+
+    await waitFor(() => {
+      expect(result.current.isError).toBe(true);
+    });
+
+    expect(result.current.error?.status).toBe(409);
+    expect(result.current.error?.code).toBe('METRIC_RUN_NOT_LOCKED');
+  });
+
+  it('flags narrative contract drift with CONTRACT_PARSE_ERROR', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response(JSON.stringify({ records: [{ bad: true }] }), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      })
+    );
+
+    const { Wrapper } = makeWrapper();
+    const { result } = renderHook(() => useMetricRunNarrativeList(7, 17), {
+      wrapper: Wrapper,
+    });
+
+    await waitFor(() => {
+      expect(result.current.isError).toBe(true);
+    });
+
+    expect(result.current.error?.code).toBe('CONTRACT_PARSE_ERROR');
   });
 });

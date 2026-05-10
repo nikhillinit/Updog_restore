@@ -365,6 +365,10 @@ export const narrativeRuns = pgTable(
       sql`${table.status} IN ('draft', 'reviewed', 'approved', 'exported')`
     ),
     metricRunIdx: index('idx_narrative_runs_metric_run').on(table.metricRunId),
+    metricRunTypeUniqueIdx: uniqueIndex('narrative_runs_metric_run_type_unique').on(
+      table.metricRunId,
+      table.narrativeType
+    ),
   })
 );
 
