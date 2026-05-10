@@ -10,6 +10,8 @@ import request from 'supertest';
 import {
   MetricRunCommitResponseSchema,
   MetricRunDryRunResponseSchema,
+  MetricRunEvidenceCreateResponseSchema,
+  MetricRunEvidenceListResponseSchema,
 } from '@shared/contracts/lp-reporting';
 
 const authState = vi.hoisted(() => ({
@@ -21,10 +23,13 @@ const dbState = vi.hoisted(() => ({
   events: [] as MockEventRow[],
   marks: [] as MockMarkRow[],
   metricRuns: [] as MockMetricRunRow[],
+  evidenceRecords: [] as MockEvidenceRow[],
   users: [7] as number[],
   insertedMetricRows: [] as unknown[],
+  insertedEvidenceRows: [] as unknown[],
   insertCalls: 0,
   nextMetricRunId: 500,
+  nextEvidenceId: 1000,
   dropNextInsert: false,
 }));
 let nextUserId = 800;
@@ -97,6 +102,35 @@ interface MockMetricRunRow {
   inputsHash: string;
 }
 
+interface MockEvidenceRow {
+  id: number;
+  fundId: number;
+  valuationMarkId: number | null;
+  companyId: number | null;
+  metricRunId: number | null;
+  narrativeRunId: number | null;
+  idempotencyKey: string | null;
+  evidenceSource: string;
+  sourceDate: string;
+  receivedDate: string | null;
+  expirationDate: string | null;
+  confidenceLevel: string;
+  materialityLevel: string;
+  confidentiality: string;
+  redactionRequired: boolean;
+  documentHash: string | null;
+  valuationPolicyVersion: string | null;
+  description: string | null;
+  internalNotes: string | null;
+  lpObjection: string | null;
+  attachments: unknown[];
+  uploadedBy: number | null;
+  approvedBy: number | null;
+  approvedAt: Date | null;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
 vi.mock('@shared/schema/lp-reporting-evidence', () => ({
   cashFlowEvents: { _kind: 'cashFlowEvents', id: 'cashFlowEvents.id' },
   valuationMarks: { _kind: 'valuationMarks', id: 'valuationMarks.id' },
@@ -109,6 +143,13 @@ vi.mock('@shared/schema/lp-reporting-evidence', () => ({
     asOfDate: 'lpMetricRuns.asOfDate',
     status: 'lpMetricRuns.status',
     inputsHash: 'lpMetricRuns.inputsHash',
+  },
+  evidenceRecords: {
+    _kind: 'evidenceRecords',
+    id: 'evidenceRecords.id',
+    fundId: 'evidenceRecords.fundId',
+    metricRunId: 'evidenceRecords.metricRunId',
+    idempotencyKey: 'evidenceRecords.idempotencyKey',
   },
 }));
 
@@ -137,9 +178,13 @@ function rowsFor(table: { _kind?: string }): Array<Record<string, unknown>> {
   if (table?._kind === 'lpMetricRuns') {
     return dbState.metricRuns.map((row) => ({
       id: row.id,
+      fundId: row.fundId,
       status: row.status,
       inputsHash: row.inputsHash,
     }));
+  }
+  if (table?._kind === 'evidenceRecords') {
+    return [...dbState.evidenceRecords] as unknown as Array<Record<string, unknown>>;
   }
   return [];
 }
@@ -152,8 +197,46 @@ vi.mock('../../../../server/db', () => ({
         values: vi.fn((row: Record<string, unknown>) => ({
           onConflictDoNothing: vi.fn(() => ({
             returning: vi.fn(async () => {
-              if (table?._kind !== 'lpMetricRuns' || dbState.dropNextInsert) {
+              if (dbState.dropNextInsert) {
                 dbState.dropNextInsert = false;
+                return [];
+              }
+              if (table?._kind === 'evidenceRecords') {
+                const id = dbState.nextEvidenceId++;
+                const evidenceRow: MockEvidenceRow = {
+                  id,
+                  fundId: row['fundId'] as number,
+                  valuationMarkId: (row['valuationMarkId'] as number | undefined) ?? null,
+                  companyId: (row['companyId'] as number | undefined) ?? null,
+                  metricRunId: (row['metricRunId'] as number | undefined) ?? null,
+                  narrativeRunId: (row['narrativeRunId'] as number | undefined) ?? null,
+                  idempotencyKey: (row['idempotencyKey'] as string | undefined) ?? null,
+                  evidenceSource: row['evidenceSource'] as string,
+                  sourceDate: row['sourceDate'] as string,
+                  receivedDate: (row['receivedDate'] as string | undefined) ?? null,
+                  expirationDate: (row['expirationDate'] as string | undefined) ?? null,
+                  confidenceLevel: row['confidenceLevel'] as string,
+                  materialityLevel: row['materialityLevel'] as string,
+                  confidentiality: row['confidentiality'] as string,
+                  redactionRequired: row['redactionRequired'] as boolean,
+                  documentHash: (row['documentHash'] as string | undefined) ?? null,
+                  valuationPolicyVersion:
+                    (row['valuationPolicyVersion'] as string | undefined) ?? null,
+                  description: (row['description'] as string | undefined) ?? null,
+                  internalNotes: (row['internalNotes'] as string | undefined) ?? null,
+                  lpObjection: (row['lpObjection'] as string | undefined) ?? null,
+                  attachments: (row['attachments'] as unknown[] | undefined) ?? [],
+                  uploadedBy: (row['uploadedBy'] as number | undefined) ?? null,
+                  approvedBy: null,
+                  approvedAt: null,
+                  createdAt: new Date('2026-05-10T00:00:00Z'),
+                  updatedAt: new Date('2026-05-10T00:00:00Z'),
+                };
+                dbState.evidenceRecords.push(evidenceRow);
+                dbState.insertedEvidenceRows.push(row);
+                return [evidenceRow];
+              }
+              if (table?._kind !== 'lpMetricRuns') {
                 return [];
               }
               const id = dbState.nextMetricRunId++;
@@ -258,6 +341,16 @@ function dryRunBody(eventIds: number[] = [], markIds: number[] = []) {
   };
 }
 
+function evidenceBody() {
+  return {
+    idempotencyKey: 'metric-run-500-evidence-0',
+    evidenceSource: 'board_update',
+    sourceDate: '2026-03-31',
+    materialityLevel: 'high',
+    description: 'Q1 board materials',
+  };
+}
+
 beforeEach(() => {
   authState.authenticated = true;
   authState.userId = nextUserId++;
@@ -265,10 +358,13 @@ beforeEach(() => {
   dbState.events = [];
   dbState.marks = [];
   dbState.metricRuns = [];
+  dbState.evidenceRecords = [];
   dbState.users = [authState.userId];
   dbState.insertedMetricRows = [];
+  dbState.insertedEvidenceRows = [];
   dbState.insertCalls = 0;
   dbState.nextMetricRunId = 500;
+  dbState.nextEvidenceId = 1000;
   dbState.dropNextInsert = false;
 });
 
@@ -499,13 +595,132 @@ describe('POST /api/funds/:fundId/metric-runs/commit', () => {
   });
 });
 
+describe('metric-run evidence routes', () => {
+  it('POST creates metadata-only evidence for a draft metric run', async () => {
+    dbState.metricRuns.push({
+      id: 500,
+      fundId: 1,
+      runType: 'quarterly_report',
+      perspective: 'lp_net',
+      asOfDate: '2026-03-31',
+      status: 'draft',
+      inputsHash: 'a'.repeat(64),
+    });
+
+    const res = await request(buildApp())
+      .post('/api/funds/1/metric-runs/500/evidence-records')
+      .send(evidenceBody());
+
+    expect(res.status).toBe(201);
+    const parsed = MetricRunEvidenceCreateResponseSchema.parse(res.body);
+    expect(parsed.inserted).toBe(true);
+    expect(parsed.record.metricRunId).toBe(500);
+    expect(parsed.record.uploadedBy).toBe(authState.userId);
+    expect(dbState.insertedEvidenceRows).toHaveLength(1);
+    expect(dbState.insertedEvidenceRows[0]).toMatchObject({
+      fundId: 1,
+      metricRunId: 500,
+      uploadedBy: authState.userId,
+      idempotencyKey: 'metric-run-500-evidence-0',
+      attachments: [],
+    });
+  });
+
+  it('POST rejects route-owned fields in the request body', async () => {
+    dbState.metricRuns.push({
+      id: 500,
+      fundId: 1,
+      runType: 'quarterly_report',
+      perspective: 'lp_net',
+      asOfDate: '2026-03-31',
+      status: 'draft',
+      inputsHash: 'a'.repeat(64),
+    });
+
+    const res = await request(buildApp())
+      .post('/api/funds/1/metric-runs/500/evidence-records')
+      .send({ ...evidenceBody(), metricRunId: 500 });
+
+    expect(res.status).toBe(400);
+    expect(res.body.error).toBe('INVALID_REQUEST_BODY');
+    expect(dbState.insertedEvidenceRows).toHaveLength(0);
+  });
+
+  it('POST returns 409 METRIC_RUN_NOT_EDITABLE for approved metric runs', async () => {
+    dbState.metricRuns.push({
+      id: 500,
+      fundId: 1,
+      runType: 'quarterly_report',
+      perspective: 'lp_net',
+      asOfDate: '2026-03-31',
+      status: 'approved',
+      inputsHash: 'a'.repeat(64),
+    });
+
+    const res = await request(buildApp())
+      .post('/api/funds/1/metric-runs/500/evidence-records')
+      .send(evidenceBody());
+
+    expect(res.status).toBe(409);
+    expect(res.body.error).toBe('METRIC_RUN_NOT_EDITABLE');
+    expect(dbState.insertedEvidenceRows).toHaveLength(0);
+  });
+
+  it('GET lists evidence for locked metric runs', async () => {
+    dbState.metricRuns.push({
+      id: 500,
+      fundId: 1,
+      runType: 'quarterly_report',
+      perspective: 'lp_net',
+      asOfDate: '2026-03-31',
+      status: 'locked',
+      inputsHash: 'a'.repeat(64),
+    });
+    dbState.evidenceRecords.push({
+      id: 1000,
+      fundId: 1,
+      valuationMarkId: null,
+      companyId: null,
+      metricRunId: 500,
+      narrativeRunId: null,
+      idempotencyKey: 'metric-run-500-evidence-0',
+      evidenceSource: 'board_update',
+      sourceDate: '2026-03-31',
+      receivedDate: null,
+      expirationDate: null,
+      confidenceLevel: 'medium',
+      materialityLevel: 'high',
+      confidentiality: 'internal',
+      redactionRequired: false,
+      documentHash: null,
+      valuationPolicyVersion: null,
+      description: 'Q1 board materials',
+      internalNotes: null,
+      lpObjection: null,
+      attachments: [],
+      uploadedBy: authState.userId,
+      approvedBy: null,
+      approvedAt: null,
+      createdAt: new Date('2026-05-10T00:00:00Z'),
+      updatedAt: new Date('2026-05-10T00:00:00Z'),
+    });
+
+    const res = await request(buildApp()).get('/api/funds/1/metric-runs/500/evidence-records');
+
+    expect(res.status).toBe(200);
+    const parsed = MetricRunEvidenceListResponseSchema.parse(res.body);
+    expect(parsed.records).toHaveLength(1);
+    expect(parsed.records[0]?.idempotencyKey).toBe('metric-run-500-evidence-0');
+  });
+});
+
 describe('Source grep -- metric-run route boundaries', () => {
   const routerSource = fs.readFileSync(
     path.join(process.cwd(), 'server', 'routes', 'lp-reporting', 'metric-runs.ts'),
     'utf8'
   );
 
-  it('declares dry-run and commit endpoints only', () => {
+  it('declares scoped metric-run endpoints only', () => {
     const paths =
       routerSource
         .match(/router\.post\(\s*['"]([^'"]+)['"]/g)
@@ -514,7 +729,15 @@ describe('Source grep -- metric-run route boundaries', () => {
     expect(paths).toEqual([
       '/api/funds/:fundId/metric-runs/dry-run',
       '/api/funds/:fundId/metric-runs/commit',
+      '/api/funds/:fundId/metric-runs/:metricRunId/evidence-records',
     ]);
+
+    const getPaths =
+      routerSource
+        .match(/router\.get\(\s*['"]([^'"]+)['"]/g)
+        ?.map((match) => match.replace(/router\.get\(\s*['"]/, '').replace(/['"]$/, '')) ?? [];
+
+    expect(getPaths).toEqual(['/api/funds/:fundId/metric-runs/:metricRunId/evidence-records']);
   });
 
   it('does not add any /api/public route', () => {

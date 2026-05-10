@@ -108,3 +108,73 @@ export const EvidenceRecordCreateSchema = z
   });
 
 export type EvidenceRecordCreate = z.infer<typeof EvidenceRecordCreateSchema>;
+
+export const MetricRunEvidenceIdempotencyKeySchema = z.string().trim().min(1).max(128);
+
+export const MetricRunEvidenceCreateRequestSchema = z
+  .object({
+    idempotencyKey: MetricRunEvidenceIdempotencyKeySchema,
+    evidenceSource: EvidenceSourceSchema,
+    sourceDate: z.string().date(),
+    receivedDate: z.string().date().optional(),
+    expirationDate: z.string().date().optional(),
+    confidenceLevel: ConfidenceLevelSchema.default('medium'),
+    materialityLevel: MaterialityLevelSchema.default('medium'),
+    confidentiality: ConfidentialitySchema.default('internal'),
+    redactionRequired: z.boolean().default(false),
+    documentHash: z
+      .string()
+      .regex(/^[a-f0-9]{64}$/i)
+      .optional(),
+    valuationPolicyVersion: z.string().max(64).optional(),
+    description: z.string().max(2000).optional(),
+    internalNotes: z.string().max(5000).optional(),
+    lpObjection: z.string().max(2000).optional(),
+  })
+  .strict();
+
+export const MetricRunEvidenceRecordSchema = z
+  .object({
+    id: z.number().int().positive(),
+    fundId: z.number().int().positive(),
+    metricRunId: z.number().int().positive(),
+    idempotencyKey: MetricRunEvidenceIdempotencyKeySchema,
+    evidenceSource: EvidenceSourceSchema,
+    sourceDate: z.string().date(),
+    receivedDate: z.string().date().nullable(),
+    expirationDate: z.string().date().nullable(),
+    confidenceLevel: ConfidenceLevelSchema,
+    materialityLevel: MaterialityLevelSchema,
+    confidentiality: ConfidentialitySchema,
+    redactionRequired: z.boolean(),
+    documentHash: z
+      .string()
+      .regex(/^[a-f0-9]{64}$/i)
+      .nullable(),
+    valuationPolicyVersion: z.string().max(64).nullable(),
+    description: z.string().max(2000).nullable(),
+    internalNotes: z.string().max(5000).nullable(),
+    lpObjection: z.string().max(2000).nullable(),
+    uploadedBy: z.number().int().positive().nullable(),
+    createdAt: z.string().datetime(),
+    updatedAt: z.string().datetime(),
+  })
+  .strict();
+
+export const MetricRunEvidenceCreateResponseSchema = z
+  .object({
+    record: MetricRunEvidenceRecordSchema,
+    inserted: z.boolean(),
+  })
+  .strict();
+
+export const MetricRunEvidenceListResponseSchema = z
+  .object({
+    records: z.array(MetricRunEvidenceRecordSchema),
+  })
+  .strict();
+
+export type MetricRunEvidenceCreateRequest = z.infer<typeof MetricRunEvidenceCreateRequestSchema>;
+export type MetricRunEvidenceRecord = z.infer<typeof MetricRunEvidenceRecordSchema>;
+export type MetricRunEvidenceCreateResponse = z.infer<typeof MetricRunEvidenceCreateResponseSchema>;
+export type MetricRunEvidenceListResponse = z.infer<typeof MetricRunEvidenceListResponseSchema>;

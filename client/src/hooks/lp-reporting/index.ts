@@ -5,11 +5,16 @@
  */
 
 export {
+  useMetricRunEvidenceCreate,
+  useMetricRunEvidenceList,
   useMetricRunCommit,
   useMetricsDryRun,
   type MetricsDryRunRequest,
   type DryRunErrorBody,
   type LpReportingHookError,
+  type MetricRunEvidenceCreateRequest,
+  type MetricRunEvidenceCreateResponse,
+  type MetricRunEvidenceListResponse,
 } from './useMetricsDryRun';
 export { useLedgerImportDryRun } from './useLedgerImportDryRun';
 export { useValuationMarkImportDryRun } from './useValuationMarkImportDryRun';

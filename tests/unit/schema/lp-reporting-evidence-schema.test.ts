@@ -163,6 +163,7 @@ describe('LP Reporting Foundation Schema -- Drizzle bindings', () => {
       expect(names).toContain('company_id');
       expect(names).toContain('metric_run_id');
       expect(names).toContain('narrative_run_id');
+      expect(names).toContain('idempotency_key');
       expect(names).not.toContain('target_type');
       expect(names).not.toContain('target_id');
     });
@@ -176,6 +177,7 @@ describe('LP Reporting Foundation Schema -- Drizzle bindings', () => {
       expect(names).toContain('idx_evidence_company');
       expect(names).toContain('idx_evidence_metric_run');
       expect(names).toContain('idx_evidence_narrative_run');
+      expect(names).toContain('evidence_records_metric_run_idempotency_unique');
     });
 
     it('indexes parent FKs used by narrative and participation history flows', () => {

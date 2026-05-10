@@ -8,15 +8,21 @@
  * @module client/hooks/lp-reporting/useMetricsDryRun
  */
 
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   MetricRunCommitRequestSchema,
   MetricRunCommitResponseSchema,
   MetricRunDryRunResponseSchema,
+  MetricRunEvidenceCreateRequestSchema,
+  MetricRunEvidenceCreateResponseSchema,
+  MetricRunEvidenceListResponseSchema,
   type MetricRunCommitRequest,
   type MetricRunCommitResponse,
   type MetricRunDryRunRequest,
   type MetricRunDryRunResponse,
+  type MetricRunEvidenceCreateRequest,
+  type MetricRunEvidenceCreateResponse,
+  type MetricRunEvidenceListResponse,
 } from '@shared/contracts/lp-reporting';
 
 export type MetricsDryRunRequest = MetricRunDryRunRequest;
@@ -105,6 +111,71 @@ async function postMetricRunCommit(
   return parsed.data;
 }
 
+function metricRunEvidenceQueryKey(fundId: number | null, metricRunId: number | null) {
+  return ['lp-reporting', 'metric-run-evidence', fundId, metricRunId] as const;
+}
+
+async function getMetricRunEvidenceList(
+  fundId: number,
+  metricRunId: number
+): Promise<MetricRunEvidenceListResponse> {
+  const res = await fetch(`/api/funds/${fundId}/metric-runs/${metricRunId}/evidence-records`, {
+    method: 'GET',
+    credentials: 'include',
+  });
+
+  if (!res.ok) {
+    const errorBody = (await res.json().catch(() => ({}))) as Partial<DryRunErrorBody>;
+    throw buildHookError(res.status, errorBody, `HTTP ${res.status}`);
+  }
+
+  const raw = (await res.json()) as unknown;
+  const parsed = MetricRunEvidenceListResponseSchema.safeParse(raw);
+  if (!parsed.success) {
+    const error = new Error(
+      'Metric-run evidence list response did not match the locked contract.'
+    ) as LpReportingHookError;
+    error.code = 'CONTRACT_PARSE_ERROR';
+    error.status = res.status;
+    throw error;
+  }
+
+  return parsed.data;
+}
+
+async function postMetricRunEvidence(
+  fundId: number,
+  metricRunId: number,
+  body: MetricRunEvidenceCreateRequest
+): Promise<MetricRunEvidenceCreateResponse> {
+  MetricRunEvidenceCreateRequestSchema.parse(body);
+
+  const res = await fetch(`/api/funds/${fundId}/metric-runs/${metricRunId}/evidence-records`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    credentials: 'include',
+    body: JSON.stringify(body),
+  });
+
+  if (!res.ok) {
+    const errorBody = (await res.json().catch(() => ({}))) as Partial<DryRunErrorBody>;
+    throw buildHookError(res.status, errorBody, `HTTP ${res.status}`);
+  }
+
+  const raw = (await res.json()) as unknown;
+  const parsed = MetricRunEvidenceCreateResponseSchema.safeParse(raw);
+  if (!parsed.success) {
+    const error = new Error(
+      'Metric-run evidence create response did not match the locked contract.'
+    ) as LpReportingHookError;
+    error.code = 'CONTRACT_PARSE_ERROR';
+    error.status = res.status;
+    throw error;
+  }
+
+  return parsed.data;
+}
+
 export function useMetricsDryRun(fundId: number | null) {
   return useMutation<MetricRunDryRunResponse, LpReportingHookError, MetricsDryRunRequest>({
     mutationFn: async (request) => {
@@ -138,3 +209,48 @@ export function useMetricRunCommit(fundId: number | null) {
     },
   });
 }
+
+export function useMetricRunEvidenceList(fundId: number | null, metricRunId: number | null) {
+  return useQuery<MetricRunEvidenceListResponse, LpReportingHookError>({
+    queryKey: metricRunEvidenceQueryKey(fundId, metricRunId),
+    enabled: fundId !== null && metricRunId !== null,
+    queryFn: async () => {
+      if (fundId === null || metricRunId === null) {
+        const error = new Error('fundId and metricRunId are required') as LpReportingHookError;
+        error.code = 'MISSING_METRIC_RUN_EVIDENCE_SCOPE';
+        throw error;
+      }
+
+      return getMetricRunEvidenceList(fundId, metricRunId);
+    },
+  });
+}
+
+export function useMetricRunEvidenceCreate(fundId: number | null, metricRunId: number | null) {
+  const queryClient = useQueryClient();
+
+  return useMutation<
+    MetricRunEvidenceCreateResponse,
+    LpReportingHookError,
+    MetricRunEvidenceCreateRequest
+  >({
+    mutationFn: async (request) => {
+      if (fundId === null || metricRunId === null) {
+        const error = new Error('fundId and metricRunId are required') as LpReportingHookError;
+        error.code = 'MISSING_METRIC_RUN_EVIDENCE_SCOPE';
+        throw error;
+      }
+
+      return postMetricRunEvidence(fundId, metricRunId, request);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: metricRunEvidenceQueryKey(fundId, metricRunId) });
+    },
+  });
+}
+
+export type {
+  MetricRunEvidenceCreateRequest,
+  MetricRunEvidenceCreateResponse,
+  MetricRunEvidenceListResponse,
+};
