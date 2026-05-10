@@ -47,6 +47,7 @@ import type {
   MetricRunDryRunResponse,
   MetricRunLifecycleResponse,
   NarrativeRunRecord,
+  ReportPackageRecord,
 } from '@shared/contracts/lp-reporting';
 
 function renderPage() {
@@ -204,6 +205,93 @@ function makeLifecycleResponse(
   return {
     metricRun: makeMetricRunDetail(overrides),
     changed: true,
+  };
+}
+
+function makeApprovedNarratives(): NarrativeRunRecord[] {
+  return [
+    makeNarrativeRecord({
+      narrativeRunId: 41,
+      narrativeType: 'no_dpi',
+      editedText: 'Approved no DPI copy.',
+      status: 'approved',
+      approvedBy: 7,
+      approvedAt: '2026-05-10T01:00:00.000Z',
+      version: 3,
+    }),
+    makeNarrativeRecord({
+      narrativeRunId: 42,
+      narrativeType: 'methodology',
+      editedText: 'Approved methodology copy.',
+      status: 'approved',
+      approvedBy: 7,
+      approvedAt: '2026-05-10T01:00:00.000Z',
+      version: 3,
+    }),
+    makeNarrativeRecord({
+      narrativeRunId: 43,
+      narrativeType: 'portfolio_update',
+      editedText: 'Approved portfolio copy.',
+      status: 'approved',
+      approvedBy: 7,
+      approvedAt: '2026-05-10T01:00:00.000Z',
+      version: 3,
+    }),
+    makeNarrativeRecord({
+      narrativeRunId: 44,
+      narrativeType: 'risk_disclosure',
+      editedText: 'Approved risk copy.',
+      status: 'approved',
+      approvedBy: 7,
+      approvedAt: '2026-05-10T01:00:00.000Z',
+      version: 3,
+    }),
+  ];
+}
+
+function makeReportPackageRecord(): ReportPackageRecord {
+  const narrativeRows = makeApprovedNarratives().map((record) => {
+    const ref = {
+      narrativeType: record.narrativeType,
+      narrativeRunId: record.narrativeRunId,
+      narrativeVersion: record.version,
+      approvedBy: record.approvedBy,
+      approvedAt: record.approvedAt ?? '',
+      textHash: 'a'.repeat(64),
+    };
+    return {
+      ref,
+      payload: {
+        ...ref,
+        effectiveText: record.editedText ?? record.generatedText,
+      },
+    };
+  });
+  const narrativeRefs = narrativeRows.map((row) => row.ref);
+  return {
+    reportPackageId: 501,
+    fundId: 7,
+    metricRunId: 17,
+    status: 'assembled',
+    asOfDate: '2026-03-31',
+    metricRunVersion: 4,
+    metricRunLockedBy: 7,
+    metricRunLockedAt: '2026-05-10T02:00:00.000Z',
+    narrativeRefs,
+    payload: {
+      payloadVersion: 1,
+      results: makeCanonicalResults(),
+      diagnostics: makeDryRunResponse().diagnostics,
+      sourceEventIds: [],
+      sourceMarkIds: [],
+      evidenceRecordIds: [1000],
+      narratives: narrativeRows.map((row) => row.payload),
+    },
+    assembledBy: 7,
+    assembledAt: '2026-05-10T03:00:00.000Z',
+    version: 1,
+    createdAt: '2026-05-10T03:00:00.000Z',
+    updatedAt: '2026-05-10T03:00:00.000Z',
   };
 }
 
@@ -758,6 +846,194 @@ describe('LpReportingMetricsPage', () => {
     expect(screen.getByTestId('metric-run-narrative-create-methodology')).toBeEnabled();
     expect(screen.getByTestId('metric-run-narrative-create-portfolio_update')).toBeEnabled();
     expect(screen.getByTestId('metric-run-narrative-create-risk_disclosure')).toBeEnabled();
+  });
+
+  it('assembles an approved report package from approved locked-run narratives', async () => {
+    let reportPackage: ReportPackageRecord | null = null;
+    const approvedNarratives = makeApprovedNarratives();
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockImplementation(async (input, init) => {
+      const url = String(input);
+      const locked = makeMetricRunDetail({
+        status: 'locked',
+        evidenceCount: 1,
+        lockedBy: 7,
+        lockedAt: '2026-05-10T02:00:00.000Z',
+        version: 4,
+      });
+      if (url.endsWith('/metric-runs/dry-run')) {
+        return new Response(JSON.stringify(makeDryRunResponse()), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        });
+      }
+      if (url.endsWith('/metric-runs/commit')) {
+        return new Response(JSON.stringify(makeCommitResponse()), {
+          status: 201,
+          headers: { 'Content-Type': 'application/json' },
+        });
+      }
+      if (url.includes('/metric-runs/latest')) {
+        return new Response(JSON.stringify({ metricRun: locked }), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        });
+      }
+      if (url.endsWith('/metric-runs/17')) {
+        return new Response(JSON.stringify(locked), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        });
+      }
+      if (url.endsWith('/metric-runs/17/evidence-records')) {
+        return new Response(JSON.stringify({ records: [makeEvidenceRecord()] }), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        });
+      }
+      if (url.endsWith('/metric-runs/17/narrative-runs')) {
+        return new Response(JSON.stringify({ records: approvedNarratives }), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        });
+      }
+      if (url.endsWith('/metric-runs/17/report-package') && init?.method === 'POST') {
+        reportPackage = makeReportPackageRecord();
+        return new Response(JSON.stringify({ record: reportPackage, inserted: true }), {
+          status: 201,
+          headers: { 'Content-Type': 'application/json' },
+        });
+      }
+      if (url.endsWith('/metric-runs/17/report-package')) {
+        return new Response(JSON.stringify({ record: reportPackage }), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        });
+      }
+      return new Response(JSON.stringify({ error: 'UNEXPECTED_URL' }), { status: 500 });
+    });
+
+    renderPage();
+
+    fireEvent.click(screen.getByRole('button', { name: /run metrics/i }));
+    await waitFor(() => {
+      expect(screen.getByTestId('metrics-commit-button')).toBeEnabled();
+    });
+    fireEvent.click(screen.getByTestId('metrics-commit-button'));
+
+    await waitFor(() => {
+      expect(screen.getByTestId('metric-run-report-package-assemble')).toBeEnabled();
+    });
+    fireEvent.click(screen.getByTestId('metric-run-report-package-assemble'));
+
+    await waitFor(() => {
+      expect(screen.getByTestId('metric-run-report-package-result')).toBeInTheDocument();
+    });
+
+    const postCall = fetchSpy.mock.calls.find(
+      ([url, init]) =>
+        String(url).endsWith('/metric-runs/17/report-package') && init?.method === 'POST'
+    );
+    expect(JSON.parse(postCall?.[1]?.body as string)).toEqual({
+      expectedMetricRunVersion: 4,
+      expectedNarratives: [
+        { narrativeType: 'no_dpi', narrativeRunId: 41, expectedVersion: 3 },
+        { narrativeType: 'methodology', narrativeRunId: 42, expectedVersion: 3 },
+        { narrativeType: 'portfolio_update', narrativeRunId: 43, expectedVersion: 3 },
+        { narrativeType: 'risk_disclosure', narrativeRunId: 44, expectedVersion: 3 },
+      ],
+    });
+    expect(screen.getByTestId('metric-run-report-package-result').textContent).toMatch(
+      /package #501/i
+    );
+    expect(screen.getByTestId('metric-run-report-package-result').textContent).toMatch(/user #7/i);
+    const refs = within(screen.getByTestId('metric-run-report-package-refs'));
+    expect(refs.getByText(/No DPI/i)).toBeInTheDocument();
+    expect(refs.getByText(/Run #41 \| version 3/i)).toBeInTheDocument();
+    expect(refs.getAllByText(/a{12}\.\.\./i)).toHaveLength(4);
+  });
+
+  it('keeps report package assembly disabled until all narratives are approved', async () => {
+    const partialNarratives = [
+      ...makeApprovedNarratives().slice(0, 3),
+      makeNarrativeRecord({
+        narrativeRunId: 44,
+        narrativeType: 'risk_disclosure',
+        editedText: 'Reviewed risk copy.',
+        status: 'reviewed',
+        reviewedBy: 7,
+        reviewedAt: '2026-05-10T01:00:00.000Z',
+        version: 2,
+      }),
+    ];
+    vi.spyOn(globalThis, 'fetch').mockImplementation(async (input) => {
+      const url = String(input);
+      const locked = makeMetricRunDetail({
+        status: 'locked',
+        evidenceCount: 1,
+        lockedBy: 7,
+        lockedAt: '2026-05-10T02:00:00.000Z',
+        version: 4,
+      });
+      if (url.endsWith('/metric-runs/dry-run')) {
+        return new Response(JSON.stringify(makeDryRunResponse()), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        });
+      }
+      if (url.endsWith('/metric-runs/commit')) {
+        return new Response(JSON.stringify(makeCommitResponse()), {
+          status: 201,
+          headers: { 'Content-Type': 'application/json' },
+        });
+      }
+      if (url.includes('/metric-runs/latest')) {
+        return new Response(JSON.stringify({ metricRun: locked }), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        });
+      }
+      if (url.endsWith('/metric-runs/17')) {
+        return new Response(JSON.stringify(locked), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        });
+      }
+      if (url.endsWith('/metric-runs/17/evidence-records')) {
+        return new Response(JSON.stringify({ records: [makeEvidenceRecord()] }), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        });
+      }
+      if (url.endsWith('/metric-runs/17/narrative-runs')) {
+        return new Response(JSON.stringify({ records: partialNarratives }), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        });
+      }
+      if (url.endsWith('/metric-runs/17/report-package')) {
+        return new Response(JSON.stringify({ record: null }), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        });
+      }
+      return new Response(JSON.stringify({ error: 'UNEXPECTED_URL' }), { status: 500 });
+    });
+
+    renderPage();
+
+    fireEvent.click(screen.getByRole('button', { name: /run metrics/i }));
+    await waitFor(() => {
+      expect(screen.getByTestId('metrics-commit-button')).toBeEnabled();
+    });
+    fireEvent.click(screen.getByTestId('metrics-commit-button'));
+
+    await waitFor(() => {
+      expect(screen.getByTestId('metric-run-report-package-card')).toBeInTheDocument();
+    });
+    expect(screen.getByTestId('metric-run-report-package-assemble')).toBeDisabled();
+    expect(screen.getByTestId('metric-run-report-package-readiness').textContent).toMatch(
+      /reviewed/i
+    );
   });
 
   it('creates a narrative draft and renders deterministic generated text', async () => {

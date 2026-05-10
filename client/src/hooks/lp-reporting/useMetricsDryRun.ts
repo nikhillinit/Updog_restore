@@ -29,6 +29,9 @@ import {
   NarrativeRunLifecycleResponseSchema,
   NarrativeRunListResponseSchema,
   NarrativeRunReviewRequestSchema,
+  ReportPackageAssembleRequestSchema,
+  ReportPackageAssembleResponseSchema,
+  ReportPackageGetResponseSchema,
   type LatestMetricRunQuery,
   type LatestMetricRunResponse,
   type MetricRunApproveRequest,
@@ -50,6 +53,9 @@ import {
   type NarrativeRunLifecycleResponse,
   type NarrativeRunListResponse,
   type NarrativeRunReviewRequest,
+  type ReportPackageAssembleRequest,
+  type ReportPackageAssembleResponse,
+  type ReportPackageGetResponse,
 } from '@shared/contracts/lp-reporting';
 
 export type MetricsDryRunRequest = MetricRunDryRunRequest;
@@ -65,6 +71,8 @@ export type NarrativeRunReviewMutationRequest = NarrativeRunReviewRequest & {
 export type NarrativeRunApproveMutationRequest = NarrativeRunApproveRequest & {
   narrativeRunId: number;
 };
+
+export type ReportPackageAssembleMutationRequest = ReportPackageAssembleRequest;
 
 export interface DryRunErrorBody {
   code?: string;
@@ -166,6 +174,10 @@ function metricRunNarrativeDetailQueryKey(
   narrativeRunId: number | null
 ) {
   return ['lp-reporting', 'metric-run-narratives', fundId, metricRunId, narrativeRunId] as const;
+}
+
+function metricRunReportPackageQueryKey(fundId: number | null, metricRunId: number | null) {
+  return ['lp-reporting', 'metric-run-report-package', fundId, metricRunId] as const;
 }
 
 function invalidateMetricRunNarrativeQueries(
@@ -282,6 +294,22 @@ async function getMetricRunNarrativeDetail(
     res,
     NarrativeRunDetailResponseSchema,
     'Metric-run narrative detail response did not match the locked contract.'
+  );
+}
+
+async function getMetricRunReportPackage(
+  fundId: number,
+  metricRunId: number
+): Promise<ReportPackageGetResponse> {
+  const res = await fetch(`/api/funds/${fundId}/metric-runs/${metricRunId}/report-package`, {
+    method: 'GET',
+    credentials: 'include',
+  });
+
+  return readContractResponse(
+    res,
+    ReportPackageGetResponseSchema,
+    'Metric-run report package response did not match the locked contract.'
   );
 }
 
@@ -444,6 +472,27 @@ async function postMetricRunNarrativeApprove(
   );
 }
 
+async function postMetricRunReportPackage(
+  fundId: number,
+  metricRunId: number,
+  body: ReportPackageAssembleRequest
+): Promise<ReportPackageAssembleResponse> {
+  ReportPackageAssembleRequestSchema.parse(body);
+
+  const res = await fetch(`/api/funds/${fundId}/metric-runs/${metricRunId}/report-package`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    credentials: 'include',
+    body: JSON.stringify(body),
+  });
+
+  return readContractResponse(
+    res,
+    ReportPackageAssembleResponseSchema,
+    'Metric-run report package assemble response did not match the locked contract.'
+  );
+}
+
 export function useMetricsDryRun(fundId: number | null) {
   return useMutation<MetricRunDryRunResponse, LpReportingHookError, MetricsDryRunRequest>({
     mutationFn: async (request) => {
@@ -561,6 +610,21 @@ export function useMetricRunNarrativeDetail(
       }
 
       return getMetricRunNarrativeDetail(fundId, metricRunId, narrativeRunId);
+    },
+  });
+}
+
+export function useMetricRunReportPackage(fundId: number | null, metricRunId: number | null) {
+  return useQuery<ReportPackageGetResponse, LpReportingHookError>({
+    queryKey: metricRunReportPackageQueryKey(fundId, metricRunId),
+    enabled: fundId !== null && metricRunId !== null,
+    queryFn: async () => {
+      if (fundId === null || metricRunId === null) {
+        const error = new Error('fundId and metricRunId are required') as LpReportingHookError;
+        error.code = 'MISSING_METRIC_RUN_REPORT_PACKAGE_SCOPE';
+        throw error;
+      }
+      return getMetricRunReportPackage(fundId, metricRunId);
     },
   });
 }
@@ -735,6 +799,35 @@ export function useMetricRunNarrativeApprove(fundId: number | null, metricRunId:
   });
 }
 
+export function useMetricRunReportPackageAssemble(
+  fundId: number | null,
+  metricRunId: number | null
+) {
+  const queryClient = useQueryClient();
+
+  return useMutation<
+    ReportPackageAssembleResponse,
+    LpReportingHookError,
+    ReportPackageAssembleMutationRequest
+  >({
+    mutationFn: async (request) => {
+      if (fundId === null || metricRunId === null) {
+        const error = new Error('fundId and metricRunId are required') as LpReportingHookError;
+        error.code = 'MISSING_METRIC_RUN_REPORT_PACKAGE_SCOPE';
+        throw error;
+      }
+
+      return postMetricRunReportPackage(fundId, metricRunId, request);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: metricRunReportPackageQueryKey(fundId, metricRunId),
+      });
+      queryClient.invalidateQueries({ queryKey: metricRunDetailQueryKey(fundId, metricRunId) });
+    },
+  });
+}
+
 export type {
   LatestMetricRunQuery,
   LatestMetricRunResponse,
@@ -753,4 +846,7 @@ export type {
   NarrativeRunLifecycleResponse,
   NarrativeRunListResponse,
   NarrativeRunReviewRequest,
+  ReportPackageAssembleRequest,
+  ReportPackageAssembleResponse,
+  ReportPackageGetResponse,
 };

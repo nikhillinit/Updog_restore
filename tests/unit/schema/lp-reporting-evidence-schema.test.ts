@@ -46,6 +46,11 @@ describe('LP Reporting Foundation Schema -- Drizzle bindings', () => {
       expect(typeof schema.evidenceRecords).toBe('object');
     });
 
+    it('lpReportPackages table is accessible', () => {
+      expect(schema.lpReportPackages).toBeDefined();
+      expect(typeof schema.lpReportPackages).toBe('object');
+    });
+
     it('lpVehicleParticipation table is accessible', () => {
       expect(schema.lpVehicleParticipation).toBeDefined();
       expect(typeof schema.lpVehicleParticipation).toBe('object');
@@ -65,6 +70,7 @@ describe('LP Reporting Foundation Schema -- Drizzle bindings', () => {
       ['lp_metric_runs', schema.lpMetricRuns],
       ['narrative_runs', schema.narrativeRuns],
       ['evidence_records', schema.evidenceRecords],
+      ['lp_report_packages', schema.lpReportPackages],
       ['lp_vehicle_participation', schema.lpVehicleParticipation],
       ['lp_vehicle_participation_history', schema.lpVehicleParticipationHistory],
     ])('table %s has matching SQL name', (sqlName, table) => {
@@ -167,6 +173,12 @@ describe('LP Reporting Foundation Schema -- Drizzle bindings', () => {
       expect(names).toContain('evidence_confidentiality_check');
     });
 
+    it('lp_report_packages declares assembled status CHECK', () => {
+      const config = getTableConfig(schema.lpReportPackages);
+      const names = config.checks.map((c) => c.name);
+      expect(names).toContain('lp_report_package_status_check');
+    });
+
     it('lp_vehicle_participation declares the status CHECK', () => {
       const config = getTableConfig(schema.lpVehicleParticipation);
       const names = config.checks.map((c) => c.name);
@@ -197,6 +209,14 @@ describe('LP Reporting Foundation Schema -- Drizzle bindings', () => {
       expect(names).toContain('idx_evidence_metric_run');
       expect(names).toContain('idx_evidence_narrative_run');
       expect(names).toContain('evidence_records_metric_run_idempotency_unique');
+    });
+
+    it('indexes report packages by metric run and fund', () => {
+      const config = getTableConfig(schema.lpReportPackages);
+      const names = config.indexes.map((idx) => idx.config.name);
+      expect(names).toContain('lp_report_packages_metric_run_unique');
+      expect(names).toContain('idx_lp_report_packages_fund_metric');
+      expect(names).toContain('idx_lp_report_packages_fund_assembled_at');
     });
 
     it('indexes parent FKs used by narrative and participation history flows', () => {
@@ -284,6 +304,36 @@ describe('LP Reporting Foundation Schema -- Drizzle bindings', () => {
     });
   });
 
+  describe('Report-package migration', () => {
+    it('creates and drops the report package table, indexes, and constraints', () => {
+      const up = fs.readFileSync(
+        path.join(
+          process.cwd(),
+          'server',
+          'migrations',
+          '20260510_lp_reporting_report_packages_v1.up.sql'
+        ),
+        'utf8'
+      );
+      const down = fs.readFileSync(
+        path.join(
+          process.cwd(),
+          'server',
+          'migrations',
+          '20260510_lp_reporting_report_packages_v1.down.sql'
+        ),
+        'utf8'
+      );
+
+      expect(up).toMatch(/CREATE TABLE IF NOT EXISTS lp_report_packages/i);
+      expect(up).toMatch(/narrative_refs JSONB NOT NULL DEFAULT '\[\]'::jsonb/i);
+      expect(up).toMatch(/payload JSONB NOT NULL DEFAULT '\{\}'::jsonb/i);
+      expect(up).toMatch(/CONSTRAINT lp_report_package_status_check CHECK/i);
+      expect(up).toMatch(/CREATE UNIQUE INDEX IF NOT EXISTS lp_report_packages_metric_run_unique/i);
+      expect(down).toMatch(/DROP TABLE IF EXISTS lp_report_packages/i);
+    });
+  });
+
   describe('Type inference compiles', () => {
     it('produces $inferSelect / $inferInsert types for each table', () => {
       // Compile-time assertions via type-only declarations. Existence at
@@ -294,6 +344,7 @@ describe('LP Reporting Foundation Schema -- Drizzle bindings', () => {
       const mrSelect: schema.LpMetricRun | null = null;
       const nrSelect: schema.NarrativeRun | null = null;
       const erSelect: schema.EvidenceRecord | null = null;
+      const rpkSelect: schema.LpReportPackage | null = null;
       const lvpSelect: schema.LpVehicleParticipation | null = null;
       const lvphSelect: schema.LpVehicleParticipationHistory | null = null;
       expect([
@@ -303,9 +354,10 @@ describe('LP Reporting Foundation Schema -- Drizzle bindings', () => {
         mrSelect,
         nrSelect,
         erSelect,
+        rpkSelect,
         lvpSelect,
         lvphSelect,
-      ]).toHaveLength(8);
+      ]).toHaveLength(9);
     });
   });
 });

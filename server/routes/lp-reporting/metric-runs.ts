@@ -7,6 +7,8 @@
  *   GET  /api/funds/:fundId/metric-runs/:metricRunId
  *   POST /api/funds/:fundId/metric-runs/:metricRunId/approve
  *   POST /api/funds/:fundId/metric-runs/:metricRunId/lock
+ *   GET  /api/funds/:fundId/metric-runs/:metricRunId/report-package
+ *   POST /api/funds/:fundId/metric-runs/:metricRunId/report-package
  *   GET  /api/funds/:fundId/metric-runs/:metricRunId/evidence-records
  *   POST /api/funds/:fundId/metric-runs/:metricRunId/evidence-records
  *   GET  /api/funds/:fundId/metric-runs/:metricRunId/narrative-runs
@@ -52,6 +54,9 @@ import {
   NarrativeRunLifecycleResponseSchema,
   NarrativeRunListResponseSchema,
   NarrativeRunReviewRequestSchema,
+  ReportPackageAssembleRequestSchema,
+  ReportPackageAssembleResponseSchema,
+  ReportPackageGetResponseSchema,
 } from '@shared/contracts/lp-reporting';
 import {
   buildMetricRunDryRun,
@@ -76,6 +81,10 @@ import {
   getMetricRunDetail,
   lockMetricRun,
 } from '../../services/lp-reporting/metric-run-lifecycle-service';
+import {
+  assembleMetricRunReportPackage,
+  getMetricRunReportPackage,
+} from '../../services/lp-reporting/report-package-service';
 
 const router = Router();
 
@@ -164,6 +173,8 @@ function sendMetricRunError(
     | 'METRIC_RUN_LATEST_FAILED'
     | 'METRIC_RUN_APPROVE_FAILED'
     | 'METRIC_RUN_LOCK_FAILED'
+    | 'METRIC_RUN_REPORT_PACKAGE_GET_FAILED'
+    | 'METRIC_RUN_REPORT_PACKAGE_ASSEMBLE_FAILED'
     | 'METRIC_RUN_EVIDENCE_CREATE_FAILED'
     | 'METRIC_RUN_EVIDENCE_LIST_FAILED'
     | 'NARRATIVE_RUN_CREATE_FAILED'
@@ -346,6 +357,54 @@ router.post(
       return res.status(200).json(validated);
     } catch (err) {
       return sendMetricRunError(res, err, 'METRIC_RUN_LOCK_FAILED');
+    }
+  }
+);
+
+router.get(
+  '/api/funds/:fundId/metric-runs/:metricRunId/report-package',
+  requireAuth(),
+  requireFundAccess,
+  metricRunLimiter,
+  async (req: Request, res: Response) => {
+    try {
+      const result = await getMetricRunReportPackage({
+        fundId: parseFundId(req),
+        metricRunId: parseMetricRunId(req),
+      });
+      const validated = ReportPackageGetResponseSchema.parse(result);
+      return res.status(200).json(validated);
+    } catch (err) {
+      return sendMetricRunError(res, err, 'METRIC_RUN_REPORT_PACKAGE_GET_FAILED');
+    }
+  }
+);
+
+router.post(
+  '/api/funds/:fundId/metric-runs/:metricRunId/report-package',
+  requireAuth(),
+  requireFundAccess,
+  metricRunLimiter,
+  async (req: Request, res: Response) => {
+    const parsed = ReportPackageAssembleRequestSchema.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({
+        error: 'INVALID_REQUEST_BODY',
+        issues: parsed.error.issues,
+      });
+    }
+
+    try {
+      const result = await assembleMetricRunReportPackage({
+        fundId: parseFundId(req),
+        metricRunId: parseMetricRunId(req),
+        userId: resolveAuthenticatedUserId(req),
+        body: parsed.data,
+      });
+      const validated = ReportPackageAssembleResponseSchema.parse(result);
+      return res.status(validated.inserted ? 201 : 200).json(validated);
+    } catch (err) {
+      return sendMetricRunError(res, err, 'METRIC_RUN_REPORT_PACKAGE_ASSEMBLE_FAILED');
     }
   }
 );

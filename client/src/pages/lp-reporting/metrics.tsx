@@ -58,6 +58,8 @@ import {
   useMetricRunNarrativeEdit,
   useMetricRunNarrativeList,
   useMetricRunNarrativeReview,
+  useMetricRunReportPackage,
+  useMetricRunReportPackageAssemble,
   type LpReportingHookError,
 } from '@/hooks/lp-reporting';
 
@@ -150,6 +152,21 @@ function envelopeFor(err: LpReportingHookError): ErrorEnvelope {
     return {
       title: 'Metric run status changed',
       description: 'This lifecycle action is no longer valid for the metric run status.',
+    };
+  }
+  if (err.code === 'REPORT_PACKAGE_ALREADY_ASSEMBLED') {
+    return {
+      title: 'Package already assembled',
+      description: 'This metric run already has an assembled package with different refs.',
+    };
+  }
+  if (
+    err.code === 'REPORT_PACKAGE_NARRATIVE_SET_INVALID' ||
+    err.code === 'NARRATIVE_RUN_STATUS_CONFLICT'
+  ) {
+    return {
+      title: 'Package not ready',
+      description: 'All required narratives must be approved before assembly.',
     };
   }
   if (err.code === 'METRIC_RUN_NOT_EDITABLE') {
@@ -255,6 +272,11 @@ export default function LpReportingMetricsPage() {
   const narrativeEditMutation = useMetricRunNarrativeEdit(fundId, lockedMetricRunId);
   const narrativeReviewMutation = useMetricRunNarrativeReview(fundId, lockedMetricRunId);
   const narrativeApproveMutation = useMetricRunNarrativeApprove(fundId, lockedMetricRunId);
+  const reportPackageQuery = useMetricRunReportPackage(fundId, lockedMetricRunId);
+  const reportPackageAssembleMutation = useMetricRunReportPackageAssemble(
+    fundId,
+    lockedMetricRunId
+  );
 
   const handleSuccess = useCallback(
     (response: MetricRunDryRunResponse, request: MetricRunDryRunRequest) => {
@@ -485,6 +507,47 @@ export default function LpReportingMetricsPage() {
     const override = narrativeOverrides[record.narrativeRunId];
     return override && override.version >= record.version ? override : record;
   });
+  const reportPackageRecord = reportPackageQuery.data?.record ?? null;
+  const approvedNarrativeCount = narrativeRecords.filter(
+    (record) => record.status === 'approved'
+  ).length;
+  const allNarrativesApproved = NARRATIVE_TYPES.every((type) =>
+    narrativeRecords.some(
+      (record) => record.narrativeType === type.value && record.status === 'approved'
+    )
+  );
+  const handleReportPackageAssemble = useCallback(async () => {
+    if (!activeMetricRun) {
+      return;
+    }
+    const approvedByType = new Map<NarrativeType, NarrativeRunRecord>();
+    for (const record of narrativeRecords) {
+      if (record.status === 'approved') {
+        approvedByType.set(record.narrativeType, record);
+      }
+    }
+    const expectedNarratives: NarrativeRunRecord[] = [];
+    for (const type of NARRATIVE_TYPES) {
+      const record = approvedByType.get(type.value);
+      if (!record) {
+        return;
+      }
+      expectedNarratives.push(record);
+    }
+
+    try {
+      await reportPackageAssembleMutation.mutateAsync({
+        expectedMetricRunVersion: activeMetricRun.version,
+        expectedNarratives: expectedNarratives.map((record) => ({
+          narrativeType: record.narrativeType,
+          narrativeRunId: record.narrativeRunId,
+          expectedVersion: record.version,
+        })),
+      });
+    } catch {
+      // The mutation error is rendered from reportPackageAssembleMutation.error.
+    }
+  }, [activeMetricRun, narrativeRecords, reportPackageAssembleMutation]);
   const narrativeTypesWithDrafts = new Set(
     narrativeRecords.map((record: NarrativeRunRecord) => record.narrativeType)
   );
@@ -503,6 +566,16 @@ export default function LpReportingMetricsPage() {
     narrativeApproveMutation.error ??
     (narrativeListQuery.error as LpReportingHookError | null);
   const narrativeEnvelope = narrativeError ? envelopeFor(narrativeError) : null;
+  const canAssembleReportPackage =
+    activeMetricRun?.status === 'locked' &&
+    allNarrativesApproved &&
+    reportPackageRecord === null &&
+    !reportPackageQuery.isLoading &&
+    !reportPackageAssembleMutation.isPending;
+  const reportPackageError =
+    reportPackageAssembleMutation.error ??
+    (reportPackageQuery.error as LpReportingHookError | null);
+  const reportPackageEnvelope = reportPackageError ? envelopeFor(reportPackageError) : null;
 
   return (
     <div className="p-8 space-y-6">
@@ -1044,6 +1117,110 @@ export default function LpReportingMetricsPage() {
                     );
                   })}
                 </div>
+              </CardContent>
+            </Card>
+          ) : null}
+
+          {lockedMetricRunId !== null ? (
+            <Card data-testid="metric-run-report-package-card">
+              <CardHeader>
+                <CardTitle>Approved report package</CardTitle>
+                <CardDescription>Metric run #{lockedMetricRunId}</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {reportPackageEnvelope ? (
+                  <Alert
+                    variant="destructive"
+                    data-testid="metric-run-report-package-error-envelope"
+                    data-error-status={reportPackageError?.status ?? ''}
+                  >
+                    <AlertTitle>{reportPackageEnvelope.title}</AlertTitle>
+                    <AlertDescription>{reportPackageEnvelope.description}</AlertDescription>
+                  </Alert>
+                ) : null}
+
+                <div
+                  className="grid gap-2 sm:grid-cols-2"
+                  data-testid="metric-run-report-package-readiness"
+                >
+                  {NARRATIVE_TYPES.map((type) => {
+                    const record = narrativeRecords.find(
+                      (candidate) => candidate.narrativeType === type.value
+                    );
+                    const status = record?.status ?? 'missing';
+                    return (
+                      <div
+                        key={type.value}
+                        className="flex items-center justify-between rounded-md border border-slate-200 px-3 py-2"
+                      >
+                        <span className="text-sm font-medium text-charcoal">{type.label}</span>
+                        <Badge variant={status === 'approved' ? 'default' : 'outline'}>
+                          {status}
+                        </Badge>
+                      </div>
+                    );
+                  })}
+                </div>
+
+                {reportPackageRecord ? (
+                  <div className="space-y-3">
+                    <Alert data-testid="metric-run-report-package-result">
+                      <AlertTitle>Package assembled</AlertTitle>
+                      <AlertDescription>
+                        Package #{reportPackageRecord.reportPackageId} assembled{' '}
+                        {reportPackageRecord.assembledAt} by user #{reportPackageRecord.assembledBy}
+                        . Metric-run version {reportPackageRecord.metricRunVersion}; narratives{' '}
+                        {reportPackageRecord.narrativeRefs.length}.
+                      </AlertDescription>
+                    </Alert>
+                    <div
+                      className="grid gap-2 sm:grid-cols-2"
+                      data-testid="metric-run-report-package-refs"
+                    >
+                      {reportPackageRecord.narrativeRefs.map((ref) => {
+                        const type = NARRATIVE_TYPES.find(
+                          (item) => item.value === ref.narrativeType
+                        );
+                        return (
+                          <div
+                            key={ref.narrativeType}
+                            className="rounded-md border border-slate-200 px-3 py-2 text-sm"
+                            data-testid={`metric-run-report-package-ref-${ref.narrativeType}`}
+                          >
+                            <p className="font-medium text-charcoal">
+                              {type?.label ?? ref.narrativeType}
+                            </p>
+                            <p className="text-xs text-charcoal/60">
+                              Run #{ref.narrativeRunId} | version {ref.narrativeVersion}
+                            </p>
+                            <p className="text-xs text-charcoal/60">
+                              Approved by {ref.approvedBy ? `user #${ref.approvedBy}` : 'unknown'}{' '}
+                              at {ref.approvedAt}
+                            </p>
+                            <p className="font-mono text-xs text-charcoal/60">
+                              {ref.textHash.slice(0, 12)}...
+                            </p>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                ) : (
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                    <p className="text-sm text-charcoal/70 font-poppins">
+                      {approvedNarrativeCount} of {NARRATIVE_TYPES.length} narratives approved.
+                    </p>
+                    <Button
+                      type="button"
+                      onClick={() => void handleReportPackageAssemble()}
+                      disabled={!canAssembleReportPackage}
+                      data-testid="metric-run-report-package-assemble"
+                    >
+                      <CheckCircle2 className="mr-2 h-4 w-4" aria-hidden="true" />
+                      Assemble package
+                    </Button>
+                  </div>
+                )}
               </CardContent>
             </Card>
           ) : null}

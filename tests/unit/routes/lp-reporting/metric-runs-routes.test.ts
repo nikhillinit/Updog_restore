@@ -18,6 +18,8 @@ import {
   NarrativeRunDetailResponseSchema,
   NarrativeRunLifecycleResponseSchema,
   NarrativeRunListResponseSchema,
+  ReportPackageAssembleResponseSchema,
+  ReportPackageGetResponseSchema,
 } from '@shared/contracts/lp-reporting';
 
 const authState = vi.hoisted(() => ({
@@ -31,14 +33,17 @@ const dbState = vi.hoisted(() => ({
   metricRuns: [] as MockMetricRunRow[],
   evidenceRecords: [] as MockEvidenceRow[],
   narrativeRuns: [] as MockNarrativeRow[],
+  reportPackages: [] as MockReportPackageRow[],
   users: [7] as number[],
   insertedMetricRows: [] as unknown[],
   insertedEvidenceRows: [] as unknown[],
   insertedNarrativeRows: [] as unknown[],
+  insertedReportPackageRows: [] as unknown[],
   insertCalls: 0,
   nextMetricRunId: 500,
   nextEvidenceId: 1000,
   nextNarrativeId: 2000,
+  nextReportPackageId: 3000,
   dropNextInsert: false,
 }));
 let nextUserId = 800;
@@ -175,6 +180,24 @@ interface MockNarrativeRow {
   updatedAt: Date;
 }
 
+interface MockReportPackageRow {
+  id: number;
+  fundId: number;
+  metricRunId: number;
+  status: string;
+  asOfDate: string;
+  metricRunVersion: number;
+  metricRunLockedBy: number | null;
+  metricRunLockedAt: Date | null;
+  narrativeRefs: unknown[];
+  payload: unknown;
+  assembledBy: number;
+  assembledAt: Date;
+  version: number;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
 vi.mock('@shared/schema/lp-reporting-evidence', () => ({
   cashFlowEvents: { _kind: 'cashFlowEvents', id: 'cashFlowEvents.id' },
   valuationMarks: { _kind: 'valuationMarks', id: 'valuationMarks.id' },
@@ -216,6 +239,13 @@ vi.mock('@shared/schema/lp-reporting-evidence', () => ({
     status: 'narrativeRuns.status',
     version: 'narrativeRuns.version',
   },
+  lpReportPackages: {
+    _kind: 'lpReportPackages',
+    id: 'lpReportPackages.id',
+    fundId: 'lpReportPackages.fundId',
+    metricRunId: 'lpReportPackages.metricRunId',
+    status: 'lpReportPackages.status',
+  },
 }));
 
 vi.mock('@shared/schema/user', () => ({
@@ -226,7 +256,7 @@ function queryResult<T>(rows: T[]): Promise<T[]> & { limit: (count: number) => P
   const promise = Promise.resolve(rows) as Promise<T[]> & {
     limit: (count: number) => Promise<T[]>;
   };
-  promise.limit = (count: number) => Promise.resolve(rows.slice(0, count));
+  promise.limit = () => Promise.resolve(rows);
   return promise;
 }
 
@@ -338,6 +368,9 @@ function rowsFor(table: { _kind?: string }): Array<Record<string, unknown>> {
   }
   if (table?._kind === 'narrativeRuns') {
     return [...dbState.narrativeRuns] as unknown as Array<Record<string, unknown>>;
+  }
+  if (table?._kind === 'lpReportPackages') {
+    return [...dbState.reportPackages] as unknown as Array<Record<string, unknown>>;
   }
   return [];
 }
@@ -485,6 +518,41 @@ vi.mock('../../../../server/db', () => {
                 dbState.insertedNarrativeRows.push(row);
                 return [narrativeRow];
               }
+              if (table?._kind === 'lpReportPackages') {
+                const existing = dbState.reportPackages.find(
+                  (candidate) => candidate.metricRunId === row['metricRunId']
+                );
+                if (existing) {
+                  return [];
+                }
+                const reportPackageRow: MockReportPackageRow = {
+                  id: dbState.nextReportPackageId++,
+                  fundId: row['fundId'] as number,
+                  metricRunId: row['metricRunId'] as number,
+                  status: (row['status'] as string | undefined) ?? 'assembled',
+                  asOfDate: row['asOfDate'] as string,
+                  metricRunVersion: row['metricRunVersion'] as number,
+                  metricRunLockedBy: (row['metricRunLockedBy'] as number | undefined) ?? null,
+                  metricRunLockedAt: (row['metricRunLockedAt'] as Date | undefined) ?? null,
+                  narrativeRefs: row['narrativeRefs'] as unknown[],
+                  payload: row['payload'],
+                  assembledBy: row['assembledBy'] as number,
+                  assembledAt:
+                    (row['assembledAt'] as Date | undefined) ?? new Date('2026-05-10T03:00:00Z'),
+                  version: (row['version'] as number | undefined) ?? 1,
+                  createdAt:
+                    (row['createdAt'] as Date | undefined) ?? new Date('2026-05-10T03:00:00Z'),
+                  updatedAt:
+                    (row['updatedAt'] as Date | undefined) ?? new Date('2026-05-10T03:00:00Z'),
+                };
+                dbState.reportPackages.push(reportPackageRow);
+                if (dbState.dropNextInsert) {
+                  dbState.dropNextInsert = false;
+                  return [];
+                }
+                dbState.insertedReportPackageRows.push(row);
+                return [reportPackageRow];
+              }
               if (table?._kind !== 'lpMetricRuns') {
                 return [];
               }
@@ -627,6 +695,64 @@ function seedLockedMetricRun(overrides: Partial<MockMetricRunRow> = {}) {
   });
 }
 
+function seedApprovedNarratives() {
+  dbState.narrativeRuns.push(
+    makeNarrativeRow({
+      id: 2000,
+      metricRunId: 500,
+      narrativeType: 'no_dpi',
+      editedText: 'Approved no DPI copy.',
+      status: 'approved',
+      version: 3,
+      approvedBy: authState.userId,
+      approvedAt: new Date('2026-05-10T02:30:00Z'),
+    }),
+    makeNarrativeRow({
+      id: 2001,
+      metricRunId: 500,
+      narrativeType: 'methodology',
+      editedText: 'Approved methodology copy.',
+      status: 'approved',
+      version: 3,
+      approvedBy: authState.userId,
+      approvedAt: new Date('2026-05-10T02:30:00Z'),
+    }),
+    makeNarrativeRow({
+      id: 2002,
+      metricRunId: 500,
+      narrativeType: 'portfolio_update',
+      editedText: 'Approved portfolio update copy.',
+      status: 'approved',
+      version: 3,
+      approvedBy: authState.userId,
+      approvedAt: new Date('2026-05-10T02:30:00Z'),
+    }),
+    makeNarrativeRow({
+      id: 2003,
+      metricRunId: 500,
+      narrativeType: 'risk_disclosure',
+      editedText: 'Approved risk disclosure copy.',
+      status: 'approved',
+      version: 3,
+      approvedBy: authState.userId,
+      approvedAt: new Date('2026-05-10T02:30:00Z'),
+    })
+  );
+}
+
+function reportPackageBody() {
+  return {
+    expectedMetricRunVersion: 3,
+    expectedNarratives: dbState.narrativeRuns
+      .filter((row) => row.metricRunId === 500)
+      .map((row) => ({
+        narrativeType: row.narrativeType,
+        narrativeRunId: row.id,
+        expectedVersion: row.version,
+      })),
+  };
+}
+
 beforeEach(() => {
   authState.authenticated = true;
   authState.userId = nextUserId++;
@@ -636,14 +762,17 @@ beforeEach(() => {
   dbState.metricRuns = [];
   dbState.evidenceRecords = [];
   dbState.narrativeRuns = [];
+  dbState.reportPackages = [];
   dbState.users = [authState.userId];
   dbState.insertedMetricRows = [];
   dbState.insertedEvidenceRows = [];
   dbState.insertedNarrativeRows = [];
+  dbState.insertedReportPackageRows = [];
   dbState.insertCalls = 0;
   dbState.nextMetricRunId = 500;
   dbState.nextEvidenceId = 1000;
   dbState.nextNarrativeId = 2000;
+  dbState.nextReportPackageId = 3000;
   dbState.dropNextInsert = false;
 });
 
@@ -1287,6 +1416,78 @@ describe('metric-run narrative routes', () => {
   });
 });
 
+describe('metric-run report package routes', () => {
+  it('GET returns nullable package response before assembly', async () => {
+    seedLockedMetricRun();
+
+    const res = await request(buildApp()).get('/api/funds/1/metric-runs/500/report-package');
+
+    expect(res.status).toBe(200);
+    expect(ReportPackageGetResponseSchema.parse(res.body)).toEqual({ record: null });
+  });
+
+  it('POST assembles a package for a locked metric run with approved narratives', async () => {
+    seedLockedMetricRun();
+    seedApprovedNarratives();
+
+    const res = await request(buildApp())
+      .post('/api/funds/1/metric-runs/500/report-package')
+      .send(reportPackageBody());
+
+    expect(res.status).toBe(201);
+    const parsed = ReportPackageAssembleResponseSchema.parse(res.body);
+    expect(parsed.inserted).toBe(true);
+    expect(parsed.record.metricRunId).toBe(500);
+    expect(parsed.record.narrativeRefs).toHaveLength(4);
+    expect(parsed.record.payload.results.dpi).toBe('0.250000');
+    expect(dbState.insertedReportPackageRows).toHaveLength(1);
+  });
+
+  it('POST returns inserted false for same-input retry', async () => {
+    seedLockedMetricRun();
+    seedApprovedNarratives();
+    const app = buildApp();
+
+    const first = await request(app)
+      .post('/api/funds/1/metric-runs/500/report-package')
+      .send(reportPackageBody());
+    const second = await request(app)
+      .post('/api/funds/1/metric-runs/500/report-package')
+      .send(reportPackageBody());
+
+    expect(first.status).toBe(201);
+    expect(second.status).toBe(200);
+    expect(ReportPackageAssembleResponseSchema.parse(second.body).inserted).toBe(false);
+    expect(dbState.insertedReportPackageRows).toHaveLength(1);
+  });
+
+  it('POST rejects route-owned request fields', async () => {
+    seedLockedMetricRun();
+    seedApprovedNarratives();
+
+    const res = await request(buildApp())
+      .post('/api/funds/1/metric-runs/500/report-package')
+      .send({ ...reportPackageBody(), payload: {} });
+
+    expect(res.status).toBe(400);
+    expect(res.body.error).toBe('INVALID_REQUEST_BODY');
+  });
+
+  it('POST rejects unapproved narratives', async () => {
+    seedLockedMetricRun();
+    seedApprovedNarratives();
+    dbState.narrativeRuns[0] = { ...dbState.narrativeRuns[0]!, status: 'reviewed' };
+
+    const res = await request(buildApp())
+      .post('/api/funds/1/metric-runs/500/report-package')
+      .send(reportPackageBody());
+
+    expect(res.status).toBe(409);
+    expect(res.body.error).toBe('NARRATIVE_RUN_STATUS_CONFLICT');
+    expect(dbState.insertedReportPackageRows).toHaveLength(0);
+  });
+});
+
 describe('metric-run lifecycle routes', () => {
   it('GET latest requires exact metric-run context filters', async () => {
     const res = await request(buildApp()).get('/api/funds/1/metric-runs/latest');
@@ -1484,6 +1685,7 @@ describe('Source grep -- metric-run route boundaries', () => {
       '/api/funds/:fundId/metric-runs/commit',
       '/api/funds/:fundId/metric-runs/:metricRunId/approve',
       '/api/funds/:fundId/metric-runs/:metricRunId/lock',
+      '/api/funds/:fundId/metric-runs/:metricRunId/report-package',
       '/api/funds/:fundId/metric-runs/:metricRunId/evidence-records',
       '/api/funds/:fundId/metric-runs/:metricRunId/narrative-runs',
       '/api/funds/:fundId/metric-runs/:metricRunId/narrative-runs/:narrativeRunId/review',
@@ -1507,6 +1709,7 @@ describe('Source grep -- metric-run route boundaries', () => {
     expect(getPaths).toEqual([
       '/api/funds/:fundId/metric-runs/latest',
       '/api/funds/:fundId/metric-runs/:metricRunId',
+      '/api/funds/:fundId/metric-runs/:metricRunId/report-package',
       '/api/funds/:fundId/metric-runs/:metricRunId/evidence-records',
       '/api/funds/:fundId/metric-runs/:metricRunId/narrative-runs',
       '/api/funds/:fundId/metric-runs/:metricRunId/narrative-runs/:narrativeRunId',
