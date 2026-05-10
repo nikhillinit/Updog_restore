@@ -44,6 +44,7 @@ import {
   type MetricRunLifecycleResponse,
   type NarrativeRunRecord,
   type NarrativeType,
+  type ReportPackageRenderMetricRow,
 } from '@shared/contracts/lp-reporting';
 import {
   useLatestMetricRun,
@@ -60,6 +61,7 @@ import {
   useMetricRunNarrativeReview,
   useMetricRunReportPackage,
   useMetricRunReportPackageAssemble,
+  useMetricRunReportPackageRenderModel,
   type LpReportingHookError,
 } from '@/hooks/lp-reporting';
 
@@ -220,6 +222,22 @@ function envelopeFor(err: LpReportingHookError): ErrorEnvelope {
   }
 }
 
+function formatRenderMetricValue(row: ReportPackageRenderMetricRow): string {
+  if (row.value === null) return 'N/A';
+  if (row.valueKind === 'count') return String(row.value);
+
+  const numeric = Number(row.value);
+  if (!Number.isFinite(numeric)) return String(row.value);
+
+  if (row.valueKind === 'multiple') return `${numeric.toFixed(2)}x`;
+  if (row.valueKind === 'irr') return `${(numeric * 100).toFixed(2)}%`;
+  return new Intl.NumberFormat('en-US', {
+    style: 'currency',
+    currency: row.currency ?? 'USD',
+    maximumFractionDigits: 0,
+  }).format(numeric);
+}
+
 export default function LpReportingMetricsPage() {
   const { fundId } = useFundContext();
   const commitMutation = useMetricRunCommit(fundId);
@@ -276,6 +294,11 @@ export default function LpReportingMetricsPage() {
   const reportPackageAssembleMutation = useMetricRunReportPackageAssemble(
     fundId,
     lockedMetricRunId
+  );
+  const reportPackageRecord = reportPackageQuery.data?.record ?? null;
+  const reportPackageRenderModelQuery = useMetricRunReportPackageRenderModel(
+    fundId,
+    reportPackageRecord === null ? null : lockedMetricRunId
   );
 
   const handleSuccess = useCallback(
@@ -507,7 +530,11 @@ export default function LpReportingMetricsPage() {
     const override = narrativeOverrides[record.narrativeRunId];
     return override && override.version >= record.version ? override : record;
   });
-  const reportPackageRecord = reportPackageQuery.data?.record ?? null;
+  const reportPackageRenderModel = reportPackageRenderModelQuery.data?.renderModel ?? null;
+  const reportPackageRenderModelError =
+    reportPackageRenderModelQuery.error?.code === 'REPORT_PACKAGE_NOT_FOUND'
+      ? null
+      : (reportPackageRenderModelQuery.error as LpReportingHookError | null);
   const approvedNarrativeCount = narrativeRecords.filter(
     (record) => record.status === 'approved'
   ).length;
@@ -574,7 +601,8 @@ export default function LpReportingMetricsPage() {
     !reportPackageAssembleMutation.isPending;
   const reportPackageError =
     reportPackageAssembleMutation.error ??
-    (reportPackageQuery.error as LpReportingHookError | null);
+    (reportPackageQuery.error as LpReportingHookError | null) ??
+    reportPackageRenderModelError;
   const reportPackageEnvelope = reportPackageError ? envelopeFor(reportPackageError) : null;
 
   return (
@@ -1204,6 +1232,88 @@ export default function LpReportingMetricsPage() {
                         );
                       })}
                     </div>
+                    {reportPackageRenderModel ? (
+                      <div
+                        className="space-y-4 rounded-md border border-slate-200 p-4"
+                        data-testid="metric-run-report-package-render-preview"
+                      >
+                        <div className="flex flex-col gap-1 sm:flex-row sm:items-start sm:justify-between">
+                          <div>
+                            <p className="text-sm font-semibold text-charcoal">
+                              {reportPackageRenderModel.fundDisplay.name}
+                            </p>
+                            <p className="text-xs text-charcoal/60">
+                              As of {reportPackageRenderModel.source.asOfDate} | package #
+                              {reportPackageRenderModel.source.reportPackageId}
+                            </p>
+                          </div>
+                          <Badge variant="outline">
+                            v{reportPackageRenderModel.renderModelVersion}
+                          </Badge>
+                        </div>
+
+                        <div className="grid gap-3 lg:grid-cols-3">
+                          {reportPackageRenderModel.metricSections.map((section) => (
+                            <div
+                              key={section.sectionId}
+                              className="rounded-md border border-slate-200 px-3 py-2"
+                              data-testid={`metric-run-report-package-render-section-${section.sectionId}`}
+                            >
+                              <p className="text-sm font-semibold text-charcoal">{section.title}</p>
+                              <dl className="mt-2 space-y-1">
+                                {section.rows.map((row) => (
+                                  <div
+                                    key={row.metricId}
+                                    className="flex items-center justify-between gap-3 text-sm"
+                                  >
+                                    <dt className="text-charcoal/70">{row.label}</dt>
+                                    <dd className="font-mono text-charcoal">
+                                      {formatRenderMetricValue(row)}
+                                    </dd>
+                                  </div>
+                                ))}
+                              </dl>
+                            </div>
+                          ))}
+                        </div>
+
+                        <div
+                          className="grid gap-3 lg:grid-cols-2"
+                          data-testid="metric-run-report-package-render-narratives"
+                        >
+                          {reportPackageRenderModel.narrativeSections.map((section) => (
+                            <section
+                              key={section.sectionId}
+                              className="rounded-md border border-slate-200 px-3 py-2"
+                            >
+                              <div className="flex items-center justify-between gap-3">
+                                <h3 className="text-sm font-semibold text-charcoal">
+                                  {section.title}
+                                </h3>
+                                <span className="text-xs text-charcoal/60">
+                                  Run #{section.narrativeRunId}
+                                </span>
+                              </div>
+                              <p className="mt-2 text-sm text-charcoal/70">{section.body}</p>
+                            </section>
+                          ))}
+                        </div>
+
+                        <div className="grid gap-2 text-xs text-charcoal/60 sm:grid-cols-3">
+                          <span>
+                            Warnings {reportPackageRenderModel.diagnostics.warnings.length}
+                          </span>
+                          <span>
+                            Evidence {reportPackageRenderModel.references.evidenceRecordIds.length}
+                          </span>
+                          <span>
+                            Source rows{' '}
+                            {reportPackageRenderModel.references.sourceEventIds.length +
+                              reportPackageRenderModel.references.sourceMarkIds.length}
+                          </span>
+                        </div>
+                      </div>
+                    ) : null}
                   </div>
                 ) : (
                   <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">

@@ -20,6 +20,7 @@ import {
   NarrativeRunListResponseSchema,
   ReportPackageAssembleResponseSchema,
   ReportPackageGetResponseSchema,
+  ReportPackageRenderModelResponseSchema,
 } from '@shared/contracts/lp-reporting';
 
 const authState = vi.hoisted(() => ({
@@ -34,6 +35,7 @@ const dbState = vi.hoisted(() => ({
   evidenceRecords: [] as MockEvidenceRow[],
   narrativeRuns: [] as MockNarrativeRow[],
   reportPackages: [] as MockReportPackageRow[],
+  funds: [] as MockFundRow[],
   users: [7] as number[],
   insertedMetricRows: [] as unknown[],
   insertedEvidenceRows: [] as unknown[],
@@ -198,6 +200,13 @@ interface MockReportPackageRow {
   updatedAt: Date;
 }
 
+interface MockFundRow {
+  id: number;
+  name: string;
+  size: string;
+  vintageYear: number;
+}
+
 vi.mock('@shared/schema/lp-reporting-evidence', () => ({
   cashFlowEvents: { _kind: 'cashFlowEvents', id: 'cashFlowEvents.id' },
   valuationMarks: { _kind: 'valuationMarks', id: 'valuationMarks.id' },
@@ -250,6 +259,16 @@ vi.mock('@shared/schema/lp-reporting-evidence', () => ({
 
 vi.mock('@shared/schema/user', () => ({
   users: { _kind: 'users', id: 'users.id' },
+}));
+
+vi.mock('@shared/schema/fund', () => ({
+  funds: {
+    _kind: 'funds',
+    id: 'funds.id',
+    name: 'funds.name',
+    size: 'funds.size',
+    vintageYear: 'funds.vintageYear',
+  },
 }));
 
 function queryResult<T>(rows: T[]): Promise<T[]> & { limit: (count: number) => Promise<T[]> } {
@@ -335,6 +354,9 @@ function rowsFor(table: { _kind?: string }): Array<Record<string, unknown>> {
   }
   if (table?._kind === 'users') {
     return dbState.users.map((id) => ({ id }));
+  }
+  if (table?._kind === 'funds') {
+    return [...dbState.funds] as unknown as Array<Record<string, unknown>>;
   }
   if (table?._kind === 'lpMetricRuns') {
     return dbState.metricRuns.map((row) => ({
@@ -763,6 +785,14 @@ beforeEach(() => {
   dbState.evidenceRecords = [];
   dbState.narrativeRuns = [];
   dbState.reportPackages = [];
+  dbState.funds = [
+    {
+      id: 1,
+      name: 'Press On Fund I',
+      size: '100000000.00',
+      vintageYear: 2024,
+    },
+  ];
   dbState.users = [authState.userId];
   dbState.insertedMetricRows = [];
   dbState.insertedEvidenceRows = [];
@@ -1443,6 +1473,46 @@ describe('metric-run report package routes', () => {
     expect(dbState.insertedReportPackageRows).toHaveLength(1);
   });
 
+  it('GET render-model returns a non-null renderer projection for an assembled package', async () => {
+    seedLockedMetricRun();
+    seedApprovedNarratives();
+    const app = buildApp();
+
+    const assemble = await request(app)
+      .post('/api/funds/1/metric-runs/500/report-package')
+      .send(reportPackageBody());
+    expect(assemble.status).toBe(201);
+
+    const res = await request(app).get('/api/funds/1/metric-runs/500/report-package/render-model');
+
+    expect(res.status).toBe(200);
+    const parsed = ReportPackageRenderModelResponseSchema.parse(res.body);
+    expect(parsed.renderModel.source.reportPackageId).toBe(3000);
+    expect(parsed.renderModel.fundDisplay.name).toBe('Press On Fund I');
+    expect(parsed.renderModel.metricSections.map((section) => section.sectionId)).toEqual([
+      'performance',
+      'capital',
+      'mark_confidence',
+    ]);
+    expect(parsed.renderModel.narrativeSections.map((section) => section.sectionId)).toEqual([
+      'no_dpi',
+      'methodology',
+      'portfolio_update',
+      'risk_disclosure',
+    ]);
+  });
+
+  it('GET render-model returns REPORT_PACKAGE_NOT_FOUND before assembly', async () => {
+    seedLockedMetricRun();
+
+    const res = await request(buildApp()).get(
+      '/api/funds/1/metric-runs/500/report-package/render-model'
+    );
+
+    expect(res.status).toBe(404);
+    expect(res.body.error).toBe('REPORT_PACKAGE_NOT_FOUND');
+  });
+
   it('POST returns inserted false for same-input retry', async () => {
     seedLockedMetricRun();
     seedApprovedNarratives();
@@ -1710,6 +1780,7 @@ describe('Source grep -- metric-run route boundaries', () => {
       '/api/funds/:fundId/metric-runs/latest',
       '/api/funds/:fundId/metric-runs/:metricRunId',
       '/api/funds/:fundId/metric-runs/:metricRunId/report-package',
+      '/api/funds/:fundId/metric-runs/:metricRunId/report-package/render-model',
       '/api/funds/:fundId/metric-runs/:metricRunId/evidence-records',
       '/api/funds/:fundId/metric-runs/:metricRunId/narrative-runs',
       '/api/funds/:fundId/metric-runs/:metricRunId/narrative-runs/:narrativeRunId',

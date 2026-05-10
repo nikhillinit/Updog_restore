@@ -9,6 +9,7 @@ import {
   ReportPackageGetResponseSchema,
   ReportPackagePayloadSchema,
   ReportPackageRecordSchema,
+  ReportPackageRenderModelResponseSchema,
   ReportPackageStatusSchema,
   type LpMetricRunDiagnostics,
   type LpMetricRunResults,
@@ -184,4 +185,93 @@ describe('report package response envelopes', () => {
       }).inserted
     ).toBe(false);
   });
+});
+
+describe('ReportPackageRenderModelResponseSchema', () => {
+  const renderModelResponse = {
+    renderModel: {
+      renderModelVersion: 1,
+      source: {
+        reportPackageId: record.reportPackageId,
+        fundId: record.fundId,
+        metricRunId: record.metricRunId,
+        reportPackageStatus: record.status,
+        asOfDate: record.asOfDate,
+        metricRunVersion: record.metricRunVersion,
+        metricRunLockedBy: record.metricRunLockedBy,
+        metricRunLockedAt: record.metricRunLockedAt,
+        assembledBy: record.assembledBy,
+        assembledAt: record.assembledAt,
+        packageVersion: record.version,
+        payloadVersion: record.payload.payloadVersion,
+      },
+      fundDisplay: {
+        fundId: 1,
+        name: 'Press On Fund I',
+        vintageYear: 2024,
+        size: '100000000.00',
+      },
+      metricSections: [
+        {
+          sectionId: 'performance',
+          title: 'Performance',
+          rows: [
+            {
+              metricId: 'dpi',
+              label: 'DPI',
+              value: '0.450000',
+              valueKind: 'multiple',
+              currency: null,
+            },
+          ],
+        },
+      ],
+      narrativeSections: [
+        {
+          sectionId: 'methodology',
+          title: 'Methodology',
+          narrativeType: 'methodology',
+          narrativeRunId: 101,
+          narrativeVersion: 3,
+          approvedBy: 7,
+          approvedAt: '2026-05-10T01:00:00.000Z',
+          textHash,
+          body: 'Approved methodology copy.',
+        },
+      ],
+      diagnostics: {
+        engineVersion: diagnostics.engineVersion,
+        decimalPrecision: diagnostics.decimalPrecision,
+        excludedFutureMarks: [],
+        warnings: diagnostics.warnings,
+        xirr: results.xirrDiagnostic,
+      },
+      references: {
+        sourceEventIds: [1, 2],
+        sourceMarkIds: [10],
+        evidenceRecordIds: [301],
+        narrativeRunIds: [101],
+      },
+    },
+  } as const;
+
+  it('parses renderer-facing package shape without nullable record semantics', () => {
+    const parsed = ReportPackageRenderModelResponseSchema.parse(renderModelResponse);
+
+    expect(parsed.renderModel.source.reportPackageId).toBe(501);
+    expect(parsed.renderModel.fundDisplay.name).toBe('Press On Fund I');
+    expect(parsed.renderModel.metricSections[0]?.rows[0]?.metricId).toBe('dpi');
+  });
+
+  it.each(['record', 'downloadUrl', 'fileUrl', 'signedUrl', 'storageKey', 'queueJobId'])(
+    'rejects non-render field %s',
+    (field) => {
+      expect(() =>
+        ReportPackageRenderModelResponseSchema.parse({
+          ...renderModelResponse,
+          [field]: 'not-render-model',
+        })
+      ).toThrow();
+    }
+  );
 });

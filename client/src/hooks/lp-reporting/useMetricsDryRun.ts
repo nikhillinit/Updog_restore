@@ -32,6 +32,7 @@ import {
   ReportPackageAssembleRequestSchema,
   ReportPackageAssembleResponseSchema,
   ReportPackageGetResponseSchema,
+  ReportPackageRenderModelResponseSchema,
   type LatestMetricRunQuery,
   type LatestMetricRunResponse,
   type MetricRunApproveRequest,
@@ -56,6 +57,7 @@ import {
   type ReportPackageAssembleRequest,
   type ReportPackageAssembleResponse,
   type ReportPackageGetResponse,
+  type ReportPackageRenderModelResponse,
 } from '@shared/contracts/lp-reporting';
 
 export type MetricsDryRunRequest = MetricRunDryRunRequest;
@@ -178,6 +180,13 @@ function metricRunNarrativeDetailQueryKey(
 
 function metricRunReportPackageQueryKey(fundId: number | null, metricRunId: number | null) {
   return ['lp-reporting', 'metric-run-report-package', fundId, metricRunId] as const;
+}
+
+function metricRunReportPackageRenderModelQueryKey(
+  fundId: number | null,
+  metricRunId: number | null
+) {
+  return ['lp-reporting', 'metric-run-report-package-render-model', fundId, metricRunId] as const;
 }
 
 function invalidateMetricRunNarrativeQueries(
@@ -310,6 +319,25 @@ async function getMetricRunReportPackage(
     res,
     ReportPackageGetResponseSchema,
     'Metric-run report package response did not match the locked contract.'
+  );
+}
+
+async function getMetricRunReportPackageRenderModel(
+  fundId: number,
+  metricRunId: number
+): Promise<ReportPackageRenderModelResponse> {
+  const res = await fetch(
+    `/api/funds/${fundId}/metric-runs/${metricRunId}/report-package/render-model`,
+    {
+      method: 'GET',
+      credentials: 'include',
+    }
+  );
+
+  return readContractResponse(
+    res,
+    ReportPackageRenderModelResponseSchema,
+    'Metric-run report package render-model response did not match the locked contract.'
   );
 }
 
@@ -629,6 +657,24 @@ export function useMetricRunReportPackage(fundId: number | null, metricRunId: nu
   });
 }
 
+export function useMetricRunReportPackageRenderModel(
+  fundId: number | null,
+  metricRunId: number | null
+) {
+  return useQuery<ReportPackageRenderModelResponse, LpReportingHookError>({
+    queryKey: metricRunReportPackageRenderModelQueryKey(fundId, metricRunId),
+    enabled: fundId !== null && metricRunId !== null,
+    queryFn: async () => {
+      if (fundId === null || metricRunId === null) {
+        const error = new Error('fundId and metricRunId are required') as LpReportingHookError;
+        error.code = 'MISSING_METRIC_RUN_REPORT_PACKAGE_RENDER_MODEL_SCOPE';
+        throw error;
+      }
+      return getMetricRunReportPackageRenderModel(fundId, metricRunId);
+    },
+  });
+}
+
 export function useMetricRunApprove(fundId: number | null, metricRunId: number | null) {
   const queryClient = useQueryClient();
 
@@ -823,6 +869,9 @@ export function useMetricRunReportPackageAssemble(
       queryClient.invalidateQueries({
         queryKey: metricRunReportPackageQueryKey(fundId, metricRunId),
       });
+      queryClient.invalidateQueries({
+        queryKey: metricRunReportPackageRenderModelQueryKey(fundId, metricRunId),
+      });
       queryClient.invalidateQueries({ queryKey: metricRunDetailQueryKey(fundId, metricRunId) });
     },
   });
@@ -849,4 +898,5 @@ export type {
   ReportPackageAssembleRequest,
   ReportPackageAssembleResponse,
   ReportPackageGetResponse,
+  ReportPackageRenderModelResponse,
 };
