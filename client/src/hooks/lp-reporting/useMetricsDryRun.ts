@@ -10,19 +10,30 @@
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
+  LatestMetricRunResponseSchema,
+  MetricRunApproveRequestSchema,
   MetricRunCommitRequestSchema,
   MetricRunCommitResponseSchema,
+  MetricRunDetailResponseSchema,
   MetricRunDryRunResponseSchema,
   MetricRunEvidenceCreateRequestSchema,
   MetricRunEvidenceCreateResponseSchema,
   MetricRunEvidenceListResponseSchema,
+  MetricRunLifecycleResponseSchema,
+  MetricRunLockRequestSchema,
+  type LatestMetricRunQuery,
+  type LatestMetricRunResponse,
+  type MetricRunApproveRequest,
   type MetricRunCommitRequest,
   type MetricRunCommitResponse,
+  type MetricRunDetailResponse,
   type MetricRunDryRunRequest,
   type MetricRunDryRunResponse,
   type MetricRunEvidenceCreateRequest,
   type MetricRunEvidenceCreateResponse,
   type MetricRunEvidenceListResponse,
+  type MetricRunLifecycleResponse,
+  type MetricRunLockRequest,
 } from '@shared/contracts/lp-reporting';
 
 export type MetricsDryRunRequest = MetricRunDryRunRequest;
@@ -38,6 +49,10 @@ export type LpReportingHookError = Error & {
   status?: number;
 };
 
+interface ContractResponseSchema<TResponse> {
+  safeParse(raw: unknown): { success: true; data: TResponse } | { success: false };
+}
+
 function buildHookError(
   status: number,
   body: Partial<DryRunErrorBody>,
@@ -47,6 +62,28 @@ function buildHookError(
   error.code = body.code ?? body.error ?? 'UNKNOWN';
   error.status = status;
   return error;
+}
+
+async function readContractResponse<TResponse>(
+  res: Response,
+  schema: ContractResponseSchema<TResponse>,
+  contractErrorMessage: string
+): Promise<TResponse> {
+  if (!res.ok) {
+    const errorBody = (await res.json().catch(() => ({}))) as Partial<DryRunErrorBody>;
+    throw buildHookError(res.status, errorBody, `HTTP ${res.status}`);
+  }
+
+  const raw = (await res.json()) as unknown;
+  const parsed = schema.safeParse(raw);
+  if (!parsed.success) {
+    const error = new Error(contractErrorMessage) as LpReportingHookError;
+    error.code = 'CONTRACT_PARSE_ERROR';
+    error.status = res.status;
+    throw error;
+  }
+
+  return parsed.data;
 }
 
 async function postMetricsDryRun(
@@ -60,23 +97,11 @@ async function postMetricsDryRun(
     body: JSON.stringify(body),
   });
 
-  if (!res.ok) {
-    const errorBody = (await res.json().catch(() => ({}))) as Partial<DryRunErrorBody>;
-    throw buildHookError(res.status, errorBody, `HTTP ${res.status}`);
-  }
-
-  const raw = (await res.json()) as unknown;
-  const parsed = MetricRunDryRunResponseSchema.safeParse(raw);
-  if (!parsed.success) {
-    const error = new Error(
-      'Metric-run dry-run response did not match the locked contract.'
-    ) as LpReportingHookError;
-    error.code = 'CONTRACT_PARSE_ERROR';
-    error.status = res.status;
-    throw error;
-  }
-
-  return parsed.data;
+  return readContractResponse(
+    res,
+    MetricRunDryRunResponseSchema,
+    'Metric-run dry-run response did not match the locked contract.'
+  );
 }
 
 async function postMetricRunCommit(
@@ -92,27 +117,68 @@ async function postMetricRunCommit(
     body: JSON.stringify(body),
   });
 
-  if (!res.ok) {
-    const errorBody = (await res.json().catch(() => ({}))) as Partial<DryRunErrorBody>;
-    throw buildHookError(res.status, errorBody, `HTTP ${res.status}`);
-  }
-
-  const raw = (await res.json()) as unknown;
-  const parsed = MetricRunCommitResponseSchema.safeParse(raw);
-  if (!parsed.success) {
-    const error = new Error(
-      'Metric-run commit response did not match the locked contract.'
-    ) as LpReportingHookError;
-    error.code = 'CONTRACT_PARSE_ERROR';
-    error.status = res.status;
-    throw error;
-  }
-
-  return parsed.data;
+  return readContractResponse(
+    res,
+    MetricRunCommitResponseSchema,
+    'Metric-run commit response did not match the locked contract.'
+  );
 }
 
 function metricRunEvidenceQueryKey(fundId: number | null, metricRunId: number | null) {
   return ['lp-reporting', 'metric-run-evidence', fundId, metricRunId] as const;
+}
+
+function latestMetricRunQueryKey(fundId: number | null, query: LatestMetricRunQuery | null) {
+  return [
+    'lp-reporting',
+    'metric-runs',
+    'latest',
+    fundId,
+    query?.runType ?? null,
+    query?.perspective ?? null,
+    query?.asOfDate ?? null,
+  ] as const;
+}
+
+function metricRunDetailQueryKey(fundId: number | null, metricRunId: number | null) {
+  return ['lp-reporting', 'metric-runs', 'detail', fundId, metricRunId] as const;
+}
+
+async function getLatestMetricRun(
+  fundId: number,
+  query: LatestMetricRunQuery
+): Promise<LatestMetricRunResponse> {
+  const params = new URLSearchParams({
+    runType: query.runType,
+    perspective: query.perspective,
+    asOfDate: query.asOfDate,
+  });
+  const res = await fetch(`/api/funds/${fundId}/metric-runs/latest?${params.toString()}`, {
+    method: 'GET',
+    credentials: 'include',
+  });
+
+  return readContractResponse(
+    res,
+    LatestMetricRunResponseSchema,
+    'Latest metric-run response did not match the locked contract.'
+  );
+}
+
+async function getMetricRunDetail(
+  fundId: number,
+  metricRunId: number
+): Promise<MetricRunDetailResponse> {
+  const res = await fetch(`/api/funds/${fundId}/metric-runs/${metricRunId}`, {
+    method: 'GET',
+    credentials: 'include',
+  });
+
+  return readContractResponse(
+    res,
+    MetricRunDetailResponseSchema,
+    'Metric-run detail response did not match the locked contract.'
+  );
 }
 
 async function getMetricRunEvidenceList(
@@ -124,23 +190,53 @@ async function getMetricRunEvidenceList(
     credentials: 'include',
   });
 
-  if (!res.ok) {
-    const errorBody = (await res.json().catch(() => ({}))) as Partial<DryRunErrorBody>;
-    throw buildHookError(res.status, errorBody, `HTTP ${res.status}`);
-  }
+  return readContractResponse(
+    res,
+    MetricRunEvidenceListResponseSchema,
+    'Metric-run evidence list response did not match the locked contract.'
+  );
+}
 
-  const raw = (await res.json()) as unknown;
-  const parsed = MetricRunEvidenceListResponseSchema.safeParse(raw);
-  if (!parsed.success) {
-    const error = new Error(
-      'Metric-run evidence list response did not match the locked contract.'
-    ) as LpReportingHookError;
-    error.code = 'CONTRACT_PARSE_ERROR';
-    error.status = res.status;
-    throw error;
-  }
+async function postMetricRunApprove(
+  fundId: number,
+  metricRunId: number,
+  body: MetricRunApproveRequest
+): Promise<MetricRunLifecycleResponse> {
+  MetricRunApproveRequestSchema.parse(body);
 
-  return parsed.data;
+  const res = await fetch(`/api/funds/${fundId}/metric-runs/${metricRunId}/approve`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    credentials: 'include',
+    body: JSON.stringify(body),
+  });
+
+  return readContractResponse(
+    res,
+    MetricRunLifecycleResponseSchema,
+    'Metric-run approve response did not match the locked contract.'
+  );
+}
+
+async function postMetricRunLock(
+  fundId: number,
+  metricRunId: number,
+  body: MetricRunLockRequest
+): Promise<MetricRunLifecycleResponse> {
+  MetricRunLockRequestSchema.parse(body);
+
+  const res = await fetch(`/api/funds/${fundId}/metric-runs/${metricRunId}/lock`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    credentials: 'include',
+    body: JSON.stringify(body),
+  });
+
+  return readContractResponse(
+    res,
+    MetricRunLifecycleResponseSchema,
+    'Metric-run lock response did not match the locked contract.'
+  );
 }
 
 async function postMetricRunEvidence(
@@ -157,23 +253,11 @@ async function postMetricRunEvidence(
     body: JSON.stringify(body),
   });
 
-  if (!res.ok) {
-    const errorBody = (await res.json().catch(() => ({}))) as Partial<DryRunErrorBody>;
-    throw buildHookError(res.status, errorBody, `HTTP ${res.status}`);
-  }
-
-  const raw = (await res.json()) as unknown;
-  const parsed = MetricRunEvidenceCreateResponseSchema.safeParse(raw);
-  if (!parsed.success) {
-    const error = new Error(
-      'Metric-run evidence create response did not match the locked contract.'
-    ) as LpReportingHookError;
-    error.code = 'CONTRACT_PARSE_ERROR';
-    error.status = res.status;
-    throw error;
-  }
-
-  return parsed.data;
+  return readContractResponse(
+    res,
+    MetricRunEvidenceCreateResponseSchema,
+    'Metric-run evidence create response did not match the locked contract.'
+  );
 }
 
 export function useMetricsDryRun(fundId: number | null) {
@@ -204,8 +288,41 @@ export function useMetricRunCommit(fundId: number | null) {
       return postMetricRunCommit(fundId, request);
     },
     onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['lp-reporting', 'metric-runs'] });
       queryClient.invalidateQueries({ queryKey: ['lp-reporting', 'metric-runs', fundId] });
       queryClient.invalidateQueries({ queryKey: ['fund-metrics', fundId] });
+    },
+  });
+}
+
+export function useLatestMetricRun(fundId: number | null, query: LatestMetricRunQuery | null) {
+  return useQuery<LatestMetricRunResponse, LpReportingHookError>({
+    queryKey: latestMetricRunQueryKey(fundId, query),
+    enabled: fundId !== null && query !== null,
+    queryFn: async () => {
+      if (fundId === null || query === null) {
+        const error = new Error(
+          'fundId and latest metric-run filters are required'
+        ) as LpReportingHookError;
+        error.code = 'MISSING_LATEST_METRIC_RUN_SCOPE';
+        throw error;
+      }
+      return getLatestMetricRun(fundId, query);
+    },
+  });
+}
+
+export function useMetricRunDetail(fundId: number | null, metricRunId: number | null) {
+  return useQuery<MetricRunDetailResponse, LpReportingHookError>({
+    queryKey: metricRunDetailQueryKey(fundId, metricRunId),
+    enabled: fundId !== null && metricRunId !== null,
+    queryFn: async () => {
+      if (fundId === null || metricRunId === null) {
+        const error = new Error('fundId and metricRunId are required') as LpReportingHookError;
+        error.code = 'MISSING_METRIC_RUN_DETAIL_SCOPE';
+        throw error;
+      }
+      return getMetricRunDetail(fundId, metricRunId);
     },
   });
 }
@@ -222,6 +339,44 @@ export function useMetricRunEvidenceList(fundId: number | null, metricRunId: num
       }
 
       return getMetricRunEvidenceList(fundId, metricRunId);
+    },
+  });
+}
+
+export function useMetricRunApprove(fundId: number | null, metricRunId: number | null) {
+  const queryClient = useQueryClient();
+
+  return useMutation<MetricRunLifecycleResponse, LpReportingHookError, MetricRunApproveRequest>({
+    mutationFn: async (request) => {
+      if (fundId === null || metricRunId === null) {
+        const error = new Error('fundId and metricRunId are required') as LpReportingHookError;
+        error.code = 'MISSING_METRIC_RUN_LIFECYCLE_SCOPE';
+        throw error;
+      }
+      return postMetricRunApprove(fundId, metricRunId, request);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['lp-reporting', 'metric-runs'] });
+      queryClient.invalidateQueries({ queryKey: metricRunEvidenceQueryKey(fundId, metricRunId) });
+    },
+  });
+}
+
+export function useMetricRunLock(fundId: number | null, metricRunId: number | null) {
+  const queryClient = useQueryClient();
+
+  return useMutation<MetricRunLifecycleResponse, LpReportingHookError, MetricRunLockRequest>({
+    mutationFn: async (request) => {
+      if (fundId === null || metricRunId === null) {
+        const error = new Error('fundId and metricRunId are required') as LpReportingHookError;
+        error.code = 'MISSING_METRIC_RUN_LIFECYCLE_SCOPE';
+        throw error;
+      }
+      return postMetricRunLock(fundId, metricRunId, request);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['lp-reporting', 'metric-runs'] });
+      queryClient.invalidateQueries({ queryKey: metricRunEvidenceQueryKey(fundId, metricRunId) });
     },
   });
 }
@@ -244,13 +399,20 @@ export function useMetricRunEvidenceCreate(fundId: number | null, metricRunId: n
       return postMetricRunEvidence(fundId, metricRunId, request);
     },
     onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['lp-reporting', 'metric-runs'] });
       queryClient.invalidateQueries({ queryKey: metricRunEvidenceQueryKey(fundId, metricRunId) });
     },
   });
 }
 
 export type {
+  LatestMetricRunQuery,
+  LatestMetricRunResponse,
+  MetricRunApproveRequest,
+  MetricRunDetailResponse,
   MetricRunEvidenceCreateRequest,
   MetricRunEvidenceCreateResponse,
   MetricRunEvidenceListResponse,
+  MetricRunLifecycleResponse,
+  MetricRunLockRequest,
 };
