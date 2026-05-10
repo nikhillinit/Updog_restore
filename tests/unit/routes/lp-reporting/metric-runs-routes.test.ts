@@ -16,6 +16,7 @@ import {
   MetricRunLifecycleResponseSchema,
   NarrativeRunCreateResponseSchema,
   NarrativeRunDetailResponseSchema,
+  NarrativeRunLifecycleResponseSchema,
   NarrativeRunListResponseSchema,
 } from '@shared/contracts/lp-reporting';
 
@@ -164,9 +165,12 @@ interface MockNarrativeRow {
   status: string;
   generatedBy: number | null;
   editedBy: number | null;
+  reviewedBy: number | null;
+  reviewedAt: Date | null;
   approvedBy: number | null;
   approvedAt: Date | null;
   exportedAt: Date | null;
+  version: number;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -209,6 +213,8 @@ vi.mock('@shared/schema/lp-reporting-evidence', () => ({
     fundId: 'narrativeRuns.fundId',
     metricRunId: 'narrativeRuns.metricRunId',
     narrativeType: 'narrativeRuns.narrativeType',
+    status: 'narrativeRuns.status',
+    version: 'narrativeRuns.version',
   },
 }));
 
@@ -278,9 +284,12 @@ function makeNarrativeRow(overrides: Partial<MockNarrativeRow> = {}): MockNarrat
     status: 'draft',
     generatedBy: authState.userId,
     editedBy: null,
+    reviewedBy: null,
+    reviewedAt: null,
     approvedBy: null,
     approvedAt: null,
     exportedAt: null,
+    version: 1,
     createdAt: new Date('2026-05-10T00:00:00Z'),
     updatedAt: new Date('2026-05-10T00:00:00Z'),
     ...overrides,
@@ -341,32 +350,63 @@ vi.mock('../../../../server/db', () => {
       set: vi.fn((values: Record<string, unknown>) => ({
         where: vi.fn(() => ({
           returning: vi.fn(async () => {
-            if (table?._kind !== 'lpMetricRuns') {
-              return [];
+            if (table?._kind === 'narrativeRuns') {
+              const current = dbState.narrativeRuns.find(
+                (row) => row.id === 2000 && row.fundId === 1 && row.metricRunId === 500
+              );
+              if (!current) {
+                return [];
+              }
+              const nextVersion =
+                typeof values['version'] === 'number' ? (values['version'] as number) : undefined;
+              const expectedVersion = nextVersion !== undefined ? nextVersion - 1 : current.version;
+              const validEdit =
+                values['editedText'] !== undefined &&
+                current.status === 'draft' &&
+                current.version === expectedVersion;
+              const validReview =
+                values['status'] === 'reviewed' &&
+                current.status === 'draft' &&
+                current.version === expectedVersion;
+              const validApprove =
+                values['status'] === 'approved' &&
+                current.status === 'reviewed' &&
+                current.version === expectedVersion;
+              if (!validEdit && !validReview && !validApprove) {
+                return [];
+              }
+              const updated = { ...current, ...values } as MockNarrativeRow;
+              dbState.narrativeRuns = dbState.narrativeRuns.map((row) =>
+                row.id === updated.id ? updated : row
+              );
+              return rowsFor({ _kind: 'narrativeRuns' }).filter((row) => row['id'] === updated.id);
             }
-            const current = dbState.metricRuns.find((row) => row.id === 500 && row.fundId === 1);
-            if (!current) {
-              return [];
+            if (table?._kind === 'lpMetricRuns') {
+              const current = dbState.metricRuns.find((row) => row.id === 500 && row.fundId === 1);
+              if (!current) {
+                return [];
+              }
+              const nextVersion =
+                typeof values['version'] === 'number' ? (values['version'] as number) : undefined;
+              const expectedVersion = nextVersion !== undefined ? nextVersion - 1 : current.version;
+              const validApprove =
+                values['status'] === 'approved' &&
+                current.status === 'draft' &&
+                (current.version ?? 1) === expectedVersion;
+              const validLock =
+                values['status'] === 'locked' &&
+                current.status === 'approved' &&
+                (current.version ?? 1) === expectedVersion;
+              if (!validApprove && !validLock) {
+                return [];
+              }
+              const updated = { ...current, ...values } as MockMetricRunRow;
+              dbState.metricRuns = dbState.metricRuns.map((row) =>
+                row.id === updated.id ? updated : row
+              );
+              return rowsFor({ _kind: 'lpMetricRuns' }).filter((row) => row['id'] === updated.id);
             }
-            const nextVersion =
-              typeof values['version'] === 'number' ? (values['version'] as number) : undefined;
-            const expectedVersion = nextVersion !== undefined ? nextVersion - 1 : current.version;
-            const validApprove =
-              values['status'] === 'approved' &&
-              current.status === 'draft' &&
-              (current.version ?? 1) === expectedVersion;
-            const validLock =
-              values['status'] === 'locked' &&
-              current.status === 'approved' &&
-              (current.version ?? 1) === expectedVersion;
-            if (!validApprove && !validLock) {
-              return [];
-            }
-            const updated = { ...current, ...values } as MockMetricRunRow;
-            dbState.metricRuns = dbState.metricRuns.map((row) =>
-              row.id === updated.id ? updated : row
-            );
-            return rowsFor({ _kind: 'lpMetricRuns' }).filter((row) => row['id'] === updated.id);
+            return [];
           }),
         })),
       })),
@@ -1079,6 +1119,172 @@ describe('metric-run narrative routes', () => {
     expect(res.status).toBe(400);
     expect(res.body.error).toBe('INVALID_NARRATIVE_RUN_ID');
   });
+
+  it('PATCH edits draft narrative text and returns lifecycle response', async () => {
+    seedLockedMetricRun();
+    dbState.narrativeRuns.push(makeNarrativeRow({ id: 2000, version: 1 }));
+
+    const res = await request(buildApp())
+      .patch('/api/funds/1/metric-runs/500/narrative-runs/2000')
+      .send({ expectedVersion: 1, editedText: '  Reviewed copy  ' });
+
+    expect(res.status).toBe(200);
+    const parsed = NarrativeRunLifecycleResponseSchema.parse(res.body);
+    expect(parsed.changed).toBe(true);
+    expect(parsed.record.editedText).toBe('Reviewed copy');
+    expect(parsed.record.editedBy).toBe(authState.userId);
+    expect(parsed.record.version).toBe(2);
+  });
+
+  it('PATCH returns changed false for same edit retries', async () => {
+    seedLockedMetricRun();
+    dbState.narrativeRuns.push(
+      makeNarrativeRow({
+        id: 2000,
+        editedText: 'Reviewed copy',
+        editedBy: authState.userId,
+        version: 2,
+      })
+    );
+
+    const res = await request(buildApp())
+      .patch('/api/funds/1/metric-runs/500/narrative-runs/2000')
+      .send({ expectedVersion: 1, editedText: 'Reviewed copy' });
+
+    expect(res.status).toBe(200);
+    const parsed = NarrativeRunLifecycleResponseSchema.parse(res.body);
+    expect(parsed.changed).toBe(false);
+    expect(parsed.record.version).toBe(2);
+  });
+
+  it('POST review marks edited drafts reviewed', async () => {
+    seedLockedMetricRun();
+    dbState.narrativeRuns.push(
+      makeNarrativeRow({
+        id: 2000,
+        editedText: 'Reviewed copy',
+        editedBy: authState.userId,
+        version: 2,
+      })
+    );
+
+    const reviewed = await request(buildApp())
+      .post('/api/funds/1/metric-runs/500/narrative-runs/2000/review')
+      .send({ expectedVersion: 2 });
+    expect(reviewed.status).toBe(200);
+    const parsed = NarrativeRunLifecycleResponseSchema.parse(reviewed.body);
+    expect(parsed.changed).toBe(true);
+    expect(parsed.record.status).toBe('reviewed');
+    expect(parsed.record.reviewedBy).toBe(authState.userId);
+    expect(parsed.record.reviewedAt).not.toBeNull();
+  });
+
+  it('POST review rejects generated-only narratives', async () => {
+    seedLockedMetricRun();
+    dbState.narrativeRuns.push(makeNarrativeRow({ id: 2000, narrativeType: 'no_dpi', version: 1 }));
+
+    const generatedOnly = await request(buildApp())
+      .post('/api/funds/1/metric-runs/500/narrative-runs/2000/review')
+      .send({ expectedVersion: 1 });
+    expect(generatedOnly.status).toBe(409);
+    expect(generatedOnly.body.error).toBe('NARRATIVE_RUN_EDIT_REQUIRED');
+  });
+
+  it('POST review returns changed false for same-user retries', async () => {
+    seedLockedMetricRun();
+    dbState.narrativeRuns.push(
+      makeNarrativeRow({
+        id: 2000,
+        editedText: 'Reviewed copy',
+        editedBy: authState.userId,
+        status: 'reviewed',
+        reviewedBy: authState.userId,
+        reviewedAt: new Date('2026-05-10T03:00:00Z'),
+        version: 3,
+      })
+    );
+
+    const sameUser = await request(buildApp())
+      .post('/api/funds/1/metric-runs/500/narrative-runs/2000/review')
+      .send({ expectedVersion: 2 });
+    expect(sameUser.status).toBe(200);
+    expect(NarrativeRunLifecycleResponseSchema.parse(sameUser.body).changed).toBe(false);
+  });
+
+  it('POST review conflicts for different-user stale retries', async () => {
+    seedLockedMetricRun();
+    dbState.users.push(8);
+    authState.userId = 8;
+    dbState.narrativeRuns.push(
+      makeNarrativeRow({
+        id: 2000,
+        editedText: 'Reviewed copy',
+        editedBy: 7,
+        status: 'reviewed',
+        reviewedBy: 7,
+        reviewedAt: new Date('2026-05-10T03:00:00Z'),
+        version: 3,
+      })
+    );
+
+    const differentUser = await request(buildApp())
+      .post('/api/funds/1/metric-runs/500/narrative-runs/2000/review')
+      .send({ expectedVersion: 2 });
+    expect(differentUser.status).toBe(409);
+    expect(differentUser.body.error).toBe('NARRATIVE_RUN_VERSION_CONFLICT');
+  });
+
+  it('POST approve approves reviewed narratives and supports same retry responses', async () => {
+    seedLockedMetricRun();
+    dbState.narrativeRuns.push(
+      makeNarrativeRow({
+        id: 2000,
+        editedText: 'Reviewed copy',
+        editedBy: authState.userId,
+        status: 'reviewed',
+        reviewedBy: authState.userId,
+        reviewedAt: new Date('2026-05-10T03:00:00Z'),
+        version: 3,
+      })
+    );
+
+    const approved = await request(buildApp())
+      .post('/api/funds/1/metric-runs/500/narrative-runs/2000/approve')
+      .send({ expectedVersion: 3 });
+    expect(approved.status).toBe(200);
+    const parsed = NarrativeRunLifecycleResponseSchema.parse(approved.body);
+    expect(parsed.changed).toBe(true);
+    expect(parsed.record.status).toBe('approved');
+    expect(parsed.record.approvedBy).toBe(authState.userId);
+    expect(parsed.record.version).toBe(4);
+
+    const retry = await request(buildApp())
+      .post('/api/funds/1/metric-runs/500/narrative-runs/2000/approve')
+      .send({ expectedVersion: 3 });
+    expect(retry.status).toBe(200);
+    expect(NarrativeRunLifecycleResponseSchema.parse(retry.body).changed).toBe(false);
+  });
+
+  it('rejects narrative lifecycle mutations when parent metric run is not locked', async () => {
+    dbState.metricRuns.push({
+      id: 500,
+      fundId: 1,
+      runType: 'quarterly_report',
+      perspective: 'lp_net',
+      asOfDate: '2026-03-31',
+      status: 'approved',
+      inputsHash: 'a'.repeat(64),
+      version: 3,
+    });
+    dbState.narrativeRuns.push(makeNarrativeRow({ id: 2000, version: 1 }));
+
+    const res = await request(buildApp())
+      .patch('/api/funds/1/metric-runs/500/narrative-runs/2000')
+      .send({ expectedVersion: 1, editedText: 'Reviewed copy' });
+
+    expect(res.status).toBe(409);
+    expect(res.body.error).toBe('METRIC_RUN_STATUS_CONFLICT');
+  });
 });
 
 describe('metric-run lifecycle routes', () => {
@@ -1280,6 +1486,17 @@ describe('Source grep -- metric-run route boundaries', () => {
       '/api/funds/:fundId/metric-runs/:metricRunId/lock',
       '/api/funds/:fundId/metric-runs/:metricRunId/evidence-records',
       '/api/funds/:fundId/metric-runs/:metricRunId/narrative-runs',
+      '/api/funds/:fundId/metric-runs/:metricRunId/narrative-runs/:narrativeRunId/review',
+      '/api/funds/:fundId/metric-runs/:metricRunId/narrative-runs/:narrativeRunId/approve',
+    ]);
+
+    const patchPaths =
+      routerSource
+        .match(/router\.patch\(\s*['"]([^'"]+)['"]/g)
+        ?.map((match) => match.replace(/router\.patch\(\s*['"]/, '').replace(/['"]$/, '')) ?? [];
+
+    expect(patchPaths).toEqual([
+      '/api/funds/:fundId/metric-runs/:metricRunId/narrative-runs/:narrativeRunId',
     ]);
 
     const getPaths =

@@ -1,5 +1,5 @@
 /**
- * LP Reporting -- narrative draft service.
+ * LP Reporting -- narrative draft and lifecycle service.
  *
  * Narrative drafts are generated from persisted locked metric-run rows. The
  * template source is deliberately limited to the locked row plus validated
@@ -9,7 +9,7 @@
  * @module server/services/lp-reporting/narrative-run-service
  */
 
-import { and, eq } from 'drizzle-orm';
+import { and, eq, sql } from 'drizzle-orm';
 import { z } from 'zod';
 
 import { db } from '../../db';
@@ -19,15 +19,23 @@ import {
   NarrativeRunCreateRequestSchema,
   NarrativeRunCreateResponseSchema,
   NarrativeRunDetailResponseSchema,
+  NarrativeRunApproveRequestSchema,
+  NarrativeRunEditRequestSchema,
+  NarrativeRunLifecycleResponseSchema,
   NarrativeRunListResponseSchema,
   NarrativeRunRecordSchema,
+  NarrativeRunReviewRequestSchema,
   type LpMetricRunDiagnostics,
   type LpMetricRunResults,
+  type NarrativeRunApproveRequest,
   type NarrativeRunCreateRequest,
   type NarrativeRunCreateResponse,
   type NarrativeRunDetailResponse,
+  type NarrativeRunEditRequest,
+  type NarrativeRunLifecycleResponse,
   type NarrativeRunListResponse,
   type NarrativeRunRecord,
+  type NarrativeRunReviewRequest,
   type NarrativeType,
 } from '@shared/contracts/lp-reporting';
 import {
@@ -58,8 +66,19 @@ export interface NarrativeRunDetailInput extends NarrativeRunListInput {
   narrativeRunId: number;
 }
 
+export interface NarrativeRunEditInput extends NarrativeRunDetailInput {
+  userId: number;
+  body: NarrativeRunEditRequest;
+}
+
+export interface NarrativeRunLifecycleInput extends NarrativeRunDetailInput {
+  userId: number;
+  body: NarrativeRunReviewRequest | NarrativeRunApproveRequest;
+}
+
 interface NarrativeRunServiceOptions {
   database?: NarrativeRunDatabase;
+  skipTransaction?: boolean;
 }
 
 interface ValidatedMetricRunSource {
@@ -71,6 +90,16 @@ interface ValidatedMetricRunSource {
   sourceEvidenceCount: number;
 }
 
+type TransactionCapableDatabase = NarrativeRunDatabase & {
+  transaction?: <TResult>(
+    callback: (tx: NarrativeRunDatabase) => Promise<TResult>
+  ) => Promise<TResult>;
+};
+
+type ExecuteCapableDatabase = NarrativeRunDatabase & {
+  execute?: (query: unknown) => Promise<unknown>;
+};
+
 const IdArraySchema = z.array(z.number().int().positive());
 
 const NARRATIVE_TYPE_ORDER: NarrativeType[] = [
@@ -79,6 +108,56 @@ const NARRATIVE_TYPE_ORDER: NarrativeType[] = [
   'portfolio_update',
   'risk_disclosure',
 ];
+
+function withTransaction<TResult>(
+  database: NarrativeRunDatabase,
+  skipTransaction: boolean,
+  callback: (tx: NarrativeRunDatabase) => Promise<TResult>
+): Promise<TResult> {
+  const transactionCapable = database as TransactionCapableDatabase;
+  if (!skipTransaction && typeof transactionCapable.transaction === 'function') {
+    return transactionCapable.transaction((tx) => callback(tx));
+  }
+  return callback(database);
+}
+
+async function lockMetricRunRow(
+  database: NarrativeRunDatabase,
+  fundId: number,
+  metricRunId: number
+): Promise<void> {
+  const executeCapable = database as ExecuteCapableDatabase;
+  if (typeof executeCapable.execute !== 'function') {
+    return;
+  }
+  await executeCapable.execute(sql`
+    SELECT id
+      FROM lp_metric_runs
+     WHERE fund_id = ${fundId}
+       AND id = ${metricRunId}
+     FOR UPDATE
+  `);
+}
+
+async function lockNarrativeRunRow(
+  database: NarrativeRunDatabase,
+  fundId: number,
+  metricRunId: number,
+  narrativeRunId: number
+): Promise<void> {
+  const executeCapable = database as ExecuteCapableDatabase;
+  if (typeof executeCapable.execute !== 'function') {
+    return;
+  }
+  await executeCapable.execute(sql`
+    SELECT id
+      FROM narrative_runs
+     WHERE fund_id = ${fundId}
+       AND metric_run_id = ${metricRunId}
+       AND id = ${narrativeRunId}
+     FOR UPDATE
+  `);
+}
 
 function isoDateTime(value: Date | string | null | undefined, field: string): string {
   if (value instanceof Date) return value.toISOString();
@@ -119,6 +198,63 @@ function normalizeIdArray(value: unknown): number[] {
 function typeOrder(value: string): number {
   const index = NARRATIVE_TYPE_ORDER.indexOf(value as NarrativeType);
   return index === -1 ? NARRATIVE_TYPE_ORDER.length : index;
+}
+
+function normalizeVersion(value: number | null | undefined): number {
+  if (value === null || value === undefined) return 1;
+  return Number.isInteger(value) && value > 0 ? value : 1;
+}
+
+function hasEditedText(row: NarrativeRun): boolean {
+  return typeof row.editedText === 'string' && row.editedText.trim().length > 0;
+}
+
+function assertExpectedVersion(actual: number, expected: number): void {
+  if (actual !== expected) {
+    throw narrativeVersionConflict(actual, expected);
+  }
+}
+
+function narrativeVersionConflict(actual: number, expected: number): MetricRunCommitError {
+  return new MetricRunCommitError(
+    409,
+    'NARRATIVE_RUN_VERSION_CONFLICT',
+    'Narrative run version no longer matches the request.',
+    { expectedVersion: expected, actualVersion: actual }
+  );
+}
+
+function narrativeStatusConflict(
+  actualStatus: string,
+  expectedStatus: string
+): MetricRunCommitError {
+  return new MetricRunCommitError(
+    409,
+    'NARRATIVE_RUN_STATUS_CONFLICT',
+    `Narrative run must be ${expectedStatus} for this lifecycle transition.`,
+    { expectedStatus, actualStatus }
+  );
+}
+
+function assertEditedTextPresent(row: NarrativeRun): void {
+  if (!hasEditedText(row)) {
+    throw new MetricRunCommitError(
+      409,
+      'NARRATIVE_RUN_EDIT_REQUIRED',
+      'Narrative review and approval require saved edited text.'
+    );
+  }
+}
+
+function assertMetricRunLockedForLifecycle(metricRun: LpMetricRun): void {
+  if (metricRun.status !== 'locked') {
+    throw new MetricRunCommitError(
+      409,
+      'METRIC_RUN_STATUS_CONFLICT',
+      'Narrative lifecycle mutations require a locked metric run.',
+      { expectedStatus: 'locked', actualStatus: metricRun.status }
+    );
+  }
 }
 
 async function assertUserExists(database: NarrativeRunDatabase, userId: number): Promise<void> {
@@ -276,9 +412,12 @@ function toNarrativeRunRecord(row: NarrativeRun): NarrativeRunRecord {
     status: row.status,
     generatedBy: row.generatedBy ?? null,
     editedBy: row.editedBy ?? null,
+    reviewedBy: row.reviewedBy ?? null,
+    reviewedAt: isoDateTimeNullable(row.reviewedAt),
     approvedBy: row.approvedBy ?? null,
     approvedAt: isoDateTimeNullable(row.approvedAt),
     exportedAt: isoDateTimeNullable(row.exportedAt),
+    version: normalizeVersion(row.version),
     createdAt: isoDateTime(row.createdAt, 'createdAt'),
     updatedAt: isoDateTime(row.updatedAt, 'updatedAt'),
   });
@@ -311,6 +450,81 @@ async function findNarrativeByType(
   );
 }
 
+async function loadNarrativeById(
+  database: NarrativeRunDatabase,
+  fundId: number,
+  metricRunId: number,
+  narrativeRunId: number
+): Promise<NarrativeRun> {
+  const rows = await database
+    .select()
+    .from(narrativeRuns)
+    .where(
+      and(
+        eq(narrativeRuns.fundId, fundId),
+        eq(narrativeRuns.metricRunId, metricRunId),
+        eq(narrativeRuns.id, narrativeRunId)
+      )
+    )
+    .limit(1);
+  const row = (rows as NarrativeRun[]).find(
+    (candidate) =>
+      candidate.id === narrativeRunId &&
+      candidate.fundId === fundId &&
+      candidate.metricRunId === metricRunId
+  );
+  if (!row) {
+    throw new MetricRunCommitError(
+      404,
+      'NARRATIVE_RUN_NOT_FOUND',
+      'Narrative draft was not found for this metric run.'
+    );
+  }
+  return row;
+}
+
+function isSameEditRetry(
+  row: NarrativeRun,
+  input: NarrativeRunEditInput,
+  editedText: string
+): boolean {
+  return (
+    row.status === 'draft' &&
+    normalizeVersion(row.version) === input.body.expectedVersion + 1 &&
+    (row.editedText ?? '').trim() === editedText &&
+    row.editedBy === input.userId &&
+    row.updatedAt !== null
+  );
+}
+
+function isSameReviewRetry(row: NarrativeRun, input: NarrativeRunLifecycleInput): boolean {
+  return (
+    row.status === 'reviewed' &&
+    normalizeVersion(row.version) === input.body.expectedVersion + 1 &&
+    row.reviewedBy === input.userId &&
+    row.reviewedAt !== null &&
+    hasEditedText(row)
+  );
+}
+
+function isDifferentUserReviewRetry(row: NarrativeRun, input: NarrativeRunLifecycleInput): boolean {
+  return (
+    row.status === 'reviewed' &&
+    normalizeVersion(row.version) === input.body.expectedVersion + 1 &&
+    row.reviewedBy !== null &&
+    row.reviewedBy !== input.userId
+  );
+}
+
+function isSameApproveRetry(row: NarrativeRun, input: NarrativeRunLifecycleInput): boolean {
+  return (
+    row.status === 'approved' &&
+    normalizeVersion(row.version) === input.body.expectedVersion + 1 &&
+    row.approvedBy === input.userId &&
+    row.approvedAt !== null
+  );
+}
+
 function narrativeInsertValues(
   source: ValidatedMetricRunSource,
   narrativeType: NarrativeType,
@@ -325,6 +539,7 @@ function narrativeInsertValues(
     editedText: null,
     status: 'draft',
     generatedBy: userId,
+    version: 1,
   };
 }
 
@@ -416,31 +631,259 @@ export async function getNarrativeDraft(
 ): Promise<NarrativeRunDetailResponse> {
   const database = options.database ?? db;
   await loadMetricRun(database, input.fundId, input.metricRunId);
-
-  const rows = await database
-    .select()
-    .from(narrativeRuns)
-    .where(
-      and(
-        eq(narrativeRuns.fundId, input.fundId),
-        eq(narrativeRuns.metricRunId, input.metricRunId),
-        eq(narrativeRuns.id, input.narrativeRunId)
-      )
-    )
-    .limit(1);
-  const row = (rows as NarrativeRun[]).find(
-    (candidate) =>
-      candidate.id === input.narrativeRunId &&
-      candidate.fundId === input.fundId &&
-      candidate.metricRunId === input.metricRunId
+  const row = await loadNarrativeById(
+    database,
+    input.fundId,
+    input.metricRunId,
+    input.narrativeRunId
   );
-  if (!row) {
-    throw new MetricRunCommitError(
-      404,
-      'NARRATIVE_RUN_NOT_FOUND',
-      'Narrative draft was not found for this metric run.'
-    );
-  }
 
   return NarrativeRunDetailResponseSchema.parse({ record: toNarrativeRunRecord(row) });
+}
+
+export async function editNarrativeDraft(
+  input: NarrativeRunEditInput,
+  options: NarrativeRunServiceOptions = {}
+): Promise<NarrativeRunLifecycleResponse> {
+  const database = options.database ?? db;
+  const body = NarrativeRunEditRequestSchema.parse(input.body);
+  const lifecycleInput: NarrativeRunEditInput = { ...input, body };
+  await assertUserExists(database, input.userId);
+
+  return withTransaction(database, options.skipTransaction === true, async (tx) => {
+    await lockMetricRunRow(tx, input.fundId, input.metricRunId);
+    await lockNarrativeRunRow(tx, input.fundId, input.metricRunId, input.narrativeRunId);
+    const metricRun = await loadMetricRun(tx, input.fundId, input.metricRunId);
+    assertMetricRunLockedForLifecycle(metricRun);
+    const row = await loadNarrativeById(tx, input.fundId, input.metricRunId, input.narrativeRunId);
+
+    if (isSameEditRetry(row, lifecycleInput, body.editedText)) {
+      return NarrativeRunLifecycleResponseSchema.parse({
+        record: toNarrativeRunRecord(row),
+        changed: false,
+      });
+    }
+    if (row.status !== 'draft') {
+      throw narrativeStatusConflict(row.status, 'draft');
+    }
+    assertExpectedVersion(normalizeVersion(row.version), body.expectedVersion);
+
+    const now = new Date();
+    const updatedRows = await tx
+      .update(narrativeRuns)
+      .set({
+        editedText: body.editedText,
+        editedBy: input.userId,
+        version: body.expectedVersion + 1,
+        updatedAt: now,
+      })
+      .where(
+        and(
+          eq(narrativeRuns.fundId, input.fundId),
+          eq(narrativeRuns.metricRunId, input.metricRunId),
+          eq(narrativeRuns.id, input.narrativeRunId),
+          eq(narrativeRuns.status, 'draft'),
+          eq(narrativeRuns.version, body.expectedVersion)
+        )
+      )
+      .returning();
+
+    const updated = (updatedRows as NarrativeRun[])[0];
+    if (updated) {
+      return NarrativeRunLifecycleResponseSchema.parse({
+        record: toNarrativeRunRecord(updated),
+        changed: true,
+      });
+    }
+
+    const current = await loadNarrativeById(
+      tx,
+      input.fundId,
+      input.metricRunId,
+      input.narrativeRunId
+    );
+    if (isSameEditRetry(current, lifecycleInput, body.editedText)) {
+      return NarrativeRunLifecycleResponseSchema.parse({
+        record: toNarrativeRunRecord(current),
+        changed: false,
+      });
+    }
+    if (current.status !== 'draft') {
+      throw narrativeStatusConflict(current.status, 'draft');
+    }
+    assertExpectedVersion(normalizeVersion(current.version), body.expectedVersion);
+    throw new MetricRunCommitError(
+      409,
+      'NARRATIVE_RUN_STATUS_CONFLICT',
+      'Narrative edit conflicted with another lifecycle update.'
+    );
+  });
+}
+
+export async function reviewNarrativeDraft(
+  input: NarrativeRunLifecycleInput,
+  options: NarrativeRunServiceOptions = {}
+): Promise<NarrativeRunLifecycleResponse> {
+  const database = options.database ?? db;
+  const body = NarrativeRunReviewRequestSchema.parse(input.body);
+  const lifecycleInput: NarrativeRunLifecycleInput = { ...input, body };
+  await assertUserExists(database, input.userId);
+
+  return withTransaction(database, options.skipTransaction === true, async (tx) => {
+    await lockMetricRunRow(tx, input.fundId, input.metricRunId);
+    await lockNarrativeRunRow(tx, input.fundId, input.metricRunId, input.narrativeRunId);
+    const metricRun = await loadMetricRun(tx, input.fundId, input.metricRunId);
+    assertMetricRunLockedForLifecycle(metricRun);
+    const row = await loadNarrativeById(tx, input.fundId, input.metricRunId, input.narrativeRunId);
+
+    if (isSameReviewRetry(row, lifecycleInput)) {
+      return NarrativeRunLifecycleResponseSchema.parse({
+        record: toNarrativeRunRecord(row),
+        changed: false,
+      });
+    }
+    if (isDifferentUserReviewRetry(row, lifecycleInput)) {
+      throw narrativeVersionConflict(normalizeVersion(row.version), body.expectedVersion);
+    }
+    if (row.status !== 'draft') {
+      throw narrativeStatusConflict(row.status, 'draft');
+    }
+    assertExpectedVersion(normalizeVersion(row.version), body.expectedVersion);
+    assertEditedTextPresent(row);
+
+    const now = new Date();
+    const updatedRows = await tx
+      .update(narrativeRuns)
+      .set({
+        status: 'reviewed',
+        reviewedBy: input.userId,
+        reviewedAt: now,
+        version: body.expectedVersion + 1,
+        updatedAt: now,
+      })
+      .where(
+        and(
+          eq(narrativeRuns.fundId, input.fundId),
+          eq(narrativeRuns.metricRunId, input.metricRunId),
+          eq(narrativeRuns.id, input.narrativeRunId),
+          eq(narrativeRuns.status, 'draft'),
+          eq(narrativeRuns.version, body.expectedVersion)
+        )
+      )
+      .returning();
+
+    const updated = (updatedRows as NarrativeRun[])[0];
+    if (updated) {
+      return NarrativeRunLifecycleResponseSchema.parse({
+        record: toNarrativeRunRecord(updated),
+        changed: true,
+      });
+    }
+
+    const current = await loadNarrativeById(
+      tx,
+      input.fundId,
+      input.metricRunId,
+      input.narrativeRunId
+    );
+    if (isSameReviewRetry(current, lifecycleInput)) {
+      return NarrativeRunLifecycleResponseSchema.parse({
+        record: toNarrativeRunRecord(current),
+        changed: false,
+      });
+    }
+    if (isDifferentUserReviewRetry(current, lifecycleInput)) {
+      throw narrativeVersionConflict(normalizeVersion(current.version), body.expectedVersion);
+    }
+    if (current.status !== 'draft') {
+      throw narrativeStatusConflict(current.status, 'draft');
+    }
+    assertExpectedVersion(normalizeVersion(current.version), body.expectedVersion);
+    throw new MetricRunCommitError(
+      409,
+      'NARRATIVE_RUN_STATUS_CONFLICT',
+      'Narrative review conflicted with another lifecycle update.'
+    );
+  });
+}
+
+export async function approveNarrativeDraft(
+  input: NarrativeRunLifecycleInput,
+  options: NarrativeRunServiceOptions = {}
+): Promise<NarrativeRunLifecycleResponse> {
+  const database = options.database ?? db;
+  const body = NarrativeRunApproveRequestSchema.parse(input.body);
+  const lifecycleInput: NarrativeRunLifecycleInput = { ...input, body };
+  await assertUserExists(database, input.userId);
+
+  return withTransaction(database, options.skipTransaction === true, async (tx) => {
+    await lockMetricRunRow(tx, input.fundId, input.metricRunId);
+    await lockNarrativeRunRow(tx, input.fundId, input.metricRunId, input.narrativeRunId);
+    const metricRun = await loadMetricRun(tx, input.fundId, input.metricRunId);
+    assertMetricRunLockedForLifecycle(metricRun);
+    const row = await loadNarrativeById(tx, input.fundId, input.metricRunId, input.narrativeRunId);
+
+    if (isSameApproveRetry(row, lifecycleInput)) {
+      return NarrativeRunLifecycleResponseSchema.parse({
+        record: toNarrativeRunRecord(row),
+        changed: false,
+      });
+    }
+    if (row.status !== 'reviewed') {
+      throw narrativeStatusConflict(row.status, 'reviewed');
+    }
+    assertExpectedVersion(normalizeVersion(row.version), body.expectedVersion);
+    assertEditedTextPresent(row);
+
+    const now = new Date();
+    const updatedRows = await tx
+      .update(narrativeRuns)
+      .set({
+        status: 'approved',
+        approvedBy: input.userId,
+        approvedAt: now,
+        version: body.expectedVersion + 1,
+        updatedAt: now,
+      })
+      .where(
+        and(
+          eq(narrativeRuns.fundId, input.fundId),
+          eq(narrativeRuns.metricRunId, input.metricRunId),
+          eq(narrativeRuns.id, input.narrativeRunId),
+          eq(narrativeRuns.status, 'reviewed'),
+          eq(narrativeRuns.version, body.expectedVersion)
+        )
+      )
+      .returning();
+
+    const updated = (updatedRows as NarrativeRun[])[0];
+    if (updated) {
+      return NarrativeRunLifecycleResponseSchema.parse({
+        record: toNarrativeRunRecord(updated),
+        changed: true,
+      });
+    }
+
+    const current = await loadNarrativeById(
+      tx,
+      input.fundId,
+      input.metricRunId,
+      input.narrativeRunId
+    );
+    if (isSameApproveRetry(current, lifecycleInput)) {
+      return NarrativeRunLifecycleResponseSchema.parse({
+        record: toNarrativeRunRecord(current),
+        changed: false,
+      });
+    }
+    if (current.status !== 'reviewed') {
+      throw narrativeStatusConflict(current.status, 'reviewed');
+    }
+    assertExpectedVersion(normalizeVersion(current.version), body.expectedVersion);
+    throw new MetricRunCommitError(
+      409,
+      'NARRATIVE_RUN_STATUS_CONFLICT',
+      'Narrative approval conflicted with another lifecycle update.'
+    );
+  });
 }

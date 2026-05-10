@@ -28,6 +28,28 @@ export const NarrativeRunCreateRequestSchema = z
   })
   .strict();
 
+const PositiveVersionSchema = z.number().int().positive();
+const NonEmptyTrimmedTextSchema = z.string().trim().min(1);
+
+export const NarrativeRunEditRequestSchema = z
+  .object({
+    expectedVersion: PositiveVersionSchema,
+    editedText: NonEmptyTrimmedTextSchema,
+  })
+  .strict();
+
+export const NarrativeRunReviewRequestSchema = z
+  .object({
+    expectedVersion: PositiveVersionSchema,
+  })
+  .strict();
+
+export const NarrativeRunApproveRequestSchema = z
+  .object({
+    expectedVersion: PositiveVersionSchema,
+  })
+  .strict();
+
 export const NarrativeRunRecordSchema = z
   .object({
     narrativeRunId: z.number().int().positive(),
@@ -40,9 +62,12 @@ export const NarrativeRunRecordSchema = z
     status: NarrativeStatusSchema,
     generatedBy: z.number().int().positive().nullable(),
     editedBy: z.number().int().positive().nullable(),
+    reviewedBy: z.number().int().positive().nullable(),
+    reviewedAt: z.string().datetime().nullable(),
     approvedBy: z.number().int().positive().nullable(),
     approvedAt: z.string().datetime().nullable(),
     exportedAt: z.string().datetime().nullable(),
+    version: PositiveVersionSchema,
     createdAt: z.string().datetime(),
     updatedAt: z.string().datetime(),
   })
@@ -67,8 +92,19 @@ export const NarrativeRunDetailResponseSchema = z
   })
   .strict();
 
+export const NarrativeRunLifecycleResponseSchema = z
+  .object({
+    record: NarrativeRunRecordSchema,
+    changed: z.boolean(),
+  })
+  .strict();
+
 export type NarrativeRunCreateRequest = z.infer<typeof NarrativeRunCreateRequestSchema>;
+export type NarrativeRunEditRequest = z.infer<typeof NarrativeRunEditRequestSchema>;
+export type NarrativeRunReviewRequest = z.infer<typeof NarrativeRunReviewRequestSchema>;
+export type NarrativeRunApproveRequest = z.infer<typeof NarrativeRunApproveRequestSchema>;
 export type NarrativeRunRecord = z.infer<typeof NarrativeRunRecordSchema>;
 export type NarrativeRunCreateResponse = z.infer<typeof NarrativeRunCreateResponseSchema>;
 export type NarrativeRunListResponse = z.infer<typeof NarrativeRunListResponseSchema>;
 export type NarrativeRunDetailResponse = z.infer<typeof NarrativeRunDetailResponseSchema>;
+export type NarrativeRunLifecycleResponse = z.infer<typeof NarrativeRunLifecycleResponseSchema>;
