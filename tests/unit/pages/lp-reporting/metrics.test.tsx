@@ -47,6 +47,9 @@ import type {
   MetricRunDryRunResponse,
   MetricRunLifecycleResponse,
   NarrativeRunRecord,
+  ReportPackageCsvStoredArtifactResponse,
+  ReportPackageCsvStoredExportGetResponse,
+  ReportPackageCsvStoredExportResponse,
   ReportPackageExportRecord,
   ReportPackageJsonExportResponse,
   ReportPackageJsonStoredArtifactResponse,
@@ -461,6 +464,57 @@ function makeReportPackageStoredArtifactResponse(): ReportPackageJsonStoredArtif
   return {
     record: makeReportPackageStoredExportRecord(),
     export: makeReportPackageJsonExportResponse().export,
+  };
+}
+
+function makeReportPackageStoredCsvExportRecord(): ReportPackageExportRecord {
+  return {
+    ...makeReportPackageStoredExportRecord(),
+    reportPackageExportId: 4101,
+    format: 'csv',
+    contentHash: 'e'.repeat(64),
+    artifactSizeBytes: 321,
+  };
+}
+
+function makeReportPackageStoredCsvExportGetResponse(
+  record: ReportPackageExportRecord | null
+): ReportPackageCsvStoredExportGetResponse {
+  if (record === null) return { record };
+  return {
+    record,
+    sourceJsonExportId: 4100,
+    sourceJsonContentHash: 'c'.repeat(64),
+    contentType: 'text/csv; charset=utf-8',
+    filename: 'lp-report-package-7-17-csv-v1.csv',
+  };
+}
+
+function makeReportPackageStoredCsvExportResponse(
+  inserted = true
+): ReportPackageCsvStoredExportResponse {
+  return {
+    record: makeReportPackageStoredCsvExportRecord(),
+    inserted,
+    sourceJsonExportId: 4100,
+    sourceJsonContentHash: 'c'.repeat(64),
+    contentType: 'text/csv; charset=utf-8',
+    filename: 'lp-report-package-7-17-csv-v1.csv',
+  };
+}
+
+function makeReportPackageStoredCsvArtifactResponse(): ReportPackageCsvStoredArtifactResponse {
+  return {
+    record: makeReportPackageStoredCsvExportRecord(),
+    csv: {
+      exportVersion: 1,
+      format: 'csv',
+      sourceJsonExportId: 4100,
+      sourceJsonContentHash: 'c'.repeat(64),
+      contentType: 'text/csv; charset=utf-8',
+      filename: 'lp-report-package-7-17-csv-v1.csv',
+      csv: 'section,field,value\nPackage,Fund ID,7\n',
+    },
   };
 }
 
@@ -1020,6 +1074,7 @@ describe('LpReportingMetricsPage', () => {
   it('assembles an approved report package from approved locked-run narratives', async () => {
     let reportPackage: ReportPackageRecord | null = null;
     let storedExport: ReportPackageExportRecord | null = null;
+    let storedCsvExport: ReportPackageExportRecord | null = null;
     const approvedNarratives = makeApprovedNarratives();
     const fetchSpy = vi.spyOn(globalThis, 'fetch').mockImplementation(async (input, init) => {
       const url = String(input);
@@ -1095,6 +1150,28 @@ describe('LpReportingMetricsPage', () => {
       if (url.endsWith('/metric-runs/17/report-package/exports/json')) {
         return new Response(
           JSON.stringify(makeReportPackageStoredExportGetResponse(storedExport)),
+          {
+            status: 200,
+            headers: { 'Content-Type': 'application/json' },
+          }
+        );
+      }
+      if (url.endsWith('/metric-runs/17/report-package/exports/csv/artifact')) {
+        return new Response(JSON.stringify(makeReportPackageStoredCsvArtifactResponse()), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        });
+      }
+      if (url.endsWith('/metric-runs/17/report-package/exports/csv') && init?.method === 'POST') {
+        storedCsvExport = makeReportPackageStoredCsvExportRecord();
+        return new Response(JSON.stringify(makeReportPackageStoredCsvExportResponse(true)), {
+          status: 201,
+          headers: { 'Content-Type': 'application/json' },
+        });
+      }
+      if (url.endsWith('/metric-runs/17/report-package/exports/csv')) {
+        return new Response(
+          JSON.stringify(makeReportPackageStoredCsvExportGetResponse(storedCsvExport)),
           {
             status: 200,
             headers: { 'Content-Type': 'application/json' },
@@ -1224,6 +1301,31 @@ describe('LpReportingMetricsPage', () => {
         )
       ).toBe(true);
     });
+
+    fireEvent.click(screen.getByTestId('metric-run-report-package-store-csv'));
+
+    await waitFor(() => {
+      expect(screen.getByTestId('metric-run-report-package-stored-csv-result')).toBeInTheDocument();
+    });
+    const storeCsvCall = fetchSpy.mock.calls.find(
+      ([url, init]) =>
+        String(url).endsWith('/metric-runs/17/report-package/exports/csv') &&
+        init?.method === 'POST'
+    );
+    expect(storeCsvCall).toBeDefined();
+    expect(screen.getByTestId('metric-run-report-package-stored-csv-result').textContent).toMatch(
+      /source JSON #4100/i
+    );
+
+    fireEvent.click(screen.getByTestId('metric-run-report-package-export-stored-csv'));
+    await waitFor(() => {
+      expect(
+        fetchSpy.mock.calls.some(([url]) =>
+          String(url).endsWith('/metric-runs/17/report-package/exports/csv/artifact')
+        )
+      ).toBe(true);
+    });
+    expect(appendedAnchor?.download).toBe('lp-report-package-7-17-csv-v1.csv');
   });
 
   it('keeps report package assembly disabled until all narratives are approved', async () => {
@@ -1420,6 +1522,113 @@ describe('LpReportingMetricsPage', () => {
     );
     expect(screen.getByTestId('metric-run-report-package-json-export-blocked').textContent).toMatch(
       /Evidence #1000/i
+    );
+  });
+
+  it('renders stored CSV missing-source errors inside the report package card', async () => {
+    const approvedNarratives = makeApprovedNarratives();
+    vi.spyOn(globalThis, 'fetch').mockImplementation(async (input, init) => {
+      const url = String(input);
+      const locked = makeMetricRunDetail({
+        status: 'locked',
+        evidenceCount: 1,
+        lockedBy: 7,
+        lockedAt: '2026-05-10T02:00:00.000Z',
+        version: 4,
+      });
+      if (url.endsWith('/metric-runs/dry-run')) {
+        return new Response(JSON.stringify(makeDryRunResponse()), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        });
+      }
+      if (url.endsWith('/metric-runs/commit')) {
+        return new Response(JSON.stringify(makeCommitResponse()), {
+          status: 201,
+          headers: { 'Content-Type': 'application/json' },
+        });
+      }
+      if (url.includes('/metric-runs/latest')) {
+        return new Response(JSON.stringify({ metricRun: locked }), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        });
+      }
+      if (url.endsWith('/metric-runs/17')) {
+        return new Response(JSON.stringify(locked), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        });
+      }
+      if (url.endsWith('/metric-runs/17/evidence-records')) {
+        return new Response(JSON.stringify({ records: [makeEvidenceRecord()] }), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        });
+      }
+      if (url.endsWith('/metric-runs/17/narrative-runs')) {
+        return new Response(JSON.stringify({ records: approvedNarratives }), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        });
+      }
+      if (url.endsWith('/metric-runs/17/report-package/render-model')) {
+        return new Response(JSON.stringify(makeReportPackageRenderModelResponse()), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        });
+      }
+      if (url.endsWith('/metric-runs/17/report-package/exports/json')) {
+        return new Response(JSON.stringify(makeReportPackageStoredExportGetResponse(null)), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        });
+      }
+      if (url.endsWith('/metric-runs/17/report-package/exports/csv') && init?.method === 'POST') {
+        return new Response(
+          JSON.stringify({
+            error: 'REPORT_PACKAGE_CSV_SOURCE_JSON_EXPORT_REQUIRED',
+            message: 'Stored report package JSON export is required before creating a CSV export.',
+          }),
+          {
+            status: 409,
+            headers: { 'Content-Type': 'application/json' },
+          }
+        );
+      }
+      if (url.endsWith('/metric-runs/17/report-package/exports/csv')) {
+        return new Response(JSON.stringify(makeReportPackageStoredCsvExportGetResponse(null)), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        });
+      }
+      if (url.endsWith('/metric-runs/17/report-package')) {
+        return new Response(JSON.stringify({ record: makeReportPackageRecord() }), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        });
+      }
+      return new Response(JSON.stringify({ error: 'UNEXPECTED_URL' }), { status: 500 });
+    });
+
+    renderPage();
+
+    fireEvent.click(screen.getByRole('button', { name: /run metrics/i }));
+    await waitFor(() => {
+      expect(screen.getByTestId('metrics-commit-button')).toBeEnabled();
+    });
+    fireEvent.click(screen.getByTestId('metrics-commit-button'));
+
+    await waitFor(() => {
+      expect(screen.getByTestId('metric-run-report-package-render-preview')).toBeInTheDocument();
+    });
+    fireEvent.click(screen.getByTestId('metric-run-report-package-store-csv'));
+
+    await waitFor(() => {
+      expect(screen.getByTestId('metric-run-report-package-stored-csv-error')).toBeInTheDocument();
+    });
+    expect(screen.getByTestId('metric-run-report-package-stored-csv-error').textContent).toMatch(
+      /stored JSON required/i
     );
   });
 

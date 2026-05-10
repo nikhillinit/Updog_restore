@@ -194,6 +194,12 @@ describe('LP Reporting Foundation Schema -- Drizzle bindings', () => {
       expect(names).toContain('lp_report_package_export_hash_algorithm_check');
       expect(names).toContain('lp_report_package_export_hash_check');
       expect(names).toContain('lp_report_package_export_artifact_size_check');
+
+      const source = fs.readFileSync(
+        path.join(process.cwd(), 'shared', 'schema', 'lp-reporting-evidence.ts'),
+        'utf8'
+      );
+      expect(source).toContain("format} IN ('json','csv')");
     });
 
     it('lp_vehicle_participation declares the status CHECK', () => {
@@ -403,6 +409,33 @@ describe('LP Reporting Foundation Schema -- Drizzle bindings', () => {
 
       expect(names.indexOf(packageUp)).toBeLessThan(names.indexOf(exportsUp));
       expect(names.indexOf(packageDown)).toBeLessThan(names.indexOf(exportsDown));
+    });
+
+    it('expands the stored export format constraint to CSV and can restore JSON-only', () => {
+      const up = fs.readFileSync(
+        path.join(
+          process.cwd(),
+          'server',
+          'migrations',
+          '20260510_zz_lp_reporting_report_package_exports_csv_format_v1.up.sql'
+        ),
+        'utf8'
+      );
+      const down = fs.readFileSync(
+        path.join(
+          process.cwd(),
+          'server',
+          'migrations',
+          '20260510_zz_lp_reporting_report_package_exports_csv_format_v1.down.sql'
+        ),
+        'utf8'
+      );
+
+      expect(up).toMatch(/DROP CONSTRAINT IF EXISTS lp_report_package_export_format_check/i);
+      expect(up).toContain("CHECK (format IN ('json','csv'))");
+      expect(down).toMatch(/DROP CONSTRAINT IF EXISTS lp_report_package_export_format_check/i);
+      expect(down).toMatch(/DELETE FROM lp_report_package_exports\s+WHERE format = 'csv'/i);
+      expect(down).toContain("CHECK (format IN ('json'))");
     });
   });
 

@@ -13,6 +13,9 @@
  *   POST /api/funds/:fundId/metric-runs/:metricRunId/report-package/exports/json
  *   GET  /api/funds/:fundId/metric-runs/:metricRunId/report-package/exports/json
  *   GET  /api/funds/:fundId/metric-runs/:metricRunId/report-package/exports/json/artifact
+ *   POST /api/funds/:fundId/metric-runs/:metricRunId/report-package/exports/csv
+ *   GET  /api/funds/:fundId/metric-runs/:metricRunId/report-package/exports/csv
+ *   GET  /api/funds/:fundId/metric-runs/:metricRunId/report-package/exports/csv/artifact
  *   POST /api/funds/:fundId/metric-runs/:metricRunId/report-package
  *   GET  /api/funds/:fundId/metric-runs/:metricRunId/evidence-records
  *   POST /api/funds/:fundId/metric-runs/:metricRunId/evidence-records
@@ -62,6 +65,9 @@ import {
   NarrativeRunReviewRequestSchema,
   ReportPackageAssembleRequestSchema,
   ReportPackageAssembleResponseSchema,
+  ReportPackageCsvStoredArtifactResponseSchema,
+  ReportPackageCsvStoredExportGetResponseSchema,
+  ReportPackageCsvStoredExportResponseSchema,
   ReportPackageGetResponseSchema,
   ReportPackageJsonExportBlockedResponseSchema,
   ReportPackageJsonExportResponseSchema,
@@ -110,6 +116,17 @@ import {
   ReportPackageExportContentHashConflictError,
   ReportPackageExportNotFoundError,
 } from '../../services/lp-reporting/report-package-json-stored-export-service';
+import {
+  createMetricRunReportPackageStoredCsvExport,
+  getMetricRunReportPackageStoredCsvArtifact,
+  getMetricRunReportPackageStoredCsvExport,
+  reportPackageCsvExportContentHashConflictBody,
+  reportPackageCsvExportNotFoundBody,
+  reportPackageCsvSourceJsonExportRequiredBody,
+  ReportPackageCsvExportContentHashConflictError,
+  ReportPackageCsvExportNotFoundError,
+  ReportPackageCsvSourceJsonExportRequiredError,
+} from '../../services/lp-reporting/report-package-csv-stored-export-service';
 import { getMetricRunReportPackageRenderModel } from '../../services/lp-reporting/report-package-render-model-service';
 
 const router = Router();
@@ -253,6 +270,19 @@ function sendReportPackageStoredJsonExportError(res: Response, err: unknown): Re
   }
   if (err instanceof ReportPackageExportNotFoundError) {
     return res.status(404).json(reportPackageExportNotFoundBody(err));
+  }
+  return sendMetricRunError(res, err, 'METRIC_RUN_REPORT_PACKAGE_JSON_EXPORT_FAILED');
+}
+
+function sendReportPackageStoredCsvExportError(res: Response, err: unknown): Response {
+  if (err instanceof ReportPackageCsvSourceJsonExportRequiredError) {
+    return res.status(409).json(reportPackageCsvSourceJsonExportRequiredBody(err));
+  }
+  if (err instanceof ReportPackageCsvExportContentHashConflictError) {
+    return res.status(409).json(reportPackageCsvExportContentHashConflictBody(err));
+  }
+  if (err instanceof ReportPackageCsvExportNotFoundError) {
+    return res.status(404).json(reportPackageCsvExportNotFoundBody(err));
   }
   return sendMetricRunError(res, err, 'METRIC_RUN_REPORT_PACKAGE_JSON_EXPORT_FAILED');
 }
@@ -539,6 +569,72 @@ router.get(
       return res.status(200).json(validated);
     } catch (err) {
       return sendReportPackageStoredJsonExportError(res, err);
+    }
+  }
+);
+
+router.post(
+  '/api/funds/:fundId/metric-runs/:metricRunId/report-package/exports/csv',
+  requireAuth(),
+  requireFundAccess,
+  metricRunLimiter,
+  async (req: Request, res: Response) => {
+    const parsed = EmptyRequestBodySchema.safeParse(req.body ?? {});
+    if (!parsed.success) {
+      return res.status(400).json({
+        error: 'INVALID_REQUEST_BODY',
+        issues: parsed.error.issues,
+      });
+    }
+
+    try {
+      const result = await createMetricRunReportPackageStoredCsvExport({
+        fundId: parseFundId(req),
+        metricRunId: parseMetricRunId(req),
+        userId: resolveAuthenticatedUserId(req),
+      });
+      const validated = ReportPackageCsvStoredExportResponseSchema.parse(result);
+      return res.status(validated.inserted ? 201 : 200).json(validated);
+    } catch (err) {
+      return sendReportPackageStoredCsvExportError(res, err);
+    }
+  }
+);
+
+router.get(
+  '/api/funds/:fundId/metric-runs/:metricRunId/report-package/exports/csv',
+  requireAuth(),
+  requireFundAccess,
+  metricRunLimiter,
+  async (req: Request, res: Response) => {
+    try {
+      const result = await getMetricRunReportPackageStoredCsvExport({
+        fundId: parseFundId(req),
+        metricRunId: parseMetricRunId(req),
+      });
+      const validated = ReportPackageCsvStoredExportGetResponseSchema.parse(result);
+      return res.status(200).json(validated);
+    } catch (err) {
+      return sendReportPackageStoredCsvExportError(res, err);
+    }
+  }
+);
+
+router.get(
+  '/api/funds/:fundId/metric-runs/:metricRunId/report-package/exports/csv/artifact',
+  requireAuth(),
+  requireFundAccess,
+  metricRunLimiter,
+  async (req: Request, res: Response) => {
+    try {
+      const result = await getMetricRunReportPackageStoredCsvArtifact({
+        fundId: parseFundId(req),
+        metricRunId: parseMetricRunId(req),
+      });
+      const validated = ReportPackageCsvStoredArtifactResponseSchema.parse(result);
+      return res.status(200).json(validated);
+    } catch (err) {
+      return sendReportPackageStoredCsvExportError(res, err);
     }
   }
 );

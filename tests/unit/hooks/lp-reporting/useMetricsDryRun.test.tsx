@@ -34,6 +34,9 @@ import {
   useMetricRunReportPackageAssemble,
   useMetricRunReportPackageJsonExport,
   useMetricRunReportPackageRenderModel,
+  useMetricRunReportPackageStoredCsvArtifact,
+  useMetricRunReportPackageStoredCsvExport,
+  useMetricRunReportPackageStoredCsvExportCreate,
   useMetricRunReportPackageStoredJsonArtifact,
   useMetricRunReportPackageStoredJsonExport,
   useMetricRunReportPackageStoredJsonExportCreate,
@@ -54,6 +57,9 @@ import type {
   NarrativeRunListResponse,
   NarrativeRunRecord,
   ReportPackageAssembleResponse,
+  ReportPackageCsvStoredArtifactResponse,
+  ReportPackageCsvStoredExportGetResponse,
+  ReportPackageCsvStoredExportResponse,
   ReportPackageExportRecord,
   ReportPackageGetResponse,
   ReportPackageJsonExportResponse,
@@ -454,6 +460,57 @@ function makeReportPackageStoredArtifactResponse(): ReportPackageJsonStoredArtif
   return {
     record: makeReportPackageStoredExportRecord(),
     export: makeReportPackageJsonExportResponse().export,
+  };
+}
+
+function makeReportPackageStoredCsvExportRecord(): ReportPackageExportRecord {
+  return {
+    ...makeReportPackageStoredExportRecord(),
+    reportPackageExportId: 4101,
+    format: 'csv',
+    contentHash: 'e'.repeat(64),
+    artifactSizeBytes: 321,
+  };
+}
+
+function makeReportPackageStoredCsvExportGetResponse(
+  record: ReportPackageExportRecord | null = makeReportPackageStoredCsvExportRecord()
+): ReportPackageCsvStoredExportGetResponse {
+  if (record === null) return { record };
+  return {
+    record,
+    sourceJsonExportId: 4100,
+    sourceJsonContentHash: 'c'.repeat(64),
+    contentType: 'text/csv; charset=utf-8',
+    filename: 'lp-report-package-7-17-csv-v1.csv',
+  };
+}
+
+function makeReportPackageStoredCsvExportResponse(
+  inserted = true
+): ReportPackageCsvStoredExportResponse {
+  return {
+    record: makeReportPackageStoredCsvExportRecord(),
+    inserted,
+    sourceJsonExportId: 4100,
+    sourceJsonContentHash: 'c'.repeat(64),
+    contentType: 'text/csv; charset=utf-8',
+    filename: 'lp-report-package-7-17-csv-v1.csv',
+  };
+}
+
+function makeReportPackageStoredCsvArtifactResponse(): ReportPackageCsvStoredArtifactResponse {
+  return {
+    record: makeReportPackageStoredCsvExportRecord(),
+    csv: {
+      exportVersion: 1,
+      format: 'csv',
+      sourceJsonExportId: 4100,
+      sourceJsonContentHash: 'c'.repeat(64),
+      contentType: 'text/csv; charset=utf-8',
+      filename: 'lp-report-package-7-17-csv-v1.csv',
+      csv: 'section,field,value\nPackage,Fund ID,7\n',
+    },
   };
 }
 
@@ -1331,6 +1388,141 @@ describe('metric-run report package hooks', () => {
     expect(init?.method).toBe('GET');
     expect(response.data?.record.reportPackageExportId).toBe(4100);
     expect(response.data?.export.contentHash).toBe('c'.repeat(64));
+  });
+
+  it('GETs stored package CSV export metadata and parses nullable responses', async () => {
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response(JSON.stringify(makeReportPackageStoredCsvExportGetResponse(null)), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      })
+    );
+
+    const { Wrapper } = makeWrapper();
+    const { result } = renderHook(() => useMetricRunReportPackageStoredCsvExport(7, 17), {
+      wrapper: Wrapper,
+    });
+
+    await waitFor(() => {
+      expect(result.current.isSuccess).toBe(true);
+    });
+
+    expect(fetchSpy).toHaveBeenCalledTimes(1);
+    const [url, init] = fetchSpy.mock.calls[0]!;
+    expect(url).toBe('/api/funds/7/metric-runs/17/report-package/exports/csv');
+    expect(init?.method).toBe('GET');
+    expect(result.current.data?.record).toBeNull();
+  });
+
+  it('POSTs stored package CSV export creation and invalidates stored CSV queries', async () => {
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response(JSON.stringify(makeReportPackageStoredCsvExportResponse(false)), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      })
+    );
+
+    const { Wrapper, queryClient } = makeWrapper();
+    const invalidateSpy = vi.spyOn(queryClient, 'invalidateQueries');
+    const { result } = renderHook(() => useMetricRunReportPackageStoredCsvExportCreate(7, 17), {
+      wrapper: Wrapper,
+    });
+
+    result.current.mutate();
+
+    await waitFor(() => {
+      expect(result.current.isSuccess).toBe(true);
+    });
+
+    const [url, init] = fetchSpy.mock.calls[0]!;
+    expect(url).toBe('/api/funds/7/metric-runs/17/report-package/exports/csv');
+    expect(init?.method).toBe('POST');
+    expect(JSON.parse(init?.body as string)).toEqual({});
+    expect(result.current.data?.inserted).toBe(false);
+    expect(result.current.data?.sourceJsonExportId).toBe(4100);
+    expect(invalidateSpy).toHaveBeenCalledWith({
+      queryKey: ['lp-reporting', 'metric-run-report-package-stored-csv-export', 7, 17],
+    });
+    expect(invalidateSpy).toHaveBeenCalledWith({
+      queryKey: ['lp-reporting', 'metric-run-report-package-stored-csv-artifact', 7, 17],
+    });
+  });
+
+  it('fetches the stored package CSV artifact on demand', async () => {
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response(JSON.stringify(makeReportPackageStoredCsvArtifactResponse()), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      })
+    );
+
+    const { Wrapper } = makeWrapper();
+    const { result } = renderHook(() => useMetricRunReportPackageStoredCsvArtifact(7, 17), {
+      wrapper: Wrapper,
+    });
+
+    expect(result.current.fetchStatus).toBe('idle');
+    expect(fetchSpy).not.toHaveBeenCalled();
+
+    const response = await result.current.refetch();
+
+    expect(fetchSpy).toHaveBeenCalledTimes(1);
+    const [url, init] = fetchSpy.mock.calls[0]!;
+    expect(url).toBe('/api/funds/7/metric-runs/17/report-package/exports/csv/artifact');
+    expect(init?.method).toBe('GET');
+    expect(response.data?.record.reportPackageExportId).toBe(4101);
+    expect(response.data?.csv.csv).toContain('section,field,value');
+  });
+
+  it('preserves stored package CSV source-missing and hash-conflict errors', async () => {
+    const fetchSpy = vi
+      .spyOn(globalThis, 'fetch')
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            error: 'REPORT_PACKAGE_CSV_SOURCE_JSON_EXPORT_REQUIRED',
+            message: 'Stored report package JSON export is required before creating a CSV export.',
+          }),
+          {
+            status: 409,
+            headers: { 'Content-Type': 'application/json' },
+          }
+        )
+      )
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            error: 'EXPORT_CONTENT_HASH_CONFLICT',
+            message: 'Stored report package CSV export does not match.',
+            storedContentHash: 'd'.repeat(64),
+            currentContentHash: 'e'.repeat(64),
+          }),
+          {
+            status: 409,
+            headers: { 'Content-Type': 'application/json' },
+          }
+        )
+      );
+
+    const { Wrapper } = makeWrapper();
+    const create = renderHook(() => useMetricRunReportPackageStoredCsvExportCreate(7, 17), {
+      wrapper: Wrapper,
+    });
+
+    create.result.current.mutate();
+    await waitFor(() => {
+      expect(create.result.current.error?.code).toBe(
+        'REPORT_PACKAGE_CSV_SOURCE_JSON_EXPORT_REQUIRED'
+      );
+    });
+
+    const artifact = renderHook(() => useMetricRunReportPackageStoredCsvArtifact(7, 17), {
+      wrapper: Wrapper,
+    });
+    const conflict = await artifact.result.current.refetch();
+    expect(conflict.error?.code).toBe('EXPORT_CONTENT_HASH_CONFLICT');
+    expect(conflict.error?.storedContentHash).toBe('d'.repeat(64));
+    expect(fetchSpy).toHaveBeenCalledTimes(2);
   });
 
   it('preserves stored package JSON export blockers and hash conflicts', async () => {
