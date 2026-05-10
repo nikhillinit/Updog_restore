@@ -12,6 +12,9 @@ export {
   useMetricRunEvidenceList,
   useMetricRunCommit,
   useMetricRunLock,
+  useMetricRunNarrativeCreate,
+  useMetricRunNarrativeDetail,
+  useMetricRunNarrativeList,
   useMetricsDryRun,
   type MetricsDryRunRequest,
   type DryRunErrorBody,
@@ -25,6 +28,10 @@ export {
   type MetricRunEvidenceListResponse,
   type MetricRunLifecycleResponse,
   type MetricRunLockRequest,
+  type NarrativeRunCreateRequest,
+  type NarrativeRunCreateResponse,
+  type NarrativeRunDetailResponse,
+  type NarrativeRunListResponse,
 } from './useMetricsDryRun';
 export { useLedgerImportDryRun } from './useLedgerImportDryRun';
 export { useValuationMarkImportDryRun } from './useValuationMarkImportDryRun';

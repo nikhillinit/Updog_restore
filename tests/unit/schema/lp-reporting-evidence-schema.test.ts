@@ -8,6 +8,8 @@
  * regressions and Drizzle-binding drift without needing a live DB.
  */
 import { describe, expect, it } from 'vitest';
+import fs from 'node:fs';
+import path from 'node:path';
 import { getTableConfig } from 'drizzle-orm/pg-core';
 
 import * as schema from '@shared/schema';
@@ -195,12 +197,51 @@ describe('LP Reporting Foundation Schema -- Drizzle bindings', () => {
       expect(narrativeConfig.indexes.map((idx) => idx.config.name)).toContain(
         'idx_narrative_runs_metric_run'
       );
+      expect(narrativeConfig.indexes.map((idx) => idx.config.name)).toContain(
+        'narrative_runs_metric_run_type_unique'
+      );
       expect(participationConfig.indexes.map((idx) => idx.config.name)).toContain(
         'idx_lp_vehicle_participation_vehicle'
       );
       expect(historyConfig.indexes.map((idx) => idx.config.name)).toContain(
         'idx_lp_vehicle_participation_history_parent_changed_at'
       );
+    });
+  });
+
+  describe('Narrative-run uniqueness migration', () => {
+    it('declares the one-draft-per-type unique index in schema and migrations', () => {
+      const narrativeConfig = getTableConfig(schema.narrativeRuns);
+      expect(narrativeConfig.indexes.map((idx) => idx.config.name)).toContain(
+        'narrative_runs_metric_run_type_unique'
+      );
+
+      // The migration files are checked with lightweight source assertions so
+      // this unit test catches schema/DDL drift without opening a DB.
+      const up = fs.readFileSync(
+        path.join(
+          process.cwd(),
+          'server',
+          'migrations',
+          '20260510_lp_reporting_narrative_run_foundation_v1.up.sql'
+        ),
+        'utf8'
+      );
+      const down = fs.readFileSync(
+        path.join(
+          process.cwd(),
+          'server',
+          'migrations',
+          '20260510_lp_reporting_narrative_run_foundation_v1.down.sql'
+        ),
+        'utf8'
+      );
+
+      expect(up).toMatch(
+        /CREATE UNIQUE INDEX IF NOT EXISTS narrative_runs_metric_run_type_unique/i
+      );
+      expect(up).toMatch(/ON narrative_runs\s*\(\s*metric_run_id\s*,\s*narrative_type\s*\)/i);
+      expect(down).toMatch(/DROP INDEX IF EXISTS narrative_runs_metric_run_type_unique/i);
     });
   });
 
