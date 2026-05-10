@@ -21,10 +21,12 @@
  */
 
 import { useCallback, useState, type FormEvent } from 'react';
+import { CheckCircle2, Save } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Textarea } from '@/components/ui/textarea';
 import { MetricRunForm } from '@/components/lp-reporting/MetricRunForm';
 import { MetricsCards } from '@/components/lp-reporting/MetricsCards';
 import { XirrDiagnosticPanel } from '@/components/lp-reporting/XirrDiagnosticPanel';
@@ -51,8 +53,11 @@ import {
   useMetricRunEvidenceCreate,
   useMetricRunEvidenceList,
   useMetricRunLock,
+  useMetricRunNarrativeApprove,
   useMetricRunNarrativeCreate,
+  useMetricRunNarrativeEdit,
   useMetricRunNarrativeList,
+  useMetricRunNarrativeReview,
   type LpReportingHookError,
 } from '@/hooks/lp-reporting';
 
@@ -135,6 +140,12 @@ function envelopeFor(err: LpReportingHookError): ErrorEnvelope {
       description: 'The metric run changed since this page loaded. Refresh the lifecycle state.',
     };
   }
+  if (err.code === 'NARRATIVE_RUN_VERSION_CONFLICT') {
+    return {
+      title: 'Narrative changed',
+      description: 'The narrative changed since this page loaded. Refresh the lifecycle state.',
+    };
+  }
   if (err.code === 'METRIC_RUN_STATUS_CONFLICT') {
     return {
       title: 'Metric run status changed',
@@ -207,6 +218,10 @@ export default function LpReportingMetricsPage() {
   );
   const [evidenceIdempotencyKey, setEvidenceIdempotencyKey] = useState<string | null>(null);
   const [evidenceError, setEvidenceError] = useState<LpReportingHookError | null>(null);
+  const [narrativeDraftText, setNarrativeDraftText] = useState<Record<number, string>>({});
+  const [narrativeOverrides, setNarrativeOverrides] = useState<Record<number, NarrativeRunRecord>>(
+    {}
+  );
   const committedMetricRunId = commitResult?.metricRunId ?? null;
   const latestQuery = useLatestMetricRun(
     fundId,
@@ -237,6 +252,9 @@ export default function LpReportingMetricsPage() {
     activeMetricRun?.status === 'locked' ? activeMetricRun.metricRunId : null;
   const narrativeListQuery = useMetricRunNarrativeList(fundId, lockedMetricRunId);
   const narrativeCreateMutation = useMetricRunNarrativeCreate(fundId, lockedMetricRunId);
+  const narrativeEditMutation = useMetricRunNarrativeEdit(fundId, lockedMetricRunId);
+  const narrativeReviewMutation = useMetricRunNarrativeReview(fundId, lockedMetricRunId);
+  const narrativeApproveMutation = useMetricRunNarrativeApprove(fundId, lockedMetricRunId);
 
   const handleSuccess = useCallback(
     (response: MetricRunDryRunResponse, request: MetricRunDryRunRequest) => {
@@ -254,6 +272,8 @@ export default function LpReportingMetricsPage() {
       setLifecycleError(null);
       setEvidenceError(null);
       setEvidenceIdempotencyKey(null);
+      setNarrativeDraftText({});
+      setNarrativeOverrides({});
       setEvidenceForm(makeEvidenceFormState(parsedResults.asOfDate));
     },
     []
@@ -266,6 +286,8 @@ export default function LpReportingMetricsPage() {
     setLifecycleResult(null);
     setLifecycleError(null);
     setEvidenceError(null);
+    setNarrativeDraftText({});
+    setNarrativeOverrides({});
   }, []);
 
   const handleCommit = useCallback(async () => {
@@ -283,6 +305,8 @@ export default function LpReportingMetricsPage() {
       setLifecycleError(null);
       setEvidenceError(null);
       setEvidenceIdempotencyKey(createEvidenceIdempotencyKey(result.metricRunId));
+      setNarrativeDraftText({});
+      setNarrativeOverrides({});
       setEvidenceForm(makeEvidenceFormState(dryRun.results.asOfDate));
     } catch (err) {
       if (err && typeof err === 'object') {
@@ -379,6 +403,72 @@ export default function LpReportingMetricsPage() {
     [narrativeCreateMutation]
   );
 
+  const handleNarrativeTextChange = useCallback((narrativeRunId: number, value: string) => {
+    setNarrativeDraftText((current) => ({
+      ...current,
+      [narrativeRunId]: value,
+    }));
+  }, []);
+
+  const mergeNarrativeRecord = useCallback((record: NarrativeRunRecord) => {
+    setNarrativeOverrides((current) => ({
+      ...current,
+      [record.narrativeRunId]: record,
+    }));
+    setNarrativeDraftText((current) => ({
+      ...current,
+      [record.narrativeRunId]: record.editedText ?? record.generatedText,
+    }));
+  }, []);
+
+  const handleNarrativeEdit = useCallback(
+    async (record: NarrativeRunRecord) => {
+      const editedText =
+        narrativeDraftText[record.narrativeRunId] ?? record.editedText ?? record.generatedText;
+      try {
+        const response = await narrativeEditMutation.mutateAsync({
+          narrativeRunId: record.narrativeRunId,
+          expectedVersion: record.version,
+          editedText,
+        });
+        mergeNarrativeRecord(response.record);
+      } catch {
+        // The mutation error is rendered from narrativeEditMutation.error.
+      }
+    },
+    [mergeNarrativeRecord, narrativeDraftText, narrativeEditMutation]
+  );
+
+  const handleNarrativeReview = useCallback(
+    async (record: NarrativeRunRecord) => {
+      try {
+        const response = await narrativeReviewMutation.mutateAsync({
+          narrativeRunId: record.narrativeRunId,
+          expectedVersion: record.version,
+        });
+        mergeNarrativeRecord(response.record);
+      } catch {
+        // The mutation error is rendered from narrativeReviewMutation.error.
+      }
+    },
+    [mergeNarrativeRecord, narrativeReviewMutation]
+  );
+
+  const handleNarrativeApprove = useCallback(
+    async (record: NarrativeRunRecord) => {
+      try {
+        const response = await narrativeApproveMutation.mutateAsync({
+          narrativeRunId: record.narrativeRunId,
+          expectedVersion: record.version,
+        });
+        mergeNarrativeRecord(response.record);
+      } catch {
+        // The mutation error is rendered from narrativeApproveMutation.error.
+      }
+    },
+    [mergeNarrativeRecord, narrativeApproveMutation]
+  );
+
   const results = dryRun?.results ?? null;
   const envelope = dryRunError ? envelopeFor(dryRunError) : null;
   const commitEnvelope = commitError ? envelopeFor(commitError) : null;
@@ -391,7 +481,10 @@ export default function LpReportingMetricsPage() {
       ? envelopeFor(evidenceQueryError)
       : null;
   const evidenceRecords = evidenceListQuery.data?.records ?? [];
-  const narrativeRecords = narrativeListQuery.data?.records ?? [];
+  const narrativeRecords = (narrativeListQuery.data?.records ?? []).map((record) => {
+    const override = narrativeOverrides[record.narrativeRunId];
+    return override && override.version >= record.version ? override : record;
+  });
   const narrativeTypesWithDrafts = new Set(
     narrativeRecords.map((record: NarrativeRunRecord) => record.narrativeType)
   );
@@ -404,7 +497,11 @@ export default function LpReportingMetricsPage() {
   const canLock = activeMetricRun?.status === 'approved' && !lockMutation.isPending;
   const isEvidenceEditable = activeMetricRun === null || activeMetricRun.status === 'draft';
   const narrativeError =
-    narrativeCreateMutation.error ?? (narrativeListQuery.error as LpReportingHookError | null);
+    narrativeCreateMutation.error ??
+    narrativeEditMutation.error ??
+    narrativeReviewMutation.error ??
+    narrativeApproveMutation.error ??
+    (narrativeListQuery.error as LpReportingHookError | null);
   const narrativeEnvelope = narrativeError ? envelopeFor(narrativeError) : null;
 
   return (
@@ -860,10 +957,20 @@ export default function LpReportingMetricsPage() {
                     const type = NARRATIVE_TYPES.find(
                       (item) => item.value === record.narrativeType
                     );
+                    const effectiveText = record.editedText ?? record.generatedText;
+                    const draftText = narrativeDraftText[record.narrativeRunId] ?? effectiveText;
+                    const savedEditText = record.editedText?.trim() ?? '';
+                    const canEditNarrative = record.status === 'draft';
+                    const canReviewNarrative =
+                      record.status === 'draft' &&
+                      savedEditText.length > 0 &&
+                      !narrativeReviewMutation.isPending;
+                    const canApproveNarrative =
+                      record.status === 'reviewed' && !narrativeApproveMutation.isPending;
                     return (
                       <div
                         key={record.narrativeRunId}
-                        className="rounded-md border border-slate-200 px-3 py-2"
+                        className="rounded-md border border-slate-200 px-3 py-3"
                         data-testid="metric-run-narrative-record"
                       >
                         <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
@@ -872,9 +979,67 @@ export default function LpReportingMetricsPage() {
                           </p>
                           <Badge variant="outline">{record.status}</Badge>
                         </div>
-                        <p className="mt-2 whitespace-pre-wrap text-sm text-charcoal/75">
-                          {record.generatedText}
+                        <p className="mt-1 text-xs text-charcoal/60">
+                          Version {record.version}
+                          {record.reviewedAt ? ` | reviewed ${record.reviewedAt}` : ''}
+                          {record.approvedAt ? ` | approved ${record.approvedAt}` : ''}
                         </p>
+                        {canEditNarrative ? (
+                          <div className="mt-3 space-y-2">
+                            <Textarea
+                              value={draftText}
+                              onChange={(event) =>
+                                handleNarrativeTextChange(record.narrativeRunId, event.target.value)
+                              }
+                              aria-label={`${type?.label ?? record.narrativeType} narrative text`}
+                              data-testid={`metric-run-narrative-edit-${record.narrativeRunId}`}
+                              className="min-h-28"
+                            />
+                            <div className="flex flex-wrap gap-2">
+                              <Button
+                                type="button"
+                                size="sm"
+                                onClick={() => void handleNarrativeEdit(record)}
+                                disabled={
+                                  narrativeEditMutation.isPending || draftText.trim().length === 0
+                                }
+                                data-testid={`metric-run-narrative-save-${record.narrativeRunId}`}
+                              >
+                                <Save className="mr-2 h-4 w-4" aria-hidden="true" />
+                                Save edit
+                              </Button>
+                              <Button
+                                type="button"
+                                size="sm"
+                                variant="outline"
+                                onClick={() => void handleNarrativeReview(record)}
+                                disabled={!canReviewNarrative}
+                                data-testid={`metric-run-narrative-review-${record.narrativeRunId}`}
+                              >
+                                <CheckCircle2 className="mr-2 h-4 w-4" aria-hidden="true" />
+                                Mark reviewed
+                              </Button>
+                            </div>
+                          </div>
+                        ) : (
+                          <p className="mt-2 whitespace-pre-wrap text-sm text-charcoal/75">
+                            {effectiveText}
+                          </p>
+                        )}
+                        {record.status === 'reviewed' ? (
+                          <div className="mt-3 flex flex-wrap gap-2">
+                            <Button
+                              type="button"
+                              size="sm"
+                              onClick={() => void handleNarrativeApprove(record)}
+                              disabled={!canApproveNarrative}
+                              data-testid={`metric-run-narrative-approve-${record.narrativeRunId}`}
+                            >
+                              <CheckCircle2 className="mr-2 h-4 w-4" aria-hidden="true" />
+                              Approve
+                            </Button>
+                          </div>
+                        ) : null}
                       </div>
                     );
                   })}

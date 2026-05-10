@@ -349,9 +349,12 @@ export const narrativeRuns = pgTable(
 
     generatedBy: integer('generated_by').references(() => users.id),
     editedBy: integer('edited_by').references(() => users.id),
+    reviewedBy: integer('reviewed_by').references(() => users.id),
+    reviewedAt: timestamp('reviewed_at', { withTimezone: true }),
     approvedBy: integer('approved_by').references(() => users.id),
     approvedAt: timestamp('approved_at', { withTimezone: true }),
     exportedAt: timestamp('exported_at', { withTimezone: true }),
+    version: integer('version').notNull().default(1),
     createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow(),
   },

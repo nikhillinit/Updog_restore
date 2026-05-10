@@ -148,6 +148,15 @@ describe('LP Reporting Foundation Schema -- Drizzle bindings', () => {
       expect(names).toContain('narrative_status_check');
     });
 
+    it('narrative_runs exposes lifecycle concurrency and review audit columns', () => {
+      const config = getTableConfig(schema.narrativeRuns);
+      const names = config.columns.map((c) => c.name);
+      expect(names).toContain('version');
+      expect(names).toContain('reviewed_by');
+      expect(names).toContain('reviewed_at');
+      expect(names).toContain('updated_at');
+    });
+
     it('evidence_records declares the num_nonnulls=1 typed-FK CHECK plus 4 enum CHECKs', () => {
       const config = getTableConfig(schema.evidenceRecords);
       const names = config.checks.map((c) => c.name);
@@ -242,6 +251,36 @@ describe('LP Reporting Foundation Schema -- Drizzle bindings', () => {
       );
       expect(up).toMatch(/ON narrative_runs\s*\(\s*metric_run_id\s*,\s*narrative_type\s*\)/i);
       expect(down).toMatch(/DROP INDEX IF EXISTS narrative_runs_metric_run_type_unique/i);
+    });
+  });
+
+  describe('Narrative-run lifecycle migration', () => {
+    it('adds and removes optimistic locking and review audit columns', () => {
+      const up = fs.readFileSync(
+        path.join(
+          process.cwd(),
+          'server',
+          'migrations',
+          '20260510_lp_reporting_narrative_lifecycle_v1.up.sql'
+        ),
+        'utf8'
+      );
+      const down = fs.readFileSync(
+        path.join(
+          process.cwd(),
+          'server',
+          'migrations',
+          '20260510_lp_reporting_narrative_lifecycle_v1.down.sql'
+        ),
+        'utf8'
+      );
+
+      expect(up).toMatch(/ADD COLUMN IF NOT EXISTS version INTEGER NOT NULL DEFAULT 1/i);
+      expect(up).toMatch(/ADD COLUMN IF NOT EXISTS reviewed_by INTEGER REFERENCES users\(id\)/i);
+      expect(up).toMatch(/ADD COLUMN IF NOT EXISTS reviewed_at TIMESTAMP WITH TIME ZONE/i);
+      expect(down).toMatch(/DROP COLUMN IF EXISTS reviewed_at/i);
+      expect(down).toMatch(/DROP COLUMN IF EXISTS reviewed_by/i);
+      expect(down).toMatch(/DROP COLUMN IF EXISTS version/i);
     });
   });
 

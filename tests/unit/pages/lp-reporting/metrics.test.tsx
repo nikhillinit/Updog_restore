@@ -158,9 +158,12 @@ function makeNarrativeRecord(overrides: Partial<NarrativeRunRecord> = {}): Narra
     status: 'draft',
     generatedBy: 7,
     editedBy: null,
+    reviewedBy: null,
+    reviewedAt: null,
     approvedBy: null,
     approvedAt: null,
     exportedAt: null,
+    version: 1,
     createdAt: '2026-05-10T00:00:00.000Z',
     updatedAt: '2026-05-10T00:00:00.000Z',
     ...overrides,
@@ -851,13 +854,233 @@ describe('LpReportingMetricsPage', () => {
     expect(body).toEqual({ narrativeType: 'methodology' });
     expect(body).not.toHaveProperty('fundId');
     expect(body).not.toHaveProperty('metricRunId');
-    expect(screen.getByTestId('metric-run-narrative-record').textContent).toMatch(
-      /engine version: lp-reporting-engine@1\.2\.0/i
-    );
+    expect(screen.getByDisplayValue(/engine version: lp-reporting-engine@1\.2\.0/i)).toBeTruthy();
     expect(screen.getByTestId('metric-run-narrative-create-methodology')).toBeDisabled();
   });
 
-  it('does not expose narrative edit, review, export, share, upload, or AI controls', async () => {
+  it('edits, reviews, and approves narrative text from changed-false lifecycle responses', async () => {
+    let narrative = makeNarrativeRecord();
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockImplementation(async (input, init) => {
+      const url = String(input);
+      const locked = makeMetricRunDetail({
+        status: 'locked',
+        evidenceCount: 1,
+        lockedBy: 7,
+        lockedAt: '2026-05-10T02:00:00.000Z',
+        version: 3,
+      });
+      if (url.endsWith('/metric-runs/dry-run')) {
+        return new Response(JSON.stringify(makeDryRunResponse()), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        });
+      }
+      if (url.endsWith('/metric-runs/commit')) {
+        return new Response(JSON.stringify(makeCommitResponse()), {
+          status: 201,
+          headers: { 'Content-Type': 'application/json' },
+        });
+      }
+      if (url.includes('/metric-runs/latest') || url.endsWith('/metric-runs/17')) {
+        return new Response(
+          JSON.stringify(url.includes('/latest') ? { metricRun: locked } : locked),
+          {
+            status: 200,
+            headers: { 'Content-Type': 'application/json' },
+          }
+        );
+      }
+      if (url.endsWith('/metric-runs/17/evidence-records')) {
+        return new Response(JSON.stringify({ records: [makeEvidenceRecord()] }), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        });
+      }
+      if (url.endsWith('/metric-runs/17/narrative-runs/41') && init?.method === 'PATCH') {
+        narrative = makeNarrativeRecord({
+          editedText: 'Reviewed copy',
+          editedBy: 7,
+          version: 2,
+        });
+        return new Response(JSON.stringify({ record: narrative, changed: false }), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        });
+      }
+      if (url.endsWith('/metric-runs/17/narrative-runs/41/review')) {
+        narrative = makeNarrativeRecord({
+          editedText: 'Reviewed copy',
+          editedBy: 7,
+          status: 'reviewed',
+          reviewedBy: 7,
+          reviewedAt: '2026-05-10T03:00:00.000Z',
+          version: 3,
+        });
+        return new Response(JSON.stringify({ record: narrative, changed: false }), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        });
+      }
+      if (url.endsWith('/metric-runs/17/narrative-runs/41/approve')) {
+        narrative = makeNarrativeRecord({
+          editedText: 'Reviewed copy',
+          editedBy: 7,
+          status: 'approved',
+          reviewedBy: 7,
+          reviewedAt: '2026-05-10T03:00:00.000Z',
+          approvedBy: 7,
+          approvedAt: '2026-05-10T04:00:00.000Z',
+          version: 4,
+        });
+        return new Response(JSON.stringify({ record: narrative, changed: false }), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        });
+      }
+      if (url.endsWith('/metric-runs/17/narrative-runs')) {
+        return new Response(JSON.stringify({ records: [narrative] }), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        });
+      }
+      return new Response(JSON.stringify({ error: 'UNEXPECTED_URL' }), { status: 500 });
+    });
+
+    renderPage();
+
+    fireEvent.click(screen.getByRole('button', { name: /run metrics/i }));
+    await waitFor(() => {
+      expect(screen.getByTestId('metrics-commit-button')).toBeEnabled();
+    });
+    fireEvent.click(screen.getByTestId('metrics-commit-button'));
+    await waitFor(() => {
+      expect(screen.getByTestId('metric-run-narrative-card')).toBeInTheDocument();
+    });
+
+    fireEvent.change(screen.getByTestId('metric-run-narrative-edit-41'), {
+      target: { value: 'Reviewed copy' },
+    });
+    fireEvent.click(screen.getByTestId('metric-run-narrative-save-41'));
+    await waitFor(() => {
+      expect(screen.getByTestId('metric-run-narrative-review-41')).toBeEnabled();
+    });
+
+    fireEvent.click(screen.getByTestId('metric-run-narrative-review-41'));
+    await waitFor(() => {
+      expect(screen.getByTestId('metric-run-narrative-approve-41')).toBeEnabled();
+    });
+
+    fireEvent.click(screen.getByTestId('metric-run-narrative-approve-41'));
+    await waitFor(() => {
+      expect(screen.getByTestId('metric-run-narrative-record').textContent).toMatch(/approved/i);
+    });
+
+    const patchCall = fetchSpy.mock.calls.find(
+      ([url, init]) =>
+        String(url).endsWith('/metric-runs/17/narrative-runs/41') && init?.method === 'PATCH'
+    );
+    expect(JSON.parse(patchCall?.[1]?.body as string)).toEqual({
+      expectedVersion: 1,
+      editedText: 'Reviewed copy',
+    });
+
+    const reviewCall = fetchSpy.mock.calls.find(([url]) =>
+      String(url).endsWith('/metric-runs/17/narrative-runs/41/review')
+    );
+    expect(JSON.parse(reviewCall?.[1]?.body as string)).toEqual({ expectedVersion: 2 });
+
+    const approveCall = fetchSpy.mock.calls.find(([url]) =>
+      String(url).endsWith('/metric-runs/17/narrative-runs/41/approve')
+    );
+    expect(JSON.parse(approveCall?.[1]?.body as string)).toEqual({ expectedVersion: 3 });
+  });
+
+  it('tells the user to refresh lifecycle state on narrative version conflicts', async () => {
+    const narrative = makeNarrativeRecord({
+      editedText: 'Saved copy',
+      editedBy: 7,
+      version: 2,
+    });
+    vi.spyOn(globalThis, 'fetch').mockImplementation(async (input, init) => {
+      const url = String(input);
+      const locked = makeMetricRunDetail({
+        status: 'locked',
+        evidenceCount: 1,
+        lockedBy: 7,
+        lockedAt: '2026-05-10T02:00:00.000Z',
+        version: 3,
+      });
+      if (url.endsWith('/metric-runs/dry-run')) {
+        return new Response(JSON.stringify(makeDryRunResponse()), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        });
+      }
+      if (url.endsWith('/metric-runs/commit')) {
+        return new Response(JSON.stringify(makeCommitResponse()), {
+          status: 201,
+          headers: { 'Content-Type': 'application/json' },
+        });
+      }
+      if (url.includes('/metric-runs/latest') || url.endsWith('/metric-runs/17')) {
+        return new Response(
+          JSON.stringify(url.includes('/latest') ? { metricRun: locked } : locked),
+          {
+            status: 200,
+            headers: { 'Content-Type': 'application/json' },
+          }
+        );
+      }
+      if (url.endsWith('/metric-runs/17/evidence-records')) {
+        return new Response(JSON.stringify({ records: [makeEvidenceRecord()] }), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        });
+      }
+      if (url.endsWith('/metric-runs/17/narrative-runs/41/review') && init?.method === 'POST') {
+        return new Response(
+          JSON.stringify({
+            error: 'NARRATIVE_RUN_VERSION_CONFLICT',
+            message: 'Narrative run version no longer matches the request.',
+          }),
+          {
+            status: 409,
+            headers: { 'Content-Type': 'application/json' },
+          }
+        );
+      }
+      if (url.endsWith('/metric-runs/17/narrative-runs')) {
+        return new Response(JSON.stringify({ records: [narrative] }), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        });
+      }
+      return new Response(JSON.stringify({ error: 'UNEXPECTED_URL' }), { status: 500 });
+    });
+
+    renderPage();
+
+    fireEvent.click(screen.getByRole('button', { name: /run metrics/i }));
+    await waitFor(() => {
+      expect(screen.getByTestId('metrics-commit-button')).toBeEnabled();
+    });
+    fireEvent.click(screen.getByTestId('metrics-commit-button'));
+    await waitFor(() => {
+      expect(screen.getByTestId('metric-run-narrative-review-41')).toBeEnabled();
+    });
+
+    fireEvent.click(screen.getByTestId('metric-run-narrative-review-41'));
+
+    await waitFor(() => {
+      expect(screen.getByTestId('metric-run-narrative-error-envelope')).toBeInTheDocument();
+    });
+    const envelope = screen.getByTestId('metric-run-narrative-error-envelope');
+    expect(envelope).toHaveAttribute('data-error-status', '409');
+    expect(envelope.textContent).toMatch(/narrative changed/i);
+    expect(envelope.textContent).toMatch(/refresh the lifecycle state/i);
+  });
+
+  it('does not expose narrative export, share, upload, comments, attachments, or AI controls', async () => {
     vi.spyOn(globalThis, 'fetch').mockImplementation(async (input) => {
       const url = String(input);
       const locked = makeMetricRunDetail({
@@ -915,11 +1138,11 @@ describe('LpReportingMetricsPage', () => {
     });
 
     const card = within(screen.getByTestId('metric-run-narrative-card'));
-    expect(card.queryByRole('button', { name: /edit/i })).toBeNull();
-    expect(card.queryByRole('button', { name: /review/i })).toBeNull();
     expect(card.queryByRole('button', { name: /export/i })).toBeNull();
     expect(card.queryByRole('button', { name: /share/i })).toBeNull();
     expect(card.queryByRole('button', { name: /upload/i })).toBeNull();
+    expect(card.queryByRole('button', { name: /comment/i })).toBeNull();
+    expect(card.queryByRole('button', { name: /attachment/i })).toBeNull();
     expect(card.queryByRole('button', { name: /ai/i })).toBeNull();
   });
 

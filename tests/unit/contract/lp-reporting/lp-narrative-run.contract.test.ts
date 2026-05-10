@@ -4,11 +4,15 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+  NarrativeRunApproveRequestSchema,
   NarrativeRunCreateRequestSchema,
   NarrativeRunCreateResponseSchema,
   NarrativeRunDetailResponseSchema,
+  NarrativeRunEditRequestSchema,
+  NarrativeRunLifecycleResponseSchema,
   NarrativeRunListResponseSchema,
   NarrativeRunRecordSchema,
+  NarrativeRunReviewRequestSchema,
   NarrativeStatusSchema,
   NarrativeTypeSchema,
 } from '@shared/contracts/lp-reporting/lp-narrative-run.contract';
@@ -24,9 +28,12 @@ const narrativeRecord = {
   status: 'draft',
   generatedBy: 9,
   editedBy: null,
+  reviewedBy: null,
+  reviewedAt: null,
   approvedBy: null,
   approvedAt: null,
   exportedAt: null,
+  version: 1,
   createdAt: '2026-05-10T00:00:00.000Z',
   updatedAt: '2026-05-10T00:00:00.000Z',
 } as const;
@@ -69,9 +76,12 @@ describe('NarrativeRunCreateRequestSchema', () => {
     'status',
     'generatedBy',
     'editedBy',
+    'reviewedBy',
+    'reviewedAt',
     'approvedBy',
     'approvedAt',
     'exportedAt',
+    'version',
     'createdAt',
     'updatedAt',
   ])('rejects client-owned field %s', (field) => {
@@ -84,12 +94,54 @@ describe('NarrativeRunCreateRequestSchema', () => {
   });
 });
 
+describe('narrative lifecycle request schemas', () => {
+  it('accepts trimmed edit text and expectedVersion', () => {
+    expect(
+      NarrativeRunEditRequestSchema.parse({ expectedVersion: 1, editedText: '  Reviewed copy  ' })
+    ).toEqual({
+      expectedVersion: 1,
+      editedText: 'Reviewed copy',
+    });
+  });
+
+  it('rejects blank edit text', () => {
+    expect(() =>
+      NarrativeRunEditRequestSchema.parse({ expectedVersion: 1, editedText: '   ' })
+    ).toThrow();
+  });
+
+  it.each([
+    NarrativeRunEditRequestSchema,
+    NarrativeRunReviewRequestSchema,
+    NarrativeRunApproveRequestSchema,
+  ])('rejects route-owned lifecycle fields', (schema) => {
+    expect(() =>
+      schema.parse({
+        expectedVersion: 1,
+        editedText: 'Reviewed copy',
+        narrativeRunId: 41,
+      })
+    ).toThrow();
+  });
+
+  it('accepts review and approve expectedVersion only', () => {
+    expect(NarrativeRunReviewRequestSchema.parse({ expectedVersion: 2 })).toEqual({
+      expectedVersion: 2,
+    });
+    expect(NarrativeRunApproveRequestSchema.parse({ expectedVersion: 3 })).toEqual({
+      expectedVersion: 3,
+    });
+  });
+});
+
 describe('NarrativeRunRecordSchema', () => {
   it('parses the response record shape', () => {
     const parsed = NarrativeRunRecordSchema.parse(narrativeRecord);
     expect(parsed.narrativeRunId).toBe(41);
     expect(parsed.editedText).toBeNull();
     expect(parsed.status).toBe('draft');
+    expect(parsed.version).toBe(1);
+    expect(parsed.reviewedBy).toBeNull();
   });
 
   it('rejects unknown record fields', () => {
@@ -116,5 +168,22 @@ describe('narrative response envelopes', () => {
     expect(
       NarrativeRunDetailResponseSchema.parse({ record: narrativeRecord }).record.metricRunId
     ).toBe(17);
+  });
+
+  it('parses lifecycle response changed marker', () => {
+    const parsed = NarrativeRunLifecycleResponseSchema.parse({
+      record: {
+        ...narrativeRecord,
+        status: 'reviewed',
+        editedText: 'Reviewed copy',
+        editedBy: 9,
+        reviewedBy: 9,
+        reviewedAt: '2026-05-10T00:01:00.000Z',
+        version: 2,
+      },
+      changed: false,
+    });
+    expect(parsed.changed).toBe(false);
+    expect(parsed.record.reviewedBy).toBe(9);
   });
 });

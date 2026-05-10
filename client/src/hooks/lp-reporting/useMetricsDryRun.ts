@@ -8,7 +8,7 @@
  * @module client/hooks/lp-reporting/useMetricsDryRun
  */
 
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient, type QueryClient } from '@tanstack/react-query';
 import {
   LatestMetricRunResponseSchema,
   MetricRunApproveRequestSchema,
@@ -21,10 +21,14 @@ import {
   MetricRunEvidenceListResponseSchema,
   MetricRunLifecycleResponseSchema,
   MetricRunLockRequestSchema,
+  NarrativeRunApproveRequestSchema,
   NarrativeRunCreateRequestSchema,
   NarrativeRunCreateResponseSchema,
   NarrativeRunDetailResponseSchema,
+  NarrativeRunEditRequestSchema,
+  NarrativeRunLifecycleResponseSchema,
   NarrativeRunListResponseSchema,
+  NarrativeRunReviewRequestSchema,
   type LatestMetricRunQuery,
   type LatestMetricRunResponse,
   type MetricRunApproveRequest,
@@ -38,13 +42,29 @@ import {
   type MetricRunEvidenceListResponse,
   type MetricRunLifecycleResponse,
   type MetricRunLockRequest,
+  type NarrativeRunApproveRequest,
   type NarrativeRunCreateRequest,
   type NarrativeRunCreateResponse,
   type NarrativeRunDetailResponse,
+  type NarrativeRunEditRequest,
+  type NarrativeRunLifecycleResponse,
   type NarrativeRunListResponse,
+  type NarrativeRunReviewRequest,
 } from '@shared/contracts/lp-reporting';
 
 export type MetricsDryRunRequest = MetricRunDryRunRequest;
+
+export type NarrativeRunEditMutationRequest = NarrativeRunEditRequest & {
+  narrativeRunId: number;
+};
+
+export type NarrativeRunReviewMutationRequest = NarrativeRunReviewRequest & {
+  narrativeRunId: number;
+};
+
+export type NarrativeRunApproveMutationRequest = NarrativeRunApproveRequest & {
+  narrativeRunId: number;
+};
 
 export interface DryRunErrorBody {
   code?: string;
@@ -146,6 +166,18 @@ function metricRunNarrativeDetailQueryKey(
   narrativeRunId: number | null
 ) {
   return ['lp-reporting', 'metric-run-narratives', fundId, metricRunId, narrativeRunId] as const;
+}
+
+function invalidateMetricRunNarrativeQueries(
+  queryClient: QueryClient,
+  fundId: number | null,
+  metricRunId: number | null,
+  narrativeRunId: number
+): void {
+  queryClient.invalidateQueries({ queryKey: metricRunNarrativeQueryKey(fundId, metricRunId) });
+  queryClient.invalidateQueries({
+    queryKey: metricRunNarrativeDetailQueryKey(fundId, metricRunId, narrativeRunId),
+  });
 }
 
 function latestMetricRunQueryKey(fundId: number | null, query: LatestMetricRunQuery | null) {
@@ -334,6 +366,81 @@ async function postMetricRunNarrative(
     res,
     NarrativeRunCreateResponseSchema,
     'Metric-run narrative create response did not match the locked contract.'
+  );
+}
+
+async function patchMetricRunNarrative(
+  fundId: number,
+  metricRunId: number,
+  narrativeRunId: number,
+  body: NarrativeRunEditRequest
+): Promise<NarrativeRunLifecycleResponse> {
+  NarrativeRunEditRequestSchema.parse(body);
+
+  const res = await fetch(
+    `/api/funds/${fundId}/metric-runs/${metricRunId}/narrative-runs/${narrativeRunId}`,
+    {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify(body),
+    }
+  );
+
+  return readContractResponse(
+    res,
+    NarrativeRunLifecycleResponseSchema,
+    'Metric-run narrative edit response did not match the locked contract.'
+  );
+}
+
+async function postMetricRunNarrativeReview(
+  fundId: number,
+  metricRunId: number,
+  narrativeRunId: number,
+  body: NarrativeRunReviewRequest
+): Promise<NarrativeRunLifecycleResponse> {
+  NarrativeRunReviewRequestSchema.parse(body);
+
+  const res = await fetch(
+    `/api/funds/${fundId}/metric-runs/${metricRunId}/narrative-runs/${narrativeRunId}/review`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify(body),
+    }
+  );
+
+  return readContractResponse(
+    res,
+    NarrativeRunLifecycleResponseSchema,
+    'Metric-run narrative review response did not match the locked contract.'
+  );
+}
+
+async function postMetricRunNarrativeApprove(
+  fundId: number,
+  metricRunId: number,
+  narrativeRunId: number,
+  body: NarrativeRunApproveRequest
+): Promise<NarrativeRunLifecycleResponse> {
+  NarrativeRunApproveRequestSchema.parse(body);
+
+  const res = await fetch(
+    `/api/funds/${fundId}/metric-runs/${metricRunId}/narrative-runs/${narrativeRunId}/approve`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify(body),
+    }
+  );
+
+  return readContractResponse(
+    res,
+    NarrativeRunLifecycleResponseSchema,
+    'Metric-run narrative approve response did not match the locked contract.'
   );
 }
 
@@ -534,14 +641,96 @@ export function useMetricRunNarrativeCreate(fundId: number | null, metricRunId: 
       return postMetricRunNarrative(fundId, metricRunId, request);
     },
     onSuccess: (response) => {
-      queryClient.invalidateQueries({ queryKey: metricRunNarrativeQueryKey(fundId, metricRunId) });
-      queryClient.invalidateQueries({
-        queryKey: metricRunNarrativeDetailQueryKey(
-          fundId,
-          metricRunId,
-          response.record.narrativeRunId
-        ),
-      });
+      invalidateMetricRunNarrativeQueries(
+        queryClient,
+        fundId,
+        metricRunId,
+        response.record.narrativeRunId
+      );
+    },
+  });
+}
+
+export function useMetricRunNarrativeEdit(fundId: number | null, metricRunId: number | null) {
+  const queryClient = useQueryClient();
+
+  return useMutation<
+    NarrativeRunLifecycleResponse,
+    LpReportingHookError,
+    NarrativeRunEditMutationRequest
+  >({
+    mutationFn: async ({ narrativeRunId, ...request }) => {
+      if (fundId === null || metricRunId === null) {
+        const error = new Error('fundId and metricRunId are required') as LpReportingHookError;
+        error.code = 'MISSING_METRIC_RUN_NARRATIVE_SCOPE';
+        throw error;
+      }
+
+      return patchMetricRunNarrative(fundId, metricRunId, narrativeRunId, request);
+    },
+    onSuccess: (response) => {
+      invalidateMetricRunNarrativeQueries(
+        queryClient,
+        fundId,
+        metricRunId,
+        response.record.narrativeRunId
+      );
+    },
+  });
+}
+
+export function useMetricRunNarrativeReview(fundId: number | null, metricRunId: number | null) {
+  const queryClient = useQueryClient();
+
+  return useMutation<
+    NarrativeRunLifecycleResponse,
+    LpReportingHookError,
+    NarrativeRunReviewMutationRequest
+  >({
+    mutationFn: async ({ narrativeRunId, ...request }) => {
+      if (fundId === null || metricRunId === null) {
+        const error = new Error('fundId and metricRunId are required') as LpReportingHookError;
+        error.code = 'MISSING_METRIC_RUN_NARRATIVE_SCOPE';
+        throw error;
+      }
+
+      return postMetricRunNarrativeReview(fundId, metricRunId, narrativeRunId, request);
+    },
+    onSuccess: (response) => {
+      invalidateMetricRunNarrativeQueries(
+        queryClient,
+        fundId,
+        metricRunId,
+        response.record.narrativeRunId
+      );
+    },
+  });
+}
+
+export function useMetricRunNarrativeApprove(fundId: number | null, metricRunId: number | null) {
+  const queryClient = useQueryClient();
+
+  return useMutation<
+    NarrativeRunLifecycleResponse,
+    LpReportingHookError,
+    NarrativeRunApproveMutationRequest
+  >({
+    mutationFn: async ({ narrativeRunId, ...request }) => {
+      if (fundId === null || metricRunId === null) {
+        const error = new Error('fundId and metricRunId are required') as LpReportingHookError;
+        error.code = 'MISSING_METRIC_RUN_NARRATIVE_SCOPE';
+        throw error;
+      }
+
+      return postMetricRunNarrativeApprove(fundId, metricRunId, narrativeRunId, request);
+    },
+    onSuccess: (response) => {
+      invalidateMetricRunNarrativeQueries(
+        queryClient,
+        fundId,
+        metricRunId,
+        response.record.narrativeRunId
+      );
     },
   });
 }
@@ -556,8 +745,12 @@ export type {
   MetricRunEvidenceListResponse,
   MetricRunLifecycleResponse,
   MetricRunLockRequest,
+  NarrativeRunApproveRequest,
   NarrativeRunCreateRequest,
   NarrativeRunCreateResponse,
   NarrativeRunDetailResponse,
+  NarrativeRunEditRequest,
+  NarrativeRunLifecycleResponse,
   NarrativeRunListResponse,
+  NarrativeRunReviewRequest,
 };

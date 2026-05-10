@@ -12,6 +12,9 @@
  *   GET  /api/funds/:fundId/metric-runs/:metricRunId/narrative-runs
  *   POST /api/funds/:fundId/metric-runs/:metricRunId/narrative-runs
  *   GET  /api/funds/:fundId/metric-runs/:metricRunId/narrative-runs/:narrativeRunId
+ *   PATCH /api/funds/:fundId/metric-runs/:metricRunId/narrative-runs/:narrativeRunId
+ *   POST /api/funds/:fundId/metric-runs/:metricRunId/narrative-runs/:narrativeRunId/review
+ *   POST /api/funds/:fundId/metric-runs/:metricRunId/narrative-runs/:narrativeRunId/approve
  *
  * Dry-run returns the full metric envelope plus a server-owned preview hash.
  * Commit re-runs the calculation from persisted source rows and only writes a
@@ -41,10 +44,14 @@ import {
   MetricRunEvidenceListResponseSchema,
   MetricRunLifecycleResponseSchema,
   MetricRunLockRequestSchema,
+  NarrativeRunApproveRequestSchema,
   NarrativeRunCreateRequestSchema,
   NarrativeRunCreateResponseSchema,
   NarrativeRunDetailResponseSchema,
+  NarrativeRunEditRequestSchema,
+  NarrativeRunLifecycleResponseSchema,
   NarrativeRunListResponseSchema,
+  NarrativeRunReviewRequestSchema,
 } from '@shared/contracts/lp-reporting';
 import {
   buildMetricRunDryRun,
@@ -57,8 +64,11 @@ import {
 } from '../../services/lp-reporting/metric-run-evidence-service';
 import {
   createNarrativeDraft,
+  approveNarrativeDraft,
+  editNarrativeDraft,
   getNarrativeDraft,
   listNarrativeDrafts,
+  reviewNarrativeDraft,
 } from '../../services/lp-reporting/narrative-run-service';
 import {
   approveMetricRun,
@@ -159,6 +169,9 @@ function sendMetricRunError(
     | 'NARRATIVE_RUN_CREATE_FAILED'
     | 'NARRATIVE_RUN_LIST_FAILED'
     | 'NARRATIVE_RUN_DETAIL_FAILED'
+    | 'NARRATIVE_RUN_EDIT_FAILED'
+    | 'NARRATIVE_RUN_REVIEW_FAILED'
+    | 'NARRATIVE_RUN_APPROVE_FAILED'
 ): Response {
   if (err instanceof MetricRunCommitError) {
     return res.status(err.status).json({
@@ -429,6 +442,96 @@ router.post(
       return res.status(validated.inserted ? 201 : 200).json(validated);
     } catch (err) {
       return sendMetricRunError(res, err, 'NARRATIVE_RUN_CREATE_FAILED');
+    }
+  }
+);
+
+router.patch(
+  '/api/funds/:fundId/metric-runs/:metricRunId/narrative-runs/:narrativeRunId',
+  requireAuth(),
+  requireFundAccess,
+  metricRunLimiter,
+  async (req: Request, res: Response) => {
+    const parsed = NarrativeRunEditRequestSchema.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({
+        error: 'INVALID_REQUEST_BODY',
+        issues: parsed.error.issues,
+      });
+    }
+
+    try {
+      const result = await editNarrativeDraft({
+        fundId: parseFundId(req),
+        metricRunId: parseMetricRunId(req),
+        narrativeRunId: parseNarrativeRunId(req),
+        userId: resolveAuthenticatedUserId(req),
+        body: parsed.data,
+      });
+      const validated = NarrativeRunLifecycleResponseSchema.parse(result);
+      return res.status(200).json(validated);
+    } catch (err) {
+      return sendMetricRunError(res, err, 'NARRATIVE_RUN_EDIT_FAILED');
+    }
+  }
+);
+
+router.post(
+  '/api/funds/:fundId/metric-runs/:metricRunId/narrative-runs/:narrativeRunId/review',
+  requireAuth(),
+  requireFundAccess,
+  metricRunLimiter,
+  async (req: Request, res: Response) => {
+    const parsed = NarrativeRunReviewRequestSchema.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({
+        error: 'INVALID_REQUEST_BODY',
+        issues: parsed.error.issues,
+      });
+    }
+
+    try {
+      const result = await reviewNarrativeDraft({
+        fundId: parseFundId(req),
+        metricRunId: parseMetricRunId(req),
+        narrativeRunId: parseNarrativeRunId(req),
+        userId: resolveAuthenticatedUserId(req),
+        body: parsed.data,
+      });
+      const validated = NarrativeRunLifecycleResponseSchema.parse(result);
+      return res.status(200).json(validated);
+    } catch (err) {
+      return sendMetricRunError(res, err, 'NARRATIVE_RUN_REVIEW_FAILED');
+    }
+  }
+);
+
+router.post(
+  '/api/funds/:fundId/metric-runs/:metricRunId/narrative-runs/:narrativeRunId/approve',
+  requireAuth(),
+  requireFundAccess,
+  metricRunLimiter,
+  async (req: Request, res: Response) => {
+    const parsed = NarrativeRunApproveRequestSchema.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({
+        error: 'INVALID_REQUEST_BODY',
+        issues: parsed.error.issues,
+      });
+    }
+
+    try {
+      const result = await approveNarrativeDraft({
+        fundId: parseFundId(req),
+        metricRunId: parseMetricRunId(req),
+        narrativeRunId: parseNarrativeRunId(req),
+        userId: resolveAuthenticatedUserId(req),
+        body: parsed.data,
+      });
+      const validated = NarrativeRunLifecycleResponseSchema.parse(result);
+      return res.status(200).json(validated);
+    } catch (err) {
+      return sendMetricRunError(res, err, 'NARRATIVE_RUN_APPROVE_FAILED');
     }
   }
 );

@@ -8,10 +8,13 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import type { db } from '../../../../server/db';
 import type { MetricRunCommitError } from '../../../../server/services/lp-reporting/metric-run-commit-service';
 import {
+  approveNarrativeDraft,
   createNarrativeDraft,
+  editNarrativeDraft,
   generateNarrativeText,
   getNarrativeDraft,
   listNarrativeDrafts,
+  reviewNarrativeDraft,
 } from '../../../../server/services/lp-reporting/narrative-run-service';
 import {
   lpMetricRuns,
@@ -66,6 +69,7 @@ interface State {
   users: number[];
   insertValues: InsertNarrativeRun[];
   conflictTargets: unknown[];
+  operations: string[];
   nextNarrativeId: number;
   dropNextInsert: boolean;
 }
@@ -76,6 +80,7 @@ const state: State = {
   users: [],
   insertValues: [],
   conflictTargets: [],
+  operations: [],
   nextNarrativeId: 1000,
   dropNextInsert: false,
 };
@@ -122,9 +127,12 @@ function narrativeRow(overrides: Partial<NarrativeRun> = {}): NarrativeRun {
     status: 'draft',
     generatedBy: 7,
     editedBy: null,
+    reviewedBy: null,
+    reviewedAt: null,
     approvedBy: null,
     approvedAt: null,
     exportedAt: null,
+    version: 1,
     createdAt: new Date('2026-05-10T00:00:00Z'),
     updatedAt: new Date('2026-05-10T00:00:00Z'),
     ...overrides,
@@ -148,9 +156,59 @@ function queryResult<T>(rows: T[]): Promise<T[]> & { limit: (count: number) => P
 
 function makeDatabase(): typeof db {
   return {
+    transaction: async (callback: (tx: typeof db) => Promise<unknown>) => {
+      state.operations.push('transaction');
+      return callback(makeDatabase());
+    },
+    execute: async () => {
+      state.operations.push('lock-row');
+      return [];
+    },
     select: () => ({
       from: (table: unknown) => ({
         where: () => queryResult(rowsFor(table)),
+      }),
+    }),
+    update: (table: unknown) => ({
+      set: (values: Partial<NarrativeRun>) => ({
+        where: () => ({
+          returning: async () => {
+            if (table !== narrativeRuns) {
+              return [];
+            }
+            const current = state.narratives.find(
+              (row) => row.id === 1000 && row.fundId === 1 && row.metricRunId === 11
+            );
+            if (!current) {
+              return [];
+            }
+            const nextVersion = values.version;
+            const expectedVersion =
+              typeof nextVersion === 'number' && Number.isInteger(nextVersion)
+                ? nextVersion - 1
+                : current.version;
+            const validEdit =
+              values.editedText !== undefined &&
+              current.status === 'draft' &&
+              current.version === expectedVersion;
+            const validReview =
+              values.status === 'reviewed' &&
+              current.status === 'draft' &&
+              current.version === expectedVersion;
+            const validApprove =
+              values.status === 'approved' &&
+              current.status === 'reviewed' &&
+              current.version === expectedVersion;
+            if (!validEdit && !validReview && !validApprove) {
+              return [];
+            }
+            const updated = { ...current, ...values } as NarrativeRun;
+            state.narratives = state.narratives.map((row) =>
+              row.id === updated.id ? updated : row
+            );
+            return [updated];
+          },
+        }),
       }),
     }),
     insert: (table: unknown) => ({
@@ -199,6 +257,7 @@ beforeEach(() => {
   state.users = [7];
   state.insertValues = [];
   state.conflictTargets = [];
+  state.operations = [];
   state.nextNarrativeId = 1000;
   state.dropNextInsert = false;
 });
@@ -414,6 +473,246 @@ describe('createNarrativeDraft', () => {
 
     expect(source).not.toMatch(/evidenceRecords/);
     expect(source).not.toMatch(/from\(evidenceRecords\)/);
+  });
+});
+
+describe('narrative lifecycle mutations', () => {
+  it('edits draft text with optimistic locking and route-owned audit fields', async () => {
+    state.narratives = [narrativeRow()];
+
+    const result = await editNarrativeDraft(
+      {
+        fundId: 1,
+        metricRunId: 11,
+        narrativeRunId: 1000,
+        userId: 7,
+        body: { expectedVersion: 1, editedText: '  Reviewed copy  ' },
+      },
+      { database: makeDatabase() }
+    );
+
+    expect(result.changed).toBe(true);
+    expect(result.record.editedText).toBe('Reviewed copy');
+    expect(result.record.editedBy).toBe(7);
+    expect(result.record.version).toBe(2);
+    expect(state.operations).toEqual(['transaction', 'lock-row', 'lock-row']);
+  });
+
+  it('returns changed false for same draft edit retries', async () => {
+    state.narratives = [narrativeRow({ editedText: 'Reviewed copy', editedBy: 7, version: 2 })];
+
+    const result = await editNarrativeDraft(
+      {
+        fundId: 1,
+        metricRunId: 11,
+        narrativeRunId: 1000,
+        userId: 7,
+        body: { expectedVersion: 1, editedText: 'Reviewed copy' },
+      },
+      { database: makeDatabase() }
+    );
+
+    expect(result.changed).toBe(false);
+    expect(result.record.version).toBe(2);
+  });
+
+  it('rejects stale edit versions', async () => {
+    state.narratives = [narrativeRow({ version: 3 })];
+
+    await expect(
+      editNarrativeDraft(
+        {
+          fundId: 1,
+          metricRunId: 11,
+          narrativeRunId: 1000,
+          userId: 7,
+          body: { expectedVersion: 1, editedText: 'Reviewed copy' },
+        },
+        { database: makeDatabase() }
+      )
+    ).rejects.toMatchObject({
+      status: 409,
+      code: 'NARRATIVE_RUN_VERSION_CONFLICT',
+    } satisfies Partial<MetricRunCommitError>);
+  });
+
+  it('marks edited drafts reviewed with review audit fields', async () => {
+    state.narratives = [narrativeRow({ editedText: 'Reviewed copy', editedBy: 7, version: 2 })];
+
+    const result = await reviewNarrativeDraft(
+      {
+        fundId: 1,
+        metricRunId: 11,
+        narrativeRunId: 1000,
+        userId: 7,
+        body: { expectedVersion: 2 },
+      },
+      { database: makeDatabase() }
+    );
+
+    expect(result.changed).toBe(true);
+    expect(result.record.status).toBe('reviewed');
+    expect(result.record.reviewedBy).toBe(7);
+    expect(result.record.reviewedAt).not.toBeNull();
+    expect(result.record.version).toBe(3);
+  });
+
+  it('rejects generated-only review attempts', async () => {
+    state.narratives = [narrativeRow({ version: 1 })];
+
+    await expect(
+      reviewNarrativeDraft(
+        {
+          fundId: 1,
+          metricRunId: 11,
+          narrativeRunId: 1000,
+          userId: 7,
+          body: { expectedVersion: 1 },
+        },
+        { database: makeDatabase() }
+      )
+    ).rejects.toMatchObject({
+      status: 409,
+      code: 'NARRATIVE_RUN_EDIT_REQUIRED',
+    } satisfies Partial<MetricRunCommitError>);
+  });
+
+  it('returns changed false for same-user review retries', async () => {
+    state.narratives = [
+      narrativeRow({
+        editedText: 'Reviewed copy',
+        editedBy: 7,
+        status: 'reviewed',
+        reviewedBy: 7,
+        reviewedAt: new Date('2026-05-10T03:00:00Z'),
+        version: 3,
+      }),
+    ];
+
+    const result = await reviewNarrativeDraft(
+      {
+        fundId: 1,
+        metricRunId: 11,
+        narrativeRunId: 1000,
+        userId: 7,
+        body: { expectedVersion: 2 },
+      },
+      { database: makeDatabase() }
+    );
+
+    expect(result.changed).toBe(false);
+    expect(result.record.reviewedBy).toBe(7);
+  });
+
+  it('does not treat different-user review stale retries as idempotent', async () => {
+    state.users = [7, 8];
+    state.narratives = [
+      narrativeRow({
+        editedText: 'Reviewed copy',
+        editedBy: 7,
+        status: 'reviewed',
+        reviewedBy: 7,
+        reviewedAt: new Date('2026-05-10T03:00:00Z'),
+        version: 3,
+      }),
+    ];
+
+    await expect(
+      reviewNarrativeDraft(
+        {
+          fundId: 1,
+          metricRunId: 11,
+          narrativeRunId: 1000,
+          userId: 8,
+          body: { expectedVersion: 2 },
+        },
+        { database: makeDatabase() }
+      )
+    ).rejects.toMatchObject({
+      status: 409,
+      code: 'NARRATIVE_RUN_VERSION_CONFLICT',
+    } satisfies Partial<MetricRunCommitError>);
+  });
+
+  it('approves reviewed narratives with approval audit fields', async () => {
+    state.narratives = [
+      narrativeRow({
+        editedText: 'Reviewed copy',
+        editedBy: 7,
+        status: 'reviewed',
+        reviewedBy: 7,
+        reviewedAt: new Date('2026-05-10T03:00:00Z'),
+        version: 3,
+      }),
+    ];
+
+    const result = await approveNarrativeDraft(
+      {
+        fundId: 1,
+        metricRunId: 11,
+        narrativeRunId: 1000,
+        userId: 7,
+        body: { expectedVersion: 3 },
+      },
+      { database: makeDatabase() }
+    );
+
+    expect(result.changed).toBe(true);
+    expect(result.record.status).toBe('approved');
+    expect(result.record.approvedBy).toBe(7);
+    expect(result.record.approvedAt).not.toBeNull();
+    expect(result.record.version).toBe(4);
+  });
+
+  it('returns changed false for same approval retries', async () => {
+    state.narratives = [
+      narrativeRow({
+        editedText: 'Reviewed copy',
+        editedBy: 7,
+        status: 'approved',
+        reviewedBy: 7,
+        reviewedAt: new Date('2026-05-10T03:00:00Z'),
+        approvedBy: 7,
+        approvedAt: new Date('2026-05-10T04:00:00Z'),
+        version: 4,
+      }),
+    ];
+
+    const result = await approveNarrativeDraft(
+      {
+        fundId: 1,
+        metricRunId: 11,
+        narrativeRunId: 1000,
+        userId: 7,
+        body: { expectedVersion: 3 },
+      },
+      { database: makeDatabase() }
+    );
+
+    expect(result.changed).toBe(false);
+    expect(result.record.approvedBy).toBe(7);
+  });
+
+  it('requires the parent metric run to remain locked in the lifecycle transaction', async () => {
+    state.metricRuns = [metricRunRow({ status: 'approved' })];
+    state.narratives = [narrativeRow()];
+
+    await expect(
+      editNarrativeDraft(
+        {
+          fundId: 1,
+          metricRunId: 11,
+          narrativeRunId: 1000,
+          userId: 7,
+          body: { expectedVersion: 1, editedText: 'Reviewed copy' },
+        },
+        { database: makeDatabase() }
+      )
+    ).rejects.toMatchObject({
+      status: 409,
+      code: 'METRIC_RUN_STATUS_CONFLICT',
+    } satisfies Partial<MetricRunCommitError>);
+    expect(state.operations).toEqual(['transaction', 'lock-row', 'lock-row']);
   });
 });
 

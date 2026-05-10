@@ -24,9 +24,12 @@ import {
   useMetricRunEvidenceCreate,
   useMetricRunEvidenceList,
   useMetricRunLock,
+  useMetricRunNarrativeApprove,
   useMetricRunNarrativeCreate,
   useMetricRunNarrativeDetail,
+  useMetricRunNarrativeEdit,
   useMetricRunNarrativeList,
+  useMetricRunNarrativeReview,
   useMetricsDryRun,
 } from '@/hooks/lp-reporting';
 import type { MetricsDryRunRequest } from '@/hooks/lp-reporting';
@@ -40,7 +43,9 @@ import type {
   MetricRunLifecycleResponse,
   NarrativeRunCreateResponse,
   NarrativeRunDetailResponse,
+  NarrativeRunLifecycleResponse,
   NarrativeRunListResponse,
+  NarrativeRunRecord,
 } from '@shared/contracts/lp-reporting';
 
 function makeWrapper() {
@@ -159,7 +164,7 @@ function makeEvidenceCreateResponse(): MetricRunEvidenceCreateResponse {
   };
 }
 
-function makeNarrativeRecord() {
+function makeNarrativeRecord(overrides: Partial<NarrativeRunRecord> = {}): NarrativeRunRecord {
   return {
     narrativeRunId: 41,
     fundId: 7,
@@ -171,11 +176,15 @@ function makeNarrativeRecord() {
     status: 'draft' as const,
     generatedBy: 7,
     editedBy: null,
+    reviewedBy: null,
+    reviewedAt: null,
     approvedBy: null,
     approvedAt: null,
     exportedAt: null,
+    version: 1,
     createdAt: '2026-05-10T00:00:00.000Z',
     updatedAt: '2026-05-10T00:00:00.000Z',
+    ...overrides,
   };
 }
 
@@ -195,6 +204,16 @@ function makeNarrativeCreateResponse(): NarrativeRunCreateResponse {
 function makeNarrativeDetailResponse(): NarrativeRunDetailResponse {
   return {
     record: makeNarrativeRecord(),
+  };
+}
+
+function makeNarrativeLifecycleResponse(
+  changed = true,
+  overrides: Partial<NarrativeRunRecord> = {}
+): NarrativeRunLifecycleResponse {
+  return {
+    record: makeNarrativeRecord(overrides),
+    changed,
   };
 }
 
@@ -731,6 +750,124 @@ describe('metric-run narrative hooks', () => {
     expect(invalidateSpy).toHaveBeenCalledWith({
       queryKey: ['lp-reporting', 'metric-run-narratives', 7, 17, 41],
     });
+  });
+
+  it('PATCHes narrative edits and invalidates narrative queries', async () => {
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response(
+        JSON.stringify(
+          makeNarrativeLifecycleResponse(true, {
+            editedText: 'Reviewed copy',
+            editedBy: 7,
+            version: 2,
+          })
+        ),
+        {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        }
+      )
+    );
+
+    const { Wrapper, queryClient } = makeWrapper();
+    const invalidateSpy = vi.spyOn(queryClient, 'invalidateQueries');
+    const { result } = renderHook(() => useMetricRunNarrativeEdit(7, 17), {
+      wrapper: Wrapper,
+    });
+
+    result.current.mutate({
+      narrativeRunId: 41,
+      expectedVersion: 1,
+      editedText: 'Reviewed copy',
+    });
+
+    await waitFor(() => {
+      expect(result.current.isSuccess).toBe(true);
+    });
+
+    expect(fetchSpy).toHaveBeenCalledTimes(1);
+    const [url, init] = fetchSpy.mock.calls[0]!;
+    expect(url).toBe('/api/funds/7/metric-runs/17/narrative-runs/41');
+    expect(init?.method).toBe('PATCH');
+    expect(JSON.parse(init?.body as string)).toEqual({
+      expectedVersion: 1,
+      editedText: 'Reviewed copy',
+    });
+    expect(result.current.data?.changed).toBe(true);
+    expect(result.current.data?.record.version).toBe(2);
+    expect(invalidateSpy).toHaveBeenCalledWith({
+      queryKey: ['lp-reporting', 'metric-run-narratives', 7, 17],
+    });
+    expect(invalidateSpy).toHaveBeenCalledWith({
+      queryKey: ['lp-reporting', 'metric-run-narratives', 7, 17, 41],
+    });
+  });
+
+  it('POSTs narrative review and accepts changed false responses', async () => {
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response(
+        JSON.stringify(
+          makeNarrativeLifecycleResponse(false, {
+            editedText: 'Reviewed copy',
+            editedBy: 7,
+            status: 'reviewed',
+            reviewedBy: 7,
+            reviewedAt: '2026-05-10T01:00:00.000Z',
+            version: 2,
+          })
+        ),
+        {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        }
+      )
+    );
+
+    const { Wrapper } = makeWrapper();
+    const { result } = renderHook(() => useMetricRunNarrativeReview(7, 17), {
+      wrapper: Wrapper,
+    });
+
+    result.current.mutate({ narrativeRunId: 41, expectedVersion: 1 });
+
+    await waitFor(() => {
+      expect(result.current.isSuccess).toBe(true);
+    });
+
+    const [url, init] = fetchSpy.mock.calls[0]!;
+    expect(url).toBe('/api/funds/7/metric-runs/17/narrative-runs/41/review');
+    expect(init?.method).toBe('POST');
+    expect(JSON.parse(init?.body as string)).toEqual({ expectedVersion: 1 });
+    expect(result.current.data?.changed).toBe(false);
+    expect(result.current.data?.record.reviewedBy).toBe(7);
+  });
+
+  it('POSTs narrative approve and preserves server conflict codes', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          error: 'NARRATIVE_RUN_VERSION_CONFLICT',
+          message: 'Narrative run version no longer matches the request.',
+        }),
+        {
+          status: 409,
+          headers: { 'Content-Type': 'application/json' },
+        }
+      )
+    );
+
+    const { Wrapper } = makeWrapper();
+    const { result } = renderHook(() => useMetricRunNarrativeApprove(7, 17), {
+      wrapper: Wrapper,
+    });
+
+    result.current.mutate({ narrativeRunId: 41, expectedVersion: 2 });
+
+    await waitFor(() => {
+      expect(result.current.isError).toBe(true);
+    });
+    expect(result.current.error?.code).toBe('NARRATIVE_RUN_VERSION_CONFLICT');
+    expect(result.current.error?.status).toBe(409);
   });
 
   it('preserves narrative create server error codes', async () => {
