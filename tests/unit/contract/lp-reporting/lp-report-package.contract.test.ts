@@ -6,9 +6,16 @@ import { describe, expect, it } from 'vitest';
 import {
   ReportPackageAssembleRequestSchema,
   ReportPackageAssembleResponseSchema,
+  ReportPackageExportContentHashConflictResponseSchema,
+  ReportPackageExportNotFoundResponseSchema,
+  ReportPackageExportRecordSchema,
+  ReportPackageExportStatusSchema,
   ReportPackageGetResponseSchema,
   ReportPackageJsonExportBlockedResponseSchema,
   ReportPackageJsonExportResponseSchema,
+  ReportPackageJsonStoredArtifactResponseSchema,
+  ReportPackageJsonStoredExportGetResponseSchema,
+  ReportPackageJsonStoredExportResponseSchema,
   ReportPackagePayloadSchema,
   ReportPackageRecordSchema,
   ReportPackageRenderModelResponseSchema,
@@ -333,5 +340,93 @@ describe('ReportPackageRenderModelResponseSchema', () => {
         renderModel: renderModelResponse.renderModel,
       })
     ).toThrow();
+  });
+
+  it('parses stored JSON export metadata and rejects artifact or delivery fields', () => {
+    expect(ReportPackageExportStatusSchema.parse('ready')).toBe('ready');
+    expect(() => ReportPackageExportStatusSchema.parse('queued')).toThrow();
+
+    const record = ReportPackageExportRecordSchema.parse({
+      reportPackageExportId: 4100,
+      fundId: 1,
+      metricRunId: 500,
+      reportPackageId: 501,
+      format: 'json',
+      exportVersion: 1,
+      status: 'ready',
+      contentHashAlgorithm: 'sha256',
+      contentHash: 'd'.repeat(64),
+      artifactSizeBytes: 1234,
+      createdBy: 7,
+      readyAt: '2026-05-10T04:00:00.000Z',
+      createdAt: '2026-05-10T04:00:00.000Z',
+      updatedAt: '2026-05-10T04:00:00.000Z',
+    });
+
+    expect(record.status).toBe('ready');
+    for (const field of ['artifactPayload', 'storageKey', 'signedUrl', 'publicUrl']) {
+      expect(() =>
+        ReportPackageExportRecordSchema.parse({
+          ...record,
+          [field]: field,
+        })
+      ).toThrow();
+    }
+  });
+
+  it('parses stored JSON export create, metadata, artifact, and error envelopes', () => {
+    const record = ReportPackageExportRecordSchema.parse({
+      reportPackageExportId: 4100,
+      fundId: 1,
+      metricRunId: 500,
+      reportPackageId: 501,
+      format: 'json',
+      exportVersion: 1,
+      status: 'ready',
+      contentHashAlgorithm: 'sha256',
+      contentHash: 'd'.repeat(64),
+      artifactSizeBytes: 1234,
+      createdBy: 7,
+      readyAt: '2026-05-10T04:00:00.000Z',
+      createdAt: '2026-05-10T04:00:00.000Z',
+      updatedAt: '2026-05-10T04:00:00.000Z',
+    });
+
+    const created = ReportPackageJsonStoredExportResponseSchema.parse({
+      record,
+      inserted: true,
+    });
+    expect(created.inserted).toBe(true);
+    expect(
+      ReportPackageJsonStoredExportGetResponseSchema.parse({ record: null }).record
+    ).toBeNull();
+    expect(
+      ReportPackageJsonStoredArtifactResponseSchema.parse({
+        record,
+        export: {
+          exportVersion: 1,
+          format: 'json',
+          source: renderModelResponse.renderModel.source,
+          renderModel: renderModelResponse.renderModel,
+          contentHashAlgorithm: 'sha256',
+          contentHash: 'd'.repeat(64),
+        },
+      }).export.contentHash
+    ).toBe('d'.repeat(64));
+
+    expect(
+      ReportPackageExportNotFoundResponseSchema.parse({
+        error: 'REPORT_PACKAGE_EXPORT_NOT_FOUND',
+        message: 'Stored report package JSON export was not found.',
+      }).error
+    ).toBe('REPORT_PACKAGE_EXPORT_NOT_FOUND');
+    expect(
+      ReportPackageExportContentHashConflictResponseSchema.parse({
+        error: 'EXPORT_CONTENT_HASH_CONFLICT',
+        message: 'Stored report package JSON export does not match.',
+        storedContentHash: 'd'.repeat(64),
+        currentContentHash: 'e'.repeat(64),
+      }).currentContentHash
+    ).toBe('e'.repeat(64));
   });
 });

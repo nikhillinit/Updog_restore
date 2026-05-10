@@ -34,6 +34,9 @@ import {
   useMetricRunReportPackageAssemble,
   useMetricRunReportPackageJsonExport,
   useMetricRunReportPackageRenderModel,
+  useMetricRunReportPackageStoredJsonArtifact,
+  useMetricRunReportPackageStoredJsonExport,
+  useMetricRunReportPackageStoredJsonExportCreate,
   useMetricsDryRun,
 } from '@/hooks/lp-reporting';
 import type { MetricsDryRunRequest } from '@/hooks/lp-reporting';
@@ -51,8 +54,12 @@ import type {
   NarrativeRunListResponse,
   NarrativeRunRecord,
   ReportPackageAssembleResponse,
+  ReportPackageExportRecord,
   ReportPackageGetResponse,
   ReportPackageJsonExportResponse,
+  ReportPackageJsonStoredArtifactResponse,
+  ReportPackageJsonStoredExportGetResponse,
+  ReportPackageJsonStoredExportResponse,
   ReportPackageRecord,
   ReportPackageRenderModelResponse,
 } from '@shared/contracts/lp-reporting';
@@ -406,6 +413,47 @@ function makeReportPackageJsonExportResponse(): ReportPackageJsonExportResponse 
       contentHashAlgorithm: 'sha256',
       contentHash: 'c'.repeat(64),
     },
+  };
+}
+
+function makeReportPackageStoredExportRecord(): ReportPackageExportRecord {
+  return {
+    reportPackageExportId: 4100,
+    fundId: 7,
+    metricRunId: 17,
+    reportPackageId: 501,
+    format: 'json',
+    exportVersion: 1,
+    status: 'ready',
+    contentHashAlgorithm: 'sha256',
+    contentHash: 'c'.repeat(64),
+    artifactSizeBytes: 1234,
+    createdBy: 7,
+    readyAt: '2026-05-10T04:00:00.000Z',
+    createdAt: '2026-05-10T04:00:00.000Z',
+    updatedAt: '2026-05-10T04:00:00.000Z',
+  };
+}
+
+function makeReportPackageStoredExportGetResponse(
+  record: ReportPackageExportRecord | null = makeReportPackageStoredExportRecord()
+): ReportPackageJsonStoredExportGetResponse {
+  return { record };
+}
+
+function makeReportPackageStoredExportResponse(
+  inserted = true
+): ReportPackageJsonStoredExportResponse {
+  return {
+    record: makeReportPackageStoredExportRecord(),
+    inserted,
+  };
+}
+
+function makeReportPackageStoredArtifactResponse(): ReportPackageJsonStoredArtifactResponse {
+  return {
+    record: makeReportPackageStoredExportRecord(),
+    export: makeReportPackageJsonExportResponse().export,
   };
 }
 
@@ -1188,6 +1236,160 @@ describe('metric-run report package hooks', () => {
 
     expect(result.current.fetchStatus).toBe('idle');
     expect(fetchSpy).not.toHaveBeenCalled();
+  });
+
+  it('GETs stored package JSON export metadata and parses nullable responses', async () => {
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response(JSON.stringify(makeReportPackageStoredExportGetResponse(null)), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      })
+    );
+
+    const { Wrapper } = makeWrapper();
+    const { result } = renderHook(() => useMetricRunReportPackageStoredJsonExport(7, 17), {
+      wrapper: Wrapper,
+    });
+
+    await waitFor(() => {
+      expect(result.current.isSuccess).toBe(true);
+    });
+
+    expect(fetchSpy).toHaveBeenCalledTimes(1);
+    const [url, init] = fetchSpy.mock.calls[0]!;
+    expect(url).toBe('/api/funds/7/metric-runs/17/report-package/exports/json');
+    expect(init?.method).toBe('GET');
+    expect(result.current.data?.record).toBeNull();
+  });
+
+  it('keeps the stored package JSON metadata query disabled without metricRunId', () => {
+    const fetchSpy = vi.spyOn(globalThis, 'fetch');
+
+    const { Wrapper } = makeWrapper();
+    const { result } = renderHook(() => useMetricRunReportPackageStoredJsonExport(7, null), {
+      wrapper: Wrapper,
+    });
+
+    expect(result.current.fetchStatus).toBe('idle');
+    expect(fetchSpy).not.toHaveBeenCalled();
+  });
+
+  it('POSTs stored package JSON export creation and invalidates stored export queries', async () => {
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response(JSON.stringify(makeReportPackageStoredExportResponse(false)), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      })
+    );
+
+    const { Wrapper, queryClient } = makeWrapper();
+    const invalidateSpy = vi.spyOn(queryClient, 'invalidateQueries');
+    const { result } = renderHook(() => useMetricRunReportPackageStoredJsonExportCreate(7, 17), {
+      wrapper: Wrapper,
+    });
+
+    result.current.mutate();
+
+    await waitFor(() => {
+      expect(result.current.isSuccess).toBe(true);
+    });
+
+    const [url, init] = fetchSpy.mock.calls[0]!;
+    expect(url).toBe('/api/funds/7/metric-runs/17/report-package/exports/json');
+    expect(init?.method).toBe('POST');
+    expect(JSON.parse(init?.body as string)).toEqual({});
+    expect(result.current.data?.inserted).toBe(false);
+    expect(invalidateSpy).toHaveBeenCalledWith({
+      queryKey: ['lp-reporting', 'metric-run-report-package-stored-json-export', 7, 17],
+    });
+    expect(invalidateSpy).toHaveBeenCalledWith({
+      queryKey: ['lp-reporting', 'metric-run-report-package-stored-json-artifact', 7, 17],
+    });
+  });
+
+  it('fetches the stored package JSON artifact on demand', async () => {
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response(JSON.stringify(makeReportPackageStoredArtifactResponse()), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      })
+    );
+
+    const { Wrapper } = makeWrapper();
+    const { result } = renderHook(() => useMetricRunReportPackageStoredJsonArtifact(7, 17), {
+      wrapper: Wrapper,
+    });
+
+    expect(result.current.fetchStatus).toBe('idle');
+    expect(fetchSpy).not.toHaveBeenCalled();
+
+    const response = await result.current.refetch();
+
+    expect(fetchSpy).toHaveBeenCalledTimes(1);
+    const [url, init] = fetchSpy.mock.calls[0]!;
+    expect(url).toBe('/api/funds/7/metric-runs/17/report-package/exports/json/artifact');
+    expect(init?.method).toBe('GET');
+    expect(response.data?.record.reportPackageExportId).toBe(4100);
+    expect(response.data?.export.contentHash).toBe('c'.repeat(64));
+  });
+
+  it('preserves stored package JSON export blockers and hash conflicts', async () => {
+    const fetchSpy = vi
+      .spyOn(globalThis, 'fetch')
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            error: 'REPORT_PACKAGE_JSON_EXPORT_BLOCKED',
+            message: 'Report package JSON export is blocked by readiness checks.',
+            blockers: [
+              {
+                code: 'EVIDENCE_REDACTION_REQUIRED',
+                message: 'Evidence requires redaction before the JSON handoff can be produced.',
+                evidenceRecordId: 1000,
+              },
+            ],
+          }),
+          {
+            status: 409,
+            headers: { 'Content-Type': 'application/json' },
+          }
+        )
+      )
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            error: 'EXPORT_CONTENT_HASH_CONFLICT',
+            message: 'Stored report package JSON export does not match.',
+            storedContentHash: 'd'.repeat(64),
+            currentContentHash: 'e'.repeat(64),
+          }),
+          {
+            status: 409,
+            headers: { 'Content-Type': 'application/json' },
+          }
+        )
+      );
+
+    const { Wrapper } = makeWrapper();
+    const blocked = renderHook(() => useMetricRunReportPackageStoredJsonExportCreate(7, 17), {
+      wrapper: Wrapper,
+    });
+    blocked.result.current.mutate();
+    await waitFor(() => {
+      expect(blocked.result.current.isError).toBe(true);
+    });
+    expect(blocked.result.current.error?.blockers?.[0]?.code).toBe('EVIDENCE_REDACTION_REQUIRED');
+
+    const conflict = renderHook(() => useMetricRunReportPackageStoredJsonExportCreate(7, 17), {
+      wrapper: Wrapper,
+    });
+    conflict.result.current.mutate();
+    await waitFor(() => {
+      expect(conflict.result.current.isError).toBe(true);
+    });
+    expect(conflict.result.current.error?.code).toBe('EXPORT_CONTENT_HASH_CONFLICT');
+    expect(conflict.result.current.error?.storedContentHash).toBe('d'.repeat(64));
+    expect(fetchSpy).toHaveBeenCalledTimes(2);
   });
 
   it('preserves package JSON export blockers on 409 responses', async () => {

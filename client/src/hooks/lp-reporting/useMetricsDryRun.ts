@@ -31,9 +31,14 @@ import {
   NarrativeRunReviewRequestSchema,
   ReportPackageAssembleRequestSchema,
   ReportPackageAssembleResponseSchema,
+  ReportPackageExportContentHashConflictResponseSchema,
+  ReportPackageExportNotFoundResponseSchema,
   ReportPackageGetResponseSchema,
   ReportPackageJsonExportBlockedResponseSchema,
   ReportPackageJsonExportResponseSchema,
+  ReportPackageJsonStoredArtifactResponseSchema,
+  ReportPackageJsonStoredExportGetResponseSchema,
+  ReportPackageJsonStoredExportResponseSchema,
   ReportPackageRenderModelResponseSchema,
   type LatestMetricRunQuery,
   type LatestMetricRunResponse,
@@ -61,6 +66,9 @@ import {
   type ReportPackageGetResponse,
   type ReportPackageJsonExportBlocker,
   type ReportPackageJsonExportResponse,
+  type ReportPackageJsonStoredArtifactResponse,
+  type ReportPackageJsonStoredExportGetResponse,
+  type ReportPackageJsonStoredExportResponse,
   type ReportPackageRenderModelResponse,
 } from '@shared/contracts/lp-reporting';
 
@@ -90,6 +98,8 @@ export type LpReportingHookError = Error & {
   code?: string;
   status?: number;
   blockers?: ReportPackageJsonExportBlocker[];
+  storedContentHash?: string;
+  currentContentHash?: string;
 };
 
 interface ContractResponseSchema<TResponse> {
@@ -157,6 +167,69 @@ async function readReportPackageJsonExportResponse(
     const error = new Error(
       'Metric-run report package JSON export response did not match the locked contract.'
     ) as LpReportingHookError;
+    error.code = 'CONTRACT_PARSE_ERROR';
+    error.status = res.status;
+    throw error;
+  }
+
+  return parsed.data;
+}
+
+async function readStoredReportPackageResponse<TResponse>(
+  res: Response,
+  schema: ContractResponseSchema<TResponse>,
+  contractErrorMessage: string
+): Promise<TResponse> {
+  const raw = (await res.json().catch(() => ({}))) as unknown;
+
+  if (!res.ok) {
+    const blocked = ReportPackageJsonExportBlockedResponseSchema.safeParse(raw);
+    if (blocked.success) {
+      const error = buildHookError(
+        res.status,
+        {
+          error: blocked.data.error,
+          message: blocked.data.message,
+        },
+        `HTTP ${res.status}`
+      );
+      error.blockers = blocked.data.blockers;
+      throw error;
+    }
+
+    const conflict = ReportPackageExportContentHashConflictResponseSchema.safeParse(raw);
+    if (conflict.success) {
+      const error = buildHookError(
+        res.status,
+        {
+          error: conflict.data.error,
+          message: conflict.data.message,
+        },
+        `HTTP ${res.status}`
+      );
+      error.storedContentHash = conflict.data.storedContentHash;
+      error.currentContentHash = conflict.data.currentContentHash;
+      throw error;
+    }
+
+    const notFound = ReportPackageExportNotFoundResponseSchema.safeParse(raw);
+    if (notFound.success) {
+      throw buildHookError(
+        res.status,
+        {
+          error: notFound.data.error,
+          message: notFound.data.message,
+        },
+        `HTTP ${res.status}`
+      );
+    }
+
+    throw buildHookError(res.status, raw as Partial<DryRunErrorBody>, `HTTP ${res.status}`);
+  }
+
+  const parsed = schema.safeParse(raw);
+  if (!parsed.success) {
+    const error = new Error(contractErrorMessage) as LpReportingHookError;
     error.code = 'CONTRACT_PARSE_ERROR';
     error.status = res.status;
     throw error;
@@ -235,6 +308,30 @@ function metricRunReportPackageJsonExportQueryKey(
   metricRunId: number | null
 ) {
   return ['lp-reporting', 'metric-run-report-package-json-export', fundId, metricRunId] as const;
+}
+
+function metricRunReportPackageStoredJsonExportQueryKey(
+  fundId: number | null,
+  metricRunId: number | null
+) {
+  return [
+    'lp-reporting',
+    'metric-run-report-package-stored-json-export',
+    fundId,
+    metricRunId,
+  ] as const;
+}
+
+function metricRunReportPackageStoredJsonArtifactQueryKey(
+  fundId: number | null,
+  metricRunId: number | null
+) {
+  return [
+    'lp-reporting',
+    'metric-run-report-package-stored-json-artifact',
+    fundId,
+    metricRunId,
+  ] as const;
 }
 
 function invalidateMetricRunNarrativeQueries(
@@ -402,6 +499,65 @@ async function getMetricRunReportPackageJsonExport(
   );
 
   return readReportPackageJsonExportResponse(res);
+}
+
+async function getMetricRunReportPackageStoredJsonExport(
+  fundId: number,
+  metricRunId: number
+): Promise<ReportPackageJsonStoredExportGetResponse> {
+  const res = await fetch(
+    `/api/funds/${fundId}/metric-runs/${metricRunId}/report-package/exports/json`,
+    {
+      method: 'GET',
+      credentials: 'include',
+    }
+  );
+
+  return readStoredReportPackageResponse(
+    res,
+    ReportPackageJsonStoredExportGetResponseSchema,
+    'Metric-run stored package JSON export response did not match the locked contract.'
+  );
+}
+
+async function getMetricRunReportPackageStoredJsonArtifact(
+  fundId: number,
+  metricRunId: number
+): Promise<ReportPackageJsonStoredArtifactResponse> {
+  const res = await fetch(
+    `/api/funds/${fundId}/metric-runs/${metricRunId}/report-package/exports/json/artifact`,
+    {
+      method: 'GET',
+      credentials: 'include',
+    }
+  );
+
+  return readStoredReportPackageResponse(
+    res,
+    ReportPackageJsonStoredArtifactResponseSchema,
+    'Metric-run stored package JSON artifact response did not match the locked contract.'
+  );
+}
+
+async function createMetricRunReportPackageStoredJsonExport(
+  fundId: number,
+  metricRunId: number
+): Promise<ReportPackageJsonStoredExportResponse> {
+  const res = await fetch(
+    `/api/funds/${fundId}/metric-runs/${metricRunId}/report-package/exports/json`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify({}),
+    }
+  );
+
+  return readStoredReportPackageResponse(
+    res,
+    ReportPackageJsonStoredExportResponseSchema,
+    'Metric-run stored package JSON export create response did not match the locked contract.'
+  );
 }
 
 async function postMetricRunApprove(
@@ -757,6 +913,69 @@ export function useMetricRunReportPackageJsonExport(
   });
 }
 
+export function useMetricRunReportPackageStoredJsonExport(
+  fundId: number | null,
+  metricRunId: number | null
+) {
+  return useQuery<ReportPackageJsonStoredExportGetResponse, LpReportingHookError>({
+    queryKey: metricRunReportPackageStoredJsonExportQueryKey(fundId, metricRunId),
+    enabled: fundId !== null && metricRunId !== null,
+    queryFn: async () => {
+      if (fundId === null || metricRunId === null) {
+        const error = new Error('fundId and metricRunId are required') as LpReportingHookError;
+        error.code = 'MISSING_METRIC_RUN_REPORT_PACKAGE_STORED_JSON_SCOPE';
+        throw error;
+      }
+      return getMetricRunReportPackageStoredJsonExport(fundId, metricRunId);
+    },
+  });
+}
+
+export function useMetricRunReportPackageStoredJsonArtifact(
+  fundId: number | null,
+  metricRunId: number | null
+) {
+  return useQuery<ReportPackageJsonStoredArtifactResponse, LpReportingHookError>({
+    queryKey: metricRunReportPackageStoredJsonArtifactQueryKey(fundId, metricRunId),
+    enabled: false,
+    retry: false,
+    queryFn: async () => {
+      if (fundId === null || metricRunId === null) {
+        const error = new Error('fundId and metricRunId are required') as LpReportingHookError;
+        error.code = 'MISSING_METRIC_RUN_REPORT_PACKAGE_STORED_JSON_SCOPE';
+        throw error;
+      }
+      return getMetricRunReportPackageStoredJsonArtifact(fundId, metricRunId);
+    },
+  });
+}
+
+export function useMetricRunReportPackageStoredJsonExportCreate(
+  fundId: number | null,
+  metricRunId: number | null
+) {
+  const queryClient = useQueryClient();
+
+  return useMutation<ReportPackageJsonStoredExportResponse, LpReportingHookError, void>({
+    mutationFn: async () => {
+      if (fundId === null || metricRunId === null) {
+        const error = new Error('fundId and metricRunId are required') as LpReportingHookError;
+        error.code = 'MISSING_METRIC_RUN_REPORT_PACKAGE_STORED_JSON_SCOPE';
+        throw error;
+      }
+      return createMetricRunReportPackageStoredJsonExport(fundId, metricRunId);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: metricRunReportPackageStoredJsonExportQueryKey(fundId, metricRunId),
+      });
+      queryClient.invalidateQueries({
+        queryKey: metricRunReportPackageStoredJsonArtifactQueryKey(fundId, metricRunId),
+      });
+    },
+  });
+}
+
 export function useMetricRunApprove(fundId: number | null, metricRunId: number | null) {
   const queryClient = useQueryClient();
 
@@ -982,5 +1201,8 @@ export type {
   ReportPackageGetResponse,
   ReportPackageJsonExportBlocker,
   ReportPackageJsonExportResponse,
+  ReportPackageJsonStoredArtifactResponse,
+  ReportPackageJsonStoredExportGetResponse,
+  ReportPackageJsonStoredExportResponse,
   ReportPackageRenderModelResponse,
 };

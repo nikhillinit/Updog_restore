@@ -10,6 +10,9 @@
  *   GET  /api/funds/:fundId/metric-runs/:metricRunId/report-package
  *   GET  /api/funds/:fundId/metric-runs/:metricRunId/report-package/render-model
  *   GET  /api/funds/:fundId/metric-runs/:metricRunId/report-package/export/json
+ *   POST /api/funds/:fundId/metric-runs/:metricRunId/report-package/exports/json
+ *   GET  /api/funds/:fundId/metric-runs/:metricRunId/report-package/exports/json
+ *   GET  /api/funds/:fundId/metric-runs/:metricRunId/report-package/exports/json/artifact
  *   POST /api/funds/:fundId/metric-runs/:metricRunId/report-package
  *   GET  /api/funds/:fundId/metric-runs/:metricRunId/evidence-records
  *   POST /api/funds/:fundId/metric-runs/:metricRunId/evidence-records
@@ -31,6 +34,7 @@
 
 import { Router, type Request, type Response } from 'express';
 import rateLimit from 'express-rate-limit';
+import { z } from 'zod';
 
 import { requireAuth, requireFundAccess } from '../../lib/auth/jwt';
 import { firstString } from '../../lib/request-values';
@@ -61,6 +65,9 @@ import {
   ReportPackageGetResponseSchema,
   ReportPackageJsonExportBlockedResponseSchema,
   ReportPackageJsonExportResponseSchema,
+  ReportPackageJsonStoredArtifactResponseSchema,
+  ReportPackageJsonStoredExportGetResponseSchema,
+  ReportPackageJsonStoredExportResponseSchema,
   ReportPackageRenderModelResponseSchema,
 } from '@shared/contracts/lp-reporting';
 import {
@@ -94,9 +101,19 @@ import {
   getMetricRunReportPackageJsonExport,
   ReportPackageJsonExportBlockedError,
 } from '../../services/lp-reporting/report-package-json-export-service';
+import {
+  createMetricRunReportPackageStoredJsonExport,
+  getMetricRunReportPackageStoredJsonArtifact,
+  getMetricRunReportPackageStoredJsonExport,
+  reportPackageExportContentHashConflictBody,
+  reportPackageExportNotFoundBody,
+  ReportPackageExportContentHashConflictError,
+  ReportPackageExportNotFoundError,
+} from '../../services/lp-reporting/report-package-json-stored-export-service';
 import { getMetricRunReportPackageRenderModel } from '../../services/lp-reporting/report-package-render-model-service';
 
 const router = Router();
+const EmptyRequestBodySchema = z.object({}).strict();
 
 const metricRunLimiter = rateLimit({
   windowMs: 60 * 60 * 1000,
@@ -218,6 +235,24 @@ function sendReportPackageJsonExportError(res: Response, err: unknown): Response
       blockers: err.blockers,
     });
     return res.status(409).json(blocked);
+  }
+  return sendMetricRunError(res, err, 'METRIC_RUN_REPORT_PACKAGE_JSON_EXPORT_FAILED');
+}
+
+function sendReportPackageStoredJsonExportError(res: Response, err: unknown): Response {
+  if (err instanceof ReportPackageJsonExportBlockedError) {
+    const blocked = ReportPackageJsonExportBlockedResponseSchema.parse({
+      error: 'REPORT_PACKAGE_JSON_EXPORT_BLOCKED',
+      message: err.message,
+      blockers: err.blockers,
+    });
+    return res.status(409).json(blocked);
+  }
+  if (err instanceof ReportPackageExportContentHashConflictError) {
+    return res.status(409).json(reportPackageExportContentHashConflictBody(err));
+  }
+  if (err instanceof ReportPackageExportNotFoundError) {
+    return res.status(404).json(reportPackageExportNotFoundBody(err));
   }
   return sendMetricRunError(res, err, 'METRIC_RUN_REPORT_PACKAGE_JSON_EXPORT_FAILED');
 }
@@ -438,6 +473,72 @@ router.get(
       return res.status(200).json(validated);
     } catch (err) {
       return sendReportPackageJsonExportError(res, err);
+    }
+  }
+);
+
+router.post(
+  '/api/funds/:fundId/metric-runs/:metricRunId/report-package/exports/json',
+  requireAuth(),
+  requireFundAccess,
+  metricRunLimiter,
+  async (req: Request, res: Response) => {
+    const parsed = EmptyRequestBodySchema.safeParse(req.body ?? {});
+    if (!parsed.success) {
+      return res.status(400).json({
+        error: 'INVALID_REQUEST_BODY',
+        issues: parsed.error.issues,
+      });
+    }
+
+    try {
+      const result = await createMetricRunReportPackageStoredJsonExport({
+        fundId: parseFundId(req),
+        metricRunId: parseMetricRunId(req),
+        userId: resolveAuthenticatedUserId(req),
+      });
+      const validated = ReportPackageJsonStoredExportResponseSchema.parse(result);
+      return res.status(validated.inserted ? 201 : 200).json(validated);
+    } catch (err) {
+      return sendReportPackageStoredJsonExportError(res, err);
+    }
+  }
+);
+
+router.get(
+  '/api/funds/:fundId/metric-runs/:metricRunId/report-package/exports/json',
+  requireAuth(),
+  requireFundAccess,
+  metricRunLimiter,
+  async (req: Request, res: Response) => {
+    try {
+      const result = await getMetricRunReportPackageStoredJsonExport({
+        fundId: parseFundId(req),
+        metricRunId: parseMetricRunId(req),
+      });
+      const validated = ReportPackageJsonStoredExportGetResponseSchema.parse(result);
+      return res.status(200).json(validated);
+    } catch (err) {
+      return sendReportPackageStoredJsonExportError(res, err);
+    }
+  }
+);
+
+router.get(
+  '/api/funds/:fundId/metric-runs/:metricRunId/report-package/exports/json/artifact',
+  requireAuth(),
+  requireFundAccess,
+  metricRunLimiter,
+  async (req: Request, res: Response) => {
+    try {
+      const result = await getMetricRunReportPackageStoredJsonArtifact({
+        fundId: parseFundId(req),
+        metricRunId: parseMetricRunId(req),
+      });
+      const validated = ReportPackageJsonStoredArtifactResponseSchema.parse(result);
+      return res.status(200).json(validated);
+    } catch (err) {
+      return sendReportPackageStoredJsonExportError(res, err);
     }
   }
 );

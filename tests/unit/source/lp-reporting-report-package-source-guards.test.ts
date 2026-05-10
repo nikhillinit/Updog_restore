@@ -44,6 +44,9 @@ describe('LP Reporting report-package source guards', () => {
     const jsonExportServiceSource = read(
       'server/services/lp-reporting/report-package-json-export-service.ts'
     );
+    const storedJsonExportServiceSource = read(
+      'server/services/lp-reporting/report-package-json-stored-export-service.ts'
+    );
     const metricsPageSource = read('client/src/pages/lp-reporting/metrics.tsx');
 
     expect(routeSource).toContain(
@@ -70,6 +73,15 @@ describe('LP Reporting report-package source guards', () => {
     expect(jsonExportServiceSource).not.toMatch(/storageKey|signedUrl|downloadUrl|publicUrl/);
     expect(jsonExportServiceSource).not.toMatch(/\bQueue\b|report-generation/);
     expect(jsonExportServiceSource).not.toMatch(/\b(?:db|database)\.(insert|update|delete)\(/);
+
+    expect(storedJsonExportServiceSource).toContain('lpReportPackageExports');
+    expect(storedJsonExportServiceSource).toMatch(/\.insert\(lpReportPackageExports\)/);
+    expect(storedJsonExportServiceSource).not.toMatch(
+      /report-generation-queue|pdf-generation-service|xlsx-generation-service|routes\/lp-api/
+    );
+    expect(storedJsonExportServiceSource).not.toMatch(/storageKey|signedUrl|downloadUrl|publicUrl/);
+    expect(storedJsonExportServiceSource).not.toMatch(/\bQueue\b|report-generation/);
+    expect(storedJsonExportServiceSource).not.toMatch(/lpReports/);
 
     expect(metricsPageSource).not.toContain('@/hooks/useLPReports');
     expect(metricsPageSource).not.toMatch(
