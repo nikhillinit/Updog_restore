@@ -10,9 +10,11 @@ const NonnegativeIntegerSchema = z.number().int().nonnegative();
 const Sha256HexSchema = z.string().regex(/^[a-f0-9]{64}$/);
 
 export const ReportPackageJsonExportFormatSchema = z.literal('json');
-export const ReportPackageExportFormatSchema = z.literal('json');
+export const ReportPackageCsvExportFormatSchema = z.literal('csv');
+export const ReportPackageExportFormatSchema = z.enum(['json', 'csv']);
 export const ReportPackageExportStatusSchema = z.literal('ready');
 export const ReportPackageExportHashAlgorithmSchema = z.literal('sha256');
+export const ReportPackageCsvContentTypeSchema = z.literal('text/csv; charset=utf-8');
 
 export const ReportPackageJsonExportArtifactSchema = z
   .object({
@@ -27,6 +29,18 @@ export const ReportPackageJsonExportDocumentSchema = ReportPackageJsonExportArti
   contentHashAlgorithm: ReportPackageExportHashAlgorithmSchema,
   contentHash: Sha256HexSchema,
 }).strict();
+
+export const ReportPackageCsvExportDocumentSchema = z
+  .object({
+    exportVersion: z.literal(1),
+    format: ReportPackageCsvExportFormatSchema,
+    sourceJsonExportId: PositiveIdSchema,
+    sourceJsonContentHash: Sha256HexSchema,
+    contentType: ReportPackageCsvContentTypeSchema,
+    filename: z.string().min(1),
+    csv: z.string().min(1),
+  })
+  .strict();
 
 export const ReportPackageJsonExportResponseSchema = z
   .object({
@@ -73,6 +87,38 @@ export const ReportPackageJsonStoredArtifactResponseSchema = z
   })
   .strict();
 
+const ReportPackageCsvStoredExportMetadataFields = {
+  sourceJsonExportId: PositiveIdSchema,
+  sourceJsonContentHash: Sha256HexSchema,
+  contentType: ReportPackageCsvContentTypeSchema,
+  filename: z.string().min(1),
+} as const;
+
+export const ReportPackageCsvStoredExportResponseSchema = z
+  .object({
+    record: ReportPackageExportRecordSchema,
+    inserted: z.boolean(),
+    ...ReportPackageCsvStoredExportMetadataFields,
+  })
+  .strict();
+
+export const ReportPackageCsvStoredExportGetResponseSchema = z.union([
+  z.object({ record: z.null() }).strict(),
+  z
+    .object({
+      record: ReportPackageExportRecordSchema,
+      ...ReportPackageCsvStoredExportMetadataFields,
+    })
+    .strict(),
+]);
+
+export const ReportPackageCsvStoredArtifactResponseSchema = z
+  .object({
+    record: ReportPackageExportRecordSchema,
+    csv: ReportPackageCsvExportDocumentSchema,
+  })
+  .strict();
+
 export const ReportPackageExportNotFoundResponseSchema = z
   .object({
     error: z.literal('REPORT_PACKAGE_EXPORT_NOT_FOUND'),
@@ -86,6 +132,13 @@ export const ReportPackageExportContentHashConflictResponseSchema = z
     message: z.string().min(1),
     storedContentHash: Sha256HexSchema,
     currentContentHash: Sha256HexSchema,
+  })
+  .strict();
+
+export const ReportPackageCsvSourceJsonExportRequiredResponseSchema = z
+  .object({
+    error: z.literal('REPORT_PACKAGE_CSV_SOURCE_JSON_EXPORT_REQUIRED'),
+    message: z.string().min(1),
   })
   .strict();
 
@@ -114,6 +167,7 @@ export const ReportPackageJsonExportBlockedResponseSchema = z
 
 export type ReportPackageJsonExportArtifact = z.infer<typeof ReportPackageJsonExportArtifactSchema>;
 export type ReportPackageJsonExportDocument = z.infer<typeof ReportPackageJsonExportDocumentSchema>;
+export type ReportPackageCsvExportDocument = z.infer<typeof ReportPackageCsvExportDocumentSchema>;
 export type ReportPackageJsonExportResponse = z.infer<typeof ReportPackageJsonExportResponseSchema>;
 export type ReportPackageExportFormat = z.infer<typeof ReportPackageExportFormatSchema>;
 export type ReportPackageExportStatus = z.infer<typeof ReportPackageExportStatusSchema>;
@@ -127,11 +181,23 @@ export type ReportPackageJsonStoredExportGetResponse = z.infer<
 export type ReportPackageJsonStoredArtifactResponse = z.infer<
   typeof ReportPackageJsonStoredArtifactResponseSchema
 >;
+export type ReportPackageCsvStoredExportResponse = z.infer<
+  typeof ReportPackageCsvStoredExportResponseSchema
+>;
+export type ReportPackageCsvStoredExportGetResponse = z.infer<
+  typeof ReportPackageCsvStoredExportGetResponseSchema
+>;
+export type ReportPackageCsvStoredArtifactResponse = z.infer<
+  typeof ReportPackageCsvStoredArtifactResponseSchema
+>;
 export type ReportPackageExportNotFoundResponse = z.infer<
   typeof ReportPackageExportNotFoundResponseSchema
 >;
 export type ReportPackageExportContentHashConflictResponse = z.infer<
   typeof ReportPackageExportContentHashConflictResponseSchema
+>;
+export type ReportPackageCsvSourceJsonExportRequiredResponse = z.infer<
+  typeof ReportPackageCsvSourceJsonExportRequiredResponseSchema
 >;
 export type ReportPackageJsonExportBlocker = z.infer<typeof ReportPackageJsonExportBlockerSchema>;
 export type ReportPackageJsonExportBlockedResponse = z.infer<

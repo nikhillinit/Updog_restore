@@ -47,6 +47,9 @@ describe('LP Reporting report-package source guards', () => {
     const storedJsonExportServiceSource = read(
       'server/services/lp-reporting/report-package-json-stored-export-service.ts'
     );
+    const storedCsvExportServiceSource = read(
+      'server/services/lp-reporting/report-package-csv-stored-export-service.ts'
+    );
     const metricsPageSource = read('client/src/pages/lp-reporting/metrics.tsx');
 
     expect(routeSource).toContain(
@@ -54,6 +57,12 @@ describe('LP Reporting report-package source guards', () => {
     );
     expect(routeSource).toContain(
       '/api/funds/:fundId/metric-runs/:metricRunId/report-package/export/json'
+    );
+    expect(routeSource).toContain(
+      '/api/funds/:fundId/metric-runs/:metricRunId/report-package/exports/csv'
+    );
+    expect(routeSource).toContain(
+      '/api/funds/:fundId/metric-runs/:metricRunId/report-package/exports/csv/artifact'
     );
     expect(routeSource).not.toContain('/api/lp/reports/generate');
     expect(routeSource).not.toMatch(
@@ -82,6 +91,19 @@ describe('LP Reporting report-package source guards', () => {
     expect(storedJsonExportServiceSource).not.toMatch(/storageKey|signedUrl|downloadUrl|publicUrl/);
     expect(storedJsonExportServiceSource).not.toMatch(/\bQueue\b|report-generation/);
     expect(storedJsonExportServiceSource).not.toMatch(/lpReports/);
+
+    expect(storedCsvExportServiceSource).toContain('lpReportPackageExports');
+    expect(storedCsvExportServiceSource).toMatch(/\.insert\(lpReportPackageExports\)/);
+    expect(storedCsvExportServiceSource).toContain("format: 'csv'");
+    expect(storedCsvExportServiceSource).not.toMatch(
+      /getMetricRunReportPackageJsonExport|getMetricRunReportPackageRenderModel/
+    );
+    expect(storedCsvExportServiceSource).not.toMatch(
+      /report-generation-queue|pdf-generation-service|xlsx-generation-service|routes\/lp-api/
+    );
+    expect(storedCsvExportServiceSource).not.toMatch(/storageKey|signedUrl|downloadUrl|publicUrl/);
+    expect(storedCsvExportServiceSource).not.toMatch(/\bQueue\b|report-generation/);
+    expect(storedCsvExportServiceSource).not.toMatch(/lpReports/);
 
     expect(metricsPageSource).not.toContain('@/hooks/useLPReports');
     expect(metricsPageSource).not.toMatch(

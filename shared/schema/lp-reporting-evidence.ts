@@ -553,7 +553,10 @@ export const lpReportPackageExports = pgTable(
     updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow(),
   },
   (table) => ({
-    formatCheck: check('lp_report_package_export_format_check', sql`${table.format} IN ('json')`),
+    formatCheck: check(
+      'lp_report_package_export_format_check',
+      sql`${table.format} IN ('json','csv')`
+    ),
     versionCheck: check('lp_report_package_export_version_check', sql`${table.exportVersion} = 1`),
     statusCheck: check('lp_report_package_export_status_check', sql`${table.status} IN ('ready')`),
     hashAlgorithmCheck: check(

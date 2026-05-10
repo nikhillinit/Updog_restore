@@ -19,6 +19,10 @@ import {
   NarrativeRunLifecycleResponseSchema,
   NarrativeRunListResponseSchema,
   ReportPackageAssembleResponseSchema,
+  ReportPackageCsvSourceJsonExportRequiredResponseSchema,
+  ReportPackageCsvStoredArtifactResponseSchema,
+  ReportPackageCsvStoredExportGetResponseSchema,
+  ReportPackageCsvStoredExportResponseSchema,
   ReportPackageExportContentHashConflictResponseSchema,
   ReportPackageExportNotFoundResponseSchema,
   ReportPackageGetResponseSchema,
@@ -1721,6 +1725,100 @@ describe('metric-run report package routes', () => {
     );
   });
 
+  it('stores, replays, reads, and returns a package CSV artifact from stored JSON only', async () => {
+    seedLockedMetricRun();
+    seedApprovedNarratives();
+    seedMetricRunEvidence();
+    const app = buildApp();
+
+    const assemble = await request(app)
+      .post('/api/funds/1/metric-runs/500/report-package')
+      .send(reportPackageBody());
+    expect(assemble.status).toBe(201);
+
+    const missingMetadata = await request(app).get(
+      '/api/funds/1/metric-runs/500/report-package/exports/csv'
+    );
+    expect(missingMetadata.status).toBe(200);
+    expect(ReportPackageCsvStoredExportGetResponseSchema.parse(missingMetadata.body)).toEqual({
+      record: null,
+    });
+
+    const missingArtifact = await request(app).get(
+      '/api/funds/1/metric-runs/500/report-package/exports/csv/artifact'
+    );
+    expect(missingArtifact.status).toBe(404);
+    expect(ReportPackageExportNotFoundResponseSchema.parse(missingArtifact.body).error).toBe(
+      'REPORT_PACKAGE_EXPORT_NOT_FOUND'
+    );
+
+    const invalid = await request(app)
+      .post('/api/funds/1/metric-runs/500/report-package/exports/csv')
+      .send({ filename: 'client.csv' });
+    expect(invalid.status).toBe(400);
+    expect(invalid.body.error).toBe('INVALID_REQUEST_BODY');
+
+    const sourceRequired = await request(app).post(
+      '/api/funds/1/metric-runs/500/report-package/exports/csv'
+    );
+    expect(sourceRequired.status).toBe(409);
+    expect(
+      ReportPackageCsvSourceJsonExportRequiredResponseSchema.parse(sourceRequired.body).error
+    ).toBe('REPORT_PACKAGE_CSV_SOURCE_JSON_EXPORT_REQUIRED');
+    expect(dbState.insertedReportPackageExportRows).toHaveLength(0);
+
+    const json = await request(app).post(
+      '/api/funds/1/metric-runs/500/report-package/exports/json'
+    );
+    expect(json.status).toBe(201);
+    const jsonParsed = ReportPackageJsonStoredExportResponseSchema.parse(json.body);
+
+    const created = await request(app).post(
+      '/api/funds/1/metric-runs/500/report-package/exports/csv'
+    );
+    expect(created.status).toBe(201);
+    const createdParsed = ReportPackageCsvStoredExportResponseSchema.parse(created.body);
+    expect(createdParsed.inserted).toBe(true);
+    expect(createdParsed.record.reportPackageExportId).toBe(4001);
+    expect(createdParsed.record.format).toBe('csv');
+    expect(createdParsed.sourceJsonExportId).toBe(jsonParsed.record.reportPackageExportId);
+    expect(createdParsed.sourceJsonContentHash).toBe(jsonParsed.record.contentHash);
+    expect(createdParsed.contentType).toBe('text/csv; charset=utf-8');
+    expect(createdParsed.filename).toBe('lp-report-package-1-500-csv-v1.csv');
+    expect(created.body).not.toHaveProperty('csv');
+    expect(created.body).not.toHaveProperty('storageKey');
+    expect(dbState.insertedReportPackageExportRows).toHaveLength(2);
+
+    const replay = await request(app).post(
+      '/api/funds/1/metric-runs/500/report-package/exports/csv'
+    );
+    expect(replay.status).toBe(200);
+    expect(ReportPackageCsvStoredExportResponseSchema.parse(replay.body).inserted).toBe(false);
+    expect(dbState.insertedReportPackageExportRows).toHaveLength(2);
+
+    const metadata = await request(app).get(
+      '/api/funds/1/metric-runs/500/report-package/exports/csv'
+    );
+    expect(metadata.status).toBe(200);
+    const metadataParsed = ReportPackageCsvStoredExportGetResponseSchema.parse(metadata.body);
+    expect(metadataParsed.record?.format).toBe('csv');
+    expect(metadata.body).not.toHaveProperty('csv');
+    expect(metadata.body).not.toHaveProperty('downloadUrl');
+
+    const artifactRes = await request(app).get(
+      '/api/funds/1/metric-runs/500/report-package/exports/csv/artifact'
+    );
+    expect(artifactRes.status).toBe(200);
+    const artifactParsed = ReportPackageCsvStoredArtifactResponseSchema.parse(artifactRes.body);
+    expect(artifactParsed.record.reportPackageExportId).toBe(4001);
+    expect(artifactParsed.csv.format).toBe('csv');
+    expect(artifactParsed.csv.sourceJsonExportId).toBe(jsonParsed.record.reportPackageExportId);
+    expect(artifactParsed.csv.csv).toContain('section,field,value\n');
+    expect(artifactParsed.record.artifactSizeBytes).toBe(
+      Buffer.byteLength(artifactParsed.csv.csv, 'utf8')
+    );
+  });
+
   it('POST stored JSON export rejects route-owned body fields and blocked packages', async () => {
     seedLockedMetricRun();
     seedApprovedNarratives();
@@ -1792,6 +1890,61 @@ describe('metric-run report package routes', () => {
     expect(conflict.body).not.toHaveProperty('export');
     expect(conflict.body).not.toHaveProperty('renderModel');
     expect(dbState.insertedReportPackageExportRows).toHaveLength(0);
+  });
+
+  it('POST stored CSV export rejects deterministic hash drift without overwriting', async () => {
+    seedLockedMetricRun();
+    seedApprovedNarratives();
+    seedMetricRunEvidence();
+    const app = buildApp();
+
+    const assemble = await request(app)
+      .post('/api/funds/1/metric-runs/500/report-package')
+      .send(reportPackageBody());
+    expect(assemble.status).toBe(201);
+
+    const json = await request(app).post(
+      '/api/funds/1/metric-runs/500/report-package/exports/json'
+    );
+    expect(json.status).toBe(201);
+    const jsonParsed = ReportPackageJsonStoredExportResponseSchema.parse(json.body);
+    dbState.reportPackageExports.push({
+      id: 4001,
+      fundId: 1,
+      metricRunId: 500,
+      reportPackageId: 3000,
+      format: 'csv',
+      exportVersion: 1,
+      status: 'ready',
+      contentHashAlgorithm: 'sha256',
+      contentHash: 'd'.repeat(64),
+      artifactPayload: {
+        exportVersion: 1,
+        format: 'csv',
+        sourceJsonExportId: jsonParsed.record.reportPackageExportId,
+        sourceJsonContentHash: jsonParsed.record.contentHash,
+        contentType: 'text/csv; charset=utf-8',
+        filename: 'lp-report-package-1-500-csv-v1.csv',
+        csv: 'section,field,value\n',
+      },
+      artifactSizeBytes: 20,
+      createdBy: authState.userId,
+      readyAt: new Date('2026-05-10T04:00:00Z'),
+      createdAt: new Date('2026-05-10T04:00:00Z'),
+      updatedAt: new Date('2026-05-10T04:00:00Z'),
+    });
+
+    const conflict = await request(app).post(
+      '/api/funds/1/metric-runs/500/report-package/exports/csv'
+    );
+    expect(conflict.status).toBe(409);
+    const parsed = ReportPackageExportContentHashConflictResponseSchema.parse(conflict.body);
+    expect(parsed.error).toBe('EXPORT_CONTENT_HASH_CONFLICT');
+    expect(parsed.storedContentHash).toBe('d'.repeat(64));
+    expect(parsed.currentContentHash).toMatch(/^[a-f0-9]{64}$/);
+    expect(conflict.body).not.toHaveProperty('csv');
+    expect(conflict.body).not.toHaveProperty('renderModel');
+    expect(dbState.insertedReportPackageExportRows).toHaveLength(1);
   });
 
   it('GET render-model returns REPORT_PACKAGE_NOT_FOUND before assembly', async () => {
@@ -2115,6 +2268,7 @@ describe('Source grep -- metric-run route boundaries', () => {
       '/api/funds/:fundId/metric-runs/:metricRunId/approve',
       '/api/funds/:fundId/metric-runs/:metricRunId/lock',
       '/api/funds/:fundId/metric-runs/:metricRunId/report-package/exports/json',
+      '/api/funds/:fundId/metric-runs/:metricRunId/report-package/exports/csv',
       '/api/funds/:fundId/metric-runs/:metricRunId/report-package',
       '/api/funds/:fundId/metric-runs/:metricRunId/evidence-records',
       '/api/funds/:fundId/metric-runs/:metricRunId/narrative-runs',
@@ -2144,6 +2298,8 @@ describe('Source grep -- metric-run route boundaries', () => {
       '/api/funds/:fundId/metric-runs/:metricRunId/report-package/export/json',
       '/api/funds/:fundId/metric-runs/:metricRunId/report-package/exports/json',
       '/api/funds/:fundId/metric-runs/:metricRunId/report-package/exports/json/artifact',
+      '/api/funds/:fundId/metric-runs/:metricRunId/report-package/exports/csv',
+      '/api/funds/:fundId/metric-runs/:metricRunId/report-package/exports/csv/artifact',
       '/api/funds/:fundId/metric-runs/:metricRunId/evidence-records',
       '/api/funds/:fundId/metric-runs/:metricRunId/narrative-runs',
       '/api/funds/:fundId/metric-runs/:metricRunId/narrative-runs/:narrativeRunId',

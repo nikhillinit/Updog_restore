@@ -21,7 +21,7 @@
  */
 
 import { useCallback, useState, type FormEvent } from 'react';
-import { CheckCircle2, FileJson, Save } from 'lucide-react';
+import { CheckCircle2, FileJson, FileSpreadsheet, Save } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
@@ -44,6 +44,7 @@ import {
   type MetricRunLifecycleResponse,
   type NarrativeRunRecord,
   type NarrativeType,
+  type ReportPackageCsvStoredArtifactResponse,
   type ReportPackageJsonExportResponse,
   type ReportPackageRenderMetricRow,
 } from '@shared/contracts/lp-reporting';
@@ -64,6 +65,9 @@ import {
   useMetricRunReportPackageAssemble,
   useMetricRunReportPackageJsonExport,
   useMetricRunReportPackageRenderModel,
+  useMetricRunReportPackageStoredCsvArtifact,
+  useMetricRunReportPackageStoredCsvExport,
+  useMetricRunReportPackageStoredCsvExportCreate,
   useMetricRunReportPackageStoredJsonArtifact,
   useMetricRunReportPackageStoredJsonExport,
   useMetricRunReportPackageStoredJsonExportCreate,
@@ -167,6 +171,18 @@ function envelopeFor(err: LpReportingHookError): ErrorEnvelope {
       description: 'This metric run already has an assembled package with different refs.',
     };
   }
+  if (err.code === 'REPORT_PACKAGE_CSV_SOURCE_JSON_EXPORT_REQUIRED') {
+    return {
+      title: 'Stored JSON required',
+      description: 'Store the package JSON artifact before creating a stored CSV export.',
+    };
+  }
+  if (err.code === 'EXPORT_CONTENT_HASH_CONFLICT') {
+    return {
+      title: 'Export conflict',
+      description: 'The stored export does not match the current deterministic artifact.',
+    };
+  }
   if (
     err.code === 'REPORT_PACKAGE_NARRATIVE_SET_INVALID' ||
     err.code === 'NARRATIVE_RUN_STATUS_CONFLICT'
@@ -261,6 +277,25 @@ function saveReportPackageJsonExport(
   URL.revokeObjectURL(url);
 }
 
+function saveReportPackageCsvExport(
+  response: ReportPackageCsvStoredArtifactResponse,
+  fundId: number,
+  metricRunId: number
+): void {
+  const blob = new Blob([response.csv.csv], {
+    type: response.csv.contentType,
+  });
+  const url = URL.createObjectURL(blob);
+  const anchor = document.createElement('a');
+  anchor.href = url;
+  anchor.download =
+    response.csv.filename || `lp-report-package-${fundId}-${metricRunId}-csv-v1.csv`;
+  document.body.append(anchor);
+  anchor.click();
+  anchor.remove();
+  URL.revokeObjectURL(url);
+}
+
 export default function LpReportingMetricsPage() {
   const { fundId } = useFundContext();
   const commitMutation = useMetricRunCommit(fundId);
@@ -343,6 +378,18 @@ export default function LpReportingMetricsPage() {
       fundId,
       reportPackageRecord === null ? null : lockedMetricRunId
     );
+  const reportPackageStoredCsvExportQuery = useMetricRunReportPackageStoredCsvExport(
+    fundId,
+    reportPackageRecord === null ? null : lockedMetricRunId
+  );
+  const reportPackageStoredCsvArtifactQuery = useMetricRunReportPackageStoredCsvArtifact(
+    fundId,
+    reportPackageRecord === null ? null : lockedMetricRunId
+  );
+  const reportPackageStoredCsvExportCreateMutation = useMetricRunReportPackageStoredCsvExportCreate(
+    fundId,
+    reportPackageRecord === null ? null : lockedMetricRunId
+  );
 
   const handleSuccess = useCallback(
     (response: MetricRunDryRunResponse, request: MetricRunDryRunRequest) => {
@@ -595,6 +642,25 @@ export default function LpReportingMetricsPage() {
     }
   }, [fundId, lockedMetricRunId, reportPackageStoredJsonArtifactQuery]);
 
+  const handleReportPackageStoredCsvCreate = useCallback(async () => {
+    try {
+      await reportPackageStoredCsvExportCreateMutation.mutateAsync();
+    } catch {
+      // The mutation error is rendered from reportPackageStoredCsvExportCreateMutation.error.
+    }
+  }, [reportPackageStoredCsvExportCreateMutation]);
+
+  const handleReportPackageStoredCsvExport = useCallback(async () => {
+    if (fundId === null || lockedMetricRunId === null) {
+      return;
+    }
+
+    const result = await reportPackageStoredCsvArtifactQuery.refetch();
+    if (result.data) {
+      saveReportPackageCsvExport(result.data, fundId, lockedMetricRunId);
+    }
+  }, [fundId, lockedMetricRunId, reportPackageStoredCsvArtifactQuery]);
+
   const results = dryRun?.results ?? null;
   const envelope = dryRunError ? envelopeFor(dryRunError) : null;
   const commitEnvelope = commitError ? envelopeFor(commitError) : null;
@@ -636,6 +702,22 @@ export default function LpReportingMetricsPage() {
     reportPackageStoredJsonError && reportPackageStoredJsonBlockers.length === 0
       ? envelopeFor(reportPackageStoredJsonError)
       : null;
+  const reportPackageStoredCsvRecord =
+    reportPackageStoredCsvExportCreateMutation.data?.record ??
+    reportPackageStoredCsvExportQuery.data?.record ??
+    null;
+  const reportPackageStoredCsvMetadata =
+    reportPackageStoredCsvExportCreateMutation.data ??
+    (reportPackageStoredCsvExportQuery.data?.record
+      ? reportPackageStoredCsvExportQuery.data
+      : null);
+  const reportPackageStoredCsvError =
+    reportPackageStoredCsvExportCreateMutation.error ??
+    (reportPackageStoredCsvArtifactQuery.error as LpReportingHookError | null) ??
+    (reportPackageStoredCsvExportQuery.error as LpReportingHookError | null);
+  const reportPackageStoredCsvEnvelope = reportPackageStoredCsvError
+    ? envelopeFor(reportPackageStoredCsvError)
+    : null;
   const approvedNarrativeCount = narrativeRecords.filter(
     (record) => record.status === 'approved'
   ).length;
@@ -715,6 +797,16 @@ export default function LpReportingMetricsPage() {
     fundId !== null &&
     lockedMetricRunId !== null &&
     !reportPackageStoredJsonArtifactQuery.isFetching;
+  const canStoreReportPackageCsv =
+    reportPackageRenderModel !== null &&
+    fundId !== null &&
+    lockedMetricRunId !== null &&
+    !reportPackageStoredCsvExportCreateMutation.isPending;
+  const canExportStoredReportPackageCsv =
+    reportPackageStoredCsvRecord !== null &&
+    fundId !== null &&
+    lockedMetricRunId !== null &&
+    !reportPackageStoredCsvArtifactQuery.isFetching;
   const reportPackageError =
     reportPackageAssembleMutation.error ??
     (reportPackageQuery.error as LpReportingHookError | null) ??
@@ -1503,11 +1595,37 @@ export default function LpReportingMetricsPage() {
                           </Alert>
                         ) : null}
 
+                        {reportPackageStoredCsvEnvelope ? (
+                          <Alert
+                            variant="destructive"
+                            data-testid="metric-run-report-package-stored-csv-error"
+                            data-error-status={reportPackageStoredCsvError?.status ?? ''}
+                          >
+                            <AlertTitle>{reportPackageStoredCsvEnvelope.title}</AlertTitle>
+                            <AlertDescription>
+                              {reportPackageStoredCsvEnvelope.description}
+                            </AlertDescription>
+                          </Alert>
+                        ) : null}
+
                         {reportPackageJsonExportHash ? (
                           <Alert data-testid="metric-run-report-package-json-export-result">
                             <AlertTitle>JSON handoff ready</AlertTitle>
                             <AlertDescription>
                               SHA-256 {reportPackageJsonExportHash.slice(0, 12)}...
+                            </AlertDescription>
+                          </Alert>
+                        ) : null}
+
+                        {reportPackageStoredCsvRecord && reportPackageStoredCsvMetadata ? (
+                          <Alert data-testid="metric-run-report-package-stored-csv-result">
+                            <AlertTitle>Stored CSV ready</AlertTitle>
+                            <AlertDescription>
+                              Status {reportPackageStoredCsvRecord.status}; SHA-256{' '}
+                              {reportPackageStoredCsvRecord.contentHash.slice(0, 12)}...; source
+                              JSON #{reportPackageStoredCsvMetadata.sourceJsonExportId}; created{' '}
+                              {reportPackageStoredCsvRecord.createdAt} by user #
+                              {reportPackageStoredCsvRecord.createdBy}.
                             </AlertDescription>
                           </Alert>
                         ) : null}
@@ -1564,6 +1682,30 @@ export default function LpReportingMetricsPage() {
                               {reportPackageStoredJsonArtifactQuery.isFetching
                                 ? 'Preparing...'
                                 : 'Export stored JSON'}
+                            </Button>
+                            <Button
+                              type="button"
+                              variant="outline"
+                              onClick={() => void handleReportPackageStoredCsvCreate()}
+                              disabled={!canStoreReportPackageCsv}
+                              data-testid="metric-run-report-package-store-csv"
+                            >
+                              <Save className="mr-2 h-4 w-4" aria-hidden="true" />
+                              {reportPackageStoredCsvExportCreateMutation.isPending
+                                ? 'Storing...'
+                                : 'Store CSV'}
+                            </Button>
+                            <Button
+                              type="button"
+                              variant="outline"
+                              onClick={() => void handleReportPackageStoredCsvExport()}
+                              disabled={!canExportStoredReportPackageCsv}
+                              data-testid="metric-run-report-package-export-stored-csv"
+                            >
+                              <FileSpreadsheet className="mr-2 h-4 w-4" aria-hidden="true" />
+                              {reportPackageStoredCsvArtifactQuery.isFetching
+                                ? 'Preparing...'
+                                : 'Export stored CSV'}
                             </Button>
                           </div>
                         </div>

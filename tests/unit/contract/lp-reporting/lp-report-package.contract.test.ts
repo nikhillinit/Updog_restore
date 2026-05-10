@@ -6,7 +6,13 @@ import { describe, expect, it } from 'vitest';
 import {
   ReportPackageAssembleRequestSchema,
   ReportPackageAssembleResponseSchema,
+  ReportPackageCsvSourceJsonExportRequiredResponseSchema,
+  ReportPackageCsvStoredArtifactResponseSchema,
+  ReportPackageCsvStoredExportGetResponseSchema,
+  ReportPackageCsvStoredExportResponseSchema,
+  ReportPackageCsvExportDocumentSchema,
   ReportPackageExportContentHashConflictResponseSchema,
+  ReportPackageExportFormatSchema,
   ReportPackageExportNotFoundResponseSchema,
   ReportPackageExportRecordSchema,
   ReportPackageExportStatusSchema,
@@ -344,6 +350,9 @@ describe('ReportPackageRenderModelResponseSchema', () => {
 
   it('parses stored JSON export metadata and rejects artifact or delivery fields', () => {
     expect(ReportPackageExportStatusSchema.parse('ready')).toBe('ready');
+    expect(ReportPackageExportFormatSchema.parse('json')).toBe('json');
+    expect(ReportPackageExportFormatSchema.parse('csv')).toBe('csv');
+    expect(() => ReportPackageExportFormatSchema.parse('pdf')).toThrow();
     expect(() => ReportPackageExportStatusSchema.parse('queued')).toThrow();
 
     const record = ReportPackageExportRecordSchema.parse({
@@ -428,5 +437,90 @@ describe('ReportPackageRenderModelResponseSchema', () => {
         currentContentHash: 'e'.repeat(64),
       }).currentContentHash
     ).toBe('e'.repeat(64));
+  });
+
+  it('parses stored CSV export documents, metadata, artifacts, and source-required errors', () => {
+    const record = ReportPackageExportRecordSchema.parse({
+      reportPackageExportId: 4101,
+      fundId: 1,
+      metricRunId: 500,
+      reportPackageId: 501,
+      format: 'csv',
+      exportVersion: 1,
+      status: 'ready',
+      contentHashAlgorithm: 'sha256',
+      contentHash: 'e'.repeat(64),
+      artifactSizeBytes: 99,
+      createdBy: 7,
+      readyAt: '2026-05-10T04:00:00.000Z',
+      createdAt: '2026-05-10T04:00:00.000Z',
+      updatedAt: '2026-05-10T04:00:00.000Z',
+    });
+    const csv = ReportPackageCsvExportDocumentSchema.parse({
+      exportVersion: 1,
+      format: 'csv',
+      sourceJsonExportId: 4100,
+      sourceJsonContentHash: 'd'.repeat(64),
+      contentType: 'text/csv; charset=utf-8',
+      filename: 'lp-report-package-1-500-csv-v1.csv',
+      csv: 'section,field,value\nPackage,Fund ID,1\n',
+    });
+
+    expect(
+      ReportPackageCsvStoredExportResponseSchema.parse({
+        record,
+        inserted: true,
+        sourceJsonExportId: csv.sourceJsonExportId,
+        sourceJsonContentHash: csv.sourceJsonContentHash,
+        contentType: csv.contentType,
+        filename: csv.filename,
+      }).sourceJsonContentHash
+    ).toBe('d'.repeat(64));
+    expect(ReportPackageCsvStoredExportGetResponseSchema.parse({ record: null }).record).toBeNull();
+    expect(
+      ReportPackageCsvStoredExportGetResponseSchema.parse({
+        record,
+        sourceJsonExportId: csv.sourceJsonExportId,
+        sourceJsonContentHash: csv.sourceJsonContentHash,
+        contentType: csv.contentType,
+        filename: csv.filename,
+      }).record?.format
+    ).toBe('csv');
+    expect(
+      ReportPackageCsvStoredArtifactResponseSchema.parse({
+        record,
+        csv,
+      }).csv.contentType
+    ).toBe('text/csv; charset=utf-8');
+    expect(
+      ReportPackageCsvSourceJsonExportRequiredResponseSchema.parse({
+        error: 'REPORT_PACKAGE_CSV_SOURCE_JSON_EXPORT_REQUIRED',
+        message: 'Stored report package JSON export is required before creating a CSV export.',
+      }).error
+    ).toBe('REPORT_PACKAGE_CSV_SOURCE_JSON_EXPORT_REQUIRED');
+
+    for (const field of [
+      'storageKey',
+      'signedUrl',
+      'publicUrl',
+      'downloadUrl',
+      'portalUrl',
+      'email',
+      'share',
+      'pdf',
+      'xlsx',
+    ]) {
+      expect(() =>
+        ReportPackageCsvStoredExportResponseSchema.parse({
+          record,
+          inserted: true,
+          sourceJsonExportId: csv.sourceJsonExportId,
+          sourceJsonContentHash: csv.sourceJsonContentHash,
+          contentType: csv.contentType,
+          filename: csv.filename,
+          [field]: field,
+        })
+      ).toThrow();
+    }
   });
 });
