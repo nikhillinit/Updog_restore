@@ -8,7 +8,7 @@
  *   POST /api/funds/:fundId/imports/ledger/dry-run
  * and we surface the response `preview` rows in the table.
  *
- * NO commit affordance. Persistence ships in Phase 1c.
+ * No commit affordance here; batch commits live on the Imports page.
  *
  * Fund context resolves via `useFundContext().fundId` -- the same
  * pattern the rest of the app uses for fund-scoped routes. When no
@@ -93,8 +93,8 @@ export default function LpReportingLedgerPage() {
       <header>
         <h1 className="text-3xl font-bold font-inter text-charcoal">Ledger</h1>
         <p className="text-charcoal/70 font-poppins mt-1">
-          Preview cash-flow events before commit. No INSERT happens in this view; persistence ships
-          in Phase 1c.
+          Preview cash-flow events before commit. No INSERT happens in this view; use Imports for
+          batch commits.
         </p>
       </header>
 

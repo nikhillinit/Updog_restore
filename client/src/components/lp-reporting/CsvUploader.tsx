@@ -11,7 +11,8 @@
  * `sourceType` prop -- this keeps both hooks behind a single uniform
  * surface for the imports page.
  *
- * No commit affordance. Phase 1b is dry-run only.
+ * The parent receives both the dry-run response and the exact request body so
+ * the Phase 1c commit path can reuse the original payload.
  *
  * @module client/components/lp-reporting/CsvUploader
  */
@@ -24,14 +25,14 @@ import {
   useValuationMarkImportDryRun,
   type LpReportingHookError,
 } from '@/hooks/lp-reporting';
-import type { ImportDryRunResponse } from '@shared/contracts/lp-reporting';
+import type { ImportDryRunRequest, ImportDryRunResponse } from '@shared/contracts/lp-reporting';
 
 export type CsvUploaderSourceType = 'ledger' | 'valuation-marks';
 
 export interface CsvUploaderProps {
   sourceType: CsvUploaderSourceType;
   fundId: number | null;
-  onPreview: (response: ImportDryRunResponse) => void;
+  onPreview: (response: ImportDryRunResponse, request: ImportDryRunRequest) => void;
   onError: (error: LpReportingHookError) => void;
 }
 
@@ -124,9 +125,10 @@ export function CsvUploader({ sourceType, fundId, onPreview, onError }: CsvUploa
       try {
         const csv = await readFileAsText(file);
         const payload = csvToBase64(csv);
-        const result = await mutation.mutateAsync({ sourceType: 'csv', payload });
+        const request: ImportDryRunRequest = { sourceType: 'csv', payload };
+        const result = await mutation.mutateAsync(request);
         setStatus('ready');
-        onPreview(result);
+        onPreview(result, request);
       } catch (err) {
         setStatus('error');
         if (err && typeof err === 'object') {

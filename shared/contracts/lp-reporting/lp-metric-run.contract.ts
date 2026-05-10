@@ -19,6 +19,7 @@
 import { z } from 'zod';
 
 import { DecimalStringSchema } from './cash-flow-event.contract';
+import { PreviewHashSchema } from './import-dry-run.contract';
 
 export const LpMetricRunTypeSchema = z.enum([
   'quarterly_report',
@@ -142,6 +143,49 @@ export const LpMetricRunDiagnosticsSchema = z
   .strict();
 
 export type LpMetricRunDiagnostics = z.infer<typeof LpMetricRunDiagnosticsSchema>;
+
+// ---------------------------------------------------------------------------
+// Dry-run + commit endpoint contracts.
+// ---------------------------------------------------------------------------
+
+export const MetricRunDryRunRequestSchema = z
+  .object({
+    asOfDate: z.string().date(),
+    runType: LpMetricRunTypeSchema,
+    perspective: LpMetricRunPerspectiveSchema,
+    sourceEventIds: z.array(z.number().int().positive()).default([]),
+    sourceMarkIds: z.array(z.number().int().positive()).default([]),
+  })
+  .strict();
+
+export const MetricRunDryRunResponseSchema = z
+  .object({
+    results: LpMetricRunResultsSchema,
+    diagnostics: LpMetricRunDiagnosticsSchema,
+    inputsHash: z.string().regex(/^[a-f0-9]{64}$/),
+    runType: LpMetricRunTypeSchema,
+    previewHash: PreviewHashSchema,
+  })
+  .strict();
+
+export const MetricRunCommitRequestSchema = MetricRunDryRunRequestSchema.extend({
+  previewHash: PreviewHashSchema,
+}).strict();
+
+export const MetricRunCommitResponseSchema = z
+  .object({
+    metricRunId: z.number().int().positive(),
+    status: LpMetricRunStatusSchema,
+    inputsHash: z.string().regex(/^[a-f0-9]{64}$/),
+    previewHash: PreviewHashSchema,
+    inserted: z.boolean(),
+  })
+  .strict();
+
+export type MetricRunDryRunRequest = z.infer<typeof MetricRunDryRunRequestSchema>;
+export type MetricRunDryRunResponse = z.infer<typeof MetricRunDryRunResponseSchema>;
+export type MetricRunCommitRequest = z.infer<typeof MetricRunCommitRequestSchema>;
+export type MetricRunCommitResponse = z.infer<typeof MetricRunCommitResponseSchema>;
 
 // ---------------------------------------------------------------------------
 // CREATE request (mirrors lp_metric_runs row insert).

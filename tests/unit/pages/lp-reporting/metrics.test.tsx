@@ -5,6 +5,8 @@
  *   - Page renders header + form + empty state by default.
  *   - On a successful dry-run the metric cards, XIRR diagnostic panel,
  *     and mark-confidence mix populate.
+ *   - Successful dry-run exposes a commit action and successful commit
+ *     renders the saved draft envelope.
  *   - The page calls `LpMetricRunResultsSchema.parse` defensively at the
  *     trust boundary (asserted via the source file containing the call).
  *   - On 401 the typed error envelope renders above the form.
@@ -38,7 +40,11 @@ vi.mock('@/contexts/FundContext', () => ({
 }));
 
 import LpReportingMetricsPage from '@/pages/lp-reporting/metrics';
-import type { LpMetricRunResults } from '@shared/contracts/lp-reporting';
+import type {
+  LpMetricRunResults,
+  MetricRunCommitResponse,
+  MetricRunDryRunResponse,
+} from '@shared/contracts/lp-reporting';
 
 function renderPage() {
   const queryClient = new QueryClient({
@@ -87,6 +93,31 @@ function makeCanonicalResults(): LpMetricRunResults {
   };
 }
 
+function makeDryRunResponse(): MetricRunDryRunResponse {
+  return {
+    results: makeCanonicalResults(),
+    diagnostics: {
+      engineVersion: 'lp-reporting-engine@1.2.0',
+      decimalPrecision: 6,
+      excludedFutureMarks: [],
+      warnings: [],
+    },
+    inputsHash: 'a'.repeat(64),
+    runType: 'internal_review',
+    previewHash: 'b'.repeat(64),
+  };
+}
+
+function makeCommitResponse(): MetricRunCommitResponse {
+  return {
+    metricRunId: 17,
+    status: 'draft',
+    inputsHash: 'a'.repeat(64),
+    previewHash: 'b'.repeat(64),
+    inserted: true,
+  };
+}
+
 describe('LpReportingMetricsPage', () => {
   beforeEach(() => {
     fundContextMock.fundId = 7;
@@ -106,23 +137,16 @@ describe('LpReportingMetricsPage', () => {
     expect(screen.getByLabelText(/^perspective/i)).toBeInTheDocument();
     expect(screen.getByTestId('metrics-empty-state')).toBeInTheDocument();
     expect(screen.queryByTestId('metrics-results')).toBeNull();
+    expect(screen.queryByTestId('metrics-commit-button')).toBeNull();
     expect(screen.queryByTestId('metrics-error-envelope')).toBeNull();
   });
 
   it('populates cards + diagnostic panel + confidence mix after a successful dry-run', async () => {
     vi.spyOn(globalThis, 'fetch').mockResolvedValue(
-      new Response(
-        JSON.stringify({
-          results: makeCanonicalResults(),
-          diagnostics: { warnings: [] },
-          inputsHash: 'sha256:test',
-          runType: 'quarterly_report',
-        }),
-        {
-          status: 200,
-          headers: { 'Content-Type': 'application/json' },
-        }
-      )
+      new Response(JSON.stringify(makeDryRunResponse()), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      })
     );
 
     renderPage();
@@ -151,7 +175,91 @@ describe('LpReportingMetricsPage', () => {
 
     // Empty state is gone after results land
     expect(screen.queryByTestId('metrics-empty-state')).toBeNull();
+    expect(screen.getByTestId('metrics-commit-button')).toBeEnabled();
     expect(screen.queryByTestId('metrics-error-envelope')).toBeNull();
+  });
+
+  it('commits the successful preview and renders the saved draft result', async () => {
+    const fetchSpy = vi
+      .spyOn(globalThis, 'fetch')
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify(makeDryRunResponse()), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        })
+      )
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify(makeCommitResponse()), {
+          status: 201,
+          headers: { 'Content-Type': 'application/json' },
+        })
+      );
+
+    renderPage();
+
+    fireEvent.click(screen.getByRole('button', { name: /run metrics/i }));
+    await waitFor(() => {
+      expect(screen.getByTestId('metrics-commit-button')).toBeEnabled();
+    });
+
+    fireEvent.click(screen.getByTestId('metrics-commit-button'));
+
+    await waitFor(() => {
+      expect(screen.getByTestId('metrics-commit-result')).toBeInTheDocument();
+    });
+
+    const [, commitInit] = fetchSpy.mock.calls[1]!;
+    expect(JSON.parse(commitInit?.body as string)).toMatchObject({
+      asOfDate: expect.stringMatching(/^\d{4}-\d{2}-\d{2}$/),
+      runType: 'internal_review',
+      perspective: 'lp_net',
+      sourceEventIds: [],
+      sourceMarkIds: [],
+      previewHash: 'b'.repeat(64),
+    });
+    expect(screen.getByTestId('metrics-commit-result').textContent).toMatch(/metric run #17/i);
+  });
+
+  it('renders the commit error envelope on preview mismatch', async () => {
+    vi.spyOn(globalThis, 'fetch')
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify(makeDryRunResponse()), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        })
+      )
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            error: 'PREVIEW_HASH_MISMATCH',
+            message: 'Metric-run preview hash no longer matches.',
+          }),
+          {
+            status: 409,
+            headers: { 'Content-Type': 'application/json' },
+          }
+        )
+      );
+
+    renderPage();
+
+    fireEvent.click(screen.getByRole('button', { name: /run metrics/i }));
+    await waitFor(() => {
+      expect(screen.getByTestId('metrics-commit-button')).toBeEnabled();
+    });
+
+    fireEvent.click(screen.getByTestId('metrics-commit-button'));
+
+    await waitFor(() => {
+      expect(screen.getByTestId('metrics-commit-error-envelope')).toBeInTheDocument();
+    });
+    expect(screen.getByTestId('metrics-commit-error-envelope')).toHaveAttribute(
+      'data-error-status',
+      '409'
+    );
+    expect(screen.getByTestId('metrics-commit-error-envelope').textContent).toMatch(
+      /preview changed/i
+    );
   });
 
   it('renders the 401 error envelope when the dry-run is unauthorized', async () => {

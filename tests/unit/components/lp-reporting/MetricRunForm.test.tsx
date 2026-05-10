@@ -5,9 +5,9 @@
  *   - zodResolver rejects malformed asOfDate strings
  *   - default asOfDate is today's UTC date (TZ=UTC tests)
  *   - submitting fires `useMetricsDryRun.mutateAsync` with
- *     `{ asOfDate, runType, perspective }`
+ *     `{ asOfDate, runType, perspective, sourceEventIds, sourceMarkIds }`
  *   - on success the parent's `onSuccess` callback receives the
- *     parsed `LpMetricRunResults`
+ *     parsed metric-run dry-run envelope and original request
  *   - on 401 the parent's `onError` callback receives the typed error
  *   - submit is disabled when fundId is null
  */
@@ -22,7 +22,7 @@ import {
   MetricRunDryRunRequestClientSchema,
   todayIsoDate,
 } from '@/components/lp-reporting/MetricRunForm';
-import type { LpMetricRunResults } from '@shared/contracts/lp-reporting';
+import type { LpMetricRunResults, MetricRunDryRunResponse } from '@shared/contracts/lp-reporting';
 
 function makeWrapper() {
   const queryClient = new QueryClient({
@@ -66,6 +66,21 @@ function makeCanonicalResults(): LpMetricRunResults {
     distributionsTotal: '22500000',
     currentNav: '62500000',
     markConfidenceMix: { high: 8, medium: 3, low: 1 },
+  };
+}
+
+function makeDryRunResponse(): MetricRunDryRunResponse {
+  return {
+    results: makeCanonicalResults(),
+    diagnostics: {
+      engineVersion: 'lp-reporting-engine@1.2.0',
+      decimalPrecision: 6,
+      excludedFutureMarks: [],
+      warnings: [],
+    },
+    inputsHash: 'a'.repeat(64),
+    runType: 'quarterly_report',
+    previewHash: 'b'.repeat(64),
   };
 }
 
@@ -145,18 +160,10 @@ describe('MetricRunForm', () => {
 
   it('POSTs the metric-run dry-run envelope and surfaces the parsed results on success', async () => {
     const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
-      new Response(
-        JSON.stringify({
-          results: makeCanonicalResults(),
-          diagnostics: { warnings: [] },
-          inputsHash: 'sha256:test',
-          runType: 'quarterly_report',
-        }),
-        {
-          status: 200,
-          headers: { 'Content-Type': 'application/json' },
-        }
-      )
+      new Response(JSON.stringify(makeDryRunResponse()), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      })
     );
     const onSuccess = vi.fn();
 
@@ -193,11 +200,19 @@ describe('MetricRunForm', () => {
       asOfDate: '2026-03-31',
       runType: 'quarterly_report',
       perspective: 'fund_gross',
+      sourceEventIds: [],
+      sourceMarkIds: [],
     });
 
-    const passed = onSuccess.mock.calls[0]![0] as LpMetricRunResults;
-    expect(passed.tvpi).toBe('1.700000');
-    expect(passed.markConfidenceMix.high).toBe(8);
+    const passed = onSuccess.mock.calls[0]![0] as MetricRunDryRunResponse;
+    const request = onSuccess.mock.calls[0]![1] as Record<string, unknown>;
+    expect(passed.results.tvpi).toBe('1.700000');
+    expect(passed.results.markConfidenceMix.high).toBe(8);
+    expect(request).toMatchObject({
+      asOfDate: '2026-03-31',
+      runType: 'quarterly_report',
+      perspective: 'fund_gross',
+    });
   });
 
   it('routes 401 errors to onError with status + code', async () => {

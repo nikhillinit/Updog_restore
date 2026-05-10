@@ -15,7 +15,7 @@
  *   2. Mark confidence renders as a Badge with tone. Imported marks
  *      default to LOW confidence -- the form's default reflects this.
  *
- * NO commit affordance. Persistence ships in Phase 1c.
+ * No commit affordance here; batch commits live on the Imports page.
  *
  * @module client/pages/lp-reporting/valuations
  */
@@ -114,7 +114,7 @@ export default function LpReportingValuationsPage() {
         <h1 className="text-3xl font-bold font-inter text-charcoal">Valuations</h1>
         <p className="text-charcoal/70 font-poppins mt-1">
           Per-company valuation marks with confidence levels and source attribution. No INSERT
-          happens in this view; persistence ships in Phase 1c.
+          happens in this view; use Imports for batch commits.
         </p>
       </header>
 

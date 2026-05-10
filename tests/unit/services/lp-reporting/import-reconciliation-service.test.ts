@@ -215,6 +215,12 @@ describe('runLedgerDryRun -- orchestrator', () => {
       /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
     );
   });
+
+  it('previewHash is deterministic even when importId changes', () => {
+    const second = runLedgerDryRun(buffer, 'csv', 1);
+    expect(second.importId).not.toBe(result.importId);
+    expect(second.previewHash).toBe(result.previewHash);
+  });
 });
 
 describe('runValuationMarkDryRun -- orchestrator', () => {
@@ -233,5 +239,10 @@ describe('runValuationMarkDryRun -- orchestrator', () => {
 
   it('latestNavImported equals the sum of current marks (excludes 2027-01-01 row)', () => {
     expect(result.reconciliation.latestNavImported).toBe('16300000.000000');
+  });
+
+  it('previewHash changes when the fund changes', () => {
+    const otherFund = runValuationMarkDryRun(buffer, 'csv', 2);
+    expect(otherFund.previewHash).not.toBe(result.previewHash);
   });
 });

@@ -1,0 +1,1 @@
+DROP INDEX IF EXISTS lp_metric_runs_fund_run_inputs_unique;

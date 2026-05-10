@@ -12,7 +12,7 @@
  * @see docs/adr/ADR-011-decimal-string-api-convention.md
  */
 
-import { randomUUID } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
 
 import { Decimal } from '@shared/lib/decimal-config';
 import type {
@@ -80,6 +80,58 @@ export interface ExistingFundState {
   calledCapitalExpected?: string;
   /** Latest known NAV before this import (for distribution sanity). */
   latestNavBeforeImport?: string;
+}
+
+export type ImportKind = 'ledger' | 'valuation-marks';
+
+function canonicalize(value: unknown): unknown {
+  if (value === null || typeof value !== 'object') {
+    return value;
+  }
+  if (Array.isArray(value)) {
+    return value.map(canonicalize);
+  }
+
+  const record = value as Record<string, unknown>;
+  const canonical: Record<string, unknown> = {};
+  for (const key of Object.keys(record).sort()) {
+    const child = record[key];
+    if (child !== undefined) {
+      canonical[key] = canonicalize(child);
+    }
+  }
+  return canonical;
+}
+
+function sha256Hex(value: unknown): string {
+  return createHash('sha256')
+    .update(JSON.stringify(canonicalize(value)))
+    .digest('hex');
+}
+
+export function computeImportPreviewHash(input: {
+  fundId: number;
+  importKind: ImportKind;
+  sourceType: SourceType;
+  parsedRows: number;
+  validRows: number;
+  invalidRows: number;
+  duplicateRows: number;
+  warnings: ImportWarning[];
+  errors: ImportError[];
+  reconciliation: ReconciliationSummary;
+  preview: ImportPreviewRow[];
+}): string {
+  return sha256Hex(input);
+}
+
+export function computeSourceRowHash(input: {
+  fundId: number;
+  importKind: ImportKind;
+  sourceType: SourceType;
+  row: unknown;
+}): string {
+  return sha256Hex(input);
 }
 
 // ============================================================================
@@ -614,9 +666,8 @@ export function runLedgerDryRun(
       : parseLedgerCsv(buffer, fundId);
   const duplicates = detectLedgerDuplicates(parsed.rows);
   const reconciliation = reconcileLedgerImport(parsed.rows, existingFundState);
-
-  return {
-    importId: randomUUID(),
+  const preview = buildLedgerPreview(parsed.rows, duplicates);
+  const base = {
     sourceType,
     parsedRows: parsed.rows.length + parsed.parseErrors.length,
     validRows: parsed.rows.length - duplicates.size,
@@ -625,7 +676,13 @@ export function runLedgerDryRun(
     warnings: parsed.parseWarnings,
     errors: parsed.parseErrors,
     reconciliation,
-    preview: buildLedgerPreview(parsed.rows, duplicates),
+    preview,
+  };
+
+  return {
+    importId: randomUUID(),
+    ...base,
+    previewHash: computeImportPreviewHash({ fundId, importKind: 'ledger', ...base }),
   };
 }
 
@@ -636,9 +693,8 @@ export function runValuationMarkDryRun(
 ): ImportDryRunResponse {
   const parsed = parseValuationMarksCsv(buffer, fundId);
   const reconciliation = reconcileValuationMarkImport(parsed.rows);
-
-  return {
-    importId: randomUUID(),
+  const preview = buildValuationMarkPreview(parsed.rows);
+  const base = {
     sourceType,
     parsedRows: parsed.rows.length + parsed.parseErrors.length,
     validRows: parsed.rows.length,
@@ -647,6 +703,12 @@ export function runValuationMarkDryRun(
     warnings: parsed.parseWarnings,
     errors: parsed.parseErrors,
     reconciliation,
-    preview: buildValuationMarkPreview(parsed.rows),
+    preview,
+  };
+
+  return {
+    importId: randomUUID(),
+    ...base,
+    previewHash: computeImportPreviewHash({ fundId, importKind: 'valuation-marks', ...base }),
   };
 }

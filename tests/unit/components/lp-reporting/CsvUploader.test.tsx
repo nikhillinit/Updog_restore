@@ -34,6 +34,7 @@ function makeDryRunResponse(): ImportDryRunResponse {
   return {
     importId: '11111111-2222-3333-4444-555555555555',
     sourceType: 'csv',
+    previewHash: 'a'.repeat(64),
     parsedRows: 1,
     validRows: 1,
     invalidRows: 0,
@@ -130,6 +131,7 @@ describe('CsvUploader', () => {
       importId: '11111111-2222-3333-4444-555555555555',
       sourceType: 'csv',
     });
+    expect(onPreview.mock.calls[0]![1]).toMatchObject({ sourceType: 'csv' });
     expect(onError).not.toHaveBeenCalled();
     expect(fetchSpy).toHaveBeenCalledTimes(1);
     const [url, init] = fetchSpy.mock.calls[0]!;

@@ -1,11 +1,11 @@
 /**
  * LP Reporting -- Metric-run dry-run form (Phase 1b.4).
  *
- * Posts a JSON body to the existing protected route
+ * Posts a JSON body to the protected route
  *   POST /api/funds/:fundId/metric-runs/dry-run
- * via `useMetricsDryRun`. The server-side schema is mirrored INLINE
- * here as `MetricRunDryRunRequestClientSchema` -- no new shared
- * contract is added (backend FROZEN for Phase 1b).
+ * via `useMetricsDryRun`. The client form schema is derived from the
+ * shared request contract and narrows the visible perspectives to the
+ * engine-supported options.
  *
  * Server route reference: server/routes/lp-reporting/metric-runs.ts
  * Server body shape:
@@ -34,16 +34,18 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useMetricsDryRun } from '@/hooks/lp-reporting';
 import type { LpReportingHookError } from '@/hooks/lp-reporting';
-import { LpMetricRunTypeSchema, type LpMetricRunResults } from '@shared/contracts/lp-reporting';
+import {
+  MetricRunDryRunRequestSchema,
+  type MetricRunDryRunRequest,
+  type MetricRunDryRunResponse,
+} from '@shared/contracts/lp-reporting';
 
-const ISO_DATE_REGEX = /^\d{4}-\d{2}-\d{2}$/;
-
-/** Mirrored from server route's MetricRunDryRunRequestSchema. */
-export const MetricRunDryRunRequestClientSchema = z
-  .object({
-    asOfDate: z.string().regex(ISO_DATE_REGEX, 'As-of date must be YYYY-MM-DD.'),
-    runType: LpMetricRunTypeSchema,
-    /** Engine supports lp_net + fund_gross only (Phase 1.2). */
+export const MetricRunDryRunRequestClientSchema = MetricRunDryRunRequestSchema.pick({
+  asOfDate: true,
+  runType: true,
+  perspective: true,
+})
+  .extend({
     perspective: z.enum(['lp_net', 'fund_gross']),
   })
   .strict();
@@ -85,7 +87,7 @@ export function todayIsoDate(): string {
 
 export interface MetricRunFormProps {
   fundId: number | null;
-  onSuccess: (results: LpMetricRunResults) => void;
+  onSuccess: (response: MetricRunDryRunResponse, request: MetricRunDryRunRequest) => void;
   onError?: (error: LpReportingHookError) => void;
 }
 
@@ -107,12 +109,15 @@ export function MetricRunForm({ fundId, onSuccess, onError }: MetricRunFormProps
 
   const onSubmit = handleSubmit(async (values) => {
     try {
-      const result = await mutation.mutateAsync({
+      const request: MetricRunDryRunRequest = {
         asOfDate: values.asOfDate,
         runType: values.runType,
         perspective: values.perspective,
-      });
-      onSuccess(result);
+        sourceEventIds: [],
+        sourceMarkIds: [],
+      };
+      const result = await mutation.mutateAsync(request);
+      onSuccess(result, request);
     } catch (err) {
       if (onError && err && typeof err === 'object') {
         onError(err as LpReportingHookError);

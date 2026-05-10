@@ -95,7 +95,7 @@ export interface ComputeMetricsInput {
 export interface ComputeMetricsOutput {
   results: LpMetricRunResults;
   diagnostics: LpMetricRunDiagnostics;
-  /** SHA-256 hex of (sorted event ids, sorted mark ids, asOfDate, perspective). */
+  /** SHA-256 hex of request fields plus metric-relevant source-row fingerprints. */
   inputsHash: string;
 }
 
@@ -280,11 +280,32 @@ function buildGrossIrrFlows(
 }
 
 function computeInputsHash(input: ComputeMetricsInput): string {
-  const sortedEventIds = input.cashFlowEvents.map((e) => e.id).sort((a, b) => a - b);
-  const sortedMarkIds = input.valuationMarks.map((m) => m.id).sort((a, b) => a - b);
+  const eventFingerprints = input.cashFlowEvents
+    .map((event) => ({
+      id: event.id,
+      eventType: event.eventType,
+      amount: event.amount,
+      eventDate: isoDay(event.eventDate),
+      perspective: event.perspective,
+      status: event.status ?? null,
+      reversalOfEventId: event.reversalOfEventId ?? null,
+    }))
+    .sort((a, b) => a.id - b.id);
+  const markFingerprints = input.valuationMarks
+    .map((mark) => ({
+      id: mark.id,
+      fairValue: mark.fairValue,
+      markDate: isoDay(mark.markDate),
+      asOfDate: isoDay(mark.asOfDate),
+      status: mark.status ?? null,
+      confidenceLevel: mark.confidenceLevel,
+      companyId: mark.companyId ?? null,
+    }))
+    .sort((a, b) => a.id - b.id);
   const payload = JSON.stringify({
-    eventIds: sortedEventIds,
-    markIds: sortedMarkIds,
+    fundId: input.fundId,
+    eventFingerprints,
+    markFingerprints,
     asOfDate: input.asOfDate,
     perspective: input.perspective,
   });

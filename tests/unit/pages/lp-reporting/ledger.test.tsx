@@ -52,6 +52,7 @@ function makeSuccessResponse(): ImportDryRunResponse {
   return {
     importId: 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee',
     sourceType: 'csv',
+    previewHash: 'a'.repeat(64),
     parsedRows: 1,
     validRows: 1,
     invalidRows: 0,

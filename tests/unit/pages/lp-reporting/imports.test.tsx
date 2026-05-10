@@ -4,7 +4,7 @@
  * Asserts:
  *   - Page renders with header, both tabs visible, default tab "Ledger import".
  *   - Switching tabs reveals the valuation-marks uploader.
- *   - NO "Commit" button anywhere on the page (most critical assertion).
+ *   - Commit is hidden before dry-run and visible after a valid preview.
  *   - Ledger upload routes to /imports/ledger/dry-run.
  *   - Valuation-marks upload routes to /imports/valuation-marks/dry-run.
  *   - 401 on the ledger uploader renders the error envelope.
@@ -55,6 +55,7 @@ function makeSuccessResponse(): ImportDryRunResponse {
   return {
     importId: 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee',
     sourceType: 'csv',
+    previewHash: 'a'.repeat(64),
     parsedRows: 1,
     validRows: 1,
     invalidRows: 0,
@@ -108,12 +109,10 @@ describe('LpReportingImportsPage', () => {
     expect(screen.getByTestId('csv-uploader-ledger')).toBeInTheDocument();
   });
 
-  it('renders NO Commit button anywhere on the page', () => {
+  it('hides Commit until a dry-run preview is available', () => {
     renderPage();
 
-    // Most critical assertion: Phase 1b has no commit affordance.
     expect(screen.queryByRole('button', { name: /commit/i })).toBeNull();
-    expect(screen.queryByText(/^commit$/i)).toBeNull();
   });
 
   it('switches to the Valuation marks tab and reveals the marks uploader', async () => {
@@ -149,6 +148,7 @@ describe('LpReportingImportsPage', () => {
     await waitFor(() => {
       expect(screen.getByTestId('import-preview-panel')).toBeInTheDocument();
     });
+    expect(screen.getByTestId('imports-ledger-commit-button')).toBeEnabled();
   });
 
   it('routes a valuation-marks CSV upload to /imports/valuation-marks/dry-run', async () => {
