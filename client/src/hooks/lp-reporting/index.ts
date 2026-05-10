@@ -20,6 +20,7 @@ export {
   useMetricRunNarrativeReview,
   useMetricRunReportPackage,
   useMetricRunReportPackageAssemble,
+  useMetricRunReportPackageRenderModel,
   useMetricsDryRun,
   type MetricsDryRunRequest,
   type DryRunErrorBody,
@@ -48,6 +49,7 @@ export {
   type ReportPackageAssembleRequest,
   type ReportPackageAssembleResponse,
   type ReportPackageGetResponse,
+  type ReportPackageRenderModelResponse,
 } from './useMetricsDryRun';
 export { useLedgerImportDryRun } from './useLedgerImportDryRun';
 export { useValuationMarkImportDryRun } from './useValuationMarkImportDryRun';

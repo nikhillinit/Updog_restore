@@ -48,6 +48,7 @@ import type {
   MetricRunLifecycleResponse,
   NarrativeRunRecord,
   ReportPackageRecord,
+  ReportPackageRenderModelResponse,
 } from '@shared/contracts/lp-reporting';
 
 function renderPage() {
@@ -292,6 +293,114 @@ function makeReportPackageRecord(): ReportPackageRecord {
     version: 1,
     createdAt: '2026-05-10T03:00:00.000Z',
     updatedAt: '2026-05-10T03:00:00.000Z',
+  };
+}
+
+function makeReportPackageRenderModelResponse(): ReportPackageRenderModelResponse {
+  const record = makeReportPackageRecord();
+  return {
+    renderModel: {
+      renderModelVersion: 1,
+      source: {
+        reportPackageId: record.reportPackageId,
+        fundId: record.fundId,
+        metricRunId: record.metricRunId,
+        reportPackageStatus: record.status,
+        asOfDate: record.asOfDate,
+        metricRunVersion: record.metricRunVersion,
+        metricRunLockedBy: record.metricRunLockedBy,
+        metricRunLockedAt: record.metricRunLockedAt,
+        assembledBy: record.assembledBy,
+        assembledAt: record.assembledAt,
+        packageVersion: record.version,
+        payloadVersion: record.payload.payloadVersion,
+      },
+      fundDisplay: {
+        fundId: 7,
+        name: 'Press On Fund I',
+        vintageYear: 2024,
+        size: '100000000.00',
+      },
+      metricSections: [
+        {
+          sectionId: 'performance',
+          title: 'Performance',
+          rows: [
+            {
+              metricId: 'dpi',
+              label: 'DPI',
+              value: '0.450000',
+              valueKind: 'multiple',
+              currency: null,
+            },
+            {
+              metricId: 'netIrr',
+              label: 'Net IRR',
+              value: '0.150000',
+              valueKind: 'irr',
+              currency: null,
+            },
+          ],
+        },
+        {
+          sectionId: 'capital',
+          title: 'Capital',
+          rows: [
+            {
+              metricId: 'currentNav',
+              label: 'Current NAV',
+              value: '62500000',
+              valueKind: 'money',
+              currency: 'USD',
+            },
+          ],
+        },
+        {
+          sectionId: 'mark_confidence',
+          title: 'Mark confidence',
+          rows: [
+            {
+              metricId: 'markConfidenceHigh',
+              label: 'High confidence marks',
+              value: 8,
+              valueKind: 'count',
+              currency: null,
+            },
+          ],
+        },
+      ],
+      narrativeSections: record.payload.narratives.map((narrative) => ({
+        sectionId: narrative.narrativeType,
+        title:
+          narrative.narrativeType === 'no_dpi'
+            ? 'No DPI'
+            : narrative.narrativeType === 'portfolio_update'
+              ? 'Portfolio update'
+              : narrative.narrativeType === 'risk_disclosure'
+                ? 'Risk disclosure'
+                : 'Methodology',
+        narrativeType: narrative.narrativeType,
+        narrativeRunId: narrative.narrativeRunId,
+        narrativeVersion: narrative.narrativeVersion,
+        approvedBy: narrative.approvedBy,
+        approvedAt: narrative.approvedAt,
+        textHash: narrative.textHash,
+        body: narrative.effectiveText,
+      })),
+      diagnostics: {
+        engineVersion: record.payload.diagnostics.engineVersion,
+        decimalPrecision: record.payload.diagnostics.decimalPrecision,
+        excludedFutureMarks: [],
+        warnings: record.payload.diagnostics.warnings,
+        xirr: record.payload.results.xirrDiagnostic,
+      },
+      references: {
+        sourceEventIds: [],
+        sourceMarkIds: [],
+        evidenceRecordIds: [1000],
+        narrativeRunIds: record.narrativeRefs.map((ref) => ref.narrativeRunId),
+      },
+    },
   };
 }
 
@@ -903,6 +1012,12 @@ describe('LpReportingMetricsPage', () => {
           headers: { 'Content-Type': 'application/json' },
         });
       }
+      if (url.endsWith('/metric-runs/17/report-package/render-model')) {
+        return new Response(JSON.stringify(makeReportPackageRenderModelResponse()), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        });
+      }
       if (url.endsWith('/metric-runs/17/report-package')) {
         return new Response(JSON.stringify({ record: reportPackage }), {
           status: 200,
@@ -950,6 +1065,13 @@ describe('LpReportingMetricsPage', () => {
     expect(refs.getByText(/No DPI/i)).toBeInTheDocument();
     expect(refs.getByText(/Run #41 \| version 3/i)).toBeInTheDocument();
     expect(refs.getAllByText(/a{12}\.\.\./i)).toHaveLength(4);
+    await waitFor(() => {
+      expect(screen.getByTestId('metric-run-report-package-render-preview')).toBeInTheDocument();
+    });
+    const preview = within(screen.getByTestId('metric-run-report-package-render-preview'));
+    expect(preview.getByText('Press On Fund I')).toBeInTheDocument();
+    expect(preview.getByText('0.45x')).toBeInTheDocument();
+    expect(preview.getByText('Approved methodology copy.')).toBeInTheDocument();
   });
 
   it('keeps report package assembly disabled until all narratives are approved', async () => {

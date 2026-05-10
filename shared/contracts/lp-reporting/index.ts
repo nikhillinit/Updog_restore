@@ -16,5 +16,6 @@ export * from './evidence-record.contract';
 export * from './lp-metric-run.contract';
 export * from './lp-narrative-run.contract';
 export * from './lp-report-package.contract';
+export * from './lp-report-package-render-model.contract';
 export * from './import-dry-run.contract';
 export * from './import-commit.contract';

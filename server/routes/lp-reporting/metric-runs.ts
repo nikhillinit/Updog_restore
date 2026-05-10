@@ -8,6 +8,7 @@
  *   POST /api/funds/:fundId/metric-runs/:metricRunId/approve
  *   POST /api/funds/:fundId/metric-runs/:metricRunId/lock
  *   GET  /api/funds/:fundId/metric-runs/:metricRunId/report-package
+ *   GET  /api/funds/:fundId/metric-runs/:metricRunId/report-package/render-model
  *   POST /api/funds/:fundId/metric-runs/:metricRunId/report-package
  *   GET  /api/funds/:fundId/metric-runs/:metricRunId/evidence-records
  *   POST /api/funds/:fundId/metric-runs/:metricRunId/evidence-records
@@ -57,6 +58,7 @@ import {
   ReportPackageAssembleRequestSchema,
   ReportPackageAssembleResponseSchema,
   ReportPackageGetResponseSchema,
+  ReportPackageRenderModelResponseSchema,
 } from '@shared/contracts/lp-reporting';
 import {
   buildMetricRunDryRun,
@@ -85,6 +87,7 @@ import {
   assembleMetricRunReportPackage,
   getMetricRunReportPackage,
 } from '../../services/lp-reporting/report-package-service';
+import { getMetricRunReportPackageRenderModel } from '../../services/lp-reporting/report-package-render-model-service';
 
 const router = Router();
 
@@ -174,6 +177,7 @@ function sendMetricRunError(
     | 'METRIC_RUN_APPROVE_FAILED'
     | 'METRIC_RUN_LOCK_FAILED'
     | 'METRIC_RUN_REPORT_PACKAGE_GET_FAILED'
+    | 'METRIC_RUN_REPORT_PACKAGE_RENDER_MODEL_FAILED'
     | 'METRIC_RUN_REPORT_PACKAGE_ASSEMBLE_FAILED'
     | 'METRIC_RUN_EVIDENCE_CREATE_FAILED'
     | 'METRIC_RUN_EVIDENCE_LIST_FAILED'
@@ -376,6 +380,25 @@ router.get(
       return res.status(200).json(validated);
     } catch (err) {
       return sendMetricRunError(res, err, 'METRIC_RUN_REPORT_PACKAGE_GET_FAILED');
+    }
+  }
+);
+
+router.get(
+  '/api/funds/:fundId/metric-runs/:metricRunId/report-package/render-model',
+  requireAuth(),
+  requireFundAccess,
+  metricRunLimiter,
+  async (req: Request, res: Response) => {
+    try {
+      const result = await getMetricRunReportPackageRenderModel({
+        fundId: parseFundId(req),
+        metricRunId: parseMetricRunId(req),
+      });
+      const validated = ReportPackageRenderModelResponseSchema.parse(result);
+      return res.status(200).json(validated);
+    } catch (err) {
+      return sendMetricRunError(res, err, 'METRIC_RUN_REPORT_PACKAGE_RENDER_MODEL_FAILED');
     }
   }
 );

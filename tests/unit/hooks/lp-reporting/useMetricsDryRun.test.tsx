@@ -32,6 +32,7 @@ import {
   useMetricRunNarrativeReview,
   useMetricRunReportPackage,
   useMetricRunReportPackageAssemble,
+  useMetricRunReportPackageRenderModel,
   useMetricsDryRun,
 } from '@/hooks/lp-reporting';
 import type { MetricsDryRunRequest } from '@/hooks/lp-reporting';
@@ -51,6 +52,7 @@ import type {
   ReportPackageAssembleResponse,
   ReportPackageGetResponse,
   ReportPackageRecord,
+  ReportPackageRenderModelResponse,
 } from '@shared/contracts/lp-reporting';
 
 function makeWrapper() {
@@ -317,6 +319,77 @@ function makeReportPackageAssembleResponse(inserted = true): ReportPackageAssemb
   return {
     record: makeReportPackageRecord(),
     inserted,
+  };
+}
+
+function makeReportPackageRenderModelResponse(): ReportPackageRenderModelResponse {
+  const record = makeReportPackageRecord();
+  const narrativeRef = record.narrativeRefs[0]!;
+  return {
+    renderModel: {
+      renderModelVersion: 1,
+      source: {
+        reportPackageId: record.reportPackageId,
+        fundId: record.fundId,
+        metricRunId: record.metricRunId,
+        reportPackageStatus: record.status,
+        asOfDate: record.asOfDate,
+        metricRunVersion: record.metricRunVersion,
+        metricRunLockedBy: record.metricRunLockedBy,
+        metricRunLockedAt: record.metricRunLockedAt,
+        assembledBy: record.assembledBy,
+        assembledAt: record.assembledAt,
+        packageVersion: record.version,
+        payloadVersion: record.payload.payloadVersion,
+      },
+      fundDisplay: {
+        fundId: 7,
+        name: 'Press On Fund I',
+        vintageYear: 2024,
+        size: '100000000.00',
+      },
+      metricSections: [
+        {
+          sectionId: 'performance',
+          title: 'Performance',
+          rows: [
+            {
+              metricId: 'dpi',
+              label: 'DPI',
+              value: '0.450000',
+              valueKind: 'multiple',
+              currency: null,
+            },
+          ],
+        },
+      ],
+      narrativeSections: [
+        {
+          sectionId: narrativeRef.narrativeType,
+          title: 'Methodology',
+          narrativeType: narrativeRef.narrativeType,
+          narrativeRunId: narrativeRef.narrativeRunId,
+          narrativeVersion: narrativeRef.narrativeVersion,
+          approvedBy: narrativeRef.approvedBy,
+          approvedAt: narrativeRef.approvedAt,
+          textHash: narrativeRef.textHash,
+          body: 'Approved methodology copy.',
+        },
+      ],
+      diagnostics: {
+        engineVersion: record.payload.diagnostics.engineVersion,
+        decimalPrecision: record.payload.diagnostics.decimalPrecision,
+        excludedFutureMarks: [],
+        warnings: record.payload.diagnostics.warnings,
+        xirr: record.payload.results.xirrDiagnostic,
+      },
+      references: {
+        sourceEventIds: [1, 2],
+        sourceMarkIds: [10],
+        evidenceRecordIds: [1000],
+        narrativeRunIds: [narrativeRef.narrativeRunId],
+      },
+    },
   };
 }
 
@@ -1027,6 +1100,42 @@ describe('metric-run report package hooks', () => {
     expect(fetchSpy).not.toHaveBeenCalled();
   });
 
+  it('GETs the route-scoped report package render model', async () => {
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response(JSON.stringify(makeReportPackageRenderModelResponse()), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      })
+    );
+
+    const { Wrapper } = makeWrapper();
+    const { result } = renderHook(() => useMetricRunReportPackageRenderModel(7, 17), {
+      wrapper: Wrapper,
+    });
+
+    await waitFor(() => {
+      expect(result.current.isSuccess).toBe(true);
+    });
+
+    expect(fetchSpy).toHaveBeenCalledTimes(1);
+    const [url, init] = fetchSpy.mock.calls[0]!;
+    expect(url).toBe('/api/funds/7/metric-runs/17/report-package/render-model');
+    expect(init?.method).toBe('GET');
+    expect(result.current.data?.renderModel.fundDisplay.name).toBe('Press On Fund I');
+  });
+
+  it('keeps the render-model query disabled without metricRunId', () => {
+    const fetchSpy = vi.spyOn(globalThis, 'fetch');
+
+    const { Wrapper } = makeWrapper();
+    const { result } = renderHook(() => useMetricRunReportPackageRenderModel(7, null), {
+      wrapper: Wrapper,
+    });
+
+    expect(result.current.fetchStatus).toBe('idle');
+    expect(fetchSpy).not.toHaveBeenCalled();
+  });
+
   it('POSTs assemble refs and invalidates report-package/detail queries', async () => {
     const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
       new Response(JSON.stringify(makeReportPackageAssembleResponse(false)), {
@@ -1060,6 +1169,9 @@ describe('metric-run report package hooks', () => {
     expect(result.current.data?.inserted).toBe(false);
     expect(invalidateSpy).toHaveBeenCalledWith({
       queryKey: ['lp-reporting', 'metric-run-report-package', 7, 17],
+    });
+    expect(invalidateSpy).toHaveBeenCalledWith({
+      queryKey: ['lp-reporting', 'metric-run-report-package-render-model', 7, 17],
     });
     expect(invalidateSpy).toHaveBeenCalledWith({
       queryKey: ['lp-reporting', 'metric-runs', 'detail', 7, 17],
