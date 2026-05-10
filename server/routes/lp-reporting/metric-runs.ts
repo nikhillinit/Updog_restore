@@ -3,6 +3,8 @@
  *
  *   POST /api/funds/:fundId/metric-runs/dry-run
  *   POST /api/funds/:fundId/metric-runs/commit
+ *   GET  /api/funds/:fundId/metric-runs/:metricRunId/evidence-records
+ *   POST /api/funds/:fundId/metric-runs/:metricRunId/evidence-records
  *
  * Dry-run returns the full metric envelope plus a server-owned preview hash.
  * Commit re-runs the calculation from persisted source rows and only writes a
@@ -23,12 +25,19 @@ import {
   MetricRunCommitResponseSchema,
   MetricRunDryRunRequestSchema,
   MetricRunDryRunResponseSchema,
+  MetricRunEvidenceCreateRequestSchema,
+  MetricRunEvidenceCreateResponseSchema,
+  MetricRunEvidenceListResponseSchema,
 } from '@shared/contracts/lp-reporting';
 import {
   buildMetricRunDryRun,
   commitMetricRun,
   MetricRunCommitError,
 } from '../../services/lp-reporting/metric-run-commit-service';
+import {
+  createMetricRunEvidence,
+  listMetricRunEvidence,
+} from '../../services/lp-reporting/metric-run-evidence-service';
 
 const router = Router();
 
@@ -55,6 +64,18 @@ function parseFundId(req: Request): number {
     throw new MetricRunCommitError(400, 'INVALID_FUND_ID', 'fundId must be a positive integer.');
   }
   return fundId;
+}
+
+function parseMetricRunId(req: Request): number {
+  const metricRunId = Number.parseInt(firstString(req.params['metricRunId']) ?? '', 10);
+  if (!Number.isFinite(metricRunId) || metricRunId <= 0) {
+    throw new MetricRunCommitError(
+      400,
+      'INVALID_METRIC_RUN_ID',
+      'metricRunId must be a positive integer.'
+    );
+  }
+  return metricRunId;
 }
 
 function numericIdentity(value: unknown): number | null {
@@ -86,7 +107,11 @@ function resolveAuthenticatedUserId(req: Request): number {
 function sendMetricRunError(
   res: Response,
   err: unknown,
-  fallbackCode: 'METRIC_RUN_DRY_RUN_FAILED' | 'METRIC_RUN_COMMIT_FAILED'
+  fallbackCode:
+    | 'METRIC_RUN_DRY_RUN_FAILED'
+    | 'METRIC_RUN_COMMIT_FAILED'
+    | 'METRIC_RUN_EVIDENCE_CREATE_FAILED'
+    | 'METRIC_RUN_EVIDENCE_LIST_FAILED'
 ): Response {
   if (err instanceof MetricRunCommitError) {
     return res.status(err.status).json({
@@ -153,6 +178,54 @@ router.post(
       return res.status(validated.inserted ? 201 : 200).json(validated);
     } catch (err) {
       return sendMetricRunError(res, err, 'METRIC_RUN_COMMIT_FAILED');
+    }
+  }
+);
+
+router.get(
+  '/api/funds/:fundId/metric-runs/:metricRunId/evidence-records',
+  requireAuth(),
+  requireFundAccess,
+  metricRunLimiter,
+  async (req: Request, res: Response) => {
+    try {
+      const result = await listMetricRunEvidence({
+        fundId: parseFundId(req),
+        metricRunId: parseMetricRunId(req),
+      });
+      const validated = MetricRunEvidenceListResponseSchema.parse(result);
+      return res.status(200).json(validated);
+    } catch (err) {
+      return sendMetricRunError(res, err, 'METRIC_RUN_EVIDENCE_LIST_FAILED');
+    }
+  }
+);
+
+router.post(
+  '/api/funds/:fundId/metric-runs/:metricRunId/evidence-records',
+  requireAuth(),
+  requireFundAccess,
+  metricRunLimiter,
+  async (req: Request, res: Response) => {
+    const parsed = MetricRunEvidenceCreateRequestSchema.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({
+        error: 'INVALID_REQUEST_BODY',
+        issues: parsed.error.issues,
+      });
+    }
+
+    try {
+      const result = await createMetricRunEvidence({
+        fundId: parseFundId(req),
+        metricRunId: parseMetricRunId(req),
+        userId: resolveAuthenticatedUserId(req),
+        body: parsed.data,
+      });
+      const validated = MetricRunEvidenceCreateResponseSchema.parse(result);
+      return res.status(validated.inserted ? 201 : 200).json(validated);
+    } catch (err) {
+      return sendMetricRunError(res, err, 'METRIC_RUN_EVIDENCE_CREATE_FAILED');
     }
   }
 );

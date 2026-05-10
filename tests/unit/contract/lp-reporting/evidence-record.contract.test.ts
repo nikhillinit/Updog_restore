@@ -14,6 +14,9 @@ import {
   EvidenceRecordCreateSchema,
   EvidenceSourceSchema,
   MaterialityLevelSchema,
+  MetricRunEvidenceCreateRequestSchema,
+  MetricRunEvidenceCreateResponseSchema,
+  MetricRunEvidenceListResponseSchema,
 } from '@shared/contracts/lp-reporting/evidence-record.contract';
 
 const baseFields = {
@@ -158,6 +161,94 @@ describe('Defaults applied', () => {
   it('redactionRequired defaults to false', () => {
     const parsed = EvidenceRecordCreateSchema.parse({ ...baseFields, companyId: 42 });
     expect(parsed.redactionRequired).toBe(false);
+  });
+});
+
+describe('MetricRunEvidenceCreateRequestSchema -- route-scoped metadata only', () => {
+  const metricRunEvidenceBase = {
+    idempotencyKey: 'metric-run-11-evidence-0',
+    evidenceSource: 'board_update' as const,
+    sourceDate: '2026-03-31',
+  };
+
+  it('accepts metadata with an explicit idempotency key', () => {
+    const parsed = MetricRunEvidenceCreateRequestSchema.parse(metricRunEvidenceBase);
+    expect(parsed.confidenceLevel).toBe('medium');
+    expect(parsed.materialityLevel).toBe('medium');
+    expect(parsed.confidentiality).toBe('internal');
+    expect(parsed.redactionRequired).toBe(false);
+  });
+
+  it('rejects empty and oversized idempotency keys', () => {
+    expect(() =>
+      MetricRunEvidenceCreateRequestSchema.parse({
+        ...metricRunEvidenceBase,
+        idempotencyKey: '',
+      })
+    ).toThrow();
+    expect(() =>
+      MetricRunEvidenceCreateRequestSchema.parse({
+        ...metricRunEvidenceBase,
+        idempotencyKey: 'x'.repeat(129),
+      })
+    ).toThrow();
+  });
+
+  it('rejects route-owned IDs, target FKs, approvals, locks, exports, narratives, and attachments', () => {
+    for (const key of [
+      'fundId',
+      'metricRunId',
+      'valuationMarkId',
+      'companyId',
+      'narrativeRunId',
+      'uploadedBy',
+      'approvedBy',
+      'approvedAt',
+      'lockedBy',
+      'lockedAt',
+      'exportedAt',
+      'narrative',
+      'attachments',
+    ]) {
+      expect(() =>
+        MetricRunEvidenceCreateRequestSchema.parse({
+          ...metricRunEvidenceBase,
+          [key]: key === 'attachments' ? [] : 1,
+        })
+      ).toThrow();
+    }
+  });
+
+  it('parses create and list response envelopes', () => {
+    const record = {
+      id: 1001,
+      fundId: 1,
+      metricRunId: 11,
+      idempotencyKey: 'metric-run-11-evidence-0',
+      evidenceSource: 'board_update',
+      sourceDate: '2026-03-31',
+      receivedDate: null,
+      expirationDate: null,
+      confidenceLevel: 'medium',
+      materialityLevel: 'medium',
+      confidentiality: 'internal',
+      redactionRequired: false,
+      documentHash: null,
+      valuationPolicyVersion: null,
+      description: null,
+      internalNotes: null,
+      lpObjection: null,
+      uploadedBy: 7,
+      createdAt: '2026-05-10T00:00:00.000Z',
+      updatedAt: '2026-05-10T00:00:00.000Z',
+    };
+
+    expect(MetricRunEvidenceCreateResponseSchema.parse({ record, inserted: true }).record.id).toBe(
+      1001
+    );
+    expect(MetricRunEvidenceListResponseSchema.parse({ records: [record] }).records).toHaveLength(
+      1
+    );
   });
 });
 
