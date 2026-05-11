@@ -21,6 +21,34 @@ interface QuarantineEntry {
   age: number;
 }
 
+interface QuarantinePolicy {
+  staticSkipThreshold: number;
+}
+
+interface StaticSkipSummary {
+  count: number;
+  threshold: number;
+  status: 'PASS' | 'FAIL';
+}
+
+const POLICY_PATH = 'tests/quarantine/policy.json';
+
+function readPolicy(): QuarantinePolicy {
+  const policy = JSON.parse(fs.readFileSync(POLICY_PATH, 'utf-8')) as Partial<QuarantinePolicy>;
+
+  if (
+    !Number.isInteger(policy.staticSkipThreshold) ||
+    policy.staticSkipThreshold === undefined ||
+    policy.staticSkipThreshold < 1
+  ) {
+    throw new Error(`${POLICY_PATH} must define a positive integer staticSkipThreshold`);
+  }
+
+  return {
+    staticSkipThreshold: policy.staticSkipThreshold,
+  };
+}
+
 function parseQuarantineJSDoc(content: string): Partial<QuarantineEntry> | null {
   const quarantineMatch = content.match(/@quarantine/);
   if (!quarantineMatch) return null;
@@ -45,7 +73,26 @@ function calculateAge(dateStr: string): number {
   return Math.floor((now.getTime() - added.getTime()) / (1000 * 60 * 60 * 24));
 }
 
+async function summarizeStaticSkips(threshold: number): Promise<StaticSkipSummary> {
+  const testFiles = await glob('tests/**/*.{ts,tsx}', {
+    ignore: ['**/node_modules/**'],
+  });
+
+  const count = testFiles.filter((file) => {
+    const content = fs.readFileSync(file, 'utf-8');
+    return /describe\.skip\(/.test(content);
+  }).length;
+
+  return {
+    count,
+    threshold,
+    status: count <= threshold ? 'PASS' : 'FAIL',
+  };
+}
+
 async function generateReport(): Promise<void> {
+  const policy = readPolicy();
+  const staticSkipSummary = await summarizeStaticSkips(policy.staticSkipThreshold);
   const testFiles = await glob('tests/**/*.test.{ts,tsx}', {
     ignore: ['**/node_modules/**'],
   });
@@ -72,7 +119,7 @@ async function generateReport(): Promise<void> {
   }
 
   // Generate markdown report
-  const report = generateMarkdownReport(quarantined);
+  const report = generateMarkdownReport(quarantined, staticSkipSummary);
 
   // Write to file
   const outputPath = 'tests/quarantine/REPORT.md';
@@ -80,11 +127,17 @@ async function generateReport(): Promise<void> {
 
   console.log(`Quarantine report generated: ${outputPath}`);
   console.log(`Total quarantined files: ${quarantined.length}`);
+  console.log(
+    `Static skips: ${staticSkipSummary.count}/${staticSkipSummary.threshold} (${staticSkipSummary.status})`
+  );
   console.log(`Documented: ${quarantined.filter((q) => q.owner !== 'Unknown').length}`);
   console.log(`Undocumented: ${quarantined.filter((q) => q.owner === 'Unknown').length}`);
 }
 
-function generateMarkdownReport(entries: QuarantineEntry[]): string {
+function generateMarkdownReport(
+  entries: QuarantineEntry[],
+  staticSkipSummary: StaticSkipSummary
+): string {
   const now = new Date().toISOString().split('T')[0];
   const documented = entries.filter((e) => e.owner !== 'Unknown');
   const undocumented = entries.filter((e) => e.owner === 'Unknown');
@@ -100,9 +153,15 @@ Generated: ${now}
 | Total Quarantined | ${entries.length} |
 | Documented | ${documented.length} |
 | Undocumented | ${undocumented.length} |
+| Static describe.skip files | ${staticSkipSummary.count} |
+| Static skip threshold | ${staticSkipSummary.threshold} |
+| Static skip status | ${staticSkipSummary.status} |
 
 This report tracks quarantined files, not the total number of skipped
 assertions inside those files.
+
+The static skip threshold is defined in \`tests/quarantine/policy.json\` for
+reporting and mirrors the currently deployed \`skip-counter.yml\` threshold.
 
 ## Documented Quarantines
 

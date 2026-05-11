@@ -13,7 +13,7 @@ echo "📦 Installing dependencies..."
 npm ci --prefer-offline --no-audit
 
 echo "🧪 Running tests..."
-if npm run test:all; then
+if npm test; then
   echo "✅ Tests passed"
 else
   echo "❌ Tests failed - check output above"

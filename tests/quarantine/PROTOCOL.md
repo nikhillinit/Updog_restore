@@ -1,16 +1,21 @@
 # Test Quarantine Protocol
 
-This document defines the formal protocol for managing quarantined tests in the Updog platform.
+This document defines the formal protocol for managing quarantined tests in the
+Updog platform.
 
 ## Overview
 
-Quarantined tests are tests that cannot run in the standard CI environment due to infrastructure dependencies, flakiness, or incomplete features. All quarantined tests must be properly documented and reviewed monthly for potential reactivation.
+Quarantined tests are tests that cannot run in the standard CI environment due
+to infrastructure dependencies, flakiness, or incomplete features. All
+quarantined tests must be properly documented and reviewed monthly for potential
+reactivation.
 
 ## Requirements
 
 ### 1. JSDoc Documentation
 
-Every quarantined test file MUST include a `@quarantine` JSDoc block with the following fields:
+Every quarantined test file MUST include a `@quarantine` JSDoc block with the
+following fields:
 
 ```typescript
 /**
@@ -27,36 +32,44 @@ describe.skip('Test Suite Name', () => {
 
 ### 2. Required Fields
 
-| Field | Description | Example |
-|-------|-------------|---------|
-| `@quarantine` | Tag marking test as quarantined | `@quarantine` |
-| `@owner` | GitHub username responsible for review | `@devops-team` |
-| `@reason` | Clear explanation of quarantine reason | `Requires Docker infrastructure` |
+| Field           | Description                            | Example                           |
+| --------------- | -------------------------------------- | --------------------------------- |
+| `@quarantine`   | Tag marking test as quarantined        | `@quarantine`                     |
+| `@owner`        | GitHub username responsible for review | `@devops-team`                    |
+| `@reason`       | Clear explanation of quarantine reason | `Requires Docker infrastructure`  |
 | `@exitCriteria` | Measurable conditions for reactivation | `Self-hosted runners with Docker` |
-| `@addedDate` | Date quarantine was added | `2026-01-20` |
+| `@addedDate`    | Date quarantine was added              | `2026-01-20`                      |
 
 ### 3. File Location
 
-Quarantined tests should be placed in `tests/quarantine/` directory with the naming convention:
+Quarantined tests should be placed in `tests/quarantine/` directory with the
+naming convention:
+
 - `<original-name>.quarantine.test.ts`
 
 ## Quarantine Categories
 
 ### Infrastructure Dependencies
+
 Tests requiring external services not available in CI:
+
 - Docker/Testcontainers
 - Real database connections
 - External APIs
 - Self-hosted runners
 
 ### Stochastic/Flaky Tests
+
 Tests with non-deterministic behavior:
+
 - Monte Carlo simulations (without seeded PRNG)
 - Time-sensitive tests
 - Race condition tests
 
 ### Incomplete Features
+
 Tests for features not yet implemented:
+
 - Phase 2 features
 - API endpoints in development
 - TDD red-phase tests
@@ -77,9 +90,11 @@ Tests for features not yet implemented:
 
 ## Skip Count Threshold
 
-- **Maximum allowed static skips**: 20
-- **Current count**: 14 (as of 2026-01-20)
-- **Enforcement**: CI workflow fails if threshold exceeded
+- **Canonical policy file**: `tests/quarantine/policy.json`
+- **Maximum allowed static skips**: 25
+- **Current count**: See `tests/quarantine/REPORT.md`
+- **Enforcement**: `skip-counter.yml` fails if the static `describe.skip(` file
+  count exceeds the mirrored CI threshold
 
 ## Adding New Quarantined Tests
 

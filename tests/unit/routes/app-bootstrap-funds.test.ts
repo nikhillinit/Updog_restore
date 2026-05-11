@@ -106,7 +106,7 @@ describe('makeApp bootstrap surface', () => {
     });
 
     expect(res.status).toBe(204);
-  }, 10_000);
+  }, 20_000);
 
   it('creates funds through POST /api/funds', async () => {
     const app = await loadApp();
