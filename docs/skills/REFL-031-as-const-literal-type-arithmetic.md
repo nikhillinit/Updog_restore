@@ -7,7 +7,7 @@ severity: medium
 category: Infrastructure
 discovered: 2026-03-23
 tags: [typescript, type-safety, as-const]
-last_updated: 2026-04-03
+last_updated: 2026-05-11
 ---
 
 # REFL-031: `as const` Literal Types Prevent Arithmetic Reassignment

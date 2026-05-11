@@ -1,6 +1,6 @@
 ---
 status: ACTIVE
-last_updated: 2026-03-28
+last_updated: 2026-05-11
 owner: Core Team
 review_cadence: P30D
 categories: [governance, roadmap, stabilization]

@@ -1,6 +1,6 @@
 {
-  "generated": "2026-03-27T17:51:13.401Z",
-  "count": 56,
+  "generated": "2026-05-11T02:39:57.696Z",
+  "count": 58,
   "skills": [
     {
       "name": "ai-model-selection",
@@ -45,6 +45,13 @@
       "description": "This skill defines the policy for baseline-based merge criteria. Baselines provide a \"ratchet\" mechanism: quality metrics can improve but cannot regress without explicit approval."
     },
     {
+      "name": "bias-audit",
+      "path": ".claude/skills/bias-audit/SKILL.md",
+      "format": "subdirectory",
+      "status": "ACTIVE",
+      "description": "Use this skill for any work involving:"
+    },
+    {
       "name": "brainstorming",
       "path": ".claude/skills/brainstorming.md",
       "format": "flat",
@@ -70,14 +77,14 @@
       "path": ".claude/skills/workflow-engine/code-formatter/SKILL.md",
       "format": "workflow-engine",
       "status": "ACTIVE",
-      "description": "Multi-language code formatting and style enforcement with automatic linting fixes"
+      "description": "Automatically format and lint code across multiple languages, enforcing"
     },
     {
       "name": "code-reviewer",
       "path": ".claude/skills/code-reviewer/SKILL.md",
       "format": "subdirectory",
       "status": "ACTIVE",
-      "description": "Comprehensive multi-AI code review system for Python, JavaScript, and TypeScript. Use when reviewing code for quality, security, performance, or best practices. Includes automated analysis scripts, la"
+      "description": "Expert code review assistant with automated analysis tools, language-specific"
     },
     {
       "name": "continuous-improvement",
@@ -85,6 +92,13 @@
       "format": "flat",
       "status": "ACTIVE",
       "description": "Self-review process to build adaptive expertise through structured reflection."
+    },
+    {
+      "name": "control-plane",
+      "path": ".claude/skills/control-plane/SKILL.md",
+      "format": "subdirectory",
+      "status": "ACTIVE",
+      "description": "This skill provides the core control plane loop: **Frame -> Verify -> Execute ->"
     },
     {
       "name": "database-schema-evolution",
@@ -98,7 +112,7 @@
       "path": ".claude/skills/workflow-engine/dependency-guardian/SKILL.md",
       "format": "workflow-engine",
       "status": "ACTIVE",
-      "description": "Automated dependency management with security scanning, update orchestration, and compatibility validation"
+      "description": "Automatically manage project dependencies with security scanning, intelligent"
     },
     {
       "name": "dispatching-parallel-agents",
@@ -112,7 +126,7 @@
       "path": ".claude/skills/workflow-engine/documentation-sync/SKILL.md",
       "format": "workflow-engine",
       "status": "ACTIVE",
-      "description": "Detects code/documentation drift, validates examples, generates diagrams, auto-updates documentation"
+      "description": "The Documentation Sync Skill maintains consistency between code and"
     },
     {
       "name": "extended-thinking-framework",
@@ -308,7 +322,7 @@
       "path": ".claude/skills/workflow-engine/security-scanner/SKILL.md",
       "format": "workflow-engine",
       "status": "ACTIVE",
-      "description": "Comprehensive security scanning for SAST, secrets, OWASP vulnerabilities, container and IaC security"
+      "description": "The Security Scanner Skill provides comprehensive security analysis for"
     },
     {
       "name": "session-learnings",
@@ -343,7 +357,7 @@
       "path": ".claude/skills/workflow-engine/tech-debt-tracker/SKILL.md",
       "format": "workflow-engine",
       "status": "ACTIVE",
-      "description": "Automated technical debt identification, tracking, and prioritization system",
+      "description": "The **tech-debt-tracker** Skill provides automated technical debt",
       "category": "code-quality"
     },
     {
@@ -351,7 +365,7 @@
       "path": ".claude/skills/workflow-engine/test-first-change/SKILL.md",
       "format": "workflow-engine",
       "status": "ACTIVE",
-      "description": "Reduce regressions by discovering tests, running them, then editing code"
+      "description": "Ensure code changes don't introduce regressions by forcing test discovery and"
     },
     {
       "name": "test-fixture-generator",

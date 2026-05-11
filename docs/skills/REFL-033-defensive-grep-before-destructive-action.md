@@ -17,7 +17,7 @@ tags:
     bias-check,
   ]
 error_codes: []
-last_updated: 2026-04-06
+last_updated: 2026-05-11
 ---
 
 # REFL-033: Defensive Grep Before Destructive Action (and "Plan Complete" ≠ "Plan Binding")

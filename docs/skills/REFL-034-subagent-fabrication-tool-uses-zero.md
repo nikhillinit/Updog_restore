@@ -17,7 +17,7 @@ tags:
     delegation-discipline,
   ]
 error_codes: []
-last_updated: 2026-04-07
+last_updated: 2026-05-11
 ---
 
 # REFL-034: Subagent Can Fabricate Success With tool_uses=0

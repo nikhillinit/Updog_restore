@@ -12,6 +12,7 @@ components: [tests, vitest, configuration]
 keywords: [vitest, include, glob, test-discovery, silent-failure, config]
 test_file: tests/regressions/REFL-016.test.ts
 superseded_by: null
+last_updated: 2026-05-11
 ---
 
 # Reflection: Vitest Include Patterns Miss New Test Directories

@@ -1,3 +1,7 @@
+---
+last_updated: 2026-05-11
+---
+
 # GP Economics Extension for the Existing Fund Lifecycle
 
 - **Version:** 4.0 — Ralph-Gated, Repo-Aligned
