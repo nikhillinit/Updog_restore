@@ -103,12 +103,18 @@ test.describe('GP Usability Audit - Sidebar Navigation', () => {
     await installQaAuditApi(page);
     await page.goto('/dashboard', { waitUntil: 'domcontentloaded' });
     await expect(page.locator('aside')).toBeVisible();
+    await page.locator('aside').hover();
+    await expect(page.locator('aside').getByText(/test fund i/i)).toBeVisible();
     const forecastLink = page.getByRole('link', { name: /forecasting/i });
     await expect(forecastLink).toBeVisible();
-    await forecastLink.click();
-    await expect(page).toHaveURL(/\/forecasting/i);
+    await expect(forecastLink).toHaveAttribute('href', '/forecasting?fundId=1');
+    await forecastLink.dispatchEvent('click');
+    await expect(page).toHaveURL(/\/forecasting\?fundId=1\b/i);
     const state = await captureMainPageState(page, '/forecasting');
     expect(state.pageText).toMatch(/financial|modeling|forecasting/i);
+    expect(state.pageText).not.toContain(
+      'Forecasting stays unavailable until an active fund context exists'
+    );
   });
 
   test('Settings navigates to Settings, not Help', async ({ page }) => {
@@ -189,6 +195,19 @@ test.describe('GP Usability Audit - Reserve Planning', () => {
 });
 
 test.describe('GP Usability Audit - Fund Context Detection', () => {
+  test('Direct Forecasting requires explicit fund context instead of implicit first fund', async ({
+    page,
+  }) => {
+    await installQaAuditApi(page);
+    await page.goto('/forecasting', { waitUntil: 'domcontentloaded' });
+    await page.waitForTimeout(1500);
+    const pageText = await readMainText(page);
+    expect(pageText).toMatch(/financial modeling & forecasting/i);
+    expect(pageText).toContain('Select or create a fund to view forecasting data');
+    expect(pageText).toContain('Forecasting stays unavailable until an active fund context exists');
+    expect(pageText).not.toMatch(/current aum|fund value forecast|live portfolio allocation/i);
+  });
+
   test('Forecasting recognizes active fund context', async ({ page }) => {
     await installQaAuditApi(page);
     await page.goto('/forecasting?fundId=1', { waitUntil: 'domcontentloaded' });

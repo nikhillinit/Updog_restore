@@ -18,9 +18,9 @@ export const presson = {
     borderSubtle: '#E0D8D1',
     text: '#292929',
     textMuted: '#5A5A5A',
-    accent: '#292929',           // Primary CTAs
-    accentOn: '#FFFFFF',          // Text on accent
-    highlight: '#E0D8D1',         // Warm highlight
+    accent: '#292929', // Primary CTAs
+    accentOn: '#FFFFFF', // Text on accent
+    highlight: '#E0D8D1', // Warm highlight
 
     // Gradient system
     gradientFrom: '#E0D8D1',
@@ -39,6 +39,11 @@ export const presson = {
 
   spacing: (n: number) => `${n * 8}px`,
 
+  safeZone: {
+    logo: 1,
+    icon: 0.5,
+  },
+
   // ============================================================================
   // BORDER RADIUS
   // ============================================================================
@@ -48,7 +53,7 @@ export const presson = {
     sm: '6px',
     md: '10px',
     lg: '16px',
-    xl: '24px'
+    xl: '24px',
   },
 
   // ============================================================================
@@ -68,7 +73,7 @@ export const presson = {
   // ============================================================================
 
   focus: {
-    ring: '0 0 0 3px rgba(41,41,41,0.25)'
+    ring: '0 0 0 3px rgba(41,41,41,0.25)',
   },
 
   // ============================================================================
@@ -76,7 +81,8 @@ export const presson = {
   // ============================================================================
 
   typography: {
-    heading: '"Inter", ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, "Helvetica Neue", Arial, "Noto Sans", "Apple Color Emoji","Segoe UI Emoji"',
+    heading:
+      '"Inter", ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, "Helvetica Neue", Arial, "Noto Sans", "Apple Color Emoji","Segoe UI Emoji"',
     body: '"Poppins", ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, "Helvetica Neue", Arial',
     mono: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace',
   },
@@ -117,13 +123,15 @@ export const pressOnClasses = {
   card: {
     base: 'bg-surface shadow-card rounded-lg border border-borderSubtle',
     hover: 'transition-all duration-200 hover:shadow-cardHover hover:-translate-y-1',
-    interactive: 'cursor-pointer transition-all duration-200 hover:shadow-cardHover hover:-translate-y-1',
+    interactive:
+      'cursor-pointer transition-all duration-200 hover:shadow-cardHover hover:-translate-y-1',
   },
 
   // Buttons
   button: {
     primary: 'bg-accent text-accentOn hover:bg-accent/90 transition-colors duration-200',
-    secondary: 'border border-borderSubtle text-text hover:bg-surfaceSubtle transition-colors duration-200',
+    secondary:
+      'border border-borderSubtle text-text hover:bg-surfaceSubtle transition-colors duration-200',
     ghost: 'text-text hover:bg-surfaceSubtle transition-colors duration-200',
   },
 
@@ -135,7 +143,8 @@ export const pressOnClasses = {
 
   // Focus states (accessibility)
   focus: {
-    visible: 'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/30 focus-visible:ring-offset-2',
+    visible:
+      'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/30 focus-visible:ring-offset-2',
   },
 } as const;
 

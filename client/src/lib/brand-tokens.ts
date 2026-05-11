@@ -16,10 +16,10 @@
 
 export const colors = {
   // Primary palette
-  dark: '#292929',      // R41 G41 B41 - Primary text, headers
-  beige: '#E0D8D1',     // R224 G216 B209 - Accent, highlights
-  white: '#FFFFFF',     // Clean backgrounds
-  light: '#F2F2F2',     // R242 G242 B242 - Subtle backgrounds
+  dark: '#292929', // R41 G41 B41 - Primary text, headers
+  beige: '#E0D8D1', // R224 G216 B209 - Accent, highlights
+  white: '#FFFFFF', // Clean backgrounds
+  light: '#F2F2F2', // R242 G242 B242 - Subtle backgrounds
 
   // State colors (system)
   success: '#10b981',
@@ -101,12 +101,14 @@ export const spacing = {
   16: 64,
 
   // Logo safe zones
-  logoSafeZone: 16,      // 1 logo-height equivalent
-  iconSafeZone: 8,       // 1/2 icon size
+  logoSafeZone: 16, // px fallback for component spacing
+  iconSafeZone: 8, // px fallback for component spacing
+  logoSafeZoneRatio: 1, // guideline: logo clearspace equals the icon width in the mark
+  iconSafeZoneRatio: 0.5, // guideline: icon clearspace equals 1/2 icon size
 
   // Print spacing (points)
   print: {
-    margin: 54,          // 0.75in page margin
+    margin: 54, // 0.75in page margin
     gutter: 12,
     section: 16,
   },
@@ -152,11 +154,11 @@ export const shadows = {
 export const chart = {
   // Sequential color palette for data visualization
   colors: [
-    '#292929',  // Primary - most important data
-    '#E0D8D1',  // Accent - secondary data
-    '#666666',  // Tertiary
-    '#999999',  // Quaternary
-    '#CCCCCC',  // Quinary
+    '#292929', // Primary - most important data
+    '#E0D8D1', // Accent - secondary data
+    '#666666', // Tertiary
+    '#999999', // Quaternary
+    '#CCCCCC', // Quinary
   ],
 
   // Extended palette for more data series
@@ -209,9 +211,9 @@ export const chart = {
 
 export const pdf = {
   page: {
-    width: 612,           // 8.5in in points
-    height: 792,          // 11in in points
-    marginTop: 54,        // 0.75in
+    width: 612, // 8.5in in points
+    height: 792, // 11in in points
+    marginTop: 54, // 0.75in
     marginBottom: 54,
     marginLeft: 54,
     marginRight: 54,
