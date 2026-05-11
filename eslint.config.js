@@ -120,6 +120,7 @@ export default [
       'triage-output/**',
       'performance-results/**',
       'reports/**',
+      'output/**',
       'test-results/**',
       'playwright-report/**',
       'repo/**',

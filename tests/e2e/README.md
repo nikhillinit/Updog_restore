@@ -83,3 +83,37 @@ npx playwright test tests/e2e/production-smoke.spec.ts --project=production
 
 If a spec depends on backend services rather than local stubs, start the needed
 infrastructure separately before running it.
+
+## Audit Closeout Launch Contract
+
+Use these paths for reproducible local audits:
+
+- Normal E2E/audit gates: run Playwright directly and let `playwright.config.ts`
+  start its `webServer` preview. Example:
+  `npx playwright test tests/e2e/basic-smoke.spec.ts --project=smoke --no-deps`.
+- Interactive Vite inspection: run `npm run dev:client` in the foreground. Treat
+  detached Vite processes in this Windows/Codex shell as unreliable for audit
+  evidence.
+- Fixture-backed screenshot review: use the generated static server at
+  `output/playwright/current-audit/audit-static-server.mjs` as evidence tooling,
+  not as source code.
+
+Generated screenshots, videos, JSON reports, and `output/playwright/*` files are
+audit evidence. Do not delete them as part of S1 closeout.
+
+## Build Warning Classification
+
+Fresh command: `npm run build` on 2026-05-11.
+
+Build status: passed.
+
+Warning groups:
+
+| Warning group               | Current output                                                                                                                      | Decision         | Rationale                                                                                                            |
+| --------------------------- | ----------------------------------------------------------------------------------------------------------------------------------- | ---------------- | -------------------------------------------------------------------------------------------------------------------- |
+| Sourcemap resolution        | `tooltip.tsx`, `dialog.tsx`, `select.tsx`, `collapsible.tsx`, `sheet.tsx`, and `form.tsx` report unresolved original locations.     | `upstream/noise` | Build succeeds and the warnings affect diagnostic source mapping, not runtime audit truthfulness.                    |
+| Ineffective dynamic imports | `LazyResponsiveContainer.tsx`/Recharts and `services/funds.ts`/`inflight.ts` are dynamically imported but also statically imported. | `defer`          | The warning is real, but fixing it is bundle-architecture work outside this audit closeout lane.                     |
+| Large chunk size            | Main `index` chunk is above 500 kB after minification.                                                                              | `defer`          | Requires a separate bundle-size plan and should not be bundled into smoke, logo, or fund-context truthfulness fixes. |
+
+Do not change Vite chunking, sourcemap, or dynamic-import architecture in this
+lane unless a warning becomes a concrete audit failure.
