@@ -1,26 +1,12 @@
-import React, { Suspense, useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
+import { ResponsiveContainer } from 'recharts/es6/component/ResponsiveContainer';
 import type { Props as RechartsResponsiveContainerProps } from 'recharts/types/component/ResponsiveContainer';
 
-// Lazy load ResponsiveContainer only when needed
-type ResponsiveContainerModule = typeof import('recharts/es6/component/ResponsiveContainer');
 type Dimension = number | `${number}%`;
 type ContainerSize = {
   width: number;
   height: number;
 };
-
-const loadResponsiveContainer = async (): Promise<{
-  default: ResponsiveContainerModule['ResponsiveContainer'];
-}> => {
-  const module: ResponsiveContainerModule =
-    await import('recharts/es6/component/ResponsiveContainer');
-
-  return {
-    default: module.ResponsiveContainer,
-  };
-};
-
-const ResponsiveContainer = React.lazy(loadResponsiveContainer);
 
 interface LazyResponsiveContainerProps extends Omit<
   RechartsResponsiveContainerProps,
@@ -37,6 +23,7 @@ export function LazyResponsiveContainer({
   width = '100%' as const,
   ...props
 }: LazyResponsiveContainerProps) {
+  // Historical name: this gates rendering on measured dimensions, not code loading.
   const containerRef = useRef<HTMLDivElement | null>(null);
   const [containerSize, setContainerSize] = useState<ContainerSize>({ width: 0, height: 0 });
 
@@ -114,18 +101,16 @@ export function LazyResponsiveContainer({
       }}
     >
       {hasRenderableSize ? (
-        <Suspense fallback={fallback}>
-          <ResponsiveContainer
-            {...props}
-            width="100%"
-            height="100%"
-            minWidth={props.minWidth ?? 0}
-            minHeight={props.minHeight ?? 0}
-            initialDimension={containerSize}
-          >
-            {children}
-          </ResponsiveContainer>
-        </Suspense>
+        <ResponsiveContainer
+          {...props}
+          width="100%"
+          height="100%"
+          minWidth={props.minWidth ?? 0}
+          minHeight={props.minHeight ?? 0}
+          initialDimension={containerSize}
+        >
+          {children}
+        </ResponsiveContainer>
       ) : (
         fallback
       )}
