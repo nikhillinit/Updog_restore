@@ -57,6 +57,7 @@
     "test:smart": "node scripts/test-smart.mjs",
     "phoenix:truth": "cross-env TZ=UTC vitest run tests/unit/truth-cases/",
     "test:affected": "node scripts/test-smart.mjs --only-affected",
+    "quarantine:report": "tsx scripts/quarantine-report.ts",
     "test:ui": "vitest --ui",
     "test:quick": "vitest run --exclude='**/api/**'",
     "test:wave1b": "cross-env TZ=UTC vitest run tests/unit/routes/monte-carlo-api.test.ts tests/unit/routes/ai-api.test.ts tests/unit/api/variance-tracking-api.test.ts tests/unit/routes/wave1b-tail-api.test.ts",
