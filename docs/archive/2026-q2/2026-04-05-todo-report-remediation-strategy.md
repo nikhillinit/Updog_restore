@@ -38,8 +38,8 @@ Scope:
 
 Definition of done:
 
-- sensitivity disabled tabs explicitly describe the missing backend/data
-  requirements
+- sensitivity wording and tests reflect that Monte Carlo, one-way, two-way, and
+  stress are live fund-scoped persisted surfaces
 - time-travel restore wording matches the versioned restore workflow that exists
   on the server while staying disabled on the active UI surface
 
@@ -96,7 +96,7 @@ Definition of done:
 ```bash
 rg -n "toMetricDelta|driftCapable|driftReason" server/services/fund-results-comparison-service.ts
 rg -n "Construction vs\\. actual comparison remains deferred|valuation-tier breakdowns stay deferred" client/src/components/forecasting/construction-actual-comparison.tsx
-rg -n "COMING_SOON_TABS|planned but not yet wired" client/src/pages/sensitivity-analysis.tsx
+rg -n "Sensitivity analysis surface|Monte Carlo|One-Way|Two-Way|Stress" client/src/pages/sensitivity-analysis.tsx
 rg -n "Benchmark comparison derived from persisted LP performance snapshots|No benchmark dataset is configured" server/routes/lp-api.ts
 rg -n "identifyConcentrationRisks|Sector concentration|Stage concentration" server/services/portfolio-performance-predictor.ts
 rg -n "Restore Unavailable|versioned restore workflow" client/src/pages/time-travel.tsx
@@ -124,7 +124,8 @@ rg -n "targetIRR|expectedIRR" server/services/metrics-aggregator.ts
   - active docs no longer contradict `ADR-014` or reopen `C2`/`D` as greenfield
     work
 - Worktrack B:
-  - focused page/component tests for touched wording
+  - focused page/component tests prove the four live sensitivity tabs and the
+    disabled time-travel restore boundary
 - Worktrack C1:
   - canonical XIRR truth cases + touched service tests
 - Worktrack C2:
@@ -135,6 +136,7 @@ rg -n "targetIRR|expectedIRR" server/services/metrics-aggregator.ts
 
 ## References
 
-- `docs/todo-report-accuracy-review-2026-04-05.md`
+- `docs/archive/2026-q2/todo-report-accuracy-review-2026-04-05.md`
 - `docs/adr/ADR-014-snapshot-governance.md`
-- `.omx/plans/prd-todo-report-remediation-main-rebaseline.md`
+- `.omx/plans/prd-next-development-goal-current-main-rebaseline.md`
+- `.omx/plans/test-spec-next-development-goal-current-main-rebaseline.md`
