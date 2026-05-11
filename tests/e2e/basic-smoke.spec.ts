@@ -514,6 +514,8 @@ test.describe('Basic Smoke Tests', () => {
 
     await expect(kanbanButton).toBeVisible({ timeout: ROUTE_READY_TIMEOUT_MS });
     await expect(listButton).toBeVisible({ timeout: ROUTE_READY_TIMEOUT_MS });
+    await expect(kanbanButton).toHaveAttribute('aria-controls', 'pipeline-view-region');
+    await expect(listButton).toHaveAttribute('aria-controls', 'pipeline-view-region');
     await expect(kanbanButton).toHaveAttribute('aria-pressed', 'true');
 
     await listButton.click();

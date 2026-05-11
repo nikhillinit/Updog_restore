@@ -69,6 +69,7 @@ const PIPELINE_STATUSES = [
 
 // Type for view mode
 type ViewMode = 'kanban' | 'list';
+const PIPELINE_VIEW_REGION_ID = 'pipeline-view-region';
 
 // API response types
 interface DealsResponse {
@@ -645,6 +646,7 @@ export default function PipelinePage() {
               size="sm"
               onClick={() => setFilter('view', 'kanban')}
               aria-label="Kanban view"
+              aria-controls={PIPELINE_VIEW_REGION_ID}
               aria-pressed={viewMode === 'kanban'}
               className={viewMode === 'kanban' ? 'bg-pov-charcoal text-white' : 'text-gray-600'}
             >
@@ -655,6 +657,7 @@ export default function PipelinePage() {
               size="sm"
               onClick={() => setFilter('view', 'list')}
               aria-label="List view"
+              aria-controls={PIPELINE_VIEW_REGION_ID}
               aria-pressed={viewMode === 'list'}
               className={viewMode === 'list' ? 'bg-pov-charcoal text-white' : 'text-gray-600'}
             >
@@ -722,42 +725,43 @@ export default function PipelinePage() {
         )}
 
         {/* Main Content */}
-        {dealsError ? (
-          <ErrorState onRetry={() => refetchDeals()} />
-        ) : isLoadingDeals ? (
-          <div className="flex gap-4 overflow-x-auto pb-4">
-            {Array.from({ length: 4 }).map((_, i) => (
-              <KanbanColumnSkeleton key={i} />
-            ))}
-          </div>
-        ) : !hasDeals && !hasFilters ? (
-          <EmptyPipelineState onAddDeal={() => setIsAddModalOpen(true)} />
-        ) : !hasDeals && hasFilters ? (
-          <Card className="border-pov-beige/50 bg-white/50">
-            <CardContent className="pt-6 text-center">
-              <Search className="h-8 w-8 text-gray-300 mx-auto mb-3" />
-              <p className="font-inter font-medium text-pov-charcoal mb-1">No matching deals</p>
-              <p className="font-poppins text-sm text-gray-500 mb-4">
-                Try adjusting your filters or search terms.
-              </p>
-              <Button variant="outline" onClick={clearFilters} className="border-pov-beige">
-                Clear filters
-              </Button>
-            </CardContent>
-          </Card>
-        ) : (
-          <>
-            {viewMode === 'kanban' ? (
-              <KanbanView deals={deals} onDealClick={handleDealClick} dndEnabled={dndEnabled} />
-            ) : (
-              <ListView
-                deals={deals}
-                onDealClick={handleDealClick}
-                {...(bulkEnabled && { selectedIds, onToggleSelect: toggleSelection })}
-              />
-            )}
-          </>
-        )}
+        <section
+          id={PIPELINE_VIEW_REGION_ID}
+          aria-label={viewMode === 'kanban' ? 'Kanban pipeline view' : 'List pipeline view'}
+        >
+          {dealsError ? (
+            <ErrorState onRetry={() => refetchDeals()} />
+          ) : isLoadingDeals ? (
+            <div className="flex gap-4 overflow-x-auto pb-4">
+              {Array.from({ length: 4 }).map((_, i) => (
+                <KanbanColumnSkeleton key={i} />
+              ))}
+            </div>
+          ) : !hasDeals && !hasFilters ? (
+            <EmptyPipelineState onAddDeal={() => setIsAddModalOpen(true)} />
+          ) : !hasDeals && hasFilters ? (
+            <Card className="border-pov-beige/50 bg-white/50">
+              <CardContent className="pt-6 text-center">
+                <Search className="h-8 w-8 text-gray-300 mx-auto mb-3" />
+                <p className="font-inter font-medium text-pov-charcoal mb-1">No matching deals</p>
+                <p className="font-poppins text-sm text-gray-500 mb-4">
+                  Try adjusting your filters or search terms.
+                </p>
+                <Button variant="outline" onClick={clearFilters} className="border-pov-beige">
+                  Clear filters
+                </Button>
+              </CardContent>
+            </Card>
+          ) : viewMode === 'kanban' ? (
+            <KanbanView deals={deals} onDealClick={handleDealClick} dndEnabled={dndEnabled} />
+          ) : (
+            <ListView
+              deals={deals}
+              onDealClick={handleDealClick}
+              {...(bulkEnabled && { selectedIds, onToggleSelect: toggleSelection })}
+            />
+          )}
+        </section>
 
         {/* Feature Preview (only show when empty and no filters) */}
         {!hasDeals && !isLoadingDeals && !dealsError && !hasFilters && (
