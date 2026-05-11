@@ -1,6 +1,9 @@
 # To-Do Report Accuracy Review
 
-Date: `2026-04-05` Status: `active`
+Date: `2026-04-05` Status: `archived-reference`
+
+Superseded for execution by the current approved priority development queue
+handoff.
 
 ## Verdict
 
@@ -8,12 +11,14 @@ The original to-do report was directionally useful but materially stale. It
 mixed validated remaining gaps with claims that current `main` had already
 closed or had never matched literally.
 
-This review is the current-main source of truth for the remediation queue. It
-supersedes the PR-only draft review from PR `#563`.
+This archived review records the April 5 current-main rebaseline that later fed
+the approved priority development queue. It superseded the PR-only draft review
+from PR `#563` at the time, but it is no longer the active execution source of
+truth.
 
 ## Current-Main Findings
 
-### Validated remaining gaps
+### Validated remaining gaps at the April 5 rebaseline
 
 1. Construction-vs-actual detailed breakdown remains explicitly deferred.
 2. Residual IRR follow-through remains a later audit lane outside the
@@ -21,6 +26,9 @@ supersedes the PR-only draft review from PR `#563`.
    current `main` instead of assumed from the earlier PR draft.
 
 ### Current-main closures that active docs must respect
+
+These closures are not open-from-zero worktracks. They are reference boundaries
+for future docs or code touched by newer plans.
 
 1. LP benchmark comparison no longer returns placeholder-only example data; the
    route serves persisted benchmark-derived series when present and an explicit
@@ -76,10 +84,11 @@ rg -n "targetIRR|expectedIRR" server/services/metrics-aggregator.ts
 
 ## Follow-Through
 
-The April 5 remediation queue has been re-baselined on current `main`. Use the
-archived strategy plus the current OMX handoff artifacts for bounded doc + UI
-truthfulness follow-through; do not re-execute the old active `docs/plans` path:
+The April 5 remediation queue has been re-baselined on current `main`. Use this
+archived strategy as evidence for the current approved priority queue handoff;
+do not re-execute the old active `docs/plans` path or treat snapshot
+governance, `C2`, or `D` as unresolved greenfield work.
+
+Related archive:
 
 - `docs/archive/2026-q2/2026-04-05-todo-report-remediation-strategy.md`
-- `.omx/plans/prd-next-development-goal-current-main-rebaseline.md`
-- `.omx/plans/test-spec-next-development-goal-current-main-rebaseline.md`
