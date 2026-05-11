@@ -16,7 +16,7 @@ tags:
     scoping,
   ]
 error_codes: []
-last_updated: 2026-04-07
+last_updated: 2026-05-11
 ---
 
 # REFL-036: Silent Test Discovery Loss From **tests** Directories Outside tests/unit/

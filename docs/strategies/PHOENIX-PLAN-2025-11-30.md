@@ -1,6 +1,6 @@
 ---
 status: HISTORICAL
-last_updated: 2026-01-19
+last_updated: 2026-05-11
 ---
 
 > **DEPRECATED - 2025-12-11** This document has been superseded by

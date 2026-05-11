@@ -86,6 +86,7 @@
     "validate:phase4": "npm run test:phase4 && npm run lint:phase4",
     "test:smoke": "cross-env CI=1 playwright test tests/e2e/basic-smoke.spec.ts --project=smoke",
     "test:e2e:smoke": "playwright test --project=smoke",
+    "test:e2e:lp-reporting": "node scripts/run-lp-reporting-e2e.mjs",
     "test:security": "vitest run -c vitest.config.int.ts tests/integration/security",
     "ai": "node scripts/ai-tools/index.js",
     "prepare": "husky install && node scripts/normalize-husky-shims.mjs",
@@ -246,6 +247,7 @@
     "@react-pdf/pdfkit": "^4.1.0",
     "@isaacs/brace-expansion": "5.0.1",
     "axios": "1.16.0",
+    "fast-uri": "3.1.2",
     "lodash": "^4.18.1",
     "lodash-es": "^4.18.1"
   },

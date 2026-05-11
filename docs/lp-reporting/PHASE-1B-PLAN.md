@@ -1,3 +1,7 @@
+---
+last_updated: 2026-05-11
+---
+
 # LP Reporting Phase 1b -- UI Plan
 
 Branch: `feature/lp-reporting-ui-phase-1b` Backend status: FROZEN through Phase

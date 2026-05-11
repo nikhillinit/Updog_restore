@@ -1,3 +1,7 @@
+---
+last_updated: 2026-05-11
+---
+
 # MCP Server Setup
 
 This document describes optional MCP (Model Context Protocol) server

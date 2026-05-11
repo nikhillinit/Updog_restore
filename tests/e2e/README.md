@@ -9,10 +9,16 @@ Package scripts only expose the smoke run:
 ```bash
 npm run test:smoke
 npm run test:e2e:smoke
+npm run test:e2e:lp-reporting
 ```
 
 There are no package scripts named `test:e2e`, `test:e2e:all`,
 `test:e2e:headed`, or `test:e2e:debug`.
+
+`npm run test:e2e:lp-reporting` is a live API smoke guard for the LP reporting
+package flow. It starts the API and Vite dev server, runs the metric run ->
+evidence -> approval -> lock -> narratives -> package -> stored JSON -> stored
+CSV browser path, and verifies both downloaded artifacts.
 
 For all other E2E runs, use Playwright directly:
 
@@ -53,6 +59,10 @@ Current projects:
 - `mobile`
 - `firefox`
 - `webkit`
+
+The LP reporting package guard uses `playwright.lp-reporting.config.ts` instead
+of the default Playwright config because it needs a live backend, not the
+preview-server/stubbed API setup used by the generic smoke project.
 
 ## Useful examples
 
