@@ -1167,6 +1167,44 @@ describe('POST /api/funds/:fundId/metric-runs/commit', () => {
 });
 
 describe('metric-run evidence routes', () => {
+  it('POST returns 401 when unauthenticated', async () => {
+    authState.authenticated = false;
+
+    const res = await request(buildApp())
+      .post('/api/funds/1/metric-runs/500/evidence-records')
+      .send(evidenceBody());
+
+    expect(res.status).toBe(401);
+    expect(dbState.insertedEvidenceRows).toHaveLength(0);
+  });
+
+  it('POST requires fund access', async () => {
+    authState.fundIds = [2];
+
+    const res = await request(buildApp())
+      .post('/api/funds/1/metric-runs/500/evidence-records')
+      .send(evidenceBody());
+
+    expect(res.status).toBe(403);
+    expect(res.body.error).toBe('Forbidden');
+    expect(dbState.insertedEvidenceRows).toHaveLength(0);
+  });
+
+  it('POST rejects invalid route params', async () => {
+    const invalidFund = await request(buildApp())
+      .post('/api/funds/not-a-fund/metric-runs/500/evidence-records')
+      .send(evidenceBody());
+    const invalidMetricRun = await request(buildApp())
+      .post('/api/funds/1/metric-runs/not-a-run/evidence-records')
+      .send(evidenceBody());
+
+    expect(invalidFund.status).toBe(400);
+    expect(invalidFund.body.error).toBe('INVALID_FUND_ID');
+    expect(invalidMetricRun.status).toBe(400);
+    expect(invalidMetricRun.body.error).toBe('INVALID_METRIC_RUN_ID');
+    expect(dbState.insertedEvidenceRows).toHaveLength(0);
+  });
+
   it('POST creates metadata-only evidence for a draft metric run', async () => {
     dbState.metricRuns.push({
       id: 500,
@@ -1195,6 +1233,29 @@ describe('metric-run evidence routes', () => {
       idempotencyKey: 'metric-run-500-evidence-0',
       attachments: [],
     });
+  });
+
+  it('POST duplicate idempotency returns the existing row with 200', async () => {
+    dbState.metricRuns.push({
+      id: 500,
+      fundId: 1,
+      runType: 'quarterly_report',
+      perspective: 'lp_net',
+      asOfDate: '2026-03-31',
+      status: 'draft',
+      inputsHash: 'a'.repeat(64),
+    });
+    seedMetricRunEvidence({ idempotencyKey: 'metric-run-500-evidence-0' });
+
+    const res = await request(buildApp())
+      .post('/api/funds/1/metric-runs/500/evidence-records')
+      .send(evidenceBody());
+
+    expect(res.status).toBe(200);
+    const parsed = MetricRunEvidenceCreateResponseSchema.parse(res.body);
+    expect(parsed.inserted).toBe(false);
+    expect(parsed.record.id).toBe(1000);
+    expect(dbState.insertedEvidenceRows).toHaveLength(0);
   });
 
   it('POST rejects route-owned fields in the request body', async () => {
@@ -1237,6 +1298,49 @@ describe('metric-run evidence routes', () => {
     expect(dbState.insertedEvidenceRows).toHaveLength(0);
   });
 
+  it.each(['locked', 'exported', 'superseded'])(
+    'POST returns 409 METRIC_RUN_NOT_EDITABLE for %s metric runs',
+    async (status) => {
+      dbState.metricRuns.push({
+        id: 500,
+        fundId: 1,
+        runType: 'quarterly_report',
+        perspective: 'lp_net',
+        asOfDate: '2026-03-31',
+        status,
+        inputsHash: 'a'.repeat(64),
+      });
+
+      const res = await request(buildApp())
+        .post('/api/funds/1/metric-runs/500/evidence-records')
+        .send(evidenceBody());
+
+      expect(res.status).toBe(409);
+      expect(res.body.error).toBe('METRIC_RUN_NOT_EDITABLE');
+      expect(dbState.insertedEvidenceRows).toHaveLength(0);
+    }
+  );
+
+  it('POST returns 404 for cross-fund metric-run targets', async () => {
+    dbState.metricRuns.push({
+      id: 500,
+      fundId: 2,
+      runType: 'quarterly_report',
+      perspective: 'lp_net',
+      asOfDate: '2026-03-31',
+      status: 'draft',
+      inputsHash: 'a'.repeat(64),
+    });
+
+    const res = await request(buildApp())
+      .post('/api/funds/1/metric-runs/500/evidence-records')
+      .send(evidenceBody());
+
+    expect(res.status).toBe(404);
+    expect(res.body.error).toBe('METRIC_RUN_NOT_FOUND');
+    expect(dbState.insertedEvidenceRows).toHaveLength(0);
+  });
+
   it('GET lists evidence for locked metric runs', async () => {
     dbState.metricRuns.push({
       id: 500,
@@ -1275,6 +1379,12 @@ describe('metric-run evidence routes', () => {
       createdAt: new Date('2026-05-10T00:00:00Z'),
       updatedAt: new Date('2026-05-10T00:00:00Z'),
     });
+    dbState.evidenceRecords.push({
+      ...dbState.evidenceRecords[0]!,
+      id: 1001,
+      metricRunId: 501,
+      idempotencyKey: 'metric-run-501-evidence-0',
+    });
 
     const res = await request(buildApp()).get('/api/funds/1/metric-runs/500/evidence-records');
 
@@ -1282,6 +1392,23 @@ describe('metric-run evidence routes', () => {
     const parsed = MetricRunEvidenceListResponseSchema.parse(res.body);
     expect(parsed.records).toHaveLength(1);
     expect(parsed.records[0]?.idempotencyKey).toBe('metric-run-500-evidence-0');
+  });
+
+  it('GET returns 404 for cross-fund metric-run targets', async () => {
+    dbState.metricRuns.push({
+      id: 500,
+      fundId: 2,
+      runType: 'quarterly_report',
+      perspective: 'lp_net',
+      asOfDate: '2026-03-31',
+      status: 'locked',
+      inputsHash: 'a'.repeat(64),
+    });
+
+    const res = await request(buildApp()).get('/api/funds/1/metric-runs/500/evidence-records');
+
+    expect(res.status).toBe(404);
+    expect(res.body.error).toBe('METRIC_RUN_NOT_FOUND');
   });
 });
 

@@ -845,6 +845,74 @@ describe('LpReportingMetricsPage', () => {
     );
   });
 
+  it('renders duplicate evidence create responses without duplicate rows', async () => {
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockImplementation(async (input, init) => {
+      const url = String(input);
+      if (url.endsWith('/metric-runs/dry-run')) {
+        return new Response(JSON.stringify(makeDryRunResponse()), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        });
+      }
+      if (url.endsWith('/metric-runs/commit')) {
+        return new Response(JSON.stringify(makeCommitResponse()), {
+          status: 201,
+          headers: { 'Content-Type': 'application/json' },
+        });
+      }
+      if (url.includes('/metric-runs/latest')) {
+        return new Response(
+          JSON.stringify({ metricRun: makeMetricRunDetail({ evidenceCount: 1 }) }),
+          {
+            status: 200,
+            headers: { 'Content-Type': 'application/json' },
+          }
+        );
+      }
+      if (url.endsWith('/metric-runs/17')) {
+        return new Response(JSON.stringify(makeMetricRunDetail({ evidenceCount: 1 })), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        });
+      }
+      if (url.endsWith('/metric-runs/17/evidence-records') && init?.method === 'POST') {
+        return new Response(JSON.stringify({ record: makeEvidenceRecord(), inserted: false }), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        });
+      }
+      if (url.endsWith('/metric-runs/17/evidence-records')) {
+        return new Response(JSON.stringify({ records: [makeEvidenceRecord()] }), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        });
+      }
+      return new Response(JSON.stringify({ error: 'UNEXPECTED_URL' }), { status: 500 });
+    });
+
+    renderPage();
+
+    fireEvent.click(screen.getByRole('button', { name: /run metrics/i }));
+    await waitFor(() => {
+      expect(screen.getByTestId('metrics-commit-button')).toBeEnabled();
+    });
+    fireEvent.click(screen.getByTestId('metrics-commit-button'));
+    await waitFor(() => {
+      expect(screen.getAllByTestId('metric-run-evidence-record')).toHaveLength(1);
+    });
+
+    fireEvent.click(screen.getByTestId('metric-run-evidence-submit'));
+
+    await waitFor(() => {
+      const duplicateCall = fetchSpy.mock.calls.find(
+        ([url, init]) =>
+          String(url).endsWith('/metric-runs/17/evidence-records') && init?.method === 'POST'
+      );
+      expect(duplicateCall).toBeTruthy();
+    });
+    expect(screen.getAllByTestId('metric-run-evidence-record')).toHaveLength(1);
+  });
+
   it('approves after evidence and then locks the metric run', async () => {
     let latestStatus: MetricRunDetailResponse = makeMetricRunDetail({ evidenceCount: 1 });
     const fetchSpy = vi.spyOn(globalThis, 'fetch').mockImplementation(async (input, init) => {

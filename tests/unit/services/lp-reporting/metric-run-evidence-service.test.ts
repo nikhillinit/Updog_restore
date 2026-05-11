@@ -8,6 +8,7 @@ import {
   listMetricRunEvidence,
 } from '../../../../server/services/lp-reporting/metric-run-evidence-service';
 import type { MetricRunCommitError } from '../../../../server/services/lp-reporting/metric-run-commit-service';
+import type { MetricRunEvidenceCreateRequest } from '@shared/contracts/lp-reporting';
 import type { db } from '../../../../server/db';
 import {
   evidenceRecords,
@@ -25,6 +26,7 @@ interface State {
   insertValues: InsertEvidenceRecord[];
   nextEvidenceId: number;
   dropNextInsert: boolean;
+  raceExistingOnInsertDrop: boolean;
   operations: string[];
 }
 
@@ -35,6 +37,7 @@ const state: State = {
   insertValues: [],
   nextEvidenceId: 1000,
   dropNextInsert: false,
+  raceExistingOnInsertDrop: false,
   operations: [],
 };
 
@@ -91,6 +94,29 @@ function queryResult<T>(rows: T[]): Promise<T[]> & { limit: (count: number) => P
   return promise;
 }
 
+function evidenceRowFromInsert(row: InsertEvidenceRecord): EvidenceRecord {
+  return evidenceRow({
+    id: state.nextEvidenceId++,
+    fundId: row.fundId,
+    metricRunId: row.metricRunId ?? null,
+    idempotencyKey: row.idempotencyKey ?? null,
+    evidenceSource: row.evidenceSource,
+    sourceDate: row.sourceDate,
+    receivedDate: row.receivedDate ?? null,
+    expirationDate: row.expirationDate ?? null,
+    confidenceLevel: row.confidenceLevel ?? 'medium',
+    materialityLevel: row.materialityLevel ?? 'medium',
+    confidentiality: row.confidentiality ?? 'internal',
+    redactionRequired: row.redactionRequired ?? false,
+    documentHash: row.documentHash ?? null,
+    valuationPolicyVersion: row.valuationPolicyVersion ?? null,
+    description: row.description ?? null,
+    internalNotes: row.internalNotes ?? null,
+    lpObjection: row.lpObjection ?? null,
+    uploadedBy: row.uploadedBy ?? null,
+  });
+}
+
 function makeDatabase(): typeof db {
   return {
     transaction: async (callback: (tx: typeof db) => Promise<unknown>) => {
@@ -112,29 +138,17 @@ function makeDatabase(): typeof db {
           returning: async () => {
             state.insertValues.push(row);
             if (state.dropNextInsert || table !== evidenceRecords) {
+              if (
+                state.dropNextInsert &&
+                state.raceExistingOnInsertDrop &&
+                table === evidenceRecords
+              ) {
+                state.evidence.push(evidenceRowFromInsert(row));
+              }
               state.dropNextInsert = false;
               return [];
             }
-            const inserted = evidenceRow({
-              id: state.nextEvidenceId++,
-              fundId: row.fundId,
-              metricRunId: row.metricRunId ?? null,
-              idempotencyKey: row.idempotencyKey ?? null,
-              evidenceSource: row.evidenceSource,
-              sourceDate: row.sourceDate,
-              receivedDate: row.receivedDate ?? null,
-              expirationDate: row.expirationDate ?? null,
-              confidenceLevel: row.confidenceLevel ?? 'medium',
-              materialityLevel: row.materialityLevel ?? 'medium',
-              confidentiality: row.confidentiality ?? 'internal',
-              redactionRequired: row.redactionRequired ?? false,
-              documentHash: row.documentHash ?? null,
-              valuationPolicyVersion: row.valuationPolicyVersion ?? null,
-              description: row.description ?? null,
-              internalNotes: row.internalNotes ?? null,
-              lpObjection: row.lpObjection ?? null,
-              uploadedBy: row.uploadedBy ?? null,
-            });
+            const inserted = evidenceRowFromInsert(row);
             state.evidence.push(inserted);
             return [inserted];
           },
@@ -151,6 +165,7 @@ beforeEach(() => {
   state.insertValues = [];
   state.nextEvidenceId = 1000;
   state.dropNextInsert = false;
+  state.raceExistingOnInsertDrop = false;
   state.operations = [];
 });
 
@@ -213,8 +228,59 @@ describe('createMetricRunEvidence', () => {
     expect(state.insertValues).toHaveLength(0);
   });
 
-  it('rejects create for non-draft metric runs', async () => {
-    state.metricRuns = [{ id: 11, fundId: 1, status: 'approved' }];
+  it('returns the raced existing row when DB idempotency wins the insert race', async () => {
+    state.dropNextInsert = true;
+    state.raceExistingOnInsertDrop = true;
+
+    const result = await createMetricRunEvidence(
+      {
+        fundId: 1,
+        metricRunId: 11,
+        userId: 7,
+        body: {
+          idempotencyKey: 'metric-run-11-evidence-0',
+          evidenceSource: 'board_update',
+          sourceDate: '2026-03-31',
+        },
+      },
+      { database: makeDatabase() }
+    );
+
+    expect(result.inserted).toBe(false);
+    expect(result.record.idempotencyKey).toBe('metric-run-11-evidence-0');
+    expect(state.insertValues).toHaveLength(1);
+    expect(state.evidence).toHaveLength(1);
+  });
+
+  it.each(['approved', 'locked', 'exported', 'superseded'])(
+    'rejects create for %s metric runs',
+    async (status) => {
+      state.metricRuns = [{ id: 11, fundId: 1, status }];
+
+      await expect(
+        createMetricRunEvidence(
+          {
+            fundId: 1,
+            metricRunId: 11,
+            userId: 7,
+            body: {
+              idempotencyKey: 'metric-run-11-evidence-0',
+              evidenceSource: 'board_update',
+              sourceDate: '2026-03-31',
+            },
+          },
+          { database: makeDatabase() }
+        )
+      ).rejects.toMatchObject({
+        status: 409,
+        code: 'METRIC_RUN_NOT_EDITABLE',
+      } satisfies Partial<MetricRunCommitError>);
+      expect(state.insertValues).toHaveLength(0);
+    }
+  );
+
+  it('rejects cross-fund metric-run targets', async () => {
+    state.metricRuns = [{ id: 11, fundId: 2, status: 'draft' }];
 
     await expect(
       createMetricRunEvidence(
@@ -231,24 +297,120 @@ describe('createMetricRunEvidence', () => {
         { database: makeDatabase() }
       )
     ).rejects.toMatchObject({
-      status: 409,
-      code: 'METRIC_RUN_NOT_EDITABLE',
+      status: 404,
+      code: 'METRIC_RUN_NOT_FOUND',
     } satisfies Partial<MetricRunCommitError>);
+    expect(state.insertValues).toHaveLength(0);
+  });
+
+  it('rejects missing metric-run targets', async () => {
+    state.metricRuns = [];
+
+    await expect(
+      createMetricRunEvidence(
+        {
+          fundId: 1,
+          metricRunId: 11,
+          userId: 7,
+          body: {
+            idempotencyKey: 'metric-run-11-evidence-0',
+            evidenceSource: 'board_update',
+            sourceDate: '2026-03-31',
+          },
+        },
+        { database: makeDatabase() }
+      )
+    ).rejects.toMatchObject({
+      status: 404,
+      code: 'METRIC_RUN_NOT_FOUND',
+    } satisfies Partial<MetricRunCommitError>);
+    expect(state.insertValues).toHaveLength(0);
+  });
+
+  it('rejects unresolved uploadedBy users before insert', async () => {
+    state.users = [];
+
+    await expect(
+      createMetricRunEvidence(
+        {
+          fundId: 1,
+          metricRunId: 11,
+          userId: 7,
+          body: {
+            idempotencyKey: 'metric-run-11-evidence-0',
+            evidenceSource: 'board_update',
+            sourceDate: '2026-03-31',
+          },
+        },
+        { database: makeDatabase() }
+      )
+    ).rejects.toMatchObject({
+      status: 401,
+      code: 'AUTH_USER_ID_UNRESOLVED',
+    } satisfies Partial<MetricRunCommitError>);
+    expect(state.insertValues).toHaveLength(0);
+  });
+
+  it('rejects forbidden client fields before they reach the insert shape', async () => {
+    const bodyWithForbiddenFields = {
+      idempotencyKey: 'metric-run-11-evidence-0',
+      evidenceSource: 'board_update',
+      sourceDate: '2026-03-31',
+      uploadedBy: 99,
+      attachments: [],
+    } as unknown as MetricRunEvidenceCreateRequest;
+
+    await expect(
+      createMetricRunEvidence(
+        {
+          fundId: 1,
+          metricRunId: 11,
+          userId: 7,
+          body: bodyWithForbiddenFields,
+        },
+        { database: makeDatabase() }
+      )
+    ).rejects.toThrow();
     expect(state.insertValues).toHaveLength(0);
   });
 });
 
 describe('listMetricRunEvidence', () => {
-  it('lists evidence for non-draft metric runs without applying editability checks', async () => {
-    state.metricRuns = [{ id: 11, fundId: 1, status: 'locked' }];
-    state.evidence = [evidenceRow(), evidenceRow({ id: 1001, metricRunId: 12 })];
+  it.each(['draft', 'approved', 'locked', 'exported', 'superseded'])(
+    'lists evidence for %s metric runs without editability checks',
+    async (status) => {
+      state.metricRuns = [{ id: 11, fundId: 1, status }];
+      state.evidence = [evidenceRow(), evidenceRow({ id: 1001, metricRunId: 12 })];
 
-    const result = await listMetricRunEvidence(
-      { fundId: 1, metricRunId: 11 },
-      { database: makeDatabase() }
-    );
+      const result = await listMetricRunEvidence(
+        { fundId: 1, metricRunId: 11 },
+        { database: makeDatabase() }
+      );
 
-    expect(result.records).toHaveLength(1);
-    expect(result.records[0]?.id).toBe(1000);
+      expect(result.records).toHaveLength(1);
+      expect(result.records[0]?.id).toBe(1000);
+    }
+  );
+
+  it('rejects cross-fund metric-run targets', async () => {
+    state.metricRuns = [{ id: 11, fundId: 2, status: 'locked' }];
+
+    await expect(
+      listMetricRunEvidence({ fundId: 1, metricRunId: 11 }, { database: makeDatabase() })
+    ).rejects.toMatchObject({
+      status: 404,
+      code: 'METRIC_RUN_NOT_FOUND',
+    } satisfies Partial<MetricRunCommitError>);
+  });
+
+  it('rejects missing metric-run targets', async () => {
+    state.metricRuns = [];
+
+    await expect(
+      listMetricRunEvidence({ fundId: 1, metricRunId: 11 }, { database: makeDatabase() })
+    ).rejects.toMatchObject({
+      status: 404,
+      code: 'METRIC_RUN_NOT_FOUND',
+    } satisfies Partial<MetricRunCommitError>);
   });
 });
