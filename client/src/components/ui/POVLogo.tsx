@@ -101,20 +101,22 @@ export function POVBrandHeader({
 
   return (
     <div className={`border-b-2 shadow-lg ${backgroundClasses[variant]}`}>
-      <div className="max-w-6xl mx-auto px-6 py-16">
+      <div className="max-w-6xl mx-auto px-4 py-8 sm:px-6 sm:py-16">
         <div className="text-center">
           {showLogo && (
-            <div className="mb-8">
+            <div className="mb-5 sm:mb-8">
               <POVLogo variant={logoVariant} size="lg" />
             </div>
           )}
-          <h1 className="font-inter font-bold text-5xl mb-6 tracking-tight">{title}</h1>
+          <h1 className="font-inter font-bold text-3xl mb-4 tracking-tight sm:text-5xl sm:mb-6">
+            {title}
+          </h1>
           {subtitle && (
-            <p className="font-poppins text-xl max-w-4xl mx-auto leading-relaxed text-slate-600">
+            <p className="font-poppins text-base max-w-4xl mx-auto leading-relaxed text-slate-600 sm:text-xl">
               {subtitle}
             </p>
           )}
-          <div className="mt-8 flex items-center justify-center space-x-3 text-sm text-slate-500">
+          <div className="mt-6 flex flex-wrap items-center justify-center gap-3 text-sm text-slate-500 sm:mt-8">
             <div className="w-2 h-2 rounded-full bg-slate-400"></div>
             <span className="font-poppins">Powered by Press On Ventures</span>
             <div className="w-2 h-2 rounded-full bg-slate-400"></div>

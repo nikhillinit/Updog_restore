@@ -105,12 +105,14 @@ export default function DynamicFundHeader() {
 
   return (
     <div className="sticky top-0 z-50 bg-white border-b border-gray-200 shadow-sm">
-      <div className="px-6 py-3">
-        <div className="flex items-center justify-between mb-3">
-          <div className="flex items-center space-x-4">
-            <div>
-              <h1 className="text-2xl font-bold text-gray-900">{currentFund.name}</h1>
-              <div className="flex items-center space-x-3 text-sm text-gray-600">
+      <div className="px-3 py-3 sm:px-6">
+        <div className="mb-3 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+          <div className="flex min-w-0 items-center">
+            <div className="min-w-0">
+              <h1 className="truncate text-xl font-bold text-gray-900 sm:text-2xl">
+                {currentFund.name}
+              </h1>
+              <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-gray-600">
                 <span>Fund Size: {viewModel.fundSizeText}</span>
                 <Separator orientation="vertical" className="h-4" />
                 <span>Vintage: {viewModel.vintageText}</span>
@@ -120,7 +122,7 @@ export default function DynamicFundHeader() {
             </div>
           </div>
 
-          <div className="flex items-center space-x-2">
+          <div className="flex flex-wrap items-center gap-2">
             <Badge variant="outline" className="bg-green-50 text-green-700 border-green-300">
               <Activity className="h-3 w-3 mr-1" />
               Active
@@ -131,14 +133,14 @@ export default function DynamicFundHeader() {
           </div>
         </div>
 
-        <div className="grid grid-cols-8 gap-3">
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 xl:grid-cols-8">
           {viewModel.cards.map((card) => (
             <MetricCard key={card.key} card={card} />
           ))}
         </div>
 
-        <div className="flex items-center justify-between mt-3 text-xs text-gray-500">
-          <div className="flex items-center space-x-4">
+        <div className="mt-3 flex items-center justify-between text-xs text-gray-500">
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
             <span>{viewModel.lastUpdatedText}</span>
             <div className="flex items-center space-x-1">
               <div className={`w-2 h-2 rounded-full ${viewModel.statusIndicatorClassName}`} />

@@ -15,6 +15,7 @@ import { ChevronDown, ChevronRight, Plus } from 'lucide-react';
 
 interface SidebarProps {
   activeModule: string;
+  className?: string;
 }
 
 const chartCategories = [
@@ -162,7 +163,7 @@ function NavigationButton({
   );
 }
 
-export default function Sidebar({ activeModule }: SidebarProps) {
+export default function Sidebar({ activeModule, className }: SidebarProps) {
   const [isChartsExpanded, setIsChartsExpanded] = useState(false);
   const [isHovered, setIsHovered] = useState(false);
   const [location] = useLocation();
@@ -178,9 +179,11 @@ export default function Sidebar({ activeModule }: SidebarProps) {
 
   return (
     <aside
-      className={`bg-white shadow-card border-r border-lightGray flex-shrink-0 flex flex-col transition-all duration-300 ease-in-out ${
-        isHovered ? 'w-64' : 'w-16'
-      }`}
+      className={cn(
+        'bg-white shadow-card border-r border-lightGray flex-shrink-0 flex flex-col transition-all duration-300 ease-in-out',
+        isHovered ? 'w-64' : 'w-16',
+        className
+      )}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
     >

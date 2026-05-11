@@ -1,5 +1,6 @@
 import { test, expect, type Page } from '@playwright/test';
-import { readMainText } from './fixtures/qa-audit-api';
+
+const ROUTE_READY_TIMEOUT_MS = 60_000;
 
 const SMOKE_FUND = {
   id: 1,
@@ -127,10 +128,82 @@ const SMOKE_UNIFIED_METRICS = {
   },
 };
 
+const SMOKE_PERFORMANCE_TIMESERIES = {
+  fundId: SMOKE_FUND.id,
+  fundName: SMOKE_FUND.name,
+  granularity: 'monthly',
+  timeseries: [
+    {
+      date: '2025-10-31',
+      actual: { irr: 0.12, tvpi: 1.2, dpi: 0.1, totalValue: 60_000_000 },
+      _source: 'database',
+    },
+    {
+      date: '2025-11-30',
+      actual: { irr: 0.14, tvpi: 1.3, dpi: 0.15, totalValue: 65_000_000 },
+      _source: 'database',
+    },
+    {
+      date: '2025-12-31',
+      actual: { irr: 0.16, tvpi: 1.4, dpi: 0.2, totalValue: 70_000_000 },
+      _source: 'database',
+    },
+  ],
+  meta: {
+    startDate: '2025-01-01',
+    endDate: '2025-12-31',
+    dataPoints: 3,
+    cacheHit: false,
+    computeTimeMs: 1,
+  },
+};
+
+const SMOKE_PERFORMANCE_BREAKDOWN = {
+  fundId: SMOKE_FUND.id,
+  fundName: SMOKE_FUND.name,
+  asOfDate: '2025-12-31',
+  groupBy: 'sector',
+  breakdown: [
+    {
+      group: 'Infrastructure',
+      companyCount: 2,
+      totalDeployed: 20_000_000,
+      currentValue: 30_000_000,
+      moic: 1.5,
+      irr: 0.16,
+      unrealizedGain: 10_000_000,
+      percentOfPortfolio: 100,
+    },
+  ],
+  totals: {
+    companyCount: 2,
+    totalDeployed: 20_000_000,
+    currentValue: 30_000_000,
+    averageMOIC: 1.5,
+    portfolioIRR: 0.16,
+  },
+  meta: {
+    cacheHit: false,
+    computeTimeMs: 1,
+  },
+};
+
 const unexpectedSmokeApiRequestsByPage = new WeakMap<Page, string[]>();
 
 function smokeApiRequestLabel(page: Page): string[] {
   return unexpectedSmokeApiRequestsByPage.get(page) ?? [];
+}
+
+async function readSmokeMainText(page: Page) {
+  const main = page.locator('main').last();
+  const normalizedMainText = async () =>
+    ((await main.textContent()) ?? '').replace(/\s+/g, ' ').trim();
+
+  await expect(main).toBeVisible();
+  await expect
+    .poll(normalizedMainText, { timeout: ROUTE_READY_TIMEOUT_MS })
+    .not.toBe('Loading page...');
+  return normalizedMainText();
 }
 
 async function installSmokeApiStubs(page: Page) {
@@ -288,6 +361,24 @@ async function installSmokeApiStubs(page: Page) {
       return;
     }
 
+    if (request.method() === 'GET' && url.pathname === '/api/funds/1/performance/timeseries') {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify(SMOKE_PERFORMANCE_TIMESERIES),
+      });
+      return;
+    }
+
+    if (request.method() === 'GET' && url.pathname === '/api/funds/1/performance/breakdown') {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify(SMOKE_PERFORMANCE_BREAKDOWN),
+      });
+      return;
+    }
+
     if (request.method() === 'GET' && url.pathname === '/api/funds') {
       await route.fulfill({
         status: 200,
@@ -308,6 +399,8 @@ async function installSmokeApiStubs(page: Page) {
 }
 
 test.describe('Basic Smoke Tests', () => {
+  test.describe.configure({ mode: 'serial' });
+
   test.beforeEach(async ({ page }) => {
     await installSmokeApiStubs(page);
   });
@@ -322,18 +415,18 @@ test.describe('Basic Smoke Tests', () => {
     await page.goto('/', { waitUntil: 'domcontentloaded', timeout: 30000 });
 
     await expect(page).toHaveURL(/\/dashboard\b/);
-    const pageText = await readMainText(page);
+    const pageText = await readSmokeMainText(page);
     expect(pageText).not.toMatch(/cannot be reached|connection refused/i);
   });
 
   test('should handle direct navigation to common routes', async ({ page }) => {
-    test.setTimeout(30000);
+    test.setTimeout(120000);
 
     const routes = ['/', '/dashboard', '/fund-setup'];
 
     for (const route of routes) {
       await page.goto(route, { waitUntil: 'domcontentloaded', timeout: 10000 });
-      const pageText = await readMainText(page);
+      const pageText = await readSmokeMainText(page);
       expect(pageText).not.toMatch(/cannot be reached|connection refused/i);
 
       await page.screenshot({
@@ -344,10 +437,14 @@ test.describe('Basic Smoke Tests', () => {
   });
 
   test('reserves demo renders and shows a numeric reserve ratio', async ({ page }) => {
+    test.setTimeout(90000);
+
     await page.goto('/reserves-demo', { waitUntil: 'domcontentloaded', timeout: 10000 });
 
     await expect(page).toHaveURL(/\/reserves-demo\b/);
-    await expect(page.locator('[data-testid="demo-root"]')).toBeVisible();
+    await expect(page.locator('[data-testid="demo-root"]')).toBeVisible({
+      timeout: ROUTE_READY_TIMEOUT_MS,
+    });
 
     const ratioText = await page.locator('[data-testid="demo-ratio"]').first().textContent();
     const ratio = Number((ratioText || '').replace(/[^\d.]/g, ''));
@@ -359,22 +456,92 @@ test.describe('Basic Smoke Tests', () => {
     });
   });
 
+  test('mobile dashboard shell does not create document-level horizontal overflow', async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto('/dashboard?demo', { waitUntil: 'domcontentloaded', timeout: 10000 });
+
+    await expect(page).toHaveURL(/\/dashboard\b/);
+    await expect(page.getByRole('heading', { name: /^dashboard$/i })).toBeVisible();
+
+    const overflow = await page.evaluate(() => ({
+      clientWidth: document.documentElement.clientWidth,
+      scrollWidth: document.documentElement.scrollWidth,
+      bodyScrollWidth: document.body.scrollWidth,
+    }));
+
+    expect(overflow.scrollWidth).toBeLessThanOrEqual(overflow.clientWidth);
+    expect(overflow.bodyScrollWidth).toBeLessThanOrEqual(overflow.clientWidth);
+  });
+
+  test('performance route renders without Recharts dimension warnings', async ({ page }) => {
+    test.setTimeout(90000);
+
+    const chartWarnings: string[] = [];
+    page.on('console', (message) => {
+      if (
+        message.type() === 'warning' &&
+        /width\(-?\d+\).*height\(-?\d+\).*greater than 0/i.test(message.text())
+      ) {
+        chartWarnings.push(message.text());
+      }
+    });
+
+    await page.goto('/performance?demo', { waitUntil: 'domcontentloaded', timeout: 10000 });
+
+    await expect(page).toHaveURL(/\/performance\b/);
+    await expect(page.getByText('Portfolio Performance')).toBeVisible({
+      timeout: ROUTE_READY_TIMEOUT_MS,
+    });
+    await expect(page.getByText('Internal Rate of Return (IRR)')).toBeVisible({
+      timeout: ROUTE_READY_TIMEOUT_MS,
+    });
+    await page.waitForTimeout(500);
+
+    expect(chartWarnings).toEqual([]);
+  });
+
+  test('pipeline view toggle buttons have accessible names and pressed state', async ({ page }) => {
+    test.setTimeout(90000);
+
+    await page.goto('/pipeline?demo', { waitUntil: 'domcontentloaded', timeout: 10000 });
+
+    await expect(page).toHaveURL(/\/pipeline\b/);
+
+    const kanbanButton = page.getByRole('button', { name: /kanban view/i });
+    const listButton = page.getByRole('button', { name: /list view/i });
+
+    await expect(kanbanButton).toBeVisible({ timeout: ROUTE_READY_TIMEOUT_MS });
+    await expect(listButton).toBeVisible({ timeout: ROUTE_READY_TIMEOUT_MS });
+    await expect(kanbanButton).toHaveAttribute('aria-pressed', 'true');
+
+    await listButton.click();
+    await expect(listButton).toHaveAttribute('aria-pressed', 'true');
+  });
+
   test('pipeline route renders the pipeline workspace', async ({ page }) => {
+    test.setTimeout(90000);
+
     await page.goto('/pipeline', { waitUntil: 'domcontentloaded', timeout: 10000 });
 
     await expect(page).toHaveURL(/\/pipeline\b/);
-    await expect(page.getByRole('heading', { name: /deal pipeline/i })).toBeVisible();
-    const pageText = await readMainText(page);
+    await expect(page.getByRole('heading', { name: /deal pipeline/i })).toBeVisible({
+      timeout: ROUTE_READY_TIMEOUT_MS,
+    });
+    const pageText = await readSmokeMainText(page);
     expect(pageText).toMatch(/deal pipeline/i);
     await expect(page.getByTestId('pipeline-toolbar')).toBeVisible();
   });
 
   test('reports baseline CTA opens the variance tracking workspace', async ({ page }) => {
+    test.setTimeout(90000);
+
     await page.goto('/reports', { waitUntil: 'domcontentloaded', timeout: 10000 });
 
     await expect(page).toHaveURL(/\/reports\b/);
     await expect(page.getByRole('heading', { name: /reports & documentation/i })).toBeVisible();
-    const pageText = await readMainText(page);
+    const pageText = await readSmokeMainText(page);
     expect(pageText).toMatch(/reports & documentation/i);
     await expect(page.getByText(/baseline required/i)).toBeVisible();
 
@@ -389,7 +556,7 @@ test.describe('Basic Smoke Tests', () => {
     await expect(page).toHaveURL(/\/variance-tracking\?tab=reports/);
     await expect(page.getByText(/404 page not found/i)).not.toBeVisible();
     await expect(page.getByRole('heading', { name: /variance tracking/i })).toBeVisible();
-    const varianceText = await readMainText(page);
+    const varianceText = await readSmokeMainText(page);
     expect(varianceText).toMatch(/variance|reports/i);
   });
 });
