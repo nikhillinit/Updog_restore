@@ -103,17 +103,18 @@ audit evidence. Do not delete them as part of S1 closeout.
 
 ## Build Warning Classification
 
-Fresh command: `npm run build` on 2026-05-11.
+Fresh command: `npm run build:web` on 2026-05-11.
 
 Build status: passed.
 
 Warning groups:
 
-| Warning group               | Current output                                                                                                                      | Decision         | Rationale                                                                                                            |
-| --------------------------- | ----------------------------------------------------------------------------------------------------------------------------------- | ---------------- | -------------------------------------------------------------------------------------------------------------------- |
-| Sourcemap resolution        | `tooltip.tsx`, `dialog.tsx`, `select.tsx`, `collapsible.tsx`, `sheet.tsx`, and `form.tsx` report unresolved original locations.     | `upstream/noise` | Build succeeds and the warnings affect diagnostic source mapping, not runtime audit truthfulness.                    |
-| Ineffective dynamic imports | `LazyResponsiveContainer.tsx`/Recharts and `services/funds.ts`/`inflight.ts` are dynamically imported but also statically imported. | `defer`          | The warning is real, but fixing it is bundle-architecture work outside this audit closeout lane.                     |
-| Large chunk size            | Main `index` chunk is above 500 kB after minification.                                                                              | `defer`          | Requires a separate bundle-size plan and should not be bundled into smoke, logo, or fund-context truthfulness fixes. |
+| Warning group               | Current output                                                                                                                    | Decision                     | Rationale                                                                                                                                      |
+| --------------------------- | --------------------------------------------------------------------------------------------------------------------------------- | ---------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
+| Sourcemap resolution        | No sourcemap resolution warnings for `tooltip`, `dialog`, `select`, `collapsible`, `sheet`, or `form`.                            | `fixed`                      | The warnings came from unused Next-style client directives in Vite/Preact component modules; those directives are gone.                        |
+| Ineffective dynamic imports | No mixed static/dynamic import warnings for `LazyResponsiveContainer.tsx`/Recharts or `services/funds.ts`/`inflight.ts`.          | `fixed`                      | The Recharts wrapper no longer pretends to split `ResponsiveContainer`, and `funds.ts` uses a single import style.                             |
+| Large chunk size            | `assets/index-*.js` for the user-triggered PDF export runtime remains above 500 kB after minification, around 1.6 MB in this run. | `accepted lazy PDF baseline` | Bundle stats show the chunk is dominated by `@react-pdf`/PDFKit/fontkit/yoga and is loaded from the tear-sheet export path, not the app shell. |
 
-Do not change Vite chunking, sourcemap, or dynamic-import architecture in this
-lane unless a warning becomes a concrete audit failure.
+Do not change Vite `manualChunks` casually. Prior regression coverage expects
+automatic chunking, and the remaining large PDF chunk should be handled only by
+a dedicated bundle-size plan if export latency becomes a product issue.

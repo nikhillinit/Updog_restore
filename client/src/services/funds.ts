@@ -4,7 +4,7 @@
 
 import { clampPct, clampInt } from '../lib/coerce';
 import * as Telemetry from '../lib/telemetry';
-import { startInFlight, isInFlight, cancelInFlight } from '../lib/inflight';
+import { startInFlight, isInFlight, cancelInFlight, inFlightSize } from '../lib/inflight';
 import { withApiBase } from '../lib/api-url';
 
 type Json = Record<string, unknown> | unknown[] | string | number | boolean | null | undefined;
@@ -358,7 +358,6 @@ export async function createFundWithToast(payload: Json, options?: CreateFundOpt
       }
       // Always track capacity hit for observability
       try {
-        const { inFlightSize } = await import('../lib/inflight');
         Telemetry.track('client_capacity_hit', {
           route: '/api/funds',
           concurrent: inFlightSize(),
