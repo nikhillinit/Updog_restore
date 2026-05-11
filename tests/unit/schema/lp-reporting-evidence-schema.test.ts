@@ -270,6 +270,48 @@ describe('LP Reporting Foundation Schema -- Drizzle bindings', () => {
     });
   });
 
+  describe('Metric-run evidence idempotency migration', () => {
+    it('adds the idempotency key column and fund/metric-run/key unique index', () => {
+      const up = fs.readFileSync(
+        path.join(
+          process.cwd(),
+          'server',
+          'migrations',
+          '20260510_lp_reporting_metric_run_evidence_idempotency_v1.up.sql'
+        ),
+        'utf8'
+      );
+
+      expect(up).toMatch(/ADD COLUMN IF NOT EXISTS idempotency_key varchar\(128\)/i);
+      expect(up).toMatch(
+        /CREATE UNIQUE INDEX IF NOT EXISTS evidence_records_metric_run_idempotency_unique/i
+      );
+      expect(up).toMatch(
+        /ON evidence_records\s*\(\s*fund_id\s*,\s*metric_run_id\s*,\s*idempotency_key\s*\)/i
+      );
+      expect(up).toMatch(/WHERE idempotency_key IS NOT NULL/i);
+    });
+
+    it('rolls back only the metric-run evidence idempotency surface', () => {
+      const down = fs.readFileSync(
+        path.join(
+          process.cwd(),
+          'server',
+          'migrations',
+          '20260510_lp_reporting_metric_run_evidence_idempotency_v1.down.sql'
+        ),
+        'utf8'
+      );
+
+      expect(down).toMatch(/DROP INDEX IF EXISTS evidence_records_metric_run_idempotency_unique/i);
+      expect(down).toMatch(/DROP COLUMN IF EXISTS idempotency_key/i);
+      expect(down).not.toMatch(/DROP TABLE/i);
+      expect(down).not.toMatch(
+        /DROP COLUMN IF EXISTS (valuation_mark_id|company_id|metric_run_id|narrative_run_id)/i
+      );
+    });
+  });
+
   describe('Narrative-run uniqueness migration', () => {
     it('declares the one-draft-per-type unique index in schema and migrations', () => {
       const narrativeConfig = getTableConfig(schema.narrativeRuns);
