@@ -134,12 +134,12 @@ const EmptyRequestBodySchema = z.object({}).strict();
 
 const metricRunLimiter = rateLimit({
   windowMs: 60 * 60 * 1000,
-  max: 20,
+  max: 120,
   standardHeaders: true,
   legacyHeaders: false,
   message: {
     error: 'TOO_MANY_REQUESTS',
-    message: 'LP-reporting metric-run requests are limited to 20 per hour per user.',
+    message: 'LP-reporting metric-run requests are limited to 120 per hour per user.',
   },
   keyGenerator: (req: Request) => {
     const userId = req.user?.id;

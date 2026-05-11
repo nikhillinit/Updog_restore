@@ -81,6 +81,21 @@ describe('registerRoutes automation startup', () => {
     expect(sensitivityRes.body).toHaveProperty('code', 'INVALID_FUND_ID');
   }, 30_000);
 
+  it('mounts LP reporting import and metric-run routes on the registerRoutes surface', async () => {
+    const app = express();
+    app.set('trust proxy', false);
+    app.use(express.json({ limit: '1mb' }));
+
+    const { registerRoutes } = await import('../../../server/routes');
+    server = await registerRoutes(app);
+
+    const importRes = await request(app).post('/api/funds/1/imports/ledger/dry-run').send({});
+    const metricRunRes = await request(app).post('/api/funds/1/metric-runs/dry-run').send({});
+
+    expect(importRes.status).not.toBe(404);
+    expect(metricRunRes.status).not.toBe(404);
+  }, 30_000);
+
   it('returns JSON for unknown API routes instead of falling through to HTML', async () => {
     const app = express();
     app.set('trust proxy', false);
