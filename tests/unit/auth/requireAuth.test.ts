@@ -71,7 +71,8 @@ describe('requireAuth middleware', () => {
     expect(next).toHaveBeenCalledOnce();
     expect(sendStatus).not.toHaveBeenCalled();
     expect(req.user).toMatchObject({
-      id: 'dev-user',
+      id: '1',
+      sub: 'dev-user',
       email: 'dev@example.com',
       role: 'admin',
       fundIds: [],

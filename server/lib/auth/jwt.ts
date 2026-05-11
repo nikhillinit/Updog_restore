@@ -136,8 +136,11 @@ function assignDevelopmentUser(req: Request): void {
     return;
   }
 
+  const cfg = getJwtConfig();
+  const developmentUserId = String(cfg.DEFAULT_USER_ID);
+
   req.user = {
-    id: 'dev-user',
+    id: developmentUserId,
     sub: 'dev-user',
     email: 'dev@example.com',
     role: 'admin',

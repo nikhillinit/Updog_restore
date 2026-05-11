@@ -927,6 +927,22 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
+describe('LP reporting metric-run rate limit', () => {
+  it('allows the request volume needed for one full report-package workflow', async () => {
+    const app = buildApp();
+    const statuses: number[] = [];
+
+    for (let requestIndex = 0; requestIndex < 21; requestIndex += 1) {
+      const res = await request(app).get(
+        '/api/funds/1/metric-runs/latest?runType=quarterly_report&perspective=lp_net&asOfDate=2026-03-31'
+      );
+      statuses.push(res.status);
+    }
+
+    expect(statuses).not.toContain(429);
+  });
+});
+
 describe('POST /api/funds/:fundId/metric-runs/dry-run', () => {
   it('returns 401 when unauthenticated', async () => {
     authState.authenticated = false;
@@ -1006,11 +1022,11 @@ describe('POST /api/funds/:fundId/metric-runs/dry-run', () => {
     expect(dbState.insertCalls).toBe(0);
   });
 
-  it('returns 429 after 20 successful calls within the rate-limit window', async () => {
+  it('returns 429 after 120 successful calls within the rate-limit window', async () => {
     authState.userId = nextUserId++;
     dbState.users = [authState.userId];
     const app = buildApp();
-    for (let i = 0; i < 20; i++) {
+    for (let i = 0; i < 120; i++) {
       const res = await request(app).post('/api/funds/1/metric-runs/dry-run').send(dryRunBody());
       expect(res.status).toBe(200);
     }

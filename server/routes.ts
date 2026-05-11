@@ -118,6 +118,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
   const lpHealthRoutes = await import('./routes/lp-health.js');
   app.use(lpHealthRoutes.default);
 
+  // LP Reporting workflow routes
+  const lpReportingImportsRoutes = await import('./routes/lp-reporting/imports.js');
+  app.use(lpReportingImportsRoutes.default);
+
+  const lpReportingMetricRunsRoutes = await import('./routes/lp-reporting/metric-runs.js');
+  app.use(lpReportingMetricRunsRoutes.default);
+
   // Shares routes (fund sharing system)
   const sharesRoutes = await import('./routes/shares.js');
   app.use('/api/shares', sharesRoutes.sharesRouter);

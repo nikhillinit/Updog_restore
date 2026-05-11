@@ -8,6 +8,7 @@
 
 let delegate = null;
 const tableStore = new Map();
+const VERSIONED_DEFAULT_TABLES = new Set(['lp_metric_runs', 'narrative_runs', 'lp_report_packages']);
 
 // Seed minimal baseline data used by integration routes.
 tableStore.set('funds', [
@@ -234,8 +235,15 @@ function createInsertBuilder(table) {
       const normalized = rows.map((row) => {
         const next = { ...(row || {}) };
         if (next.id == null) next.id = nextId(tableName);
+        const timestamp = new Date().toISOString();
+        if (VERSIONED_DEFAULT_TABLES.has(tableName) && next.version == null) {
+          next.version = 1;
+        }
         if (next.createdAt == null && next.created_at == null) {
-          next.createdAt = new Date().toISOString();
+          next.createdAt = timestamp;
+        }
+        if (next.updatedAt == null && next.updated_at == null) {
+          next.updatedAt = timestamp;
         }
         return next;
       });
