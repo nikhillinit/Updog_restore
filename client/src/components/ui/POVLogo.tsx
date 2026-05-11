@@ -92,35 +92,44 @@ export function POVBrandHeader({
   variant?: 'light' | 'dark' | 'beige';
 }) {
   const backgroundClasses = {
-    light: 'bg-white text-slate-900 border-gray-300',
+    light: 'bg-white text-slate-900 border-slate-200',
     dark: 'bg-slate-900 text-white border-slate-700',
-    beige: 'bg-slate-50 text-slate-900 border-slate-300',
+    beige: 'bg-slate-50 text-slate-900 border-slate-200',
+  };
+
+  const subtitleClasses = {
+    light: 'text-slate-600',
+    dark: 'text-slate-300',
+    beige: 'text-slate-600',
+  };
+
+  const iconFrameClasses = {
+    light: 'border-slate-200 bg-slate-50',
+    dark: 'border-white/15 bg-white/10',
+    beige: 'border-slate-200 bg-white',
   };
 
   const logoVariant = variant === 'dark' ? 'white' : 'dark';
 
   return (
-    <div className={`border-b-2 shadow-lg ${backgroundClasses[variant]}`}>
-      <div className="max-w-6xl mx-auto px-4 py-8 sm:px-6 sm:py-16">
-        <div className="text-center">
-          {showLogo && (
-            <div className="mb-5 sm:mb-8">
-              <POVLogo variant={logoVariant} size="lg" />
-            </div>
-          )}
-          <h1 className="font-inter font-bold text-3xl mb-4 tracking-tight sm:text-5xl sm:mb-6">
-            {title}
-          </h1>
+    <div className={`border-b shadow-sm ${backgroundClasses[variant]}`}>
+      <div className="mx-auto flex max-w-7xl items-center gap-3 px-4 py-3 sm:px-6">
+        {showLogo && (
+          <div
+            className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-md border ${iconFrameClasses[variant]}`}
+          >
+            <POVIcon variant={logoVariant} size="sm" />
+          </div>
+        )}
+        <div className="flex min-w-0 flex-col gap-0.5 sm:flex-row sm:items-baseline sm:gap-3">
+          <h1 className="font-inter text-xl font-semibold tracking-tight sm:text-2xl">{title}</h1>
           {subtitle && (
-            <p className="font-poppins text-base max-w-4xl mx-auto leading-relaxed text-slate-600 sm:text-xl">
+            <p
+              className={`max-w-5xl font-poppins text-sm leading-5 sm:truncate ${subtitleClasses[variant]}`}
+            >
               {subtitle}
             </p>
           )}
-          <div className="mt-6 flex flex-wrap items-center justify-center gap-3 text-sm text-slate-500 sm:mt-8">
-            <div className="w-2 h-2 rounded-full bg-slate-400"></div>
-            <span className="font-poppins">Powered by Press On Ventures</span>
-            <div className="w-2 h-2 rounded-full bg-slate-400"></div>
-          </div>
         </div>
       </div>
     </div>

@@ -51,7 +51,10 @@ describe('POVLogo', () => {
   it('keeps brand header compatibility when the logo is shown', () => {
     render(<POVBrandHeader title="Reports" subtitle="Quarterly package" variant="dark" />);
 
-    expect(screen.getByRole('heading', { name: /reports/i })).toBeInTheDocument();
+    const heading = screen.getByRole('heading', { name: /reports/i });
+    expect(heading).toBeInTheDocument();
+    expect(heading).toHaveClass('text-xl', 'sm:text-2xl');
+    expect(screen.queryByText(/powered by press on ventures/i)).not.toBeInTheDocument();
     expectInlineBrandImage(screen.getByRole('img', { name: /press on ventures/i }));
   });
 });
