@@ -644,6 +644,8 @@ export default function PipelinePage() {
               variant={viewMode === 'kanban' ? 'default' : 'ghost'}
               size="sm"
               onClick={() => setFilter('view', 'kanban')}
+              aria-label="Kanban view"
+              aria-pressed={viewMode === 'kanban'}
               className={viewMode === 'kanban' ? 'bg-pov-charcoal text-white' : 'text-gray-600'}
             >
               <LayoutGrid className="h-4 w-4" />
@@ -652,6 +654,8 @@ export default function PipelinePage() {
               variant={viewMode === 'list' ? 'default' : 'ghost'}
               size="sm"
               onClick={() => setFilter('view', 'list')}
+              aria-label="List view"
+              aria-pressed={viewMode === 'list'}
               className={viewMode === 'list' ? 'bg-pov-charcoal text-white' : 'text-gray-600'}
             >
               <List className="h-4 w-4" />

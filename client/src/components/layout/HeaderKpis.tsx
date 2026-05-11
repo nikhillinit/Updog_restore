@@ -36,7 +36,7 @@ function CompactKpiButton({
     <button
       key={item.key}
       onClick={() => onSelect(item.key)}
-      className={`px-3 py-1 rounded-md text-sm font-medium transition-all ${getButtonClassName(
+      className={`flex-shrink-0 px-3 py-1 rounded-md text-sm font-medium transition-all ${getButtonClassName(
         item.isSelected
       )}`}
       title={item.description}
@@ -56,7 +56,7 @@ function CompactKpiDisplay({
   if (isLoading) return <Skeleton className="h-7 w-24" />;
 
   return (
-    <span className={`text-xl font-bold ${selected.colorClassName} live-pulse-kpi`}>
+    <span className={`text-lg font-bold sm:text-xl ${selected.colorClassName} live-pulse-kpi`}>
       {selected.displayValue}
     </span>
   );
@@ -66,9 +66,9 @@ function SelectedKpiPanel({ viewModel }: { viewModel: CompactHeaderViewModel }) 
   const Icon = COMPACT_ICON_COMPONENTS[viewModel.selected.icon] ?? DollarSign;
 
   return (
-    <div className="flex items-center gap-2 ml-4 px-4 py-2 bg-white rounded-lg shadow-sm border border-slate-200">
-      <Icon className={`h-5 w-5 ${viewModel.selected.colorClassName}`} />
-      <span className="text-sm text-slate-600">{viewModel.selected.label}:</span>
+    <div className="flex min-w-0 items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 shadow-sm sm:ml-4 sm:px-4">
+      <Icon className={`h-5 w-5 flex-shrink-0 ${viewModel.selected.colorClassName}`} />
+      <span className="truncate text-sm text-slate-600">{viewModel.selected.label}:</span>
       <CompactKpiDisplay selected={viewModel.selected} isLoading={viewModel.isLoading} />
     </div>
   );
@@ -102,8 +102,8 @@ export default function HeaderKpis() {
   );
 
   return (
-    <div className="flex items-center gap-4 px-6 py-3 bg-gradient-to-r from-slate-50 to-white border-b">
-      <div className="flex gap-2">
+    <div className="flex min-w-0 flex-col gap-2 border-b bg-gradient-to-r from-slate-50 to-white px-3 py-3 sm:flex-row sm:items-center sm:gap-4 sm:px-6">
+      <div className="flex max-w-full gap-2 overflow-x-auto pb-1 sm:overflow-visible sm:pb-0">
         {viewModel.items.map((item) => (
           <CompactKpiButton key={item.key} item={item} onSelect={setSelectedKPI} />
         ))}
@@ -111,7 +111,9 @@ export default function HeaderKpis() {
 
       <SelectedKpiPanel viewModel={viewModel} />
 
-      <div className="ml-auto text-sm text-slate-600">{viewModel.fundName}</div>
+      <div className="min-w-0 truncate text-xs text-slate-600 sm:ml-auto sm:text-sm">
+        {viewModel.fundName}
+      </div>
     </div>
   );
 }

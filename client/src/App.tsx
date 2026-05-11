@@ -1,5 +1,5 @@
 import React, { Suspense, useEffect, useState } from 'react';
-import { Switch, Route, Redirect, useLocation } from 'wouter';
+import { Link, Switch, Route, Redirect, useLocation } from 'wouter';
 import { queryClient } from './lib/queryClient';
 import { QueryClientProvider } from '@tanstack/react-query';
 import { TooltipProvider } from '@/components/ui/tooltip';
@@ -16,9 +16,17 @@ import './styles/demo-animations.css';
 
 // Layout components
 import Sidebar from '@/components/layout/sidebar';
-import { getActiveNavigationId } from '@/components/layout/navigation-config';
+import {
+  getActiveNavigationId,
+  getFooterNavigationItems,
+  getNavigationItems,
+  isNavigationItemEnabled,
+  resolveNavigationHref,
+  type NavigationContext,
+} from '@/components/layout/navigation-config';
 // import Header from "@/components/layout/header"; // Unused - removed
 import DynamicFundHeader from '@/components/layout/dynamic-fund-header';
+import { Menu, X } from 'lucide-react';
 
 // Page components - Heavy routes lazy loaded for bundle optimization
 const Dashboard = React.lazy(() => import('@/pages/dashboard'));
@@ -81,16 +89,110 @@ const DeferredDemoBannerView = React.lazy(() => import('@/components/demo/DemoBa
 
 const ONBOARDING_TOUR_STORAGE_KEY = 'onboarding_seen_gp_v1';
 
+function MobileNavigation({
+  activeModule,
+  onNavigate,
+}: {
+  activeModule: string;
+  onNavigate: () => void;
+}) {
+  const [location] = useLocation();
+  const { currentFund, needsSetup } = useFundContext();
+  const navigationContext: NavigationContext = {
+    location,
+    currentFundId: currentFund?.id ?? null,
+    needsSetup,
+  };
+  const items = [...getNavigationItems(), ...getFooterNavigationItems()];
+
+  return (
+    <nav className="md:hidden border-b border-slate-200 bg-white px-3 py-2" aria-label="Mobile">
+      <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+        {items.map((item) => {
+          const href = resolveNavigationHref(item, navigationContext);
+          const isActive = activeModule === item.id;
+          const isDisabled = !isNavigationItemEnabled(item, navigationContext);
+          const Icon = item.icon;
+
+          if (!href || isDisabled) {
+            return (
+              <button
+                key={item.id}
+                type="button"
+                disabled
+                className="flex min-w-0 items-center gap-2 rounded-md px-3 py-2 text-sm text-charcoal/40"
+                aria-disabled="true"
+              >
+                <Icon className="h-4 w-4 flex-shrink-0" />
+                <span className="truncate">{item.label}</span>
+              </button>
+            );
+          }
+
+          return (
+            <Link
+              key={item.id}
+              href={href}
+              onClick={onNavigate}
+              aria-current={isActive ? 'page' : undefined}
+              className={`flex min-w-0 items-center gap-2 rounded-md px-3 py-2 text-sm transition-colors ${
+                isActive
+                  ? 'bg-slate-900 text-white'
+                  : 'text-charcoal/70 hover:bg-slate-100 hover:text-charcoal'
+              }`}
+            >
+              <Icon className="h-4 w-4 flex-shrink-0" />
+              <span className="truncate">{item.label}</span>
+            </Link>
+          );
+        })}
+      </div>
+    </nav>
+  );
+}
+
+function MobileNavigationToggle({ isOpen, onToggle }: { isOpen: boolean; onToggle: () => void }) {
+  const Icon = isOpen ? X : Menu;
+
+  return (
+    <div className="md:hidden border-b border-slate-200 bg-white px-3 py-2">
+      <button
+        type="button"
+        onClick={onToggle}
+        aria-expanded={isOpen}
+        aria-controls="mobile-app-navigation"
+        className="inline-flex min-h-10 items-center gap-2 rounded-md border border-slate-200 px-3 py-2 text-sm font-medium text-charcoal shadow-sm"
+      >
+        <Icon className="h-4 w-4" />
+        Navigation
+      </button>
+    </div>
+  );
+}
+
 function AppLayout({ children }: { children: React.ReactNode }) {
   const [location] = useLocation();
+  const [isMobileNavigationOpen, setIsMobileNavigationOpen] = useState(false);
   const activeModule = getActiveNavigationId(location);
 
   return (
-    <div className="flex flex-col min-h-screen bg-slate-50 font-poppins text-charcoal">
+    <div className="flex min-h-screen flex-col overflow-x-hidden bg-slate-50 font-poppins text-charcoal">
       <DynamicFundHeader />
-      <div className="flex flex-1">
-        <Sidebar activeModule={activeModule} />
-        <main className="flex-1 overflow-auto bg-slate-50">{children}</main>
+      <MobileNavigationToggle
+        isOpen={isMobileNavigationOpen}
+        onToggle={() => setIsMobileNavigationOpen((isOpen) => !isOpen)}
+      />
+      {isMobileNavigationOpen && (
+        <div id="mobile-app-navigation">
+          <MobileNavigation
+            activeModule={activeModule}
+            onNavigate={() => setIsMobileNavigationOpen(false)}
+          />
+        </div>
+      )}
+      <div className="flex min-w-0 flex-1">
+        <Sidebar activeModule={activeModule} className="hidden md:flex" />
+        <main className="min-w-0 flex-1 overflow-auto bg-slate-50">{children}</main>
       </div>
     </div>
   );
