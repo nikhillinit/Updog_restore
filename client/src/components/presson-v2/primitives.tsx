@@ -104,26 +104,22 @@ export function Hbar({ width, tone }: { width: number; tone?: 'neg' | 'tint' }) 
   return <span className={cls} style={{ width }} />;
 }
 
-/** Tight inline sparkline from a normalized path */
+/** Tight inline sparkline from a normalized path. Pass `endpoint` for the terminal dot. */
 export function Sparkline({
   path,
   viewBox = '0 0 200 36',
   height = 36,
-  endDot = true,
+  endpoint,
 }: {
   path: string;
   viewBox?: string;
   height?: number;
-  endDot?: boolean;
+  endpoint?: [number, number];
 }) {
-  // Extract last point for the dot
-  const match = path.match(/L\s*([\d.]+)\s*,\s*([\d.]+)\s*$/);
-  const endX = match?.[1];
-  const endY = match?.[2];
   return (
     <svg viewBox={viewBox} style={{ width: '100%', height, display: 'block' }}>
       <path d={path} className="pv2-spark" />
-      {endDot && endX && endY && <circle cx={endX} cy={endY} r={2.5} fill="var(--pv2-ink)" />}
+      {endpoint && <circle cx={endpoint[0]} cy={endpoint[1]} r={2.5} fill="var(--pv2-ink)" />}
     </svg>
   );
 }

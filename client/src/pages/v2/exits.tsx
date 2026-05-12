@@ -13,132 +13,139 @@ export default function ExitsV2() {
   return (
     <AppShell>
       <div className="pv2-cinema">
-        <header className="pv2-cinema-mast">
-          <div>
-            <div className="pv2-cinema-eyebrow">
-              FUND II · 17 PROJECTED EXITS · 3 CASES EACH · WEIGHTED MOIC 3.57×
-            </div>
-            <h1 className="pv2-cinema-h1">
-              Exit cases <em>·</em>
-              <br />
-              forecast surface.
-            </h1>
-            <p className="pv2-cinema-sub">
-              Probability-weighted 25 / 50 / 25 →{' '}
-              <span style={{ color: '#fff' }}>3.42× TVPI · $599M</span>
-            </p>
-          </div>
-          <div className="pv2-cinema-fig">
-            PROJ FUND VALUE · BASE
-            <span className="pv2-cinema-fig-v">$535.1M</span>
-            <div style={{ marginTop: 12, color: 'var(--pv2-warm)' }}>▲ +$12.4M wk</div>
-            <div className="pv2-cinema-actions">
-              <Btn>Sort · Exit MOIC</Btn>
-              <Btn primary>Activate selected</Btn>
-            </div>
-          </div>
-        </header>
-
-        {/* Three-case grid */}
-        <div className="pv2-cases">
-          <div className="pv2-cases-head">
-            <div className="pv2-cinema-eyebrow">Company · 12 of 57</div>
-          </div>
-          <div className="pv2-cases-head">
-            <div className="pv2-cinema-eyebrow" style={{ color: 'var(--pv2-neg)' }}>
-              Downside
-            </div>
-            <h4>Worst credible</h4>
-          </div>
-          <div className="pv2-cases-head base">
-            <div className="pv2-cinema-eyebrow">Base · Active</div>
-            <h4>Best estimate</h4>
-          </div>
-          <div className="pv2-cases-head">
-            <div className="pv2-cinema-eyebrow" style={{ color: 'var(--pv2-pos)' }}>
-              Upside
-            </div>
-            <h4>Best credible</h4>
-          </div>
-
-          {exitCases.map((c) => (
-            <Row key={c.name} c={c} />
-          ))}
-
-          {/* Portfolio total row */}
-          <div className="pv2-cases-foot label">PORTFOLIO TOTAL</div>
-          <div className="pv2-cases-foot">
-            <div className="pv2-cases-foot-moic">1.18×</div>
-            <div className="pv2-cases-foot-val">$50.3M</div>
-          </div>
-          <div className="pv2-cases-foot base">
-            <div className="pv2-cases-foot-moic">3.57×</div>
-            <div className="pv2-cases-foot-val">$152.2M proceeds</div>
-          </div>
-          <div className="pv2-cases-foot">
-            <div className="pv2-cases-foot-moic">7.84×</div>
-            <div className="pv2-cases-foot-val">$334.0M</div>
-          </div>
-        </div>
-
-        {/* Distribution + fund return */}
-        <div className="pv2-cinema-bottom">
-          <div className="pv2-cinema-panel">
-            <div className="pv2-cinema-panel-h">
-              <span>Exit multiple distribution</span>
-              <span>BASE CASE · 17 EXITS</span>
-            </div>
-            <Distribution />
-          </div>
-          <div className="pv2-cinema-panel">
-            <div className="pv2-cinema-panel-h">
-              <span>Fund return under each case</span>
-              <span>WHAT MAKES IT</span>
-            </div>
-            <div className="pv2-bar-row">
-              <div className="pv2-bar-row-head">
-                <span>DOWNSIDE</span>
-                <b>$50M · 0.42×</b>
-              </div>
-              <div className="pv2-bar-row-track">
-                <div className="pv2-bar-row-fill neg" style={{ width: '12%' }} />
-              </div>
-            </div>
-            <div className="pv2-bar-row base">
-              <div className="pv2-bar-row-head">
-                <span>BASE · ACTIVE</span>
-                <b>$535.1M · 3.05× TVPI</b>
-              </div>
-              <div className="pv2-bar-row-track">
-                <div className="pv2-bar-row-fill warm" style={{ width: '64%' }} />
-              </div>
-            </div>
-            <div className="pv2-bar-row">
-              <div className="pv2-bar-row-head">
-                <span>UPSIDE</span>
-                <b>$1.04B · 6.92× TVPI</b>
-              </div>
-              <div className="pv2-bar-row-track">
-                <div className="pv2-bar-row-fill pos" style={{ width: '96%' }} />
-              </div>
-            </div>
-            <div
-              style={{
-                fontFamily: 'var(--pv2-font-mono)',
-                fontSize: 10,
-                color: '#888',
-                letterSpacing: '0.1em',
-                textTransform: 'uppercase',
-                marginTop: 20,
-              }}
-            >
-              Probability-weighted · 25% / 50% / 25% →{' '}
-              <span style={{ color: '#fff' }}>3.42× TVPI · $599M</span>
-            </div>
-          </div>
-        </div>
+        <CinemaMast />
+        <CasesGrid />
+        <CinemaBottom />
       </div>
     </AppShell>
+  );
+}
+
+function CinemaMast() {
+  return (
+    <header className="pv2-cinema-mast">
+      <div>
+        <div className="pv2-cinema-eyebrow">
+          FUND II · 17 PROJECTED EXITS · 3 CASES EACH · WEIGHTED MOIC 3.57×
+        </div>
+        <h1 className="pv2-cinema-h1">
+          Exit cases <em>·</em>
+          <br />
+          forecast surface.
+        </h1>
+        <p className="pv2-cinema-sub">
+          Probability-weighted 25 / 50 / 25 →{' '}
+          <span style={{ color: '#fff' }}>3.42× TVPI · $599M</span>
+        </p>
+      </div>
+      <div className="pv2-cinema-fig">
+        PROJ FUND VALUE · BASE
+        <span className="pv2-cinema-fig-v">$535.1M</span>
+        <div style={{ marginTop: 12, color: 'var(--pv2-warm)' }}>▲ +$12.4M wk</div>
+        <div className="pv2-cinema-actions">
+          <Btn>Sort · Exit MOIC</Btn>
+          <Btn primary>Activate selected</Btn>
+        </div>
+      </div>
+    </header>
+  );
+}
+
+function CasesGrid() {
+  return (
+    <div className="pv2-cases">
+      <div className="pv2-cases-head">
+        <div className="pv2-cinema-eyebrow">Company · 12 of 57</div>
+      </div>
+      <div className="pv2-cases-head">
+        <div className="pv2-cinema-eyebrow" style={{ color: 'var(--pv2-neg)' }}>
+          Downside
+        </div>
+        <h4>Worst credible</h4>
+      </div>
+      <div className="pv2-cases-head base">
+        <div className="pv2-cinema-eyebrow">Base · Active</div>
+        <h4>Best estimate</h4>
+      </div>
+      <div className="pv2-cases-head">
+        <div className="pv2-cinema-eyebrow" style={{ color: 'var(--pv2-pos)' }}>
+          Upside
+        </div>
+        <h4>Best credible</h4>
+      </div>
+      {exitCases.map((c) => (
+        <Row key={c.name} c={c} />
+      ))}
+      <div className="pv2-cases-foot label">PORTFOLIO TOTAL</div>
+      <div className="pv2-cases-foot">
+        <div className="pv2-cases-foot-moic">1.18×</div>
+        <div className="pv2-cases-foot-val">$50.3M</div>
+      </div>
+      <div className="pv2-cases-foot base">
+        <div className="pv2-cases-foot-moic">3.57×</div>
+        <div className="pv2-cases-foot-val">$152.2M proceeds</div>
+      </div>
+      <div className="pv2-cases-foot">
+        <div className="pv2-cases-foot-moic">7.84×</div>
+        <div className="pv2-cases-foot-val">$334.0M</div>
+      </div>
+    </div>
+  );
+}
+
+const FUND_RETURNS = [
+  { label: 'DOWNSIDE', value: '$50M · 0.42×', width: '12%', fill: 'neg' as const },
+  {
+    label: 'BASE · ACTIVE',
+    value: '$535.1M · 3.05× TVPI',
+    width: '64%',
+    fill: 'warm' as const,
+    base: true,
+  },
+  { label: 'UPSIDE', value: '$1.04B · 6.92× TVPI', width: '96%', fill: 'pos' as const },
+];
+
+const WEIGHTED_LINE_STYLE = {
+  fontFamily: 'var(--pv2-font-mono)',
+  fontSize: 10,
+  color: '#888',
+  letterSpacing: '0.1em',
+  textTransform: 'uppercase',
+  marginTop: 20,
+} as const;
+
+function CinemaBottom() {
+  return (
+    <div className="pv2-cinema-bottom">
+      <div className="pv2-cinema-panel">
+        <div className="pv2-cinema-panel-h">
+          <span>Exit multiple distribution</span>
+          <span>BASE CASE · 17 EXITS</span>
+        </div>
+        <Distribution />
+      </div>
+      <div className="pv2-cinema-panel">
+        <div className="pv2-cinema-panel-h">
+          <span>Fund return under each case</span>
+          <span>WHAT MAKES IT</span>
+        </div>
+        {FUND_RETURNS.map((r) => (
+          <div key={r.label} className={`pv2-bar-row${r.base ? ' base' : ''}`}>
+            <div className="pv2-bar-row-head">
+              <span>{r.label}</span>
+              <b>{r.value}</b>
+            </div>
+            <div className="pv2-bar-row-track">
+              <div className={`pv2-bar-row-fill ${r.fill}`} style={{ width: r.width }} />
+            </div>
+          </div>
+        ))}
+        <div style={WEIGHTED_LINE_STYLE}>
+          Probability-weighted · 25% / 50% / 25% →{' '}
+          <span style={{ color: '#fff' }}>3.42× TVPI · $599M</span>
+        </div>
+      </div>
+    </div>
   );
 }
 

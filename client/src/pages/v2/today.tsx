@@ -155,40 +155,7 @@ export default function TodayV2() {
             </thead>
             <tbody>
               {watchList.map((w) => (
-                <tr key={w.name}>
-                  <td>
-                    <span className="co">{w.name}</span>
-                    <span className="co-sub">{w.sector}</span>
-                  </td>
-                  <td className="pv2-mono" style={{ fontSize: 11, color: 'var(--pv2-mute)' }}>
-                    {w.stage}
-                  </td>
-                  <td className="n">{w.fmv}</td>
-                  <td className="n">{w.moic}</td>
-                  <td className="n">
-                    {w.arr}{' '}
-                    <span style={{ color: w.arrNeg ? 'var(--pv2-neg)' : 'var(--pv2-pos)' }}>
-                      {w.arrDelta}
-                    </span>
-                  </td>
-                  <td className="n">
-                    <span
-                      className={`pv2-hbar${w.runwayNeg ? ' neg' : ''}`}
-                      style={{ width: w.runway * 4 }}
-                    />{' '}
-                    {w.runway}mo
-                  </td>
-                  <td>
-                    <span
-                      className={`pv2-tag${w.trigger === 'RUNWAY' || w.trigger === 'ARR' ? ' active' : ''}`}
-                    >
-                      {w.trigger}
-                    </span>
-                  </td>
-                  <td className="pv2-mono" style={{ color: 'var(--pv2-mute)', fontSize: 11 }}>
-                    {w.note}
-                  </td>
-                </tr>
+                <WatchRow key={w.name} w={w} />
               ))}
             </tbody>
           </table>
@@ -381,5 +348,38 @@ function PacingChart() {
         </text>
       </g>
     </svg>
+  );
+}
+
+type WatchItem = (typeof watchList)[number];
+
+function WatchRow({ w }: { w: WatchItem }) {
+  const arrColor = w.arrNeg ? 'var(--pv2-neg)' : 'var(--pv2-pos)';
+  const triggerCls = `pv2-tag${w.trigger === 'RUNWAY' || w.trigger === 'ARR' ? ' active' : ''}`;
+  const hbarCls = `pv2-hbar${w.runwayNeg ? ' neg' : ''}`;
+  return (
+    <tr>
+      <td>
+        <span className="co">{w.name}</span>
+        <span className="co-sub">{w.sector}</span>
+      </td>
+      <td className="pv2-mono" style={{ fontSize: 11, color: 'var(--pv2-mute)' }}>
+        {w.stage}
+      </td>
+      <td className="n">{w.fmv}</td>
+      <td className="n">{w.moic}</td>
+      <td className="n">
+        {w.arr} <span style={{ color: arrColor }}>{w.arrDelta}</span>
+      </td>
+      <td className="n">
+        <span className={hbarCls} style={{ width: w.runway * 4 }} /> {w.runway}mo
+      </td>
+      <td>
+        <span className={triggerCls}>{w.trigger}</span>
+      </td>
+      <td className="pv2-mono" style={{ color: 'var(--pv2-mute)', fontSize: 11 }}>
+        {w.note}
+      </td>
+    </tr>
   );
 }

@@ -216,6 +216,31 @@ function Fig({
   );
 }
 
+const SECTOR_TD_STYLE = {
+  fontFamily: 'var(--pv2-font-mono)',
+  fontSize: 11,
+  color: 'var(--pv2-mute)',
+  letterSpacing: '0.04em',
+} as const;
+
+const MARK_TD_STYLE_BASE = {
+  fontSize: 10.5,
+  letterSpacing: '0.06em',
+  textTransform: 'uppercase',
+} as const;
+
+function rowTone(co: Company): 'neg' | 'hot' | 'pos' {
+  if (co.barNeg) return 'neg';
+  if (co.highlight) return 'hot';
+  return 'pos';
+}
+
+function devBarSuffix(co: Company): string {
+  if (co.barNeg) return ' neg';
+  if (co.highlight) return ' warm';
+  return '';
+}
+
 function BlotterRow({
   co,
   selected,
@@ -225,50 +250,36 @@ function BlotterRow({
   selected: boolean;
   onSelect: () => void;
 }) {
-  const tone = co.barNeg ? 'neg' : co.highlight ? 'hot' : 'pos';
-  const cls = `row${selected ? ' active' : ''}${co.highlight ? ' hot' : ''}`;
+  const tone = rowTone(co);
+  const rowCls = `row${selected ? ' active' : ''}${co.highlight ? ' hot' : ''}`;
+  const devBarCls = `pv2-dev-bar${devBarSuffix(co)}`;
+  const irrStyle = co.irrNeg ? { color: 'var(--pv2-neg)' } : undefined;
+  const markStyle = {
+    ...MARK_TD_STYLE_BASE,
+    color: co.markNeg ? 'var(--pv2-neg)' : 'var(--pv2-mute)',
+  };
   return (
-    <tr className={cls} data-tone={tone} onClick={onSelect}>
+    <tr className={rowCls} data-tone={tone} onClick={onSelect}>
       <td className="heat" />
       <td className="name">{co.name}</td>
       <td>
         <span className="pv2-stage">{co.stage}</span>
       </td>
-      <td
-        style={{
-          fontFamily: 'var(--pv2-font-mono)',
-          fontSize: 11,
-          color: 'var(--pv2-mute)',
-          letterSpacing: '0.04em',
-        }}
-      >
-        {co.sector}
-      </td>
+      <td style={SECTOR_TD_STYLE}>{co.sector}</td>
       <td className="n">{co.cost}</td>
       <td className="n">{co.fmv}</td>
       <td className="n" style={{ fontWeight: 600 }}>
         {co.moic}
       </td>
-      <td className="n" style={{ color: co.irrNeg ? 'var(--pv2-neg)' : undefined }}>
+      <td className="n" style={irrStyle}>
         {co.irr}
       </td>
       <td>
         <span className="pv2-dev">
-          <span
-            className={`pv2-dev-bar${co.barNeg ? ' neg' : co.highlight ? ' warm' : ''}`}
-            style={{ width: Math.round(co.bar * 0.8) }}
-          />
+          <span className={devBarCls} style={{ width: Math.round(co.bar * 0.8) }} />
         </span>
       </td>
-      <td
-        className="pv2-mono"
-        style={{
-          color: co.markNeg ? 'var(--pv2-neg)' : 'var(--pv2-mute)',
-          fontSize: 10.5,
-          letterSpacing: '0.06em',
-          textTransform: 'uppercase',
-        }}
-      >
+      <td className="pv2-mono" style={markStyle}>
         {co.lastMark}
       </td>
     </tr>
