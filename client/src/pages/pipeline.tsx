@@ -334,7 +334,8 @@ const SORT_OPTIONS = [
 ] as const;
 
 /** Build /api/deals/opportunities URL with query params */
-function buildDealsUrl(params: {
+export function buildDealsUrl(params: {
+  fundId?: number | null;
   search?: string;
   status?: string;
   priority?: string;
@@ -343,6 +344,7 @@ function buildDealsUrl(params: {
   limit?: number;
 }): string {
   const url = new URL('/api/deals/opportunities', window.location.origin);
+  if (params.fundId != null) url.searchParams.set('fundId', String(params.fundId));
   if (params.search) url.searchParams.set('search', params.search);
   if (params.status) url.searchParams.set('status', params.status);
   if (params.priority) url.searchParams.set('priority', params.priority);
@@ -407,6 +409,7 @@ export default function PipelinePage() {
 
   // Custom queryFn: build URL with filter/sort params
   const dealsUrl = buildDealsUrl({
+    fundId,
     ...(filters.search && { search: filters.search }),
     ...(filters.status && { status: filters.status }),
     ...(filters.priority && { priority: filters.priority }),
@@ -427,6 +430,7 @@ export default function PipelinePage() {
       filters.status,
       filters.priority,
       filters.sort,
+      fundId,
     ],
     queryFn: async () => {
       const res = await fetch(dealsUrl, { credentials: 'include' });

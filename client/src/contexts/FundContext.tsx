@@ -33,7 +33,8 @@ interface FundContextType {
 }
 
 const FundContext = createContext<FundContextType | undefined>(undefined);
-type FundSelectionSource = 'implicit' | 'explicit' | 'route' | null;
+type FundSelectionSource = 'implicit' | 'explicit' | 'route' | 'singleton' | 'demo' | null;
+const DEMO_ACTIVE_FUND_NAME = 'Test Fund I';
 
 interface FundProviderProps {
   children: ReactNode;
@@ -77,16 +78,37 @@ export function FundProvider({ children }: FundProviderProps) {
       // implicit first-fund selection on the canonical deterministic route.
       const suppressesImplicitFirstFund =
         suppressImplicitFundSelection && fundSelectionSource === 'implicit' && !isDemoMode;
+      const hasSafeSingletonRecovery =
+        suppressImplicitFundSelection && !isDemoMode && routeFundId == null && funds.length === 1;
+      const applyFundSelection = (fund: Fund, source: FundSelectionSource) => {
+        setCurrentFund(fund);
+        setFundId(fund.id);
+        setFundSelectionSource(source);
+      };
+      const recoverSingletonFund = () => {
+        applyFundSelection(funds[0]!, 'singleton');
+      };
+      const getDefaultFundSelection = (): { fund: Fund; source: FundSelectionSource } | null => {
+        if (isDemoMode) {
+          const demoFund = funds.find((fund) => fund.name === DEMO_ACTIVE_FUND_NAME);
+          if (demoFund) {
+            return { fund: demoFund, source: 'demo' };
+          }
+
+          if (suppressImplicitFundSelection && funds.length > 1) {
+            return null;
+          }
+        }
+
+        return { fund: funds[0]!, source: 'implicit' };
+      };
       const preferredFundId = routeFundId ?? (suppressesImplicitFirstFund ? null : fundId);
 
       if (preferredFundId) {
         // Find specific fund by ID
         const fund = funds.find((f: Fund) => f.id === preferredFundId);
         if (fund) {
-          setCurrentFund(fund);
-          if (fundId !== fund.id) {
-            setFundId(fund.id);
-          }
+          applyFundSelection(fund, routeFundId != null ? 'route' : fundSelectionSource);
           if (routeFundId != null) {
             setFundSelectionSource('route');
           }
@@ -98,18 +120,33 @@ export function FundProvider({ children }: FundProviderProps) {
           }
 
           if (suppressImplicitFundSelection && !isDemoMode) {
+            if (hasSafeSingletonRecovery) {
+              recoverSingletonFund();
+              return;
+            }
+
             setCurrentFund(null);
             setFundId(null);
             setFundSelectionSource(null);
             return;
           }
 
-          setCurrentFund(funds[0]!);
-          setFundId(funds[0]!.id);
-          setFundSelectionSource('implicit');
+          const defaultSelection = getDefaultFundSelection();
+          if (!defaultSelection) {
+            setCurrentFund(null);
+            setFundId(null);
+            setFundSelectionSource(null);
+            return;
+          }
+          applyFundSelection(defaultSelection.fund, defaultSelection.source);
         }
       } else {
         if (suppressImplicitFundSelection && !isDemoMode) {
+          if (hasSafeSingletonRecovery) {
+            recoverSingletonFund();
+            return;
+          }
+
           setCurrentFund(null);
           setFundId(null);
           setFundSelectionSource(null);
@@ -117,9 +154,14 @@ export function FundProvider({ children }: FundProviderProps) {
         }
 
         // No selected fund ID, use first fund
-        setCurrentFund(funds[0]!);
-        setFundId(funds[0]!.id);
-        setFundSelectionSource('implicit');
+        const defaultSelection = getDefaultFundSelection();
+        if (!defaultSelection) {
+          setCurrentFund(null);
+          setFundId(null);
+          setFundSelectionSource(null);
+          return;
+        }
+        applyFundSelection(defaultSelection.fund, defaultSelection.source);
       }
     } else if (!isLoading && (error || !funds || !Array.isArray(funds) || funds.length === 0)) {
       logger.info('No fund context available; requiring setup', { context: 'FundContext' });
@@ -155,13 +197,24 @@ export function FundProvider({ children }: FundProviderProps) {
     error instanceof Error ? error.message : fundLoadError ? 'Unable to load funds' : null;
   const awaitingResolvedFundSelection =
     hasResolvedFunds && !currentFund && routeFundId == null && !suppressImplicitFundSelection;
+  const awaitingSingletonRecovery =
+    hasResolvedFunds &&
+    !currentFund &&
+    routeFundId == null &&
+    suppressImplicitFundSelection &&
+    !isDemoMode &&
+    funds.length === 1;
   const allowsMissingActiveFund =
-    hasResolvedFunds && !currentFund && routeFundId == null && suppressImplicitFundSelection;
+    hasResolvedFunds &&
+    !currentFund &&
+    routeFundId == null &&
+    suppressImplicitFundSelection &&
+    !awaitingSingletonRecovery;
 
   // Consider "loading" until the first resolved fund has been copied into context
   // or demo mode has fully initialized. This prevents ProtectedRoute/HomeRoute from
   // redirecting to /fund-setup during the fetch -> effect handoff.
-  const isInitializing = isLoading || awaitingResolvedFundSelection;
+  const isInitializing = isLoading || awaitingResolvedFundSelection || awaitingSingletonRecovery;
   const needsSetup =
     !isInitializing &&
     !currentFund &&

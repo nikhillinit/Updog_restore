@@ -59,6 +59,7 @@ function Consumer() {
 
 describe('FundProvider route-aware selection', () => {
   beforeEach(() => {
+    localStorage.clear();
     mockUseQuery.mockReturnValue({
       data: mockFunds,
       isLoading: false,
@@ -68,6 +69,7 @@ describe('FundProvider route-aware selection', () => {
 
   afterEach(() => {
     vi.clearAllMocks();
+    localStorage.clear();
   });
 
   it('prefers the route fund ID on /fund-model-results/:fundId', async () => {
@@ -134,7 +136,7 @@ describe('FundProvider route-aware selection', () => {
     });
   });
 
-  it('does not silently select the only available production fund on /forecasting', async () => {
+  it('recovers the only available production fund on /forecasting', async () => {
     mockUseQuery.mockReturnValue({
       data: [mockFunds[0]],
       isLoading: false,
@@ -151,7 +153,7 @@ describe('FundProvider route-aware selection', () => {
     );
 
     await waitFor(() => {
-      expect(screen.getByText('none:none:false:false')).toBeInTheDocument();
+      expect(screen.getByText('1:First Fund:false:false')).toBeInTheDocument();
     });
   });
 
@@ -168,6 +170,56 @@ describe('FundProvider route-aware selection', () => {
 
     await waitFor(() => {
       expect(screen.getByText('2:Route Fund:false:false')).toBeInTheDocument();
+    });
+  });
+
+  it('uses Test Fund I rather than the first fund in demo mode on /forecasting', async () => {
+    mockUseQuery.mockReturnValue({
+      data: [
+        { ...mockFunds[0]!, name: 'Other Fund' },
+        { ...mockFunds[1]!, name: 'Test Fund I' },
+      ],
+      isLoading: false,
+      error: null,
+    });
+    localStorage.setItem('DEMO_TOOLBAR', '1');
+    const { Wrapper } = createWouterWrapper('/forecasting');
+
+    render(
+      <Wrapper>
+        <FundProvider>
+          <Consumer />
+        </FundProvider>
+      </Wrapper>
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText('2:Test Fund I:false:true')).toBeInTheDocument();
+    });
+  });
+
+  it('uses Test Fund I rather than the first fund in demo mode on /model-results', async () => {
+    mockUseQuery.mockReturnValue({
+      data: [
+        { ...mockFunds[0]!, name: 'Other Fund' },
+        { ...mockFunds[1]!, name: 'Test Fund I' },
+      ],
+      isLoading: false,
+      error: null,
+    });
+    localStorage.setItem('DEMO_TOOLBAR', '1');
+    const { Wrapper } = createWouterWrapper('/model-results');
+
+    render(
+      <Wrapper>
+        <FundProvider>
+          <Consumer />
+        </FundProvider>
+      </Wrapper>
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText('2:Test Fund I:false:true')).toBeInTheDocument();
     });
   });
 
@@ -203,7 +255,7 @@ describe('FundProvider route-aware selection', () => {
     });
   });
 
-  it('does not silently select the only available production fund on /model-results', async () => {
+  it('recovers the only available production fund on /model-results', async () => {
     mockUseQuery.mockReturnValue({
       data: [mockFunds[0]],
       isLoading: false,
@@ -220,7 +272,7 @@ describe('FundProvider route-aware selection', () => {
     );
 
     await waitFor(() => {
-      expect(screen.getByText('none:none:false:false')).toBeInTheDocument();
+      expect(screen.getByText('1:First Fund:false:false')).toBeInTheDocument();
     });
   });
 
