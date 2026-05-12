@@ -91,10 +91,11 @@ Tests for features not yet implemented:
 ## Skip Count Threshold
 
 - **Canonical policy file**: `tests/quarantine/policy.json`
-- **Maximum allowed static skips**: 25
+- **Maximum allowed static skips**: `staticSkipThreshold` in the canonical
+  policy file
 - **Current count**: See `tests/quarantine/REPORT.md`
 - **Enforcement**: `skip-counter.yml` fails if the static `describe.skip(` file
-  count exceeds the mirrored CI threshold
+  count exceeds `staticSkipThreshold` from the canonical policy file
 
 ## Adding New Quarantined Tests
 
