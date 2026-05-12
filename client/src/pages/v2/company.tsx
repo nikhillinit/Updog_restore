@@ -81,7 +81,7 @@ export default function CompanyV2() {
           <div className="pv2-ticker-cell">
             <div className="pv2-ticker-k">IRR</div>
             <div className="pv2-ticker-v">
-              {company.irr.replace('%', '').replace('−', '–')}
+              {company.irr.replaceAll('%', '').replaceAll('−', '–')}
               <span className="unit">%</span>
             </div>
             {company.irrNeg && <div className="pv2-ticker-d neg">below threshold</div>}
@@ -89,7 +89,7 @@ export default function CompanyV2() {
           <div className="pv2-ticker-cell">
             <div className="pv2-ticker-k">OWNERSHIP</div>
             <div className="pv2-ticker-v">
-              {(company.ownership ?? '—').replace('%', '')}
+              {(company.ownership ?? '—').replaceAll('%', '')}
               <span className="unit">%</span>
             </div>
           </div>
