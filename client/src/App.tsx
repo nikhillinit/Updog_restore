@@ -87,6 +87,16 @@ const DeferredGuidedTourView = React.lazy(() =>
 );
 const DeferredDemoBannerView = React.lazy(() => import('@/components/demo/DemoBanner'));
 
+// Press On Ventures v2 design philosophy reference screens (full-screen, bypasses AppLayout)
+const TodayV2 = React.lazy(() => import('@/pages/v2/today'));
+const PortfolioV2 = React.lazy(() => import('@/pages/v2/portfolio'));
+const CompanyV2 = React.lazy(() => import('@/pages/v2/company'));
+const ScenariosV2 = React.lazy(() => import('@/pages/v2/scenarios'));
+const CashV2 = React.lazy(() => import('@/pages/v2/cash'));
+const ExitsV2 = React.lazy(() => import('@/pages/v2/exits'));
+const InsightsV2 = React.lazy(() => import('@/pages/v2/insights'));
+const PartnersV2 = React.lazy(() => import('@/pages/v2/partners'));
+
 const ONBOARDING_TOUR_STORAGE_KEY = 'onboarding_seen_gp_v1';
 
 function MobileNavigation({
@@ -519,15 +529,48 @@ function App() {
                 <DeferredDemoBanner />
                 <DeferredToaster />
                 <DeferredGuidedTour />
-                <AppLayout>
-                  <Router />
-                </AppLayout>
+                <AppRouter />
               </TooltipProvider>
             </FundProvider>
           </BrandChartThemeProvider>
         </FeatureFlagProvider>
       </QueryClientProvider>
     </ErrorBoundary>
+  );
+}
+
+/**
+ * Press On v2 reference screens render full-screen and supply their own chrome
+ * (sidebar, command palette, topbar). They must bypass AppLayout so the existing
+ * dashboard chrome doesn't double up on them.
+ */
+function AppRouter() {
+  const [location] = useLocation();
+  const isV2 = location.startsWith('/v2');
+
+  if (isV2) {
+    return (
+      <Suspense fallback={<PageLoadingFallback />}>
+        <Switch>
+          <Route path="/v2" component={() => <Redirect to="/v2/today" />} />
+          <Route path="/v2/today" component={TodayV2} />
+          <Route path="/v2/portfolio" component={PortfolioV2} />
+          <Route path="/v2/companies/:id" component={CompanyV2} />
+          <Route path="/v2/scenarios" component={ScenariosV2} />
+          <Route path="/v2/cash" component={CashV2} />
+          <Route path="/v2/exits" component={ExitsV2} />
+          <Route path="/v2/insights" component={InsightsV2} />
+          <Route path="/v2/partners" component={PartnersV2} />
+          <Route path="/v2/:rest*" component={() => <Redirect to="/v2/today" />} />
+        </Switch>
+      </Suspense>
+    );
+  }
+
+  return (
+    <AppLayout>
+      <Router />
+    </AppLayout>
   );
 }
 
