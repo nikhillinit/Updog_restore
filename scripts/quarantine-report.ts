@@ -160,8 +160,8 @@ Generated: ${now}
 This report tracks quarantined files, not the total number of skipped
 assertions inside those files.
 
-The static skip threshold is defined in \`tests/quarantine/policy.json\` for
-reporting and mirrors the currently deployed \`skip-counter.yml\` threshold.
+The static skip threshold is defined in \`tests/quarantine/policy.json\`.
+The report generator and \`skip-counter.yml\` both read that same policy file.
 
 ## Documented Quarantines
 
