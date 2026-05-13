@@ -109,6 +109,7 @@ const SYSTEM_ACTOR_PASSWORD = 'SYSTEM_ACTOR_NO_LOGIN_00000000';
 const ISO_DATE_REGEX = /^\d{4}-\d{2}-\d{2}$/;
 const INTEGER_ID_REGEX = /^[1-9]\d*$/;
 const DEFAULT_BASELINE_RESTORE_SOURCE_PREFIX = 'system:restore-default-baseline:';
+const DEFAULT_BASELINE_UNIQUE_CONSTRAINT = 'fund_baselines_default_unique';
 
 export interface DemoProfileImportEnv {
   DEMO_PROFILE_IMPORT?: string;
@@ -152,7 +153,6 @@ export interface DemoProfileImportStore {
   deleteLedgerRowsForDataset(fundId: number, datasetId: string): Promise<void>;
   targetExists(row: DemoProfileImportLedgerRecord): Promise<boolean>;
   getActiveDefaultBaselineId(fundId: number): Promise<string | null>;
-  hasActiveDefaultBaseline(fundId: number): Promise<boolean>;
   deactivateActiveDefaultBaselines(fundId: number): Promise<void>;
   restoreDefaultBaseline(fundId: number, baselineId: string): Promise<void>;
   insertPortfolioCompany(fundId: number, row: DemoProfilePortfolioCompanyRow): Promise<number>;
@@ -554,6 +554,19 @@ function existingTargetId(
   return ledgerRow.targetIdText;
 }
 
+function isUniqueConstraintViolation(error: unknown, constraintName: string): boolean {
+  if (!error || typeof error !== 'object') {
+    return false;
+  }
+
+  const candidate = error as { code?: string; constraint?: string; message?: string };
+  return (
+    candidate.code === '23505' &&
+    (candidate.constraint === constraintName ||
+      candidate.message?.includes(constraintName) === true)
+  );
+}
+
 async function handleExistingLedgerRow(
   store: DemoProfileImportStore,
   ledgerRow: DemoProfileImportLedgerRecord,
@@ -753,16 +766,16 @@ export async function commitDemoProfileImportWithStore(
       continue;
     }
 
-    if (row.isDefault && (await store.hasActiveDefaultBaseline(input.fundId))) {
-      if (!options.allowDefaultBaselineReplace) {
-        throw new DemoProfileImportError(
-          409,
-          'DEFAULT_BASELINE_CONFLICT',
-          'Target fund already has an active default baseline.'
-        );
-      }
+    if (row.isDefault) {
       const previousDefaultBaselineId = await store.getActiveDefaultBaselineId(input.fundId);
       if (previousDefaultBaselineId !== null) {
+        if (!options.allowDefaultBaselineReplace) {
+          throw new DemoProfileImportError(
+            409,
+            'DEFAULT_BASELINE_CONFLICT',
+            'Target fund already has an active default baseline.'
+          );
+        }
         await store.insertLedgerRow(
           defaultBaselineRestoreLedgerRow({
             fundId: input.fundId,
@@ -771,12 +784,24 @@ export async function commitDemoProfileImportWithStore(
             previousDefaultBaselineId,
           })
         );
+        await store.deactivateActiveDefaultBaselines(input.fundId);
       }
-      await store.deactivateActiveDefaultBaselines(input.fundId);
     }
-    const result = await commitInsert(store, { ...ledgerBase, targetIdText: '' }, () =>
-      store.insertFundBaseline(input.fundId, row)
-    );
+    let result: { targetIdText: string; inserted: boolean };
+    try {
+      result = await commitInsert(store, { ...ledgerBase, targetIdText: '' }, () =>
+        store.insertFundBaseline(input.fundId, row)
+      );
+    } catch (error) {
+      if (row.isDefault && isUniqueConstraintViolation(error, DEFAULT_BASELINE_UNIQUE_CONSTRAINT)) {
+        throw new DemoProfileImportError(
+          409,
+          'DEFAULT_BASELINE_CONFLICT',
+          'Target fund already has an active default baseline.'
+        );
+      }
+      throw error;
+    }
     baselineIds.set(
       row.sourceKey,
       existingTargetId({ ...ledgerBase, targetIdText: result.targetIdText }, 'uuid')
@@ -953,13 +978,7 @@ export class DrizzleDemoProfileImportStore implements DemoProfileImportStore {
         username: SYSTEM_ACTOR_USERNAME,
         password: SYSTEM_ACTOR_PASSWORD,
       })
-      .onConflictDoUpdate({
-        target: users.id,
-        set: {
-          username: SYSTEM_ACTOR_USERNAME,
-          password: SYSTEM_ACTOR_PASSWORD,
-        },
-      });
+      .onConflictDoNothing({ target: users.id });
   }
 
   async getLedgerRow(
@@ -1146,10 +1165,6 @@ export class DrizzleDemoProfileImportStore implements DemoProfileImportStore {
     }
   }
 
-  async hasActiveDefaultBaseline(fundId: number): Promise<boolean> {
-    return (await this.getActiveDefaultBaselineId(fundId)) !== null;
-  }
-
   async getActiveDefaultBaselineId(fundId: number): Promise<string | null> {
     const rows = await this.tx
       .select({ id: fundBaselines.id })
@@ -1161,6 +1176,7 @@ export class DrizzleDemoProfileImportStore implements DemoProfileImportStore {
           eq(fundBaselines.isActive, true)
         )
       )
+      .for('update')
       .limit(1);
     return rows[0]?.id ?? null;
   }
