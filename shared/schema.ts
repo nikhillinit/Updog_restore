@@ -62,6 +62,76 @@ export const fundEvents = pgTable(
   })
 );
 
+export const demoProfileTargetPkTypeEnum = pgEnum('demo_profile_target_pk_type', [
+  'integer',
+  'uuid',
+]);
+
+export const demoProfileImportRows = pgTable(
+  'demo_profile_import_rows',
+  {
+    id: serial('id').primaryKey(),
+    fundId: integer('fund_id')
+      .notNull()
+      .references(() => funds.id, { onDelete: 'cascade' }),
+    datasetId: text('dataset_id').notNull(),
+    targetTable: text('target_table').notNull(),
+    sourceKey: text('source_key').notNull(),
+    sourceHash: text('source_hash').notNull(),
+    targetIdText: text('target_id_text').notNull(),
+    targetPkType: demoProfileTargetPkTypeEnum('target_pk_type').notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => ({
+    scopeUnique: uniqueIndex('demo_profile_import_rows_scope_unique').on(
+      table.fundId,
+      table.datasetId,
+      table.targetTable,
+      table.sourceKey
+    ),
+    fundDatasetIdx: index('demo_profile_import_rows_fund_dataset_idx').on(
+      table.fundId,
+      table.datasetId,
+      table.createdAt.desc()
+    ),
+    targetLookupIdx: index('demo_profile_import_rows_target_lookup_idx').on(
+      table.targetTable,
+      table.targetIdText
+    ),
+    targetTableCheck: check(
+      'demo_profile_import_rows_target_table_check',
+      sql`${table.targetTable} IN (
+        'portfoliocompanies',
+        'investments',
+        'investment_lots',
+        'deal_opportunities',
+        'fund_metrics',
+        'pacing_history',
+        'fund_baselines',
+        'variance_reports',
+        'backtest_results'
+      )`
+    ),
+    sourceHashCheck: check(
+      'demo_profile_import_rows_source_hash_check',
+      sql`${table.sourceHash} ~ '^[a-f0-9]{64}$'`
+    ),
+    targetIdTypeCheck: check(
+      'demo_profile_import_rows_target_id_type_check',
+      sql`(
+        ${table.targetPkType} = 'integer'
+        AND ${table.targetIdText} ~ '^[1-9][0-9]*$'
+      ) OR (
+        ${table.targetPkType} = 'uuid'
+        AND ${table.targetIdText} ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
+      )`
+    ),
+  })
+);
+
+export type DemoProfileImportRowRecord = typeof demoProfileImportRows.$inferSelect;
+export type InsertDemoProfileImportRowRecord = typeof demoProfileImportRows.$inferInsert;
+
 // ============================================================================
 // SENSITIVITY RUNS - Persists one-way / two-way / stress sensitivity analyses.
 // kind/status enums mirror the CHECK constraints in the migration and the Zod

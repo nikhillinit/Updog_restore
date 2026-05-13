@@ -39,6 +39,7 @@
     "db:push": "drizzle-kit push",
     "db:studio": "drizzle-kit studio",
     "db:seed:demo": "cross-env DEMO_SEED=1 npx tsx server/seed-demo-data.ts",
+    "demo-profile:import": "npx tsx scripts/import-demo-profile.ts",
     "phase2:slice3:audit": "node scripts/phase2-slice3-audit.mjs",
     "seed:multi-tenant": "npx tsx scripts/seed-multi-tenant.ts",
     "seed:reset": "npx tsx scripts/seed-multi-tenant.ts -- --reset",
