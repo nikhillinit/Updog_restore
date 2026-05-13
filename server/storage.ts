@@ -22,7 +22,11 @@ import {
 } from '../schema/src/index.js';
 import { db } from './db';
 import { and, desc, eq, sql } from 'drizzle-orm';
-import { getStorageConfigurationError, resolveStorageBootMode } from './storage-runtime-policy';
+import {
+  getProfessionalDemoRuntimeConfigurationError,
+  getStorageConfigurationError,
+  resolveStorageBootMode,
+} from './storage-runtime-policy';
 
 // Round and performance case types (simplified versions without schema definition)
 export interface InvestmentRound {
@@ -636,6 +640,11 @@ export class DatabaseStorage implements IStorage {
 }
 
 export function createStorageFromEnvironment(env: NodeJS.ProcessEnv = process.env): IStorage {
+  const professionalDemoError = getProfessionalDemoRuntimeConfigurationError(env);
+  if (professionalDemoError !== null) {
+    throw new Error(professionalDemoError);
+  }
+
   const mode = resolveStorageBootMode(env);
   if (mode === 'database') {
     return new DatabaseStorage();

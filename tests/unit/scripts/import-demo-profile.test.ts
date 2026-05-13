@@ -51,6 +51,71 @@ describe('import-demo-profile CLI', () => {
     expect(missingPreview.stderr).toContain('--commit requires --preview-hash');
   });
 
+  it('refuses commit when explicit memory storage would make imported data invisible', async () => {
+    const dryRun = await runImportDemoProfileCli(
+      ['--dry-run', '--fund-id', '77', '--env-payload', 'DEMO_PROFILE_PAYLOAD_B64'],
+      {
+        DEMO_PROFILE_IMPORT: '1',
+        DEMO_PROFILE_PAYLOAD_B64: encodedBundle(),
+        NODE_ENV: 'test',
+      }
+    );
+    const previewHash = JSON.parse(dryRun.stdout).preview.previewHash as string;
+
+    const result = await runImportDemoProfileCli(
+      [
+        '--commit',
+        '--fund-id',
+        '77',
+        '--env-payload',
+        'DEMO_PROFILE_PAYLOAD_B64',
+        '--preview-hash',
+        previewHash,
+      ],
+      {
+        DEMO_PROFILE_IMPORT: '1',
+        DEMO_PROFILE_PAYLOAD_B64: encodedBundle(),
+        NODE_ENV: 'development',
+        ALLOW_MEMORY_STORAGE: '1',
+      }
+    );
+
+    expect(result.exitCode).toBe(2);
+    expect(result.stderr).toContain('DEMO_PROFILE_IMPORT_MEMORY_STORAGE');
+  });
+
+  it('refuses commit when test mock storage would make imported data invisible', async () => {
+    const dryRun = await runImportDemoProfileCli(
+      ['--dry-run', '--fund-id', '77', '--env-payload', 'DEMO_PROFILE_PAYLOAD_B64'],
+      {
+        DEMO_PROFILE_IMPORT: '1',
+        DEMO_PROFILE_PAYLOAD_B64: encodedBundle(),
+        NODE_ENV: 'test',
+      }
+    );
+    const previewHash = JSON.parse(dryRun.stdout).preview.previewHash as string;
+
+    const result = await runImportDemoProfileCli(
+      [
+        '--commit',
+        '--fund-id',
+        '77',
+        '--env-payload',
+        'DEMO_PROFILE_PAYLOAD_B64',
+        '--preview-hash',
+        previewHash,
+      ],
+      {
+        DEMO_PROFILE_IMPORT: '1',
+        DEMO_PROFILE_PAYLOAD_B64: encodedBundle(),
+        NODE_ENV: 'test',
+      }
+    );
+
+    expect(result.exitCode).toBe(2);
+    expect(result.stderr).toContain('DEMO_PROFILE_IMPORT_TEST_STORAGE');
+  });
+
   it('reports a safe bootstrap failure if output writing throws', async () => {
     const processLike: { exitCode?: number } = {};
     const streams = {

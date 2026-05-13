@@ -5,7 +5,11 @@ import path from 'node:path';
 
 import { and, eq, inArray } from 'drizzle-orm';
 
-import { db } from '../db';
+import type { db as defaultDb } from '../db';
+import {
+  getProfessionalDemoRuntimeConfigurationError,
+  resolveStorageBootMode,
+} from '../storage-runtime-policy';
 import {
   backtestResults,
   dealOpportunities,
@@ -45,7 +49,8 @@ import {
   type DemoProfileVarianceReportRow,
 } from '@shared/contracts/demo-profile-import.contract';
 
-type DbTransaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
+export type DemoProfileImportDatabase = typeof defaultDb;
+type DbTransaction = Parameters<Parameters<DemoProfileImportDatabase['transaction']>[0]>[0];
 type InsertBacktestResult = typeof backtestResults.$inferInsert;
 
 export class DemoProfileImportError extends Error {
@@ -112,9 +117,19 @@ const DEFAULT_BASELINE_RESTORE_SOURCE_PREFIX = 'system:restore-default-baseline:
 const DEFAULT_BASELINE_UNIQUE_CONSTRAINT = 'fund_baselines_default_unique';
 
 export interface DemoProfileImportEnv {
+  [key: string]: string | undefined;
   DEMO_PROFILE_IMPORT?: string;
   ALLOW_PRODUCTION_DEMO_PROFILE_IMPORT?: string;
+  ALLOW_MEMORY_STORAGE?: string;
+  DATABASE_URL?: string;
+  NEON_DATABASE_URL?: string;
   NODE_ENV?: string;
+  PROFESSIONAL_DEMO_MODE?: string;
+  BASE_URL?: string;
+  CLIENT_URL?: string;
+  VITE_API_BASE_URL?: string;
+  USE_REAL_DB_IN_VITEST?: string;
+  VITEST?: string;
 }
 
 export interface DemoProfileImportLedgerScope {
@@ -184,7 +199,7 @@ export interface DemoProfileImportStore {
 }
 
 export interface DemoProfileCommitOptions {
-  database?: typeof db;
+  database?: DemoProfileImportDatabase;
   allowTestFundI?: boolean;
   allowDefaultBaselineReplace?: boolean;
   enforceImportGate?: boolean;
@@ -197,7 +212,7 @@ export interface DemoProfileCommitWithStoreOptions {
 }
 
 export interface DemoProfileRollbackOptions {
-  database?: typeof db;
+  database?: DemoProfileImportDatabase;
 }
 
 function canonicalize(value: unknown): unknown {
@@ -441,6 +456,45 @@ export function assertDemoProfileImportEnabled(env: DemoProfileImportEnv = proce
       'Production demo profile import requires an explicit production override.'
     );
   }
+}
+
+export function assertDemoProfileImportPersistentStorage(
+  env: DemoProfileImportEnv = process.env
+): void {
+  const professionalDemoError = getProfessionalDemoRuntimeConfigurationError(
+    env as NodeJS.ProcessEnv
+  );
+  if (professionalDemoError !== null) {
+    throw new DemoProfileImportError(
+      409,
+      'DEMO_PROFILE_PROFESSIONAL_RUNTIME_INVALID',
+      professionalDemoError
+    );
+  }
+
+  const storageMode = resolveStorageBootMode(env as NodeJS.ProcessEnv);
+  if (storageMode === 'database') {
+    return;
+  }
+  if (storageMode === 'explicit-memory') {
+    throw new DemoProfileImportError(
+      409,
+      'DEMO_PROFILE_IMPORT_MEMORY_STORAGE',
+      'Demo profile commit cannot claim visible app data while ALLOW_MEMORY_STORAGE is enabled.'
+    );
+  }
+  if (storageMode === 'missing-config') {
+    throw new DemoProfileImportError(
+      409,
+      'DEMO_PROFILE_IMPORT_DATABASE_REQUIRED',
+      'Demo profile commit requires DATABASE_URL or NEON_DATABASE_URL.'
+    );
+  }
+  throw new DemoProfileImportError(
+    409,
+    'DEMO_PROFILE_IMPORT_TEST_STORAGE',
+    'Demo profile commit requires persistent database storage, not the test mock database.'
+  );
 }
 
 export function loadDemoProfileBundleFromEnv(
@@ -860,7 +914,8 @@ export async function commitDemoProfileImport(
   if (options.enforceImportGate !== false) {
     assertDemoProfileImportEnabled(options.env);
   }
-  const database = options.database ?? db;
+  assertDemoProfileImportPersistentStorage(options.env);
+  const database = await resolveDemoProfileImportDatabase(options.database);
   return database.transaction(async (tx) =>
     commitDemoProfileImportWithStore(new DrizzleDemoProfileImportStore(tx), input, options)
   );
@@ -902,10 +957,20 @@ export async function rollbackDemoProfileImport(
   input: { fundId: number; datasetId: string },
   options: DemoProfileRollbackOptions = {}
 ): Promise<DemoProfileRollbackSummary> {
-  const database = options.database ?? db;
+  const database = await resolveDemoProfileImportDatabase(options.database);
   return database.transaction(async (tx) =>
     rollbackDemoProfileImportWithStore(new DrizzleDemoProfileImportStore(tx), input)
   );
+}
+
+async function resolveDemoProfileImportDatabase(
+  database: DemoProfileImportDatabase | undefined
+): Promise<DemoProfileImportDatabase> {
+  if (database !== undefined) {
+    return database;
+  }
+  const dbModule = await import('../db');
+  return dbModule.db;
 }
 
 function asBacktestConfig(value: DemoProfileJsonValue): InsertBacktestResult['config'] {

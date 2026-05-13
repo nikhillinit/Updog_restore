@@ -7,6 +7,10 @@ import { config as loadDotenv } from 'dotenv';
 import pino from 'pino';
 import { z } from 'zod';
 import { assertSecureURL, validateCORSOrigins } from '../lib/url-security.js';
+import {
+  PROFESSIONAL_DEMO_RUNTIME_MODE,
+  getProfessionalDemoRuntimeConfigurationError,
+} from '../storage-runtime-policy.js';
 
 const logger = pino({
   level: process.env['LOG_LEVEL'] || 'info',
@@ -150,6 +154,7 @@ const envSchema = z.object({
 
   // Feature flags & modes
   DEMO_MODE: bool.default(false),
+  PROFESSIONAL_DEMO_MODE: z.literal(PROFESSIONAL_DEMO_RUNTIME_MODE).optional(),
   REQUIRE_AUTH: bool.default(true),
   ENGINE_FAULT_RATE: z.coerce.number().min(0).max(1).default(0),
 
@@ -241,6 +246,18 @@ export function loadEnv() {
   logger.info(
     `[config] NODE_ENV detected: ${config.NODE_ENV} (from process.env: ${process.env['NODE_ENV']})`
   );
+
+  const professionalDemoError = getProfessionalDemoRuntimeConfigurationError(
+    {
+      ...process.env,
+      PORT: String(config.PORT),
+      CLIENT_URL: config.CLIENT_URL,
+    },
+    { requireApiTarget: config.PROFESSIONAL_DEMO_MODE === PROFESSIONAL_DEMO_RUNTIME_MODE }
+  );
+  if (professionalDemoError !== null) {
+    throw new Error(professionalDemoError);
+  }
 
   // Additional validation for production
   if (config.NODE_ENV === 'production') {
