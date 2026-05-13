@@ -2,6 +2,7 @@ import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 
 import {
+  DemoProfileImportError,
   assertDemoProfileImportEnabled,
   commitDemoProfileImport,
   loadDemoProfileBundleFromEnv,
@@ -11,6 +12,7 @@ import {
   safeDemoProfileError,
 } from '../server/services/demo-profile-import-service';
 import type { DemoProfileImportBundle } from '@shared/contracts/demo-profile-import.contract';
+import { verifyDemoProfile } from './verify-demo-profile';
 
 export interface ImportDemoProfileCliResult {
   exitCode: number;
@@ -36,12 +38,18 @@ interface CliOptions {
   mode?: 'dry-run' | 'commit' | 'rollback';
   allowTestFundI: boolean;
   allowDefaultBaselineReplace: boolean;
+  apiBaseUrl?: string;
+  authToken?: string;
+  authTokenEnv?: string;
+  requireApi: boolean;
+  expectedFundSize?: number;
 }
 
 function parseArgs(argv: string[]): CliOptions {
   const options: CliOptions = {
     allowTestFundI: false,
     allowDefaultBaselineReplace: false,
+    requireApi: false,
   };
 
   for (let index = 0; index < argv.length; index++) {
@@ -77,12 +85,36 @@ function parseArgs(argv: string[]): CliOptions {
       case '--allow-default-baseline-replace':
         options.allowDefaultBaselineReplace = true;
         break;
+      case '--api-base-url':
+        options.apiBaseUrl = requireValue(argv, ++index, arg);
+        break;
+      case '--auth-token':
+        options.authToken = requireValue(argv, ++index, arg);
+        break;
+      case '--auth-token-env':
+        options.authTokenEnv = requireValue(argv, ++index, arg);
+        break;
+      case '--require-api':
+        options.requireApi = true;
+        break;
+      case '--expected-fund-size':
+        options.expectedFundSize = parsePositiveNumber(requireValue(argv, ++index, arg), arg);
+        break;
       default:
         throw new Error(`Unknown argument: ${arg}`);
     }
   }
 
   return options;
+}
+
+function parsePositiveNumber(value: string, flag: string): number {
+  const trimmed = value.trim();
+  const parsed = Number(trimmed);
+  if (trimmed.length === 0 || !Number.isFinite(parsed) || parsed <= 0) {
+    throw new Error(`${flag} must be a positive number`);
+  }
+  return parsed;
 }
 
 function requireValue(argv: string[], index: number, flag: string): string {
@@ -125,6 +157,12 @@ function loadBundle(options: CliOptions, env: NodeJS.ProcessEnv): DemoProfileImp
 
 function safeJson(value: unknown): string {
   return `${JSON.stringify(value, null, 2)}\n`;
+}
+
+function readAuthToken(options: CliOptions, env: NodeJS.ProcessEnv): string | undefined {
+  if (options.authToken !== undefined) return options.authToken;
+  const variableName = options.authTokenEnv ?? 'DEMO_PROFILE_VERIFY_AUTH_TOKEN';
+  return env[variableName];
 }
 
 export async function runImportDemoProfileCli(
@@ -184,9 +222,32 @@ export async function runImportDemoProfileCli(
       }
     );
 
+    const authToken = readAuthToken(options, env);
+    const verification = await verifyDemoProfile({
+      fundId,
+      bundle,
+      ...(options.apiBaseUrl !== undefined && { apiBaseUrl: options.apiBaseUrl }),
+      ...(authToken !== undefined && { authToken }),
+      requireApi: options.requireApi,
+      ...(options.expectedFundSize !== undefined && { expectedFundSize: options.expectedFundSize }),
+      env,
+    });
+    if (!verification.passed) {
+      throw new DemoProfileImportError(
+        409,
+        'DEMO_PROFILE_IMPORT_VISIBILITY_FAILED',
+        'Demo profile commit visibility verification failed.'
+      );
+    }
+
     return {
       exitCode: 0,
-      stdout: safeJson({ mode: 'commit', summary, previewHash: preview.previewHash }),
+      stdout: safeJson({
+        mode: 'commit',
+        summary,
+        previewHash: preview.previewHash,
+        verification,
+      }),
       stderr: '',
     };
   } catch (error) {

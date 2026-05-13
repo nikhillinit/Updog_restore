@@ -233,9 +233,14 @@ describe('demo profile import service', () => {
     const first = runDemoProfileDryRun(bundle);
     const second = runDemoProfileDryRun(buildDemoProfileImportBundle());
 
-    expect(first.previewHash).toMatch(/^[a-f0-9]{64}$/);
+    expect(first.previewHash).toBe(
+      '0798bbcc546ada2a54cde944f6104eb3b34245280f76304e8a3c4a947b4d1bd7'
+    );
     expect(first.previewHash).toBe(second.previewHash);
-    expect(first.counts.portfolioCompanies).toBe(1);
+    for (const count of Object.values(first.counts)) {
+      expect(count).toBe(1);
+    }
+    expect(first.rows).toHaveLength(9);
     expect(first.rows.map((row) => row.targetTable)).toEqual(TARGET_ORDER);
   });
 
@@ -253,7 +258,11 @@ describe('demo profile import service', () => {
     expect(store.systemActorEnsured).toBe(true);
     expect(store.insertOrder).toEqual(TARGET_ORDER);
     expect(store.ledger.size).toBe(DemoProfileTargetTables.length);
-    expect(summary.inserted.backtest_results).toBe(1);
+    for (const table of DemoProfileTargetTables) {
+      expect(summary.inserted[table]).toBe(1);
+      expect(summary.skipped[table]).toBe(0);
+    }
+    const targetCountAfterFirstCommit = store.targets.size;
 
     const replay = await commitDemoProfileImportWithStore(store, {
       fundId: 77,
@@ -261,9 +270,13 @@ describe('demo profile import service', () => {
       previewHash: preview.previewHash,
     });
 
-    expect(replay.skipped.portfoliocompanies).toBe(1);
-    expect(replay.skipped.backtest_results).toBe(1);
+    for (const table of DemoProfileTargetTables) {
+      expect(replay.inserted[table]).toBe(0);
+      expect(replay.skipped[table]).toBe(1);
+    }
     expect(store.insertOrder).toHaveLength(TARGET_ORDER.length);
+    expect(store.ledger.size).toBe(DemoProfileTargetTables.length);
+    expect(store.targets.size).toBe(targetCountAfterFirstCommit);
   });
 
   it('rejects same source key with changed source hash', async () => {
@@ -280,6 +293,8 @@ describe('demo profile import service', () => {
     const changed = buildDemoProfileImportBundle();
     changed.sections.portfolioCompanies[0]!.name = 'Company Alpha Updated';
     const changedPreview = runDemoProfileDryRun(changed);
+    const ledgerSizeBeforeReplay = store.ledger.size;
+    const insertOrderLengthBeforeReplay = store.insertOrder.length;
 
     await expect(
       commitDemoProfileImportWithStore(store, {
@@ -287,7 +302,32 @@ describe('demo profile import service', () => {
         bundle: changed,
         previewHash: changedPreview.previewHash,
       })
-    ).rejects.toMatchObject({ code: 'SOURCE_HASH_MISMATCH' });
+    ).rejects.toMatchObject({ status: 409, code: 'SOURCE_HASH_MISMATCH' });
+    expect(store.ledger.size).toBe(ledgerSizeBeforeReplay);
+    expect(store.insertOrder).toHaveLength(insertOrderLengthBeforeReplay);
+  });
+
+  it('rejects idempotent replay when the existing ledger target is missing', async () => {
+    const bundle = buildDemoProfileImportBundle();
+    const preview = runDemoProfileDryRun(bundle);
+    const store = new FakeDemoProfileImportStore();
+
+    await commitDemoProfileImportWithStore(store, {
+      fundId: 77,
+      bundle,
+      previewHash: preview.previewHash,
+    });
+
+    const firstLedgerRow = Array.from(store.ledger.values())[0]!;
+    store.targets.delete(`${firstLedgerRow.targetTable}:${firstLedgerRow.targetIdText}`);
+
+    await expect(
+      commitDemoProfileImportWithStore(store, {
+        fundId: 77,
+        bundle,
+        previewHash: preview.previewHash,
+      })
+    ).rejects.toMatchObject({ status: 409, code: 'LEDGER_TARGET_MISSING' });
   });
 
   it('blocks Test Fund I and default baseline replacement unless explicit flags are set', async () => {
