@@ -311,6 +311,11 @@ uiux-skill/
 .omx/setup-scope.json
 .omx/tmux-hook.json
 
+# Private sanitized demo profile imports. These directories may contain
+# real-profile sanitized source bundles and must never be committed.
+demo-profile-imports/
+.demo-profile-imports/
+
 # Local hook probes
 .tmp-git-hook-probe/
 .gstack/

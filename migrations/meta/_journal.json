@@ -64,6 +64,13 @@
       "when": 1775356800000,
       "tag": "0007_phase2_retire_dormant_saved_comparison_persistence",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1775433600000,
+      "tag": "0008_demo_profile_import_rows",
+      "breakpoints": true
     }
   ]
 }

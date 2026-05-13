@@ -51,7 +51,7 @@ export default [
       '.vercel/**',
       '.claude/**',
       '.tmp/**',
-      '.omx/tmp/**',
+      '.omx/**',
       'node_modules/**',
       'build/**',
       // Keep tests linted - removed "tests/**"
