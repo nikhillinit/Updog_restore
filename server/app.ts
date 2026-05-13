@@ -26,11 +26,15 @@ import allocationsRouter from './routes/allocations.js';
 import allocationScenariosRouter from './routes/allocation-scenarios.js';
 import backtestingRouter from './routes/backtesting.js';
 import fundsRouter from './routes/funds.js';
+import fundMetricsRouter from './routes/fund-metrics.js';
+import investmentsRouter from './routes/investments.js';
 import varianceRouter from './routes/variance.js';
 import { registerFundConfigRoutes } from './routes/fund-config.js';
 import { dealPipelineRouter } from './routes/deal-pipeline.js';
 import cohortAnalysisRouter from './routes/cohort-analysis.js';
 import sensitivityRouter from './routes/sensitivity.js';
+import portfolioLotsRouter from './routes/portfolio/lots.js';
+import performanceApiRouter from './routes/performance-api.js';
 import lpReportingImportsRouter from './routes/lp-reporting/imports.js';
 import lpReportingMetricRunsRouter from './routes/lp-reporting/metric-runs.js';
 import metricsRouter from './routes/metrics-endpoint.js';
@@ -203,6 +207,10 @@ export function makeApp() {
   // Keep the makeApp/serverless surface aligned with the canonical fund routes
   // used by the wizard bootstrap flow.
   app.use('/api', fundsRouter);
+  app.use(fundMetricsRouter);
+  app.use('/api', investmentsRouter);
+  app.use('/api', portfolioLotsRouter);
+  app.use(performanceApiRouter);
   app.use('/', varianceRouter);
   registerFundConfigRoutes(app);
 

@@ -3,6 +3,7 @@
  *
  * Provides endpoints for portfolio performance analysis:
  * - GET /api/funds/:fundId/performance/timeseries - Time-series metrics
+ * - GET /api/funds/:fundId/performance/metrics - Persisted fund metric rows
  * - GET /api/funds/:fundId/performance/breakdown - Metrics by dimension
  * - GET /api/funds/:fundId/performance/comparison - Date comparisons
  *
@@ -14,9 +15,12 @@ import type { Request, Response } from 'express';
 import { requireAuth, requireFundAccess } from '../lib/auth/jwt';
 import rateLimit from 'express-rate-limit';
 import { z } from 'zod';
+import { desc, eq } from 'drizzle-orm';
 import { toNumber, NumberParseError } from '@shared/number';
+import { db } from '../db';
 import { storage } from '../storage';
 import { performanceCalculator } from '../services/performance-calculator';
+import { fundMetrics, pacingHistory } from '@shared/schema';
 import {
   TimeseriesQuerySchema,
   BreakdownQuerySchema,
@@ -79,9 +83,140 @@ function createErrorResponse(
   return response;
 }
 
+function parseListLimit(value: unknown, defaultLimit = 100, maxLimit = 200): number {
+  const rawLimit = Number.parseInt(String(value ?? defaultLimit), 10);
+  return Number.isInteger(rawLimit) && rawLimit > 0 ? Math.min(rawLimit, maxLimit) : defaultLimit;
+}
+
 // ============================================================================
 // ROUTES
 // ============================================================================
+
+/**
+ * GET /api/funds/:fundId/performance/metrics
+ *
+ * Read persisted fund metric rows for a fund. This is intentionally row-level;
+ * generated time-series responses are not a visibility proof for imports.
+ */
+router.get(
+  '/api/funds/:fundId/performance/metrics',
+  requireAuth(),
+  requireFundAccess,
+  performanceLimiter,
+  async (req: Request, res: Response) => {
+    let fundId = 0;
+    try {
+      const fundIdParam = req.params['fundId'];
+      fundId = toNumber(fundIdParam, 'fundId');
+      if (fundId <= 0) {
+        recordError('fund-metrics', 'invalid_fund_id');
+        return res
+          .status(400)
+          .json(
+            createErrorResponse('INVALID_PARAMETER', `Fund ID must be a positive integer`, 'fundId')
+          );
+      }
+
+      const limit = parseListLimit(req.query['limit']);
+      const rows = await db
+        .select({
+          id: fundMetrics.id,
+          fundId: fundMetrics.fundId,
+          metricDate: fundMetrics.metricDate,
+          asOfDate: fundMetrics.asOfDate,
+          totalValue: fundMetrics.totalValue,
+          irr: fundMetrics.irr,
+          multiple: fundMetrics.multiple,
+          dpi: fundMetrics.dpi,
+          tvpi: fundMetrics.tvpi,
+          runId: fundMetrics.runId,
+          configId: fundMetrics.configId,
+          configVersion: fundMetrics.configVersion,
+          createdAt: fundMetrics.createdAt,
+        })
+        .from(fundMetrics)
+        .where(eq(fundMetrics.fundId, fundId))
+        .orderBy(desc(fundMetrics.metricDate), desc(fundMetrics.id))
+        .limit(limit);
+
+      return res.json({
+        success: true,
+        data: rows,
+        count: rows.length,
+      });
+    } catch (error) {
+      if (error instanceof NumberParseError) {
+        return res
+          .status(400)
+          .json(createErrorResponse('INVALID_PARAMETER', error.message, 'fundId'));
+      }
+
+      logger.error({ err: error, fundId }, 'fund metrics API error');
+      return res
+        .status(500)
+        .json(createErrorResponse('INTERNAL_ERROR', 'Failed to fetch fund metrics'));
+    }
+  }
+);
+
+/**
+ * GET /api/funds/:fundId/pacing-history
+ *
+ * Read imported or calculated pacing history for a fund.
+ */
+router.get(
+  '/api/funds/:fundId/pacing-history',
+  requireAuth(),
+  requireFundAccess,
+  performanceLimiter,
+  async (req: Request, res: Response) => {
+    let fundId = 0;
+    try {
+      const fundIdParam = req.params['fundId'];
+      fundId = toNumber(fundIdParam, 'fundId');
+      if (fundId <= 0) {
+        recordError('pacing-history', 'invalid_fund_id');
+        return res
+          .status(400)
+          .json(
+            createErrorResponse('INVALID_PARAMETER', `Fund ID must be a positive integer`, 'fundId')
+          );
+      }
+
+      const limit = parseListLimit(req.query['limit']);
+      const rows = await db
+        .select({
+          id: pacingHistory.id,
+          fundId: pacingHistory.fundId,
+          quarter: pacingHistory.quarter,
+          deploymentAmount: pacingHistory.deploymentAmount,
+          marketCondition: pacingHistory.marketCondition,
+          createdAt: pacingHistory.createdAt,
+        })
+        .from(pacingHistory)
+        .where(eq(pacingHistory.fundId, fundId))
+        .orderBy(desc(pacingHistory.createdAt), desc(pacingHistory.id))
+        .limit(limit);
+
+      return res.json({
+        success: true,
+        data: rows,
+        count: rows.length,
+      });
+    } catch (error) {
+      if (error instanceof NumberParseError) {
+        return res
+          .status(400)
+          .json(createErrorResponse('INVALID_PARAMETER', error.message, 'fundId'));
+      }
+
+      logger.error({ err: error, fundId }, 'pacing history API error');
+      return res
+        .status(500)
+        .json(createErrorResponse('INTERNAL_ERROR', 'Failed to fetch pacing history'));
+    }
+  }
+);
 
 /**
  * GET /api/funds/:fundId/performance/timeseries

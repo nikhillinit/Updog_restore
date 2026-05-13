@@ -52,6 +52,14 @@ export interface DemoProfileStorageVerification {
 export interface DemoProfileApiVerification {
   url: string;
   metrics?: Pick<UnifiedFundMetrics, 'fundId' | 'fundName' | 'actual' | 'lastUpdated'>;
+  readbacks: Record<
+    string,
+    {
+      url: string;
+      expected: unknown;
+      actual: unknown;
+    }
+  >;
 }
 
 export interface DemoProfileVerificationReport {
@@ -346,6 +354,162 @@ function readAuthToken(
   return env[variableName];
 }
 
+function buildHeaders(authToken: string | undefined): Record<string, string> {
+  if (authToken !== undefined && authToken.length > 0) {
+    return { authorization: `Bearer ${authToken}` };
+  }
+  return {};
+}
+
+async function fetchJson(
+  url: URL,
+  headers: Record<string, string>,
+  issues: DemoProfileVerificationIssue[],
+  code: string
+): Promise<unknown | undefined> {
+  const response = await fetch(url, { headers });
+  if (!response.ok) {
+    addIssue(issues, {
+      layer: 'api',
+      code,
+      message: `API readback failed with HTTP ${response.status}.`,
+      actual: await response.text().catch(() => ''),
+    });
+    return undefined;
+  }
+  return response.json();
+}
+
+function countItems(payload: unknown): number | undefined {
+  if (Array.isArray(payload)) {
+    return payload.length;
+  }
+  if (typeof payload !== 'object' || payload === null) {
+    return undefined;
+  }
+
+  const record = payload as Record<string, unknown>;
+  if (Array.isArray(record['data'])) {
+    return record['data'].length;
+  }
+  if (Array.isArray(record['companies'])) {
+    return record['companies'].length;
+  }
+  if (Array.isArray(record['history'])) {
+    return record['history'].length;
+  }
+  if (Array.isArray(record['runs'])) {
+    return record['runs'].length;
+  }
+  if (typeof record['count'] === 'number') {
+    return record['count'];
+  }
+  const pagination = record['pagination'];
+  if (typeof pagination === 'object' && pagination !== null) {
+    const count = (pagination as Record<string, unknown>)['count'];
+    if (typeof count === 'number') {
+      return count;
+    }
+  }
+  return undefined;
+}
+
+async function verifyApiCount(input: {
+  apiBaseUrl: string;
+  headers: Record<string, string>;
+  path: string;
+  code: string;
+  label: string;
+  expected: number;
+  readbacks: DemoProfileApiVerification['readbacks'];
+  readbackKey: string;
+  issues: DemoProfileVerificationIssue[];
+}): Promise<void> {
+  const endpoint = new URL(input.path, input.apiBaseUrl);
+  const payload = await fetchJson(endpoint, input.headers, input.issues, input.code);
+  const actual = payload === undefined ? undefined : countItems(payload);
+  input.readbacks[input.readbackKey] = {
+    url: endpoint.toString(),
+    expected: input.expected,
+    actual,
+  };
+
+  if (actual === undefined) {
+    addIssue(input.issues, {
+      layer: 'api',
+      code: `${input.code}_SHAPE_INVALID`,
+      message: `${input.label} API readback did not expose a countable collection.`,
+      expected: input.expected,
+      actual: payload,
+    });
+    return;
+  }
+
+  if (actual !== input.expected) {
+    addIssue(input.issues, {
+      layer: 'api',
+      code: input.code,
+      message: `${input.label} API count mismatch.`,
+      expected: input.expected,
+      actual,
+    });
+  }
+}
+
+async function verifyApiFund(input: {
+  fundId: number;
+  apiBaseUrl: string;
+  headers: Record<string, string>;
+  expectedFundSize?: number;
+  readbacks: DemoProfileApiVerification['readbacks'];
+  issues: DemoProfileVerificationIssue[];
+}): Promise<void> {
+  const endpoint = new URL(`/api/funds/${input.fundId}`, input.apiBaseUrl);
+  const payload = await fetchJson(
+    endpoint,
+    input.headers,
+    input.issues,
+    'API_FUND_READBACK_FAILED'
+  );
+  const record =
+    typeof payload === 'object' && payload !== null ? (payload as Record<string, unknown>) : {};
+  const actualId = record['id'];
+  const actualSize = record['size'];
+
+  input.readbacks['fund'] = {
+    url: endpoint.toString(),
+    expected:
+      input.expectedFundSize === undefined
+        ? { id: input.fundId }
+        : { id: input.fundId, size: input.expectedFundSize },
+    actual: {
+      id: actualId,
+      size: actualSize,
+    },
+  };
+
+  if (actualId !== input.fundId) {
+    addIssue(input.issues, {
+      layer: 'api',
+      code: 'API_FUND_READBACK_ID_MISMATCH',
+      message: 'Fund detail API returned the wrong fund ID.',
+      expected: input.fundId,
+      actual: actualId,
+    });
+  }
+
+  if (input.expectedFundSize !== undefined) {
+    assertClose(
+      input.issues,
+      'api',
+      'API_FUND_READBACK_SIZE_MISMATCH',
+      'Fund detail size',
+      toNumber(actualSize as string | number | null | undefined),
+      input.expectedFundSize
+    );
+  }
+}
+
 async function verifyApi(input: {
   fundId: number;
   expected: DemoProfileExpectedFacts;
@@ -361,162 +525,259 @@ async function verifyApi(input: {
   endpoint.searchParams.set('skipCache', 'true');
   endpoint.searchParams.set('reason', 'demo-profile-verify');
 
-  const headers: Record<string, string> = {};
-  if (input.authToken !== undefined && input.authToken.length > 0) {
-    headers['authorization'] = `Bearer ${input.authToken}`;
-  }
+  const headers = buildHeaders(input.authToken);
 
   const issues: DemoProfileVerificationIssue[] = [];
-  const response = await fetch(endpoint, { headers });
-  if (!response.ok) {
-    addIssue(issues, {
-      layer: 'api',
-      code: 'API_READBACK_FAILED',
-      message: `API readback failed with HTTP ${response.status}.`,
-      actual: await response.text().catch(() => ''),
-    });
-    return { api: { url: endpoint.toString() }, issues };
-  }
+  const readbacks: DemoProfileApiVerification['readbacks'] = {};
+  const payload = await fetchJson(endpoint, headers, issues, 'API_READBACK_FAILED');
 
-  const payload: unknown = await response.json();
   if (!isUnifiedFundMetrics(payload)) {
     addIssue(issues, {
       layer: 'api',
       code: 'API_METRICS_SHAPE_INVALID',
       message: 'API metrics payload did not match UnifiedFundMetrics shape.',
     });
-    return { api: { url: endpoint.toString() }, issues };
-  }
+  } else {
+    readbacks['metrics'] = {
+      url: endpoint.toString(),
+      expected: {
+        fundId: input.fundId,
+        totalInvested: input.expected.totalInvested,
+        currentNav: input.expected.currentNav,
+        activeCompanies: input.expected.activeCompanies,
+      },
+      actual: {
+        fundId: payload.fundId,
+        totalInvested: payload.actual.totalDeployed,
+        currentNav: payload.actual.currentNAV,
+        activeCompanies: payload.actual.activeCompanies,
+      },
+    };
 
-  if (payload.fundId !== input.fundId) {
-    addIssue(issues, {
-      layer: 'api',
-      code: 'API_FUND_ID_MISMATCH',
-      message: 'API metrics returned the wrong fund ID.',
-      expected: input.fundId,
-      actual: payload.fundId,
-    });
-  }
+    if (payload.fundId !== input.fundId) {
+      addIssue(issues, {
+        layer: 'api',
+        code: 'API_FUND_ID_MISMATCH',
+        message: 'API metrics returned the wrong fund ID.',
+        expected: input.fundId,
+        actual: payload.fundId,
+      });
+    }
 
-  if (input.expectedFundSize !== undefined) {
+    if (input.expectedFundSize !== undefined) {
+      assertClose(
+        issues,
+        'api',
+        'API_FUND_SIZE_MISMATCH',
+        'Fund size',
+        payload.actual.totalCommitted,
+        input.expectedFundSize
+      );
+    }
+
     assertClose(
       issues,
       'api',
-      'API_FUND_SIZE_MISMATCH',
-      'Fund size',
-      payload.actual.totalCommitted,
-      input.expectedFundSize
+      'API_TOTAL_INVESTED_MISMATCH',
+      'Total invested',
+      payload.actual.totalDeployed,
+      input.expected.totalInvested
     );
+    assertClose(
+      issues,
+      'api',
+      'API_CURRENT_NAV_MISMATCH',
+      'Current NAV',
+      payload.actual.currentNAV,
+      input.expected.currentNav
+    );
+    if (payload.actual.activeCompanies !== input.expected.activeCompanies) {
+      addIssue(issues, {
+        layer: 'api',
+        code: 'API_ACTIVE_COMPANIES_MISMATCH',
+        message: 'Active company count mismatch.',
+        expected: input.expected.activeCompanies,
+        actual: payload.actual.activeCompanies,
+      });
+    }
+
+    const expectedDeploymentRate =
+      payload.actual.totalCommitted > 0
+        ? (payload.actual.totalDeployed / payload.actual.totalCommitted) * 100
+        : 0;
+    assertClose(
+      issues,
+      'api',
+      'API_DEPLOYMENT_RATE_INVARIANT_FAILED',
+      'Deployment rate',
+      payload.actual.deploymentRate,
+      expectedDeploymentRate
+    );
+    assertClose(
+      issues,
+      'api',
+      'API_REMAINING_CAPITAL_INVARIANT_FAILED',
+      'Remaining capital',
+      payload.actual.totalUncalled,
+      payload.actual.totalCommitted - payload.actual.totalCalled
+    );
+
+    if (payload.actual.totalDeployed <= 0 && payload.actual.currentNAV > 0) {
+      addIssue(issues, {
+        layer: 'api',
+        code: 'API_ZERO_INVESTED_NONZERO_NAV',
+        message: 'API returned nonzero current NAV with no deployed capital.',
+        actual: {
+          totalDeployed: payload.actual.totalDeployed,
+          currentNAV: payload.actual.currentNAV,
+        },
+      });
+    }
   }
 
-  assertClose(
+  await verifyApiFund({
+    fundId: input.fundId,
+    apiBaseUrl: input.apiBaseUrl,
+    headers,
+    ...(input.expectedFundSize !== undefined && { expectedFundSize: input.expectedFundSize }),
+    readbacks,
     issues,
-    'api',
-    'API_TOTAL_INVESTED_MISMATCH',
-    'Total invested',
-    payload.actual.totalDeployed,
-    input.expected.totalInvested
-  );
-  assertClose(
-    issues,
-    'api',
-    'API_CURRENT_NAV_MISMATCH',
-    'Current NAV',
-    payload.actual.currentNAV,
-    input.expected.currentNav
-  );
-  if (payload.actual.activeCompanies !== input.expected.activeCompanies) {
-    addIssue(issues, {
-      layer: 'api',
-      code: 'API_ACTIVE_COMPANIES_MISMATCH',
-      message: 'Active company count mismatch.',
-      expected: input.expected.activeCompanies,
-      actual: payload.actual.activeCompanies,
-    });
-  }
+  });
 
-  const expectedDeploymentRate =
-    payload.actual.totalCommitted > 0
-      ? (payload.actual.totalDeployed / payload.actual.totalCommitted) * 100
-      : 0;
-  assertClose(
+  await verifyApiCount({
+    apiBaseUrl: input.apiBaseUrl,
+    headers,
+    path: `/api/funds/${input.fundId}/companies?limit=200`,
+    code: 'API_PORTFOLIO_COMPANIES_COUNT_MISMATCH',
+    label: 'Portfolio companies',
+    expected: input.expected.countsByTable.portfoliocompanies,
+    readbacks,
+    readbackKey: 'portfolioCompanies',
     issues,
-    'api',
-    'API_DEPLOYMENT_RATE_INVARIANT_FAILED',
-    'Deployment rate',
-    payload.actual.deploymentRate,
-    expectedDeploymentRate
-  );
-  assertClose(
+  });
+  await verifyApiCount({
+    apiBaseUrl: input.apiBaseUrl,
+    headers,
+    path: `/api/investments?fundId=${input.fundId}`,
+    code: 'API_INVESTMENTS_COUNT_MISMATCH',
+    label: 'Investments',
+    expected: input.expected.countsByTable.investments,
+    readbacks,
+    readbackKey: 'investments',
     issues,
-    'api',
-    'API_REMAINING_CAPITAL_INVARIANT_FAILED',
-    'Remaining capital',
-    payload.actual.totalUncalled,
-    payload.actual.totalCommitted - payload.actual.totalCalled
-  );
-
-  if (payload.actual.totalDeployed <= 0 && payload.actual.currentNAV > 0) {
-    addIssue(issues, {
-      layer: 'api',
-      code: 'API_ZERO_INVESTED_NONZERO_NAV',
-      message: 'API returned nonzero current NAV with no deployed capital.',
-      actual: {
-        totalDeployed: payload.actual.totalDeployed,
-        currentNAV: payload.actual.currentNAV,
-      },
-    });
-  }
+  });
+  await verifyApiCount({
+    apiBaseUrl: input.apiBaseUrl,
+    headers,
+    path: `/api/funds/${input.fundId}/portfolio/lots?limit=200`,
+    code: 'API_INVESTMENT_LOTS_COUNT_MISMATCH',
+    label: 'Investment lots',
+    expected: input.expected.countsByTable.investment_lots,
+    readbacks,
+    readbackKey: 'investmentLots',
+    issues,
+  });
+  await verifyApiCount({
+    apiBaseUrl: input.apiBaseUrl,
+    headers,
+    path: `/api/funds/${input.fundId}/performance/metrics?limit=200`,
+    code: 'API_FUND_METRICS_COUNT_MISMATCH',
+    label: 'Fund metrics',
+    expected: input.expected.countsByTable.fund_metrics,
+    readbacks,
+    readbackKey: 'fundMetrics',
+    issues,
+  });
+  await verifyApiCount({
+    apiBaseUrl: input.apiBaseUrl,
+    headers,
+    path: `/api/funds/${input.fundId}/pacing-history?limit=200`,
+    code: 'API_PACING_HISTORY_COUNT_MISMATCH',
+    label: 'Pacing history',
+    expected: input.expected.countsByTable.pacing_history,
+    readbacks,
+    readbackKey: 'pacingHistory',
+    issues,
+  });
+  await verifyApiCount({
+    apiBaseUrl: input.apiBaseUrl,
+    headers,
+    path: `/api/funds/${input.fundId}/baselines?limit=200`,
+    code: 'API_BASELINES_COUNT_MISMATCH',
+    label: 'Fund baselines',
+    expected: input.expected.countsByTable.fund_baselines,
+    readbacks,
+    readbackKey: 'fundBaselines',
+    issues,
+  });
+  await verifyApiCount({
+    apiBaseUrl: input.apiBaseUrl,
+    headers,
+    path: `/api/funds/${input.fundId}/variance-reports`,
+    code: 'API_VARIANCE_REPORTS_COUNT_MISMATCH',
+    label: 'Variance reports',
+    expected: input.expected.countsByTable.variance_reports,
+    readbacks,
+    readbackKey: 'varianceReports',
+    issues,
+  });
+  await verifyApiCount({
+    apiBaseUrl: input.apiBaseUrl,
+    headers,
+    path: `/api/backtesting/fund/${input.fundId}/history?limit=100`,
+    code: 'API_BACKTEST_RESULTS_COUNT_MISMATCH',
+    label: 'Backtest results',
+    expected: input.expected.countsByTable.backtest_results,
+    readbacks,
+    readbackKey: 'backtestResults',
+    issues,
+  });
+  await verifyApiCount({
+    apiBaseUrl: input.apiBaseUrl,
+    headers,
+    path: `/api/deals/opportunities?fundId=${input.fundId}&limit=200`,
+    code: 'API_PIPELINE_DEALS_COUNT_MISMATCH',
+    label: 'Pipeline deals',
+    expected: input.expected.countsByTable.deal_opportunities,
+    readbacks,
+    readbackKey: 'pipelineDeals',
+    issues,
+  });
 
   return {
     api: {
       url: endpoint.toString(),
-      metrics: {
-        fundId: payload.fundId,
-        fundName: payload.fundName,
-        actual: payload.actual,
-        lastUpdated: payload.lastUpdated,
-      },
+      ...(isUnifiedFundMetrics(payload)
+        ? {
+            metrics: {
+              fundId: payload.fundId,
+              fundName: payload.fundName,
+              actual: payload.actual,
+              lastUpdated: payload.lastUpdated,
+            },
+          }
+        : {}),
+      readbacks,
     },
     issues,
   };
 }
 
-export async function verifyDemoProfile(input: {
-  fundId: number;
-  bundle: DemoProfileImportBundle;
-  apiBaseUrl?: string;
-  authToken?: string;
-  requireApi?: boolean;
-  expectedFundSize?: number;
-  env?: NodeJS.ProcessEnv;
-  database?: DemoProfileImportDatabase;
-}): Promise<DemoProfileVerificationReport> {
-  const env = input.env ?? process.env;
-  const professionalDemoError = getProfessionalDemoRuntimeConfigurationError(
-    {
-      ...env,
-      ...(input.apiBaseUrl !== undefined ? { BASE_URL: input.apiBaseUrl } : {}),
-    },
-    { requireApiTarget: input.requireApi === true || input.apiBaseUrl !== undefined }
-  );
-  if (professionalDemoError !== null) {
-    throw new DemoProfileImportError(
-      409,
-      'DEMO_PROFILE_PROFESSIONAL_RUNTIME_INVALID',
-      professionalDemoError
-    );
+export async function verifyDemoProfileWithStore(
+  store: DemoProfileImportStore,
+  input: {
+    fundId: number;
+    bundle: DemoProfileImportBundle;
+    apiBaseUrl?: string;
+    authToken?: string;
+    requireApi?: boolean;
+    expectedFundSize?: number;
   }
-
-  assertDemoProfileImportPersistentStorage(env);
-  const database = await resolveDemoProfileImportDatabase(input.database);
-
-  const storageResult = await database.transaction(async (tx) =>
-    verifyDemoProfileStorageWithStore(new DrizzleDemoProfileImportStore(tx), {
-      fundId: input.fundId,
-      bundle: input.bundle,
-    })
-  );
+): Promise<DemoProfileVerificationReport> {
+  const storageResult = await verifyDemoProfileStorageWithStore(store, {
+    fundId: input.fundId,
+    bundle: input.bundle,
+  });
 
   const issues = [...storageResult.issues];
   let api: DemoProfileApiVerification | undefined;
@@ -526,8 +787,8 @@ export async function verifyDemoProfile(input: {
       fundId: input.fundId,
       expected: storageResult.expected,
       apiBaseUrl: input.apiBaseUrl,
-      authToken: input.authToken,
-      expectedFundSize: input.expectedFundSize,
+      ...(input.authToken !== undefined && { authToken: input.authToken }),
+      ...(input.expectedFundSize !== undefined && { expectedFundSize: input.expectedFundSize }),
     });
     api = apiResult.api;
     issues.push(...apiResult.issues);
@@ -547,6 +808,45 @@ export async function verifyDemoProfile(input: {
     ...(api !== undefined && { api }),
     issues,
   };
+}
+
+export async function verifyDemoProfile(input: {
+  fundId: number;
+  bundle: DemoProfileImportBundle;
+  apiBaseUrl?: string;
+  authToken?: string;
+  requireApi?: boolean;
+  expectedFundSize?: number;
+  env?: NodeJS.ProcessEnv;
+  database?: DemoProfileImportDatabase;
+  store?: DemoProfileImportStore;
+}): Promise<DemoProfileVerificationReport> {
+  const env = input.env ?? process.env;
+  const professionalDemoError = getProfessionalDemoRuntimeConfigurationError(
+    {
+      ...env,
+      ...(input.apiBaseUrl !== undefined ? { BASE_URL: input.apiBaseUrl } : {}),
+    },
+    { requireApiTarget: input.requireApi === true || input.apiBaseUrl !== undefined }
+  );
+  if (professionalDemoError !== null) {
+    throw new DemoProfileImportError(
+      409,
+      'DEMO_PROFILE_PROFESSIONAL_RUNTIME_INVALID',
+      professionalDemoError
+    );
+  }
+
+  assertDemoProfileImportPersistentStorage(env);
+
+  if (input.store !== undefined) {
+    return verifyDemoProfileWithStore(input.store, input);
+  }
+
+  const database = await resolveDemoProfileImportDatabase(input.database);
+  return database.transaction(async (tx) =>
+    verifyDemoProfileWithStore(new DrizzleDemoProfileImportStore(tx), input)
+  );
 }
 
 async function resolveDemoProfileImportDatabase(
