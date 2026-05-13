@@ -109,9 +109,6 @@ export function FundProvider({ children }: FundProviderProps) {
         const fund = funds.find((f: Fund) => f.id === preferredFundId);
         if (fund) {
           applyFundSelection(fund, routeFundId != null ? 'route' : fundSelectionSource);
-          if (routeFundId != null) {
-            setFundSelectionSource('route');
-          }
         } else {
           // On route-addressed results pages, do not overwrite the identity with
           // an unrelated "first fund". Let the route-specific page resolve truth.

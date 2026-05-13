@@ -18,6 +18,15 @@ export interface ImportDemoProfileCliResult {
   stderr: string;
 }
 
+interface ImportDemoProfileCliStreams {
+  stdout: { write(chunk: string): unknown };
+  stderr: { write(chunk: string): unknown };
+}
+
+interface ImportDemoProfileCliProcess {
+  exitCode?: number;
+}
+
 interface CliOptions {
   fundId?: number;
   inputPath?: string;
@@ -193,15 +202,40 @@ export async function runImportDemoProfileCli(
   }
 }
 
-const invokedPath = process.argv[1] === undefined ? '' : path.resolve(process.argv[1]);
-if (fileURLToPath(import.meta.url) === invokedPath) {
-  runImportDemoProfileCli().then((result) => {
+export async function runImportDemoProfileCliMain(
+  argv = process.argv.slice(2),
+  env: NodeJS.ProcessEnv = process.env,
+  streams: ImportDemoProfileCliStreams = process,
+  processLike: ImportDemoProfileCliProcess = process
+): Promise<void> {
+  try {
+    const result = await runImportDemoProfileCli(argv, env);
     if (result.stdout.length > 0) {
-      process.stdout.write(result.stdout);
+      streams.stdout.write(result.stdout);
     }
     if (result.stderr.length > 0) {
-      process.stderr.write(result.stderr);
+      streams.stderr.write(result.stderr);
     }
-    process.exitCode = result.exitCode;
-  });
+    processLike.exitCode = result.exitCode;
+  } catch {
+    processLike.exitCode = 1;
+    try {
+      streams.stderr.write(
+        safeJson({
+          error: {
+            code: 'CLI_BOOTSTRAP_FAILED',
+            status: 500,
+            message: 'Demo profile import failed before producing a safe result.',
+          },
+        })
+      );
+    } catch {
+      // If stderr is unavailable there is no safe fallback channel.
+    }
+  }
+}
+
+const invokedPath = process.argv[1] === undefined ? '' : path.resolve(process.argv[1]);
+if (fileURLToPath(import.meta.url) === invokedPath) {
+  void runImportDemoProfileCliMain();
 }

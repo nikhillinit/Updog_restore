@@ -1,7 +1,8 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 import {
   commitDemoProfileImportWithStore,
+  DrizzleDemoProfileImportStore,
   rollbackDemoProfileImportWithStore,
   runDemoProfileDryRun,
   type DemoProfileFundRecord,
@@ -22,6 +23,7 @@ import {
   type DemoProfileTargetTable,
   type DemoProfileVarianceReportRow,
 } from '@shared/contracts/demo-profile-import.contract';
+import { users } from '@shared/schema';
 import { buildDemoProfileImportBundle } from '../../fixtures/demo-profile-import-fixture';
 
 const TARGET_ORDER: DemoProfileTargetTable[] = [
@@ -87,10 +89,6 @@ class FakeDemoProfileImportStore implements DemoProfileImportStore {
 
   async targetExists(row: DemoProfileImportLedgerRecord): Promise<boolean> {
     return this.targets.get(this.targetKey(row.targetTable, row.targetIdText)) === row.fundId;
-  }
-
-  async hasActiveDefaultBaseline(): Promise<boolean> {
-    return this.activeDefaultBaseline;
   }
 
   async getActiveDefaultBaselineId(): Promise<string | null> {
@@ -220,6 +218,15 @@ class FakeDemoProfileImportStore implements DemoProfileImportStore {
   }
 }
 
+class DefaultBaselineUniqueViolationStore extends FakeDemoProfileImportStore {
+  override async insertFundBaseline(): Promise<string> {
+    throw Object.assign(new Error('duplicate key value violates unique constraint'), {
+      code: '23505',
+      constraint: 'fund_baselines_default_unique',
+    });
+  }
+}
+
 describe('demo profile import service', () => {
   it('produces deterministic dry-run previews with exact section counts', () => {
     const bundle = buildDemoProfileImportBundle();
@@ -333,6 +340,44 @@ describe('demo profile import service', () => {
     });
     expect(replay.skipped.fund_baselines).toBe(1);
     expect(replaceStore.deactivateDefaultCalls).toBe(1);
+  });
+
+  it('maps concurrent default baseline unique races to the import conflict contract', async () => {
+    const bundle = buildDemoProfileImportBundle();
+    bundle.sections.fundBaselines[0]!.isDefault = true;
+    const preview = runDemoProfileDryRun(bundle);
+    const store = new DefaultBaselineUniqueViolationStore();
+
+    await expect(
+      commitDemoProfileImportWithStore(store, {
+        fundId: 77,
+        bundle,
+        previewHash: preview.previewHash,
+      })
+    ).rejects.toMatchObject({
+      status: 409,
+      code: 'DEFAULT_BASELINE_CONFLICT',
+    });
+  });
+
+  it('ensures the system actor exists without overwriting an existing row', async () => {
+    const onConflictDoNothing = vi.fn();
+    const onConflictDoUpdate = vi.fn();
+    const values = vi.fn(() => ({ onConflictDoNothing, onConflictDoUpdate }));
+    const insert = vi.fn(() => ({ values }));
+    const store = new DrizzleDemoProfileImportStore({ insert } as never);
+
+    await store.ensureSystemActor();
+
+    expect(insert).toHaveBeenCalledWith(users);
+    expect(values).toHaveBeenCalledWith(
+      expect.objectContaining({
+        id: 999999,
+        username: 'system',
+      })
+    );
+    expect(onConflictDoNothing).toHaveBeenCalledWith({ target: users.id });
+    expect(onConflictDoUpdate).not.toHaveBeenCalled();
   });
 
   it('rolls back only ledger-scoped targets in reverse dependency order', async () => {
