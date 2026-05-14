@@ -22,6 +22,8 @@ export type JWTClaims = JwtPayload & {
   role?: string;
   email?: string;
   fundIds?: number[];
+  orgId?: string;
+  org_id?: string;
   lpId?: number; // LP-specific: Limited Partner ID for LP role users
 };
 
@@ -106,21 +108,82 @@ export async function verifyAccessTokenAsync(token: string): Promise<JWTClaims> 
   return verified as JWTClaims;
 }
 
+type FundIdsParseResult = { valid: true; fundIds: number[] } | { valid: false; reason: string };
+
+function parseFundIds(value: unknown): FundIdsParseResult {
+  if (value == null) {
+    return { valid: true, fundIds: [] };
+  }
+
+  if (!Array.isArray(value)) {
+    return { valid: false, reason: 'fundIds must be an array' };
+  }
+
+  const fundIds: number[] = [];
+  for (const fundId of value) {
+    if (typeof fundId !== 'number' || !Number.isInteger(fundId)) {
+      return { valid: false, reason: 'fundIds must contain only integer IDs' };
+    }
+    fundIds.push(fundId);
+  }
+
+  return { valid: true, fundIds };
+}
+
+function fundIdsFromClaims(value: unknown): number[] {
+  const result = parseFundIds(value);
+  if (!result.valid) {
+    throw new Error(`Invalid JWT fund scope: ${result.reason}`);
+  }
+  return result.fundIds;
+}
+
 /**
- * Assign verified claims to request user object
+ * JWT fund-scope contract:
+ * - Missing or empty fundIds means unrestricted admin/service access.
+ * - Non-empty fundIds restrict access to the listed fund IDs only.
+ *
+ * Empty scope is privileged. Issuers must mint fundIds: [] only for trusted
+ * admin or service identities, and every route helper must call this function
+ * instead of reimplementing the empty-array branch locally.
  */
-function assignUserFromClaims(req: Request, claims: JWTClaims): void {
-  req.user = {
+export function hasFundAccess(fundIds: unknown, fundId: number): boolean {
+  const result = parseFundIds(fundIds);
+  if (!result.valid) {
+    return false;
+  }
+
+  return result.fundIds.length === 0 || result.fundIds.includes(fundId);
+}
+
+export function userFromClaims(req: Request, claims: JWTClaims): Express.User {
+  const role = typeof claims.role === 'string' ? claims.role : undefined;
+  const orgId =
+    typeof claims.orgId === 'string'
+      ? claims.orgId
+      : typeof claims.org_id === 'string'
+        ? claims.org_id
+        : undefined;
+
+  return {
     id: claims.sub,
     sub: claims.sub,
     email: claims.email ?? claims.sub,
-    ...(claims.role != null && { role: claims.role }),
-    roles: claims.role ? [claims.role] : [],
-    fundIds: claims.fundIds || [],
+    ...(role !== undefined && { role }),
+    roles: role ? [role] : [],
+    fundIds: fundIdsFromClaims(claims.fundIds),
+    ...(orgId !== undefined && { orgId }),
     ...(claims.lpId != null && { lpId: claims.lpId }),
     ip: req.ip || 'unknown',
     userAgent: req.header('user-agent') || 'unknown',
   };
+}
+
+/**
+ * Assign verified claims to request user object
+ */
+function assignUserFromClaims(req: Request, claims: JWTClaims): void {
+  req.user = userFromClaims(req, claims);
 }
 
 function getJwtErrorDetails(err: unknown): { name?: string; message: string } {
@@ -207,15 +270,7 @@ export const requireFundAccess = (req: Request, res: Response, next: NextFunctio
     });
   }
 
-  // Check if user has access to this fund
-  const userFundIds = req.user?.fundIds || [];
-
-  // Empty fundIds array means access to all funds (admin/superuser pattern)
-  if (userFundIds.length === 0) {
-    return next();
-  }
-
-  if (userFundIds.includes(fundId)) {
+  if (hasFundAccess(req.user?.fundIds, fundId)) {
     return next();
   }
 

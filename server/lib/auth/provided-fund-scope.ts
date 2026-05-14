@@ -1,24 +1,25 @@
 import type { Request, Response } from 'express';
 
-import { verifyAccessTokenAsync } from './jwt';
+import { hasFundAccess, userFromClaims, verifyAccessTokenAsync } from './jwt';
 
 function bearerToken(req: Request): string | undefined {
   const header = req.header('authorization') || '';
   return header.startsWith('Bearer ') ? header.slice(7) : undefined;
 }
 
-function numericFundIds(value: unknown): number[] {
-  if (!Array.isArray(value)) {
-    return [];
+function assertTokenRequiredOutsideDevelopment(): void {
+  const nodeEnv = process.env['NODE_ENV'] ?? 'development';
+  if (nodeEnv !== 'development' && nodeEnv !== 'test') {
+    throw new Error(`Missing bearer token while enforcing provided fund scope in ${nodeEnv}`);
   }
-
-  return value.filter(
-    (fundId): fundId is number => typeof fundId === 'number' && Number.isInteger(fundId)
-  );
 }
 
-function asRecord(value: unknown): Record<string, unknown> {
-  return typeof value === 'object' && value !== null ? (value as Record<string, unknown>) : {};
+function denyFundAccess(res: Response, fundId: number): void {
+  res.status(403).json({
+    error: 'Forbidden',
+    code: 'FUND_ACCESS_DENIED',
+    message: `You do not have access to fund ${fundId}`,
+  });
 }
 
 export async function enforceProvidedFundScope(
@@ -28,32 +29,26 @@ export async function enforceProvidedFundScope(
 ): Promise<boolean> {
   const token = bearerToken(req);
   if (token === undefined) {
+    assertTokenRequiredOutsideDevelopment();
+    if (req.user && !hasFundAccess(req.user.fundIds, fundId)) {
+      denyFundAccess(res, fundId);
+      return false;
+    }
     return true;
   }
 
   try {
     const claims = await verifyAccessTokenAsync(token);
-    const claimRecord = asRecord(claims);
-    const fundIds = numericFundIds(claims.fundIds);
+    const existingUser = req.user;
+    const verifiedUser = userFromClaims(req, claims);
 
     req.user = {
-      id: claims.sub,
-      sub: claims.sub,
-      email: claims.email ?? claims.sub,
-      ...(typeof claims.role === 'string' ? { role: claims.role } : {}),
-      roles: typeof claims.role === 'string' ? [claims.role] : [],
-      ...(typeof claimRecord['orgId'] === 'string' ? { orgId: claimRecord['orgId'] } : {}),
-      fundIds,
-      ...(claims.lpId !== undefined ? { lpId: claims.lpId } : {}),
-      ip: req.ip || 'unknown',
-      userAgent: req.header('user-agent') || 'unknown',
+      ...existingUser,
+      ...verifiedUser,
     };
 
-    if (fundIds.length === 0 || !fundIds.includes(fundId)) {
-      res.status(403).json({
-        error: 'Forbidden',
-        message: `You do not have access to fund ${fundId}`,
-      });
+    if (!hasFundAccess(req.user.fundIds, fundId)) {
+      denyFundAccess(res, fundId);
       return false;
     }
 

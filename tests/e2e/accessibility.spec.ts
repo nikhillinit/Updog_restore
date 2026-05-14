@@ -32,6 +32,8 @@ test.describe('Tranche 5 accessibility critical gate', () => {
   // Full-page scans still include legacy page-local debt outside this tranche
   // (unlabeled selects in older analytical surfaces). This gate scans the
   // governed route shell and the newly touched sensitivity controls.
+  // Broader deleted coverage is tracked in
+  // docs/plans/2026-05-14-t4-t5-follow-up-tranches.md#tranche-b-accessibility-coverage-restoration.
   for (const route of GOVERNED_ROUTE_SLICE) {
     test(`${route.name} shell navigation has zero critical axe violations`, async ({ page }) => {
       await gotoGovernedRoute(page, route.path);
