@@ -580,6 +580,58 @@ describe('FundModelResultsPage (server-backed)', () => {
     ).toBeInTheDocument();
   });
 
+  it('renders a source-labeled quarterly analytics trace with owned action links', async () => {
+    mockFundPageFetches();
+    await renderPage('/fund-model-results/123');
+
+    const trace = await screen.findByTestId('quarterly-review-trace');
+
+    expect(within(trace).getByText('Quarterly Analytics Trace')).toBeInTheDocument();
+    expect(within(trace).getByText('Are we on plan?')).toBeInTheDocument();
+    expect(within(trace).getByText('Where are the gaps by segment?')).toBeInTheDocument();
+    expect(within(trace).getByText('Which follow-ons need action?')).toBeInTheDocument();
+    expect(within(trace).getByText('What if the model changes?')).toBeInTheDocument();
+    expect(within(trace).getByText('What can LPs receive today?')).toBeInTheDocument();
+
+    expect(within(trace).getByText('Publish comparison')).toBeInTheDocument();
+    expect(within(trace).getByText('Performance breakdown route')).toBeInTheDocument();
+    expect(within(trace).getByText('Reserve snapshot')).toBeInTheDocument();
+    expect(within(trace).getByText('Scenario workspaces')).toBeInTheDocument();
+    expect(within(trace).getByText('Reports workspace')).toBeInTheDocument();
+
+    expect(within(trace).getByRole('link', { name: /Review comparison/i })).toHaveAttribute(
+      'href',
+      '/fund-model-results/123'
+    );
+    expect(
+      within(trace).getByRole('link', { name: /Open performance breakdown/i })
+    ).toHaveAttribute('href', '/performance');
+    expect(within(trace).getByRole('link', { name: /Open reserve planning/i })).toHaveAttribute(
+      'href',
+      '/portfolio?tab=reserve-planning'
+    );
+    expect(within(trace).getByRole('link', { name: /Open sensitivity analysis/i })).toHaveAttribute(
+      'href',
+      '/sensitivity-analysis'
+    );
+    expect(within(trace).getByRole('link', { name: /Open forecasting/i })).toHaveAttribute(
+      'href',
+      '/forecasting?fundId=123'
+    );
+    expect(within(trace).getByRole('link', { name: /Open reports/i })).toHaveAttribute(
+      'href',
+      '/reports'
+    );
+
+    const statuses = within(trace)
+      .getAllByTestId('analytics-trace-status')
+      .map((status) => status.textContent);
+    expect(statuses).toEqual(expect.arrayContaining(['Available', 'Linked', 'Deferred']));
+    expect(within(trace).getByText('Deferred Parity Ledger')).toBeInTheDocument();
+    expect(within(trace).getByText('MOIC distribution')).toBeInTheDocument();
+    expect(within(trace).getByText('Founder benchmarking')).toBeInTheDocument();
+  });
+
   it('hides drift when a metric is not marked drift-capable', async () => {
     const comparison = resultsComparisonResponse();
     comparison.metricDeltas[0] = {

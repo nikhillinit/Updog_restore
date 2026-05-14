@@ -189,6 +189,20 @@ describe('PerformanceDashboard', () => {
     expect(screen.queryByRole('button', { name: 'Export' })).not.toBeInTheDocument();
   });
 
+  it('renders segment breakdown rows with persisted MOIC multiples', async () => {
+    const user = userEvent.setup();
+
+    render(<PerformanceDashboard />);
+    await user.click(screen.getByRole('tab', { name: 'Breakdown' }));
+
+    await waitFor(() => {
+      expect(screen.getByText('SaaS')).toBeInTheDocument();
+    });
+    expect(screen.getAllByText('1').length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText('1.50x').length).toBeGreaterThanOrEqual(1);
+    expect(screen.getByText('$150')).toBeInTheDocument();
+  });
+
   it('shows explicit empty states instead of blank charts when all timeseries metrics are unavailable', () => {
     mockUsePerformanceTimeseries.mockReturnValue({
       data: makeUnavailableTimeseriesData(),

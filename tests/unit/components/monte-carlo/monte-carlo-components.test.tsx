@@ -190,6 +190,7 @@ describe('ConfigForm', () => {
     expect(screen.getByRole('checkbox', { name: 'IRR' })).toBeInTheDocument();
     expect(screen.getByRole('checkbox', { name: 'TVPI' })).toBeInTheDocument();
     expect(screen.getByRole('checkbox', { name: 'DPI' })).toBeInTheDocument();
+    expect(screen.queryByRole('checkbox', { name: 'MOIC' })).not.toBeInTheDocument();
   });
 
   it('pairs the simulation-run slider with a numeric input that drives submit payloads', () => {

@@ -24,6 +24,7 @@ import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import { QuarterlyReviewTrace } from '@/features/analytics-parity/QuarterlyReviewTrace';
 import { cn } from '@/lib/utils';
 import type {
   FundResultsReadV1,
@@ -1607,6 +1608,14 @@ function FundModelResultsPage() {
 
       <FadeInSection>
         <PublishComparisonCard comparisonState={comparisonState} />
+      </FadeInSection>
+
+      <FadeInSection>
+        <QuarterlyReviewTrace
+          results={results}
+          comparison={comparisonState.comparison}
+          fundId={fundId}
+        />
       </FadeInSection>
 
       {/* Reserve section */}
