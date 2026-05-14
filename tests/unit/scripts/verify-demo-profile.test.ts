@@ -1,9 +1,12 @@
 import { Buffer } from 'node:buffer';
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import jwt from 'jsonwebtoken';
 
 import {
+  buildExpectedManualProfileFacts,
   buildExpectedDemoProfileFacts,
   verifyDemoProfile,
+  verifyManualProfile,
   runVerifyDemoProfileCli,
   verifyDemoProfileStorageWithStore,
 } from '../../../scripts/verify-demo-profile';
@@ -207,35 +210,108 @@ function buildUnifiedMetrics(overrides: ActualMetricTestOverrides = {}) {
   } satisfies UnifiedFundMetrics;
 }
 
-function mockApiReadback(metrics: UnifiedFundMetrics): void {
+type ApiReadbackOverrides = Partial<{
+  fund: unknown;
+  portfolioCompanies: unknown;
+  investments: unknown;
+  investmentLots: unknown;
+  fundMetrics: unknown;
+  pacingHistory: unknown;
+  fundBaselines: unknown;
+  varianceReports: unknown;
+  backtestResults: unknown;
+  pipelineDeals: unknown;
+}>;
+
+interface ApiReadbackOptions {
+  enforceScopedTokenFundId?: number;
+}
+
+function authorizationHeader(input: URL | RequestInfo, init?: RequestInit): string | undefined {
+  const initHeader = new Headers(init?.headers).get('authorization');
+  if (initHeader !== null) {
+    return initHeader;
+  }
+
+  if (input instanceof Request) {
+    return input.headers.get('authorization') ?? undefined;
+  }
+
+  return undefined;
+}
+
+function fundIdsFromAuthorizationHeader(headerValue: string | undefined): number[] | undefined {
+  if (headerValue === undefined || !headerValue.startsWith('Bearer ')) {
+    return undefined;
+  }
+
+  const decoded = jwt.decode(headerValue.slice('Bearer '.length));
+  if (typeof decoded !== 'object' || decoded === null || !Array.isArray(decoded['fundIds'])) {
+    return undefined;
+  }
+
+  return decoded['fundIds'].filter(
+    (fundId): fundId is number => typeof fundId === 'number' && Number.isInteger(fundId)
+  );
+}
+
+function mockApiReadback(
+  metrics: UnifiedFundMetrics,
+  overrides: ApiReadbackOverrides = {},
+  options: ApiReadbackOptions = {}
+): void {
   vi.stubGlobal(
     'fetch',
-    vi.fn(async (input: URL | RequestInfo) => {
+    vi.fn(async (input: URL | RequestInfo, init?: RequestInit) => {
       const url = new URL(String(input));
+      if (options.enforceScopedTokenFundId !== undefined) {
+        const fundIds = fundIdsFromAuthorizationHeader(authorizationHeader(input, init));
+        if (fundIds === undefined || !fundIds.includes(options.enforceScopedTokenFundId)) {
+          return new Response(JSON.stringify({ error: 'forbidden' }), { status: 403 });
+        }
+      }
+
       let payload: unknown;
 
       if (url.pathname === '/api/funds/77/metrics') {
         payload = metrics;
       } else if (url.pathname === '/api/funds/77') {
-        payload = { id: 77, name: 'Verifier Fund', size: '20000000.00' };
+        payload = overrides.fund ?? { id: 77, name: 'Verifier Fund', size: '20000000.00' };
       } else if (url.pathname === '/api/funds/77/companies') {
-        payload = { companies: [{}], pagination: { has_more: false, next_cursor: null } };
+        payload = overrides.portfolioCompanies ?? {
+          companies: [{ id: 1, fundId: 77 }],
+          pagination: { has_more: false, next_cursor: null },
+        };
       } else if (url.pathname === '/api/investments') {
-        payload = [{}];
+        payload = overrides.investments ?? [{ id: 11, fundId: 77 }];
       } else if (url.pathname === '/api/funds/77/portfolio/lots') {
-        payload = { data: [{}], pagination: { count: 1 } };
+        payload = overrides.investmentLots ?? {
+          data: [{ id: 'lot-1', investmentId: 11 }],
+          pagination: { count: 1 },
+        };
       } else if (url.pathname === '/api/funds/77/performance/metrics') {
-        payload = { success: true, data: [{}], count: 1 };
+        payload = overrides.fundMetrics ?? { success: true, data: [{ fundId: 77 }], count: 1 };
       } else if (url.pathname === '/api/funds/77/pacing-history') {
-        payload = { success: true, data: [{}], count: 1 };
+        payload = overrides.pacingHistory ?? { success: true, data: [{ fundId: 77 }], count: 1 };
       } else if (url.pathname === '/api/funds/77/baselines') {
-        payload = { data: [{}], count: 1 };
+        payload = overrides.fundBaselines ?? { data: [{ id: 'baseline-1', fundId: 77 }], count: 1 };
       } else if (url.pathname === '/api/funds/77/variance-reports') {
-        payload = { data: [{}], count: 1 };
+        payload = overrides.varianceReports ?? {
+          data: [{ id: 'variance-1', fundId: 77, baselineId: 'baseline-1' }],
+          count: 1,
+        };
       } else if (url.pathname === '/api/backtesting/fund/77/history') {
-        payload = { history: [{}], pagination: { count: 1 } };
+        payload = overrides.backtestResults ?? {
+          fundId: 77,
+          history: [{ id: 'backtest-1', config: { fundId: 77 } }],
+          pagination: { count: 1 },
+        };
       } else if (url.pathname === '/api/deals/opportunities') {
-        payload = { success: true, data: [{}], pagination: { count: 1 } };
+        payload = overrides.pipelineDeals ?? {
+          success: true,
+          data: [{ id: 21, fundId: 77 }],
+          pagination: { count: 1 },
+        };
       } else {
         payload = { error: 'not_found' };
         return new Response(JSON.stringify(payload), { status: 404 });
@@ -262,6 +338,30 @@ describe('verify-demo-profile helpers', () => {
     expect(facts.activeCompanies).toBe(1);
     expect(facts.countsByTable.portfoliocompanies).toBe(1);
     expect(facts.countsByTable.backtest_results).toBe(1);
+  });
+
+  it('adapts manual manifest facts into the shared expected-facts shape', () => {
+    const facts = buildExpectedManualProfileFacts({
+      datasetId: 'manual-gp-proof',
+      countsByTable: {
+        portfoliocompanies: 1,
+        investments: 1,
+      },
+      totalInvested: 750_000,
+      currentNav: 1_250_000,
+      activeCompanies: 1,
+    });
+
+    expect(facts).toMatchObject({
+      datasetId: 'manual-gp-proof',
+      totalInvested: 750_000,
+      currentNav: 1_250_000,
+      activeCompanies: 1,
+      defaultBaselineExpected: false,
+    });
+    expect(facts.countsByTable.portfoliocompanies).toBe(1);
+    expect(facts.countsByTable.investments).toBe(1);
+    expect(facts.countsByTable.investment_lots).toBe(0);
   });
 
   it('derives invested capital from company amounts when investment rows are absent', () => {
@@ -626,6 +726,160 @@ describe('verify-demo-profile helpers', () => {
       expect.objectContaining({
         layer: 'api',
         code: 'API_ZERO_DEPLOYED_NONZERO_NAV_WITHOUT_PROVENANCE',
+      })
+    );
+  });
+
+  it('rejects count-only API readbacks without fund ownership fields', async () => {
+    mockApiReadback(buildUnifiedMetrics(), {
+      portfolioCompanies: {
+        companies: [{}],
+        pagination: { has_more: false, next_cursor: null },
+      },
+    });
+
+    const report = await verifyDemoProfile({
+      fundId: 77,
+      bundle: buildDemoProfileImportBundle(),
+      store: buildStore(buildLedgerRows(77)),
+      apiBaseUrl: 'http://localhost:5000',
+      env: persistentEnv(),
+    });
+
+    expect(report.passed).toBe(false);
+    expect(report.issues).toContainEqual(
+      expect.objectContaining({
+        layer: 'api',
+        code: 'API_PORTFOLIO_COMPANIES_OWNERSHIP_FIELD_MISSING',
+      })
+    );
+  });
+
+  it('requires a non-empty token scoped to the verified fund when configured', async () => {
+    mockApiReadback(buildUnifiedMetrics());
+
+    const unrestrictedToken = jwt.sign({ sub: 'test-user', fundIds: [] }, 'test-secret');
+    const report = await verifyDemoProfile({
+      fundId: 77,
+      bundle: buildDemoProfileImportBundle(),
+      store: buildStore(buildLedgerRows(77)),
+      apiBaseUrl: 'http://localhost:5000',
+      authToken: unrestrictedToken,
+      requireScopedAuth: true,
+      env: persistentEnv(),
+    });
+
+    expect(report.passed).toBe(false);
+    expect(report.issues).toContainEqual(
+      expect.objectContaining({
+        layer: 'config',
+        code: 'API_SCOPED_AUTH_EMPTY_FUND_IDS',
+      })
+    );
+  });
+
+  it('passes scoped-auth proof when the token contains the verified fund', async () => {
+    mockApiReadback(buildUnifiedMetrics());
+
+    const scopedToken = jwt.sign({ sub: 'test-user', fundIds: [77] }, 'test-secret');
+    const report = await verifyDemoProfile({
+      fundId: 77,
+      bundle: buildDemoProfileImportBundle(),
+      store: buildStore(buildLedgerRows(77)),
+      apiBaseUrl: 'http://localhost:5000',
+      authToken: scopedToken,
+      requireScopedAuth: true,
+      env: persistentEnv(),
+    });
+
+    expect(report.issues).not.toContainEqual(
+      expect.objectContaining({
+        code: expect.stringMatching(/^API_SCOPED_AUTH_/),
+      })
+    );
+  });
+
+  it('runs the manual verifier through the shared API ownership matrix without import ledger rows', async () => {
+    const scopedToken = jwt.sign({ sub: 'test-user', fundIds: [77] }, 'test-secret');
+    const wrongFundToken = jwt.sign({ sub: 'test-user', fundIds: [78] }, 'test-secret');
+    mockApiReadback(buildUnifiedMetrics(), {}, { enforceScopedTokenFundId: 77 });
+
+    const report = await verifyManualProfile({
+      fundId: 77,
+      expected: {
+        datasetId: 'manual-gp-proof-77',
+        countsByTable: {
+          portfoliocompanies: 1,
+          investments: 1,
+          investment_lots: 1,
+          fund_metrics: 1,
+          pacing_history: 1,
+          fund_baselines: 1,
+          variance_reports: 1,
+          backtest_results: 1,
+          deal_opportunities: 1,
+        },
+        totalInvested: 1_000_000,
+        currentNav: 4_500_000,
+        activeCompanies: 1,
+      },
+      apiBaseUrl: 'http://localhost:5000',
+      authToken: scopedToken,
+      negativeControlAuthToken: wrongFundToken,
+      requireNegativeControls: true,
+      requireScopedAuth: true,
+      requireApi: true,
+      expectedFundSize: 20_000_000,
+      env: persistentEnv(),
+    });
+
+    expect(report.passed).toBe(true);
+    expect(report.issues).toEqual([]);
+    expect(report.storage.ledgerRows).toBe(0);
+    expect(report.storage.missingTargets).toEqual([]);
+    expect(report.expected.countsByTable.portfoliocompanies).toBe(1);
+    expect(report.api?.readbacks['portfolioCompanies']).toEqual(
+      expect.objectContaining({ expected: 1, actual: 1 })
+    );
+  });
+
+  it('fails the manual verifier when wrong-fund negative controls are accepted', async () => {
+    const scopedToken = jwt.sign({ sub: 'test-user', fundIds: [77] }, 'test-secret');
+    const wrongFundToken = jwt.sign({ sub: 'test-user', fundIds: [78] }, 'test-secret');
+    mockApiReadback(buildUnifiedMetrics());
+
+    const report = await verifyManualProfile({
+      fundId: 77,
+      expected: {
+        datasetId: 'manual-gp-proof-77',
+        countsByTable: {
+          portfoliocompanies: 1,
+          investments: 1,
+          investment_lots: 1,
+          fund_metrics: 1,
+          pacing_history: 1,
+          fund_baselines: 1,
+          variance_reports: 1,
+          backtest_results: 1,
+          deal_opportunities: 1,
+        },
+        totalInvested: 1_000_000,
+        currentNav: 4_500_000,
+        activeCompanies: 1,
+      },
+      apiBaseUrl: 'http://localhost:5000',
+      authToken: scopedToken,
+      negativeControlAuthToken: wrongFundToken,
+      requireNegativeControls: true,
+      requireScopedAuth: true,
+      env: persistentEnv(),
+    });
+
+    expect(report.passed).toBe(false);
+    expect(report.issues).toContainEqual(
+      expect.objectContaining({
+        layer: 'api',
+        code: 'API_NEGATIVE_CONTROL_UNEXPECTED_SUCCESS',
       })
     );
   });

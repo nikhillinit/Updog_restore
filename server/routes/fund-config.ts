@@ -50,6 +50,7 @@ function ensureProducerQueuesRegistered(): void {
 
 import { FundDraftWriteV1Schema } from '@shared/contracts/fund-draft-write-v1.contract';
 import { sendApiError } from '../lib/apiError';
+import { enforceProvidedFundScope } from '../lib/auth/provided-fund-scope';
 import idempotency from '../middleware/idempotency';
 import { omitEconomicsAssumptionsWhenDisabled } from '../services/economics-feature-gate';
 
@@ -79,6 +80,10 @@ export function registerFundConfigRoutes(app: Express) {
       }
 
       const draftFundId = validation.data.draftFundId;
+      if (draftFundId != null && !(await enforceProvidedFundScope(req, res, draftFundId))) {
+        return;
+      }
+
       if (
         draftFundId != null &&
         !requestUserCanAccessFund(req as RequestWithOptionalUser, draftFundId)
@@ -132,6 +137,10 @@ export function registerFundConfigRoutes(app: Express) {
           return res['status'](400)['json'](error);
         }
         throw err;
+      }
+
+      if (!(await enforceProvidedFundScope(req, res, fundId))) {
+        return;
       }
 
       // Validate with strict FundDraftWriteV1Schema (rejects unknown keys)
@@ -264,6 +273,10 @@ export function registerFundConfigRoutes(app: Express) {
           return res['status'](400)['json'](error);
         }
         throw err;
+      }
+
+      if (!(await enforceProvidedFundScope(req, res, fundId))) {
+        return;
       }
 
       const [draft] = await db

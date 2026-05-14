@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { NextFunction, Request, Response } from 'express';
+import jwt from 'jsonwebtoken';
 
 const DEV_SECRET = 'dev-secret-only-for-tests-1234567890';
 const ENV_KEYS = [
@@ -76,6 +77,57 @@ describe('requireAuth middleware', () => {
       email: 'dev@example.com',
       role: 'admin',
       fundIds: [],
+    });
+  });
+
+  it('verifies a provided bearer token in development when REQUIRE_AUTH=0', async () => {
+    process.env.NODE_ENV = 'development';
+    process.env._EXPLICIT_NODE_ENV = 'development';
+    process.env.REQUIRE_AUTH = '0';
+    process.env.JWT_ALG = 'HS256';
+    process.env._EXPLICIT_JWT_ALG = 'HS256';
+    process.env.JWT_SECRET = DEV_SECRET;
+    process.env._EXPLICIT_JWT_SECRET = DEV_SECRET;
+    process.env.JWT_ISSUER = 'updog-dev';
+    process.env._EXPLICIT_JWT_ISSUER = 'updog-dev';
+    process.env.JWT_AUDIENCE = 'updog-app-dev';
+    process.env._EXPLICIT_JWT_AUDIENCE = 'updog-app-dev';
+    const token = jwt.sign(
+      {
+        sub: 'manual-gp-proof',
+        email: 'manual-gp-proof@example.com',
+        role: 'user',
+        fundIds: [77],
+      },
+      DEV_SECRET,
+      {
+        algorithm: 'HS256',
+        issuer: 'updog-dev',
+        audience: 'updog-app-dev',
+        expiresIn: '1h',
+      }
+    );
+
+    const { requireAuth } = await import('@/server/lib/auth/jwt');
+
+    const req = {
+      header: vi.fn().mockReturnValue(`Bearer ${token}`),
+      ip: '127.0.0.1',
+      user: undefined,
+    } as unknown as Request;
+    const sendStatus = vi.fn();
+    const res = { sendStatus } as unknown as Response;
+    const next = vi.fn() as unknown as NextFunction;
+
+    await requireAuth()(req, res, next);
+
+    expect(next).toHaveBeenCalledOnce();
+    expect(sendStatus).not.toHaveBeenCalled();
+    expect(req.user).toMatchObject({
+      id: 'manual-gp-proof',
+      email: 'manual-gp-proof@example.com',
+      role: 'user',
+      fundIds: [77],
     });
   });
 

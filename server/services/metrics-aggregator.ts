@@ -19,9 +19,11 @@ import { ActualMetricsCalculator } from './actual-metrics-calculator';
 import { ProjectedMetricsCalculator } from './projected-metrics-calculator';
 import { VarianceCalculator } from './variance-calculator';
 import { getFundAge, isConstructionPhase, type FundAge } from '@shared/lib/lifecycle-rules';
-import type { Fund, PortfolioCompany } from '@shared/schema';
+import { funds, type Fund, type PortfolioCompany } from '@shared/schema';
 import { toDecimal } from '@shared/lib/decimal-utils';
 import { FundDraftWriteV1Schema } from '@shared/contracts/fund-draft-write-v1.contract';
+import { db } from '../db';
+import { eq } from 'drizzle-orm';
 import { z } from 'zod';
 
 interface CacheClient {
@@ -158,7 +160,7 @@ export class MetricsAggregator {
         };
       }
       // No stale data available, wait and retry once
-      await new Promise(resolve => setTimeout(resolve, 100));
+      await new Promise((resolve) => setTimeout(resolve, 100));
       const retried = await this.cache.get<UnifiedFundMetrics>(cacheKey);
       if (retried) {
         return {
@@ -182,13 +184,9 @@ export class MetricsAggregator {
 
     try {
       // Fetch fund data
-      const fundFromDb = await storage.getFund(fundId);
+      const fundFromDb = await this.getFundForMetrics(fundId);
       if (!fundFromDb) {
-        throw this.createError(
-          'INSUFFICIENT_DATA',
-          `Fund ${fundId} not found`,
-          'aggregator'
-        );
+        throw this.createError('INSUFFICIENT_DATA', `Fund ${fundId} not found`, 'aggregator');
       }
       // Ensure fund object has optional nullable fields for projected calculator
       const fund = fundFromDb as Fund & {
@@ -199,11 +197,13 @@ export class MetricsAggregator {
       // Fetch portfolio companies
       const companiesFromDb = await storage.getPortfolioCompanies(fundId);
       // Type assert companies to include optional fields needed by projected calculator
-      const companies = companiesFromDb as Array<PortfolioCompany & {
-        currentStage: string | null;
-        investmentDate: Date | null;
-        ownershipCurrentPct: string | null;
-      }>;
+      const companies = companiesFromDb as Array<
+        PortfolioCompany & {
+          currentStage: string | null;
+          investmentDate: Date | null;
+          ownershipCurrentPct: string | null;
+        }
+      >;
 
       // Fetch fund configuration
       const { config, warnings: configWarnings } = await this.resolveFundConfig(fundId);
@@ -218,7 +218,9 @@ export class MetricsAggregator {
         actual = await this.actualCalculator.calculate(fundId);
       } catch (error) {
         actualStatus = 'failed';
-        warnings.push(`Actual metrics calculation failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+        warnings.push(
+          `Actual metrics calculation failed: ${error instanceof Error ? error.message : 'Unknown error'}`
+        );
         throw error; // Re-throw for now; could provide fallback in the future
       }
 
@@ -240,7 +242,7 @@ export class MetricsAggregator {
             // Route to J-curve construction forecast
             warnings.push('Using J-curve construction forecast (no investments yet)');
             projected = await this.projectedCalculator.calculate(effectiveFund, companies, config, {
-              useConstructionForecast: true
+              useConstructionForecast: true,
             });
           } else {
             // Use standard projection engines
@@ -248,7 +250,9 @@ export class MetricsAggregator {
           }
         } catch (error) {
           projectedStatus = 'failed';
-          warnings.push(`Projected metrics calculation failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+          warnings.push(
+            `Projected metrics calculation failed: ${error instanceof Error ? error.message : 'Unknown error'}`
+          );
           projected = this.getDefaultProjectedMetrics(config); // Use fallback
         }
       }
@@ -259,7 +263,9 @@ export class MetricsAggregator {
         target = this.extractTargetMetrics(effectiveFund, config);
       } catch (error) {
         targetStatus = 'failed';
-        warnings.push(`Target metrics extraction failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+        warnings.push(
+          `Target metrics extraction failed: ${error instanceof Error ? error.message : 'Unknown error'}`
+        );
         throw error; // Re-throw as targets are critical
       }
 
@@ -269,17 +275,22 @@ export class MetricsAggregator {
         variance = this.varianceCalculator.calculate(actual, projected, target);
       } catch (error) {
         varianceStatus = 'failed';
-        warnings.push(`Variance calculation failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+        warnings.push(
+          `Variance calculation failed: ${error instanceof Error ? error.message : 'Unknown error'}`
+        );
         throw error; // Re-throw as variance is critical
       }
 
       // Determine overall quality
       const quality: 'complete' | 'partial' | 'fallback' =
-        actualStatus === 'success' && projectedStatus === 'success' && targetStatus === 'success' && varianceStatus === 'success'
+        actualStatus === 'success' &&
+        projectedStatus === 'success' &&
+        targetStatus === 'success' &&
+        varianceStatus === 'success'
           ? 'complete'
           : projectedStatus === 'failed' || projectedStatus === 'skipped'
-          ? 'partial'
-          : 'fallback';
+            ? 'partial'
+            : 'fallback';
 
       const computeTimeMs = Date.now() - startTime;
 
@@ -349,6 +360,26 @@ export class MetricsAggregator {
     ]);
   }
 
+  private async getFundForMetrics(fundId: number): Promise<Fund | undefined> {
+    const storedFund = await storage.getFund(fundId);
+    if (storedFund) {
+      return {
+        ...storedFund,
+        establishmentDate: (storedFund as Partial<Fund>).establishmentDate ?? null,
+        isActive: (storedFund as Partial<Fund>).isActive ?? true,
+      } as Fund;
+    }
+
+    const [persistedFund] = await db.select().from(funds).where(eq(funds.id, fundId));
+    return persistedFund
+      ? ({
+          ...persistedFund,
+          establishmentDate: (persistedFund as Partial<Fund>).establishmentDate ?? null,
+          isActive: (persistedFund as Partial<Fund>).isActive ?? true,
+        } as Fund)
+      : undefined;
+  }
+
   /**
    * Resolve published config into the metrics-target shape, with explicit
    * legacy fallback warnings when target fields are unavailable.
@@ -361,9 +392,7 @@ export class MetricsAggregator {
     if (!publishedConfig) {
       return {
         config: { ...LEGACY_DEFAULT_TARGETS },
-        warnings: [
-          'Using legacy generic targets because no published fund config is available.'
-        ],
+        warnings: ['Using legacy generic targets because no published fund config is available.'],
       };
     }
 
@@ -372,7 +401,7 @@ export class MetricsAggregator {
       return {
         config: { ...LEGACY_DEFAULT_TARGETS },
         warnings: [
-          `Using legacy generic targets because published config version ${publishedConfig.version} is invalid for target extraction.`
+          `Using legacy generic targets because published config version ${publishedConfig.version} is invalid for target extraction.`,
         ],
       };
     }
@@ -389,7 +418,7 @@ export class MetricsAggregator {
           ...(draftConfig.fundLife != null && { fundTermYears: draftConfig.fundLife }),
         },
         warnings: [
-          `Using legacy generic targets because published config version ${publishedConfig.version} has no targetMetrics block.`
+          `Using legacy generic targets because published config version ${publishedConfig.version} has no targetMetrics block.`,
         ],
       };
     }
@@ -446,7 +475,9 @@ export class MetricsAggregator {
   /**
    * Get default projected metrics (fallback when engines fail)
    */
-  private getDefaultProjectedMetrics(config?: Pick<MetricsFundConfig, 'targetIRR' | 'targetTVPI' | 'targetDPI'>) {
+  private getDefaultProjectedMetrics(
+    config?: Pick<MetricsFundConfig, 'targetIRR' | 'targetTVPI' | 'targetDPI'>
+  ) {
     return {
       asOfDate: new Date().toISOString(),
       projectionDate: new Date().toISOString(),
@@ -488,12 +519,7 @@ export class MetricsAggregator {
    * Type guard for MetricsCalculationError
    */
   private isMetricsError(error: unknown): error is MetricsCalculationError {
-    return (
-      typeof error === 'object' &&
-      error !== null &&
-      'code' in error &&
-      'component' in error
-    );
+    return typeof error === 'object' && error !== null && 'code' in error && 'component' in error;
   }
 
   /**

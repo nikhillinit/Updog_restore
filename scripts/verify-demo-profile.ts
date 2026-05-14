@@ -1,6 +1,7 @@
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 
+import jwt from 'jsonwebtoken';
 import {
   DemoProfileTargetTables,
   type DemoProfileImportBundle,
@@ -54,6 +55,15 @@ export interface DemoProfileExpectedFacts {
   defaultBaselineExpected: boolean;
 }
 
+export interface ManualProfileExpectedFactsInput {
+  datasetId: string;
+  countsByTable?: Partial<Record<DemoProfileTargetTable, number>>;
+  totalInvested: number;
+  currentNav: number;
+  activeCompanies: number;
+  defaultBaselineExpected?: boolean;
+}
+
 export interface DemoProfileStorageVerification {
   ledgerRows: number;
   countsByTable: Record<DemoProfileTargetTable, number>;
@@ -93,6 +103,10 @@ interface VerifyDemoProfileOptions {
   apiBaseUrl?: string;
   authToken?: string;
   authTokenEnv?: string;
+  negativeControlAuthToken?: string;
+  negativeControlAuthTokenEnv?: string;
+  requireNegativeControls: boolean;
+  requireScopedAuth: boolean;
   requireApi: boolean;
   expectedFundSize?: number;
 }
@@ -101,6 +115,19 @@ export interface VerifyDemoProfileCliResult {
   exitCode: number;
   stdout: string;
   stderr: string;
+}
+
+export interface VerifyManualProfileInput {
+  fundId: number;
+  expected: ManualProfileExpectedFactsInput;
+  apiBaseUrl?: string;
+  authToken?: string;
+  negativeControlAuthToken?: string;
+  requireNegativeControls?: boolean;
+  requireScopedAuth?: boolean;
+  requireApi?: boolean;
+  expectedFundSize?: number;
+  env?: NodeJS.ProcessEnv;
 }
 
 interface VerifyDemoProfileCliStreams {
@@ -121,6 +148,8 @@ function emptyTableCounts(): Record<DemoProfileTargetTable, number> {
 
 function parseArgs(argv: string[]): VerifyDemoProfileOptions {
   const options: VerifyDemoProfileOptions = {
+    requireNegativeControls: false,
+    requireScopedAuth: false,
     requireApi: false,
   };
 
@@ -144,6 +173,18 @@ function parseArgs(argv: string[]): VerifyDemoProfileOptions {
         break;
       case '--auth-token-env':
         options.authTokenEnv = requireValue(argv, ++index, arg);
+        break;
+      case '--negative-control-auth-token':
+        options.negativeControlAuthToken = requireValue(argv, ++index, arg);
+        break;
+      case '--negative-control-auth-token-env':
+        options.negativeControlAuthTokenEnv = requireValue(argv, ++index, arg);
+        break;
+      case '--require-negative-controls':
+        options.requireNegativeControls = true;
+        break;
+      case '--require-scoped-auth':
+        options.requireScopedAuth = true;
         break;
       case '--require-api':
         options.requireApi = true;
@@ -262,6 +303,22 @@ export function buildExpectedDemoProfileFacts(
     defaultBaselineExpected: bundle.sections.fundBaselines.some(
       (baseline) => baseline.isDefault === true
     ),
+  };
+}
+
+export function buildExpectedManualProfileFacts(
+  input: ManualProfileExpectedFactsInput
+): DemoProfileExpectedFacts {
+  return {
+    datasetId: input.datasetId,
+    countsByTable: {
+      ...emptyTableCounts(),
+      ...(input.countsByTable ?? {}),
+    },
+    totalInvested: input.totalInvested,
+    currentNav: input.currentNav,
+    activeCompanies: input.activeCompanies,
+    defaultBaselineExpected: input.defaultBaselineExpected ?? false,
   };
 }
 
@@ -479,11 +536,441 @@ function readAuthToken(
   return env[variableName];
 }
 
+function readNegativeControlAuthToken(
+  options: VerifyDemoProfileOptions,
+  env: NodeJS.ProcessEnv
+): string | undefined {
+  if (options.negativeControlAuthToken !== undefined) return options.negativeControlAuthToken;
+  const variableName =
+    options.negativeControlAuthTokenEnv ?? 'DEMO_PROFILE_VERIFY_NEGATIVE_AUTH_TOKEN';
+  return env[variableName];
+}
+
 function buildHeaders(authToken: string | undefined): Record<string, string> {
   if (authToken !== undefined && authToken.length > 0) {
     return { authorization: `Bearer ${authToken}` };
   }
   return {};
+}
+
+const COLLECTION_RESPONSE_KEYS = ['data', 'companies', 'history', 'runs'] as const;
+
+function asRecord(value: unknown): Record<string, unknown> | undefined {
+  return typeof value === 'object' && value !== null
+    ? (value as Record<string, unknown>)
+    : undefined;
+}
+
+function toOptionalNumber(value: unknown): number | undefined {
+  if (typeof value === 'number' && Number.isFinite(value)) return value;
+  if (typeof value === 'string' && value.trim().length > 0) {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : undefined;
+  }
+  return undefined;
+}
+
+function toOptionalString(value: unknown): string | undefined {
+  if (typeof value === 'string' && value.length > 0) return value;
+  if (typeof value === 'number' && Number.isFinite(value)) return String(value);
+  return undefined;
+}
+
+function recordFundId(record: Record<string, unknown>): number | undefined {
+  return toOptionalNumber(record['fundId'] ?? record['fund_id']);
+}
+
+function recordId(record: Record<string, unknown>): string | undefined {
+  return toOptionalString(
+    record['id'] ?? record['uuid'] ?? record['baselineId'] ?? record['baseline_id']
+  );
+}
+
+function recordInvestmentId(record: Record<string, unknown>): number | undefined {
+  return toOptionalNumber(record['investmentId'] ?? record['investment_id']);
+}
+
+function recordConfigFundId(record: Record<string, unknown>): number | undefined {
+  const config = asRecord(record['config']);
+  return config === undefined ? undefined : recordFundId(config);
+}
+
+function getCollectionItems(payload: unknown): unknown[] | undefined {
+  if (Array.isArray(payload)) {
+    return payload;
+  }
+
+  const record = asRecord(payload);
+  if (record === undefined) {
+    return undefined;
+  }
+
+  for (const key of COLLECTION_RESPONSE_KEYS) {
+    const value = record[key];
+    if (Array.isArray(value)) {
+      return value;
+    }
+  }
+
+  return undefined;
+}
+
+function assertCollectionFundOwnership(input: {
+  payload: unknown;
+  fundId: number;
+  issues: DemoProfileVerificationIssue[];
+  code: string;
+  label: string;
+}): void {
+  const items = getCollectionItems(input.payload);
+  if (items === undefined) {
+    addIssue(input.issues, {
+      layer: 'api',
+      code: `${input.code}_OWNERSHIP_SHAPE_INVALID`,
+      message: `${input.label} API readback did not expose a collection for ownership checks.`,
+      expected: { fundId: input.fundId },
+      actual: input.payload,
+    });
+    return;
+  }
+
+  items.forEach((item, index) => {
+    const record = asRecord(item);
+    const actualFundId = record === undefined ? undefined : recordFundId(record);
+    if (actualFundId === undefined) {
+      addIssue(input.issues, {
+        layer: 'api',
+        code: `${input.code}_OWNERSHIP_FIELD_MISSING`,
+        message: `${input.label} item ${index} did not expose fundId for ownership proof.`,
+        expected: { fundId: input.fundId },
+        actual: item,
+      });
+      return;
+    }
+
+    if (actualFundId !== input.fundId) {
+      addIssue(input.issues, {
+        layer: 'api',
+        code: `${input.code}_OWNERSHIP_MISMATCH`,
+        message: `${input.label} item ${index} belonged to a different fund.`,
+        expected: { fundId: input.fundId },
+        actual: { fundId: actualFundId, item },
+      });
+    }
+  });
+}
+
+function buildInvestmentFundLookup(payload: unknown): Map<number, number> {
+  const lookup = new Map<number, number>();
+  const items = getCollectionItems(payload);
+  if (items === undefined) return lookup;
+
+  for (const item of items) {
+    const record = asRecord(item);
+    if (record === undefined) continue;
+    const id = toOptionalNumber(record['id'] ?? record['investmentId'] ?? record['investment_id']);
+    const fundId = recordFundId(record);
+    if (id !== undefined && fundId !== undefined) {
+      lookup.set(id, fundId);
+    }
+  }
+
+  return lookup;
+}
+
+function assertLotInvestmentOwnership(input: {
+  lotsPayload: unknown;
+  investmentsPayload: unknown;
+  fundId: number;
+  issues: DemoProfileVerificationIssue[];
+}): void {
+  const lots = getCollectionItems(input.lotsPayload);
+  if (lots === undefined) {
+    addIssue(input.issues, {
+      layer: 'api',
+      code: 'API_INVESTMENT_LOTS_OWNERSHIP_SHAPE_INVALID',
+      message: 'Investment lot API readback did not expose a collection for ownership checks.',
+      expected: { fundId: input.fundId },
+      actual: input.lotsPayload,
+    });
+    return;
+  }
+
+  const investmentFundIds = buildInvestmentFundLookup(input.investmentsPayload);
+  lots.forEach((lot, index) => {
+    const record = asRecord(lot);
+    const investmentId = record === undefined ? undefined : recordInvestmentId(record);
+    if (investmentId === undefined) {
+      addIssue(input.issues, {
+        layer: 'api',
+        code: 'API_INVESTMENT_LOTS_INVESTMENT_ID_MISSING',
+        message: `Investment lot item ${index} did not expose investmentId for ownership proof.`,
+        expected: { fundId: input.fundId },
+        actual: lot,
+      });
+      return;
+    }
+
+    const investmentFundId = investmentFundIds.get(investmentId);
+    if (investmentFundId === undefined) {
+      addIssue(input.issues, {
+        layer: 'api',
+        code: 'API_INVESTMENT_LOTS_INVESTMENT_OWNER_MISSING',
+        message: `Investment lot item ${index} referenced an investment that was not in the fund-scoped readback.`,
+        expected: { investmentId, fundId: input.fundId },
+        actual: lot,
+      });
+      return;
+    }
+
+    if (investmentFundId !== input.fundId) {
+      addIssue(input.issues, {
+        layer: 'api',
+        code: 'API_INVESTMENT_LOTS_OWNERSHIP_MISMATCH',
+        message: `Investment lot item ${index} referenced an investment from a different fund.`,
+        expected: { investmentId, fundId: input.fundId },
+        actual: { investmentId, fundId: investmentFundId, lot },
+      });
+    }
+  });
+}
+
+function buildBaselineFundLookup(payload: unknown): Map<string, number> {
+  const lookup = new Map<string, number>();
+  const items = getCollectionItems(payload);
+  if (items === undefined) return lookup;
+
+  for (const item of items) {
+    const record = asRecord(item);
+    if (record === undefined) continue;
+    const id = recordId(record);
+    const fundId = recordFundId(record);
+    if (id !== undefined && fundId !== undefined) {
+      lookup.set(id, fundId);
+    }
+  }
+
+  return lookup;
+}
+
+function assertVarianceBaselineOwnership(input: {
+  reportsPayload: unknown;
+  baselinesPayload: unknown;
+  fundId: number;
+  issues: DemoProfileVerificationIssue[];
+}): void {
+  assertCollectionFundOwnership({
+    payload: input.reportsPayload,
+    fundId: input.fundId,
+    issues: input.issues,
+    code: 'API_VARIANCE_REPORTS',
+    label: 'Variance reports',
+  });
+
+  const reports = getCollectionItems(input.reportsPayload);
+  if (reports === undefined) return;
+
+  const baselineFundIds = buildBaselineFundLookup(input.baselinesPayload);
+  reports.forEach((report, index) => {
+    const record = asRecord(report);
+    const baselineId =
+      record === undefined
+        ? undefined
+        : toOptionalString(record['baselineId'] ?? record['baseline_id']);
+    if (baselineId === undefined) {
+      addIssue(input.issues, {
+        layer: 'api',
+        code: 'API_VARIANCE_REPORTS_BASELINE_ID_MISSING',
+        message: `Variance report item ${index} did not expose baselineId for ownership proof.`,
+        expected: { fundId: input.fundId },
+        actual: report,
+      });
+      return;
+    }
+
+    const baselineFundId = baselineFundIds.get(baselineId);
+    if (baselineFundId === undefined) {
+      addIssue(input.issues, {
+        layer: 'api',
+        code: 'API_VARIANCE_REPORTS_BASELINE_OWNER_MISSING',
+        message: `Variance report item ${index} referenced a baseline that was not in the fund-scoped readback.`,
+        expected: { baselineId, fundId: input.fundId },
+        actual: report,
+      });
+      return;
+    }
+
+    if (baselineFundId !== input.fundId) {
+      addIssue(input.issues, {
+        layer: 'api',
+        code: 'API_VARIANCE_REPORTS_BASELINE_OWNERSHIP_MISMATCH',
+        message: `Variance report item ${index} referenced a baseline from a different fund.`,
+        expected: { baselineId, fundId: input.fundId },
+        actual: { baselineId, fundId: baselineFundId, report },
+      });
+    }
+  });
+}
+
+function assertBacktestOwnership(input: {
+  payload: unknown;
+  fundId: number;
+  issues: DemoProfileVerificationIssue[];
+}): void {
+  const record = asRecord(input.payload);
+  const topLevelFundId = record === undefined ? undefined : recordFundId(record);
+  if (topLevelFundId !== input.fundId) {
+    addIssue(input.issues, {
+      layer: 'api',
+      code: 'API_BACKTEST_RESULTS_TOP_LEVEL_FUND_ID_MISMATCH',
+      message: 'Backtest history API returned the wrong top-level fund ID.',
+      expected: input.fundId,
+      actual: topLevelFundId,
+    });
+  }
+
+  const history = getCollectionItems(input.payload);
+  if (history === undefined) return;
+
+  history.forEach((item, index) => {
+    const itemRecord = asRecord(item);
+    if (itemRecord === undefined) {
+      return;
+    }
+
+    const itemFundId = recordFundId(itemRecord) ?? recordConfigFundId(itemRecord);
+    if (itemFundId === undefined) {
+      return;
+    }
+
+    if (itemFundId !== input.fundId) {
+      addIssue(input.issues, {
+        layer: 'api',
+        code: 'API_BACKTEST_RESULTS_ITEM_OWNERSHIP_MISMATCH',
+        message: `Backtest history item ${index} belonged to a different fund.`,
+        expected: input.fundId,
+        actual: { fundId: itemFundId, item },
+      });
+    }
+  });
+}
+
+function decodeTokenFundIds(authToken: string): number[] | undefined {
+  const decoded = jwt.decode(authToken);
+  const record = asRecord(decoded);
+  const fundIds = record?.['fundIds'];
+  if (!Array.isArray(fundIds)) {
+    return undefined;
+  }
+
+  return fundIds
+    .map((fundId) => toOptionalNumber(fundId))
+    .filter((fundId): fundId is number => fundId !== undefined);
+}
+
+function verifyScopedAuthRequirement(input: {
+  authToken?: string;
+  fundId: number;
+  issues: DemoProfileVerificationIssue[];
+  requireScopedAuth?: boolean;
+}): void {
+  if (input.requireScopedAuth !== true) {
+    return;
+  }
+
+  if (input.authToken === undefined || input.authToken.length === 0) {
+    addIssue(input.issues, {
+      layer: 'config',
+      code: 'API_SCOPED_AUTH_TOKEN_REQUIRED',
+      message: 'API verification requires a non-empty scoped auth token.',
+      expected: { fundIds: [input.fundId] },
+      actual: null,
+    });
+    return;
+  }
+
+  const fundIds = decodeTokenFundIds(input.authToken);
+  if (fundIds === undefined) {
+    addIssue(input.issues, {
+      layer: 'config',
+      code: 'API_SCOPED_AUTH_TOKEN_FUND_IDS_INVALID',
+      message: 'API verification auth token did not expose a fundIds claim.',
+      expected: { fundIds: [input.fundId] },
+    });
+    return;
+  }
+
+  if (fundIds.length === 0) {
+    addIssue(input.issues, {
+      layer: 'config',
+      code: 'API_SCOPED_AUTH_EMPTY_FUND_IDS',
+      message: 'API verification auth token used empty fundIds, which is unrestricted access.',
+      expected: { fundIds: [input.fundId] },
+      actual: { fundIds },
+    });
+    return;
+  }
+
+  if (!fundIds.includes(input.fundId)) {
+    addIssue(input.issues, {
+      layer: 'config',
+      code: 'API_SCOPED_AUTH_FUND_ACCESS_MISSING',
+      message: 'API verification auth token was not scoped to the verified fund.',
+      expected: { fundIds: [input.fundId] },
+      actual: { fundIds },
+    });
+  }
+}
+
+async function verifyNegativeControls(input: {
+  apiBaseUrl: string;
+  fundId: number;
+  authToken?: string;
+  requireNegativeControls?: boolean;
+  issues: DemoProfileVerificationIssue[];
+}): Promise<void> {
+  if (input.requireNegativeControls !== true) {
+    return;
+  }
+
+  if (input.authToken === undefined || input.authToken.length === 0) {
+    addIssue(input.issues, {
+      layer: 'config',
+      code: 'API_NEGATIVE_CONTROL_TOKEN_REQUIRED',
+      message: 'Negative-control verification requires a wrong-fund or no-fund auth token.',
+      expected: 'non-empty negative-control token',
+      actual: null,
+    });
+    return;
+  }
+
+  const paths = [
+    `/api/funds/${input.fundId}`,
+    `/api/funds/${input.fundId}/metrics?skipProjections=true&skipCache=true&reason=demo-profile-verify`,
+    `/api/funds/${input.fundId}/companies?limit=200`,
+    `/api/investments?fundId=${input.fundId}`,
+    `/api/funds/${input.fundId}/portfolio/lots`,
+    `/api/funds/${input.fundId}/performance/metrics?limit=200`,
+    `/api/funds/${input.fundId}/pacing-history?limit=200`,
+    `/api/funds/${input.fundId}/baselines?limit=100`,
+    `/api/funds/${input.fundId}/variance-reports`,
+    `/api/backtesting/fund/${input.fundId}/history?limit=100`,
+    `/api/deals/opportunities?fundId=${input.fundId}&limit=100`,
+  ];
+
+  for (const pathName of paths) {
+    const endpoint = new URL(pathName, input.apiBaseUrl);
+    const response = await fetch(endpoint, { headers: buildHeaders(input.authToken) });
+    if (response.ok) {
+      addIssue(input.issues, {
+        layer: 'api',
+        code: 'API_NEGATIVE_CONTROL_UNEXPECTED_SUCCESS',
+        message: 'Negative-control request unexpectedly succeeded.',
+        expected: 'HTTP 401, 403, 404, or another non-2xx denial',
+        actual: { url: endpoint.toString(), status: response.status },
+      });
+    }
+  }
 }
 
 async function fetchJson(
@@ -506,26 +993,14 @@ async function fetchJson(
 }
 
 function countItems(payload: unknown): number | undefined {
-  if (Array.isArray(payload)) {
-    return payload.length;
-  }
+  const items = getCollectionItems(payload);
+  if (items !== undefined) return items.length;
+
   if (typeof payload !== 'object' || payload === null) {
     return undefined;
   }
 
   const record = payload as Record<string, unknown>;
-  if (Array.isArray(record['data'])) {
-    return record['data'].length;
-  }
-  if (Array.isArray(record['companies'])) {
-    return record['companies'].length;
-  }
-  if (Array.isArray(record['history'])) {
-    return record['history'].length;
-  }
-  if (Array.isArray(record['runs'])) {
-    return record['runs'].length;
-  }
   if (typeof record['count'] === 'number') {
     return record['count'];
   }
@@ -549,7 +1024,7 @@ async function verifyApiCount(input: {
   readbacks: DemoProfileApiVerification['readbacks'];
   readbackKey: string;
   issues: DemoProfileVerificationIssue[];
-}): Promise<void> {
+}): Promise<unknown | undefined> {
   const endpoint = new URL(input.path, input.apiBaseUrl);
   const payload = await fetchJson(endpoint, input.headers, input.issues, input.code);
   const actual = payload === undefined ? undefined : countItems(payload);
@@ -567,7 +1042,7 @@ async function verifyApiCount(input: {
       expected: input.expected,
       actual: payload,
     });
-    return;
+    return payload;
   }
 
   if (actual !== input.expected) {
@@ -579,6 +1054,8 @@ async function verifyApiCount(input: {
       actual,
     });
   }
+
+  return payload;
 }
 
 async function verifyApiFund(input: {
@@ -640,6 +1117,9 @@ async function verifyApi(input: {
   expected: DemoProfileExpectedFacts;
   apiBaseUrl: string;
   authToken?: string;
+  negativeControlAuthToken?: string;
+  requireNegativeControls?: boolean;
+  requireScopedAuth?: boolean;
   expectedFundSize?: number;
 }): Promise<{
   api: DemoProfileApiVerification;
@@ -654,6 +1134,13 @@ async function verifyApi(input: {
 
   const issues: DemoProfileVerificationIssue[] = [];
   const readbacks: DemoProfileApiVerification['readbacks'] = {};
+  verifyScopedAuthRequirement({
+    ...(input.authToken !== undefined && { authToken: input.authToken }),
+    fundId: input.fundId,
+    issues,
+    requireScopedAuth: input.requireScopedAuth,
+  });
+
   const payload = await fetchJson(endpoint, headers, issues, 'API_READBACK_FAILED');
 
   if (!isUnifiedFundMetrics(payload)) {
@@ -738,7 +1225,7 @@ async function verifyApi(input: {
     issues,
   });
 
-  await verifyApiCount({
+  const portfolioCompaniesPayload = await verifyApiCount({
     apiBaseUrl: input.apiBaseUrl,
     headers,
     path: `/api/funds/${input.fundId}/companies?limit=200`,
@@ -749,7 +1236,17 @@ async function verifyApi(input: {
     readbackKey: 'portfolioCompanies',
     issues,
   });
-  await verifyApiCount({
+  if (portfolioCompaniesPayload !== undefined) {
+    assertCollectionFundOwnership({
+      payload: portfolioCompaniesPayload,
+      fundId: input.fundId,
+      issues,
+      code: 'API_PORTFOLIO_COMPANIES',
+      label: 'Portfolio companies',
+    });
+  }
+
+  const investmentsPayload = await verifyApiCount({
     apiBaseUrl: input.apiBaseUrl,
     headers,
     path: `/api/investments?fundId=${input.fundId}`,
@@ -760,10 +1257,20 @@ async function verifyApi(input: {
     readbackKey: 'investments',
     issues,
   });
-  await verifyApiCount({
+  if (investmentsPayload !== undefined) {
+    assertCollectionFundOwnership({
+      payload: investmentsPayload,
+      fundId: input.fundId,
+      issues,
+      code: 'API_INVESTMENTS',
+      label: 'Investments',
+    });
+  }
+
+  const investmentLotsPayload = await verifyApiCount({
     apiBaseUrl: input.apiBaseUrl,
     headers,
-    path: `/api/funds/${input.fundId}/portfolio/lots?limit=200`,
+    path: `/api/funds/${input.fundId}/portfolio/lots`,
     code: 'API_INVESTMENT_LOTS_COUNT_MISMATCH',
     label: 'Investment lots',
     expected: input.expected.countsByTable.investment_lots,
@@ -771,7 +1278,16 @@ async function verifyApi(input: {
     readbackKey: 'investmentLots',
     issues,
   });
-  await verifyApiCount({
+  if (investmentLotsPayload !== undefined) {
+    assertLotInvestmentOwnership({
+      lotsPayload: investmentLotsPayload,
+      investmentsPayload,
+      fundId: input.fundId,
+      issues,
+    });
+  }
+
+  const fundMetricsPayload = await verifyApiCount({
     apiBaseUrl: input.apiBaseUrl,
     headers,
     path: `/api/funds/${input.fundId}/performance/metrics?limit=200`,
@@ -782,7 +1298,17 @@ async function verifyApi(input: {
     readbackKey: 'fundMetrics',
     issues,
   });
-  await verifyApiCount({
+  if (fundMetricsPayload !== undefined) {
+    assertCollectionFundOwnership({
+      payload: fundMetricsPayload,
+      fundId: input.fundId,
+      issues,
+      code: 'API_FUND_METRICS',
+      label: 'Fund metrics',
+    });
+  }
+
+  const pacingHistoryPayload = await verifyApiCount({
     apiBaseUrl: input.apiBaseUrl,
     headers,
     path: `/api/funds/${input.fundId}/pacing-history?limit=200`,
@@ -793,10 +1319,20 @@ async function verifyApi(input: {
     readbackKey: 'pacingHistory',
     issues,
   });
-  await verifyApiCount({
+  if (pacingHistoryPayload !== undefined) {
+    assertCollectionFundOwnership({
+      payload: pacingHistoryPayload,
+      fundId: input.fundId,
+      issues,
+      code: 'API_PACING_HISTORY',
+      label: 'Pacing history',
+    });
+  }
+
+  const fundBaselinesPayload = await verifyApiCount({
     apiBaseUrl: input.apiBaseUrl,
     headers,
-    path: `/api/funds/${input.fundId}/baselines?limit=200`,
+    path: `/api/funds/${input.fundId}/baselines?limit=100`,
     code: 'API_BASELINES_COUNT_MISMATCH',
     label: 'Fund baselines',
     expected: input.expected.countsByTable.fund_baselines,
@@ -804,7 +1340,17 @@ async function verifyApi(input: {
     readbackKey: 'fundBaselines',
     issues,
   });
-  await verifyApiCount({
+  if (fundBaselinesPayload !== undefined) {
+    assertCollectionFundOwnership({
+      payload: fundBaselinesPayload,
+      fundId: input.fundId,
+      issues,
+      code: 'API_BASELINES',
+      label: 'Fund baselines',
+    });
+  }
+
+  const varianceReportsPayload = await verifyApiCount({
     apiBaseUrl: input.apiBaseUrl,
     headers,
     path: `/api/funds/${input.fundId}/variance-reports`,
@@ -815,7 +1361,16 @@ async function verifyApi(input: {
     readbackKey: 'varianceReports',
     issues,
   });
-  await verifyApiCount({
+  if (varianceReportsPayload !== undefined) {
+    assertVarianceBaselineOwnership({
+      reportsPayload: varianceReportsPayload,
+      baselinesPayload: fundBaselinesPayload,
+      fundId: input.fundId,
+      issues,
+    });
+  }
+
+  const backtestResultsPayload = await verifyApiCount({
     apiBaseUrl: input.apiBaseUrl,
     headers,
     path: `/api/backtesting/fund/${input.fundId}/history?limit=100`,
@@ -826,15 +1381,42 @@ async function verifyApi(input: {
     readbackKey: 'backtestResults',
     issues,
   });
-  await verifyApiCount({
+  if (backtestResultsPayload !== undefined) {
+    assertBacktestOwnership({
+      payload: backtestResultsPayload,
+      fundId: input.fundId,
+      issues,
+    });
+  }
+
+  const pipelineDealsPayload = await verifyApiCount({
     apiBaseUrl: input.apiBaseUrl,
     headers,
-    path: `/api/deals/opportunities?fundId=${input.fundId}&limit=200`,
+    path: `/api/deals/opportunities?fundId=${input.fundId}&limit=100`,
     code: 'API_PIPELINE_DEALS_COUNT_MISMATCH',
     label: 'Pipeline deals',
     expected: input.expected.countsByTable.deal_opportunities,
     readbacks,
     readbackKey: 'pipelineDeals',
+    issues,
+  });
+  if (pipelineDealsPayload !== undefined) {
+    assertCollectionFundOwnership({
+      payload: pipelineDealsPayload,
+      fundId: input.fundId,
+      issues,
+      code: 'API_PIPELINE_DEALS',
+      label: 'Pipeline deals',
+    });
+  }
+
+  await verifyNegativeControls({
+    apiBaseUrl: input.apiBaseUrl,
+    fundId: input.fundId,
+    ...(input.negativeControlAuthToken !== undefined && {
+      authToken: input.negativeControlAuthToken,
+    }),
+    requireNegativeControls: input.requireNegativeControls,
     issues,
   });
 
@@ -864,6 +1446,9 @@ export async function verifyDemoProfileWithStore(
     bundle: DemoProfileImportBundle;
     apiBaseUrl?: string;
     authToken?: string;
+    negativeControlAuthToken?: string;
+    requireNegativeControls?: boolean;
+    requireScopedAuth?: boolean;
     requireApi?: boolean;
     expectedFundSize?: number;
   }
@@ -882,6 +1467,13 @@ export async function verifyDemoProfileWithStore(
       expected: storageResult.expected,
       apiBaseUrl: input.apiBaseUrl,
       ...(input.authToken !== undefined && { authToken: input.authToken }),
+      ...(input.negativeControlAuthToken !== undefined && {
+        negativeControlAuthToken: input.negativeControlAuthToken,
+      }),
+      ...(input.requireNegativeControls !== undefined && {
+        requireNegativeControls: input.requireNegativeControls,
+      }),
+      ...(input.requireScopedAuth !== undefined && { requireScopedAuth: input.requireScopedAuth }),
       ...(input.expectedFundSize !== undefined && { expectedFundSize: input.expectedFundSize }),
     });
     api = apiResult.api;
@@ -904,11 +1496,77 @@ export async function verifyDemoProfileWithStore(
   };
 }
 
+export async function verifyManualProfile(
+  input: VerifyManualProfileInput
+): Promise<DemoProfileVerificationReport> {
+  const env = input.env ?? process.env;
+  const professionalDemoError = getProfessionalDemoRuntimeConfigurationError(
+    {
+      ...env,
+      ...(input.apiBaseUrl !== undefined ? { BASE_URL: input.apiBaseUrl } : {}),
+    },
+    { requireApiTarget: input.requireApi === true || input.apiBaseUrl !== undefined }
+  );
+  if (professionalDemoError !== null) {
+    throw new DemoProfileImportError(
+      409,
+      'DEMO_PROFILE_PROFESSIONAL_RUNTIME_INVALID',
+      professionalDemoError
+    );
+  }
+
+  const expected = buildExpectedManualProfileFacts(input.expected);
+  const storage: DemoProfileStorageVerification = {
+    ledgerRows: 0,
+    countsByTable: emptyTableCounts(),
+    missingTargets: [],
+  };
+  const issues: DemoProfileVerificationIssue[] = [];
+  let api: DemoProfileApiVerification | undefined;
+
+  if (input.apiBaseUrl !== undefined) {
+    const apiResult = await verifyApi({
+      fundId: input.fundId,
+      expected,
+      apiBaseUrl: input.apiBaseUrl,
+      ...(input.authToken !== undefined && { authToken: input.authToken }),
+      ...(input.negativeControlAuthToken !== undefined && {
+        negativeControlAuthToken: input.negativeControlAuthToken,
+      }),
+      ...(input.requireNegativeControls !== undefined && {
+        requireNegativeControls: input.requireNegativeControls,
+      }),
+      ...(input.requireScopedAuth !== undefined && { requireScopedAuth: input.requireScopedAuth }),
+      ...(input.expectedFundSize !== undefined && { expectedFundSize: input.expectedFundSize }),
+    });
+    api = apiResult.api;
+    issues.push(...apiResult.issues);
+  } else if (input.requireApi === true) {
+    addIssue(issues, {
+      layer: 'config',
+      code: 'API_BASE_URL_REQUIRED',
+      message: 'Manual profile API verification requires apiBaseUrl when requireApi is set.',
+    });
+  }
+
+  return {
+    passed: issues.length === 0,
+    fundId: input.fundId,
+    expected,
+    storage,
+    ...(api !== undefined && { api }),
+    issues,
+  };
+}
+
 export async function verifyDemoProfile(input: {
   fundId: number;
   bundle: DemoProfileImportBundle;
   apiBaseUrl?: string;
   authToken?: string;
+  negativeControlAuthToken?: string;
+  requireNegativeControls?: boolean;
+  requireScopedAuth?: boolean;
   requireApi?: boolean;
   expectedFundSize?: number;
   env?: NodeJS.ProcessEnv;
@@ -971,6 +1629,9 @@ export async function runVerifyDemoProfileCli(
       bundle,
       apiBaseUrl,
       authToken: readAuthToken(options, env),
+      negativeControlAuthToken: readNegativeControlAuthToken(options, env),
+      requireNegativeControls: options.requireNegativeControls,
+      requireScopedAuth: options.requireScopedAuth,
       requireApi: options.requireApi,
       expectedFundSize: options.expectedFundSize,
       env,

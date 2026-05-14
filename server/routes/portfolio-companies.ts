@@ -4,6 +4,7 @@ import { insertPortfolioCompanySchema } from '@shared/schema';
 import type { ApiError } from '@shared/types';
 import { NumberParseError, toNumber } from '@shared/number';
 import { ValidationError } from '../errors';
+import { enforceProvidedFundScope } from '../lib/auth/provided-fund-scope';
 import { portfolioTimeMachineReadService } from '../services/portfolio-time-machine-read';
 import { storage } from '../storage';
 
@@ -47,6 +48,10 @@ router['get']('/portfolio-companies', async (req: Request, res: Response) => {
         return res['status'](400)['json'](error);
       }
       fundId = parsedId;
+    }
+
+    if (fundId !== undefined && !(await enforceProvidedFundScope(req, res, fundId))) {
+      return;
     }
 
     if (typeof asOfQuery === 'string') {
@@ -118,6 +123,10 @@ router['get']('/portfolio-companies/:id', async (req: Request, res: Response) =>
       fundId = parsedFundId;
     }
 
+    if (fundId !== undefined && !(await enforceProvidedFundScope(req, res, fundId))) {
+      return;
+    }
+
     const company = await storage.getPortfolioCompany(id);
     if (!company || (fundId !== undefined && company.fundId !== fundId)) {
       const error: ApiError = {
@@ -160,6 +169,13 @@ router.post('/portfolio-companies', async (req: Request, res: Response) => {
         details: { validationErrors: result.error.issues },
       };
       return res['status'](400)['json'](error);
+    }
+
+    if (
+      typeof result.data.fundId === 'number' &&
+      !(await enforceProvidedFundScope(req, res, result.data.fundId))
+    ) {
+      return;
     }
 
     const company = await storage.createPortfolioCompany(result.data);

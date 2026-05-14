@@ -5,6 +5,7 @@ import type { ApiError } from '@shared/types';
 import { NumberParseError, toNumber } from '@shared/number';
 import { sendApiError } from '../lib/apiError';
 import { logger } from '../lib/logger.js';
+import { enforceProvidedFundScope } from '../lib/auth/provided-fund-scope';
 import { storage, UnsupportedStorageOperationError } from '../storage';
 
 const router = Router();
@@ -25,6 +26,10 @@ router['get']('/investments', async (req: Request, res: Response) => {
         return res['status'](400)['json'](error);
       }
       fundId = parsedId;
+    }
+
+    if (fundId !== undefined && !(await enforceProvidedFundScope(req, res, fundId))) {
+      return;
     }
 
     const investments = await storage.getInvestments(fundId);
@@ -95,6 +100,13 @@ router.post('/investments', async (req: Request, res: Response) => {
         details: { validationErrors: result.error.issues },
       };
       return res['status'](400)['json'](error);
+    }
+
+    if (
+      typeof result.data.fundId === 'number' &&
+      !(await enforceProvidedFundScope(req, res, result.data.fundId))
+    ) {
+      return;
     }
 
     const investment = await storage.createInvestment(result.data);

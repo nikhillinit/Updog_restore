@@ -16,7 +16,7 @@
 
 import { storage } from '../storage';
 import type { ActualMetrics } from '@shared/types/metrics';
-import { fundDistributions, type PortfolioCompany } from '@shared/schema';
+import { fundDistributions, funds, type Fund, type PortfolioCompany } from '@shared/schema';
 import { Decimal, toDecimal } from '@shared/lib/decimal-utils';
 import { xirrNewtonBisection, type CashFlow as XirrCashFlow } from '@shared/lib/finance/xirr';
 import { monthsSince } from '../lib/date-helpers';
@@ -48,7 +48,7 @@ export class ActualMetricsCalculator {
   async calculate(fundId: number): Promise<ActualMetrics> {
     // Fetch all required data in parallel
     const [fund, companies, investmentRows, distributions] = await Promise.all([
-      storage.getFund(fundId),
+      this.getFund(fundId),
       storage.getPortfolioCompanies(fundId),
       storage.getInvestments(fundId),
       this.getDistributions(fundId),
@@ -310,6 +310,26 @@ export class ActualMetricsCalculator {
       .filter((record): record is InvestmentAmountFact => record !== null);
 
     return [...directInvestments, ...legacyCompanyInvestments];
+  }
+
+  private async getFund(fundId: number): Promise<Fund | undefined> {
+    const storedFund = await storage.getFund(fundId);
+    if (storedFund) {
+      return {
+        ...storedFund,
+        establishmentDate: (storedFund as Partial<Fund>).establishmentDate ?? null,
+        isActive: (storedFund as Partial<Fund>).isActive ?? true,
+      } as Fund;
+    }
+
+    const [persistedFund] = await db.select().from(funds).where(eq(funds.id, fundId));
+    return persistedFund
+      ? ({
+          ...persistedFund,
+          establishmentDate: (persistedFund as Partial<Fund>).establishmentDate ?? null,
+          isActive: (persistedFund as Partial<Fund>).isActive ?? true,
+        } as Fund)
+      : undefined;
   }
 
   /**

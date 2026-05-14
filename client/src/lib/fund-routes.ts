@@ -5,6 +5,7 @@ const ROUTE_SCOPED_FUND_CONTEXT_PATHS = new Set([
   '/financial-modeling',
   '/forecasting',
   '/model-results',
+  '/portfolio',
 ]);
 
 const FUND_CONTEXT_RECOVERY_PATHS = new Set([

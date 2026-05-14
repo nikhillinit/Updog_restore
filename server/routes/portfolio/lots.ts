@@ -11,6 +11,7 @@ import {
   CreateLotRequestSchema,
   ListLotsRequestSchema,
 } from '../../../shared/schemas/portfolio-route.js';
+import { enforceProvidedFundScope } from '../../lib/auth/provided-fund-scope';
 import {
   LotService,
   LotNotFoundError,
@@ -35,6 +36,9 @@ router.post(
   asyncHandler(async (req: Request, res: Response) => {
     // 1. Validate path params
     const { fundId } = FundIdParamSchema.parse(req.params);
+    if (!(await enforceProvidedFundScope(req, res, fundId))) {
+      return;
+    }
 
     // 2. Validate request body
     const bodyResult = CreateLotRequestSchema.safeParse(req.body);
@@ -110,6 +114,9 @@ router.get(
   asyncHandler(async (req: Request, res: Response) => {
     // 1. Validate path params
     const { fundId } = FundIdParamSchema.parse(req.params);
+    if (!(await enforceProvidedFundScope(req, res, fundId))) {
+      return;
+    }
 
     // 2. Validate query params
     const queryResult = ListLotsRequestSchema.safeParse(req.query);
