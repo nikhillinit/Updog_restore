@@ -153,13 +153,13 @@ function assignDevelopmentUser(req: Request): void {
 
 export const requireAuth = () => async (req: Request, res: Response, next: NextFunction) => {
   const cfg = getJwtConfig();
-  if (cfg.NODE_ENV === 'development' && !cfg.REQUIRE_AUTH) {
+  const h = req.header('authorization') || '';
+  const token = h.startsWith('Bearer ') ? h.slice(7) : undefined;
+
+  if (cfg.NODE_ENV === 'development' && !cfg.REQUIRE_AUTH && !token) {
     assignDevelopmentUser(req);
     return next();
   }
-
-  const h = req.header('authorization') || '';
-  const token = h.startsWith('Bearer ') ? h.slice(7) : undefined;
 
   if (!token) {
     authMetrics.jwtMissingToken.inc?.();

@@ -30,6 +30,7 @@ import {
 } from '@shared/schema';
 import { eq, and, desc, asc, lt, or, sql, inArray } from 'drizzle-orm';
 import { idempotency } from '../middleware/idempotency';
+import { enforceProvidedFundScope } from '../lib/auth/provided-fund-scope';
 
 const router = Router();
 
@@ -177,6 +178,9 @@ router['post']('/opportunities', idempotency, async (req: Request, res: Response
 
   try {
     const data = validation.data;
+    if (data.fundId !== undefined && !(await enforceProvidedFundScope(req, res, data.fundId))) {
+      return;
+    }
 
     const [deal] = await db
       .insert(dealOpportunities)
@@ -248,6 +252,10 @@ router['get']('/opportunities', async (req: Request, res: Response) => {
 
   try {
     const { cursor, limit, status, priority, fundId, search, sortBy, sortDir } = validation.data;
+
+    if (fundId !== undefined && !(await enforceProvidedFundScope(req, res, fundId))) {
+      return;
+    }
 
     // Build filter conditions
     const conditions = [];

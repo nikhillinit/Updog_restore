@@ -26,6 +26,7 @@ import {
   type VarianceReportClientResponse,
 } from '@shared/variance-validation';
 import { firstString } from '../lib/request-values';
+import { enforceProvidedFundScope } from '../lib/auth/provided-fund-scope';
 
 // === RESPONSE SHAPE MAPPER ===
 
@@ -252,6 +253,10 @@ router['post']('/api/funds/:id/baselines', idempotency, async (req: Request, res
       throw err;
     }
 
+    if (!(await enforceProvidedFundScope(req, res, fundId))) {
+      return;
+    }
+
     // Validate request body
     const validation = CreateBaselineRequestSchema.safeParse(req.body);
     if (!validation.success) {
@@ -319,6 +324,10 @@ router['get']('/api/funds/:id/baselines', async (req: Request, res: Response) =>
         return res['status'](400)['json'](error);
       }
       throw err;
+    }
+
+    if (!(await enforceProvidedFundScope(req, res, fundId))) {
+      return;
     }
 
     // Parse query parameters
@@ -479,6 +488,10 @@ router['post'](
         throw err;
       }
 
+      if (!(await enforceProvidedFundScope(req, res, fundId))) {
+        return;
+      }
+
       const validation = CreateVarianceReportRequestSchema.safeParse(req.body);
       if (!validation.success) {
         const error: ApiError = {
@@ -569,6 +582,10 @@ router['get']('/api/funds/:id/variance-reports', async (req: Request, res: Respo
         return res['status'](400)['json'](error);
       }
       throw err;
+    }
+
+    if (!(await enforceProvidedFundScope(req, res, fundId))) {
+      return;
     }
 
     const reports = await varianceTrackingService.calculations.getVarianceReports(fundId);

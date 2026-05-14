@@ -18,6 +18,7 @@ import { fundPersistenceService } from '../services/fund-persistence-service';
 import { sendApiError } from '../lib/apiError';
 import { FundCreateV1Schema } from '@shared/contracts/fund-create-v1.contract';
 import { logger } from '../lib/logger.js';
+import { enforceProvidedFundScope } from '../lib/auth/provided-fund-scope';
 
 const router = Router();
 
@@ -91,6 +92,10 @@ router['get']('/funds/:id', async (req: Request, res: Response) => {
         message: `Fund ID must be a positive integer, received: ${idParam}`,
       };
       return res['status'](400)['json'](error);
+    }
+
+    if (!(await enforceProvidedFundScope(req, res, id))) {
+      return;
     }
 
     const fund = await getCanonicalFundById(id);
