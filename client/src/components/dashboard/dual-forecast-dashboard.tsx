@@ -267,11 +267,12 @@ export default function DualForecastDashboard() {
             <CardTitle className="flex items-center gap-2">
               Fund Value Forecast
               <Badge variant="outline" className="text-xs">
-                Live Data
+                Projected scenario
               </Badge>
             </CardTitle>
             <CardDescription>
-              24-month value projection based on current {(currentIRR * 100).toFixed(1)}% IRR
+              24-month projection derived from current API IRR of {(currentIRR * 100).toFixed(1)}%.
+              Projection, not actuals.
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -320,12 +321,12 @@ export default function DualForecastDashboard() {
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              Live Portfolio Allocation
+              Portfolio Allocation
               <Badge variant="outline" className="text-xs">
-                Real-time
+                API actuals
               </Badge>
             </CardTitle>
-            <CardDescription>Current valuation vs investment by company</CardDescription>
+            <CardDescription>Current API valuation vs invested capital by company</CardDescription>
           </CardHeader>
           <CardContent>
             <ResponsiveContainer width="100%" height={300}>
@@ -352,7 +353,10 @@ export default function DualForecastDashboard() {
       <Card>
         <CardHeader>
           <CardTitle>Capital Deployment Forecast</CardTitle>
-          <CardDescription>Projected deployment schedule based on current pipeline</CardDescription>
+          <CardDescription>
+            Scenario projection from current deployed capital plus a flat monthly deployment
+            assumption.
+          </CardDescription>
         </CardHeader>
         <CardContent>
           <ResponsiveContainer width="100%" height={200}>

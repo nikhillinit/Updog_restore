@@ -82,6 +82,7 @@ export function AddCompanyDialog({ fundId, open, onOpenChange }: AddCompanyDialo
       }),
     onSuccess: (_result, values) => {
       queryClient.invalidateQueries({ queryKey: ['portfolio-companies'] });
+      queryClient.invalidateQueries({ queryKey: ['allocations', 'latest', fundId] });
       toast({
         title: 'Company added',
         description: `"${values.name}" now appears in the Companies tab.`,

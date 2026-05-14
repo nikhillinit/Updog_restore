@@ -177,6 +177,7 @@ describe('ConfigForm', () => {
   it('shows "Running..." when disabled=true', () => {
     render(<ConfigForm {...defaultProps} disabled={true} />);
     expect(screen.getByText('Running...')).toBeInTheDocument();
+    expect(screen.getByRole('spinbutton', { name: 'Simulation Runs' })).toBeDisabled();
   });
 
   it('shows "Run Backtest" when disabled=false', () => {
@@ -189,6 +190,26 @@ describe('ConfigForm', () => {
     expect(screen.getByText('IRR')).toBeInTheDocument();
     expect(screen.getByText('TVPI')).toBeInTheDocument();
     expect(screen.getByText('DPI')).toBeInTheDocument();
+  });
+
+  it('pairs the simulation-run slider with a numeric input that drives submit payloads', () => {
+    const onSubmit = vi.fn();
+    const { container } = render(<ConfigForm {...defaultProps} onSubmit={onSubmit} />);
+    const runsInput = screen.getByRole('spinbutton', {
+      name: 'Simulation Runs',
+    }) as HTMLInputElement;
+
+    expect(runsInput.value).toBe('10000');
+    expect(screen.getByRole('slider', { name: 'Simulation Runs slider' })).toBeInTheDocument();
+
+    fireEvent.change(runsInput, { target: { value: '25000' } });
+    expect(runsInput.value).toBe('25000');
+
+    const form = container.querySelector('form')!;
+    fireEvent.submit(form);
+
+    const config = onSubmit.mock.calls[0]![0] as BacktestConfig;
+    expect(config.simulationRuns).toBe(25000);
   });
 
   it('initializes from lastConfig values', () => {

@@ -9,13 +9,14 @@ export default function FinancialModeling() {
       <div className="mb-8">
         <h1 className="text-3xl font-bold">Financial Modeling & Forecasting</h1>
         <p className="text-muted-foreground mt-2">
-          Advanced scenario planning with live fund performance data
+          Fund-scoped forecasts from current API facts. Forward-looking values are labeled as
+          projections.
         </p>
       </div>
 
       <Tabs defaultValue="forecast" className="space-y-6">
         <TabsList className="grid w-full grid-cols-2">
-          <TabsTrigger value="forecast">Live Forecasting</TabsTrigger>
+          <TabsTrigger value="forecast">API-Based Projection</TabsTrigger>
           <TabsTrigger value="modeling">Scenario Modeling</TabsTrigger>
         </TabsList>
 
@@ -30,15 +31,15 @@ export default function FinancialModeling() {
             <CardHeader>
               <CardTitle>Scenario modeling remains deferred</CardTitle>
               <CardDescription>
-                The canonical deterministic surface is now the live forecasting tab. The
+                The canonical deterministic surface is now the API-based projection tab. The
                 scenario-modeling tab is intentionally not presenting hardcoded KPI cards or
-                placeholder charts as if they were live data.
+                placeholder charts as if they were production actuals.
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4 text-sm text-muted-foreground">
               <p>
-                Use the live forecasting tab for the truthful deterministic surface backed by
-                current fund context and real API data.
+                Use the API-based projection tab for the deterministic surface backed by current
+                fund context and API facts.
               </p>
               <p>
                 Additional scenario-modeling and reserve-analysis work remains queued until those

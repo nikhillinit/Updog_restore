@@ -62,6 +62,24 @@ function formatCurrency(value: number): string {
   return `$${value.toLocaleString()}`;
 }
 
+function hasFiniteMetric(points: Array<Record<string, unknown>>, keys: string[]): boolean {
+  return points.some((point) =>
+    keys.some((key) => typeof point[key] === 'number' && Number.isFinite(point[key]))
+  );
+}
+
+function EmptyChartState({ title, description }: { title: string; description: string }) {
+  return (
+    <div
+      className="flex min-h-80 flex-col items-center justify-center rounded-lg border border-dashed border-[#E0D8D1] bg-slate-50 px-6 text-center"
+      data-testid="performance-chart-empty-state"
+    >
+      <p className="font-inter text-base font-semibold text-[#292929]">{title}</p>
+      <p className="mt-2 max-w-md font-poppins text-sm text-[#292929]/70">{description}</p>
+    </div>
+  );
+}
+
 function getDateRange(timeframe: string): { startDate: string; endDate: string } {
   const now = new Date();
   const endDate = now.toISOString().split('T')[0];
@@ -184,6 +202,9 @@ export default function PerformanceDashboard({ className }: PerformanceDashboard
   }, [chartData]);
 
   const hasDerivedPoints = sourceSummary.interpolated > 0 || sourceSummary.unavailable > 0;
+  const hasIrrValues = hasFiniteMetric(chartData, ['irr']);
+  const hasMultipleValues = hasFiniteMetric(chartData, ['tvpi', 'dpi']);
+  const hasBreakdownRows = Boolean(breakdownData?.breakdown.length);
 
   // Handle refresh
   const handleRefresh = async () => {
@@ -311,33 +332,43 @@ export default function PerformanceDashboard({ className }: PerformanceDashboard
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="h-80">
-                <ResponsiveContainer width="100%" height="100%">
-                  <LineChart data={chartData} margin={{ top: 20, right: 30, left: 20, bottom: 20 }}>
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="date" tick={{ fontSize: 12 }} />
-                    <YAxis
-                      tickFormatter={(v) => `${Number(v).toFixed(0)}%`}
-                      tick={{ fontSize: 12 }}
-                    />
-                    <Tooltip
-                      formatter={(value) => [
-                        value !== undefined ? `${Number(value).toFixed(2)}%` : '',
-                        'IRR',
-                      ]}
-                      labelFormatter={(label) => `Date: ${label}`}
-                    />
-                    <Line
-                      type="monotone"
-                      dataKey="irr"
-                      stroke={CHART_COLORS.irr}
-                      strokeWidth={2}
-                      dot={false}
-                      activeDot={{ r: 6 }}
-                    />
-                  </LineChart>
-                </ResponsiveContainer>
-              </div>
+              {hasIrrValues ? (
+                <div className="h-80">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <LineChart
+                      data={chartData}
+                      margin={{ top: 20, right: 30, left: 20, bottom: 20 }}
+                    >
+                      <CartesianGrid strokeDasharray="3 3" />
+                      <XAxis dataKey="date" tick={{ fontSize: 12 }} />
+                      <YAxis
+                        tickFormatter={(v) => `${Number(v).toFixed(0)}%`}
+                        tick={{ fontSize: 12 }}
+                      />
+                      <Tooltip
+                        formatter={(value) => [
+                          value !== undefined ? `${Number(value).toFixed(2)}%` : '',
+                          'IRR',
+                        ]}
+                        labelFormatter={(label) => `Date: ${label}`}
+                      />
+                      <Line
+                        type="monotone"
+                        dataKey="irr"
+                        stroke={CHART_COLORS.irr}
+                        strokeWidth={2}
+                        dot={false}
+                        activeDot={{ r: 6 }}
+                      />
+                    </LineChart>
+                  </ResponsiveContainer>
+                </div>
+              ) : (
+                <EmptyChartState
+                  title="IRR history pending"
+                  description="Persisted dated cash flows are required before the app can draw an IRR trend."
+                />
+              )}
             </CardContent>
           </Card>
 
@@ -352,42 +383,52 @@ export default function PerformanceDashboard({ className }: PerformanceDashboard
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="h-80">
-                <ResponsiveContainer width="100%" height="100%">
-                  <LineChart data={chartData} margin={{ top: 20, right: 30, left: 20, bottom: 20 }}>
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="date" tick={{ fontSize: 12 }} />
-                    <YAxis
-                      tickFormatter={(v) => `${Number(v).toFixed(1)}x`}
-                      tick={{ fontSize: 12 }}
-                    />
-                    <Tooltip
-                      formatter={(value, name) => [
-                        value !== undefined ? `${Number(value).toFixed(2)}x` : '',
-                        String(name ?? '').toUpperCase(),
-                      ]}
-                      labelFormatter={(label) => `Date: ${label}`}
-                    />
-                    <Legend />
-                    <Line
-                      type="monotone"
-                      dataKey="tvpi"
-                      stroke={CHART_COLORS.tvpi}
-                      strokeWidth={2}
-                      dot={false}
-                      name="TVPI"
-                    />
-                    <Line
-                      type="monotone"
-                      dataKey="dpi"
-                      stroke={CHART_COLORS.dpi}
-                      strokeWidth={2}
-                      dot={false}
-                      name="DPI"
-                    />
-                  </LineChart>
-                </ResponsiveContainer>
-              </div>
+              {hasMultipleValues ? (
+                <div className="h-80">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <LineChart
+                      data={chartData}
+                      margin={{ top: 20, right: 30, left: 20, bottom: 20 }}
+                    >
+                      <CartesianGrid strokeDasharray="3 3" />
+                      <XAxis dataKey="date" tick={{ fontSize: 12 }} />
+                      <YAxis
+                        tickFormatter={(v) => `${Number(v).toFixed(1)}x`}
+                        tick={{ fontSize: 12 }}
+                      />
+                      <Tooltip
+                        formatter={(value, name) => [
+                          value !== undefined ? `${Number(value).toFixed(2)}x` : '',
+                          String(name ?? '').toUpperCase(),
+                        ]}
+                        labelFormatter={(label) => `Date: ${label}`}
+                      />
+                      <Legend />
+                      <Line
+                        type="monotone"
+                        dataKey="tvpi"
+                        stroke={CHART_COLORS.tvpi}
+                        strokeWidth={2}
+                        dot={false}
+                        name="TVPI"
+                      />
+                      <Line
+                        type="monotone"
+                        dataKey="dpi"
+                        stroke={CHART_COLORS.dpi}
+                        strokeWidth={2}
+                        dot={false}
+                        name="DPI"
+                      />
+                    </LineChart>
+                  </ResponsiveContainer>
+                </div>
+              ) : (
+                <EmptyChartState
+                  title="Multiple history pending"
+                  description="Persisted TVPI or DPI snapshots are required before the app can draw fund multiple trends."
+                />
+              )}
             </CardContent>
           </Card>
         </TabsContent>
@@ -419,7 +460,7 @@ export default function PerformanceDashboard({ className }: PerformanceDashboard
               </div>
             </CardHeader>
             <CardContent>
-              {breakdownData && (
+              {breakdownData && hasBreakdownRows && (
                 <>
                   {/* Summary Stats */}
                   <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
@@ -562,6 +603,12 @@ export default function PerformanceDashboard({ className }: PerformanceDashboard
                     </table>
                   </div>
                 </>
+              )}
+              {breakdownData && !hasBreakdownRows && (
+                <EmptyChartState
+                  title="Breakdown pending"
+                  description="Add portfolio companies or import a demo profile to show sector, stage, and company performance."
+                />
               )}
             </CardContent>
           </Card>
