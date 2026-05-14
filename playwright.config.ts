@@ -55,7 +55,11 @@ export default defineConfig({
     // Smoke tests - fastest, run first
     {
       name: 'smoke',
-      testMatch: ['**/basic-smoke.spec.ts', '**/qa-audit-latest-route-publish.spec.ts'],
+      testMatch: [
+        '**/basic-smoke.spec.ts',
+        '**/qa-audit-latest-route-publish.spec.ts',
+        '**/route-fund-context-fidelity.spec.ts',
+      ],
       use: { ...devices['Desktop Chrome'] },
     },
 

@@ -6,7 +6,11 @@ import {
   type DemoProfileImportBundle,
   type DemoProfileTargetTable,
 } from '@shared/contracts/demo-profile-import.contract';
-import { isUnifiedFundMetrics, type UnifiedFundMetrics } from '@shared/types/metrics';
+import {
+  isUnifiedFundMetrics,
+  type ActualMetrics,
+  type UnifiedFundMetrics,
+} from '@shared/types/metrics';
 import {
   DemoProfileImportError,
   DrizzleDemoProfileImportStore,
@@ -21,6 +25,17 @@ import {
 import { getProfessionalDemoRuntimeConfigurationError } from '../server/storage-runtime-policy';
 
 type VerificationLayer = 'storage' | 'api' | 'config';
+
+const MONETARY_ACTUAL_FIELDS = [
+  'totalCommitted',
+  'totalCalled',
+  'totalDeployed',
+  'totalUncalled',
+  'currentNAV',
+  'totalDistributions',
+  'totalValue',
+  'averageCheckSize',
+] as const satisfies ReadonlyArray<keyof ActualMetrics>;
 
 export interface DemoProfileVerificationIssue {
   layer: VerificationLayer;
@@ -266,13 +281,123 @@ function assertClose(
   expected: number
 ): void {
   const tolerance = Math.max(1, Math.abs(expected) * 0.0001);
-  if (Math.abs(actual - expected) > tolerance) {
+  if (
+    !Number.isFinite(actual) ||
+    !Number.isFinite(expected) ||
+    Math.abs(actual - expected) > tolerance
+  ) {
     addIssue(issues, {
       layer,
       code,
       message: `${label} mismatch.`,
       expected,
       actual,
+    });
+  }
+}
+
+function hasExplicitZeroDeploymentNavProvenance(actual: ActualMetrics): boolean {
+  const record = actual as ActualMetrics & Record<string, unknown>;
+  const provenanceCandidates = [
+    record['provenance'],
+    record['currentNAVProvenance'],
+    record['valuationProvenance'],
+  ];
+
+  return provenanceCandidates.some(
+    (candidate) => typeof candidate === 'object' && candidate !== null
+  );
+}
+
+function validateActualMetricInvariants(
+  issues: DemoProfileVerificationIssue[],
+  actual: ActualMetrics
+): void {
+  for (const field of MONETARY_ACTUAL_FIELDS) {
+    const value = actual[field];
+    if (value < 0) {
+      addIssue(issues, {
+        layer: 'api',
+        code: 'API_MONETARY_FIELD_NEGATIVE',
+        message: `${field} must be non-negative.`,
+        expected: '>= 0',
+        actual: { field, value },
+      });
+    }
+  }
+
+  if (actual.totalDeployed > actual.totalCommitted) {
+    addIssue(issues, {
+      layer: 'api',
+      code: 'API_TOTAL_DEPLOYED_EXCEEDS_COMMITTED',
+      message: 'Deployed capital cannot exceed committed capital.',
+      expected: '<= totalCommitted',
+      actual: {
+        totalCommitted: actual.totalCommitted,
+        totalDeployed: actual.totalDeployed,
+      },
+    });
+  }
+
+  assertClose(
+    issues,
+    'api',
+    'API_TOTAL_VALUE_INVARIANT_FAILED',
+    'Total value',
+    actual.totalValue,
+    actual.currentNAV + actual.totalDistributions
+  );
+
+  const expectedDeploymentRate =
+    actual.totalCommitted > 0 ? (actual.totalDeployed / actual.totalCommitted) * 100 : 0;
+  assertClose(
+    issues,
+    'api',
+    'API_DEPLOYMENT_RATE_INVARIANT_FAILED',
+    'Deployment rate',
+    actual.deploymentRate,
+    expectedDeploymentRate
+  );
+
+  assertClose(
+    issues,
+    'api',
+    'API_ACCOUNTING_UNCALLED_INVARIANT_FAILED',
+    'Accounting uncalled capital',
+    actual.totalUncalled,
+    actual.totalCommitted - actual.totalCalled
+  );
+
+  const record = actual as ActualMetrics & { remainingDeployableCapital?: unknown };
+  if (record.remainingDeployableCapital !== undefined) {
+    const remainingDeployableCapital =
+      typeof record.remainingDeployableCapital === 'number'
+        ? record.remainingDeployableCapital
+        : Number(record.remainingDeployableCapital);
+    assertClose(
+      issues,
+      'api',
+      'API_HEADER_REMAINING_DEPLOYABLE_CAPITAL_INVARIANT_FAILED',
+      'Header remaining deployable capital',
+      remainingDeployableCapital,
+      actual.totalCommitted - actual.totalDeployed
+    );
+  }
+
+  if (
+    actual.totalDeployed <= 0 &&
+    actual.currentNAV > 0 &&
+    !hasExplicitZeroDeploymentNavProvenance(actual)
+  ) {
+    addIssue(issues, {
+      layer: 'api',
+      code: 'API_ZERO_DEPLOYED_NONZERO_NAV_WITHOUT_PROVENANCE',
+      message:
+        'API returned nonzero current NAV with no deployed capital and no explicit provenance.',
+      actual: {
+        totalDeployed: actual.totalDeployed,
+        currentNAV: actual.currentNAV,
+      },
     });
   }
 }
@@ -601,38 +726,7 @@ async function verifyApi(input: {
       });
     }
 
-    const expectedDeploymentRate =
-      payload.actual.totalCommitted > 0
-        ? (payload.actual.totalDeployed / payload.actual.totalCommitted) * 100
-        : 0;
-    assertClose(
-      issues,
-      'api',
-      'API_DEPLOYMENT_RATE_INVARIANT_FAILED',
-      'Deployment rate',
-      payload.actual.deploymentRate,
-      expectedDeploymentRate
-    );
-    assertClose(
-      issues,
-      'api',
-      'API_REMAINING_CAPITAL_INVARIANT_FAILED',
-      'Remaining capital',
-      payload.actual.totalUncalled,
-      payload.actual.totalCommitted - payload.actual.totalCalled
-    );
-
-    if (payload.actual.totalDeployed <= 0 && payload.actual.currentNAV > 0) {
-      addIssue(issues, {
-        layer: 'api',
-        code: 'API_ZERO_INVESTED_NONZERO_NAV',
-        message: 'API returned nonzero current NAV with no deployed capital.',
-        actual: {
-          totalDeployed: payload.actual.totalDeployed,
-          currentNAV: payload.actual.currentNAV,
-        },
-      });
-    }
+    validateActualMetricInvariants(issues, payload.actual);
   }
 
   await verifyApiFund({
