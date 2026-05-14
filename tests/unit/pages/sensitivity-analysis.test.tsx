@@ -63,6 +63,10 @@ describe('SensitivityAnalysisPage', () => {
 
     // Default tab is monte-carlo, so the embedded backtesting workspace is mounted.
     expect(screen.getByTestId('backtesting-workspace')).toHaveTextContent('workspace:7:false');
+    expect(screen.getByRole('tab', { name: 'Monte Carlo' })).toHaveAttribute(
+      'aria-selected',
+      'true'
+    );
   });
 
   it('mounts the OneWayPanel inside the one-way tab content', async () => {
@@ -71,6 +75,7 @@ describe('SensitivityAnalysisPage', () => {
 
     await user.click(screen.getByRole('tab', { name: 'One-Way' }));
 
+    expect(screen.getByRole('tab', { name: 'One-Way' })).toHaveAttribute('aria-selected', 'true');
     expect(screen.getByTestId('one-way-panel')).toHaveTextContent('one-way-panel:7');
   });
 

@@ -112,6 +112,14 @@ export default defineConfig({
       dependencies: ['smoke'],
     },
 
+    // GP UX system pass - keyboard and route usability checks
+    {
+      name: 'gp-ux',
+      testMatch: '**/gp-ux-keyboard-smoke.spec.ts',
+      use: { ...devices['Desktop Chrome'] },
+      dependencies: ['smoke'],
+    },
+
     // GP usability audit gates - scoped route/content truthfulness checks
     {
       name: 'gp-usability',

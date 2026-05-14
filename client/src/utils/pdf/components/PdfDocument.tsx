@@ -69,7 +69,7 @@ export const PdfDocument: React.FC<PdfDocumentProps> = ({
   const documentProps: Record<string, string> = {
     title: metadata.title,
     author: metadata.author || 'Press On Ventures',
-    creator: 'Updawg by Press On Ventures',
+    creator: 'Updog by Press On Ventures',
     producer: '@react-pdf/renderer',
   };
   if (metadata.subject) documentProps['subject'] = metadata.subject;

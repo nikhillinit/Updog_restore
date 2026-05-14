@@ -193,6 +193,7 @@ describe('DynamicFundHeader', () => {
 
     expect(metricLabel('Total Invested').parentElement).toHaveTextContent('$12M');
     expect(metricLabel('Current Value').parentElement).toHaveTextContent('$46M');
+    expect(screen.getByText('$46M')).toHaveClass('tabular-nums');
     expect(metricLabel('Remaining').parentElement).toHaveTextContent('$38M');
     expect(metricLabel('Net IRR').parentElement).toHaveTextContent('Needs history');
     expect(metricLabel('TVPI').parentElement).toHaveTextContent('2.30x');
@@ -300,6 +301,10 @@ describe('DynamicFundHeader', () => {
     fireEvent.click(screen.getByRole('button', { name: 'TVPI' }));
 
     expect(screen.getByText('TVPI:').parentElement).toHaveTextContent('N/A');
+    expect(screen.getByText('TVPI:').parentElement).toHaveAttribute(
+      'title',
+      'TVPI is unavailable until paid-in capital is available.'
+    );
     expect(screen.queryByText('0.00')).not.toBeInTheDocument();
   });
 
@@ -308,7 +313,15 @@ describe('DynamicFundHeader', () => {
 
     render(<DynamicFundHeader />);
 
-    expect(screen.getByText('DPI:').parentElement).toHaveTextContent('No distributions');
+    const panel = screen.getByText('DPI:').parentElement;
+    expect(panel).toHaveTextContent('No distributions');
+    expect(panel).toHaveAttribute(
+      'title',
+      'DPI is unavailable because no distributions have been recorded.'
+    );
+    expect(panel?.querySelector('.sr-only')).toHaveTextContent(
+      'DPI is unavailable because no distributions have been recorded.'
+    );
   });
 
   it('uses the shared normalized current NAV for compact NAV', () => {
@@ -320,5 +333,24 @@ describe('DynamicFundHeader', () => {
 
     expect(screen.getByText('NAV:').parentElement).toHaveTextContent('$40.0M');
     expect(screen.getByText('NAV:').parentElement).not.toHaveTextContent('$46.0M');
+  });
+
+  it('explains compact KPI source failures without showing stale values', () => {
+    mockUseFlag.mockReturnValue(true);
+    mockUseFundMetrics.mockReturnValue({
+      data: undefined,
+      isLoading: false,
+      error: new Error('metrics unavailable'),
+    });
+
+    render(<DynamicFundHeader />);
+
+    const panel = screen.getByText('DPI:').parentElement;
+    expect(panel).toHaveTextContent('Metrics unavailable');
+    expect(panel).toHaveAttribute(
+      'title',
+      'Metrics unavailable because the live metrics source is unavailable.'
+    );
+    expect(screen.queryByText('$12M')).not.toBeInTheDocument();
   });
 });

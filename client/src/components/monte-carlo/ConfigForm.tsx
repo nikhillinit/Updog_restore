@@ -2,7 +2,6 @@ import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Slider } from '@/components/ui/slider';
 import { Checkbox } from '@/components/ui/checkbox';
 import { useScenarios } from '@/hooks/useBacktesting';
 import type {
@@ -30,6 +29,8 @@ const SCENARIO_LABELS: Record<string, string> = {
 const SIMULATION_RUNS_MIN = 1000;
 const SIMULATION_RUNS_MAX = 50000;
 const SIMULATION_RUNS_STEP = 1000;
+const CONFIG_DISABLED_REASON = 'Controls are disabled while a backtest is running.';
+const METRIC_LOCKED_REASON = 'At least one comparison metric must remain selected.';
 
 type FormConfigState = {
   startDate: string;
@@ -195,6 +196,8 @@ function SimulationRunsControl({
 }) {
   const inputId = 'simulationRuns';
   const helpId = 'simulationRunsHelp';
+  const disabledReasonId = disabled ? 'simulationRunsDisabledReason' : undefined;
+  const describedBy = [helpId, disabledReasonId].filter(Boolean).join(' ');
 
   return (
     <div className="space-y-2">
@@ -212,23 +215,30 @@ function SimulationRunsControl({
           value={value}
           onChange={(e) => onChange(parseSimulationRunsInput(e.target.value, value))}
           disabled={disabled}
-          aria-describedby={helpId}
+          aria-describedby={describedBy}
           className="h-8 w-32 text-right font-mono"
         />
       </div>
-      <Slider
-        value={[value]}
-        onValueChange={([v]) => v !== undefined && onChange(v)}
+      <input
+        type="range"
+        value={value}
+        onChange={(event) => onChange(parseSimulationRunsInput(event.target.value, value))}
         min={SIMULATION_RUNS_MIN}
         max={SIMULATION_RUNS_MAX}
         step={SIMULATION_RUNS_STEP}
         disabled={disabled}
         aria-label="Simulation Runs slider"
-        className="mt-2"
+        aria-describedby={describedBy}
+        className="mt-2 h-2 w-full cursor-pointer accent-blue-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-beige focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
       />
       <p id={helpId} className="text-[11px] text-gray-500">
         {SIMULATION_RUNS_MIN.toLocaleString()} to {SIMULATION_RUNS_MAX.toLocaleString()} runs
       </p>
+      {disabledReasonId && (
+        <p id={disabledReasonId} className="sr-only">
+          {CONFIG_DISABLED_REASON}
+        </p>
+      )}
     </div>
   );
 }
@@ -243,21 +253,34 @@ function MetricCheckboxes({
   disabled: boolean;
 }) {
   return (
-    <div>
-      <Label className="text-xs mb-2 block">Comparison Metrics</Label>
+    <fieldset>
+      <legend className="text-xs mb-2 block font-medium">Comparison Metrics</legend>
       <div className="flex flex-wrap gap-3">
-        {ALL_METRICS.map((m) => (
-          <label key={m.value} className="flex items-center gap-1.5 text-sm">
-            <Checkbox
-              checked={selected.includes(m.value)}
-              onCheckedChange={() => onToggle(m.value)}
-              disabled={disabled || (selected.length === 1 && selected.includes(m.value))}
-            />
-            {m.label}
-          </label>
-        ))}
+        {ALL_METRICS.map((m) => {
+          const isLocked = selected.length === 1 && selected.includes(m.value);
+          const isDisabled = disabled || isLocked;
+          const reasonId = isDisabled ? `metric-${m.value}-disabled-reason` : undefined;
+          const reason = disabled ? CONFIG_DISABLED_REASON : METRIC_LOCKED_REASON;
+
+          return (
+            <label key={m.value} className="flex items-center gap-1.5 text-sm">
+              <Checkbox
+                checked={selected.includes(m.value)}
+                onCheckedChange={() => onToggle(m.value)}
+                disabled={isDisabled}
+                aria-describedby={reasonId}
+              />
+              {m.label}
+              {reasonId && (
+                <span id={reasonId} className="sr-only">
+                  {reason}
+                </span>
+              )}
+            </label>
+          );
+        })}
       </div>
-    </div>
+    </fieldset>
   );
 }
 
@@ -274,6 +297,8 @@ function RandomSeedField({
   onSeedChange: (v: number) => void;
   disabled: boolean;
 }) {
+  const disabledReasonId = disabled ? 'randomSeedDisabledReason' : undefined;
+
   return (
     <div className="flex items-center gap-3">
       <label className="flex items-center gap-1.5 text-sm">
@@ -281,8 +306,14 @@ function RandomSeedField({
           checked={enabled}
           onCheckedChange={(checked) => onToggle(!!checked)}
           disabled={disabled}
+          aria-describedby={disabledReasonId}
         />
         Fixed random seed
+        {disabledReasonId && (
+          <span id={disabledReasonId} className="sr-only">
+            {CONFIG_DISABLED_REASON}
+          </span>
+        )}
       </label>
       {enabled && (
         <Input
@@ -290,6 +321,8 @@ function RandomSeedField({
           value={seed}
           onChange={(e) => onSeedChange(parseInt(e.target.value, 10) || 42)}
           disabled={disabled}
+          aria-label="Random seed value"
+          aria-describedby={disabledReasonId}
           className="w-24"
           min={1}
           max={2147483647}
@@ -314,15 +347,24 @@ function ScenarioSelection({
   onToggleScenario: (s: HistoricalScenarioName) => void;
   disabled: boolean;
 }) {
+  const disabledReasonId = disabled ? 'scenarioSelectionDisabledReason' : undefined;
+
   return (
-    <div>
+    <fieldset>
+      <legend className="sr-only">Historical scenarios</legend>
       <label className="flex items-center gap-1.5 text-sm mb-2">
         <Checkbox
           checked={enabled}
           onCheckedChange={(checked) => onToggleEnabled(!!checked)}
           disabled={disabled}
+          aria-describedby={disabledReasonId}
         />
         Include historical scenarios
+        {disabledReasonId && (
+          <span id={disabledReasonId} className="sr-only">
+            {CONFIG_DISABLED_REASON}
+          </span>
+        )}
       </label>
       {enabled && scenarios.length > 0 && (
         <div className="flex flex-wrap gap-2 ml-5">
@@ -332,19 +374,38 @@ function ScenarioSelection({
                 checked={selected.includes(s)}
                 onCheckedChange={() => onToggleScenario(s)}
                 disabled={disabled}
+                aria-describedby={disabledReasonId}
               />
               {SCENARIO_LABELS[s] ?? s}
             </label>
           ))}
         </div>
       )}
-    </div>
+    </fieldset>
   );
 }
 
 function ConfigSubmitButton({ disabled, metricCount }: { disabled: boolean; metricCount: number }) {
+  const disabledReason =
+    disabled || metricCount === 0
+      ? disabled
+        ? CONFIG_DISABLED_REASON
+        : 'Select at least one comparison metric to run a backtest.'
+      : undefined;
+  const disabledReasonId = disabledReason ? 'configSubmitDisabledReason' : undefined;
+
   return (
-    <Button type="submit" disabled={disabled || metricCount === 0} className="w-full">
+    <Button
+      type="submit"
+      disabled={disabled || metricCount === 0}
+      aria-describedby={disabledReasonId}
+      className="w-full"
+    >
+      {disabledReason && (
+        <span id={disabledReasonId} className="sr-only">
+          {disabledReason}
+        </span>
+      )}
       {disabled ? 'Running...' : 'Run Backtest'}
     </Button>
   );

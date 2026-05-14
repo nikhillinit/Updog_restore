@@ -57,7 +57,10 @@ function MetricCard({ card }: { card: HeaderMetricCardModel }) {
         <div className="flex items-center justify-between">
           <div>
             <p className={`text-xs ${LABEL_CLASS_NAMES[card.theme]} font-medium`}>{card.title}</p>
-            <p className="text-sm font-bold text-charcoal-900 leading-tight" title={card.titleText}>
+            <p
+              className="text-sm font-bold leading-tight text-charcoal-900 tabular-nums"
+              title={card.titleText}
+            >
               {card.displayValue}
             </p>
           </div>
@@ -113,7 +116,7 @@ export default function DynamicFundHeader() {
                 {currentFund.name}
               </h1>
               <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-gray-600">
-                <span>Fund Size: {viewModel.fundSizeText}</span>
+                <span className="tabular-nums">Fund Size: {viewModel.fundSizeText}</span>
                 <Separator orientation="vertical" className="h-4" />
                 <span>Vintage: {viewModel.vintageText}</span>
                 <Separator orientation="vertical" className="h-4" />

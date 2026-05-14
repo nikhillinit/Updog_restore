@@ -371,7 +371,36 @@ function buildSelectedCompactKpi(
       availability,
       hasError
     ),
+    explanation: getCompactKpiExplanation(selectedKpi, value, availability, hasError),
   };
+}
+
+function getCompactKpiExplanation(
+  selectedKpi: CompactKpiKey,
+  value: number | null,
+  availability: MetricAvailabilityDetail | undefined,
+  hasError: boolean
+) {
+  if (hasError) {
+    return 'Metrics unavailable because the live metrics source is unavailable.';
+  }
+  if (availability?.status === 'unavailable') {
+    if (availability.reason === 'no_distributions_recorded') {
+      return 'DPI is unavailable because no distributions have been recorded.';
+    }
+    if (availability.reason === 'insufficient_dated_cashflows') {
+      return 'This metric needs more dated cash-flow history.';
+    }
+    return availability.message ?? COMPACT_KPI_DEFINITIONS[selectedKpi].description;
+  }
+  if (value !== null) return COMPACT_KPI_DEFINITIONS[selectedKpi].description;
+  if (selectedKpi === 'tvpi') {
+    return 'TVPI is unavailable until paid-in capital is available.';
+  }
+  if (selectedKpi === 'nav') {
+    return 'NAV is unavailable until current NAV has been recorded.';
+  }
+  return COMPACT_KPI_DEFINITIONS[selectedKpi].description;
 }
 
 function getCompactKpiValue(metrics: HeaderMetrics, selectedKpi: CompactKpiKey) {

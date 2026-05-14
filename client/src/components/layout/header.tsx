@@ -1,13 +1,8 @@
- 
- 
- 
- 
- 
-import { Button } from "@/components/ui/button";
-import { Download, RefreshCw, DollarSign, UserCircle2, ChevronDown, Bell } from "lucide-react";
-import { useFundContext } from "@/contexts/FundContext";
-import { useState } from "react";
-import { Link } from "wouter";
+import { Button } from '@/components/ui/button';
+import { Download, RefreshCw, DollarSign, UserCircle2, ChevronDown, Bell } from 'lucide-react';
+import { useFundContext } from '@/contexts/FundContext';
+import { useState } from 'react';
+import { Link } from 'wouter';
 
 interface HeaderProps {
   currentModule: {
@@ -34,7 +29,7 @@ export default function Header({ currentModule }: HeaderProps) {
 
   return (
     <>
-      {/* Top Header with UpDawg branding */}
+      {/* Top Header with Updog branding */}
       <header className="bg-charcoal text-white py-4 px-6 flex items-center justify-between font-poppins">
         <div className="flex items-center">
           <Link to="/dashboard" className="flex items-center">
@@ -66,7 +61,7 @@ export default function Header({ currentModule }: HeaderProps) {
           </div>
         </div>
       </header>
-      
+
       {/* Module Header */}
       <div className="bg-white shadow-sm border-b border-gray-200 px-6 py-4 font-poppins">
         <div className="flex items-center justify-between">
@@ -76,15 +71,15 @@ export default function Header({ currentModule }: HeaderProps) {
                 <h2 className="text-2xl font-inter font-bold text-charcoal">
                   {currentModule.title}
                 </h2>
-                <p className="text-charcoal/70 mt-1">
-                  {currentModule.description}
-                </p>
+                <p className="text-charcoal/70 mt-1">{currentModule.description}</p>
               </div>
               {currentFund && (
                 <div className="flex items-center space-x-2 bg-lightGray border border-gray-300 rounded-lg px-4 py-2">
                   <DollarSign className="h-4 w-4 text-charcoal" />
                   <div className="text-sm">
-                    <div className="font-semibold text-charcoal">${(currentFund.size / 1000000).toFixed(0)}M Fund</div>
+                    <div className="font-semibold text-charcoal">
+                      ${(currentFund.size / 1000000).toFixed(0)}M Fund
+                    </div>
                     <div className="text-charcoal/70">Active Portfolio</div>
                   </div>
                 </div>
@@ -92,7 +87,7 @@ export default function Header({ currentModule }: HeaderProps) {
             </div>
           </div>
           <div className="flex items-center space-x-3">
-            <Button 
+            <Button
               onClick={handleExport}
               className="bg-charcoal hover:bg-charcoal/90 text-white shadow-card"
             >

@@ -309,6 +309,15 @@ export function StressPanel({ fundId }: StressPanelProps): JSX.Element {
   }, [mutation.isSuccess, mutation.data]);
 
   const runDisabled = fundId === null || mutation.isPending || !validation.ok;
+  const runDisabledReason =
+    fundId === null
+      ? 'Select a fund before running a stress test.'
+      : mutation.isPending
+        ? 'A stress test is already running.'
+        : !validation.ok
+          ? 'Select at least one stress scenario before running a stress test.'
+          : undefined;
+  const runDisabledReasonId = runDisabledReason ? 'stress-run-disabled-reason' : undefined;
   const error = mutation.error as SensitivityHookError | null;
 
   return (
@@ -319,7 +328,8 @@ export function StressPanel({ fundId }: StressPanelProps): JSX.Element {
             <CardTitle className="text-sm">Stress Scenarios</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="space-y-2" data-testid="stress-scenario-picker">
+            <fieldset className="space-y-2" data-testid="stress-scenario-picker">
+              <legend className="sr-only">Stress scenarios</legend>
               {SUPPORTED_STRESS_SCENARIOS.map((scenario) => {
                 const id = scenario.id as SensitivityStressScenarioId;
                 const checked = form.selectedScenarioIds.has(id);
@@ -344,12 +354,12 @@ export function StressPanel({ fundId }: StressPanelProps): JSX.Element {
                   </label>
                 );
               })}
-            </div>
+            </fieldset>
 
             <div className="space-y-1">
               <Label htmlFor="stress-metric">Metric</Label>
               <Select value={form.metricId} onValueChange={onMetricChange}>
-                <SelectTrigger id="stress-metric">
+                <SelectTrigger id="stress-metric" aria-label="Stress metric">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -377,9 +387,15 @@ export function StressPanel({ fundId }: StressPanelProps): JSX.Element {
               type="button"
               onClick={handleSubmit}
               disabled={runDisabled}
+              aria-describedby={runDisabledReasonId}
               className="w-full"
               data-testid="stress-run-button"
             >
+              {runDisabledReason && (
+                <span id={runDisabledReasonId} className="sr-only">
+                  {runDisabledReason}
+                </span>
+              )}
               Run Stress Test
             </Button>
           </CardContent>
@@ -420,9 +436,15 @@ export function StressPanel({ fundId }: StressPanelProps): JSX.Element {
                 size="sm"
                 onClick={handleSubmit}
                 disabled={runDisabled}
+                aria-describedby={runDisabledReason ? 'stress-retry-disabled-reason' : undefined}
                 className="mt-2"
                 data-testid="stress-retry-button"
               >
+                {runDisabledReason && (
+                  <span id="stress-retry-disabled-reason" className="sr-only">
+                    {runDisabledReason}
+                  </span>
+                )}
                 Retry
               </Button>
             </CardContent>

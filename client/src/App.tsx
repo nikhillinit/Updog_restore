@@ -99,7 +99,7 @@ const PartnersV2 = React.lazy(() => import('@/pages/v2/partners'));
 
 const ONBOARDING_TOUR_STORAGE_KEY = 'onboarding_seen_gp_v1';
 
-function MobileNavigation({
+export function MobileNavigation({
   activeModule,
   onNavigate,
 }: {
@@ -123,6 +123,12 @@ function MobileNavigation({
           const isActive = activeModule === item.id;
           const isDisabled = !isNavigationItemEnabled(item, navigationContext);
           const Icon = item.icon;
+          const disabledReason = isDisabled
+            ? 'Complete fund setup to access this route.'
+            : undefined;
+          const disabledReasonId = disabledReason
+            ? `mobile-navigation-disabled-reason-${item.id}`
+            : undefined;
 
           if (!href || isDisabled) {
             return (
@@ -132,7 +138,13 @@ function MobileNavigation({
                 disabled
                 className="flex min-w-0 items-center gap-2 rounded-md px-3 py-2 text-sm text-charcoal/40"
                 aria-disabled="true"
+                aria-describedby={disabledReasonId}
               >
+                {disabledReason && (
+                  <span id={disabledReasonId} className="sr-only">
+                    {disabledReason}
+                  </span>
+                )}
                 <Icon className="h-4 w-4 flex-shrink-0" />
                 <span className="truncate">{item.label}</span>
               </button>
@@ -144,8 +156,9 @@ function MobileNavigation({
               key={item.id}
               href={href}
               onClick={onNavigate}
+              aria-label={item.label}
               aria-current={isActive ? 'page' : undefined}
-              className={`flex min-w-0 items-center gap-2 rounded-md px-3 py-2 text-sm transition-colors ${
+              className={`flex min-w-0 items-center gap-2 rounded-md px-3 py-2 text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-beige focus-visible:ring-offset-2 ${
                 isActive
                   ? 'bg-slate-900 text-white'
                   : 'text-charcoal/70 hover:bg-slate-100 hover:text-charcoal'
@@ -171,7 +184,7 @@ function MobileNavigationToggle({ isOpen, onToggle }: { isOpen: boolean; onToggl
         onClick={onToggle}
         aria-expanded={isOpen}
         aria-controls="mobile-app-navigation"
-        className="inline-flex min-h-10 items-center gap-2 rounded-md border border-slate-200 px-3 py-2 text-sm font-medium text-charcoal shadow-sm"
+        className="inline-flex min-h-10 items-center gap-2 rounded-md border border-slate-200 px-3 py-2 text-sm font-medium text-charcoal shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-beige focus-visible:ring-offset-2"
       >
         <Icon className="h-4 w-4" />
         Navigation
