@@ -18,7 +18,11 @@ interface ModernWizardProgressProps {
   enableNavigation?: boolean; // Allow clicking on steps to navigate
 }
 
-export function ModernWizardProgress({ steps, currentStepId, enableNavigation = true }: ModernWizardProgressProps) {
+export function ModernWizardProgress({
+  steps,
+  currentStepId,
+  enableNavigation = true,
+}: ModernWizardProgressProps) {
   const [, navigate] = useLocation();
 
   // Map step ID to step number for navigation
@@ -27,7 +31,7 @@ export function ModernWizardProgress({ steps, currentStepId, enableNavigation = 
     'investment-rounds': '2',
     'capital-structure': '3',
     'investment-strategy': '4',
-    'distributions': '5',
+    distributions: '5',
     'cashflow-management': '6',
   };
 
@@ -41,27 +45,27 @@ export function ModernWizardProgress({ steps, currentStepId, enableNavigation = 
   };
 
   return (
-    <div className="bg-white border-b border-beige shadow-card">
-      <div className="max-w-7xl mx-auto px-6 py-8">
+    <div className="bg-white border-b border-beige shadow-sm">
+      <div className="max-w-7xl mx-auto px-6 py-5">
         {/* Header */}
-        <div className="text-center mb-12">
-          <div className="text-2xl font-inter font-bold tracking-wider text-charcoal mb-2">
+        <div className="text-center mb-6">
+          <div className="font-inter text-xs font-semibold uppercase tracking-[0.18em] text-charcoal/70">
             PRESS ON VENTURES
           </div>
-          <h1 className="text-4xl font-poppins font-light text-charcoal tracking-tight">
+          <h1 className="mt-1 font-poppins text-2xl font-light tracking-tight text-charcoal">
             Fund Construction Wizard
           </h1>
         </div>
 
         {/* Progress Indicator */}
-        <div className="mb-12">
+        <div className="mb-2">
           {/* Progress Bar */}
-          <div className="relative mb-8">
+          <div className="relative mb-6">
             <div className="absolute top-1/2 left-0 right-0 h-0.5 bg-beige -translate-y-1/2" />
             <div
               className="absolute top-1/2 left-0 h-0.5 bg-charcoal -translate-y-1/2 transition-all duration-500"
               style={{
-                width: `${((steps.findIndex(s => s.id === currentStepId) + 1) / steps.length) * 100}%`
+                width: `${((steps.findIndex((s) => s.id === currentStepId) + 1) / steps.length) * 100}%`,
               }}
             />
           </div>
@@ -69,7 +73,8 @@ export function ModernWizardProgress({ steps, currentStepId, enableNavigation = 
           {/* Step Circles */}
           <div className="flex justify-between items-center">
             {steps.map((step, index) => {
-              const isCompleted = step.completed || steps.findIndex(s => s.id === currentStepId) > index;
+              const isCompleted =
+                step.completed || steps.findIndex((s) => s.id === currentStepId) > index;
               const isCurrent = step.id === currentStepId;
               const isClickable = enableNavigation && stepToNumber[step.id];
 
@@ -81,33 +86,28 @@ export function ModernWizardProgress({ steps, currentStepId, enableNavigation = 
                     onClick={() => handleStepClick(step.id)}
                     disabled={!isClickable}
                     className={cn(
-                      "w-12 h-12 rounded-full flex items-center justify-center font-inter font-semibold text-sm transition-all duration-300 relative z-10",
+                      'w-10 h-10 rounded-full flex items-center justify-center font-inter font-semibold text-sm transition-all duration-300 relative z-10',
                       isCompleted
-                        ? "bg-charcoal text-white"
+                        ? 'bg-charcoal text-white'
                         : isCurrent
-                        ? "bg-charcoal text-white ring-4 ring-beige"
-                        : "bg-white border-2 border-beige text-charcoal/60",
-                      isClickable && "hover:scale-110 cursor-pointer",
-                      !isClickable && "cursor-default"
+                          ? 'bg-charcoal text-white ring-4 ring-beige'
+                          : 'bg-white border-2 border-beige text-charcoal/60',
+                      isClickable && 'hover:scale-110 cursor-pointer',
+                      !isClickable && 'cursor-default'
                     )}
                   >
-                    {isCompleted && !isCurrent ? (
-                      <Check className="w-6 h-6" />
-                    ) : (
-                      step.number
-                    )}
+                    {isCompleted && !isCurrent ? <Check className="w-5 h-5" /> : step.number}
                   </button>
 
                   {/* Step Info */}
-                  <div className="mt-4 text-center max-w-32">
-                    <div className={cn(
-                      "font-poppins font-medium text-sm uppercase tracking-wide",
-                      isCurrent ? "text-charcoal" : "text-charcoal/50"
-                    )}>
+                  <div className="mt-3 text-center max-w-28">
+                    <div
+                      className={cn(
+                        'font-poppins text-xs font-medium uppercase tracking-wide',
+                        isCurrent ? 'text-charcoal' : 'text-charcoal/50'
+                      )}
+                    >
                       {step.title}
-                    </div>
-                    <div className="font-poppins text-xs text-charcoal/40 mt-1 leading-tight">
-                      {step.description}
                     </div>
                   </div>
                 </div>

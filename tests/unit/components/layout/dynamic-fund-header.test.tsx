@@ -1,5 +1,5 @@
 import React from 'react';
-import { fireEvent, render, screen } from '@testing-library/react';
+import { render, screen } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { UnifiedFundMetrics } from '@shared/types/metrics';
 import DynamicFundHeader from '@/components/layout/dynamic-fund-header';
@@ -298,10 +298,10 @@ describe('DynamicFundHeader', () => {
 
     render(<DynamicFundHeader />);
 
-    fireEvent.click(screen.getByRole('button', { name: 'TVPI' }));
-
-    expect(screen.getByText('TVPI:').parentElement).toHaveTextContent('N/A');
-    expect(screen.getByText('TVPI:').parentElement).toHaveAttribute(
+    const tvpiCard = screen.getByTestId('compact-kpi-tvpi');
+    expect(tvpiCard).toHaveTextContent('TVPI');
+    expect(tvpiCard).toHaveTextContent('N/A');
+    expect(tvpiCard).toHaveAttribute(
       'title',
       'TVPI is unavailable until paid-in capital is available.'
     );
@@ -313,15 +313,14 @@ describe('DynamicFundHeader', () => {
 
     render(<DynamicFundHeader />);
 
-    const panel = screen.getByText('DPI:').parentElement;
+    const panel = screen.getByTestId('compact-kpi-dpi');
     expect(panel).toHaveTextContent('No distributions');
     expect(panel).toHaveAttribute(
       'title',
       'DPI is unavailable because no distributions have been recorded.'
     );
-    expect(panel?.querySelector('.sr-only')).toHaveTextContent(
-      'DPI is unavailable because no distributions have been recorded.'
-    );
+    expect(screen.queryByText('DPI:')).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'DPI' })).not.toBeInTheDocument();
   });
 
   it('uses the shared normalized current NAV for compact NAV', () => {
@@ -329,10 +328,10 @@ describe('DynamicFundHeader', () => {
 
     render(<DynamicFundHeader />);
 
-    fireEvent.click(screen.getByRole('button', { name: 'NAV' }));
-
-    expect(screen.getByText('NAV:').parentElement).toHaveTextContent('$40.0M');
-    expect(screen.getByText('NAV:').parentElement).not.toHaveTextContent('$46.0M');
+    const navCard = screen.getByTestId('compact-kpi-nav');
+    expect(navCard).toHaveTextContent('NAV');
+    expect(navCard).toHaveTextContent('$40.0M');
+    expect(navCard).not.toHaveTextContent('$46.0M');
   });
 
   it('explains compact KPI source failures without showing stale values', () => {
@@ -345,7 +344,7 @@ describe('DynamicFundHeader', () => {
 
     render(<DynamicFundHeader />);
 
-    const panel = screen.getByText('DPI:').parentElement;
+    const panel = screen.getByTestId('compact-kpi-dpi');
     expect(panel).toHaveTextContent('Metrics unavailable');
     expect(panel).toHaveAttribute(
       'title',
