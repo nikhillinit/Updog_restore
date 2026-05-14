@@ -193,11 +193,57 @@ describe('DynamicFundHeader', () => {
 
     expect(metricLabel('Total Invested').parentElement).toHaveTextContent('$12M');
     expect(metricLabel('Current Value').parentElement).toHaveTextContent('$46M');
+    expect(metricLabel('Remaining').parentElement).toHaveTextContent('$38M');
     expect(metricLabel('Net IRR').parentElement).toHaveTextContent('Needs history');
     expect(metricLabel('TVPI').parentElement).toHaveTextContent('2.30x');
     expect(metricLabel('DPI').parentElement).toHaveTextContent('No distributions');
     expect(metricLabel('Active').parentElement).toHaveTextContent('3');
     expect(screen.getByText('24% Deployed')).toBeInTheDocument();
+  });
+
+  it('uses deployed capital, not accounting uncalled capital, for header remaining capital', () => {
+    mockUseFundMetrics.mockReturnValue({
+      data: makeMetrics({
+        totalCommitted: 50_000_000,
+        totalCalled: 20_000_000,
+        totalDeployed: 12_000_000,
+        totalUncalled: 30_000_000,
+      }),
+      isLoading: false,
+      error: null,
+    });
+
+    render(<DynamicFundHeader />);
+
+    expect(metricLabel('Remaining').parentElement).toHaveTextContent('$38M');
+    expect(metricLabel('Remaining').parentElement).not.toHaveTextContent('$30M');
+  });
+
+  it('renders a neutral awaiting-deployment state for a new fund with actual zero deployment', () => {
+    mockUseFundMetrics.mockReturnValue({
+      data: makeMetrics({
+        totalCalled: 0,
+        totalDeployed: 0,
+        totalUncalled: 50_000_000,
+        currentNAV: 0,
+        totalDistributions: 0,
+        totalValue: 0,
+        tvpi: 0,
+        deploymentRate: 0,
+        activeCompanies: 0,
+        totalCompanies: 0,
+        averageCheckSize: 0,
+      }),
+      isLoading: false,
+      error: null,
+    });
+
+    render(<DynamicFundHeader />);
+
+    expect(screen.getByText('Awaiting deployment')).toBeInTheDocument();
+    expect(metricLabel('Total Invested').parentElement).toHaveTextContent('$0');
+    expect(metricLabel('Current Value').parentElement).toHaveTextContent('$0');
+    expect(metricLabel('Remaining').parentElement).toHaveTextContent('$50M');
   });
 
   it('renders calculated IRR and DPI when actual cash-flow metrics are available', () => {
@@ -263,5 +309,16 @@ describe('DynamicFundHeader', () => {
     render(<DynamicFundHeader />);
 
     expect(screen.getByText('DPI:').parentElement).toHaveTextContent('No distributions');
+  });
+
+  it('uses the shared normalized current NAV for compact NAV', () => {
+    mockUseFlag.mockReturnValue(true);
+
+    render(<DynamicFundHeader />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'NAV' }));
+
+    expect(screen.getByText('NAV:').parentElement).toHaveTextContent('$40.0M');
+    expect(screen.getByText('NAV:').parentElement).not.toHaveTextContent('$46.0M');
   });
 });

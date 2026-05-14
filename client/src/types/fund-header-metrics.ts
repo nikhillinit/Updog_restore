@@ -62,6 +62,7 @@ export interface CompactHeaderViewModel {
 export interface HeaderMetrics {
   totalCommitted: number;
   totalInvested: number | null;
+  currentNAV: number | null;
   totalValue: number | null;
   irr: number | null;
   moic: number | null;
@@ -71,7 +72,7 @@ export interface HeaderMetrics {
   exited: number;
   avgCheckSize: number | null;
   deploymentRate: number | null;
-  remainingCapital: number | null;
+  remainingDeployableCapital: number | null;
   availability: {
     irr: MetricAvailabilityDetail;
     dpi: MetricAvailabilityDetail;

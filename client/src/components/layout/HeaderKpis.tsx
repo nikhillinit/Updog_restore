@@ -95,6 +95,7 @@ export default function HeaderKpis() {
 
   const viewModel = buildCompactHeaderViewModel(
     currentFund.name,
+    currentFund.size,
     metrics?.actual,
     selectedKPI,
     isLoading,

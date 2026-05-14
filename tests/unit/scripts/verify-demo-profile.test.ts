@@ -112,8 +112,13 @@ function persistentEnv(): NodeJS.ProcessEnv {
   } as NodeJS.ProcessEnv;
 }
 
-function buildUnifiedMetrics(overrides: Partial<UnifiedFundMetrics['actual']> = {}) {
-  const actual: UnifiedFundMetrics['actual'] = {
+type ActualMetricTestOverrides = Partial<UnifiedFundMetrics['actual']> & {
+  remainingDeployableCapital?: number;
+  provenance?: Record<string, unknown>;
+};
+
+function buildUnifiedMetrics(overrides: ActualMetricTestOverrides = {}) {
+  const actual: UnifiedFundMetrics['actual'] & ActualMetricTestOverrides = {
     asOfDate: '2026-01-31T00:00:00.000Z',
     totalCommitted: 20_000_000,
     totalCalled: 1_000_000,
@@ -414,6 +419,213 @@ describe('verify-demo-profile helpers', () => {
       expect.objectContaining({
         expected: expect.objectContaining({ totalInvested: 1_000_000 }),
         actual: expect.objectContaining({ totalInvested: 2_000_000 }),
+      })
+    );
+  });
+
+  it('rejects negative monetary fields with API_MONETARY_FIELD_NEGATIVE', async () => {
+    mockApiReadback(buildUnifiedMetrics({ currentNAV: -1, totalValue: -1 }));
+
+    const report = await verifyDemoProfile({
+      fundId: 77,
+      bundle: buildDemoProfileImportBundle(),
+      store: buildStore(buildLedgerRows(77)),
+      apiBaseUrl: 'http://localhost:5000',
+      env: persistentEnv(),
+    });
+
+    expect(report.issues).toContainEqual(
+      expect.objectContaining({
+        layer: 'api',
+        code: 'API_MONETARY_FIELD_NEGATIVE',
+        actual: { field: 'currentNAV', value: -1 },
+      })
+    );
+  });
+
+  it('rejects totalDeployed above totalCommitted with API_TOTAL_DEPLOYED_EXCEEDS_COMMITTED', async () => {
+    mockApiReadback(
+      buildUnifiedMetrics({
+        totalCommitted: 1_000_000,
+        totalCalled: 1_000_000,
+        totalDeployed: 2_000_000,
+        totalUncalled: 0,
+        deploymentRate: 200,
+      })
+    );
+
+    const report = await verifyDemoProfile({
+      fundId: 77,
+      bundle: buildDemoProfileImportBundle(),
+      store: buildStore(buildLedgerRows(77)),
+      apiBaseUrl: 'http://localhost:5000',
+      env: persistentEnv(),
+    });
+
+    expect(report.issues).toContainEqual(
+      expect.objectContaining({
+        layer: 'api',
+        code: 'API_TOTAL_DEPLOYED_EXCEEDS_COMMITTED',
+      })
+    );
+  });
+
+  it('rejects totalValue that does not equal currentNAV plus totalDistributions', async () => {
+    mockApiReadback(buildUnifiedMetrics({ totalDistributions: 500_000, totalValue: 4_500_000 }));
+
+    const report = await verifyDemoProfile({
+      fundId: 77,
+      bundle: buildDemoProfileImportBundle(),
+      store: buildStore(buildLedgerRows(77)),
+      apiBaseUrl: 'http://localhost:5000',
+      env: persistentEnv(),
+    });
+
+    expect(report.issues).toContainEqual(
+      expect.objectContaining({
+        layer: 'api',
+        code: 'API_TOTAL_VALUE_INVARIANT_FAILED',
+        expected: 5_000_000,
+        actual: 4_500_000,
+      })
+    );
+  });
+
+  it('rejects deploymentRate that does not equal deployed over committed percent', async () => {
+    mockApiReadback(buildUnifiedMetrics({ deploymentRate: 7 }));
+
+    const report = await verifyDemoProfile({
+      fundId: 77,
+      bundle: buildDemoProfileImportBundle(),
+      store: buildStore(buildLedgerRows(77)),
+      apiBaseUrl: 'http://localhost:5000',
+      env: persistentEnv(),
+    });
+
+    expect(report.issues).toContainEqual(
+      expect.objectContaining({
+        layer: 'api',
+        code: 'API_DEPLOYMENT_RATE_INVARIANT_FAILED',
+        expected: 5,
+        actual: 7,
+      })
+    );
+  });
+
+  it('rejects totalUncalled that does not equal committed minus called', async () => {
+    mockApiReadback(buildUnifiedMetrics({ totalUncalled: 18_000_000 }));
+
+    const report = await verifyDemoProfile({
+      fundId: 77,
+      bundle: buildDemoProfileImportBundle(),
+      store: buildStore(buildLedgerRows(77)),
+      apiBaseUrl: 'http://localhost:5000',
+      env: persistentEnv(),
+    });
+
+    expect(report.issues).toContainEqual(
+      expect.objectContaining({
+        layer: 'api',
+        code: 'API_ACCOUNTING_UNCALLED_INVARIANT_FAILED',
+        expected: 19_000_000,
+        actual: 18_000_000,
+      })
+    );
+  });
+
+  it('rejects header remainingDeployableCapital that does not equal committed minus deployed', async () => {
+    mockApiReadback(buildUnifiedMetrics({ remainingDeployableCapital: 18_000_000 }));
+
+    const report = await verifyDemoProfile({
+      fundId: 77,
+      bundle: buildDemoProfileImportBundle(),
+      store: buildStore(buildLedgerRows(77)),
+      apiBaseUrl: 'http://localhost:5000',
+      env: persistentEnv(),
+    });
+
+    expect(report.issues).toContainEqual(
+      expect.objectContaining({
+        layer: 'api',
+        code: 'API_HEADER_REMAINING_DEPLOYABLE_CAPITAL_INVARIANT_FAILED',
+        expected: 19_000_000,
+        actual: 18_000_000,
+      })
+    );
+  });
+
+  it('rejects non-finite numeric readbacks instead of treating them as close', async () => {
+    mockApiReadback(
+      buildUnifiedMetrics({
+        remainingDeployableCapital: Number.NaN,
+      })
+    );
+
+    const report = await verifyDemoProfile({
+      fundId: 77,
+      bundle: buildDemoProfileImportBundle(),
+      store: buildStore(buildLedgerRows(77)),
+      apiBaseUrl: 'http://localhost:5000',
+      env: persistentEnv(),
+    });
+
+    expect(report.issues).toContainEqual(
+      expect.objectContaining({
+        layer: 'api',
+        code: 'API_HEADER_REMAINING_DEPLOYABLE_CAPITAL_INVARIANT_FAILED',
+      })
+    );
+  });
+
+  it('rejects zero deployed with non-zero currentNAV unless explicit provenance exists', async () => {
+    mockApiReadback(
+      buildUnifiedMetrics({
+        totalCalled: 0,
+        totalDeployed: 0,
+        totalUncalled: 20_000_000,
+        deploymentRate: 0,
+        averageCheckSize: 0,
+      })
+    );
+
+    const report = await verifyDemoProfile({
+      fundId: 77,
+      bundle: buildDemoProfileImportBundle(),
+      store: buildStore(buildLedgerRows(77)),
+      apiBaseUrl: 'http://localhost:5000',
+      env: persistentEnv(),
+    });
+
+    expect(report.issues).toContainEqual(
+      expect.objectContaining({
+        layer: 'api',
+        code: 'API_ZERO_DEPLOYED_NONZERO_NAV_WITHOUT_PROVENANCE',
+      })
+    );
+
+    mockApiReadback(
+      buildUnifiedMetrics({
+        totalCalled: 0,
+        totalDeployed: 0,
+        totalUncalled: 20_000_000,
+        deploymentRate: 0,
+        averageCheckSize: 0,
+        provenance: { currentNAV: 'external-mark-source' },
+      })
+    );
+
+    const reportWithProvenance = await verifyDemoProfile({
+      fundId: 77,
+      bundle: buildDemoProfileImportBundle(),
+      store: buildStore(buildLedgerRows(77)),
+      apiBaseUrl: 'http://localhost:5000',
+      env: persistentEnv(),
+    });
+
+    expect(reportWithProvenance.issues).not.toContainEqual(
+      expect.objectContaining({
+        layer: 'api',
+        code: 'API_ZERO_DEPLOYED_NONZERO_NAV_WITHOUT_PROVENANCE',
       })
     );
   });

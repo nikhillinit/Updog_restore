@@ -87,14 +87,19 @@ export function buildFundHeaderViewModel(
 
 export function buildCompactHeaderViewModel(
   fundName: string,
+  currentFundSize: number,
   actual: ActualMetrics | undefined,
   selectedKpi: CompactKpiKey,
   isLoading: boolean,
   hasError: boolean
 ): CompactHeaderViewModel {
+  const displayMetrics = actual
+    ? actualHeaderMetrics(currentFundSize, actual)
+    : emptyHeaderMetrics(currentFundSize);
+
   return {
     items: COMPACT_KPI_KEYS.map((key) => buildCompactKpiItem(key, selectedKpi)),
-    selected: buildSelectedCompactKpi(selectedKpi, actual, hasError),
+    selected: buildSelectedCompactKpi(selectedKpi, displayMetrics, hasError),
     isLoading,
     fundName,
   };
@@ -110,6 +115,7 @@ function emptyHeaderMetrics(currentFundSize: number): HeaderMetrics {
   return {
     totalCommitted: currentFundSize,
     totalInvested: null,
+    currentNAV: null,
     totalValue: null,
     irr: null,
     moic: null,
@@ -119,7 +125,7 @@ function emptyHeaderMetrics(currentFundSize: number): HeaderMetrics {
     exited: 0,
     avgCheckSize: null,
     deploymentRate: null,
-    remainingCapital: null,
+    remainingDeployableCapital: null,
     availability: {
       irr: unavailableMetric('cashflows', 'Metrics unavailable'),
       dpi: unavailableMetric('distributions', 'Metrics unavailable'),
@@ -128,12 +134,15 @@ function emptyHeaderMetrics(currentFundSize: number): HeaderMetrics {
 }
 
 function actualHeaderMetrics(currentFundSize: number, actual: ActualMetrics): HeaderMetrics {
+  const totalCommitted = numberWithFallback(actual.totalCommitted, currentFundSize);
   const totalInvested = nullableNumber(actual.totalDeployed);
+  const currentNAV = nullableNumber(actual.currentNAV);
   const totalValue = getTotalValue(actual);
 
   return {
-    totalCommitted: numberWithFallback(actual.totalCommitted, currentFundSize),
+    totalCommitted,
     totalInvested,
+    currentNAV,
     totalValue,
     irr: nullableNumber(actual.irr),
     moic: calculateMoic(totalInvested, totalValue),
@@ -143,7 +152,7 @@ function actualHeaderMetrics(currentFundSize: number, actual: ActualMetrics): He
     exited: numberWithFallback(actual.exitedCompanies, 0),
     avgCheckSize: nullableNumber(actual.averageCheckSize),
     deploymentRate: nullableNumber(actual.deploymentRate),
-    remainingCapital: nullableNumber(actual.totalUncalled),
+    remainingDeployableCapital: calculateRemainingDeployableCapital(totalCommitted, totalInvested),
     availability: {
       irr: getIrrAvailability(actual),
       dpi: getDpiAvailability(actual),
@@ -175,18 +184,6 @@ function getDpiAvailability(actual: ActualMetrics): MetricAvailabilityDetail {
   return { status: 'available', source: 'distributions' };
 }
 
-function getCompactDpiAvailability(actual: ActualMetrics): MetricAvailabilityDetail | undefined {
-  if (actual.availability?.dpi) return actual.availability.dpi;
-  if (actual.dpi == null) {
-    return unavailableMetric(
-      'distributions',
-      'No distributions recorded',
-      'no_distributions_recorded'
-    );
-  }
-  return undefined;
-}
-
 function getTotalValue(actual: ActualMetrics) {
   const totalValue = nullableNumber(actual.totalValue);
   if (totalValue != null) return totalValue;
@@ -204,6 +201,11 @@ function calculateMoic(totalInvested: number | null, totalValue: number | null) 
   if (totalInvested <= 0) return null;
   if (totalValue == null) return null;
   return totalValue / totalInvested;
+}
+
+function calculateRemainingDeployableCapital(totalCommitted: number, totalInvested: number | null) {
+  if (totalInvested == null) return null;
+  return totalCommitted - totalInvested;
 }
 
 function nullableNumber(value: number | null | undefined) {
@@ -297,7 +299,10 @@ function buildHeaderMetricCards(
     {
       key: 'remainingCapital',
       title: 'Remaining',
-      displayValue: formatMetricCurrency(metrics.remainingCapital, metricDisplayUnavailable),
+      displayValue: formatMetricCurrency(
+        metrics.remainingDeployableCapital,
+        metricDisplayUnavailable
+      ),
       theme: 'beige',
       icon: 'calendar',
     },
@@ -311,6 +316,7 @@ function getDeploymentBadgeText(
 ) {
   if (metricsLoading) return 'Metrics loading';
   if (metricUnavailable) return 'Metrics unavailable';
+  if (deploymentRate === 0) return 'Awaiting deployment';
   return `${formatDeploymentRate(deploymentRate)}% Deployed`;
 }
 
@@ -349,13 +355,13 @@ function buildCompactKpiItem(key: CompactKpiKey, selectedKpi: CompactKpiKey): Co
 
 function buildSelectedCompactKpi(
   selectedKpi: CompactKpiKey,
-  actual: ActualMetrics | undefined,
+  metrics: HeaderMetrics,
   hasError: boolean
 ): CompactKpiSelectedModel {
   const item = buildCompactKpiItem(selectedKpi, selectedKpi);
   const definition = COMPACT_KPI_DEFINITIONS[selectedKpi];
-  const value = getCompactKpiValue(actual, selectedKpi);
-  const availability = getCompactKpiAvailability(actual, selectedKpi);
+  const value = getCompactKpiValue(metrics, selectedKpi);
+  const availability = getCompactKpiAvailability(metrics, selectedKpi);
 
   return {
     ...item,
@@ -368,21 +374,18 @@ function buildSelectedCompactKpi(
   };
 }
 
-function getCompactKpiValue(actual: ActualMetrics | undefined, selectedKpi: CompactKpiKey) {
-  if (!actual) return null;
-
+function getCompactKpiValue(metrics: HeaderMetrics, selectedKpi: CompactKpiKey) {
   switch (selectedKpi) {
     case 'dpi':
-      return nullableNumber(actual.dpi);
+      return metrics.dpi;
     case 'tvpi':
-      return getTvpi(actual);
+      return metrics.tvpi;
     case 'nav':
-      return nullableNumber(actual.currentNAV);
+      return metrics.currentNAV;
   }
 }
 
-function getCompactKpiAvailability(actual: ActualMetrics | undefined, selectedKpi: CompactKpiKey) {
-  if (!actual) return undefined;
+function getCompactKpiAvailability(metrics: HeaderMetrics, selectedKpi: CompactKpiKey) {
   if (selectedKpi !== 'dpi') return undefined;
-  return getCompactDpiAvailability(actual);
+  return metrics.availability.dpi;
 }
