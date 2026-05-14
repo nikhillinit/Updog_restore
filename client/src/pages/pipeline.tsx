@@ -19,7 +19,7 @@ import { useState, useCallback, useEffect, useRef } from 'react';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { useSearch, useLocation } from 'wouter';
 import { useFundContext } from '@/contexts/FundContext';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
@@ -131,29 +131,42 @@ function KanbanColumnSkeleton() {
 }
 
 // Empty state component
-function EmptyPipelineState({ onAddDeal }: { onAddDeal: () => void }) {
+function EmptyPipelineState({
+  onAddDeal,
+  onImportDeals,
+}: {
+  onAddDeal: () => void;
+  onImportDeals: () => void;
+}) {
   return (
-    <Card className="border-dashed border-2 border-pov-beige bg-white/50">
+    <Card
+      className="border-dashed border-2 border-pov-beige bg-white/50"
+      data-testid="pipeline-empty-state"
+    >
       <CardHeader className="text-center pb-2">
         <div className="mx-auto w-16 h-16 rounded-full bg-pov-charcoal/5 flex items-center justify-center mb-4">
           <LineChart className="h-8 w-8 text-pov-charcoal/40" />
         </div>
-        <CardTitle className="font-inter text-xl text-pov-charcoal">
+        <h3 className="font-inter text-xl font-bold text-pov-charcoal">
           No deals in your pipeline
-        </CardTitle>
+        </h3>
       </CardHeader>
       <CardContent className="text-center">
         <p className="font-poppins text-sm text-gray-500 mb-6 max-w-md mx-auto">
           Add deals to track diligence, scoring, and next steps. Import existing deals from a
           spreadsheet or add them manually.
         </p>
-        <div className="flex items-center justify-center gap-3">
+        <div className="flex flex-col items-center justify-center gap-3 sm:flex-row">
           <Button
             onClick={onAddDeal}
             className="bg-pov-charcoal hover:bg-pov-charcoal/90 text-pov-white"
           >
             <Plus className="h-4 w-4 mr-2" />
             Add deal
+          </Button>
+          <Button variant="outline" onClick={onImportDeals} className="border-pov-beige">
+            <Upload className="h-4 w-4 mr-2" />
+            Import deals
           </Button>
         </div>
       </CardContent>
@@ -742,7 +755,10 @@ export default function PipelinePage() {
               ))}
             </div>
           ) : !hasDeals && !hasFilters ? (
-            <EmptyPipelineState onAddDeal={() => setIsAddModalOpen(true)} />
+            <EmptyPipelineState
+              onAddDeal={() => setIsAddModalOpen(true)}
+              onImportDeals={() => setIsImportModalOpen(true)}
+            />
           ) : !hasDeals && hasFilters ? (
             <Card className="border-pov-beige/50 bg-white/50">
               <CardContent className="pt-6 text-center">

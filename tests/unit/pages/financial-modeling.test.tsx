@@ -9,11 +9,16 @@ vi.mock('@/components/dashboard/dual-forecast-dashboard', () => ({
 }));
 
 describe('FinancialModeling page', () => {
-  it('defaults to the live forecasting surface', () => {
+  it('defaults to the API-based projection surface', () => {
     render(<FinancialModeling />);
 
-    expect(screen.getByRole('heading', { name: /financial modeling & forecasting/i })).toBeInTheDocument();
-    expect(screen.getByRole('tab', { name: /live forecasting/i })).toBeInTheDocument();
+    expect(
+      screen.getByRole('heading', { name: /financial modeling & forecasting/i })
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(/forward-looking values are labeled as projections/i)
+    ).toBeInTheDocument();
+    expect(screen.getByRole('tab', { name: /api-based projection/i })).toBeInTheDocument();
     expect(screen.getByRole('tab', { name: /scenario modeling/i })).toBeInTheDocument();
     expect(screen.getByText('Dual Forecast Dashboard')).toBeInTheDocument();
   });

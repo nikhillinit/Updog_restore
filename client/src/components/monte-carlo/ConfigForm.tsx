@@ -5,7 +5,11 @@ import { Label } from '@/components/ui/label';
 import { Slider } from '@/components/ui/slider';
 import { Checkbox } from '@/components/ui/checkbox';
 import { useScenarios } from '@/hooks/useBacktesting';
-import type { BacktestConfig, BacktestMetric, HistoricalScenarioName } from '@shared/types/backtesting';
+import type {
+  BacktestConfig,
+  BacktestMetric,
+  HistoricalScenarioName,
+} from '@shared/types/backtesting';
 
 const ALL_METRICS: { value: BacktestMetric; label: string }[] = [
   { value: 'irr', label: 'IRR' },
@@ -22,6 +26,10 @@ const SCENARIO_LABELS: Record<string, string> = {
   bull_market_2021: '2021 Bull Market',
   rate_hikes_2022: '2022 Rate Hikes',
 };
+
+const SIMULATION_RUNS_MIN = 1000;
+const SIMULATION_RUNS_MAX = 50000;
+const SIMULATION_RUNS_STEP = 1000;
 
 type FormConfigState = {
   startDate: string;
@@ -61,6 +69,17 @@ function getConfigDefaults(lastConfig: BacktestConfig | null) {
 
 function toggleListItem<T>(list: T[], item: T): T[] {
   return list.includes(item) ? list.filter((x) => x !== item) : [...list, item];
+}
+
+function clampSimulationRuns(value: number): number {
+  if (!Number.isFinite(value)) return SIMULATION_RUNS_MIN;
+  return Math.min(SIMULATION_RUNS_MAX, Math.max(SIMULATION_RUNS_MIN, Math.round(value)));
+}
+
+function parseSimulationRunsInput(value: string, fallback: number): number {
+  if (value.trim() === '') return fallback;
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? clampSimulationRuns(parsed) : fallback;
 }
 
 function buildBacktestConfig(fundId: number, state: FormConfigState): BacktestConfig {
@@ -165,7 +184,7 @@ function DateRangeFields({
   );
 }
 
-function SimulationRunsSlider({
+function SimulationRunsControl({
   value,
   onChange,
   disabled,
@@ -174,20 +193,42 @@ function SimulationRunsSlider({
   onChange: (v: number) => void;
   disabled: boolean;
 }) {
+  const inputId = 'simulationRuns';
+  const helpId = 'simulationRunsHelp';
+
   return (
-    <div>
-      <Label className="text-xs">
-        Simulation Runs: <span className="font-mono">{value.toLocaleString()}</span>
-      </Label>
+    <div className="space-y-2">
+      <div className="flex items-end justify-between gap-3">
+        <Label htmlFor={inputId} className="text-xs">
+          Simulation Runs
+        </Label>
+        <Input
+          id={inputId}
+          type="number"
+          inputMode="numeric"
+          min={SIMULATION_RUNS_MIN}
+          max={SIMULATION_RUNS_MAX}
+          step={SIMULATION_RUNS_STEP}
+          value={value}
+          onChange={(e) => onChange(parseSimulationRunsInput(e.target.value, value))}
+          disabled={disabled}
+          aria-describedby={helpId}
+          className="h-8 w-32 text-right font-mono"
+        />
+      </div>
       <Slider
         value={[value]}
         onValueChange={([v]) => v !== undefined && onChange(v)}
-        min={1000}
-        max={50000}
-        step={1000}
+        min={SIMULATION_RUNS_MIN}
+        max={SIMULATION_RUNS_MAX}
+        step={SIMULATION_RUNS_STEP}
         disabled={disabled}
+        aria-label="Simulation Runs slider"
         className="mt-2"
       />
+      <p id={helpId} className="text-[11px] text-gray-500">
+        {SIMULATION_RUNS_MIN.toLocaleString()} to {SIMULATION_RUNS_MAX.toLocaleString()} runs
+      </p>
     </div>
   );
 }
@@ -327,7 +368,7 @@ function ConfigFormFields({
         onEndChange={form.setEndDate}
         disabled={disabled}
       />
-      <SimulationRunsSlider
+      <SimulationRunsControl
         value={form.simulationRuns}
         onChange={form.setSimulationRuns}
         disabled={disabled}

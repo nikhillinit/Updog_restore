@@ -45,6 +45,47 @@ function renderWithQueryClient() {
   );
 }
 
+function makeDashboardSummary() {
+  return {
+    fund: {
+      id: 42,
+      name: 'Fund Forty Two',
+      size: '20000000',
+      deployedCapital: '5000000',
+      managementFee: '2',
+      carryPercentage: '20',
+      vintageYear: 2024,
+      status: 'active',
+    },
+    portfolioCompanies: [
+      {
+        id: 1,
+        name: 'Northstar AI',
+        sector: 'AI',
+        stage: 'Seed',
+        investmentAmount: '2500000',
+        currentValuation: '7000000',
+        foundedYear: 2021,
+        status: 'active',
+        description: null,
+      },
+    ],
+    recentActivities: [],
+    metrics: {
+      totalValue: '7000000',
+      irr: '0.18',
+      multiple: '2.8',
+      dpi: '0',
+      tvpi: '2.8',
+    },
+    summary: {
+      totalCompanies: 1,
+      deploymentRate: 25,
+      currentIRR: 0.18,
+    },
+  };
+}
+
 describe('DualForecastDashboard', () => {
   afterEach(() => {
     cleanup();
@@ -105,5 +146,43 @@ describe('DualForecastDashboard', () => {
 
     expect(screen.getByText(/forecasting unavailable in demo mode/i)).toBeInTheDocument();
     expect(fetchSpy).not.toHaveBeenCalled();
+  });
+
+  it('labels forward-looking forecast outputs separately from API actuals', async () => {
+    mockFundContext = {
+      currentFund: { id: 42, name: 'Fund Forty Two' },
+      isLoading: false,
+      needsSetup: false,
+      isDemoMode: false,
+    };
+
+    vi.spyOn(globalThis, 'fetch').mockImplementation(async (input: RequestInfo | URL) => {
+      const url = typeof input === 'string' ? input : input.toString();
+
+      if (url.includes('/api/dashboard-summary/42')) {
+        return new Response(JSON.stringify(makeDashboardSummary()), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        });
+      }
+
+      if (url.includes('/api/fund-metrics/42')) {
+        return new Response(JSON.stringify({}), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        });
+      }
+
+      return new Response('not found', { status: 404, statusText: 'Not Found' });
+    });
+
+    renderWithQueryClient();
+
+    expect(await screen.findByText('Projected scenario')).toBeInTheDocument();
+    expect(screen.getByText('API actuals')).toBeInTheDocument();
+    expect(screen.getByText(/projection, not actuals/i)).toBeInTheDocument();
+    expect(screen.getByText(/flat monthly deployment assumption/i)).toBeInTheDocument();
+    expect(screen.queryByText('Live Data')).toBeNull();
+    expect(screen.queryByText('Real-time')).toBeNull();
   });
 });

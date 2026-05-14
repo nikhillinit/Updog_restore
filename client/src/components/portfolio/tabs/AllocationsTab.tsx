@@ -22,7 +22,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
 import { useFundContext } from '@/contexts/FundContext';
 import { format } from 'date-fns';
-import { AlertCircle, ArrowLeft, RefreshCw, Save, Search } from 'lucide-react';
+import { AlertCircle, ArrowLeft, Plus, RefreshCw, Save, Search } from 'lucide-react';
 import { useLatestAllocations } from './hooks/useLatestAllocations';
 import {
   useAllocationScenarioApplyPreview,
@@ -37,6 +37,7 @@ import {
   useUpdateAllocationScenario,
 } from './hooks/useAllocationScenarios';
 import { useReserveIcPacketEvidence } from './hooks/useReserveIcPacketEvidence';
+import { AddCompanyDialog } from './AddCompanyDialog';
 import { EditAllocationDialog } from './EditAllocationDialog';
 import { ReserveIcPacketCard } from './ReserveIcPacketCard';
 import { createAllocationsColumns } from './allocations-table-columns';
@@ -325,6 +326,7 @@ export function AllocationsTab() {
   } = useAllocationScenarioList();
   const [selectedCompanyId, setSelectedCompanyId] = useState<number | null>(null);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [isAddCompanyDialogOpen, setIsAddCompanyDialogOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [sectorFilter, setSectorFilter] = useState<string>('all');
   const [statusFilter, setStatusFilter] = useState<string>('all');
@@ -1073,19 +1075,48 @@ export function AllocationsTab() {
 
   if (displayedCompanies.length === 0) {
     return (
-      <Card>
-        <CardHeader>
-          <CardTitle>Company Allocations</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="text-center py-12 text-gray-500">
-            <p className="text-lg font-medium mb-2">No portfolio companies found</p>
-            <p className="text-sm">
-              Add portfolio companies to this fund before creating reserve allocations.
-            </p>
-          </div>
-        </CardContent>
-      </Card>
+      <>
+        <Card>
+          <CardHeader>
+            <CardTitle>Company Allocations</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div
+              className="mx-auto flex max-w-md flex-col items-center py-12 text-center text-gray-600"
+              data-testid="reserve-planning-empty-state"
+            >
+              <div className="mb-4 rounded-full bg-slate-100 p-3">
+                <Plus className="h-5 w-5 text-slate-700" />
+              </div>
+              <p className="mb-2 text-lg font-medium text-gray-900">No portfolio companies found</p>
+              <p className="text-sm">
+                Add a company to this fund before creating reserve allocations and IC decisions.
+              </p>
+              <Button
+                className="mt-5"
+                disabled={!fundId}
+                onClick={() => setIsAddCompanyDialogOpen(true)}
+                data-testid="reserve-planning-add-company-button"
+              >
+                <Plus className="h-4 w-4 mr-2" />
+                Add Company
+              </Button>
+              {!fundId ? (
+                <p className="mt-2 text-xs text-gray-500">
+                  Select a fund before adding portfolio companies.
+                </p>
+              ) : null}
+            </div>
+          </CardContent>
+        </Card>
+        {fundId ? (
+          <AddCompanyDialog
+            fundId={fundId}
+            open={isAddCompanyDialogOpen}
+            onOpenChange={setIsAddCompanyDialogOpen}
+          />
+        ) : null}
+      </>
     );
   }
 
