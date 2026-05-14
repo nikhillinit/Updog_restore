@@ -46,12 +46,11 @@ export interface CompactKpiItemModel {
   colorClassName: string;
   description: string;
   isSelected: boolean;
-}
-
-export interface CompactKpiSelectedModel extends CompactKpiItemModel {
   displayValue: string;
   explanation: string;
 }
+
+export type CompactKpiSelectedModel = CompactKpiItemModel;
 
 export interface CompactHeaderViewModel {
   items: CompactKpiItemModel[];

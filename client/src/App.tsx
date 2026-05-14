@@ -26,6 +26,7 @@ import {
 } from '@/components/layout/navigation-config';
 // import Header from "@/components/layout/header"; // Unused - removed
 import DynamicFundHeader from '@/components/layout/dynamic-fund-header';
+import { FundConstructionKpiHeader } from '@/components/wizard/FundConstructionKpiHeader';
 import { Menu, X } from 'lucide-react';
 
 // Page components - Heavy routes lazy loaded for bundle optimization
@@ -197,10 +198,11 @@ function AppLayout({ children }: { children: React.ReactNode }) {
   const [location] = useLocation();
   const [isMobileNavigationOpen, setIsMobileNavigationOpen] = useState(false);
   const activeModule = getActiveNavigationId(location);
+  const isFundSetupRoute = location.startsWith('/fund-setup');
 
   return (
     <div className="flex min-h-screen flex-col overflow-x-hidden bg-slate-50 font-poppins text-charcoal">
-      <DynamicFundHeader />
+      {isFundSetupRoute ? <FundConstructionKpiHeader /> : <DynamicFundHeader />}
       <MobileNavigationToggle
         isOpen={isMobileNavigationOpen}
         onToggle={() => setIsMobileNavigationOpen((isOpen) => !isOpen)}

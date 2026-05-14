@@ -1,75 +1,12 @@
-import type { LucideIcon } from 'lucide-react';
-import {
-  Activity,
-  BarChart3,
-  Calendar,
-  DollarSign,
-  PieChart,
-  Target,
-  TrendingUp,
-} from 'lucide-react';
+import { Activity } from 'lucide-react';
 import HeaderKpis from './HeaderKpis';
 import { Badge } from '@/components/ui/badge';
-import { Card, CardContent } from '@/components/ui/card';
+import { HeaderMetricCard } from '@/components/layout/HeaderMetricCard';
 import { Separator } from '@/components/ui/separator';
 import { useFundContext } from '@/contexts/FundContext';
 import { useFundMetrics } from '@/hooks/useFundMetrics';
 import { useFlag } from '@/hooks/useUnifiedFlag';
-import {
-  buildFundHeaderViewModel,
-  shouldFetchHeaderMetrics,
-  type HeaderMetricCardModel,
-  type HeaderMetricIcon,
-  type HeaderMetricTheme,
-} from './fund-header-metrics';
-
-const HEADER_ICON_COMPONENTS: Record<HeaderMetricIcon, LucideIcon> = {
-  activity: Activity,
-  'bar-chart': BarChart3,
-  calendar: Calendar,
-  dollar: DollarSign,
-  'pie-chart': PieChart,
-  target: Target,
-  'trending-up': TrendingUp,
-};
-
-const CARD_CLASS_NAMES: Record<HeaderMetricTheme, string> = {
-  white: 'bg-white border-charcoal-200',
-  beige: 'bg-beige-50 border-beige-300',
-};
-
-const LABEL_CLASS_NAMES: Record<HeaderMetricTheme, string> = {
-  white: 'text-charcoal-600',
-  beige: 'text-charcoal-700',
-};
-
-const ICON_CLASS_NAMES: Record<HeaderMetricTheme, string> = {
-  white: 'text-charcoal-500',
-  beige: 'text-charcoal-600',
-};
-
-function MetricCard({ card }: { card: HeaderMetricCardModel }) {
-  const Icon = HEADER_ICON_COMPONENTS[card.icon];
-
-  return (
-    <Card className={`${CARD_CLASS_NAMES[card.theme]} shadow-sm hover:shadow-md transition-shadow`}>
-      <CardContent className="p-2">
-        <div className="flex items-center justify-between">
-          <div>
-            <p className={`text-xs ${LABEL_CLASS_NAMES[card.theme]} font-medium`}>{card.title}</p>
-            <p
-              className="text-sm font-bold leading-tight text-charcoal-900 tabular-nums"
-              title={card.titleText}
-            >
-              {card.displayValue}
-            </p>
-          </div>
-          <Icon className={`h-4 w-4 ${ICON_CLASS_NAMES[card.theme]}`} />
-        </div>
-      </CardContent>
-    </Card>
-  );
-}
+import { buildFundHeaderViewModel, shouldFetchHeaderMetrics } from './fund-header-metrics';
 
 function FundTerm({ termText }: { termText: string | null }) {
   if (!termText) return null;
@@ -107,7 +44,10 @@ export default function DynamicFundHeader() {
   );
 
   return (
-    <div className="sticky top-0 z-50 bg-white border-b border-gray-200 shadow-sm">
+    <div
+      className="sticky top-0 z-50 bg-white border-b border-gray-200 shadow-sm"
+      data-testid="dynamic-fund-header"
+    >
       <div className="px-3 py-3 sm:px-6">
         <div className="mb-3 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
           <div className="flex min-w-0 items-center">
@@ -138,7 +78,7 @@ export default function DynamicFundHeader() {
 
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 xl:grid-cols-8">
           {viewModel.cards.map((card) => (
-            <MetricCard key={card.key} card={card} />
+            <HeaderMetricCard key={card.key} card={card} />
           ))}
         </div>
 

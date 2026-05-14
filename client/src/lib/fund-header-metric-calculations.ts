@@ -8,7 +8,6 @@ import type {
   CompactKpiDefinition,
   CompactKpiItemModel,
   CompactKpiKey,
-  CompactKpiSelectedModel,
   FundHeaderSource,
   FundHeaderViewModel,
   HeaderMetricCardModel,
@@ -98,8 +97,10 @@ export function buildCompactHeaderViewModel(
     : emptyHeaderMetrics(currentFundSize);
 
   return {
-    items: COMPACT_KPI_KEYS.map((key) => buildCompactKpiItem(key, selectedKpi)),
-    selected: buildSelectedCompactKpi(selectedKpi, displayMetrics, hasError),
+    items: COMPACT_KPI_KEYS.map((key) =>
+      buildCompactKpiItem(key, selectedKpi, displayMetrics, hasError)
+    ),
+    selected: buildCompactKpiItem(selectedKpi, selectedKpi, displayMetrics, hasError),
     isLoading,
     fundName,
   };
@@ -341,8 +342,16 @@ function getStatusIndicatorText(metricsLoading: boolean, metricUnavailable: bool
   return 'Live metrics';
 }
 
-function buildCompactKpiItem(key: CompactKpiKey, selectedKpi: CompactKpiKey): CompactKpiItemModel {
+function buildCompactKpiItem(
+  key: CompactKpiKey,
+  selectedKpi: CompactKpiKey,
+  metrics: HeaderMetrics,
+  hasError: boolean
+): CompactKpiItemModel {
   const definition = COMPACT_KPI_DEFINITIONS[key];
+  const value = getCompactKpiValue(metrics, key);
+  const availability = getCompactKpiAvailability(metrics, key);
+
   return {
     key,
     label: definition.label,
@@ -350,28 +359,13 @@ function buildCompactKpiItem(key: CompactKpiKey, selectedKpi: CompactKpiKey): Co
     colorClassName: definition.colorClassName,
     description: definition.description,
     isSelected: key === selectedKpi,
-  };
-}
-
-function buildSelectedCompactKpi(
-  selectedKpi: CompactKpiKey,
-  metrics: HeaderMetrics,
-  hasError: boolean
-): CompactKpiSelectedModel {
-  const item = buildCompactKpiItem(selectedKpi, selectedKpi);
-  const definition = COMPACT_KPI_DEFINITIONS[selectedKpi];
-  const value = getCompactKpiValue(metrics, selectedKpi);
-  const availability = getCompactKpiAvailability(metrics, selectedKpi);
-
-  return {
-    ...item,
     displayValue: formatCompactKpiDisplayValue(
       value,
       definition.isCurrency,
       availability,
       hasError
     ),
-    explanation: getCompactKpiExplanation(selectedKpi, value, availability, hasError),
+    explanation: getCompactKpiExplanation(key, value, availability, hasError),
   };
 }
 
