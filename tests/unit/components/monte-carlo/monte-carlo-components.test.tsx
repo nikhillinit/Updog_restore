@@ -187,9 +187,9 @@ describe('ConfigForm', () => {
 
   it('renders IRR, TVPI, DPI metric checkboxes', () => {
     render(<ConfigForm {...defaultProps} />);
-    expect(screen.getByText('IRR')).toBeInTheDocument();
-    expect(screen.getByText('TVPI')).toBeInTheDocument();
-    expect(screen.getByText('DPI')).toBeInTheDocument();
+    expect(screen.getByRole('checkbox', { name: 'IRR' })).toBeInTheDocument();
+    expect(screen.getByRole('checkbox', { name: 'TVPI' })).toBeInTheDocument();
+    expect(screen.getByRole('checkbox', { name: 'DPI' })).toBeInTheDocument();
   });
 
   it('pairs the simulation-run slider with a numeric input that drives submit payloads', () => {
@@ -254,5 +254,40 @@ describe('ConfigForm', () => {
     // Scenarios not enabled by default, so historicalScenarios should be absent
     expect(config.historicalScenarios).toBeUndefined();
     expect(config.includeHistoricalScenarios).toBe(false);
+  });
+
+  it('exposes disabled-state reasons while a backtest is running', () => {
+    render(<ConfigForm {...defaultProps} disabled={true} />);
+
+    const runsInput = screen.getByRole('spinbutton', { name: 'Simulation Runs' });
+    expect(runsInput).toHaveAttribute(
+      'aria-describedby',
+      expect.stringContaining('simulationRunsDisabledReason')
+    );
+    expect(document.getElementById('simulationRunsDisabledReason')).toHaveTextContent(
+      'Controls are disabled while a backtest is running.'
+    );
+    expect(screen.getByRole('button', { name: /running/i })).toHaveAttribute(
+      'aria-describedby',
+      'configSubmitDisabledReason'
+    );
+  });
+
+  it('keeps historical scenario choices reachable by accessible name', () => {
+    render(<ConfigForm {...defaultProps} />);
+
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Include historical scenarios' }));
+
+    expect(screen.getByRole('checkbox', { name: '2008 Financial Crisis' })).toBeInTheDocument();
+    expect(screen.getByRole('checkbox', { name: '2000 Dotcom Bust' })).toBeInTheDocument();
+    expect(screen.getByRole('checkbox', { name: 'COVID-19 (2020)' })).toBeInTheDocument();
+  });
+
+  it('labels the random seed value input when fixed seeding is enabled', () => {
+    render(<ConfigForm {...defaultProps} />);
+
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Fixed random seed' }));
+
+    expect(screen.getByRole('spinbutton', { name: 'Random seed value' })).toBeInTheDocument();
   });
 });

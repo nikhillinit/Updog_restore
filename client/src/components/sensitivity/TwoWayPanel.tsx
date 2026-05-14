@@ -446,6 +446,15 @@ export function TwoWayPanel({ fundId }: TwoWayPanelProps): JSX.Element {
   );
 
   const runDisabled = fundId === null || mutation.isPending || !validation.ok;
+  const runDisabledReason =
+    fundId === null
+      ? 'Select a fund before running a sweep.'
+      : mutation.isPending
+        ? 'A sweep is already running.'
+        : !validation.ok
+          ? 'Resolve validation errors before running a sweep.'
+          : undefined;
+  const runDisabledReasonId = runDisabledReason ? 'two-way-run-disabled-reason' : undefined;
   const error = mutation.error as SensitivityHookError | null;
 
   return (
@@ -459,7 +468,7 @@ export function TwoWayPanel({ fundId }: TwoWayPanelProps): JSX.Element {
             <div className="space-y-1">
               <Label htmlFor="two-way-variable-x">Variable X</Label>
               <Select value={form.variableXId} onValueChange={onVariableXChange}>
-                <SelectTrigger id="two-way-variable-x">
+                <SelectTrigger id="two-way-variable-x" aria-label="Two-way variable X">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -512,7 +521,7 @@ export function TwoWayPanel({ fundId }: TwoWayPanelProps): JSX.Element {
             <div className="space-y-1">
               <Label htmlFor="two-way-variable-y">Variable Y</Label>
               <Select value={form.variableYId} onValueChange={onVariableYChange}>
-                <SelectTrigger id="two-way-variable-y">
+                <SelectTrigger id="two-way-variable-y" aria-label="Two-way variable Y">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -565,7 +574,7 @@ export function TwoWayPanel({ fundId }: TwoWayPanelProps): JSX.Element {
             <div className="space-y-1">
               <Label htmlFor="two-way-metric">Metric</Label>
               <Select value={form.metricId} onValueChange={onMetricChange}>
-                <SelectTrigger id="two-way-metric">
+                <SelectTrigger id="two-way-metric" aria-label="Two-way metric">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -593,9 +602,15 @@ export function TwoWayPanel({ fundId }: TwoWayPanelProps): JSX.Element {
               type="button"
               onClick={handleSubmit}
               disabled={runDisabled}
+              aria-describedby={runDisabledReasonId}
               className="w-full"
               data-testid="two-way-run-button"
             >
+              {runDisabledReason && (
+                <span id={runDisabledReasonId} className="sr-only">
+                  {runDisabledReason}
+                </span>
+              )}
               Run Sweep
             </Button>
           </CardContent>
@@ -636,9 +651,15 @@ export function TwoWayPanel({ fundId }: TwoWayPanelProps): JSX.Element {
                 size="sm"
                 onClick={handleSubmit}
                 disabled={runDisabled}
+                aria-describedby={runDisabledReason ? 'two-way-retry-disabled-reason' : undefined}
                 className="mt-2"
                 data-testid="two-way-retry-button"
               >
+                {runDisabledReason && (
+                  <span id="two-way-retry-disabled-reason" className="sr-only">
+                    {runDisabledReason}
+                  </span>
+                )}
                 Retry
               </Button>
             </CardContent>

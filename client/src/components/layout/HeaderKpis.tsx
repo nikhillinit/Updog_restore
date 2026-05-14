@@ -36,7 +36,7 @@ function CompactKpiButton({
     <button
       key={item.key}
       onClick={() => onSelect(item.key)}
-      className={`flex-shrink-0 px-3 py-1 rounded-md text-sm font-medium transition-all ${getButtonClassName(
+      className={`flex-shrink-0 px-3 py-1 rounded-md text-sm font-medium transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-beige focus-visible:ring-offset-2 ${getButtonClassName(
         item.isSelected
       )}`}
       title={item.description}
@@ -56,7 +56,9 @@ function CompactKpiDisplay({
   if (isLoading) return <Skeleton className="h-7 w-24" />;
 
   return (
-    <span className={`text-lg font-bold sm:text-xl ${selected.colorClassName} live-pulse-kpi`}>
+    <span
+      className={`text-lg font-bold tabular-nums sm:text-xl ${selected.colorClassName} live-pulse-kpi`}
+    >
       {selected.displayValue}
     </span>
   );
@@ -64,9 +66,17 @@ function CompactKpiDisplay({
 
 function SelectedKpiPanel({ viewModel }: { viewModel: CompactHeaderViewModel }) {
   const Icon = COMPACT_ICON_COMPONENTS[viewModel.selected.icon] ?? DollarSign;
+  const explanationId = `compact-kpi-explanation-${viewModel.selected.key}`;
 
   return (
-    <div className="flex min-w-0 items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 shadow-sm sm:ml-4 sm:px-4">
+    <div
+      className="flex min-w-0 items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 shadow-sm sm:ml-4 sm:px-4"
+      title={viewModel.selected.explanation}
+      aria-describedby={explanationId}
+    >
+      <span id={explanationId} className="sr-only">
+        {viewModel.selected.explanation}
+      </span>
       <Icon className={`h-5 w-5 flex-shrink-0 ${viewModel.selected.colorClassName}`} />
       <span className="truncate text-sm text-slate-600">{viewModel.selected.label}:</span>
       <CompactKpiDisplay selected={viewModel.selected} isLoading={viewModel.isLoading} />
@@ -103,7 +113,7 @@ export default function HeaderKpis() {
   );
 
   return (
-    <div className="flex min-w-0 flex-col gap-2 border-b bg-gradient-to-r from-slate-50 to-white px-3 py-3 sm:flex-row sm:items-center sm:gap-4 sm:px-6">
+    <div className="flex min-w-0 flex-col gap-2 border-b border-slate-200 bg-white px-3 py-3 sm:flex-row sm:items-center sm:gap-4 sm:px-6">
       <div className="flex max-w-full gap-2 overflow-x-auto pb-1 sm:overflow-visible sm:pb-0">
         {viewModel.items.map((item) => (
           <CompactKpiButton key={item.key} item={item} onSelect={setSelectedKPI} />

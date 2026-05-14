@@ -3,6 +3,7 @@ import { cn } from '@/lib/utils';
 import { Link, useLocation } from 'wouter';
 import { useFundContext } from '@/contexts/FundContext';
 import { POVIcon } from '@/components/ui/POVLogo';
+import { BRANDING } from '@/config/branding';
 import {
   getNavigationItems,
   getFooterNavigationItems,
@@ -11,24 +12,16 @@ import {
   type NavigationContext,
   type NavigationItem,
 } from './navigation-config';
-import { ChevronDown, ChevronRight, Plus } from 'lucide-react';
+import { Plus } from 'lucide-react';
 
 interface SidebarProps {
   activeModule: string;
   className?: string;
 }
 
-const chartCategories = [
-  { id: 'basic', label: 'Basic Charts' },
-  { id: 'statistical', label: 'Statistical' },
-  { id: 'hierarchical', label: 'Hierarchical' },
-  { id: 'flow', label: 'Flow Charts' },
-  { id: 'advanced', label: 'Advanced' },
-];
-
 function baseNavClassName(isHovered: boolean, isActive: boolean, isDisabled: boolean): string {
   return cn(
-    'w-full flex items-center rounded-md transition-colors font-poppins relative group',
+    'w-full flex items-center rounded-md transition-colors font-poppins relative group focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-beige focus-visible:ring-offset-2',
     isHovered ? 'space-x-3 px-3 py-2.5' : 'justify-center p-2.5',
     isDisabled
       ? 'text-charcoal/40 cursor-not-allowed bg-lightGray'
@@ -113,9 +106,11 @@ function NavigationButton({
 }) {
   const title = !isHovered ? item.label : undefined;
   const ariaLabel = !isHovered ? item.label : undefined;
+  const disabledReason = isDisabled ? 'Complete fund setup to access this route.' : undefined;
+  const disabledReasonId = disabledReason ? `sidebar-disabled-reason-${item.id}` : undefined;
   const className = compact
     ? cn(
-        'w-full flex items-center rounded-md transition-colors font-poppins relative group',
+        'w-full flex items-center rounded-md transition-colors font-poppins relative group focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-beige focus-visible:ring-offset-2',
         isHovered ? 'space-x-3 px-3 py-2' : 'justify-center p-2',
         isActive
           ? 'bg-beige/30 text-charcoal font-medium'
@@ -151,9 +146,15 @@ function NavigationButton({
       title={title}
       aria-label={ariaLabel}
       aria-disabled="true"
+      aria-describedby={disabledReasonId}
       data-active={isActive ? 'true' : 'false'}
       className={className}
     >
+      {disabledReason && (
+        <span id={disabledReasonId} className="sr-only">
+          {disabledReason}
+        </span>
+      )}
       {compact ? (
         <FooterNavItemContent item={item} isHovered={isHovered} isActive={isActive} />
       ) : (
@@ -164,7 +165,6 @@ function NavigationButton({
 }
 
 export default function Sidebar({ activeModule, className }: SidebarProps) {
-  const [isChartsExpanded, setIsChartsExpanded] = useState(false);
   const [isHovered, setIsHovered] = useState(false);
   const [location] = useLocation();
   const { needsSetup, currentFund } = useFundContext();
@@ -195,7 +195,9 @@ export default function Sidebar({ activeModule, className }: SidebarProps) {
           <div
             className={`ml-3 transition-opacity duration-300 ${isHovered ? 'opacity-100' : 'opacity-0 pointer-events-none'} overflow-hidden`}
           >
-            <h1 className="font-inter font-bold text-lg text-white whitespace-nowrap">Updawg</h1>
+            <h1 className="font-inter font-bold text-lg text-white whitespace-nowrap">
+              {BRANDING.app.nameStyled}
+            </h1>
             <p className="font-poppins text-xs text-slate-300 whitespace-nowrap">Fund Management</p>
           </div>
         </div>
@@ -225,7 +227,7 @@ export default function Sidebar({ activeModule, className }: SidebarProps) {
             </p>
             <Link
               href="/fund-setup"
-              className="block w-full bg-amber-600 text-white px-3 py-2 rounded-md text-sm font-medium hover:bg-amber-700 transition-all duration-200 text-center"
+              className="block w-full bg-amber-600 text-white px-3 py-2 rounded-md text-sm font-medium hover:bg-amber-700 transition-all duration-200 text-center focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-800 focus-visible:ring-offset-2"
             >
               Start Fund Setup
             </Link>
@@ -251,34 +253,6 @@ export default function Sidebar({ activeModule, className }: SidebarProps) {
             );
           })}
         </ul>
-
-        {isHovered && (
-          <div className="mt-6 pt-4 border-t border-lightGray">
-            <button
-              onClick={() => setIsChartsExpanded(!isChartsExpanded)}
-              className="w-full flex items-center justify-between px-2 py-2 text-xs font-medium text-charcoal/70 uppercase tracking-wider hover:text-charcoal transition-colors"
-            >
-              <span>Chart Types</span>
-              {isChartsExpanded ? (
-                <ChevronDown className="h-4 w-4" />
-              ) : (
-                <ChevronRight className="h-4 w-4" />
-              )}
-            </button>
-
-            {isChartsExpanded && (
-              <ul className="mt-3 space-y-1">
-                {chartCategories.map((category) => (
-                  <li key={category.id}>
-                    <button className="w-full text-left px-2 py-1 text-sm text-charcoal/70 hover:text-charcoal hover:bg-lightGray rounded-md transition-colors">
-                      {category.label}
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </div>
-        )}
       </nav>
 
       {footerItems.length > 0 && (

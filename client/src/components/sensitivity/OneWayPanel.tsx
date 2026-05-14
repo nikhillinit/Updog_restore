@@ -310,6 +310,15 @@ export function OneWayPanel({ fundId }: OneWayPanelProps) {
 
   const variableDefinition = getVariableDefinition(form.variableId);
   const runDisabled = fundId === null || mutation.isPending || !validation.ok;
+  const runDisabledReason =
+    fundId === null
+      ? 'Select a fund before running a sweep.'
+      : mutation.isPending
+        ? 'A sweep is already running.'
+        : !validation.ok
+          ? 'Resolve validation errors before running a sweep.'
+          : undefined;
+  const runDisabledReasonId = runDisabledReason ? 'one-way-run-disabled-reason' : undefined;
   const error = mutation.error as SensitivityHookError | null;
 
   return (
@@ -323,7 +332,7 @@ export function OneWayPanel({ fundId }: OneWayPanelProps) {
             <div className="space-y-1">
               <Label htmlFor="one-way-variable">Variable</Label>
               <Select value={form.variableId} onValueChange={onVariableChange}>
-                <SelectTrigger id="one-way-variable">
+                <SelectTrigger id="one-way-variable" aria-label="One-way variable">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -376,7 +385,7 @@ export function OneWayPanel({ fundId }: OneWayPanelProps) {
             <div className="space-y-1">
               <Label htmlFor="one-way-metric">Metric</Label>
               <Select value={form.metricId} onValueChange={onMetricChange}>
-                <SelectTrigger id="one-way-metric">
+                <SelectTrigger id="one-way-metric" aria-label="One-way metric">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -404,9 +413,15 @@ export function OneWayPanel({ fundId }: OneWayPanelProps) {
               type="button"
               onClick={handleSubmit}
               disabled={runDisabled}
+              aria-describedby={runDisabledReasonId}
               className="w-full"
               data-testid="one-way-run-button"
             >
+              {runDisabledReason && (
+                <span id={runDisabledReasonId} className="sr-only">
+                  {runDisabledReason}
+                </span>
+              )}
               Run Sweep
             </Button>
           </CardContent>
@@ -447,9 +462,15 @@ export function OneWayPanel({ fundId }: OneWayPanelProps) {
                 size="sm"
                 onClick={handleSubmit}
                 disabled={runDisabled}
+                aria-describedby={runDisabledReason ? 'one-way-retry-disabled-reason' : undefined}
                 className="mt-2"
                 data-testid="one-way-retry-button"
               >
+                {runDisabledReason && (
+                  <span id="one-way-retry-disabled-reason" className="sr-only">
+                    {runDisabledReason}
+                  </span>
+                )}
                 Retry
               </Button>
             </CardContent>

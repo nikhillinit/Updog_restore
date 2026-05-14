@@ -365,14 +365,18 @@ test.describe('latest QA route/nav/publish closeout matrix', () => {
       captures.push(await captureRoute(page, path, 'direct'));
       await expect(page).not.toHaveURL(/\/fund-setup\b/);
       if (path.startsWith('/model-results')) {
-        await expect(page.getByRole('heading', { name: /^model results$/i })).toBeVisible();
+        await expect(page).toHaveURL(/\/fund-model-results\/1\b/);
+        await expect(
+          page.getByRole('main').getByRole('heading', { name: /^QA Fund I$/i })
+        ).toBeVisible();
       } else if (path === '/forecasting' || path === '/financial-modeling') {
         await expect(
           page.getByRole('heading', { name: /financial modeling & forecasting/i })
         ).toBeVisible();
+        await expect(page.getByText(/fund value forecast/i)).toBeVisible();
         await expect(
           page.getByText(/select or create a fund to view forecasting data/i)
-        ).toBeVisible();
+        ).not.toBeVisible();
       } else {
         await expect(
           page.getByRole('heading', { name: /financial modeling & forecasting/i })

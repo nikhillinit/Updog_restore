@@ -63,9 +63,15 @@ if (import.meta.env.PROD) {
       });
   }
   // Start Web Vitals collection after app mounts
-  requestIdleCallback(() => {
+  const startVitalsWhenIdle = () => {
     import('./vitals').then(({ startVitals }) => startVitals());
-  });
+  };
+
+  if (typeof window.requestIdleCallback === 'function') {
+    window.requestIdleCallback(startVitalsWhenIdle);
+  } else {
+    window.setTimeout(startVitalsWhenIdle, 1);
+  }
 }
 
 const rootElement = document.getElementById('root');

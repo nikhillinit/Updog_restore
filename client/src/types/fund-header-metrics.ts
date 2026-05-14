@@ -50,6 +50,7 @@ export interface CompactKpiItemModel {
 
 export interface CompactKpiSelectedModel extends CompactKpiItemModel {
   displayValue: string;
+  explanation: string;
 }
 
 export interface CompactHeaderViewModel {
