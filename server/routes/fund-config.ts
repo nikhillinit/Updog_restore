@@ -54,13 +54,7 @@ import { enforceProvidedFundScope } from '../lib/auth/provided-fund-scope';
 import idempotency from '../middleware/idempotency';
 import { omitEconomicsAssumptionsWhenDisabled } from '../services/economics-feature-gate';
 
-type RequestWithOptionalUser = Request & { user?: { id?: string; fundIds?: number[] } };
-
-function requestUserCanAccessFund(req: RequestWithOptionalUser, fundId: number): boolean {
-  const userFundIds = Array.isArray(req.user?.fundIds) ? req.user.fundIds : [];
-
-  return userFundIds.length === 0 || userFundIds.includes(fundId);
-}
+type RequestWithOptionalUser = Request & { user?: { id?: string } };
 
 export function registerFundConfigRoutes(app: Express) {
   ensureProducerQueuesRegistered();
@@ -82,16 +76,6 @@ export function registerFundConfigRoutes(app: Express) {
       const draftFundId = validation.data.draftFundId;
       if (draftFundId != null && !(await enforceProvidedFundScope(req, res, draftFundId))) {
         return;
-      }
-
-      if (
-        draftFundId != null &&
-        !requestUserCanAccessFund(req as RequestWithOptionalUser, draftFundId)
-      ) {
-        return sendApiError(res, 403, {
-          error: `You do not have access to fund ${draftFundId}`,
-          code: 'FUND_ACCESS_DENIED',
-        });
       }
 
       const { fundPersistenceService } = await import('../services/fund-persistence-service');
