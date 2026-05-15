@@ -394,7 +394,7 @@ router.post(
 
     const result = await handleThinkingQuery(query, queryOpts);
 
-    res['json'](result);
+    res.json(result);
   })
 );
 
@@ -437,7 +437,7 @@ router.post(
 
     const result = await handleThinkingQuery(query, queryOptions);
 
-    res['json']({
+    res.json({
       ...result,
       analysis: {
         topic,
@@ -456,7 +456,7 @@ router.post(
 router.get(
   '/usage',
   asyncHandler(async (_req: Request, res: Response) => {
-    res['json']({
+    res.json({
       success: true,
       tools: [
         {
@@ -500,7 +500,7 @@ router.get(
     const hasApiKey = !!process.env['ANTHROPIC_API_KEY'];
     const hasDbConnection = pool.totalCount > 0;
 
-    res['json']({
+    res.json({
       success: true,
       status: hasApiKey && hasDbConnection ? 'healthy' : 'degraded',
       checks: {

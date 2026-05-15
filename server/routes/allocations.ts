@@ -338,7 +338,7 @@ router['get'](
     // Validate fundId parameter
     const paramValidation = FundIdParamSchema.safeParse(req.params);
     if (!paramValidation.success) {
-      return res['status'](400)['json']({
+      return res.status(400).json({
         error: 'invalid_fund_id',
         message: 'Fund ID must be a positive integer',
         details: paramValidation.error.format(),
@@ -353,7 +353,7 @@ router['get'](
     // Validate query parameters
     const queryResult = CompanyListQuerySchema.safeParse(req.query);
     if (!queryResult.success) {
-      return res['status'](400)['json']({
+      return res.status(400).json({
         error: 'invalid_query_parameters',
         message: 'Invalid query parameters',
         details: queryResult.error.format(),
@@ -376,7 +376,7 @@ router['get'](
         setStageWarningHeaders(res, [query.stage]);
 
         if (mode === 'enforce') {
-          return res['status'](400)['json']({
+          return res.status(400).json({
             error: 'invalid_query_parameters',
             message: 'Invalid investment stage in query parameters',
             details: {
@@ -534,7 +534,7 @@ router['get'](
       const totalCompanies = fundCheck[0]?.count || 0;
 
       if (totalCompanies === 0) {
-        return res['status'](404)['json']({
+        return res.status(404).json({
           error: 'fund_not_found',
           message: `Fund with ID ${fundId} not found or has no companies`,
         });
@@ -562,7 +562,7 @@ router['get'](
       'allocations company list served'
     );
 
-    return res['status'](200)['json'](response);
+    return res.status(200).json(response);
   })
 );
 
@@ -581,7 +581,7 @@ router['get'](
     // Validate path parameter
     const paramValidation = FundIdParamSchema.safeParse(req.params);
     if (!paramValidation.success) {
-      return res['status'](400)['json']({
+      return res.status(400).json({
         error: 'Invalid fund ID',
         details: paramValidation.error.format(),
       });
@@ -597,7 +597,7 @@ router['get'](
         .limit(1);
 
       if (!fund) {
-        return res['status'](404)['json']({
+        return res.status(404).json({
           error: 'fund_not_found',
           message: `Fund with ID ${fundId} was not found`,
         });
@@ -655,7 +655,7 @@ router['get'](
           .sort()
           .reverse()[0] || null;
 
-      return res['status'](200)['json']({
+      return res.status(200).json({
         fund_id: fundId,
         companies,
         metadata: {
@@ -677,7 +677,7 @@ router['get'](
         'latest allocation read failed'
       );
 
-      return res['status'](503)['json']({
+      return res.status(503).json({
         error: 'allocation_data_unavailable',
         message: allocationErrorMappingMessage(
           findAllocationErrorMapping(allocationErrorText(error))
@@ -705,7 +705,7 @@ router['post'](
     // Validate path parameter
     const paramValidation = FundIdParamSchema.safeParse(req.params);
     if (!paramValidation.success) {
-      return res['status'](400)['json']({
+      return res.status(400).json({
         error: 'Invalid fund ID',
         details: paramValidation.error.format(),
       });
@@ -714,7 +714,7 @@ router['post'](
     // Validate request body
     const bodyValidation = UpdateAllocationRequestSchema.safeParse(req.body);
     if (!bodyValidation.success) {
-      return res['status'](400)['json']({
+      return res.status(400).json({
         error: 'Invalid request body',
         details: bodyValidation.error.format(),
       });
@@ -747,7 +747,7 @@ router['post'](
       };
     });
 
-    return res['status'](200)['json'](result);
+    return res.status(200).json(result);
   })
 );
 
@@ -762,7 +762,7 @@ router['post'](
 router['use']((err: unknown, req: Request, res: Response, next: NextFunction) => {
   // Handle optimistic locking conflicts
   if (isHttpError(err) && err.statusCode === 409 && err.conflicts) {
-    return res['status'](409)['json']({
+    return res.status(409).json({
       error: 'Version conflict',
       message: err.message,
       conflicts: err.conflicts,
@@ -771,7 +771,7 @@ router['use']((err: unknown, req: Request, res: Response, next: NextFunction) =>
 
   // Handle other HTTP errors
   if (isHttpError(err) && err.statusCode) {
-    return res['status'](err.statusCode)['json']({
+    return res.status(err.statusCode).json({
       error: err.statusCode === 404 ? 'fund_not_found' : 'allocation_error',
       message: err.message,
     });

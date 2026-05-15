@@ -113,7 +113,7 @@ export function makeApp() {
     if (['POST', 'PUT', 'PATCH'].includes(req.method)) {
       const ct = ((req.headers['content-type'] as string) || '').toLowerCase();
       if (!ct.startsWith('application/json')) {
-        return res['status'](415)['json']({
+        return res.status(415).json({
           error: 'unsupported_media_type',
           message: 'Content-Type must be application/json',
         });
@@ -135,7 +135,7 @@ export function makeApp() {
   // API Documentation landing page
   app['get']('/api-docs', (_req: Request, res: Response) => {
     res['setHeader']('Content-Type', 'text/html; charset=utf-8');
-    res['send'](`<!doctype html>
+    res.send(`<!doctype html>
 <html lang="en">
   <head>
     <meta charset="utf-8" />
@@ -158,7 +158,7 @@ export function makeApp() {
   // OpenAPI spec endpoint
   app['get']('/api-docs.json', (_req: Request, res: Response) => {
     res['setHeader']('Content-Type', 'application/json');
-    res['send'](swaggerSpec);
+    res.send(swaggerSpec);
   });
 
   // Health endpoints (must be before other routes for /healthz)
@@ -234,7 +234,7 @@ export function makeApp() {
 
   // API version endpoint for deployment verification
   app['get']('/api/version', (_req: Request, res: Response) =>
-    res['json']({
+    res.json({
       version: process.env['npm_package_version'] || '1.3.2',
       environment: process.env['NODE_ENV'] || 'development',
       commit: process.env['VERCEL_GIT_COMMIT_SHA'] || process.env['COMMIT_REF'] || 'local',
@@ -242,9 +242,9 @@ export function makeApp() {
   );
 
   // 404 + error handler
-  app.use((_req: Request, res: Response) => res['status'](404)['json']({ error: 'not_found' }));
+  app.use((_req: Request, res: Response) => res.status(404).json({ error: 'not_found' }));
   app.use((err: HttpError, _req: Request, res: Response, _next: NextFunction) =>
-    res['status'](err.status ?? 500)['json']({
+    res.status(err.status ?? 500).json({
       error: 'internal',
       message: err.message ?? 'unknown',
     })

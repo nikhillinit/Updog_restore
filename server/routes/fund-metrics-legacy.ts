@@ -18,18 +18,18 @@ router['get']('/fund-metrics/:fundId', async (req: Request, res: Response) => {
         error: 'Invalid fund ID',
         message: `Fund ID must be a positive integer, received: ${fundIdParam}`,
       };
-      return res['status'](400)['json'](error);
+      return res.status(400).json(error);
     }
 
     const metrics = await storage.getFundMetrics(fundId);
-    return res['json'](metrics);
+    return res.json(metrics);
   } catch (error) {
     if (error instanceof NumberParseError) {
       const apiError: ApiError = {
         error: 'Invalid fund ID',
         message: error.message,
       };
-      return res['status'](400)['json'](apiError);
+      return res.status(400).json(apiError);
     }
 
     log.error(
@@ -44,7 +44,7 @@ router['get']('/fund-metrics/:fundId', async (req: Request, res: Response) => {
       error: 'Database query failed',
       message: error instanceof Error ? error.message : 'Failed to fetch fund metrics',
     };
-    return res['status'](500)['json'](apiError);
+    return res.status(500).json(apiError);
   }
 });
 

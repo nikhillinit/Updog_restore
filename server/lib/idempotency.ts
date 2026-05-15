@@ -65,7 +65,7 @@ export function withIdempotency(options?: { ttlSeconds?: number; store?: Idempot
       if (existing) {
         if (existing.status === 'in-progress') {
           // Request still being processed
-          return res['status'](409)['json']({
+          return res.status(409).json({
             error: 'request_in_progress',
             message: 'A request with this idempotency key is already being processed',
           });
@@ -74,13 +74,13 @@ export function withIdempotency(options?: { ttlSeconds?: number; store?: Idempot
         if (existing.status === 'succeeded' && existing.result) {
           // Return cached successful result
           res['set']('X-Idempotent-Replay', 'true');
-          return res['json'](existing.result);
+          return res.json(existing.result);
         }
 
         if (existing.status === 'failed' && existing.error) {
           // Return cached error
           res['set']('X-Idempotent-Replay', 'true');
-          return res['status'](500)['json']({
+          return res.status(500).json({
             error: 'cached_error',
             message: existing.error,
           });

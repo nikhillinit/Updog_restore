@@ -153,13 +153,13 @@ type FundCalculationDTO = z.infer<typeof FundCalculationSchema>;
 router['get']('/funds', async (_req: Request, res: Response) => {
   try {
     const funds = await getCanonicalFunds();
-    return res['json'](funds.map(toClientFund));
+    return res.json(funds.map(toClientFund));
   } catch (error) {
     const apiError: ApiError = {
       error: 'Database query failed',
       message: error instanceof Error ? error.message : 'Failed to fetch funds',
     };
-    return res['status'](500)['json'](apiError);
+    return res.status(500).json(apiError);
   }
 });
 
@@ -173,7 +173,7 @@ router['get']('/funds/:id', async (req: Request, res: Response) => {
         error: 'Invalid fund ID',
         message: `Fund ID must be a positive integer, received: ${idParam}`,
       };
-      return res['status'](400)['json'](error);
+      return res.status(400).json(error);
     }
 
     if (!(await enforceProvidedFundScope(req, res, id))) {
@@ -186,24 +186,24 @@ router['get']('/funds/:id', async (req: Request, res: Response) => {
         error: 'Fund not found',
         message: `No fund exists with ID: ${id}`,
       };
-      return res['status'](404)['json'](error);
+      return res.status(404).json(error);
     }
 
-    return res['json'](toClientFund(fund));
+    return res.json(toClientFund(fund));
   } catch (error) {
     if (error instanceof NumberParseError) {
       const apiError: ApiError = {
         error: 'Invalid fund ID',
         message: error.message,
       };
-      return res['status'](400)['json'](apiError);
+      return res.status(400).json(apiError);
     }
 
     const apiError: ApiError = {
       error: 'Database query failed',
       message: error instanceof Error ? error.message : 'Failed to fetch fund',
     };
-    return res['status'](500)['json'](apiError);
+    return res.status(500).json(apiError);
   }
 });
 
@@ -232,16 +232,16 @@ router['post']('/funds', idempotency, async (req: Request, res: Response) => {
     const { fund } = await fundPersistenceService.createFundWithInitialDraft(fundInput);
     logger.info({ fundId: fund.id }, 'fund.created');
 
-    res['status'](201);
-    return res['json']({
+    res.status(201);
+    return res.json({
       success: true,
       data: toClientFund(fund),
       message: 'Fund created successfully',
     });
   } catch (error) {
     logger.error({ err: error }, 'fund.create.failed');
-    res['status'](500);
-    return res['json']({
+    res.status(500);
+    return res.json({
       error: 'Failed to create fund',
       message: error instanceof Error ? error.message : 'Unknown error',
     });
@@ -271,7 +271,7 @@ router['post']('/funds/calculate', async (req: Request, res: Response, next: Nex
       res['setHeader']('Idempotency-Status', 'created');
       const result = await promise;
       endTimer();
-      return res['status'](201)['json'](result);
+      return res.status(201).json(result);
     }
 
     // joined path:
@@ -282,7 +282,7 @@ router['post']('/funds/calculate', async (req: Request, res: Response, next: Nex
         const result = await promise;
         res['setHeader']('Idempotency-Status', 'joined');
         endTimer();
-        return res['status'](200)['json'](result);
+        return res.status(200).json(result);
       } catch (error) {
         if (!(error instanceof Error) || error.message !== 'in-progress') {
           throw error;
@@ -297,7 +297,7 @@ router['post']('/funds/calculate', async (req: Request, res: Response, next: Nex
     res['setHeader']('Retry-After', '2');
     res['setHeader']('Location', `/api/operations/${encodeURIComponent(key)}`);
     endTimer();
-    return res['status'](202)['json']({ status: 'in-progress', key });
+    return res.status(202).json({ status: 'in-progress', key });
   } catch (err) {
     next(err);
   }

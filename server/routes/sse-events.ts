@@ -44,7 +44,7 @@ router['get']('/api/events/fund/:fundId', (req: Request, res: Response) => {
   const fundId = parseInt(fundIdParam || '0', 10);
 
   if (isNaN(fundId) || fundId <= 0) {
-    return res['status'](400)['json']({
+    return res.status(400).json({
       error: 'Invalid fund ID',
       message: 'Fund ID must be a positive integer',
     });
@@ -126,7 +126,7 @@ router['get']('/api/events/simulation/:simulationId', (req: Request, res: Respon
   const simulationId = firstString(req.params['simulationId']);
 
   if (!simulationId) {
-    return res['status'](400)['json']({
+    return res.status(400).json({
       error: 'Invalid simulation ID',
       message: 'Simulation ID is required',
     });

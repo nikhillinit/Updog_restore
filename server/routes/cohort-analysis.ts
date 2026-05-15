@@ -93,7 +93,7 @@ router['post']('/analyze', async (req: Request, res: Response) => {
     }
 
     if (!definition) {
-      return res['status'](404)['json']({
+      return res.status(404).json({
         error: 'not_found',
         message: 'Cohort definition not found. Run seed first.',
       });
@@ -227,10 +227,10 @@ router['post']('/analyze', async (req: Request, res: Response) => {
 
     // Validate response
     const validated = CohortAnalyzeResponseSchema.parse(response);
-    res['status'](200)['json'](validated);
+    res.status(200).json(validated);
   } catch (error: unknown) {
     if (isZodError(error)) {
-      return res['status'](400)['json']({
+      return res.status(400).json({
         error: 'validation_error',
         message: 'Invalid request',
         details: error.errors,
@@ -238,7 +238,7 @@ router['post']('/analyze', async (req: Request, res: Response) => {
     }
 
     console.error('Cohort analysis error:', error);
-    res['status'](500)['json']({
+    res.status(500).json({
       error: 'internal_error',
       message: hasMessage(error) ? error.message : 'Failed to run cohort analysis',
     });
@@ -313,7 +313,7 @@ router['get']('/unmapped', async (req: Request, res: Response) => {
       companyCount: data.companyCount,
     }));
 
-    res['status'](200)['json']({
+    res.status(200).json({
       fundId,
       taxonomyVersion,
       unmappedCount: unmapped.length,
@@ -321,7 +321,7 @@ router['get']('/unmapped', async (req: Request, res: Response) => {
     });
   } catch (error: unknown) {
     if (isZodError(error)) {
-      return res['status'](400)['json']({
+      return res.status(400).json({
         error: 'validation_error',
         message: 'Invalid query parameters',
         details: error.errors,
@@ -329,7 +329,7 @@ router['get']('/unmapped', async (req: Request, res: Response) => {
     }
 
     console.error('Unmapped sectors error:', error);
-    res['status'](500)['json']({
+    res.status(500).json({
       error: 'internal_error',
       message: 'Failed to get unmapped sectors',
     });
@@ -417,10 +417,10 @@ router['post']('/sector-mappings', async (req: Request, res: Response) => {
       }
     }
 
-    res['status'](200)['json'](results);
+    res.status(200).json(results);
   } catch (error: unknown) {
     if (isZodError(error)) {
-      return res['status'](400)['json']({
+      return res.status(400).json({
         error: 'validation_error',
         message: 'Invalid request',
         details: error.errors,
@@ -428,7 +428,7 @@ router['post']('/sector-mappings', async (req: Request, res: Response) => {
     }
 
     console.error('Sector mappings error:', error);
-    res['status'](500)['json']({
+    res.status(500).json({
       error: 'internal_error',
       message: 'Failed to update sector mappings',
     });
@@ -469,14 +469,14 @@ router['get']('/definitions', async (req: Request, res: Response) => {
       return true;
     });
 
-    res['status'](200)['json']({
+    res.status(200).json({
       fundId,
       count: filtered.length,
       definitions: filtered,
     });
   } catch (error: unknown) {
     if (isZodError(error)) {
-      return res['status'](400)['json']({
+      return res.status(400).json({
         error: 'validation_error',
         message: 'Invalid query parameters',
         details: error.errors,
@@ -484,7 +484,7 @@ router['get']('/definitions', async (req: Request, res: Response) => {
     }
 
     console.error('List definitions error:', error);
-    res['status'](500)['json']({
+    res.status(500).json({
       error: 'internal_error',
       message: 'Failed to list cohort definitions',
     });
@@ -531,10 +531,10 @@ router['post']('/definitions', async (req: Request, res: Response) => {
       })
       .returning();
 
-    res['status'](201)['json'](created);
+    res.status(201).json(created);
   } catch (error: unknown) {
     if (isZodError(error)) {
-      return res['status'](400)['json']({
+      return res.status(400).json({
         error: 'validation_error',
         message: 'Invalid request',
         details: error.errors,
@@ -543,14 +543,14 @@ router['post']('/definitions', async (req: Request, res: Response) => {
 
     // Check for unique constraint violation
     if (hasMessage(error) && error.message.includes('unique')) {
-      return res['status'](409)['json']({
+      return res.status(409).json({
         error: 'conflict',
         message: 'A cohort definition with this name already exists',
       });
     }
 
     console.error('Create definition error:', error);
-    res['status'](500)['json']({
+    res.status(500).json({
       error: 'internal_error',
       message: 'Failed to create cohort definition',
     });
@@ -586,7 +586,7 @@ router['post']('/seed', async (req: Request, res: Response) => {
       .limit(1);
 
     if (existingTaxonomy) {
-      return res['status'](200)['json']({
+      return res.status(200).json({
         message: 'Already seeded',
         fundId,
         taxonomyVersion,
@@ -680,7 +680,7 @@ router['post']('/seed', async (req: Request, res: Response) => {
       },
     ]);
 
-    res['status'](201)['json']({
+    res.status(201).json({
       message: 'Seeded successfully',
       fundId,
       taxonomyVersion,
@@ -690,7 +690,7 @@ router['post']('/seed', async (req: Request, res: Response) => {
     });
   } catch (error: unknown) {
     console.error('Seed error:', error);
-    res['status'](500)['json']({
+    res.status(500).json({
       error: 'internal_error',
       message: hasMessage(error) ? error.message : 'Failed to seed cohort data',
     });

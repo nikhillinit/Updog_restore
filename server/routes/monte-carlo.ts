@@ -106,7 +106,7 @@ const validateRequest = <T>(schema: z.ZodSchema<T>) => {
     try {
       const result = schema.safeParse(req.body);
       if (!result.success) {
-        return res['status'](400)['json']({
+        return res.status(400).json({
           error: 'VALIDATION_ERROR',
           message: 'Request validation failed',
           details: result.error.issues,
@@ -115,7 +115,7 @@ const validateRequest = <T>(schema: z.ZodSchema<T>) => {
       (req as ValidatedBodyRequest<T>).validatedBody = result.data;
       next();
     } catch {
-      res['status'](400)['json']({
+      res.status(400).json({
         error: 'VALIDATION_ERROR',
         message: 'Invalid request format',
       });
@@ -180,7 +180,7 @@ async function buildSimulationConfig(
       );
 
       if (mode === 'enforce') {
-        res['status'](400)['json']({
+        res.status(400).json({
           error: 'INVALID_STAGE_DISTRIBUTION',
           message: 'Unknown investment stage(s) in stageDistribution.',
           details: {
@@ -219,7 +219,7 @@ const guardResponse = (req: Request, res: Response, next: NextFunction) => {
         '[ENGINE_NONFINITE] Simulation produced invalid numeric values'
       );
 
-      return res['status'](422)['json']({
+      return res.status(422).json({
         error: 'ENGINE_NONFINITE',
         path: guard.path,
         reason: guard.reason,
@@ -286,7 +286,7 @@ router['post'](
         '[MONTE_CARLO] Completed simulation'
       );
 
-      res['json']({
+      res.json({
         correlationId,
         ...result,
         metadata: {
@@ -299,7 +299,7 @@ router['post'](
     } catch (error) {
       logger.error({ correlationId, error }, '[MONTE_CARLO] Simulation failed');
 
-      res['status'](500)['json']({
+      res.status(500).json({
         error: 'SIMULATION_FAILED',
         correlationId,
         message:
@@ -343,7 +343,7 @@ router['post'](
         );
 
         const result = await unifiedMonteCarloService.runSimulation(simulationConfig);
-        return res['json']({
+        return res.json({
           correlationId,
           mode: 'sync_fallback',
           ...result,
@@ -379,7 +379,7 @@ router['post'](
       res.setHeader('Location', `/api/monte-carlo/jobs/${jobId}`);
       res.setHeader('Retry-After', '5');
 
-      res['status'](202)['json']({
+      res.status(202).json({
         correlationId,
         jobId,
         status: 'queued',
@@ -394,7 +394,7 @@ router['post'](
     } catch (error) {
       logger.error({ correlationId, error }, '[MONTE_CARLO] Failed to queue simulation');
 
-      res['status'](500)['json']({
+      res.status(500).json({
         error: 'QUEUE_FAILED',
         correlationId,
         message:
@@ -413,14 +413,14 @@ router['get']('/jobs/:jobId', async (req: Request, res: Response) => {
   try {
     const jobId = firstString(req.params['jobId']);
     if (!jobId) {
-      return res['status'](400)['json']({
+      return res.status(400).json({
         error: 'INVALID_JOB_ID',
         message: 'Job ID is required',
       });
     }
 
     if (!isQueueInitialized()) {
-      return res['status'](503)['json']({
+      return res.status(503).json({
         error: 'QUEUE_UNAVAILABLE',
         message: 'Background job queue is not available',
       });
@@ -429,7 +429,7 @@ router['get']('/jobs/:jobId', async (req: Request, res: Response) => {
     const jobStatus = await getJobStatus(jobId);
 
     if (jobStatus.status === 'unknown') {
-      return res['status'](404)['json']({
+      return res.status(404).json({
         error: 'JOB_NOT_FOUND',
         message: `Job ${jobId} not found`,
       });
@@ -440,7 +440,7 @@ router['get']('/jobs/:jobId', async (req: Request, res: Response) => {
       res.setHeader('Retry-After', '5');
     }
 
-    res['json']({
+    res.json({
       jobId,
       ...jobStatus,
       _links: {
@@ -451,7 +451,7 @@ router['get']('/jobs/:jobId', async (req: Request, res: Response) => {
       },
     });
   } catch (error) {
-    res['status'](500)['json']({
+    res.status(500).json({
       error: 'JOB_STATUS_FAILED',
       message: error instanceof Error ? error.message : 'Failed to get job status',
     });
@@ -465,14 +465,14 @@ router['get']('/jobs/:jobId', async (req: Request, res: Response) => {
 router['get']('/jobs/:jobId/stream', async (req: Request, res: Response) => {
   const jobId = firstString(req.params['jobId']);
   if (!jobId) {
-    return res['status'](400)['json']({
+    return res.status(400).json({
       error: 'INVALID_JOB_ID',
       message: 'Job ID is required',
     });
   }
 
   if (!isQueueInitialized()) {
-    return res['status'](503)['json']({
+    return res.status(503).json({
       error: 'QUEUE_UNAVAILABLE',
       message: 'Background job queue is not available',
     });
@@ -550,7 +550,7 @@ router['post'](
         '[MONTE_CARLO] Completed batch simulation'
       );
 
-      res['json']({
+      res.json({
         correlationId,
         results,
         summary: {
@@ -563,7 +563,7 @@ router['post'](
     } catch (error) {
       logger.error({ correlationId, error }, '[MONTE_CARLO] Batch simulation failed');
 
-      res['status'](500)['json']({
+      res.status(500).json({
         error: 'BATCH_SIMULATION_FAILED',
         correlationId,
         message:
@@ -618,7 +618,7 @@ router['post'](
 
       logger.info({ correlationId }, '[MONTE_CARLO] Completed multi-environment simulation');
 
-      res['json']({
+      res.json({
         correlationId,
         results,
         summary: {
@@ -637,7 +637,7 @@ router['post'](
     } catch (error) {
       logger.error({ correlationId, error }, '[MONTE_CARLO] Multi-environment simulation failed');
 
-      res['status'](500)['json']({
+      res.status(500).json({
         error: 'MULTI_ENVIRONMENT_FAILED',
         correlationId,
         message:
@@ -660,7 +660,7 @@ router['get']('/health', async (req: Request, res: Response) => {
     const status = health.status === 'healthy' ? 200 : health.status === 'degraded' ? 206 : 503;
     const connectionPools = health.connectionPools as Record<string, unknown>;
 
-    res['status'](status)['json']({
+    res.status(status).json({
       status: health.status,
       timestamp: new Date().toISOString(),
       engines: health.engines,
@@ -669,7 +669,7 @@ router['get']('/health', async (req: Request, res: Response) => {
       version: '3.0-streaming',
     });
   } catch (error) {
-    res['status'](503)['json']({
+    res.status(503).json({
       status: 'unhealthy',
       error: error instanceof Error ? error.message : 'Health check failed',
       timestamp: new Date().toISOString(),
@@ -686,13 +686,13 @@ router['get']('/performance', async (req: Request, res: Response) => {
     const stats = unifiedMonteCarloService.getPerformanceStats();
     const recommendations = unifiedMonteCarloService.getOptimizationRecommendations();
 
-    res['json']({
+    res.json({
       statistics: stats,
       recommendations,
       timestamp: new Date().toISOString(),
     });
   } catch (error) {
-    res['status'](500)['json']({
+    res.status(500).json({
       error: 'PERFORMANCE_STATS_FAILED',
       message: error instanceof Error ? error.message : 'Failed to retrieve performance statistics',
       timestamp: new Date().toISOString(),
@@ -712,7 +712,7 @@ router['get']('/funds/:fundId/simulate', async (req: Request, res: Response) => 
     const engine = (req.query['engine'] as 'streaming' | 'traditional' | 'auto') || 'auto';
 
     if (runs < 100 || runs > 10000) {
-      return res['status'](400)['json']({
+      return res.status(400).json({
         error: 'INVALID_PARAMETERS',
         message: 'Runs must be between 100 and 10,000 for GET endpoint',
       });
@@ -728,7 +728,7 @@ router['get']('/funds/:fundId/simulate', async (req: Request, res: Response) => 
 
     const result = await unifiedMonteCarloService.runSimulation(config);
 
-    res['json']({
+    res.json({
       fundId,
       ...result,
       metadata: {
@@ -737,7 +737,7 @@ router['get']('/funds/:fundId/simulate', async (req: Request, res: Response) => 
       },
     });
   } catch (error) {
-    res['status'](500)['json']({
+    res.status(500).json({
       error: 'QUICK_SIMULATION_FAILED',
       message: error instanceof Error ? error.message : 'Quick simulation failed',
     });
@@ -753,12 +753,12 @@ router['delete']('/cache', async (req: Request, res: Response) => {
     // This would need to be implemented in the service
     // await unifiedMonteCarloService.clearCache();
 
-    res['json']({
+    res.json({
       message: 'Performance cache cleared',
       timestamp: new Date().toISOString(),
     });
   } catch (error) {
-    res['status'](500)['json']({
+    res.status(500).json({
       error: 'CACHE_CLEAR_FAILED',
       message: error instanceof Error ? error.message : 'Failed to clear cache',
     });
@@ -773,7 +773,7 @@ router['delete']('/cache', async (req: Request, res: Response) => {
 router['use']((error: unknown, req: Request, res: Response, _next: NextFunction) => {
   logger.error({ error }, '[MONTE_CARLO_ROUTES] Error');
 
-  res['status'](500)['json']({
+  res.status(500).json({
     error: 'MONTE_CARLO_ERROR',
     message: 'An unexpected error occurred in Monte Carlo simulation',
     timestamp: new Date().toISOString(),

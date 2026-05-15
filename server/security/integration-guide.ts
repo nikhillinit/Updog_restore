@@ -18,32 +18,29 @@ import {
   inputSanitization,
   suspiciousActivityDetection,
   securityEventLogger,
-  initializeSecurityMiddleware
+  initializeSecurityMiddleware,
 } from '../middleware/security.js';
 
-import {
-  enhancedAuditMiddleware,
-  financialAuditMiddleware
-} from '../middleware/enhanced-audit.js';
+import { enhancedAuditMiddleware, financialAuditMiddleware } from '../middleware/enhanced-audit.js';
 
 import {
   requestLogger,
   errorLogger,
   logMonteCarloOperation,
-  logFinancialOperation
+  logFinancialOperation,
 } from '../utils/logger.js';
 
 import {
   createSanitizationMiddleware,
   sanitizeMonteCarloConfig,
-  fieldSanitizers
+  fieldSanitizers,
 } from '../utils/input-sanitization.js';
 
 // Validation schemas
 import {
   MonteCarloSchemas,
   FinancialSchemas,
-  SecuritySchemas
+  SecuritySchemas,
 } from '@shared/validation/monte-carlo-schemas';
 
 /**
@@ -77,12 +74,14 @@ export async function setupSecurityMiddleware(app: Application): Promise<void> {
   app.use(securityEventLogger);
 
   // 7. Enhanced audit logging for all requests
-  app.use(enhancedAuditMiddleware({
-    includeRequestBody: true,
-    includeResponseBody: false, // Too much data for most endpoints
-    encryptSensitiveData: true,
-    retentionDays: 2555 // 7 years for financial compliance
-  }));
+  app.use(
+    enhancedAuditMiddleware({
+      includeRequestBody: true,
+      includeResponseBody: false, // Too much data for most endpoints
+      encryptSensitiveData: true,
+      retentionDays: 2555, // 7 years for financial compliance
+    })
+  );
 
   // 8. Financial-specific audit logging
   app.use(financialAuditMiddleware);
@@ -107,9 +106,9 @@ export const highSecurityStack = [
     customSanitizers: {
       fundId: fieldSanitizers.fundName,
       amount: fieldSanitizers.amount,
-      email: fieldSanitizers.email
-    }
-  })
+      email: fieldSanitizers.email,
+    },
+  }),
 ];
 
 // Monte Carlo specific security
@@ -118,9 +117,9 @@ export const monteCarloSecurityStack = [
   createSanitizationMiddleware({
     strictMode: true,
     customSanitizers: {
-      config: sanitizeMonteCarloConfig
-    }
-  })
+      config: sanitizeMonteCarloConfig,
+    },
+  }),
 ];
 
 /**
@@ -129,7 +128,13 @@ export const monteCarloSecurityStack = [
  * =============================================================================
  */
 
-export function createValidationMiddleware<T>(schema: { safeParse: (data: unknown) => { success: boolean; data?: T; error?: { errors: Array<{ path: (string | number)[]; message: string; code: string }> } } }) {
+export function createValidationMiddleware<T>(schema: {
+  safeParse: (data: unknown) => {
+    success: boolean;
+    data?: T;
+    error?: { errors: Array<{ path: (string | number)[]; message: string; code: string }> };
+  };
+}) {
   return (req: Request, res: Response, next: NextFunction) => {
     try {
       const validation = schema.safeParse(req.body);
@@ -138,23 +143,22 @@ export function createValidationMiddleware<T>(schema: { safeParse: (data: unknow
         const errors = validation.error?.errors.map((err) => ({
           field: err.path.join('.'),
           message: err.message,
-          code: err.code
+          code: err.code,
         }));
 
-        return res["status"](400)["json"]({
+        return res.status(400).json({
           error: 'Validation failed',
-          details: errors
+          details: errors,
         });
       }
 
       // Replace request body with validated data
       req.body = validation.data;
       next();
-
     } catch (error: unknown) {
-      return res["status"](500)["json"]({
+      return res.status(500).json({
         error: 'Validation error',
-        message: 'Internal validation error occurred'
+        message: 'Internal validation error occurred',
       });
     }
   };
@@ -170,7 +174,8 @@ export function setupSecureRoutes(app: Application): void {
   console.log('[SECURITY] Setting up secure routes...');
 
   // Monte Carlo simulation endpoint with full security
-  app.post('/api/monte-carlo/simulate',
+  app.post(
+    '/api/monte-carlo/simulate',
     ...(monteCarloSecurityStack as RequestHandler[]),
     createValidationMiddleware(MonteCarloSchemas.Request),
     async (req: Request, res: Response) => {
@@ -182,7 +187,7 @@ export function setupSecureRoutes(app: Application): void {
           runs: config.runs,
           timeHorizonYears: config.timeHorizonYears,
           userAgent: req['get']('User-Agent'),
-          ipAddress: req.ip
+          ipAddress: req.ip,
         });
 
         // Import Monte Carlo engine dynamically to avoid circular dependencies
@@ -195,23 +200,23 @@ export function setupSecureRoutes(app: Application): void {
         logFinancialOperation('Monte Carlo simulation completed', config.fundId, undefined, {
           simulationId: results.simulationId,
           executionTimeMs: results.executionTimeMs,
-          scenarios: config.runs
+          scenarios: config.runs,
         });
 
-        res["json"](results);
-
+        res.json(results);
       } catch (error: unknown) {
         console.error('Monte Carlo simulation failed:', error);
-        res["status"](500)["json"]({
+        res.status(500).json({
           error: 'Simulation failed',
-          message: 'An error occurred during simulation'
+          message: 'An error occurred during simulation',
         });
       }
     }
   );
 
   // Fund creation endpoint with high security
-  app.post('/api/funds',
+  app.post(
+    '/api/funds',
     ...(highSecurityStack as RequestHandler[]),
     createValidationMiddleware(FinancialSchemas.FundBasics),
     async (req: Request, res: Response) => {
@@ -221,61 +226,66 @@ export function setupSecureRoutes(app: Application): void {
         // Log fund creation attempt
         logFinancialOperation('Fund creation requested', 0, fundData.size, {
           fundName: fundData.name,
-          vintageYear: fundData.vintageYear
+          vintageYear: fundData.vintageYear,
         });
 
         // Implementation would create fund in database
         // const fund = await createFund(fundData);
 
-        res["status"](201)["json"]({
+        res.status(201).json({
           message: 'Fund created successfully',
           // fund
         });
-
       } catch (error: unknown) {
         console.error('Fund creation failed:', error);
-        res["status"](500)["json"]({
+        res.status(500).json({
           error: 'Fund creation failed',
-          message: 'An error occurred during fund creation'
+          message: 'An error occurred during fund creation',
         });
       }
     }
   );
 
   // Investment entry endpoint
-  app.post('/api/investments',
+  app.post(
+    '/api/investments',
     ...(highSecurityStack as RequestHandler[]),
     createValidationMiddleware(FinancialSchemas.Investment),
     async (req: Request, res: Response) => {
       try {
         const investmentData = req.body;
 
-        logFinancialOperation('Investment entry', investmentData.fundId, investmentData.investmentAmount, {
-          companyName: investmentData.companyName,
-          sector: investmentData.sector,
-          stage: investmentData.stage
-        });
+        logFinancialOperation(
+          'Investment entry',
+          investmentData.fundId,
+          investmentData.investmentAmount,
+          {
+            companyName: investmentData.companyName,
+            sector: investmentData.sector,
+            stage: investmentData.stage,
+          }
+        );
 
         // Implementation would save investment
         // const investment = await saveInvestment(investmentData);
 
-        res["status"](201)["json"]({
+        res.status(201).json({
           message: 'Investment recorded successfully',
           // investment
         });
-
       } catch (error: unknown) {
         console.error('Investment entry failed:', error);
-        res["status"](500)["json"]({
+        res.status(500).json({
           error: 'Investment entry failed',
-          message: 'An error occurred recording the investment'
+          message: 'An error occurred recording the investment',
         });
       }
     }
   );
 
   // Search endpoint with input validation
-  app['get']('/api/search',
+  app['get'](
+    '/api/search',
     createValidationMiddleware(SecuritySchemas.SearchQuery),
     async (req: Request, res: Response) => {
       try {
@@ -284,17 +294,16 @@ export function setupSecureRoutes(app: Application): void {
         // Implementation would perform search
         // const results = await searchDatabase(query, filters, { sortBy, sortOrder, page, limit });
 
-        res["json"]({
+        res.json({
           results: [],
           pagination: { page, limit },
-          total: 0
+          total: 0,
         });
-
       } catch (error: unknown) {
         console.error('Search failed:', error);
-        res["status"](500)["json"]({
+        res.status(500).json({
           error: 'Search failed',
-          message: 'An error occurred during search'
+          message: 'An error occurred during search',
         });
       }
     }
@@ -312,31 +321,28 @@ export function setupSecureRoutes(app: Application): void {
 export function setupSecurityMonitoring(app: Application): void {
   // Security health check endpoint
   app['get']('/api/security/health', (req: Request, res: Response) => {
-    res["json"]({
+    res.json({
       status: 'healthy',
       timestamp: new Date().toISOString(),
-      version: process.env["npm_package_version"] || '1.0.0',
+      version: process.env['npm_package_version'] || '1.0.0',
       security: {
         headersEnabled: true,
         rateLimitingEnabled: true,
         auditLoggingEnabled: true,
         inputSanitizationEnabled: true,
-        encryptionEnabled: !!process.env['AUDIT_ENCRYPTION_KEY']
-      }
+        encryptionEnabled: !!process.env['AUDIT_ENCRYPTION_KEY'],
+      },
     });
   });
 
   // Security metrics endpoint (protected)
-  app['get']('/api/security/metrics',
-    strictRateLimit,
-    (req: Request, res: Response) => {
-      // This would return security metrics in production
-      res["json"]({
-        message: 'Security metrics endpoint',
-        note: 'Implementation would return actual security metrics'
-      });
-    }
-  );
+  app['get']('/api/security/metrics', strictRateLimit, (req: Request, res: Response) => {
+    // This would return security metrics in production
+    res.json({
+      message: 'Security metrics endpoint',
+      note: 'Implementation would return actual security metrics',
+    });
+  });
 }
 
 /**
@@ -346,13 +352,9 @@ export function setupSecurityMonitoring(app: Application): void {
  */
 
 export function validateSecurityEnvironment(): void {
-  const requiredEnvVars = [
-    'DATABASE_URL',
-    'AUDIT_ENCRYPTION_KEY',
-    'LOG_LEVEL'
-  ];
+  const requiredEnvVars = ['DATABASE_URL', 'AUDIT_ENCRYPTION_KEY', 'LOG_LEVEL'];
 
-  const missingVars = requiredEnvVars.filter(varName => !process.env[varName]);
+  const missingVars = requiredEnvVars.filter((varName) => !process.env[varName]);
 
   if (missingVars.length > 0) {
     console.error('❌ Missing required environment variables:', missingVars);
@@ -437,5 +439,5 @@ export default {
   initializeCompleteSecurity,
   highSecurityStack,
   monteCarloSecurityStack,
-  createValidationMiddleware
+  createValidationMiddleware,
 };

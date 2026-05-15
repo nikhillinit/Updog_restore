@@ -149,7 +149,7 @@ export class UnifiedErrorHandler {
         const result = await this.handleError(toError(err), context);
 
         if (!res.headersSent) {
-          res['status'](result.statusCode)['json'](result.response);
+          res.status(result.statusCode).json(result.response);
         }
       } catch (handlingError) {
         logger.error(
@@ -158,7 +158,7 @@ export class UnifiedErrorHandler {
         );
 
         if (!res.headersSent) {
-          res['status'](500)['json']({
+          res.status(500).json({
             error: 'Internal Server Error',
             code: 'INTERNAL_ERROR',
             requestId: context.requestId,

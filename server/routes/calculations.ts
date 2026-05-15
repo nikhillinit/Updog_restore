@@ -80,10 +80,10 @@ router['post']('/export-csv', async (req: Request, res: Response) => {
 
     res['setHeader']('Content-Type', 'text/csv');
     res['setHeader']('Content-Disposition', 'attachment; filename="fund-model-export.csv"');
-    res['status'](200)['send'](csv);
+    res.status(200).send(csv);
   } catch (error: unknown) {
     if (isZodError(error)) {
-      return res['status'](400)['json']({
+      return res.status(400).json({
         error: 'validation_error',
         message: 'Invalid fund model inputs',
         details: error.errors,
@@ -91,14 +91,14 @@ router['post']('/export-csv', async (req: Request, res: Response) => {
     }
 
     if (hasMessage(error) && error.message.includes('not yet implemented')) {
-      return res['status'](501)['json']({
+      return res.status(501).json({
         error: 'not_implemented',
         message: error.message,
       });
     }
 
     console.error('CSV export error:', error);
-    res['status'](500)['json']({
+    res.status(500).json({
       error: 'internal_error',
       message: 'Failed to generate CSV export',
     });
@@ -112,10 +112,10 @@ router['post']('/run', async (req: Request, res: Response) => {
   try {
     const inputs: FundModelInputs = FundModelInputsSchema.parse(req.body);
     const outputs = runFundModel(inputs);
-    res['status'](200)['json'](outputs);
+    res.status(200).json(outputs);
   } catch (error: unknown) {
     if (isZodError(error)) {
-      return res['status'](400)['json']({
+      return res.status(400).json({
         error: 'validation_error',
         message: 'Invalid fund model inputs',
         details: error.errors,
@@ -123,14 +123,14 @@ router['post']('/run', async (req: Request, res: Response) => {
     }
 
     if (hasMessage(error) && error.message.includes('not yet implemented')) {
-      return res['status'](501)['json']({
+      return res.status(501).json({
         error: 'not_implemented',
         message: error.message,
       });
     }
 
     console.error('Fund calculation error:', error);
-    res['status'](500)['json']({
+    res.status(500).json({
       error: 'internal_error',
       message: 'Failed to run fund model',
     });
