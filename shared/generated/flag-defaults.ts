@@ -114,7 +114,7 @@ export const FLAG_DEFINITIONS: Record<FlagKey, FlagDefinition> = {
     exposeToClient: true,
 
     environments: {
-      development: false,
+      development: true,
       staging: false,
       production: false,
     },

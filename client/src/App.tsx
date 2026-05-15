@@ -441,6 +441,9 @@ export const LP_ROUTES: LPRouteEntry[] = [
   { path: '/lp/settings', component: LPSettings },
 ];
 
+export const LP_INDEX_REDIRECT_PATH = '/lp';
+export const LP_INDEX_REDIRECT_TARGET = '/lp/dashboard';
+
 export const LEGACY_REDIRECT_ROUTES = {
   analyticsLegacy: '/analytics-legacy',
   planningLegacy: '/planning-legacy',
@@ -517,6 +520,11 @@ function Router() {
           {() => <Redirect to="/portfolio?tab=reserve-planning" />}
         </Route>
         <Route path={PUBLIC_ENTRY_ROUTES.sharedDashboard} component={SharedDashboard} />
+        {lpRoutes.length > 0 && (
+          <Route path={LP_INDEX_REDIRECT_PATH}>
+            {() => <Redirect to={LP_INDEX_REDIRECT_TARGET} />}
+          </Route>
+        )}
         {lpRoutes.map(renderLPRoute)}
         <Route path={ADMIN_GATED_ROUTES.uiCatalog}>
           {() => (
