@@ -23,7 +23,7 @@ function getStageElements(stageName: string) {
     throw new Error(`Unable to locate stage summary row for ${stageName}`);
   }
 
-  const stageRoot = summaryRow.parentElement;
+  const stageRoot = summaryRow.parentElement?.parentElement;
   if (!(stageRoot instanceof HTMLDivElement)) {
     throw new Error(`Unable to locate stage root for ${stageName}`);
   }
