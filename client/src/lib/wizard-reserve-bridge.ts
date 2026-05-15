@@ -35,6 +35,7 @@ import type {
   StageStrategy,
   ReserveCalculationResult,
 } from '@shared/schemas/reserves-schemas';
+import { normalizeStageForCompatibility, type CanonicalStage } from '@shared/schemas/stage';
 import { DeterministicReserveEngine } from '@/core/reserves/DeterministicReserveEngine';
 import { v4 as uuidv4 } from 'uuid';
 import { logger } from '@/lib/logger';
@@ -61,44 +62,11 @@ export interface WizardPortfolioCompany {
   sector: string;
 }
 
-// ============================================================================
-// STAGE MAPPING (Wizard → Engine)
-// ============================================================================
-
-/**
- * Map wizard investment stage names to engine stage schema
- */
-const STAGE_MAP: Record<
-  string,
-  'pre_seed' | 'seed' | 'series_a' | 'series_b' | 'series_c' | 'series_d' | 'growth' | 'late_stage'
-> = {
-  'pre-seed': 'pre_seed',
-  seed: 'seed',
-  'series-a': 'series_a',
-  'series-b': 'series_b',
-  'series-c': 'series_c',
-  'series-d': 'series_d',
-  'series-e-plus': 'late_stage',
-  growth: 'growth',
-  'late-stage': 'late_stage',
-};
-
 /**
  * Convert wizard stage to engine stage enum
  */
-function mapWizardStageToEngine(
-  wizardStage: string
-):
-  | 'pre_seed'
-  | 'seed'
-  | 'series_a'
-  | 'series_b'
-  | 'series_c'
-  | 'series_d'
-  | 'growth'
-  | 'late_stage' {
-  const normalized = wizardStage.toLowerCase().trim();
-  return STAGE_MAP[normalized] || 'seed';
+function mapWizardStageToEngine(wizardStage: string): CanonicalStage {
+  return normalizeStageForCompatibility(wizardStage);
 }
 
 // ============================================================================
