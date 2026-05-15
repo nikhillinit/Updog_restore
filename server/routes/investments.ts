@@ -23,7 +23,7 @@ router['get']('/investments', async (req: Request, res: Response) => {
           error: 'Invalid fund ID query',
           message: `Fund ID must be a positive integer, received: ${fundIdQuery}`,
         };
-        return res['status'](400)['json'](error);
+        return res.status(400).json(error);
       }
       fundId = parsedId;
     }
@@ -33,21 +33,21 @@ router['get']('/investments', async (req: Request, res: Response) => {
     }
 
     const investments = await storage.getInvestments(fundId);
-    return res['json'](investments);
+    return res.json(investments);
   } catch (error) {
     if (error instanceof NumberParseError) {
       const apiError: ApiError = {
         error: 'Invalid fund ID query',
         message: error.message,
       };
-      return res['status'](400)['json'](apiError);
+      return res.status(400).json(apiError);
     }
 
     const apiError: ApiError = {
       error: 'Database query failed',
       message: error instanceof Error ? error.message : 'Failed to fetch investments',
     };
-    return res['status'](500)['json'](apiError);
+    return res.status(500).json(apiError);
   }
 });
 
@@ -61,7 +61,7 @@ router['get']('/investments/:id', async (req: Request, res: Response) => {
         error: 'Invalid investment ID',
         message: `Investment ID must be a positive integer, received: ${idParam}`,
       };
-      return res['status'](400)['json'](error);
+      return res.status(400).json(error);
     }
 
     const investment = await storage.getInvestment(id);
@@ -70,23 +70,23 @@ router['get']('/investments/:id', async (req: Request, res: Response) => {
         error: 'Investment not found',
         message: `No investment exists with ID: ${id}`,
       };
-      return res['status'](404)['json'](error);
+      return res.status(404).json(error);
     }
-    return res['json'](investment);
+    return res.json(investment);
   } catch (error) {
     if (error instanceof NumberParseError) {
       const apiError: ApiError = {
         error: 'Invalid investment ID',
         message: error.message,
       };
-      return res['status'](400)['json'](apiError);
+      return res.status(400).json(apiError);
     }
 
     const apiError: ApiError = {
       error: 'Database query failed',
       message: error instanceof Error ? error.message : 'Failed to fetch investment',
     };
-    return res['status'](500)['json'](apiError);
+    return res.status(500).json(apiError);
   }
 });
 
@@ -99,7 +99,7 @@ router.post('/investments', async (req: Request, res: Response) => {
         message: 'Investment validation failed',
         details: { validationErrors: result.error.issues },
       };
-      return res['status'](400)['json'](error);
+      return res.status(400).json(error);
     }
 
     if (
@@ -110,13 +110,13 @@ router.post('/investments', async (req: Request, res: Response) => {
     }
 
     const investment = await storage.createInvestment(result.data);
-    return res['status'](201)['json'](investment);
+    return res.status(201).json(investment);
   } catch (error) {
     const apiError: ApiError = {
       error: 'Database operation failed',
       message: error instanceof Error ? error.message : 'Failed to create investment',
     };
-    return res['status'](500)['json'](apiError);
+    return res.status(500).json(apiError);
   }
 });
 
@@ -128,7 +128,7 @@ async function handleUnsupportedScenarioWrite<T>(
 ): Promise<Response<T | ApiError>> {
   try {
     const result = await executor();
-    return res['status'](201)['json'](result);
+    return res.status(201).json(result);
   } catch (error) {
     if (error instanceof UnsupportedStorageOperationError) {
       log.warn({ operation, investmentId: req.params['id'] }, 'Rejected unsupported storage write');
@@ -143,7 +143,7 @@ async function handleUnsupportedScenarioWrite<T>(
       error: 'Database operation failed',
       message: error instanceof Error ? error.message : `Failed to ${operation}`,
     };
-    return res['status'](500)['json'](apiError);
+    return res.status(500).json(apiError);
   }
 }
 
@@ -157,7 +157,7 @@ router.post('/investments/:id/rounds', async (req: Request, res: Response) => {
         error: 'Invalid investment ID',
         message: `Investment ID must be a positive integer, received: ${idParam}`,
       };
-      return res['status'](400)['json'](error);
+      return res.status(400).json(error);
     }
 
     const body = req.body as Record<string, unknown> | null;
@@ -166,7 +166,7 @@ router.post('/investments/:id/rounds', async (req: Request, res: Response) => {
         error: 'Invalid round data',
         message: 'Request body cannot be empty',
       };
-      return res['status'](400)['json'](error);
+      return res.status(400).json(error);
     }
 
     return await handleUnsupportedScenarioWrite(req, res, 'addInvestmentRound', () =>
@@ -178,14 +178,14 @@ router.post('/investments/:id/rounds', async (req: Request, res: Response) => {
         error: 'Invalid investment ID',
         message: error.message,
       };
-      return res['status'](400)['json'](apiError);
+      return res.status(400).json(apiError);
     }
 
     const apiError: ApiError = {
       error: 'Database operation failed',
       message: error instanceof Error ? error.message : 'Failed to add investment round',
     };
-    return res['status'](500)['json'](apiError);
+    return res.status(500).json(apiError);
   }
 });
 
@@ -199,7 +199,7 @@ router.post('/investments/:id/cases', async (req: Request, res: Response) => {
         error: 'Invalid investment ID',
         message: `Investment ID must be a positive integer, received: ${idParam}`,
       };
-      return res['status'](400)['json'](error);
+      return res.status(400).json(error);
     }
 
     const body = req.body as Record<string, unknown> | null;
@@ -208,7 +208,7 @@ router.post('/investments/:id/cases', async (req: Request, res: Response) => {
         error: 'Invalid case data',
         message: 'Request body cannot be empty',
       };
-      return res['status'](400)['json'](error);
+      return res.status(400).json(error);
     }
 
     return await handleUnsupportedScenarioWrite(req, res, 'addPerformanceCase', () =>
@@ -220,14 +220,14 @@ router.post('/investments/:id/cases', async (req: Request, res: Response) => {
         error: 'Invalid investment ID',
         message: error.message,
       };
-      return res['status'](400)['json'](apiError);
+      return res.status(400).json(apiError);
     }
 
     const apiError: ApiError = {
       error: 'Database operation failed',
       message: error instanceof Error ? error.message : 'Failed to add performance case',
     };
-    return res['status'](500)['json'](apiError);
+    return res.status(500).json(apiError);
   }
 });
 

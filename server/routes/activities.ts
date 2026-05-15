@@ -19,7 +19,7 @@ router['get']('/activities', async (req: Request, res: Response) => {
           error: 'Invalid fund ID query',
           message: `Fund ID must be a positive integer, received: ${fundIdQuery}`,
         };
-        return res['status'](400)['json'](error);
+        return res.status(400).json(error);
       }
       fundId = parsedId;
     }
@@ -31,21 +31,21 @@ router['get']('/activities', async (req: Request, res: Response) => {
       return dateB - dateA;
     });
 
-    return res['json'](sortedActivities);
+    return res.json(sortedActivities);
   } catch (error) {
     if (error instanceof NumberParseError) {
       const apiError: ApiError = {
         error: 'Invalid fund ID query',
         message: error.message,
       };
-      return res['status'](400)['json'](apiError);
+      return res.status(400).json(apiError);
     }
 
     const apiError: ApiError = {
       error: 'Database query failed',
       message: error instanceof Error ? error.message : 'Failed to fetch activities',
     };
-    return res['status'](500)['json'](apiError);
+    return res.status(500).json(apiError);
   }
 });
 
@@ -58,7 +58,7 @@ router.post('/activities', async (req: Request, res: Response) => {
         message: 'Activity validation failed',
         details: { validationErrors: result.error.issues },
       };
-      return res['status'](400)['json'](error);
+      return res.status(400).json(error);
     }
 
     const activityData = {
@@ -67,13 +67,13 @@ router.post('/activities', async (req: Request, res: Response) => {
       activityDate: result.data.activityDate ? new Date(result.data.activityDate) : new Date(),
     };
     const activity = await storage.createActivity(activityData);
-    return res['status'](201)['json'](activity);
+    return res.status(201).json(activity);
   } catch (error) {
     const apiError: ApiError = {
       error: 'Database operation failed',
       message: error instanceof Error ? error.message : 'Failed to create activity',
     };
-    return res['status'](500)['json'](apiError);
+    return res.status(500).json(apiError);
   }
 });
 

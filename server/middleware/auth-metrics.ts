@@ -12,7 +12,7 @@ export function authenticateMetrics(req: Request, res: Response, next: NextFunct
   const metricsKey = process.env['METRICS_KEY'];
   const allowFrom = (process.env['METRICS_ALLOW_FROM'] ?? '')
     .split(',')
-    .map(s => s.trim())
+    .map((s) => s.trim())
     .filter(Boolean);
 
   // Best-effort IP (trust proxy should be set at app level if behind LB)
@@ -31,7 +31,7 @@ export function authenticateMetrics(req: Request, res: Response, next: NextFunct
 
   // Deny by default in production
   if (process.env['NODE_ENV'] === 'production' || metricsKey || allowFrom.length) {
-    return res["status"](403)["json"]({ error: 'Forbidden' });
+    return res.status(403).json({ error: 'Forbidden' });
   }
   next(); // Allow in dev if no auth configured
 }

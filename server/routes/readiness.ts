@@ -11,18 +11,18 @@ export function readinessHandler(critical?: BreakerLike[]) {
 
     if (!isHealthy) {
       const degraded = breakerRegistry.getDegraded();
-      return res["status"](503)["json"]({
+      return res.status(503).json({
         ready: false,
         reason: 'critical dependency breaker OPEN',
         degraded,
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
       });
     }
 
-    res["json"]({
+    res.json({
       ready: true,
       degraded: breakerRegistry.getDegraded(),
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
     });
   };
 }

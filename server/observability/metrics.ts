@@ -58,7 +58,7 @@ export function installMetricsRoute(app: import('express').Express) {
 
   app['get']('/metrics', authenticateMetrics, async (_req: Request, res: Response) => {
     res['setHeader']('Content-Type', client.register.contentType);
-    res['send'](await client.register.metrics());
+    res.send(await client.register.metrics());
   });
 }
 

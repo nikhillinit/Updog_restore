@@ -33,9 +33,9 @@ const performanceRunSchema = z.object({
  * GET /api/performance/summary
  * Get overall performance summary
  */
-router["get"]('/summary', (req: Request, res: Response) => {
+router['get']('/summary', (req: Request, res: Response) => {
   try {
-    const timeWindow = parseInt(req.query['window'] as string) || (60 * 60 * 1000); // Default 1 hour
+    const timeWindow = parseInt(req.query['window'] as string) || 60 * 60 * 1000; // Default 1 hour
     const metrics = monitor.exportMetrics();
 
     const summary = {
@@ -44,22 +44,29 @@ router["get"]('/summary', (req: Request, res: Response) => {
       operations: metrics.summary,
       alerts: {
         recent: metrics.alerts.length,
-        critical: metrics.alerts.filter(a => a.severity === 'critical').length,
-        slow: metrics.alerts.filter(a => a.severity === 'slow').length
+        critical: metrics.alerts.filter((a) => a.severity === 'critical').length,
+        slow: metrics.alerts.filter((a) => a.severity === 'slow').length,
       },
       health: {
-        overall: metrics.alerts.filter(a => a.severity === 'critical').length === 0 ? 'healthy' : 'degraded',
-        monteCarloPerformance: (metrics.summary['monte_carlo_simulation'] as { avgDuration: number } | undefined)?.avgDuration || 0,
-        apiPerformance: Object.entries(metrics.summary)
-          .filter(([key]) => key.startsWith('GET ') || key.startsWith('POST '))
-          .reduce((avg, [, stats]) => avg + (stats as { avgDuration: number }).avgDuration, 0) / Math.max(1, Object.keys(metrics.summary).length)
-      }
+        overall:
+          metrics.alerts.filter((a) => a.severity === 'critical').length === 0
+            ? 'healthy'
+            : 'degraded',
+        monteCarloPerformance:
+          (metrics.summary['monte_carlo_simulation'] as { avgDuration: number } | undefined)
+            ?.avgDuration || 0,
+        apiPerformance:
+          Object.entries(metrics.summary)
+            .filter(([key]) => key.startsWith('GET ') || key.startsWith('POST '))
+            .reduce((avg, [, stats]) => avg + (stats as { avgDuration: number }).avgDuration, 0) /
+          Math.max(1, Object.keys(metrics.summary).length),
+      },
     };
 
-    res["json"](summary);
+    res.json(summary);
   } catch (error) {
     console.error('Error getting performance summary:', error);
-    res["status"](500)["json"]({ error: 'Failed to get performance summary' });
+    res.status(500).json({ error: 'Failed to get performance summary' });
   }
 });
 
@@ -67,9 +74,9 @@ router["get"]('/summary', (req: Request, res: Response) => {
  * GET /api/performance/monte-carlo
  * Get Monte Carlo specific performance metrics
  */
-router["get"]('/monte-carlo', (req: Request, res: Response) => {
+router['get']('/monte-carlo', (req: Request, res: Response) => {
   try {
-    const timeWindow = parseInt(req.query['window'] as string) || (60 * 60 * 1000);
+    const timeWindow = parseInt(req.query['window'] as string) || 60 * 60 * 1000;
     const stats = monitor.getStats('monte_carlo_simulation', timeWindow);
 
     const monteCarloMetrics = {
@@ -84,20 +91,20 @@ router["get"]('/monte-carlo', (req: Request, res: Response) => {
         performance: {
           fast: stats.count - stats.slowCount - stats.criticalCount,
           slow: stats.slowCount,
-          critical: stats.criticalCount
-        }
+          critical: stats.criticalCount,
+        },
       },
       throughput: {
         simulationsPerHour: stats.count * (3600000 / timeWindow),
-        avgSimulationsPerMinute: stats.count / (timeWindow / 60000)
+        avgSimulationsPerMinute: stats.count / (timeWindow / 60000),
       },
-      health: stats.criticalCount === 0 ? 'healthy' : 'degraded'
+      health: stats.criticalCount === 0 ? 'healthy' : 'degraded',
     };
 
-    res["json"](monteCarloMetrics);
+    res.json(monteCarloMetrics);
   } catch (error) {
     console.error('Error getting Monte Carlo metrics:', error);
-    res["status"](500)["json"]({ error: 'Failed to get Monte Carlo metrics' });
+    res.status(500).json({ error: 'Failed to get Monte Carlo metrics' });
   }
 });
 
@@ -105,12 +112,12 @@ router["get"]('/monte-carlo', (req: Request, res: Response) => {
  * GET /api/performance/alerts
  * Get recent performance alerts
  */
-router["get"]('/alerts', (req: Request, res: Response) => {
+router['get']('/alerts', (req: Request, res: Response) => {
   try {
     const limit = parseInt(req.query['limit'] as string) || 50;
     const alerts = monitor.getRecentAlerts(limit);
 
-    const formattedAlerts = alerts.map(alert => ({
+    const formattedAlerts = alerts.map((alert) => ({
       id: `${alert.operation}_${alert.timestamp}`,
       operation: alert.operation,
       duration: Math.round(alert.duration),
@@ -118,20 +125,20 @@ router["get"]('/alerts', (req: Request, res: Response) => {
       timestamp: alert.timestamp,
       category: alert.category,
       metadata: alert.metadata,
-      timeAgo: Date.now() - alert.timestamp
+      timeAgo: Date.now() - alert.timestamp,
     }));
 
-    res["json"]({
+    res.json({
       alerts: formattedAlerts,
       summary: {
         total: formattedAlerts.length,
-        critical: formattedAlerts.filter(a => a.severity === 'critical').length,
-        slow: formattedAlerts.filter(a => a.severity === 'slow').length
-      }
+        critical: formattedAlerts.filter((a) => a.severity === 'critical').length,
+        slow: formattedAlerts.filter((a) => a.severity === 'slow').length,
+      },
     });
   } catch (error) {
     console.error('Error getting performance alerts:', error);
-    res["status"](500)["json"]({ error: 'Failed to get performance alerts' });
+    res.status(500).json({ error: 'Failed to get performance alerts' });
   }
 });
 
@@ -139,17 +146,23 @@ router["get"]('/alerts', (req: Request, res: Response) => {
  * GET /api/performance/realtime
  * Get real-time performance stream (SSE)
  */
-router["get"]('/realtime', (req: Request, res: Response) => {
+router['get']('/realtime', (req: Request, res: Response) => {
   // Set up Server-Sent Events
   res.writeHead(200, {
     'Content-Type': 'text/event-stream',
     'Cache-Control': 'no-cache',
-    'Connection': 'keep-alive',
+    Connection: 'keep-alive',
     'Access-Control-Allow-Origin': '*',
-    'Access-Control-Allow-Headers': 'Cache-Control'
+    'Access-Control-Allow-Headers': 'Cache-Control',
   });
 
-  const sendMetric = (metric: { operation: string; duration: number; severity: string; category: string; timestamp: number }) => {
+  const sendMetric = (metric: {
+    operation: string;
+    duration: number;
+    severity: string;
+    category: string;
+    timestamp: number;
+  }) => {
     const data = JSON.stringify({
       type: 'metric',
       data: {
@@ -157,14 +170,20 @@ router["get"]('/realtime', (req: Request, res: Response) => {
         duration: Math.round(metric.duration),
         severity: metric.severity,
         category: metric.category,
-        timestamp: metric.timestamp
-      }
+        timestamp: metric.timestamp,
+      },
     });
 
-    res["write"](`data: ${data}\n\n`);
+    res['write'](`data: ${data}\n\n`);
   };
 
-  const sendAlert = (alert: { operation: string; duration: number; severity: string; category: string; timestamp: number }) => {
+  const sendAlert = (alert: {
+    operation: string;
+    duration: number;
+    severity: string;
+    category: string;
+    timestamp: number;
+  }) => {
     const data = JSON.stringify({
       type: 'alert',
       data: {
@@ -172,11 +191,11 @@ router["get"]('/realtime', (req: Request, res: Response) => {
         duration: Math.round(alert.duration),
         severity: alert.severity,
         category: alert.category,
-        timestamp: alert.timestamp
-      }
+        timestamp: alert.timestamp,
+      },
     });
 
-    res["write"](`data: ${data}\n\n`);
+    res['write'](`data: ${data}\n\n`);
   };
 
   // Listen for new metrics and alerts
@@ -185,7 +204,7 @@ router["get"]('/realtime', (req: Request, res: Response) => {
 
   // Send heartbeat every 30 seconds
   const heartbeat = setInterval(() => {
-    res["write"](`data: ${JSON.stringify({ type: 'heartbeat', timestamp: Date.now() })}\n\n`);
+    res['write'](`data: ${JSON.stringify({ type: 'heartbeat', timestamp: Date.now() })}\n\n`);
   }, 30000);
 
   // Clean up on disconnect
@@ -200,9 +219,9 @@ router["get"]('/realtime', (req: Request, res: Response) => {
  * GET /api/performance/operations
  * Get performance stats for all operations
  */
-router["get"]('/operations', (req: Request, res: Response) => {
+router['get']('/operations', (req: Request, res: Response) => {
   try {
-    const timeWindow = parseInt(req.query['window'] as string) || (60 * 60 * 1000);
+    const timeWindow = parseInt(req.query['window'] as string) || 60 * 60 * 1000;
     const category = req.query['category'] as string;
 
     const metrics = monitor.exportMetrics();
@@ -211,10 +230,10 @@ router["get"]('/operations', (req: Request, res: Response) => {
     // Filter by category if specified
     if (category) {
       const recentMetrics = metrics.recentMetrics
-        .filter(m => m.category === category)
+        .filter((m) => m.category === category)
         .slice(-1000); // Last 1000 metrics
 
-      const operationNames = [...new Set(recentMetrics.map(m => m.operation))];
+      const operationNames = [...new Set(recentMetrics.map((m) => m.operation))];
       operations = operations.filter(([opName]) => operationNames.includes(opName));
     }
 
@@ -227,23 +246,28 @@ router["get"]('/operations', (req: Request, res: Response) => {
         maxDuration: Math.round((stats as { maxDuration: number }).maxDuration),
         p95Duration: Math.round((stats as { p95Duration: number }).p95Duration),
         slowCount: (stats as { slowCount: number }).slowCount,
-        criticalCount: (stats as { criticalCount: number }).criticalCount
+        criticalCount: (stats as { criticalCount: number }).criticalCount,
       },
-      health: (stats as { criticalCount: number; slowCount: number }).criticalCount === 0 ? ((stats as { criticalCount: number; slowCount: number }).slowCount === 0 ? 'healthy' : 'slow') : 'critical'
+      health:
+        (stats as { criticalCount: number; slowCount: number }).criticalCount === 0
+          ? (stats as { criticalCount: number; slowCount: number }).slowCount === 0
+            ? 'healthy'
+            : 'slow'
+          : 'critical',
     }));
 
     // Sort by average duration (slowest first)
     formattedOperations.sort((a, b) => b.stats.avgDuration - a.stats.avgDuration);
 
-    res["json"]({
+    res.json({
       operations: formattedOperations,
       timestamp: Date.now(),
       timeWindow,
-      category: category || 'all'
+      category: category || 'all',
     });
   } catch (error) {
     console.error('Error getting operations metrics:', error);
-    res["status"](500)["json"]({ error: 'Failed to get operations metrics' });
+    res.status(500).json({ error: 'Failed to get operations metrics' });
   }
 });
 
@@ -251,7 +275,7 @@ router["get"]('/operations', (req: Request, res: Response) => {
  * POST /api/performance/simulate
  * Trigger a test Monte Carlo simulation for performance testing
  */
-router["post"]('/simulate', async (req: Request, res: Response) => {
+router['post']('/simulate', async (req: Request, res: Response) => {
   try {
     const { runs, fundId } = performanceRunSchema.parse(req.body);
 
@@ -262,22 +286,22 @@ router["post"]('/simulate', async (req: Request, res: Response) => {
     // Simulate some work (replace with actual Monte Carlo call)
     const timer = monitor.createTimer('test_simulation', 'monte_carlo');
 
-    await new Promise(resolve => setTimeout(resolve, Math.random() * 2000 + 500)); // 0.5-2.5s
+    await new Promise((resolve) => setTimeout(resolve, Math.random() * 2000 + 500)); // 0.5-2.5s
 
-    const duration = timer["end"]({ runs, fundId, test: true });
+    const duration = timer['end']({ runs, fundId, test: true });
 
     monteCarloTracker.endSimulation(simulationId, { scenarios: new Array(runs) });
 
-    res["json"]({
+    res.json({
       simulationId,
       duration: Math.round(duration),
       runs,
       success: true,
-      message: 'Test simulation completed'
+      message: 'Test simulation completed',
     });
   } catch (error) {
     console.error('Error running test simulation:', error);
-    res["status"](500)["json"]({ error: 'Failed to run test simulation' });
+    res.status(500).json({ error: 'Failed to run test simulation' });
   }
 });
 

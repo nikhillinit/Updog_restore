@@ -74,7 +74,7 @@ flagsRouter['get']('/', async (req: Request, res: Response) => {
 
     // Handle conditional GET
     if (req.headers['if-none-match'] === etag) {
-      return res['status'](304)['end']();
+      return res.status(304).end();
     }
 
     const response = {
@@ -87,10 +87,10 @@ flagsRouter['get']('/', async (req: Request, res: Response) => {
       },
     };
 
-    res['json'](response);
+    res.json(response);
   } catch (error) {
     console.error('Error fetching client flags:', error);
-    res['status'](500)['json']({
+    res.status(500).json({
       error: 'Failed to fetch flags',
       flags: {}, // Safe fallback
       version: '0',
@@ -106,7 +106,7 @@ flagsRouter['get']('/status', async (req: Request, res: Response) => {
   try {
     const status = getCacheStatus();
 
-    res['json']({
+    res.json({
       cache: status,
       killSwitchActive: process.env['FLAGS_DISABLED_ALL'] === '1',
       environment: process.env['NODE_ENV'] || 'unknown',
@@ -114,7 +114,7 @@ flagsRouter['get']('/status', async (req: Request, res: Response) => {
     });
   } catch (error) {
     console.error('Error fetching flag status:', error);
-    res['status'](500)['json']({ error: 'Failed to fetch status' });
+    res.status(500).json({ error: 'Failed to fetch status' });
   }
 });
 
@@ -156,7 +156,7 @@ adminRouter['get']('/', requireRole('flag_read'), async (req: Request, res: Resp
     const hash = await getFlagsHash();
     const snapshot = await getFlags();
 
-    res['json']({
+    res.json({
       version,
       hash,
       flags: snapshot.flags,
@@ -168,7 +168,7 @@ adminRouter['get']('/', requireRole('flag_read'), async (req: Request, res: Resp
     });
   } catch (error) {
     console.error('Error fetching admin flags:', error);
-    res['status'](500)['json']({ error: 'Failed to fetch admin flags' });
+    res.status(500).json({ error: 'Failed to fetch admin flags' });
   }
 });
 
@@ -201,7 +201,7 @@ adminRouter.patch('/:key', requireRole('flag_admin'), async (req: Request, res: 
     const validation = updateFlagSchema.safeParse(req.body);
 
     if (!validation.success) {
-      return res['status'](400)['json']({
+      return res.status(400).json({
         error: 'invalid_request',
         issues: validation.error.issues,
       });
@@ -210,7 +210,7 @@ adminRouter.patch('/:key', requireRole('flag_admin'), async (req: Request, res: 
     // Version-based concurrency control
     const expectedVersion = req.headers['if-match'] as string;
     if (!expectedVersion) {
-      return res['status'](400)['json']({
+      return res.status(400).json({
         error: 'version_required',
         message: 'If-Match header with current version required',
       });
@@ -218,7 +218,7 @@ adminRouter.patch('/:key', requireRole('flag_admin'), async (req: Request, res: 
 
     const currentVersion = await getFlagsVersion();
     if (expectedVersion !== currentVersion) {
-      return res['status'](409)['json']({
+      return res.status(409).json({
         error: 'version_conflict',
         message: 'Flag version has changed since last read',
         currentVersion,
@@ -231,7 +231,7 @@ adminRouter.patch('/:key', requireRole('flag_admin'), async (req: Request, res: 
     // Dry run support
     if (dryRun) {
       // TODO: Preview changes without committing
-      return res['json']({
+      return res.json({
         dryRun: true,
         preview: {
           key,
@@ -271,7 +271,7 @@ adminRouter.patch('/:key', requireRole('flag_admin'), async (req: Request, res: 
 
     const newVersion = await getFlagsVersion();
 
-    res['json']({
+    res.json({
       success: true,
       key,
       version: newVersion,
@@ -281,7 +281,7 @@ adminRouter.patch('/:key', requireRole('flag_admin'), async (req: Request, res: 
   } catch (error) {
     console.error('Error updating flag:', error);
     const errorMessage = error instanceof Error ? error.message : 'Failed to update flag';
-    res['status'](500)['json']({
+    res.status(500).json({
       error: 'update_failed',
       message: errorMessage,
     });
@@ -295,18 +295,18 @@ adminRouter['get']('/:key/history', async (req: Request, res: Response) => {
   try {
     const key = firstString(req.params['key']);
     if (!key) {
-      return res['status'](400)['json']({ error: 'Flag key is required' });
+      return res.status(400).json({ error: 'Flag key is required' });
     }
     const history = await getFlagHistory(key);
 
-    res['json']({
+    res.json({
       key,
       history,
       count: history.length,
     });
   } catch (error) {
     console.error('Error fetching flag history:', error);
-    res['status'](500)['json']({ error: 'Failed to fetch flag history' });
+    res.status(500).json({ error: 'Failed to fetch flag history' });
   }
 });
 
@@ -317,7 +317,7 @@ adminRouter.post('/kill-switch', (req: Request, res: Response) => {
   try {
     activateKillSwitch();
 
-    res['json']({
+    res.json({
       success: true,
       message: '[CRITICAL] Kill switch activated - all flags disabled',
       timestamp: new Date().toISOString(),
@@ -325,7 +325,7 @@ adminRouter.post('/kill-switch', (req: Request, res: Response) => {
     });
   } catch (error) {
     console.error('Error activating kill switch:', error);
-    res['status'](500)['json']({ error: 'Failed to activate kill switch' });
+    res.status(500).json({ error: 'Failed to activate kill switch' });
   }
 });
 
@@ -336,14 +336,14 @@ adminRouter.delete('/kill-switch', (req: Request, res: Response) => {
   try {
     delete process.env['FLAGS_DISABLED_ALL'];
 
-    res['json']({
+    res.json({
       success: true,
       message: 'Kill switch deactivated - flags restored',
       timestamp: new Date().toISOString(),
     });
   } catch (error) {
     console.error('Error deactivating kill switch:', error);
-    res['status'](500)['json']({ error: 'Failed to deactivate kill switch' });
+    res.status(500).json({ error: 'Failed to deactivate kill switch' });
   }
 });
 
