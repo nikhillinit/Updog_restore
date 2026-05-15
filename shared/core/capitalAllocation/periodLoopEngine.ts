@@ -29,7 +29,7 @@ interface PeriodState {
   cohorts: InternalCohort[];
 }
 
-interface PeriodResult {
+interface PeriodProcessingSnapshot {
   period: Period;
   reserveBalanceCents: number;
   endingCashCents: number;
@@ -73,7 +73,7 @@ export function executePeriodLoop(input: NormalizedInput): PeriodLoopOutput {
     cohorts: input.cohorts.map((c) => ({ ...c, allocationCents: 0 })),
   };
 
-  const periodResults: PeriodResult[] = [];
+  const periodResults: PeriodProcessingSnapshot[] = [];
   const allViolations: Violation[] = [];
 
   for (const period of periods) {
@@ -142,7 +142,7 @@ function processPeriod(
   flows: { contributions: CashFlow[]; distributions: CashFlow[] },
   input: NormalizedInput,
   pacingConfig: PacingConfig
-): PeriodResult {
+): PeriodProcessingSnapshot {
   const violations: Violation[] = [];
 
   const contributionsCents = flows.contributions.reduce((sum, f) => sum + (f.amountCents ?? 0), 0);
@@ -220,7 +220,7 @@ function calculateReserveForPeriod(input: NormalizedInput): number {
 function buildOutput(
   input: NormalizedInput,
   finalState: PeriodState,
-  periodResults: PeriodResult[],
+  periodResults: PeriodProcessingSnapshot[],
   violations: Violation[]
 ): PeriodLoopOutput {
   const reserveBalanceOverTime: ReserveBalancePoint[] = periodResults.map((r) => ({

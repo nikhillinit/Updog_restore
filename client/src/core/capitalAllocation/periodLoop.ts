@@ -37,7 +37,7 @@ export interface Period {
   endDate: string;
 }
 
-export interface PeriodResult {
+export interface AllocationPeriodSnapshot {
   period: Period;
   cashInCents: number;
   cashOutCents: number;
@@ -52,7 +52,7 @@ export interface PeriodResult {
 }
 
 export interface PeriodLoopOutput {
-  periods: PeriodResult[];
+  periods: AllocationPeriodSnapshot[];
   totalAllocationCents: number;
   allocationsByCohort: Map<string, number>;
   finalReserveBalanceCents: number;
@@ -419,7 +419,7 @@ export function executePeriodLoop(input: NormalizedInput): PeriodLoopOutput {
   }
 
   // Process each period
-  const periodResults: PeriodResult[] = [];
+  const periodResults: AllocationPeriodSnapshot[] = [];
 
   for (const period of periods) {
     // Get flows for this period
