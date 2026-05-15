@@ -30,7 +30,7 @@ import {
 import { Copy, Trash2, Plus } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { spreadIfDefined } from '@/lib/ts/spreadIfDefined';
-import type { PortfolioState } from '@/pages/portfolio-constructor';
+import type { PortfolioStrategy } from '@/pages/portfolio-constructor';
 import type { NameType, Payload, ValueType } from 'recharts/types/component/DefaultTooltipContent';
 
 interface Scenario {
@@ -57,8 +57,8 @@ interface Scenario {
 }
 
 interface ScenarioComparisonProps {
-  portfolioState: PortfolioState;
-  onUpdate: (updates: Partial<PortfolioState>) => void;
+  portfolioState: PortfolioStrategy;
+  onUpdate: (updates: Partial<PortfolioStrategy>) => void;
   isCalculating: boolean;
 }
 

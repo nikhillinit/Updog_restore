@@ -26,7 +26,7 @@ import {
 } from 'recharts';
 import { Target, TrendingUp, Shield, AlertCircle, Clock, BarChart3, Lightbulb } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import type { PortfolioState } from '@/pages/portfolio-constructor';
+import type { PortfolioStrategy } from '@/pages/portfolio-constructor';
 
 interface ReservePool {
   id: string;
@@ -52,8 +52,8 @@ interface OptimizationSuggestion {
 }
 
 interface ReserveConfiguratorProps {
-  portfolioState: PortfolioState;
-  onUpdate: (updates: Partial<PortfolioState>) => void;
+  portfolioState: PortfolioStrategy;
+  onUpdate: (updates: Partial<PortfolioStrategy>) => void;
   isCalculating: boolean;
 }
 
@@ -151,9 +151,7 @@ const optimizationSuggestions: OptimizationSuggestion[] = [
 
 const POOL_COLORS = ['#2563eb', '#dc2626', '#059669', '#7c3aed'];
 
-export function ReserveConfigurator({
-  portfolioState,
-}: ReserveConfiguratorProps) {
+export function ReserveConfigurator({ portfolioState }: ReserveConfiguratorProps) {
   const [reservePools, setReservePools] = useState<ReservePool[]>(defaultReservePools);
   const [selectedPool, setSelectedPool] = useState<string>('follow-on-primary');
   const [optimizationMode, setOptimizationMode] = useState<'manual' | 'guided' | 'auto'>('guided');
