@@ -44,6 +44,7 @@ import {
   type SensitivityRunV1,
 } from '@shared/contracts/sensitivity-run-v1.contract';
 import { formatMetricValue, useElapsedSeconds, SummaryCard } from './_shared';
+import { SensitivityRunErrorCard } from './SensitivityRunErrorCard';
 
 // =====================
 // DELTA BAR HELPER (inline -- scenario-row specific, no other consumers)
@@ -423,32 +424,13 @@ export function StressPanel({ fundId }: StressPanelProps): JSX.Element {
         )}
 
         {!mutation.isPending && error && (
-          <Card className="border-red-200" data-testid="stress-error">
-            <CardContent className="px-4 py-3">
-              <p className="text-sm font-medium text-red-700" data-testid="stress-error-code">
-                {error.code ?? 'UNKNOWN'}
-              </p>
-              <p className="mt-0.5 text-xs text-gray-600" data-testid="stress-error-message">
-                {error.message}
-              </p>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={handleSubmit}
-                disabled={runDisabled}
-                aria-describedby={runDisabledReason ? 'stress-retry-disabled-reason' : undefined}
-                className="mt-2"
-                data-testid="stress-retry-button"
-              >
-                {runDisabledReason && (
-                  <span id="stress-retry-disabled-reason" className="sr-only">
-                    {runDisabledReason}
-                  </span>
-                )}
-                Retry
-              </Button>
-            </CardContent>
-          </Card>
+          <SensitivityRunErrorCard
+            error={error}
+            onRetry={handleSubmit}
+            retryDisabled={runDisabled}
+            retryDisabledReason={runDisabledReason ?? null}
+            testIdPrefix="stress"
+          />
         )}
 
         {!mutation.isPending && !error && displayedResult && (

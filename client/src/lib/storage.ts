@@ -26,7 +26,12 @@ import { isRecord } from '@shared/utils/type-guards';
 
 const NAMESPACE = 'povc';
 const NS_PREFIX = `${NAMESPACE}:`; // Exact prefix (prevents matching "povcX...")
-const ALLOWED_KEYS = new Set(['modeling-wizard-progress', 'fund-preferences', 'ui-state']);
+const ALLOWED_KEYS = new Set([
+  'modeling-wizard-progress',
+  'fund-preferences',
+  'ui-state',
+  'variance-tracking-settings',
+]);
 const TTL_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
 const CURRENT_VERSION = 1;
 

@@ -27,10 +27,10 @@ export default function Reports() {
           <TabsContent value="tear-sheets" className="mt-6">
             <Suspense
               fallback={
-                <div className="flex items-center justify-center p-12">
+                <div className="flex items-center justify-center p-12" role="status">
                   <div className="text-center">
                     <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gray-900 mx-auto mb-4"></div>
-                    <p className="text-gray-600">Loading PDF generator...</p>
+                    <p className="text-gray-600">Preparing tear sheet workspace...</p>
                   </div>
                 </div>
               }

@@ -1048,28 +1048,29 @@ export function AllocationsTab() {
     return null;
   }, [comparisonQuery.error, publishedResultsQuery.error, reserveIcDecisionsQuery.error]);
 
-  if (isLoading) {
-    return (
-      <div className="space-y-4">
-        <Skeleton className="h-12 w-full" />
-        <Skeleton className="h-64 w-full" />
-      </div>
-    );
-  }
-
   const combinedError = error || activeScenarioDetail.error || scenarioListError;
   if (combinedError) {
     return (
       <Alert variant="destructive">
         <AlertCircle className="h-4 w-4" />
         <AlertDescription>
-          {combinedError instanceof Error ? combinedError.message : 'Failed to load allocations'}
+          We could not load reserve allocations. Retry in a moment or check that this fund is still
+          available.
         </AlertDescription>
         <Button variant="outline" size="sm" onClick={() => refetch()} className="mt-2">
           <RefreshCw className="h-4 w-4 mr-2" />
           Retry
         </Button>
       </Alert>
+    );
+  }
+
+  if (isLoading) {
+    return (
+      <div className="space-y-4">
+        <Skeleton className="h-12 w-full" />
+        <Skeleton className="h-64 w-full" />
+      </div>
     );
   }
 

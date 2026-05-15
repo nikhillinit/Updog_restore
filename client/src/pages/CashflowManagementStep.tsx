@@ -91,6 +91,22 @@ const DEFAULT_EXPENSE_CATEGORIES: Array<{
   },
 ];
 
+function buildSuggestedFundExpenses(fundSize: number): FundExpense[] {
+  const scaleFactor = Math.min(Math.max(fundSize / 100, 0.5), 3);
+
+  return DEFAULT_EXPENSE_CATEGORIES.slice(0, 5).map((expenseTemplate, index) => {
+    const baseAmount = expenseTemplate.defaultAmount || 10000;
+    const monthlyAmount = Math.round((baseAmount * scaleFactor) / 12);
+
+    return {
+      id: `suggested-${expenseTemplate.category}-${index}`,
+      category: expenseTemplate.label,
+      monthlyAmount,
+      startMonth: 1,
+    };
+  });
+}
+
 export default function CashflowManagementStep() {
   const [, navigate] = useLocation();
 
@@ -128,7 +144,7 @@ export default function CashflowManagementStep() {
   // Calculate total annual expenses
   const totalAnnualExpenses = React.useMemo(() => {
     return fundExpenses.reduce((total, expense) => {
-      const months = expense.endMonth ? expense.endMonth - expense.startMonth + 1 : 12;
+      const months = expense.endMonth ? Math.max(expense.endMonth - expense.startMonth + 1, 0) : 12;
       return total + expense.monthlyAmount * months;
     }, 0);
   }, [fundExpenses]);
@@ -139,28 +155,10 @@ export default function CashflowManagementStep() {
     return (totalAnnualExpenses / (fundSize * 1000000)) * 100;
   }, [totalAnnualExpenses, fundSize]);
 
-  // Auto-populate with default expenses if none exist
-  React.useEffect(() => {
-    if (fundExpenses.length === 0 && fundSize) {
-      // Add a few key expense categories automatically
-      const keyExpenses = DEFAULT_EXPENSE_CATEGORIES.slice(0, 5);
-      keyExpenses.forEach((expenseTemplate, index) => {
-        const baseAmount = expenseTemplate.defaultAmount || 10000;
-        // Scale based on fund size (larger funds have higher expenses)
-        const scaleFactor = Math.min(Math.max(fundSize / 100, 0.5), 3);
-        const monthlyAmount = Math.round((baseAmount * scaleFactor) / 12);
-
-        const expense: FundExpense = {
-          id: `auto-${expenseTemplate.category}-${index}`,
-          category: expenseTemplate.label,
-          monthlyAmount,
-          startMonth: 1,
-        };
-        // Ongoing expense, no endMonth
-        addFundExpense(expense);
-      });
-    }
-  }, [fundExpenses.length, fundSize, addFundExpense]);
+  const canAddExpense =
+    newExpense.monthlyAmount > 0 &&
+    (newExpense.isRecurring ||
+      (newExpense.endMonth != null && newExpense.endMonth >= newExpense.startMonth));
 
   const handleAddExpense = () => {
     const baseExpense: FundExpense = {
@@ -189,6 +187,10 @@ export default function CashflowManagementStep() {
 
   const handleRemoveExpense = (id: string) => {
     removeFundExpense(id);
+  };
+
+  const handleAddSuggestedExpenses = () => {
+    buildSuggestedFundExpenses(fundSize).forEach(addFundExpense);
   };
 
   const handleNext = () => {
@@ -263,8 +265,18 @@ export default function CashflowManagementStep() {
                   <Alert>
                     <AlertCircle aria-hidden="true" className="h-4 w-4" />
                     <AlertDescription>
-                      No expenses configured yet. Add your first expense below.
+                      No expenses configured yet. Add your first expense below or start from
+                      suggested fund expense categories.
                     </AlertDescription>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="mt-3"
+                      onClick={handleAddSuggestedExpenses}
+                    >
+                      <Plus aria-hidden="true" className="h-4 w-4 mr-2" />
+                      Add Suggested Expenses
+                    </Button>
                   </Alert>
                 ) : (
                   <div className="space-y-3">
@@ -344,6 +356,7 @@ export default function CashflowManagementStep() {
                           monthlyAmount: parseInt(e.target.value) || 0,
                         }))
                       }
+                      aria-label="Monthly expense amount"
                       className="border-[#E0D8D1] focus:border-[#292929] focus:ring-[#292929] font-poppins"
                     />
                   </div>
@@ -361,6 +374,7 @@ export default function CashflowManagementStep() {
                           startMonth: parseInt(e.target.value) || 1,
                         }))
                       }
+                      aria-label="Expense start month"
                       className="border-[#E0D8D1] focus:border-[#292929] focus:ring-[#292929] font-poppins"
                     />
                   </div>
@@ -374,7 +388,7 @@ export default function CashflowManagementStep() {
                           setNewExpense((prev) => ({
                             ...prev,
                             isRecurring: checked,
-                            endMonth: checked ? undefined : 12,
+                            endMonth: checked ? undefined : Math.max(prev.startMonth, 12),
                           }))
                         }
                         aria-label="Use ongoing expense duration"
@@ -387,6 +401,8 @@ export default function CashflowManagementStep() {
                       <Input
                         type="number"
                         placeholder="End month"
+                        min={newExpense.startMonth}
+                        max="120"
                         value={newExpense.endMonth || ''}
                         onChange={(e) =>
                           setNewExpense((prev) => ({
@@ -403,7 +419,7 @@ export default function CashflowManagementStep() {
 
                 <Button
                   onClick={handleAddExpense}
-                  disabled={!newExpense.monthlyAmount}
+                  disabled={!canAddExpense}
                   className="bg-[#292929] hover:bg-[#292929]/90 font-poppins font-medium"
                 >
                   <Plus className="h-4 w-4 mr-2" />

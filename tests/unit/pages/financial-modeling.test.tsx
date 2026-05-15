@@ -18,9 +18,12 @@ describe('FinancialModeling page', () => {
     expect(
       screen.getByText(/forward-looking values are labeled as projections/i)
     ).toBeInTheDocument();
-    expect(screen.getByRole('tab', { name: /api-based projection/i })).toBeInTheDocument();
+    expect(screen.getByRole('tab', { name: /fund projection/i })).toBeInTheDocument();
     expect(screen.getByRole('tab', { name: /scenario modeling/i })).toBeInTheDocument();
     expect(screen.getByText('Dual Forecast Dashboard')).toBeInTheDocument();
+    expect(
+      screen.queryByText(/api facts|api-based|canonical deterministic/i)
+    ).not.toBeInTheDocument();
   });
 
   it('treats the scenario-modeling tab as deferred instead of live placeholder content', async () => {
@@ -33,5 +36,8 @@ describe('FinancialModeling page', () => {
     expect(
       screen.getByText(/intentionally not presenting hardcoded kpi cards or placeholder charts/i)
     ).toBeInTheDocument();
+    expect(
+      screen.queryByText(/api facts|api-based|canonical deterministic/i)
+    ).not.toBeInTheDocument();
   });
 });

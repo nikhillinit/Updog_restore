@@ -19,7 +19,6 @@ import {
   formatDPI,
   formatDeploymentRate,
   formatLastUpdated,
-  formatMetricCount,
   formatMetricCurrency,
   formatMetricMultiple,
   formatPercentage,
@@ -29,32 +28,56 @@ import {
   unavailableMetric,
 } from '@/lib/fund-header-metric-formatters';
 
-const COMPACT_KPI_KEYS: CompactKpiKey[] = ['dpi', 'tvpi', 'nav'];
+const COMPACT_KPI_KEYS: CompactKpiKey[] = ['deployed', 'remaining', 'nav', 'tvpi', 'dpi', 'netIrr'];
 
 const COMPACT_KPI_DEFINITIONS: Record<CompactKpiKey, CompactKpiDefinition> = {
-  dpi: {
-    key: 'dpi',
-    label: 'DPI',
-    icon: 'dollar',
-    colorClassName: 'text-green-600',
-    description: 'Distributions to Paid-In',
-    isCurrency: false,
+  deployed: {
+    key: 'deployed',
+    label: 'Deployed',
+    icon: 'activity',
+    colorClassName: 'text-slate-700',
+    description: 'Capital deployed as a percentage of fund size',
+    valueType: 'percentage',
   },
-  tvpi: {
-    key: 'tvpi',
-    label: 'TVPI',
-    icon: 'trending-up',
-    colorClassName: 'text-blue-600',
-    description: 'Total Value to Paid-In',
-    isCurrency: false,
+  remaining: {
+    key: 'remaining',
+    label: 'Remaining',
+    icon: 'calendar',
+    colorClassName: 'text-slate-700',
+    description: 'Remaining deployable capital',
+    valueType: 'currency',
   },
   nav: {
     key: 'nav',
     label: 'NAV',
     icon: 'target',
-    colorClassName: 'text-purple-600',
+    colorClassName: 'text-slate-700',
     description: 'Net Asset Value',
-    isCurrency: true,
+    valueType: 'currency',
+  },
+  tvpi: {
+    key: 'tvpi',
+    label: 'TVPI',
+    icon: 'trending-up',
+    colorClassName: 'text-slate-700',
+    description: 'Total Value to Paid-In',
+    valueType: 'multiple',
+  },
+  dpi: {
+    key: 'dpi',
+    label: 'DPI',
+    icon: 'dollar',
+    colorClassName: 'text-slate-700',
+    description: 'Distributions to Paid-In',
+    valueType: 'multiple',
+  },
+  netIrr: {
+    key: 'netIrr',
+    label: 'Net IRR',
+    icon: 'bar-chart',
+    colorClassName: 'text-slate-700',
+    description: 'Net internal rate of return',
+    valueType: 'percentage',
   },
 };
 
@@ -237,31 +260,28 @@ function buildHeaderMetricCards(
 ): HeaderMetricCardModel[] {
   return [
     {
-      key: 'totalInvested',
-      title: 'Total Invested',
-      displayValue: formatMetricCurrency(metrics.totalInvested, metricDisplayUnavailable),
+      key: 'deployed',
+      title: 'Deployed',
+      displayValue: metricDisplayUnavailable ? 'N/A' : formatPercentage(metrics.deploymentRate),
       theme: 'white',
-      icon: 'dollar',
+      icon: 'activity',
     },
     {
-      key: 'totalValue',
-      title: 'Current Value',
-      displayValue: formatMetricCurrency(metrics.totalValue, metricDisplayUnavailable),
-      theme: 'beige',
-      icon: 'trending-up',
-    },
-    {
-      key: 'irr',
-      title: 'Net IRR',
-      displayValue: formatPerformanceMetric(
-        metrics.irr,
-        metrics.availability.irr,
-        formatPercentage,
+      key: 'remainingCapital',
+      title: 'Remaining',
+      displayValue: formatMetricCurrency(
+        metrics.remainingDeployableCapital,
         metricDisplayUnavailable
       ),
-      titleText: metrics.availability.irr.message,
+      theme: 'beige',
+      icon: 'calendar',
+    },
+    {
+      key: 'nav',
+      title: 'NAV',
+      displayValue: formatMetricCurrency(metrics.currentNAV, metricDisplayUnavailable),
       theme: 'white',
-      icon: 'bar-chart',
+      icon: 'target',
     },
     {
       key: 'tvpi',
@@ -284,28 +304,17 @@ function buildHeaderMetricCards(
       icon: 'pie-chart',
     },
     {
-      key: 'activeInvestments',
-      title: 'Active',
-      displayValue: formatMetricCount(metrics.activeInvestments, metricDisplayUnavailable),
-      theme: 'beige',
-      icon: 'activity',
-    },
-    {
-      key: 'avgCheckSize',
-      title: 'Avg Check',
-      displayValue: formatMetricCurrency(metrics.avgCheckSize, metricDisplayUnavailable),
-      theme: 'white',
-      icon: 'dollar',
-    },
-    {
-      key: 'remainingCapital',
-      title: 'Remaining',
-      displayValue: formatMetricCurrency(
-        metrics.remainingDeployableCapital,
+      key: 'irr',
+      title: 'Net IRR',
+      displayValue: formatPerformanceMetric(
+        metrics.irr,
+        metrics.availability.irr,
+        formatPercentage,
         metricDisplayUnavailable
       ),
+      titleText: metrics.availability.irr.message,
       theme: 'beige',
-      icon: 'calendar',
+      icon: 'bar-chart',
     },
   ];
 }
@@ -359,12 +368,7 @@ function buildCompactKpiItem(
     colorClassName: definition.colorClassName,
     description: definition.description,
     isSelected: key === selectedKpi,
-    displayValue: formatCompactKpiDisplayValue(
-      value,
-      definition.isCurrency,
-      availability,
-      hasError
-    ),
+    displayValue: formatCompactKpiDisplayValue(value, definition.valueType, availability, hasError),
     explanation: getCompactKpiExplanation(key, value, availability, hasError),
   };
 }
@@ -394,21 +398,34 @@ function getCompactKpiExplanation(
   if (selectedKpi === 'nav') {
     return 'NAV is unavailable until current NAV has been recorded.';
   }
+  if (selectedKpi === 'remaining') {
+    return 'Remaining capital is unavailable until deployed capital is available.';
+  }
+  if (selectedKpi === 'deployed') {
+    return 'Deployment percentage is unavailable until deployment data is available.';
+  }
   return COMPACT_KPI_DEFINITIONS[selectedKpi].description;
 }
 
 function getCompactKpiValue(metrics: HeaderMetrics, selectedKpi: CompactKpiKey) {
   switch (selectedKpi) {
-    case 'dpi':
-      return metrics.dpi;
-    case 'tvpi':
-      return metrics.tvpi;
+    case 'deployed':
+      return metrics.deploymentRate;
+    case 'remaining':
+      return metrics.remainingDeployableCapital;
     case 'nav':
       return metrics.currentNAV;
+    case 'tvpi':
+      return metrics.tvpi;
+    case 'dpi':
+      return metrics.dpi;
+    case 'netIrr':
+      return metrics.irr;
   }
 }
 
 function getCompactKpiAvailability(metrics: HeaderMetrics, selectedKpi: CompactKpiKey) {
-  if (selectedKpi !== 'dpi') return undefined;
-  return metrics.availability.dpi;
+  if (selectedKpi === 'dpi') return metrics.availability.dpi;
+  if (selectedKpi === 'netIrr') return metrics.availability.irr;
+  return undefined;
 }

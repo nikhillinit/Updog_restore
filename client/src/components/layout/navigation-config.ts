@@ -5,6 +5,7 @@ import {
   Settings,
   Calculator,
   Briefcase,
+  BarChart3,
   LayoutDashboard,
   LineChart,
   HelpCircle,
@@ -88,6 +89,12 @@ const CORE_NAV: readonly NavigationItem[] = [
     label: 'Sensitivity Analysis',
     icon: Target,
     target: staticTarget('/sensitivity-analysis'),
+  },
+  {
+    id: 'variance-tracking',
+    label: 'Variance Tracking',
+    icon: BarChart3,
+    target: staticTarget('/variance-tracking'),
   },
   { id: 'reports', label: 'Reports', icon: FileText, target: staticTarget('/reports') },
 ];

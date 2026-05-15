@@ -442,8 +442,9 @@ describe('FundModelResultsPage (server-backed)', () => {
     expect(sizeMatches.length).toBeGreaterThanOrEqual(1);
     expect(screen.getByText('Published Version')).toBeInTheDocument();
     expect(screen.getByText('v1')).toBeInTheDocument();
-    expect(screen.getByText('Dispatch State')).toBeInTheDocument();
-    expect(screen.getByText('Correlation ID')).toBeInTheDocument();
+    expect(screen.queryByText('Dispatch State')).not.toBeInTheDocument();
+    expect(screen.queryByText('Correlation ID')).not.toBeInTheDocument();
+    expect(document.body).not.toHaveTextContent('corr-123');
     expect(screen.getByText('Snapshot Coverage')).toBeInTheDocument();
     expect(screen.getAllByText('RESERVE, PACING').length).toBeGreaterThanOrEqual(1);
   });
@@ -539,7 +540,8 @@ describe('FundModelResultsPage (server-backed)', () => {
     expect(
       within(diagnosticsCard).getByText(/run 10 did not complete successfully/i)
     ).toBeInTheDocument();
-    expect(within(diagnosticsCard).getByText('test-corr-id')).toBeInTheDocument();
+    expect(within(diagnosticsCard).queryByText('test-corr-id')).not.toBeInTheDocument();
+    expect(within(diagnosticsCard).queryByText('dispatched')).not.toBeInTheDocument();
     expect(
       await screen.findByText(/Worker timed out during reserve snapshot generation/i)
     ).toBeInTheDocument();

@@ -177,7 +177,7 @@ export default function DistributionsStep() {
 
   return (
     <ModernStepContainer
-      title="Distributions, Fees & Recycling"
+      title="Distributions, Waterfall, Fees & Recycling"
       description="Configure waterfall structure, fees, expenses, and proceeds recycling"
     >
       <div className="space-y-8">

@@ -1,5 +1,6 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { OverviewTab } from '../../../../client/src/components/portfolio/tabs/OverviewTab';
 import { TestQueryClientProvider } from '../../../utils/test-query-client';
 
@@ -38,6 +39,33 @@ function renderOverviewTab() {
 }
 
 describe('OverviewTab', () => {
+  beforeAll(() => {
+    if (!Element.prototype.hasPointerCapture) {
+      Object.defineProperty(Element.prototype, 'hasPointerCapture', {
+        value: () => false,
+        configurable: true,
+      });
+    }
+    if (!Element.prototype.setPointerCapture) {
+      Object.defineProperty(Element.prototype, 'setPointerCapture', {
+        value: () => undefined,
+        configurable: true,
+      });
+    }
+    if (!Element.prototype.releasePointerCapture) {
+      Object.defineProperty(Element.prototype, 'releasePointerCapture', {
+        value: () => undefined,
+        configurable: true,
+      });
+    }
+    if (!Element.prototype.scrollIntoView) {
+      Object.defineProperty(Element.prototype, 'scrollIntoView', {
+        value: () => undefined,
+        configurable: true,
+      });
+    }
+  });
+
   beforeEach(() => {
     vi.clearAllMocks();
   });
@@ -211,12 +239,13 @@ describe('OverviewTab', () => {
     expect(screen.getByText(/there is no historical portfolio snapshot available/i)).toBeTruthy();
   });
 
-  it('submits a live add-company request with the current fund id', async () => {
+  it('submits a live add-company request with canonical taxonomy and normalized money input', async () => {
+    const user = userEvent.setup();
     mockApiRequest.mockResolvedValue({
       id: 99,
       fundId: 1,
       name: 'Northwind AI',
-      sector: 'AI',
+      sector: 'AI / ML',
       stage: 'Seed',
     });
     mockUsePortfolioCompanies.mockReturnValue({
@@ -238,11 +267,10 @@ describe('OverviewTab', () => {
     fireEvent.change(screen.getByLabelText(/company name/i), {
       target: { value: 'Northwind AI' },
     });
-    fireEvent.change(screen.getByLabelText(/sector/i), {
-      target: { value: 'AI' },
-    });
+    await user.click(screen.getByLabelText(/sector/i));
+    await user.click(screen.getByRole('option', { name: 'AI / ML' }));
     fireEvent.change(screen.getByLabelText(/initial investment/i), {
-      target: { value: '1500000' },
+      target: { value: '1,500,000' },
     });
 
     fireEvent.click(screen.getByRole('button', { name: /create company/i }));
@@ -251,7 +279,7 @@ describe('OverviewTab', () => {
       expect(mockApiRequest).toHaveBeenCalledWith('POST', '/api/portfolio-companies', {
         fundId: 1,
         name: 'Northwind AI',
-        sector: 'AI',
+        sector: 'AI / ML',
         stage: 'Seed',
         currentStage: 'Seed',
         investmentAmount: '1500000',

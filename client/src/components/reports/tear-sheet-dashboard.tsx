@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import {
   Select,
   SelectContent,
@@ -29,7 +30,8 @@ import {
   User,
   Clock,
   Save,
-  X
+  X,
+  AlertCircle
 } from 'lucide-react';
 
 interface TearSheet {
@@ -98,6 +100,18 @@ type TearSheetPdfRuntime = {
 };
 
 let tearSheetPdfRuntimePromise: Promise<TearSheetPdfRuntime> | null = null;
+const EXPORT_TIMEOUT_MS = 15000;
+
+function withTimeout<T>(promise: Promise<T>, timeoutMs: number, message: string): Promise<T> {
+  let timeoutId: ReturnType<typeof setTimeout> | undefined;
+  const timeoutPromise = new Promise<never>((_, reject) => {
+    timeoutId = setTimeout(() => reject(new Error(message)), timeoutMs);
+  });
+
+  return Promise.race([promise, timeoutPromise]).finally(() => {
+    if (timeoutId) clearTimeout(timeoutId);
+  });
+}
 
 const loadTearSheetPdfRuntime = (): Promise<TearSheetPdfRuntime> => {
   tearSheetPdfRuntimePromise ??= Promise.all([
@@ -250,6 +264,7 @@ export default function TearSheetDashboard() {
   const [auditLog, setAuditLog] = useState<AuditLogEntry[]>(MOCK_AUDIT_LOG);
   const [showAuditTrail, setShowAuditTrail] = useState(false);
   const [exportingTearSheetId, setExportingTearSheetId] = useState<string | null>(null);
+  const [exportError, setExportError] = useState<string | null>(null);
 
   // Filter tear sheets based on search and filters
   const filteredTearSheets = tearSheets.filter(sheet => {
@@ -311,11 +326,16 @@ export default function TearSheetDashboard() {
 
   const exportToPDF = async (tearSheet: TearSheet) => {
     setExportingTearSheetId(tearSheet.id);
+    setExportError(null);
 
     try {
       // Keep @react-pdf out of the initial tear-sheet route chunk and load it
       // only when the user requests an export.
-      const { generatePdf, downloadBlob, TearSheetTemplate } = await loadTearSheetPdfRuntime();
+      const { generatePdf, downloadBlob, TearSheetTemplate } = await withTimeout(
+        loadTearSheetPdfRuntime(),
+        EXPORT_TIMEOUT_MS,
+        'Tear sheet export tools did not finish loading in time.'
+      );
 
       // Convert TearSheet to TearSheetData format for PDF template
       const pdfData: TearSheetData = {
@@ -336,12 +356,16 @@ export default function TearSheetDashboard() {
       };
 
       // Generate and download PDF
-      const blob = await generatePdf(<TearSheetTemplate data={pdfData} />);
+      const blob = await withTimeout(
+        generatePdf(<TearSheetTemplate data={pdfData} />),
+        EXPORT_TIMEOUT_MS,
+        'Tear sheet export did not finish in time.'
+      );
       const filename = `tear-sheet-${tearSheet.companyName.toLowerCase().replace(/\s+/g, '-')}-${new Date().toISOString().split('T')[0]}.pdf`;
       downloadBlob(blob, filename);
     } catch (error) {
-      console.error('Failed to generate PDF:', error);
-      // In real app, show user-facing error toast
+      console.error('[TearSheetDashboard] export failed', error);
+      setExportError('Tear sheet export could not be prepared. Try again.');
     } finally {
       setExportingTearSheetId(null);
     }
@@ -495,7 +519,7 @@ export default function TearSheetDashboard() {
               disabled={exportingTearSheetId === tearSheet.id}
             >
               <Download className="h-4 w-4 mr-1" />
-              {exportingTearSheetId === tearSheet.id ? 'Preparing...' : 'PDF'}
+              {exportingTearSheetId === tearSheet.id ? 'Preparing report...' : 'PDF'}
             </Button>
           </div>
         </div>
@@ -522,6 +546,13 @@ export default function TearSheetDashboard() {
           </Button>
         </div>
       </div>
+
+      {exportError ? (
+        <Alert variant="destructive" role="alert">
+          <AlertCircle aria-hidden="true" className="h-4 w-4" />
+          <AlertDescription>{exportError}</AlertDescription>
+        </Alert>
+      ) : null}
 
       {/* Search and Filters */}
       <div className="flex flex-col md:flex-row gap-4">

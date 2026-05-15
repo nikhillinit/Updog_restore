@@ -10,7 +10,7 @@ import {
 } from '@/hooks/useVarianceData';
 import { ApiError } from '@/lib/queryClient';
 import { toast } from '@/hooks/use-toast';
-import { ApiErrorState, EmptyState, StatCard, StatCardGrid } from '@/components/analytics';
+import { EmptyState, ErrorState, StatCard, StatCardGrid } from '@/components/analytics';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -78,7 +78,7 @@ const REPORT_SURFACES: ReportSurface[] = [
     id: 'fund-report-pack',
     title: 'Fund Reporting Pack',
     description: 'Board and LP-style summary reporting outside the variance surface.',
-    helperText: 'Not yet wired to a server-backed generation path.',
+    helperText: 'Planned for a future reporting workflow.',
     status: 'planned',
     icon: FolderKanban,
   },
@@ -256,9 +256,8 @@ export default function Reports() {
             <div>
               <h2 className="text-xl font-semibold text-slate-900">Fund reporting hub</h2>
               <p className="mt-1 max-w-2xl text-sm text-slate-600">
-                Variance reports on this page are live and backed by the current fund baseline.
-                Surfaces without a real generation path stay informational instead of pretending to
-                export.
+                Variance reports use the current fund baseline. Planned reporting surfaces stay
+                clearly labeled until they are backed by fund data and export rules.
               </p>
             </div>
           </div>
@@ -361,8 +360,9 @@ export default function Reports() {
           </CardHeader>
           <CardContent className="space-y-4">
             {reportLoadError && !hasReportData ? (
-              <ApiErrorState
-                error={reportLoadError instanceof Error ? reportLoadError : String(reportLoadError)}
+              <ErrorState
+                title="Reports unavailable"
+                message="We could not load variance reports for this fund. Try again once the reporting service is available."
                 onRetry={() => {
                   void refetchReports();
                   void refetchDashboard();

@@ -78,6 +78,7 @@ describe('sidebar results navigation', () => {
       'financial-modeling',
       'model-results',
       'sensitivity-analysis',
+      'variance-tracking',
       'reports',
     ]);
   });
@@ -113,6 +114,24 @@ describe('sidebar results navigation', () => {
     expect(getActiveNavigationId('/model-results')).toBe('model-results');
     expect(getActiveNavigationId('/forecasting')).toBe('financial-modeling');
     expect(getActiveNavigationId('/sensitivity-analysis')).toBe('sensitivity-analysis');
+    expect(getActiveNavigationId('/variance-tracking')).toBe('variance-tracking');
+    expect(getActiveNavigationId('/variance-tracking?tab=reports')).toBe('variance-tracking');
+  });
+
+  it('renders and marks the Variance Tracking route active', async () => {
+    const { Sidebar } = await loadNavigationModules();
+    const { Wrapper } = createWouterWrapper('/variance-tracking');
+    const { container } = render(
+      <Wrapper>
+        <Sidebar activeModule="variance-tracking" />
+      </Wrapper>
+    );
+
+    hoverSidebar(container);
+
+    const link = screen.getByRole('link', { name: /variance tracking/i });
+    expect(link.getAttribute('href')).toBe('/variance-tracking');
+    expect(link).toHaveAttribute('aria-current', 'page');
   });
 
   it('renders a fund-scoped model results link when a current fund is available', async () => {

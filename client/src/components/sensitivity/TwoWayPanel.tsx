@@ -41,6 +41,7 @@ import {
   type SensitivityRunV1,
 } from '@shared/contracts/sensitivity-run-v1.contract';
 import { formatMetricValue, formatVariableValue, useElapsedSeconds, SummaryCard } from './_shared';
+import { SensitivityRunErrorCard } from './SensitivityRunErrorCard';
 
 // =====================
 // CELL COLOR HELPERS (inline -- grid-specific, no other consumers)
@@ -638,32 +639,13 @@ export function TwoWayPanel({ fundId }: TwoWayPanelProps): JSX.Element {
         )}
 
         {!mutation.isPending && error && (
-          <Card className="border-red-200" data-testid="two-way-error">
-            <CardContent className="px-4 py-3">
-              <p className="text-sm font-medium text-red-700" data-testid="two-way-error-code">
-                {error.code ?? 'UNKNOWN'}
-              </p>
-              <p className="mt-0.5 text-xs text-gray-600" data-testid="two-way-error-message">
-                {error.message}
-              </p>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={handleSubmit}
-                disabled={runDisabled}
-                aria-describedby={runDisabledReason ? 'two-way-retry-disabled-reason' : undefined}
-                className="mt-2"
-                data-testid="two-way-retry-button"
-              >
-                {runDisabledReason && (
-                  <span id="two-way-retry-disabled-reason" className="sr-only">
-                    {runDisabledReason}
-                  </span>
-                )}
-                Retry
-              </Button>
-            </CardContent>
-          </Card>
+          <SensitivityRunErrorCard
+            error={error}
+            onRetry={handleSubmit}
+            retryDisabled={runDisabled}
+            retryDisabledReason={runDisabledReason ?? null}
+            testIdPrefix="two-way"
+          />
         )}
 
         {!mutation.isPending && !error && displayedResult && (

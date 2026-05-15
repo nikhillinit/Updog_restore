@@ -28,10 +28,6 @@ vi.mock('@/components/dashboard/CashflowDashboard', () => ({
   default: ({ fundId }: { fundId: string }) => <div>Cashflow Dashboard {fundId}</div>,
 }));
 
-vi.mock('@/components/metrics/TargetMetricsSnapshot', () => ({
-  TargetMetricsSnapshot: ({ title }: { title: string }) => <div>{title}</div>,
-}));
-
 vi.mock('@/components/sharing/ShareConfigModal', () => ({
   default: ({ children }: { children: React.ReactNode }) => <>{children}</>,
 }));
@@ -81,7 +77,7 @@ describe('ModernDashboard', () => {
   it('renders supported overview metrics instead of broad deferred copy', () => {
     render(<ModernDashboard />);
 
-    expect(screen.getByText('Target-Aware Snapshot')).toBeInTheDocument();
+    expect(screen.queryByText('Target-Aware Snapshot')).not.toBeInTheDocument();
     expect(screen.getByText(/supported overview metrics/i)).toBeInTheDocument();
     expect(screen.getByText('Total committed')).toBeInTheDocument();
     expect(screen.getByText('$50.0M')).toBeInTheDocument();

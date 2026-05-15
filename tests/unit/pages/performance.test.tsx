@@ -23,15 +23,11 @@ vi.mock('@/components/performance/PerformanceDashboard', () => ({
   default: () => <div>Performance Dashboard</div>,
 }));
 
-vi.mock('@/components/metrics/TargetMetricsSnapshot', () => ({
-  TargetMetricsSnapshot: ({ title }: { title: string }) => <div>{title}</div>,
-}));
-
 describe('Performance page', () => {
-  it('renders the target snapshot above the performance dashboard', () => {
+  it('renders the performance dashboard without duplicating the global truth-line metrics', () => {
     render(<Performance />);
 
-    expect(screen.getByText('Target Snapshot')).toBeInTheDocument();
     expect(screen.getByText('Performance Dashboard')).toBeInTheDocument();
+    expect(screen.queryByText('Target Snapshot')).not.toBeInTheDocument();
   });
 });

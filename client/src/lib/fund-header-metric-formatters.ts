@@ -1,4 +1,5 @@
 import type { MetricAvailabilityDetail } from '@shared/types/metrics';
+import type { CompactKpiValueType } from '@/types/fund-header-metrics';
 import { formatDPI } from '@/lib/format-metrics';
 
 export function unavailableMetric(
@@ -102,14 +103,15 @@ export function formatLastUpdated(lastUpdated: string | undefined) {
 
 export function formatCompactKpiDisplayValue(
   value: number | null,
-  isCurrency: boolean,
+  valueType: CompactKpiValueType,
   availability: MetricAvailabilityDetail | undefined,
   hasError: boolean
 ) {
   if (hasError) return formatUnavailableMetric(availability);
   if (value == null) return formatUnavailableMetric(availability);
-  if (isCurrency) return `$${(value / 1_000_000).toFixed(1)}M`;
-  return value.toFixed(2);
+  if (valueType === 'currency') return `$${(value / 1_000_000).toFixed(1)}M`;
+  if (valueType === 'percentage') return formatPercentage(value);
+  return `${value.toFixed(2)}x`;
 }
 
 function isAvailableMetricValue(

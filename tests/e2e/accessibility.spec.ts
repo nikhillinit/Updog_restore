@@ -11,6 +11,7 @@ const GOVERNED_ROUTE_SLICE = [
   { path: '/fund-model-results/1', name: 'Model Results' },
   { path: '/model-results', name: 'Model Results Recovery' },
   { path: '/sensitivity-analysis', name: 'Sensitivity Analysis' },
+  { path: '/variance-tracking', name: 'Variance Tracking' },
   { path: '/reports', name: 'Reports' },
   { path: '/settings', name: 'Settings' },
   { path: '/help', name: 'Help' },
@@ -70,6 +71,28 @@ test.describe('Tranche 5 accessibility critical gate', () => {
 
     const results = await new AxeBuilder({ page })
       .include('main [role="tablist"]')
+      .include('main [role="tabpanel"]')
+      .withTags(['wcag2a', 'wcag2aa', 'wcag21aa'])
+      .analyze();
+
+    expect(results.violations.filter((violation) => violation.impact === 'critical')).toEqual([]);
+  });
+
+  test('variance settings exposes named controls and critical-clean tab panel', async ({
+    page,
+  }) => {
+    await gotoGovernedRoute(page, '/variance-tracking');
+
+    await page.getByRole('tab', { name: 'Settings' }).click();
+    await expect(page.getByRole('switch', { name: 'Email Notifications' })).toBeVisible();
+    await expect(page.getByRole('switch', { name: 'Real-time Alerts' })).toBeVisible();
+    await expect(page.getByRole('switch', { name: 'Daily Digest' })).toBeVisible();
+    await expect(
+      page.getByRole('spinbutton', { name: 'Default Variance Threshold (%)' })
+    ).toBeVisible();
+    await expect(page.getByRole('combobox', { name: 'Analysis Frequency' })).toBeVisible();
+
+    const results = await new AxeBuilder({ page })
       .include('main [role="tabpanel"]')
       .withTags(['wcag2a', 'wcag2aa', 'wcag21aa'])
       .analyze();

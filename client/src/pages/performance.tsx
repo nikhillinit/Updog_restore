@@ -9,7 +9,6 @@
  */
 
 import PerformanceDashboard from '@/components/performance/PerformanceDashboard';
-import { TargetMetricsSnapshot } from '@/components/metrics/TargetMetricsSnapshot';
 import { POVBrandHeader } from '@/components/ui/POVLogo';
 import { useFundContext } from '@/contexts/FundContext';
 
@@ -60,11 +59,6 @@ export default function Performance() {
       />
 
       <div className="max-w-7xl mx-auto px-6 py-8">
-        <TargetMetricsSnapshot
-          title="Target Snapshot"
-          subtitle="Actual deployment, TVPI, and portfolio construction versus fund targets."
-        />
-
         <PerformanceDashboard />
       </div>
     </div>

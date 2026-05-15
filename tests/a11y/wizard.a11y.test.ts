@@ -3,19 +3,13 @@
  * Ensures WCAG 2.1 AA compliance
  */
 import { test, expect } from '@playwright/test';
-import { injectAxe, checkA11y, getViolations, reportViolations } from 'axe-playwright';
+import { injectAxe, checkA11y, getViolations } from 'axe-playwright';
 
-test.describe('Wizard Accessibility', () => {
+test.describe('Fund setup wizard accessibility', () => {
   test.beforeEach(async ({ page }) => {
-    // Navigate to wizard
-    await page.goto('/wizard');
-    
-    // Wait for wizard to load
-    await page.waitForSelector('[data-testid="wizard-container"]', { timeout: 10000 }).catch(() => {
-      // If no test id, wait for common wizard selectors
-      return page.waitForSelector('.wizard, #wizard, [role="form"]', { timeout: 10000 });
-    });
-    
+    await page.goto('/fund-setup');
+    await page.waitForSelector('[data-testid="fund-setup-wizard"]', { timeout: 10000 });
+
     // Inject axe-core
     await injectAxe(page);
   });
@@ -25,21 +19,21 @@ test.describe('Wizard Accessibility', () => {
     await checkA11y(page, null, {
       detailedReport: true,
       detailedReportOptions: {
-        html: true
+        html: true,
       },
       axeOptions: {
         runOnly: {
           type: 'tag',
-          values: ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa']
-        }
-      }
+          values: ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa'],
+        },
+      },
     });
   });
 
   test('Wizard step navigation is keyboard accessible', async ({ page }) => {
     // Check for skip links
     const skipLink = page.locator('a[href="#main"], a[href="#content"]').first();
-    if (await skipLink.count() > 0) {
+    if ((await skipLink.count()) > 0) {
       await expect(skipLink).toBeVisible({ visible: false }); // Usually hidden until focused
     }
 
@@ -50,13 +44,13 @@ test.describe('Wizard Accessibility', () => {
 
     // Check navigation buttons are keyboard accessible
     const nextButton = page.locator('button:has-text("Next"), button:has-text("Continue")').first();
-    if (await nextButton.count() > 0) {
+    if ((await nextButton.count()) > 0) {
       await nextButton.focus();
       await expect(nextButton).toBeFocused();
     }
 
     const prevButton = page.locator('button:has-text("Previous"), button:has-text("Back")').first();
-    if (await prevButton.count() > 0) {
+    if ((await prevButton.count()) > 0) {
       await prevButton.focus();
       await expect(prevButton).toBeFocused();
     }
@@ -79,7 +73,7 @@ test.describe('Wizard Accessibility', () => {
       // 3. An aria-labelledby reference
       if (inputId) {
         const label = page.locator(`label[for="${inputId}"]`);
-        const hasLabel = await label.count() > 0;
+        const hasLabel = (await label.count()) > 0;
         const hasAriaLabel = inputAriaLabel !== null;
         const hasAriaLabelledBy = inputAriaLabelledBy !== null;
 
@@ -96,15 +90,11 @@ test.describe('Wizard Accessibility', () => {
     const violations = await getViolations(page, null, {
       runOnly: {
         type: 'rule',
-        values: ['color-contrast']
-      }
+        values: ['color-contrast'],
+      },
     });
 
-    if (violations.length > 0) {
-      reportViolations(violations, 'Color Contrast');
-    }
-
-    expect(violations.length).toBe(0);
+    expect(violations).toEqual([]);
   });
 
   test('Focus indicators are visible', async ({ page }) => {
@@ -112,12 +102,13 @@ test.describe('Wizard Accessibility', () => {
     const interactiveElements = page.locator('button, a, input, select, textarea, [tabindex="0"]');
     const count = await interactiveElements.count();
 
-    for (let i = 0; i < Math.min(count, 5); i++) { // Check first 5 elements
+    for (let i = 0; i < Math.min(count, 5); i++) {
+      // Check first 5 elements
       const element = interactiveElements.nth(i);
-      
+
       if (await element.isVisible()) {
         await element.focus();
-        
+
         // Check if element has focus styles
         const outlineStyle = await element.evaluate((el) => {
           const styles = window.getComputedStyle(el);
@@ -126,12 +117,12 @@ test.describe('Wizard Accessibility', () => {
             outlineWidth: styles.outlineWidth,
             outlineColor: styles.outlineColor,
             boxShadow: styles.boxShadow,
-            border: styles.border
+            border: styles.border,
           };
         });
 
         // Element should have some visual focus indicator
-        const hasFocusIndicator = 
+        const hasFocusIndicator =
           (outlineStyle.outline !== 'none' && outlineStyle.outline !== 'none 0px') ||
           outlineStyle.boxShadow !== 'none' ||
           outlineStyle.outlineWidth !== '0px';
@@ -146,36 +137,39 @@ test.describe('Wizard Accessibility', () => {
     const violations = await getViolations(page, null, {
       runOnly: {
         type: 'rule',
-        values: ['aria-allowed-attr', 'aria-required-attr', 'aria-valid-attr', 'aria-valid-attr-value']
-      }
+        values: [
+          'aria-allowed-attr',
+          'aria-required-attr',
+          'aria-valid-attr',
+          'aria-valid-attr-value',
+        ],
+      },
     });
 
-    if (violations.length > 0) {
-      reportViolations(violations, 'ARIA Attributes');
-    }
-
-    expect(violations.length).toBe(0);
+    expect(violations).toEqual([]);
   });
 
   test('Error messages are accessible', async ({ page }) => {
     // Try to trigger validation errors
     const submitButton = page.locator('button[type="submit"], button:has-text("Submit")').first();
-    
-    if (await submitButton.count() > 0) {
+
+    if ((await submitButton.count()) > 0) {
       await submitButton.click();
-      
+
       // Wait for potential error messages
       await page.waitForTimeout(1000);
-      
+
       // Check error messages have proper ARIA
-      const errorMessages = page.locator('[role="alert"], [aria-live="polite"], .error-message, .field-error');
+      const errorMessages = page.locator(
+        '[role="alert"], [aria-live="polite"], .error-message, .field-error'
+      );
       const errorCount = await errorMessages.count();
-      
+
       for (let i = 0; i < errorCount; i++) {
         const error = errorMessages.nth(i);
         const role = await error.getAttribute('role');
         const ariaLive = await error.getAttribute('aria-live');
-        
+
         // Error messages should be announced to screen readers
         expect(
           role === 'alert' || ariaLive === 'polite' || ariaLive === 'assertive',
@@ -188,25 +182,27 @@ test.describe('Wizard Accessibility', () => {
   test('Wizard progress is communicated to screen readers', async ({ page }) => {
     // Check for progress indicators
     const progressBar = page.locator('[role="progressbar"], progress, [aria-valuenow]').first();
-    
-    if (await progressBar.count() > 0) {
+
+    if ((await progressBar.count()) > 0) {
       const ariaValueNow = await progressBar.getAttribute('aria-valuenow');
       const ariaValueMin = await progressBar.getAttribute('aria-valuemin');
       const ariaValueMax = await progressBar.getAttribute('aria-valuemax');
       const ariaLabel = await progressBar.getAttribute('aria-label');
-      
+
       // Progress bar should have proper ARIA attributes
       expect(ariaValueNow).toBeTruthy();
       expect(ariaValueMin).toBeTruthy();
       expect(ariaValueMax).toBeTruthy();
-      
+
       // Should have a label
-      expect(ariaLabel || await progressBar.getAttribute('aria-labelledby')).toBeTruthy();
+      expect(ariaLabel || (await progressBar.getAttribute('aria-labelledby'))).toBeTruthy();
     }
-    
+
     // Check for step indicators
-    const stepIndicators = page.locator('[aria-current="step"], [aria-current="page"], .current-step');
-    if (await stepIndicators.count() > 0) {
+    const stepIndicators = page.locator(
+      '[aria-current="step"], [aria-current="page"], .current-step'
+    );
+    if ((await stepIndicators.count()) > 0) {
       const currentStep = stepIndicators.first();
       const ariaCurrent = await currentStep.getAttribute('aria-current');
       expect(ariaCurrent).toBeTruthy();
@@ -238,14 +234,10 @@ test.describe('Wizard Accessibility', () => {
     const violations = await getViolations(page, null, {
       runOnly: {
         type: 'rule',
-        values: ['heading-order', 'page-has-heading-one']
-      }
+        values: ['heading-order', 'page-has-heading-one'],
+      },
     });
 
-    if (violations.length > 0) {
-      reportViolations(violations, 'Heading Hierarchy');
-    }
-
-    expect(violations.length).toBe(0);
+    expect(violations).toEqual([]);
   });
 });
