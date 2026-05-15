@@ -5,7 +5,7 @@
  * - Multiple allocation rows with labels and percentage sliders
  * - Auto-adjusts other allocations to maintain 100% total
  * - Visual feedback for total allocation status
- * - Add/remove allocation rows
+ * - Remove allocation rows
  */
 
 import React, { useState, useEffect } from 'react';
@@ -13,7 +13,7 @@ import { Slider } from '@/components/ui/slider';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Plus, Trash2 } from 'lucide-react';
+import { Trash2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 export interface Allocation {
@@ -28,6 +28,61 @@ interface AllocationSlidersProps {
   className?: string;
 }
 
+function roundPct(value: number) {
+  return Math.round(value * 10) / 10;
+}
+
+function rebalanceAllocations(rows: Allocation[], changedId: string, nextPct: number) {
+  const changedPct = Math.max(0, Math.min(100, roundPct(nextPct)));
+  const others = rows.filter((allocation) => allocation.id !== changedId);
+
+  if (others.length === 0) {
+    return rows.map((allocation) => ({ ...allocation, pct: 100 }));
+  }
+
+  const remainingPct = roundPct(100 - changedPct);
+  const otherTotal = others.reduce((sum, allocation) => sum + allocation.pct, 0);
+  let usedPct = 0;
+
+  const rebalancedOthers = others.map((allocation, index) => {
+    const nextOtherPct =
+      index === others.length - 1
+        ? roundPct(remainingPct - usedPct)
+        : roundPct(
+            otherTotal > 0
+              ? (allocation.pct / otherTotal) * remainingPct
+              : remainingPct / others.length
+          );
+
+    usedPct = roundPct(usedPct + nextOtherPct);
+    return { ...allocation, pct: nextOtherPct };
+  });
+
+  return rows.map((allocation) =>
+    allocation.id === changedId
+      ? { ...allocation, pct: changedPct }
+      : (rebalancedOthers.find((other) => other.id === allocation.id) ?? allocation)
+  );
+}
+
+function normalizeAllocations(rows: Allocation[]) {
+  if (rows.length === 0) return rows;
+  if (rows.length === 1) return rows.map((allocation) => ({ ...allocation, pct: 100 }));
+
+  const total = rows.reduce((sum, allocation) => sum + allocation.pct, 0);
+  let usedPct = 0;
+
+  return rows.map((allocation, index) => {
+    const pct =
+      index === rows.length - 1
+        ? roundPct(100 - usedPct)
+        : roundPct(total > 0 ? (allocation.pct / total) * 100 : 100 / rows.length);
+
+    usedPct = roundPct(usedPct + pct);
+    return { ...allocation, pct };
+  });
+}
+
 export function AllocationSliders({ initial, onChange, className }: AllocationSlidersProps) {
   const [allocations, setAllocations] = useState<Allocation[]>(initial);
 
@@ -39,9 +94,7 @@ export function AllocationSliders({ initial, onChange, className }: AllocationSl
   const isValid = Math.abs(total - 100) < 0.01; // Allow for floating point precision
 
   const handleSliderChange = (id: string, newPct: number) => {
-    const updated = allocations.map(a =>
-      a.id === id ? { ...a, pct: newPct } : a
-    );
+    const updated = rebalanceAllocations(allocations, id, newPct);
     setAllocations(updated);
     onChange(updated);
   };
@@ -52,28 +105,15 @@ export function AllocationSliders({ initial, onChange, className }: AllocationSl
     handleSliderChange(id, clamped);
   };
 
-  const handleAddAllocation = () => {
-    const newAllocation: Allocation = {
-      id: `allocation-${Date.now()}`,
-      label: 'New Allocation',
-      pct: 0,
-    };
-    const updated = [...allocations, newAllocation];
-    setAllocations(updated);
-    onChange(updated);
-  };
-
   const handleRemoveAllocation = (id: string) => {
     if (allocations.length <= 1) return; // Keep at least one allocation
-    const updated = allocations.filter(a => a.id !== id);
+    const updated = normalizeAllocations(allocations.filter((a) => a.id !== id));
     setAllocations(updated);
     onChange(updated);
   };
 
   const handleLabelChange = (id: string, label: string) => {
-    const updated = allocations.map(a =>
-      a.id === id ? { ...a, label } : a
-    );
+    const updated = allocations.map((a) => (a.id === id ? { ...a, label } : a));
     setAllocations(updated);
     onChange(updated);
   };
@@ -86,12 +126,11 @@ export function AllocationSliders({ initial, onChange, className }: AllocationSl
           <div key={allocation.id} className="space-y-3">
             <div className="flex items-center gap-3">
               <div className="flex-1">
-                <Label className="text-sm font-medium text-[#292929]">
-                  {allocation.label}
-                </Label>
+                <Label className="text-sm font-medium text-[#292929]">{allocation.label}</Label>
                 <Input
                   value={allocation.label}
                   onChange={(e) => handleLabelChange(allocation.id, e.target.value)}
+                  aria-label={`${allocation.label || 'Allocation'} label`}
                   className="mt-1 h-9 text-sm"
                   placeholder="Allocation label"
                 />
@@ -105,6 +144,7 @@ export function AllocationSliders({ initial, onChange, className }: AllocationSl
                   step="1"
                   value={allocation.pct.toFixed(0)}
                   onChange={(e) => handleInputChange(allocation.id, e.target.value)}
+                  aria-label={`${allocation.label || 'Allocation'} allocation percentage`}
                   className="mt-1 h-9 text-sm text-right"
                 />
               </div>
@@ -114,49 +154,45 @@ export function AllocationSliders({ initial, onChange, className }: AllocationSl
                   size="sm"
                   onClick={() => handleRemoveAllocation(allocation.id)}
                   className="mt-6 text-red-500 hover:text-red-700 hover:bg-red-50"
+                  aria-label={`Remove ${allocation.label || 'allocation'}`}
                 >
-                  <Trash2 className="h-4 w-4" />
+                  <Trash2 aria-hidden="true" className="h-4 w-4" />
                 </Button>
               )}
             </div>
 
             <Slider
               value={[allocation.pct]}
-              onValueChange={([value]) => handleSliderChange(allocation.id, value ?? allocation.pct)}
+              onValueChange={([value]) =>
+                handleSliderChange(allocation.id, value ?? allocation.pct)
+              }
               min={0}
               max={100}
               step={1}
+              aria-label={`${allocation.label || 'Allocation'} allocation slider`}
               className="w-full"
             />
           </div>
         ))}
       </div>
 
-      {/* Add Allocation Button */}
-      <Button
-        variant="outline"
-        size="sm"
-        onClick={handleAddAllocation}
-        className="w-full"
-      >
-        <Plus className="h-4 w-4 mr-2" />
-        Add Allocation
-      </Button>
-
       {/* Total Display */}
-      <div className={cn(
-        'p-4 rounded-lg border-2 transition-colors',
-        isValid
-          ? 'bg-green-50 border-green-200 text-green-700'
-          : 'bg-amber-50 border-amber-200 text-amber-700'
-      )}>
+      <div
+        className={cn(
+          'p-4 rounded-lg border-2 transition-colors',
+          isValid
+            ? 'bg-green-50 border-green-200 text-green-800'
+            : 'bg-amber-50 border-amber-200 text-amber-800'
+        )}
+      >
         <div className="flex items-center justify-between">
           <span className="font-medium">Total Allocation:</span>
           <span className="text-lg font-bold">{total.toFixed(1)}%</span>
         </div>
         {!isValid && (
           <p className="text-sm mt-1">
-            Allocations must sum to 100%. Currently {total > 100 ? 'over' : 'under'} by {Math.abs(total - 100).toFixed(1)}%
+            Allocations must sum to 100%. Currently {total > 100 ? 'over' : 'under'} by{' '}
+            {Math.abs(total - 100).toFixed(1)}%
           </p>
         )}
       </div>

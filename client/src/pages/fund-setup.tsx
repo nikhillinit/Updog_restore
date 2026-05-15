@@ -65,14 +65,14 @@ const WIZARD_STEPS = [
   {
     id: 'distributions',
     number: 5,
-    title: 'EXIT RECYCLING',
-    description: 'Proceeds recycling configuration',
+    title: 'DISTRIBUTIONS',
+    description: 'Waterfall, fees, expenses, and recycling',
   },
   {
     id: 'cashflow-management',
     number: 6,
-    title: 'WATERFALL & CARRY',
-    description: 'Distribution terms and carry structure',
+    title: 'CASHFLOW & LIQUIDITY',
+    description: 'Capital calls, expenses, and liquidity settings',
   },
   {
     id: 'review',
@@ -193,10 +193,11 @@ export default function FundSetup() {
               <div className="mx-auto max-w-5xl px-4 pt-4 sm:px-6 lg:px-8">
                 {status === 'error' ? (
                   <Alert
+                    aria-live="assertive"
                     className="border-l-4 border-l-red-500 bg-red-50"
                     data-testid="draft-sync-error"
                   >
-                    <AlertTriangle className="h-4 w-4 text-red-500" />
+                    <AlertTriangle aria-hidden="true" className="h-4 w-4 text-red-500" />
                     <AlertTitle>Draft Sync Failed</AlertTitle>
                     <AlertDescription className="flex flex-wrap items-center gap-3">
                       <span>{error ?? 'Unable to sync the authoritative draft.'}</span>
