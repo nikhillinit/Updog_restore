@@ -5,7 +5,7 @@
  * section discriminated unions work as expected.
  */
 
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import {
   FundResultsReadV1Schema,
   SectionAvailableSchema,
@@ -272,6 +272,28 @@ describe('FundResultsReadV1 contract shape', () => {
     });
 
     expect(parsed.success).toBe(true);
+  });
+
+  it('documents final economics summary multiples as dimensionless ratios', async () => {
+    const actualFs = await vi.importActual<typeof import('fs')>('fs');
+    const { fileURLToPath } = await import('node:url');
+    const { dirname, resolve } = await import('node:path');
+    const thisDir = dirname(fileURLToPath(import.meta.url));
+    const contractPath = resolve(thisDir, '../../../shared/contracts/economics-v1.contract.ts');
+    const source = actualFs.readFileSync(contractPath, 'utf8');
+
+    const ratioFields = [
+      { metric: 'Dpi', example: '1.5x' },
+      { metric: 'Rvpi', example: '0.8x' },
+      { metric: 'Tvpi', example: '2.3x' },
+    ];
+
+    for (const { metric, example } of ratioFields) {
+      const upperMetric = metric.toUpperCase();
+      const expectedContractSnippet = `/** Final ${upperMetric} multiple (dimensionless, e.g. ${example}), not currency */\n    final${metric}: z.number().nonnegative(),`;
+      expect(source.includes(expectedContractSnippet)).toBe(true);
+      expect(new RegExp(`final${metric}:\\s*NonNegativeMoneySchema`).test(source)).toBe(false);
+    }
   });
 
   it('economics section rejects non-economics reason codes', () => {
