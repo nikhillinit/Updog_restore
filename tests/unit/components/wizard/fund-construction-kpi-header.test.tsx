@@ -40,4 +40,24 @@ describe('FundConstructionKpiHeader', () => {
     expect(screen.getByTestId('construction-kpi-currentValue')).not.toHaveTextContent('N/A');
     expect(screen.getByTestId('construction-kpi-avgCheckSize')).toHaveTextContent('$500.0K');
   });
+
+  it('hides the header when no draft KPI values are actionable yet', () => {
+    const initialState = fundStore.getInitialState();
+    act(() => {
+      fundStore.setState(
+        {
+          ...initialState,
+          hydrated: true,
+          fundName: '',
+          fundSize: undefined,
+          capitalPlanAllocations: [],
+        },
+        true
+      );
+    });
+
+    const { container } = render(<FundConstructionKpiHeader />);
+
+    expect(container.firstChild).toBeNull();
+  });
 });

@@ -81,6 +81,17 @@ describe('FundSetup draft sync', () => {
     vi.useRealTimers();
   });
 
+  it('renders a fresh wizard without a draft-sync alert or draft service calls', async () => {
+    const { default: FundSetup } = await import('@/pages/fund-setup');
+    render(<FundSetup />);
+
+    expect(screen.getByText('Fund Basics Step')).toBeInTheDocument();
+    expect(screen.queryByTestId('draft-sync-error')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('draft-sync-status')).not.toBeInTheDocument();
+    expect(mockFetchFundDraft).not.toHaveBeenCalled();
+    expect(mockSaveFundDraft).not.toHaveBeenCalled();
+  });
+
   it('hydrates a recovered authoritative draft from the server before rendering the routed step', async () => {
     mockFetchFundDraft.mockResolvedValue({
       fundName: 'Server Fund',

@@ -1,13 +1,19 @@
 import React, { useState } from 'react';
 import { useLocation } from 'wouter';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Label } from "@/components/ui/label";
-import { Input } from "@/components/ui/input";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Switch } from "@/components/ui/switch";
-import { Button } from "@/components/ui/button";
-import { Plus, Trash2, AlertCircle, ArrowLeft, ArrowRight } from "lucide-react";
-import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Label } from '@/components/ui/label';
+import { Input } from '@/components/ui/input';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { Switch } from '@/components/ui/switch';
+import { Button } from '@/components/ui/button';
+import { Plus, Trash2, AlertCircle, ArrowLeft, ArrowRight } from 'lucide-react';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import { spreadIfDefined } from '@/lib/ts/spreadIfDefined';
 import { useFundTuple, useFundAction } from '@/stores/useFundSelector';
 import { useFundContext } from '@/contexts/FundContext';
@@ -27,7 +33,7 @@ interface WaterfallTier {
 
 export default function DistributionsStep() {
   const [, navigate] = useLocation();
-  const [activeTab, setActiveTab] = useState("waterfall");
+  const [activeTab, setActiveTab] = useState('waterfall');
 
   // Get fund size from context
   const { currentFund } = useFundContext();
@@ -44,8 +50,8 @@ export default function DistributionsStep() {
     mgmtFeeRecyclingRate,
     allowFutureRecycling,
     feeProfiles,
-    fundExpenses
-  ] = useFundTuple(s => [
+    fundExpenses,
+  ] = useFundTuple((s) => [
     s.waterfallTiers || [],
     s.recyclingEnabled || false,
     s.recyclingType || 'exits',
@@ -55,27 +61,27 @@ export default function DistributionsStep() {
     s.mgmtFeeRecyclingRate || 0,
     s.allowFutureRecycling || false,
     s.feeProfiles || [],
-    s.fundExpenses || []
+    s.fundExpenses || [],
   ]);
 
   // Actions
-  const updateDistributions = useFundAction(s => s.updateDistributions);
-  const addWaterfallTier = useFundAction(s => s.addWaterfallTier);
-  const updateWaterfallTier = useFundAction(s => s.updateWaterfallTier);
-  const removeWaterfallTier = useFundAction(s => s.removeWaterfallTier);
+  const updateDistributions = useFundAction((s) => s.updateDistributions);
+  const addWaterfallTier = useFundAction((s) => s.addWaterfallTier);
+  const updateWaterfallTier = useFundAction((s) => s.updateWaterfallTier);
+  const removeWaterfallTier = useFundAction((s) => s.removeWaterfallTier);
 
   // Fee Profile actions
-  const addFeeProfile = useFundAction(s => s.addFeeProfile);
-  const updateFeeProfile = useFundAction(s => s.updateFeeProfile);
-  const removeFeeProfile = useFundAction(s => s.removeFeeProfile);
-  const addFeeTier = useFundAction(s => s.addFeeTier);
-  const updateFeeTier = useFundAction(s => s.updateFeeTier);
-  const removeFeeTier = useFundAction(s => s.removeFeeTier);
+  const addFeeProfile = useFundAction((s) => s.addFeeProfile);
+  const updateFeeProfile = useFundAction((s) => s.updateFeeProfile);
+  const removeFeeProfile = useFundAction((s) => s.removeFeeProfile);
+  const addFeeTier = useFundAction((s) => s.addFeeTier);
+  const updateFeeTier = useFundAction((s) => s.updateFeeTier);
+  const removeFeeTier = useFundAction((s) => s.removeFeeTier);
 
   // Fund Expense actions
-  const addFundExpense = useFundAction(s => s.addFundExpense);
-  const updateFundExpense = useFundAction(s => s.updateFundExpense);
-  const removeFundExpense = useFundAction(s => s.removeFundExpense);
+  const addFundExpense = useFundAction((s) => s.addFundExpense);
+  const updateFundExpense = useFundAction((s) => s.updateFundExpense);
+  const removeFundExpense = useFundAction((s) => s.removeFundExpense);
 
   const handleAddTier = () => {
     const newTier: WaterfallTier = {
@@ -83,7 +89,7 @@ export default function DistributionsStep() {
       name: `Tier ${waterfallTiers.length + 1}`,
       gpSplit: 20,
       lpSplit: 80,
-      condition: 'none'
+      condition: 'none',
     };
     addWaterfallTier(newTier);
   };
@@ -93,7 +99,7 @@ export default function DistributionsStep() {
       recyclingEnabled: enabled,
       // Reset recycling values when disabled
       exitRecyclingRate: enabled ? exitRecyclingRate : 0,
-      mgmtFeeRecyclingRate: enabled ? mgmtFeeRecyclingRate : 0
+      mgmtFeeRecyclingRate: enabled ? mgmtFeeRecyclingRate : 0,
     });
   };
 
@@ -102,7 +108,7 @@ export default function DistributionsStep() {
     const newProfile: FeeProfile = {
       id: `profile-${Date.now()}`,
       name: `Fee Profile ${feeProfiles.length + 1}`,
-      feeTiers: []
+      feeTiers: [],
     };
     addFeeProfile(newProfile);
   };
@@ -114,7 +120,7 @@ export default function DistributionsStep() {
       percentage: 2.0,
       feeBasis: 'committed_capital',
       startMonth: 1,
-      endMonth: 120
+      endMonth: 120,
     };
     addFeeTier(profileId, newTier);
   };
@@ -125,7 +131,7 @@ export default function DistributionsStep() {
       category: 'Operating Expense',
       monthlyAmount: 10000,
       startMonth: 1,
-      endMonth: 120
+      endMonth: 120,
     };
     addFundExpense(newExpense);
   };
@@ -135,65 +141,71 @@ export default function DistributionsStep() {
     {
       value: 'committed_capital',
       label: 'Committed Capital',
-      description: 'Fee charged on total committed capital by LPs'
+      description: 'Fee charged on total committed capital by LPs',
     },
     {
       value: 'called_capital_period',
       label: 'Called Capital Each Period',
-      description: 'Fee charged on called capital in that period'
+      description: 'Fee charged on called capital in that period',
     },
     {
       value: 'gross_cumulative_called',
       label: 'Gross Cumulative Called Capital',
-      description: 'Fee charged on cumulative called capital to date'
+      description: 'Fee charged on cumulative called capital to date',
     },
     {
       value: 'net_cumulative_called',
       label: 'Net Cumulative Called Capital',
-      description: 'Fee charged on cumulative called capital less capital returned to LPs'
+      description: 'Fee charged on cumulative called capital less capital returned to LPs',
     },
     {
       value: 'cumulative_invested',
       label: 'Cumulative Invested Capital',
-      description: 'Fee charged on cumulative invested capital (initial + follow-on) to date'
+      description: 'Fee charged on cumulative invested capital (initial + follow-on) to date',
     },
     {
       value: 'fair_market_value',
       label: 'Fair Market Value',
-      description: 'Fee charged on fair market value of active investments each period'
+      description: 'Fee charged on fair market value of active investments each period',
     },
     {
       value: 'unrealized_investments',
       label: 'Unrealized Investments',
-      description: 'Fee charged on total cost basis of unrealized active investments'
-    }
+      description: 'Fee charged on total cost basis of unrealized active investments',
+    },
   ];
 
   return (
     <ModernStepContainer
-      title="Exit Recycling"
-      description="Proceeds recycling configuration"
+      title="Distributions, Fees & Recycling"
+      description="Configure waterfall structure, fees, expenses, and proceeds recycling"
     >
       <div className="space-y-8">
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="grid w-full grid-cols-3">
-            <TabsTrigger value="waterfall">Waterfall Structure</TabsTrigger>
-            <TabsTrigger value="fees">Fees & Expenses</TabsTrigger>
-            <TabsTrigger value="recycling">Recycling Provisions</TabsTrigger>
-          </TabsList>
+          <div className="overflow-x-auto pb-1">
+            <TabsList className="inline-grid min-w-max grid-cols-3">
+              <TabsTrigger value="waterfall">Waterfall Structure</TabsTrigger>
+              <TabsTrigger value="fees">Fees & Expenses</TabsTrigger>
+              <TabsTrigger value="recycling">Recycling Provisions</TabsTrigger>
+            </TabsList>
+          </div>
 
           <TabsContent value="waterfall" className="space-y-6">
             <div className="space-y-6">
               <div className="pb-4 border-b border-[#E0D8D1]">
-                <h3 className="text-lg font-inter font-bold text-[#292929] mb-2">Distribution Waterfall</h3>
-                <p className="text-[#292929]/70 font-poppins">Define how distributions flow between LPs and GP</p>
+                <h3 className="text-lg font-inter font-bold text-[#292929] mb-2">
+                  Distribution Waterfall
+                </h3>
+                <p className="text-[#292929]/70 font-poppins">
+                  Define how distributions flow between LPs and GP
+                </p>
               </div>
 
               <Alert>
-                <AlertCircle className="h-4 w-4" />
+                <AlertCircle aria-hidden="true" className="h-4 w-4" />
                 <AlertDescription>
-                  American waterfall calculates carry on each individual deal.
-                  Consider clawback provisions to protect LPs.
+                  American waterfall calculates carry on each individual deal. Consider clawback
+                  provisions to protect LPs.
                 </AlertDescription>
               </Alert>
 
@@ -210,28 +222,40 @@ export default function DistributionsStep() {
                           onClick={() => removeWaterfallTier(tier.id)}
                           className="text-red-500 hover:text-red-700"
                           disabled={waterfallTiers.length === 1}
+                          aria-label={`Remove ${tier.name} waterfall tier`}
                         >
-                          <Trash2 className="h-4 w-4" />
+                          <Trash2 aria-hidden="true" className="h-4 w-4" />
                         </Button>
                       </div>
 
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div className="space-y-3">
-                          <Label className="text-sm font-poppins font-medium text-[#292929]">Tier Name</Label>
+                          <Label className="text-sm font-poppins font-medium text-[#292929]">
+                            Tier Name
+                          </Label>
                           <Input
                             value={tier.name}
-                            onChange={(e: React.ChangeEvent<HTMLInputElement>) => updateWaterfallTier(tier.id, { name: e.target.value })}
+                            onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                              updateWaterfallTier(tier.id, { name: e.target.value })
+                            }
                             placeholder="e.g., Preferred Return"
                             className="h-12 border-[#E0D8D1] focus:border-[#292929] focus:ring-[#292929] font-poppins"
                           />
                         </div>
 
                         <div className="space-y-3">
-                          <Label className="text-sm font-poppins font-medium text-[#292929]">Condition</Label>
+                          <Label className="text-sm font-poppins font-medium text-[#292929]">
+                            Condition
+                          </Label>
                           <Select
                             value={tier.condition || 'none'}
                             onValueChange={(value: string) =>
-                              updateWaterfallTier(tier.id, { ...spreadIfDefined("condition", value as WaterfallTier['condition']) })
+                              updateWaterfallTier(tier.id, {
+                                ...spreadIfDefined(
+                                  'condition',
+                                  value as WaterfallTier['condition']
+                                ),
+                              })
                             }
                           >
                             <SelectTrigger className="h-12">
@@ -254,12 +278,16 @@ export default function DistributionsStep() {
                           <Input
                             type="number"
                             min="0"
-                            step={tier.condition === 'irr' ? "0.1" : "0.01"}
+                            step={tier.condition === 'irr' ? '0.1' : '0.01'}
                             value={tier.conditionValue || ''}
-                            onChange={(e: React.ChangeEvent<HTMLInputElement>) => updateWaterfallTier(tier.id, {
-                              ...(parseFloat(e.target.value) ? { conditionValue: parseFloat(e.target.value) } : {})
-                            })}
-                            placeholder={tier.condition === 'irr' ? "e.g., 8.0" : "e.g., 1.5"}
+                            onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                              updateWaterfallTier(tier.id, {
+                                ...(parseFloat(e.target.value)
+                                  ? { conditionValue: parseFloat(e.target.value) }
+                                  : {}),
+                              })
+                            }
+                            placeholder={tier.condition === 'irr' ? 'e.g., 8.0' : 'e.g., 1.5'}
                             className="h-12 border-[#E0D8D1] focus:border-[#292929] focus:ring-[#292929] font-poppins"
                           />
                         </div>
@@ -267,7 +295,9 @@ export default function DistributionsStep() {
 
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div className="space-y-3">
-                          <Label className="text-sm font-poppins font-medium text-[#292929]">LP Split (%)</Label>
+                          <Label className="text-sm font-poppins font-medium text-[#292929]">
+                            LP Split (%)
+                          </Label>
                           <Input
                             type="number"
                             min="0"
@@ -277,7 +307,7 @@ export default function DistributionsStep() {
                               const lpSplit = parseFloat(e.target.value) || 0;
                               updateWaterfallTier(tier.id, {
                                 lpSplit,
-                                gpSplit: 100 - lpSplit
+                                gpSplit: 100 - lpSplit,
                               });
                             }}
                             className="h-12 border-[#E0D8D1] focus:border-[#292929] focus:ring-[#292929] font-poppins"
@@ -285,19 +315,26 @@ export default function DistributionsStep() {
                         </div>
 
                         <div className="space-y-3">
-                          <Label className="text-sm font-poppins font-medium text-[#292929]">GP Split (%)</Label>
-                          <div className="p-3 bg-[#F2F2F2] rounded-xl h-12 flex items-center">
-                            <span className="text-[#292929] font-poppins">
-                              {tier.gpSplit}%
-                            </span>
+                          <Label className="text-sm font-poppins font-medium text-[#292929]">
+                            GP Split (%)
+                          </Label>
+                          <div
+                            className="p-3 bg-[#F2F2F2] rounded-xl h-12 flex items-center"
+                            role="status"
+                            aria-label={`GP Split is calculated as ${tier.gpSplit}% from LP Split`}
+                          >
+                            <span className="text-[#292929] font-poppins">{tier.gpSplit}%</span>
                           </div>
                         </div>
                       </div>
-
                     </div>
                   ))}
 
-                  <Button onClick={handleAddTier} variant="outline" className="w-full h-12 border-[#E0D8D1] hover:bg-[#E0D8D1]/20 hover:border-[#292929] font-poppins font-medium">
+                  <Button
+                    onClick={handleAddTier}
+                    variant="outline"
+                    className="w-full h-12 border-[#E0D8D1] hover:bg-[#E0D8D1]/20 hover:border-[#292929] font-poppins font-medium"
+                  >
                     <Plus className="h-4 w-4 mr-2" />
                     Add Waterfall Tier
                   </Button>
@@ -310,7 +347,9 @@ export default function DistributionsStep() {
             {/* Management Fees Section */}
             <div className="space-y-6">
               <div className="pb-4 border-b border-[#E0D8D1]">
-                <h3 className="text-lg font-inter font-bold text-[#292929] mb-2">Management Fees</h3>
+                <h3 className="text-lg font-inter font-bold text-[#292929] mb-2">
+                  Management Fees
+                </h3>
                 <p className="text-[#292929]/70 font-poppins">
                   Configure fee structures with different basis methods and step-downs
                 </p>
@@ -318,13 +357,20 @@ export default function DistributionsStep() {
 
               <div className="space-y-6">
                 {feeProfiles.map((profile: FeeProfile) => (
-                  <div key={profile.id} className="border border-[#E0D8D1] rounded-xl p-4 space-y-4">
+                  <div
+                    key={profile.id}
+                    className="border border-[#E0D8D1] rounded-xl p-4 space-y-4"
+                  >
                     <div className="flex items-center justify-between">
                       <div className="space-y-3 flex-1">
-                        <Label className="text-sm font-poppins font-medium text-[#292929]">Fee Profile Name</Label>
+                        <Label className="text-sm font-poppins font-medium text-[#292929]">
+                          Fee Profile Name
+                        </Label>
                         <Input
                           value={profile.name}
-                          onChange={(e: React.ChangeEvent<HTMLInputElement>) => updateFeeProfile(profile.id, { name: e.target.value })}
+                          onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                            updateFeeProfile(profile.id, { name: e.target.value })
+                          }
                           placeholder="e.g., Default Fee Profile"
                           className="max-w-md h-12 border-[#E0D8D1] focus:border-[#292929] focus:ring-[#292929] font-poppins"
                         />
@@ -344,8 +390,9 @@ export default function DistributionsStep() {
                             size="sm"
                             onClick={() => removeFeeProfile(profile.id)}
                             className="text-red-500 hover:text-red-700"
+                            aria-label={`Remove ${profile.name} fee profile`}
                           >
-                            <Trash2 className="h-4 w-4" />
+                            <Trash2 aria-hidden="true" className="h-4 w-4" />
                           </Button>
                         )}
                       </div>
@@ -363,51 +410,64 @@ export default function DistributionsStep() {
                               onClick={() => removeFeeTier(profile.id, tier.id)}
                               className="text-red-500 hover:text-red-700"
                               disabled={profile.feeTiers.length === 1}
+                              aria-label={`Remove ${tier.name} fee tier`}
                             >
-                              <Trash2 className="h-4 w-4" />
+                              <Trash2 aria-hidden="true" className="h-4 w-4" />
                             </Button>
                           </div>
 
                           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                             <div className="space-y-3">
-                              <Label className="text-sm font-poppins font-medium text-[#292929]">Fee Name</Label>
+                              <Label className="text-sm font-poppins font-medium text-[#292929]">
+                                Fee Name
+                              </Label>
                               <Input
                                 value={tier.name}
-                                onChange={(e: React.ChangeEvent<HTMLInputElement>) => updateFeeTier(profile.id, tier.id, { name: e.target.value })}
+                                onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                                  updateFeeTier(profile.id, tier.id, { name: e.target.value })
+                                }
                                 placeholder="e.g., Management Fee"
                                 className="h-12 border-[#E0D8D1] focus:border-[#292929] focus:ring-[#292929] font-poppins"
                               />
                             </div>
 
                             <div className="space-y-3">
-                              <Label className="text-sm font-poppins font-medium text-[#292929]">Fee Percentage (%)</Label>
+                              <Label className="text-sm font-poppins font-medium text-[#292929]">
+                                Fee Percentage (%)
+                              </Label>
                               <Input
                                 type="number"
                                 min="0"
                                 max="10"
                                 step="0.1"
                                 value={tier.percentage}
-                                onChange={(e: React.ChangeEvent<HTMLInputElement>) => updateFeeTier(profile.id, tier.id, {
-                                  percentage: parseFloat(e.target.value) || 0
-                                })}
+                                onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                                  updateFeeTier(profile.id, tier.id, {
+                                    percentage: parseFloat(e.target.value) || 0,
+                                  })
+                                }
                                 placeholder="2.0"
                                 className="h-12 border-[#E0D8D1] focus:border-[#292929] focus:ring-[#292929] font-poppins"
                               />
                             </div>
 
                             <div className="space-y-3">
-                              <Label className="text-sm font-poppins font-medium text-[#292929]">Fee Basis</Label>
+                              <Label className="text-sm font-poppins font-medium text-[#292929]">
+                                Fee Basis
+                              </Label>
                               <Select
                                 value={tier.feeBasis}
-                                onValueChange={(value: string) => updateFeeTier(profile.id, tier.id, {
-                                  feeBasis: value as FeeBasis
-                                })}
+                                onValueChange={(value: string) =>
+                                  updateFeeTier(profile.id, tier.id, {
+                                    feeBasis: value as FeeBasis,
+                                  })
+                                }
                               >
                                 <SelectTrigger className="h-12">
                                   <SelectValue />
                                 </SelectTrigger>
                                 <SelectContent>
-                                  {feeBasisOptions.map(option => (
+                                  {feeBasisOptions.map((option) => (
                                     <SelectItem key={option.value} value={option.value}>
                                       {option.label}
                                     </SelectItem>
@@ -415,47 +475,66 @@ export default function DistributionsStep() {
                                 </SelectContent>
                               </Select>
                               <p className="text-xs text-[#292929]/60 font-poppins">
-                                {feeBasisOptions.find(opt => opt.value === tier.feeBasis)?.description}
+                                {
+                                  feeBasisOptions.find((opt) => opt.value === tier.feeBasis)
+                                    ?.description
+                                }
                               </p>
                             </div>
 
                             <div className="space-y-3">
-                              <Label className="text-sm font-poppins font-medium text-[#292929]">Start Month</Label>
+                              <Label className="text-sm font-poppins font-medium text-[#292929]">
+                                Start Month
+                              </Label>
                               <Input
                                 type="number"
                                 min="1"
                                 value={tier.startMonth}
-                                onChange={(e: React.ChangeEvent<HTMLInputElement>) => updateFeeTier(profile.id, tier.id, {
-                                  startMonth: parseInt(e.target.value) || 1
-                                })}
+                                onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                                  updateFeeTier(profile.id, tier.id, {
+                                    startMonth: parseInt(e.target.value) || 1,
+                                  })
+                                }
                                 className="h-12 border-[#E0D8D1] focus:border-[#292929] focus:ring-[#292929] font-poppins"
                               />
                             </div>
 
                             <div className="space-y-3">
-                              <Label className="text-sm font-poppins font-medium text-[#292929]">End Month (Optional)</Label>
+                              <Label className="text-sm font-poppins font-medium text-[#292929]">
+                                End Month (Optional)
+                              </Label>
                               <Input
                                 type="number"
                                 min="1"
                                 value={tier.endMonth || ''}
-                                onChange={(e: React.ChangeEvent<HTMLInputElement>) => updateFeeTier(profile.id, tier.id, {
-                                  ...(parseInt(e.target.value) ? { endMonth: parseInt(e.target.value) } : {})
-                                })}
+                                onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                                  updateFeeTier(profile.id, tier.id, {
+                                    ...(parseInt(e.target.value)
+                                      ? { endMonth: parseInt(e.target.value) }
+                                      : {}),
+                                  })
+                                }
                                 placeholder="120"
                                 className="h-12 border-[#E0D8D1] focus:border-[#292929] focus:ring-[#292929] font-poppins"
                               />
                             </div>
 
                             <div className="space-y-3">
-                              <Label className="text-sm font-poppins font-medium text-[#292929]">Management Fee Recycling (%)</Label>
+                              <Label className="text-sm font-poppins font-medium text-[#292929]">
+                                Management Fee Recycling (%)
+                              </Label>
                               <Input
                                 type="number"
                                 min="0"
                                 max="100"
                                 value={tier.recyclingPercentage || ''}
-                                onChange={(e: React.ChangeEvent<HTMLInputElement>) => updateFeeTier(profile.id, tier.id, {
-                                  ...(parseFloat(e.target.value) ? { recyclingPercentage: parseFloat(e.target.value) } : {})
-                                })}
+                                onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                                  updateFeeTier(profile.id, tier.id, {
+                                    ...(parseFloat(e.target.value)
+                                      ? { recyclingPercentage: parseFloat(e.target.value) }
+                                      : {}),
+                                  })
+                                }
                                 placeholder="0"
                                 className="h-12 border-[#E0D8D1] focus:border-[#292929] focus:ring-[#292929] font-poppins"
                               />
@@ -470,7 +549,11 @@ export default function DistributionsStep() {
                   </div>
                 ))}
 
-                <Button onClick={handleAddFeeProfile} variant="outline" className="w-full h-12 border-[#E0D8D1] hover:bg-[#E0D8D1]/20 hover:border-[#292929] font-poppins font-medium">
+                <Button
+                  onClick={handleAddFeeProfile}
+                  variant="outline"
+                  className="w-full h-12 border-[#E0D8D1] hover:bg-[#E0D8D1]/20 hover:border-[#292929] font-poppins font-medium"
+                >
                   <Plus className="h-4 w-4 mr-2" />
                   Add Fee Profile
                 </Button>
@@ -479,7 +562,9 @@ export default function DistributionsStep() {
               {/* Fund Expenses Section */}
               <div className="space-y-6 border-t border-[#E0D8D1] pt-8">
                 <div className="pb-4 border-b border-[#E0D8D1]">
-                  <h3 className="text-lg font-inter font-bold text-[#292929] mb-2">Fund Expenses</h3>
+                  <h3 className="text-lg font-inter font-bold text-[#292929] mb-2">
+                    Fund Expenses
+                  </h3>
                   <p className="text-[#292929]/70 font-poppins">
                     Define line-item fund expenses with monthly amounts and terms
                   </p>
@@ -487,7 +572,10 @@ export default function DistributionsStep() {
 
                 <div className="space-y-4">
                   {fundExpenses.map((expense: FundExpense) => (
-                    <div key={expense.id} className="border border-[#E0D8D1] rounded-xl p-4 space-y-4">
+                    <div
+                      key={expense.id}
+                      className="border border-[#E0D8D1] rounded-xl p-4 space-y-4"
+                    >
                       <div className="flex items-center justify-between">
                         <h4 className="font-medium">Expense: {expense.category}</h4>
                         <Button
@@ -495,58 +583,77 @@ export default function DistributionsStep() {
                           size="sm"
                           onClick={() => removeFundExpense(expense.id)}
                           className="text-red-500 hover:text-red-700"
+                          aria-label={`Remove ${expense.category} expense`}
                         >
-                          <Trash2 className="h-4 w-4" />
+                          <Trash2 aria-hidden="true" className="h-4 w-4" />
                         </Button>
                       </div>
 
                       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                         <div className="space-y-3">
-                          <Label className="text-sm font-poppins font-medium text-[#292929]">Expense Category</Label>
+                          <Label className="text-sm font-poppins font-medium text-[#292929]">
+                            Expense Category
+                          </Label>
                           <Input
                             value={expense.category}
-                            onChange={(e: React.ChangeEvent<HTMLInputElement>) => updateFundExpense(expense.id, { category: e.target.value })}
+                            onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                              updateFundExpense(expense.id, { category: e.target.value })
+                            }
                             placeholder="e.g., Legal Fees"
                             className="h-12 border-[#E0D8D1] focus:border-[#292929] focus:ring-[#292929] font-poppins"
                           />
                         </div>
 
                         <div className="space-y-3">
-                          <Label className="text-sm font-poppins font-medium text-[#292929]">Monthly Amount ($)</Label>
+                          <Label className="text-sm font-poppins font-medium text-[#292929]">
+                            Monthly Amount ($)
+                          </Label>
                           <Input
                             type="number"
                             min="0"
                             value={expense.monthlyAmount}
-                            onChange={(e: React.ChangeEvent<HTMLInputElement>) => updateFundExpense(expense.id, {
-                              monthlyAmount: parseFloat(e.target.value) || 0
-                            })}
+                            onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                              updateFundExpense(expense.id, {
+                                monthlyAmount: parseFloat(e.target.value) || 0,
+                              })
+                            }
                             placeholder="10000"
                             className="h-12 border-[#E0D8D1] focus:border-[#292929] focus:ring-[#292929] font-poppins"
                           />
                         </div>
 
                         <div className="space-y-3">
-                          <Label className="text-sm font-poppins font-medium text-[#292929]">Start Month</Label>
+                          <Label className="text-sm font-poppins font-medium text-[#292929]">
+                            Start Month
+                          </Label>
                           <Input
                             type="number"
                             min="1"
                             value={expense.startMonth}
-                            onChange={(e: React.ChangeEvent<HTMLInputElement>) => updateFundExpense(expense.id, {
-                              startMonth: parseInt(e.target.value) || 1
-                            })}
+                            onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                              updateFundExpense(expense.id, {
+                                startMonth: parseInt(e.target.value) || 1,
+                              })
+                            }
                             className="h-12 border-[#E0D8D1] focus:border-[#292929] focus:ring-[#292929] font-poppins"
                           />
                         </div>
 
                         <div className="space-y-3">
-                          <Label className="text-sm font-poppins font-medium text-[#292929]">End Month (Optional)</Label>
+                          <Label className="text-sm font-poppins font-medium text-[#292929]">
+                            End Month (Optional)
+                          </Label>
                           <Input
                             type="number"
                             min="1"
                             value={expense.endMonth || ''}
-                            onChange={(e: React.ChangeEvent<HTMLInputElement>) => updateFundExpense(expense.id, {
-                              ...(parseInt(e.target.value) ? { endMonth: parseInt(e.target.value) } : {})
-                            })}
+                            onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                              updateFundExpense(expense.id, {
+                                ...(parseInt(e.target.value)
+                                  ? { endMonth: parseInt(e.target.value) }
+                                  : {}),
+                              })
+                            }
                             placeholder="120"
                             className="h-12 border-[#E0D8D1] focus:border-[#292929] focus:ring-[#292929] font-poppins"
                           />
@@ -555,7 +662,11 @@ export default function DistributionsStep() {
                     </div>
                   ))}
 
-                  <Button onClick={handleAddExpense} variant="outline" className="w-full h-12 border-[#E0D8D1] hover:bg-[#E0D8D1]/20 hover:border-[#292929] font-poppins font-medium">
+                  <Button
+                    onClick={handleAddExpense}
+                    variant="outline"
+                    className="w-full h-12 border-[#E0D8D1] hover:bg-[#E0D8D1]/20 hover:border-[#292929] font-poppins font-medium"
+                  >
                     <Plus className="h-4 w-4 mr-2" />
                     Add Expense
                   </Button>
@@ -567,14 +678,21 @@ export default function DistributionsStep() {
           <TabsContent value="recycling" className="space-y-6">
             <div className="space-y-6">
               <div className="pb-4 border-b border-[#E0D8D1]">
-                <h3 className="text-lg font-inter font-bold text-[#292929] mb-2">Recycling Provisions</h3>
-                <p className="text-[#292929]/70 font-poppins">Configure exit proceeds recycling for new investments</p>
+                <h3 className="text-lg font-inter font-bold text-[#292929] mb-2">
+                  Recycling Provisions
+                </h3>
+                <p className="text-[#292929]/70 font-poppins">
+                  Configure exit proceeds recycling for new investments
+                </p>
               </div>
 
               <div className="space-y-6">
                 <div className="flex items-center justify-between p-4 border border-[#E0D8D1] rounded-xl">
                   <div className="space-y-1">
-                    <Label htmlFor="recycling-enabled" className="cursor-pointer font-poppins font-medium text-[#292929]">
+                    <Label
+                      htmlFor="recycling-enabled"
+                      className="cursor-pointer font-poppins font-medium text-[#292929]"
+                    >
                       Enable Exit Recycling
                     </Label>
                     <p className="text-sm text-[#292929]/60 font-poppins">
@@ -592,10 +710,17 @@ export default function DistributionsStep() {
                 {recyclingEnabled && (
                   <div className="space-y-6">
                     <div className="space-y-3">
-                      <Label htmlFor="recycling-type" className="text-sm font-poppins font-medium text-[#292929]">Recycling Type</Label>
+                      <Label
+                        htmlFor="recycling-type"
+                        className="text-sm font-poppins font-medium text-[#292929]"
+                      >
+                        Recycling Type
+                      </Label>
                       <Select
                         value={recyclingType}
-                        onValueChange={(value: string) => updateDistributions({ recyclingType: value as 'exits' | 'fees' | 'both' })}
+                        onValueChange={(value: string) =>
+                          updateDistributions({ recyclingType: value as 'exits' | 'fees' | 'both' })
+                        }
                       >
                         <SelectTrigger id="recycling-type" className="h-12">
                           <SelectValue />
@@ -608,34 +733,46 @@ export default function DistributionsStep() {
                       <p className="text-sm text-[#292929]/60 font-poppins">
                         {recyclingType === 'exits'
                           ? 'Fund can recycle exit proceeds up to a cap (% of committed capital)'
-                          : 'Fund can recycle exit proceeds up to the level of management fees earned to date'
-                        }
+                          : 'Fund can recycle exit proceeds up to the level of management fees earned to date'}
                       </p>
                     </div>
 
                     <div className="space-y-3">
-                      <Label htmlFor="exit-recycling" className="text-sm font-poppins font-medium text-[#292929]">Exit Proceeds Recycling Rate (%)</Label>
+                      <Label
+                        htmlFor="exit-recycling"
+                        className="text-sm font-poppins font-medium text-[#292929]"
+                      >
+                        Exit Proceeds Recycling Rate (%)
+                      </Label>
                       <Input
                         id="exit-recycling"
                         type="number"
                         min="0"
                         max="100"
                         value={exitRecyclingRate}
-                        onChange={(e: React.ChangeEvent<HTMLInputElement>) => updateDistributions({
-                          exitRecyclingRate: parseFloat(e.target.value) || 0
-                        })}
+                        onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                          updateDistributions({
+                            exitRecyclingRate: parseFloat(e.target.value) || 0,
+                          })
+                        }
                         data-testid="exit-recycling-rate"
                         placeholder="100"
                         className="h-12 border-[#E0D8D1] focus:border-[#292929] focus:ring-[#292929] font-poppins"
                       />
                       <p className="text-sm text-[#292929]/60 font-poppins">
-                        Percentage of exit proceeds that can be recycled each period (typically 100%)
+                        Percentage of exit proceeds that can be recycled each period (typically
+                        100%)
                       </p>
                     </div>
 
                     {recyclingType === 'exits' && (
                       <div className="space-y-3">
-                        <Label htmlFor="recycling-cap-pct" className="text-sm font-poppins font-medium text-[#292929]">Recycling Cap (% of Committed Capital)</Label>
+                        <Label
+                          htmlFor="recycling-cap-pct"
+                          className="text-sm font-poppins font-medium text-[#292929]"
+                        >
+                          Recycling Cap (% of Committed Capital)
+                        </Label>
                         <Input
                           id="recycling-cap-pct"
                           type="number"
@@ -646,29 +783,39 @@ export default function DistributionsStep() {
                           onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
                             const pct = parseFloat(e.target.value) || 0;
                             updateDistributions({
-                              recyclingCap: (pct / 100) * fundSize
+                              recyclingCap: (pct / 100) * fundSize,
                             });
                           }}
                           placeholder="50"
                           className="h-12 border-[#E0D8D1] focus:border-[#292929] focus:ring-[#292929] font-poppins"
                         />
                         <p className="text-sm text-[#292929]/60 font-poppins">
-                          Maximum amount that can be recycled as % of committed capital (e.g., 50% cap = half the committed capital)
+                          Maximum amount that can be recycled as % of committed capital (e.g., 50%
+                          cap = half the committed capital)
                         </p>
                       </div>
                     )}
 
                     <div className="space-y-3">
-                      <Label htmlFor="recycling-period" className="text-sm font-poppins font-medium text-[#292929]">Recycling Term (years)</Label>
+                      <Label
+                        htmlFor="recycling-period"
+                        className="text-sm font-poppins font-medium text-[#292929]"
+                      >
+                        Recycling Term (years)
+                      </Label>
                       <Input
                         id="recycling-period"
                         type="number"
                         min="0"
                         max="10"
                         value={recyclingPeriod || ''}
-                        onChange={(e: React.ChangeEvent<HTMLInputElement>) => updateDistributions({
-                          ...(parseFloat(e.target.value) ? { recyclingPeriod: parseFloat(e.target.value) } : {})
-                        })}
+                        onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                          updateDistributions({
+                            ...(parseFloat(e.target.value)
+                              ? { recyclingPeriod: parseFloat(e.target.value) }
+                              : {}),
+                          })
+                        }
                         placeholder="3"
                         className="h-12 border-[#E0D8D1] focus:border-[#292929] focus:ring-[#292929] font-poppins"
                       />
@@ -681,14 +828,21 @@ export default function DistributionsStep() {
                       <Switch
                         id="allow-future-recycling"
                         checked={allowFutureRecycling || false}
-                        onCheckedChange={(checked: boolean) => updateDistributions({ allowFutureRecycling: checked })}
+                        onCheckedChange={(checked: boolean) =>
+                          updateDistributions({ allowFutureRecycling: checked })
+                        }
+                        aria-label="Allow future exit proceeds recycling"
                       />
                       <div>
-                        <Label htmlFor="allow-future-recycling" className="cursor-pointer text-sm font-poppins font-medium text-[#292929]">
+                        <Label
+                          htmlFor="allow-future-recycling"
+                          className="cursor-pointer text-sm font-poppins font-medium text-[#292929]"
+                        >
                           Allow fund to recycle future exit proceeds ahead of time
                         </Label>
                         <p className="text-sm text-[#292929]/60 font-poppins mt-1">
-                          If enabled, fund will aggressively invest in anticipation of future exits. If disabled, fund waits for exits before recycling.
+                          If enabled, fund will aggressively invest in anticipation of future exits.
+                          If disabled, fund waits for exits before recycling.
                         </p>
                       </div>
                     </div>
@@ -715,7 +869,7 @@ export default function DistributionsStep() {
             onClick={() => navigate('/fund-setup?step=6')}
             className="flex items-center gap-2 bg-[#292929] hover:bg-[#292929]/90 text-white px-8 py-3 h-auto font-poppins font-medium"
           >
-            Next: Waterfall & Carry
+            Next: Cashflow & Liquidity
             <ArrowRight className="h-4 w-4" />
           </Button>
         </div>

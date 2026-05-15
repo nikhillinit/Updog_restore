@@ -95,6 +95,10 @@ function makeCard(
   return { key, title, displayValue, icon, theme, titleText };
 }
 
+function hasUsableDisplayValue(card: HeaderMetricCardView) {
+  return card.displayValue !== 'N/A' && card.displayValue !== 'Needs history';
+}
+
 export function FundConstructionKpiHeader() {
   const [
     fundName,
@@ -149,28 +153,28 @@ export function FundConstructionKpiHeader() {
     () => estimateCompanies(fundSizeDollars, capitalPlanAllocations),
     [capitalPlanAllocations, fundSizeDollars]
   );
-  const preview = useMemo(
-    () => previewDraftEconomics(fundSizeDollars),
-    [
-      fundSizeDollars,
-      managementFeeRate,
-      carriedInterest,
-      fundLife,
-      investmentPeriod,
-      gpCommitment,
-      capitalPlanAllocations,
-      waterfallType,
-      waterfallTiers,
-      recyclingEnabled,
-      recyclingType,
-      recyclingCap,
-      recyclingPeriod,
-      exitRecyclingRate,
-      mgmtFeeRecyclingRate,
-      allowFutureRecycling,
-      economicsAssumptions,
-    ]
-  );
+  const previewInputKey = JSON.stringify([
+    managementFeeRate,
+    carriedInterest,
+    fundLife,
+    investmentPeriod,
+    gpCommitment,
+    capitalPlanAllocations,
+    waterfallType,
+    waterfallTiers,
+    recyclingEnabled,
+    recyclingType,
+    recyclingCap,
+    recyclingPeriod,
+    exitRecyclingRate,
+    mgmtFeeRecyclingRate,
+    allowFutureRecycling,
+    economicsAssumptions,
+  ]);
+  const preview = useMemo(() => {
+    void previewInputKey;
+    return previewDraftEconomics(fundSizeDollars);
+  }, [fundSizeDollars, previewInputKey]);
 
   const remainingCapital =
     fundSizeDollars == null || plannedCapital == null
@@ -244,14 +248,19 @@ export function FundConstructionKpiHeader() {
       'Fund size less currently planned allocation'
     ),
   ];
+  const visibleCards = cards.filter(hasUsableDisplayValue);
+
+  if (visibleCards.length === 0) {
+    return null;
+  }
 
   return (
     <div
       className="border-b border-slate-200 bg-white px-3 py-3 sm:px-6"
       data-testid="fund-construction-kpis"
     >
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 xl:grid-cols-8">
-        {cards.map((card) => (
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6">
+        {visibleCards.map((card) => (
           <HeaderMetricCard key={card.key} card={card} testId={`construction-kpi-${card.key}`} />
         ))}
       </div>

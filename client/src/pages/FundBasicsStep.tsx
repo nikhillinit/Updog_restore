@@ -193,7 +193,9 @@ export default function FundBasicsStep() {
               }
               placeholder="Enter your fund name"
               data-testid="fund-name"
-              className="h-12 text-base font-poppins border-[#E0D8D1] focus:border-[#292929] focus:ring-[#292929]"
+              required
+              aria-required="true"
+              className="h-12 max-w-2xl text-base font-poppins border-[#E0D8D1] focus:border-[#292929] focus:ring-[#292929]"
             />
           </div>
 
