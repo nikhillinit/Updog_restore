@@ -153,6 +153,53 @@ export function normalizeStageOrUndefined(stage: string): CanonicalStage | undef
   return STAGE_NORMALIZATION_MAP[stage];
 }
 
+function toCompatibilityStageKey(stage: string): string {
+  return stage
+    .trim()
+    .toLowerCase()
+    .replace(/[\s_-]+/g, '');
+}
+
+const STAGE_COMPATIBILITY_MAP: Record<string, CanonicalStage> = {
+  preseed: 'pre_seed',
+  seed: 'seed',
+  seriesa: 'series_a',
+  seriesb: 'series_b',
+  seriesc: 'series_c',
+  seriesd: 'series_d',
+  seriesdplus: 'series_d',
+  growth: 'growth',
+  latestage: 'late_stage',
+  serieseplus: 'late_stage',
+  'seriese+': 'late_stage',
+};
+
+function matchStageCompatibilityAlias(input: unknown): CanonicalStage | undefined {
+  if (typeof input !== 'string') {
+    return undefined;
+  }
+
+  const trimmed = input.trim();
+  if (trimmed === '') {
+    return undefined;
+  }
+
+  return (
+    normalizeStageOrUndefined(trimmed) ?? STAGE_COMPATIBILITY_MAP[toCompatibilityStageKey(trimmed)]
+  );
+}
+
+/**
+ * Normalize display-oriented or legacy stage inputs, returning a caller-chosen fallback
+ * when no known alias matches. Strict validation paths should keep using normalizeStage().
+ */
+export function normalizeStageForCompatibility(
+  input: unknown,
+  fallback: CanonicalStage = 'seed'
+): CanonicalStage {
+  return matchStageCompatibilityAlias(input) ?? fallback;
+}
+
 /**
  * Check if a string is a valid stage in any format.
  */
