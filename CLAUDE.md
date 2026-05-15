@@ -221,6 +221,23 @@ report**: `docs/_generated/staleness-report.md` **Regenerate**:
   [obra/superpowers](https://github.com/obra/superpowers)
 - **Skills**: See [.claude/skills/INDEX.md](.claude/skills/INDEX.md)
 
+## Agent skills
+
+### Issue tracker
+
+Issues and PRDs are tracked in GitHub Issues for `nikhillinit/Updog_restore`.
+See `docs/agents/issue-tracker.md`.
+
+### Triage labels
+
+Triage uses the default five-label vocabulary. See
+`docs/agents/triage-labels.md`.
+
+### Domain docs
+
+This is a single-context repo using root governance docs plus `docs/adr/`. See
+`docs/agents/domain.md`.
+
 ## MANDATORY WORKFLOW - START HERE
 
 1. **CLAUDE.md** - Current operating guidance and governance
