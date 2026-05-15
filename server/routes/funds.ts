@@ -24,6 +24,88 @@ const router = Router();
 
 type PersistedFund = typeof persistedFunds.$inferSelect;
 type StoredFund = Awaited<ReturnType<typeof storage.getAllFunds>>[number];
+type FundDateValue = Date | string | null | undefined;
+type FundDecimalValue = string | number | null | undefined;
+
+export interface ClientFundRow {
+  id: number;
+  name: string;
+  size: FundDecimalValue;
+  deployedCapital?: FundDecimalValue;
+  managementFee: FundDecimalValue;
+  carryPercentage: FundDecimalValue;
+  vintageYear: number;
+  status: string;
+  engineResults: PersistedFund['engineResults'] | null;
+  createdAt: FundDateValue;
+  establishmentDate?: FundDateValue;
+  isActive?: boolean | null;
+}
+
+export interface ClientFund {
+  id: number;
+  name: string;
+  size: number;
+  deployedCapital: number;
+  managementFee: number;
+  carryPercentage: number;
+  vintageYear: number;
+  status: string;
+  engineResults: PersistedFund['engineResults'] | null;
+  createdAt: string | null;
+  establishmentDate: string | null;
+  isActive: boolean;
+}
+
+class FundBoundaryTransformError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'FundBoundaryTransformError';
+  }
+}
+
+function decimalToNumber(
+  value: FundDecimalValue,
+  field: keyof Pick<ClientFund, 'size' | 'deployedCapital' | 'managementFee' | 'carryPercentage'>,
+  fallback?: number
+): number {
+  if (value === null || value === undefined) {
+    if (fallback !== undefined) {
+      return fallback;
+    }
+    throw new FundBoundaryTransformError(`${field} is required`);
+  }
+
+  const parsed = typeof value === 'number' ? value : Number(value);
+  if (!Number.isFinite(parsed)) {
+    throw new FundBoundaryTransformError(`${field} must be a finite number`);
+  }
+  return parsed;
+}
+
+function fundDateToString(value: FundDateValue): string | null {
+  if (value === null || value === undefined) {
+    return null;
+  }
+  return value instanceof Date ? value.toISOString() : value;
+}
+
+export function toClientFund(fund: ClientFundRow): ClientFund {
+  return {
+    id: fund.id,
+    name: fund.name,
+    size: decimalToNumber(fund.size, 'size'),
+    deployedCapital: decimalToNumber(fund.deployedCapital, 'deployedCapital', 0),
+    managementFee: decimalToNumber(fund.managementFee, 'managementFee'),
+    carryPercentage: decimalToNumber(fund.carryPercentage, 'carryPercentage'),
+    vintageYear: fund.vintageYear,
+    status: fund.status,
+    engineResults: fund.engineResults ?? null,
+    createdAt: fundDateToString(fund.createdAt),
+    establishmentDate: fundDateToString(fund.establishmentDate),
+    isActive: fund.isActive ?? true,
+  };
+}
 
 function normalizeStoredFund(fund: StoredFund): PersistedFund {
   return {
@@ -71,7 +153,7 @@ type FundCalculationDTO = z.infer<typeof FundCalculationSchema>;
 router['get']('/funds', async (_req: Request, res: Response) => {
   try {
     const funds = await getCanonicalFunds();
-    return res['json'](funds);
+    return res['json'](funds.map(toClientFund));
   } catch (error) {
     const apiError: ApiError = {
       error: 'Database query failed',
@@ -107,7 +189,7 @@ router['get']('/funds/:id', async (req: Request, res: Response) => {
       return res['status'](404)['json'](error);
     }
 
-    return res['json'](fund);
+    return res['json'](toClientFund(fund));
   } catch (error) {
     if (error instanceof NumberParseError) {
       const apiError: ApiError = {
@@ -153,17 +235,7 @@ router['post']('/funds', idempotency, async (req: Request, res: Response) => {
     res['status'](201);
     return res['json']({
       success: true,
-      data: {
-        id: fund.id,
-        name: fund.name,
-        size: fund.size,
-        managementFee: fund.managementFee,
-        carryPercentage: fund.carryPercentage,
-        vintageYear: fund.vintageYear,
-        status: fund.status,
-        engineResults: fund.engineResults ?? null,
-        createdAt: fund.createdAt,
-      },
+      data: toClientFund(fund),
       message: 'Fund created successfully',
     });
   } catch (error) {
