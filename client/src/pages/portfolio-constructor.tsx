@@ -88,9 +88,6 @@ export interface PortfolioStrategy {
   scenarios: ScenarioConfig[];
 }
 
-// Type alias for backward compatibility
-export type PortfolioState = PortfolioStrategy;
-
 // Color schemes for charts
 const SECTOR_COLORS = [
   '#3B82F6',
