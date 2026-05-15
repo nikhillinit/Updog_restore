@@ -22,7 +22,7 @@ export interface Cache {
   set(key: string, value: string, ttlSeconds?: number): Promise<void>;
 }
 
-export interface PortfolioState {
+export interface PortfolioSnapshot {
   totalValue: number;
   deployedCapital: number;
   portfolioCount: number;
@@ -51,7 +51,7 @@ export interface FundStateAtTime {
     eventCount: number;
     stateHash: string;
   };
-  state: PortfolioState;
+  state: PortfolioSnapshot;
   eventsApplied: number;
   events?: FundEvent[];
 }
@@ -190,7 +190,7 @@ export class TimeTravelAnalyticsService {
         eventCount: snapshot.eventCount ?? 0,
         stateHash: snapshot.stateHash ?? '',
       },
-      state: snapshot.state as PortfolioState,
+      state: snapshot.state as PortfolioSnapshot,
       eventsApplied: eventsAfterSnapshot.length,
       ...(includeEvents && { events: eventsAfterSnapshot }),
     };
