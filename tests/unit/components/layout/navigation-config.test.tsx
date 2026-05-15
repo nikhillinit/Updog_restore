@@ -7,7 +7,7 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import { getNavigationItems } from '@/components/layout/navigation-config';
+import { getActiveNavigationId, getNavigationItems } from '@/components/layout/navigation-config';
 
 describe('navigation-config sensitivity item', () => {
   it('exposes the sensitivity-analysis sidebar item with the new label', () => {
@@ -49,5 +49,24 @@ describe('navigation-config performance item', () => {
     if (item?.target.kind === 'static') {
       expect(item.target.path).toBe('/performance');
     }
+  });
+});
+
+describe('navigation-config variance item', () => {
+  it('exposes Variance Tracking as a governed navigation item', () => {
+    const items = getNavigationItems();
+    const item = items.find((i) => i.id === 'variance-tracking');
+
+    expect(item).toBeDefined();
+    expect(item?.label).toBe('Variance Tracking');
+    expect(item?.target.kind).toBe('static');
+    if (item?.target.kind === 'static') {
+      expect(item.target.path).toBe('/variance-tracking');
+    }
+  });
+
+  it('matches variance tracking routes back to the stable navigation id', () => {
+    expect(getActiveNavigationId('/variance-tracking')).toBe('variance-tracking');
+    expect(getActiveNavigationId('/variance-tracking?tab=reports')).toBe('variance-tracking');
   });
 });

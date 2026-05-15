@@ -161,7 +161,7 @@ describe('TwoWayPanel', () => {
     expect(screen.getByText(/^\d+s$/)).toBeInTheDocument();
   });
 
-  it('renders the error code, message, and retry button when the mutation fails', () => {
+  it('maps NO_PUBLISHED_CONFIG to a prerequisite CTA without raw error codes', () => {
     installMutationState({
       isError: true,
       error: {
@@ -172,12 +172,17 @@ describe('TwoWayPanel', () => {
     });
     renderPanel(7);
 
-    expect(screen.getByTestId('two-way-error')).toBeInTheDocument();
-    expect(screen.getByTestId('two-way-error-code')).toHaveTextContent('NO_PUBLISHED_CONFIG');
-    expect(screen.getByTestId('two-way-error-message')).toHaveTextContent(
-      'Publish a fund config first'
+    const error = screen.getByTestId('two-way-error');
+    expect(error).not.toHaveTextContent('NO_PUBLISHED_CONFIG');
+    expect(error).not.toHaveTextContent('Publish a fund config first');
+    expect(error).not.toHaveTextContent('Retry');
+    expect(
+      screen.getByText('Publish the active fund configuration before running sensitivity analysis.')
+    ).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /publish fund configuration/i })).toHaveAttribute(
+      'href',
+      '/fund-setup?step=7'
     );
-    expect(screen.getByTestId('two-way-retry-button')).toBeInTheDocument();
   });
 
   it('renders a 3x3 results grid with formatted cells when results are available', () => {

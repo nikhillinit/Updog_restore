@@ -26,8 +26,8 @@ const steps = [
   {
     id: 'distributions',
     number: 5,
-    title: 'Exit Recycling',
-    description: 'Proceeds recycling configuration',
+    title: 'Distributions & Waterfall',
+    description: 'Carry waterfall, fees, expenses, and recycling',
   },
 ];
 
@@ -37,8 +37,10 @@ describe('ModernWizardProgress', () => {
 
     expect(screen.getByRole('heading', { name: 'Fund Construction Wizard' })).toBeInTheDocument();
     expect(screen.getByText('PRESS ON VENTURES')).toBeInTheDocument();
-    expect(screen.getByText('Exit Recycling')).toBeInTheDocument();
-    expect(screen.queryByText('Proceeds recycling configuration')).not.toBeInTheDocument();
+    expect(screen.getByText('Distributions & Waterfall')).toBeInTheDocument();
+    expect(
+      screen.queryByText('Carry waterfall, fees, expenses, and recycling')
+    ).not.toBeInTheDocument();
     expect(
       screen.queryByText('Fund identity, capital, and economics structure')
     ).not.toBeInTheDocument();

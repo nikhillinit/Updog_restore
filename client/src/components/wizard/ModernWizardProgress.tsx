@@ -104,7 +104,7 @@ export function ModernWizardProgress({
                     <div
                       className={cn(
                         'font-poppins text-xs font-medium uppercase tracking-wide',
-                        isCurrent ? 'text-charcoal' : 'text-charcoal/50'
+                        isCurrent ? 'text-charcoal' : 'text-charcoal/70'
                       )}
                     >
                       {step.title}

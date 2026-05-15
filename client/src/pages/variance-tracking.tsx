@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import { z } from 'zod';
 import { useFundContext } from '@/contexts/FundContext';
 import { computeRemainingCapital } from '@/lib/variance-remaining-capital';
 import {
@@ -78,6 +79,7 @@ import {
 import { format, parseISO } from 'date-fns';
 import { toast } from '@/hooks/use-toast';
 import { spreadIfDefined } from '@/lib/ts/spreadIfDefined';
+import { loadFromStorage, saveToStorage } from '@/lib/storage';
 import { useFundMetrics } from '@/hooks/useFundMetrics';
 import {
   ALERT_METRIC_GROUPS,
@@ -86,6 +88,41 @@ import {
 } from '@shared/variance-validation';
 
 type VarianceTab = 'overview' | 'baselines' | 'alerts' | 'reports' | 'settings';
+
+const VARIANCE_SETTINGS_STORAGE_KEY = 'variance-tracking-settings';
+
+const varianceSettingsSchema = z.object({
+  emailNotifications: z.boolean(),
+  realtimeAlerts: z.boolean(),
+  dailyDigest: z.boolean(),
+  defaultVarianceThreshold: z.string(),
+  analysisFrequency: z.enum(['realtime', 'hourly', 'daily', 'weekly']),
+});
+
+const persistedVarianceSettingsSchema = z.object({
+  byFundId: z.record(z.string(), varianceSettingsSchema),
+});
+
+type VarianceSettings = z.infer<typeof varianceSettingsSchema>;
+type PersistedVarianceSettings = z.infer<typeof persistedVarianceSettingsSchema>;
+
+const DEFAULT_VARIANCE_SETTINGS: VarianceSettings = {
+  emailNotifications: true,
+  realtimeAlerts: true,
+  dailyDigest: false,
+  defaultVarianceThreshold: '10',
+  analysisFrequency: 'daily',
+};
+
+function loadVarianceSettings(fundId: number | undefined): VarianceSettings {
+  if (fundId == null) {
+    return DEFAULT_VARIANCE_SETTINGS;
+  }
+
+  const persisted = loadFromStorage(VARIANCE_SETTINGS_STORAGE_KEY, persistedVarianceSettingsSchema);
+
+  return persisted?.byFundId[String(fundId)] ?? DEFAULT_VARIANCE_SETTINGS;
+}
 
 function getInitialVarianceTab(): VarianceTab {
   if (typeof window === 'undefined') {
@@ -139,6 +176,10 @@ export default function VarianceTrackingPage() {
     reportType: 'periodic' as 'periodic' | 'milestone' | 'ad_hoc' | 'alert_triggered',
     reportPeriod: '' as '' | 'monthly' | 'quarterly' | 'annual',
   });
+  const [varianceSettings, setVarianceSettings] = useState<VarianceSettings>(() =>
+    loadVarianceSettings(currentFund?.id)
+  );
+  const [settingsSaveMessage, setSettingsSaveMessage] = useState<string | null>(null);
 
   // Form states
   const [baselineForm, setBaselineForm] = useState({
@@ -209,6 +250,11 @@ export default function VarianceTrackingPage() {
   const performAnalysisMutation = usePerformVarianceAnalysis();
   const generateReportMutation = useGenerateVarianceReport();
 
+  useEffect(() => {
+    setVarianceSettings(loadVarianceSettings(currentFund?.id));
+    setSettingsSaveMessage(null);
+  }, [currentFund?.id]);
+
   // Report detail query (only fires when a report is selected)
   const { data: reportDetailData, isLoading: reportDetailLoading } = useVarianceReport(
     currentFund?.id || 0,
@@ -230,28 +276,36 @@ export default function VarianceTrackingPage() {
   const lastAnalysisDate = dashboardData?.data?.summary?.lastAnalysisDate;
   const alertCounts =
     dashboardData?.data?.alertsBySeverity ?? dashboardData?.data?.alertsByseverity;
-  const analysisStatus = !lastAnalysisDate
+  const isAnalysisRunning = performAnalysisMutation.isPending;
+  const analysisStatus = isAnalysisRunning
     ? {
-        value: 'Not Run',
-        description: 'Run analysis to generate the first report',
-        badgeText: 'No report',
+        value: 'Running',
+        description: 'Variance analysis is in progress',
+        badgeText: 'In progress',
         badgeVariant: 'secondary' as const,
       }
-    : totalActiveAlerts > 0
+    : !lastAnalysisDate
       ? {
-          value: 'Attention',
-          description: 'Active alerts need review',
-          badgeText: `${totalActiveAlerts} active`,
-          badgeVariant: 'destructive' as const,
+          value: 'Not Run',
+          description: 'Run analysis to generate the first report',
+          badgeText: 'No report',
+          badgeVariant: 'secondary' as const,
         }
-      : {
-          value: 'Stable',
-          description: hasReports
-            ? 'Driven by latest variance report'
-            : 'Most recent analysis completed',
-          badgeText: 'No active alerts',
-          badgeVariant: 'default' as const,
-        };
+      : totalActiveAlerts > 0
+        ? {
+            value: 'Attention',
+            description: 'Active alerts need review',
+            badgeText: `${totalActiveAlerts} active`,
+            badgeVariant: 'destructive' as const,
+          }
+        : {
+            value: 'Stable',
+            description: hasReports
+              ? 'Driven by latest variance report'
+              : 'Most recent analysis completed',
+            badgeText: 'No active alerts',
+            badgeVariant: 'default' as const,
+          };
 
   // Handle baseline creation
   const handleCreateBaseline = async () => {
@@ -404,6 +458,50 @@ export default function VarianceTrackingPage() {
     }
   };
 
+  const updateVarianceSetting = <K extends keyof VarianceSettings>(
+    key: K,
+    value: VarianceSettings[K]
+  ) => {
+    setVarianceSettings((current) => ({ ...current, [key]: value }));
+    setSettingsSaveMessage('Unsaved changes.');
+  };
+
+  const handleSaveSettings = () => {
+    if (!currentFund) return;
+
+    const persisted =
+      loadFromStorage(VARIANCE_SETTINGS_STORAGE_KEY, persistedVarianceSettingsSchema) ??
+      ({
+        byFundId: {},
+      } satisfies PersistedVarianceSettings);
+    const saved = saveToStorage(
+      VARIANCE_SETTINGS_STORAGE_KEY,
+      {
+        byFundId: {
+          ...persisted.byFundId,
+          [String(currentFund.id)]: varianceSettings,
+        },
+      },
+      persistedVarianceSettingsSchema
+    );
+
+    if (!saved) {
+      setSettingsSaveMessage('Settings could not be saved in this browser.');
+      toast({
+        title: 'Settings not saved',
+        description: 'Variance tracking settings could not be saved in this browser.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    setSettingsSaveMessage('Settings saved in this browser.');
+    toast({
+      title: 'Settings saved',
+      description: 'Variance tracking settings have been saved in this browser workspace.',
+    });
+  };
+
   // Handle generate variance report
   const handleGenerateReport = async () => {
     if (!currentFund) return;
@@ -546,30 +644,8 @@ export default function VarianceTrackingPage() {
     unifiedMetrics?._status?.engines?.target === 'success' &&
     unifiedMetrics?._status?.engines?.variance === 'success';
 
-  return (
-    <div className="container mx-auto p-6 space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900">Variance Tracking</h1>
-          <p className="text-gray-600 mt-2">
-            Monitor fund performance against baselines and manage alerts.
-          </p>
-        </div>
-
-        <div className="flex items-center space-x-4">
-          <Button
-            onClick={handlePerformAnalysis}
-            disabled={performAnalysisMutation.isPending}
-            className="flex items-center space-x-2"
-          >
-            <Zap className="w-4 h-4" />
-            <span>{performAnalysisMutation.isPending ? 'Analyzing...' : 'Run Analysis'}</span>
-          </Button>
-        </div>
-      </div>
-
-      {/* Dashboard Stats */}
+  const varianceOverviewMetrics = (
+    <>
       <StatCardGrid>
         <StatCard
           title="Active Alerts"
@@ -608,7 +684,6 @@ export default function VarianceTrackingPage() {
         />
       </StatCardGrid>
 
-      {/* Alert Summary by Severity */}
       {alertCounts && (
         <Card>
           <CardHeader>
@@ -649,6 +724,31 @@ export default function VarianceTrackingPage() {
           </CardContent>
         </Card>
       )}
+    </>
+  );
+
+  return (
+    <div className="container mx-auto p-6 space-y-6">
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-bold text-gray-900">Variance Tracking</h1>
+          <p className="text-gray-600 mt-2">
+            Monitor fund performance against baselines and manage alerts.
+          </p>
+        </div>
+
+        <div className="flex items-center space-x-4">
+          <Button
+            onClick={handlePerformAnalysis}
+            disabled={performAnalysisMutation.isPending}
+            className="flex items-center space-x-2"
+          >
+            <Zap className="w-4 h-4" />
+            <span>{performAnalysisMutation.isPending ? 'Analyzing...' : 'Run Analysis'}</span>
+          </Button>
+        </div>
+      </div>
 
       {/* Main Content Tabs */}
       <Tabs
@@ -665,6 +765,8 @@ export default function VarianceTrackingPage() {
         </TabsList>
 
         <TabsContent value="overview" className="space-y-6">
+          {varianceOverviewMetrics}
+
           {reportsLoading ? (
             <Card>
               <CardContent className="p-12 text-center">
@@ -713,7 +815,9 @@ export default function VarianceTrackingPage() {
                 <p className="text-gray-600 mb-4">
                   Create a baseline and run a variance analysis to generate the first report.
                 </p>
-                <Button onClick={handlePerformAnalysis}>Run Variance Analysis</Button>
+                <Button onClick={handlePerformAnalysis} disabled={isAnalysisRunning}>
+                  {isAnalysisRunning ? 'Analyzing...' : 'Run Variance Analysis'}
+                </Button>
               </CardContent>
             </Card>
           )}
@@ -1535,7 +1639,9 @@ export default function VarianceTrackingPage() {
                   <p className="text-gray-600 mb-4">
                     Run a variance analysis to generate your first report.
                   </p>
-                  <Button onClick={handlePerformAnalysis}>Run Analysis</Button>
+                  <Button onClick={handlePerformAnalysis} disabled={isAnalysisRunning}>
+                    {isAnalysisRunning ? 'Analyzing...' : 'Run Analysis'}
+                  </Button>
                 </div>
               )}
             </CardContent>
@@ -2122,26 +2228,46 @@ export default function VarianceTrackingPage() {
             <CardContent className="space-y-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <Label className="text-base">Email Notifications</Label>
+                  <Label htmlFor="variance-email-notifications" className="text-base">
+                    Email Notifications
+                  </Label>
                   <p className="text-sm text-gray-600">Receive alerts via email</p>
                 </div>
-                <Switch defaultChecked />
+                <Switch
+                  id="variance-email-notifications"
+                  checked={varianceSettings.emailNotifications}
+                  onCheckedChange={(checked) =>
+                    updateVarianceSetting('emailNotifications', checked)
+                  }
+                />
               </div>
               <div className="flex items-center justify-between">
                 <div>
-                  <Label className="text-base">Real-time Alerts</Label>
+                  <Label htmlFor="variance-realtime-alerts" className="text-base">
+                    Real-time Alerts
+                  </Label>
                   <p className="text-sm text-gray-600">
                     Immediate notifications for critical alerts
                   </p>
                 </div>
-                <Switch defaultChecked />
+                <Switch
+                  id="variance-realtime-alerts"
+                  checked={varianceSettings.realtimeAlerts}
+                  onCheckedChange={(checked) => updateVarianceSetting('realtimeAlerts', checked)}
+                />
               </div>
               <div className="flex items-center justify-between">
                 <div>
-                  <Label className="text-base">Daily Digest</Label>
+                  <Label htmlFor="variance-daily-digest" className="text-base">
+                    Daily Digest
+                  </Label>
                   <p className="text-sm text-gray-600">Summary of variance activity</p>
                 </div>
-                <Switch />
+                <Switch
+                  id="variance-daily-digest"
+                  checked={varianceSettings.dailyDigest}
+                  onCheckedChange={(checked) => updateVarianceSetting('dailyDigest', checked)}
+                />
               </div>
             </CardContent>
           </Card>
@@ -2153,16 +2279,29 @@ export default function VarianceTrackingPage() {
             </CardHeader>
             <CardContent className="space-y-6">
               <div>
-                <Label>Default Variance Threshold (%)</Label>
-                <Input type="number" defaultValue="10" className="mt-1" />
+                <Label htmlFor="variance-default-threshold">Default Variance Threshold (%)</Label>
+                <Input
+                  id="variance-default-threshold"
+                  type="number"
+                  value={varianceSettings.defaultVarianceThreshold}
+                  onChange={(event) =>
+                    updateVarianceSetting('defaultVarianceThreshold', event.target.value)
+                  }
+                  className="mt-1"
+                />
                 <p className="text-sm text-gray-600 mt-1">
                   Default threshold for triggering variance alerts
                 </p>
               </div>
               <div>
-                <Label>Analysis Frequency</Label>
-                <Select defaultValue="daily">
-                  <SelectTrigger className="mt-1">
+                <Label htmlFor="variance-analysis-frequency">Analysis Frequency</Label>
+                <Select
+                  value={varianceSettings.analysisFrequency}
+                  onValueChange={(value: VarianceSettings['analysisFrequency']) =>
+                    updateVarianceSetting('analysisFrequency', value)
+                  }
+                >
+                  <SelectTrigger id="variance-analysis-frequency" className="mt-1">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -2175,6 +2314,14 @@ export default function VarianceTrackingPage() {
               </div>
             </CardContent>
           </Card>
+
+          <div className="flex flex-col gap-3 border-t pt-4 sm:flex-row sm:items-center sm:justify-between">
+            <p className="text-sm text-gray-600" aria-live="polite">
+              {settingsSaveMessage ??
+                'Save settings after changing alert delivery or analysis cadence.'}
+            </p>
+            <Button onClick={handleSaveSettings}>Save Settings</Button>
+          </div>
         </TabsContent>
       </Tabs>
     </div>

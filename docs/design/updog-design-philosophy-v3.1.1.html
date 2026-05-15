@@ -1,0 +1,329 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Updog — Design Philosophy v3.1.1 · Multi-Entity Operating Workspace</title>
+  <style>
+    :root{
+      --paper:#ffffff;
+      --mist:#f7f7f5;
+      --tint:#f2f2f2;
+      --sand:#e0d8d1;
+      --sand-2:#eee9e3;
+      --ink:#292929;
+      --ink-2:#3d3d3d;
+      --muted:#7a7a7a;
+      --quiet:#a8a8a8;
+      --rule:#e6e0da;
+      --pos:#127e3d;
+      --neg:#b00020;
+      --warn:#a95c00;
+      --blue:#3769a6;
+      --lav:#ddd6f5;
+      --teal:#cfe7df;
+      --orange:#efd9bd;
+      --pink:#f2d7dc;
+      --shadow:0 18px 48px rgba(41,41,41,.08);
+      --shadow-soft:0 2px 12px rgba(41,41,41,.06);
+      --radius:14px;
+      --font-sans:Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      --font-mono:"JetBrains Mono", "Roboto Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    }
+    *{box-sizing:border-box}
+    html{scroll-behavior:smooth}
+    body{margin:0;background:var(--paper);color:var(--ink);font-family:var(--font-sans);font-size:15px;line-height:1.55;-webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility}
+    ::selection{background:var(--ink);color:#fff}
+    a{color:inherit}
+    .mast{position:sticky;top:0;z-index:50;height:64px;border-bottom:1px solid var(--rule);background:rgba(255,255,255,.88);backdrop-filter:blur(16px);display:flex;align-items:center;justify-content:space-between;padding:0 28px;font-family:var(--font-mono);font-size:11px;letter-spacing:.06em;text-transform:uppercase}
+    .brand{display:flex;align-items:center;gap:9px;font-weight:700;letter-spacing:-.02em}.mark{width:20px;height:20px;background:var(--ink);display:inline-block}.stamp{display:flex;gap:18px;color:var(--muted)}.stamp b{color:var(--ink);font-weight:600}
+    .page{max-width:1240px;margin:0 auto;padding:0 28px}.cover{min-height:calc(100vh - 64px);display:grid;grid-template-columns:1.45fr .75fr;gap:64px;align-items:end;padding:90px 0 70px}.eyebrow{font-family:var(--font-mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);display:flex;align-items:center;gap:8px}.dot{width:7px;height:7px;border-radius:99px;background:var(--sand);box-shadow:0 0 0 4px rgba(224,216,209,.36)}.title{font-size:clamp(56px,8.1vw,112px);letter-spacing:-.065em;line-height:.88;margin:26px 0 0;font-weight:760;max-width:11ch}.title em,.serif{font-style:italic;color:var(--muted);font-weight:760}.lede{font-size:clamp(21px,2.2vw,33px);line-height:1.14;letter-spacing:-.035em;max-width:28ch;color:var(--ink-2);margin:34px 0 0}.lede em{font-style:italic;color:var(--ink);font-weight:720}.meta{border:1px solid var(--rule);align-self:center;background:var(--paper);box-shadow:var(--shadow-soft)}.meta div{display:flex;justify-content:space-between;gap:24px;padding:13px 15px;border-bottom:1px solid var(--rule);font-family:var(--font-mono);font-size:11px}.meta div:last-child{border-bottom:0}.meta span{color:var(--muted);text-transform:uppercase}.meta b{font-weight:600;text-align:right}
+    section.row{display:grid;grid-template-columns:300px 1fr;gap:64px;border-top:1px solid var(--rule);padding:76px 0}.anno{position:sticky;top:96px;align-self:start}.h2{font-size:46px;line-height:.98;letter-spacing:-.05em;margin:16px 0 0;font-weight:740}.h2 em{font-style:italic;color:var(--muted)}.body{color:var(--ink-2);margin:0;max-width:66ch}.body em{font-style:italic;color:var(--ink);font-weight:650}.small{font-family:var(--font-mono);font-size:11px;color:var(--muted);letter-spacing:.04em;text-transform:uppercase}.grid-2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:1px;background:var(--rule);border:1px solid var(--rule)}.grid-3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:1px;background:var(--rule);border:1px solid var(--rule)}.tile{background:#fff;padding:22px;min-height:176px}.tile .num{font-family:var(--font-mono);font-size:10px;letter-spacing:.08em;color:var(--muted);text-transform:uppercase}.tile h3{font-size:24px;letter-spacing:-.035em;line-height:1.05;margin:22px 0 8px}.tile h3 em{font-style:italic;color:var(--muted)}.tile p{margin:0;color:var(--ink-2);font-size:14px}.stack{display:grid;gap:18px}.callout{border-left:3px solid var(--ink);background:var(--mist);padding:18px 20px;color:var(--ink-2);box-shadow:var(--shadow-soft)}
+    .tagbar{display:flex;flex-wrap:wrap;gap:8px}.tag{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--rule);border-radius:999px;padding:4px 8px;font-family:var(--font-mono);font-size:10px;text-transform:uppercase;letter-spacing:.06em;background:#fff}.tag.warm{background:var(--sand)}.tag.green{background:var(--teal);border-color:#b6d7cd;color:#145c43}.tag.orange{background:var(--orange);border-color:#e2c59e;color:#7a4a00}.tag.lav{background:var(--lav);border-color:#c9c0ee;color:#4f4381}.tag.pink{background:var(--pink);border-color:#e2bac2;color:#8d1f2f}
+    .checklist{display:grid;gap:10px}.check{display:grid;grid-template-columns:28px 1fr;gap:10px;border:1px solid var(--rule);padding:12px;background:#fff}.check .box{width:18px;height:18px;border:1px solid var(--ink);background:var(--sand)}
+    .diagram{border:1px solid var(--rule);background:var(--mist);padding:18px;box-shadow:var(--shadow-soft)}.screen{display:grid;grid-template-columns:170px 1fr 210px;grid-template-rows:54px 240px;border:1px solid var(--rule);background:#fff;min-height:300px}.screen div{border:1px solid var(--sand-2);padding:12px;font-family:var(--font-mono);font-size:10px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}.screen .top{grid-column:2/4}.screen .side{grid-row:1/3;background:var(--paper);color:var(--ink)}.screen .main{background:linear-gradient(135deg,var(--paper),var(--mist));color:var(--ink)}.screen .rail{background:var(--paper)}
+    .object-flow{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}.object-flow .node{border:1px solid var(--rule);background:#fff;padding:16px;min-height:118px}.node b{display:block;font-size:22px;letter-spacing:-.035em;margin-top:12px}.node span{font-family:var(--font-mono);font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.08em}.arrow{display:none}.table{width:100%;border-collapse:collapse;background:#fff;border:1px solid var(--rule);font-size:14px}.table th,.table td{padding:12px 14px;border-bottom:1px solid var(--rule);vertical-align:top;text-align:left}.table th{font-family:var(--font-mono);font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.08em}.table tr:last-child td{border-bottom:0}.table td:first-child{font-weight:650;color:var(--ink)}
+    .motion-card{position:relative;overflow:hidden}.motion-card:after{content:"";position:absolute;inset:auto 18px 18px 18px;height:3px;background:linear-gradient(90deg,var(--ink),var(--sand),var(--mist));transform-origin:left;animation:scan 3.2s ease-in-out infinite}.modal-demo{border:1px solid var(--rule);background:var(--mist);padding:22px;min-height:280px;position:relative;overflow:hidden}.modal-demo .back{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;opacity:.36;filter:blur(1px)}.modal-demo .ghost{height:54px;border:1px solid var(--rule);border-radius:10px;background:#fff}.modal-demo .panel{position:absolute;inset:38px calc(50% - 280px);background:#fff;border:1px solid var(--rule);border-radius:18px;box-shadow:var(--shadow);padding:20px}.modal-demo h4{margin:0;font-size:22px;letter-spacing:-.03em}.modal-demo p{margin:8px 0 0;color:var(--ink-2);font-size:13px}.modal-row{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px}.pill{border-radius:999px;border:1px solid var(--rule);background:var(--mist);padding:5px 8px;font-family:var(--font-mono);font-size:10px;color:var(--muted);text-transform:uppercase}.pill.dark{background:var(--ink);color:#fff;border-color:var(--ink)}
+    @keyframes scan{0%,100%{transform:scaleX(.18);opacity:.35}50%{transform:scaleX(1);opacity:1}}
+    @media (prefers-reduced-motion: reduce){html{scroll-behavior:auto}.motion-card:after{animation:none;transform:scaleX(1);opacity:.5}}
+    .footer{border-top:1px solid var(--rule);padding:42px 0 80px;display:flex;justify-content:space-between;font-family:var(--font-mono);font-size:11px;color:var(--muted);letter-spacing:.06em;text-transform:uppercase}.footer b{color:var(--ink)}
+    @media (max-width:960px){.cover,section.row{grid-template-columns:1fr}.anno{position:static}.grid-2,.grid-3,.object-flow{grid-template-columns:1fr}.stamp{display:none}.footer{display:block}.footer div+div{margin-top:10px}.screen{grid-template-columns:1fr;grid-template-rows:auto}.screen .top,.screen .side,.screen .main,.screen .rail{grid-column:auto;grid-row:auto}.modal-demo .panel{inset:30px 20px}}
+  </style>
+</head>
+<body>
+  <header class="mast">
+    <div class="brand"><span class="mark"></span>UPDOG <span style="color:var(--muted);font-weight:500">× Press On Ventures / design philosophy</span></div>
+    <div class="stamp"><span>VERSION <b>03.1.1</b></span><span>MODE <b>MULTI-ENTITY</b></span><span>STATUS <b>REVISED</b></span><span>MAY 2026</span></div>
+  </header>
+
+  <main class="page">
+    <section class="cover">
+      <div>
+        <div class="eyebrow"><span class="dot"></span><b>A WORKING DOCUMENT · V3.1.1</b> / FOR THE UPDOG_RESTORE REPO</div>
+        <h1 class="title">A dynamic operating workspace for people who <em>decide, deploy, and report capital.</em></h1>
+        <p class="lede">V3 introduced aliveness; v3.1.1 turns that aliveness into operating leverage for lean teams managing <em>funds, SPVs, sidecars, assumptions, and LP-facing outputs.</em></p>
+      </div>
+      <aside class="meta" aria-label="Document metadata">
+        <div><span>Audience</span><b>GPs · Analysts · Lean Ops</b></div>
+        <div><span>Scope</span><b>IA · UI · Motion · Ops workflows</b></div>
+        <div><span>Operating reality</span><b>One team, many entities</b></div>
+        <div><span>Mode</span><b>Dashboard-first, action-near</b></div>
+        <div><span>Interaction</span><b>Command · Diff · Assign · Share</b></div>
+        <div><span>Promise</span><b>Decision to execution loop</b></div>
+      </aside>
+    </section>
+
+    <section class="row">
+      <div class="anno">
+        <div class="eyebrow"><span class="dot"></span>00 · Delta from v3.1</div>
+        <h2 class="h2">Keep restraint. Add <em>implementation force.</em></h2>
+      </div>
+      <div class="stack">
+        <div class="callout"><b>Revision intent:</b> preserve the multi-entity thesis, delete the corrupted trailing content, and convert the manifesto into a product doctrine with screen grammar, role modes, object hierarchy, modal behavior, collaboration mechanics, and motion rules.</div>
+        <div class="grid-2">
+          <div class="tile"><div class="num">Retain</div><h3>Quiet, expert-grade visual language.</h3><p>Paper/sand/ink, dense tables, command-first interactions, context-preserving drill-downs.</p></div>
+          <div class="tile"><div class="num">Expand</div><h3>Multi-entity command center.</h3><p>Every top-level screen supports cross-fund/SPV roll-up with immediate entity drill-down.</p></div>
+          <div class="tile"><div class="num">Clarify</div><h3>Dashboard-first, action-near.</h3><p>Dashboards remain the primary surface; actions, assignments, diffs, and shares stay one command or click away.</p></div>
+          <div class="tile"><div class="num">Operationalize</div><h3>Decision → execution continuity.</h3><p>Scenarios generate checklists, assignments, approvals, and comms drafts so insight moves directly into operations.</p></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="row">
+      <div class="anno">
+        <div class="eyebrow"><span class="dot"></span>01 · Product thesis</div>
+        <h2 class="h2">From cockpit to <em>operating system.</em></h2>
+        <p class="body" style="margin-top:14px">Updog is not only where decisions are modeled; it is where they are operationalized across vehicles. The interface must reduce switching costs, expose risk early, and preserve trust under LP scrutiny.</p>
+      </div>
+      <div class="stack">
+        <div class="callout"><b>North star:</b> every high-value surface answers four questions in the first viewport: <em>What is true now?</em> <em>What changed?</em> <em>What is due?</em> <em>What can I do next?</em></div>
+        <div class="grid-3">
+          <div class="tile"><div class="num">A</div><h3>Live truth with provenance.</h3><p>Metrics carry source, sync time, assumption version, and editor attribution.</p></div>
+          <div class="tile"><div class="num">B</div><h3>Cross-entity awareness.</h3><p>Deadlines, cash events, blockers, and context surface across all active funds/SPVs by default.</p></div>
+          <div class="tile"><div class="num">C</div><h3>Execution continuity.</h3><p>Every material scenario can produce assigned actions, due dates, and shareable outputs.</p></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="row">
+      <div class="anno">
+        <div class="eyebrow"><span class="dot"></span>02 · Principles</div>
+        <h2 class="h2">Twelve rules for <em>every surface.</em></h2>
+      </div>
+      <div class="grid-3">
+        <div class="tile"><div class="num">P / 01</div><h3>Numbers before chrome.</h3><p>Decision-grade figures outrank navigation and decorative controls.</p></div>
+        <div class="tile"><div class="num">P / 02</div><h3>One truth-line.</h3><p>Canonical metrics keep one order and grammar across contexts.</p></div>
+        <div class="tile"><div class="num">P / 03</div><h3>Density is respect.</h3><p>Compact expert views are the default; whitespace organizes, not dilutes.</p></div>
+        <div class="tile"><div class="num">P / 04</div><h3>Multi-entity by design.</h3><p>Fund, SPV, sidecar, portfolio company, and LP perspectives are first-class.</p></div>
+        <div class="tile"><div class="num">P / 05</div><h3>Assumptions are objects.</h3><p>Material assumptions are versioned, diffable, attributable, and timestamped.</p></div>
+        <div class="tile"><div class="num">P / 06</div><h3>Urgency is explicit.</h3><p>Hard deadlines, cash impact, and blockers are visible without drill-down.</p></div>
+        <div class="tile"><div class="num">P / 07</div><h3>Keyboard is default.</h3><p>Command, search, saved views, assignment, and share flows remain fast and reachable.</p></div>
+        <div class="tile"><div class="num">P / 08</div><h3>Motion explains state.</h3><p>Animations express causality and continuity, never decoration.</p></div>
+        <div class="tile"><div class="num">P / 09</div><h3>Collaboration resolves into ownership.</h3><p>Mentions, comments, and attachments create tasks, decisions, or audit notes.</p></div>
+        <div class="tile"><div class="num">P / 10</div><h3>Solo-safe by default.</h3><p>Every collaborative workflow must still function for one operator.</p></div>
+        <div class="tile"><div class="num">P / 11</div><h3>Investor-readiness built in.</h3><p>LP-safe snapshots are immutable, scoped, freshness-labeled, and assumption-labeled.</p></div>
+        <div class="tile"><div class="num">P / 12</div><h3>Context never disappears.</h3><p>Overlays preserve place, scroll position, filters, and selected entity.</p></div>
+      </div>
+    </section>
+
+    <section class="row">
+      <div class="anno">
+        <div class="eyebrow"><span class="dot"></span>03 · Role modes</div>
+        <h2 class="h2">One object model, <em>three lenses.</em></h2>
+      </div>
+      <div class="stack">
+        <p class="body">The same fund, SPV, company, assumption, task, or LP snapshot should not become separate products for separate users. It should expose different default weightings based on the job being done.</p>
+        <table class="table" aria-label="Role modes">
+          <thead><tr><th>Mode</th><th>Primary question</th><th>UI bias</th><th>Default actions</th></tr></thead>
+          <tbody>
+            <tr><td>GP decision mode</td><td>What changed, what matters, and what should we do?</td><td>Thesis, risk, variance, scenario impact, decision queue.</td><td>Approve, assign, create scenario, share snapshot.</td></tr>
+            <tr><td>Analyst proof mode</td><td>What supports this number or recommendation?</td><td>Source tables, assumption diffs, lineage, confidence, audit history.</td><td>Compare, annotate, validate, export backup.</td></tr>
+            <tr><td>Ops execution mode</td><td>What is due, blocked, missing, or waiting on someone?</td><td>Owners, deadlines, cash events, documents, message status.</td><td>Assign, remind, collect, mark done, draft comms.</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="row">
+      <div class="anno">
+        <div class="eyebrow"><span class="dot"></span>04 · Object hierarchy</div>
+        <h2 class="h2">Translate philosophy into <em>architecture.</em></h2>
+      </div>
+      <div class="stack">
+        <div class="object-flow">
+          <div class="node"><span>01</span><b>Entity</b><p>Fund · SPV · sidecar · company · LP group.</p></div>
+          <div class="node"><span>02</span><b>Surface</b><p>Dashboard · cash calendar · lifecycle board · scenario · report.</p></div>
+          <div class="node"><span>03</span><b>Object</b><p>Metric · task · assumption · document · comment · decision.</p></div>
+          <div class="node"><span>04</span><b>Action</b><p>Assign · approve · diff · share · export · archive.</p></div>
+        </div>
+        <div class="callout"><b>Design rule:</b> every screen should make the current entity, surface, object, and next available action legible without forcing the user to reconstruct context from navigation.</div>
+      </div>
+    </section>
+
+    <section class="row">
+      <div class="anno">
+        <div class="eyebrow"><span class="dot"></span>05 · Core operating surfaces</div>
+        <h2 class="h2">Design for the <em>actual week.</em></h2>
+      </div>
+      <div class="grid-3">
+        <div class="tile"><div class="num">Surface</div><h3>Cross-Entity Inbox</h3><p>Unified queue of due tasks, missing docs, approvals, comments, and expiring deadlines across all vehicles.</p></div>
+        <div class="tile"><div class="num">Surface</div><h3>SPV Lifecycle Board</h3><p>Stages: intake, formation, subscriptions, close, call/deploy, reporting, wind-down with blockers and owners.</p></div>
+        <div class="tile"><div class="num">Surface</div><h3>Cash & Call Calendar</h3><p>Single timeline of upcoming calls/distributions with conflict detection and LP communication status.</p></div>
+        <div class="tile"><div class="num">Surface</div><h3>Assumption Diff Timeline</h3><p>“What changed, by whom, when, and why” for every material model input.</p></div>
+        <div class="tile"><div class="num">Surface</div><h3>Decision-to-Action Generator</h3><p>Converts scenario outputs into tasks, due dates, approvals, reminders, and optional communication drafts.</p></div>
+        <div class="tile"><div class="num">Surface</div><h3>LP Snapshot Mode</h3><p>Immutable share view with scope, timestamp, assumption version, freshness, and change summary.</p></div>
+      </div>
+    </section>
+
+    <section class="row">
+      <div class="anno">
+        <div class="eyebrow"><span class="dot"></span>06 · Screen grammar</div>
+        <h2 class="h2">Every workspace has <em>four zones.</em></h2>
+      </div>
+      <div class="stack">
+        <div class="diagram" aria-label="Workspace layout diagram">
+          <div class="screen">
+            <div class="side">01 · Persistent navigation<br><br>entity · module · saved views · help</div>
+            <div class="top">02 · Command header<br><br>breadcrumbs · search · freshness · invite/share · command entry</div>
+            <div class="main">03 · Decision canvas<br><br>metrics · timelines · charts · tables · projects · scenarios</div>
+            <div class="rail">04 · Context rail<br><br>people · meetings · blockers · recent activity · related artifacts</div>
+          </div>
+        </div>
+        <div class="grid-2">
+          <div class="tile"><div class="num">Zone / 01</div><h3>Persistent navigation.</h3><p>Entity, module, saved views, favorites, and help remain stable while the work surface changes.</p></div>
+          <div class="tile"><div class="num">Zone / 02</div><h3>Command header.</h3><p>Breadcrumbs, search, freshness, invite/share, notifications, and command entry sit above the canvas.</p></div>
+          <div class="tile"><div class="num">Zone / 03</div><h3>Decision canvas.</h3><p>The center holds truth and action: KPIs, timelines, charts, cards, tables, scenarios, and primary CTAs.</p></div>
+          <div class="tile"><div class="num">Zone / 04</div><h3>Context rail.</h3><p>People, meetings, deadlines, recent activity, blockers, and related artifacts support the main decision.</p></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="row">
+      <div class="anno">
+        <div class="eyebrow"><span class="dot"></span>07 · Interaction model</div>
+        <h2 class="h2">Action stays <em>near the evidence.</em></h2>
+      </div>
+      <div class="grid-3">
+        <div class="tile"><div class="num">Pattern</div><h3>Cards open work panels.</h3><p>Project, task, company, SPV, assumption, and snapshot cards open context-preserving modals or drawers.</p></div>
+        <div class="tile"><div class="num">Pattern</div><h3>Charts reveal proof.</h3><p>Hover and focus states expose values, drivers, deltas, source timestamps, and relevant assumptions.</p></div>
+        <div class="tile"><div class="num">Pattern</div><h3>Comments produce ownership.</h3><p>Mentions, replies, attachments, and decisions resolve into tasks, owners, due dates, or audit notes.</p></div>
+        <div class="tile"><div class="num">Pattern</div><h3>Primary actions are black.</h3><p>Create, Invite, New Project, Save, Approve, and Share use the same high-contrast button language.</p></div>
+        <div class="tile"><div class="num">Pattern</div><h3>Local actions stay local.</h3><p>Overflow menus belong to the card, metric, row, or chart region they affect.</p></div>
+        <div class="tile"><div class="num">Pattern</div><h3>Saved views are portable.</h3><p>Filters, entity scope, time range, and visible columns can be saved, shared, and reopened by command.</p></div>
+      </div>
+    </section>
+
+    <section class="row">
+      <div class="anno">
+        <div class="eyebrow"><span class="dot"></span>08 · Context-preserving work panels</div>
+        <h2 class="h2">The dashboard should never <em>fall away.</em></h2>
+      </div>
+      <div class="stack">
+        <div class="modal-demo" aria-label="Modal behavior demonstration">
+          <div class="back">
+            <div class="ghost"></div><div class="ghost"></div><div class="ghost"></div><div class="ghost"></div>
+            <div class="ghost"></div><div class="ghost"></div><div class="ghost"></div><div class="ghost"></div>
+          </div>
+          <div class="panel">
+            <h4>Task · Assumption · SPV · Snapshot</h4>
+            <p>Open material objects in drawers or modals unless the user is changing workspace. Background context remains visible but non-interactive.</p>
+            <div class="modal-row"><span class="pill">Assignee</span><span class="pill">Tags</span><span class="pill">Status</span><span class="pill">Due date</span><span class="pill dark">Save</span></div>
+          </div>
+        </div>
+        <div class="grid-2">
+          <div class="tile"><div class="num">Behavior</div><h3>Dim, blur, return.</h3><p>Panels fade/scale in over the same dashboard and close back to the exact prior viewport, selected entity, scroll position, and filters.</p></div>
+          <div class="tile"><div class="num">Behavior</div><h3>Editable metadata first.</h3><p>Assignee, tags, status, due date, priority, and linked entity remain editable inline before description or comments.</p></div>
+          <div class="tile"><div class="num">Behavior</div><h3>Tabs preserve state.</h3><p>Description, Comment, Settings, History, and Audit tabs swap content without closing the panel or resetting form state.</p></div>
+          <div class="tile"><div class="num">Behavior</div><h3>Cancel is safe; Save is explicit.</h3><p>Material edits never imply side effects. Save, approve, publish, or share must be visually explicit and auditable.</p></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="row">
+      <div class="anno">
+        <div class="eyebrow"><span class="dot"></span>09 · Motion grammar</div>
+        <h2 class="h2">Motion should show <em>continuity.</em></h2>
+      </div>
+      <div class="grid-2">
+        <div class="tile motion-card"><div class="num">Loading</div><h3>Keep chrome stable.</h3><p>Sidebar and header remain visible. Main content reserves space with skeletons before fading in.</p></div>
+        <div class="tile motion-card"><div class="num">Overlay</div><h3>Dim, blur, return.</h3><p>Modal overlay fades in 150–200ms; panel scales from 96% to 100% in 180–240ms, then returns to the same context.</p></div>
+        <div class="tile motion-card"><div class="num">Hover</div><h3>Reveal, don’t decorate.</h3><p>Tooltips reveal values, sources, owners, deltas, and drivers. Hover regions should be forgiving.</p></div>
+        <div class="tile motion-card"><div class="num">Accessibility</div><h3>Respect reduced motion.</h3><p>All transitions degrade to instant state changes when reduced-motion is enabled.</p></div>
+      </div>
+    </section>
+
+    <section class="row">
+      <div class="anno">
+        <div class="eyebrow"><span class="dot"></span>10 · Collaboration model</div>
+        <h2 class="h2">Comments are not <em>social feed.</em></h2>
+      </div>
+      <div class="stack">
+        <div class="callout"><b>Collaboration rule:</b> comments are never free-floating. Each thread belongs to a task, scenario, company, assumption, LP snapshot, SPV, document, cash event, or decision. Mentions create assignable work. Attachments inherit context. Resolved threads remain visible in audit history.</div>
+        <div class="grid-3">
+          <div class="tile"><div class="num">Mention</div><h3>@ creates responsibility.</h3><p>Mentions should support autocomplete, token styling, notification routing, and optional task creation.</p></div>
+          <div class="tile"><div class="num">Attachment</div><h3>Files inherit context.</h3><p>Uploaded files carry object, entity, author, timestamp, and visibility scope.</p></div>
+          <div class="tile"><div class="num">Resolve</div><h3>Decisions leave a trace.</h3><p>Resolved comments should preserve who resolved, when, why, and what object changed.</p></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="row">
+      <div class="anno">
+        <div class="eyebrow"><span class="dot"></span>11 · Distinctiveness guardrails</div>
+        <h2 class="h2">Different, but never <em>fragile.</em></h2>
+      </div>
+      <div class="grid-2">
+        <div class="tile"><div class="num">Distinctive by utility</div><h3>Own the decision-to-operations loop.</h3><p>Insight should always end in concrete execution paths.</p></div>
+        <div class="tile"><div class="num">Not distinctive by noise</div><h3>Avoid novelty without leverage.</h3><p>No decorative motion, social-feed clutter, or motifs that lower analytical legibility.</p></div>
+        <div class="tile"><div class="num">Trust guardrail</div><h3>No unsupported claims for material numbers.</h3><p>Generated recommendations must cite drivers, assumptions, source data, and confidence.</p></div>
+        <div class="tile"><div class="num">Control guardrail</div><h3>No hidden financial side effects.</h3><p>Material edits require explicit confirmation and visible audit trace.</p></div>
+      </div>
+    </section>
+
+    <section class="row">
+      <div class="anno">
+        <div class="eyebrow"><span class="dot"></span>12 · Component handoff</div>
+        <h2 class="h2">Build with <em>reusable primitives.</em></h2>
+      </div>
+      <div class="stack">
+        <div class="tagbar" aria-label="Component inventory">
+          <span class="tag warm">AppShell</span><span class="tag warm">Sidebar</span><span class="tag warm">TopHeader</span><span class="tag warm">RightRail</span>
+          <span class="tag green">QuickActionCard</span><span class="tag green">MetricCard</span><span class="tag green">TimeActivityMap</span><span class="tag green">ProjectCard</span><span class="tag green">MilestoneTracker</span><span class="tag green">ActivityFeed</span>
+          <span class="tag lav">AvatarStack</span><span class="tag lav">PriorityChip</span><span class="tag lav">SegmentedControl</span><span class="tag lav">Tooltip</span><span class="tag lav">ProgressBar</span>
+          <span class="tag orange">TaskDetailModal</span><span class="tag orange">CommentThread</span><span class="tag orange">MentionInput</span><span class="tag orange">AttachmentCard</span><span class="tag orange">ModalFooter</span>
+        </div>
+        <table class="table" aria-label="Implementation mapping">
+          <thead><tr><th>Layer</th><th>Reusable responsibility</th><th>Design requirement</th></tr></thead>
+          <tbody>
+            <tr><td>Layout</td><td>AppShell, Sidebar, TopHeader, DashboardGrid, RightRail, ModalOverlay.</td><td>Preserve chrome during loading and drill-down.</td></tr>
+            <tr><td>Dashboard</td><td>Cards, KPI tiles, timelines, chart cards, feed panels, project/task modules.</td><td>Modular, action-oriented, local overflow menus, soft hierarchy.</td></tr>
+            <tr><td>Shared UI</td><td>AvatarStack, IconButton, StatusChip, PriorityChip, SegmentedControl, Tooltip, ProgressBar.</td><td>Black primary actions, muted status colors, accessible focus states.</td></tr>
+            <tr><td>Work panel</td><td>TaskDetailModal, MetadataRows, ModalTabs, CommentThread, MentionInput, CollaboratorsRow.</td><td>Context-preserving modal with editable metadata, comments, attachments, Save/Cancel.</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="row">
+      <div class="anno">
+        <div class="eyebrow"><span class="dot"></span>13 · Acceptance rubric</div>
+        <h2 class="h2">A surface is ready when it passes <em>all checks.</em></h2>
+      </div>
+      <div class="checklist">
+        <div class="check"><span class="box"></span><div><b>Truth first.</b> Dominant element is a decision-grade metric, variance, or explicit question.</div></div>
+        <div class="check"><span class="box"></span><div><b>Live + accountable context.</b> Freshness, owner, assumption version, and last material change are visible.</div></div>
+        <div class="check"><span class="box"></span><div><b>Multi-entity clarity.</b> User can move from aggregate view to specific fund/SPV state in two interactions or fewer.</div></div>
+        <div class="check"><span class="box"></span><div><b>Screen grammar holds.</b> Persistent navigation, command header, decision canvas, and context rail are all legible.</div></div>
+        <div class="check"><span class="box"></span><div><b>Operational urgency visible.</b> Hard deadlines, blockers, and estimated financial impact are legible without hunting.</div></div>
+        <div class="check"><span class="box"></span><div><b>Drill-down preserves place.</b> Modals/drawers return user to the same viewport, filters, and selected entity.</div></div>
+        <div class="check"><span class="box"></span><div><b>Keyboard parity.</b> Core flows work via command/search/tab with visible focus states.</div></div>
+        <div class="check"><span class="box"></span><div><b>Collaboration resolves into ownership.</b> Mentions, comments, and attachments create tasks, decisions, or audit records.</div></div>
+        <div class="check"><span class="box"></span><div><b>Motion is purposeful.</b> Animations explain state, preserve continuity, and honor reduced-motion settings.</div></div>
+        <div class="check"><span class="box"></span><div><b>LP-safe sharing.</b> Shared views are scoped, timestamped, immutable, freshness-labeled, and include change summary.</div></div>
+      </div>
+    </section>
+
+    <footer class="footer"><div>UPDOG · <b>DESIGN PHILOSOPHY V3.1.1</b></div><div>MULTI-ENTITY OPERATING WORKSPACE · PRESS ON BRAND · REVISED ARTIFACT</div></footer>
+  </main>
+</body>
+</html>

@@ -176,7 +176,7 @@ describe('StressPanel', () => {
     expect(screen.getByText(/^\d+s$/)).toBeInTheDocument();
   });
 
-  it('renders the error code, message, and retry button when the mutation fails', () => {
+  it('maps NO_PUBLISHED_CONFIG to a prerequisite CTA without raw error codes', () => {
     installMutationState({
       isError: true,
       error: {
@@ -187,12 +187,17 @@ describe('StressPanel', () => {
     });
     renderPanel(7);
 
-    expect(screen.getByTestId('stress-error')).toBeInTheDocument();
-    expect(screen.getByTestId('stress-error-code')).toHaveTextContent('NO_PUBLISHED_CONFIG');
-    expect(screen.getByTestId('stress-error-message')).toHaveTextContent(
-      'Publish a fund config first'
+    const error = screen.getByTestId('stress-error');
+    expect(error).not.toHaveTextContent('NO_PUBLISHED_CONFIG');
+    expect(error).not.toHaveTextContent('Publish a fund config first');
+    expect(error).not.toHaveTextContent('Retry');
+    expect(
+      screen.getByText('Publish the active fund configuration before running sensitivity analysis.')
+    ).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /publish fund configuration/i })).toHaveAttribute(
+      'href',
+      '/fund-setup?step=7'
     );
-    expect(screen.getByTestId('stress-retry-button')).toBeInTheDocument();
   });
 
   it('renders one row per datapoint when results are available', () => {

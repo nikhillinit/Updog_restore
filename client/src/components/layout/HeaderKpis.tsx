@@ -51,7 +51,7 @@ export default function HeaderKpis() {
       data-testid="header-kpis"
     >
       <div
-        className="grid max-w-full grid-cols-3 gap-3 overflow-x-auto pb-1 sm:overflow-visible sm:pb-0"
+        className="grid max-w-full grid-cols-6 gap-3 overflow-x-auto pb-1 sm:overflow-visible sm:pb-0"
         aria-label="Selected fund KPI summary"
       >
         {viewModel.items.map((item) => (

@@ -1349,22 +1349,14 @@ function LifecycleStatusCard({
         />
       </div>
 
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
         <FactTile
           label="Draft Version"
           value={configState.draftVersion != null ? `v${configState.draftVersion}` : 'No draft'}
         />
         <FactTile
-          label="Run ID"
+          label="Latest Run"
           value={calculationState.runId != null ? String(calculationState.runId) : 'Not started'}
-        />
-        <FactTile
-          label="Dispatch State"
-          value={calculationState.dispatchState ?? 'Not dispatched'}
-        />
-        <FactTile
-          label="Correlation ID"
-          value={calculationState.correlationId ?? 'Not available'}
         />
         <FactTile
           label="Snapshot Coverage"

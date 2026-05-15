@@ -65,8 +65,8 @@ const WIZARD_STEPS = [
   {
     id: 'distributions',
     number: 5,
-    title: 'DISTRIBUTIONS',
-    description: 'Waterfall, fees, expenses, and recycling',
+    title: 'DISTRIBUTIONS & WATERFALL',
+    description: 'Carry waterfall, fees, expenses, and recycling',
   },
   {
     id: 'cashflow-management',

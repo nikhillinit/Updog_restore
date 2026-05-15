@@ -37,7 +37,8 @@ export interface FundHeaderViewModel {
   cards: HeaderMetricCardModel[];
 }
 
-export type CompactKpiKey = 'dpi' | 'tvpi' | 'nav';
+export type CompactKpiKey = 'deployed' | 'remaining' | 'nav' | 'tvpi' | 'dpi' | 'netIrr';
+export type CompactKpiValueType = 'currency' | 'multiple' | 'percentage';
 
 export interface CompactKpiItemModel {
   key: CompactKpiKey;
@@ -85,5 +86,5 @@ export interface CompactKpiDefinition {
   icon: HeaderMetricIcon;
   colorClassName: string;
   description: string;
-  isCurrency: boolean;
+  valueType: CompactKpiValueType;
 }

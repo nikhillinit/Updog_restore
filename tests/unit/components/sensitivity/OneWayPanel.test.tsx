@@ -190,7 +190,7 @@ describe('OneWayPanel', () => {
     expect(within(results).getByTestId('one-way-chart')).toBeInTheDocument();
   });
 
-  it('renders the error code and message when the run fails with NO_PUBLISHED_CONFIG', async () => {
+  it('maps NO_PUBLISHED_CONFIG to a prerequisite CTA without raw error codes', async () => {
     makeFetchRouter({
       oneWay: {
         body: { code: 'NO_PUBLISHED_CONFIG', message: 'Publish a fund config first' },
@@ -206,11 +206,17 @@ describe('OneWayPanel', () => {
       expect(screen.getByTestId('one-way-error')).toBeInTheDocument();
     });
 
-    expect(screen.getByTestId('one-way-error-code')).toHaveTextContent('NO_PUBLISHED_CONFIG');
-    expect(screen.getByTestId('one-way-error-message')).toHaveTextContent(
-      'Publish a fund config first'
+    const error = screen.getByTestId('one-way-error');
+    expect(error).not.toHaveTextContent('NO_PUBLISHED_CONFIG');
+    expect(error).not.toHaveTextContent('Publish a fund config first');
+    expect(error).not.toHaveTextContent('Retry');
+    expect(
+      screen.getByText('Publish the active fund configuration before running sensitivity analysis.')
+    ).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /publish fund configuration/i })).toHaveAttribute(
+      'href',
+      '/fund-setup?step=7'
     );
-    expect(screen.getByTestId('one-way-retry-button')).toBeInTheDocument();
   });
 
   it('loads a history entry into the main panel when clicked', async () => {

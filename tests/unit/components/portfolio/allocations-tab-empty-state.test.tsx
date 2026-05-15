@@ -48,6 +48,20 @@ function installEmptyAllocationResponse() {
   });
 }
 
+function installErroredAllocationResponse() {
+  vi.spyOn(globalThis, 'fetch').mockImplementation(async () => {
+    return new Response(
+      JSON.stringify({
+        message: 'Database operation failed: relation "reserve_allocations" does not exist',
+      }),
+      {
+        status: 500,
+        headers: { 'Content-Type': 'application/json' },
+      }
+    );
+  });
+}
+
 describe('AllocationsTab empty state', () => {
   beforeEach(() => {
     installEmptyAllocationResponse();
@@ -75,5 +89,15 @@ describe('AllocationsTab empty state', () => {
 
     expect(screen.getByTestId('portfolio-add-company-dialog')).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: /add portfolio company/i })).toBeInTheDocument();
+  });
+
+  it('shows safe copy when reserve allocation loading fails', async () => {
+    vi.restoreAllMocks();
+    installErroredAllocationResponse();
+
+    renderWithQuery(<AllocationsTab />);
+
+    expect(await screen.findByText(/could not load reserve allocations/i)).toBeInTheDocument();
+    expect(screen.queryByText(/relation "reserve_allocations"/i)).not.toBeInTheDocument();
   });
 });
