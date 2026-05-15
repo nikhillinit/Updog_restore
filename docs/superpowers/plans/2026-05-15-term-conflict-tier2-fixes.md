@@ -6,9 +6,10 @@
 > checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Close out the verified silent-corruption risks (Tier 2) from the
-term-conflict audit: Fund decimal-string boundary crossing, PortfolioState alias
-shadowing, PeriodResult name collision, reserves adapter unit ambiguity, and
-stranded dead-code copies of the broken IRR.
+term-conflict audit: Economics summary multiple/money boundary tagging, Fund
+decimal-string boundary crossing, PortfolioState alias shadowing, PeriodResult
+name collision, reserves adapter unit ambiguity, and stranded dead-code copies
+of the broken IRR.
 
 **Architecture:** Each task is an independent refactor scoped to one concept.
 Adapters at module boundaries; renames where types collide; deletions for
@@ -46,6 +47,10 @@ ORM, Express. Path aliases `@/` (client/src/), `@shared/` (shared/).
 - `server/core/reserves/adapter.ts` keeps the conversion method private. Task 5
   should test through the public `FeatureFlaggedReserveEngine.compute()` path,
   or extract a narrow exported guard only if the public test becomes brittle.
+- `EconomicsSummaryV1Schema` has the same final DPI/RVPI/TVPI multiple-vs-money
+  boundary bug that C1 fixed for annual rows. Add Task -1 before Tier 2 work so
+  the AI/reporting summary boundary reads final multiples as dimensionless
+  ratios, not money.
 
 ---
 
@@ -79,6 +84,10 @@ ORM, Express. Path aliases `@/` (client/src/), `@shared/` (shared/).
   processing rename
 - `client/src/core/capitalAllocation/index.ts` — mirror barrel export update
 - `server/core/reserves/adapter.ts` — add unit-guard invariant on lines 336-354
+- `shared/contracts/economics-v1.contract.ts` — mark summary final DPI/RVPI/TVPI
+  as dimensionless nonnegative numbers with JSDoc
+- `tests/unit/phase3/fund-results-contract.test.ts` — source-level guard for
+  final summary multiple annotations
 
 **Deleted files (after verification of zero active references; do not delete the
 full `src/` tree in this plan):**
@@ -86,6 +95,51 @@ full `src/` tree in this plan):**
 - `src/core/selectors/fundKpis.ts` — root-level dead duplicate of the broken IRR
 - `src/core/selectors/__tests__/fundKpis.test.ts`
 - `src/components/overview/HeaderKpis.tsx`
+
+---
+
+## Task -1: Fix economics summary final multiple boundary tagging
+
+**Context:** C1 corrected annual `dpi`/`rvpi`/`tvpi` rows from money schema
+usage to dimensionless nonnegative numbers with JSDoc. The summary boundary
+consumed by AI/reporting still used `NonNegativeMoneySchema` for `finalDpi`,
+`finalRvpi`, and `finalTvpi`, so a final TVPI of `2.3` could be semantically
+tagged as currency.
+
+**Files:**
+
+- Modify: `shared/contracts/economics-v1.contract.ts`
+- Modify: `tests/unit/phase3/fund-results-contract.test.ts`
+
+- [x] **Step 1: Add a regression guard before changing the contract**
+
+Add a narrow contract-source test proving summary final multiples are documented
+as dimensionless values and are not assigned `NonNegativeMoneySchema`.
+
+- [x] **Step 2: Verify the guard fails on the existing bug**
+
+Run:
+
+```powershell
+npm test -- --project=server tests/unit/phase3/fund-results-contract.test.ts
+```
+
+Expected before the fix: one failing test for the summary multiple annotation.
+
+- [x] **Step 3: Apply the drop-in schema fix**
+
+Change `finalDpi`, `finalRvpi`, and `finalTvpi` to `z.number().nonnegative()`
+and add the same JSDoc pattern as the annual rows.
+
+- [x] **Step 4: Re-run the targeted contract test**
+
+Run:
+
+```powershell
+npm test -- --project=server tests/unit/phase3/fund-results-contract.test.ts
+```
+
+Expected after the fix: all contract tests pass.
 
 ---
 
@@ -1120,8 +1174,8 @@ on the public API."
 
 ## Execution Notes
 
-**Order matters:** Task 0 → 1 → 2 → 3 → 4 → 5. Task 3 depends on Task 2 to avoid
-intermediate compile breaks (the alias and the snapshot interface would
+**Order matters:** Task -1 → 0 → 1 → 2 → 3 → 4 → 5. Task 3 depends on Task 2 to
+avoid intermediate compile breaks (the alias and the snapshot interface would
 otherwise both be named `PortfolioState` during the rename window).
 
 **Commit cadence:** Each task ends with a commit. Do not batch.

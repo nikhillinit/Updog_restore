@@ -242,9 +242,12 @@ export const EconomicsSummaryV1Schema = z
     totalGpInvestmentDistributions: NonNegativeMoneySchema,
     totalGpCarryDistributed: NonNegativeMoneySchema,
     totalGpFeeIncome: NonNegativeMoneySchema,
-    finalDpi: NonNegativeMoneySchema,
-    finalRvpi: NonNegativeMoneySchema,
-    finalTvpi: NonNegativeMoneySchema,
+    /** Final DPI multiple (dimensionless, e.g. 1.5x), not currency */
+    finalDpi: z.number().nonnegative(),
+    /** Final RVPI multiple (dimensionless, e.g. 0.8x), not currency */
+    finalRvpi: z.number().nonnegative(),
+    /** Final TVPI multiple (dimensionless, e.g. 2.3x), not currency */
+    finalTvpi: z.number().nonnegative(),
     finalClawbackDue: NonNegativeMoneySchema,
     maxEscrowAvailable: NonNegativeMoneySchema,
     netGpCarryAfterClawback: z.number(),
