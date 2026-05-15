@@ -27,6 +27,8 @@ import { logger } from '../../lib/logger.js';
 import { nanoid } from 'nanoid';
 // import { performanceMonitor } from '@shared/lib/performance-monitor.js';
 
+const MAX_INVESTED_DOLLARS = 100_000_000_000;
+
 export interface FeatureFlagConfig {
   useMl: boolean;
   mode: 'ml' | 'rules' | 'hybrid';
@@ -333,10 +335,26 @@ export class FeatureFlaggedReserveEngine implements ReserveEnginePort {
     return hybridDecision;
   }
 
+  /**
+   * Convert the server reserve-company DTO into the shared reserve engine DTO.
+   * `company.invested` must already be a dollar-denominated amount; cent-scaled
+   * values make downstream reserve budgets explode, so reject impossible inputs
+   * before invoking the deterministic engine.
+   */
   private convertToReserveInput(
     company: PortfolioCompany,
     market: MarketConditions
   ): ReserveAllocationInput {
+    if (!Number.isFinite(company.invested) || company.invested < 0) {
+      throw new Error(`company.invested must be a finite non-negative dollar amount`);
+    }
+
+    if (company.invested > MAX_INVESTED_DOLLARS) {
+      throw new Error(
+        `company.invested exceeds ${MAX_INVESTED_DOLLARS}; expected dollars, not cents`
+      );
+    }
+
     const reserveCompany: ReservePortfolioCompany = {
       id: company.id,
       name: company.name,
