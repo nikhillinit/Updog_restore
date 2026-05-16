@@ -57,6 +57,11 @@ interface ErrorHandlingResult {
   action: ErrorAction;
 }
 
+interface ErrorResponseDetails {
+  message: string;
+  code: string;
+}
+
 interface ErrorWithHandlingResult extends Error {
   handlingResult?: ErrorHandlingResult;
 }
@@ -121,6 +126,83 @@ function inferSeverityFromMessage(message: string): ErrorSeverity {
   if (message.includes('not found')) return ErrorSeverity.LOW;
 
   return ErrorSeverity.MEDIUM;
+}
+
+export function mapErrorToHttpStatus(error: Error): number {
+  if (isValidationError(error)) {
+    return 400;
+  }
+
+  if (isRateLimitError(error)) {
+    return 429;
+  }
+
+  if (isIdempotencyError(error)) {
+    return 409;
+  }
+
+  if (isDatabaseError(error)) {
+    return 503;
+  }
+
+  if (isHealthCheckError(error)) {
+    return 503;
+  }
+
+  if (isDeploymentError(error)) {
+    return 503;
+  }
+
+  return 500;
+}
+
+function getErrorResponseDetails(error: Error): ErrorResponseDetails {
+  if (isValidationError(error)) {
+    return {
+      message: error.message,
+      code: 'VALIDATION_ERROR',
+    };
+  }
+
+  if (isRateLimitError(error)) {
+    return {
+      message: 'Too Many Requests',
+      code: 'RATE_LIMITED',
+    };
+  }
+
+  if (isIdempotencyError(error)) {
+    return {
+      message: 'Idempotency Conflict',
+      code: 'IDEMPOTENCY_CONFLICT',
+    };
+  }
+
+  if (isDatabaseError(error)) {
+    return {
+      message: 'Service Temporarily Unavailable',
+      code: 'DATABASE_ERROR',
+    };
+  }
+
+  if (isHealthCheckError(error)) {
+    return {
+      message: 'Service Unhealthy',
+      code: 'HEALTH_CHECK_FAILED',
+    };
+  }
+
+  if (isDeploymentError(error)) {
+    return {
+      message: 'Deployment In Progress',
+      code: 'DEPLOYMENT_ERROR',
+    };
+  }
+
+  return {
+    message: 'Internal Server Error',
+    code: 'INTERNAL_ERROR',
+  };
 }
 
 // Enhanced error context
@@ -254,35 +336,8 @@ export class UnifiedErrorHandler {
     error: Error,
     context: ErrorContext
   ): { statusCode: number; body: ApiErrorBody } {
-    let statusCode = 500;
-    let message = 'Internal Server Error';
-    let code = 'INTERNAL_ERROR';
-
-    if (isValidationError(error)) {
-      statusCode = 400;
-      message = error.message;
-      code = 'VALIDATION_ERROR';
-    } else if (isRateLimitError(error)) {
-      statusCode = 429;
-      message = 'Too Many Requests';
-      code = 'RATE_LIMITED';
-    } else if (isIdempotencyError(error)) {
-      statusCode = 409;
-      message = 'Idempotency Conflict';
-      code = 'IDEMPOTENCY_CONFLICT';
-    } else if (isDatabaseError(error)) {
-      statusCode = 503;
-      message = 'Service Temporarily Unavailable';
-      code = 'DATABASE_ERROR';
-    } else if (isHealthCheckError(error)) {
-      statusCode = 503;
-      message = 'Service Unhealthy';
-      code = 'HEALTH_CHECK_FAILED';
-    } else if (isDeploymentError(error)) {
-      statusCode = 503;
-      message = 'Deployment In Progress';
-      code = 'DEPLOYMENT_ERROR';
-    }
+    const statusCode = mapErrorToHttpStatus(error);
+    const { message, code } = getErrorResponseDetails(error);
 
     return {
       statusCode,
