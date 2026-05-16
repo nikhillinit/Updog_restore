@@ -1,6 +1,6 @@
 ---
 status: ACTIVE
-last_updated: 2026-04-05
+last_updated: 2026-05-16
 owner: Core Team
 review_cadence: P7D
 ---
@@ -112,6 +112,13 @@ and this project adheres to
     path)
 
 ### Removed
+
+- **Dual Forecast Route Consolidation** (2026-05-16)
+  - Removed the unused placeholder `GET /api/funds/:fundId/portfolio-analysis`
+    scenario-analysis route after replacing the dashboard path with
+    `GET /api/funds/:fundId/dual-forecast`
+  - Confirmed no live `client/`, `server/`, `shared/`, or `tests/` consumers of
+    the old route remain; remaining references are historical docs
 
 - **Dead Code Cleanup** (2026-02-17)
   - Deleted `WalkingSkeleton.tsx` and `WalkingSkeleton.test.tsx` (dead feature

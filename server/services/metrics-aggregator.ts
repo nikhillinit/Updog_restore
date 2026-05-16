@@ -408,7 +408,7 @@ export class MetricsAggregator {
         actual,
         projected,
         constructionForecast,
-        toDecimal(effectiveFund.size.toString()),
+        toDecimal(effectiveFund.size),
         config,
         constructionStartIndex,
         currentProjectionStartIndex

@@ -36,6 +36,7 @@ export function useDualForecast(
       return response.json() as Promise<DualForecastResponse>;
     },
     enabled: enabled && fundId != null,
+    // Keep the client freshness window aligned with the route Cache-Control max-age.
     staleTime: 60_000,
     gcTime: 600_000,
     refetchInterval,
