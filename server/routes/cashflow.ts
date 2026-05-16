@@ -14,6 +14,7 @@ import {
   groupTransactionsByType,
   calculateLiquidityMetrics,
 } from '@shared/types';
+import { getRouteErrorMessage } from '../lib/errorHandling';
 
 const router = Router();
 
@@ -146,7 +147,7 @@ router['get']('/:fundId/transactions', async (req: Request, res: Response) => {
     console.error('Error fetching transactions:', error);
     res.status(400).json({
       error: 'Invalid request parameters',
-      message: error instanceof Error ? error.message : 'Unknown error',
+      message: getRouteErrorMessage(error),
     });
   }
 });
@@ -179,7 +180,7 @@ router['post']('/:fundId/transactions', async (req: Request, res: Response) => {
     console.error('Error creating transaction:', error);
     res.status(400).json({
       error: 'Invalid transaction data',
-      message: error instanceof Error ? error.message : 'Unknown error',
+      message: getRouteErrorMessage(error),
     });
   }
 });
@@ -224,7 +225,7 @@ router['put']('/:fundId/transactions/:transactionId', async (req: Request, res: 
     console.error('Error updating transaction:', error);
     res.status(400).json({
       error: 'Invalid update data',
-      message: error instanceof Error ? error.message : 'Unknown error',
+      message: getRouteErrorMessage(error),
     });
   }
 });
@@ -257,7 +258,7 @@ router['delete']('/:fundId/transactions/:transactionId', async (req: Request, re
     console.error('Error deleting transaction:', error);
     res.status(400).json({
       error: 'Invalid request',
-      message: error instanceof Error ? error.message : 'Unknown error',
+      message: getRouteErrorMessage(error),
     });
   }
 });
@@ -296,7 +297,7 @@ router['get']('/:fundId/capital-calls', async (req: Request, res: Response) => {
     console.error('Error fetching capital calls:', error);
     res.status(400).json({
       error: 'Invalid request parameters',
-      message: error instanceof Error ? error.message : 'Unknown error',
+      message: getRouteErrorMessage(error),
     });
   }
 });
@@ -329,7 +330,7 @@ router['post']('/:fundId/capital-calls', async (req: Request, res: Response) => 
     console.error('Error creating capital call:', error);
     res.status(400).json({
       error: 'Invalid capital call data',
-      message: error instanceof Error ? error.message : 'Unknown error',
+      message: getRouteErrorMessage(error),
     });
   }
 });
@@ -435,7 +436,7 @@ router['get']('/:fundId/liquidity-forecast', async (req: Request, res: Response)
     console.error('Error generating liquidity forecast:', error);
     res.status(400).json({
       error: 'Invalid request parameters',
-      message: error instanceof Error ? error.message : 'Unknown error',
+      message: getRouteErrorMessage(error),
     });
   }
 });
@@ -513,7 +514,7 @@ router['get']('/:fundId/cash-position', async (req: Request, res: Response) => {
     console.error('Error fetching cash position:', error);
     res.status(400).json({
       error: 'Invalid request parameters',
-      message: error instanceof Error ? error.message : 'Unknown error',
+      message: getRouteErrorMessage(error),
     });
   }
 });
@@ -562,7 +563,7 @@ router['get']('/:fundId/recurring-expenses', async (req: Request, res: Response)
     console.error('Error fetching recurring expenses:', error);
     res.status(400).json({
       error: 'Invalid request parameters',
-      message: error instanceof Error ? error.message : 'Unknown error',
+      message: getRouteErrorMessage(error),
     });
   }
 });
@@ -594,7 +595,7 @@ router['post']('/:fundId/recurring-expenses', async (req: Request, res: Response
     console.error('Error creating recurring expense:', error);
     res.status(400).json({
       error: 'Invalid expense data',
-      message: error instanceof Error ? error.message : 'Unknown error',
+      message: getRouteErrorMessage(error),
     });
   }
 });
