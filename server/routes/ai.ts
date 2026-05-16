@@ -8,6 +8,7 @@ import {
   aiConsensus,
   collaborativeSolve,
 } from '../services/ai-orchestrator';
+import { getRouteErrorMessage as getErrorMessage } from '../lib/errorHandling';
 
 const router = Router();
 
@@ -17,10 +18,6 @@ const askSchema = z.object({
   models: z.array(z.enum(['claude', 'gpt', 'gemini', 'deepseek'])).optional(),
   tags: z.array(z.string()).optional(),
 });
-
-function getErrorMessage(error: unknown): string {
-  return error instanceof Error ? error.message : 'Unknown error';
-}
 
 function respondWithRequestError(res: Response, error: unknown): boolean {
   if (!(error instanceof z.ZodError)) {
