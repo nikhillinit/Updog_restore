@@ -78,6 +78,16 @@ import {
   type ReportPackageJsonStoredExportResponse,
   type ReportPackageRenderModelResponse,
 } from '@shared/contracts/lp-reporting';
+import {
+  buildHookError,
+  contractFetch,
+  readContractResponse,
+  type ContractResponseSchema,
+  type DryRunErrorBody,
+  type LpReportingHookError,
+} from './contract-fetch';
+
+export type { DryRunErrorBody, LpReportingHookError } from './contract-fetch';
 
 export type MetricsDryRunRequest = MetricRunDryRunRequest;
 
@@ -94,57 +104,6 @@ export type NarrativeRunApproveMutationRequest = NarrativeRunApproveRequest & {
 };
 
 export type ReportPackageAssembleMutationRequest = ReportPackageAssembleRequest;
-
-export interface DryRunErrorBody {
-  code?: string;
-  error?: string;
-  message?: string;
-}
-
-export type LpReportingHookError = Error & {
-  code?: string;
-  status?: number;
-  blockers?: ReportPackageJsonExportBlocker[];
-  storedContentHash?: string;
-  currentContentHash?: string;
-};
-
-interface ContractResponseSchema<TResponse> {
-  safeParse(raw: unknown): { success: true; data: TResponse } | { success: false };
-}
-
-function buildHookError(
-  status: number,
-  body: Partial<DryRunErrorBody>,
-  fallback: string
-): LpReportingHookError {
-  const error = new Error(body.message ?? fallback) as LpReportingHookError;
-  error.code = body.code ?? body.error ?? 'UNKNOWN';
-  error.status = status;
-  return error;
-}
-
-async function readContractResponse<TResponse>(
-  res: Response,
-  schema: ContractResponseSchema<TResponse>,
-  contractErrorMessage: string
-): Promise<TResponse> {
-  if (!res.ok) {
-    const errorBody = (await res.json().catch(() => ({}))) as Partial<DryRunErrorBody>;
-    throw buildHookError(res.status, errorBody, `HTTP ${res.status}`);
-  }
-
-  const raw = (await res.json()) as unknown;
-  const parsed = schema.safeParse(raw);
-  if (!parsed.success) {
-    const error = new Error(contractErrorMessage) as LpReportingHookError;
-    error.code = 'CONTRACT_PARSE_ERROR';
-    error.status = res.status;
-    throw error;
-  }
-
-  return parsed.data;
-}
 
 async function readReportPackageJsonExportResponse(
   res: Response
@@ -262,15 +221,14 @@ async function postMetricsDryRun(
   fundId: number,
   body: MetricsDryRunRequest
 ): Promise<MetricRunDryRunResponse> {
-  const res = await fetch(`/api/funds/${fundId}/metric-runs/dry-run`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    credentials: 'include',
-    body: JSON.stringify(body),
-  });
-
-  return readContractResponse(
-    res,
+  return contractFetch(
+    `/api/funds/${fundId}/metric-runs/dry-run`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify(body),
+    },
     MetricRunDryRunResponseSchema,
     'Metric-run dry-run response did not match the locked contract.'
   );
@@ -282,15 +240,14 @@ async function postMetricRunCommit(
 ): Promise<MetricRunCommitResponse> {
   MetricRunCommitRequestSchema.parse(body);
 
-  const res = await fetch(`/api/funds/${fundId}/metric-runs/commit`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    credentials: 'include',
-    body: JSON.stringify(body),
-  });
-
-  return readContractResponse(
-    res,
+  return contractFetch(
+    `/api/funds/${fundId}/metric-runs/commit`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify(body),
+    },
     MetricRunCommitResponseSchema,
     'Metric-run commit response did not match the locked contract.'
   );
