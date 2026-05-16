@@ -86,6 +86,74 @@ function makeDashboardSummary() {
   };
 }
 
+function makeDualForecast() {
+  return {
+    fundId: 42,
+    fundName: 'Fund Forty Two',
+    asOfDate: '2026-04-01T00:00:00.000Z',
+    series: [
+      {
+        quarterIndex: 0,
+        label: 'As of',
+        date: '2026-04-01T00:00:00.000Z',
+        construction: {
+          nav: 6_000_000,
+          calledCapital: 5_000_000,
+          distributions: 0,
+          tvpi: 1.2,
+          dpi: 0,
+          rvpi: 1.2,
+          irr: 0.2,
+        },
+        current: {
+          nav: 7_000_000,
+          calledCapital: 5_000_000,
+          distributions: 0,
+          tvpi: 1.4,
+          dpi: 0,
+          rvpi: 1.4,
+          irr: 0.18,
+        },
+      },
+      {
+        quarterIndex: 1,
+        label: 'Q+1',
+        date: '2026-07-01T00:00:00.000Z',
+        construction: {
+          nav: 8_000_000,
+          calledCapital: 7_000_000,
+          distributions: 0,
+          tvpi: 1.14,
+          dpi: 0,
+          rvpi: 1.14,
+          irr: 0.2,
+        },
+        current: {
+          nav: 9_000_000,
+          calledCapital: 7_500_000,
+          distributions: 500_000,
+          tvpi: 1.27,
+          dpi: 0.07,
+          rvpi: 1.2,
+          irr: 0.18,
+        },
+      },
+    ],
+    sources: {
+      construction: 'construction_forecast_jcurve',
+      current: 'projected_metrics_calculator',
+      actual: 'actual_metrics_calculator',
+    },
+    config: {
+      source: 'published',
+      version: 2,
+      publishedAt: '2026-03-01T00:00:00.000Z',
+      fallbackReason: null,
+    },
+    warnings: [],
+  };
+}
+
 describe('DualForecastDashboard', () => {
   afterEach(() => {
     cleanup();
@@ -119,7 +187,9 @@ describe('DualForecastDashboard', () => {
 
     const fetchSpy = vi
       .spyOn(globalThis, 'fetch')
-      .mockResolvedValue(new Response('server error', { status: 500, statusText: 'Server Error' }));
+      .mockImplementation(
+        async () => new Response('server error', { status: 500, statusText: 'Server Error' })
+      );
 
     renderWithQueryClient();
 
@@ -129,7 +199,9 @@ describe('DualForecastDashboard', () => {
       });
     });
 
-    expect(fetchSpy).toHaveBeenCalledWith('/api/fund-metrics/42', { credentials: 'include' });
+    expect(fetchSpy).toHaveBeenCalledWith('/api/funds/42/dual-forecast', {
+      credentials: 'include',
+    });
   });
 
   it('does not fetch deterministic forecasting data when fund context is demo mode', () => {
@@ -166,8 +238,8 @@ describe('DualForecastDashboard', () => {
         });
       }
 
-      if (url.includes('/api/fund-metrics/42')) {
-        return new Response(JSON.stringify({}), {
+      if (url.includes('/api/funds/42/dual-forecast')) {
+        return new Response(JSON.stringify(makeDualForecast()), {
           status: 200,
           headers: { 'Content-Type': 'application/json' },
         });
@@ -178,10 +250,11 @@ describe('DualForecastDashboard', () => {
 
     renderWithQueryClient();
 
-    expect(await screen.findByText('Projected scenario')).toBeInTheDocument();
+    expect(await screen.findAllByText('Construction Plan')).not.toHaveLength(0);
+    expect(screen.getAllByText('Current Forecast')).not.toHaveLength(0);
     expect(screen.getByText('API actuals')).toBeInTheDocument();
-    expect(screen.getByText(/projection, not actuals/i)).toBeInTheDocument();
-    expect(screen.getByText(/flat monthly deployment assumption/i)).toBeInTheDocument();
+    expect(screen.getByText(/quarterly nav comparison/i)).toBeInTheDocument();
+    expect(screen.getByText(/cumulative called capital by quarter/i)).toBeInTheDocument();
     expect(screen.queryByText('Live Data')).toBeNull();
     expect(screen.queryByText('Real-time')).toBeNull();
   });

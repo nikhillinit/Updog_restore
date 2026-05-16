@@ -14,10 +14,25 @@
  */
 
 import { storage } from '../storage';
-import type { UnifiedFundMetrics, MetricsCalculationError } from '@shared/types/metrics';
+import type {
+  ActualMetrics,
+  MetricsCalculationError,
+  ProjectedMetrics,
+  UnifiedFundMetrics,
+} from '@shared/types/metrics';
+import type {
+  DualForecastConfigMetadata,
+  DualForecastMetrics,
+  DualForecastPoint,
+  DualForecastResponse,
+} from '@shared/types/dual-forecast';
 import { ActualMetricsCalculator } from './actual-metrics-calculator';
 import { ProjectedMetricsCalculator } from './projected-metrics-calculator';
 import { VarianceCalculator } from './variance-calculator';
+import {
+  ConstructionForecastCalculator,
+  type ConstructionForecast,
+} from './construction-forecast-calculator';
 import { getFundAge, isConstructionPhase, type FundAge } from '@shared/lib/lifecycle-rules';
 import { funds, type Fund, type PortfolioCompany } from '@shared/schema';
 import { toDecimal } from '@shared/lib/decimal-utils';
@@ -43,6 +58,23 @@ interface MetricsFundConfig {
   reserveRatio?: number;
   targetCompanyCount: number;
 }
+
+interface ResolvedFundConfig {
+  config: MetricsFundConfig;
+  warnings: string[];
+  metadata: DualForecastConfigMetadata;
+}
+
+type MetricsFund = Fund & {
+  establishmentDate: string | Date | null;
+  isActive: boolean | null;
+};
+
+type MetricsPortfolioCompany = PortfolioCompany & {
+  currentStage: string | null;
+  investmentDate: Date | null;
+  ownershipCurrentPct: string | null;
+};
 
 const LEGACY_DEFAULT_TARGETS: MetricsFundConfig = {
   targetIRR: 0.25,
@@ -189,26 +221,17 @@ export class MetricsAggregator {
         throw this.createError('INSUFFICIENT_DATA', `Fund ${fundId} not found`, 'aggregator');
       }
       // Ensure fund object has optional nullable fields for projected calculator
-      const fund = fundFromDb as Fund & {
-        establishmentDate: string | Date | null;
-        isActive: boolean | null;
-      };
+      const fund = fundFromDb as MetricsFund;
 
       // Fetch portfolio companies
       const companiesFromDb = await storage.getPortfolioCompanies(fundId);
       // Type assert companies to include optional fields needed by projected calculator
-      const companies = companiesFromDb as Array<
-        PortfolioCompany & {
-          currentStage: string | null;
-          investmentDate: Date | null;
-          ownershipCurrentPct: string | null;
-        }
-      >;
+      const companies = companiesFromDb as MetricsPortfolioCompany[];
 
       // Fetch fund configuration
       const { config, warnings: configWarnings } = await this.resolveFundConfig(fundId);
       warnings.push(...configWarnings);
-      const effectiveFund =
+      const effectiveFund: MetricsFund =
         config.fundSizeOverride != null ? { ...fund, size: String(config.fundSizeOverride) } : fund;
 
       // Calculate all metric components in parallel with error handling
@@ -230,24 +253,13 @@ export class MetricsAggregator {
         warnings.push('Projections skipped for performance');
       } else {
         try {
-          // Check if fund is in construction phase (no investments yet)
-          const hasInvestments = companies.length > 0;
-          const fundStartDate = fund.establishmentDate ?? fund.createdAt;
-          const fundAge: FundAge = fundStartDate
-            ? getFundAge(fundStartDate)
-            : { years: 0, months: 0, quarters: 0, totalMonths: 0 };
-          const isConstruction = isConstructionPhase(fundAge, hasInvestments);
-
-          if (isConstruction) {
-            // Route to J-curve construction forecast
-            warnings.push('Using J-curve construction forecast (no investments yet)');
-            projected = await this.projectedCalculator.calculate(effectiveFund, companies, config, {
-              useConstructionForecast: true,
-            });
-          } else {
-            // Use standard projection engines
-            projected = await this.projectedCalculator.calculate(effectiveFund, companies, config);
-          }
+          projected = await this.calculateProjectedMetrics(
+            fund,
+            effectiveFund,
+            companies,
+            config,
+            warnings
+          );
         } catch (error) {
           projectedStatus = 'failed';
           warnings.push(
@@ -346,6 +358,92 @@ export class MetricsAggregator {
   }
 
   /**
+   * Get a dashboard-ready Construction Plan vs Current Forecast time series.
+   */
+  async getDualForecast(fundId: number): Promise<DualForecastResponse> {
+    const warnings: string[] = [];
+
+    try {
+      const fundFromDb = await this.getFundForMetrics(fundId);
+      if (!fundFromDb) {
+        throw this.createError('INSUFFICIENT_DATA', `Fund ${fundId} not found`, 'aggregator');
+      }
+
+      const fund = fundFromDb as MetricsFund;
+      const companiesFromDb = await storage.getPortfolioCompanies(fundId);
+      const companies = companiesFromDb as MetricsPortfolioCompany[];
+      const { config, warnings: configWarnings, metadata } = await this.resolveFundConfig(fundId);
+      warnings.push(...configWarnings);
+
+      const effectiveFund: MetricsFund =
+        config.fundSizeOverride != null ? { ...fund, size: String(config.fundSizeOverride) } : fund;
+
+      const actual = await this.actualCalculator.calculate(fundId);
+      const constructionStartIndex = this.getElapsedQuarterIndex(
+        effectiveFund.establishmentDate ?? effectiveFund.createdAt,
+        actual.asOfDate
+      );
+      const usesConstructionProjection = this.usesConstructionForecast(fund, companies);
+
+      let projected: ProjectedMetrics;
+      let currentProjectionStartIndex = 0;
+      try {
+        projected = await this.calculateProjectedMetrics(
+          fund,
+          effectiveFund,
+          companies,
+          config,
+          warnings
+        );
+        currentProjectionStartIndex = usesConstructionProjection ? constructionStartIndex + 1 : 0;
+      } catch (error) {
+        warnings.push(
+          `Projected metrics calculation failed: ${error instanceof Error ? error.message : 'Unknown error'}`
+        );
+        projected = this.getDefaultProjectedMetrics(config);
+      }
+
+      const constructionForecast = this.buildConstructionForecast(effectiveFund, config);
+      const series = this.buildDualForecastSeries(
+        actual,
+        projected,
+        constructionForecast,
+        toDecimal(effectiveFund.size.toString()),
+        config,
+        constructionStartIndex,
+        currentProjectionStartIndex
+      );
+
+      return {
+        fundId,
+        fundName: fund.name,
+        asOfDate: actual.asOfDate,
+        series,
+        sources: {
+          construction: 'construction_forecast_jcurve',
+          current: 'projected_metrics_calculator',
+          actual: 'actual_metrics_calculator',
+        },
+        config: metadata,
+        warnings,
+      };
+    } catch (error) {
+      console.error('Dual forecast aggregation failed:', error);
+
+      if (this.isMetricsError(error)) {
+        throw error;
+      }
+
+      throw this.createError(
+        'CALCULATION_FAILED',
+        error instanceof Error ? error.message : 'Unknown error during dual forecast calculation',
+        'aggregator',
+        error
+      );
+    }
+  }
+
+  /**
    * Invalidate cached metrics for a fund
    *
    * Call this when fund data changes (new investment, valuation update, etc.)
@@ -380,34 +478,294 @@ export class MetricsAggregator {
       : undefined;
   }
 
+  private async calculateProjectedMetrics(
+    fund: MetricsFund,
+    effectiveFund: MetricsFund,
+    companies: MetricsPortfolioCompany[],
+    config: MetricsFundConfig,
+    warnings: string[]
+  ): Promise<ProjectedMetrics> {
+    if (this.usesConstructionForecast(fund, companies)) {
+      warnings.push('Using J-curve construction forecast (no investments yet)');
+      return this.projectedCalculator.calculate(effectiveFund, companies, config, {
+        useConstructionForecast: true,
+      });
+    }
+
+    return this.projectedCalculator.calculate(effectiveFund, companies, config);
+  }
+
+  private usesConstructionForecast(
+    fund: MetricsFund,
+    companies: MetricsPortfolioCompany[]
+  ): boolean {
+    const hasInvestments = companies.length > 0;
+    const fundStartDate = fund.establishmentDate ?? fund.createdAt;
+    const fundAge: FundAge = fundStartDate
+      ? getFundAge(fundStartDate)
+      : { years: 0, months: 0, quarters: 0, totalMonths: 0 };
+
+    return isConstructionPhase(fundAge, hasInvestments);
+  }
+
+  private buildConstructionForecast(
+    fund: MetricsFund,
+    config: MetricsFundConfig
+  ): ConstructionForecast {
+    return ConstructionForecastCalculator.generateForecast({
+      fundSize: toDecimal(fund.size.toString()),
+      establishmentDate: fund.establishmentDate ?? fund.createdAt ?? new Date(),
+      targetTVPI: config.targetTVPI,
+      investmentPeriodYears: config.investmentPeriodYears,
+      fundLifeYears: config.fundTermYears,
+      navCalculationMode: 'standard',
+      finalDistributionCoefficient: 0.7,
+    });
+  }
+
+  private buildDualForecastSeries(
+    actual: ActualMetrics,
+    projected: ProjectedMetrics,
+    constructionForecast: ConstructionForecast,
+    fundSize: ReturnType<typeof toDecimal>,
+    config: MetricsFundConfig,
+    constructionStartIndex: number,
+    currentProjectionStartIndex: number
+  ): DualForecastPoint[] {
+    const constructionLength = Math.min(
+      constructionForecast.jCurvePath.nav.length,
+      constructionForecast.jCurvePath.tvpi.length,
+      constructionForecast.jCurvePath.calls.length
+    );
+    const projectedFutureLength = Math.max(
+      projected.projectedNAV.length,
+      projected.projectedDeployment.length,
+      projected.projectedDistributions.length
+    );
+    const constructionRemainingLength = Math.max(1, constructionLength - constructionStartIndex);
+    const horizon = Math.max(1, Math.min(constructionRemainingLength, projectedFutureLength + 1));
+
+    return Array.from({ length: horizon }, (_, quarterIndex) => ({
+      quarterIndex,
+      label: quarterIndex === 0 ? 'As of' : `Q+${quarterIndex}`,
+      date: this.addQuarters(actual.asOfDate, quarterIndex),
+      construction: this.mapConstructionMetrics(
+        constructionForecast,
+        fundSize,
+        config,
+        constructionStartIndex + quarterIndex
+      ),
+      current: this.mapCurrentForecastMetrics(
+        actual,
+        projected,
+        quarterIndex,
+        currentProjectionStartIndex
+      ),
+    }));
+  }
+
+  private mapConstructionMetrics(
+    forecast: ConstructionForecast,
+    fundSize: ReturnType<typeof toDecimal>,
+    config: MetricsFundConfig,
+    quarterIndex: number
+  ): DualForecastMetrics {
+    const safeIndex = Math.min(
+      quarterIndex,
+      Math.max(
+        0,
+        Math.min(
+          forecast.jCurvePath.nav.length,
+          forecast.jCurvePath.dpi.length,
+          forecast.jCurvePath.tvpi.length,
+          forecast.jCurvePath.calls.length
+        ) - 1
+      )
+    );
+    const calledCapital = fundSize
+      .times(this.cumulativeDecimal(forecast.jCurvePath.calls, safeIndex))
+      .toNumber();
+    const nav = fundSize.times(forecast.jCurvePath.nav[safeIndex] ?? 0).toNumber();
+    const distributions = fundSize.times(forecast.jCurvePath.dpi[safeIndex] ?? 0).toNumber();
+
+    return {
+      nav,
+      calledCapital,
+      distributions,
+      tvpi: forecast.jCurvePath.tvpi[safeIndex]?.toNumber() ?? null,
+      dpi: this.safeRatio(distributions, calledCapital),
+      rvpi: this.safeRatio(nav, calledCapital),
+      irr: config.targetIRR,
+    };
+  }
+
+  private mapCurrentForecastMetrics(
+    actual: ActualMetrics,
+    projected: ProjectedMetrics,
+    quarterIndex: number,
+    projectionStartIndex: number
+  ): DualForecastMetrics {
+    if (quarterIndex === 0) {
+      return {
+        nav: actual.currentNAV,
+        calledCapital: actual.totalCalled,
+        distributions: actual.totalDistributions,
+        tvpi: actual.tvpi,
+        dpi: actual.dpi,
+        rvpi: actual.rvpi,
+        irr: actual.irr,
+      };
+    }
+
+    const projectionIndex = projectionStartIndex + quarterIndex - 1;
+    const nav = this.valueAtOrLast(projected.projectedNAV, projectionIndex, actual.currentNAV);
+    const calledCapital =
+      actual.totalCalled +
+      this.cumulativeNumberFrom(
+        projected.projectedDeployment,
+        projectionStartIndex,
+        projectionIndex
+      );
+    const distributions =
+      actual.totalDistributions +
+      this.cumulativeNumberFrom(
+        projected.projectedDistributions,
+        projectionStartIndex,
+        projectionIndex
+      );
+
+    return {
+      nav,
+      calledCapital,
+      distributions,
+      tvpi: this.safeRatio(nav + distributions, calledCapital),
+      dpi: this.safeRatio(distributions, calledCapital),
+      rvpi: this.safeRatio(nav, calledCapital),
+      irr: projected.expectedIRR,
+    };
+  }
+
+  private addQuarters(asOfDate: string, quarterIndex: number): string {
+    const date = new Date(asOfDate);
+    const baseDate = Number.isNaN(date.getTime()) ? new Date() : date;
+    baseDate.setUTCMonth(baseDate.getUTCMonth() + quarterIndex * 3);
+    return baseDate.toISOString();
+  }
+
+  private getElapsedQuarterIndex(
+    startDateValue: Date | string | null | undefined,
+    asOfDateValue: string
+  ): number {
+    if (!startDateValue) {
+      return 0;
+    }
+
+    const startDate = new Date(startDateValue);
+    const asOfDate = new Date(asOfDateValue);
+    if (Number.isNaN(startDate.getTime()) || Number.isNaN(asOfDate.getTime())) {
+      return 0;
+    }
+
+    const elapsedMonths =
+      (asOfDate.getUTCFullYear() - startDate.getUTCFullYear()) * 12 +
+      (asOfDate.getUTCMonth() - startDate.getUTCMonth());
+    const adjustedElapsedMonths =
+      asOfDate.getUTCDate() < startDate.getUTCDate() ? elapsedMonths - 1 : elapsedMonths;
+
+    return Math.max(0, Math.floor(adjustedElapsedMonths / 3));
+  }
+
+  private cumulativeDecimal(values: ReturnType<typeof toDecimal>[], index: number) {
+    return values.slice(0, index + 1).reduce((sum, value) => sum.plus(value), toDecimal(0));
+  }
+
+  private cumulativeNumber(values: number[], index: number): number {
+    return values.slice(0, index + 1).reduce((sum, value) => sum + this.safeNumber(value), 0);
+  }
+
+  private cumulativeNumberFrom(values: number[], startIndex: number, endIndex: number): number {
+    const safeStart = Math.max(0, startIndex);
+    const safeEnd = Math.min(endIndex, values.length - 1);
+
+    if (safeEnd < safeStart) {
+      return 0;
+    }
+
+    return values
+      .slice(safeStart, safeEnd + 1)
+      .reduce((sum, value) => sum + this.safeNumber(value), 0);
+  }
+
+  private valueAtOrLast(values: number[], index: number, fallback: number): number {
+    if (values.length === 0) {
+      return fallback;
+    }
+
+    return this.safeNumber(values[Math.min(index, values.length - 1)] ?? fallback);
+  }
+
+  private safeRatio(numerator: number, denominator: number): number | null {
+    if (!Number.isFinite(denominator) || denominator <= 0) {
+      return null;
+    }
+
+    const ratio = numerator / denominator;
+    return Number.isFinite(ratio) ? ratio : null;
+  }
+
+  private safeNumber(value: number): number {
+    return Number.isFinite(value) ? value : 0;
+  }
+
+  private formatPublishedAt(value: Date | string | null | undefined): string | null {
+    if (!value) {
+      return null;
+    }
+
+    const date = value instanceof Date ? value : new Date(value);
+    return Number.isNaN(date.getTime()) ? null : date.toISOString();
+  }
+
   /**
    * Resolve published config into the metrics-target shape, with explicit
    * legacy fallback warnings when target fields are unavailable.
    */
-  private async resolveFundConfig(fundId: number): Promise<{
-    config: MetricsFundConfig;
-    warnings: string[];
-  }> {
+  private async resolveFundConfig(fundId: number): Promise<ResolvedFundConfig> {
     const publishedConfig = await storage.getFundConfig(fundId);
     if (!publishedConfig) {
+      const fallbackReason = 'No published fund config is available.';
       return {
         config: { ...LEGACY_DEFAULT_TARGETS },
         warnings: ['Using legacy generic targets because no published fund config is available.'],
+        metadata: {
+          source: 'legacy_default_no_published_config',
+          version: null,
+          publishedAt: null,
+          fallbackReason,
+        },
       };
     }
 
     const parsedConfig = MetricsTargetExtractionSchema.safeParse(publishedConfig.config);
     if (!parsedConfig.success) {
+      const fallbackReason = `Published config version ${publishedConfig.version} is invalid for target extraction.`;
       return {
         config: { ...LEGACY_DEFAULT_TARGETS },
         warnings: [
           `Using legacy generic targets because published config version ${publishedConfig.version} is invalid for target extraction.`,
         ],
+        metadata: {
+          source: 'legacy_default_invalid_config',
+          version: publishedConfig.version,
+          publishedAt: this.formatPublishedAt(publishedConfig.publishedAt),
+          fallbackReason,
+        },
       };
     }
 
     const draftConfig = parsedConfig.data;
     if (!draftConfig.targetMetrics) {
+      const fallbackReason = `Published config version ${publishedConfig.version} has no targetMetrics block.`;
       return {
         config: {
           ...LEGACY_DEFAULT_TARGETS,
@@ -420,6 +778,12 @@ export class MetricsAggregator {
         warnings: [
           `Using legacy generic targets because published config version ${publishedConfig.version} has no targetMetrics block.`,
         ],
+        metadata: {
+          source: 'legacy_default_missing_target_metrics',
+          version: publishedConfig.version,
+          publishedAt: this.formatPublishedAt(publishedConfig.publishedAt),
+          fallbackReason,
+        },
       };
     }
 
@@ -440,6 +804,12 @@ export class MetricsAggregator {
         targetCompanyCount: draftConfig.targetMetrics.targetCompanyCount,
       },
       warnings: [],
+      metadata: {
+        source: 'published',
+        version: publishedConfig.version,
+        publishedAt: this.formatPublishedAt(publishedConfig.publishedAt),
+        fallbackReason: null,
+      },
     };
   }
 

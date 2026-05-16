@@ -22,6 +22,7 @@ import calculationsRouter from './routes/calculations.js';
 import aiRouter from './routes/ai.js';
 import interleavedThinkingRouter from './routes/interleaved-thinking.js';
 import scenarioAnalysisRouter from './routes/scenario-analysis.js';
+import dualForecastRouter from './routes/dual-forecast.js';
 import allocationsRouter from './routes/allocations.js';
 import allocationScenariosRouter from './routes/allocation-scenarios.js';
 import backtestingRouter from './routes/backtesting.js';
@@ -203,6 +204,7 @@ export function makeApp() {
 
   // Scenario Analysis API (Construction vs Current, deal modeling)
   app.use('/api', scenarioAnalysisRouter);
+  app.use('/api', dualForecastRouter);
 
   // Keep the makeApp/serverless surface aligned with the canonical fund routes
   // used by the wizard bootstrap flow.
