@@ -135,6 +135,26 @@ const reExportPairs = [
     shim: 'client/src/core/cohorts/CohortEngine.ts',
   },
   {
+    source: 'shared/core/cohorts/analysis/advanced-engine.ts',
+    shim: 'client/src/core/cohorts/advanced-engine.ts',
+  },
+  {
+    source: 'shared/core/cohorts/analysis/resolvers.ts',
+    shim: 'client/src/core/cohorts/resolvers.ts',
+  },
+  {
+    source: 'shared/core/cohorts/analysis/company-cohorts.ts',
+    shim: 'client/src/core/cohorts/company-cohorts.ts',
+  },
+  {
+    source: 'shared/core/cohorts/analysis/cash-flows.ts',
+    shim: 'client/src/core/cohorts/cash-flows.ts',
+  },
+  {
+    source: 'shared/core/cohorts/analysis/metrics.ts',
+    shim: 'client/src/core/cohorts/metrics.ts',
+  },
+  {
     source: 'shared/core/liquidity/LiquidityEngine.ts',
     shim: 'client/src/core/LiquidityEngine.ts',
   },
@@ -189,7 +209,10 @@ async function resolveSourceFile(candidatePath: string): Promise<string | null> 
   return null;
 }
 
-async function getExportedNames(relativePath: string, visited = new Set<string>()): Promise<string[]> {
+async function getExportedNames(
+  relativePath: string,
+  visited = new Set<string>()
+): Promise<string[]> {
   const absolutePath = await resolveSourceFile(path.resolve(process.cwd(), relativePath));
   if (!absolutePath) {
     throw new Error(`Could not resolve source file for ${relativePath}`);

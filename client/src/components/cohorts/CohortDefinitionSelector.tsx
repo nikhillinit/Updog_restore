@@ -33,9 +33,9 @@ import type { VintageGranularity, CohortUnit } from '@shared/types';
 
 interface CohortDefinitionSelectorProps {
   /** Currently selected definition ID */
-  selectedId: number | undefined;
+  selectedId: string | undefined;
   /** Callback when selection changes */
-  onSelect: (id: number | undefined) => void;
+  onSelect: (id: string | undefined) => void;
   /** Compact mode for inline display */
   compact?: boolean;
 }
@@ -83,16 +83,14 @@ export function CohortDefinitionSelector({
     );
   };
 
-  const getGranularityIcon = () => (
-    <Calendar className="h-3 w-3" />
-  );
+  const getGranularityIcon = () => <Calendar className="h-3 w-3" />;
 
   if (compact) {
     return (
       <div className="flex items-center gap-2">
         <Select
-          value={selectedId?.toString() || 'default'}
-          onValueChange={(v) => onSelect(v === 'default' ? undefined : Number(v))}
+          value={selectedId ?? 'default'}
+          onValueChange={(v) => onSelect(v === 'default' ? undefined : v)}
         >
           <SelectTrigger className="w-64">
             <SelectValue placeholder="Select view..." />
@@ -111,7 +109,7 @@ export function CohortDefinitionSelector({
             {definitions
               .filter((d) => !d.isDefault)
               .map((def) => (
-                <SelectItem key={def.id} value={def.id.toString()}>
+                <SelectItem key={def.id} value={def.id}>
                   <span className="flex items-center gap-2">
                     {getUnitIcon(def.unit as CohortUnit)}
                     {def.name}
@@ -253,9 +251,7 @@ function CreateDefinitionDialog({
     <DialogContent className="sm:max-w-md">
       <DialogHeader>
         <DialogTitle>Create Cohort View</DialogTitle>
-        <DialogDescription>
-          Configure how investments are grouped and analyzed.
-        </DialogDescription>
+        <DialogDescription>Configure how investments are grouped and analyzed.</DialogDescription>
       </DialogHeader>
       <div className="space-y-4 py-4">
         <div className="space-y-2">

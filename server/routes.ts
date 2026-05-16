@@ -23,6 +23,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
   const dealPipelineRoutes = await import('./routes/deal-pipeline.js');
   app.use('/api/deals', dealPipelineRoutes.dealPipelineRouter);
 
+  // Cohort Analysis routes
+  const cohortAnalysisRoutes = await import('./routes/cohort-analysis.js');
+  app.use('/api/cohorts', cohortAnalysisRoutes.default);
+
   // Feature flags routes
   const flagsRoutes = await import('./routes/flags.js');
   app.use('/api/flags', flagsRoutes.flagsRouter);
