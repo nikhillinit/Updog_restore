@@ -4,22 +4,22 @@ last_updated: 2026-05-16
 
 # Staleness Report
 
-_Generated: 2026-05-16T18:27:41.012Z_ _Source: docs/DISCOVERY-MAP.source.yaml_
+_Generated: 2026-05-16T21:14:59.529Z_ _Source: docs/DISCOVERY-MAP.source.yaml_
 
 ## Summary
 
 | Metric              | Value |
 | ------------------- | ----- |
-| Total Documents     | 710   |
-| Stale Documents     | 94    |
-| Missing Frontmatter | 12    |
+| Total Documents     | 712   |
+| Stale Documents     | 96    |
+| Missing Frontmatter | 14    |
 
 ### By Status
 
 | Status                  | Count |
 | ----------------------- | ----- |
 | ACTIVE                  | 491   |
-| UNKNOWN                 | 131   |
+| UNKNOWN                 | 133   |
 | HISTORICAL              | 35    |
 | DRAFT                   | 31    |
 | VERIFIED                | 9     |
@@ -73,6 +73,8 @@ Documents that need review (older than their cadence threshold):
 | `docs/skills/WIZARD_INDEX.md`                                               | Never        | 999      | No                   | Unassigned |
 | `docs/skills/template-refl.md`                                              | Never        | 999      | No                   | Unassigned |
 | `docs/superpowers/plans/2026-05-15-term-conflict-tier2-fixes.md`            | Never        | 999      | YES - verify!        | Unassigned |
+| `docs/superpowers/plans/2026-05-16-variance-calculation-extraction.md`      | Never        | 999      | YES - verify!        | Unassigned |
+| `docs/superpowers/specs/2026-05-16-refactor-stability-strategy-design.md`   | Never        | 999      | YES - verify!        | Unassigned |
 | `.claude/skills/planning-with-files/CHANGELOG.md`                           | 2026-01-19   | 117      | No                   | Unassigned |
 | `cheatsheets/agent-architecture.md`                                         | 2026-01-19   | 117      | No                   | Unassigned |
 | `cheatsheets/agent-memory/database-expert-schema-tdd.md`                    | 2026-01-19   | 117      | No                   | Unassigned |
@@ -88,10 +90,8 @@ Documents that need review (older than their cadence threshold):
 | `cheatsheets/command-summary.md`                                            | 2026-01-19   | 117      | No                   | Unassigned |
 | `cheatsheets/correct-workflow-example.md`                                   | 2026-01-19   | 117      | No                   | Unassigned |
 | `cheatsheets/document-review-workflow.md`                                   | 2026-01-19   | 117      | No                   | Unassigned |
-| `cheatsheets/documentation-validation.md`                                   | 2026-01-19   | 117      | No                   | Unassigned |
-| `cheatsheets/emoji-free-documentation.md`                                   | 2026-01-19   | 117      | YES - verify!        | Unassigned |
 
-_...and 44 more stale documents._
+_...and 46 more stale documents._
 
 ## Documents with Execution Claims (Need Verification)
 
@@ -112,6 +112,10 @@ be verified:
       days old)
 - [ ] **docs/superpowers/plans/2026-05-15-term-conflict-tier2-fixes.md** (999
       days old)
+- [ ] **docs/superpowers/plans/2026-05-16-variance-calculation-extraction.md**
+      (999 days old)
+- [ ] **docs/superpowers/specs/2026-05-16-refactor-stability-strategy-design.md**
+      (999 days old)
 
 ## Missing Frontmatter
 
@@ -129,6 +133,8 @@ Documents without proper YAML frontmatter:
 - [ ] `docs/skills/SKILLS_INDEX.md`
 - [ ] `docs/skills/WIZARD_INDEX.md`
 - [ ] `docs/superpowers/plans/2026-05-15-term-conflict-tier2-fixes.md`
+- [ ] `docs/superpowers/plans/2026-05-16-variance-calculation-extraction.md`
+- [ ] `docs/superpowers/specs/2026-05-16-refactor-stability-strategy-design.md`
 
 ---
 
