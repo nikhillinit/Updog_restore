@@ -7,6 +7,14 @@
 
 import { db } from '../db';
 import { BaselineService } from './variance-tracking/baseline-service';
+import {
+  hasExecuteQuery,
+  hasReturningQuery,
+  isEmptyConfigPayload,
+  normalizeTriggeredAlertSeverity,
+  toNullableDecimalString,
+  type TriggeredAlertData,
+} from './variance-tracking/alert-helpers';
 import { isUniqueConstraintViolation } from './variance-tracking/db-error-helpers';
 import { Decimal, toDecimal } from '@shared/lib/decimal-utils';
 import { isDeepStrictEqual } from 'node:util';
@@ -57,73 +65,6 @@ import { SYSTEM_ACTOR_ID } from '@shared/constants/system-actor';
 
 export { BaselineService };
 export type { BaselineCreationMode } from './variance-tracking/baseline-service';
-
-interface TriggeredAlertData {
-  ruleId: string;
-  ruleName?: string;
-  metricName: string;
-  thresholdValue: number;
-  actualValue: number | null;
-  severity: 'info' | 'warning' | 'critical' | 'urgent';
-}
-
-function isTriggeredAlertSeverity(value: unknown): value is TriggeredAlertData['severity'] {
-  return value === 'info' || value === 'warning' || value === 'critical' || value === 'urgent';
-}
-
-function normalizeTriggeredAlertSeverity(value: unknown): TriggeredAlertData['severity'] {
-  return isTriggeredAlertSeverity(value) ? value : 'warning';
-}
-
-function hasReturningQuery(
-  value: unknown
-): value is { returning: () => Promise<PerformanceAlert[]> } {
-  return (
-    value != null &&
-    typeof value === 'object' &&
-    'returning' in value &&
-    typeof (value as { returning?: unknown }).returning === 'function'
-  );
-}
-
-function hasExecuteQuery(value: unknown): value is { execute: () => Promise<PerformanceAlert[]> } {
-  return (
-    value != null &&
-    typeof value === 'object' &&
-    'execute' in value &&
-    typeof (value as { execute?: unknown }).execute === 'function'
-  );
-}
-
-function toNullableDecimalString(
-  value: Decimal | string | number | null | undefined
-): string | null | undefined {
-  if (value === undefined) {
-    return undefined;
-  }
-
-  if (value === null) {
-    return null;
-  }
-
-  return value instanceof Decimal ? value.toString() : String(value);
-}
-
-function isEmptyConfigPayload(value: unknown): boolean {
-  if (value == null) {
-    return true;
-  }
-
-  if (Array.isArray(value)) {
-    return value.length === 0;
-  }
-
-  if (typeof value === 'object') {
-    return Object.keys(value as Record<string, unknown>).length === 0;
-  }
-
-  return false;
-}
 
 function sumInvestmentAmounts(investmentRows: Investment[] | null | undefined): Decimal {
   if (!investmentRows?.length) {
