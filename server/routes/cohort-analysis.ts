@@ -25,6 +25,7 @@ import {
   investmentLots,
 } from '@shared/schema';
 import { CohortAnalyzeRequestSchema, CohortAnalyzeResponseSchema } from '@shared/types';
+import { analyzeCohorts } from '@shared/core/cohorts/analysis/advanced-engine';
 import { normalizeSector, slugifySector } from '@shared/utils/sector-normalization';
 
 const router = express.Router();
@@ -187,9 +188,6 @@ router['post']('/analyze', async (req: Request, res: Response) => {
       .from(investmentLots)
       .innerJoin(investments, eq(investmentLots.investmentId, investments.id))
       .where(eq(investments.fundId, fundId));
-
-    // Import and run the analysis engine dynamically to avoid circular imports
-    const { analyzeCohorts } = await import('../../client/src/core/cohorts/advanced-engine.js');
 
     const response = analyzeCohorts({
       request,
@@ -439,10 +437,17 @@ router['post']('/sector-mappings', async (req: Request, res: Response) => {
 // COHORT DEFINITIONS ENDPOINTS
 // =============================================================================
 
+const QueryBooleanSchema = z.preprocess((value) => {
+  if (value === undefined) return false;
+  if (value === 'true') return true;
+  if (value === 'false') return false;
+  return value;
+}, z.boolean());
+
 const ListDefinitionsQuerySchema = z.object({
   fundId: z.coerce.number().int().positive(),
   unit: z.enum(['company', 'investment']).optional(),
-  includeArchived: z.coerce.boolean().default(false),
+  includeArchived: QueryBooleanSchema,
 });
 
 /**
