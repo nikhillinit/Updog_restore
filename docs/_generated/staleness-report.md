@@ -4,22 +4,22 @@ last_updated: 2026-05-16
 
 # Staleness Report
 
-_Generated: 2026-05-16T10:12:01.481Z_ _Source: docs/DISCOVERY-MAP.source.yaml_
+_Generated: 2026-05-16T18:27:41.012Z_ _Source: docs/DISCOVERY-MAP.source.yaml_
 
 ## Summary
 
 | Metric              | Value |
 | ------------------- | ----- |
-| Total Documents     | 711   |
-| Stale Documents     | 96    |
-| Missing Frontmatter | 13    |
+| Total Documents     | 710   |
+| Stale Documents     | 94    |
+| Missing Frontmatter | 12    |
 
 ### By Status
 
 | Status                  | Count |
 | ----------------------- | ----- |
 | ACTIVE                  | 491   |
-| UNKNOWN                 | 132   |
+| UNKNOWN                 | 131   |
 | HISTORICAL              | 35    |
 | DRAFT                   | 31    |
 | VERIFIED                | 9     |
@@ -73,7 +73,6 @@ Documents that need review (older than their cadence threshold):
 | `docs/skills/WIZARD_INDEX.md`                                               | Never        | 999      | No                   | Unassigned |
 | `docs/skills/template-refl.md`                                              | Never        | 999      | No                   | Unassigned |
 | `docs/superpowers/plans/2026-05-15-term-conflict-tier2-fixes.md`            | Never        | 999      | YES - verify!        | Unassigned |
-| `docs/superpowers/plans/2026-05-16-cohort-analysis-boundary-remediation.md` | Never        | 999      | No                   | Unassigned |
 | `.claude/skills/planning-with-files/CHANGELOG.md`                           | 2026-01-19   | 117      | No                   | Unassigned |
 | `cheatsheets/agent-architecture.md`                                         | 2026-01-19   | 117      | No                   | Unassigned |
 | `cheatsheets/agent-memory/database-expert-schema-tdd.md`                    | 2026-01-19   | 117      | No                   | Unassigned |
@@ -90,15 +89,15 @@ Documents that need review (older than their cadence threshold):
 | `cheatsheets/correct-workflow-example.md`                                   | 2026-01-19   | 117      | No                   | Unassigned |
 | `cheatsheets/document-review-workflow.md`                                   | 2026-01-19   | 117      | No                   | Unassigned |
 | `cheatsheets/documentation-validation.md`                                   | 2026-01-19   | 117      | No                   | Unassigned |
+| `cheatsheets/emoji-free-documentation.md`                                   | 2026-01-19   | 117      | YES - verify!        | Unassigned |
 
-_...and 46 more stale documents._
+_...and 44 more stale documents._
 
 ## Documents with Execution Claims (Need Verification)
 
 These documents contain phrases like "tests pass", "PR merged", etc. and should
 be verified:
 
-- [ ] **CHANGELOG.md** (41 days old)
 - [ ] **cheatsheets/emoji-free-documentation.md** (117 days old)
 - [ ] **cheatsheets/schema-alignment.md** (117 days old)
 - [ ] **docs/notebooklm-sources/reserves/01-overview.md** (117 days old)
@@ -130,7 +129,6 @@ Documents without proper YAML frontmatter:
 - [ ] `docs/skills/SKILLS_INDEX.md`
 - [ ] `docs/skills/WIZARD_INDEX.md`
 - [ ] `docs/superpowers/plans/2026-05-15-term-conflict-tier2-fixes.md`
-- [ ] `docs/superpowers/plans/2026-05-16-cohort-analysis-boundary-remediation.md`
 
 ---
 
