@@ -276,20 +276,30 @@ export function dedupe(options: DedupeOptions = {}) {
     const originalSend = res.send;
     const originalJson = res.json;
 
-    let _responseBody: unknown;
     let responseCaptured = false;
 
-    // Override send method
-    res.send = function (body?: unknown) {
+    const completeInflight = (response: DedupedResponse) => {
+      if (config.useSingleflight) {
+        resolveInflight!(response);
+        inflightRequests.delete(key);
+      }
+    };
+
+    const rejectInflightIfPending = () => {
+      if (config.useSingleflight && !responseCaptured) {
+        rejectInflight!(new Error(`Request failed with status ${res.statusCode}`));
+        inflightRequests.delete(key);
+      }
+    };
+
+    const cacheResponse = (getBody: () => unknown) => {
       if (!responseCaptured && [200, 201].includes(res.statusCode)) {
-        _responseBody = body;
         responseCaptured = true;
 
-        // Store response asynchronously
         const response: DedupedResponse = {
           statusCode: res.statusCode,
           headers: res.getHeaders() as Record<string, string>,
-          body: typeof body === 'string' ? JSON.parse(body) : body,
+          body: getBody(),
           timestamp: Date.now(),
           requestCount: 1,
         };
@@ -298,16 +308,16 @@ export function dedupe(options: DedupeOptions = {}) {
           console.error('[Dedupe] Failed to cache response:', error);
         });
 
-        // Resolve in-flight promise
-        if (config.useSingleflight) {
-          resolveInflight!(response);
-          inflightRequests.delete(key);
-        }
-      } else if (config.useSingleflight && !responseCaptured) {
-        // Reject in-flight promise on error
-        rejectInflight!(new Error(`Request failed with status ${res.statusCode}`));
-        inflightRequests.delete(key);
+        completeInflight(response);
+        return;
       }
+
+      rejectInflightIfPending();
+    };
+
+    // Override send method
+    res.send = function (body?: unknown) {
+      cacheResponse(() => (typeof body === 'string' ? JSON.parse(body) : body));
 
       res.setHeader('X-Dedup-Key', key.substring(0, 8));
       return originalSend.call(this, body);
@@ -315,33 +325,7 @@ export function dedupe(options: DedupeOptions = {}) {
 
     // Override json method
     res.json = function (body?: unknown) {
-      if (!responseCaptured && [200, 201].includes(res.statusCode)) {
-        _responseBody = body;
-        responseCaptured = true;
-
-        // Store response asynchronously
-        const response: DedupedResponse = {
-          statusCode: res.statusCode,
-          headers: res.getHeaders() as Record<string, string>,
-          body,
-          timestamp: Date.now(),
-          requestCount: 1,
-        };
-
-        storeResponse(key, response, config).catch((error: unknown) => {
-          console.error('[Dedupe] Failed to cache response:', error);
-        });
-
-        // Resolve in-flight promise
-        if (config.useSingleflight) {
-          resolveInflight!(response);
-          inflightRequests.delete(key);
-        }
-      } else if (config.useSingleflight && !responseCaptured) {
-        // Reject in-flight promise on error
-        rejectInflight!(new Error(`Request failed with status ${res.statusCode}`));
-        inflightRequests.delete(key);
-      }
+      cacheResponse(() => body);
 
       res.setHeader('X-Dedup-Key', key.substring(0, 8));
       return originalJson.call(this, body);
