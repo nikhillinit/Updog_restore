@@ -53,6 +53,41 @@ describe('CashflowManagementStep', () => {
     expect(fundStore.getState().fundExpenses).toHaveLength(5);
   });
 
+  it('keeps suggested expenses available for partial expense lists without duplicating entries', async () => {
+    act(() => {
+      fundStore.setState(
+        {
+          ...fundStore.getState(),
+          fundExpenses: [
+            {
+              id: 'manual-legal',
+              category: 'Legal & Regulatory',
+              monthlyAmount: 1000,
+              startMonth: 1,
+            },
+          ],
+        },
+        true
+      );
+    });
+
+    render(<CashflowManagementStep />);
+
+    await userEvent.click(screen.getByRole('button', { name: 'Add Suggested Expenses' }));
+
+    const afterFirstClick = fundStore.getState().fundExpenses;
+    expect(
+      afterFirstClick.filter((expense) => expense.category === 'Legal & Regulatory')
+    ).toHaveLength(1);
+    expect(afterFirstClick).toEqual(
+      expect.arrayContaining([expect.objectContaining({ category: 'Audit & Tax' })])
+    );
+    expect(afterFirstClick).toHaveLength(5);
+
+    await userEvent.click(screen.getByRole('button', { name: 'Add Suggested Expenses' }));
+    expect(fundStore.getState().fundExpenses).toHaveLength(5);
+  });
+
   it('stores fixed-term expense end months only when the duration is explicit', async () => {
     render(<CashflowManagementStep />);
 

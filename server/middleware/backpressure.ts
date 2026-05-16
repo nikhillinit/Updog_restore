@@ -148,7 +148,7 @@ export function createBackpressureMiddleware(options?: BackpressureOptions) {
       console.warn('[Backpressure] Server under pressure:', reason);
 
       // Set retry header
-      res['setHeader']('Retry-After', '10');
+      res.setHeader('Retry-After', '10');
 
       // Return 503 Service Unavailable
       return res.status(503).json({

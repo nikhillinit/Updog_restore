@@ -426,6 +426,7 @@ export function StressPanel({ fundId }: StressPanelProps): JSX.Element {
         {!mutation.isPending && error && (
           <SensitivityRunErrorCard
             error={error}
+            fundId={fundId}
             onRetry={handleSubmit}
             retryDisabled={runDisabled}
             retryDisabledReason={runDisabledReason ?? null}

@@ -16,7 +16,7 @@ metricsRouter['get']('/metrics', async (req: Request, res: Response) => {
   try {
     const metrics = await getMetrics();
 
-    res['set']({
+    res.set({
       'Content-Type': getContentType(),
       'Cache-Control': 'no-cache, no-store, must-revalidate',
       Pragma: 'no-cache',

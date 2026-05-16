@@ -114,6 +114,7 @@ export default function CashflowManagementStep() {
   const { currentFund } = useFundContext();
   const fundSize = currentFund?.size ? currentFund.size / 1000000 : 50; // Convert to millions for calculations
   const fundExpenses = useFundSelector((s) => s.fundExpenses);
+  const suggestedExpenses = React.useMemo(() => buildSuggestedFundExpenses(fundSize), [fundSize]);
 
   // Actions
   const { addFundExpense, removeFundExpense } = useFundActions((s) => ({
@@ -190,7 +191,10 @@ export default function CashflowManagementStep() {
   };
 
   const handleAddSuggestedExpenses = () => {
-    buildSuggestedFundExpenses(fundSize).forEach(addFundExpense);
+    const existingCategories = new Set(fundExpenses.map((expense) => expense.category));
+    suggestedExpenses
+      .filter((expense) => !existingCategories.has(expense.category))
+      .forEach(addFundExpense);
   };
 
   const handleNext = () => {
@@ -260,7 +264,15 @@ export default function CashflowManagementStep() {
 
               {/* Expense List */}
               <div className="space-y-4">
-                <h3 className="text-lg font-inter font-bold text-[#292929]">Current Expenses</h3>
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                  <h3 className="text-lg font-inter font-bold text-[#292929]">Current Expenses</h3>
+                  {fundExpenses.length > 0 && (
+                    <Button type="button" variant="outline" onClick={handleAddSuggestedExpenses}>
+                      <Plus aria-hidden="true" className="h-4 w-4 mr-2" />
+                      Add Suggested Expenses
+                    </Button>
+                  )}
+                </div>
                 {fundExpenses.length === 0 ? (
                   <Alert>
                     <AlertCircle aria-hidden="true" className="h-4 w-4" />

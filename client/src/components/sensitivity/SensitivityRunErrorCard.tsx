@@ -1,6 +1,8 @@
+import { useEffect, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import type { SensitivityHookError } from '@/hooks/useSensitivityRuns';
+import { Sentry } from '@/monitoring';
 
 interface SensitivityRunErrorCardProps {
   error: SensitivityHookError;
@@ -8,6 +10,7 @@ interface SensitivityRunErrorCardProps {
   retryDisabled: boolean;
   retryDisabledReason: string | null;
   testIdPrefix: 'one-way' | 'two-way' | 'stress';
+  fundId?: number | null;
 }
 
 interface ErrorCopy {
@@ -40,6 +43,7 @@ function getErrorCopy(error: SensitivityHookError): ErrorCopy {
 
 export function SensitivityRunErrorCard({
   error,
+  fundId,
   onRetry,
   retryDisabled,
   retryDisabledReason,
@@ -47,6 +51,34 @@ export function SensitivityRunErrorCard({
 }: SensitivityRunErrorCardProps) {
   const copy = getErrorCopy(error);
   const disabledReasonId = `${testIdPrefix}-retry-disabled-reason`;
+  const reportedErrors = useRef(new WeakSet<SensitivityHookError>());
+
+  useEffect(() => {
+    if (error.code === 'NO_PUBLISHED_CONFIG') {
+      return;
+    }
+
+    if (reportedErrors.current.has(error)) {
+      return;
+    }
+    reportedErrors.current.add(error);
+
+    Sentry.withScope((scope) => {
+      scope.setLevel('error');
+      scope.setTag('sensitivity.panel', testIdPrefix);
+      if (fundId != null) {
+        scope.setTag('fund.id', String(fundId));
+      }
+      scope.setContext('sensitivityRunError', {
+        code: error.code ?? 'UNKNOWN',
+        message: error.message,
+        status: error.status ?? null,
+        panel: testIdPrefix,
+        fundId: fundId ?? null,
+      });
+      Sentry.captureException(error);
+    });
+  }, [error, fundId, testIdPrefix]);
 
   return (
     <Card className="border-red-200" data-testid={`${testIdPrefix}-error`}>

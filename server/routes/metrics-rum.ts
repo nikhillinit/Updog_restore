@@ -190,7 +190,7 @@ metricsRumRouter.post(
 
 // Expose RUM metrics separately from main metrics
 metricsRumRouter['get']('/metrics/rum', (req: Request, res: Response) => {
-  res['set']('Content-Type', rumRegistry.contentType);
+  res.set('Content-Type', rumRegistry.contentType);
   rumRegistry
     .metrics()
     .then((metrics) => {

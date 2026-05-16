@@ -28,6 +28,7 @@ import {
   scoringModels,
   pipelineActivities,
 } from '@shared/schema';
+import { CompanySectorSchema, CompanyStageSchema } from '@shared/company-taxonomy';
 import { eq, and, desc, asc, lt, or, sql, inArray } from 'drizzle-orm';
 import { idempotency } from '../middleware/idempotency';
 import { enforceProvidedFundScope } from '../lib/auth/provided-fund-scope';
@@ -52,15 +53,7 @@ const DealStatusEnum = z.enum([
 
 const DealPriorityEnum = z.enum(['high', 'medium', 'low']);
 
-const DealStageEnum = z.enum([
-  'Pre-seed',
-  'Seed',
-  'Series A',
-  'Series B',
-  'Series C',
-  'Growth',
-  'Late Stage',
-]);
+const DealStageEnum = CompanyStageSchema;
 
 const SourceTypeEnum = z.enum([
   'Referral',
@@ -75,7 +68,7 @@ const SourceTypeEnum = z.enum([
 const CreateDealSchema = z.object({
   fundId: z.number().int().positive().optional(),
   companyName: z.string().min(1, 'Company name is required').max(255),
-  sector: z.string().min(1, 'Sector is required').max(100),
+  sector: CompanySectorSchema,
   stage: DealStageEnum,
   sourceType: SourceTypeEnum,
   dealSize: z.number().positive().optional(),
@@ -834,7 +827,7 @@ router['get']('/:id/diligence', async (req: Request, res: Response) => {
 
 const ImportRowSchema = z.object({
   companyName: z.string().min(1).max(255),
-  sector: z.string().min(1).max(100),
+  sector: CompanySectorSchema,
   stage: DealStageEnum,
   sourceType: SourceTypeEnum,
   dealSize: z.number().positive().optional(),
@@ -1228,3 +1221,8 @@ router['post']('/opportunities/bulk/archive', idempotency, async (req: Request, 
 
 export default router;
 export { router as dealPipelineRouter };
+export const dealPipelineValidationSchemas = {
+  createDeal: CreateDealSchema,
+  updateDeal: UpdateDealSchema,
+  importConfirm: ImportConfirmSchema,
+} as const;

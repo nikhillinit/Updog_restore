@@ -174,7 +174,7 @@ router['get']('/realtime', (req: Request, res: Response) => {
       },
     });
 
-    res['write'](`data: ${data}\n\n`);
+    res.write(`data: ${data}\n\n`);
   };
 
   const sendAlert = (alert: {
@@ -195,7 +195,7 @@ router['get']('/realtime', (req: Request, res: Response) => {
       },
     });
 
-    res['write'](`data: ${data}\n\n`);
+    res.write(`data: ${data}\n\n`);
   };
 
   // Listen for new metrics and alerts
@@ -204,7 +204,7 @@ router['get']('/realtime', (req: Request, res: Response) => {
 
   // Send heartbeat every 30 seconds
   const heartbeat = setInterval(() => {
-    res['write'](`data: ${JSON.stringify({ type: 'heartbeat', timestamp: Date.now() })}\n\n`);
+    res.write(`data: ${JSON.stringify({ type: 'heartbeat', timestamp: Date.now() })}\n\n`);
   }, 30000);
 
   // Clean up on disconnect

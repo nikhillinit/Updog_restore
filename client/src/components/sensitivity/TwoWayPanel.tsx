@@ -641,6 +641,7 @@ export function TwoWayPanel({ fundId }: TwoWayPanelProps): JSX.Element {
         {!mutation.isPending && error && (
           <SensitivityRunErrorCard
             error={error}
+            fundId={fundId}
             onRetry={handleSubmit}
             retryDisabled={runDisabled}
             retryDisabledReason={runDisabledReason ?? null}

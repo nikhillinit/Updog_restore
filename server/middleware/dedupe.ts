@@ -225,9 +225,9 @@ export function dedupe(options: DedupeOptions = {}) {
         key.substring(0, 8)
       );
 
-      res['setHeader']('X-Request-Dedup', 'true');
-      res['setHeader']('X-Dedup-Count', String(cached.requestCount));
-      res['setHeader']('X-Dedup-Key', key.substring(0, 8));
+      res.setHeader('X-Request-Dedup', 'true');
+      res.setHeader('X-Dedup-Count', String(cached.requestCount));
+      res.setHeader('X-Dedup-Key', key.substring(0, 8));
 
       // Restore headers
       Object.entries(cached.headers).forEach(([name, value]) => {
@@ -235,7 +235,7 @@ export function dedupe(options: DedupeOptions = {}) {
           !name.toLowerCase().startsWith('x-request-dedup') &&
           !name.toLowerCase().startsWith('x-dedup')
         ) {
-          res['setHeader'](name, value);
+          res.setHeader(name, value);
         }
       });
 
@@ -249,8 +249,8 @@ export function dedupe(options: DedupeOptions = {}) {
       try {
         const result = (await inflightRequests['get'](key)) as DedupedResponse;
 
-        res['setHeader']('X-Request-Dedup', 'inflight');
-        res['setHeader']('X-Dedup-Key', key.substring(0, 8));
+        res.setHeader('X-Request-Dedup', 'inflight');
+        res.setHeader('X-Dedup-Key', key.substring(0, 8));
 
         return res.status(result.statusCode).json(result.body);
       } catch (error: unknown) {
@@ -309,7 +309,7 @@ export function dedupe(options: DedupeOptions = {}) {
         inflightRequests.delete(key);
       }
 
-      res['setHeader']('X-Dedup-Key', key.substring(0, 8));
+      res.setHeader('X-Dedup-Key', key.substring(0, 8));
       return originalSend.call(this, body);
     };
 
@@ -343,13 +343,13 @@ export function dedupe(options: DedupeOptions = {}) {
         inflightRequests.delete(key);
       }
 
-      res['setHeader']('X-Dedup-Key', key.substring(0, 8));
+      res.setHeader('X-Dedup-Key', key.substring(0, 8));
       return originalJson.call(this, body);
     };
 
     // Clean up in-flight on error
     if (config.useSingleflight) {
-      res['on']('finish', () => {
+      res.on('finish', () => {
         if (!responseCaptured && inflightRequests.has(key)) {
           rejectInflight!(new Error('Request finished without response'));
           inflightRequests.delete(key);

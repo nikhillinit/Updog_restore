@@ -295,13 +295,13 @@ export function idempotency(options: IdempotencyOptions = {}) {
       // Return cached response
       logger.info('[Idempotency] Returning cached response for key: %s', key);
 
-      res['setHeader']('Idempotency-Replay', 'true');
-      res['setHeader']('Idempotency-Key', key);
+      res.setHeader('Idempotency-Replay', 'true');
+      res.setHeader('Idempotency-Key', key);
 
       // Restore headers
       Object.entries(cached.headers).forEach(([name, value]) => {
         if (!name.toLowerCase().startsWith('idempotency')) {
-          res['setHeader'](name, value);
+          res.setHeader(name, value);
         }
       });
 
@@ -312,7 +312,7 @@ export function idempotency(options: IdempotencyOptions = {}) {
     const lockKey = `${config.prefix}:${key}:lock`;
     const processLockKey = `${config.prefix}:${key}`;
     if (inProcessLocks.has(processLockKey)) {
-      return res['setHeader']('Retry-After', '30').status(409).json({
+      return res.setHeader('Retry-After', '30').status(409).json({
         error: 'request_in_progress',
         message: 'Request with this idempotency key is currently being processed',
         retryAfter: 30,
@@ -336,7 +336,7 @@ export function idempotency(options: IdempotencyOptions = {}) {
         if (!locked) {
           // Another request is processing this key
           inProcessLocks.delete(processLockKey);
-          return res['setHeader']('Retry-After', '30').status(409).json({
+          return res.setHeader('Retry-After', '30').status(409).json({
             error: 'request_in_progress',
             message: 'Request with this idempotency key is currently being processed',
             retryAfter: 30,
@@ -411,7 +411,7 @@ export function idempotency(options: IdempotencyOptions = {}) {
           .finally(cleanupLock);
       }
 
-      res['setHeader']('Idempotency-Key', key);
+      res.setHeader('Idempotency-Key', key);
       return originalSend.call(this, body);
     };
 
@@ -437,13 +437,13 @@ export function idempotency(options: IdempotencyOptions = {}) {
           .finally(cleanupLock);
       }
 
-      res['setHeader']('Idempotency-Key', key);
+      res.setHeader('Idempotency-Key', key);
       return originalJson.call(this, body);
     };
 
     // Handle responses that are not cached plus abnormal request/response termination.
-    res['once']('finish', cleanupResponseLock);
-    res['once']('close', cleanupResponseLock);
+    res.once('finish', cleanupResponseLock);
+    res.once('close', cleanupResponseLock);
     req['on']('error', cleanupLock);
 
     next();

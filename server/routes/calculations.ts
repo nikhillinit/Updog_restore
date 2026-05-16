@@ -78,8 +78,8 @@ router['post']('/export-csv', async (req: Request, res: Response) => {
     const outputs = runFundModel(inputs);
     const csv = convertToCSV(outputs.periodResults);
 
-    res['setHeader']('Content-Type', 'text/csv');
-    res['setHeader']('Content-Disposition', 'attachment; filename="fund-model-export.csv"');
+    res.setHeader('Content-Type', 'text/csv');
+    res.setHeader('Content-Disposition', 'attachment; filename="fund-model-export.csv"');
     res.status(200).send(csv);
   } catch (error: unknown) {
     if (isZodError(error)) {
