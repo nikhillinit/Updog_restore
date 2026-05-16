@@ -1,16 +1,16 @@
 /**
  * Scenario Analysis API Routes
  *
- * Implements Construction vs Current portfolio analysis and deal-level scenario modeling
- * with optimistic locking, audit logging, and reserves optimization
+ * Implements deal-level scenario modeling with optimistic locking, audit logging,
+ * and reserves optimization.
  */
 
 import { Router } from 'express';
 import type { Request, Response } from 'express';
 import { z } from 'zod';
 import { db } from '../db';
-import { scenarios, scenarioCases, scenarioAuditLogs, portfolioCompanies } from '@shared/schema';
-import { eq, and, sql } from 'drizzle-orm';
+import { scenarios, scenarioCases, scenarioAuditLogs } from '@shared/schema';
+import { eq, and } from 'drizzle-orm';
 import {
   calculateWeightedSummary,
   validateProbabilities,
@@ -18,7 +18,7 @@ import {
   addMOICToCases,
 } from '@shared/utils/scenario-math';
 import type { ScenarioAnalysisResponse, ScenarioCase } from '@shared/types/scenario';
-import { requireAuth, requireFundAccess } from '../lib/auth/jwt';
+import { requireAuth } from '../lib/auth/jwt';
 import { firstString } from '../lib/request-values';
 
 const router = Router();
@@ -44,13 +44,6 @@ const UpdateScenarioRequestSchema = z.object({
   cases: z.array(ScenarioCaseSchema),
   normalize: z.boolean().optional(),
   version: z.number().int().optional(), // Optimistic locking
-});
-
-const PortfolioAnalysisQuerySchema = z.object({
-  metric: z.enum(['num_investments', 'initial_checks', 'follow_on_reserves', 'total_capital']),
-  view: z.enum(['construction', 'current', 'actual']).default('construction'),
-  page: z.string().regex(/^\d+$/).transform(Number).default('1'),
-  limit: z.string().regex(/^\d+$/).transform(Number).default('50'),
 });
 
 const CreateScenarioSchema = z.object({
@@ -100,78 +93,6 @@ async function auditLog(params: {
     timestamp: new Date(),
   });
 }
-
-// ============================================================================
-// Portfolio-Level Analysis (Construction vs Current)
-// ============================================================================
-
-/**
- * GET /api/funds/:fundId/portfolio-analysis
- *
- * Returns Construction vs Current comparison with pagination and caching
- */
-router['get'](
-  '/funds/:fundId/portfolio-analysis',
-  requireAuth(),
-  requireFundAccess,
-  extractUserId,
-  async (req: Request, res: Response) => {
-    try {
-      const fundId = firstString(req.params['fundId']);
-
-      if (!fundId) {
-        return res.status(400).json({ error: 'Missing fund ID' });
-      }
-
-      const query = PortfolioAnalysisQuerySchema.parse(req.query);
-
-      // Cache for 5 minutes (sufficient for internal tool)
-      res.set('Cache-Control', 'private, max-age=300');
-
-      // Parse fundId to integer
-      const fundIdInt = parseInt(fundId);
-
-      // TODO: Implement actual query logic based on your schema
-      // This is a placeholder showing the pattern
-      const results = await db
-        .select()
-        .from(portfolioCompanies)
-        .where(eq(portfolioCompanies.fundId, fundIdInt))
-        .limit(query.limit)
-        .offset((query.page - 1) * query.limit);
-
-      const total = await db
-        .select({ count: sql<number>`count(*)` })
-        .from(portfolioCompanies)
-        .where(eq(portfolioCompanies.fundId, fundIdInt));
-
-      // Transform to ComparisonRow format
-      const rows = results.map((company: (typeof results)[number]) => ({
-        entry_round: company.stage || 'Unknown',
-        construction_value: Number(company.investmentAmount || 0),
-        actual_value: Number(company.investmentAmount || 0),
-        forecast_value: Number(company.currentValuation || 0),
-      }));
-
-      res.json({
-        data: rows,
-        pagination: {
-          page: query.page,
-          limit: query.limit,
-          total: total[0]?.count || 0,
-          pages: Math.ceil((total[0]?.count || 0) / query.limit),
-        },
-        generated_at: new Date(),
-      });
-    } catch (error: unknown) {
-      console.error('Portfolio analysis error:', error);
-      res.status(500).json({
-        error: 'Internal server error',
-        message: error instanceof Error ? error.message : 'Unknown error',
-      });
-    }
-  }
-);
 
 // ============================================================================
 // Scenario CRUD (Deal-Level)

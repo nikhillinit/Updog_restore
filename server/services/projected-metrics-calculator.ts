@@ -427,6 +427,7 @@ export class ProjectedMetricsCalculator {
     const projectedDeployment: number[] = [];
     const projectedDistributions: number[] = [];
     const projectedNAV: number[] = [];
+    let previousCumulativeDistributions = new Decimal(0);
 
     for (let i = 0; i < numQuarters; i++) {
       const nav = forecast.jCurvePath.nav[i];
@@ -437,14 +438,21 @@ export class ProjectedMetricsCalculator {
       const inInvestmentPeriod = i < investmentPeriodYears * 4;
       const callsValue = calls ? toDecimal(calls) : null;
       const deploymentAmount = inInvestmentPeriod
-        ? (callsValue ?? fundSize.div(investmentPeriodYears * 4))
+        ? callsValue
+          ? fundSize.times(callsValue)
+          : fundSize.div(investmentPeriodYears * 4)
         : new Decimal(0);
       projectedDeployment.push(deploymentAmount.toNumber());
 
       // Use J-curve projections - DPI represents distributions as % of calls
-      const navValue = nav ? toDecimal(nav) : new Decimal(0);
-      const dpiValue = dpi ? toDecimal(dpi) : new Decimal(0);
-      projectedDistributions.push(dpiValue.times(fundSize).toNumber());
+      const navValue = nav ? fundSize.times(toDecimal(nav)) : new Decimal(0);
+      const cumulativeDistributions = dpi ? fundSize.times(toDecimal(dpi)) : new Decimal(0);
+      const quarterlyDistributions = Decimal.max(
+        new Decimal(0),
+        cumulativeDistributions.minus(previousCumulativeDistributions)
+      );
+      previousCumulativeDistributions = cumulativeDistributions;
+      projectedDistributions.push(quarterlyDistributions.toNumber());
       projectedNAV.push(navValue.toNumber());
     }
 

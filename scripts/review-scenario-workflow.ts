@@ -29,7 +29,7 @@ The plan integrates a **Scenario Analysis** feature with two main tabs:
 - **ComparisonDashboard**: KPI cards showing Construction/Current/Δ for investments, capital, MOIC, IRR
 - **ComparisonChart**: Stacked bar chart (Recharts) comparing Construction/Actual/Current across entry rounds
 - **ComparisonTable**: Sortable variance table with Δ($) and Δ(%) columns, CSV export
-- **API**: \`GET /api/funds/:fundId/portfolio-analysis?metric=&forecast_view=&time_bucket=\`
+- **API**: \`GET /api/funds/:fundId/dual-forecast\`
 
 ### Tab 2: Deal Modeling View (Scenario Cases + Weighted Analysis)
 - **InvestmentTimeline**: Visual timeline of actual vs projected rounds
@@ -43,7 +43,7 @@ The plan integrates a **Scenario Analysis** feature with two main tabs:
 
 ### Key Technical Decisions:
 1. **Math utilities** (\`shared/utils/scenario-math.ts\`): \`safeDiv\`, \`deltas\`, \`weighted\`, \`normalizeProbabilities\` using decimal.js
-2. **Shared types** (\`shared/types/scenario.ts\`): \`ComparisonRow\`, \`ScenarioCase\`, \`WeightedSummary\`
+2. **Shared types**: \`shared/types/dual-forecast.ts\` for fund forecasts; \`shared/types/scenario.ts\` for \`ScenarioCase\` and \`WeightedSummary\`
 3. **Database**: New tables \`scenarios\` and \`scenario_cases\`
 4. **Validation**: Probability sum checking (soft warning + auto-normalize, optional strict mode)
 5. **Navigation**: Replace \`/scenario-builder\` with \`/scenario-analysis\` in sidebar
@@ -71,7 +71,7 @@ Please analyze this workflow for **stability, scalability, and potential risks**
    - Could probability normalization cause precision drift?
 
 3. **Performance & Scalability**
-   - Will the portfolio-analysis endpoint scale with 100+ companies?
+   - Will the dual-forecast endpoint scale with 100+ companies?
    - Are there N+1 query risks in the deal modeling view?
    - Is lazy loading sufficient for bundle size management?
    - Should caching be added (React Query cache config, server-side)?
@@ -101,15 +101,15 @@ Please analyze this workflow for **stability, scalability, and potential risks**
 
 **Deliverable:**
 Provide a **stability assessment report** with:
-- ✅ **Strengths**: What's well-designed
-- ⚠️ **Warnings**: Potential issues that need mitigation
-- 🔴 **Blockers**: Critical risks that must be addressed before proceeding
-- 💡 **Recommendations**: Specific improvements to enhance stability
+- **Strengths**: What's well-designed
+- **Warnings**: Potential issues that need mitigation
+- **Blockers**: Critical risks that must be addressed before proceeding
+- **Recommendations**: Specific improvements to enhance stability
 
 Be thorough but concise. Prioritize actionable feedback. Focus on the most critical 3-5 issues per category.`;
 
 async function main() {
-  console.log('🤖 Starting Multi-AI Workflow Review...\n');
+  console.log('Starting Multi-AI Workflow Review...\n');
   console.log('Models: GPT-4o, Gemini 2.5 Pro, DeepSeek\n');
   console.log('═'.repeat(80) + '\n');
 
@@ -122,33 +122,34 @@ async function main() {
 
     for (const result of results) {
       console.log(`\n${'═'.repeat(80)}`);
-      console.log(`📊 ${result.model.toUpperCase()} REVIEW`);
+      console.log(`${result.model.toUpperCase()} REVIEW`);
       console.log(`${'═'.repeat(80)}\n`);
 
       if (result.error) {
-        console.log(`❌ Error: ${result.error}`);
+        console.log(`Error: ${result.error}`);
       } else {
         console.log(result.text);
         if (result.usage) {
-          console.log(`\n📈 Tokens: ${result.usage.total_tokens} | Cost: $${result.cost_usd?.toFixed(4)} | Time: ${result.elapsed_ms}ms`);
+          console.log(
+            `\nTokens: ${result.usage.total_tokens} | Cost: $${result.cost_usd?.toFixed(4)} | Time: ${result.elapsed_ms}ms`
+          );
         }
       }
     }
 
     console.log(`\n${'═'.repeat(80)}`);
-    console.log('✅ Multi-AI Review Complete');
+    console.log('Multi-AI Review Complete');
     console.log(`${'═'.repeat(80)}\n`);
 
     // Summary
-    const successful = results.filter(r => !r.error).length;
+    const successful = results.filter((r) => !r.error).length;
     const totalCost = results.reduce((sum, r) => sum + (r.cost_usd ?? 0), 0);
-    console.log(`\n📊 Summary:`);
+    console.log(`\nSummary:`);
     console.log(`   Successful: ${successful}/${results.length} models`);
     console.log(`   Total Cost: $${totalCost.toFixed(4)}`);
-    console.log(`   Models: ${results.map(r => r.model).join(', ')}\n`);
-
+    console.log(`   Models: ${results.map((r) => r.model).join(', ')}\n`);
   } catch (error: any) {
-    console.error('❌ Review failed:', error.message);
+    console.error('Review failed:', error.message);
     process.exit(1);
   }
 }

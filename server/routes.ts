@@ -113,6 +113,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   const fundMetricsRoutes = await import('./routes/fund-metrics.js');
   app.use(fundMetricsRoutes.default);
 
+  const dualForecastRoutes = await import('./routes/dual-forecast.js');
+  app.use('/api', dualForecastRoutes.default);
+
   // Performance Dashboard API routes (timeseries, breakdown, comparison)
   const performanceApiRoutes = await import('./routes/performance-api.js');
   app.use(performanceApiRoutes.default);
