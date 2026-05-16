@@ -2,6 +2,7 @@ import { Router } from 'express';
 import type { Request, Response } from 'express';
 import client from 'prom-client';
 import { logger } from '../lib/logger.js';
+import { getRouteErrorMessage as getErrorMessage } from '../lib/errorHandling';
 
 // Create metrics router
 export const metricsRouter = Router();
@@ -38,10 +39,6 @@ function isBreakerSnapshot(value: unknown): value is BreakerSnapshot {
     typeof snapshot['state'] === 'string' &&
     (snapshot['stats'] === undefined || isCircuitBreakerStats(snapshot['stats']))
   );
-}
-
-function getErrorMessage(error: unknown): string {
-  return error instanceof Error ? error.message : 'Unknown error';
 }
 
 // Collect default process metrics (only call this once per process)

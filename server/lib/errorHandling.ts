@@ -13,7 +13,6 @@ import {
   isValidationError,
 } from '../types/errors.js';
 import { createErrorBody, type ApiErrorBody } from './apiError.js';
-import { businessMetrics } from '../metrics/businessMetrics.js';
 import { tracer } from './tracing.js';
 import { logger } from './logger.js';
 import { isObject } from '@shared/utils/type-guards';
@@ -66,8 +65,25 @@ function toError(error: unknown): Error {
   return error instanceof Error ? error : new Error(String(error));
 }
 
-function getErrorMessage(error: unknown): string {
+export function stringifyErrorMessage(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
+}
+
+function getErrorMessage(error: unknown): string {
+  return stringifyErrorMessage(error);
+}
+
+export function isErrorWithMessage(error: unknown): error is { message: string } {
+  return (
+    typeof error === 'object' &&
+    error !== null &&
+    'message' in error &&
+    typeof (error as { message?: unknown }).message === 'string'
+  );
+}
+
+export function getRouteErrorMessage(error: unknown): string {
+  return isErrorWithMessage(error) ? error.message : 'Unknown error';
 }
 
 // Enhanced error context
@@ -284,35 +300,44 @@ export class UnifiedErrorHandler {
 
   // Track error metrics
   private trackErrorMetrics(error: Error, context: ErrorContext) {
-    // Track general error metrics
-    businessMetrics.trackUserEngagement('error', context.severity, 'system');
+    void import('../metrics/businessMetrics.js')
+      .then(({ businessMetrics }) => {
+        // Track general error metrics
+        businessMetrics.trackUserEngagement('error', context.severity, 'system');
 
-    // Track specific error type metrics
-    if (isDatabaseError(error)) {
-      businessMetrics
-        .trackDatabaseOperation('error', 'unknown', 'simple', 'default', async () => {
-          throw error;
-        })
-        .catch((metricErr) => {
-          logger.warn(
-            { error: getErrorMessage(metricErr) },
-            '[ErrorHandler] Failed to track database error metric'
-          );
-        });
-    }
+        // Track specific error type metrics
+        if (isDatabaseError(error)) {
+          businessMetrics
+            .trackDatabaseOperation('error', 'unknown', 'simple', 'default', async () => {
+              throw error;
+            })
+            .catch((metricErr) => {
+              logger.warn(
+                { error: getErrorMessage(metricErr) },
+                '[ErrorHandler] Failed to track database error metric'
+              );
+            });
+        }
 
-    if (isIdempotencyError(error)) {
-      businessMetrics
-        .trackIdempotency('conflict', error.cacheHit ? 'redis' : 'database', async () => {
-          throw error;
-        })
-        .catch((metricErr) => {
-          logger.warn(
-            { error: getErrorMessage(metricErr) },
-            '[ErrorHandler] Failed to track idempotency error metric'
-          );
-        });
-    }
+        if (isIdempotencyError(error)) {
+          businessMetrics
+            .trackIdempotency('conflict', error.cacheHit ? 'redis' : 'database', async () => {
+              throw error;
+            })
+            .catch((metricErr) => {
+              logger.warn(
+                { error: getErrorMessage(metricErr) },
+                '[ErrorHandler] Failed to track idempotency error metric'
+              );
+            });
+        }
+      })
+      .catch((metricErr) => {
+        logger.warn(
+          { error: getErrorMessage(metricErr) },
+          '[ErrorHandler] Failed to load business metrics'
+        );
+      });
   }
 
   // Async error capture

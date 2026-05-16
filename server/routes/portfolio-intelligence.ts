@@ -26,6 +26,7 @@ import {
 } from '../observability/stage-metrics';
 import { setStageWarningHeaders } from '../middleware/deprecation-headers';
 import { firstString } from '../lib/request-values';
+import { getRouteErrorMessage as getErrorMessage } from '../lib/errorHandling';
 
 // Type for portfolio storage
 type PortfolioStorage = {
@@ -59,23 +60,6 @@ const getPortfolioStorage = (req: Request): PortfolioStorage => {
     };
   }
   return locals.portfolioStorage;
-};
-
-// Error handling helpers
-const isErrorWithMessage = (error: unknown): error is { message: string } => {
-  return (
-    typeof error === 'object' &&
-    error !== null &&
-    'message' in error &&
-    typeof (error as { message?: unknown }).message === 'string'
-  );
-};
-
-const getErrorMessage = (error: unknown): string => {
-  if (isErrorWithMessage(error)) {
-    return error.message;
-  }
-  return 'Unknown error';
 };
 
 // Helper to safely extract user ID from request

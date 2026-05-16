@@ -4,6 +4,7 @@ import express from 'express';
 import * as client from 'prom-client';
 import { z } from 'zod';
 import { logger } from '../lib/logger.js';
+import { getRouteErrorMessage as getErrorMessage } from '../lib/errorHandling';
 
 // Create dedicated registry for RUM metrics
 const rumRegistry = new client.Registry();
@@ -93,10 +94,6 @@ function getHistogram(name: string): client.Histogram | null {
     default:
       return null;
   }
-}
-
-function getErrorMessage(error: unknown): string {
-  return error instanceof Error ? error.message : 'Unknown error';
 }
 
 export const metricsRumRouter = Router();
