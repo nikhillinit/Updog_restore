@@ -12,8 +12,11 @@ import {
   normalizeTriggeredAlertSeverity,
   type TriggeredAlertData,
 } from './variance-tracking/alert-helpers';
+import {
+  buildPacingVarianceResult,
+  buildReserveVarianceResult,
+} from './variance-tracking/variance-diff';
 import { Decimal, toDecimal } from '@shared/lib/decimal-utils';
-import { isDeepStrictEqual } from 'node:util';
 import {
   fundBaselines,
   varianceReports,
@@ -1018,106 +1021,18 @@ export class VarianceCalculationService {
     return result;
   }
 
-  private coerceFiniteNumber(value: unknown): number | null {
-    if (typeof value === 'number' && Number.isFinite(value)) {
-      return value;
-    }
-
-    if (typeof value === 'string' && value.trim().length > 0) {
-      const parsed = Number(value);
-      return Number.isFinite(parsed) ? parsed : null;
-    }
-
-    return null;
-  }
-
-  private buildStructuredMetricChanges(
-    currentValues: Record<string, unknown>,
-    baselineValues: Record<string, unknown>
-  ) {
-    const metricDeltas: Record<
-      string,
-      {
-        current: number;
-        baseline: number;
-        delta: number;
-        deltaPct: number | null;
-      }
-    > = {};
-    const changes: Record<string, { current: unknown; baseline: unknown }> = {};
-    const allKeys = new Set([...Object.keys(currentValues), ...Object.keys(baselineValues)]);
-
-    for (const key of allKeys) {
-      const cur = currentValues[key];
-      const base = baselineValues[key];
-      if (isDeepStrictEqual(cur, base)) {
-        continue;
-      }
-
-      const curNumber = this.coerceFiniteNumber(cur);
-      const baseNumber = this.coerceFiniteNumber(base);
-      if (curNumber !== null && baseNumber !== null) {
-        const delta = curNumber - baseNumber;
-        metricDeltas[key] = {
-          current: curNumber,
-          baseline: baseNumber,
-          delta,
-          deltaPct: baseNumber !== 0 ? delta / baseNumber : null,
-        };
-        continue;
-      }
-
-      changes[key] = { current: cur ?? null, baseline: base ?? null };
-    }
-
-    return { metricDeltas, changes };
-  }
-
   private async calculateReserveVariances(fundId: number, baseline: FundBaseline) {
     const currentReserves = (await this.getReserveSnapshot(fundId)) as Record<string, unknown>;
     const baselineReserves = (baseline.reserveAllocation ?? {}) as Record<string, unknown>;
 
-    const hasData =
-      Object.keys(currentReserves).length > 0 && Object.keys(baselineReserves).length > 0;
-    if (!hasData) {
-      return {
-        hasData: false,
-        currentReserves: {},
-        baselineReserves: {},
-        metricDeltas: {},
-        changes: {},
-      };
-    }
-
-    const { metricDeltas, changes } = this.buildStructuredMetricChanges(
-      currentReserves,
-      baselineReserves
-    );
-
-    return { hasData: true, currentReserves, baselineReserves, metricDeltas, changes };
+    return buildReserveVarianceResult(currentReserves, baselineReserves);
   }
 
   private async calculatePacingVariances(fundId: number, baseline: FundBaseline) {
     const currentPacing = (await this.getPacingSnapshot(fundId)) as Record<string, unknown>;
     const baselinePacing = (baseline.pacingMetrics ?? {}) as Record<string, unknown>;
 
-    const hasData = Object.keys(currentPacing).length > 0 && Object.keys(baselinePacing).length > 0;
-    if (!hasData) {
-      return {
-        hasData: false,
-        currentPacing: {},
-        baselinePacing: {},
-        metricDeltas: {},
-        changes: {},
-      };
-    }
-
-    const { metricDeltas, changes } = this.buildStructuredMetricChanges(
-      currentPacing,
-      baselinePacing
-    );
-
-    return { hasData: true, currentPacing, baselinePacing, metricDeltas, changes };
+    return buildPacingVarianceResult(currentPacing, baselinePacing);
   }
 }
 
