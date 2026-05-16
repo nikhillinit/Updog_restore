@@ -6,43 +6,70 @@ const DEFAULT_DEFINITION_ID = '11111111-1111-4111-8111-111111111111';
 const SECTOR_ID = '22222222-2222-4222-8222-222222222222';
 const LOT_ID = '33333333-3333-4333-8333-333333333333';
 
-const { mockDb, resetMockDb, mockRegisterCompletionHandlers, mockAutomationStart } = vi.hoisted(
-  () => {
-    const selectResults: unknown[][] = [];
+const {
+  accessCalls,
+  accessMode,
+  authCalls,
+  mockDb,
+  resetMockDb,
+  mockRegisterCompletionHandlers,
+  mockAutomationStart,
+} = vi.hoisted(() => {
+  const selectResults: unknown[][] = [];
 
-    function makeSelectChain(rows: unknown[]) {
-      const resolved = Promise.resolve(rows);
-      const chain = {
-        from: vi.fn(() => chain),
-        innerJoin: vi.fn(() => chain),
-        where: vi.fn(() => chain),
-        orderBy: vi.fn(() => chain),
-        limit: vi.fn(() => resolved),
-        then: resolved.then.bind(resolved),
-        catch: resolved.catch.bind(resolved),
-        finally: resolved.finally.bind(resolved),
-      };
-      return chain;
-    }
-
-    const mockDb = {
-      select: vi.fn(() => makeSelectChain(selectResults.shift() ?? [])),
+  function makeSelectChain(rows: unknown[]) {
+    const resolved = Promise.resolve(rows);
+    const chain = {
+      from: vi.fn(() => chain),
+      innerJoin: vi.fn(() => chain),
+      where: vi.fn(() => chain),
+      orderBy: vi.fn(() => chain),
+      limit: vi.fn(() => resolved),
+      then: resolved.then.bind(resolved),
+      catch: resolved.catch.bind(resolved),
+      finally: resolved.finally.bind(resolved),
     };
-
-    return {
-      mockDb,
-      resetMockDb(results: unknown[][]) {
-        selectResults.splice(0, selectResults.length, ...results);
-        mockDb.select.mockClear();
-      },
-      mockRegisterCompletionHandlers: vi.fn(),
-      mockAutomationStart: vi.fn(),
-    };
+    return chain;
   }
-);
+
+  const mockDb = {
+    select: vi.fn(() => makeSelectChain(selectResults.shift() ?? [])),
+  };
+
+  return {
+    mockDb,
+    authCalls: [] as string[],
+    accessCalls: [] as string[],
+    accessMode: { value: 'allow' as 'allow' | 'deny' },
+    resetMockDb(results: unknown[][]) {
+      selectResults.splice(0, selectResults.length, ...results);
+      mockDb.select.mockClear();
+    },
+    mockRegisterCompletionHandlers: vi.fn(),
+    mockAutomationStart: vi.fn(),
+  };
+});
 
 vi.mock('../../../server/db', () => ({
   db: mockDb,
+}));
+
+vi.mock('../../../server/lib/auth/jwt', () => ({
+  requireAuth: () => (req: express.Request, _res: express.Response, next: express.NextFunction) => {
+    authCalls.push(req.path);
+    req.user = { id: 'user-1', email: 'user@example.com' } as never;
+    next();
+  },
+  requireFundAccess: (req: express.Request, res: express.Response, next: express.NextFunction) => {
+    accessCalls.push(req.params['fundId'] ?? '');
+    if (accessMode.value === 'deny') {
+      return res.status(403).json({ error: 'forbidden' });
+    }
+
+    return next();
+  },
+  requireRole: () => (_req: express.Request, _res: express.Response, next: express.NextFunction) =>
+    next(),
 }));
 
 vi.mock('../../../server/services/calc-run-completion-handlers.js', () => ({
@@ -61,6 +88,9 @@ describe('cohort routes on registerRoutes surface', () => {
   beforeEach(() => {
     vi.resetModules();
     vi.clearAllMocks();
+    authCalls.length = 0;
+    accessCalls.length = 0;
+    accessMode.value = 'allow';
     resetMockDb([
       [
         {
@@ -151,6 +181,26 @@ describe('cohort routes on registerRoutes surface', () => {
         irr: null,
       },
     });
+    expect(authCalls).toEqual(['/analyze']);
+    expect(accessCalls).toEqual(['1']);
+  }, 30_000);
+
+  it('rejects Cohort Analysis when the user lacks fund access', async () => {
+    accessMode.value = 'deny';
+    const app = express();
+    app.set('trust proxy', false);
+    app.use(express.json({ limit: '1mb' }));
+
+    const { registerRoutes } = await import('../../../server/routes');
+    server = await registerRoutes(app);
+
+    const res = await request(app).post('/api/cohorts/analyze').send({ fundId: 1 });
+
+    expect(res.status).toBe(403);
+    expect(res.body).toEqual({ error: 'forbidden' });
+    expect(authCalls).toEqual(['/analyze']);
+    expect(accessCalls).toEqual(['1']);
+    expect(mockDb.select).not.toHaveBeenCalled();
   }, 30_000);
 
   it('keeps archived cohort definitions hidden when includeArchived=false is passed as a query string', async () => {
@@ -200,5 +250,7 @@ describe('cohort routes on registerRoutes surface', () => {
         },
       ],
     });
+    expect(authCalls).toEqual(['/definitions']);
+    expect(accessCalls).toEqual(['1']);
   }, 30_000);
 });
