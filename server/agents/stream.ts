@@ -1,5 +1,5 @@
 import type { Request, Response } from 'express';
-import { logger } from '@/lib/logger';
+import { logger } from '../lib/logger';
 import { config } from '../config/index.js';
 import { firstString } from '../lib/request-values';
 
@@ -28,7 +28,7 @@ export async function stream(req: Request, res: Response) {
   const runId = firstString(req.params['runId']);
 
   if (!runId) {
-    logger.warn('Stream endpoint called without runId', { path: req.path });
+    logger.warn({ path: req.path }, 'Stream endpoint called without runId');
     res.status(400).json({ error: 'Missing runId parameter' });
     return;
   }
@@ -46,7 +46,7 @@ export async function stream(req: Request, res: Response) {
   res.status(200);
   res.flushHeaders();
 
-  logger.info('SSE stream started', { runId, maxBytes: MAX_BUFFER_BYTES });
+  logger.info({ runId, maxBytes: MAX_BUFFER_BYTES }, 'SSE stream started');
 
   // Send retry hint
   res.write(`retry: 3000\n\n`);
@@ -68,11 +68,14 @@ export async function stream(req: Request, res: Response) {
       })}\n\n`;
       res.write(errorPayload);
 
-      logger.warn('SSE stream limit exceeded', {
-        runId,
-        bytesSent,
-        limitBytes: MAX_BUFFER_BYTES,
-      });
+      logger.warn(
+        {
+          runId,
+          bytesSent,
+          limitBytes: MAX_BUFFER_BYTES,
+        },
+        'SSE stream limit exceeded'
+      );
 
       cleanup();
       res.end();
@@ -103,10 +106,13 @@ export async function stream(req: Request, res: Response) {
         cleanup();
       }
     } catch (error) {
-      logger.warn('SSE write error', {
-        runId,
-        errorMsg: error instanceof Error ? error.message : String(error),
-      });
+      logger.warn(
+        {
+          runId,
+          errorMsg: error instanceof Error ? error.message : String(error),
+        },
+        'SSE write error'
+      );
       cleanup();
     }
   });
@@ -121,11 +127,14 @@ export async function stream(req: Request, res: Response) {
     unsubscribe();
 
     const durationSeconds = (Date.now() - startTime) / 1000;
-    logger.info('SSE stream closed', {
-      runId,
-      bytesSent,
-      durationSeconds,
-    });
+    logger.info(
+      {
+        runId,
+        bytesSent,
+        durationSeconds,
+      },
+      'SSE stream closed'
+    );
 
     // TODO: Emit metrics
     // prometheus.histogram('ai_stream_duration_seconds').observe(durationSeconds);
@@ -193,7 +202,7 @@ function subscribeToAgentEvents(runId: string, callback: (evt: AgentEvent) => vo
       });
     })
     .catch((err) => {
-      logger.warn('Failed to load queue module, using mock subscription', { error: err });
+      logger.warn({ error: err }, 'Failed to load queue module, using mock subscription');
       // Fallback to mock
       const interval = setInterval(() => {
         callback({
