@@ -2,52 +2,80 @@
   "agents": [
     {
       "name": "phoenix-truth-case-runner",
-      "phase": [0],
+      "phase": [
+        0
+      ],
       "skill": "phoenix-truth-case-orchestrator"
     },
     {
       "name": "phoenix-precision-guardian",
-      "phase": ["1A"],
+      "phase": [
+        "1A"
+      ],
       "skill": "phoenix-precision-guard"
     },
     {
       "name": "waterfall-specialist",
-      "phase": [0, "1B"],
+      "phase": [
+        0,
+        "1B"
+      ],
       "skill": "phoenix-waterfall-ledger-semantics"
     },
     {
       "name": "xirr-fees-validator",
-      "phase": [0, "1B"],
+      "phase": [
+        0,
+        "1B"
+      ],
       "skill": "phoenix-xirr-fees-validator"
     },
     {
       "name": "phoenix-capital-allocation-analyst",
-      "phase": [0, "1A"],
+      "phase": [
+        0,
+        "1A"
+      ],
       "skill": "phoenix-capital-exit-investigator"
     },
     {
       "name": "phoenix-docs-scribe",
-      "phase": ["1A"],
+      "phase": [
+        "1A"
+      ],
       "skill": "phoenix-docs-sync"
     },
     {
       "name": "phoenix-probabilistic-engineer",
-      "phase": [2],
+      "phase": [
+        2
+      ],
       "skill": "phoenix-advanced-forecasting"
     },
     {
       "name": "phoenix-reserves-optimizer",
-      "phase": [2],
+      "phase": [
+        2
+      ],
       "skill": "phoenix-reserves-optimizer"
     },
     {
       "name": "phoenix-brand-reporting-stylist",
-      "phase": [3],
+      "phase": [
+        3
+      ],
       "skill": "phoenix-brand-reporting"
     }
   ],
   "config": {
-    "generic_terms": ["test", "error", "fix", "update", "change", "help"],
+    "generic_terms": [
+      "test",
+      "error",
+      "fix",
+      "update",
+      "change",
+      "help"
+    ],
     "min_score_to_route": 2
   },
   "decision_tree": {
@@ -77,7 +105,13 @@
         "route": "CLAUDE.md"
       },
       "id": "capability_check",
-      "keywords": ["implement", "create", "add", "build", "new feature"],
+      "keywords": [
+        "implement",
+        "create",
+        "add",
+        "build",
+        "new feature"
+      ],
       "next": "Q2",
       "question": "Does this involve implementing something NEW?"
     },
@@ -135,26 +169,55 @@
         "route": "CHANGELOG.md"
       },
       "id": "history_check",
-      "keywords": ["changed", "history", "changelog", "recent", "update"],
+      "keywords": [
+        "changed",
+        "history",
+        "changelog",
+        "recent",
+        "update"
+      ],
       "next": "Q5",
       "question": "Is this about recent changes or history?"
     },
     "Q5": {
       "branches": {
         "deployment": {
-          "keywords": ["deploy", "prod", "release", "ci", "cd"],
+          "keywords": [
+            "deploy",
+            "prod",
+            "release",
+            "ci",
+            "cd"
+          ],
           "route": "docs/workflows/PRODUCTION_SCRIPTS.md"
         },
         "development": {
-          "keywords": ["develop", "code", "implement", "feature"],
+          "keywords": [
+            "develop",
+            "code",
+            "implement",
+            "feature"
+          ],
           "route": "docs/INDEX.md"
         },
         "testing": {
-          "keywords": ["test", "spec", "coverage", "jest", "vitest"],
+          "keywords": [
+            "test",
+            "spec",
+            "coverage",
+            "jest",
+            "vitest"
+          ],
           "route": "docs/INDEX.md#testing"
         },
         "troubleshooting": {
-          "keywords": ["error", "debug", "fix", "broken", "issue"],
+          "keywords": [
+            "error",
+            "debug",
+            "fix",
+            "broken",
+            "issue"
+          ],
           "route": "docs/INDEX.md"
         }
       },
@@ -221,7 +284,11 @@
       "exists": true,
       "frontmatter": {
         "audience": "agents",
-        "categories": ["agents", "routing", "discovery"],
+        "categories": [
+          "agents",
+          "routing",
+          "discovery"
+        ],
         "keywords": [
           "agent-directory",
           "agent-selection",
@@ -245,7 +312,11 @@
       "exists": true,
       "frontmatter": {
         "audience": "agents",
-        "categories": ["agents", "metrics", "performance"],
+        "categories": [
+          "agents",
+          "metrics",
+          "performance"
+        ],
         "keywords": [
           "agent-metrics",
           "usage-tracking",
@@ -300,7 +371,11 @@
       "exists": true,
       "frontmatter": {
         "audience": "agents",
-        "categories": ["discovery", "agents", "routing"],
+        "categories": [
+          "discovery",
+          "agents",
+          "routing"
+        ],
         "keywords": [
           "discovery-map",
           "routing",
@@ -1439,8 +1514,16 @@
       "exists": true,
       "frontmatter": {
         "audience": "agents",
-        "categories": ["testing", "agents", "routing"],
-        "keywords": ["test-strategy", "test-agents", "test-selection"],
+        "categories": [
+          "testing",
+          "agents",
+          "routing"
+        ],
+        "keywords": [
+          "test-strategy",
+          "test-agents",
+          "test-selection"
+        ],
         "last_updated": "2025-12-29",
         "owner": "Platform Team",
         "review_cadence": "P30D",
@@ -1534,7 +1617,11 @@
       "exists": true,
       "frontmatter": {
         "audience": "both",
-        "categories": ["tech-debt", "planning", "architecture"],
+        "categories": [
+          "tech-debt",
+          "planning",
+          "architecture"
+        ],
         "keywords": [
           "technical-debt",
           "remediation",
@@ -1553,7 +1640,10 @@
         ],
         "review_cadence": "P30D",
         "status": "ACTIVE",
-        "use_cases": ["task_execution", "capability_discovery"]
+        "use_cases": [
+          "task_execution",
+          "capability_discovery"
+        ]
       },
       "hasExecutionClaims": true,
       "isStale": false,
@@ -3208,7 +3298,10 @@
         "author": "Claude Memory Tool",
         "category": "code-quality",
         "created": "2025-10-20",
-        "dependencies": ["python3", "git"],
+        "dependencies": [
+          "python3",
+          "git"
+        ],
         "description": "Automated technical debt identification, tracking, and prioritization system",
         "execution_time": "~35ms",
         "integrations": [
@@ -3266,7 +3359,12 @@
         "description": "Reduce regressions by discovering tests, running them, then editing code",
         "last_updated": "2026-04-03",
         "name": "test-first-change",
-        "tags": ["testing", "tdd", "quality", "regression"],
+        "tags": [
+          "testing",
+          "tdd",
+          "quality",
+          "regression"
+        ],
         "version": "1.0.0"
       },
       "hasExecutionClaims": false,
@@ -3567,7 +3665,10 @@
       "exists": true,
       "frontmatter": {
         "audience": "both",
-        "categories": ["development", "skills-tools"],
+        "categories": [
+          "development",
+          "skills-tools"
+        ],
         "keywords": [
           "capabilities",
           "agents",
@@ -3582,7 +3683,10 @@
         "review_cadence": "P90D",
         "route_hint": "Historical inventory only. Start with CLAUDE.md, repo search, docs/INDEX.md, and .claude/DISCOVERY-MAP.md.",
         "status": "ACTIVE",
-        "use_cases": ["capability_discovery", "feature_planning"]
+        "use_cases": [
+          "capability_discovery",
+          "feature_planning"
+        ]
       },
       "hasExecutionClaims": false,
       "isStale": false,
@@ -3596,17 +3700,17 @@
       "docType": "doc",
       "exists": true,
       "frontmatter": {
-        "last_updated": "2026-04-05",
+        "last_updated": "2026-05-16",
         "owner": "Core Team",
         "review_cadence": "P7D",
         "status": "ACTIVE"
       },
       "hasExecutionClaims": true,
-      "isStale": true,
-      "lastUpdated": "2026-04-05",
+      "isStale": false,
+      "lastUpdated": "2026-05-16",
       "owner": "Core Team",
       "path": "CHANGELOG.md",
-      "staleDays": 41,
+      "staleDays": 0,
       "status": "ACTIVE"
     },
     {
@@ -4813,7 +4917,11 @@
       "exists": true,
       "frontmatter": {
         "audience": "both",
-        "categories": ["development", "skills-tools", "ai-automation"],
+        "categories": [
+          "development",
+          "skills-tools",
+          "ai-automation"
+        ],
         "keywords": [
           "agents",
           "tools",
@@ -4830,7 +4938,10 @@
         "route_hint": "Repo-verified tooling snapshot and routing guide.",
         "source_of_truth": true,
         "status": "ACTIVE",
-        "use_cases": ["tool_discovery", "agent_selection"]
+        "use_cases": [
+          "tool_discovery",
+          "agent_selection"
+        ]
       },
       "hasExecutionClaims": false,
       "isStale": false,
@@ -4905,8 +5016,17 @@
       "exists": true,
       "frontmatter": {
         "audience": "both",
-        "categories": ["documentation", "navigation"],
-        "keywords": ["index", "docs", "navigation", "routing", "documentation"],
+        "categories": [
+          "documentation",
+          "navigation"
+        ],
+        "keywords": [
+          "index",
+          "docs",
+          "navigation",
+          "routing",
+          "documentation"
+        ],
         "last_updated": "2026-04-18",
         "owner": "Core Team",
         "priority": 2,
@@ -4914,7 +5034,10 @@
         "route_hint": "Central navigation for all documentation.",
         "source_of_truth": true,
         "status": "ACTIVE",
-        "use_cases": ["doc_discovery", "onboarding"]
+        "use_cases": [
+          "doc_discovery",
+          "onboarding"
+        ]
       },
       "hasExecutionClaims": false,
       "isStale": false,
@@ -5199,7 +5322,11 @@
       "exists": true,
       "frontmatter": {
         "audience": "both",
-        "categories": ["phoenix", "validation", "vc-modeling"],
+        "categories": [
+          "phoenix",
+          "validation",
+          "vc-modeling"
+        ],
         "keywords": [
           "phoenix",
           "truth-case",
@@ -5218,7 +5345,10 @@
         "route_hint": "Entry point for all Phoenix project work.",
         "source_of_truth": true,
         "status": "ACTIVE",
-        "use_cases": ["phoenix_validation", "vc_modeling"]
+        "use_cases": [
+          "phoenix_validation",
+          "vc_modeling"
+        ]
       },
       "hasExecutionClaims": false,
       "isStale": true,
@@ -5621,7 +5751,11 @@
       "docType": "doc",
       "exists": true,
       "frontmatter": {
-        "categories": ["governance", "roadmap", "stabilization"],
+        "categories": [
+          "governance",
+          "roadmap",
+          "stabilization"
+        ],
         "keywords": [
           "global-rules",
           "milestones",
@@ -7652,7 +7786,11 @@
       "docType": "doc",
       "exists": true,
       "frontmatter": {
-        "categories": ["database", "performance", "architecture"],
+        "categories": [
+          "database",
+          "performance",
+          "architecture"
+        ],
         "last_updated": "2026-04-03",
         "status": "active",
         "title": "LP Reporting Dashboard - Database Optimization Guide"
@@ -8549,7 +8687,9 @@
       "docType": "doc",
       "exists": true,
       "frontmatter": {
-        "depends_on": ["docs/plans/2026-03-31-variance-roadmap-revision.md"],
+        "depends_on": [
+          "docs/plans/2026-03-31-variance-roadmap-revision.md"
+        ],
         "last_updated": "2026-04-02",
         "status": "IMPLEMENTED",
         "validated_by": [
@@ -8760,7 +8900,11 @@
       "exists": true,
       "frontmatter": {
         "audience": "agents",
-        "categories": ["phoenix", "foundation-hardening", "coordination"],
+        "categories": [
+          "phoenix",
+          "foundation-hardening",
+          "coordination"
+        ],
         "keywords": [
           "phoenix",
           "foundation-hardening",
@@ -8775,7 +8919,10 @@
         "route_hint": "Coordination logic for Phoenix validation + Foundation Hardening implementation parity",
         "source_of_truth": true,
         "status": "ACTIVE",
-        "use_cases": ["phoenix_hardening_coordination", "divergence_triage"]
+        "use_cases": [
+          "phoenix_hardening_coordination",
+          "divergence_triage"
+        ]
       },
       "hasExecutionClaims": false,
       "isStale": false,
@@ -9628,7 +9775,11 @@
       "docType": "doc",
       "exists": true,
       "frontmatter": {
-        "categories": ["testing", "runbook", "stabilization"],
+        "categories": [
+          "testing",
+          "runbook",
+          "stabilization"
+        ],
         "keywords": [
           "validate:core",
           "integration",
@@ -10066,9 +10217,17 @@
       "docType": "skill",
       "exists": true,
       "frontmatter": {
-        "components": ["tests", "server", "integration"],
+        "components": [
+          "tests",
+          "server",
+          "integration"
+        ],
         "date": "2026-01-18",
-        "error_codes": ["ERR_MODULE_NOT_FOUND", "ECONNREFUSED", "SQLITE_ERROR"],
+        "error_codes": [
+          "ERR_MODULE_NOT_FOUND",
+          "ECONNREFUSED",
+          "SQLITE_ERROR"
+        ],
         "id": "REFL-001",
         "keywords": [
           "dynamic-import",
@@ -10099,7 +10258,11 @@
       "docType": "skill",
       "exists": true,
       "frontmatter": {
-        "components": ["ci", "github-actions", "workflows"],
+        "components": [
+          "ci",
+          "github-actions",
+          "workflows"
+        ],
         "date": "2026-01-18",
         "error_codes": [],
         "id": "REFL-002",
@@ -10131,7 +10294,11 @@
       "docType": "skill",
       "exists": true,
       "frontmatter": {
-        "components": ["ci", "scripts", "filesystem"],
+        "components": [
+          "ci",
+          "scripts",
+          "filesystem"
+        ],
         "date": "2026-01-18",
         "error_codes": [],
         "id": "REFL-003",
@@ -10216,9 +10383,16 @@
       "docType": "skill",
       "exists": true,
       "frontmatter": {
-        "components": ["xirr", "analytics", "calculations"],
+        "components": [
+          "xirr",
+          "analytics",
+          "calculations"
+        ],
         "date": "2026-01-18",
-        "error_codes": ["XIRR_NO_CONVERGENCE", "XIRR_DIVERGED"],
+        "error_codes": [
+          "XIRR_NO_CONVERGENCE",
+          "XIRR_DIVERGED"
+        ],
         "id": "REFL-006",
         "keywords": [
           "xirr",
@@ -10249,7 +10423,11 @@
       "docType": "skill",
       "exists": true,
       "frontmatter": {
-        "components": ["tests", "vitest", "mocking"],
+        "components": [
+          "tests",
+          "vitest",
+          "mocking"
+        ],
         "date": "2026-01-18",
         "error_codes": [],
         "id": "REFL-007",
@@ -10307,7 +10485,11 @@
       "docType": "skill",
       "exists": true,
       "frontmatter": {
-        "components": ["scripts", "parsing", "cross-platform"],
+        "components": [
+          "scripts",
+          "parsing",
+          "cross-platform"
+        ],
         "date": "2026-01-18",
         "error_codes": [],
         "id": "REFL-009",
@@ -10342,9 +10524,17 @@
       "docType": "skill",
       "exists": true,
       "frontmatter": {
-        "components": ["server", "security", "express", "rate-limiting"],
+        "components": [
+          "server",
+          "security",
+          "express",
+          "rate-limiting"
+        ],
         "date": "2026-01-18",
-        "error_codes": ["ERR_TRUST_PROXY", "RATE_LIMIT_BYPASS"],
+        "error_codes": [
+          "ERR_TRUST_PROXY",
+          "RATE_LIMIT_BYPASS"
+        ],
         "id": "REFL-010",
         "keywords": [
           "trust-proxy",
@@ -10375,9 +10565,16 @@
       "docType": "skill",
       "exists": true,
       "frontmatter": {
-        "components": ["client", "charts", "recharts"],
+        "components": [
+          "client",
+          "charts",
+          "recharts"
+        ],
         "date": "2026-01-18",
-        "error_codes": ["TS2345", "TS2322"],
+        "error_codes": [
+          "TS2345",
+          "TS2322"
+        ],
         "id": "REFL-011",
         "keywords": [
           "recharts",
@@ -10409,9 +10606,17 @@
       "docType": "skill",
       "exists": true,
       "frontmatter": {
-        "components": ["server", "middleware", "idempotency", "redis"],
+        "components": [
+          "server",
+          "middleware",
+          "idempotency",
+          "redis"
+        ],
         "date": "2026-01-18",
-        "error_codes": ["ERR_RACE_CONDITION", "ERR_DUPLICATE_REQUEST"],
+        "error_codes": [
+          "ERR_RACE_CONDITION",
+          "ERR_DUPLICATE_REQUEST"
+        ],
         "id": "REFL-012",
         "keywords": [
           "fire-and-forget",
@@ -10443,9 +10648,15 @@
       "docType": "skill",
       "exists": true,
       "frontmatter": {
-        "components": ["routing", "discovery", "pattern-matching"],
+        "components": [
+          "routing",
+          "discovery",
+          "pattern-matching"
+        ],
         "date": "2026-01-18",
-        "error_codes": ["ERR_ROUTE_MISMATCH"],
+        "error_codes": [
+          "ERR_ROUTE_MISMATCH"
+        ],
         "id": "REFL-013",
         "keywords": [
           "router",
@@ -10476,7 +10687,12 @@
       "docType": "skill",
       "exists": true,
       "frontmatter": {
-        "components": ["tests", "vitest", "redis", "fixtures"],
+        "components": [
+          "tests",
+          "vitest",
+          "redis",
+          "fixtures"
+        ],
         "date": "2026-01-18",
         "error_codes": [],
         "id": "REFL-014",
@@ -10509,9 +10725,17 @@
       "docType": "skill",
       "exists": true,
       "frontmatter": {
-        "components": ["ci", "database", "postgresql", "github-actions"],
+        "components": [
+          "ci",
+          "database",
+          "postgresql",
+          "github-actions"
+        ],
         "date": "2026-01-18",
-        "error_codes": ["ECONNREFUSED", "database_does_not_exist"],
+        "error_codes": [
+          "ECONNREFUSED",
+          "database_does_not_exist"
+        ],
         "id": "REFL-015",
         "keywords": [
           "postgresql",
@@ -10542,7 +10766,11 @@
       "docType": "skill",
       "exists": true,
       "frontmatter": {
-        "components": ["tests", "vitest", "configuration"],
+        "components": [
+          "tests",
+          "vitest",
+          "configuration"
+        ],
         "date": "2026-01-18",
         "error_codes": [],
         "id": "REFL-016",
@@ -10576,9 +10804,17 @@
       "docType": "skill",
       "exists": true,
       "frontmatter": {
-        "components": ["ci", "github-actions", "permissions"],
+        "components": [
+          "ci",
+          "github-actions",
+          "permissions"
+        ],
         "date": "2026-01-18",
-        "error_codes": ["HttpError", 404, 403],
+        "error_codes": [
+          "HttpError",
+          404,
+          403
+        ],
         "id": "REFL-017",
         "keywords": [
           "github-actions",
@@ -10609,7 +10845,10 @@
       "docType": "skill",
       "exists": true,
       "frontmatter": {
-        "components": ["DeterministicReserveEngine", "wizard-reserve-bridge"],
+        "components": [
+          "DeterministicReserveEngine",
+          "wizard-reserve-bridge"
+        ],
         "date": "2026-01-18",
         "error_codes": [
           "E_CTX_UNINITIALIZED",
@@ -10631,7 +10870,9 @@
         "title": "Reserve Engine Null Safety",
         "type": "reflection",
         "version": 1,
-        "wizard_steps": ["capital-structure"]
+        "wizard_steps": [
+          "capital-structure"
+        ]
       },
       "hasExecutionClaims": false,
       "isStale": false,
@@ -10685,7 +10926,9 @@
           "test-infrastructure"
         ],
         "date": "2026-02-15",
-        "error_codes": ["ERR_TEST_TIMEOUT"],
+        "error_codes": [
+          "ERR_TEST_TIMEOUT"
+        ],
         "id": "REFL-020",
         "keywords": [
           "test-timeout",
@@ -10716,9 +10959,19 @@
       "docType": "skill",
       "exists": true,
       "frontmatter": {
-        "components": ["typescript", "state", "client", "server", "drizzle"],
+        "components": [
+          "typescript",
+          "state",
+          "client",
+          "server",
+          "drizzle"
+        ],
         "date": "2026-02-16",
-        "error_codes": ["TS2375", "TS2412", "TS2769"],
+        "error_codes": [
+          "TS2375",
+          "TS2412",
+          "TS2769"
+        ],
         "id": "REFL-021",
         "keywords": [
           "exactOptionalPropertyTypes",
@@ -10758,7 +11011,9 @@
           "integration-tests"
         ],
         "date": "2026-02-18",
-        "error_codes": ["ERR_METRIC_ALREADY_REGISTERED"],
+        "error_codes": [
+          "ERR_METRIC_ALREADY_REGISTERED"
+        ],
         "id": "REFL-022",
         "keywords": [
           "prometheus",
@@ -10790,7 +11045,12 @@
       "docType": "skill",
       "exists": true,
       "frontmatter": {
-        "components": ["client", "security", "feature-flags", "rollout"],
+        "components": [
+          "client",
+          "security",
+          "feature-flags",
+          "rollout"
+        ],
         "date": "2026-02-18",
         "error_codes": [],
         "id": "REFL-023",
@@ -10882,7 +11142,11 @@
           "shared"
         ],
         "date": "2026-02-18",
-        "error_codes": ["TS4111", "TS2307", "TS2339"],
+        "error_codes": [
+          "TS4111",
+          "TS2307",
+          "TS2339"
+        ],
         "id": "REFL-025",
         "keywords": [
           "tsc",
@@ -10916,9 +11180,17 @@
       "docType": "skill",
       "exists": true,
       "frontmatter": {
-        "components": ["drizzle", "vitest", "testing", "database"],
+        "components": [
+          "drizzle",
+          "vitest",
+          "testing",
+          "database"
+        ],
         "date": "2026-02-24",
-        "error_codes": ["TypeError", "ERR_DRIZZLE_CHAIN"],
+        "error_codes": [
+          "TypeError",
+          "ERR_DRIZZLE_CHAIN"
+        ],
         "id": "REFL-026",
         "keywords": [
           "drizzle",
@@ -10950,7 +11222,11 @@
       "docType": "skill",
       "exists": true,
       "frontmatter": {
-        "components": ["client", "typescript", "eslint"],
+        "components": [
+          "client",
+          "typescript",
+          "eslint"
+        ],
         "date": "2026-03-17",
         "error_codes": [],
         "id": "REFL-027",
@@ -10987,7 +11263,11 @@
       "docType": "skill",
       "exists": true,
       "frontmatter": {
-        "components": ["client", "typescript", "react-context"],
+        "components": [
+          "client",
+          "typescript",
+          "react-context"
+        ],
         "date": "2026-03-17",
         "error_codes": [],
         "id": "REFL-028",
@@ -11021,9 +11301,18 @@
       "docType": "skill",
       "exists": true,
       "frontmatter": {
-        "components": ["ci", "github-actions", "workflow", "secrets", "zap"],
+        "components": [
+          "ci",
+          "github-actions",
+          "workflow",
+          "secrets",
+          "zap"
+        ],
         "date": "2026-03-17",
-        "error_codes": ["ERR_WORKFLOW_INVALID", "ERR_NO_JOB_LOGS"],
+        "error_codes": [
+          "ERR_WORKFLOW_INVALID",
+          "ERR_NO_JOB_LOGS"
+        ],
         "id": "REFL-029",
         "keywords": [
           "github-actions",
@@ -11062,7 +11351,12 @@
         "last_updated": "2026-05-11",
         "severity": "high",
         "status": "DRAFT",
-        "tags": ["testing", "mock", "database", "type-safety"],
+        "tags": [
+          "testing",
+          "mock",
+          "database",
+          "type-safety"
+        ],
         "title": "Mock ID Generator Type Change Breaks Downstream Assertions"
       },
       "hasExecutionClaims": false,
@@ -11084,7 +11378,11 @@
         "last_updated": "2026-05-11",
         "severity": "medium",
         "status": "DRAFT",
-        "tags": ["typescript", "type-safety", "as-const"],
+        "tags": [
+          "typescript",
+          "type-safety",
+          "as-const"
+        ],
         "title": "as-const Literal Types Prevent Arithmetic Reassignment"
       },
       "hasExecutionClaims": false,
@@ -11102,7 +11400,9 @@
         "category": "Infrastructure",
         "date": "2026-03-23",
         "discovered": "2026-03-23",
-        "error_codes": ["TS4111"],
+        "error_codes": [
+          "TS4111"
+        ],
         "id": "REFL-032",
         "last_updated": "2026-05-11",
         "severity": "medium",
@@ -11535,21 +11835,13 @@
     {
       "docType": "doc",
       "exists": true,
-      "frontmatter": {},
-      "hasExecutionClaims": false,
-      "isStale": true,
-      "lastUpdated": null,
-      "owner": null,
-      "path": "docs/superpowers/plans/2026-05-16-cohort-analysis-boundary-remediation.md",
-      "staleDays": 999,
-      "status": "UNKNOWN"
-    },
-    {
-      "docType": "doc",
-      "exists": true,
       "frontmatter": {
         "audience": "both",
-        "categories": ["tech-debt", "development", "type-safety"],
+        "categories": [
+          "tech-debt",
+          "development",
+          "type-safety"
+        ],
         "keywords": [
           "typescript",
           "any-elimination",
@@ -11567,7 +11859,9 @@
         ],
         "review_cadence": "P90D",
         "status": "ACTIVE",
-        "use_cases": ["task_execution"]
+        "use_cases": [
+          "task_execution"
+        ]
       },
       "hasExecutionClaims": false,
       "isStale": false,
@@ -11882,7 +12176,11 @@
       "exists": true,
       "frontmatter": {
         "audience": "both",
-        "categories": ["tech-debt", "architecture", "financial-calculations"],
+        "categories": [
+          "tech-debt",
+          "architecture",
+          "financial-calculations"
+        ],
         "keywords": [
           "xirr",
           "consolidation",
@@ -11906,7 +12204,10 @@
         ],
         "review_cadence": "P60D",
         "status": "ACTIVE",
-        "use_cases": ["task_execution", "capability_discovery"]
+        "use_cases": [
+          "task_execution",
+          "capability_discovery"
+        ]
       },
       "hasExecutionClaims": true,
       "isStale": false,
@@ -11921,15 +12222,27 @@
       "exists": true,
       "frontmatter": {
         "audience": "both",
-        "categories": ["tech-debt", "architecture", "documentation"],
-        "keywords": ["xirr", "executive-summary", "consolidation"],
+        "categories": [
+          "tech-debt",
+          "architecture",
+          "documentation"
+        ],
+        "keywords": [
+          "xirr",
+          "executive-summary",
+          "consolidation"
+        ],
         "last_updated": "2026-04-03",
         "owner": "Platform Developer",
         "priority": 1,
-        "related_code": ["client/src/lib/finance/xirr.ts"],
+        "related_code": [
+          "client/src/lib/finance/xirr.ts"
+        ],
         "review_cadence": "P90D",
         "status": "ACTIVE",
-        "use_cases": ["capability_discovery"]
+        "use_cases": [
+          "capability_discovery"
+        ]
       },
       "hasExecutionClaims": true,
       "isStale": false,
@@ -11985,7 +12298,7 @@
       "status": "ACTIVE"
     }
   ],
-  "generatedAt": "2026-05-16T10:12:01.481Z",
+  "generatedAt": "2026-05-16T15:18:24.972Z",
   "patterns": [
     {
       "category": "Security",
@@ -12068,7 +12381,13 @@
       "agent": "xirr-fees-validator",
       "category": "Phoenix",
       "id": "phoenix_xirr",
-      "keywords": ["xirr", "irr", "fees", "management fee", "carry fee"],
+      "keywords": [
+        "xirr",
+        "irr",
+        "fees",
+        "management fee",
+        "carry fee"
+      ],
       "priority": 14,
       "target": ".claude/agents/xirr-fees-validator.md"
     },
@@ -12188,13 +12507,22 @@
     {
       "category": "CI/CD",
       "id": "ci_cd",
-      "keywords": ["ci", "cd", "github actions", "workflow", "pipeline"],
+      "keywords": [
+        "ci",
+        "cd",
+        "github actions",
+        "workflow",
+        "pipeline"
+      ],
       "priority": 31,
       "target": "docs/workflows/README.md"
     },
     {
       "category": "Testing",
-      "commands": ["/test-smart", "/fix-auto"],
+      "commands": [
+        "/test-smart",
+        "/fix-auto"
+      ],
       "id": "testing",
       "keywords": [
         "test",
@@ -12389,7 +12717,13 @@
     {
       "category": "Quality",
       "id": "quality_gates",
-      "keywords": ["gate", "quality gate", "raci", "gate tracking", "approval"],
+      "keywords": [
+        "gate",
+        "quality gate",
+        "raci",
+        "gate tracking",
+        "approval"
+      ],
       "message": "RACI matrix, gate tracking for releases",
       "priority": 94,
       "target": "docs/gates/"
@@ -12472,7 +12806,13 @@
     {
       "category": "Troubleshooting",
       "id": "troubleshooting",
-      "keywords": ["error", "broken", "issue", "problem", "not working"],
+      "keywords": [
+        "error",
+        "broken",
+        "issue",
+        "problem",
+        "not working"
+      ],
       "priority": 100,
       "secondary": "cheatsheets/document-review-workflow.md",
       "target": "docs/INDEX.md"
@@ -12871,14 +13211,24 @@
     {
       "category": "Thinking",
       "id": "pattern_recognition",
-      "keywords": ["pattern", "recurring", "similar issues", "common pattern"],
+      "keywords": [
+        "pattern",
+        "recurring",
+        "similar issues",
+        "common pattern"
+      ],
       "priority": 132,
       "target": ".claude/skills/pattern-recognition.md"
     },
     {
       "category": "Thinking",
       "id": "analogical_thinking",
-      "keywords": ["analogy", "similar to", "like", "compare to"],
+      "keywords": [
+        "analogy",
+        "similar to",
+        "like",
+        "compare to"
+      ],
       "priority": 133,
       "target": ".claude/skills/analogical-thinking.md"
     },
@@ -12923,7 +13273,12 @@
     {
       "category": "Development",
       "id": "api_design",
-      "keywords": ["api design", "rest api", "endpoint design", "api patterns"],
+      "keywords": [
+        "api design",
+        "rest api",
+        "endpoint design",
+        "api patterns"
+      ],
       "priority": 137,
       "target": ".claude/skills/api-design-principles.md"
     },
@@ -12943,7 +13298,11 @@
       "category": "Commands",
       "command": "/log-change",
       "id": "cmd_log_change",
-      "keywords": ["log change", "changelog", "record change"],
+      "keywords": [
+        "log change",
+        "changelog",
+        "record change"
+      ],
       "priority": 140,
       "target": ".claude/commands/log-change.md"
     },
@@ -12990,7 +13349,12 @@
       "category": "Commands",
       "command": "/catalog-tooling",
       "id": "cmd_catalog",
-      "keywords": ["catalog", "list tools", "available tools", "what tools"],
+      "keywords": [
+        "catalog",
+        "list tools",
+        "available tools",
+        "what tools"
+      ],
       "priority": 144,
       "target": ".claude/commands/catalog-tooling.md"
     },
@@ -12998,7 +13362,12 @@
       "category": "Commands",
       "command": "/workflows",
       "id": "cmd_workflows",
-      "keywords": ["workflows", "which tool", "tool helper", "find command"],
+      "keywords": [
+        "workflows",
+        "which tool",
+        "tool helper",
+        "find command"
+      ],
       "priority": 145,
       "target": ".claude/commands/workflows.md"
     },
@@ -13019,14 +13388,23 @@
       "category": "Commands",
       "command": "/wshobson:tech-debt",
       "id": "cmd_tech_debt",
-      "keywords": ["tech debt", "technical debt", "debt analysis"],
+      "keywords": [
+        "tech debt",
+        "technical debt",
+        "debt analysis"
+      ],
       "priority": 147,
       "target": ".claude/commands/wshobson/tech-debt.md"
     },
     {
       "category": "Quality",
       "id": "cheat_anti_patterns",
-      "keywords": ["anti-pattern", "bad practice", "code smell", "avoid"],
+      "keywords": [
+        "anti-pattern",
+        "bad practice",
+        "code smell",
+        "avoid"
+      ],
       "message": "24 cataloged anti-patterns with prevention strategies",
       "priority": 150,
       "target": "cheatsheets/anti-pattern-prevention.md"
@@ -13046,7 +13424,11 @@
     {
       "category": "Testing",
       "id": "cheat_testcontainers",
-      "keywords": ["testcontainer", "docker test", "integration test docker"],
+      "keywords": [
+        "testcontainer",
+        "docker test",
+        "integration test docker"
+      ],
       "priority": 152,
       "target": "cheatsheets/testcontainers-guide.md"
     },
@@ -13065,7 +13447,12 @@
     {
       "category": "AI Tools",
       "id": "cheat_codex",
-      "keywords": ["codex", "codex cli", "openai codex", "consult codex"],
+      "keywords": [
+        "codex",
+        "codex cli",
+        "openai codex",
+        "consult codex"
+      ],
       "message": "Codex CLI integration for complex architectural decisions",
       "priority": 154,
       "target": "cheatsheets/codex-collaboration-protocol.md"
@@ -13084,14 +13471,14 @@
       "IMPLEMENTED": 1,
       "STALE-VALIDATION": 1,
       "TRACKED (not scheduled)": 1,
-      "UNKNOWN": 132,
+      "UNKNOWN": 131,
       "VERIFIED": 9,
       "active": 2,
       "ready": 3
     },
-    "missing_frontmatter": 13,
-    "stale_docs": 96,
-    "total_docs": 711
+    "missing_frontmatter": 12,
+    "stale_docs": 94,
+    "total_docs": 710
   },
   "version": "2.0"
 }
