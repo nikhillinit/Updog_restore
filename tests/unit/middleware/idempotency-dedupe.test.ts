@@ -818,6 +818,75 @@ describe('Request Deduplication Middleware', () => {
       expect(response3.headers['x-request-dedup']).toBeUndefined();
     });
   });
+
+  describe('Response Caching', () => {
+    it('should preserve json status, body, and headers on first response and cached replay', async () => {
+      const customApp = express();
+      customApp.use(express.json());
+      customApp.use(dedupe({ memoryFallback: true, useSingleflight: false }));
+
+      let callCount = 0;
+      customApp.post('/api/dedupe-json', (req, res) => {
+        callCount++;
+        res
+          .status(201)
+          .setHeader('X-Capture-Mode', 'json')
+          .json({ mode: 'json', testId: req.body.testId, callCount });
+      });
+
+      const payload = { testId: `dedupe-json-${Date.now()}` };
+
+      const response1 = await request(customApp).post('/api/dedupe-json').send(payload);
+
+      expect(response1.status).toBe(201);
+      expect(response1.body).toEqual({ mode: 'json', testId: payload.testId, callCount: 1 });
+      expect(response1.headers['x-capture-mode']).toBe('json');
+
+      await new Promise((resolve) => setTimeout(resolve, 50));
+
+      const response2 = await request(customApp).post('/api/dedupe-json').send(payload);
+
+      expect(response2.status).toBe(201);
+      expect(response2.body).toEqual(response1.body);
+      expect(response2.headers['x-capture-mode']).toBe('json');
+      expect(response2.headers['x-request-dedup']).toBe('true');
+      expect(callCount).toBe(1);
+    });
+
+    it('should preserve send status, body, and headers on first response and cached replay', async () => {
+      const customApp = express();
+      customApp.use(express.json());
+      customApp.use(dedupe({ memoryFallback: true, useSingleflight: false }));
+
+      let callCount = 0;
+      customApp.post('/api/dedupe-send', (req, res) => {
+        callCount++;
+        res
+          .status(201)
+          .setHeader('X-Capture-Mode', 'send')
+          .type('application/json')
+          .send(JSON.stringify({ mode: 'send', testId: req.body.testId, callCount }));
+      });
+
+      const payload = { testId: `dedupe-send-${Date.now()}` };
+
+      const response1 = await request(customApp).post('/api/dedupe-send').send(payload);
+
+      expect(response1.status).toBe(201);
+      expect(response1.body).toEqual({ mode: 'send', testId: payload.testId, callCount: 1 });
+      expect(response1.headers['x-capture-mode']).toBe('send');
+
+      await new Promise((resolve) => setTimeout(resolve, 50));
+
+      const response2 = await request(customApp).post('/api/dedupe-send').send(payload);
+
+      expect(response2.status).toBe(201);
+      expect(response2.body).toEqual(response1.body);
+      expect(response2.headers['x-capture-mode']).toBe('send');
+      expect(response2.headers['x-request-dedup']).toBe('true');
+      expect(callCount).toBe(1);
+    });
+  });
 });
 
 describe('Idempotency + Deduplication Combined', () => {
