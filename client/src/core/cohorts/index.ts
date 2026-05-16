@@ -2,28 +2,24 @@
  * Cohort Analysis Module
  *
  * Exports all cohort analysis functionality including:
- * - CohortEngine (main entry point)
+ * - CohortEngine (legacy Exit Cohort Model surface for exit/value progression)
  * - Resolvers (sector and vintage resolution)
  * - Company cohorts (company-level cohort key computation)
  * - Cash flows (lots-based cash flow events)
  * - Metrics (DPI, TVPI, IRR calculation)
  */
 
-// Main engine
+// Legacy Exit Cohort Model surface
 export { CohortEngine, generateCohortSummary, compareCohorts } from './CohortEngine';
 
-// Advanced cohort analysis
+// Analysis Cohort pipeline (client shim over shared/core/cohorts/analysis)
 export { analyzeCohorts, type AnalyzeCohortInput } from './advanced-engine';
 
 // Resolvers
 export { getResolvedInvestments, getUnmappedSectors, type ResolutionInput } from './resolvers';
 
 // Company cohorts
-export {
-  computeCompanyCohortKeys,
-  getShiftedCompanies,
-  countCompanies,
-} from './company-cohorts';
+export { computeCompanyCohortKeys, getShiftedCompanies, countCompanies } from './company-cohorts';
 
 // Cash flows
 export {

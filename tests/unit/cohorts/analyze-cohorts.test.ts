@@ -1,5 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import { analyzeCohorts, type AnalyzeCohortInput } from '@/core/cohorts/advanced-engine';
+import {
+  analyzeCohorts,
+  type AnalyzeCohortInput,
+} from '@shared/core/cohorts/analysis/advanced-engine';
 import type { CohortUnit } from '@shared/types';
 
 const FUND_ID = 1;
