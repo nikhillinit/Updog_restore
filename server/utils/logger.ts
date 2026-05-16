@@ -141,71 +141,66 @@ const logger = winston.createLogger({
   exitOnError: false,
 });
 
+type SpecializedLoggerConfig = {
+  level: 'security' | 'audit' | 'performance';
+  category: 'security' | 'audit' | 'performance';
+  filename: string;
+  maxsize: number;
+  maxFiles: number;
+};
+
 // Create specialized loggers for different contexts
-export const securityLogger = winston.createLogger({
-  levels: customLevels.levels,
+const createSpecializedLogger = ({
+  level,
+  category,
+  filename,
+  maxsize,
+  maxFiles,
+}: SpecializedLoggerConfig) =>
+  winston.createLogger({
+    levels: customLevels.levels,
+    level,
+    format: productionFormat,
+    defaultMeta: {
+      service: 'updog-vc-platform',
+      category,
+    },
+    transports: [
+      consoleTransport,
+      ...(process.env['NODE_ENV'] === 'production'
+        ? [
+            new winston.transports.File({
+              filename: path.join(logsDir, filename),
+              maxsize,
+              maxFiles,
+            }),
+          ]
+        : []),
+    ],
+  });
+
+export const securityLogger = createSpecializedLogger({
   level: 'security',
-  format: productionFormat,
-  defaultMeta: {
-    service: 'updog-vc-platform',
-    category: 'security',
-  },
-  transports: [
-    consoleTransport,
-    ...(process.env['NODE_ENV'] === 'production'
-      ? [
-          new winston.transports.File({
-            filename: path.join(logsDir, 'security.log'),
-            maxsize: 50 * 1024 * 1024,
-            maxFiles: 10,
-          }),
-        ]
-      : []),
-  ],
+  category: 'security',
+  filename: 'security.log',
+  maxsize: 50 * 1024 * 1024,
+  maxFiles: 10,
 });
 
-export const auditLogger = winston.createLogger({
-  levels: customLevels.levels,
+export const auditLogger = createSpecializedLogger({
   level: 'audit',
-  format: productionFormat,
-  defaultMeta: {
-    service: 'updog-vc-platform',
-    category: 'audit',
-  },
-  transports: [
-    consoleTransport,
-    ...(process.env['NODE_ENV'] === 'production'
-      ? [
-          new winston.transports.File({
-            filename: path.join(logsDir, 'audit.log'),
-            maxsize: 50 * 1024 * 1024,
-            maxFiles: 10,
-          }),
-        ]
-      : []),
-  ],
+  category: 'audit',
+  filename: 'audit.log',
+  maxsize: 50 * 1024 * 1024,
+  maxFiles: 10,
 });
 
-export const performanceLogger = winston.createLogger({
-  levels: customLevels.levels,
+export const performanceLogger = createSpecializedLogger({
   level: 'performance',
-  format: productionFormat,
-  defaultMeta: {
-    service: 'updog-vc-platform',
-    category: 'performance',
-  },
-  transports: [
-    consoleTransport,
-    ...(process.env['NODE_ENV'] === 'production'
-      ? [
-          new winston.transports.File({
-            filename: path.join(logsDir, 'performance.log'),
-            maxsize: 20 * 1024 * 1024,
-            maxFiles: 5,
-          }),
-        ]
-      : []),
-  ],
+  category: 'performance',
+  filename: 'performance.log',
+  maxsize: 20 * 1024 * 1024,
+  maxFiles: 5,
 });
 
 // Helper functions for structured logging
