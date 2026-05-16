@@ -181,15 +181,15 @@ router['get']('/api/health/live', livenessCheck);
 // Richer JSON health endpoint for Guardian and canary checks
 router['get']('/health/detailed-json', async (req: Request, res: Response) => {
   // Prevent intermediary caching
-  res['set']('Cache-Control', 'no-store, max-age=0');
-  res['set']('Pragma', 'no-cache');
+  res.set('Cache-Control', 'no-store, max-age=0');
+  res.set('Pragma', 'no-cache');
 
   // Check cache first
   const cached = await healthCache['get']('healthz');
   if (cached) {
-    res['set']('X-Health-From-Cache', '1');
+    res.set('X-Health-From-Cache', '1');
     const ttlMs = await healthCache.ttlMs('healthz');
-    res['set']('X-Health-TTL-Remaining', ttlMs.toString());
+    res.set('X-Health-TTL-Remaining', ttlMs.toString());
     return res.json(cached);
   }
 
@@ -214,7 +214,7 @@ router['get']('/health/detailed-json', async (req: Request, res: Response) => {
     // Cache with deterministic TTL
     await healthCache['set']('healthz', healthData, HEALTH_CACHE_MS);
     const ttlMs = await healthCache.ttlMs('healthz');
-    res['set']('X-Health-TTL-Set', ttlMs.toString());
+    res.set('X-Health-TTL-Set', ttlMs.toString());
 
     res.json(healthData);
   } catch (error: unknown) {
@@ -230,15 +230,15 @@ router['get']('/health/detailed-json', async (req: Request, res: Response) => {
 // Returns 200 only when all critical dependencies are ready
 router['get']('/readyz', async (req: Request, res: Response) => {
   // Prevent intermediary caching
-  res['set']('Cache-Control', 'no-store, max-age=0');
-  res['set']('Pragma', 'no-cache');
+  res.set('Cache-Control', 'no-store, max-age=0');
+  res.set('Pragma', 'no-cache');
 
   // Check cache first
   const cached = await healthCache['get']('readyz');
   if (cached) {
-    res['set']('X-Health-From-Cache', '1');
+    res.set('X-Health-From-Cache', '1');
     const ttlMs = await healthCache.ttlMs('readyz');
-    res['set']('X-Health-TTL-Remaining', ttlMs.toString());
+    res.set('X-Health-TTL-Remaining', ttlMs.toString());
     return res.status(cached['ready'] ? 200 : 503).json(cached);
   }
 
@@ -280,7 +280,7 @@ router['get']('/readyz', async (req: Request, res: Response) => {
   // Cache with deterministic TTL
   await healthCache['set']('readyz', response, HEALTH_CACHE_MS);
   const ttlMs = await healthCache.ttlMs('readyz');
-  res['set']('X-Health-TTL-Set', ttlMs.toString());
+  res.set('X-Health-TTL-Set', ttlMs.toString());
 
   res.status(isReady ? 200 : 503).json(response);
 });

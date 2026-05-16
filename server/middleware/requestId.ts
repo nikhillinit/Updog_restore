@@ -25,12 +25,12 @@ export function requestId() {
     // Optionally preserve client-provided ID for debugging (separate header)
     const clientRid = req['get']('X-Request-ID');
     if (clientRid && process.env['NODE_ENV'] !== 'production') {
-      res['setHeader']('X-Client-Request-ID', clientRid);
+      res.setHeader('X-Client-Request-ID', clientRid);
     }
 
     // Use server ID as authoritative
     req.requestId = serverRid;
-    res['setHeader']('X-Request-ID', serverRid);
+    res.setHeader('X-Request-ID', serverRid);
     res.locals['requestId'] = serverRid;
 
     // If logger exists, create child logger with request context
@@ -44,7 +44,7 @@ export function requestId() {
     }
 
     // Log request completion
-    res['on']('finish', () => {
+    res.on('finish', () => {
       const duration = Date.now() - ((res.locals['startTime'] as number) || Date.now());
       if (req.log) {
         req.log.info(

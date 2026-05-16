@@ -36,7 +36,7 @@ export function rateLimitDetailed(opts?: { store?: Store }): RateLimitRequestHan
       const seconds = resetTime
         ? Math.max(1, Math.ceil((resetTime.getTime() - Date.now()) / 1000))
         : 60;
-      res['setHeader']('Retry-After', String(seconds));
+      res.setHeader('Retry-After', String(seconds));
       sendApiError(res, 429, createErrorBody('Too Many Requests', req.requestId, 'RATE_LIMITED'));
     },
   });

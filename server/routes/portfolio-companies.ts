@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import type { Request, Response } from 'express';
 import { insertPortfolioCompanySchema } from '@shared/schema';
+import { CompanySectorSchema, CompanyStageSchema } from '@shared/company-taxonomy';
 import type { ApiError } from '@shared/types';
 import { NumberParseError, toNumber } from '@shared/number';
 import { ValidationError } from '../errors';
@@ -171,9 +172,25 @@ router.post('/portfolio-companies', async (req: Request, res: Response) => {
       return res.status(400).json(error);
     }
 
+    const sectorIssues = CompanySectorSchema.safeParse(result.data['sector']).error?.issues ?? [];
+    const stageIssues = CompanyStageSchema.safeParse(result.data['stage']).error?.issues ?? [];
+    const currentStageIssues =
+      result.data['currentStage'] == null
+        ? []
+        : (CompanyStageSchema.safeParse(result.data['currentStage']).error?.issues ?? []);
+    const taxonomyIssues = [...sectorIssues, ...stageIssues, ...currentStageIssues];
+    if (taxonomyIssues.length > 0) {
+      const error: ApiError = {
+        error: 'Invalid company data',
+        message: 'Portfolio company validation failed',
+        details: { validationErrors: taxonomyIssues },
+      };
+      return res.status(400).json(error);
+    }
+
     if (
-      typeof result.data.fundId === 'number' &&
-      !(await enforceProvidedFundScope(req, res, result.data.fundId))
+      typeof result.data['fundId'] === 'number' &&
+      !(await enforceProvidedFundScope(req, res, result.data['fundId']))
     ) {
       return;
     }

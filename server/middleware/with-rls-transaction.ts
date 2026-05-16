@@ -102,7 +102,7 @@ export function withRLSTransaction() {
       } as Response['end'];
 
       // Handle premature close
-      res['on']('close', () => {
+      res.on('close', () => {
         if (!transactionCompleted) {
           transactionCompleted = true;
           client

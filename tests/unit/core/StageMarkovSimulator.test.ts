@@ -430,6 +430,12 @@ describe('StageMarkovSimulator', () => {
         'Cannot normalize stage: unknown-thing'
       );
     });
+
+    it('should list supported Markov stages when rejecting an unsupported stage', () => {
+      expect(() => normalizeStage('unknown-thing')).toThrow(
+        /Supported Markov stages: seed, pre-seed, series-a, series-b, series-c, growth, exit/
+      );
+    });
   });
 
   describe('Empirical Transition Rates - Design Validation', () => {

@@ -137,7 +137,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.use((req: Request, res: Response, next: NextFunction) => {
     const startTime = Date.now();
 
-    res['on']('finish', () => {
+    res.on('finish', () => {
       const duration = (Date.now() - startTime) / 1000;
       // Express Route type has path property, but req.route may be undefined
       const route = req.route as { path?: string } | undefined;

@@ -112,7 +112,7 @@ export const rumLimiter = rateLimit({
  */
 export function rumPrivacyGuard(req: Request, res: Response, next: NextFunction) {
   // Set no-store cache control
-  res['setHeader']('Cache-Control', 'no-store');
+  res.setHeader('Cache-Control', 'no-store');
 
   // Strip accidental PII fields from body
   const body = getRumBody(req);

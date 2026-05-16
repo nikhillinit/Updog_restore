@@ -12,7 +12,7 @@ router['get']('/api/operations/:key', async (req: Request, res: Response) => {
   if (rec.status === 'succeeded') return res.status(200).json(rec);
   if (rec.status === 'failed') return res.status(500).json(rec);
   // in-progress
-  res['setHeader']('Retry-After', '2');
+  res.setHeader('Retry-After', '2');
   return res.status(202).json(rec);
 });
 

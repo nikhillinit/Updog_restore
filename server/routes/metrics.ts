@@ -133,7 +133,7 @@ metricsRouter['get']('/metrics', async (_req: Request, res: Response) => {
       }
     }
 
-    res['set']('Content-Type', client.register.contentType);
+    res.set('Content-Type', client.register.contentType);
     res.end(await client.register.metrics());
   } catch (error: unknown) {
     logger.error({ error: getErrorMessage(error) }, 'Failed to generate metrics');

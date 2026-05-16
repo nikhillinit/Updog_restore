@@ -268,7 +268,7 @@ router['post']('/funds/calculate', async (req: Request, res: Response, next: Nex
     );
 
     if (status === 'created') {
-      res['setHeader']('Idempotency-Status', 'created');
+      res.setHeader('Idempotency-Status', 'created');
       const result = await promise;
       endTimer();
       return res.status(201).json(result);
@@ -280,7 +280,7 @@ router['post']('/funds/calculate', async (req: Request, res: Response, next: Nex
     if (!hasClientKey) {
       try {
         const result = await promise;
-        res['setHeader']('Idempotency-Status', 'joined');
+        res.setHeader('Idempotency-Status', 'joined');
         endTimer();
         return res.status(200).json(result);
       } catch (error) {
@@ -293,9 +293,9 @@ router['post']('/funds/calculate', async (req: Request, res: Response, next: Nex
     // In-memory store cannot share in-flight work across processes; surface operation endpoint.
     // Avoid unhandled rejection by detaching:
     promise.catch(() => void 0);
-    res['setHeader']('Idempotency-Status', 'joined');
-    res['setHeader']('Retry-After', '2');
-    res['setHeader']('Location', `/api/operations/${encodeURIComponent(key)}`);
+    res.setHeader('Idempotency-Status', 'joined');
+    res.setHeader('Retry-After', '2');
+    res.setHeader('Location', `/api/operations/${encodeURIComponent(key)}`);
     endTimer();
     return res.status(202).json({ status: 'in-progress', key });
   } catch (err) {

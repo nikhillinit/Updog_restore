@@ -75,6 +75,11 @@ describe('Stage Normalization Functions', () => {
   });
 
   describe('normalizeStageForCompatibility', () => {
+    it('keeps display-name tolerance out of the strict normalizer', () => {
+      expect(() => normalizeStage('Series A')).toThrow('Unknown stage format: "Series A"');
+      expect(normalizeStageForCompatibility('Series A')).toBe('series_a');
+    });
+
     it('accepts display and separator variants without changing strict normalization', () => {
       expect(normalizeStageForCompatibility('Seed')).toBe('seed');
       expect(normalizeStageForCompatibility('Series A')).toBe('series_a');

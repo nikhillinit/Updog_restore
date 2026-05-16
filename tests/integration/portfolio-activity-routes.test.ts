@@ -61,7 +61,7 @@ describe('portfolio company and activity route extraction', () => {
       .send({
         fundId: 1,
         name: 'Route Extraction Co',
-        sector: 'AI',
+        sector: 'AI / ML',
         stage: 'Seed',
         investmentAmount: '1500000',
       })
@@ -70,7 +70,7 @@ describe('portfolio company and activity route extraction', () => {
     expect(created.body).toMatchObject({
       fundId: 1,
       name: 'Route Extraction Co',
-      sector: 'AI',
+      sector: 'AI / ML',
       stage: 'Seed',
     });
 
@@ -79,12 +79,40 @@ describe('portfolio company and activity route extraction', () => {
       expect.arrayContaining([
         expect.objectContaining({
           name: 'Route Extraction Co',
-          sector: 'AI',
+          sector: 'AI / ML',
           stage: 'Seed',
           fundId: 1,
         }),
       ])
     );
+
+    const invalidSector = await request(app)
+      .post('/api/portfolio-companies')
+      .send({
+        fundId: 1,
+        name: 'Invalid Sector Co',
+        sector: 'Unmapped Sector',
+        stage: 'Seed',
+        investmentAmount: '1500000',
+      })
+      .expect(400);
+    expect(invalidSector.body).toMatchObject({
+      error: 'Invalid company data',
+    });
+
+    const invalidStage = await request(app)
+      .post('/api/portfolio-companies')
+      .send({
+        fundId: 1,
+        name: 'Invalid Stage Co',
+        sector: 'SaaS',
+        stage: 'series_a',
+        investmentAmount: '1500000',
+      })
+      .expect(400);
+    expect(invalidStage.body).toMatchObject({
+      error: 'Invalid company data',
+    });
   });
 
   it('preserves activity validation and descending read order', async () => {

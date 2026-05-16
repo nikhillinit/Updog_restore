@@ -310,6 +310,28 @@ const MARKOV_SHORT_STAGE_ALIASES: Record<string, InvestmentStage> = {
   c: InvestmentStage.SeriesC,
 };
 
+const SUPPORTED_MARKOV_STAGE_LABELS = [
+  'seed',
+  'pre-seed',
+  'series-a',
+  'series-b',
+  'series-c',
+  'growth',
+  'exit',
+  'ipo',
+  'fail',
+  'failed',
+  'a',
+  'b',
+  'c',
+] as const;
+
+function unsupportedStageError(stage: string): Error {
+  return new Error(
+    `Cannot normalize stage: ${stage}. Supported Markov stages: ${SUPPORTED_MARKOV_STAGE_LABELS.join(', ')}`
+  );
+}
+
 function toStageKey(stage: string): string {
   return stage
     .trim()
@@ -364,11 +386,11 @@ export function normalizeStage(stage: string): InvestmentStage {
       return markovStage;
     }
 
-    throw new Error(`Cannot normalize stage: ${stage}`);
+    throw unsupportedStageError(stage);
   }
 
   if (normalized === 'exit' || normalized === 'ipo') return InvestmentStage.Exit;
   if (normalized === 'fail' || normalized === 'failed') return InvestmentStage.Failed;
 
-  throw new Error(`Cannot normalize stage: ${stage}`);
+  throw unsupportedStageError(stage);
 }

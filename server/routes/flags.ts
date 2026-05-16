@@ -62,14 +62,14 @@ flagsRouter['get']('/', async (req: Request, res: Response) => {
       etag = `W/"${result.hash}"`;
     }
 
-    res['setHeader']('ETag', etag);
+    res.setHeader('ETag', etag);
 
     // Targeted: private cache with Vary; Anonymous: public shared cache
     if (isTargeted) {
-      res['setHeader']('Cache-Control', 'private, max-age=15, must-revalidate');
-      res['setHeader']('Vary', 'Authorization');
+      res.setHeader('Cache-Control', 'private, max-age=15, must-revalidate');
+      res.setHeader('Vary', 'Authorization');
     } else {
-      res['setHeader']('Cache-Control', 'max-age=15, must-revalidate');
+      res.setHeader('Cache-Control', 'max-age=15, must-revalidate');
     }
 
     // Handle conditional GET
@@ -136,10 +136,10 @@ const adminRateLimit = rateLimit({
 // Security headers for admin routes
 adminRouter.use((req: Request, res: Response, next: NextFunction) => {
   // Never cache admin responses
-  res['setHeader']('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
-  res['setHeader']('Pragma', 'no-cache');
-  res['setHeader']('Expires', '0');
-  res['setHeader']('Surrogate-Control', 'no-store');
+  res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+  res.setHeader('Pragma', 'no-cache');
+  res.setHeader('Expires', '0');
+  res.setHeader('Surrogate-Control', 'no-store');
   next();
 });
 

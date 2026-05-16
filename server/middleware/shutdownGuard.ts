@@ -21,9 +21,9 @@ export function shutdownGuard() {
   return (req: Request, res: Response, next: NextFunction) => {
     if (!isReady() && !ALLOW(req.path)) {
       const retryAfter = shutdownRetryAfterSeconds();
-      res['setHeader']('Connection', 'close');
-      res['setHeader']('Retry-After', String(retryAfter));
-      res['setHeader']('Cache-Control', 'no-store');
+      res.setHeader('Connection', 'close');
+      res.setHeader('Retry-After', String(retryAfter));
+      res.setHeader('Cache-Control', 'no-store');
       return sendApiError(res, 503, {
         error: 'Service Unavailable',
         code: 'SERVICE_UNAVAILABLE',

@@ -73,13 +73,13 @@ export function withIdempotency(options?: { ttlSeconds?: number; store?: Idempot
 
         if (existing.status === 'succeeded' && existing.result) {
           // Return cached successful result
-          res['set']('X-Idempotent-Replay', 'true');
+          res.set('X-Idempotent-Replay', 'true');
           return res.json(existing.result);
         }
 
         if (existing.status === 'failed' && existing.error) {
           // Return cached error
-          res['set']('X-Idempotent-Replay', 'true');
+          res.set('X-Idempotent-Replay', 'true');
           return res.status(500).json({
             error: 'cached_error',
             message: existing.error,

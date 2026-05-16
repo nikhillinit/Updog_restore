@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { z } from 'zod';
 import { useFundContext } from '@/contexts/FundContext';
 import { computeRemainingCapital } from '@/lib/variance-remaining-capital';
@@ -180,6 +180,7 @@ export default function VarianceTrackingPage() {
     loadVarianceSettings(currentFund?.id)
   );
   const [settingsSaveMessage, setSettingsSaveMessage] = useState<string | null>(null);
+  const settingsDraftsByFundId = useRef<Record<string, VarianceSettings>>({});
 
   // Form states
   const [baselineForm, setBaselineForm] = useState({
@@ -251,8 +252,10 @@ export default function VarianceTrackingPage() {
   const generateReportMutation = useGenerateVarianceReport();
 
   useEffect(() => {
-    setVarianceSettings(loadVarianceSettings(currentFund?.id));
-    setSettingsSaveMessage(null);
+    const fundKey = currentFund?.id == null ? null : String(currentFund.id);
+    const draft = fundKey == null ? undefined : settingsDraftsByFundId.current[fundKey];
+    setVarianceSettings(draft ?? loadVarianceSettings(currentFund?.id));
+    setSettingsSaveMessage(draft ? 'Unsaved changes.' : null);
   }, [currentFund?.id]);
 
   // Report detail query (only fires when a report is selected)
@@ -462,7 +465,13 @@ export default function VarianceTrackingPage() {
     key: K,
     value: VarianceSettings[K]
   ) => {
-    setVarianceSettings((current) => ({ ...current, [key]: value }));
+    setVarianceSettings((current) => {
+      const next = { ...current, [key]: value };
+      if (currentFund?.id != null) {
+        settingsDraftsByFundId.current[String(currentFund.id)] = next;
+      }
+      return next;
+    });
     setSettingsSaveMessage('Unsaved changes.');
   };
 
@@ -496,6 +505,7 @@ export default function VarianceTrackingPage() {
     }
 
     setSettingsSaveMessage('Settings saved in this browser.');
+    delete settingsDraftsByFundId.current[String(currentFund.id)];
     toast({
       title: 'Settings saved',
       description: 'Variance tracking settings have been saved in this browser workspace.',

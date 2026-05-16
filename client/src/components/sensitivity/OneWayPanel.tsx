@@ -452,6 +452,7 @@ export function OneWayPanel({ fundId }: OneWayPanelProps) {
         {!mutation.isPending && error && (
           <SensitivityRunErrorCard
             error={error}
+            fundId={fundId}
             onRetry={handleSubmit}
             retryDisabled={runDisabled}
             retryDisabledReason={runDisabledReason ?? null}

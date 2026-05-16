@@ -106,8 +106,8 @@ router['get'](
       });
 
       // Add response headers
-      res['setHeader']('Content-Type', 'application/json');
-      res['setHeader']('Cache-Control', 'private, max-age=60'); // Client cache for 1 minute
+      res.setHeader('Content-Type', 'application/json');
+      res.setHeader('Cache-Control', 'private, max-age=60'); // Client cache for 1 minute
 
       // Return metrics
       return res.json(metrics);

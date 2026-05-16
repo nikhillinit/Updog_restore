@@ -74,10 +74,10 @@ export function makeApp() {
 
   // Additional security headers
   app.use((_req: Request, res: Response, next: NextFunction) => {
-    res['setHeader']('Referrer-Policy', securityHeaders.referrerPolicy);
-    res['setHeader']('X-Content-Type-Options', securityHeaders.xContentTypeOptions);
-    res['setHeader']('X-Frame-Options', securityHeaders.xFrameOptions);
-    res['setHeader']('X-XSS-Protection', securityHeaders.xXSSProtection);
+    res.setHeader('Referrer-Policy', securityHeaders.referrerPolicy);
+    res.setHeader('X-Content-Type-Options', securityHeaders.xContentTypeOptions);
+    res.setHeader('X-Frame-Options', securityHeaders.xFrameOptions);
+    res.setHeader('X-XSS-Protection', securityHeaders.xXSSProtection);
 
     next();
   });
@@ -94,11 +94,11 @@ export function makeApp() {
       dev && origin && /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin);
     const ok = devOriginOk || (origin && allow.includes(origin));
     if (ok && origin) {
-      res['setHeader']('Access-Control-Allow-Origin', origin);
-      res['setHeader']('Vary', 'Origin');
-      res['setHeader']('Access-Control-Allow-Credentials', 'true');
-      res['setHeader']('Access-Control-Allow-Headers', 'content-type, authorization, x-request-id');
-      res['setHeader']('Access-Control-Allow-Methods', 'GET,POST,PUT,PATCH,DELETE,OPTIONS');
+      res.setHeader('Access-Control-Allow-Origin', origin);
+      res.setHeader('Vary', 'Origin');
+      res.setHeader('Access-Control-Allow-Credentials', 'true');
+      res.setHeader('Access-Control-Allow-Headers', 'content-type, authorization, x-request-id');
+      res.setHeader('Access-Control-Allow-Methods', 'GET,POST,PUT,PATCH,DELETE,OPTIONS');
     }
     if (req.method === 'OPTIONS') return res.sendStatus(ok ? 200 : 403);
     if (!ok && origin) return res.sendStatus(403);
@@ -127,14 +127,14 @@ export function makeApp() {
   app.use((req: Request, res: Response, next: NextFunction) => {
     const reqWithId = req as RequestWithId;
     reqWithId.rid = (req.headers['x-request-id'] as string | undefined) || crypto.randomUUID();
-    res['setHeader']('x-request-id', reqWithId.rid);
+    res.setHeader('x-request-id', reqWithId.rid);
     next();
   });
   app.use(rateLimit({ windowMs: rateLimitWindowMs, max: rateLimitMax, standardHeaders: true }));
 
   // API Documentation landing page
   app['get']('/api-docs', (_req: Request, res: Response) => {
-    res['setHeader']('Content-Type', 'text/html; charset=utf-8');
+    res.setHeader('Content-Type', 'text/html; charset=utf-8');
     res.send(`<!doctype html>
 <html lang="en">
   <head>
@@ -157,7 +157,7 @@ export function makeApp() {
 
   // OpenAPI spec endpoint
   app['get']('/api-docs.json', (_req: Request, res: Response) => {
-    res['setHeader']('Content-Type', 'application/json');
+    res.setHeader('Content-Type', 'application/json');
     res.send(swaggerSpec);
   });
 

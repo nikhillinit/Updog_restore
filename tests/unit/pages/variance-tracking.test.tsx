@@ -4,6 +4,8 @@ import type React from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const mocks = vi.hoisted(() => ({
+  currentFundId: 1,
+  currentFundName: 'Fund I',
   performAnalysisPending: false,
   performAnalysisMutateAsync: vi.fn(),
   createBaselineMutateAsync: vi.fn(),
@@ -12,7 +14,7 @@ const mocks = vi.hoisted(() => ({
 
 vi.mock('@/contexts/FundContext', () => ({
   useFundContext: () => ({
-    currentFund: { id: 1, name: 'Fund I', size: 100_000_000 },
+    currentFund: { id: mocks.currentFundId, name: mocks.currentFundName, size: 100_000_000 },
   }),
 }));
 
@@ -119,6 +121,8 @@ describe('VarianceTrackingPage', () => {
   beforeEach(() => {
     window.localStorage.clear();
     window.history.replaceState(null, '', '/');
+    mocks.currentFundId = 1;
+    mocks.currentFundName = 'Fund I';
     mocks.performAnalysisPending = false;
     mocks.performAnalysisMutateAsync.mockReset();
     mocks.performAnalysisMutateAsync.mockResolvedValue({
@@ -205,5 +209,34 @@ describe('VarianceTrackingPage', () => {
     expect(screen.getByRole('spinbutton', { name: 'Default Variance Threshold (%)' })).toHaveValue(
       15
     );
+  });
+
+  it('preserves unsaved settings drafts per fund instead of discarding them on fund switch', async () => {
+    const user = userEvent.setup();
+    const { default: VarianceTrackingPage } = await import('@/pages/variance-tracking');
+    const { rerender } = render(<VarianceTrackingPage />);
+
+    await user.click(screen.getByRole('tab', { name: 'Settings' }));
+    await user.click(screen.getByRole('switch', { name: 'Daily Digest' }));
+    expect(screen.getByText('Unsaved changes.')).toBeInTheDocument();
+
+    mocks.currentFundId = 2;
+    mocks.currentFundName = 'Fund II';
+    rerender(<VarianceTrackingPage />);
+
+    expect(screen.getByRole('switch', { name: 'Daily Digest' })).toHaveAttribute(
+      'aria-checked',
+      'false'
+    );
+
+    mocks.currentFundId = 1;
+    mocks.currentFundName = 'Fund I';
+    rerender(<VarianceTrackingPage />);
+
+    expect(screen.getByRole('switch', { name: 'Daily Digest' })).toHaveAttribute(
+      'aria-checked',
+      'true'
+    );
+    expect(screen.getByText('Unsaved changes.')).toBeInTheDocument();
   });
 });
