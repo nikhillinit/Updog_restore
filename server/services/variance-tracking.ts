@@ -16,6 +16,7 @@ import {
   buildPacingVarianceResult,
   buildReserveVarianceResult,
 } from './variance-tracking/variance-diff';
+import { analyzeDistributionVariances } from './variance-tracking/distribution-variance';
 import { Decimal, toDecimal } from '@shared/lib/decimal-utils';
 import {
   fundBaselines,
@@ -926,99 +927,12 @@ export class VarianceCalculationService {
   private analyzeSectorVariances(
     current: Record<string, number>,
     baseline: Record<string, number>
-  ): Record<
-    string,
-    {
-      current: number;
-      baseline: number;
-      delta: number;
-      deltaPct: number | null;
-      currentCountShare: number;
-      baselineCountShare: number;
-      countShareDelta: number;
-      countShareDeltaPct: number | null;
-    }
-  > {
-    return this.analyzeDistributionVariances(current, baseline);
+  ) {
+    return analyzeDistributionVariances(current, baseline);
   }
 
-  private analyzeStageVariances(
-    current: Record<string, number>,
-    baseline: Record<string, number>
-  ): Record<
-    string,
-    {
-      current: number;
-      baseline: number;
-      delta: number;
-      deltaPct: number | null;
-      currentCountShare: number;
-      baselineCountShare: number;
-      countShareDelta: number;
-      countShareDeltaPct: number | null;
-    }
-  > {
-    return this.analyzeDistributionVariances(current, baseline);
-  }
-
-  /** Shared logic for sector/stage distribution variance */
-  private analyzeDistributionVariances(
-    current: Record<string, number>,
-    baseline: Record<string, number>
-  ): Record<
-    string,
-    {
-      current: number;
-      baseline: number;
-      delta: number;
-      deltaPct: number | null;
-      currentCountShare: number;
-      baselineCountShare: number;
-      countShareDelta: number;
-      countShareDeltaPct: number | null;
-    }
-  > {
-    const allKeys = new Set([...Object.keys(current), ...Object.keys(baseline)]);
-    const currentTotal = Object.values(current).reduce((sum, value) => sum + value, 0);
-    const baselineTotal = Object.values(baseline).reduce((sum, value) => sum + value, 0);
-    const result: Record<
-      string,
-      {
-        current: number;
-        baseline: number;
-        delta: number;
-        deltaPct: number | null;
-        currentCountShare: number;
-        baselineCountShare: number;
-        countShareDelta: number;
-        countShareDeltaPct: number | null;
-      }
-    > = {};
-
-    for (const key of allKeys) {
-      const cur = current[key] ?? 0;
-      const base = baseline[key] ?? 0;
-      const delta = cur - base;
-      const deltaPct = base !== 0 ? delta / base : null;
-      const currentCountShare = currentTotal > 0 ? cur / currentTotal : 0;
-      const baselineCountShare = baselineTotal > 0 ? base / baselineTotal : 0;
-      const countShareDelta = currentCountShare - baselineCountShare;
-      const countShareDeltaPct =
-        baselineCountShare !== 0 ? countShareDelta / baselineCountShare : null;
-
-      result[key] = {
-        current: cur,
-        baseline: base,
-        delta,
-        deltaPct,
-        currentCountShare,
-        baselineCountShare,
-        countShareDelta,
-        countShareDeltaPct,
-      };
-    }
-
-    return result;
+  private analyzeStageVariances(current: Record<string, number>, baseline: Record<string, number>) {
+    return analyzeDistributionVariances(current, baseline);
   }
 
   private async calculateReserveVariances(fundId: number, baseline: FundBaseline) {
