@@ -25,7 +25,7 @@ import {
   type VarianceDashboardResponse as VarianceDashboardRouteResponse,
   type VarianceReportClientResponse,
 } from '@shared/variance-validation';
-import { firstString } from '../lib/request-values';
+import { firstString, getUserId } from '../lib/request-values';
 import { enforceProvidedFundScope } from '../lib/auth/provided-fund-scope';
 import { getRouteErrorMessage } from '../lib/errorHandling';
 
@@ -270,7 +270,7 @@ router['post']('/api/funds/:id/baselines', idempotency, async (req: Request, res
     }
 
     const data = validation.data;
-    const userId = req.user?.id ? parseInt(String(req.user.id), 10) : 0;
+    const userId = getUserId(req);
 
     if (!userId) {
       const error: ApiError = {
@@ -504,7 +504,7 @@ router['post'](
       }
 
       const data = validation.data;
-      const userId = req.user?.id ? parseInt(String(req.user.id), 10) : 0;
+      const userId = getUserId(req);
 
       // Resolve baseline: use explicit baselineId or fall back to fund's default
       const resolvedBaselineId = await (async () => {
@@ -694,7 +694,7 @@ router['post']('/api/funds/:id/alert-rules', async (req: Request, res: Response)
     }
 
     const data = validation.data;
-    const userId = req.user?.id ? parseInt(String(req.user.id), 10) : 0;
+    const userId = getUserId(req);
 
     if (!userId) {
       const error: ApiError = {
@@ -827,7 +827,7 @@ router['post']('/api/alerts/:alertId/acknowledge', async (req: Request, res: Res
       return res.status(400).json(error);
     }
 
-    const userId = req.user?.id ? parseInt(String(req.user.id), 10) : 0;
+    const userId = getUserId(req);
     if (!userId) {
       const error: ApiError = {
         error: 'Authentication required',
@@ -877,7 +877,7 @@ router['post']('/api/alerts/:alertId/resolve', async (req: Request, res: Respons
       return res.status(400).json(error);
     }
 
-    const userId = req.user?.id ? parseInt(String(req.user.id), 10) : 0;
+    const userId = getUserId(req);
     if (!userId) {
       const error: ApiError = {
         error: 'Authentication required',
@@ -922,7 +922,7 @@ router['post']('/api/funds/:id/alerts/cleanup-superseded', async (req: Request, 
       throw err;
     }
 
-    const userId = req.user?.id ? parseInt(String(req.user.id), 10) : 0;
+    const userId = getUserId(req);
     if (!userId) {
       const error: ApiError = {
         error: 'Authentication required',
@@ -992,7 +992,7 @@ router['post'](
       }
 
       const data = validation.data;
-      const userId = req.user?.id ? parseInt(String(req.user.id), 10) : 0;
+      const userId = getUserId(req);
 
       if (!userId) {
         const error: ApiError = {

@@ -25,7 +25,7 @@ import {
   recordUnknownStage,
 } from '../observability/stage-metrics';
 import { setStageWarningHeaders } from '../middleware/deprecation-headers';
-import { firstString } from '../lib/request-values';
+import { firstString, getUserId } from '../lib/request-values';
 import { getRouteErrorMessage as getErrorMessage } from '../lib/errorHandling';
 
 // Type for portfolio storage
@@ -60,16 +60,6 @@ const getPortfolioStorage = (req: Request): PortfolioStorage => {
     };
   }
   return locals.portfolioStorage;
-};
-
-// Helper to safely extract user ID from request
-const getUserId = (req: Request): number => {
-  const user = req.user as { id?: string } | undefined;
-  if (!user?.id) {
-    return 0;
-  }
-  const parsed = parseInt(user.id, 10);
-  return isNaN(parsed) ? 0 : parsed;
 };
 
 const router = Router();
