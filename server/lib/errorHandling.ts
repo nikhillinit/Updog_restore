@@ -86,6 +86,43 @@ export function getRouteErrorMessage(error: unknown): string {
   return isErrorWithMessage(error) ? error.message : 'Unknown error';
 }
 
+function determineTypedSeverity(error: Error): ErrorSeverity | undefined {
+  if (isDeploymentError(error)) {
+    return error.stage === 'production' ? ErrorSeverity.CRITICAL : ErrorSeverity.HIGH;
+  }
+
+  if (isDatabaseError(error)) {
+    return error.message.includes('connection') ? ErrorSeverity.CRITICAL : ErrorSeverity.HIGH;
+  }
+
+  if (isHealthCheckError(error)) {
+    return error.checkType === 'connectivity' ? ErrorSeverity.HIGH : ErrorSeverity.MEDIUM;
+  }
+
+  if (isRateLimitError(error)) {
+    return ErrorSeverity.LOW;
+  }
+
+  if (isValidationError(error)) {
+    return ErrorSeverity.LOW;
+  }
+
+  if (isIdempotencyError(error)) {
+    return error.conflictType === 'storage_error' ? ErrorSeverity.HIGH : ErrorSeverity.MEDIUM;
+  }
+
+  return undefined;
+}
+
+function inferSeverityFromMessage(message: string): ErrorSeverity {
+  if (message.includes('timeout')) return ErrorSeverity.MEDIUM;
+  if (message.includes('connection')) return ErrorSeverity.HIGH;
+  if (message.includes('permission')) return ErrorSeverity.MEDIUM;
+  if (message.includes('not found')) return ErrorSeverity.LOW;
+
+  return ErrorSeverity.MEDIUM;
+}
+
 // Enhanced error context
 interface ErrorContext {
   requestId?: string;
@@ -186,37 +223,7 @@ export class UnifiedErrorHandler {
 
   // Determine error severity
   private determineSeverity(error: Error): ErrorSeverity {
-    if (isDeploymentError(error)) {
-      return error.stage === 'production' ? ErrorSeverity.CRITICAL : ErrorSeverity.HIGH;
-    }
-
-    if (isDatabaseError(error)) {
-      return error.message.includes('connection') ? ErrorSeverity.CRITICAL : ErrorSeverity.HIGH;
-    }
-
-    if (isHealthCheckError(error)) {
-      return error.checkType === 'connectivity' ? ErrorSeverity.HIGH : ErrorSeverity.MEDIUM;
-    }
-
-    if (isRateLimitError(error)) {
-      return ErrorSeverity.LOW;
-    }
-
-    if (isValidationError(error)) {
-      return ErrorSeverity.LOW;
-    }
-
-    if (isIdempotencyError(error)) {
-      return error.conflictType === 'storage_error' ? ErrorSeverity.HIGH : ErrorSeverity.MEDIUM;
-    }
-
-    // Default severity based on common patterns
-    if (error.message.includes('timeout')) return ErrorSeverity.MEDIUM;
-    if (error.message.includes('connection')) return ErrorSeverity.HIGH;
-    if (error.message.includes('permission')) return ErrorSeverity.MEDIUM;
-    if (error.message.includes('not found')) return ErrorSeverity.LOW;
-
-    return ErrorSeverity.MEDIUM;
+    return determineTypedSeverity(error) ?? inferSeverityFromMessage(error.message);
   }
 
   // Check if error is retryable
