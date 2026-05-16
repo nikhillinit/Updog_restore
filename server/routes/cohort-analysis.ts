@@ -69,6 +69,10 @@ function requireCohortFundAccessFrom(
       });
     }
 
+    // Cohort routes carry fundId in body/query, while the shared fund ACL
+    // middleware reads req.params.fundId. Keep this adapter aligned with the
+    // route body/query schemas so auth and handler validation accept the same
+    // fundId contract.
     req.params['fundId'] = String(parsed.data.fundId);
     return requireFundAccess(req, res, next);
   };
