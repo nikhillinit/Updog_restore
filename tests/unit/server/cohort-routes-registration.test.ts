@@ -152,4 +152,53 @@ describe('cohort routes on registerRoutes surface', () => {
       },
     });
   }, 30_000);
+
+  it('keeps archived cohort definitions hidden when includeArchived=false is passed as a query string', async () => {
+    resetMockDb([
+      [
+        {
+          id: DEFAULT_DEFINITION_ID,
+          fundId: 1,
+          name: 'Active Company View',
+          vintageGranularity: 'year',
+          sectorTaxonomyVersion: 'v1',
+          unit: 'company',
+          isDefault: true,
+          archivedAt: null,
+        },
+        {
+          id: '44444444-4444-4444-8444-444444444444',
+          fundId: 1,
+          name: 'Archived Company View',
+          vintageGranularity: 'year',
+          sectorTaxonomyVersion: 'v1',
+          unit: 'company',
+          isDefault: false,
+          archivedAt: new Date('2025-01-01T00:00:00Z'),
+        },
+      ],
+    ]);
+
+    const app = express();
+    app.set('trust proxy', false);
+    app.use(express.json({ limit: '1mb' }));
+
+    const { registerRoutes } = await import('../../../server/routes');
+    server = await registerRoutes(app);
+
+    const res = await request(app).get('/api/cohorts/definitions?fundId=1&includeArchived=false');
+
+    expect(res.status).toBe(200);
+    expect(res.body).toMatchObject({
+      fundId: 1,
+      count: 1,
+      definitions: [
+        {
+          id: DEFAULT_DEFINITION_ID,
+          name: 'Active Company View',
+          archivedAt: null,
+        },
+      ],
+    });
+  }, 30_000);
 });

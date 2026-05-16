@@ -138,6 +138,53 @@ describe('analyzeCohorts', () => {
     ]);
   });
 
+  it('filters rows and unmapped reporting by requested canonical sector ids', () => {
+    const input = makeInput('company');
+    input.request.sectorIds = [SAAS_ID];
+
+    const result = analyzeCohorts(input);
+
+    expect(result.rows.map((row) => `${row.cohortKey}:${row.sectorName}`)).toEqual(['2022:SaaS']);
+    expect(result.unmapped).toBeUndefined();
+  });
+
+  it('filters investments by requested stages before calculating company cohort keys', () => {
+    const input = makeInput('company');
+    input.request.stages = ['Series A'];
+
+    const result = analyzeCohorts(input);
+
+    expect(result.rows).toHaveLength(1);
+    expect(result.rows[0]).toMatchObject({
+      cohortKey: '2024',
+      sectorId: SAAS_ID,
+      sectorName: 'SaaS',
+      counts: {
+        companies: 1,
+        investments: 1,
+      },
+      exposure: {
+        paidIn: 500000,
+        distributions: 0,
+      },
+    });
+  });
+
+  it('filters investments by inclusive requested investment date range before grouping', () => {
+    const input = makeInput('company');
+    input.request.dateRange = {
+      start: '2023-01-01',
+      end: '2023-12-31',
+    };
+
+    const result = analyzeCohorts(input);
+
+    expect(result.rows.map((row) => `${row.cohortKey}:${row.sectorName}`)).toEqual([
+      '2023:FinTech',
+      '2023:Unmapped',
+    ]);
+  });
+
   it('returns exposure-only rows without performance metrics when no lot cash-flow events exist', () => {
     const result = analyzeCohorts(makeInput('company'));
 

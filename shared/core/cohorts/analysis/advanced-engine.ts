@@ -115,6 +115,78 @@ function calculateCoverageFromData(
   return calculateCoverage(data);
 }
 
+function hasActiveRequestFilters(request: CohortAnalyzeRequest): boolean {
+  return (
+    (request.sectorIds !== undefined && request.sectorIds.length > 0) ||
+    (request.stages !== undefined && request.stages.length > 0) ||
+    request.dateRange?.start !== undefined ||
+    request.dateRange?.end !== undefined
+  );
+}
+
+function parseDateBoundary(value: string | undefined, boundary: 'start' | 'end'): Date | null {
+  if (value === undefined) {
+    return null;
+  }
+
+  const dateOnlyMatch = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
+  if (dateOnlyMatch) {
+    const [, year, month, day] = dateOnlyMatch;
+    const hours = boundary === 'end' ? 23 : 0;
+    const minutes = boundary === 'end' ? 59 : 0;
+    const seconds = boundary === 'end' ? 59 : 0;
+    const milliseconds = boundary === 'end' ? 999 : 0;
+    return new Date(
+      Date.UTC(Number(year), Number(month) - 1, Number(day), hours, minutes, seconds, milliseconds)
+    );
+  }
+
+  const parsed = new Date(value);
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
+}
+
+function applyRequestFilters(
+  resolved: ResolvedInvestment[],
+  request: CohortAnalyzeRequest
+): ResolvedInvestment[] {
+  const sectorIds =
+    request.sectorIds !== undefined && request.sectorIds.length > 0
+      ? new Set(request.sectorIds)
+      : null;
+  const stages =
+    request.stages !== undefined && request.stages.length > 0 ? new Set(request.stages) : null;
+  const dateRange = request.dateRange;
+  const startDate = parseDateBoundary(dateRange?.start, 'start');
+  const endDate = parseDateBoundary(dateRange?.end, 'end');
+  const hasDateFilter = dateRange?.start !== undefined || dateRange?.end !== undefined;
+
+  return resolved.filter((inv) => {
+    if (sectorIds !== null && !sectorIds.has(inv.canonicalSectorId)) {
+      return false;
+    }
+
+    if (stages !== null && (inv.stage === null || !stages.has(inv.stage))) {
+      return false;
+    }
+
+    if (hasDateFilter) {
+      if (inv.investmentDate === null) {
+        return false;
+      }
+
+      const investmentTime = inv.investmentDate.getTime();
+      if (startDate !== null && investmentTime < startDate.getTime()) {
+        return false;
+      }
+      if (endDate !== null && investmentTime > endDate.getTime()) {
+        return false;
+      }
+    }
+
+    return true;
+  });
+}
+
 /**
  * Groups investments by cohort key and sector
  */
@@ -182,11 +254,15 @@ function countInGroup(investments: ResolvedInvestment[]): {
  * 6. Build response with provenance
  */
 export function analyzeCohorts(input: AnalyzeCohortInput): CohortAnalyzeResponse {
-  const { cohortDefinition, resolutionInput, lots, asOfDate } = input;
+  const { request, cohortDefinition, resolutionInput, lots, asOfDate } = input;
   const { unit } = cohortDefinition;
 
   // Step 1: Resolve all investments
-  const resolved = getResolvedInvestments(resolutionInput);
+  const resolved = applyRequestFilters(getResolvedInvestments(resolutionInput), request);
+  const filteredInvestmentIds = new Set(resolved.map((inv) => inv.investmentId));
+  const filteredLots = hasActiveRequestFilters(request)
+    ? lots.filter((lot) => filteredInvestmentIds.has(lot.investmentId))
+    : lots;
 
   // Step 2: Compute company cohort keys (always needed for company-level cohorts)
   const companyCohortKeysList = computeCompanyCohortKeys(resolved);
@@ -197,7 +273,7 @@ export function analyzeCohorts(input: AnalyzeCohortInput): CohortAnalyzeResponse
 
   // Step 3: Generate cash flow events
   const cashFlowEvents = getCashFlowEvents({
-    lots,
+    lots: filteredLots,
     resolvedInvestments: resolved,
     companyCohortKeys: companyCohortKeysList,
     unit,
@@ -209,7 +285,7 @@ export function analyzeCohorts(input: AnalyzeCohortInput): CohortAnalyzeResponse
   const investmentGroups = groupInvestmentsByCohortSector(resolved, companyCohortKeys, unit);
 
   // Step 5: Calculate coverage
-  const coverage = calculateCoverageFromData(resolved, lots);
+  const coverage = calculateCoverageFromData(resolved, filteredLots);
 
   // Step 6: Calculate overall provenance
   const _globalProvenance = calculateProvenance(resolved, unit);
