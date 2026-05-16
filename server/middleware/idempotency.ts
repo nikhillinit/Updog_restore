@@ -353,7 +353,6 @@ export function idempotency(options: IdempotencyOptions = {}) {
     const originalJson = res.json;
     const requestFingerprint = generateRequestHash(req);
 
-    let _responseBody: unknown;
     let responseCaptured = false;
     let processLockReleased = false;
     let cleanupStarted = false;
@@ -389,27 +388,31 @@ export function idempotency(options: IdempotencyOptions = {}) {
       }
     };
 
+    const cacheResponse = (getBody: () => unknown) => {
+      if (responseCaptured || !config.includeStatusCodes.includes(res.statusCode)) {
+        return;
+      }
+
+      responseCaptured = true;
+
+      const response: IdempotentResponse = {
+        statusCode: res.statusCode,
+        headers: res.getHeaders() as Record<string, string>,
+        body: getBody(),
+        timestamp: Date.now(),
+        fingerprint: requestFingerprint,
+      };
+
+      storeResponse(key, response, config as IdempotencyOptions)
+        .catch((error) => {
+          console.error('[Idempotency] Failed to cache response:', error);
+        })
+        .finally(cleanupLock);
+    };
+
     // Override send method
     res.send = function (body?: SendBody) {
-      if (!responseCaptured && config.includeStatusCodes.includes(res.statusCode)) {
-        _responseBody = body;
-        responseCaptured = true;
-
-        // Store response asynchronously with fingerprint
-        const response: IdempotentResponse = {
-          statusCode: res.statusCode,
-          headers: res.getHeaders() as Record<string, string>,
-          body: typeof body === 'string' ? JSON.parse(body) : body,
-          timestamp: Date.now(),
-          fingerprint: requestFingerprint,
-        };
-
-        storeResponse(key, response, config as IdempotencyOptions)
-          .catch((error) => {
-            console.error('[Idempotency] Failed to cache response:', error);
-          })
-          .finally(cleanupLock);
-      }
+      cacheResponse(() => (typeof body === 'string' ? JSON.parse(body) : body));
 
       res.setHeader('Idempotency-Key', key);
       return originalSend.call(this, body);
@@ -417,25 +420,7 @@ export function idempotency(options: IdempotencyOptions = {}) {
 
     // Override json method
     res.json = function (body?: JsonBody) {
-      if (!responseCaptured && config.includeStatusCodes.includes(res.statusCode)) {
-        _responseBody = body;
-        responseCaptured = true;
-
-        // Store response asynchronously with fingerprint
-        const response: IdempotentResponse = {
-          statusCode: res.statusCode,
-          headers: res.getHeaders() as Record<string, string>,
-          body,
-          timestamp: Date.now(),
-          fingerprint: requestFingerprint,
-        };
-
-        storeResponse(key, response, config as IdempotencyOptions)
-          .catch((error) => {
-            console.error('[Idempotency] Failed to cache response:', error);
-          })
-          .finally(cleanupLock);
-      }
+      cacheResponse(() => body);
 
       res.setHeader('Idempotency-Key', key);
       return originalJson.call(this, body);
