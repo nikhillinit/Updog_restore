@@ -80,7 +80,145 @@ export interface MemoryEfficientDistribution {
   standardDeviation: number;
   percentiles: Map<number, number>;
   count: number;
-  // No scenarios array - computed on-the-fly
+  samples: number[]; // Bounded reservoir sample for tail-risk calculations
+}
+
+const VOLATILITY_FLOOR = 1e-8;
+const RISK_RATIO_CAP = 10;
+const RISK_FREE_RATE = 0.02;
+
+function createDefaultDistribution(): MemoryEfficientDistribution {
+  return {
+    min: 0,
+    max: 1,
+    mean: 0,
+    standardDeviation: 1,
+    percentiles: new Map<number, number>(),
+    count: 0,
+    samples: [],
+  };
+}
+
+function getSortedFiniteSamples(distribution: MemoryEfficientDistribution): number[] {
+  return distribution.samples.filter(Number.isFinite).sort((a, b) => a - b);
+}
+
+function calculateValueAtRisk(samples: number[], percentile: number, fallback: number): number {
+  if (samples.length === 0) {
+    return fallback;
+  }
+
+  const index = Math.min(Math.floor(percentile * samples.length), samples.length - 1);
+  return samples[index] ?? fallback;
+}
+
+function calculateConditionalValueAtRisk(
+  samples: number[],
+  percentile: number,
+  fallback: number
+): number {
+  if (samples.length === 0) {
+    return fallback;
+  }
+
+  const tailCount = Math.floor(percentile * samples.length);
+  if (tailCount <= 0) {
+    return samples[0] ?? fallback;
+  }
+
+  const tail = samples.slice(0, tailCount);
+  return tail.reduce((sum, value) => sum + value, 0) / tail.length;
+}
+
+function calculateLossProbability(
+  samples: number[],
+  distribution: MemoryEfficientDistribution
+): number {
+  if (samples.length > 0) {
+    return samples.filter((value) => value < 0).length / samples.length;
+  }
+
+  if (distribution.standardDeviation <= VOLATILITY_FLOOR) {
+    return distribution.mean < 0 ? 1 : 0;
+  }
+
+  return normalCDF(0, distribution.mean, distribution.standardDeviation);
+}
+
+function calculateDownsideRisk(samples: number[], mean: number): number {
+  const downsideReturns = samples.filter((value) => value < mean);
+
+  if (downsideReturns.length === 0) {
+    return 0;
+  }
+
+  const downsideVariance =
+    downsideReturns.reduce((sum, value) => sum + Math.pow(value - mean, 2), 0) /
+    downsideReturns.length;
+
+  return Math.sqrt(downsideVariance);
+}
+
+function calculateBoundedRiskRatio(excessReturn: number, denominator: number): number {
+  const rawRatio =
+    denominator > VOLATILITY_FLOOR
+      ? excessReturn / denominator
+      : Math.sign(excessReturn) * RISK_RATIO_CAP;
+
+  return Math.max(-RISK_RATIO_CAP, Math.min(RISK_RATIO_CAP, rawRatio));
+}
+
+function normalCDF(x: number, mean: number, stdDev: number): number {
+  const z = (x - mean) / stdDev;
+  return 0.5 * (1 + erf(z / Math.sqrt(2)));
+}
+
+function erf(x: number): number {
+  const a1 = 0.254829592;
+  const a2 = -0.284496736;
+  const a3 = 1.421413741;
+  const a4 = -1.453152027;
+  const a5 = 1.061405429;
+  const p = 0.3275911;
+
+  const sign = x >= 0 ? 1 : -1;
+  const absX = Math.abs(x);
+
+  const t = 1.0 / (1.0 + p * absX);
+  const y = 1.0 - ((((a5 * t + a4) * t + a3) * t + a2) * t + a1) * t * Math.exp(-absX * absX);
+
+  return sign * y;
+}
+
+export function calculateStreamingRiskMetricsFromDistributions(
+  distributions: Record<string, MemoryEfficientDistribution>
+): RiskMetrics {
+  const irr = distributions['irr'] ?? createDefaultDistribution();
+  const totalValue = distributions['totalValue'] ?? createDefaultDistribution();
+  const irrSamples = getSortedFiniteSamples(irr);
+
+  const var5 = calculateValueAtRisk(irrSamples, 0.05, irr.percentiles.get(5) ?? irr.min);
+  const var10 = calculateValueAtRisk(irrSamples, 0.1, irr.percentiles.get(10) ?? irr.min);
+  const cvar5 = calculateConditionalValueAtRisk(irrSamples, 0.05, var5);
+  const cvar10 = calculateConditionalValueAtRisk(irrSamples, 0.1, var10);
+
+  const probabilityOfLoss = calculateLossProbability(irrSamples, irr);
+  const downsideRisk = calculateDownsideRisk(irrSamples, irr.mean);
+  const excessReturn = irr.mean - RISK_FREE_RATE;
+  const sharpeRatio = calculateBoundedRiskRatio(excessReturn, irr.standardDeviation);
+  const sortinoRatio = calculateBoundedRiskRatio(excessReturn, downsideRisk);
+
+  const maxDrawdown = totalValue.max !== 0 ? (totalValue.max - totalValue.min) / totalValue.max : 0;
+
+  return {
+    valueAtRisk: { var5, var10 },
+    conditionalValueAtRisk: { cvar5, cvar10 },
+    probabilityOfLoss,
+    downsideRisk,
+    sharpeRatio,
+    sortinoRatio,
+    maxDrawdown,
+  };
 }
 
 // ============================================================================
@@ -270,8 +408,8 @@ class StreamingAggregator {
     const sum = this.aggregatedData['sums'][metric] || 0;
     const sumSquares = this.aggregatedData['squares'][metric] || 0;
 
-    const mean = sum / count;
-    const variance = sumSquares / count - mean * mean;
+    const mean = count > 0 ? sum / count : 0;
+    const variance = count > 0 ? sumSquares / count - mean * mean : 0;
     const standardDeviation = Math.sqrt(Math.max(0, variance));
 
     // Calculate percentiles from sorted samples
@@ -293,6 +431,7 @@ class StreamingAggregator {
       standardDeviation,
       percentiles,
       count,
+      samples: [...samples],
     };
   }
 
@@ -623,49 +762,7 @@ export class StreamingMonteCarloEngine {
   private async calculateStreamingRiskMetrics(
     distributions: Record<string, MemoryEfficientDistribution>
   ): Promise<RiskMetrics> {
-    /* eslint-disable @typescript-eslint/no-unsafe-assignment */
-    const irrDist = distributions['irr'];
-    const totalValueDist = distributions['totalValue'];
-
-    // Default values for missing distributions
-    const defaultDist = { mean: 0, min: 0, max: 1, standardDeviation: 1, percentiles: new Map() };
-    const irr = irrDist ?? defaultDist;
-    const totalValue = totalValueDist ?? defaultDist;
-
-    // Value at Risk from percentiles
-    const var5 = irr.percentiles['get'](5) ?? irr.min;
-    const var10 = irr.percentiles['get'](10) ?? irr.min;
-
-    // Estimate CVaR (simplified calculation)
-    const cvar5 = var5 * 0.8; // Conservative estimate
-    const cvar10 = var10 * 0.85;
-
-    // Probability of loss (using normal approximation)
-    const probabilityOfLoss = this.normalCDF(0, irr.mean, irr.standardDeviation);
-
-    // Downside risk (simplified calculation)
-    const downsideRisk = irr.standardDeviation * 0.7; // Approximate
-
-    // Risk ratios
-    const riskFreeRate = 0.02;
-    const excessReturn = irr.mean - riskFreeRate;
-    const sharpeRatio = irr.standardDeviation !== 0 ? excessReturn / irr.standardDeviation : 0;
-    const sortinoRatio = downsideRisk !== 0 ? excessReturn / downsideRisk : 0;
-
-    // Max drawdown (estimated)
-    const maxDrawdown =
-      totalValue.max !== 0 ? (totalValue.max - totalValue.min) / totalValue.max : 0;
-
-    return {
-      valueAtRisk: { var5, var10 },
-      conditionalValueAtRisk: { cvar5, cvar10 },
-      probabilityOfLoss,
-      downsideRisk,
-      sharpeRatio,
-      sortinoRatio,
-      maxDrawdown,
-    };
-    /* eslint-enable @typescript-eslint/no-unsafe-assignment */
+    return calculateStreamingRiskMetricsFromDistributions(distributions);
   }
 
   /**
@@ -774,29 +871,6 @@ export class StreamingMonteCarloEngine {
     if (global.gc) {
       global.gc();
     }
-  }
-
-  private normalCDF(x: number, mean: number, stdDev: number): number {
-    const z = (x - mean) / stdDev;
-    return 0.5 * (1 + this.erf(z / Math.sqrt(2)));
-  }
-
-  private erf(x: number): number {
-    // Approximation of error function
-    const a1 = 0.254829592;
-    const a2 = -0.284496736;
-    const a3 = 1.421413741;
-    const a4 = -1.453152027;
-    const a5 = 1.061405429;
-    const p = 0.3275911;
-
-    const sign = x >= 0 ? 1 : -1;
-    x = Math.abs(x);
-
-    const t = 1.0 / (1.0 + p * x);
-    const y = 1.0 - ((((a5 * t + a4) * t + a3) * t + a2) * t + a1) * t * Math.exp(-x * x);
-
-    return sign * y;
   }
 
   private estimateReserveImpact(
