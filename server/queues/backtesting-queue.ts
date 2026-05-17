@@ -35,6 +35,8 @@ export interface BacktestJobData {
   idempotencyKey?: string;
 }
 
+type BacktestJobResult = void;
+
 interface BacktestJobSnapshot {
   jobId: string;
   status: BacktestingJobStatus | 'unknown';
@@ -122,10 +124,8 @@ const events = new BacktestingEventEmitter();
 // QUEUE + WORKER (lazily initialized)
 // ============================================================================
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-let queue: Queue<BacktestJobData, any, string> | null = null;
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-let worker: Worker<BacktestJobData, any, string> | null = null;
+let queue: Queue<BacktestJobData, BacktestJobResult, string> | null = null;
+let worker: Worker<BacktestJobData, BacktestJobResult, string> | null = null;
 let staleSweepTimer: ReturnType<typeof setInterval> | null = null;
 
 function resetBacktestingRuntimeState(): void {
@@ -177,7 +177,7 @@ function initializeJobState(
   });
 }
 
-function createStageUpdater(jobId: string, job: Job<BacktestJobData>) {
+function createStageUpdater(jobId: string, job: Job<BacktestJobData, BacktestJobResult, string>) {
   return (stage: BacktestingJobStage, progressPercent: number, message: string) => {
     const state = jobStates.get(jobId);
     if (!state) return;
@@ -256,7 +256,9 @@ function buildRunOptions(
   return options;
 }
 
-async function processBacktestJob(job: Job<BacktestJobData>): Promise<void> {
+async function processBacktestJob(
+  job: Job<BacktestJobData, BacktestJobResult, string>
+): Promise<BacktestJobResult> {
   const { config, correlationId, requesterUserId } = job.data;
   const jobId = job.id!;
   const abortController = new AbortController();
@@ -282,7 +284,7 @@ async function processBacktestJob(job: Job<BacktestJobData>): Promise<void> {
 // ---------------------------------------------------------------------------
 
 export async function initializeBacktestingQueue(redisConnection: IORedis): Promise<{
-  queue: Queue<BacktestJobData>;
+  queue: Queue<BacktestJobData, BacktestJobResult, string>;
   close: () => Promise<void>;
 }> {
   if (queue && worker) {
@@ -294,7 +296,7 @@ export async function initializeBacktestingQueue(redisConnection: IORedis): Prom
 
   const connection = getBullMQConnection(redisConnection);
 
-  queue = new Queue<BacktestJobData>(QUEUE_NAME, {
+  queue = new Queue<BacktestJobData, BacktestJobResult, string>(QUEUE_NAME, {
     connection,
     defaultJobOptions: {
       removeOnComplete: { count: 100 },
@@ -305,7 +307,7 @@ export async function initializeBacktestingQueue(redisConnection: IORedis): Prom
   });
 
   // eslint-disable-next-line povc-security/require-bullmq-config -- BullMQ uses lockDuration instead of timeout
-  worker = new Worker<BacktestJobData>(QUEUE_NAME, processBacktestJob, {
+  worker = new Worker<BacktestJobData, BacktestJobResult, string>(QUEUE_NAME, processBacktestJob, {
     connection,
     concurrency: 2,
     limiter: { max: 10, duration: 60000 },
