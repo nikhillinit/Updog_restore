@@ -1,5 +1,5 @@
 ---
-last_updated: 2026-04-07
+last_updated: 2026-05-17
 status: BACKLOG
 ---
 
@@ -79,18 +79,24 @@ trail.
 
 **Current state in main:**
 
-- baseline rotation accumulates older open incidents
+- baseline rotation can create older open incidents tied to prior baselines
 - partial mitigation already shipped in `b8d3bd60` (alerts filter to current
   baseline by default)
-- no automatic resolution of the older-baseline incidents themselves
+- current code now also resolves superseded baseline-scoped incidents when the
+  default baseline is changed through `setDefaultBaselineAndCleanup`
+- current code exposes a manual cleanup route for resolving superseded incidents
+  against the current default baseline
 
 **Trigger to act (restated 2026-04-07, Phase 1 decision trail — see D-05):**
 operator reports stale-incident clutter, OR LP-facing reports surface incidents
 against retired baselines, OR the alert filter UX proves insufficient in
 practice. No signal observed in the 2026-03/2026-04 commit stream; the read-side
 filter shipped in `b8d3bd60` is holding. Re-deferred from Phase 1 (M8 1C.3
-follow-ons) on 2026-04-07 per the Phase 1 context file — auto-resolution remains
-in backlog until one of the above triggers fires.
+follow-ons) on 2026-04-07 per the Phase 1 context file. A 2026-05-17 trigger
+review found no repo evidence that those triggers fired; because
+default-rotation and manual cleanup now exist, the remaining backlog question is
+whether broader automatic lifecycle cleanup is needed beyond the current cleanup
+surfaces.
 
 **Approximate scope when acted on:**
 
