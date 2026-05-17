@@ -71,6 +71,8 @@ vi.mock('@/contexts/FundContext', () => ({
 
 vi.mock('@/stores/useFundSelector', () => ({
   useFundSelector: (selector: (s: typeof mockFundState) => unknown) => selector(mockFundState),
+  useFundTuple: (selector: (s: typeof mockFundState) => readonly unknown[]) =>
+    selector(mockFundState),
 }));
 
 vi.mock('@/stores/fundStore', () => ({
@@ -319,6 +321,11 @@ function readyResponse() {
       scorecard: { status: 'unavailable' as const, reason: 'No authoritative source' },
       scenarios: { status: 'unavailable' as const, reason: 'No authoritative source' },
       waterfall: { status: 'unavailable' as const, reason: 'No authoritative source' },
+      economics: {
+        status: 'unavailable' as const,
+        reason: 'GP economics is disabled',
+        reasonCode: 'ECONOMICS_DISABLED' as const,
+      },
     },
   };
 }

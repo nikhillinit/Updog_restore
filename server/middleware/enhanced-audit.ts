@@ -255,7 +255,7 @@ export function enhancedAuditMiddleware(config: AuditConfig = {}) {
     };
 
     // Log audit entry when response finishes
-    res['on']('finish', async () => {
+    res.on('finish', async () => {
       // Skip if configured to only log successes and this isn't a success
       if (mergedConfig.logSuccessOnly && res.statusCode >= 400) {
         return;

@@ -1,6 +1,6 @@
 ---
 status: HISTORICAL
-last_updated: 2026-01-19
+last_updated: 2026-05-11
 ---
 
 > **DEPRECATED - 2025-12-11** This document has been superseded by
@@ -18,7 +18,7 @@ last_updated: 2026-01-19
 **Supersedes (for Phoenix execution details):**
 
 - `PROJECT-PHOENIX-COMPREHENSIVE-STRATEGY.md`
-- `docs/analysis/strategic-review-2025-11-27/04-PHOENIX-STRATEGY-ANALYSIS.md`
+- `docs/archive/2026-q2/stale-docs/docs/analysis/strategic-review-2025-11-27/04-PHOENIX-STRATEGY-ANALYSIS.md`
 
 ---
 

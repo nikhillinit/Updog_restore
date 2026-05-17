@@ -1,60 +1,8 @@
 /**
  * Scenario Analysis Types
  *
- * Shared types for Construction vs Actual vs Current portfolio analysis
- * and deal-level scenario modeling with weighted cases
+ * Shared types for deal-level scenario modeling with weighted cases.
  */
-
-// ============================================================================
-// Portfolio-Level Analysis Types
-// ============================================================================
-
-export type AnalysisMetric =
-  | 'num_investments'
-  | 'initial_checks'
-  | 'follow_on_reserves'
-  | 'round_sizes'
-  | 'pre_money_valuations'
-  | 'total_capital';
-
-export type ForecastView = 'construction' | 'current' | 'actual';
-
-export type TimeBucket = 'entry_round' | 'quarter' | 'year' | 'stage';
-
-/**
- * Row in the Construction vs Actual vs Current comparison table
- */
-export interface ComparisonRow {
-  /** Grouping key (e.g., "Pre-seed", "Seed", "Series A") */
-  entry_round: string;
-
-  /** Original plan value */
-  construction_value: number;
-
-  /** Actual realized value */
-  actual_value: number;
-
-  /** Current forecast (actuals + remaining plan on remaining capital) */
-  forecast_value?: number;
-
-  /** Calculated delta: actual - construction */
-  delta_absolute?: number;
-
-  /** Calculated delta %: (actual - construction) / construction */
-  delta_percentage?: number | null; // null if construction = 0
-}
-
-/**
- * Summary metrics for portfolio comparison
- */
-export interface PortfolioComparisonSummary {
-  metric: AnalysisMetric;
-  construction: number;
-  actual: number;
-  current: number;
-  delta_absolute: number;
-  delta_percentage: number | null;
-}
 
 // ============================================================================
 // Deal-Level Scenario Types
@@ -177,27 +125,6 @@ export interface InvestmentRound {
 // ============================================================================
 // API Request/Response Types
 // ============================================================================
-
-/**
- * Request for portfolio-level comparison
- */
-export interface PortfolioAnalysisRequest {
-  fund_id: string;
-  metric: AnalysisMetric;
-  forecast_view: ForecastView;
-  time_bucket: TimeBucket;
-}
-
-/**
- * Response for portfolio-level comparison
- */
-export interface PortfolioAnalysisResponse {
-  fund_id: string;
-  metric: AnalysisMetric;
-  rows: ComparisonRow[];
-  summary: PortfolioComparisonSummary;
-  generated_at: Date;
-}
 
 /**
  * Request for deal-level scenario analysis

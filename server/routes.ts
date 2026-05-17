@@ -23,6 +23,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
   const dealPipelineRoutes = await import('./routes/deal-pipeline.js');
   app.use('/api/deals', dealPipelineRoutes.dealPipelineRouter);
 
+  // Cohort Analysis routes
+  const cohortAnalysisRoutes = await import('./routes/cohort-analysis.js');
+  app.use('/api/cohorts', cohortAnalysisRoutes.default);
+
   // Feature flags routes
   const flagsRoutes = await import('./routes/flags.js');
   app.use('/api/flags', flagsRoutes.flagsRouter);
@@ -39,6 +43,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   const portfolioCompaniesRoutes = await import('./routes/portfolio-companies.js');
   app.use('/api', portfolioCompaniesRoutes.default);
+
+  const portfolioLotsRoutes = await import('./routes/portfolio/lots.js');
+  app.use('/api', portfolioLotsRoutes.default);
 
   const allocationScenarioRoutes = await import('./routes/allocation-scenarios.js');
   app.use('/api', allocationScenarioRoutes.default);
@@ -106,6 +113,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
   const fundMetricsRoutes = await import('./routes/fund-metrics.js');
   app.use(fundMetricsRoutes.default);
 
+  const dualForecastRoutes = await import('./routes/dual-forecast.js');
+  app.use('/api', dualForecastRoutes.default);
+
+  // Register before the LP/shares route groups below so requests that finish
+  // inside those routers still reach recordHttpMetrics on response finish.
+  app.use((req: Request, res: Response, next: NextFunction) => {
+    const startTime = Date.now();
+
+    res.on('finish', () => {
+      const duration = (Date.now() - startTime) / 1000;
+      // Express Route type has path property, but req.route may be undefined
+      const route = req.route as { path?: string } | undefined;
+      const routePath = route?.path ?? req.path ?? 'unknown';
+      recordHttpMetrics(req.method || 'UNKNOWN', routePath, res.statusCode, duration);
+    });
+
+    next();
+  });
+
   // Performance Dashboard API routes (timeseries, breakdown, comparison)
   const performanceApiRoutes = await import('./routes/performance-api.js');
   app.use(performanceApiRoutes.default);
@@ -118,25 +144,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
   const lpHealthRoutes = await import('./routes/lp-health.js');
   app.use(lpHealthRoutes.default);
 
+  // LP Reporting workflow routes
+  const lpReportingImportsRoutes = await import('./routes/lp-reporting/imports.js');
+  app.use(lpReportingImportsRoutes.default);
+
+  const lpReportingMetricRunsRoutes = await import('./routes/lp-reporting/metric-runs.js');
+  app.use(lpReportingMetricRunsRoutes.default);
+
   // Shares routes (fund sharing system)
   const sharesRoutes = await import('./routes/shares.js');
   app.use('/api/shares', sharesRoutes.sharesRouter);
   app.use('/api/public/shares', sharesRoutes.publicSharesRouter);
-
-  // Middleware to record HTTP metrics
-  app.use((req: Request, res: Response, next: NextFunction) => {
-    const startTime = Date.now();
-
-    res['on']('finish', () => {
-      const duration = (Date.now() - startTime) / 1000;
-      // Express Route type has path property, but req.route may be undefined
-      const route = req.route as { path?: string } | undefined;
-      const routePath = route?.path ?? req.path ?? 'unknown';
-      recordHttpMetrics(req.method || 'UNKNOWN', routePath, res.statusCode, duration);
-    });
-
-    next();
-  });
 
   // Dashboard, investments, portfolio companies, activities, legacy fund
   // metrics, and engine summary routes have been extracted into dedicated

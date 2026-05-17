@@ -29,6 +29,7 @@ configuration:
     - 'docs/wizard/*.md' # Wizard implementation
     - 'docs/forecasting/*.md' # Monte Carlo, power law
     - 'cheatsheets/**/*.md'
+    - '.claude/**/*.md'
     - '.claude/agents/*.md'
     - '.claude/skills/**/*.md'
     - '.claude/commands/*.md'
@@ -37,6 +38,8 @@ configuration:
   exclude_paths:
     - 'docs/_generated/**'
     - 'docs/archive/**'
+    - 'docs/**/archive/**'
+    - '.claude/worktrees/**'
     - '**/node_modules/**'
 
   # Generic terms that need additional context (don't route on these alone)

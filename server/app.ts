@@ -22,15 +22,22 @@ import calculationsRouter from './routes/calculations.js';
 import aiRouter from './routes/ai.js';
 import interleavedThinkingRouter from './routes/interleaved-thinking.js';
 import scenarioAnalysisRouter from './routes/scenario-analysis.js';
+import dualForecastRouter from './routes/dual-forecast.js';
 import allocationsRouter from './routes/allocations.js';
 import allocationScenariosRouter from './routes/allocation-scenarios.js';
 import backtestingRouter from './routes/backtesting.js';
 import fundsRouter from './routes/funds.js';
+import fundMetricsRouter from './routes/fund-metrics.js';
+import investmentsRouter from './routes/investments.js';
 import varianceRouter from './routes/variance.js';
 import { registerFundConfigRoutes } from './routes/fund-config.js';
 import { dealPipelineRouter } from './routes/deal-pipeline.js';
 import cohortAnalysisRouter from './routes/cohort-analysis.js';
 import sensitivityRouter from './routes/sensitivity.js';
+import portfolioLotsRouter from './routes/portfolio/lots.js';
+import performanceApiRouter from './routes/performance-api.js';
+import lpReportingImportsRouter from './routes/lp-reporting/imports.js';
+import lpReportingMetricRunsRouter from './routes/lp-reporting/metric-runs.js';
 import metricsRouter from './routes/metrics-endpoint.js';
 import { installRumIngressGuards } from './routes/metrics-rum-ingress.js';
 import { metricsRumRouter } from './routes/metrics-rum.js';
@@ -68,10 +75,10 @@ export function makeApp() {
 
   // Additional security headers
   app.use((_req: Request, res: Response, next: NextFunction) => {
-    res['setHeader']('Referrer-Policy', securityHeaders.referrerPolicy);
-    res['setHeader']('X-Content-Type-Options', securityHeaders.xContentTypeOptions);
-    res['setHeader']('X-Frame-Options', securityHeaders.xFrameOptions);
-    res['setHeader']('X-XSS-Protection', securityHeaders.xXSSProtection);
+    res.setHeader('Referrer-Policy', securityHeaders.referrerPolicy);
+    res.setHeader('X-Content-Type-Options', securityHeaders.xContentTypeOptions);
+    res.setHeader('X-Frame-Options', securityHeaders.xFrameOptions);
+    res.setHeader('X-XSS-Protection', securityHeaders.xXSSProtection);
 
     next();
   });
@@ -88,11 +95,11 @@ export function makeApp() {
       dev && origin && /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin);
     const ok = devOriginOk || (origin && allow.includes(origin));
     if (ok && origin) {
-      res['setHeader']('Access-Control-Allow-Origin', origin);
-      res['setHeader']('Vary', 'Origin');
-      res['setHeader']('Access-Control-Allow-Credentials', 'true');
-      res['setHeader']('Access-Control-Allow-Headers', 'content-type, authorization, x-request-id');
-      res['setHeader']('Access-Control-Allow-Methods', 'GET,POST,PUT,PATCH,DELETE,OPTIONS');
+      res.setHeader('Access-Control-Allow-Origin', origin);
+      res.setHeader('Vary', 'Origin');
+      res.setHeader('Access-Control-Allow-Credentials', 'true');
+      res.setHeader('Access-Control-Allow-Headers', 'content-type, authorization, x-request-id');
+      res.setHeader('Access-Control-Allow-Methods', 'GET,POST,PUT,PATCH,DELETE,OPTIONS');
     }
     if (req.method === 'OPTIONS') return res.sendStatus(ok ? 200 : 403);
     if (!ok && origin) return res.sendStatus(403);
@@ -107,7 +114,7 @@ export function makeApp() {
     if (['POST', 'PUT', 'PATCH'].includes(req.method)) {
       const ct = ((req.headers['content-type'] as string) || '').toLowerCase();
       if (!ct.startsWith('application/json')) {
-        return res['status'](415)['json']({
+        return res.status(415).json({
           error: 'unsupported_media_type',
           message: 'Content-Type must be application/json',
         });
@@ -121,15 +128,15 @@ export function makeApp() {
   app.use((req: Request, res: Response, next: NextFunction) => {
     const reqWithId = req as RequestWithId;
     reqWithId.rid = (req.headers['x-request-id'] as string | undefined) || crypto.randomUUID();
-    res['setHeader']('x-request-id', reqWithId.rid);
+    res.setHeader('x-request-id', reqWithId.rid);
     next();
   });
   app.use(rateLimit({ windowMs: rateLimitWindowMs, max: rateLimitMax, standardHeaders: true }));
 
   // API Documentation landing page
   app['get']('/api-docs', (_req: Request, res: Response) => {
-    res['setHeader']('Content-Type', 'text/html; charset=utf-8');
-    res['send'](`<!doctype html>
+    res.setHeader('Content-Type', 'text/html; charset=utf-8');
+    res.send(`<!doctype html>
 <html lang="en">
   <head>
     <meta charset="utf-8" />
@@ -151,8 +158,8 @@ export function makeApp() {
 
   // OpenAPI spec endpoint
   app['get']('/api-docs.json', (_req: Request, res: Response) => {
-    res['setHeader']('Content-Type', 'application/json');
-    res['send'](swaggerSpec);
+    res.setHeader('Content-Type', 'application/json');
+    res.send(swaggerSpec);
   });
 
   // Health endpoints (must be before other routes for /healthz)
@@ -197,10 +204,15 @@ export function makeApp() {
 
   // Scenario Analysis API (Construction vs Current, deal modeling)
   app.use('/api', scenarioAnalysisRouter);
+  app.use('/api', dualForecastRouter);
 
   // Keep the makeApp/serverless surface aligned with the canonical fund routes
   // used by the wizard bootstrap flow.
   app.use('/api', fundsRouter);
+  app.use(fundMetricsRouter);
+  app.use('/api', investmentsRouter);
+  app.use('/api', portfolioLotsRouter);
+  app.use(performanceApiRouter);
   app.use('/', varianceRouter);
   registerFundConfigRoutes(app);
 
@@ -216,13 +228,15 @@ export function makeApp() {
 
   // Sensitivity Analysis API (Phase 1A - one-way sweeps; fund-scoped)
   app.use('/api', sensitivityRouter);
+  app.use(lpReportingImportsRouter);
+  app.use(lpReportingMetricRunsRouter);
 
   // Backtesting API (Monte Carlo validation)
   app.use('/api/backtesting', backtestingRouter);
 
   // API version endpoint for deployment verification
   app['get']('/api/version', (_req: Request, res: Response) =>
-    res['json']({
+    res.json({
       version: process.env['npm_package_version'] || '1.3.2',
       environment: process.env['NODE_ENV'] || 'development',
       commit: process.env['VERCEL_GIT_COMMIT_SHA'] || process.env['COMMIT_REF'] || 'local',
@@ -230,9 +244,9 @@ export function makeApp() {
   );
 
   // 404 + error handler
-  app.use((_req: Request, res: Response) => res['status'](404)['json']({ error: 'not_found' }));
+  app.use((_req: Request, res: Response) => res.status(404).json({ error: 'not_found' }));
   app.use((err: HttpError, _req: Request, res: Response, _next: NextFunction) =>
-    res['status'](err.status ?? 500)['json']({
+    res.status(err.status ?? 500).json({
       error: 'internal',
       message: err.message ?? 'unknown',
     })

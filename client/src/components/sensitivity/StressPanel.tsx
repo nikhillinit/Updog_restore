@@ -44,6 +44,7 @@ import {
   type SensitivityRunV1,
 } from '@shared/contracts/sensitivity-run-v1.contract';
 import { formatMetricValue, useElapsedSeconds, SummaryCard } from './_shared';
+import { SensitivityRunErrorCard } from './SensitivityRunErrorCard';
 
 // =====================
 // DELTA BAR HELPER (inline -- scenario-row specific, no other consumers)
@@ -309,6 +310,15 @@ export function StressPanel({ fundId }: StressPanelProps): JSX.Element {
   }, [mutation.isSuccess, mutation.data]);
 
   const runDisabled = fundId === null || mutation.isPending || !validation.ok;
+  const runDisabledReason =
+    fundId === null
+      ? 'Select a fund before running a stress test.'
+      : mutation.isPending
+        ? 'A stress test is already running.'
+        : !validation.ok
+          ? 'Select at least one stress scenario before running a stress test.'
+          : undefined;
+  const runDisabledReasonId = runDisabledReason ? 'stress-run-disabled-reason' : undefined;
   const error = mutation.error as SensitivityHookError | null;
 
   return (
@@ -319,7 +329,8 @@ export function StressPanel({ fundId }: StressPanelProps): JSX.Element {
             <CardTitle className="text-sm">Stress Scenarios</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="space-y-2" data-testid="stress-scenario-picker">
+            <fieldset className="space-y-2" data-testid="stress-scenario-picker">
+              <legend className="sr-only">Stress scenarios</legend>
               {SUPPORTED_STRESS_SCENARIOS.map((scenario) => {
                 const id = scenario.id as SensitivityStressScenarioId;
                 const checked = form.selectedScenarioIds.has(id);
@@ -344,12 +355,12 @@ export function StressPanel({ fundId }: StressPanelProps): JSX.Element {
                   </label>
                 );
               })}
-            </div>
+            </fieldset>
 
             <div className="space-y-1">
               <Label htmlFor="stress-metric">Metric</Label>
               <Select value={form.metricId} onValueChange={onMetricChange}>
-                <SelectTrigger id="stress-metric">
+                <SelectTrigger id="stress-metric" aria-label="Stress metric">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -377,9 +388,15 @@ export function StressPanel({ fundId }: StressPanelProps): JSX.Element {
               type="button"
               onClick={handleSubmit}
               disabled={runDisabled}
+              aria-describedby={runDisabledReasonId}
               className="w-full"
               data-testid="stress-run-button"
             >
+              {runDisabledReason && (
+                <span id={runDisabledReasonId} className="sr-only">
+                  {runDisabledReason}
+                </span>
+              )}
               Run Stress Test
             </Button>
           </CardContent>
@@ -407,26 +424,14 @@ export function StressPanel({ fundId }: StressPanelProps): JSX.Element {
         )}
 
         {!mutation.isPending && error && (
-          <Card className="border-red-200" data-testid="stress-error">
-            <CardContent className="px-4 py-3">
-              <p className="text-sm font-medium text-red-700" data-testid="stress-error-code">
-                {error.code ?? 'UNKNOWN'}
-              </p>
-              <p className="mt-0.5 text-xs text-gray-600" data-testid="stress-error-message">
-                {error.message}
-              </p>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={handleSubmit}
-                disabled={runDisabled}
-                className="mt-2"
-                data-testid="stress-retry-button"
-              >
-                Retry
-              </Button>
-            </CardContent>
-          </Card>
+          <SensitivityRunErrorCard
+            error={error}
+            fundId={fundId}
+            onRetry={handleSubmit}
+            retryDisabled={runDisabled}
+            retryDisabledReason={runDisabledReason ?? null}
+            testIdPrefix="stress"
+          />
         )}
 
         {!mutation.isPending && !error && displayedResult && (

@@ -50,15 +50,11 @@ function ensureProducerQueuesRegistered(): void {
 
 import { FundDraftWriteV1Schema } from '@shared/contracts/fund-draft-write-v1.contract';
 import { sendApiError } from '../lib/apiError';
+import { enforceProvidedFundScope } from '../lib/auth/provided-fund-scope';
 import idempotency from '../middleware/idempotency';
+import { omitEconomicsAssumptionsWhenDisabled } from '../services/economics-feature-gate';
 
-type RequestWithOptionalUser = Request & { user?: { id?: string; fundIds?: number[] } };
-
-function requestUserCanAccessFund(req: RequestWithOptionalUser, fundId: number): boolean {
-  const userFundIds = Array.isArray(req.user?.fundIds) ? req.user.fundIds : [];
-
-  return userFundIds.length === 0 || userFundIds.includes(fundId);
-}
+type RequestWithOptionalUser = Request & { user?: { id?: string } };
 
 export function registerFundConfigRoutes(app: Express) {
   ensureProducerQueuesRegistered();
@@ -78,14 +74,8 @@ export function registerFundConfigRoutes(app: Express) {
       }
 
       const draftFundId = validation.data.draftFundId;
-      if (
-        draftFundId != null &&
-        !requestUserCanAccessFund(req as RequestWithOptionalUser, draftFundId)
-      ) {
-        return sendApiError(res, 403, {
-          error: `You do not have access to fund ${draftFundId}`,
-          code: 'FUND_ACCESS_DENIED',
-        });
+      if (draftFundId != null && !(await enforceProvidedFundScope(req, res, draftFundId))) {
+        return;
       }
 
       const { fundPersistenceService } = await import('../services/fund-persistence-service');
@@ -95,7 +85,7 @@ export function registerFundConfigRoutes(app: Express) {
         cohort: cohortQueue,
       });
 
-      res['status'](201)['json']({
+      res.status(201).json({
         success: true as const,
         data: result,
       });
@@ -112,7 +102,7 @@ export function registerFundConfigRoutes(app: Express) {
         error: 'Failed to finalize fund',
         message: error instanceof Error ? error.message : 'Unknown error',
       };
-      res['status'](500)['json'](apiError);
+      res.status(500).json(apiError);
     }
   });
 
@@ -128,9 +118,13 @@ export function registerFundConfigRoutes(app: Express) {
             error: 'Invalid fund ID',
             message: err.message,
           };
-          return res['status'](400)['json'](error);
+          return res.status(400).json(error);
         }
         throw err;
+      }
+
+      if (!(await enforceProvidedFundScope(req, res, fundId))) {
+        return;
       }
 
       // Validate with strict FundDraftWriteV1Schema (rejects unknown keys)
@@ -151,7 +145,7 @@ export function registerFundConfigRoutes(app: Express) {
           error: 'Fund not found',
           message: `No fund exists with ID: ${fundId}`,
         };
-        return res['status'](404)['json'](error);
+        return res.status(404).json(error);
       }
 
       // Draft-safe upsert: UPDATE existing draft if found, INSERT if not
@@ -162,7 +156,8 @@ export function registerFundConfigRoutes(app: Express) {
         .orderBy(desc(fundConfigs.version))
         .limit(1);
 
-      const fieldCount = Object.keys(validation.data).length;
+      const gatedConfig = omitEconomicsAssumptionsWhenDisabled(validation.data);
+      const fieldCount = Object.keys(gatedConfig).length;
       let savedConfig;
 
       if (existingDraft) {
@@ -172,7 +167,7 @@ export function registerFundConfigRoutes(app: Express) {
         console.warn('draft-save', { fundId, fieldCount, priorFieldCount });
 
         const updateValues: Partial<typeof fundConfigs.$inferInsert> = {
-          config: validation.data,
+          config: gatedConfig,
           updatedAt: new Date(),
         };
         const [updated] = await db
@@ -197,7 +192,7 @@ export function registerFundConfigRoutes(app: Express) {
             .values({
               fundId,
               version: nextVersion,
-              config: validation.data,
+              config: gatedConfig,
             })
             .returning();
           savedConfig = inserted;
@@ -210,7 +205,7 @@ export function registerFundConfigRoutes(app: Express) {
             .limit(1);
           if (retryDraft) {
             const retryValues: Partial<typeof fundConfigs.$inferInsert> = {
-              config: validation.data,
+              config: gatedConfig,
               updatedAt: new Date(),
             };
             const [updated] = await db
@@ -232,7 +227,7 @@ export function registerFundConfigRoutes(app: Express) {
         eventTime: new Date(),
       });
 
-      res['json']({
+      res.json({
         success: true,
         data: savedConfig,
         message: 'Draft saved successfully',
@@ -243,7 +238,7 @@ export function registerFundConfigRoutes(app: Express) {
         error: 'Failed to save draft',
         message: error instanceof Error ? error.message : 'Unknown error',
       };
-      res['status'](500)['json'](apiError);
+      res.status(500).json(apiError);
     }
   });
 
@@ -259,9 +254,13 @@ export function registerFundConfigRoutes(app: Express) {
             error: 'Invalid fund ID',
             message: err.message,
           };
-          return res['status'](400)['json'](error);
+          return res.status(400).json(error);
         }
         throw err;
+      }
+
+      if (!(await enforceProvidedFundScope(req, res, fundId))) {
+        return;
       }
 
       const [draft] = await db
@@ -276,16 +275,16 @@ export function registerFundConfigRoutes(app: Express) {
           error: 'No draft found',
           message: 'No draft configuration exists for this fund',
         };
-        return res['status'](404)['json'](error);
+        return res.status(404).json(error);
       }
 
-      res['json'](draft);
+      res.json(draft);
     } catch (error) {
       const apiError: ApiError = {
         error: 'Failed to fetch draft',
         message: error instanceof Error ? error.message : 'Unknown error',
       };
-      res['status'](500)['json'](apiError);
+      res.status(500).json(apiError);
     }
   });
 
@@ -301,7 +300,7 @@ export function registerFundConfigRoutes(app: Express) {
             error: 'Invalid fund ID',
             message: err.message,
           };
-          return res['status'](400)['json'](error);
+          return res.status(400).json(error);
         }
         throw err;
       }
@@ -316,7 +315,7 @@ export function registerFundConfigRoutes(app: Express) {
         userId
       );
 
-      res['json']({
+      res.json({
         success: true,
         data: result.published,
         message: 'Configuration published and calculations started',
@@ -330,14 +329,14 @@ export function registerFundConfigRoutes(app: Express) {
           error: 'No draft to publish',
           message: 'Create a draft configuration first',
         };
-        return res['status'](400)['json'](apiError);
+        return res.status(400).json(apiError);
       }
       console.error('Publish error:', error);
       const apiError: ApiError = {
         error: 'Failed to publish configuration',
         message: error instanceof Error ? error.message : 'Unknown error',
       };
-      res['status'](500)['json'](apiError);
+      res.status(500).json(apiError);
     }
   });
 
@@ -353,7 +352,7 @@ export function registerFundConfigRoutes(app: Express) {
             error: 'Invalid fund ID',
             message: err.message,
           };
-          return res['status'](400)['json'](error);
+          return res.status(400).json(error);
         }
         throw err;
       }
@@ -369,7 +368,7 @@ export function registerFundConfigRoutes(app: Express) {
         userId
       );
 
-      res['json']({
+      res.json({
         success: true,
         correlationId: result.correlationId,
         runId: result.run.id,
@@ -381,21 +380,21 @@ export function registerFundConfigRoutes(app: Express) {
           error: 'No published configuration',
           message: 'Publish a configuration first',
         };
-        return res['status'](400)['json'](apiError);
+        return res.status(400).json(apiError);
       }
       if (error instanceof Error && error.name === 'CalculationInProgressError') {
         const apiError: ApiError = {
           error: 'Calculation already in progress',
           message: 'Wait for the current calculation to complete',
         };
-        return res['status'](409)['json'](apiError);
+        return res.status(409).json(apiError);
       }
       console.error('Recalculate error:', error);
       const apiError: ApiError = {
         error: 'Failed to recalculate',
         message: error instanceof Error ? error.message : 'Unknown error',
       };
-      res['status'](500)['json'](apiError);
+      res.status(500).json(apiError);
     }
   });
 
@@ -411,7 +410,7 @@ export function registerFundConfigRoutes(app: Express) {
             error: 'Invalid fund ID',
             message: err.message,
           };
-          return res['status'](400)['json'](error);
+          return res.status(400).json(error);
         }
         throw err;
       }
@@ -428,7 +427,7 @@ export function registerFundConfigRoutes(app: Express) {
           error: 'No reserve calculations found',
           message: 'Publish a fund configuration to trigger calculations',
         };
-        return res['status'](404)['json'](error);
+        return res.status(404).json(error);
       }
 
       // Check if snapshot is stale (> 24 hours old)
@@ -436,7 +435,7 @@ export function registerFundConfigRoutes(app: Express) {
         ? new Date().getTime() - snapshot.createdAt.getTime() > 24 * 60 * 60 * 1000
         : true;
 
-      res['json']({
+      res.json({
         reserves: snapshot.payload,
         calculatedAt: snapshot.createdAt,
         version: snapshot.calcVersion,
@@ -448,7 +447,7 @@ export function registerFundConfigRoutes(app: Express) {
         error: 'Failed to fetch reserves',
         message: error instanceof Error ? error.message : 'Unknown error',
       };
-      res['status'](500)['json'](apiError);
+      res.status(500).json(apiError);
     }
   });
 
@@ -464,7 +463,7 @@ export function registerFundConfigRoutes(app: Express) {
             error: 'Invalid fund ID',
             message: err.message,
           };
-          return res['status'](400)['json'](error);
+          return res.status(400).json(error);
         }
         throw err;
       }
@@ -477,17 +476,17 @@ export function registerFundConfigRoutes(app: Express) {
           error: 'Fund not found',
           message: `No fund exists with ID: ${fundId}`,
         };
-        return res['status'](404)['json'](error);
+        return res.status(404).json(error);
       }
 
-      res['json'](state);
+      res.json(state);
     } catch (error) {
       console.error('Fund state read error:', error);
       const apiError: ApiError = {
         error: 'Failed to read fund state',
         message: error instanceof Error ? error.message : 'Unknown error',
       };
-      res['status'](500)['json'](apiError);
+      res.status(500).json(apiError);
     }
   });
 
@@ -522,7 +521,7 @@ export function registerFundConfigRoutes(app: Express) {
             error: 'Invalid fund ID',
             message: err.message,
           };
-          return res['status'](400)['json'](error);
+          return res.status(400).json(error);
         }
         throw err;
       }
@@ -536,17 +535,17 @@ export function registerFundConfigRoutes(app: Express) {
           error: 'Fund not found',
           message: `No fund exists with ID: ${fundId}`,
         };
-        return res['status'](404)['json'](error);
+        return res.status(404).json(error);
       }
 
-      res['json'](history);
+      res.json(history);
     } catch (error) {
       console.error('[lifecycle-history] Error:', error);
       const apiError: ApiError = {
         error: 'Failed to read lifecycle history',
         message: error instanceof Error ? error.message : 'Unknown error',
       };
-      res['status'](500)['json'](apiError);
+      res.status(500).json(apiError);
     }
   });
 
@@ -565,7 +564,7 @@ export function registerFundConfigRoutes(app: Express) {
             error: 'Invalid fund ID',
             message: err.message,
           };
-          return res['status'](400)['json'](error);
+          return res.status(400).json(error);
         }
         throw err;
       }
@@ -579,17 +578,17 @@ export function registerFundConfigRoutes(app: Express) {
           error: 'Fund not found',
           message: `No fund exists with ID: ${fundId}`,
         };
-        return res['status'](404)['json'](error);
+        return res.status(404).json(error);
       }
 
-      res['json'](comparison);
+      res.json(comparison);
     } catch (error) {
       console.error('[results-comparison] Error:', error);
       const apiError: ApiError = {
         error: 'Failed to read results comparison',
         message: error instanceof Error ? error.message : 'Unknown error',
       };
-      res['status'](500)['json'](apiError);
+      res.status(500).json(apiError);
     }
   });
 }

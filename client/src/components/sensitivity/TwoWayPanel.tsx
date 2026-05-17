@@ -41,6 +41,7 @@ import {
   type SensitivityRunV1,
 } from '@shared/contracts/sensitivity-run-v1.contract';
 import { formatMetricValue, formatVariableValue, useElapsedSeconds, SummaryCard } from './_shared';
+import { SensitivityRunErrorCard } from './SensitivityRunErrorCard';
 
 // =====================
 // CELL COLOR HELPERS (inline -- grid-specific, no other consumers)
@@ -446,6 +447,15 @@ export function TwoWayPanel({ fundId }: TwoWayPanelProps): JSX.Element {
   );
 
   const runDisabled = fundId === null || mutation.isPending || !validation.ok;
+  const runDisabledReason =
+    fundId === null
+      ? 'Select a fund before running a sweep.'
+      : mutation.isPending
+        ? 'A sweep is already running.'
+        : !validation.ok
+          ? 'Resolve validation errors before running a sweep.'
+          : undefined;
+  const runDisabledReasonId = runDisabledReason ? 'two-way-run-disabled-reason' : undefined;
   const error = mutation.error as SensitivityHookError | null;
 
   return (
@@ -459,7 +469,7 @@ export function TwoWayPanel({ fundId }: TwoWayPanelProps): JSX.Element {
             <div className="space-y-1">
               <Label htmlFor="two-way-variable-x">Variable X</Label>
               <Select value={form.variableXId} onValueChange={onVariableXChange}>
-                <SelectTrigger id="two-way-variable-x">
+                <SelectTrigger id="two-way-variable-x" aria-label="Two-way variable X">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -512,7 +522,7 @@ export function TwoWayPanel({ fundId }: TwoWayPanelProps): JSX.Element {
             <div className="space-y-1">
               <Label htmlFor="two-way-variable-y">Variable Y</Label>
               <Select value={form.variableYId} onValueChange={onVariableYChange}>
-                <SelectTrigger id="two-way-variable-y">
+                <SelectTrigger id="two-way-variable-y" aria-label="Two-way variable Y">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -565,7 +575,7 @@ export function TwoWayPanel({ fundId }: TwoWayPanelProps): JSX.Element {
             <div className="space-y-1">
               <Label htmlFor="two-way-metric">Metric</Label>
               <Select value={form.metricId} onValueChange={onMetricChange}>
-                <SelectTrigger id="two-way-metric">
+                <SelectTrigger id="two-way-metric" aria-label="Two-way metric">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -593,9 +603,15 @@ export function TwoWayPanel({ fundId }: TwoWayPanelProps): JSX.Element {
               type="button"
               onClick={handleSubmit}
               disabled={runDisabled}
+              aria-describedby={runDisabledReasonId}
               className="w-full"
               data-testid="two-way-run-button"
             >
+              {runDisabledReason && (
+                <span id={runDisabledReasonId} className="sr-only">
+                  {runDisabledReason}
+                </span>
+              )}
               Run Sweep
             </Button>
           </CardContent>
@@ -623,26 +639,14 @@ export function TwoWayPanel({ fundId }: TwoWayPanelProps): JSX.Element {
         )}
 
         {!mutation.isPending && error && (
-          <Card className="border-red-200" data-testid="two-way-error">
-            <CardContent className="px-4 py-3">
-              <p className="text-sm font-medium text-red-700" data-testid="two-way-error-code">
-                {error.code ?? 'UNKNOWN'}
-              </p>
-              <p className="mt-0.5 text-xs text-gray-600" data-testid="two-way-error-message">
-                {error.message}
-              </p>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={handleSubmit}
-                disabled={runDisabled}
-                className="mt-2"
-                data-testid="two-way-retry-button"
-              >
-                Retry
-              </Button>
-            </CardContent>
-          </Card>
+          <SensitivityRunErrorCard
+            error={error}
+            fundId={fundId}
+            onRetry={handleSubmit}
+            retryDisabled={runDisabled}
+            retryDisabledReason={runDisabledReason ?? null}
+            testIdPrefix="two-way"
+          />
         )}
 
         {!mutation.isPending && !error && displayedResult && (

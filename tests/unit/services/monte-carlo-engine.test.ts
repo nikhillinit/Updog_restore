@@ -13,6 +13,7 @@ import {
   type PortfolioInputs,
 } from '../../../server/services/monte-carlo-engine';
 import { db } from '../../../server/db';
+import { SYSTEM_ACTOR_ID } from '../../../shared/constants/system-actor';
 
 // Mock the database and dependencies - use factory function to avoid hoisting issues
 vi.mock('../../../server/db', () => ({
@@ -252,6 +253,28 @@ describe('MonteCarloEngine', () => {
         (db.query.funds.findFirst as any).mockResolvedValue(null);
 
         await expect(engine.runPortfolioSimulation(mockConfig)).rejects.toThrow('Fund 1 not found');
+      });
+
+      it('should persist explicit creator context when provided', async () => {
+        await engine.runPortfolioSimulation({ ...mockConfig, createdBy: 42 });
+
+        const insertChain = (db.insert as any).mock.results.at(-1)?.value;
+        expect(insertChain.values).toHaveBeenCalledWith(
+          expect.objectContaining({
+            createdBy: 42,
+          })
+        );
+      });
+
+      it('should persist the reserved system actor when creator context is absent', async () => {
+        await engine.runPortfolioSimulation(mockConfig);
+
+        const insertChain = (db.insert as any).mock.results.at(-1)?.value;
+        expect(insertChain.values).toHaveBeenCalledWith(
+          expect.objectContaining({
+            createdBy: SYSTEM_ACTOR_ID,
+          })
+        );
       });
     });
 
@@ -656,11 +679,11 @@ describe('MonteCarloEngine', () => {
   });
 
   describe('Utility Functions', () => {
-    it('should generate normal distribution samples', () => {
+    it('should generate normal distribution samples', async () => {
       // Test the private normal sampling function by running a small simulation
       const result = engine.runPortfolioSimulation({ ...mockConfig, runs: 100 });
 
-      expect(result).resolves.toBeDefined();
+      await expect(result).resolves.toBeDefined();
     });
 
     it('should handle portfolio inputs calculation', async () => {

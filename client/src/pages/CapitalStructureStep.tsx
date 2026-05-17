@@ -225,7 +225,7 @@ export default function CapitalStructureStep() {
             <p>
               <strong>[INFO] Capital Allocation:</strong> Follow-on projections use binary search
               algorithm with graduation rates from Investment Strategy. Allocations will be refined
-              after expenses (Step 5) and recycling (Step 6).
+              after later fee, expense, and recycling settings.
             </p>
           </div>
         </div>
@@ -277,21 +277,23 @@ export default function CapitalStructureStep() {
                             variant="ghost"
                             size="sm"
                             onClick={() => setEditingAllocation(allocation.id)}
+                            aria-label={`Edit ${allocation.name || 'allocation'}`}
                           >
-                            <Edit className="h-4 w-4" />
+                            <Edit aria-hidden="true" className="h-4 w-4" />
                           </Button>
                           <Button
                             variant="ghost"
                             size="sm"
                             onClick={() => handleDeleteAllocation(allocation.id)}
                             className="text-red-500 hover:text-red-700"
+                            aria-label={`Delete ${allocation.name || 'allocation'}`}
                           >
-                            <Trash2 className="h-4 w-4" />
+                            <Trash2 aria-hidden="true" className="h-4 w-4" />
                           </Button>
                         </div>
                       </div>
 
-                      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm font-poppins">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 text-sm font-poppins">
                         <div>
                           <span className="text-[#292929]/60">Entry Round:</span>
                           <div className="font-medium text-[#292929]">{allocation.entryRound}</div>
@@ -315,7 +317,7 @@ export default function CapitalStructureStep() {
                           </div>
                         </div>
                       </div>
-                      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm font-poppins mt-2">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 text-sm font-poppins mt-2">
                         <div>
                           <span className="text-[#292929]/60">Est. Initial Deals:</span>
                           <div className="font-medium text-[#292929]">
@@ -656,7 +658,8 @@ export default function CapitalStructureStep() {
               variant="outline"
               className="w-full h-12 border-[#E0D8D1] hover:bg-[#E0D8D1]/20 hover:border-[#292929] font-poppins font-medium"
             >
-              <Plus className="h-4 w-4 mr-2" />+ New Allocation
+              <Plus aria-hidden="true" className="h-4 w-4 mr-2" />
+              New Allocation
             </Button>
           </div>
         </div>

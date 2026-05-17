@@ -28,8 +28,10 @@ import {
   scoringModels,
   pipelineActivities,
 } from '@shared/schema';
+import { CompanySectorSchema, CompanyStageSchema } from '@shared/company-taxonomy';
 import { eq, and, desc, asc, lt, or, sql, inArray } from 'drizzle-orm';
 import { idempotency } from '../middleware/idempotency';
+import { enforceProvidedFundScope } from '../lib/auth/provided-fund-scope';
 
 const router = Router();
 
@@ -51,15 +53,7 @@ const DealStatusEnum = z.enum([
 
 const DealPriorityEnum = z.enum(['high', 'medium', 'low']);
 
-const DealStageEnum = z.enum([
-  'Pre-seed',
-  'Seed',
-  'Series A',
-  'Series B',
-  'Series C',
-  'Growth',
-  'Late Stage',
-]);
+const DealStageEnum = CompanyStageSchema;
 
 const SourceTypeEnum = z.enum([
   'Referral',
@@ -74,7 +68,7 @@ const SourceTypeEnum = z.enum([
 const CreateDealSchema = z.object({
   fundId: z.number().int().positive().optional(),
   companyName: z.string().min(1, 'Company name is required').max(255),
-  sector: z.string().min(1, 'Sector is required').max(100),
+  sector: CompanySectorSchema,
   stage: DealStageEnum,
   sourceType: SourceTypeEnum,
   dealSize: z.number().positive().optional(),
@@ -169,7 +163,7 @@ function decodeCursor(cursor: string): CursorData | null {
 router['post']('/opportunities', idempotency, async (req: Request, res: Response) => {
   const validation = CreateDealSchema.safeParse(req.body);
   if (!validation.success) {
-    return res['status'](400)['json']({
+    return res.status(400).json({
       error: 'validation_error',
       issues: validation.error.issues,
     });
@@ -177,6 +171,9 @@ router['post']('/opportunities', idempotency, async (req: Request, res: Response
 
   try {
     const data = validation.data;
+    if (data.fundId !== undefined && !(await enforceProvidedFundScope(req, res, data.fundId))) {
+      return;
+    }
 
     const [deal] = await db
       .insert(dealOpportunities)
@@ -204,7 +201,7 @@ router['post']('/opportunities', idempotency, async (req: Request, res: Response
       .returning();
 
     if (!deal) {
-      return res['status'](500)['json']({
+      return res.status(500).json({
         error: 'internal_error',
         message: 'Failed to create deal - no result returned',
       });
@@ -219,14 +216,14 @@ router['post']('/opportunities', idempotency, async (req: Request, res: Response
       completedDate: new Date(),
     });
 
-    return res['status'](201)['json']({
+    return res.status(201).json({
       success: true,
       data: deal,
       message: 'Deal created successfully',
     });
   } catch (error) {
     console.error('Deal creation error:', error);
-    return res['status'](500)['json']({
+    return res.status(500).json({
       error: 'internal_error',
       message: error instanceof Error ? error.message : 'Failed to create deal',
     });
@@ -240,7 +237,7 @@ router['post']('/opportunities', idempotency, async (req: Request, res: Response
 router['get']('/opportunities', async (req: Request, res: Response) => {
   const validation = PaginationSchema.safeParse(req.query);
   if (!validation.success) {
-    return res['status'](400)['json']({
+    return res.status(400).json({
       error: 'validation_error',
       issues: validation.error.issues,
     });
@@ -248,6 +245,10 @@ router['get']('/opportunities', async (req: Request, res: Response) => {
 
   try {
     const { cursor, limit, status, priority, fundId, search, sortBy, sortDir } = validation.data;
+
+    if (fundId !== undefined && !(await enforceProvidedFundScope(req, res, fundId))) {
+      return;
+    }
 
     // Build filter conditions
     const conditions = [];
@@ -276,7 +277,7 @@ router['get']('/opportunities', async (req: Request, res: Response) => {
     if (cursor && isDefaultSort) {
       const cursorData = decodeCursor(cursor);
       if (!cursorData) {
-        return res['status'](400)['json']({
+        return res.status(400).json({
           error: 'invalid_cursor',
           message: 'The provided cursor is invalid or expired',
         });
@@ -318,7 +319,7 @@ router['get']('/opportunities', async (req: Request, res: Response) => {
         ? encodeCursor(lastItem.createdAt, lastItem.id)
         : null;
 
-    return res['json']({
+    return res.json({
       success: true,
       data: items,
       pagination: {
@@ -329,7 +330,7 @@ router['get']('/opportunities', async (req: Request, res: Response) => {
     });
   } catch (error) {
     console.error('Deal list error:', error);
-    return res['status'](500)['json']({
+    return res.status(500).json({
       error: 'internal_error',
       message: 'Failed to fetch deals',
     });
@@ -342,11 +343,11 @@ router['get']('/opportunities', async (req: Request, res: Response) => {
 router['get']('/opportunities/:id', async (req: Request, res: Response) => {
   const paramId = firstString(req.params['id']);
   if (!paramId) {
-    return res['status'](400)['json']({ error: 'invalid_id', message: 'Deal ID is required' });
+    return res.status(400).json({ error: 'invalid_id', message: 'Deal ID is required' });
   }
   const id = parseInt(paramId, 10);
   if (isNaN(id)) {
-    return res['status'](400)['json']({ error: 'invalid_id', message: 'Deal ID must be a number' });
+    return res.status(400).json({ error: 'invalid_id', message: 'Deal ID must be a number' });
   }
 
   try {
@@ -357,7 +358,7 @@ router['get']('/opportunities/:id', async (req: Request, res: Response) => {
       .limit(1);
 
     if (!deal) {
-      return res['status'](404)['json']({ error: 'not_found', message: 'Deal not found' });
+      return res.status(404).json({ error: 'not_found', message: 'Deal not found' });
     }
 
     // Fetch related data
@@ -380,7 +381,7 @@ router['get']('/opportunities/:id', async (req: Request, res: Response) => {
         .orderBy(desc(scoringModels.scoredAt)),
     ]);
 
-    return res['json']({
+    return res.json({
       success: true,
       data: {
         ...deal,
@@ -391,7 +392,7 @@ router['get']('/opportunities/:id', async (req: Request, res: Response) => {
     });
   } catch (error) {
     console.error('Deal fetch error:', error);
-    return res['status'](500)['json']({
+    return res.status(500).json({
       error: 'internal_error',
       message: 'Failed to fetch deal',
     });
@@ -405,16 +406,16 @@ router['get']('/opportunities/:id', async (req: Request, res: Response) => {
 router['put']('/opportunities/:id', idempotency, async (req: Request, res: Response) => {
   const paramId = firstString(req.params['id']);
   if (!paramId) {
-    return res['status'](400)['json']({ error: 'invalid_id', message: 'Deal ID is required' });
+    return res.status(400).json({ error: 'invalid_id', message: 'Deal ID is required' });
   }
   const id = parseInt(paramId, 10);
   if (isNaN(id)) {
-    return res['status'](400)['json']({ error: 'invalid_id', message: 'Deal ID must be a number' });
+    return res.status(400).json({ error: 'invalid_id', message: 'Deal ID must be a number' });
   }
 
   const validation = UpdateDealSchema.safeParse(req.body);
   if (!validation.success) {
-    return res['status'](400)['json']({
+    return res.status(400).json({
       error: 'validation_error',
       issues: validation.error.issues,
     });
@@ -429,7 +430,7 @@ router['put']('/opportunities/:id', idempotency, async (req: Request, res: Respo
       .limit(1);
 
     if (!existing) {
-      return res['status'](404)['json']({ error: 'not_found', message: 'Deal not found' });
+      return res.status(404).json({ error: 'not_found', message: 'Deal not found' });
     }
 
     const data = validation.data;
@@ -464,14 +465,14 @@ router['put']('/opportunities/:id', idempotency, async (req: Request, res: Respo
       .where(eq(dealOpportunities.id, id))
       .returning();
 
-    return res['json']({
+    return res.json({
       success: true,
       data: updated,
       message: 'Deal updated successfully',
     });
   } catch (error) {
     console.error('Deal update error:', error);
-    return res['status'](500)['json']({
+    return res.status(500).json({
       error: 'internal_error',
       message: 'Failed to update deal',
     });
@@ -484,11 +485,11 @@ router['put']('/opportunities/:id', idempotency, async (req: Request, res: Respo
 router['delete']('/opportunities/:id', idempotency, async (req: Request, res: Response) => {
   const paramId = firstString(req.params['id']);
   if (!paramId) {
-    return res['status'](400)['json']({ error: 'invalid_id', message: 'Deal ID is required' });
+    return res.status(400).json({ error: 'invalid_id', message: 'Deal ID is required' });
   }
   const id = parseInt(paramId, 10);
   if (isNaN(id)) {
-    return res['status'](400)['json']({ error: 'invalid_id', message: 'Deal ID must be a number' });
+    return res.status(400).json({ error: 'invalid_id', message: 'Deal ID must be a number' });
   }
 
   try {
@@ -499,7 +500,7 @@ router['delete']('/opportunities/:id', idempotency, async (req: Request, res: Re
       .limit(1);
 
     if (!existing) {
-      return res['status'](404)['json']({ error: 'not_found', message: 'Deal not found' });
+      return res.status(404).json({ error: 'not_found', message: 'Deal not found' });
     }
 
     // Soft delete by setting status to 'passed'
@@ -521,14 +522,14 @@ router['delete']('/opportunities/:id', idempotency, async (req: Request, res: Re
       completedDate: new Date(),
     });
 
-    return res['json']({
+    return res.json({
       success: true,
       data: archived,
       message: 'Deal archived successfully',
     });
   } catch (error) {
     console.error('Deal archive error:', error);
-    return res['status'](500)['json']({
+    return res.status(500).json({
       error: 'internal_error',
       message: 'Failed to archive deal',
     });
@@ -541,16 +542,16 @@ router['delete']('/opportunities/:id', idempotency, async (req: Request, res: Re
 router['post']('/:id/stage', idempotency, async (req: Request, res: Response) => {
   const paramId = firstString(req.params['id']);
   if (!paramId) {
-    return res['status'](400)['json']({ error: 'invalid_id', message: 'Deal ID is required' });
+    return res.status(400).json({ error: 'invalid_id', message: 'Deal ID is required' });
   }
   const id = parseInt(paramId, 10);
   if (isNaN(id)) {
-    return res['status'](400)['json']({ error: 'invalid_id', message: 'Deal ID must be a number' });
+    return res.status(400).json({ error: 'invalid_id', message: 'Deal ID must be a number' });
   }
 
   const validation = StageChangeSchema.safeParse(req.body);
   if (!validation.success) {
-    return res['status'](400)['json']({
+    return res.status(400).json({
       error: 'validation_error',
       issues: validation.error.issues,
     });
@@ -564,7 +565,7 @@ router['post']('/:id/stage', idempotency, async (req: Request, res: Response) =>
       .limit(1);
 
     if (!existing) {
-      return res['status'](404)['json']({ error: 'not_found', message: 'Deal not found' });
+      return res.status(404).json({ error: 'not_found', message: 'Deal not found' });
     }
 
     const { status, notes } = validation.data;
@@ -588,7 +589,7 @@ router['post']('/:id/stage', idempotency, async (req: Request, res: Response) =>
       completedDate: new Date(),
     });
 
-    return res['json']({
+    return res.json({
       success: true,
       data: updated,
       previousStatus,
@@ -597,7 +598,7 @@ router['post']('/:id/stage', idempotency, async (req: Request, res: Response) =>
     });
   } catch (error) {
     console.error('Stage change error:', error);
-    return res['status'](500)['json']({
+    return res.status(500).json({
       error: 'internal_error',
       message: 'Failed to update deal stage',
     });
@@ -643,7 +644,7 @@ router['get']('/pipeline', async (req: Request, res: Response) => {
     // Get stage configuration
     const stages = await db.select().from(pipelineStages).orderBy(pipelineStages.orderIndex);
 
-    return res['json']({
+    return res.json({
       success: true,
       data: {
         pipeline,
@@ -663,7 +664,7 @@ router['get']('/pipeline', async (req: Request, res: Response) => {
     });
   } catch (error) {
     console.error('Pipeline fetch error:', error);
-    return res['status'](500)['json']({
+    return res.status(500).json({
       error: 'internal_error',
       message: 'Failed to fetch pipeline',
     });
@@ -681,13 +682,13 @@ router['get']('/stages', async (_req: Request, res: Response) => {
       .where(eq(pipelineStages.isActive, true))
       .orderBy(pipelineStages.orderIndex);
 
-    return res['json']({
+    return res.json({
       success: true,
       data: stages,
     });
   } catch (error) {
     console.error('Stages fetch error:', error);
-    return res['status'](500)['json']({
+    return res.status(500).json({
       error: 'internal_error',
       message: 'Failed to fetch stages',
     });
@@ -700,16 +701,16 @@ router['get']('/stages', async (_req: Request, res: Response) => {
 router['post']('/:id/diligence', idempotency, async (req: Request, res: Response) => {
   const paramId = firstString(req.params['id']);
   if (!paramId) {
-    return res['status'](400)['json']({ error: 'invalid_id', message: 'Deal ID is required' });
+    return res.status(400).json({ error: 'invalid_id', message: 'Deal ID is required' });
   }
   const dealId = parseInt(paramId, 10);
   if (isNaN(dealId)) {
-    return res['status'](400)['json']({ error: 'invalid_id', message: 'Deal ID must be a number' });
+    return res.status(400).json({ error: 'invalid_id', message: 'Deal ID must be a number' });
   }
 
   const validation = CreateDDItemSchema.safeParse(req.body);
   if (!validation.success) {
-    return res['status'](400)['json']({
+    return res.status(400).json({
       error: 'validation_error',
       issues: validation.error.issues,
     });
@@ -724,7 +725,7 @@ router['post']('/:id/diligence', idempotency, async (req: Request, res: Response
       .limit(1);
 
     if (!deal) {
-      return res['status'](404)['json']({ error: 'not_found', message: 'Deal not found' });
+      return res.status(404).json({ error: 'not_found', message: 'Deal not found' });
     }
 
     const data = validation.data;
@@ -742,14 +743,14 @@ router['post']('/:id/diligence', idempotency, async (req: Request, res: Response
       })
       .returning();
 
-    return res['status'](201)['json']({
+    return res.status(201).json({
       success: true,
       data: item,
       message: 'Due diligence item added',
     });
   } catch (error) {
     console.error('DD item creation error:', error);
-    return res['status'](500)['json']({
+    return res.status(500).json({
       error: 'internal_error',
       message: 'Failed to add due diligence item',
     });
@@ -762,11 +763,11 @@ router['post']('/:id/diligence', idempotency, async (req: Request, res: Response
 router['get']('/:id/diligence', async (req: Request, res: Response) => {
   const paramId = firstString(req.params['id']);
   if (!paramId) {
-    return res['status'](400)['json']({ error: 'invalid_id', message: 'Deal ID is required' });
+    return res.status(400).json({ error: 'invalid_id', message: 'Deal ID is required' });
   }
   const dealId = parseInt(paramId, 10);
   if (isNaN(dealId)) {
-    return res['status'](400)['json']({ error: 'invalid_id', message: 'Deal ID must be a number' });
+    return res.status(400).json({ error: 'invalid_id', message: 'Deal ID must be a number' });
   }
 
   try {
@@ -797,7 +798,7 @@ router['get']('/:id/diligence', async (req: Request, res: Response) => {
     const completed = items.filter((i) => i.status === 'completed').length;
     const inProgress = items.filter((i) => i.status === 'in_progress').length;
 
-    return res['json']({
+    return res.json({
       success: true,
       data: {
         items,
@@ -813,7 +814,7 @@ router['get']('/:id/diligence', async (req: Request, res: Response) => {
     });
   } catch (error) {
     console.error('DD items fetch error:', error);
-    return res['status'](500)['json']({
+    return res.status(500).json({
       error: 'internal_error',
       message: 'Failed to fetch due diligence items',
     });
@@ -826,7 +827,7 @@ router['get']('/:id/diligence', async (req: Request, res: Response) => {
 
 const ImportRowSchema = z.object({
   companyName: z.string().min(1).max(255),
-  sector: z.string().min(1).max(100),
+  sector: CompanySectorSchema,
   stage: DealStageEnum,
   sourceType: SourceTypeEnum,
   dealSize: z.number().positive().optional(),
@@ -867,7 +868,7 @@ const ImportConfirmSchema = z.object({
 router['post']('/opportunities/import/preview', async (req: Request, res: Response) => {
   const validation = ImportPreviewSchema.safeParse(req.body);
   if (!validation.success) {
-    return res['status'](400)['json']({
+    return res.status(400).json({
       error: 'validation_error',
       issues: validation.error.issues,
     });
@@ -932,7 +933,7 @@ router['post']('/opportunities/import/preview', async (req: Request, res: Respon
     const duplicateIndices = new Set(duplicates.map((d) => d.index));
     const toImport = valid.filter((v) => !duplicateIndices.has(v.index));
 
-    return res['json']({
+    return res.json({
       success: true,
       data: {
         total: rawRows.length,
@@ -946,7 +947,7 @@ router['post']('/opportunities/import/preview', async (req: Request, res: Respon
     });
   } catch (error) {
     console.error('Import preview error:', error);
-    return res['status'](500)['json']({
+    return res.status(500).json({
       error: 'internal_error',
       message: 'Failed to preview import',
     });
@@ -960,7 +961,7 @@ router['post']('/opportunities/import/preview', async (req: Request, res: Respon
 router['post']('/opportunities/import', idempotency, async (req: Request, res: Response) => {
   const validation = ImportConfirmSchema.safeParse(req.body);
   if (!validation.success) {
-    return res['status'](400)['json']({
+    return res.status(400).json({
       error: 'validation_error',
       issues: validation.error.issues,
     });
@@ -1034,7 +1035,7 @@ router['post']('/opportunities/import', idempotency, async (req: Request, res: R
       }
     }
 
-    return res['json']({
+    return res.json({
       success: failed.length === 0,
       data: {
         imported,
@@ -1046,7 +1047,7 @@ router['post']('/opportunities/import', idempotency, async (req: Request, res: R
     });
   } catch (error) {
     console.error('Import error:', error);
-    return res['status'](500)['json']({
+    return res.status(500).json({
       error: 'internal_error',
       message: 'Failed to import deals',
     });
@@ -1078,7 +1079,7 @@ const BulkArchiveSchema = z.object({
 router['post']('/opportunities/bulk/status', idempotency, async (req: Request, res: Response) => {
   const validation = BulkStatusSchema.safeParse(req.body);
   if (!validation.success) {
-    return res['status'](400)['json']({
+    return res.status(400).json({
       error: 'validation_error',
       issues: validation.error.issues,
     });
@@ -1130,13 +1131,13 @@ router['post']('/opportunities/bulk/status', idempotency, async (req: Request, r
       }
     }
 
-    return res['json']({
+    return res.json({
       success: failed.length === 0,
       data: { updatedIds, failed },
     });
   } catch (error) {
     console.error('Bulk status error:', error);
-    return res['status'](500)['json']({
+    return res.status(500).json({
       error: 'internal_error',
       message: 'Failed to bulk update statuses',
     });
@@ -1150,7 +1151,7 @@ router['post']('/opportunities/bulk/status', idempotency, async (req: Request, r
 router['post']('/opportunities/bulk/archive', idempotency, async (req: Request, res: Response) => {
   const validation = BulkArchiveSchema.safeParse(req.body);
   if (!validation.success) {
-    return res['status'](400)['json']({
+    return res.status(400).json({
       error: 'validation_error',
       issues: validation.error.issues,
     });
@@ -1205,13 +1206,13 @@ router['post']('/opportunities/bulk/archive', idempotency, async (req: Request, 
       }
     }
 
-    return res['json']({
+    return res.json({
       success: failed.length === 0,
       data: { updatedIds, failed },
     });
   } catch (error) {
     console.error('Bulk archive error:', error);
-    return res['status'](500)['json']({
+    return res.status(500).json({
       error: 'internal_error',
       message: 'Failed to bulk archive deals',
     });
@@ -1220,3 +1221,8 @@ router['post']('/opportunities/bulk/archive', idempotency, async (req: Request, 
 
 export default router;
 export { router as dealPipelineRouter };
+export const dealPipelineValidationSchemas = {
+  createDeal: CreateDealSchema,
+  updateDeal: UpdateDealSchema,
+  importConfirm: ImportConfirmSchema,
+} as const;

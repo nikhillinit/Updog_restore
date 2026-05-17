@@ -263,14 +263,6 @@ export default function InvestmentStrategyStep() {
 
   return (
     <ModernStepContainer title="Investment Strategy" description="Stages, sectors, and allocations">
-      {/* Consolidation Notice */}
-      <div className="mb-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-        <p className="text-sm font-poppins text-blue-800">
-          <strong>Note:</strong> This step will be consolidated with Investment Rounds (Step 2) in a
-          future update to eliminate redundancy and streamline the setup process. For now, please
-          continue with your stage definitions.
-        </p>
-      </div>
       <div className="space-y-8">
         {/* Sector Profiles Section */}
         <div className="space-y-6">
@@ -316,8 +308,9 @@ export default function InvestmentStrategyStep() {
                               setEditingProfile(profile.id);
                             }}
                             data-testid={`edit-profile-${profile.id}`}
+                            aria-label={`Edit ${profile.name || 'profile'}`}
                           >
-                            <Edit className="h-4 w-4" />
+                            <Edit aria-hidden="true" className="h-4 w-4" />
                           </Button>
                           {profile.id !== 'default' && (
                             <Button
@@ -325,8 +318,9 @@ export default function InvestmentStrategyStep() {
                               size="sm"
                               onClick={() => handleDeleteProfile(profile.id)}
                               className="text-red-500 hover:text-red-700"
+                              aria-label={`Delete ${profile.name || 'profile'}`}
                             >
-                              <Trash2 className="h-4 w-4" />
+                              <Trash2 aria-hidden="true" className="h-4 w-4" />
                             </Button>
                           )}
                         </div>
@@ -646,8 +640,9 @@ export default function InvestmentStrategyStep() {
                                   onClick={() => handleMoveStage(profile.id, stageIndex, 'up')}
                                   disabled={stageIndex === 0}
                                   className="h-8 w-8 p-0"
+                                  aria-label={`Move ${stage.name || 'stage'} up`}
                                 >
-                                  <MoveUp className="h-3 w-3" />
+                                  <MoveUp aria-hidden="true" className="h-3 w-3" />
                                 </Button>
                                 <Button
                                   variant="ghost"
@@ -655,16 +650,18 @@ export default function InvestmentStrategyStep() {
                                   onClick={() => handleMoveStage(profile.id, stageIndex, 'down')}
                                   disabled={stageIndex === profile.stages.length - 1}
                                   className="h-8 w-8 p-0"
+                                  aria-label={`Move ${stage.name || 'stage'} down`}
                                 >
-                                  <MoveDown className="h-3 w-3" />
+                                  <MoveDown aria-hidden="true" className="h-3 w-3" />
                                 </Button>
                                 <Button
                                   variant="ghost"
                                   size="sm"
                                   onClick={() => handleDeleteStage(profile.id, stage.id)}
                                   className="h-8 w-8 p-0 text-red-500 hover:text-red-700 hover:bg-red-50"
+                                  aria-label={`Delete ${stage.name || 'stage'}`}
                                 >
-                                  <Trash2 className="h-3 w-3" />
+                                  <Trash2 aria-hidden="true" className="h-3 w-3" />
                                 </Button>
                               </div>
                             </div>
@@ -722,8 +719,8 @@ export default function InvestmentStrategyStep() {
             <li>• Reserve allocation timing and deployment schedules</li>
           </ul>
           <p className="mt-3 text-sm font-poppins text-blue-900">
-            <strong>Next:</strong> In Step 5 (Exit Recycling), you'll configure how exit proceeds
-            are reinvested, which will adjust the final capital deployment schedule.
+            <strong>Next:</strong> In Step 5 (Distributions), you'll configure how exit proceeds are
+            reinvested, which will adjust the final capital deployment schedule.
           </p>
         </div>
 

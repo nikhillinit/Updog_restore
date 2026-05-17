@@ -29,14 +29,17 @@
   --destructive-foreground: hsl(60, 9.1%, 97.8%);
   --ring: hsl(20, 14.3%, 4.1%);
   --radius: 0.5rem;
-  
+
   /* Press On Ventures Official Brand Colors */
-  --press-dark: #292929;        /* Primary dark - R41 G41 B41 */
-  --press-beige: #E0D8D1;       /* Secondary beige - R224 G216 B209 */
-  --press-white: #FFFFFF;       /* White - R255 G255 B255 */
-  --press-light: #F2F2F2;       /* Light gray - R242 G242 B242 */
+  --press-dark: #292929; /* Primary dark - R41 G41 B41 */
+  --press-beige: #e0d8d1; /* Secondary beige - R224 G216 B209 */
+  --press-white: #ffffff; /* White - R255 G255 B255 */
+  --press-light: #f2f2f2; /* Light gray - R242 G242 B242 */
   --press-beige-hover: #d4cbb8; /* Beige hover state */
-  --press-beige-active: #c4b8a5;/* Beige active state */
+  --press-beige-active: #c4b8a5; /* Beige active state */
+  --press-main-gradient: linear-gradient(135deg, var(--press-beige) 0%, var(--press-white) 100%);
+  --press-logo-safe-zone-ratio: 1;
+  --press-icon-safe-zone-ratio: 0.5;
 
   /* Legacy POVC colors (deprecated - use Press On colors above) */
   --povc-primary: hsl(207, 90%, 54%);
@@ -81,7 +84,12 @@
   }
 
   /* MagicPatterns Typography System */
-  h1, h2, h3, h4, h5, h6 {
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
     @apply font-inter font-bold text-charcoal;
   }
 
@@ -178,7 +186,8 @@
 }
 
 @keyframes pulse {
-  0%, 100% {
+  0%,
+  100% {
     opacity: 1;
   }
   50% {

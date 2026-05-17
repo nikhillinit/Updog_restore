@@ -414,42 +414,21 @@ function deriveEndDate(input: TruthCaseInput): string {
 }
 
 // =============================================================================
-// CA-005 Skip Gate
+// Skip Gate
 // =============================================================================
-
-/**
- * Pacing model cases that require period-loop architecture not yet implemented.
- * The engine currently implements "cash model" (allocation = ending_cash - reserve)
- * which differs from the "pacing model" expected by these truth cases.
- *
- * Deferred to Implementation Parity Sprint per FOUNDATION-HARDENING-EXECUTION-PLAN.md
- */
-const PACING_MODEL_DEFERRED_CASES = new Set([
-  'CA-009', // Quarterly pacing with carryover - engine: 600K vs expected: 1.2M
-  'CA-010', // Front-loaded pipeline capped - engine: off by 350K
-  'CA-012', // 24-month vs 18-month pacing - engine: 2.67M vs expected: 1.2M
-]);
 
 /**
  * Check if a truth case should be skipped.
  *
- * Dynamic reserve policy is implemented; only the remaining pacing-model parity
- * cases stay deferred in the shared adapter path.
+ * CA-009/010/012 pacing cases: UNDEFERRED (2026-05-15).
+ * Forced-inclusion evidence under TZ=UTC matches the truth-case expected values.
+ *
+ * CA-005 (dynamic_ratio) is implemented - NAV-based reserve calculation.
  */
 export function shouldSkipTruthCase(
   caseId: string,
   _reservePolicy?: string
 ): { skip: boolean; reason?: string } {
-  if (PACING_MODEL_DEFERRED_CASES.has(caseId)) {
-    return {
-      skip: true,
-      reason:
-        `${caseId} deferred to Implementation Parity Sprint. ` +
-        'Engine implements cash model (allocation = ending_cash - reserve), ' +
-        'but truth case expects pacing model semantics. See ARCHITECTURAL-DEBT.md.',
-    };
-  }
-
   void caseId;
   return { skip: false };
 }

@@ -1,12 +1,12 @@
 /**
- * Centralized branding constants for Updawg
+ * Centralized branding constants for Updog
  * Press On Ventures Fund Modeling Platform
  */
 
 export const BRANDING = {
   app: {
-    name: 'Updawg',
-    nameStyled: 'UpDawg', // For headers with stylized capitalization
+    name: 'Updog',
+    nameStyled: 'Updog', // For headers with stylized capitalization
     tagline: 'Modern Fund Modeling for Venture Capital',
   },
   company: {

@@ -18,11 +18,94 @@ import { fundPersistenceService } from '../services/fund-persistence-service';
 import { sendApiError } from '../lib/apiError';
 import { FundCreateV1Schema } from '@shared/contracts/fund-create-v1.contract';
 import { logger } from '../lib/logger.js';
+import { enforceProvidedFundScope } from '../lib/auth/provided-fund-scope';
 
 const router = Router();
 
 type PersistedFund = typeof persistedFunds.$inferSelect;
 type StoredFund = Awaited<ReturnType<typeof storage.getAllFunds>>[number];
+type FundDateValue = Date | string | null | undefined;
+type FundDecimalValue = string | number | null | undefined;
+
+export interface ClientFundRow {
+  id: number;
+  name: string;
+  size: FundDecimalValue;
+  deployedCapital?: FundDecimalValue;
+  managementFee: FundDecimalValue;
+  carryPercentage: FundDecimalValue;
+  vintageYear: number;
+  status: string;
+  engineResults: PersistedFund['engineResults'] | null;
+  createdAt: FundDateValue;
+  establishmentDate?: FundDateValue;
+  isActive?: boolean | null;
+}
+
+export interface ClientFund {
+  id: number;
+  name: string;
+  size: number;
+  deployedCapital: number;
+  managementFee: number;
+  carryPercentage: number;
+  vintageYear: number;
+  status: string;
+  engineResults: PersistedFund['engineResults'] | null;
+  createdAt: string | null;
+  establishmentDate: string | null;
+  isActive: boolean;
+}
+
+class FundBoundaryTransformError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'FundBoundaryTransformError';
+  }
+}
+
+function decimalToNumber(
+  value: FundDecimalValue,
+  field: keyof Pick<ClientFund, 'size' | 'deployedCapital' | 'managementFee' | 'carryPercentage'>,
+  fallback?: number
+): number {
+  if (value === null || value === undefined) {
+    if (fallback !== undefined) {
+      return fallback;
+    }
+    throw new FundBoundaryTransformError(`${field} is required`);
+  }
+
+  const parsed = typeof value === 'number' ? value : Number(value);
+  if (!Number.isFinite(parsed)) {
+    throw new FundBoundaryTransformError(`${field} must be a finite number`);
+  }
+  return parsed;
+}
+
+function fundDateToString(value: FundDateValue): string | null {
+  if (value === null || value === undefined) {
+    return null;
+  }
+  return value instanceof Date ? value.toISOString() : value;
+}
+
+export function toClientFund(fund: ClientFundRow): ClientFund {
+  return {
+    id: fund.id,
+    name: fund.name,
+    size: decimalToNumber(fund.size, 'size'),
+    deployedCapital: decimalToNumber(fund.deployedCapital, 'deployedCapital', 0),
+    managementFee: decimalToNumber(fund.managementFee, 'managementFee'),
+    carryPercentage: decimalToNumber(fund.carryPercentage, 'carryPercentage'),
+    vintageYear: fund.vintageYear,
+    status: fund.status,
+    engineResults: fund.engineResults ?? null,
+    createdAt: fundDateToString(fund.createdAt),
+    establishmentDate: fundDateToString(fund.establishmentDate),
+    isActive: fund.isActive ?? true,
+  };
+}
 
 function normalizeStoredFund(fund: StoredFund): PersistedFund {
   return {
@@ -70,13 +153,13 @@ type FundCalculationDTO = z.infer<typeof FundCalculationSchema>;
 router['get']('/funds', async (_req: Request, res: Response) => {
   try {
     const funds = await getCanonicalFunds();
-    return res['json'](funds);
+    return res.json(funds.map(toClientFund));
   } catch (error) {
     const apiError: ApiError = {
       error: 'Database query failed',
       message: error instanceof Error ? error.message : 'Failed to fetch funds',
     };
-    return res['status'](500)['json'](apiError);
+    return res.status(500).json(apiError);
   }
 });
 
@@ -90,7 +173,11 @@ router['get']('/funds/:id', async (req: Request, res: Response) => {
         error: 'Invalid fund ID',
         message: `Fund ID must be a positive integer, received: ${idParam}`,
       };
-      return res['status'](400)['json'](error);
+      return res.status(400).json(error);
+    }
+
+    if (!(await enforceProvidedFundScope(req, res, id))) {
+      return;
     }
 
     const fund = await getCanonicalFundById(id);
@@ -99,24 +186,24 @@ router['get']('/funds/:id', async (req: Request, res: Response) => {
         error: 'Fund not found',
         message: `No fund exists with ID: ${id}`,
       };
-      return res['status'](404)['json'](error);
+      return res.status(404).json(error);
     }
 
-    return res['json'](fund);
+    return res.json(toClientFund(fund));
   } catch (error) {
     if (error instanceof NumberParseError) {
       const apiError: ApiError = {
         error: 'Invalid fund ID',
         message: error.message,
       };
-      return res['status'](400)['json'](apiError);
+      return res.status(400).json(apiError);
     }
 
     const apiError: ApiError = {
       error: 'Database query failed',
       message: error instanceof Error ? error.message : 'Failed to fetch fund',
     };
-    return res['status'](500)['json'](apiError);
+    return res.status(500).json(apiError);
   }
 });
 
@@ -145,26 +232,16 @@ router['post']('/funds', idempotency, async (req: Request, res: Response) => {
     const { fund } = await fundPersistenceService.createFundWithInitialDraft(fundInput);
     logger.info({ fundId: fund.id }, 'fund.created');
 
-    res['status'](201);
-    return res['json']({
+    res.status(201);
+    return res.json({
       success: true,
-      data: {
-        id: fund.id,
-        name: fund.name,
-        size: fund.size,
-        managementFee: fund.managementFee,
-        carryPercentage: fund.carryPercentage,
-        vintageYear: fund.vintageYear,
-        status: fund.status,
-        engineResults: fund.engineResults ?? null,
-        createdAt: fund.createdAt,
-      },
+      data: toClientFund(fund),
       message: 'Fund created successfully',
     });
   } catch (error) {
     logger.error({ err: error }, 'fund.create.failed');
-    res['status'](500);
-    return res['json']({
+    res.status(500);
+    return res.json({
       error: 'Failed to create fund',
       message: error instanceof Error ? error.message : 'Unknown error',
     });
@@ -191,10 +268,10 @@ router['post']('/funds/calculate', async (req: Request, res: Response, next: Nex
     );
 
     if (status === 'created') {
-      res['setHeader']('Idempotency-Status', 'created');
+      res.setHeader('Idempotency-Status', 'created');
       const result = await promise;
       endTimer();
-      return res['status'](201)['json'](result);
+      return res.status(201).json(result);
     }
 
     // joined path:
@@ -203,9 +280,9 @@ router['post']('/funds/calculate', async (req: Request, res: Response, next: Nex
     if (!hasClientKey) {
       try {
         const result = await promise;
-        res['setHeader']('Idempotency-Status', 'joined');
+        res.setHeader('Idempotency-Status', 'joined');
         endTimer();
-        return res['status'](200)['json'](result);
+        return res.status(200).json(result);
       } catch (error) {
         if (!(error instanceof Error) || error.message !== 'in-progress') {
           throw error;
@@ -216,11 +293,11 @@ router['post']('/funds/calculate', async (req: Request, res: Response, next: Nex
     // In-memory store cannot share in-flight work across processes; surface operation endpoint.
     // Avoid unhandled rejection by detaching:
     promise.catch(() => void 0);
-    res['setHeader']('Idempotency-Status', 'joined');
-    res['setHeader']('Retry-After', '2');
-    res['setHeader']('Location', `/api/operations/${encodeURIComponent(key)}`);
+    res.setHeader('Idempotency-Status', 'joined');
+    res.setHeader('Retry-After', '2');
+    res.setHeader('Location', `/api/operations/${encodeURIComponent(key)}`);
     endTimer();
-    return res['status'](202)['json']({ status: 'in-progress', key });
+    return res.status(202).json({ status: 'in-progress', key });
   } catch (err) {
     next(err);
   }

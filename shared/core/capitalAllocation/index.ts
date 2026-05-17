@@ -146,6 +146,6 @@ export {
   executePeriodLoop,
   convertPeriodLoopOutput,
   type Period,
-  type PeriodResult,
+  type AllocationPeriodSnapshot,
   type PeriodLoopOutput,
 } from './periodLoop';

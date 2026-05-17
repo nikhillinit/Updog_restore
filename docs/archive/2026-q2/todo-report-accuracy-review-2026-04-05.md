@@ -1,6 +1,9 @@
 # To-Do Report Accuracy Review
 
-Date: `2026-04-05` Status: `active`
+Date: `2026-04-05` Status: `archived-reference`
+
+Superseded for execution by the current approved priority development queue
+handoff.
 
 ## Verdict
 
@@ -8,20 +11,24 @@ The original to-do report was directionally useful but materially stale. It
 mixed validated remaining gaps with claims that current `main` had already
 closed or had never matched literally.
 
-This review is the current-main source of truth for the remediation queue. It
-supersedes the PR-only draft review from PR `#563`.
+This archived review records the April 5 current-main rebaseline that later fed
+the approved priority development queue. It superseded the PR-only draft review
+from PR `#563` at the time, but it is no longer the active execution source of
+truth.
 
 ## Current-Main Findings
 
-### Validated remaining gaps
+### Validated remaining gaps at the April 5 rebaseline
 
 1. Construction-vs-actual detailed breakdown remains explicitly deferred.
-2. One-way, two-way, and stress sensitivity tabs remain planned and not wired.
-3. Residual IRR follow-through remains a later audit lane outside the
+2. Residual IRR follow-through remains a later audit lane outside the
    already-landed mounted `/performance` slice and should be re-audited against
    current `main` instead of assumed from the earlier PR draft.
 
 ### Current-main closures that active docs must respect
+
+These closures are not open-from-zero worktracks. They are reference boundaries
+for future docs or code touched by newer plans.
 
 1. LP benchmark comparison no longer returns placeholder-only example data; the
    route serves persisted benchmark-derived series when present and an explicit
@@ -31,6 +38,9 @@ supersedes the PR-only draft review from PR `#563`.
    boundary.
 3. Time Travel restore wording is now aligned to the server-side versioned
    restore workflow boundary while remaining disabled on the page.
+4. Sensitivity Analysis no longer has planned-only one-way, two-way, or stress
+   tabs; the current page exposes Monte Carlo, one-way, two-way, and stress as
+   live fund-scoped persisted surfaces.
 
 ### Stale or overstated claims
 
@@ -52,7 +62,7 @@ Run these against current `main` before reusing any of the retained claims:
 ```bash
 rg -n "toMetricDelta|driftCapable|driftReason" server/services/fund-results-comparison-service.ts
 rg -n "Construction vs\\. actual comparison remains deferred|valuation-tier breakdowns stay deferred" client/src/components/forecasting/construction-actual-comparison.tsx
-rg -n "COMING_SOON_TABS|planned but not yet wired" client/src/pages/sensitivity-analysis.tsx
+rg -n "Sensitivity analysis surface|Monte Carlo|One-Way|Two-Way|Stress" client/src/pages/sensitivity-analysis.tsx
 rg -n "Benchmark comparison derived from persisted LP performance snapshots|No benchmark dataset is configured" server/routes/lp-api.ts
 rg -n "identifyConcentrationRisks|Sector concentration|Stage concentration" server/services/portfolio-performance-predictor.ts
 rg -n "Restore Unavailable|versioned restore workflow" client/src/pages/time-travel.tsx
@@ -64,18 +74,21 @@ rg -n "targetIRR|expectedIRR" server/services/metrics-aggregator.ts
 
 ## Corrected Summary
 
-- Keep active: deferred construction-vs-actual, sensitivity tabs still planned,
-  and residual IRR follow-through as a later audit lane outside the mounted
-  performance slice.
+- Keep active: deferred construction-vs-actual and residual IRR follow-through
+  as a later audit lane outside the mounted performance slice.
 - Retire or reword: drift-from-scratch, quarantined-backtesting, restore-route
   mismatch, concentration-code-missing, LP benchmark placeholder-only framing,
-  snapshot-governance unresolved framing, `ActualMetricsCalculator`-specific
-  residual-XIRR framing, and untouched Phase 4 IRR-from-zero framing.
+  sensitivity planned-only framing, snapshot-governance unresolved framing,
+  `ActualMetricsCalculator`-specific residual-XIRR framing, and untouched Phase
+  4 IRR-from-zero framing.
 
 ## Follow-Through
 
-The April 5 remediation queue has been re-baselined on current `main`, and the
-bounded doc + UI truthfulness follow-through has been applied:
+The April 5 remediation queue has been re-baselined on current `main`. Use this
+archived strategy as evidence for the current approved priority queue handoff;
+do not re-execute the old active `docs/plans` path or treat snapshot
+governance, `C2`, or `D` as unresolved greenfield work.
 
-- `docs/plans/2026-04-05-todo-report-remediation-strategy.md`
-- `.omx/plans/prd-todo-report-remediation-main-rebaseline.md`
+Related archive:
+
+- `docs/archive/2026-q2/2026-04-05-todo-report-remediation-strategy.md`

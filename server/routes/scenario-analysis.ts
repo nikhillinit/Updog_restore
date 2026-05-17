@@ -1,16 +1,16 @@
 /**
  * Scenario Analysis API Routes
  *
- * Implements Construction vs Current portfolio analysis and deal-level scenario modeling
- * with optimistic locking, audit logging, and reserves optimization
+ * Implements deal-level scenario modeling with optimistic locking, audit logging,
+ * and reserves optimization.
  */
 
 import { Router } from 'express';
 import type { Request, Response } from 'express';
 import { z } from 'zod';
 import { db } from '../db';
-import { scenarios, scenarioCases, scenarioAuditLogs, portfolioCompanies } from '@shared/schema';
-import { eq, and, sql } from 'drizzle-orm';
+import { scenarios, scenarioCases, scenarioAuditLogs } from '@shared/schema';
+import { eq, and } from 'drizzle-orm';
 import {
   calculateWeightedSummary,
   validateProbabilities,
@@ -18,7 +18,7 @@ import {
   addMOICToCases,
 } from '@shared/utils/scenario-math';
 import type { ScenarioAnalysisResponse, ScenarioCase } from '@shared/types/scenario';
-import { requireAuth, requireFundAccess } from '../lib/auth/jwt';
+import { requireAuth } from '../lib/auth/jwt';
 import { firstString } from '../lib/request-values';
 
 const router = Router();
@@ -44,13 +44,6 @@ const UpdateScenarioRequestSchema = z.object({
   cases: z.array(ScenarioCaseSchema),
   normalize: z.boolean().optional(),
   version: z.number().int().optional(), // Optimistic locking
-});
-
-const PortfolioAnalysisQuerySchema = z.object({
-  metric: z.enum(['num_investments', 'initial_checks', 'follow_on_reserves', 'total_capital']),
-  view: z.enum(['construction', 'current', 'actual']).default('construction'),
-  page: z.string().regex(/^\d+$/).transform(Number).default('1'),
-  limit: z.string().regex(/^\d+$/).transform(Number).default('50'),
 });
 
 const CreateScenarioSchema = z.object({
@@ -102,78 +95,6 @@ async function auditLog(params: {
 }
 
 // ============================================================================
-// Portfolio-Level Analysis (Construction vs Current)
-// ============================================================================
-
-/**
- * GET /api/funds/:fundId/portfolio-analysis
- *
- * Returns Construction vs Current comparison with pagination and caching
- */
-router['get'](
-  '/funds/:fundId/portfolio-analysis',
-  requireAuth(),
-  requireFundAccess,
-  extractUserId,
-  async (req: Request, res: Response) => {
-    try {
-      const fundId = firstString(req.params['fundId']);
-
-      if (!fundId) {
-        return res['status'](400)['json']({ error: 'Missing fund ID' });
-      }
-
-      const query = PortfolioAnalysisQuerySchema.parse(req.query);
-
-      // Cache for 5 minutes (sufficient for internal tool)
-      res.set('Cache-Control', 'private, max-age=300');
-
-      // Parse fundId to integer
-      const fundIdInt = parseInt(fundId);
-
-      // TODO: Implement actual query logic based on your schema
-      // This is a placeholder showing the pattern
-      const results = await db
-        .select()
-        .from(portfolioCompanies)
-        .where(eq(portfolioCompanies.fundId, fundIdInt))
-        .limit(query.limit)
-        .offset((query.page - 1) * query.limit);
-
-      const total = await db
-        .select({ count: sql<number>`count(*)` })
-        .from(portfolioCompanies)
-        .where(eq(portfolioCompanies.fundId, fundIdInt));
-
-      // Transform to ComparisonRow format
-      const rows = results.map((company: (typeof results)[number]) => ({
-        entry_round: company.stage || 'Unknown',
-        construction_value: Number(company.investmentAmount || 0),
-        actual_value: Number(company.investmentAmount || 0),
-        forecast_value: Number(company.currentValuation || 0),
-      }));
-
-      res['json']({
-        data: rows,
-        pagination: {
-          page: query.page,
-          limit: query.limit,
-          total: total[0]?.count || 0,
-          pages: Math.ceil((total[0]?.count || 0) / query.limit),
-        },
-        generated_at: new Date(),
-      });
-    } catch (error: unknown) {
-      console.error('Portfolio analysis error:', error);
-      res['status'](500)['json']({
-        error: 'Internal server error',
-        message: error instanceof Error ? error.message : 'Unknown error',
-      });
-    }
-  }
-);
-
-// ============================================================================
 // Scenario CRUD (Deal-Level)
 // ============================================================================
 
@@ -192,10 +113,13 @@ router['get'](
       const scenarioId = firstString(req.params['scenarioId']);
 
       if (!companyId || !scenarioId) {
-        return res['status'](400)['json']({ error: 'Missing required parameters' });
+        return res.status(400).json({ error: 'Missing required parameters' });
       }
 
-      const include = firstString(req.query['include'])?.split(',') || ['cases', 'weighted_summary'];
+      const include = firstString(req.query['include'])?.split(',') || [
+        'cases',
+        'weighted_summary',
+      ];
 
       const scenario = await db
         .select()
@@ -204,7 +128,7 @@ router['get'](
         .limit(1);
 
       if (!scenario || scenario.length === 0 || !scenario[0]) {
-        return res['status'](404)['json']({ error: 'Scenario not found' });
+        return res.status(404).json({ error: 'Scenario not found' });
       }
 
       const scenarioData = scenario[0];
@@ -269,10 +193,10 @@ router['get'](
         // rounds: undefined, // include.includes('rounds') ? rounds : undefined,
       };
 
-      res['json'](response);
+      res.json(response);
     } catch (error: unknown) {
       console.error('Get scenario error:', error);
-      res['status'](500)['json']({
+      res.status(500).json({
         error: 'Internal server error',
         message: error instanceof Error ? error.message : 'Unknown error',
       });
@@ -294,7 +218,7 @@ router['post'](
       const companyId = firstString(req.params['companyId']);
 
       if (!companyId) {
-        return res['status'](400)['json']({ error: 'Missing company ID' });
+        return res.status(400).json({ error: 'Missing company ID' });
       }
 
       // Validate request body before destructuring to preserve types
@@ -321,10 +245,10 @@ router['post'](
         action: 'CREATE',
       });
 
-      res['status'](201)['json'](scenario[0]);
+      res.status(201).json(scenario[0]);
     } catch (error: unknown) {
       console.error('Create scenario error:', error);
-      res['status'](500)['json']({
+      res.status(500).json({
         error: 'Internal server error',
         message: error instanceof Error ? error.message : 'Unknown error',
       });
@@ -347,7 +271,7 @@ router['patch'](
       const scenarioId = firstString(req.params['scenarioId']);
 
       if (!companyId || !scenarioId) {
-        return res['status'](400)['json']({ error: 'Missing required parameters' });
+        return res.status(400).json({ error: 'Missing required parameters' });
       }
 
       const body = UpdateScenarioRequestSchema.parse(req.body);
@@ -360,7 +284,7 @@ router['patch'](
         .limit(1);
 
       if (!currentScenario || currentScenario.length === 0 || !currentScenario[0]) {
-        return res['status'](404)['json']({ error: 'Scenario not found' });
+        return res.status(404).json({ error: 'Scenario not found' });
       }
 
       const current = currentScenario[0];
@@ -373,7 +297,7 @@ router['patch'](
 
       // BLOCKER #1 FIX: Optimistic locking
       if (body.version !== undefined && current.version !== body.version) {
-        return res['status'](409)['json']({
+        return res.status(409).json({
           error: 'Conflict',
           message: 'Scenario was modified by another user. Please refresh.',
           current_version: current.version,
@@ -385,7 +309,7 @@ router['patch'](
       const validation = validateProbabilities(cases);
 
       if (!validation.is_valid && !body.normalize) {
-        return res['status'](400)['json']({
+        return res.status(400).json({
           error: 'Invalid probabilities',
           message: validation.message,
           sum: validation.sum,
@@ -449,7 +373,7 @@ router['patch'](
       const casesWithMOIC = addMOICToCases(cases);
       const weighted_summary = calculateWeightedSummary(casesWithMOIC);
 
-      res['json']({
+      res.json({
         scenario_id: scenarioId,
         cases: casesWithMOIC,
         weighted_summary,
@@ -461,13 +385,13 @@ router['patch'](
       console.error('Update scenario error:', error);
 
       if (error instanceof z.ZodError) {
-        return res['status'](400)['json']({
+        return res.status(400).json({
           error: 'Validation error',
           details: error.errors,
         });
       }
 
-      res['status'](500)['json']({
+      res.status(500).json({
         error: 'Internal server error',
         message: error instanceof Error ? error.message : 'Unknown error',
       });
@@ -490,7 +414,7 @@ router['delete'](
       const scenarioId = firstString(req.params['scenarioId']);
 
       if (!companyId || !scenarioId) {
-        return res['status'](400)['json']({ error: 'Missing required parameters' });
+        return res.status(400).json({ error: 'Missing required parameters' });
       }
 
       const scenarioResult = await db
@@ -500,14 +424,14 @@ router['delete'](
         .limit(1);
 
       if (!scenarioResult || scenarioResult.length === 0 || !scenarioResult[0]) {
-        return res['status'](404)['json']({ error: 'Scenario not found' });
+        return res.status(404).json({ error: 'Scenario not found' });
       }
 
       const scenario = scenarioResult[0];
 
       // Prevent deleting default scenario
       if (scenario.isDefault) {
-        return res['status'](400)['json']({
+        return res.status(400).json({
           error: 'Cannot delete default scenario',
         });
       }
@@ -523,10 +447,10 @@ router['delete'](
         action: 'DELETE',
       });
 
-      res['status'](204)['send']();
+      res.status(204).send();
     } catch (error: unknown) {
       console.error('Delete scenario error:', error);
-      res['status'](500)['json']({
+      res.status(500).json({
         error: 'Internal server error',
         message: error instanceof Error ? error.message : 'Unknown error',
       });
@@ -564,7 +488,7 @@ router['post'](
       });
 
       if (!scenario) {
-        return res['status'](404)['json']({ error: 'Scenario not found' });
+        return res.status(404).json({ error: 'Scenario not found' });
       }
 
       // 2. Call reserve engine (lift from your existing pattern)
@@ -586,14 +510,14 @@ router['post'](
         },
       ];
 
-      res['json']({
+      res.json({
         scenario_id,
         suggestions,
         generated_at: new Date(),
       });
     } catch (error: unknown) {
       console.error('Reserves optimization error:', error);
-      res['status'](500)['json']({
+      res.status(500).json({
         error: 'Internal server error',
         message: error instanceof Error ? error.message : 'Unknown error',
       });

@@ -1,5 +1,5 @@
 import type { Request, Response } from 'express';
-import { logger } from '@/lib/logger';
+import { logger } from '../lib/logger';
 import { config } from '../config/index.js';
 import { firstString } from '../lib/request-values';
 
@@ -28,7 +28,7 @@ export async function stream(req: Request, res: Response) {
   const runId = firstString(req.params['runId']);
 
   if (!runId) {
-    logger.warn('Stream endpoint called without runId', { path: req.path });
+    logger.warn({ path: req.path }, 'Stream endpoint called without runId');
     res.status(400).json({ error: 'Missing runId parameter' });
     return;
   }
@@ -37,19 +37,19 @@ export async function stream(req: Request, res: Response) {
   const startTime = Date.now();
 
   // Set SSE headers
-  res["setHeader"]('Content-Type', 'text/event-stream');
-  res["setHeader"]('Cache-Control', 'no-cache, no-transform');
-  res["setHeader"]('Connection', 'keep-alive');
-  res["setHeader"]('Access-Control-Allow-Origin', '*');
-  res["setHeader"]('X-Accel-Buffering', 'no'); // Disable nginx buffering
+  res.setHeader('Content-Type', 'text/event-stream');
+  res.setHeader('Cache-Control', 'no-cache, no-transform');
+  res.setHeader('Connection', 'keep-alive');
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('X-Accel-Buffering', 'no'); // Disable nginx buffering
 
-  res["status"](200);
+  res.status(200);
   res.flushHeaders();
 
-  logger.info('SSE stream started', { runId, maxBytes: MAX_BUFFER_BYTES });
+  logger.info({ runId, maxBytes: MAX_BUFFER_BYTES }, 'SSE stream started');
 
   // Send retry hint
-  res["write"](`retry: 3000\n\n`);
+  res.write(`retry: 3000\n\n`);
 
   /**
    * Write SSE event with backpressure check
@@ -64,22 +64,25 @@ export async function stream(req: Request, res: Response) {
         code: 'stream-limit-exceeded',
         message: `Stream exceeded ${MAX_BUFFER_BYTES} byte limit`,
         limitBytes: MAX_BUFFER_BYTES,
-        bytesSent
-      })}\n\n`;
-      res["write"](errorPayload);
-
-      logger.warn('SSE stream limit exceeded', {
-        runId,
         bytesSent,
-        limitBytes: MAX_BUFFER_BYTES
-      });
+      })}\n\n`;
+      res.write(errorPayload);
+
+      logger.warn(
+        {
+          runId,
+          bytesSent,
+          limitBytes: MAX_BUFFER_BYTES,
+        },
+        'SSE stream limit exceeded'
+      );
 
       cleanup();
-      res["end"]();
+      res.end();
       return false;
     }
 
-    res["write"](payload);
+    res.write(payload);
     bytesSent += eventSize;
     return true;
   };
@@ -89,7 +92,7 @@ export async function stream(req: Request, res: Response) {
 
   // Keepalive interval (every 25s)
   const keepalive = setInterval(() => {
-    res["write"](`:keepalive ${Date.now()}\n\n`);
+    res.write(`:keepalive ${Date.now()}\n\n`);
   }, KEEPALIVE_INTERVAL_MS);
 
   // TODO: Wire to your agent progress bus (Redis pubsub/BullMQ events)
@@ -103,10 +106,13 @@ export async function stream(req: Request, res: Response) {
         cleanup();
       }
     } catch (error) {
-      logger.warn('SSE write error', {
-        runId,
-        errorMsg: error instanceof Error ? error.message : String(error),
-      });
+      logger.warn(
+        {
+          runId,
+          errorMsg: error instanceof Error ? error.message : String(error),
+        },
+        'SSE write error'
+      );
       cleanup();
     }
   });
@@ -121,17 +127,20 @@ export async function stream(req: Request, res: Response) {
     unsubscribe();
 
     const durationSeconds = (Date.now() - startTime) / 1000;
-    logger.info('SSE stream closed', {
-      runId,
-      bytesSent,
-      durationSeconds
-    });
+    logger.info(
+      {
+        runId,
+        bytesSent,
+        durationSeconds,
+      },
+      'SSE stream closed'
+    );
 
     // TODO: Emit metrics
     // prometheus.histogram('ai_stream_duration_seconds').observe(durationSeconds);
     // prometheus.counter('ai_stream_bytes_sent_total').inc(bytesSent);
 
-    res["end"]();
+    res.end();
   }
 }
 
@@ -148,10 +157,7 @@ type AgentEvent =
 /**
  * Subscribe to agent events using BullMQ simulation queue
  */
-function subscribeToAgentEvents(
-  runId: string,
-  callback: (evt: AgentEvent) => void
-): () => void {
+function subscribeToAgentEvents(runId: string, callback: (evt: AgentEvent) => void): () => void {
   // Try to use BullMQ queue subscription if available
   let unsubscribe: (() => void) | null = null;
 
@@ -196,7 +202,7 @@ function subscribeToAgentEvents(
       });
     })
     .catch((err) => {
-      logger.warn('Failed to load queue module, using mock subscription', { error: err });
+      logger.warn({ error: err }, 'Failed to load queue module, using mock subscription');
       // Fallback to mock
       const interval = setInterval(() => {
         callback({

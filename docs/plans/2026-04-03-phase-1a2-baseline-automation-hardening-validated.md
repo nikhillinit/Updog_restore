@@ -1,3 +1,7 @@
+---
+last_updated: 2026-05-11
+---
+
 # Phase 1A.2: Baseline Automation Hardening Plan (Sandbox-Validated)
 
 ## Context

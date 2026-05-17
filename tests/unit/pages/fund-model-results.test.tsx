@@ -218,6 +218,22 @@ describe('FundModelResultsPage (server-backed)', () => {
     expect(screen.getByText('Enabled')).toBeInTheDocument();
   });
 
+  it('renders economics KPIs and tables when economics results are available', async () => {
+    const resp = readyResponse();
+    resp.sections.economics = validEconomicsSection();
+    mockFundPageFetches({ results: resp });
+    await renderPage('/fund-model-results/123');
+
+    await waitFor(() => {
+      expect(screen.getByText('GP Economics')).toBeInTheDocument();
+    });
+    expect(screen.getByTestId('economics-results-card')).toBeInTheDocument();
+    expect(screen.getByText('Gross IRR')).toBeInTheDocument();
+    expect(screen.getByText('Total GP Carry')).toBeInTheDocument();
+    expect(screen.getByText('Economics Cashflows')).toBeInTheDocument();
+    expect(screen.getByText('Waterfall and Carry')).toBeInTheDocument();
+  });
+
   // -- Unavailable sections --
 
   it('renders overview section with typed scorecard facts', async () => {
@@ -371,6 +387,12 @@ describe('FundModelResultsPage (server-backed)', () => {
           },
           scenarios: { status: 'unavailable', reason: 'No authoritative source' },
           waterfall: { status: 'unavailable', reason: 'No authoritative source' },
+          economics: {
+            status: 'pending',
+            reason:
+              'Economics snapshot has not been produced for the latest published configuration',
+            reasonCode: 'ECONOMICS_SNAPSHOT_PENDING',
+          },
         },
       },
     });
@@ -420,8 +442,9 @@ describe('FundModelResultsPage (server-backed)', () => {
     expect(sizeMatches.length).toBeGreaterThanOrEqual(1);
     expect(screen.getByText('Published Version')).toBeInTheDocument();
     expect(screen.getByText('v1')).toBeInTheDocument();
-    expect(screen.getByText('Dispatch State')).toBeInTheDocument();
-    expect(screen.getByText('Correlation ID')).toBeInTheDocument();
+    expect(screen.queryByText('Dispatch State')).not.toBeInTheDocument();
+    expect(screen.queryByText('Correlation ID')).not.toBeInTheDocument();
+    expect(document.body).not.toHaveTextContent('corr-123');
     expect(screen.getByText('Snapshot Coverage')).toBeInTheDocument();
     expect(screen.getAllByText('RESERVE, PACING').length).toBeGreaterThanOrEqual(1);
   });
@@ -517,7 +540,8 @@ describe('FundModelResultsPage (server-backed)', () => {
     expect(
       within(diagnosticsCard).getByText(/run 10 did not complete successfully/i)
     ).toBeInTheDocument();
-    expect(within(diagnosticsCard).getByText('test-corr-id')).toBeInTheDocument();
+    expect(within(diagnosticsCard).queryByText('test-corr-id')).not.toBeInTheDocument();
+    expect(within(diagnosticsCard).queryByText('dispatched')).not.toBeInTheDocument();
     expect(
       await screen.findByText(/Worker timed out during reserve snapshot generation/i)
     ).toBeInTheDocument();
@@ -556,6 +580,58 @@ describe('FundModelResultsPage (server-backed)', () => {
         (_, element) => element?.textContent === 'Delta +$20M (+25.0%)'
       )
     ).toBeInTheDocument();
+  });
+
+  it('renders a source-labeled quarterly analytics trace with owned action links', async () => {
+    mockFundPageFetches();
+    await renderPage('/fund-model-results/123');
+
+    const trace = await screen.findByTestId('quarterly-review-trace');
+
+    expect(within(trace).getByText('Quarterly Analytics Trace')).toBeInTheDocument();
+    expect(within(trace).getByText('Are we on plan?')).toBeInTheDocument();
+    expect(within(trace).getByText('Where are the gaps by segment?')).toBeInTheDocument();
+    expect(within(trace).getByText('Which follow-ons need action?')).toBeInTheDocument();
+    expect(within(trace).getByText('What if the model changes?')).toBeInTheDocument();
+    expect(within(trace).getByText('What can LPs receive today?')).toBeInTheDocument();
+
+    expect(within(trace).getByText('Publish comparison')).toBeInTheDocument();
+    expect(within(trace).getByText('Performance breakdown route')).toBeInTheDocument();
+    expect(within(trace).getByText('Reserve snapshot')).toBeInTheDocument();
+    expect(within(trace).getByText('Scenario workspaces')).toBeInTheDocument();
+    expect(within(trace).getByText('Reports workspace')).toBeInTheDocument();
+
+    expect(within(trace).getByRole('link', { name: /Review comparison/i })).toHaveAttribute(
+      'href',
+      '/fund-model-results/123'
+    );
+    expect(
+      within(trace).getByRole('link', { name: /Open performance breakdown/i })
+    ).toHaveAttribute('href', '/performance');
+    expect(within(trace).getByRole('link', { name: /Open reserve planning/i })).toHaveAttribute(
+      'href',
+      '/portfolio?tab=reserve-planning'
+    );
+    expect(within(trace).getByRole('link', { name: /Open sensitivity analysis/i })).toHaveAttribute(
+      'href',
+      '/sensitivity-analysis'
+    );
+    expect(within(trace).getByRole('link', { name: /Open forecasting/i })).toHaveAttribute(
+      'href',
+      '/forecasting?fundId=123'
+    );
+    expect(within(trace).getByRole('link', { name: /Open reports/i })).toHaveAttribute(
+      'href',
+      '/reports'
+    );
+
+    const statuses = within(trace)
+      .getAllByTestId('analytics-trace-status')
+      .map((status) => status.textContent);
+    expect(statuses).toEqual(expect.arrayContaining(['Available', 'Linked', 'Deferred']));
+    expect(within(trace).getByText('Deferred Parity Ledger')).toBeInTheDocument();
+    expect(within(trace).getByText('MOIC distribution')).toBeInTheDocument();
+    expect(within(trace).getByText('Founder benchmarking')).toBeInTheDocument();
   });
 
   it('hides drift when a metric is not marked drift-capable', async () => {
@@ -1040,6 +1116,74 @@ function readyResponse() {
       },
       scenarios: { status: 'unavailable' as const, reason: 'No authoritative source' },
       waterfall: { status: 'unavailable' as const, reason: 'No authoritative source' },
+      economics: {
+        status: 'unavailable' as const,
+        reason: 'GP economics is disabled',
+        reasonCode: 'ECONOMICS_DISABLED' as const,
+      },
+    },
+  };
+}
+
+function validEconomicsSection() {
+  return {
+    status: 'available' as const,
+    source: 'fund_snapshots' as const,
+    configVersion: 1,
+    calculatedAt: '2026-03-20T12:30:00.000Z',
+    payload: {
+      version: 'v1' as const,
+      annual: [
+        {
+          year: 1,
+          lpCapitalCalls: 9_800_000,
+          gpCommitmentCalls: 200_000,
+          grossExitProceeds: 0,
+          beginningCash: 0,
+          investments: 8_000_000,
+          feesPaidToManager: 2_000_000,
+          expensesPaid: 0,
+          recycledProceeds: 0,
+          endingCash: 0,
+          lpDistributions: 0,
+          gpInvestmentDistributions: 0,
+          gpCarryDistributed: 0,
+          gpCarryEscrowed: 0,
+          gpCarryReleasedFromEscrow: 0,
+          clawbackPaid: 0,
+          grossNav: 8_000_000,
+          lpNetNav: 7_840_000,
+          dpi: 0,
+          rvpi: 0.8,
+          tvpi: 0.8,
+          conservationDelta: 0,
+        },
+      ],
+      summary: {
+        grossIrr: 0.2,
+        lpNetIrr: 0.15,
+        gpNetIrr: null,
+        totalLpPaidIn: 9_800_000,
+        totalGpCommitmentCalled: 200_000,
+        totalManagementFees: 2_000_000,
+        totalExpenses: 0,
+        totalRecycled: 0,
+        totalLpDistributions: 0,
+        totalGpInvestmentDistributions: 0,
+        totalGpCarryDistributed: 0,
+        totalGpFeeIncome: 2_000_000,
+        finalDpi: 0,
+        finalRvpi: 0.8,
+        finalTvpi: 0.8,
+        finalClawbackDue: 0,
+        maxEscrowAvailable: 0,
+        netGpCarryAfterClawback: 0,
+      },
+      checks: {
+        passed: true,
+        tolerance: 0.01,
+        errors: [],
+      },
     },
   };
 }

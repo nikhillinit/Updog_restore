@@ -34,7 +34,7 @@ import {
   AlertCircle,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import type { PortfolioState } from '@/pages/portfolio-constructor';
+import type { PortfolioStrategy } from '@/pages/portfolio-constructor';
 import { getChartColor } from '@/lib/chart-theme';
 
 interface AllocationBucket {
@@ -52,8 +52,8 @@ interface AllocationBucket {
 }
 
 interface FundStrategyBuilderProps {
-  portfolioState: PortfolioState;
-  onUpdate: (updates: Partial<PortfolioState>) => void;
+  portfolioState: PortfolioStrategy;
+  onUpdate: (updates: Partial<PortfolioStrategy>) => void;
   isCalculating: boolean;
 }
 
@@ -107,10 +107,7 @@ const defaultBuckets: AllocationBucket[] = [
 
 // Removed hardcoded COLORS - now using getChartColor() from chart-theme
 
-export function FundStrategyBuilder({
-  portfolioState,
-  onUpdate,
-}: FundStrategyBuilderProps) {
+export function FundStrategyBuilder({ portfolioState, onUpdate }: FundStrategyBuilderProps) {
   const [buckets, setBuckets] = useState<AllocationBucket[]>(defaultBuckets);
   const [selectedCategory, setSelectedCategory] = useState<
     'sector' | 'stage' | 'geography' | 'risk'

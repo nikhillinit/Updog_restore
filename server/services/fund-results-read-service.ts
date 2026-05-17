@@ -16,15 +16,22 @@ import { logger } from '../lib/logger';
 import { funds, fundConfigs, fundSnapshots } from '@shared/schema';
 import { eq, and, desc, isNull, ne } from 'drizzle-orm';
 import { fundStateReadService } from './fund-state-read-service';
-import { mapReserveSnapshot, mapPacingSnapshot } from './fund-results-mappers';
+import {
+  mapEconomicsSnapshot,
+  mapReserveSnapshot,
+  mapPacingSnapshot,
+} from './fund-results-mappers';
 import {
   mapPublishedConfigToWaterfallSetup,
   mapScorecardFromEvidence,
 } from './fund-results-rich-mappers';
 import { FundDraftWriteV1Schema } from '@shared/contracts/fund-draft-write-v1.contract';
 import type { FundResultsReadV1 } from '@shared/contracts/fund-results-v1.contract';
+import type { EconomicsResultReasonCode } from '@shared/contracts/economics-v1.contract';
 import type { FundStateReadV1 } from '@shared/contracts/fund-state-read-v1.contract';
 import type { ReserveSummary, PacingSummary } from '@shared/types';
+import { isFlagEnabled } from '@shared/flags/getFlag';
+import { hasEconomicsAssumptions } from '@shared/lib/economics/economics-engine';
 
 const log = logger.child({ module: 'fund-results-read' });
 
@@ -55,6 +62,30 @@ function pending(reason: string, reasonCode?: ReasonCode) {
 
 /** Failed section helper */
 function failed(reason: string, reasonCode?: ReasonCode) {
+  return {
+    status: 'failed' as const,
+    reason,
+    ...(reasonCode != null && { reasonCode }),
+  };
+}
+
+function economicsUnavailable(reason: string, reasonCode?: EconomicsResultReasonCode) {
+  return {
+    status: 'unavailable' as const,
+    reason,
+    ...(reasonCode != null && { reasonCode }),
+  };
+}
+
+function economicsPending(reason: string, reasonCode?: EconomicsResultReasonCode) {
+  return {
+    status: 'pending' as const,
+    reason,
+    ...(reasonCode != null && { reasonCode }),
+  };
+}
+
+function economicsFailed(reason: string, reasonCode?: EconomicsResultReasonCode) {
   return {
     status: 'failed' as const,
     reason,
@@ -137,6 +168,7 @@ export class FundResultsReadService {
     );
 
     const waterfallSection = await this.loadWaterfallSection(fundId, lifecycle);
+    const economicsSection = await this.loadEconomicsSection(fundId, lifecycle);
 
     const fundIdentity = {
       name: fund.name,
@@ -163,6 +195,7 @@ export class FundResultsReadService {
         scorecard: scorecardSection,
         scenarios: unavailable('No authoritative source', 'NO_AUTHORITATIVE_SOURCE'),
         waterfall: waterfallSection,
+        economics: economicsSection,
       },
     };
   }
@@ -365,6 +398,124 @@ export class FundResultsReadService {
       publishedAt: publishedConfig.publishedAt?.toISOString() ?? null,
       payload,
     };
+  }
+
+  private async loadEconomicsSection(fundId: number, lifecycle: FundStateReadV1) {
+    if (!isFlagEnabled('enable_gp_economics_engine')) {
+      return economicsUnavailable('GP economics engine is disabled', 'ECONOMICS_DISABLED');
+    }
+
+    const publishedVersion = lifecycle.configState.publishedVersion;
+    if (publishedVersion == null || !lifecycle.configState.hasPublished) {
+      return economicsUnavailable(
+        'Published economics assumptions are not configured',
+        'ECONOMICS_NOT_CONFIGURED'
+      );
+    }
+
+    const publishedConfig = await db.query.fundConfigs.findFirst({
+      where: and(
+        eq(fundConfigs.fundId, fundId),
+        eq(fundConfigs.isPublished, true),
+        eq(fundConfigs.version, publishedVersion)
+      ),
+    });
+
+    if (!publishedConfig) {
+      return economicsFailed(
+        'Published config version could not be loaded',
+        'ECONOMICS_ENGINE_FAILED'
+      );
+    }
+
+    const parsedConfig = FundDraftWriteV1Schema.safeParse(publishedConfig.config);
+    if (!parsedConfig.success) {
+      log.warn(
+        {
+          fundId,
+          section: 'economics',
+          reasonCode: 'ECONOMICS_INPUT_INVALID',
+          configVersion: publishedConfig.version,
+          issues: parsedConfig.error.issues.map((i) => i.message),
+        },
+        'Published config failed economics validation'
+      );
+      return economicsFailed(
+        'Published config is invalid for economics',
+        'ECONOMICS_INPUT_INVALID'
+      );
+    }
+
+    if (!hasEconomicsAssumptions(parsedConfig.data)) {
+      return economicsUnavailable(
+        'Published economics assumptions are not configured',
+        'ECONOMICS_NOT_CONFIGURED'
+      );
+    }
+
+    const currentSnapshot = await db.query.fundSnapshots.findFirst({
+      where: and(
+        eq(fundSnapshots.fundId, fundId),
+        eq(fundSnapshots.type, 'ECONOMICS'),
+        eq(fundSnapshots.configVersion, publishedVersion)
+      ),
+      orderBy: desc(fundSnapshots.createdAt),
+    });
+
+    if (currentSnapshot) {
+      try {
+        return {
+          status: 'available' as const,
+          source: 'fund_snapshots' as const,
+          configVersion: publishedVersion,
+          calculatedAt:
+            currentSnapshot.snapshotTime?.toISOString() ??
+            currentSnapshot.createdAt?.toISOString() ??
+            null,
+          payload: mapEconomicsSnapshot(currentSnapshot.payload as Record<string, unknown>),
+        };
+      } catch (error) {
+        log.warn(
+          {
+            fundId,
+            section: 'economics',
+            reasonCode: 'ECONOMICS_ENGINE_FAILED',
+            configVersion: publishedVersion,
+            error: error instanceof Error ? error.message : String(error),
+          },
+          'Economics snapshot failed result-contract validation'
+        );
+        return economicsFailed('Economics snapshot is invalid', 'ECONOMICS_ENGINE_FAILED');
+      }
+    }
+
+    const staleSnapshot = await db.query.fundSnapshots.findFirst({
+      where: and(
+        eq(fundSnapshots.fundId, fundId),
+        eq(fundSnapshots.type, 'ECONOMICS'),
+        ne(fundSnapshots.configVersion, publishedVersion)
+      ),
+      orderBy: desc(fundSnapshots.createdAt),
+    });
+    if (staleSnapshot) {
+      return economicsPending(
+        'Economics snapshot is stale for the latest published configuration',
+        'ECONOMICS_STALE_CONFIG_VERSION'
+      );
+    }
+
+    const { status, lastError } = lifecycle.calculationState;
+    if (status === 'failed' && lastError) {
+      const reasonCode = lastError.toLowerCase().includes('invariant')
+        ? 'ECONOMICS_INVARIANT_FAILED'
+        : 'ECONOMICS_ENGINE_FAILED';
+      return economicsFailed(lastError, reasonCode);
+    }
+
+    return economicsPending(
+      'Economics snapshot has not been produced for the latest published configuration',
+      'ECONOMICS_SNAPSHOT_PENDING'
+    );
   }
 }
 

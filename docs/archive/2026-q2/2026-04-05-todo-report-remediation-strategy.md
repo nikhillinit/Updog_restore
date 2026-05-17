@@ -1,16 +1,22 @@
 # To-Do Report Remediation Strategy
 
-Date: `2026-04-05` Status: `actionable`
+Date: `2026-04-05` Status: `archived-reference`
+
+Superseded for execution by the current approved priority development queue
+handoff.
 
 ## Objective
 
-Convert the corrected accuracy review into a current-main execution strategy
-without replaying already-landed work or preserving stale backlog claims.
+Record the April 5 current-main rebaseline without replaying already-landed
+work or preserving stale backlog claims. This file is retained as archived
+evidence for P0 reconciliation, not as the active execution queue.
 
-## Source Of Truth
+## Archive Boundary
 
-This document is the repo-native strategy record for the remediation queue on
-current `main`. It supersedes the PR-only draft strategy from PR `#563`.
+For execution, defer to the current approved priority development queue handoff.
+This archived document preserves the April 5 rationale and evidence commands
+that informed that queue. It superseded the PR-only draft strategy from PR
+`#563` at the time, but it no longer authorizes work from zero.
 
 ## Re-Baselined Worktracks
 
@@ -38,8 +44,8 @@ Scope:
 
 Definition of done:
 
-- sensitivity disabled tabs explicitly describe the missing backend/data
-  requirements
+- sensitivity wording and tests reflect that Monte Carlo, one-way, two-way, and
+  stress are live fund-scoped persisted surfaces
 - time-travel restore wording matches the versioned restore workflow that exists
   on the server while staying disabled on the active UI surface
 
@@ -59,7 +65,10 @@ Definition of done:
   fallback semantics
 - no same-label local IRR algorithm remains in the touched residual path
 
-### Worktrack C2: LP Benchmark Hardening
+### Worktrack C2: LP Benchmark Hardening Reference
+
+Status: closed/reference on current `main`; do not treat this as an open
+greenfield implementation lane.
 
 Scope:
 
@@ -76,7 +85,10 @@ Definition of done:
 - any future C2 work is triggered by regression or contradictory evidence, not
   by the stale PR baseline
 
-### Worktrack D: Snapshot Governance Closure
+### Worktrack D: Snapshot Governance Closure Reference
+
+Status: closed/reference on current `main`; `ADR-014` is the governing boundary
+unless future contradictory evidence appears.
 
 Scope:
 
@@ -96,7 +108,7 @@ Definition of done:
 ```bash
 rg -n "toMetricDelta|driftCapable|driftReason" server/services/fund-results-comparison-service.ts
 rg -n "Construction vs\\. actual comparison remains deferred|valuation-tier breakdowns stay deferred" client/src/components/forecasting/construction-actual-comparison.tsx
-rg -n "COMING_SOON_TABS|planned but not yet wired" client/src/pages/sensitivity-analysis.tsx
+rg -n "Sensitivity analysis surface|Monte Carlo|One-Way|Two-Way|Stress" client/src/pages/sensitivity-analysis.tsx
 rg -n "Benchmark comparison derived from persisted LP performance snapshots|No benchmark dataset is configured" server/routes/lp-api.ts
 rg -n "identifyConcentrationRisks|Sector concentration|Stage concentration" server/services/portfolio-performance-predictor.ts
 rg -n "Restore Unavailable|versioned restore workflow" client/src/pages/time-travel.tsx
@@ -106,7 +118,11 @@ rg -n "xirrNewtonBisection|shared canonical XIRR" server/services/actual-metrics
 rg -n "targetIRR|expectedIRR" server/services/metrics-aggregator.ts
 ```
 
-## Execution Order
+## Historical Execution Order
+
+Use this order only as historical context for the archived April 5 tranche. The
+current approved queue starts with P0 closeout/reconciliation and then moves
+through the approved priority lanes.
 
 1. Worktrack `A` first.
 2. Then run one bounded open worktrack at a time:
@@ -124,17 +140,18 @@ rg -n "targetIRR|expectedIRR" server/services/metrics-aggregator.ts
   - active docs no longer contradict `ADR-014` or reopen `C2`/`D` as greenfield
     work
 - Worktrack B:
-  - focused page/component tests for touched wording
+  - focused page/component tests prove the four live sensitivity tabs and the
+    disabled time-travel restore boundary
 - Worktrack C1:
   - canonical XIRR truth cases + touched service tests
 - Worktrack C2:
-  - if reopened, prove the route no longer serves persisted/fallback truthful
-    benchmark data
+  - remains closed/reference unless future evidence proves the route no longer
+    serves persisted/fallback truthful benchmark data
 - Worktrack D:
-  - if reopened, prove `ADR-014` is no longer the canonical referenced boundary
+  - remains closed/reference unless future evidence proves `ADR-014` is no
+    longer the canonical referenced boundary
 
 ## References
 
-- `docs/todo-report-accuracy-review-2026-04-05.md`
+- `docs/archive/2026-q2/todo-report-accuracy-review-2026-04-05.md`
 - `docs/adr/ADR-014-snapshot-governance.md`
-- `.omx/plans/prd-todo-report-remediation-main-rebaseline.md`

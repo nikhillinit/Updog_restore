@@ -48,7 +48,7 @@ export function withRequestMetrics() {
   return (req: Request, res: Response, next: NextFunction) => {
     if (!FEATURES.metrics) return next();
     const stop = httpDuration.startTimer({ method: req.method, path: getRequestPath(req) });
-    res['on']('finish', () => stop({ status: String(res.statusCode) }));
+    res.on('finish', () => stop({ status: String(res.statusCode) }));
     next();
   };
 }
@@ -57,8 +57,8 @@ export function installMetricsRoute(app: import('express').Express) {
   if (!FEATURES.metrics) return;
 
   app['get']('/metrics', authenticateMetrics, async (_req: Request, res: Response) => {
-    res['setHeader']('Content-Type', client.register.contentType);
-    res['send'](await client.register.metrics());
+    res.setHeader('Content-Type', client.register.contentType);
+    res.send(await client.register.metrics());
   });
 }
 

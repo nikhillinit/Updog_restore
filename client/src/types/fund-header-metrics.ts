@@ -37,7 +37,8 @@ export interface FundHeaderViewModel {
   cards: HeaderMetricCardModel[];
 }
 
-export type CompactKpiKey = 'dpi' | 'tvpi' | 'nav';
+export type CompactKpiKey = 'deployed' | 'remaining' | 'nav' | 'tvpi' | 'dpi' | 'netIrr';
+export type CompactKpiValueType = 'currency' | 'multiple' | 'percentage';
 
 export interface CompactKpiItemModel {
   key: CompactKpiKey;
@@ -46,11 +47,11 @@ export interface CompactKpiItemModel {
   colorClassName: string;
   description: string;
   isSelected: boolean;
+  displayValue: string;
+  explanation: string;
 }
 
-export interface CompactKpiSelectedModel extends CompactKpiItemModel {
-  displayValue: string;
-}
+export type CompactKpiSelectedModel = CompactKpiItemModel;
 
 export interface CompactHeaderViewModel {
   items: CompactKpiItemModel[];
@@ -62,6 +63,7 @@ export interface CompactHeaderViewModel {
 export interface HeaderMetrics {
   totalCommitted: number;
   totalInvested: number | null;
+  currentNAV: number | null;
   totalValue: number | null;
   irr: number | null;
   moic: number | null;
@@ -71,7 +73,7 @@ export interface HeaderMetrics {
   exited: number;
   avgCheckSize: number | null;
   deploymentRate: number | null;
-  remainingCapital: number | null;
+  remainingDeployableCapital: number | null;
   availability: {
     irr: MetricAvailabilityDetail;
     dpi: MetricAvailabilityDetail;
@@ -84,5 +86,5 @@ export interface CompactKpiDefinition {
   icon: HeaderMetricIcon;
   colorClassName: string;
   description: string;
-  isCurrency: boolean;
+  valueType: CompactKpiValueType;
 }

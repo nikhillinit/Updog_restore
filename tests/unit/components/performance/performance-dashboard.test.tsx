@@ -1,6 +1,7 @@
 import React from 'react';
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 
 type TimeseriesResponse = {
   timeseries: Array<{
@@ -78,7 +79,47 @@ function makeTimeseriesData(
   };
 }
 
-function makeBreakdownData(): BreakdownResponse {
+function makeUnavailableTimeseriesData(): TimeseriesResponse {
+  return {
+    timeseries: [
+      {
+        date: '2024-01-01',
+        actual: {},
+        _source: 'unavailable',
+      },
+      {
+        date: '2024-02-01',
+        actual: {
+          irr: null,
+          tvpi: null,
+          dpi: null,
+          totalValue: null,
+        },
+        _source: 'unavailable',
+      },
+    ],
+    meta: {
+      startDate: '2024-01-01',
+      endDate: '2024-02-01',
+      dataPoints: 2,
+      computeTimeMs: 12,
+    },
+  };
+}
+
+function makeBreakdownData(
+  breakdown: BreakdownResponse['breakdown'] = [
+    {
+      group: 'SaaS',
+      companyCount: 1,
+      totalDeployed: 100,
+      currentValue: 150,
+      moic: 1.5,
+      irr: 0.12,
+      percentOfPortfolio: 100,
+    },
+  ]
+): BreakdownResponse {
   return {
     totals: {
       companyCount: 1,
@@ -86,17 +127,7 @@ function makeBreakdownData(): BreakdownResponse {
       averageMOIC: 1.5,
       portfolioIRR: 0.12,
     },
-    breakdown: [
-      {
-        group: 'SaaS',
-        companyCount: 1,
-        totalDeployed: 100,
-        currentValue: 150,
-        moic: 1.5,
-        irr: 0.12,
-        percentOfPortfolio: 100,
-      },
-    ],
+    breakdown,
   };
 }
 
@@ -156,5 +187,52 @@ describe('PerformanceDashboard', () => {
     render(<PerformanceDashboard />);
 
     expect(screen.queryByRole('button', { name: 'Export' })).not.toBeInTheDocument();
+  });
+
+  it('renders segment breakdown rows with persisted MOIC multiples', async () => {
+    const user = userEvent.setup();
+
+    render(<PerformanceDashboard />);
+    await user.click(screen.getByRole('tab', { name: 'Breakdown' }));
+
+    await waitFor(() => {
+      expect(screen.getByText('SaaS')).toBeInTheDocument();
+    });
+    expect(screen.getAllByText('1').length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText('1.50x').length).toBeGreaterThanOrEqual(1);
+    expect(screen.getByText('$150')).toBeInTheDocument();
+  });
+
+  it('shows explicit empty states instead of blank charts when all timeseries metrics are unavailable', () => {
+    mockUsePerformanceTimeseries.mockReturnValue({
+      data: makeUnavailableTimeseriesData(),
+      isLoading: false,
+      refetch: vi.fn(),
+    });
+
+    render(<PerformanceDashboard />);
+
+    expect(screen.getByText('IRR history pending')).toBeInTheDocument();
+    expect(screen.getByText('Multiple history pending')).toBeInTheDocument();
+    expect(screen.getAllByTestId('performance-chart-empty-state')).toHaveLength(2);
+  });
+
+  it('shows an explicit breakdown empty state when there are no portfolio rows', async () => {
+    const user = userEvent.setup();
+    mockUsePerformanceBreakdown.mockReturnValue({
+      data: makeBreakdownData([]),
+      isLoading: false,
+      refetch: vi.fn(),
+    });
+
+    render(<PerformanceDashboard />);
+    await user.click(screen.getByRole('tab', { name: 'Breakdown' }));
+
+    await waitFor(() => {
+      expect(screen.getByText('Breakdown pending')).toBeInTheDocument();
+    });
+    expect(
+      screen.getByText(/add portfolio companies or import a demo profile/i)
+    ).toBeInTheDocument();
   });
 });

@@ -2,6 +2,7 @@ import { Router } from 'express';
 import type { Request, Response } from 'express';
 import client from 'prom-client';
 import { logger } from '../lib/logger.js';
+import { getRouteErrorMessage as getErrorMessage } from '../lib/errorHandling';
 
 // Create metrics router
 export const metricsRouter = Router();
@@ -38,10 +39,6 @@ function isBreakerSnapshot(value: unknown): value is BreakerSnapshot {
     typeof snapshot['state'] === 'string' &&
     (snapshot['stats'] === undefined || isCircuitBreakerStats(snapshot['stats']))
   );
-}
-
-function getErrorMessage(error: unknown): string {
-  return error instanceof Error ? error.message : 'Unknown error';
 }
 
 // Collect default process metrics (only call this once per process)
@@ -133,11 +130,11 @@ metricsRouter['get']('/metrics', async (_req: Request, res: Response) => {
       }
     }
 
-    res['set']('Content-Type', client.register.contentType);
-    res['end'](await client.register.metrics());
+    res.set('Content-Type', client.register.contentType);
+    res.end(await client.register.metrics());
   } catch (error: unknown) {
     logger.error({ error: getErrorMessage(error) }, 'Failed to generate metrics');
-    res['status'](500)['send']('Internal Server Error');
+    res.status(500).send('Internal Server Error');
   }
 });
 
@@ -146,13 +143,13 @@ metricsRouter['get']('/metrics/health', async (_req: Request, res: Response) => 
   try {
     const { breakerRegistry } = await import('../infra/circuit-breaker/breaker-registry');
 
-    res['json']({
+    res.json({
       healthy: breakerRegistry.isHealthy(),
       degraded: breakerRegistry.getDegraded(),
       timestamp: new Date().toISOString(),
     });
   } catch {
-    res['status'](500)['json']({ error: 'Failed to get health metrics' });
+    res.status(500).json({ error: 'Failed to get health metrics' });
   }
 });
 

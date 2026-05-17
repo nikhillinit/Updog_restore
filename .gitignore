@@ -156,6 +156,8 @@ Default Parameters/
 *.csv
 # Exception: golden dataset fixtures needed for tests
 !tests/fixtures/golden-datasets/**/*.csv
+# Exception: LP reporting import dry-run fixtures (Phase 0.4)
+!tests/fixtures/lp-reporting/**/*.csv
 
 # Claude settings (local only)
 .claude/settings.local.json
@@ -308,6 +310,11 @@ uiux-skill/
 .omx/notepad.md
 .omx/setup-scope.json
 .omx/tmux-hook.json
+
+# Private sanitized demo profile imports. These directories may contain
+# real-profile sanitized source bundles and must never be committed.
+demo-profile-imports/
+.demo-profile-imports/
 
 # Local hook probes
 .tmp-git-hook-probe/

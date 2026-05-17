@@ -13,7 +13,7 @@
  * }
  */
 
-import { useCallback, useMemo } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { useLocation } from 'wouter';
 
 const STORAGE_KEY = 'wizard-visited-steps';
@@ -42,6 +42,17 @@ function saveVisitedSteps(steps: Set<number>): void {
   } catch {
     // Silently fail if sessionStorage is unavailable
   }
+}
+
+function getHighestVisitedStep(steps: Set<number>): number {
+  return Math.max(...steps);
+}
+
+function canAccessStepFromVisited(steps: Set<number>, stepNumber: number): boolean {
+  if (stepNumber < 1 || stepNumber > MAX_STEP) return false;
+  if (stepNumber === 1) return true;
+  if (steps.has(stepNumber)) return true;
+  return stepNumber === getHighestVisitedStep(steps) + 1;
 }
 
 /**
@@ -83,11 +94,11 @@ export function useWizardStepGuard(): WizardStepGuardResult {
   const [, setLocation] = useLocation();
 
   // Get current visited steps
-  const visitedSteps = useMemo(() => getVisitedSteps(), []);
+  const [visitedSteps, setVisitedSteps] = useState(() => getVisitedSteps());
 
   // Calculate highest visited step
   const highestVisitedStep = useMemo(() => {
-    return Math.max(...visitedSteps);
+    return getHighestVisitedStep(visitedSteps);
   }, [visitedSteps]);
 
   /**
@@ -98,41 +109,28 @@ export function useWizardStepGuard(): WizardStepGuardResult {
    */
   const canAccessStep = useCallback(
     (stepNumber: number): boolean => {
-      // Invalid step numbers
-      if (stepNumber < 1 || stepNumber > MAX_STEP) return false;
-
-      // Step 1 is always accessible
-      if (stepNumber === 1) return true;
-
-      // Previously visited steps are accessible (going back is ok)
-      if (visitedSteps.has(stepNumber)) return true;
-
-      // Can access the next sequential step
-      if (stepNumber === highestVisitedStep + 1) return true;
-
-      // Cannot skip ahead
-      return false;
+      return canAccessStepFromVisited(visitedSteps, stepNumber);
     },
-    [visitedSteps, highestVisitedStep]
+    [visitedSteps]
   );
 
   /**
    * Mark a step as visited
    * Only marks if the step is legitimately accessible
    */
-  const markStepVisited = useCallback(
-    (stepNumber: number): void => {
-      if (stepNumber < 1 || stepNumber > MAX_STEP) return;
+  const markStepVisited = useCallback((stepNumber: number): void => {
+    if (stepNumber < 1 || stepNumber > MAX_STEP) return;
 
+    setVisitedSteps((current) => {
       // Only mark if step is actually accessible (prevents marking skipped steps)
-      if (!canAccessStep(stepNumber)) return;
+      if (!canAccessStepFromVisited(current, stepNumber)) return current;
 
-      const updated = new Set(visitedSteps);
+      const updated = new Set(current);
       updated.add(stepNumber);
       saveVisitedSteps(updated);
-    },
-    [visitedSteps, canAccessStep]
-  );
+      return updated;
+    });
+  }, []);
 
   /**
    * Get redirect URL if step is invalid
@@ -154,6 +152,7 @@ export function useWizardStepGuard(): WizardStepGuardResult {
    */
   const resetProgress = useCallback((): void => {
     resetWizardProgress();
+    setVisitedSteps(new Set([1]));
     setLocation('/fund-setup?step=1');
   }, [setLocation]);
 

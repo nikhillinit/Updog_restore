@@ -25,7 +25,9 @@ import {
   type VarianceDashboardResponse as VarianceDashboardRouteResponse,
   type VarianceReportClientResponse,
 } from '@shared/variance-validation';
-import { firstString } from '../lib/request-values';
+import { firstString, getUserId } from '../lib/request-values';
+import { enforceProvidedFundScope } from '../lib/auth/provided-fund-scope';
+import { getRouteErrorMessage } from '../lib/errorHandling';
 
 // === RESPONSE SHAPE MAPPER ===
 
@@ -223,7 +225,7 @@ function deriveTrendDirection(
 const router = Router();
 
 router['get']('/api/internal/alert-automation/health', (_req: Request, res: Response) => {
-  res['json']({
+  res.json({
     success: true,
     data: varianceAlertAutomationService.getHealth(),
   });
@@ -247,9 +249,13 @@ router['post']('/api/funds/:id/baselines', idempotency, async (req: Request, res
           error: 'Invalid fund ID',
           message: err.message,
         };
-        return res['status'](400)['json'](error);
+        return res.status(400).json(error);
       }
       throw err;
+    }
+
+    if (!(await enforceProvidedFundScope(req, res, fundId))) {
+      return;
     }
 
     // Validate request body
@@ -260,18 +266,18 @@ router['post']('/api/funds/:id/baselines', idempotency, async (req: Request, res
         message: 'Invalid baseline data',
         details: validation.error.flatten(),
       };
-      return res['status'](400)['json'](error);
+      return res.status(400).json(error);
     }
 
     const data = validation.data;
-    const userId = req.user?.id ? parseInt(String(req.user.id), 10) : 0;
+    const userId = getUserId(req);
 
     if (!userId) {
       const error: ApiError = {
         error: 'Authentication required',
         message: 'User must be authenticated to create baselines',
       };
-      return res['status'](401)['json'](error);
+      return res.status(401).json(error);
     }
 
     // Create baseline
@@ -286,7 +292,7 @@ router['post']('/api/funds/:id/baselines', idempotency, async (req: Request, res
       ...(data.tags && { tags: data.tags }),
     });
 
-    res['status'](201)['json']({
+    res.status(201).json({
       success: true,
       data: baseline,
       message: 'Baseline created successfully',
@@ -295,9 +301,9 @@ router['post']('/api/funds/:id/baselines', idempotency, async (req: Request, res
     console.error('Baseline creation error:', error);
     const apiError: ApiError = {
       error: 'Failed to create baseline',
-      message: error instanceof Error ? error.message : 'Unknown error',
+      message: getRouteErrorMessage(error),
     };
-    res['status'](500)['json'](apiError);
+    res.status(500).json(apiError);
   }
 });
 
@@ -316,9 +322,13 @@ router['get']('/api/funds/:id/baselines', async (req: Request, res: Response) =>
           error: 'Invalid fund ID',
           message: err.message,
         };
-        return res['status'](400)['json'](error);
+        return res.status(400).json(error);
       }
       throw err;
+    }
+
+    if (!(await enforceProvidedFundScope(req, res, fundId))) {
+      return;
     }
 
     // Parse query parameters
@@ -333,7 +343,7 @@ router['get']('/api/funds/:id/baselines', async (req: Request, res: Response) =>
         message: 'Invalid baseline query parameters',
         details: queryValidation.error.flatten(),
       };
-      return res['status'](400)['json'](error);
+      return res.status(400).json(error);
     }
 
     const { baselineType, isDefault, limit } = queryValidation.data;
@@ -344,7 +354,7 @@ router['get']('/api/funds/:id/baselines', async (req: Request, res: Response) =>
       ...(limit !== undefined && { limit }),
     });
 
-    res['json']({
+    res.json({
       success: true,
       data: baselines,
       count: baselines.length,
@@ -353,9 +363,9 @@ router['get']('/api/funds/:id/baselines', async (req: Request, res: Response) =>
     console.error('Baselines fetch error:', error);
     const apiError: ApiError = {
       error: 'Failed to fetch baselines',
-      message: error instanceof Error ? error.message : 'Unknown error',
+      message: getRouteErrorMessage(error),
     };
-    res['status'](500)['json'](apiError);
+    res.status(500).json(apiError);
   }
 });
 
@@ -376,7 +386,7 @@ router['post'](
             error: 'Invalid fund ID',
             message: err.message,
           };
-          return res['status'](400)['json'](error);
+          return res.status(400).json(error);
         }
         throw err;
       }
@@ -387,7 +397,7 @@ router['post'](
           error: 'Invalid baseline ID',
           message: 'Baseline ID is required',
         };
-        return res['status'](400)['json'](error);
+        return res.status(400).json(error);
       }
 
       const userId = req.user?.id ? parseInt(String(req.user.id), 10) : undefined;
@@ -397,7 +407,7 @@ router['post'](
         ...(userId !== undefined ? { userId } : {}),
       });
 
-      res['json']({
+      res.json({
         success: true,
         message: 'Default baseline updated successfully',
         data: {
@@ -407,7 +417,7 @@ router['post'](
       });
     } catch (error) {
       console.error('Set default baseline error:', error);
-      const message = error instanceof Error ? error.message : 'Unknown error';
+      const message = getRouteErrorMessage(error);
       const statusCode =
         message === 'Baseline not found for fund'
           ? 404
@@ -418,7 +428,7 @@ router['post'](
         error: 'Failed to set default baseline',
         message,
       };
-      res['status'](statusCode)['json'](apiError);
+      res.status(statusCode).json(apiError);
     }
   }
 );
@@ -435,12 +445,12 @@ router['delete']('/api/funds/:id/baselines/:baselineId', async (req: Request, re
         error: 'Invalid baseline ID',
         message: 'Baseline ID is required',
       };
-      return res['status'](400)['json'](error);
+      return res.status(400).json(error);
     }
 
     await varianceTrackingService.baselines.deactivateBaseline(baselineId);
 
-    res['json']({
+    res.json({
       success: true,
       message: 'Baseline deactivated successfully',
     });
@@ -448,9 +458,9 @@ router['delete']('/api/funds/:id/baselines/:baselineId', async (req: Request, re
     console.error('Baseline deactivation error:', error);
     const apiError: ApiError = {
       error: 'Failed to deactivate baseline',
-      message: error instanceof Error ? error.message : 'Unknown error',
+      message: getRouteErrorMessage(error),
     };
-    res['status'](500)['json'](apiError);
+    res.status(500).json(apiError);
   }
 });
 
@@ -474,9 +484,13 @@ router['post'](
             error: 'Invalid fund ID',
             message: err.message,
           };
-          return res['status'](400)['json'](error);
+          return res.status(400).json(error);
         }
         throw err;
+      }
+
+      if (!(await enforceProvidedFundScope(req, res, fundId))) {
+        return;
       }
 
       const validation = CreateVarianceReportRequestSchema.safeParse(req.body);
@@ -486,11 +500,11 @@ router['post'](
           message: 'Invalid variance report data',
           details: validation.error.flatten(),
         };
-        return res['status'](400)['json'](error);
+        return res.status(400).json(error);
       }
 
       const data = validation.data;
-      const userId = req.user?.id ? parseInt(String(req.user.id), 10) : 0;
+      const userId = getUserId(req);
 
       // Resolve baseline: use explicit baselineId or fall back to fund's default
       const resolvedBaselineId = await (async () => {
@@ -515,14 +529,14 @@ router['post'](
           error: 'Baseline not found',
           message: 'The specified baseline does not belong to this fund.',
         };
-        return res['status'](404)['json'](error);
+        return res.status(404).json(error);
       }
       if (!resolvedBaselineId) {
         const error: ApiError = {
           error: 'No baseline available',
           message: 'No default baseline found. Create a baseline first.',
         };
-        return res['status'](400)['json'](error);
+        return res.status(400).json(error);
       }
 
       const report = await varianceTrackingService.calculations.generateVarianceReport({
@@ -535,7 +549,7 @@ router['post'](
         ...(userId && { generatedBy: userId }),
       });
 
-      res['status'](201)['json']({
+      res.status(201).json({
         success: true,
         data: toClientReport(report),
         message: 'Variance report generated successfully',
@@ -544,9 +558,9 @@ router['post'](
       console.error('Variance report generation error:', error);
       const apiError: ApiError = {
         error: 'Failed to generate variance report',
-        message: error instanceof Error ? error.message : 'Unknown error',
+        message: getRouteErrorMessage(error),
       };
-      res['status'](500)['json'](apiError);
+      res.status(500).json(apiError);
     }
   }
 );
@@ -566,14 +580,18 @@ router['get']('/api/funds/:id/variance-reports', async (req: Request, res: Respo
           error: 'Invalid fund ID',
           message: err.message,
         };
-        return res['status'](400)['json'](error);
+        return res.status(400).json(error);
       }
       throw err;
     }
 
+    if (!(await enforceProvidedFundScope(req, res, fundId))) {
+      return;
+    }
+
     const reports = await varianceTrackingService.calculations.getVarianceReports(fundId);
 
-    res['json']({
+    res.json({
       success: true,
       data: reports.map(toClientReport),
       count: reports.length,
@@ -582,9 +600,9 @@ router['get']('/api/funds/:id/variance-reports', async (req: Request, res: Respo
     console.error('Variance reports fetch error:', error);
     const apiError: ApiError = {
       error: 'Failed to fetch variance reports',
-      message: error instanceof Error ? error.message : 'Unknown error',
+      message: getRouteErrorMessage(error),
     };
-    res['status'](500)['json'](apiError);
+    res.status(500).json(apiError);
   }
 });
 
@@ -603,7 +621,7 @@ router['get']('/api/funds/:id/variance-reports/:reportId', async (req: Request, 
           error: 'Invalid fund ID',
           message: err.message,
         };
-        return res['status'](400)['json'](error);
+        return res.status(400).json(error);
       }
       throw err;
     }
@@ -614,7 +632,7 @@ router['get']('/api/funds/:id/variance-reports/:reportId', async (req: Request, 
         error: 'Invalid report ID',
         message: 'Report ID is required',
       };
-      return res['status'](400)['json'](error);
+      return res.status(400).json(error);
     }
 
     const report = await varianceTrackingService.calculations.getVarianceReportById(
@@ -626,10 +644,10 @@ router['get']('/api/funds/:id/variance-reports/:reportId', async (req: Request, 
         error: 'Variance report not found',
         message: 'The specified variance report does not belong to this fund.',
       };
-      return res['status'](404)['json'](error);
+      return res.status(404).json(error);
     }
 
-    res['json']({
+    res.json({
       success: true,
       data: toClientReport(report),
     });
@@ -637,9 +655,9 @@ router['get']('/api/funds/:id/variance-reports/:reportId', async (req: Request, 
     console.error('Variance report fetch error:', error);
     const apiError: ApiError = {
       error: 'Failed to fetch variance report',
-      message: error instanceof Error ? error.message : 'Unknown error',
+      message: getRouteErrorMessage(error),
     };
-    res['status'](500)['json'](apiError);
+    res.status(500).json(apiError);
   }
 });
 
@@ -660,7 +678,7 @@ router['post']('/api/funds/:id/alert-rules', async (req: Request, res: Response)
           error: 'Invalid fund ID',
           message: err.message,
         };
-        return res['status'](400)['json'](error);
+        return res.status(400).json(error);
       }
       throw err;
     }
@@ -672,18 +690,18 @@ router['post']('/api/funds/:id/alert-rules', async (req: Request, res: Response)
         message: 'Invalid alert rule data',
         details: validation.error.flatten(),
       };
-      return res['status'](400)['json'](error);
+      return res.status(400).json(error);
     }
 
     const data = validation.data;
-    const userId = req.user?.id ? parseInt(String(req.user.id), 10) : 0;
+    const userId = getUserId(req);
 
     if (!userId) {
       const error: ApiError = {
         error: 'Authentication required',
         message: 'User must be authenticated to create alert rules',
       };
-      return res['status'](401)['json'](error);
+      return res.status(401).json(error);
     }
 
     const rule = await varianceTrackingService.alerts.createAlertRule({
@@ -706,7 +724,7 @@ router['post']('/api/funds/:id/alert-rules', async (req: Request, res: Response)
       createdBy: userId,
     });
 
-    res['status'](201)['json']({
+    res.status(201).json({
       success: true,
       data: rule,
       message: 'Alert rule created successfully',
@@ -715,9 +733,9 @@ router['post']('/api/funds/:id/alert-rules', async (req: Request, res: Response)
     console.error('Alert rule creation error:', error);
     const apiError: ApiError = {
       error: 'Failed to create alert rule',
-      message: error instanceof Error ? error.message : 'Unknown error',
+      message: getRouteErrorMessage(error),
     };
-    res['status'](500)['json'](apiError);
+    res.status(500).json(apiError);
   }
 });
 
@@ -736,7 +754,7 @@ router['get']('/api/funds/:id/alerts', async (req: Request, res: Response) => {
           error: 'Invalid fund ID',
           message: err.message,
         };
-        return res['status'](400)['json'](error);
+        return res.status(400).json(error);
       }
       throw err;
     }
@@ -755,7 +773,7 @@ router['get']('/api/funds/:id/alerts', async (req: Request, res: Response) => {
         message: 'Invalid alert query parameters',
         details: queryValidation.error.flatten(),
       };
-      return res['status'](400)['json'](error);
+      return res.status(400).json(error);
     }
 
     const { severity, category, status, baselineScope, limit } = queryValidation.data;
@@ -769,7 +787,7 @@ router['get']('/api/funds/:id/alerts', async (req: Request, res: Response) => {
     });
     const clientAlerts = alerts.map((alert) => toClientAlert(alert, fundId));
 
-    res['json']({
+    res.json({
       success: true,
       data: clientAlerts,
       count: clientAlerts.length,
@@ -778,9 +796,9 @@ router['get']('/api/funds/:id/alerts', async (req: Request, res: Response) => {
     console.error('Alerts fetch error:', error);
     const apiError: ApiError = {
       error: 'Failed to fetch alerts',
-      message: error instanceof Error ? error.message : 'Unknown error',
+      message: getRouteErrorMessage(error),
     };
-    res['status'](500)['json'](apiError);
+    res.status(500).json(apiError);
   }
 });
 
@@ -796,7 +814,7 @@ router['post']('/api/alerts/:alertId/acknowledge', async (req: Request, res: Res
         error: 'Invalid alert ID',
         message: 'Alert ID is required',
       };
-      return res['status'](400)['json'](error);
+      return res.status(400).json(error);
     }
 
     const validation = AlertActionRequestSchema.safeParse(req.body);
@@ -806,21 +824,21 @@ router['post']('/api/alerts/:alertId/acknowledge', async (req: Request, res: Res
         message: 'Invalid alert action data',
         details: validation.error.flatten(),
       };
-      return res['status'](400)['json'](error);
+      return res.status(400).json(error);
     }
 
-    const userId = req.user?.id ? parseInt(String(req.user.id), 10) : 0;
+    const userId = getUserId(req);
     if (!userId) {
       const error: ApiError = {
         error: 'Authentication required',
         message: 'User must be authenticated to acknowledge alerts',
       };
-      return res['status'](401)['json'](error);
+      return res.status(401).json(error);
     }
 
     await varianceTrackingService.alerts.acknowledgeAlert(alertId, userId, validation.data.notes);
 
-    res['json']({
+    res.json({
       success: true,
       message: 'Alert acknowledged successfully',
     });
@@ -828,9 +846,9 @@ router['post']('/api/alerts/:alertId/acknowledge', async (req: Request, res: Res
     console.error('Alert acknowledgment error:', error);
     const apiError: ApiError = {
       error: 'Failed to acknowledge alert',
-      message: error instanceof Error ? error.message : 'Unknown error',
+      message: getRouteErrorMessage(error),
     };
-    res['status'](500)['json'](apiError);
+    res.status(500).json(apiError);
   }
 });
 
@@ -846,7 +864,7 @@ router['post']('/api/alerts/:alertId/resolve', async (req: Request, res: Respons
         error: 'Invalid alert ID',
         message: 'Alert ID is required',
       };
-      return res['status'](400)['json'](error);
+      return res.status(400).json(error);
     }
 
     const validation = AlertActionRequestSchema.safeParse(req.body);
@@ -856,21 +874,21 @@ router['post']('/api/alerts/:alertId/resolve', async (req: Request, res: Respons
         message: 'Invalid alert action data',
         details: validation.error.flatten(),
       };
-      return res['status'](400)['json'](error);
+      return res.status(400).json(error);
     }
 
-    const userId = req.user?.id ? parseInt(String(req.user.id), 10) : 0;
+    const userId = getUserId(req);
     if (!userId) {
       const error: ApiError = {
         error: 'Authentication required',
         message: 'User must be authenticated to resolve alerts',
       };
-      return res['status'](401)['json'](error);
+      return res.status(401).json(error);
     }
 
     await varianceTrackingService.alerts.resolveAlert(alertId, userId, validation.data.notes);
 
-    res['json']({
+    res.json({
       success: true,
       message: 'Alert resolved successfully',
     });
@@ -878,9 +896,9 @@ router['post']('/api/alerts/:alertId/resolve', async (req: Request, res: Respons
     console.error('Alert resolution error:', error);
     const apiError: ApiError = {
       error: 'Failed to resolve alert',
-      message: error instanceof Error ? error.message : 'Unknown error',
+      message: getRouteErrorMessage(error),
     };
-    res['status'](500)['json'](apiError);
+    res.status(500).json(apiError);
   }
 });
 
@@ -899,18 +917,18 @@ router['post']('/api/funds/:id/alerts/cleanup-superseded', async (req: Request, 
           error: 'Invalid fund ID',
           message: err.message,
         };
-        return res['status'](400)['json'](error);
+        return res.status(400).json(error);
       }
       throw err;
     }
 
-    const userId = req.user?.id ? parseInt(String(req.user.id), 10) : 0;
+    const userId = getUserId(req);
     if (!userId) {
       const error: ApiError = {
         error: 'Authentication required',
         message: 'User must be authenticated to clean up superseded alerts',
       };
-      return res['status'](401)['json'](error);
+      return res.status(401).json(error);
     }
 
     const result = await varianceTrackingService.cleanupSupersededAlertsForCurrentDefaultBaseline({
@@ -918,7 +936,7 @@ router['post']('/api/funds/:id/alerts/cleanup-superseded', async (req: Request, 
       userId,
     });
 
-    res['json']({
+    res.json({
       success: true,
       data: {
         baselineId: result.baseline.id,
@@ -928,13 +946,13 @@ router['post']('/api/funds/:id/alerts/cleanup-superseded', async (req: Request, 
     });
   } catch (error) {
     console.error('Superseded alert cleanup error:', error);
-    const message = error instanceof Error ? error.message : 'Unknown error';
+    const message = getRouteErrorMessage(error);
     const statusCode = message === 'No default baseline found for fund' ? 404 : 500;
     const apiError: ApiError = {
       error: 'Failed to clean up superseded alerts',
       message,
     };
-    res['status'](statusCode)['json'](apiError);
+    res.status(statusCode).json(apiError);
   }
 });
 
@@ -958,7 +976,7 @@ router['post'](
             error: 'Invalid fund ID',
             message: err.message,
           };
-          return res['status'](400)['json'](error);
+          return res.status(400).json(error);
         }
         throw err;
       }
@@ -970,18 +988,18 @@ router['post'](
           message: 'Invalid variance analysis data',
           details: validation.error.flatten(),
         };
-        return res['status'](400)['json'](error);
+        return res.status(400).json(error);
       }
 
       const data = validation.data;
-      const userId = req.user?.id ? parseInt(String(req.user.id), 10) : 0;
+      const userId = getUserId(req);
 
       if (!userId) {
         const error: ApiError = {
           error: 'Authentication required',
           message: 'User must be authenticated to perform variance analysis',
         };
-        return res['status'](401)['json'](error);
+        return res.status(401).json(error);
       }
 
       if (data.baselineId) {
@@ -994,7 +1012,7 @@ router['post'](
             error: 'Baseline not found',
             message: 'The specified baseline does not belong to this fund.',
           };
-          return res['status'](404)['json'](error);
+          return res.status(404).json(error);
         }
       }
 
@@ -1007,7 +1025,7 @@ router['post'](
       });
       const clientAlerts = result.alertsGenerated.map((alert) => toClientAlert(alert, fundId));
 
-      res['status'](201)['json']({
+      res.status(201).json({
         success: true,
         data: {
           report: toClientReport(result.report),
@@ -1020,9 +1038,9 @@ router['post'](
       console.error('Variance analysis error:', error);
       const apiError: ApiError = {
         error: 'Failed to perform variance analysis',
-        message: error instanceof Error ? error.message : 'Unknown error',
+        message: getRouteErrorMessage(error),
       };
-      res['status'](500)['json'](apiError);
+      res.status(500).json(apiError);
     }
   }
 );
@@ -1042,7 +1060,7 @@ router['get']('/api/funds/:id/variance-dashboard', async (req: Request, res: Res
           error: 'Invalid fund ID',
           message: err.message,
         };
-        return res['status'](400)['json'](error);
+        return res.status(400).json(error);
       }
       throw err;
     }
@@ -1069,7 +1087,7 @@ router['get']('/api/funds/:id/variance-dashboard', async (req: Request, res: Res
       overallVarianceScore: report.overallVarianceScore ?? null,
     }));
 
-    res['json']({
+    res.json({
       success: true,
       data: {
         defaultBaseline,
@@ -1097,9 +1115,9 @@ router['get']('/api/funds/:id/variance-dashboard', async (req: Request, res: Res
     console.error('Variance dashboard error:', error);
     const apiError: ApiError = {
       error: 'Failed to fetch variance dashboard data',
-      message: error instanceof Error ? error.message : 'Unknown error',
+      message: getRouteErrorMessage(error),
     };
-    res['status'](500)['json'](apiError);
+    res.status(500).json(apiError);
   }
 });
 

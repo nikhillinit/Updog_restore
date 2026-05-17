@@ -13,7 +13,6 @@ import {
   isValidationError,
 } from '../types/errors.js';
 import { createErrorBody, type ApiErrorBody } from './apiError.js';
-import { businessMetrics } from '../metrics/businessMetrics.js';
 import { tracer } from './tracing.js';
 import { logger } from './logger.js';
 import { isObject } from '@shared/utils/type-guards';
@@ -58,6 +57,11 @@ interface ErrorHandlingResult {
   action: ErrorAction;
 }
 
+interface ErrorResponseDetails {
+  message: string;
+  code: string;
+}
+
 interface ErrorWithHandlingResult extends Error {
   handlingResult?: ErrorHandlingResult;
 }
@@ -66,8 +70,139 @@ function toError(error: unknown): Error {
   return error instanceof Error ? error : new Error(String(error));
 }
 
-function getErrorMessage(error: unknown): string {
+export function stringifyErrorMessage(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
+}
+
+function getErrorMessage(error: unknown): string {
+  return stringifyErrorMessage(error);
+}
+
+export function isErrorWithMessage(error: unknown): error is { message: string } {
+  return (
+    typeof error === 'object' &&
+    error !== null &&
+    'message' in error &&
+    typeof (error as { message?: unknown }).message === 'string'
+  );
+}
+
+export function getRouteErrorMessage(error: unknown): string {
+  return isErrorWithMessage(error) ? error.message : 'Unknown error';
+}
+
+function determineTypedSeverity(error: Error): ErrorSeverity | undefined {
+  if (isDeploymentError(error)) {
+    return error.stage === 'production' ? ErrorSeverity.CRITICAL : ErrorSeverity.HIGH;
+  }
+
+  if (isDatabaseError(error)) {
+    return error.message.includes('connection') ? ErrorSeverity.CRITICAL : ErrorSeverity.HIGH;
+  }
+
+  if (isHealthCheckError(error)) {
+    return error.checkType === 'connectivity' ? ErrorSeverity.HIGH : ErrorSeverity.MEDIUM;
+  }
+
+  if (isRateLimitError(error)) {
+    return ErrorSeverity.LOW;
+  }
+
+  if (isValidationError(error)) {
+    return ErrorSeverity.LOW;
+  }
+
+  if (isIdempotencyError(error)) {
+    return error.conflictType === 'storage_error' ? ErrorSeverity.HIGH : ErrorSeverity.MEDIUM;
+  }
+
+  return undefined;
+}
+
+function inferSeverityFromMessage(message: string): ErrorSeverity {
+  if (message.includes('timeout')) return ErrorSeverity.MEDIUM;
+  if (message.includes('connection')) return ErrorSeverity.HIGH;
+  if (message.includes('permission')) return ErrorSeverity.MEDIUM;
+  if (message.includes('not found')) return ErrorSeverity.LOW;
+
+  return ErrorSeverity.MEDIUM;
+}
+
+export function mapErrorToHttpStatus(error: Error): number {
+  if (isValidationError(error)) {
+    return 400;
+  }
+
+  if (isRateLimitError(error)) {
+    return 429;
+  }
+
+  if (isIdempotencyError(error)) {
+    return 409;
+  }
+
+  if (isDatabaseError(error)) {
+    return 503;
+  }
+
+  if (isHealthCheckError(error)) {
+    return 503;
+  }
+
+  if (isDeploymentError(error)) {
+    return 503;
+  }
+
+  return 500;
+}
+
+function getErrorResponseDetails(error: Error): ErrorResponseDetails {
+  if (isValidationError(error)) {
+    return {
+      message: error.message,
+      code: 'VALIDATION_ERROR',
+    };
+  }
+
+  if (isRateLimitError(error)) {
+    return {
+      message: 'Too Many Requests',
+      code: 'RATE_LIMITED',
+    };
+  }
+
+  if (isIdempotencyError(error)) {
+    return {
+      message: 'Idempotency Conflict',
+      code: 'IDEMPOTENCY_CONFLICT',
+    };
+  }
+
+  if (isDatabaseError(error)) {
+    return {
+      message: 'Service Temporarily Unavailable',
+      code: 'DATABASE_ERROR',
+    };
+  }
+
+  if (isHealthCheckError(error)) {
+    return {
+      message: 'Service Unhealthy',
+      code: 'HEALTH_CHECK_FAILED',
+    };
+  }
+
+  if (isDeploymentError(error)) {
+    return {
+      message: 'Deployment In Progress',
+      code: 'DEPLOYMENT_ERROR',
+    };
+  }
+
+  return {
+    message: 'Internal Server Error',
+    code: 'INTERNAL_ERROR',
+  };
 }
 
 // Enhanced error context
@@ -149,7 +284,7 @@ export class UnifiedErrorHandler {
         const result = await this.handleError(toError(err), context);
 
         if (!res.headersSent) {
-          res['status'](result.statusCode)['json'](result.response);
+          res.status(result.statusCode).json(result.response);
         }
       } catch (handlingError) {
         logger.error(
@@ -158,7 +293,7 @@ export class UnifiedErrorHandler {
         );
 
         if (!res.headersSent) {
-          res['status'](500)['json']({
+          res.status(500).json({
             error: 'Internal Server Error',
             code: 'INTERNAL_ERROR',
             requestId: context.requestId,
@@ -170,37 +305,7 @@ export class UnifiedErrorHandler {
 
   // Determine error severity
   private determineSeverity(error: Error): ErrorSeverity {
-    if (isDeploymentError(error)) {
-      return error.stage === 'production' ? ErrorSeverity.CRITICAL : ErrorSeverity.HIGH;
-    }
-
-    if (isDatabaseError(error)) {
-      return error.message.includes('connection') ? ErrorSeverity.CRITICAL : ErrorSeverity.HIGH;
-    }
-
-    if (isHealthCheckError(error)) {
-      return error.checkType === 'connectivity' ? ErrorSeverity.HIGH : ErrorSeverity.MEDIUM;
-    }
-
-    if (isRateLimitError(error)) {
-      return ErrorSeverity.LOW;
-    }
-
-    if (isValidationError(error)) {
-      return ErrorSeverity.LOW;
-    }
-
-    if (isIdempotencyError(error)) {
-      return error.conflictType === 'storage_error' ? ErrorSeverity.HIGH : ErrorSeverity.MEDIUM;
-    }
-
-    // Default severity based on common patterns
-    if (error.message.includes('timeout')) return ErrorSeverity.MEDIUM;
-    if (error.message.includes('connection')) return ErrorSeverity.HIGH;
-    if (error.message.includes('permission')) return ErrorSeverity.MEDIUM;
-    if (error.message.includes('not found')) return ErrorSeverity.LOW;
-
-    return ErrorSeverity.MEDIUM;
+    return determineTypedSeverity(error) ?? inferSeverityFromMessage(error.message);
   }
 
   // Check if error is retryable
@@ -231,35 +336,8 @@ export class UnifiedErrorHandler {
     error: Error,
     context: ErrorContext
   ): { statusCode: number; body: ApiErrorBody } {
-    let statusCode = 500;
-    let message = 'Internal Server Error';
-    let code = 'INTERNAL_ERROR';
-
-    if (isValidationError(error)) {
-      statusCode = 400;
-      message = error.message;
-      code = 'VALIDATION_ERROR';
-    } else if (isRateLimitError(error)) {
-      statusCode = 429;
-      message = 'Too Many Requests';
-      code = 'RATE_LIMITED';
-    } else if (isIdempotencyError(error)) {
-      statusCode = 409;
-      message = 'Idempotency Conflict';
-      code = 'IDEMPOTENCY_CONFLICT';
-    } else if (isDatabaseError(error)) {
-      statusCode = 503;
-      message = 'Service Temporarily Unavailable';
-      code = 'DATABASE_ERROR';
-    } else if (isHealthCheckError(error)) {
-      statusCode = 503;
-      message = 'Service Unhealthy';
-      code = 'HEALTH_CHECK_FAILED';
-    } else if (isDeploymentError(error)) {
-      statusCode = 503;
-      message = 'Deployment In Progress';
-      code = 'DEPLOYMENT_ERROR';
-    }
+    const statusCode = mapErrorToHttpStatus(error);
+    const { message, code } = getErrorResponseDetails(error);
 
     return {
       statusCode,
@@ -284,35 +362,44 @@ export class UnifiedErrorHandler {
 
   // Track error metrics
   private trackErrorMetrics(error: Error, context: ErrorContext) {
-    // Track general error metrics
-    businessMetrics.trackUserEngagement('error', context.severity, 'system');
+    void import('../metrics/businessMetrics.js')
+      .then(({ businessMetrics }) => {
+        // Track general error metrics
+        businessMetrics.trackUserEngagement('error', context.severity, 'system');
 
-    // Track specific error type metrics
-    if (isDatabaseError(error)) {
-      businessMetrics
-        .trackDatabaseOperation('error', 'unknown', 'simple', 'default', async () => {
-          throw error;
-        })
-        .catch((metricErr) => {
-          logger.warn(
-            { error: getErrorMessage(metricErr) },
-            '[ErrorHandler] Failed to track database error metric'
-          );
-        });
-    }
+        // Track specific error type metrics
+        if (isDatabaseError(error)) {
+          businessMetrics
+            .trackDatabaseOperation('error', 'unknown', 'simple', 'default', async () => {
+              throw error;
+            })
+            .catch((metricErr) => {
+              logger.warn(
+                { error: getErrorMessage(metricErr) },
+                '[ErrorHandler] Failed to track database error metric'
+              );
+            });
+        }
 
-    if (isIdempotencyError(error)) {
-      businessMetrics
-        .trackIdempotency('conflict', error.cacheHit ? 'redis' : 'database', async () => {
-          throw error;
-        })
-        .catch((metricErr) => {
-          logger.warn(
-            { error: getErrorMessage(metricErr) },
-            '[ErrorHandler] Failed to track idempotency error metric'
-          );
-        });
-    }
+        if (isIdempotencyError(error)) {
+          businessMetrics
+            .trackIdempotency('conflict', error.cacheHit ? 'redis' : 'database', async () => {
+              throw error;
+            })
+            .catch((metricErr) => {
+              logger.warn(
+                { error: getErrorMessage(metricErr) },
+                '[ErrorHandler] Failed to track idempotency error metric'
+              );
+            });
+        }
+      })
+      .catch((metricErr) => {
+        logger.warn(
+          { error: getErrorMessage(metricErr) },
+          '[ErrorHandler] Failed to load business metrics'
+        );
+      });
   }
 
   // Async error capture

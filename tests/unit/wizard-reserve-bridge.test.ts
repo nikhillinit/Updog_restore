@@ -228,6 +228,56 @@ describe('wizard-reserve-bridge', () => {
       expect(portfolio.every((c) => c.currentStage === 'seed')).toBe(true);
     });
 
+    it('should normalize display and legacy entry stage names through the shared compatibility adapter', () => {
+      const profiles = [
+        {
+          ...mockSectorProfiles[0]!,
+          allocation: 100,
+          stages: [
+            {
+              ...mockSectorProfiles[0]!.stages[0]!,
+              stage: 'Series A',
+            },
+          ],
+        },
+      ];
+
+      const portfolio = generateSyntheticPortfolio(profiles, 2.0, 3);
+
+      expect(portfolio).toHaveLength(3);
+      expect(portfolio.every((company) => company.currentStage === 'series_a')).toBe(true);
+    });
+
+    it('should preserve wizard-specific late-stage and unknown-stage fallback behavior', () => {
+      const profiles = [
+        {
+          ...mockSectorProfiles[0]!,
+          allocation: 50,
+          stages: [
+            {
+              ...mockSectorProfiles[0]!.stages[0]!,
+              stage: 'series-e-plus',
+            },
+          ],
+        },
+        {
+          ...mockSectorProfiles[1]!,
+          allocation: 50,
+          stages: [
+            {
+              ...mockSectorProfiles[1]!.stages[0]!,
+              stage: 'unknown-thing',
+            },
+          ],
+        },
+      ];
+
+      const portfolio = generateSyntheticPortfolio(profiles, 2.0, 4);
+
+      expect(portfolio.filter((company) => company.currentStage === 'late_stage')).toHaveLength(2);
+      expect(portfolio.filter((company) => company.currentStage === 'seed')).toHaveLength(2);
+    });
+
     it('should calculate implied ownership correctly', () => {
       const portfolio = generateSyntheticPortfolio(mockSectorProfiles, 2.0, 10);
 
@@ -291,6 +341,29 @@ describe('wizard-reserve-bridge', () => {
 
       // SaaS: 60%, FinTech: 55% → Average: 57.5%
       expect(seedToA?.probability).toBeCloseTo(0.575, 2);
+    });
+
+    it('should normalize series-e-plus transitions to late_stage', () => {
+      const profiles = [
+        {
+          ...mockSectorProfiles[0]!,
+          stages: [
+            {
+              ...mockSectorProfiles[0]!.stages[0]!,
+              stage: 'series-e-plus',
+            },
+            {
+              ...mockSectorProfiles[0]!.stages[1]!,
+              stage: 'Growth',
+            },
+          ],
+        },
+      ];
+
+      const matrix = buildGraduationMatrix(profiles);
+
+      expect(matrix.rates[0]?.fromStage).toBe('late_stage');
+      expect(matrix.rates[0]?.toStage).toBe('growth');
     });
   });
 

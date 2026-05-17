@@ -51,6 +51,7 @@ export default [
       '.vercel/**',
       '.claude/**',
       '.tmp/**',
+      '.omx/**',
       'node_modules/**',
       'build/**',
       // Keep tests linted - removed "tests/**"
@@ -119,6 +120,7 @@ export default [
       'triage-output/**',
       'performance-results/**',
       'reports/**',
+      'output/**',
       'test-results/**',
       'playwright-report/**',
       'repo/**',

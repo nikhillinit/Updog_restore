@@ -18,11 +18,7 @@ import type {
 import { createViolation } from './types';
 import { centsToOutputUnits, formatCohortOutput } from './adapter';
 import { generatePeriods, type Period, findPeriodForDate } from './periods';
-import {
-  calculateBasePacingTarget,
-  type PacingConfig,
-  type PacingTarget,
-} from './pacing';
+import { calculateBasePacingTarget, type PacingConfig, type PacingTarget } from './pacing';
 import { allocateToCohorts, accumulateAllocations } from './cohorts';
 import { roundPercentDerivedToCents } from './rounding';
 
@@ -33,7 +29,7 @@ interface PeriodState {
   cohorts: InternalCohort[];
 }
 
-interface PeriodResult {
+interface PeriodProcessingSnapshot {
   period: Period;
   reserveBalanceCents: number;
   endingCashCents: number;
@@ -52,11 +48,7 @@ export interface PeriodLoopOutput extends CAEngineOutput {
 }
 
 export function executePeriodLoop(input: NormalizedInput): PeriodLoopOutput {
-  const periods = generatePeriods(
-    input.startDate,
-    input.endDate,
-    input.rebalanceFrequency
-  );
+  const periods = generatePeriods(input.startDate, input.endDate, input.rebalanceFrequency);
 
   if (periods.length === 0) {
     return createEmptyPeriodLoopOutput(input);
@@ -81,7 +73,7 @@ export function executePeriodLoop(input: NormalizedInput): PeriodLoopOutput {
     cohorts: input.cohorts.map((c) => ({ ...c, allocationCents: 0 })),
   };
 
-  const periodResults: PeriodResult[] = [];
+  const periodResults: PeriodProcessingSnapshot[] = [];
   const allViolations: Violation[] = [];
 
   for (const period of periods) {
@@ -104,9 +96,10 @@ export function executePeriodLoop(input: NormalizedInput): PeriodLoopOutput {
         result.pacingTarget.effectiveTargetCents - result.allocatedCents
       ),
       cohorts: state.cohorts.map((c) => {
-        const allocated = result.allocatedCents > 0
-          ? (c.allocationCents + (result.allocatedCents * c.weightBps / 10_000_000))
-          : c.allocationCents;
+        const allocated =
+          result.allocatedCents > 0
+            ? c.allocationCents + (result.allocatedCents * c.weightBps) / 10_000_000
+            : c.allocationCents;
         return { ...c, allocationCents: Math.floor(allocated) };
       }),
     };
@@ -149,20 +142,16 @@ function processPeriod(
   flows: { contributions: CashFlow[]; distributions: CashFlow[] },
   input: NormalizedInput,
   pacingConfig: PacingConfig
-): PeriodResult {
+): PeriodProcessingSnapshot {
   const violations: Violation[] = [];
 
-  const contributionsCents = flows.contributions.reduce(
-    (sum, f) => sum + (f.amountCents ?? 0),
-    0
-  );
+  const contributionsCents = flows.contributions.reduce((sum, f) => sum + (f.amountCents ?? 0), 0);
   const distributionsCents = flows.distributions.reduce(
     (sum, f) => sum + Math.abs(f.amountCents ?? 0),
     0
   );
 
-  const endingCashCents =
-    state.cashCents + contributionsCents - distributionsCents;
+  const endingCashCents = state.cashCents + contributionsCents - distributionsCents;
 
   const reserveRequiredCents = calculateReserveForPeriod(input);
   const reserveBalanceCents = Math.min(endingCashCents, reserveRequiredCents);
@@ -231,7 +220,7 @@ function calculateReserveForPeriod(input: NormalizedInput): number {
 function buildOutput(
   input: NormalizedInput,
   finalState: PeriodState,
-  periodResults: PeriodResult[],
+  periodResults: PeriodProcessingSnapshot[],
   violations: Violation[]
 ): PeriodLoopOutput {
   const reserveBalanceOverTime: ReserveBalancePoint[] = periodResults.map((r) => ({
@@ -251,19 +240,14 @@ function buildOutput(
   const finalReserveBalanceCents = lastResult?.reserveBalanceCents ?? 0;
   const finalEndingCashCents = lastResult?.endingCashCents ?? 0;
 
-  const totalAllocatedCents = finalState.cohorts.reduce(
-    (sum, c) => sum + c.allocationCents,
-    0
-  );
+  const totalAllocatedCents = finalState.cohorts.reduce((sum, c) => sum + c.allocationCents, 0);
   const remainingCapacityCents = input.commitmentCents - totalAllocatedCents;
 
   return {
     reserve_balance: centsToOutputUnits(finalReserveBalanceCents, input.unitScale),
     reserveBalanceCents: finalReserveBalanceCents,
 
-    allocations_by_cohort: finalState.cohorts.map((c) =>
-      formatCohortOutput(c, input.unitScale)
-    ),
+    allocations_by_cohort: finalState.cohorts.map((c) => formatCohortOutput(c, input.unitScale)),
 
     reserve_balance_over_time: reserveBalanceOverTime,
 
