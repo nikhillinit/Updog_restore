@@ -97,10 +97,9 @@ export class ActualMetricsCalculator {
     const averageCheckSize =
       totalCompanies > 0 ? totalDeployed.div(totalCompanies) : new Decimal(0);
 
-    // Calculate fund age (approximate using vintage year)
-    const fundAgeMonths = fund.vintageYear
-      ? monthsSince(new Date(fund.vintageYear, 0, 1)) // Jan 1 of vintage year
-      : undefined;
+    const fundAgeStartDate = this.getFundAgeStartDate(fund);
+    const fundAgeMonths =
+      fundAgeStartDate !== undefined ? monthsSince(fundAgeStartDate) : undefined;
 
     return {
       asOfDate: new Date().toISOString(),
@@ -332,9 +331,24 @@ export class ActualMetricsCalculator {
       : undefined;
   }
 
+  private getFundAgeStartDate(fund: Fund): Date | undefined {
+    const rawEstablishmentDate: unknown = fund.establishmentDate;
+    if (rawEstablishmentDate) {
+      const establishmentDate =
+        rawEstablishmentDate instanceof Date
+          ? rawEstablishmentDate
+          : new Date(String(rawEstablishmentDate));
+      if (!Number.isNaN(establishmentDate.getTime())) {
+        return establishmentDate;
+      }
+    }
+
+    return fund.vintageYear ? new Date(fund.vintageYear, 0, 1) : undefined;
+  }
+
   /**
    * Fetch distributions for a fund
-   * TODO: This should be added to storage interface
+   * Fund distributions are read directly because the storage abstraction does not expose them.
    */
   private async getDistributions(fundId: number): Promise<Array<{ date: Date; amount: number }>> {
     try {

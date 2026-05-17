@@ -25,6 +25,7 @@ import { PRNG } from '@shared/utils/prng';
 import type { MarketParameters } from '@shared/types/backtesting';
 import { applyMarketParametersOverride } from './lib/distribution-overrides';
 import { performance } from 'node:perf_hooks';
+import { SYSTEM_ACTOR_ID } from '@shared/constants/system-actor';
 
 // ============================================================================
 // DEMO MODE CONFIGURATION
@@ -55,6 +56,7 @@ export interface SimulationConfig {
   portfolioSize?: number; // Target portfolio size
   deploymentScheduleMonths?: number; // Deployment period
   randomSeed?: number; // For reproducible results
+  createdBy?: number; // Database user id for persisted simulation rows
   /**
    * Optional market parameter overrides for scenario-aware Monte Carlo runs.
    * When present, calibrateDistributions applies the override via
@@ -1105,7 +1107,7 @@ export class MonteCarloEngine {
       inputDistributions: {},
       summaryStatistics: {},
       percentileResults: {},
-      createdBy: 1, // TODO: Get from context
+      createdBy: results.config.createdBy ?? SYSTEM_ACTOR_ID,
     };
 
     await this.dataSource.insert(monteCarloSimulations).values(simulationData);

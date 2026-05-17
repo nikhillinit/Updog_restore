@@ -2,13 +2,19 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import express from 'express';
 import request from 'supertest';
 
-const { runSimulationMock, getStageValidationModeMock, parseStageDistributionMock } = vi.hoisted(
-  () => ({
-    runSimulationMock: vi.fn(),
-    getStageValidationModeMock: vi.fn(),
-    parseStageDistributionMock: vi.fn(),
-  })
-);
+const {
+  enqueueSimulationMock,
+  isQueueInitializedMock,
+  runSimulationMock,
+  getStageValidationModeMock,
+  parseStageDistributionMock,
+} = vi.hoisted(() => ({
+  enqueueSimulationMock: vi.fn(),
+  isQueueInitializedMock: vi.fn(() => false),
+  runSimulationMock: vi.fn(),
+  getStageValidationModeMock: vi.fn(),
+  parseStageDistributionMock: vi.fn(),
+}));
 
 vi.mock('../../../server/services/monte-carlo-service-unified', () => ({
   unifiedMonteCarloService: {
@@ -22,9 +28,9 @@ vi.mock('../../../server/services/monte-carlo-service-unified', () => ({
 }));
 
 vi.mock('../../../server/queues/simulation-queue', () => ({
-  enqueueSimulation: vi.fn(),
+  enqueueSimulation: enqueueSimulationMock,
   getJobStatus: vi.fn(),
-  isQueueInitialized: vi.fn(() => false),
+  isQueueInitialized: isQueueInitializedMock,
   subscribeToJob: vi.fn(() => () => undefined),
 }));
 
@@ -136,6 +142,8 @@ describe('Monte Carlo routes', () => {
       errors: [],
     });
     runSimulationMock.mockResolvedValue(createSimulationResult());
+    enqueueSimulationMock.mockResolvedValue({ jobId: 'job-1', estimatedWaitMs: 5000 });
+    isQueueInitializedMock.mockReturnValue(false);
   });
 
   it('validates stageDistribution as a percentage record before calling the service', async () => {
@@ -166,6 +174,55 @@ describe('Monte Carlo routes', () => {
       })
     );
     expect(serviceConfig).not.toHaveProperty('stageDistribution');
+  });
+
+  it('passes numeric authenticated user id as createdBy for synchronous simulations', async () => {
+    const authenticatedApp = express();
+    authenticatedApp.use(express.json());
+    authenticatedApp.use((req, _res, next) => {
+      req.user = { id: '42' } as never;
+      next();
+    });
+    authenticatedApp.use(monteCarloRouter);
+
+    await request(authenticatedApp)
+      .post('/simulate')
+      .send({
+        fundId: 1,
+      })
+      .expect(200);
+
+    expect(runSimulationMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        fundId: 1,
+        createdBy: 42,
+      })
+    );
+  });
+
+  it('queues numeric authenticated user id for asynchronous simulations', async () => {
+    isQueueInitializedMock.mockReturnValue(true);
+    const authenticatedApp = express();
+    authenticatedApp.use(express.json());
+    authenticatedApp.use((req, _res, next) => {
+      req.user = { id: '42' } as never;
+      next();
+    });
+    authenticatedApp.use(monteCarloRouter);
+
+    await request(authenticatedApp)
+      .post('/simulate/async')
+      .send({
+        fundId: 1,
+      })
+      .expect(202);
+
+    expect(enqueueSimulationMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        fundId: 1,
+        userId: 42,
+      })
+    );
   });
 
   it('rejects invalid stage distributions in enforce mode', async () => {

@@ -12,13 +12,14 @@
  */
 
 import { Pool } from '@neondatabase/serverless';
-import { drizzle } from 'drizzle-orm/neon-serverless';
+import { drizzle, type NeonDatabase } from 'drizzle-orm/neon-serverless';
 import * as schema from '@shared/schema';
 import type { InsertMonteCarloSimulation, FundBaseline } from '@shared/schema';
 import { eq, and, desc } from 'drizzle-orm';
 import { v4 as uuidv4 } from 'uuid';
 import { toSafeNumber } from '@shared/type-safety-utils';
 import { Decimal, toDecimal } from '@shared/lib/decimal-utils';
+import { SYSTEM_ACTOR_ID } from '@shared/constants/system-actor';
 
 // Import existing types from the original engine
 import type {
@@ -33,6 +34,8 @@ import type {
   PerformanceDistribution,
 } from './monte-carlo-engine';
 import { applyMarketParametersOverride } from './lib/distribution-overrides';
+
+type StreamingDatabase = NeonDatabase<typeof schema> & { $client: Pool };
 
 // ============================================================================
 // STREAMING TYPES & INTERFACES
@@ -459,7 +462,7 @@ class StreamingAggregator {
 
 export class StreamingMonteCarloEngine {
   private connectionManager = new ConnectionPoolManager();
-  private db: ReturnType<typeof drizzle> | null = null;
+  private db: StreamingDatabase | null = null;
   private dbInitPromise: Promise<void> | null = null;
   private currentStats: StreamingStats | null = null;
 
@@ -469,7 +472,7 @@ export class StreamingMonteCarloEngine {
     // without requiring DATABASE_URL
   }
 
-  private async ensureDatabase(): Promise<ReturnType<typeof drizzle>> {
+  private async ensureDatabase(): Promise<StreamingDatabase> {
     if (this.db) {
       return this.db;
     }
@@ -485,7 +488,7 @@ export class StreamingMonteCarloEngine {
 
   private async initializeDatabase(): Promise<void> {
     const pool = await this.connectionManager.getPool();
-    this.db = drizzle({ client: pool, schema });
+    this.db = drizzle<typeof schema>({ client: pool, schema });
   }
 
   /**
@@ -919,8 +922,7 @@ export class StreamingMonteCarloEngine {
     let baseline: FundBaseline | undefined;
 
     if (baselineId) {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
-      baseline = await (db.query as any).fundBaselines.findFirst({
+      baseline = await db.query.fundBaselines.findFirst({
         where: and(
           eq(schema.fundBaselines.id, baselineId),
           eq(schema.fundBaselines.fundId, fundId),
@@ -928,8 +930,7 @@ export class StreamingMonteCarloEngine {
         ),
       });
     } else {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
-      baseline = await (db.query as any).fundBaselines.findFirst({
+      baseline = await db.query.fundBaselines.findFirst({
         where: and(
           eq(schema.fundBaselines.fundId, fundId),
           eq(schema.fundBaselines.isDefault, true),
@@ -949,10 +950,9 @@ export class StreamingMonteCarloEngine {
     fundId: number,
     baseline: FundBaseline
   ): Promise<PortfolioInputs> {
-    /* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-argument */
     // Implementation same as original engine
     const db = await this.ensureDatabase();
-    const fund = await (db.query as any).funds.findFirst({
+    const fund = await db.query.funds.findFirst({
       where: eq(schema.funds.id, fundId),
     });
 
@@ -994,7 +994,6 @@ export class StreamingMonteCarloEngine {
       stageWeights,
       averageInvestmentSize: averageInvestmentSize.toNumber(),
     };
-    /* eslint-enable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-argument */
   }
 
   private async calibrateDistributions(
@@ -1002,11 +1001,9 @@ export class StreamingMonteCarloEngine {
     baseline: FundBaseline,
     config?: SimulationConfig
   ): Promise<DistributionParameters> {
-    /* eslint-disable @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-argument */
     // Implementation same as original engine
     const db = await this.ensureDatabase();
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const reports = await (db.query as any).varianceReports.findMany({
+    const reports = await db.query.varianceReports.findMany({
       where: and(
         eq(schema.varianceReports.fundId, fundId),
         eq(schema.varianceReports.baselineId, baseline.id)
@@ -1063,7 +1060,6 @@ export class StreamingMonteCarloEngine {
     }
 
     return distributions;
-    /* eslint-enable @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-argument */
   }
 
   private getDefaultDistributions(): DistributionParameters {
@@ -1191,7 +1187,7 @@ export class StreamingMonteCarloEngine {
       inputDistributions: {},
       summaryStatistics: {},
       percentileResults: {},
-      createdBy: 1, // TODO: Get from context
+      createdBy: results.config.createdBy ?? SYSTEM_ACTOR_ID,
     };
 
     await db.insert(schema.monteCarloSimulations).values(simulationData);
