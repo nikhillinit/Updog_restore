@@ -95,6 +95,7 @@ type SimulationConfigRequest = z.infer<typeof simulationConfigSchema>;
 type BatchSimulationRequest = z.infer<typeof batchSimulationSchema>;
 type MultiEnvironmentRequest = z.infer<typeof multiEnvironmentSchema>;
 type ValidatedBodyRequest<T> = Request & { validatedBody: T };
+type RequestUserWithLegacyId = Express.User & { userId?: string | number };
 
 // ============================================================================
 // MIDDLEWARE
@@ -129,7 +130,28 @@ function getCorrelationId(req: Request, fallbackPrefix: string): string {
   );
 }
 
-function toUnifiedSimulationConfig(config: SimulationConfigRequest): UnifiedSimulationConfig {
+function toPositiveInteger(value: unknown): number | undefined {
+  if (typeof value !== 'number' && typeof value !== 'string') {
+    return undefined;
+  }
+
+  const numericValue = typeof value === 'string' ? Number(value.trim()) : value;
+  return Number.isInteger(numericValue) && numericValue > 0 ? numericValue : undefined;
+}
+
+function getRequestCreatedBy(req: Request): number | undefined {
+  const user = req.user as RequestUserWithLegacyId | undefined;
+  return (
+    toPositiveInteger(user?.id) ??
+    toPositiveInteger(user?.userId) ??
+    toPositiveInteger(req.context?.userId)
+  );
+}
+
+function toUnifiedSimulationConfig(
+  config: SimulationConfigRequest,
+  createdBy?: number
+): UnifiedSimulationConfig {
   return {
     fundId: config.fundId,
     runs: config.runs,
@@ -148,6 +170,7 @@ function toUnifiedSimulationConfig(config: SimulationConfigRequest): UnifiedSimu
     forceEngine: config.forceEngine,
     performanceMode: config.performanceMode,
     enableFallback: config.enableFallback,
+    ...(createdBy !== undefined ? { createdBy } : {}),
   };
 }
 
@@ -155,7 +178,8 @@ async function buildSimulationConfig(
   config: SimulationConfigRequest,
   res: Response,
   correlationId: string,
-  context: string
+  context: string,
+  createdBy?: number
 ): Promise<{ ok: true; config: UnifiedSimulationConfig } | { ok: false }> {
   if (config.stageDistribution && config.stageDistribution.length > 0) {
     const stagePercentages = config.stageDistribution.reduce<Record<string, number>>(
@@ -198,7 +222,7 @@ async function buildSimulationConfig(
 
   return {
     ok: true,
-    config: toUnifiedSimulationConfig(config),
+    config: toUnifiedSimulationConfig(config, createdBy),
   };
 }
 
@@ -264,7 +288,13 @@ router['post'](
 
     try {
       const parsedRequest = (req as ValidatedBodyRequest<SimulationConfigRequest>).validatedBody;
-      const built = await buildSimulationConfig(parsedRequest, res, correlationId, 'simulate');
+      const built = await buildSimulationConfig(
+        parsedRequest,
+        res,
+        correlationId,
+        'simulate',
+        getRequestCreatedBy(req)
+      );
       if (!built.ok) {
         return;
       }
@@ -323,11 +353,13 @@ router['post'](
 
     try {
       const parsedRequest = (req as ValidatedBodyRequest<SimulationConfigRequest>).validatedBody;
+      const createdBy = getRequestCreatedBy(req);
       const built = await buildSimulationConfig(
         parsedRequest,
         res,
         correlationId,
-        'simulate_async'
+        'simulate_async',
+        createdBy
       );
       if (!built.ok) {
         return;
@@ -372,6 +404,7 @@ router['post'](
         ...(simulationConfig.portfolioSize !== undefined
           ? { portfolioSize: simulationConfig.portfolioSize }
           : {}),
+        ...(createdBy !== undefined ? { userId: createdBy } : {}),
       };
       const { jobId, estimatedWaitMs } = await enqueueSimulation(simulationJob);
 
@@ -520,9 +553,16 @@ router['post'](
 
     try {
       const parsedRequest = (req as ValidatedBodyRequest<BatchSimulationRequest>).validatedBody;
+      const createdBy = getRequestCreatedBy(req);
       const normalizedConfigs: UnifiedSimulationConfig[] = [];
       for (const [index, config] of parsedRequest.simulations.entries()) {
-        const built = await buildSimulationConfig(config, res, correlationId, `batch[${index}]`);
+        const built = await buildSimulationConfig(
+          config,
+          res,
+          correlationId,
+          `batch[${index}]`,
+          createdBy
+        );
         if (!built.ok) {
           return;
         }
@@ -592,7 +632,8 @@ router['post'](
         parsedRequest.baseConfig,
         res,
         correlationId,
-        'multi-environment'
+        'multi-environment',
+        getRequestCreatedBy(req)
       );
       if (!built.ok) {
         return;
@@ -718,12 +759,14 @@ router['get']('/funds/:fundId/simulate', async (req: Request, res: Response) => 
       });
     }
 
+    const createdBy = getRequestCreatedBy(req);
     const config = {
       fundId,
       runs,
       timeHorizonYears,
       forceEngine: engine,
       batchSize: Math.min(runs, 1000),
+      ...(createdBy !== undefined ? { createdBy } : {}),
     };
 
     const result = await unifiedMonteCarloService.runSimulation(config);
