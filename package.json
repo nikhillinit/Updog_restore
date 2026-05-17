@@ -28,6 +28,7 @@
     "baseline:check": "node scripts/typescript-baseline.cjs check",
     "check": "npm run baseline:check",
     "validate:core": "npm run baseline:check && npm run test:publish-orchestration && npm run test:phase4 && npm run lint:phase4",
+    "validate:schema-drift": "tsx scripts/schema-drift-active-surfaces.ts",
     "bundle:check": "node scripts/check-budgets.cjs",
     "lint:eslint": "eslint . --max-warnings 0 --cache --cache-location node_modules/.cache/eslint",
     "lint": "npm run lint:eslint && npm run guardrails:check",
