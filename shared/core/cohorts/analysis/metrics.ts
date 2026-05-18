@@ -6,10 +6,11 @@
  */
 
 import type { CashFlowEvent, CohortRow, CoverageSummaryType } from '@shared/types';
+import { xirrNewtonBisection, type CashFlow as XirrCashFlow } from '@shared/lib/finance/xirr';
 import { aggregateCashFlowsByDate, calculateCashFlowTotals, hasResidualValue } from './cash-flows';
 
 /**
- * Newton-Raphson XIRR implementation
+ * XIRR adapter for cohort cash flows.
  *
  * @param cashFlows Array of {date, amount} where negative = outflow, positive = inflow
  * @param guess Initial guess for rate (default 0.1 = 10%)
@@ -23,127 +24,12 @@ export function calculateXIRR(
   maxIterations = 100,
   tolerance = 1e-7
 ): number | null {
-  if (cashFlows.length < 2) {
-    return null;
-  }
-
-  // Check for at least one positive and one negative cash flow
-  const hasPositive = cashFlows.some((cf) => cf.amount > 0);
-  const hasNegative = cashFlows.some((cf) => cf.amount < 0);
-
-  if (!hasPositive || !hasNegative) {
-    return null;
-  }
-
-  // Sort by date
-  const sorted = [...cashFlows].sort((a, b) => a.date.getTime() - b.date.getTime());
-  const firstDate = sorted[0]?.date;
-  if (!firstDate) {
-    return null;
-  }
-
-  // Calculate days from first date
-  const daysFromStart = sorted.map((cf) => ({
-    amount: cf.amount,
-    days: (cf.date.getTime() - firstDate.getTime()) / (1000 * 60 * 60 * 24),
+  const canonicalFlows: XirrCashFlow[] = cashFlows.map(({ date, amount }) => ({
+    date,
+    amount,
   }));
 
-  // NPV function
-  const npv = (rate: number): number => {
-    return daysFromStart.reduce((sum, cf) => {
-      return sum + cf.amount / Math.pow(1 + rate, cf.days / 365);
-    }, 0);
-  };
-
-  // NPV derivative function
-  const npvDerivative = (rate: number): number => {
-    return daysFromStart.reduce((sum, cf) => {
-      return sum + ((-cf.days / 365) * cf.amount) / Math.pow(1 + rate, cf.days / 365 + 1);
-    }, 0);
-  };
-
-  let rate = guess;
-
-  for (let i = 0; i < maxIterations; i++) {
-    const currentNPV = npv(rate);
-    const currentDerivative = npvDerivative(rate);
-
-    if (Math.abs(currentDerivative) < 1e-10) {
-      // Derivative too small, try different approach
-      break;
-    }
-
-    const newRate = rate - currentNPV / currentDerivative;
-
-    if (Math.abs(newRate - rate) < tolerance) {
-      // Converged
-      if (newRate < -1 || !isFinite(newRate)) {
-        return null; // Invalid result
-      }
-      return newRate;
-    }
-
-    // Guard against runaway rates
-    if (newRate > 10 || newRate < -0.99) {
-      break;
-    }
-
-    rate = newRate;
-  }
-
-  // Did not converge, try bisection as fallback
-  return bisectionXIRR(sorted, -0.99, 5.0, tolerance, maxIterations);
-}
-
-/**
- * Bisection method for XIRR as fallback
- */
-function bisectionXIRR(
-  cashFlows: Array<{ date: Date; amount: number }>,
-  lowerBound: number,
-  upperBound: number,
-  tolerance: number,
-  maxIterations: number
-): number | null {
-  const firstDate = cashFlows[0]?.date;
-  if (!firstDate) {
-    return null;
-  }
-
-  const daysFromStart = cashFlows.map((cf) => ({
-    amount: cf.amount,
-    days: (cf.date.getTime() - firstDate.getTime()) / (1000 * 60 * 60 * 24),
-  }));
-
-  const npv = (rate: number): number => {
-    return daysFromStart.reduce((sum, cf) => {
-      return sum + cf.amount / Math.pow(1 + rate, cf.days / 365);
-    }, 0);
-  };
-
-  let low = lowerBound;
-  let high = upperBound;
-
-  for (let i = 0; i < maxIterations; i++) {
-    const mid = (low + high) / 2;
-    const npvMid = npv(mid);
-
-    if (Math.abs(npvMid) < tolerance) {
-      return mid;
-    }
-
-    if (npv(low) * npvMid < 0) {
-      high = mid;
-    } else {
-      low = mid;
-    }
-
-    if (high - low < tolerance) {
-      return mid;
-    }
-  }
-
-  return null;
+  return xirrNewtonBisection(canonicalFlows, guess, tolerance, maxIterations).irr;
 }
 
 /**
