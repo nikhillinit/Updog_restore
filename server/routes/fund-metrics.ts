@@ -14,8 +14,9 @@ import { Router } from 'express';
 import type { Request, Response } from 'express';
 import { metricsAggregator } from '../services/metrics-aggregator';
 import type { UnifiedFundMetrics, MetricsCalculationError } from '@shared/types/metrics';
-import { toNumber, NumberParseError } from '@shared/number';
+import { toNumber } from '@shared/number';
 import { requireAuth, requireFundAccess } from '../lib/auth/jwt';
+import { handleNumberParseError } from '../lib/number-parse-error';
 import { logger } from '../lib/logger.js';
 import rateLimit from 'express-rate-limit';
 
@@ -115,11 +116,8 @@ router['get'](
       console.error('Metrics API error:', error);
 
       // Handle parameter validation errors
-      if (error instanceof NumberParseError) {
-        return res.status(400).json({
-          error: 'Invalid parameter',
-          message: error.message,
-        });
+      if (handleNumberParseError(error, res, 'Invalid parameter')) {
+        return;
       }
 
       // Handle metrics calculation errors
@@ -179,11 +177,8 @@ router['post'](
     } catch (error) {
       console.error('Cache invalidation error:', error);
 
-      if (error instanceof NumberParseError) {
-        return res.status(400).json({
-          error: 'Invalid parameter',
-          message: error.message,
-        });
+      if (handleNumberParseError(error, res, 'Invalid parameter')) {
+        return;
       }
 
       return res.status(500).json({

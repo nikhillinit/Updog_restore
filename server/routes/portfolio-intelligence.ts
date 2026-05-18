@@ -13,7 +13,7 @@ import { z } from 'zod';
 import idempotency from '../middleware/idempotency';
 import { securityMiddlewareStack } from '../middleware/security';
 import { positiveInt, bounded01, nonNegative } from '@shared/schema-helpers';
-import { toNumber, NumberParseError } from '@shared/number';
+import { toNumber } from '@shared/number';
 import type { ApiError } from '@shared/types';
 import { portfolioIntelligenceService } from '../services/portfolio-intelligence-service';
 // Stage normalization and validation
@@ -27,6 +27,7 @@ import {
 import { setStageWarningHeaders } from '../middleware/deprecation-headers';
 import { firstString, getUserId } from '../lib/request-values';
 import { getRouteErrorMessage as getErrorMessage } from '../lib/errorHandling';
+import { handleNumberParseError } from '../lib/number-parse-error';
 
 // Type for portfolio storage
 type PortfolioStorage = {
@@ -221,12 +222,8 @@ router['post']('/api/portfolio/strategies', idempotency, async (req: Request, re
     try {
       parsedFundId = toNumber(fundId as string, 'fund ID', { integer: true, min: 1 });
     } catch (err) {
-      if (err instanceof NumberParseError) {
-        const error: ApiError = {
-          error: 'Invalid fund ID',
-          message: err.message,
-        };
-        return res.status(400).json(error);
+      if (handleNumberParseError(err, res, 'Invalid fund ID')) {
+        return;
       }
       throw err;
     }
@@ -344,12 +341,8 @@ router['get']('/api/portfolio/strategies/:fundId', async (req: Request, res: Res
     try {
       fundId = toNumber(req.params['fundId'], 'fund ID', { integer: true, min: 1 });
     } catch (err) {
-      if (err instanceof NumberParseError) {
-        const error: ApiError = {
-          error: 'Invalid fund ID',
-          message: err.message,
-        };
-        return res.status(400).json(error);
+      if (handleNumberParseError(err, res, 'Invalid fund ID')) {
+        return;
       }
       throw err;
     }
@@ -560,12 +553,8 @@ router['post']('/api/portfolio/scenarios', idempotency, async (req: Request, res
     try {
       parsedFundId = toNumber(fundId as string, 'fund ID', { integer: true, min: 1 });
     } catch (err) {
-      if (err instanceof NumberParseError) {
-        const error: ApiError = {
-          error: 'Invalid fund ID',
-          message: err.message,
-        };
-        return res.status(400).json(error);
+      if (handleNumberParseError(err, res, 'Invalid fund ID')) {
+        return;
       }
       throw err;
     }
@@ -634,12 +623,8 @@ router['get']('/api/portfolio/scenarios/:fundId', async (req: Request, res: Resp
     try {
       fundId = toNumber(req.params['fundId'], 'fund ID', { integer: true, min: 1 });
     } catch (err) {
-      if (err instanceof NumberParseError) {
-        const error: ApiError = {
-          error: 'Invalid fund ID',
-          message: err.message,
-        };
-        return res.status(400).json(error);
+      if (handleNumberParseError(err, res, 'Invalid fund ID')) {
+        return;
       }
       throw err;
     }
@@ -854,12 +839,8 @@ router['post'](
       try {
         parsedFundId = toNumber(fundId as string, 'fund ID', { integer: true, min: 1 });
       } catch (err) {
-        if (err instanceof NumberParseError) {
-          const error: ApiError = {
-            error: 'Invalid fund ID',
-            message: err.message,
-          };
-          return res.status(400).json(error);
+        if (handleNumberParseError(err, res, 'Invalid fund ID')) {
+          return;
         }
         throw err;
       }
@@ -954,12 +935,8 @@ router['get']('/api/portfolio/reserves/strategies/:fundId', async (req: Request,
     try {
       fundId = toNumber(req.params['fundId'], 'fund ID', { integer: true, min: 1 });
     } catch (err) {
-      if (err instanceof NumberParseError) {
-        const error: ApiError = {
-          error: 'Invalid fund ID',
-          message: err.message,
-        };
-        return res.status(400).json(error);
+      if (handleNumberParseError(err, res, 'Invalid fund ID')) {
+        return;
       }
       throw err;
     }
@@ -1085,12 +1062,8 @@ router['post']('/api/portfolio/forecasts', idempotency, async (req: Request, res
     try {
       parsedFundId = toNumber(fundId as string, 'fund ID', { integer: true, min: 1 });
     } catch (err) {
-      if (err instanceof NumberParseError) {
-        const error: ApiError = {
-          error: 'Invalid fund ID',
-          message: err.message,
-        };
-        return res.status(400).json(error);
+      if (handleNumberParseError(err, res, 'Invalid fund ID')) {
+        return;
       }
       throw err;
     }

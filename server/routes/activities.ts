@@ -2,7 +2,8 @@ import { Router } from 'express';
 import type { Request, Response } from 'express';
 import { insertActivitySchema, type Activity } from '@shared/schema';
 import type { ApiError } from '@shared/types';
-import { NumberParseError, toNumber } from '@shared/number';
+import { toNumber } from '@shared/number';
+import { handleNumberParseError } from '../lib/number-parse-error';
 import { storage } from '../storage';
 
 const router = Router();
@@ -33,12 +34,8 @@ router['get']('/activities', async (req: Request, res: Response) => {
 
     return res.json(sortedActivities);
   } catch (error) {
-    if (error instanceof NumberParseError) {
-      const apiError: ApiError = {
-        error: 'Invalid fund ID query',
-        message: error.message,
-      };
-      return res.status(400).json(apiError);
+    if (handleNumberParseError(error, res, 'Invalid fund ID query')) {
+      return;
     }
 
     const apiError: ApiError = {

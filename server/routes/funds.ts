@@ -5,7 +5,7 @@ import idempotency from '../middleware/idempotency';
 import { z } from 'zod';
 import { funds as persistedFunds } from '@shared/schema';
 import type { ApiError } from '@shared/types';
-import { toNumber, NumberParseError } from '@shared/number';
+import { toNumber } from '@shared/number';
 import { hashPayload } from '../lib/hash';
 import { db } from '../db';
 import { idem } from '../shared/idempotency-instance';
@@ -19,6 +19,7 @@ import { sendApiError } from '../lib/apiError';
 import { FundCreateV1Schema } from '@shared/contracts/fund-create-v1.contract';
 import { logger } from '../lib/logger.js';
 import { enforceProvidedFundScope } from '../lib/auth/provided-fund-scope';
+import { handleNumberParseError } from '../lib/number-parse-error';
 
 const router = Router();
 
@@ -191,12 +192,8 @@ router['get']('/funds/:id', async (req: Request, res: Response) => {
 
     return res.json(toClientFund(fund));
   } catch (error) {
-    if (error instanceof NumberParseError) {
-      const apiError: ApiError = {
-        error: 'Invalid fund ID',
-        message: error.message,
-      };
-      return res.status(400).json(apiError);
+    if (handleNumberParseError(error, res, 'Invalid fund ID')) {
+      return;
     }
 
     const apiError: ApiError = {

@@ -116,6 +116,12 @@ describe('portfolio company and activity route extraction', () => {
   });
 
   it('preserves activity validation and descending read order', async () => {
+    const invalidFund = await request(app).get('/api/activities?fundId=abc').expect(400);
+    expect(invalidFund.body).toMatchObject({
+      error: 'Invalid fund ID query',
+      message: 'fund ID must be a finite number',
+    });
+
     await storage.createActivity({
       type: 'update',
       title: 'Older activity',

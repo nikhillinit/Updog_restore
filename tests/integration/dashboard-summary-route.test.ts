@@ -21,4 +21,13 @@ describe('dashboard summary route', () => {
     expect(response.body).toHaveProperty('summary.totalCompanies');
     expect(response.body.summary.totalCompanies).toBeGreaterThanOrEqual(0);
   });
+
+  it('preserves the invalid-number contract for fund id parsing', async () => {
+    const response = await request(app).get('/api/dashboard-summary/abc').expect(400);
+
+    expect(response.body).toMatchObject({
+      error: 'Invalid fund ID',
+      message: 'fund ID must be a finite number',
+    });
+  });
 });

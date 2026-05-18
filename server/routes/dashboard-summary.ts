@@ -1,9 +1,10 @@
 import { Router } from 'express';
 import type { Request, Response } from 'express';
 import type { ApiError } from '@shared/types';
-import { NumberParseError, toNumber } from '@shared/number';
+import { toNumber } from '@shared/number';
 import { storage } from '../storage';
 import { getDashboardSummaryReadModel } from '../services/dashboard-summary-read-service';
+import { handleNumberParseError } from '../lib/number-parse-error';
 import { logger } from '../lib/logger.js';
 
 const router = Router();
@@ -33,12 +34,8 @@ router['get']('/dashboard-summary/:fundId', async (req: Request, res: Response) 
 
     return res.json(dashboardSummary);
   } catch (error) {
-    if (error instanceof NumberParseError) {
-      const apiError: ApiError = {
-        error: 'Invalid fund ID',
-        message: error.message,
-      };
-      return res.status(400).json(apiError);
+    if (handleNumberParseError(error, res, 'Invalid fund ID')) {
+      return;
     }
 
     log.error({ err: error, fundId: req.params['fundId'] }, 'Failed to fetch dashboard summary');

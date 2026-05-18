@@ -4,7 +4,7 @@ import { funds, fundConfigs, fundEvents, fundSnapshots } from '@schema';
 import { eq, and, desc, max } from 'drizzle-orm';
 import type { ApiError } from '@shared/types';
 import { Queue } from 'bullmq';
-import { toNumber, NumberParseError } from '@shared/number';
+import { toNumber } from '@shared/number';
 import { getQueueConnectionOptions, getQueueConfig } from '../config/features';
 import { registerQueueRuntime } from '../queues/registry';
 
@@ -51,6 +51,7 @@ function ensureProducerQueuesRegistered(): void {
 import { FundDraftWriteV1Schema } from '@shared/contracts/fund-draft-write-v1.contract';
 import { sendApiError } from '../lib/apiError';
 import { enforceProvidedFundScope } from '../lib/auth/provided-fund-scope';
+import { handleNumberParseError } from '../lib/number-parse-error';
 import idempotency from '../middleware/idempotency';
 import { omitEconomicsAssumptionsWhenDisabled } from '../services/economics-feature-gate';
 
@@ -74,12 +75,7 @@ async function getScopedFundId(req: Request, res: Response): Promise<number | nu
   try {
     fundId = toNumber(req.params['id'], 'fund ID', { integer: true, min: 1 });
   } catch (err) {
-    if (err instanceof NumberParseError) {
-      const error: ApiError = {
-        error: 'Invalid fund ID',
-        message: err.message,
-      };
-      res.status(400).json(error);
+    if (handleNumberParseError(err, res, 'Invalid fund ID')) {
       return null;
     }
     throw err;

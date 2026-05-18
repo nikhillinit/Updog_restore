@@ -83,6 +83,35 @@ function createErrorResponse(
   return response;
 }
 
+function respondNumberParseError(
+  res: Response,
+  error: unknown,
+  field?: string | undefined
+): boolean {
+  if (!(error instanceof NumberParseError)) {
+    return false;
+  }
+
+  res.status(400).json(createErrorResponse('INVALID_PARAMETER', error.message, field));
+  return true;
+}
+
+function respondObservedNumberParseError(
+  metricName: 'timeseries' | 'breakdown' | 'comparison',
+  res: Response,
+  error: unknown,
+  durationMs: number,
+  fundId: number
+): boolean {
+  if (!(error instanceof NumberParseError)) {
+    return false;
+  }
+
+  recordPerformanceRequest(metricName, 'GET', 400, durationMs, fundId);
+  recordError(metricName, 'number_parse_error');
+  return respondNumberParseError(res, error);
+}
+
 function parseListLimit(value: unknown, defaultLimit = 100, maxLimit = 200): number {
   const rawLimit = Number.parseInt(String(value ?? defaultLimit), 10);
   return Number.isInteger(rawLimit) && rawLimit > 0 ? Math.min(rawLimit, maxLimit) : defaultLimit;
@@ -145,10 +174,8 @@ router.get(
         count: rows.length,
       });
     } catch (error) {
-      if (error instanceof NumberParseError) {
-        return res
-          .status(400)
-          .json(createErrorResponse('INVALID_PARAMETER', error.message, 'fundId'));
+      if (respondNumberParseError(res, error, 'fundId')) {
+        return;
       }
 
       logger.error({ err: error, fundId }, 'fund metrics API error');
@@ -204,10 +231,8 @@ router.get(
         count: rows.length,
       });
     } catch (error) {
-      if (error instanceof NumberParseError) {
-        return res
-          .status(400)
-          .json(createErrorResponse('INVALID_PARAMETER', error.message, 'fundId'));
+      if (respondNumberParseError(res, error, 'fundId')) {
+        return;
       }
 
       logger.error({ err: error, fundId }, 'pacing history API error');
@@ -306,10 +331,8 @@ router.get(
     } catch (error) {
       const durationMs = endTimer();
 
-      if (error instanceof NumberParseError) {
-        recordPerformanceRequest('timeseries', 'GET', 400, durationMs, fundId);
-        recordError('timeseries', 'number_parse_error');
-        return res.status(400).json(createErrorResponse('INVALID_PARAMETER', error.message));
+      if (respondObservedNumberParseError('timeseries', res, error, durationMs, fundId)) {
+        return;
       }
 
       if (error instanceof z.ZodError) {
@@ -441,10 +464,8 @@ router.get(
     } catch (error) {
       const durationMs = endTimer();
 
-      if (error instanceof NumberParseError) {
-        recordPerformanceRequest('breakdown', 'GET', 400, durationMs, fundId);
-        recordError('breakdown', 'number_parse_error');
-        return res.status(400).json(createErrorResponse('INVALID_PARAMETER', error.message));
+      if (respondObservedNumberParseError('breakdown', res, error, durationMs, fundId)) {
+        return;
       }
 
       if (error instanceof z.ZodError) {
@@ -554,10 +575,8 @@ router.get(
     } catch (error) {
       const durationMs = endTimer();
 
-      if (error instanceof NumberParseError) {
-        recordPerformanceRequest('comparison', 'GET', 400, durationMs, fundId);
-        recordError('comparison', 'number_parse_error');
-        return res.status(400).json(createErrorResponse('INVALID_PARAMETER', error.message));
+      if (respondObservedNumberParseError('comparison', res, error, durationMs, fundId)) {
+        return;
       }
 
       if (error instanceof z.ZodError) {

@@ -2,8 +2,9 @@ import { Router } from 'express';
 import type { Request, Response } from 'express';
 import { insertInvestmentSchema } from '@shared/schema';
 import type { ApiError } from '@shared/types';
-import { NumberParseError, toNumber } from '@shared/number';
+import { toNumber } from '@shared/number';
 import { sendApiError } from '../lib/apiError';
+import { handleNumberParseError } from '../lib/number-parse-error';
 import { logger } from '../lib/logger.js';
 import { enforceProvidedFundScope } from '../lib/auth/provided-fund-scope';
 import { storage, UnsupportedStorageOperationError } from '../storage';
@@ -35,12 +36,8 @@ router['get']('/investments', async (req: Request, res: Response) => {
     const investments = await storage.getInvestments(fundId);
     return res.json(investments);
   } catch (error) {
-    if (error instanceof NumberParseError) {
-      const apiError: ApiError = {
-        error: 'Invalid fund ID query',
-        message: error.message,
-      };
-      return res.status(400).json(apiError);
+    if (handleNumberParseError(error, res, 'Invalid fund ID query')) {
+      return;
     }
 
     const apiError: ApiError = {
@@ -74,12 +71,8 @@ router['get']('/investments/:id', async (req: Request, res: Response) => {
     }
     return res.json(investment);
   } catch (error) {
-    if (error instanceof NumberParseError) {
-      const apiError: ApiError = {
-        error: 'Invalid investment ID',
-        message: error.message,
-      };
-      return res.status(400).json(apiError);
+    if (handleNumberParseError(error, res, 'Invalid investment ID')) {
+      return;
     }
 
     const apiError: ApiError = {
@@ -173,12 +166,8 @@ router.post('/investments/:id/rounds', async (req: Request, res: Response) => {
       storage.addInvestmentRound(investmentId, body)
     );
   } catch (error) {
-    if (error instanceof NumberParseError) {
-      const apiError: ApiError = {
-        error: 'Invalid investment ID',
-        message: error.message,
-      };
-      return res.status(400).json(apiError);
+    if (handleNumberParseError(error, res, 'Invalid investment ID')) {
+      return;
     }
 
     const apiError: ApiError = {
@@ -215,12 +204,8 @@ router.post('/investments/:id/cases', async (req: Request, res: Response) => {
       storage.addPerformanceCase(investmentId, body)
     );
   } catch (error) {
-    if (error instanceof NumberParseError) {
-      const apiError: ApiError = {
-        error: 'Invalid investment ID',
-        message: error.message,
-      };
-      return res.status(400).json(apiError);
+    if (handleNumberParseError(error, res, 'Invalid investment ID')) {
+      return;
     }
 
     const apiError: ApiError = {

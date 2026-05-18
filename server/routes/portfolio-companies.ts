@@ -3,9 +3,10 @@ import type { Request, Response } from 'express';
 import { insertPortfolioCompanySchema } from '@shared/schema';
 import { CompanySectorSchema, CompanyStageSchema } from '@shared/company-taxonomy';
 import type { ApiError } from '@shared/types';
-import { NumberParseError, toNumber } from '@shared/number';
+import { toNumber } from '@shared/number';
 import { ValidationError } from '../errors';
 import { enforceProvidedFundScope } from '../lib/auth/provided-fund-scope';
+import { handleNumberParseError } from '../lib/number-parse-error';
 import { portfolioTimeMachineReadService } from '../services/portfolio-time-machine-read';
 import { storage } from '../storage';
 
@@ -73,12 +74,8 @@ router['get']('/portfolio-companies', async (req: Request, res: Response) => {
     });
     return res.json(response);
   } catch (error) {
-    if (error instanceof NumberParseError) {
-      const apiError: ApiError = {
-        error: 'Invalid fund ID query',
-        message: error.message,
-      };
-      return res.status(400).json(apiError);
+    if (handleNumberParseError(error, res, 'Invalid fund ID query')) {
+      return;
     }
 
     if (error instanceof ValidationError) {
@@ -142,14 +139,14 @@ router['get']('/portfolio-companies/:id', async (req: Request, res: Response) =>
 
     return res.json(company);
   } catch (error) {
-    if (error instanceof NumberParseError) {
-      const apiError: ApiError = {
-        error: error.message.toLowerCase().includes('fund id')
+    if (
+      handleNumberParseError(error, res, (parseError) =>
+        parseError.message.toLowerCase().includes('fund id')
           ? 'Invalid fund ID query'
-          : 'Invalid company ID',
-        message: error.message,
-      };
-      return res.status(400).json(apiError);
+          : 'Invalid company ID'
+      )
+    ) {
+      return;
     }
 
     const apiError: ApiError = {

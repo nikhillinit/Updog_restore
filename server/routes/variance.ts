@@ -10,7 +10,7 @@ import type { Request, Response } from 'express';
 import { idempotency } from '../middleware/idempotency';
 import { varianceTrackingService } from '../services/variance-tracking';
 import { varianceAlertAutomationService } from '../services/variance-alert-automation';
-import { toNumber, NumberParseError } from '@shared/number';
+import { toNumber } from '@shared/number';
 import type { ApiError } from '@shared/types';
 import {
   AlertActionRequestSchema,
@@ -25,6 +25,7 @@ import {
 import { firstString, getUserId } from '../lib/request-values';
 import { enforceProvidedFundScope } from '../lib/auth/provided-fund-scope';
 import { getRouteErrorMessage } from '../lib/errorHandling';
+import { handleNumberParseError } from '../lib/number-parse-error';
 import {
   buildAlertCounts,
   toClientAlert,
@@ -83,12 +84,8 @@ router['post']('/api/funds/:id/baselines', idempotency, async (req: Request, res
     try {
       fundId = toNumber(req.params['id'], 'fund ID', { integer: true, min: 1 });
     } catch (err) {
-      if (err instanceof NumberParseError) {
-        const error: ApiError = {
-          error: 'Invalid fund ID',
-          message: err.message,
-        };
-        return res.status(400).json(error);
+      if (handleNumberParseError(err, res, 'Invalid fund ID')) {
+        return;
       }
       throw err;
     }
@@ -156,12 +153,8 @@ router['get']('/api/funds/:id/baselines', async (req: Request, res: Response) =>
     try {
       fundId = toNumber(req.params['id'], 'fund ID', { integer: true, min: 1 });
     } catch (err) {
-      if (err instanceof NumberParseError) {
-        const error: ApiError = {
-          error: 'Invalid fund ID',
-          message: err.message,
-        };
-        return res.status(400).json(error);
+      if (handleNumberParseError(err, res, 'Invalid fund ID')) {
+        return;
       }
       throw err;
     }
@@ -220,12 +213,8 @@ router['post'](
       try {
         fundId = toNumber(req.params['id'], 'fund ID', { integer: true, min: 1 });
       } catch (err) {
-        if (err instanceof NumberParseError) {
-          const error: ApiError = {
-            error: 'Invalid fund ID',
-            message: err.message,
-          };
-          return res.status(400).json(error);
+        if (handleNumberParseError(err, res, 'Invalid fund ID')) {
+          return;
         }
         throw err;
       }
@@ -318,12 +307,8 @@ router['post'](
       try {
         fundId = toNumber(req.params['id'], 'fund ID', { integer: true, min: 1 });
       } catch (err) {
-        if (err instanceof NumberParseError) {
-          const error: ApiError = {
-            error: 'Invalid fund ID',
-            message: err.message,
-          };
-          return res.status(400).json(error);
+        if (handleNumberParseError(err, res, 'Invalid fund ID')) {
+          return;
         }
         throw err;
       }
@@ -414,12 +399,8 @@ router['get']('/api/funds/:id/variance-reports', async (req: Request, res: Respo
     try {
       fundId = toNumber(req.params['id'], 'fund ID', { integer: true, min: 1 });
     } catch (err) {
-      if (err instanceof NumberParseError) {
-        const error: ApiError = {
-          error: 'Invalid fund ID',
-          message: err.message,
-        };
-        return res.status(400).json(error);
+      if (handleNumberParseError(err, res, 'Invalid fund ID')) {
+        return;
       }
       throw err;
     }
@@ -455,12 +436,8 @@ router['get']('/api/funds/:id/variance-reports/:reportId', async (req: Request, 
     try {
       fundId = toNumber(req.params['id'], 'fund ID', { integer: true, min: 1 });
     } catch (err) {
-      if (err instanceof NumberParseError) {
-        const error: ApiError = {
-          error: 'Invalid fund ID',
-          message: err.message,
-        };
-        return res.status(400).json(error);
+      if (handleNumberParseError(err, res, 'Invalid fund ID')) {
+        return;
       }
       throw err;
     }
@@ -512,12 +489,8 @@ router['post']('/api/funds/:id/alert-rules', async (req: Request, res: Response)
     try {
       fundId = toNumber(req.params['id'], 'fund ID', { integer: true, min: 1 });
     } catch (err) {
-      if (err instanceof NumberParseError) {
-        const error: ApiError = {
-          error: 'Invalid fund ID',
-          message: err.message,
-        };
-        return res.status(400).json(error);
+      if (handleNumberParseError(err, res, 'Invalid fund ID')) {
+        return;
       }
       throw err;
     }
@@ -588,12 +561,8 @@ router['get']('/api/funds/:id/alerts', async (req: Request, res: Response) => {
     try {
       fundId = toNumber(req.params['id'], 'fund ID', { integer: true, min: 1 });
     } catch (err) {
-      if (err instanceof NumberParseError) {
-        const error: ApiError = {
-          error: 'Invalid fund ID',
-          message: err.message,
-        };
-        return res.status(400).json(error);
+      if (handleNumberParseError(err, res, 'Invalid fund ID')) {
+        return;
       }
       throw err;
     }
@@ -751,12 +720,8 @@ router['post']('/api/funds/:id/alerts/cleanup-superseded', async (req: Request, 
     try {
       fundId = toNumber(req.params['id'], 'fund ID', { integer: true, min: 1 });
     } catch (err) {
-      if (err instanceof NumberParseError) {
-        const error: ApiError = {
-          error: 'Invalid fund ID',
-          message: err.message,
-        };
-        return res.status(400).json(error);
+      if (handleNumberParseError(err, res, 'Invalid fund ID')) {
+        return;
       }
       throw err;
     }
@@ -810,12 +775,8 @@ router['post'](
       try {
         fundId = toNumber(req.params['id'], 'fund ID', { integer: true, min: 1 });
       } catch (err) {
-        if (err instanceof NumberParseError) {
-          const error: ApiError = {
-            error: 'Invalid fund ID',
-            message: err.message,
-          };
-          return res.status(400).json(error);
+        if (handleNumberParseError(err, res, 'Invalid fund ID')) {
+          return;
         }
         throw err;
       }
@@ -894,12 +855,8 @@ router['get']('/api/funds/:id/variance-dashboard', async (req: Request, res: Res
     try {
       fundId = toNumber(req.params['id'], 'fund ID', { integer: true, min: 1 });
     } catch (err) {
-      if (err instanceof NumberParseError) {
-        const error: ApiError = {
-          error: 'Invalid fund ID',
-          message: err.message,
-        };
-        return res.status(400).json(error);
+      if (handleNumberParseError(err, res, 'Invalid fund ID')) {
+        return;
       }
       throw err;
     }
