@@ -54,7 +54,43 @@ import { enforceProvidedFundScope } from '../lib/auth/provided-fund-scope';
 import idempotency from '../middleware/idempotency';
 import { omitEconomicsAssumptionsWhenDisabled } from '../services/economics-feature-gate';
 
-type RequestWithOptionalUser = Request & { user?: { id?: string } };
+function numericIdentity(value: unknown): number | undefined {
+  if (typeof value === 'number' && Number.isInteger(value) && value > 0) {
+    return value;
+  }
+  if (typeof value === 'string' && /^[1-9]\d*$/.test(value)) {
+    return Number.parseInt(value, 10);
+  }
+  return undefined;
+}
+
+function optionalNumericUserId(req: Request): number | undefined {
+  const user = req.user as (Express.User & { userId?: unknown }) | undefined;
+  return numericIdentity(user?.userId) ?? numericIdentity(user?.id) ?? numericIdentity(user?.sub);
+}
+
+async function getScopedFundId(req: Request, res: Response): Promise<number | null> {
+  let fundId: number;
+  try {
+    fundId = toNumber(req.params['id'], 'fund ID', { integer: true, min: 1 });
+  } catch (err) {
+    if (err instanceof NumberParseError) {
+      const error: ApiError = {
+        error: 'Invalid fund ID',
+        message: err.message,
+      };
+      res.status(400).json(error);
+      return null;
+    }
+    throw err;
+  }
+
+  if (!(await enforceProvidedFundScope(req, res, fundId))) {
+    return null;
+  }
+
+  return fundId;
+}
 
 export function registerFundConfigRoutes(app: Express) {
   ensureProducerQueuesRegistered();
@@ -109,21 +145,8 @@ export function registerFundConfigRoutes(app: Express) {
   // Save draft configuration (upsert: UPDATE if draft exists, INSERT if not)
   app.put('/api/funds/:id/draft', async (req: Request, res: Response) => {
     try {
-      let fundId: number;
-      try {
-        fundId = toNumber(req.params['id'], 'fund ID', { integer: true, min: 1 });
-      } catch (err) {
-        if (err instanceof NumberParseError) {
-          const error: ApiError = {
-            error: 'Invalid fund ID',
-            message: err.message,
-          };
-          return res.status(400).json(error);
-        }
-        throw err;
-      }
-
-      if (!(await enforceProvidedFundScope(req, res, fundId))) {
+      const fundId = await getScopedFundId(req, res);
+      if (fundId === null) {
         return;
       }
 
@@ -245,21 +268,8 @@ export function registerFundConfigRoutes(app: Express) {
   // Get latest draft
   app['get']('/api/funds/:id/draft', async (req: Request, res: Response) => {
     try {
-      let fundId: number;
-      try {
-        fundId = toNumber(req.params['id'], 'fund ID', { integer: true, min: 1 });
-      } catch (err) {
-        if (err instanceof NumberParseError) {
-          const error: ApiError = {
-            error: 'Invalid fund ID',
-            message: err.message,
-          };
-          return res.status(400).json(error);
-        }
-        throw err;
-      }
-
-      if (!(await enforceProvidedFundScope(req, res, fundId))) {
+      const fundId = await getScopedFundId(req, res);
+      if (fundId === null) {
         return;
       }
 
@@ -291,22 +301,12 @@ export function registerFundConfigRoutes(app: Express) {
   // Publish configuration (delegates to FundPersistenceService)
   app.post('/api/funds/:id/publish', async (req: Request, res: Response) => {
     try {
-      let fundId: number;
-      try {
-        fundId = toNumber(req.params['id'], 'fund ID', { integer: true, min: 1 });
-      } catch (err) {
-        if (err instanceof NumberParseError) {
-          const error: ApiError = {
-            error: 'Invalid fund ID',
-            message: err.message,
-          };
-          return res.status(400).json(error);
-        }
-        throw err;
+      const fundId = await getScopedFundId(req, res);
+      if (fundId === null) {
+        return;
       }
 
-      const currentUserId = (req as RequestWithOptionalUser).user?.id;
-      const userId = currentUserId ? parseInt(currentUserId, 10) : undefined;
+      const userId = optionalNumericUserId(req);
 
       const { fundPersistenceService } = await import('../services/fund-persistence-service');
       const result = await fundPersistenceService.publishDraft(
@@ -343,22 +343,12 @@ export function registerFundConfigRoutes(app: Express) {
   // Recalculate published configuration
   app.post('/api/funds/:id/recalculate', async (req: Request, res: Response) => {
     try {
-      let fundId: number;
-      try {
-        fundId = toNumber(req.params['id'], 'fund ID', { integer: true, min: 1 });
-      } catch (err) {
-        if (err instanceof NumberParseError) {
-          const error: ApiError = {
-            error: 'Invalid fund ID',
-            message: err.message,
-          };
-          return res.status(400).json(error);
-        }
-        throw err;
+      const fundId = await getScopedFundId(req, res);
+      if (fundId === null) {
+        return;
       }
 
-      const currentUserId = (req as RequestWithOptionalUser).user?.id;
-      const userId = currentUserId ? parseInt(currentUserId, 10) : undefined;
+      const userId = optionalNumericUserId(req);
 
       const { fundPersistenceService } = await import('../services/fund-persistence-service');
 
@@ -401,18 +391,9 @@ export function registerFundConfigRoutes(app: Express) {
   // Get fund reserves (from snapshots)
   app['get']('/api/funds/:id/reserves', async (req: Request, res: Response) => {
     try {
-      let fundId: number;
-      try {
-        fundId = toNumber(req.params['id'], 'fund ID', { integer: true, min: 1 });
-      } catch (err) {
-        if (err instanceof NumberParseError) {
-          const error: ApiError = {
-            error: 'Invalid fund ID',
-            message: err.message,
-          };
-          return res.status(400).json(error);
-        }
-        throw err;
+      const fundId = await getScopedFundId(req, res);
+      if (fundId === null) {
+        return;
       }
 
       const [snapshot] = await db
@@ -454,18 +435,9 @@ export function registerFundConfigRoutes(app: Express) {
   // Get fund lifecycle state (two-axis: config + calculation)
   app['get']('/api/funds/:id/state', async (req: Request, res: Response) => {
     try {
-      let fundId: number;
-      try {
-        fundId = toNumber(req.params['id'], 'fund ID', { integer: true, min: 1 });
-      } catch (err) {
-        if (err instanceof NumberParseError) {
-          const error: ApiError = {
-            error: 'Invalid fund ID',
-            message: err.message,
-          };
-          return res.status(400).json(error);
-        }
-        throw err;
+      const fundId = await getScopedFundId(req, res);
+      if (fundId === null) {
+        return;
       }
 
       const { fundStateReadService } = await import('../services/fund-state-read-service');
@@ -491,14 +463,15 @@ export function registerFundConfigRoutes(app: Express) {
   });
 
   // GET /api/funds/:id/results -- Phase 3 results read model
-  app.get('/api/funds/:id/results', async (req, res) => {
-    const idParam = Number(req.params['id']);
-    if (!Number.isFinite(idParam) || idParam <= 0 || !Number.isInteger(idParam)) {
-      return res.status(400).json({ error: 'Invalid fund ID' });
-    }
+  app.get('/api/funds/:id/results', async (req: Request, res: Response) => {
     try {
+      const fundId = await getScopedFundId(req, res);
+      if (fundId === null) {
+        return;
+      }
+
       const { fundResultsReadService } = await import('../services/fund-results-read-service');
-      const results = await fundResultsReadService.getResults(idParam);
+      const results = await fundResultsReadService.getResults(fundId);
       if (!results) {
         return res.status(404).json({ error: 'Fund not found' });
       }
@@ -512,18 +485,9 @@ export function registerFundConfigRoutes(app: Express) {
   // GET /api/funds/:id/lifecycle-history -- M6 lifecycle history read model
   app['get']('/api/funds/:id/lifecycle-history', async (req: Request, res: Response) => {
     try {
-      let fundId: number;
-      try {
-        fundId = toNumber(req.params['id'], 'fund ID', { integer: true, min: 1 });
-      } catch (err) {
-        if (err instanceof NumberParseError) {
-          const error: ApiError = {
-            error: 'Invalid fund ID',
-            message: err.message,
-          };
-          return res.status(400).json(error);
-        }
-        throw err;
+      const fundId = await getScopedFundId(req, res);
+      if (fundId === null) {
+        return;
       }
 
       const { fundLifecycleHistoryService } =
@@ -555,18 +519,9 @@ export function registerFundConfigRoutes(app: Express) {
   // rollout or generic forecasting API expansion.
   app['get']('/api/funds/:id/results-comparison', async (req: Request, res: Response) => {
     try {
-      let fundId: number;
-      try {
-        fundId = toNumber(req.params['id'], 'fund ID', { integer: true, min: 1 });
-      } catch (err) {
-        if (err instanceof NumberParseError) {
-          const error: ApiError = {
-            error: 'Invalid fund ID',
-            message: err.message,
-          };
-          return res.status(400).json(error);
-        }
-        throw err;
+      const fundId = await getScopedFundId(req, res);
+      if (fundId === null) {
+        return;
       }
 
       const { fundResultsComparisonService } =
