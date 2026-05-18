@@ -42,7 +42,8 @@ export function bankersRoundPositive(x: number): number {
  */
 export function bankersRoundSymmetric(x: number): number {
   if (x === 0) return 0;
-  return Math.sign(x) * bankersRoundPositive(Math.abs(x));
+  const roundedMagnitude = bankersRoundPositive(Math.abs(x));
+  return roundedMagnitude === 0 ? 0 : Math.sign(x) * roundedMagnitude;
 }
 
 /**

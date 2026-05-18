@@ -17,9 +17,9 @@ import {
   checkAllInvariants,
   calculateExpectedReserveIndependently,
   calculateExpectedAllocationIndependently,
-} from '../invariants';
-import { adaptTruthCaseInput } from '../adapter';
-import { executeCapitalAllocation } from '../CapitalAllocationEngine';
+} from '@shared/core/capitalAllocation/invariants';
+import { adaptTruthCaseInput } from '@shared/core/capitalAllocation/adapter';
+import { executeCapitalAllocation } from '@shared/core/capitalAllocation/CapitalAllocationEngine';
 
 describe('Conservation Invariants', () => {
   describe('Independently-Derivable Tests (MANDATORY)', () => {
@@ -192,10 +192,7 @@ describe('Conservation Invariants', () => {
       const result = executeCapitalAllocation(input);
 
       // Manually sum allocations from array
-      const sumFromArray = result.allocations_by_cohort.reduce(
-        (sum, c) => sum + c.amount,
-        0
-      );
+      const sumFromArray = result.allocations_by_cohort.reduce((sum, c) => sum + c.amount, 0);
 
       // Verify this matches what engine allocated
       const allocable = 60 - 10; // ending_cash - reserve

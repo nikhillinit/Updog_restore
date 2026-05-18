@@ -121,6 +121,24 @@ describe('performance API observability', () => {
   it.each([
     [
       '/api/funds/1/performance/timeseries?startDate=2024-01-01&endDate=2024-12-31&granularity=monthly',
+      'timeseries',
+    ],
+    ['/api/funds/1/performance/breakdown?groupBy=sector', 'breakdown'],
+    ['/api/funds/1/performance/comparison?dates=2024-03-31,2024-06-30', 'comparisons'],
+  ])('returns the raw mounted analytics contract for %s', async (path, payloadKey) => {
+    const response = await request(app).get(path);
+    const body = response.body as Record<string, unknown>;
+
+    expect(response.status).toBe(200);
+    expect(body).toHaveProperty(payloadKey);
+    expect(body).toHaveProperty('meta');
+    expect(body).not.toHaveProperty('success');
+    expect(body).not.toHaveProperty('data');
+  });
+
+  it.each([
+    [
+      '/api/funds/1/performance/timeseries?startDate=2024-01-01&endDate=2024-12-31&granularity=monthly',
       'Performance timeseries API error',
       () => calculateTimeseriesMock.mockRejectedValueOnce(new Error('timeseries failed')),
     ],

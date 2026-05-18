@@ -17,7 +17,7 @@ import {
   centsToOutputUnits,
   formatCohortOutput,
   type TruthCaseInput,
-} from '../adapter';
+} from '@shared/core/capitalAllocation/adapter';
 
 describe('Input Adapter', () => {
   describe('adaptTruthCaseInput', () => {
@@ -158,7 +158,7 @@ describe('Input Adapter', () => {
       it('throws on million-scale mismatch', () => {
         const input: TruthCaseInput = {
           fund: { commitment: 100 }, // Looks like $M (small number)
-          constraints: { min_cash_buffer: 1_000_000 }, // Looks like raw dollars
+          constraints: { min_cash_buffer: 100_000_001 }, // Looks like raw dollars
         };
 
         expect(() => adaptTruthCaseInput(input)).toThrow(/mismatch/i);

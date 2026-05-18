@@ -14,9 +14,9 @@ import {
   dollarsToCents,
   centsToDollars,
   roundPercentDerivedToCents,
-} from '../rounding';
+} from '@shared/core/capitalAllocation/rounding';
 
-describe('Banker\'s Rounding', () => {
+describe("Banker's Rounding", () => {
   describe('bankersRoundSymmetric - Locked Test Vectors', () => {
     // These 6 test vectors are LOCKED per CA-SEMANTIC-LOCK.md Section 4.1
     // DO NOT MODIFY without updating the semantic lock
@@ -105,11 +105,11 @@ describe('Banker\'s Rounding', () => {
     });
 
     it('converts dollars with cents', () => {
-      expect(dollarsToCents(100.50)).toBe(10050);
+      expect(dollarsToCents(100.5)).toBe(10050);
       expect(dollarsToCents(100.99)).toBe(10099);
     });
 
-    it('applies banker\'s rounding at half-cent', () => {
+    it("applies banker's rounding at half-cent", () => {
       // $100.005 = 10000.5 cents → rounds to 10000 (even)
       expect(dollarsToCents(100.005)).toBe(10000);
       // $100.015 = 10001.5 cents → rounds to 10002 (even)
@@ -118,7 +118,7 @@ describe('Banker\'s Rounding', () => {
 
     it('handles negative amounts (CA-019 recalls)', () => {
       expect(dollarsToCents(-100)).toBe(-10000);
-      expect(dollarsToCents(-100.50)).toBe(-10050);
+      expect(dollarsToCents(-100.5)).toBe(-10050);
     });
 
     it('handles zero', () => {
@@ -147,7 +147,7 @@ describe('Banker\'s Rounding', () => {
       expect(roundPercentDerivedToCents(targetReserveCents)).toBe(2000000000);
     });
 
-    it('applies banker\'s rounding to fractional cent results', () => {
+    it("applies banker's rounding to fractional cent results", () => {
       // If calculation yields 1000000.5 cents → rounds to 1000000 (even)
       expect(roundPercentDerivedToCents(1000000.5)).toBe(1000000);
       // If calculation yields 1000001.5 cents → rounds to 1000002 (even)

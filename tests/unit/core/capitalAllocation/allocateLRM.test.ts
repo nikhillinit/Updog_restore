@@ -14,7 +14,7 @@ import {
   allocateLRM,
   allocateFromDecimalWeights,
   verifyCA018,
-} from '../allocateLRM';
+} from '@shared/core/capitalAllocation/allocateLRM';
 
 describe('Largest Remainder Method (LRM)', () => {
   describe('normalizeWeightsToBps', () => {

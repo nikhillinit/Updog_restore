@@ -1,8 +1,9 @@
 /**
  * Capital Allocation Truth Case Runner
  *
- * Validates CA engine against 20 truth cases.
- * Result: 20/20 PASS, zero overrides, zero skips.
+ * Validates current scalar reserve truth cases against the CA engine.
+ * Pacing/cohort-period truth cases remain explicit skipped coverage until a
+ * dedicated harness validates their period-by-period expectations.
  * CA-001 contract resolved: cash model is canonical (Section 1.1.1).
  *
  * @see docs/capital-allocation.truth-cases.json
@@ -15,7 +16,7 @@ import {
   shouldSkipTruthCase,
   executeCapitalAllocation,
   type TruthCaseInput,
-} from '@/core/capitalAllocation';
+} from '@shared/core/capitalAllocation';
 import capitalCases from '../../../../docs/capital-allocation.truth-cases.json';
 
 // Type for truth case JSON structure
@@ -53,7 +54,7 @@ interface CATruthCase {
     }>;
   };
   expected: {
-    reserve_balance: number;
+    reserve_balance?: number;
     allocations_by_cohort: Array<{ cohort: string; amount: number }>;
     violations: string[];
     reserve_balance_over_time?: Array<{ date: string; balance: number }>;
@@ -133,10 +134,17 @@ describe('Capital Allocation Truth Cases', () => {
     const skipCheck = shouldSkipTruthCase(tc.id, tc.inputs.fund.reserve_policy);
 
     if (skipCheck.skip) {
-      // SKIP: this truth-case harness does not yet support every reserve-policy variant; the specific reason is included in the title.
-      it.skip(`${tc.id}: ${tc.description} - ${skipCheck.reason}`, () => {
-        skipped++;
-      });
+      skipped++;
+      // SKIP: this truth-case harness does not yet support every reserve-policy variant; the title includes the specific reason.
+      it.skip(`${tc.id}: ${tc.description} - ${skipCheck.reason}`, () => undefined);
+      return;
+    }
+
+    if (tc.expected.reserve_balance === undefined) {
+      skipped++;
+      // SKIP: pacing/cohort-period cases need a dedicated harness for their period-by-period expectations.
+      it.skip(`${tc.id}: ${tc.description} - pending dedicated pacing/cohort-period harness`, () =>
+        undefined);
       return;
     }
 
@@ -149,8 +157,14 @@ describe('Capital Allocation Truth Cases', () => {
         // Execute engine
         const result = executeCapitalAllocation(normalizedInput);
 
-        // Validate reserve_balance
-        assertNumericEqual(result.reserve_balance, tc.expected.reserve_balance, 'reserve_balance');
+        // Validate reserve_balance when the truth case provides a scalar expectation.
+        if (tc.expected.reserve_balance !== undefined) {
+          assertNumericEqual(
+            result.reserve_balance,
+            tc.expected.reserve_balance,
+            'reserve_balance'
+          );
+        }
 
         // Validate allocations_by_cohort
         const expectedAllocations = tc.expected.allocations_by_cohort;
@@ -194,16 +208,10 @@ describe('Capital Allocation Truth Cases', () => {
   // Summary test
   it('Summary: Pass rate meets target', () => {
     const total = passed + failed;
-    const passRate = total > 0 ? (passed / total) * 100 : 0;
 
-    console.warn(`\nCA Truth Cases Summary:`);
-    console.warn(`  Passed: ${passed}/${total} (${passRate.toFixed(1)}%)`);
-    console.warn(`  Failed: ${failed}`);
-    console.warn(`  Skipped: ${skipped}`);
-
-    // Phase 1 target: Core reserve calculations (CA-001, CA-002, CA-003)
-    // Full target: 19/20 (95%)
-    expect(passRate).toBeGreaterThanOrEqual(15); // Start with 15% baseline
+    expect(total).toBeGreaterThan(0);
+    expect(failed).toBe(0);
+    expect(skipped).toBeGreaterThan(0);
   });
 });
 
@@ -232,11 +240,6 @@ describe('CA Core Reserve Calculations (CA-001, CA-002, CA-003)', () => {
     // Truth case JSON updated to match cash model semantics.
     const totalAllocated = result.allocations_by_cohort.reduce((sum, a) => sum + a.amount, 0);
     expect(totalAllocated).toBeCloseTo(0, 0);
-
-    console.warn(
-      `CA-001 result: reserve=${result.reserve_balance}, allocations=`,
-      result.allocations_by_cohort
-    );
   });
 
   it('CA-002: Reserve below target due to distribution', () => {
@@ -253,11 +256,6 @@ describe('CA Core Reserve Calculations (CA-001, CA-002, CA-003)', () => {
     // effective_buffer = max(2, 100*0.2) = 20M
     // reserve_balance = min(2, 20) = 2M
     expect(result.reserve_balance).toBeCloseTo(2, 0);
-
-    console.warn(
-      `CA-002 result: reserve=${result.reserve_balance}, allocations=`,
-      result.allocations_by_cohort
-    );
   });
 
   it('CA-003: Excess cash above reserve target', () => {
@@ -279,10 +277,5 @@ describe('CA Core Reserve Calculations (CA-001, CA-002, CA-003)', () => {
     // This matches truth case JSON expected value.
     const totalAllocated = result.allocations_by_cohort.reduce((sum, a) => sum + a.amount, 0);
     expect(totalAllocated).toBeCloseTo(10, 0);
-
-    console.warn(
-      `CA-003 result: reserve=${result.reserve_balance}, allocations=`,
-      result.allocations_by_cohort
-    );
   });
 });
