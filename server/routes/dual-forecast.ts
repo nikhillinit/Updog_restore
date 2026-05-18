@@ -2,8 +2,9 @@ import { Router } from 'express';
 import type { NextFunction, Request, Response } from 'express';
 import { metricsAggregator } from '../services/metrics-aggregator';
 import type { MetricsCalculationError } from '@shared/types/metrics';
-import { NumberParseError, toNumber } from '@shared/number';
+import { toNumber } from '@shared/number';
 import { requireAuth, requireFundAccess } from '../lib/auth/jwt';
+import { handleNumberParseError } from '../lib/number-parse-error';
 
 const router = Router();
 
@@ -12,11 +13,8 @@ function validateFundIdParam(req: Request, res: Response, next: NextFunction) {
     toNumber(req.params['fundId'], 'fundId', { integer: true, min: 1 });
     next();
   } catch (error) {
-    if (error instanceof NumberParseError) {
-      return res.status(400).json({
-        error: 'Invalid parameter',
-        message: error.message,
-      });
+    if (handleNumberParseError(error, res, 'Invalid parameter')) {
+      return;
     }
 
     throw error;
@@ -41,11 +39,8 @@ router['get'](
     } catch (error) {
       console.error('Dual forecast API error:', error);
 
-      if (error instanceof NumberParseError) {
-        return res.status(400).json({
-          error: 'Invalid parameter',
-          message: error.message,
-        });
+      if (handleNumberParseError(error, res, 'Invalid parameter')) {
+        return;
       }
 
       if (isMetricsCalculationError(error)) {

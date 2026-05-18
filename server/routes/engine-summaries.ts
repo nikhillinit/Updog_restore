@@ -6,7 +6,7 @@ import { fileURLToPath } from 'url';
 import { generateReserveSummary } from '@shared/core/reserves/ReserveEngine';
 import { generatePacingSummary } from '@shared/core/pacing/PacingEngine';
 import { generateCohortSummary } from '@shared/core/cohorts/CohortEngine';
-import { NumberParseError, toNumber } from '@shared/number';
+import { toNumber } from '@shared/number';
 import type {
   ApiError,
   ReserveCompanyInput,
@@ -16,6 +16,7 @@ import type {
   CohortInput,
   CohortSummary,
 } from '@shared/types';
+import { handleNumberParseError } from '../lib/number-parse-error';
 import { logger } from '../lib/logger.js';
 import { getConfig } from '../config/index.js';
 
@@ -75,12 +76,8 @@ router['get']('/reserves/:fundId', async (req: Request, res: Response) => {
     const summary: ReserveSummary = generateReserveSummary(fundId, portfolio);
     return res.json(summary);
   } catch (error) {
-    if (error instanceof NumberParseError) {
-      const apiError: ApiError = {
-        error: 'Invalid fund ID',
-        message: error.message,
-      };
-      return res.status(400).json(apiError);
+    if (handleNumberParseError(error, res, 'Invalid fund ID')) {
+      return;
     }
 
     if (error instanceof Error && error.message === 'Invalid portfolio fixture format') {
@@ -131,12 +128,8 @@ router['get']('/pacing/summary', async (req: Request, res: Response) => {
     const summary: PacingSummary = generatePacingSummary(pacingInput);
     return res.json(summary);
   } catch (error) {
-    if (error instanceof NumberParseError) {
-      const apiError: ApiError = {
-        error: 'Invalid pacing query',
-        message: error.message,
-      };
-      return res.status(400).json(apiError);
+    if (handleNumberParseError(error, res, 'Invalid pacing query')) {
+      return;
     }
 
     log.error(
@@ -211,12 +204,8 @@ router['get']('/cohorts/analysis', async (req: Request, res: Response) => {
     const summary: CohortSummary = generateCohortSummary(cohortInput);
     return res.json(summary);
   } catch (error) {
-    if (error instanceof NumberParseError) {
-      const apiError: ApiError = {
-        error: 'Invalid cohort query',
-        message: error.message,
-      };
-      return res.status(400).json(apiError);
+    if (handleNumberParseError(error, res, 'Invalid cohort query')) {
+      return;
     }
 
     log.error(

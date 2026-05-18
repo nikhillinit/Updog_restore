@@ -13,7 +13,7 @@ import Decimal from '@shared/lib/decimal-config';
  * Create a Decimal from any numeric value
  * Convenience wrapper to ensure consistent construction
  */
-export const d = (n: Decimal.Value): Decimal => new Decimal(n);
+const toDecimal = (n: Decimal.Value): Decimal => new Decimal(n);
 
 /**
  * Round a Decimal to a specific number of decimal places
@@ -23,7 +23,7 @@ export const d = (n: Decimal.Value): Decimal => new Decimal(n);
  * @returns Rounded Decimal
  */
 export const roundP = (n: Decimal.Value, places = 6): Decimal =>
-  d(n).toDecimalPlaces(places, Decimal.ROUND_HALF_UP);
+  toDecimal(n).toDecimalPlaces(places, Decimal.ROUND_HALF_UP);
 
 /**
  * Per-metric rounding precision standards
@@ -129,11 +129,11 @@ export function formatMetric(
  * @returns Result or null if invalid
  */
 export function safeDivide(numerator: Decimal.Value, denominator: Decimal.Value): Decimal | null {
-  const denom = d(denominator);
+  const denom = toDecimal(denominator);
   if (denom.isZero()) {
     return null;
   }
-  const result = d(numerator).div(denom);
+  const result = toDecimal(numerator).div(denom);
   if (!result.isFinite()) {
     return null;
   }
@@ -148,20 +148,20 @@ export function safeDivide(numerator: Decimal.Value, denominator: Decimal.Value)
  * @returns Percentage change (e.g., 0.15 for 15% increase)
  */
 export function percentageChange(oldValue: Decimal.Value, newValue: Decimal.Value): Decimal | null {
-  const old = d(oldValue);
+  const old = toDecimal(oldValue);
   if (old.isZero()) {
     return null; // Can't calculate % change from zero
   }
-  return d(newValue).minus(old).div(old);
+  return toDecimal(newValue).minus(old).div(old);
 }
 
 /**
  * Clamp a value between min and max
  */
 export function clamp(value: Decimal.Value, min: Decimal.Value, max: Decimal.Value): Decimal {
-  const v = d(value);
-  const minD = d(min);
-  const maxD = d(max);
+  const v = toDecimal(value);
+  const minD = toDecimal(min);
+  const maxD = toDecimal(max);
   if (v.lt(minD)) return minD;
   if (v.gt(maxD)) return maxD;
   return v;
@@ -171,7 +171,7 @@ export function clamp(value: Decimal.Value, min: Decimal.Value, max: Decimal.Val
  * Sum an array of Decimal values
  */
 export function sum(values: Decimal.Value[]): Decimal {
-  return values.reduce((acc: Decimal, v) => acc.plus(d(v)), d(0));
+  return values.reduce((acc: Decimal, v) => acc.plus(toDecimal(v)), toDecimal(0));
 }
 
 /**

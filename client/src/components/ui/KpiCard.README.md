@@ -1,11 +1,14 @@
 # KpiCard Component
 
-A financial metric display component built with Press On Ventures brand styling for displaying KPIs with labels, values, deltas, and intent indicators.
+A financial metric display component built with Press On Ventures brand styling
+for displaying KPIs with labels, values, deltas, and intent indicators.
 
 ## Features
 
-- **Press On Ventures Brand Colors**: Uses charcoal (#292929) and beige (#E0D8D1) from the theme
-- **Intent-based Styling**: Positive, negative, and neutral color indicators for deltas
+- **Press On Ventures Brand Colors**: Uses charcoal (#292929) and beige
+  (#E0D8D1) from the theme
+- **Intent-based Styling**: Positive, negative, and neutral color indicators for
+  deltas
 - **Tabular Numbers**: Proper numeric alignment with `tabular-nums` class
 - **Responsive Design**: Works seamlessly in grid layouts
 - **Hover Effects**: Elevated shadow on hover for better interaction feedback
@@ -24,24 +27,14 @@ The component is located at: `client/src/components/ui/KpiCard.tsx`
 import { KpiCard } from '@/components/ui/KpiCard';
 
 export function Dashboard() {
-  return (
-    <KpiCard
-      label="Net IRR"
-      value="24.5%"
-    />
-  );
+  return <KpiCard label="Net IRR" value="24.5%" />;
 }
 ```
 
 ### With Delta and Intent
 
 ```tsx
-<KpiCard
-  label="Net IRR"
-  value="24.5%"
-  delta="+2.1%"
-  intent="positive"
-/>
+<KpiCard label="Net IRR" value="24.5%" delta="+2.1%" intent="positive" />
 ```
 
 ### Grid Layout Example
@@ -52,10 +45,7 @@ import { KpiCard } from '@/components/ui/KpiCard';
 export function MetricsDashboard() {
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-      <KpiCard
-        label="Total Fund Size"
-        value="$100M"
-      />
+      <KpiCard label="Total Fund Size" value="$100M" />
       <KpiCard
         label="Deployed Capital"
         value="$65.2M"
@@ -101,10 +91,7 @@ export function FormattedMetrics() {
 
   return (
     <div className="grid grid-cols-2 gap-6">
-      <KpiCard
-        label="Total Fund Size"
-        value={formatCurrency(fundSize)}
-      />
+      <KpiCard label="Total Fund Size" value={formatCurrency(fundSize)} />
       <KpiCard
         label="Deployed Capital"
         value={formatCurrency(deployedCapital)}
@@ -118,13 +105,13 @@ export function FormattedMetrics() {
 
 ## Props
 
-| Prop | Type | Required | Default | Description |
-|------|------|----------|---------|-------------|
-| `label` | `string` | Yes | - | The metric label displayed above the value |
-| `value` | `string` | Yes | - | The formatted metric value (format externally) |
-| `delta` | `string` | No | - | Change indicator (e.g., "+2.3%" or "-5%") |
-| `intent` | `'positive' \| 'negative' \| 'neutral'` | No | `'neutral'` | Determines the color of the delta |
-| `className` | `string` | No | - | Additional CSS classes for custom styling |
+| Prop        | Type                                    | Required | Default     | Description                                    |
+| ----------- | --------------------------------------- | -------- | ----------- | ---------------------------------------------- |
+| `label`     | `string`                                | Yes      | -           | The metric label displayed above the value     |
+| `value`     | `string`                                | Yes      | -           | The formatted metric value (format externally) |
+| `delta`     | `string`                                | No       | -           | Change indicator (e.g., "+2.3%" or "-5%")      |
+| `intent`    | `'positive' \| 'negative' \| 'neutral'` | No       | `'neutral'` | Determines the color of the delta              |
+| `className` | `string`                                | No       | -           | Additional CSS classes for custom styling      |
 
 ## Intent Colors
 
@@ -166,13 +153,15 @@ You can add custom styles via the `className` prop:
 The component works well in responsive grid layouts:
 
 ```tsx
-{/* 1 column on mobile, 2 on tablet, 4 on desktop */}
+{
+  /* 1 column on mobile, 2 on tablet, 4 on desktop */
+}
 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
   <KpiCard label="Metric 1" value="100" />
   <KpiCard label="Metric 2" value="200" />
   <KpiCard label="Metric 3" value="300" />
   <KpiCard label="Metric 4" value="400" />
-</div>
+</div>;
 ```
 
 ## Design System Integration
@@ -200,7 +189,8 @@ The KpiCard component follows the Press On Ventures design system:
 
 ## Examples
 
-See `KpiCard.example.tsx` for comprehensive usage examples including:
+Use `client/src/pages/admin/ui-catalog.tsx` for maintained live examples. The
+snippets above cover:
 
 - Basic usage
 - Positive/negative/neutral intents
@@ -215,11 +205,7 @@ The component supports ref forwarding for advanced use cases:
 ```tsx
 const cardRef = useRef<HTMLDivElement>(null);
 
-<KpiCard
-  ref={cardRef}
-  label="Test"
-  value="100"
-/>
+<KpiCard ref={cardRef} label="Test" value="100" />;
 ```
 
 ## Testing
@@ -227,6 +213,7 @@ const cardRef = useRef<HTMLDivElement>(null);
 Test file location: `tests/unit/components/ui/KpiCard.test.tsx`
 
 The test suite covers:
+
 - Basic rendering
 - Delta and intent styling
 - Brand color compliance
@@ -237,40 +224,46 @@ The test suite covers:
 
 ## Best Practices
 
-1. **Pre-format values**: Format numbers/currency before passing to the component
+1. **Pre-format values**: Format numbers/currency before passing to the
+   component
+
    ```tsx
-   // ✅ Good
+   // Good
    <KpiCard value={formatCurrency(100000000)} />
 
-   // ❌ Bad
+   // Bad
    <KpiCard value={100000000} />
    ```
 
 2. **Use semantic intents**: Match intent to the meaning of the metric
+
    ```tsx
-   // ✅ Good - Loss is negative
+   // Good - Loss is negative
    <KpiCard label="Unrealized Loss" value="$2M" delta="-5%" intent="negative" />
 
-   // ❌ Bad - Confusing intent
+   // Bad - Confusing intent
    <KpiCard label="Unrealized Loss" value="$2M" delta="-5%" intent="positive" />
    ```
 
 3. **Keep labels concise**: Short, clear labels work best
+
    ```tsx
-   // ✅ Good
+   // Good
    <KpiCard label="Net IRR" value="24.5%" />
 
-   // ❌ Bad
+   // Bad
    <KpiCard label="Net Internal Rate of Return (IRR) Percentage" value="24.5%" />
    ```
 
-4. **Use consistent delta formats**: Keep delta formatting consistent across your app
+4. **Use consistent delta formats**: Keep delta formatting consistent across
+   your app
+
    ```tsx
-   // ✅ Good - Consistent format
+   // Good - Consistent format
    <KpiCard delta="+2.1%" />
    <KpiCard delta="-5.2%" />
 
-   // ❌ Bad - Inconsistent
+   // Bad - Inconsistent
    <KpiCard delta="up 2.1%" />
    <KpiCard delta="down by 5.2 percent" />
    ```
@@ -283,10 +276,10 @@ The test suite covers:
 
 ## File Locations
 
-- **Component**: `c:\dev\Updog_restore\client\src\components\ui\KpiCard.tsx`
-- **Examples**: `c:\dev\Updog_restore\client\src\components\ui\KpiCard.example.tsx`
-- **Tests**: `c:\dev\Updog_restore\tests\unit\components\ui\KpiCard.test.tsx`
-- **Documentation**: `c:\dev\Updog_restore\client\src\components\ui\KpiCard.README.md`
+- **Component**: `client/src/components/ui/KpiCard.tsx`
+- **Live catalog**: `client/src/pages/admin/ui-catalog.tsx`
+- **Tests**: `tests/unit/components/ui/KpiCard.test.tsx`
+- **Documentation**: `client/src/components/ui/KpiCard.README.md`
 
 ## License
 

@@ -83,6 +83,15 @@ const lpLimiter = rateLimit({
   legacyHeaders: false,
 });
 
+function respondNumberParseError(res: Response, error: unknown): boolean {
+  if (!(error instanceof NumberParseError)) {
+    return false;
+  }
+
+  res.status(400).json(createErrorResponse('INVALID_PARAMETER', error.message));
+  return true;
+}
+
 // ============================================================================
 // ROUTES
 // ============================================================================
@@ -443,8 +452,8 @@ router.get(
 
       return res.json(response);
     } catch (error) {
-      if (error instanceof NumberParseError) {
-        return res.status(400).json(createErrorResponse('INVALID_PARAMETER', error.message));
+      if (respondNumberParseError(res, error)) {
+        return;
       }
 
       if (error instanceof z.ZodError) {
@@ -512,8 +521,8 @@ router.get(
         totalValue: holdings.reduce((sum, h) => sum + h.lpProRataValue, 0),
       });
     } catch (error) {
-      if (error instanceof NumberParseError) {
-        return res.status(400).json(createErrorResponse('INVALID_PARAMETER', error.message));
+      if (respondNumberParseError(res, error)) {
+        return;
       }
 
       console.error('Holdings API error:', sanitizeForLogging(error));

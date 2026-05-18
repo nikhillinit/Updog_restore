@@ -108,4 +108,18 @@ describe('Wave 1B route tail', () => {
       'metrics skipCache override'
     );
   });
+
+  it('preserves the invalid-number contract for fund metrics ids', async () => {
+    const app = express();
+    app.use(express.json());
+    app.use(fundMetricsRouter);
+
+    const response = await request(app).get('/api/funds/abc/metrics').expect(400);
+
+    expect(response.body).toMatchObject({
+      error: 'Invalid parameter',
+      message: 'fundId must be a finite number',
+    });
+    expect(getUnifiedMetricsMock).not.toHaveBeenCalled();
+  });
 });
