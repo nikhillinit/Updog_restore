@@ -30,7 +30,7 @@ jobs:
 
       # Node.js setup with built-in npm cache.
       - name: Setup Node.js 20
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           node-version: '20'
           cache: 'npm'
@@ -44,7 +44,7 @@ jobs:
 
       - name: Cache Docker images
         id: docker-cache
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: /tmp/docker-cache
           key: docker-${{ runner.os }}-postgres-16-alpine-redis-7-alpine-${{ hashFiles('.github/workflows/testcontainers-ci.yml') }}
