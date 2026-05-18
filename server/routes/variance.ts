@@ -11,7 +11,6 @@ import { idempotency } from '../middleware/idempotency';
 import { varianceTrackingService } from '../services/variance-tracking';
 import { varianceAlertAutomationService } from '../services/variance-alert-automation';
 import { toNumber, NumberParseError } from '@shared/number';
-import type { PerformanceAlert, VarianceReport as DbVarianceReport } from '@shared/schema';
 import type { ApiError } from '@shared/types';
 import {
   AlertActionRequestSchema,
@@ -21,108 +20,17 @@ import {
   GetAlertsQuerySchema,
   GetBaselinesQuerySchema,
   VarianceAnalysisRequestSchema,
-  type ClientAlertResponse,
   type VarianceDashboardResponse as VarianceDashboardRouteResponse,
-  type VarianceReportClientResponse,
 } from '@shared/variance-validation';
 import { firstString, getUserId } from '../lib/request-values';
 import { enforceProvidedFundScope } from '../lib/auth/provided-fund-scope';
 import { getRouteErrorMessage } from '../lib/errorHandling';
-
-// === RESPONSE SHAPE MAPPER ===
-
-/** Variance columns we inspect for the summary + variances array */
-const VARIANCE_COLS = [
-  { metric: 'totalValue', value: 'totalValueVariance', pct: 'totalValueVariancePct' },
-  { metric: 'irr', value: 'irrVariance', pct: null },
-  { metric: 'multiple', value: 'multipleVariance', pct: null },
-  { metric: 'dpi', value: 'dpiVariance', pct: null },
-  { metric: 'tvpi', value: 'tvpiVariance', pct: null },
-] as const;
-
-/**
- * Transform a raw DB variance report row into the shape the client expects.
- * Handles null/undefined fields gracefully.
- */
-function toClientReport(row: DbVarianceReport): VarianceReportClientResponse {
-  // Build the per-metric variances array, only including non-null entries
-  const variances: VarianceReportClientResponse['variances'] = [];
-  let totalVariances = 0;
-
-  for (const col of VARIANCE_COLS) {
-    const val = row[col['value']] as string | null | undefined;
-    if (val != null) {
-      totalVariances++;
-      variances.push({
-        metric: col['metric'],
-        value: val,
-        pct: col['pct'] ? ((row[col['pct']] as string | null | undefined) ?? null) : null,
-      });
-    }
-  }
-
-  // significantVariances is a jsonb array in the DB
-  const sigArr = Array.isArray(row['significantVariances']) ? row['significantVariances'] : [];
-  const criticalCount = sigArr.filter(
-    (item: unknown) =>
-      item != null &&
-      typeof item === 'object' &&
-      'severity' in (item as Record<string, unknown>) &&
-      ((item as Record<string, unknown>)['severity'] === 'critical' ||
-        (item as Record<string, unknown>)['severity'] === 'high')
-  ).length;
-
-  return {
-    id: row['id'],
-    fundId: row['fundId'],
-    baselineId: row['baselineId'],
-    reportName: row['reportName'],
-    reportType: row['reportType'] as VarianceReportClientResponse['reportType'],
-    ...(row['reportPeriod'] != null && {
-      reportPeriod: row['reportPeriod'] as NonNullable<
-        VarianceReportClientResponse['reportPeriod']
-      >,
-    }),
-    asOfDate:
-      row['asOfDate'] instanceof Date ? row['asOfDate'].toISOString() : String(row['asOfDate']),
-    ...(row['generatedBy'] != null && { generatedBy: row['generatedBy'] }),
-    generatedAt:
-      row['createdAt'] instanceof Date
-        ? row['createdAt'].toISOString()
-        : String(row['createdAt'] ?? ''),
-    summary: {
-      totalVariances,
-      significantVariances: sigArr.length,
-      criticalVariances: criticalCount,
-    },
-    variances,
-    ...(row['portfolioVariances'] != null && {
-      portfolioVariances: row['portfolioVariances'] as NonNullable<
-        VarianceReportClientResponse['portfolioVariances']
-      >,
-    }),
-    ...(row['sectorVariances'] != null && {
-      sectorVariances: row['sectorVariances'] as NonNullable<
-        VarianceReportClientResponse['sectorVariances']
-      >,
-    }),
-    ...(row['stageVariances'] != null && {
-      stageVariances: row['stageVariances'] as NonNullable<
-        VarianceReportClientResponse['stageVariances']
-      >,
-    }),
-    ...(row['reserveVariances'] != null && {
-      reserveVariances: row['reserveVariances'] as NonNullable<
-        VarianceReportClientResponse['reserveVariances']
-      >,
-    }),
-    ...(row['pacingVariances'] != null && {
-      pacingVariances: row['pacingVariances'] as NonNullable<
-        VarianceReportClientResponse['pacingVariances']
-      >,
-    }),
-  };
-}
+import {
+  buildAlertCounts,
+  toClientAlert,
+  toDashboardRecentReport,
+  toVarianceReportClientResponse,
+} from './variance/response-adapters';
 
 function toIsoTimestamp(value: Date | string | null | undefined): string | null {
   if (!value) {
@@ -130,75 +38,6 @@ function toIsoTimestamp(value: Date | string | null | undefined): string | null 
   }
 
   return value instanceof Date ? value.toISOString() : String(value);
-}
-
-function buildAlertCounts(
-  activeAlerts: Array<{
-    severity?: 'info' | 'warning' | 'critical' | 'urgent' | string | null;
-  }>
-): VarianceDashboardRouteResponse['alertsBySeverity'] {
-  return {
-    critical: activeAlerts.filter((alert) => alert.severity === 'critical').length,
-    warning: activeAlerts.filter((alert) => alert.severity === 'warning').length,
-    info: activeAlerts.filter((alert) => alert.severity === 'info').length,
-    urgent: activeAlerts.filter((alert) => alert.severity === 'urgent').length,
-  };
-}
-
-function normalizeAlertSeverity(value: string | null): ClientAlertResponse['severity'] {
-  return value === 'info' || value === 'warning' || value === 'critical' || value === 'urgent'
-    ? value
-    : 'warning';
-}
-
-function normalizeAlertCategory(value: string | null): ClientAlertResponse['category'] {
-  return value === 'performance' ||
-    value === 'risk' ||
-    value === 'compliance' ||
-    value === 'operational'
-    ? value
-    : 'performance';
-}
-
-function normalizeAlertStatus(value: string | null): ClientAlertResponse['status'] {
-  return value === 'active' ||
-    value === 'acknowledged' ||
-    value === 'investigating' ||
-    value === 'resolved' ||
-    value === 'dismissed'
-    ? value
-    : 'active';
-}
-
-function toClientAlert(alert: PerformanceAlert, fundId: number): ClientAlertResponse {
-  const contextData =
-    alert.contextData && typeof alert.contextData === 'object'
-      ? (alert.contextData as Record<string, unknown>)
-      : {};
-  const contextRuleName =
-    typeof contextData['ruleName'] === 'string' ? contextData['ruleName'] : null;
-  const contextBaselineName =
-    typeof contextData['baselineName'] === 'string' ? contextData['baselineName'] : null;
-
-  return {
-    id: alert.id,
-    fundId: alert.fundId ?? fundId,
-    baselineId: alert.baselineId ?? null,
-    baselineName: contextBaselineName,
-    ruleId: alert.ruleId ?? null,
-    ruleName: contextRuleName ?? alert.title,
-    severity: normalizeAlertSeverity(alert.severity),
-    category: normalizeAlertCategory(alert.category),
-    message: alert.description,
-    details: contextData,
-    status: normalizeAlertStatus(alert.status),
-    triggeredAt: toIsoTimestamp(alert.triggeredAt) ?? '',
-    acknowledgedAt: toIsoTimestamp(alert.acknowledgedAt) ?? null,
-    acknowledgedBy: alert.acknowledgedBy ?? null,
-    resolvedAt: toIsoTimestamp(alert.resolvedAt) ?? null,
-    resolvedBy: alert.resolvedBy ?? null,
-    notes: alert.resolutionNotes ?? null,
-  };
 }
 
 function deriveTrendDirection(
@@ -551,7 +390,7 @@ router['post'](
 
       res.status(201).json({
         success: true,
-        data: toClientReport(report),
+        data: toVarianceReportClientResponse(report),
         message: 'Variance report generated successfully',
       });
     } catch (error) {
@@ -593,7 +432,7 @@ router['get']('/api/funds/:id/variance-reports', async (req: Request, res: Respo
 
     res.json({
       success: true,
-      data: reports.map(toClientReport),
+      data: reports.map(toVarianceReportClientResponse),
       count: reports.length,
     });
   } catch (error) {
@@ -649,7 +488,7 @@ router['get']('/api/funds/:id/variance-reports/:reportId', async (req: Request, 
 
     res.json({
       success: true,
-      data: toClientReport(report),
+      data: toVarianceReportClientResponse(report),
     });
   } catch (error) {
     console.error('Variance report fetch error:', error);
@@ -1028,7 +867,7 @@ router['post'](
       res.status(201).json({
         success: true,
         data: {
-          report: toClientReport(result.report),
+          report: toVarianceReportClientResponse(result.report),
           alertsGenerated: clientAlerts,
           alertCount: clientAlerts.length,
         },
@@ -1079,13 +918,7 @@ router['get']('/api/funds/:id/variance-dashboard', async (req: Request, res: Res
     const latestReport = latestReports[0];
     const clientAlerts = activeAlerts.map((alert) => toClientAlert(alert, fundId));
     const alertsBySeverity = buildAlertCounts(clientAlerts);
-    const recentReports = latestReports.slice(0, 5).map((report) => ({
-      id: report.id,
-      name: report.reportName,
-      riskLevel: report.riskLevel ?? 'low',
-      createdAt: toIsoTimestamp(report.createdAt) ?? new Date(0).toISOString(),
-      overallVarianceScore: report.overallVarianceScore ?? null,
-    }));
+    const recentReports = latestReports.slice(0, 5).map(toDashboardRecentReport);
 
     res.json({
       success: true,
