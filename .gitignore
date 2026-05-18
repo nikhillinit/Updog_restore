@@ -319,3 +319,6 @@ demo-profile-imports/
 # Local hook probes
 .tmp-git-hook-probe/
 .gstack/
+
+# Git worktrees (isolated workspaces)
+.worktrees/
