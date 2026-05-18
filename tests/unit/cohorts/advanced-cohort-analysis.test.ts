@@ -11,7 +11,12 @@
 
 import { describe, it, expect } from 'vitest';
 import { calculateXIRR, calculateDPI, calculateTVPI } from '@/core/cohorts/metrics';
-import { normalizeSector, slugifySector, BLANK_SECTOR_TOKEN } from '@shared/utils/sector-normalization';
+import { xirrNewtonBisection, type CashFlow } from '@shared/lib/finance/xirr';
+import {
+  normalizeSector,
+  slugifySector,
+  BLANK_SECTOR_TOKEN,
+} from '@shared/utils/sector-normalization';
 import { resolveVintageKey, compareVintageKeys } from '@shared/utils/vintage-resolution';
 import {
   calculateCoverage,
@@ -94,6 +99,38 @@ describe('XIRR Calculations', () => {
       ]);
       expect(result).not.toBeNull();
       expect(result).toBeLessThan(0);
+    });
+
+    it('matches the canonical XIRR solver for irregular dated cash flows', () => {
+      const flows: CashFlow[] = [
+        { date: new Date('2020-01-01T00:00:00.000Z'), amount: -1000 },
+        { date: new Date('2020-07-01T00:00:00.000Z'), amount: -500 },
+        { date: new Date('2022-03-15T00:00:00.000Z'), amount: 1900 },
+      ];
+
+      const canonical = xirrNewtonBisection(flows);
+      expect(canonical.irr).not.toBeNull();
+
+      const result = calculateXIRR(flows);
+
+      expect(result).not.toBeNull();
+      expect(result).toBeCloseTo(canonical.irr!, 10);
+    });
+
+    it('matches the canonical XIRR solver for high short-hold returns', () => {
+      const flows: CashFlow[] = [
+        { date: new Date('2020-01-01T00:00:00.000Z'), amount: -100 },
+        { date: new Date('2020-07-01T00:00:00.000Z'), amount: 1000 },
+      ];
+
+      const canonical = xirrNewtonBisection(flows);
+      expect(canonical.irr).not.toBeNull();
+      expect(canonical.irr).toBeGreaterThan(5);
+
+      const result = calculateXIRR(flows);
+
+      expect(result).not.toBeNull();
+      expect(result).toBeCloseTo(canonical.irr!, 10);
     });
   });
 });
