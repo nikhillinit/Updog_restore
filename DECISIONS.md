@@ -645,9 +645,8 @@ logic issues. Initial plan was to treat symptoms in phases by failure count.
 
 **Phase 2: Data Layer (documentation)**
 
-- Created
-  [`tests/utils/jsonb-test-helper.ts`](tests/utils/jsonb-test-helper.ts) -
-  type-safe JSONB utilities
+- Created `tests/utils/jsonb-test-helper.ts` (since removed) - type-safe JSONB
+  utilities
 - **Discovery:** 32 database schema test failures due to schema evolution (not
   JSONB serialization)
 - **Decision:** Document for separate schema migration effort (out of scope)
@@ -1237,12 +1236,12 @@ function CodeReviewPanel() {
 
 ### References
 
-- [MCP_MULTI_AI_INCIDENT_REPORT.md](./MCP_MULTI_AI_INCIDENT_REPORT.md) -
-  Complete security incident analysis
-- [PARALLEL_EXECUTION_SUMMARY.md](./PARALLEL_EXECUTION_SUMMARY.md) - Multi-AI
-  parallel execution outcomes
-- [SECURITY_REVIEW_EVALUATION.md](./SECURITY_REVIEW_EVALUATION.md) - Multi-AI
-  security validation
+- `MCP_MULTI_AI_INCIDENT_REPORT.md` (since removed) - Complete security
+  incident analysis
+- `PARALLEL_EXECUTION_SUMMARY.md` (since removed) - Multi-AI parallel
+  execution outcomes
+- `SECURITY_REVIEW_EVALUATION.md` (since removed) - Multi-AI security
+  validation
 
 ### Future Considerations
 

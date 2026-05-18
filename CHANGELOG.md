@@ -2830,8 +2830,7 @@ and Phase 1D (Capital Allocation).
 
 **Phase 2: Data Layer Stabilization**
 
-- Created JSONB test helper:
-  [`tests/utils/jsonb-test-helper.ts`](tests/utils/jsonb-test-helper.ts)
+- Created JSONB test helper: `tests/utils/jsonb-test-helper.ts` (since removed)
 - Documented schema mismatch in time-travel and variance-tracking database tests
 - **Discovery:** Tests reference outdated schema columns (`snapshot_type`,
   `captured_at`)
@@ -2857,7 +2856,7 @@ and Phase 1D (Capital Allocation).
 
 - `vitest.config.ts` - Added `@shared/` path alias
 - `tests/utils/mock-shared-schema.ts` - **NEW** centralized mock factory
-- `tests/utils/jsonb-test-helper.ts` - **NEW** JSONB serialization utilities
+- `tests/utils/jsonb-test-helper.ts` (since removed) - **NEW** JSONB serialization utilities
 - `tests/unit/services/performance-prediction.test.ts` - Use centralized mock
 - `tests/unit/services/monte-carlo-engine.test.ts` - Use centralized mock
 - `tests/unit/services/monte-carlo-power-law-integration.test.ts` - Use
@@ -2991,8 +2990,8 @@ and Phase 1D (Capital Allocation).
 - [tests/unit/api/time-travel-api.test.ts](tests/unit/api/time-travel-api.test.ts)
 - [tests/unit/reallocation-api.test.ts](tests/unit/reallocation-api.test.ts)
 - [tests/unit/wizard-reserve-bridge.test.ts](tests/unit/wizard-reserve-bridge.test.ts)
-- [tests/unit/setup.ts](tests/unit/setup.ts) (attempted environment-agnostic
-  changes, reverted)
+- `tests/unit/setup.ts` (since reorganized into `tests/setup/`; attempted
+  environment-agnostic changes, reverted)
 - [vitest.config.ts](vitest.config.ts) (deprecated `environmentMatchGlobs`
   configuration)
 
@@ -3409,8 +3408,8 @@ and Phase 1D (Capital Allocation).
   - Integrated into `BaseAgent` with `enableConversationMemory` config flag
   - Architecture inspired by
     [zen-mcp-server](https://github.com/BeehiveInnovations/zen-mcp-server)
-  - [Demo](packages/agent-core/demo-conversation-memory.ts) showing multi-agent
-    workflow
+  - [Demo](archive/2026-q1/package-demos/agent-core/demo-conversation-memory.ts) showing
+    multi-agent workflow (archived)
   - Comprehensive test suite with 50+ test cases covering all scenarios
 
 ### Added (Previous)
