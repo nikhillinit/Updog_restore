@@ -9,6 +9,11 @@ on:
     branches: [main]
     paths:
       - 'Dockerfile*'
+      - '.github/workflows/dockerfile-lint.yml'
+
+permissions:
+  contents: read
+  security-events: write
 
 jobs:
   hadolint:
