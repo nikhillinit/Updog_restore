@@ -386,7 +386,7 @@ export default [
     languageOptions: {
       parser: tsParser,
       parserOptions: {
-        project: './tsconfig.eslint.server.json',
+        project: './tsconfig.eslint.json',
         tsconfigRootDir: __dirname,
       },
     },
