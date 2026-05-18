@@ -8,16 +8,15 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import type {
-  SortableCohort} from '../sorting';
+import type { SortableCohort } from '@shared/core/capitalAllocation/sorting';
 import {
   cmp,
   cohortSortKey,
   sortCohorts,
   isCanonicalDate,
   validateCohortDates,
-  sortAndValidateCohorts
-} from '../sorting';
+  sortAndValidateCohorts,
+} from '@shared/core/capitalAllocation/sorting';
 
 describe('Cohort Sorting', () => {
   describe('cmp - Deterministic String Comparator', () => {

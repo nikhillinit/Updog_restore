@@ -15,8 +15,8 @@ import {
   calculateEffectiveBuffer,
   calculateReserveBalance,
   executeCapitalAllocation,
-} from '../CapitalAllocationEngine';
-import { adaptTruthCaseInput } from '../adapter';
+} from '@shared/core/capitalAllocation/CapitalAllocationEngine';
+import { adaptTruthCaseInput } from '@shared/core/capitalAllocation/adapter';
 
 describe('Capital Allocation Engine', () => {
   describe('calculateEffectiveBuffer', () => {
@@ -33,7 +33,11 @@ describe('Capital Allocation Engine', () => {
       const targetReservePct = 0.2;
       const minCashBufferCents = 100_000_000; // $1M
 
-      const result = calculateEffectiveBuffer(commitmentCents, targetReservePct, minCashBufferCents);
+      const result = calculateEffectiveBuffer(
+        commitmentCents,
+        targetReservePct,
+        minCashBufferCents
+      );
 
       expect(result).toBe(2_000_000_000); // $20M in cents
     });
@@ -46,7 +50,11 @@ describe('Capital Allocation Engine', () => {
       const targetReservePct = 0.01;
       const minCashBufferCents = 200_000_000; // $2M
 
-      const result = calculateEffectiveBuffer(commitmentCents, targetReservePct, minCashBufferCents);
+      const result = calculateEffectiveBuffer(
+        commitmentCents,
+        targetReservePct,
+        minCashBufferCents
+      );
 
       expect(result).toBe(200_000_000); // $2M in cents
     });
@@ -56,7 +64,11 @@ describe('Capital Allocation Engine', () => {
       const targetReservePct = 0.15;
       const minCashBufferCents = 0;
 
-      const result = calculateEffectiveBuffer(commitmentCents, targetReservePct, minCashBufferCents);
+      const result = calculateEffectiveBuffer(
+        commitmentCents,
+        targetReservePct,
+        minCashBufferCents
+      );
 
       expect(result).toBe(1_500_000_000); // 15% of $100M
     });
@@ -66,7 +78,11 @@ describe('Capital Allocation Engine', () => {
       const targetReservePct = 0;
       const minCashBufferCents = 500_000_000; // $5M
 
-      const result = calculateEffectiveBuffer(commitmentCents, targetReservePct, minCashBufferCents);
+      const result = calculateEffectiveBuffer(
+        commitmentCents,
+        targetReservePct,
+        minCashBufferCents
+      );
 
       expect(result).toBe(500_000_000); // $5M
     });
@@ -314,10 +330,7 @@ describe('Capital Allocation Engine', () => {
         const result = executeCapitalAllocation(input);
 
         // commitment = sum(allocations) + remaining_capacity
-        const totalAllocated = result.allocations_by_cohort.reduce(
-          (sum, c) => sum + c.amount,
-          0
-        );
+        const totalAllocated = result.allocations_by_cohort.reduce((sum, c) => sum + c.amount, 0);
         const remaining = result.remaining_capacity ?? 0;
         const commitment = 100; // $100M
 

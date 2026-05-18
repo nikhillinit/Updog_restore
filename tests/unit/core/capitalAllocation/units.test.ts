@@ -20,7 +20,7 @@ import {
   validateUnitConsistency,
   normalizeFieldsToCents,
   validateAndNormalizeCAInput,
-} from '../units';
+} from '@shared/core/capitalAllocation/units';
 
 describe('Unit Inference and Mismatch Detection', () => {
   describe('inferUnitScale', () => {
@@ -219,7 +219,7 @@ describe('Unit Inference and Mismatch Detection', () => {
       expect(() =>
         validateUnitConsistency({
           commitment: 100, // $M scale
-          minCashBuffer: 5_000_000, // raw dollars (mismatch!)
+          minCashBuffer: 100_000_001, // raw dollars (mismatch!)
         })
       ).toThrow('Unit mismatch');
     });
@@ -310,8 +310,14 @@ describe('Unit Inference and Mismatch Detection', () => {
 
     it('throws on unit mismatch', () => {
       expect(
-        () => validateAndNormalizeCAInput(100, 5_000_000, 0.2) // 100 ($M) vs 5M (raw $)
+        () => validateAndNormalizeCAInput(100, 100_000_001, 0.2) // 100 ($M) vs 100M+ (raw $)
       ).toThrow('Unit mismatch');
+    });
+
+    it('throws sanity cap error when same-scale normalization would exceed fund bounds', () => {
+      expect(
+        () => validateAndNormalizeCAInput(100, 5_000_000, 0.2) // 5T if interpreted as $M
+      ).toThrow('minCashBuffer exceeds $1 Trillion sanity cap');
     });
 
     it('handles null buffer', () => {
