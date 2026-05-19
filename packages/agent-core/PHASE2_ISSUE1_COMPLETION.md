@@ -52,7 +52,7 @@ async function serializeAsync(obj: unknown): Promise<string> {
 | [src/SerializationHelper.ts](src/SerializationHelper.ts)                                                                                                           | Main API with worker pool integration | ✅ Updated |
 | [src/workers/serialization-worker.ts](src/workers/serialization-worker.ts)                                                                                         | Worker thread implementation          | ✅ Created |
 | [docs/PHASE2_ISSUE1_MIGRATION.md](docs/PHASE2_ISSUE1_MIGRATION.md)                                                                                                 | Migration guide                       | ✅ Created |
-| [archive/2026-q1/unused-code/packages/agent-core/manual-test-serialization.ts](../../archive/2026-q1/unused-code/packages/agent-core/manual-test-serialization.ts) | Archived manual test script           | ✅ Created |
+| `archive/2026-q1/unused-code/packages/agent-core/manual-test-serialization.ts` (archived)                                                                          | Archived manual test script           | ✅ Created |
 
 ---
 

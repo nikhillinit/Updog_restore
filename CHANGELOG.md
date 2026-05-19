@@ -713,7 +713,7 @@ and this project adheres to
     - DeepSeek V3.2: $0.00055 input / $0.00219 output
   - **Files Updated**:
     - [.env.local.example](.env.local.example) (lines 134-148)
-    - [archive/2026-q1/unused-code/claude_code-multi-AI-MCP/credentials.template.json](archive/2026-q1/unused-code/claude_code-multi-AI-MCP/credentials.template.json)
+    - `archive/2026-q1/unused-code/claude_code-multi-AI-MCP/credentials.template.json` (archived)
   - **Verified Compatibility**: All multi-AI orchestrator functions
     (`askAllAIs()`, `aiConsensus()`, `collaborativeSolve()`) confirmed working
     with new model identifiers
@@ -3408,8 +3408,8 @@ and Phase 1D (Capital Allocation).
   - Integrated into `BaseAgent` with `enableConversationMemory` config flag
   - Architecture inspired by
     [zen-mcp-server](https://github.com/BeehiveInnovations/zen-mcp-server)
-  - [Demo](archive/2026-q1/package-demos/agent-core/demo-conversation-memory.ts) showing
-    multi-agent workflow (archived)
+  - `archive/2026-q1/package-demos/agent-core/demo-conversation-memory.ts`
+    (archived) - demo showing multi-agent workflow
   - Comprehensive test suite with 50+ test cases covering all scenarios
 
 ### Added (Previous)
