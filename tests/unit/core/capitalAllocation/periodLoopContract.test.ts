@@ -119,6 +119,72 @@ function quarterlyCohortInput(
   };
 }
 
+function integrationInputWithRecycling(): CategoryInput {
+  return {
+    category: 'integration',
+    fund: {
+      commitment: 100_000_000,
+      target_reserve_pct: 0.2,
+      reserve_policy: 'static_pct',
+      pacing_window_months: 24,
+      units: 'raw',
+    },
+    timeline: {
+      start_date: '2024-01-01',
+      end_date: '2024-03-31',
+    },
+    flows: {
+      contributions: [{ date: '2024-01-15', amount: 10_000_000 }],
+      distributions: [{ date: '2024-02-15', amount: 2_000_000, recycle_eligible: true }],
+    },
+    constraints: {
+      min_cash_buffer: 1_000_000,
+      rebalance_frequency: 'quarterly',
+    },
+    cohorts: [
+      {
+        name: 'Core',
+        start_date: '2024-01-01',
+        end_date: '2024-12-31',
+        weight: 1,
+      },
+    ],
+  };
+}
+
+function pacingEngineInputWithoutPipeline(): CategoryInput {
+  return {
+    category: 'pacing_engine',
+    fund: {
+      commitment: 100_000_000,
+      target_reserve_pct: 0.2,
+      reserve_policy: 'static_pct',
+      pacing_window_months: 24,
+      units: 'raw',
+    },
+    timeline: {
+      start_date: '2024-01-01',
+      end_date: '2024-03-31',
+    },
+    flows: {
+      contributions: [],
+      distributions: [],
+    },
+    constraints: {
+      min_cash_buffer: 1_000_000,
+      rebalance_frequency: 'quarterly',
+    },
+    cohorts: [
+      {
+        name: 'Core',
+        start_date: '2024-01-01',
+        end_date: '2024-12-31',
+        weight: 1,
+      },
+    ],
+  };
+}
+
 function findPeriod(result: PeriodLoopResult, periodId: string): PeriodSnapshot {
   const period = result.periods.find((snapshot) => snapshot.period.id === periodId);
 
@@ -256,5 +322,39 @@ describe('executePeriodLoop reserve snapshot contract', () => {
     }
 
     expect(firstFundedPeriod?.reserveBalanceCents).toBe(normalized.effectiveBufferCents);
+  });
+
+  it('marks integration processing signals as events without splitting violations', () => {
+    const normalized = adaptTruthCaseInput(integrationInputWithRecycling());
+
+    const result = executePeriodLoop(normalized, { reserveSnapshotMode: 'planning' });
+
+    expect(result.violations).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          type: 'reserve_floor_precedence_over_pacing',
+          kind: 'event',
+        }),
+        expect.objectContaining({
+          type: 'recycling_applied',
+          kind: 'event',
+        }),
+      ])
+    );
+  });
+
+  it('keeps constraint-like period signals as constraints by default', () => {
+    const normalized = adaptTruthCaseInput(pacingEngineInputWithoutPipeline());
+
+    const result = executePeriodLoop(normalized, { reserveSnapshotMode: 'planning' });
+
+    expect(result.violations).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          type: 'pacing_floor_triggered_no_pipeline',
+          kind: 'constraint',
+        }),
+      ])
+    );
   });
 });

@@ -474,7 +474,8 @@ function pushViolationOnce(
   violations: Violation[],
   type: Violation['type'],
   message: string,
-  period: string
+  period: string,
+  kind: Violation['kind'] = 'constraint'
 ): void {
   if (violations.some((v) => v.type === type)) {
     return;
@@ -483,6 +484,7 @@ function pushViolationOnce(
   violations.push(
     createViolation(type, message, {
       severity: 'warning',
+      kind,
       period,
     })
   );
@@ -802,7 +804,8 @@ export function executePeriodLoop(
           violations,
           'max_per_cohort_cap_bound',
           'max_per_cohort_cap_bound: per-cohort cap bound and spill was applied',
-          period.id
+          period.id,
+          'event'
         );
       }
 
@@ -868,7 +871,8 @@ export function executePeriodLoop(
         violations,
         'capital_recall_processed',
         'capital_recall_processed: negative distribution processed as capital recall',
-        period.id
+        period.id,
+        'event'
       );
     }
 
@@ -877,7 +881,8 @@ export function executePeriodLoop(
         violations,
         'reserve_floor_precedence_over_pacing',
         'reserve_floor_precedence_over_pacing: reserve floor applied before pacing and cap checks',
-        period.id
+        period.id,
+        'event'
       );
     }
 
@@ -886,7 +891,8 @@ export function executePeriodLoop(
         violations,
         'recycling_applied',
         'recycling_applied: recycle-eligible distribution increased the recycling pool',
-        period.id
+        period.id,
+        'event'
       );
     }
 
