@@ -10,6 +10,9 @@ type CategoryInput = TruthCaseInput & {
   category: 'reserve_engine' | 'pacing_engine' | 'cohort_engine' | 'integration';
 };
 
+type PeriodLoopResult = ReturnType<typeof executePeriodLoop>;
+type PeriodSnapshot = PeriodLoopResult['periods'][number];
+
 function reserveEngineInput(): CategoryInput {
   return {
     category: 'reserve_engine',
@@ -79,6 +82,16 @@ function quarterlyCohortInput(
   };
 }
 
+function findPeriod(result: PeriodLoopResult, periodId: string): PeriodSnapshot {
+  const period = result.periods.find((snapshot) => snapshot.period.id === periodId);
+
+  if (!period) {
+    throw new Error(`Expected period ${periodId} to exist`);
+  }
+
+  return period;
+}
+
 describe('executePeriodLoop reserve snapshot contract', () => {
   it('requires an explicit reserve snapshot mode', () => {
     const normalized = adaptTruthCaseInput(reserveEngineInput());
@@ -97,14 +110,15 @@ describe('executePeriodLoop reserve snapshot contract', () => {
     const cashFinalPeriod = cash.periods.at(-1);
 
     expect(cashFinalPeriod).toBeDefined();
+    if (!cashFinalPeriod) {
+      throw new Error('Expected cash mode to produce at least one period');
+    }
+
     expect(planning.finalReserveBalanceCents).toBe(normalized.effectiveBufferCents);
     expect(cash.finalReserveBalanceCents).toBeLessThan(planning.finalReserveBalanceCents);
     expect(cash.finalReserveBalanceCents).toBe(
       Math.min(
-        Math.max(
-          0,
-          (cashFinalPeriod?.endingCashCents ?? 0) - (cashFinalPeriod?.allocationCents ?? 0)
-        ),
+        Math.max(0, cashFinalPeriod.endingCashCents - cashFinalPeriod.allocationCents),
         normalized.effectiveBufferCents
       )
     );
@@ -113,31 +127,51 @@ describe('executePeriodLoop reserve snapshot contract', () => {
   it('accrues quarterly cohort reserve snapshots once per funded quarter', () => {
     const normalized = adaptTruthCaseInput(
       quarterlyCohortInput([
-        { date: '2025-02-01', amount: 1_000_000 },
-        { date: '2025-03-01', amount: 1_000_000 },
-        { date: '2025-06-01', amount: 2_000_000 },
+        { date: '2025-05-01', amount: 1_000_000 },
+        { date: '2025-06-01', amount: 1_000_000 },
+        { date: '2025-09-01', amount: 2_000_000 },
       ])
     );
 
     const result = executePeriodLoop(normalized, { reserveSnapshotMode: 'planning' });
-    const firstQuarter = result.periods.find((period) => period.period.id === '2025-Q1');
-    const secondQuarter = result.periods.find((period) => period.period.id === '2025-Q2');
 
-    expect(firstQuarter?.reserveBalanceCents).toBe(normalized.effectiveBufferCents);
-    expect(secondQuarter?.reserveBalanceCents).toBe(normalized.effectiveBufferCents * 2);
+    expect(findPeriod(result, '2025-Q1').reserveBalanceCents).toBe(0);
+    expect(findPeriod(result, '2025-Q2').reserveBalanceCents).toBe(normalized.effectiveBufferCents);
+    expect(findPeriod(result, '2025-Q3').reserveBalanceCents).toBe(
+      normalized.effectiveBufferCents * 2
+    );
     expect(result.finalReserveBalanceCents).toBe(normalized.effectiveBufferCents * 2);
   });
 
   it('does not synthesize a quarterly cohort reserve snapshot before any funded quarter', () => {
     const normalized = adaptTruthCaseInput(
-      quarterlyCohortInput([{ date: '2025-06-01', amount: 2_000_000 }])
+      quarterlyCohortInput([{ date: '2025-09-01', amount: 2_000_000 }])
     );
 
     const result = executePeriodLoop(normalized, { reserveSnapshotMode: 'planning' });
-    const firstQuarter = result.periods.find((period) => period.period.id === '2025-Q1');
-    const secondQuarter = result.periods.find((period) => period.period.id === '2025-Q2');
+    const firstFunding = normalized.contributionsCents[0];
 
-    expect(firstQuarter?.reserveBalanceCents).toBe(0);
-    expect(secondQuarter?.reserveBalanceCents).toBe(normalized.effectiveBufferCents);
+    if (!firstFunding) {
+      throw new Error('Expected test input to include a first funding contribution');
+    }
+
+    const firstFundedPeriodIndex = result.periods.findIndex(
+      (snapshot) =>
+        firstFunding.date >= snapshot.period.startDate &&
+        firstFunding.date <= snapshot.period.endDate
+    );
+
+    if (firstFundedPeriodIndex === -1) {
+      throw new Error(`Expected a period containing first funding date ${firstFunding.date}`);
+    }
+
+    const periodsBeforeFirstFunding = result.periods.slice(0, firstFundedPeriodIndex);
+    const firstFundedPeriod = result.periods[firstFundedPeriodIndex];
+
+    for (const period of periodsBeforeFirstFunding) {
+      expect(period.reserveBalanceCents).toBe(0);
+    }
+
+    expect(firstFundedPeriod?.reserveBalanceCents).toBe(normalized.effectiveBufferCents);
   });
 });
