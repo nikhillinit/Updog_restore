@@ -19,6 +19,7 @@ import {
   formatDPI,
   formatDeploymentRate,
   formatLastUpdated,
+  formatMetricCount,
   formatMetricCurrency,
   formatMetricMultiple,
   formatPercentage,
@@ -267,21 +268,35 @@ function buildHeaderMetricCards(
       icon: 'activity',
     },
     {
+      key: 'totalInvested',
+      title: 'Total Invested',
+      displayValue: formatMetricCurrency(metrics.totalInvested, metricDisplayUnavailable),
+      theme: 'beige',
+      icon: 'dollar',
+    },
+    {
+      key: 'totalValue',
+      title: 'Current Value',
+      displayValue: formatMetricCurrency(metrics.totalValue, metricDisplayUnavailable),
+      theme: 'white',
+      icon: 'target',
+    },
+    {
+      key: 'activeInvestments',
+      title: 'Active',
+      displayValue: formatMetricCount(metrics.activeInvestments, metricDisplayUnavailable),
+      theme: 'beige',
+      icon: 'activity',
+    },
+    {
       key: 'remainingCapital',
       title: 'Remaining',
       displayValue: formatMetricCurrency(
         metrics.remainingDeployableCapital,
         metricDisplayUnavailable
       ),
-      theme: 'beige',
-      icon: 'calendar',
-    },
-    {
-      key: 'nav',
-      title: 'NAV',
-      displayValue: formatMetricCurrency(metrics.currentNAV, metricDisplayUnavailable),
       theme: 'white',
-      icon: 'target',
+      icon: 'calendar',
     },
     {
       key: 'tvpi',

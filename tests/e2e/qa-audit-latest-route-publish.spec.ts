@@ -95,6 +95,72 @@ const ROUTE_UNIFIED_METRICS = {
   lastUpdated: '2026-01-31T00:00:00.000Z',
 };
 
+const ROUTE_DUAL_FORECAST = {
+  fundId: FUND_ONE.id,
+  fundName: FUND_ONE.name,
+  asOfDate: ROUTE_UNIFIED_METRICS.actual.asOfDate,
+  series: [
+    {
+      quarterIndex: 0,
+      label: 'Q1 2026',
+      date: '2026-03-31',
+      construction: {
+        nav: ROUTE_UNIFIED_METRICS.actual.currentNAV,
+        calledCapital: ROUTE_UNIFIED_METRICS.actual.totalCalled,
+        distributions: ROUTE_UNIFIED_METRICS.actual.totalDistributions,
+        tvpi: ROUTE_UNIFIED_METRICS.actual.tvpi,
+        dpi: ROUTE_UNIFIED_METRICS.actual.dpi,
+        rvpi: ROUTE_UNIFIED_METRICS.actual.rvpi,
+        irr: ROUTE_UNIFIED_METRICS.actual.irr,
+      },
+      current: {
+        nav: ROUTE_UNIFIED_METRICS.actual.currentNAV,
+        calledCapital: ROUTE_UNIFIED_METRICS.actual.totalCalled,
+        distributions: ROUTE_UNIFIED_METRICS.actual.totalDistributions,
+        tvpi: ROUTE_UNIFIED_METRICS.actual.tvpi,
+        dpi: ROUTE_UNIFIED_METRICS.actual.dpi,
+        rvpi: ROUTE_UNIFIED_METRICS.actual.rvpi,
+        irr: ROUTE_UNIFIED_METRICS.actual.irr,
+      },
+    },
+    {
+      quarterIndex: 1,
+      label: 'Q2 2026',
+      date: '2026-06-30',
+      construction: {
+        nav: 48_000_000,
+        calledCapital: 15_000_000,
+        distributions: 1_250_000,
+        tvpi: 2.9,
+        dpi: 0.08,
+        rvpi: 2.82,
+        irr: 0.19,
+      },
+      current: {
+        nav: 47_500_000,
+        calledCapital: 14_500_000,
+        distributions: 1_200_000,
+        tvpi: 2.84,
+        dpi: 0.07,
+        rvpi: 2.77,
+        irr: 0.185,
+      },
+    },
+  ],
+  sources: {
+    construction: 'construction_forecast_jcurve',
+    current: 'projected_metrics_calculator',
+    actual: 'actual_metrics_calculator',
+  },
+  config: {
+    source: 'published',
+    version: 1,
+    publishedAt: '2026-01-31T00:00:00.000Z',
+    fallbackReason: null,
+  },
+  warnings: [],
+};
+
 const unexpectedApiRequestsByPage = new WeakMap<Page, string[]>();
 
 function requestLabel(request: { method: () => string; url: () => string }): string {
@@ -162,6 +228,15 @@ async function installQaApiStubs(page: Page, scenario: FundsScenario) {
         status: 200,
         contentType: 'application/json',
         body: JSON.stringify(ROUTE_UNIFIED_METRICS),
+      });
+      return;
+    }
+
+    if (request.method() === 'GET' && url.pathname === '/api/funds/1/dual-forecast') {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify(ROUTE_DUAL_FORECAST),
       });
       return;
     }
