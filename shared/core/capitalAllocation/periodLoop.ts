@@ -27,6 +27,11 @@ import {
 import { type NormalizedInput, centsToOutputUnits } from './adapter';
 import { allocateLRM, WEIGHT_SCALE } from './allocateLRM';
 import { roundPercentDerivedToCents } from './rounding';
+import {
+  buildTargetReportingPeriodIds,
+  selectAnnualReserveTargetPeriods,
+  splitAnnualReserveTargetCents,
+} from './periodTargetReportingOracle';
 
 // =============================================================================
 // Types
@@ -239,80 +244,6 @@ function generateQuarterTargetPeriods(startDate: string, endDate: string): strin
   return periods;
 }
 
-function periodContainingDate(periods: Period[], date: string): Period | undefined {
-  return periods.find((period) => date >= period.startDate && date <= period.endDate);
-}
-
-function activeCohortSignature(cohorts: InternalCohort[], period: Period): string {
-  return getActiveCohorts(cohorts, period.endDate)
-    .map((cohort) => cohort.id)
-    .join('|');
-}
-
-function buildTargetReportingPeriodIds(
-  input: NormalizedInput,
-  category: string,
-  periods: Period[]
-): Set<string> {
-  const ids = new Set<string>();
-  const periodsById = new Map(periods.map((period, index) => [period.id, { period, index }]));
-
-  for (const flow of input.contributionsCents) {
-    if ((flow.amountCents ?? 0) > 0) {
-      const period = periodContainingDate(periods, flow.date);
-      if (period) {
-        ids.add(period.id);
-      }
-    }
-  }
-
-  if (category === 'integration') {
-    for (const flow of input.distributionsCents) {
-      if (flow.recycle_eligible === true && (flow.amountCents ?? 0) > 0) {
-        const period = periodContainingDate(periods, flow.date);
-        if (period) {
-          ids.add(period.id);
-        }
-      }
-    }
-  }
-
-  for (let index = 1; index < periods.length; index += 1) {
-    const previous = periods[index - 1];
-    const current = periods[index];
-    // Lifecycle truth cases report the first target after active cohort membership changes.
-    if (
-      previous &&
-      current &&
-      activeCohortSignature(input.cohorts, previous) !==
-        activeCohortSignature(input.cohorts, current)
-    ) {
-      ids.add(current.id);
-    }
-  }
-
-  if (ids.size === 0 && periods[0]) {
-    ids.add(periods[0].id);
-  }
-
-  for (const id of [...ids]) {
-    const entry = periodsById.get(id);
-    const next = entry ? periods[entry.index + 1] : undefined;
-    // Pacing carry-forward truth cases expose the immediate following target period.
-    const needsCarryForwardTarget =
-      category === 'pacing_engine' &&
-      input.contributionsCents.length === 1 &&
-      input.distributionsCents.length === 0 &&
-      next !== undefined;
-
-    if (needsCarryForwardTarget) {
-      ids.add(next.id);
-    }
-  }
-
-  return ids;
-}
-
 /**
  * Reporting oracle for period pacing targets.
  *
@@ -327,13 +258,13 @@ function buildPacingTargetsByPeriod(
   grossMonthlyPacingTargetCents: number
 ): PacingTargetByPeriod[] {
   if (category === 'reserve_engine' && input.rebalanceFrequency === 'annual') {
-    const targetCents = Math.round(input.effectiveBufferCents / 4);
-    return generateQuarterTargetPeriods(input.startDate, input.endDate)
-      .slice(0, 2)
-      .map((period) => ({
-        period,
-        targetCents,
-      }));
+    const annualQuarterTargets = splitAnnualReserveTargetCents(input.effectiveBufferCents);
+    return selectAnnualReserveTargetPeriods(
+      generateQuarterTargetPeriods(input.startDate, input.endDate)
+    ).map((period, index) => ({
+      period,
+      targetCents: annualQuarterTargets[index] ?? 0,
+    }));
   }
 
   const reportingPeriodIds = buildTargetReportingPeriodIds(input, category, periods);
