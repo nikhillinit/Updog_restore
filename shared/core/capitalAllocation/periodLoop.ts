@@ -488,8 +488,18 @@ function pushViolationOnce(
   );
 }
 
+function compareNullableTextNullsLast(
+  a: string | null | undefined,
+  b: string | null | undefined
+): number {
+  if (a == null && b == null) return 0;
+  if (a == null) return 1;
+  if (b == null) return -1;
+  return a.localeCompare(b);
+}
+
 function compareViolationOrder(a: Violation, b: Violation): number {
-  const periodCompare = (a.period ?? '9999-99').localeCompare(b.period ?? '9999-99');
+  const periodCompare = compareNullableTextNullsLast(a.period, b.period);
   if (periodCompare !== 0) {
     return periodCompare;
   }
@@ -499,7 +509,7 @@ function compareViolationOrder(a: Violation, b: Violation): number {
     return typeCompare;
   }
 
-  return (a.cohort ?? '~~~~').localeCompare(b.cohort ?? '~~~~');
+  return compareNullableTextNullsLast(a.cohort, b.cohort);
 }
 
 function resolvePeriodLoopOptions(options?: PeriodLoopOptions): PeriodLoopOptions {
