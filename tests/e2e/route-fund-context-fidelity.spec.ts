@@ -121,6 +121,72 @@ const FIDELITY_METRICS = {
   lastUpdated: '2026-02-01T00:00:00.000Z',
 };
 
+const FIDELITY_DUAL_FORECAST = {
+  fundId: FIDELITY_FUND.id,
+  fundName: FIDELITY_FUND.name,
+  asOfDate: FIDELITY_METRICS.actual.asOfDate,
+  series: [
+    {
+      quarterIndex: 0,
+      label: 'Q1 2026',
+      date: '2026-03-31',
+      construction: {
+        nav: FIDELITY_METRICS.actual.currentNAV,
+        calledCapital: FIDELITY_METRICS.actual.totalCalled,
+        distributions: FIDELITY_METRICS.actual.totalDistributions,
+        tvpi: FIDELITY_METRICS.actual.tvpi,
+        dpi: FIDELITY_METRICS.actual.dpi,
+        rvpi: FIDELITY_METRICS.actual.rvpi,
+        irr: FIDELITY_METRICS.actual.irr,
+      },
+      current: {
+        nav: FIDELITY_METRICS.actual.currentNAV,
+        calledCapital: FIDELITY_METRICS.actual.totalCalled,
+        distributions: FIDELITY_METRICS.actual.totalDistributions,
+        tvpi: FIDELITY_METRICS.actual.tvpi,
+        dpi: FIDELITY_METRICS.actual.dpi,
+        rvpi: FIDELITY_METRICS.actual.rvpi,
+        irr: FIDELITY_METRICS.actual.irr,
+      },
+    },
+    {
+      quarterIndex: 1,
+      label: 'Q2 2026',
+      date: '2026-06-30',
+      construction: {
+        nav: 50_000_000,
+        calledCapital: 22_000_000,
+        distributions: 1_500_000,
+        tvpi: 2.45,
+        dpi: 0.07,
+        rvpi: 2.38,
+        irr: 0.19,
+      },
+      current: {
+        nav: 49_000_000,
+        calledCapital: 21_500_000,
+        distributions: 1_400_000,
+        tvpi: 2.4,
+        dpi: 0.06,
+        rvpi: 2.34,
+        irr: 0.188,
+      },
+    },
+  ],
+  sources: {
+    construction: 'construction_forecast_jcurve',
+    current: 'projected_metrics_calculator',
+    actual: 'actual_metrics_calculator',
+  },
+  config: {
+    source: 'published',
+    version: 1,
+    publishedAt: '2026-02-01T00:00:00.000Z',
+    fallbackReason: null,
+  },
+  warnings: [],
+};
+
 const EMPTY_VARIANCE_DASHBOARD = {
   success: true,
   data: {
@@ -287,6 +353,14 @@ async function installRouteFidelityApi(page: Page): Promise<RouteFidelityApiTrac
         url.pathname === `/api/fund-metrics/${FIDELITY_FUND.id}`)
     ) {
       await fulfillJson(route, FIDELITY_METRICS);
+      return;
+    }
+
+    if (
+      request.method() === 'GET' &&
+      url.pathname === `/api/funds/${FIDELITY_FUND.id}/dual-forecast`
+    ) {
+      await fulfillJson(route, FIDELITY_DUAL_FORECAST);
       return;
     }
 
