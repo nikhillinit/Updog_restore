@@ -74,14 +74,15 @@ const NUMERIC_TOLERANCE = 0.01;
  */
 function assertNumericEqual(actual: number, expected: number, field: string): void {
   const diff = Math.abs(actual - expected);
-
-  // Use relative tolerance for large values, absolute for small
   const tolerance = Math.max(NUMERIC_TOLERANCE, Math.abs(expected) * 0.001);
 
-  expect(diff).toBeLessThanOrEqual(
-    tolerance,
-    `${field}: expected ${expected}, got ${actual} (diff: ${diff.toFixed(4)})`
-  );
+  if (diff > tolerance) {
+    throw new Error(
+      `${field}: expected ${expected}, got ${actual} (diff: ${diff.toFixed(4)}, tolerance: ${tolerance.toFixed(4)})`
+    );
+  }
+
+  expect(diff).toBeLessThanOrEqual(tolerance);
 }
 
 /**
