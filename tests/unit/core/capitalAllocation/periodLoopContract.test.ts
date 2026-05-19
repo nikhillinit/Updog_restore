@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import {
   adaptTruthCaseInput,
   executePeriodLoop,
+  type PeriodLoopOptions,
   type TruthCaseInput,
 } from '@shared/core/capitalAllocation';
 
@@ -29,6 +30,42 @@ function reserveEngineInput(): CategoryInput {
     },
     flows: {
       contributions: [{ date: '2024-01-15', amount: 10_000_000 }],
+      distributions: [],
+    },
+    constraints: {
+      min_cash_buffer: 1_000_000,
+      rebalance_frequency: 'quarterly',
+    },
+    cohorts: [
+      {
+        name: 'Core',
+        start_date: '2024-01-01',
+        end_date: '2024-12-31',
+        weight: 1,
+      },
+    ],
+  };
+}
+
+function multiPeriodReserveEngineInput(): CategoryInput {
+  return {
+    category: 'reserve_engine',
+    fund: {
+      commitment: 100_000_000,
+      target_reserve_pct: 0.2,
+      reserve_policy: 'static_pct',
+      pacing_window_months: 24,
+      units: 'raw',
+    },
+    timeline: {
+      start_date: '2024-01-01',
+      end_date: '2024-06-30',
+    },
+    flows: {
+      contributions: [
+        { date: '2024-01-15', amount: 10_000_000 },
+        { date: '2024-04-15', amount: 8_000_000 },
+      ],
       distributions: [],
     },
     constraints: {
@@ -102,6 +139,24 @@ describe('executePeriodLoop reserve snapshot contract', () => {
     }).toThrow('reserveSnapshotMode');
   });
 
+  it('rejects missing reserve snapshot mode from malformed runtime options', () => {
+    const normalized = adaptTruthCaseInput(reserveEngineInput());
+
+    expect(() => {
+      executePeriodLoop(normalized, {} as unknown as PeriodLoopOptions);
+    }).toThrow('reserveSnapshotMode');
+  });
+
+  it('rejects invalid reserve snapshot mode from malformed runtime options', () => {
+    const normalized = adaptTruthCaseInput(reserveEngineInput());
+
+    expect(() => {
+      executePeriodLoop(normalized, {
+        reserveSnapshotMode: 'typo',
+      } as unknown as PeriodLoopOptions);
+    }).toThrow('reserveSnapshotMode');
+  });
+
   it('keeps planning reserve snapshots distinct from cash-constrained reserve snapshots', () => {
     const normalized = adaptTruthCaseInput(reserveEngineInput());
 
@@ -122,6 +177,34 @@ describe('executePeriodLoop reserve snapshot contract', () => {
         normalized.effectiveBufferCents
       )
     );
+  });
+
+  it('subtracts cumulative allocations from multi-period cash reserve snapshots', () => {
+    const normalized = adaptTruthCaseInput(multiPeriodReserveEngineInput());
+
+    const cash = executePeriodLoop(normalized, { reserveSnapshotMode: 'cash' });
+    const finalPeriod = cash.periods.at(-1);
+
+    expect(cash.periods.filter((period) => period.allocationCents > 0)).toHaveLength(2);
+    expect(finalPeriod).toBeDefined();
+    if (!finalPeriod) {
+      throw new Error('Expected cash mode to produce a final period');
+    }
+
+    const finalPeriodOnlyAllocationReserve = Math.min(
+      Math.max(0, finalPeriod.endingCashCents - finalPeriod.allocationCents),
+      normalized.effectiveBufferCents
+    );
+    const expectedCumulativeAllocationReserve = Math.min(
+      Math.max(0, finalPeriod.endingCashCents - cash.totalAllocationCents),
+      normalized.effectiveBufferCents
+    );
+
+    expect(cash.totalAllocationCents).toBe(
+      cash.periods.reduce((sum, period) => sum + period.allocationCents, 0)
+    );
+    expect(cash.finalReserveBalanceCents).toBe(expectedCumulativeAllocationReserve);
+    expect(cash.finalReserveBalanceCents).toBeLessThan(finalPeriodOnlyAllocationReserve);
   });
 
   it('accrues quarterly cohort reserve snapshots once per funded quarter', () => {

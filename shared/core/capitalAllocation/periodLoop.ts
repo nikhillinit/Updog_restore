@@ -572,7 +572,10 @@ function compareViolationOrder(a: Violation, b: Violation): number {
 }
 
 function resolvePeriodLoopOptions(options?: PeriodLoopOptions): PeriodLoopOptions {
-  if (!options) {
+  if (
+    !options ||
+    (options.reserveSnapshotMode !== 'planning' && options.reserveSnapshotMode !== 'cash')
+  ) {
     throw new Error(
       'executePeriodLoop requires reserveSnapshotMode: use planning for CA-007..CA-020 truth snapshots or cash for cash-constrained reserve reconciliation'
     );
@@ -583,10 +586,13 @@ function resolvePeriodLoopOptions(options?: PeriodLoopOptions): PeriodLoopOption
 
 function calculateCashConstrainedReserveBalanceCents(
   cumulativeCashCents: number,
-  periodAllocationTotal: number,
+  allocationTotalCentsToDate: number,
   reserveTargetCents: number
 ): number {
-  return Math.min(Math.max(0, cumulativeCashCents - periodAllocationTotal), reserveTargetCents);
+  return Math.min(
+    Math.max(0, cumulativeCashCents - allocationTotalCentsToDate),
+    reserveTargetCents
+  );
 }
 
 function calculateReserveSnapshotCents(args: {
@@ -595,7 +601,7 @@ function calculateReserveSnapshotCents(args: {
   rebalanceFrequency: NormalizedInput['rebalanceFrequency'];
   reserveTargetCents: number;
   cumulativeCashCents: number;
-  periodAllocationTotal: number;
+  allocationTotalCentsToDate: number;
   totalRecyclingPoolDeltaCents: number;
   totalCashImpactCents: number;
   fundedQuartersAccrued: number;
@@ -603,7 +609,7 @@ function calculateReserveSnapshotCents(args: {
   if (args.mode === 'cash') {
     return calculateCashConstrainedReserveBalanceCents(
       args.cumulativeCashCents,
-      args.periodAllocationTotal,
+      args.allocationTotalCentsToDate,
       args.reserveTargetCents
     );
   }
@@ -872,6 +878,10 @@ export function executePeriodLoop(
       (sum, v) => sum + v,
       0
     );
+    const allocationTotalCentsToDate = Array.from(cumulativeAllocationsByCohort.values()).reduce(
+      (sum, v) => sum + v,
+      0
+    );
 
     const reserveBalanceCents = calculateReserveSnapshotCents({
       mode: reserveSnapshotMode,
@@ -879,7 +889,7 @@ export function executePeriodLoop(
       rebalanceFrequency: input.rebalanceFrequency,
       reserveTargetCents,
       cumulativeCashCents,
-      periodAllocationTotal,
+      allocationTotalCentsToDate,
       totalRecyclingPoolDeltaCents,
       totalCashImpactCents,
       fundedQuartersAccrued,
