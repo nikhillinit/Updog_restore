@@ -512,8 +512,6 @@ TypeScript agents migrated)
   to agents
 - [THINKING_QUICK_START.md](../packages/agent-core/THINKING_QUICK_START.md) -
   Add extended thinking
-- [Archive Manifest](../archive/2025-10-07/ARCHIVE_MANIFEST.md) - BMad
-  restoration guide
 - [Anthropic Cookbook](../anthropic-cookbook/) - Official workflow patterns and
   examples
 
