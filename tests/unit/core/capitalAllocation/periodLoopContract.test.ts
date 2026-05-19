@@ -113,21 +113,31 @@ describe('executePeriodLoop reserve snapshot contract', () => {
   it('accrues quarterly cohort reserve snapshots once per funded quarter', () => {
     const normalized = adaptTruthCaseInput(
       quarterlyCohortInput([
-        { date: '2025-03-01', amount: 2_000_000 },
+        { date: '2025-02-01', amount: 1_000_000 },
+        { date: '2025-03-01', amount: 1_000_000 },
         { date: '2025-06-01', amount: 2_000_000 },
       ])
     );
 
     const result = executePeriodLoop(normalized, { reserveSnapshotMode: 'planning' });
+    const firstQuarter = result.periods.find((period) => period.period.id === '2025-Q1');
+    const secondQuarter = result.periods.find((period) => period.period.id === '2025-Q2');
 
+    expect(firstQuarter?.reserveBalanceCents).toBe(normalized.effectiveBufferCents);
+    expect(secondQuarter?.reserveBalanceCents).toBe(normalized.effectiveBufferCents * 2);
     expect(result.finalReserveBalanceCents).toBe(normalized.effectiveBufferCents * 2);
   });
 
   it('does not synthesize a quarterly cohort reserve snapshot before any funded quarter', () => {
-    const normalized = adaptTruthCaseInput(quarterlyCohortInput([]));
+    const normalized = adaptTruthCaseInput(
+      quarterlyCohortInput([{ date: '2025-06-01', amount: 2_000_000 }])
+    );
 
     const result = executePeriodLoop(normalized, { reserveSnapshotMode: 'planning' });
+    const firstQuarter = result.periods.find((period) => period.period.id === '2025-Q1');
+    const secondQuarter = result.periods.find((period) => period.period.id === '2025-Q2');
 
-    expect(result.finalReserveBalanceCents).toBe(0);
+    expect(firstQuarter?.reserveBalanceCents).toBe(0);
+    expect(secondQuarter?.reserveBalanceCents).toBe(normalized.effectiveBufferCents);
   });
 });
