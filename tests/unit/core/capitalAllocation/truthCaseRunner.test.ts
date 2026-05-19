@@ -1,9 +1,8 @@
 /**
- * Capital Allocation Truth Case Runner
+ * Capital Allocation Scalar Truth Case Runner
  *
- * Validates current scalar reserve truth cases against the CA engine.
- * Pacing/cohort-period truth cases remain explicit skipped coverage until a
- * dedicated harness validates their period-by-period expectations.
+ * Validates scalar reserve truth cases against the CA engine.  Period/pacing
+ * cases live in periodTruthCaseRunner.test.ts and should not be emitted as skips.
  * CA-001 contract resolved: cash model is canonical (Section 1.1.1).
  *
  * @see docs/capital-allocation.truth-cases.json
@@ -95,6 +94,7 @@ function convertToEngineInput(tc: CATruthCase): TruthCaseInput {
       target_reserve_pct: tc.inputs.fund.target_reserve_pct,
       vintage_year: tc.inputs.fund.vintage_year,
       reserve_policy: tc.inputs.fund.reserve_policy,
+      pacing_window_months: tc.inputs.fund.pacing_window_months,
     },
     constraints: {
       min_cash_buffer: tc.inputs.constraints.min_cash_buffer,
@@ -128,7 +128,9 @@ describe('Capital Allocation Truth Cases', () => {
   let failed = 0;
   let skipped = 0;
 
-  const cases = capitalCases as CATruthCase[];
+  const cases = (capitalCases as CATruthCase[]).filter(
+    (tc) => tc.expected.reserve_balance !== undefined
+  );
 
   cases.forEach((tc) => {
     const skipCheck = shouldSkipTruthCase(tc.id, tc.inputs.fund.reserve_policy);
@@ -137,14 +139,6 @@ describe('Capital Allocation Truth Cases', () => {
       skipped++;
       // SKIP: this truth-case harness does not yet support every reserve-policy variant; the title includes the specific reason.
       it.skip(`${tc.id}: ${tc.description} - ${skipCheck.reason}`, () => undefined);
-      return;
-    }
-
-    if (tc.expected.reserve_balance === undefined) {
-      skipped++;
-      // SKIP: pacing/cohort-period cases need a dedicated harness for their period-by-period expectations.
-      it.skip(`${tc.id}: ${tc.description} - pending dedicated pacing/cohort-period harness`, () =>
-        undefined);
       return;
     }
 
@@ -211,7 +205,7 @@ describe('Capital Allocation Truth Cases', () => {
 
     expect(total).toBeGreaterThan(0);
     expect(failed).toBe(0);
-    expect(skipped).toBeGreaterThan(0);
+    expect(skipped).toBe(0);
   });
 });
 

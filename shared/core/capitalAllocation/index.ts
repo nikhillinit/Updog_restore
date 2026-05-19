@@ -77,6 +77,7 @@ export {
   ViolationSchema,
   ReserveBalancePointSchema,
   CAEngineOutputSchema,
+  PacingTargetPointSchema,
 
   // Types
   type CashFlow,
@@ -92,6 +93,7 @@ export {
   type Violation,
   type ReserveBalancePoint,
   type CAEngineOutput,
+  type PacingTargetPoint,
   type InternalCohort,
   type CashLedgerState,
   type CapacityState,
@@ -147,5 +149,6 @@ export {
   convertPeriodLoopOutput,
   type Period,
   type AllocationPeriodSnapshot,
+  type PacingTargetByPeriod,
   type PeriodLoopOutput,
 } from './periodLoop';

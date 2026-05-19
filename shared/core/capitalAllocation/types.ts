@@ -156,6 +156,12 @@ export const ViolationTypeSchema = z.enum([
   'cap_exceeded',
   'negative_balance',
   'negative_capacity',
+  'pacing_floor_triggered_no_pipeline',
+  'reserve_floor_override_pacing',
+  'max_per_cohort_cap_bound',
+  'capital_recall_processed',
+  'reserve_floor_precedence_over_pacing',
+  'recycling_applied',
 ]);
 
 export type ViolationType = z.infer<typeof ViolationTypeSchema>;
@@ -192,6 +198,14 @@ export const ReserveBalancePointSchema = z.object({
 
 export type ReserveBalancePoint = z.infer<typeof ReserveBalancePointSchema>;
 
+export const PacingTargetPointSchema = z.object({
+  period: z.string(),
+  target: z.number(),
+  targetCents: z.number().int().optional(),
+});
+
+export type PacingTargetPoint = z.infer<typeof PacingTargetPointSchema>;
+
 // =============================================================================
 // Engine Output Schema
 // =============================================================================
@@ -206,6 +220,9 @@ export const CAEngineOutputSchema = z.object({
 
   // Time series (always present, even if empty)
   reserve_balance_over_time: z.array(ReserveBalancePointSchema).default([]),
+
+  // Pacing target snapshots (always present for period-loop outputs)
+  pacing_targets_by_period: z.array(PacingTargetPointSchema).default([]),
 
   // Capacity tracking
   remaining_capacity: z.number().optional(),
@@ -292,6 +309,7 @@ export function createEmptyOutput(): CAEngineOutput {
     reserveBalanceCents: 0,
     allocations_by_cohort: [],
     reserve_balance_over_time: [],
+    pacing_targets_by_period: [],
     violations: [],
     remaining_capacity: 0,
     remainingCapacityCents: 0,
@@ -316,7 +334,9 @@ export function createViolation(
 ): Violation {
   return {
     type,
-    severity: options.severity ?? (type === 'negative_balance' || type === 'negative_capacity' ? 'error' : 'warning'),
+    severity:
+      options.severity ??
+      (type === 'negative_balance' || type === 'negative_capacity' ? 'error' : 'warning'),
     period: options.period ?? null,
     cohort: options.cohort ?? null,
     message,
