@@ -152,6 +152,79 @@ function integrationInputWithRecycling(): CategoryInput {
   };
 }
 
+function cohortInputWithBoundCap(): CategoryInput {
+  return {
+    category: 'cohort_engine',
+    fund: {
+      commitment: 20_000_000,
+      target_reserve_pct: 0,
+      reserve_policy: 'static_pct',
+      pacing_window_months: 12,
+      units: 'raw',
+    },
+    timeline: {
+      start_date: '2024-01-01',
+      end_date: '2024-03-31',
+    },
+    flows: {
+      contributions: [{ date: '2024-01-15', amount: 10_000_000 }],
+      distributions: [],
+    },
+    constraints: {
+      min_cash_buffer: 0,
+      max_allocation_per_cohort: 0.5,
+      rebalance_frequency: 'quarterly',
+    },
+    cohorts: [
+      {
+        name: 'Lead',
+        start_date: '2024-01-01',
+        end_date: '2024-12-31',
+        weight: 0.9,
+      },
+      {
+        name: 'Follow',
+        start_date: '2024-01-01',
+        end_date: '2024-12-31',
+        weight: 0.1,
+      },
+    ],
+  };
+}
+
+function integrationInputWithCapitalRecall(): CategoryInput {
+  return {
+    category: 'integration',
+    fund: {
+      commitment: 100_000_000,
+      target_reserve_pct: 0.2,
+      reserve_policy: 'static_pct',
+      pacing_window_months: 24,
+      units: 'raw',
+    },
+    timeline: {
+      start_date: '2024-01-01',
+      end_date: '2024-03-31',
+    },
+    flows: {
+      contributions: [{ date: '2024-01-15', amount: 10_000_000 }],
+      distributions: [{ date: '2024-02-15', amount: -2_000_000 }],
+    },
+    constraints: {
+      min_cash_buffer: 1_000_000,
+      rebalance_frequency: 'quarterly',
+    },
+    cohorts: [
+      {
+        name: 'Core',
+        start_date: '2024-01-01',
+        end_date: '2024-12-31',
+        weight: 1,
+      },
+    ],
+  };
+}
+
 function pacingEngineInputWithoutPipeline(): CategoryInput {
   return {
     category: 'pacing_engine',
@@ -337,6 +410,36 @@ describe('executePeriodLoop reserve snapshot contract', () => {
         }),
         expect.objectContaining({
           type: 'recycling_applied',
+          kind: 'event',
+        }),
+      ])
+    );
+  });
+
+  it('marks cohort cap binding as an event without splitting violations', () => {
+    const normalized = adaptTruthCaseInput(cohortInputWithBoundCap());
+
+    const result = executePeriodLoop(normalized, { reserveSnapshotMode: 'planning' });
+
+    expect(result.violations).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          type: 'max_per_cohort_cap_bound',
+          kind: 'event',
+        }),
+      ])
+    );
+  });
+
+  it('marks capital recall processing as an event without splitting violations', () => {
+    const normalized = adaptTruthCaseInput(integrationInputWithCapitalRecall());
+
+    const result = executePeriodLoop(normalized, { reserveSnapshotMode: 'planning' });
+
+    expect(result.violations).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          type: 'capital_recall_processed',
           kind: 'event',
         }),
       ])
