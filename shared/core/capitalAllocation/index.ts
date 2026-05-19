@@ -150,5 +150,7 @@ export {
   type Period,
   type AllocationPeriodSnapshot,
   type PacingTargetByPeriod,
+  type PeriodReserveSnapshotMode,
+  type PeriodLoopOptions,
   type PeriodLoopOutput,
 } from './periodLoop';

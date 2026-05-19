@@ -211,7 +211,9 @@ describe('Capital Allocation Truth Cases', () => {
           const normalizedInput = adaptTruthCaseInput(rawInput);
 
           // Execute period-loop engine for pacing model
-          const periodLoopResult = executePeriodLoop(normalizedInput);
+          const periodLoopResult = executePeriodLoop(normalizedInput, {
+            reserveSnapshotMode: 'planning',
+          });
           const result = convertPeriodLoopOutput(normalizedInput, periodLoopResult);
 
           // Validate allocations_by_cohort

@@ -57,11 +57,18 @@ export interface PacingTargetByPeriod {
   targetCents: number;
 }
 
+export type PeriodReserveSnapshotMode = 'planning' | 'cash';
+
+export interface PeriodLoopOptions {
+  reserveSnapshotMode: PeriodReserveSnapshotMode;
+}
+
 export interface PeriodLoopOutput {
   periods: AllocationPeriodSnapshot[];
   totalAllocationCents: number;
   allocationsByCohort: Map<string, number>;
   finalReserveBalanceCents: number;
+  reserveSnapshotMode: PeriodReserveSnapshotMode;
   violations: Violation[];
   // Distribution classification totals (CA-019, CA-020)
   totalCashImpactCents: number;
@@ -564,6 +571,58 @@ function compareViolationOrder(a: Violation, b: Violation): number {
   return (a.cohort ?? '~~~~').localeCompare(b.cohort ?? '~~~~');
 }
 
+function resolvePeriodLoopOptions(options?: PeriodLoopOptions): PeriodLoopOptions {
+  if (!options) {
+    throw new Error(
+      'executePeriodLoop requires reserveSnapshotMode: use planning for CA-007..CA-020 truth snapshots or cash for cash-constrained reserve reconciliation'
+    );
+  }
+
+  return options;
+}
+
+function calculateCashConstrainedReserveBalanceCents(
+  cumulativeCashCents: number,
+  periodAllocationTotal: number,
+  reserveTargetCents: number
+): number {
+  return Math.min(Math.max(0, cumulativeCashCents - periodAllocationTotal), reserveTargetCents);
+}
+
+function calculateReserveSnapshotCents(args: {
+  mode: PeriodReserveSnapshotMode;
+  category: string;
+  rebalanceFrequency: NormalizedInput['rebalanceFrequency'];
+  reserveTargetCents: number;
+  cumulativeCashCents: number;
+  periodAllocationTotal: number;
+  totalRecyclingPoolDeltaCents: number;
+  totalCashImpactCents: number;
+  fundedQuartersAccrued: number;
+}): number {
+  if (args.mode === 'cash') {
+    return calculateCashConstrainedReserveBalanceCents(
+      args.cumulativeCashCents,
+      args.periodAllocationTotal,
+      args.reserveTargetCents
+    );
+  }
+
+  if (args.category === 'integration') {
+    return args.reserveTargetCents + args.totalRecyclingPoolDeltaCents;
+  }
+
+  if (args.category === 'cohort_engine' && args.rebalanceFrequency === 'quarterly') {
+    return args.reserveTargetCents * args.fundedQuartersAccrued;
+  }
+
+  if (args.category === 'cohort_engine' && args.totalCashImpactCents > 0) {
+    return Math.max(0, args.reserveTargetCents - args.totalCashImpactCents);
+  }
+
+  return args.reserveTargetCents;
+}
+
 // =============================================================================
 // Period Loop Engine
 // =============================================================================
@@ -573,7 +632,12 @@ function compareViolationOrder(a: Violation, b: Violation): number {
  *
  * This is the main entry point for pacing model cases.
  */
-export function executePeriodLoop(input: NormalizedInput): PeriodLoopOutput {
+export function executePeriodLoop(
+  input: NormalizedInput,
+  options: PeriodLoopOptions
+): PeriodLoopOutput {
+  const { reserveSnapshotMode } = resolvePeriodLoopOptions(options);
+
   // Extract pacing window and category from original input
   const originalFund =
     'fund' in input.original
@@ -613,7 +677,7 @@ export function executePeriodLoop(input: NormalizedInput): PeriodLoopOutput {
   let cumulativeCashCents = 0;
   let totalCashImpactCents = 0;
   let totalRecyclingPoolDeltaCents = 0;
-  let reserveRebalanceEvents = 0;
+  let fundedQuartersAccrued = 0;
   const cumulativeAllocationsByCohort = new Map<string, number>();
   const violations: Violation[] = [];
 
@@ -666,7 +730,7 @@ export function executePeriodLoop(input: NormalizedInput): PeriodLoopOutput {
       input.rebalanceFrequency === 'quarterly' &&
       cashInCents > 0
     ) {
-      reserveRebalanceEvents += 1;
+      fundedQuartersAccrued += 1;
     }
 
     // Calculate period pacing target (prorated for partial periods)
@@ -809,20 +873,17 @@ export function executePeriodLoop(input: NormalizedInput): PeriodLoopOutput {
       0
     );
 
-    // See CA-SEMANTIC-LOCK.md Section 1.1.2: period truth cases report
-    // reserve-planning snapshots, while scalar reserve cases remain cash-based.
-    let reserveBalanceCents = reserveTargetCents;
-
-    if (category === 'integration') {
-      // Recyclable proceeds increase the reserved capacity pool in CA-020.
-      reserveBalanceCents = reserveTargetCents + totalRecyclingPoolDeltaCents;
-    } else if (category === 'cohort_engine' && input.rebalanceFrequency === 'quarterly') {
-      // Quarterly cohort rebalances accrue reserve snapshots at each funded quarter (CA-017).
-      reserveBalanceCents = reserveTargetCents * Math.max(1, reserveRebalanceEvents);
-    } else if (category === 'cohort_engine' && totalCashImpactCents > 0) {
-      // Capital recalls reduce the target snapshot used by CA-019's net-basis recomputation.
-      reserveBalanceCents = Math.max(0, reserveTargetCents - totalCashImpactCents);
-    }
+    const reserveBalanceCents = calculateReserveSnapshotCents({
+      mode: reserveSnapshotMode,
+      category,
+      rebalanceFrequency: input.rebalanceFrequency,
+      reserveTargetCents,
+      cumulativeCashCents,
+      periodAllocationTotal,
+      totalRecyclingPoolDeltaCents,
+      totalCashImpactCents,
+      fundedQuartersAccrued,
+    });
 
     if (
       category === 'pacing_engine' &&
@@ -910,6 +971,7 @@ export function executePeriodLoop(input: NormalizedInput): PeriodLoopOutput {
     totalAllocationCents,
     allocationsByCohort: cumulativeAllocationsByCohort,
     finalReserveBalanceCents,
+    reserveSnapshotMode,
     violations,
     // Distribution classification totals (CA-019, CA-020)
     totalCashImpactCents,

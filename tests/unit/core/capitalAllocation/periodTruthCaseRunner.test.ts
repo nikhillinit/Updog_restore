@@ -219,7 +219,7 @@ describe('Capital Allocation Period Truth Cases', () => {
   periodCases.forEach((tc) => {
     it(`${tc.id}: ${tc.description}`, () => {
       const normalizedInput = adaptTruthCaseInput(convertToEngineInput(tc));
-      const loopOutput = executePeriodLoop(normalizedInput);
+      const loopOutput = executePeriodLoop(normalizedInput, { reserveSnapshotMode: 'planning' });
       const output = convertPeriodLoopOutput(normalizedInput, loopOutput);
 
       assertAllocations(tc, normalizedInput, loopOutput);
