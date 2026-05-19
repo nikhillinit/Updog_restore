@@ -170,9 +170,14 @@ export const ViolationSeveritySchema = z.enum(['warning', 'error']);
 
 export type ViolationSeverity = z.infer<typeof ViolationSeveritySchema>;
 
+export const ViolationKindSchema = z.enum(['constraint', 'event']);
+
+export type ViolationKind = z.infer<typeof ViolationKindSchema>;
+
 export const ViolationSchema = z.object({
   type: ViolationTypeSchema,
   severity: ViolationSeveritySchema,
+  kind: ViolationKindSchema.default('constraint'),
   period: z.string().optional().nullable(),
   cohort: z.string().optional().nullable(),
   message: z.string(),
@@ -326,6 +331,7 @@ export function createViolation(
   message: string,
   options: {
     severity?: ViolationSeverity;
+    kind?: ViolationKind;
     period?: string;
     cohort?: string;
     expected?: number;
@@ -337,6 +343,7 @@ export function createViolation(
     severity:
       options.severity ??
       (type === 'negative_balance' || type === 'negative_capacity' ? 'error' : 'warning'),
+    kind: options.kind ?? 'constraint',
     period: options.period ?? null,
     cohort: options.cohort ?? null,
     message,

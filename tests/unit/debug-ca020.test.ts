@@ -44,7 +44,9 @@ describe('Debug CA-020', () => {
     }
 
     const normalizedInput = adaptTruthCaseInput(input);
-    const periodLoopResult = executePeriodLoop(normalizedInput);
+    const periodLoopResult = executePeriodLoop(normalizedInput, {
+      reserveSnapshotMode: 'planning',
+    });
     const result = convertPeriodLoopOutput(normalizedInput, periodLoopResult);
 
     const apr = periodLoopResult.periods.find((p) => p.period.id === '2025-04');
