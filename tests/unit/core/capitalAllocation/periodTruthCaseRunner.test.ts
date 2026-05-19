@@ -74,10 +74,13 @@ function assertNumericEqual(actual: number, expected: number, field: string): vo
   const diff = Math.abs(actual - expected);
   const tolerance = Math.max(NUMERIC_TOLERANCE, Math.abs(expected) * 0.001);
 
-  expect(diff).toBeLessThanOrEqual(
-    tolerance,
-    `${field}: expected ${expected}, got ${actual} (diff: ${diff.toFixed(4)})`
-  );
+  if (diff > tolerance) {
+    throw new Error(
+      `${field}: expected ${expected}, got ${actual} (diff: ${diff.toFixed(4)}, tolerance: ${tolerance.toFixed(4)})`
+    );
+  }
+
+  expect(diff).toBeLessThanOrEqual(tolerance);
 }
 
 function convertToEngineInput(tc: CATruthCase): PeriodTruthCaseInput {
@@ -219,7 +222,7 @@ describe('Capital Allocation Period Truth Cases', () => {
   periodCases.forEach((tc) => {
     it(`${tc.id}: ${tc.description}`, () => {
       const normalizedInput = adaptTruthCaseInput(convertToEngineInput(tc));
-      const loopOutput = executePeriodLoop(normalizedInput);
+      const loopOutput = executePeriodLoop(normalizedInput, { reserveSnapshotMode: 'planning' });
       const output = convertPeriodLoopOutput(normalizedInput, loopOutput);
 
       assertAllocations(tc, normalizedInput, loopOutput);

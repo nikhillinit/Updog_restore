@@ -96,7 +96,7 @@ function toSharedInput(tc: CATruthCase): TruthCaseInput & { category: string } {
 
 function runForcedSharedPeriodLoop(tc: CATruthCase): Array<{ cohort: string; amount: number }> {
   const normalizedInput = adaptTruthCaseInput(toSharedInput(tc));
-  const periodLoopResult = executePeriodLoop(normalizedInput);
+  const periodLoopResult = executePeriodLoop(normalizedInput, { reserveSnapshotMode: 'planning' });
   const output = convertPeriodLoopOutput(normalizedInput, periodLoopResult);
   return output.allocations_by_cohort.map(({ cohort, amount }) => ({ cohort, amount }));
 }

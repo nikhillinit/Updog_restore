@@ -74,6 +74,7 @@ export {
   CAEngineInputSchema,
   ViolationTypeSchema,
   ViolationSeveritySchema,
+  ViolationKindSchema,
   ViolationSchema,
   ReserveBalancePointSchema,
   CAEngineOutputSchema,
@@ -90,6 +91,7 @@ export {
   type CAEngineInput,
   type ViolationType,
   type ViolationSeverity,
+  type ViolationKind,
   type Violation,
   type ReserveBalancePoint,
   type CAEngineOutput,
@@ -150,5 +152,7 @@ export {
   type Period,
   type AllocationPeriodSnapshot,
   type PacingTargetByPeriod,
+  type PeriodReserveSnapshotMode,
+  type PeriodLoopOptions,
   type PeriodLoopOutput,
 } from './periodLoop';
