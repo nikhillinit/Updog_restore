@@ -30,6 +30,7 @@ configuration:
     - 'docs/forecasting/*.md' # Monte Carlo, power law
     - 'cheatsheets/**/*.md'
     - '.claude/**/*.md'
+    - '.claude/**/*.json'
     - '.claude/agents/*.md'
     - '.claude/skills/**/*.md'
     - '.claude/commands/*.md'

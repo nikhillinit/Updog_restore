@@ -1,3 +1,10 @@
+---
+status: ACTIVE
+last_updated: 2026-05-20
+owner: Platform Team
+categories: [planning, hermes, orchestration]
+---
+
 # Hermes Integration Implementation Plan
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use
@@ -450,3 +457,24 @@ Expected: PASS or no new baseline regression.
   executable tasks.
 - Type consistency: test imports match planned `orchestrate.js` exports, and
   routing plan fields match CLI JSON output.
+
+## Hardening Follow-ups
+
+Approved follow-ups after the landed MVP:
+
+- Enforce Hermes gates in `orchestrate.js` around real model execution.
+- Keep the escape hatch limited to `--skip-preflight-gate --skip-reason`.
+- Never skip production-financial postflight gates.
+- Add `.claude/**/*.json` to discovery scanning so Hermes routing config is
+  discoverable.
+- Keep exactly one `hermes_dev_coop` discovery pattern.
+- Do not add `dev-pipeline.ts` as part of this MVP hardening pass.
+- Do not rewrite `orchestrate.js` wholesale; preserve the thin task-bus shape.
+- Do not touch financial calculation code.
+
+## Prune-Policy Reassessment
+
+`DEV_BRAIN.md` and `.claude/hermes/SOUL.md` remain intentionally small runtime
+prompt inputs. Their model-lane guidance, handoff rules, and Hermes identity are
+not fully derivable from code, and `orchestrate.js` loads them into spawned
+model prompts. Keep them unless a future change removes that runtime dependency.

@@ -404,12 +404,26 @@ function pathMatchesGlob(filePath: string, pattern: string): boolean {
   return globPatternToRegExp(pattern).test(normalizePath(filePath));
 }
 
+function getIncludedExtensions(patterns: string[]): Set<string> {
+  const extensions = new Set<string>();
+
+  for (const pattern of patterns) {
+    const extension = path.extname(pattern).toLowerCase();
+    if (extension) {
+      extensions.add(extension);
+    }
+  }
+
+  return extensions.size > 0 ? extensions : new Set(['.md']);
+}
+
 function validateGlobSentinels(): void {
   const expectedMatches: Array<[string, string]> = [
     ['cheatsheets/**/*.md', 'cheatsheets/daily-workflow.md'],
     ['cheatsheets/**/*.md', 'cheatsheets/nested/example.md'],
     ['.claude/**/*.md', '.claude/AGENT-DIRECTORY.md'],
     ['.claude/**/*.md', '.claude/agents/code-reviewer.md'],
+    ['.claude/**/*.json', '.claude/hermes/model-routing.json'],
     ['docs/**/archive/**', 'docs/archive/2026-q2/example.md'],
     ['docs/**/archive/**', 'docs/observability/archive/example.md'],
     ['**/node_modules/**', 'node_modules/pkg/README.md'],
@@ -420,6 +434,7 @@ function validateGlobSentinels(): void {
     ['cheatsheets/**/*.md', 'cheatsheets/daily-workflow.txt'],
     ['cheatsheets/**/*.md', 'docs/cheatsheets/daily-workflow.md'],
     ['.claude/**/*.md', 'docs/.claude/AGENT-DIRECTORY.md'],
+    ['.claude/**/*.json', '.claude/hermes/model-routing.md'],
   ];
 
   for (const [pattern, filePath] of expectedMatches) {
@@ -460,6 +475,7 @@ function getTrackedFileSet(): Set<string> {
 async function globFiles(patterns: string[], excludes: string[]): Promise<string[]> {
   const includeRegexes = patterns.map(globPatternToRegExp);
   const excludeRegexes = excludes.map(globPatternToRegExp);
+  const includeExtensions = getIncludedExtensions(patterns);
   const results: string[] = [];
 
   async function walkDir(dir: string): Promise<void> {
@@ -476,7 +492,7 @@ async function globFiles(patterns: string[], excludes: string[]): Promise<string
 
         if (entry.isDirectory()) {
           await walkDir(fullPath);
-        } else if (entry.name.endsWith('.md')) {
+        } else if (includeExtensions.has(path.extname(entry.name).toLowerCase())) {
           // Check if matches any pattern
           const matches = includeRegexes.some((regex) => regex.test(relativePath));
           if (matches) {
@@ -508,7 +524,7 @@ async function globFiles(patterns: string[], excludes: string[]): Promise<string
       const entries = await fs.readdir('.', { withFileTypes: true });
       entries.sort((a, b) => compareStrings(a.name, b.name));
       for (const entry of entries) {
-        if (!entry.isDirectory() && entry.name.endsWith('.md')) {
+        if (!entry.isDirectory() && includeExtensions.has(path.extname(entry.name).toLowerCase())) {
           const matches = patterns.some((pat) => {
             return pathMatchesGlob(entry.name, pat);
           });
@@ -805,7 +821,9 @@ function extractField(content: string, field: string): string | null {
 async function main(): Promise<void> {
   const isCheckMode = process.argv.includes('--check');
   const isVerbose = process.argv.includes('--verbose');
-  const generatedAt = isCheckMode ? '1970-01-01T00:00:00.000Z' : new Date().toISOString();
+  const generatedAt = isCheckMode
+    ? '1970-01-01T00:00:00.000Z'
+    : `${new Date().toISOString().split('T')[0]}T00:00:00.000Z`;
 
   console.log(`Discovery Map Generator ${isCheckMode ? '(check mode)' : '(generate mode)'}`);
   console.log('---');
@@ -896,9 +914,10 @@ async function main(): Promise<void> {
     try {
       const normalizedFile = normalizePath(file);
       const content = normalizeLineEndings(await fs.readFile(normalizedFile, 'utf8'));
-      const parsed = parseFrontmatter(content);
+      const isMarkdown = path.extname(normalizedFile).toLowerCase() === '.md';
+      const parsed = isMarkdown ? parseFrontmatter(content) : { data: {}, content };
 
-      const lastUpdatedStr = parsed.data.last_updated as string | undefined;
+      const lastUpdatedStr = isMarkdown ? (parsed.data.last_updated as string | undefined) : null;
       const lastUpdated = lastUpdatedStr ? new Date(lastUpdatedStr) : null;
 
       const cadence = getStaleCadence(
@@ -909,15 +928,23 @@ async function main(): Promise<void> {
 
       // Cross-platform determinism: freeze "now" during check mode.
       const now = isCheckMode ? new Date('2000-01-01T00:00:00.000Z').getTime() : Date.now();
-      const staleDays = lastUpdated
-        ? Math.floor((now - lastUpdated.getTime()) / (24 * 60 * 60 * 1000))
-        : 999;
+      const staleDays = isMarkdown
+        ? lastUpdated
+          ? Math.floor((now - lastUpdated.getTime()) / (24 * 60 * 60 * 1000))
+          : 999
+        : 0;
 
-      const isStale = lastUpdated ? now - lastUpdated.getTime() > cadence : true;
+      const isStale = isMarkdown
+        ? lastUpdated
+          ? now - lastUpdated.getTime() > cadence
+          : true
+        : false;
 
-      const execClaims = hasExecutionClaims(content, config.staleness.execution_claim_patterns);
+      const execClaims = isMarkdown
+        ? hasExecutionClaims(content, config.staleness.execution_claim_patterns)
+        : false;
 
-      const status = (parsed.data.status as string) || 'UNKNOWN';
+      const status = isMarkdown ? (parsed.data.status as string) || 'UNKNOWN' : 'INDEXED';
 
       docsData.push({
         path: normalizedFile,
@@ -934,7 +961,7 @@ async function main(): Promise<void> {
 
       stats.total_docs++;
       if (isStale) stats.stale_docs++;
-      if (Object.keys(parsed.data).length === 0) stats.missing_frontmatter++;
+      if (isMarkdown && Object.keys(parsed.data).length === 0) stats.missing_frontmatter++;
       stats.by_status[status] = (stats.by_status[status] || 0) + 1;
     } catch {
       if (isVerbose) {
@@ -1089,7 +1116,9 @@ Documents without proper YAML frontmatter:
 
 `;
 
-  const missingFm = docsData.filter((d) => Object.keys(d.frontmatter).length === 0);
+  const missingFm = docsData.filter(
+    (d) => path.extname(d.path).toLowerCase() === '.md' && Object.keys(d.frontmatter).length === 0
+  );
   if (missingFm.length === 0) {
     mdOutput += '*All documents have frontmatter.*\n';
   } else {
