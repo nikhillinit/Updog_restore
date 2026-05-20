@@ -271,21 +271,14 @@ git grep -nE 'vitest\.config\.mjs|vitest\.config\.route-int|vitest\.config\.phas
   > .audit/refs-configs.txt || true
 ```
 
-## 0.3 Create `cleanup-manifest.md`
+## 0.3 Maintain `cleanup-manifest.md`
 
-| Candidate                                                       | Evidence                                                                          |    Risk | Action                                                                               | Validation                                                        | Rollback                |
-| --------------------------------------------------------------- | --------------------------------------------------------------------------------- | ------: | ------------------------------------------------------------------------------------ | ----------------------------------------------------------------- | ----------------------- |
-| `docs/phase0-runner*.txt`                                       | absent as of verification                                                         |     Low | no deletion; keep ignore rule only if log generation can recur                       | docs link check only if generated docs change                     | n/a                     |
-| `docs/references/attached_assets/`                              | 222 files; refs classified; binary/docs assets                                    | Low-Med | delete unused assets or externalize useful assets to LFS/object storage/docs CDN     | docs visual/link check + `check` + `build:prod`                   | git tag + external copy |
-| `docs/archive/`                                                 | present under `docs/archive/2025-q4/` with small baseline/default-parameter files | Low-Med | curate file-by-file; preserve only non-derivable historical/domain context           | docs link check                                                   | git tag                 |
-| root `archive/`                                                 | absent as of verification                                                         |     Low | no action except cleaning stale references in docs if touched                        | docs link check                                                   | n/a                     |
-| root `src/`                                                     | tracked `src/core/routes/ia.ts`; referenced by route-story tests                  |     Med | migrate/retire route-story mirror first; delete only after tests no longer import it | `check`, `test:unit`, route-map tests                             | git tag                 |
-| `client/src/machines/modeling-wizard.machine.ts`                | active runtime/test imports                                                       |    High | keep; inventory replacement path before any deletion attempt                         | `check`, `build:prod`, wizard persistence tests, fund setup smoke | git tag                 |
-| `repo/BMAD-METHOD` / `repo/`                                    | removed from working tree; it was untracked by git                                |     Low | no filesystem cleanup remains; update stale docs only when touched                   | docs link check if references change                              | n/a                     |
-| `packages/*`                                                    | tooling-coupled and referenced by scripts/tsconfigs                               |     Med | decouple refs first, then delete/extract only unused packages                        | `check`, `test:unit`, `build:prod`                                | git tag                 |
-| `vitest.config.mjs`                                             | active `test:unit` config                                                         |     Med | keep until unit tests migrate to replacement config                                  | `test:unit`                                                       | git tag                 |
-| redundant TS configs                                            | multiple active configs with extends/includes                                     |     Med | delete only after reference and extends scans prove unused                           | `check`, `build:prod`, Vite smoke                                 | git tag                 |
-| `.backup/`, `.a5c/`, `.zap/`, `.zencoder/`, `PATCHES/`, `.omx/` | present; several tracked/runtime-linked                                           |     Med | selective inventory only; no blanket delete                                          | relevant workflow/tooling checks                                  | git tag                 |
+The refreshed cleanup candidate register lives at
+`docs/governance/cleanup-manifest.md`. Treat that file as the current manifest
+for cleanup classifications, evidence, validation, and rollback notes.
+
+Refresh the manifest whenever a cleanup batch changes candidate counts,
+references, classifications, or validation commands.
 
 ---
 

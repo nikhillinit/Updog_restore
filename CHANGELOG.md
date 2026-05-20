@@ -50,6 +50,12 @@ and this project adheres to
 
 ### Added
 
+- **Cleanup Manifest Refresh** (2026-05-20)
+  - Added `docs/governance/cleanup-manifest.md` as the current cleanup candidate
+    register for deletion, externalization, migration, and keep decisions.
+  - Updated the refactor roadmap to point at the canonical manifest instead of
+    carrying an embedded stale table.
+
 - **Refactor Governance Roadmap** (2026-05-20)
   - Added `docs/governance/2026-05-19-refactor-roadmap.md` as the canonical
     cleanup/refactor sequencing document.

@@ -4,7 +4,7 @@ last_updated: 2026-05-20
 
 # Staleness Report
 
-_Generated: 2026-05-20T02:46:39.930Z_ _Source: docs/DISCOVERY-MAP.source.yaml_
+_Generated: 2026-05-20T03:04:51.463Z_ _Source: docs/DISCOVERY-MAP.source.yaml_
 
 ## Summary
 
