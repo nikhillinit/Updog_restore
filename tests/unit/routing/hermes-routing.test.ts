@@ -6,8 +6,25 @@ import {
   isCliEntryPoint,
   parseArgs,
   resolveGate,
+  runGate,
   scoreSpecialist,
 } from '../../../orchestrate.js';
+
+type FakeSpawnResult = { status: number };
+type FakeSpawnCall = { bin: string; args: string[] };
+function makeFakeRunner(status: number): {
+  runner: (bin: string, args: string[]) => FakeSpawnResult;
+  calls: FakeSpawnCall[];
+} {
+  const calls: FakeSpawnCall[] = [];
+  return {
+    calls,
+    runner: (bin: string, args: string[]) => {
+      calls.push({ bin, args });
+      return { status };
+    },
+  };
+}
 
 const routing = {
   defaults: {
@@ -116,5 +133,40 @@ describe('Hermes routing helpers', () => {
     expect(
       isCliEntryPoint('file:///repo/orchestrate.js', ['node', '/repo/tests/importer.js'])
     ).toBe(false);
+  });
+
+  test('parseArgs recognises --skip-gates as a deliberate escape hatch', () => {
+    const args = parseArgs(['--phase', 'production', '--task', 'unblock CI', '--skip-gates']);
+
+    expect(args.skipGates).toBe(true);
+    expect(args.phase).toBe('production');
+  });
+
+  test('runGate returns skipped=true when no command is configured', () => {
+    const { runner, calls } = makeFakeRunner(0);
+    const result = runGate(null, { runner, label: 'no-op' });
+
+    expect(result.ok).toBe(true);
+    expect(result.skipped).toBe(true);
+    expect(calls).toHaveLength(0);
+  });
+
+  test('runGate splits "npm run check" into bin and args and reports success', () => {
+    const { runner, calls } = makeFakeRunner(0);
+    const result = runGate('npm run check', { runner, label: 'pre-gate' });
+
+    expect(result.ok).toBe(true);
+    expect(result.skipped).toBe(false);
+    expect(result.code).toBe(0);
+    expect(calls).toEqual([{ bin: 'npm', args: ['run', 'check'] }]);
+  });
+
+  test('runGate reports failure when the subprocess exits non-zero', () => {
+    const { runner, calls } = makeFakeRunner(2);
+    const result = runGate('npm run calc-gate', { runner, label: 'post-gate' });
+
+    expect(result.ok).toBe(false);
+    expect(result.code).toBe(2);
+    expect(calls).toEqual([{ bin: 'npm', args: ['run', 'calc-gate'] }]);
   });
 });

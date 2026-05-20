@@ -1473,6 +1473,18 @@
     {
       "docType": "doc",
       "exists": true,
+      "frontmatter": {},
+      "hasExecutionClaims": false,
+      "isStale": false,
+      "lastUpdated": null,
+      "owner": null,
+      "path": ".claude/hermes/model-routing.json",
+      "staleDays": 0,
+      "status": "UNKNOWN"
+    },
+    {
+      "docType": "doc",
+      "exists": true,
       "frontmatter": {
         "last_updated": "2026-01-19",
         "status": "HISTORICAL"
@@ -1544,6 +1556,18 @@
       "path": ".claude/integration-test-reenable-plan.md",
       "staleDays": 121,
       "status": "ACTIVE"
+    },
+    {
+      "docType": "doc",
+      "exists": true,
+      "frontmatter": {},
+      "hasExecutionClaims": false,
+      "isStale": false,
+      "lastUpdated": null,
+      "owner": null,
+      "path": ".claude/large-file-allowlist.json",
+      "staleDays": 0,
+      "status": "UNKNOWN"
     },
     {
       "docType": "doc",
@@ -1902,6 +1926,30 @@
     {
       "docType": "doc",
       "exists": true,
+      "frontmatter": {},
+      "hasExecutionClaims": false,
+      "isStale": false,
+      "lastUpdated": null,
+      "owner": null,
+      "path": ".claude/schemas/handoff.schema.json",
+      "staleDays": 0,
+      "status": "UNKNOWN"
+    },
+    {
+      "docType": "doc",
+      "exists": true,
+      "frontmatter": {},
+      "hasExecutionClaims": false,
+      "isStale": false,
+      "lastUpdated": null,
+      "owner": null,
+      "path": ".claude/schemas/telemetry-event.schema.json",
+      "staleDays": 0,
+      "status": "UNKNOWN"
+    },
+    {
+      "docType": "doc",
+      "exists": true,
       "frontmatter": {
         "last_updated": "2026-01-19",
         "status": "HISTORICAL"
@@ -1945,6 +1993,18 @@
       "status": "ACTIVE"
     },
     {
+      "docType": "doc",
+      "exists": true,
+      "frontmatter": {},
+      "hasExecutionClaims": false,
+      "isStale": false,
+      "lastUpdated": null,
+      "owner": null,
+      "path": ".claude/settings.json",
+      "staleDays": 0,
+      "status": "UNKNOWN"
+    },
+    {
       "docType": "skill",
       "exists": true,
       "frontmatter": {
@@ -1972,6 +2032,18 @@
       "path": ".claude/skills/README.md",
       "staleDays": 121,
       "status": "ACTIVE"
+    },
+    {
+      "docType": "skill",
+      "exists": true,
+      "frontmatter": {},
+      "hasExecutionClaims": false,
+      "isStale": false,
+      "lastUpdated": null,
+      "owner": null,
+      "path": ".claude/skills/_index.json",
+      "staleDays": 0,
+      "status": "UNKNOWN"
     },
     {
       "docType": "skill",
@@ -2610,6 +2682,30 @@
       "owner": null,
       "path": ".claude/skills/phoenix-xirr-fees-validator/SKILL.md",
       "staleDays": 47,
+      "status": "UNKNOWN"
+    },
+    {
+      "docType": "skill",
+      "exists": true,
+      "frontmatter": {},
+      "hasExecutionClaims": false,
+      "isStale": false,
+      "lastUpdated": null,
+      "owner": null,
+      "path": ".claude/skills/planning-with-files/.claude-plugin/marketplace.json",
+      "staleDays": 0,
+      "status": "UNKNOWN"
+    },
+    {
+      "docType": "skill",
+      "exists": true,
+      "frontmatter": {},
+      "hasExecutionClaims": false,
+      "isStale": false,
+      "lastUpdated": null,
+      "owner": null,
+      "path": ".claude/skills/planning-with-files/.claude-plugin/plugin.json",
+      "staleDays": 0,
       "status": "UNKNOWN"
     },
     {
@@ -11759,14 +11855,17 @@
     {
       "docType": "doc",
       "exists": true,
-      "frontmatter": {},
+      "frontmatter": {
+        "last_updated": "2026-05-20",
+        "status": "ACTIVE"
+      },
       "hasExecutionClaims": false,
-      "isStale": true,
-      "lastUpdated": null,
+      "isStale": false,
+      "lastUpdated": "2026-05-20",
       "owner": null,
       "path": "docs/superpowers/plans/2026-05-20-hermes-integration.md",
-      "staleDays": 999,
-      "status": "UNKNOWN"
+      "staleDays": 0,
+      "status": "ACTIVE"
     },
     {
       "docType": "doc",
@@ -12224,7 +12323,7 @@
       "status": "ACTIVE"
     }
   ],
-  "generatedAt": "2026-05-20T06:02:57.970Z",
+  "generatedAt": "2026-05-20T07:40:51.412Z",
   "patterns": [
     {
       "category": "Security",
@@ -13327,7 +13426,7 @@
   "stats": {
     "by_status": {
       "ACCEPTED": 1,
-      "ACTIVE": 493,
+      "ACTIVE": 494,
       "ARCHIVED": 1,
       "BACKLOG": 1,
       "COMPLETED": 1,
@@ -13339,14 +13438,14 @@
       "REFERENCE": 6,
       "STALE-VALIDATION": 1,
       "TRACKED (not scheduled)": 1,
-      "UNKNOWN": 136,
+      "UNKNOWN": 143,
       "VERIFIED": 9,
       "active": 2,
       "ready": 3
     },
-    "missing_frontmatter": 16,
-    "stale_docs": 98,
-    "total_docs": 723
+    "missing_frontmatter": 15,
+    "stale_docs": 97,
+    "total_docs": 731
   },
   "version": "2.0"
 }

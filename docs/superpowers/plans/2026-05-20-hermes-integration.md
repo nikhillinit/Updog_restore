@@ -1,22 +1,45 @@
+---
+status: ACTIVE
+last_updated: 2026-05-20
+---
+
 # Hermes Integration Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use
-> superpowers:subagent-driven-development (recommended) or
-> superpowers:executing-plans to implement this plan task-by-task. Steps use
-> checkbox (`- [ ]`) syntax for tracking.
+> **Status:** The MVP landed in PR #661. The historical task list below stays
+> for traceability; do not re-run it. Current work is captured in the "Hardening
+> Follow-ups" section.
 
-**Goal:** Add a lightweight Hermes task bus that routes research, production,
-and distribution work across Claude, Codex, Kimi, and existing repo specialists
-without replacing current governance.
+**Goal:** Maintain the lightweight Hermes task bus that routes research,
+production, and distribution work across Claude, Codex, Kimi, and existing repo
+specialists without replacing current governance.
 
-**Architecture:** `orchestrate.js` remains the root CLI, but becomes an ESM-safe
-importable module with pure routing helpers and a guarded CLI entrypoint.
-Routing configuration lives under `.claude/hermes/`, while `DEV_BRAIN.md` and
-small pointers in `CLAUDE.md`/`AGENTS.md` describe Hermes as subordinate to
-existing repo instructions.
+**Architecture:** `orchestrate.js` is the root ESM task bus with pure routing
+helpers, a guarded CLI entrypoint, and programmatic gate enforcement. Routing
+configuration lives under `.claude/hermes/`, while `DEV_BRAIN.md` and small
+pointers in `CLAUDE.md`/`AGENTS.md` describe Hermes as subordinate to existing
+repo instructions.
 
 **Tech Stack:** Node.js ESM, Vitest server project, npm scripts, existing
 discovery-map generator.
+
+## Hardening Follow-ups
+
+These items extend the MVP without adding a new orchestration layer:
+
+- Programmatic gate enforcement in `orchestrate.js`: `plan.gate` runs before
+  model execution and again after the model returns success. Use `--skip-gates`
+  or `HERMES_SKIP_GATES=1` only for explicit gate-repair workflows.
+- Discovery scan covers `.claude/**/*.json` so config files such as
+  `.claude/hermes/model-routing.json` are indexed via the existing generator;
+  non-markdown files are recorded without polluting staleness stats.
+- Do not add another `hermes_dev_coop` pattern; the existing entry at priority
+  22 in `docs/DISCOVERY-MAP.source.yaml` covers Hermes routing.
+- Do not add `dev-pipeline.ts`. Pipeline logic, if ever needed, belongs in a
+  sibling module that `orchestrate.js` imports behind a subcommand, and ships
+  with its own tests.
+- `DEV_BRAIN.md` and `.claude/hermes/SOUL.md` are intentionally retained as
+  prompt preambles, not navigation docs. Reassessment recorded inline in the
+  files themselves. See `Self-Review` for the prune-policy outcome.
 
 ---
 
@@ -445,8 +468,17 @@ Expected: PASS or no new baseline regression.
 
 - Spec coverage: covers ESM, stdin prompt delivery, `.claude/hermes/`, safe
   exports, valid discovery integration, `calc-gate`, routing tests, legacy
-  command compatibility, and Kimi command failure guidance.
+  command compatibility, Kimi command failure guidance, programmatic pre/post
+  gate enforcement, and JSON discovery scanning.
 - Placeholder scan: no deferred implementation placeholders are present in the
   executable tasks.
-- Type consistency: test imports match planned `orchestrate.js` exports, and
-  routing plan fields match CLI JSON output.
+- Type consistency: test imports match `orchestrate.js` exports, and routing
+  plan fields match CLI JSON output.
+- Prune-policy reassessment of `DEV_BRAIN.md` and `.claude/hermes/SOUL.md`: both
+  stay. They are not navigation docs; they are the prompt preamble loaded by
+  `orchestrate.js` at runtime and shipped to Claude / Codex / Kimi sessions,
+  including models that do not consume `CLAUDE.md` or `AGENTS.md`. Their content
+  (model lanes, phase routing table, hard rules, identity, boundaries) is
+  non-derivable from code alone, so the derivability test requires keeping them.
+  They are already compact: `DEV_BRAIN.md` is a 60ish line charter, `SOUL.md` is
+  a 35 line identity card. No further trimming.

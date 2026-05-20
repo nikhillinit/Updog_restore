@@ -39,6 +39,7 @@ function parseArgs(argv = []) {
     help: false,
     manualModel: null,
     legacyCommand: null,
+    skipGates: false,
   };
 
   if (argv[0] && LEGACY_COMMANDS.has(argv[0])) {
@@ -55,6 +56,8 @@ function parseArgs(argv = []) {
       options.dryRun = true;
     } else if (arg === '--json') {
       options.json = true;
+    } else if (arg === '--skip-gates') {
+      options.skipGates = true;
     } else if (arg === '--phase') {
       options.phase = argv[index + 1] || options.phase;
       index += 1;
@@ -213,6 +216,22 @@ function commandExists(bin) {
   return result.status === 0;
 }
 
+function runGate(command, { env = process.env, runner = spawnSync, label = 'gate' } = {}) {
+  if (!command || !String(command).trim()) {
+    return { ok: true, skipped: true, label, command: null, code: 0 };
+  }
+
+  const tokens = String(command).trim().split(/\s+/);
+  const [bin, ...args] = tokens;
+  const result = runner(bin, args, {
+    stdio: 'inherit',
+    env,
+    shell: process.platform === 'win32',
+  });
+  const code = typeof result?.status === 'number' ? result.status : 1;
+  return { ok: code === 0, skipped: false, label, command, code };
+}
+
 function executeModel(model, prompt, routing, env = process.env) {
   const commandConfig = routing.commands?.[model];
   if (!commandConfig) {
@@ -247,7 +266,9 @@ function printHelp(stdout = process.stdout) {
   node orchestrate.js --dry-run --phase research --task "trace reserve engine flow"
 
 Phases: research | production | distribution
-Options: --claude | --codex | --kimi | --dry-run | --json | --help
+Options: --claude | --codex | --kimi | --dry-run | --json | --skip-gates | --help
+Gates: plan.gate runs before model execution and again after success
+       Skip with --skip-gates or HERMES_SKIP_GATES=1 (gate-repair workflows only)
 Legacy commands: bootstrap | smoke | enable-algorithms
 `);
 }
@@ -382,7 +403,32 @@ async function main(argv = process.argv.slice(2), env = process.env, io = proces
     return 0;
   }
 
-  return executeModel(plan.model, prompt, routing, env);
+  const skipGates = options.skipGates || env.HERMES_SKIP_GATES === '1';
+
+  if (!skipGates && plan.gate) {
+    io.stdout.write(`[hermes] pre-gate: ${plan.gate}\n`);
+    const pre = runGate(plan.gate, { env, label: 'pre-gate' });
+    if (!pre.ok) {
+      io.stderr.write(`[hermes] pre-gate failed (exit ${pre.code}); aborting model execution\n`);
+      return pre.code || 1;
+    }
+  }
+
+  const code = await executeModel(plan.model, prompt, routing, env);
+  if (code !== 0) return code;
+
+  if (!skipGates && plan.gate) {
+    io.stdout.write(`[hermes] post-gate: ${plan.gate}\n`);
+    const post = runGate(plan.gate, { env, label: 'post-gate' });
+    if (!post.ok) {
+      io.stderr.write(
+        `[hermes] post-gate failed (exit ${post.code}); model output may be unsafe\n`
+      );
+      return post.code || 1;
+    }
+  }
+
+  return 0;
 }
 
 if (isCliEntryPoint(import.meta.url, process.argv)) {
@@ -405,5 +451,6 @@ export {
   main,
   parseArgs,
   resolveGate,
+  runGate,
   scoreSpecialist,
 };

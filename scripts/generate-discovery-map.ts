@@ -404,12 +404,37 @@ function pathMatchesGlob(filePath: string, pattern: string): boolean {
   return globPatternToRegExp(pattern).test(normalizePath(filePath));
 }
 
+// Patterns terminate with a literal extension like "*.md" or "*.json". The walker
+// uses this set to keep the file-tree traversal cheap while still allowing JSON
+// config files (e.g. .claude/hermes/model-routing.json) to be discoverable.
+const DEFAULT_ALLOWED_EXTENSIONS: ReadonlySet<string> = new Set(['.md']);
+
+function collectAllowedExtensions(patterns: string[]): ReadonlySet<string> {
+  const extensions = new Set<string>();
+  for (const pattern of patterns) {
+    const match = pattern.match(/\.([A-Za-z0-9]+)$/);
+    if (match) {
+      extensions.add(`.${match[1].toLowerCase()}`);
+    }
+  }
+  return extensions.size > 0 ? extensions : DEFAULT_ALLOWED_EXTENSIONS;
+}
+
+function hasAllowedExtension(fileName: string, allowed: ReadonlySet<string>): boolean {
+  const lower = fileName.toLowerCase();
+  for (const ext of allowed) {
+    if (lower.endsWith(ext)) return true;
+  }
+  return false;
+}
+
 function validateGlobSentinels(): void {
   const expectedMatches: Array<[string, string]> = [
     ['cheatsheets/**/*.md', 'cheatsheets/daily-workflow.md'],
     ['cheatsheets/**/*.md', 'cheatsheets/nested/example.md'],
     ['.claude/**/*.md', '.claude/AGENT-DIRECTORY.md'],
     ['.claude/**/*.md', '.claude/agents/code-reviewer.md'],
+    ['.claude/**/*.json', '.claude/hermes/model-routing.json'],
     ['docs/**/archive/**', 'docs/archive/2026-q2/example.md'],
     ['docs/**/archive/**', 'docs/observability/archive/example.md'],
     ['**/node_modules/**', 'node_modules/pkg/README.md'],
@@ -420,6 +445,7 @@ function validateGlobSentinels(): void {
     ['cheatsheets/**/*.md', 'cheatsheets/daily-workflow.txt'],
     ['cheatsheets/**/*.md', 'docs/cheatsheets/daily-workflow.md'],
     ['.claude/**/*.md', 'docs/.claude/AGENT-DIRECTORY.md'],
+    ['.claude/**/*.json', '.claude/hermes/SOUL.md'],
   ];
 
   for (const [pattern, filePath] of expectedMatches) {
@@ -460,6 +486,7 @@ function getTrackedFileSet(): Set<string> {
 async function globFiles(patterns: string[], excludes: string[]): Promise<string[]> {
   const includeRegexes = patterns.map(globPatternToRegExp);
   const excludeRegexes = excludes.map(globPatternToRegExp);
+  const allowedExtensions = collectAllowedExtensions(patterns);
   const results: string[] = [];
 
   async function walkDir(dir: string): Promise<void> {
@@ -476,7 +503,7 @@ async function globFiles(patterns: string[], excludes: string[]): Promise<string
 
         if (entry.isDirectory()) {
           await walkDir(fullPath);
-        } else if (entry.name.endsWith('.md')) {
+        } else if (hasAllowedExtension(entry.name, allowedExtensions)) {
           // Check if matches any pattern
           const matches = includeRegexes.some((regex) => regex.test(relativePath));
           if (matches) {
@@ -508,7 +535,7 @@ async function globFiles(patterns: string[], excludes: string[]): Promise<string
       const entries = await fs.readdir('.', { withFileTypes: true });
       entries.sort((a, b) => compareStrings(a.name, b.name));
       for (const entry of entries) {
-        if (!entry.isDirectory() && entry.name.endsWith('.md')) {
+        if (!entry.isDirectory() && hasAllowedExtension(entry.name, allowedExtensions)) {
           const matches = patterns.some((pat) => {
             return pathMatchesGlob(entry.name, pat);
           });
@@ -895,8 +922,11 @@ async function main(): Promise<void> {
   for (const file of files) {
     try {
       const normalizedFile = normalizePath(file);
+      const isMarkdown = normalizedFile.toLowerCase().endsWith('.md');
       const content = normalizeLineEndings(await fs.readFile(normalizedFile, 'utf8'));
-      const parsed = parseFrontmatter(content);
+      const parsed = isMarkdown
+        ? parseFrontmatter(content)
+        : { data: {} as Record<string, unknown>, content };
 
       const lastUpdatedStr = parsed.data.last_updated as string | undefined;
       const lastUpdated = lastUpdatedStr ? new Date(lastUpdatedStr) : null;
@@ -909,13 +939,23 @@ async function main(): Promise<void> {
 
       // Cross-platform determinism: freeze "now" during check mode.
       const now = isCheckMode ? new Date('2000-01-01T00:00:00.000Z').getTime() : Date.now();
+      // Non-markdown config files (e.g. JSON) carry no frontmatter; treat them
+      // as fresh so they appear in the index without polluting staleness stats.
       const staleDays = lastUpdated
         ? Math.floor((now - lastUpdated.getTime()) / (24 * 60 * 60 * 1000))
-        : 999;
+        : isMarkdown
+          ? 999
+          : 0;
 
-      const isStale = lastUpdated ? now - lastUpdated.getTime() > cadence : true;
+      const isStale = isMarkdown
+        ? lastUpdated
+          ? now - lastUpdated.getTime() > cadence
+          : true
+        : false;
 
-      const execClaims = hasExecutionClaims(content, config.staleness.execution_claim_patterns);
+      const execClaims = isMarkdown
+        ? hasExecutionClaims(content, config.staleness.execution_claim_patterns)
+        : false;
 
       const status = (parsed.data.status as string) || 'UNKNOWN';
 
@@ -934,7 +974,7 @@ async function main(): Promise<void> {
 
       stats.total_docs++;
       if (isStale) stats.stale_docs++;
-      if (Object.keys(parsed.data).length === 0) stats.missing_frontmatter++;
+      if (isMarkdown && Object.keys(parsed.data).length === 0) stats.missing_frontmatter++;
       stats.by_status[status] = (stats.by_status[status] || 0) + 1;
     } catch {
       if (isVerbose) {
