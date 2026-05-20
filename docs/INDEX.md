@@ -1,7 +1,7 @@
 ---
 status: ACTIVE
 audience: both
-last_updated: 2026-04-18
+last_updated: 2026-05-20
 categories: [documentation, navigation]
 keywords: [index, docs, navigation, routing, documentation]
 source_of_truth: true
@@ -17,7 +17,7 @@ maintenance:
 # Documentation Index
 
 **Purpose**: Central routing table for all project documentation **Audience**:
-Humans AND Agents **Last Updated**: 2026-04-18
+Humans AND Agents **Last Updated**: 2026-05-20
 
 ---
 
@@ -80,15 +80,15 @@ Humans AND Agents **Last Updated**: 2026-04-18
 
 **Status**: [ACTIVE] **Audience**: Humans + Agents
 
-| Document                                                                                                                 | Description                                                                             | When to Use                                                  |
-| ------------------------------------------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------- | ------------------------------------------------------------ |
-| [tests/README.md](../tests/README.md)                                                                                    | Testing strategy (Unit, Integration, E2E)                                               | Writing tests, fixing test failures                          |
-| [cheatsheets/service-testing-patterns.md](../cheatsheets/service-testing-patterns.md)                                    | API/service test patterns, integration testing                                          | When writing integration tests                               |
-| [cheatsheets/testcontainers-guide.md](../cheatsheets/testcontainers-guide.md)                                            | Testcontainers setup and usage guide                                                    | Setting up Docker-based integration tests                    |
-| [ARCHITECTURAL-DEBT.md](ARCHITECTURAL-DEBT.md)                                                                           | Complex refactoring registry (10+ files, architectural)                                 | Documenting deferred architectural work                      |
-| [plans/2026-03-31-variance-roadmap-revision.md](plans/2026-03-31-variance-roadmap-revision.md)                           | Validated production order for variance, baselines, alerts, Time Machine, and analytics | When planning follow-on implementation after variance audit  |
-| [plans/2026-04-01-variance-phase1a1c-implementation-plan.md](plans/2026-04-01-variance-phase1a1c-implementation-plan.md) | Implemented variance-model slice plus rollout limitations                               | Understanding shipped current-state variance behavior        |
-| [cheatsheets/pr-merge-verification.md](../cheatsheets/pr-merge-verification.md)                                          | PR verification baseline (74.7% pass rate)                                              | Before merging PRs                                           |
+| Document                                                                                                                 | Description                                                                             | When to Use                                                 |
+| ------------------------------------------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------- | ----------------------------------------------------------- |
+| [tests/README.md](../tests/README.md)                                                                                    | Testing strategy (Unit, Integration, E2E)                                               | Writing tests, fixing test failures                         |
+| [cheatsheets/service-testing-patterns.md](../cheatsheets/service-testing-patterns.md)                                    | API/service test patterns, integration testing                                          | When writing integration tests                              |
+| [cheatsheets/testcontainers-guide.md](../cheatsheets/testcontainers-guide.md)                                            | Testcontainers setup and usage guide                                                    | Setting up Docker-based integration tests                   |
+| [ARCHITECTURAL-DEBT.md](ARCHITECTURAL-DEBT.md)                                                                           | Complex refactoring registry (10+ files, architectural)                                 | Documenting deferred architectural work                     |
+| [plans/2026-03-31-variance-roadmap-revision.md](plans/2026-03-31-variance-roadmap-revision.md)                           | Validated production order for variance, baselines, alerts, Time Machine, and analytics | When planning follow-on implementation after variance audit |
+| [plans/2026-04-01-variance-phase1a1c-implementation-plan.md](plans/2026-04-01-variance-phase1a1c-implementation-plan.md) | Implemented variance-model slice plus rollout limitations                               | Understanding shipped current-state variance behavior       |
+| [cheatsheets/pr-merge-verification.md](../cheatsheets/pr-merge-verification.md)                                          | PR verification baseline (74.7% pass rate)                                              | Before merging PRs                                          |
 
 **Key Commands**:
 
@@ -132,15 +132,16 @@ Hardening baseline)
 
 **Status**: [ACTIVE] **Audience**: Humans + Agents
 
-| Document                                                             | Description                                             | When to Use                                 |
-| -------------------------------------------------------------------- | ------------------------------------------------------- | ------------------------------------------- |
-| [DECISIONS.md](../DECISIONS.md)                                      | Architectural Decision Records (ADRs)                   | Understanding technical rationale           |
-| [adr/](adr/)                                                         | Standalone ADR files (15 files)                         | Architecture decisions outside DECISIONS.md |
-| [DEVELOPMENT_STRATEGY.md](DEVELOPMENT_STRATEGY.md)                   | Long-term development strategy                          | Strategic planning                          |
-| [MULTI-AI-DEVELOPMENT-WORKFLOW.md](MULTI-AI-DEVELOPMENT-WORKFLOW.md) | Multi-AI collaboration patterns                         | Leveraging multiple AIs                     |
-| [schema.md](schema.md)                                               | Database schema, relationships, and design patterns     | Understanding persisted data model          |
-| [IDEMPOTENCY_GUIDE.md](IDEMPOTENCY_GUIDE.md)                         | Request deduplication and exactly-once processing guide | Designing safe write paths                  |
-| [RLS-DEVELOPMENT-GUIDE.md](RLS-DEVELOPMENT-GUIDE.md)                 | Multi-tenant Row-Level Security development guide       | Building or testing tenant-scoped features  |
+| Document                                                                               | Description                                             | When to Use                                 |
+| -------------------------------------------------------------------------------------- | ------------------------------------------------------- | ------------------------------------------- |
+| [DECISIONS.md](../DECISIONS.md)                                                        | Architectural Decision Records (ADRs)                   | Understanding technical rationale           |
+| [adr/](adr/)                                                                           | Standalone ADR files (15 files)                         | Architecture decisions outside DECISIONS.md |
+| [DEVELOPMENT_STRATEGY.md](DEVELOPMENT_STRATEGY.md)                                     | Long-term development strategy                          | Strategic planning                          |
+| [governance/2026-05-19-refactor-roadmap.md](governance/2026-05-19-refactor-roadmap.md) | Active refactor roadmap and priority order              | Cleanup/refactor sequencing                 |
+| [MULTI-AI-DEVELOPMENT-WORKFLOW.md](MULTI-AI-DEVELOPMENT-WORKFLOW.md)                   | Multi-AI collaboration patterns                         | Leveraging multiple AIs                     |
+| [schema.md](schema.md)                                                                 | Database schema, relationships, and design patterns     | Understanding persisted data model          |
+| [IDEMPOTENCY_GUIDE.md](IDEMPOTENCY_GUIDE.md)                                           | Request deduplication and exactly-once processing guide | Designing safe write paths                  |
+| [RLS-DEVELOPMENT-GUIDE.md](RLS-DEVELOPMENT-GUIDE.md)                                   | Multi-tenant Row-Level Security development guide       | Building or testing tenant-scoped features  |
 
 **Key ADRs**:
 
@@ -175,12 +176,12 @@ not by number alone._
 
 **Status**: [ACTIVE] **Audience**: Agents
 
-| Document                                                                                                                            | Description                                             | When to Use                          |
-| ----------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------- | ------------------------------------ |
-| [ai-utils/README.md](../ai-utils/README.md)                                                                                         | Memory-enabled code review system                       | Code review automation               |
-| [ai/prompt/README.md](../ai/prompt/README.md)                                                                                       | Type-safe prompt templates                              | Portfolio QA, Reserve Sizing         |
-| [.claude/skills/INDEX.md](../.claude/skills/INDEX.md)                                                                               | Skills index                                            | Finding skills for workflows         |
-| [.claude/DISCOVERY-MAP.md](../.claude/DISCOVERY-MAP.md)                                                                             | Agent-facing routing, including Phoenix quick reference | Finding Phoenix agents and workflows |
+| Document                                                | Description                                             | When to Use                          |
+| ------------------------------------------------------- | ------------------------------------------------------- | ------------------------------------ |
+| [ai-utils/README.md](../ai-utils/README.md)             | Memory-enabled code review system                       | Code review automation               |
+| [ai/prompt/README.md](../ai/prompt/README.md)           | Type-safe prompt templates                              | Portfolio QA, Reserve Sizing         |
+| [.claude/skills/INDEX.md](../.claude/skills/INDEX.md)   | Skills index                                            | Finding skills for workflows         |
+| [.claude/DISCOVERY-MAP.md](../.claude/DISCOVERY-MAP.md) | Agent-facing routing, including Phoenix quick reference | Finding Phoenix agents and workflows |
 
 **Key Features**:
 
@@ -408,7 +409,7 @@ for complete workflow
 ## Maintenance
 
 **Document Owner**: Development Team **Review Cycle**: Monthly (or after major
-structural changes) **Last Updated**: 2026-04-18 **Next Review**: 2026-05-18
+structural changes) **Last Updated**: 2026-05-20 **Next Review**: 2026-06-20
 
 **Update Triggers**:
 
