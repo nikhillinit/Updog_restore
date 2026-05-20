@@ -4,102 +4,102 @@ last_updated: 2026-05-20
 
 # Staleness Report
 
-_Generated: 2026-05-20T00:00:00.000Z_ _Source: docs/DISCOVERY-MAP.source.yaml_
+*Generated: 2026-05-20T00:00:00.000Z*
+*Source: docs/DISCOVERY-MAP.source.yaml*
 
 ## Summary
 
-| Metric              | Value |
-| ------------------- | ----- |
-| Total Documents     | 730   |
-| Stale Documents     | 96    |
-| Missing Frontmatter | 14    |
+| Metric | Value |
+|--------|-------|
+| Total Documents | 730 |
+| Stale Documents | 96 |
+| Missing Frontmatter | 14 |
 
 ### By Status
 
-| Status                  | Count |
-| ----------------------- | ----- |
-| ACTIVE                  | 494   |
-| UNKNOWN                 | 134   |
-| HISTORICAL              | 34    |
-| DRAFT                   | 31    |
-| VERIFIED                | 9     |
-| INDEXED                 | 8     |
-| REFERENCE               | 6     |
-| ready                   | 3     |
-| active                  | 2     |
-| STALE-VALIDATION        | 1     |
-| ARCHIVED                | 1     |
-| HISTORICAL-SNAPSHOT     | 1     |
-| ACCEPTED                | 1     |
-| HISTORICAL-FRAMEWORK    | 1     |
-| IMPLEMENTED             | 1     |
-| TRACKED (not scheduled) | 1     |
-| BACKLOG                 | 1     |
-| COMPLETED               | 1     |
+| Status | Count |
+|--------|-------|
+| ACTIVE | 494 |
+| UNKNOWN | 134 |
+| HISTORICAL | 34 |
+| DRAFT | 31 |
+| VERIFIED | 9 |
+| INDEXED | 8 |
+| REFERENCE | 6 |
+| ready | 3 |
+| active | 2 |
+| STALE-VALIDATION | 1 |
+| ARCHIVED | 1 |
+| HISTORICAL-SNAPSHOT | 1 |
+| ACCEPTED | 1 |
+| HISTORICAL-FRAMEWORK | 1 |
+| IMPLEMENTED | 1 |
+| TRACKED (not scheduled) | 1 |
+| BACKLOG | 1 |
+| COMPLETED | 1 |
 
 ## Stale Documents
 
 Documents that need review (older than their cadence threshold):
 
-| Document                                                                    | Last Updated | Days Old | Has Execution Claims | Owner      |
-| --------------------------------------------------------------------------- | ------------ | -------- | -------------------- | ---------- |
-| `CONTEXT.md`                                                                | Never        | 999      | No                   | Unassigned |
-| `docs/CA-PACING-ORACLE.md`                                                  | Never        | 999      | No                   | Unassigned |
-| `docs/adr/ADR-020-analysis-cohort-boundary.md`                              | Never        | 999      | No                   | Unassigned |
-| `docs/agents/domain.md`                                                     | Never        | 999      | No                   | Unassigned |
-| `docs/agents/issue-tracker.md`                                              | Never        | 999      | No                   | Unassigned |
-| `docs/agents/triage-labels.md`                                              | Never        | 999      | No                   | Unassigned |
-| `docs/design/updog-design-philosophy-v3.1.1-implementation-notes.md`        | Never        | 999      | No                   | Unassigned |
-| `docs/phase2-calibration-benchmarks.md`                                     | Never        | 999      | No                   | Unassigned |
-| `docs/skills/REFL-002-post-merge-jobs-not-validated-by-pr-ci.md`            | Never        | 999      | No                   | Unassigned |
-| `docs/skills/REFL-003-cross-platform-file-enumeration-fragility.md`         | Never        | 999      | YES - verify!        | Unassigned |
-| `docs/skills/REFL-004-schema-format-backward-compatibility.md`              | Never        | 999      | No                   | Unassigned |
-| `docs/skills/REFL-005-stale-test-files-with-api-mismatch.md`                | Never        | 999      | No                   | Unassigned |
-| `docs/skills/REFL-006-xirr-newton-raphson-divergence-on-extreme-returns.md` | Never        | 999      | No                   | Unassigned |
-| `docs/skills/REFL-007-global-vi-mock-pollutes-all-tests.md`                 | Never        | 999      | No                   | Unassigned |
-| `docs/skills/REFL-008-typescript-type-inference-from-database-schemas.md`   | Never        | 999      | No                   | Unassigned |
-| `docs/skills/REFL-009-crlf-line-endings-break-frontmatter-parsing.md`       | Never        | 999      | No                   | Unassigned |
-| `docs/skills/REFL-010-trust-proxy-configuration-for-rate-limiters.md`       | Never        | 999      | No                   | Unassigned |
-| `docs/skills/REFL-012-fire-and-forget-async-creates-race-conditions.md`     | Never        | 999      | No                   | Unassigned |
-| `docs/skills/REFL-013-router-substring-matching-causes-false-positives.md`  | Never        | 999      | No                   | Unassigned |
-| `docs/skills/REFL-014-test-key-reuse-across-test-cases.md`                  | Never        | 999      | YES - verify!        | Unassigned |
-| `docs/skills/REFL-015-postgresql-service-missing-test-database.md`          | Never        | 999      | YES - verify!        | Unassigned |
-| `docs/skills/REFL-017-ci-workflow-permission-errors.md`                     | Never        | 999      | No                   | Unassigned |
-| `docs/skills/REFL-019-k1-template-drops-data-footnotes.md`                  | Never        | 999      | No                   | Unassigned |
-| `docs/skills/REFL-022-prometheus-metrics-duplicate-registration.md`         | Never        | 999      | No                   | Unassigned |
-| `docs/skills/REFL-023-math-random-in-production-identifiers.md`             | Never        | 999      | No                   | Unassigned |
-| `docs/skills/REFL-027-redundant-any-on-inferred-callbacks.md`               | Never        | 999      | No                   | Unassigned |
-| `docs/skills/REFL-028-duck-type-context-access.md`                          | Never        | 999      | No                   | Unassigned |
-| `docs/skills/REFL-029-secrets-in-workflow-if-expressions.md`                | Never        | 999      | No                   | Unassigned |
-| `docs/skills/SKILLS_INDEX.md`                                               | Never        | 999      | No                   | Unassigned |
-| `docs/skills/WIZARD_INDEX.md`                                               | Never        | 999      | No                   | Unassigned |
-| `docs/skills/template-refl.md`                                              | Never        | 999      | No                   | Unassigned |
-| `docs/superpowers/plans/2026-05-15-term-conflict-tier2-fixes.md`            | Never        | 999      | YES - verify!        | Unassigned |
-| `docs/superpowers/plans/2026-05-16-variance-calculation-extraction.md`      | Never        | 999      | YES - verify!        | Unassigned |
-| `docs/superpowers/plans/2026-05-19-ca-period-truth-harness-remediation.md`  | Never        | 999      | No                   | Unassigned |
-| `docs/superpowers/specs/2026-05-16-refactor-stability-strategy-design.md`   | Never        | 999      | YES - verify!        | Unassigned |
-| `.claude/skills/planning-with-files/CHANGELOG.md`                           | 2026-01-19   | 121      | No                   | Unassigned |
-| `cheatsheets/agent-architecture.md`                                         | 2026-01-19   | 121      | No                   | Unassigned |
-| `cheatsheets/agent-memory/database-expert-schema-tdd.md`                    | 2026-01-19   | 121      | No                   | Unassigned |
-| `cheatsheets/ai-code-review.md`                                             | 2026-01-19   | 121      | No                   | Unassigned |
-| `cheatsheets/anti-pattern-prevention.md`                                    | 2026-01-19   | 121      | No                   | Unassigned |
-| `cheatsheets/api.md`                                                        | 2026-01-19   | 121      | No                   | Unassigned |
-| `cheatsheets/capability-checklist.md`                                       | 2026-01-19   | 121      | No                   | Unassigned |
-| `cheatsheets/ci-validator-guide.md`                                         | 2026-01-19   | 121      | No                   | Unassigned |
-| `cheatsheets/claude-commands.md`                                            | 2026-01-19   | 121      | No                   | Unassigned |
-| `cheatsheets/claude-md-guidelines.md`                                       | 2026-01-19   | 121      | No                   | Unassigned |
-| `cheatsheets/codex-collaboration-protocol.md`                               | 2026-01-19   | 121      | No                   | Unassigned |
-| `cheatsheets/coding-pairs-playbook.md`                                      | 2026-01-19   | 121      | No                   | Unassigned |
-| `cheatsheets/command-summary.md`                                            | 2026-01-19   | 121      | No                   | Unassigned |
-| `cheatsheets/correct-workflow-example.md`                                   | 2026-01-19   | 121      | No                   | Unassigned |
-| `cheatsheets/document-review-workflow.md`                                   | 2026-01-19   | 121      | No                   | Unassigned |
+| Document | Last Updated | Days Old | Has Execution Claims | Owner |
+|----------|--------------|----------|---------------------|-------|
+| `CONTEXT.md` | Never | 999 | No | Unassigned |
+| `docs/CA-PACING-ORACLE.md` | Never | 999 | No | Unassigned |
+| `docs/adr/ADR-020-analysis-cohort-boundary.md` | Never | 999 | No | Unassigned |
+| `docs/agents/domain.md` | Never | 999 | No | Unassigned |
+| `docs/agents/issue-tracker.md` | Never | 999 | No | Unassigned |
+| `docs/agents/triage-labels.md` | Never | 999 | No | Unassigned |
+| `docs/design/updog-design-philosophy-v3.1.1-implementation-notes.md` | Never | 999 | No | Unassigned |
+| `docs/phase2-calibration-benchmarks.md` | Never | 999 | No | Unassigned |
+| `docs/skills/REFL-002-post-merge-jobs-not-validated-by-pr-ci.md` | Never | 999 | No | Unassigned |
+| `docs/skills/REFL-003-cross-platform-file-enumeration-fragility.md` | Never | 999 | YES - verify! | Unassigned |
+| `docs/skills/REFL-004-schema-format-backward-compatibility.md` | Never | 999 | No | Unassigned |
+| `docs/skills/REFL-005-stale-test-files-with-api-mismatch.md` | Never | 999 | No | Unassigned |
+| `docs/skills/REFL-006-xirr-newton-raphson-divergence-on-extreme-returns.md` | Never | 999 | No | Unassigned |
+| `docs/skills/REFL-007-global-vi-mock-pollutes-all-tests.md` | Never | 999 | No | Unassigned |
+| `docs/skills/REFL-008-typescript-type-inference-from-database-schemas.md` | Never | 999 | No | Unassigned |
+| `docs/skills/REFL-009-crlf-line-endings-break-frontmatter-parsing.md` | Never | 999 | No | Unassigned |
+| `docs/skills/REFL-010-trust-proxy-configuration-for-rate-limiters.md` | Never | 999 | No | Unassigned |
+| `docs/skills/REFL-012-fire-and-forget-async-creates-race-conditions.md` | Never | 999 | No | Unassigned |
+| `docs/skills/REFL-013-router-substring-matching-causes-false-positives.md` | Never | 999 | No | Unassigned |
+| `docs/skills/REFL-014-test-key-reuse-across-test-cases.md` | Never | 999 | YES - verify! | Unassigned |
+| `docs/skills/REFL-015-postgresql-service-missing-test-database.md` | Never | 999 | YES - verify! | Unassigned |
+| `docs/skills/REFL-017-ci-workflow-permission-errors.md` | Never | 999 | No | Unassigned |
+| `docs/skills/REFL-019-k1-template-drops-data-footnotes.md` | Never | 999 | No | Unassigned |
+| `docs/skills/REFL-022-prometheus-metrics-duplicate-registration.md` | Never | 999 | No | Unassigned |
+| `docs/skills/REFL-023-math-random-in-production-identifiers.md` | Never | 999 | No | Unassigned |
+| `docs/skills/REFL-027-redundant-any-on-inferred-callbacks.md` | Never | 999 | No | Unassigned |
+| `docs/skills/REFL-028-duck-type-context-access.md` | Never | 999 | No | Unassigned |
+| `docs/skills/REFL-029-secrets-in-workflow-if-expressions.md` | Never | 999 | No | Unassigned |
+| `docs/skills/SKILLS_INDEX.md` | Never | 999 | No | Unassigned |
+| `docs/skills/WIZARD_INDEX.md` | Never | 999 | No | Unassigned |
+| `docs/skills/template-refl.md` | Never | 999 | No | Unassigned |
+| `docs/superpowers/plans/2026-05-15-term-conflict-tier2-fixes.md` | Never | 999 | YES - verify! | Unassigned |
+| `docs/superpowers/plans/2026-05-16-variance-calculation-extraction.md` | Never | 999 | YES - verify! | Unassigned |
+| `docs/superpowers/plans/2026-05-19-ca-period-truth-harness-remediation.md` | Never | 999 | No | Unassigned |
+| `docs/superpowers/specs/2026-05-16-refactor-stability-strategy-design.md` | Never | 999 | YES - verify! | Unassigned |
+| `.claude/skills/planning-with-files/CHANGELOG.md` | 2026-01-19 | 121 | No | Unassigned |
+| `cheatsheets/agent-architecture.md` | 2026-01-19 | 121 | No | Unassigned |
+| `cheatsheets/agent-memory/database-expert-schema-tdd.md` | 2026-01-19 | 121 | No | Unassigned |
+| `cheatsheets/ai-code-review.md` | 2026-01-19 | 121 | No | Unassigned |
+| `cheatsheets/anti-pattern-prevention.md` | 2026-01-19 | 121 | No | Unassigned |
+| `cheatsheets/api.md` | 2026-01-19 | 121 | No | Unassigned |
+| `cheatsheets/capability-checklist.md` | 2026-01-19 | 121 | No | Unassigned |
+| `cheatsheets/ci-validator-guide.md` | 2026-01-19 | 121 | No | Unassigned |
+| `cheatsheets/claude-commands.md` | 2026-01-19 | 121 | No | Unassigned |
+| `cheatsheets/claude-md-guidelines.md` | 2026-01-19 | 121 | No | Unassigned |
+| `cheatsheets/codex-collaboration-protocol.md` | 2026-01-19 | 121 | No | Unassigned |
+| `cheatsheets/coding-pairs-playbook.md` | 2026-01-19 | 121 | No | Unassigned |
+| `cheatsheets/command-summary.md` | 2026-01-19 | 121 | No | Unassigned |
+| `cheatsheets/correct-workflow-example.md` | 2026-01-19 | 121 | No | Unassigned |
+| `cheatsheets/document-review-workflow.md` | 2026-01-19 | 121 | No | Unassigned |
 
-_...and 46 more stale documents._
+*...and 46 more stale documents.*
 
 ## Documents with Execution Claims (Need Verification)
 
-These documents contain phrases like "tests pass", "PR merged", etc. and should
-be verified:
+These documents contain phrases like "tests pass", "PR merged", etc. and should be verified:
 
 - [ ] **cheatsheets/emoji-free-documentation.md** (121 days old)
 - [ ] **cheatsheets/schema-alignment.md** (121 days old)
@@ -107,18 +107,12 @@ be verified:
 - [ ] **docs/notebooklm-sources/waterfall.md** (121 days old)
 - [ ] **docs/notebooklm-sources/xirr.md** (121 days old)
 - [ ] **docs/observability/EDITORIAL-V2-CHANGELOG.md** (121 days old)
-- [ ] **docs/skills/REFL-003-cross-platform-file-enumeration-fragility.md** (999
-      days old)
-- [ ] **docs/skills/REFL-014-test-key-reuse-across-test-cases.md** (999 days
-      old)
-- [ ] **docs/skills/REFL-015-postgresql-service-missing-test-database.md** (999
-      days old)
-- [ ] **docs/superpowers/plans/2026-05-15-term-conflict-tier2-fixes.md** (999
-      days old)
-- [ ] **docs/superpowers/plans/2026-05-16-variance-calculation-extraction.md**
-      (999 days old)
-- [ ] **docs/superpowers/specs/2026-05-16-refactor-stability-strategy-design.md**
-      (999 days old)
+- [ ] **docs/skills/REFL-003-cross-platform-file-enumeration-fragility.md** (999 days old)
+- [ ] **docs/skills/REFL-014-test-key-reuse-across-test-cases.md** (999 days old)
+- [ ] **docs/skills/REFL-015-postgresql-service-missing-test-database.md** (999 days old)
+- [ ] **docs/superpowers/plans/2026-05-15-term-conflict-tier2-fixes.md** (999 days old)
+- [ ] **docs/superpowers/plans/2026-05-16-variance-calculation-extraction.md** (999 days old)
+- [ ] **docs/superpowers/specs/2026-05-16-refactor-stability-strategy-design.md** (999 days old)
 
 ## Missing Frontmatter
 
@@ -141,6 +135,6 @@ Documents without proper YAML frontmatter:
 
 ---
 
-_To fix staleness: Update `last_updated` field in document frontmatter._ _To set
-owner: Add `owner` field in document frontmatter._ _See:
-docs/.templates/DOC-FRONTMATTER-SCHEMA.md for schema details._
+*To fix staleness: Update `last_updated` field in document frontmatter.*
+*To set owner: Add `owner` field in document frontmatter.*
+*See: docs/.templates/DOC-FRONTMATTER-SCHEMA.md for schema details.*
