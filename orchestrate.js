@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 
-import { existsSync, mkdirSync, readFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { spawn, spawnSync } from 'node:child_process';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -112,6 +112,8 @@ function scoreSpecialist(task, specialists = {}, scoring = {}) {
 
   for (const [name, config] of Object.entries(specialists)) {
     let score = 0;
+    let maxScore = 0;
+    const matched = [];
 
     for (const keyword of config.keywords || []) {
       const phrase = String(
@@ -119,8 +121,10 @@ function scoreSpecialist(task, specialists = {}, scoring = {}) {
       ).toLowerCase();
       const weight = typeof keyword === 'string' ? 1 : keyword.weight || 1;
 
+      maxScore += weight;
       if (phrase && input.includes(phrase)) {
         score += weight;
+        matched.push(phrase);
       }
     }
 
@@ -128,6 +132,9 @@ function scoreSpecialist(task, specialists = {}, scoring = {}) {
       candidates.push({
         name,
         score,
+        maxScore,
+        confidence: maxScore > 0 ? Math.round((score / maxScore) * 100) / 100 : 0,
+        matched,
         risk: config.risk || 'quality',
       });
     }
@@ -143,7 +150,8 @@ function scoreSpecialist(task, specialists = {}, scoring = {}) {
     return (leftRisk === -1 ? 99 : leftRisk) - (rightRisk === -1 ? 99 : rightRisk);
   });
 
-  return candidates[0];
+  const [selected] = candidates;
+  return { ...selected, candidates };
 }
 
 function chooseModel(task, phase, routing, manualModel = null) {
@@ -166,6 +174,20 @@ function resolveGate(phase, specialist, gates = {}) {
   return gates[phase] || null;
 }
 
+function resolveEffectivePhase(phase, specialist) {
+  if (phase === 'production' && specialist?.risk === 'financial') {
+    return 'production-financial';
+  }
+  return phase;
+}
+
+function resolveOwnership(phase, specialist, ownership = {}) {
+  const effective = resolveEffectivePhase(phase, specialist);
+  const entry = ownership[effective] || ownership[phase];
+  if (!entry) return null;
+  return { effectivePhase: effective, ...entry };
+}
+
 function createRoutingPlan({
   phase,
   task,
@@ -177,6 +199,7 @@ function createRoutingPlan({
   const specialist = scoreSpecialist(task, routing.specialists || {}, routing.scoring || {});
   const model = chooseModel(task, phase, routing, manualModel);
   const gate = resolveGate(phase, specialist, routing.gates || {});
+  const ownership = resolveOwnership(phase, specialist, routing.ownership || {});
 
   const plan = {
     phase,
@@ -185,8 +208,14 @@ function createRoutingPlan({
     specialist: specialist?.name || null,
     risk: specialist?.risk || 'standard',
     score: specialist?.score || 0,
+    confidence: specialist?.confidence ?? 0,
+    candidates: specialist?.candidates || [],
     gate,
   };
+
+  if (ownership) {
+    plan.ownership = ownership;
+  }
 
   if (skipPreflightGate) {
     plan.gateSkip = {
@@ -198,7 +227,7 @@ function createRoutingPlan({
   return plan;
 }
 
-function buildPrompt({ plan, brain, soul = '' }) {
+function buildPrompt({ plan, brain, soul = '', runId = null }) {
   const lines = [
     'You are operating inside Updog_restore.',
     '',
@@ -206,12 +235,33 @@ function buildPrompt({ plan, brain, soul = '' }) {
     `MODEL ROLE: ${plan.model}`,
   ];
 
+  if (plan.ownership) {
+    const own = plan.ownership;
+    const ownerLine = [
+      `OWNER: ${own.owner}`,
+      own.reviewer ? `reviewer: ${own.reviewer}` : null,
+      own.role ? `role: ${own.role}` : null,
+      own.artifact ? `artifact: ${own.artifact}` : null,
+      own.humanApproval ? 'human approval required' : null,
+    ]
+      .filter(Boolean)
+      .join('; ');
+    lines.push(ownerLine);
+  }
+
   if (plan.specialist) {
-    lines.push(`SPECIALIST: ${plan.specialist} (risk: ${plan.risk})`);
+    const confidencePct = Math.round((plan.confidence ?? 0) * 100);
+    lines.push(
+      `SPECIALIST: ${plan.specialist} (risk: ${plan.risk}; confidence: ${confidencePct}%)`
+    );
   }
 
   if (plan.gate) {
     lines.push(`REQUIRED GATE: ${plan.gate}`);
+  }
+
+  if (runId) {
+    lines.push(`RUN ID: ${runId}`);
   }
 
   lines.push('', '--- DEV_BRAIN ---', brain.trim(), '--- END DEV_BRAIN ---');
@@ -231,7 +281,10 @@ function buildPrompt({ plan, brain, soul = '' }) {
     '4. Prefer existing specialists before inventing new abstractions.',
     '5. Produce the smallest safe diff.',
     '6. If financial logic is touched, confirm calc-gate coverage.',
-    '7. Return: Summary, Affected Files, Changes or Plan, Verification, Risks.'
+    '7. Return: Summary, Affected Files, Changes or Plan, Verification, Risks.',
+    '8. End with a Handoff block using exactly these labels:',
+    '   Run ID, Phase, Owner, Reviewer, Task, Protected areas, Files touched,',
+    '   Commands run, Gate status, Decision needed, Next action.'
   );
 
   return lines.join('\n');
@@ -297,6 +350,19 @@ function runGate(
   }
 
   return { command, skipped: false, status };
+}
+
+function generateRunId(now = new Date()) {
+  const iso = now.toISOString().replace(/[:.]/g, '-').replace('Z', 'Z');
+  return `hermes-${iso}`;
+}
+
+function writeRunLedger(record, { root = ROOT, fs = { mkdirSync, writeFileSync } } = {}) {
+  const dir = join(root, 'ai-logs', 'hermes', 'runs');
+  fs.mkdirSync(dir, { recursive: true });
+  const file = join(dir, `${record.runId}.json`);
+  fs.writeFileSync(file, `${JSON.stringify(record, null, 2)}\n`);
+  return file;
 }
 
 function getGateRunPlan(plan, { skipPreflightGate = false } = {}) {
@@ -413,6 +479,8 @@ async function main(argv = process.argv.slice(2), env = process.env, io = proces
   const options = parseArgs(argv);
   const runModel = deps.executeModel || executeModel;
   const gateRunner = deps.gateRunner || spawnSync;
+  const ledgerWriter = deps.writeRunLedger === undefined ? writeRunLedger : deps.writeRunLedger;
+  const clock = deps.clock || (() => new Date());
 
   if (options.help) {
     printHelp(io.stdout);
@@ -438,6 +506,7 @@ async function main(argv = process.argv.slice(2), env = process.env, io = proces
   const routing = deps.routing || loadJSON(routingPath);
   const brain = deps.brain ?? loadText(brainPath);
   const soul = deps.soul ?? loadText(soulPath, { optional: true });
+  const runId = generateRunId(clock());
   const plan = createRoutingPlan({
     phase: options.phase,
     task: options.task,
@@ -446,7 +515,7 @@ async function main(argv = process.argv.slice(2), env = process.env, io = proces
     skipPreflightGate: options.skipPreflightGate,
     gateSkipReason: options.gateSkipReason,
   });
-  const prompt = buildPrompt({ plan, brain, soul });
+  const prompt = buildPrompt({ plan, brain, soul, runId });
 
   if (options.json) {
     io.stdout.write(`${JSON.stringify(plan, null, 2)}\n`);
@@ -461,6 +530,27 @@ async function main(argv = process.argv.slice(2), env = process.env, io = proces
     return 0;
   }
 
+  const ledger = {
+    runId,
+    startedAt: clock().toISOString(),
+    plan,
+    preflight: null,
+    model: null,
+    postflight: null,
+    exitCode: null,
+  };
+
+  const finalizeLedger = (exitCode) => {
+    ledger.exitCode = exitCode;
+    ledger.completedAt = clock().toISOString();
+    if (!ledgerWriter) return;
+    try {
+      ledgerWriter(ledger);
+    } catch (error) {
+      io.stderr.write(`[hermes] WARNING: failed to write run ledger: ${error.message}\n`);
+    }
+  };
+
   const gates = getGateRunPlan(plan, options);
 
   if (gates.preflight) {
@@ -469,16 +559,25 @@ async function main(argv = process.argv.slice(2), env = process.env, io = proces
       runner: gateRunner,
       throwOnFailure: false,
     });
+    ledger.preflight = { command: plan.gate, status: preflight.status, skipped: false };
     if (preflight.status !== 0) {
+      finalizeLedger(preflight.status);
       return preflight.status;
     }
   } else if (plan.gate && options.skipPreflightGate) {
+    ledger.preflight = {
+      command: plan.gate,
+      status: null,
+      skipped: true,
+      reason: options.gateSkipReason,
+    };
     io.stderr.write(
       `[hermes] WARNING: skipping preflight gate "${plan.gate}"; reason: ${options.gateSkipReason}\n`
     );
   }
 
   const code = await runModel(plan.model, prompt, routing, env);
+  ledger.model = { name: plan.model, exitCode: code };
 
   if (shouldRunPostflightGate(plan, code, gates)) {
     const postflight = runGate(plan.gate, {
@@ -486,16 +585,19 @@ async function main(argv = process.argv.slice(2), env = process.env, io = proces
       runner: gateRunner,
       throwOnFailure: false,
     });
+    ledger.postflight = { command: plan.gate, status: postflight.status };
     if (postflight.status !== 0) {
       if (code !== 0) {
         io.stderr.write(
           `[hermes] WARNING: model exited ${code} and postflight gate exited ${postflight.status}\n`
         );
       }
+      finalizeLedger(postflight.status);
       return postflight.status;
     }
   }
 
+  finalizeLedger(code);
   return code;
 }
 
@@ -515,13 +617,17 @@ export {
   buildPrompt,
   chooseModel,
   createRoutingPlan,
+  generateRunId,
   getGateRunPlan,
   isCliEntryPoint,
   isProductionFinancial,
   main,
   parseArgs,
+  resolveEffectivePhase,
   resolveGate,
+  resolveOwnership,
   runGate,
   shouldRunPostflightGate,
   scoreSpecialist,
+  writeRunLedger,
 };

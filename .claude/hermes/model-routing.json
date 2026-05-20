@@ -9,12 +9,14 @@
     "research": {
       "owner": "claude",
       "reviewer": "kimi",
+      "role": "leader-coordinator",
       "artifact": "implementation brief",
       "gate": "npm run doctor:quick"
     },
     "production": {
       "owner": "codex",
       "reviewer": "claude",
+      "role": "worker-executor",
       "artifact": "diff plus tests",
       "gate": "npm run check"
     },
@@ -22,6 +24,8 @@
       "owner": "codex",
       "reviewer": "claude",
       "audit": "kimi",
+      "role": "worker-executor",
+      "specialistRequired": true,
       "artifact": "diff plus truth-case notes",
       "gate": "npm run calc-gate",
       "humanApproval": true
@@ -29,6 +33,7 @@
     "distribution": {
       "owner": "claude",
       "repairOwner": "codex",
+      "role": "release-manager",
       "artifact": "PR-ready summary",
       "gate": "npm run lint"
     }
