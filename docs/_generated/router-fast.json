@@ -2,7 +2,7 @@
   "config": {
     "max_docs_per_keyword": 25
   },
-  "generatedAt": "2026-05-20T03:18:06.413Z",
+  "generatedAt": "2026-05-20T06:02:57.970Z",
   "keyword_to_docs": {
     "add feature": ["CLAUDE.md"],
     "adr": ["docs/adr/", ".claude/commands/log-decision.md"],
@@ -127,6 +127,7 @@
     "design": [".claude/skills/writing-plans.md"],
     "design pattern": [".claude/skills/architecture-patterns.md"],
     "deterministic": [".claude/commands/phoenix-truth.md"],
+    "dev brain": ["DEV_BRAIN.md"],
     "develop": ["CLAUDE.md"],
     "developer experience": [".claude/agents/dx-optimizer.md"],
     "devops": [".claude/agents/devops-troubleshooter.md"],
@@ -181,6 +182,7 @@
     "gp": [".claude/agents/waterfall-specialist.md"],
     "graceful degradation": [".claude/skills/async-error-resilience.md"],
     "grafana": ["docs/observability/"],
+    "hermes": ["DEV_BRAIN.md"],
     "hexagonal": [".claude/skills/architecture-patterns.md"],
     "how does": [".claude/agents/code-explorer.md"],
     "how to start": ["cheatsheets/daily-workflow.md"],
@@ -232,6 +234,7 @@
     "missing error handling": [".claude/agents/silent-failure-hunter.md"],
     "missing tests": [".claude/agents/pr-test-analyzer.md"],
     "model": ["docs/DEVELOPMENT-TOOLING-CATALOG.md"],
+    "model co-op": ["DEV_BRAIN.md"],
     "modeling wizard": ["docs/wizard/"],
     "modernize": [".claude/agents/legacy-modernizer.md"],
     "monitoring": ["docs/observability/"],
@@ -240,6 +243,7 @@
       "cheatsheets/agent-architecture.md",
       ".claude/agents/workflow-orchestrator.md"
     ],
+    "multi-model routing": ["DEV_BRAIN.md"],
     "multiple agents": [".claude/skills/dispatching-parallel-agents.md"],
     "new feature": ["CLAUDE.md"],
     "new test suite": [".claude/agents/test-scaffolder.md"],
@@ -273,6 +277,7 @@
     "performance regression": [".claude/agents/perf-guard.md"],
     "pgvector": ["docs/INDEX.md"],
     "phase 2": [".claude/commands/phoenix-phase2.md"],
+    "phase routed": ["DEV_BRAIN.md"],
     "pipeline": ["docs/workflows/README.md"],
     "plan": [".claude/skills/writing-plans.md"],
     "planning": [".claude/skills/writing-plans.md"],
@@ -711,6 +716,26 @@
       "priority": 21,
       "route_to": "docs/STABILIZATION-ROADMAP.md",
       "why": "Governance routing (priority 21)"
+    },
+    {
+      "id": "hermes_dev_coop",
+      "match_any": [
+        "hermes",
+        "model co-op",
+        "multi-model routing",
+        "phase routed",
+        "dev brain"
+      ],
+      "match_any_normalized": [
+        "hermes",
+        "model co-op",
+        "multi-model routing",
+        "phase routed",
+        "dev brain"
+      ],
+      "priority": 22,
+      "route_to": "DEV_BRAIN.md",
+      "why": "Hermes phase-routed model co-op charter; config lives in .claude/hermes/model-routing.json"
     },
     {
       "id": "production",

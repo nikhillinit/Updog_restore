@@ -919,6 +919,18 @@ patterns:
     target: '.claude/agents/workflow-orchestrator.md'
     agent: 'workflow-orchestrator'
 
+  - id: 'hermes_dev_coop'
+    priority: 22
+    category: 'Orchestration'
+    keywords:
+      - 'hermes'
+      - 'model co-op'
+      - 'multi-model routing'
+      - 'phase routed'
+      - 'dev brain'
+    target: 'DEV_BRAIN.md'
+    message: 'Hermes phase-routed model co-op charter; config lives in .claude/hermes/model-routing.json'
+
   - id: 'context_management'
     priority: 124
     category: 'Orchestration'
