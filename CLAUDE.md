@@ -282,6 +282,12 @@ START HERE:
   monitoring
 - **Code Quality**: Codacy integration, Trivy security scanning
 
+### Hermes Dev Co-op
+
+For phase-routed multi-model development, see `DEV_BRAIN.md`. Hermes defaults
+are subordinate to this file. Config: `.claude/hermes/model-routing.json`. CLI:
+`node orchestrate.js --help`.
+
 ### Codex CLI Integration
 
 Consult OpenAI Codex (GPT-5.3, xhigh reasoning) for complex tasks:
