@@ -64,7 +64,7 @@ The best approach is therefore a **solo-friendly cleanup ladder**:
 1. Capture baseline and cleanup manifest.
 2. Remove or externalize obvious repo drag that is actually unused.
 3. Simplify scripts, hooks, CI, env files, and config against the current
-   86-script / 16-workflow baseline.
+   80-script / 16-workflow baseline.
 4. Fill gaps in the existing fragmented truth/golden test surface.
 5. Refactor product architecture behind those tests.
 6. Leave cosmetic renames and broad directory reshuffles until last.
@@ -81,8 +81,8 @@ rather than long-form phases. It also makes three controls explicit:
 - **Outcome KPIs**: fewer scripts, fewer workflows, fewer configs, zero
   undocumented quarantines, golden tests before semantic refactors.
 - **Quality ratchets**: changed-file lint immediately, global lint reduction
-  after tooling cleanup, no new undocumented quarantines, no new wave/phase
-  scripts.
+  after tooling cleanup, no new undocumented quarantines, and no new wave/phase
+  scripts beyond the committed alias-policy baseline.
 - **Churn budget**: limit broad moves/renames so rollback and debugging stay
   manageable.
 
@@ -142,35 +142,35 @@ These should also remain.
 
 ## 4. Outcome KPIs
 
-| Area               | Target outcome                                                                                                                                       |
-| ------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Scripts            | Current baseline is 86 root scripts. First pass: classify and retire wave/phase/package-only aliases; target ≤50 active scripts before pursuing ≤30. |
-| CI                 | Current baseline is 16 workflow files, indexed in `docs/workflows/README.md`. Consolidate only after mapping required vs optional checks.            |
-| Hooks              | Current pre-commit is a custom staged guard; current pre-push delegates to `scripts/pre-push.mjs`. Simplify only after replacement commands exist.   |
-| Pre-push script    | Keep `scripts/pre-push.mjs` until a direct hook command or `validate:quick` equivalent is added and verified.                                        |
-| Vitest             | Current unit entry is `vitest.config.mjs`; integration/quarantine/testcontainer configs remain active. Consolidate by migration, not deletion.       |
-| TypeScript         | Keep active boundary configs, including `tsconfig.shared.json`; delete only unreferenced variants proven by script/extends scans.                    |
-| Env files          | No committed `.env.test` exists. Add one only with safe deterministic values and verified loader behavior; production secrets stay out of Git.       |
-| Archives/logs      | `docs/phase0-runner*.txt` and root `archive/` are already absent; remaining `docs/archive/` is small and must be curated, not blanket-deleted.       |
-| Binary docs assets | `docs/references/attached_assets/` deleted or externalized unless actively required.                                                                 |
-| Packages           | `packages/*` is still referenced by scripts/tsconfigs. Remove those references before deleting or extracting packages.                               |
-| Quarantine         | Zero undocumented quarantines; every quarantine has TTL, reason, and exit condition.                                                                 |
-| Financial logic    | Existing truth/parity tests are fragmented across domains; fill missing coverage before semantic refactors.                                          |
+| Area               | Target outcome                                                                                                                                                                                                                |
+| ------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Scripts            | Current baseline is 80 root scripts after retiring stale wave5/wave6 aliases and adding the alias-policy guard. Next pass: classify remaining wave/phase/package-only aliases; target ≤50 active scripts before pursuing ≤30. |
+| CI                 | Current baseline is 16 workflow files, indexed in `docs/workflows/README.md`. Consolidate only after mapping required vs optional checks.                                                                                     |
+| Hooks              | Current pre-commit is a custom staged guard; current pre-push delegates to `scripts/pre-push.mjs`. Simplify only after replacement commands exist.                                                                            |
+| Pre-push script    | Keep `scripts/pre-push.mjs` until a direct hook command or `validate:quick` equivalent is added and verified.                                                                                                                 |
+| Vitest             | Current unit entry is `vitest.config.mjs`; integration/quarantine/testcontainer configs remain active. Consolidate by migration, not deletion.                                                                                |
+| TypeScript         | Keep active boundary configs, including `tsconfig.shared.json`; delete only unreferenced variants proven by script/extends scans.                                                                                             |
+| Env files          | No committed `.env.test` exists. Add one only with safe deterministic values and verified loader behavior; production secrets stay out of Git.                                                                                |
+| Archives/logs      | `docs/phase0-runner*.txt` and root `archive/` are already absent; remaining `docs/archive/` is small and must be curated, not blanket-deleted.                                                                                |
+| Binary docs assets | `docs/references/attached_assets/` deleted or externalized unless actively required.                                                                                                                                          |
+| Packages           | `packages/*` is still referenced by scripts/tsconfigs. Remove those references before deleting or extracting packages.                                                                                                        |
+| Quarantine         | Zero undocumented quarantines; every quarantine has TTL, reason, and exit condition.                                                                                                                                          |
+| Financial logic    | Existing truth/parity tests are fragmented across domains; fill missing coverage before semantic refactors.                                                                                                                   |
 
 ---
 
 ## 5. Quality Ratchets
 
-| Ratchet           |                       Starts | Rule                                                                                                   |
-| ----------------- | ---------------------------: | ------------------------------------------------------------------------------------------------------ |
-| Changed-file lint |                  Immediately | No new ESLint violations in changed files.                                                             |
-| Global lint debt  |  After script/config cleanup | Reduce total lint baseline by at least 5% per cleanup cycle, or record why product work took priority. |
-| `eslint-disable`  |                  Immediately | No new `eslint-disable` without a reason comment.                                                      |
-| `console.*`       |                  Immediately | No new production console usage except through logger/debug utility.                                   |
-| Test quarantine   |                  Immediately | No new quarantine without reason, TTL, and exit condition.                                             |
-| Config aliases    |   After Vitest consolidation | No copy-pasted alias blocks; configs import shared aliases.                                            |
-| Scripts           | After canonical scripts land | No new wave/phase/slice script names.                                                                  |
-| TODOs             |  After `TECH_DEBT.md` exists | No new TODO without inline reason or tech-debt entry.                                                  |
+| Ratchet           |                      Starts | Rule                                                                                                   |
+| ----------------- | --------------------------: | ------------------------------------------------------------------------------------------------------ |
+| Changed-file lint |                 Immediately | No new ESLint violations in changed files.                                                             |
+| Global lint debt  | After script/config cleanup | Reduce total lint baseline by at least 5% per cleanup cycle, or record why product work took priority. |
+| `eslint-disable`  |                 Immediately | No new `eslint-disable` without a reason comment.                                                      |
+| `console.*`       |                 Immediately | No new production console usage except through logger/debug utility.                                   |
+| Test quarantine   |                 Immediately | No new quarantine without reason, TTL, and exit condition.                                             |
+| Config aliases    |  After Vitest consolidation | No copy-pasted alias blocks; configs import shared aliases.                                            |
+| Scripts           |                 Immediately | No new wave/phase/slice script names beyond `.baselines/script-alias-policy.json`.                     |
+| TODOs             | After `TECH_DEBT.md` exists | No new TODO without inline reason or tech-debt entry.                                                  |
 
 ---
 
@@ -517,10 +517,11 @@ automation the solo developer actually uses.
 
 ## 3.1 Canonical script set
 
-Current state: `package.json` has 86 scripts. The stable core surface already
+Current state: `package.json` has 80 scripts. The stable core surface already
 exists, but `test:unit` still points at `vitest.config.mjs`, `pre-push` still
 runs `scripts/pre-push.mjs`, and there is no `validate:quick` or `validate:full`
-script yet.
+script yet. The script count includes `guard:scripts:check`, which prevents new
+legacy wave/phase/slice aliases while the remaining active aliases are retired.
 
 First-pass canonical surface:
 
@@ -541,6 +542,10 @@ First-pass canonical surface:
   "lint": "npm run lint:eslint && npm run guardrails:check",
   "lint:eslint": "eslint . --max-warnings 0 --cache --cache-location node_modules/.cache/eslint",
   "lint:fix": "eslint . --fix --cache --cache-location node_modules/.cache/eslint",
+  "guard:console:check": "node scripts/guardrails/console-ratchet.mjs",
+  "guard:eslint-disable:check": "node scripts/guardrails/eslint-disable-ratchet.mjs",
+  "guard:scripts:check": "node scripts/guardrails/script-alias-policy.mjs",
+  "guardrails:check": "npm run guard:console:check && npm run guard:eslint-disable:check && npm run guard:scripts:check",
   "test": "npm run test:unit",
   "test:unit": "cross-env TZ=UTC vitest run --config vitest.config.mjs --configLoader native --project=server --project=client",
   "test:integration": "cross-env TZ=UTC vitest run -c vitest.config.int.ts",
@@ -562,13 +567,14 @@ now.
 
 ## 3.2 Retire wave/phase scripts
 
-1. Classify the current wave/phase scripts by owner: active stabilization gates,
-   package cleanup leftovers, or historical aliases.
+1. Classify the remaining wave/phase scripts by owner: active stabilization
+   gates, package cleanup leftovers, or historical aliases.
 2. Keep active stabilization gates until their replacement command passes.
 3. Replace historical wave/phase scripts with short-lived aliases only if they
    are still used by CI/docs.
 4. Delete aliases after one cleanup cycle.
-5. Add ratchet: no new script names containing `wave`, `phase`, or `slice`.
+5. Keep the ratchet green: `npm run guard:scripts:check` allows only the
+   baseline legacy aliases in `.baselines/script-alias-policy.json`.
 
 ## 3.3 Pre-commit hook
 
@@ -1308,7 +1314,8 @@ server/shared/ -> server/lib if server-local
 7. Treat the vendored external `repo/` project as already removed locally; only
    clean stale doc references when touched.
 8. Decouple and delete/externalize unused packages.
-9. Classify current 86 scripts and retire stale wave/phase/package-only scripts.
+9. Classify current 80 scripts and retire remaining stale
+   wave/phase/package-only scripts.
 10. Simplify Husky hooks only after replacement commands exist; delete
     `scripts/pre-push.mjs` last.
 11. Classify the current 16 workflows against `docs/workflows/README.md`, then
@@ -1361,7 +1368,7 @@ For this solo/internal build, move quickly on verified-unused artifacts and the
 large attached-assets directory, but do not treat active route mirrors, active
 XState wizard code, active Vitest configs, or active pre-push automation as
 cleanup trash. Then simplify the daily commands, hooks, CI, env files, and test
-configs from the current 86-script / 16-workflow baseline. Only after that, fill
+configs from the current 80-script / 16-workflow baseline. Only after that, fill
 domain golden-test gaps and refactor product code behind those tests.
 
 The highest ROI is not naming consistency. It is reducing the number of scripts,

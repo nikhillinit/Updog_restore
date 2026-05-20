@@ -7268,6 +7268,33 @@
       "docType": "doc",
       "exists": true,
       "frontmatter": {
+        "categories": ["governance", "cleanup", "refactor"],
+        "keywords": [
+          "cleanup-manifest",
+          "refactor",
+          "audit",
+          "deletion",
+          "migration"
+        ],
+        "last_updated": "2026-05-20",
+        "owner": "Core Team",
+        "related": ["docs/governance/2026-05-19-refactor-roadmap.md"],
+        "review_cadence": "P14D",
+        "source_of_truth": true,
+        "status": "ACTIVE"
+      },
+      "hasExecutionClaims": false,
+      "isStale": false,
+      "lastUpdated": "2026-05-20",
+      "owner": "Core Team",
+      "path": "docs/governance/cleanup-manifest.md",
+      "staleDays": 0,
+      "status": "ACTIVE"
+    },
+    {
+      "docType": "doc",
+      "exists": true,
+      "frontmatter": {
         "last_updated": "2026-01-19",
         "status": "ACTIVE"
       },
@@ -12154,7 +12181,7 @@
       "status": "ACTIVE"
     }
   ],
-  "generatedAt": "2026-05-20T03:04:51.463Z",
+  "generatedAt": "2026-05-20T03:18:06.413Z",
   "patterns": [
     {
       "category": "Security",
@@ -13243,7 +13270,7 @@
   "stats": {
     "by_status": {
       "ACCEPTED": 1,
-      "ACTIVE": 491,
+      "ACTIVE": 492,
       "ARCHIVED": 1,
       "BACKLOG": 1,
       "COMPLETED": 1,
@@ -13262,7 +13289,7 @@
     },
     "missing_frontmatter": 15,
     "stale_docs": 97,
-    "total_docs": 719
+    "total_docs": 720
   },
   "version": "2.0"
 }

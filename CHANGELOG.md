@@ -50,6 +50,16 @@ and this project adheres to
 
 ### Added
 
+- **Tooling Script Alias Guardrail** (2026-05-20)
+  - Added `scripts/guardrails/script-alias-policy.mjs`,
+    `.baselines/script-alias-policy.json`, and
+    `tests/unit/scripts/script-alias-policy.test.ts` to block new legacy
+    wave/phase/slice npm script aliases while preserving the current migration
+    baseline.
+  - Retired package-only `test:wave5:*`, `test:wave6:*`, and
+    `lint:wave6:residual` aliases from `package.json`.
+  - Wired `guard:scripts:check` into `guardrails:check`.
+
 - **Cleanup Manifest Refresh** (2026-05-20)
   - Added `docs/governance/cleanup-manifest.md` as the current cleanup candidate
     register for deletion, externalization, migration, and keep decisions.

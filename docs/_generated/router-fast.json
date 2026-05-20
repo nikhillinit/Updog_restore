@@ -2,7 +2,7 @@
   "config": {
     "max_docs_per_keyword": 25
   },
-  "generatedAt": "2026-05-20T03:04:51.463Z",
+  "generatedAt": "2026-05-20T03:18:06.413Z",
   "keyword_to_docs": {
     "add feature": ["CLAUDE.md"],
     "adr": ["docs/adr/", ".claude/commands/log-decision.md"],
