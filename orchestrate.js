@@ -437,7 +437,7 @@ class Orchestrator {
     const tests = [
       {
         name: 'ReserveEngine API',
-        url: 'http://localhost:3000/api/reserves/1',
+        url: 'http://localhost:5000/api/reserves/1',
         validator: (data) =>
           Array.isArray(data) &&
           data.length > 0 &&
@@ -446,7 +446,7 @@ class Orchestrator {
       },
       {
         name: 'PacingEngine API',
-        url: 'http://localhost:3000/api/pacing/summary',
+        url: 'http://localhost:5000/api/pacing/summary',
         validator: (data) =>
           Array.isArray(data) &&
           data.length > 0 &&
