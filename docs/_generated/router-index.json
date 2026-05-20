@@ -1458,6 +1458,22 @@
       "docType": "doc",
       "exists": true,
       "frontmatter": {
+        "agent_name": "hermes-dev-updog",
+        "last_updated": "2026-05-20",
+        "role": "dev co-op coordinator"
+      },
+      "hasExecutionClaims": false,
+      "isStale": false,
+      "lastUpdated": "2026-05-20",
+      "owner": null,
+      "path": ".claude/hermes/SOUL.md",
+      "staleDays": 0,
+      "status": "UNKNOWN"
+    },
+    {
+      "docType": "doc",
+      "exists": true,
+      "frontmatter": {
         "last_updated": "2026-01-19",
         "status": "HISTORICAL"
       },
@@ -3696,6 +3712,21 @@
       "owner": null,
       "path": "DEV_BOOTSTRAP_README.md",
       "staleDays": 121,
+      "status": "ACTIVE"
+    },
+    {
+      "docType": "doc",
+      "exists": true,
+      "frontmatter": {
+        "last_updated": "2026-05-20",
+        "status": "ACTIVE"
+      },
+      "hasExecutionClaims": false,
+      "isStale": false,
+      "lastUpdated": "2026-05-20",
+      "owner": null,
+      "path": "DEV_BRAIN.md",
+      "staleDays": 0,
       "status": "ACTIVE"
     },
     {
@@ -11729,6 +11760,18 @@
       "docType": "doc",
       "exists": true,
       "frontmatter": {},
+      "hasExecutionClaims": false,
+      "isStale": true,
+      "lastUpdated": null,
+      "owner": null,
+      "path": "docs/superpowers/plans/2026-05-20-hermes-integration.md",
+      "staleDays": 999,
+      "status": "UNKNOWN"
+    },
+    {
+      "docType": "doc",
+      "exists": true,
+      "frontmatter": {},
       "hasExecutionClaims": true,
       "isStale": true,
       "lastUpdated": null,
@@ -12181,7 +12224,7 @@
       "status": "ACTIVE"
     }
   ],
-  "generatedAt": "2026-05-20T03:18:06.413Z",
+  "generatedAt": "2026-05-20T06:02:57.970Z",
   "patterns": [
     {
       "category": "Security",
@@ -12366,6 +12409,20 @@
       ],
       "priority": 21,
       "target": "docs/STABILIZATION-ROADMAP.md"
+    },
+    {
+      "category": "Orchestration",
+      "id": "hermes_dev_coop",
+      "keywords": [
+        "hermes",
+        "model co-op",
+        "multi-model routing",
+        "phase routed",
+        "dev brain"
+      ],
+      "message": "Hermes phase-routed model co-op charter; config lives in .claude/hermes/model-routing.json",
+      "priority": 22,
+      "target": "DEV_BRAIN.md"
     },
     {
       "category": "Production",
@@ -13270,7 +13327,7 @@
   "stats": {
     "by_status": {
       "ACCEPTED": 1,
-      "ACTIVE": 492,
+      "ACTIVE": 493,
       "ARCHIVED": 1,
       "BACKLOG": 1,
       "COMPLETED": 1,
@@ -13282,14 +13339,14 @@
       "REFERENCE": 6,
       "STALE-VALIDATION": 1,
       "TRACKED (not scheduled)": 1,
-      "UNKNOWN": 134,
+      "UNKNOWN": 136,
       "VERIFIED": 9,
       "active": 2,
       "ready": 3
     },
-    "missing_frontmatter": 15,
-    "stale_docs": 97,
-    "total_docs": 720
+    "missing_frontmatter": 16,
+    "stale_docs": 98,
+    "total_docs": 723
   },
   "version": "2.0"
 }

@@ -52,6 +52,7 @@ export default [
       '.claude/**',
       '.tmp/**',
       '.omx/**',
+      '.worktrees/**',
       'node_modules/**',
       'build/**',
       // Keep tests linted - removed "tests/**"
