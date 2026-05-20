@@ -43,6 +43,7 @@ tmpclaude-*-cwd
 .claude/artifacts/metrics.jsonl
 .claude/artifacts/.session-files.json
 .claude/locks/
+.audit/
 
 # Runtime data
 pids

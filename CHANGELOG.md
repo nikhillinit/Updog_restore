@@ -1,6 +1,6 @@
 ---
 status: ACTIVE
-last_updated: 2026-05-16
+last_updated: 2026-05-20
 owner: Core Team
 review_cadence: P7D
 ---
@@ -49,6 +49,18 @@ and this project adheres to
   decision.
 
 ### Added
+
+- **Refactor Governance Roadmap** (2026-05-20)
+  - Added `docs/governance/2026-05-19-refactor-roadmap.md` as the canonical
+    cleanup/refactor sequencing document.
+  - Moved raw refactor audit reports under
+    `docs/reviews/refactor-audit-2026-05-19/` and marked them as reference
+    evidence rather than execution plans.
+  - Converted the CA period truth remediation checklist into a completed review
+    record at `docs/reviews/ca-period-truth-remediation-2026-05-19.md`.
+  - Replaced the deleted type-safety action plan with
+    `docs/tech-debt/type-safety-remediation-summary.md` to preserve durable
+    remediation guidance without stale 2025 counts.
 
 - **Governance Refresh for March 2026 Delivery** (2026-03-26)
   - Added `ADR-019` to document the ESLint ratchet strategy, Pino runtime
@@ -689,8 +701,6 @@ and this project adheres to
   - Updated pre-commit hook to exempt PROJECT-PHOENIX-COMPREHENSIVE-STRATEGY.md
     from emoji checks
   - Added supersession banners to older Phoenix strategy documents
-  - **Strategy**:
-    [docs/strategies/PHOENIX-PLAN-2025-11-30.md](docs/strategies/PHOENIX-PLAN-2025-11-30.md)
   - **Runbook**: [runbooks/phoenix-execution.md](runbooks/phoenix-execution.md)
 
 ### Changed
@@ -713,7 +723,8 @@ and this project adheres to
     - DeepSeek V3.2: $0.00055 input / $0.00219 output
   - **Files Updated**:
     - [.env.local.example](.env.local.example) (lines 134-148)
-    - `archive/2026-q1/unused-code/claude_code-multi-AI-MCP/credentials.template.json` (archived)
+    - `archive/2026-q1/unused-code/claude_code-multi-AI-MCP/credentials.template.json`
+      (archived)
   - **Verified Compatibility**: All multi-AI orchestrator functions
     (`askAllAIs()`, `aiConsensus()`, `collaborativeSolve()`) confirmed working
     with new model identifiers
@@ -2856,7 +2867,8 @@ and Phase 1D (Capital Allocation).
 
 - `vitest.config.ts` - Added `@shared/` path alias
 - `tests/utils/mock-shared-schema.ts` - **NEW** centralized mock factory
-- `tests/utils/jsonb-test-helper.ts` (since removed) - **NEW** JSONB serialization utilities
+- `tests/utils/jsonb-test-helper.ts` (since removed) - **NEW** JSONB
+  serialization utilities
 - `tests/unit/services/performance-prediction.test.ts` - Use centralized mock
 - `tests/unit/services/monte-carlo-engine.test.ts` - Use centralized mock
 - `tests/unit/services/monte-carlo-power-law-integration.test.ts` - Use

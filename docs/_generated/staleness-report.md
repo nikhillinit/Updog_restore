@@ -1,16 +1,16 @@
 ---
-last_updated: 2026-05-19
+last_updated: 2026-05-20
 ---
 
 # Staleness Report
 
-_Generated: 2026-05-19T04:36:57.156Z_ _Source: docs/DISCOVERY-MAP.source.yaml_
+_Generated: 2026-05-20T02:46:39.930Z_ _Source: docs/DISCOVERY-MAP.source.yaml_
 
 ## Summary
 
 | Metric              | Value |
 | ------------------- | ----- |
-| Total Documents     | 713   |
+| Total Documents     | 719   |
 | Stale Documents     | 97    |
 | Missing Frontmatter | 15    |
 
@@ -20,9 +20,10 @@ _Generated: 2026-05-19T04:36:57.156Z_ _Source: docs/DISCOVERY-MAP.source.yaml_
 | ----------------------- | ----- |
 | ACTIVE                  | 491   |
 | UNKNOWN                 | 134   |
-| HISTORICAL              | 35    |
+| HISTORICAL              | 34    |
 | DRAFT                   | 31    |
 | VERIFIED                | 9     |
+| REFERENCE               | 6     |
 | ready                   | 3     |
 | active                  | 2     |
 | STALE-VALIDATION        | 1     |
@@ -33,6 +34,7 @@ _Generated: 2026-05-19T04:36:57.156Z_ _Source: docs/DISCOVERY-MAP.source.yaml_
 | IMPLEMENTED             | 1     |
 | TRACKED (not scheduled) | 1     |
 | BACKLOG                 | 1     |
+| COMPLETED               | 1     |
 
 ## Stale Documents
 
@@ -76,20 +78,20 @@ Documents that need review (older than their cadence threshold):
 | `docs/superpowers/plans/2026-05-16-variance-calculation-extraction.md`      | Never        | 999      | YES - verify!        | Unassigned |
 | `docs/superpowers/plans/2026-05-19-ca-period-truth-harness-remediation.md`  | Never        | 999      | No                   | Unassigned |
 | `docs/superpowers/specs/2026-05-16-refactor-stability-strategy-design.md`   | Never        | 999      | YES - verify!        | Unassigned |
-| `.claude/skills/planning-with-files/CHANGELOG.md`                           | 2026-01-19   | 120      | No                   | Unassigned |
-| `cheatsheets/agent-architecture.md`                                         | 2026-01-19   | 120      | No                   | Unassigned |
-| `cheatsheets/agent-memory/database-expert-schema-tdd.md`                    | 2026-01-19   | 120      | No                   | Unassigned |
-| `cheatsheets/ai-code-review.md`                                             | 2026-01-19   | 120      | No                   | Unassigned |
-| `cheatsheets/anti-pattern-prevention.md`                                    | 2026-01-19   | 120      | No                   | Unassigned |
-| `cheatsheets/api.md`                                                        | 2026-01-19   | 120      | No                   | Unassigned |
-| `cheatsheets/capability-checklist.md`                                       | 2026-01-19   | 120      | No                   | Unassigned |
-| `cheatsheets/ci-validator-guide.md`                                         | 2026-01-19   | 120      | No                   | Unassigned |
-| `cheatsheets/claude-commands.md`                                            | 2026-01-19   | 120      | No                   | Unassigned |
-| `cheatsheets/claude-md-guidelines.md`                                       | 2026-01-19   | 120      | No                   | Unassigned |
-| `cheatsheets/codex-collaboration-protocol.md`                               | 2026-01-19   | 120      | No                   | Unassigned |
-| `cheatsheets/coding-pairs-playbook.md`                                      | 2026-01-19   | 120      | No                   | Unassigned |
-| `cheatsheets/command-summary.md`                                            | 2026-01-19   | 120      | No                   | Unassigned |
-| `cheatsheets/correct-workflow-example.md`                                   | 2026-01-19   | 120      | No                   | Unassigned |
+| `.claude/skills/planning-with-files/CHANGELOG.md`                           | 2026-01-19   | 121      | No                   | Unassigned |
+| `cheatsheets/agent-architecture.md`                                         | 2026-01-19   | 121      | No                   | Unassigned |
+| `cheatsheets/agent-memory/database-expert-schema-tdd.md`                    | 2026-01-19   | 121      | No                   | Unassigned |
+| `cheatsheets/ai-code-review.md`                                             | 2026-01-19   | 121      | No                   | Unassigned |
+| `cheatsheets/anti-pattern-prevention.md`                                    | 2026-01-19   | 121      | No                   | Unassigned |
+| `cheatsheets/api.md`                                                        | 2026-01-19   | 121      | No                   | Unassigned |
+| `cheatsheets/capability-checklist.md`                                       | 2026-01-19   | 121      | No                   | Unassigned |
+| `cheatsheets/ci-validator-guide.md`                                         | 2026-01-19   | 121      | No                   | Unassigned |
+| `cheatsheets/claude-commands.md`                                            | 2026-01-19   | 121      | No                   | Unassigned |
+| `cheatsheets/claude-md-guidelines.md`                                       | 2026-01-19   | 121      | No                   | Unassigned |
+| `cheatsheets/codex-collaboration-protocol.md`                               | 2026-01-19   | 121      | No                   | Unassigned |
+| `cheatsheets/coding-pairs-playbook.md`                                      | 2026-01-19   | 121      | No                   | Unassigned |
+| `cheatsheets/command-summary.md`                                            | 2026-01-19   | 121      | No                   | Unassigned |
+| `cheatsheets/correct-workflow-example.md`                                   | 2026-01-19   | 121      | No                   | Unassigned |
 
 _...and 47 more stale documents._
 
@@ -98,12 +100,12 @@ _...and 47 more stale documents._
 These documents contain phrases like "tests pass", "PR merged", etc. and should
 be verified:
 
-- [ ] **cheatsheets/emoji-free-documentation.md** (120 days old)
-- [ ] **cheatsheets/schema-alignment.md** (120 days old)
-- [ ] **docs/notebooklm-sources/reserves/01-overview.md** (120 days old)
-- [ ] **docs/notebooklm-sources/waterfall.md** (120 days old)
-- [ ] **docs/notebooklm-sources/xirr.md** (120 days old)
-- [ ] **docs/observability/EDITORIAL-V2-CHANGELOG.md** (120 days old)
+- [ ] **cheatsheets/emoji-free-documentation.md** (121 days old)
+- [ ] **cheatsheets/schema-alignment.md** (121 days old)
+- [ ] **docs/notebooklm-sources/reserves/01-overview.md** (121 days old)
+- [ ] **docs/notebooklm-sources/waterfall.md** (121 days old)
+- [ ] **docs/notebooklm-sources/xirr.md** (121 days old)
+- [ ] **docs/observability/EDITORIAL-V2-CHANGELOG.md** (121 days old)
 - [ ] **docs/skills/REFL-003-cross-platform-file-enumeration-fragility.md** (999
       days old)
 - [ ] **docs/skills/REFL-014-test-key-reuse-across-test-cases.md** (999 days
