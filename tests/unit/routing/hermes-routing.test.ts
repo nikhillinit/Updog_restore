@@ -1,13 +1,17 @@
 import { describe, expect, test } from 'vitest';
 
 import {
+  buildPrompt,
   chooseModel,
   createRoutingPlan,
+  generateRunId,
   getGateRunPlan,
   isCliEntryPoint,
   main,
   parseArgs,
+  resolveEffectivePhase,
   resolveGate,
+  resolveOwnership,
   runGate,
   scoreSpecialist,
 } from '../../../orchestrate.js';
@@ -24,6 +28,34 @@ const routing = {
     '--claude': 'claude',
     '--codex': 'codex',
     '--kimi': 'kimi',
+  },
+  ownership: {
+    research: {
+      owner: 'claude',
+      reviewer: 'kimi',
+      role: 'leader-coordinator',
+      artifact: 'implementation brief',
+    },
+    production: {
+      owner: 'codex',
+      reviewer: 'claude',
+      role: 'worker-executor',
+      artifact: 'diff plus tests',
+    },
+    'production-financial': {
+      owner: 'codex',
+      reviewer: 'claude',
+      audit: 'kimi',
+      role: 'worker-executor',
+      specialistRequired: true,
+      artifact: 'diff plus truth-case notes',
+      humanApproval: true,
+    },
+    distribution: {
+      owner: 'claude',
+      role: 'release-manager',
+      artifact: 'PR-ready summary',
+    },
   },
   specialists: {
     'waterfall-specialist': {
@@ -90,12 +122,26 @@ describe('Hermes routing helpers', () => {
       routing.scoring
     );
 
-    expect(specialist).toEqual({
-      name: 'xirr-fees-validator',
-      risk: 'financial',
-      score: 7,
-    });
+    expect(specialist?.name).toBe('xirr-fees-validator');
+    expect(specialist?.risk).toBe('financial');
+    expect(specialist?.score).toBe(7);
+    expect(specialist?.matched).toEqual(['xirr calculation', 'management fees']);
+    expect(specialist?.confidence).toBe(1);
     expect(resolveGate('production', specialist, routing.gates)).toBe('npm run calc-gate');
+  });
+
+  test('scoreSpecialist exposes maxScore and partial-match confidence', () => {
+    const specialist = scoreSpecialist(
+      'investigate management fees report',
+      routing.specialists,
+      routing.scoring
+    );
+
+    expect(specialist?.name).toBe('xirr-fees-validator');
+    expect(specialist?.score).toBe(3);
+    expect(specialist?.maxScore).toBe(7);
+    expect(specialist?.confidence).toBeCloseTo(0.43, 2);
+    expect(specialist?.matched).toEqual(['management fees']);
   });
 
   test('distribution phase summary does not false-positive to waterfall specialist', () => {
@@ -114,7 +160,7 @@ describe('Hermes routing helpers', () => {
     );
   });
 
-  test('createRoutingPlan combines model, specialist, risk, score, and gate', () => {
+  test('createRoutingPlan includes specialist, confidence, candidates, and ownership', () => {
     const plan = createRoutingPlan({
       phase: 'production',
       task: 'fix xirr calculation with management fees',
@@ -122,15 +168,57 @@ describe('Hermes routing helpers', () => {
       manualModel: null,
     });
 
-    expect(plan).toEqual({
-      phase: 'production',
-      task: 'fix xirr calculation with management fees',
-      model: 'codex',
-      specialist: 'xirr-fees-validator',
-      risk: 'financial',
+    expect(plan.phase).toBe('production');
+    expect(plan.task).toBe('fix xirr calculation with management fees');
+    expect(plan.model).toBe('codex');
+    expect(plan.specialist).toBe('xirr-fees-validator');
+    expect(plan.risk).toBe('financial');
+    expect(plan.score).toBe(7);
+    expect(plan.confidence).toBe(1);
+    expect(plan.gate).toBe('npm run calc-gate');
+    expect(plan.candidates).toHaveLength(1);
+    expect(plan.candidates[0]).toMatchObject({
+      name: 'xirr-fees-validator',
       score: 7,
-      gate: 'npm run calc-gate',
+      matched: ['xirr calculation', 'management fees'],
     });
+    expect(plan.ownership).toMatchObject({
+      effectivePhase: 'production-financial',
+      owner: 'codex',
+      reviewer: 'claude',
+      role: 'worker-executor',
+      humanApproval: true,
+    });
+  });
+
+  test('createRoutingPlan returns empty candidates when no specialist matches', () => {
+    const plan = createRoutingPlan({
+      phase: 'distribution',
+      task: 'prepare distribution summary for PR',
+      routing,
+      manualModel: null,
+    });
+
+    expect(plan.specialist).toBeNull();
+    expect(plan.candidates).toEqual([]);
+    expect(plan.confidence).toBe(0);
+    expect(plan.ownership).toMatchObject({
+      effectivePhase: 'distribution',
+      owner: 'claude',
+      role: 'release-manager',
+    });
+  });
+
+  test('resolveEffectivePhase promotes financial production work', () => {
+    expect(resolveEffectivePhase('production', { risk: 'financial' })).toBe('production-financial');
+    expect(resolveEffectivePhase('production', { risk: 'quality' })).toBe('production');
+    expect(resolveEffectivePhase('research', { risk: 'financial' })).toBe('research');
+  });
+
+  test('resolveOwnership prefers production-financial entry for financial work', () => {
+    const ownership = resolveOwnership('production', { risk: 'financial' }, routing.ownership);
+    expect(ownership?.effectivePhase).toBe('production-financial');
+    expect(ownership?.humanApproval).toBe(true);
   });
 
   test('createRoutingPlan includes preflight skip reason when requested', () => {
@@ -147,6 +235,34 @@ describe('Hermes routing helpers', () => {
       preflight: true,
       reason: 'repairing doctor gate',
     });
+  });
+
+  test('buildPrompt injects ownership context and handoff schema labels', () => {
+    const plan = createRoutingPlan({
+      phase: 'production',
+      task: 'fix xirr calculation with management fees',
+      routing,
+      manualModel: null,
+    });
+
+    const prompt = buildPrompt({ plan, brain: 'DEV_BRAIN', soul: 'SOUL', runId: 'hermes-test' });
+
+    expect(prompt).toContain('OWNER: codex');
+    expect(prompt).toContain('reviewer: claude');
+    expect(prompt).toContain('role: worker-executor');
+    expect(prompt).toContain('human approval required');
+    expect(prompt).toContain('SPECIALIST: xirr-fees-validator');
+    expect(prompt).toContain('confidence: 100%');
+    expect(prompt).toContain('RUN ID: hermes-test');
+    expect(prompt).toContain('Handoff block');
+    expect(prompt).toContain(
+      'Run ID, Phase, Owner, Reviewer, Task, Protected areas, Files touched'
+    );
+  });
+
+  test('generateRunId formats deterministically from a clock', () => {
+    const id = generateRunId(new Date('2026-05-20T18:30:45.123Z'));
+    expect(id).toBe('hermes-2026-05-20T18-30-45-123Z');
   });
 
   test('entrypoint guard distinguishes imports from direct CLI execution', () => {
@@ -240,6 +356,7 @@ describe('Hermes routing helpers', () => {
         soul: 'SOUL',
         executeModel: async () => 1,
         gateRunner: () => ({ status: 0 }),
+        writeRunLedger: null,
       }
     );
 
@@ -275,6 +392,7 @@ describe('Hermes routing helpers', () => {
           gateCalls.push([bin, ...args].join(' '));
           return { status: 0 };
         },
+        writeRunLedger: null,
       }
     );
 
@@ -300,6 +418,7 @@ describe('Hermes routing helpers', () => {
           return 0;
         },
         gateRunner: () => ({ status: 2 }),
+        writeRunLedger: null,
       }
     );
 
@@ -329,6 +448,7 @@ describe('Hermes routing helpers', () => {
         soul: 'SOUL',
         executeModel: async () => 0,
         gateRunner: () => ({ status: 7 }),
+        writeRunLedger: null,
       }
     );
 
@@ -357,6 +477,7 @@ describe('Hermes routing helpers', () => {
         soul: 'SOUL',
         executeModel: async () => 5,
         gateRunner: () => ({ status: 0 }),
+        writeRunLedger: null,
       }
     );
 
@@ -386,10 +507,79 @@ describe('Hermes routing helpers', () => {
         soul: 'SOUL',
         executeModel: async () => 5,
         gateRunner: () => ({ status: 7 }),
+        writeRunLedger: null,
       }
     );
 
     expect(code).toBe(7);
     expect(stderr.join('')).toContain('model exited 5 and postflight gate exited 7');
+  });
+
+  test('main writes a run ledger capturing plan, gates, and exit code', async () => {
+    const ledgerCalls: unknown[] = [];
+
+    const code = await main(
+      [
+        '--phase',
+        'production',
+        '--task',
+        'fix xirr calculation regression',
+        '--skip-preflight-gate',
+        '--skip-reason',
+        'repairing calc-gate',
+      ],
+      process.env,
+      {
+        stdout: { write: () => undefined },
+        stderr: { write: () => undefined },
+      },
+      {
+        routing,
+        brain: 'DEV_BRAIN',
+        soul: 'SOUL',
+        executeModel: async () => 0,
+        gateRunner: () => ({ status: 0 }),
+        writeRunLedger: (record: unknown) => ledgerCalls.push(record),
+        clock: () => new Date('2026-05-20T18:30:45.123Z'),
+      }
+    );
+
+    expect(code).toBe(0);
+    expect(ledgerCalls).toHaveLength(1);
+    const record = ledgerCalls[0] as {
+      runId: string;
+      exitCode: number;
+      plan: { specialist: string };
+      preflight: { skipped: boolean; reason: string };
+      model: { name: string; exitCode: number };
+      postflight: { status: number };
+    };
+    expect(record.runId).toBe('hermes-2026-05-20T18-30-45-123Z');
+    expect(record.exitCode).toBe(0);
+    expect(record.plan.specialist).toBe('xirr-fees-validator');
+    expect(record.preflight).toMatchObject({ skipped: true, reason: 'repairing calc-gate' });
+    expect(record.model).toMatchObject({ name: 'codex', exitCode: 0 });
+    expect(record.postflight).toMatchObject({ status: 0 });
+  });
+
+  test('main skips ledger when writeRunLedger is null and does not throw', async () => {
+    const code = await main(
+      ['--phase', 'research', '--task', 'trace reserve engine flow'],
+      process.env,
+      {
+        stdout: { write: () => undefined },
+        stderr: { write: () => undefined },
+      },
+      {
+        routing,
+        brain: 'DEV_BRAIN',
+        soul: 'SOUL',
+        executeModel: async () => 0,
+        gateRunner: () => ({ status: 0 }),
+        writeRunLedger: null,
+      }
+    );
+
+    expect(code).toBe(0);
   });
 });
