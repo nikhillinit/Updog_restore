@@ -1,6 +1,6 @@
 ---
 status: ACTIVE
-last_updated: 2026-04-03
+last_updated: 2026-05-20
 ---
 
 # CLAUDE.md
@@ -150,10 +150,8 @@ npm run doctor
   [cheatsheets/emoji-free-documentation.md](cheatsheets/emoji-free-documentation.md)
   for complete guide
 
-**Complete Documentation Index:**
-
-- All 30 cheatsheets organized by category:
-  [cheatsheets/INDEX.md](cheatsheets/INDEX.md)
+**Complete Documentation Index:** see
+[cheatsheets/INDEX.md](cheatsheets/INDEX.md)
 
 ## Essential Commands
 
@@ -262,6 +260,10 @@ START HERE:
 
 - BEFORE changing shared test mocks or fixtures, grep for ALL assertion patterns
   that depend on current behavior across the full test suite.
+- WHEN diagnosing failing integration tests in CI, check if failures cluster at
+  the END of execution order — that's a resource-ceiling cascade (Vitest
+  `setupFiles` spawns a fresh server per file), not per-file bugs. Pre-push hook
+  reports the warm/true state; cold CI runs can flake the tail.
 - BEFORE pushing when test infrastructure changed, run `npm test` (full suite),
   not just targeted tests.
 - BEFORE writing data to JSONB, check schema for dedicated columns. Do NOT nest
@@ -295,8 +297,8 @@ Consult OpenAI Codex (GPT-5.3, xhigh reasoning) for complex tasks:
 
 ## Babysitter Orchestration
 
-**Profile**: `.a5c/project-profile.json` | **Autonomy**: Semi-autonomous |
-**Methodology**: TDD quality convergence with iterative refinement
+**Autonomy**: Semi-autonomous | **Methodology**: TDD quality convergence with
+iterative refinement
 
 ### Quick Commands
 
@@ -308,14 +310,8 @@ Consult OpenAI Codex (GPT-5.3, xhigh reasoning) for complex tasks:
 
 ### Installed Processes
 
-| Process                     | Description                                       |
-| --------------------------- | ------------------------------------------------- |
-| `gsd/execute`               | Primary workflow for implementing features        |
-| `gsd/verify`                | Post-implementation verification with truth cases |
-| `gsd/plan`                  | Planning and architecture design                  |
-| `gsd/iterative-convergence` | Systematic improvement loops (lint debt, tests)   |
-| `gsd/audit`                 | Codebase audit and quality assessment             |
-| `cradle/project-install`    | Project onboarding and profile management         |
+Project-specific. Run `ls .a5c/processes/` to see current set (lp-reporting-_,
+sensitivity-_, variance-\*, m4/m6/m7 milestones).
 
 ### Recommended Agents
 
@@ -343,14 +339,10 @@ Checkpoint
 See [docs/claude/operating-loop.md](docs/claude/operating-loop.md) for full
 details.
 
-| Command        | Purpose                            |
-| -------------- | ---------------------------------- |
-| `/frame-brief` | Create frame brief before work     |
-| `/checkpoint`  | Checkpoint before risky operations |
-| `/handoff`     | Session handoff artifact           |
-| `/reconcile`   | Verify after parallel work         |
-| `/explore`     | Non-executing discovery mode       |
-| `/bias-audit`  | Evidence/audience enforcement      |
+| Command       | Purpose                       |
+| ------------- | ----------------------------- |
+| `/explore`    | Non-executing discovery mode  |
+| `/bias-audit` | Evidence/audience enforcement |
 
 ## Full vs Lite Mode
 
