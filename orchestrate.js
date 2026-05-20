@@ -37,6 +37,8 @@ function parseArgs(argv = []) {
     dryRun: false,
     json: false,
     help: false,
+    skipPreflightGate: false,
+    gateSkipReason: null,
     manualModel: null,
     legacyCommand: null,
   };
@@ -55,6 +57,13 @@ function parseArgs(argv = []) {
       options.dryRun = true;
     } else if (arg === '--json') {
       options.json = true;
+    } else if (arg === '--skip-gates') {
+      throw new Error('Use --skip-preflight-gate with --skip-reason instead of --skip-gates.');
+    } else if (arg === '--skip-preflight-gate') {
+      options.skipPreflightGate = true;
+    } else if (arg === '--skip-reason') {
+      options.gateSkipReason = argv[index + 1] || '';
+      index += 1;
     } else if (arg === '--phase') {
       options.phase = argv[index + 1] || options.phase;
       index += 1;
@@ -71,6 +80,12 @@ function parseArgs(argv = []) {
   }
 
   options.task = options.task.trim();
+  options.gateSkipReason = options.gateSkipReason?.trim() || null;
+
+  if (options.skipPreflightGate && !options.gateSkipReason) {
+    throw new Error('--skip-preflight-gate requires --skip-reason <reason>.');
+  }
+
   return options;
 }
 
@@ -151,12 +166,19 @@ function resolveGate(phase, specialist, gates = {}) {
   return gates[phase] || null;
 }
 
-function createRoutingPlan({ phase, task, routing, manualModel = null }) {
+function createRoutingPlan({
+  phase,
+  task,
+  routing,
+  manualModel = null,
+  skipPreflightGate = false,
+  gateSkipReason = null,
+}) {
   const specialist = scoreSpecialist(task, routing.specialists || {}, routing.scoring || {});
   const model = chooseModel(task, phase, routing, manualModel);
   const gate = resolveGate(phase, specialist, routing.gates || {});
 
-  return {
+  const plan = {
     phase,
     task,
     model,
@@ -165,6 +187,15 @@ function createRoutingPlan({ phase, task, routing, manualModel = null }) {
     score: specialist?.score || 0,
     gate,
   };
+
+  if (skipPreflightGate) {
+    plan.gateSkip = {
+      preflight: true,
+      reason: gateSkipReason || 'unspecified',
+    };
+  }
+
+  return plan;
 }
 
 function buildPrompt({ plan, brain, soul = '' }) {
@@ -240,6 +271,50 @@ function executeModel(model, prompt, routing, env = process.env) {
   });
 }
 
+function runGate(
+  gate,
+  { runner = spawnSync, env = process.env, stdio = 'inherit', throwOnFailure = true } = {}
+) {
+  const command = String(gate || '').trim();
+  if (!command) {
+    return { command: null, skipped: true, status: 0 };
+  }
+
+  const [bin, ...args] = command.split(/\s+/);
+  const result = runner(bin, args, {
+    env,
+    shell: process.platform === 'win32',
+    stdio,
+  });
+
+  if (result.error) {
+    throw result.error;
+  }
+
+  const status = result.status ?? 0;
+  if (status !== 0 && throwOnFailure) {
+    throw new Error(`Gate failed (${command}) with exit code ${status}`);
+  }
+
+  return { command, skipped: false, status };
+}
+
+function getGateRunPlan(plan, { skipPreflightGate = false } = {}) {
+  const hasGate = Boolean(plan.gate);
+  return {
+    preflight: hasGate && !skipPreflightGate,
+    postflight: hasGate,
+  };
+}
+
+function isProductionFinancial(plan) {
+  return plan.phase === 'production' && plan.risk === 'financial';
+}
+
+function shouldRunPostflightGate(plan, code, gates) {
+  return gates.postflight && (code === 0 || isProductionFinancial(plan));
+}
+
 function printHelp(stdout = process.stdout) {
   stdout.write(`Usage:
   node orchestrate.js --phase <phase> --task "<description>"
@@ -247,7 +322,7 @@ function printHelp(stdout = process.stdout) {
   node orchestrate.js --dry-run --phase research --task "trace reserve engine flow"
 
 Phases: research | production | distribution
-Options: --claude | --codex | --kimi | --dry-run | --json | --help
+Options: --claude | --codex | --kimi | --dry-run | --json | --skip-preflight-gate --skip-reason "<reason>" | --help
 Legacy commands: bootstrap | smoke | enable-algorithms
 `);
 }
@@ -334,8 +409,10 @@ class Orchestrator {
   }
 }
 
-async function main(argv = process.argv.slice(2), env = process.env, io = process) {
+async function main(argv = process.argv.slice(2), env = process.env, io = process, deps = {}) {
   const options = parseArgs(argv);
+  const runModel = deps.executeModel || executeModel;
+  const gateRunner = deps.gateRunner || spawnSync;
 
   if (options.help) {
     printHelp(io.stdout);
@@ -358,14 +435,16 @@ async function main(argv = process.argv.slice(2), env = process.env, io = proces
     env.HERMES_MODEL_ROUTING_FILE || join(ROOT, '.claude', 'hermes', 'model-routing.json');
   const brainPath = env.HERMES_DEV_BRAIN_FILE || join(ROOT, 'DEV_BRAIN.md');
   const soulPath = env.HERMES_SOUL_FILE || join(ROOT, '.claude', 'hermes', 'SOUL.md');
-  const routing = loadJSON(routingPath);
-  const brain = loadText(brainPath);
-  const soul = loadText(soulPath, { optional: true });
+  const routing = deps.routing || loadJSON(routingPath);
+  const brain = deps.brain ?? loadText(brainPath);
+  const soul = deps.soul ?? loadText(soulPath, { optional: true });
   const plan = createRoutingPlan({
     phase: options.phase,
     task: options.task,
     routing,
     manualModel: options.manualModel,
+    skipPreflightGate: options.skipPreflightGate,
+    gateSkipReason: options.gateSkipReason,
   });
   const prompt = buildPrompt({ plan, brain, soul });
 
@@ -382,7 +461,42 @@ async function main(argv = process.argv.slice(2), env = process.env, io = proces
     return 0;
   }
 
-  return executeModel(plan.model, prompt, routing, env);
+  const gates = getGateRunPlan(plan, options);
+
+  if (gates.preflight) {
+    const preflight = runGate(plan.gate, {
+      env,
+      runner: gateRunner,
+      throwOnFailure: false,
+    });
+    if (preflight.status !== 0) {
+      return preflight.status;
+    }
+  } else if (plan.gate && options.skipPreflightGate) {
+    io.stderr.write(
+      `[hermes] WARNING: skipping preflight gate "${plan.gate}"; reason: ${options.gateSkipReason}\n`
+    );
+  }
+
+  const code = await runModel(plan.model, prompt, routing, env);
+
+  if (shouldRunPostflightGate(plan, code, gates)) {
+    const postflight = runGate(plan.gate, {
+      env,
+      runner: gateRunner,
+      throwOnFailure: false,
+    });
+    if (postflight.status !== 0) {
+      if (code !== 0) {
+        io.stderr.write(
+          `[hermes] WARNING: model exited ${code} and postflight gate exited ${postflight.status}\n`
+        );
+      }
+      return postflight.status;
+    }
+  }
+
+  return code;
 }
 
 if (isCliEntryPoint(import.meta.url, process.argv)) {
@@ -401,9 +515,13 @@ export {
   buildPrompt,
   chooseModel,
   createRoutingPlan,
+  getGateRunPlan,
   isCliEntryPoint,
+  isProductionFinancial,
   main,
   parseArgs,
   resolveGate,
+  runGate,
+  shouldRunPostflightGate,
   scoreSpecialist,
 };
