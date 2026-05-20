@@ -1425,18 +1425,6 @@
     {
       "docType": "doc",
       "exists": true,
-      "frontmatter": {},
-      "hasExecutionClaims": false,
-      "isStale": true,
-      "lastUpdated": null,
-      "owner": null,
-      "path": ".claude/discovery.md",
-      "staleDays": 999,
-      "status": "UNKNOWN"
-    },
-    {
-      "docType": "doc",
-      "exists": true,
       "frontmatter": {
         "audience": "agents",
         "categories": ["testing", "agents", "routing"],
@@ -3725,15 +3713,15 @@
       "docType": "doc",
       "exists": true,
       "frontmatter": {
-        "last_updated": "2026-04-03",
+        "last_updated": "2026-05-20",
         "status": "ACTIVE"
       },
       "hasExecutionClaims": false,
       "isStale": false,
-      "lastUpdated": "2026-04-03",
+      "lastUpdated": "2026-05-20",
       "owner": null,
       "path": "CLAUDE.md",
-      "staleDays": 47,
+      "staleDays": 0,
       "status": "ACTIVE"
     },
     {
@@ -13441,14 +13429,14 @@
       "REFERENCE": 6,
       "STALE-VALIDATION": 1,
       "TRACKED (not scheduled)": 1,
-      "UNKNOWN": 135,
+      "UNKNOWN": 134,
       "VERIFIED": 9,
       "active": 2,
       "ready": 3
     },
-    "missing_frontmatter": 15,
-    "stale_docs": 97,
-    "total_docs": 731
+    "missing_frontmatter": 14,
+    "stale_docs": 96,
+    "total_docs": 730
   },
   "version": "2.0"
 }

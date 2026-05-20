@@ -10,16 +10,16 @@ _Generated: 2026-05-20T00:00:00.000Z_ _Source: docs/DISCOVERY-MAP.source.yaml_
 
 | Metric              | Value |
 | ------------------- | ----- |
-| Total Documents     | 731   |
-| Stale Documents     | 97    |
-| Missing Frontmatter | 15    |
+| Total Documents     | 730   |
+| Stale Documents     | 96    |
+| Missing Frontmatter | 14    |
 
 ### By Status
 
 | Status                  | Count |
 | ----------------------- | ----- |
 | ACTIVE                  | 494   |
-| UNKNOWN                 | 135   |
+| UNKNOWN                 | 134   |
 | HISTORICAL              | 34    |
 | DRAFT                   | 31    |
 | VERIFIED                | 9     |
@@ -43,7 +43,6 @@ Documents that need review (older than their cadence threshold):
 
 | Document                                                                    | Last Updated | Days Old | Has Execution Claims | Owner      |
 | --------------------------------------------------------------------------- | ------------ | -------- | -------------------- | ---------- |
-| `.claude/discovery.md`                                                      | Never        | 999      | No                   | Unassigned |
 | `CONTEXT.md`                                                                | Never        | 999      | No                   | Unassigned |
 | `docs/CA-PACING-ORACLE.md`                                                  | Never        | 999      | No                   | Unassigned |
 | `docs/adr/ADR-020-analysis-cohort-boundary.md`                              | Never        | 999      | No                   | Unassigned |
@@ -93,8 +92,9 @@ Documents that need review (older than their cadence threshold):
 | `cheatsheets/coding-pairs-playbook.md`                                      | 2026-01-19   | 121      | No                   | Unassigned |
 | `cheatsheets/command-summary.md`                                            | 2026-01-19   | 121      | No                   | Unassigned |
 | `cheatsheets/correct-workflow-example.md`                                   | 2026-01-19   | 121      | No                   | Unassigned |
+| `cheatsheets/document-review-workflow.md`                                   | 2026-01-19   | 121      | No                   | Unassigned |
 
-_...and 47 more stale documents._
+_...and 46 more stale documents._
 
 ## Documents with Execution Claims (Need Verification)
 
@@ -124,7 +124,6 @@ be verified:
 
 Documents without proper YAML frontmatter:
 
-- [ ] `.claude/discovery.md`
 - [ ] `CONTEXT.md`
 - [ ] `docs/CA-PACING-ORACLE.md`
 - [ ] `docs/adr/ADR-020-analysis-cohort-boundary.md`
