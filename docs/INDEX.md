@@ -137,6 +137,7 @@ Hardening baseline)
 | [DECISIONS.md](../DECISIONS.md)                                                        | Architectural Decision Records (ADRs)                   | Understanding technical rationale           |
 | [adr/](adr/)                                                                           | Standalone ADR files (15 files)                         | Architecture decisions outside DECISIONS.md |
 | [DEVELOPMENT_STRATEGY.md](DEVELOPMENT_STRATEGY.md)                                     | Long-term development strategy                          | Strategic planning                          |
+| [governance/cleanup-manifest.md](governance/cleanup-manifest.md)                       | Current cleanup candidate register                      | Before deletion/externalization cleanup     |
 | [governance/2026-05-19-refactor-roadmap.md](governance/2026-05-19-refactor-roadmap.md) | Active refactor roadmap and priority order              | Cleanup/refactor sequencing                 |
 | [MULTI-AI-DEVELOPMENT-WORKFLOW.md](MULTI-AI-DEVELOPMENT-WORKFLOW.md)                   | Multi-AI collaboration patterns                         | Leveraging multiple AIs                     |
 | [schema.md](schema.md)                                                                 | Database schema, relationships, and design patterns     | Understanding persisted data model          |
@@ -226,10 +227,12 @@ not by number alone._
 
 **Current snapshot**:
 
-- 90 scripts are currently defined in the root `package.json`
+- 80 scripts are currently defined in the root `package.json`
 - Use `package.json` as the source of truth for exact script names
 - The highest-signal families are development/build, lint/guardrails,
   test/validation, database/seeding, docs/routing, and Phoenix/domain checks
+- `guard:scripts:check` blocks new legacy wave/phase/slice script aliases while
+  the existing aliases are retired
 - Phoenix (28 scripts): `phoenix:truth`, `phoenix:xirr-validate`
 
 ---
