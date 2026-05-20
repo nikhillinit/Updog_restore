@@ -257,6 +257,34 @@ describe('DynamicFundHeader', () => {
     expect(metricLabel('Remaining').parentElement).toHaveTextContent('$50M');
   });
 
+  it('does not pair zero invested capital with a positive current value when investment facts are missing', () => {
+    mockUseFundMetrics.mockReturnValue({
+      data: makeMetrics({
+        totalCalled: 0,
+        totalDeployed: 0,
+        totalUncalled: 50_000_000,
+        currentNAV: 46_000_000,
+        totalDistributions: 0,
+        totalValue: 46_000_000,
+        tvpi: 0,
+        deploymentRate: 0,
+        activeCompanies: 3,
+        totalCompanies: 3,
+        averageCheckSize: 0,
+      }),
+      isLoading: false,
+      error: null,
+    });
+
+    render(<DynamicFundHeader />);
+
+    expect(screen.getByText('Awaiting deployment')).toBeInTheDocument();
+    expect(metricLabel('Total Invested').parentElement).toHaveTextContent('$0');
+    expect(metricLabel('Current Value').parentElement).toHaveTextContent('Needs investment facts');
+    expect(metricLabel('Current Value').parentElement).not.toHaveTextContent('$46M');
+    expect(screen.queryByText('$46M')).not.toBeInTheDocument();
+  });
+
   it('renders calculated IRR and DPI when actual cash-flow metrics are available', () => {
     mockUseFundMetrics.mockReturnValue({
       data: makeMetrics({
@@ -342,6 +370,33 @@ describe('DynamicFundHeader', () => {
     expect(navCard).toHaveTextContent('NAV');
     expect(navCard).toHaveTextContent('$40.0M');
     expect(navCard).not.toHaveTextContent('$46.0M');
+  });
+
+  it('keeps compact NAV truthful when valuations exist without investment facts', () => {
+    mockUseFlag.mockReturnValue(true);
+    mockUseFundMetrics.mockReturnValue({
+      data: makeMetrics({
+        totalCalled: 0,
+        totalDeployed: 0,
+        currentNAV: 46_000_000,
+        totalValue: 46_000_000,
+        tvpi: 0,
+        deploymentRate: 0,
+      }),
+      isLoading: false,
+      error: null,
+    });
+
+    render(<DynamicFundHeader />);
+
+    const navCard = screen.getByTestId('compact-kpi-nav');
+    expect(navCard).toHaveTextContent('NAV');
+    expect(navCard).toHaveTextContent('Needs investment facts');
+    expect(navCard).toHaveAttribute(
+      'title',
+      'NAV is unavailable until investment facts are recorded for valued portfolio companies.'
+    );
+    expect(screen.queryByText('$46.0M')).not.toBeInTheDocument();
   });
 
   it('renders compact KPI items in the canonical truth-line order', () => {
