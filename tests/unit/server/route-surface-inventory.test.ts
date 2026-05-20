@@ -28,13 +28,35 @@ type SurfaceStatus =
   | 'registerRoutes-only-intentional'
   | 'registerRoutes-only-defect'
   | 'makeApp-only-intentional'
+  | 'makeApp-and-createServer-intentional'
   | 'makeApp-only-defect';
+
+type RouteSurface = 'registerRoutes' | 'makeApp' | 'createServer';
+type AuthPosture = 'protected' | 'public-pre-auth';
+type HttpMethod = 'DELETE' | 'GET' | 'POST' | 'PUT';
+
+type RouteSurfaceEndpoint = {
+  method: HttpMethod;
+  path: string;
+  mountSurfaces: readonly RouteSurface[];
+  authPosture: AuthPosture;
+  aliasOf?: string;
+};
+
+type ExternalOwnership = {
+  owner: string;
+  consumers: readonly string[];
+  evidenceFiles: readonly string[];
+};
 
 type RouteSurfaceInventoryEntry = {
   surfaceStatus: SurfaceStatus;
   registerRoutesMount?: string;
   makeAppMount?: string;
-  exposure: 'protected' | 'public-pre-auth';
+  createServerMount?: string;
+  exposure: AuthPosture;
+  endpoints: readonly RouteSurfaceEndpoint[];
+  externalOwnership?: ExternalOwnership;
   intent: string;
 };
 
@@ -44,12 +66,52 @@ const routeSurfaceInventory = {
     registerRoutesMount: '/api/deals',
     makeAppMount: '/api/deals',
     exposure: 'protected',
+    endpoints: [
+      {
+        method: 'GET',
+        path: '/api/deals/opportunities',
+        mountSurfaces: ['registerRoutes', 'makeApp'],
+        authPosture: 'protected',
+      },
+      {
+        method: 'POST',
+        path: '/api/deals/opportunities',
+        mountSurfaces: ['registerRoutes', 'makeApp'],
+        authPosture: 'protected',
+      },
+      {
+        method: 'PUT',
+        path: '/api/deals/opportunities/:id',
+        mountSurfaces: ['registerRoutes', 'makeApp'],
+        authPosture: 'protected',
+      },
+      {
+        method: 'DELETE',
+        path: '/api/deals/opportunities/:id',
+        mountSurfaces: ['registerRoutes', 'makeApp'],
+        authPosture: 'protected',
+      },
+      {
+        method: 'POST',
+        path: '/api/deals/:id/stage',
+        mountSurfaces: ['registerRoutes', 'makeApp'],
+        authPosture: 'protected',
+      },
+    ],
     intent: 'Core API route available through both active app bootstrap surfaces.',
   },
   reallocation: {
     surfaceStatus: 'registerRoutes-only-defect',
     registerRoutesMount: '/api/funds/:fundId/reallocation/*',
     exposure: 'protected',
+    endpoints: [
+      {
+        method: 'POST',
+        path: '/api/funds/:fundId/reallocation/preview',
+        mountSurfaces: ['registerRoutes'],
+        authPosture: 'protected',
+      },
+    ],
     intent:
       'Current route gap: full-path router is registerRoutes-only and must not be silently blessed before extraction.',
   },
@@ -57,21 +119,187 @@ const routeSurfaceInventory = {
     surfaceStatus: 'makeApp-only-intentional',
     makeAppMount: '/api-docs',
     exposure: 'public-pre-auth',
+    endpoints: [
+      {
+        method: 'GET',
+        path: '/api-docs',
+        mountSurfaces: ['makeApp'],
+        authPosture: 'public-pre-auth',
+      },
+      {
+        method: 'GET',
+        path: '/api-docs.json',
+        mountSurfaces: ['makeApp'],
+        authPosture: 'public-pre-auth',
+      },
+    ],
     intent: 'Developer documentation mount that is installed before the makeApp auth boundary.',
+  },
+  health: {
+    surfaceStatus: 'makeApp-only-intentional',
+    makeAppMount: '/',
+    exposure: 'public-pre-auth',
+    endpoints: [
+      {
+        method: 'GET',
+        path: '/healthz',
+        mountSurfaces: ['makeApp'],
+        authPosture: 'public-pre-auth',
+      },
+      {
+        method: 'GET',
+        path: '/readyz',
+        mountSurfaces: ['makeApp'],
+        authPosture: 'public-pre-auth',
+      },
+      {
+        method: 'GET',
+        path: '/health',
+        mountSurfaces: ['makeApp'],
+        authPosture: 'public-pre-auth',
+      },
+      {
+        method: 'GET',
+        path: '/api/health',
+        mountSurfaces: ['makeApp'],
+        authPosture: 'public-pre-auth',
+      },
+      {
+        method: 'GET',
+        path: '/api/health/ready',
+        mountSurfaces: ['makeApp'],
+        authPosture: 'public-pre-auth',
+      },
+      {
+        method: 'GET',
+        path: '/api/health/live',
+        mountSurfaces: ['makeApp'],
+        authPosture: 'public-pre-auth',
+      },
+      {
+        method: 'GET',
+        path: '/health/detailed-json',
+        mountSurfaces: ['makeApp'],
+        authPosture: 'public-pre-auth',
+      },
+      {
+        method: 'GET',
+        path: '/health/inflight',
+        mountSurfaces: ['makeApp'],
+        authPosture: 'public-pre-auth',
+      },
+      {
+        method: 'GET',
+        path: '/api/health/db',
+        mountSurfaces: ['makeApp'],
+        authPosture: 'public-pre-auth',
+      },
+      {
+        method: 'GET',
+        path: '/api/health/cache',
+        mountSurfaces: ['makeApp'],
+        authPosture: 'public-pre-auth',
+      },
+      {
+        method: 'GET',
+        path: '/api/health/queues',
+        mountSurfaces: ['makeApp'],
+        authPosture: 'public-pre-auth',
+      },
+    ],
+    intent:
+      'Health probes are mounted before the makeApp auth boundary for platform readiness checks.',
   },
   metrics: {
     surfaceStatus: 'both',
-    registerRoutesMount: '/api/metrics',
-    makeAppMount: '/api/metrics',
+    registerRoutesMount: '/metrics',
+    makeAppMount: '/metrics + /api/metrics',
+    createServerMount: '/metrics + /api/metrics',
     exposure: 'public-pre-auth',
-    intent: 'Operational telemetry endpoint mounted before auth in both app surfaces.',
+    endpoints: [
+      {
+        method: 'GET',
+        path: '/metrics',
+        mountSurfaces: ['registerRoutes', 'makeApp', 'createServer'],
+        authPosture: 'public-pre-auth',
+      },
+      {
+        method: 'GET',
+        path: '/api/metrics',
+        mountSurfaces: ['makeApp', 'createServer'],
+        authPosture: 'public-pre-auth',
+        aliasOf: '/metrics',
+      },
+    ],
+    externalOwnership: {
+      owner: 'Platform observability',
+      consumers: ['Prometheus scrapers', 'Grafana and alerting runbooks'],
+      evidenceFiles: ['docs/observability.md', 'docs/production-deployment-checklist.md'],
+    },
+    intent:
+      'Operational telemetry endpoint mounted before auth; /api/metrics is a compatibility alias for serverless/API-base consumers.',
   },
   rum: {
-    surfaceStatus: 'both',
-    registerRoutesMount: '/api/rum',
-    makeAppMount: '/api/rum',
+    surfaceStatus: 'makeApp-and-createServer-intentional',
+    makeAppMount: '/metrics/rum + /api/metrics/rum',
+    createServerMount: '/metrics/rum + /api/metrics/rum',
     exposure: 'public-pre-auth',
-    intent: 'Operational telemetry endpoint mounted before auth in both app surfaces.',
+    endpoints: [
+      {
+        method: 'POST',
+        path: '/metrics/rum',
+        mountSurfaces: ['makeApp', 'createServer'],
+        authPosture: 'public-pre-auth',
+      },
+      {
+        method: 'POST',
+        path: '/api/metrics/rum',
+        mountSurfaces: ['makeApp', 'createServer'],
+        authPosture: 'public-pre-auth',
+        aliasOf: '/metrics/rum',
+      },
+      {
+        method: 'GET',
+        path: '/metrics/rum',
+        mountSurfaces: ['makeApp', 'createServer'],
+        authPosture: 'public-pre-auth',
+      },
+      {
+        method: 'GET',
+        path: '/api/metrics/rum',
+        mountSurfaces: ['makeApp', 'createServer'],
+        authPosture: 'public-pre-auth',
+        aliasOf: '/metrics/rum',
+      },
+      {
+        method: 'GET',
+        path: '/metrics/rum/health',
+        mountSurfaces: ['makeApp', 'createServer'],
+        authPosture: 'public-pre-auth',
+      },
+      {
+        method: 'GET',
+        path: '/api/metrics/rum/health',
+        mountSurfaces: ['makeApp', 'createServer'],
+        authPosture: 'public-pre-auth',
+        aliasOf: '/metrics/rum/health',
+      },
+    ],
+    externalOwnership: {
+      owner: 'Frontend performance observability',
+      consumers: [
+        'Browser Web Vitals beacons',
+        'Synthetic RUM health checks',
+        'Prometheus RUM scrape',
+      ],
+      evidenceFiles: [
+        'client/src/vitals.ts',
+        'docs/observability/rum.md',
+        'docs/production-deployment-checklist.md',
+      ],
+    },
+    intent:
+      'Browser telemetry ingress and RUM scrape endpoints are intentionally public before auth with /api aliases for API-base clients.',
   },
 } as const satisfies Record<string, RouteSurfaceInventoryEntry>;
 
@@ -232,6 +460,22 @@ describe('route surface inventory', () => {
       makeAppMount: '/api/deals',
       exposure: 'protected',
     });
+    expect(routeSurfaceInventory['deal-pipeline'].endpoints).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          method: 'POST',
+          path: '/api/deals/opportunities',
+          mountSurfaces: ['registerRoutes', 'makeApp'],
+          authPosture: 'protected',
+        }),
+        expect.objectContaining({
+          method: 'POST',
+          path: '/api/deals/:id/stage',
+          mountSurfaces: ['registerRoutes', 'makeApp'],
+          authPosture: 'protected',
+        }),
+      ])
+    );
 
     expect(routeSurfaceInventory.reallocation).toMatchObject({
       surfaceStatus: 'registerRoutes-only-defect',
@@ -243,6 +487,78 @@ describe('route surface inventory', () => {
       surfaceStatus: 'makeApp-only-intentional',
       makeAppMount: '/api-docs',
       exposure: 'public-pre-auth',
+    });
+
+    expect(routeSurfaceInventory.health.endpoints).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          method: 'GET',
+          path: '/healthz',
+          authPosture: 'public-pre-auth',
+        }),
+        expect.objectContaining({
+          method: 'GET',
+          path: '/api/health/ready',
+          authPosture: 'public-pre-auth',
+        }),
+      ])
+    );
+  });
+
+  it('pins public telemetry aliases to owners, consumers, and auth posture', () => {
+    expect(routeSurfaceInventory.metrics.endpoints).toEqual(
+      expect.arrayContaining([
+        {
+          method: 'GET',
+          path: '/metrics',
+          mountSurfaces: ['registerRoutes', 'makeApp', 'createServer'],
+          authPosture: 'public-pre-auth',
+        },
+        {
+          method: 'GET',
+          path: '/api/metrics',
+          mountSurfaces: ['makeApp', 'createServer'],
+          authPosture: 'public-pre-auth',
+          aliasOf: '/metrics',
+        },
+      ])
+    );
+    expect(routeSurfaceInventory.metrics.externalOwnership).toMatchObject({
+      owner: 'Platform observability',
+      consumers: ['Prometheus scrapers', 'Grafana and alerting runbooks'],
+    });
+
+    expect(routeSurfaceInventory.rum.endpoints).toEqual(
+      expect.arrayContaining([
+        {
+          method: 'POST',
+          path: '/metrics/rum',
+          mountSurfaces: ['makeApp', 'createServer'],
+          authPosture: 'public-pre-auth',
+        },
+        {
+          method: 'POST',
+          path: '/api/metrics/rum',
+          mountSurfaces: ['makeApp', 'createServer'],
+          authPosture: 'public-pre-auth',
+          aliasOf: '/metrics/rum',
+        },
+        {
+          method: 'GET',
+          path: '/api/metrics/rum/health',
+          mountSurfaces: ['makeApp', 'createServer'],
+          authPosture: 'public-pre-auth',
+          aliasOf: '/metrics/rum/health',
+        },
+      ])
+    );
+    expect(routeSurfaceInventory.rum.externalOwnership).toMatchObject({
+      owner: 'Frontend performance observability',
+      consumers: [
+        'Browser Web Vitals beacons',
+        'Synthetic RUM health checks',
+        'Prometheus RUM scrape',
+      ],
     });
   });
 
@@ -264,11 +580,59 @@ describe('route surface inventory', () => {
     expect(serverTs).not.toContain('/api-docs');
   });
 
+  it('matches telemetry alias inventory to source files and consumer evidence', async () => {
+    const [
+      routesTs,
+      appTs,
+      serverTs,
+      metricsEndpointTs,
+      rumTs,
+      rumIngressTs,
+      vitalsTs,
+      observabilityDoc,
+      rumDoc,
+      productionChecklist,
+    ] = await Promise.all([
+      readRepoFile('server/routes.ts'),
+      readRepoFile('server/app.ts'),
+      readRepoFile('server/server.ts'),
+      readRepoFile('server/routes/metrics-endpoint.ts'),
+      readRepoFile('server/routes/metrics-rum.ts'),
+      readRepoFile('server/routes/metrics-rum-ingress.ts'),
+      readRepoFile('client/src/vitals.ts'),
+      readRepoFile('docs/observability.md'),
+      readRepoFile('docs/observability/rum.md'),
+      readRepoFile('docs/production-deployment-checklist.md'),
+    ]);
+
+    expect(routesTs).toContain('app.use(metricsRouter)');
+    expect(routesTs).not.toContain('metricsRumRouter');
+    expect(metricsEndpointTs).toContain("metricsRouter['get']('/metrics'");
+
+    for (const source of [appTs, serverTs]) {
+      expect(source).toContain("app.use('/metrics', metricsRouter)");
+      expect(source).toContain("app.use('/api', metricsRouter)");
+      expect(source).toContain('installRumIngressGuards(app)');
+      expect(source).toContain('app.use(metricsRumRouter)');
+      expect(source).toContain("app.use('/api', metricsRumRouter)");
+    }
+
+    expect(rumIngressTs).toContain("['/metrics/rum', '/api/metrics/rum']");
+    expect(rumTs).toContain("'/metrics/rum'");
+    expect(rumTs).toContain("metricsRumRouter['get']('/metrics/rum'");
+    expect(rumTs).toContain("metricsRumRouter['get']('/metrics/rum/health'");
+    expect(vitalsTs).toContain("withApiBase('/api/metrics/rum')");
+
+    expect(observabilityDoc).toContain('| `/metrics` | Prometheus metrics |');
+    expect(rumDoc).toContain('# Real User Monitoring (RUM)');
+    expect(productionChecklist).toContain('RUM metrics flowing to Prometheus');
+  });
+
   it('keeps public telemetry and docs out of the protected API allowlist', () => {
     expect(isPublicApiPath('GET', '/deals/opportunities')).toBe(false);
     expect(isPublicApiPath('POST', '/funds/1/reallocation/preview')).toBe(false);
     expect(isPublicApiPath('GET', '/metrics')).toBe(false);
-    expect(isPublicApiPath('POST', '/rum')).toBe(false);
+    expect(isPublicApiPath('POST', '/metrics/rum')).toBe(false);
     expect(isPublicApiPath('GET', '/api-docs')).toBe(false);
   });
 

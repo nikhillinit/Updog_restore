@@ -152,6 +152,7 @@ function emptyHeaderMetrics(currentFundSize: number): HeaderMetrics {
     deploymentRate: null,
     remainingDeployableCapital: null,
     availability: {
+      nav: unavailableMetric('portfolio_nav', 'Metrics unavailable'),
       irr: unavailableMetric('cashflows', 'Metrics unavailable'),
       dpi: unavailableMetric('distributions', 'Metrics unavailable'),
     },
@@ -161,8 +162,10 @@ function emptyHeaderMetrics(currentFundSize: number): HeaderMetrics {
 function actualHeaderMetrics(currentFundSize: number, actual: ActualMetrics): HeaderMetrics {
   const totalCommitted = numberWithFallback(actual.totalCommitted, currentFundSize);
   const totalInvested = nullableNumber(actual.totalDeployed);
-  const currentNAV = nullableNumber(actual.currentNAV);
-  const totalValue = getTotalValue(actual);
+  const navAvailability = getNavAvailability(actual, totalInvested);
+  const currentNAV =
+    navAvailability.status === 'available' ? nullableNumber(actual.currentNAV) : null;
+  const totalValue = navAvailability.status === 'available' ? getTotalValue(actual) : null;
 
   return {
     totalCommitted,
@@ -179,10 +182,32 @@ function actualHeaderMetrics(currentFundSize: number, actual: ActualMetrics): He
     deploymentRate: nullableNumber(actual.deploymentRate),
     remainingDeployableCapital: calculateRemainingDeployableCapital(totalCommitted, totalInvested),
     availability: {
+      nav: navAvailability,
       irr: getIrrAvailability(actual),
       dpi: getDpiAvailability(actual),
     },
   };
+}
+
+function getNavAvailability(
+  actual: ActualMetrics,
+  totalInvested: number | null
+): MetricAvailabilityDetail {
+  const currentNAV = nullableNumber(actual.currentNAV);
+  const totalValue = getTotalValue(actual);
+  if ((currentNAV ?? 0) <= 0 && (totalValue ?? 0) <= 0) {
+    return { status: 'available', source: 'portfolio_nav' };
+  }
+
+  if (totalInvested == null || totalInvested <= 0) {
+    return unavailableMetric(
+      'portfolio_nav',
+      'Needs investment facts',
+      'investment_facts_missing'
+    );
+  }
+
+  return { status: 'available', source: 'portfolio_nav' };
 }
 
 function getIrrAvailability(actual: ActualMetrics): MetricAvailabilityDetail {
@@ -277,7 +302,13 @@ function buildHeaderMetricCards(
     {
       key: 'totalValue',
       title: 'Current Value',
-      displayValue: formatMetricCurrency(metrics.totalValue, metricDisplayUnavailable),
+      displayValue: formatPerformanceMetric(
+        metrics.totalValue,
+        metrics.availability.nav,
+        formatCurrency,
+        metricDisplayUnavailable
+      ),
+      titleText: metrics.availability.nav.message,
       theme: 'white',
       icon: 'target',
     },
@@ -398,6 +429,9 @@ function getCompactKpiExplanation(
     return 'Metrics unavailable because the live metrics source is unavailable.';
   }
   if (availability?.status === 'unavailable') {
+    if (availability.reason === 'investment_facts_missing') {
+      return 'NAV is unavailable until investment facts are recorded for valued portfolio companies.';
+    }
     if (availability.reason === 'no_distributions_recorded') {
       return 'DPI is unavailable because no distributions have been recorded.';
     }
@@ -440,6 +474,7 @@ function getCompactKpiValue(metrics: HeaderMetrics, selectedKpi: CompactKpiKey) 
 }
 
 function getCompactKpiAvailability(metrics: HeaderMetrics, selectedKpi: CompactKpiKey) {
+  if (selectedKpi === 'nav') return metrics.availability.nav;
   if (selectedKpi === 'dpi') return metrics.availability.dpi;
   if (selectedKpi === 'netIrr') return metrics.availability.irr;
   return undefined;

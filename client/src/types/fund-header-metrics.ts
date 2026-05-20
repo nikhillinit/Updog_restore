@@ -75,6 +75,7 @@ export interface HeaderMetrics {
   deploymentRate: number | null;
   remainingDeployableCapital: number | null;
   availability: {
+    nav: MetricAvailabilityDetail;
     irr: MetricAvailabilityDetail;
     dpi: MetricAvailabilityDetail;
   };
