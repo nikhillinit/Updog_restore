@@ -20,20 +20,13 @@ import { Router } from 'express';
 import type { Request, Response } from 'express';
 import { firstString } from '../lib/request-values';
 import { z } from 'zod';
-import { db } from '../db';
-import {
-  dealOpportunities,
-  pipelineStages,
-  dueDiligenceItems,
-  scoringModels,
-  pipelineActivities,
-} from '@shared/schema';
 import { CompanySectorSchema, CompanyStageSchema } from '@shared/company-taxonomy';
-import { eq, and, desc, asc, lt, or, sql, inArray } from 'drizzle-orm';
 import { idempotency } from '../middleware/idempotency';
 import { enforceProvidedFundScope } from '../lib/auth/provided-fund-scope';
+import * as dealPipelineService from '../services/deal-pipeline-service';
 
 const router = Router();
+const idempotent = idempotency();
 
 // ============================================================
 // ZOD VALIDATION SCHEMAS
@@ -107,6 +100,10 @@ const PaginationSchema = z.object({
   sortDir: SortDirEnum,
 });
 
+const PipelineQuerySchema = z.object({
+  fundId: z.coerce.number().int().positive().optional(),
+});
+
 // Stage Change Schema
 const StageChangeSchema = z.object({
   status: DealStatusEnum,
@@ -146,6 +143,10 @@ function decodeCursor(cursor: string): CursorData | null {
     if (!data.createdAt || typeof data.id !== 'number') {
       return null;
     }
+    const createdAt = new Date(data.createdAt);
+    if (Number.isNaN(createdAt.getTime())) {
+      return null;
+    }
     return data;
   } catch {
     return null;
@@ -160,7 +161,7 @@ function decodeCursor(cursor: string): CursorData | null {
  * POST /api/deals/opportunities - Create new deal
  * Idempotency-enabled for safe retries
  */
-router['post']('/opportunities', idempotency, async (req: Request, res: Response) => {
+router['post']('/opportunities', idempotent, async (req: Request, res: Response) => {
   const validation = CreateDealSchema.safeParse(req.body);
   if (!validation.success) {
     return res.status(400).json({
@@ -175,46 +176,13 @@ router['post']('/opportunities', idempotency, async (req: Request, res: Response
       return;
     }
 
-    const [deal] = await db
-      .insert(dealOpportunities)
-      .values({
-        fundId: data.fundId ?? null,
-        companyName: data.companyName,
-        sector: data.sector,
-        stage: data.stage,
-        sourceType: data.sourceType,
-        dealSize: data.dealSize ? String(data.dealSize) : null,
-        valuation: data.valuation ? String(data.valuation) : null,
-        status: data.status,
-        priority: data.priority,
-        foundedYear: data.foundedYear ?? null,
-        employeeCount: data.employeeCount ?? null,
-        revenue: data.revenue ? String(data.revenue) : null,
-        description: data.description ?? null,
-        website: data.website || null,
-        contactName: data.contactName ?? null,
-        contactEmail: data.contactEmail || null,
-        contactPhone: data.contactPhone ?? null,
-        sourceNotes: data.sourceNotes ?? null,
-        nextAction: data.nextAction ?? null,
-      })
-      .returning();
-
+    const deal = await dealPipelineService.createDeal(data);
     if (!deal) {
       return res.status(500).json({
         error: 'internal_error',
         message: 'Failed to create deal - no result returned',
       });
     }
-
-    // Log activity for deal creation
-    await db.insert(pipelineActivities).values({
-      opportunityId: deal.id,
-      type: 'stage_change',
-      title: 'Deal Created',
-      description: `New deal "${data.companyName}" added to pipeline`,
-      completedDate: new Date(),
-    });
 
     return res.status(201).json({
       success: true,
@@ -250,82 +218,40 @@ router['get']('/opportunities', async (req: Request, res: Response) => {
       return;
     }
 
-    // Build filter conditions
-    const conditions = [];
-
-    if (status) {
-      conditions.push(eq(dealOpportunities.status, status));
-    }
-    if (priority) {
-      conditions.push(eq(dealOpportunities.priority, priority));
-    }
-    if (fundId) {
-      conditions.push(eq(dealOpportunities.fundId, fundId));
-    }
-    if (search) {
-      conditions.push(
-        or(
-          sql`${dealOpportunities.companyName} ILIKE ${`%${search}%`}`,
-          sql`${dealOpportunities.sector} ILIKE ${`%${search}%`}`,
-          sql`${dealOpportunities.description} ILIKE ${`%${search}%`}`
-        )
-      );
-    }
-
-    // Cursor pagination only works with default sort (createdAt DESC)
     const isDefaultSort = sortBy === 'createdAt' && sortDir === 'desc';
+    let cursorData: CursorData | undefined;
     if (cursor && isDefaultSort) {
-      const cursorData = decodeCursor(cursor);
-      if (!cursorData) {
+      const decodedCursor = decodeCursor(cursor);
+      if (!decodedCursor) {
         return res.status(400).json({
           error: 'invalid_cursor',
           message: 'The provided cursor is invalid or expired',
         });
       }
-      conditions.push(
-        or(
-          lt(dealOpportunities.createdAt, new Date(cursorData.createdAt)),
-          and(
-            eq(dealOpportunities.createdAt, new Date(cursorData.createdAt)),
-            lt(dealOpportunities.id, cursorData.id)
-          )
-        )
-      );
+      cursorData = decodedCursor;
     }
 
-    // Build dynamic orderBy
-    const sortFn = sortDir === 'asc' ? asc : desc;
-    const sortColumn = {
-      updatedAt: dealOpportunities.updatedAt,
-      companyName: dealOpportunities.companyName,
-      dealSize: dealOpportunities.dealSize,
-      createdAt: dealOpportunities.createdAt,
-    }[sortBy];
-
-    const deals = await db
-      .select()
-      .from(dealOpportunities)
-      .where(conditions.length > 0 ? and(...conditions) : undefined)
-      .orderBy(sortFn(sortColumn), desc(dealOpportunities.id))
-      .limit(limit + 1);
-
-    // Determine pagination info
-    const hasMore = deals.length > limit;
-    const items = hasMore ? deals.slice(0, limit) : deals;
-    const lastItem = items[items.length - 1];
-    // Only provide cursor for default sort
-    const nextCursor =
-      hasMore && isDefaultSort && lastItem?.createdAt
-        ? encodeCursor(lastItem.createdAt, lastItem.id)
-        : null;
+    const result = await dealPipelineService.listDeals({
+      cursor: cursorData,
+      limit,
+      status,
+      priority,
+      fundId,
+      search,
+      sortBy,
+      sortDir,
+    });
+    const nextCursor = result.pagination.nextCursor
+      ? encodeCursor(result.pagination.nextCursor.createdAt, result.pagination.nextCursor.id)
+      : null;
 
     return res.json({
       success: true,
-      data: items,
+      data: result.items,
       pagination: {
-        hasMore,
+        hasMore: result.pagination.hasMore,
         nextCursor,
-        count: items.length,
+        count: result.pagination.count,
       },
     });
   } catch (error) {
@@ -351,44 +277,14 @@ router['get']('/opportunities/:id', async (req: Request, res: Response) => {
   }
 
   try {
-    const [deal] = await db
-      .select()
-      .from(dealOpportunities)
-      .where(eq(dealOpportunities.id, id))
-      .limit(1);
-
+    const deal = await dealPipelineService.getDeal(id);
     if (!deal) {
       return res.status(404).json({ error: 'not_found', message: 'Deal not found' });
     }
 
-    // Fetch related data
-    const [ddItems, activities, scores] = await Promise.all([
-      db
-        .select()
-        .from(dueDiligenceItems)
-        .where(eq(dueDiligenceItems.opportunityId, id))
-        .orderBy(desc(dueDiligenceItems.createdAt)),
-      db
-        .select()
-        .from(pipelineActivities)
-        .where(eq(pipelineActivities.opportunityId, id))
-        .orderBy(desc(pipelineActivities.createdAt))
-        .limit(20),
-      db
-        .select()
-        .from(scoringModels)
-        .where(eq(scoringModels.opportunityId, id))
-        .orderBy(desc(scoringModels.scoredAt)),
-    ]);
-
     return res.json({
       success: true,
-      data: {
-        ...deal,
-        dueDiligence: ddItems,
-        activities,
-        scores,
-      },
+      data: deal,
     });
   } catch (error) {
     console.error('Deal fetch error:', error);
@@ -403,7 +299,7 @@ router['get']('/opportunities/:id', async (req: Request, res: Response) => {
  * PUT /api/deals/opportunities/:id - Update deal
  * Idempotency-enabled
  */
-router['put']('/opportunities/:id', idempotency, async (req: Request, res: Response) => {
+router['put']('/opportunities/:id', idempotent, async (req: Request, res: Response) => {
   const paramId = firstString(req.params['id']);
   if (!paramId) {
     return res.status(400).json({ error: 'invalid_id', message: 'Deal ID is required' });
@@ -422,48 +318,15 @@ router['put']('/opportunities/:id', idempotency, async (req: Request, res: Respo
   }
 
   try {
-    // Check if deal exists
-    const [existing] = await db
-      .select()
-      .from(dealOpportunities)
-      .where(eq(dealOpportunities.id, id))
-      .limit(1);
-
-    if (!existing) {
-      return res.status(404).json({ error: 'not_found', message: 'Deal not found' });
+    const data = validation.data;
+    if (data.fundId !== undefined && !(await enforceProvidedFundScope(req, res, data.fundId))) {
+      return;
     }
 
-    const data = validation.data;
-    const updateData: Record<string, unknown> = {
-      updatedAt: new Date(),
-    };
-
-    // Only include provided fields - use bracket notation for index signature access
-    if (data.fundId !== undefined) updateData['fundId'] = data.fundId;
-    if (data.companyName !== undefined) updateData['companyName'] = data.companyName;
-    if (data.sector !== undefined) updateData['sector'] = data.sector;
-    if (data.stage !== undefined) updateData['stage'] = data.stage;
-    if (data.sourceType !== undefined) updateData['sourceType'] = data.sourceType;
-    if (data.dealSize !== undefined) updateData['dealSize'] = String(data.dealSize);
-    if (data.valuation !== undefined) updateData['valuation'] = String(data.valuation);
-    if (data.status !== undefined) updateData['status'] = data.status;
-    if (data.priority !== undefined) updateData['priority'] = data.priority;
-    if (data.foundedYear !== undefined) updateData['foundedYear'] = data.foundedYear;
-    if (data.employeeCount !== undefined) updateData['employeeCount'] = data.employeeCount;
-    if (data.revenue !== undefined) updateData['revenue'] = String(data.revenue);
-    if (data.description !== undefined) updateData['description'] = data.description;
-    if (data.website !== undefined) updateData['website'] = data.website || null;
-    if (data.contactName !== undefined) updateData['contactName'] = data.contactName;
-    if (data.contactEmail !== undefined) updateData['contactEmail'] = data.contactEmail || null;
-    if (data.contactPhone !== undefined) updateData['contactPhone'] = data.contactPhone;
-    if (data.sourceNotes !== undefined) updateData['sourceNotes'] = data.sourceNotes;
-    if (data.nextAction !== undefined) updateData['nextAction'] = data.nextAction;
-
-    const [updated] = await db
-      .update(dealOpportunities)
-      .set(updateData)
-      .where(eq(dealOpportunities.id, id))
-      .returning();
+    const updated = await dealPipelineService.updateDeal(id, data);
+    if (!updated) {
+      return res.status(404).json({ error: 'not_found', message: 'Deal not found' });
+    }
 
     return res.json({
       success: true,
@@ -482,7 +345,7 @@ router['put']('/opportunities/:id', idempotency, async (req: Request, res: Respo
 /**
  * DELETE /api/deals/opportunities/:id - Archive deal (soft delete)
  */
-router['delete']('/opportunities/:id', idempotency, async (req: Request, res: Response) => {
+router['delete']('/opportunities/:id', idempotent, async (req: Request, res: Response) => {
   const paramId = firstString(req.params['id']);
   if (!paramId) {
     return res.status(400).json({ error: 'invalid_id', message: 'Deal ID is required' });
@@ -493,34 +356,10 @@ router['delete']('/opportunities/:id', idempotency, async (req: Request, res: Re
   }
 
   try {
-    const [existing] = await db
-      .select()
-      .from(dealOpportunities)
-      .where(eq(dealOpportunities.id, id))
-      .limit(1);
-
-    if (!existing) {
+    const archived = await dealPipelineService.archiveDeal(id);
+    if (!archived) {
       return res.status(404).json({ error: 'not_found', message: 'Deal not found' });
     }
-
-    // Soft delete by setting status to 'passed'
-    const [archived] = await db
-      .update(dealOpportunities)
-      .set({
-        status: 'passed',
-        updatedAt: new Date(),
-      })
-      .where(eq(dealOpportunities.id, id))
-      .returning();
-
-    // Log activity
-    await db.insert(pipelineActivities).values({
-      opportunityId: id,
-      type: 'stage_change',
-      title: 'Deal Archived',
-      description: `Deal "${existing.companyName}" was archived`,
-      completedDate: new Date(),
-    });
 
     return res.json({
       success: true,
@@ -539,7 +378,7 @@ router['delete']('/opportunities/:id', idempotency, async (req: Request, res: Re
 /**
  * POST /api/deals/:id/stage - Move deal to new stage
  */
-router['post']('/:id/stage', idempotency, async (req: Request, res: Response) => {
+router['post']('/:id/stage', idempotent, async (req: Request, res: Response) => {
   const paramId = firstString(req.params['id']);
   if (!paramId) {
     return res.status(400).json({ error: 'invalid_id', message: 'Deal ID is required' });
@@ -558,42 +397,16 @@ router['post']('/:id/stage', idempotency, async (req: Request, res: Response) =>
   }
 
   try {
-    const [existing] = await db
-      .select()
-      .from(dealOpportunities)
-      .where(eq(dealOpportunities.id, id))
-      .limit(1);
-
-    if (!existing) {
+    const result = await dealPipelineService.changeDealStage(id, validation.data);
+    if (!result) {
       return res.status(404).json({ error: 'not_found', message: 'Deal not found' });
     }
 
-    const { status, notes } = validation.data;
-    const previousStatus = existing.status;
-
-    const [updated] = await db
-      .update(dealOpportunities)
-      .set({
-        status,
-        updatedAt: new Date(),
-      })
-      .where(eq(dealOpportunities.id, id))
-      .returning();
-
-    // Log stage change activity
-    await db.insert(pipelineActivities).values({
-      opportunityId: id,
-      type: 'stage_change',
-      title: `Stage Changed: ${previousStatus} -> ${status}`,
-      description: notes ?? `Deal moved from ${previousStatus} to ${status}`,
-      completedDate: new Date(),
-    });
-
     return res.json({
       success: true,
-      data: updated,
-      previousStatus,
-      newStatus: status,
+      data: result.updated,
+      previousStatus: result.previousStatus,
+      newStatus: result.newStatus,
       message: 'Deal stage updated successfully',
     });
   } catch (error) {
@@ -609,58 +422,25 @@ router['post']('/:id/stage', idempotency, async (req: Request, res: Response) =>
  * GET /api/deals/pipeline - Pipeline view (grouped by status)
  */
 router['get']('/pipeline', async (req: Request, res: Response) => {
-  const fundIdParam = req['query']['fundId'];
-  const fundId = fundIdParam ? parseInt(fundIdParam as string, 10) : undefined;
+  const validation = PipelineQuerySchema.safeParse(req.query);
+  if (!validation.success) {
+    return res.status(400).json({
+      error: 'validation_error',
+      issues: validation.error.issues,
+    });
+  }
 
   try {
-    const conditions = fundId ? eq(dealOpportunities['fundId'], fundId) : undefined;
-
-    const deals = await db
-      .select()
-      .from(dealOpportunities)
-      .where(conditions)
-      .orderBy(desc(dealOpportunities.priority), desc(dealOpportunities.updatedAt));
-
-    // Group by status for Kanban view
-    type DealArray = typeof deals;
-    const pipeline: { [key: string]: DealArray } = {
-      lead: [],
-      qualified: [],
-      pitch: [],
-      dd: [],
-      committee: [],
-      term_sheet: [],
-      closed: [],
-      passed: [],
-    };
-
-    for (const deal of deals) {
-      const status = deal.status;
-      if (status && pipeline[status]) {
-        pipeline[status].push(deal);
-      }
+    const { fundId } = validation.data;
+    if (fundId !== undefined && !(await enforceProvidedFundScope(req, res, fundId))) {
+      return;
     }
 
-    // Get stage configuration
-    const stages = await db.select().from(pipelineStages).orderBy(pipelineStages.orderIndex);
+    const data = await dealPipelineService.getPipeline(fundId);
 
     return res.json({
       success: true,
-      data: {
-        pipeline,
-        stages,
-        totalDeals: deals.length,
-        summary: {
-          lead: pipeline['lead']?.length ?? 0,
-          qualified: pipeline['qualified']?.length ?? 0,
-          pitch: pipeline['pitch']?.length ?? 0,
-          dd: pipeline['dd']?.length ?? 0,
-          committee: pipeline['committee']?.length ?? 0,
-          term_sheet: pipeline['term_sheet']?.length ?? 0,
-          closed: pipeline['closed']?.length ?? 0,
-          passed: pipeline['passed']?.length ?? 0,
-        },
-      },
+      data,
     });
   } catch (error) {
     console.error('Pipeline fetch error:', error);
@@ -676,11 +456,7 @@ router['get']('/pipeline', async (req: Request, res: Response) => {
  */
 router['get']('/stages', async (_req: Request, res: Response) => {
   try {
-    const stages = await db
-      .select()
-      .from(pipelineStages)
-      .where(eq(pipelineStages.isActive, true))
-      .orderBy(pipelineStages.orderIndex);
+    const stages = await dealPipelineService.getPipelineStages();
 
     return res.json({
       success: true,
@@ -698,7 +474,7 @@ router['get']('/stages', async (_req: Request, res: Response) => {
 /**
  * POST /api/deals/:id/diligence - Add due diligence item
  */
-router['post']('/:id/diligence', idempotency, async (req: Request, res: Response) => {
+router['post']('/:id/diligence', idempotent, async (req: Request, res: Response) => {
   const paramId = firstString(req.params['id']);
   if (!paramId) {
     return res.status(400).json({ error: 'invalid_id', message: 'Deal ID is required' });
@@ -717,31 +493,10 @@ router['post']('/:id/diligence', idempotency, async (req: Request, res: Response
   }
 
   try {
-    // Verify deal exists
-    const [deal] = await db
-      .select()
-      .from(dealOpportunities)
-      .where(eq(dealOpportunities.id, dealId))
-      .limit(1);
-
-    if (!deal) {
+    const item = await dealPipelineService.createDiligenceItem(dealId, validation.data);
+    if (!item) {
       return res.status(404).json({ error: 'not_found', message: 'Deal not found' });
     }
-
-    const data = validation.data;
-    const [item] = await db
-      .insert(dueDiligenceItems)
-      .values({
-        opportunityId: dealId,
-        category: data.category,
-        item: data.item,
-        description: data.description ?? null,
-        status: data.status,
-        priority: data.priority,
-        assignedTo: data.assignedTo ?? null,
-        dueDate: data.dueDate ? new Date(data.dueDate) : null,
-      })
-      .returning();
 
     return res.status(201).json({
       success: true,
@@ -771,46 +526,11 @@ router['get']('/:id/diligence', async (req: Request, res: Response) => {
   }
 
   try {
-    const items = await db
-      .select()
-      .from(dueDiligenceItems)
-      .where(eq(dueDiligenceItems.opportunityId, dealId))
-      .orderBy(dueDiligenceItems.category, desc(dueDiligenceItems.createdAt));
-
-    // Group by category
-    const grouped: Record<string, typeof items> = {
-      Financial: [],
-      Legal: [],
-      Technical: [],
-      Market: [],
-      Team: [],
-    };
-
-    for (const item of items) {
-      const category = item.category as keyof typeof grouped;
-      if (grouped[category]) {
-        grouped[category].push(item);
-      }
-    }
-
-    // Calculate completion stats
-    const total = items.length;
-    const completed = items.filter((i) => i.status === 'completed').length;
-    const inProgress = items.filter((i) => i.status === 'in_progress').length;
+    const data = await dealPipelineService.getDiligenceItems(dealId);
 
     return res.json({
       success: true,
-      data: {
-        items,
-        grouped,
-        stats: {
-          total,
-          completed,
-          inProgress,
-          pending: total - completed - inProgress,
-          completionRate: total > 0 ? Math.round((completed / total) * 100) : 0,
-        },
-      },
+      data,
     });
   } catch (error) {
     console.error('DD items fetch error:', error);
@@ -876,8 +596,12 @@ router['post']('/opportunities/import/preview', async (req: Request, res: Respon
 
   try {
     const { rows: rawRows, fundId } = validation.data;
-    const valid: Array<{ index: number; data: z.infer<typeof ImportRowSchema> }> = [];
-    const invalid: Array<{ index: number; errors: string[] }> = [];
+    if (fundId !== undefined && !(await enforceProvidedFundScope(req, res, fundId))) {
+      return;
+    }
+
+    const valid: dealPipelineService.ImportPreviewRow[] = [];
+    const invalid: dealPipelineService.InvalidImportPreviewRow[] = [];
 
     for (let i = 0; i < rawRows.length; i++) {
       const result = ImportRowSchema.safeParse(rawRows[i]);
@@ -891,59 +615,16 @@ router['post']('/opportunities/import/preview', async (req: Request, res: Respon
       }
     }
 
-    // Check for duplicates among valid rows
-    const duplicates: Array<{ index: number; existingId: number; companyName: string }> = [];
-    if (valid.length > 0) {
-      const companyNames = valid.map((v) => v.data.companyName.trim().toLowerCase());
-      const conditions = [
-        sql`LOWER(TRIM(${dealOpportunities.companyName})) IN (${sql.join(
-          companyNames.map((n) => sql`${n}`),
-          sql`, `
-        )})`,
-      ];
-      if (fundId) {
-        conditions.push(eq(dealOpportunities.fundId, fundId));
-      }
-
-      const existing = await db
-        .select({
-          id: dealOpportunities.id,
-          companyName: dealOpportunities.companyName,
-          stage: dealOpportunities.stage,
-          fundId: dealOpportunities.fundId,
-        })
-        .from(dealOpportunities)
-        .where(and(...conditions));
-
-      const existingMap = new Map(existing.map((e) => [e.companyName.trim().toLowerCase(), e]));
-
-      for (const v of valid) {
-        const key = v.data.companyName.trim().toLowerCase();
-        const match = existingMap.get(key);
-        if (match) {
-          duplicates.push({
-            index: v.index,
-            existingId: match.id,
-            companyName: v.data.companyName,
-          });
-        }
-      }
-    }
-
-    const duplicateIndices = new Set(duplicates.map((d) => d.index));
-    const toImport = valid.filter((v) => !duplicateIndices.has(v.index));
+    const data = await dealPipelineService.previewImport({
+      rawRowCount: rawRows.length,
+      valid,
+      invalid,
+      fundId,
+    });
 
     return res.json({
       success: true,
-      data: {
-        total: rawRows.length,
-        valid: valid.length,
-        invalid: invalid.length,
-        duplicates: duplicates.length,
-        toImport: toImport.length,
-        invalidRows: invalid,
-        duplicateRows: duplicates,
-      },
+      data,
     });
   } catch (error) {
     console.error('Import preview error:', error);
@@ -958,7 +639,7 @@ router['post']('/opportunities/import/preview', async (req: Request, res: Respon
  * POST /api/deals/opportunities/import
  * Bulk import validated rows. Supports skip_duplicates mode.
  */
-router['post']('/opportunities/import', idempotency, async (req: Request, res: Response) => {
+router['post']('/opportunities/import', idempotent, async (req: Request, res: Response) => {
   const validation = ImportConfirmSchema.safeParse(req.body);
   if (!validation.success) {
     return res.status(400).json({
@@ -969,81 +650,15 @@ router['post']('/opportunities/import', idempotency, async (req: Request, res: R
 
   try {
     const { rows, fundId, mode } = validation.data;
-
-    // Build skip set for duplicates if needed
-    const skipSet = new Set<number>();
-    if (mode === 'skip_duplicates' && rows.length > 0) {
-      const companyNames = rows.map((r) => r.companyName.trim().toLowerCase());
-      const conditions = [
-        sql`LOWER(TRIM(${dealOpportunities.companyName})) IN (${sql.join(
-          companyNames.map((n) => sql`${n}`),
-          sql`, `
-        )})`,
-      ];
-      if (fundId) {
-        conditions.push(eq(dealOpportunities.fundId, fundId));
-      }
-
-      const existing = await db
-        .select({ companyName: dealOpportunities.companyName })
-        .from(dealOpportunities)
-        .where(and(...conditions));
-
-      const existingNames = new Set(existing.map((e) => e.companyName.trim().toLowerCase()));
-      rows.forEach((r, i) => {
-        if (existingNames.has(r.companyName.trim().toLowerCase())) {
-          skipSet.add(i);
-        }
-      });
+    if (fundId !== undefined && !(await enforceProvidedFundScope(req, res, fundId))) {
+      return;
     }
 
-    let imported = 0;
-    const skipped = skipSet.size;
-    const failed: Array<{ index: number; message: string }> = [];
-
-    for (let i = 0; i < rows.length; i++) {
-      if (skipSet.has(i)) continue;
-      const row = rows[i]!;
-      try {
-        await db.insert(dealOpportunities).values({
-          fundId: fundId ?? null,
-          companyName: row.companyName,
-          sector: row.sector,
-          stage: row.stage,
-          sourceType: row.sourceType,
-          dealSize: row.dealSize ? String(row.dealSize) : null,
-          valuation: row.valuation ? String(row.valuation) : null,
-          status: row.status ?? 'lead',
-          priority: row.priority ?? 'medium',
-          foundedYear: row.foundedYear ?? null,
-          employeeCount: row.employeeCount ?? null,
-          revenue: row.revenue ? String(row.revenue) : null,
-          description: row.description ?? null,
-          website: row.website || null,
-          contactName: row.contactName ?? null,
-          contactEmail: row.contactEmail || null,
-          contactPhone: row.contactPhone ?? null,
-          sourceNotes: row.sourceNotes ?? null,
-          nextAction: row.nextAction ?? null,
-        });
-        imported++;
-      } catch (err) {
-        failed.push({
-          index: i,
-          message: err instanceof Error ? err.message : 'Insert failed',
-        });
-      }
-    }
+    const data = await dealPipelineService.confirmImport({ rows, fundId, mode });
 
     return res.json({
-      success: failed.length === 0,
-      data: {
-        imported,
-        skipped,
-        failed: failed.length,
-        failedRows: failed,
-        total: rows.length,
-      },
+      success: data.failed === 0,
+      data,
     });
   } catch (error) {
     console.error('Import error:', error);
@@ -1076,7 +691,7 @@ const BulkArchiveSchema = z.object({
  * POST /api/deals/opportunities/bulk/status
  * Bulk update deal statuses. Idempotent per dealId+status pair.
  */
-router['post']('/opportunities/bulk/status', idempotency, async (req: Request, res: Response) => {
+router['post']('/opportunities/bulk/status', idempotent, async (req: Request, res: Response) => {
   const validation = BulkStatusSchema.safeParse(req.body);
   if (!validation.success) {
     return res.status(400).json({
@@ -1086,54 +701,11 @@ router['post']('/opportunities/bulk/status', idempotency, async (req: Request, r
   }
 
   try {
-    const { dealIds, status, notes } = validation.data;
-    const updatedIds: number[] = [];
-    const failed: Array<{ id: number; reason: string }> = [];
-
-    // Verify all deals exist first
-    const existing = await db
-      .select({ id: dealOpportunities.id, status: dealOpportunities.status })
-      .from(dealOpportunities)
-      .where(inArray(dealOpportunities.id, dealIds));
-
-    const existingMap = new Map(existing.map((e) => [e.id, e]));
-
-    for (const dealId of dealIds) {
-      const deal = existingMap.get(dealId);
-      if (!deal) {
-        failed.push({ id: dealId, reason: 'Deal not found' });
-        continue;
-      }
-      if (deal.status === status) {
-        updatedIds.push(dealId); // Already in target status = idempotent success
-        continue;
-      }
-      try {
-        await db
-          .update(dealOpportunities)
-          .set({ status, updatedAt: new Date() })
-          .where(eq(dealOpportunities.id, dealId));
-
-        await db.insert(pipelineActivities).values({
-          opportunityId: dealId,
-          type: 'stage_change',
-          title: `Bulk Status Change: ${deal.status} -> ${status}`,
-          description: notes ?? `Bulk status change to ${status}`,
-          completedDate: new Date(),
-        });
-
-        updatedIds.push(dealId);
-      } catch (err) {
-        failed.push({
-          id: dealId,
-          reason: err instanceof Error ? err.message : 'Update failed',
-        });
-      }
-    }
+    const data = await dealPipelineService.bulkUpdateStatus(validation.data);
 
     return res.json({
-      success: failed.length === 0,
-      data: { updatedIds, failed },
+      success: data.failed.length === 0,
+      data,
     });
   } catch (error) {
     console.error('Bulk status error:', error);
@@ -1148,7 +720,7 @@ router['post']('/opportunities/bulk/status', idempotency, async (req: Request, r
  * POST /api/deals/opportunities/bulk/archive
  * Bulk archive deals (soft delete to 'passed' status). Idempotent.
  */
-router['post']('/opportunities/bulk/archive', idempotency, async (req: Request, res: Response) => {
+router['post']('/opportunities/bulk/archive', idempotent, async (req: Request, res: Response) => {
   const validation = BulkArchiveSchema.safeParse(req.body);
   if (!validation.success) {
     return res.status(400).json({
@@ -1158,57 +730,11 @@ router['post']('/opportunities/bulk/archive', idempotency, async (req: Request, 
   }
 
   try {
-    const { dealIds } = validation.data;
-    const updatedIds: number[] = [];
-    const failed: Array<{ id: number; reason: string }> = [];
-
-    const existing = await db
-      .select({
-        id: dealOpportunities.id,
-        companyName: dealOpportunities.companyName,
-        status: dealOpportunities.status,
-      })
-      .from(dealOpportunities)
-      .where(inArray(dealOpportunities.id, dealIds));
-
-    const existingMap = new Map(existing.map((e) => [e.id, e]));
-
-    for (const dealId of dealIds) {
-      const deal = existingMap.get(dealId);
-      if (!deal) {
-        failed.push({ id: dealId, reason: 'Deal not found' });
-        continue;
-      }
-      if (deal.status === 'passed') {
-        updatedIds.push(dealId); // Already archived = idempotent success
-        continue;
-      }
-      try {
-        await db
-          .update(dealOpportunities)
-          .set({ status: 'passed', updatedAt: new Date() })
-          .where(eq(dealOpportunities.id, dealId));
-
-        await db.insert(pipelineActivities).values({
-          opportunityId: dealId,
-          type: 'stage_change',
-          title: 'Bulk Archive',
-          description: `Deal "${deal.companyName}" archived via bulk action`,
-          completedDate: new Date(),
-        });
-
-        updatedIds.push(dealId);
-      } catch (err) {
-        failed.push({
-          id: dealId,
-          reason: err instanceof Error ? err.message : 'Archive failed',
-        });
-      }
-    }
+    const data = await dealPipelineService.bulkArchive(validation.data);
 
     return res.json({
-      success: failed.length === 0,
-      data: { updatedIds, failed },
+      success: data.failed.length === 0,
+      data,
     });
   } catch (error) {
     console.error('Bulk archive error:', error);
