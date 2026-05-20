@@ -282,9 +282,11 @@ function buildPrompt({ plan, brain, soul = '', runId = null }) {
     '5. Produce the smallest safe diff.',
     '6. If financial logic is touched, confirm calc-gate coverage.',
     '7. Return: Summary, Affected Files, Changes or Plan, Verification, Risks.',
-    '8. End with a Handoff block using exactly these labels:',
+    '8. End with a compact Handoff block listing:',
     '   Run ID, Phase, Owner, Reviewer, Task, Protected areas, Files touched,',
-    '   Commands run, Gate status, Decision needed, Next action.'
+    '   Commands run, Gate status, Decision needed, Next action.',
+    '9. If writing a persisted handoff or checkpoint artifact, conform to',
+    '   .claude/schemas/handoff.schema.json.'
   );
 
   return lines.join('\n');

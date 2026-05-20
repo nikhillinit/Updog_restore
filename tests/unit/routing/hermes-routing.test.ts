@@ -255,9 +255,24 @@ describe('Hermes routing helpers', () => {
     expect(prompt).toContain('confidence: 100%');
     expect(prompt).toContain('RUN ID: hermes-test');
     expect(prompt).toContain('Handoff block');
-    expect(prompt).toContain(
-      'Run ID, Phase, Owner, Reviewer, Task, Protected areas, Files touched'
-    );
+
+    for (const label of [
+      'Run ID',
+      'Phase',
+      'Owner',
+      'Reviewer',
+      'Task',
+      'Protected areas',
+      'Files touched',
+      'Commands run',
+      'Gate status',
+      'Decision needed',
+      'Next action',
+    ]) {
+      expect(prompt).toContain(label);
+    }
+
+    expect(prompt).toContain('.claude/schemas/handoff.schema.json');
   });
 
   test('generateRunId formats deterministically from a clock', () => {
