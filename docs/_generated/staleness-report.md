@@ -4,13 +4,13 @@ last_updated: 2026-05-20
 
 # Staleness Report
 
-_Generated: 2026-05-20T02:46:39.930Z_ _Source: docs/DISCOVERY-MAP.source.yaml_
+_Generated: 2026-05-20T03:18:06.413Z_ _Source: docs/DISCOVERY-MAP.source.yaml_
 
 ## Summary
 
 | Metric              | Value |
 | ------------------- | ----- |
-| Total Documents     | 719   |
+| Total Documents     | 720   |
 | Stale Documents     | 97    |
 | Missing Frontmatter | 15    |
 
@@ -18,7 +18,7 @@ _Generated: 2026-05-20T02:46:39.930Z_ _Source: docs/DISCOVERY-MAP.source.yaml_
 
 | Status                  | Count |
 | ----------------------- | ----- |
-| ACTIVE                  | 491   |
+| ACTIVE                  | 492   |
 | UNKNOWN                 | 134   |
 | HISTORICAL              | 34    |
 | DRAFT                   | 31    |

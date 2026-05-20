@@ -254,14 +254,14 @@ scripts with older auxiliary inventories were removed.
   `docs:routing:check`, `docs:routing:generate`, `docs:routing:query`,
   `validate:claude-md`
 - **Lint/guardrails**: `lint`, `lint:eslint`, `lint:fix`, `lint:phase4`,
-  `lint:phase4:strict`, `lint:wave4`, `lint:wave5:policy`,
-  `lint:wave6:residual`, `guardrails:check`, `baseline:check`
+  `lint:phase4:strict`, `guardrails:check`, `guard:scripts:check`,
+  `baseline:check`
 - **Database/seeding**: `db:push`, `db:studio`, `db:seed:test`,
   `db:seed:test:minimal`, `db:seed:test:reset`, `seed:multi-tenant`,
   `seed:reset`
 - **Tests**: `test`, `test:quick`, `test:smart`, `test:unit`,
   `test:integration`, `test:security`, `test:smoke`, `test:ui`, plus the
-  `test:wave*` and `test:phase4*` families
+  remaining `test:wave4` and `test:phase4*` families
 - **Phoenix/domain validation**: `phoenix:truth`, `phase0`,
   `phase2:slice3:audit`, `preflight:phase0`
 
