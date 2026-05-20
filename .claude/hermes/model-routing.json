@@ -5,6 +5,34 @@
     "production": "codex",
     "distribution": "claude"
   },
+  "ownership": {
+    "research": {
+      "owner": "claude",
+      "reviewer": "kimi",
+      "artifact": "implementation brief",
+      "gate": "npm run doctor:quick"
+    },
+    "production": {
+      "owner": "codex",
+      "reviewer": "claude",
+      "artifact": "diff plus tests",
+      "gate": "npm run check"
+    },
+    "production-financial": {
+      "owner": "codex",
+      "reviewer": "claude",
+      "audit": "kimi",
+      "artifact": "diff plus truth-case notes",
+      "gate": "npm run calc-gate",
+      "humanApproval": true
+    },
+    "distribution": {
+      "owner": "claude",
+      "repairOwner": "codex",
+      "artifact": "PR-ready summary",
+      "gate": "npm run lint"
+    }
+  },
   "longContextModel": "kimi",
   "longContextTriggers": [
     "full repo audit",
