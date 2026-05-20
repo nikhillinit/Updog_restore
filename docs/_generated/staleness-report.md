@@ -4,25 +4,26 @@ last_updated: 2026-05-20
 
 # Staleness Report
 
-_Generated: 2026-05-20T06:02:57.970Z_ _Source: docs/DISCOVERY-MAP.source.yaml_
+_Generated: 2026-05-20T00:00:00.000Z_ _Source: docs/DISCOVERY-MAP.source.yaml_
 
 ## Summary
 
 | Metric              | Value |
 | ------------------- | ----- |
-| Total Documents     | 723   |
-| Stale Documents     | 98    |
-| Missing Frontmatter | 16    |
+| Total Documents     | 731   |
+| Stale Documents     | 97    |
+| Missing Frontmatter | 15    |
 
 ### By Status
 
 | Status                  | Count |
 | ----------------------- | ----- |
-| ACTIVE                  | 493   |
-| UNKNOWN                 | 136   |
+| ACTIVE                  | 494   |
+| UNKNOWN                 | 135   |
 | HISTORICAL              | 34    |
 | DRAFT                   | 31    |
 | VERIFIED                | 9     |
+| INDEXED                 | 8     |
 | REFERENCE               | 6     |
 | ready                   | 3     |
 | active                  | 2     |
@@ -77,7 +78,6 @@ Documents that need review (older than their cadence threshold):
 | `docs/superpowers/plans/2026-05-15-term-conflict-tier2-fixes.md`            | Never        | 999      | YES - verify!        | Unassigned |
 | `docs/superpowers/plans/2026-05-16-variance-calculation-extraction.md`      | Never        | 999      | YES - verify!        | Unassigned |
 | `docs/superpowers/plans/2026-05-19-ca-period-truth-harness-remediation.md`  | Never        | 999      | No                   | Unassigned |
-| `docs/superpowers/plans/2026-05-20-hermes-integration.md`                   | Never        | 999      | No                   | Unassigned |
 | `docs/superpowers/specs/2026-05-16-refactor-stability-strategy-design.md`   | Never        | 999      | YES - verify!        | Unassigned |
 | `.claude/skills/planning-with-files/CHANGELOG.md`                           | 2026-01-19   | 121      | No                   | Unassigned |
 | `cheatsheets/agent-architecture.md`                                         | 2026-01-19   | 121      | No                   | Unassigned |
@@ -92,8 +92,9 @@ Documents that need review (older than their cadence threshold):
 | `cheatsheets/codex-collaboration-protocol.md`                               | 2026-01-19   | 121      | No                   | Unassigned |
 | `cheatsheets/coding-pairs-playbook.md`                                      | 2026-01-19   | 121      | No                   | Unassigned |
 | `cheatsheets/command-summary.md`                                            | 2026-01-19   | 121      | No                   | Unassigned |
+| `cheatsheets/correct-workflow-example.md`                                   | 2026-01-19   | 121      | No                   | Unassigned |
 
-_...and 48 more stale documents._
+_...and 47 more stale documents._
 
 ## Documents with Execution Claims (Need Verification)
 
@@ -137,7 +138,6 @@ Documents without proper YAML frontmatter:
 - [ ] `docs/superpowers/plans/2026-05-15-term-conflict-tier2-fixes.md`
 - [ ] `docs/superpowers/plans/2026-05-16-variance-calculation-extraction.md`
 - [ ] `docs/superpowers/plans/2026-05-19-ca-period-truth-harness-remediation.md`
-- [ ] `docs/superpowers/plans/2026-05-20-hermes-integration.md`
 - [ ] `docs/superpowers/specs/2026-05-16-refactor-stability-strategy-design.md`
 
 ---
