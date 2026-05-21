@@ -15,8 +15,6 @@ const alias = {
   '@shared/': resolve(projectRoot, './shared/'),
   '@shared': resolve(projectRoot, './shared'),
   '@schema': resolve(projectRoot, './shared/schema'),
-  '@assets/': resolve(projectRoot, './assets/'),
-  '@assets': resolve(projectRoot, './assets'),
   '@upstash/redis': resolve(projectRoot, './tests/mocks/upstash-redis.ts'),
 };
 

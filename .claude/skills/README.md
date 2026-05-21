@@ -309,7 +309,7 @@ cross-validation, multi-source data
 
 ---
 
-#### [notebooklm](notebooklm.md)
+#### [NotebookLM domain sources](../../docs/notebooklm-sources/)
 
 **Overview**: Query Google NotebookLM notebooks for source-grounded answers.
 

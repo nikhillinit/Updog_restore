@@ -483,10 +483,9 @@ continuous-improvement (refine)
 - [x] Multi-document synthesis across 50+ files
 - [x] Persistent sessions with context
 - [x] Rate limit management (50 queries/day, multi-account support)
-- [x] NotebookLM workflow documented in [.claude/skills/notebooklm.md](.claude/skills/notebooklm.md)
+- [x] NotebookLM-backed domain sources documented in [docs/notebooklm-sources/](docs/notebooklm-sources/)
 
 **Documentation**:
-- [.claude/skills/notebooklm.md](.claude/skills/notebooklm.md) - NotebookLM workflow and usage guide
 - [docs/notebooklm-sources/](docs/notebooklm-sources/) - Source-grounded domain documents used with NotebookLM workflows
 - [docs/INDEX.md#domain-knowledge-notebooklm](docs/INDEX.md#domain-knowledge-notebooklm) - Current entry point for NotebookLM-backed domain knowledge
 

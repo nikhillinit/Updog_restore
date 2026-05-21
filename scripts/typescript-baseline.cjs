@@ -215,7 +215,7 @@ function parseTypeScriptErrors(output) {
  * @returns {Object} - Baseline object
  */
 function generateBaseline() {
-  console.log('🔍 Running TypeScript compilation...');
+  console.log('Running TypeScript compilation...');
   const startTime = Date.now();
 
   const output = runTypeScriptCompiler();
@@ -270,16 +270,16 @@ function generateBaseline() {
  */
 function loadBaseline() {
   if (!fs.existsSync(BASELINE_FILE)) {
-    console.error('❌ No baseline file found');
+    console.error('[FAIL] No baseline file found');
     console.error(`Expected: ${BASELINE_FILE}`);
-    console.error('\n💡 Run: npm run baseline:save');
+    console.error('\nTip: Run: npm run baseline:save');
     process.exit(1);
   }
 
   try {
     return JSON.parse(fs.readFileSync(BASELINE_FILE, 'utf8'));
   } catch (error) {
-    console.error('❌ Failed to parse baseline file');
+    console.error('[FAIL] Failed to parse baseline file');
     console.error(error.message);
     process.exit(1);
   }
@@ -293,13 +293,13 @@ function saveBaseline() {
 
   fs.writeFileSync(BASELINE_FILE, JSON.stringify(baseline, null, 2));
 
-  console.log('\n✅ Baseline saved successfully');
-  console.log(`📝 File: ${BASELINE_FILE}`);
-  console.log(`📊 Total errors: ${baseline.totalErrors}`);
-  console.log(`⏱️  Build time: ${baseline.elapsedMs}ms`);
+  console.log('\n[OK] Baseline saved successfully');
+  console.log(`File: ${BASELINE_FILE}`);
+  console.log(`Total errors: ${baseline.totalErrors}`);
+  console.log(`Build time: ${baseline.elapsedMs}ms`);
 
   // Show breakdown by project
-  console.log('\n📋 Errors by project:');
+  console.log('\nErrors by project:');
   for (const [project, data] of Object.entries(baseline.projects)) {
     console.log(`   ${project.padEnd(10)} ${data.total.toString().padStart(4)} errors`);
   }
@@ -341,16 +341,16 @@ function checkBaseline() {
   const fixedErrors = [...baselineHashes].filter(h => !currentHashes.has(h));
 
   // Report results
-  console.log('\n📊 TypeScript Baseline Check');
+  console.log('\nTypeScript Baseline Check');
   console.log('─'.repeat(70));
   console.log(`Baseline errors:  ${baseline.totalErrors}`);
   console.log(`Current errors:   ${current.totalErrors}`);
-  console.log(`Fixed errors:     ${fixedErrors.length} ✅`);
-  console.log(`New errors:       ${newErrors.length} ${newErrors.length > 0 ? '❌' : '✅'}`);
+  console.log(`Fixed errors:     ${fixedErrors.length}`);
+  console.log(`New errors:       ${newErrors.length}${newErrors.length > 0 ? ' [FAIL]' : ''}`);
   console.log('─'.repeat(70));
 
   if (newErrors.length > 0) {
-    console.log('\n❌ NEW ERRORS DETECTED (not in baseline):\n');
+    console.log('\n[FAIL] NEW ERRORS DETECTED (not in baseline):\n');
 
     // Show first 20 new errors with full details
     const errorsToShow = newErrors.slice(0, 20);
@@ -367,27 +367,27 @@ function checkBaseline() {
       console.log(`\n  ... and ${newErrors.length - 20} more errors\n`);
     }
 
-    console.log('\n💡 Options:');
+    console.log('\nOptions:');
     console.log('   1. Fix the errors before pushing');
     console.log('   2. If these errors are acceptable:');
     console.log('      npm run baseline:save');
     console.log('      git add .tsc-baseline.json');
     console.log('      git commit --amend --no-edit');
-    console.log('\n⚠️  Emergency bypass: git push --no-verify');
+    console.log('\n[WARN] Emergency bypass: git push --no-verify');
     console.log('   (Document in commit message why bypass was necessary)');
 
     process.exit(1);
   }
 
   if (fixedErrors.length > 0) {
-    console.log(`\n✅ GREAT WORK! You fixed ${fixedErrors.length} error(s)`);
-    console.log('\n💡 Update the baseline to lock in your improvements:');
+    console.log(`\n[OK] GREAT WORK! You fixed ${fixedErrors.length} error(s)`);
+    console.log('\nTip: Update the baseline to lock in your improvements:');
     console.log('   npm run baseline:save');
     console.log('   git add .tsc-baseline.json');
     console.log('   git commit --amend --no-edit');
   }
 
-  console.log('\n✅ No new TypeScript errors introduced');
+  console.log('\n[OK] No new TypeScript errors introduced');
 }
 
 /**
@@ -397,7 +397,7 @@ function showProgress() {
   const baseline = loadBaseline();
   const current = generateBaseline();
 
-  console.log('\n📊 TypeScript Error Progress\n');
+  console.log('\nTypeScript Error Progress\n');
   console.log('─'.repeat(70));
   console.log('Project    │ Baseline │ Current  │ Fixed    │ Progress');
   console.log('─'.repeat(70));
@@ -430,8 +430,8 @@ function showProgress() {
     `${totalProgress.toFixed(1).padStart(6)}%`
   );
   console.log('─'.repeat(70));
-  console.log(`\n📅 Baseline last updated: ${new Date(baseline.timestamp).toLocaleString()}`);
-  console.log(`⏱️  Check completed in: ${current.elapsedMs}ms\n`);
+  console.log(`\nBaseline last updated: ${new Date(baseline.timestamp).toLocaleString()}`);
+  console.log(`Check completed in: ${current.elapsedMs}ms\n`);
 }
 
 // ============================================================================

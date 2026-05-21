@@ -88,9 +88,9 @@ These files are explicitly ignored — they exist as reference, not runtime:
 - `server/engine/fault-injector.ts` — test-only chaos helper
 
 Plus broad ignores: `archive/`, `_archive/`, `.migration-backup/`, `.backup/`,
-`Default Parameters/`, `anthropic-cookbook/`, `api/`, `dev-automation/`,
-`code-reviewer/`, `triage-output/`, `.a5c/` — these are historical or external
-integration drops, not authoritative code.
+`Default Parameters/`, `anthropic-cookbook/`, `api/`, `code-reviewer/`,
+`triage-output/`, `.a5c/` — these are historical or external integration drops,
+not authoritative code.
 
 ## Fragile Areas
 

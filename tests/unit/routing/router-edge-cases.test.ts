@@ -378,7 +378,8 @@ describe('Skill Routing', () => {
     expect(result).not.toBeNull();
     // Should match planning pattern
     expect(result!.id).toBe('planning');
-    expect(result!.route_to).toContain('writing-plans');
+    expect(result!.route_to).toBe('docs/commands-and-plugins-inventory.md');
+    expect(result!.why).toContain('Superpowers writing-plans');
   });
 
   test('brainstorm query routes based on substring matching', () => {
