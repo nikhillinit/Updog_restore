@@ -46,11 +46,12 @@ Humans AND Agents **Last Updated**: 2026-05-20
 
 **Status**: [ACTIVE] **Audience**: Humans + Agents
 
-| Document                              | Description                                       | When to Use                  |
-| ------------------------------------- | ------------------------------------------------- | ---------------------------- |
-| [README.md](../README.md)             | Project overview, tech stack, setup               | First time setup             |
-| [CLAUDE.md](../CLAUDE.md)             | AI assistant guidelines, conventions              | Before ANY AI-assisted task  |
-| [CAPABILITIES.md](../CAPABILITIES.md) | Historical inventory of agents, tools, and skills | Historical capability lookup |
+| Document                                               | Description                                       | When to Use                  |
+| ------------------------------------------------------ | ------------------------------------------------- | ---------------------------- |
+| [README.md](../README.md)                              | Project overview, tech stack, setup               | First time setup             |
+| [processes/clone-guide.md](processes/clone-guide.md)   | Blobless clone guidance and archive policy        | Size-sensitive local clones  |
+| [CLAUDE.md](../CLAUDE.md)                              | AI assistant guidelines, conventions              | Before ANY AI-assisted task  |
+| [CAPABILITIES.md](../CAPABILITIES.md)                  | Historical inventory of agents, tools, and skills | Historical capability lookup |
 
 **Current Path**: CLAUDE.md -> repo search -> docs/INDEX.md -> README.md
 
@@ -180,7 +181,6 @@ not by number alone._
 | Document                                                | Description                                             | When to Use                          |
 | ------------------------------------------------------- | ------------------------------------------------------- | ------------------------------------ |
 | [ai-utils/README.md](../ai-utils/README.md)             | Memory-enabled code review system                       | Code review automation               |
-| [ai/prompt/README.md](../ai/prompt/README.md)           | Type-safe prompt templates                              | Portfolio QA, Reserve Sizing         |
 | [.claude/skills/INDEX.md](../.claude/skills/INDEX.md)   | Skills index                                            | Finding skills for workflows         |
 | [.claude/DISCOVERY-MAP.md](../.claude/DISCOVERY-MAP.md) | Agent-facing routing, including Phoenix quick reference | Finding Phoenix agents and workflows |
 
