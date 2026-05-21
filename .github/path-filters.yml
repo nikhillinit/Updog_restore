@@ -19,6 +19,11 @@
 #                   Like `code` but includes scripts/validation/**.
 #                   core-validation.yml's existing semantics treat validation
 #                   scripts as code. Kept separate to preserve behavior.
+# dependency:       Dependency/toolchain files that warrant lockfile, install,
+#                   doctor, and production-audit validation.
+# pr_security:      Files that warrant lightweight PR security checks.
+# security_tests:   Files that warrant the security integration test suite.
+# test_quarantine:  Files that warrant static skip/quarantine counting.
 #
 # Generators to keep in sync with auto_docs (drift causes spurious slow-path
 # runs, which are safe; missing outputs also fail to fast-path, also safe):
@@ -71,3 +76,43 @@ code_with_validation:
   - 'shared/**'
   - 'scripts/**'
   - 'tests/**'
+
+dependency:
+  - 'package.json'
+  - 'package-lock.json'
+  - '.npmrc'
+  - '.nvmrc'
+  - 'scripts/check-package-manager.mjs'
+  - 'scripts/doctor*.mjs'
+  - 'scripts/verify-lockfile.sh'
+  - '.github/actions/setup-node-env/**'
+  - '.github/workflows/ci-unified.yml'
+  - '.github/workflows/dependency-validation.yml'
+
+pr_security:
+  - 'package.json'
+  - 'package-lock.json'
+  - 'server/**'
+  - 'shared/**'
+  - 'Dockerfile*'
+  - 'suppression.xml'
+  - '.github/codeql-config.yml'
+  - '.github/workflows/ci-unified.yml'
+  - '.github/workflows/codeql.yml'
+  - '.github/workflows/security-scan.yml'
+  - '.github/workflows/security-tests.yml'
+
+security_tests:
+  - 'server/**'
+  - 'shared/**'
+  - 'tests/integration/security/**'
+  - 'package.json'
+  - 'package-lock.json'
+  - '.github/workflows/ci-unified.yml'
+  - '.github/workflows/security-tests.yml'
+
+test_quarantine:
+  - 'tests/**'
+  - 'vitest.config.*'
+  - 'vitest.*.ts'
+  - 'tests/quarantine/**'

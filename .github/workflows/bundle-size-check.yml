@@ -34,11 +34,14 @@ jobs:
 
       - uses: actions/setup-node@v6
         with:
-          node-version: '20'
+          node-version: '20.19.0'
           cache: 'npm'
           cache-dependency-path: |
             pr-tools/package-lock.json
             base-branch/package-lock.json
+
+      - name: Align npm with packageManager
+        run: npm install -g npm@10.9.2
 
       - id: base-install
         continue-on-error: true
@@ -90,8 +93,11 @@ jobs:
 
       - uses: actions/setup-node@v6
         with:
-          node-version: '20'
+          node-version: '20.19.0'
           cache: 'npm'
+
+      - name: Align npm with packageManager
+        run: npm install -g npm@10.9.2
 
       - run: npm ci
 
@@ -139,7 +145,8 @@ jobs:
           script: |
             const fs = require('fs');
             const hasBaseReport = fs.existsSync('bundle-size-diff.json');
-            let comment = '## Bundle Size Report\n\n';
+            const marker = '<!-- bundle-size-report -->';
+            let comment = `${marker}\n## Bundle Size Report\n\n`;
 
             if (!hasBaseReport) {
               comment += 'Baseline comparison skipped because the base branch bundle build did not complete successfully.\n\n';
@@ -166,12 +173,27 @@ jobs:
               return;
             }
 
-            await github.rest.issues.createComment({
+            const { data: comments } = await github.rest.issues.listComments({
               issue_number: prNumber,
               owner: context.repo.owner,
               repo: context.repo.repo,
-              body: comment
             });
+            const existing = comments.find(item => item.user.type === 'Bot' && item.body.includes(marker));
+            if (existing) {
+              await github.rest.issues.updateComment({
+                comment_id: existing.id,
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                body: comment,
+              });
+            } else {
+              await github.rest.issues.createComment({
+                issue_number: prNumber,
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                body: comment,
+              });
+            }
 
       - name: Fail if limits exceeded
         if: needs.build-base.outputs.artifact-ready == 'true'

@@ -32,8 +32,11 @@ jobs:
       - name: Setup Node.js 20
         uses: actions/setup-node@v6
         with:
-          node-version: '20'
+          node-version: '20.19.0'
           cache: 'npm'
+
+      - name: Align npm with packageManager
+        run: npm install -g npm@10.9.2
 
       - name: Install dependencies
         run: npm ci --prefer-offline --no-audit

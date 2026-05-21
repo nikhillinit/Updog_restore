@@ -43,6 +43,9 @@ archive/** linguist-generated export-ignore
 docs/archive/** linguist-generated export-ignore
 docs/_generated/** linguist-generated export-ignore
 .backup/** linguist-generated export-ignore
+**/_archive/** linguist-generated export-ignore
+**/backup/** linguist-generated export-ignore
+**/backups/** linguist-generated export-ignore
 .claude/skills/INDEX.md linguist-generated
 .claude/skills/_index.json linguist-generated
 
