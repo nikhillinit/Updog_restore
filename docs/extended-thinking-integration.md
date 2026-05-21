@@ -27,9 +27,6 @@ ai-utils/extended-thinking/
 ├── agent-helper.ts       # Agent-specific utilities with metrics
 └── README.md            # API documentation
 
-notebooks/examples/
-└── extended-thinking-multi-model.ipynb  # Interactive examples
-
 docs/
 └── extended-thinking-integration.md     # This file
 
@@ -683,8 +680,6 @@ describe('ExtendedThinkingAgent integration', () => {
 
 - **API Documentation:** `ai-utils/extended-thinking/README.md`
 - **Quick Reference:** `cheatsheets/extended-thinking.md`
-- **Interactive Examples:**
-  `notebooks/examples/extended-thinking-multi-model.ipynb`
 - **Claude Docs:**
   https://docs.claude.com/en/docs/build-with-claude/extended-thinking
 - **API Reference:** https://docs.anthropic.com/en/api/messages

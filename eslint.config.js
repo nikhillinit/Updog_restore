@@ -61,7 +61,6 @@ export default [
       'types/**',
       'tools/**',
       'ai-utils/**', // Experimental AI development tools
-      'notebooks/**', // Jupyter notebooks and examples
       'server/examples/**', // Server example code
       'server/security/integration-guide.ts', // Reference integration guide, not runtime code
       'server/routes/simulations-guarded.example.ts', // Example-only route wiring
@@ -111,10 +110,7 @@ export default [
       'artifacts/**',
       '.artifacts/**', // ESLint wave execution tooling scripts
       '.a5c/**',
-      'code-reviewer/**',
       'ai-logs/**',
-      'ai/**',
-      'NotebookLM Skill/**',
       'triage-output/**',
       'performance-results/**',
       'reports/**',
@@ -122,7 +118,6 @@ export default [
       'test-results/**',
       'playwright-report/**',
       'repo/**',
-      'uiux-skill/**',
     ],
   },
   js.configs.recommended,
@@ -449,7 +444,6 @@ export default [
       'server/**/*.ts',
       'client/**/*.ts',
       'client/**/*.tsx',
-      'ai/**/*.ts',
       'workers/**/*.ts',
     ],
     ignores: [
