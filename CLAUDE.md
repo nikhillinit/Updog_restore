@@ -147,7 +147,6 @@ classifying touched sections as `LOAD_BEARING`, `DUPLICATE`, or `OBSOLETE`.
 
 - `@/` → `client/src/`
 - `@shared/` → `shared/`
-- `@assets/` → `assets/`
 
 ## Development Setup
 
