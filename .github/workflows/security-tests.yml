@@ -1,12 +1,7 @@
-name: Security Tests
+name: Security Tests Manual
 
 on:
-  pull_request:
-    branches: [main]
-    paths:
-      - 'server/**'
-      - 'tests/integration/security/**'
-      - '.github/workflows/security-tests.yml'
+  workflow_dispatch:
 
 jobs:
   security:
@@ -44,6 +39,9 @@ jobs:
         with:
           node-version: '20.19.0'
           cache: 'npm'
+
+      - name: Align npm with packageManager
+        run: npm install -g npm@10.9.2
 
       - run: npm ci
 

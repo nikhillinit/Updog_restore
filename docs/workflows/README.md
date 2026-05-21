@@ -1,6 +1,6 @@
 ---
 status: ACTIVE
-last_updated: 2026-04-18
+last_updated: 2026-05-21
 ---
 
 # GitHub Actions Workflows Inventory
@@ -10,10 +10,13 @@ last_updated: 2026-04-18
 This README is a lightweight, repo-verified index of the workflow files
 currently present in `.github/workflows`.
 
-**Verified on**: 2026-04-18
+**Verified on**: 2026-05-21
 
-- **Total workflow files**: `16`
+- **Total tracked workflow YAML files**: `17`
 - **Source of truth**: `.github/workflows/*.yml`
+- **Active GitHub registry**: May contain deleted historical workflows and
+  GitHub-generated workflows such as Dependabot, Pages, or Copilot entries.
+  Treat registry cleanup as an operations task separate from YAML refactors.
 - **Historical machine-readable snapshot**:
   `docs/archive/2026-q2/generated-inventory-snapshots/inventory.generated.json`
 
@@ -37,22 +40,23 @@ because they no longer matched the live repository.
 
 The repository currently contains these workflow files:
 
-1. `bundle-size-check.yml`
-2. `ci-unified.yml`
-3. `code-quality.yml`
-4. `codeql.yml`
-5. `core-validation.yml`
-6. `dependency-validation.yml`
-7. `dockerfile-lint.yml`
-8. `docs-routing-check.yml`
-9. `docs-validate.yml`
-10. `reflection-validate.yml`
-11. `security-scan.yml`
-12. `security-tests.yml`
-13. `skip-counter.yml`
-14. `testcontainers-ci.yml`
-15. `verify-strategic-docs.yml`
-16. `zap-baseline.yml`
+1. `archive-guard.yml`
+2. `bundle-size-check.yml`
+3. `ci-unified.yml`
+4. `code-quality.yml`
+5. `codeql.yml`
+6. `core-validation.yml`
+7. `dependency-validation.yml`
+8. `dockerfile-lint.yml`
+9. `docs-routing-check.yml`
+10. `docs-validate.yml`
+11. `reflection-validate.yml`
+12. `security-scan.yml`
+13. `security-tests.yml`
+14. `skip-counter.yml`
+15. `testcontainers-ci.yml`
+16. `verify-strategic-docs.yml`
+17. `zap-baseline.yml`
 
 ## Inventory Format
 
@@ -86,6 +90,9 @@ When a workflow inventory is regenerated, it should follow a shape like this:
 
 - This README should only claim metrics that are easy to verify from the live
   repo.
+- Use `CI Unified / CI Gate Status` as the planned required branch-protection
+  check after parity. Do not require standalone path-filtered workflows unless
+  they are proven to report a status for every PR shape.
 - If you need exact trigger, secret, or workflow-call statistics, regenerate the
   machine-readable inventory instead of hand-editing this file.
 - If the workflow file count changes, update the verified count and file list in

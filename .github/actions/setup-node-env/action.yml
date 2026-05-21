@@ -1,0 +1,55 @@
+name: Setup Node Environment
+description: Setup Node, restore tool caches, and install npm dependencies
+
+inputs:
+  node-version:
+    description: Node.js version to use.
+    required: false
+    default: '20.19.0'
+  npm-version:
+    description: npm version to install before dependency installation.
+    required: false
+    default: '10.9.2'
+  install-command:
+    description: Dependency installation command.
+    required: false
+    default: npm ci --prefer-offline --no-audit
+  restore-tool-cache:
+    description: Restore TypeScript, ESLint, Vitest, and coverage caches.
+    required: false
+    default: 'true'
+
+runs:
+  using: composite
+  steps:
+    - name: Setup Node.js
+      uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
+      with:
+        node-version: ${{ inputs.node-version }}
+        cache: npm
+        cache-dependency-path: package-lock.json
+
+    - name: Align npm version
+      shell: bash
+      run: npm install -g npm@${{ inputs.npm-version }}
+
+    - name: Restore tool caches
+      if: inputs.restore-tool-cache == 'true'
+      uses: actions/cache/restore@v4
+      with:
+        path: |
+          .tsbuildinfo.*
+          **/*.tsbuildinfo
+          node_modules/.cache/eslint
+          .vitest-cache
+          coverage
+        key: tools-${{ runner.os }}-${{ hashFiles('package-lock.json', 'tsconfig*.json', 'vitest.config.*', 'eslint.config.*') }}
+        restore-keys: |
+          tools-${{ runner.os }}-
+
+    - name: Install dependencies
+      shell: bash
+      run: |
+        ${{ inputs.install-command }} || \
+        ${{ inputs.install-command }} || \
+        ${{ inputs.install-command }}
