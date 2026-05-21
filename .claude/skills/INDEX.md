@@ -6,64 +6,50 @@ last_updated: 2026-05-21
 
 # Skill Index
 
-**48 skills** discovered across 3 scan patterns.
+**41 skills** discovered across 3 scan patterns.
 
-Removed (2026-05-21): brainstorming, systematic-debugging, writing-plans,
-dispatching-parallel-agents, notebooklm, ai-model-selection,
-multi-model-consensus (global duplicates / defunct MCP dependencies);
-code-reviewer, planning-with-files, ui-ux-pro-max (subdirectory duplicates of
-global skills).
+| Name                               | Format       | Status | Path                                                         |
+| ---------------------------------- | ------------ | ------ | ------------------------------------------------------------ |
+| api-design-principles              | flat         | ACTIVE | `.claude/skills/api-design-principles.md`                    |
+| architecture-patterns              | flat         | ACTIVE | `.claude/skills/architecture-patterns.md`                    |
+| async-error-resilience             | flat         | ACTIVE | `.claude/skills/async-error-resilience.md`                   |
+| baseline-governance                | subdirectory | ACTIVE | `.claude/skills/baseline-governance/SKILL.md`                |
+| bias-audit                         | subdirectory | ACTIVE | `.claude/skills/bias-audit/SKILL.md`                         |
+| bundle-size                        | subdirectory | ACTIVE | `.claude/skills/bundle-size/SKILL.md`                        |
+| claude-infra-integrity             | subdirectory | ACTIVE | `.claude/skills/claude-infra-integrity/SKILL.md`             |
+| continuous-improvement             | flat         | ACTIVE | `.claude/skills/continuous-improvement.md`                   |
+| control-plane                      | subdirectory | ACTIVE | `.claude/skills/control-plane/SKILL.md`                      |
+| database-schema-evolution          | flat         | ACTIVE | `.claude/skills/database-schema-evolution.md`                |
+| extended-thinking-framework        | flat         | ACTIVE | `.claude/skills/extended-thinking-framework.md`              |
+| financial-calc-correctness         | subdirectory | ACTIVE | `.claude/skills/financial-calc-correctness/SKILL.md`         |
+| frontend-ui-ux                     | subdirectory | ACTIVE | `.claude/skills/frontend-ui-ux/SKILL.md`                     |
+| inversion-thinking                 | flat         | ACTIVE | `.claude/skills/inversion-thinking.md`                       |
+| iterative-improvement              | flat         | ACTIVE | `.claude/skills/iterative-improvement.md`                    |
+| memory-management                  | flat         | ACTIVE | `.claude/skills/memory-management.md`                        |
+| owasp-security                     | subdirectory | ACTIVE | `.claude/skills/owasp-security/SKILL.md`                     |
+| pattern-recognition                | flat         | ACTIVE | `.claude/skills/pattern-recognition.md`                      |
+| phoenix-advanced-forecasting       | subdirectory | ACTIVE | `.claude/skills/phoenix-advanced-forecasting/SKILL.md`       |
+| phoenix-brand-reporting            | subdirectory | ACTIVE | `.claude/skills/phoenix-brand-reporting/SKILL.md`            |
+| phoenix-capital-exit-investigator  | subdirectory | ACTIVE | `.claude/skills/phoenix-capital-exit-investigator/SKILL.md`  |
+| phoenix-docs-sync                  | subdirectory | ACTIVE | `.claude/skills/phoenix-docs-sync/SKILL.md`                  |
+| phoenix-precision-guard            | subdirectory | ACTIVE | `.claude/skills/phoenix-precision-guard/SKILL.md`            |
+| phoenix-reserves-optimizer         | subdirectory | ACTIVE | `.claude/skills/phoenix-reserves-optimizer/SKILL.md`         |
+| phoenix-truth-case-orchestrator    | subdirectory | ACTIVE | `.claude/skills/phoenix-truth-case-orchestrator/SKILL.md`    |
+| phoenix-waterfall-ledger-semantics | subdirectory | ACTIVE | `.claude/skills/phoenix-waterfall-ledger-semantics/SKILL.md` |
+| phoenix-workflow-orchestrator      | subdirectory | ACTIVE | `.claude/skills/phoenix-workflow-orchestrator/SKILL.md`      |
+| phoenix-xirr-fees-validator        | subdirectory | ACTIVE | `.claude/skills/phoenix-xirr-fees-validator/SKILL.md`        |
+| prompt-caching-usage               | flat         | ACTIVE | `.claude/skills/prompt-caching-usage.md`                     |
+| react-hook-form-stability          | subdirectory | ACTIVE | `.claude/skills/react-hook-form-stability/SKILL.md`          |
+| react-performance-optimization     | flat         | ACTIVE | `.claude/skills/react-performance-optimization.md`           |
+| refactor-code                      | subdirectory | ACTIVE | `.claude/skills/refactor-code/SKILL.md`                      |
+| regression-checker                 | subdirectory | ACTIVE | `.claude/skills/regression-checker/SKILL.md`                 |
+| root-cause-tracing                 | flat         | ACTIVE | `.claude/skills/root-cause-tracing.md`                       |
+| session-learnings                  | subdirectory | ACTIVE | `.claude/skills/session-learnings/SKILL.md`                  |
+| statistical-testing                | subdirectory | ACTIVE | `.claude/skills/statistical-testing/SKILL.md`                |
+| task-decomposition                 | flat         | ACTIVE | `.claude/skills/task-decomposition.md`                       |
+| test-fixture-generator             | subdirectory | ACTIVE | `.claude/skills/test-fixture-generator/SKILL.md`             |
+| test-pyramid                       | subdirectory | ACTIVE | `.claude/skills/test-pyramid/SKILL.md`                       |
+| ui-design-system                   | subdirectory | ACTIVE | `.claude/skills/ui-design-system/SKILL.md`                   |
+| xlsx                               | flat         | ACTIVE | `.claude/skills/xlsx.md`                                     |
 
-| Name                               | Format          | Status | Path                                                          |
-| ---------------------------------- | --------------- | ------ | ------------------------------------------------------------- |
-| analogical-thinking                | flat            | ACTIVE | `.claude/skills/analogical-thinking.md`                       |
-| api-design-principles              | flat            | ACTIVE | `.claude/skills/api-design-principles.md`                     |
-| architecture-patterns              | flat            | ACTIVE | `.claude/skills/architecture-patterns.md`                     |
-| async-error-resilience             | flat            | ACTIVE | `.claude/skills/async-error-resilience.md`                    |
-| baseline-governance                | subdirectory    | ACTIVE | `.claude/skills/baseline-governance/SKILL.md`                 |
-| bias-audit                         | subdirectory    | ACTIVE | `.claude/skills/bias-audit/SKILL.md`                          |
-| bundle-size                        | subdirectory    | ACTIVE | `.claude/skills/bundle-size/SKILL.md`                         |
-| claude-infra-integrity             | subdirectory    | ACTIVE | `.claude/skills/claude-infra-integrity/SKILL.md`              |
-| code-formatter                     | workflow-engine | ACTIVE | `.claude/skills/workflow-engine/code-formatter/SKILL.md`      |
-| continuous-improvement             | flat            | ACTIVE | `.claude/skills/continuous-improvement.md`                    |
-| control-plane                      | subdirectory    | ACTIVE | `.claude/skills/control-plane/SKILL.md`                       |
-| database-schema-evolution          | flat            | ACTIVE | `.claude/skills/database-schema-evolution.md`                 |
-| dependency-guardian                | workflow-engine | ACTIVE | `.claude/skills/workflow-engine/dependency-guardian/SKILL.md` |
-| documentation-sync                 | workflow-engine | ACTIVE | `.claude/skills/workflow-engine/documentation-sync/SKILL.md`  |
-| extended-thinking-framework        | flat            | ACTIVE | `.claude/skills/extended-thinking-framework.md`               |
-| financial-calc-correctness         | subdirectory    | ACTIVE | `.claude/skills/financial-calc-correctness/SKILL.md`          |
-| frontend-ui-ux                     | subdirectory    | ACTIVE | `.claude/skills/frontend-ui-ux/SKILL.md`                      |
-| integration-with-other-skills      | flat            | ACTIVE | `.claude/skills/integration-with-other-skills.md`             |
-| inversion-thinking                 | flat            | ACTIVE | `.claude/skills/inversion-thinking.md`                        |
-| iterative-improvement              | flat            | ACTIVE | `.claude/skills/iterative-improvement.md`                     |
-| memory-management                  | flat            | ACTIVE | `.claude/skills/memory-management.md`                         |
-| owasp-security                     | subdirectory    | ACTIVE | `.claude/skills/owasp-security/SKILL.md`                      |
-| pattern-recognition                | flat            | ACTIVE | `.claude/skills/pattern-recognition.md`                       |
-| phoenix-advanced-forecasting       | subdirectory    | ACTIVE | `.claude/skills/phoenix-advanced-forecasting/SKILL.md`        |
-| phoenix-brand-reporting            | subdirectory    | ACTIVE | `.claude/skills/phoenix-brand-reporting/SKILL.md`             |
-| phoenix-capital-exit-investigator  | subdirectory    | ACTIVE | `.claude/skills/phoenix-capital-exit-investigator/SKILL.md`   |
-| phoenix-docs-sync                  | subdirectory    | ACTIVE | `.claude/skills/phoenix-docs-sync/SKILL.md`                   |
-| phoenix-precision-guard            | subdirectory    | ACTIVE | `.claude/skills/phoenix-precision-guard/SKILL.md`             |
-| phoenix-reserves-optimizer         | subdirectory    | ACTIVE | `.claude/skills/phoenix-reserves-optimizer/SKILL.md`          |
-| phoenix-truth-case-orchestrator    | subdirectory    | ACTIVE | `.claude/skills/phoenix-truth-case-orchestrator/SKILL.md`     |
-| phoenix-waterfall-ledger-semantics | subdirectory    | ACTIVE | `.claude/skills/phoenix-waterfall-ledger-semantics/SKILL.md`  |
-| phoenix-workflow-orchestrator      | subdirectory    | ACTIVE | `.claude/skills/phoenix-workflow-orchestrator/SKILL.md`       |
-| phoenix-xirr-fees-validator        | subdirectory    | ACTIVE | `.claude/skills/phoenix-xirr-fees-validator/SKILL.md`         |
-| prompt-caching-usage               | flat            | ACTIVE | `.claude/skills/prompt-caching-usage.md`                      |
-| react-hook-form-stability          | subdirectory    | ACTIVE | `.claude/skills/react-hook-form-stability/SKILL.md`           |
-| react-performance-optimization     | flat            | ACTIVE | `.claude/skills/react-performance-optimization.md`            |
-| refactor-code                      | subdirectory    | ACTIVE | `.claude/skills/refactor-code/SKILL.md`                       |
-| regression-checker                 | subdirectory    | ACTIVE | `.claude/skills/regression-checker/SKILL.md`                  |
-| root-cause-tracing                 | flat            | ACTIVE | `.claude/skills/root-cause-tracing.md`                        |
-| security-scanner                   | workflow-engine | ACTIVE | `.claude/skills/workflow-engine/security-scanner/SKILL.md`    |
-| session-learnings                  | subdirectory    | ACTIVE | `.claude/skills/session-learnings/SKILL.md`                   |
-| statistical-testing                | subdirectory    | ACTIVE | `.claude/skills/statistical-testing/SKILL.md`                 |
-| task-decomposition                 | flat            | ACTIVE | `.claude/skills/task-decomposition.md`                        |
-| tech-debt-tracker                  | workflow-engine | ACTIVE | `.claude/skills/workflow-engine/tech-debt-tracker/SKILL.md`   |
-| test-first-change                  | workflow-engine | ACTIVE | `.claude/skills/workflow-engine/test-first-change/SKILL.md`   |
-| test-fixture-generator             | subdirectory    | ACTIVE | `.claude/skills/test-fixture-generator/SKILL.md`              |
-| test-pyramid                       | subdirectory    | ACTIVE | `.claude/skills/test-pyramid/SKILL.md`                        |
-| ui-design-system                   | subdirectory    | ACTIVE | `.claude/skills/ui-design-system/SKILL.md`                    |
-| xlsx                               | flat            | ACTIVE | `.claude/skills/xlsx.md`                                      |
-
-_Generated: 2026-05-21T00:00:00.000Z_
+_Generated: 2026-05-21T05:59:46.506Z_
