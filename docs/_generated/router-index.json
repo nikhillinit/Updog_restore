@@ -2100,15 +2100,15 @@
       "docType": "skill",
       "exists": true,
       "frontmatter": {
-        "last_updated": "2026-05-21",
+        "last_updated": "2026-01-19",
         "status": "ACTIVE"
       },
       "hasExecutionClaims": true,
       "isStale": false,
-      "lastUpdated": "2026-05-21",
+      "lastUpdated": "2026-01-19",
       "owner": null,
       "path": ".claude/skills/README.md",
-      "staleDays": 0,
+      "staleDays": 122,
       "status": "ACTIVE"
     },
     {
@@ -6564,7 +6564,7 @@
           "deletion",
           "migration"
         ],
-        "last_updated": "2026-05-21",
+        "last_updated": "2026-05-20",
         "owner": "Core Team",
         "related": [
           "docs/governance/2026-05-19-refactor-roadmap.md"
@@ -6575,10 +6575,10 @@
       },
       "hasExecutionClaims": false,
       "isStale": false,
-      "lastUpdated": "2026-05-21",
+      "lastUpdated": "2026-05-20",
       "owner": "Core Team",
       "path": "docs/governance/cleanup-manifest.md",
-      "staleDays": 0,
+      "staleDays": 1,
       "status": "ACTIVE"
     },
     {
@@ -8387,6 +8387,261 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/reallocation-api-quickstart.md",
+      "staleDays": 122,
+      "status": "ACTIVE"
+    },
+    {
+      "docType": "doc",
+      "exists": true,
+      "frontmatter": {
+        "last_updated": "2026-01-19",
+        "status": "ACTIVE"
+      },
+      "hasExecutionClaims": false,
+      "isStale": false,
+      "lastUpdated": "2026-01-19",
+      "owner": null,
+      "path": "docs/references/attached_assets/1-general_1752964042172.md",
+      "staleDays": 122,
+      "status": "ACTIVE"
+    },
+    {
+      "docType": "doc",
+      "exists": true,
+      "frontmatter": {
+        "last_updated": "2026-01-19",
+        "status": "ACTIVE"
+      },
+      "hasExecutionClaims": false,
+      "isStale": false,
+      "lastUpdated": "2026-01-19",
+      "owner": null,
+      "path": "docs/references/attached_assets/2-sector-profiles_1752964042178.md",
+      "staleDays": 122,
+      "status": "ACTIVE"
+    },
+    {
+      "docType": "doc",
+      "exists": true,
+      "frontmatter": {
+        "last_updated": "2026-01-19",
+        "status": "ACTIVE"
+      },
+      "hasExecutionClaims": false,
+      "isStale": false,
+      "lastUpdated": "2026-01-19",
+      "owner": null,
+      "path": "docs/references/attached_assets/3-allocations_1752964042179.md",
+      "staleDays": 122,
+      "status": "ACTIVE"
+    },
+    {
+      "docType": "doc",
+      "exists": true,
+      "frontmatter": {
+        "last_updated": "2026-01-19",
+        "status": "ACTIVE"
+      },
+      "hasExecutionClaims": false,
+      "isStale": false,
+      "lastUpdated": "2026-01-19",
+      "owner": null,
+      "path": "docs/references/attached_assets/4-fees-expenses_1752964042179.md",
+      "staleDays": 122,
+      "status": "ACTIVE"
+    },
+    {
+      "docType": "doc",
+      "exists": true,
+      "frontmatter": {
+        "last_updated": "2026-01-19",
+        "status": "ACTIVE"
+      },
+      "hasExecutionClaims": false,
+      "isStale": false,
+      "lastUpdated": "2026-01-19",
+      "owner": null,
+      "path": "docs/references/attached_assets/5-exit-recycling_1752964042179.md",
+      "staleDays": 122,
+      "status": "ACTIVE"
+    },
+    {
+      "docType": "doc",
+      "exists": true,
+      "frontmatter": {
+        "last_updated": "2026-01-19",
+        "status": "ACTIVE"
+      },
+      "hasExecutionClaims": false,
+      "isStale": false,
+      "lastUpdated": "2026-01-19",
+      "owner": null,
+      "path": "docs/references/attached_assets/6-waterfall_1752964042180.md",
+      "staleDays": 122,
+      "status": "ACTIVE"
+    },
+    {
+      "docType": "doc",
+      "exists": true,
+      "frontmatter": {
+        "last_updated": "2026-01-19",
+        "status": "ACTIVE"
+      },
+      "hasExecutionClaims": false,
+      "isStale": false,
+      "lastUpdated": "2026-01-19",
+      "owner": null,
+      "path": "docs/references/attached_assets/7-limited-partners_1752964042180.md",
+      "staleDays": 122,
+      "status": "ACTIVE"
+    },
+    {
+      "docType": "doc",
+      "exists": true,
+      "frontmatter": {
+        "last_updated": "2026-01-19",
+        "status": "ACTIVE"
+      },
+      "hasExecutionClaims": false,
+      "isStale": false,
+      "lastUpdated": "2026-01-19",
+      "owner": null,
+      "path": "docs/references/attached_assets/README_1752964042182.md",
+      "staleDays": 122,
+      "status": "ACTIVE"
+    },
+    {
+      "docType": "doc",
+      "exists": true,
+      "frontmatter": {
+        "last_updated": "2026-01-19",
+        "status": "ACTIVE"
+      },
+      "hasExecutionClaims": false,
+      "isStale": false,
+      "lastUpdated": "2026-01-19",
+      "owner": null,
+      "path": "docs/references/attached_assets/content-1752982029235.md",
+      "staleDays": 122,
+      "status": "ACTIVE"
+    },
+    {
+      "docType": "doc",
+      "exists": true,
+      "frontmatter": {
+        "last_updated": "2026-01-19",
+        "status": "ACTIVE"
+      },
+      "hasExecutionClaims": false,
+      "isStale": false,
+      "lastUpdated": "2026-01-19",
+      "owner": null,
+      "path": "docs/references/attached_assets/content-1752988962282.md",
+      "staleDays": 122,
+      "status": "ACTIVE"
+    },
+    {
+      "docType": "doc",
+      "exists": true,
+      "frontmatter": {
+        "last_updated": "2026-04-03",
+        "status": "ACTIVE"
+      },
+      "hasExecutionClaims": false,
+      "isStale": false,
+      "lastUpdated": "2026-04-03",
+      "owner": null,
+      "path": "docs/references/capital-allocation-follow-on.md",
+      "staleDays": 48,
+      "status": "ACTIVE"
+    },
+    {
+      "docType": "doc",
+      "exists": true,
+      "frontmatter": {
+        "last_updated": "2026-01-19",
+        "status": "ACTIVE"
+      },
+      "hasExecutionClaims": false,
+      "isStale": false,
+      "lastUpdated": "2026-01-19",
+      "owner": null,
+      "path": "docs/references/claude-agent-engines.md",
+      "staleDays": 122,
+      "status": "ACTIVE"
+    },
+    {
+      "docType": "doc",
+      "exists": true,
+      "frontmatter": {
+        "last_updated": "2026-01-19",
+        "status": "ACTIVE"
+      },
+      "hasExecutionClaims": false,
+      "isStale": false,
+      "lastUpdated": "2026-01-19",
+      "owner": null,
+      "path": "docs/references/claude-agent-integration.md",
+      "staleDays": 122,
+      "status": "ACTIVE"
+    },
+    {
+      "docType": "doc",
+      "exists": true,
+      "frontmatter": {
+        "last_updated": "2026-01-19",
+        "status": "ACTIVE"
+      },
+      "hasExecutionClaims": false,
+      "isStale": false,
+      "lastUpdated": "2026-01-19",
+      "owner": null,
+      "path": "docs/references/claude-agent-schema.md",
+      "staleDays": 122,
+      "status": "ACTIVE"
+    },
+    {
+      "docType": "doc",
+      "exists": true,
+      "frontmatter": {
+        "last_updated": "2026-01-19",
+        "status": "ACTIVE"
+      },
+      "hasExecutionClaims": true,
+      "isStale": false,
+      "lastUpdated": "2026-01-19",
+      "owner": null,
+      "path": "docs/references/claude-agent-testing.md",
+      "staleDays": 122,
+      "status": "ACTIVE"
+    },
+    {
+      "docType": "doc",
+      "exists": true,
+      "frontmatter": {
+        "last_updated": "2026-01-19",
+        "status": "ACTIVE"
+      },
+      "hasExecutionClaims": true,
+      "isStale": false,
+      "lastUpdated": "2026-01-19",
+      "owner": null,
+      "path": "docs/references/replit.md",
+      "staleDays": 122,
+      "status": "ACTIVE"
+    },
+    {
+      "docType": "doc",
+      "exists": true,
+      "frontmatter": {
+        "last_updated": "2026-01-19",
+        "status": "ACTIVE"
+      },
+      "hasExecutionClaims": false,
+      "isStale": false,
+      "lastUpdated": "2026-01-19",
+      "owner": null,
+      "path": "docs/references/seed-cases-ca-007-020.md",
       "staleDays": 122,
       "status": "ACTIVE"
     },
@@ -12435,7 +12690,7 @@
   "stats": {
     "by_status": {
       "ACCEPTED": 1,
-      "ACTIVE": 423,
+      "ACTIVE": 440,
       "ARCHIVED": 1,
       "BACKLOG": 1,
       "COMPLETED": 1,
@@ -12455,7 +12710,7 @@
     },
     "missing_frontmatter": 15,
     "stale_docs": 96,
-    "total_docs": 639
+    "total_docs": 656
   },
   "version": "2.0"
 }
