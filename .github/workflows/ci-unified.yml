@@ -31,14 +31,19 @@ permissions:
   actions: read
 
 jobs:
-  # Phase 1: Detect changes for smart test selection
+  # Phase 1: Detect changes for smart test selection.
+  #
+  # auto_docs_only is the HARD fast-path boundary: every changed file is in the
+  # auto_docs allowlist (.github/path-filters.yml). Anything else -- including
+  # a single non-allowlisted doc edit -- disqualifies the fast path so the full
+  # setup/check/test/build/guards path runs.
   changes:
     name: Detect Changes
     runs-on: ubuntu-latest
     outputs:
-      # Simplified boolean outputs - dorny/paths-filter returns 'true'/'false' strings
       code: ${{ steps.filter.outputs.code }}
       docs: ${{ steps.filter.outputs.docs }}
+      auto_docs_only: ${{ steps.filter.outputs.auto_docs == 'true' && steps.filter.outputs.not_auto_docs == 'false' }}
       affected_tests: ${{ steps.affected.outputs.tests || 'all' }}
     steps:
       - name: Checkout repository
@@ -50,28 +55,7 @@ jobs:
         uses: dorny/paths-filter@de90cc6fb38fc0963ad72b210f1f284cd68cea36 # v3.0.2
         id: filter
         with:
-          # Output format: 'true'/'false' strings for each filter
-          filters: |
-            code:
-              - '**/*.ts'
-              - '**/*.tsx'
-              - '**/*.js'
-              - '**/*.jsx'
-              - 'package*.json'
-              - 'package-lock.json'
-              - '.github/workflows/**'
-              - 'server/**'
-              - 'client/**'
-              - 'shared/**'
-              - 'scripts/**'
-              - '!scripts/validation/**'
-              - 'tests/**'
-            docs:
-              - '**/*.md'
-              - 'docs/**'
-              - '.github/*.md'
-              - 'scripts/validation/**'
-              - '!CHANGELOG.md'
+          filters: '.github/path-filters.yml'
 
       - name: Detect affected tests
         id: affected
@@ -81,10 +65,12 @@ jobs:
           AFFECTED=$(node scripts/test-smart.mjs --list-only 2>/dev/null || echo "all")
           echo "tests=${AFFECTED}" >> $GITHUB_OUTPUT
 
-  # Phase 2: Setup and compile TypeScript once with caching
+  # Phase 2: Setup and compile TypeScript once with caching.
+  # Skipped only for auto_docs_only commits (exact allowlist of generated docs);
+  # any non-allowlisted change -- including a doc edit -- runs the full path.
   setup:
     needs: changes
-    if: needs.changes.outputs.code == 'true' || github.event.inputs.run_full_suite == 'true'
+    if: needs.changes.outputs.auto_docs_only != 'true' || github.event.inputs.run_full_suite == 'true'
     name: Setup & Build Cache
     runs-on: ubuntu-latest
     timeout-minutes: 5
@@ -141,7 +127,7 @@ jobs:
   check:
     name: Check ${{ matrix.job }}
     needs: [changes, setup]
-    if: needs.changes.outputs.code == 'true' || github.event.inputs.run_full_suite == 'true'
+    if: needs.changes.outputs.auto_docs_only != 'true' || github.event.inputs.run_full_suite == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 10
     strategy:
@@ -209,8 +195,8 @@ jobs:
     name: Test (Affected Only)
     needs: [changes, check]
     if: |
-      github.event_name == 'pull_request' && 
-      needs.changes.outputs.code == 'true' &&
+      github.event_name == 'pull_request' &&
+      needs.changes.outputs.auto_docs_only != 'true' &&
       github.event.inputs.run_full_suite != 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 15
@@ -281,7 +267,7 @@ jobs:
     needs: [changes, check]
     if: |
       (github.ref == 'refs/heads/main' || github.event.inputs.run_full_suite == 'true') &&
-      needs.changes.outputs.code == 'true'
+      needs.changes.outputs.auto_docs_only != 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 20
     strategy:
@@ -372,10 +358,13 @@ jobs:
           REDIS_URL: ${{ matrix.needs-redis && 'redis://localhost:6379' || '' }}
           TZ: UTC
 
-  # Phase 5: Build validation with dynamic bundle guard
+  # Phase 5: Build validation with dynamic bundle guard.
+  # Inherits the auto_docs_only fast path via `setup`/`check`: if those skip,
+  # `build` cascades to skipped, and `gate` treats it as expected.
   build:
     name: Build Production
-    needs: [setup, check]
+    needs: [changes, setup, check]
+    if: needs.changes.outputs.auto_docs_only != 'true' || github.event.inputs.run_full_suite == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -579,16 +568,30 @@ jobs:
               });
             }
 
-  # Final gate status
+  # Final gate status.
+  #
+  # Fast-path contract: when auto_docs_only is true, upstream jobs are EXPECTED
+  # to be skipped (every changed file is in the auto_docs allowlist, so there is
+  # nothing for setup/check/test/build to do). The gate reports success in that
+  # case so this required check does not block automated documentation commits.
+  #
+  # Anything else (code, workflows, packages, non-allowlisted docs) must run the
+  # full path; a skipped upstream job in those cases is treated as a failure.
   gate:
     name: CI Gate Status
-    needs: [check, test-affected, test-full, build, guards]
+    needs: [changes, check, test-affected, test-full, build, guards]
     if: always()
     runs-on: ubuntu-latest
     steps:
       - name: Determine gate status
         id: status
         run: |
+          if [[ "${{ needs.changes.outputs.auto_docs_only }}" == "true" ]]; then
+            echo "auto_docs_only=true; upstream skips are expected." >> "$GITHUB_STEP_SUMMARY"
+            echo "[PASS] CI Gate Passed (auto_docs_only fast path)"
+            exit 0
+          fi
+
           # For PRs, check test-affected; for main, check test-full
           if [[ "${{ github.event_name }}" == "pull_request" ]]; then
             TEST_RESULT="${{ needs.test-affected.result }}"
@@ -596,8 +599,8 @@ jobs:
             TEST_RESULT="${{ needs.test-full.result }}"
           fi
 
-          if [[ "${{ needs.check.result }}" != "success" || 
-                "$TEST_RESULT" != "success" || 
+          if [[ "${{ needs.check.result }}" != "success" ||
+                "$TEST_RESULT" != "success" ||
                 "${{ needs.build.result }}" != "success" ]]; then
             echo "CI Gate Failed"
             echo "Check: ${{ needs.check.result }}"

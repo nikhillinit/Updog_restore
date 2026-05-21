@@ -1,6 +1,10 @@
 name: Documentation Routing Check
 
 on:
+  # Generated discovery outputs are part of the auto_docs fast-path allowlist
+  # (.github/path-filters.yml). They are listed here so a commit touching ONLY
+  # those files still runs the routing freshness validation that proves the
+  # outputs match their source.
   push:
     branches: [main]
     paths:
@@ -8,6 +12,9 @@ on:
       - 'cheatsheets/**/*.md'
       - '.claude/**/*.md'
       - 'docs/DISCOVERY-MAP.source.yaml'
+      - 'docs/_generated/router-index.json'
+      - 'docs/_generated/router-fast.json'
+      - 'docs/_generated/staleness-report.md'
       - 'scripts/generate-discovery-map.ts'
       - 'scripts/routeQueryFast.ts'
   pull_request:
@@ -16,6 +23,9 @@ on:
       - 'cheatsheets/**/*.md'
       - '.claude/**/*.md'
       - 'docs/DISCOVERY-MAP.source.yaml'
+      - 'docs/_generated/router-index.json'
+      - 'docs/_generated/router-fast.json'
+      - 'docs/_generated/staleness-report.md'
       - 'scripts/generate-discovery-map.ts'
       - 'scripts/routeQueryFast.ts'
   workflow_dispatch:
