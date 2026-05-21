@@ -45,6 +45,23 @@ cheatsheets for testing, APIs, and UI conventions.
 **Derivability test:** Could a future session reconstruct this from code and git
 log alone? If NO, write it down. If YES, do not create a file.
 
+### Archive Gate
+
+Session artifacts (handoff memos, checkpoints, session summaries) may not be
+mass-deleted. Archive only after `git log` confirms the work landed, `grep`
+confirms the named feature/code path exists or is no longer referenced, and the
+file is not serving as an active handoff. Cite the evidence in the PR. See
+`CLAUDE.md#archive-gate`.
+
+### Phoenix Protected Paths
+
+Phoenix routing docs are domain-locked. Do not edit, merge, archive, or
+deprecate `.claude/PHOENIX-AGENTS-REGISTRY.md`,
+`.claude/PHOENIX-TOOL-ROUTING.md`, or Phoenix-specific sections of
+`.claude/DISCOVERY-MAP.md` without the relevant Phoenix specialist sign-off
+(`waterfall-specialist`, `phoenix-precision-guardian`, or `xirr-fees-validator`
+depending on content). See `CLAUDE.md#phoenix-protected-paths`.
+
 **Key references** (consult as needed, not mandatory pre-reads):
 
 - `CHANGELOG.md` - recent changes
