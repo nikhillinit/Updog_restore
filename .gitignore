@@ -299,23 +299,8 @@ uiux-skill/
 /test.json
 /validation-report.json
 
-# OMX local session/runtime state
-# Existing tracked proof/signoff artifacts remain versioned; these rules only
-# suppress new local runtime files from cluttering the worktree.
-.omx/artifacts/
-.omx/context/
-.omx/drafts/
-.omx/holding/
-.omx/interviews/
-.omx/logs/
-.omx/plans/
-.omx/specs/
-.omx/state/
-.omx/hud-config.json
-.omx/metrics.json
-.omx/notepad.md
-.omx/setup-scope.json
-.omx/tmux-hook.json
+# OMX is transient local session/runtime state. Entire tree is untracked.
+.omx/
 
 # Private sanitized demo profile imports. These directories may contain
 # real-profile sanitized source bundles and must never be committed.
