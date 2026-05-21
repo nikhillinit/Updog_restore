@@ -45,6 +45,48 @@ cheatsheets for testing, APIs, and UI conventions.
 **Derivability test:** Could a future session reconstruct this from code and git
 log alone? If NO, write it down. If YES, do not create a file.
 
+### Archive Gate
+
+Session artifacts (handoff memos, checkpoints, session summaries) violate the
+prune policy but may contain non-derivable implementation details. Do not
+mass-delete. Archive only after **all three** checks pass:
+
+1. **`git log --all --oneline -- <path>`** confirms the referenced work landed
+   or became obsolete.
+2. **`grep -r <named-feature> client/ server/ shared/`** confirms the named
+   feature/code path exists or is no longer referenced anywhere.
+3. The file is **not serving as an active handoff** (not referenced by a current
+   `HANDOFF.json`, open checkpoint, or in-flight PR).
+
+Cite the evidence from these checks in the PR description that archives the
+file. Git history is the archive; `.archive/` directories are not required.
+
+### Phoenix Protected Paths
+
+Phoenix routing and validation docs are domain-locked. Do not edit, archive,
+delete, merge, or deprecate the following without specialist sign-off:
+
+- `.claude/PHOENIX-AGENTS-REGISTRY.md`
+- `.claude/PHOENIX-TOOL-ROUTING.md`
+- Phoenix-specific sections of `.claude/DISCOVERY-MAP.md`
+
+Required reviewers depend on content touched:
+
+- Waterfall, carry, clawback, LP/GP distribution: `waterfall-specialist`
+- Precision, rounding, Decimal.js, numeric drift: `phoenix-precision-guardian`
+- XIRR, IRR, fees, cash-flow timing: `xirr-fees-validator`
+
+A cleanup PR may update metadata or route pointers outside these protected
+sections, but any Phoenix content consolidation must include a content matrix
+classifying touched sections as `LOAD_BEARING`, `DUPLICATE`, or `OBSOLETE`.
+
+**Cleanup tier table:**
+
+| Tier              | Files                                     | Gate                                                            |
+| ----------------- | ----------------------------------------- | --------------------------------------------------------------- |
+| Archive-candidate | `.omx/`, session summaries, handoff memos | Archive-after-evidence: git log + grep + active-reference check |
+| Domain-locked     | Phoenix routing surfaces                  | Specialist review before edit/merge/delete/deprecate            |
+
 **Key references** (consult as needed, not mandatory pre-reads):
 
 - `CHANGELOG.md` - recent changes
