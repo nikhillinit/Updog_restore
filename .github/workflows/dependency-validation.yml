@@ -1,8 +1,27 @@
 name: Dependency Validation
+# Runs on every push/PR so it can serve as a required check. The
+# auto_docs_only fast path short-circuits the windows + linux matrix when every
+# changed file is in the auto_docs allowlist (.github/path-filters.yml).
 on: [push, pull_request]
 
 jobs:
+  changes:
+    name: Detect Changes
+    runs-on: ubuntu-latest
+    outputs:
+      auto_docs_only: ${{ steps.filter.outputs.auto_docs == 'true' && steps.filter.outputs.not_auto_docs == 'false' }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+      - name: Detect changed file paths
+        uses: dorny/paths-filter@de90cc6fb38fc0963ad72b210f1f284cd68cea36 # v3.0.2
+        id: filter
+        with:
+          filters: '.github/path-filters.yml'
+
   validate:
+    needs: changes
     strategy:
       matrix:
         os: [ubuntu-latest, windows-latest]
@@ -10,38 +29,54 @@ jobs:
     runs-on: ${{ matrix.os }}
 
     steps:
+      - name: Skip auto_docs_only changes
+        if: needs.changes.outputs.auto_docs_only == 'true'
+        shell: bash
+        run: |
+          echo "auto_docs_only=true; dependency validation skipped." >> "$GITHUB_STEP_SUMMARY"
+          echo "This job stays green so it can be used as a required branch check." >> "$GITHUB_STEP_SUMMARY"
+
       - uses: actions/checkout@v4
+        if: needs.changes.outputs.auto_docs_only != 'true'
         with:
           fetch-depth: 0
 
       - uses: actions/setup-node@v6
+        if: needs.changes.outputs.auto_docs_only != 'true'
         with:
           node-version: ${{ matrix.node }}
           cache: 'npm'
 
       - name: Upgrade npm to match packageManager
+        if: needs.changes.outputs.auto_docs_only != 'true'
         shell: bash
         run: npm install -g npm@10.9.2
 
       - name: Toolchain Sanity Check
+        if: needs.changes.outputs.auto_docs_only != 'true'
         shell: bash
         run: |
           node -v | grep 20.19.0
           npm -v | grep 10.9.2
 
       - name: Disable Husky in CI
+        if: needs.changes.outputs.auto_docs_only != 'true'
         shell: bash
         run: git config core.hooksPath /dev/null
 
       - name: Verify Lockfile & DevDeps
+        if: needs.changes.outputs.auto_docs_only != 'true'
         shell: bash
         run: bash scripts/verify-lockfile.sh
 
       - name: Install Dependencies
+        if: needs.changes.outputs.auto_docs_only != 'true'
         run: npm ci
 
       - name: Run Doctor Check
+        if: needs.changes.outputs.auto_docs_only != 'true'
         run: npm run doctor
 
       - name: Security Audit (Production Only)
+        if: needs.changes.outputs.auto_docs_only != 'true'
         run: npm audit --omit=dev --audit-level=high || true

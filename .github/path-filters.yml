@@ -1,0 +1,80 @@
+# Shared dorny/paths-filter configuration for CI fast-path gating.
+#
+# Loaded via: dorny/paths-filter with `filters: '.github/path-filters.yml'`.
+#
+# Filter groups
+# -------------
+# auto_docs:        Exact allowlist of generated documentation outputs that
+#                   may be touched by an automated commit.
+# not_auto_docs:    The complement of auto_docs. Used to prove the negation:
+#                   a PR is auto_docs_only when auto_docs == 'true' AND
+#                   not_auto_docs == 'false'. This makes the allowlist a
+#                   HARD boundary -- a single non-allowlisted change disqualifies
+#                   the fast path.
+# code:             Source-bearing changes that warrant the full ci-unified
+#                   pipeline. NOTE: excludes scripts/validation/** because those
+#                   are doc-validation scripts treated as docs by ci-unified.
+# docs:             Documentation changes (mirror of code's exclusions).
+# code_with_validation:
+#                   Like `code` but includes scripts/validation/**.
+#                   core-validation.yml's existing semantics treat validation
+#                   scripts as code. Kept separate to preserve behavior.
+#
+# Generators to keep in sync with auto_docs (drift causes spurious slow-path
+# runs, which are safe; missing outputs also fail to fast-path, also safe):
+#   scripts/generate-discovery-map.ts -> docs/_generated/router-index.json
+#                                        docs/_generated/router-fast.json
+#                                        docs/_generated/staleness-report.md
+#   scripts/manage_skills.py          -> docs/skills/SKILLS_INDEX.md
+#                                        docs/skills/WIZARD_INDEX.md
+
+auto_docs:
+  - 'docs/_generated/router-index.json'
+  - 'docs/_generated/router-fast.json'
+  - 'docs/_generated/staleness-report.md'
+  - 'docs/skills/SKILLS_INDEX.md'
+  - 'docs/skills/WIZARD_INDEX.md'
+
+not_auto_docs:
+  - '**'
+  - '!docs/_generated/router-index.json'
+  - '!docs/_generated/router-fast.json'
+  - '!docs/_generated/staleness-report.md'
+  - '!docs/skills/SKILLS_INDEX.md'
+  - '!docs/skills/WIZARD_INDEX.md'
+
+code:
+  - '**/*.ts'
+  - '**/*.tsx'
+  - '**/*.js'
+  - '**/*.jsx'
+  - 'package*.json'
+  - 'package-lock.json'
+  - '.github/workflows/**'
+  - 'server/**'
+  - 'client/**'
+  - 'shared/**'
+  - 'scripts/**'
+  - '!scripts/validation/**'
+  - 'tests/**'
+
+docs:
+  - '**/*.md'
+  - 'docs/**'
+  - '.github/*.md'
+  - 'scripts/validation/**'
+  - '!CHANGELOG.md'
+
+code_with_validation:
+  - '**/*.ts'
+  - '**/*.tsx'
+  - '**/*.js'
+  - '**/*.jsx'
+  - 'package*.json'
+  - 'package-lock.json'
+  - '.github/workflows/**'
+  - 'server/**'
+  - 'client/**'
+  - 'shared/**'
+  - 'scripts/**'
+  - 'tests/**'
