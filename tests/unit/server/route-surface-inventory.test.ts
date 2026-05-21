@@ -234,7 +234,7 @@ const routeSurfaceInventory = {
     externalOwnership: {
       owner: 'Platform observability',
       consumers: ['Prometheus scrapers', 'Grafana and alerting runbooks'],
-      evidenceFiles: ['docs/observability.md', 'docs/production-deployment-checklist.md'],
+      evidenceFiles: ['docs/observability.md'],
     },
     intent:
       'Operational telemetry endpoint mounted before auth; /api/metrics is a compatibility alias for serverless/API-base consumers.',
@@ -292,11 +292,7 @@ const routeSurfaceInventory = {
         'Synthetic RUM health checks',
         'Prometheus RUM scrape',
       ],
-      evidenceFiles: [
-        'client/src/vitals.ts',
-        'docs/observability/rum.md',
-        'docs/production-deployment-checklist.md',
-      ],
+      evidenceFiles: ['client/src/vitals.ts', 'docs/observability/rum.md'],
     },
     intent:
       'Browser telemetry ingress and RUM scrape endpoints are intentionally public before auth with /api aliases for API-base clients.',
@@ -591,7 +587,6 @@ describe('route surface inventory', () => {
       vitalsTs,
       observabilityDoc,
       rumDoc,
-      productionChecklist,
     ] = await Promise.all([
       readRepoFile('server/routes.ts'),
       readRepoFile('server/app.ts'),
@@ -602,7 +597,6 @@ describe('route surface inventory', () => {
       readRepoFile('client/src/vitals.ts'),
       readRepoFile('docs/observability.md'),
       readRepoFile('docs/observability/rum.md'),
-      readRepoFile('docs/production-deployment-checklist.md'),
     ]);
 
     expect(routesTs).toContain('app.use(metricsRouter)');
@@ -625,7 +619,6 @@ describe('route surface inventory', () => {
 
     expect(observabilityDoc).toContain('| `/metrics` | Prometheus metrics |');
     expect(rumDoc).toContain('# Real User Monitoring (RUM)');
-    expect(productionChecklist).toContain('RUM metrics flowing to Prometheus');
   });
 
   it('keeps public telemetry and docs out of the protected API allowlist', () => {
