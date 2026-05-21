@@ -140,8 +140,8 @@
     },
     "kimi": {
       "binEnv": "KIMI_CODE_BIN",
-      "defaultBin": "kimi-code",
-      "args": ["exec"]
+      "defaultBin": "kimi-cli",
+      "args": ["--print", "--input-format", "text", "--final-message-only"]
     }
   }
 }
