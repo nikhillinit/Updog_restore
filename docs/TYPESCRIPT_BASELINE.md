@@ -5,9 +5,7 @@ last_updated: 2026-01-19
 
 # TypeScript Baseline System
 
-**Version:** 2.0.0
-**Status:** Active
-**Last Updated:** 2025-10-16
+**Version:** 2.0.0 **Status:** Active **Last Updated:** 2025-10-16
 
 ---
 
@@ -27,7 +25,9 @@ last_updated: 2026-01-19
 
 ### What is the TypeScript Baseline System?
 
-The TypeScript Baseline System is a "ratchet" mechanism that prevents new TypeScript errors from being introduced while allowing gradual fixing of existing errors. It works by:
+The TypeScript Baseline System is a "ratchet" mechanism that prevents new
+TypeScript errors from being introduced while allowing gradual fixing of
+existing errors. It works by:
 
 1. **Capturing** a baseline snapshot of existing TypeScript errors
 2. **Blocking** any new errors from being committed
@@ -39,7 +39,8 @@ The TypeScript Baseline System is a "ratchet" mechanism that prevents new TypeSc
 When a codebase has existing TypeScript errors, developers face a dilemma:
 
 - **Fix all errors at once?** Too risky and time-consuming (hundreds of errors)
-- **Ignore TypeScript checks?** Technical debt accumulates, type safety deteriorates
+- **Ignore TypeScript checks?** Technical debt accumulates, type safety
+  deteriorates
 - **Block all commits?** Development grinds to a halt
 
 The baseline system solves this by:
@@ -60,11 +61,14 @@ Example: client/src/components/Card.tsx:TS2322:a1b2c3d4
 **Why content-based hashing?**
 
 Traditional approaches (file + line number) break when:
+
 - Adding/removing imports changes line numbers
 - Refactoring moves code around
 - Multiple developers work on the same file
 
-Content-based hashing uses the actual error line content (SHA1 hash), making it stable across:
+Content-based hashing uses the actual error line content (SHA1 hash), making it
+stable across:
+
 - Line number changes
 - File reorganizations
 - Git rebases and merges
@@ -86,14 +90,14 @@ git add .
 git commit -m "feat: Add new feature"
 
 # Output:
-# 📊 TypeScript Baseline Check
+# TypeScript Baseline Check
 # ────────────────────────────────────────────────────────────────────
 # Baseline errors:  0
 # Current errors:   0
-# Fixed errors:     0 ✅
-# New errors:       0 ✅
+# Fixed errors:     0
+# New errors:       0
 # ────────────────────────────────────────────────────────────────────
-# ✅ No new TypeScript errors introduced
+# [OK] No new TypeScript errors introduced
 ```
 
 ### Fixing Existing Errors Workflow
@@ -112,17 +116,17 @@ git add .
 git commit -m "fix: Resolve type errors in ProblemsCard"
 
 # Output:
-# 📊 TypeScript Baseline Check
+# TypeScript Baseline Check
 # ────────────────────────────────────────────────────────────────────
 # Baseline errors:  88
 # Current errors:   85
-# Fixed errors:     3 ✅
-# New errors:       0 ✅
+# Fixed errors:     3
+# New errors:       0
 # ────────────────────────────────────────────────────────────────────
 #
-# ✅ GREAT WORK! You fixed 3 error(s)
+# [OK] GREAT WORK! You fixed 3 error(s)
 #
-# 💡 Update the baseline to lock in your improvements:
+# Tip: Update the baseline to lock in your improvements:
 #    npm run baseline:save
 #    git add .tsc-baseline.json
 #    git commit --amend --no-edit
@@ -145,25 +149,26 @@ If you introduce new TypeScript errors, the commit is blocked:
 git commit -m "feat: Add feature"
 
 # Output:
-# ❌ NEW ERRORS DETECTED (not in baseline):
+# [FAIL] NEW ERRORS DETECTED (not in baseline):
 #
 # client/src/components/NewFeature.tsx(42,10): error TS2322: Type 'string' is not assignable to type 'number'.
 # client/src/utils/helpers.ts(15,5): error TS2345: Argument of type 'undefined' is not assignable to parameter of type 'string'.
 #
-# 💡 Options:
+# Options:
 #    1. Fix the errors before pushing
 #    2. If these errors are acceptable:
 #       npm run baseline:save
 #       git add .tsc-baseline.json
 #       git commit --amend --no-edit
 #
-# ⚠️  Emergency bypass: git push --no-verify
+# [WARN] Emergency bypass: git push --no-verify
 #    (Document in commit message why bypass was necessary)
 ```
 
 **Recommended approach:**
 
 1. **Fix the errors** (preferred)
+
    ```bash
    npm run check  # See all errors
    # Fix the issues
@@ -172,6 +177,7 @@ git commit -m "feat: Add feature"
    ```
 
 2. **Accept the errors** (if fixing would delay critical work)
+
    ```bash
    npm run baseline:save
    git add .tsc-baseline.json
@@ -194,6 +200,7 @@ The baseline system is optimized for speed:
 - **Progress report:** ~5-10 seconds (full build + comparison)
 
 **Optimization features:**
+
 - Incremental TypeScript builds (caches unchanged files)
 - File content caching (reads each file only once)
 - Parallel processing where possible
@@ -211,7 +218,7 @@ Each TypeScript error is hashed using three components:
 const hash = `${normalizedPath}:TS${errorCode}:${contentHash}`;
 
 // Example:
-"client/src/components/Card.tsx:TS2322:a1b2c3d4"
+('client/src/components/Card.tsx:TS2322:a1b2c3d4');
 ```
 
 **Components:**
@@ -237,8 +244,9 @@ const hash = `${normalizedPath}:TS${errorCode}:${contentHash}`;
 **Fallback behavior:**
 
 If file reading fails (deleted file, permission issue), falls back to:
+
 ```typescript
-`${normalizedPath}(${line},${col}):TS${errorCode}`
+`${normalizedPath}(${line},${col}):TS${errorCode}`;
 ```
 
 This line-based hash is less stable but ensures the system doesn't crash.
@@ -253,6 +261,7 @@ The system works identically on Windows, macOS, and Linux:
 - **File encoding:** Assumes UTF-8 (standard for TypeScript projects)
 
 **Windows-specific considerations:**
+
 - Input paths may have backslashes (`C:\dev\project\file.ts`)
 - Normalized to forward slashes before hashing (`dev/project/file.ts`)
 - Baseline file is cross-platform compatible (safe to commit)
@@ -278,9 +287,7 @@ The baseline tracks errors per project:
       "lastUpdated": "2025-10-16T10:30:00.000Z"
     },
     "server": {
-      "errors": [
-        "server/routes/api.ts:TS2531:i9j0k1l2"
-      ],
+      "errors": ["server/routes/api.ts:TS2531:i9j0k1l2"],
       "total": 1,
       "lastUpdated": "2025-10-16T10:30:00.000Z"
     },
@@ -294,6 +301,7 @@ The baseline tracks errors per project:
 ```
 
 **Project inference rules:**
+
 - `client/` → `client` project
 - `server/` → `server` project
 - `shared/` → `shared` project
@@ -312,16 +320,19 @@ execSync('npx tsc --build --noEmit --pretty false');
 ```
 
 **Incremental build benefits:**
+
 - Reuses previous compilation results (.tsbuildinfo cache)
 - Only re-checks changed files and their dependencies
 - 3-5x faster on subsequent runs
 
 **Build info location:**
+
 - `.tsbuildinfo` (gitignored)
 - Automatically managed by TypeScript compiler
 - Safe to delete (will regenerate on next build)
 
 **When incremental builds are disabled:**
+
 - First run (no cache exists)
 - After `npm install` (dependencies changed)
 - After switching branches (file changes detected)
@@ -336,34 +347,38 @@ execSync('npx tsc --build --noEmit --pretty false');
 **Purpose:** Save or update the TypeScript error baseline
 
 **When to use:**
+
 - Initial setup (creating baseline for first time)
 - After fixing errors (lock in progress)
 - After accepting new errors (update baseline)
 
 **Example:**
+
 ```bash
 $ npm run baseline:save
 
-🔍 Running TypeScript compilation...
+Running TypeScript compilation...
 Found 88 TypeScript errors
 
-✅ Baseline saved successfully
-📝 File: C:\dev\Updog_restore\.tsc-baseline.json
-📊 Total errors: 88
-⏱️  Build time: 3421ms
+[OK] Baseline saved successfully
+File: C:\dev\Updog_restore\.tsc-baseline.json
+Total errors: 88
+Build time: 3421ms
 
-📋 Errors by project:
+Errors by project:
    client        85 errors
    server         3 errors
    shared         0 errors
 ```
 
 **Output:**
+
 - Creates/updates `.tsc-baseline.json` in repo root
 - Shows total error count and per-project breakdown
 - Reports build time for performance monitoring
 
 **Important:**
+
 - Always commit `.tsc-baseline.json` after saving
 - Include in the same commit as the code changes
 - Document in commit message if accepting new errors
@@ -373,63 +388,67 @@ Found 88 TypeScript errors
 **Purpose:** Check current errors against baseline (blocks if new errors found)
 
 **When to use:**
+
 - Automatically runs in pre-commit hook
 - Manually verify before committing: `npm run baseline:check`
 - CI/CD pipelines (pre-push, pull request checks)
 
 **Example (success):**
+
 ```bash
 $ npm run baseline:check
 
-📊 TypeScript Baseline Check
+TypeScript Baseline Check
 ──────────────────────────────────────────────────────────────────────
 Baseline errors:  88
 Current errors:   85
-Fixed errors:     3 ✅
-New errors:       0 ✅
+Fixed errors:     3
+New errors:       0
 ──────────────────────────────────────────────────────────────────────
 
-✅ GREAT WORK! You fixed 3 error(s)
+[OK] GREAT WORK! You fixed 3 error(s)
 
-💡 Update the baseline to lock in your improvements:
+Tip: Update the baseline to lock in your improvements:
    npm run baseline:save
    git add .tsc-baseline.json
    git commit --amend --no-edit
 
-✅ No new TypeScript errors introduced
+[OK] No new TypeScript errors introduced
 ```
 
 **Example (failure):**
+
 ```bash
 $ npm run baseline:check
 
-📊 TypeScript Baseline Check
+TypeScript Baseline Check
 ──────────────────────────────────────────────────────────────────────
 Baseline errors:  88
 Current errors:   90
-Fixed errors:     0 ✅
-New errors:       2 ❌
+Fixed errors:     0
+New errors:       2 [FAIL]
 ──────────────────────────────────────────────────────────────────────
 
-❌ NEW ERRORS DETECTED (not in baseline):
+[FAIL] NEW ERRORS DETECTED (not in baseline):
 
 client/src/components/NewFeature.tsx(42,10): error TS2322: Type 'string' is not assignable to type 'number'.
 server/routes/api.ts(15,5): error TS2345: Argument of type 'undefined' is not assignable to parameter of type 'string'.
 
-💡 Options:
+Options:
    1. Fix the errors before pushing
    2. If these errors are acceptable:
       npm run baseline:save
       git add .tsc-baseline.json
       git commit --amend --no-edit
 
-⚠️  Emergency bypass: git push --no-verify
+[WARN] Emergency bypass: git push --no-verify
    (Document in commit message why bypass was necessary)
 
 # Exit code 1 (failure)
 ```
 
 **Exit codes:**
+
 - `0` - Success (no new errors)
 - `1` - Failure (new errors detected)
 
@@ -438,15 +457,17 @@ server/routes/api.ts(15,5): error TS2345: Argument of type 'undefined' is not as
 **Purpose:** Show progress metrics toward zero errors
 
 **When to use:**
+
 - Track team progress over time
 - Demonstrate type safety improvements
 - Identify which projects need attention
 
 **Example:**
+
 ```bash
 $ npm run baseline:progress
 
-📊 TypeScript Error Progress
+TypeScript Error Progress
 
 ──────────────────────────────────────────────────────────────────────
 Project    │ Baseline │ Current  │ Fixed    │ Progress
@@ -457,17 +478,19 @@ server     │        3 │        3 │        0 │    0.0%
 TOTAL      │       88 │       85 │        3 │    3.4%
 ──────────────────────────────────────────────────────────────────────
 
-📅 Baseline last updated: 10/16/2025, 10:30:00 AM
-⏱️  Check completed in: 3152ms
+Baseline last updated: 10/16/2025, 10:30:00 AM
+Check completed in: 3152ms
 ```
 
 **Metrics explained:**
+
 - **Baseline:** Error count when baseline was last saved
 - **Current:** Error count right now
 - **Fixed:** Errors eliminated since baseline (baseline - current)
-- **Progress:** Percentage of errors fixed (fixed / baseline * 100)
+- **Progress:** Percentage of errors fixed (fixed / baseline \* 100)
 
 **Usage tips:**
+
 - Run weekly to track team progress
 - Include in sprint reviews to demonstrate improvements
 - Celebrate when projects reach 0 errors
@@ -479,11 +502,13 @@ TOTAL      │       88 │       85 │        3 │    3.4%
 ### Slow Checks (>30 seconds)
 
 **Symptoms:**
+
 - `npm run baseline:check` takes over 30 seconds
 - Pre-commit hook times out
 - CI builds are slow
 
 **Causes:**
+
 1. `.tsbuildinfo` cache is missing or corrupted
 2. Large number of files changed (incremental build ineffective)
 3. Running on slow hardware or shared CI runner
@@ -491,18 +516,21 @@ TOTAL      │       88 │       85 │        3 │    3.4%
 **Solutions:**
 
 1. **Clear TypeScript cache:**
+
    ```bash
    rm -f .tsbuildinfo tsconfig*.tsbuildinfo
    npm run baseline:check  # Will regenerate cache
    ```
 
 2. **Use faster TypeScript config for pre-commit:**
+
    ```bash
    # The pre-commit hook already uses this optimization
    npm run check:incremental  # Fast incremental check
    ```
 
 3. **Profile the build:**
+
    ```bash
    npx tsc --build --incremental --noEmit --extendedDiagnostics
    # Look for slow files/projects in output
@@ -516,11 +544,13 @@ TOTAL      │       88 │       85 │        3 │    3.4%
 ### False Positives (Errors Shown That Don't Exist)
 
 **Symptoms:**
+
 - Baseline check fails with errors you already fixed
 - Hashes in baseline don't match current code
 - Errors appear on different lines than expected
 
 **Causes:**
+
 1. Baseline was generated with different code than current HEAD
 2. File was modified but not committed (stale baseline)
 3. Cross-platform line ending issues (CRLF vs LF)
@@ -528,6 +558,7 @@ TOTAL      │       88 │       85 │        3 │    3.4%
 **Solutions:**
 
 1. **Regenerate baseline from current code:**
+
    ```bash
    npm run baseline:save
    git diff .tsc-baseline.json  # Verify changes
@@ -536,6 +567,7 @@ TOTAL      │       88 │       85 │        3 │    3.4%
    ```
 
 2. **Ensure line endings are consistent:**
+
    ```bash
    # Check Git's line ending settings
    git config core.autocrlf
@@ -552,6 +584,7 @@ TOTAL      │       88 │       85 │        3 │    3.4%
 ### Emergency Bypass (--no-verify)
 
 **When to use:**
+
 - Production hotfix that can't wait for error fixes
 - Temporary workaround needed (with follow-up PR planned)
 - Build pipeline is broken (baseline system bug)
@@ -569,6 +602,7 @@ git push --no-verify
 **IMPORTANT: Always document why!**
 
 Good commit message examples:
+
 ```
 feat: Add emergency rate limiting (bypass: DDoS attack, type fixes in PR #456)
 fix: Hotfix payment bug (bypass: customer-impacting, type cleanup in PR #457)
@@ -576,12 +610,14 @@ chore: Update baseline (bypass: baseline system bug reported in #458)
 ```
 
 Bad commit message examples:
+
 ```
-feat: Add feature (bypass)  ❌ No explanation
-fix: Stuff (--no-verify)    ❌ Vague
+feat: Add feature (bypass)  [BAD] No explanation
+fix: Stuff (--no-verify)    [BAD] Vague
 ```
 
 **After using bypass:**
+
 1. Create immediate follow-up PR to fix errors
 2. Reference the bypass commit in the follow-up PR
 3. Update baseline once errors are fixed
@@ -593,11 +629,13 @@ fix: Stuff (--no-verify)    ❌ Vague
 ### How to See Progress
 
 **Quick check:**
+
 ```bash
 npm run baseline:progress
 ```
 
 **Detailed check:**
+
 ```bash
 # See all current errors
 npm run check
@@ -607,6 +645,7 @@ cat .tsc-baseline.json | jq '.totalErrors'
 ```
 
 **Historical progress:**
+
 ```bash
 # See baseline changes over time
 git log -p --all -- .tsc-baseline.json
@@ -631,12 +670,14 @@ cat .tsc-baseline.json | jq '.projects.shared.total'
 ```
 
 **Focus areas (prioritize by error count):**
+
 ```bash
 # Show projects sorted by error count
 cat .tsc-baseline.json | jq -r '.projects | to_entries | sort_by(.value.total) | reverse | .[] | "\(.key): \(.value.total) errors"'
 ```
 
 **Example output:**
+
 ```
 client: 85 errors
 server: 3 errors
@@ -644,6 +685,7 @@ shared: 0 errors
 ```
 
 **Strategy:**
+
 - Start with low-error projects (quick wins)
 - Dedicate sprints to high-error projects
 - Prevent new errors from being introduced anywhere
@@ -680,8 +722,9 @@ cat .tsc-baseline.json | jq '.totalErrors'
 - ZERO ERRORS ACHIEVED
 
 **Example milestone commit:**
+
 ```bash
-git commit -m "feat: Client project now has zero TypeScript errors! 🎉"
+git commit -m "feat: Client project now has zero TypeScript errors"
 ```
 
 ---
@@ -693,24 +736,27 @@ git commit -m "feat: Client project now has zero TypeScript errors! 🎉"
 The baseline check is integrated into the Git workflow via Husky hooks:
 
 **Pre-commit hook** (`.husky/pre-commit`):
+
 ```bash
 # Fast incremental check on staged files
 npm run check:incremental || {
-  echo "❌ TypeScript type errors detected"
+  echo "[FAIL] TypeScript type errors detected"
   exit 1
 }
 ```
 
 **Pre-push hook** (`.husky/pre-push`):
+
 ```bash
 # Full baseline check before pushing
 npm run check || {
-  echo "❌ Type check failed. Fix errors before pushing."
+  echo "[FAIL] Type check failed. Fix errors before pushing."
   exit 1
 }
 ```
 
 **GitHub Actions** (`.github/workflows/ci-unified.yml`):
+
 ```yaml
 - name: TypeScript Type Check
   run: npm run baseline:check
@@ -747,10 +793,12 @@ If a pull request introduces new TypeScript errors:
 ### Merge Requirements
 
 **For projects with zero errors:**
+
 - No new errors allowed (strict enforcement)
 - Baseline file should not change (unless fixing errors)
 
 **For projects with existing errors:**
+
 - No new errors allowed
 - Fixing errors is encouraged (reduces baseline)
 - Baseline updates must be committed with code changes
@@ -764,7 +812,7 @@ branches:
       required_status_checks:
         - TypeScript Baseline Check
       required_reviews: 1
-      enforce_admins: false  # Allow emergency hotfixes
+      enforce_admins: false # Allow emergency hotfixes
 ```
 
 **Emergency override process:**
@@ -781,7 +829,8 @@ branches:
 - [CLAUDE.md](../CLAUDE.md) - Project overview and commands
 - [DECISIONS.md](../DECISIONS.md) - Why we chose this approach
 - [CHANGELOG.md](../CHANGELOG.md) - History of TypeScript improvements
-- [cheatsheets/typescript.md](../cheatsheets/typescript.md) - TypeScript best practices
+- [cheatsheets/exact-optional-property-types.md](../cheatsheets/exact-optional-property-types.md) -
+  TypeScript exactOptionalPropertyTypes patterns
 
 ---
 
@@ -812,22 +861,23 @@ If you need to manually inspect or modify `.tsc-baseline.json`:
 
 ```json
 {
-  "version": "2.0.0",           // Baseline schema version
-  "totalErrors": 88,            // Total unique errors across all projects
+  "version": "2.0.0", // Baseline schema version
+  "totalErrors": 88, // Total unique errors across all projects
   "timestamp": "2025-10-16...", // ISO 8601 timestamp of last save
-  "buildMode": "incremental",   // Build type (incremental/full)
-  "elapsedMs": 3421,           // Build time in milliseconds
+  "buildMode": "incremental", // Build type (incremental/full)
+  "elapsedMs": 3421, // Build time in milliseconds
   "projects": {
     "client": {
-      "errors": ["..."],       // Array of error hashes
-      "total": 85,             // Error count (length of array)
-      "lastUpdated": "..."     // ISO 8601 timestamp
+      "errors": ["..."], // Array of error hashes
+      "total": 85, // Error count (length of array)
+      "lastUpdated": "..." // ISO 8601 timestamp
     }
   }
 }
 ```
 
-**Warning:** Manually editing `.tsc-baseline.json` can cause false positives/negatives. Always use `npm run baseline:save` to regenerate.
+**Warning:** Manually editing `.tsc-baseline.json` can cause false
+positives/negatives. Always use `npm run baseline:save` to regenerate.
 
 ---
 
@@ -836,7 +886,8 @@ If you need to manually inspect or modify `.tsc-baseline.json`:
 **Issues with the baseline system?**
 
 1. **Check this documentation** first
-2. **Search existing issues:** [GitHub Issues](https://github.com/your-repo/issues?q=typescript+baseline)
+2. **Search existing issues:**
+   [GitHub Issues](https://github.com/your-repo/issues?q=typescript+baseline)
 3. **Create new issue:** Include:
    - Output of `npm run baseline:check`
    - Output of `npm run check`
@@ -851,6 +902,5 @@ If you need to manually inspect or modify `.tsc-baseline.json`:
 
 ---
 
-*Last updated: 2025-10-16*
-*Baseline script version: 2.0.0*
-*Maintained by: Development Team*
+_Last updated: 2025-10-16_ _Baseline script version: 2.0.0_ _Maintained by:
+Development Team_
