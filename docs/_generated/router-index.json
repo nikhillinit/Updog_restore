@@ -11954,20 +11954,6 @@
       "target": "docs/chaos-engineering/"
     },
     {
-      "category": "Quality",
-      "id": "quality_gates",
-      "keywords": [
-        "gate",
-        "quality gate",
-        "raci",
-        "gate tracking",
-        "approval"
-      ],
-      "message": "RACI matrix, gate tracking for releases",
-      "priority": 94,
-      "target": "docs/gates/"
-    },
-    {
       "category": "Implementation",
       "id": "wizard",
       "keywords": [
