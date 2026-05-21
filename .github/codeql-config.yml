@@ -3,6 +3,16 @@ name: 'CodeQL configuration'
 paths-ignore:
   - tests
   - _archive
+  - archive
+  - .backup
+  - '**/_archive/**'
+  - '**/backup/**'
+  - '**/backups/**'
+  - docs/archive
+  - docs/_generated
+  - dist
+  - build
+  - coverage
   - '**/*.test.ts'
   - '**/*.spec.ts'
   - '**/*.test.tsx'

@@ -5,8 +5,13 @@ on:
     paths:
       - 'archive/**'
       - 'docs/archive/**'
+      - '.backup/**'
+      - '**/_archive/**'
+      - '**/backup/**'
+      - '**/backups/**'
       - '.gitattributes'
       - '.github/workflows/archive-guard.yml'
+      - 'scripts/control-plane/git-safety.mjs'
       - 'docs/processes/clone-guide.md'
       - 'docs/governance/cleanup-manifest.md'
       - 'docs/INDEX.md'
@@ -24,60 +29,14 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
-      - name: Reject tracked archive paths
+      - name: Run archive and large-file guard
         shell: bash
         run: |
-          set -euo pipefail
-
-          tracked_archive_paths="$(git ls-files 'archive/**' 'docs/archive/**')"
-          if [[ -n "$tracked_archive_paths" ]]; then
-            echo "[FAIL] archive/ and docs/archive/ are forbidden in tracked HEAD."
-            echo "$tracked_archive_paths"
-            echo "See docs/governance/cleanup-manifest.md and docs/processes/clone-guide.md."
-            exit 1
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            node scripts/control-plane/git-safety.mjs archive-guard "${{ github.event.pull_request.base.sha }}...${{ github.event.pull_request.head.sha }}"
+          else
+            node scripts/control-plane/git-safety.mjs archive-guard
           fi
-
-          echo "[PASS] No tracked archive directories."
-
-      - name: Verify gitattributes archive coverage
-        shell: bash
-        run: |
-          set -euo pipefail
-
-          missing=0
-          require_attr() {
-            local path="$1"
-            local attr="$2"
-            local result
-            result="$(git check-attr "$attr" -- "$path")"
-            if [[ "$result" != *": $attr: set" && "$result" != *": $attr: true" ]]; then
-              echo "[FAIL] Missing $attr for $path"
-              echo "$result"
-              missing=1
-            fi
-          }
-
-          require_attr 'archive/probe.md' linguist-generated
-          require_attr 'archive/probe.md' export-ignore
-          require_attr 'docs/archive/probe.md' linguist-generated
-          require_attr 'docs/archive/probe.md' export-ignore
-          require_attr 'docs/_generated/probe.json' linguist-generated
-          require_attr 'docs/_generated/probe.json' export-ignore
-          require_attr '.backup/probe.txt' linguist-generated
-          require_attr '.backup/probe.txt' export-ignore
-          require_attr '.claude/skills/INDEX.md' linguist-generated
-          require_attr '.claude/skills/_index.json' linguist-generated
-
-          phoenix_attrs="$(git check-attr linguist-generated export-ignore -- .claude/PHOENIX-AGENTS-REGISTRY.md)"
-          if [[ "$phoenix_attrs" != *": linguist-generated: unspecified"* || "$phoenix_attrs" != *": export-ignore: unspecified"* ]]; then
-            echo "[FAIL] Protected .claude Phoenix guidance must not be marked generated."
-            echo "$phoenix_attrs"
-            missing=1
-          fi
-
-          if [[ "$missing" -ne 0 ]]; then
-            exit 1
-          fi
-
-          echo "[PASS] Required archive/generator attributes are scoped correctly."

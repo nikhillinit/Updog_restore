@@ -1,6 +1,6 @@
 ---
 status: ACTIVE
-last_updated: 2026-03-26
+last_updated: 2026-05-21
 owner: Core Team
 review_cadence: P90D
 ---
@@ -24,6 +24,7 @@ development of the Press On Ventures fund modeling platform.
 - [ADR-018: Phase 3C Truthful Rich Results - Track A](#adr-018-phase-3c-truthful-rich-results---track-a)
 - [ADR-019: Operational Guardrails, Pino Standardization, and Policy Exclusions](#adr-019-operational-guardrails-pino-standardization-and-policy-exclusions)
 - [ADR-020: Phase 3C Track B Go/No-Go Deadline](#adr-020-phase-3c-track-b-gono-go-deadline)
+- [ADR-021: Single Required CI Gate with Internal Conditional Jobs](#adr-021-single-required-ci-gate-with-internal-conditional-jobs)
 
 ---
 
@@ -1236,12 +1237,11 @@ function CodeReviewPanel() {
 
 ### References
 
-- `MCP_MULTI_AI_INCIDENT_REPORT.md` (since removed) - Complete security
-  incident analysis
-- `PARALLEL_EXECUTION_SUMMARY.md` (since removed) - Multi-AI parallel
-  execution outcomes
-- `SECURITY_REVIEW_EVALUATION.md` (since removed) - Multi-AI security
-  validation
+- `MCP_MULTI_AI_INCIDENT_REPORT.md` (since removed) - Complete security incident
+  analysis
+- `PARALLEL_EXECUTION_SUMMARY.md` (since removed) - Multi-AI parallel execution
+  outcomes
+- `SECURITY_REVIEW_EVALUATION.md` (since removed) - Multi-AI security validation
 
 ### Future Considerations
 
@@ -4874,3 +4874,79 @@ work could not drift into Track A by assumption.
 
 - `DECISIONS.md` (ADR-018 and ADR-020)
 - `docs/plans/2026-03-22-phase-3c-implementation-plan.md`
+
+---
+
+## ADR-021: Single Required CI Gate with Internal Conditional Jobs
+
+**Date:** 2026-05-21 **Status:** [ACCEPTED]
+
+### Context
+
+The repository had many independently triggered GitHub Actions workflows, some
+of which duplicated installs, TypeScript checks, dependency validation, security
+work, and PR comments. Several workflows were path-scoped, which is appropriate
+for non-required checks but risky as branch-protection requirements because a
+required workflow skipped by top-level path filters can leave PRs waiting for a
+status that never reports.
+
+GitHub branch protection did not require a status check at the time of this
+decision. The refactor therefore establishes a future required-check shape
+without replacing an existing required-check set.
+
+### Decision
+
+Use `ci-unified.yml` as the required CI orchestrator and make
+`CI Unified / CI Gate Status` the only planned required check after parity. Keep
+path-scoped standalone workflows only when they are non-required or
+manual/scheduled.
+
+The unified workflow owns:
+
+- one `baseline:check` run through a `typecheck` matrix entry
+- separate lint and fast unit entries
+- affected PR tests and full main/manual tests
+- Linux dependency validation for dependency changes
+- lightweight PR security checks for security-relevant changes
+- governance guards for archive, large-file, feature-flag, and performance
+  budget policy
+- a final `always()` gate that fails when any intended blocking job fails
+
+Heavy security scans, Windows dependency validation, and Docker-heavy validation
+run on schedule, labels, or manual dispatch rather than ordinary PRs. CodeQL
+keeps PR coverage, but its analysis is internally gated for docs/generated-only
+changes.
+
+### Alternatives Considered
+
+1. **Multiple required path-scoped workflows** - rejected because skipped
+   workflows can block merging when branch protection waits for a missing
+   status.
+2. **Scheduled-only security** - rejected because PR-level CodeQL and
+   lightweight dependency/security feedback are still valuable.
+3. **Cross-workflow status aggregation** - rejected because polling skipped
+   workflows adds fragility and creates another failure mode.
+4. **Leave workflows as-is** - rejected because duplicated setup and repeated
+   checks waste CI minutes and make branch protection harder to reason about.
+
+### Consequences
+
+- `ci-unified.yml` becomes the primary reliability surface for PR gating.
+- Branch protection should require only `CI Unified / CI Gate Status` after the
+  refactored gate has passed consistently.
+- Standalone workflow counts and the active GitHub workflow registry must be
+  documented separately because the registry may include deleted historical or
+  GitHub-generated workflows.
+- ZAP is not part of required PR CI unless a configured DAST target and policy
+  requirement are established.
+
+### Related Files
+
+- `.github/workflows/ci-unified.yml`
+- `.github/workflows/dependency-validation.yml`
+- `.github/workflows/security-scan.yml`
+- `.github/workflows/codeql.yml`
+- `.github/path-filters.yml`
+- `.github/actions/setup-node-env/action.yml`
+- `scripts/control-plane/git-safety.mjs`
+- `docs/workflows/README.md`

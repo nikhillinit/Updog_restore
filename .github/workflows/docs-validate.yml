@@ -40,8 +40,11 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v6
         with:
-          node-version: '20'
+          node-version: '20.19.0'
           cache: 'npm'
+
+      - name: Align npm with packageManager
+        run: npm install -g npm@10.9.2
 
       - name: Install dependencies
         run: npm ci
@@ -81,7 +84,7 @@ jobs:
           echo "score=$SCORE" >> $GITHUB_OUTPUT
           echo "passed=$PASSED" >> $GITHUB_OUTPUT
 
-          echo "### Domain Score: ${SCORE}% 🎯" >> $GITHUB_STEP_SUMMARY
+          echo "### Domain Score: ${SCORE}%" >> $GITHUB_STEP_SUMMARY
 
           if [ "$PASSED" = "true" ]; then
             echo "[PASS] **PASSED** (threshold: 92%)" >> $GITHUB_STEP_SUMMARY
@@ -110,7 +113,8 @@ jobs:
             const passed = summary.passed ? '[PASS] PASSED' : '[FAIL] FAILED';
             const statusIcon = summary.passed ? '[PASS]' : '[FAIL]';
 
-            let body = `## ${statusIcon} Waterfall Documentation Validation\n\n`;
+            const marker = '<!-- waterfall-docs-validation -->';
+            let body = `${marker}\n## ${statusIcon} Waterfall Documentation Validation\n\n`;
             body += `**Domain Score:** ${summary.percentage}% (threshold: ${summary.threshold}%)\n`;
             body += `**Status:** ${passed}\n\n`;
 
@@ -123,7 +127,7 @@ jobs:
             body += `| **Total** | **${summary.totalScore}** | **${summary.maxScore}** | **${summary.percentage}%** |\n\n`;
 
             if (issues.length > 0) {
-              body += `### ⚠️ Issues (${issues.length})\n\n`;
+              body += `### Issues (${issues.length})\n\n`;
               issues.forEach(issue => {
                 body += `- ${issue}\n`;
               });
@@ -131,7 +135,7 @@ jobs:
             }
 
             if (warnings.length > 0) {
-              body += `### ⚡ Warnings (${warnings.length})\n\n`;
+              body += `### Warnings (${warnings.length})\n\n`;
               warnings.forEach(warning => {
                 body += `- ${warning}\n`;
               });
@@ -145,14 +149,29 @@ jobs:
             body += `- [PASS] Total: 53/53 (100%)\n\n`;
 
             body += `---\n`;
-            body += `📄 [View full validation report](https://github.com/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId})\n`;
+            body += `[View full validation report](https://github.com/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId})\n`;
 
-            github.rest.issues.createComment({
+            const { data: comments } = await github.rest.issues.listComments({
               issue_number: context.issue.number,
               owner: context.repo.owner,
               repo: context.repo.repo,
-              body: body
             });
+            const existing = comments.find(comment => comment.user.type === 'Bot' && comment.body.includes(marker));
+            if (existing) {
+              await github.rest.issues.updateComment({
+                comment_id: existing.id,
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                body,
+              });
+            } else {
+              await github.rest.issues.createComment({
+                issue_number: context.issue.number,
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                body,
+              });
+            }
 
       - name: Block merge if validation fails
         if: steps.domain-score.outputs.passed != 'true'
