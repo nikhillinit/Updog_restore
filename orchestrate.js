@@ -394,13 +394,32 @@ function shouldRunPostflightGate(plan, code, gates) {
 
 function printHelp(stdout = process.stdout) {
   stdout.write(`Usage:
-  node orchestrate.js --phase <phase> --task "<description>"
+  node orchestrate.js --phase <research|production|distribution> --task "<description>"
   node orchestrate.js --json --phase production --task "fix xirr calculation"
   node orchestrate.js --dry-run --phase research --task "trace reserve engine flow"
+  node orchestrate.js --phase production --task "repair calc gate" --skip-preflight-gate --skip-reason "<reason>"
 
-Phases: research | production | distribution
-Options: --claude | --codex | --kimi | --dry-run | --json | --skip-preflight-gate --skip-reason "<reason>" | --help
-Legacy commands: bootstrap | smoke | enable-algorithms
+Phases:
+  research      Default Claude planning lane; gate: npm run doctor:quick.
+  production    Default Codex implementation lane; gate: npm run check.
+  distribution  Default Claude handoff lane; gate: npm run lint.
+  Financial production tasks are promoted internally to production-financial; gate: npm run calc-gate.
+
+Model overrides:
+  --claude | --codex | --kimi
+
+Output:
+  --dry-run       Print the routing plan and prompt without model execution.
+  --json          Print routing plan JSON only.
+  --help, -h      Show this help.
+
+Gate controls:
+  --skip-preflight-gate --skip-reason "<reason>"
+                 Skip only the preflight gate; postflight gates still run.
+                 Legacy --skip-gates is rejected.
+
+Legacy commands:
+  bootstrap | smoke | enable-algorithms
 `);
 }
 

@@ -100,6 +100,32 @@ describe('Hermes routing helpers', () => {
     );
   });
 
+  test('main help explains phase lanes and preflight-only gate skip semantics', async () => {
+    const stdout: string[] = [];
+    const stderr: string[] = [];
+
+    const code = await main(
+      ['--help'],
+      process.env,
+      {
+        stdout: { write: (message: string) => stdout.push(message) },
+        stderr: { write: (message: string) => stderr.push(message) },
+      },
+      { writeRunLedger: null }
+    );
+
+    const help = stdout.join('');
+    expect(code).toBe(0);
+    expect(stderr.join('')).toBe('');
+    expect(help).toContain('--phase <research|production|distribution>');
+    expect(help).toContain(
+      'Financial production tasks are promoted internally to production-financial'
+    );
+    expect(help).toContain('gate: npm run calc-gate');
+    expect(help).toContain('Skip only the preflight gate; postflight gates still run.');
+    expect(help).toContain('Legacy --skip-gates is rejected.');
+  });
+
   test('parseArgs recognizes preflight gate skip reason', () => {
     const args = parseArgs([
       '--phase',
