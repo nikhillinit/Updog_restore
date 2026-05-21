@@ -1,12 +1,12 @@
 ---
 status: ACTIVE
-last_updated: 2026-04-18
+last_updated: 2026-05-20
 ---
 
 # AGENTS.md
 
 **Start here:** Read this file first, then use repo search plus `docs/INDEX.md`
-and `.Codex/DISCOVERY-MAP.md` to find existing solutions. Consult
+and `.claude/DISCOVERY-MAP.md` to find existing solutions. Consult
 `CAPABILITIES.md` only as a historical inventory.
 
 This file provides guidance to Codex (Codex.ai/code) when working with code in
@@ -189,7 +189,7 @@ npm install
 - `npm run lint` - ESLint code quality check
 - `npm run lint:fix` - Auto-fix linting issues
 - **Quality Gates**: See
-  [.Codex/WORKFLOW.md](.Codex/WORKFLOW.md#quality-gate-protocol) - MANDATORY
+  [.claude/WORKFLOW.md](.claude/WORKFLOW.md#quality-gate-protocol) - MANDATORY
   pre-commit validation
 
 ### Database
@@ -205,7 +205,7 @@ npm install
 
 ## Discovery Routing (Quick Reference)
 
-For detailed routing logic, see `.Codex/DISCOVERY-MAP.md`. Key patterns:
+For detailed routing logic, see `.claude/DISCOVERY-MAP.md`. Key patterns:
 
 | Task Type                       | Route To                                  |
 | ------------------------------- | ----------------------------------------- |
@@ -232,14 +232,14 @@ report**: `docs/_generated/staleness-report.md` **Regenerate**:
 - **Superpowers**: `/superpowers:brainstorm`, `/superpowers:write-plan`,
   `/superpowers:execute-plan` - See
   [obra/superpowers](https://github.com/obra/superpowers)
-- **Skills**: See [.Codex/skills/INDEX.md](.Codex/skills/INDEX.md)
+- **Skills**: See [.claude/skills/INDEX.md](.claude/skills/INDEX.md)
 
 ## MANDATORY WORKFLOW - START HERE
 
 1. **AGENTS.md** - Current operating guidance and governance
 2. **Repo search** - Check for existing code, commands, skills, and docs
 3. **docs/INDEX.md** - Human-facing documentation routing
-4. **.Codex/DISCOVERY-MAP.md** - Agent-facing discovery routing
+4. **.claude/DISCOVERY-MAP.md** - Agent-facing discovery routing
 5. **CHANGELOG.md** - Check for similar past work
 6. **DECISIONS.md** - Review architectural decisions
 7. **CAPABILITIES.md** - Historical inventory only, if helpful
@@ -250,7 +250,7 @@ report**: `docs/_generated/staleness-report.md` **Regenerate**:
 START HERE:
 - Read AGENTS.md
 - Search the repo for existing implementations
-- Use docs/INDEX.md and .Codex/DISCOVERY-MAP.md for routing
+- Use docs/INDEX.md and .claude/DISCOVERY-MAP.md for routing
 - Consult CAPABILITIES.md only if historical inventory context helps
 ```
 

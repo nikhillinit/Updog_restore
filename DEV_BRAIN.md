@@ -30,13 +30,13 @@ the model-specific governance files remain authoritative.
 
 ## Phase Routing
 
-| Phase                 | Default               | Handoff Artifact      | Required Gate                                    |
-| --------------------- | --------------------- | --------------------- | ------------------------------------------------ |
-| research              | Claude                | Implementation brief  | `npm run doctor:quick` plus repo search evidence |
-| research-long-context | Kimi                  | Audit memo            | Cite files read and uncertainty                  |
-| production            | Codex                 | Diff plus tests       | `npm run check` plus targeted tests              |
-| production-financial  | Codex plus specialist | Diff plus truth notes | `npm run calc-gate`                              |
-| distribution          | Claude                | PR-ready summary      | `npm run lint` plus relevant tests               |
+| Phase                          | Default               | Handoff Artifact      | Required Gate                                                                                 |
+| ------------------------------ | --------------------- | --------------------- | --------------------------------------------------------------------------------------------- |
+| research                       | Claude                | Implementation brief  | `npm run doctor:quick` plus repo search evidence                                              |
+| research long-context sub-path | Kimi                  | Audit memo            | Routed from `research` via `longContextTriggers` or `--kimi`; cite files read and uncertainty |
+| production                     | Codex                 | Diff plus tests       | `npm run check` plus targeted tests                                                           |
+| production-financial           | Codex plus specialist | Diff plus truth notes | `npm run calc-gate`                                                                           |
+| distribution                   | Claude                | PR-ready summary      | `npm run lint` plus relevant tests                                                            |
 
 ## Specialist Escalation
 
