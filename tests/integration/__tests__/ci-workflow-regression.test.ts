@@ -9,10 +9,7 @@ describe('CI Workflow Regression - Fix #4', () => {
       // Original bug: Single job with multiple checkouts caused race conditions
       // Fix: Split into 3 jobs with artifact passing
 
-      const workflowPath = path.join(
-        process.cwd(),
-        '.github/workflows/bundle-size-check.yml'
-      );
+      const workflowPath = path.join(process.cwd(), '.github/workflows/bundle-size-check.yml');
 
       const workflowContent = await fs.readFile(workflowPath, 'utf-8');
       const workflow = YAML.parse(workflowContent);
@@ -31,10 +28,7 @@ describe('CI Workflow Regression - Fix #4', () => {
     });
 
     it('should build base branch in isolated job (no contamination)', async () => {
-      const workflowPath = path.join(
-        process.cwd(),
-        '.github/workflows/bundle-size-check.yml'
-      );
+      const workflowPath = path.join(process.cwd(), '.github/workflows/bundle-size-check.yml');
 
       const workflowContent = await fs.readFile(workflowPath, 'utf-8');
       const workflow = YAML.parse(workflowContent);
@@ -44,30 +38,24 @@ describe('CI Workflow Regression - Fix #4', () => {
 
       // Should checkout base branch
       const checkoutStep = buildBase.steps.find(
-        (step: any) =>
-          step.uses?.includes('actions/checkout') && step.with?.path === 'base-branch'
+        (step: any) => step.uses?.includes('actions/checkout') && step.with?.path === 'base-branch'
       );
       expect(checkoutStep).toBeDefined();
       expect(checkoutStep.with?.ref).toBe('${{ github.base_ref }}');
 
       // Should build
-      const buildStep = buildBase.steps.find(
-        (step: any) => step.run?.includes('npm run build')
-      );
+      const buildStep = buildBase.steps.find((step: any) => step.run?.includes('npm run build'));
       expect(buildStep).toBeDefined();
 
       // Should upload artifact (not write to workspace)
-      const uploadStep = buildBase.steps.find(
-        (step: any) => step.uses?.includes('actions/upload-artifact')
+      const uploadStep = buildBase.steps.find((step: any) =>
+        step.uses?.includes('actions/upload-artifact')
       );
       expect(uploadStep).toBeDefined();
     });
 
     it('should build PR branch in isolated job (no contamination)', async () => {
-      const workflowPath = path.join(
-        process.cwd(),
-        '.github/workflows/bundle-size-check.yml'
-      );
+      const workflowPath = path.join(process.cwd(), '.github/workflows/bundle-size-check.yml');
 
       const workflowContent = await fs.readFile(workflowPath, 'utf-8');
       const workflow = YAML.parse(workflowContent);
@@ -76,29 +64,24 @@ describe('CI Workflow Regression - Fix #4', () => {
       expect(buildPR).toBeDefined();
 
       // Should checkout PR branch (default)
-      const checkoutStep = buildPR.steps.find(
-        (step: any) => step.uses?.includes('actions/checkout')
+      const checkoutStep = buildPR.steps.find((step: any) =>
+        step.uses?.includes('actions/checkout')
       );
       expect(checkoutStep).toBeDefined();
 
       // Should build
-      const buildStep = buildPR.steps.find(
-        (step: any) => step.run?.includes('npm run build')
-      );
+      const buildStep = buildPR.steps.find((step: any) => step.run?.includes('npm run build'));
       expect(buildStep).toBeDefined();
 
       // Should upload artifact
-      const uploadStep = buildPR.steps.find(
-        (step: any) => step.uses?.includes('actions/upload-artifact')
+      const uploadStep = buildPR.steps.find((step: any) =>
+        step.uses?.includes('actions/upload-artifact')
       );
       expect(uploadStep).toBeDefined();
     });
 
     it('should compare results using artifacts (not file system)', async () => {
-      const workflowPath = path.join(
-        process.cwd(),
-        '.github/workflows/bundle-size-check.yml'
-      );
+      const workflowPath = path.join(process.cwd(), '.github/workflows/bundle-size-check.yml');
 
       const workflowContent = await fs.readFile(workflowPath, 'utf-8');
       const workflow = YAML.parse(workflowContent);
@@ -107,57 +90,47 @@ describe('CI Workflow Regression - Fix #4', () => {
       expect(compare).toBeDefined();
 
       // Should download both artifacts
-      const downloadSteps = compare.steps.filter(
-        (step: any) => step.uses?.includes('actions/download-artifact')
+      const downloadSteps = compare.steps.filter((step: any) =>
+        step.uses?.includes('actions/download-artifact')
       );
       expect(downloadSteps.length).toBeGreaterThanOrEqual(2);
 
       // Should have download for base results
-      const baseDownload = downloadSteps.find(
-        (step: any) => step.with?.name?.includes('base')
-      );
+      const baseDownload = downloadSteps.find((step: any) => step.with?.name?.includes('base'));
       expect(baseDownload).toBeDefined();
 
       // Should have download for PR results
-      const prDownload = downloadSteps.find(
-        (step: any) => step.with?.name?.includes('pr')
-      );
+      const prDownload = downloadSteps.find((step: any) => step.with?.name?.includes('pr'));
       expect(prDownload).toBeDefined();
     });
   });
 
   describe('Artifacts for size comparison (no file race conditions)', () => {
     it('should upload artifacts in build jobs', async () => {
-      const workflowPath = path.join(
-        process.cwd(),
-        '.github/workflows/bundle-size-check.yml'
-      );
+      const workflowPath = path.join(process.cwd(), '.github/workflows/bundle-size-check.yml');
 
       const workflowContent = await fs.readFile(workflowPath, 'utf-8');
       const workflow = YAML.parse(workflowContent);
 
       // Base job should upload
       const buildBase = workflow.jobs['build-base'];
-      const baseUpload = buildBase.steps.find(
-        (step: any) => step.uses?.includes('actions/upload-artifact@v4')
+      const baseUpload = buildBase.steps.find((step: any) =>
+        step.uses?.includes('actions/upload-artifact@v4')
       );
       expect(baseUpload).toBeDefined();
       expect(baseUpload.with?.name).toBeDefined();
 
       // PR job should upload
       const buildPR = workflow.jobs['build-pr'];
-      const prUpload = buildPR.steps.find(
-        (step: any) => step.uses?.includes('actions/upload-artifact@v4')
+      const prUpload = buildPR.steps.find((step: any) =>
+        step.uses?.includes('actions/upload-artifact@v4')
       );
       expect(prUpload).toBeDefined();
       expect(prUpload.with?.name).toBeDefined();
     });
 
     it('should download artifacts in compare job', async () => {
-      const workflowPath = path.join(
-        process.cwd(),
-        '.github/workflows/bundle-size-check.yml'
-      );
+      const workflowPath = path.join(process.cwd(), '.github/workflows/bundle-size-check.yml');
 
       const workflowContent = await fs.readFile(workflowPath, 'utf-8');
       const workflow = YAML.parse(workflowContent);
@@ -165,8 +138,8 @@ describe('CI Workflow Regression - Fix #4', () => {
       const compare = workflow.jobs['compare'];
 
       // Should download artifacts
-      const downloads = compare.steps.filter(
-        (step: any) => step.uses?.includes('actions/download-artifact@v4')
+      const downloads = compare.steps.filter((step: any) =>
+        step.uses?.includes('actions/download-artifact@v4')
       );
       expect(downloads.length).toBeGreaterThanOrEqual(2);
     });
@@ -175,10 +148,7 @@ describe('CI Workflow Regression - Fix #4', () => {
       // Original bug: Multiple checkouts in same job caused file race conditions
       // Fix: Compare job only checks out once for scripts
 
-      const workflowPath = path.join(
-        process.cwd(),
-        '.github/workflows/bundle-size-check.yml'
-      );
+      const workflowPath = path.join(process.cwd(), '.github/workflows/bundle-size-check.yml');
 
       const workflowContent = await fs.readFile(workflowPath, 'utf-8');
       const workflow = YAML.parse(workflowContent);
@@ -186,8 +156,8 @@ describe('CI Workflow Regression - Fix #4', () => {
       const compare = workflow.jobs['compare'];
 
       // Count checkout actions
-      const checkouts = compare.steps.filter(
-        (step: any) => step.uses?.includes('actions/checkout')
+      const checkouts = compare.steps.filter((step: any) =>
+        step.uses?.includes('actions/checkout')
       );
 
       // Should only checkout once (for comparison script)
@@ -198,10 +168,7 @@ describe('CI Workflow Regression - Fix #4', () => {
       // Original bug: git checkout commands caused workspace corruption
       // Fix: No git checkout in compare job
 
-      const workflowPath = path.join(
-        process.cwd(),
-        '.github/workflows/bundle-size-check.yml'
-      );
+      const workflowPath = path.join(process.cwd(), '.github/workflows/bundle-size-check.yml');
 
       const workflowContent = await fs.readFile(workflowPath, 'utf-8');
       const workflow = YAML.parse(workflowContent);
@@ -226,10 +193,7 @@ describe('CI Workflow Regression - Fix #4', () => {
     it('should prevent file overwrites by using separate workspaces', async () => {
       // Each job gets its own runner/workspace, preventing overwrites
 
-      const workflowPath = path.join(
-        process.cwd(),
-        '.github/workflows/bundle-size-check.yml'
-      );
+      const workflowPath = path.join(process.cwd(), '.github/workflows/bundle-size-check.yml');
 
       const workflowContent = await fs.readFile(workflowPath, 'utf-8');
       const workflow = YAML.parse(workflowContent);
@@ -248,50 +212,38 @@ describe('CI Workflow Regression - Fix #4', () => {
     });
 
     it('should use artifacts to pass data between jobs (not files)', async () => {
-      const workflowPath = path.join(
-        process.cwd(),
-        '.github/workflows/bundle-size-check.yml'
-      );
+      const workflowPath = path.join(process.cwd(), '.github/workflows/bundle-size-check.yml');
 
       const workflowContent = await fs.readFile(workflowPath, 'utf-8');
       const workflow = YAML.parse(workflowContent);
 
       // Upload in build jobs
       expect(
-        workflow.jobs['build-base'].steps.some(
-          (s: any) => s.uses?.includes('upload-artifact')
-        )
+        workflow.jobs['build-base'].steps.some((s: any) => s.uses?.includes('upload-artifact'))
       ).toBe(true);
 
       expect(
-        workflow.jobs['build-pr'].steps.some(
-          (s: any) => s.uses?.includes('upload-artifact')
-        )
+        workflow.jobs['build-pr'].steps.some((s: any) => s.uses?.includes('upload-artifact'))
       ).toBe(true);
 
       // Download in compare job
       expect(
-        workflow.jobs['compare'].steps.some(
-          (s: any) => s.uses?.includes('download-artifact')
-        )
+        workflow.jobs['compare'].steps.some((s: any) => s.uses?.includes('download-artifact'))
       ).toBe(true);
     });
 
     it('should have proper artifact naming (no conflicts)', async () => {
-      const workflowPath = path.join(
-        process.cwd(),
-        '.github/workflows/bundle-size-check.yml'
-      );
+      const workflowPath = path.join(process.cwd(), '.github/workflows/bundle-size-check.yml');
 
       const workflowContent = await fs.readFile(workflowPath, 'utf-8');
       const workflow = YAML.parse(workflowContent);
 
       // Get artifact names
-      const baseUpload = workflow.jobs['build-base'].steps.find(
-        (s: any) => s.uses?.includes('upload-artifact')
+      const baseUpload = workflow.jobs['build-base'].steps.find((s: any) =>
+        s.uses?.includes('upload-artifact')
       );
-      const prUpload = workflow.jobs['build-pr'].steps.find(
-        (s: any) => s.uses?.includes('upload-artifact')
+      const prUpload = workflow.jobs['build-pr'].steps.find((s: any) =>
+        s.uses?.includes('upload-artifact')
       );
 
       // Artifact names should be different
@@ -303,10 +255,7 @@ describe('CI Workflow Regression - Fix #4', () => {
 
   describe('Job isolation and data flow', () => {
     it('should run build-base and build-pr in parallel (no dependencies)', async () => {
-      const workflowPath = path.join(
-        process.cwd(),
-        '.github/workflows/bundle-size-check.yml'
-      );
+      const workflowPath = path.join(process.cwd(), '.github/workflows/bundle-size-check.yml');
 
       const workflowContent = await fs.readFile(workflowPath, 'utf-8');
       const workflow = YAML.parse(workflowContent);
@@ -317,10 +266,7 @@ describe('CI Workflow Regression - Fix #4', () => {
     });
 
     it('should run compare only after both builds complete', async () => {
-      const workflowPath = path.join(
-        process.cwd(),
-        '.github/workflows/bundle-size-check.yml'
-      );
+      const workflowPath = path.join(process.cwd(), '.github/workflows/bundle-size-check.yml');
 
       const workflowContent = await fs.readFile(workflowPath, 'utf-8');
       const workflow = YAML.parse(workflowContent);
@@ -333,26 +279,26 @@ describe('CI Workflow Regression - Fix #4', () => {
     });
 
     it('should use consistent Node.js version across all jobs', async () => {
-      const workflowPath = path.join(
-        process.cwd(),
-        '.github/workflows/bundle-size-check.yml'
-      );
+      const workflowPath = path.join(process.cwd(), '.github/workflows/bundle-size-check.yml');
 
       const workflowContent = await fs.readFile(workflowPath, 'utf-8');
       const workflow = YAML.parse(workflowContent);
 
       const jobs = ['build-base', 'build-pr', 'compare'];
+      const configuredVersions: string[] = [];
 
       for (const jobName of jobs) {
         const job = workflow.jobs[jobName];
-        const nodeSetup = job.steps.find(
-          (s: any) => s.uses?.includes('actions/setup-node')
-        );
+        const nodeSetup = job.steps.find((s: any) => s.uses?.includes('actions/setup-node'));
 
-        if (nodeSetup) {
-          expect(nodeSetup.with?.['node-version']).toBe('20');
+        if (nodeSetup?.with?.['node-version']) {
+          configuredVersions.push(String(nodeSetup.with['node-version']));
         }
       }
+
+      expect(configuredVersions.length).toBeGreaterThan(0);
+      expect(new Set(configuredVersions).size).toBe(1);
+      expect(configuredVersions[0]).toMatch(/^20(\.|$)/);
     });
   });
 
@@ -362,10 +308,7 @@ describe('CI Workflow Regression - Fix #4', () => {
       // causing overwrites and race conditions
       // Fix: Use artifacts with separate names
 
-      const workflowPath = path.join(
-        process.cwd(),
-        '.github/workflows/bundle-size-check.yml'
-      );
+      const workflowPath = path.join(process.cwd(), '.github/workflows/bundle-size-check.yml');
 
       const workflowContent = await fs.readFile(workflowPath, 'utf-8');
       const workflow = YAML.parse(workflowContent);
@@ -373,9 +316,7 @@ describe('CI Workflow Regression - Fix #4', () => {
       const compare = workflow.jobs['compare'];
 
       // Compare job should download artifacts to different paths
-      const downloads = compare.steps.filter(
-        (s: any) => s.uses?.includes('download-artifact')
-      );
+      const downloads = compare.steps.filter((s: any) => s.uses?.includes('download-artifact'));
 
       // Each download should specify a different path
       const paths = downloads.map((d: any) => d.with?.path).filter(Boolean);
@@ -385,10 +326,7 @@ describe('CI Workflow Regression - Fix #4', () => {
     });
 
     it('should handle artifact path correctly in comparison script', async () => {
-      const workflowPath = path.join(
-        process.cwd(),
-        '.github/workflows/bundle-size-check.yml'
-      );
+      const workflowPath = path.join(process.cwd(), '.github/workflows/bundle-size-check.yml');
 
       const workflowContent = await fs.readFile(workflowPath, 'utf-8');
       const workflow = YAML.parse(workflowContent);
@@ -409,10 +347,7 @@ describe('CI Workflow Regression - Fix #4', () => {
     });
 
     it('should fail workflow if bundle size exceeds limits', async () => {
-      const workflowPath = path.join(
-        process.cwd(),
-        '.github/workflows/bundle-size-check.yml'
-      );
+      const workflowPath = path.join(process.cwd(), '.github/workflows/bundle-size-check.yml');
 
       const workflowContent = await fs.readFile(workflowPath, 'utf-8');
       const workflow = YAML.parse(workflowContent);
@@ -430,10 +365,7 @@ describe('CI Workflow Regression - Fix #4', () => {
 
   describe('Workflow configuration validation', () => {
     it('should trigger on correct branches', async () => {
-      const workflowPath = path.join(
-        process.cwd(),
-        '.github/workflows/bundle-size-check.yml'
-      );
+      const workflowPath = path.join(process.cwd(), '.github/workflows/bundle-size-check.yml');
 
       const workflowContent = await fs.readFile(workflowPath, 'utf-8');
       const workflow = YAML.parse(workflowContent);
@@ -443,10 +375,7 @@ describe('CI Workflow Regression - Fix #4', () => {
     });
 
     it('should trigger on relevant file changes only', async () => {
-      const workflowPath = path.join(
-        process.cwd(),
-        '.github/workflows/bundle-size-check.yml'
-      );
+      const workflowPath = path.join(process.cwd(), '.github/workflows/bundle-size-check.yml');
 
       const workflowContent = await fs.readFile(workflowPath, 'utf-8');
       const workflow = YAML.parse(workflowContent);
@@ -457,10 +386,7 @@ describe('CI Workflow Regression - Fix #4', () => {
     });
 
     it('should use actions/upload-artifact@v4 and actions/download-artifact@v4', async () => {
-      const workflowPath = path.join(
-        process.cwd(),
-        '.github/workflows/bundle-size-check.yml'
-      );
+      const workflowPath = path.join(process.cwd(), '.github/workflows/bundle-size-check.yml');
 
       const workflowContent = await fs.readFile(workflowPath, 'utf-8');
 
