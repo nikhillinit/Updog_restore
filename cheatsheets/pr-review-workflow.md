@@ -183,7 +183,7 @@ dimension.
 
 - ✅ Follows waterfall update pattern (applyWaterfallChange,
   changeWaterfallType)
-- ✅ Path aliases (@/, @shared/, @assets/)
+- ✅ Path aliases (@/, @shared/)
 - ✅ Zod validation in API routes
 
 ---

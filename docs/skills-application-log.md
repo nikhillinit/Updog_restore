@@ -299,7 +299,7 @@ systematic-debugging, verification-before-completion
 
 2. **Create test infrastructure debugging checklist**: Common patterns for
    import path bugs, module resolution errors, environment-specific failures.
-   Add to cheatsheets/testing-cheatsheet.md.
+   Add to cheatsheets/testing.md.
 
 3. **Combine verification steps**: Instead of separate verification checklist,
    integrate test run commands directly into systematic-debugging Phase 4

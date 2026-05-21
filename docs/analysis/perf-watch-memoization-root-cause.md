@@ -5,9 +5,8 @@ last_updated: 2026-01-19
 
 # Root Cause Investigation: watch() Defeating Memoization
 
-**Date**: 2025-11-30
-**Issue**: 50+ recalculations per keystroke in Capital Allocation Step
-**Investigation Method**: Systematic Debugging (Phase 1)
+**Date**: 2025-11-30 **Issue**: 50+ recalculations per keystroke in Capital
+Allocation Step **Investigation Method**: Systematic Debugging (Phase 1)
 **Status**: ROOT CAUSE CONFIRMED
 
 ---
@@ -15,35 +14,43 @@ last_updated: 2026-01-19
 ## Phase 1.1: Read the "Error" Carefully
 
 **Reported Symptom:**
+
 - 50+ recalculations per keystroke during form input
 - Auto-save firing on every keystroke
 - Performance degradation during typing
 - Memoization ineffective
 
 **Location:**
-- Primary: `client/src/components/modeling-wizard/steps/CapitalAllocationStep.tsx`
+
+- Primary:
+  `client/src/components/modeling-wizard/steps/CapitalAllocationStep.tsx`
 - Hook: `client/src/hooks/useCapitalAllocationCalculations.ts`
-- Similar pattern: `client/src/components/modeling-wizard/steps/ExitRecyclingStep.tsx`
+- Similar pattern:
+  `client/src/components/modeling-wizard/steps/ExitRecyclingStep.tsx`
 
 ---
 
 ## Phase 1.2: Reproduce Consistently
 
 **Created Diagnostic Version:**
+
 - File: `CapitalAllocationStep.INSTRUMENTED.tsx`
 - Measures: Render count, calculation count, auto-save count
 - Visual feedback: Yellow banner with live counters
 - Console logging: Detailed performance metrics
 
 **Expected Behavior:**
+
 - 1 calculation per actual value change
 - Auto-save debounced (max 1 per 500ms)
 
 **Actual Behavior (predicted):**
+
 - 50+ calculations per second during fast typing
 - Auto-save on every keystroke (10+ per second)
 
 **Testing Instructions:**
+
 1. Replace `CapitalAllocationStep.tsx` with instrumented version
 2. Navigate to Capital Allocation step in modeling wizard
 3. Type rapidly in "Initial Check Size" field
@@ -108,13 +115,13 @@ const formValues = watch();
 
 // What React Hook Form's watch() does internally:
 function watch() {
-  return { ...currentFormState };  // NEW object every call
+  return { ...currentFormState }; // NEW object every call
 }
 
 // Even if values are unchanged:
-const obj1 = watch();  // { initialCheckSize: 1.0 }
-const obj2 = watch();  // { initialCheckSize: 1.0 }
-obj1 === obj2;  // false ❌ (different references)
+const obj1 = watch(); // { initialCheckSize: 1.0 }
+const obj2 = watch(); // { initialCheckSize: 1.0 }
+obj1 === obj2; // false ❌ (different references)
 ```
 
 **Why Memoization Fails:**
@@ -123,7 +130,7 @@ obj1 === obj2;  // false ❌ (different references)
 // useMemo compares dependencies with Object.is()
 React.useMemo(() => {
   return expensiveCalculation(formValues);
-}, [formValues]);  // ❌ formValues changes identity every render
+}, [formValues]); // ❌ formValues changes identity every render
 
 // Equivalent to:
 if (Object.is(prevFormValues, currentFormValues)) {
@@ -136,23 +143,27 @@ if (Object.is(prevFormValues, currentFormValues)) {
 ### Secondary Issues
 
 **Issue 1: Multiple watch() Calls**
+
 ```typescript
-const formValues = watch();          // Call #1
-const entryStrategy = watch('entryStrategy');  // Call #2
-const reserveRatio = watch('followOnStrategy.reserveRatio');  // Call #3
+const formValues = watch(); // Call #1
+const entryStrategy = watch('entryStrategy'); // Call #2
+const reserveRatio = watch('followOnStrategy.reserveRatio'); // Call #3
 ```
+
 - 3 separate subscriptions to form state
 - Each triggers on field changes
 - Inefficient but not the primary issue
 
 **Issue 2: Unbounced Auto-save**
+
 ```typescript
 React.useEffect(() => {
-  const subscription = watch(value => {
-    onSave(result.data);  // ❌ Fires on EVERY keystroke
+  const subscription = watch((value) => {
+    onSave(result.data); // ❌ Fires on EVERY keystroke
   });
 }, [watch, onSave]);
 ```
+
 - No debounce delay
 - Network call (or context update) on every keystroke
 - Compounds performance issue
@@ -164,11 +175,12 @@ React.useEffect(() => {
 **File:** `client/src/hooks/useCapitalAllocationCalculations.ts`
 
 **Lines 106-137:**
+
 ```typescript
 const calculations = React.useMemo(() => {
   try {
     return calculateCapitalAllocation(
-      formValues,  // ← Dependency
+      formValues, // ← Dependency
       sectorProfiles,
       fundFinancials.fundSize,
       fundFinancials.investmentPeriod,
@@ -178,17 +190,18 @@ const calculations = React.useMemo(() => {
     // Error handling
   }
 }, [
-  formValues,  // ← Changes every render ❌
+  formValues, // ← Changes every render ❌
   sectorProfiles,
   fundFinancials.fundSize,
   fundFinancials.investmentPeriod,
-  vintageYear
+  vintageYear,
 ]);
 ```
 
 **Calculation Complexity:**
 
 From `capital-allocation-calculations.ts`:
+
 1. **Weighted Round Size** (lines 115-135) - Iterates all sectors
 2. **Follow-On Cascade** (lines 244-309) - Maps stage populations
 3. **Pacing Schedule** (lines 333-358) - Generates 5+ periods
@@ -197,6 +210,7 @@ From `capital-allocation-calculations.ts`:
 **Estimated Duration:** 5-10ms per calculation
 
 **Impact:**
+
 - Fast typing = 10 keystrokes/second
 - 10 keystrokes × 10 calculations = **100ms of calculation time per second**
 - 10% CPU usage just from calculations during typing
@@ -207,18 +221,22 @@ From `capital-allocation-calculations.ts`:
 ## Root Cause Summary
 
 ### Primary Cause
+
 **Object Identity Anti-Pattern**
+
 - `watch()` returns new object reference every render
 - `useMemo` dependency on object with changing identity
 - Memoization completely defeated
 
 ### Contributing Factors
+
 1. **Multiple watch() calls** - 3 separate subscriptions
 2. **No debouncing** - Auto-save fires on every keystroke
 3. **Expensive calculations** - 5-10ms per invocation
 4. **Cascading effects** - Calculation → validation → re-render
 
 ### Why Pattern Exists
+
 - Standard React Hook Form documentation shows `watch()` usage
 - Not obvious that object identity changes every render
 - Works fine for simple forms without expensive calculations
@@ -229,12 +247,14 @@ From `capital-allocation-calculations.ts`:
 ## Verified Against Similar Patterns
 
 **Confirmed in:**
+
 - ✅ ExitRecyclingStep.tsx (lines 68-89) - Same pattern
 - ⏳ FundFinancialsStep.tsx - Need to check
 - ⏳ ScenariosStep.tsx - Need to check
 - ⏳ GeneralInfoStep.tsx - Need to check
 
 **Pattern Signature:**
+
 ```typescript
 const formValues = watch();
 const { calculations } = useSomeCalculationHook({ formValues });
@@ -257,6 +277,7 @@ const { calculations } = useSomeCalculationHook({ formValues });
 ## Testing Evidence Required
 
 Before proceeding to fix:
+
 - [x] Instrumented version created
 - [ ] Run app with instrumentation
 - [ ] Capture console logs during typing
@@ -268,7 +289,8 @@ Before proceeding to fix:
 
 ## References
 
-- **Anti-pattern**: `cheatsheets/auto-save-testing-patterns.md` (Priority 3)
+- **Anti-pattern**: `cheatsheets/anti-pattern-prevention.md` (auto-save / watch
+  memoization patterns)
 - **React Hook Form docs**: https://react-hook-form.com/docs/useform/watch
 - **React useMemo docs**: https://react.dev/reference/react/useMemo
 - **Systematic Debugging**: `.claude/skills/systematic-debugging.md`

@@ -122,7 +122,6 @@ depending on content). See `CLAUDE.md#phoenix-protected-paths`.
 
 - `@/` → `client/src/`
 - `@shared/` → `shared/`
-- `@assets/` → `assets/`
 
 ## Development Setup
 

@@ -640,9 +640,10 @@ patterns:
       - 'strategy'
       - 'approach'
       - 'blueprint'
-    target: '.claude/skills/writing-plans.md'
-    skill: 'writing-plans'
-    secondary: '.claude/skills/brainstorming.md'
+    target: 'docs/commands-and-plugins-inventory.md'
+    skill: 'superpowers:writing-plans'
+    message: 'Use the installed Superpowers writing-plans skill; the old repo-local skill file was retired.'
+    secondary: 'docs/commands-and-plugins-inventory.md'
 
   - id: 'brainstorming'
     priority: 102
@@ -653,8 +654,9 @@ patterns:
       - 'explore options'
       - 'alternatives'
       - 'creative'
-    target: '.claude/skills/brainstorming.md'
-    skill: 'brainstorming'
+    target: 'docs/commands-and-plugins-inventory.md'
+    skill: 'superpowers:brainstorming'
+    message: 'Use the installed Superpowers brainstorming skill; the old repo-local skill file was retired.'
 
   - id: 'task_decomposition'
     priority: 103
@@ -680,8 +682,8 @@ patterns:
       - 'new feature'
       - 'add feature'
     target: 'CLAUDE.md'
-    message: 'Start with CLAUDE.md, repo search, docs/INDEX.md, and .claude/DISCOVERY-MAP.md before using writing-plans'
-    skill: 'writing-plans'
+    message: 'Start with CLAUDE.md, repo search, docs/INDEX.md, and .claude/DISCOVERY-MAP.md before using superpowers:writing-plans'
+    skill: 'superpowers:writing-plans'
 
   - id: 'code_exploration'
     priority: 105
@@ -1014,8 +1016,9 @@ patterns:
       - 'similar to'
       - 'like'
       - 'compare to'
-    target: '.claude/skills/analogical-thinking.md'
-    skill: 'analogical-thinking'
+    target: '.claude/skills/pattern-recognition.md'
+    skill: 'pattern-recognition'
+    message: 'Use pattern-recognition for analogy-style comparison; the old analogical-thinking skill file was retired.'
 
   - id: 'parallel_agents'
     priority: 134
@@ -1025,8 +1028,9 @@ patterns:
       - 'concurrent'
       - 'simultaneously'
       - 'multiple agents'
-    target: '.claude/skills/dispatching-parallel-agents.md'
-    skill: 'dispatching-parallel-agents'
+    target: 'docs/commands-and-plugins-inventory.md'
+    skill: 'superpowers:dispatching-parallel-agents'
+    message: 'Use the installed Superpowers dispatching-parallel-agents skill; the old repo-local skill file was retired.'
 
   - id: 'async_resilience'
     priority: 135

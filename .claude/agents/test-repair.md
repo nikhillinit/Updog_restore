@@ -102,7 +102,6 @@ When invoked or when tests fail:
 
 - `@/` → `client/src/`
 - `@shared/` → `shared/`
-- `@assets/` → `assets/`
 
 **Never Modify:**
 

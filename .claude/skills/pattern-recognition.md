@@ -173,7 +173,7 @@ router.get(
 
 - Standardize on `asyncHandler` for all routes
 - Create shared error response utility
-- Document pattern in cheatsheets/api-conventions.md
+- Document pattern in cheatsheets/api.md
 
 ## Integration with Other Skills
 

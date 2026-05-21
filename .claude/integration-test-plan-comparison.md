@@ -5,28 +5,33 @@ last_updated: 2026-01-19
 
 # Integration Test Re-enablement Plan Comparison
 
-**Analysis Date**: 2025-12-21
-**Analysis Method**: Parallel Codex workflows + CAPABILITIES.md deep-dive
+**Analysis Date**: 2025-12-21 **Analysis Method**: Parallel Codex workflows +
+CAPABILITIES.md deep-dive
 
 ---
 
 ## Executive Summary
 
-The original plan ([integration-test-reenable-plan.md](.claude/integration-test-reenable-plan.md)) estimated **5 weeks (200 hours)** to re-enable 4 skipped integration tests. After parallel analysis using existing dev tools, the improved plan ([integration-test-reenable-plan-v2.md](.claude/integration-test-reenable-plan-v2.md)) reduces this to **5-7 days (30-40 hours)** - an **85% time reduction**.
+The original plan
+([integration-test-reenable-plan.md](.claude/integration-test-reenable-plan.md))
+estimated **5 weeks (200 hours)** to re-enable 4 skipped integration tests.
+After parallel analysis using existing dev tools, the improved plan
+([integration-test-reenable-plan-v2.md](.claude/integration-test-reenable-plan-v2.md))
+reduces this to **5-7 days (30-40 hours)** - an **85% time reduction**.
 
 ---
 
 ## Side-by-Side Comparison
 
-| Aspect | Original Plan | Improved Plan v2 | Delta |
-|--------|---------------|------------------|-------|
-| **Timeline** | 5 weeks | 5-7 days | -85% |
-| **Effort** | 200 hours | 30-40 hours | -80% |
-| **Mock Infrastructure** | Build from scratch (80h) | Extend existing (9h) | -89% |
-| **Test Re-enablement** | Manual (80h) | Agent-automated (13h) | -84% |
-| **Documentation** | Manual (40h) | Agent-generated (4h) | -90% |
-| **Tool Leverage** | None specified | 6 agents + 6 skills + 40 scripts | +Infinite |
-| **Risk Level** | MEDIUM-HIGH | LOW | -60% |
+| Aspect                  | Original Plan            | Improved Plan v2                 | Delta     |
+| ----------------------- | ------------------------ | -------------------------------- | --------- |
+| **Timeline**            | 5 weeks                  | 5-7 days                         | -85%      |
+| **Effort**              | 200 hours                | 30-40 hours                      | -80%      |
+| **Mock Infrastructure** | Build from scratch (80h) | Extend existing (9h)             | -89%      |
+| **Test Re-enablement**  | Manual (80h)             | Agent-automated (13h)            | -84%      |
+| **Documentation**       | Manual (40h)             | Agent-generated (4h)             | -90%      |
+| **Tool Leverage**       | None specified           | 6 agents + 6 skills + 40 scripts | +Infinite |
+| **Risk Level**          | MEDIUM-HIGH              | LOW                              | -60%      |
 
 ---
 
@@ -34,70 +39,96 @@ The original plan ([integration-test-reenable-plan.md](.claude/integration-test-
 
 ### Test #1: Portfolio Intelligence - Concurrent Strategy Creation
 
-**Original Assessment**: "Requires concurrent API request handling with live PostgreSQL transaction management" (4-6 hours)
+**Original Assessment**: "Requires concurrent API request handling with live
+PostgreSQL transaction management" (4-6 hours)
 
 **Actual Reality** (from Codex analysis):
-- Route handlers EXIST at [server/routes/portfolio-intelligence.ts:142](../server/routes/portfolio-intelligence.ts#L142)
-- testStorage DECLARED at [tests/unit/api/portfolio-intelligence.test.ts:34](../tests/unit/api/portfolio-intelligence.test.ts#L34)
-- Just needs wiring (app.locals pattern from [time-travel-api test](../tests/unit/api/time-travel-api.test.ts#L107))
+
+- Route handlers EXIST at
+  [server/routes/portfolio-intelligence.ts:142](../server/routes/portfolio-intelligence.ts#L142)
+- testStorage DECLARED at
+  [tests/unit/api/portfolio-intelligence.test.ts:34](../tests/unit/api/portfolio-intelligence.test.ts#L34)
+- Just needs wiring (app.locals pattern from
+  [time-travel-api test](../tests/unit/api/time-travel-api.test.ts#L107))
 - **Actual Effort**: 1-2 hours with test-scaffolder agent
 
-**Why Original Was Wrong**: Assumed missing infrastructure; didn't check existing code
+**Why Original Was Wrong**: Assumed missing infrastructure; didn't check
+existing code
 
 ---
 
 ### Test #2: Phase 3 Critical Bugs - Risk-Based Cash Buffer
 
-**Original Assessment**: "Requires live calculation engine with full reserve allocation logic" (6-8 hours)
+**Original Assessment**: "Requires live calculation engine with full reserve
+allocation logic" (6-8 hours)
 
 **Actual Reality** (from Codex analysis):
-- Imports REAL engines: `DeterministicReserveEngine`, `ConstrainedReserveEngine` ([line 12-13](../tests/unit/bug-fixes/phase3-critical-bugs.test.ts#L12-L13))
-- Complete fixtures at [lines 25-137](../tests/unit/bug-fixes/phase3-critical-bugs.test.ts#L25-L137)
+
+- Imports REAL engines: `DeterministicReserveEngine`, `ConstrainedReserveEngine`
+  ([line 12-13](../tests/unit/bug-fixes/phase3-critical-bugs.test.ts#L12-L13))
+- Complete fixtures at
+  [lines 25-137](../tests/unit/bug-fixes/phase3-critical-bugs.test.ts#L25-L137)
 - Uses actual calculation logic (NOT mocked)
 - **Actual Effort**: 30 minutes validation with test-repair agent
 
-**Why Original Was Wrong**: Assumed "live infrastructure" meant external dependencies; actually uses in-process real engines
+**Why Original Was Wrong**: Assumed "live infrastructure" meant external
+dependencies; actually uses in-process real engines
 
 ---
 
 ### Test #3: Monte Carlo Engine - Reserve Optimization
 
-**Original Assessment**: "Requires live Monte Carlo simulation infrastructure with optimization algorithms" (8-10 hours)
+**Original Assessment**: "Requires live Monte Carlo simulation infrastructure
+with optimization algorithms" (8-10 hours)
 
 **Actual Reality** (from Codex analysis):
-- Complete db mock EXISTS at [lines 17-34](../tests/unit/services/monte-carlo-engine.test.ts#L17-L34)
-- Deterministic seed configured: `randomSeed: 12345` ([line 66](../tests/unit/services/monte-carlo-engine.test.ts#L66))
-- Fixtures complete at [lines 52-99](../tests/unit/services/monte-carlo-engine.test.ts#L52-L99)
+
+- Complete db mock EXISTS at
+  [lines 17-34](../tests/unit/services/monte-carlo-engine.test.ts#L17-L34)
+- Deterministic seed configured: `randomSeed: 12345`
+  ([line 66](../tests/unit/services/monte-carlo-engine.test.ts#L66))
+- Fixtures complete at
+  [lines 52-99](../tests/unit/services/monte-carlo-engine.test.ts#L52-L99)
 - `optimizeReserveAllocation` is PURE (no db dependency)
 - **Actual Effort**: 1 hour with statistical-testing skill
 
-**Why Original Was Wrong**: Didn't check test file - infrastructure was already 100% complete
+**Why Original Was Wrong**: Didn't check test file - infrastructure was already
+100% complete
 
 ---
 
 ### Test #4: Cohort Engine - Multiple Cohort Calculations
 
-**Original Assessment**: "Requires live cohort data aggregation infrastructure" (4-6 hours)
+**Original Assessment**: "Requires live cohort data aggregation infrastructure"
+(4-6 hours)
 
 **Actual Reality** (from Codex analysis):
-- Imports REAL engine: `CohortEngine` ([line 7](../tests/unit/engines/cohort-engine.test.ts#L7))
-- Fixture helper EXISTS: `createCohortInput` ([lines 14-19](../tests/unit/engines/cohort-engine.test.ts#L14-L19))
+
+- Imports REAL engine: `CohortEngine`
+  ([line 7](../tests/unit/engines/cohort-engine.test.ts#L7))
+- Fixture helper EXISTS: `createCohortInput`
+  ([lines 14-19](../tests/unit/engines/cohort-engine.test.ts#L14-L19))
 - Other tests (lines 25-99) already PASS with real engine
 - **Actual Effort**: 1-2 hours fixture extension with test-fixture-generator
 
-**Why Original Was Wrong**: Assumed cohort calculations needed external infrastructure; actually pure in-memory
+**Why Original Was Wrong**: Assumed cohort calculations needed external
+infrastructure; actually pure in-memory
 
 ---
 
 ## Root Cause Analysis: Why Original Plan Overestimated
 
 ### 1. Didn't Check CAPABILITIES.md First
+
 **Original Plan**: No mention of existing agents, skills, or automation
 **Impact**: Assumed manual work for everything
 
 **Available Capabilities Missed**:
-- 6 test-focused agents (test-automator, test-repair, test-scaffolder, pr-test-analyzer, playwright-test-author, chaos-engineer)
-- 6 auto-activating skills (test-driven-development, test-fixture-generator, statistical-testing, etc.)
+
+- 6 test-focused agents (test-automator, test-repair, test-scaffolder,
+  pr-test-analyzer, playwright-test-author, chaos-engineer)
+- 6 auto-activating skills (test-driven-development, test-fixture-generator,
+  statistical-testing, etc.)
 - 40+ npm scripts (test:smart, test:repair, test:intelligent, perf:guard)
 
 **Cost of Missing This**: 160+ hours of manual work that could be automated
@@ -105,12 +136,16 @@ The original plan ([integration-test-reenable-plan.md](.claude/integration-test-
 ---
 
 ### 2. Didn't Examine Test Files Before Planning
-**Original Plan**: Assumed infrastructure gaps based on skip reasons
-**Impact**: Planned to build infrastructure that already exists
+
+**Original Plan**: Assumed infrastructure gaps based on skip reasons **Impact**:
+Planned to build infrastructure that already exists
 
 **Infrastructure Actually Present**:
-- [tests/helpers/database-mock.ts](../tests/helpers/database-mock.ts) - 150+ lines production-ready
-- [tests/unit/services/monte-carlo-engine.test.ts:17-34](../tests/unit/services/monte-carlo-engine.test.ts#L17-L34) - Complete mock
+
+- [tests/helpers/database-mock.ts](../tests/helpers/database-mock.ts) - 150+
+  lines production-ready
+- [tests/unit/services/monte-carlo-engine.test.ts:17-34](../tests/unit/services/monte-carlo-engine.test.ts#L17-L34) -
+  Complete mock
 - Real engines imported in Tests #2 & #4 (no mocking needed)
 
 **Cost of Missing This**: 80 hours building what already exists
@@ -118,10 +153,12 @@ The original plan ([integration-test-reenable-plan.md](.claude/integration-test-
 ---
 
 ### 3. Didn't Use Parallel Workflows
-**Original Plan**: Sequential phases (Infrastructure → Re-enablement → Validation)
-**Impact**: 5 weeks of serial work
+
+**Original Plan**: Sequential phases (Infrastructure → Re-enablement →
+Validation) **Impact**: 5 weeks of serial work
 
 **Parallel Opportunities Missed**:
+
 - Track A: Portfolio Intelligence (test-scaffolder + test-automator)
 - Track B: Critical Bugs (test-repair validation)
 - Track C: Monte Carlo + Cohort (fixture generation)
@@ -132,10 +169,12 @@ The original plan ([integration-test-reenable-plan.md](.claude/integration-test-
 ---
 
 ### 4. Assumed "Integration Test" = "External Infrastructure"
+
 **Original Plan**: All integration tests need mocked Redis/PostgreSQL
 **Impact**: Overestimated mocking requirements
 
 **Actual Patterns Found**:
+
 - Integration tests CAN use real in-process engines (Tests #2, #4)
 - Integration tests CAN use deterministic fixtures (Test #3)
 - Only Test #1 needs storage wiring (already declared)
@@ -148,14 +187,18 @@ The original plan ([integration-test-reenable-plan.md](.claude/integration-test-
 
 ### Mock Infrastructure: 80h → 9h (89% reduction)
 
-**Original Approach**: Build mock factories, transaction management, calculation engine interfaces
+**Original Approach**: Build mock factories, transaction management, calculation
+engine interfaces
 
 **Improved Approach**:
+
 - Reuse [database-mock.ts](../tests/helpers/database-mock.ts) (150+ lines ready)
-- Extend testStorage wiring from [time-travel-api pattern](../tests/unit/api/time-travel-api.test.ts#L107)
+- Extend testStorage wiring from
+  [time-travel-api pattern](../tests/unit/api/time-travel-api.test.ts#L107)
 - Use test-scaffolder agent for systematic extension
 
 **Tools Leveraged**:
+
 - test-scaffolder agent (automated pattern replication)
 - Existing constraint validation patterns
 - Call history tracking mechanism
@@ -167,14 +210,18 @@ The original plan ([integration-test-reenable-plan.md](.claude/integration-test-
 **Original Approach**: Manual test-by-test re-enablement with manual validation
 
 **Improved Approach**:
+
 - test-automator:updog for bulk unskip + validation
 - test-repair agent for failure triage
 - test-driven-development skill (RED-GREEN-REFACTOR)
 - npm run test:smart for affected tests only
 
 **Tools Leveraged**:
-- 6 agents (test-automator, test-repair, test-scaffolder, pr-test-analyzer, playwright-test-author, chaos-engineer)
-- 6 skills (auto-activating for TDD, fixtures, anti-patterns, statistical testing)
+
+- 6 agents (test-automator, test-repair, test-scaffolder, pr-test-analyzer,
+  playwright-test-author, chaos-engineer)
+- 6 skills (auto-activating for TDD, fixtures, anti-patterns, statistical
+  testing)
 - Intelligent test selection (test:smart, test:intelligent:fast)
 
 ---
@@ -184,11 +231,12 @@ The original plan ([integration-test-reenable-plan.md](.claude/integration-test-
 **Original Approach**: Manual documentation of mock patterns and runbooks
 
 **Improved Approach**:
-- docs-architect agent auto-generates [cheatsheets/integration-test-mocking.md](../cheatsheets/integration-test-mocking.md)
+
 - /log-change command auto-updates CHANGELOG.md
 - Agent memory captures patterns for future use
 
 **Tools Leveraged**:
+
 - docs-architect agent (memory-enabled)
 - /log-change slash command
 - Agent memory persistence (test-repair, test-scaffolder)
@@ -198,6 +246,7 @@ The original plan ([integration-test-reenable-plan.md](.claude/integration-test-
 ## Tool Usage Comparison
 
 ### Original Plan Tools
+
 - None specified
 - Manual implementation assumed
 - No automation mentioned
@@ -205,16 +254,18 @@ The original plan ([integration-test-reenable-plan.md](.claude/integration-test-
 ### Improved Plan Tools
 
 **Agents (6 memory-enabled)**:
+
 ```typescript
-Task("test-automator:updog")      // Comprehensive generation
-Task("test-repair")                 // Autonomous repair
-Task("test-scaffolder")             // Infrastructure scaffolding
-Task("pr-test-analyzer")            // Coverage analysis
-Task("playwright-test-author")      // E2E browser tests
-Task("chaos-engineer:updog")        // Resilience validation
+Task('test-automator:updog'); // Comprehensive generation
+Task('test-repair'); // Autonomous repair
+Task('test-scaffolder'); // Infrastructure scaffolding
+Task('pr-test-analyzer'); // Coverage analysis
+Task('playwright-test-author'); // E2E browser tests
+Task('chaos-engineer:updog'); // Resilience validation
 ```
 
 **Skills (6 auto-activating)**:
+
 - test-driven-development (RED-GREEN-REFACTOR)
 - test-fixture-generator (schema-validated datasets)
 - statistical-testing (Monte Carlo validation)
@@ -223,6 +274,7 @@ Task("chaos-engineer:updog")        // Resilience validation
 - test-pyramid (scope governance)
 
 **npm Scripts (12 key scripts)**:
+
 ```bash
 npm run test:quick              # Fast feedback
 npm run test:smart              # Affected tests
@@ -239,19 +291,19 @@ npm run test:parallel           # Unit + lint + typecheck
 
 ### Original Plan Risks
 
-| Risk | Original Level | Original Mitigation |
-|------|----------------|---------------------|
-| Complex calculation mocking | MEDIUM | "Start with simplest tests" |
-| Performance degradation | MEDIUM | "Add mock performance monitoring" |
-| Missing infrastructure | MEDIUM | "Create reusable patterns" |
+| Risk                        | Original Level | Original Mitigation               |
+| --------------------------- | -------------- | --------------------------------- |
+| Complex calculation mocking | MEDIUM         | "Start with simplest tests"       |
+| Performance degradation     | MEDIUM         | "Add mock performance monitoring" |
+| Missing infrastructure      | MEDIUM         | "Create reusable patterns"        |
 
 ### Improved Plan Risks
 
-| Risk | Improved Level | Improved Mitigation | Change |
-|------|----------------|---------------------|--------|
-| Complex calculation mocking | NEGLIGIBLE | Tests #2 & #4 use real engines | -90% |
-| Performance degradation | LOW | perf:guard automated detection | -60% |
-| Missing infrastructure | NEGLIGIBLE | database-mock.ts 150+ lines ready | -90% |
+| Risk                        | Improved Level | Improved Mitigation               | Change |
+| --------------------------- | -------------- | --------------------------------- | ------ |
+| Complex calculation mocking | NEGLIGIBLE     | Tests #2 & #4 use real engines    | -90%   |
+| Performance degradation     | LOW            | perf:guard automated detection    | -60%   |
+| Missing infrastructure      | NEGLIGIBLE     | database-mock.ts 150+ lines ready | -90%   |
 
 **Overall Risk Reduction**: 60-90% across all categories
 
@@ -260,6 +312,7 @@ npm run test:parallel           # Unit + lint + typecheck
 ## Success Criteria Comparison
 
 ### Original Criteria (6 items)
+
 - [ ] All 4 integration tests re-enabled and passing
 - [ ] Zero test failures maintained
 - [ ] Mock infrastructure documented and reusable
@@ -268,7 +321,9 @@ npm run test:parallel           # Unit + lint + typecheck
 - [ ] No production code changes required
 
 ### Enhanced Criteria (14 items)
+
 **All original criteria PLUS**:
+
 - [ ] test-repair agent memory updated with patterns
 - [ ] test-scaffolder agent documented for future use
 - [ ] Mock patterns added to cheatsheets/
@@ -307,7 +362,9 @@ Buffer:  █ Unknowns (3-13h)
 ## Lessons Learned
 
 ### 1. Always Check CAPABILITIES.md First
+
 **Before creating ANY task plan, verify existing solutions:**
+
 - 28+ agents available (memory-enabled)
 - 34+ skills (auto-activating)
 - 40+ npm scripts (automated workflows)
@@ -317,7 +374,9 @@ Buffer:  █ Unknowns (3-13h)
 ---
 
 ### 2. Always Examine Code Before Assuming Gaps
+
 **Before planning infrastructure work, grep/read actual files:**
+
 - Test files may already have complete mocks
 - Real engines may be used (no mocking needed)
 - Fixtures may exist (just need extension)
@@ -327,7 +386,9 @@ Buffer:  █ Unknowns (3-13h)
 ---
 
 ### 3. Always Look for Parallel Opportunities
+
 **Before sequential planning, identify independent work:**
+
 - 4 tests can be worked on concurrently
 - Validation can run continuously
 - Documentation can be automated in parallel
@@ -337,7 +398,9 @@ Buffer:  █ Unknowns (3-13h)
 ---
 
 ### 4. Trust Skip Reasons, But Verify
+
 **"Requires live infrastructure" can mean:**
+
 - Real external dependencies (rare)
 - Real in-process engines (common - Tests #2, #4)
 - Complete mocks already exist (Test #3)
@@ -385,7 +448,8 @@ Buffer:  █ Unknowns (3-13h)
 
 ## Conclusion
 
-The improved plan demonstrates that **deep analysis with existing tools reduces effort by 80-90%**. Key factors:
+The improved plan demonstrates that **deep analysis with existing tools reduces
+effort by 80-90%**. Key factors:
 
 1. **CAPABILITIES.md contains 60+ automation tools** - using them is critical
 2. **Existing infrastructure is extensive** - grep before building
@@ -398,10 +462,13 @@ The improved plan demonstrates that **deep analysis with existing tools reduces 
 
 ## Files Created
 
-1. [.claude/integration-test-reenable-plan-v2.md](.claude/integration-test-reenable-plan-v2.md) - Improved plan (5-7 days)
-2. [.claude/integration-test-plan-comparison.md](.claude/integration-test-plan-comparison.md) - This comparison
+1. [.claude/integration-test-reenable-plan-v2.md](.claude/integration-test-reenable-plan-v2.md) -
+   Improved plan (5-7 days)
+2. [.claude/integration-test-plan-comparison.md](.claude/integration-test-plan-comparison.md) -
+   This comparison
 
-**Original Plan**: [.claude/integration-test-reenable-plan.md](.claude/integration-test-reenable-plan.md)
+**Original Plan**:
+[.claude/integration-test-reenable-plan.md](.claude/integration-test-reenable-plan.md)
 
 ---
 

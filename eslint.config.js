@@ -57,7 +57,6 @@ export default [
       'build/**',
       // Keep tests linted - removed "tests/**"
       'scripts/**',
-      'auto-discovery/**',
       'workers/**',
       'types/**',
       'tools/**',
@@ -113,11 +112,9 @@ export default [
       '.artifacts/**', // ESLint wave execution tooling scripts
       '.a5c/**',
       'code-reviewer/**',
-      'dev-automation/**',
       'ai-logs/**',
       'ai/**',
       'NotebookLM Skill/**',
-      'PATCHES/**',
       'triage-output/**',
       'performance-results/**',
       'reports/**',

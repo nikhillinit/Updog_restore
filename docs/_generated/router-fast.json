@@ -2,7 +2,7 @@
   "config": {
     "max_docs_per_keyword": 25
   },
-  "generatedAt": "2026-05-20T00:00:00.000Z",
+  "generatedAt": "2026-05-21T00:00:00.000Z",
   "keyword_to_docs": {
     "add feature": [
       "CLAUDE.md"
@@ -42,10 +42,10 @@
       ".claude/agents/db-migration.md"
     ],
     "alternatives": [
-      ".claude/skills/brainstorming.md"
+      "docs/commands-and-plugins-inventory.md"
     ],
     "analogy": [
-      ".claude/skills/analogical-thinking.md"
+      ".claude/skills/pattern-recognition.md"
     ],
     "analyze thoroughly": [
       ".claude/skills/extended-thinking-framework.md"
@@ -66,13 +66,13 @@
       "cheatsheets/service-testing-patterns.md"
     ],
     "approach": [
-      ".claude/skills/writing-plans.md"
+      "docs/commands-and-plugins-inventory.md"
     ],
     "approval": [
       "docs/gates/"
     ],
     "architect": [
-      ".claude/skills/writing-plans.md"
+      "docs/commands-and-plugins-inventory.md"
     ],
     "architecture decision": [
       "docs/adr/",
@@ -131,10 +131,10 @@
       "docs/runbooks/"
     ],
     "blueprint": [
-      ".claude/skills/writing-plans.md"
+      "docs/commands-and-plugins-inventory.md"
     ],
     "brainstorm": [
-      ".claude/skills/brainstorming.md"
+      "docs/commands-and-plugins-inventory.md"
     ],
     "break down": [
       ".claude/skills/task-decomposition.md"
@@ -273,13 +273,13 @@
       ".claude/skills/pattern-recognition.md"
     ],
     "compare to": [
-      ".claude/skills/analogical-thinking.md"
+      ".claude/skills/pattern-recognition.md"
     ],
     "comprehensive test": [
       ".claude/agents/test-automator.md"
     ],
     "concurrent": [
-      ".claude/skills/dispatching-parallel-agents.md"
+      "docs/commands-and-plugins-inventory.md"
     ],
     "consult codex": [
       "cheatsheets/codex-collaboration-protocol.md"
@@ -304,7 +304,7 @@
       "CLAUDE.md"
     ],
     "creative": [
-      ".claude/skills/brainstorming.md"
+      "docs/commands-and-plugins-inventory.md"
     ],
     "credential": [
       "SECURITY.md"
@@ -355,7 +355,7 @@
       ".claude/agents/phoenix-capital-allocation-analyst.md"
     ],
     "design": [
-      ".claude/skills/writing-plans.md"
+      "docs/commands-and-plugins-inventory.md"
     ],
     "design pattern": [
       ".claude/skills/architecture-patterns.md"
@@ -457,7 +457,7 @@
       ".claude/agents/code-explorer.md"
     ],
     "explore options": [
-      ".claude/skills/brainstorming.md"
+      "docs/commands-and-plugins-inventory.md"
     ],
     "failing test": [
       ".claude/agents/test-repair.md"
@@ -544,7 +544,7 @@
       "cheatsheets/agent-memory-integration.md"
     ],
     "ideate": [
-      ".claude/skills/brainstorming.md"
+      "docs/commands-and-plugins-inventory.md"
     ],
     "implement": [
       "CLAUDE.md"
@@ -617,7 +617,7 @@
       ".claude/agents/legacy-modernizer.md"
     ],
     "like": [
-      ".claude/skills/analogical-thinking.md"
+      ".claude/skills/pattern-recognition.md"
     ],
     "lint regression": [
       ".claude/agents/baseline-regression-explainer.md"
@@ -700,7 +700,7 @@
       "DEV_BRAIN.md"
     ],
     "multiple agents": [
-      ".claude/skills/dispatching-parallel-agents.md"
+      "docs/commands-and-plugins-inventory.md"
     ],
     "new feature": [
       "CLAUDE.md"
@@ -757,7 +757,7 @@
       ".claude/agents/incident-responder.md"
     ],
     "parallel": [
-      ".claude/skills/dispatching-parallel-agents.md"
+      "docs/commands-and-plugins-inventory.md"
     ],
     "parsefloat": [
       ".claude/agents/phoenix-precision-guardian.md"
@@ -805,10 +805,10 @@
       "docs/workflows/README.md"
     ],
     "plan": [
-      ".claude/skills/writing-plans.md"
+      "docs/commands-and-plugins-inventory.md"
     ],
     "planning": [
-      ".claude/skills/writing-plans.md"
+      "docs/commands-and-plugins-inventory.md"
     ],
     "playwright": [
       ".claude/agents/playwright-test-author.md"
@@ -1014,13 +1014,13 @@
       ".claude/skills/pattern-recognition.md"
     ],
     "similar to": [
-      ".claude/skills/analogical-thinking.md"
+      ".claude/skills/pattern-recognition.md"
     ],
     "simplify": [
       ".claude/agents/code-simplifier.md"
     ],
     "simultaneously": [
-      ".claude/skills/dispatching-parallel-agents.md"
+      "docs/commands-and-plugins-inventory.md"
     ],
     "size regression": [
       ".claude/agents/perf-guard.md"
@@ -1059,7 +1059,7 @@
       "docs/wizard/"
     ],
     "strategy": [
-      ".claude/skills/writing-plans.md"
+      "docs/commands-and-plugins-inventory.md"
     ],
     "streaming": [
       "docs/adr/"
@@ -2061,8 +2061,8 @@
         "blueprint"
       ],
       "priority": 101,
-      "route_to": ".claude/skills/writing-plans.md",
-      "why": "Development routing (priority 101)"
+      "route_to": "docs/commands-and-plugins-inventory.md",
+      "why": "Use the installed Superpowers writing-plans skill; the old repo-local skill file was retired."
     },
     {
       "id": "brainstorming",
@@ -2081,8 +2081,8 @@
         "creative"
       ],
       "priority": 102,
-      "route_to": ".claude/skills/brainstorming.md",
-      "why": "Development routing (priority 102)"
+      "route_to": "docs/commands-and-plugins-inventory.md",
+      "why": "Use the installed Superpowers brainstorming skill; the old repo-local skill file was retired."
     },
     {
       "id": "task_decomposition",
@@ -2124,7 +2124,7 @@
       ],
       "priority": 104,
       "route_to": "CLAUDE.md",
-      "why": "Start with CLAUDE.md, repo search, docs/INDEX.md, and .claude/DISCOVERY-MAP.md before using writing-plans"
+      "why": "Start with CLAUDE.md, repo search, docs/INDEX.md, and .claude/DISCOVERY-MAP.md before using superpowers:writing-plans"
     },
     {
       "agent": "code-explorer",
@@ -2658,8 +2658,8 @@
         "compare to"
       ],
       "priority": 133,
-      "route_to": ".claude/skills/analogical-thinking.md",
-      "why": "Thinking routing (priority 133)"
+      "route_to": ".claude/skills/pattern-recognition.md",
+      "why": "Use pattern-recognition for analogy-style comparison; the old analogical-thinking skill file was retired."
     },
     {
       "id": "parallel_agents",
@@ -2676,8 +2676,8 @@
         "multiple agents"
       ],
       "priority": 134,
-      "route_to": ".claude/skills/dispatching-parallel-agents.md",
-      "why": "Orchestration routing (priority 134)"
+      "route_to": "docs/commands-and-plugins-inventory.md",
+      "why": "Use the installed Superpowers dispatching-parallel-agents skill; the old repo-local skill file was retired."
     },
     {
       "id": "async_resilience",

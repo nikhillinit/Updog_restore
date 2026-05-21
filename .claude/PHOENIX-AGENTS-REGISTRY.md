@@ -29,8 +29,8 @@ modeling validation. Phase 2 documentation is COMPLETE (Nov 6, 2025).
 **Quality**: 91-99% validation scores (Phase 1), 95-99% self-validation
 (Phase 2)
 
-**See Also**: `.claude/skills/notebooklm.md` for querying external NotebookLM
-notebooks
+**See Also**: `docs/notebooklm-sources/` for source-grounded Phoenix domain
+knowledge used with NotebookLM workflows.
 
 ---
 
@@ -493,5 +493,5 @@ Task("phoenix-brand-reporting-stylist", "Review MainDashboardV2 branding")
   base (85K words, 22 files)
 - [docs/notebooklm-sources/PHASE2-COMPLETE.md](../../docs/notebooklm-sources/PHASE2-COMPLETE.md) -
   Phase 2 documentation summary
-- [.claude/skills/notebooklm.md](../skills/notebooklm.md) - External NotebookLM
-  query skill
+- [docs/notebooklm-sources/](../../docs/notebooklm-sources/) -
+  Source-grounded Phoenix domain knowledge used with NotebookLM workflows

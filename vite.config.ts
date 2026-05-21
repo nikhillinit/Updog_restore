@@ -404,7 +404,6 @@ export default defineConfig(({ mode }: { mode: string }) => {
         { find: '@/core', replacement: path.resolve(import.meta.dirname, 'client/src/core') },
         { find: '@/lib', replacement: path.resolve(import.meta.dirname, 'client/src/lib') },
         { find: '@shared', replacement: path.resolve(import.meta.dirname, 'shared') },
-        { find: '@assets', replacement: path.resolve(import.meta.dirname, 'assets') },
       ].filter(Boolean),
       dedupe: usePreact
         ? ['react', 'react-dom', 'react/jsx-runtime', 'react-dom/client']
