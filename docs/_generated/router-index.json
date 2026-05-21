@@ -2100,15 +2100,15 @@
       "docType": "skill",
       "exists": true,
       "frontmatter": {
-        "last_updated": "2026-01-19",
+        "last_updated": "2026-05-21",
         "status": "ACTIVE"
       },
       "hasExecutionClaims": true,
       "isStale": false,
-      "lastUpdated": "2026-01-19",
+      "lastUpdated": "2026-05-21",
       "owner": null,
       "path": ".claude/skills/README.md",
-      "staleDays": 122,
+      "staleDays": 0,
       "status": "ACTIVE"
     },
     {
@@ -4196,66 +4196,6 @@
       "isStale": false,
       "lastUpdated": "2026-01-19",
       "owner": null,
-      "path": "docs/CLEANUP_PR_BODY.md",
-      "staleDays": 122,
-      "status": "ACTIVE"
-    },
-    {
-      "docType": "doc",
-      "exists": true,
-      "frontmatter": {
-        "last_updated": "2026-01-19",
-        "status": "ACTIVE"
-      },
-      "hasExecutionClaims": true,
-      "isStale": false,
-      "lastUpdated": "2026-01-19",
-      "owner": null,
-      "path": "docs/CLEANUP_PR_TEMPLATE.md",
-      "staleDays": 122,
-      "status": "ACTIVE"
-    },
-    {
-      "docType": "doc",
-      "exists": true,
-      "frontmatter": {
-        "last_updated": "2026-01-19",
-        "status": "ACTIVE"
-      },
-      "hasExecutionClaims": false,
-      "isStale": false,
-      "lastUpdated": "2026-01-19",
-      "owner": null,
-      "path": "docs/COMMIT_REVIEW.md",
-      "staleDays": 122,
-      "status": "ACTIVE"
-    },
-    {
-      "docType": "doc",
-      "exists": true,
-      "frontmatter": {
-        "last_updated": "2026-01-19",
-        "status": "ACTIVE"
-      },
-      "hasExecutionClaims": true,
-      "isStale": false,
-      "lastUpdated": "2026-01-19",
-      "owner": null,
-      "path": "docs/CONSOLIDATION_LEARNINGS.md",
-      "staleDays": 122,
-      "status": "ACTIVE"
-    },
-    {
-      "docType": "doc",
-      "exists": true,
-      "frontmatter": {
-        "last_updated": "2026-01-19",
-        "status": "ACTIVE"
-      },
-      "hasExecutionClaims": false,
-      "isStale": false,
-      "lastUpdated": "2026-01-19",
-      "owner": null,
       "path": "docs/CRITICAL_OPTIMIZATIONS.md",
       "staleDays": 122,
       "status": "ACTIVE"
@@ -4302,21 +4242,6 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/DEPLOYMENT.md",
-      "staleDays": 122,
-      "status": "ACTIVE"
-    },
-    {
-      "docType": "doc",
-      "exists": true,
-      "frontmatter": {
-        "last_updated": "2026-01-19",
-        "status": "ACTIVE"
-      },
-      "hasExecutionClaims": false,
-      "isStale": false,
-      "lastUpdated": "2026-01-19",
-      "owner": null,
-      "path": "docs/DEPLOYMENT_RUNBOOK.md",
       "staleDays": 122,
       "status": "ACTIVE"
     },
@@ -4373,21 +4298,6 @@
       "path": "docs/DEVELOPMENT_STRATEGY.md",
       "staleDays": 122,
       "status": "ACTIVE"
-    },
-    {
-      "docType": "doc",
-      "exists": true,
-      "frontmatter": {
-        "last_updated": "2026-01-19",
-        "status": "HISTORICAL"
-      },
-      "hasExecutionClaims": false,
-      "isStale": false,
-      "lastUpdated": "2026-01-19",
-      "owner": null,
-      "path": "docs/HANDOFF_JCURVE_IMPLEMENTATION.md",
-      "staleDays": 122,
-      "status": "HISTORICAL"
     },
     {
       "docType": "doc",
@@ -4595,66 +4505,6 @@
       "exists": true,
       "frontmatter": {
         "last_updated": "2026-01-19",
-        "status": "HISTORICAL"
-      },
-      "hasExecutionClaims": false,
-      "isStale": false,
-      "lastUpdated": "2026-01-19",
-      "owner": null,
-      "path": "docs/OSS_INTEGRATION_SUMMARY.md",
-      "staleDays": 122,
-      "status": "HISTORICAL"
-    },
-    {
-      "docType": "doc",
-      "exists": true,
-      "frontmatter": {
-        "last_updated": "2026-01-19",
-        "status": "ACTIVE"
-      },
-      "hasExecutionClaims": true,
-      "isStale": false,
-      "lastUpdated": "2026-01-19",
-      "owner": null,
-      "path": "docs/PHASE-1D-CHECKPOINT.md",
-      "staleDays": 122,
-      "status": "ACTIVE"
-    },
-    {
-      "docType": "doc",
-      "exists": true,
-      "frontmatter": {
-        "last_updated": "2026-01-19",
-        "status": "ACTIVE"
-      },
-      "hasExecutionClaims": true,
-      "isStale": false,
-      "lastUpdated": "2026-01-19",
-      "owner": null,
-      "path": "docs/PHASE-1D-STATUS.md",
-      "staleDays": 122,
-      "status": "ACTIVE"
-    },
-    {
-      "docType": "doc",
-      "exists": true,
-      "frontmatter": {
-        "last_updated": "2026-01-19",
-        "status": "ACTIVE"
-      },
-      "hasExecutionClaims": false,
-      "isStale": false,
-      "lastUpdated": "2026-01-19",
-      "owner": null,
-      "path": "docs/PHASE1A-XIRR-COMPLETE.md",
-      "staleDays": 122,
-      "status": "ACTIVE"
-    },
-    {
-      "docType": "doc",
-      "exists": true,
-      "frontmatter": {
-        "last_updated": "2026-01-19",
         "status": "ACTIVE"
       },
       "hasExecutionClaims": false,
@@ -4662,21 +4512,6 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/PHASE1B-ASSEMBLY-INSTRUCTIONS.md",
-      "staleDays": 122,
-      "status": "ACTIVE"
-    },
-    {
-      "docType": "doc",
-      "exists": true,
-      "frontmatter": {
-        "last_updated": "2026-01-19",
-        "status": "ACTIVE"
-      },
-      "hasExecutionClaims": false,
-      "isStale": false,
-      "lastUpdated": "2026-01-19",
-      "owner": null,
-      "path": "docs/PHASE1B-FEES-COMPLETE.md",
       "staleDays": 122,
       "status": "ACTIVE"
     },
@@ -4709,21 +4544,6 @@
       "path": "docs/PHASE1B-TRUTH-CASES-REFERENCE.md",
       "staleDays": 122,
       "status": "ACTIVE"
-    },
-    {
-      "docType": "doc",
-      "exists": true,
-      "frontmatter": {
-        "last_updated": "2026-04-20",
-        "status": "HISTORICAL"
-      },
-      "hasExecutionClaims": false,
-      "isStale": false,
-      "lastUpdated": "2026-04-20",
-      "owner": null,
-      "path": "docs/PHASE1_INTEGRATION_SUMMARY.md",
-      "staleDays": 31,
-      "status": "HISTORICAL"
     },
     {
       "docType": "doc",
@@ -4935,51 +4755,6 @@
       "exists": true,
       "frontmatter": {
         "last_updated": "2026-01-19",
-        "status": "HISTORICAL"
-      },
-      "hasExecutionClaims": false,
-      "isStale": false,
-      "lastUpdated": "2026-01-19",
-      "owner": null,
-      "path": "docs/PROPOSAL_WORKFLOW_SUMMARY.md",
-      "staleDays": 122,
-      "status": "HISTORICAL"
-    },
-    {
-      "docType": "doc",
-      "exists": true,
-      "frontmatter": {
-        "last_updated": "2026-01-19",
-        "status": "ACTIVE"
-      },
-      "hasExecutionClaims": true,
-      "isStale": false,
-      "lastUpdated": "2026-01-19",
-      "owner": null,
-      "path": "docs/PR_DESCRIPTION.md",
-      "staleDays": 122,
-      "status": "ACTIVE"
-    },
-    {
-      "docType": "doc",
-      "exists": true,
-      "frontmatter": {
-        "last_updated": "2026-01-19",
-        "status": "ACTIVE"
-      },
-      "hasExecutionClaims": true,
-      "isStale": false,
-      "lastUpdated": "2026-01-19",
-      "owner": null,
-      "path": "docs/PR_INTEGRATION_PLAN.md",
-      "staleDays": 122,
-      "status": "ACTIVE"
-    },
-    {
-      "docType": "doc",
-      "exists": true,
-      "frontmatter": {
-        "last_updated": "2026-01-19",
         "status": "ACTIVE"
       },
       "hasExecutionClaims": false,
@@ -5031,21 +4806,6 @@
       "isStale": false,
       "lastUpdated": "2026-01-19",
       "owner": null,
-      "path": "docs/ROLLBACK.md",
-      "staleDays": 122,
-      "status": "ACTIVE"
-    },
-    {
-      "docType": "doc",
-      "exists": true,
-      "frontmatter": {
-        "last_updated": "2026-01-19",
-        "status": "ACTIVE"
-      },
-      "hasExecutionClaims": false,
-      "isStale": false,
-      "lastUpdated": "2026-01-19",
-      "owner": null,
       "path": "docs/ROLLBACK_TRIGGERS.md",
       "staleDays": 122,
       "status": "ACTIVE"
@@ -5064,21 +4824,6 @@
       "path": "docs/ROLLOUT_STRATEGY.md",
       "staleDays": 122,
       "status": "ACTIVE"
-    },
-    {
-      "docType": "doc",
-      "exists": true,
-      "frontmatter": {
-        "last_updated": "2026-04-20",
-        "status": "HISTORICAL"
-      },
-      "hasExecutionClaims": false,
-      "isStale": false,
-      "lastUpdated": "2026-04-20",
-      "owner": null,
-      "path": "docs/SAFETY_CHECK_REPORT.md",
-      "staleDays": 31,
-      "status": "HISTORICAL"
     },
     {
       "docType": "doc",
@@ -5575,6 +5320,20 @@
       "docType": "doc",
       "exists": true,
       "frontmatter": {
+        "last_updated": "2026-04-03"
+      },
+      "hasExecutionClaims": false,
+      "isStale": false,
+      "lastUpdated": "2026-04-03",
+      "owner": null,
+      "path": "docs/adr/ADR-021-runtime-authority.md",
+      "staleDays": 48,
+      "status": "UNKNOWN"
+    },
+    {
+      "docType": "doc",
+      "exists": true,
+      "frontmatter": {
         "last_updated": "2026-04-18",
         "status": "ACTIVE"
       },
@@ -5993,7 +5752,7 @@
       "isStale": false,
       "lastUpdated": "2026-01-19",
       "owner": null,
-      "path": "docs/chaos/catalog.md",
+      "path": "docs/chaos-engineering/catalog.md",
       "staleDays": 122,
       "status": "ACTIVE"
     },
@@ -6269,35 +6028,6 @@
       "docType": "doc",
       "exists": true,
       "frontmatter": {
-        "last_updated": "2026-04-03"
-      },
-      "hasExecutionClaims": false,
-      "isStale": false,
-      "lastUpdated": "2026-04-03",
-      "owner": null,
-      "path": "docs/decisions/adr-runtime-authority.md",
-      "staleDays": 48,
-      "status": "UNKNOWN"
-    },
-    {
-      "docType": "doc",
-      "exists": true,
-      "frontmatter": {
-        "last_updated": "2026-01-19",
-        "status": "ACTIVE"
-      },
-      "hasExecutionClaims": false,
-      "isStale": false,
-      "lastUpdated": "2026-01-19",
-      "owner": null,
-      "path": "docs/deployment-audit.md",
-      "staleDays": 122,
-      "status": "ACTIVE"
-    },
-    {
-      "docType": "doc",
-      "exists": true,
-      "frontmatter": {
         "last_updated": "2026-01-19",
         "status": "ACTIVE"
       },
@@ -6468,7 +6198,7 @@
       "isStale": false,
       "lastUpdated": "2026-01-19",
       "owner": null,
-      "path": "docs/dev/wsl2-quickstart.md",
+      "path": "docs/dev/windows-setup.md",
       "staleDays": 122,
       "status": "ACTIVE"
     },
@@ -6483,7 +6213,7 @@
       "isStale": false,
       "lastUpdated": "2026-01-19",
       "owner": null,
-      "path": "docs/development/windows-setup.md",
+      "path": "docs/dev/wsl2-quickstart.md",
       "staleDays": 122,
       "status": "ACTIVE"
     },
@@ -6834,7 +6564,7 @@
           "deletion",
           "migration"
         ],
-        "last_updated": "2026-05-20",
+        "last_updated": "2026-05-21",
         "owner": "Core Team",
         "related": [
           "docs/governance/2026-05-19-refactor-roadmap.md"
@@ -6845,10 +6575,10 @@
       },
       "hasExecutionClaims": false,
       "isStale": false,
-      "lastUpdated": "2026-05-20",
+      "lastUpdated": "2026-05-21",
       "owner": "Core Team",
       "path": "docs/governance/cleanup-manifest.md",
-      "staleDays": 1,
+      "staleDays": 0,
       "status": "ACTIVE"
     },
     {
@@ -7910,66 +7640,6 @@
     {
       "docType": "doc",
       "exists": true,
-      "frontmatter": {
-        "last_updated": "2026-01-19",
-        "status": "ACTIVE"
-      },
-      "hasExecutionClaims": true,
-      "isStale": false,
-      "lastUpdated": "2026-01-19",
-      "owner": null,
-      "path": "docs/phase2 docs/CHECKLIST-Phase2.md",
-      "staleDays": 122,
-      "status": "ACTIVE"
-    },
-    {
-      "docType": "doc",
-      "exists": true,
-      "frontmatter": {
-        "last_updated": "2026-01-19",
-        "status": "ACTIVE"
-      },
-      "hasExecutionClaims": false,
-      "isStale": false,
-      "lastUpdated": "2026-01-19",
-      "owner": null,
-      "path": "docs/phase2 docs/PR_BODY-Phase2.md",
-      "staleDays": 122,
-      "status": "ACTIVE"
-    },
-    {
-      "docType": "doc",
-      "exists": true,
-      "frontmatter": {
-        "last_updated": "2026-01-19",
-        "status": "ACTIVE"
-      },
-      "hasExecutionClaims": false,
-      "isStale": false,
-      "lastUpdated": "2026-01-19",
-      "owner": null,
-      "path": "docs/phase2 docs/README.md",
-      "staleDays": 122,
-      "status": "ACTIVE"
-    },
-    {
-      "docType": "doc",
-      "exists": true,
-      "frontmatter": {
-        "last_updated": "2026-01-19",
-        "status": "ACTIVE"
-      },
-      "hasExecutionClaims": true,
-      "isStale": false,
-      "lastUpdated": "2026-01-19",
-      "owner": null,
-      "path": "docs/phase2 docs/STRATEGY-Phase2-CapitalAllocation.md",
-      "staleDays": 122,
-      "status": "ACTIVE"
-    },
-    {
-      "docType": "doc",
-      "exists": true,
       "frontmatter": {},
       "hasExecutionClaims": false,
       "isStale": true,
@@ -8695,21 +8365,6 @@
       "docType": "doc",
       "exists": true,
       "frontmatter": {
-        "last_updated": "2026-01-19",
-        "status": "ACTIVE"
-      },
-      "hasExecutionClaims": false,
-      "isStale": false,
-      "lastUpdated": "2026-01-19",
-      "owner": null,
-      "path": "docs/production-deployment-checklist.md",
-      "staleDays": 122,
-      "status": "ACTIVE"
-    },
-    {
-      "docType": "doc",
-      "exists": true,
-      "frontmatter": {
         "last_updated": "2026-04-03"
       },
       "hasExecutionClaims": false,
@@ -8746,277 +8401,22 @@
       "isStale": false,
       "lastUpdated": "2026-01-19",
       "owner": null,
-      "path": "docs/references/attached_assets/1-general_1752964042172.md",
-      "staleDays": 122,
-      "status": "ACTIVE"
-    },
-    {
-      "docType": "doc",
-      "exists": true,
-      "frontmatter": {
-        "last_updated": "2026-01-19",
-        "status": "ACTIVE"
-      },
-      "hasExecutionClaims": false,
-      "isStale": false,
-      "lastUpdated": "2026-01-19",
-      "owner": null,
-      "path": "docs/references/attached_assets/2-sector-profiles_1752964042178.md",
-      "staleDays": 122,
-      "status": "ACTIVE"
-    },
-    {
-      "docType": "doc",
-      "exists": true,
-      "frontmatter": {
-        "last_updated": "2026-01-19",
-        "status": "ACTIVE"
-      },
-      "hasExecutionClaims": false,
-      "isStale": false,
-      "lastUpdated": "2026-01-19",
-      "owner": null,
-      "path": "docs/references/attached_assets/3-allocations_1752964042179.md",
-      "staleDays": 122,
-      "status": "ACTIVE"
-    },
-    {
-      "docType": "doc",
-      "exists": true,
-      "frontmatter": {
-        "last_updated": "2026-01-19",
-        "status": "ACTIVE"
-      },
-      "hasExecutionClaims": false,
-      "isStale": false,
-      "lastUpdated": "2026-01-19",
-      "owner": null,
-      "path": "docs/references/attached_assets/4-fees-expenses_1752964042179.md",
-      "staleDays": 122,
-      "status": "ACTIVE"
-    },
-    {
-      "docType": "doc",
-      "exists": true,
-      "frontmatter": {
-        "last_updated": "2026-01-19",
-        "status": "ACTIVE"
-      },
-      "hasExecutionClaims": false,
-      "isStale": false,
-      "lastUpdated": "2026-01-19",
-      "owner": null,
-      "path": "docs/references/attached_assets/5-exit-recycling_1752964042179.md",
-      "staleDays": 122,
-      "status": "ACTIVE"
-    },
-    {
-      "docType": "doc",
-      "exists": true,
-      "frontmatter": {
-        "last_updated": "2026-01-19",
-        "status": "ACTIVE"
-      },
-      "hasExecutionClaims": false,
-      "isStale": false,
-      "lastUpdated": "2026-01-19",
-      "owner": null,
-      "path": "docs/references/attached_assets/6-waterfall_1752964042180.md",
-      "staleDays": 122,
-      "status": "ACTIVE"
-    },
-    {
-      "docType": "doc",
-      "exists": true,
-      "frontmatter": {
-        "last_updated": "2026-01-19",
-        "status": "ACTIVE"
-      },
-      "hasExecutionClaims": false,
-      "isStale": false,
-      "lastUpdated": "2026-01-19",
-      "owner": null,
-      "path": "docs/references/attached_assets/7-limited-partners_1752964042180.md",
-      "staleDays": 122,
-      "status": "ACTIVE"
-    },
-    {
-      "docType": "doc",
-      "exists": true,
-      "frontmatter": {
-        "last_updated": "2026-01-19",
-        "status": "ACTIVE"
-      },
-      "hasExecutionClaims": false,
-      "isStale": false,
-      "lastUpdated": "2026-01-19",
-      "owner": null,
-      "path": "docs/references/attached_assets/README_1752964042182.md",
-      "staleDays": 122,
-      "status": "ACTIVE"
-    },
-    {
-      "docType": "doc",
-      "exists": true,
-      "frontmatter": {
-        "last_updated": "2026-01-19",
-        "status": "ACTIVE"
-      },
-      "hasExecutionClaims": false,
-      "isStale": false,
-      "lastUpdated": "2026-01-19",
-      "owner": null,
-      "path": "docs/references/attached_assets/content-1752982029235.md",
-      "staleDays": 122,
-      "status": "ACTIVE"
-    },
-    {
-      "docType": "doc",
-      "exists": true,
-      "frontmatter": {
-        "last_updated": "2026-01-19",
-        "status": "ACTIVE"
-      },
-      "hasExecutionClaims": false,
-      "isStale": false,
-      "lastUpdated": "2026-01-19",
-      "owner": null,
-      "path": "docs/references/attached_assets/content-1752988962282.md",
-      "staleDays": 122,
-      "status": "ACTIVE"
-    },
-    {
-      "docType": "doc",
-      "exists": true,
-      "frontmatter": {
-        "last_updated": "2026-04-03",
-        "status": "ACTIVE"
-      },
-      "hasExecutionClaims": false,
-      "isStale": false,
-      "lastUpdated": "2026-04-03",
-      "owner": null,
-      "path": "docs/references/capital-allocation-follow-on.md",
-      "staleDays": 48,
-      "status": "ACTIVE"
-    },
-    {
-      "docType": "doc",
-      "exists": true,
-      "frontmatter": {
-        "last_updated": "2026-01-19",
-        "status": "ACTIVE"
-      },
-      "hasExecutionClaims": false,
-      "isStale": false,
-      "lastUpdated": "2026-01-19",
-      "owner": null,
-      "path": "docs/references/claude-agent-engines.md",
-      "staleDays": 122,
-      "status": "ACTIVE"
-    },
-    {
-      "docType": "doc",
-      "exists": true,
-      "frontmatter": {
-        "last_updated": "2026-01-19",
-        "status": "ACTIVE"
-      },
-      "hasExecutionClaims": false,
-      "isStale": false,
-      "lastUpdated": "2026-01-19",
-      "owner": null,
-      "path": "docs/references/claude-agent-integration.md",
-      "staleDays": 122,
-      "status": "ACTIVE"
-    },
-    {
-      "docType": "doc",
-      "exists": true,
-      "frontmatter": {
-        "last_updated": "2026-01-19",
-        "status": "ACTIVE"
-      },
-      "hasExecutionClaims": false,
-      "isStale": false,
-      "lastUpdated": "2026-01-19",
-      "owner": null,
-      "path": "docs/references/claude-agent-schema.md",
-      "staleDays": 122,
-      "status": "ACTIVE"
-    },
-    {
-      "docType": "doc",
-      "exists": true,
-      "frontmatter": {
-        "last_updated": "2026-01-19",
-        "status": "ACTIVE"
-      },
-      "hasExecutionClaims": true,
-      "isStale": false,
-      "lastUpdated": "2026-01-19",
-      "owner": null,
-      "path": "docs/references/claude-agent-testing.md",
-      "staleDays": 122,
-      "status": "ACTIVE"
-    },
-    {
-      "docType": "doc",
-      "exists": true,
-      "frontmatter": {
-        "last_updated": "2026-01-19",
-        "status": "ACTIVE"
-      },
-      "hasExecutionClaims": true,
-      "isStale": false,
-      "lastUpdated": "2026-01-19",
-      "owner": null,
-      "path": "docs/references/replit.md",
-      "staleDays": 122,
-      "status": "ACTIVE"
-    },
-    {
-      "docType": "doc",
-      "exists": true,
-      "frontmatter": {
-        "last_updated": "2026-01-19",
-        "status": "ACTIVE"
-      },
-      "hasExecutionClaims": false,
-      "isStale": false,
-      "lastUpdated": "2026-01-19",
-      "owner": null,
-      "path": "docs/references/seed-cases-ca-007-020.md",
-      "staleDays": 122,
-      "status": "ACTIVE"
-    },
-    {
-      "docType": "doc",
-      "exists": true,
-      "frontmatter": {
-        "last_updated": "2026-01-19",
-        "status": "ACTIVE"
-      },
-      "hasExecutionClaims": false,
-      "isStale": false,
-      "lastUpdated": "2026-01-19",
-      "owner": null,
-      "path": "docs/release/compat-matrix.md",
-      "staleDays": 122,
-      "status": "ACTIVE"
-    },
-    {
-      "docType": "doc",
-      "exists": true,
-      "frontmatter": {
-        "last_updated": "2026-01-19",
-        "status": "ACTIVE"
-      },
-      "hasExecutionClaims": false,
-      "isStale": false,
-      "lastUpdated": "2026-01-19",
-      "owner": null,
       "path": "docs/releases/SlackBatchAPI-v1.0.0.md",
+      "staleDays": 122,
+      "status": "ACTIVE"
+    },
+    {
+      "docType": "doc",
+      "exists": true,
+      "frontmatter": {
+        "last_updated": "2026-01-19",
+        "status": "ACTIVE"
+      },
+      "hasExecutionClaims": false,
+      "isStale": false,
+      "lastUpdated": "2026-01-19",
+      "owner": null,
+      "path": "docs/releases/compat-matrix.md",
       "staleDays": 122,
       "status": "ACTIVE"
     },
@@ -11342,111 +10742,6 @@
       "docType": "doc",
       "exists": true,
       "frontmatter": {
-        "last_updated": "2026-04-03",
-        "status": "ACTIVE"
-      },
-      "hasExecutionClaims": false,
-      "isStale": false,
-      "lastUpdated": "2026-04-03",
-      "owner": null,
-      "path": "docs/sprint-g2c-automation-kickoff.md",
-      "staleDays": 48,
-      "status": "ACTIVE"
-    },
-    {
-      "docType": "doc",
-      "exists": true,
-      "frontmatter": {
-        "last_updated": "2026-01-19",
-        "status": "ACTIVE"
-      },
-      "hasExecutionClaims": true,
-      "isStale": false,
-      "lastUpdated": "2026-01-19",
-      "owner": null,
-      "path": "docs/sprint-g2c-backlog.md",
-      "staleDays": 122,
-      "status": "ACTIVE"
-    },
-    {
-      "docType": "doc",
-      "exists": true,
-      "frontmatter": {
-        "last_updated": "2026-01-19",
-        "status": "ACTIVE"
-      },
-      "hasExecutionClaims": false,
-      "isStale": false,
-      "lastUpdated": "2026-01-19",
-      "owner": null,
-      "path": "docs/sprint-g2c-ceremony-calendar.md",
-      "staleDays": 122,
-      "status": "ACTIVE"
-    },
-    {
-      "docType": "doc",
-      "exists": true,
-      "frontmatter": {
-        "last_updated": "2026-01-19",
-        "status": "ACTIVE"
-      },
-      "hasExecutionClaims": false,
-      "isStale": false,
-      "lastUpdated": "2026-01-19",
-      "owner": null,
-      "path": "docs/sprint-g2c-master-checklist.md",
-      "staleDays": 122,
-      "status": "ACTIVE"
-    },
-    {
-      "docType": "doc",
-      "exists": true,
-      "frontmatter": {
-        "last_updated": "2026-01-19",
-        "status": "ACTIVE"
-      },
-      "hasExecutionClaims": false,
-      "isStale": false,
-      "lastUpdated": "2026-01-19",
-      "owner": null,
-      "path": "docs/sprint-g2c-planning-agenda.md",
-      "staleDays": 122,
-      "status": "ACTIVE"
-    },
-    {
-      "docType": "doc",
-      "exists": true,
-      "frontmatter": {
-        "last_updated": "2026-01-19",
-        "status": "ACTIVE"
-      },
-      "hasExecutionClaims": false,
-      "isStale": false,
-      "lastUpdated": "2026-01-19",
-      "owner": null,
-      "path": "docs/sprint-g2c-sanity-check.md",
-      "staleDays": 122,
-      "status": "ACTIVE"
-    },
-    {
-      "docType": "doc",
-      "exists": true,
-      "frontmatter": {
-        "last_updated": "2026-01-19",
-        "status": "HISTORICAL"
-      },
-      "hasExecutionClaims": false,
-      "isStale": false,
-      "lastUpdated": "2026-01-19",
-      "owner": null,
-      "path": "docs/sprint-g2c-stakeholder-summary.md",
-      "staleDays": 122,
-      "status": "HISTORICAL"
-    },
-    {
-      "docType": "doc",
-      "exists": true,
-      "frontmatter": {
         "last_updated": "2026-01-19",
         "status": "ACTIVE"
       },
@@ -11946,41 +11241,6 @@
       "docType": "doc",
       "exists": true,
       "frontmatter": {
-        "audience": "both",
-        "categories": [
-          "tech-debt",
-          "architecture",
-          "documentation"
-        ],
-        "keywords": [
-          "xirr",
-          "executive-summary",
-          "consolidation"
-        ],
-        "last_updated": "2026-04-03",
-        "owner": "Platform Developer",
-        "priority": 1,
-        "related_code": [
-          "client/src/lib/finance/xirr.ts"
-        ],
-        "review_cadence": "P90D",
-        "status": "ACTIVE",
-        "use_cases": [
-          "capability_discovery"
-        ]
-      },
-      "hasExecutionClaims": true,
-      "isStale": false,
-      "lastUpdated": "2026-04-03",
-      "owner": "Platform Developer",
-      "path": "docs/xirr-consolidation-summary.md",
-      "staleDays": 48,
-      "status": "ACTIVE"
-    },
-    {
-      "docType": "doc",
-      "exists": true,
-      "frontmatter": {
         "last_updated": "2026-01-19",
         "status": "ACTIVE"
       },
@@ -11991,21 +11251,6 @@
       "path": "docs/xirr-excel-validation.md",
       "staleDays": 122,
       "status": "ACTIVE"
-    },
-    {
-      "docType": "doc",
-      "exists": true,
-      "frontmatter": {
-        "last_updated": "2026-01-19",
-        "status": "HISTORICAL"
-      },
-      "hasExecutionClaims": false,
-      "isStale": false,
-      "lastUpdated": "2026-01-19",
-      "owner": null,
-      "path": "docs/xirr-golden-set-addition-summary.md",
-      "staleDays": 122,
-      "status": "HISTORICAL"
     },
     {
       "docType": "doc",
@@ -12452,20 +11697,6 @@
       "message": "RLS chaos testing, game day runbooks, monitoring specs",
       "priority": 93,
       "target": "docs/chaos-engineering/"
-    },
-    {
-      "category": "Quality",
-      "id": "quality_gates",
-      "keywords": [
-        "gate",
-        "quality gate",
-        "raci",
-        "gate tracking",
-        "approval"
-      ],
-      "message": "RACI matrix, gate tracking for releases",
-      "priority": 94,
-      "target": "docs/gates/"
     },
     {
       "category": "Implementation",
@@ -13204,12 +12435,12 @@
   "stats": {
     "by_status": {
       "ACCEPTED": 1,
-      "ACTIVE": 465,
+      "ACTIVE": 423,
       "ARCHIVED": 1,
       "BACKLOG": 1,
       "COMPLETED": 1,
       "DRAFT": 31,
-      "HISTORICAL": 34,
+      "HISTORICAL": 27,
       "HISTORICAL-FRAMEWORK": 1,
       "HISTORICAL-SNAPSHOT": 1,
       "IMPLEMENTED": 1,
@@ -13224,7 +12455,7 @@
     },
     "missing_frontmatter": 15,
     "stale_docs": 96,
-    "total_docs": 688
+    "total_docs": 639
   },
   "version": "2.0"
 }
