@@ -379,7 +379,6 @@ import {
 - **Core utilities:** `ai-utils/extended-thinking/index.ts`
 - **Agent helper:** `ai-utils/extended-thinking/agent-helper.ts`
 - **Documentation:** `docs/extended-thinking-integration.md`
-- **Notebook:** `notebooks/examples/extended-thinking-multi-model.ipynb`
 - **This cheatsheet:** `cheatsheets/extended-thinking.md`
 
 ## Resources
@@ -387,7 +386,6 @@ import {
 - [Extended Thinking Docs](https://docs.claude.com/en/docs/build-with-claude/extended-thinking)
 - [API Reference](https://docs.anthropic.com/en/api/messages)
 - [Updog Integration Docs](../docs/extended-thinking-integration.md)
-- [Interactive Examples](../notebooks/examples/extended-thinking-multi-model.ipynb)
 
 ---
 
