@@ -4,7 +4,7 @@
 #
 # Filter groups
 # -------------
-# auto_docs:        Exact allowlist of generated documentation outputs that
+# auto_docs:        Exact allowlist of committed generated documentation outputs that
 #                   may be touched by an automated commit.
 # not_auto_docs:    The complement of auto_docs. Used to prove the negation:
 #                   a PR is auto_docs_only when auto_docs == 'true' AND
@@ -22,24 +22,17 @@
 #
 # Generators to keep in sync with auto_docs (drift causes spurious slow-path
 # runs, which are safe; missing outputs also fail to fast-path, also safe):
-#   scripts/generate-discovery-map.ts -> docs/_generated/router-index.json
-#                                        docs/_generated/router-fast.json
-#                                        docs/_generated/staleness-report.md
+#   scripts/generate-discovery-map.ts -> docs/_generated/* (ignored by git;
+#                                        uploaded by docs-routing-check.yml)
 #   scripts/manage_skills.py          -> docs/skills/SKILLS_INDEX.md
 #                                        docs/skills/WIZARD_INDEX.md
 
 auto_docs:
-  - 'docs/_generated/router-index.json'
-  - 'docs/_generated/router-fast.json'
-  - 'docs/_generated/staleness-report.md'
   - 'docs/skills/SKILLS_INDEX.md'
   - 'docs/skills/WIZARD_INDEX.md'
 
 not_auto_docs:
   - '**'
-  - '!docs/_generated/router-index.json'
-  - '!docs/_generated/router-fast.json'
-  - '!docs/_generated/staleness-report.md'
   - '!docs/skills/SKILLS_INDEX.md'
   - '!docs/skills/WIZARD_INDEX.md'
 

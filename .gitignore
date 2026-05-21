@@ -290,6 +290,11 @@ uiux-skill/
 /dev/null.css
 *.cpuprofile
 
+# Generated discovery routing artifacts. Keep the directory placeholder tracked,
+# but regenerate the payloads locally or in CI.
+/docs/_generated/*
+!/docs/_generated/.gitkeep
+
 # Generated root-level report artifacts (historically committed 2025-10; now
 # ignored to prevent regression. Removed in the 2026-04-06 cruft cleanup.)
 /BASELINE_METRICS.json
