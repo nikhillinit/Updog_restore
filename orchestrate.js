@@ -294,6 +294,15 @@ function buildPrompt({ plan, brain, soul = '', runId = null }) {
 
 function commandExists(bin) {
   if (!bin) return false;
+  // Absolute or relative path: check the filesystem directly. where.exe/which
+  // only resolve bare names from PATH and error on absolute paths.
+  if (/[\\/]/.test(bin)) {
+    if (existsSync(bin)) return true;
+    if (process.platform === 'win32' && !/\.[a-zA-Z0-9]+$/.test(bin)) {
+      return ['.exe', '.cmd', '.bat'].some((ext) => existsSync(bin + ext));
+    }
+    return false;
+  }
   const checker = process.platform === 'win32' ? 'where.exe' : 'which';
   const result = spawnSync(checker, [bin], { stdio: 'ignore' });
   return result.status === 0;
