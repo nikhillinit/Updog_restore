@@ -68,9 +68,6 @@
     "approach": [
       "docs/commands-and-plugins-inventory.md"
     ],
-    "approval": [
-      "docs/gates/"
-    ],
     "architect": [
       "docs/commands-and-plugins-inventory.md"
     ],
@@ -501,12 +498,6 @@
     "game day": [
       "docs/chaos-engineering/"
     ],
-    "gate": [
-      "docs/gates/"
-    ],
-    "gate tracking": [
-      "docs/gates/"
-    ],
     "generic types": [
       ".claude/agents/type-design-analyzer.md"
     ],
@@ -870,17 +861,11 @@
     "quality check": [
       ".claude/commands/pre-commit-check.md"
     ],
-    "quality gate": [
-      "docs/gates/"
-    ],
     "quality regression": [
       ".claude/agents/baseline-regression-explainer.md"
     ],
     "race condition test": [
       ".claude/agents/test-repair.md"
-    ],
-    "raci": [
-      "docs/gates/"
     ],
     "random failure": [
       ".claude/agents/test-repair.md"
@@ -1895,26 +1880,6 @@
       "priority": 93,
       "route_to": "docs/chaos-engineering/",
       "why": "RLS chaos testing, game day runbooks, monitoring specs"
-    },
-    {
-      "id": "quality_gates",
-      "match_any": [
-        "gate",
-        "quality gate",
-        "raci",
-        "gate tracking",
-        "approval"
-      ],
-      "match_any_normalized": [
-        "gate",
-        "quality gate",
-        "raci",
-        "gate tracking",
-        "approval"
-      ],
-      "priority": 94,
-      "route_to": "docs/gates/",
-      "why": "RACI matrix, gate tracking for releases"
     },
     {
       "id": "wizard",

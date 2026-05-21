@@ -529,19 +529,6 @@ patterns:
     target: 'docs/chaos-engineering/'
     message: 'RLS chaos testing, game day runbooks, monitoring specs'
 
-  # --- Quality Gates ---
-  - id: 'quality_gates'
-    priority: 94
-    category: 'Quality'
-    keywords:
-      - 'gate'
-      - 'quality gate'
-      - 'raci'
-      - 'gate tracking'
-      - 'approval'
-    target: 'docs/gates/'
-    message: 'RACI matrix, gate tracking for releases'
-
   # --- Wizard Implementation ---
   - id: 'wizard'
     priority: 95
