@@ -12,11 +12,11 @@ import { createHash } from 'crypto';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { emitTelemetry, getGitState } from './control-plane.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = path.resolve(__dirname, '../..');
 const ARTIFACTS_DIR = path.join(REPO_ROOT, '.claude/artifacts/git-audits');
+const METRICS_FILE = path.join(REPO_ROOT, '.claude/artifacts/metrics.jsonl');
 const ALLOWLIST_FILE = path.join(REPO_ROOT, '.claude/large-file-allowlist.json');
 
 // Size thresholds
@@ -50,6 +50,69 @@ const REQUIRED_GENERATED_ATTRS = [
  */
 function getTimestamp() {
   return new Date().toISOString().replace(/[:-]/g, '').replace('T', '-').split('.')[0];
+}
+
+function runGit(args) {
+  try {
+    return execFileSync('git', args, {
+      cwd: REPO_ROOT,
+      encoding: 'utf8',
+      stdio: ['ignore', 'pipe', 'ignore']
+    }).trim();
+  } catch {
+    return null;
+  }
+}
+
+function getGitState() {
+  const branch = runGit(['rev-parse', '--abbrev-ref', 'HEAD']) || 'unknown';
+  const headSha = runGit(['rev-parse', 'HEAD']) || '0'.repeat(40);
+  const upstream = runGit(['rev-parse', '--abbrev-ref', `${branch}@{upstream}`]);
+  const statusPorcelain = runGit(['status', '--porcelain']) || '';
+  const statusHash = createHash('sha256').update(statusPorcelain).digest('hex');
+  const lastCommitSha = runGit(['rev-parse', 'HEAD']) || '0'.repeat(40);
+  const lastCommitSubject = runGit(['log', '-1', '--format=%s']) || '';
+  const worktreePath = runGit(['rev-parse', '--show-toplevel']);
+  const commonDir = runGit(['rev-parse', '--git-common-dir']);
+  const isWorktree = commonDir && !commonDir.endsWith('.git');
+
+  return {
+    branch,
+    headSha,
+    upstream,
+    dirty: statusPorcelain.length > 0,
+    gitStatusPorcelain: statusPorcelain,
+    gitStatusHash: statusHash,
+    lastCommit: {
+      sha: lastCommitSha,
+      subject: lastCommitSubject
+    },
+    repoRoot: REPO_ROOT,
+    worktreePath: isWorktree ? worktreePath : null
+  };
+}
+
+function emitTelemetry(event, mode, success, details = {}) {
+  try {
+    const gitState = getGitState();
+    const telemetryEvent = {
+      event,
+      ts: new Date().toISOString(),
+      repoRoot: gitState.repoRoot,
+      worktreePath: gitState.worktreePath,
+      branch: gitState.branch,
+      headSha: gitState.headSha,
+      mode,
+      success,
+      details
+    };
+
+    fs.mkdirSync(path.dirname(METRICS_FILE), { recursive: true });
+    fs.appendFileSync(METRICS_FILE, `${JSON.stringify(telemetryEvent)}\n`);
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 /**
