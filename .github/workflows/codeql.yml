@@ -1,4 +1,8 @@
 name: CodeQL
+# Triggers always start so this workflow can be a required check; the heavy
+# init/autobuild/analyze sequence is gated on whether the change set is more
+# than the auto_docs allowlist (.github/path-filters.yml). Schedule and manual
+# dispatches always run the full analysis.
 on:
   push: { branches: [main] }
   pull_request: { branches: [main] }
@@ -8,13 +12,39 @@ permissions:
   contents: read
   security-events: write
 jobs:
-  analyze:
+  changes:
     runs-on: ubuntu-latest
+    outputs:
+      auto_docs_only: ${{ steps.filter.outputs.auto_docs == 'true' && steps.filter.outputs.not_auto_docs == 'false' }}
     steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          fetch-depth: 2
+      - name: Detect changed file paths
+        uses: dorny/paths-filter@de90cc6fb38fc0963ad72b210f1f284cd68cea36 # v3.0.2
+        id: filter
+        with:
+          filters: '.github/path-filters.yml'
+
+  analyze:
+    needs: changes
+    runs-on: ubuntu-latest
+    env:
+      RUN_FULL: ${{ needs.changes.outputs.auto_docs_only != 'true' || github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' }}
+    steps:
+      - name: Report fast-path skip
+        if: env.RUN_FULL != 'true'
+        run: |
+          echo "auto_docs_only=true; CodeQL scan skipped." >> "$GITHUB_STEP_SUMMARY"
+          echo "This job stays green so CodeQL can be a required branch check." >> "$GITHUB_STEP_SUMMARY"
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        if: env.RUN_FULL == 'true'
       - uses: github/codeql-action/init@v4
+        if: env.RUN_FULL == 'true'
         with:
           languages: javascript-typescript
           config-file: ./.github/codeql-config.yml
       - uses: github/codeql-action/autobuild@v4
+        if: env.RUN_FULL == 'true'
       - uses: github/codeql-action/analyze@v4
+        if: env.RUN_FULL == 'true'

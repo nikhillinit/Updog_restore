@@ -32,28 +32,54 @@ env:
   FILE_PATTERNS: '*.ts *.tsx'
 
 jobs:
+  changes:
+    name: Detect Changes
+    runs-on: ubuntu-latest
+    outputs:
+      auto_docs_only: ${{ steps.filter.outputs.auto_docs == 'true' && steps.filter.outputs.not_auto_docs == 'false' }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+      - name: Detect changed file paths
+        uses: dorny/paths-filter@de90cc6fb38fc0963ad72b210f1f284cd68cea36 # v3.0.2
+        id: filter
+        with:
+          filters: '.github/path-filters.yml'
+
   quality-gate:
     name: Quality Gate
+    needs: changes
     runs-on: ubuntu-latest
     timeout-minutes: 30
 
     steps:
+      - name: Skip auto_docs_only changes
+        if: needs.changes.outputs.auto_docs_only == 'true'
+        run: |
+          echo "auto_docs_only=true; quality gate skipped." >> "$GITHUB_STEP_SUMMARY"
+          echo "This job stays green so it can be used as a required branch check." >> "$GITHUB_STEP_SUMMARY"
+
       - name: Checkout code
+        if: needs.changes.outputs.auto_docs_only != 'true'
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
       - name: Setup Node.js
+        if: needs.changes.outputs.auto_docs_only != 'true'
         uses: actions/setup-node@v6
         with:
           node-version: '20'
           cache: 'npm'
 
       - name: Install dependencies
+        if: needs.changes.outputs.auto_docs_only != 'true'
         run: npm ci
 
       - name: Run ESLint
         id: eslint
+        if: needs.changes.outputs.auto_docs_only != 'true'
         env:
           NODE_OPTIONS: --max-old-space-size=4096
         run: |
@@ -70,6 +96,7 @@ jobs:
 
       - name: TypeScript type check
         id: typecheck
+        if: needs.changes.outputs.auto_docs_only != 'true'
         run: |
           set +e  # Don't exit on error
           npm run check > typecheck-results.txt 2>&1
@@ -84,6 +111,7 @@ jobs:
 
       - name: Count code quality metrics
         id: metrics
+        if: needs.changes.outputs.auto_docs_only != 'true'
         run: |
           # Initialize metrics report
           cat > metrics-report.md << 'EOF'
@@ -126,6 +154,7 @@ jobs:
 
       - name: Check quality thresholds
         id: threshold-check
+        if: needs.changes.outputs.auto_docs_only != 'true'
         run: |
           FAILED=0
           WARNINGS=0
@@ -169,7 +198,7 @@ jobs:
           exit $FAILED
 
       - name: Generate auto-fix suggestions
-        if: failure()
+        if: failure() && needs.changes.outputs.auto_docs_only != 'true'
         run: |
           cat > fixes-report.md << 'EOF'
           ## Suggested Fixes
@@ -215,7 +244,7 @@ jobs:
           fi
 
       - name: Comment PR with metrics
-        if: github.event_name == 'pull_request'
+        if: github.event_name == 'pull_request' && needs.changes.outputs.auto_docs_only != 'true'
         uses: actions/github-script@v9
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
