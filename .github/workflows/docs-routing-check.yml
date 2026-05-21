@@ -1,8 +1,8 @@
 name: Documentation Routing Check
 
 on:
-  # Generated discovery outputs are ignored by git and uploaded as workflow
-  # artifacts. Source or generator changes still run the routing validation.
+  # Generated discovery outputs are committed and also uploaded as workflow
+  # artifacts. Source, generator, or committed output changes run validation.
   push:
     branches: [main]
     paths:
@@ -10,6 +10,9 @@ on:
       - 'cheatsheets/**/*.md'
       - '.claude/**/*.md'
       - 'docs/DISCOVERY-MAP.source.yaml'
+      - 'docs/_generated/router-index.json'
+      - 'docs/_generated/router-fast.json'
+      - 'docs/_generated/staleness-report.md'
       - 'scripts/generate-discovery-map.ts'
       - 'scripts/routeQueryFast.ts'
   pull_request:
@@ -18,6 +21,9 @@ on:
       - 'cheatsheets/**/*.md'
       - '.claude/**/*.md'
       - 'docs/DISCOVERY-MAP.source.yaml'
+      - 'docs/_generated/router-index.json'
+      - 'docs/_generated/router-fast.json'
+      - 'docs/_generated/staleness-report.md'
       - 'scripts/generate-discovery-map.ts'
       - 'scripts/routeQueryFast.ts'
   workflow_dispatch:

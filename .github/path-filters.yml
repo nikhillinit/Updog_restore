@@ -27,17 +27,24 @@
 #
 # Generators to keep in sync with auto_docs (drift causes spurious slow-path
 # runs, which are safe; missing outputs also fail to fast-path, also safe):
-#   scripts/generate-discovery-map.ts -> docs/_generated/* (ignored by git;
-#                                        uploaded by docs-routing-check.yml)
+#   scripts/generate-discovery-map.ts -> docs/_generated/router-index.json
+#                                        docs/_generated/router-fast.json
+#                                        docs/_generated/staleness-report.md
 #   scripts/manage_skills.py          -> docs/skills/SKILLS_INDEX.md
 #                                        docs/skills/WIZARD_INDEX.md
 
 auto_docs:
+  - 'docs/_generated/router-index.json'
+  - 'docs/_generated/router-fast.json'
+  - 'docs/_generated/staleness-report.md'
   - 'docs/skills/SKILLS_INDEX.md'
   - 'docs/skills/WIZARD_INDEX.md'
 
 not_auto_docs:
   - '**'
+  - '!docs/_generated/router-index.json'
+  - '!docs/_generated/router-fast.json'
+  - '!docs/_generated/staleness-report.md'
   - '!docs/skills/SKILLS_INDEX.md'
   - '!docs/skills/WIZARD_INDEX.md'
 
