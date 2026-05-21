@@ -35,6 +35,17 @@ package-lock.json text eol=lf
 LICENSE text eol=lf
 README text eol=lf
 
+# Archive and generated-directory hygiene.
+#
+# These attributes affect GitHub Linguist/diff presentation and git archive
+# output. They do not reduce git clone or git fetch transfer size.
+archive/** linguist-generated export-ignore
+docs/archive/** linguist-generated export-ignore
+docs/_generated/** linguist-generated export-ignore
+.backup/** linguist-generated export-ignore
+.claude/skills/INDEX.md linguist-generated
+.claude/skills/_index.json linguist-generated
+
 # Binary files
 *.png binary
 *.jpg binary

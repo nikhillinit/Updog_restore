@@ -5,6 +5,16 @@ PATH="$REPO_ROOT/node_modules/.bin:$PATH"
 
 echo "[PRE-COMMIT] Running checks..."
 
+# Block reintroducing tracked archive directories.
+echo "[CHECK] Blocking tracked archive directories..."
+ARCHIVE_FILES=$(git diff --cached --name-only --diff-filter=ACMR | grep -E '^(archive/|docs/archive/)' || true)
+if [ -n "$ARCHIVE_FILES" ]; then
+  echo "[FAIL] archive/ and docs/archive/ are forbidden in tracked HEAD."
+  echo "$ARCHIVE_FILES"
+  echo "See docs/governance/cleanup-manifest.md and docs/processes/clone-guide.md."
+  exit 1
+fi
+
 # Check for emoji in staged files (exclude legacy CHANGELOG and emoji documentation)
 echo "[CHECK] Scanning for emojis..."
 EMOJI_FILES=$(git diff --cached --name-only | grep -E '\.(md|js|mjs|ts|tsx|jsx)$' | grep -v -E '(CHANGELOG\.md|cheatsheets/emoji-free-documentation\.md|HANDOFF-|PROJECT-PHOENIX-COMPREHENSIVE-STRATEGY\.md|\.claude/agents/)' || true)
