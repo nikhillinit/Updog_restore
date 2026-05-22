@@ -1,6 +1,6 @@
 ---
 status: ACTIVE
-last_updated: 2026-04-05
+last_updated: 2026-05-22
 ---
 
 # ADR-014: Snapshot Governance
@@ -104,5 +104,5 @@ The current-main remediation queue should:
 - `server/services/fund-state-read-service.ts`
 - `server/services/time-travel-analytics.ts`
 - `server/services/backtesting-service.ts`
-- `docs/archive/2026-q2/2026-04-05-todo-report-remediation-strategy.md`
-  (archived 2026-04-08 per Phase 3 close-via-archive)
+- `docs/plans/2026-03-31-variance-roadmap-revision.md` (historical sequencing
+  framework updated after the April 5 archive tree was pruned)
