@@ -12,13 +12,8 @@ docs/observability/**          @nikhillinit
 core/reserves/**               @nikhillinit
 client/src/core/**             @nikhillinit
 
-# Test Infrastructure & Golden Fixtures
-tests/agents/**                @nikhillinit
-tests/agents/fixtures/**       @nikhillinit
-
 # CI/CD & Deployment
 .github/workflows/**           @nikhillinit
-scripts/verify-docs-and-env.sh @nikhillinit
 
 # Security & Compliance
 tools/eslint-plugin-povc-security/** @nikhillinit
