@@ -2,7 +2,6 @@
 # Docs: https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-code-owners
 
 # AI Agent System (Phase 1+)
-ai/**                          @nikhillinit
 server/agents/**               @nikhillinit
 docs/adr/**                    @nikhillinit
 docs/metrics-meanings.md       @nikhillinit
