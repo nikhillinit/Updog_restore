@@ -332,8 +332,9 @@ below, not a backlog.
   `2026-04-02-phase-2-scenario-comparison-consolidation-plan.md` and the
   2026-04-03 slice 3 / slice 4 follow-ups
 - Dual-forecast PR queue — `2026-04-03-phase-1b-single-owner-pr-queue.md`
-- Doc truthfulness remediation (CLOSED 2026-04-08, settled on main) —
-  `docs/archive/2026-q2/2026-04-05-todo-report-remediation-strategy.md`
+- Doc truthfulness remediation (CLOSED 2026-04-08, settled on main) — covered by
+  ADR-014, current product evidence, and git history after the April 5 archive
+  copy was pruned
 
 **Standing rules that outlast the program:**
 
