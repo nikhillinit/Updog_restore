@@ -1,17 +1,17 @@
 ---
-last_updated: 2026-05-21
+last_updated: 2026-05-22
 ---
 
 # Staleness Report
 
-*Generated: 2026-05-21T00:00:00.000Z*
+*Generated: 2026-05-22T00:00:00.000Z*
 *Source: docs/DISCOVERY-MAP.source.yaml*
 
 ## Summary
 
 | Metric | Value |
 |--------|-------|
-| Total Documents | 640 |
+| Total Documents | 647 |
 | Stale Documents | 96 |
 | Missing Frontmatter | 15 |
 
@@ -19,7 +19,7 @@ last_updated: 2026-05-21
 
 | Status | Count |
 |--------|-------|
-| ACTIVE | 424 |
+| ACTIVE | 431 |
 | UNKNOWN | 123 |
 | DRAFT | 31 |
 | HISTORICAL | 27 |
@@ -80,20 +80,20 @@ Documents that need review (older than their cadence threshold):
 | `docs/superpowers/plans/2026-05-16-variance-calculation-extraction.md` | Never | 999 | YES - verify! | Unassigned |
 | `docs/superpowers/plans/2026-05-19-ca-period-truth-harness-remediation.md` | Never | 999 | No | Unassigned |
 | `docs/superpowers/specs/2026-05-16-refactor-stability-strategy-design.md` | Never | 999 | YES - verify! | Unassigned |
-| `cheatsheets/agent-architecture.md` | 2026-01-19 | 122 | No | Unassigned |
-| `cheatsheets/agent-memory/database-expert-schema-tdd.md` | 2026-01-19 | 122 | No | Unassigned |
-| `cheatsheets/ai-code-review.md` | 2026-01-19 | 122 | No | Unassigned |
-| `cheatsheets/anti-pattern-prevention.md` | 2026-01-19 | 122 | No | Unassigned |
-| `cheatsheets/api.md` | 2026-01-19 | 122 | No | Unassigned |
-| `cheatsheets/capability-checklist.md` | 2026-01-19 | 122 | No | Unassigned |
-| `cheatsheets/ci-validator-guide.md` | 2026-01-19 | 122 | No | Unassigned |
-| `cheatsheets/claude-commands.md` | 2026-01-19 | 122 | No | Unassigned |
-| `cheatsheets/claude-md-guidelines.md` | 2026-01-19 | 122 | No | Unassigned |
-| `cheatsheets/codex-collaboration-protocol.md` | 2026-01-19 | 122 | No | Unassigned |
-| `cheatsheets/coding-pairs-playbook.md` | 2026-01-19 | 122 | No | Unassigned |
-| `cheatsheets/command-summary.md` | 2026-01-19 | 122 | No | Unassigned |
-| `cheatsheets/correct-workflow-example.md` | 2026-01-19 | 122 | No | Unassigned |
-| `cheatsheets/document-review-workflow.md` | 2026-01-19 | 122 | No | Unassigned |
+| `cheatsheets/agent-architecture.md` | 2026-01-19 | 123 | No | Unassigned |
+| `cheatsheets/agent-memory/database-expert-schema-tdd.md` | 2026-01-19 | 123 | No | Unassigned |
+| `cheatsheets/ai-code-review.md` | 2026-01-19 | 123 | No | Unassigned |
+| `cheatsheets/anti-pattern-prevention.md` | 2026-01-19 | 123 | No | Unassigned |
+| `cheatsheets/api.md` | 2026-01-19 | 123 | No | Unassigned |
+| `cheatsheets/capability-checklist.md` | 2026-01-19 | 123 | No | Unassigned |
+| `cheatsheets/ci-validator-guide.md` | 2026-01-19 | 123 | No | Unassigned |
+| `cheatsheets/claude-commands.md` | 2026-01-19 | 123 | No | Unassigned |
+| `cheatsheets/claude-md-guidelines.md` | 2026-01-19 | 123 | No | Unassigned |
+| `cheatsheets/codex-collaboration-protocol.md` | 2026-01-19 | 123 | No | Unassigned |
+| `cheatsheets/coding-pairs-playbook.md` | 2026-01-19 | 123 | No | Unassigned |
+| `cheatsheets/command-summary.md` | 2026-01-19 | 123 | No | Unassigned |
+| `cheatsheets/correct-workflow-example.md` | 2026-01-19 | 123 | No | Unassigned |
+| `cheatsheets/document-review-workflow.md` | 2026-01-19 | 123 | No | Unassigned |
 
 *...and 46 more stale documents.*
 
@@ -101,12 +101,12 @@ Documents that need review (older than their cadence threshold):
 
 These documents contain phrases like "tests pass", "PR merged", etc. and should be verified:
 
-- [ ] **cheatsheets/emoji-free-documentation.md** (122 days old)
-- [ ] **cheatsheets/schema-alignment.md** (122 days old)
-- [ ] **docs/notebooklm-sources/reserves/01-overview.md** (122 days old)
-- [ ] **docs/notebooklm-sources/waterfall.md** (122 days old)
-- [ ] **docs/notebooklm-sources/xirr.md** (122 days old)
-- [ ] **docs/observability/EDITORIAL-V2-CHANGELOG.md** (122 days old)
+- [ ] **cheatsheets/emoji-free-documentation.md** (123 days old)
+- [ ] **cheatsheets/schema-alignment.md** (123 days old)
+- [ ] **docs/notebooklm-sources/reserves/01-overview.md** (123 days old)
+- [ ] **docs/notebooklm-sources/waterfall.md** (123 days old)
+- [ ] **docs/notebooklm-sources/xirr.md** (123 days old)
+- [ ] **docs/observability/EDITORIAL-V2-CHANGELOG.md** (123 days old)
 - [ ] **docs/skills/REFL-003-cross-platform-file-enumeration-fragility.md** (999 days old)
 - [ ] **docs/skills/REFL-014-test-key-reuse-across-test-cases.md** (999 days old)
 - [ ] **docs/skills/REFL-015-postgresql-service-missing-test-database.md** (999 days old)

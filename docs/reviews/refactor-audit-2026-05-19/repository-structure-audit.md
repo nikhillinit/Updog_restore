@@ -1,6 +1,6 @@
 ---
 status: REFERENCE
-last_updated: 2026-05-20
+last_updated: 2026-05-22
 owner: Core Team
 categories: [reviews, refactor, repository-structure]
 keywords: [repository-structure, audit, cleanup, docs]
@@ -39,7 +39,7 @@ and must be treated as historical evidence, not execution instructions.
 | `docs/phase0-runner*.txt`          | Absent                                                                                                                                                        | No deletion work remains; keep ignore/prevention only if generation can recur.                                                                                 |
 | Root `archive/`                    | Absent                                                                                                                                                        | Do not execute old `/archive` deletion steps. Audit `_archive/` separately if it enters scope.                                                                 |
 | `docs/archive/`                    | Ignored working-tree content: 5 files, about 20.1MB                                                                                                           | Curate file by file if intentionally tracked; do not blanket-delete as a tracked docs tree.                                                                    |
-| `docs/references/attached_assets/` | 222 tracked files; working tree currently has 220 after two deletions                                                                                         | Still an early externalization/deletion candidate after reference classification.                                                                              |
+| `docs/references/attached_assets/` | 0 tracked files after the 2026-05-22 cleanup pass                                                                                                             | Closed as a repository-weight cleanup item; restore specific assets from git history only if an active reference requires them.                                |
 | Root `src/`                        | One tracked file: `src/core/routes/ia.ts`, referenced by route-story tests                                                                                    | Not an orphan directory; preserve until route metadata consumers are migrated.                                                                                 |
 | `.env.test`                        | No committed `.env.test`; ignored `.env.test.local` exists                                                                                                    | Add `.env.test` only after loader/CI behavior is verified.                                                                                                     |
 | Route refactor gates               | Branch-local `deal-pipeline` endpoint contracts added; branch-local route-surface inventory records metrics/RUM aliases, auth posture, and external ownership | Service extraction and mount cleanup can proceed one boundary at a time after the branch lands; do not remove observability aliases without consumer evidence. |
@@ -70,9 +70,9 @@ merged into this main workspace.
 **Waste Estimate**: Current deletion volume is TBD until the cleanup manifest
 classifies references. The older ~42MB estimate is superseded because the root
 `archive/` directory and `docs/phase0-runner*.txt` logs are already absent;
-remaining known candidates are tracked `docs/references/attached_assets/`,
-ignored `docs/archive/` content if it is intentionally retained, script sprawl,
-and redundant config entrypoints proven unreferenced.
+remaining known candidates are ignored `docs/archive/` content if it is
+intentionally retained, script sprawl, and redundant config entrypoints proven
+unreferenced.
 
 ---
 
@@ -114,23 +114,22 @@ and redundant config entrypoints proven unreferenced.
   longer reference it. Do not rely on Vitest tag filtering until version/CLI
   support is verified.
 
-### P0-3: Documentation Asset Bloat — Attached Assets Still Tracked
+### P0-3: Documentation Asset Bloat — Attached Assets Closed
 
 - **Category**: Documentation
 - **Evidence**:
-  - `docs/references/attached_assets/` remains tracked with 222 files in the
-    index; the working tree currently has 220 after two deletions
+  - `docs/references/attached_assets/` has 0 tracked files after the 2026-05-22
+    cleanup pass
   - `docs/phase0-runner*.txt` is already absent
   - Root `archive/` is already absent
   - `docs/archive/` is currently ignored working-tree content: 5 files totaling
     about 20.1MB
-- **Impact**: Tracked attached assets remain a real repo-weight and review-noise
-  problem. The old archive/log deletion items are no longer current execution
-  work.
+- **Impact**: The tracked attached-assets repo-weight problem is closed. The old
+  archive/log deletion items are no longer current execution work.
 - **Recommendation**:
   1. Record `docs/phase0-runner*.txt` as already absent.
-  2. Classify references to `docs/references/attached_assets/`, then delete
-     unused assets or externalize useful assets to LFS/object storage/docs CDN.
+  2. Keep `docs/references/attached_assets/` deleted unless a future active
+     reference proves a specific asset should be restored from git history.
   3. Curate the ignored `docs/archive/` working-tree content file by file only
      if it is intentionally brought back into tracked docs.
   4. Do not treat `docs/archive/` as a tracked duplicate of root `/archive`;
@@ -451,12 +450,12 @@ and redundant config entrypoints proven unreferenced.
 
 ### Documentation by Type
 
-| Type           | Files | Size  | Notes                                |
-| -------------- | ----- | ----- | ------------------------------------ |
-| `.md` files    | 772   | -     | In docs/ alone                       |
-| Images/PDFs    | ~200  | ~50MB | Mostly in references/attached_assets |
-| `.txt` dumps   | ~50   | ~21MB | Baselines, logs                      |
-| Auto-generated | ~100  | -     | \_generated/, notebooklm-sources     |
+| Type           | Files | Size  | Notes                            |
+| -------------- | ----- | ----- | -------------------------------- |
+| `.md` files    | 772   | -     | In docs/ alone                   |
+| Images/PDFs    | TBD   | TBD   | Attached-assets batch closed     |
+| `.txt` dumps   | ~50   | ~21MB | Baselines, logs                  |
+| Auto-generated | ~100  | -     | \_generated/, notebooklm-sources |
 
 ### Active vs Stale Package.json
 
@@ -475,8 +474,8 @@ and redundant config entrypoints proven unreferenced.
 
 1. **Capture baseline and cleanup manifest** - make deletion eligibility
    explicit before changing files.
-2. **Classify `docs/references/attached_assets/`** - delete unused assets or
-   externalize useful assets after reference scans.
+2. **Keep `docs/references/attached_assets/` closed** - restore specific assets
+   only if an active reference requires them.
 3. **Curate ignored `docs/archive/` content** - only if it is intentionally
    reintroduced to tracked docs.
 4. **Consolidate npm scripts** - retire wave/phase aliases after canonical

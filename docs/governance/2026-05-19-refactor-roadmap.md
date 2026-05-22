@@ -1,6 +1,6 @@
 ---
 status: ACTIVE
-last_updated: 2026-05-20
+last_updated: 2026-05-22
 owner: Core Team
 review_cadence: P30D
 categories: [governance, refactor, strategy]
@@ -37,9 +37,9 @@ emphasizes DX/tooling cleanup before cosmetics; and it adds measurable controls
 so the project does not merely preserve a bad baseline. The verified repository
 state changes the execution details in several important ways:
 
-1. `docs/references/attached_assets/` is still present with 222 files and
-   remains an early externalization/deletion candidate after reference
-   classification.
+1. `docs/references/attached_assets/` has been removed from tracked `HEAD` after
+   reference classification found no active product/runtime dependency outside
+   cleanup and audit docs.
 2. `docs/phase0-runner*.txt` and root `archive/` are already absent, so they are
    no longer deletion work.
 3. Root `src/` is not an orphan: `src/core/routes/ia.ts` is tracked and
@@ -94,7 +94,8 @@ The latest plan fixes important execution hazards that the attachment either
 omits or under-specifies:
 
 - It adds `docs/references/attached_assets/` to the cleanup manifest and
-  Phase 1.
+  Phase 1. That item is now closed on 2026-05-22 after reference classification
+  and deletion.
 - It calls out the XState modeling wizard machine as a high-risk migration
   surface. Verification shows it is active, so this plan now treats it as
   keep-and-migrate-later rather than delete-now.
@@ -152,7 +153,7 @@ These should also remain.
 | TypeScript         | Keep active boundary configs, including `tsconfig.shared.json`; delete only unreferenced variants proven by script/extends scans.                                                                                             |
 | Env files          | No committed `.env.test` exists. Add one only with safe deterministic values and verified loader behavior; production secrets stay out of Git.                                                                                |
 | Archives/logs      | `docs/phase0-runner*.txt` and root `archive/` are already absent; remaining `docs/archive/` is small and must be curated, not blanket-deleted.                                                                                |
-| Binary docs assets | `docs/references/attached_assets/` deleted or externalized unless actively required.                                                                                                                                          |
+| Binary docs assets | `docs/references/attached_assets/` has 0 tracked files; restore specific assets from git history only if a future active reference requires them.                                                                             |
 | Packages           | `packages/*` is still referenced by scripts/tsconfigs. Remove those references before deleting or extracting packages.                                                                                                        |
 | Quarantine         | Zero undocumented quarantines; every quarantine has TTL, reason, and exit condition.                                                                                                                                          |
 | Financial logic    | Existing truth/parity tests are fragmented across domains; fill missing coverage before semantic refactors.                                                                                                                   |
@@ -313,6 +314,11 @@ Do not ignore all `*.txt` files.
 Target:
 
 - `docs/references/attached_assets/`
+
+2026-05-22 status: closed. A reference scan excluding the asset directory found
+only cleanup/governance/audit references, so the tracked asset directory was
+deleted. Use the decision rule below only if future work proposes restoring a
+specific asset.
 
 Decision rule:
 
@@ -1305,7 +1311,8 @@ server/shared/ -> server/lib if server-local
 
 1. Baseline and cleanup manifest.
 2. Record `docs/phase0-runner*.txt` and root `archive/` as already absent.
-3. Externalize or delete `docs/references/attached_assets/`.
+3. Keep `docs/references/attached_assets/` closed at 0 tracked files; restore
+   individual assets only with an active reference.
 4. Curate the small remaining `docs/archive/2025-q4/` contents.
 5. Migrate or document root `src/core/routes/ia.ts` before any root `src/`
    removal.
