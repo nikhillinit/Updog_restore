@@ -80,7 +80,7 @@ portfolio strategy.
 ### Real-World Impact
 
 From test case analysis
-([pacing-engine.test.ts:158-167](tests/unit/engines/pacing-engine.test.ts#L158)):
+([pacing-engine.test.ts:158-167](../../../tests/unit/engines/pacing-engine.test.ts#L158)):
 
 ```typescript
 // $50M fund deployed over 8 quarters
@@ -168,7 +168,7 @@ allocation timing:
 ### 3. Phase-Based Deployment
 
 Each 8-quarter schedule is divided into **three phases**
-([PacingEngine.ts:82-85](client/src/core/pacing/PacingEngine.ts#L82)):
+([PacingEngine.ts:82-85](../../../client/src/core/pacing/PacingEngine.ts#L82)):
 
 1. **Early-Stage Focus (Q1-3)**: Seed and Series A investments
    - Higher risk tolerance
@@ -186,7 +186,7 @@ Each 8-quarter schedule is divided into **three phases**
    - Reserve allocation
 
 **Test Evidence:**
-[pacing-engine.test.ts:113-143](tests/unit/engines/pacing-engine.test.ts#L113)
+[pacing-engine.test.ts:113-143](../../../tests/unit/engines/pacing-engine.test.ts#L113)
 validates phase note assignment across all strategies.
 
 ### 4. Deterministic Variability
@@ -208,11 +208,11 @@ const deployment = baseAmount * multiplier * variability;
 - **Deterministic**: Same inputs always produce same outputs (critical for
   testing)
 - **Reproducible**: Resets seed on each engine invocation
-  ([PacingEngine.ts:126](client/src/core/pacing/PacingEngine.ts#L126))
+  ([PacingEngine.ts:126](../../../client/src/core/pacing/PacingEngine.ts#L126))
 - **Realistic**: Mimics real-world unpredictability in deal flow
 
 **Edge Case:** Test
-[pacing-engine.test.ts:326-335](tests/unit/engines/pacing-engine.test.ts#L326)
+[pacing-engine.test.ts:326-335](../../../tests/unit/engines/pacing-engine.test.ts#L326)
 validates consistency across multiple runs with identical inputs.
 
 ### 5. Algorithm Modes
@@ -234,7 +234,7 @@ The PacingEngine supports two calculation modes:
 - Note suffix: "ML-optimized pacing"
 
 **Mode Detection:**
-[PacingEngine.ts:47-49](client/src/core/pacing/PacingEngine.ts#L47)
+[PacingEngine.ts:47-49](../../../client/src/core/pacing/PacingEngine.ts#L47)
 
 ```typescript
 function isAlgorithmModeEnabled(): boolean {
@@ -246,7 +246,7 @@ function isAlgorithmModeEnabled(): boolean {
 ```
 
 **Test Coverage:**
-[pacing-engine.test.ts:191-222](tests/unit/engines/pacing-engine.test.ts#L191)
+[pacing-engine.test.ts:191-222](../../../tests/unit/engines/pacing-engine.test.ts#L191)
 validates both modes.
 
 ---
@@ -264,7 +264,7 @@ graph LR
     E --> F[Engine Calculation]
 ```
 
-**Validation Schema:** [shared/types.ts:113-117](shared/types.ts#L113)
+**Validation Schema:** [shared/types.ts:113-117](../../../shared/types.ts#L113)
 
 ```typescript
 export const PacingInputSchema = z.object({
@@ -275,7 +275,7 @@ export const PacingInputSchema = z.object({
 ```
 
 **Test Coverage:**
-[pacing-engine.test.ts:24-53](tests/unit/engines/pacing-engine.test.ts#L24)
+[pacing-engine.test.ts:24-53](../../../tests/unit/engines/pacing-engine.test.ts#L24)
 validates rejection of invalid inputs.
 
 ### Core Calculation Flow
@@ -296,15 +296,16 @@ validates rejection of invalid inputs.
 ```
 
 **Implementation:**
-[PacingEngine.ts:52-95](client/src/core/pacing/PacingEngine.ts#L52) for
-rule-based, [PacingEngine.ts:98-113](client/src/core/pacing/PacingEngine.ts#L98)
+[PacingEngine.ts:52-95](../../../client/src/core/pacing/PacingEngine.ts#L52) for
+rule-based,
+[PacingEngine.ts:98-113](../../../client/src/core/pacing/PacingEngine.ts#L98)
 for ML-enhanced.
 
 ### Output Generation
 
 The primary function `PacingEngine()`
-([PacingEngine.ts:124](client/src/core/pacing/PacingEngine.ts#L124)) returns an
-array of `PacingOutput` objects:
+([PacingEngine.ts:124](../../../client/src/core/pacing/PacingEngine.ts#L124))
+returns an array of `PacingOutput` objects:
 
 ```typescript
 export function PacingEngine(input: unknown): PacingOutput[] {
@@ -322,7 +323,7 @@ export function PacingEngine(input: unknown): PacingOutput[] {
 
 **Summary Generation:** For comprehensive metadata, use
 `generatePacingSummary()`
-([PacingEngine.ts:144](client/src/core/pacing/PacingEngine.ts#L144)):
+([PacingEngine.ts:144](../../../client/src/core/pacing/PacingEngine.ts#L144)):
 
 ```typescript
 export function generatePacingSummary(input: PacingInput): PacingSummary {
@@ -343,7 +344,7 @@ export function generatePacingSummary(input: PacingInput): PacingSummary {
 ```
 
 **Test Coverage:**
-[pacing-engine.test.ts:255-293](tests/unit/engines/pacing-engine.test.ts#L255)
+[pacing-engine.test.ts:255-293](../../../tests/unit/engines/pacing-engine.test.ts#L255)
 validates summary generation.
 
 ---
@@ -369,7 +370,7 @@ validates summary generation.
 would deploy approximately $6.25M per quarter over 8 quarters.
 
 **Test Reference:**
-[pacing-engine.test.ts:81-94](tests/unit/engines/pacing-engine.test.ts#L81)
+[pacing-engine.test.ts:81-94](../../../tests/unit/engines/pacing-engine.test.ts#L81)
 
 ---
 
@@ -394,7 +395,7 @@ would front-load deployment to capture momentum and avoid being priced out
 later.
 
 **Test Reference:**
-[pacing-engine.test.ts:60-69](tests/unit/engines/pacing-engine.test.ts#L60)
+[pacing-engine.test.ts:60-69](../../../tests/unit/engines/pacing-engine.test.ts#L60)
 
 **Trade-off:** Higher exposure to early-period market corrections, but captures
 growth upside.
@@ -422,7 +423,7 @@ conserve capital early, waiting for valuations to stabilize before aggressive
 deployment in later quarters.
 
 **Test Reference:**
-[pacing-engine.test.ts:70-80](tests/unit/engines/pacing-engine.test.ts#L70)
+[pacing-engine.test.ts:70-80](../../../tests/unit/engines/pacing-engine.test.ts#L70)
 
 **Trade-off:** Risk of missing early recovery, but benefits from lower
 valuations later.
@@ -449,7 +450,7 @@ valuations later.
 running scenario analysis across multiple market conditions.
 
 **Test Reference:**
-[pacing-engine.test.ts:193-205](tests/unit/engines/pacing-engine.test.ts#L193)
+[pacing-engine.test.ts:193-205](../../../tests/unit/engines/pacing-engine.test.ts#L193)
 
 **Trade-off:** Higher complexity and less transparency, but captures nuanced
 market trends.
@@ -460,8 +461,9 @@ market trends.
 
 ### 1. Worker Integration
 
-The **pacing-worker** ([workers/pacing-worker.ts](workers/pacing-worker.ts))
-handles background calculations:
+The **pacing-worker**
+([workers/pacing-worker.ts](../../../workers/pacing-worker.ts)) handles
+background calculations:
 
 - Subscribes to BullMQ queue: `pacing:calc`
 - Loads fund data from PostgreSQL
@@ -513,7 +515,7 @@ Pacing schedules are used in multi-scenario analysis:
 - Stress-test portfolio construction under various pacing strategies
 
 **Test Evidence:**
-[pacing-engine.test.ts:299-336](tests/unit/engines/pacing-engine.test.ts#L299)
+[pacing-engine.test.ts:299-336](../../../tests/unit/engines/pacing-engine.test.ts#L299)
 validates edge cases across extreme fund sizes and quarters.
 
 ---
@@ -529,16 +531,17 @@ validates edge cases across extreme fund sizes and quarters.
 
 ## Related Documentation
 
-- **Type Definitions:** [shared/types.ts:113-132](shared/types.ts#L113) - Zod
-  schemas and TypeScript types
+- **Type Definitions:**
+  [shared/types.ts:113-132](../../../shared/types.ts#L113) - Zod schemas and
+  TypeScript types
 - **Test Suite:**
-  [tests/unit/engines/pacing-engine.test.ts](tests/unit/engines/pacing-engine.test.ts) -
+  [tests/unit/engines/pacing-engine.test.ts](../../../tests/unit/engines/pacing-engine.test.ts) -
   336 lines, 30+ test cases
 - **Worker Implementation:**
-  [workers/pacing-worker.ts](workers/pacing-worker.ts) - Background job
+  [workers/pacing-worker.ts](../../../workers/pacing-worker.ts) - Background job
   processing
 - **Validation Config:**
-  [scripts/validation/pacing-validation.yaml](scripts/validation/pacing-validation.yaml) -
+  [scripts/validation/pacing-validation.yaml](../../../scripts/validation/pacing-validation.yaml) -
   Promptfoo test cases
 
 ---

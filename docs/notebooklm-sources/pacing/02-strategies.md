@@ -48,7 +48,7 @@ Where:
 
 ### Hard Constraints
 
-**Implemented:** [PacingInputSchema validation](shared/types.ts#L113)
+**Implemented:** [PacingInputSchema validation](../../../shared/types.ts#L113)
 
 1. **Fund Size Constraint:**
 
@@ -81,7 +81,7 @@ Where:
    _Soft constraint due to variability; typically converges to ~F_
 
 **Test Evidence:**
-[pacing-engine.test.ts:157-167](tests/unit/engines/pacing-engine.test.ts#L157)
+[pacing-engine.test.ts:157-167](../../../tests/unit/engines/pacing-engine.test.ts#L157)
 validates total deployment is within 10% of fund size.
 
 ### Phase Determination
@@ -97,7 +97,7 @@ Phase(q) = {
 ```
 
 **Implementation:**
-[PacingEngine.ts:70-85](client/src/core/pacing/PacingEngine.ts#L70)
+[PacingEngine.ts:70-85](../../../client/src/core/pacing/PacingEngine.ts#L70)
 
 ```typescript
 if (i < 3) {
@@ -119,7 +119,7 @@ if (i < 3) {
 ### Algorithm Overview
 
 The **rule-based pacing** algorithm is the default mode
-([PacingEngine.ts:52-95](client/src/core/pacing/PacingEngine.ts#L52)):
+([PacingEngine.ts:52-95](../../../client/src/core/pacing/PacingEngine.ts#L52)):
 
 ```
 FOR each quarter q in [0, 7]:
@@ -222,10 +222,10 @@ Total: $50,312,500 (within 0.6% of fund size)
 ```
 
 **Test Coverage:**
-[pacing-engine.test.ts:81-94](tests/unit/engines/pacing-engine.test.ts#L81)
+[pacing-engine.test.ts:81-94](../../../tests/unit/engines/pacing-engine.test.ts#L81)
 
 **Validation Test Case:**
-[pacing-validation.yaml:10-24](scripts/validation/pacing-validation.yaml#L10) -
+[pacing-validation.yaml:10-24](../../../scripts/validation/pacing-validation.yaml#L10) -
 "Standard linear pacing calculation"
 
 ---
@@ -283,7 +283,7 @@ Total: $110,937,500
 | Q7        | ~$111M     | 100%      |
 
 **Implementation:**
-[PacingEngine.ts:56-62](client/src/core/pacing/PacingEngine.ts#L56)
+[PacingEngine.ts:56-62](../../../client/src/core/pacing/PacingEngine.ts#L56)
 
 ```typescript
 const marketAdjustments = {
@@ -293,7 +293,7 @@ const marketAdjustments = {
 ```
 
 **Test Coverage:**
-[pacing-engine.test.ts:60-69](tests/unit/engines/pacing-engine.test.ts#L60)
+[pacing-engine.test.ts:60-69](../../../tests/unit/engines/pacing-engine.test.ts#L60)
 
 ```typescript
 it('should front-load deployment in bull markets', () => {
@@ -312,7 +312,7 @@ it('should front-load deployment in bull markets', () => {
 ```
 
 **Validation Test Case:**
-[pacing-validation.yaml:27-41](scripts/validation/pacing-validation.yaml#L27) -
+[pacing-validation.yaml:27-41](../../../scripts/validation/pacing-validation.yaml#L27) -
 "Frontloaded deployment pattern (60% in year 1)"
 
 ---
@@ -374,7 +374,7 @@ valuations later. The 1.2× multiplier in late phase enables aggressive
 deployment when market has stabilized.
 
 **Test Coverage:**
-[pacing-engine.test.ts:70-80](tests/unit/engines/pacing-engine.test.ts#L70)
+[pacing-engine.test.ts:70-80](../../../tests/unit/engines/pacing-engine.test.ts#L70)
 
 ```typescript
 it('should back-load deployment in bear markets', () => {
@@ -393,7 +393,7 @@ it('should back-load deployment in bear markets', () => {
 ```
 
 **Validation Test Case:**
-[pacing-validation.yaml:43-57](scripts/validation/pacing-validation.yaml#L43) -
+[pacing-validation.yaml:43-57](../../../scripts/validation/pacing-validation.yaml#L43) -
 "Backend-loaded deployment pattern (delayed deployment)"
 
 ---
@@ -404,7 +404,7 @@ it('should back-load deployment in bear markets', () => {
 
 The **ML-enhanced** mode applies rule-based calculation first, then adds a
 simulated trend-based adjustment
-([PacingEngine.ts:98-113](client/src/core/pacing/PacingEngine.ts#L98)):
+([PacingEngine.ts:98-113](../../../client/src/core/pacing/PacingEngine.ts#L98)):
 
 ```
 FOR each quarter q:
@@ -474,7 +474,7 @@ function isAlgorithmModeEnabled(): boolean {
 ```
 
 **Test Coverage:**
-[pacing-engine.test.ts:193-205](tests/unit/engines/pacing-engine.test.ts#L193)
+[pacing-engine.test.ts:193-205](../../../tests/unit/engines/pacing-engine.test.ts#L193)
 
 ```typescript
 it('should apply ML enhancements when ALG_PACING is true', () => {
@@ -505,7 +505,7 @@ modeling of market unpredictability.
 
 The PacingEngine uses a **Pseudo-Random Number Generator (PRNG)** with fixed
 seed for deterministic randomness
-([PacingEngine.ts:22](client/src/core/pacing/PacingEngine.ts#L22)):
+([PacingEngine.ts:22](../../../client/src/core/pacing/PacingEngine.ts#L22)):
 
 ```typescript
 import { PRNG } from '@shared/utils/prng';
@@ -518,7 +518,7 @@ numbers.
 ### Seed Reset Mechanism
 
 Every invocation of `PacingEngine()` resets the PRNG seed
-([PacingEngine.ts:126](client/src/core/pacing/PacingEngine.ts#L126)):
+([PacingEngine.ts:126](../../../client/src/core/pacing/PacingEngine.ts#L126)):
 
 ```typescript
 export function PacingEngine(input: unknown): PacingOutput[] {
@@ -563,7 +563,7 @@ Range: [0.85, 1.15] (±15%)
 ### Test Evidence
 
 **Consistency Test:**
-[pacing-engine.test.ts:326-335](tests/unit/engines/pacing-engine.test.ts#L326)
+[pacing-engine.test.ts:326-335](../../../tests/unit/engines/pacing-engine.test.ts#L326)
 
 ```typescript
 it('should maintain consistency across multiple runs', () => {
@@ -618,7 +618,7 @@ const result = PacingEngine(input);
 - Variability has proportionally larger impact
 
 **Test Coverage:**
-[pacing-engine.test.ts:300-307](tests/unit/engines/pacing-engine.test.ts#L300)
+[pacing-engine.test.ts:300-307](../../../tests/unit/engines/pacing-engine.test.ts#L300)
 
 ```typescript
 it('should handle very small fund size', () => {
@@ -657,7 +657,7 @@ const result = PacingEngine(input);
 - Rounding errors are negligible relative to magnitude
 
 **Test Coverage:**
-[pacing-engine.test.ts:309-317](tests/unit/engines/pacing-engine.test.ts#L309)
+[pacing-engine.test.ts:309-317](../../../tests/unit/engines/pacing-engine.test.ts#L309)
 
 ```typescript
 it('should handle very large fund size', () => {
@@ -680,7 +680,7 @@ implementation)
 **Current Limitation:** Hardcoded 8-quarter schedule
 
 **Validation Test Case:**
-[pacing-validation.yaml:76-90](scripts/validation/pacing-validation.yaml#L76) -
+[pacing-validation.yaml:76-90](../../../scripts/validation/pacing-validation.yaml#L76) -
 "Edge case: Single-year full deployment"
 
 **Expected Behavior (if implemented):**
@@ -722,7 +722,7 @@ const result = PacingEngine(input);
 - No calendar date awareness
 
 **Test Coverage:**
-[pacing-engine.test.ts:318-324](tests/unit/engines/pacing-engine.test.ts#L318)
+[pacing-engine.test.ts:318-324](../../../tests/unit/engines/pacing-engine.test.ts#L318)
 
 ```typescript
 it('should handle high starting quarter', () => {
@@ -777,7 +777,7 @@ const result = PacingEngine(input);
 5. Therefore: `Deployment(q) = (F/8) × Multiplier × Variability ≥ 0` ∎
 
 **Test Evidence:**
-[pacing-engine.test.ts:178-185](tests/unit/engines/pacing-engine.test.ts#L178)
+[pacing-engine.test.ts:178-185](../../../tests/unit/engines/pacing-engine.test.ts#L178)
 
 ---
 
@@ -792,7 +792,7 @@ const result = PacingEngine(input);
 3. Therefore: `|deployments| = 8` ∎
 
 **Test Evidence:** Multiple test cases, e.g.,
-[pacing-engine.test.ts:151-156](tests/unit/engines/pacing-engine.test.ts#L151)
+[pacing-engine.test.ts:151-156](../../../tests/unit/engines/pacing-engine.test.ts#L151)
 
 ---
 
@@ -808,7 +808,7 @@ const result = PacingEngine(input);
 3. Therefore: `Quarter(q+1) = Quarter(q) + 1` ∎
 
 **Test Evidence:**
-[pacing-engine.test.ts:168-177](tests/unit/engines/pacing-engine.test.ts#L168)
+[pacing-engine.test.ts:168-177](../../../tests/unit/engines/pacing-engine.test.ts#L168)
 
 ---
 
@@ -843,7 +843,7 @@ converges to 1.
 6. For large `F`, rounding errors become negligible: `lim(F→∞) Total/F = 1` ∎
 
 **Test Evidence:**
-[pacing-engine.test.ts:157-167](tests/unit/engines/pacing-engine.test.ts#L157)
+[pacing-engine.test.ts:157-167](../../../tests/unit/engines/pacing-engine.test.ts#L157)
 shows total is within ±10% for $50M fund.
 
 ---
@@ -874,7 +874,7 @@ back-loads, neutral is balanced.
    ∎
 
 **Test Evidence:**
-[pacing-engine.test.ts:60-80](tests/unit/engines/pacing-engine.test.ts#L60)
+[pacing-engine.test.ts:60-80](../../../tests/unit/engines/pacing-engine.test.ts#L60)
 validates early vs late totals for bull and bear.
 
 ---
@@ -901,13 +901,13 @@ validates early vs late totals for bull and bear.
 ## Related Documentation
 
 - **Implementation:**
-  [PacingEngine.ts](client/src/core/pacing/PacingEngine.ts#L1)
+  [PacingEngine.ts](../../../client/src/core/pacing/PacingEngine.ts#L1)
 - **Test Suite:**
-  [pacing-engine.test.ts](tests/unit/engines/pacing-engine.test.ts#L1)
-- **Type Definitions:** [shared/types.ts:113-132](shared/types.ts#L113)
+  [pacing-engine.test.ts](../../../tests/unit/engines/pacing-engine.test.ts#L1)
+- **Type Definitions:** [shared/types.ts:113-132](../../../shared/types.ts#L113)
 - **PRNG Utility:** `@shared/utils/prng`
 - **Validation Config:**
-  [pacing-validation.yaml](scripts/validation/pacing-validation.yaml#L1)
+  [pacing-validation.yaml](../../../scripts/validation/pacing-validation.yaml#L1)
 
 ---
 
