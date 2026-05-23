@@ -2998,7 +2998,7 @@ and Phase 1D (Capital Allocation).
 
 - ❌ **`environmentMatchGlobs` Deprecated:** Vitest configuration uses
   deprecated `environmentMatchGlobs` option (lines 76-88 in
-  [vitest.config.ts](vitest.config.ts#L76-L88))
+  [vitest.config.mjs](vitest.config.mjs#L98-L141))
 - **Impact:** Server-side tests continue running in `jsdom` environment instead
   of `node`
 - **Errors:** `default.randomUUID is not a function`,
@@ -3020,7 +3020,7 @@ and Phase 1D (Capital Allocation).
 - [tests/unit/wizard-reserve-bridge.test.ts](tests/unit/wizard-reserve-bridge.test.ts)
 - `tests/unit/setup.ts` (since reorganized into `tests/setup/`; attempted
   environment-agnostic changes, reverted)
-- [vitest.config.ts](vitest.config.ts) (deprecated `environmentMatchGlobs`
+- [vitest.config.mjs](vitest.config.mjs) (deprecated `environmentMatchGlobs`
   configuration)
 
 ---
