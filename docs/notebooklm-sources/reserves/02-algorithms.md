@@ -66,7 +66,7 @@ calculate(input: ReserveInput) {
   // Build stage-specific caps
   const stageMax = new Map<string, Cents>();
   Object.entries(cst.maxPerStage ?? {}).forEach(([stage, max]) => {
-    stageMax['set'](stage, toCents(max));
+    stageMax.set(stage, toCents(max));
   });
 
   const stageAllocated = new Map<string, Cents>();
@@ -107,14 +107,14 @@ calculate(input: ReserveInput) {
 
 ```typescript
 const comps = input.companies.map((c) => {
-  const pol = polByStage['get'](c.stage);
+  const pol = polByStage.get(c.stage);
   if (!pol)
     throw Object.assign(new Error(`No policy for ${c.stage}`), { status: 400 });
 
   const capCompanyC = Number.isFinite(cst.maxPerCompany)
     ? toCents(cst.maxPerCompany as number)
     : BigInt(Number.MAX_SAFE_INTEGER);
-  const capStageC = stageMax['get'](c.stage) ?? null;
+  const capStageC = stageMax.get(c.stage) ?? null;
 
   // Present value calculation
   const pv =
@@ -218,7 +218,7 @@ let remainingC = toCents(input.availableReserves);
 for (const c of comps) {
   if (remainingC <= 0n) break;
 
-  const stAlloc = stageAllocated['get'](c.stage) ?? 0n;
+  const stAlloc = stageAllocated.get(c.stage) ?? 0n;
   const stRoom =
     c.capStageC != null
       ? c.capStageC - stAlloc > 0n
@@ -234,7 +234,7 @@ for (const c of comps) {
 
   c.allocatedC += roomC;
   remainingC -= roomC;
-  stageAllocated['set'](c.stage, stAlloc + roomC);
+  stageAllocated.set(c.stage, stAlloc + roomC);
 }
 ```
 
@@ -253,7 +253,7 @@ If no capital left, stop (can't allocate to lower-priority companies).
 #### Step 3.2: Calculate Stage Room
 
 ```typescript
-const stAlloc = stageAllocated['get'](c.stage) ?? 0n;
+const stAlloc = stageAllocated.get(c.stage) ?? 0n;
 const stRoom =
   c.capStageC != null
     ? c.capStageC - stAlloc > 0n
@@ -334,7 +334,7 @@ roomC = $30K; // Would allocate $30K
 ```typescript
 c.allocatedC += roomC;
 remainingC -= roomC;
-stageAllocated['set'](c.stage, stAlloc + roomC);
+stageAllocated.set(c.stage, stAlloc + roomC);
 ```
 
 **State Updates:**
