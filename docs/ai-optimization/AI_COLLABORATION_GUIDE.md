@@ -627,7 +627,7 @@ cat .env.local | grep -E "ANTHROPIC|OPENAI|GOOGLE|DEEPSEEK"
   Core orchestrator guide
 - **[CODEX_AGENT_MIGRATION.md](./CODEX_AGENT_MIGRATION.md)** - Codex Review
   Agent integration
-- **[DECISIONS.md](./DECISIONS.md)** - Architecture decisions
+- **[DECISIONS.md](../../DECISIONS.md)** - Architecture decisions
 
 ---
 
