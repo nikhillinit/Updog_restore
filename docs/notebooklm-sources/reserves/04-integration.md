@@ -894,7 +894,7 @@ describe('ConstrainedReserveEngine', () => {
 ### Property-Based Testing
 
 **From:**
-[reserves.property.test.ts](c:/dev/Updog_restore/client/src/core/reserves/__tests__/reserves.property.test.ts)
+[reserves.property.test.ts](../../../client/src/core/reserves/__tests__/reserves.property.test.ts)
 
 ```typescript
 import fc from 'fast-check';
@@ -994,7 +994,7 @@ describe('Reserve + Pacing Integration', () => {
 
 **References:**
 
-- [Implementation](c:/dev/Updog_restore/client/src/core/reserves/ConstrainedReserveEngine.ts)
-- [Schemas](c:/dev/Updog_restore/shared/schemas.ts)
-- [Tests](c:/dev/Updog_restore/client/src/core/reserves/__tests__)
-- [Validation](c:/dev/Updog_restore/scripts/validation/reserves-validation.yaml)
+- [Implementation](../../../client/src/core/reserves/ConstrainedReserveEngine.ts)
+- [Schemas](../../../shared/schemas.ts)
+- [Tests](../../../client/src/core/reserves/__tests__)
+- [Validation](../../../scripts/validation/reserves-validation.yaml)

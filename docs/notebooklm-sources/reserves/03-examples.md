@@ -318,7 +318,7 @@ allocated = $0 (no capital left)
 ### Edge Case 1: Zero Available Reserves
 
 **From:**
-[reserves-validation.yaml:32-49](c:/dev/Updog_restore/scripts/validation/reserves-validation.yaml#L32-L49)
+[reserves-validation.yaml:32-49](../../../scripts/validation/reserves-validation.yaml#L32-L49)
 
 **Scenario:** Fund is fully deployed, no capital available for reserves.
 
@@ -382,7 +382,7 @@ for (const c of comps) {
 ### Edge Case 2: 100% Reserve Utilization
 
 **From:**
-[reserves-validation.yaml:51-68](c:/dev/Updog_restore/scripts/validation/reserves-validation.yaml#L51-L68)
+[reserves-validation.yaml:51-68](../../../scripts/validation/reserves-validation.yaml#L51-L68)
 
 **Scenario:** Single high-reserve company can absorb all available capital.
 
@@ -455,7 +455,7 @@ utilizationRate = $50M / $50M = 1.0 (100%)
 ### Edge Case 3: Maximum Deployment (Fully Deployed Fund)
 
 **From:**
-[reserves-validation.yaml:70-84](c:/dev/Updog_restore/scripts/validation/reserves-validation.yaml#L70-L84)
+[reserves-validation.yaml:70-84](../../../scripts/validation/reserves-validation.yaml#L70-L84)
 
 **Scenario:** Fund has deployed all capital, including reserves.
 
@@ -827,7 +827,7 @@ stageAllocated['series_a'] = $7M (STAGE CAP REACHED)
 ### Example 1: Mixed Vintage, Different Stages
 
 **From:**
-[reserves-validation.yaml:86-113](c:/dev/Updog_restore/scripts/validation/reserves-validation.yaml#L86-L113)
+[reserves-validation.yaml:86-113](../../../scripts/validation/reserves-validation.yaml#L86-L113)
 
 **Setup:**
 
@@ -1100,8 +1100,8 @@ const validation = validateReserveInput(input);
 **Test Coverage:**
 
 - Unit tests:
-  [reserves.spec.ts](c:/dev/Updog_restore/client/src/core/reserves/__tests__/reserves.spec.ts)
+  [reserves.spec.ts](../../../client/src/core/reserves/__tests__/reserves.spec.ts)
 - Property tests:
-  [reserves.property.test.ts](c:/dev/Updog_restore/client/src/core/reserves/__tests__/reserves.property.test.ts)
+  [reserves.property.test.ts](../../../client/src/core/reserves/__tests__/reserves.property.test.ts)
 - Validation suite:
-  [reserves-validation.yaml](c:/dev/Updog_restore/scripts/validation/reserves-validation.yaml)
+  [reserves-validation.yaml](../../../scripts/validation/reserves-validation.yaml)

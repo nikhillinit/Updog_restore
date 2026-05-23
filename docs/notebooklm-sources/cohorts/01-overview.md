@@ -91,7 +91,7 @@ vintage cohort.
 ### Real-World Context
 
 From validation test cases
-([cohorts-validation.yaml:10-28](c:\dev\Updog_restore\scripts\validation\cohorts-validation.yaml#L10)):
+([cohorts-validation.yaml:10-28](../../../scripts/validation/cohorts-validation.yaml#L10)):
 
 ```yaml
 # Standard vintage cohort analysis
@@ -231,7 +231,7 @@ const maturityFactor = Math.min(yearsActive / 5, 1.0);
   5-year cohorts directly)
 
 **Example from tests**
-([cohort-engine.test.ts:81-86](c:\dev\Updog_restore\tests\unit\engines\cohort-engine.test.ts#L81)):
+([cohort-engine.test.ts:81-86](../../../tests/unit/engines/cohort-engine.test.ts#L81)):
 
 ```typescript
 const recentCohort = CohortEngine({ vintageYear: 2023, cohortSize: 10 });
@@ -249,7 +249,7 @@ The engine applies **market condition adjustments** based on historical venture
 capital market data:
 
 **Adjustment Factors**
-([CohortEngine.ts:87-93](c:\dev\Updog_restore\client\src\core\cohorts\CohortEngine.ts#L87)):
+([CohortEngine.ts:87-93](../../../client/src/core/cohorts/CohortEngine.ts#L87)):
 
 ```typescript
 const vintageAdjustments: Record<number, number> = {
@@ -275,7 +275,7 @@ baseIRR += vintageAdjustments[vintageYear] || 0;
 - **2024:** AI-driven growth, partial IPO market recovery, M&A acceleration
 
 **Test Validation**
-([cohort-engine.test.ts:64-70](c:\dev\Updog_restore\tests\unit\engines\cohort-engine.test.ts#L64)):
+([cohort-engine.test.ts:64-70](../../../tests/unit/engines/cohort-engine.test.ts#L64)):
 
 ```typescript
 // COVID impact validation
@@ -303,7 +303,7 @@ The CohortEngine operates in **two modes**: rule-based (default) and ML-enhanced
 **Processing Steps:**
 
 1. **Validation**
-   ([CohortEngine.ts:26-32](c:\dev\Updog_restore\client\src\core\cohorts\CohortEngine.ts#L26))
+   ([CohortEngine.ts:26-32](../../../client/src/core/cohorts/CohortEngine.ts#L26))
 
    ```typescript
    const result = CohortInputSchema.safeParse(input);
@@ -317,7 +317,7 @@ The CohortEngine operates in **two modes**: rule-based (default) and ML-enhanced
    - Validates cohortSize (positive integer)
 
 2. **Generate Mock Companies**
-   ([CohortEngine.ts:48-64](c:\dev\Updog_restore\client\src\core\cohorts\CohortEngine.ts#L48))
+   ([CohortEngine.ts:48-64](../../../client/src/core/cohorts/CohortEngine.ts#L48))
    - Creates `cohortSize` portfolio companies
    - Assigns realistic valuations ($1M-$51M base range)
    - Applies growth factors (1.0x-3.375x)
@@ -325,7 +325,7 @@ The CohortEngine operates in **two modes**: rule-based (default) and ML-enhanced
    - Generates unique names and IDs
 
 3. **Calculate Maturity**
-   ([CohortEngine.ts:80-81](c:\dev\Updog_restore\client\src\core\cohorts\CohortEngine.ts#L80))
+   ([CohortEngine.ts:80-81](../../../client/src/core/cohorts/CohortEngine.ts#L80))
 
    ```typescript
    const yearsActive = new Date().getFullYear() - vintageYear;
@@ -333,7 +333,7 @@ The CohortEngine operates in **two modes**: rule-based (default) and ML-enhanced
    ```
 
 4. **Compute Performance Metrics**
-   ([CohortEngine.ts:84-103](c:\dev\Updog_restore\client\src\core\cohorts\CohortEngine.ts#L84))
+   ([CohortEngine.ts:84-103](../../../client/src/core/cohorts/CohortEngine.ts#L84))
    - Start with base IRR (15%)
    - Apply vintage-specific adjustment (-5% to +8%)
    - Scale by maturity factor (newer = lower realized returns)
@@ -342,7 +342,7 @@ The CohortEngine operates in **two modes**: rule-based (default) and ML-enhanced
    - Round to appropriate precision (IRR: 4 decimals, TVPI/DPI: 2 decimals)
 
 5. **Package Output**
-   ([CohortEngine.ts:111-118](c:\dev\Updog_restore\client\src\core\cohorts\CohortEngine.ts#L111))
+   ([CohortEngine.ts:111-118](../../../client/src/core/cohorts/CohortEngine.ts#L111))
    ```typescript
    const output: CohortOutput = {
      cohortId: `cohort-${fundId}-${vintageYear}`,
@@ -359,7 +359,7 @@ The CohortEngine operates in **two modes**: rule-based (default) and ML-enhanced
 **Activation:** Set `ALG_COHORT=true` or `NODE_ENV=development`
 
 **Enhancement Logic**
-([CohortEngine.ts:122-148](c:\dev\Updog_restore\client\src\core\cohorts\CohortEngine.ts#L122)):
+([CohortEngine.ts:122-148](../../../client/src/core/cohorts/CohortEngine.ts#L122)):
 
 1. Start with rule-based calculation
 2. Apply ML adjustment multiplier (0.9-1.1x)
