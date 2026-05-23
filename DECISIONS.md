@@ -637,7 +637,7 @@ logic issues. Initial plan was to treat symptoms in phases by failure count.
 
 **Phase 1: Configuration (22 fixes)**
 
-- Added `@shared/` path alias to [`vitest.config.ts`](vitest.config.ts#L17)
+- Added `@shared/` path alias to [`vitest.config.mjs`](vitest.config.mjs#L23)
 - Created
   [`tests/utils/mock-shared-schema.ts`](tests/utils/mock-shared-schema.ts) -
   centralized mock factory using `importOriginal` pattern
@@ -730,7 +730,7 @@ misconfiguration:
 **Current Configuration Issue:**
 
 - Using deprecated `environmentMatchGlobs` in
-  [vitest.config.ts](vitest.config.ts#L76-L88)
+  [vitest.config.mjs](vitest.config.mjs#L98-L141)
 - Vitest silently ignores this option (removed in recent versions)
 - **Result:** All tests run in `jsdom` environment (default), including
   server-side tests
@@ -862,8 +862,8 @@ export default defineConfig({
 ### References
 
 - **Vitest Projects Documentation:** https://vitest.dev/guide/workspace.html
-- **Current Config:** [vitest.config.ts](vitest.config.ts#L76-L88) (deprecated
-  `environmentMatchGlobs`)
+- **Current Config:** [vitest.config.mjs](vitest.config.mjs#L98-L141)
+  (deprecated `environmentMatchGlobs`)
 - **Test Failures:** See CHANGELOG.md → Test Suite Environment Debugging
   (2025-10-19)
 - **Related Files:**
