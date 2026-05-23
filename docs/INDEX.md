@@ -46,12 +46,12 @@ Humans AND Agents **Last Updated**: 2026-05-20
 
 **Status**: [ACTIVE] **Audience**: Humans + Agents
 
-| Document                                               | Description                                       | When to Use                  |
-| ------------------------------------------------------ | ------------------------------------------------- | ---------------------------- |
-| [README.md](../README.md)                              | Project overview, tech stack, setup               | First time setup             |
-| [processes/clone-guide.md](processes/clone-guide.md)   | Blobless clone guidance and archive policy        | Size-sensitive local clones  |
-| [CLAUDE.md](../CLAUDE.md)                              | AI assistant guidelines, conventions              | Before ANY AI-assisted task  |
-| [CAPABILITIES.md](../CAPABILITIES.md)                  | Historical inventory of agents, tools, and skills | Historical capability lookup |
+| Document                                             | Description                                       | When to Use                  |
+| ---------------------------------------------------- | ------------------------------------------------- | ---------------------------- |
+| [README.md](../README.md)                            | Project overview, tech stack, setup               | First time setup             |
+| [processes/clone-guide.md](processes/clone-guide.md) | Blobless clone guidance and archive policy        | Size-sensitive local clones  |
+| [CLAUDE.md](../CLAUDE.md)                            | AI assistant guidelines, conventions              | Before ANY AI-assisted task  |
+| [CAPABILITIES.md](../CAPABILITIES.md)                | Historical inventory of agents, tools, and skills | Historical capability lookup |
 
 **Current Path**: CLAUDE.md -> repo search -> docs/INDEX.md -> README.md
 
@@ -111,7 +111,7 @@ Hardening baseline)
 | ------------------------------------------------------------------ | --------------------------------------------------------- | -------------------------------------------- |
 | [scripts/README.md](../scripts/README.md)                          | Deployment scripts (progressive rollout, smoke tests)     | Deploying to staging/production              |
 | [workflows/PRODUCTION_SCRIPTS.md](workflows/PRODUCTION_SCRIPTS.md) | Production deployment system details                      | Understanding deployment process             |
-| [DEPLOYMENT_RUNBOOK.md](DEPLOYMENT_RUNBOOK.md)                     | Step-by-step production deployment and rollback runbook   | Executing or supervising production rollout  |
+| [runbooks/rollback.md](runbooks/rollback.md)                       | Step-by-step rollback runbook                             | Executing or supervising production rollback |
 | [OPERATOR_RUNBOOK.md](OPERATOR_RUNBOOK.md)                         | Unified metrics diagnostic runbook                        | Investigating production metrics anomalies   |
 | [observability.md](observability.md)                               | Monitoring, health checks, metrics, and alerting overview | Understanding runtime observability surfaces |
 
