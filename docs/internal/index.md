@@ -131,7 +131,7 @@ reference, not marketing)
 
 ### Code References
 
-- File links: `[schema.ts](../shared/schema.ts)`
+- File links: `[schema.ts](../../shared/schema.ts)`
 - Line references: `[fund-calc.ts:142](../server/lib/fund-calc.ts#L142)`
 - Auto-generated via `node scripts/extract-code-references.mjs`
 

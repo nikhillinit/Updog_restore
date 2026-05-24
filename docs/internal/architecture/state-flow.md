@@ -74,10 +74,10 @@ sequenceDiagram
 
 **File References:**
 
-- Middleware: [server/routes.ts:15-25](../../server/routes.ts#L15-L25)
+- Middleware: [server/routes.ts:15-25](../../../server/routes.ts#L15-L25)
 - Validation:
-  [server/validators/fundSchema.ts:10-45](../../server/validators/fundSchema.ts#L10-L45)
-- Storage: [server/storage.ts:458-471](../../server/storage.ts#L458-L471)
+  [server/validators/fundSchema.ts:10-45](../../../server/validators/fundSchema.ts#L10-L45)
+- Storage: [server/storage.ts:458-471](../../../server/storage.ts#L458-L471)
 
 ---
 
@@ -120,7 +120,7 @@ flowchart TD
 **File References:**
 
 - Write path:
-  [server/routes/fund-config.ts:46-120](../../server/routes/fund-config.ts#L46-L120)
+  [server/routes/fund-config.ts:46-120](../../../server/routes/fund-config.ts#L46-L120)
 - Worker:
   [server/workers/reserve-worker.ts:15-40](../../server/workers/reserve-worker.ts#L15-L40)
 
@@ -164,9 +164,9 @@ flowchart LR
 **File References:**
 
 - Read path:
-  [server/routes/funds.ts:120-145](../../server/routes/funds.ts#L120-L145)
+  [server/routes/funds.ts:120-145](../../../server/routes/funds.ts#L120-L145)
 - TanStack Query config:
-  [client/src/hooks/use-fund-data.ts:15-30](../../client/src/hooks/use-fund-data.ts#L15-L30)
+  [client/src/hooks/use-fund-data.ts:15-30](../../../client/src/hooks/use-fund-data.ts#L15-L30)
 
 ---
 
@@ -250,9 +250,9 @@ stateDiagram-v2
 **File References:**
 
 - Zustand store:
-  [client/src/stores/useFundStore.ts:45-120](../../client/src/stores/useFundStore.ts#L45-L120)
+  [client/src/stores/useFundStore.ts:45-120](../../../client/src/stores/useFundStore.ts#L45-L120)
 - Mutation hooks:
-  [client/src/hooks/use-fund-data.ts:60-85](../../client/src/hooks/use-fund-data.ts#L60-L85)
+  [client/src/hooks/use-fund-data.ts:60-85](../../../client/src/hooks/use-fund-data.ts#L60-L85)
 
 ---
 
@@ -350,10 +350,10 @@ CREATE TABLE strategy_stages (
 **File References:**
 
 - Client validation:
-  [client/src/lib/validation.ts:15-40](../../client/src/lib/validation.ts#L15-L40)
+  [client/src/lib/validation.ts:15-40](../../../client/src/lib/validation.ts#L15-L40)
 - API validation:
-  [server/validators/fundSchema.ts:45-120](../../server/validators/fundSchema.ts#L45-L120)
-- Database schema: [shared/schema.ts:95-130](../../shared/schema.ts#L95-L130)
+  [server/validators/fundSchema.ts:45-120](../../../server/validators/fundSchema.ts#L45-L120)
+- Database schema: [shared/schema.ts:95-130](../../../shared/schema.ts#L95-L130)
 
 ---
 
@@ -505,11 +505,11 @@ queryClient.invalidateQueries(['funds', fundId, 'reserves']);
 **File References:**
 
 - Cache invalidation:
-  [client/src/hooks/use-fund-data.ts:75-110](../../client/src/hooks/use-fund-data.ts#L75-L110)
+  [client/src/hooks/use-fund-data.ts:75-110](../../../client/src/hooks/use-fund-data.ts#L75-L110)
 - Optimistic updates:
   [client/src/hooks/use-reallocation.ts:45-85](../../client/src/hooks/use-reallocation.ts#L45-L85)
 - Cache configuration:
-  [client/src/lib/queryClient.ts:10-25](../../client/src/lib/queryClient.ts#L10-L25)
+  [client/src/lib/queryClient.ts:10-25](../../../client/src/lib/queryClient.ts#L10-L25)
 
 ---
 
