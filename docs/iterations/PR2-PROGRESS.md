@@ -44,7 +44,7 @@ last_updated: 2026-01-19
 ---
 
 ### 3. XIRR Calculator (Hardened) ✅
-**File**: [client/src/lib/xirr.ts](../../client/src/lib/xirr.ts)
+**File**: [client/src/lib/finance/xirr.ts](../../client/src/lib/finance/xirr.ts)
 
 **Features**:
 - ✅ Newton-Raphson method (fast convergence)

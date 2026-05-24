@@ -223,7 +223,7 @@ function calculateManagementFee(
 - [ ] Each period: `distributions === exitProceeds`
 - [ ] No retained cash tracking needed
 
-**Status**: Documented in [distribution-policy.md](../policies/distribution-policy.md)
+**Status**: Documented in the historical distribution policy reference (file removed/archived)
 
 ---
 
@@ -293,7 +293,7 @@ export const FundModelInputsSchema = z.object({...}).superRefine((inputs, ctx) =
 - [ ] Unit test verifies total deployment ≤ fund size
 - [ ] No double-counting possible
 
-**Status**: Documented in [allocation-policy.md](../policies/allocation-policy.md)
+**Status**: Documented in the historical allocation policy reference (file removed/archived)
 
 ---
 

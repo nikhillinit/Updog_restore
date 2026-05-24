@@ -339,6 +339,6 @@ git fetch origin pull/113/head:pr-113-backup
 
 ## Questions?
 
-- Auth PR review comments: [docs/observability/pr-113-auth-comment.md](./pr-113-auth-comment.md)
-- Fund Calc PR review comments: [docs/observability/pr-113-fundcalc-comment.md](./pr-113-fundcalc-comment.md)
-- Full review: [docs/observability/pr-113-review.md](./pr-113-review.md)
+- Auth PR review comments: [docs/observability/pr-113-auth-comment.md](./pr-113-auth-comment-v1.md)
+- Fund Calc PR review comments: [docs/observability/pr-113-fundcalc-comment.md](./pr-113-fundcalc-comment-v1.md)
+- Full review: [docs/observability/pr-113-review.md](./pr-113-review-v1.md)

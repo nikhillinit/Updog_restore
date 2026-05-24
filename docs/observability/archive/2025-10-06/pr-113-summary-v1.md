@@ -41,7 +41,7 @@ git cherry-pick <calc-commit-1> <calc-commit-2>
 git push -u origin feat/deterministic-fund-engine
 ```
 
-**Full instructions:** [docs/observability/pr-113-split-instructions.md](./pr-113-split-instructions.md)
+**Full instructions:** [docs/observability/pr-113-split-instructions.md](./pr-113-split-instructions-v1.md)
 
 ### 2. Fix Auth PR Blocking Issues
 
@@ -52,7 +52,7 @@ git push -u origin feat/deterministic-fund-engine
 - ✅ HS256 backward compatibility maintained
 - ✅ Unit + integration tests
 
-**Detailed fixes:** [docs/observability/pr-113-auth-comment.md](./pr-113-auth-comment.md)
+**Detailed fixes:** [docs/observability/pr-113-auth-comment.md](./pr-113-auth-comment-v1.md)
 
 ### 3. Fix Fund Calc PR Issues
 
@@ -63,7 +63,7 @@ git push -u origin feat/deterministic-fund-engine
 - ✅ Add golden fixture tests
 - ✅ Add CSV export tests
 
-**Detailed fixes:** [docs/observability/pr-113-fundcalc-comment.md](./pr-113-fundcalc-comment.md)
+**Detailed fixes:** [docs/observability/pr-113-fundcalc-comment.md](./pr-113-fundcalc-comment-v1.md)
 
 ---
 
@@ -107,10 +107,10 @@ git push -u origin feat/deterministic-fund-engine
 
 ## Resources
 
-📄 **Complete Review:** [docs/observability/pr-113-review.md](./pr-113-review.md)
-🔒 **Auth Review Comment:** [docs/observability/pr-113-auth-comment.md](./pr-113-auth-comment.md)
-📊 **Fund Calc Review Comment:** [docs/observability/pr-113-fundcalc-comment.md](./pr-113-fundcalc-comment.md)
-🔀 **Split Instructions:** [docs/observability/pr-113-split-instructions.md](./pr-113-split-instructions.md)
+📄 **Complete Review:** [docs/observability/pr-113-review.md](./pr-113-review-v1.md)
+🔒 **Auth Review Comment:** [docs/observability/pr-113-auth-comment.md](./pr-113-auth-comment-v1.md)
+📊 **Fund Calc Review Comment:** [docs/observability/pr-113-fundcalc-comment.md](./pr-113-fundcalc-comment-v1.md)
+🔀 **Split Instructions:** [docs/observability/pr-113-split-instructions.md](./pr-113-split-instructions-v1.md)
 
 ---
 

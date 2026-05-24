@@ -43,24 +43,24 @@ last_updated: 2026-01-19
    - Paste-ready code snippets
    - Full PR #2 schema definitions
 
-4. [x] **[docs/iterations/iteration-a-dod.md](iteration-a-dod.md)**
+4. [x] **docs/iterations/iteration-a-dod.md** (historical reference)
    - Definition of Done checklist
    - All acceptance criteria
    - Green lights checklist
 
 ### Policy Documents (100% Complete)
 
-5. [x] **[docs/rounding-policy.md](../rounding-policy.md)**
+5. [x] **docs/rounding-policy.md** (historical reference)
    - Decimal.js precision configuration
    - Export/display rounding rules
    - Parity tolerances
 
-6. [x] **[docs/policies/distribution-policy.md](../policies/distribution-policy.md)**
+6. [x] **docs/policies/distribution-policy.md** (historical reference)
    - Policy A: Immediate distribution
    - Invariant implications
    - Test specifications
 
-7. [x] **[docs/policies/allocation-policy.md](../policies/allocation-policy.md)**
+7. [x] **docs/policies/allocation-policy.md** (historical reference)
    - Pattern 1: Reserves carved from allocations
    - Schema enforcement
    - Test cases

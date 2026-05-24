@@ -22,7 +22,7 @@ last_updated: 2026-01-19
 ## What to Keep (Nice Work)
 
 * ✅ Algorithm allow-listing and moving to **RS256 + JWKS** with caching
-* ✅ Centralized config validation ([server/config/auth.ts](../../server/config/auth.ts)) and custom error types
+* ✅ Centralized config validation (`server/config/auth.ts`, consolidated; target file no longer exists) and custom error types
 * ✅ Deterministic fund engine structure with `Decimal` usage (precision) and periodized sim scaffolding
 * ✅ Matches your deterministic design goals from DECISIONS.md
 
@@ -100,7 +100,7 @@ app.use((err: any, _req: any, res: any, _next: any) => {
 
 ### b) Middleware Refactor (No Promise Chains)
 
-**Current Issue:** [server/lib/auth/jwt.ts:195-215](../../server/lib/auth/jwt.ts#L195-L215) uses `.then()/.catch()` which doesn't play well with Express error middleware.
+**Current Issue:** [server/lib/auth/jwt.ts:195-215](../../../../server/lib/auth/jwt.ts#L195-L215) uses `.then()/.catch()` which doesn't play well with Express error middleware.
 
 **Fix:**
 
