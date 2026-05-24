@@ -61,8 +61,8 @@ Non-goals:
 
 Files:
 
-- [variance-metrics.ts](/C:/dev/Updog_restore/server/metrics/variance-metrics.ts)
-- [variance-tracking.ts](/C:/dev/Updog_restore/server/services/variance-tracking.ts)
+- [variance-metrics.ts](../../server/metrics/variance-metrics.ts)
+- [variance-tracking.ts](../../server/services/variance-tracking.ts)
 
 Work:
 
@@ -72,7 +72,7 @@ Work:
 - Emit structured telemetry for fallback events; do not route these through
   `recordSystemError()`.
 - If temporal-skew telemetry is added in
-  [fund-metrics-attribution-service.ts](/C:/dev/Updog_restore/server/services/fund-metrics-attribution-service.ts),
+  [fund-metrics-attribution-service.ts](../../server/services/fund-metrics-attribution-service.ts),
   scope it to real-time calc-run creation or downgrade it from warn-level
   logging so replay/backfill does not create false alarms.
 
@@ -80,7 +80,7 @@ Work:
 
 Files:
 
-- [variance-tracking.ts](/C:/dev/Updog_restore/server/services/variance-tracking.ts)
+- [variance-tracking.ts](../../server/services/variance-tracking.ts)
 
 Work:
 
@@ -98,7 +98,7 @@ Work:
 
 Files:
 
-- [variance-tracking.ts](/C:/dev/Updog_restore/server/services/variance-tracking.ts)
+- [variance-tracking.ts](../../server/services/variance-tracking.ts)
 
 Work:
 
@@ -113,8 +113,8 @@ Work:
 
 Files:
 
-- [variance-tracking.ts](/C:/dev/Updog_restore/server/services/variance-tracking.ts)
-- [fund.ts](/C:/dev/Updog_restore/shared/schema/fund.ts)
+- [variance-tracking.ts](../../server/services/variance-tracking.ts)
+- [fund.ts](../../shared/schema/fund.ts)
 
 Work:
 
@@ -130,7 +130,7 @@ Work:
 
 Files:
 
-- [variance-tracking.ts](/C:/dev/Updog_restore/server/services/variance-tracking.ts)
+- [variance-tracking.ts](../../server/services/variance-tracking.ts)
 
 Work:
 
@@ -143,13 +143,13 @@ Work:
 
 Files:
 
-- [calc-run-tracking.ts](/C:/dev/Updog_restore/server/services/calc-run-tracking.ts)
-- [variance-tracking.ts](/C:/dev/Updog_restore/server/services/variance-tracking.ts)
+- [calc-run-tracking.ts](../../server/services/calc-run-tracking.ts)
+- [variance-tracking.ts](../../server/services/variance-tracking.ts)
 
 Work:
 
 - Keep replay behavior in
-  [calc-run-tracking.ts](/C:/dev/Updog_restore/server/services/calc-run-tracking.ts)
+  [calc-run-tracking.ts](../../server/services/calc-run-tracking.ts)
   functionally unchanged.
 - Add comments documenting that immediate re-drive is intentional recovery.
 - Add explicit baseline lifecycle logs:
@@ -163,9 +163,9 @@ Work:
 
 Files:
 
-- [variance-tracking.ts](/C:/dev/Updog_restore/server/services/variance-tracking.ts)
-- [system-actor.ts](/C:/dev/Updog_restore/shared/constants/system-actor.ts)
-- [schema.ts](/C:/dev/Updog_restore/shared/schema.ts)
+- [variance-tracking.ts](../../server/services/variance-tracking.ts)
+- [system-actor.ts](../../shared/constants/system-actor.ts)
+- [schema.ts](../../shared/schema.ts)
 
 Work:
 
@@ -178,8 +178,8 @@ Work:
 
 Files:
 
-- [variance-tracking.ts](/C:/dev/Updog_restore/server/services/variance-tracking.ts)
-- [portfolio.ts](/C:/dev/Updog_restore/shared/schema/portfolio.ts)
+- [variance-tracking.ts](../../server/services/variance-tracking.ts)
+- [portfolio.ts](../../shared/schema/portfolio.ts)
 
 Work:
 
@@ -192,8 +192,8 @@ Work:
 
 Files:
 
-- [0002_phase0_variance_automation.sql](/C:/dev/Updog_restore/migrations/0002_phase0_variance_automation.sql)
-- [005_fundmetrics_attribution.sql](/C:/dev/Updog_restore/server/migrations/005_fundmetrics_attribution.sql)
+- [0002_phase0_variance_automation.sql](../../migrations/0002_phase0_variance_automation.sql)
+- [005_fundmetrics_attribution.sql](../../server/migrations/005_fundmetrics_attribution.sql)
 
 Work:
 
@@ -236,9 +236,9 @@ Work:
 
 Files:
 
-- [calc-run-completion-handlers.ts](/C:/dev/Updog_restore/server/services/calc-run-completion-handlers.ts)
-- [calc-run-tracking.ts](/C:/dev/Updog_restore/server/services/calc-run-tracking.ts)
-- [variance-alert-automation.ts](/C:/dev/Updog_restore/server/services/variance-alert-automation.ts)
+- [calc-run-completion-handlers.ts](../../server/services/calc-run-completion-handlers.ts)
+- [calc-run-tracking.ts](../../server/services/calc-run-tracking.ts)
+- [variance-alert-automation.ts](../../server/services/variance-alert-automation.ts)
 
 Work:
 
@@ -263,11 +263,11 @@ plan before finalizing it:
 
 Validation results:
 
-- [baseline-idempotency.test.ts](/C:/dev/Updog_restore/tests/unit/services/baseline-idempotency.test.ts)
+- [baseline-idempotency.test.ts](../../tests/unit/services/baseline-idempotency.test.ts)
   passed with a new backfill non-default contract check
-- [system-actor.test.ts](/C:/dev/Updog_restore/tests/unit/services/system-actor.test.ts)
-  passed with execution-time actor-guard coverage
-- [variance-tracking.test.ts](/C:/dev/Updog_restore/tests/unit/services/variance-tracking.test.ts)
+- [system-actor.test.ts](../../tests/unit/services/system-actor.test.ts) passed
+  with execution-time actor-guard coverage
+- [variance-tracking.test.ts](../../tests/unit/services/variance-tracking.test.ts)
   passed with strict automated metric/snapshot sourcing checks
 - `npm run check` passed with zero new TypeScript errors
 
