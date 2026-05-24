@@ -46,7 +46,7 @@ Do not launch a cosmetic analytics redesign ahead of the data layer. The correct
 
 **Exit criteria:**
 
-- The doc is linked from `docs/INDEX.md`.
+- The doctrine is discoverable through `docs/design/README.md`.
 - New chart PRs can cite the checklist.
 - Designers and engineers agree that visual truthfulness outranks decorative polish.
 
@@ -186,7 +186,7 @@ A reference implementation for Updog chart style: fewer decorations, clearer com
 
 ## Candidate implementation order
 
-1. `docs/design/*` doctrine and index links.
+1. `docs/design/*` doctrine and README entry point.
 2. `EvidenceHeader` component prototype.
 3. Fund results section evidence headers.
 4. Portfolio Cost and Value chart pilot refactor.
