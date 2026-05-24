@@ -22,6 +22,13 @@ const args = new Set(process.argv.slice(2));
 const analysisOnly = args.has('--analysis-only');
 const reportOnly = args.has('--report-only');
 
+const CODE_IDENTIFIER = '[A-Za-z_$][\\w$]*';
+const QUOTED_CODE_PROPERTY_LINK_TEXT = new RegExp(`^'${CODE_IDENTIFIER}'$`);
+const CODE_EXPRESSION_LINK_TARGET = new RegExp(
+  `^(?:'|\\{|\\d+$|${CODE_IDENTIFIER}(?:\\.${CODE_IDENTIFIER})?(?:\\(|$))`,
+);
+const TEMPLATE_PLACEHOLDER_LINK = /^\{\{[A-Za-z_][A-Za-z0-9_-]*\}\}$/;
+
 const ROOT_GOVERNANCE_DOCS = [
   'CAPABILITIES.md',
   'DECISIONS.md',
@@ -44,6 +51,21 @@ let totalLinks = 0;
 let brokenLinks = 0;
 const errors = [];
 
+function isTemplatePlaceholderLink(linkUrl) {
+  return TEMPLATE_PLACEHOLDER_LINK.test(linkUrl);
+}
+
+function isCodeLikeParserFalsePositive(linkText, linkUrl) {
+  if (
+    QUOTED_CODE_PROPERTY_LINK_TEXT.test(linkText) &&
+    CODE_EXPRESSION_LINK_TARGET.test(linkUrl)
+  ) {
+    return true;
+  }
+
+  return linkText === 'endpoint.method' && linkUrl === 'endpoint.url';
+}
+
 console.log(
   `Checking links in ${files.length} markdown files${analysisOnly ? ' (analysis-only)' : ''}...`,
 );
@@ -61,6 +83,10 @@ for (const file of files) {
     const linkText = match[1];
     const linkUrl = match[2].trim();
     totalLinks++;
+
+    if (isTemplatePlaceholderLink(linkUrl) || isCodeLikeParserFalsePositive(linkText, linkUrl)) {
+      continue;
+    }
 
     // Skip external links and protocols
     if (
