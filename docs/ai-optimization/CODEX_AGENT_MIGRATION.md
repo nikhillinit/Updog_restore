@@ -532,10 +532,10 @@ npm run review:watch
 
 - **[AI_ORCHESTRATOR_IMPLEMENTATION.md](./AI_ORCHESTRATOR_IMPLEMENTATION.md)** -
   Complete orchestrator guide
-- **[DECISIONS.md](./DECISIONS.md)** - Architecture decision record
+- **[DECISIONS.md](../../DECISIONS.md)** - Architecture decision record
 - **[MCP_MULTI_AI_INCIDENT_REPORT.md](./MCP_MULTI_AI_INCIDENT_REPORT.md)** -
   Original security issue
-- **[Codex Review Agent README](./packages/codex-review-agent/README.md)** -
+- **[Codex Review Agent README](../../packages/codex-review-agent/README.md)** -
   Agent documentation
 
 ---
