@@ -97,7 +97,7 @@ blocks test repair)
 
 **Evidence:**
 
-- [COMPREHENSIVE-DIVERGENCE-ASSESSMENT.md](plans/COMPREHENSIVE-DIVERGENCE-ASSESSMENT.md#section-1-xirr-divergence)
+- COMPREHENSIVE-DIVERGENCE-ASSESSMENT.md (retired divergence assessment)
 - **Phoenix Truth Cases**: N XIRR scenarios
   ([/docs/xirr.truth-cases.json](/docs/xirr.truth-cases.json)) - Excel parity
   validation
@@ -149,7 +149,7 @@ Mixing values without explicit conversion causes silent bugs.
 
 **Evidence:**
 
-- [COMPREHENSIVE-DIVERGENCE-ASSESSMENT.md](plans/COMPREHENSIVE-DIVERGENCE-ASSESSMENT.md#section-2-capital-allocation-divergence)
+- COMPREHENSIVE-DIVERGENCE-ASSESSMENT.md (retired divergence assessment)
 - **Phoenix Truth Cases**: N CA scenarios
   ([/docs/capital-allocation.truth-cases.json](/docs/capital-allocation.truth-cases.json))
 - **Phoenix Domain Knowledge**:
@@ -199,11 +199,11 @@ clawback support. Different GP distributions for same fund parameters.
 
 **Evidence:**
 
-- [COMPREHENSIVE-DIVERGENCE-ASSESSMENT.md](plans/COMPREHENSIVE-DIVERGENCE-ASSESSMENT.md#section-3-waterfall-divergence)
+- COMPREHENSIVE-DIVERGENCE-ASSESSMENT.md (retired divergence assessment)
 - **Phoenix Truth Cases**: N ledger scenarios
   ([/docs/waterfall-ledger.truth-cases.json](/docs/waterfall-ledger.truth-cases.json)),
   N tier scenarios
-  ([/docs/waterfall-tier.truth-cases.json](/docs/waterfall-tier.truth-cases.json))
+  ([/docs/waterfall.truth-cases.json](/docs/waterfall.truth-cases.json))
 - **Phoenix Domain Knowledge**:
   [/docs/notebooklm-sources/waterfall.md](/docs/notebooklm-sources/waterfall.md)
   (Doc Score: 94.3% Promptfoo)
@@ -250,7 +250,7 @@ using `called_capital_period` (from fees.ts) has no equivalent in other systems.
 
 **Evidence:**
 
-- [FOUNDATION-HARDENING-FEE-ALIGNMENT-REVIEW.md](plans/FOUNDATION-HARDENING-FEE-ALIGNMENT-REVIEW.md)
+- FOUNDATION-HARDENING-FEE-ALIGNMENT-REVIEW.md (retired fee alignment review)
 - **Phoenix Truth Cases**: N fee scenarios
   ([/docs/fees.truth-cases.json](/docs/fees.truth-cases.json))
 - **Phoenix Domain Knowledge**:
@@ -294,7 +294,7 @@ Phase 2.3 hits them)
 
 **Evidence:**
 
-- [COMPREHENSIVE-DIVERGENCE-ASSESSMENT.md](plans/COMPREHENSIVE-DIVERGENCE-ASSESSMENT.md#section-3-waterfall-divergence)
+- COMPREHENSIVE-DIVERGENCE-ASSESSMENT.md (retired divergence assessment)
 
 **Recommended Fix:**
 
@@ -328,7 +328,7 @@ unpredictably.
 
 **Evidence:**
 
-- [COMPREHENSIVE-DIVERGENCE-ASSESSMENT.md](plans/COMPREHENSIVE-DIVERGENCE-ASSESSMENT.md#section-5-cross-cutting-issues)
+- COMPREHENSIVE-DIVERGENCE-ASSESSMENT.md (retired divergence assessment)
 
 **Recommended Fix:**
 
@@ -361,7 +361,7 @@ expectations.
 
 **Evidence:**
 
-- [COMPREHENSIVE-DIVERGENCE-ASSESSMENT.md](plans/COMPREHENSIVE-DIVERGENCE-ASSESSMENT.md#52-error-handling-taxonomy)
+- COMPREHENSIVE-DIVERGENCE-ASSESSMENT.md (retired divergence assessment)
 
 **Recommended Fix:**
 
@@ -409,19 +409,20 @@ explaining the issue]
 
 **Admission Criteria - ALL must be true:**
 
-1. ✅ Has reproducible symptom (failing test or production issue)
-2. ✅ Root cause is divergence (not isolated bug)
-3. ✅ Fix is complex (meets ≥1 complexity threshold from integration strategy)
-4. ✅ Blast radius is documented with specific file counts
-5. ✅ ETA is realistic estimate (not placeholder)
+1. Required: Has reproducible symptom (failing test or production issue)
+2. Required: Root cause is divergence (not isolated bug)
+3. Required: Fix is complex (meets >=1 complexity threshold from integration
+   strategy)
+4. Required: Blast radius is documented with specific file counts
+5. Required: ETA is realistic estimate (not placeholder)
 
 **Rejection Criteria - If ANY apply, DO NOT add entry:**
 
-- ❌ No failing test (speculative refactoring)
-- ❌ Root cause is not divergence (e.g., missing await)
-- ❌ Fix is simple (<30 min, 1-2 files, no shared seams)
-- ❌ Issue is vague ("XIRR has problems" - which test? which error?)
-- ❌ No proposed fix shape (must have at least rough approach)
+- Reject: No failing test (speculative refactoring)
+- Reject: Root cause is not divergence (e.g., missing await)
+- Reject: Fix is simple (<30 min, 1-2 files, no shared seams)
+- Reject: Issue is vague ("XIRR has problems" - which test? which error?)
+- Reject: No proposed fix shape (must have at least rough approach)
 
 ---
 
@@ -435,14 +436,14 @@ explaining the issue]
 
 ## Related Documents
 
-- [IMPLEMENTATION-PARITY-INTEGRATION-STRATEGY.md](plans/IMPLEMENTATION-PARITY-INTEGRATION-STRATEGY.md) -
-  How this debt registry integrates with Foundation Hardening Sprint
-- [COMPREHENSIVE-DIVERGENCE-ASSESSMENT.md](plans/COMPREHENSIVE-DIVERGENCE-ASSESSMENT.md) -
+- IMPLEMENTATION-PARITY-INTEGRATION-STRATEGY.md (retired strategy) - How this
+  debt registry integrates with Foundation Hardening Sprint
+- COMPREHENSIVE-DIVERGENCE-ASSESSMENT.md (retired divergence assessment) -
   Detailed analysis of 22 recent PRs
-- [FOUNDATION-HARDENING-FEE-ALIGNMENT-REVIEW.md](plans/FOUNDATION-HARDENING-FEE-ALIGNMENT-REVIEW.md) -
+- FOUNDATION-HARDENING-FEE-ALIGNMENT-REVIEW.md (retired fee alignment review) -
   Fee-specific divergence analysis
-- [FOUNDATION-HARDENING-EXECUTION-PLAN.md](../FOUNDATION-HARDENING-EXECUTION-PLAN.md) -
-  Active sprint plan
+- FOUNDATION-HARDENING-EXECUTION-PLAN.md (retired execution plan) - Former
+  active sprint plan
 
 ---
 

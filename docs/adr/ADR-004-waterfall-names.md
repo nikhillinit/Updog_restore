@@ -45,10 +45,10 @@ for financial modeling.
 
 We adopt the following **canonical naming convention** for waterfall types:
 
-| Term         | Industry Alias | Status                | Description                                                                                |
-| ------------ | -------------- | --------------------- | ------------------------------------------------------------------------------------------ |
-| **AMERICAN** | Deal-by-deal   | ✅ Implemented        | Carry calculated per individual investment exit. Standard for US VC funds.                 |
-| **EUROPEAN** | Whole-fund     | ❌ Removed (Jan 2026) | Carry calculated on aggregate fund performance. Removed in PR #339 (zero usage confirmed). |
+| Term         | Industry Alias | Status             | Description                                                                                |
+| ------------ | -------------- | ------------------ | ------------------------------------------------------------------------------------------ |
+| **AMERICAN** | Deal-by-deal   | Implemented        | Carry calculated per individual investment exit. Standard for US VC funds.                 |
+| **EUROPEAN** | Whole-fund     | Removed (Jan 2026) | Carry calculated on aggregate fund performance. Removed in PR #339 (zero usage confirmed). |
 
 **Rationale:**
 
@@ -142,18 +142,20 @@ Canonical test scenarios documented in `docs/waterfall.truth-cases.json`:
 
 ### Positive
 
-✅ **Clear Terminology**: Eliminates AMERICAN/EUROPEAN confusion ✅ **Excel
-Parity**: Users can validate calculations against Excel models ✅ **Mechanical
-Validation**: Documentation drift prevented by test-linked ADRs ✅ **Type
-Safety**: TypeScript types accurately reflect implementation status ✅
-**Regression Protection**: 15-scenario truth table catches calculation bugs
+- **Clear Terminology**: Eliminates AMERICAN/EUROPEAN confusion
+- **Excel Parity**: Users can validate calculations against Excel models
+- **Mechanical Validation**: Documentation drift prevented by test-linked ADRs
+- **Type Safety**: TypeScript types accurately reflect implementation status
+- **Regression Protection**: 15-scenario truth table catches calculation bugs
 
 ### Negative
 
-⚠️ **European Waterfall Removed**: No whole-fund carry calculation (zero usage
-confirmed) ⚠️ **Rounding Overhead**: Small performance cost (~2% for
-`excelRound()` vs native) ⚠️ **Floating-Point Edge Cases**: Rare micro-drift
-possible despite 2dp rounding
+- **WARNING: European Waterfall Removed**: No whole-fund carry calculation (zero
+  usage confirmed)
+- **WARNING: Rounding Overhead**: Small performance cost (~2% for `excelRound()`
+  vs native)
+- **WARNING: Floating-Point Edge Cases**: Rare micro-drift possible despite 2dp
+  rounding
 
 ### Mitigation
 
@@ -168,16 +170,19 @@ possible despite 2dp rounding
 
 ### In Scope
 
-✅ AMERICAN waterfall (deal-by-deal carry calculation) ✅ Excel ROUND utility
-implementation ✅ Truth table with 15 canonical scenarios ✅ Invariant test
-suite (5 property-based checks) ✅ JSON Schema validation for truth cases
+- AMERICAN waterfall (deal-by-deal carry calculation)
+- Excel ROUND utility implementation
+- Truth table with 15 canonical scenarios
+- Invariant test suite (5 property-based checks)
+- JSON Schema validation for truth cases
 
 ### Out of Scope (Non-goals)
 
-❌ **Hybrid Models**: No AMERICAN-with-EUROPEAN-tiers support ❌ **Clawback
-Provisions**: Beyond standard GP catch-up ❌ **Multi-Currency**: No currency
-conversion in waterfall ❌ **Tax Withholding**: No integrated tax calculation ❌
-**Time Value of Money**: No present value discounting in waterfall tiers
+- **Hybrid Models**: No AMERICAN-with-EUROPEAN-tiers support
+- **Clawback Provisions**: Beyond standard GP catch-up
+- **Multi-Currency**: No currency conversion in waterfall
+- **Tax Withholding**: No integrated tax calculation
+- **Time Value of Money**: No present value discounting in waterfall tiers
 
 ---
 
@@ -329,8 +334,8 @@ precision and readability
   [`docs/waterfall.truth-cases.json`](../waterfall.truth-cases.json)
 - **JSON Schema**:
   [`docs/schemas/waterfall-truth-case.schema.json`](../schemas/waterfall-truth-case.schema.json)
-- **Related**: [ADR-001: Evaluator Metrics](./ADR-0001-evaluator-metrics.md),
-  [ADR-002: Token Budgeting](./ADR-0002-token-budgeting.md)
+- **Related**: [ADR-001: Evaluator Metrics](./0001-evaluator-metrics.md),
+  [ADR-002: Token Budgeting](./0002-token-budgeting.md)
 
 ---
 
