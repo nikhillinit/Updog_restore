@@ -678,9 +678,9 @@ export function assertValidLot(lot: unknown): asserts lot is InvestmentLotV1 {
 ### Related Documentation
 
 - [Portfolio Route API Schemas](../../../shared/schemas/portfolio-route.ts)
-- [Drizzle Schema](../../../shared/db/schema.ts)
-- [Idempotency Pattern](../../../docs/architecture/idempotency.md)
-- [Optimistic Locking](../../../docs/architecture/optimistic-locking.md)
+- [Drizzle Schema](../../../shared/schema.ts)
+- [Idempotency Pattern](../architecture/portfolio-route-api.md)
+- [Optimistic Locking](../architecture/portfolio-route-api.md)
 
 ### Test File Locations
 

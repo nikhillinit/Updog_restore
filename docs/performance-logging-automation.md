@@ -113,7 +113,7 @@ Add the following secret to your GitHub repository:
 DATABASE_URL=postgresql://username:password@host:5432/database
 ```
 
-**Path**: Repository Settings → Secrets and variables → Actions → New repository secret
+**Path**: Repository Settings -> Secrets and variables -> Actions -> New repository secret
 
 ### 2. Local Development
 
@@ -175,7 +175,7 @@ Performance results are appended to `perf-log.md` in this format:
 - **Throughput:** 38803 rows/sec
 
 ### Performance Grade
-**Grade: A** - Excellent performance! 🚀
+**Grade: A** - Excellent performance!
 
 ---
 ```
@@ -198,7 +198,7 @@ Performance results are appended to `perf-log.md` in this format:
 
 #### 1. Database Connection Failures
 ```
-❌ Error running analysis: connection timeout
+ERROR: Error running analysis: connection timeout
 ```
 **Solutions:**
 - Verify `DATABASE_URL` secret is correctly set
@@ -207,7 +207,7 @@ Performance results are appended to `perf-log.md` in this format:
 
 #### 2. Missing Table Error
 ```
-❌ Error running analysis: relation "mc_stats_1min" does not exist
+ERROR: Error running analysis: relation "mc_stats_1min" does not exist
 ```
 **Solutions:**
 - Ensure the `mc_stats_1min` table exists in your database
@@ -216,7 +216,7 @@ Performance results are appended to `perf-log.md` in this format:
 
 #### 3. Permission Errors
 ```
-❌ Error running analysis: permission denied for table mc_stats_1min
+ERROR: Error running analysis: permission denied for table mc_stats_1min
 ```
 **Solutions:**
 - Grant SELECT permissions to the database user
@@ -225,7 +225,7 @@ Performance results are appended to `perf-log.md` in this format:
 
 #### 4. Git Push Failures
 ```
-❌ fatal: could not read Username for 'https://github.com': terminal prompts disabled
+ERROR: fatal: could not read Username for 'https://github.com': terminal prompts disabled
 ```
 **Solutions:**
 - Check repository permissions for GitHub Actions
@@ -234,10 +234,10 @@ Performance results are appended to `perf-log.md` in this format:
 
 #### 5. Workflow Permission Issues
 ```
-❌ Resource not accessible by integration
+ERROR: Resource not accessible by integration
 ```
 **Solutions:**
-- Go to Repository Settings → Actions → General
+- Go to Repository Settings -> Actions -> General
 - Set "Workflow permissions" to "Read and write permissions"
 - Enable "Allow GitHub Actions to create and approve pull requests"
 
@@ -324,7 +324,7 @@ The GitHub Actions workflow can be extended to send notifications to Slack, emai
 
 ## Related Documentation
 
-- [BMAD Process Overview](./bmad-brief.md)
+- BMAD Process Overview (retired local brief)
 - [Database Schema](./schema.md)
 - [Observability Setup](./observability.md)
 - [GitHub Workflow Guide](./processes/GITHUB_SETUP.md)
