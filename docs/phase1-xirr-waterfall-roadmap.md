@@ -124,6 +124,7 @@ IRRConfig threading); now we lock in the gains with:
 3. **Update `docs/xirr.truth-cases.json`**:
    - Only when justified by external calculation
    - Document change in `docs/xirr.truth-cases.changes.md`:
+
      ```md
      ## 2025-12-11: Test 13 Leap Year Correction
 
@@ -135,6 +136,7 @@ IRRConfig threading); now we lock in the gains with:
 
 4. **Document exceptions**:
    - Create `docs/xirr-known-limitations.md`:
+
      ```md
      ## Test 07: Newton failure + bisection fallback
 
@@ -654,8 +656,10 @@ debugXirr('Requires at least 2 cashflows:', cashflows.length);
 
 - [XIRR Analysis](./phase0-xirr-analysis-eda20590.md) - Detailed failure
   categorization
-- [XIRR Parity Heatmap](./xirr-parity-heatmap.md) - 51-scenario baseline (TBD)
-- [Known Limitations](./xirr-known-limitations.md) - Documented edge cases (TBD)
+- [XIRR Baseline Heatmap](./phase1-xirr-baseline-heatmap.md) - 51-scenario
+  baseline
+- [Phase 1.1.1 Analysis](./phase1-1-1-analysis.md) - documented convergence edge
+  cases
 ```
 
 **Deliverables**:
@@ -708,7 +712,8 @@ proportional shortfall-based logic.
 
 ### References
 
-- [Technical Notes](./xirr-and-waterfall-notes.md)
+- Technical Notes: XIRR and waterfall notes from this roadmap's Phase 1.5
+  outline
 - [XIRR Analysis](./phase0-xirr-analysis-eda20590.md)
 ```
 
