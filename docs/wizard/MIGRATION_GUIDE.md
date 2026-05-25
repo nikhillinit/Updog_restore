@@ -5,22 +5,25 @@ last_updated: 2026-01-19
 
 # Wizard Cards Migration Guide
 
-Guide for migrating from legacy wizard cards to the new enhanced versions with inline validation.
+Guide for migrating from legacy wizard cards to the new enhanced versions with
+inline validation.
 
 ## Overview
 
 The new wizard card system provides:
-- ✅ **Inline error display** - Validation errors show directly on fields
-- ✅ **Scoped error handling** - Automatic error mapping by section
-- ✅ **Enhanced accessibility** - Full ARIA support
-- ✅ **Format-specific inputs** - USD, percent, number with built-in validation
-- ✅ **Collapsible UI** - Better mobile experience
+
+- [x] **Inline error display** - Validation errors show directly on fields
+- [x] **Scoped error handling** - Automatic error mapping by section
+- [x] **Enhanced accessibility** - Full ARIA support
+- [x] **Format-specific inputs** - USD, percent, number with built-in validation
+- [x] **Collapsible UI** - Better mobile experience
 
 ## What Changed
 
 ### File Structure
 
 **Old Structure:**
+
 ```
 client/src/components/wizard/
 ├── StageAllocationCard.tsx      # Used Card + Slider
@@ -30,6 +33,7 @@ client/src/components/wizard/
 ```
 
 **New Structure:**
+
 ```
 client/src/components/wizard/
 ├── EnhancedField.tsx             # NEW: Format-specific input
@@ -54,22 +58,24 @@ client/src/components/wizard/
 #### StageAllocationCard
 
 **Old API:**
+
 ```tsx
 <StageAllocationCard
-  allocation={allocation}          // Old prop name
+  allocation={allocation} // Old prop name
   onChange={onChange}
-  committedCapital={20_000_000}    // Old prop name
+  committedCapital={20_000_000} // Old prop name
   disabled={false}
 />
 ```
 
 **New API:**
+
 ```tsx
 <StageAllocationCard
-  value={allocation}               // ✅ Renamed to 'value'
+  value={allocation} // [x] Renamed to 'value'
   onChange={onChange}
-  committedCapitalUSD={20_000_000} // ✅ Renamed for clarity
-  errors={scopedErrors}            // ✅ NEW: Inline error display
+  committedCapitalUSD={20_000_000} // [x] Renamed for clarity
+  errors={scopedErrors} // [x] NEW: Inline error display
   disabled={false}
 />
 ```
@@ -77,62 +83,68 @@ client/src/components/wizard/
 #### ReservesCard
 
 **Old API:**
+
 ```tsx
 <ReservesCard
-  config={reserveSettings}         // Old prop name
+  config={reserveSettings} // Old prop name
   onChange={onChange}
   committedCapital={20_000_000}
 />
 ```
 
 **New API:**
+
 ```tsx
 <ReservesCard
-  value={reserveSettings}          // ✅ Renamed to 'value'
+  value={reserveSettings} // [x] Renamed to 'value'
   onChange={onChange}
-  committedCapitalUSD={20_000_000} // ✅ Renamed for clarity
-  errors={scopedErrors}            // ✅ NEW: Inline error display
+  committedCapitalUSD={20_000_000} // [x] Renamed for clarity
+  errors={scopedErrors} // [x] NEW: Inline error display
 />
 ```
 
 #### ExitTimingCard
 
 **Old API:**
+
 ```tsx
 <ExitTimingCard
-  timing={exitTiming}              // Old prop name
+  timing={exitTiming} // Old prop name
   onChange={onChange}
 />
 ```
 
 **New API:**
+
 ```tsx
 <ExitTimingCard
-  value={exitTiming}               // ✅ Renamed to 'value'
+  value={exitTiming} // [x] Renamed to 'value'
   onChange={onChange}
-  errors={scopedErrors}            // ✅ NEW: Inline error display
+  errors={scopedErrors} // [x] NEW: Inline error display
 />
 ```
 
 #### ExitValuesCard
 
 **Old API:**
+
 ```tsx
 <ExitValuesCard
-  exitValues={values}              // Old prop name
+  exitValues={values} // Old prop name
   onChange={onChange}
-  checkSizes={checkSizes}          // Old prop name
+  checkSizes={checkSizes} // Old prop name
 />
 ```
 
 **New API:**
+
 ```tsx
 <ExitValuesCard
-  value={values}                   // ✅ Renamed to 'value'
+  value={values} // [x] Renamed to 'value'
   onChange={onChange}
-  costBasisAtStageUSD={costBasis}  // ✅ Renamed for clarity
-  errors={scopedErrors}            // ✅ NEW: Inline error display
-  showWeights={false}              // ✅ NEW: Optional weight inputs
+  costBasisAtStageUSD={costBasis} // [x] Renamed for clarity
+  errors={scopedErrors} // [x] NEW: Inline error display
+  showWeights={false} // [x] NEW: Optional weight inputs
 />
 ```
 
@@ -141,6 +153,7 @@ client/src/components/wizard/
 ### Step 1: Update Imports
 
 **Before:**
+
 ```tsx
 import { StageAllocationCard } from '@/components/wizard/StageAllocationCard';
 import { ReservesCard } from '@/components/wizard/ReservesCard';
@@ -149,6 +162,7 @@ import { ExitValuesCard } from '@/components/wizard/ExitValuesCard';
 ```
 
 **After:**
+
 ```tsx
 import { StageAllocationCard } from '@/components/wizard/cards/StageAllocationCard';
 import { ReservesCard } from '@/components/wizard/cards/ReservesCard';
@@ -190,6 +204,7 @@ const allocErrors = pickErrors(errors, 'stageAllocation');
 ### Step 3: Update Component Props
 
 **Before:**
+
 ```tsx
 <StageAllocationCard
   allocation={state.stageAllocation}
@@ -199,12 +214,13 @@ const allocErrors = pickErrors(errors, 'stageAllocation');
 ```
 
 **After:**
+
 ```tsx
 <StageAllocationCard
-  value={state.stageAllocation}                           // ✅ Renamed prop
+  value={state.stageAllocation} // [x] Renamed prop
   onChange={(next) => setState({ ...state, stageAllocation: next })}
-  committedCapitalUSD={committedCapitalUSD}               // ✅ Renamed prop
-  errors={allocErrors}                                     // ✅ Added errors
+  committedCapitalUSD={committedCapitalUSD} // [x] Renamed prop
+  errors={allocErrors} // [x] Added errors
 />
 ```
 
@@ -225,7 +241,7 @@ const firstError = getFirstError(errors);
   estimatedAnnualFeesUSD={estimatedAnnualFeesUSD}
   firstErrorLabel={firstError?.message}
   onFixFirstError={() => firstError && focusFirstError(firstError.field)}
-/>
+/>;
 ```
 
 ## Complete Example
@@ -257,7 +273,12 @@ export function WizardStep() {
 ```tsx
 import { StageAllocationCard } from '@/components/wizard/cards/StageAllocationCard';
 import { LiveTotalsAside } from '@/components/wizard/LiveTotalsAside';
-import { zodErrorsToMap, pickErrors, getFirstError, focusFirstError } from '@/lib/validation';
+import {
+  zodErrorsToMap,
+  pickErrors,
+  getFirstError,
+  focusFirstError,
+} from '@/lib/validation';
 import { stageAllocationSchema } from '@/lib/wizard-schemas';
 import type { FieldErrors } from '@/lib/validation';
 
@@ -331,16 +352,17 @@ All cards now work with Zod schemas:
 ```tsx
 // Available schemas
 import {
-  stageAllocationSchema,      // For StageAllocationCard
-  graduationRatesSchema,       // For GraduationMatrixCard
-  exitTimingSchema,            // For ExitTimingCard
-  exitValuesByStageSchema,     // For ExitValuesCard
+  stageAllocationSchema, // For StageAllocationCard
+  graduationRatesSchema, // For GraduationMatrixCard
+  exitTimingSchema, // For ExitTimingCard
+  exitValuesByStageSchema, // For ExitValuesCard
 } from '@/lib/wizard-schemas';
 ```
 
 ## Error Handling Patterns
 
 ### Basic Pattern
+
 ```tsx
 // 1. Validate
 const result = schema.safeParse(data);
@@ -352,10 +374,11 @@ const errors = result.success ? {} : zodErrorsToMap(result.error);
 const scopedErrors = pickErrors(errors, 'sectionName');
 
 // 4. Pass to card
-<Card errors={scopedErrors} />
+<Card errors={scopedErrors} />;
 ```
 
 ### Auto-Clear on Edit
+
 ```tsx
 const setField = (key: string, value: any) => {
   setState({ ...state, [key]: value });
@@ -364,8 +387,8 @@ const setField = (key: string, value: any) => {
   setErrors((prev) => {
     const next = { ...prev };
     Object.keys(next)
-      .filter(k => k.startsWith(`${key}.`))
-      .forEach(k => delete next[k]);
+      .filter((k) => k.startsWith(`${key}.`))
+      .forEach((k) => delete next[k]);
     return next;
   });
 };
@@ -384,7 +407,7 @@ import { StageAllocationCard } from '@/components/wizard/legacy/StageAllocationC
   allocation={state.stageAllocation}
   onChange={onChange}
   committedCapital={20_000_000}
-/>
+/>;
 ```
 
 Legacy components remain fully functional and unchanged.
@@ -399,13 +422,13 @@ Legacy components remain fully functional and unchanged.
 
 ## Support
 
-- **Full Example**: See [PortfolioDynamicsStep.tsx](../../client/src/pages/wizard/PortfolioDynamicsStep.tsx)
+- **Full Example**: Historical `PortfolioDynamicsStep.tsx` example
 - **Integration Guide**: See [WIZARD_INTEGRATION.md](./WIZARD_INTEGRATION.md)
-- **Legacy Code**: Reference implementations in `client/src/components/wizard/legacy/`
+- **Legacy Code**: Reference implementations in
+  `client/src/components/wizard/legacy/`
 
 ---
 
-**Migration Status:** In Progress
-**Target Completion:** Current Sprint
-**Breaking Changes:** Yes (prop renames, error handling required)
-**Backward Compatibility:** Legacy components available in `/legacy/` folder
+**Migration Status:** In Progress **Target Completion:** Current Sprint
+**Breaking Changes:** Yes (prop renames, error handling required) **Backward
+Compatibility:** Legacy components available in `/legacy/` folder

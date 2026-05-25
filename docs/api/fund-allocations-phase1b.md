@@ -5,13 +5,15 @@ last_updated: 2026-01-19
 
 # Fund Allocation Management API - Phase 1b Implementation
 
-**Date:** 2025-10-07
-**Status:** ✅ Complete
-**Endpoint:** `GET /api/funds/:fundId/companies`
+**Date:** 2025-10-07 **Status:** [x] Complete **Endpoint:**
+`GET /api/funds/:fundId/companies`
 
 ## Summary
 
-Implemented the companies list API endpoint with cursor-based pagination, filtering, and sorting capabilities for Fund Allocation Management (Phase 1b). This endpoint provides efficient access to portfolio company data with allocation metrics.
+Implemented the companies list API endpoint with cursor-based pagination,
+filtering, and sorting capabilities for Fund Allocation Management (Phase 1b).
+This endpoint provides efficient access to portfolio company data with
+allocation metrics.
 
 ## Implementation Details
 
@@ -20,14 +22,18 @@ Implemented the companies list API endpoint with cursor-based pagination, filter
 **URL:** `GET /api/funds/:fundId/companies`
 
 **Query Parameters:**
+
 - `cursor` (optional): ID of last company from previous page (string, numeric)
 - `limit` (optional): Number of results (default: 50, max: 200)
-- `q` (optional): Search query for company name (case-insensitive, max 255 chars)
+- `q` (optional): Search query for company name (case-insensitive, max 255
+  chars)
 - `status` (optional): Filter by status (`active`, `exited`, `written-off`)
 - `sector` (optional): Filter by sector (max 100 chars)
-- `sortBy` (optional): Sort order - `exit_moic_desc` (default), `planned_reserves_desc`, `name_asc`
+- `sortBy` (optional): Sort order - `exit_moic_desc` (default),
+  `planned_reserves_desc`, `name_asc`
 
 **Response Schema:**
+
 ```typescript
 interface CompanyListResponse {
   companies: Array<{
@@ -58,7 +64,9 @@ interface CompanyListResponse {
 **Location:** `server/routes/allocations.ts` (added to existing file)
 
 **Key Features:**
-1. **Cursor-based pagination** using keyset pagination (id < cursor) for O(1) performance
+
+1. **Cursor-based pagination** using keyset pagination (id < cursor) for O(1)
+   performance
 2. **Zod validation** for all query parameters with type-safe parsing
 3. **Drizzle ORM** query builder with SQL injection protection
 4. **Performance optimization:**
@@ -70,8 +78,8 @@ interface CompanyListResponse {
    - Basis points for MOIC (INTEGER, 10000 = 1.0x)
    - Decimal for ownership percentage
 
-**Database Schema:**
-Extended `portfoliocompanies` table with Phase 1a fields:
+**Database Schema:** Extended `portfoliocompanies` table with Phase 1a fields:
+
 - `deployed_reserves_cents` (BIGINT, default 0)
 - `planned_reserves_cents` (BIGINT, default 0)
 - `exit_moic_bps` (INTEGER, nullable)
@@ -83,7 +91,9 @@ Extended `portfoliocompanies` table with Phase 1a fields:
 - `allocation_version` (INTEGER, default 1)
 
 **Indexes Used:**
-- `idx_portfoliocompanies_fund_exit_moic` - MOIC sorting (partial index on active status)
+
+- `idx_portfoliocompanies_fund_exit_moic` - MOIC sorting (partial index on
+  active status)
 - `idx_portfoliocompanies_fund_status_sector` - Status/sector filtering
 - `idx_portfoliocompanies_cursor` - Cursor pagination (fund_id, id DESC)
 - `idx_portfoliocompanies_last_allocation` - Recent activity queries
@@ -91,14 +101,17 @@ Extended `portfoliocompanies` table with Phase 1a fields:
 ### Error Handling
 
 **400 Bad Request:**
+
 - Invalid fundId (non-numeric or negative)
 - Invalid query parameters (wrong type, out of range)
 - Limit exceeds 200
 
 **404 Not Found:**
+
 - Fund doesn't exist or has no companies
 
 **Example Error Response:**
+
 ```json
 {
   "error": "invalid_query_parameters",
@@ -115,25 +128,28 @@ Extended `portfoliocompanies` table with Phase 1a fields:
 
 **Test File:** `tests/api/allocations.test.ts`
 
-**Test Coverage:** 15 comprehensive test cases for GET /api/funds/:fundId/companies
+**Test Coverage:** 15 comprehensive test cases for GET
+/api/funds/:fundId/companies
 
 ### Test Cases
 
-1. ✅ **Default pagination and sorting** - Retrieves companies sorted by exit MOIC DESC
-2. ✅ **Filter by status** - Returns only companies matching status filter
-3. ✅ **Filter by sector** - Returns only companies in specified sector
-4. ✅ **Search by name** - Case-insensitive LIKE search on company name
-5. ✅ **Sort by planned reserves DESC** - Correct ordering by planned_reserves_cents
-6. ✅ **Sort by name ASC** - Alphabetical ordering
-7. ✅ **Cursor-based pagination** - No duplicates, correct has_more flag
-8. ✅ **Limit parameter** - Respects limit, validates max 200
-9. ✅ **404 for non-existent fund** - Proper error response
-10. ✅ **400 for invalid fund ID** - Input validation
-11. ✅ **400 for invalid query parameters** - Comprehensive validation
-12. ✅ **Empty result set** - Handles no matches gracefully
-13. ✅ **Multiple filters combined** - Correct AND logic
-14. ✅ **NULL values** - Proper handling of optional fields
-15. ✅ **Performance test** - < 200ms for 100 companies (p95 requirement met)
+1. [x] **Default pagination and sorting** - Retrieves companies sorted by exit
+       MOIC DESC
+2. [x] **Filter by status** - Returns only companies matching status filter
+3. [x] **Filter by sector** - Returns only companies in specified sector
+4. [x] **Search by name** - Case-insensitive LIKE search on company name
+5. [x] **Sort by planned reserves DESC** - Correct ordering by
+       planned_reserves_cents
+6. [x] **Sort by name ASC** - Alphabetical ordering
+7. [x] **Cursor-based pagination** - No duplicates, correct has_more flag
+8. [x] **Limit parameter** - Respects limit, validates max 200
+9. [x] **404 for non-existent fund** - Proper error response
+10. [x] **400 for invalid fund ID** - Input validation
+11. [x] **400 for invalid query parameters** - Comprehensive validation
+12. [x] **Empty result set** - Handles no matches gracefully
+13. [x] **Multiple filters combined** - Correct AND logic
+14. [x] **NULL values** - Proper handling of optional fields
+15. [x] **Performance test** - < 200ms for 100 companies (p95 requirement met)
 
 ### Running Tests
 
@@ -148,11 +164,13 @@ npm test -- tests/api/allocations.test.ts -t "GET /api/funds/:fundId/companies"
 ## Performance
 
 **Benchmarks:**
+
 - 100 companies query: < 200ms (p95)
 - Indexed pagination: O(1) for cursor-based navigation
 - No N+1 queries (single SELECT with joins)
 
 **Query Plan:**
+
 ```sql
 -- Optimized query using indexes
 SELECT ... FROM portfoliocompanies
@@ -170,15 +188,16 @@ LIMIT $limit + 1;
 
 ## Security
 
-- ✅ Zod validation prevents injection attacks
-- ✅ Parameterized queries (SQL injection safe)
-- ✅ Rate limiting via express-rate-limit (60 req/min)
-- ✅ Request ID logging for audit trail
-- ✅ Input sanitization (max lengths enforced)
+- [x] Zod validation prevents injection attacks
+- [x] Parameterized queries (SQL injection safe)
+- [x] Rate limiting via express-rate-limit (60 req/min)
+- [x] Request ID logging for audit trail
+- [x] Input sanitization (max lengths enforced)
 
 ## Integration
 
 **Server App Registration:** `server/app.ts`
+
 ```typescript
 import allocationsRouter from './routes/allocations.js';
 // ...
@@ -190,6 +209,7 @@ app.use('/api', allocationsRouter);
 ## Example Usage
 
 ### Request
+
 ```bash
 curl -X GET \
   'http://localhost:3001/api/funds/1/companies?limit=20&status=active&sortBy=exit_moic_desc' \
@@ -197,6 +217,7 @@ curl -X GET \
 ```
 
 ### Response
+
 ```json
 {
   "companies": [
@@ -224,6 +245,7 @@ curl -X GET \
 ```
 
 ### Pagination Example
+
 ```bash
 # Page 1
 curl 'http://localhost:3001/api/funds/1/companies?limit=50'
@@ -234,7 +256,8 @@ curl 'http://localhost:3001/api/funds/1/companies?limit=50&cursor=42'
 
 ## Files Modified
 
-1. **`server/routes/allocations.ts`** - Added GET /companies endpoint (234 lines)
+1. **`server/routes/allocations.ts`** - Added GET /companies endpoint (234
+   lines)
 2. **`shared/schema.ts`** - Added Phase 1a fields to portfolioCompanies table
 3. **`tests/api/allocations.test.ts`** - Added 15 test cases (306 lines)
 
@@ -248,6 +271,7 @@ curl 'http://localhost:3001/api/funds/1/companies?limit=50&cursor=42'
 ## Migration Reference
 
 **Migration:** `server/migrations/20251007_fund_allocation_phase1a.up.sql`
+
 - Added 9 columns to portfoliocompanies
 - Created 4 performance indexes
 - Added 7 CHECK constraints for data validation
@@ -264,25 +288,27 @@ curl 'http://localhost:3001/api/funds/1/companies?limit=50&cursor=42'
 ## Changelog
 
 **2025-10-07 16:45**
-- ✅ Implemented GET /api/funds/:fundId/companies endpoint
-- ✅ Added Zod validation schemas
-- ✅ Added cursor-based pagination with limit+1 pattern
-- ✅ Implemented filtering (status, sector, search)
-- ✅ Implemented sorting (exit MOIC, planned reserves, name)
-- ✅ Added comprehensive error handling
-- ✅ Extended Drizzle schema with Phase 1a fields
-- ✅ Added 15 unit tests with 100% coverage
-- ✅ Verified performance: < 200ms for 100 companies
+
+- [x] Implemented GET /api/funds/:fundId/companies endpoint
+- [x] Added Zod validation schemas
+- [x] Added cursor-based pagination with limit+1 pattern
+- [x] Implemented filtering (status, sector, search)
+- [x] Implemented sorting (exit MOIC, planned reserves, name)
+- [x] Added comprehensive error handling
+- [x] Extended Drizzle schema with Phase 1a fields
+- [x] Added 15 unit tests with 100% coverage
+- [x] Verified performance: < 200ms for 100 companies
 
 ## Related Documentation
 
 - [Phase 1a Migration](../../server/migrations/20251007_fund_allocation_phase1a.up.sql)
-- [Allocation POST API](../../server/routes/allocations.ts#L372) - Update allocations
-- [Allocation GET Latest API](../../server/routes/allocations.ts#L281) - Get latest state
-- [DeepSeek Architecture Review](../architecture/fund-allocation-architecture.md) (if exists)
+- [Allocation POST API](../../server/routes/allocations.ts#L372) - Update
+  allocations
+- [Allocation GET Latest API](../../server/routes/allocations.ts#L281) - Get
+  latest state
+- DeepSeek Architecture Review (if exists)
 
 ---
 
-**Implementation by:** Claude (Anthropic)
-**Reviewed by:** (Pending)
-**Production Ready:** ✅ Yes
+**Implementation by:** Claude (Anthropic) **Reviewed by:** (Pending)
+**Production Ready:** [x] Yes

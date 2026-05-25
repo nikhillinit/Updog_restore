@@ -5,11 +5,13 @@ last_updated: 2026-01-19
 
 # Wizard Component Integration Guide
 
-Complete guide for integrating the wizard component system with Zod validation, inline errors, and live totals.
+Complete guide for integrating the wizard component system with Zod validation,
+inline errors, and live totals.
 
 ## Overview
 
 The wizard system provides a complete form infrastructure with:
+
 - **Type-safe validation** using Zod schemas
 - **Inline error display** with scoped error messages
 - **Live validation** with real-time feedback
@@ -48,13 +50,18 @@ The wizard system provides a complete form infrastructure with:
 ### 1. Validation Layer
 
 **Files:**
+
 - `client/src/lib/wizard-schemas.ts` - Zod validation schemas
 - `client/src/lib/wizard-types.ts` - TypeScript types + defaults
 - `client/src/lib/validation.ts` - Error mapping utilities
 
 **Key Schemas:**
+
 ```typescript
-import { stageAllocationSchema, graduationRatesSchema } from '@/lib/wizard-schemas';
+import {
+  stageAllocationSchema,
+  graduationRatesSchema,
+} from '@/lib/wizard-schemas';
 
 // Validate data
 const result = stageAllocationSchema.safeParse(data);
@@ -69,6 +76,7 @@ if (!result.success) {
 **Location:** `client/src/components/wizard/cards/`
 
 All cards accept:
+
 - `value` - Current data
 - `onChange` - Update callback
 - `errors` - Scoped FieldErrors (keys without prefix)
@@ -76,6 +84,7 @@ All cards accept:
 - `className` - Additional classes
 
 **Example:**
+
 ```tsx
 <StageAllocationCard
   value={state.stageAllocation}
@@ -88,6 +97,7 @@ All cards accept:
 ### 3. Base Components
 
 **EnhancedField** - Format-specific input with inline errors
+
 ```tsx
 <EnhancedField
   id="field-id"
@@ -102,6 +112,7 @@ All cards accept:
 ```
 
 **CollapsibleCard** - Expandable card container
+
 ```tsx
 <CollapsibleCard
   title="Card Title"
@@ -113,6 +124,7 @@ All cards accept:
 ```
 
 **LiveTotalsAside** - Sticky right rail with live validation
+
 ```tsx
 <LiveTotalsAside
   committedCapitalUSD={20_000_000}
@@ -235,7 +247,7 @@ const firstError = getFirstError(errors);
   estimatedAnnualFeesUSD={estimatedFees}
   firstErrorLabel={firstError?.message}
   onFixFirstError={() => firstError && focusFirstError(firstError.field)}
-/>
+/>;
 ```
 
 ## Validation Patterns
@@ -308,11 +320,13 @@ const err = firstError(exitValErrors, 'preSeed.median');
 ```tsx
 const rootError = firstError(scopedErrors, '_root');
 
-{rootError && (
-  <div className="rounded-lg bg-red-50 border border-red-200 p-3">
-    <p className="text-sm text-red-700">{rootError}</p>
-  </div>
-)}
+{
+  rootError && (
+    <div className="rounded-lg bg-red-50 border border-red-200 p-3">
+      <p className="text-sm text-red-700">{rootError}</p>
+    </div>
+  );
+}
 ```
 
 ### Global Error Navigation
@@ -339,8 +353,8 @@ const setField = <K extends keyof State>(key: K, value: State[K]) => {
   setErrors((prev) => {
     const next = { ...prev };
     Object.keys(next)
-      .filter(k => k.startsWith(`${key}.`))
-      .forEach(k => delete next[k]);
+      .filter((k) => k.startsWith(`${key}.`))
+      .forEach((k) => delete next[k]);
     return next;
   });
 };
@@ -478,12 +492,12 @@ All components follow ARIA best practices:
 3. Ensure `firstError()` key matches field
 
 ```typescript
-// ✅ Correct
+// [x] Correct
 const errors = { 'stageAllocation.reserves': ['Error'] };
 const scoped = pickErrors(errors, 'stageAllocation');
 const err = firstError(scoped, 'reserves'); // Found!
 
-// ❌ Wrong
+// NO: Wrong
 const err = firstError(scoped, 'stageAllocation.reserves'); // Not found
 ```
 
@@ -496,11 +510,11 @@ const err = firstError(scoped, 'stageAllocation.reserves'); // Not found
 ```typescript
 // Missing validation
 const result = schema.safeParse(data);
-setErrors({}); // ❌ Errors cleared but not set
+setErrors({}); // NO: Errors cleared but not set
 
 // Correct
 if (!result.success) {
-  setErrors(zodErrorsToMap(result.error)); // ✅
+  setErrors(zodErrorsToMap(result.error)); // [x]
 }
 ```
 
@@ -515,13 +529,14 @@ if (!result.success) {
 const element = document.getElementById(fieldId);
 if (element) {
   element.scrollIntoView({ behavior: 'smooth' });
-  setTimeout(() => element.focus(), 300); // ✅ Wait for scroll
+  setTimeout(() => element.focus(), 300); // [x] Wait for scroll
 }
 ```
 
 ## Complete Example
 
-See [PortfolioDynamicsStep.tsx](../../client/src/pages/wizard/PortfolioDynamicsStep.tsx) for a complete, working example demonstrating all integration patterns.
+The historical `PortfolioDynamicsStep.tsx` example demonstrated all integration
+patterns.
 
 ## Next Steps
 
@@ -532,6 +547,6 @@ See [PortfolioDynamicsStep.tsx](../../client/src/pages/wizard/PortfolioDynamicsS
 
 ---
 
-**Last Updated:** 2025-10-07
-**Maintained By:** Engineering Team
-**Related Docs:** [Wizard Types](../../client/src/lib/wizard-types.ts), [Validation Utilities](../../client/src/lib/validation.ts)
+**Last Updated:** 2025-10-07 **Maintained By:** Engineering Team **Related
+Docs:** [Wizard Types](../../client/src/lib/wizard-types.ts),
+[Validation Utilities](../../client/src/lib/validation.ts)

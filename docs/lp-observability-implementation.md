@@ -7,15 +7,20 @@ last_updated: 2026-01-19
 
 ## Overview
 
-This document describes the observability implementation for the LP Reporting Dashboard API. The implementation follows the existing patterns established in `server/observability/performance-metrics.ts` and provides comprehensive monitoring, alerting, and SLO tracking.
+This document describes the observability implementation for the LP Reporting
+Dashboard API. The implementation follows the existing patterns established in
+`server/observability/performance-metrics.ts` and provides comprehensive
+monitoring, alerting, and SLO tracking.
 
 ## Implementation Summary
 
 ### Files Created
 
-1. **`server/observability/lp-metrics.ts`** - Prometheus metrics definitions and helper functions
+1. **`server/observability/lp-metrics.ts`** - Prometheus metrics definitions and
+   helper functions
 2. **`monitoring/lp-alerts.yml`** - Prometheus alerting rules (P1, P2, P3)
-3. **`docs/lp-slo-definitions.md`** - Service Level Objectives and error budget policy
+3. **`docs/lp-slo-definitions.md`** - Service Level Objectives and error budget
+   policy
 4. **`monitoring/grafana/lp-dashboard.json`** - Grafana dashboard configuration
 
 ### Files Modified
@@ -29,42 +34,42 @@ This document describes the observability implementation for the LP Reporting Da
 
 ### Request Metrics
 
-| Metric | Type | Labels | Description |
-|--------|------|--------|-------------|
+| Metric                       | Type      | Labels                          | Description                      |
+| ---------------------------- | --------- | ------------------------------- | -------------------------------- |
 | `lp_api_request_duration_ms` | Histogram | endpoint, method, status, lp_id | Request duration in milliseconds |
-| `lp_api_requests_total` | Counter | endpoint, method, status | Total API requests |
+| `lp_api_requests_total`      | Counter   | endpoint, method, status        | Total API requests               |
 
 **Buckets**: 10, 25, 50, 100, 250, 500, 1000, 2000, 5000, 10000 ms
 
 ### Cache Metrics
 
-| Metric | Type | Labels | Description |
-|--------|------|--------|-------------|
-| `lp_cache_hits_total` | Counter | endpoint | Total cache hits |
+| Metric                  | Type    | Labels   | Description        |
+| ----------------------- | ------- | -------- | ------------------ |
+| `lp_cache_hits_total`   | Counter | endpoint | Total cache hits   |
 | `lp_cache_misses_total` | Counter | endpoint | Total cache misses |
 
 ### Report Generation Metrics
 
-| Metric | Type | Labels | Description |
-|--------|------|--------|-------------|
-| `lp_report_generation_duration_ms` | Histogram | report_type, format | Report generation duration |
-| `lp_reports_generated_total` | Counter | report_type, format | Successfully generated reports |
-| `lp_reports_failed_total` | Counter | report_type, error_type | Failed report generations |
+| Metric                             | Type      | Labels                  | Description                    |
+| ---------------------------------- | --------- | ----------------------- | ------------------------------ |
+| `lp_report_generation_duration_ms` | Histogram | report_type, format     | Report generation duration     |
+| `lp_reports_generated_total`       | Counter   | report_type, format     | Successfully generated reports |
+| `lp_reports_failed_total`          | Counter   | report_type, error_type | Failed report generations      |
 
 **Buckets**: 100, 500, 1000, 2000, 5000, 10000, 20000, 30000, 60000, 120000 ms
 
 ### Business Metrics
 
-| Metric | Type | Labels | Description |
-|--------|------|--------|-------------|
-| `lp_active_lps_gauge` | Gauge | - | Current number of active LPs |
-| `lp_capital_activity_events_total` | Counter | activity_type, fund_id | Capital activity events processed |
-| `lp_data_points_returned` | Histogram | endpoint | Number of data points in responses |
+| Metric                             | Type      | Labels                 | Description                        |
+| ---------------------------------- | --------- | ---------------------- | ---------------------------------- |
+| `lp_active_lps_gauge`              | Gauge     | -                      | Current number of active LPs       |
+| `lp_capital_activity_events_total` | Counter   | activity_type, fund_id | Capital activity events processed  |
+| `lp_data_points_returned`          | Histogram | endpoint               | Number of data points in responses |
 
 ### Error Metrics
 
-| Metric | Type | Labels | Description |
-|--------|------|--------|-------------|
+| Metric                | Type    | Labels                       | Description      |
+| --------------------- | ------- | ---------------------------- | ---------------- |
 | `lp_api_errors_total` | Counter | endpoint, error_type, status | Total API errors |
 
 ---
@@ -74,16 +79,19 @@ This document describes the observability implementation for the LP Reporting Da
 ### P1 (Critical) Alerts
 
 **1. LPAPIHighErrorRate**
+
 - **Condition**: Error rate > 1% for 5 minutes
 - **Impact**: Systemic issue affecting LP experience
 - **Action**: Immediate investigation required
 
 **2. LPReportGenerationHighFailureRate**
+
 - **Condition**: Report failure rate > 10% for 5 minutes
 - **Impact**: LPs cannot access their reports
 - **Action**: Check report queue and generation service
 
 **3. LPAPINoTraffic**
+
 - **Condition**: No requests for 2 minutes
 - **Impact**: Service may be completely down
 - **Action**: Verify service health and routing
@@ -91,16 +99,19 @@ This document describes the observability implementation for the LP Reporting Da
 ### P2 (High Priority) Alerts
 
 **1. LPAPIHighLatency**
+
 - **Condition**: p99 latency > 2000ms for 10 minutes
 - **Impact**: User experience degraded
 - **Action**: Investigate slow queries and database load
 
 **2. LPAPIElevatedLatency**
+
 - **Condition**: p95 latency > 500ms for 5 minutes
 - **Impact**: Performance degradation detected
 - **Action**: Review cache hit rate and optimize queries
 
 **3. LPReportGenerationSlow**
+
 - **Condition**: p95 report generation > 30 seconds for 10 minutes
 - **Impact**: Reports taking too long to generate
 - **Action**: Optimize report generation logic
@@ -108,16 +119,19 @@ This document describes the observability implementation for the LP Reporting Da
 ### P3 (Medium Priority) Alerts
 
 **1. LPAPILowCacheHitRate**
+
 - **Condition**: Cache hit rate < 50% for 30 minutes
 - **Impact**: Increased database load and latency
 - **Action**: Review cache TTL configuration
 
 **2. LPAPIHighClientErrors**
+
 - **Condition**: 4xx error rate > 5% for 10 minutes
 - **Impact**: Integration issues or user confusion
 - **Action**: Review API documentation and client implementations
 
 **3. LPAPIEndpointErrors**
+
 - **Condition**: Per-endpoint error rate > 5% for 5 minutes
 - **Impact**: Specific endpoint may have issues
 - **Action**: Investigate endpoint-specific problems
@@ -127,31 +141,37 @@ This document describes the observability implementation for the LP Reporting Da
 ## Service Level Objectives (SLOs)
 
 ### Availability SLO
+
 - **Target**: 99.9% uptime
 - **Error Budget**: 43 minutes/month
 - **Measurement**: 30-day rolling window
 
 ### Latency SLO (p95)
+
 - **Target**: < 500ms
 - **Error Budget**: 5% of requests may exceed
 - **Measurement**: 5-minute window
 
 ### Latency SLO (p99)
+
 - **Target**: < 2000ms
 - **Error Budget**: 1% of requests may exceed
 - **Measurement**: 5-minute window
 
 ### Error Rate SLO
+
 - **Target**: < 0.1% (99.9% success rate)
 - **Error Budget**: 1 error per 1,000 requests
 - **Measurement**: 5-minute window
 
 ### Report Generation SLO
+
 - **Target**: p95 < 30 seconds
 - **Error Budget**: 5% of reports may take longer
 - **Measurement**: 10-minute window
 
 ### Cache Hit Rate SLO
+
 - **Target**: > 50% hit rate
 - **Error Budget**: Temporary dips allowed
 - **Measurement**: 30-minute window
@@ -163,34 +183,39 @@ This document describes the observability implementation for the LP Reporting Da
 The Grafana dashboard is organized into 6 sections:
 
 ### 1. SLO Overview (4 gauges)
+
 - Availability (30-day)
 - p95 Latency
 - Error Rate
 - Cache Hit Rate
 
 ### 2. Request Metrics
+
 - Request rate by endpoint (timeseries)
 - Request latency by endpoint (p50, p95, p99)
 
 ### 3. Error Tracking
+
 - Error rate by endpoint (timeseries)
 - Errors by type (timeseries)
 
 ### 4. Cache Performance
+
 - Cache hit rate by endpoint (timeseries)
 - Cache hits vs misses (stacked bars)
 
 ### 5. Report Generation
+
 - Report generation duration (p50, p95, p99)
 - Report success/failure rate (timeseries)
 
 ### 6. Business Metrics
+
 - Active LPs (stat panel)
 - Capital activity events (timeseries)
 
-**Dashboard UID**: `lp-reporting-api`
-**Refresh Rate**: 30 seconds
-**Default Time Range**: Last 6 hours
+**Dashboard UID**: `lp-reporting-api` **Refresh Rate**: 30 seconds **Default
+Time Range**: Last 6 hours
 
 ---
 
@@ -256,6 +281,7 @@ All 11 LP API endpoints have metrics instrumentation:
 ### Cache Metrics
 
 Cache hits are recorded for endpoints with `Cache-Control` headers:
+
 - `/api/lp/profile` - 5 min TTL
 - `/api/lp/summary` - 5 min TTL
 - `/api/lp/capital-account` - 5 min TTL
@@ -265,6 +291,7 @@ Cache hits are recorded for endpoints with `Cache-Control` headers:
 ### Data Points Metrics
 
 Volume tracking for data-heavy endpoints:
+
 - `/api/lp/capital-account` - Number of transactions
 - `/api/lp/performance` - Number of performance data points
 
@@ -274,27 +301,30 @@ Volume tracking for data-heavy endpoints:
 
 ### Error Budget Calculation
 
-| SLO | Monthly Budget | Weekly Budget | Daily Budget |
-|-----|----------------|---------------|--------------|
-| Availability 99.9% | 43.2 minutes | ~10 minutes | ~1.4 minutes |
-| Error rate 0.1% | ~1,000 errors | ~250 errors | ~33 errors |
-| Latency p95 < 500ms | 64,800 slow requests | 16,200 | 2,160 |
+| SLO                 | Monthly Budget       | Weekly Budget | Daily Budget |
+| ------------------- | -------------------- | ------------- | ------------ |
+| Availability 99.9%  | 43.2 minutes         | ~10 minutes   | ~1.4 minutes |
+| Error rate 0.1%     | ~1,000 errors        | ~250 errors   | ~33 errors   |
+| Latency p95 < 500ms | 64,800 slow requests | 16,200        | 2,160        |
 
 (Assuming 1M requests/month baseline)
 
 ### Error Budget Status Thresholds
 
 **Healthy (> 50% remaining)**:
+
 - Normal feature development
 - Standard deployment process
 - Experimentation allowed
 
 **Low (< 50% remaining)**:
+
 - Increased change review
 - Extra deployment monitoring
 - Caution with risky changes
 
 **Exhausted (< 10% remaining)**:
+
 - **FREEZE non-critical deployments**
 - Focus on reliability improvements
 - Incident reviews and corrective actions
@@ -346,6 +376,7 @@ Volume tracking for data-heavy endpoints:
 ### Load Testing
 
 Test scenarios with realistic LP usage patterns:
+
 - **Steady state**: 10 req/sec across all endpoints
 - **Peak load**: 50 req/sec (end of quarter reporting)
 - **Report generation**: 100 concurrent reports
@@ -354,6 +385,7 @@ Test scenarios with realistic LP usage patterns:
 ### SLO Validation
 
 Verify SLO compliance under load:
+
 - 99.9% of requests return 2xx/3xx
 - p95 latency < 500ms
 - p99 latency < 2000ms
@@ -363,6 +395,7 @@ Verify SLO compliance under load:
 ### Chaos Engineering
 
 Test resilience to failures:
+
 - Database connection failures
 - Redis unavailability
 - Network latency injection
@@ -374,7 +407,8 @@ Test resilience to failures:
 
 ### Short Term (Next Sprint)
 
-1. **Distributed Tracing**: Add OpenTelemetry spans for end-to-end request tracing
+1. **Distributed Tracing**: Add OpenTelemetry spans for end-to-end request
+   tracing
 2. **Structured Logging**: Replace console.error with Winston structured logs
 3. **Custom Dashboards**: Per-LP performance dashboards
 4. **Real User Monitoring (RUM)**: Frontend performance tracking
@@ -397,29 +431,32 @@ Test resilience to failures:
 
 ## Related Documentation
 
-- [LP API Documentation](./lp-api.md)
+- LP API documentation
 - [SLO Definitions](./lp-slo-definitions.md)
-- [Performance Optimization Guide](./performance-optimization.md)
-- [Incident Response Playbook](./incident-response.md)
-- [Monitoring Architecture](../monitoring/README.md)
+- Performance optimization guide
+- Incident response playbook
+- Monitoring architecture
 
 ---
 
 ## Maintenance
 
 ### Weekly Tasks
+
 - Review SLO compliance
 - Check error budget consumption
 - Review alert noise and adjust thresholds
 - Update dashboard annotations for incidents
 
 ### Monthly Tasks
+
 - Review SLO targets with stakeholders
 - Update alert runbooks based on incidents
 - Audit metric cardinality
 - Review Grafana dashboard usage
 
 ### Quarterly Tasks
+
 - Revise SLOs based on business needs
 - Update error budget policy
 - Review and optimize alert rules
@@ -429,6 +466,6 @@ Test resilience to failures:
 
 ## Revision History
 
-| Date | Version | Changes | Author |
-|------|---------|---------|--------|
-| 2025-12-23 | 1.0 | Initial implementation | Performance Engineering Team |
+| Date       | Version | Changes                | Author                       |
+| ---------- | ------- | ---------------------- | ---------------------------- |
+| 2025-12-23 | 1.0     | Initial implementation | Performance Engineering Team |
