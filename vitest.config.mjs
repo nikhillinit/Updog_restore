@@ -110,6 +110,7 @@ export default defineConfig({
           // Also includes reflection system regression tests
           include: [
             'tests/unit/**/*.test.ts',
+            'tests/unit/scripts/**/*.test.mjs',
             'tests/perf/**/*.test.ts',
             'tests/regressions/**/*.test.ts',
           ],
