@@ -60,37 +60,26 @@ function isSingleBacktickDelimiter(content, index) {
   );
 }
 
+function findClosingBacktick(content, startIndex) {
+  for (let i = startIndex; i < content.length; i += 1) {
+    const ch = content[i];
+    if (ch === '\n' || ch === '\r') return -1;
+    if (isSingleBacktickDelimiter(content, i)) return i;
+  }
+  return -1;
+}
+
 export function stripInlineCodeSpans(content) {
   const sanitized = content.split('');
 
-  for (let index = 0; index < content.length; index += 1) {
-    if (!isSingleBacktickDelimiter(content, index)) {
-      continue;
-    }
+  for (let i = 0; i < content.length; i += 1) {
+    if (!isSingleBacktickDelimiter(content, i)) continue;
 
-    let closingIndex = index + 1;
-    while (
-      closingIndex < content.length &&
-      content[closingIndex] !== '\n' &&
-      content[closingIndex] !== '\r' &&
-      !isSingleBacktickDelimiter(content, closingIndex)
-    ) {
-      closingIndex += 1;
-    }
+    const close = findClosingBacktick(content, i + 1);
+    if (close === -1) continue;
 
-    if (
-      closingIndex >= content.length ||
-      content[closingIndex] === '\n' ||
-      content[closingIndex] === '\r'
-    ) {
-      continue;
-    }
-
-    for (let spanIndex = index; spanIndex <= closingIndex; spanIndex += 1) {
-      sanitized[spanIndex] = ' ';
-    }
-
-    index = closingIndex;
+    for (let j = i; j <= close; j += 1) sanitized[j] = ' ';
+    i = close;
   }
 
   return sanitized.join('');
@@ -136,12 +125,17 @@ export function shouldSkipLink(linkText, linkUrl) {
   return linkUrl.startsWith('#');
 }
 
+/**
+ * Resolves a markdown link URL to an absolute filesystem path.
+ * Absolute paths (leading `/`) resolve against `rootDir`; relative paths against `fileDir`.
+ * @param {{linkUrl: string, fileDir: string, rootDir: string}} params
+ * @returns {string | null}
+ */
 export function resolveLinkTarget({ linkUrl, fileDir, rootDir }) {
   const [pathPart] = linkUrl.split(/[#?]/);
   if (!pathPart) {
     return null;
   }
-
   return pathPart.startsWith('/') ? join(rootDir, pathPart) : resolve(fileDir, pathPart);
 }
 
