@@ -185,6 +185,28 @@ describe('GET /api/funds/:id/results', () => {
     expect(res.body.lifecycle).toHaveProperty('calculationState');
   });
 
+  it('response includes lifecycle evidence fields for results provenance', async () => {
+    const res = await request(app).get('/api/funds/1/results');
+
+    expect(res.status).toBe(200);
+    expect(res.body.lifecycle.configState).toHaveProperty('publishedVersion', 1);
+    expect(res.body.lifecycle.calculationState).toHaveProperty('configVersion', 1);
+    expect(res.body.lifecycle.calculationState).toHaveProperty('runId', 10);
+    expect(res.body.lifecycle.calculationState).toHaveProperty('status', 'ready');
+    expect(res.body.lifecycle.calculationState).toHaveProperty(
+      'lastCalculatedAt',
+      '2026-03-20T12:30:00.000Z'
+    );
+
+    const { FundResultsReadV1Schema } = await import('@shared/contracts/fund-results-v1.contract');
+    const parsed = FundResultsReadV1Schema.parse(res.body);
+    expect(parsed.lifecycle.configState.publishedVersion).toBe(1);
+    expect(parsed.lifecycle.calculationState.configVersion).toBe(1);
+    expect(parsed.lifecycle.calculationState.runId).toBe(10);
+    expect(parsed.lifecycle.calculationState.status).toBe('ready');
+    expect(parsed.lifecycle.calculationState.lastCalculatedAt).toBe('2026-03-20T12:30:00.000Z');
+  });
+
   it('available section includes legacyEvidence flag', async () => {
     const res = await request(app).get('/api/funds/1/results');
 
