@@ -1069,8 +1069,8 @@ const validationResult = validateFeeStructure(feeProfile);
   analysis uses XIRR for net IRR calculations
 - **[ADR-004: Waterfall Names](./ADR-004-waterfall-names.md)**: European
   waterfall removed (affects `called_capital_net_of_returns` basis)
-- **[ADR-003: Waterfall Distribution System](./ADR-003-waterfall-distribution-system.md)**:
-  Carry calculations reuse waterfall module
+- **ADR-003: Waterfall Distribution System**: Carry calculations reuse waterfall
+  module
 - **[ADR-001: Evaluator Metrics](./0001-evaluator-metrics.md)**: Fee calculation
   performance tracked in evaluator framework
 
@@ -1086,8 +1086,7 @@ const validationResult = validateFeeStructure(feeProfile);
   [`shared/lib/fund-math.ts`](../../shared/lib/fund-math.ts)
 - **Code (Waterfall)**:
   [`client/src/lib/waterfall.ts`](../../client/src/lib/waterfall.ts)
-- **Tests (Schema)**:
-  [`shared/schemas/__tests__/fee-profile.test.ts`](../../shared/schemas/__tests__/fee-profile.test.ts)
+- **Tests (Schema)**: `shared/schemas/__tests__/fee-profile.test.ts`
 - **Tests (Calculations)**:
   [`tests/unit/fee-calculations.test.ts`](../../tests/unit/fee-calculations.test.ts)
 
