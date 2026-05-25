@@ -2151,7 +2151,7 @@ Automated validation, parallel execution, regression tracking
 
 ### Phoenix Agent Registry (9 Specialized Agents)
 
-**See:** [.claude/agents/PHOENIX-AGENTS.md](.claude/agents/PHOENIX-AGENTS.md)
+**See:** [.claude/PHOENIX-AGENTS-REGISTRY.md](../../.claude/PHOENIX-AGENTS-REGISTRY.md)
 for complete documentation
 
 **Quick Reference:**
@@ -2405,7 +2405,7 @@ vs estimated post-execution)
 
 **Cross-References:**
 
-- [PHOENIX-AGENTS.md](.claude/agents/PHOENIX-AGENTS.md) - Complete agent
+- [PHOENIX-AGENTS-REGISTRY.md](../../.claude/PHOENIX-AGENTS-REGISTRY.md) - Complete agent
   registry
 - Agent invocation examples added to all phases (0, 1A, 1B, 2, 3)
 - Memory coordination section in Appendix A
