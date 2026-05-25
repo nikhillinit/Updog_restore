@@ -5,19 +5,18 @@ last_updated: 2026-01-19
 
 # Phoenix Execution Plan v3.0 - Phase 3 Addendum
 
-**Date:** December 29, 2025
-**Status:** ACTIVE - Ready for Implementation
-**Extends:** execution-plan-v2.34.md (Phase 0-2)
-**Focus:** Phase 3 - Advanced Reporting & Brand Consistency
+**Date:** December 29, 2025 **Status:** ACTIVE - Ready for Implementation
+**Extends:** execution-plan-v2.34.md (Phase 0-2) **Focus:** Phase 3 - Advanced
+Reporting & Brand Consistency
 
 ---
 
 ## Version History
 
-| Version | Date | Changes |
-|---------|------|---------|
-| v2.34 | Dec 14, 2025 | MCP & Tool Routing Integration |
-| v3.0 | Dec 29, 2025 | Phase 3 Planning (this addendum) |
+| Version | Date         | Changes                          |
+| ------- | ------------ | -------------------------------- |
+| v2.34   | Dec 14, 2025 | MCP & Tool Routing Integration   |
+| v3.0    | Dec 29, 2025 | Phase 3 Planning (this addendum) |
 
 ---
 
@@ -27,11 +26,13 @@ last_updated: 2026-01-19
 professional-grade LP-facing deliverables.
 
 **Prerequisites (Validated):**
+
 - Phase 1/2 deterministic truth cases: 129/129 passing
 - Phase 2 Advanced Forecasting (PR #318): Merged and stable
 - Brand infrastructure: press-on-theme.ts, POVLogo, PremiumCard components ready
 
-**Detailed Plan:** See [2025-12-29-phoenix-phase3-planning.md](../plans/2025-12-29-phoenix-phase3-planning.md)
+**Detailed Plan:** This addendum supersedes the retired Dec. 29 Phoenix Phase 3
+planning memo.
 
 ---
 
@@ -60,29 +61,29 @@ Phase 3C: Validation (8-12 hours)
 
 ### Phase 3A (Foundation)
 
-| Deliverable | Location | Status |
-|-------------|----------|--------|
-| Print stylesheet | `client/src/styles/print.css` | COMPLETE |
-| Brand tokens (TS) | `client/src/lib/brand-tokens.ts` | COMPLETE |
-| PDF utilities stub | `client/src/utils/pdf/index.ts` | COMPLETE |
-| Brand bridge docs | `docs/PHOENIX-SOT/brand-bridge.md` | COMPLETE |
+| Deliverable        | Location                           | Status   |
+| ------------------ | ---------------------------------- | -------- |
+| Print stylesheet   | `client/src/styles/print.css`      | COMPLETE |
+| Brand tokens (TS)  | `client/src/lib/brand-tokens.ts`   | COMPLETE |
+| PDF utilities stub | `client/src/utils/pdf/index.ts`    | COMPLETE |
+| Brand bridge docs  | `docs/PHOENIX-SOT/brand-bridge.md` | COMPLETE |
 
 ### Phase 3B (Orchestration) - Pending
 
-| Deliverable | Location | Status |
-|-------------|----------|--------|
-| TearSheetTemplate | `client/src/components/reports/templates/` | PENDING |
-| QuarterlyTemplate | `client/src/components/reports/templates/` | PENDING |
+| Deliverable          | Location                                           | Status  |
+| -------------------- | -------------------------------------------------- | ------- |
+| TearSheetTemplate    | `client/src/components/reports/templates/`         | PENDING |
+| QuarterlyTemplate    | `client/src/components/reports/templates/`         | PENDING |
 | Chart theme provider | `client/src/components/charts/BrandChartTheme.tsx` | PENDING |
-| Export header/footer | `client/src/components/exports/` | PENDING |
+| Export header/footer | `client/src/components/exports/`                   | PENDING |
 
 ### Phase 3C (Validation) - Pending
 
-| Deliverable | Status |
-|-------------|--------|
-| Brand compliance audit | PENDING |
+| Deliverable               | Status  |
+| ------------------------- | ------- |
+| Brand compliance audit    | PENDING |
 | Accessibility score >= 90 | PENDING |
-| LP user testing | PENDING |
+| LP user testing           | PENDING |
 
 ---
 
@@ -100,6 +101,7 @@ npm install jspdf html2canvas     # HTML-to-PDF conversion
 ### Font Loading
 
 Ensure Inter and Poppins fonts are available:
+
 - Already configured in `brand-tokens.css`
 - PDF generation may require font file registration
 
@@ -107,41 +109,41 @@ Ensure Inter and Poppins fonts are available:
 
 ## Gate Criteria
 
-| Phase | Gate | Evidence Required |
-|-------|------|-------------------|
-| 3A Complete | Foundation ready | PDF renders, print works |
-| 3B Complete | Templates functional | 3 report types working |
-| 3C Complete | Brand approved | Stylist agent passes |
+| Phase       | Gate                 | Evidence Required        |
+| ----------- | -------------------- | ------------------------ |
+| 3A Complete | Foundation ready     | PDF renders, print works |
+| 3B Complete | Templates functional | 3 report types working   |
+| 3C Complete | Brand approved       | Stylist agent passes     |
 
 ---
 
 ## Success Metrics
 
-| Metric | Target |
-|--------|--------|
-| PDF generation | Working |
-| Print styling | No layout breaks |
-| Chart branding | 100% POV palette |
-| Brand audit | 100% passing |
-| Accessibility | >= 90 Lighthouse |
-| Bundle impact | < 200KB increase |
-| Truth case baseline | Maintained |
+| Metric              | Target           |
+| ------------------- | ---------------- |
+| PDF generation      | Working          |
+| Print styling       | No layout breaks |
+| Chart branding      | 100% POV palette |
+| Brand audit         | 100% passing     |
+| Accessibility       | >= 90 Lighthouse |
+| Bundle impact       | < 200KB increase |
+| Truth case baseline | Maintained       |
 
 ---
 
 ## Agent Assignments
 
-| Task | Agent |
-|------|-------|
-| Brand audit | phoenix-brand-reporting-stylist |
-| Documentation sync | phoenix-docs-scribe |
-| Test coverage | pr-test-analyzer |
+| Task               | Agent                           |
+| ------------------ | ------------------------------- |
+| Brand audit        | phoenix-brand-reporting-stylist |
+| Documentation sync | phoenix-docs-scribe             |
+| Test coverage      | pr-test-analyzer                |
 
 ---
 
 ## Related Documentation
 
-- [Phase 3 Detailed Plan](../plans/2025-12-29-phoenix-phase3-planning.md)
+- Phase 3 detailed planning memo (retired Dec. 29 Phoenix Phase 3 source)
 - [Brand Bridge](brand-bridge.md)
 - [press-on-theme.ts](../../client/src/lib/press-on-theme.ts)
 - [brand-tokens.ts](../../client/src/lib/brand-tokens.ts)
@@ -193,5 +195,4 @@ Ensure Inter and Poppins fonts are available:
 
 ---
 
-**Document Status:** ACTIVE
-**Last Updated:** 2025-12-29
+**Document Status:** ACTIVE **Last Updated:** 2025-12-29

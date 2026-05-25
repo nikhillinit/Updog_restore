@@ -5,9 +5,7 @@ last_updated: 2026-01-19
 
 # Brand Bridge - Press On Ventures Visual Identity
 
-**Status:** ACTIVE
-**Last Updated:** 2025-12-29
-**Owner:** Phoenix Phase 3 Team
+**Status:** ACTIVE **Last Updated:** 2025-12-29 **Owner:** Phoenix Phase 3 Team
 **Audience:** Developers implementing LP-facing UI
 
 ---
@@ -15,21 +13,21 @@ last_updated: 2026-01-19
 ## Purpose
 
 This document bridges the gap between Press On Ventures brand guidelines and
-implementation details. It serves as the authoritative reference for all brand-related
-development decisions in Phoenix Phase 3.
+implementation details. It serves as the authoritative reference for all
+brand-related development decisions in Phoenix Phase 3.
 
 ---
 
 ## Brand Assets Location
 
-| Asset | Location | Status |
-|-------|----------|--------|
-| Theme System | `client/src/lib/press-on-theme.ts` | COMPLETE |
-| Logo Components | `client/src/components/ui/POVLogo.tsx` | COMPLETE |
-| Premium Cards | `client/src/components/ui/PremiumCard.tsx` | COMPLETE |
-| Brand Showcase | `client/src/components/ui/BrandShowcase.tsx` | COMPLETE |
-| Branding Config | `client/src/config/branding.ts` | COMPLETE |
-| Brand Tokens | `client/src/lib/brand-tokens.ts` | PENDING (Phase 3A) |
+| Asset           | Location                                     | Status             |
+| --------------- | -------------------------------------------- | ------------------ |
+| Theme System    | `client/src/lib/press-on-theme.ts`           | COMPLETE           |
+| Logo Components | `client/src/components/ui/POVLogo.tsx`       | COMPLETE           |
+| Premium Cards   | `client/src/components/ui/PremiumCard.tsx`   | COMPLETE           |
+| Brand Showcase  | `client/src/components/ui/BrandShowcase.tsx` | COMPLETE           |
+| Branding Config | `client/src/config/branding.ts`              | COMPLETE           |
+| Brand Tokens    | `client/src/lib/brand-tokens.ts`             | PENDING (Phase 3A) |
 
 ---
 
@@ -37,12 +35,12 @@ development decisions in Phoenix Phase 3.
 
 ### Primary Colors
 
-| Name | Hex | RGB | Usage |
-|------|-----|-----|-------|
-| Dark | `#292929` | R41 G41 B41 | Primary text, headers, logo |
+| Name  | Hex       | RGB            | Usage                          |
+| ----- | --------- | -------------- | ------------------------------ |
+| Dark  | `#292929` | R41 G41 B41    | Primary text, headers, logo    |
 | Beige | `#E0D8D1` | R224 G216 B209 | Accent backgrounds, highlights |
-| White | `#FFFFFF` | R255 G255 B255 | Clean backgrounds |
-| Light | `#F2F2F2` | R242 G242 B242 | Subtle backgrounds, borders |
+| White | `#FFFFFF` | R255 G255 B255 | Clean backgrounds              |
+| Light | `#F2F2F2` | R242 G242 B242 | Subtle backgrounds, borders    |
 
 ### Chart Colors (Sequential)
 
@@ -72,24 +70,34 @@ const chartColors = [
 
 ```css
 /* Headings */
-font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+font-family:
+  'Inter',
+  -apple-system,
+  BlinkMacSystemFont,
+  'Segoe UI',
+  sans-serif;
 
 /* Body */
-font-family: 'Poppins', 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+font-family:
+  'Poppins',
+  'Inter',
+  -apple-system,
+  BlinkMacSystemFont,
+  sans-serif;
 ```
 
 ### Type Scale
 
-| Element | Font | Weight | Size | Line Height |
-|---------|------|--------|------|-------------|
-| H1 | Inter | Bold (700) | 32px / 2rem | 1.2 |
-| H2 | Inter | Bold (700) | 24px / 1.5rem | 1.25 |
-| H3 | Inter | Semibold (600) | 20px / 1.25rem | 1.3 |
-| H4 | Inter | Semibold (600) | 16px / 1rem | 1.4 |
-| Subheading | Poppins | Medium (500) | 14px / 0.875rem | 1.5 |
-| Body | Poppins | Regular (400) | 14px / 0.875rem | 1.6 |
-| Body Small | Poppins | Regular (400) | 12px / 0.75rem | 1.5 |
-| Caption | Poppins | Regular (400) | 11px / 0.6875rem | 1.4 |
+| Element    | Font    | Weight         | Size             | Line Height |
+| ---------- | ------- | -------------- | ---------------- | ----------- |
+| H1         | Inter   | Bold (700)     | 32px / 2rem      | 1.2         |
+| H2         | Inter   | Bold (700)     | 24px / 1.5rem    | 1.25        |
+| H3         | Inter   | Semibold (600) | 20px / 1.25rem   | 1.3         |
+| H4         | Inter   | Semibold (600) | 16px / 1rem      | 1.4         |
+| Subheading | Poppins | Medium (500)   | 14px / 0.875rem  | 1.5         |
+| Body       | Poppins | Regular (400)  | 14px / 0.875rem  | 1.6         |
+| Body Small | Poppins | Regular (400)  | 12px / 0.75rem   | 1.5         |
+| Caption    | Poppins | Regular (400)  | 11px / 0.6875rem | 1.4         |
 
 ### Tailwind Classes (from press-on-theme.ts)
 
@@ -130,20 +138,20 @@ import { POVLogo, POVIcon, POVBrandHeader } from '@/components/ui/POVLogo';
 
 ### Size Variants
 
-| Size | Logo Dimensions | Icon Dimensions | Use Case |
-|------|-----------------|-----------------|----------|
-| sm | 120px width | 24px | Inline, footer |
-| md | 160px width | 32px | Header, cards |
-| lg | 200px width | 40px | Cover pages, exports |
-| xl | 240px width | 48px | Print materials |
+| Size | Logo Dimensions | Icon Dimensions | Use Case             |
+| ---- | --------------- | --------------- | -------------------- |
+| sm   | 120px width     | 24px            | Inline, footer       |
+| md   | 160px width     | 32px            | Header, cards        |
+| lg   | 200px width     | 40px            | Cover pages, exports |
+| xl   | 240px width     | 48px            | Print materials      |
 
 ### Color Variants
 
-| Variant | Logo | Background | Use Case |
-|---------|------|------------|----------|
-| dark | `#292929` | Light backgrounds | Default |
-| light | `#E0D8D1` | Medium backgrounds | Subtle |
-| white | `#FFFFFF` | Dark backgrounds | Inverted |
+| Variant | Logo      | Background         | Use Case |
+| ------- | --------- | ------------------ | -------- |
+| dark    | `#292929` | Light backgrounds  | Default  |
+| light   | `#E0D8D1` | Medium backgrounds | Subtle   |
+| white   | `#FFFFFF` | Dark backgrounds   | Inverted |
 
 ### Safe Zone Requirements
 
@@ -204,7 +212,7 @@ import { PremiumCard } from '@/components/ui/PremiumCard';
 }
 
 .pov-table th {
-  background-color: #F2F2F2;
+  background-color: #f2f2f2;
   color: #292929;
   font-family: 'Inter', sans-serif;
   font-weight: 600;
@@ -213,7 +221,7 @@ import { PremiumCard } from '@/components/ui/PremiumCard';
 }
 
 .pov-table td {
-  border-bottom: 1px solid #F2F2F2;
+  border-bottom: 1px solid #f2f2f2;
   color: #292929;
   font-family: 'Poppins', sans-serif;
   padding: 12px 16px;
@@ -278,9 +286,15 @@ Browsers strip colors by default when printing. Force brand colors:
 ### Page Break Control
 
 ```css
-.page-break-before { break-before: page; }
-.page-break-after { break-after: page; }
-.no-break { break-inside: avoid; }
+.page-break-before {
+  break-before: page;
+}
+.page-break-after {
+  break-after: page;
+}
+.no-break {
+  break-inside: avoid;
+}
 ```
 
 ---
@@ -311,12 +325,12 @@ Browsers strip colors by default when printing. Force brand colors:
 
 ### Margins and Spacing
 
-| Element | Value |
-|---------|-------|
-| Page margin | 0.75in (54pt) |
-| Header height | 60pt |
-| Footer height | 30pt |
-| Content spacing | 12pt between sections |
+| Element            | Value                        |
+| ------------------ | ---------------------------- |
+| Page margin        | 0.75in (54pt)                |
+| Header height      | 60pt                         |
+| Footer height      | 30pt                         |
+| Content spacing    | 12pt between sections        |
 | Table cell padding | 6pt vertical, 8pt horizontal |
 
 ---
@@ -327,12 +341,12 @@ Browsers strip colors by default when printing. Force brand colors:
 
 All text must meet WCAG 2.1 AA requirements:
 
-| Combination | Contrast Ratio | Status |
-|-------------|----------------|--------|
-| Dark (#292929) on White (#FFFFFF) | 14.7:1 | PASS |
-| Dark (#292929) on Light (#F2F2F2) | 12.1:1 | PASS |
-| Dark (#292929) on Beige (#E0D8D1) | 7.2:1 | PASS |
-| White (#FFFFFF) on Dark (#292929) | 14.7:1 | PASS |
+| Combination                       | Contrast Ratio | Status |
+| --------------------------------- | -------------- | ------ |
+| Dark (#292929) on White (#FFFFFF) | 14.7:1         | PASS   |
+| Dark (#292929) on Light (#F2F2F2) | 12.1:1         | PASS   |
+| Dark (#292929) on Beige (#E0D8D1) | 7.2:1          | PASS   |
+| White (#FFFFFF) on Dark (#292929) | 14.7:1         | PASS   |
 
 ### Focus Indicators
 
@@ -402,14 +416,16 @@ All text must meet WCAG 2.1 AA requirements:
 
 ## Related Documentation
 
-- [press-on-theme.ts](../../client/src/lib/press-on-theme.ts) - Theme implementation
+- [press-on-theme.ts](../../client/src/lib/press-on-theme.ts) - Theme
+  implementation
 - [POVLogo.tsx](../../client/src/components/ui/POVLogo.tsx) - Logo components
-- [BrandShowcase.tsx](../../client/src/components/ui/BrandShowcase.tsx) - Visual reference
-- [Phase 3 Planning](../plans/2025-12-29-phoenix-phase3-planning.md) - Execution plan
+- [BrandShowcase.tsx](../../client/src/components/ui/BrandShowcase.tsx) - Visual
+  reference
+- [Phase 3 Execution Addendum](execution-plan-v3.0-phase3-addendum.md) -
+  Execution plan
 - [phoenix-brand-reporting skill](../../.claude/skills/phoenix-brand-reporting/SKILL.md)
 
 ---
 
-**Document Status:** ACTIVE
-**Review Cadence:** P30D
-**Owner:** Phoenix Phase 3 Team
+**Document Status:** ACTIVE **Review Cadence:** P30D **Owner:** Phoenix Phase 3
+Team
