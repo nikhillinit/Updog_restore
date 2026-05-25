@@ -24,6 +24,7 @@ import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import { EvidenceHeader, type EvidenceHeaderLifecycle } from '@/components/results/EvidenceHeader';
 import { QuarterlyReviewTrace } from '@/features/analytics-parity/QuarterlyReviewTrace';
 import { cn } from '@/lib/utils';
 import type {
@@ -1415,13 +1416,53 @@ interface SectionRendererProps {
     [key: string]: unknown;
   };
   renderPayload?: (payload: unknown) => React.ReactNode;
+  evidenceLifecycle?: EvidenceHeaderLifecycle;
+  evidenceTestId?: string;
 }
 
-function SectionRenderer({ title, section, renderPayload }: SectionRendererProps) {
+function getSectionSource(section: SectionRendererProps['section']) {
+  const source = section['source'];
+  return typeof source === 'string' && source.trim().length > 0 ? source : null;
+}
+
+function sectionEvidence(
+  lifecycle: EvidenceHeaderLifecycle | undefined,
+  section: SectionRendererProps['section']
+): EvidenceHeaderLifecycle | null {
+  if (!lifecycle) return null;
+  return {
+    ...lifecycle,
+    source: getSectionSource(section) ?? lifecycle.source ?? null,
+  };
+}
+
+function evidenceFromLifecycle(lifecycle: FundStateReadV1): EvidenceHeaderLifecycle {
+  return {
+    status: lifecycle.calculationState.status,
+    configVersion: lifecycle.calculationState.configVersion,
+    runId: lifecycle.calculationState.runId,
+    lastCalculatedAt: lifecycle.calculationState.lastCalculatedAt,
+    publishedVersion: lifecycle.configState.publishedVersion,
+    source: '/api/funds/:id/results',
+  };
+}
+
+function SectionRenderer({
+  title,
+  section,
+  renderPayload,
+  evidenceLifecycle,
+  evidenceTestId,
+}: SectionRendererProps) {
+  const evidence = sectionEvidence(evidenceLifecycle, section);
+
   if (section.status === 'available') {
     return (
       <div className="bg-white rounded-lg border border-beige-200 p-6">
-        <h2 className="text-lg font-medium text-charcoal mb-4">{title}</h2>
+        <div className="mb-4 space-y-2">
+          <h2 className="text-lg font-medium text-charcoal">{title}</h2>
+          {evidence && <EvidenceHeader lifecycle={evidence} testId={evidenceTestId} />}
+        </div>
         {section.legacyEvidence && (
           <p className="text-xs text-charcoal-400 mb-2">
             Based on previous calculation (legacy data)
@@ -1450,7 +1491,10 @@ function SectionRenderer({ title, section, renderPayload }: SectionRendererProps
 
   return (
     <div className="bg-beige-50 rounded-lg border border-beige-200 p-6">
-      <h2 className="text-lg font-medium text-charcoal-400 mb-2">{title}</h2>
+      <div className="mb-2 space-y-2">
+        <h2 className="text-lg font-medium text-charcoal-400">{title}</h2>
+        {evidence && <EvidenceHeader lifecycle={evidence} testId={evidenceTestId} />}
+      </div>
       <p className="text-sm text-charcoal-500 font-poppins">
         {statusLabel ? `${statusLabel}: ` : ''}
         {copy}
@@ -1570,6 +1614,7 @@ function FundModelResultsPage() {
   }
 
   const { results } = fetchState;
+  const evidenceLifecycle = evidenceFromLifecycle(results.lifecycle);
 
   return (
     <div className="max-w-6xl mx-auto px-6 py-8 space-y-8">
@@ -1612,12 +1657,22 @@ function FundModelResultsPage() {
 
       {/* Reserve section */}
       <FadeInSection>
-        <SectionRenderer title="Reserve Allocation" section={results.sections.reserve} />
+        <SectionRenderer
+          title="Reserve Allocation"
+          section={results.sections.reserve}
+          evidenceLifecycle={evidenceLifecycle}
+          evidenceTestId="evidence-header-reserve-allocation"
+        />
       </FadeInSection>
 
       {/* Pacing section */}
       <FadeInSection>
-        <SectionRenderer title="Deployment Pacing" section={results.sections.pacing} />
+        <SectionRenderer
+          title="Deployment Pacing"
+          section={results.sections.pacing}
+          evidenceLifecycle={evidenceLifecycle}
+          evidenceTestId="evidence-header-deployment-pacing"
+        />
       </FadeInSection>
 
       {/* Overview (scorecard) section */}
