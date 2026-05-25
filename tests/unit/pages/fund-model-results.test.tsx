@@ -449,6 +449,99 @@ describe('FundModelResultsPage (server-backed)', () => {
     expect(screen.getAllByText('RESERVE, PACING').length).toBeGreaterThanOrEqual(1);
   });
 
+  // -- Evidence headers --
+
+  it('renders READY evidence header segments from lifecycle and section source', async () => {
+    mockFundPageFetches();
+    await renderPage('/fund-model-results/123');
+
+    const header = await screen.findByTestId('evidence-header-reserve-allocation');
+    expect(within(header).getByText('READY')).toBeInTheDocument();
+    expect(within(header).getByText('CONFIG v1')).toBeInTheDocument();
+    expect(within(header).getByText('RUN #10')).toBeInTheDocument();
+    expect(
+      within(header).getByText(`CALCULATED ${formatEvidenceTimestamp('2026-03-20T12:30:00.000Z')}`)
+    ).toBeInTheDocument();
+    expect(within(header).getByText('SOURCE fund_snapshots')).toBeInTheDocument();
+    expect(within(header).getByText('CURRENT')).toBeInTheDocument();
+  });
+
+  it('renders CALCULATING evidence with explanatory pending timestamp copy', async () => {
+    mockFundPageFetches({ results: calculatingResponse({ runId: 10 }) });
+    await renderPage('/fund-model-results/123');
+
+    const header = await screen.findByTestId('evidence-header-reserve-allocation');
+    expect(within(header).getByText('CALCULATING')).toBeInTheDocument();
+    expect(within(header).getByText('CONFIG v1')).toBeInTheDocument();
+    expect(within(header).getByText('RUN IN PROGRESS #10')).toBeInTheDocument();
+    expect(within(header).getByText('CALCULATED PENDING')).toBeInTheDocument();
+    expect(header).not.toHaveTextContent('RUN #10');
+  });
+
+  it('renders FAILED evidence when lifecycle calculation fails', async () => {
+    mockFundPageFetches({ results: failedResponse() });
+    await renderPage('/fund-model-results/123');
+
+    const header = await screen.findByTestId('evidence-header-reserve-allocation');
+    expect(within(header).getAllByText('FAILED').length).toBeGreaterThanOrEqual(1);
+    expect(within(header).getByText('CONFIG v1')).toBeInTheDocument();
+    expect(within(header).getByText('RUN #10')).toBeInTheDocument();
+    expect(
+      screen.getByText(/Worker timed out during reserve snapshot generation/i)
+    ).toBeInTheDocument();
+  });
+
+  it('renders STALE evidence with truthful run and config version', async () => {
+    const resp = readyResponse();
+    resp.lifecycle.configState.publishedVersion = 2;
+    resp.lifecycle.calculationState.configVersion = 1;
+
+    mockFundPageFetches({ results: resp });
+    await renderPage('/fund-model-results/123');
+
+    const header = await screen.findByTestId('evidence-header-reserve-allocation');
+    expect(within(header).getAllByText('STALE').length).toBeGreaterThanOrEqual(1);
+    expect(within(header).getByText('CONFIG v1')).toBeInTheDocument();
+    expect(within(header).getByText('RUN #10')).toBeInTheDocument();
+    expect(within(header).getByText('SOURCE fund_snapshots')).toBeInTheDocument();
+  });
+
+  it('renders UNAVAILABLE evidence without fabricated IDs when lifecycle fields are missing', async () => {
+    const resp = readyResponse();
+    resp.lifecycle.configState.hasPublished = false;
+    resp.lifecycle.configState.publishedVersion = null;
+    resp.lifecycle.configState.publishedAt = null;
+    resp.lifecycle.calculationState.status = 'not_requested';
+    resp.lifecycle.calculationState.configVersion = null;
+    resp.lifecycle.calculationState.runId = null;
+    resp.lifecycle.calculationState.lastCalculatedAt = null;
+
+    mockFundPageFetches({ results: resp, history: { fundId: 123, entries: [] } });
+    await renderPage('/fund-model-results/123');
+
+    const header = await screen.findByTestId('evidence-header-reserve-allocation');
+    expect(within(header).getAllByText('UNAVAILABLE').length).toBeGreaterThanOrEqual(1);
+    expect(within(header).getByText('CONFIG UNAVAILABLE')).toBeInTheDocument();
+    expect(within(header).getByText('RUN UNAVAILABLE')).toBeInTheDocument();
+    expect(within(header).getByText('CALCULATED UNAVAILABLE')).toBeInTheDocument();
+    expect(header).not.toHaveTextContent('RUN #');
+    expect(header).not.toHaveTextContent('CONFIG v');
+  });
+
+  it('renders null configVersion and runId as unavailable evidence segments', async () => {
+    const resp = readyResponse();
+    resp.lifecycle.calculationState.configVersion = null;
+    resp.lifecycle.calculationState.runId = null;
+
+    mockFundPageFetches({ results: resp });
+    await renderPage('/fund-model-results/123');
+
+    const header = await screen.findByTestId('evidence-header-reserve-allocation');
+    expect(within(header).getByText('CONFIG UNAVAILABLE')).toBeInTheDocument();
+    expect(within(header).getByText('RUN UNAVAILABLE')).toBeInTheDocument();
+    expect(header).not.toHaveTextContent('RUN #');
+  });
+
   // -- Legacy evidence --
 
   it('shows legacy evidence notice when section has legacyEvidence flag', async () => {
@@ -1037,6 +1130,17 @@ describe('FundModelResultsPage (server-backed)', () => {
 });
 
 // -- Helpers --
+
+function formatEvidenceTimestamp(value: string) {
+  return new Intl.DateTimeFormat(undefined, {
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    timeZoneName: 'short',
+  }).format(new Date(value));
+}
 
 function jsonResponse(body: unknown) {
   return new Response(JSON.stringify(body), {
