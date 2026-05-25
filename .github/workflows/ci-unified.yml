@@ -40,6 +40,7 @@ jobs:
     outputs:
       code: ${{ steps.filter.outputs.code }}
       docs: ${{ steps.filter.outputs.docs }}
+      docs_links: ${{ steps.filter.outputs.docs_links }}
       dependency: ${{ steps.filter.outputs.dependency }}
       pr_security: ${{ steps.filter.outputs.pr_security }}
       security_tests: ${{ steps.filter.outputs.security_tests }}
@@ -56,6 +57,24 @@ jobs:
         uses: dorny/paths-filter@de90cc6fb38fc0963ad72b210f1f284cd68cea36 # v3.0.2
         with:
           filters: .github/path-filters.yml
+
+  docs-link-check:
+    name: Documentation Links
+    needs: changes
+    if: needs.changes.outputs.docs_links == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Setup Node environment
+        uses: ./.github/actions/setup-node-env
+        with:
+          restore-tool-cache: 'false'
+
+      - name: Check documentation links
+        run: npm run docs:check-links
 
   check:
     name: Check ${{ matrix.job }}
@@ -607,6 +626,7 @@ jobs:
     name: CI Gate Status
     needs:
       - changes
+      - docs-link-check
       - check
       - test-affected
       - test-full
@@ -629,6 +649,7 @@ jobs:
           enable_security="${{ github.event.inputs.enable_security }}"
           enable_memory_mode="${{ github.event.inputs.enable_memory_mode }}"
           is_pr="${{ github.event_name == 'pull_request' }}"
+          docs_link_result="${{ needs.docs-link-check.result }}"
           check_result="${{ needs.check.result }}"
           build_result="${{ needs.build.result }}"
           guards_result="${{ needs.guards.result }}"
@@ -661,6 +682,7 @@ jobs:
           fi
 
           guards_expected="$is_pr"
+          docs_link_expected="${{ needs.changes.outputs.docs_links == 'true' }}"
           dependency_expected="${{ github.event.inputs.run_full_suite == 'true' || (needs.changes.outputs.auto_docs_only != 'true' && needs.changes.outputs.dependency == 'true') }}"
           pr_security_expected="${{ github.event.inputs.enable_security == 'true' || (needs.changes.outputs.auto_docs_only != 'true' && needs.changes.outputs.pr_security == 'true') }}"
           security_tests_expected="${{ github.event.inputs.enable_security == 'true' || (needs.changes.outputs.auto_docs_only != 'true' && (needs.changes.outputs.security_tests == 'true' || (github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'run:security')))) }}"
@@ -680,6 +702,7 @@ jobs:
             fi
           }
 
+          require_result "Documentation links" "$docs_link_result" "$docs_link_expected"
           require_result "Check" "$check_result" "$check_expected"
           require_result "Test" "$test_result" "$test_expected"
           require_result "Build" "$build_result" "$build_expected"
@@ -694,6 +717,7 @@ jobs:
             echo ""
             echo "| Job | Result | Expected |"
             echo "| --- | --- | --- |"
+            echo "| documentation-links | $docs_link_result | $docs_link_expected |"
             echo "| check | $check_result | $check_expected |"
             echo "| tests | $test_result | $test_expected |"
             echo "| build | $build_result | $build_expected |"
@@ -723,6 +747,7 @@ jobs:
 
             | Job | Result |
             | --- | --- |
+            | Documentation links | ${{ needs.docs-link-check.result }} |
             | Check | ${{ needs.check.result }} |
             | Affected tests | ${{ needs.test-affected.result }} |
             | Full tests | ${{ needs.test-full.result }} |
