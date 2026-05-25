@@ -5,6 +5,7 @@ import {
   checkMarkdownLinksInContent,
   isCodeLikeParserFalsePositive,
   isTemplatePlaceholderLink,
+  stripInlineCodeSpans,
 } from '../../../scripts/lib/doc-link-checker.mjs';
 
 const rootDir = resolve('/repo');
@@ -52,6 +53,18 @@ describe('doc-link-checker false-positive handling', () => {
 
     expect(isCodeLikeParserFalsePositive('endpoint.method', 'endpoint.url')).toBe(true);
     expect(result.totalLinks).toBe(4);
+    expect(result.errors).toEqual([]);
+  });
+
+  it('ignores link-shaped patterns inside single-backtick inline code spans', () => {
+    const content = [
+      "Use Grep tool: pattern `from ['\"](\\.\\./)+src/|from ['\"]src/`, output_mode",
+      'Inline code example: `[label](target.md)`',
+    ].join('\n');
+    const result = checkContent(content);
+
+    expect(stripInlineCodeSpans(content)).not.toContain('[label](target.md)');
+    expect(result.totalLinks).toBe(0);
     expect(result.errors).toEqual([]);
   });
 });

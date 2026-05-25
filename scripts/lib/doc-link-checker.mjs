@@ -52,18 +52,63 @@ export function getLineNumber(content, index) {
   return line;
 }
 
+function isSingleBacktickDelimiter(content, index) {
+  return (
+    content[index] === '`' &&
+    content[index - 1] !== '`' &&
+    content[index + 1] !== '`'
+  );
+}
+
+export function stripInlineCodeSpans(content) {
+  const sanitized = content.split('');
+
+  for (let index = 0; index < content.length; index += 1) {
+    if (!isSingleBacktickDelimiter(content, index)) {
+      continue;
+    }
+
+    let closingIndex = index + 1;
+    while (
+      closingIndex < content.length &&
+      content[closingIndex] !== '\n' &&
+      content[closingIndex] !== '\r' &&
+      !isSingleBacktickDelimiter(content, closingIndex)
+    ) {
+      closingIndex += 1;
+    }
+
+    if (
+      closingIndex >= content.length ||
+      content[closingIndex] === '\n' ||
+      content[closingIndex] === '\r'
+    ) {
+      continue;
+    }
+
+    for (let spanIndex = index; spanIndex <= closingIndex; spanIndex += 1) {
+      sanitized[spanIndex] = ' ';
+    }
+
+    index = closingIndex;
+  }
+
+  return sanitized.join('');
+}
+
 export function extractMarkdownLinks(content) {
   const links = [];
   let match;
+  const scanContent = stripInlineCodeSpans(content);
 
   MARKDOWN_LINK.lastIndex = 0;
 
-  while ((match = MARKDOWN_LINK.exec(content)) !== null) {
+  while ((match = MARKDOWN_LINK.exec(scanContent)) !== null) {
     links.push({
       text: match[1],
       link: match[2].trim(),
       index: match.index,
-      line: getLineNumber(content, match.index),
+      line: getLineNumber(scanContent, match.index),
     });
   }
 
