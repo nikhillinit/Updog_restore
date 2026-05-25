@@ -26,7 +26,7 @@ jobs:
 
     steps:
       # Source checkout.
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       # Node.js setup with built-in npm cache.
       - name: Setup Node.js 20
