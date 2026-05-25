@@ -113,7 +113,7 @@ artifacts/phase0/latest/phase0-summary.txt
 ### UI/UX (if applicable)
 
 - [ ] Synthetics selectors updated (if UI change) -
-      [Test ID conventions](client/src/lib/testIds.ts)
+      [Test ID conventions](../client/src/lib/testIds.ts)
 - [ ] Responsive design tested
 - [ ] Accessibility checked (keyboard navigation, ARIA labels)
 
@@ -134,7 +134,7 @@ for rationale.
 ### Security
 
 - [ ] Security headers unaffected or
-      [updated tests](scripts/check-security-headers.mjs)
+      [updated tests](../scripts/check-security-headers.mjs)
 - [ ] No secrets or credentials in code
 - [ ] Input validation implemented
 
