@@ -2,9 +2,7 @@
  * ADR-022: Fund snapshot scenario isolation proof.
  *
  * Behavioral verification that the fund-results-read-service correctly
- * handles the scenarioSetId filter. The source-level verification
- * (every query includes isNull(scenarioSetId)) is enforced by the
- * git grep merge gate in the PR description.
+ * filters authoritative snapshot reads to scenarioSetId IS NULL.
  */
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -42,7 +40,7 @@ vi.mock('@shared/flags/getFlag', () => ({
 const mockDb = vi.mocked(db);
 const mockFundState = vi.mocked(fundStateReadService);
 
-function readyLifecycle(publishedVersion: number) {
+function readyLifecycle(publishedVersion: number, legacyEvidence = false) {
   return {
     configState: {
       hasDraft: true,
@@ -53,10 +51,55 @@ function readyLifecycle(publishedVersion: number) {
     calculationState: {
       status: 'completed' as const,
       lastCalculatedAt: '2026-05-26T00:00:00Z',
-      legacyEvidence: false,
+      legacyEvidence,
       lastError: null,
     },
   };
+}
+
+type SnapshotFindFirstArg = Parameters<typeof db.query.fundSnapshots.findFirst>[0];
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null;
+}
+
+function collectSqlTokens(value: unknown, seen = new WeakSet<object>()): string[] {
+  if (!isRecord(value)) {
+    return [];
+  }
+
+  if (seen.has(value)) {
+    return [];
+  }
+  seen.add(value);
+
+  const tokens: string[] = [];
+  const chunkValue = value['value'];
+  if (Array.isArray(chunkValue)) {
+    tokens.push(...chunkValue.filter((token): token is string => typeof token === 'string'));
+  }
+
+  const name = value['name'];
+  if (typeof name === 'string') {
+    tokens.push(name);
+  }
+
+  const queryChunks = value['queryChunks'];
+  if (Array.isArray(queryChunks)) {
+    for (const chunk of queryChunks) {
+      tokens.push(...collectSqlTokens(chunk, seen));
+    }
+  }
+
+  return tokens;
+}
+
+function hasScenarioSetIdNullFilter(query: SnapshotFindFirstArg): boolean {
+  const where = isRecord(query) ? query['where'] : undefined;
+  const tokens = collectSqlTokens(where).map((token) => token.trim().toLowerCase());
+  const scenarioSetIdIndex = tokens.indexOf('scenario_set_id');
+
+  return scenarioSetIdIndex >= 0 && tokens.slice(scenarioSetIdIndex + 1).includes('is null');
 }
 
 describe('ADR-022: Scenario Isolation', () => {
@@ -101,16 +144,25 @@ describe('ADR-022: Scenario Isolation', () => {
     });
   });
 
+  it('filters every authoritative snapshot query to scenarioSetId null', async () => {
+    mockFundState.getState.mockResolvedValue(readyLifecycle(3, true) as never);
+    mockDb.query.fundSnapshots.findFirst.mockResolvedValue(null as never);
+
+    await fundResultsReadService.getResults(1);
+
+    const snapshotQueries = mockDb.query.fundSnapshots.findFirst.mock.calls.map(([query]) => query);
+    expect(snapshotQueries).toHaveLength(6);
+
+    const missingScenarioSetFilterCalls = snapshotQueries
+      .map((query, index) => (hasScenarioSetIdNullFilter(query) ? null : index + 1))
+      .filter((index): index is number => index !== null);
+
+    expect(missingScenarioSetFilterCalls).toEqual([]);
+  });
+
   it('scenarioSetId column exists in fundSnapshots schema', async () => {
     const { fundSnapshots } = await import('@shared/schema');
     expect(fundSnapshots.scenarioSetId).toBeDefined();
     expect(fundSnapshots.scenarioSetId.name).toBe('scenario_set_id');
-  });
-
-  it('isNull import is available for scenario filtering', async () => {
-    const { isNull } = await import('drizzle-orm');
-    const { fundSnapshots } = await import('@shared/schema');
-    const filter = isNull(fundSnapshots.scenarioSetId);
-    expect(filter).toBeDefined();
   });
 });
