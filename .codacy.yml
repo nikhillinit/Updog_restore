@@ -21,6 +21,7 @@ exclude_paths:
   # This is a PostgreSQL migration; Codacy's SQL Server rules request T-SQL
   # SET directives that would make the migration invalid.
   - 'server/db/migrations/0012_scenario_set_id.sql'
+  - 'server/db/migrations/0013_fund_scenario_sets.sql'
   - '**/*.test.ts'
   - '**/*.test.tsx'
   - '**/*.spec.ts'
