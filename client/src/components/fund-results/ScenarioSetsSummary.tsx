@@ -20,6 +20,10 @@ export interface ScenarioSetsSummaryProps {
   payload: ScenariosSectionPayloadV1;
 }
 
+interface ScenarioSetCardProps {
+  set: ScenarioSetResultSummaryV1;
+}
+
 const STALENESS_LABELS: Record<FundScenarioResultStalenessStateV1, string> = {
   CURRENT: 'Current',
   STALE_PUBLISH: 'Needs recalculation',
@@ -54,66 +58,67 @@ function topTvpiVariant(set: ScenarioSetResultSummaryV1) {
   );
 }
 
+function ScenarioSetsHeader({ payload }: ScenarioSetsSummaryProps) {
+  return (
+    <div className="flex flex-wrap items-center gap-3">
+      <Badge
+        variant="outline"
+        className={cn('border text-xs font-medium', STALENESS_BADGES[payload.aggregateStaleness])}
+      >
+        {STALENESS_LABELS[payload.aggregateStaleness]}
+      </Badge>
+      <span className="font-poppins text-sm text-charcoal-500">
+        {payload.sets.length === 1 ? '1 scenario set' : `${payload.sets.length} scenario sets`}
+      </span>
+    </div>
+  );
+}
+
+function ScenarioSetCard({ set }: ScenarioSetCardProps) {
+  const topVariant = topTvpiVariant(set);
+
+  return (
+    <article className="rounded-md border border-beige-200 bg-white p-4">
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <h3 className="font-inter text-base font-semibold text-charcoal">{set.name}</h3>
+          <p className="mt-1 font-poppins text-sm text-charcoal-500">
+            {variantCountLabel(set.variantCount)} · Source config v{set.sourceConfigVersion}
+          </p>
+        </div>
+        <Badge
+          variant="outline"
+          className={cn('shrink-0 border text-xs font-medium', STALENESS_BADGES[set.staleness])}
+        >
+          {STALENESS_LABELS[set.staleness]}
+        </Badge>
+      </div>
+
+      <div className="mt-5 grid grid-cols-2 gap-3">
+        <div>
+          <p className="font-poppins text-xs uppercase text-charcoal-400">Best TVPI</p>
+          <p className="mt-1 font-inter text-2xl font-semibold text-charcoal">
+            {formatMultiple(topVariant.economicsSummary.finalTvpi)}
+          </p>
+          <p className="mt-1 font-poppins text-xs text-charcoal-500">{topVariant.name}</p>
+        </div>
+        <div>
+          <p className="font-poppins text-xs uppercase text-charcoal-400">Calculated</p>
+          <p className="mt-1 font-poppins text-sm text-charcoal">{formatDate(set.calculatedAt)}</p>
+        </div>
+      </div>
+    </article>
+  );
+}
+
 export function ScenarioSetsSummary({ payload }: ScenarioSetsSummaryProps) {
   return (
     <div className="space-y-4" data-testid="scenario-sets-summary">
-      <div className="flex flex-wrap items-center gap-3">
-        <Badge
-          variant="outline"
-          className={cn('border text-xs font-medium', STALENESS_BADGES[payload.aggregateStaleness])}
-        >
-          {STALENESS_LABELS[payload.aggregateStaleness]}
-        </Badge>
-        <span className="font-poppins text-sm text-charcoal-500">
-          {payload.sets.length === 1 ? '1 scenario set' : `${payload.sets.length} scenario sets`}
-        </span>
-      </div>
-
+      <ScenarioSetsHeader payload={payload} />
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-        {payload.sets.map((set) => {
-          const topVariant = topTvpiVariant(set);
-
-          return (
-            <article
-              key={set.scenarioSetId}
-              className="rounded-md border border-beige-200 bg-white p-4"
-            >
-              <div className="flex items-start justify-between gap-4">
-                <div>
-                  <h3 className="font-inter text-base font-semibold text-charcoal">{set.name}</h3>
-                  <p className="mt-1 font-poppins text-sm text-charcoal-500">
-                    {variantCountLabel(set.variantCount)} · Source config v{set.sourceConfigVersion}
-                  </p>
-                </div>
-                <Badge
-                  variant="outline"
-                  className={cn(
-                    'shrink-0 border text-xs font-medium',
-                    STALENESS_BADGES[set.staleness]
-                  )}
-                >
-                  {STALENESS_LABELS[set.staleness]}
-                </Badge>
-              </div>
-
-              <div className="mt-5 grid grid-cols-2 gap-3">
-                <div>
-                  <p className="font-poppins text-xs uppercase text-charcoal-400">Best TVPI</p>
-                  <p className="mt-1 font-inter text-2xl font-semibold text-charcoal">
-                    {formatMultiple(topVariant.economicsSummary.finalTvpi)}
-                  </p>
-                  <p className="mt-1 font-poppins text-xs text-charcoal-500">{topVariant.name}</p>
-                </div>
-                <div>
-                  <p className="font-poppins text-xs uppercase text-charcoal-400">Calculated</p>
-                  <p className="mt-1 font-poppins text-sm text-charcoal">
-                    {formatDate(set.calculatedAt)}
-                  </p>
-                </div>
-              </div>
-            </article>
-          );
-        })}
+        {payload.sets.map((set) => (
+          <ScenarioSetCard key={set.scenarioSetId} set={set} />
+        ))}
       </div>
     </div>
   );
