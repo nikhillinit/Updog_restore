@@ -86,6 +86,17 @@ describe('ADR-022 fund scenario set schema shell', () => {
     expect(migration).toContain('fund_scenario_variants_set_order_unique');
   });
 
+  it('calculation migration adds an audit-visible calculated event type', async () => {
+    const migration = await readRepoFile(
+      'server/db/migrations/0014_fund_scenario_calculated_event.sql'
+    );
+
+    expect(migration).toContain('fund_scenario_set_events_type_check');
+    expect(migration).toContain("'calculated'");
+    expect(migration).toContain('fund_snapshots_scenario_set_calculation_unique');
+    expect(migration).toContain("type = 'SCENARIOS'");
+  });
+
   it('Drizzle fund scenario set indexes mirror the active-row SQL migration indexes', async () => {
     const schema = await import('@shared/schema');
     const config = getTableConfig(schema.fundScenarioSets);

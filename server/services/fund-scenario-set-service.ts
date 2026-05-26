@@ -246,7 +246,7 @@ export async function insertScenarioSetEvent(
   input: {
     scenarioSetId: string;
     fundId: number;
-    eventType: 'created' | 'updated' | 'archived';
+    eventType: 'created' | 'updated' | 'archived' | 'calculated';
     actor: ReturnType<typeof normalizeActor>;
     changeSummary: Record<string, unknown>;
   }
@@ -276,9 +276,10 @@ export async function insertScenarioSetEvent(
 export async function fetchScenarioSetDetail(
   client: PoolClient,
   fundId: number,
-  scenarioSetId: string
+  scenarioSetId: string,
+  options: { forUpdate?: boolean } = {}
 ): Promise<FundScenarioSetDetailV1> {
-  const summary = await getScenarioSetSummaryOrThrow(client, fundId, scenarioSetId);
+  const summary = await getScenarioSetSummaryOrThrow(client, fundId, scenarioSetId, options);
   const variants = await getScenarioSetVariants(client, scenarioSetId);
   return mapScenarioSetDetail(summary, variants);
 }
