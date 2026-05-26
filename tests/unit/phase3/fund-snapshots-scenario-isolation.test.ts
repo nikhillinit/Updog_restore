@@ -55,6 +55,7 @@ const authoritativeReadContracts = [
   ['server/services/time-travel-analytics.ts', 3],
   ['server/services/variance-tracking/baseline-service.ts', 4],
   ['server/services/variance-tracking/calculation-service.ts', 2],
+  ['workers/report-worker.ts', 1],
 ] as const;
 const authoritativeWriterContracts = [
   'server/services/economics-calculation-service.ts',
