@@ -182,12 +182,12 @@ export const fundScenarioSets = pgTable(
     updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
   },
   (table) => ({
-    fundActiveUpdatedIdx: index('fund_scenario_sets_fund_active_updated_idx').on(
-      table.fundId,
-      table.archivedAt,
-      table.updatedAt.desc(),
-      table.id.desc()
-    ),
+    fundActiveUpdatedIdx: index('fund_scenario_sets_fund_active_updated_idx')
+      .on(table.fundId, table.updatedAt.desc(), table.id.desc())
+      .where(sql`${table.archivedAt} IS NULL`),
+    fundNameActiveUniqueIdx: uniqueIndex('fund_scenario_sets_fund_name_active_unique')
+      .on(table.fundId, sql`lower(${table.name})`)
+      .where(sql`${table.archivedAt} IS NULL`),
     fundIdempotencyUniqueIdx: uniqueIndex('fund_scenario_sets_fund_idempotency_unique')
       .on(table.fundId, table.idempotencyKey)
       .where(sql`${table.idempotencyKey} IS NOT NULL`),
