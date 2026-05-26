@@ -1,9 +1,9 @@
 /**
  * FundScenarioSetsV1 -- Canonical contract for ADR-022 fund-results scenarios.
  *
- * This first slice persists fund-scoped scenario sets and variants only. It
- * supports fee-profile overrides and intentionally does not calculate scenario
- * results or extend the publish-comparison contract.
+ * This slice persists fund-scoped scenario sets and variants, then supports
+ * sync fee-profile calculation. It intentionally does not extend the
+ * publish-comparison contract.
  *
  * Strict schema: unknown keys are rejected (.strict()).
  *
@@ -11,6 +11,7 @@
  */
 
 import { z } from 'zod';
+import { EconomicsResultV1Schema } from './economics-v1.contract';
 import { FundDraftWriteV1Schema } from './fund-draft-write-v1.contract';
 
 const DateTimeStringSchema = z.string().datetime();
@@ -102,6 +103,47 @@ export const FundScenarioSetListResponseV1Schema = z
   })
   .strict();
 
+export const FundScenarioCalculationStalenessV1Schema = z
+  .object({
+    state: z.enum(['CURRENT', 'STALE_PUBLISH']),
+    sourceConfigVersion: z.number().int().positive(),
+    currentPublishedConfigVersion: z.number().int().positive().nullable(),
+  })
+  .strict();
+
+export const FundScenarioCalculationVariantV1Schema = z
+  .object({
+    variantId: z.string().uuid(),
+    scenarioSetId: z.string().uuid(),
+    name: z.string(),
+    overrideType: FundScenarioOverrideTypeV1Schema,
+    economics: EconomicsResultV1Schema,
+  })
+  .strict();
+
+export const FundScenarioCalculationPayloadV1Schema = z
+  .object({
+    version: z.literal('fund-scenarios-v1'),
+    calculationMode: z.literal('sync_fee_profile'),
+    fundId: z.number().int().positive(),
+    scenarioSetId: z.string().uuid(),
+    sourceConfigId: z.number().int().positive(),
+    sourceConfigVersion: z.number().int().positive(),
+    staleness: FundScenarioCalculationStalenessV1Schema,
+    calculatedAt: DateTimeStringSchema,
+    variants: z.array(FundScenarioCalculationVariantV1Schema).min(1).max(5),
+  })
+  .strict();
+
+export const FundScenarioCalculationResponseV1Schema = z
+  .object({
+    snapshotId: z.number().int().positive(),
+    correlationId: z.string().uuid(),
+    source: z.literal('fund_snapshots'),
+    payload: FundScenarioCalculationPayloadV1Schema,
+  })
+  .strict();
+
 export type FundScenarioOverrideTypeV1 = z.infer<typeof FundScenarioOverrideTypeV1Schema>;
 export type FundScenarioVariantOverrideV1 = z.infer<typeof FundScenarioVariantOverrideV1Schema>;
 export type CreateFundScenarioVariantV1 = z.infer<typeof CreateFundScenarioVariantV1Schema>;
@@ -110,3 +152,9 @@ export type ArchiveFundScenarioSetV1 = z.infer<typeof ArchiveFundScenarioSetV1Sc
 export type FundScenarioVariantV1 = z.infer<typeof FundScenarioVariantV1Schema>;
 export type FundScenarioSetSummaryV1 = z.infer<typeof FundScenarioSetSummaryV1Schema>;
 export type FundScenarioSetDetailV1 = z.infer<typeof FundScenarioSetDetailV1Schema>;
+export type FundScenarioCalculationPayloadV1 = z.infer<
+  typeof FundScenarioCalculationPayloadV1Schema
+>;
+export type FundScenarioCalculationResponseV1 = z.infer<
+  typeof FundScenarioCalculationResponseV1Schema
+>;

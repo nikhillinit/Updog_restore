@@ -14,6 +14,10 @@ import {
   listFundScenarioSets,
 } from '../services/fund-scenario-set-service.js';
 import { createFundScenarioSet } from '../services/fund-scenario-set-create-service.js';
+import {
+  calculateFundScenarioSet,
+  getScenarioResults,
+} from '../services/fund-scenario-calculation-service.js';
 
 interface HttpError extends Error {
   statusCode?: number;
@@ -169,6 +173,44 @@ router.post(
       idempotencyKey: getIdempotencyKey(req),
     });
     return res.status(201).json(scenarioSet);
+  })
+);
+
+router.post(
+  '/funds/:fundId/scenario-sets/:scenarioSetId/calculate',
+  requireAuth(),
+  requireFundAccess,
+  routeHandler(async (req: Request, res: Response) => {
+    const fundId = parseFundId(req, res);
+    const scenarioSetId = parseScenarioSetId(req, res);
+    if (fundId === null || scenarioSetId === null) {
+      return;
+    }
+
+    const result = await calculateFundScenarioSet(fundId, scenarioSetId, parseActor(req));
+    return res.status(200).json(result);
+  })
+);
+
+router.get(
+  '/funds/:fundId/scenario-sets/:scenarioSetId/results',
+  requireAuth(),
+  requireFundAccess,
+  routeHandler(async (req: Request, res: Response) => {
+    const fundId = parseFundId(req, res);
+    const scenarioSetId = parseScenarioSetId(req, res);
+    if (fundId === null || scenarioSetId === null) {
+      return;
+    }
+
+    const result = await getScenarioResults(fundId, scenarioSetId);
+    if (result === null) {
+      return res.status(404).json({
+        error: 'not_found',
+        message: 'No scenario calculation results found for this set',
+      });
+    }
+    return res.status(200).json(result);
   })
 );
 

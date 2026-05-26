@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import {
   CreateFundScenarioSetV1Schema,
+  FundScenarioCalculationResponseV1Schema,
   FundScenarioSetDetailV1Schema,
   FundScenarioVariantOverrideV1Schema,
 } from '../../../shared/contracts/fund-scenario-sets-v1.contract';
@@ -102,6 +103,92 @@ describe('FundScenarioSetsV1 contract', () => {
           updatedAt: '2026-05-26T12:00:00.000Z',
         },
       ],
+    });
+
+    expect(result.success).toBe(true);
+  });
+
+  it('describes persisted sync fee-profile calculation results', () => {
+    const result = FundScenarioCalculationResponseV1Schema.safeParse({
+      snapshotId: 42,
+      correlationId: '00000000-0000-0000-0000-000000000123',
+      source: 'fund_snapshots',
+      payload: {
+        version: 'fund-scenarios-v1',
+        calculationMode: 'sync_fee_profile',
+        fundId: 1,
+        scenarioSetId: '00000000-0000-0000-0000-000000000111',
+        sourceConfigId: 12,
+        sourceConfigVersion: 4,
+        staleness: {
+          state: 'CURRENT',
+          sourceConfigVersion: 4,
+          currentPublishedConfigVersion: 4,
+        },
+        calculatedAt: '2026-05-26T12:00:00.000Z',
+        variants: [
+          {
+            variantId: '00000000-0000-0000-0000-000000000112',
+            scenarioSetId: '00000000-0000-0000-0000-000000000111',
+            name: 'Lower fee',
+            overrideType: 'fee_profile',
+            economics: {
+              version: 'v1',
+              annual: [
+                {
+                  year: 1,
+                  lpCapitalCalls: 1,
+                  gpCommitmentCalls: 0,
+                  grossExitProceeds: 0,
+                  beginningCash: 0,
+                  investments: 0,
+                  feesPaidToManager: 1,
+                  expensesPaid: 0,
+                  recycledProceeds: 0,
+                  endingCash: 0,
+                  lpDistributions: 0,
+                  gpInvestmentDistributions: 0,
+                  gpCarryDistributed: 0,
+                  gpCarryEscrowed: 0,
+                  gpCarryReleasedFromEscrow: 0,
+                  clawbackPaid: 0,
+                  grossNav: 0,
+                  lpNetNav: 0,
+                  dpi: 0,
+                  rvpi: 0,
+                  tvpi: 0,
+                  conservationDelta: 0,
+                },
+              ],
+              summary: {
+                grossIrr: null,
+                lpNetIrr: null,
+                gpNetIrr: null,
+                totalLpPaidIn: 1,
+                totalGpCommitmentCalled: 0,
+                totalManagementFees: 1,
+                totalExpenses: 0,
+                totalRecycled: 0,
+                totalLpDistributions: 0,
+                totalGpInvestmentDistributions: 0,
+                totalGpCarryDistributed: 0,
+                totalGpFeeIncome: 1,
+                finalDpi: 0,
+                finalRvpi: 0,
+                finalTvpi: 0,
+                finalClawbackDue: 0,
+                maxEscrowAvailable: 0,
+                netGpCarryAfterClawback: 0,
+              },
+              checks: {
+                passed: true,
+                tolerance: 0.01,
+                errors: [],
+              },
+            },
+          },
+        ],
+      },
     });
 
     expect(result.success).toBe(true);

@@ -246,7 +246,7 @@ export async function insertScenarioSetEvent(
   input: {
     scenarioSetId: string;
     fundId: number;
-    eventType: 'created' | 'updated' | 'archived';
+    eventType: 'created' | 'updated' | 'archived' | 'calculated';
     actor: ReturnType<typeof normalizeActor>;
     changeSummary: Record<string, unknown>;
   }
