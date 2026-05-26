@@ -274,6 +274,51 @@ describe('FundResultsReadV1 contract shape', () => {
     expect(parsed.success).toBe(true);
   });
 
+  it('scenarios section accepts available summary-only scenario set results', () => {
+    const parsed = FundResultsReadV1Schema.safeParse({
+      ...validFullResponse(),
+      sections: {
+        ...allUnavailableSections(),
+        scenarios: validScenariosSection(),
+      },
+    });
+
+    expect(parsed.success).toBe(true);
+  });
+
+  it('scenarios section rejects legacyEvidence and full economics payloads', () => {
+    const parsed = FundResultsReadV1Schema.safeParse({
+      ...validFullResponse(),
+      sections: {
+        ...allUnavailableSections(),
+        scenarios: {
+          ...validScenariosSection(),
+          legacyEvidence: false,
+          payload: {
+            ...validScenariosSection().payload,
+            sets: [
+              {
+                ...validScenariosSection().payload.sets[0],
+                variants: [
+                  {
+                    ...validScenariosSection().payload.sets[0].variants[0],
+                    economicsSummary: {
+                      ...validEconomicsSummary(),
+                      annual: [],
+                      checks: { passed: true, tolerance: 0.01, errors: [] },
+                    },
+                  },
+                ],
+              },
+            ],
+          },
+        },
+      },
+    });
+
+    expect(parsed.success).toBe(false);
+  });
+
   it('documents final economics summary multiples as dimensionless ratios', async () => {
     const actualFs = await vi.importActual<typeof import('fs')>('fs');
     const { fileURLToPath } = await import('node:url');
@@ -304,7 +349,7 @@ describe('FundResultsReadV1 contract shape', () => {
         economics: {
           status: 'unavailable',
           reason: 'Wrong code',
-          reasonCode: 'NO_AUTHORITATIVE_SOURCE',
+          reasonCode: 'SCENARIOS_NONE_EXIST',
         },
       },
     });
@@ -459,31 +504,66 @@ function validEconomicsSection() {
           conservationDelta: 0,
         },
       ],
-      summary: {
-        grossIrr: 0.2,
-        lpNetIrr: 0.15,
-        gpNetIrr: null,
-        totalLpPaidIn: 9_800_000,
-        totalGpCommitmentCalled: 200_000,
-        totalManagementFees: 2_000_000,
-        totalExpenses: 0,
-        totalRecycled: 0,
-        totalLpDistributions: 0,
-        totalGpInvestmentDistributions: 0,
-        totalGpCarryDistributed: 0,
-        totalGpFeeIncome: 2_000_000,
-        finalDpi: 0,
-        finalRvpi: 0.8,
-        finalTvpi: 0.8,
-        finalClawbackDue: 0,
-        maxEscrowAvailable: 0,
-        netGpCarryAfterClawback: 0,
-      },
+      summary: validEconomicsSummary(),
       checks: {
         passed: true,
         tolerance: 0.01,
         errors: [],
       },
+    },
+  };
+}
+
+function validEconomicsSummary() {
+  return {
+    grossIrr: 0.2,
+    lpNetIrr: 0.15,
+    gpNetIrr: null,
+    totalLpPaidIn: 9_800_000,
+    totalGpCommitmentCalled: 200_000,
+    totalManagementFees: 2_000_000,
+    totalExpenses: 0,
+    totalRecycled: 0,
+    totalLpDistributions: 0,
+    totalGpInvestmentDistributions: 0,
+    totalGpCarryDistributed: 0,
+    totalGpFeeIncome: 2_000_000,
+    finalDpi: 0,
+    finalRvpi: 0.8,
+    finalTvpi: 0.8,
+    finalClawbackDue: 0,
+    maxEscrowAvailable: 0,
+    netGpCarryAfterClawback: 0,
+  };
+}
+
+function validScenariosSection() {
+  return {
+    status: 'available' as const,
+    source: 'fund_snapshots' as const,
+    calculatedAt: '2026-05-26T12:30:00.000Z',
+    payload: {
+      version: 'fund-scenarios-v1' as const,
+      aggregateStaleness: 'CURRENT' as const,
+      sets: [
+        {
+          scenarioSetId: '00000000-0000-0000-0000-000000000111',
+          name: 'Fee sensitivity',
+          sourceConfigId: 12,
+          sourceConfigVersion: 4,
+          calculatedAt: '2026-05-26T12:30:00.000Z',
+          staleness: 'CURRENT' as const,
+          variantCount: 1,
+          variants: [
+            {
+              variantId: '00000000-0000-0000-0000-000000000112',
+              name: 'Lower fee',
+              overrideType: 'fee_profile' as const,
+              economicsSummary: validEconomicsSummary(),
+            },
+          ],
+        },
+      ],
     },
   };
 }

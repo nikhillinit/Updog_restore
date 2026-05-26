@@ -2,9 +2,12 @@ import { describe, expect, it } from 'vitest';
 
 import {
   CreateFundScenarioSetV1Schema,
+  FundScenariosSectionReasonCodeV1Schema,
   FundScenarioCalculationResponseV1Schema,
   FundScenarioSetDetailV1Schema,
   FundScenarioVariantOverrideV1Schema,
+  ScenarioSetResultSummaryV1Schema,
+  ScenariosSectionPayloadV1Schema,
 } from '../../../shared/contracts/fund-scenario-sets-v1.contract';
 
 const feeProfileOverride = {
@@ -193,4 +196,89 @@ describe('FundScenarioSetsV1 contract', () => {
 
     expect(result.success).toBe(true);
   });
+
+  it('describes fund-results scenario summaries without full economics results', () => {
+    const result = ScenariosSectionPayloadV1Schema.safeParse({
+      version: 'fund-scenarios-v1',
+      aggregateStaleness: 'CURRENT',
+      sets: [
+        {
+          scenarioSetId: '00000000-0000-0000-0000-000000000111',
+          name: 'Fee sensitivity',
+          sourceConfigId: 12,
+          sourceConfigVersion: 4,
+          calculatedAt: '2026-05-26T12:00:00.000Z',
+          staleness: 'CURRENT',
+          variantCount: 1,
+          variants: [
+            {
+              variantId: '00000000-0000-0000-0000-000000000112',
+              name: 'Lower fee',
+              overrideType: 'fee_profile',
+              economicsSummary: economicsSummary(),
+            },
+          ],
+        },
+      ],
+    });
+
+    expect(result.success).toBe(true);
+  });
+
+  it('rejects full economics results in fund-results scenario summaries', () => {
+    const result = ScenarioSetResultSummaryV1Schema.safeParse({
+      scenarioSetId: '00000000-0000-0000-0000-000000000111',
+      name: 'Fee sensitivity',
+      sourceConfigId: 12,
+      sourceConfigVersion: 4,
+      calculatedAt: '2026-05-26T12:00:00.000Z',
+      staleness: 'CURRENT',
+      variantCount: 1,
+      variants: [
+        {
+          variantId: '00000000-0000-0000-0000-000000000112',
+          name: 'Lower fee',
+          overrideType: 'fee_profile',
+          economicsSummary: {
+            ...economicsSummary(),
+            annual: [],
+            checks: { passed: true, tolerance: 0.01, errors: [] },
+          },
+        },
+      ],
+    });
+
+    expect(result.success).toBe(false);
+  });
+
+  it('defines dedicated fund-results scenario reason codes', () => {
+    expect(FundScenariosSectionReasonCodeV1Schema.options).toEqual([
+      'SCENARIOS_NONE_EXIST',
+      'SCENARIOS_NONE_CALCULATED',
+      'SCENARIOS_LOAD_FAILED',
+    ]);
+  });
 });
+
+function economicsSummary() {
+  return {
+    grossIrr: null,
+    lpNetIrr: null,
+    gpNetIrr: null,
+    totalLpPaidIn: 1,
+    totalGpCommitmentCalled: 0,
+    totalManagementFees: 1,
+    totalExpenses: 0,
+    totalRecycled: 0,
+    totalLpDistributions: 0,
+    totalGpInvestmentDistributions: 0,
+    totalGpCarryDistributed: 0,
+    totalGpFeeIncome: 1,
+    finalDpi: 0,
+    finalRvpi: 0,
+    finalTvpi: 0,
+    finalClawbackDue: 0,
+    maxEscrowAvailable: 0,
+    netGpCarryAfterClawback: 0,
+  };
+}
