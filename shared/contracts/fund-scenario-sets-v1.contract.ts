@@ -11,7 +11,7 @@
  */
 
 import { z } from 'zod';
-import { EconomicsResultV1Schema } from './economics-v1.contract';
+import { EconomicsResultV1Schema, EconomicsSummaryV1Schema } from './economics-v1.contract';
 import { FundDraftWriteV1Schema } from './fund-draft-write-v1.contract';
 
 const DateTimeStringSchema = z.string().datetime();
@@ -105,9 +105,60 @@ export const FundScenarioSetListResponseV1Schema = z
 
 export const FundScenarioCalculationStalenessV1Schema = z
   .object({
-    state: z.enum(['CURRENT', 'STALE_PUBLISH']),
+    state: z.enum(['CURRENT', 'STALE_PUBLISH', 'STALE_CONFIG']),
     sourceConfigVersion: z.number().int().positive(),
     currentPublishedConfigVersion: z.number().int().positive().nullable(),
+  })
+  .strict();
+
+export const FundScenarioResultStalenessStateV1Schema = z.enum([
+  'CURRENT',
+  'STALE_PUBLISH',
+  'STALE_CONFIG',
+]);
+
+export const FundScenariosSectionReasonCodeV1Schema = z.enum([
+  'SCENARIOS_NONE_EXIST',
+  'SCENARIOS_NONE_CALCULATED',
+  'SCENARIOS_LOAD_FAILED',
+]);
+
+export const ScenarioSetVariantResultSummaryV1Schema = z
+  .object({
+    variantId: z.string().uuid(),
+    name: z.string(),
+    overrideType: FundScenarioOverrideTypeV1Schema,
+    economicsSummary: EconomicsSummaryV1Schema,
+  })
+  .strict();
+
+export const ScenarioSetResultSummaryV1Schema = z
+  .object({
+    scenarioSetId: z.string().uuid(),
+    name: z.string(),
+    sourceConfigId: z.number().int().positive(),
+    sourceConfigVersion: z.number().int().positive(),
+    calculatedAt: DateTimeStringSchema,
+    staleness: FundScenarioResultStalenessStateV1Schema,
+    variantCount: z.number().int().min(0).max(5),
+    variants: z.array(ScenarioSetVariantResultSummaryV1Schema).min(1).max(5),
+  })
+  .strict()
+  .superRefine((value, ctx) => {
+    if (value.variantCount !== value.variants.length) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['variantCount'],
+        message: 'variantCount must match variants.length',
+      });
+    }
+  });
+
+export const ScenariosSectionPayloadV1Schema = z
+  .object({
+    version: z.literal('fund-scenarios-v1'),
+    aggregateStaleness: FundScenarioResultStalenessStateV1Schema,
+    sets: z.array(ScenarioSetResultSummaryV1Schema).min(1).max(10),
   })
   .strict();
 
@@ -152,6 +203,17 @@ export type ArchiveFundScenarioSetV1 = z.infer<typeof ArchiveFundScenarioSetV1Sc
 export type FundScenarioVariantV1 = z.infer<typeof FundScenarioVariantV1Schema>;
 export type FundScenarioSetSummaryV1 = z.infer<typeof FundScenarioSetSummaryV1Schema>;
 export type FundScenarioSetDetailV1 = z.infer<typeof FundScenarioSetDetailV1Schema>;
+export type FundScenarioResultStalenessStateV1 = z.infer<
+  typeof FundScenarioResultStalenessStateV1Schema
+>;
+export type FundScenariosSectionReasonCodeV1 = z.infer<
+  typeof FundScenariosSectionReasonCodeV1Schema
+>;
+export type ScenarioSetVariantResultSummaryV1 = z.infer<
+  typeof ScenarioSetVariantResultSummaryV1Schema
+>;
+export type ScenarioSetResultSummaryV1 = z.infer<typeof ScenarioSetResultSummaryV1Schema>;
+export type ScenariosSectionPayloadV1 = z.infer<typeof ScenariosSectionPayloadV1Schema>;
 export type FundScenarioCalculationPayloadV1 = z.infer<
   typeof FundScenarioCalculationPayloadV1Schema
 >;

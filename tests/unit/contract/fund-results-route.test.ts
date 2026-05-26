@@ -275,7 +275,11 @@ function validReadyResponse() {
         },
       },
       scorecard: { status: 'unavailable' as const, reason: 'No authoritative source' },
-      scenarios: { status: 'unavailable' as const, reason: 'No authoritative source' },
+      scenarios: {
+        status: 'unavailable' as const,
+        reason: 'No scenario sets exist for this fund',
+        reasonCode: 'SCENARIOS_NONE_EXIST' as const,
+      },
       waterfall: { status: 'unavailable' as const, reason: 'No authoritative source' },
       economics: {
         status: 'unavailable' as const,

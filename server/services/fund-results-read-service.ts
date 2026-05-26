@@ -28,10 +28,19 @@ import {
 import { FundDraftWriteV1Schema } from '@shared/contracts/fund-draft-write-v1.contract';
 import type { FundResultsReadV1 } from '@shared/contracts/fund-results-v1.contract';
 import type { EconomicsResultReasonCode } from '@shared/contracts/economics-v1.contract';
+import {
+  ScenariosSectionPayloadV1Schema,
+  type FundScenariosSectionReasonCodeV1,
+  type ScenarioSetResultSummaryV1,
+} from '@shared/contracts/fund-scenario-sets-v1.contract';
 import type { FundStateReadV1 } from '@shared/contracts/fund-state-read-v1.contract';
 import type { ReserveSummary, PacingSummary } from '@shared/types';
 import { isFlagEnabled } from '@shared/flags/getFlag';
 import { hasEconomicsAssumptions } from '@shared/lib/economics/economics-engine';
+import {
+  getAllScenarioResultsForFund,
+  worstScenarioStaleness,
+} from './fund-scenario-calculation-service';
 
 const log = logger.child({ module: 'fund-results-read' });
 
@@ -66,6 +75,30 @@ function failed(reason: string, reasonCode?: ReasonCode) {
     status: 'failed' as const,
     reason,
     ...(reasonCode != null && { reasonCode }),
+  };
+}
+
+function scenariosUnavailable(reason: string, reasonCode: FundScenariosSectionReasonCodeV1) {
+  return {
+    status: 'unavailable' as const,
+    reason,
+    reasonCode,
+  };
+}
+
+function scenariosPending(reason: string, reasonCode: FundScenariosSectionReasonCodeV1) {
+  return {
+    status: 'pending' as const,
+    reason,
+    reasonCode,
+  };
+}
+
+function scenariosFailed(reason: string, reasonCode: FundScenariosSectionReasonCodeV1) {
+  return {
+    status: 'failed' as const,
+    reason,
+    reasonCode,
   };
 }
 
@@ -169,6 +202,7 @@ export class FundResultsReadService {
 
     const waterfallSection = await this.loadWaterfallSection(fundId, lifecycle);
     const economicsSection = await this.loadEconomicsSection(fundId, lifecycle);
+    const scenariosSection = await this.loadScenariosSection(fundId);
 
     const fundIdentity = {
       name: fund.name,
@@ -193,7 +227,7 @@ export class FundResultsReadService {
         reserve: reserveSection,
         pacing: pacingSection,
         scorecard: scorecardSection,
-        scenarios: unavailable('No authoritative source', 'NO_AUTHORITATIVE_SOURCE'),
+        scenarios: scenariosSection,
         waterfall: waterfallSection,
         economics: economicsSection,
       },
@@ -401,6 +435,61 @@ export class FundResultsReadService {
       publishedAt: publishedConfig.publishedAt?.toISOString() ?? null,
       payload,
     };
+  }
+
+  private latestScenarioCalculatedAt(sets: ScenarioSetResultSummaryV1[]): string {
+    const first = sets[0];
+    if (!first) {
+      throw new Error('Scenario result loader returned no calculated scenario sets');
+    }
+
+    return sets
+      .slice(1)
+      .reduce(
+        (latest, set) => (set.calculatedAt > latest ? set.calculatedAt : latest),
+        first.calculatedAt
+      );
+  }
+
+  private async loadScenariosSection(fundId: number) {
+    try {
+      const result = await getAllScenarioResultsForFund(fundId);
+
+      if (result.kind === 'none_exist') {
+        return scenariosUnavailable('No scenario sets exist for this fund', 'SCENARIOS_NONE_EXIST');
+      }
+
+      if (result.kind === 'none_calculated') {
+        return scenariosPending(
+          'Scenario sets exist but have not been calculated',
+          'SCENARIOS_NONE_CALCULATED'
+        );
+      }
+
+      const payload = ScenariosSectionPayloadV1Schema.parse({
+        version: 'fund-scenarios-v1',
+        aggregateStaleness: worstScenarioStaleness(result.sets.map((set) => set.staleness)),
+        sets: result.sets,
+      });
+
+      return {
+        status: 'available' as const,
+        source: 'fund_snapshots' as const,
+        calculatedAt: this.latestScenarioCalculatedAt(result.sets),
+        payload,
+      };
+    } catch (error) {
+      log.warn(
+        {
+          fundId,
+          section: 'scenarios',
+          reasonCode: 'SCENARIOS_LOAD_FAILED',
+          error: error instanceof Error ? error.message : String(error),
+        },
+        'Scenario results failed to load'
+      );
+      return scenariosFailed('Scenario results could not be loaded', 'SCENARIOS_LOAD_FAILED');
+    }
   }
 
   private async loadEconomicsSection(fundId: number, lifecycle: FundStateReadV1) {
