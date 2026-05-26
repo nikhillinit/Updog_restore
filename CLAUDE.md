@@ -333,8 +333,11 @@ are subordinate to this file. Config: `.claude/hermes/model-routing.json`. CLI:
 
 ### Codex CLI Integration
 
-Consult OpenAI Codex (GPT-5.3, xhigh reasoning) for complex tasks:
-`codex exec "question" --sandbox read-only`. See memory for setup details.
+Codex is dispatched via Hermes, not invoked directly. Use
+`npm run hermes:production -- --task "description"` for implementation work and
+`npm run hermes:research -- --task "description"` for analysis. Hermes routes to
+the correct model per `.claude/hermes/model-routing.json`. See `DEV_BRAIN.md`
+for phase routing details.
 
 ## Babysitter Orchestration
 
