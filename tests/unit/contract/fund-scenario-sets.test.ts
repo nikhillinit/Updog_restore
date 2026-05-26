@@ -225,6 +225,28 @@ describe('FundScenarioSetsV1 contract', () => {
     expect(result.success).toBe(true);
   });
 
+  it('requires scenario summary variant counts to match the embedded summaries', () => {
+    const result = ScenarioSetResultSummaryV1Schema.safeParse({
+      scenarioSetId: '00000000-0000-0000-0000-000000000111',
+      name: 'Fee sensitivity',
+      sourceConfigId: 12,
+      sourceConfigVersion: 4,
+      calculatedAt: '2026-05-26T12:00:00.000Z',
+      staleness: 'CURRENT',
+      variantCount: 2,
+      variants: [
+        {
+          variantId: '00000000-0000-0000-0000-000000000112',
+          name: 'Lower fee',
+          overrideType: 'fee_profile',
+          economicsSummary: economicsSummary(),
+        },
+      ],
+    });
+
+    expect(result.success).toBe(false);
+  });
+
   it('rejects full economics results in fund-results scenario summaries', () => {
     const result = ScenarioSetResultSummaryV1Schema.safeParse({
       scenarioSetId: '00000000-0000-0000-0000-000000000111',

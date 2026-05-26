@@ -79,11 +79,15 @@ function applyScenarioReadStaleness(
   payload: FundScenarioCalculationPayloadV1,
   currentPublishedVersion: number | null
 ): FundScenarioResultStalenessStateV1 {
+  if (payload.staleness.state === 'STALE_CONFIG') {
+    return 'STALE_CONFIG';
+  }
+
   if (currentPublishedVersion != null && currentPublishedVersion > payload.sourceConfigVersion) {
     return 'STALE_PUBLISH';
   }
 
-  return payload.staleness.state;
+  return 'CURRENT';
 }
 
 function mapScenarioResultSummary(
@@ -228,11 +232,10 @@ function withReadTimeStaleness(
   response: FundScenarioCalculationResponseV1,
   currentPublishedVersion: number | null
 ): FundScenarioCalculationResponseV1 {
-  response.payload.staleness.state =
-    currentPublishedVersion != null &&
-    currentPublishedVersion > response.payload.sourceConfigVersion
-      ? 'STALE_PUBLISH'
-      : 'CURRENT';
+  response.payload.staleness.state = applyScenarioReadStaleness(
+    response.payload,
+    currentPublishedVersion
+  );
   response.payload.staleness.currentPublishedConfigVersion = currentPublishedVersion;
   return response;
 }

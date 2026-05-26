@@ -105,7 +105,7 @@ export const FundScenarioSetListResponseV1Schema = z
 
 export const FundScenarioCalculationStalenessV1Schema = z
   .object({
-    state: z.enum(['CURRENT', 'STALE_PUBLISH']),
+    state: z.enum(['CURRENT', 'STALE_PUBLISH', 'STALE_CONFIG']),
     sourceConfigVersion: z.number().int().positive(),
     currentPublishedConfigVersion: z.number().int().positive().nullable(),
   })
@@ -143,13 +143,22 @@ export const ScenarioSetResultSummaryV1Schema = z
     variantCount: z.number().int().min(0).max(5),
     variants: z.array(ScenarioSetVariantResultSummaryV1Schema).min(1).max(5),
   })
-  .strict();
+  .strict()
+  .superRefine((value, ctx) => {
+    if (value.variantCount !== value.variants.length) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['variantCount'],
+        message: 'variantCount must match variants.length',
+      });
+    }
+  });
 
 export const ScenariosSectionPayloadV1Schema = z
   .object({
     version: z.literal('fund-scenarios-v1'),
     aggregateStaleness: FundScenarioResultStalenessStateV1Schema,
-    sets: z.array(ScenarioSetResultSummaryV1Schema).min(1),
+    sets: z.array(ScenarioSetResultSummaryV1Schema).min(1).max(10),
   })
   .strict();
 
