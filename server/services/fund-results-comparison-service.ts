@@ -14,7 +14,7 @@
 
 import { db } from '../db';
 import { funds, fundConfigs, calcRuns, fundSnapshots } from '@shared/schema';
-import { eq, and, desc, isNotNull } from 'drizzle-orm';
+import { eq, and, desc, isNotNull, isNull } from 'drizzle-orm';
 import { mapReserveSnapshot, mapPacingSnapshot } from './fund-results-mappers';
 import type { ReserveSummary, PacingSummary } from '@shared/types';
 import type {
@@ -177,7 +177,8 @@ export class FundResultsComparisonService {
         where: and(
           eq(fundSnapshots.fundId, fundId),
           eq(fundSnapshots.type, 'RESERVE'),
-          eq(fundSnapshots.configVersion, publishedConfig.version)
+          eq(fundSnapshots.configVersion, publishedConfig.version),
+          isNull(fundSnapshots.scenarioSetId)
         ),
         orderBy: desc(fundSnapshots.createdAt),
       }),
@@ -185,7 +186,8 @@ export class FundResultsComparisonService {
         where: and(
           eq(fundSnapshots.fundId, fundId),
           eq(fundSnapshots.type, 'PACING'),
-          eq(fundSnapshots.configVersion, publishedConfig.version)
+          eq(fundSnapshots.configVersion, publishedConfig.version),
+          isNull(fundSnapshots.scenarioSetId)
         ),
         orderBy: desc(fundSnapshots.createdAt),
       }),

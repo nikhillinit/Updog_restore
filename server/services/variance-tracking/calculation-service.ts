@@ -13,7 +13,7 @@ import {
   varianceReports,
 } from '@shared/schema';
 import type { FundBaseline, InsertVarianceReport, VarianceReport } from '@shared/schema';
-import { and, desc, eq, lte } from 'drizzle-orm';
+import { and, desc, eq, isNull, lte } from 'drizzle-orm';
 import { buildAlertRuleEvaluation } from '../variance-alert-evaluation';
 import type { VarianceSnapshot } from '../variance-alert-evaluation';
 import {
@@ -572,7 +572,11 @@ export class VarianceCalculationService {
   /** Get latest reserve snapshot for a fund */
   private async getReserveSnapshot(fundId: number) {
     const snapshot = await db.query.fundSnapshots.findFirst({
-      where: and(eq(fundSnapshots.fundId, fundId), eq(fundSnapshots.type, 'RESERVE')),
+      where: and(
+        eq(fundSnapshots.fundId, fundId),
+        eq(fundSnapshots.type, 'RESERVE'),
+        isNull(fundSnapshots.scenarioSetId)
+      ),
       orderBy: desc(fundSnapshots.createdAt),
     });
     return snapshot?.payload || {};
@@ -581,7 +585,11 @@ export class VarianceCalculationService {
   /** Get latest pacing snapshot for a fund */
   private async getPacingSnapshot(fundId: number) {
     const snapshot = await db.query.fundSnapshots.findFirst({
-      where: and(eq(fundSnapshots.fundId, fundId), eq(fundSnapshots.type, 'PACING')),
+      where: and(
+        eq(fundSnapshots.fundId, fundId),
+        eq(fundSnapshots.type, 'PACING'),
+        isNull(fundSnapshots.scenarioSetId)
+      ),
       orderBy: desc(fundSnapshots.createdAt),
     });
     return snapshot?.payload || {};

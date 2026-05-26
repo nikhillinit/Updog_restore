@@ -19,6 +19,7 @@ import {
   text,
   timestamp,
   unique,
+  uuid,
   varchar,
 } from 'drizzle-orm/pg-core';
 import type { EngineResults } from '../schemas/engine-results-schema';
@@ -136,6 +137,7 @@ export const fundSnapshots = pgTable(
     runId: integer('run_id'),
     configId: integer('config_id'),
     configVersion: integer('config_version'),
+    scenarioSetId: uuid('scenario_set_id'),
     createdAt: timestamp('created_at').defaultNow(),
   },
   (table) => ({
