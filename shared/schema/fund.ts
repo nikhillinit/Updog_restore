@@ -1,8 +1,8 @@
 /**
  * Fund-related database schemas
  *
- * Contains: funds, fundConfigs, fundSnapshots
- * Note: fundEvents remains in schema.ts due to users dependency
+ * Contains: funds, fundConfigs, fundSnapshots, fundScenarioSets
+ * Note: fundEvents remains in schema.ts for legacy compatibility
  * Note: Insert schemas with .omit() rules are in schema.ts to prevent duplicate definitions
  *
  * @module shared/schema/fund
@@ -23,6 +23,7 @@ import {
   varchar,
 } from 'drizzle-orm/pg-core';
 import type { EngineResults } from '../schemas/engine-results-schema';
+import { users } from './user';
 
 // ============================================================================
 // FUNDS TABLE
@@ -150,6 +151,101 @@ export const fundSnapshots = pgTable(
 );
 
 // ============================================================================
+// FUND SCENARIO SETS TABLES (ADR-022)
+// ============================================================================
+
+export const fundScenarioSets = pgTable(
+  'fund_scenario_sets',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    fundId: integer('fund_id')
+      .notNull()
+      .references(() => funds.id, { onDelete: 'cascade' }),
+    name: varchar('name', { length: 120 }).notNull(),
+    description: text('description'),
+    sourceConfigId: integer('source_config_id')
+      .notNull()
+      .references(() => fundConfigs.id),
+    sourceConfigVersion: integer('source_config_version').notNull(),
+    createdByUserId: integer('created_by_user_id').references(() => users.id),
+    createdByLabel: text('created_by_label'),
+    updatedByUserId: integer('updated_by_user_id').references(() => users.id),
+    updatedByLabel: text('updated_by_label'),
+    archivedAt: timestamp('archived_at', { withTimezone: true }),
+    archivedByUserId: integer('archived_by_user_id').references(() => users.id),
+    archivedByLabel: text('archived_by_label'),
+    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => ({
+    fundActiveUpdatedIdx: index('fund_scenario_sets_fund_active_updated_idx').on(
+      table.fundId,
+      table.archivedAt,
+      table.updatedAt.desc(),
+      table.id.desc()
+    ),
+  })
+);
+
+export const fundScenarioVariants = pgTable(
+  'fund_scenario_variants',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    scenarioSetId: uuid('scenario_set_id')
+      .notNull()
+      .references(() => fundScenarioSets.id, { onDelete: 'cascade' }),
+    name: varchar('name', { length: 120 }).notNull(),
+    description: text('description'),
+    sortOrder: integer('sort_order').notNull().default(0),
+    overrideType: varchar('override_type', { length: 32 }).notNull().$type<'fee_profile'>(),
+    overridePayload: jsonb('override_payload').notNull().$type<Record<string, unknown>>(),
+    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => ({
+    setOrderUnique: unique('fund_scenario_variants_set_order_unique').on(
+      table.scenarioSetId,
+      table.sortOrder
+    ),
+    setOrderIdx: index('fund_scenario_variants_set_order_idx').on(
+      table.scenarioSetId,
+      table.sortOrder,
+      table.id
+    ),
+  })
+);
+
+export const fundScenarioSetEvents = pgTable(
+  'fund_scenario_set_events',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    scenarioSetId: uuid('scenario_set_id')
+      .notNull()
+      .references(() => fundScenarioSets.id, { onDelete: 'cascade' }),
+    fundId: integer('fund_id')
+      .notNull()
+      .references(() => funds.id, { onDelete: 'cascade' }),
+    eventType: varchar('event_type', { length: 32 }).notNull(),
+    actorUserId: integer('actor_user_id').references(() => users.id),
+    actorLabel: text('actor_label'),
+    changeSummary: jsonb('change_summary_json').notNull().$type<Record<string, unknown>>(),
+    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => ({
+    scenarioCreatedIdx: index('fund_scenario_set_events_scenario_created_idx').on(
+      table.scenarioSetId,
+      table.createdAt.desc(),
+      table.id.desc()
+    ),
+    fundCreatedIdx: index('fund_scenario_set_events_fund_created_idx').on(
+      table.fundId,
+      table.createdAt.desc(),
+      table.id.desc()
+    ),
+  })
+);
+
+// ============================================================================
 // TYPES (Insert schemas with .omit() rules are defined in schema.ts)
 // ============================================================================
 
@@ -161,3 +257,9 @@ export type FundSnapshot = typeof fundSnapshots.$inferSelect;
 export type NewFundSnapshot = typeof fundSnapshots.$inferInsert;
 export type CalcRun = typeof calcRuns.$inferSelect;
 export type NewCalcRun = typeof calcRuns.$inferInsert;
+export type FundScenarioSet = typeof fundScenarioSets.$inferSelect;
+export type NewFundScenarioSet = typeof fundScenarioSets.$inferInsert;
+export type FundScenarioVariant = typeof fundScenarioVariants.$inferSelect;
+export type NewFundScenarioVariant = typeof fundScenarioVariants.$inferInsert;
+export type FundScenarioSetEvent = typeof fundScenarioSetEvents.$inferSelect;
+export type NewFundScenarioSetEvent = typeof fundScenarioSetEvents.$inferInsert;

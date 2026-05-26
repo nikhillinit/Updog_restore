@@ -50,6 +50,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   const allocationScenarioRoutes = await import('./routes/allocation-scenarios.js');
   app.use('/api', allocationScenarioRoutes.default);
 
+  const fundScenarioSetRoutes = await import('./routes/fund-scenario-sets.js');
+  app.use('/api', fundScenarioSetRoutes.default);
+
   const allocationsRoutes = await import('./routes/allocations.js');
   app.use('/api', allocationsRoutes.default);
 
