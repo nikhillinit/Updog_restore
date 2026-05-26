@@ -222,7 +222,8 @@ export class FundResultsReadService {
         where: and(
           eq(fundSnapshots.fundId, fundId),
           eq(fundSnapshots.type, snapshotType),
-          eq(fundSnapshots.configVersion, publishedVersion)
+          eq(fundSnapshots.configVersion, publishedVersion),
+          isNull(fundSnapshots.scenarioSetId)
         ),
         orderBy: desc(fundSnapshots.createdAt),
       });
@@ -232,7 +233,8 @@ export class FundResultsReadService {
           where: and(
             eq(fundSnapshots.fundId, fundId),
             eq(fundSnapshots.type, snapshotType),
-            ne(fundSnapshots.configVersion, publishedVersion)
+            ne(fundSnapshots.configVersion, publishedVersion),
+            isNull(fundSnapshots.scenarioSetId)
           ),
           orderBy: desc(fundSnapshots.createdAt),
         });
@@ -246,7 +248,8 @@ export class FundResultsReadService {
         where: and(
           eq(fundSnapshots.fundId, fundId),
           eq(fundSnapshots.type, snapshotType),
-          isNull(fundSnapshots.configVersion)
+          isNull(fundSnapshots.configVersion),
+          isNull(fundSnapshots.scenarioSetId)
         ),
         orderBy: desc(fundSnapshots.createdAt),
       });
@@ -457,7 +460,8 @@ export class FundResultsReadService {
       where: and(
         eq(fundSnapshots.fundId, fundId),
         eq(fundSnapshots.type, 'ECONOMICS'),
-        eq(fundSnapshots.configVersion, publishedVersion)
+        eq(fundSnapshots.configVersion, publishedVersion),
+        isNull(fundSnapshots.scenarioSetId)
       ),
       orderBy: desc(fundSnapshots.createdAt),
     });
@@ -493,7 +497,8 @@ export class FundResultsReadService {
       where: and(
         eq(fundSnapshots.fundId, fundId),
         eq(fundSnapshots.type, 'ECONOMICS'),
-        ne(fundSnapshots.configVersion, publishedVersion)
+        ne(fundSnapshots.configVersion, publishedVersion),
+        isNull(fundSnapshots.scenarioSetId)
       ),
       orderBy: desc(fundSnapshots.createdAt),
     });

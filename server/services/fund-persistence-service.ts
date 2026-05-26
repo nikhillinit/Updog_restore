@@ -10,7 +10,7 @@
 
 import { db } from '../db';
 import { funds, fundConfigs, fundEvents, calcRuns, fundSnapshots } from '@shared/schema';
-import { eq, and, max } from 'drizzle-orm';
+import { eq, and, max, isNull } from 'drizzle-orm';
 import type { Fund, FundConfig, CalcRun, DispatchState } from '@shared/schema/fund';
 import type { EngineResults } from '@shared/schemas/engine-results-schema';
 import {
@@ -674,7 +674,7 @@ export class FundPersistenceService {
     }
 
     const snapshots = await db.query.fundSnapshots.findMany({
-      where: eq(fundSnapshots.runId, run.id),
+      where: and(eq(fundSnapshots.runId, run.id), isNull(fundSnapshots.scenarioSetId)),
       columns: {
         type: true,
       },
