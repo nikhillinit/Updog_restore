@@ -1,6 +1,6 @@
 ---
-status: ACTIVE
-last_updated: 2026-05-25
+status: Proposed
+last_updated: 2026-05-26
 ---
 
 # ADR-022: Fund-Results Scenario Architecture
@@ -64,10 +64,21 @@ Store scenario analytical outputs in `fund_snapshots` with:
 ALTER TABLE fund_snapshots
   ADD COLUMN scenario_set_id UUID NULL;
 
+-- Authoritative reads filter scenario_set_id IS NULL; this partial index
+-- covers the two-tier query pattern (fund_id + type + config_version,
+-- ordered by snapshot_time DESC).
+CREATE INDEX idx_fund_snapshots_authoritative
+  ON fund_snapshots(fund_id, type, config_version, snapshot_time DESC)
+  WHERE scenario_set_id IS NULL;
+
+-- Scenario reads filter on a specific scenario_set_id.
 CREATE INDEX idx_fund_snapshots_scenario_set
-  ON fund_snapshots(fund_id, scenario_set_id)
+  ON fund_snapshots(fund_id, scenario_set_id, type, config_version)
   WHERE scenario_set_id IS NOT NULL;
 ```
+
+Both indexes use standard `CREATE INDEX` inside a `BEGIN/COMMIT` migration (the
+project's migration runner does not support `CONCURRENTLY`).
 
 Use snapshot type `'SCENARIOS'` (the `type` column is `varchar(50)`, not an enum
 — no `ALTER TYPE` migration required).
