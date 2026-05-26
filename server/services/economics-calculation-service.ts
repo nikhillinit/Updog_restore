@@ -53,6 +53,7 @@ export async function runEconomicsCalculation({
   const resolvedConfigId = configId ?? fundConfig.id;
   const resolvedConfigVersion = configVersion ?? fundConfig.version;
 
+  // ADR-022: authoritative-only writer. scenario_set_id intentionally omitted (defaults to NULL).
   const insertedSnapshots = await db
     .insert(fundSnapshots)
     .values({

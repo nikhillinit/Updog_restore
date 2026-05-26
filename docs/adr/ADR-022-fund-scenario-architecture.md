@@ -66,9 +66,9 @@ ALTER TABLE fund_snapshots
 
 -- Authoritative reads filter scenario_set_id IS NULL; this partial index
 -- covers the two-tier query pattern (fund_id + type + config_version,
--- ordered by snapshot_time DESC).
+-- ordered by created_at DESC).
 CREATE INDEX idx_fund_snapshots_authoritative
-  ON fund_snapshots(fund_id, type, config_version, snapshot_time DESC)
+  ON fund_snapshots(fund_id, type, config_version, created_at DESC)
   WHERE scenario_set_id IS NULL;
 
 -- Scenario reads filter on a specific scenario_set_id.

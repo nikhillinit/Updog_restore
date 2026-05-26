@@ -96,6 +96,7 @@ export async function runReserveCalculation({
 
   const reserves = generateReserveSummary(fundId, portfolio);
 
+  // ADR-022: authoritative-only writer. scenario_set_id intentionally omitted (defaults to NULL).
   const insertedSnapshots = await db
     .insert(fundSnapshots)
     .values({

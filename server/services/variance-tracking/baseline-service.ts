@@ -10,7 +10,7 @@ import {
   users,
 } from '@shared/schema';
 import type { FundBaseline, InsertFundBaseline } from '@shared/schema';
-import { eq, and, desc, inArray } from 'drizzle-orm';
+import { eq, and, desc, inArray, isNull } from 'drizzle-orm';
 import { recordBaselineOperation, recordSystemError } from '../../metrics/variance-metrics';
 import { SYSTEM_ACTOR_ID, SYSTEM_ACTOR_USERNAME } from '@shared/constants/system-actor';
 import { logger } from '../../lib/logger';
@@ -570,7 +570,8 @@ export class BaselineService {
         where: and(
           eq(fundSnapshots.fundId, fundId),
           eq(fundSnapshots.type, 'RESERVE'),
-          eq(fundSnapshots.runId, sourceRunId)
+          eq(fundSnapshots.runId, sourceRunId),
+          isNull(fundSnapshots.scenarioSetId)
         ),
         orderBy: [desc(fundSnapshots.snapshotTime), desc(fundSnapshots.createdAt)],
       });
@@ -583,7 +584,11 @@ export class BaselineService {
     }
 
     const snapshot = await reader.query.fundSnapshots.findFirst({
-      where: and(eq(fundSnapshots.fundId, fundId), eq(fundSnapshots.type, 'RESERVE')),
+      where: and(
+        eq(fundSnapshots.fundId, fundId),
+        eq(fundSnapshots.type, 'RESERVE'),
+        isNull(fundSnapshots.scenarioSetId)
+      ),
       orderBy: desc(fundSnapshots.createdAt),
     });
 
@@ -614,7 +619,8 @@ export class BaselineService {
         where: and(
           eq(fundSnapshots.fundId, fundId),
           eq(fundSnapshots.type, 'PACING'),
-          eq(fundSnapshots.runId, sourceRunId)
+          eq(fundSnapshots.runId, sourceRunId),
+          isNull(fundSnapshots.scenarioSetId)
         ),
         orderBy: [desc(fundSnapshots.snapshotTime), desc(fundSnapshots.createdAt)],
       });
@@ -627,7 +633,11 @@ export class BaselineService {
     }
 
     const snapshot = await reader.query.fundSnapshots.findFirst({
-      where: and(eq(fundSnapshots.fundId, fundId), eq(fundSnapshots.type, 'PACING')),
+      where: and(
+        eq(fundSnapshots.fundId, fundId),
+        eq(fundSnapshots.type, 'PACING'),
+        isNull(fundSnapshots.scenarioSetId)
+      ),
       orderBy: desc(fundSnapshots.createdAt),
     });
 

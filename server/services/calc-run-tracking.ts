@@ -105,7 +105,8 @@ export async function markCalcRunCompletedIfReady(runId: number): Promise<boolea
   const snapshots = await db.query.fundSnapshots.findMany({
     where: and(
       eq(fundSnapshots.runId, runId),
-      inArray(fundSnapshots.type, [...AUTHORITATIVE_SNAPSHOT_TYPES])
+      inArray(fundSnapshots.type, [...AUTHORITATIVE_SNAPSHOT_TYPES]),
+      isNull(fundSnapshots.scenarioSetId)
     ),
     columns: {
       type: true,

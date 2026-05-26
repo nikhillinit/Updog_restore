@@ -1,7 +1,7 @@
 import type { Express, Request, Response } from 'express';
 import { db } from '../db';
 import { funds, fundConfigs, fundEvents, fundSnapshots } from '@schema';
-import { eq, and, desc, max } from 'drizzle-orm';
+import { eq, and, desc, max, isNull } from 'drizzle-orm';
 import type { ApiError } from '@shared/types';
 import { Queue } from 'bullmq';
 import { toNumber } from '@shared/number';
@@ -395,7 +395,13 @@ export function registerFundConfigRoutes(app: Express) {
       const [snapshot] = await db
         .select()
         .from(fundSnapshots)
-        .where(and(eq(fundSnapshots.fundId, fundId), eq(fundSnapshots.type, 'RESERVE')))
+        .where(
+          and(
+            eq(fundSnapshots.fundId, fundId),
+            eq(fundSnapshots.type, 'RESERVE'),
+            isNull(fundSnapshots.scenarioSetId)
+          )
+        )
         .orderBy(desc(fundSnapshots.createdAt))
         .limit(1);
 
