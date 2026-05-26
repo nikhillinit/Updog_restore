@@ -1,3 +1,4 @@
+import crypto from 'node:crypto';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const { transactionMock, queryMock, runEconomicsModelMock } = vi.hoisted(() => ({
@@ -74,6 +75,59 @@ const baseConfig = {
   ],
   economicsAssumptions: {
     version: 'v1',
+  },
+} as const;
+
+const explicitFeeTierEconomicsAssumptions = {
+  version: 'v1',
+  timeline: {
+    fundLifeYears: 10,
+    period: 'annual',
+    vintageYear: 2026,
+  },
+  feeModel: {
+    source: 'economics_override',
+    tiers: [
+      {
+        id: 'base-fee-tier',
+        name: 'Base explicit fee',
+        rate: 0.02,
+        basis: 'committed_capital',
+        startYear: 1,
+      },
+    ],
+  },
+  exitModel: {
+    mode: 'cohort',
+    cohort: {
+      exitDistributionByYear: [0, 0, 0, 0, 0.2, 0.2, 0.2, 0.2, 0.1, 0.1],
+      grossMultiple: 2.5,
+      lossRatio: 0,
+    },
+  },
+  recyclingModel: {
+    enabled: false,
+    sources: ['exit_proceeds'],
+    capPctOfCommitments: 0,
+    timing: 'before_waterfall',
+  },
+  waterfallModel: {
+    type: 'american',
+    carryPct: 0.2,
+    hurdleRate: 0.08,
+    prefType: 'compounded',
+    prefCompounding: 'annual',
+    prefCatchUp: true,
+    catchUpRate: 1,
+    catchUpTargetCarryPct: 0.2,
+    clawbackEnabled: true,
+    clawbackTrigger: 'final_liquidation',
+    escrowPct: 0,
+    feeOffsetTreatment: 'none',
+  },
+  gpCommitmentModel: {
+    commitmentAmount: 10_000_000,
+    participatesInInvestmentReturns: true,
   },
 } as const;
 
@@ -194,6 +248,26 @@ function snapshotPayload(): FundScenarioCalculationPayloadV1 {
   };
 }
 
+function expectedInputHash(): string {
+  return crypto
+    .createHash('sha256')
+    .update(
+      JSON.stringify({
+        scenarioSetId,
+        sourceConfigId: 12,
+        sourceConfigVersion: 4,
+        calcVersion: 'fund-scenarios-v1',
+        variants: [
+          {
+            id: variantId,
+            override: feeProfileOverride,
+          },
+        ],
+      })
+    )
+    .digest('hex');
+}
+
 describe('fund scenario calculation service', () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -241,10 +315,15 @@ describe('fund scenario calculation service', () => {
       expect.objectContaining({
         fundName: 'Test Fund',
         feeProfiles: feeProfileOverride.payload.feeProfiles,
+        economicsAssumptions: expect.objectContaining({
+          feeModel: { source: 'legacy_fee_profiles' },
+        }),
       })
     );
+    expect(queryMock.mock.calls[1]?.[0]).toContain('FOR UPDATE OF s');
     expect(queryMock.mock.calls[6]?.[0]).toContain("VALUES ($1, 'SCENARIOS'");
     expect(queryMock.mock.calls[6]?.[0]).toContain('scenario_set_id');
+    expect(queryMock.mock.calls[6]?.[0]).toContain('ON CONFLICT (fund_id, scenario_set_id)');
     expect(queryMock.mock.calls[6]?.[1]?.[7]).toBe(scenarioSetId);
     expect(queryMock.mock.calls[7]?.[0]).toContain('INSERT INTO fund_scenario_set_events');
     expect(queryMock.mock.calls[7]?.[1]).toEqual([
@@ -286,6 +365,79 @@ describe('fund scenario calculation service', () => {
     expect(result.correlationId).toBe(correlationId);
     expect(runEconomicsModelMock).not.toHaveBeenCalled();
     expect(queryMock).toHaveBeenCalledTimes(6);
+  });
+
+  it('reuses the calculation hash across publish staleness changes', async () => {
+    queryMock
+      .mockResolvedValueOnce({ rows: [{ id: 1 }] })
+      .mockResolvedValueOnce({ rows: [scenarioSetRow()] })
+      .mockResolvedValueOnce({ rows: [variantRow()] })
+      .mockResolvedValueOnce({ rows: [{ id: 12, version: 4, config: baseConfig }] })
+      .mockResolvedValueOnce({ rows: [{ version: 9 }] })
+      .mockResolvedValueOnce({
+        rows: [
+          {
+            id: 42,
+            payload: snapshotPayload(),
+            correlation_id: correlationId,
+            created_at: new Date('2026-05-26T12:05:00.000Z'),
+            snapshot_time: new Date('2026-05-26T12:05:00.000Z'),
+          },
+        ],
+      });
+
+    const result = await calculateFundScenarioSet(1, scenarioSetId);
+    const reusableLookupParams = queryMock.mock.calls[5]?.[1] as unknown[];
+
+    expect(reusableLookupParams[5]).toBe(expectedInputHash());
+    expect(result.payload.staleness.state).toBe('STALE_PUBLISH');
+    expect(result.payload.staleness.currentPublishedConfigVersion).toBe(9);
+    expect(runEconomicsModelMock).not.toHaveBeenCalled();
+  });
+
+  it('uses fee-profile overrides with the real economics engine when source configs have explicit fee tiers', async () => {
+    const actualEconomics = await vi.importActual<
+      typeof import('@shared/lib/economics/economics-engine')
+    >('@shared/lib/economics/economics-engine');
+    runEconomicsModelMock.mockImplementation(actualEconomics.runEconomicsModel);
+
+    queryMock
+      .mockResolvedValueOnce({ rows: [{ id: 1 }] })
+      .mockResolvedValueOnce({ rows: [scenarioSetRow()] })
+      .mockResolvedValueOnce({ rows: [variantRow()] })
+      .mockResolvedValueOnce({
+        rows: [
+          {
+            id: 12,
+            version: 4,
+            config: {
+              ...baseConfig,
+              fundLife: 10,
+              investmentPeriod: 5,
+              gpCommitment: 10_000_000,
+              economicsAssumptions: explicitFeeTierEconomicsAssumptions,
+            },
+          },
+        ],
+      })
+      .mockResolvedValueOnce({ rows: [{ version: 4 }] })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockImplementationOnce((_sql: string, params: unknown[]) => ({
+        rows: [
+          {
+            id: 57,
+            payload: params[1],
+            correlation_id: params[3],
+            created_at: new Date('2026-05-26T12:05:00.000Z'),
+            snapshot_time: new Date('2026-05-26T12:05:00.000Z'),
+          },
+        ],
+      }))
+      .mockResolvedValueOnce({ rows: [{ id: '00000000-0000-0000-0000-000000000126' }] });
+
+    const result = await calculateFundScenarioSet(1, scenarioSetId);
+
+    expect(result.payload.variants[0]?.economics.summary.totalManagementFees).toBe(15_000_000);
   });
 
   it('rejects calculation when the scenario set is archived', async () => {

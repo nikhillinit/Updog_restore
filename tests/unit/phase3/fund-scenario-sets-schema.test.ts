@@ -93,6 +93,8 @@ describe('ADR-022 fund scenario set schema shell', () => {
 
     expect(migration).toContain('fund_scenario_set_events_type_check');
     expect(migration).toContain("'calculated'");
+    expect(migration).toContain('fund_snapshots_scenario_set_calculation_unique');
+    expect(migration).toContain("type = 'SCENARIOS'");
   });
 
   it('Drizzle fund scenario set indexes mirror the active-row SQL migration indexes', async () => {

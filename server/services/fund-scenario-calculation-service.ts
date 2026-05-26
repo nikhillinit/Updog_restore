@@ -6,6 +6,7 @@ import {
   FundScenarioCalculationResponseV1Schema,
   type FundScenarioCalculationPayloadV1,
   type FundScenarioCalculationResponseV1,
+  type FundScenarioVariantOverrideV1,
 } from '@shared/contracts/fund-scenario-sets-v1.contract';
 import {
   FundDraftWriteV1Schema,
@@ -153,6 +154,44 @@ function responseFromSnapshot(row: SnapshotRow): FundScenarioCalculationResponse
   });
 }
 
+function withReadTimeStaleness(
+  response: FundScenarioCalculationResponseV1,
+  currentPublishedVersion: number | null
+): FundScenarioCalculationResponseV1 {
+  response.payload.staleness.state =
+    currentPublishedVersion != null &&
+    currentPublishedVersion > response.payload.sourceConfigVersion
+      ? 'STALE_PUBLISH'
+      : 'CURRENT';
+  response.payload.staleness.currentPublishedConfigVersion = currentPublishedVersion;
+  return response;
+}
+
+function applyFeeProfileOverride(
+  sourceConfig: FundDraftWriteV1,
+  override: FundScenarioVariantOverrideV1
+): FundDraftWriteV1 {
+  const economicsAssumptions = sourceConfig.economicsAssumptions;
+  const variantConfig: FundDraftWriteV1 = {
+    ...sourceConfig,
+    feeProfiles: override.payload.feeProfiles,
+  };
+
+  if (economicsAssumptions == null) {
+    return variantConfig;
+  }
+
+  return {
+    ...variantConfig,
+    economicsAssumptions: {
+      ...economicsAssumptions,
+      feeModel: {
+        source: 'legacy_fee_profiles',
+      },
+    },
+  };
+}
+
 async function findReusableScenarioSnapshot(
   client: PoolClient,
   input: {
@@ -214,8 +253,19 @@ async function persistScenarioSnapshot(
        config_version,
        scenario_set_id
      )
-     VALUES ($1, 'SCENARIOS', $2, $3, $4, $5, NOW(), $6, $7, $8)
-     RETURNING id, payload, correlation_id, created_at, snapshot_time`,
+      VALUES ($1, 'SCENARIOS', $2, $3, $4, $5, NOW(), $6, $7, $8)
+      ON CONFLICT (fund_id, scenario_set_id)
+      WHERE scenario_set_id IS NOT NULL AND type = 'SCENARIOS'
+      DO UPDATE SET
+        payload = EXCLUDED.payload,
+        calc_version = EXCLUDED.calc_version,
+        correlation_id = EXCLUDED.correlation_id,
+        metadata = EXCLUDED.metadata,
+        snapshot_time = EXCLUDED.snapshot_time,
+        config_id = EXCLUDED.config_id,
+        config_version = EXCLUDED.config_version,
+        created_at = NOW()
+      RETURNING id, payload, correlation_id, created_at, snapshot_time`,
     [
       input.fundId,
       input.payload,
@@ -249,7 +299,9 @@ export async function calculateFundScenarioSet(
 ): Promise<FundScenarioCalculationResponseV1> {
   return transaction(async (client) => {
     await verifyFundExists(client, fundId);
-    const scenarioSet = await fetchScenarioSetDetail(client, fundId, scenarioSetId);
+    const scenarioSet = await fetchScenarioSetDetail(client, fundId, scenarioSetId, {
+      forUpdate: true,
+    });
 
     if (scenarioSet.archivedAt !== null) {
       throw createHttpError(409, `Scenario set ${scenarioSetId} is archived`, {
@@ -269,7 +321,6 @@ export async function calculateFundScenarioSet(
       scenarioSetId,
       sourceConfigId: sourceConfig.id,
       sourceConfigVersion: sourceConfig.version,
-      currentPublishedVersion,
       calcVersion: FUND_SCENARIO_CALC_VERSION,
       variants: scenarioSet.variants.map((variant) => ({
         id: variant.id,
@@ -285,16 +336,13 @@ export async function calculateFundScenarioSet(
       inputHash,
     });
     if (reusableSnapshot) {
-      return reusableSnapshot;
+      return withReadTimeStaleness(reusableSnapshot, currentPublishedVersion);
     }
 
     const startedAt = performance.now();
     const variants = scenarioSet.variants.map((variant) => {
       assertWithinSyncDeadline(startedAt);
-      const variantConfig: FundDraftWriteV1 = {
-        ...sourceConfigBody,
-        feeProfiles: variant.override.payload.feeProfiles,
-      };
+      const variantConfig = applyFeeProfileOverride(sourceConfigBody, variant.override);
       const economics = runEconomicsModel(variantConfig);
       assertWithinSyncDeadline(startedAt);
 
@@ -383,14 +431,6 @@ export async function getScenarioResults(
     const response = responseFromSnapshot(snapshot);
 
     const currentPublishedVersion = await loadCurrentPublishedVersion(client, fundId);
-    if (
-      currentPublishedVersion != null &&
-      currentPublishedVersion > response.payload.sourceConfigVersion
-    ) {
-      response.payload.staleness.state = 'STALE_PUBLISH';
-      response.payload.staleness.currentPublishedConfigVersion = currentPublishedVersion;
-    }
-
-    return response;
+    return withReadTimeStaleness(response, currentPublishedVersion);
   });
 }
