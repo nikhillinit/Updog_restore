@@ -6,6 +6,8 @@
  */
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { createSandbox } from '../../setup/test-infrastructure';
 import { db } from '../../../server/db';
 import { fundStateReadService } from '../../../server/services/fund-state-read-service';
@@ -39,6 +41,37 @@ vi.mock('@shared/flags/getFlag', () => ({
 
 const mockDb = vi.mocked(db);
 const mockFundState = vi.mocked(fundStateReadService);
+const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../..');
+const authoritativeReaderFilter = 'isNull(fundSnapshots.scenarioSetId)';
+const authoritativeWriterClassification =
+  'ADR-022: authoritative-only writer. scenario_set_id intentionally omitted (defaults to NULL).';
+const authoritativeReadContracts = [
+  ['server/routes/fund-config.ts', 1],
+  ['server/services/calc-run-tracking.ts', 1],
+  ['server/services/fund-persistence-service.ts', 1],
+  ['server/services/fund-results-comparison-service.ts', 2],
+  ['server/services/fund-results-read-service.ts', 5],
+  ['server/services/fund-state-read-service.ts', 1],
+  ['server/services/time-travel-analytics.ts', 3],
+  ['server/services/variance-tracking/baseline-service.ts', 4],
+  ['server/services/variance-tracking/calculation-service.ts', 2],
+] as const;
+const authoritativeWriterContracts = [
+  'server/services/economics-calculation-service.ts',
+  'server/services/monte-carlo-simulation.ts',
+  'server/services/pacing-calculation-service.ts',
+  'server/services/reserve-calculation-service.ts',
+  'server/services/reserve-optimization-calculator.ts',
+] as const;
+
+async function readRepoFile(relativePath: string): Promise<string> {
+  const { readFile } = await import('node:fs/promises');
+  return readFile(path.join(repoRoot, relativePath), 'utf8');
+}
+
+function countOccurrences(source: string, token: string): number {
+  return source.split(token).length - 1;
+}
 
 function readyLifecycle(publishedVersion: number, legacyEvidence = false) {
   return {
@@ -164,5 +197,29 @@ describe('ADR-022: Scenario Isolation', () => {
     const { fundSnapshots } = await import('@shared/schema');
     expect(fundSnapshots.scenarioSetId).toBeDefined();
     expect(fundSnapshots.scenarioSetId.name).toBe('scenario_set_id');
+  });
+
+  it('migration creates authoritative and scenario isolation indexes', async () => {
+    const migration = await readRepoFile('server/db/migrations/0012_scenario_set_id.sql');
+
+    expect(migration.includes('ADD COLUMN IF NOT EXISTS scenario_set_id UUID NULL')).toBe(true);
+    expect(migration.includes('idx_fund_snapshots_authoritative')).toBe(true);
+    expect(migration.includes('WHERE scenario_set_id IS NULL')).toBe(true);
+    expect(migration.includes('idx_fund_snapshots_scenario_set')).toBe(true);
+    expect(migration.includes('WHERE scenario_set_id IS NOT NULL')).toBe(true);
+  });
+
+  it('source-level contract keeps every authoritative reader scenario-isolated', async () => {
+    for (const [relativePath, expectedCount] of authoritativeReadContracts) {
+      const source = await readRepoFile(relativePath);
+      expect(countOccurrences(source, authoritativeReaderFilter), relativePath).toBe(expectedCount);
+    }
+  });
+
+  it('source-level contract keeps authoritative writers null-classified', async () => {
+    for (const relativePath of authoritativeWriterContracts) {
+      const source = await readRepoFile(relativePath);
+      expect(source.includes(authoritativeWriterClassification), relativePath).toBe(true);
+    }
   });
 });

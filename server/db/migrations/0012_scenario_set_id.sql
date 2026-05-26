@@ -8,7 +8,7 @@ BEGIN;
 ALTER TABLE fund_snapshots ADD COLUMN IF NOT EXISTS scenario_set_id UUID NULL;
 
 CREATE INDEX IF NOT EXISTS idx_fund_snapshots_authoritative
-  ON fund_snapshots(fund_id, type, config_version, snapshot_time DESC)
+  ON fund_snapshots(fund_id, type, config_version, created_at DESC)
   WHERE scenario_set_id IS NULL;
 
 CREATE INDEX IF NOT EXISTS idx_fund_snapshots_scenario_set
