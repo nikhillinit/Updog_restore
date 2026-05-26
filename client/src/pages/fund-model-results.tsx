@@ -24,6 +24,7 @@ import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import { ScenarioSetsSummary } from '@/components/fund-results';
 import { EvidenceHeader, type EvidenceHeaderLifecycle } from '@/components/results/EvidenceHeader';
 import { QuarterlyReviewTrace } from '@/features/analytics-parity/QuarterlyReviewTrace';
 import { cn } from '@/lib/utils';
@@ -33,6 +34,7 @@ import type {
   WaterfallSetupSection,
 } from '@shared/contracts/fund-results-v1.contract';
 import type { EconomicsResultV1 } from '@shared/contracts/economics-v1.contract';
+import type { ScenariosSectionPayloadV1 } from '@shared/contracts/fund-scenario-sets-v1.contract';
 import type { FundStateReadV1 } from '@shared/contracts/fund-state-read-v1.contract';
 import type { FundLifecycleHistoryV1 } from '@shared/contracts/fund-lifecycle-history-v1.contract';
 import type {
@@ -456,6 +458,9 @@ const REASON_COPY: Record<string, string> = {
   STALE_EVIDENCE: 'A newer configuration was published. Request recalculation to update.',
   INVALID_PUBLISHED_CONFIG: 'The published configuration has validation issues.',
   NO_AUTHORITATIVE_SOURCE: 'This section is not yet available for your fund.',
+  SCENARIOS_NONE_EXIST: 'Create a scenario set to compare alternate fund economics.',
+  SCENARIOS_NONE_CALCULATED: 'Calculate a scenario set to show scenario results here.',
+  SCENARIOS_LOAD_FAILED: 'Scenario results could not be loaded.',
   ECONOMICS_DISABLED: 'GP economics is currently disabled for this environment.',
   ECONOMICS_NOT_CONFIGURED: 'Publish economics assumptions to see GP economics.',
   ECONOMICS_SNAPSHOT_PENDING: 'Economics is configured and waiting for a calculation snapshot.',
@@ -1686,7 +1691,11 @@ function FundModelResultsPage() {
 
       {/* Scenarios section */}
       <FadeInSection>
-        <SectionRenderer title="Scenario Analysis" section={results.sections.scenarios} />
+        <SectionRenderer
+          title="Scenario Analysis"
+          section={results.sections.scenarios}
+          renderPayload={(p) => <ScenarioSetsSummary payload={p as ScenariosSectionPayloadV1} />}
+        />
       </FadeInSection>
 
       {/* Waterfall section */}

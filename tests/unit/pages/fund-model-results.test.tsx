@@ -234,6 +234,20 @@ describe('FundModelResultsPage (server-backed)', () => {
     expect(screen.getByText('Waterfall and Carry')).toBeInTheDocument();
   });
 
+  it('renders scenario set summaries when scenario results are available', async () => {
+    const resp = readyResponse();
+    resp.sections.scenarios = validScenariosSection();
+    mockFundPageFetches({ results: resp });
+    await renderPage('/fund-model-results/123');
+
+    await waitFor(() => {
+      expect(screen.getByText('Scenario Analysis')).toBeInTheDocument();
+    });
+    expect(screen.getByTestId('scenario-sets-summary')).toBeInTheDocument();
+    expect(screen.getByText('Fee sensitivity')).toBeInTheDocument();
+    expect(screen.getByText('2.10x')).toBeInTheDocument();
+  });
+
   // -- Unavailable sections --
 
   it('renders overview section with typed scorecard facts', async () => {
@@ -254,9 +268,10 @@ describe('FundModelResultsPage (server-backed)', () => {
     await renderPage('/fund-model-results/123');
 
     await waitFor(() => {
-      // scenarios and waterfall show the raw reason text
-      const matches = screen.getAllByText(/No authoritative source/i);
-      expect(matches.length).toBeGreaterThanOrEqual(2);
+      expect(
+        screen.getByText(/Create a scenario set to compare alternate fund economics/i)
+      ).toBeInTheDocument();
+      expect(screen.getByText(/No authoritative source/i)).toBeInTheDocument();
     });
   });
 
@@ -385,7 +400,11 @@ describe('FundModelResultsPage (server-backed)', () => {
             reason: 'Calculations have not produced results yet',
             reasonCode: 'CALCULATION_PENDING',
           },
-          scenarios: { status: 'unavailable', reason: 'No authoritative source' },
+          scenarios: {
+            status: 'unavailable',
+            reason: 'No scenario sets exist for this fund',
+            reasonCode: 'SCENARIOS_NONE_EXIST',
+          },
           waterfall: { status: 'unavailable', reason: 'No authoritative source' },
           economics: {
             status: 'pending',
@@ -1218,7 +1237,11 @@ function readyResponse() {
           lastCalculatedAt: { value: '2026-03-20T12:30:00.000Z', source: 'fund_state' },
         },
       },
-      scenarios: { status: 'unavailable' as const, reason: 'No authoritative source' },
+      scenarios: {
+        status: 'unavailable' as const,
+        reason: 'No scenario sets exist for this fund',
+        reasonCode: 'SCENARIOS_NONE_EXIST' as const,
+      },
       waterfall: { status: 'unavailable' as const, reason: 'No authoritative source' },
       economics: {
         status: 'unavailable' as const,
@@ -1288,6 +1311,56 @@ function validEconomicsSection() {
         tolerance: 0.01,
         errors: [],
       },
+    },
+  };
+}
+
+function validScenariosSection() {
+  return {
+    status: 'available' as const,
+    source: 'fund_snapshots' as const,
+    calculatedAt: '2026-05-26T12:30:00.000Z',
+    payload: {
+      version: 'fund-scenarios-v1' as const,
+      aggregateStaleness: 'CURRENT' as const,
+      sets: [
+        {
+          scenarioSetId: '00000000-0000-0000-0000-000000000111',
+          name: 'Fee sensitivity',
+          sourceConfigId: 12,
+          sourceConfigVersion: 4,
+          calculatedAt: '2026-05-26T12:30:00.000Z',
+          staleness: 'CURRENT' as const,
+          variantCount: 1,
+          variants: [
+            {
+              variantId: '00000000-0000-0000-0000-000000000112',
+              name: 'Lower fee',
+              overrideType: 'fee_profile' as const,
+              economicsSummary: {
+                grossIrr: 0.2,
+                lpNetIrr: 0.15,
+                gpNetIrr: null,
+                totalLpPaidIn: 9_800_000,
+                totalGpCommitmentCalled: 200_000,
+                totalManagementFees: 2_000_000,
+                totalExpenses: 0,
+                totalRecycled: 0,
+                totalLpDistributions: 14_000_000,
+                totalGpInvestmentDistributions: 300_000,
+                totalGpCarryDistributed: 500_000,
+                totalGpFeeIncome: 2_000_000,
+                finalDpi: 0.6,
+                finalRvpi: 0.8,
+                finalTvpi: 2.1,
+                finalClawbackDue: 0,
+                maxEscrowAvailable: 0,
+                netGpCarryAfterClawback: 500_000,
+              },
+            },
+          ],
+        },
+      ],
     },
   };
 }

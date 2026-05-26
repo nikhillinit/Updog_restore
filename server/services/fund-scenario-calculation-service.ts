@@ -4,9 +4,12 @@ import { transaction } from '../db/pg-circuit.js';
 import {
   FundScenarioCalculationPayloadV1Schema,
   FundScenarioCalculationResponseV1Schema,
+  ScenarioSetResultSummaryV1Schema,
   type FundScenarioCalculationPayloadV1,
   type FundScenarioCalculationResponseV1,
+  type FundScenarioResultStalenessStateV1,
   type FundScenarioVariantOverrideV1,
+  type ScenarioSetResultSummaryV1,
 } from '@shared/contracts/fund-scenario-sets-v1.contract';
 import {
   FundDraftWriteV1Schema,
@@ -18,6 +21,7 @@ import {
   fetchScenarioSetDetail,
   insertScenarioSetEvent,
   normalizeActor,
+  parseCount,
   verifyFundExists,
   type FundScenarioMutationActor,
 } from './fund-scenario-set-service.js';
@@ -43,12 +47,82 @@ interface SnapshotRow {
   snapshot_time: Date | string | null;
 }
 
+interface AllScenarioResultsRow {
+  scenario_set_id: string;
+  scenario_set_name: string;
+  source_config_id: number;
+  source_config_version: number;
+  variant_count: string | number;
+  snapshot_payload: unknown | null;
+}
+
+export type AllScenarioResultsForFund =
+  | { kind: 'none_exist' }
+  | { kind: 'none_calculated'; scenarioSetCount: number }
+  | { kind: 'calculated'; sets: ScenarioSetResultSummaryV1[] };
+
+const STALENESS_ORDER: Record<FundScenarioResultStalenessStateV1, number> = {
+  CURRENT: 0,
+  STALE_PUBLISH: 1,
+  STALE_CONFIG: 2,
+};
+
 function parseJsonPayload(value: unknown): unknown {
   if (typeof value !== 'string') {
     return value;
   }
 
   return JSON.parse(value) as unknown;
+}
+
+function applyScenarioReadStaleness(
+  payload: FundScenarioCalculationPayloadV1,
+  currentPublishedVersion: number | null
+): FundScenarioResultStalenessStateV1 {
+  if (payload.staleness.state === 'STALE_CONFIG') {
+    return 'STALE_CONFIG';
+  }
+
+  if (currentPublishedVersion != null && currentPublishedVersion > payload.sourceConfigVersion) {
+    return 'STALE_PUBLISH';
+  }
+
+  return 'CURRENT';
+}
+
+function mapScenarioResultSummary(
+  row: AllScenarioResultsRow,
+  currentPublishedVersion: number | null
+): ScenarioSetResultSummaryV1 {
+  const payload = FundScenarioCalculationPayloadV1Schema.parse(
+    parseJsonPayload(row.snapshot_payload)
+  );
+  const staleness = applyScenarioReadStaleness(payload, currentPublishedVersion);
+
+  return ScenarioSetResultSummaryV1Schema.parse({
+    scenarioSetId: row.scenario_set_id,
+    name: row.scenario_set_name,
+    sourceConfigId: row.source_config_id,
+    sourceConfigVersion: row.source_config_version,
+    calculatedAt: payload.calculatedAt,
+    staleness,
+    variantCount: parseCount(row.variant_count),
+    variants: payload.variants.map((variant) => ({
+      variantId: variant.variantId,
+      name: variant.name,
+      overrideType: variant.overrideType,
+      economicsSummary: variant.economics.summary,
+    })),
+  });
+}
+
+export function worstScenarioStaleness(
+  states: FundScenarioResultStalenessStateV1[]
+): FundScenarioResultStalenessStateV1 {
+  return states.reduce<FundScenarioResultStalenessStateV1>(
+    (worst, state) => (STALENESS_ORDER[state] > STALENESS_ORDER[worst] ? state : worst),
+    'CURRENT'
+  );
 }
 
 function createInputHash(input: unknown): string {
@@ -158,11 +232,10 @@ function withReadTimeStaleness(
   response: FundScenarioCalculationResponseV1,
   currentPublishedVersion: number | null
 ): FundScenarioCalculationResponseV1 {
-  response.payload.staleness.state =
-    currentPublishedVersion != null &&
-    currentPublishedVersion > response.payload.sourceConfigVersion
-      ? 'STALE_PUBLISH'
-      : 'CURRENT';
+  response.payload.staleness.state = applyScenarioReadStaleness(
+    response.payload,
+    currentPublishedVersion
+  );
   response.payload.staleness.currentPublishedConfigVersion = currentPublishedVersion;
   return response;
 }
@@ -432,5 +505,58 @@ export async function getScenarioResults(
 
     const currentPublishedVersion = await loadCurrentPublishedVersion(client, fundId);
     return withReadTimeStaleness(response, currentPublishedVersion);
+  });
+}
+
+export async function getAllScenarioResultsForFund(
+  fundId: number
+): Promise<AllScenarioResultsForFund> {
+  return transaction(async (client) => {
+    await verifyFundExists(client, fundId);
+    const currentPublishedVersion = await loadCurrentPublishedVersion(client, fundId);
+
+    const result = await client.query<AllScenarioResultsRow>(
+      `SELECT
+         s.id AS scenario_set_id,
+         s.name AS scenario_set_name,
+         s.source_config_id,
+         s.source_config_version,
+         vc.variant_count,
+         latest.payload AS snapshot_payload
+       FROM fund_scenario_sets s
+       JOIN LATERAL (
+         SELECT COUNT(*)::int AS variant_count
+           FROM fund_scenario_variants v
+          WHERE v.scenario_set_id = s.id
+       ) vc ON TRUE
+       LEFT JOIN LATERAL (
+         -- ADR-022 scenario-aware: reads scenario fund_snapshots rows for fund-results scenarios.
+         SELECT fs.payload
+           FROM fund_snapshots fs
+          WHERE fs.fund_id = s.fund_id
+            AND fs.scenario_set_id = s.id
+            AND fs.type = 'SCENARIOS'
+          ORDER BY fs.created_at DESC
+          LIMIT 1
+       ) latest ON TRUE
+      WHERE s.fund_id = $1
+        AND s.archived_at IS NULL
+      ORDER BY s.updated_at DESC, s.id DESC`,
+      [fundId]
+    );
+
+    if (result.rows.length === 0) {
+      return { kind: 'none_exist' };
+    }
+
+    const calculatedRows = result.rows.filter((row) => row.snapshot_payload !== null);
+    if (calculatedRows.length === 0) {
+      return { kind: 'none_calculated', scenarioSetCount: result.rows.length };
+    }
+
+    return {
+      kind: 'calculated',
+      sets: calculatedRows.map((row) => mapScenarioResultSummary(row, currentPublishedVersion)),
+    };
   });
 }

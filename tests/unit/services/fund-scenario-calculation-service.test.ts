@@ -23,6 +23,7 @@ vi.mock('@shared/lib/economics/economics-engine', async () => {
 
 import {
   calculateFundScenarioSet,
+  getAllScenarioResultsForFund,
   getScenarioResults,
 } from '../../../server/services/fund-scenario-calculation-service';
 import type { FundScenarioCalculationPayloadV1 } from '../../../shared/contracts/fund-scenario-sets-v1.contract';
@@ -549,5 +550,152 @@ describe('fund scenario calculation service', () => {
     expect(result).not.toBeNull();
     expect(result!.payload.staleness.state).toBe('STALE_PUBLISH');
     expect(result!.payload.staleness.currentPublishedConfigVersion).toBe(9);
+  });
+
+  it('getScenarioResults preserves STALE_CONFIG over publish staleness', async () => {
+    const payload = snapshotPayload();
+    payload.staleness.state = 'STALE_CONFIG';
+
+    queryMock
+      .mockResolvedValueOnce({ rows: [{ id: 1 }] })
+      .mockResolvedValueOnce({ rows: [scenarioSetRow()] })
+      .mockResolvedValueOnce({ rows: [variantRow()] })
+      .mockResolvedValueOnce({
+        rows: [
+          {
+            id: 42,
+            payload,
+            correlation_id: correlationId,
+            created_at: new Date('2026-05-26T12:05:00.000Z'),
+            snapshot_time: new Date('2026-05-26T12:05:00.000Z'),
+          },
+        ],
+      })
+      .mockResolvedValueOnce({ rows: [{ version: 9 }] });
+
+    const result = await getScenarioResults(1, scenarioSetId);
+
+    expect(result).not.toBeNull();
+    expect(result!.payload.staleness.state).toBe('STALE_CONFIG');
+    expect(result!.payload.staleness.currentPublishedConfigVersion).toBe(9);
+  });
+
+  it('getAllScenarioResultsForFund returns none_exist when no active scenario sets exist', async () => {
+    queryMock
+      .mockResolvedValueOnce({ rows: [{ id: 1 }] })
+      .mockResolvedValueOnce({ rows: [{ version: 4 }] })
+      .mockResolvedValueOnce({ rows: [] });
+
+    const result = await getAllScenarioResultsForFund(1);
+
+    expect(result).toEqual({ kind: 'none_exist' });
+    expect(queryMock.mock.calls[2]?.[0]).toContain('JOIN LATERAL');
+    expect(queryMock.mock.calls[2]?.[0]).toContain('ADR-022 scenario-aware');
+  });
+
+  it('getAllScenarioResultsForFund returns none_calculated when sets have no snapshots', async () => {
+    queryMock
+      .mockResolvedValueOnce({ rows: [{ id: 1 }] })
+      .mockResolvedValueOnce({ rows: [{ version: 4 }] })
+      .mockResolvedValueOnce({
+        rows: [
+          {
+            scenario_set_id: scenarioSetId,
+            scenario_set_name: 'Fee sensitivity',
+            source_config_id: 12,
+            source_config_version: 4,
+            variant_count: '1',
+            snapshot_payload: null,
+          },
+        ],
+      });
+
+    const result = await getAllScenarioResultsForFund(1);
+
+    expect(result).toEqual({ kind: 'none_calculated', scenarioSetCount: 1 });
+  });
+
+  it('getAllScenarioResultsForFund returns summary-only calculated scenario sets', async () => {
+    queryMock
+      .mockResolvedValueOnce({ rows: [{ id: 1 }] })
+      .mockResolvedValueOnce({ rows: [{ version: 7 }] })
+      .mockResolvedValueOnce({
+        rows: [
+          {
+            scenario_set_id: scenarioSetId,
+            scenario_set_name: 'Fee sensitivity',
+            source_config_id: 12,
+            source_config_version: 4,
+            variant_count: '1',
+            snapshot_payload: snapshotPayload(),
+          },
+        ],
+      });
+
+    const result = await getAllScenarioResultsForFund(1);
+
+    expect(result.kind).toBe('calculated');
+    if (result.kind === 'calculated') {
+      expect(result.sets).toHaveLength(1);
+      expect(result.sets[0]?.staleness).toBe('STALE_PUBLISH');
+      expect(result.sets[0]?.variants[0]).toEqual({
+        variantId,
+        name: 'Lower fee',
+        overrideType: 'fee_profile',
+        economicsSummary: economicsResult.summary,
+      });
+      expect(result.sets[0]?.variants[0]).not.toHaveProperty('economics');
+    }
+  });
+
+  it('getAllScenarioResultsForFund preserves STALE_CONFIG as worst read staleness', async () => {
+    const payload = snapshotPayload();
+    payload.staleness.state = 'STALE_CONFIG';
+
+    queryMock
+      .mockResolvedValueOnce({ rows: [{ id: 1 }] })
+      .mockResolvedValueOnce({ rows: [{ version: 7 }] })
+      .mockResolvedValueOnce({
+        rows: [
+          {
+            scenario_set_id: scenarioSetId,
+            scenario_set_name: 'Fee sensitivity',
+            source_config_id: 12,
+            source_config_version: 4,
+            variant_count: '1',
+            snapshot_payload: payload,
+          },
+        ],
+      });
+
+    const result = await getAllScenarioResultsForFund(1);
+
+    expect(result.kind).toBe('calculated');
+    if (result.kind === 'calculated') {
+      expect(result.sets[0]?.staleness).toBe('STALE_CONFIG');
+    }
+  });
+
+  it('getAllScenarioResultsForFund rejects malformed scenario snapshots', async () => {
+    queryMock
+      .mockResolvedValueOnce({ rows: [{ id: 1 }] })
+      .mockResolvedValueOnce({ rows: [{ version: 4 }] })
+      .mockResolvedValueOnce({
+        rows: [
+          {
+            scenario_set_id: scenarioSetId,
+            scenario_set_name: 'Fee sensitivity',
+            source_config_id: 12,
+            source_config_version: 4,
+            variant_count: '1',
+            snapshot_payload: {
+              version: 'fund-scenarios-v1',
+              variants: [],
+            },
+          },
+        ],
+      });
+
+    await expect(getAllScenarioResultsForFund(1)).rejects.toThrow();
   });
 });

@@ -13,6 +13,19 @@ import { db } from '../../../server/db';
 import { fundStateReadService } from '../../../server/services/fund-state-read-service';
 import { fundResultsReadService } from '../../../server/services/fund-results-read-service';
 
+const scenarioCalculationServiceMocks = vi.hoisted(() => ({
+  getAllScenarioResultsForFund: vi.fn(),
+  worstScenarioStaleness: vi.fn((states: string[]) => {
+    if (states.includes('STALE_CONFIG')) {
+      return 'STALE_CONFIG';
+    }
+    if (states.includes('STALE_PUBLISH')) {
+      return 'STALE_PUBLISH';
+    }
+    return 'CURRENT';
+  }),
+}));
+
 vi.mock('../../../server/db', () => ({
   db: {
     query: {
@@ -33,6 +46,11 @@ vi.mock('../../../server/services/fund-state-read-service', () => ({
   fundStateReadService: {
     getState: vi.fn(),
   },
+}));
+
+vi.mock('../../../server/services/fund-scenario-calculation-service', () => ({
+  getAllScenarioResultsForFund: scenarioCalculationServiceMocks.getAllScenarioResultsForFund,
+  worstScenarioStaleness: scenarioCalculationServiceMocks.worstScenarioStaleness,
 }));
 
 vi.mock('@shared/flags/getFlag', () => ({
@@ -143,6 +161,21 @@ describe('ADR-022: Scenario Isolation', () => {
     sandbox = createSandbox();
     vi.resetAllMocks();
 
+    scenarioCalculationServiceMocks.getAllScenarioResultsForFund.mockResolvedValue({
+      kind: 'none_exist',
+    });
+    scenarioCalculationServiceMocks.worstScenarioStaleness.mockImplementation(
+      (states: string[]) => {
+        if (states.includes('STALE_CONFIG')) {
+          return 'STALE_CONFIG';
+        }
+        if (states.includes('STALE_PUBLISH')) {
+          return 'STALE_PUBLISH';
+        }
+        return 'CURRENT';
+      }
+    );
+
     mockDb.query.funds.findFirst.mockResolvedValue({
       id: 1,
       name: 'Test Fund',
@@ -167,15 +200,17 @@ describe('ADR-022: Scenario Isolation', () => {
     expect(result?.sections.pacing.status).not.toBe('available');
   });
 
-  it('scenarios section remains unavailable until scenario infrastructure ships', async () => {
+  it('reports no scenario sets when no scenario sets exist', async () => {
     mockDb.query.fundSnapshots.findFirst.mockResolvedValue(null as never);
 
     const result = await fundResultsReadService.getResults(1);
 
     expect(result?.sections.scenarios).toMatchObject({
       status: 'unavailable',
-      reason: 'No authoritative source',
+      reason: 'No scenario sets exist for this fund',
+      reasonCode: 'SCENARIOS_NONE_EXIST',
     });
+    expect(scenarioCalculationServiceMocks.getAllScenarioResultsForFund).toHaveBeenCalledWith(1);
   });
 
   it('filters every authoritative snapshot query to scenarioSetId null', async () => {
