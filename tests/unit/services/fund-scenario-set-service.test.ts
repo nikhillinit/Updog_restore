@@ -40,24 +40,8 @@ const feeProfileOverride = {
   },
 } as const;
 
-function stableStringify(value: unknown): string {
-  if (typeof value !== 'object' || value === null) {
-    return JSON.stringify(value);
-  }
-
-  if (Array.isArray(value)) {
-    return `[${value.map(stableStringify).join(',')}]`;
-  }
-
-  const record = value as Record<string, unknown>;
-  return `{${Object.keys(record)
-    .sort()
-    .map((key) => `${JSON.stringify(key)}:${stableStringify(record[key])}`)
-    .join(',')}}`;
-}
-
 function createRequestHash(fundId: number, input: Record<string, unknown>): string {
-  return crypto.createHash('sha256').update(stableStringify({ fundId, input })).digest('hex');
+  return crypto.createHash('sha256').update(JSON.stringify({ fundId, input })).digest('hex');
 }
 
 function scenarioSetRow(overrides: Partial<Record<string, unknown>> = {}) {

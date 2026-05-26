@@ -125,28 +125,8 @@ function parseCount(value: string | number | undefined): number {
   return 0;
 }
 
-function sortJsonValue(value: unknown): unknown {
-  if (Array.isArray(value)) {
-    return value.map(sortJsonValue);
-  }
-
-  if (typeof value !== 'object' || value === null) {
-    return value;
-  }
-
-  const record = value as Record<string, unknown>;
-  return Object.fromEntries(
-    Object.keys(record)
-      .sort()
-      .map((key) => [key, sortJsonValue(record[key])])
-  );
-}
-
 function createIdempotencyRequestHash(fundId: number, input: CreateFundScenarioSetV1): string {
-  return crypto
-    .createHash('sha256')
-    .update(JSON.stringify(sortJsonValue({ fundId, input })))
-    .digest('hex');
+  return crypto.createHash('sha256').update(JSON.stringify({ fundId, input })).digest('hex');
 }
 
 function normalizeIdempotencyKey(value: string | null | undefined): string | null {
