@@ -18,6 +18,8 @@ CREATE TABLE IF NOT EXISTS fund_scenario_sets (
   archived_at TIMESTAMPTZ,
   archived_by_user_id INTEGER REFERENCES users(id),
   archived_by_label TEXT,
+  idempotency_key VARCHAR(128),
+  idempotency_request_hash TEXT,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   CONSTRAINT fund_scenario_sets_source_config_version_positive
@@ -31,6 +33,10 @@ CREATE INDEX IF NOT EXISTS fund_scenario_sets_fund_active_updated_idx
 CREATE UNIQUE INDEX IF NOT EXISTS fund_scenario_sets_fund_name_active_unique
   ON fund_scenario_sets(fund_id, lower(name))
   WHERE archived_at IS NULL;
+
+CREATE UNIQUE INDEX IF NOT EXISTS fund_scenario_sets_fund_idempotency_unique
+  ON fund_scenario_sets(fund_id, idempotency_key)
+  WHERE idempotency_key IS NOT NULL;
 
 CREATE TABLE IF NOT EXISTS fund_scenario_variants (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),

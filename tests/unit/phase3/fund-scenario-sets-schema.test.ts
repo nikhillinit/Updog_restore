@@ -36,6 +36,9 @@ describe('ADR-022 fund scenario set schema shell', () => {
     expect(migration).toContain('archived_at TIMESTAMPTZ');
     expect(migration).toContain("CHECK (override_type IN ('fee_profile'))");
     expect(migration).toContain('fund_scenario_sets_fund_active_updated_idx');
+    expect(migration).toContain('idempotency_key VARCHAR(128)');
+    expect(migration).toContain('idempotency_request_hash TEXT');
+    expect(migration).toContain('fund_scenario_sets_fund_idempotency_unique');
     expect(migration).toContain('fund_scenario_variants_set_order_unique');
   });
 });

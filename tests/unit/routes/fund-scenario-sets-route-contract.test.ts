@@ -15,6 +15,7 @@ describe('fund scenario set route contract', () => {
 
     expect((source.match(/requireAuth\(\)/g) ?? []).length).toBe(4);
     expect((source.match(/requireFundAccess/g) ?? []).length).toBe(5);
+    expect(source).toContain('getIdempotencyKey(req)');
     expect(source).toContain('/funds/:fundId/scenario-sets');
     expect(source).toContain('/funds/:fundId/scenario-sets/:scenarioSetId/archive');
   });

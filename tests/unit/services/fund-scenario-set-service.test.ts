@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import crypto from 'node:crypto';
 
 const { transactionMock, queryMock } = vi.hoisted(() => ({
   transactionMock: vi.fn(),
@@ -38,6 +39,26 @@ const feeProfileOverride = {
     ],
   },
 } as const;
+
+function stableStringify(value: unknown): string {
+  if (typeof value !== 'object' || value === null) {
+    return JSON.stringify(value);
+  }
+
+  if (Array.isArray(value)) {
+    return `[${value.map(stableStringify).join(',')}]`;
+  }
+
+  const record = value as Record<string, unknown>;
+  return `{${Object.keys(record)
+    .sort()
+    .map((key) => `${JSON.stringify(key)}:${stableStringify(record[key])}`)
+    .join(',')}}`;
+}
+
+function createRequestHash(fundId: number, input: Record<string, unknown>): string {
+  return crypto.createHash('sha256').update(stableStringify({ fundId, input })).digest('hex');
+}
 
 function scenarioSetRow(overrides: Partial<Record<string, unknown>> = {}) {
   return {
@@ -142,6 +163,8 @@ describe('fund scenario set persistence shell', () => {
       'analyst@example.com',
       17,
       'analyst@example.com',
+      null,
+      null,
     ]);
     expect(queryMock.mock.calls[4]?.[0]).toContain('INSERT INTO fund_scenario_variants');
     expect(queryMock.mock.calls[5]?.[0]).toContain('INSERT INTO fund_scenario_set_events');
@@ -177,6 +200,163 @@ describe('fund scenario set persistence shell', () => {
     ).rejects.toMatchObject({
       statusCode: 409,
       code: 'max_scenario_sets',
+    });
+  });
+
+  it('locks the fund row before checking the active scenario set cap', async () => {
+    queryMock
+      .mockResolvedValueOnce({ rows: [{ id: 1 }] })
+      .mockResolvedValueOnce({ rows: [{ id: 12, version: 4 }] })
+      .mockResolvedValueOnce({ rows: [{ active_count: '2' }] })
+      .mockResolvedValueOnce({ rows: [scenarioSetRow()] })
+      .mockResolvedValueOnce({ rows: [variantRow()] })
+      .mockResolvedValueOnce({ rows: [{ id: '00000000-0000-0000-0000-000000000113' }] })
+      .mockResolvedValueOnce({ rows: [scenarioSetRow()] })
+      .mockResolvedValueOnce({ rows: [variantRow()] });
+
+    await createFundScenarioSet(
+      1,
+      {
+        name: 'Fee sensitivity',
+        variants: [{ name: 'Lower fee', override: feeProfileOverride }],
+      },
+      { userId: 17, label: 'analyst@example.com' }
+    );
+
+    expect(queryMock.mock.calls[0]?.[0]).toContain('FOR UPDATE');
+    expect(queryMock.mock.calls[2]?.[0]).toContain('COUNT(*)::int AS active_count');
+  });
+
+  it('maps duplicate active scenario set names to a conflict', async () => {
+    const duplicateNameError = Object.assign(
+      new Error('duplicate key value violates unique constraint'),
+      {
+        code: '23505',
+        constraint: 'fund_scenario_sets_fund_name_active_unique',
+      }
+    );
+
+    queryMock
+      .mockResolvedValueOnce({ rows: [{ id: 1 }] })
+      .mockResolvedValueOnce({ rows: [{ id: 12, version: 4 }] })
+      .mockResolvedValueOnce({ rows: [{ active_count: '2' }] })
+      .mockRejectedValueOnce(duplicateNameError);
+
+    await expect(
+      createFundScenarioSet(
+        1,
+        {
+          name: 'Fee sensitivity',
+          variants: [{ name: 'Lower fee', override: feeProfileOverride }],
+        },
+        { userId: 17, label: 'analyst@example.com' }
+      )
+    ).rejects.toMatchObject({
+      statusCode: 409,
+      code: 'duplicate_scenario_set_name',
+    });
+  });
+
+  it('persists an idempotency key and request hash when creating a scenario set', async () => {
+    const input = {
+      name: 'Fee sensitivity',
+      variants: [{ name: 'Lower fee', override: feeProfileOverride }],
+    };
+    const expectedHash = createRequestHash(1, input);
+
+    queryMock
+      .mockResolvedValueOnce({ rows: [{ id: 1 }] })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [{ id: 12, version: 4 }] })
+      .mockResolvedValueOnce({ rows: [{ active_count: '2' }] })
+      .mockResolvedValueOnce({ rows: [scenarioSetRow()] })
+      .mockResolvedValueOnce({ rows: [variantRow()] })
+      .mockResolvedValueOnce({ rows: [{ id: '00000000-0000-0000-0000-000000000113' }] })
+      .mockResolvedValueOnce({ rows: [scenarioSetRow()] })
+      .mockResolvedValueOnce({ rows: [variantRow()] });
+
+    await createFundScenarioSet(
+      1,
+      input,
+      { userId: 17, label: 'analyst@example.com' },
+      {
+        idempotencyKey: 'scenario-create-1',
+      }
+    );
+
+    expect(queryMock.mock.calls[1]?.[0]).toContain('idempotency_key = $2');
+    expect(queryMock.mock.calls[4]?.[0]).toContain('idempotency_key');
+    expect(queryMock.mock.calls[4]?.[1]).toEqual([
+      1,
+      'Fee sensitivity',
+      null,
+      12,
+      4,
+      17,
+      'analyst@example.com',
+      17,
+      'analyst@example.com',
+      'scenario-create-1',
+      expectedHash,
+    ]);
+  });
+
+  it('replays an existing scenario set for the same idempotency key and payload', async () => {
+    const input = {
+      name: 'Fee sensitivity',
+      variants: [{ name: 'Lower fee', override: feeProfileOverride }],
+    };
+
+    queryMock
+      .mockResolvedValueOnce({ rows: [{ id: 1 }] })
+      .mockResolvedValueOnce({
+        rows: [
+          scenarioSetRow({
+            idempotency_key: 'scenario-create-1',
+            idempotency_request_hash: createRequestHash(1, input),
+          }),
+        ],
+      })
+      .mockResolvedValueOnce({ rows: [scenarioSetRow()] })
+      .mockResolvedValueOnce({ rows: [variantRow()] });
+
+    const result = await createFundScenarioSet(
+      1,
+      input,
+      { userId: 17, label: 'analyst@example.com' },
+      { idempotencyKey: 'scenario-create-1' }
+    );
+
+    expect(result.id).toBe(scenarioSetId);
+    expect(queryMock).toHaveBeenCalledTimes(4);
+    expect(queryMock.mock.calls[2]?.[0]).toContain('WHERE s.fund_id = $1');
+  });
+
+  it('rejects an idempotency key reused with a different payload', async () => {
+    const input = {
+      name: 'Fee sensitivity',
+      variants: [{ name: 'Lower fee', override: feeProfileOverride }],
+    };
+
+    queryMock.mockResolvedValueOnce({ rows: [{ id: 1 }] }).mockResolvedValueOnce({
+      rows: [
+        scenarioSetRow({
+          idempotency_key: 'scenario-create-1',
+          idempotency_request_hash: 'different-request-hash',
+        }),
+      ],
+    });
+
+    await expect(
+      createFundScenarioSet(
+        1,
+        input,
+        { userId: 17, label: 'analyst@example.com' },
+        { idempotencyKey: 'scenario-create-1' }
+      )
+    ).rejects.toMatchObject({
+      statusCode: 422,
+      code: 'idempotency_key_reused',
     });
   });
 

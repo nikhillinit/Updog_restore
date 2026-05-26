@@ -13,9 +13,11 @@ import {
   text,
   varchar,
   unique,
+  uniqueIndex,
   index,
   uuid,
 } from 'drizzle-orm/pg-core';
+import { sql } from 'drizzle-orm';
 import { funds, users } from './tables';
 
 // Fund configuration storage (hybrid approach)
@@ -92,6 +94,8 @@ export const fundScenarioSets = pgTable(
     archivedAt: timestamp('archived_at', { withTimezone: true }),
     archivedByUserId: integer('archived_by_user_id').references(() => users.id),
     archivedByLabel: text('archived_by_label'),
+    idempotencyKey: varchar('idempotency_key', { length: 128 }),
+    idempotencyRequestHash: text('idempotency_request_hash'),
     createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
   },
@@ -102,6 +106,9 @@ export const fundScenarioSets = pgTable(
       table.updatedAt.desc(),
       table.id.desc()
     ),
+    fundIdempotencyUniqueIdx: uniqueIndex('fund_scenario_sets_fund_idempotency_unique')
+      .on(table.fundId, table.idempotencyKey)
+      .where(sql`${table.idempotencyKey} IS NOT NULL`),
   })
 );
 

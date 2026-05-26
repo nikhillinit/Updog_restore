@@ -6,6 +6,7 @@ import {
 } from '@shared/contracts/fund-scenario-sets-v1.contract';
 import { FundIdParamSchema } from '@shared/schemas/portfolio-route';
 import { requireAuth, requireFundAccess } from '../lib/auth/jwt';
+import { firstString } from '../lib/request-values.js';
 import { sendBodyValidationError } from '../lib/validation-response.js';
 import {
   archiveFundScenarioSet,
@@ -90,7 +91,18 @@ function parseActor(req: Request) {
   };
 }
 
-function statusForError(statusCode?: number) {
+function getIdempotencyKey(req: Request): string | null {
+  const headerValue =
+    firstString(req.headers['idempotency-key']) ?? firstString(req.headers['x-idempotency-key']);
+  const trimmed = headerValue?.trim();
+  return trimmed ? trimmed : null;
+}
+
+function statusForError(statusCode?: number, code?: string) {
+  if (code === 'idempotency_key_reused') {
+    return code;
+  }
+
   switch (statusCode) {
     case 400:
       return 'invalid_request';
@@ -98,6 +110,8 @@ function statusForError(statusCode?: number) {
       return 'not_found';
     case 409:
       return 'conflict';
+    case 422:
+      return 'unprocessable_entity';
     default:
       return 'internal_error';
   }
@@ -151,7 +165,9 @@ router.post(
       return;
     }
 
-    const scenarioSet = await createFundScenarioSet(fundId, parsed.data, parseActor(req));
+    const scenarioSet = await createFundScenarioSet(fundId, parsed.data, parseActor(req), {
+      idempotencyKey: getIdempotencyKey(req),
+    });
     return res.status(201).json(scenarioSet);
   })
 );
@@ -185,7 +201,7 @@ router.post(
 
 router.use((error: HttpError, _req: Request, res: Response, _next: unknown) => {
   res.status(error.statusCode ?? 500).json({
-    error: statusForError(error.statusCode),
+    error: statusForError(error.statusCode, error.code),
     ...(error.code ? { code: error.code } : {}),
     message: error.message,
     ...(error.details !== undefined ? { details: error.details } : {}),

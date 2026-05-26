@@ -1,3 +1,4 @@
+import crypto from 'node:crypto';
 import type { PoolClient } from 'pg';
 import { transaction } from '../db/pg-circuit.js';
 import {
@@ -12,6 +13,9 @@ import {
 } from '@shared/contracts/fund-scenario-sets-v1.contract';
 
 const MAX_ACTIVE_SCENARIO_SETS_PER_FUND = 10;
+const FUND_SCENARIO_SET_ACTIVE_NAME_UNIQUE_CONSTRAINT =
+  'fund_scenario_sets_fund_name_active_unique';
+const MAX_IDEMPOTENCY_KEY_LENGTH = 128;
 
 interface HttpError extends Error {
   statusCode: number;
@@ -22,6 +26,10 @@ interface HttpError extends Error {
 interface FundScenarioMutationActor {
   userId?: number | null;
   label?: string | null;
+}
+
+interface CreateFundScenarioSetOptions {
+  idempotencyKey?: string | null;
 }
 
 interface FundScenarioSetRow {
@@ -38,6 +46,8 @@ interface FundScenarioSetRow {
   archived_at: Date | string | null;
   archived_by_user_id: number | null;
   archived_by_label: string | null;
+  idempotency_key?: string | null;
+  idempotency_request_hash?: string | null;
   created_at: Date | string;
   updated_at: Date | string;
   variant_count?: string | number;
@@ -62,6 +72,11 @@ interface PublishedConfigRow {
 
 interface ActiveScenarioSetCountRow {
   active_count: string | number;
+}
+
+interface PgConstraintError {
+  code?: string;
+  constraint?: string;
 }
 
 function createHttpError(
@@ -108,6 +123,62 @@ function parseCount(value: string | number | undefined): number {
     return parseInt(value, 10);
   }
   return 0;
+}
+
+function stableStringify(value: unknown): string {
+  if (typeof value !== 'object' || value === null) {
+    return JSON.stringify(value);
+  }
+
+  if (Array.isArray(value)) {
+    return `[${value.map(stableStringify).join(',')}]`;
+  }
+
+  const record = value as Record<string, unknown>;
+  return `{${Object.keys(record)
+    .sort()
+    .map((key) => `${JSON.stringify(key)}:${stableStringify(record[key])}`)
+    .join(',')}}`;
+}
+
+function createIdempotencyRequestHash(fundId: number, input: CreateFundScenarioSetV1): string {
+  return crypto.createHash('sha256').update(stableStringify({ fundId, input })).digest('hex');
+}
+
+function normalizeIdempotencyKey(value: string | null | undefined): string | null {
+  const trimmed = normalizeNullableText(value);
+  if (trimmed !== null && trimmed.length > MAX_IDEMPOTENCY_KEY_LENGTH) {
+    throw createHttpError(400, 'Idempotency key must be 128 characters or fewer', {
+      code: 'invalid_idempotency_key',
+      details: { maxLength: MAX_IDEMPOTENCY_KEY_LENGTH },
+    });
+  }
+
+  return trimmed;
+}
+
+function assertIdempotencyRequestMatches(
+  scenarioSet: FundScenarioSetRow,
+  idempotencyKey: string,
+  requestHash: string
+): void {
+  if (scenarioSet.idempotency_request_hash === requestHash) {
+    return;
+  }
+
+  throw createHttpError(422, 'Idempotency key was used with a different request payload', {
+    code: 'idempotency_key_reused',
+    details: { idempotencyKey },
+  });
+}
+
+function isUniqueConstraintViolation(error: unknown, constraintName: string): boolean {
+  if (error === null || typeof error !== 'object') {
+    return false;
+  }
+
+  const candidate = error as PgConstraintError;
+  return candidate.code === '23505' && candidate.constraint === constraintName;
 }
 
 function mapScenarioSetSummary(row: FundScenarioSetRow): FundScenarioSetSummaryV1 {
@@ -162,8 +233,16 @@ function mapScenarioSetDetail(
   });
 }
 
-async function verifyFundExists(client: PoolClient, fundId: number): Promise<void> {
-  const result = await client.query<{ id: number }>('SELECT id FROM funds WHERE id = $1', [fundId]);
+async function verifyFundExists(
+  client: PoolClient,
+  fundId: number,
+  options: { forUpdate?: boolean } = {}
+): Promise<void> {
+  const lockClause = options.forUpdate ? ' FOR UPDATE' : '';
+  const result = await client.query<{ id: number }>(
+    `SELECT id FROM funds WHERE id = $1${lockClause}`,
+    [fundId]
+  );
 
   if (result.rows.length === 0) {
     throw createHttpError(404, `Fund ${fundId} not found`, { code: 'fund_not_found' });
@@ -206,6 +285,43 @@ async function countActiveScenarioSets(client: PoolClient, fundId: number): Prom
   return parseCount(result.rows[0]?.active_count);
 }
 
+async function getScenarioSetByIdempotencyKey(
+  client: PoolClient,
+  fundId: number,
+  idempotencyKey: string
+): Promise<FundScenarioSetRow | null> {
+  const result = await client.query<FundScenarioSetRow>(
+    `SELECT
+       s.id,
+       s.fund_id,
+       s.name,
+       s.description,
+       s.source_config_id,
+       s.source_config_version,
+       s.created_by_user_id,
+       s.created_by_label,
+       s.updated_by_user_id,
+       s.updated_by_label,
+       s.archived_at,
+       s.archived_by_user_id,
+       s.archived_by_label,
+       s.idempotency_key,
+       s.idempotency_request_hash,
+       s.created_at,
+       s.updated_at,
+       (SELECT COUNT(*)::int
+          FROM fund_scenario_variants v
+         WHERE v.scenario_set_id = s.id) AS variant_count
+     FROM fund_scenario_sets s
+     WHERE s.fund_id = $1
+       AND s.idempotency_key = $2
+     LIMIT 1`,
+    [fundId, idempotencyKey]
+  );
+
+  return result.rows[0] ?? null;
+}
+
 function scenarioSetSelectSql(lockClause = ''): string {
   return `SELECT
       s.id,
@@ -221,6 +337,8 @@ function scenarioSetSelectSql(lockClause = ''): string {
       s.archived_at,
       s.archived_by_user_id,
       s.archived_by_label,
+      s.idempotency_key,
+      s.idempotency_request_hash,
       s.created_at,
       s.updated_at,
       (SELECT COUNT(*)::int
@@ -342,6 +460,8 @@ export async function listFundScenarioSets(
          s.archived_at,
          s.archived_by_user_id,
          s.archived_by_label,
+         s.idempotency_key,
+         s.idempotency_request_hash,
          s.created_at,
          s.updated_at,
          COUNT(v.id)::int AS variant_count
@@ -371,10 +491,22 @@ export async function getFundScenarioSet(
 export async function createFundScenarioSet(
   fundId: number,
   input: CreateFundScenarioSetV1,
-  actorInput: FundScenarioMutationActor = {}
+  actorInput: FundScenarioMutationActor = {},
+  options: CreateFundScenarioSetOptions = {}
 ): Promise<FundScenarioSetDetailV1> {
   return transaction(async (client) => {
-    await verifyFundExists(client, fundId);
+    await verifyFundExists(client, fundId, { forUpdate: true });
+
+    const idempotencyKey = normalizeIdempotencyKey(options.idempotencyKey);
+    const idempotencyRequestHash =
+      idempotencyKey === null ? null : createIdempotencyRequestHash(fundId, input);
+    if (idempotencyKey !== null && idempotencyRequestHash !== null) {
+      const existing = await getScenarioSetByIdempotencyKey(client, fundId, idempotencyKey);
+      if (existing) {
+        assertIdempotencyRequestMatches(existing, idempotencyKey, idempotencyRequestHash);
+        return fetchScenarioSetDetail(client, fundId, existing.id);
+      }
+    }
 
     const publishedConfig = await getCurrentPublishedConfig(client, fundId);
     const activeCount = await countActiveScenarioSets(client, fundId);
@@ -392,47 +524,66 @@ export async function createFundScenarioSet(
     }
 
     const actor = normalizeActor(actorInput);
-    const setResult = await client.query<FundScenarioSetRow>(
-      `INSERT INTO fund_scenario_sets (
-         fund_id,
-         name,
-         description,
-         source_config_id,
-         source_config_version,
-         created_by_user_id,
-         created_by_label,
-         updated_by_user_id,
-         updated_by_label
-       )
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
-       RETURNING
-         id,
-         fund_id,
-         name,
-         description,
-         source_config_id,
-         source_config_version,
-         created_by_user_id,
-         created_by_label,
-         updated_by_user_id,
-         updated_by_label,
-         archived_at,
-         archived_by_user_id,
-         archived_by_label,
-         created_at,
-         updated_at`,
-      [
-        fundId,
-        input.name.trim(),
-        normalizeNullableText(input.description),
-        publishedConfig.id,
-        publishedConfig.version,
-        actor.userId,
-        actor.label,
-        actor.userId,
-        actor.label,
-      ]
-    );
+    const scenarioSetName = input.name.trim();
+    let setResult: { rows: FundScenarioSetRow[] };
+    try {
+      setResult = await client.query<FundScenarioSetRow>(
+        `INSERT INTO fund_scenario_sets (
+           fund_id,
+           name,
+           description,
+           source_config_id,
+           source_config_version,
+           created_by_user_id,
+           created_by_label,
+           updated_by_user_id,
+           updated_by_label,
+           idempotency_key,
+           idempotency_request_hash
+         )
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+         RETURNING
+           id,
+           fund_id,
+           name,
+           description,
+           source_config_id,
+           source_config_version,
+           created_by_user_id,
+           created_by_label,
+           updated_by_user_id,
+           updated_by_label,
+           archived_at,
+           archived_by_user_id,
+           archived_by_label,
+           idempotency_key,
+           idempotency_request_hash,
+           created_at,
+           updated_at`,
+        [
+          fundId,
+          scenarioSetName,
+          normalizeNullableText(input.description),
+          publishedConfig.id,
+          publishedConfig.version,
+          actor.userId,
+          actor.label,
+          actor.userId,
+          actor.label,
+          idempotencyKey,
+          idempotencyRequestHash,
+        ]
+      );
+    } catch (error) {
+      if (isUniqueConstraintViolation(error, FUND_SCENARIO_SET_ACTIVE_NAME_UNIQUE_CONSTRAINT)) {
+        throw createHttpError(409, `Scenario set "${scenarioSetName}" already exists`, {
+          code: 'duplicate_scenario_set_name',
+          details: { name: scenarioSetName },
+        });
+      }
+
+      throw error;
+    }
 
     const scenarioSetId = setResult.rows[0]?.id;
     if (!scenarioSetId) {
@@ -532,6 +683,8 @@ export async function archiveFundScenarioSet(
           archived_at,
           archived_by_user_id,
           archived_by_label,
+          idempotency_key,
+          idempotency_request_hash,
           created_at,
           updated_at,
           (SELECT COUNT(*)::int
