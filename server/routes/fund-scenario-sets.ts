@@ -10,10 +10,10 @@ import { firstString } from '../lib/request-values.js';
 import { sendBodyValidationError } from '../lib/validation-response.js';
 import {
   archiveFundScenarioSet,
-  createFundScenarioSet,
   getFundScenarioSet,
   listFundScenarioSets,
 } from '../services/fund-scenario-set-service.js';
+import { createFundScenarioSet } from '../services/fund-scenario-set-create-service.js';
 
 interface HttpError extends Error {
   statusCode?: number;

@@ -12,9 +12,9 @@ vi.mock('../../../server/db/pg-circuit.js', () => ({
 
 import {
   archiveFundScenarioSet,
-  createFundScenarioSet,
   listFundScenarioSets,
 } from '../../../server/services/fund-scenario-set-service';
+import { createFundScenarioSet } from '../../../server/services/fund-scenario-set-create-service';
 
 const scenarioSetId = '00000000-0000-0000-0000-000000000111';
 const variantId = '00000000-0000-0000-0000-000000000112';

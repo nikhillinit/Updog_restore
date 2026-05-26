@@ -1,4 +1,3 @@
-import crypto from 'node:crypto';
 import type { PoolClient } from 'pg';
 import { transaction } from '../db/pg-circuit.js';
 import {
@@ -6,33 +5,23 @@ import {
   FundScenarioSetSummaryV1Schema,
   FundScenarioVariantOverrideV1Schema,
   type ArchiveFundScenarioSetV1,
-  type CreateFundScenarioSetV1,
   type FundScenarioSetDetailV1,
   type FundScenarioSetSummaryV1,
   type FundScenarioVariantV1,
 } from '@shared/contracts/fund-scenario-sets-v1.contract';
 
-const MAX_ACTIVE_SCENARIO_SETS_PER_FUND = 10;
-const FUND_SCENARIO_SET_ACTIVE_NAME_UNIQUE_CONSTRAINT =
-  'fund_scenario_sets_fund_name_active_unique';
-const MAX_IDEMPOTENCY_KEY_LENGTH = 128;
-
-interface HttpError extends Error {
+export interface HttpError extends Error {
   statusCode: number;
   code?: string;
   details?: unknown;
 }
 
-interface FundScenarioMutationActor {
+export interface FundScenarioMutationActor {
   userId?: number | null;
   label?: string | null;
 }
 
-interface CreateFundScenarioSetOptions {
-  idempotencyKey?: string | null;
-}
-
-interface FundScenarioSetRow {
+export interface FundScenarioSetRow {
   id: string;
   fund_id: number;
   name: string;
@@ -53,7 +42,7 @@ interface FundScenarioSetRow {
   variant_count?: string | number;
 }
 
-interface FundScenarioVariantRow {
+export interface FundScenarioVariantRow {
   id: string;
   scenario_set_id: string;
   name: string;
@@ -65,21 +54,7 @@ interface FundScenarioVariantRow {
   updated_at: Date | string;
 }
 
-interface PublishedConfigRow {
-  id: number;
-  version: number;
-}
-
-interface ActiveScenarioSetCountRow {
-  active_count: string | number;
-}
-
-interface PgConstraintError {
-  code?: string;
-  constraint?: string;
-}
-
-function createHttpError(
+export function createHttpError(
   statusCode: number,
   message: string,
   options: { code?: string; details?: unknown } = {}
@@ -103,19 +78,19 @@ function nullableIsoString(value: Date | string | null): string | null {
   return value === null ? null : toIsoString(value);
 }
 
-function normalizeNullableText(value: string | null | undefined): string | null {
+export function normalizeNullableText(value: string | null | undefined): string | null {
   const trimmed = value?.trim();
   return trimmed ? trimmed : null;
 }
 
-function normalizeActor(actor: FundScenarioMutationActor = {}) {
+export function normalizeActor(actor: FundScenarioMutationActor = {}) {
   return {
     userId: actor.userId ?? null,
     label: normalizeNullableText(actor.label),
   };
 }
 
-function parseCount(value: string | number | undefined): number {
+export function parseCount(value: string | number | undefined): number {
   if (typeof value === 'number') {
     return value;
   }
@@ -123,46 +98,6 @@ function parseCount(value: string | number | undefined): number {
     return parseInt(value, 10);
   }
   return 0;
-}
-
-function createIdempotencyRequestHash(fundId: number, input: CreateFundScenarioSetV1): string {
-  return crypto.createHash('sha256').update(JSON.stringify({ fundId, input })).digest('hex');
-}
-
-function normalizeIdempotencyKey(value: string | null | undefined): string | null {
-  const trimmed = normalizeNullableText(value);
-  if (trimmed !== null && trimmed.length > MAX_IDEMPOTENCY_KEY_LENGTH) {
-    throw createHttpError(400, 'Idempotency key must be 128 characters or fewer', {
-      code: 'invalid_idempotency_key',
-      details: { maxLength: MAX_IDEMPOTENCY_KEY_LENGTH },
-    });
-  }
-
-  return trimmed;
-}
-
-function assertIdempotencyRequestMatches(
-  scenarioSet: FundScenarioSetRow,
-  idempotencyKey: string,
-  requestHash: string
-): void {
-  if (scenarioSet.idempotency_request_hash === requestHash) {
-    return;
-  }
-
-  throw createHttpError(422, 'Idempotency key was used with a different request payload', {
-    code: 'idempotency_key_reused',
-    details: { idempotencyKey },
-  });
-}
-
-function isUniqueConstraintViolation(error: unknown, constraintName: string): boolean {
-  if (error === null || typeof error !== 'object') {
-    return false;
-  }
-
-  const candidate = error as PgConstraintError;
-  return candidate.code === '23505' && candidate.constraint === constraintName;
 }
 
 function mapScenarioSetSummary(row: FundScenarioSetRow): FundScenarioSetSummaryV1 {
@@ -217,7 +152,7 @@ function mapScenarioSetDetail(
   });
 }
 
-async function verifyFundExists(
+export async function verifyFundExists(
   client: PoolClient,
   fundId: number,
   options: { forUpdate?: boolean } = {}
@@ -231,79 +166,6 @@ async function verifyFundExists(
   if (result.rows.length === 0) {
     throw createHttpError(404, `Fund ${fundId} not found`, { code: 'fund_not_found' });
   }
-}
-
-async function getCurrentPublishedConfig(
-  client: PoolClient,
-  fundId: number
-): Promise<PublishedConfigRow> {
-  const result = await client.query<PublishedConfigRow>(
-    `SELECT id, version
-       FROM fundconfigs
-      WHERE fund_id = $1
-        AND is_published = TRUE
-      ORDER BY version DESC
-      LIMIT 1`,
-    [fundId]
-  );
-
-  const publishedConfig = result.rows[0];
-  if (!publishedConfig) {
-    throw createHttpError(409, `Fund ${fundId} does not have a published config`, {
-      code: 'no_published_config',
-    });
-  }
-
-  return publishedConfig;
-}
-
-async function countActiveScenarioSets(client: PoolClient, fundId: number): Promise<number> {
-  const result = await client.query<ActiveScenarioSetCountRow>(
-    `SELECT COUNT(*)::int AS active_count
-       FROM fund_scenario_sets
-      WHERE fund_id = $1
-        AND archived_at IS NULL`,
-    [fundId]
-  );
-
-  return parseCount(result.rows[0]?.active_count);
-}
-
-async function getScenarioSetByIdempotencyKey(
-  client: PoolClient,
-  fundId: number,
-  idempotencyKey: string
-): Promise<FundScenarioSetRow | null> {
-  const result = await client.query<FundScenarioSetRow>(
-    `SELECT
-       s.id,
-       s.fund_id,
-       s.name,
-       s.description,
-       s.source_config_id,
-       s.source_config_version,
-       s.created_by_user_id,
-       s.created_by_label,
-       s.updated_by_user_id,
-       s.updated_by_label,
-       s.archived_at,
-       s.archived_by_user_id,
-       s.archived_by_label,
-       s.idempotency_key,
-       s.idempotency_request_hash,
-       s.created_at,
-       s.updated_at,
-       (SELECT COUNT(*)::int
-          FROM fund_scenario_variants v
-         WHERE v.scenario_set_id = s.id) AS variant_count
-     FROM fund_scenario_sets s
-     WHERE s.fund_id = $1
-       AND s.idempotency_key = $2
-     LIMIT 1`,
-    [fundId, idempotencyKey]
-  );
-
-  return result.rows[0] ?? null;
 }
 
 function scenarioSetSelectSql(lockClause = ''): string {
@@ -379,7 +241,7 @@ async function getScenarioSetVariants(
   return result.rows;
 }
 
-async function insertScenarioSetEvent(
+export async function insertScenarioSetEvent(
   client: PoolClient,
   input: {
     scenarioSetId: string;
@@ -411,7 +273,7 @@ async function insertScenarioSetEvent(
   );
 }
 
-async function fetchScenarioSetDetail(
+export async function fetchScenarioSetDetail(
   client: PoolClient,
   fundId: number,
   scenarioSetId: string
@@ -472,234 +334,87 @@ export async function getFundScenarioSet(
   });
 }
 
-export async function createFundScenarioSet(
-  fundId: number,
-  input: CreateFundScenarioSetV1,
-  actorInput: FundScenarioMutationActor = {},
-  options: CreateFundScenarioSetOptions = {}
-): Promise<FundScenarioSetDetailV1> {
-  return transaction(async (client) => {
-    await verifyFundExists(client, fundId, { forUpdate: true });
-
-    const idempotencyKey = normalizeIdempotencyKey(options.idempotencyKey);
-    const idempotencyRequestHash =
-      idempotencyKey === null ? null : createIdempotencyRequestHash(fundId, input);
-    if (idempotencyKey !== null && idempotencyRequestHash !== null) {
-      const existing = await getScenarioSetByIdempotencyKey(client, fundId, idempotencyKey);
-      if (existing) {
-        assertIdempotencyRequestMatches(existing, idempotencyKey, idempotencyRequestHash);
-        return fetchScenarioSetDetail(client, fundId, existing.id);
-      }
-    }
-
-    const publishedConfig = await getCurrentPublishedConfig(client, fundId);
-    const activeCount = await countActiveScenarioSets(client, fundId);
-    if (activeCount >= MAX_ACTIVE_SCENARIO_SETS_PER_FUND) {
-      throw createHttpError(
-        409,
-        `Fund ${fundId} already has ${MAX_ACTIVE_SCENARIO_SETS_PER_FUND} active scenario sets`,
-        {
-          code: 'max_scenario_sets',
-          details: {
-            maxActiveScenarioSets: MAX_ACTIVE_SCENARIO_SETS_PER_FUND,
-          },
-        }
-      );
-    }
-
-    const actor = normalizeActor(actorInput);
-    const scenarioSetName = input.name.trim();
-    let setResult: { rows: FundScenarioSetRow[] };
-    try {
-      setResult = await client.query<FundScenarioSetRow>(
-        `INSERT INTO fund_scenario_sets (
-           fund_id,
-           name,
-           description,
-           source_config_id,
-           source_config_version,
-           created_by_user_id,
-           created_by_label,
-           updated_by_user_id,
-           updated_by_label,
-           idempotency_key,
-           idempotency_request_hash
-         )
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
-         RETURNING
-           id,
-           fund_id,
-           name,
-           description,
-           source_config_id,
-           source_config_version,
-           created_by_user_id,
-           created_by_label,
-           updated_by_user_id,
-           updated_by_label,
-           archived_at,
-           archived_by_user_id,
-           archived_by_label,
-           idempotency_key,
-           idempotency_request_hash,
-           created_at,
-           updated_at`,
-        [
-          fundId,
-          scenarioSetName,
-          normalizeNullableText(input.description),
-          publishedConfig.id,
-          publishedConfig.version,
-          actor.userId,
-          actor.label,
-          actor.userId,
-          actor.label,
-          idempotencyKey,
-          idempotencyRequestHash,
-        ]
-      );
-    } catch (error) {
-      if (isUniqueConstraintViolation(error, FUND_SCENARIO_SET_ACTIVE_NAME_UNIQUE_CONSTRAINT)) {
-        throw createHttpError(409, `Scenario set "${scenarioSetName}" already exists`, {
-          code: 'duplicate_scenario_set_name',
-          details: { name: scenarioSetName },
-        });
-      }
-
-      throw error;
-    }
-
-    const scenarioSetId = setResult.rows[0]?.id;
-    if (!scenarioSetId) {
-      throw createHttpError(500, 'Scenario set insert did not return an id', {
-        code: 'scenario_set_insert_failed',
-      });
-    }
-
-    for (const [index, variant] of input.variants.entries()) {
-      await client.query<FundScenarioVariantRow>(
-        `INSERT INTO fund_scenario_variants (
-           scenario_set_id,
-           name,
-           description,
-           sort_order,
-           override_type,
-           override_payload
-         )
-         VALUES ($1, $2, $3, $4, $5, $6)
-         RETURNING
-           id,
-           scenario_set_id,
-           name,
-           description,
-           sort_order,
-           override_type,
-           override_payload,
-           created_at,
-           updated_at`,
-        [
-          scenarioSetId,
-          variant.name.trim(),
-          normalizeNullableText(variant.description),
-          index,
-          variant.override.overrideType,
-          variant.override.payload,
-        ]
-      );
-    }
-
-    await insertScenarioSetEvent(client, {
-      scenarioSetId,
-      fundId,
-      eventType: 'created',
-      actor,
-      changeSummary: {
-        headline: `Created scenario set with ${input.variants.length} variant${
-          input.variants.length === 1 ? '' : 's'
-        }`,
-        variant_count: input.variants.length,
-        source_config_version: publishedConfig.version,
-      },
-    });
-
-    return fetchScenarioSetDetail(client, fundId, scenarioSetId);
-  });
-}
-
 export async function archiveFundScenarioSet(
   fundId: number,
   scenarioSetId: string,
   actorInput: FundScenarioMutationActor = {},
   input: ArchiveFundScenarioSetV1 = {}
 ): Promise<FundScenarioSetSummaryV1> {
-  return transaction(async (client) => {
-    await verifyFundExists(client, fundId);
-    const existing = await getScenarioSetSummaryOrThrow(client, fundId, scenarioSetId, {
-      forUpdate: true,
-    });
+  return transaction((client) =>
+    archiveFundScenarioSetInTransaction(client, fundId, scenarioSetId, actorInput, input)
+  );
+}
 
-    if (existing.archived_at !== null) {
-      return mapScenarioSetSummary(existing);
-    }
-
-    const actor = normalizeActor(actorInput);
-    const result = await client.query<FundScenarioSetRow>(
-      `UPDATE fund_scenario_sets
-          SET archived_at = NOW(),
-              archived_by_user_id = $1,
-              archived_by_label = $2,
-              updated_by_user_id = $1,
-              updated_by_label = $2,
-              updated_at = NOW()
-        WHERE fund_id = $3
-          AND id = $4
-        RETURNING
-          id,
-          fund_id,
-          name,
-          description,
-          source_config_id,
-          source_config_version,
-          created_by_user_id,
-          created_by_label,
-          updated_by_user_id,
-          updated_by_label,
-          archived_at,
-          archived_by_user_id,
-          archived_by_label,
-          idempotency_key,
-          idempotency_request_hash,
-          created_at,
-          updated_at,
-          (SELECT COUNT(*)::int
-             FROM fund_scenario_variants v
-            WHERE v.scenario_set_id = fund_scenario_sets.id) AS variant_count`,
-      [actor.userId, actor.label, fundId, scenarioSetId]
-    );
-
-    const archived = result.rows[0];
-    if (!archived) {
-      throw createHttpError(404, `Scenario set ${scenarioSetId} not found`, {
-        code: 'scenario_set_not_found',
-      });
-    }
-
-    const reason = normalizeNullableText(input.reason);
-    const changeSummary: Record<string, unknown> = {
-      headline: 'Archived scenario set',
-    };
-    if (reason) {
-      changeSummary['reason'] = reason;
-    }
-
-    await insertScenarioSetEvent(client, {
-      scenarioSetId,
-      fundId,
-      eventType: 'archived',
-      actor,
-      changeSummary,
-    });
-
-    return mapScenarioSetSummary(archived);
+async function archiveFundScenarioSetInTransaction(
+  client: PoolClient,
+  fundId: number,
+  scenarioSetId: string,
+  actorInput: FundScenarioMutationActor,
+  input: ArchiveFundScenarioSetV1
+): Promise<FundScenarioSetSummaryV1> {
+  await verifyFundExists(client, fundId);
+  const existing = await getScenarioSetSummaryOrThrow(client, fundId, scenarioSetId, {
+    forUpdate: true,
   });
+
+  if (existing.archived_at !== null) {
+    return mapScenarioSetSummary(existing);
+  }
+
+  const actor = normalizeActor(actorInput);
+  const archived = await updateArchivedScenarioSet(client, fundId, scenarioSetId, actor);
+  await insertScenarioSetEvent(client, {
+    scenarioSetId,
+    fundId,
+    eventType: 'archived',
+    actor,
+    changeSummary: buildArchiveChangeSummary(input.reason),
+  });
+
+  return mapScenarioSetSummary(archived);
+}
+
+async function updateArchivedScenarioSet(
+  client: PoolClient,
+  fundId: number,
+  scenarioSetId: string,
+  actor: ReturnType<typeof normalizeActor>
+): Promise<FundScenarioSetRow> {
+  const result = await client.query<FundScenarioSetRow>(
+    `UPDATE fund_scenario_sets
+        SET archived_at = NOW(),
+            archived_by_user_id = $1,
+            archived_by_label = $2,
+            updated_by_user_id = $1,
+            updated_by_label = $2,
+            updated_at = NOW()
+      WHERE fund_id = $3
+        AND id = $4
+      RETURNING
+        id, fund_id, name, description, source_config_id, source_config_version,
+        created_by_user_id, created_by_label, updated_by_user_id, updated_by_label,
+        archived_at, archived_by_user_id, archived_by_label, idempotency_key,
+        idempotency_request_hash, created_at, updated_at,
+        (SELECT COUNT(*)::int
+           FROM fund_scenario_variants v
+          WHERE v.scenario_set_id = fund_scenario_sets.id) AS variant_count`,
+    [actor.userId, actor.label, fundId, scenarioSetId]
+  );
+
+  const archived = result.rows[0];
+  if (!archived) {
+    throw createHttpError(404, `Scenario set ${scenarioSetId} not found`, {
+      code: 'scenario_set_not_found',
+    });
+  }
+  return archived;
+}
+
+function buildArchiveChangeSummary(
+  reasonInput: string | null | undefined
+): Record<string, unknown> {
+  const reason = normalizeNullableText(reasonInput);
+  return reason
+    ? { headline: 'Archived scenario set', reason }
+    : { headline: 'Archived scenario set' };
 }
