@@ -6,8 +6,8 @@ Generated: 2026-05-27
 
 | Metric                     | Count |
 | -------------------------- | ----- |
-| Total Quarantined          | 36    |
-| Documented                 | 36    |
+| Total Quarantined          | 35    |
+| Documented                 | 35    |
 | Undocumented               | 0     |
 | Static describe.skip files | 12    |
 | Static skip threshold      | 25    |
@@ -26,7 +26,6 @@ report generator and `skip-counter.yml` both read that same policy file.
 | `tests/ui-conditionals.test.tsx`                                  | @qa-team             | Temporarily skipped pending stabilization triage.                                                                                                           | Remove skip and re-enable once deterministic behavior or required test infrastructure is available.                                                                      | 99         |
 | `tests/evergreen-validation.test.ts`                              | @qa-team             | Temporarily skipped pending stabilization triage.                                                                                                           | Remove skip and re-enable once deterministic behavior or required test infrastructure is available.                                                                      | 99         |
 | `tests/unit/reallocation-api.test.ts`                             | @qa-team             | Temporarily skipped pending stabilization triage.                                                                                                           | Remove skip and re-enable once deterministic behavior or required test infrastructure is available.                                                                      | 99         |
-| `tests/unit/modeling-wizard-persistence.test.tsx`                 | modeling-wizard      | persistDataService not yet implemented (PR#1 pending)                                                                                                       | Merge PR#1 implementing persistDataService with QuotaExceededError and SecurityError handling                                                                            | 99         |
 | `tests/unit/general-info-step.test.tsx`                           | @qa-team             | Temporarily skipped pending stabilization triage.                                                                                                           | Remove skip and re-enable once deterministic behavior or required test infrastructure is available.                                                                      | 99         |
 | `tests/perf/validator.microbench.test.ts`                         | @qa-team             | Temporarily skipped pending stabilization triage.                                                                                                           | Remove skip and re-enable once deterministic behavior or required test infrastructure is available.                                                                      | 99         |
 | `tests/load/metrics-performance.test.ts`                          | P5.1 tech debt audit | Intentional manual-only stress test; 5-minute sustained load unsuitable for CI                                                                              | Move to tests/manual/ directory or run only in dedicated perf CI job with extended timeout                                                                               | N/A        |

@@ -56,9 +56,15 @@ As of 2026-05-27:
    `src/core/routes/ia.ts` had no active runtime owner, the two route-story
    tests now assert active client/runtime route behavior directly, and this
    closeout removes the only root `src/**` tracked file.
-8. The next separate cleanup slice is Batch 5, XState wizard machine behavior
-   locking. Do not start it together with route logging migration, deal-pipeline
-   extraction, or other product-code refactors inside this closeout slice.
+8. Treat Batch 5 as closed on 2026-05-27: runtime references still require
+   keeping the XState modeling-wizard machine, and focused wizard tests now lock
+   initial state, step order, NEXT/BACK/GOTO navigation, optional-step skipping,
+   context preservation, submit `createdFundId` capture, persistence success,
+   quota/security failure paths, and the legacy UI quarantine relationship.
+9. The next separate cleanup slice is Batch 6, external BMAD/repo reference
+   cleanup only if touched references need current wording. Do not start it
+   together with route logging migration, deal-pipeline extraction, package
+   cleanup, or other product-code refactors inside this closeout slice.
 
 Update this section whenever the active next step changes. This is the only
 "what to do right now" pointer in the document.
@@ -85,9 +91,10 @@ state changes the execution details in several important ways:
 3. Root `src/` is no longer a tracked app surface after Batch 4: the stale
    `src/core/routes/ia.ts` route-story mirror was test-only metadata and the
    route-story tests now assert active client/runtime route behavior directly.
-4. `client/src/machines/modeling-wizard.machine.ts` is active, imported by
-   `useModelingWizard`, `WizardShell`, and persistence tests. It is not
-   currently a safe deletion candidate.
+4. `client/src/machines/modeling-wizard.machine.ts` is active, imported at
+   runtime by `useModelingWizard` and the opt-in legacy `ModelingWizard`
+   compatibility UI, type-imported by `WizardShell`, and covered by focused
+   machine/persistence/legacy wizard tests. It is not a safe deletion candidate.
 5. `.husky/pre-push` still delegates to `scripts/pre-push.mjs`; deletion
    requires a replacement script or direct command first.
 6. No committed `.env.test` exists; `.env.test.local` exists. Adding `.env.test`
@@ -620,11 +627,13 @@ Target:
 
 - `client/src/machines/modeling-wizard.machine.ts`
 
-Current state: this machine is active. It is imported by
-`client/src/hooks/useModelingWizard.ts`,
-`client/src/components/modeling-wizard/WizardShell.tsx`, and multiple wizard
-persistence/machine tests. Treat deletion as a future product migration, not a
-cleanup task.
+Batch 5 closeout: this machine remains active and intentional. It is imported at
+runtime by `client/src/hooks/useModelingWizard.ts`, reached through the opt-in
+legacy compatibility UI in
+`client/src/components/modeling-wizard/ModelingWizard.tsx`, type-imported by
+`client/src/components/modeling-wizard/WizardShell.tsx`, and covered by focused
+machine/persistence/legacy wizard tests. Treat deletion as a future product
+migration, not a cleanup task.
 
 Decision rule:
 
@@ -638,9 +647,10 @@ Validation:
 
 ```bash
 git tag pre-xstate-machine-migration-2026-05-18
+npm test -- --run tests/unit/machines/modeling-wizard-fundid.test.tsx tests/unit/machines/modeling-wizard-submit-transport.test.tsx tests/unit/machines/modeling-wizard-machine-behavior.test.tsx tests/unit/modeling-wizard-persistence.test.tsx tests/unit/components/modeling-wizard-legacy.test.tsx --project=client
 npm run check
+npm run lint
 npm run build:prod
-npm run test:unit
 npm run test:e2e:smoke
 ```
 
@@ -693,7 +703,7 @@ Milestone 1 is complete when:
       active-reference proof.
 - [x] Root `src/core/routes/ia.ts` is either documented as intentional or
       migrated.
-- [ ] XState wizard machine has behavior tests locking current semantics.
+- [x] XState wizard machine has behavior tests locking current semantics.
 - [ ] `npm run check && npm run build:prod && npm run test:unit` pass.
 
 ---
@@ -1701,7 +1711,7 @@ changes and reduce future debt accumulation.
 |     2 | DONE/no-op: `chore(docs): externalize large reference assets`                | 2026-05-27 recheck: 0 tracked files; no active restore refs               |
 |     3 | DONE/no-op: `chore(docs): curate remaining docs archive`                     | 2026-05-27 recheck: 0 tracked files; local ignored-only files             |
 |     4 | DONE: `chore(app): migrate legacy route-story mirror`                        | 2026-05-27 recheck: only root `src/**` file deleted; route tests migrated |
-|     5 | `test(client): lock modeling wizard machine behavior`                        | `check + build:prod + wizard tests + e2e smoke`                           |
+|     5 | DONE: `test(client): lock modeling wizard machine behavior`                  | 2026-05-27 focused wizard tests: 5 files, 33 passed, 0 skipped            |
 |     6 | `docs(repo): mark external BMAD local copy as removed if references change`  | docs link check                                                           |
 |     7 | `chore(tooling): remove package refs from app configs and scripts`           | `check + test:unit`                                                       |
 |     8 | `chore(tooling): remove unused ai-agent packages`                            | `check + test:unit + build:prod`                                          |
@@ -1736,8 +1746,8 @@ baseline in the roadmap.
 5. DONE: root `src/core/routes/ia.ts` was migrated away; active route assertions
    now target `client/src/core/routes/ia.ts` plus `client/src/config/routes.ts`,
    leaving no root `src/**` owner.
-6. Keep active XState modeling-wizard machine; lock behavior and plan a future
-   replacement only if needed.
+6. DONE: keep active XState modeling-wizard machine; focused tests now lock
+   current behavior and future replacement remains a separate migration.
 7. Treat the vendored external `repo/` project as already removed locally; only
    clean stale doc references when touched.
 8. Decouple and delete/externalize unused packages.
