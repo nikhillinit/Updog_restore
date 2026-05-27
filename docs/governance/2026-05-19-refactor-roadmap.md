@@ -35,10 +35,14 @@ As of 2026-05-27:
 2. Treat middleware logging slice 0d as closed at
    `df2b22fc refactor(middleware): preserve diagnostics as structured logs`. A
    post-0d scan found 0 `console.*` matches in `server/middleware/`.
-3. Record the 0e verified tech debt baseline in this roadmap before beginning
-   route logging migration, deal-pipeline extraction, or any other product-code
+3. Treat Batch 0 as the active audit closeout after 0e: refresh
+   `docs/governance/cleanup-manifest.md` from live repo evidence before any
+   route logging migration, deal-pipeline extraction, or other product-code
    refactor.
-4. Keep the remaining logging/refactor sequence separate: route-layer console
+4. After Batch 0, keep the next cleanup work documentation/audit-only until
+   Batch 1 records `docs/phase0-runner*.txt` and root `archive/` as already
+   absent.
+5. Keep the remaining logging/refactor sequence separate: route-layer console
    debt is still 165 calls across 27 files, and service extraction remains gated
    by existing route contract tests.
 
@@ -83,7 +87,7 @@ The best approach is therefore a **solo-friendly cleanup ladder**:
 1. Capture baseline and cleanup manifest.
 2. Remove or externalize obvious repo drag that is actually unused.
 3. Simplify scripts, hooks, CI, env files, and config against the current
-   80-script / 16-workflow baseline.
+   90-script / 19-workflow baseline captured in the cleanup manifest.
 4. Fill gaps in the existing fragmented truth/golden test surface.
 5. Refactor product architecture behind those tests.
 6. Leave cosmetic renames and broad directory reshuffles until last.
@@ -270,24 +274,24 @@ These should also remain.
 
 ## 4. Outcome KPIs
 
-| Area               | Target outcome                                                                                                                                                                                                                |
-| ------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Scripts            | Current baseline is 80 root scripts after retiring stale wave5/wave6 aliases and adding the alias-policy guard. Next pass: classify remaining wave/phase/package-only aliases; target ≤50 active scripts before pursuing ≤30. |
-| CI                 | Current baseline is 16 workflow files, indexed in `docs/workflows/README.md`. Consolidate only after mapping required vs optional checks.                                                                                     |
-| Hooks              | Current pre-commit is a custom staged guard; current pre-push delegates to `scripts/pre-push.mjs`. Simplify only after replacement commands exist.                                                                            |
-| Pre-push script    | Keep `scripts/pre-push.mjs` until a direct hook command or `validate:quick` equivalent is added and verified.                                                                                                                 |
-| Vitest             | Current unit entry is `vitest.config.mjs`; integration/quarantine/testcontainer configs remain active. Consolidate by migration, not deletion.                                                                                |
-| TypeScript         | Keep active boundary configs, including `tsconfig.shared.json`; delete only unreferenced variants proven by script/extends scans.                                                                                             |
-| Env files          | No committed `.env.test` exists. Add one only with safe deterministic values and verified loader behavior; production secrets stay out of Git.                                                                                |
-| Archives/logs      | `docs/phase0-runner*.txt` and root `archive/` are already absent; remaining `docs/archive/` is small and must be curated, not blanket-deleted.                                                                                |
-| Binary docs assets | `docs/references/attached_assets/` has 0 tracked files; restore specific assets from git history only if a future active reference requires them.                                                                             |
-| Packages           | `packages/*` is still referenced by scripts/tsconfigs. Remove those references before deleting or extracting packages.                                                                                                        |
-| Quarantine         | Zero undocumented quarantines; every quarantine has TTL, reason, and exit condition. Current: 3 undocumented (see Section 1b).                                                                                                |
-| Financial logic    | Existing truth/parity tests are fragmented across domains; fill missing coverage before semantic refactors.                                                                                                                   |
-| Route boundaries   | No new route files importing `db` or `storage` directly. Current: 25 of 75 route files import persistence directly; target reduction behind contract tests.                                                                   |
-| Type safety        | No new `any` or unsafe TypeScript usage in changed files. Promote `no-explicit-any` to `error` by directory after batch cleanup. Current: warn (400+ pre-existing).                                                           |
-| Console (allowed)  | Middleware 0d is complete: 0 `console.*` matches in `server/middleware/`. Remaining route-layer logging debt is 165 calls across 27 files. This is observability improvement, not ratchet work.                               |
-| Client test debt   | Run actual coverage report before setting numeric targets. Current inventory: 48 component + 17 hook + 26 page test files; coverage is uneven, not near-zero.                                                                 |
+| Area               | Target outcome                                                                                                                                                                                                                  |
+| ------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Scripts            | Current baseline is 90 root scripts after retiring stale wave5/wave6 aliases and adding the alias-policy guard. Next pass: classify remaining wave/phase/package-only aliases; target <=50 active scripts before pursuing <=30. |
+| CI                 | Current baseline is 19 workflow files; `docs/workflows/README.md` may lag this Batch 0 count. Consolidate only after mapping required vs optional checks.                                                                       |
+| Hooks              | Current pre-commit is a custom staged guard; current pre-push delegates to `scripts/pre-push.mjs`. Simplify only after replacement commands exist.                                                                              |
+| Pre-push script    | Keep `scripts/pre-push.mjs` until a direct hook command or `validate:quick` equivalent is added and verified.                                                                                                                   |
+| Vitest             | Current unit entry is `vitest.config.mjs`; integration/quarantine/testcontainer configs remain active. Consolidate by migration, not deletion.                                                                                  |
+| TypeScript         | Keep active boundary configs, including `tsconfig.shared.json`; delete only unreferenced variants proven by script/extends scans.                                                                                               |
+| Env files          | No committed `.env.test` exists. Add one only with safe deterministic values and verified loader behavior; production secrets stay out of Git.                                                                                  |
+| Archives/logs      | `docs/phase0-runner*.txt` and root `archive/` are already absent; remaining `docs/archive/` is small and must be curated, not blanket-deleted.                                                                                  |
+| Binary docs assets | `docs/references/attached_assets/` has 0 tracked files; restore specific assets from git history only if a future active reference requires them.                                                                               |
+| Packages           | `packages/*` is still referenced by scripts/tsconfigs. Remove those references before deleting or extracting packages.                                                                                                          |
+| Quarantine         | Zero undocumented quarantines; every quarantine has TTL, reason, and exit condition. Current: 3 undocumented (see Section 1b).                                                                                                  |
+| Financial logic    | Existing truth/parity tests are fragmented across domains; fill missing coverage before semantic refactors.                                                                                                                     |
+| Route boundaries   | No new route files importing `db` or `storage` directly. Current: 25 of 75 route files import persistence directly; target reduction behind contract tests.                                                                     |
+| Type safety        | No new `any` or unsafe TypeScript usage in changed files. Promote `no-explicit-any` to `error` by directory after batch cleanup. Current: warn (400+ pre-existing).                                                             |
+| Console (allowed)  | Middleware 0d is complete: 0 `console.*` matches in `server/middleware/`. Remaining route-layer logging debt is 165 calls across 27 files. This is observability improvement, not ratchet work.                                 |
+| Client test debt   | Run actual coverage report before setting numeric targets. Current inventory: 48 component + 17 hook + 26 page test files; coverage is uneven, not near-zero.                                                                   |
 
 ---
 
@@ -760,7 +764,7 @@ and automation the solo developer actually uses.
 
 ## 3.1 Canonical script set
 
-Current state: `package.json` has 80 scripts. The stable core surface already
+Current state: `package.json` has 90 scripts. The stable core surface already
 exists, but `test:unit` still points at `vitest.config.mjs`, `pre-push` still
 runs `scripts/pre-push.mjs`, and there is no `validate:quick` or `validate:full`
 script yet. The script count includes `guard:scripts:check`, which prevents new
@@ -788,7 +792,7 @@ First-pass canonical surface:
   "guard:console:check": "node scripts/guardrails/console-ratchet.mjs",
   "guard:eslint-disable:check": "node scripts/guardrails/eslint-disable-ratchet.mjs",
   "guard:scripts:check": "node scripts/guardrails/script-alias-policy.mjs",
-  "guardrails:check": "npm run guard:console:check && npm run guard:eslint-disable:check && npm run guard:scripts:check",
+  "guardrails:check": "npm run guard:console:check && npm run guard:eslint-disable:check && npm run guard:scripts:check && npm run guard:route-imports:check",
   "test": "npm run test:unit",
   "test:unit": "cross-env TZ=UTC vitest run --config vitest.config.mjs --configLoader native --project=server --project=client",
   "test:integration": "cross-env TZ=UTC vitest run -c vitest.config.int.ts",
@@ -866,8 +870,8 @@ manual validation plus CI. Do not delete the Node script first.
 
 ## 3.5 CI consolidation
 
-Current state: `.github/workflows` has 16 workflow files, and
-`docs/workflows/README.md` is the maintained repo-verified index.
+Current state: `.github/workflows` has 19 workflow files. Compare them against
+`docs/workflows/README.md`; the workflow index may lag this Batch 0 count.
 
 Target after classification:
 
@@ -1639,7 +1643,7 @@ server/shared/ -> server/lib if server-local
 | Delete packages                   | Tooling refs removed first                                                       | `check`, `test:unit`, `build:prod`                                                                                               | git tag                     |
 | Simplify scripts                  | Canonical scripts or direct command chains added first                           | current replacement command passes                                                                                               | restore package.json        |
 | Simplify hooks                    | Replacement commands exist                                                       | staged-file test + current replacement command                                                                                   | restore hook/script         |
-| Simplify CI                       | 16-workflow inventory classified first                                           | CI passes once                                                                                                                   | restore workflow            |
+| Simplify CI                       | 19-workflow inventory classified first                                           | CI passes once                                                                                                                   | restore workflow            |
 | Delete Vitest config              | Script refs removed                                                              | `test:unit`                                                                                                                      | restore config              |
 | Delete TS config                  | No refs; boundary preserved                                                      | `check`, `build:prod`, Vite build                                                                                                | restore config              |
 | Route-import guard                | Existing 25 files grandfathered; new files blocked                               | `npm run check`; guard script passes; no false positives on existing routes                                                      | revert guard script         |
@@ -1710,11 +1714,11 @@ baseline in the roadmap.
 7. Treat the vendored external `repo/` project as already removed locally; only
    clean stale doc references when touched.
 8. Decouple and delete/externalize unused packages.
-9. Classify current 80 scripts and retire remaining stale
+9. Classify current 90 scripts and retire remaining stale
    wave/phase/package-only scripts.
 10. Simplify Husky hooks only after replacement commands exist; delete
     `scripts/pre-push.mjs` last.
-11. Classify the current 16 workflows against `docs/workflows/README.md`, then
+11. Classify the current 19 workflows against `docs/workflows/README.md`, then
     consolidate.
 12. Consolidate env files; add committed safe `.env.test` only if loader/CI
     behavior is verified.
@@ -1781,7 +1785,7 @@ For this solo/internal build, move quickly on verified-unused artifacts and the
 large attached-assets directory, but do not treat active route mirrors, active
 XState wizard code, active Vitest configs, or active pre-push automation as
 cleanup trash. Then simplify the daily commands, hooks, CI, env files, and test
-configs from the current 80-script / 16-workflow baseline. Only after that, fill
+configs from the current 90-script / 19-workflow baseline. Only after that, fill
 domain golden-test gaps and refactor product code behind those tests.
 
 The 2026-05-27 audit adds five immediate guardrails/baseline slices
