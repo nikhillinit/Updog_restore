@@ -35,16 +35,18 @@ As of 2026-05-27:
 2. Treat middleware logging slice 0d as closed at
    `df2b22fc refactor(middleware): preserve diagnostics as structured logs`. A
    post-0d scan found 0 `console.*` matches in `server/middleware/`.
-3. Treat Batch 0 as the active audit closeout after 0e: refresh
-   `docs/governance/cleanup-manifest.md` from live repo evidence before any
-   route logging migration, deal-pipeline extraction, or other product-code
-   refactor.
-4. After Batch 0, keep the next cleanup work documentation/audit-only until
-   Batch 1 records `docs/phase0-runner*.txt` and root `archive/` as already
-   absent.
-5. Keep the remaining logging/refactor sequence separate: route-layer console
-   debt is still 165 calls across 27 files, and service extraction remains gated
-   by existing route contract tests.
+3. Treat Batch 0 as closed at
+   `bf2d3d1d Keep cleanup sequencing tied to live repo evidence`; the manifest
+   refresh is now tied to current live repo evidence after 0e.
+4. Treat Batch 1 as closed as a no-op evidence refresh on 2026-05-27:
+   `git ls-files 'docs/phase0-runner*.txt'` and `git ls-files 'archive/**'`
+   returned empty, root `archive/` was absent, and no local
+   `docs/phase0-runner*.txt` files existed. The manifest already records this
+   state, so no manifest edit is needed.
+5. Keep the remaining cleanup/refactor sequence separate: do not start
+   attached-assets review, `docs/archive/` curation, route logging migration,
+   deal-pipeline extraction, or other product-code refactors inside this
+   closeout slice.
 
 Update this section whenever the active next step changes. This is the only
 "what to do right now" pointer in the document.
