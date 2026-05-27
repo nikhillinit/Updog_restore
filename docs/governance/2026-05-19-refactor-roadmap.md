@@ -43,10 +43,13 @@ As of 2026-05-27:
    returned empty, root `archive/` was absent, and no local
    `docs/phase0-runner*.txt` files existed. The manifest already records this
    state, so no manifest edit is needed.
-5. Keep the remaining cleanup/refactor sequence separate: do not start
-   attached-assets review, `docs/archive/` curation, route logging migration,
-   deal-pipeline extraction, or other product-code refactors inside this
-   closeout slice.
+5. Treat Batch 2 as closed as a no-op evidence refresh on 2026-05-27:
+   `git ls-files 'docs/references/attached_assets/**'` returned empty, local
+   `docs/references/attached_assets/` was absent, and the reference scan found
+   only governance/audit references that do not require asset restoration.
+6. The next separate cleanup slice is Batch 3, `docs/archive/` curation. Do not
+   start it together with route logging migration, deal-pipeline extraction, or
+   other product-code refactors inside this closeout slice.
 
 Update this section whenever the active next step changes. This is the only
 "what to do right now" pointer in the document.
@@ -1675,7 +1678,7 @@ changes and reduce future debt accumulation.
 |    0e | `chore(audit): add verified tech debt baseline to refactor roadmap`          | `rg` console scans; `guard:console:check`; `git diff --check` |
 |     0 | `chore(audit): capture baseline and cleanup manifest`                        | n/a                                                           |
 |     1 | `chore(repo): record generated docs logs already absent`                     | docs link check if ignore/docs change                         |
-|     2 | `chore(docs): externalize large reference assets`                            | docs link/visual check + `check + build:prod`                 |
+|     2 | DONE/no-op: `chore(docs): externalize large reference assets`                | 2026-05-27 recheck: 0 tracked files; no active restore refs   |
 |     3 | `chore(docs): curate remaining docs archive`                                 | docs link check                                               |
 |     4 | `chore(app): migrate legacy route-story mirror`                              | `check + build:prod + test:unit`                              |
 |     5 | `test(client): lock modeling wizard machine behavior`                        | `check + build:prod + wizard tests + e2e smoke`               |
