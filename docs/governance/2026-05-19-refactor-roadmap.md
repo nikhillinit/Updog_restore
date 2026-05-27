@@ -47,9 +47,15 @@ As of 2026-05-27:
    `git ls-files 'docs/references/attached_assets/**'` returned empty, local
    `docs/references/attached_assets/` was absent, and the reference scan found
    only governance/audit references that do not require asset restoration.
-6. The next separate cleanup slice is Batch 3, `docs/archive/` curation. Do not
-   start it together with route logging migration, deal-pipeline extraction, or
-   other product-code refactors inside this closeout slice.
+6. Treat Batch 3 as closed as a no-op evidence refresh on 2026-05-27:
+   `git ls-files 'docs/archive/**'` returned empty, five local files under
+   `docs/archive/2025-q4/` remain ignored-only, and reference classification
+   found historical/planning, governance/tooling, or Phoenix-protected
+   references rather than active docs requiring tracked archive restoration.
+7. The next separate cleanup slice is Batch 4, root `src/core/routes/ia.ts`
+   route-story mirror validation. Do not start it together with route logging
+   migration, deal-pipeline extraction, or other product-code refactors inside
+   this closeout slice.
 
 Update this section whenever the active next step changes. This is the only
 "what to do right now" pointer in the document.
@@ -288,7 +294,7 @@ These should also remain.
 | Vitest             | Current unit entry is `vitest.config.mjs`; integration/quarantine/testcontainer configs remain active. Consolidate by migration, not deletion.                                                                                  |
 | TypeScript         | Keep active boundary configs, including `tsconfig.shared.json`; delete only unreferenced variants proven by script/extends scans.                                                                                               |
 | Env files          | No committed `.env.test` exists. Add one only with safe deterministic values and verified loader behavior; production secrets stay out of Git.                                                                                  |
-| Archives/logs      | `docs/phase0-runner*.txt` and root `archive/` are already absent; remaining `docs/archive/` is small and must be curated, not blanket-deleted.                                                                                  |
+| Archives/logs      | `docs/phase0-runner*.txt`, root `archive/`, and tracked `docs/archive/**` are already absent; local ignored `docs/archive/2025-q4/` files stay ignored-only and banned from tracked HEAD.                                       |
 | Binary docs assets | `docs/references/attached_assets/` has 0 tracked files; restore specific assets from git history only if a future active reference requires them.                                                                               |
 | Packages           | `packages/*` is still referenced by scripts/tsconfigs. Remove those references before deleting or extracting packages.                                                                                                          |
 | Quarantine         | Zero undocumented quarantines; every quarantine has TTL, reason, and exit condition. Current: 3 undocumented (see Section 1b).                                                                                                  |
@@ -556,7 +562,8 @@ links/images resolve.
 Targets after review:
 
 - root `archive/` is already absent;
-- `docs/archive/2025-q4/` remains and currently contains a small set of
+- tracked `docs/archive/**` is absent from HEAD;
+- local ignored `docs/archive/2025-q4/` remains with five
   baselines/default-parameter/legacy-XIRR files.
 
 Rules:
@@ -566,6 +573,12 @@ Rules:
 - Do not keep historical source snapshots in the repo.
 - Chat transcripts should not remain in source unless sanitized and concretely
   useful.
+- Do not restore ignored local archive files to tracked HEAD unless a future
+  active product or docs reference proves a narrow exception.
+- 2026-05-27 Batch 3 closeout: active reference classification did not find any
+  tracked docs/code path requiring `docs/archive/**` restoration. Historical
+  source references remain recoverable from git history, while Phoenix-specific
+  references require specialist sign-off before any direct edits.
 
 Validation:
 
@@ -669,8 +682,9 @@ Milestone 1 is complete when:
 
 - [ ] All tracked files under closed candidates (`docs/phase0-runner*.txt`,
       `docs/references/attached_assets/`, root `archive/`) remain at 0.
-- [ ] `docs/archive/2025-q4/` contents are curated (kept, moved, or deleted with
-      rationale).
+- [x] `docs/archive/2025-q4/` contents are curated as local ignored-only
+      artifacts that must not be reintroduced to tracked HEAD without a narrow
+      active-reference proof.
 - [ ] Root `src/core/routes/ia.ts` is either documented as intentional or
       migrated.
 - [ ] XState wizard machine has behavior tests locking current semantics.
@@ -1679,7 +1693,7 @@ changes and reduce future debt accumulation.
 |     0 | `chore(audit): capture baseline and cleanup manifest`                        | n/a                                                           |
 |     1 | `chore(repo): record generated docs logs already absent`                     | docs link check if ignore/docs change                         |
 |     2 | DONE/no-op: `chore(docs): externalize large reference assets`                | 2026-05-27 recheck: 0 tracked files; no active restore refs   |
-|     3 | `chore(docs): curate remaining docs archive`                                 | docs link check                                               |
+|     3 | DONE/no-op: `chore(docs): curate remaining docs archive`                     | 2026-05-27 recheck: 0 tracked files; local ignored-only files |
 |     4 | `chore(app): migrate legacy route-story mirror`                              | `check + build:prod + test:unit`                              |
 |     5 | `test(client): lock modeling wizard machine behavior`                        | `check + build:prod + wizard tests + e2e smoke`               |
 |     6 | `docs(repo): mark external BMAD local copy as removed if references change`  | docs link check                                               |
@@ -1711,7 +1725,8 @@ baseline in the roadmap.
 2. Record `docs/phase0-runner*.txt` and root `archive/` as already absent.
 3. Keep `docs/references/attached_assets/` closed at 0 tracked files; restore
    individual assets only with an active reference.
-4. Curate the small remaining `docs/archive/2025-q4/` contents.
+4. DONE: keep the small remaining `docs/archive/2025-q4/` contents as local
+   ignored-only artifacts; tracked `docs/archive/**` remains banned from HEAD.
 5. Migrate or document root `src/core/routes/ia.ts` before any root `src/`
    removal.
 6. Keep active XState modeling-wizard machine; lock behavior and plan a future
