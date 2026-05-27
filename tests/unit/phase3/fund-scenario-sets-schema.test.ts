@@ -71,7 +71,7 @@ describe('ADR-022 fund scenario set schema shell', () => {
     expect(schema.fundScenarioSetEvents.changeSummary.name).toBe('change_summary_json');
   });
 
-  it('migration creates dedicated tables and keeps first-slice overrides fee-profile only', async () => {
+  it('migration creates dedicated tables and starts with fee-profile-only overrides', async () => {
     const migration = await readRepoFile('server/db/migrations/0013_fund_scenario_sets.sql');
 
     expect(migration).toContain('CREATE TABLE IF NOT EXISTS fund_scenario_sets');
@@ -84,6 +84,17 @@ describe('ADR-022 fund scenario set schema shell', () => {
     expect(migration).toContain('idempotency_request_hash TEXT');
     expect(migration).toContain('fund_scenario_sets_fund_idempotency_unique');
     expect(migration).toContain('fund_scenario_variants_set_order_unique');
+  });
+
+  it('reserve scenario migration expands override and event constraints', async () => {
+    const migration = await readRepoFile(
+      'server/db/migrations/0015_fund_scenario_reserve_allocation.sql'
+    );
+
+    expect(migration).toContain("override_type IN ('fee_profile', 'reserve_allocation')");
+    expect(migration).toContain("'calculation_queued'");
+    expect(migration).toContain("'calculation_started'");
+    expect(migration).toContain("'calculation_failed'");
   });
 
   it('calculation migration adds an audit-visible calculated event type', async () => {

@@ -4,8 +4,11 @@ import {
   CreateFundScenarioSetV1Schema,
   FundScenariosSectionReasonCodeV1Schema,
   FundScenarioCalculationResponseV1Schema,
+  FundScenarioCalculationStatusV1Schema,
+  FundScenarioReserveCalculationQueuedV1Schema,
   FundScenarioSetDetailV1Schema,
   FundScenarioVariantOverrideV1Schema,
+  ScenarioReserveSummaryV1Schema,
   ScenarioSetResultSummaryV1Schema,
   ScenariosSectionPayloadV1Schema,
 } from '../../../shared/contracts/fund-scenario-sets-v1.contract';
@@ -60,6 +63,61 @@ describe('FundScenarioSetsV1 contract', () => {
     });
 
     expect(result.success).toBe(false);
+  });
+
+  it('accepts reserve-allocation overrides with hard caps lower than planned reserves', () => {
+    const result = FundScenarioVariantOverrideV1Schema.safeParse({
+      overrideType: 'reserve_allocation',
+      payload: {
+        allocationVersion: 4,
+        items: [
+          {
+            companyId: 101,
+            plannedReservesCents: 10_000_000,
+            maxAllocationCents: 7_500_000,
+            allocationReason: 'Cap the follow-on reserve for concentration control',
+          },
+        ],
+      },
+    });
+
+    expect(result.success).toBe(true);
+    expect(result.data?.overrideType).toBe('reserve_allocation');
+  });
+
+  it('continues to reject unknown override types', () => {
+    const result = FundScenarioVariantOverrideV1Schema.safeParse({
+      overrideType: 'allocation',
+      payload: {
+        items: [],
+      },
+    });
+
+    expect(result.success).toBe(false);
+  });
+
+  it('rejects mixed override types in one scenario set', () => {
+    const result = CreateFundScenarioSetV1Schema.safeParse({
+      name: 'Mixed scenarios',
+      variants: [
+        {
+          name: 'Fee variant',
+          override: feeProfileOverride,
+        },
+        {
+          name: 'Reserve variant',
+          override: {
+            overrideType: 'reserve_allocation',
+            payload: {
+              items: [{ companyId: 101, plannedReservesCents: 5_000_000 }],
+            },
+          },
+        },
+      ],
+    });
+
+    expect(result.success).toBe(false);
+    expect(result.error?.issues[0]?.message).toContain('same overrideType');
   });
 
   it('caps first-slice scenario sets at five variants', () => {
@@ -197,6 +255,129 @@ describe('FundScenarioSetsV1 contract', () => {
     expect(result.success).toBe(true);
   });
 
+  it('describes async reserve calculation queued and status responses', () => {
+    expect(
+      FundScenarioReserveCalculationQueuedV1Schema.safeParse({
+        fundId: 1,
+        scenarioSetId: '00000000-0000-0000-0000-000000000111',
+        calculationMode: 'async_reserve_allocation',
+        status: 'queued',
+        jobId: 'reserve-job-1',
+        correlationId: '00000000-0000-0000-0000-000000000123',
+      }).success
+    ).toBe(true);
+
+    expect(
+      FundScenarioCalculationStatusV1Schema.safeParse({
+        fundId: 1,
+        scenarioSetId: '00000000-0000-0000-0000-000000000111',
+        calculationMode: 'async_reserve_allocation',
+        status: 'failed',
+        jobId: 'reserve-job-1',
+        correlationId: '00000000-0000-0000-0000-000000000123',
+        snapshotId: null,
+        lastEventAt: '2026-05-26T12:00:00.000Z',
+        lastError: 'Reserve scenario calculation failed',
+      }).success
+    ).toBe(true);
+  });
+
+  it('describes reserve scenario summaries in cents with cap evidence', () => {
+    const result = ScenarioReserveSummaryV1Schema.safeParse({
+      fundId: 1,
+      totalBaseAllocationCents: 11_000_000,
+      totalScenarioAllocationCents: 9_500_000,
+      totalAllocationDeltaCents: -1_500_000,
+      avgConfidence: 0.6,
+      highConfidenceCount: 1,
+      allocations: [
+        {
+          companyId: 101,
+          baseAllocationCents: 6_000_000,
+          plannedReservesCents: 10_000_000,
+          maxAllocationCents: 7_500_000,
+          scenarioAllocationCents: 7_500_000,
+          allocationDeltaCents: 1_500_000,
+          capApplied: true,
+          confidence: 0.7,
+          rationale: 'Hard cap applied',
+        },
+      ],
+      warnings: [
+        {
+          code: 'TOTAL_SCENARIO_ALLOCATION_EXCEEDS_FUND_SIZE',
+          message: 'Total scenario reserve allocation exceeds fund size.',
+        },
+      ],
+      generatedAt: '2026-05-26T12:00:00.000Z',
+    });
+
+    expect(result.success).toBe(true);
+  });
+
+  it('rejects reserve variants without reserve payloads and fee-profile variants without economics', () => {
+    const reserveResult = FundScenarioCalculationResponseV1Schema.safeParse({
+      snapshotId: 42,
+      correlationId: '00000000-0000-0000-0000-000000000123',
+      source: 'fund_snapshots',
+      payload: {
+        version: 'fund-scenarios-v1',
+        calculationMode: 'async_reserve_allocation',
+        fundId: 1,
+        scenarioSetId: '00000000-0000-0000-0000-000000000111',
+        sourceConfigId: 12,
+        sourceConfigVersion: 4,
+        staleness: {
+          state: 'CURRENT',
+          sourceConfigVersion: 4,
+          currentPublishedConfigVersion: 4,
+        },
+        calculatedAt: '2026-05-26T12:00:00.000Z',
+        variants: [
+          {
+            variantId: '00000000-0000-0000-0000-000000000112',
+            scenarioSetId: '00000000-0000-0000-0000-000000000111',
+            name: 'Reserve variant',
+            overrideType: 'reserve_allocation',
+            economics: economicsResult(),
+          },
+        ],
+      },
+    });
+
+    const feeResult = FundScenarioCalculationResponseV1Schema.safeParse({
+      snapshotId: 42,
+      correlationId: '00000000-0000-0000-0000-000000000123',
+      source: 'fund_snapshots',
+      payload: {
+        version: 'fund-scenarios-v1',
+        calculationMode: 'sync_fee_profile',
+        fundId: 1,
+        scenarioSetId: '00000000-0000-0000-0000-000000000111',
+        sourceConfigId: 12,
+        sourceConfigVersion: 4,
+        staleness: {
+          state: 'CURRENT',
+          sourceConfigVersion: 4,
+          currentPublishedConfigVersion: 4,
+        },
+        calculatedAt: '2026-05-26T12:00:00.000Z',
+        variants: [
+          {
+            variantId: '00000000-0000-0000-0000-000000000112',
+            scenarioSetId: '00000000-0000-0000-0000-000000000111',
+            name: 'Fee variant',
+            overrideType: 'fee_profile',
+            reserve: reserveSummary(),
+          },
+        ],
+      },
+    });
+
+    expect(reserveResult.success).toBe(false);
+    expect(feeResult.success).toBe(false);
+  });
+
   it('describes fund-results scenario summaries without full economics results', () => {
     const result = ScenariosSectionPayloadV1Schema.safeParse({
       version: 'fund-scenarios-v1',
@@ -207,6 +388,7 @@ describe('FundScenarioSetsV1 contract', () => {
           name: 'Fee sensitivity',
           sourceConfigId: 12,
           sourceConfigVersion: 4,
+          currentPublishedConfigVersion: 4,
           calculatedAt: '2026-05-26T12:00:00.000Z',
           staleness: 'CURRENT',
           variantCount: 1,
@@ -231,6 +413,7 @@ describe('FundScenarioSetsV1 contract', () => {
       name: 'Fee sensitivity',
       sourceConfigId: 12,
       sourceConfigVersion: 4,
+      currentPublishedConfigVersion: 4,
       calculatedAt: '2026-05-26T12:00:00.000Z',
       staleness: 'CURRENT',
       variantCount: 2,
@@ -253,6 +436,7 @@ describe('FundScenarioSetsV1 contract', () => {
       name: 'Fee sensitivity',
       sourceConfigId: 12,
       sourceConfigVersion: 4,
+      currentPublishedConfigVersion: 4,
       calculatedAt: '2026-05-26T12:00:00.000Z',
       staleness: 'CURRENT',
       variantCount: 1,
@@ -281,6 +465,70 @@ describe('FundScenarioSetsV1 contract', () => {
     ]);
   });
 });
+
+function economicsResult() {
+  return {
+    version: 'v1',
+    annual: [
+      {
+        year: 1,
+        lpCapitalCalls: 1,
+        gpCommitmentCalls: 0,
+        grossExitProceeds: 0,
+        beginningCash: 0,
+        investments: 0,
+        feesPaidToManager: 1,
+        expensesPaid: 0,
+        recycledProceeds: 0,
+        endingCash: 0,
+        lpDistributions: 0,
+        gpInvestmentDistributions: 0,
+        gpCarryDistributed: 0,
+        gpCarryEscrowed: 0,
+        gpCarryReleasedFromEscrow: 0,
+        clawbackPaid: 0,
+        grossNav: 0,
+        lpNetNav: 0,
+        dpi: 0,
+        rvpi: 0,
+        tvpi: 0,
+        conservationDelta: 0,
+      },
+    ],
+    summary: economicsSummary(),
+    checks: {
+      passed: true,
+      tolerance: 0.01,
+      errors: [],
+    },
+  };
+}
+
+function reserveSummary() {
+  return {
+    fundId: 1,
+    totalBaseAllocationCents: 1_000_000,
+    totalScenarioAllocationCents: 2_000_000,
+    totalAllocationDeltaCents: 1_000_000,
+    avgConfidence: 0.7,
+    highConfidenceCount: 1,
+    allocations: [
+      {
+        companyId: 101,
+        baseAllocationCents: 1_000_000,
+        plannedReservesCents: 2_000_000,
+        maxAllocationCents: null,
+        scenarioAllocationCents: 2_000_000,
+        allocationDeltaCents: 1_000_000,
+        capApplied: false,
+        confidence: 0.7,
+        rationale: 'Scenario reserve allocation',
+      },
+    ],
+    warnings: [],
+    generatedAt: '2026-05-26T12:00:00.000Z',
+  };
+}
 
 function economicsSummary() {
   return {

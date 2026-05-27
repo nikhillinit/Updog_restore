@@ -918,6 +918,7 @@ function scenarioSetSummary(overrides: Record<string, unknown> = {}) {
     name: 'Fee sensitivity',
     sourceConfigId: 12,
     sourceConfigVersion: 4,
+    currentPublishedConfigVersion: 4,
     calculatedAt: '2026-05-26T12:00:00.000Z',
     staleness: 'CURRENT',
     variantCount: 1,

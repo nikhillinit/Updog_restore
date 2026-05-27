@@ -1,8 +1,10 @@
 import { Router, type NextFunction, type Request, type Response } from 'express';
+import crypto from 'node:crypto';
 import { z } from 'zod';
 import {
   ArchiveFundScenarioSetV1Schema,
   CreateFundScenarioSetV1Schema,
+  FundScenarioReserveCalculationRequestV1Schema,
 } from '@shared/contracts/fund-scenario-sets-v1.contract';
 import { FundIdParamSchema } from '@shared/schemas/portfolio-route';
 import { requireAuth, requireFundAccess } from '../lib/auth/jwt';
@@ -18,6 +20,8 @@ import {
   calculateFundScenarioSet,
   getScenarioResults,
 } from '../services/fund-scenario-calculation-service.js';
+import { enqueueReserveScenarioCalculation } from '../services/fund-scenario-calc-queue-service.js';
+import { getFundScenarioCalculationStatus } from '../services/fund-scenario-calculation-status-service.js';
 
 interface HttpError extends Error {
   statusCode?: number;
@@ -189,6 +193,49 @@ router.post(
 
     const result = await calculateFundScenarioSet(fundId, scenarioSetId, parseActor(req));
     return res.status(200).json(result);
+  })
+);
+
+router.post(
+  '/funds/:fundId/scenario-sets/:scenarioSetId/calculate-reserve',
+  requireAuth(),
+  requireFundAccess,
+  routeHandler(async (req: Request, res: Response) => {
+    const fundId = parseFundId(req, res);
+    const scenarioSetId = parseScenarioSetId(req, res);
+    if (fundId === null || scenarioSetId === null) {
+      return;
+    }
+
+    const parsed = FundScenarioReserveCalculationRequestV1Schema.safeParse(req.body ?? {});
+    if (!parsed.success) {
+      sendBodyValidationError(res, parsed.error, 'Invalid reserve scenario calculation payload');
+      return;
+    }
+
+    const queued = await enqueueReserveScenarioCalculation({
+      fundId,
+      scenarioSetId,
+      correlationId: crypto.randomUUID(),
+      actor: parseActor(req),
+    });
+    return res.status(202).json(queued);
+  })
+);
+
+router.get(
+  '/funds/:fundId/scenario-sets/:scenarioSetId/calculation-status',
+  requireAuth(),
+  requireFundAccess,
+  routeHandler(async (req: Request, res: Response) => {
+    const fundId = parseFundId(req, res);
+    const scenarioSetId = parseScenarioSetId(req, res);
+    if (fundId === null || scenarioSetId === null) {
+      return;
+    }
+
+    const status = await getFundScenarioCalculationStatus(fundId, scenarioSetId);
+    return res.status(200).json(status);
   })
 );
 

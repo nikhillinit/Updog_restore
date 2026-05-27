@@ -551,6 +551,7 @@ function validScenariosSection() {
           name: 'Fee sensitivity',
           sourceConfigId: 12,
           sourceConfigVersion: 4,
+          currentPublishedConfigVersion: 4,
           calculatedAt: '2026-05-26T12:30:00.000Z',
           staleness: 'CURRENT' as const,
           variantCount: 1,
