@@ -15,7 +15,7 @@ import { act, fireEvent, render, screen, waitFor, within } from '@testing-librar
 import React from 'react';
 import { createWouterWrapper } from '../../utils/withWouter';
 import FundModelResultsPage from '../../../client/src/pages/fund-model-results';
-import type { FundScenarioComparisonV1 } from '../../../client/src/components/fund-results/ScenarioComparisonTable';
+import type { FundScenarioComparisonV1 } from '../../../shared/contracts/fund-scenario-comparison-v1.contract';
 
 describe('FundModelResultsPage (server-backed)', () => {
   let fetchSpy: ReturnType<typeof vi.fn>;
@@ -273,6 +273,20 @@ describe('FundModelResultsPage (server-backed)', () => {
     expect(within(comparison).getByText('Lower fee')).toBeInTheDocument();
     expect(within(comparison).getAllByText('Net LP IRR').length).toBe(2);
     expect(within(comparison).getByText('+0.30x')).toBeInTheDocument();
+  });
+
+  it('rejects scenario-set comparison payloads that drift from the shared contract', async () => {
+    const resp = readyResponse();
+    resp.sections.scenarios = validScenariosSection();
+    const malformedScenarioComparison = {
+      ...scenarioComparisonResponse(),
+      unexpected: true,
+    } as unknown as FundScenarioComparisonV1;
+    mockFundPageFetches({ results: resp, scenarioComparison: malformedScenarioComparison });
+    await renderPage('/fund-model-results/123');
+
+    expect(await screen.findByText('Scenario comparison unavailable')).toBeInTheDocument();
+    expect(screen.queryByText('Authoritative baseline')).not.toBeInTheDocument();
   });
 
   // -- Unavailable sections --

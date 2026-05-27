@@ -24,14 +24,10 @@ import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
-import {
-  ScenarioComparisonTable,
-  ScenarioSetsSummary,
-  type FundScenarioComparisonV1,
-} from '@/components/fund-results';
+import { ScenarioComparisonTable, ScenarioSetsSummary } from '@/components/fund-results';
 import { EvidenceHeader, type EvidenceHeaderLifecycle } from '@/components/results/EvidenceHeader';
 import { QuarterlyReviewTrace } from '@/features/analytics-parity/QuarterlyReviewTrace';
-import { queryClient } from '@/lib/queryClient';
+import { apiRequest, queryClient } from '@/lib/queryClient';
 import { cn } from '@/lib/utils';
 import type {
   FundResultsReadV1,
@@ -40,6 +36,10 @@ import type {
 } from '@shared/contracts/fund-results-v1.contract';
 import type { EconomicsResultV1 } from '@shared/contracts/economics-v1.contract';
 import type { ScenariosSectionPayloadV1 } from '@shared/contracts/fund-scenario-sets-v1.contract';
+import {
+  FundScenarioComparisonV1Schema,
+  type FundScenarioComparisonV1,
+} from '@shared/contracts/fund-scenario-comparison-v1.contract';
 import type { FundStateReadV1 } from '@shared/contracts/fund-state-read-v1.contract';
 import type { FundLifecycleHistoryV1 } from '@shared/contracts/fund-lifecycle-history-v1.contract';
 import type {
@@ -468,9 +468,24 @@ function scenarioComparisonQueryPrefix(fundId: string) {
   return [SCENARIO_COMPARISON_API_ROOT, fundId, 'scenario-sets'] as const;
 }
 
+function scenarioComparisonApiPath(fundId: string, scenarioSetId: string) {
+  if (
+    !FUND_ID_PATH_SEGMENT_PATTERN.test(fundId) ||
+    !SCENARIO_SET_ID_PATH_SEGMENT_PATTERN.test(scenarioSetId)
+  ) {
+    throw new Error('Invalid scenario comparison request path');
+  }
+
+  return `${SCENARIO_COMPARISON_API_ROOT}/${encodeURIComponent(fundId)}/scenario-sets/${encodeURIComponent(scenarioSetId)}/comparison`;
+}
+
 async function fetchScenarioComparisonForSet(fundId: string, scenarioSetId: string) {
   return queryClient.fetchQuery<FundScenarioComparisonV1>({
     queryKey: scenarioComparisonQueryKey(fundId, scenarioSetId),
+    queryFn: async () => {
+      const response = await apiRequest('GET', scenarioComparisonApiPath(fundId, scenarioSetId));
+      return FundScenarioComparisonV1Schema.parse(response);
+    },
     staleTime: 0,
   });
 }
