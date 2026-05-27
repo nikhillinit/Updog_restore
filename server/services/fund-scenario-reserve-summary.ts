@@ -104,29 +104,69 @@ function fundSizeWarning(input: {
   ];
 }
 
+function baseAllocationCents(row: BaseAllocationRow): number {
+  if (row.base == null) {
+    return 0;
+  }
+
+  return toCents(row.base.allocation);
+}
+
+function plannedReservesCents(
+  override: ReserveScenarioAllocationOverrideItemV1 | undefined,
+  baseAllocationCents: number
+): number {
+  return override == null ? baseAllocationCents : override.plannedReservesCents;
+}
+
+function maxAllocationCents(
+  override: ReserveScenarioAllocationOverrideItemV1 | undefined
+): number | null {
+  return override?.maxAllocationCents ?? null;
+}
+
+function allocationConfidence(row: BaseAllocationRow): number {
+  return row.base == null ? 0 : row.base.confidence;
+}
+
+function allocationRationale(
+  row: BaseAllocationRow,
+  override: ReserveScenarioAllocationOverrideItemV1 | undefined
+): string {
+  if (override?.allocationReason != null) {
+    return override.allocationReason;
+  }
+
+  if (row.base?.rationale != null) {
+    return row.base.rationale;
+  }
+
+  return 'Scenario reserve allocation';
+}
+
 function buildAllocationResult(
   row: BaseAllocationRow,
   overrides: Map<number, ReserveScenarioAllocationOverrideItemV1>
 ): ScenarioReserveAllocationResult {
   const override = overrides.get(row.company.id);
-  const baseAllocationCents = toCents(row.base?.allocation ?? 0);
-  const plannedReservesCents = override?.plannedReservesCents ?? baseAllocationCents;
-  const maxAllocationCents = override?.maxAllocationCents ?? null;
+  const baseAllocationCentsValue = baseAllocationCents(row);
+  const plannedReservesCentsValue = plannedReservesCents(override, baseAllocationCentsValue);
+  const maxAllocationCentsValue = maxAllocationCents(override);
   const { scenarioAllocationCents, capApplied } = effectiveAllocationCents({
-    plannedReservesCents,
-    maxAllocationCents,
+    plannedReservesCents: plannedReservesCentsValue,
+    maxAllocationCents: maxAllocationCentsValue,
   });
 
   return {
     companyId: row.company.id,
-    baseAllocationCents,
-    plannedReservesCents,
-    maxAllocationCents,
+    baseAllocationCents: baseAllocationCentsValue,
+    plannedReservesCents: plannedReservesCentsValue,
+    maxAllocationCents: maxAllocationCentsValue,
     scenarioAllocationCents,
-    allocationDeltaCents: scenarioAllocationCents - baseAllocationCents,
+    allocationDeltaCents: scenarioAllocationCents - baseAllocationCentsValue,
     capApplied,
-    confidence: row.base?.confidence ?? 0,
-    rationale: override?.allocationReason ?? row.base?.rationale ?? 'Scenario reserve allocation',
+    confidence: allocationConfidence(row),
+    rationale: allocationRationale(row, override),
   };
 }
 
