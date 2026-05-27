@@ -18,14 +18,15 @@ alone, and records what must be checked before each action.
 
 ## Refresh Evidence
 
-Refreshed on 2026-05-27 from live read-only repository scans after the 0e
-roadmap baseline commit:
+Refreshed on 2026-05-27 from live read-only repository scans. Branch state and
+`docs/references/attached_assets/**` were rechecked during Batch 2 closeout;
+other rows remain from the 0e roadmap baseline refresh:
 
 | Evidence                                | Current result                                                                                                                             |
 | --------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------ |
-| Branch state                            | Clean `main` at `051844072152e02f42f4b6c492598c1b939c4087`; `git status --short --branch` returned `## main...origin/main`                 |
+| Branch state                            | Clean `main` at `08a0bf8c277457905db4bc9ef508c5b4ec8f2d2e`; `git status --short --branch` returned `## main...origin/main`                 |
 | `docs/phase0-runner*.txt`               | 0 tracked files                                                                                                                            |
-| `docs/references/attached_assets/**`    | 0 tracked files after reference scan and deletion                                                                                          |
+| `docs/references/attached_assets/**`    | 0 tracked files; local `docs/references/attached_assets/` path absent on 2026-05-27 Batch 2 recheck                                        |
 | root `archive/**`                       | 0 tracked files; root `archive/` absent; banned from tracked HEAD                                                                          |
 | `docs/archive/**`                       | 0 tracked files; local ignored `docs/archive/` content exists; banned from tracked HEAD                                                    |
 | root `src/**`                           | 1 tracked file: `src/core/routes/ia.ts`                                                                                                    |
