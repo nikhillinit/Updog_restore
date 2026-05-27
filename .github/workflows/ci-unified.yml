@@ -170,6 +170,9 @@ jobs:
         env:
           DATABASE_URL: postgresql://postgres:postgres@localhost:5432/test
 
+      - name: Install Playwright
+        run: npx playwright install --with-deps chromium
+
       - name: Run affected tests
         run: npm run test:affected || npm run test:smart || npm run test:quick
         env:
