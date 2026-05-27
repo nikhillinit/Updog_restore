@@ -7,6 +7,9 @@ import crypto from 'crypto';
 import { redis as redisClient } from '../db/redis-circuit';
 import { logger } from '../lib/logger.js';
 
+const log =
+  typeof logger.child === 'function' ? logger.child({ module: 'middleware:dedupe' }) : logger;
+
 interface DedupeOptions {
   ttl?: number; // TTL in seconds (default: 300 = 5 minutes)
   prefix?: string; // Redis key prefix (default: 'dedupe')
@@ -142,7 +145,7 @@ async function storeResponse(
       await redisClient.setex(redisKey, ttl, JSON.stringify(response));
     }
   } catch (error: unknown) {
-    console.warn('[Dedupe] Failed to store in Redis:', error);
+    log.warn({ err: error }, 'Failed to store dedupe response in Redis');
 
     // Fallback to memory if enabled
     if (options.memoryFallback) {
@@ -175,7 +178,7 @@ async function retrieveResponse(
       }
     }
   } catch (error: unknown) {
-    console.warn('[Dedupe] Failed to retrieve from Redis:', error);
+    log.warn({ err: error }, 'Failed to retrieve dedupe response from Redis');
   }
 
   // Fallback to memory if enabled
@@ -255,7 +258,7 @@ export function dedupe(options: DedupeOptions = {}) {
         return res.status(result.statusCode).json(result.body);
       } catch (error: unknown) {
         // If in-flight request failed, proceed normally
-        console.error('[Dedupe] In-flight request failed:', error);
+        log.error({ err: error }, 'In-flight dedupe request failed');
       }
     }
 
@@ -305,7 +308,7 @@ export function dedupe(options: DedupeOptions = {}) {
         };
 
         storeResponse(key, response, config).catch((error: unknown) => {
-          console.error('[Dedupe] Failed to cache response:', error);
+          log.error({ err: error }, 'Failed to cache dedupe response');
         });
 
         completeInflight(response);

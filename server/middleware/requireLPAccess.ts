@@ -18,6 +18,12 @@ import { db } from '../db';
 import { eq } from 'drizzle-orm';
 import { limitedPartners, lpFundCommitments } from '@shared/schema-lp-reporting';
 import { firstString } from '../lib/request-values';
+import { logger } from '../lib/logger.js';
+
+const log =
+  typeof logger.child === 'function'
+    ? logger.child({ module: 'middleware:require-lp-access' })
+    : logger;
 
 /**
  * Require user to have LP role
@@ -123,7 +129,7 @@ export async function requireLPAccess(
 
     next();
   } catch (error) {
-    console.error('LP access middleware error:', error);
+    log.error({ err: error }, 'LP access middleware error');
     res.status(500).json({
       error: 'INTERNAL_ERROR',
       message: 'Failed to verify LP access',
