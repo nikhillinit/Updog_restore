@@ -74,6 +74,7 @@ jspm_packages/
 !.baselines/console-prod-baseline.json
 !.baselines/eslint-file-disable-baseline.json
 !.baselines/phase4-worker-eslint-baseline.json
+!.baselines/route-persistence-imports.json
 !.baselines/script-alias-policy.json
 
 # Optional REPL history
