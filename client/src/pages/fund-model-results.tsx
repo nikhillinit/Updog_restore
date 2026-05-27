@@ -27,7 +27,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/component
 import { ScenarioComparisonTable, ScenarioSetsSummary } from '@/components/fund-results';
 import { EvidenceHeader, type EvidenceHeaderLifecycle } from '@/components/results/EvidenceHeader';
 import { QuarterlyReviewTrace } from '@/features/analytics-parity/QuarterlyReviewTrace';
-import { queryClient } from '@/lib/queryClient';
+import { apiRequest, queryClient } from '@/lib/queryClient';
 import { cn } from '@/lib/utils';
 import type {
   FundResultsReadV1,
@@ -468,21 +468,23 @@ function scenarioComparisonQueryPrefix(fundId: string) {
   return [SCENARIO_COMPARISON_API_ROOT, fundId, 'scenario-sets'] as const;
 }
 
+function scenarioComparisonApiPath(fundId: string, scenarioSetId: string) {
+  if (
+    !FUND_ID_PATH_SEGMENT_PATTERN.test(fundId) ||
+    !SCENARIO_SET_ID_PATH_SEGMENT_PATTERN.test(scenarioSetId)
+  ) {
+    throw new Error('Invalid scenario comparison request path');
+  }
+
+  return `${SCENARIO_COMPARISON_API_ROOT}/${encodeURIComponent(fundId)}/scenario-sets/${encodeURIComponent(scenarioSetId)}/comparison`;
+}
+
 async function fetchScenarioComparisonForSet(fundId: string, scenarioSetId: string) {
   return queryClient.fetchQuery<FundScenarioComparisonV1>({
     queryKey: scenarioComparisonQueryKey(fundId, scenarioSetId),
-    queryFn: async ({ signal }) => {
-      const response = await fetch(
-        `/api/funds/${fundId}/scenario-sets/${scenarioSetId}/comparison`,
-        {
-          signal,
-          credentials: 'include',
-        }
-      );
-      if (!response.ok) {
-        throw new Error(`Server error (${response.status})`);
-      }
-      return FundScenarioComparisonV1Schema.parse(await response.json());
+    queryFn: async () => {
+      const response = await apiRequest('GET', scenarioComparisonApiPath(fundId, scenarioSetId));
+      return FundScenarioComparisonV1Schema.parse(response);
     },
     staleTime: 0,
   });

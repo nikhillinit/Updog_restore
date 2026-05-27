@@ -7,6 +7,7 @@ import {
 import {
   FundScenarioCalculationPayloadV1Schema,
   type FundScenarioCalculationPayloadV1,
+  type FundScenarioSetDetailV1,
 } from '@shared/contracts/fund-scenario-sets-v1.contract';
 import {
   FundScenarioComparisonV1Schema,
@@ -15,8 +16,12 @@ import {
   type ScenarioComparisonMetricDeltaV1,
   type ScenarioComparisonMetricKey,
   type ScenarioComparisonMetricMap,
+  type ScenarioComparisonStatus,
+  type ScenarioComparisonVariantV1,
 } from '@shared/contracts/fund-scenario-comparison-v1.contract';
 import { fetchScenarioSetDetail, verifyFundExists } from './fund-scenario-set-service.js';
+
+type ScenarioComparisonBase = Omit<FundScenarioComparisonV1, 'comparisonStatus'>;
 
 interface SnapshotRow {
   id: number;
@@ -62,58 +67,16 @@ function metricDelta(
   baselineValue: number | null,
   scenarioValue: number | null
 ): ScenarioComparisonMetricDeltaV1 {
-  if (baselineValue == null && scenarioValue == null) {
-    return {
-      metric,
-      displayName: METRIC_LABELS[metric],
-      baselineValue,
-      scenarioValue,
-      absoluteDelta: null,
-      percentageDelta: null,
-      driftCapable: false,
-      driftReason: 'missing_both',
-    };
-  }
-
-  if (baselineValue == null) {
-    return {
-      metric,
-      displayName: METRIC_LABELS[metric],
-      baselineValue,
-      scenarioValue,
-      absoluteDelta: null,
-      percentageDelta: null,
-      driftCapable: false,
-      driftReason: 'missing_baseline',
-    };
-  }
-
-  if (scenarioValue == null) {
-    return {
-      metric,
-      displayName: METRIC_LABELS[metric],
-      baselineValue,
-      scenarioValue,
-      absoluteDelta: null,
-      percentageDelta: null,
-      driftCapable: false,
-      driftReason: 'missing_scenario',
-    };
+  const unavailableDelta = unavailableMetricDelta(metric, baselineValue, scenarioValue);
+  if (unavailableDelta) return unavailableDelta;
+  if (baselineValue == null || scenarioValue == null) {
+    throw new Error(`Metric ${metric} was unexpectedly incomplete after null handling`);
   }
 
   const absoluteDelta = scenarioValue - baselineValue;
 
   if (baselineValue === 0) {
-    return {
-      metric,
-      displayName: METRIC_LABELS[metric],
-      baselineValue,
-      scenarioValue,
-      absoluteDelta,
-      percentageDelta: null,
-      driftCapable: false,
-      driftReason: 'zero_baseline',
-    };
+    return zeroBaselineMetricDelta(metric, baselineValue, scenarioValue, absoluteDelta);
   }
 
   return {
@@ -125,6 +88,59 @@ function metricDelta(
     percentageDelta: (absoluteDelta / Math.abs(baselineValue)) * 100,
     driftCapable: true,
     driftReason: 'stable',
+  };
+}
+
+function unavailableMetricDelta(
+  metric: ScenarioComparisonMetricKey,
+  baselineValue: number | null,
+  scenarioValue: number | null
+): ScenarioComparisonMetricDeltaV1 | null {
+  if (baselineValue == null && scenarioValue == null) {
+    return nonDriftableMetricDelta(metric, baselineValue, scenarioValue, 'missing_both');
+  }
+  if (baselineValue == null) {
+    return nonDriftableMetricDelta(metric, baselineValue, scenarioValue, 'missing_baseline');
+  }
+  if (scenarioValue == null) {
+    return nonDriftableMetricDelta(metric, baselineValue, scenarioValue, 'missing_scenario');
+  }
+  return null;
+}
+
+function nonDriftableMetricDelta(
+  metric: ScenarioComparisonMetricKey,
+  baselineValue: number | null,
+  scenarioValue: number | null,
+  driftReason: ScenarioComparisonMetricDeltaV1['driftReason']
+): ScenarioComparisonMetricDeltaV1 {
+  return {
+    metric,
+    displayName: METRIC_LABELS[metric],
+    baselineValue,
+    scenarioValue,
+    absoluteDelta: null,
+    percentageDelta: null,
+    driftCapable: false,
+    driftReason,
+  };
+}
+
+function zeroBaselineMetricDelta(
+  metric: ScenarioComparisonMetricKey,
+  baselineValue: number,
+  scenarioValue: number,
+  absoluteDelta: number
+): ScenarioComparisonMetricDeltaV1 {
+  return {
+    metric,
+    displayName: METRIC_LABELS[metric],
+    baselineValue,
+    scenarioValue,
+    absoluteDelta,
+    percentageDelta: null,
+    driftCapable: false,
+    driftReason: 'zero_baseline',
   };
 }
 
@@ -184,82 +200,128 @@ async function loadAuthoritativeEconomicsSnapshot(
   return snapshot ? EconomicsResultV1Schema.parse(parseJsonPayload(snapshot.payload)) : null;
 }
 
+function createBaseComparison(
+  fundId: number,
+  scenarioSet: FundScenarioSetDetailV1
+): ScenarioComparisonBase {
+  return {
+    fundId,
+    scenarioSet: {
+      scenarioSetId: scenarioSet.id,
+      name: scenarioSet.name,
+      sourceConfigId: scenarioSet.sourceConfigId,
+      sourceConfigVersion: scenarioSet.sourceConfigVersion,
+    },
+    baseline: null,
+    variants: [],
+    staleness: null,
+    calculatedAt: null,
+  };
+}
+
+function comparisonWithStatus(
+  baseComparison: ScenarioComparisonBase,
+  comparisonStatus: ScenarioComparisonStatus
+): FundScenarioComparisonV1 {
+  return FundScenarioComparisonV1Schema.parse({
+    ...baseComparison,
+    comparisonStatus,
+  });
+}
+
+function comparisonWithScenarioEvidence(
+  baseComparison: ScenarioComparisonBase,
+  scenarioPayload: FundScenarioCalculationPayloadV1
+): ScenarioComparisonBase {
+  return {
+    ...baseComparison,
+    staleness: scenarioPayload.staleness,
+    calculatedAt: scenarioPayload.calculatedAt,
+  };
+}
+
+function feeProfileVariants(
+  scenarioPayload: FundScenarioCalculationPayloadV1,
+  baselineMetrics: ScenarioComparisonMetricMap
+): ScenarioComparisonVariantV1[] {
+  return scenarioPayload.variants
+    .filter((variant) => variant.overrideType === 'fee_profile')
+    .map((variant) => {
+      const metrics = metricMapFromEconomics(variant.economics);
+      return {
+        variantId: variant.variantId,
+        name: variant.name,
+        overrideType: variant.overrideType,
+        metrics,
+        metricDeltas: metricDeltas(baselineMetrics, metrics),
+      };
+    });
+}
+
+async function buildComparableComparison(
+  client: PoolClient,
+  input: {
+    fundId: number;
+    scenarioSet: FundScenarioSetDetailV1;
+    baseComparison: ScenarioComparisonBase;
+    scenarioPayload: FundScenarioCalculationPayloadV1;
+  }
+): Promise<FundScenarioComparisonV1> {
+  const comparisonBase = comparisonWithScenarioEvidence(
+    input.baseComparison,
+    input.scenarioPayload
+  );
+  const baselineSnapshot = await loadAuthoritativeEconomicsSnapshot(client, {
+    fundId: input.fundId,
+    sourceConfigId: input.scenarioSet.sourceConfigId,
+    sourceConfigVersion: input.scenarioSet.sourceConfigVersion,
+  });
+
+  if (!baselineSnapshot) {
+    return comparisonWithStatus(comparisonBase, 'baseline_unavailable');
+  }
+
+  const baselineMetrics = metricMapFromEconomics(baselineSnapshot);
+  return FundScenarioComparisonV1Schema.parse({
+    ...comparisonBase,
+    comparisonStatus: 'comparable',
+    baseline: {
+      label: 'Authoritative baseline',
+      metrics: baselineMetrics,
+    },
+    variants: feeProfileVariants(input.scenarioPayload, baselineMetrics),
+  });
+}
+
+async function buildFundScenarioComparison(
+  client: PoolClient,
+  fundId: number,
+  scenarioSetId: string
+): Promise<FundScenarioComparisonV1> {
+  await verifyFundExists(client, fundId);
+  const scenarioSet = await fetchScenarioSetDetail(client, fundId, scenarioSetId);
+  const baseComparison = createBaseComparison(fundId, scenarioSet);
+
+  if (scenarioSet.variants.some((variant) => variant.override.overrideType !== 'fee_profile')) {
+    return comparisonWithStatus(baseComparison, 'unsupported_override_type');
+  }
+
+  const scenarioPayload = await loadLatestScenarioSnapshot(client, fundId, scenarioSetId);
+  if (!scenarioPayload) {
+    return comparisonWithStatus(baseComparison, 'no_scenario_results');
+  }
+
+  return buildComparableComparison(client, {
+    fundId,
+    scenarioSet,
+    baseComparison,
+    scenarioPayload,
+  });
+}
+
 export async function getFundScenarioComparison(
   fundId: number,
   scenarioSetId: string
 ): Promise<FundScenarioComparisonV1> {
-  return transaction(async (client) => {
-    await verifyFundExists(client, fundId);
-    const scenarioSet = await fetchScenarioSetDetail(client, fundId, scenarioSetId);
-    const baseComparison = {
-      fundId,
-      scenarioSet: {
-        scenarioSetId: scenarioSet.id,
-        name: scenarioSet.name,
-        sourceConfigId: scenarioSet.sourceConfigId,
-        sourceConfigVersion: scenarioSet.sourceConfigVersion,
-      },
-      baseline: null,
-      variants: [],
-      staleness: null,
-      calculatedAt: null,
-    };
-
-    if (scenarioSet.variants.some((variant) => variant.override.overrideType !== 'fee_profile')) {
-      return FundScenarioComparisonV1Schema.parse({
-        ...baseComparison,
-        comparisonStatus: 'unsupported_override_type',
-      });
-    }
-
-    const scenarioPayload = await loadLatestScenarioSnapshot(client, fundId, scenarioSetId);
-    if (!scenarioPayload) {
-      return FundScenarioComparisonV1Schema.parse({
-        ...baseComparison,
-        comparisonStatus: 'no_scenario_results',
-      });
-    }
-
-    const comparisonWithScenarioEvidence = {
-      ...baseComparison,
-      staleness: scenarioPayload.staleness,
-      calculatedAt: scenarioPayload.calculatedAt,
-    };
-    const baselineSnapshot = await loadAuthoritativeEconomicsSnapshot(client, {
-      fundId,
-      sourceConfigId: scenarioSet.sourceConfigId,
-      sourceConfigVersion: scenarioSet.sourceConfigVersion,
-    });
-
-    if (!baselineSnapshot) {
-      return FundScenarioComparisonV1Schema.parse({
-        ...comparisonWithScenarioEvidence,
-        comparisonStatus: 'baseline_unavailable',
-      });
-    }
-
-    const baselineMetrics = metricMapFromEconomics(baselineSnapshot);
-    const variants = scenarioPayload.variants
-      .filter((variant) => variant.overrideType === 'fee_profile')
-      .map((variant) => {
-        const metrics = metricMapFromEconomics(variant.economics);
-        return {
-          variantId: variant.variantId,
-          name: variant.name,
-          overrideType: variant.overrideType,
-          metrics,
-          metricDeltas: metricDeltas(baselineMetrics, metrics),
-        };
-      });
-
-    return FundScenarioComparisonV1Schema.parse({
-      ...comparisonWithScenarioEvidence,
-      comparisonStatus: 'comparable',
-      baseline: {
-        label: 'Authoritative baseline',
-        metrics: baselineMetrics,
-      },
-      variants,
-    });
-  });
+  return transaction((client) => buildFundScenarioComparison(client, fundId, scenarioSetId));
 }
