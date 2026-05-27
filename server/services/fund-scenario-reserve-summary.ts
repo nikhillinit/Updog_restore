@@ -16,6 +16,16 @@ interface BaseAllocationRow {
   inputIndex: number;
 }
 
+interface EffectiveAllocationInput {
+  plannedReservesCents: number;
+  maxAllocationCents: number | null;
+}
+
+interface EffectiveAllocationResult {
+  scenarioAllocationCents: number;
+  capApplied: boolean;
+}
+
 function toCents(value: number): number {
   return Math.round(value * 100);
 }
@@ -43,20 +53,6 @@ function buildOverrideMap(items: ReserveScenarioAllocationOverrideItemV1[]) {
   }
 
   return { byCompanyId, duplicateCompanyIds };
-}
-
-function effectiveAllocationCents(input: {
-  plannedReservesCents: number;
-  maxAllocationCents: number | null;
-}): Pick<ScenarioReserveAllocationResult, 'scenarioAllocationCents' | 'capApplied'> {
-  const max = input.maxAllocationCents;
-  const scenarioAllocationCents =
-    max == null ? input.plannedReservesCents : Math.min(input.plannedReservesCents, max);
-
-  return {
-    scenarioAllocationCents,
-    capApplied: max != null && max < input.plannedReservesCents,
-  };
 }
 
 function duplicateOverrideWarnings(duplicateCompanyIds: Set<number>): ScenarioReserveWarningV1[] {
@@ -195,4 +191,15 @@ export function buildScenarioReserveSummary(input: {
     warnings,
     generatedAt: new Date().toISOString(),
   });
+}
+
+function effectiveAllocationCents(input: EffectiveAllocationInput): EffectiveAllocationResult {
+  const max = input.maxAllocationCents;
+  const scenarioAllocationCents =
+    max == null ? input.plannedReservesCents : Math.min(input.plannedReservesCents, max);
+
+  return {
+    scenarioAllocationCents,
+    capApplied: max != null && max < input.plannedReservesCents,
+  };
 }
