@@ -10,85 +10,22 @@
 import React from 'react';
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
-import type { ScenarioEvidenceStateV1 } from '@shared/contracts/fund-scenario-sets-v1.contract';
+import {
+  SCENARIO_COMPARISON_METRIC_KEYS,
+  type FundScenarioComparisonV1,
+  type ScenarioComparisonDriftReason,
+  type ScenarioComparisonMetricDeltaV1,
+  type ScenarioComparisonMetricKey,
+  type ScenarioComparisonMetricMap,
+  type ScenarioComparisonMetricValue,
+  type ScenarioComparisonStalenessV1,
+  type ScenarioComparisonVariantV1,
+} from '@shared/contracts/fund-scenario-comparison-v1.contract';
 
-export const SCENARIO_COMPARISON_METRIC_KEYS = [
-  'lpNetIrr',
-  'gpNetIrr',
-  'totalManagementFees',
-  'totalGpCarryDistributed',
-  'totalGpFeeIncome',
-  'finalDpi',
-  'finalTvpi',
-  'finalClawbackDue',
-] as const;
+export { SCENARIO_COMPARISON_METRIC_KEYS };
+export type { FundScenarioComparisonV1 };
 
-export type ScenarioComparisonMetricKey = (typeof SCENARIO_COMPARISON_METRIC_KEYS)[number];
-export type ScenarioComparisonStatus =
-  | 'no_scenario_results'
-  | 'baseline_unavailable'
-  | 'comparable';
-export type ScenarioComparisonMetricValue = number | null;
-export type ScenarioComparisonMetricMap = Record<
-  ScenarioComparisonMetricKey,
-  ScenarioComparisonMetricValue
->;
-export interface ScenarioComparisonStalenessObjectV1 {
-  state: ScenarioEvidenceStateV1;
-  sourceConfigVersion: number;
-  currentPublishedConfigVersion: number | null;
-}
-export type ScenarioComparisonStalenessV1 =
-  | ScenarioEvidenceStateV1
-  | ScenarioComparisonStalenessObjectV1;
 export type ScenarioComparisonMetricKind = 'percent' | 'money' | 'multiple';
-export type ScenarioComparisonDriftReason =
-  | 'stable'
-  | 'missing_baseline'
-  | 'missing_scenario'
-  | 'missing_both'
-  | 'zero_baseline';
-
-export interface ScenarioComparisonScenarioSetV1 {
-  scenarioSetId: string;
-  name: string;
-  sourceConfigId: number;
-  sourceConfigVersion: number;
-}
-
-export interface ScenarioComparisonBaselineV1 {
-  label?: string | null;
-  metrics: ScenarioComparisonMetricMap;
-}
-
-export interface ScenarioComparisonMetricDeltaV1 {
-  metric: ScenarioComparisonMetricKey;
-  displayName: string;
-  baselineValue: ScenarioComparisonMetricValue;
-  scenarioValue: ScenarioComparisonMetricValue;
-  absoluteDelta: ScenarioComparisonMetricValue;
-  percentageDelta: ScenarioComparisonMetricValue;
-  driftCapable: boolean;
-  driftReason: ScenarioComparisonDriftReason;
-}
-
-export interface ScenarioComparisonVariantV1 {
-  variantId: string;
-  name: string;
-  overrideType: 'fee_profile';
-  metrics: ScenarioComparisonMetricMap;
-  metricDeltas: ScenarioComparisonMetricDeltaV1[];
-}
-
-export interface FundScenarioComparisonV1 {
-  fundId: number;
-  comparisonStatus: ScenarioComparisonStatus;
-  scenarioSet: ScenarioComparisonScenarioSetV1;
-  baseline: ScenarioComparisonBaselineV1 | null;
-  variants: ScenarioComparisonVariantV1[];
-  staleness: ScenarioComparisonStalenessV1 | null;
-  calculatedAt: string | null;
-}
 
 export interface ScenarioComparisonTableProps {
   comparison: FundScenarioComparisonV1;
@@ -171,6 +108,9 @@ function statusCopy(comparison: FundScenarioComparisonV1) {
   }
   if (comparison.comparisonStatus === 'baseline_unavailable') {
     return `Authoritative economics baseline is unavailable for source config v${comparison.scenarioSet.sourceConfigVersion}.`;
+  }
+  if (comparison.comparisonStatus === 'unsupported_override_type') {
+    return 'Scenario comparison is not supported for reserve-allocation scenario sets yet.';
   }
   return 'Scenario comparison is unavailable.';
 }
