@@ -103,7 +103,7 @@ jobs:
       # Upload test artifacts on failure for debugging.
       - name: Upload test results
         if: failure()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: testcontainers-test-results
           path: |
