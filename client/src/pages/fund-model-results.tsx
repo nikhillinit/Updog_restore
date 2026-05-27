@@ -24,7 +24,11 @@ import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
-import { ScenarioSetsSummary } from '@/components/fund-results';
+import {
+  ScenarioComparisonTable,
+  ScenarioSetsSummary,
+  type FundScenarioComparisonV1,
+} from '@/components/fund-results';
 import { EvidenceHeader, type EvidenceHeaderLifecycle } from '@/components/results/EvidenceHeader';
 import { QuarterlyReviewTrace } from '@/features/analytics-parity/QuarterlyReviewTrace';
 import { cn } from '@/lib/utils';
@@ -66,6 +70,12 @@ type ResultsComparisonState =
   | { kind: 'loading'; comparison: FundResultsComparisonV1 | null }
   | { kind: 'error'; message: string; comparison: FundResultsComparisonV1 | null }
   | { kind: 'data'; comparison: FundResultsComparisonV1 };
+
+type ScenarioComparisonState =
+  | { kind: 'idle'; comparisons: FundScenarioComparisonV1[] }
+  | { kind: 'loading'; comparisons: FundScenarioComparisonV1[] }
+  | { kind: 'error'; message: string; comparisons: FundScenarioComparisonV1[] }
+  | { kind: 'data'; comparisons: FundScenarioComparisonV1[] };
 
 type LifecycleStatus = FundStateReadV1['calculationState']['status'];
 
@@ -408,6 +418,81 @@ function useFundResultsComparison(fundId: string | null) {
   return { state, refresh: fetchComparison };
 }
 
+function useFundScenarioComparisons(fundId: string | null, scenarioSetIds: readonly string[]) {
+  const scenarioSetIdsKey = scenarioSetIds.join('|');
+  const [state, setState] = useState<ScenarioComparisonState>({
+    kind: 'idle',
+    comparisons: [],
+  });
+  const abortRef = useRef<AbortController | null>(null);
+
+  const cancelInFlight = useCallback(() => {
+    if (abortRef.current) {
+      abortRef.current.abort();
+      abortRef.current = null;
+    }
+  }, []);
+
+  const fetchComparisons = useCallback(async () => {
+    const ids = scenarioSetIdsKey.length > 0 ? scenarioSetIdsKey.split('|') : [];
+    if (!fundId || fundId === 'latest' || ids.length === 0) {
+      cancelInFlight();
+      setState({ kind: 'idle', comparisons: [] });
+      return;
+    }
+
+    cancelInFlight();
+    const controller = new AbortController();
+    abortRef.current = controller;
+    setState((previous) => ({
+      kind: 'loading',
+      comparisons: previous.comparisons,
+    }));
+
+    try {
+      const comparisons = await Promise.all(
+        ids.map(async (scenarioSetId) => {
+          const res = await fetch(
+            `/api/funds/${fundId}/scenario-sets/${encodeURIComponent(scenarioSetId)}/comparison`,
+            { signal: controller.signal }
+          );
+          if (!res.ok) {
+            throw new Error(`Scenario comparison unavailable (${res.status})`);
+          }
+          return (await res.json()) as FundScenarioComparisonV1;
+        })
+      );
+      setState({ kind: 'data', comparisons });
+    } catch (error) {
+      if (controller.signal.aborted) return;
+      const message = error instanceof Error ? error.message : 'Scenario comparison unavailable';
+      setState((previous) => ({
+        kind: 'error',
+        message,
+        comparisons: previous.comparisons,
+      }));
+    } finally {
+      if (abortRef.current === controller) {
+        abortRef.current = null;
+      }
+    }
+  }, [cancelInFlight, fundId, scenarioSetIdsKey]);
+
+  useEffect(() => {
+    void fetchComparisons();
+    return () => cancelInFlight();
+  }, [cancelInFlight, fetchComparisons]);
+
+  return { state, refresh: fetchComparisons };
+}
+
+function scenarioSetIdsFromFetchState(fetchState: FetchState): string[] {
+  if (fetchState.kind !== 'data') return [];
+  const scenarios = fetchState.results.sections.scenarios;
+  if (scenarios.status !== 'available') return [];
+  return scenarios.payload.sets.map((scenarioSet) => scenarioSet.scenarioSetId);
+}
+
 function useRecalculatePublished(fundId: string | null, onSuccess: () => void) {
   const [state, setState] = useState<RecalculateState>({ kind: 'idle' });
 
@@ -584,6 +669,56 @@ function WaterfallSetupCard({ payload }: { payload: WaterfallSetupSection }) {
           </div>
         ))}
       </div>
+    </div>
+  );
+}
+
+function ScenarioComparisonPanel({ state }: { state: ScenarioComparisonState }) {
+  if (state.kind === 'idle') return null;
+
+  const hasComparisons = state.comparisons.length > 0;
+
+  return (
+    <div className="space-y-4">
+      {state.kind === 'loading' && !hasComparisons && (
+        <p className="text-sm text-charcoal-500 font-poppins">Loading scenario comparison...</p>
+      )}
+
+      {state.kind === 'loading' && hasComparisons && (
+        <p className="text-xs text-charcoal-400 font-poppins">Refreshing scenario comparison...</p>
+      )}
+
+      {state.kind === 'error' && (
+        <Alert className="border-beige-200 bg-beige-50">
+          <AlertCircle className="h-4 w-4 text-charcoal-400" />
+          <AlertTitle>Scenario comparison unavailable</AlertTitle>
+          <AlertDescription className="font-poppins text-charcoal-500">
+            {state.message}
+          </AlertDescription>
+        </Alert>
+      )}
+
+      {state.comparisons.map((comparison) => (
+        <ScenarioComparisonTable
+          key={comparison.scenarioSet.scenarioSetId}
+          comparison={comparison}
+        />
+      ))}
+    </div>
+  );
+}
+
+function ScenarioAnalysisCard({
+  payload,
+  comparisonState,
+}: {
+  payload: ScenariosSectionPayloadV1;
+  comparisonState: ScenarioComparisonState;
+}) {
+  return (
+    <div className="space-y-6">
+      <ScenarioSetsSummary payload={payload} />
+      <ScenarioComparisonPanel state={comparisonState} />
     </div>
   );
 }
@@ -1581,10 +1716,14 @@ function FundModelResultsPage() {
   const { state: fetchState, refresh: refreshResults } = useFundResults(fundId);
   const { state: historyState, refresh: refreshHistory } = useFundLifecycleHistory(fundId);
   const { state: comparisonState, refresh: refreshComparison } = useFundResultsComparison(fundId);
+  const scenarioSetIds = scenarioSetIdsFromFetchState(fetchState);
+  const { state: scenarioComparisonState, refresh: refreshScenarioComparisons } =
+    useFundScenarioComparisons(fundId, scenarioSetIds);
   const { state: recalculateState, recalculate } = useRecalculatePublished(fundId, () => {
     void refreshResults();
     void refreshHistory();
     void refreshComparison();
+    void refreshScenarioComparisons();
   });
   const previousCalculationStatusRef = useRef<LifecycleStatus | null>(null);
 
@@ -1600,10 +1739,11 @@ function FundModelResultsPage() {
     ) {
       void refreshHistory();
       void refreshComparison();
+      void refreshScenarioComparisons();
     }
 
     previousCalculationStatusRef.current = status;
-  }, [fetchState, refreshComparison, refreshHistory]);
+  }, [fetchState, refreshComparison, refreshHistory, refreshScenarioComparisons]);
 
   // Handle /latest or missing fundId
   if (fundId === 'latest' || !fundId) {
@@ -1694,7 +1834,12 @@ function FundModelResultsPage() {
         <SectionRenderer
           title="Scenario Analysis"
           section={results.sections.scenarios}
-          renderPayload={(p) => <ScenarioSetsSummary payload={p as ScenariosSectionPayloadV1} />}
+          renderPayload={(p) => (
+            <ScenarioAnalysisCard
+              payload={p as ScenariosSectionPayloadV1}
+              comparisonState={scenarioComparisonState}
+            />
+          )}
         />
       </FadeInSection>
 
