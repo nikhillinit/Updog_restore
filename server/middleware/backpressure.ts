@@ -5,6 +5,10 @@
 import type { Request, Response, NextFunction } from 'express';
 import * as os from 'os';
 import * as v8 from 'v8';
+import { logger } from '../lib/logger.js';
+
+const log =
+  typeof logger.child === 'function' ? logger.child({ module: 'middleware:backpressure' }) : logger;
 
 interface BackpressureOptions {
   maxEventLoopDelay?: number; // Maximum event loop delay in ms
@@ -145,7 +149,7 @@ export function createBackpressureMiddleware(options?: BackpressureOptions) {
 
     if (underPressure) {
       // Log the pressure event
-      console.warn('[Backpressure] Server under pressure:', reason);
+      log.warn({ reason }, 'Server under pressure');
 
       // Set retry header
       res.setHeader('Retry-After', '10');

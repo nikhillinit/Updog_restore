@@ -9,6 +9,11 @@ import { logger } from '../lib/logger.js';
 import type { UserContext } from '../lib/secure-context.js';
 import type { Pool, PoolClient } from 'pg';
 
+const log =
+  typeof logger.child === 'function'
+    ? logger.child({ module: 'middleware:with-rls-transaction' })
+    : logger;
+
 export interface RLSRequest extends Request {
   context?: UserContext;
   tx?: typeof db;
@@ -92,7 +97,7 @@ export function withRLSTransaction() {
 
           client
             .query(shouldCommit ? 'COMMIT' : 'ROLLBACK')
-            .catch((err) => console.error('Transaction finalization error:', err))
+            .catch((err) => log.error({ err }, 'Transaction finalization error'))
             .finally(() => {
               client.release();
             });
@@ -107,7 +112,7 @@ export function withRLSTransaction() {
           transactionCompleted = true;
           client
             .query('ROLLBACK')
-            .catch((err) => console.error('Rollback error on close:', err))
+            .catch((err) => log.error({ err }, 'Rollback error on close'))
             .finally(() => {
               client.release();
             });
@@ -121,7 +126,7 @@ export function withRLSTransaction() {
       try {
         await client.query('ROLLBACK');
       } catch (rollbackError) {
-        console.error('Rollback error:', rollbackError);
+        log.error({ err: rollbackError }, 'Rollback error');
       } finally {
         client.release();
       }
@@ -202,10 +207,10 @@ export function logRLSContext(req: RLSRequest, prefix: string = ''): void {
   if (process.env['NODE_ENV'] === 'development' || process.env['DEBUG_RLS'] === 'true') {
     verifyRLSContext(req)
       .then((context) => {
-        logger.debug({ prefix, context }, 'RLS Context');
+        log.debug({ prefix, context }, 'RLS Context');
       })
       .catch((err) => {
-        logger.error({ prefix, err }, 'Failed to get RLS context');
+        log.error({ prefix, err }, 'Failed to get RLS context');
       });
   }
 }

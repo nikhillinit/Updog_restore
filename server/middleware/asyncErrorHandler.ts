@@ -1,6 +1,12 @@
 import { Queue } from 'bullmq';
 import type { Request, Response, NextFunction } from 'express';
 import { sendApiError, httpCodeToAppCode } from '../lib/apiError';
+import { logger } from '../lib/logger.js';
+
+const log =
+  typeof logger.child === 'function'
+    ? logger.child({ module: 'middleware:async-error-handler' })
+    : logger;
 
 // Only create queue if Redis is available
 let errorQueue: Queue | null = null;
@@ -63,11 +69,11 @@ export function captureErrorAsync(error: Error, context: ErrorContext): void {
           timestamp: new Date().toISOString(),
         })
         .catch((err) => {
-          console.error('Failed to queue error:', err);
+          log.error({ err }, 'Failed to queue error');
         });
     } else {
-      // Fallback to console if no queue
-      console.error('Error:', error.message, context);
+      // Fallback to structured logging if no queue is available.
+      log.error({ err: error, context }, 'Async error captured without queue');
     }
   });
 }

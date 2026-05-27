@@ -7,6 +7,9 @@ import crypto from 'crypto';
 import { redis as redisClient } from '../db/redis-circuit';
 import { logger } from '../lib/logger.js';
 
+const log =
+  typeof logger.child === 'function' ? logger.child({ module: 'middleware:idempotency' }) : logger;
+
 interface IdempotencyOptions {
   ttl?: number; // TTL in seconds (default: 300 = 5 minutes)
   prefix?: string; // Redis key prefix (default: 'idem')
@@ -213,7 +216,7 @@ async function storeResponse(
       await redisClient.setex(redisKey, ttl, JSON.stringify(response));
     }
   } catch (error) {
-    console.warn('[Idempotency] Failed to store in Redis:', error);
+    log.warn({ err: error }, 'Failed to store idempotency response in Redis');
 
     // Fallback to memory if enabled
     if (options.memoryFallback) {
@@ -240,7 +243,7 @@ async function retrieveResponse(
       }
     }
   } catch (error) {
-    console.warn('[Idempotency] Failed to retrieve from Redis:', error);
+    log.warn({ err: error }, 'Failed to retrieve idempotency response from Redis');
   }
 
   // Fallback to memory if enabled
@@ -344,7 +347,7 @@ export function idempotency(options: IdempotencyOptions = {}) {
         }
       }
     } catch (error) {
-      console.warn('[Idempotency] Failed to acquire PENDING lock:', error);
+      log.warn({ err: error }, 'Failed to acquire idempotency PENDING lock');
       // Continue without lock if Redis unavailable
     }
 
@@ -376,7 +379,7 @@ export function idempotency(options: IdempotencyOptions = {}) {
         try {
           await redisClient.del(lockKey);
         } catch (error) {
-          console.warn('[Idempotency] Failed to cleanup lock:', error);
+          log.warn({ err: error }, 'Failed to cleanup idempotency lock');
         }
       }
     };
@@ -405,7 +408,7 @@ export function idempotency(options: IdempotencyOptions = {}) {
 
       storeResponse(key, response, config as IdempotencyOptions)
         .catch((error) => {
-          console.error('[Idempotency] Failed to cache response:', error);
+          log.error({ err: error }, 'Failed to cache idempotency response');
         })
         .finally(cleanupLock);
     };

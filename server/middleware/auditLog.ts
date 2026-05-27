@@ -1,6 +1,10 @@
 import type { Request, Response, NextFunction } from 'express';
 import { storage } from '../storage.js';
 import type { InsertAuditLog } from '../../shared/schema.js';
+import { logger } from '../lib/logger.js';
+
+const log =
+  typeof logger.child === 'function' ? logger.child({ module: 'middleware:audit-log' }) : logger;
 
 interface AuditConfig {
   excludePaths?: string[];
@@ -91,7 +95,7 @@ export function auditLog(config: AuditConfig = {}) {
 
       // Log asynchronously to avoid blocking the response
       logAuditEntry(auditEntry).catch((error: unknown) => {
-        console.error('Failed to log audit entry:', error);
+        log.error({ err: error }, 'Failed to log audit entry');
         // Don't throw - audit logging failures shouldn't break the API
       });
     });
@@ -112,7 +116,7 @@ async function logAuditEntry(entry: InsertAuditLog) {
       auditLogger.info({ entry }, 'AUDIT');
     }
   } catch (error) {
-    console.error('Failed to persist audit log:', error);
+    log.error({ err: error }, 'Failed to persist audit log');
   }
 }
 
