@@ -4,8 +4,8 @@ import { describe, expect, it } from 'vitest';
 import {
   ScenarioComparisonTable,
   SCENARIO_COMPARISON_METRIC_KEYS,
-  type FundScenarioComparisonV1,
 } from '../../../../client/src/components/fund-results/ScenarioComparisonTable';
+import type { FundScenarioComparisonV1 } from '../../../../shared/contracts/fund-scenario-comparison-v1.contract';
 
 describe('ScenarioComparisonTable', () => {
   it('renders the ADR-022 scenario comparison metric contract', () => {
@@ -54,6 +54,16 @@ describe('ScenarioComparisonTable', () => {
     ).toBeInTheDocument();
     expect(table).not.toHaveTextContent('Lower fee');
     expect(table).not.toHaveTextContent('Net LP IRR');
+  });
+
+  it('renders unsupported override fallbacks without pretending reserve scenarios are comparable', () => {
+    render(<ScenarioComparisonTable comparison={unsupportedReserveComparison()} />);
+
+    const table = screen.getByTestId('scenario-comparison-table');
+    expect(
+      within(table).getByText(/not supported for reserve-allocation scenario sets/i)
+    ).toBeInTheDocument();
+    expect(table).not.toHaveTextContent('FEE PROFILE');
   });
 });
 
@@ -128,5 +138,22 @@ function baselineUnavailableComparison(): FundScenarioComparisonV1 {
     variants: [],
     staleness: 'CURRENT',
     calculatedAt: '2026-05-26T12:30:00.000Z',
+  };
+}
+
+function unsupportedReserveComparison(): FundScenarioComparisonV1 {
+  return {
+    fundId: 123,
+    comparisonStatus: 'unsupported_override_type',
+    scenarioSet: {
+      scenarioSetId: '00000000-0000-0000-0000-000000000111',
+      name: 'Reserve sensitivity',
+      sourceConfigId: 12,
+      sourceConfigVersion: 4,
+    },
+    baseline: null,
+    variants: [],
+    staleness: null,
+    calculatedAt: null,
   };
 }

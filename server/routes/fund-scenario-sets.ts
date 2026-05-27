@@ -22,6 +22,7 @@ import {
 } from '../services/fund-scenario-calculation-service.js';
 import { enqueueReserveScenarioCalculation } from '../services/fund-scenario-calc-queue-service.js';
 import { getFundScenarioCalculationStatus } from '../services/fund-scenario-calculation-status-service.js';
+import { getFundScenarioComparison } from '../services/fund-scenario-comparison-service.js';
 
 interface HttpError extends Error {
   statusCode?: number;
@@ -236,6 +237,22 @@ router.get(
 
     const status = await getFundScenarioCalculationStatus(fundId, scenarioSetId);
     return res.status(200).json(status);
+  })
+);
+
+router.get(
+  '/funds/:fundId/scenario-sets/:scenarioSetId/comparison',
+  requireAuth(),
+  requireFundAccess,
+  routeHandler(async (req: Request, res: Response) => {
+    const fundId = parseFundId(req, res);
+    const scenarioSetId = parseScenarioSetId(req, res);
+    if (fundId === null || scenarioSetId === null) {
+      return;
+    }
+
+    const comparison = await getFundScenarioComparison(fundId, scenarioSetId);
+    return res.status(200).json(comparison);
   })
 );
 

@@ -24,11 +24,7 @@ import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
-import {
-  ScenarioComparisonTable,
-  ScenarioSetsSummary,
-  type FundScenarioComparisonV1,
-} from '@/components/fund-results';
+import { ScenarioComparisonTable, ScenarioSetsSummary } from '@/components/fund-results';
 import { EvidenceHeader, type EvidenceHeaderLifecycle } from '@/components/results/EvidenceHeader';
 import { QuarterlyReviewTrace } from '@/features/analytics-parity/QuarterlyReviewTrace';
 import { queryClient } from '@/lib/queryClient';
@@ -40,6 +36,10 @@ import type {
 } from '@shared/contracts/fund-results-v1.contract';
 import type { EconomicsResultV1 } from '@shared/contracts/economics-v1.contract';
 import type { ScenariosSectionPayloadV1 } from '@shared/contracts/fund-scenario-sets-v1.contract';
+import {
+  FundScenarioComparisonV1Schema,
+  type FundScenarioComparisonV1,
+} from '@shared/contracts/fund-scenario-comparison-v1.contract';
 import type { FundStateReadV1 } from '@shared/contracts/fund-state-read-v1.contract';
 import type { FundLifecycleHistoryV1 } from '@shared/contracts/fund-lifecycle-history-v1.contract';
 import type {
@@ -471,6 +471,19 @@ function scenarioComparisonQueryPrefix(fundId: string) {
 async function fetchScenarioComparisonForSet(fundId: string, scenarioSetId: string) {
   return queryClient.fetchQuery<FundScenarioComparisonV1>({
     queryKey: scenarioComparisonQueryKey(fundId, scenarioSetId),
+    queryFn: async ({ signal }) => {
+      const response = await fetch(
+        `/api/funds/${fundId}/scenario-sets/${scenarioSetId}/comparison`,
+        {
+          signal,
+          credentials: 'include',
+        }
+      );
+      if (!response.ok) {
+        throw new Error(`Server error (${response.status})`);
+      }
+      return FundScenarioComparisonV1Schema.parse(await response.json());
+    },
     staleTime: 0,
   });
 }
