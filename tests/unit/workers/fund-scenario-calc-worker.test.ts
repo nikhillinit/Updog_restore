@@ -1,13 +1,29 @@
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-const { runReserveScenarioCalculationMock, loggerInfoMock, loggerErrorMock } = vi.hoisted(() => ({
+const {
+  runReserveScenarioCalculationMock,
+  loggerInfoMock,
+  loggerErrorMock,
+  workerConstructorMock,
+  registerWorkerMock,
+  createHealthServerMock,
+  getQueueConnectionOptionsMock,
+} = vi.hoisted(() => ({
   runReserveScenarioCalculationMock: vi.fn(),
   loggerInfoMock: vi.fn(),
   loggerErrorMock: vi.fn(),
+  workerConstructorMock: vi.fn(),
+  registerWorkerMock: vi.fn(),
+  createHealthServerMock: vi.fn(),
+  getQueueConnectionOptionsMock: vi.fn(),
 }));
 
 vi.mock('../../../server/services/fund-scenario-reserve-calculation-service', () => ({
   runReserveScenarioCalculation: runReserveScenarioCalculationMock,
+}));
+
+vi.mock('../../../server/config/features', () => ({
+  getQueueConnectionOptions: getQueueConnectionOptionsMock,
 }));
 
 vi.mock('../../../lib/logger', () => ({
@@ -25,20 +41,28 @@ vi.mock('../../../lib/metrics', () => ({
 }));
 
 vi.mock('../../../workers/health-server', () => ({
-  registerWorker: vi.fn(),
-  createHealthServer: vi.fn(),
+  registerWorker: registerWorkerMock,
+  createHealthServer: createHealthServerMock,
 }));
 
 vi.mock('bullmq', () => ({
   Worker: class MockWorker {
+    constructor(...args: unknown[]) {
+      workerConstructorMock(...args);
+    }
+
     close = vi.fn();
   },
 }));
 
-import { handleFundScenarioCalcJob } from '../../../workers/fund-scenario-calc-worker';
-
 describe('fund scenario calc worker handler', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
   it('dispatches async reserve allocation jobs to the reserve scenario service', async () => {
+    const { handleFundScenarioCalcJob } =
+      await import('../../../workers/fund-scenario-calc-handler');
     runReserveScenarioCalculationMock.mockResolvedValue({ snapshotId: 42 });
 
     const result = await handleFundScenarioCalcJob({
@@ -67,6 +91,9 @@ describe('fund scenario calc worker handler', () => {
   });
 
   it('rejects unsupported calculation modes and logs failures', async () => {
+    const { handleFundScenarioCalcJob } =
+      await import('../../../workers/fund-scenario-calc-handler');
+
     await expect(
       handleFundScenarioCalcJob({
         id: 'job-2',
@@ -85,5 +112,64 @@ describe('fund scenario calc worker handler', () => {
       expect.any(Error),
       expect.objectContaining({ jobId: 'job-2' })
     );
+  });
+
+  it('importing the handler does not start a BullMQ worker or health server', async () => {
+    await import('../../../workers/fund-scenario-calc-handler');
+
+    expect(workerConstructorMock).not.toHaveBeenCalled();
+    expect(registerWorkerMock).not.toHaveBeenCalled();
+    expect(createHealthServerMock).not.toHaveBeenCalled();
+  });
+});
+
+describe('fund scenario calc worker startup', () => {
+  beforeEach(() => {
+    vi.resetModules();
+    vi.clearAllMocks();
+    getQueueConnectionOptionsMock.mockReturnValue({
+      host: 'queue-host',
+      port: 6380,
+      username: 'queue-user',
+      password: 'queue-pass',
+      db: 4,
+    });
+  });
+
+  it('uses the shared queue connection resolver for production worker startup', async () => {
+    const { startFundScenarioCalcWorker } =
+      await import('../../../workers/fund-scenario-calc-worker');
+
+    startFundScenarioCalcWorker({ healthPort: 0 });
+
+    expect(getQueueConnectionOptionsMock).toHaveBeenCalledTimes(1);
+    expect(workerConstructorMock).toHaveBeenCalledWith(
+      'fund-scenario-calc',
+      expect.any(Function),
+      expect.objectContaining({
+        connection: {
+          host: 'queue-host',
+          port: 6380,
+          username: 'queue-user',
+          password: 'queue-pass',
+          db: 4,
+        },
+      })
+    );
+    expect(registerWorkerMock).toHaveBeenCalledWith('fund-scenario-calc', expect.any(Object));
+    expect(createHealthServerMock).toHaveBeenCalledWith(0);
+  });
+
+  it('fails fast when queue Redis is not configured', async () => {
+    getQueueConnectionOptionsMock.mockReturnValue(null);
+    const { startFundScenarioCalcWorker } =
+      await import('../../../workers/fund-scenario-calc-worker');
+
+    expect(() => startFundScenarioCalcWorker({ healthPort: 0 })).toThrow(
+      /queue Redis connection is not configured/i
+    );
+    expect(workerConstructorMock).not.toHaveBeenCalled();
+    expect(registerWorkerMock).not.toHaveBeenCalled();
+    expect(createHealthServerMock).not.toHaveBeenCalled();
   });
 });

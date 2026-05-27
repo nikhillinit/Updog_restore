@@ -22,7 +22,7 @@ export default defineConfig({
     },
   },
   test: {
-    name: 'integration',
+    name: 'server',
     globalSetup: ['tests/integration/global-setup.ts'],
     include: [
       'tests/integration/**/*.int.spec.ts',
