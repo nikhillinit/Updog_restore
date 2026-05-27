@@ -1,4 +1,11 @@
 /**
+ * @quarantine flaky-env
+ * @owner lp-reporting
+ * @reason Default test runs do not provide the isolated PostgreSQL database and LP foundation tables required for metric-run round-trip persistence.
+ * @until 2026-08-25
+ * @exitCriteria Add a dedicated LP reporting integration profile with TEST_DATABASE_URL and foundation migration setup, then pass this file 5 consecutive times under that profile.
+ * @addedDate 2026-05-27
+ *
  * @group integration
  *
  * Phase 1.4 round-trip integration test for the LP Reporting metrics engine.
