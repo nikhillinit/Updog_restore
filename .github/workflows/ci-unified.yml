@@ -46,6 +46,7 @@ jobs:
       security_tests: ${{ steps.filter.outputs.security_tests }}
       test_quarantine: ${{ steps.filter.outputs.test_quarantine }}
       auto_docs_only: ${{ steps.filter.outputs.auto_docs == 'true' && steps.filter.outputs.not_auto_docs == 'false' }}
+      heavy_ci_relevant: ${{ steps.filter.outputs.code == 'true' || steps.filter.outputs.dependency == 'true' }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
@@ -80,10 +81,18 @@ jobs:
     name: Check ${{ matrix.job }}
     needs: changes
     if: |
-      needs.changes.outputs.auto_docs_only != 'true' ||
+      needs.changes.outputs.heavy_ci_relevant == 'true' ||
       github.event.inputs.run_full_suite == 'true' ||
       github.event.inputs.enable_security == 'true' ||
-      github.event.inputs.enable_memory_mode == 'true'
+      github.event.inputs.enable_memory_mode == 'true' ||
+      (
+        needs.changes.outputs.auto_docs_only != 'true' &&
+        (
+          needs.changes.outputs.security_tests == 'true' ||
+          (github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'run:security')) ||
+          (github.ref == 'refs/heads/main' && contains(github.event.head_commit.message, '[memory]'))
+        )
+      )
     runs-on: ubuntu-latest
     timeout-minutes: 15
     strategy:
@@ -118,7 +127,7 @@ jobs:
     needs: [changes, check]
     if: |
       github.event_name == 'pull_request' &&
-      needs.changes.outputs.auto_docs_only != 'true' &&
+      needs.changes.outputs.heavy_ci_relevant == 'true' &&
       github.event.inputs.run_full_suite != 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 15
@@ -154,17 +163,6 @@ jobs:
       - name: Setup Node environment
         uses: ./.github/actions/setup-node-env
 
-      - name: Restore Vitest cache
-        uses: actions/cache/restore@v4
-        with:
-          path: |
-            coverage
-            .vitest-cache
-          key: vitest-${{ runner.os }}-affected-${{ hashFiles('package-lock.json', 'vitest.config.*', 'tsconfig*.json') }}
-          restore-keys: |
-            vitest-${{ runner.os }}-affected-
-            vitest-${{ runner.os }}-
-
       - name: Setup database
         run: npm run db:push
         env:
@@ -186,7 +184,12 @@ jobs:
     needs: [changes, check]
     if: |
       (github.ref == 'refs/heads/main' || github.event.inputs.run_full_suite == 'true') &&
-      (needs.changes.outputs.auto_docs_only != 'true' || github.event.inputs.run_full_suite == 'true')
+      (
+        needs.changes.outputs.heavy_ci_relevant == 'true' ||
+        github.event.inputs.run_full_suite == 'true' ||
+        github.event.inputs.enable_security == 'true' ||
+        github.event.inputs.enable_memory_mode == 'true'
+      )
     runs-on: ubuntu-latest
     timeout-minutes: 35
     strategy:
@@ -223,17 +226,6 @@ jobs:
       - name: Setup Node environment
         uses: ./.github/actions/setup-node-env
 
-      - name: Restore Vitest cache
-        uses: actions/cache/restore@v4
-        with:
-          path: |
-            coverage
-            .vitest-cache
-          key: vitest-${{ runner.os }}-${{ matrix.group }}-${{ hashFiles('package-lock.json', 'vitest.config.*', 'tsconfig*.json') }}
-          restore-keys: |
-            vitest-${{ runner.os }}-${{ matrix.group }}-
-            vitest-${{ runner.os }}-
-
       - name: Setup database
         if: matrix.group == 'integration' || matrix.group == 'e2e' || matrix.group == 'validate-core'
         run: npm run db:push
@@ -269,7 +261,11 @@ jobs:
   build:
     name: Build Production
     needs: [changes, check]
-    if: needs.changes.outputs.auto_docs_only != 'true' || github.event.inputs.run_full_suite == 'true'
+    if: |
+      needs.changes.outputs.heavy_ci_relevant == 'true' ||
+      github.event.inputs.run_full_suite == 'true' ||
+      github.event.inputs.enable_security == 'true' ||
+      github.event.inputs.enable_memory_mode == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -572,7 +568,7 @@ jobs:
   quality-summary:
     name: Code Quality Metrics
     needs: [changes, check]
-    if: github.event_name == 'pull_request' && needs.changes.outputs.auto_docs_only != 'true'
+    if: github.event_name == 'pull_request' && needs.changes.outputs.heavy_ci_relevant == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
@@ -647,7 +643,9 @@ jobs:
         run: |
           fail=0
 
+          changes_result="${{ needs.changes.result }}"
           auto_docs_only="${{ needs.changes.outputs.auto_docs_only }}"
+          heavy_ci_relevant="${{ needs.changes.outputs.heavy_ci_relevant }}"
           run_full_suite="${{ github.event.inputs.run_full_suite }}"
           enable_security="${{ github.event.inputs.enable_security }}"
           enable_memory_mode="${{ github.event.inputs.enable_memory_mode }}"
@@ -661,25 +659,21 @@ jobs:
           security_tests_result="${{ needs.security-tests.result }}"
           memory_result="${{ needs.memory-mode.result }}"
 
-          check_expected=true
-          build_expected=true
-          if [[ "$auto_docs_only" == "true" && "$run_full_suite" != "true" && "$enable_security" != "true" && "$enable_memory_mode" != "true" ]]; then
-            check_expected=false
+          heavy_expected=false
+          if [[ "$heavy_ci_relevant" == "true" || "$run_full_suite" == "true" || "$enable_security" == "true" || "$enable_memory_mode" == "true" ]]; then
+            heavy_expected=true
           fi
-          if [[ "$auto_docs_only" == "true" && "$run_full_suite" != "true" ]]; then
-            build_expected=false
-          fi
+
+          check_expected="$heavy_expected"
+          build_expected="$heavy_expected"
 
           if [[ "${{ github.event_name }}" == "pull_request" && "$run_full_suite" != "true" ]]; then
             test_result="${{ needs.test-affected.result }}"
-            test_expected=true
-            if [[ "$auto_docs_only" == "true" ]]; then
-              test_expected=false
-            fi
+            test_expected="$heavy_ci_relevant"
           else
             test_result="${{ needs.test-full.result }}"
-            test_expected=true
-            if [[ "$auto_docs_only" == "true" && "$run_full_suite" != "true" ]]; then
+            test_expected="$heavy_expected"
+            if [[ "${{ github.ref }}" != "refs/heads/main" && "$run_full_suite" != "true" ]]; then
               test_expected=false
             fi
           fi
@@ -690,6 +684,16 @@ jobs:
           pr_security_expected="${{ github.event.inputs.enable_security == 'true' || (needs.changes.outputs.auto_docs_only != 'true' && needs.changes.outputs.pr_security == 'true') }}"
           security_tests_expected="${{ github.event.inputs.enable_security == 'true' || (needs.changes.outputs.auto_docs_only != 'true' && (needs.changes.outputs.security_tests == 'true' || (github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'run:security')))) }}"
           memory_expected="${{ github.event.inputs.enable_memory_mode == 'true' || (needs.changes.outputs.auto_docs_only != 'true' && github.ref == 'refs/heads/main' && contains(github.event.head_commit.message, '[memory]')) }}"
+          if [[ "$check_expected" != "true" ]]; then
+            if [[ "$security_tests_expected" == "true" || "$memory_expected" == "true" ]]; then
+              check_expected=true
+            fi
+          fi
+
+          if [[ "$changes_result" != "success" ]]; then
+            echo "Change detection failed: $changes_result"
+            fail=1
+          fi
 
           require_result() {
             local name="$1"
@@ -729,6 +733,7 @@ jobs:
             echo "| pr-light-security | $pr_security_result | $pr_security_expected |"
             echo "| security-tests | $security_tests_result | $security_tests_expected |"
             echo "| memory-mode | $memory_result | $memory_expected |"
+            echo "| heavy-ci-relevant | $heavy_ci_relevant | informational |"
             echo "| auto-docs-only | $auto_docs_only | informational |"
           } >> "$GITHUB_STEP_SUMMARY"
 

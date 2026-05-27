@@ -32,7 +32,15 @@ jobs:
           ref: ${{ github.base_ref }}
           path: base-branch
 
+      - name: Restore base bundle report cache
+        id: base-report-cache
+        uses: actions/cache@v4
+        with:
+          path: base-branch/size-limit-report.json
+          key: bundle-base-v1-${{ runner.os }}-${{ github.event.pull_request.base.sha }}-${{ hashFiles('pr-tools/scripts/check-budgets.cjs', 'pr-tools/.size-limit.json', 'pr-tools/scripts/compare-bundle-size.js') }}
+
       - uses: actions/setup-node@v6
+        if: steps.base-report-cache.outputs.cache-hit != 'true'
         with:
           node-version: '20.19.0'
           cache: 'npm'
@@ -41,15 +49,17 @@ jobs:
             base-branch/package-lock.json
 
       - name: Align npm with packageManager
+        if: steps.base-report-cache.outputs.cache-hit != 'true'
         run: npm install -g npm@10.9.2
 
       - id: base-install
+        if: steps.base-report-cache.outputs.cache-hit != 'true'
         continue-on-error: true
         run: npm ci
         working-directory: base-branch
 
       - id: base-build
-        if: steps.base-install.outcome == 'success'
+        if: steps.base-report-cache.outputs.cache-hit != 'true' && steps.base-install.outcome == 'success'
         continue-on-error: true
         run: npm run build
         working-directory: base-branch
@@ -58,7 +68,7 @@ jobs:
           BUILD_WITH_PREACT: '1'
 
       - id: base-budgets
-        if: steps.base-build.outcome == 'success'
+        if: steps.base-report-cache.outputs.cache-hit != 'true' && steps.base-build.outcome == 'success'
         continue-on-error: true
         run: node ../pr-tools/scripts/check-budgets.cjs --json > size-limit-report.json
         working-directory: base-branch

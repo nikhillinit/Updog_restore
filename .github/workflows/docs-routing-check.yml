@@ -38,34 +38,113 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v6
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v6
+      - name: Setup Node environment
+        uses: ./.github/actions/setup-node-env
         with:
-          node-version: '20.19.0'
-          cache: 'npm'
+          restore-tool-cache: 'false'
 
-      - name: Align npm with packageManager
-        run: npm install -g npm@10.9.2
-
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Check routing generation
+      - name: Generate routing artifacts
         id: routing-check
         run: |
           echo "::group::Discovery Map Validation"
           npm run docs:routing:generate
-          npm run docs:routing:check
+          node <<'NODE'
+          const { execFileSync } = require('node:child_process');
+          const fs = require('node:fs');
+
+          function stable(value) {
+            if (Array.isArray(value)) return value.map(stable);
+            if (value && typeof value === 'object') {
+              return Object.fromEntries(
+                Object.entries(value)
+                  .sort(([left], [right]) => left.localeCompare(right))
+                  .map(([key, item]) => [key, stable(item)])
+              );
+            }
+            return value;
+          }
+
+          function stableStringify(value) {
+            return JSON.stringify(stable(value));
+          }
+
+          function readHeadJson(filePath) {
+            return JSON.parse(execFileSync('git', ['show', `HEAD:${filePath}`], { encoding: 'utf8' }));
+          }
+
+          function readJson(filePath) {
+            return JSON.parse(fs.readFileSync(filePath, 'utf8'));
+          }
+
+          function structuralRouterIndex(value) {
+            return {
+              version: value.version ?? null,
+              config: value.config ?? null,
+              decision_tree: value.decision_tree ?? null,
+              patterns: value.patterns ?? null,
+              agents: value.agents ?? null,
+            };
+          }
+
+          function structuralRouterFast(value) {
+            return {
+              version: value.version ?? null,
+              scoring: value.scoring ?? null,
+              config: value.config ?? null,
+              patterns: value.patterns ?? null,
+              keyword_to_docs: value.keyword_to_docs ?? null,
+            };
+          }
+
+          function docPaths(value) {
+            return Array.isArray(value.docs)
+              ? value.docs.map((doc) => doc.path).filter(Boolean).sort()
+              : [];
+          }
+
+          const oldIndex = readHeadJson('docs/_generated/router-index.json');
+          const newIndex = readJson('docs/_generated/router-index.json');
+          const oldFast = readHeadJson('docs/_generated/router-fast.json');
+          const newFast = readJson('docs/_generated/router-fast.json');
+          const failures = [];
+
+          if (stableStringify(structuralRouterIndex(oldIndex)) !== stableStringify(structuralRouterIndex(newIndex))) {
+            failures.push('router-index structural routing changed; commit regenerated output');
+          }
+          if (stableStringify(docPaths(oldIndex)) !== stableStringify(docPaths(newIndex))) {
+            failures.push('router-index doc inventory changed; commit regenerated output');
+          }
+          if (newIndex.stats?.total_docs !== docPaths(newIndex).length) {
+            failures.push('router-index stats.total_docs does not match generated docs length');
+          }
+          if (stableStringify(structuralRouterFast(oldFast)) !== stableStringify(structuralRouterFast(newFast))) {
+            failures.push('router-fast structural routing changed; commit regenerated output');
+          }
+          if (!fs.existsSync('docs/_generated/staleness-report.md')) {
+            failures.push('staleness-report.md is missing');
+          }
+
+          if (failures.length > 0) {
+            console.error('Generated routing artifacts are out of sync:');
+            for (const failure of failures) console.error(`- ${failure}`);
+            process.exit(1);
+          }
+
+          console.log('PASS: Generated routing artifacts are structurally in sync.');
+          NODE
           echo "::endgroup::"
 
-      - name: Generate staleness report (info only)
+      - name: Summarize staleness report
         if: always()
         run: |
           echo "::group::Staleness Report"
-          npm run docs:routing:generate
+          if [ -f "docs/_generated/staleness-report.md" ]; then
+            cat docs/_generated/staleness-report.md
+          else
+            echo "docs/_generated/staleness-report.md is missing"
+          fi
           echo "::endgroup::"
 
-          # Output summary
           if [ -f "docs/_generated/staleness-report.md" ]; then
             STALE_COUNT=$(grep -c "^\- \[ \]" docs/_generated/staleness-report.md || echo "0")
             echo "### Documentation Staleness Check" >> $GITHUB_STEP_SUMMARY

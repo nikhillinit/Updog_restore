@@ -1,8 +1,7 @@
 name: CodeQL
 # Triggers always start so this workflow can be a required check; the heavy
-# init/autobuild/analyze sequence is gated on whether the change set is more
-# than the auto_docs allowlist (.github/path-filters.yml). Schedule and manual
-# dispatches always run the full analysis.
+# init/autobuild/analyze sequence is gated on CodeQL-relevant path filters.
+# Schedule and manual dispatches always run the full analysis.
 on:
   push: { branches: [main] }
   pull_request: { branches: [main] }
@@ -16,7 +15,7 @@ jobs:
   changes:
     runs-on: ubuntu-latest
     outputs:
-      auto_docs_only: ${{ github.event_name != 'schedule' && github.event_name != 'workflow_dispatch' && steps.filter.outputs.auto_docs == 'true' && steps.filter.outputs.not_auto_docs == 'false' }}
+      codeql_relevant: ${{ steps.filter.outputs.codeql_relevant == 'true' }}
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         if: github.event_name != 'schedule' && github.event_name != 'workflow_dispatch'
@@ -31,14 +30,21 @@ jobs:
 
   analyze:
     needs: changes
+    if: always()
     runs-on: ubuntu-latest
     env:
-      RUN_FULL: ${{ needs.changes.outputs.auto_docs_only != 'true' || github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' }}
+      RUN_FULL: ${{ github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' || needs.changes.outputs.codeql_relevant == 'true' }}
     steps:
+      - name: Verify change detection
+        if: needs.changes.result != 'success'
+        run: |
+          echo "Change detection failed: ${{ needs.changes.result }}" >> "$GITHUB_STEP_SUMMARY"
+          exit 1
+
       - name: Report fast-path skip
         if: env.RUN_FULL != 'true'
         run: |
-          echo "auto_docs_only=true; CodeQL scan skipped." >> "$GITHUB_STEP_SUMMARY"
+          echo "codeql_relevant=false; CodeQL scan skipped." >> "$GITHUB_STEP_SUMMARY"
           echo "This job stays green so CodeQL can be a required branch check." >> "$GITHUB_STEP_SUMMARY"
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
         if: env.RUN_FULL == 'true'
