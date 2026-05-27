@@ -46,8 +46,9 @@ jobs:
         id: claude-preflight
         env:
           CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          GH_ACTOR: ${{ github.actor }}
         run: |
-          if [[ "${{ github.actor }}" == "dependabot[bot]" ]]; then
+          if [[ "$GH_ACTOR" == "dependabot[bot]" ]]; then
             echo "ready=false" >> "$GITHUB_OUTPUT"
             echo "Claude review skipped for Dependabot actor." >> "$GITHUB_STEP_SUMMARY"
             exit 0
