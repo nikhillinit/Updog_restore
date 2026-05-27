@@ -6,6 +6,7 @@ export type QueueRegistryKey =
   | 'report'
   | 'backtesting'
   | 'reserve-calc'
+  | 'fund-scenario-calc'
   | 'pacing-calc'
   | 'cohort-calc'
   | 'economics-calc';
@@ -57,6 +58,14 @@ export const QUEUE_CATALOG: readonly QueueCatalogEntry[] = [
     healthMode: 'producer',
     owner: 'route',
     fundCalculationAuthority: 'authoritative',
+  },
+  {
+    key: 'fund-scenario-calc',
+    queueName: 'fund-scenario-calc',
+    displayName: 'Fund Scenario Calculations',
+    healthMode: 'producer',
+    owner: 'route',
+    fundCalculationAuthority: 'experimental',
   },
   {
     key: 'pacing-calc',

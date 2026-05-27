@@ -9,7 +9,8 @@ describe('ScenarioSetsSummary', () => {
 
     expect(screen.getByTestId('scenario-sets-summary')).toBeInTheDocument();
     expect(screen.getByText('2 scenario sets')).toBeInTheDocument();
-    expect(screen.getAllByText('Needs recalculation').length).toBeGreaterThanOrEqual(1);
+    expect(screen.getByTestId('scenario-evidence-aggregate')).toHaveTextContent('STALE_PUBLISH');
+    expect(screen.getAllByLabelText(/Scenario evidence:/)).toHaveLength(3);
 
     const feeCard = screen.getByText('Fee sensitivity').closest('article');
     if (!(feeCard instanceof HTMLElement)) {
@@ -23,6 +24,42 @@ describe('ScenarioSetsSummary', () => {
     expect(screen.queryByRole('link')).not.toBeInTheDocument();
     expect(screen.queryByRole('button')).not.toBeInTheDocument();
   });
+
+  it('renders aggregate evidence for failed scenario sets and omits it when all sets are current', () => {
+    const failedPayload = scenarioPayload();
+    failedPayload.aggregateStaleness = 'FAILED';
+    failedPayload.sets[0]!.staleness = 'FAILED';
+
+    const { rerender } = render(<ScenarioSetsSummary payload={failedPayload} />);
+    expect(screen.getByTestId('scenario-evidence-aggregate')).toHaveTextContent('FAILED');
+    expect(screen.getByText('One or more scenario calculations failed.')).toBeInTheDocument();
+
+    const currentPayload = scenarioPayload();
+    currentPayload.aggregateStaleness = 'CURRENT';
+    currentPayload.sets.forEach((set) => {
+      set.staleness = 'CURRENT';
+      set.currentPublishedConfigVersion = set.sourceConfigVersion;
+    });
+
+    rerender(<ScenarioSetsSummary payload={currentPayload} />);
+    expect(screen.queryByTestId('scenario-evidence-aggregate')).not.toBeInTheDocument();
+  });
+
+  it('renders reserve scenario summary cards without assuming economics payloads', () => {
+    render(<ScenarioSetsSummary payload={reservePayload()} />);
+
+    const reserveCard = screen.getByText('Reserve plan').closest('article');
+    if (!(reserveCard instanceof HTMLElement)) {
+      throw new Error('Reserve plan card was not rendered');
+    }
+
+    expect(within(reserveCard).getByText('Total scenario allocation')).toBeInTheDocument();
+    expect(within(reserveCard).getByText('$75,000')).toBeInTheDocument();
+    expect(within(reserveCard).getByText('Allocation delta')).toBeInTheDocument();
+    expect(within(reserveCard).getByText('-$25,000')).toBeInTheDocument();
+    expect(within(reserveCard).getByText('Warnings')).toBeInTheDocument();
+    expect(within(reserveCard).getAllByText('1')).toHaveLength(2);
+  });
 });
 
 function scenarioPayload(): ScenariosSectionPayloadV1 {
@@ -35,6 +72,7 @@ function scenarioPayload(): ScenariosSectionPayloadV1 {
         name: 'Fee sensitivity',
         sourceConfigId: 12,
         sourceConfigVersion: 4,
+        currentPublishedConfigVersion: 4,
         calculatedAt: '2026-05-26T12:30:00.000Z',
         staleness: 'CURRENT',
         variantCount: 2,
@@ -58,6 +96,7 @@ function scenarioPayload(): ScenariosSectionPayloadV1 {
         name: 'Upside fees',
         sourceConfigId: 13,
         sourceConfigVersion: 3,
+        currentPublishedConfigVersion: 4,
         calculatedAt: '2026-05-26T12:00:00.000Z',
         staleness: 'STALE_PUBLISH',
         variantCount: 1,
@@ -67,6 +106,39 @@ function scenarioPayload(): ScenariosSectionPayloadV1 {
             name: 'Upside',
             overrideType: 'fee_profile',
             economicsSummary: economicsSummary({ finalTvpi: 1.9 }),
+          },
+        ],
+      },
+    ],
+  };
+}
+
+function reservePayload(): ScenariosSectionPayloadV1 {
+  return {
+    version: 'fund-scenarios-v1',
+    aggregateStaleness: 'CURRENT',
+    sets: [
+      {
+        scenarioSetId: '00000000-0000-0000-0000-000000000311',
+        name: 'Reserve plan',
+        sourceConfigId: 14,
+        sourceConfigVersion: 6,
+        currentPublishedConfigVersion: 6,
+        calculatedAt: '2026-05-26T12:30:00.000Z',
+        staleness: 'CURRENT',
+        variantCount: 1,
+        variants: [
+          {
+            variantId: '00000000-0000-0000-0000-000000000312',
+            name: 'Follow-on cap',
+            overrideType: 'reserve_allocation',
+            reserveSummary: {
+              totalScenarioAllocationCents: 7_500_000,
+              totalAllocationDeltaCents: -2_500_000,
+              avgConfidence: 0.62,
+              highConfidenceCount: 1,
+              warningCount: 1,
+            },
           },
         ],
       },
