@@ -6,6 +6,19 @@ import path from 'node:path';
 const DEFAULT_LIMIT = 50;
 const MS_PER_MINUTE = 60_000;
 const ORPHAN_STALE_DAYS = 90;
+const HELP_FLAGS = new Set(['--help', '-h']);
+const OPTION_PARSERS = new Map([
+  ['--limit', (options, value) => {
+    options.limit = Number.parseInt(value, 10);
+  }],
+  ['--json', (options, value) => {
+    options.jsonPath = value;
+  }],
+  ['--markdown', (options, value) => {
+    options.markdownPath = value;
+  }],
+]);
+const RUN_FIELDS = 'databaseId,event,headBranch,conclusion,status,createdAt,startedAt,updatedAt';
 
 function parseArgs(argv) {
   const options = {
@@ -16,28 +29,37 @@ function parseArgs(argv) {
 
   for (let index = 0; index < argv.length; index += 1) {
     const arg = argv[index];
-    if (arg === '--limit') {
-      options.limit = Number.parseInt(argv[index + 1] ?? '', 10);
-      index += 1;
-    } else if (arg === '--json') {
-      options.jsonPath = argv[index + 1] ?? null;
-      index += 1;
-    } else if (arg === '--markdown') {
-      options.markdownPath = argv[index + 1] ?? null;
-      index += 1;
-    } else if (arg === '--help' || arg === '-h') {
+    if (HELP_FLAGS.has(arg)) {
       printUsage();
       process.exit(0);
-    } else {
+    }
+
+    const parser = OPTION_PARSERS.get(arg);
+    if (!parser) {
       throw new Error(`Unknown argument: ${arg}`);
     }
+
+    parser(options, optionValue(argv, index, arg));
+    index += 1;
   }
 
-  if (!Number.isInteger(options.limit) || options.limit <= 0) {
+  validateLimit(options.limit);
+  return options;
+}
+
+function optionValue(argv, index, arg) {
+  const value = argv[index + 1];
+  if (value === undefined) {
+    throw new Error(`${arg} requires a value`);
+  }
+
+  return value;
+}
+
+function validateLimit(limit) {
+  if (!Number.isInteger(limit) || limit <= 0) {
     throw new Error('--limit must be a positive integer');
   }
-
-  return options;
 }
 
 function printUsage() {
@@ -167,17 +189,22 @@ function workflowTriggerKind(workflowPath, pathExistsAtHead) {
   if (!pathExistsAtHead) return 'absent';
 
   const content = readFileSync(workflowPath, 'utf8');
-  const hasSchedule = /^\s*schedule\s*:/m.test(content);
-  const hasDispatch = /^\s*workflow_dispatch\s*:/m.test(content);
-  const hasPullRequest = /^\s*pull_request(?:_target)?\s*:/m.test(content);
-  const hasPush = /^\s*push\s*:/m.test(content);
-  const hasWorkflowRun = /^\s*workflow_run\s*:/m.test(content);
+  return workflowHasOnlyManualTriggers(content) ? 'manual/scheduled-only' : 'event-backed';
+}
 
-  if ((hasSchedule || hasDispatch) && !hasPullRequest && !hasPush && !hasWorkflowRun) {
-    return 'manual/scheduled-only';
-  }
+function workflowHasOnlyManualTriggers(content) {
+  const hasManualTrigger = ['schedule', 'workflow_dispatch'].some((trigger) =>
+    workflowHasTrigger(content, trigger)
+  );
+  const hasRepositoryTrigger = ['pull_request(?:_target)?', 'push', 'workflow_run'].some((trigger) =>
+    workflowHasTrigger(content, trigger)
+  );
 
-  return 'event-backed';
+  return hasManualTrigger && !hasRepositoryTrigger;
+}
+
+function workflowHasTrigger(content, triggerPattern) {
+  return new RegExp(`^\\s*${triggerPattern}\\s*:`, 'm').test(content);
 }
 
 function classifyWorkflow({ workflow, pathExistsAtHead, runs }) {
@@ -203,36 +230,69 @@ function daysSince(isoDate) {
   return Math.floor((Date.now() - time) / (24 * 60 * 60 * 1000));
 }
 
-function inspectWorkflow(workflow, limit, required) {
-  const pathExistsAtHead = gitPathExistsAtHead(workflow.path);
-  const runs = ghJson(
+function workflowRuns(workflowId, limit) {
+  return ghJson(
     [
       'run',
       'list',
       '--workflow',
-      String(workflow.id),
+      String(workflowId),
       '--limit',
       String(limit),
       '--json',
-      'databaseId,event,headBranch,conclusion,status,createdAt,startedAt,updatedAt',
+      RUN_FIELDS,
     ],
     []
   );
+}
 
+function durationStats(runs) {
   const durations = runs
     .map(parseDurationMs)
     .filter((value) => typeof value === 'number')
     .sort((a, b) => a - b);
-  const lastRun = runs[0] ?? null;
-  const lastRunBilledMinutes = lastRun ? billedMinutesForRun(lastRun.databaseId) : null;
-  const requiredStatus = requiredStatusForWorkflow(workflow, required);
-  const classification = classifyWorkflow({ workflow, pathExistsAtHead, runs });
-  const staleOrphanCandidate =
+
+  return {
+    p50: durations.length ? roundMinutes(percentile(durations, 50) / MS_PER_MINUTE) : null,
+    p95: durations.length ? roundMinutes(percentile(durations, 95) / MS_PER_MINUTE) : null,
+    sampleSize: durations.length,
+  };
+}
+
+function lastRunSummary(lastRun) {
+  if (!lastRun) return null;
+
+  return {
+    id: lastRun.databaseId,
+    event: lastRun.event,
+    branch: lastRun.headBranch,
+    status: lastRun.status,
+    conclusion: lastRun.conclusion,
+    createdAt: lastRun.createdAt,
+    startedAt: lastRun.startedAt,
+    updatedAt: lastRun.updatedAt,
+    durationMinutes: roundMinutes((parseDurationMs(lastRun) ?? 0) / MS_PER_MINUTE),
+    billedMinutes: billedMinutesForRun(lastRun.databaseId),
+  };
+}
+
+function isStaleOrphanCandidate({ classification, workflow, requiredStatus, lastRun }) {
+  const lastRunAgeDays = daysSince(lastRun?.createdAt);
+  return (
     classification === 'registry-orphan' &&
     isRepositoryWorkflowPath(workflow.path) &&
     requiredStatus !== 'required' &&
-    daysSince(lastRun?.createdAt) !== null &&
-    daysSince(lastRun?.createdAt) > ORPHAN_STALE_DAYS;
+    lastRunAgeDays !== null &&
+    lastRunAgeDays > ORPHAN_STALE_DAYS
+  );
+}
+
+function inspectWorkflow(workflow, limit, required) {
+  const pathExistsAtHead = gitPathExistsAtHead(workflow.path);
+  const runs = workflowRuns(workflow.id, limit);
+  const lastRun = runs[0] ?? null;
+  const requiredStatus = requiredStatusForWorkflow(workflow, required);
+  const classification = classifyWorkflow({ workflow, pathExistsAtHead, runs });
 
   return {
     id: workflow.id,
@@ -242,26 +302,9 @@ function inspectWorkflow(workflow, limit, required) {
     pathExistsAtHead,
     requiredCheckStatus: requiredStatus,
     classification,
-    staleOrphanCandidate,
-    lastRun: lastRun
-      ? {
-          id: lastRun.databaseId,
-          event: lastRun.event,
-          branch: lastRun.headBranch,
-          status: lastRun.status,
-          conclusion: lastRun.conclusion,
-          createdAt: lastRun.createdAt,
-          startedAt: lastRun.startedAt,
-          updatedAt: lastRun.updatedAt,
-          durationMinutes: roundMinutes((parseDurationMs(lastRun) ?? 0) / MS_PER_MINUTE),
-          billedMinutes: lastRunBilledMinutes,
-        }
-      : null,
-    durationMinutes: {
-      p50: durations.length ? roundMinutes(percentile(durations, 50) / MS_PER_MINUTE) : null,
-      p95: durations.length ? roundMinutes(percentile(durations, 95) / MS_PER_MINUTE) : null,
-      sampleSize: durations.length,
-    },
+    staleOrphanCandidate: isStaleOrphanCandidate({ classification, workflow, requiredStatus, lastRun }),
+    lastRun: lastRunSummary(lastRun),
+    durationMinutes: durationStats(runs),
   };
 }
 

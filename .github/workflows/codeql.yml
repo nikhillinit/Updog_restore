@@ -15,7 +15,6 @@ jobs:
   changes:
     runs-on: ubuntu-latest
     outputs:
-      auto_docs_only: ${{ github.event_name != 'schedule' && github.event_name != 'workflow_dispatch' && steps.filter.outputs.auto_docs == 'true' && steps.filter.outputs.not_auto_docs == 'false' }}
       codeql_relevant: ${{ steps.filter.outputs.codeql_relevant == 'true' }}
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2

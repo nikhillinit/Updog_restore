@@ -684,6 +684,11 @@ jobs:
           pr_security_expected="${{ github.event.inputs.enable_security == 'true' || (needs.changes.outputs.auto_docs_only != 'true' && needs.changes.outputs.pr_security == 'true') }}"
           security_tests_expected="${{ github.event.inputs.enable_security == 'true' || (needs.changes.outputs.auto_docs_only != 'true' && (needs.changes.outputs.security_tests == 'true' || (github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'run:security')))) }}"
           memory_expected="${{ github.event.inputs.enable_memory_mode == 'true' || (needs.changes.outputs.auto_docs_only != 'true' && github.ref == 'refs/heads/main' && contains(github.event.head_commit.message, '[memory]')) }}"
+          if [[ "$check_expected" != "true" ]]; then
+            if [[ "$security_tests_expected" == "true" || "$memory_expected" == "true" ]]; then
+              check_expected=true
+            fi
+          fi
 
           if [[ "$changes_result" != "success" ]]; then
             echo "Change detection failed: $changes_result"
