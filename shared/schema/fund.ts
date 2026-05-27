@@ -204,7 +204,9 @@ export const fundScenarioVariants = pgTable(
     name: varchar('name', { length: 120 }).notNull(),
     description: text('description'),
     sortOrder: integer('sort_order').notNull().default(0),
-    overrideType: varchar('override_type', { length: 32 }).notNull().$type<'fee_profile'>(),
+    overrideType: varchar('override_type', { length: 32 })
+      .notNull()
+      .$type<'fee_profile' | 'reserve_allocation'>(),
     overridePayload: jsonb('override_payload').notNull().$type<Record<string, unknown>>(),
     createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),

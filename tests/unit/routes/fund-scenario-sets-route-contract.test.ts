@@ -13,12 +13,17 @@ describe('fund scenario set route contract', () => {
   it('keeps every fund-scoped scenario-set route protected by auth and fund access', async () => {
     const source = await readRepoFile('server/routes/fund-scenario-sets.ts');
 
-    expect((source.match(/requireAuth\(\)/g) ?? []).length).toBe(6);
-    expect((source.match(/requireFundAccess/g) ?? []).length).toBe(7);
+    expect((source.match(/requireAuth\(\)/g) ?? []).length).toBe(8);
+    expect((source.match(/requireFundAccess/g) ?? []).length).toBe(9);
     expect(source).toContain('getIdempotencyKey(req)');
     expect(source).toContain('/funds/:fundId/scenario-sets');
     expect(source).toContain('/funds/:fundId/scenario-sets/:scenarioSetId/calculate');
+    expect(source).toContain('/funds/:fundId/scenario-sets/:scenarioSetId/calculate-reserve');
+    expect(source).toContain('/funds/:fundId/scenario-sets/:scenarioSetId/calculation-status');
     expect(source).toContain('/funds/:fundId/scenario-sets/:scenarioSetId/results');
     expect(source).toContain('/funds/:fundId/scenario-sets/:scenarioSetId/archive');
+    expect(source).toContain('FundScenarioReserveCalculationRequestV1Schema.safeParse');
+    expect(source).toContain('enqueueReserveScenarioCalculation');
+    expect(source).toContain('getFundScenarioCalculationStatus');
   });
 });
