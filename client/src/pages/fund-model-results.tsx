@@ -418,6 +418,81 @@ function useFundResultsComparison(fundId: string | null) {
   return { state, refresh: fetchComparison };
 }
 
+interface ScenarioComparisonFetchRequest {
+  fundId: string;
+  scenarioSetIds: string[];
+}
+
+const FUND_ID_PATH_SEGMENT_PATTERN = /^\d+$/;
+const SCENARIO_SET_ID_PATH_SEGMENT_PATTERN =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+function scenarioComparisonIdsFromKey(scenarioSetIdsKey: string) {
+  return scenarioSetIdsKey.length > 0 ? scenarioSetIdsKey.split('|') : [];
+}
+
+function isSafeScenarioComparisonRequest(request: ScenarioComparisonFetchRequest) {
+  return (
+    FUND_ID_PATH_SEGMENT_PATTERN.test(request.fundId) &&
+    request.scenarioSetIds.length > 0 &&
+    request.scenarioSetIds.every((id) => SCENARIO_SET_ID_PATH_SEGMENT_PATTERN.test(id))
+  );
+}
+
+function createScenarioComparisonFetchRequest(
+  fundId: string | null,
+  scenarioSetIdsKey: string
+): ScenarioComparisonFetchRequest | null {
+  if (!fundId || fundId === 'latest') return null;
+
+  const request = {
+    fundId,
+    scenarioSetIds: scenarioComparisonIdsFromKey(scenarioSetIdsKey),
+  };
+  return isSafeScenarioComparisonRequest(request) ? request : null;
+}
+
+function scenarioComparisonPath(fundId: string, scenarioSetId: string) {
+  return ['/api/funds', fundId, 'scenario-sets', scenarioSetId, 'comparison'].join('/');
+}
+
+async function fetchScenarioComparisonForSet(
+  fundId: string,
+  scenarioSetId: string,
+  signal: AbortSignal
+) {
+  const comparisonUrl = scenarioComparisonPath(fundId, scenarioSetId);
+  const res = await fetch(comparisonUrl, { signal });
+  if (!res.ok) {
+    throw new Error(`Scenario comparison unavailable (${res.status})`);
+  }
+  return (await res.json()) as FundScenarioComparisonV1;
+}
+
+function fetchScenarioComparisonBatch(
+  request: ScenarioComparisonFetchRequest,
+  signal: AbortSignal
+) {
+  return Promise.all(
+    request.scenarioSetIds.map((scenarioSetId) =>
+      fetchScenarioComparisonForSet(request.fundId, scenarioSetId, signal)
+    )
+  );
+}
+
+function scenarioComparisonErrorMessage(error: unknown) {
+  return error instanceof Error ? error.message : 'Scenario comparison unavailable';
+}
+
+function clearScenarioComparisonAbort(
+  abortRef: React.MutableRefObject<AbortController | null>,
+  controller: AbortController
+) {
+  if (abortRef.current === controller) {
+    abortRef.current = null;
+  }
+}
+
 function useFundScenarioComparisons(fundId: string | null, scenarioSetIds: readonly string[]) {
   const scenarioSetIdsKey = scenarioSetIds.join('|');
   const [state, setState] = useState<ScenarioComparisonState>({
@@ -434,8 +509,8 @@ function useFundScenarioComparisons(fundId: string | null, scenarioSetIds: reado
   }, []);
 
   const fetchComparisons = useCallback(async () => {
-    const ids = scenarioSetIdsKey.length > 0 ? scenarioSetIdsKey.split('|') : [];
-    if (!fundId || fundId === 'latest' || ids.length === 0) {
+    const request = createScenarioComparisonFetchRequest(fundId, scenarioSetIdsKey);
+    if (!request) {
       cancelInFlight();
       setState({ kind: 'idle', comparisons: [] });
       return;
@@ -450,31 +525,17 @@ function useFundScenarioComparisons(fundId: string | null, scenarioSetIds: reado
     }));
 
     try {
-      const comparisons = await Promise.all(
-        ids.map(async (scenarioSetId) => {
-          const res = await fetch(
-            `/api/funds/${fundId}/scenario-sets/${encodeURIComponent(scenarioSetId)}/comparison`,
-            { signal: controller.signal }
-          );
-          if (!res.ok) {
-            throw new Error(`Scenario comparison unavailable (${res.status})`);
-          }
-          return (await res.json()) as FundScenarioComparisonV1;
-        })
-      );
+      const comparisons = await fetchScenarioComparisonBatch(request, controller.signal);
       setState({ kind: 'data', comparisons });
     } catch (error) {
       if (controller.signal.aborted) return;
-      const message = error instanceof Error ? error.message : 'Scenario comparison unavailable';
       setState((previous) => ({
         kind: 'error',
-        message,
+        message: scenarioComparisonErrorMessage(error),
         comparisons: previous.comparisons,
       }));
     } finally {
-      if (abortRef.current === controller) {
-        abortRef.current = null;
-      }
+      clearScenarioComparisonAbort(abortRef, controller);
     }
   }, [cancelInFlight, fundId, scenarioSetIdsKey]);
 

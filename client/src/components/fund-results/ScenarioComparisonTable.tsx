@@ -195,6 +195,66 @@ function deltaForMetric(variant: ScenarioComparisonVariantV1, metric: ScenarioCo
   return variant.metricDeltas.find((delta) => delta.metric === metric) ?? null;
 }
 
+function deltaTextColor(delta: ScenarioComparisonMetricDeltaV1) {
+  return delta.absoluteDelta != null && delta.absoluteDelta > 0
+    ? 'text-emerald-700'
+    : 'text-red-700';
+}
+
+function MetricDeltaText({
+  metric,
+  delta,
+}: {
+  metric: ScenarioComparisonMetricKey;
+  delta: ScenarioComparisonMetricDeltaV1 | null;
+}) {
+  if (!delta) return null;
+  if (!delta.driftCapable) {
+    return <p className="text-xs font-poppins text-charcoal-400">Drift unavailable</p>;
+  }
+
+  const formattedDelta = formatMetricDelta(metric, delta.absoluteDelta);
+  if (!formattedDelta) return null;
+
+  return (
+    <p className={cn('text-xs font-poppins font-medium tabular-nums', deltaTextColor(delta))}>
+      {formattedDelta}
+    </p>
+  );
+}
+
+function MetricRow({
+  metric,
+  metrics,
+  variant,
+}: {
+  metric: ScenarioComparisonMetricKey;
+  metrics: ScenarioComparisonMetricMap;
+  variant?: ScenarioComparisonVariantV1 | undefined;
+}) {
+  const definition = METRIC_DEFINITIONS[metric];
+  const delta = variant ? deltaForMetric(variant, metric) : null;
+
+  return (
+    <div className="grid grid-cols-[minmax(0,1fr)_auto] gap-3 py-3">
+      <div>
+        <p className="text-xs uppercase text-charcoal-400 font-poppins">{definition.label}</p>
+        {delta && !delta.driftCapable && (
+          <p className="mt-1 text-xs text-charcoal-500 font-poppins">
+            {driftReasonCopy(delta.driftReason)}
+          </p>
+        )}
+      </div>
+      <div className="text-right">
+        <p className="font-inter text-base font-semibold tabular-nums text-charcoal">
+          {formatMetricValue(metric, metrics[metric])}
+        </p>
+        <MetricDeltaText metric={metric} delta={delta} />
+      </div>
+    </div>
+  );
+}
+
 function MetricRows({
   metrics,
   variant,
@@ -204,44 +264,9 @@ function MetricRows({
 }) {
   return (
     <div className="divide-y divide-beige-200">
-      {SCENARIO_COMPARISON_METRIC_KEYS.map((metric) => {
-        const definition = METRIC_DEFINITIONS[metric];
-        const delta = variant ? deltaForMetric(variant, metric) : null;
-        const formattedDelta = delta ? formatMetricDelta(metric, delta.absoluteDelta) : null;
-
-        return (
-          <div key={metric} className="grid grid-cols-[minmax(0,1fr)_auto] gap-3 py-3">
-            <div>
-              <p className="text-xs uppercase text-charcoal-400 font-poppins">{definition.label}</p>
-              {delta && !delta.driftCapable && (
-                <p className="mt-1 text-xs text-charcoal-500 font-poppins">
-                  {driftReasonCopy(delta.driftReason)}
-                </p>
-              )}
-            </div>
-            <div className="text-right">
-              <p className="font-inter text-base font-semibold tabular-nums text-charcoal">
-                {formatMetricValue(metric, metrics[metric])}
-              </p>
-              {delta && delta.driftCapable && formattedDelta && (
-                <p
-                  className={cn(
-                    'text-xs font-poppins font-medium tabular-nums',
-                    delta.absoluteDelta != null && delta.absoluteDelta > 0
-                      ? 'text-emerald-700'
-                      : 'text-red-700'
-                  )}
-                >
-                  {formattedDelta}
-                </p>
-              )}
-              {delta && !delta.driftCapable && (
-                <p className="text-xs font-poppins text-charcoal-400">Drift unavailable</p>
-              )}
-            </div>
-          </div>
-        );
-      })}
+      {SCENARIO_COMPARISON_METRIC_KEYS.map((metric) => (
+        <MetricRow key={metric} metric={metric} metrics={metrics} variant={variant} />
+      ))}
     </div>
   );
 }
