@@ -1,6 +1,6 @@
 ---
 status: ACTIVE
-last_updated: 2026-05-22
+last_updated: 2026-05-27
 owner: Core Team
 review_cadence: P30D
 categories: [governance, refactor, strategy]
@@ -14,7 +14,7 @@ related:
 
 ## POVC Fund-Modeling Platform - Evidence-Gated Cleanup, Tooling Simplification, and Domain-Safe Refactoring
 
-**Report date:** 2026-05-18 **Codebase verification update:** 2026-05-19
+**Report date:** 2026-05-18 **Codebase verification update:** 2026-05-27
 **Repository:** `nikhillinit/Updog_restore` **Context:** Solo developer building
 an internal fund-modeling tool **Purpose:** Merge the latest solo/internal plan
 with the attached synthesis into the most practical execution approach.
@@ -22,6 +22,28 @@ with the attached synthesis into the most practical execution approach.
 **Canonical status:** This document is the active refactor roadmap. The raw
 audit reports under `docs/reviews/refactor-audit-2026-05-19/` are evidence, not
 competing execution plans.
+
+---
+
+## Current Active Next Step
+
+As of 2026-05-27:
+
+1. Execute from current `main`. A 2026-05-27 local/GitHub check found no local
+   branch, remote head, worktree, or PR named `codex/refactor-plan-execution`,
+   so do not block on that branch unless it is independently rediscovered.
+2. Treat middleware logging slice 0d as closed at
+   `df2b22fc refactor(middleware): preserve diagnostics as structured logs`. A
+   post-0d scan found 0 `console.*` matches in `server/middleware/`.
+3. Record the 0e verified tech debt baseline in this roadmap before beginning
+   route logging migration, deal-pipeline extraction, or any other product-code
+   refactor.
+4. Keep the remaining logging/refactor sequence separate: route-layer console
+   debt is still 165 calls across 27 files, and service extraction remains gated
+   by existing route contract tests.
+
+Update this section whenever the active next step changes. This is the only
+"what to do right now" pointer in the document.
 
 ---
 
@@ -51,13 +73,10 @@ state changes the execution details in several important ways:
    requires a replacement script or direct command first.
 6. No committed `.env.test` exists; `.env.test.local` exists. Adding `.env.test`
    is future work, not current state.
-7. The first route-refactor safety slice is implemented on execution branch
-   `codex/refactor-plan-execution` in
-   `C:\dev\Updog_restore\.worktrees\refactor-plan-execution`: deal-pipeline
-   endpoint contracts, expanded route-surface inventory, and a deal-pipeline
-   idempotency middleware registration fix. After that branch lands, the next
-   product-code slice is service extraction behind those tests, not another
-   audit-only pass.
+7. The first route-refactor safety slice is already visible on current `main`:
+   deal-pipeline endpoint contracts, expanded route-surface inventory, and a
+   deal-pipeline idempotency middleware registration fix. The next product-code
+   slice is service extraction behind those tests, not another audit-only pass.
 
 The best approach is therefore a **solo-friendly cleanup ladder**:
 
@@ -68,6 +87,114 @@ The best approach is therefore a **solo-friendly cleanup ladder**:
 4. Fill gaps in the existing fragmented truth/golden test surface.
 5. Refactor product architecture behind those tests.
 6. Leave cosmetic renames and broad directory reshuffles until last.
+
+---
+
+## 1b. Verified Tech Debt Baseline (2026-05-27)
+
+A codebase-wide tech debt audit was performed on 2026-05-27. The raw audit
+overstated several metrics; this section records the verified numbers that
+govern remediation targets. The logging baseline below was recomputed after the
+0d middleware logging commit, so it distinguishes completed middleware work from
+remaining non-middleware console debt. Regenerate with the commands in the right
+column.
+
+### 0e Verification Evidence
+
+Post-0d commands run from current `main` on 2026-05-27:
+
+- `rg -n "console\." server/middleware --glob "*.ts"` exited 1 with 0 matches
+  across 0 files.
+- `rg -n "console\." server/routes --glob "*.ts"` found 165 matches across 27
+  files.
+- `rg -n "console\." server --glob "*.ts"` found 399 matches across 72 files.
+- `npm run guard:console:check` passed: 15 disallowed calls, all `console.log`,
+  against the 39-call baseline.
+- `git diff --check` passed.
+
+### Verified Counts
+
+| Metric                                   | Verified Value                                                                                         | Regenerate Command                                     |
+| ---------------------------------------- | ------------------------------------------------------------------------------------------------------ | ------------------------------------------------------ |
+| Console ratchet (disallowed prod calls)  | 15 current (`console.log` only) against a 39-call baseline; `console.error`/`console.warn` are allowed | `npm run guard:console:check`                          |
+| Total server console calls (all methods) | 399 across 72 files                                                                                    | `rg -n "console\." server --glob "*.ts"`               |
+| Console calls in `server/middleware/`    | 0 across 0 files after 0d; `rg` exits 1 because there are no matches                                   | `rg -n "console\." server/middleware --glob "*.ts"`    |
+| Console calls in `server/routes/`        | 165 across 27 files                                                                                    | `rg -n "console\." server/routes --glob "*.ts"`        |
+| Route files (total)                      | 75                                                                                                     | `find server/routes -name '*.ts' \| wc -l`             |
+| Routes importing `db`/`storage` directly | 25 files                                                                                               | grep for `from.*\b(db\|storage)\b` in `server/routes/` |
+| Routes importing services                | 30 files                                                                                               | grep for `from.*service` in `server/routes/`           |
+| Quarantined test files                   | 36 total: 33 documented, 3 undocumented                                                                | `tests/quarantine/REPORT.md` (generated 2026-05-11)    |
+| Skip/todo occurrences in tests           | 113 across 61 files                                                                                    | grep for `\.skip\|\.todo\|xdescribe\|xit` in `tests/`  |
+| Component test files                     | 48 in `tests/unit/components/`                                                                         | `ls tests/unit/components/**/*.test.*`                 |
+| Hook test files                          | 17 in `tests/unit/hooks/`                                                                              | `ls tests/unit/hooks/**/*.test.*`                      |
+| Page test files                          | 26 in `tests/unit/pages/`                                                                              | `ls tests/unit/pages/**/*.test.*`                      |
+| API test files                           | 11 in `tests/api/` + 5 in `tests/unit/api/`                                                            | `ls tests/api/*.test.* tests/unit/api/*.test.*`        |
+| ESLint `no-explicit-any`                 | warn (400+ pre-existing; exact count in ESLint JSON baseline)                                          | `npx eslint . --format json`                           |
+| Client TS strictness                     | `noUncheckedIndexedAccess: false` in `tsconfig.client.json`                                            | inspect `tsconfig.client.json`                         |
+
+### Corrections to Raw Audit
+
+The raw tech debt audit (2026-05-27) contained several overstated or stale
+claims. These corrections are authoritative:
+
+1. **Component test coverage is not 0.6%.** The audit counted only 2 test files
+   in `client/src/components/__tests__/` and missed the 48 component test files
+   in `tests/unit/components/`, 17 hook tests in `tests/unit/hooks/`, and 26
+   page tests in `tests/unit/pages/`. Total client-side test files: ~91.
+   Coverage is uneven but substantially better than "F grade."
+
+2. **Route test coverage is not 1.5%.** The audit counted only 1 test directory
+   (`server/routes/__tests__/`) and missed 11 API tests in `tests/api/`, 5 unit
+   API tests in `tests/unit/api/`, plus integration tests for LP reporting, SSE,
+   sensitivity routes, route-error contracts, and route-surface inventory.
+   Coverage is incomplete but not near-zero.
+
+3. **Console debt is 39 disallowed calls, not all-method server matches.** The
+   ratchet (`.baselines/console-prod-baseline.json`) tracks only `console.log`,
+   `console.debug`, `console.info`, `console.table`, `console.group`, and
+   `console.groupEnd`. The current ratchet reports 15 `console.log` calls
+   against a 39-call baseline. The 399 all-method server matches include
+   `console.error` and `console.warn`, which are **allowed** by the ratchet and
+   ESLint config. Replacing `console.error`/`console.warn` with Pino is
+   observability work; 0d closed that work for middleware, while route-layer
+   migration remains open.
+
+4. **Skipped tests: use quarantine report numbers.** The audit claimed 67+ skips
+   across 43 files. The quarantine report shows 36 quarantined files (33
+   documented, 3 undocumented). A broader grep finds 113 skip/todo occurrences
+   across 61 files, which includes test helpers and markdown.
+
+5. **The 3 undocumented quarantines are identified:**
+   `tests/integration/phase0-migrated-postgres.test.ts`,
+   `tests/integration/lp-reporting-metric-run.test.ts`,
+   `tests/integration/lp-reporting-foundation-migration.test.ts`.
+
+### Route/Service Boundary Snapshot
+
+Of 75 route files: 25 import `db` or `storage` directly, 30 import services.
+Some routes use both, meaning business logic and persistence are mixed in the
+route handler. With middleware at 0 `console.*` matches after 0d, routes are the
+primary remaining logging migration surface. Top console-heavy routes (calls per
+file): `portfolio-intelligence.ts` (17), `lp-api.ts` (15),
+`v1/reserve-approvals.ts` (15), `deal-pipeline.ts` (14), `variance.ts` (14),
+`fund-config.ts` (10), `cashflow.ts` (10).
+
+### Large Files (Verified Line Counts)
+
+These files are confirmed large and candidates for splitting behind tests:
+
+| File                                                      | Lines  | Core Issue                                               |
+| --------------------------------------------------------- | ------ | -------------------------------------------------------- |
+| `shared/schema.ts`                                        | ~2,654 | Barrel re-export defeats module splitting                |
+| `client/src/pages/variance-tracking.tsx`                  | ~2,339 | 5+ features in one component                             |
+| `client/src/pages/fund-model-results.tsx`                 | ~1,951 | 5+ state machines, complex nesting                       |
+| `client/src/components/portfolio/tabs/AllocationsTab.tsx` | ~1,853 | Allocation + scenario + IC packets                       |
+| `client/src/pages/lp-reporting/metrics.tsx`               | ~1,796 | 17 types, 40+ imports                                    |
+| `server/services/demo-profile-import-service.ts`          | ~1,649 | 18 exports, no abstraction layers                        |
+| `server/routes/lp-api.ts`                                 | ~1,263 | Routes + validation + business logic                     |
+| `server/services/reserve-optimization-calculator.ts`      | ~1,170 | Parallel to DeterministicReserveEngine                   |
+| `client/src/stores/fundStore.ts`                          | ~1,022 | Vanilla store alongside React/Zustand hook store         |
+| `server/services/variance-alert-automation.ts`            | ~971   | Near-threshold service that reimplements timeout utility |
 
 ---
 
@@ -155,23 +282,29 @@ These should also remain.
 | Archives/logs      | `docs/phase0-runner*.txt` and root `archive/` are already absent; remaining `docs/archive/` is small and must be curated, not blanket-deleted.                                                                                |
 | Binary docs assets | `docs/references/attached_assets/` has 0 tracked files; restore specific assets from git history only if a future active reference requires them.                                                                             |
 | Packages           | `packages/*` is still referenced by scripts/tsconfigs. Remove those references before deleting or extracting packages.                                                                                                        |
-| Quarantine         | Zero undocumented quarantines; every quarantine has TTL, reason, and exit condition.                                                                                                                                          |
+| Quarantine         | Zero undocumented quarantines; every quarantine has TTL, reason, and exit condition. Current: 3 undocumented (see Section 1b).                                                                                                |
 | Financial logic    | Existing truth/parity tests are fragmented across domains; fill missing coverage before semantic refactors.                                                                                                                   |
+| Route boundaries   | No new route files importing `db` or `storage` directly. Current: 25 of 75 route files import persistence directly; target reduction behind contract tests.                                                                   |
+| Type safety        | No new `any` or unsafe TypeScript usage in changed files. Promote `no-explicit-any` to `error` by directory after batch cleanup. Current: warn (400+ pre-existing).                                                           |
+| Console (allowed)  | Middleware 0d is complete: 0 `console.*` matches in `server/middleware/`. Remaining route-layer logging debt is 165 calls across 27 files. This is observability improvement, not ratchet work.                               |
+| Client test debt   | Run actual coverage report before setting numeric targets. Current inventory: 48 component + 17 hook + 26 page test files; coverage is uneven, not near-zero.                                                                 |
 
 ---
 
 ## 5. Quality Ratchets
 
-| Ratchet           |                      Starts | Rule                                                                                                   |
-| ----------------- | --------------------------: | ------------------------------------------------------------------------------------------------------ |
-| Changed-file lint |                 Immediately | No new ESLint violations in changed files.                                                             |
-| Global lint debt  | After script/config cleanup | Reduce total lint baseline by at least 5% per cleanup cycle, or record why product work took priority. |
-| `eslint-disable`  |                 Immediately | No new `eslint-disable` without a reason comment.                                                      |
-| `console.*`       |                 Immediately | No new production console usage except through logger/debug utility.                                   |
-| Test quarantine   |                 Immediately | No new quarantine without reason, TTL, and exit condition.                                             |
-| Config aliases    |  After Vitest consolidation | No copy-pasted alias blocks; configs import shared aliases.                                            |
-| Scripts           |                 Immediately | No new wave/phase/slice script names beyond `.baselines/script-alias-policy.json`.                     |
-| TODOs             | After `TECH_DEBT.md` exists | No new TODO without inline reason or tech-debt entry.                                                  |
+| Ratchet           |                      Starts | Rule                                                                                                             |
+| ----------------- | --------------------------: | ---------------------------------------------------------------------------------------------------------------- |
+| Changed-file lint |                 Immediately | No new ESLint violations in changed files.                                                                       |
+| Global lint debt  | After script/config cleanup | Reduce total lint baseline by at least 5% per cleanup cycle, or record why product work took priority.           |
+| `eslint-disable`  |                 Immediately | No new `eslint-disable` without a reason comment.                                                                |
+| `console.*`       |                 Immediately | No new production console usage except through logger/debug utility.                                             |
+| Test quarantine   |                 Immediately | No new quarantine without reason, TTL, and exit condition.                                                       |
+| Config aliases    |  After Vitest consolidation | No copy-pasted alias blocks; configs import shared aliases.                                                      |
+| Scripts           |                 Immediately | No new wave/phase/slice script names beyond `.baselines/script-alias-policy.json`.                               |
+| Route imports     |                 Immediately | No new route files importing `db` or `storage` directly. Existing 25 files are grandfathered.                    |
+| `any` types       |                 Immediately | No new `any`/unsafe usage in changed files. Promote to `error` by directory after batch cleanup.                 |
+| TODOs             |                 Immediately | No new TODO/FIXME/HACK without inline reason + owner/date, or an entry in `docs/governance/cleanup-manifest.md`. |
 
 ---
 
@@ -191,9 +324,77 @@ or dated archive snapshots, once scans are clean.
 
 ---
 
+## 6b. WIP Rule and Replanning Trigger
+
+- At most one in-progress milestone outside Milestone 0 baselining at any time.
+- If any milestone exceeds 2x its capacity estimate, halt and re-scope before
+  continuing. Record the re-scope rationale in this section.
+- When re-scoping, re-run the verification commands from Section 1b to confirm
+  baseline numbers have not drifted.
+
+---
+
+## 6c. Risk Register
+
+| Risk                         | Failure Mode                                                      | Mitigation                                                                                                                                     |
+| ---------------------------- | ----------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
+| Fund math regression         | Refactor changes TVPI/DPI/RVPI, carry, reserve, or cents behavior | Golden snapshots + invariant tests (Milestone 5)                                                                                               |
+| Route compatibility break    | Mount cleanup changes public URLs                                 | Route-surface inventory + contract tests before extraction                                                                                     |
+| Logging regression           | Pino migration leaks sensitive data or drops request IDs          | Pino redaction policy + structured log assertion in tests                                                                                      |
+| Test quarantine rot          | Quarantines become permanent skip-and-forget                      | TTL enforcement; quarantine report fails on undocumented or expired entries                                                                    |
+| Tooling simplification break | Hook/CI deletion removes real guardrail                           | Replacement command must pass before deletion                                                                                                  |
+| Schema rename churn          | Import rewrites break Drizzle/tests                               | Compatibility barrels + batch codemod; never mix renames with semantic changes                                                                 |
+| Hermes scaffolding loss      | Milestone 2 package cleanup deletes active Hermes assets          | Protect `AGENTS.md`, `DEV_BRAIN.md`, `.claude/hermes/`, `orchestrate.js`, and `tests/unit/routing/hermes-routing.test.ts` from package cleanup |
+
+---
+
+## 6d. Golden Test Tolerances Policy
+
+Commit this table before authoring golden snapshots in Milestone 5. Each metric
+class has a fixed tolerance; test authors may not choose ad-hoc values.
+
+| Metric Class                            | Tolerance                              | Rationale                                                                              |
+| --------------------------------------- | -------------------------------------- | -------------------------------------------------------------------------------------- |
+| Money (cents, capital, proceeds, carry) | Exact equality                         | Ledger conservation; rounding errors compound                                          |
+| TVPI, DPI, RVPI                         | Exact equality                         | Ratio of exact money values                                                            |
+| IRR / XIRR                              | abs(a - b) < 1e-8                      | Brent/Newton solver convergence; 1e-8 is well within solver precision                  |
+| NAV / FMV                               | Exact equality                         | Point-in-time valuation snapshot                                                       |
+| Allocation percentages                  | abs(a - b) < 1e-10                     | Floating-point arithmetic on allocation splits                                         |
+| Monte Carlo outputs                     | Statistical bounds, not point equality | Seed-deterministic fixtures use exact equality; unseeded runs use confidence intervals |
+
+Core invariants to test separately from snapshots:
+
+- `TVPI = DPI + RVPI` (exact)
+- Capital conservation:
+  `total_deployed + remaining_capital = investable_capital`
+- No future exits beyond fund end date
+- Graduation + exit <= 100% per stage
+- Waterfall: `LP_proceeds + GP_carry + GP_management_fees = total_distributions`
+
+These tolerances are derived from the solver implementations in
+`shared/lib/finance/xirr.ts` and `shared/lib/finance/brent-solver.ts`.
+
+---
+
+# Closed Items (as of 2026-05-27)
+
+These items are resolved and no longer in the active work queue. They remain
+documented as guards against recurrence.
+
+| Item                               | Status                            | Future Rule                                                         |
+| ---------------------------------- | --------------------------------- | ------------------------------------------------------------------- |
+| `docs/references/attached_assets/` | DONE -- 0 tracked files           | Restore individual assets only if an active reference requires them |
+| `docs/phase0-runner*.txt`          | DONE -- already absent            | Add targeted `.gitignore` if recurrence is observed                 |
+| Root `archive/`                    | DONE -- already absent            | Do not reintroduce as tracked directory                             |
+| Local `repo/` folder               | DONE -- already removed/untracked | Clean stale doc refs only when touched                              |
+| Root `ai/` pipeline                | DONE -- 24 files deleted          | Evidence in git history and cleanup manifest                        |
+| Root `ADR/` stubs                  | DONE -- deleted                   | `docs/adr/` is the maintained ADR collection                        |
+
+---
+
 # Milestone 0 — Baseline and Cleanup Manifest
 
-**Duration:** 0.5–1 day **Risk:** none **Goal:** establish a
+**Capacity:** S (1 commit) **Risk:** none **Goal:** establish a
 no-worse-than-baseline checkpoint and classify every cleanup candidate before
 changing files.
 
@@ -285,8 +486,8 @@ references, classifications, or validation commands.
 
 # Milestone 1 — Fast Hygiene with Git Rollback
 
-**Duration:** 1–3 days **Risk:** low **Goal:** remove obvious repository drag
-without touching production logic.
+**Capacity:** M (1-3 commits) **Risk:** low **Goal:** remove obvious repository
+drag without touching production logic.
 
 ## 1.1 Confirm generated docs logs stay absent
 
@@ -453,9 +654,24 @@ tracked files and remove only proven stale leaf artifacts.
 
 ---
 
+## Milestone 1 Exit Criteria
+
+Milestone 1 is complete when:
+
+- [ ] All tracked files under closed candidates (`docs/phase0-runner*.txt`,
+      `docs/references/attached_assets/`, root `archive/`) remain at 0.
+- [ ] `docs/archive/2025-q4/` contents are curated (kept, moved, or deleted with
+      rationale).
+- [ ] Root `src/core/routes/ia.ts` is either documented as intentional or
+      migrated.
+- [ ] XState wizard machine has behavior tests locking current semantics.
+- [ ] `npm run check && npm run build:prod && npm run test:unit` pass.
+
+---
+
 # Milestone 2 — Package and Tooling Boundary
 
-**Duration:** 1–2 days **Risk:** medium **Goal:** remove the
+**Capacity:** M (1-3 commits) **Risk:** medium **Goal:** remove the
 false-monorepo/tooling coupling without adopting workspaces.
 
 ## 2.1 Treat package deadness as a hypothesis
@@ -506,6 +722,16 @@ Recommended for this build:
 
 ## 2.4 Consolidate AI tooling after package decision
 
+**Protected Hermes scaffolding**: The following files are part of the active
+Hermes multi-agent development framework and must not be deleted or moved during
+package cleanup. They are referenced by `CLAUDE.md`, `AGENTS.md`,
+`DEV_BRAIN.md`, and active routing/test code:
+
+- `AGENTS.md`, `DEV_BRAIN.md`
+- `.claude/hermes/SOUL.md`, `.claude/hermes/model-routing.json`
+- `orchestrate.js`
+- `tests/unit/routing/hermes-routing.test.ts`
+
 | Current            | Recommended                                                                          |
 | ------------------ | ------------------------------------------------------------------------------------ |
 | `tools/ai-review/` | keep under `tools/ai/code-review/` if actively used; otherwise delete.               |
@@ -516,10 +742,21 @@ Recommended for this build:
 
 ---
 
+## Milestone 2 Exit Criteria
+
+Milestone 2 is complete when:
+
+- [ ] `packages/*` references are removed from app tsconfigs, scripts, and CI.
+- [ ] Unused packages are deleted (git tag before deletion).
+- [ ] Hermes scaffolding files listed in Section 2.4 are verified present.
+- [ ] `npm run check && npm run build:prod && npm run test:unit` pass.
+
+---
+
 # Milestone 3 — Scripts, Hooks, CI, Env Files, and Operational Tooling
 
-**Duration:** 2–4 days **Risk:** medium **Goal:** simplify the commands and
-automation the solo developer actually uses.
+**Capacity:** L (4-8 commits) **Risk:** medium **Goal:** simplify the commands
+and automation the solo developer actually uses.
 
 ## 3.1 Canonical script set
 
@@ -703,12 +940,29 @@ For a solo internal tool:
 - do not over-invest in perfect Docker profile architecture if local dev already
   works.
 
+## Milestone 3 Exit Criteria
+
+Milestone 3 is complete when:
+
+- [ ] Root package scripts are classified into keep / alias / delete / unknown.
+- [ ] Root script count is <= 50, or a written exception exists for each
+      remaining alias.
+- [ ] No new wave/phase/slice scripts are allowed beyond baseline policy.
+- [ ] Pre-push either still delegates to existing script or has a verified
+      replacement.
+- [ ] CI workflows are classified as required / optional / manual / delete.
+- [ ] One required local validation command chain is documented.
+- [ ] Env files are documented; `.env.test` is added only if loader/CI behavior
+      is verified.
+- [ ] `npm run check && npm run build:prod && npm run test:unit` pass.
+- [ ] `npm run guard:scripts:check` passes.
+
 ---
 
 # Milestone 4 — Config Consolidation
 
-**Duration:** 2–4 days **Risk:** medium **Goal:** reduce duplicate configs while
-preserving Vite/editor/test boundaries.
+**Capacity:** M (1-3 commits) **Risk:** medium **Goal:** reduce duplicate
+configs while preserving Vite/editor/test boundaries.
 
 ## 4.1 Vitest configs
 
@@ -795,13 +1049,27 @@ Add `CONFIGURATION.md` with:
 - commands that use each file;
 - rules for not reintroducing redundant configs.
 
+## Milestone 4 Exit Criteria
+
+Milestone 4 is complete when:
+
+- [ ] Shared Vitest aliases extracted without changing unit test behavior.
+- [ ] Only actively-referenced TypeScript configs remain; deleted configs proven
+      unused by extends/script/workflow scans.
+- [ ] `npm run check && npm run build:prod && npm run test:unit` pass.
+- [ ] `CONFIGURATION.md` exists listing remaining configs and their owners.
+
 ---
 
 # Milestone 5 — Domain Correctness Guardrails
 
-**Duration:** 2–5 days **Risk:** low by itself; required before semantic
+**Capacity:** L (4-8 commits) **Risk:** low by itself; required before semantic
 refactors **Goal:** protect fund-modeling correctness before touching engines,
 money, stores, or route logic.
+
+**Dependency:** Milestone 5 covers domain math golden tests. Section 6.4 (route
+contract tests) covers HTTP contracts. Both must be complete before Sections
+6.5-6.9 (product-code refactors) begin.
 
 ## 5.1 Golden behavior map
 
@@ -855,16 +1123,48 @@ A domain refactor is accepted only if:
 
 1. golden suite passes;
 2. changed outputs are identical or explained;
-3. intentional differences have a commit note;
+3. intentional differences have a commit note with before/after diff;
 4. rounding behavior does not change silently;
-5. construction/current/scenario forecasts remain separate.
+5. construction/current/scenario forecasts remain separate;
+6. tolerances match the committed policy in Section 6d (no ad-hoc values);
+7. core invariants (TVPI = DPI + RVPI, capital conservation, etc.) are tested
+   separately from point-value snapshots.
+
+## Milestone 5 Exit Criteria
+
+Milestone 5 is complete when:
+
+- [ ] Each domain area in Section 5.1 has at least one deterministic fixture.
+- [ ] Each fixture records input hash, engine/version metadata, and expected
+      outputs.
+- [ ] Money/ledger outputs use exact equality; IRR/XIRR use abs < 1e-8.
+- [ ] Core invariants are tested separately from snapshots.
+- [ ] `npm run phoenix:truth` passes.
+- [ ] Any intentional output change has a commit note with before/after diff.
+
+---
+
+# Milestone 5.5 — Value Thin-Slice (Optional)
+
+**Capacity:** S-M (1-3 commits) **Risk:** low (gated by Milestone 5) **Goal:**
+ship one visible user-facing improvement after correctness gates exist, before
+deep architecture refactoring.
+
+Once Milestone 5 golden tests and Milestone 6.4 route contract tests are in
+place, the calculation engine is safely gated. Leverage this to ship a small
+business-visible feature -- such as an enhanced scenario comparison view, an LP
+report improvement, or a dashboard metric -- while continuing structural
+refactoring in Milestone 6.
+
+This prevents months of pure refactoring from looking like stalled velocity to
+stakeholders. The feature must pass all golden tests and route contract tests.
 
 ---
 
 # Milestone 6 — Product-Code Refactors Behind Tests
 
-**Duration:** ongoing **Risk:** medium-high **Goal:** improve architecture after
-repo/tooling drag is reduced and domain tests exist.
+**Capacity:** XL (ongoing) **Risk:** medium-high **Goal:** improve architecture
+after repo/tooling drag is reduced and domain tests exist.
 
 Verified current shape:
 
@@ -878,9 +1178,8 @@ Verified current shape:
   duplicate-looking mounts as migration/compatibility state until proven dead.
 - In the main workspace, `server/routes/deal-pipeline.ts` is still
   route-file-first; no dedicated `deal-pipeline.service.ts` / repository layer
-  exists yet. On execution branch `codex/refactor-plan-execution`, endpoint
-  contract tests exist and idempotency middleware registration has been
-  corrected.
+  exists yet. Current `main` has endpoint contract tests and the idempotency
+  middleware registration has been corrected.
 - Client/shared engine duplicates are often intentional shims: many
   `client/src/core/*` files re-export `shared/core/*`.
 
@@ -956,12 +1255,10 @@ Do not mount it at `/health` unless internals are rewritten to relative paths.
 
 ## 6.4 Add route contract tests before service extraction
 
-Start with `deal-pipeline.ts`. On execution branch
-`codex/refactor-plan-execution`, the first contract-test slice exists at
+Start with `deal-pipeline.ts`. The first contract-test slice exists at
 `tests/unit/routes/deal-pipeline.contract.test.ts`; it replaces the need to
-start from the quarantined API test as the primary extraction gate after that
-branch lands. Keep the new contract test as the safety net before thinning the
-route file.
+start from the quarantined API test as the primary extraction gate. Keep the
+contract test as the safety net before thinning the route file.
 
 Correct contract examples:
 
@@ -993,9 +1290,18 @@ server/services/deal-pipeline/
 server/routes/deal-pipeline.ts                     # validate -> scope -> service -> response
 ```
 
+Route extraction priority order (by boundary violation severity):
+
+1. `deal-pipeline.ts` -- already has contract tests on current `main`.
+2. `lp-api.ts` (1,263 lines) -- mixes routes, rate limiting, schemas, direct
+   DB/storage, metrics, queueing, auditing, cursor signing, error formatting.
+3. `allocations.ts` -- mixes route code, validation schemas, DB imports,
+   transaction handling, service calls, storage access, domain validation.
+
 Solo-friendly enforcement:
 
-- New route files must not import `db` directly.
+- New route files must not import `db` directly. Enforce via the route-import
+  ratchet (see Section 5, Quality Ratchets).
 - Existing route files move to service/repository pattern gradually; the repo
   currently has mixed route-embedded and service/repository domains, so do not
   claim a uniform layering rule until migrated.
@@ -1003,6 +1309,36 @@ Solo-friendly enforcement:
   consumers are verified or migrated.
 - Keep semantic idempotency replay tests for create, import, stage, delete, bulk
   status, and bulk archive actions green during extraction.
+
+## 6.4b Migrate middleware and route logging to Pino
+
+The middleware layer is closed by 0d:
+`df2b22fc refactor(middleware): preserve diagnostics as structured logs`.
+Post-0d `rg -n "console\." server/middleware --glob "*.ts"` returns no matches.
+The route layer still has 165 console calls across 27 files. These are allowed
+by the console ratchet (which tracks only `console.log`), so this work is an
+observability improvement, not a ratchet-moving cleanup.
+
+Middleware files closed by 0d (keep as regression context, not active work):
+
+- `server/middleware/async.ts` (1 call)
+- `server/middleware/asyncErrorHandler.ts` (2 calls)
+- `server/middleware/requireLPAccess.ts` (1 call)
+- `server/middleware/performance-monitor.ts` (2 calls)
+- `server/middleware/with-rls-transaction.ts` (3 calls)
+- `server/middleware/auditLog.ts` (2 calls)
+- `server/middleware/backpressure.ts` (1 call)
+- `server/middleware/idempotency.ts` (5 calls)
+- `server/middleware/dedupe.ts` (4 calls)
+
+Route files (remaining work; do during or after service extraction):
+
+Top offenders: `portfolio-intelligence.ts` (17), `lp-api.ts` (15),
+`v1/reserve-approvals.ts` (15), `deal-pipeline.ts` (14), `variance.ts` (14),
+`fund-config.ts` (10), `cashflow.ts` (10).
+
+Target: all production server code uses the existing Pino logger with structured
+fields (request ID, operation, error context) instead of raw console calls.
 
 ## 6.5 Consolidate fund stores
 
@@ -1139,29 +1475,58 @@ For duplicate-looking client/shared engines:
 
 Domain golden tests must pass before and after.
 
+## Milestone 6 Exit Criteria
+
+Milestone 6 is complete when:
+
+- [ ] Route files importing `db`/`storage` directly is reduced from 25 to a
+      tracked lower target (e.g., 20 after deal-pipeline, 15 after lp-api +
+      allocations).
+- [ ] Route contract tests exist for deal-pipeline, lp-api, allocations, funds,
+      and performance-api.
+- [x] Middleware console calls are replaced with Pino; current baseline is 0
+      `console.*` matches in `server/middleware/`.
+- [ ] Route console calls are replaced with Pino (tracked by file count).
+- [ ] `main.tsx` and `App.tsx` are split per Section 6.1-6.2.
+- [ ] Golden test suite and route contract tests pass.
+- [ ] `npm run check && npm run build:prod && npm run test:unit` pass.
+
 ---
 
 # Milestone 7 — Test Infrastructure Cleanup
 
-**Duration:** 2–4 days, can interleave **Risk:** medium **Goal:** fix
+**Capacity:** M (1-3 commits, can interleave) **Risk:** medium **Goal:** fix
 discovery/config/helper issues without churn-for-churn’s-sake.
 
 ## 7.1 Quarantine governance
 
-Current state: quarantine is an explicit project surface.
+Current state (verified 2026-05-27): quarantine is an explicit project surface.
 `vitest.config.quarantine.ts`, `scripts/quarantine-report.ts`,
 `tests/quarantine/REPORT.md`, `tests/quarantine/policy.json`, and
-`.quarantine.test.ts` files all exist. The report currently shows documented and
-undocumented quarantines, so cleanup starts by fixing metadata and exit
-criteria, not by inventing a new mechanism.
+`.quarantine.test.ts` files all exist. The report (generated 2026-05-11) shows
+36 quarantined files: 33 documented and 3 undocumented. A broader grep finds 113
+skip/todo occurrences across 61 test files.
+
+The 3 undocumented quarantines that need immediate documentation:
+
+- `tests/integration/phase0-migrated-postgres.test.ts`
+- `tests/integration/lp-reporting-metric-run.test.ts`
+- `tests/integration/lp-reporting-foundation-migration.test.ts`
+
+Additionally, 15 of the 33 documented quarantines share the same generic reason
+("Temporarily skipped pending stabilization triage") and exit criteria. These
+should be triaged individually: either given specific exit criteria or deleted
+if the underlying feature/test is no longer relevant (many are 83+ days old).
 
 Rules:
 
 - zero undocumented quarantines;
 - reason, date, and exit condition required;
-- default TTL 30 days;
-- > 60 days requires keep/delete decision;
-- > 90 days delete or fix.
+- TTL by class: `regression-pending` 14 days, `flaky-logic` 30 days, `flaky-env`
+  (Docker/Toxiproxy/CI-specific) 90 days, `feature-blocked` tied to ticket/PR;
+- default TTL 30 days if class is not specified;
+- > 60 days requires keep/delete decision (except `flaky-env` class);
+- > 90 days delete or fix regardless of class.
 
 Metadata example:
 
@@ -1225,7 +1590,7 @@ tests/_support/factories/createDeal.ts
 
 # Milestone 8 — Cosmetic and Navigation Cleanup
 
-**Duration:** optional **Risk:** low-medium due to churn **Goal:** improve
+**Capacity:** S-M (optional) **Risk:** low-medium due to churn **Goal:** improve
 naming/navigation only after higher ROI work is complete.
 
 ## 8.1 Page naming
@@ -1263,51 +1628,75 @@ server/shared/ -> server/lib if server-local
 
 # Acceptance Matrix
 
-| Change type                       | Evidence required                                                      | Gate                                                                                | Rollback                    |
-| --------------------------------- | ---------------------------------------------------------------------- | ----------------------------------------------------------------------------------- | --------------------------- |
-| Prevent regenerated docs logs     | Candidate absent or reference scan clean                               | docs link check if docs change; `check`, `build:prod` no worse if files are removed | git tag when removing files |
-| Externalize binary docs assets    | Asset refs classified; external target chosen                          | docs visual/link check, `check`, `build:prod`                                       | git tag + external copy     |
-| Curate `docs/archive/`            | File-level derivability review; product docs reviewed                  | docs links if available                                                             | git tag                     |
-| Migrate/delete root `src/` mirror | Route-story tests migrated; scan clean                                 | `check`, `build:prod`, `test:unit`                                                  | git tag                     |
-| Migrate XState wizard machine     | Replacement runtime owner exists; active imports removed intentionally | `check`, `build:prod`, wizard persistence tests, fund setup smoke                   | git tag                     |
-| Record removed `repo/`            | Folder absent; git had no tracked files under it                       | docs link check if references are edited                                            | n/a                         |
-| Delete packages                   | Tooling refs removed first                                             | `check`, `test:unit`, `build:prod`                                                  | git tag                     |
-| Simplify scripts                  | Canonical scripts or direct command chains added first                 | current replacement command passes                                                  | restore package.json        |
-| Simplify hooks                    | Replacement commands exist                                             | staged-file test + current replacement command                                      | restore hook/script         |
-| Simplify CI                       | 16-workflow inventory classified first                                 | CI passes once                                                                      | restore workflow            |
-| Delete Vitest config              | Script refs removed                                                    | `test:unit`                                                                         | restore config              |
-| Delete TS config                  | No refs; boundary preserved                                            | `check`, `build:prod`, Vite build                                                   | restore config              |
-| Route service extraction          | Contract tests before extraction                                       | response shape unchanged                                                            | revert commit               |
-| Money changes                     | Caller classification + golden tests                                   | exact/parity tests                                                                  | revert utility commit       |
-| Engine dedupe                     | Pair diff + golden tests                                               | golden parity                                                                       | restore file                |
-| Schema rename                     | Compatibility barrels first                                            | `check`, integration, Drizzle check                                                 | revert batch                |
-| Test helper moves                 | Codemod imports                                                        | `test:unit`, `test:integration`                                                     | revert batch                |
-| Cosmetic renames                  | Codemod + move budget                                                  | `check`, `test:unit`                                                                | revert batch                |
+| Change type                       | Evidence required                                                                | Gate                                                                                                                             | Rollback                    |
+| --------------------------------- | -------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------- | --------------------------- |
+| Prevent regenerated docs logs     | Candidate absent or reference scan clean                                         | docs link check if docs change; `check`, `build:prod` no worse if files are removed                                              | git tag when removing files |
+| Externalize binary docs assets    | Asset refs classified; external target chosen                                    | docs visual/link check, `check`, `build:prod`                                                                                    | git tag + external copy     |
+| Curate `docs/archive/`            | File-level derivability review; product docs reviewed                            | docs links if available                                                                                                          | git tag                     |
+| Migrate/delete root `src/` mirror | Route-story tests migrated; scan clean                                           | `check`, `build:prod`, `test:unit`                                                                                               | git tag                     |
+| Migrate XState wizard machine     | Replacement runtime owner exists; active imports removed intentionally           | `check`, `build:prod`, wizard persistence tests, fund setup smoke                                                                | git tag                     |
+| Record removed `repo/`            | Folder absent; git had no tracked files under it                                 | docs link check if references are edited                                                                                         | n/a                         |
+| Delete packages                   | Tooling refs removed first                                                       | `check`, `test:unit`, `build:prod`                                                                                               | git tag                     |
+| Simplify scripts                  | Canonical scripts or direct command chains added first                           | current replacement command passes                                                                                               | restore package.json        |
+| Simplify hooks                    | Replacement commands exist                                                       | staged-file test + current replacement command                                                                                   | restore hook/script         |
+| Simplify CI                       | 16-workflow inventory classified first                                           | CI passes once                                                                                                                   | restore workflow            |
+| Delete Vitest config              | Script refs removed                                                              | `test:unit`                                                                                                                      | restore config              |
+| Delete TS config                  | No refs; boundary preserved                                                      | `check`, `build:prod`, Vite build                                                                                                | restore config              |
+| Route-import guard                | Existing 25 files grandfathered; new files blocked                               | `npm run check`; guard script passes; no false positives on existing routes                                                      | revert guard script         |
+| Middleware logging migration      | Closed by 0d; regression target is 0 `console.*` matches in `server/middleware/` | `rg -n "console\." server/middleware --glob "*.ts"` exits 1 with no matches; `npm run test:unit`; structured log output verified | revert 0d commit            |
+| Route logging migration           | Console calls in route files replaced with Pino                                  | `npm run test:unit`; request IDs present in structured log output                                                                | revert commit               |
+| Route service extraction          | Contract tests before extraction                                                 | response shape unchanged; direct DB/storage imports drop                                                                         | revert commit               |
+| Money changes                     | Caller classification + golden tests                                             | exact/parity tests                                                                                                               | revert utility commit       |
+| Engine dedupe                     | Pair diff + golden tests                                                         | golden parity                                                                                                                    | restore file                |
+| Schema rename                     | Compatibility barrels first                                                      | `check`, integration, Drizzle check                                                                                              | revert batch                |
+| Test helper moves                 | Codemod imports                                                                  | `test:unit`, `test:integration`                                                                                                  | revert batch                |
+| Cosmetic renames                  | Codemod + move budget                                                            | `check`, `test:unit`                                                                                                             | revert batch                |
 
 ---
 
 # Suggested Solo Commit Sequence
 
-| Batch | Commit                                                                       | Validation                                      |
-| ----: | ---------------------------------------------------------------------------- | ----------------------------------------------- |
-|     0 | `chore(audit): capture baseline and cleanup manifest`                        | n/a                                             |
-|     1 | `chore(repo): record generated docs logs already absent`                     | docs link check if ignore/docs change           |
-|     2 | `chore(docs): externalize large reference assets`                            | docs link/visual check + `check + build:prod`   |
-|     3 | `chore(docs): curate remaining docs archive`                                 | docs link check                                 |
-|     4 | `chore(app): migrate legacy route-story mirror`                              | `check + build:prod + test:unit`                |
-|     5 | `test(client): lock modeling wizard machine behavior`                        | `check + build:prod + wizard tests + e2e smoke` |
-|     6 | `docs(repo): mark external BMAD local copy as removed if references change`  | docs link check                                 |
-|     7 | `chore(tooling): remove package refs from app configs and scripts`           | `check + test:unit`                             |
-|     8 | `chore(tooling): remove unused ai-agent packages`                            | `check + test:unit + build:prod`                |
-|     9 | `chore(scripts): classify and retire stale wave and phase scripts`           | replacement command chain                       |
-|    10 | `chore(hooks): simplify husky hooks after replacing pre-push orchestration`  | staged-file test + replacement command chain    |
-|    11 | `chore(test): consolidate vitest config aliases without changing unit entry` | `test:unit`                                     |
-|    12 | `test(domain): fill fund-model golden parity gaps`                           | `phoenix:truth` + targeted truth/golden tests   |
-|   13+ | Product refactors one area at a time                                         | per-area gates                                  |
+Batches 0a-0e are quick wins from the 2026-05-27 tech debt audit that can land
+before or interleaved with the existing sequence. They require no product code
+changes and reduce future debt accumulation.
+
+| Batch | Commit                                                                       | Validation                                                    |
+| ----: | ---------------------------------------------------------------------------- | ------------------------------------------------------------- |
+|    0a | `chore(guardrails): add route-import guard for db/storage`                   | `npm run check`; no existing route files break                |
+|    0b | `test(quarantine): document 3 undocumented quarantines`                      | quarantine report shows 0 undocumented                        |
+|    0c | `test(cleanup): delete zero-assertion debug-ca020 test`                      | `npm run test:unit`                                           |
+|    0d | `refactor(middleware): replace console calls with Pino in middleware`        | DONE at `df2b22fc`; middleware console scan is clean          |
+|    0e | `chore(audit): add verified tech debt baseline to refactor roadmap`          | `rg` console scans; `guard:console:check`; `git diff --check` |
+|     0 | `chore(audit): capture baseline and cleanup manifest`                        | n/a                                                           |
+|     1 | `chore(repo): record generated docs logs already absent`                     | docs link check if ignore/docs change                         |
+|     2 | `chore(docs): externalize large reference assets`                            | docs link/visual check + `check + build:prod`                 |
+|     3 | `chore(docs): curate remaining docs archive`                                 | docs link check                                               |
+|     4 | `chore(app): migrate legacy route-story mirror`                              | `check + build:prod + test:unit`                              |
+|     5 | `test(client): lock modeling wizard machine behavior`                        | `check + build:prod + wizard tests + e2e smoke`               |
+|     6 | `docs(repo): mark external BMAD local copy as removed if references change`  | docs link check                                               |
+|     7 | `chore(tooling): remove package refs from app configs and scripts`           | `check + test:unit`                                           |
+|     8 | `chore(tooling): remove unused ai-agent packages`                            | `check + test:unit + build:prod`                              |
+|     9 | `chore(scripts): classify and retire stale wave and phase scripts`           | replacement command chain                                     |
+|    10 | `chore(hooks): simplify husky hooks after replacing pre-push orchestration`  | staged-file test + replacement command chain                  |
+|    11 | `chore(test): consolidate vitest config aliases without changing unit entry` | `test:unit`                                                   |
+|    12 | `test(domain): fill fund-model golden parity gaps`                           | `phoenix:truth` + targeted truth/golden tests                 |
+|   13+ | Product refactors one area at a time                                         | per-area gates                                                |
 
 ---
 
 # Revised Priority List
+
+Items 0a-0e are quick wins from the 2026-05-27 tech debt audit. They can land
+immediately and independently of the existing sequence. As of 2026-05-27, 0d is
+closed and 0e records the post-0d baseline before any later route logging or
+service extraction work.
+
+0a. Add route-import guard preventing new `import { db/storage }` in routes. 0b.
+Document the 3 undocumented quarantines with reason, TTL, and exit criteria. 0c.
+Delete or convert `tests/unit/debug-ca020.test.ts` (zero assertions). 0d. DONE:
+replace 21 console calls in `server/middleware/` with Pino structured logging;
+current middleware scan is 0 matches. 0e. Record this verified tech debt
+baseline in the roadmap.
 
 1. Baseline and cleanup manifest.
 2. Record `docs/phase0-runner*.txt` and root `archive/` as already absent.
@@ -1332,18 +1721,28 @@ server/shared/ -> server/lib if server-local
 13. Consolidate Vitest configs and aliases.
 14. Rationalize TypeScript configs conservatively.
 15. Fill gaps in existing fragmented domain golden/truth tests.
-16. Clean `main.tsx`.
-17. Split `App.tsx`.
-18. Normalize API route mounting without changing URLs.
-19. Add route contract tests and extract service logic from largest DB-heavy
-    routes.
-20. Consolidate fund stores.
-21. Consolidate type guards.
-22. Classify and migrate money utilities semantically.
-23. Rename schema directories via compatibility barrels.
-24. Dedupe engines behind golden tests.
-25. Fix quarantine/helper/test naming issues.
-26. Only then consider page renames and UI directory reshuffling.
+16. Add route contract tests for `deal-pipeline`, `lp-api`, `allocations`,
+    `funds`, and `performance-api` before service extraction.
+17. Clean `main.tsx`.
+18. Split `App.tsx`.
+19. Normalize API route mounting without changing URLs.
+20. Extract service logic from largest DB-heavy routes (`deal-pipeline.ts`
+    first, then `lp-api.ts`, then `allocations.ts`); reduce direct DB/storage
+    route imports from 25 toward a tracked lower target.
+21. Migrate route-layer console calls (165 across 27 files) to Pino during or
+    after service extraction.
+22. Consolidate fund stores.
+23. Consolidate type guards.
+24. Classify and migrate money utilities semantically.
+25. Rename schema directories via compatibility barrels.
+26. Dedupe engines behind golden tests.
+27. Fix quarantine/helper/test naming issues; triage the 15 generic
+    "stabilization triage" quarantines individually.
+28. Promote `no-explicit-any` to `error` by directory after batch cleanup.
+29. Re-enable `noUncheckedIndexedAccess` for client by directory.
+30. Wire OpenTelemetry HTTP + DB spans after request IDs and structured logs are
+    consistent.
+31. Only then consider page renames and UI directory reshuffling.
 
 ---
 
@@ -1363,13 +1762,20 @@ server/shared/ -> server/lib if server-local
   stabilizes.
 - No deletion of active XState wizard, root route mirror, `vitest.config.mjs`,
   or pre-push orchestration before replacements are proven.
+- No creating parallel governance docs (`TECH_DEBT_REMEDIATION.md` or similar);
+  this roadmap is the single source of truth for refactor/cleanup work.
+- No treating raw audit numbers as authoritative without regenerating them from
+  the commands in Section 1b.
+- No setting numeric coverage % targets without first running an actual coverage
+  report (`npx vitest run --coverage`).
 
 ---
 
 # Bottom Line
 
 The best approach is the **latest plan plus the attachment’s milestone
-discipline, corrected for the live repository**.
+discipline, corrected for the live repository and the 2026-05-27 tech debt
+audit**.
 
 For this solo/internal build, move quickly on verified-unused artifacts and the
 large attached-assets directory, but do not treat active route mirrors, active
@@ -1377,6 +1783,16 @@ XState wizard code, active Vitest configs, or active pre-push automation as
 cleanup trash. Then simplify the daily commands, hooks, CI, env files, and test
 configs from the current 80-script / 16-workflow baseline. Only after that, fill
 domain golden-test gaps and refactor product code behind those tests.
+
+The 2026-05-27 audit adds five immediate guardrails/baseline slices
+(route-import guard, quarantine documentation, debug test cleanup, middleware
+logging migration, and this verified baseline) and corrects stale metrics from
+the raw audit. Console debt is 15 current ratcheted calls against a 39-call
+baseline, not the all-method server total; middleware is now 0 matches after 0d,
+while route-layer console debt remains 165 calls across 27 files. Client test
+files number ~91, not 2, and route tests exist but are incomplete. The corrected
+numbers in Section 1b are authoritative; regenerate them with the listed
+commands before starting any remediation PR.
 
 The highest ROI is not naming consistency. It is reducing the number of scripts,
 configs, stale directories, duplicate utilities, and hidden semantic forks the
