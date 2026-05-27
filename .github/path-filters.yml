@@ -25,6 +25,13 @@
 #                   doctor, and production-audit validation.
 # pr_security:      Files that warrant lightweight PR security checks.
 # security_tests:   Files that warrant the security integration test suite.
+# security_relevant:
+#                   Files that warrant deep security scans on PRs. Schedules,
+#                   dispatches, and push-to-main still run full deep scans.
+# codeql_relevant:  Files that warrant full CodeQL analysis instead of the
+#                   required-check-safe pass-through path.
+# claude_review_relevant:
+#                   Files that make opt-in Claude PR review useful.
 # test_quarantine:  Files that warrant static skip/quarantine counting.
 #
 # Generators to keep in sync with auto_docs (drift causes spurious slow-path
@@ -108,6 +115,7 @@ dependency:
   - 'scripts/doctor*.mjs'
   - 'scripts/verify-lockfile.sh'
   - '.github/actions/setup-node-env/**'
+  - '.github/path-filters.yml'
   - '.github/workflows/ci-unified.yml'
   - '.github/workflows/dependency-validation.yml'
 
@@ -132,6 +140,61 @@ security_tests:
   - 'package-lock.json'
   - '.github/workflows/ci-unified.yml'
   - '.github/workflows/security-tests.yml'
+
+security_relevant:
+  - 'package.json'
+  - 'package-lock.json'
+  - 'server/**'
+  - 'shared/**'
+  - 'Dockerfile*'
+  - 'suppression.xml'
+  - '.github/actions/setup-node-env/**'
+  - '.github/codeql-config.yml'
+  - '.github/path-filters.yml'
+  - '.github/workflows/codeql.yml'
+  - '.github/workflows/security-scan.yml'
+  - '.github/workflows/security-tests.yml'
+
+codeql_relevant:
+  - '**/*.ts'
+  - '**/*.tsx'
+  - '**/*.js'
+  - '**/*.jsx'
+  - 'client/**'
+  - 'server/**'
+  - 'shared/**'
+  - 'scripts/**'
+  - 'tests/**'
+  - 'package.json'
+  - 'package-lock.json'
+  - 'tsconfig*.json'
+  - 'vite.config.*'
+  - 'vitest.config.*'
+  - 'eslint.config.*'
+  - '.github/codeql-config.yml'
+  - '.github/path-filters.yml'
+  - '.github/workflows/codeql.yml'
+  - '.github/workflows/security-scan.yml'
+  - '.github/workflows/security-tests.yml'
+
+claude_review_relevant:
+  - '**/*.ts'
+  - '**/*.tsx'
+  - '**/*.js'
+  - '**/*.jsx'
+  - 'client/**'
+  - 'server/**'
+  - 'shared/**'
+  - 'scripts/**'
+  - 'tests/**'
+  - 'package.json'
+  - 'package-lock.json'
+  - 'tsconfig*.json'
+  - 'vite.config.*'
+  - 'vitest.config.*'
+  - 'eslint.config.*'
+  - '.github/path-filters.yml'
+  - '.github/workflows/claude-code-review.yml'
 
 test_quarantine:
   - 'tests/**'

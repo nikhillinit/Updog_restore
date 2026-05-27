@@ -43,6 +43,7 @@ const testPaths = {
 };
 
 export default defineConfig({
+  cacheDir: '.cache/vite-vitest',
   resolve: {
     alias, // Use shared constant
   },
