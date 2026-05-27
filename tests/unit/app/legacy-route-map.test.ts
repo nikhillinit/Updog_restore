@@ -4,10 +4,6 @@ import {
   NEW_ROUTES as CLIENT_NEW_ROUTES,
   OLD_TO_NEW_REDIRECTS as CLIENT_OLD_TO_NEW_REDIRECTS,
 } from '@/core/routes/ia';
-import {
-  NEW_ROUTES as MIRROR_NEW_ROUTES,
-  OLD_TO_NEW_REDIRECTS as MIRROR_OLD_TO_NEW_REDIRECTS,
-} from '../../../src/core/routes/ia';
 
 describe('legacy route map', () => {
   it('does not keep removed legacy surfaces in the active redirect map', () => {
@@ -42,11 +38,16 @@ describe('legacy route map', () => {
   });
 
   it('does not leave removed legacy route-story metadata in the active map', () => {
-    expect(CLIENT_NEW_ROUTES.map((route) => route.path)).not.toContain('/model');
-    expect(MIRROR_NEW_ROUTES.map((route) => route.path)).toContain('/model');
+    expect(CLIENT_NEW_ROUTES.map((route) => route.path)).toEqual([
+      '/overview',
+      '/portfolio',
+      '/operate',
+      '/report',
+    ]);
 
-    const removedInvestmentsSurfaces = ['/investments', '/investment-table'];
-    const removedClientOnlySurfaces = [
+    const removedLegacySurfaces = [
+      '/investments',
+      '/investment-table',
       '/planning',
       '/forecasting',
       '/scenario-builder',
@@ -60,13 +61,10 @@ describe('legacy route map', () => {
       '/partial-sales',
     ];
 
-    for (const pathname of removedInvestmentsSurfaces) {
+    for (const pathname of removedLegacySurfaces) {
       expect(CLIENT_OLD_TO_NEW_REDIRECTS[pathname]).toBeUndefined();
-      expect(MIRROR_OLD_TO_NEW_REDIRECTS[pathname]).toBeUndefined();
     }
 
-    for (const pathname of removedClientOnlySurfaces) {
-      expect(CLIENT_OLD_TO_NEW_REDIRECTS[pathname]).toBeUndefined();
-    }
+    expect(Object.values(CLIENT_OLD_TO_NEW_REDIRECTS)).not.toContain('/model');
   });
 });

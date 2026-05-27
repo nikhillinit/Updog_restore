@@ -52,10 +52,13 @@ As of 2026-05-27:
    `docs/archive/2025-q4/` remain ignored-only, and reference classification
    found historical/planning, governance/tooling, or Phoenix-protected
    references rather than active docs requiring tracked archive restoration.
-7. The next separate cleanup slice is Batch 4, root `src/core/routes/ia.ts`
-   route-story mirror validation. Do not start it together with route logging
-   migration, deal-pipeline extraction, or other product-code refactors inside
-   this closeout slice.
+7. Treat Batch 4 as closed on 2026-05-27: the root route-story mirror
+   `src/core/routes/ia.ts` had no active runtime owner, the two route-story
+   tests now assert active client/runtime route behavior directly, and this
+   closeout removes the only root `src/**` tracked file.
+8. The next separate cleanup slice is Batch 5, XState wizard machine behavior
+   locking. Do not start it together with route logging migration, deal-pipeline
+   extraction, or other product-code refactors inside this closeout slice.
 
 Update this section whenever the active next step changes. This is the only
 "what to do right now" pointer in the document.
@@ -79,8 +82,9 @@ state changes the execution details in several important ways:
    cleanup and audit docs.
 2. `docs/phase0-runner*.txt` and root `archive/` are already absent, so they are
    no longer deletion work.
-3. Root `src/` is not an orphan: `src/core/routes/ia.ts` is tracked and
-   referenced by route-story tests.
+3. Root `src/` is no longer a tracked app surface after Batch 4: the stale
+   `src/core/routes/ia.ts` route-story mirror was test-only metadata and the
+   route-story tests now assert active client/runtime route behavior directly.
 4. `client/src/machines/modeling-wizard.machine.ts` is active, imported by
    `useModelingWizard`, `WizardShell`, and persistence tests. It is not
    currently a safe deletion candidate.
@@ -590,10 +594,12 @@ npm run build:prod
 
 ## 1.4 Validate root `src/` route mirror before any deletion
 
-Current state: root `src/` contains tracked route-story mirror code
-(`src/core/routes/ia.ts`) and tests import it. It is not safe to delete as a
-simple hygiene step. First decide whether the mirror still serves a useful
-legacy-route assertion; if not, migrate or delete the tests that depend on it.
+Batch 4 closeout: root `src/` no longer contains tracked route-story mirror
+code. A 2026-05-27 scan found `src/core/routes/ia.ts` had no active runtime
+owner; only two route-story tests imported it to compare active metadata against
+stale `/model` metadata. Those tests now assert active client metadata and the
+active runtime redirect map directly, so this closeout removes the only root
+`src/**` tracked file.
 
 ```bash
 git grep -nE 'src/core/routes/ia|../../../src/core/routes/ia|@/core/routes/ia' -- \
@@ -605,8 +611,8 @@ npm run build:prod
 npm run test:unit
 ```
 
-If the mirror remains useful, keep `src/core/routes/ia.ts` and document why it
-is intentionally outside `client/src`.
+Future route metadata should live under the active client/runtime route owners
+unless a new root `src/**` entry point has an explicit owner.
 
 ## 1.5 Inventory the active XState wizard machine
 
@@ -685,7 +691,7 @@ Milestone 1 is complete when:
 - [x] `docs/archive/2025-q4/` contents are curated as local ignored-only
       artifacts that must not be reintroduced to tracked HEAD without a narrow
       active-reference proof.
-- [ ] Root `src/core/routes/ia.ts` is either documented as intentional or
+- [x] Root `src/core/routes/ia.ts` is either documented as intentional or
       migrated.
 - [ ] XState wizard machine has behavior tests locking current semantics.
 - [ ] `npm run check && npm run build:prod && npm run test:unit` pass.
@@ -1683,27 +1689,27 @@ Batches 0a-0e are quick wins from the 2026-05-27 tech debt audit that can land
 before or interleaved with the existing sequence. They require no product code
 changes and reduce future debt accumulation.
 
-| Batch | Commit                                                                       | Validation                                                    |
-| ----: | ---------------------------------------------------------------------------- | ------------------------------------------------------------- |
-|    0a | `chore(guardrails): add route-import guard for db/storage`                   | `npm run check`; no existing route files break                |
-|    0b | `test(quarantine): document 3 undocumented quarantines`                      | quarantine report shows 0 undocumented                        |
-|    0c | `test(cleanup): delete zero-assertion debug-ca020 test`                      | `npm run test:unit`                                           |
-|    0d | `refactor(middleware): replace console calls with Pino in middleware`        | DONE at `df2b22fc`; middleware console scan is clean          |
-|    0e | `chore(audit): add verified tech debt baseline to refactor roadmap`          | `rg` console scans; `guard:console:check`; `git diff --check` |
-|     0 | `chore(audit): capture baseline and cleanup manifest`                        | n/a                                                           |
-|     1 | `chore(repo): record generated docs logs already absent`                     | docs link check if ignore/docs change                         |
-|     2 | DONE/no-op: `chore(docs): externalize large reference assets`                | 2026-05-27 recheck: 0 tracked files; no active restore refs   |
-|     3 | DONE/no-op: `chore(docs): curate remaining docs archive`                     | 2026-05-27 recheck: 0 tracked files; local ignored-only files |
-|     4 | `chore(app): migrate legacy route-story mirror`                              | `check + build:prod + test:unit`                              |
-|     5 | `test(client): lock modeling wizard machine behavior`                        | `check + build:prod + wizard tests + e2e smoke`               |
-|     6 | `docs(repo): mark external BMAD local copy as removed if references change`  | docs link check                                               |
-|     7 | `chore(tooling): remove package refs from app configs and scripts`           | `check + test:unit`                                           |
-|     8 | `chore(tooling): remove unused ai-agent packages`                            | `check + test:unit + build:prod`                              |
-|     9 | `chore(scripts): classify and retire stale wave and phase scripts`           | replacement command chain                                     |
-|    10 | `chore(hooks): simplify husky hooks after replacing pre-push orchestration`  | staged-file test + replacement command chain                  |
-|    11 | `chore(test): consolidate vitest config aliases without changing unit entry` | `test:unit`                                                   |
-|    12 | `test(domain): fill fund-model golden parity gaps`                           | `phoenix:truth` + targeted truth/golden tests                 |
-|   13+ | Product refactors one area at a time                                         | per-area gates                                                |
+| Batch | Commit                                                                       | Validation                                                                |
+| ----: | ---------------------------------------------------------------------------- | ------------------------------------------------------------------------- |
+|    0a | `chore(guardrails): add route-import guard for db/storage`                   | `npm run check`; no existing route files break                            |
+|    0b | `test(quarantine): document 3 undocumented quarantines`                      | quarantine report shows 0 undocumented                                    |
+|    0c | `test(cleanup): delete zero-assertion debug-ca020 test`                      | `npm run test:unit`                                                       |
+|    0d | `refactor(middleware): replace console calls with Pino in middleware`        | DONE at `df2b22fc`; middleware console scan is clean                      |
+|    0e | `chore(audit): add verified tech debt baseline to refactor roadmap`          | `rg` console scans; `guard:console:check`; `git diff --check`             |
+|     0 | `chore(audit): capture baseline and cleanup manifest`                        | n/a                                                                       |
+|     1 | `chore(repo): record generated docs logs already absent`                     | docs link check if ignore/docs change                                     |
+|     2 | DONE/no-op: `chore(docs): externalize large reference assets`                | 2026-05-27 recheck: 0 tracked files; no active restore refs               |
+|     3 | DONE/no-op: `chore(docs): curate remaining docs archive`                     | 2026-05-27 recheck: 0 tracked files; local ignored-only files             |
+|     4 | DONE: `chore(app): migrate legacy route-story mirror`                        | 2026-05-27 recheck: only root `src/**` file deleted; route tests migrated |
+|     5 | `test(client): lock modeling wizard machine behavior`                        | `check + build:prod + wizard tests + e2e smoke`                           |
+|     6 | `docs(repo): mark external BMAD local copy as removed if references change`  | docs link check                                                           |
+|     7 | `chore(tooling): remove package refs from app configs and scripts`           | `check + test:unit`                                                       |
+|     8 | `chore(tooling): remove unused ai-agent packages`                            | `check + test:unit + build:prod`                                          |
+|     9 | `chore(scripts): classify and retire stale wave and phase scripts`           | replacement command chain                                                 |
+|    10 | `chore(hooks): simplify husky hooks after replacing pre-push orchestration`  | staged-file test + replacement command chain                              |
+|    11 | `chore(test): consolidate vitest config aliases without changing unit entry` | `test:unit`                                                               |
+|    12 | `test(domain): fill fund-model golden parity gaps`                           | `phoenix:truth` + targeted truth/golden tests                             |
+|   13+ | Product refactors one area at a time                                         | per-area gates                                                            |
 
 ---
 
@@ -1727,8 +1733,9 @@ baseline in the roadmap.
    individual assets only with an active reference.
 4. DONE: keep the small remaining `docs/archive/2025-q4/` contents as local
    ignored-only artifacts; tracked `docs/archive/**` remains banned from HEAD.
-5. Migrate or document root `src/core/routes/ia.ts` before any root `src/`
-   removal.
+5. DONE: root `src/core/routes/ia.ts` was migrated away; active route assertions
+   now target `client/src/core/routes/ia.ts` plus `client/src/config/routes.ts`,
+   leaving no root `src/**` owner.
 6. Keep active XState modeling-wizard machine; lock behavior and plan a future
    replacement only if needed.
 7. Treat the vendored external `repo/` project as already removed locally; only
