@@ -264,7 +264,7 @@ describe('FundModelResultsPage (server-backed)', () => {
     await waitFor(() => {
       expect(fetchSpy).toHaveBeenCalledWith(
         '/api/funds/123/scenario-sets/00000000-0000-0000-0000-000000000111/comparison',
-        expect.objectContaining({ signal: expect.any(AbortSignal) })
+        expect.objectContaining({ credentials: 'include' })
       );
     });
 

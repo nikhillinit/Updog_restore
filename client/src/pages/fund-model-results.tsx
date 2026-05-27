@@ -31,6 +31,7 @@ import {
 } from '@/components/fund-results';
 import { EvidenceHeader, type EvidenceHeaderLifecycle } from '@/components/results/EvidenceHeader';
 import { QuarterlyReviewTrace } from '@/features/analytics-parity/QuarterlyReviewTrace';
+import { queryClient } from '@/lib/queryClient';
 import { cn } from '@/lib/utils';
 import type {
   FundResultsReadV1,
@@ -426,6 +427,7 @@ interface ScenarioComparisonFetchRequest {
 const FUND_ID_PATH_SEGMENT_PATTERN = /^\d+$/;
 const SCENARIO_SET_ID_PATH_SEGMENT_PATTERN =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const SCENARIO_COMPARISON_API_ROOT = '/api/funds';
 
 function scenarioComparisonIdsFromKey(scenarioSetIdsKey: string) {
   return scenarioSetIdsKey.length > 0 ? scenarioSetIdsKey.split('|') : [];
@@ -452,30 +454,31 @@ function createScenarioComparisonFetchRequest(
   return isSafeScenarioComparisonRequest(request) ? request : null;
 }
 
-function scenarioComparisonPath(fundId: string, scenarioSetId: string) {
-  return ['/api/funds', fundId, 'scenario-sets', scenarioSetId, 'comparison'].join('/');
+function scenarioComparisonQueryKey(fundId: string, scenarioSetId: string) {
+  return [
+    SCENARIO_COMPARISON_API_ROOT,
+    fundId,
+    'scenario-sets',
+    scenarioSetId,
+    'comparison',
+  ] as const;
 }
 
-async function fetchScenarioComparisonForSet(
-  fundId: string,
-  scenarioSetId: string,
-  signal: AbortSignal
-) {
-  const comparisonUrl = scenarioComparisonPath(fundId, scenarioSetId);
-  const res = await fetch(comparisonUrl, { signal });
-  if (!res.ok) {
-    throw new Error(`Scenario comparison unavailable (${res.status})`);
-  }
-  return (await res.json()) as FundScenarioComparisonV1;
+function scenarioComparisonQueryPrefix(fundId: string) {
+  return [SCENARIO_COMPARISON_API_ROOT, fundId, 'scenario-sets'] as const;
 }
 
-function fetchScenarioComparisonBatch(
-  request: ScenarioComparisonFetchRequest,
-  signal: AbortSignal
-) {
+async function fetchScenarioComparisonForSet(fundId: string, scenarioSetId: string) {
+  return queryClient.fetchQuery<FundScenarioComparisonV1>({
+    queryKey: scenarioComparisonQueryKey(fundId, scenarioSetId),
+    staleTime: 0,
+  });
+}
+
+function fetchScenarioComparisonBatch(request: ScenarioComparisonFetchRequest) {
   return Promise.all(
     request.scenarioSetIds.map((scenarioSetId) =>
-      fetchScenarioComparisonForSet(request.fundId, scenarioSetId, signal)
+      fetchScenarioComparisonForSet(request.fundId, scenarioSetId)
     )
   );
 }
@@ -506,7 +509,11 @@ function useFundScenarioComparisons(fundId: string | null, scenarioSetIds: reado
       abortRef.current.abort();
       abortRef.current = null;
     }
-  }, []);
+    const request = createScenarioComparisonFetchRequest(fundId, scenarioSetIdsKey);
+    if (request) {
+      void queryClient.cancelQueries({ queryKey: scenarioComparisonQueryPrefix(request.fundId) });
+    }
+  }, [fundId, scenarioSetIdsKey]);
 
   const fetchComparisons = useCallback(async () => {
     const request = createScenarioComparisonFetchRequest(fundId, scenarioSetIdsKey);
@@ -525,7 +532,8 @@ function useFundScenarioComparisons(fundId: string | null, scenarioSetIds: reado
     }));
 
     try {
-      const comparisons = await fetchScenarioComparisonBatch(request, controller.signal);
+      const comparisons = await fetchScenarioComparisonBatch(request);
+      if (controller.signal.aborted) return;
       setState({ kind: 'data', comparisons });
     } catch (error) {
       if (controller.signal.aborted) return;
