@@ -22,6 +22,7 @@ exclude_paths:
   # SET directives that would make the migration invalid.
   - 'server/db/migrations/0012_scenario_set_id.sql'
   - 'server/db/migrations/0013_fund_scenario_sets.sql'
+  - 'server/db/migrations/0015_fund_scenario_reserve_allocation.sql'
   - '**/*.test.ts'
   - '**/*.test.tsx'
   - '**/*.spec.ts'

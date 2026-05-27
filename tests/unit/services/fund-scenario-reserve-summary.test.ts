@@ -75,6 +75,32 @@ describe('fund scenario reserve summary builder', () => {
     ]);
   });
 
+  it('preserves per-row base allocations when portfolio rows share a companyId', () => {
+    reserveEngineMock.mockReturnValue([
+      { allocation: 1_000, confidence: 0.7, rationale: 'Seed SaaS first check' },
+      { allocation: 500, confidence: 0.4, rationale: 'Seed SaaS follow-on' },
+    ]);
+
+    const summary = buildScenarioReserveSummary({
+      fundId: 1,
+      fundSizeCents: null,
+      portfolio: [
+        { id: 200, invested: 100, ownership: 0.1, stage: 'Seed', sector: 'SaaS' },
+        { id: 200, invested: 50, ownership: 0.05, stage: 'Seed', sector: 'SaaS' },
+      ],
+      override: {
+        overrideType: 'reserve_allocation',
+        payload: {
+          items: [{ companyId: 999, plannedReservesCents: 10_000 }],
+        },
+      },
+    });
+
+    expect(summary.allocations.map((item) => item.companyId)).toEqual([200, 200]);
+    expect(summary.allocations.map((item) => item.baseAllocationCents)).toEqual([100_000, 50_000]);
+    expect(summary.totalBaseAllocationCents).toBe(150_000);
+  });
+
   it('applies maxAllocationCents as a hard cap when the final override has a lower cap', () => {
     reserveEngineMock.mockReturnValue([
       { allocation: 1_000, confidence: 0.7, rationale: 'Seed SaaS' },

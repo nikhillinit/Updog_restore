@@ -8,24 +8,27 @@ import {
   type ScenarioReserveWarningV1,
 } from '@shared/contracts/fund-scenario-sets-v1.contract';
 
+type ScenarioReserveAllocationResult = ScenarioReserveSummaryV1['allocations'][number];
+
+interface BaseAllocationRow {
+  company: ReserveCompanyInput;
+  base: ReserveOutput | null;
+  inputIndex: number;
+}
+
 function toCents(value: number): number {
   return Math.round(value * 100);
 }
 
-function buildBaseOutputByCompanyId(
+function buildBaseAllocationRows(
   portfolio: ReserveCompanyInput[],
   baseOutputs: ReserveOutput[]
-): Map<number, ReserveOutput> {
-  const byCompanyId = new Map<number, ReserveOutput>();
-
-  portfolio.forEach((company, index) => {
-    const base = baseOutputs[index];
-    if (base) {
-      byCompanyId.set(company.id, base);
-    }
-  });
-
-  return byCompanyId;
+): BaseAllocationRow[] {
+  return portfolio.map((company, index) => ({
+    company,
+    base: baseOutputs[index] ?? null,
+    inputIndex: index,
+  }));
 }
 
 function buildOverrideMap(items: ReserveScenarioAllocationOverrideItemV1[]) {
@@ -42,28 +45,21 @@ function buildOverrideMap(items: ReserveScenarioAllocationOverrideItemV1[]) {
   return { byCompanyId, duplicateCompanyIds };
 }
 
-function effectiveAllocationCents(item: ReserveScenarioAllocationOverrideItemV1) {
-  const max = item.maxAllocationCents ?? null;
+function effectiveAllocationCents(input: {
+  plannedReservesCents: number;
+  maxAllocationCents: number | null;
+}): Pick<ScenarioReserveAllocationResult, 'scenarioAllocationCents' | 'capApplied'> {
+  const max = input.maxAllocationCents;
   const scenarioAllocationCents =
-    max == null ? item.plannedReservesCents : Math.min(item.plannedReservesCents, max);
+    max == null ? input.plannedReservesCents : Math.min(input.plannedReservesCents, max);
 
   return {
     scenarioAllocationCents,
-    capApplied: max != null && max < item.plannedReservesCents,
+    capApplied: max != null && max < input.plannedReservesCents,
   };
 }
 
-export function buildScenarioReserveSummary(input: {
-  fundId: number;
-  fundSizeCents: number | null;
-  portfolio: ReserveCompanyInput[];
-  override: FundScenarioReserveAllocationOverrideV1;
-}): ScenarioReserveSummaryV1 {
-  const baseOutputs = ReserveEngine(input.portfolio);
-  const baseByCompanyId = buildBaseOutputByCompanyId(input.portfolio, baseOutputs);
-  const { byCompanyId: overrides, duplicateCompanyIds } = buildOverrideMap(
-    input.override.payload.items
-  );
+function duplicateOverrideWarnings(duplicateCompanyIds: Set<number>): ScenarioReserveWarningV1[] {
   const warnings: ScenarioReserveWarningV1[] = [];
 
   for (const companyId of duplicateCompanyIds) {
@@ -74,8 +70,17 @@ export function buildScenarioReserveSummary(input: {
     });
   }
 
+  return warnings;
+}
+
+function missingCompanyWarnings(
+  overrides: Map<number, ReserveScenarioAllocationOverrideItemV1>,
+  portfolioCompanyIds: Set<number>
+): ScenarioReserveWarningV1[] {
+  const warnings: ScenarioReserveWarningV1[] = [];
+
   for (const override of overrides.values()) {
-    if (!baseByCompanyId.has(override.companyId)) {
+    if (!portfolioCompanyIds.has(override.companyId)) {
       warnings.push({
         code: 'OVERRIDE_COMPANY_NOT_FOUND',
         companyId: override.companyId,
@@ -84,61 +89,107 @@ export function buildScenarioReserveSummary(input: {
     }
   }
 
-  const allocations = input.portfolio
-    .map((company) => {
-      const base = baseByCompanyId.get(company.id);
-      const override = overrides.get(company.id);
-      const baseAllocationCents = toCents(base?.allocation ?? 0);
-      const plannedReservesCents = override?.plannedReservesCents ?? baseAllocationCents;
-      const maxAllocationCents = override?.maxAllocationCents ?? null;
-      const { scenarioAllocationCents, capApplied } = override
-        ? effectiveAllocationCents(override)
-        : {
-            scenarioAllocationCents: baseAllocationCents,
-            capApplied: false,
-          };
+  return warnings;
+}
 
-      return {
-        companyId: company.id,
-        baseAllocationCents,
-        plannedReservesCents,
-        maxAllocationCents,
-        scenarioAllocationCents,
-        allocationDeltaCents: scenarioAllocationCents - baseAllocationCents,
-        capApplied,
-        confidence: base?.confidence ?? 0,
-        rationale: override?.allocationReason ?? base?.rationale ?? 'Scenario reserve allocation',
-      };
-    })
-    .sort((a, b) => a.companyId - b.companyId);
-
-  const totalBaseAllocationCents = allocations.reduce(
-    (sum, item) => sum + item.baseAllocationCents,
-    0
-  );
-  const totalScenarioAllocationCents = allocations.reduce(
-    (sum, item) => sum + item.scenarioAllocationCents,
-    0
-  );
-
-  if (input.fundSizeCents != null && totalScenarioAllocationCents > input.fundSizeCents) {
-    warnings.push({
-      code: 'TOTAL_SCENARIO_ALLOCATION_EXCEEDS_FUND_SIZE',
-      message: 'Total scenario reserve allocation exceeds fund size.',
-    });
+function fundSizeWarning(input: {
+  fundSizeCents: number | null;
+  totalScenarioAllocationCents: number;
+}): ScenarioReserveWarningV1[] {
+  if (input.fundSizeCents == null || input.totalScenarioAllocationCents <= input.fundSizeCents) {
+    return [];
   }
 
-  const avgConfidence =
-    allocations.length === 0
-      ? 0
-      : allocations.reduce((sum, item) => sum + item.confidence, 0) / allocations.length;
+  return [
+    {
+      code: 'TOTAL_SCENARIO_ALLOCATION_EXCEEDS_FUND_SIZE',
+      message: 'Total scenario reserve allocation exceeds fund size.',
+    },
+  ];
+}
+
+function buildAllocationResult(
+  row: BaseAllocationRow,
+  overrides: Map<number, ReserveScenarioAllocationOverrideItemV1>
+): ScenarioReserveAllocationResult {
+  const override = overrides.get(row.company.id);
+  const baseAllocationCents = toCents(row.base?.allocation ?? 0);
+  const plannedReservesCents = override?.plannedReservesCents ?? baseAllocationCents;
+  const maxAllocationCents = override?.maxAllocationCents ?? null;
+  const { scenarioAllocationCents, capApplied } = effectiveAllocationCents({
+    plannedReservesCents,
+    maxAllocationCents,
+  });
+
+  return {
+    companyId: row.company.id,
+    baseAllocationCents,
+    plannedReservesCents,
+    maxAllocationCents,
+    scenarioAllocationCents,
+    allocationDeltaCents: scenarioAllocationCents - baseAllocationCents,
+    capApplied,
+    confidence: row.base?.confidence ?? 0,
+    rationale: override?.allocationReason ?? row.base?.rationale ?? 'Scenario reserve allocation',
+  };
+}
+
+function buildAllocations(
+  rows: BaseAllocationRow[],
+  overrides: Map<number, ReserveScenarioAllocationOverrideItemV1>
+): ScenarioReserveAllocationResult[] {
+  return rows
+    .map((row) => ({
+      allocation: buildAllocationResult(row, overrides),
+      inputIndex: row.inputIndex,
+    }))
+    .sort((a, b) => a.allocation.companyId - b.allocation.companyId || a.inputIndex - b.inputIndex)
+    .map((item) => item.allocation);
+}
+
+function allocationTotal(
+  allocations: ScenarioReserveAllocationResult[],
+  key: 'baseAllocationCents' | 'scenarioAllocationCents'
+): number {
+  return allocations.reduce((sum, item) => sum + item[key], 0);
+}
+
+function averageConfidence(allocations: ScenarioReserveAllocationResult[]): number {
+  if (allocations.length === 0) {
+    return 0;
+  }
+
+  const average = allocations.reduce((sum, item) => sum + item.confidence, 0) / allocations.length;
+  return Math.round(average * 100) / 100;
+}
+
+export function buildScenarioReserveSummary(input: {
+  fundId: number;
+  fundSizeCents: number | null;
+  portfolio: ReserveCompanyInput[];
+  override: FundScenarioReserveAllocationOverrideV1;
+}): ScenarioReserveSummaryV1 {
+  const baseRows = buildBaseAllocationRows(input.portfolio, ReserveEngine(input.portfolio));
+  const { byCompanyId: overrides, duplicateCompanyIds } = buildOverrideMap(
+    input.override.payload.items
+  );
+  const allocations = buildAllocations(baseRows, overrides);
+
+  const totalBaseAllocationCents = allocationTotal(allocations, 'baseAllocationCents');
+  const totalScenarioAllocationCents = allocationTotal(allocations, 'scenarioAllocationCents');
+  const portfolioCompanyIds = new Set(input.portfolio.map((company) => company.id));
+  const warnings = [
+    ...duplicateOverrideWarnings(duplicateCompanyIds),
+    ...missingCompanyWarnings(overrides, portfolioCompanyIds),
+    ...fundSizeWarning({ fundSizeCents: input.fundSizeCents, totalScenarioAllocationCents }),
+  ];
 
   return ScenarioReserveSummaryV1Schema.parse({
     fundId: input.fundId,
     totalBaseAllocationCents,
     totalScenarioAllocationCents,
     totalAllocationDeltaCents: totalScenarioAllocationCents - totalBaseAllocationCents,
-    avgConfidence: Math.round(avgConfidence * 100) / 100,
+    avgConfidence: averageConfidence(allocations),
     highConfidenceCount: allocations.filter((item) => item.confidence >= 0.6).length,
     allocations,
     warnings,

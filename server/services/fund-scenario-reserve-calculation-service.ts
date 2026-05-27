@@ -4,6 +4,7 @@ import { transaction } from '../db/pg-circuit.js';
 import {
   FundScenarioCalculationPayloadV1Schema,
   FundScenarioCalculationResponseV1Schema,
+  type FundScenarioCalculationPayloadV1,
   type FundScenarioCalculationResponseV1,
   type FundScenarioResultStalenessStateV1,
   type FundScenarioSetDetailV1,
@@ -21,6 +22,37 @@ import {
 
 const ASYNC_RESERVE_TIMEOUT_MS = 300_000;
 const FUND_SCENARIO_CALC_VERSION = process.env['ALG_FUND_SCENARIO_VERSION'] ?? 'fund-scenarios-v1';
+const RESERVE_SCENARIO_SNAPSHOT_UPSERT_SQL = `INSERT INTO fund_snapshots (
+       fund_id,
+       type,
+       payload,
+       calc_version,
+       correlation_id,
+       metadata,
+       snapshot_time,
+       config_id,
+       config_version,
+       scenario_set_id
+     )
+      VALUES ($1, 'SCENARIOS', $2, $3, $4, $5, NOW(), $6, $7, $8)
+      ON CONFLICT (fund_id, scenario_set_id)
+      WHERE scenario_set_id IS NOT NULL AND type = 'SCENARIOS'
+      DO UPDATE SET
+        payload = EXCLUDED.payload,
+        calc_version = EXCLUDED.calc_version,
+        correlation_id = EXCLUDED.correlation_id,
+        metadata = EXCLUDED.metadata,
+        snapshot_time = EXCLUDED.snapshot_time,
+        config_id = EXCLUDED.config_id,
+        config_version = EXCLUDED.config_version,
+        created_at = NOW()
+      RETURNING id, payload, correlation_id, created_at, snapshot_time`;
+
+type ReserveScenarioVariant = Extract<
+  FundScenarioCalculationPayloadV1['variants'][number],
+  { overrideType: 'reserve_allocation' }
+>;
+type ReserveScenarioPortfolio = Awaited<ReturnType<typeof buildReservePortfolioInputForClient>>;
 
 interface SourceConfigRow {
   id: number;
@@ -41,6 +73,41 @@ interface SnapshotRow {
   correlation_id: string;
   created_at: Date | string | null;
   snapshot_time: Date | string | null;
+}
+
+interface ReserveScenarioSnapshotInput {
+  fundId: number;
+  scenarioSetId: string;
+  sourceConfigId: number;
+  sourceConfigVersion: number;
+  correlationId: string;
+  payload: FundScenarioCalculationPayloadV1;
+  inputHash: string;
+  variantCount: number;
+  companyCount: number;
+  warningCount: number;
+}
+
+interface RunReserveScenarioCalculationInput {
+  fundId: number;
+  scenarioSetId: string;
+  correlationId: string;
+  actor: FundScenarioMutationActor;
+  jobId: string | null;
+}
+
+interface ReserveScenarioRunContext {
+  scenarioSet: FundScenarioSetDetailV1;
+  sourceConfig: SourceConfigRow;
+  currentPublishedVersion: number | null;
+  inputHash: string;
+}
+
+interface ReserveScenarioCalculationData {
+  portfolio: ReserveScenarioPortfolio;
+  variants: ReserveScenarioVariant[];
+  warningCount: number;
+  payload: FundScenarioCalculationPayloadV1;
 }
 
 export interface ReserveScenarioCalculationIdentity {
@@ -303,64 +370,18 @@ async function findReusableReserveScenarioSnapshot(
 
 async function persistReserveScenarioSnapshot(
   client: PoolClient,
-  input: {
-    fundId: number;
-    scenarioSetId: string;
-    sourceConfigId: number;
-    sourceConfigVersion: number;
-    correlationId: string;
-    payload: unknown;
-    inputHash: string;
-    variantCount: number;
-    companyCount: number;
-    warningCount: number;
-  }
+  input: ReserveScenarioSnapshotInput
 ): Promise<FundScenarioCalculationResponseV1> {
-  const result = await client.query<SnapshotRow>(
-    `INSERT INTO fund_snapshots (
-       fund_id,
-       type,
-       payload,
-       calc_version,
-       correlation_id,
-       metadata,
-       snapshot_time,
-       config_id,
-       config_version,
-       scenario_set_id
-     )
-      VALUES ($1, 'SCENARIOS', $2, $3, $4, $5, NOW(), $6, $7, $8)
-      ON CONFLICT (fund_id, scenario_set_id)
-      WHERE scenario_set_id IS NOT NULL AND type = 'SCENARIOS'
-      DO UPDATE SET
-        payload = EXCLUDED.payload,
-        calc_version = EXCLUDED.calc_version,
-        correlation_id = EXCLUDED.correlation_id,
-        metadata = EXCLUDED.metadata,
-        snapshot_time = EXCLUDED.snapshot_time,
-        config_id = EXCLUDED.config_id,
-        config_version = EXCLUDED.config_version,
-        created_at = NOW()
-      RETURNING id, payload, correlation_id, created_at, snapshot_time`,
-    [
-      input.fundId,
-      input.payload,
-      FUND_SCENARIO_CALC_VERSION,
-      input.correlationId,
-      {
-        input_hash: input.inputHash,
-        calculation_mode: 'async_reserve_allocation',
-        timeout_ms: ASYNC_RESERVE_TIMEOUT_MS,
-        variant_count: input.variantCount,
-        company_count: input.companyCount,
-        warning_count: input.warningCount,
-        override_type: 'reserve_allocation',
-      },
-      input.sourceConfigId,
-      input.sourceConfigVersion,
-      input.scenarioSetId,
-    ]
-  );
+  const result = await client.query<SnapshotRow>(RESERVE_SCENARIO_SNAPSHOT_UPSERT_SQL, [
+    input.fundId,
+    input.payload,
+    FUND_SCENARIO_CALC_VERSION,
+    input.correlationId,
+    reserveScenarioSnapshotMetadata(input),
+    input.sourceConfigId,
+    input.sourceConfigVersion,
+    input.scenarioSetId,
+  ]);
 
   const snapshot = result.rows[0];
   if (!snapshot) {
@@ -370,6 +391,18 @@ async function persistReserveScenarioSnapshot(
   }
 
   return responseFromSnapshot(snapshot);
+}
+
+function reserveScenarioSnapshotMetadata(input: ReserveScenarioSnapshotInput) {
+  return {
+    input_hash: input.inputHash,
+    calculation_mode: 'async_reserve_allocation',
+    timeout_ms: ASYNC_RESERVE_TIMEOUT_MS,
+    variant_count: input.variantCount,
+    company_count: input.companyCount,
+    warning_count: input.warningCount,
+    override_type: 'reserve_allocation',
+  };
 }
 
 async function recordCalculationFailedEvent(input: {
@@ -403,129 +436,232 @@ async function recordCalculationFailedEvent(input: {
   }
 }
 
-export async function runReserveScenarioCalculation(input: {
+async function loadReserveScenarioRunContext(
+  client: PoolClient,
+  input: RunReserveScenarioCalculationInput
+): Promise<ReserveScenarioRunContext> {
+  return loadReserveScenarioIdentityInTransaction(client, input.fundId, input.scenarioSetId, {
+    forUpdate: true,
+  });
+}
+
+async function recordCalculationStartedEvent(
+  client: PoolClient,
+  input: RunReserveScenarioCalculationInput,
+  inputHash: string
+): Promise<void> {
+  await insertScenarioSetEvent(client, {
+    scenarioSetId: input.scenarioSetId,
+    fundId: input.fundId,
+    eventType: 'calculation_started',
+    actor: normalizeActor(input.actor),
+    changeSummary: {
+      headline: 'Started reserve scenario calculation',
+      calculation_mode: 'async_reserve_allocation',
+      correlation_id: input.correlationId,
+      job_id: input.jobId,
+      input_hash: inputHash,
+    },
+  });
+}
+
+function reserveScenarioStaleness(
+  sourceConfigVersion: number,
+  currentPublishedVersion: number | null
+): FundScenarioResultStalenessStateV1 {
+  return currentPublishedVersion != null && currentPublishedVersion > sourceConfigVersion
+    ? 'STALE_PUBLISH'
+    : 'CURRENT';
+}
+
+function buildReserveScenarioVariants(input: {
+  fundId: number;
+  fundSizeCents: number | null;
+  portfolio: ReserveScenarioPortfolio;
+  scenarioSet: FundScenarioSetDetailV1;
+}): ReserveScenarioVariant[] {
+  return input.scenarioSet.variants.map((variant) => {
+    if (variant.override.overrideType !== 'reserve_allocation') {
+      throw createHttpError(409, 'Use calculate for fee-profile scenario sets', {
+        code: 'scenario_calculation_mode_mismatch',
+      });
+    }
+
+    return {
+      variantId: variant.id,
+      scenarioSetId: variant.scenarioSetId,
+      name: variant.name,
+      overrideType: variant.override.overrideType,
+      reserve: buildScenarioReserveSummary({
+        fundId: input.fundId,
+        fundSizeCents: input.fundSizeCents,
+        portfolio: input.portfolio,
+        override: variant.override,
+      }),
+    };
+  });
+}
+
+function buildReserveScenarioPayload(input: {
   fundId: number;
   scenarioSetId: string;
-  correlationId: string;
-  actor: FundScenarioMutationActor;
-  jobId: string | null;
-}): Promise<FundScenarioCalculationResponseV1> {
+  sourceConfig: SourceConfigRow;
+  currentPublishedVersion: number | null;
+  variants: ReserveScenarioVariant[];
+}): FundScenarioCalculationPayloadV1 {
+  const stalenessState = reserveScenarioStaleness(
+    input.sourceConfig.version,
+    input.currentPublishedVersion
+  );
+
+  return FundScenarioCalculationPayloadV1Schema.parse({
+    version: 'fund-scenarios-v1',
+    calculationMode: 'async_reserve_allocation',
+    fundId: input.fundId,
+    scenarioSetId: input.scenarioSetId,
+    sourceConfigId: input.sourceConfig.id,
+    sourceConfigVersion: input.sourceConfig.version,
+    staleness: {
+      state: stalenessState,
+      sourceConfigVersion: input.sourceConfig.version,
+      currentPublishedConfigVersion: input.currentPublishedVersion,
+    },
+    calculatedAt: new Date().toISOString(),
+    variants: input.variants,
+  });
+}
+
+async function recordCalculatedReserveScenarioEvent(
+  client: PoolClient,
+  input: RunReserveScenarioCalculationInput,
+  result: {
+    response: FundScenarioCalculationResponseV1;
+    context: ReserveScenarioRunContext;
+    variantCount: number;
+    companyCount: number;
+    warningCount: number;
+  }
+): Promise<void> {
+  await insertScenarioSetEvent(client, {
+    scenarioSetId: input.scenarioSetId,
+    fundId: input.fundId,
+    eventType: 'calculated',
+    actor: normalizeActor(input.actor),
+    changeSummary: {
+      headline: 'Calculated reserve scenario set',
+      calculation_mode: 'async_reserve_allocation',
+      correlation_id: input.correlationId,
+      job_id: input.jobId,
+      input_hash: result.context.inputHash,
+      snapshot_id: result.response.snapshotId,
+      variant_count: result.variantCount,
+      company_count: result.companyCount,
+      warning_count: result.warningCount,
+      source_config_version: result.context.sourceConfig.version,
+      staleness_state: result.response.payload.staleness.state,
+    },
+  });
+}
+
+async function calculateReserveScenarioForContext(
+  client: PoolClient,
+  input: RunReserveScenarioCalculationInput,
+  context: ReserveScenarioRunContext
+): Promise<FundScenarioCalculationResponseV1> {
+  const reusableResponse = await findReusableReserveScenarioResponse(client, input, context);
+  if (reusableResponse) {
+    return reusableResponse;
+  }
+
+  await recordCalculationStartedEvent(client, input, context.inputHash);
+
+  const data = await buildReserveScenarioCalculationData(client, input, context);
+  return persistReserveScenarioCalculation(client, input, context, data);
+}
+
+async function findReusableReserveScenarioResponse(
+  client: PoolClient,
+  input: RunReserveScenarioCalculationInput,
+  context: ReserveScenarioRunContext
+): Promise<FundScenarioCalculationResponseV1 | null> {
+  const reusableSnapshot = await findReusableReserveScenarioSnapshot(client, {
+    fundId: input.fundId,
+    scenarioSetId: input.scenarioSetId,
+    sourceConfigId: context.sourceConfig.id,
+    sourceConfigVersion: context.sourceConfig.version,
+    inputHash: context.inputHash,
+  });
+
+  return reusableSnapshot
+    ? applyScenarioReadStaleness(reusableSnapshot, context.currentPublishedVersion)
+    : null;
+}
+
+async function buildReserveScenarioCalculationData(
+  client: PoolClient,
+  input: RunReserveScenarioCalculationInput,
+  context: ReserveScenarioRunContext
+): Promise<ReserveScenarioCalculationData> {
+  const portfolio = await buildReservePortfolioInputForClient(client, input.fundId);
+  const fundSizeCents = await loadFundSizeCents(client, input.fundId);
+  const variants = buildReserveScenarioVariants({
+    fundId: input.fundId,
+    fundSizeCents,
+    portfolio,
+    scenarioSet: context.scenarioSet,
+  });
+  const warningCount = variants.reduce((sum, variant) => sum + variant.reserve.warnings.length, 0);
+  const payload = buildReserveScenarioPayload({
+    fundId: input.fundId,
+    scenarioSetId: input.scenarioSetId,
+    sourceConfig: context.sourceConfig,
+    currentPublishedVersion: context.currentPublishedVersion,
+    variants,
+  });
+
+  return { portfolio, variants, warningCount, payload };
+}
+
+async function persistReserveScenarioCalculation(
+  client: PoolClient,
+  input: RunReserveScenarioCalculationInput,
+  context: ReserveScenarioRunContext,
+  data: ReserveScenarioCalculationData
+): Promise<FundScenarioCalculationResponseV1> {
+  const response = await persistReserveScenarioSnapshot(client, {
+    fundId: input.fundId,
+    scenarioSetId: input.scenarioSetId,
+    sourceConfigId: context.sourceConfig.id,
+    sourceConfigVersion: context.sourceConfig.version,
+    correlationId: input.correlationId,
+    payload: data.payload,
+    inputHash: context.inputHash,
+    variantCount: data.variants.length,
+    companyCount: data.portfolio.length,
+    warningCount: data.warningCount,
+  });
+
+  await recordCalculatedReserveScenarioEvent(client, input, {
+    response,
+    context,
+    variantCount: data.variants.length,
+    companyCount: data.portfolio.length,
+    warningCount: data.warningCount,
+  });
+
+  return response;
+}
+
+export async function runReserveScenarioCalculation(
+  input: RunReserveScenarioCalculationInput
+): Promise<FundScenarioCalculationResponseV1> {
   let inputHashForFailure: string | null = null;
 
   try {
     return await transaction(async (client) => {
-      const { scenarioSet, sourceConfig, currentPublishedVersion, inputHash } =
-        await loadReserveScenarioIdentityInTransaction(client, input.fundId, input.scenarioSetId, {
-          forUpdate: true,
-        });
-      inputHashForFailure = inputHash;
-      const reusableSnapshot = await findReusableReserveScenarioSnapshot(client, {
-        fundId: input.fundId,
-        scenarioSetId: input.scenarioSetId,
-        sourceConfigId: sourceConfig.id,
-        sourceConfigVersion: sourceConfig.version,
-        inputHash,
-      });
-
-      if (reusableSnapshot) {
-        return applyScenarioReadStaleness(reusableSnapshot, currentPublishedVersion);
-      }
-
-      await insertScenarioSetEvent(client, {
-        scenarioSetId: input.scenarioSetId,
-        fundId: input.fundId,
-        eventType: 'calculation_started',
-        actor: normalizeActor(input.actor),
-        changeSummary: {
-          headline: 'Started reserve scenario calculation',
-          calculation_mode: 'async_reserve_allocation',
-          correlation_id: input.correlationId,
-          job_id: input.jobId,
-          input_hash: inputHash,
-        },
-      });
-
-      const portfolio = await buildReservePortfolioInputForClient(client, input.fundId);
-      const fundSizeCents = await loadFundSizeCents(client, input.fundId);
-      const variants = scenarioSet.variants.map((variant) => {
-        if (variant.override.overrideType !== 'reserve_allocation') {
-          throw createHttpError(409, 'Use calculate for fee-profile scenario sets', {
-            code: 'scenario_calculation_mode_mismatch',
-          });
-        }
-
-        return {
-          variantId: variant.id,
-          scenarioSetId: variant.scenarioSetId,
-          name: variant.name,
-          overrideType: variant.override.overrideType,
-          reserve: buildScenarioReserveSummary({
-            fundId: input.fundId,
-            fundSizeCents,
-            portfolio,
-            override: variant.override,
-          }),
-        };
-      });
-      const warningCount = variants.reduce(
-        (sum, variant) => sum + variant.reserve.warnings.length,
-        0
-      );
-      const calculatedAt = new Date().toISOString();
-      const stalenessState =
-        currentPublishedVersion != null && currentPublishedVersion > sourceConfig.version
-          ? 'STALE_PUBLISH'
-          : 'CURRENT';
-      const payload = FundScenarioCalculationPayloadV1Schema.parse({
-        version: 'fund-scenarios-v1',
-        calculationMode: 'async_reserve_allocation',
-        fundId: input.fundId,
-        scenarioSetId: input.scenarioSetId,
-        sourceConfigId: sourceConfig.id,
-        sourceConfigVersion: sourceConfig.version,
-        staleness: {
-          state: stalenessState,
-          sourceConfigVersion: sourceConfig.version,
-          currentPublishedConfigVersion: currentPublishedVersion,
-        },
-        calculatedAt,
-        variants,
-      });
-
-      const response = await persistReserveScenarioSnapshot(client, {
-        fundId: input.fundId,
-        scenarioSetId: input.scenarioSetId,
-        sourceConfigId: sourceConfig.id,
-        sourceConfigVersion: sourceConfig.version,
-        correlationId: input.correlationId,
-        payload,
-        inputHash,
-        variantCount: variants.length,
-        companyCount: portfolio.length,
-        warningCount,
-      });
-
-      await insertScenarioSetEvent(client, {
-        scenarioSetId: input.scenarioSetId,
-        fundId: input.fundId,
-        eventType: 'calculated',
-        actor: normalizeActor(input.actor),
-        changeSummary: {
-          headline: 'Calculated reserve scenario set',
-          calculation_mode: 'async_reserve_allocation',
-          correlation_id: input.correlationId,
-          job_id: input.jobId,
-          input_hash: inputHash,
-          snapshot_id: response.snapshotId,
-          variant_count: variants.length,
-          company_count: portfolio.length,
-          warning_count: warningCount,
-          source_config_version: sourceConfig.version,
-          staleness_state: stalenessState,
-        },
-      });
-
-      return response;
+      const context = await loadReserveScenarioRunContext(client, input);
+      inputHashForFailure = context.inputHash;
+      return calculateReserveScenarioForContext(client, input, context);
     });
   } catch (error) {
     await recordCalculationFailedEvent({
