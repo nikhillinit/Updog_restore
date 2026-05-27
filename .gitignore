@@ -109,6 +109,9 @@ stats.html
 .cache
 .parcel-cache
 
+# Local CI telemetry and baseline reports
+.context/
+
 # Vite cache
 .vite/
 

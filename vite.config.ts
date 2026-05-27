@@ -237,6 +237,7 @@ export default defineConfig(({ mode }: { mode: string }) => {
 
   return {
     base: '/', // Ensure absolute paths for assets
+    cacheDir: path.resolve(import.meta.dirname, '.cache/vite'),
     server: {
       port: clientPort,
       strictPort: true,

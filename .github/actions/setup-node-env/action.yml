@@ -15,7 +15,7 @@ inputs:
     required: false
     default: npm ci --prefer-offline --no-audit
   restore-tool-cache:
-    description: Restore TypeScript, ESLint, Vitest, and coverage caches.
+    description: Restore TypeScript, ESLint, and Vite/Vitest tool caches.
     required: false
     default: 'true'
 
@@ -34,18 +34,34 @@ runs:
       run: npm install -g npm@${{ inputs.npm-version }}
 
     - name: Restore tool caches
-      if: inputs.restore-tool-cache == 'true'
+      id: tool-cache-restore
+      if: inputs.restore-tool-cache == 'true' && github.ref != 'refs/heads/main'
       uses: actions/cache/restore@v4
       with:
         path: |
           .tsbuildinfo.*
           **/*.tsbuildinfo
-          node_modules/.cache/eslint
-          .vitest-cache
-          coverage
-        key: tools-${{ runner.os }}-${{ hashFiles('package-lock.json', 'tsconfig*.json', 'vitest.config.*', 'eslint.config.*') }}
+          .cache/eslint
+          .cache/vite
+          .cache/vite-vitest
+        key: tool-cache-v1-${{ runner.os }}-${{ hashFiles('package-lock.json', 'tsconfig*.json', 'vitest.config.*', 'eslint.config.*') }}
         restore-keys: |
-          tools-${{ runner.os }}-
+          tool-cache-v1-${{ runner.os }}-
+
+    - name: Restore and save tool caches on main
+      id: tool-cache-main
+      if: inputs.restore-tool-cache == 'true' && github.ref == 'refs/heads/main'
+      uses: actions/cache@v4
+      with:
+        path: |
+          .tsbuildinfo.*
+          **/*.tsbuildinfo
+          .cache/eslint
+          .cache/vite
+          .cache/vite-vitest
+        key: tool-cache-v1-${{ runner.os }}-${{ hashFiles('package-lock.json', 'tsconfig*.json', 'vitest.config.*', 'eslint.config.*') }}
+        restore-keys: |
+          tool-cache-v1-${{ runner.os }}-
 
     - name: Install dependencies
       shell: bash
