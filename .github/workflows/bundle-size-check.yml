@@ -79,7 +79,7 @@ jobs:
         run: |
           echo "::warning::Base branch bundle baseline could not be generated. This check will validate the PR branch only and skip size comparison until main is healthy."
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: steps.base-artifact.outputs.ready == 'true'
         with:
           name: base-size-results
@@ -108,7 +108,7 @@ jobs:
 
       - run: node scripts/check-budgets.cjs --json > size-limit-report.json
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: pr-size-results
           path: size-limit-report.json
