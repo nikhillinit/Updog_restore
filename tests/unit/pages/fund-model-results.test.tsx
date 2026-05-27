@@ -15,6 +15,7 @@ import { act, fireEvent, render, screen, waitFor, within } from '@testing-librar
 import React from 'react';
 import { createWouterWrapper } from '../../utils/withWouter';
 import FundModelResultsPage from '../../../client/src/pages/fund-model-results';
+import type { FundScenarioComparisonV1 } from '../../../client/src/components/fund-results/ScenarioComparisonTable';
 
 describe('FundModelResultsPage (server-backed)', () => {
   let fetchSpy: ReturnType<typeof vi.fn>;
@@ -63,6 +64,7 @@ describe('FundModelResultsPage (server-backed)', () => {
     results?: ReturnType<typeof readyResponse>;
     history?: ReturnType<typeof lifecycleHistoryResponse>;
     comparison?: ReturnType<typeof resultsComparisonResponse>;
+    scenarioComparison?: FundScenarioComparisonV1;
     recalculateResponse?: {
       success: boolean;
       correlationId: string;
@@ -74,6 +76,7 @@ describe('FundModelResultsPage (server-backed)', () => {
     const results = options?.results ?? readyResponse();
     const history = options?.history ?? lifecycleHistoryResponse();
     const comparison = options?.comparison ?? resultsComparisonResponse();
+    const scenarioComparison = options?.scenarioComparison ?? scenarioComparisonResponse();
     const recalculateStatus = options?.recalculateStatus ?? 200;
     const recalculateResponse = options?.recalculateResponse ?? {
       success: true,
@@ -95,6 +98,10 @@ describe('FundModelResultsPage (server-backed)', () => {
 
       if (url.endsWith('/results-comparison')) {
         return Promise.resolve(jsonResponse(comparison));
+      }
+
+      if (url.includes('/scenario-sets/') && url.endsWith('/comparison')) {
+        return Promise.resolve(jsonResponse(scenarioComparison));
       }
 
       if (url.endsWith('/recalculate')) {
@@ -245,7 +252,27 @@ describe('FundModelResultsPage (server-backed)', () => {
     });
     expect(screen.getByTestId('scenario-sets-summary')).toBeInTheDocument();
     expect(screen.getByText('Fee sensitivity')).toBeInTheDocument();
-    expect(screen.getByText('2.10x')).toBeInTheDocument();
+    expect(screen.getAllByText('2.10x').length).toBeGreaterThanOrEqual(1);
+  });
+
+  it('fetches and renders scenario-set comparison for calculated scenario sets', async () => {
+    const resp = readyResponse();
+    resp.sections.scenarios = validScenariosSection();
+    mockFundPageFetches({ results: resp, scenarioComparison: scenarioComparisonResponse() });
+    await renderPage('/fund-model-results/123');
+
+    await waitFor(() => {
+      expect(fetchSpy).toHaveBeenCalledWith(
+        '/api/funds/123/scenario-sets/00000000-0000-0000-0000-000000000111/comparison',
+        expect.objectContaining({ credentials: 'include' })
+      );
+    });
+
+    const comparison = await screen.findByTestId('scenario-comparison-table');
+    expect(within(comparison).getByText('Authoritative baseline')).toBeInTheDocument();
+    expect(within(comparison).getByText('Lower fee')).toBeInTheDocument();
+    expect(within(comparison).getAllByText('Net LP IRR').length).toBe(2);
+    expect(within(comparison).getByText('+0.30x')).toBeInTheDocument();
   });
 
   // -- Unavailable sections --
@@ -1362,6 +1389,63 @@ function validScenariosSection() {
         },
       ],
     },
+  };
+}
+
+function scenarioComparisonResponse(): FundScenarioComparisonV1 {
+  return {
+    fundId: 123,
+    comparisonStatus: 'comparable',
+    scenarioSet: {
+      scenarioSetId: '00000000-0000-0000-0000-000000000111',
+      name: 'Fee sensitivity',
+      sourceConfigId: 12,
+      sourceConfigVersion: 4,
+    },
+    baseline: {
+      label: 'Authoritative baseline',
+      metrics: {
+        lpNetIrr: 0.15,
+        gpNetIrr: null,
+        totalManagementFees: 2_000_000,
+        totalGpCarryDistributed: 500_000,
+        totalGpFeeIncome: 2_000_000,
+        finalDpi: 0.6,
+        finalTvpi: 1.8,
+        finalClawbackDue: 0,
+      },
+    },
+    variants: [
+      {
+        variantId: '00000000-0000-0000-0000-000000000112',
+        name: 'Lower fee',
+        overrideType: 'fee_profile',
+        metrics: {
+          lpNetIrr: 0.17,
+          gpNetIrr: null,
+          totalManagementFees: 1_500_000,
+          totalGpCarryDistributed: 500_000,
+          totalGpFeeIncome: 1_500_000,
+          finalDpi: 0.7,
+          finalTvpi: 2.1,
+          finalClawbackDue: 0,
+        },
+        metricDeltas: [
+          {
+            metric: 'finalTvpi',
+            displayName: 'TVPI',
+            baselineValue: 1.8,
+            scenarioValue: 2.1,
+            absoluteDelta: 0.3,
+            percentageDelta: 16.6666667,
+            driftCapable: true,
+            driftReason: 'stable',
+          },
+        ],
+      },
+    ],
+    staleness: 'CURRENT',
+    calculatedAt: '2026-05-26T12:30:00.000Z',
   };
 }
 
