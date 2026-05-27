@@ -1,4 +1,11 @@
 /**
+ * @quarantine flaky-env
+ * @owner lp-reporting
+ * @reason Default test runs do not provide an isolated PostgreSQL runtime safe for the migration up/down round trip and schema reset operations.
+ * @until 2026-08-25
+ * @exitCriteria Add a dedicated LP reporting migration integration profile with TEST_DATABASE_URL or RUN_DOCKER_PHASE0_TEST, then pass this file 5 consecutive times under that profile.
+ * @addedDate 2026-05-27
+ *
  * @group integration
  * @group testcontainers
  *
