@@ -1,32 +1,26 @@
-import { dirname, resolve } from 'node:path';
+import { dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { defineConfig } from 'vitest/config';
+import { createQuarantineVitestAlias } from './vitest.config.shared.mjs';
 
 const projectRoot = dirname(fileURLToPath(import.meta.url));
+const alias = createQuarantineVitestAlias(projectRoot);
 
 export default defineConfig({
   root: projectRoot,
-  resolve: {
-    alias: {
-      '@': resolve(projectRoot, './client/src'),
-      '@/core': resolve(projectRoot, './client/src/core'),
-      '@/lib': resolve(projectRoot, './client/src/lib'),
-      '@shared': resolve(projectRoot, './shared'),
-      '@assets': resolve(projectRoot, './assets'),
-      '@server': resolve(projectRoot, './server'),
-    }
-  },
+  resolve: { alias },
   test: {
     name: 'quarantine',
-    include: [
-      'tests/quarantine/**/*.{test,spec}.ts?(x)',
-      '**/*.quarantine.{test,spec}.ts?(x)',
-    ],
+    include: ['tests/quarantine/**/*.{test,spec}.ts?(x)', '**/*.quarantine.{test,spec}.ts?(x)'],
     environment: 'node',
     testTimeout: 30000,
     hookTimeout: 30000,
     teardownTimeout: 5000,
-    setupFiles: ['tests/test-infrastructure.ts', 'tests/unit/setup.ts', 'tests/setup/reserves-setup.ts'],
+    setupFiles: [
+      'tests/test-infrastructure.ts',
+      'tests/unit/setup.ts',
+      'tests/setup/reserves-setup.ts',
+    ],
     globals: true,
     clearMocks: true,
     restoreMocks: true,
@@ -36,5 +30,5 @@ export default defineConfig({
     reporters: process.env.CI
       ? ['default', ['junit', { outputFile: 'reports/junit-quarantine.xml' }]]
       : ['default'],
-  }
+  },
 });

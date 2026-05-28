@@ -89,7 +89,7 @@ As of 2026-05-28:
     `scripts/pre-push-classification.mjs`, doc freshness warnings, orphan-test
     checks, TypeScript baseline validation, and targeted `vitest related`.
 14. Treat Batch 11 as closed on 2026-05-28: the current 19 tracked workflows
-    were classified in `docs/workflows/README.md`. No workflow was deleted:
+    were classified in the workflow registry doc. No workflow was deleted:
     GitHub branch protection has no required status checks or repository
     rulesets, but that is not enough to prove external status consumers or
     replacement parity for overlapping workflows.
@@ -98,13 +98,24 @@ As of 2026-05-28:
     Actions registry entry, its manual Actions UI summary is not replaced by
     `ci-unified.yml`'s PR-only quality-summary comment, and no maintainer policy
     or external status-consumer proof says the manual workflow can be retired.
-16. The next separate cleanup slice is still CI consolidation from the Batch 11
-    classification map, but it remains decision-gated. Do not delete YAML,
-    collapse standalone checks, or migrate required-check policy until
-    replacement status behavior and branch-protection/status-consumer intent are
-    explicit. Do not start it together with route logging migration,
-    deal-pipeline extraction, product-code refactors, Phoenix docs, env-file
-    consolidation, Vitest config consolidation, or unrelated config cleanup.
+16. Treat Batch 12 as closed as a no-deletion CI evidence pass. Do not delete
+    workflow YAML, collapse standalone checks, or migrate required-check policy
+    until replacement status behavior, manual-operator intent, and
+    branch-protection/status-consumer risk are explicit per workflow.
+17. Slice 13 added committed safe `.env.test` defaults after verifying
+    `server/config/index.ts` loads `.env.${NODE_ENV}` and the focused import
+    smoke test loaded `.env.test`.
+18. Slice 14 extracted shared Vitest alias construction into
+    `vitest.config.shared.mjs` while preserving `test:unit` on
+    `vitest.config.mjs` and keeping integration/quarantine/testcontainers
+    configs active.
+19. Slice 15 is closed as conservative no-op: the tracked TypeScript config set
+    has only active boundary configs, and live scans found no safe deletion
+    candidate.
+20. The next separate cleanup slice is the domain golden/truth coverage gap
+    pass. Do not start it together with route logging migration,
+    deal-pipeline extraction, product-code refactors, Phoenix docs, Playwright
+    config, Docker config, or unrelated config cleanup.
 
 Update this section whenever the active next step changes. This is the only
 "what to do right now" pointer in the document.
@@ -137,8 +148,8 @@ state changes the execution details in several important ways:
    machine/persistence/legacy wizard tests. It is not a safe deletion candidate.
 5. `.husky/pre-push` still delegates to `scripts/pre-push.mjs`; deletion
    requires a replacement script or direct command first.
-6. No committed `.env.test` exists; `.env.test.local` exists. Adding `.env.test`
-   is future work, not current state.
+6. Committed `.env.test` now exists with safe deterministic values after loader
+   proof; ignored `.env.test.local` remains the machine-local override surface.
 7. The first route-refactor safety slice is already visible on current `main`:
    deal-pipeline endpoint contracts, expanded route-surface inventory, and a
    deal-pipeline idempotency middleware registration fix. The next product-code
@@ -294,8 +305,9 @@ omits or under-specifies:
   keep-and-migrate-later rather than delete-now.
 - It identifies `scripts/pre-push.mjs` as automation debt. Verification shows it
   is active, so this plan now requires a replacement command before deletion.
-- It identifies deterministic test env files as a gap. Verification shows
-  `.env.test` is absent and `.env.test.local` exists.
+- It identified deterministic test env files as a gap. Slice 13 closed that gap
+  with safe committed `.env.test` defaults after loader proof; ignored
+  `.env.test.local` remains available for machine-local overrides.
 - It avoids committed quarantine directories and prefers deletion with git tags.
 - It treats `shared/money.ts` and `shared/lib/money.ts` as distinct semantics,
   not simple duplicates.
@@ -339,12 +351,12 @@ These should also remain.
 | Area               | Target outcome                                                                                                                                                                                                                                                                     |
 | ------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Scripts            | Current baseline is 81 root scripts after Batch 9 retired the remaining wave/phase aliases and refreshed the alias-policy guard to allow 0 legacy aliases. Next pass: simplify hooks without reintroducing compatibility aliases; target <=50 active scripts before pursuing <=30. |
-| CI                 | Current baseline is 19 workflow files, all classified in `docs/workflows/README.md` by Batch 11. No workflow has sufficient safe-deletion evidence yet; consolidate only after replacement status behavior and branch-protection/status-consumer policy are explicit.              |
+| CI                 | Current baseline is 19 workflow files, all classified in `docs/workflows/README.md` by Batch 11. Batch 12 closed as a no-deletion evidence pass; consolidate only after replacement status behavior, manual-operator intent, and branch-protection/status-consumer policy are explicit. |
 | Hooks              | Current pre-commit keeps custom staged guardrails but delegates lint/format to the existing `lint-staged` config after Batch 10. Current pre-push still delegates to `scripts/pre-push.mjs`; simplify only after replacement commands exist.                                       |
 | Pre-push script    | Keep `scripts/pre-push.mjs` until a direct hook command or `validate:quick` equivalent preserves changed-file classification, doc freshness warnings, orphan-test detection, baseline validation, and targeted related tests.                                                      |
-| Vitest             | Current unit entry is `vitest.config.mjs`; integration/quarantine/testcontainer configs remain active. Consolidate by migration, not deletion.                                                                                                                                     |
-| TypeScript         | Keep active boundary configs, including `tsconfig.shared.json`; delete only unreferenced variants proven by script/extends scans.                                                                                                                                                  |
-| Env files          | No committed `.env.test` exists. Add one only with safe deterministic values and verified loader behavior; production secrets stay out of Git.                                                                                                                                     |
+| Vitest             | Current unit entry is still `vitest.config.mjs`; shared alias construction now lives in `vitest.config.shared.mjs`; integration/quarantine/testcontainer configs remain active. Consolidate by migration, not deletion.                                                           |
+| TypeScript         | All tracked TypeScript configs are active boundary configs; keep `tsconfig.json`, `tsconfig.client.json`, `client/tsconfig.json`, `tsconfig.server.json`, `tsconfig.eslint.json`, and `tsconfig.shared.json`. Delete only unreferenced variants proven by script/extends scans. |
+| Env files          | Committed `.env.test` now exists with safe deterministic test defaults after loader proof. `.env.test.local` remains ignored for machine-local overrides; production secrets stay out of Git.                                                                                       |
 | Archives/logs      | `docs/phase0-runner*.txt`, root `archive/`, and tracked `docs/archive/**` are already absent; local ignored `docs/archive/2025-q4/` files stay ignored-only and banned from tracked HEAD.                                                                                          |
 | Binary docs assets | `docs/references/attached_assets/` has 0 tracked files; restore specific assets from git history only if a future active reference requires them.                                                                                                                                  |
 | Packages           | Batch 8 removed the unused package-backed agent source; `packages/**` remains at 0 tracked files and package-only npm aliases are absent.                                                                                                                                          |
@@ -1093,8 +1105,9 @@ branch.
 
 ## 3.6 Env files
 
-Current state: no committed `.env.test` exists; `.env.test.local` exists. Target
-committed env surface:
+Current state: committed `.env.test` exists with safe deterministic defaults,
+and ignored `.env.test.local` remains available for machine-local overrides.
+Target committed env surface:
 
 ```text
 .env.example                 # full variable catalog with comments
@@ -1107,12 +1120,13 @@ committed env surface:
 
 Rules:
 
-- Add `.env.test` only if test/bootstrap code actually loads it or CI is changed
-  to load it.
+- Keep `.env.test` limited to safe deterministic values loaded by
+  `server/config/index.ts` when `NODE_ENV=test`; use ignored `.env.test.local`
+  for machine-local secrets or overrides.
 - Real `.env.production` must not be committed.
-- Merge `.env.react`, `.env.preact`, `.env.vercel`, `.env.local.example`, and
-  `.env.rls.example` into `.env.example`, `.env.test`, deployment docs, or RLS
-  setup docs.
+- Merge or retire `.env.react`, `.env.preact`, `.env.vercel`,
+  `.env.local.example`, and `.env.rls.example` only after reference scans prove
+  where their contents belong.
 
 ## 3.7 Scripts directory cleanup
 
@@ -1155,7 +1169,7 @@ Milestone 3 is complete when:
       consolidation remain blocked on replacement-status and status-consumer
       evidence.
 - [ ] One required local validation command chain is documented.
-- [ ] Env files are documented; `.env.test` is added only if loader/CI behavior
+- [x] Env files are documented; `.env.test` is added only if loader/CI behavior
       is verified.
 - [ ] `npm run check && npm run build:prod && npm run test:unit` pass.
 - [ ] `npm run guard:scripts:check` passes.
@@ -1177,13 +1191,14 @@ vitest.config.int.ts             # current integration entry
 vitest.config.phase0-dbproof.ts  # phase0 DB-proof integration slice
 vitest.config.testcontainers.ts  # testcontainers slice
 vitest.config.quarantine.ts      # quarantine/reporting slice
+vitest.config.shared.mjs         # shared alias helper for active configs
 vitest.config.base.ts            # shared base while package configs remain
 ```
 
 Steps:
 
-1. Extract shared aliases/setup from `vitest.config.mjs` without changing
-   behavior.
+1. DONE 2026-05-28: extracted shared alias construction from the active Vitest
+   configs into `vitest.config.shared.mjs` without changing `test:unit`.
 2. Run `npm run test:unit`.
 3. Create a replacement unit config only if it reduces duplication and preserves
    projects.
@@ -1204,6 +1219,16 @@ tsconfig.server.json       # server boundary
 tsconfig.eslint.json       # keep only if ESLint needs broader includes
 tsconfig.shared.json       # active shared boundary; do not list as cleanup until refs are removed
 ```
+
+2026-05-28 slice 15 result: no TypeScript config was deleted. Live scans found
+the tracked set is already the conservative boundary set:
+
+- `client/tsconfig.json` extends `tsconfig.client.json` and is used by Vite's
+  React plugin project configuration;
+- `tsconfig.client.json`, `tsconfig.server.json`, and `tsconfig.shared.json` are
+  the enforced `scripts/typescript-baseline.cjs` project checks;
+- `tsconfig.eslint.json` is referenced by `eslint.config.js`;
+- `tsconfig.json` remains the root/base config and path-alias owner.
 
 Delete only after scans and validation:
 
@@ -1256,9 +1281,10 @@ Add `CONFIGURATION.md` with:
 
 Milestone 4 is complete when:
 
-- [ ] Shared Vitest aliases extracted without changing unit test behavior.
-- [ ] Only actively-referenced TypeScript configs remain; deleted configs proven
-      unused by extends/script/workflow scans.
+- [x] Shared Vitest aliases extracted without changing unit test behavior.
+- [x] Only actively-referenced TypeScript configs remain; no tracked TypeScript
+      config deletion candidate was found by extends/script/workflow/editor
+      scans.
 - [ ] `npm run check && npm run build:prod && npm run test:unit` pass.
 - [ ] `CONFIGURATION.md` exists listing remaining configs and their owners.
 
@@ -1882,11 +1908,12 @@ changes and reduce future debt accumulation.
 |     9 | DONE: `chore(scripts): classify and retire stale wave and phase scripts`                | 2026-05-28: 81 scripts; 0 allowed legacy aliases; explicit replacement chains in `validate:core` / `calc-gate` / `calc-gate:full`              |
 |    10 | DONE: `chore(hooks): simplify pre-commit and retain pre-push orchestration`             | 2026-05-28: pre-commit lint/format now uses `lint-staged`; pre-push kept because no equivalent changed-file-safe replacement exists            |
 |    11 | DONE: `docs(ci): classify current workflow inventory`                                   | 2026-05-28: 19 tracked workflows classified; no safe deletion; branch protection has no required status checks or rulesets                     |
-|    12 | `chore(ci): consolidate workflow checks from classification map`                        | First candidate pass kept `code-quality.yml` blocked; replacement statuses and branch-protection/status-consumer policy proven before deletion |
-|    13 | `chore(env): consolidate env files behind verified loader behavior`                     | loader/CI behavior verified before adding `.env.test`                                                                                          |
-|    14 | `chore(test): consolidate vitest config aliases without changing unit entry`            | `test:unit`                                                                                                                                    |
-|    15 | `test(domain): fill fund-model golden parity gaps`                                      | `phoenix:truth` + targeted truth/golden tests                                                                                                  |
-|   16+ | Product refactors one area at a time                                                    | per-area gates                                                                                                                                 |
+|    12 | DONE/no-op: `chore(ci): consolidate workflow checks from classification map`            | 2026-05-28: no workflow deleted; remaining candidates blocked on replacement/manual/status-consumer evidence                                   |
+|    13 | DONE: `chore(env): consolidate env files behind verified loader behavior`               | 2026-05-28: `.env.test` added after `.env.${NODE_ENV}` loader proof; legacy env variants kept where referenced                                |
+|    14 | DONE: `chore(test): consolidate vitest config aliases without changing unit entry`      | 2026-05-28: `vitest.config.shared.mjs` extracts aliases; `test:unit` still uses `vitest.config.mjs`                                            |
+|    15 | DONE/no-op: `chore(tsconfig): keep only active TypeScript boundaries`                   | 2026-05-28: all tracked configs are active boundaries; no deletion candidate found                                                             |
+|    16 | `test(domain): fill fund-model golden parity gaps`                                      | `phoenix:truth` + targeted truth/golden tests                                                                                                  |
+|   17+ | Product refactors one area at a time                                                    | per-area gates                                                                                                                                 |
 
 ---
 
@@ -1930,14 +1957,14 @@ baseline in the roadmap.
 11. DONE: Batch 11 classified the current 19 workflows in
     `docs/workflows/README.md`; no workflow has sufficient safe-deletion
     evidence.
-12. Consolidate CI only from the Batch 11 classification map. Do not delete
-    workflow YAML or migrate required-check policy until replacement statuses,
-    branch-protection intent, and external status-consumer risk are resolved.
-13. Consolidate env files; add committed safe `.env.test` only if loader/CI
-    behavior is verified.
-14. Consolidate Vitest configs and aliases.
-15. Rationalize TypeScript configs conservatively.
-16. Fill gaps in existing fragmented domain golden/truth tests.
+12. DONE/no-op: Batch 12 closed CI consolidation as a no-deletion evidence pass.
+13. DONE: `.env.test` was added with safe deterministic defaults after loader
+    behavior was verified; referenced env variants remain.
+14. DONE: Vitest alias construction was consolidated in
+    `vitest.config.shared.mjs`; `test:unit` still uses `vitest.config.mjs`.
+15. DONE/no-op: TypeScript config rationalization found no tracked deletion
+    candidates; active boundary configs remain.
+16. NEXT: Fill gaps in existing fragmented domain golden/truth tests.
 17. Add route contract tests for `deal-pipeline`, `lp-api`, `allocations`,
     `funds`, and `performance-api` before service extraction.
 18. Clean `main.tsx`.
