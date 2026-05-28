@@ -98,9 +98,14 @@ As of 2026-05-28:
     Actions registry entry, its manual Actions UI summary is not replaced by
     `ci-unified.yml`'s PR-only quality-summary comment, and no maintainer policy
     or external status-consumer proof says the manual workflow can be retired.
-16. Treat Batch 12 as closed as a no-deletion CI evidence pass. Do not delete
-    workflow YAML, collapse standalone checks, or migrate required-check policy
-    until replacement status behavior, manual-operator intent, and
+16. Treat Batch 12 as closed as a no-deletion CI evidence pass. The remaining
+    Batch 11 CI consolidation candidates were rechecked from clean `main` at
+    `e664b0209bd41c1ab9b4e68c0f1fc5081d3c4352`; `archive-guard.yml`,
+    `bundle-size-check.yml`, `core-validation.yml`, `security-tests.yml`, and
+    `verify-strategic-docs.yml` remain blocked on replacement behavior,
+    manual-operator value, or status-consumer risk. Do not delete workflow YAML,
+    collapse standalone checks, or migrate required-check policy until
+    replacement status behavior, manual-operator intent, and
     branch-protection/status-consumer risk are explicit per workflow.
 17. Slice 13 added committed safe `.env.test` defaults after verifying
     `server/config/index.ts` loads `.env.${NODE_ENV}` and the focused import
@@ -113,9 +118,9 @@ As of 2026-05-28:
     has only active boundary configs, and live scans found no safe deletion
     candidate.
 20. The next separate cleanup slice is the domain golden/truth coverage gap
-    pass. Do not start it together with route logging migration,
-    deal-pipeline extraction, product-code refactors, Phoenix docs, Playwright
-    config, Docker config, or unrelated config cleanup.
+    pass. Do not start it together with route logging migration, deal-pipeline
+    extraction, product-code refactors, Phoenix docs, Playwright config, Docker
+    config, or unrelated config cleanup.
 
 Update this section whenever the active next step changes. This is the only
 "what to do right now" pointer in the document.
@@ -348,24 +353,24 @@ These should also remain.
 
 ## 4. Outcome KPIs
 
-| Area               | Target outcome                                                                                                                                                                                                                                                                     |
-| ------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Scripts            | Current baseline is 81 root scripts after Batch 9 retired the remaining wave/phase aliases and refreshed the alias-policy guard to allow 0 legacy aliases. Next pass: simplify hooks without reintroducing compatibility aliases; target <=50 active scripts before pursuing <=30. |
-| CI                 | Current baseline is 19 workflow files, all classified in `docs/workflows/README.md` by Batch 11. Batch 12 closed as a no-deletion evidence pass; consolidate only after replacement status behavior, manual-operator intent, and branch-protection/status-consumer policy are explicit. |
-| Hooks              | Current pre-commit keeps custom staged guardrails but delegates lint/format to the existing `lint-staged` config after Batch 10. Current pre-push still delegates to `scripts/pre-push.mjs`; simplify only after replacement commands exist.                                       |
-| Pre-push script    | Keep `scripts/pre-push.mjs` until a direct hook command or `validate:quick` equivalent preserves changed-file classification, doc freshness warnings, orphan-test detection, baseline validation, and targeted related tests.                                                      |
-| Vitest             | Current unit entry is still `vitest.config.mjs`; shared alias construction now lives in `vitest.config.shared.mjs`; integration/quarantine/testcontainer configs remain active. Consolidate by migration, not deletion.                                                           |
-| TypeScript         | All tracked TypeScript configs are active boundary configs; keep `tsconfig.json`, `tsconfig.client.json`, `client/tsconfig.json`, `tsconfig.server.json`, `tsconfig.eslint.json`, and `tsconfig.shared.json`. Delete only unreferenced variants proven by script/extends scans. |
-| Env files          | Committed `.env.test` now exists with safe deterministic test defaults after loader proof. `.env.test.local` remains ignored for machine-local overrides; production secrets stay out of Git.                                                                                       |
-| Archives/logs      | `docs/phase0-runner*.txt`, root `archive/`, and tracked `docs/archive/**` are already absent; local ignored `docs/archive/2025-q4/` files stay ignored-only and banned from tracked HEAD.                                                                                          |
-| Binary docs assets | `docs/references/attached_assets/` has 0 tracked files; restore specific assets from git history only if a future active reference requires them.                                                                                                                                  |
-| Packages           | Batch 8 removed the unused package-backed agent source; `packages/**` remains at 0 tracked files and package-only npm aliases are absent.                                                                                                                                          |
-| Quarantine         | Zero undocumented quarantines; every quarantine has TTL, reason, and exit condition. Current: 3 undocumented (see Section 1b).                                                                                                                                                     |
-| Financial logic    | Existing truth/parity tests are fragmented across domains; fill missing coverage before semantic refactors.                                                                                                                                                                        |
-| Route boundaries   | No new route files importing `db` or `storage` directly. Current: 25 of 75 route files import persistence directly; target reduction behind contract tests.                                                                                                                        |
-| Type safety        | No new `any` or unsafe TypeScript usage in changed files. Promote `no-explicit-any` to `error` by directory after batch cleanup. Current: warn (400+ pre-existing).                                                                                                                |
-| Console (allowed)  | Middleware 0d is complete: 0 `console.*` matches in `server/middleware/`. Remaining route-layer logging debt is 165 calls across 27 files. This is observability improvement, not ratchet work.                                                                                    |
-| Client test debt   | Run actual coverage report before setting numeric targets. Current inventory: 48 component + 17 hook + 26 page test files; coverage is uneven, not near-zero.                                                                                                                      |
+| Area               | Target outcome                                                                                                                                                                                                                                                                                                 |
+| ------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Scripts            | Current baseline is 81 root scripts after Batch 9 retired the remaining wave/phase aliases and refreshed the alias-policy guard to allow 0 legacy aliases. Next pass: simplify hooks without reintroducing compatibility aliases; target <=50 active scripts before pursuing <=30.                             |
+| CI                 | Current baseline is 19 workflow files, all classified in `docs/workflows/README.md` by Batch 11. Batch 12 closed as a no-deletion pass because replacement behavior, manual-operator value, and status-consumer risk still block the remaining candidates; consolidate only after those policies are explicit. |
+| Hooks              | Current pre-commit keeps custom staged guardrails but delegates lint/format to the existing `lint-staged` config after Batch 10. Current pre-push still delegates to `scripts/pre-push.mjs`; simplify only after replacement commands exist.                                                                   |
+| Pre-push script    | Keep `scripts/pre-push.mjs` until a direct hook command or `validate:quick` equivalent preserves changed-file classification, doc freshness warnings, orphan-test detection, baseline validation, and targeted related tests.                                                                                  |
+| Vitest             | Current unit entry is still `vitest.config.mjs`; shared alias construction now lives in `vitest.config.shared.mjs`; integration/quarantine/testcontainer configs remain active. Consolidate by migration, not deletion.                                                                                        |
+| TypeScript         | All tracked TypeScript configs are active boundary configs; keep `tsconfig.json`, `tsconfig.client.json`, `client/tsconfig.json`, `tsconfig.server.json`, `tsconfig.eslint.json`, and `tsconfig.shared.json`. Delete only unreferenced variants proven by script/extends scans.                                |
+| Env files          | Committed `.env.test` now exists with safe deterministic test defaults after loader proof. `.env.test.local` remains ignored for machine-local overrides; production secrets stay out of Git.                                                                                                                  |
+| Archives/logs      | `docs/phase0-runner*.txt`, root `archive/`, and tracked `docs/archive/**` are already absent; local ignored `docs/archive/2025-q4/` files stay ignored-only and banned from tracked HEAD.                                                                                                                      |
+| Binary docs assets | `docs/references/attached_assets/` has 0 tracked files; restore specific assets from git history only if a future active reference requires them.                                                                                                                                                              |
+| Packages           | Batch 8 removed the unused package-backed agent source; `packages/**` remains at 0 tracked files and package-only npm aliases are absent.                                                                                                                                                                      |
+| Quarantine         | Zero undocumented quarantines; every quarantine has TTL, reason, and exit condition. Current: 3 undocumented (see Section 1b).                                                                                                                                                                                 |
+| Financial logic    | Existing truth/parity tests are fragmented across domains; fill missing coverage before semantic refactors.                                                                                                                                                                                                    |
+| Route boundaries   | No new route files importing `db` or `storage` directly. Current: 25 of 75 route files import persistence directly; target reduction behind contract tests.                                                                                                                                                    |
+| Type safety        | No new `any` or unsafe TypeScript usage in changed files. Promote `no-explicit-any` to `error` by directory after batch cleanup. Current: warn (400+ pre-existing).                                                                                                                                            |
+| Console (allowed)  | Middleware 0d is complete: 0 `console.*` matches in `server/middleware/`. Remaining route-layer logging debt is 165 calls across 27 files. This is observability improvement, not ratchet work.                                                                                                                |
+| Client test debt   | Run actual coverage report before setting numeric targets. Current inventory: 48 component + 17 hook + 26 page test files; coverage is uneven, not near-zero.                                                                                                                                                  |
 
 ---
 
@@ -1076,6 +1081,37 @@ registry still lists `.github/workflows/code-quality.yml` as `active`.
 comment, while `code-quality.yml` remains the only manual Actions UI summary for
 those counts. Do not remove it until owner policy and status-consumer risk are
 resolved.
+
+2026-05-28 Batch 12 closeout: keep all remaining consolidation candidates
+blocked. Fresh evidence from clean `main` at
+`e664b0209bd41c1ab9b4e68c0f1fc5081d3c4352` again showed branch protection with
+`required_status_checks: null`, no repository rulesets, and active GitHub
+Actions registry entries for the candidate workflows. That is useful
+required-check evidence, not deletion permission. The per-candidate result is:
+
+- `archive-guard.yml`: `ci-unified.yml` covers PR archive guard execution in
+  `Governance Guards`, but does not replace the standalone manual archive guard
+  entry or its visible status.
+- `bundle-size-check.yml`: `ci-unified.yml` only runs `npm run bundle:check`
+  with `|| true`; it does not replace base-vs-PR comparison, artifacts, PR
+  comments, or failing diff behavior, and in-repo tests/scripts still reference
+  the workflow or status.
+- `core-validation.yml`: `ci-unified.yml` can run the `validate-core` matrix
+  group during full validation, but the manual workflow remains the only named
+  one-click Actions path for `npm run validate:core`; the ready-file handshake
+  runbook references it directly.
+- `security-tests.yml`: `ci-unified.yml` can run security integration tests from
+  labels, path filters, or manual security input, but it does not replace the
+  standalone manual security-test entry or exact environment contract, and
+  security/operator sign-off is absent.
+- `verify-strategic-docs.yml`: existing docs workflows do not replace its
+  strategic-analysis-specific remark, emoji, analysis-only link, and
+  step-summary behavior.
+
+Batch 12 is closed as a no-deletion evidence pass. Do not re-open these
+workflows for deletion until the missing replacement behavior, manual-operator
+intent, and status-consumer risk are resolved for the specific workflow under
+review.
 
 Target after classification:
 
@@ -1889,31 +1925,31 @@ Batches 0a-0e are quick wins from the 2026-05-27 tech debt audit that can land
 before or interleaved with the existing sequence. They require no product code
 changes and reduce future debt accumulation.
 
-| Batch | Commit                                                                                  | Validation                                                                                                                                     |
-| ----: | --------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
-|    0a | `chore(guardrails): add route-import guard for db/storage`                              | `npm run check`; no existing route files break                                                                                                 |
-|    0b | `test(quarantine): document 3 undocumented quarantines`                                 | quarantine report shows 0 undocumented                                                                                                         |
-|    0c | `test(cleanup): delete zero-assertion debug-ca020 test`                                 | `npm run test:unit`                                                                                                                            |
-|    0d | `refactor(middleware): replace console calls with Pino in middleware`                   | DONE at `df2b22fc`; middleware console scan is clean                                                                                           |
-|    0e | `chore(audit): add verified tech debt baseline to refactor roadmap`                     | `rg` console scans; `guard:console:check`; `git diff --check`                                                                                  |
-|     0 | `chore(audit): capture baseline and cleanup manifest`                                   | n/a                                                                                                                                            |
-|     1 | `chore(repo): record generated docs logs already absent`                                | docs link check if ignore/docs change                                                                                                          |
-|     2 | DONE/no-op: `chore(docs): externalize large reference assets`                           | 2026-05-27 recheck: 0 tracked files; no active restore refs                                                                                    |
-|     3 | DONE/no-op: `chore(docs): curate remaining docs archive`                                | 2026-05-27 recheck: 0 tracked files; local ignored-only files                                                                                  |
-|     4 | DONE: `chore(app): migrate legacy route-story mirror`                                   | 2026-05-27 recheck: only root `src/**` file deleted; route tests migrated                                                                      |
-|     5 | DONE: `test(client): lock modeling wizard machine behavior`                             | 2026-05-27 focused wizard tests: 5 files, 33 passed, 0 skipped                                                                                 |
-|     6 | DONE/no-op: `docs(repo): mark external BMAD local copy as removed if references change` | 2026-05-27 scan: 0 tracked files; root path absent; no refs present the removed local copy as current                                          |
-|     7 | DONE: `chore(tooling): remove package refs from app configs and scripts`                | 2026-05-27: package scans; command-path proofs; `check + test:unit + build:prod + lint`                                                        |
-|     8 | DONE: `chore(tooling): remove unused ai-agent packages`                                 | 2026-05-27: package reference scans; docs routing check; `check + test:unit + build:prod`                                                      |
-|     9 | DONE: `chore(scripts): classify and retire stale wave and phase scripts`                | 2026-05-28: 81 scripts; 0 allowed legacy aliases; explicit replacement chains in `validate:core` / `calc-gate` / `calc-gate:full`              |
-|    10 | DONE: `chore(hooks): simplify pre-commit and retain pre-push orchestration`             | 2026-05-28: pre-commit lint/format now uses `lint-staged`; pre-push kept because no equivalent changed-file-safe replacement exists            |
-|    11 | DONE: `docs(ci): classify current workflow inventory`                                   | 2026-05-28: 19 tracked workflows classified; no safe deletion; branch protection has no required status checks or rulesets                     |
-|    12 | DONE/no-op: `chore(ci): consolidate workflow checks from classification map`            | 2026-05-28: no workflow deleted; remaining candidates blocked on replacement/manual/status-consumer evidence                                   |
-|    13 | DONE: `chore(env): consolidate env files behind verified loader behavior`               | 2026-05-28: `.env.test` added after `.env.${NODE_ENV}` loader proof; legacy env variants kept where referenced                                |
-|    14 | DONE: `chore(test): consolidate vitest config aliases without changing unit entry`      | 2026-05-28: `vitest.config.shared.mjs` extracts aliases; `test:unit` still uses `vitest.config.mjs`                                            |
-|    15 | DONE/no-op: `chore(tsconfig): keep only active TypeScript boundaries`                   | 2026-05-28: all tracked configs are active boundaries; no deletion candidate found                                                             |
-|    16 | `test(domain): fill fund-model golden parity gaps`                                      | `phoenix:truth` + targeted truth/golden tests                                                                                                  |
-|   17+ | Product refactors one area at a time                                                    | per-area gates                                                                                                                                 |
+| Batch | Commit                                                                                  | Validation                                                                                                                          |
+| ----: | --------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------- |
+|    0a | `chore(guardrails): add route-import guard for db/storage`                              | `npm run check`; no existing route files break                                                                                      |
+|    0b | `test(quarantine): document 3 undocumented quarantines`                                 | quarantine report shows 0 undocumented                                                                                              |
+|    0c | `test(cleanup): delete zero-assertion debug-ca020 test`                                 | `npm run test:unit`                                                                                                                 |
+|    0d | `refactor(middleware): replace console calls with Pino in middleware`                   | DONE at `df2b22fc`; middleware console scan is clean                                                                                |
+|    0e | `chore(audit): add verified tech debt baseline to refactor roadmap`                     | `rg` console scans; `guard:console:check`; `git diff --check`                                                                       |
+|     0 | `chore(audit): capture baseline and cleanup manifest`                                   | n/a                                                                                                                                 |
+|     1 | `chore(repo): record generated docs logs already absent`                                | docs link check if ignore/docs change                                                                                               |
+|     2 | DONE/no-op: `chore(docs): externalize large reference assets`                           | 2026-05-27 recheck: 0 tracked files; no active restore refs                                                                         |
+|     3 | DONE/no-op: `chore(docs): curate remaining docs archive`                                | 2026-05-27 recheck: 0 tracked files; local ignored-only files                                                                       |
+|     4 | DONE: `chore(app): migrate legacy route-story mirror`                                   | 2026-05-27 recheck: only root `src/**` file deleted; route tests migrated                                                           |
+|     5 | DONE: `test(client): lock modeling wizard machine behavior`                             | 2026-05-27 focused wizard tests: 5 files, 33 passed, 0 skipped                                                                      |
+|     6 | DONE/no-op: `docs(repo): mark external BMAD local copy as removed if references change` | 2026-05-27 scan: 0 tracked files; root path absent; no refs present the removed local copy as current                               |
+|     7 | DONE: `chore(tooling): remove package refs from app configs and scripts`                | 2026-05-27: package scans; command-path proofs; `check + test:unit + build:prod + lint`                                             |
+|     8 | DONE: `chore(tooling): remove unused ai-agent packages`                                 | 2026-05-27: package reference scans; docs routing check; `check + test:unit + build:prod`                                           |
+|     9 | DONE: `chore(scripts): classify and retire stale wave and phase scripts`                | 2026-05-28: 81 scripts; 0 allowed legacy aliases; explicit replacement chains in `validate:core` / `calc-gate` / `calc-gate:full`   |
+|    10 | DONE: `chore(hooks): simplify pre-commit and retain pre-push orchestration`             | 2026-05-28: pre-commit lint/format now uses `lint-staged`; pre-push kept because no equivalent changed-file-safe replacement exists |
+|    11 | DONE: `docs(ci): classify current workflow inventory`                                   | 2026-05-28: 19 tracked workflows classified; no safe deletion; branch protection has no required status checks or rulesets          |
+|    12 | DONE/no-op: `chore(ci): consolidate workflow checks from classification map`            | 2026-05-28: no workflow deleted; remaining candidates blocked on replacement/manual/status-consumer evidence                        |
+|    13 | DONE: `chore(env): consolidate env files behind verified loader behavior`               | 2026-05-28: `.env.test` added after `.env.${NODE_ENV}` loader proof; legacy env variants kept where referenced                      |
+|    14 | DONE: `chore(test): consolidate vitest config aliases without changing unit entry`      | 2026-05-28: `vitest.config.shared.mjs` extracts aliases; `test:unit` still uses `vitest.config.mjs`                                 |
+|    15 | DONE/no-op: `chore(tsconfig): keep only active TypeScript boundaries`                   | 2026-05-28: all tracked configs are active boundaries; no deletion candidate found                                                  |
+|    16 | `test(domain): fill fund-model golden parity gaps`                                      | `phoenix:truth` + targeted truth/golden tests                                                                                       |
+|   17+ | Product refactors one area at a time                                                    | per-area gates                                                                                                                      |
 
 ---
 

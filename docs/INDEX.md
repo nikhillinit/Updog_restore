@@ -205,8 +205,8 @@ not by number alone._
 **Current snapshot**:
 
 - 19 workflow files currently present in `.github/workflows`
-- `workflows/README.md` is the maintained repo-verified index and Batch 11
-  workflow classification map
+- `workflows/README.md` is the maintained repo-verified index, Batch 11 workflow
+  classification map, and Batch 12 no-deletion closeout record
 - the archived workflow inventory snapshot is for historical reference only
 
 **Pattern Routing**:
