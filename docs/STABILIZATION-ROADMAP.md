@@ -70,7 +70,7 @@ gate.
 
 **Exit criteria:**
 
-- `npm run test:phase4:integration` passes.
+- The embedded `validate:core` wizard-to-results integration command passes.
 - `npm run validate:core` passes.
 - The fix is merged, not just present in a dirty worktree.
 

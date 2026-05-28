@@ -28,7 +28,7 @@ No edits are made. To sync this into `CAPABILITIES.md`, run
 | Project skills (`.claude/skills/`)           | 43 (17 flat + 26 subdir SKILL.md)                                                                                            |
 | User-level skills (plugins)                  | 100+ (gstack, memstack, superpowers, claude-code-setup, cicd-automation, frontend-design, etc.)                              |
 | Agent packages (`packages/`)                 | 0 current; 6 in the historical 2026-05-23 snapshot                                                                           |
-| NPM scripts                                  | ~97                                                                                                                          |
+| NPM scripts                                  | 81                                                                                                                           |
 | MCP servers configured                       | 2 project (`multi-ai-collab`, `taskmaster-ai`) + 5 Claude.ai globals (Context7, Gamma, Google Drive, Magic Patterns, Vercel) |
 | Hooks                                        | 4 events (SessionStart, UserPromptSubmit, PreToolUse, PostToolUse)                                                           |
 
@@ -173,21 +173,21 @@ tooling.
 
 ---
 
-## 7. NPM Scripts (~97, root `package.json`)
+## 7. NPM Scripts (81, root `package.json`)
 
-| Category             | Examples                                                                                                                                                                                |
-| -------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Dev**              | `dev`, `dev:client`, `dev:api`, `preview`, `clean:spa-dist`                                                                                                                             |
-| **Build**            | `build`, `build:web`, `build:server`, `build:prod`, `vercel-build`, `postbuild`                                                                                                         |
-| **Test (24)**        | `test`, `test:unit`, `test:integration`, `test:smart`, `test:smoke`, `test:e2e:smoke`, `test:wave4`, `test:phase4`, `test:security`, `test:rls`, `test:memory`, `test:ui`, `test:quick` |
-| **Lint/Quality**     | `check`, `baseline:check`, `lint`, `lint:fix`, `lint:phase4:strict`, `validate:core`, `validate:schema-drift`, `guardrails:check`, `guard:console:check`                                |
-| **Database**         | `db:push`, `db:studio`, `db:seed:demo`, `db:seed:test`, `seed:multi-tenant`, `rls:quickstart`                                                                                           |
-| **Phoenix**          | `phoenix:truth`, `calc-gate`, `calc-gate:orphans`, `calc-gate:full`                                                                                                                     |
-| **AI/Orchestration** | `ai`, `hermes`, `hermes:dry`, `hermes:route`, `hermes:research`, `hermes:production`, `hermes:distribution`                                                                             |
-| **Docs**             | `docs:lint`, `docs:check-links`, `docs:routing:generate`, `docs:routing:check`, `docs:routing:query`, `validate:claude-md`                                                              |
-| **Bundle/Perf**      | `bundle:check`                                                                                                                                                                          |
-| **Health**           | `doctor`, `doctor:quick`, `doctor:shell`                                                                                                                                                |
-| **Lifecycle**        | `preinstall`, `prepare`, `pre-push`, `start`                                                                                                                                            |
+| Category             | Examples                                                                                                                                                                                                                                                                                         |
+| -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| **Dev**              | `dev`, `dev:client`, `dev:api`, `preview`, `clean:spa-dist`                                                                                                                                                                                                                                      |
+| **Build**            | `build`, `build:web`, `build:server`, `build:prod`, `vercel-build`, `postbuild`                                                                                                                                                                                                                  |
+| **Test (16)**        | `test`, `test:unit`, `test:integration`, `test:integration:routes`, `test:integration:phase0-dbproof`, `test:smart`, `test:affected`, `test:smoke`, `test:e2e:smoke`, `test:e2e:lp-reporting`, `test:security`, `test:rls`, `test:memory`, `test:ui`, `test:quick`, `test:publish-orchestration` |
+| **Lint/Quality**     | `check`, `baseline:check`, `lint`, `lint:eslint`, `lint:fix`, `validate:core`, `validate:schema-drift`, `guardrails:check`, `guard:console:check`, `guard:scripts:check`, `guard:route-imports:check`                                                                                            |
+| **Database**         | `db:push`, `db:studio`, `db:seed:demo`, `db:seed:test`, `seed:multi-tenant`, `rls:quickstart`                                                                                                                                                                                                    |
+| **Phoenix**          | `phoenix:truth`, `calc-gate`, `calc-gate:orphans`, `calc-gate:full`                                                                                                                                                                                                                              |
+| **AI/Orchestration** | `ai`, `hermes`, `hermes:dry`, `hermes:route`, `hermes:research`, `hermes:production`, `hermes:distribution`                                                                                                                                                                                      |
+| **Docs**             | `docs:lint`, `docs:check-links`, `docs:routing:generate`, `docs:routing:check`, `docs:routing:query`, `validate:claude-md`                                                                                                                                                                       |
+| **Bundle/Perf**      | `bundle:check`                                                                                                                                                                                                                                                                                   |
+| **Health**           | `doctor`, `doctor:quick`, `doctor:shell`                                                                                                                                                                                                                                                         |
+| **Lifecycle**        | `preinstall`, `prepare`, `pre-push`, `start`                                                                                                                                                                                                                                                     |
 
 **Capabilities sync:** `scripts/sync-capabilities.mjs` exists but has no npm
 alias — invoke with `node scripts/sync-capabilities.mjs [--apply]`.
