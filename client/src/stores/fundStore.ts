@@ -2,7 +2,7 @@ import { createStore } from 'zustand/vanilla';
 import { devtools, persist } from 'zustand/middleware';
 import { allocate100 } from '../core/utils/allocate100';
 import { clampPct, clampInt } from '../lib/coerce';
-import { normalizeNumber, eq } from '../utils/state-utils';
+import { sortById, normalizeNumber, eq } from '../utils/state-utils';
 import dequal from 'fast-deep-equal';
 import type { SectorProfile, Allocation, InvestmentStrategy } from '@shared/types';
 import type { EconomicsAssumptionsV1 } from '@shared/contracts/economics-v1.contract';
@@ -382,51 +382,55 @@ function canonicalizeStrategyInput(next: InvestmentStrategy, prev: StrategySlice
 
   // 2) Sector profiles: normalize and reuse when same (ID-based matching)
   const prevSPById = new Map(prev.sectorProfiles.map((sp) => [sp.id, sp]));
-  const normSectorProfiles = (next.sectorProfiles ?? prev.sectorProfiles).map((sp) => {
-    const p = prevSPById['get'](sp.id);
-    const name = sp.name?.trim() ?? p?.name ?? '';
-    const targetPercentage = normalizeNumber(sp.targetPercentage ?? p?.targetPercentage ?? 0);
-    const description = sp.description ?? p?.description ?? '';
+  const normSectorProfiles = (next.sectorProfiles ?? prev.sectorProfiles)
+    .map((sp) => {
+      const p = prevSPById['get'](sp.id);
+      const name = sp.name?.trim() ?? p?.name ?? '';
+      const targetPercentage = normalizeNumber(sp.targetPercentage ?? p?.targetPercentage ?? 0);
+      const description = sp.description ?? p?.description ?? '';
 
-    // reuse object if equal
-    if (
-      p &&
-      p.name === name &&
-      eq(p.targetPercentage, targetPercentage) &&
-      p.description === description
-    ) {
-      return p;
-    }
-    return { id: sp.id, name, targetPercentage: clampPct(targetPercentage), description };
-  });
+      // reuse object if equal
+      if (
+        p &&
+        p.name === name &&
+        eq(p.targetPercentage, targetPercentage) &&
+        p.description === description
+      ) {
+        return p;
+      }
+      return { id: sp.id, name, targetPercentage: clampPct(targetPercentage), description };
+    })
+    .sort(sortById);
 
   // 3) Allocations: normalize % (handle both "percent" and "percentage"), reuse when same (ID-based matching)
   const prevAllocById = new Map(prev.allocations.map((a) => [a.id, a]));
-  const normAllocations = (next.allocations ?? prev.allocations).map((a) => {
-    const p = prevAllocById['get'](a.id);
-    // Cast to flexible type to handle both "percentage" and "percent" naming conventions
-    const flexAlloc = a as FlexibleAllocationInput;
-    const category = a.category?.trim() ?? p?.category ?? '';
-    const percentage = normalizeNumber(
-      flexAlloc.percentage ?? flexAlloc.percent ?? p?.percentage ?? 0
-    );
-    const description = a.description ?? p?.description ?? '';
+  const normAllocations = (next.allocations ?? prev.allocations)
+    .map((a) => {
+      const p = prevAllocById['get'](a.id);
+      // Cast to flexible type to handle both "percentage" and "percent" naming conventions
+      const flexAlloc = a as FlexibleAllocationInput;
+      const category = a.category?.trim() ?? p?.category ?? '';
+      const percentage = normalizeNumber(
+        flexAlloc.percentage ?? flexAlloc.percent ?? p?.percentage ?? 0
+      );
+      const description = a.description ?? p?.description ?? '';
 
-    if (
-      p &&
-      p.category === category &&
-      eq(p.percentage, percentage) &&
-      p.description === description
-    ) {
-      return p;
-    }
-    return {
-      id: a.id ?? p?.id ?? generateStableId(),
-      category,
-      percentage: clampPct(percentage), // Always emit canonical "percentage" field
-      description,
-    };
-  });
+      if (
+        p &&
+        p.category === category &&
+        eq(p.percentage, percentage) &&
+        p.description === description
+      ) {
+        return p;
+      }
+      return {
+        id: a.id ?? p?.id ?? generateStableId(),
+        category,
+        percentage: clampPct(percentage), // Always emit canonical "percentage" field
+        description,
+      };
+    })
+    .sort(sortById);
 
   return {
     stages: finalStages,

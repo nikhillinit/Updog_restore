@@ -16,6 +16,9 @@ import { positiveInt, bounded01, nonNegative } from '@shared/schema-helpers';
 import { toNumber } from '@shared/number';
 import type { ApiError } from '@shared/types';
 import { portfolioIntelligenceService } from '../services/portfolio-intelligence-service';
+import { createRouteLogger } from '../lib/route-logger.js';
+
+const routeLog = createRouteLogger('portfolio-intelligence');
 // Stage normalization and validation
 import { parseStageDistribution, CANONICAL_STAGES } from '@shared/schemas/parse-stage-distribution';
 import { getStageValidationMode } from '../lib/stage-validation-mode';
@@ -322,7 +325,7 @@ router['post']('/api/portfolio/strategies', idempotency, async (req: Request, re
       message: 'Strategy model created successfully',
     });
   } catch (error: unknown) {
-    console.error('Strategy creation error:', error);
+    routeLog.error('Strategy creation error:', error);
     const apiError: ApiError = {
       error: 'Failed to create strategy',
       message: getErrorMessage(error),
@@ -370,7 +373,7 @@ router['get']('/api/portfolio/strategies/:fundId', async (req: Request, res: Res
       count: strategies.length,
     });
   } catch (error: unknown) {
-    console.error('Strategies fetch error:', error);
+    routeLog.error('Strategies fetch error:', error);
     const apiError: ApiError = {
       error: 'Failed to fetch strategies',
       message: getErrorMessage(error),
@@ -472,7 +475,7 @@ router['put']('/api/portfolio/strategies/:id', async (req: Request, res: Respons
       message: 'Strategy updated successfully',
     });
   } catch (error: unknown) {
-    console.error('Strategy update error:', error);
+    routeLog.error('Strategy update error:', error);
     const apiError: ApiError = {
       error: 'Failed to update strategy',
       message: getErrorMessage(error),
@@ -521,7 +524,7 @@ router['delete']('/api/portfolio/strategies/:id', async (req: Request, res: Resp
       message: 'Strategy deactivated successfully',
     });
   } catch (error: unknown) {
-    console.error('Strategy deletion error:', error);
+    routeLog.error('Strategy deletion error:', error);
     const apiError: ApiError = {
       error: 'Failed to delete strategy',
       message: getErrorMessage(error),
@@ -604,7 +607,7 @@ router['post']('/api/portfolio/scenarios', idempotency, async (req: Request, res
       message: 'Portfolio scenario created successfully',
     });
   } catch (error: unknown) {
-    console.error('Scenario creation error:', error);
+    routeLog.error('Scenario creation error:', error);
     const apiError: ApiError = {
       error: 'Failed to create scenario',
       message: getErrorMessage(error),
@@ -646,7 +649,7 @@ router['get']('/api/portfolio/scenarios/:fundId', async (req: Request, res: Resp
       count: scenarios.length,
     });
   } catch (error: unknown) {
-    console.error('Scenarios fetch error:', error);
+    routeLog.error('Scenarios fetch error:', error);
     const apiError: ApiError = {
       error: 'Failed to fetch scenarios',
       message: getErrorMessage(error),
@@ -700,7 +703,7 @@ router['post'](
         message: 'Scenario comparison completed successfully',
       });
     } catch (error: unknown) {
-      console.error('Scenario comparison error:', error);
+      routeLog.error('Scenario comparison error:', error);
       const apiError: ApiError = {
         error: 'Failed to compare scenarios',
         message: getErrorMessage(error),
@@ -803,7 +806,7 @@ router['post'](
         message: 'Monte Carlo simulation completed successfully',
       });
     } catch (error: unknown) {
-      console.error('Simulation error:', error);
+      routeLog.error('Simulation error:', error);
       const apiError: ApiError = {
         error: 'Failed to run simulation',
         message: getErrorMessage(error),
@@ -915,7 +918,7 @@ router['post'](
         message: 'Reserve optimization completed successfully',
       });
     } catch (error: unknown) {
-      console.error('Reserve optimization error:', error);
+      routeLog.error('Reserve optimization error:', error);
       const apiError: ApiError = {
         error: 'Failed to optimize reserves',
         message: getErrorMessage(error),
@@ -961,7 +964,7 @@ router['get']('/api/portfolio/reserves/strategies/:fundId', async (req: Request,
       count: strategies.length,
     });
   } catch (error: unknown) {
-    console.error('Reserve strategies fetch error:', error);
+    routeLog.error('Reserve strategies fetch error:', error);
     const apiError: ApiError = {
       error: 'Failed to fetch reserve strategies',
       message: getErrorMessage(error),
@@ -1029,7 +1032,7 @@ router['post'](
         message: 'Reserve strategy backtest completed successfully',
       });
     } catch (error: unknown) {
-      console.error('Backtest error:', error);
+      routeLog.error('Backtest error:', error);
       const apiError: ApiError = {
         error: 'Failed to run backtest',
         message: getErrorMessage(error),
@@ -1118,7 +1121,7 @@ router['post']('/api/portfolio/forecasts', idempotency, async (req: Request, res
       message: 'Performance forecast generated successfully',
     });
   } catch (error: unknown) {
-    console.error('Forecast generation error:', error);
+    routeLog.error('Forecast generation error:', error);
     const apiError: ApiError = {
       error: 'Failed to generate forecast',
       message: getErrorMessage(error),
@@ -1157,7 +1160,7 @@ router['get']('/api/portfolio/forecasts/:scenarioId', async (req: Request, res: 
       count: forecasts.length,
     });
   } catch (error: unknown) {
-    console.error('Forecasts fetch error:', error);
+    routeLog.error('Forecasts fetch error:', error);
     const apiError: ApiError = {
       error: 'Failed to fetch forecasts',
       message: getErrorMessage(error),
@@ -1250,7 +1253,7 @@ router['post']('/api/portfolio/forecasts/validate', async (req: Request, res: Re
       message: 'Forecast validation completed successfully',
     });
   } catch (error: unknown) {
-    console.error('Forecast validation error:', error);
+    routeLog.error('Forecast validation error:', error);
     const apiError: ApiError = {
       error: 'Failed to validate forecast',
       message: getErrorMessage(error),
@@ -1324,7 +1327,7 @@ router['get']('/api/portfolio/templates', async (req: Request, res: Response) =>
       count: filteredTemplates.length,
     });
   } catch (error: unknown) {
-    console.error('Templates fetch error:', error);
+    routeLog.error('Templates fetch error:', error);
     const apiError: ApiError = {
       error: 'Failed to fetch templates',
       message: getErrorMessage(error),
@@ -1392,7 +1395,7 @@ router['post']('/api/portfolio/quick-scenario', async (req: Request, res: Respon
       message: 'Quick scenario generated successfully',
     });
   } catch (error: unknown) {
-    console.error('Quick scenario error:', error);
+    routeLog.error('Quick scenario error:', error);
     const apiError: ApiError = {
       error: 'Failed to generate quick scenario',
       message: getErrorMessage(error),
@@ -1468,7 +1471,7 @@ router['get']('/api/portfolio/metrics/:scenarioId', async (req: Request, res: Re
       },
     });
   } catch (error: unknown) {
-    console.error('Metrics fetch error:', error);
+    routeLog.error('Metrics fetch error:', error);
     const apiError: ApiError = {
       error: 'Failed to fetch metrics',
       message: getErrorMessage(error),

@@ -9,6 +9,9 @@ import type { Request, Response } from 'express';
 import { Router } from 'express';
 import { z } from 'zod';
 import { monitor, monteCarloTracker } from '../middleware/performance-monitor.js';
+import { createRouteLogger } from '../lib/route-logger.js';
+
+const routeLog = createRouteLogger('performance-metrics');
 
 const router = Router();
 const DEFAULT_FUND_ID_FALLBACK = 1;
@@ -65,7 +68,7 @@ router['get']('/summary', (req: Request, res: Response) => {
 
     res.json(summary);
   } catch (error) {
-    console.error('Error getting performance summary:', error);
+    routeLog.error('Error getting performance summary:', error);
     res.status(500).json({ error: 'Failed to get performance summary' });
   }
 });
@@ -103,7 +106,7 @@ router['get']('/monte-carlo', (req: Request, res: Response) => {
 
     res.json(monteCarloMetrics);
   } catch (error) {
-    console.error('Error getting Monte Carlo metrics:', error);
+    routeLog.error('Error getting Monte Carlo metrics:', error);
     res.status(500).json({ error: 'Failed to get Monte Carlo metrics' });
   }
 });
@@ -137,7 +140,7 @@ router['get']('/alerts', (req: Request, res: Response) => {
       },
     });
   } catch (error) {
-    console.error('Error getting performance alerts:', error);
+    routeLog.error('Error getting performance alerts:', error);
     res.status(500).json({ error: 'Failed to get performance alerts' });
   }
 });
@@ -266,7 +269,7 @@ router['get']('/operations', (req: Request, res: Response) => {
       category: category || 'all',
     });
   } catch (error) {
-    console.error('Error getting operations metrics:', error);
+    routeLog.error('Error getting operations metrics:', error);
     res.status(500).json({ error: 'Failed to get operations metrics' });
   }
 });
@@ -300,7 +303,7 @@ router['post']('/simulate', async (req: Request, res: Response) => {
       message: 'Test simulation completed',
     });
   } catch (error) {
-    console.error('Error running test simulation:', error);
+    routeLog.error('Error running test simulation:', error);
     res.status(500).json({ error: 'Failed to run test simulation' });
   }
 });

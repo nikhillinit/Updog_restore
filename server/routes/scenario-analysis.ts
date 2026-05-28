@@ -20,6 +20,9 @@ import {
 import type { ScenarioAnalysisResponse, ScenarioCase } from '@shared/types/scenario';
 import { requireAuth } from '../lib/auth/jwt';
 import { firstString } from '../lib/request-values';
+import { createRouteLogger } from '../lib/route-logger.js';
+
+const routeLog = createRouteLogger('scenario-analysis');
 
 const router = Router();
 
@@ -195,7 +198,7 @@ router['get'](
 
       res.json(response);
     } catch (error: unknown) {
-      console.error('Get scenario error:', error);
+      routeLog.error('Get scenario error:', error);
       res.status(500).json({
         error: 'Internal server error',
         message: error instanceof Error ? error.message : 'Unknown error',
@@ -247,7 +250,7 @@ router['post'](
 
       res.status(201).json(scenario[0]);
     } catch (error: unknown) {
-      console.error('Create scenario error:', error);
+      routeLog.error('Create scenario error:', error);
       res.status(500).json({
         error: 'Internal server error',
         message: error instanceof Error ? error.message : 'Unknown error',
@@ -382,7 +385,7 @@ router['patch'](
         original_sum: normalized ? original_sum : undefined,
       });
     } catch (error: unknown) {
-      console.error('Update scenario error:', error);
+      routeLog.error('Update scenario error:', error);
 
       if (error instanceof z.ZodError) {
         return res.status(400).json({
@@ -449,7 +452,7 @@ router['delete'](
 
       res.status(204).send();
     } catch (error: unknown) {
-      console.error('Delete scenario error:', error);
+      routeLog.error('Delete scenario error:', error);
       res.status(500).json({
         error: 'Internal server error',
         message: error instanceof Error ? error.message : 'Unknown error',
@@ -516,7 +519,7 @@ router['post'](
         generated_at: new Date(),
       });
     } catch (error: unknown) {
-      console.error('Reserves optimization error:', error);
+      routeLog.error('Reserves optimization error:', error);
       res.status(500).json({
         error: 'Internal server error',
         message: error instanceof Error ? error.message : 'Unknown error',
