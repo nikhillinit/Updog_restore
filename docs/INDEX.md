@@ -1,7 +1,7 @@
 ---
 status: ACTIVE
 audience: both
-last_updated: 2026-05-20
+last_updated: 2026-05-28
 categories: [documentation, navigation]
 keywords: [index, docs, navigation, routing, documentation]
 source_of_truth: true
@@ -17,7 +17,7 @@ maintenance:
 # Documentation Index
 
 **Purpose**: Central routing table for all project documentation **Audience**:
-Humans AND Agents **Last Updated**: 2026-05-20
+Humans AND Agents **Last Updated**: 2026-05-28
 
 ---
 
@@ -204,8 +204,9 @@ not by number alone._
 
 **Current snapshot**:
 
-- 16 workflow files currently present in `.github/workflows`
-- `workflows/README.md` is the maintained repo-verified index
+- 19 workflow files currently present in `.github/workflows`
+- `workflows/README.md` is the maintained repo-verified index and Batch 11
+  workflow classification map
 - the archived workflow inventory snapshot is for historical reference only
 
 **Pattern Routing**:
@@ -412,7 +413,7 @@ for complete workflow
 ## Maintenance
 
 **Document Owner**: Development Team **Review Cycle**: Monthly (or after major
-structural changes) **Last Updated**: 2026-05-20 **Next Review**: 2026-06-20
+structural changes) **Last Updated**: 2026-05-28 **Next Review**: 2026-06-20
 
 **Update Triggers**:
 
