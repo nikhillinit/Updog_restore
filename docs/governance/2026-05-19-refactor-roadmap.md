@@ -93,13 +93,18 @@ As of 2026-05-28:
     GitHub branch protection has no required status checks or repository
     rulesets, but that is not enough to prove external status consumers or
     replacement parity for overlapping workflows.
-15. The next separate cleanup slice is CI consolidation from the Batch 11
-    classification map. Keep it decision-gated: do not delete YAML, collapse
-    standalone checks, or migrate required-check policy until replacement status
-    behavior and branch-protection/status-consumer intent are explicit. Do not
-    start it together with route logging migration, deal-pipeline extraction,
-    product-code refactors, Phoenix docs, env-file consolidation, Vitest config
-    consolidation, or unrelated config cleanup.
+15. Treat the first post-Batch 11 CI deletion-candidate pass as a no-deletion
+    evidence refresh on 2026-05-28: `code-quality.yml` is still an active GitHub
+    Actions registry entry, its manual Actions UI summary is not replaced by
+    `ci-unified.yml`'s PR-only quality-summary comment, and no maintainer policy
+    or external status-consumer proof says the manual workflow can be retired.
+16. The next separate cleanup slice is still CI consolidation from the Batch 11
+    classification map, but it remains decision-gated. Do not delete YAML,
+    collapse standalone checks, or migrate required-check policy until
+    replacement status behavior and branch-protection/status-consumer intent are
+    explicit. Do not start it together with route logging migration,
+    deal-pipeline extraction, product-code refactors, Phoenix docs, env-file
+    consolidation, Vitest config consolidation, or unrelated config cleanup.
 
 Update this section whenever the active next step changes. This is the only
 "what to do right now" pointer in the document.
@@ -1051,6 +1056,15 @@ Classification summary:
   `core-validation.yml`, `security-tests.yml`, `verify-strategic-docs.yml`.
 - Delete candidate, blocked: `code-quality.yml`.
 
+2026-05-28 first candidate pass: keep `code-quality.yml` blocked. Fresh evidence
+from clean `main` at `e7699495105e7c257887bbeb0ee24374f02413e3` showed no
+GitHub-required status checks and no repository rulesets, but the Actions
+registry still lists `.github/workflows/code-quality.yml` as `active`.
+`ci-unified.yml` overlaps the metric counts only for heavy PRs through a PR
+comment, while `code-quality.yml` remains the only manual Actions UI summary for
+those counts. Do not remove it until owner policy and status-consumer risk are
+resolved.
+
 Target after classification:
 
 1. One required core validation workflow on push/PR:
@@ -1072,7 +1086,10 @@ Avoid duplicating checks across workflows, but do not collapse
 security/docs/testcontainers workflows until their trigger, permission, secret,
 manual-operator, and replacement-status requirements are mapped. Do not remove
 `code-quality.yml` until a maintainer confirms the manual Actions entry is no
-longer needed or an equivalent command/reporting path is documented.
+longer needed or an equivalent command/reporting path is documented. Before any
+future `code-quality.yml` deletion, rerun branch-protection, ruleset,
+tracked-workflow, Actions-registry, and status-consumer scans on the deletion
+branch.
 
 ## 3.6 Env files
 
@@ -1846,30 +1863,30 @@ Batches 0a-0e are quick wins from the 2026-05-27 tech debt audit that can land
 before or interleaved with the existing sequence. They require no product code
 changes and reduce future debt accumulation.
 
-| Batch | Commit                                                                                  | Validation                                                                                                                          |
-| ----: | --------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------- |
-|    0a | `chore(guardrails): add route-import guard for db/storage`                              | `npm run check`; no existing route files break                                                                                      |
-|    0b | `test(quarantine): document 3 undocumented quarantines`                                 | quarantine report shows 0 undocumented                                                                                              |
-|    0c | `test(cleanup): delete zero-assertion debug-ca020 test`                                 | `npm run test:unit`                                                                                                                 |
-|    0d | `refactor(middleware): replace console calls with Pino in middleware`                   | DONE at `df2b22fc`; middleware console scan is clean                                                                                |
-|    0e | `chore(audit): add verified tech debt baseline to refactor roadmap`                     | `rg` console scans; `guard:console:check`; `git diff --check`                                                                       |
-|     0 | `chore(audit): capture baseline and cleanup manifest`                                   | n/a                                                                                                                                 |
-|     1 | `chore(repo): record generated docs logs already absent`                                | docs link check if ignore/docs change                                                                                               |
-|     2 | DONE/no-op: `chore(docs): externalize large reference assets`                           | 2026-05-27 recheck: 0 tracked files; no active restore refs                                                                         |
-|     3 | DONE/no-op: `chore(docs): curate remaining docs archive`                                | 2026-05-27 recheck: 0 tracked files; local ignored-only files                                                                       |
-|     4 | DONE: `chore(app): migrate legacy route-story mirror`                                   | 2026-05-27 recheck: only root `src/**` file deleted; route tests migrated                                                           |
-|     5 | DONE: `test(client): lock modeling wizard machine behavior`                             | 2026-05-27 focused wizard tests: 5 files, 33 passed, 0 skipped                                                                      |
-|     6 | DONE/no-op: `docs(repo): mark external BMAD local copy as removed if references change` | 2026-05-27 scan: 0 tracked files; root path absent; no refs present the removed local copy as current                               |
-|     7 | DONE: `chore(tooling): remove package refs from app configs and scripts`                | 2026-05-27: package scans; command-path proofs; `check + test:unit + build:prod + lint`                                             |
-|     8 | DONE: `chore(tooling): remove unused ai-agent packages`                                 | 2026-05-27: package reference scans; docs routing check; `check + test:unit + build:prod`                                           |
-|     9 | DONE: `chore(scripts): classify and retire stale wave and phase scripts`                | 2026-05-28: 81 scripts; 0 allowed legacy aliases; explicit replacement chains in `validate:core` / `calc-gate` / `calc-gate:full`   |
-|    10 | DONE: `chore(hooks): simplify pre-commit and retain pre-push orchestration`             | 2026-05-28: pre-commit lint/format now uses `lint-staged`; pre-push kept because no equivalent changed-file-safe replacement exists |
-|    11 | DONE: `docs(ci): classify current workflow inventory`                                   | 2026-05-28: 19 tracked workflows classified; no safe deletion; branch protection has no required status checks or rulesets          |
-|    12 | `chore(ci): consolidate workflow checks from classification map`                        | Replacement statuses and branch-protection/status-consumer policy proven before deletion                                            |
-|    13 | `chore(env): consolidate env files behind verified loader behavior`                     | loader/CI behavior verified before adding `.env.test`                                                                               |
-|    14 | `chore(test): consolidate vitest config aliases without changing unit entry`            | `test:unit`                                                                                                                         |
-|    15 | `test(domain): fill fund-model golden parity gaps`                                      | `phoenix:truth` + targeted truth/golden tests                                                                                       |
-|   16+ | Product refactors one area at a time                                                    | per-area gates                                                                                                                      |
+| Batch | Commit                                                                                  | Validation                                                                                                                                     |
+| ----: | --------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
+|    0a | `chore(guardrails): add route-import guard for db/storage`                              | `npm run check`; no existing route files break                                                                                                 |
+|    0b | `test(quarantine): document 3 undocumented quarantines`                                 | quarantine report shows 0 undocumented                                                                                                         |
+|    0c | `test(cleanup): delete zero-assertion debug-ca020 test`                                 | `npm run test:unit`                                                                                                                            |
+|    0d | `refactor(middleware): replace console calls with Pino in middleware`                   | DONE at `df2b22fc`; middleware console scan is clean                                                                                           |
+|    0e | `chore(audit): add verified tech debt baseline to refactor roadmap`                     | `rg` console scans; `guard:console:check`; `git diff --check`                                                                                  |
+|     0 | `chore(audit): capture baseline and cleanup manifest`                                   | n/a                                                                                                                                            |
+|     1 | `chore(repo): record generated docs logs already absent`                                | docs link check if ignore/docs change                                                                                                          |
+|     2 | DONE/no-op: `chore(docs): externalize large reference assets`                           | 2026-05-27 recheck: 0 tracked files; no active restore refs                                                                                    |
+|     3 | DONE/no-op: `chore(docs): curate remaining docs archive`                                | 2026-05-27 recheck: 0 tracked files; local ignored-only files                                                                                  |
+|     4 | DONE: `chore(app): migrate legacy route-story mirror`                                   | 2026-05-27 recheck: only root `src/**` file deleted; route tests migrated                                                                      |
+|     5 | DONE: `test(client): lock modeling wizard machine behavior`                             | 2026-05-27 focused wizard tests: 5 files, 33 passed, 0 skipped                                                                                 |
+|     6 | DONE/no-op: `docs(repo): mark external BMAD local copy as removed if references change` | 2026-05-27 scan: 0 tracked files; root path absent; no refs present the removed local copy as current                                          |
+|     7 | DONE: `chore(tooling): remove package refs from app configs and scripts`                | 2026-05-27: package scans; command-path proofs; `check + test:unit + build:prod + lint`                                                        |
+|     8 | DONE: `chore(tooling): remove unused ai-agent packages`                                 | 2026-05-27: package reference scans; docs routing check; `check + test:unit + build:prod`                                                      |
+|     9 | DONE: `chore(scripts): classify and retire stale wave and phase scripts`                | 2026-05-28: 81 scripts; 0 allowed legacy aliases; explicit replacement chains in `validate:core` / `calc-gate` / `calc-gate:full`              |
+|    10 | DONE: `chore(hooks): simplify pre-commit and retain pre-push orchestration`             | 2026-05-28: pre-commit lint/format now uses `lint-staged`; pre-push kept because no equivalent changed-file-safe replacement exists            |
+|    11 | DONE: `docs(ci): classify current workflow inventory`                                   | 2026-05-28: 19 tracked workflows classified; no safe deletion; branch protection has no required status checks or rulesets                     |
+|    12 | `chore(ci): consolidate workflow checks from classification map`                        | First candidate pass kept `code-quality.yml` blocked; replacement statuses and branch-protection/status-consumer policy proven before deletion |
+|    13 | `chore(env): consolidate env files behind verified loader behavior`                     | loader/CI behavior verified before adding `.env.test`                                                                                          |
+|    14 | `chore(test): consolidate vitest config aliases without changing unit entry`            | `test:unit`                                                                                                                                    |
+|    15 | `test(domain): fill fund-model golden parity gaps`                                      | `phoenix:truth` + targeted truth/golden tests                                                                                                  |
+|   16+ | Product refactors one area at a time                                                    | per-area gates                                                                                                                                 |
 
 ---
 
