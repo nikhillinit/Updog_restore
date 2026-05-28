@@ -340,6 +340,78 @@ type DistributionsPatch = Partial<
   >
 >;
 
+const resolveTrimmedText = (value: string | undefined, fallback: string | undefined): string =>
+  value?.trim() ?? fallback ?? '';
+
+const resolveText = (value: string | undefined, fallback: string | undefined): string =>
+  value ?? fallback ?? '';
+
+const resolveNumber = (value: number | undefined, fallback: number | undefined): number =>
+  normalizeNumber(value ?? fallback ?? 0);
+
+const sectorProfileUnchanged = (
+  previous: SectorProfile | undefined,
+  profile: SectorProfile
+): previous is SectorProfile =>
+  Boolean(
+    previous &&
+      previous.name === profile.name &&
+      eq(previous.targetPercentage, profile.targetPercentage) &&
+      previous.description === profile.description
+  );
+
+function normalizeSectorProfile(sp: SectorProfile, previous: SectorProfile | undefined): SectorProfile {
+  const profile = {
+    id: sp.id,
+    name: resolveTrimmedText(sp.name, previous?.name),
+    targetPercentage: resolveNumber(sp.targetPercentage, previous?.targetPercentage),
+    description: resolveText(sp.description, previous?.description),
+  };
+
+  if (sectorProfileUnchanged(previous, profile)) {
+    return previous;
+  }
+
+  return { ...profile, targetPercentage: clampPct(profile.targetPercentage) };
+}
+
+const resolveAllocationPercentage = (
+  allocation: FlexibleAllocationInput,
+  previous: Allocation | undefined
+): number => resolveNumber(allocation.percentage ?? allocation.percent, previous?.percentage);
+
+const resolveAllocationId = (
+  allocation: FlexibleAllocationInput,
+  previous: Allocation | undefined
+): string => allocation.id ?? previous?.id ?? generateStableId();
+
+const allocationUnchanged = (
+  previous: Allocation | undefined,
+  allocation: Allocation
+): previous is Allocation =>
+  Boolean(
+    previous &&
+      previous.category === allocation.category &&
+      eq(previous.percentage, allocation.percentage) &&
+      previous.description === allocation.description
+  );
+
+function normalizeAllocation(a: Allocation, previous: Allocation | undefined): Allocation {
+  const flexAlloc = a as FlexibleAllocationInput;
+  const allocation = {
+    id: resolveAllocationId(flexAlloc, previous),
+    category: resolveTrimmedText(a.category, previous?.category),
+    percentage: resolveAllocationPercentage(flexAlloc, previous),
+    description: resolveText(a.description, previous?.description),
+  };
+
+  if (allocationUnchanged(previous, allocation)) {
+    return previous;
+  }
+
+  return { ...allocation, percentage: clampPct(allocation.percentage) };
+}
+
 // Normalize incoming payload into canonical internal shape with structural sharing
 function canonicalizeStrategyInput(next: InvestmentStrategy, prev: StrategySlices): StrategySlices {
   // 1) Stages: clamp defaults, sort by id, and REUSE objects when unchanged
@@ -383,53 +455,13 @@ function canonicalizeStrategyInput(next: InvestmentStrategy, prev: StrategySlice
   // 2) Sector profiles: normalize and reuse when same (ID-based matching)
   const prevSPById = new Map(prev.sectorProfiles.map((sp) => [sp.id, sp]));
   const normSectorProfiles = (next.sectorProfiles ?? prev.sectorProfiles)
-    .map((sp) => {
-      const p = prevSPById['get'](sp.id);
-      const name = sp.name?.trim() ?? p?.name ?? '';
-      const targetPercentage = normalizeNumber(sp.targetPercentage ?? p?.targetPercentage ?? 0);
-      const description = sp.description ?? p?.description ?? '';
-
-      // reuse object if equal
-      if (
-        p &&
-        p.name === name &&
-        eq(p.targetPercentage, targetPercentage) &&
-        p.description === description
-      ) {
-        return p;
-      }
-      return { id: sp.id, name, targetPercentage: clampPct(targetPercentage), description };
-    })
+    .map((sp) => normalizeSectorProfile(sp, prevSPById['get'](sp.id)))
     .sort(sortById);
 
   // 3) Allocations: normalize % (handle both "percent" and "percentage"), reuse when same (ID-based matching)
   const prevAllocById = new Map(prev.allocations.map((a) => [a.id, a]));
   const normAllocations = (next.allocations ?? prev.allocations)
-    .map((a) => {
-      const p = prevAllocById['get'](a.id);
-      // Cast to flexible type to handle both "percentage" and "percent" naming conventions
-      const flexAlloc = a as FlexibleAllocationInput;
-      const category = a.category?.trim() ?? p?.category ?? '';
-      const percentage = normalizeNumber(
-        flexAlloc.percentage ?? flexAlloc.percent ?? p?.percentage ?? 0
-      );
-      const description = a.description ?? p?.description ?? '';
-
-      if (
-        p &&
-        p.category === category &&
-        eq(p.percentage, percentage) &&
-        p.description === description
-      ) {
-        return p;
-      }
-      return {
-        id: a.id ?? p?.id ?? generateStableId(),
-        category,
-        percentage: clampPct(percentage), // Always emit canonical "percentage" field
-        description,
-      };
-    })
+    .map((a) => normalizeAllocation(a, prevAllocById['get'](a.id)))
     .sort(sortById);
 
   return {
