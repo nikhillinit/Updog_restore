@@ -16,6 +16,7 @@ const __dirname = path.dirname(__filename);
 // Import custom rules
 const noHardcodedFundMetrics = require('./eslint-rules/no-hardcoded-fund-metrics.cjs');
 const noDbImportInSkippedTests = require('./eslint-rules/no-db-import-in-skipped-tests.cjs');
+const noGenericQuarantineReason = require('./eslint-rules/no-generic-quarantine-reason.cjs');
 const warnStaleSkips = require('./eslint-rules/warn-stale-skips.cjs');
 const povcSecurityPlugin = require('./tools/eslint-plugin-povc-security/index.cjs');
 
@@ -165,6 +166,7 @@ export default [
         rules: {
           'no-hardcoded-fund-metrics': noHardcodedFundMetrics,
           'no-db-import-in-skipped-tests': noDbImportInSkippedTests,
+          'no-generic-quarantine-reason': noGenericQuarantineReason,
           'warn-stale-skips': warnStaleSkips,
         },
       },
@@ -396,6 +398,31 @@ export default [
       'custom/no-db-import-in-skipped-tests': 'error',
       // Surface stale .skip() annotations -- add "// SKIP: reason" to suppress
       'custom/warn-stale-skips': 'warn',
+    },
+  },
+  {
+    files: ['tests/**/*.{ts,tsx}'],
+    ignores: [
+      // Existing quarantine debt is triaged in docs/quarantine/2026-05-28-stabilization-triage.md.
+      'tests/ui-conditionals.test.tsx',
+      'tests/evergreen-validation.test.ts',
+      'tests/unit/reallocation-api.test.ts',
+      'tests/unit/general-info-step.test.tsx',
+      'tests/perf/validator.microbench.test.ts',
+      'tests/integration/ScenarioMatrixCache.integration.test.ts',
+      'tests/integration/scenarioGeneratorWorker.test.ts',
+      'tests/integration/rls-middleware.test.ts',
+      'tests/integration/migration-runner.test.ts',
+      'tests/integration/circuit-breaker-db.test.ts',
+      'tests/integration/cache-monitoring.integration.test.ts',
+      'tests/api/portfolio-route.template.test.ts',
+      'tests/api/deal-pipeline.test.ts',
+      'tests/unit/services/snapshot-service.test.ts',
+      'tests/unit/pages/portfolio-constructor.test.tsx',
+      'tests/unit/database/time-travel-simple.test.ts',
+    ],
+    rules: {
+      'custom/no-generic-quarantine-reason': 'error',
     },
   },
   // Security test files - allow testing dangerous patterns
