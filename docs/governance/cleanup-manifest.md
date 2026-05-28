@@ -25,7 +25,9 @@ Batch 8 closeout; package script aliases were rechecked through Batch 9; Husky
 hooks and pre-push orchestration were rechecked through Batch 10; workflows were
 classified through Batch 11 and closed as a no-deletion Batch 12 evidence pass;
 env files, Vitest aliases, and TypeScript configs were rechecked through slices
-13-15; other rows remain from the 0e roadmap baseline refresh:
+13-15; domain golden/truth coverage, route contracts, and `main.tsx` bootstrap
+boundaries were refreshed through slices 16-18; other rows remain from the 0e
+roadmap baseline refresh:
 
 | Evidence                                   | Current result                                                                                                                                                                                                                              |
 | ------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -44,6 +46,9 @@ env files, Vitest aliases, and TypeScript configs were rechecked through slices
 | `.husky/pre-push` / `scripts/pre-push.mjs` | Active after Batch 10; no equivalent command preserves changed-file classification, doc warnings, orphan checks, baseline validation, full-run handling, and related tests                                                                  |
 | `.github/workflows/*`                      | 19 tracked `.yml` workflow files; Batch 11 classified all 19 in `docs/workflows/README.md`; Batch 12 closed as no-deletion because replacement/manual/status-consumer proof remained insufficient                                           |
 | `.env*`                                    | `.env.test` added with safe deterministic values after `server/config/index.ts` loader proof; `.env.test.local` remains ignored; `.env.react`, `.env.preact`, `.env.vercel`, `.env.local.example`, and `.env.rls.example` remain referenced |
+| domain golden/truth coverage               | Slice 16 kept the `18c3d0d9` LP metrics fixtures and golden tests, then added lock metadata/hash coverage in `tests/unit/golden/lp-reporting/lp-metrics-lock.test.ts`; targeted LP golden/truth run passed 10 files / 295 tests; `phoenix:truth` passed 7 files / 265 tests; `calc-gate` passed its truth, calculation, and orphan gate segments |
+| route contracts before extraction          | Slice 17 extended existing route contracts without service extraction: deal-pipeline list pagination/filter success, allocation latest/create fund-scope denial, LP API fund-scope denial, funds detail fund-scope denial, and performance API fund-scope denial; targeted route-contract run passed 5 files / 57 tests |
+| `client/src/main.tsx` bootstrap             | Slice 18 gated the fetch tap behind `import.meta.env.DEV`, moved emergency rollback to `client/src/debug/emergency-rollback.ts`, standardized environment checks on `import.meta.env`, and moved monitoring bootstrap to `client/src/monitoring/bootstrap.ts`; focused bootstrap tests passed 2 files / 5 tests |
 | `scripts/**`                               | 381 tracked files after guardrail additions and stale `scripts/ai/` helper retirement                                                                                                                                                       |
 | `server/middleware console.*`              | 0 matches across 0 files; `rg` exits 1 because middleware logging migration 0d is complete                                                                                                                                                  |
 | `server/routes console.*`                  | 165 matches across 27 files; route-layer logging migration remains future work                                                                                                                                                              |

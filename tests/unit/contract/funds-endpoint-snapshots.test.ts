@@ -15,6 +15,7 @@
 
 import { describe, it, expect, beforeAll } from 'vitest';
 import express from 'express';
+import type { NextFunction, Request, Response } from 'express';
 import request from 'supertest';
 import {
   fundsEndpointKey,
@@ -43,6 +44,29 @@ beforeAll(async () => {
   const fundRoutes = await import('../../../server/routes/funds');
   app.use('/api', fundRoutes.default);
 });
+
+async function makeScopedFundsApp(fundIds: number[]) {
+  const scopedApp = express();
+  scopedApp.set('trust proxy', false);
+  scopedApp.use(express.json({ limit: '1mb' }));
+  scopedApp.use((req: Request, _res: Response, next: NextFunction) => {
+    req.user = {
+      id: 'contract-user',
+      sub: 'contract-user',
+      email: 'contract@example.com',
+      role: 'admin',
+      roles: ['admin'],
+      fundIds,
+      ip: '127.0.0.1',
+      userAgent: 'vitest',
+    };
+    next();
+  });
+
+  const fundRoutes = await import('../../../server/routes/funds');
+  scopedApp.use('/api', fundRoutes.default);
+  return scopedApp;
+}
 
 describe('funds endpoint ownership manifest coverage', () => {
   it('keeps snapshot coverage aligned with the supported canonical manifest', () => {
@@ -217,6 +241,18 @@ describe('GET /api/funds/:id contract snapshot', () => {
 
     expect(res.status).toBe(400);
     expect(res.body).toHaveProperty('error');
+  });
+
+  it('returns 403 for fund detail outside the provided user scope', async () => {
+    const scopedApp = await makeScopedFundsApp([2]);
+
+    const res = await request(scopedApp).get('/api/funds/1');
+
+    expect(res.status).toBe(403);
+    expect(res.body).toMatchObject({
+      error: 'Forbidden',
+      code: 'FUND_ACCESS_DENIED',
+    });
   });
 });
 

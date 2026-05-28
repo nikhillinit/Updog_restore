@@ -1,4 +1,5 @@
 import express from 'express';
+import type { Request, Response } from 'express';
 import request from 'supertest';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -45,6 +46,12 @@ const writeState = vi.hoisted(() => ({
   transaction: vi.fn(async (fn: (client: unknown) => unknown) => fn({ kind: 'mock-client' })),
 }));
 
+const fundScopeState = vi.hoisted(() => ({
+  enforceProvidedFundScope: vi.fn(
+    async (_req: Request, _res: Response, _fundId: number) => true
+  ),
+}));
+
 vi.mock('../../../server/db', () => ({ db: dbState.db }));
 
 vi.mock('../../../server/db/pg-circuit', () => ({
@@ -56,7 +63,7 @@ vi.mock('../../../server/services/allocation-write-service.js', () => ({
 }));
 
 vi.mock('../../../server/lib/auth/provided-fund-scope', () => ({
-  enforceProvidedFundScope: vi.fn(async () => true),
+  enforceProvidedFundScope: fundScopeState.enforceProvidedFundScope,
 }));
 
 vi.mock('../../../server/lib/stage-validation-mode', () => ({
@@ -110,6 +117,8 @@ function resetState() {
   dbState.db.select.mockClear();
   writeState.applyAllocationUpdates.mockReset();
   writeState.transaction.mockClear();
+  fundScopeState.enforceProvidedFundScope.mockReset();
+  fundScopeState.enforceProvidedFundScope.mockResolvedValue(true);
 }
 
 function companyRow(overrides: Record<string, unknown> = {}) {
@@ -142,6 +151,26 @@ describe('allocations route contracts', () => {
     expect(response.body).toMatchObject({
       error: 'invalid_fund_id',
       message: 'Fund ID must be a positive integer',
+    });
+    expect(dbState.db.select).not.toHaveBeenCalled();
+  });
+
+  it('GET /api/funds/:fundId/allocations/latest rejects denied fund scope before data reads', async () => {
+    fundScopeState.enforceProvidedFundScope.mockImplementationOnce(async (_req, res) => {
+      res.status(403).json({
+        error: 'Forbidden',
+        code: 'FUND_ACCESS_DENIED',
+        message: 'You do not have access to fund 2',
+      });
+      return false;
+    });
+
+    const response = await request(makeApp()).get('/api/funds/2/allocations/latest');
+
+    expect(response.status).toBe(403);
+    expect(response.body).toMatchObject({
+      error: 'Forbidden',
+      code: 'FUND_ACCESS_DENIED',
     });
     expect(dbState.db.select).not.toHaveBeenCalled();
   });
@@ -239,6 +268,37 @@ describe('allocations route contracts', () => {
 
     expect(response.status).toBe(400);
     expect(response.body).toMatchObject({ error: 'Invalid request body' });
+    expect(writeState.applyAllocationUpdates).not.toHaveBeenCalled();
+  });
+
+  it('POST /api/funds/:fundId/allocations rejects denied fund scope before writes', async () => {
+    fundScopeState.enforceProvidedFundScope.mockImplementationOnce(async (_req, res) => {
+      res.status(403).json({
+        error: 'Forbidden',
+        code: 'FUND_ACCESS_DENIED',
+        message: 'You do not have access to fund 2',
+      });
+      return false;
+    });
+
+    const response = await request(makeApp())
+      .post('/api/funds/2/allocations')
+      .send({
+        expected_version: 1,
+        updates: [
+          {
+            company_id: 11,
+            planned_reserves_cents: 800_000_00,
+          },
+        ],
+      });
+
+    expect(response.status).toBe(403);
+    expect(response.body).toMatchObject({
+      error: 'Forbidden',
+      code: 'FUND_ACCESS_DENIED',
+    });
+    expect(writeState.transaction).not.toHaveBeenCalled();
     expect(writeState.applyAllocationUpdates).not.toHaveBeenCalled();
   });
 

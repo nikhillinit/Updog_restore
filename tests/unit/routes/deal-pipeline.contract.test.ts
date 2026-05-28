@@ -289,6 +289,29 @@ describe('deal pipeline route contracts', () => {
     expect(mockState.db.select).not.toHaveBeenCalled();
   });
 
+  it('lists deals with filters and locks cursor pagination envelope', async () => {
+    mockState.state.selectResults.push([
+      dealRow({ id: 30, companyName: 'Gamma Contract', createdAt: new Date('2026-01-03Z') }),
+      dealRow({ id: 20, companyName: 'Beta Contract', createdAt: new Date('2026-01-02Z') }),
+      dealRow({ id: 10, companyName: 'Alpha Contract', createdAt: new Date('2026-01-01Z') }),
+    ]);
+
+    const response = await request(makeApp()).get(
+      '/api/deals/opportunities?limit=2&status=lead&priority=medium&fundId=1&search=Contract'
+    );
+
+    expect(response.status).toBe(200);
+    expect(Object.keys(response.body).sort()).toEqual(['data', 'pagination', 'success']);
+    expect(response.body.success).toBe(true);
+    expect(response.body.data).toHaveLength(2);
+    expect(response.body.data.map((deal: { id: number }) => deal.id)).toEqual([30, 20]);
+    expect(response.body.pagination).toEqual({
+      hasMore: true,
+      nextCursor: cursorFor({ createdAt: '2026-01-02T00:00:00.000Z', id: 20 }),
+      count: 2,
+    });
+  });
+
   it('returns 404 with request id propagation for missing deal reads and mutations', async () => {
     mockState.state.selectResults.push([], [], []);
     const app = makeApp();

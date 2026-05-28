@@ -117,8 +117,26 @@ As of 2026-05-28:
 19. Slice 15 is closed as conservative no-op: the tracked TypeScript config set
     has only active boundary configs, and live scans found no safe deletion
     candidate.
-20. The next separate cleanup slice is the domain golden/truth coverage gap
-    pass. Do not start it together with route logging migration, deal-pipeline
+20. Slice 16 is closed as a focused domain golden/truth gap pass. The
+    `18c3d0d9` LP metrics fixtures and golden assertions already covered the
+    core LP scenarios, so this slice only added lock metadata/hash coverage in
+    `tests/unit/golden/lp-reporting/lp-metrics-lock.test.ts`. Evidence:
+    targeted LP golden/truth run passed 10 files / 295 tests, `npm run
+    phoenix:truth` passed 7 files / 265 tests, and `npm run calc-gate` passed
+    its truth, calculation, and orphan gate segments.
+21. Slice 17 is closed as a route-contract hardening pass before any service
+    extraction. Existing `18c3d0d9` allocation and LP API contract tests were
+    kept and extended rather than duplicated. Evidence: targeted route-contract
+    run passed 5 files / 57 tests across `deal-pipeline`, `lp-api`,
+    `allocations`, `funds`, and `performance-api`.
+22. Slice 18 is closed as a `main.tsx` bootstrap cleanup. The fetch tap is now
+    development-only, emergency rollback lives in
+    `client/src/debug/emergency-rollback.ts`, environment checks use
+    `import.meta.env`, and monitoring bootstrap lives in
+    `client/src/monitoring/bootstrap.ts`. Evidence: focused bootstrap helper
+    tests passed 2 files / 5 tests.
+23. The next separate cleanup slice is `App.tsx` splitting. Do not start it
+    together with route mounting normalization, route logging migration, service
     extraction, product-code refactors, Phoenix docs, Playwright config, Docker
     config, or unrelated config cleanup.
 
@@ -1948,8 +1966,10 @@ changes and reduce future debt accumulation.
 |    13 | DONE: `chore(env): consolidate env files behind verified loader behavior`               | 2026-05-28: `.env.test` added after `.env.${NODE_ENV}` loader proof; legacy env variants kept where referenced                      |
 |    14 | DONE: `chore(test): consolidate vitest config aliases without changing unit entry`      | 2026-05-28: `vitest.config.shared.mjs` extracts aliases; `test:unit` still uses `vitest.config.mjs`                                 |
 |    15 | DONE/no-op: `chore(tsconfig): keep only active TypeScript boundaries`                   | 2026-05-28: all tracked configs are active boundaries; no deletion candidate found                                                  |
-|    16 | `test(domain): fill fund-model golden parity gaps`                                      | `phoenix:truth` + targeted truth/golden tests                                                                                       |
-|   17+ | Product refactors one area at a time                                                    | per-area gates                                                                                                                      |
+|    16 | DONE: `test(domain): fill fund-model golden parity gaps`                                | 2026-05-28: LP metrics lock metadata/hash coverage; targeted golden/truth 10 files / 295 tests; `phoenix:truth`; `calc-gate`        |
+|    17 | DONE: `test(routes): lock extraction contracts for route slices`                        | 2026-05-28: deal-pipeline, lp-api, allocations, funds, and performance-api contract run 5 files / 57 tests                          |
+|    18 | DONE: `refactor(client): clean main bootstrap boundaries`                               | 2026-05-28: fetch tap DEV gate, emergency rollback module, monitoring bootstrap module; focused bootstrap tests 2 files / 5 tests    |
+|   19+ | Product refactors one area at a time                                                    | per-area gates                                                                                                                      |
 
 ---
 
@@ -2000,11 +2020,11 @@ baseline in the roadmap.
     `vitest.config.shared.mjs`; `test:unit` still uses `vitest.config.mjs`.
 15. DONE/no-op: TypeScript config rationalization found no tracked deletion
     candidates; active boundary configs remain.
-16. NEXT: Fill gaps in existing fragmented domain golden/truth tests.
-17. Add route contract tests for `deal-pipeline`, `lp-api`, `allocations`,
-    `funds`, and `performance-api` before service extraction.
-18. Clean `main.tsx`.
-19. Split `App.tsx`.
+16. DONE: Fill gaps in existing fragmented domain golden/truth tests.
+17. DONE: Add route contract tests for `deal-pipeline`, `lp-api`,
+    `allocations`, `funds`, and `performance-api` before service extraction.
+18. DONE: Clean `main.tsx`.
+19. NEXT: Split `App.tsx`.
 20. Normalize API route mounting without changing URLs.
 21. Extract service logic from largest DB-heavy routes (`deal-pipeline.ts`
     first, then `lp-api.ts`, then `allocations.ts`); reduce direct DB/storage

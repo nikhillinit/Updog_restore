@@ -588,6 +588,9 @@ router['get'](
     }
 
     const { fundId } = paramValidation.data;
+    if (!(await enforceProvidedFundScope(req, res, fundId))) {
+      return;
+    }
 
     try {
       const [fund] = await db
@@ -721,6 +724,10 @@ router['post'](
     }
 
     const { fundId } = paramValidation.data;
+    if (!(await enforceProvidedFundScope(req, res, fundId))) {
+      return;
+    }
+
     const { expected_version, updates } = bodyValidation.data;
 
     // Get user ID from auth context (if available)
