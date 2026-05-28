@@ -2,11 +2,10 @@
 import { Project, Node, CallExpression, PropertyAccessExpression } from 'ts-morph';
 import fg from 'fast-glob';
 
-const METHODS = new Set(['fatal','error','warn','info','debug','trace']);
+const METHODS = new Set(['fatal', 'error', 'warn', 'info', 'debug', 'trace']);
 const DEFAULT_GLOBS = [
   'server/**/*.ts',
   'client/**/*.ts',
-  'packages/**/*.ts',
   '!**/*.d.ts',
   '!**/__tests__/**',
   '!**/*.spec.ts',
@@ -17,9 +16,11 @@ const args = process.argv.slice(2);
 const WRITE = args.includes('--write');
 
 function isStringy(arg: any) {
-  return Node.isStringLiteral(arg) ||
-         Node.isNoSubstitutionTemplateLiteral(arg) ||
-         Node.isTemplateExpression(arg);
+  return (
+    Node.isStringLiteral(arg) ||
+    Node.isNoSubstitutionTemplateLiteral(arg) ||
+    Node.isTemplateExpression(arg)
+  );
 }
 
 function nameLooksLikeLogger(expr: any) {
@@ -32,7 +33,7 @@ function nameLooksLikeLogger(expr: any) {
   const files = await fg(DEFAULT_GLOBS, { dot: true });
   const project = new Project({
     tsConfigFilePath: 'tsconfig.json',
-    skipAddingFilesFromTsConfig: false
+    skipAddingFilesFromTsConfig: false,
   });
   project.addSourceFilesAtPaths(files);
 

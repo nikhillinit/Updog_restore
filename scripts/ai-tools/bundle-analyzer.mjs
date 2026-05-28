@@ -101,20 +101,9 @@ class BundleAnalyzerGateway {
   }
 
   async optimizeBundle(options) {
-    console.log('⚡ Starting bundle optimization...');
-    
-    const targetKB = options.target || 400;
-    
-    // Run the bundle optimization agent
-    const agentPath = path.resolve(__dirname, '../../packages/bundle-optimization-agent/dist/cli.js');
-    
-    const result = await this.exec(`node ${agentPath} --target ${targetKB} --strategy ${options.strategy}`);
-    
-    if (options.verbose) {
-      console.log(result);
-    }
-
-    console.log(`✅ Optimization complete. Target: ${targetKB}KB`);
+    console.error('Bundle optimization is retired in this app tooling tree.');
+    console.error('Use the read-only bundle analysis commands and make explicit code changes.');
+    process.exitCode = 1;
   }
 
   async analyzeDependencies(options) {
