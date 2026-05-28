@@ -1,4 +1,7 @@
-type MonitoringEnv = Pick<ImportMetaEnv, 'PROD' | 'VITE_SENTRY_DSN'>;
+interface MonitoringEnv {
+  readonly PROD: boolean;
+  readonly VITE_SENTRY_DSN?: string | boolean;
+}
 
 interface VitalsModule {
   startVitals: () => void;
@@ -21,26 +24,60 @@ function scheduleWhenIdle(callback: () => void) {
   window.setTimeout(callback, 1);
 }
 
-export function bootstrapMonitoring(options: MonitoringBootstrapOptions = {}) {
-  const env = options.env ?? import.meta.env;
-  if (!env.PROD) {
-    return;
-  }
+function getMonitoringEnv(env?: MonitoringEnv): MonitoringEnv {
+  return env ?? import.meta.env;
+}
 
-  const warn = options.warn ?? console.warn;
-  const loadMonitoring = options.loadMonitoring ?? (() => import('./index'));
-  const loadVitals = options.loadVitals;
-  const scheduleIdle = options.scheduleIdle ?? scheduleWhenIdle;
+function getMonitoringLoader(loadMonitoring?: () => Promise<unknown>) {
+  return loadMonitoring ?? (() => import('./index'));
+}
 
+function getWarningLogger(warn?: (...data: unknown[]) => void) {
+  return warn ?? console.warn;
+}
+
+function getIdleScheduler(scheduleIdle?: (callback: () => void) => void) {
+  return scheduleIdle ?? scheduleWhenIdle;
+}
+
+function loadSentryWhenConfigured(
+  env: MonitoringEnv,
+  loadMonitoring: () => Promise<unknown>,
+  warn: (...data: unknown[]) => void
+) {
   if (env.VITE_SENTRY_DSN) {
     loadMonitoring().catch((error) => {
       warn('Failed to load Sentry:', error);
     });
   }
+}
 
-  if (loadVitals) {
+async function startVitals(loadVitalsModule: () => Promise<VitalsModule>) {
+  const { startVitals } = await loadVitalsModule();
+  startVitals();
+}
+
+function scheduleVitalsWhenConfigured(
+  loadVitalsModule: (() => Promise<VitalsModule>) | undefined,
+  scheduleIdle: (callback: () => void) => void
+) {
+  if (loadVitalsModule) {
     scheduleIdle(() => {
-      void loadVitals().then(({ startVitals }) => startVitals());
+      void startVitals(loadVitalsModule);
     });
   }
+}
+
+export function bootstrapMonitoring(options: MonitoringBootstrapOptions = {}) {
+  const env = getMonitoringEnv(options.env);
+  if (!env.PROD) {
+    return;
+  }
+
+  loadSentryWhenConfigured(
+    env,
+    getMonitoringLoader(options.loadMonitoring),
+    getWarningLogger(options.warn)
+  );
+  scheduleVitalsWhenConfigured(options.loadVitals, getIdleScheduler(options.scheduleIdle));
 }
