@@ -26,6 +26,10 @@ function readErrorMessage(error: unknown, fallback: string): string {
   return error instanceof Error ? error.message : fallback;
 }
 
+function isExpectedMissingServerDraft(error: unknown): boolean {
+  return error instanceof Error && error.message === 'No draft found';
+}
+
 export function useFundDraftSync({
   stepKey,
   debounceMs = 600,
@@ -182,6 +186,19 @@ export function useFundDraftSync({
           return;
         }
 
+        if (isExpectedMissingServerDraft(draftError)) {
+          // The fund identity exists, but there is no authoritative draft snapshot to hydrate yet.
+          if (fundStore.getState().draftFundId === recoveredDraftId) {
+            fundStore.getState().setDraftServerReady(false);
+          }
+          recoveredDraftIdRef.current = null;
+          hydratedServerDraftIdRef.current = null;
+          lastSavedSignatureRef.current = null;
+          setError(null);
+          setStatus('idle');
+          return;
+        }
+
         setError(readErrorMessage(draftError, 'Draft load failed'));
         setStatus('error');
       }
@@ -198,6 +215,7 @@ export function useFundDraftSync({
     }
 
     if (
+      draftServerReady &&
       recoveredDraftIdRef.current === draftFundId &&
       hydratedServerDraftIdRef.current !== draftFundId
     ) {
@@ -235,7 +253,15 @@ export function useFundDraftSync({
       unsubscribe();
       clearPendingSave();
     };
-  }, [clearPendingSave, debounceMs, draftFundId, economicsEnabled, hydrated, persistCurrentDraft]);
+  }, [
+    clearPendingSave,
+    debounceMs,
+    draftFundId,
+    draftServerReady,
+    economicsEnabled,
+    hydrated,
+    persistCurrentDraft,
+  ]);
 
   React.useEffect(() => {
     if (previousStepKeyRef.current === stepKey) {
