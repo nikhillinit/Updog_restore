@@ -2,7 +2,7 @@
   "config": {
     "max_docs_per_keyword": 25
   },
-  "generatedAt": "2026-05-27T00:00:00.000Z",
+  "generatedAt": "2026-05-28T00:00:00.000Z",
   "keyword_to_docs": {
     "add feature": [
       "CLAUDE.md"
@@ -149,16 +149,16 @@
       "CLAUDE.md"
     ],
     "bundle": [
-      "packages/bundle-optimization-agents.md"
+      "scripts/ai-tools/bundle-analyzer.mjs"
     ],
     "bundle analysis": [
       ".claude/agents/perf-guard.md"
     ],
     "bundle optimization": [
-      "packages/bundle-optimization-agents.md"
+      "scripts/ai-tools/bundle-analyzer.mjs"
     ],
     "bundle size": [
-      "packages/bundle-optimization-agents.md"
+      "scripts/ai-tools/bundle-analyzer.mjs"
     ],
     "calculation mismatch": [
       ".claude/agents/parity-auditor.md"
@@ -246,7 +246,7 @@
       "cheatsheets/anti-pattern-prevention.md"
     ],
     "code splitting": [
-      "packages/bundle-optimization-agents.md"
+      "scripts/ai-tools/bundle-analyzer.mjs"
     ],
     "codex": [
       "cheatsheets/codex-collaboration-protocol.md"
@@ -599,7 +599,7 @@
       "cheatsheets/pr-merge-verification.md"
     ],
     "lazy loading": [
-      "packages/bundle-optimization-agents.md"
+      "scripts/ai-tools/bundle-analyzer.mjs"
     ],
     "ledger": [
       ".claude/agents/waterfall-specialist.md"
@@ -1132,7 +1132,7 @@
       ".claude/agents/code-explorer.md"
     ],
     "tree shaking": [
-      "packages/bundle-optimization-agents.md"
+      "scripts/ai-tools/bundle-analyzer.mjs"
     ],
     "truth case": [
       ".claude/commands/phoenix-truth.md"
@@ -1982,8 +1982,8 @@
         "lazy loading"
       ],
       "priority": 99,
-      "route_to": "packages/bundle-optimization-agents.md",
-      "why": "AI-powered bundle optimization, dependency analysis, route optimization"
+      "route_to": "scripts/ai-tools/bundle-analyzer.mjs",
+      "why": "Package-free bundle analysis, dependency analysis, route optimization"
     },
     {
       "id": "troubleshooting",

@@ -1,9 +1,13 @@
 ---
-status: ACTIVE
-last_updated: 2026-04-03
+status: HISTORICAL
+last_updated: 2026-05-27
 ---
 
 # Codex Review Agent Migration to In-Repo AI Orchestrator
+
+Batch 8 removed the local `packages/codex-review-agent/` source after live
+reference scans found no active root script, app, test, workflow, or config
+dependency. This document is retained as historical migration evidence.
 
 **Date:** October 5, 2025 **Status:** Complete **Migration Type:** External MCP
 -> In-Repo Orchestrator
@@ -483,8 +487,9 @@ isReviewableFile: ['.ts', '.tsx', '.js', '.jsx']; // Only these
 **1. Restore old callMCPCodeReview method:**
 
 ```bash
-git show HEAD~1:packages/codex-review-agent/src/CodexReviewAgent.ts > temp.ts
-# Copy the old method back
+git log -- packages/codex-review-agent/src/CodexReviewAgent.ts
+git show <pre-Batch-8-commit>:packages/codex-review-agent/src/CodexReviewAgent.ts > temp.ts
+# Copy the historical method back only if the package source is restored.
 ```
 
 **2. Re-enable MCP:**
@@ -534,8 +539,8 @@ npm run review:watch
   Complete orchestrator guide
 - **[DECISIONS.md](../../DECISIONS.md)** - Architecture decision record
 - **MCP_MULTI_AI_INCIDENT_REPORT.md** - Original security issue
-- **[Codex Review Agent README](../../packages/codex-review-agent/README.md)** -
-  Agent documentation
+- **Codex Review Agent README** - historical package documentation removed with
+  `packages/codex-review-agent/`; recover from git history if needed.
 
 ---
 

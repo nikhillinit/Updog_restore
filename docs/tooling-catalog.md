@@ -8,8 +8,9 @@ branch: main)_
 This is a read-only audit triggered by `/catalog-tooling`. The output is a
 snapshot of every agent, command, skill, MCP server, package, and npm script
 reachable from this repo — combining project-level assets (`.claude/`,
-`packages/`, `package.json`) with user-level globals (agents and skills loaded
-via system prompt / MCP).
+`package.json`) with user-level globals (agents and skills loaded via system
+prompt / MCP). Batch 8 later removed package-backed agent source from
+`packages/`; this snapshot is retained as historical catalog evidence.
 
 No edits are made. To sync this into `CAPABILITIES.md`, run
 `node scripts/sync-capabilities.mjs --apply` after exiting plan mode.
@@ -26,7 +27,7 @@ No edits are made. To sync this into `CAPABILITIES.md`, run
 | Project slash commands (`.claude/commands/`) | 21 (19 root + 2 wshobson)                                                                                                    |
 | Project skills (`.claude/skills/`)           | 43 (17 flat + 26 subdir SKILL.md)                                                                                            |
 | User-level skills (plugins)                  | 100+ (gstack, memstack, superpowers, claude-code-setup, cicd-automation, frontend-design, etc.)                              |
-| Agent packages (`packages/`)                 | 6                                                                                                                            |
+| Agent packages (`packages/`)                 | 0 current; 6 in the historical 2026-05-23 snapshot                                                                           |
 | NPM scripts                                  | ~97                                                                                                                          |
 | MCP servers configured                       | 2 project (`multi-ai-collab`, `taskmaster-ai`) + 5 Claude.ai globals (Context7, Gamma, Google Drive, Magic Patterns, Vercel) |
 | Hooks                                        | 4 events (SessionStart, UserPromptSubmit, PreToolUse, PostToolUse)                                                           |
@@ -161,16 +162,14 @@ Loaded from plugins. Major namespaces:
 
 ---
 
-## 6. Agent Packages (`packages/` — 6)
+## 6. Agent Packages (`packages/` — 0 current)
 
-| Package                            | Version | Purpose                                                              |
-| ---------------------------------- | ------- | -------------------------------------------------------------------- |
-| `@povc/agent-core`                 | 0.1.0   | Core framework for AI-augmented agents (Redis, piscina, prom-client) |
-| `@updog/bundle-optimization-agent` | 1.0.0   | Autonomous bundle-size optimization                                  |
-| `@povc/codex-review-agent`         | 0.1.0   | Real-time review via MCP multi-AI consensus                          |
-| `@updog/memory-manager`            | 0.1.0   | mem0-inspired memory (openai + pg)                                   |
-| `@povc/test-repair-agent`          | 0.1.0   | Automated test failure repair                                        |
-| `bmad-integration`                 | —       | Integration package (no package.json)                                |
+The 2026-05-23 catalog snapshot listed six local agent package entries. Batch 8
+removed the package-backed source after confirming there were no active app,
+script, test, workflow, or root config dependencies outside package-internal
+links and historical/governance references. Use `.claude/agents/`,
+`.claude/commands/`, root npm scripts, and `scripts/ai-tools/` for current
+tooling.
 
 ---
 

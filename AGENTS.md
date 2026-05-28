@@ -89,7 +89,6 @@ depending on content). See `CLAUDE.md#phoenix-protected-paths`.
 - `client/src/pages/` - Application routes and page components
 - `server/routes/` - API endpoint definitions
 - `tests/` - Comprehensive test suite (API, performance, UI)
-- `packages/` - AI agent system for autonomous development
 
 ## Tech Stack
 
@@ -290,8 +289,8 @@ START HERE:
 
 - **CLI Gateway**: `npm run ai` - AI agent operations (test, patch, repair,
   metrics)
-- **Agent Framework**: `packages/agent-core/` - BaseAgent with retry logic,
-  monitoring
+- **AI tooling**: `.claude/agents/` for prompt surfaces and `scripts/ai-tools/`
+  for the package-free CLI gateway
 - **Code Quality**: Codacy integration, Trivy security scanning
 
 ### Hermes Dev Co-op

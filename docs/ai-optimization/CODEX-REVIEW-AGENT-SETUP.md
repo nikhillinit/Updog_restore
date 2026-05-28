@@ -1,9 +1,13 @@
 ---
-status: ACTIVE
-last_updated: 2026-01-19
+status: HISTORICAL
+last_updated: 2026-05-27
 ---
 
 # Codex Review Agent - Setup Complete!
+
+Batch 8 removed the local `packages/codex-review-agent/` source after live
+reference scans found no active root script, app, test, workflow, or config
+dependency. This document is retained as historical implementation context.
 
 ## What We Built
 
@@ -79,12 +83,13 @@ The agent is pre-configured for your project:
 
 ### Enable Full MCP Integration
 
-Currently, the agent uses basic static analysis. To enable full AI reviews:
+Historically, the agent used basic static analysis. To enable full AI reviews in
+the removed package implementation:
 
 1. Ensure your MCP multi-AI server is running
-2. Update
-   [CodexReviewAgent.ts:202](../../packages/codex-review-agent/src/CodexReviewAgent.ts#L202)
-   to call the actual MCP server:
+2. Recover the removed `packages/codex-review-agent/` source from git history,
+   then update `CodexReviewAgent.ts` around `callMCPCodeReview()` to call the
+   actual MCP server:
 
 ```typescript
 private async callMCPCodeReview(
@@ -163,10 +168,10 @@ Display Results
 | **AI Count** | 1                       | 3 (consensus)      |
 | **Privacy**  | Public                  | Local              |
 
-## Files Created
+## Historical Files Created
 
 ```
-packages/codex-review-agent/
+packages/codex-review-agent/ (removed in Batch 8; recover from git history)
 ├── src/
 │   ├── CodexReviewAgent.ts    # Main agent class
 │   └── index.ts               # Exports
@@ -193,8 +198,8 @@ npm run review:watch
 # Show help
 npm run review:help
 
-# Build the agent (if you modify it)
-cd packages/codex-review-agent && npm run build
+# The local package source was removed in Batch 8.
+# There is no current package build command.
 ```
 
 ## Proven Track Record
@@ -211,11 +216,12 @@ Now you have that same quality of review **in real-time as you code**!
 
 ## Support
 
-- **Documentation**:
-  [packages/codex-review-agent/README.md](../../packages/codex-review-agent/README.md)
+- **Documentation**: historical package README was removed with
+  `packages/codex-review-agent/`; recover from git history if needed.
 - **Related**:
   [CODEX-FIXES-EXECUTION-SUMMARY.md](../action-plans/CODEX-FIXES-EXECUTION-SUMMARY.md)
-- **Framework**: [BaseAgent](../../packages/agent-core/src/BaseAgent.ts)
+- **Framework**: historical `packages/agent-core/src/BaseAgent.ts` source was
+  removed with Batch 8.
 
 ---
 

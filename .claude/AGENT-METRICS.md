@@ -273,4 +273,4 @@ const recentMetrics = await memoryManager.query({
 
 - [AGENT-DIRECTORY.md](AGENT-DIRECTORY.md) - Full agent catalog
 - [CAPABILITIES.md](../CAPABILITIES.md) - Agent capabilities
-- [packages/agent-core/](../packages/agent-core/) - Agent infrastructure
+- `scripts/ai-tools/` - Package-free AI tooling gateway
