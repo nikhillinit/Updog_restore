@@ -37,6 +37,9 @@ import {
   UpdateDealSchema,
   dealPipelineValidationSchemas,
 } from '../services/deal-pipeline/schemas';
+import { createRouteLogger } from '../lib/route-logger.js';
+
+const routeLog = createRouteLogger('deal-pipeline');
 
 const router = Router();
 const idempotent = idempotency();
@@ -78,7 +81,7 @@ router['post']('/opportunities', idempotent, async (req: Request, res: Response)
       message: 'Deal created successfully',
     });
   } catch (error) {
-    console.error('Deal creation error:', error);
+    routeLog.error('Deal creation error:', error);
     return res.status(500).json({
       error: 'internal_error',
       message: error instanceof Error ? error.message : 'Failed to create deal',
@@ -143,7 +146,7 @@ router['get']('/opportunities', async (req: Request, res: Response) => {
       },
     });
   } catch (error) {
-    console.error('Deal list error:', error);
+    routeLog.error('Deal list error:', error);
     return res.status(500).json({
       error: 'internal_error',
       message: 'Failed to fetch deals',
@@ -175,7 +178,7 @@ router['get']('/opportunities/:id', async (req: Request, res: Response) => {
       data: deal,
     });
   } catch (error) {
-    console.error('Deal fetch error:', error);
+    routeLog.error('Deal fetch error:', error);
     return res.status(500).json({
       error: 'internal_error',
       message: 'Failed to fetch deal',
@@ -222,7 +225,7 @@ router['put']('/opportunities/:id', idempotent, async (req: Request, res: Respon
       message: 'Deal updated successfully',
     });
   } catch (error) {
-    console.error('Deal update error:', error);
+    routeLog.error('Deal update error:', error);
     return res.status(500).json({
       error: 'internal_error',
       message: 'Failed to update deal',
@@ -255,7 +258,7 @@ router['delete']('/opportunities/:id', idempotent, async (req: Request, res: Res
       message: 'Deal archived successfully',
     });
   } catch (error) {
-    console.error('Deal archive error:', error);
+    routeLog.error('Deal archive error:', error);
     return res.status(500).json({
       error: 'internal_error',
       message: 'Failed to archive deal',
@@ -298,7 +301,7 @@ router['post']('/:id/stage', idempotent, async (req: Request, res: Response) => 
       message: 'Deal stage updated successfully',
     });
   } catch (error) {
-    console.error('Stage change error:', error);
+    routeLog.error('Stage change error:', error);
     return res.status(500).json({
       error: 'internal_error',
       message: 'Failed to update deal stage',
@@ -331,7 +334,7 @@ router['get']('/pipeline', async (req: Request, res: Response) => {
       data,
     });
   } catch (error) {
-    console.error('Pipeline fetch error:', error);
+    routeLog.error('Pipeline fetch error:', error);
     return res.status(500).json({
       error: 'internal_error',
       message: 'Failed to fetch pipeline',
@@ -351,7 +354,7 @@ router['get']('/stages', async (_req: Request, res: Response) => {
       data: stages,
     });
   } catch (error) {
-    console.error('Stages fetch error:', error);
+    routeLog.error('Stages fetch error:', error);
     return res.status(500).json({
       error: 'internal_error',
       message: 'Failed to fetch stages',
@@ -392,7 +395,7 @@ router['post']('/:id/diligence', idempotent, async (req: Request, res: Response)
       message: 'Due diligence item added',
     });
   } catch (error) {
-    console.error('DD item creation error:', error);
+    routeLog.error('DD item creation error:', error);
     return res.status(500).json({
       error: 'internal_error',
       message: 'Failed to add due diligence item',
@@ -421,7 +424,7 @@ router['get']('/:id/diligence', async (req: Request, res: Response) => {
       data,
     });
   } catch (error) {
-    console.error('DD items fetch error:', error);
+    routeLog.error('DD items fetch error:', error);
     return res.status(500).json({
       error: 'internal_error',
       message: 'Failed to fetch due diligence items',
@@ -479,7 +482,7 @@ router['post']('/opportunities/import/preview', async (req: Request, res: Respon
       data,
     });
   } catch (error) {
-    console.error('Import preview error:', error);
+    routeLog.error('Import preview error:', error);
     return res.status(500).json({
       error: 'internal_error',
       message: 'Failed to preview import',
@@ -513,7 +516,7 @@ router['post']('/opportunities/import', idempotent, async (req: Request, res: Re
       data,
     });
   } catch (error) {
-    console.error('Import error:', error);
+    routeLog.error('Import error:', error);
     return res.status(500).json({
       error: 'internal_error',
       message: 'Failed to import deals',
@@ -546,7 +549,7 @@ router['post']('/opportunities/bulk/status', idempotent, async (req: Request, re
       data,
     });
   } catch (error) {
-    console.error('Bulk status error:', error);
+    routeLog.error('Bulk status error:', error);
     return res.status(500).json({
       error: 'internal_error',
       message: 'Failed to bulk update statuses',
@@ -575,7 +578,7 @@ router['post']('/opportunities/bulk/archive', idempotent, async (req: Request, r
       data,
     });
   } catch (error) {
-    console.error('Bulk archive error:', error);
+    routeLog.error('Bulk archive error:', error);
     return res.status(500).json({
       error: 'internal_error',
       message: 'Failed to bulk archive deals',

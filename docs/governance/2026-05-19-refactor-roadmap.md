@@ -153,10 +153,28 @@ As of 2026-05-28:
     schema consumer passed 3 tests, the API integration file passed 3 active
     tests with 13 pre-existing skips, and `npm run check` found 0 TypeScript
     errors.
-26. The next separate cleanup slice is route-layer console migration to Pino.
-    Do not start it together with Phoenix docs, Playwright config, Docker config,
-    LP benchmark behavior changes, service extraction expansion, or unrelated
-    config cleanup.
+26. Slice 22 is closed as route-layer console migration to Pino.
+    `server/routes/**/*.ts` now has 0 `console.*` matches, and
+    `server/lib/route-logger.ts` adapts existing console-style route diagnostics
+    to the shared Pino logger without changing response boundaries. Evidence:
+    route console scan returned no matches, `npm run guard:console:check`
+    passed, focused route tests passed, and `npm run check` found 0 TypeScript
+    errors.
+27. Slice 23 is closed as fund-store consolidation. `useFundStore` is now a
+    compatibility hook over the canonical vanilla `fundStore`, while
+    `client/src/state/useFundStore.ts`, selector wrappers, persisted storage key,
+    and hydration semantics remain compatible. Evidence: focused store,
+    adapter, draft-sync, KPI header tests passed, and `npm run check` found 0
+    TypeScript errors.
+28. Slice 24 is closed as type-guard consolidation. Generic primitives moved to
+    `shared/utils/type-guards.ts`, while `client/src/lib/type-guards.ts` remains
+    a compatibility facade and preserves the `http-response` exports. Evidence:
+    type-guard, shared type-guard, and funds-boundary tests passed, and
+    `npm run check` found 0 TypeScript errors.
+29. The next separate cleanup slice is semantic money utility classification and
+    migration. Do not combine it with Phoenix docs, Playwright config, Docker
+    config, LP benchmark behavior changes, schema directory renames, engine
+    dedupe, or unrelated config cleanup.
 
 Update this section whenever the active next step changes. This is the only
 "what to do right now" pointer in the document.
@@ -235,9 +253,9 @@ Post-0d commands run from current `main` on 2026-05-27:
 | Metric                                   | Verified Value                                                                                         | Regenerate Command                                     |
 | ---------------------------------------- | ------------------------------------------------------------------------------------------------------ | ------------------------------------------------------ |
 | Console ratchet (disallowed prod calls)  | 15 current (`console.log` only) against a 39-call baseline; `console.error`/`console.warn` are allowed | `npm run guard:console:check`                          |
-| Total server console calls (all methods) | 399 across 72 files                                                                                    | `rg -n "console\." server --glob "*.ts"`               |
+| Total server console calls (all methods) | 234 across 45 files after slice 22                                                                     | `rg -n "console\." server --glob "*.ts"`               |
 | Console calls in `server/middleware/`    | 0 across 0 files after 0d; `rg` exits 1 because there are no matches                                   | `rg -n "console\." server/middleware --glob "*.ts"`    |
-| Console calls in `server/routes/`        | 165 across 27 files                                                                                    | `rg -n "console\." server/routes --glob "*.ts"`        |
+| Console calls in `server/routes/`        | 0 across 0 files after slice 22; `rg` exits 1 because there are no matches                             | `rg -n "console\." server/routes --glob "*.ts"`        |
 | Route files (total)                      | 75                                                                                                     | `find server/routes -name '*.ts' \| wc -l`             |
 | Routes importing `db`/`storage` directly | 25 files                                                                                               | grep for `from.*\b(db\|storage)\b` in `server/routes/` |
 | Routes importing services                | 30 files                                                                                               | grep for `from.*service` in `server/routes/`           |
@@ -271,11 +289,11 @@ claims. These corrections are authoritative:
    ratchet (`.baselines/console-prod-baseline.json`) tracks only `console.log`,
    `console.debug`, `console.info`, `console.table`, `console.group`, and
    `console.groupEnd`. The current ratchet reports 15 `console.log` calls
-   against a 39-call baseline. The 399 all-method server matches include
+   against a 39-call baseline. The 234 all-method server matches include
    `console.error` and `console.warn`, which are **allowed** by the ratchet and
    ESLint config. Replacing `console.error`/`console.warn` with Pino is
-   observability work; 0d closed that work for middleware, while route-layer
-   migration remains open.
+   observability work; 0d closed that work for middleware and slice 22 closed
+   that work for routes.
 
 4. **Skipped tests: use quarantine report numbers.** The audit claimed 67+ skips
    across 43 files. The quarantine report shows 36 quarantined files (33
@@ -291,11 +309,9 @@ claims. These corrections are authoritative:
 
 Of 75 route files: 25 import `db` or `storage` directly, 30 import services.
 Some routes use both, meaning business logic and persistence are mixed in the
-route handler. With middleware at 0 `console.*` matches after 0d, routes are the
-primary remaining logging migration surface. Top console-heavy routes (calls per
-file): `portfolio-intelligence.ts` (17), `lp-api.ts` (15),
-`v1/reserve-approvals.ts` (15), `deal-pipeline.ts` (14), `variance.ts` (14),
-`fund-config.ts` (10), `cashflow.ts` (10).
+route handler. With middleware at 0 `console.*` matches after 0d and routes at 0
+`console.*` matches after slice 22, the remaining route/service boundary issue
+is persistence/business-logic mixing rather than logging migration.
 
 ### Large Files (Verified Line Counts)
 
@@ -1990,7 +2006,10 @@ changes and reduce future debt accumulation.
 |    19 | DONE: `refactor(client): split App composition boundaries`                              | 2026-05-28: `App.tsx` remains provider root; route registry/rendering/layout/deferred shell moved under `client/src/app`; app route-governance 4 files / 55 tests |
 |    20 | DONE: `refactor(server): normalize route registration structure`                        | 2026-05-28: `server/routes.ts` default-router imports use sequential mount helpers while preserving URL mounts and special-case explicit mounts; route-mounting 7 files / 42 tests |
 |    21 | DONE: `refactor(routes): start deal-pipeline service extraction`                        | 2026-05-28: deal-pipeline schemas/cursor helpers moved to `server/services/deal-pipeline/`; schema export preserved; contract 13 tests, taxonomy 3 tests, API integration 3 active tests / 13 pre-existing skips |
-|   22+ | Product refactors one area at a time                                                    | per-area gates                                                                                                                      |
+|    22 | DONE: `refactor(routes): migrate route diagnostics to Pino`                            | 2026-05-28: route console scan 0; `guard:console:check`; focused route tests; `check`                                              |
+|    23 | DONE: `refactor(client): consolidate fund store compatibility hook`                     | 2026-05-28: store, adapter, draft-sync, KPI header tests; `check`                                                                  |
+|    24 | DONE: `refactor(shared): consolidate type guard primitives`                            | 2026-05-28: client/shared type-guard tests and funds-boundary guard; `check`                                                       |
+|   25+ | Product refactors one area at a time                                                    | per-area gates                                                                                                                      |
 
 ---
 
@@ -2051,11 +2070,13 @@ baseline in the roadmap.
     `deal-pipeline.ts` first; schemas and cursor helpers now live under
     `server/services/deal-pipeline/`, while `lp-api.ts` and `allocations.ts`
     remain future extraction targets.
-22. NEXT: Migrate route-layer console calls (165 across 27 files) to Pino during or
-    after service extraction.
-23. Consolidate fund stores.
-24. Consolidate type guards.
-25. Classify and migrate money utilities semantically.
+22. DONE: Migrate route-layer console calls to Pino; route console scan now has
+    0 matches.
+23. DONE: Consolidate fund stores behind the canonical `fundStore` while keeping
+    compatibility exports.
+24. DONE: Consolidate shared type guard primitives while keeping the client
+    facade and `http-response` exports.
+25. NEXT: Classify and migrate money utilities semantically.
 26. Rename schema directories via compatibility barrels.
 27. Dedupe engines behind golden tests.
 28. Fix quarantine/helper/test naming issues; triage the 15 generic
@@ -2110,11 +2131,12 @@ The 2026-05-27 audit adds five immediate guardrails/baseline slices
 (route-import guard, quarantine documentation, debug test cleanup, middleware
 logging migration, and this verified baseline) and corrects stale metrics from
 the raw audit. Console debt is 15 current ratcheted calls against a 39-call
-baseline, not the all-method server total; middleware is now 0 matches after 0d,
-while route-layer console debt remains 165 calls across 27 files. Client test
-files number ~91, not 2, and route tests exist but are incomplete. The corrected
-numbers in Section 1b are authoritative; regenerate them with the listed
-commands before starting any remediation PR.
+baseline, not the all-method server total; middleware is 0 matches after 0d, and
+route-layer console debt is 0 matches after slice 22. Remaining all-method server
+console is 234 matches across 45 files outside the completed route and
+middleware migrations. Client test files number ~91, not 2, and route tests exist
+but are incomplete. The corrected numbers in Section 1b are authoritative;
+regenerate them with the listed commands before starting any remediation PR.
 
 The highest ROI is not naming consistency. It is reducing the number of scripts,
 configs, stale directories, duplicate utilities, and hidden semantic forks the

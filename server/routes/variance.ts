@@ -32,6 +32,9 @@ import {
   toDashboardRecentReport,
   toVarianceReportClientResponse,
 } from './variance/response-adapters';
+import { createRouteLogger } from '../lib/route-logger.js';
+
+const routeLog = createRouteLogger('variance');
 
 function toIsoTimestamp(value: Date | string | null | undefined): string | null {
   if (!value) {
@@ -134,7 +137,7 @@ router['post']('/api/funds/:id/baselines', idempotency, async (req: Request, res
       message: 'Baseline created successfully',
     });
   } catch (error) {
-    console.error('Baseline creation error:', error);
+    routeLog.error('Baseline creation error:', error);
     const apiError: ApiError = {
       error: 'Failed to create baseline',
       message: getRouteErrorMessage(error),
@@ -192,7 +195,7 @@ router['get']('/api/funds/:id/baselines', async (req: Request, res: Response) =>
       count: baselines.length,
     });
   } catch (error) {
-    console.error('Baselines fetch error:', error);
+    routeLog.error('Baselines fetch error:', error);
     const apiError: ApiError = {
       error: 'Failed to fetch baselines',
       message: getRouteErrorMessage(error),
@@ -244,7 +247,7 @@ router['post'](
         },
       });
     } catch (error) {
-      console.error('Set default baseline error:', error);
+      routeLog.error('Set default baseline error:', error);
       const message = getRouteErrorMessage(error);
       const statusCode =
         message === 'Baseline not found for fund'
@@ -283,7 +286,7 @@ router['delete']('/api/funds/:id/baselines/:baselineId', async (req: Request, re
       message: 'Baseline deactivated successfully',
     });
   } catch (error) {
-    console.error('Baseline deactivation error:', error);
+    routeLog.error('Baseline deactivation error:', error);
     const apiError: ApiError = {
       error: 'Failed to deactivate baseline',
       message: getRouteErrorMessage(error),
@@ -379,7 +382,7 @@ router['post'](
         message: 'Variance report generated successfully',
       });
     } catch (error) {
-      console.error('Variance report generation error:', error);
+      routeLog.error('Variance report generation error:', error);
       const apiError: ApiError = {
         error: 'Failed to generate variance report',
         message: getRouteErrorMessage(error),
@@ -417,7 +420,7 @@ router['get']('/api/funds/:id/variance-reports', async (req: Request, res: Respo
       count: reports.length,
     });
   } catch (error) {
-    console.error('Variance reports fetch error:', error);
+    routeLog.error('Variance reports fetch error:', error);
     const apiError: ApiError = {
       error: 'Failed to fetch variance reports',
       message: getRouteErrorMessage(error),
@@ -468,7 +471,7 @@ router['get']('/api/funds/:id/variance-reports/:reportId', async (req: Request, 
       data: toVarianceReportClientResponse(report),
     });
   } catch (error) {
-    console.error('Variance report fetch error:', error);
+    routeLog.error('Variance report fetch error:', error);
     const apiError: ApiError = {
       error: 'Failed to fetch variance report',
       message: getRouteErrorMessage(error),
@@ -542,7 +545,7 @@ router['post']('/api/funds/:id/alert-rules', async (req: Request, res: Response)
       message: 'Alert rule created successfully',
     });
   } catch (error) {
-    console.error('Alert rule creation error:', error);
+    routeLog.error('Alert rule creation error:', error);
     const apiError: ApiError = {
       error: 'Failed to create alert rule',
       message: getRouteErrorMessage(error),
@@ -601,7 +604,7 @@ router['get']('/api/funds/:id/alerts', async (req: Request, res: Response) => {
       count: clientAlerts.length,
     });
   } catch (error) {
-    console.error('Alerts fetch error:', error);
+    routeLog.error('Alerts fetch error:', error);
     const apiError: ApiError = {
       error: 'Failed to fetch alerts',
       message: getRouteErrorMessage(error),
@@ -651,7 +654,7 @@ router['post']('/api/alerts/:alertId/acknowledge', async (req: Request, res: Res
       message: 'Alert acknowledged successfully',
     });
   } catch (error) {
-    console.error('Alert acknowledgment error:', error);
+    routeLog.error('Alert acknowledgment error:', error);
     const apiError: ApiError = {
       error: 'Failed to acknowledge alert',
       message: getRouteErrorMessage(error),
@@ -701,7 +704,7 @@ router['post']('/api/alerts/:alertId/resolve', async (req: Request, res: Respons
       message: 'Alert resolved successfully',
     });
   } catch (error) {
-    console.error('Alert resolution error:', error);
+    routeLog.error('Alert resolution error:', error);
     const apiError: ApiError = {
       error: 'Failed to resolve alert',
       message: getRouteErrorMessage(error),
@@ -749,7 +752,7 @@ router['post']('/api/funds/:id/alerts/cleanup-superseded', async (req: Request, 
       message: 'Superseded alerts cleaned up successfully',
     });
   } catch (error) {
-    console.error('Superseded alert cleanup error:', error);
+    routeLog.error('Superseded alert cleanup error:', error);
     const message = getRouteErrorMessage(error);
     const statusCode = message === 'No default baseline found for fund' ? 404 : 500;
     const apiError: ApiError = {
@@ -835,7 +838,7 @@ router['post'](
         message: 'Variance analysis completed successfully',
       });
     } catch (error) {
-      console.error('Variance analysis error:', error);
+      routeLog.error('Variance analysis error:', error);
       const apiError: ApiError = {
         error: 'Failed to perform variance analysis',
         message: getRouteErrorMessage(error),
@@ -902,7 +905,7 @@ router['get']('/api/funds/:id/variance-dashboard', async (req: Request, res: Res
       },
     });
   } catch (error) {
-    console.error('Variance dashboard error:', error);
+    routeLog.error('Variance dashboard error:', error);
     const apiError: ApiError = {
       error: 'Failed to fetch variance dashboard data',
       message: getRouteErrorMessage(error),

@@ -7,6 +7,9 @@ import { Queue } from 'bullmq';
 import { toNumber } from '@shared/number';
 import { getQueueConnectionOptions, getQueueConfig } from '../config/features';
 import { registerQueueRuntime } from '../queues/registry';
+import { createRouteLogger } from '../lib/route-logger.js';
+
+const routeLog = createRouteLogger('fund-config');
 
 const queueConfig = getQueueConfig();
 const connection = (() => {
@@ -129,7 +132,7 @@ export function registerFundConfigRoutes(app: Express) {
         });
       }
 
-      console.error('Finalize error:', error);
+      routeLog.error('Finalize error:', error);
       const apiError: ApiError = {
         error: 'Failed to finalize fund',
         message: error instanceof Error ? error.message : 'Unknown error',
@@ -183,7 +186,7 @@ export function registerFundConfigRoutes(app: Express) {
         const priorFieldCount = existingDraft.config
           ? Object.keys(existingDraft.config as Record<string, unknown>).length
           : 0;
-        console.warn('draft-save', { fundId, fieldCount, priorFieldCount });
+        routeLog.warn('draft-save', { fundId, fieldCount, priorFieldCount });
 
         const updateValues: Partial<typeof fundConfigs.$inferInsert> = {
           config: gatedConfig,
@@ -203,7 +206,7 @@ export function registerFundConfigRoutes(app: Express) {
           .where(eq(fundConfigs.fundId, fundId));
         const nextVersion = (versionResult?.maxVersion ?? 0) + 1;
 
-        console.warn('draft-save', { fundId, fieldCount, nextVersion });
+        routeLog.warn('draft-save', { fundId, fieldCount, nextVersion });
 
         try {
           const [inserted] = await db
@@ -252,7 +255,7 @@ export function registerFundConfigRoutes(app: Express) {
         message: 'Draft saved successfully',
       });
     } catch (error) {
-      console.error('Draft save error:', error);
+      routeLog.error('Draft save error:', error);
       const apiError: ApiError = {
         error: 'Failed to save draft',
         message: error instanceof Error ? error.message : 'Unknown error',
@@ -327,7 +330,7 @@ export function registerFundConfigRoutes(app: Express) {
         };
         return res.status(400).json(apiError);
       }
-      console.error('Publish error:', error);
+      routeLog.error('Publish error:', error);
       const apiError: ApiError = {
         error: 'Failed to publish configuration',
         message: error instanceof Error ? error.message : 'Unknown error',
@@ -375,7 +378,7 @@ export function registerFundConfigRoutes(app: Express) {
         };
         return res.status(409).json(apiError);
       }
-      console.error('Recalculate error:', error);
+      routeLog.error('Recalculate error:', error);
       const apiError: ApiError = {
         error: 'Failed to recalculate',
         message: error instanceof Error ? error.message : 'Unknown error',
@@ -455,7 +458,7 @@ export function registerFundConfigRoutes(app: Express) {
 
       res.json(state);
     } catch (error) {
-      console.error('Fund state read error:', error);
+      routeLog.error('Fund state read error:', error);
       const apiError: ApiError = {
         error: 'Failed to read fund state',
         message: error instanceof Error ? error.message : 'Unknown error',
@@ -479,7 +482,7 @@ export function registerFundConfigRoutes(app: Express) {
       }
       return res.json(results);
     } catch (err) {
-      console.error('[fund-results] Error:', err);
+      routeLog.error('[fund-results] Error:', err);
       return res.status(500).json({ error: 'Failed to read fund results' });
     }
   });
@@ -506,7 +509,7 @@ export function registerFundConfigRoutes(app: Express) {
 
       res.json(history);
     } catch (error) {
-      console.error('[lifecycle-history] Error:', error);
+      routeLog.error('[lifecycle-history] Error:', error);
       const apiError: ApiError = {
         error: 'Failed to read lifecycle history',
         message: error instanceof Error ? error.message : 'Unknown error',
@@ -540,7 +543,7 @@ export function registerFundConfigRoutes(app: Express) {
 
       res.json(comparison);
     } catch (error) {
-      console.error('[results-comparison] Error:', error);
+      routeLog.error('[results-comparison] Error:', error);
       const apiError: ApiError = {
         error: 'Failed to read results comparison',
         message: error instanceof Error ? error.message : 'Unknown error',

@@ -6,6 +6,9 @@
 
 import type { Request, Response } from 'express';
 import { assertFiniteDeep } from '../middleware/engine-guards';
+import { createRouteLogger } from '../lib/route-logger.js';
+
+const routeLog = createRouteLogger('simulations-guarded.example');
 // TODO: Import your actual engine/simulation functions
 // import { runMonteCarlo, runSimulation } from '../engine/simulations';
 
@@ -22,7 +25,7 @@ export async function simulationHandler(req: Request, res: Response) {
       // Log for debugging (include correlation ID if available)
       const correlationId = req.headers['x-correlation-id'] || 'unknown';
       const failure = guard as { ok: false; path: string; value: unknown; reason: string };
-      console.error(
+      routeLog.error(
         `[ENGINE_NONFINITE] Correlation: ${correlationId}, Path: ${failure.path}, Reason: ${failure.reason}`
       );
 
@@ -39,7 +42,7 @@ export async function simulationHandler(req: Request, res: Response) {
     // Safe to return - no NaN/Infinity will leak
     res.json(result);
   } catch (error) {
-    console.error('Simulation error:', error);
+    routeLog.error('Simulation error:', error);
     res.status(500).json({ error: 'SIMULATION_FAILED' });
   }
 }
@@ -83,7 +86,7 @@ export function registerGuardedRoutes(app: any) {
       const guard = assertFiniteDeep(data);
       if (!guard.ok) {
         const failure = guard as { ok: false; path: string; value: unknown; reason: string };
-        console.error(`[ENGINE_NONFINITE] Response guard triggered at ${failure.path}`);
+        routeLog.error(`[ENGINE_NONFINITE] Response guard triggered at ${failure.path}`);
         return res.status(422).json({
           error: 'ENGINE_NONFINITE',
           path: failure.path,

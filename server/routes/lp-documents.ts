@@ -33,6 +33,9 @@ import {
   createLPApiErrorResponse as createErrorResponse,
   respondInvalidCursor,
 } from '../lib/lp-api-helpers';
+import { createRouteLogger } from '../lib/route-logger.js';
+
+const routeLog = createRouteLogger('lp-documents');
 
 const router = Router();
 
@@ -232,7 +235,7 @@ router.get('/documents', documentsLimiter, requireLPAccess, async (req: Request,
     recordLPRequest(endpoint, 'GET', 500, duration);
     recordError(endpoint, 'INTERNAL_ERROR', 500);
 
-    console.error('[LP Documents API] Error:', error);
+    routeLog.error('[LP Documents API] Error:', error);
     return res
       .status(500)
       .json(createErrorResponse('INTERNAL_ERROR', 'An unexpected error occurred'));
@@ -344,7 +347,7 @@ router.get(
       recordLPRequest(endpoint, 'GET', 500, duration);
       recordError(endpoint, 'INTERNAL_ERROR', 500);
 
-      console.error('[LP Documents Search API] Error:', error);
+      routeLog.error('[LP Documents Search API] Error:', error);
       return res
         .status(500)
         .json(createErrorResponse('INTERNAL_ERROR', 'An unexpected error occurred'));
@@ -456,7 +459,7 @@ router.get(
       recordLPRequest(endpoint, 'GET', 500, duration);
       recordError(endpoint, 'INTERNAL_ERROR', 500);
 
-      console.error('[LP Documents API] Error:', error);
+      routeLog.error('[LP Documents API] Error:', error);
       return res
         .status(500)
         .json(createErrorResponse('INTERNAL_ERROR', 'An unexpected error occurred'));
@@ -594,7 +597,7 @@ router.get(
       recordLPRequest(endpoint, 'GET', 500, duration);
       recordError(endpoint, 'INTERNAL_ERROR', 500);
 
-      console.error('[LP Documents Download API] Error:', error);
+      routeLog.error('[LP Documents Download API] Error:', error);
       return res
         .status(500)
         .json(createErrorResponse('INTERNAL_ERROR', 'An unexpected error occurred'));
