@@ -131,6 +131,45 @@ next CI cleanup step is a separate consolidation decision pass using this
 classification map, with branch-protection/status-consumer policy resolved
 before any YAML deletion or required-check migration.
 
+## Post-Batch 11 Candidate Pass: `code-quality.yml`
+
+The first deletion-candidate pass after Batch 11 evaluated `code-quality.yml`
+from clean `main` at `e7699495105e7c257887bbeb0ee24374f02413e3`.
+
+Fresh evidence from 2026-05-28:
+
+- `git status --short --branch` returned `## main...origin/main`.
+- `git ls-files .github/workflows` still returned the same 19 tracked workflow
+  files.
+- GitHub branch protection for `main` still returned
+  `required_status_checks: null`; repository rulesets still returned `[]`.
+- The GitHub Actions registry still lists `Code Quality Metrics` at
+  `.github/workflows/code-quality.yml` with state `active`.
+- The latest registry run sample for `code-quality.yml` was successful but
+  historical: the newest listed run was created on `2026-05-21T11:24:54Z`, and
+  the sample includes earlier `push` / `pull_request` events from before the
+  current manual-only workflow shape.
+- `ci-unified.yml` has an overlapping `quality-summary` job named
+  `Code Quality Metrics`, but it is PR-only and runs only for heavy CI-relevant
+  PRs. It comments on PRs; it does not replace the manual Actions UI summary
+  entry owned by `code-quality.yml`.
+
+Decision: do not delete `code-quality.yml` in this slice. The workflow remains
+`Delete candidate, blocked` until a maintainer confirms the manual Actions entry
+is no longer needed, or an equivalent manual command/reporting path is
+documented and external status-consumer risk is resolved.
+
+Next evidence needed before deletion:
+
+1. Owner policy for retiring or keeping the manual `Code Quality Metrics`
+   Actions entry.
+2. Replacement behavior for manual metric reporting, if the manual entry is
+   still useful.
+3. A status-consumer check for dashboards, scripts, badges, or automations that
+   may refer to `Code Quality Metrics` or `.github/workflows/code-quality.yml`.
+4. A fresh branch-protection, ruleset, tracked-workflow, and Actions-registry
+   check on the deletion branch.
+
 ## Inventory Format
 
 When a workflow inventory is regenerated, it should follow a shape like this:
