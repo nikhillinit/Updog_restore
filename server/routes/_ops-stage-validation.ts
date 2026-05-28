@@ -2,6 +2,9 @@
 import crypto from 'crypto';
 import express from 'express';
 import { setStageValidationMode } from '../lib/stage-validation-mode';
+import { createRouteLogger } from '../lib/route-logger.js';
+
+const routeLog = createRouteLogger('_ops-stage-validation');
 
 const router = express.Router();
 const SECRET = process.env['ALERTMANAGER_WEBHOOK_SECRET'];
@@ -50,11 +53,11 @@ router.post('/_ops/stage-validation/auto-downgrade', express.json(), async (req,
       reason: `auto-downgrade triggered by alert: ${alertName}`,
     });
   } catch (err) {
-    console.error('[ops-webhook] Mode store error:', err);
+    routeLog.error('[ops-webhook] Mode store error:', err);
     return res.status(500).json({ error: 'mode-store-failed' });
   }
 
-  console.warn(
+  routeLog.warn(
     JSON.stringify({
       event: 'stage_validation_auto_downgrade',
       trigger: 'alertmanager_webhook',

@@ -16,6 +16,9 @@ import { z } from 'zod';
 import { query, transaction, type PoolClient } from '../db/index';
 import { dollarsToCents, centsToDollars } from '@shared/units';
 import { firstString } from '../lib/request-values';
+import { createRouteLogger } from '../lib/route-logger.js';
+
+const routeLog = createRouteLogger('reallocation');
 
 const router = Router();
 
@@ -377,7 +380,7 @@ router['post']('/api/funds/:fundId/reallocation/preview', async (req: Request, r
 
     return res.status(200).json(response);
   } catch (error) {
-    console.error('[Reallocation Preview] Error:', error);
+    routeLog.error('[Reallocation Preview] Error:', error);
     return res.status(500).json({
       error: 'Internal server error',
       message: error instanceof Error ? error.message : 'Unknown error',
@@ -585,7 +588,7 @@ router['post']('/api/funds/:fundId/reallocation/commit', async (req: Request, re
 
     return res.status(200).json(response);
   } catch (error) {
-    console.error('[Reallocation Commit] Error:', error);
+    routeLog.error('[Reallocation Commit] Error:', error);
 
     // Check for version conflict
     if (error instanceof Error && error.message.includes('Version conflict')) {

@@ -3,7 +3,7 @@
  *
  * This file documents the security fixes applied to lp-api.ts:
  * 1. Import cursor signing and PII sanitization utilities
- * 2. Replace all console.error() calls with sanitized logging
+ * 2. Replace all routeLog.error() calls with sanitized logging
  * 3. Implement signed cursors in capital-account endpoint
  *
  * Apply manually to lp-api.ts
@@ -16,11 +16,11 @@ import { createCursor, verifyCursor } from '../lib/crypto/cursor-signing';
 import { sanitizeForLogging } from '../lib/crypto/pii-sanitizer';
 */
 
-// STEP 2: Replace all console.error calls
+// STEP 2: Replace all routeLog.error calls
 // Find and replace pattern:
-//   console.error('XXX API error:', error);
+//   routeLog.error('XXX API error:', error);
 // Replace with:
-//   console.error('XXX API error:', sanitizeForLogging(error));
+//   routeLog.error('XXX API error:', sanitizeForLogging(error));
 
 // Lines to update: 150, 215, 351, 466, 524, 645, 690, 783, 841, 892, 962
 

@@ -28,6 +28,9 @@ import { CohortAnalyzeRequestSchema, CohortAnalyzeResponseSchema } from '@shared
 import { analyzeCohorts } from '@shared/core/cohorts/analysis/advanced-engine';
 import { normalizeSector, slugifySector } from '@shared/utils/sector-normalization';
 import { requireAuth, requireFundAccess } from '../lib/auth/jwt';
+import { createRouteLogger } from '../lib/route-logger.js';
+
+const routeLog = createRouteLogger('cohort-analysis');
 
 const router = express.Router();
 
@@ -269,7 +272,7 @@ router['post'](
         });
       }
 
-      console.error('Cohort analysis error:', error);
+      routeLog.error('Cohort analysis error:', error);
       res.status(500).json({
         error: 'internal_error',
         message: hasMessage(error) ? error.message : 'Failed to run cohort analysis',
@@ -368,7 +371,7 @@ router['get'](
         });
       }
 
-      console.error('Unmapped sectors error:', error);
+      routeLog.error('Unmapped sectors error:', error);
       res.status(500).json({
         error: 'internal_error',
         message: 'Failed to get unmapped sectors',
@@ -472,7 +475,7 @@ router['post'](
         });
       }
 
-      console.error('Sector mappings error:', error);
+      routeLog.error('Sector mappings error:', error);
       res.status(500).json({
         error: 'internal_error',
         message: 'Failed to update sector mappings',
@@ -540,7 +543,7 @@ router['get'](
         });
       }
 
-      console.error('List definitions error:', error);
+      routeLog.error('List definitions error:', error);
       res.status(500).json({
         error: 'internal_error',
         message: 'Failed to list cohort definitions',
@@ -611,7 +614,7 @@ router['post'](
         });
       }
 
-      console.error('Create definition error:', error);
+      routeLog.error('Create definition error:', error);
       res.status(500).json({
         error: 'internal_error',
         message: 'Failed to create cohort definition',
@@ -759,7 +762,7 @@ router['post'](
         definitionsCreated: 2,
       });
     } catch (error: unknown) {
-      console.error('Seed error:', error);
+      routeLog.error('Seed error:', error);
       res.status(500).json({
         error: 'internal_error',
         message: hasMessage(error) ? error.message : 'Failed to seed cohort data',

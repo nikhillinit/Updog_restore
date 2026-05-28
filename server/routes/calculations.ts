@@ -4,6 +4,9 @@ import { FundModelInputsSchema } from '@shared/schemas/fund-model';
 import type { FundModelInputs, PeriodResult } from '@shared/schemas/fund-model';
 import { formatForCSV } from '@shared/lib/decimal-utils';
 import { runFundModel } from '@shared/lib/fund-calc';
+import { createRouteLogger } from '../lib/route-logger.js';
+
+const routeLog = createRouteLogger('calculations');
 
 const router = express.Router();
 
@@ -97,7 +100,7 @@ router['post']('/export-csv', async (req: Request, res: Response) => {
       });
     }
 
-    console.error('CSV export error:', error);
+    routeLog.error('CSV export error:', error);
     res.status(500).json({
       error: 'internal_error',
       message: 'Failed to generate CSV export',
@@ -129,7 +132,7 @@ router['post']('/run', async (req: Request, res: Response) => {
       });
     }
 
-    console.error('Fund calculation error:', error);
+    routeLog.error('Fund calculation error:', error);
     res.status(500).json({
       error: 'internal_error',
       message: 'Failed to run fund model',

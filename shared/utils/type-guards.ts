@@ -16,6 +16,14 @@ export function isNotUndefined<T>(value: T | undefined): value is T {
   return value !== undefined;
 }
 
+export function isNonEmptyString(value: unknown): value is string {
+  return typeof value === 'string' && value.trim().length > 0;
+}
+
+export function isValidNumber(value: unknown): value is number {
+  return typeof value === 'number' && Number.isFinite(value);
+}
+
 export function isString(value: unknown): value is string {
   return typeof value === 'string';
 }
@@ -40,6 +48,10 @@ export function isArray<T>(value: unknown): value is T[] {
   return Array.isArray(value);
 }
 
+export function hasElements<T>(value: T[] | null | undefined): value is T[] {
+  return Array.isArray(value) && value.length > 0;
+}
+
 // Array element access guards
 export function getArrayElement<T>(array: T[], index: number): T | undefined {
   return index >= 0 && index < array.length ? array[index] : undefined;
@@ -55,10 +67,10 @@ export function getLastElement<T>(array: T[]): T | undefined {
 
 // Object property access guards
 export function hasProperty<T extends object, K extends PropertyKey>(
-  obj: T,
+  obj: T | null | undefined,
   key: K
 ): obj is T & Record<K, unknown> {
-  return key in obj;
+  return obj != null && key in obj;
 }
 
 export function getProperty<T extends object, K extends keyof T>(obj: T, key: K): T[K] | undefined {
@@ -97,8 +109,46 @@ export function ensureString(value: string | undefined, defaultValue: string): s
   return isDefined(value) && isString(value) ? value : defaultValue;
 }
 
+export function safeGet<T>(value: T | null | undefined, fallback: T): T {
+  return isDefined(value) ? value : fallback;
+}
+
+export function safeString(value: string | null | undefined, fallback: string = ''): string {
+  return isNonEmptyString(value) ? value : fallback;
+}
+
+export function safeNumber(value: number | null | undefined, fallback: number = 0): number {
+  return isValidNumber(value) ? value : fallback;
+}
+
 export function safeStringTrim(value: string | undefined): string | undefined {
   return isDefined(value) && isString(value) ? value.trim() : undefined;
+}
+
+export function safeArray<T>(value: T[] | null | undefined, fallback: T[] = []): T[] {
+  return Array.isArray(value) ? value : fallback;
+}
+
+export function safeAccess<T, R>(
+  obj: T | null | undefined,
+  accessor: (obj: T) => R
+): R | undefined {
+  try {
+    return isDefined(obj) ? accessor(obj) : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+export function filterDefined<T>(array: (T | null | undefined)[]): T[] {
+  return array.filter(isDefined);
+}
+
+export function mapDefined<T, U>(
+  array: T[],
+  mapper: (item: T) => U | null | undefined
+): U[] {
+  return filterDefined(array.map(mapper));
 }
 
 // Date utilities with type safety
@@ -137,6 +187,22 @@ export function safeIndexAccess<T>(
 ): T | undefined {
   if (!isDefined(obj) || !isObject(obj)) return undefined;
   return obj[key];
+}
+
+export function safeObjectAccess<T extends object, K extends keyof T>(
+  obj: T | null | undefined,
+  key: K
+): T[K] | undefined {
+  return isDefined(obj) && hasProperty(obj, key) ? obj[key] : undefined;
+}
+
+export function getValidProperty<T extends object, K extends keyof T, V>(
+  obj: T | null | undefined,
+  key: K,
+  validator: (value: unknown) => value is V
+): V | undefined {
+  const value = safeObjectAccess(obj, key);
+  return validator(value) ? value : undefined;
 }
 
 type MethodKey<T extends object> = {
@@ -195,13 +261,11 @@ export function safeAwait<T>(
 }
 
 // Assertion utilities for type narrowing
-export function assertDefined<T>(
-  value: T | undefined | null,
-  message?: string
-): asserts value is T {
+export function assertDefined<T>(value: T | undefined | null, message?: string): T {
   if (!isDefined(value)) {
-    throw new Error(message || 'Value is undefined or null');
+    throw new Error(message || 'Expected value to be defined');
   }
+  return value;
 }
 
 export function assertArray<T>(value: unknown, message?: string): asserts value is T[] {

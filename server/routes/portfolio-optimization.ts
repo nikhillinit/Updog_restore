@@ -26,6 +26,9 @@ import {
   type CreateOptimizationJobRequest,
   type OptimizationConstraints,
 } from '../services/portfolio-optimization-service';
+import { createRouteLogger } from '../lib/route-logger.js';
+
+const routeLog = createRouteLogger('portfolio-optimization');
 
 const router = express.Router();
 
@@ -187,7 +190,7 @@ function handleServiceError(error: unknown, res: Response): void {
   }
 
   // Log unexpected errors
-  console.error('Unexpected error in portfolio optimization:', error);
+  routeLog.error('Unexpected error in portfolio optimization:', error);
 
   res.status(500).json({
     error: 'internal_error',

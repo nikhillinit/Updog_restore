@@ -19,6 +19,9 @@ import { requireAuth, requireFundAccess } from '../lib/auth/jwt';
 import { handleNumberParseError } from '../lib/number-parse-error';
 import { logger } from '../lib/logger.js';
 import rateLimit from 'express-rate-limit';
+import { createRouteLogger } from '../lib/route-logger.js';
+
+const routeLog = createRouteLogger('fund-metrics');
 
 const router = Router();
 
@@ -113,7 +116,7 @@ router['get'](
       // Return metrics
       return res.json(metrics);
     } catch (error) {
-      console.error('Metrics API error:', error);
+      routeLog.error('Metrics API error:', error);
 
       // Handle parameter validation errors
       if (handleNumberParseError(error, res, 'Invalid parameter')) {
@@ -175,7 +178,7 @@ router['post'](
       // 204 No Content - successful invalidation, no body needed
       return res.status(204).end();
     } catch (error) {
-      console.error('Cache invalidation error:', error);
+      routeLog.error('Cache invalidation error:', error);
 
       if (handleNumberParseError(error, res, 'Invalid parameter')) {
         return;

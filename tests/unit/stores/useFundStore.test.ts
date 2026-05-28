@@ -1,4 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest';
+import { fundStore } from '@/stores/fundStore';
 import { useFundStore } from '@/stores/useFundStore';
 
 const reset = () => {
@@ -17,6 +18,15 @@ const reset = () => {
 
 describe('useFundStore.fromInvestmentStrategy', () => {
   beforeEach(reset);
+
+  it('uses the canonical fundStore instance for compatibility exports', () => {
+    expect(useFundStore.getState()).toBe(fundStore.getState());
+
+    useFundStore.getState().setDraftFundId(42);
+
+    expect(fundStore.getState().draftFundId).toBe(42);
+    expect(useFundStore.getState()).toBe(fundStore.getState());
+  });
 
   it('does NOT publish when payload equals current state (true no-op)', () => {
     let publishes = 0;

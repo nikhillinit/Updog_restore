@@ -5,6 +5,9 @@ import type { MetricsCalculationError } from '@shared/types/metrics';
 import { toNumber } from '@shared/number';
 import { requireAuth, requireFundAccess } from '../lib/auth/jwt';
 import { handleNumberParseError } from '../lib/number-parse-error';
+import { createRouteLogger } from '../lib/route-logger.js';
+
+const routeLog = createRouteLogger('dual-forecast');
 
 const router = Router();
 
@@ -37,7 +40,7 @@ router['get'](
       res.setHeader('Cache-Control', 'private, max-age=60');
       return res.json(dualForecast);
     } catch (error) {
-      console.error('Dual forecast API error:', error);
+      routeLog.error('Dual forecast API error:', error);
 
       if (handleNumberParseError(error, res, 'Invalid parameter')) {
         return;

@@ -1,5 +1,8 @@
 import type { Request, Response, NextFunction } from 'express';
 import rateLimit from 'express-rate-limit';
+import { createRouteLogger } from '../lib/route-logger.js';
+
+const routeLog = createRouteLogger('metrics-rum.guard');
 
 // Parse allowed origins from environment
 const ORIGINS = (process.env['RUM_ORIGIN_ALLOWLIST'] || '')
@@ -54,7 +57,7 @@ export function rumOriginGuard(req: Request, res: Response, next: NextFunction) 
 
   // Allow if no allowlist configured (opt-in security)
   if (ORIGINS.length === 0) {
-    console.warn('RUM_ORIGIN_ALLOWLIST not configured - accepting all origins');
+    routeLog.warn('RUM_ORIGIN_ALLOWLIST not configured - accepting all origins');
     return next();
   }
 
@@ -62,7 +65,7 @@ export function rumOriginGuard(req: Request, res: Response, next: NextFunction) 
   const ok = ORIGINS.some((o) => origin.startsWith(o) || referer.startsWith(o));
 
   if (!ok) {
-    console.warn(`RUM origin blocked: ${origin || referer}`);
+    routeLog.warn(`RUM origin blocked: ${origin || referer}`);
     return res.status(403).json({ error: 'forbidden_origin' });
   }
 

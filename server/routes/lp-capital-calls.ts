@@ -30,6 +30,9 @@ import {
   createLPApiErrorResponse as createErrorResponse,
   respondInvalidCursor,
 } from '../lib/lp-api-helpers';
+import { createRouteLogger } from '../lib/route-logger.js';
+
+const routeLog = createRouteLogger('lp-capital-calls');
 
 const router = Router();
 
@@ -221,7 +224,7 @@ router.get(
           );
       }
 
-      console.error('Capital calls list API error:', sanitizeForLogging(error));
+      routeLog.error('Capital calls list API error:', sanitizeForLogging(error));
       const duration = endTimer();
       recordLPRequest(endpoint, 'GET', 500, duration);
       recordError(endpoint, 'INTERNAL_ERROR', 500);
@@ -365,7 +368,7 @@ router.get(
 
       return res.json(response);
     } catch (error) {
-      console.error('Capital call detail API error:', sanitizeForLogging(error));
+      routeLog.error('Capital call detail API error:', sanitizeForLogging(error));
       const duration = endTimer();
       recordLPRequest(endpoint, 'GET', 500, duration);
       recordError(endpoint, 'INTERNAL_ERROR', 500);
@@ -469,7 +472,7 @@ router.get(
 
       return res.json(response);
     } catch (error) {
-      console.error('Wire instructions API error:', sanitizeForLogging(error));
+      routeLog.error('Wire instructions API error:', sanitizeForLogging(error));
       const duration = endTimer();
       recordLPRequest(endpoint, 'GET', 500, duration);
       recordError(endpoint, 'INTERNAL_ERROR', 500);
@@ -665,7 +668,7 @@ router.post(
           );
       }
 
-      console.error('Payment submission API error:', sanitizeForLogging(error));
+      routeLog.error('Payment submission API error:', sanitizeForLogging(error));
       const duration = endTimer();
       recordLPRequest(endpoint, 'POST', 500, duration);
       recordError(endpoint, 'INTERNAL_ERROR', 500);

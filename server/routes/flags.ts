@@ -20,6 +20,9 @@ import {
 import { requireAuth, requireRole } from '../lib/auth/jwt.js';
 import { z } from 'zod';
 import { firstString } from '../lib/request-values';
+import { createRouteLogger } from '../lib/route-logger.js';
+
+const routeLog = createRouteLogger('flags');
 
 export const flagsRouter = Router();
 
@@ -89,7 +92,7 @@ flagsRouter['get']('/', async (req: Request, res: Response) => {
 
     res.json(response);
   } catch (error) {
-    console.error('Error fetching client flags:', error);
+    routeLog.error('Error fetching client flags:', error);
     res.status(500).json({
       error: 'Failed to fetch flags',
       flags: {}, // Safe fallback
@@ -113,7 +116,7 @@ flagsRouter['get']('/status', async (req: Request, res: Response) => {
       timestamp: new Date().toISOString(),
     });
   } catch (error) {
-    console.error('Error fetching flag status:', error);
+    routeLog.error('Error fetching flag status:', error);
     res.status(500).json({ error: 'Failed to fetch status' });
   }
 });
@@ -167,7 +170,7 @@ adminRouter['get']('/', requireRole('flag_read'), async (req: Request, res: Resp
       },
     });
   } catch (error) {
-    console.error('Error fetching admin flags:', error);
+    routeLog.error('Error fetching admin flags:', error);
     res.status(500).json({ error: 'Failed to fetch admin flags' });
   }
 });
@@ -279,7 +282,7 @@ adminRouter.patch('/:key', requireRole('flag_admin'), async (req: Request, res: 
       timestamp: new Date().toISOString(),
     });
   } catch (error) {
-    console.error('Error updating flag:', error);
+    routeLog.error('Error updating flag:', error);
     const errorMessage = error instanceof Error ? error.message : 'Failed to update flag';
     res.status(500).json({
       error: 'update_failed',
@@ -305,7 +308,7 @@ adminRouter['get']('/:key/history', async (req: Request, res: Response) => {
       count: history.length,
     });
   } catch (error) {
-    console.error('Error fetching flag history:', error);
+    routeLog.error('Error fetching flag history:', error);
     res.status(500).json({ error: 'Failed to fetch flag history' });
   }
 });
@@ -324,7 +327,7 @@ adminRouter.post('/kill-switch', (req: Request, res: Response) => {
       warning: 'This action disables ALL feature flags immediately',
     });
   } catch (error) {
-    console.error('Error activating kill switch:', error);
+    routeLog.error('Error activating kill switch:', error);
     res.status(500).json({ error: 'Failed to activate kill switch' });
   }
 });
@@ -342,7 +345,7 @@ adminRouter.delete('/kill-switch', (req: Request, res: Response) => {
       timestamp: new Date().toISOString(),
     });
   } catch (error) {
-    console.error('Error deactivating kill switch:', error);
+    routeLog.error('Error deactivating kill switch:', error);
     res.status(500).json({ error: 'Failed to deactivate kill switch' });
   }
 });

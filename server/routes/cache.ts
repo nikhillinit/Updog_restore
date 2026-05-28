@@ -15,6 +15,9 @@ import {
   type InvalidationParams,
 } from '../services/CacheInvalidationService';
 import { CacheWarmingService, type WarmingParams } from '../services/CacheWarmingService';
+import { createRouteLogger } from '../lib/route-logger.js';
+
+const routeLog = createRouteLogger('cache');
 
 const router = express.Router();
 
@@ -124,7 +127,7 @@ router.get('/stats', async (_req: Request, res: Response) => {
     const stats = await CacheStatsService.getStatistics(undefined);
     res.json(stats);
   } catch (error) {
-    console.error('[CacheAPI] Stats error:', error);
+    routeLog.error('[CacheAPI] Stats error:', error);
     res.status(500).json({
       error: 'INTERNAL_ERROR',
       message: 'Failed to retrieve cache statistics',
@@ -159,7 +162,7 @@ router.post('/invalidate', requireHealthKey, async (req: Request, res: Response)
     const result = await CacheInvalidationService.invalidate(params, undefined);
     res.json(result);
   } catch (error) {
-    console.error('[CacheAPI] Invalidation error:', error);
+    routeLog.error('[CacheAPI] Invalidation error:', error);
     res.status(500).json({
       error: 'INTERNAL_ERROR',
       message: 'Failed to invalidate cache',
@@ -192,7 +195,7 @@ router.post('/warm', requireHealthKey, async (req: Request, res: Response) => {
     const result = await CacheWarmingService.warm(validation.data as WarmingParams);
     res.json(result);
   } catch (error) {
-    console.error('[CacheAPI] Warming error:', error);
+    routeLog.error('[CacheAPI] Warming error:', error);
     res.status(500).json({
       error: 'INTERNAL_ERROR',
       message: 'Failed to warm cache',

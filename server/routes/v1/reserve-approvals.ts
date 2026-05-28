@@ -22,6 +22,9 @@ import { postToSlack } from '@shared/slack.js';
 import crypto from 'crypto';
 import jwt from 'jsonwebtoken';
 import { getConfig } from '../../config';
+import { createRouteLogger } from '../../lib/route-logger.js';
+
+const routeLog = createRouteLogger('v1/reserve-approvals');
 
 const router = Router();
 
@@ -149,7 +152,7 @@ router['post']('/', requireRole('reserve_admin'), async (req: Request, res: Resp
       message: 'Approval request created. Both partners must approve within 72 hours.',
     });
   } catch (error) {
-    console.error('Error creating approval request:', error);
+    routeLog.error('Error creating approval request:', error);
     res.status(500).json({ error: 'Failed to create approval request' });
   }
 });
@@ -198,7 +201,7 @@ router['get']('/', async (req: Request, res: Response) => {
       total: approvalsWithSignatures.length,
     });
   } catch (error) {
-    console.error('Error fetching approvals:', error);
+    routeLog.error('Error fetching approvals:', error);
     res.status(500).json({ error: 'Failed to fetch approvals' });
   }
 });
@@ -243,7 +246,7 @@ router['get']('/:id', async (req: Request, res: Response) => {
       isApproved: signatures.length >= 2,
     });
   } catch (error) {
-    console.error('Error fetching approval:', error);
+    routeLog.error('Error fetching approval:', error);
     res.status(500).json({ error: 'Failed to fetch approval' });
   }
 });
@@ -392,7 +395,7 @@ router['post']('/:id/sign', requireRole('partner'), async (req: Request, res: Re
       });
     }
   } catch (error) {
-    console.error('Error signing approval:', error);
+    routeLog.error('Error signing approval:', error);
     res.status(500).json({ error: 'Failed to sign approval' });
   }
 });
@@ -447,7 +450,7 @@ router['post']('/:id/reject', requireRole('partner'), async (req: Request, res: 
       rejectedBy: userEmail,
     });
   } catch (error) {
-    console.error('Error rejecting approval:', error);
+    routeLog.error('Error rejecting approval:', error);
     res.status(500).json({ error: 'Failed to reject approval' });
   }
 });
@@ -536,13 +539,13 @@ async function notifyPartners(
           ],
         });
       } catch (err) {
-        console.error(`[notifyPartners] Slack notification failed for ${partner.email}:`, err);
+        routeLog.error(`[notifyPartners] Slack notification failed for ${partner.email}:`, err);
       }
     }
 
     // Email notification (log for now, implement with nodemailer/SES in production)
     if (partner.notifyEmail) {
-      console.warn(`[notifyPartners] Email notification queued for ${partner.notifyEmail}:`, {
+      routeLog.warn(`[notifyPartners] Email notification queued for ${partner.notifyEmail}:`, {
         subject: `[${riskLevel.toUpperCase()}] Reserve Strategy Approval Required: ${approval.strategyId}`,
         approvalUrl,
         expiresIn: `${hoursUntilExpiry} hours`,
@@ -552,7 +555,7 @@ async function notifyPartners(
 
     // SMS notification for high-risk changes (log for now, implement with Twilio in production)
     if (partner.notifySms && riskLevel === 'high') {
-      console.warn(`[notifyPartners] SMS notification queued for ${partner.notifySms}:`, {
+      routeLog.warn(`[notifyPartners] SMS notification queued for ${partner.notifySms}:`, {
         message: `URGENT: High-risk reserve strategy change requires your approval. ${approvalUrl}`,
       });
       // Future: await smsService.send({ to: partner.notifySms, ... });
@@ -560,7 +563,7 @@ async function notifyPartners(
   });
 
   await Promise.allSettled(notificationPromises);
-  console.warn(
+  routeLog.warn(
     `[notifyPartners] Notified ${partners.length} partners about approval ${approval.id}`
   );
 }
@@ -573,7 +576,7 @@ async function executeReserveStrategyChange(approval: ReserveApproval): Promise<
   const strategyData = approval.strategyData as Record<string, unknown>;
   const affectedFunds = (approval.affectedFunds as string[]) ?? [];
 
-  console.warn(
+  routeLog.warn(
     `[executeReserveStrategyChange] Executing ${approval.action} for strategy ${approval.strategyId}`
   );
 
@@ -590,19 +593,19 @@ async function executeReserveStrategyChange(approval: ReserveApproval): Promise<
     switch (approval.action) {
       case 'create':
         // Insert new reserve decisions based on strategy
-        console.warn(`[executeReserveStrategyChange] Creating new reserve strategy:`, strategyData);
+        routeLog.warn(`[executeReserveStrategyChange] Creating new reserve strategy:`, strategyData);
         // Future: await reserveEngine.createStrategy(strategyData, affectedFunds);
         break;
 
       case 'update':
         // Update existing reserve decisions
-        console.warn(`[executeReserveStrategyChange] Updating reserve strategy:`, strategyData);
+        routeLog.warn(`[executeReserveStrategyChange] Updating reserve strategy:`, strategyData);
         // Future: await reserveEngine.updateStrategy(approval.strategyId, strategyData, affectedFunds);
         break;
 
       case 'delete':
         // Mark reserve decisions as deleted/inactive
-        console.warn(
+        routeLog.warn(
           `[executeReserveStrategyChange] Deleting reserve strategy:`,
           approval.strategyId
         );
@@ -626,7 +629,7 @@ async function executeReserveStrategyChange(approval: ReserveApproval): Promise<
       systemGenerated: new Date(),
     });
 
-    console.warn(
+    routeLog.warn(
       `[executeReserveStrategyChange] Successfully executed strategy change for approval ${approval.id}`
     );
   } catch (error) {
@@ -651,7 +654,7 @@ async function executeReserveStrategyChange(approval: ReserveApproval): Promise<
       })
       .where(eq(reserveApprovals.id, approval.id));
 
-    console.error(`[executeReserveStrategyChange] Failed to execute strategy change:`, error);
+    routeLog.error(`[executeReserveStrategyChange] Failed to execute strategy change:`, error);
     throw error;
   }
 }
