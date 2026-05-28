@@ -88,11 +88,18 @@ As of 2026-05-28:
     changed-file-safe path still depends on the Node orchestrator,
     `scripts/pre-push-classification.mjs`, doc freshness warnings, orphan-test
     checks, TypeScript baseline validation, and targeted `vitest related`.
-14. The next separate cleanup slice is Batch 11, classifying the current
-    workflow inventory against `docs/workflows/README.md` before any CI
-    consolidation. Do not start it together with route logging migration,
-    deal-pipeline extraction, product-code refactors, Phoenix docs, or unrelated
-    config cleanup.
+14. Treat Batch 11 as closed on 2026-05-28: the current 19 tracked workflows
+    were classified in `docs/workflows/README.md`. No workflow was deleted:
+    GitHub branch protection has no required status checks or repository
+    rulesets, but that is not enough to prove external status consumers or
+    replacement parity for overlapping workflows.
+15. The next separate cleanup slice is CI consolidation from the Batch 11
+    classification map. Keep it decision-gated: do not delete YAML, collapse
+    standalone checks, or migrate required-check policy until replacement status
+    behavior and branch-protection/status-consumer intent are explicit. Do not
+    start it together with route logging migration, deal-pipeline extraction,
+    product-code refactors, Phoenix docs, env-file consolidation, Vitest config
+    consolidation, or unrelated config cleanup.
 
 Update this section whenever the active next step changes. This is the only
 "what to do right now" pointer in the document.
@@ -137,7 +144,7 @@ The best approach is therefore a **solo-friendly cleanup ladder**:
 1. Capture baseline and cleanup manifest.
 2. Remove or externalize obvious repo drag that is actually unused.
 3. Simplify scripts, hooks, CI, env files, and config against the current
-   90-script / 19-workflow baseline captured in the cleanup manifest.
+   81-script / 19-workflow baseline captured in the cleanup manifest.
 4. Fill gaps in the existing fragmented truth/golden test surface.
 5. Refactor product architecture behind those tests.
 6. Leave cosmetic renames and broad directory reshuffles until last.
@@ -327,7 +334,7 @@ These should also remain.
 | Area               | Target outcome                                                                                                                                                                                                                                                                     |
 | ------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Scripts            | Current baseline is 81 root scripts after Batch 9 retired the remaining wave/phase aliases and refreshed the alias-policy guard to allow 0 legacy aliases. Next pass: simplify hooks without reintroducing compatibility aliases; target <=50 active scripts before pursuing <=30. |
-| CI                 | Current baseline is 19 workflow files; `docs/workflows/README.md` may lag this Batch 0 count. Consolidate only after mapping required vs optional checks.                                                                                                                          |
+| CI                 | Current baseline is 19 workflow files, all classified in `docs/workflows/README.md` by Batch 11. No workflow has sufficient safe-deletion evidence yet; consolidate only after replacement status behavior and branch-protection/status-consumer policy are explicit.              |
 | Hooks              | Current pre-commit keeps custom staged guardrails but delegates lint/format to the existing `lint-staged` config after Batch 10. Current pre-push still delegates to `scripts/pre-push.mjs`; simplify only after replacement commands exist.                                       |
 | Pre-push script    | Keep `scripts/pre-push.mjs` until a direct hook command or `validate:quick` equivalent preserves changed-file classification, doc freshness warnings, orphan-test detection, baseline validation, and targeted related tests.                                                      |
 | Vitest             | Current unit entry is `vitest.config.mjs`; integration/quarantine/testcontainer configs remain active. Consolidate by migration, not deletion.                                                                                                                                     |
@@ -1024,8 +1031,25 @@ manual validation plus CI. Do not delete the Node script first.
 
 ## 3.5 CI consolidation
 
-Current state: `.github/workflows` has 19 workflow files. Compare them against
-`docs/workflows/README.md`; the workflow index may lag this Batch 0 count.
+Current state: `.github/workflows` has 19 tracked workflow files, and Batch 11
+classified all 19 in `docs/workflows/README.md`.
+
+Batch 11 found no workflow with sufficient safe-deletion evidence. Live GitHub
+evidence showed `main` branch protection enabled,
+`required_status_checks: null`, and no repository rulesets, so no tracked
+workflow is currently required by GitHub branch protection. That evidence does
+not prove that external status consumers, manual operators, security policy, or
+replacement parity are safe.
+
+Classification summary:
+
+- Keep: `ci-unified.yml`, `claude-code-review.yml`, `claude.yml`, `codeql.yml`,
+  `dependency-validation.yml`, `dockerfile-lint.yml`, `docs-routing-check.yml`,
+  `docs-validate.yml`, `reflection-validate.yml`, `security-scan.yml`,
+  `skip-counter.yml`, `testcontainers-ci.yml`, `zap-baseline.yml`.
+- Consolidate later: `archive-guard.yml`, `bundle-size-check.yml`,
+  `core-validation.yml`, `security-tests.yml`, `verify-strategic-docs.yml`.
+- Delete candidate, blocked: `code-quality.yml`.
 
 Target after classification:
 
@@ -1045,8 +1069,10 @@ Target after classification:
    - bundle check.
 
 Avoid duplicating checks across workflows, but do not collapse
-security/docs/testcontainers workflows until their trigger and secret
-requirements are mapped.
+security/docs/testcontainers workflows until their trigger, permission, secret,
+manual-operator, and replacement-status requirements are mapped. Do not remove
+`code-quality.yml` until a maintainer confirms the manual Actions entry is no
+longer needed or an equivalent command/reporting path is documented.
 
 ## 3.6 Env files
 
@@ -1108,7 +1134,9 @@ Milestone 3 is complete when:
 - [ ] No new wave/phase/slice scripts are allowed beyond baseline policy.
 - [ ] Pre-push either still delegates to existing script or has a verified
       replacement.
-- [ ] CI workflows are classified as required / optional / manual / delete.
+- [x] CI workflows are classified in `docs/workflows/README.md`; deletion and
+      consolidation remain blocked on replacement-status and status-consumer
+      evidence.
 - [ ] One required local validation command chain is documented.
 - [ ] Env files are documented; `.env.test` is added only if loader/CI behavior
       is verified.
@@ -1786,29 +1814,29 @@ server/shared/ -> server/lib if server-local
 
 # Acceptance Matrix
 
-| Change type                       | Evidence required                                                                | Gate                                                                                                                             | Rollback                    |
-| --------------------------------- | -------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------- | --------------------------- |
-| Prevent regenerated docs logs     | Candidate absent or reference scan clean                                         | docs link check if docs change; `check`, `build:prod` no worse if files are removed                                              | git tag when removing files |
-| Externalize binary docs assets    | Asset refs classified; external target chosen                                    | docs visual/link check, `check`, `build:prod`                                                                                    | git tag + external copy     |
-| Curate `docs/archive/`            | File-level derivability review; product docs reviewed                            | docs links if available                                                                                                          | git tag                     |
-| Migrate/delete root `src/` mirror | Route-story tests migrated; scan clean                                           | `check`, `build:prod`, `test:unit`                                                                                               | git tag                     |
-| Migrate XState wizard machine     | Replacement runtime owner exists; active imports removed intentionally           | `check`, `build:prod`, wizard persistence tests, fund setup smoke                                                                | git tag                     |
-| Record removed `repo/`            | Folder absent; git had no tracked files under it                                 | docs link check if references are edited                                                                                         | n/a                         |
-| Delete packages                   | Tooling refs removed first                                                       | `check`, `test:unit`, `build:prod`                                                                                               | git tag                     |
-| Simplify scripts                  | Canonical scripts or direct command chains added first                           | current replacement command passes                                                                                               | restore package.json        |
-| Simplify hooks                    | Replacement commands exist                                                       | staged-file test + current replacement command                                                                                   | restore hook/script         |
-| Simplify CI                       | 19-workflow inventory classified first                                           | CI passes once                                                                                                                   | restore workflow            |
-| Delete Vitest config              | Script refs removed                                                              | `test:unit`                                                                                                                      | restore config              |
-| Delete TS config                  | No refs; boundary preserved                                                      | `check`, `build:prod`, Vite build                                                                                                | restore config              |
-| Route-import guard                | Existing 25 files grandfathered; new files blocked                               | `npm run check`; guard script passes; no false positives on existing routes                                                      | revert guard script         |
-| Middleware logging migration      | Closed by 0d; regression target is 0 `console.*` matches in `server/middleware/` | `rg -n "console\." server/middleware --glob "*.ts"` exits 1 with no matches; `npm run test:unit`; structured log output verified | revert 0d commit            |
-| Route logging migration           | Console calls in route files replaced with Pino                                  | `npm run test:unit`; request IDs present in structured log output                                                                | revert commit               |
-| Route service extraction          | Contract tests before extraction                                                 | response shape unchanged; direct DB/storage imports drop                                                                         | revert commit               |
-| Money changes                     | Caller classification + golden tests                                             | exact/parity tests                                                                                                               | revert utility commit       |
-| Engine dedupe                     | Pair diff + golden tests                                                         | golden parity                                                                                                                    | restore file                |
-| Schema rename                     | Compatibility barrels first                                                      | `check`, integration, Drizzle check                                                                                              | revert batch                |
-| Test helper moves                 | Codemod imports                                                                  | `test:unit`, `test:integration`                                                                                                  | revert batch                |
-| Cosmetic renames                  | Codemod + move budget                                                            | `check`, `test:unit`                                                                                                             | revert batch                |
+| Change type                       | Evidence required                                                                                           | Gate                                                                                                                             | Rollback                    |
+| --------------------------------- | ----------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------- | --------------------------- |
+| Prevent regenerated docs logs     | Candidate absent or reference scan clean                                                                    | docs link check if docs change; `check`, `build:prod` no worse if files are removed                                              | git tag when removing files |
+| Externalize binary docs assets    | Asset refs classified; external target chosen                                                               | docs visual/link check, `check`, `build:prod`                                                                                    | git tag + external copy     |
+| Curate `docs/archive/`            | File-level derivability review; product docs reviewed                                                       | docs links if available                                                                                                          | git tag                     |
+| Migrate/delete root `src/` mirror | Route-story tests migrated; scan clean                                                                      | `check`, `build:prod`, `test:unit`                                                                                               | git tag                     |
+| Migrate XState wizard machine     | Replacement runtime owner exists; active imports removed intentionally                                      | `check`, `build:prod`, wizard persistence tests, fund setup smoke                                                                | git tag                     |
+| Record removed `repo/`            | Folder absent; git had no tracked files under it                                                            | docs link check if references are edited                                                                                         | n/a                         |
+| Delete packages                   | Tooling refs removed first                                                                                  | `check`, `test:unit`, `build:prod`                                                                                               | git tag                     |
+| Simplify scripts                  | Canonical scripts or direct command chains added first                                                      | current replacement command passes                                                                                               | restore package.json        |
+| Simplify hooks                    | Replacement commands exist                                                                                  | staged-file test + current replacement command                                                                                   | restore hook/script         |
+| Simplify CI                       | Batch 11 workflow classification map plus replacement-status and branch-protection/status-consumer evidence | CI passes once                                                                                                                   | restore workflow            |
+| Delete Vitest config              | Script refs removed                                                                                         | `test:unit`                                                                                                                      | restore config              |
+| Delete TS config                  | No refs; boundary preserved                                                                                 | `check`, `build:prod`, Vite build                                                                                                | restore config              |
+| Route-import guard                | Existing 25 files grandfathered; new files blocked                                                          | `npm run check`; guard script passes; no false positives on existing routes                                                      | revert guard script         |
+| Middleware logging migration      | Closed by 0d; regression target is 0 `console.*` matches in `server/middleware/`                            | `rg -n "console\." server/middleware --glob "*.ts"` exits 1 with no matches; `npm run test:unit`; structured log output verified | revert 0d commit            |
+| Route logging migration           | Console calls in route files replaced with Pino                                                             | `npm run test:unit`; request IDs present in structured log output                                                                | revert commit               |
+| Route service extraction          | Contract tests before extraction                                                                            | response shape unchanged; direct DB/storage imports drop                                                                         | revert commit               |
+| Money changes                     | Caller classification + golden tests                                                                        | exact/parity tests                                                                                                               | revert utility commit       |
+| Engine dedupe                     | Pair diff + golden tests                                                                                    | golden parity                                                                                                                    | restore file                |
+| Schema rename                     | Compatibility barrels first                                                                                 | `check`, integration, Drizzle check                                                                                              | revert batch                |
+| Test helper moves                 | Codemod imports                                                                                             | `test:unit`, `test:integration`                                                                                                  | revert batch                |
+| Cosmetic renames                  | Codemod + move budget                                                                                       | `check`, `test:unit`                                                                                                             | revert batch                |
 
 ---
 
@@ -1836,9 +1864,12 @@ changes and reduce future debt accumulation.
 |     8 | DONE: `chore(tooling): remove unused ai-agent packages`                                 | 2026-05-27: package reference scans; docs routing check; `check + test:unit + build:prod`                                           |
 |     9 | DONE: `chore(scripts): classify and retire stale wave and phase scripts`                | 2026-05-28: 81 scripts; 0 allowed legacy aliases; explicit replacement chains in `validate:core` / `calc-gate` / `calc-gate:full`   |
 |    10 | DONE: `chore(hooks): simplify pre-commit and retain pre-push orchestration`             | 2026-05-28: pre-commit lint/format now uses `lint-staged`; pre-push kept because no equivalent changed-file-safe replacement exists |
-|    11 | `chore(test): consolidate vitest config aliases without changing unit entry`            | `test:unit`                                                                                                                         |
-|    12 | `test(domain): fill fund-model golden parity gaps`                                      | `phoenix:truth` + targeted truth/golden tests                                                                                       |
-|   13+ | Product refactors one area at a time                                                    | per-area gates                                                                                                                      |
+|    11 | DONE: `docs(ci): classify current workflow inventory`                                   | 2026-05-28: 19 tracked workflows classified; no safe deletion; branch protection has no required status checks or rulesets          |
+|    12 | `chore(ci): consolidate workflow checks from classification map`                        | Replacement statuses and branch-protection/status-consumer policy proven before deletion                                            |
+|    13 | `chore(env): consolidate env files behind verified loader behavior`                     | loader/CI behavior verified before adding `.env.test`                                                                               |
+|    14 | `chore(test): consolidate vitest config aliases without changing unit entry`            | `test:unit`                                                                                                                         |
+|    15 | `test(domain): fill fund-model golden parity gaps`                                      | `phoenix:truth` + targeted truth/golden tests                                                                                       |
+|   16+ | Product refactors one area at a time                                                    | per-area gates                                                                                                                      |
 
 ---
 
@@ -1879,35 +1910,39 @@ baseline in the roadmap.
     `lint-staged`, refreshed the pre-push harness against the Node orchestrator,
     and kept `scripts/pre-push.mjs` because no equivalent changed-file-safe
     replacement exists.
-11. Classify the current 19 workflows against `docs/workflows/README.md`, then
-    consolidate.
-12. Consolidate env files; add committed safe `.env.test` only if loader/CI
+11. DONE: Batch 11 classified the current 19 workflows in
+    `docs/workflows/README.md`; no workflow has sufficient safe-deletion
+    evidence.
+12. Consolidate CI only from the Batch 11 classification map. Do not delete
+    workflow YAML or migrate required-check policy until replacement statuses,
+    branch-protection intent, and external status-consumer risk are resolved.
+13. Consolidate env files; add committed safe `.env.test` only if loader/CI
     behavior is verified.
-13. Consolidate Vitest configs and aliases.
-14. Rationalize TypeScript configs conservatively.
-15. Fill gaps in existing fragmented domain golden/truth tests.
-16. Add route contract tests for `deal-pipeline`, `lp-api`, `allocations`,
+14. Consolidate Vitest configs and aliases.
+15. Rationalize TypeScript configs conservatively.
+16. Fill gaps in existing fragmented domain golden/truth tests.
+17. Add route contract tests for `deal-pipeline`, `lp-api`, `allocations`,
     `funds`, and `performance-api` before service extraction.
-17. Clean `main.tsx`.
-18. Split `App.tsx`.
-19. Normalize API route mounting without changing URLs.
-20. Extract service logic from largest DB-heavy routes (`deal-pipeline.ts`
+18. Clean `main.tsx`.
+19. Split `App.tsx`.
+20. Normalize API route mounting without changing URLs.
+21. Extract service logic from largest DB-heavy routes (`deal-pipeline.ts`
     first, then `lp-api.ts`, then `allocations.ts`); reduce direct DB/storage
     route imports from 25 toward a tracked lower target.
-21. Migrate route-layer console calls (165 across 27 files) to Pino during or
+22. Migrate route-layer console calls (165 across 27 files) to Pino during or
     after service extraction.
-22. Consolidate fund stores.
-23. Consolidate type guards.
-24. Classify and migrate money utilities semantically.
-25. Rename schema directories via compatibility barrels.
-26. Dedupe engines behind golden tests.
-27. Fix quarantine/helper/test naming issues; triage the 15 generic
+23. Consolidate fund stores.
+24. Consolidate type guards.
+25. Classify and migrate money utilities semantically.
+26. Rename schema directories via compatibility barrels.
+27. Dedupe engines behind golden tests.
+28. Fix quarantine/helper/test naming issues; triage the 15 generic
     "stabilization triage" quarantines individually.
-28. Promote `no-explicit-any` to `error` by directory after batch cleanup.
-29. Re-enable `noUncheckedIndexedAccess` for client by directory.
-30. Wire OpenTelemetry HTTP + DB spans after request IDs and structured logs are
+29. Promote `no-explicit-any` to `error` by directory after batch cleanup.
+30. Re-enable `noUncheckedIndexedAccess` for client by directory.
+31. Wire OpenTelemetry HTTP + DB spans after request IDs and structured logs are
     consistent.
-31. Only then consider page renames and UI directory reshuffling.
+32. Only then consider page renames and UI directory reshuffling.
 
 ---
 
@@ -1946,7 +1981,7 @@ For this solo/internal build, move quickly on verified-unused artifacts and the
 large attached-assets directory, but do not treat active route mirrors, active
 XState wizard code, active Vitest configs, or active pre-push automation as
 cleanup trash. Then simplify the daily commands, hooks, CI, env files, and test
-configs from the current 90-script / 19-workflow baseline. Only after that, fill
+configs from the current 81-script / 19-workflow baseline. Only after that, fill
 domain golden-test gaps and refactor product code behind those tests.
 
 The 2026-05-27 audit adds five immediate guardrails/baseline slices
