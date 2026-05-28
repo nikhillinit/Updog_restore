@@ -324,6 +324,21 @@ describe('LP API route contracts', () => {
     });
   });
 
+  it.each([['/api/lp/funds/99/detail'], ['/api/lp/funds/99/holdings']])(
+    'rejects LP fund scope for %s before calculators run',
+    async (path) => {
+      const response = await request(makeApp()).get(path);
+
+      expect(response.status).toBe(403);
+      expect(response.body).toEqual({
+        error: 'FORBIDDEN',
+        message: 'You do not have access to fund 99.',
+      });
+      expect(calculatorState.calculateCapitalAccount).not.toHaveBeenCalled();
+      expect(calculatorState.calculateProRataHoldings).not.toHaveBeenCalled();
+    }
+  );
+
   it('GET /api/lp/funds/:fundId/holdings locks aggregate fields', async () => {
     calculatorState.calculateProRataHoldings.mockResolvedValueOnce([
       { companyId: 1, companyName: 'Alpha', lpProRataValue: 150 },

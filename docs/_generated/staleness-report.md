@@ -11,16 +11,16 @@ last_updated: 2026-05-28
 
 | Metric | Value |
 |--------|-------|
-| Total Documents | 652 |
-| Stale Documents | 98 |
-| Missing Frontmatter | 16 |
+| Total Documents | 653 |
+| Stale Documents | 99 |
+| Missing Frontmatter | 17 |
 
 ### By Status
 
 | Status | Count |
 |--------|-------|
 | ACTIVE | 432 |
-| UNKNOWN | 124 |
+| UNKNOWN | 125 |
 | DRAFT | 31 |
 | HISTORICAL | 29 |
 | VERIFIED | 9 |
@@ -54,6 +54,7 @@ Documents that need review (older than their cadence threshold):
 | `docs/agents/triage-labels.md` | Never | 999 | No | Unassigned |
 | `docs/design/updog-design-philosophy-v3.1.1-implementation-notes.md` | Never | 999 | No | Unassigned |
 | `docs/phase2-calibration-benchmarks.md` | Never | 999 | No | Unassigned |
+| `docs/quarantine/2026-05-28-stabilization-triage.md` | Never | 999 | No | Unassigned |
 | `docs/skills/REFL-002-post-merge-jobs-not-validated-by-pr-ci.md` | Never | 999 | No | Unassigned |
 | `docs/skills/REFL-003-cross-platform-file-enumeration-fragility.md` | Never | 999 | YES - verify! | Unassigned |
 | `docs/skills/REFL-004-schema-format-backward-compatibility.md` | Never | 999 | No | Unassigned |
@@ -94,9 +95,8 @@ Documents that need review (older than their cadence threshold):
 | `cheatsheets/codex-collaboration-protocol.md` | 2026-01-19 | 129 | No | Unassigned |
 | `cheatsheets/coding-pairs-playbook.md` | 2026-01-19 | 129 | No | Unassigned |
 | `cheatsheets/command-summary.md` | 2026-01-19 | 129 | No | Unassigned |
-| `cheatsheets/correct-workflow-example.md` | 2026-01-19 | 129 | No | Unassigned |
 
-*...and 48 more stale documents.*
+*...and 49 more stale documents.*
 
 ## Documents with Execution Claims (Need Verification)
 
@@ -129,6 +129,7 @@ Documents without proper YAML frontmatter:
 - [ ] `docs/agents/triage-labels.md`
 - [ ] `docs/design/updog-design-philosophy-v3.1.1-implementation-notes.md`
 - [ ] `docs/phase2-calibration-benchmarks.md`
+- [ ] `docs/quarantine/2026-05-28-stabilization-triage.md`
 - [ ] `docs/skills/SKILLS_INDEX.md`
 - [ ] `docs/skills/WIZARD_INDEX.md`
 - [ ] `docs/superpowers/plans/2026-05-15-term-conflict-tier2-fixes.md`

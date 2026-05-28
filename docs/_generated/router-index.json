@@ -4345,7 +4345,7 @@
           "routing",
           "documentation"
         ],
-        "last_updated": "2026-05-20",
+        "last_updated": "2026-05-28",
         "owner": "Core Team",
         "priority": 2,
         "review_cadence": "P90D",
@@ -4359,10 +4359,10 @@
       },
       "hasExecutionClaims": false,
       "isStale": false,
-      "lastUpdated": "2026-05-20",
+      "lastUpdated": "2026-05-28",
       "owner": "Core Team",
       "path": "docs/INDEX.md",
-      "staleDays": 8,
+      "staleDays": 0,
       "status": "ACTIVE"
     },
     {
@@ -6664,7 +6664,7 @@
           "governance",
           "roadmap"
         ],
-        "last_updated": "2026-05-27",
+        "last_updated": "2026-05-28",
         "owner": "Core Team",
         "related": [
           "docs/reviews/refactor-audit-2026-05-19/README.md"
@@ -6675,10 +6675,10 @@
       },
       "hasExecutionClaims": true,
       "isStale": false,
-      "lastUpdated": "2026-05-27",
+      "lastUpdated": "2026-05-28",
       "owner": "Core Team",
       "path": "docs/governance/2026-05-19-refactor-roadmap.md",
-      "staleDays": 1,
+      "staleDays": 0,
       "status": "ACTIVE"
     },
     {
@@ -6712,7 +6712,7 @@
           "deletion",
           "migration"
         ],
-        "last_updated": "2026-05-27",
+        "last_updated": "2026-05-28",
         "owner": "Core Team",
         "related": [
           "docs/governance/2026-05-19-refactor-roadmap.md"
@@ -6721,12 +6721,12 @@
         "source_of_truth": true,
         "status": "ACTIVE"
       },
-      "hasExecutionClaims": false,
+      "hasExecutionClaims": true,
       "isStale": false,
-      "lastUpdated": "2026-05-27",
+      "lastUpdated": "2026-05-28",
       "owner": "Core Team",
       "path": "docs/governance/cleanup-manifest.md",
-      "staleDays": 1,
+      "staleDays": 0,
       "status": "ACTIVE"
     },
     {
@@ -8536,6 +8536,18 @@
       "owner": null,
       "path": "docs/qa-response-2026-01-23.md",
       "staleDays": 55,
+      "status": "UNKNOWN"
+    },
+    {
+      "docType": "doc",
+      "exists": true,
+      "frontmatter": {},
+      "hasExecutionClaims": false,
+      "isStale": true,
+      "lastUpdated": null,
+      "owner": null,
+      "path": "docs/quarantine/2026-05-28-stabilization-triage.md",
+      "staleDays": 999,
       "status": "UNKNOWN"
     },
     {
@@ -11460,15 +11472,15 @@
       "docType": "doc",
       "exists": true,
       "frontmatter": {
-        "last_updated": "2026-05-21",
+        "last_updated": "2026-05-28",
         "status": "ACTIVE"
       },
       "hasExecutionClaims": false,
       "isStale": false,
-      "lastUpdated": "2026-05-21",
+      "lastUpdated": "2026-05-28",
       "owner": null,
       "path": "docs/workflows/README.md",
-      "staleDays": 7,
+      "staleDays": 0,
       "status": "ACTIVE"
     },
     {
@@ -12729,14 +12741,14 @@
       "REFERENCE": 6,
       "STALE-VALIDATION": 1,
       "TRACKED (not scheduled)": 1,
-      "UNKNOWN": 124,
+      "UNKNOWN": 125,
       "VERIFIED": 9,
       "active": 2,
       "ready": 3
     },
-    "missing_frontmatter": 16,
-    "stale_docs": 98,
-    "total_docs": 652
+    "missing_frontmatter": 17,
+    "stale_docs": 99,
+    "total_docs": 653
   },
   "version": "2.0"
 }
