@@ -1,15 +1,5 @@
 {
-  "allowedLegacyAliases": [
-    "guard:phase4:workers:check",
-    "lint:phase4",
-    "lint:phase4:strict",
-    "test:phase4",
-    "test:phase4:client",
-    "test:phase4:integration",
-    "test:phase4:server",
-    "test:wave4",
-    "validate:phase4"
-  ],
-  "generatedAt": "2026-05-20T03:16:57.866Z",
+  "allowedLegacyAliases": [],
+  "generatedAt": "2026-05-28T01:24:10.961Z",
   "policy": "No new test/lint/validate/guard wave, phase, or slice npm aliases. Prefer capability or domain names."
 }

@@ -11,9 +11,10 @@ keywords: [validate:core, integration, ready-file, TEST_READY_FILE]
 
 ## Purpose
 
-This runbook documents the machine-readable startup handshake used by the Phase
-4 integration harness. Use it when `npm run test:phase4:integration` or
-`npm run validate:core` fails before the server becomes healthy.
+This runbook documents the machine-readable startup handshake used by the
+wizard-to-results integration harness. Use it when the embedded `validate:core`
+integration command or `npm run validate:core` fails before the server becomes
+healthy.
 
 ## Contract
 
@@ -56,7 +57,9 @@ That command must stay green before milestone work proceeds.
 
 ## Operator Steps
 
-1. Run `npm run test:phase4:integration` for the focused reproduction.
+1. Run
+   `npx cross-env TZ=UTC vitest run tests/integration/wizard-to-results-e2e.test.ts --config vitest.config.int.ts`
+   for the focused reproduction.
 2. Inspect the temp file path from `tests/integration/global-setup.ts`
    (`READY_FILE`).
 3. If the file is missing, inspect the integration harness process output in the
