@@ -19,139 +19,27 @@
 import { Router } from 'express';
 import type { Request, Response } from 'express';
 import { firstString } from '../lib/request-values';
-import { z } from 'zod';
-import { CompanySectorSchema, CompanyStageSchema } from '@shared/company-taxonomy';
 import { idempotency } from '../middleware/idempotency';
 import { enforceProvidedFundScope } from '../lib/auth/provided-fund-scope';
 import * as dealPipelineService from '../services/deal-pipeline-service';
+import { decodeCursor, encodeCursor, type CursorData } from '../services/deal-pipeline/cursor';
+import {
+  BulkArchiveSchema,
+  BulkStatusSchema,
+  CreateDDItemSchema,
+  CreateDealSchema,
+  ImportPreviewSchema,
+  ImportRowSchema,
+  ImportConfirmSchema,
+  PaginationSchema,
+  PipelineQuerySchema,
+  StageChangeSchema,
+  UpdateDealSchema,
+  dealPipelineValidationSchemas,
+} from '../services/deal-pipeline/schemas';
 
 const router = Router();
 const idempotent = idempotency();
-
-// ============================================================
-// ZOD VALIDATION SCHEMAS
-// Ref: AP-CURSOR-02 - Cursor validation required
-// ============================================================
-
-const DealStatusEnum = z.enum([
-  'lead',
-  'qualified',
-  'pitch',
-  'dd',
-  'committee',
-  'term_sheet',
-  'closed',
-  'passed',
-]);
-
-const DealPriorityEnum = z.enum(['high', 'medium', 'low']);
-
-const DealStageEnum = CompanyStageSchema;
-
-const SourceTypeEnum = z.enum([
-  'Referral',
-  'Cold outreach',
-  'Inbound',
-  'Event',
-  'Network',
-  'Other',
-]);
-
-// Create Deal Schema
-const CreateDealSchema = z.object({
-  fundId: z.number().int().positive().optional(),
-  companyName: z.string().min(1, 'Company name is required').max(255),
-  sector: CompanySectorSchema,
-  stage: DealStageEnum,
-  sourceType: SourceTypeEnum,
-  dealSize: z.number().positive().optional(),
-  valuation: z.number().positive().optional(),
-  status: DealStatusEnum.default('lead'),
-  priority: DealPriorityEnum.default('medium'),
-  foundedYear: z.number().int().min(1900).max(2100).optional(),
-  employeeCount: z.number().int().positive().optional(),
-  revenue: z.number().optional(),
-  description: z.string().max(5000).optional(),
-  website: z.string().url().optional().or(z.literal('')),
-  contactName: z.string().max(255).optional(),
-  contactEmail: z.string().email().optional().or(z.literal('')),
-  contactPhone: z.string().max(50).optional(),
-  sourceNotes: z.string().max(2000).optional(),
-  nextAction: z.string().max(500).optional(),
-});
-
-// Update Deal Schema (partial)
-const UpdateDealSchema = CreateDealSchema.partial();
-
-// Cursor Pagination Schema - Ref: AP-CURSOR-04 - Limit clamping required
-const SortByEnum = z
-  .enum(['updatedAt', 'companyName', 'dealSize', 'createdAt'])
-  .default('createdAt');
-const SortDirEnum = z.enum(['asc', 'desc']).default('desc');
-
-const PaginationSchema = z.object({
-  cursor: z.string().optional(),
-  limit: z.coerce.number().int().min(1).max(100).default(20),
-  status: DealStatusEnum.optional(),
-  priority: DealPriorityEnum.optional(),
-  fundId: z.coerce.number().int().positive().optional(),
-  search: z.string().max(100).optional(),
-  sortBy: SortByEnum,
-  sortDir: SortDirEnum,
-});
-
-const PipelineQuerySchema = z.object({
-  fundId: z.coerce.number().int().positive().optional(),
-});
-
-// Stage Change Schema
-const StageChangeSchema = z.object({
-  status: DealStatusEnum,
-  notes: z.string().max(1000).optional(),
-});
-
-// Due Diligence Item Schema
-const CreateDDItemSchema = z.object({
-  category: z.enum(['Financial', 'Legal', 'Technical', 'Market', 'Team']),
-  item: z.string().min(1).max(255),
-  description: z.string().max(2000).optional(),
-  status: z.enum(['pending', 'in_progress', 'completed', 'not_applicable']).default('pending'),
-  priority: DealPriorityEnum.default('medium'),
-  assignedTo: z.string().max(255).optional(),
-  dueDate: z.string().datetime().optional(),
-});
-
-// ============================================================
-// HELPER FUNCTIONS
-// ============================================================
-
-interface CursorData {
-  createdAt: string;
-  id: number;
-}
-
-function encodeCursor(createdAt: Date, id: number): string {
-  const data: CursorData = { createdAt: createdAt.toISOString(), id };
-  return Buffer.from(JSON.stringify(data)).toString('base64url');
-}
-
-function decodeCursor(cursor: string): CursorData | null {
-  try {
-    const decoded = Buffer.from(cursor, 'base64url').toString('utf8');
-    const data = JSON.parse(decoded) as CursorData;
-    // Validate cursor structure
-    if (!data.createdAt || typeof data.id !== 'number') {
-      return null;
-    }
-    const createdAt = new Date(data.createdAt);
-    if (Number.isNaN(createdAt.getTime())) {
-      return null;
-    }
-    return data;
-  } catch {
-    return null;
-  }
-}
 
 // ============================================================
 // DEAL OPPORTUNITY ROUTES
@@ -542,42 +430,6 @@ router['get']('/:id/diligence', async (req: Request, res: Response) => {
 });
 
 // ============================================================
-// IMPORT SCHEMAS
-// ============================================================
-
-const ImportRowSchema = z.object({
-  companyName: z.string().min(1).max(255),
-  sector: CompanySectorSchema,
-  stage: DealStageEnum,
-  sourceType: SourceTypeEnum,
-  dealSize: z.number().positive().optional(),
-  valuation: z.number().positive().optional(),
-  status: DealStatusEnum.optional(),
-  priority: DealPriorityEnum.optional(),
-  foundedYear: z.number().int().min(1900).max(2100).optional(),
-  employeeCount: z.number().int().positive().optional(),
-  revenue: z.number().optional(),
-  description: z.string().max(5000).optional(),
-  website: z.string().url().optional().or(z.literal('')),
-  contactName: z.string().max(255).optional(),
-  contactEmail: z.string().email().optional().or(z.literal('')),
-  contactPhone: z.string().max(50).optional(),
-  sourceNotes: z.string().max(2000).optional(),
-  nextAction: z.string().max(500).optional(),
-});
-
-const ImportPreviewSchema = z.object({
-  rows: z.array(z.record(z.unknown())).max(1000),
-  fundId: z.number().int().positive().optional(),
-});
-
-const ImportConfirmSchema = z.object({
-  rows: z.array(ImportRowSchema).min(1).max(1000),
-  fundId: z.number().int().positive().optional(),
-  mode: z.enum(['skip_duplicates', 'import_all']).default('skip_duplicates'),
-});
-
-// ============================================================
 // IMPORT ENDPOINTS
 // ============================================================
 
@@ -670,20 +522,6 @@ router['post']('/opportunities/import', idempotent, async (req: Request, res: Re
 });
 
 // ============================================================
-// BULK ACTION SCHEMAS
-// ============================================================
-
-const BulkStatusSchema = z.object({
-  dealIds: z.array(z.number().int().positive()).min(1).max(100),
-  status: DealStatusEnum,
-  notes: z.string().max(1000).optional(),
-});
-
-const BulkArchiveSchema = z.object({
-  dealIds: z.array(z.number().int().positive()).min(1).max(100),
-});
-
-// ============================================================
 // BULK ACTION ENDPOINTS
 // ============================================================
 
@@ -747,8 +585,4 @@ router['post']('/opportunities/bulk/archive', idempotent, async (req: Request, r
 
 export default router;
 export { router as dealPipelineRouter };
-export const dealPipelineValidationSchemas = {
-  createDeal: CreateDealSchema,
-  updateDeal: UpdateDealSchema,
-  importConfirm: ImportConfirmSchema,
-} as const;
+export { dealPipelineValidationSchemas };

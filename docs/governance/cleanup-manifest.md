@@ -26,8 +26,9 @@ hooks and pre-push orchestration were rechecked through Batch 10; workflows were
 classified through Batch 11 and closed as a no-deletion Batch 12 evidence pass;
 env files, Vitest aliases, and TypeScript configs were rechecked through slices
 13-15; domain golden/truth coverage, route contracts, and `main.tsx` bootstrap
-boundaries were refreshed through slices 16-18; other rows remain from the 0e
-roadmap baseline refresh:
+boundaries were refreshed through slices 16-18; `App.tsx`, route registration,
+and deal-pipeline extraction boundaries were refreshed through slices 19-21;
+other rows remain from the 0e roadmap baseline refresh:
 
 | Evidence                                   | Current result                                                                                                                                                                                                                              |
 | ------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -49,6 +50,9 @@ roadmap baseline refresh:
 | domain golden/truth coverage               | Slice 16 kept the `18c3d0d9` LP metrics fixtures and golden tests, then added lock metadata/hash coverage in `tests/unit/golden/lp-reporting/lp-metrics-lock.test.ts`; targeted LP golden/truth run passed 10 files / 295 tests; `phoenix:truth` passed 7 files / 265 tests; `calc-gate` passed its truth, calculation, and orphan gate segments |
 | route contracts before extraction          | Slice 17 extended existing route contracts without service extraction: deal-pipeline list pagination/filter success, allocation latest/create fund-scope denial, LP API fund-scope denial, funds detail fund-scope denial, and performance API fund-scope denial; targeted route-contract run passed 5 files / 57 tests |
 | `client/src/main.tsx` bootstrap             | Slice 18 gated the fetch tap behind `import.meta.env.DEV`, moved emergency rollback to `client/src/debug/emergency-rollback.ts`, standardized environment checks on `import.meta.env`, and moved monitoring bootstrap to `client/src/monitoring/bootstrap.ts`; focused bootstrap tests passed 2 files / 5 tests |
+| `client/src/App.tsx` split                 | Slice 19 kept `App.tsx` as the provider/composition root and moved route registry/rendering, layout shell, and deferred shell widgets into `client/src/app/`; focused app route-governance tests passed 4 files / 55 tests |
+| `server/routes.ts` registration            | Slice 20 normalized default-router imports behind sequential mount helpers while preserving public URLs, `/api` boundaries, health behavior, metrics aliases, and special-case explicit mounts; focused route-mounting tests passed 7 files / 42 tests |
+| `server/routes/deal-pipeline.ts` extraction | Slice 21 moved deal-pipeline validation schemas and cursor helpers into `server/services/deal-pipeline/` while preserving route response shapes and `dealPipelineValidationSchemas`; deal-pipeline contract passed 13 tests, taxonomy schema consumer passed 3 tests, and the API integration file passed 3 active tests with 13 pre-existing skips |
 | `scripts/**`                               | 381 tracked files after guardrail additions and stale `scripts/ai/` helper retirement                                                                                                                                                       |
 | `server/middleware console.*`              | 0 matches across 0 files; `rg` exits 1 because middleware logging migration 0d is complete                                                                                                                                                  |
 | `server/routes console.*`                  | 165 matches across 27 files; route-layer logging migration remains future work                                                                                                                                                              |

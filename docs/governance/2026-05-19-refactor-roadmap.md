@@ -135,10 +135,28 @@ As of 2026-05-28:
     `import.meta.env`, and monitoring bootstrap lives in
     `client/src/monitoring/bootstrap.ts`. Evidence: focused bootstrap helper
     tests passed 2 files / 5 tests.
-23. The next separate cleanup slice is `App.tsx` splitting. Do not start it
-    together with route mounting normalization, route logging migration, service
-    extraction, product-code refactors, Phoenix docs, Playwright config, Docker
-    config, or unrelated config cleanup.
+23. Slice 19 is closed as an `App.tsx` split. `App.tsx` remains the composition
+    root, while the route registry, route rendering, layout shell, and deferred
+    shell widgets now live under `client/src/app/`. Evidence: the focused app
+    route-governance run passed 4 files / 55 tests, and `npm run check` found 0
+    TypeScript errors.
+24. Slice 20 is closed as route-mount registration normalization. Default-router
+    imports in `server/routes.ts` now use a small sequential mount helper, while
+    named and special-case mounts such as deal-pipeline, reallocation, metrics,
+    and dual-forecast remain explicit. Evidence: the route-mounting run passed
+    7 files / 42 tests, and `npm run check` found 0 TypeScript errors.
+25. Slice 21 is closed as the first deal-pipeline service extraction pass.
+    Deal-pipeline validation schemas and cursor encoding/decoding moved behind
+    `server/services/deal-pipeline/`, the route module preserves
+    `dealPipelineValidationSchemas`, and `lp-api.ts` / `allocations.ts` were not
+    started. Evidence: deal-pipeline contract passed 13 tests, the taxonomy
+    schema consumer passed 3 tests, the API integration file passed 3 active
+    tests with 13 pre-existing skips, and `npm run check` found 0 TypeScript
+    errors.
+26. The next separate cleanup slice is route-layer console migration to Pino.
+    Do not start it together with Phoenix docs, Playwright config, Docker config,
+    LP benchmark behavior changes, service extraction expansion, or unrelated
+    config cleanup.
 
 Update this section whenever the active next step changes. This is the only
 "what to do right now" pointer in the document.
@@ -1969,7 +1987,10 @@ changes and reduce future debt accumulation.
 |    16 | DONE: `test(domain): fill fund-model golden parity gaps`                                | 2026-05-28: LP metrics lock metadata/hash coverage; targeted golden/truth 10 files / 295 tests; `phoenix:truth`; `calc-gate`        |
 |    17 | DONE: `test(routes): lock extraction contracts for route slices`                        | 2026-05-28: deal-pipeline, lp-api, allocations, funds, and performance-api contract run 5 files / 57 tests                          |
 |    18 | DONE: `refactor(client): clean main bootstrap boundaries`                               | 2026-05-28: fetch tap DEV gate, emergency rollback module, monitoring bootstrap module; focused bootstrap tests 2 files / 5 tests    |
-|   19+ | Product refactors one area at a time                                                    | per-area gates                                                                                                                      |
+|    19 | DONE: `refactor(client): split App composition boundaries`                              | 2026-05-28: `App.tsx` remains provider root; route registry/rendering/layout/deferred shell moved under `client/src/app`; app route-governance 4 files / 55 tests |
+|    20 | DONE: `refactor(server): normalize route registration structure`                        | 2026-05-28: `server/routes.ts` default-router imports use sequential mount helpers while preserving URL mounts and special-case explicit mounts; route-mounting 7 files / 42 tests |
+|    21 | DONE: `refactor(routes): start deal-pipeline service extraction`                        | 2026-05-28: deal-pipeline schemas/cursor helpers moved to `server/services/deal-pipeline/`; schema export preserved; contract 13 tests, taxonomy 3 tests, API integration 3 active tests / 13 pre-existing skips |
+|   22+ | Product refactors one area at a time                                                    | per-area gates                                                                                                                      |
 
 ---
 
@@ -2024,12 +2045,13 @@ baseline in the roadmap.
 17. DONE: Add route contract tests for `deal-pipeline`, `lp-api`,
     `allocations`, `funds`, and `performance-api` before service extraction.
 18. DONE: Clean `main.tsx`.
-19. NEXT: Split `App.tsx`.
-20. Normalize API route mounting without changing URLs.
-21. Extract service logic from largest DB-heavy routes (`deal-pipeline.ts`
-    first, then `lp-api.ts`, then `allocations.ts`); reduce direct DB/storage
-    route imports from 25 toward a tracked lower target.
-22. Migrate route-layer console calls (165 across 27 files) to Pino during or
+19. DONE: Split `App.tsx` while keeping it as the provider/composition root.
+20. DONE: Normalize API route mounting without changing URLs.
+21. DONE: Begin service extraction from largest DB-heavy routes with
+    `deal-pipeline.ts` first; schemas and cursor helpers now live under
+    `server/services/deal-pipeline/`, while `lp-api.ts` and `allocations.ts`
+    remain future extraction targets.
+22. NEXT: Migrate route-layer console calls (165 across 27 files) to Pino during or
     after service extraction.
 23. Consolidate fund stores.
 24. Consolidate type guards.
