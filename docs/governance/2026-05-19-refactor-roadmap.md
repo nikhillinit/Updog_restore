@@ -89,7 +89,7 @@ As of 2026-05-28:
     `scripts/pre-push-classification.mjs`, doc freshness warnings, orphan-test
     checks, TypeScript baseline validation, and targeted `vitest related`.
 14. Treat Batch 11 as closed on 2026-05-28: the current 19 tracked workflows
-    were classified in `docs/workflows/README.md`. No workflow was deleted:
+    were classified in the workflow registry doc. No workflow was deleted:
     GitHub branch protection has no required status checks or repository
     rulesets, but that is not enough to prove external status consumers or
     replacement parity for overlapping workflows.

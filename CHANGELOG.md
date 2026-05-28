@@ -3373,8 +3373,8 @@ and Phase 1D (Capital Allocation).
 - Large objects (≥ 1KB): Offload to worker thread
 - Performance: Event loop blocking 100-500ms → 0-5ms
 - Comprehensive test suite (25+ test cases)
-- See:
-  [packages/agent-core/PHASE2_ISSUE1_COMPLETION.md](packages/agent-core/PHASE2_ISSUE1_COMPLETION.md)
+- Historical detail file removed during repository cleanup; summary retained
+  here.
 
 **Phase 2 - Issue #2: Redis L2 Cache** 🚧 Day 1/3 Complete
 
@@ -3391,8 +3391,8 @@ and Phase 1D (Capital Allocation).
   HALF_OPEN)
 - Status: Foundation complete (1,368 LOC), integration pending (Day 2-3)
 - Next: ConversationCache integration with Stale-While-Revalidate pattern
-- See:
-  [packages/agent-core/PHASE2_ISSUE2_DETAILED_PLAN.md](packages/agent-core/PHASE2_ISSUE2_DETAILED_PLAN.md)
+- Historical detail file removed during repository cleanup; summary retained
+  here.
 
 **Multi-AI Review Results**:
 
@@ -3400,8 +3400,8 @@ and Phase 1D (Capital Allocation).
 - Average Score: 7.3/10, Confidence: 73%
 - Verdict: Conditional GO (fix 5 P0 issues before production)
 - All critical issues being addressed in Phase 2
-- See:
-  [packages/agent-core/reviews/MULTI_AI_CONSENSUS_REPORT.md](packages/agent-core/reviews/MULTI_AI_CONSENSUS_REPORT.md)
+- Historical review file removed during repository cleanup; summary retained
+  here.
 
 ### Changed
 
