@@ -1,0 +1,102 @@
+{
+  "scenario_id": "seed_fund_no_recycling",
+  "description": "Same cadence without recallable/recycled capital; isolates recycling delta while keeping terminal NAV active.",
+  "engine": {
+    "target": "server/services/lp-reporting/metrics-engine.computeMetrics",
+    "current_output_precision": "6dp decimal strings",
+    "requested_golden_precision": "1e-8",
+    "precision_note": "The fixture locks 1e-8 expected values, while the current LP metric-run wire contract serializes ratios and IRR to 6 decimal places. Tests compare current engine output at the documented 1e-6 contract tolerance until the wire contract is widened."
+  },
+  "input": {
+    "fundId": 101,
+    "asOfDate": "2030-12-31",
+    "perspective": "lp_net",
+    "cashFlowEvents": [
+      {
+        "id": 1,
+        "eventType": "lp_capital_call",
+        "amount": "10000000.000000",
+        "eventDate": "2024-01-02",
+        "perspective": "lp_net",
+        "status": "approved"
+      },
+      {
+        "id": 2,
+        "eventType": "lp_capital_call",
+        "amount": "8000000.000000",
+        "eventDate": "2024-07-01",
+        "perspective": "lp_net",
+        "status": "approved"
+      },
+      {
+        "id": 3,
+        "eventType": "lp_capital_call",
+        "amount": "6000000.000000",
+        "eventDate": "2025-01-02",
+        "perspective": "lp_net",
+        "status": "approved"
+      },
+      {
+        "id": 4,
+        "eventType": "lp_distribution",
+        "amount": "6000000.000000",
+        "eventDate": "2027-06-30",
+        "perspective": "lp_net",
+        "status": "approved"
+      }
+    ],
+    "valuationMarks": [
+      {
+        "id": 102,
+        "fairValue": "30000000.000000",
+        "markDate": "2030-12-31",
+        "asOfDate": "2030-12-31",
+        "status": "approved",
+        "confidenceLevel": "medium",
+        "companyId": 202
+      }
+    ]
+  },
+  "derivedCapital": {
+    "investable_capital_usd": "50000000.00000000",
+    "total_deployed_usd": "30000000.00000000",
+    "remaining_capital_usd": "20000000.00000000",
+    "recycled_capital_usd": "0.00000000"
+  },
+  "expected": {
+    "contributionsTotal": "24000000.000000",
+    "distributionsTotal": "6000000.000000",
+    "currentNav": "30000000.000000",
+    "dpi": "0.25000000",
+    "rvpi": "1.25000000",
+    "tvpi": "1.50000000",
+    "irr": "0.07064957",
+    "lp_proceeds_usd": "36000000.00",
+    "engine_decimal_strings": {
+      "dpi": "0.250000",
+      "rvpi": "1.250000",
+      "tvpi": "1.500000",
+      "netIrr": "0.070650",
+      "grossIrr": "0.070650",
+      "contributionsTotal": "24000000.000000",
+      "distributionsTotal": "6000000.000000",
+      "currentNav": "30000000.000000"
+    },
+    "tolerances": {
+      "requested_metric": "0.00000001",
+      "current_engine_metric": "0.000001",
+      "money": "0.005"
+    }
+  },
+  "notes": [],
+  "lock": {
+    "locked_at": "2026-05-28T06:36:00.562Z",
+    "inputs_hash": "5b6c88a52daa5ec953b195a1c29cb28c503a9d3c6e5334cdde70a1140247700e",
+    "diagnostics": {
+      "engineVersion": "1.0.0",
+      "decimalPrecision": 6,
+      "excludedFutureMarks": [],
+      "warnings": []
+    }
+  }
+}
