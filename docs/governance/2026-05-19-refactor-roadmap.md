@@ -66,9 +66,16 @@ As of 2026-05-27:
    `repo/` / BMAD scans found no references presenting the removed local copy as
    current. Matches classified as governance, historical/audit, active BMAD
    tooling, test path literals, ignore guards, or generic GitHub placeholders.
-10. The next separate cleanup slice is Batch 7, package reference decoupling. Do
-    not start it together with route logging migration, deal-pipeline
-    extraction, product-code refactors, or unrelated script/config cleanup.
+10. Treat Batch 7 as closed on 2026-05-27: `packages/**` still has 122 tracked
+    files, no package directories were deleted, and exact local package
+    references were removed from app tsconfigs, root script entrypoints,
+    CODEOWNERS, and app lint validation. Remaining matches classify as
+    docs/governance, historical/audit, generic package inventory or exclusion,
+    package-internal references, or future Batch 8 package-decision evidence.
+11. The next separate cleanup slice is Batch 8, package deletion or
+    externalization. Do not start it together with route logging migration,
+    deal-pipeline extraction, product-code refactors, Phoenix docs, or unrelated
+    script/config cleanup.
 
 Update this section whenever the active next step changes. This is the only
 "what to do right now" pointer in the document.
@@ -311,7 +318,7 @@ These should also remain.
 | Env files          | No committed `.env.test` exists. Add one only with safe deterministic values and verified loader behavior; production secrets stay out of Git.                                                                                  |
 | Archives/logs      | `docs/phase0-runner*.txt`, root `archive/`, and tracked `docs/archive/**` are already absent; local ignored `docs/archive/2025-q4/` files stay ignored-only and banned from tracked HEAD.                                       |
 | Binary docs assets | `docs/references/attached_assets/` has 0 tracked files; restore specific assets from git history only if a future active reference requires them.                                                                               |
-| Packages           | `packages/*` is still referenced by scripts/tsconfigs. Remove those references before deleting or extracting packages.                                                                                                          |
+| Packages           | Batch 7 removed app tsconfig/script/config coupling to local packages while leaving `packages/**` intact at 122 tracked files. Batch 8 decides delete vs externalize.                                                           |
 | Quarantine         | Zero undocumented quarantines; every quarantine has TTL, reason, and exit condition. Current: 3 undocumented (see Section 1b).                                                                                                  |
 | Financial logic    | Existing truth/parity tests are fragmented across domains; fill missing coverage before semantic refactors.                                                                                                                     |
 | Route boundaries   | No new route files importing `db` or `storage` directly. Current: 25 of 75 route files import persistence directly; target reduction behind contract tests.                                                                     |
@@ -767,6 +774,26 @@ npm run test:unit
 npm run build:prod
 ```
 
+Batch 7 closeout on 2026-05-27:
+
+- Removed the stale app/client coupling to `packages/agent-core` from
+  `client/tsconfig.json`, `tsconfig.client.json`, and the unused
+  `client/src/ai/ConversationMemory.ts` shim.
+- Removed package-specific app validation coupling from `tsconfig.eslint.json`,
+  `eslint.config.js`, `.github/CODEOWNERS`, and the logger-order codemod default
+  globs.
+- Retired broken package-backed root script entrypoints for test repair, bundle
+  optimization, Codex review watch, and thinking-migration readiness.
+  `scripts/init-memory-manager.ts` now writes package-free session context
+  without importing the local memory package.
+- Kept active generic package inventory/exclusion behavior such as
+  `scripts/sync-capabilities.mjs`, `scripts/type-safety-scanner.js`, and the
+  root ESLint `packages/**` ignore; these do not couple app validation to local
+  package source.
+- Verification: focused command-path proofs, targeted memory-init unit test,
+  `npm run check`, `npm run test:unit`, `npm run build:prod`, and `npm run lint`
+  all exited 0.
+
 ## 2.3 Delete or move packages
 
 Recommended for this build:
@@ -803,7 +830,7 @@ package cleanup. They are referenced by `CLAUDE.md`, `AGENTS.md`,
 
 Milestone 2 is complete when:
 
-- [ ] `packages/*` references are removed from app tsconfigs, scripts, and CI.
+- [x] `packages/*` references are removed from app tsconfigs, scripts, and CI.
 - [ ] Unused packages are deleted (git tag before deletion).
 - [ ] Hermes scaffolding files listed in Section 2.4 are verified present.
 - [ ] `npm run check && npm run build:prod && npm run test:unit` pass.
@@ -1731,7 +1758,7 @@ changes and reduce future debt accumulation.
 |     4 | DONE: `chore(app): migrate legacy route-story mirror`                                   | 2026-05-27 recheck: only root `src/**` file deleted; route tests migrated                             |
 |     5 | DONE: `test(client): lock modeling wizard machine behavior`                             | 2026-05-27 focused wizard tests: 5 files, 33 passed, 0 skipped                                        |
 |     6 | DONE/no-op: `docs(repo): mark external BMAD local copy as removed if references change` | 2026-05-27 scan: 0 tracked files; root path absent; no refs present the removed local copy as current |
-|     7 | `chore(tooling): remove package refs from app configs and scripts`                      | `check + test:unit`                                                                                   |
+|     7 | DONE: `chore(tooling): remove package refs from app configs and scripts`                | 2026-05-27: package scans; command-path proofs; `check + test:unit + build:prod + lint`               |
 |     8 | `chore(tooling): remove unused ai-agent packages`                                       | `check + test:unit + build:prod`                                                                      |
 |     9 | `chore(scripts): classify and retire stale wave and phase scripts`                      | replacement command chain                                                                             |
 |    10 | `chore(hooks): simplify husky hooks after replacing pre-push orchestration`             | staged-file test + replacement command chain                                                          |
@@ -1768,7 +1795,8 @@ baseline in the roadmap.
    current behavior and future replacement remains a separate migration.
 7. DONE/no-op: Treat the vendored external `repo/` project as already removed
    locally; Batch 6 found no references presenting it as current.
-8. Decouple and delete/externalize unused packages.
+8. DONE: decouple app configs and scripts from unused local packages; Batch 8
+   remains the separate delete/externalize decision.
 9. Classify current 90 scripts and retire remaining stale
    wave/phase/package-only scripts.
 10. Simplify Husky hooks only after replacement commands exist; delete

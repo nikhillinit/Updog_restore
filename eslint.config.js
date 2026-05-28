@@ -61,6 +61,7 @@ export default [
       'types/**',
       'tools/**',
       'ai-utils/**', // Experimental AI development tools
+      'packages/**', // Local agent packages are outside app validation.
       'server/examples/**', // Server example code
       'server/security/integration-guide.ts', // Reference integration guide, not runtime code
       'server/routes/simulations-guarded.example.ts', // Example-only route wiring
@@ -87,8 +88,6 @@ export default [
       '.migration-backup/**',
       '.backup/**',
       '_archive/**', // Archived obsolete code
-      'packages/*/dist/**',
-      'packages/*/build/**',
       'ml-service/dist/**',
       'check-db.js',
       'test-*.mjs', // Manual test scripts
@@ -342,30 +341,6 @@ export default [
         module: 'readonly',
         exports: 'readonly',
         global: 'readonly',
-        setTimeout: 'readonly',
-        clearTimeout: 'readonly',
-        setInterval: 'readonly',
-        clearInterval: 'readonly',
-      },
-    },
-  },
-  // Packages JavaScript files (test runners, examples, etc.)
-  {
-    files: ['packages/**/*.js', 'packages/**/*.mjs'],
-    languageOptions: {
-      ecmaVersion: 'latest',
-      sourceType: 'module',
-      globals: {
-        console: 'readonly',
-        process: 'readonly',
-        Buffer: 'readonly',
-        __dirname: 'readonly',
-        __filename: 'readonly',
-        require: 'readonly',
-        module: 'readonly',
-        exports: 'readonly',
-        global: 'readonly',
-        fetch: 'readonly',
         setTimeout: 'readonly',
         clearTimeout: 'readonly',
         setInterval: 'readonly',
