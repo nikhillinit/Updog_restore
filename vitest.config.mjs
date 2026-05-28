@@ -1,33 +1,17 @@
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { configDefaults, defineConfig } from 'vitest/config';
+import { createVitestAlias } from './vitest.config.shared.mjs';
 
 // Derive project root in ESM-compatible way (no __dirname in Vitest ESM configs)
 const projectRoot = dirname(fileURLToPath(import.meta.url));
 
-// Shared alias constant (single source of truth)
-// Vitest test.projects don't inherit root-level resolve.alias (Vitest <1.0 behavior)
-// so we extract this constant and explicitly add to each project that needs it
-const alias = {
-  // Primary path aliases (mirrors vite.config.ts)
-  // Note: '@/' must come before '@' to match more specific paths first
-  '@/core': resolve(projectRoot, './client/src/core'),
-  '@/lib': resolve(projectRoot, './client/src/lib'),
-  '@/server': resolve(projectRoot, './server'),
-  '@/metrics/reserves-metrics': resolve(projectRoot, './tests/mocks/metrics-mock.ts'),
-  '@/server/utils/logger': resolve(projectRoot, './tests/mocks/server-logger.ts'),
-  '@/': resolve(projectRoot, './client/src/'),
-  '@': resolve(projectRoot, './client/src'),
-
-  // Shared and assets
-  '@shared/': resolve(projectRoot, './shared/'),
-  '@shared': resolve(projectRoot, './shared'),
-  '@schema': resolve(projectRoot, './shared/schema'),
-  '@assets': resolve(projectRoot, './assets'),
-
-  // Test mocks
-  '@upstash/redis': resolve(projectRoot, './tests/mocks/upstash-redis.ts'),
-};
+const alias = createVitestAlias(projectRoot, {
+  includeAppServer: true,
+  includeAssets: true,
+  includeTestMocks: true,
+  includeUpstashRedisMock: true,
+});
 
 // Resolve setup/teardown files against the config location so sandbox worktrees
 // don't depend on the primary workspace path when Vitest spawns Vite.

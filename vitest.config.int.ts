@@ -1,26 +1,18 @@
-import { dirname, resolve } from 'node:path';
+import { dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { defineConfig } from 'vitest/config';
+import { createVitestAlias } from './vitest.config.shared.mjs';
 
 const projectRoot = dirname(fileURLToPath(import.meta.url));
+const alias = createVitestAlias(projectRoot, {
+  includeAppServer: true,
+  includeTestMocks: true,
+  includeUpstashRedisMock: true,
+});
 
 export default defineConfig({
   root: projectRoot,
-  resolve: {
-    alias: {
-      '@/core': resolve(projectRoot, './client/src/core'),
-      '@/lib': resolve(projectRoot, './client/src/lib'),
-      '@/server': resolve(projectRoot, './server'),
-      '@/metrics/reserves-metrics': resolve(projectRoot, './tests/mocks/metrics-mock.ts'),
-      '@/server/utils/logger': resolve(projectRoot, './tests/mocks/server-logger.ts'),
-      '@/': resolve(projectRoot, './client/src/'),
-      '@': resolve(projectRoot, './client/src'),
-      '@shared/': resolve(projectRoot, './shared/'),
-      '@shared': resolve(projectRoot, './shared'),
-      '@schema': resolve(projectRoot, './shared/schema'),
-      '@upstash/redis': resolve(projectRoot, './tests/mocks/upstash-redis.ts'),
-    },
-  },
+  resolve: { alias },
   test: {
     name: 'server',
     globalSetup: ['tests/integration/global-setup.ts'],
