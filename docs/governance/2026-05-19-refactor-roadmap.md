@@ -61,10 +61,14 @@ As of 2026-05-27:
    initial state, step order, NEXT/BACK/GOTO navigation, optional-step skipping,
    context preservation, submit `createdFundId` capture, persistence success,
    quota/security failure paths, and the legacy UI quarantine relationship.
-9. The next separate cleanup slice is Batch 6, external BMAD/repo reference
-   cleanup only if touched references need current wording. Do not start it
-   together with route logging migration, deal-pipeline extraction, package
-   cleanup, or other product-code refactors inside this closeout slice.
+9. Treat Batch 6 as closed as a no-op evidence refresh on 2026-05-27:
+   `git ls-files 'repo/**'` returned empty, root `repo/` was absent, and live
+   `repo/` / BMAD scans found no references presenting the removed local copy as
+   current. Matches classified as governance, historical/audit, active BMAD
+   tooling, test path literals, ignore guards, or generic GitHub placeholders.
+10. The next separate cleanup slice is Batch 7, package reference decoupling. Do
+    not start it together with route logging migration, deal-pipeline
+    extraction, product-code refactors, or unrelated script/config cleanup.
 
 Update this section whenever the active next step changes. This is the only
 "what to do right now" pointer in the document.
@@ -407,14 +411,14 @@ These tolerances are derived from the solver implementations in
 These items are resolved and no longer in the active work queue. They remain
 documented as guards against recurrence.
 
-| Item                               | Status                            | Future Rule                                                         |
-| ---------------------------------- | --------------------------------- | ------------------------------------------------------------------- |
-| `docs/references/attached_assets/` | DONE -- 0 tracked files           | Restore individual assets only if an active reference requires them |
-| `docs/phase0-runner*.txt`          | DONE -- already absent            | Add targeted `.gitignore` if recurrence is observed                 |
-| Root `archive/`                    | DONE -- already absent            | Do not reintroduce as tracked directory                             |
-| Local `repo/` folder               | DONE -- already removed/untracked | Clean stale doc refs only when touched                              |
-| Root `ai/` pipeline                | DONE -- 24 files deleted          | Evidence in git history and cleanup manifest                        |
-| Root `ADR/` stubs                  | DONE -- deleted                   | `docs/adr/` is the maintained ADR collection                        |
+| Item                               | Status                                                          | Future Rule                                                         |
+| ---------------------------------- | --------------------------------------------------------------- | ------------------------------------------------------------------- |
+| `docs/references/attached_assets/` | DONE -- 0 tracked files                                         | Restore individual assets only if an active reference requires them |
+| `docs/phase0-runner*.txt`          | DONE -- already absent                                          | Add targeted `.gitignore` if recurrence is observed                 |
+| Root `archive/`                    | DONE -- already absent                                          | Do not reintroduce as tracked directory                             |
+| Local `repo/` folder               | DONE -- already removed/untracked; Batch 6 no-op refresh closed | Clean stale doc refs only if newly introduced                       |
+| Root `ai/` pipeline                | DONE -- 24 files deleted                                        | Evidence in git history and cleanup manifest                        |
+| Root `ADR/` stubs                  | DONE -- deleted                                                 | `docs/adr/` is the maintained ADR collection                        |
 
 ---
 
@@ -662,9 +666,23 @@ Manual smoke:
 
 ## 1.6 Record `repo/` removal
 
-Verified state: `repo/` has been removed from the working tree and had no
-tracked files (`git ls-files repo` returned 0). No cleanup commit can represent
-that deletion unless replacement docs are changed.
+Verified state: `repo/` has been removed from the working tree and has no
+tracked files (`git ls-files 'repo/**'` returned 0). The 2026-05-27 Batch 6
+refresh also confirmed root `repo/` is absent.
+
+Reference classification from the Batch 6 refresh:
+
+- Governance references remain in this roadmap and `cleanup-manifest.md`.
+- Historical/audit references remain in capability, ADR, security, and refactor
+  audit docs.
+- Active BMAD references belong to current automation/process docs and
+  `scripts/ai-tools/**`.
+- `repo/**` ignore entries remain tooling guards while recurrence risk exists.
+- `/repo/...` references in Hermes tests/plans are path-literal fixtures.
+- `:owner/:repo` and `your-repo` references are generic GitHub placeholders.
+
+No non-governance edit was needed because no match still described `repo/` /
+`repo/BMAD-METHOD` as a current local tracked project.
 
 Follow-up only if touching related docs:
 
@@ -1699,27 +1717,27 @@ Batches 0a-0e are quick wins from the 2026-05-27 tech debt audit that can land
 before or interleaved with the existing sequence. They require no product code
 changes and reduce future debt accumulation.
 
-| Batch | Commit                                                                       | Validation                                                                |
-| ----: | ---------------------------------------------------------------------------- | ------------------------------------------------------------------------- |
-|    0a | `chore(guardrails): add route-import guard for db/storage`                   | `npm run check`; no existing route files break                            |
-|    0b | `test(quarantine): document 3 undocumented quarantines`                      | quarantine report shows 0 undocumented                                    |
-|    0c | `test(cleanup): delete zero-assertion debug-ca020 test`                      | `npm run test:unit`                                                       |
-|    0d | `refactor(middleware): replace console calls with Pino in middleware`        | DONE at `df2b22fc`; middleware console scan is clean                      |
-|    0e | `chore(audit): add verified tech debt baseline to refactor roadmap`          | `rg` console scans; `guard:console:check`; `git diff --check`             |
-|     0 | `chore(audit): capture baseline and cleanup manifest`                        | n/a                                                                       |
-|     1 | `chore(repo): record generated docs logs already absent`                     | docs link check if ignore/docs change                                     |
-|     2 | DONE/no-op: `chore(docs): externalize large reference assets`                | 2026-05-27 recheck: 0 tracked files; no active restore refs               |
-|     3 | DONE/no-op: `chore(docs): curate remaining docs archive`                     | 2026-05-27 recheck: 0 tracked files; local ignored-only files             |
-|     4 | DONE: `chore(app): migrate legacy route-story mirror`                        | 2026-05-27 recheck: only root `src/**` file deleted; route tests migrated |
-|     5 | DONE: `test(client): lock modeling wizard machine behavior`                  | 2026-05-27 focused wizard tests: 5 files, 33 passed, 0 skipped            |
-|     6 | `docs(repo): mark external BMAD local copy as removed if references change`  | docs link check                                                           |
-|     7 | `chore(tooling): remove package refs from app configs and scripts`           | `check + test:unit`                                                       |
-|     8 | `chore(tooling): remove unused ai-agent packages`                            | `check + test:unit + build:prod`                                          |
-|     9 | `chore(scripts): classify and retire stale wave and phase scripts`           | replacement command chain                                                 |
-|    10 | `chore(hooks): simplify husky hooks after replacing pre-push orchestration`  | staged-file test + replacement command chain                              |
-|    11 | `chore(test): consolidate vitest config aliases without changing unit entry` | `test:unit`                                                               |
-|    12 | `test(domain): fill fund-model golden parity gaps`                           | `phoenix:truth` + targeted truth/golden tests                             |
-|   13+ | Product refactors one area at a time                                         | per-area gates                                                            |
+| Batch | Commit                                                                                  | Validation                                                                                            |
+| ----: | --------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------- |
+|    0a | `chore(guardrails): add route-import guard for db/storage`                              | `npm run check`; no existing route files break                                                        |
+|    0b | `test(quarantine): document 3 undocumented quarantines`                                 | quarantine report shows 0 undocumented                                                                |
+|    0c | `test(cleanup): delete zero-assertion debug-ca020 test`                                 | `npm run test:unit`                                                                                   |
+|    0d | `refactor(middleware): replace console calls with Pino in middleware`                   | DONE at `df2b22fc`; middleware console scan is clean                                                  |
+|    0e | `chore(audit): add verified tech debt baseline to refactor roadmap`                     | `rg` console scans; `guard:console:check`; `git diff --check`                                         |
+|     0 | `chore(audit): capture baseline and cleanup manifest`                                   | n/a                                                                                                   |
+|     1 | `chore(repo): record generated docs logs already absent`                                | docs link check if ignore/docs change                                                                 |
+|     2 | DONE/no-op: `chore(docs): externalize large reference assets`                           | 2026-05-27 recheck: 0 tracked files; no active restore refs                                           |
+|     3 | DONE/no-op: `chore(docs): curate remaining docs archive`                                | 2026-05-27 recheck: 0 tracked files; local ignored-only files                                         |
+|     4 | DONE: `chore(app): migrate legacy route-story mirror`                                   | 2026-05-27 recheck: only root `src/**` file deleted; route tests migrated                             |
+|     5 | DONE: `test(client): lock modeling wizard machine behavior`                             | 2026-05-27 focused wizard tests: 5 files, 33 passed, 0 skipped                                        |
+|     6 | DONE/no-op: `docs(repo): mark external BMAD local copy as removed if references change` | 2026-05-27 scan: 0 tracked files; root path absent; no refs present the removed local copy as current |
+|     7 | `chore(tooling): remove package refs from app configs and scripts`                      | `check + test:unit`                                                                                   |
+|     8 | `chore(tooling): remove unused ai-agent packages`                                       | `check + test:unit + build:prod`                                                                      |
+|     9 | `chore(scripts): classify and retire stale wave and phase scripts`                      | replacement command chain                                                                             |
+|    10 | `chore(hooks): simplify husky hooks after replacing pre-push orchestration`             | staged-file test + replacement command chain                                                          |
+|    11 | `chore(test): consolidate vitest config aliases without changing unit entry`            | `test:unit`                                                                                           |
+|    12 | `test(domain): fill fund-model golden parity gaps`                                      | `phoenix:truth` + targeted truth/golden tests                                                         |
+|   13+ | Product refactors one area at a time                                                    | per-area gates                                                                                        |
 
 ---
 
@@ -1748,8 +1766,8 @@ baseline in the roadmap.
    leaving no root `src/**` owner.
 6. DONE: keep active XState modeling-wizard machine; focused tests now lock
    current behavior and future replacement remains a separate migration.
-7. Treat the vendored external `repo/` project as already removed locally; only
-   clean stale doc references when touched.
+7. DONE/no-op: Treat the vendored external `repo/` project as already removed
+   locally; Batch 6 found no references presenting it as current.
 8. Decouple and delete/externalize unused packages.
 9. Classify current 90 scripts and retire remaining stale
    wave/phase/package-only scripts.
