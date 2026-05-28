@@ -8,6 +8,11 @@ last_updated: 2026-01-19
 **Status:** ✅ Active **Date Added:** 2025-10-28 **Models Supported:** Claude
 Sonnet 4.5, Claude 3.7 Sonnet, Claude Opus 4
 
+**Batch 8 note:** local `packages/agent-core/` source was removed after live
+reference scans found no active app, script, test, workflow, or root-config
+dependency. Package-path examples below are historical integration examples, not
+current local source paths.
+
 ## Overview
 
 Extended thinking gives Claude enhanced reasoning capabilities for complex tasks
@@ -233,7 +238,7 @@ export default router;
 ### Agent Framework Integration
 
 ```typescript
-// packages/agent-core/src/agents/waterfall-agent.ts
+// Historical package-path example; packages/agent-core was removed in Batch 8.
 import { BaseAgent } from '../base-agent';
 import { AgentThinkingHelper } from '@/ai-utils/extended-thinking/agent-helper';
 

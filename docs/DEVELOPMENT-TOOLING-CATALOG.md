@@ -64,8 +64,9 @@ agents -> command workflows -> repo-native tooling -> generic fallback guidance.
 
 **Verified inventory**: `37` files under `.claude/agents`
 
-**Location**: `.claude/agents/`, plus supporting agent packages under
-`packages/`
+**Location**: `.claude/agents/`; package-backed agent source under `packages/`
+was removed in the Batch 8 cleanup after reference scans found no app, script,
+test, workflow, or root config dependency.
 
 This section is intentionally a routing aid, not a hand-maintained exhaustive
 file dump. Use `.claude/agents` as the live source of truth when you need the
@@ -175,20 +176,12 @@ The list below highlights the current repo-visible command workflow surfaces.
 
 ## 4. Agent Packages
 
-**Location**: `packages/`
+**Location**: none in the current tracked tree.
 
-This section is preserved as a package map. Historical package totals and
-memory-adoption percentages were removed in this pass because they were not
-re-verified.
-
-| Package             | Description                                                | Status |
-| ------------------- | ---------------------------------------------------------- | ------ |
-| `agent-core`        | Base agent primitives, retries, metrics, health monitoring | Active |
-| `code-review-agent` | Code review package support                                | Active |
-| `migration-agent`   | Migration-oriented package support                         | Active |
-| `patch-applicator`  | Patch application and validation                           | Active |
-| `performance-agent` | Performance regression support                             | Active |
-| `test-repair-agent` | Test failure detection and repair                          | Active |
+Batch 8 removed the local package-backed agent source from `packages/` after the
+live scan found only package-internal, governance, historical, or stale
+documentation references. Current development tooling lives in `.claude/agents`,
+`.claude/commands`, root npm scripts, and `scripts/ai-tools/`.
 
 ---
 

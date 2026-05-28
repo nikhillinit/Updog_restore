@@ -186,8 +186,8 @@ not by number alone._
 
 **Key Features**:
 
-- **Memory System**: HybridMemoryManager with PostgreSQL + pgvector
-- **Pattern Learning**: Cross-conversation pattern learning
+- **Agent surfaces**: project prompt agents under `.claude/agents/`
+- **Package-free AI gateway**: `npm run ai` routes to `scripts/ai-tools/`
 - **Multi-AI**: Gemini (free), Grok/OpenAI/DeepSeek (paid)
 
 ---

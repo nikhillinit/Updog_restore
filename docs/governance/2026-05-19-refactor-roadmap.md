@@ -66,16 +66,20 @@ As of 2026-05-27:
    `repo/` / BMAD scans found no references presenting the removed local copy as
    current. Matches classified as governance, historical/audit, active BMAD
    tooling, test path literals, ignore guards, or generic GitHub placeholders.
-10. Treat Batch 7 as closed on 2026-05-27: `packages/**` still has 122 tracked
+10. Treat Batch 7 as closed on 2026-05-27: `packages/**` still had 122 tracked
     files, no package directories were deleted, and exact local package
     references were removed from app tsconfigs, root script entrypoints,
-    CODEOWNERS, and app lint validation. Remaining matches classify as
-    docs/governance, historical/audit, generic package inventory or exclusion,
-    package-internal references, or future Batch 8 package-decision evidence.
-11. The next separate cleanup slice is Batch 8, package deletion or
-    externalization. Do not start it together with route logging migration,
-    deal-pipeline extraction, product-code refactors, Phoenix docs, or unrelated
-    script/config cleanup.
+    CODEOWNERS, and app lint validation.
+11. Treat Batch 8 as closed on 2026-05-27: the pre-deletion package count was
+    122 tracked files, live app/script/test/workflow/root-config scans found no
+    active dependency on the five local package directories, and the stale
+    package-backed source under `packages/**` was deleted. Remaining package
+    references classify as governance closeout evidence, historical/audit
+    records, package-free script wording, or generic dependency/package wording.
+12. The next separate cleanup slice is Batch 9, classifying and retiring stale
+    wave/phase/package-only scripts. Do not start it together with route logging
+    migration, deal-pipeline extraction, product-code refactors, Phoenix docs,
+    or unrelated config cleanup.
 
 Update this section whenever the active next step changes. This is the only
 "what to do right now" pointer in the document.
@@ -803,6 +807,37 @@ Recommended for this build:
    source code.
 3. Avoid `archive/dead-packages/` inside the repo.
 4. Do not adopt npm workspaces unless packages become runtime dependencies.
+
+Batch 8 closeout on 2026-05-27:
+
+- Pre-deletion count: `git ls-files 'packages/**' | Measure-Object -Line`
+  returned 122 tracked files.
+- Package directories present before deletion: `agent-core`,
+  `bundle-optimization-agent`, `codex-review-agent`, `memory-manager`, and
+  `test-repair-agent`; `packages/bmad-integration` had no tracked package
+  directory.
+- Package-by-package classification:
+  - `packages/agent-core`: no active app runtime, root script, workflow, test,
+    tsconfig, or root config dependency; kept only by package-internal refs,
+    governance/historical/audit docs, and stale active catalog wording.
+  - `packages/bundle-optimization-agent`: no active app/runtime dependency; root
+    `npm run ai bundle-optimize` is already a retired stub and current bundle
+    evidence uses `scripts/ai-tools/bundle-analyzer.mjs`.
+  - `packages/codex-review-agent`: no active root `review:*` scripts or app
+    imports remained; setup/migration docs are retained as historical evidence.
+  - `packages/memory-manager`: no active package import remained; the active
+    `scripts/init-memory-manager.ts` helper writes package-free session context.
+  - `packages/test-repair-agent`: no active package import remained; the active
+    root repair surfaces are package-free scripts or retired stubs.
+- Deleted: all five package directories plus the package-only
+  `packages/bundle-optimization-agents.md` routing doc.
+- Kept/no-op: no `packages/bmad-integration` directory existed to delete.
+- No npm workspaces or committed quarantine/archive package copies were
+  introduced.
+- Remaining risks: older changelog, capability, ADR, audit, and migration docs
+  still contain historical package paths. Treat them as historical records; do
+  not broaden cleanup unless a live routing or setup surface points users at
+  deleted source.
 
 ## 2.4 Consolidate AI tooling after package decision
 
@@ -1759,7 +1794,7 @@ changes and reduce future debt accumulation.
 |     5 | DONE: `test(client): lock modeling wizard machine behavior`                             | 2026-05-27 focused wizard tests: 5 files, 33 passed, 0 skipped                                        |
 |     6 | DONE/no-op: `docs(repo): mark external BMAD local copy as removed if references change` | 2026-05-27 scan: 0 tracked files; root path absent; no refs present the removed local copy as current |
 |     7 | DONE: `chore(tooling): remove package refs from app configs and scripts`                | 2026-05-27: package scans; command-path proofs; `check + test:unit + build:prod + lint`               |
-|     8 | `chore(tooling): remove unused ai-agent packages`                                       | `check + test:unit + build:prod`                                                                      |
+|     8 | DONE: `chore(tooling): remove unused ai-agent packages`                                 | 2026-05-27: package reference scans; docs routing check; `check + test:unit + build:prod`             |
 |     9 | `chore(scripts): classify and retire stale wave and phase scripts`                      | replacement command chain                                                                             |
 |    10 | `chore(hooks): simplify husky hooks after replacing pre-push orchestration`             | staged-file test + replacement command chain                                                          |
 |    11 | `chore(test): consolidate vitest config aliases without changing unit entry`            | `test:unit`                                                                                           |
@@ -1796,7 +1831,8 @@ baseline in the roadmap.
 7. DONE/no-op: Treat the vendored external `repo/` project as already removed
    locally; Batch 6 found no references presenting it as current.
 8. DONE: decouple app configs and scripts from unused local packages; Batch 8
-   remains the separate delete/externalize decision.
+   removed the unused package-backed agent source after package-by-package live
+   reference classification.
 9. Classify current 90 scripts and retire remaining stale
    wave/phase/package-only scripts.
 10. Simplify Husky hooks only after replacement commands exist; delete

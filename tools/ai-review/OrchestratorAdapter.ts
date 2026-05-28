@@ -1,19 +1,22 @@
 // tools/ai-review/OrchestratorAdapter.ts
-export type ChatMessage = { role: 'system'|'user'|'assistant'; content: string };
+export type ChatMessage = { role: 'system' | 'user' | 'assistant'; content: string };
 
 export interface Orchestrator {
   call: (
     providerId: string,
     messages: ChatMessage[],
     opts?: { maxTokens?: number; temperature?: number; timeoutMs?: number }
-  ) => Promise<{ text: string; usage?: { inputTokens?: number; outputTokens?: number; costUsd?: number } }>;
+  ) => Promise<{
+    text: string;
+    usage?: { inputTokens?: number; outputTokens?: number; costUsd?: number };
+  }>;
 }
 
 // --- Orchestrator resolution (your confirmed paths first) -------------------
 const ORCH_CANDIDATES = [
-  '@server/services/ai-orchestrator',     // ✅ your alias
-  '@/server/services/ai-orchestrator',    // fallback if @/ maps to client/src
-  '@/ai/orchestrator',                    // extra fallback
+  '@server/services/ai-orchestrator', // ✅ your alias
+  '@/server/services/ai-orchestrator', // fallback if @/ maps to client/src
+  '@/ai/orchestrator', // extra fallback
 ];
 
 export async function resolveOrchestrator(): Promise<Orchestrator | null> {
@@ -23,20 +26,20 @@ export async function resolveOrchestrator(): Promise<Orchestrator | null> {
       const mod = await import(p);
       const maybe = mod?.default ?? mod?.AIRouter ?? mod;
       if (maybe?.call && typeof maybe.call === 'function') return maybe as Orchestrator;
-    } catch { /* try next */ }
+    } catch {
+      /* try next */
+    }
   }
   return null;
 }
 
 // --- ConversationMemory resolution ------------------------------------------
 /**
- * Your canonical source is packages/agent-core/src/ConversationMemory.ts
- * We prefer a simple re-export at client/src/ai/ConversationMemory.ts (added below).
+ * Package-backed ConversationMemory was retired with the local agent packages.
+ * Prefer an app-owned memory adapter when one exists; otherwise fall back to
+ * the JSON audit file writer below.
  */
-const MEM_CANDIDATES = [
-  '@/ai/ConversationMemory', // preferred (client re-export)
-  '@/agent-core/ConversationMemory', // if you add a client alias later
-];
+const MEM_CANDIDATES = ['@/ai/ConversationMemory'];
 
 type MemoryAppend = (record: Record<string, unknown>) => Promise<void>;
 
@@ -73,7 +76,9 @@ export async function resolveConversationMemory(namespace: string): Promise<Memo
           });
         };
       }
-    } catch { /* keep looking */ }
+    } catch {
+      /* keep looking */
+    }
   }
 
   // 3) Fallback: JSON audit file to reviews/_audit.json in CWD

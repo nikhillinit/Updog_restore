@@ -22,13 +22,13 @@ VSCode reports two errors:
 TSCONFIG STRUCTURE:
 - Root tsconfig.json: includes [types, client/src, shared, server, schema], baseUrl: ".", paths for @/, @shared/, @server/, @schema
 - client/tsconfig.json: extends root, includes [src, vite-env.d.ts], sets baseUrl: ".", paths: @/* → src/*, @shared/* → ../shared/*
-- tsconfig.client.json: extends root, includes [types, client, shared, agent-core files], composite build, tsBuildInfoFile
+- tsconfig.client.json: extends root, includes [types, client, shared], composite build, tsBuildInfoFile
 - tsconfig.server.json: extends root, includes [server, shared, schema, core client files], excludes UI components, strict: false
 
 ADDITIONAL CONTEXT:
 - orchestrate.js is a legacy bootstrap script that creates directories (client/src/core/reserves, client/src/core/pacing, tests/fixtures) and runs smoke tests against APIs
 - Project uses sidecar architecture (tools_local/) for Windows module resolution reliability
-- Multiple TypeScript projects (client, server, shared, schema, packages) with project references
+- Multiple TypeScript projects (client, server, shared, schema) with project references
 - Working directory: c:\\dev\\Updog_restore
 - VSCode is trying to read a tsconfig from user temp directory instead of project directory
 

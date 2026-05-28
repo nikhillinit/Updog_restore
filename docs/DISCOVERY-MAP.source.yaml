@@ -581,7 +581,7 @@ patterns:
       - 'multi-agent'
       - 'orchestration'
     target: 'cheatsheets/agent-architecture.md'
-    secondary: 'packages/bundle-optimization-agents.md'
+    secondary: 'scripts/ai-tools/bundle-analyzer.mjs'
     message: 'Agent framework, BaseAgent class, multi-agent orchestration'
 
   # --- Bundle Optimization ---
@@ -595,8 +595,8 @@ patterns:
       - 'tree shaking'
       - 'code splitting'
       - 'lazy loading'
-    target: 'packages/bundle-optimization-agents.md'
-    message: 'AI-powered bundle optimization, dependency analysis, route optimization'
+    target: 'scripts/ai-tools/bundle-analyzer.mjs'
+    message: 'Package-free bundle analysis, dependency analysis, route optimization'
 
   # --- Troubleshooting (fallback) ---
   - id: 'troubleshooting'

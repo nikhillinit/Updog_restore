@@ -9,6 +9,11 @@ last_updated: 2026-01-19
 AI Architecture Team **Consulted:** Gemini AI Expert, OpenAI AI Expert, Deep
 Reasoning Analysis
 
+**Batch 8 supersession note:** local `packages/agent-core/` and
+`packages/memory-manager/` source was removed after live reference scans found
+no active app, script, test, workflow, or root-config dependency. Package paths
+below remain historical ADR context, not current source locations.
+
 ## Executive Summary
 
 ### Problem Statement
@@ -98,7 +103,7 @@ This approach was selected over:
 - Backend: Express.js, Node.js, TypeScript
 - Workers: BullMQ + Redis for async job processing
 - Database: PostgreSQL with Drizzle ORM
-- AI Agents: 5 specialized agents in `packages/agent-core/`
+- Historical AI Agents: 5 specialized agents formerly in `packages/agent-core/`
   - test-repair-agent
   - code-reviewer
   - evaluator-optimizer
@@ -108,7 +113,7 @@ This approach was selected over:
 **Current Agent Architecture:**
 
 ```typescript
-// packages/agent-core/src/BaseAgent.ts
+// Historical package-path example; packages/agent-core was removed in Batch 8.
 class BaseAgent {
   async execute(history: Message[]): Promise<string> {
     // Currently: Send ENTIRE history to LLM every time
@@ -191,13 +196,14 @@ mem0 is an open-source intelligent memory layer for AI agents that provides:
 
 ### Core Component: MemoryManager
 
-The `MemoryManager` is a new abstraction layer that decouples memory logic from
-agent logic. It will be created as a shared package: `packages/memory-manager/`
+The `MemoryManager` was proposed as an abstraction layer that decouples memory
+logic from agent logic. Its former shared package path,
+`packages/memory-manager/`, was removed in Batch 8.
 
 **TypeScript Interface:**
 
 ```typescript
-// packages/memory-manager/src/types.ts
+// Historical package-path example; packages/memory-manager was removed in Batch 8.
 interface Memory {
   id: string;
   userId: string;
@@ -217,7 +223,7 @@ interface MemoryContext {
   sessionId?: string;
 }
 
-// packages/memory-manager/src/MemoryManager.ts
+// Historical package-path example; packages/memory-manager was removed in Batch 8.
 export class MemoryManager {
   constructor(private context: MemoryContext) {}
 
@@ -357,7 +363,7 @@ memory:tenant:a1b2c3:user:d4e5f6:agent:test-repair
 **Implementation:**
 
 ```typescript
-// packages/memory-manager/src/RedisCache.ts
+// Historical package-path example; packages/memory-manager was removed in Batch 8.
 export class RedisCache {
   private readonly MAX_HISTORY = 20; // Keep last 20 messages
   private readonly TTL = 86400; // 24 hours in seconds
