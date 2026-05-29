@@ -7,8 +7,12 @@ export interface ScenarioCalculationRunIdentity {
   scenarioSetId: string;
   sourceConfigId: number;
   sourceConfigVersion: number;
-  calculationMode: 'sync_fee_profile' | 'async_reserve_allocation';
-  overrideType: 'fee_profile' | 'reserve_allocation';
+  calculationMode:
+    | 'sync_fee_profile'
+    | 'sync_allocation'
+    | 'sync_sector_profile'
+    | 'async_reserve_allocation';
+  overrideType: 'fee_profile' | 'allocation' | 'sector_profile' | 'reserve_allocation';
   inputHash: string;
   correlationId: string;
   jobId?: string | null;

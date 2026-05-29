@@ -8,6 +8,7 @@ export const SCENARIO_MIGRATION_FILES = [
   '0014_fund_scenario_calculated_event.sql',
   '0015_fund_scenario_reserve_allocation.sql',
   '0016_fund_scenario_calculation_runs.sql',
+  '0017_fund_scenario_allocation_sector_overrides.sql',
 ] as const;
 
 export async function applyScenarioMigrations(pool: Pool): Promise<void> {

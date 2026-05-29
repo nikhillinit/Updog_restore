@@ -58,6 +58,28 @@ describe('fund scenario comparison service', () => {
     expect(result.variants).toEqual([]);
   });
 
+  it('returns unsupported_override_type for allocation scenario sets', async () => {
+    mockScenarioSet('allocation');
+
+    const result = await getFundScenarioComparison(123, scenarioSetId);
+
+    expect(result.comparisonStatus).toBe('unsupported_override_type');
+    expect(result.unavailableReason).toBe('UNSUPPORTED_OVERRIDE_TYPE');
+    expect(result.baseline).toBeNull();
+    expect(result.variants).toEqual([]);
+  });
+
+  it('returns unsupported_override_type for sector-profile scenario sets', async () => {
+    mockScenarioSet('sector_profile');
+
+    const result = await getFundScenarioComparison(123, scenarioSetId);
+
+    expect(result.comparisonStatus).toBe('unsupported_override_type');
+    expect(result.unavailableReason).toBe('UNSUPPORTED_OVERRIDE_TYPE');
+    expect(result.baseline).toBeNull();
+    expect(result.variants).toEqual([]);
+  });
+
   it('builds comparable fee-profile variants against the authoritative economics baseline', async () => {
     mockScenarioSet('fee_profile');
     queryMock.mockResolvedValueOnce({ rows: [scenarioSnapshotRow()] });
@@ -101,14 +123,16 @@ function sqlForQueryContaining(fragment: string) {
   return String(call?.[0]);
 }
 
-function mockScenarioSet(overrideType: 'fee_profile' | 'reserve_allocation') {
+function mockScenarioSet(
+  overrideType: 'fee_profile' | 'reserve_allocation' | 'allocation' | 'sector_profile'
+) {
   queryMock.mockResolvedValueOnce({ rows: [{ id: 123 }] });
   queryMock.mockResolvedValueOnce({
     rows: [
       {
         id: scenarioSetId,
         fund_id: 123,
-        name: overrideType === 'fee_profile' ? 'Fee sensitivity' : 'Reserve sensitivity',
+        name: overrideType === 'fee_profile' ? 'Fee sensitivity' : `${overrideType} sensitivity`,
         description: null,
         source_config_id: 12,
         source_config_version: 4,
@@ -130,35 +154,47 @@ function mockScenarioSet(overrideType: 'fee_profile' | 'reserve_allocation') {
       {
         id: variantId,
         scenario_set_id: scenarioSetId,
-        name: overrideType === 'fee_profile' ? 'Lower fee' : 'Constrained reserves',
+        name: overrideType === 'fee_profile' ? 'Lower fee' : `${overrideType} variant`,
         description: null,
         sort_order: 0,
         override_type: overrideType,
-        override_payload:
-          overrideType === 'fee_profile'
-            ? {
-                feeProfiles: [
-                  {
-                    id: 'fee-profile-lower',
-                    name: 'Lower fee',
-                    feeTiers: [
-                      {
-                        id: 'tier-1',
-                        name: 'Management fee',
-                        percentage: 2,
-                        feeBasis: 'committed_capital',
-                        startMonth: 0,
-                      },
-                    ],
-                  },
-                ],
-              }
-            : { items: [{ companyId: 101, plannedReservesCents: 1_000_000 }] },
+        override_payload: overridePayloadFor(overrideType),
         created_at: new Date('2026-05-26T12:00:00.000Z'),
         updated_at: new Date('2026-05-26T12:00:00.000Z'),
       },
     ],
   });
+}
+
+function overridePayloadFor(
+  overrideType: 'fee_profile' | 'reserve_allocation' | 'allocation' | 'sector_profile'
+) {
+  if (overrideType === 'fee_profile') {
+    return {
+      feeProfiles: [
+        {
+          id: 'fee-profile-lower',
+          name: 'Lower fee',
+          feeTiers: [
+            {
+              id: 'tier-1',
+              name: 'Management fee',
+              percentage: 2,
+              feeBasis: 'committed_capital',
+              startMonth: 0,
+            },
+          ],
+        },
+      ],
+    };
+  }
+  if (overrideType === 'reserve_allocation') {
+    return { items: [{ companyId: 101, plannedReservesCents: 1_000_000 }] };
+  }
+  if (overrideType === 'allocation') {
+    return { allocations: [{ id: 'seed', category: 'Seed', percentage: 60 }] };
+  }
+  return { sectorProfiles: [{ id: 'ai', name: 'AI Infrastructure', targetPercentage: 35 }] };
 }
 
 function scenarioSnapshotRow() {

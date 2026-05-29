@@ -97,6 +97,20 @@ describe('ADR-022 fund scenario set schema shell', () => {
     expect(migration).toContain("'calculation_failed'");
   });
 
+  it('allocation and sector override migration extends only the variant check constraint', async () => {
+    const migration = await readRepoFile(
+      'server/db/migrations/0017_fund_scenario_allocation_sector_overrides.sql'
+    );
+
+    expect(migration).toContain('fund_scenario_variants_override_type_check');
+    expect(migration).toContain("'fee_profile'");
+    expect(migration).toContain("'reserve_allocation'");
+    expect(migration).toContain("'allocation'");
+    expect(migration).toContain("'sector_profile'");
+    expect(migration).not.toContain('0016');
+    expect(migration).not.toContain('fund_scenario_calculation_runs');
+  });
+
   it('calculation migration adds an audit-visible calculated event type', async () => {
     const migration = await readRepoFile(
       'server/db/migrations/0014_fund_scenario_calculated_event.sql'
@@ -116,9 +130,7 @@ describe('ADR-022 fund scenario set schema shell', () => {
     expect(migration).toContain(
       'DROP INDEX IF EXISTS fund_snapshots_scenario_set_calculation_unique'
     );
-    expect(migration).toContain(
-      'CREATE TABLE IF NOT EXISTS fund_scenario_calculation_runs'
-    );
+    expect(migration).toContain('CREATE TABLE IF NOT EXISTS fund_scenario_calculation_runs');
     expect(migration).toContain('fund_scenario_calc_runs_active_dedup_idx');
     expect(migration).toContain('fund_snapshots_scenarios_dedup_idx');
   });

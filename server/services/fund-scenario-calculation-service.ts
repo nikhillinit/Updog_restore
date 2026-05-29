@@ -5,8 +5,10 @@ import {
   FundScenarioCalculationPayloadV1Schema,
   FundScenarioCalculationResponseV1Schema,
   ScenarioSetResultSummaryV1Schema,
+  type FundScenarioCalculationModeV1,
   type FundScenarioCalculationPayloadV1,
   type FundScenarioCalculationResponseV1,
+  type FundScenarioOverrideTypeV1,
   type FundScenarioResultStalenessStateV1,
   type FundScenarioVariantOverrideV1,
   type ScenarioSetResultSummaryV1,
@@ -71,6 +73,8 @@ interface FeeProfileScenarioSnapshotInput {
   scenarioSetId: string;
   sourceConfigId: number;
   sourceConfigVersion: number;
+  calculationMode: FundScenarioCalculationModeV1;
+  overrideType: FundScenarioOverrideTypeV1;
   correlationId: string;
   payload: FundScenarioCalculationPayloadV1;
   inputHash: string;
@@ -89,6 +93,12 @@ const STALENESS_ORDER: Record<FundScenarioResultStalenessStateV1, number> = {
   STALE_CONFIG: 4,
   FAILED: 5,
 };
+
+type SyncScenarioOverrideType = Exclude<FundScenarioOverrideTypeV1, 'reserve_allocation'>;
+type SyncScenarioVariantOverride = Extract<
+  FundScenarioVariantOverrideV1,
+  { overrideType: SyncScenarioOverrideType }
+>;
 
 function parseJsonPayload(value: unknown): unknown {
   if (typeof value !== 'string') {
@@ -144,8 +154,8 @@ function feeProfileScenarioSnapshotParams(input: FeeProfileScenarioSnapshotInput
     input.correlationId,
     {
       input_hash: input.inputHash,
-      calculation_mode: 'sync_fee_profile',
-      override_type: 'fee_profile',
+      calculation_mode: input.calculationMode,
+      override_type: input.overrideType,
       timeout_ms: SYNC_CALCULATION_TIMEOUT_MS,
     },
     input.sourceConfigId,
@@ -176,7 +186,7 @@ function applyScenarioReadStaleness(
 }
 
 function mapScenarioVariantSummary(variant: FundScenarioCalculationPayloadV1['variants'][number]) {
-  if (variant.overrideType === 'fee_profile') {
+  if (variant.overrideType !== 'reserve_allocation') {
     return {
       variantId: variant.variantId,
       name: variant.name,
@@ -370,11 +380,61 @@ function applyFeeProfileOverride(
   };
 }
 
-function assertFeeProfileScenarioSet(
+function isSyncScenarioOverride(
+  override: FundScenarioVariantOverrideV1
+): override is SyncScenarioVariantOverride {
+  return override.overrideType !== 'reserve_allocation';
+}
+
+function syncCalculationModeForOverrideType(
+  overrideType: SyncScenarioOverrideType
+): FundScenarioCalculationModeV1 {
+  if (overrideType === 'fee_profile') return 'sync_fee_profile';
+  if (overrideType === 'allocation') return 'sync_allocation';
+  return 'sync_sector_profile';
+}
+
+function applySyncScenarioOverride(
+  sourceConfig: FundDraftWriteV1,
+  override: SyncScenarioVariantOverride
+): FundDraftWriteV1 {
+  if (override.overrideType === 'fee_profile') {
+    return applyFeeProfileOverride(sourceConfig, override);
+  }
+
+  if (override.overrideType === 'allocation') {
+    return {
+      ...sourceConfig,
+      ...(override.payload.allocations != null
+        ? { allocations: override.payload.allocations }
+        : {}),
+      ...(override.payload.capitalPlanAllocations != null
+        ? { capitalPlanAllocations: override.payload.capitalPlanAllocations }
+        : {}),
+    };
+  }
+
+  return {
+    ...sourceConfig,
+    sectorProfiles: override.payload.sectorProfiles,
+  };
+}
+
+function assertSyncScenarioSet(
   variants: Array<{ override: FundScenarioVariantOverrideV1 }>
-): void {
-  if (variants.every((variant) => variant.override.overrideType === 'fee_profile')) {
-    return;
+): SyncScenarioOverrideType {
+  const firstOverride = variants[0]?.override;
+  if (firstOverride && isSyncScenarioOverride(firstOverride)) {
+    const firstOverrideType = firstOverride.overrideType;
+    if (
+      variants.every(
+        (variant) =>
+          isSyncScenarioOverride(variant.override) &&
+          variant.override.overrideType === firstOverrideType
+      )
+    ) {
+      return firstOverrideType;
+    }
   }
 
   throw createHttpError(409, 'Use calculate-reserve for reserve-allocation scenario sets', {
@@ -453,7 +513,8 @@ export async function calculateFundScenarioSet(
         code: 'scenario_set_archived',
       });
     }
-    assertFeeProfileScenarioSet(scenarioSet.variants);
+    const overrideType = assertSyncScenarioSet(scenarioSet.variants);
+    const calculationMode = syncCalculationModeForOverrideType(overrideType);
 
     const sourceConfig = await loadSourceConfig(
       client,
@@ -469,8 +530,8 @@ export async function calculateFundScenarioSet(
       scenarioSetId,
       sourceConfigId: sourceConfig.id,
       sourceConfigVersion: sourceConfig.version,
-      calculationMode: 'sync_fee_profile',
-      overrideType: 'fee_profile',
+      calculationMode,
+      overrideType,
       engineVersion: FUND_SCENARIO_CALC_VERSION,
       variants: scenarioSet.variants.map((variant) => ({
         variantId: variant.id,
@@ -496,8 +557,8 @@ export async function calculateFundScenarioSet(
       scenarioSetId,
       sourceConfigId: sourceConfig.id,
       sourceConfigVersion: sourceConfig.version,
-      calculationMode: 'sync_fee_profile',
-      overrideType: 'fee_profile',
+      calculationMode,
+      overrideType,
       inputHash,
       correlationId,
     });
@@ -518,12 +579,12 @@ export async function calculateFundScenarioSet(
     const startedAt = performance.now();
     const variants = scenarioSet.variants.map((variant) => {
       assertWithinSyncDeadline(startedAt);
-      if (variant.override.overrideType !== 'fee_profile') {
+      if (!isSyncScenarioOverride(variant.override)) {
         throw createHttpError(409, 'Use calculate-reserve for reserve-allocation scenario sets', {
           code: 'scenario_calculation_mode_mismatch',
         });
       }
-      const variantConfig = applyFeeProfileOverride(sourceConfigBody, variant.override);
+      const variantConfig = applySyncScenarioOverride(sourceConfigBody, variant.override);
       const economics = runEconomicsModel(variantConfig);
       assertWithinSyncDeadline(startedAt);
 
@@ -543,7 +604,7 @@ export async function calculateFundScenarioSet(
         : 'CURRENT';
     const payload = FundScenarioCalculationPayloadV1Schema.parse({
       version: 'fund-scenarios-v1',
-      calculationMode: 'sync_fee_profile',
+      calculationMode,
       fundId,
       scenarioSetId,
       sourceConfigId: sourceConfig.id,
@@ -562,6 +623,8 @@ export async function calculateFundScenarioSet(
       scenarioSetId,
       sourceConfigId: sourceConfig.id,
       sourceConfigVersion: sourceConfig.version,
+      calculationMode,
+      overrideType,
       correlationId,
       payload,
       inputHash,
@@ -574,7 +637,9 @@ export async function calculateFundScenarioSet(
       eventType: 'calculated',
       actor: normalizeActor(actorInput),
       changeSummary: {
-        headline: 'Calculated fee-profile scenario set',
+        headline: `Calculated ${overrideType.replace('_', '-')} scenario set`,
+        calculation_mode: calculationMode,
+        override_type: overrideType,
         snapshot_id: response.snapshotId,
         variant_count: variants.length,
         source_config_version: sourceConfig.version,

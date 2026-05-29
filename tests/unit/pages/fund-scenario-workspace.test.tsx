@@ -64,14 +64,27 @@ describe('FundScenarioWorkspacePage', () => {
         return Promise.resolve(jsonResponse(reserveScenarioSetDetail()));
       }
 
+      if (
+        method === 'GET' &&
+        url === '/api/funds/123/scenario-sets/00000000-0000-0000-0000-000000000311'
+      ) {
+        return Promise.resolve(jsonResponse(allocationScenarioSetDetail()));
+      }
+
+      if (
+        method === 'GET' &&
+        url === '/api/funds/123/scenario-sets/00000000-0000-0000-0000-000000000411'
+      ) {
+        return Promise.resolve(jsonResponse(sectorProfileScenarioSetDetail()));
+      }
+
       if (method === 'GET' && url === '/api/funds/123/results') {
         return Promise.resolve(jsonResponse(fundResultsResponse()));
       }
 
       if (
         method === 'GET' &&
-        url ===
-          '/api/funds/123/scenario-sets/00000000-0000-0000-0000-000000000111/comparison'
+        url === '/api/funds/123/scenario-sets/00000000-0000-0000-0000-000000000111/comparison'
       ) {
         return Promise.resolve(jsonResponse(scenarioComparisonResponse()));
       }
@@ -87,13 +100,38 @@ describe('FundScenarioWorkspacePage', () => {
         method === 'GET' &&
         url.endsWith('/scenario-sets/00000000-0000-0000-0000-000000000211/calculation-status')
       ) {
-        return Promise.resolve(jsonResponse(statusResponse('not_requested', null)));
+        return Promise.resolve(
+          jsonResponse(
+            statusResponse('not_requested', null, '00000000-0000-0000-0000-000000000211')
+          )
+        );
+      }
+
+      if (
+        method === 'GET' &&
+        url.endsWith('/scenario-sets/00000000-0000-0000-0000-000000000311/calculation-status')
+      ) {
+        return Promise.resolve(
+          jsonResponse(
+            statusResponse('not_requested', null, '00000000-0000-0000-0000-000000000311')
+          )
+        );
+      }
+
+      if (
+        method === 'GET' &&
+        url.endsWith('/scenario-sets/00000000-0000-0000-0000-000000000411/calculation-status')
+      ) {
+        return Promise.resolve(
+          jsonResponse(
+            statusResponse('not_requested', null, '00000000-0000-0000-0000-000000000411')
+          )
+        );
       }
 
       if (
         method === 'POST' &&
-        url ===
-          '/api/funds/123/scenario-sets/00000000-0000-0000-0000-000000000111/calculate'
+        url === '/api/funds/123/scenario-sets/00000000-0000-0000-0000-000000000111/calculate'
       ) {
         return Promise.resolve(
           jsonResponse({
@@ -122,6 +160,48 @@ describe('FundScenarioWorkspacePage', () => {
         );
       }
 
+      if (
+        method === 'POST' &&
+        url === '/api/funds/123/scenario-sets/00000000-0000-0000-0000-000000000311/calculate'
+      ) {
+        return Promise.resolve(
+          jsonResponse({
+            snapshotId: 43,
+            correlationId: '00000000-0000-0000-0000-000000000997',
+            source: 'fund_snapshots',
+            payload: syncCalculationPayload({
+              calculationMode: 'sync_allocation',
+              scenarioSetId: '00000000-0000-0000-0000-000000000311',
+              variantId: '00000000-0000-0000-0000-000000000312',
+              overrideType: 'allocation',
+              sourceConfigId: 14,
+              name: 'Seed heavy',
+            }),
+          })
+        );
+      }
+
+      if (
+        method === 'POST' &&
+        url === '/api/funds/123/scenario-sets/00000000-0000-0000-0000-000000000411/calculate'
+      ) {
+        return Promise.resolve(
+          jsonResponse({
+            snapshotId: 44,
+            correlationId: '00000000-0000-0000-0000-000000000996',
+            source: 'fund_snapshots',
+            payload: syncCalculationPayload({
+              calculationMode: 'sync_sector_profile',
+              scenarioSetId: '00000000-0000-0000-0000-000000000411',
+              variantId: '00000000-0000-0000-0000-000000000412',
+              overrideType: 'sector_profile',
+              sourceConfigId: 15,
+              name: 'AI infrastructure',
+            }),
+          })
+        );
+      }
+
       return Promise.reject(new Error(`Unexpected fetch ${method} ${url}`));
     });
   }
@@ -134,19 +214,43 @@ describe('FundScenarioWorkspacePage', () => {
     expect(screen.getByText(/Test Fund \| Vintage 2024/)).toBeInTheDocument();
     expect(screen.getAllByText('Fee sensitivity').length).toBeGreaterThanOrEqual(1);
     expect(screen.getAllByText('Reserve plan').length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText('Allocation mix').length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText('Sector mix').length).toBeGreaterThanOrEqual(1);
     expect(screen.getByTestId('scenario-sets-summary')).toBeInTheDocument();
     expect(screen.getByTestId('scenario-comparison-table')).toBeInTheDocument();
     expect(screen.getByText('Authoritative baseline')).toBeInTheDocument();
 
-    const feeCard = screen.getByTestId('scenario-workspace-set-00000000-0000-0000-0000-000000000111');
+    const feeCard = screen.getByTestId(
+      'scenario-workspace-set-00000000-0000-0000-0000-000000000111'
+    );
     expect(within(feeCard).getByText('Succeeded')).toBeInTheDocument();
-    expect(within(feeCard).getByRole('button', { name: /calculate fee sensitivity/i })).toBeInTheDocument();
+    expect(
+      within(feeCard).getByRole('button', { name: /calculate fee sensitivity/i })
+    ).toBeInTheDocument();
 
     const reserveCard = screen.getByTestId(
       'scenario-workspace-set-00000000-0000-0000-0000-000000000211'
     );
     expect(within(reserveCard).getByText('Not requested')).toBeInTheDocument();
-    expect(within(reserveCard).getByRole('button', { name: /queue reserve plan/i })).toBeInTheDocument();
+    expect(
+      within(reserveCard).getByRole('button', { name: /queue reserve plan/i })
+    ).toBeInTheDocument();
+
+    const allocationCard = screen.getByTestId(
+      'scenario-workspace-set-00000000-0000-0000-0000-000000000311'
+    );
+    expect(within(allocationCard).getByText('Allocation')).toBeInTheDocument();
+    expect(
+      within(allocationCard).getByRole('button', { name: /calculate allocation mix/i })
+    ).toBeInTheDocument();
+
+    const sectorCard = screen.getByTestId(
+      'scenario-workspace-set-00000000-0000-0000-0000-000000000411'
+    );
+    expect(within(sectorCard).getByText('Sector profile')).toBeInTheDocument();
+    expect(
+      within(sectorCard).getByRole('button', { name: /calculate sector mix/i })
+    ).toBeInTheDocument();
   });
 
   it('uses the fee-profile calculation endpoint for fee scenario sets', async () => {
@@ -177,6 +281,34 @@ describe('FundScenarioWorkspacePage', () => {
     });
   });
 
+  it('uses the sync calculation endpoint for allocation scenario sets', async () => {
+    mockWorkspaceFetches();
+    renderWorkspace();
+
+    fireEvent.click(await screen.findByRole('button', { name: /calculate allocation mix/i }));
+
+    await waitFor(() => {
+      expect(fetchSpy).toHaveBeenCalledWith(
+        '/api/funds/123/scenario-sets/00000000-0000-0000-0000-000000000311/calculate',
+        expect.objectContaining({ method: 'POST' })
+      );
+    });
+  });
+
+  it('uses the sync calculation endpoint for sector-profile scenario sets', async () => {
+    mockWorkspaceFetches();
+    renderWorkspace();
+
+    fireEvent.click(await screen.findByRole('button', { name: /calculate sector mix/i }));
+
+    await waitFor(() => {
+      expect(fetchSpy).toHaveBeenCalledWith(
+        '/api/funds/123/scenario-sets/00000000-0000-0000-0000-000000000411/calculate',
+        expect.objectContaining({ method: 'POST' })
+      );
+    });
+  });
+
   it('rejects invalid fund routes before issuing API requests', () => {
     renderWorkspace('/fund-model-results/latest/scenarios');
 
@@ -193,7 +325,12 @@ function jsonResponse(body: unknown) {
 }
 
 function scenarioSetSummaries(): FundScenarioSetSummaryV1[] {
-  return [scenarioSetSummary('00000000-0000-0000-0000-000000000111', 'Fee sensitivity', 12, 4), scenarioSetSummary('00000000-0000-0000-0000-000000000211', 'Reserve plan', 13, 4)];
+  return [
+    scenarioSetSummary('00000000-0000-0000-0000-000000000111', 'Fee sensitivity', 12, 4),
+    scenarioSetSummary('00000000-0000-0000-0000-000000000211', 'Reserve plan', 13, 4),
+    scenarioSetSummary('00000000-0000-0000-0000-000000000311', 'Allocation mix', 14, 4),
+    scenarioSetSummary('00000000-0000-0000-0000-000000000411', 'Sector mix', 15, 4),
+  ];
 }
 
 function scenarioSetSummary(
@@ -262,6 +399,52 @@ function reserveScenarioSetDetail(): FundScenarioSetDetailV1 {
                 allocationReason: 'Cap the follow-on reserve for concentration control',
               },
             ],
+          },
+        },
+        createdAt: '2026-05-29T12:00:00.000Z',
+        updatedAt: '2026-05-29T12:00:00.000Z',
+      },
+    ],
+  };
+}
+
+function allocationScenarioSetDetail(): FundScenarioSetDetailV1 {
+  return {
+    ...scenarioSetSummary('00000000-0000-0000-0000-000000000311', 'Allocation mix', 14, 4),
+    variants: [
+      {
+        id: '00000000-0000-0000-0000-000000000312',
+        scenarioSetId: '00000000-0000-0000-0000-000000000311',
+        name: 'Seed heavy',
+        description: null,
+        sortOrder: 0,
+        override: {
+          overrideType: 'allocation',
+          payload: {
+            allocations: [{ id: 'seed', category: 'Seed', percentage: 60 }],
+          },
+        },
+        createdAt: '2026-05-29T12:00:00.000Z',
+        updatedAt: '2026-05-29T12:00:00.000Z',
+      },
+    ],
+  };
+}
+
+function sectorProfileScenarioSetDetail(): FundScenarioSetDetailV1 {
+  return {
+    ...scenarioSetSummary('00000000-0000-0000-0000-000000000411', 'Sector mix', 15, 4),
+    variants: [
+      {
+        id: '00000000-0000-0000-0000-000000000412',
+        scenarioSetId: '00000000-0000-0000-0000-000000000411',
+        name: 'AI infrastructure',
+        description: null,
+        sortOrder: 0,
+        override: {
+          overrideType: 'sector_profile',
+          payload: {
+            sectorProfiles: [{ id: 'ai-infra', name: 'AI infrastructure', targetPercentage: 40 }],
           },
         },
         createdAt: '2026-05-29T12:00:00.000Z',
@@ -377,6 +560,42 @@ function scenariosPayload() {
           },
         ],
       },
+      {
+        scenarioSetId: '00000000-0000-0000-0000-000000000311',
+        name: 'Allocation mix',
+        sourceConfigId: 14,
+        sourceConfigVersion: 4,
+        currentPublishedConfigVersion: 4,
+        calculatedAt: '2026-05-29T12:32:00.000Z',
+        staleness: 'CURRENT' as const,
+        variantCount: 1,
+        variants: [
+          {
+            variantId: '00000000-0000-0000-0000-000000000312',
+            name: 'Seed heavy',
+            overrideType: 'allocation' as const,
+            economicsSummary: economicsSummary(),
+          },
+        ],
+      },
+      {
+        scenarioSetId: '00000000-0000-0000-0000-000000000411',
+        name: 'Sector mix',
+        sourceConfigId: 15,
+        sourceConfigVersion: 4,
+        currentPublishedConfigVersion: 4,
+        calculatedAt: '2026-05-29T12:34:00.000Z',
+        staleness: 'CURRENT' as const,
+        variantCount: 1,
+        variants: [
+          {
+            variantId: '00000000-0000-0000-0000-000000000412',
+            name: 'AI infrastructure',
+            overrideType: 'sector_profile' as const,
+            economicsSummary: economicsSummary(),
+          },
+        ],
+      },
     ],
   };
 }
@@ -463,15 +682,18 @@ function scenarioComparisonResponse(): FundScenarioComparisonV1 {
 
 function statusResponse(
   status: FundScenarioCalculationStatusV1['status'],
-  snapshotId: number | null
+  snapshotId: number | null,
+  scenarioSetId = snapshotId === null
+    ? '00000000-0000-0000-0000-000000000211'
+    : '00000000-0000-0000-0000-000000000111',
+  calculationMode: FundScenarioCalculationStatusV1['calculationMode'] = snapshotId === null
+    ? null
+    : 'sync_fee_profile'
 ): FundScenarioCalculationStatusV1 {
   return {
     fundId: 123,
-    scenarioSetId:
-      snapshotId === null
-        ? '00000000-0000-0000-0000-000000000211'
-        : '00000000-0000-0000-0000-000000000111',
-    calculationMode: snapshotId === null ? null : 'sync_fee_profile',
+    scenarioSetId,
+    calculationMode,
     status,
     jobId: null,
     correlationId: null,
@@ -482,12 +704,37 @@ function statusResponse(
 }
 
 function feeCalculationPayload() {
+  return syncCalculationPayload({
+    calculationMode: 'sync_fee_profile',
+    scenarioSetId: '00000000-0000-0000-0000-000000000111',
+    variantId: '00000000-0000-0000-0000-000000000112',
+    overrideType: 'fee_profile',
+    sourceConfigId: 12,
+    name: 'Lower fee',
+  });
+}
+
+function syncCalculationPayload({
+  calculationMode,
+  scenarioSetId,
+  variantId,
+  overrideType,
+  sourceConfigId,
+  name,
+}: {
+  calculationMode: 'sync_fee_profile' | 'sync_allocation' | 'sync_sector_profile';
+  scenarioSetId: string;
+  variantId: string;
+  overrideType: 'fee_profile' | 'allocation' | 'sector_profile';
+  sourceConfigId: number;
+  name: string;
+}) {
   return {
     version: 'fund-scenarios-v1' as const,
-    calculationMode: 'sync_fee_profile' as const,
+    calculationMode,
     fundId: 123,
-    scenarioSetId: '00000000-0000-0000-0000-000000000111',
-    sourceConfigId: 12,
+    scenarioSetId,
+    sourceConfigId,
     sourceConfigVersion: 4,
     staleness: {
       state: 'CURRENT' as const,
@@ -497,10 +744,10 @@ function feeCalculationPayload() {
     calculatedAt: '2026-05-29T12:30:00.000Z',
     variants: [
       {
-        variantId: '00000000-0000-0000-0000-000000000112',
-        scenarioSetId: '00000000-0000-0000-0000-000000000111',
-        name: 'Lower fee',
-        overrideType: 'fee_profile' as const,
+        variantId,
+        scenarioSetId,
+        name,
+        overrideType,
         economics: {
           version: 'v1' as const,
           annual: [],

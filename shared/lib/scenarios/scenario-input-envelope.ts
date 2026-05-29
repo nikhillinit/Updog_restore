@@ -3,8 +3,16 @@ import { canonicalJson, canonicalizeScenarioValue } from './canonicalize';
 export const SCENARIO_INPUT_HASH_VERSION = 'scenario-input-hash-v1' as const;
 export const FUND_SCENARIOS_CONTRACT_VERSION = 'fund-scenarios-v1' as const;
 
-export type ScenarioInputCalculationMode = 'sync_fee_profile' | 'async_reserve_allocation';
-export type ScenarioInputOverrideType = 'fee_profile' | 'reserve_allocation';
+export type ScenarioInputCalculationMode =
+  | 'sync_fee_profile'
+  | 'sync_allocation'
+  | 'sync_sector_profile'
+  | 'async_reserve_allocation';
+export type ScenarioInputOverrideType =
+  | 'fee_profile'
+  | 'allocation'
+  | 'sector_profile'
+  | 'reserve_allocation';
 
 export interface ScenarioInputHashEnvelopeV1 {
   version: typeof SCENARIO_INPUT_HASH_VERSION;

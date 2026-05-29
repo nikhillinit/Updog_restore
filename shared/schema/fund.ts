@@ -150,15 +150,13 @@ export const fundSnapshots = pgTable(
       table.type,
       table.createdAt.desc()
     ),
-    scenarioDedupeIdx: uniqueIndex('fund_snapshots_scenarios_dedup_idx')
-      .on(
-        table.fundId,
-        table.scenarioSetId,
-        table.configId,
-        table.configVersion,
-        table.stateHash
-      )
-      .where(sql`
+    scenarioDedupeIdx: uniqueIndex('fund_snapshots_scenarios_dedup_idx').on(
+      table.fundId,
+      table.scenarioSetId,
+      table.configId,
+      table.configVersion,
+      table.stateHash
+    ).where(sql`
         ${table.type} = 'SCENARIOS'
         AND ${table.scenarioSetId} IS NOT NULL
         AND ${table.configId} IS NOT NULL
@@ -222,7 +220,7 @@ export const fundScenarioVariants = pgTable(
     sortOrder: integer('sort_order').notNull().default(0),
     overrideType: varchar('override_type', { length: 32 })
       .notNull()
-      .$type<'fee_profile' | 'reserve_allocation'>(),
+      .$type<'fee_profile' | 'reserve_allocation' | 'allocation' | 'sector_profile'>(),
     overridePayload: jsonb('override_payload').notNull().$type<Record<string, unknown>>(),
     createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
@@ -306,12 +304,7 @@ export const fundScenarioCalculationRuns = pgTable(
       table.createdAt.desc()
     ),
     activeDedupeIdx: uniqueIndex('fund_scenario_calc_runs_active_dedup_idx')
-      .on(
-        table.scenarioSetId,
-        table.sourceConfigId,
-        table.sourceConfigVersion,
-        table.inputHash
-      )
+      .on(table.scenarioSetId, table.sourceConfigId, table.sourceConfigVersion, table.inputHash)
       .where(sql`${table.status} IN ('queued', 'running', 'completed')`),
     statusCheck: check(
       'fund_scenario_calculation_runs_status_check',

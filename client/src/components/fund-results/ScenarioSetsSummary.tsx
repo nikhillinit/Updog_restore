@@ -29,6 +29,11 @@ interface ScenarioSetCardProps {
   set: ScenarioSetResultSummaryV1;
 }
 
+type EconomicsScenarioVariant = Extract<
+  ScenarioSetVariantResultSummaryV1,
+  { overrideType: 'fee_profile' | 'allocation' | 'sector_profile' }
+>;
+
 function formatMultiple(value: number): string {
   return `${value.toFixed(2)}x`;
 }
@@ -55,20 +60,24 @@ function variantCountLabel(count: number): string {
   return count === 1 ? '1 variant' : `${count} variants`;
 }
 
-function isFeeProfileVariant(
+function hasEconomicsSummary(
   variant: ScenarioSetVariantResultSummaryV1
-): variant is Extract<ScenarioSetVariantResultSummaryV1, { overrideType: 'fee_profile' }> {
-  return variant.overrideType === 'fee_profile';
+): variant is EconomicsScenarioVariant {
+  return (
+    variant.overrideType === 'fee_profile' ||
+    variant.overrideType === 'allocation' ||
+    variant.overrideType === 'sector_profile'
+  );
 }
 
 function topTvpiVariant(set: ScenarioSetResultSummaryV1) {
-  const feeVariants = set.variants.filter(isFeeProfileVariant);
-  const first = feeVariants[0];
+  const economicsVariants = set.variants.filter(hasEconomicsSummary);
+  const first = economicsVariants[0];
   if (!first) {
     return null;
   }
 
-  return feeVariants
+  return economicsVariants
     .slice(1)
     .reduce(
       (top, variant) =>
@@ -93,7 +102,7 @@ function ScenarioSetsHeader({
   );
 }
 
-function FeeProfileScenarioMetrics({ set }: { set: ScenarioSetResultSummaryV1 }) {
+function EconomicsScenarioMetrics({ set }: { set: ScenarioSetResultSummaryV1 }) {
   const topVariant = topTvpiVariant(set);
   if (!topVariant) {
     return null;
@@ -190,7 +199,7 @@ function ScenarioSetCard({ set }: ScenarioSetCardProps) {
       {primaryType === 'reserve_allocation' ? (
         <ReserveScenarioMetrics set={set} />
       ) : (
-        <FeeProfileScenarioMetrics set={set} />
+        <EconomicsScenarioMetrics set={set} />
       )}
     </article>
   );
