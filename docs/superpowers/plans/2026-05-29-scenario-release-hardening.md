@@ -24,6 +24,38 @@ migrations, BullMQ/Redis, Vitest unit and integration projects, existing
 
 ---
 
+## Implementation Status
+
+Status: implemented on branch `codex/scenario-release-hardening-impl`.
+
+Implementation commits before this tracking update:
+
+- `1e6b2255` - release-lane discipline doc.
+- `9fe4f051` - canonical scenario input hash contract.
+- `3a505545` - migrated existing scenario hash call sites.
+- `e62b04e1` - economics fail-closed comparison reasons.
+- `9869aa0c` - append-only scenario retention and calculation runs.
+- `0fcbd00e` - scenario release gate.
+
+Fresh verification after implementation:
+
+- `npm run check`
+- `npm run lint`
+- `npm run calc-gate`
+- `npm run calc-gate:full`
+- `npm run validate:core`
+- `npm run test:integration:routes`
+- `npm run test:scenario-release-gate`
+- `npm run build:prod`
+- `git diff --check`
+- `git status --short --branch`
+
+Local caveat: `npm run test:scenario-release-gate` collected the release-gate
+integration file locally, but the container-backed case skipped because no
+working container runtime was available. CI remains responsible for running the
+same gate with Postgres and Redis service containers; it must not silently skip
+missing infrastructure.
+
 ## Current Main Facts
 
 Implementation start reverified clean `main` synced to `origin/main` at
@@ -188,7 +220,7 @@ Out of scope for this plan:
 
 - Create: `docs/plans/scenario-release-lane.md`
 
-- [ ] **Step 1: Write the release-lane policy**
+- [x] **Step 1: Write the release-lane policy**
 
 Create `docs/plans/scenario-release-lane.md` with this content:
 
@@ -289,7 +321,7 @@ conflict-safe code is not live.
 
 ````
 
-- [ ] **Step 2: Verify docs formatting**
+- [x] **Step 2: Verify docs formatting**
 
 Run:
 
@@ -300,7 +332,7 @@ npm run docs:routing:check
 
 Expected: both commands exit 0.
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 Use the repo Lore Commit Protocol. Suggested intent line:
 
@@ -329,7 +361,7 @@ Tested: npm run docs:routing:check; git diff --check
 - Create: `server/lib/scenarios/scenario-input-hash.ts`
 - Create: `tests/unit/scenarios/scenario-input-hash.test.ts`
 
-- [ ] **Step 1: Write failing canonicalization tests**
+- [x] **Step 1: Write failing canonicalization tests**
 
 Create `tests/unit/scenarios/scenario-input-hash.test.ts`:
 
@@ -472,7 +504,7 @@ describe('scenario input hash canonicalization', () => {
 });
 ```
 
-- [ ] **Step 2: Run the failing test**
+- [x] **Step 2: Run the failing test**
 
 Run:
 
@@ -482,7 +514,7 @@ npx vitest run --config vitest.config.mjs --configLoader native tests/unit/scena
 
 Expected: FAIL because the new modules do not exist.
 
-- [ ] **Step 3: Add pure canonicalization**
+- [x] **Step 3: Add pure canonicalization**
 
 Create `shared/lib/scenarios/canonicalize.ts`:
 
@@ -542,7 +574,7 @@ export function canonicalJson(value: unknown): string {
 }
 ```
 
-- [ ] **Step 4: Add scenario envelope helpers**
+- [x] **Step 4: Add scenario envelope helpers**
 
 Create `shared/lib/scenarios/scenario-input-envelope.ts`:
 
@@ -605,7 +637,7 @@ export function canonicalScenarioInputString(
 }
 ```
 
-- [ ] **Step 5: Add server-only hash wrapper**
+- [x] **Step 5: Add server-only hash wrapper**
 
 Create `server/lib/scenarios/scenario-input-hash.ts`:
 
@@ -625,7 +657,7 @@ export function createScenarioInputHash(
 }
 ```
 
-- [ ] **Step 6: Run the canonicalization tests**
+- [x] **Step 6: Run the canonicalization tests**
 
 Run:
 
@@ -635,7 +667,7 @@ npx vitest run --config vitest.config.mjs --configLoader native tests/unit/scena
 
 Expected: PASS.
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 Use Lore Commit Protocol. Suggested intent line:
 
@@ -665,7 +697,7 @@ Tested: npx vitest run --config vitest.config.mjs --configLoader native tests/un
 - Modify:
   `tests/unit/services/fund-scenario-reserve-calculation-service.test.ts`
 
-- [ ] **Step 1: Extend fee-profile tests to assert stable hash fields**
+- [x] **Step 1: Extend fee-profile tests to assert stable hash fields**
 
 In `tests/unit/services/fund-scenario-calculation-service.test.ts`, replace
 expectations that only assert `JSON.stringify` input shape with assertions that
@@ -688,7 +720,7 @@ const snapshotInsertSql = queryMock.mock.calls
 expect(snapshotInsertSql).toContain('state_hash');
 ```
 
-- [ ] **Step 2: Extend reserve hash test to cover sortOrder then id**
+- [x] **Step 2: Extend reserve hash test to cover sortOrder then id**
 
 In `tests/unit/services/fund-scenario-reserve-calculation-service.test.ts`, use
 variants with IDs in reverse lexical order and `sortOrder` in business order:
@@ -738,7 +770,7 @@ const second = createReserveScenarioInputHash({
 expect(first).toBe(second);
 ```
 
-- [ ] **Step 3: Run tests and verify failure**
+- [x] **Step 3: Run tests and verify failure**
 
 Run:
 
@@ -749,7 +781,7 @@ npx vitest run --config vitest.config.mjs --configLoader native tests/unit/servi
 Expected: FAIL because current services use raw JSON hashing and do not include
 `state_hash` in scenario inserts.
 
-- [ ] **Step 4: Replace fee-profile hash implementation**
+- [x] **Step 4: Replace fee-profile hash implementation**
 
 In `server/services/fund-scenario-calculation-service.ts`:
 
@@ -790,7 +822,7 @@ scenario_set_id
 
 and pass `inputHash` into the value list before `scenario_set_id`.
 
-- [ ] **Step 5: Replace reserve hash implementation**
+- [x] **Step 5: Replace reserve hash implementation**
 
 In `server/services/fund-scenario-reserve-calculation-service.ts`, import the
 shared constants and server hash wrapper. Change the exported input type to
@@ -826,7 +858,7 @@ return createScenarioInputHash({
 
 At the call site, pass `sortOrder` from each loaded scenario variant.
 
-- [ ] **Step 6: Run migrated call-site tests**
+- [x] **Step 6: Run migrated call-site tests**
 
 Run:
 
@@ -836,7 +868,7 @@ npx vitest run --config vitest.config.mjs --configLoader native tests/unit/servi
 
 Expected: PASS.
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 Suggested intent line:
 
@@ -867,7 +899,7 @@ Tested: targeted scenario hash and service tests
 - Modify: `tests/unit/services/fund-scenario-comparison-service.test.ts`
 - Modify: `tests/unit/components/fund-results/ScenarioComparisonTable.test.tsx`
 
-- [ ] **Step 1: Write contract test for typed unavailable reasons**
+- [x] **Step 1: Write contract test for typed unavailable reasons**
 
 Add this assertion to
 `tests/unit/contract/fund-scenario-comparison-v1.contract.test.ts`:
@@ -892,7 +924,7 @@ expect(
 ).toBe('BASELINE_ECONOMICS_SNAPSHOT_MISSING');
 ```
 
-- [ ] **Step 2: Add contract field**
+- [x] **Step 2: Add contract field**
 
 In `shared/contracts/fund-scenario-comparison-v1.contract.ts`, add:
 
@@ -922,7 +954,7 @@ export type ScenarioComparisonUnavailableReasonV1 = z.infer<
 >;
 ```
 
-- [ ] **Step 3: Update service fail-closed mapping**
+- [x] **Step 3: Update service fail-closed mapping**
 
 In `server/services/fund-scenario-comparison-service.ts`, return:
 
@@ -949,7 +981,7 @@ when baseline economics cannot be found, and:
 for non-fee-profile override types until reserve comparison is explicitly
 supported.
 
-- [ ] **Step 4: Update client copy**
+- [x] **Step 4: Update client copy**
 
 In `client/src/components/fund-results/ScenarioComparisonTable.tsx`, extend the
 existing `statusCopy()` switch. Do not put this mapping in
@@ -1012,7 +1044,7 @@ it('renders typed baseline economics unavailable copy', () => {
 });
 ```
 
-- [ ] **Step 5: Run comparison tests**
+- [x] **Step 5: Run comparison tests**
 
 Run:
 
@@ -1022,7 +1054,7 @@ npx vitest run --config vitest.config.mjs --configLoader native tests/unit/contr
 
 Expected: PASS.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 Suggested intent line:
 
@@ -1057,7 +1089,7 @@ Tested: contract, service, and ScenarioComparisonTable component tests
 - Modify: `tests/unit/phase3/fund-scenario-sets-schema.test.ts`
 - Modify: `docs/plans/scenario-release-lane.md`
 
-- [ ] **Step 1: Write schema and migration tests first**
+- [x] **Step 1: Write schema and migration tests first**
 
 In `tests/unit/phase3/fund-scenario-sets-schema.test.ts`, keep the existing
 `0014` audit-visible calculated-event test as-is and add a new test that reads
@@ -1080,7 +1112,7 @@ it('calculation-run migration replaces scenario-set overwrite with append-only d
 });
 ```
 
-- [ ] **Step 2: Add migration**
+- [x] **Step 2: Add migration**
 
 Create `server/db/migrations/0016_fund_scenario_calculation_runs.sql`:
 
@@ -1141,7 +1173,7 @@ CREATE UNIQUE INDEX IF NOT EXISTS fund_snapshots_scenarios_dedup_idx
 COMMIT;
 ```
 
-- [ ] **Step 3: Wire the migration into test setup and delivery docs**
+- [x] **Step 3: Wire the migration into test setup and delivery docs**
 
 In `tests/integration/fund-scenario-reserve-worker.test.ts`, add
 `0016_fund_scenario_calculation_runs.sql` to `applyScenarioMigrations()` before
@@ -1186,7 +1218,7 @@ SELECT to_regclass('public.fund_scenario_calculation_runs') AS runs_table,
 ````
 ````
 
-- [ ] **Step 4: Add Drizzle schema surface and index parity**
+- [x] **Step 4: Add Drizzle schema surface and index parity**
 
 In `shared/schema/fund.ts`, first extend the existing `fundSnapshots` table
 callback with the same append-only dedupe index as the raw SQL migration:
@@ -1262,7 +1294,7 @@ one of the partial indexes exactly, leave the raw SQL migration authoritative
 and add a narrow schema-drift test that asserts the raw migration contains the
 required partial index predicate.
 
-- [ ] **Step 5: Write retention unit tests**
+- [x] **Step 5: Write retention unit tests**
 
 Create `tests/unit/services/fund-scenario-retention.test.ts` with tests for the
 existing helper entrypoints. The purpose is to force the implementation to
@@ -1344,7 +1376,7 @@ existing fee-profile snapshot insert into an exported testable helper from
 `server/services/fund-scenario-calculation-service.ts`. Keep the production
 entrypoint unchanged.
 
-- [ ] **Step 6: Add calculation-run service API**
+- [x] **Step 6: Add calculation-run service API**
 
 Create `server/services/fund-scenario-calculation-run-service.ts` with these
 exported functions:
@@ -1460,7 +1492,7 @@ export async function acquireScenarioCalculationRun(
 }
 ```
 
-- [ ] **Step 7: Refactor existing scenario snapshot helpers**
+- [x] **Step 7: Refactor existing scenario snapshot helpers**
 
 Do not create `server/services/fund-scenario-retention-service.ts` with another
 `findReusableScenarioSnapshot` export. Extend the existing helpers instead:
@@ -1549,7 +1581,7 @@ export async function persistScenarioSnapshotWithDedupe(
 }
 ```
 
-- [ ] **Step 8: Replace service overwrite writes**
+- [x] **Step 8: Replace service overwrite writes**
 
 In both scenario calculation services:
 
@@ -1564,7 +1596,7 @@ In both scenario calculation services:
   be canonical `state_hash` plus fund, scenario set, config id, and config
   version.
 
-- [ ] **Step 9: Add Postgres concurrency test**
+- [x] **Step 9: Add Postgres concurrency test**
 
 Create `tests/integration/scenarios/scenario-retention-concurrency.test.ts`
 with:
@@ -1597,7 +1629,7 @@ Use existing integration helpers from
 `tests/integration/fund-scenario-reserve-worker.test.ts` for database setup and
 route registration.
 
-- [ ] **Step 10: Run retention verification**
+- [x] **Step 10: Run retention verification**
 
 Run:
 
@@ -1608,7 +1640,7 @@ npx vitest run -c vitest.config.int.ts tests/integration/scenarios/scenario-rete
 
 Expected: PASS.
 
-- [ ] **Step 11: Commit**
+- [x] **Step 11: Commit**
 
 Suggested intent line:
 
@@ -1639,7 +1671,7 @@ Tested: schema, retention unit, and Postgres concurrency tests
 - Modify: `package.json`
 - Modify: `.github/workflows/ci-unified.yml`
 
-- [ ] **Step 1: Add package script**
+- [x] **Step 1: Add package script**
 
 In `package.json`, add:
 
@@ -1647,7 +1679,7 @@ In `package.json`, add:
 "test:scenario-release-gate": "cross-env TZ=UTC vitest run -c vitest.config.int.ts tests/integration/scenarios/scenario-release-gate.integration.test.ts"
 ```
 
-- [ ] **Step 2: Write lifecycle gate test**
+- [x] **Step 2: Write lifecycle gate test**
 
 Create `tests/integration/scenarios/scenario-release-gate.integration.test.ts`
 with one top-level test that performs this sequence:
@@ -1785,7 +1817,7 @@ async function pollScenarioCalculationStatus(
 }
 ```
 
-- [ ] **Step 3: Run release gate locally**
+- [x] **Step 3: Run release gate locally**
 
 Run:
 
@@ -1800,14 +1832,14 @@ Expected:
   detects unavailable containers.
 - CI must not silently skip missing Postgres or Redis.
 
-- [ ] **Step 4: Wire CI**
+- [x] **Step 4: Wire CI**
 
 In `.github/workflows/ci-unified.yml`, add `npm run test:scenario-release-gate`
 to an existing job that already has Postgres and Redis service containers. Do
 not create a new workflow unless the unified job cannot host the gate without
 materially slowing unrelated checks.
 
-- [ ] **Step 5: Run final hardening verification**
+- [x] **Step 5: Run final hardening verification**
 
 Run:
 
@@ -1827,7 +1859,7 @@ git status --short --branch
 Expected: all commands pass; final status shows only intended tracked files
 before commit.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 Suggested intent line:
 
