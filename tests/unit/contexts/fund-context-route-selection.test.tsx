@@ -88,6 +88,22 @@ describe('FundProvider route-aware selection', () => {
     });
   });
 
+  it('prefers the route fund ID on /fund-model-results/:fundId/scenarios', async () => {
+    const { Wrapper } = createWouterWrapper('/fund-model-results/2/scenarios');
+
+    render(
+      <Wrapper>
+        <FundProvider>
+          <Consumer />
+        </FundProvider>
+      </Wrapper>
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText('2:Route Fund:false:false')).toBeInTheDocument();
+    });
+  });
+
   it('falls back to the first fund on non-results routes', async () => {
     const { Wrapper } = createWouterWrapper('/dashboard');
 

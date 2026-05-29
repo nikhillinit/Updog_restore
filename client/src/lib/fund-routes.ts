@@ -1,5 +1,5 @@
 const QUERY_OR_HASH_PREFIX = /[?#]/;
-const FUND_RESULTS_ROUTE_RE = /^\/fund-model-results\/(\d+)(?:\/)?$/;
+const FUND_RESULTS_ROUTE_RE = /^\/fund-model-results\/(\d+)(?:\/scenarios)?(?:\/)?$/;
 const FUND_RESULTS_ROUTE_PREFIX = '/fund-model-results';
 const ROUTE_SCOPED_FUND_CONTEXT_PATHS = new Set([
   '/financial-modeling',

@@ -12,6 +12,7 @@ const VarianceTrackingPage = React.lazy(() => import('@/pages/variance-tracking'
 export const NotFound = React.lazy(() => import('@/pages/not-found'));
 // Fund Model Results (post-wizard output)
 const FundModelResults = React.lazy(() => import('@/pages/fund-model-results'));
+const FundScenarioWorkspace = React.lazy(() => import('@/pages/fund-scenario-workspace'));
 const FinancialModelingPage = React.lazy(() => import('@/pages/financial-modeling'));
 const ForecastingPage = React.lazy(() => import('@/pages/forecasting'));
 const ModelResultsPage = React.lazy(() => import('@/pages/model-results'));
@@ -77,6 +78,7 @@ export const APP_ROUTES: AppRouteEntry[] = [
   { path: '/forecasting', component: ForecastingPage, isProtected: true },
   { path: '/financial-modeling', component: FinancialModelingPage, isProtected: true },
   { path: '/model-results', component: ModelResultsPage, isProtected: true },
+  { path: '/fund-model-results/:fundId/scenarios', component: FundScenarioWorkspace, isProtected: true },
   { path: '/fund-model-results/:fundId', component: FundModelResults, isProtected: true },
   { path: '/sensitivity-analysis', component: SensitivityAnalysisPage, isProtected: true },
   { path: '/allocation-manager', component: AllocationManager, isProtected: true },
