@@ -1,3 +1,13 @@
+---
+status: ACTIVE
+audience: agents
+last_updated: 2026-05-29
+owner: "Platform Team"
+review_cadence: P90D
+categories: [planning, scenarios]
+keywords: [scenario-workspace, scenario-sets, fund-model-results]
+---
+
 # Scenario UX Workspace Implementation Plan
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
