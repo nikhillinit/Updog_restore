@@ -13,34 +13,50 @@ function normalizeNumber(value: number): number {
   return Object.is(value, -0) ? 0 : value;
 }
 
+function canonicalizePrimitive(value: CanonicalPrimitive | bigint): CanonicalPrimitive {
+  if (typeof value === 'bigint') return value.toString();
+  if (typeof value === 'number') return normalizeNumber(value);
+  return value;
+}
+
+function isPrimitiveInput(value: unknown): value is CanonicalPrimitive | bigint {
+  return (
+    value === null ||
+    typeof value === 'bigint' ||
+    typeof value === 'string' ||
+    typeof value === 'boolean' ||
+    typeof value === 'number'
+  );
+}
+
+function canonicalizeArray(value: unknown[]): CanonicalValue[] {
+  return value.map((item) => {
+    const normalized = canonicalizeScenarioValue(item);
+    return normalized === undefined ? null : normalized;
+  });
+}
+
+function canonicalizeObject(value: object): Record<string, CanonicalValue> {
+  const record = value as Record<string, unknown>;
+  const normalized: Record<string, CanonicalValue> = {};
+  for (const key of Object.keys(record).sort()) {
+    const child = canonicalizeScenarioValue(record[key]);
+    if (child !== undefined) {
+      normalized[key] = child;
+    }
+  }
+  return normalized;
+}
+
 export function canonicalizeScenarioValue(
   value: unknown
 ): CanonicalValue | undefined {
   if (value === undefined) return undefined;
-  if (value === null) return null;
-  if (typeof value === 'bigint') return value.toString();
-  if (typeof value === 'string') return value;
-  if (typeof value === 'boolean') return value;
-  if (typeof value === 'number') return normalizeNumber(value);
+  if (isPrimitiveInput(value)) return canonicalizePrimitive(value);
 
-  if (Array.isArray(value)) {
-    return value.map((item) => {
-      const normalized = canonicalizeScenarioValue(item);
-      return normalized === undefined ? null : normalized;
-    });
-  }
+  if (Array.isArray(value)) return canonicalizeArray(value);
 
-  if (typeof value === 'object') {
-    const record = value as Record<string, unknown>;
-    const normalized: Record<string, CanonicalValue> = {};
-    for (const key of Object.keys(record).sort()) {
-      const child = canonicalizeScenarioValue(record[key]);
-      if (child !== undefined) {
-        normalized[key] = child;
-      }
-    }
-    return normalized;
-  }
+  if (typeof value === 'object') return canonicalizeObject(value);
 
   throw new TypeError(`Scenario input hash cannot canonicalize ${typeof value}`);
 }

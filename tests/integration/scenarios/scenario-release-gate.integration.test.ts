@@ -45,6 +45,7 @@ interface ActiveFund {
 
 let runtime: Runtime | null = null;
 let skipReason: string | null = null;
+let isStoppingPostgres = false;
 
 function visibleLocalSkip(ctx: TestContextWithSkip): boolean {
   if (!skipReason) return false;
@@ -66,6 +67,26 @@ function restoreEnv(snapshot: Record<string, string | undefined>): void {
       process.env[key] = value;
     }
   }
+}
+
+function isExpectedPostgresStopError(error: unknown): boolean {
+  const code =
+    typeof error === 'object' && error !== null && 'code' in error
+      ? String((error as { code?: unknown }).code)
+      : '';
+  const message = error instanceof Error ? error.message : String(error);
+  return code === '57P01' || /terminating connection due to administrator command/i.test(message);
+}
+
+function createRuntimePool(connectionString: string): Pool {
+  const pool = new Pool({ connectionString, max: 4 });
+  pool.on('error', (error) => {
+    if (isStoppingPostgres && isExpectedPostgresStopError(error)) {
+      return;
+    }
+    throw error;
+  });
+  return pool;
 }
 
 function baseDraft(): FundDraftWriteV1 {
@@ -141,7 +162,7 @@ async function startRuntime(): Promise<Runtime> {
 
   const connectionString = postgres.getConnectionUri();
   const redisUrl = `redis://${redis.getHost()}:${redis.getMappedPort(6379)}`;
-  const pool = new Pool({ connectionString, max: 4 });
+  const pool = createRuntimePool(connectionString);
 
   await runMigrationsWithConnectionString(connectionString);
   await applyScenarioMigrations(pool);
@@ -424,6 +445,7 @@ describe('scenario release gate integration', () => {
     } catch {
       // Queue registry may never load if startup failed before route import.
     }
+    isStoppingPostgres = true;
     await runtime?.pool.end();
     await runtime?.redis.stop();
     await runtime?.postgres.stop();

@@ -1,4 +1,4 @@
-import type { QueryResult, QueryResultRow } from 'pg';
+import type { PoolClient } from 'pg';
 
 type ScenarioCalculationRunStatus = 'queued' | 'running' | 'completed' | 'failed' | 'cancelled';
 
@@ -35,12 +35,7 @@ interface ScenarioCalculationRunRow {
   snapshot_id: number | null;
 }
 
-interface QueryClient {
-  query<T extends QueryResultRow = QueryResultRow>(
-    sql: string,
-    params?: unknown[]
-  ): Promise<QueryResult<T>>;
-}
+type QueryClient = Pick<PoolClient, 'query'>;
 
 function mapRun(row: ScenarioCalculationRunRow): ScenarioCalculationRunRecord {
   return {
@@ -90,6 +85,19 @@ export async function acquireScenarioCalculationRun(
   client: QueryClient,
   identity: ScenarioCalculationRunIdentity
 ): Promise<ScenarioCalculationRunRecord> {
+  const inserted = await insertScenarioCalculationRun(client, identity);
+  if (inserted) return inserted;
+
+  const existing = await findActiveScenarioCalculationRun(client, identity);
+  if (existing) return existing;
+
+  throw new Error('Scenario calculation run acquisition returned no active row');
+}
+
+async function insertScenarioCalculationRun(
+  client: QueryClient,
+  identity: ScenarioCalculationRunIdentity
+): Promise<ScenarioCalculationRunRecord | null> {
   const insert = await client.query<ScenarioCalculationRunRow>(
     `INSERT INTO fund_scenario_calculation_runs (
        fund_id,
@@ -122,8 +130,14 @@ export async function acquireScenarioCalculationRun(
       identity.correlationId,
     ]
   );
-  if (insert.rows[0]) return mapRun(insert.rows[0]);
 
+  return insert.rows[0] ? mapRun(insert.rows[0]) : null;
+}
+
+async function findActiveScenarioCalculationRun(
+  client: QueryClient,
+  identity: ScenarioCalculationRunIdentity
+): Promise<ScenarioCalculationRunRecord | null> {
   const existing = await client.query<ScenarioCalculationRunRow>(
     `SELECT *
        FROM fund_scenario_calculation_runs
@@ -141,9 +155,8 @@ export async function acquireScenarioCalculationRun(
       identity.inputHash,
     ]
   );
-  if (existing.rows[0]) return mapRun(existing.rows[0]);
 
-  throw new Error('Scenario calculation run acquisition returned no active row');
+  return existing.rows[0] ? mapRun(existing.rows[0]) : null;
 }
 
 export async function markScenarioCalculationRunRunning(

@@ -66,6 +66,16 @@ interface AllScenarioResultsRow {
   snapshot_payload: unknown | null;
 }
 
+interface FeeProfileScenarioSnapshotInput {
+  fundId: number;
+  scenarioSetId: string;
+  sourceConfigId: number;
+  sourceConfigVersion: number;
+  correlationId: string;
+  payload: FundScenarioCalculationPayloadV1;
+  inputHash: string;
+}
+
 export type AllScenarioResultsForFund =
   | { kind: 'none_exist' }
   | { kind: 'none_calculated'; scenarioSetCount: number }
@@ -86,6 +96,63 @@ function parseJsonPayload(value: unknown): unknown {
   }
 
   return JSON.parse(value) as unknown;
+}
+
+const INSERT_FEE_PROFILE_SCENARIO_SNAPSHOT_SQL = `WITH inserted AS (
+       INSERT INTO fund_snapshots (
+       fund_id,
+       type,
+       payload,
+       calc_version,
+       correlation_id,
+       metadata,
+       snapshot_time,
+       config_id,
+       config_version,
+       state_hash,
+       scenario_set_id
+     )
+      VALUES ($1, 'SCENARIOS', $2, $3, $4, $5, NOW(), $6, $7, $8, $9)
+      /* fund_snapshots_scenarios_dedup_idx */
+      ON CONFLICT (fund_id, scenario_set_id, config_id, config_version, state_hash)
+        WHERE type = 'SCENARIOS'
+          AND scenario_set_id IS NOT NULL
+          AND config_id IS NOT NULL
+          AND config_version IS NOT NULL
+          AND state_hash IS NOT NULL
+      DO NOTHING
+      RETURNING id, payload, correlation_id, created_at, snapshot_time
+      )
+      SELECT id, payload, correlation_id, created_at, snapshot_time FROM inserted
+      UNION ALL
+      SELECT id, payload, correlation_id, created_at, snapshot_time
+        FROM fund_snapshots
+       WHERE fund_id = $1
+         AND scenario_set_id = $9
+         AND config_id = $6
+         AND config_version = $7
+         AND state_hash = $8
+         AND type = 'SCENARIOS'
+       ORDER BY created_at DESC
+       LIMIT 1`;
+
+function feeProfileScenarioSnapshotParams(input: FeeProfileScenarioSnapshotInput): unknown[] {
+  return [
+    input.fundId,
+    input.payload,
+    FUND_SCENARIO_CALC_VERSION,
+    input.correlationId,
+    {
+      input_hash: input.inputHash,
+      calculation_mode: 'sync_fee_profile',
+      override_type: 'fee_profile',
+      timeout_ms: SYNC_CALCULATION_TIMEOUT_MS,
+    },
+    input.sourceConfigId,
+    input.sourceConfigVersion,
+    input.inputHash,
+    input.scenarioSetId,
+  ];
 }
 
 function applyScenarioReadStaleness(
@@ -353,70 +420,11 @@ async function findReusableScenarioSnapshot(
 
 export async function persistFeeProfileScenarioSnapshot(
   client: PoolClient,
-  input: {
-    fundId: number;
-    scenarioSetId: string;
-    sourceConfigId: number;
-    sourceConfigVersion: number;
-    correlationId: string;
-    payload: FundScenarioCalculationPayloadV1;
-    inputHash: string;
-  }
+  input: FeeProfileScenarioSnapshotInput
 ): Promise<FundScenarioCalculationResponseV1> {
   const result = await client.query<SnapshotRow>(
-    `WITH inserted AS (
-       INSERT INTO fund_snapshots (
-       fund_id,
-       type,
-       payload,
-       calc_version,
-       correlation_id,
-       metadata,
-       snapshot_time,
-       config_id,
-       config_version,
-       state_hash,
-       scenario_set_id
-     )
-      VALUES ($1, 'SCENARIOS', $2, $3, $4, $5, NOW(), $6, $7, $8, $9)
-      /* fund_snapshots_scenarios_dedup_idx */
-      ON CONFLICT (fund_id, scenario_set_id, config_id, config_version, state_hash)
-        WHERE type = 'SCENARIOS'
-          AND scenario_set_id IS NOT NULL
-          AND config_id IS NOT NULL
-          AND config_version IS NOT NULL
-          AND state_hash IS NOT NULL
-      DO NOTHING
-      RETURNING id, payload, correlation_id, created_at, snapshot_time
-      )
-      SELECT id, payload, correlation_id, created_at, snapshot_time FROM inserted
-      UNION ALL
-      SELECT id, payload, correlation_id, created_at, snapshot_time
-        FROM fund_snapshots
-       WHERE fund_id = $1
-         AND scenario_set_id = $9
-         AND config_id = $6
-         AND config_version = $7
-         AND state_hash = $8
-         AND type = 'SCENARIOS'
-       ORDER BY created_at DESC
-       LIMIT 1`,
-    [
-      input.fundId,
-      input.payload,
-      FUND_SCENARIO_CALC_VERSION,
-      input.correlationId,
-      {
-        input_hash: input.inputHash,
-        calculation_mode: 'sync_fee_profile',
-        override_type: 'fee_profile',
-        timeout_ms: SYNC_CALCULATION_TIMEOUT_MS,
-      },
-      input.sourceConfigId,
-      input.sourceConfigVersion,
-      input.inputHash,
-      input.scenarioSetId,
-    ]
+    INSERT_FEE_PROFILE_SCENARIO_SNAPSHOT_SQL,
+    feeProfileScenarioSnapshotParams(input)
   );
 
   const snapshot = result.rows[0];
