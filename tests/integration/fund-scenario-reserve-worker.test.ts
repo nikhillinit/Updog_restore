@@ -222,7 +222,7 @@ async function startRuntime(): Promise<Runtime> {
   const queue = getRegisteredQueueRuntime('fund-scenario-calc')?.getQueue() ?? null;
 
   const authHeader = `Bearer ${signToken({
-    sub: '17',
+    sub: 'scenario-worker-integration',
     email: 'integration@example.com',
     role: 'admin',
     fundIds: [fundId],
@@ -285,8 +285,8 @@ describe('fund scenario reserve worker integration', () => {
       const queued = await request(active.app)
         .post(`/api/funds/${active.fundId}/scenario-sets/${scenarioSetId}/calculate-reserve`)
         .set('Authorization', active.authHeader)
-        .send({ calculationMode: 'async_reserve_allocation' })
-        .expect(202);
+        .send({ calculationMode: 'async_reserve_allocation' });
+      expect(queued.status, JSON.stringify(queued.body)).toBe(202);
 
       expect(queued.body.status).toBe('queued');
       await waitForJob(active, queued.body.jobId);
@@ -335,8 +335,8 @@ describe('fund scenario reserve worker integration', () => {
             `/api/funds/${active.fundId}/scenario-sets/${failingScenarioSetId}/calculate-reserve`
           )
           .set('Authorization', active.authHeader)
-          .send({ calculationMode: 'async_reserve_allocation' })
-          .expect(202);
+          .send({ calculationMode: 'async_reserve_allocation' });
+        expect(queued.status, JSON.stringify(queued.body)).toBe(202);
         jobId = queued.body.jobId;
         correlationId = queued.body.correlationId;
 
