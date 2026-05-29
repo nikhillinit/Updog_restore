@@ -445,7 +445,7 @@ describe('scenario input hash canonicalization', () => {
   it('normalizes bigint cents and decimal strings deterministically', () => {
     const normalized = normalizeScenarioInputEnvelope(baseEnvelope);
 
-    expect(normalized.variants[1]?.override).toMatchObject({
+    expect(normalized.variants[0]?.override).toMatchObject({
       amountCents: '123456',
       carryRateDecimal: '0.2000',
     });
