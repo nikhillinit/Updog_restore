@@ -43,8 +43,11 @@ function applyIntegrationEnv(env: NodeJS.ProcessEnv): void {
   env._EXPLICIT_REDIS_URL = env.REDIS_URL;
   env.ENABLE_QUEUES = '0';
   env.CORS_ORIGIN = VALID_TEST_CORS_ORIGIN;
-  env.DATABASE_URL =
-    env.DATABASE_URL || 'postgresql://postgres:postgres@localhost:5432/povc_test';
+  env.DATABASE_URL = env.DATABASE_URL || 'postgresql://postgres:postgres@localhost:5432/povc_test';
+  env._EXPLICIT_DATABASE_URL = env.DATABASE_URL;
+  env.ALLOW_MEMORY_STORAGE = '0';
+  env._EXPLICIT_ALLOW_MEMORY_STORAGE = env.ALLOW_MEMORY_STORAGE;
+  env.USE_REAL_DB_IN_VITEST = '1';
 
   sanitizeSecrets(env);
   env._EXPLICIT_JWT_SECRET = env.JWT_SECRET;

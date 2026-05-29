@@ -29,6 +29,12 @@ const explicitNodeEnv = process.env.NODE_ENV;
 const explicitNodeEnvMarker = process.env['_EXPLICIT_NODE_ENV'];
 const explicitRedisUrl = process.env.REDIS_URL;
 const explicitRedisUrlMarker = process.env['_EXPLICIT_REDIS_URL'];
+const explicitDatabaseUrl = process.env.DATABASE_URL;
+const explicitDatabaseUrlMarker = process.env['_EXPLICIT_DATABASE_URL'];
+const explicitNeonDatabaseUrl = process.env['NEON_DATABASE_URL'];
+const explicitNeonDatabaseUrlMarker = process.env['_EXPLICIT_NEON_DATABASE_URL'];
+const explicitAllowMemoryStorage = process.env['ALLOW_MEMORY_STORAGE'];
+const explicitAllowMemoryStorageMarker = process.env['_EXPLICIT_ALLOW_MEMORY_STORAGE'];
 const explicitJwtSecret = process.env.JWT_SECRET;
 const explicitJwtSecretMarker = process.env['_EXPLICIT_JWT_SECRET'];
 const explicitJwtIssuer = process.env['JWT_ISSUER'];
@@ -72,6 +78,30 @@ if (
   explicitRedisUrl !== process.env.REDIS_URL
 ) {
   process.env.REDIS_URL = explicitRedisUrl;
+}
+// Restore explicitly-set DATABASE_URL if .env tried to override it
+if (
+  explicitDatabaseUrlMarker &&
+  explicitDatabaseUrl !== undefined &&
+  explicitDatabaseUrl !== process.env.DATABASE_URL
+) {
+  process.env.DATABASE_URL = explicitDatabaseUrl;
+}
+// Restore explicitly-set NEON_DATABASE_URL if .env tried to override it
+if (
+  explicitNeonDatabaseUrlMarker &&
+  explicitNeonDatabaseUrl !== undefined &&
+  explicitNeonDatabaseUrl !== process.env['NEON_DATABASE_URL']
+) {
+  process.env['NEON_DATABASE_URL'] = explicitNeonDatabaseUrl;
+}
+// Restore explicitly-set ALLOW_MEMORY_STORAGE if .env tried to override it
+if (
+  explicitAllowMemoryStorageMarker &&
+  explicitAllowMemoryStorage !== undefined &&
+  explicitAllowMemoryStorage !== process.env['ALLOW_MEMORY_STORAGE']
+) {
+  process.env['ALLOW_MEMORY_STORAGE'] = explicitAllowMemoryStorage;
 }
 // Restore explicitly-set JWT_SECRET if .env tried to override it
 if (
