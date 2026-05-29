@@ -27,7 +27,27 @@ migrations, BullMQ/Redis, Vitest unit and integration projects, existing
 ## Current Main Facts
 
 Verified against clean `main` synced to `origin/main` at
-`8d9b9adcdd0fb1eba6063788d080cce76ecfb206`.
+`2e5fb282d2ad7fba34259a40434da18ccf5196fb`.
+
+Rebaseline notes from the commits merged after the original `8d9b9adc`
+planning snapshot:
+
+- This plan landed after `8d9b9adc` in `a9695da8`; do not execute the release
+  lane from the stale SHA.
+- Reserve scenario enqueue now uses deterministic BullMQ-safe job IDs in
+  `server/services/fund-scenario-calc-queue-service.ts` by joining identity
+  fields with `-`. Keep canonical hash migrations compatible with that
+  constraint and do not reintroduce colon-delimited custom job IDs.
+- Integration CI now routes loopback Postgres URLs through the local
+  node-postgres path (`server/db-driver-selection.ts`, `server/db.ts`) and
+  preserves explicit database and queue env through config reloads. Reuse that
+  path for scenario release gates instead of adding a scenario-only DB driver.
+- `shared/schema.ts` is now part of the generated-schema truth for integration
+  `db:push`; new calculation-run tables or indexes must be exported there
+  before integration CI can apply them.
+- The reserve-worker integration fixture now relies on persisted actor-label
+  truth and explicit queue env. Keep actor user IDs nullable unless a release
+  gate explicitly seeds matching `users` rows.
 
 - ADR-022 lives at `docs/adr/ADR-022-fund-scenario-architecture.md` and is still
   `Proposed` in frontmatter and index.
@@ -147,7 +167,12 @@ Out of scope for this plan:
   - Render typed scenario comparison-unavailable copy in the existing
     `statusCopy()` switch.
 - Create `tests/integration/scenarios/scenario-release-gate.integration.test.ts`
+  or extract shared helpers from
+  `tests/integration/fund-scenario-reserve-worker.test.ts`
   - End-to-end scenario lifecycle on real Postgres/Redis.
+  - Reuse the existing Testcontainers, route registration, queue env, and
+    worker harness seams; do not introduce a parallel scenario-only integration
+    harness.
 - Modify `package.json`
   - Add `test:scenario-release-gate`.
 - Modify `.github/workflows/ci-unified.yml`
@@ -1607,6 +1632,8 @@ Tested: schema, retention unit, and Postgres concurrency tests
 
 - Create:
   `tests/integration/scenarios/scenario-release-gate.integration.test.ts`
+- Modify, if helper extraction is needed:
+  `tests/integration/fund-scenario-reserve-worker.test.ts`
 - Modify: `package.json`
 - Modify: `.github/workflows/ci-unified.yml`
 
@@ -1622,6 +1649,12 @@ In `package.json`, add:
 
 Create `tests/integration/scenarios/scenario-release-gate.integration.test.ts`
 with one top-level test that performs this sequence:
+
+Build the runtime setup from the current worker proof in
+`tests/integration/fund-scenario-reserve-worker.test.ts`: Postgres
+Testcontainers, Redis Testcontainers, explicit queue env, route registration,
+and `startInProcessFundScenarioCalcWorkerHarness()`. Extract shared helpers if
+needed, but keep the generated-schema and local node-postgres CI path intact.
 
 ```ts
 it('proves the ADR-022 scenario lifecycle with Postgres, Redis, worker, results, and archive behavior', async () => {
@@ -1810,7 +1843,9 @@ Do not start any follow-on plan until the scenario release gate is green on
   reserve worker polling, current comparison contract shape, conflict-safe
   append-only writes, extension of existing retention helpers, scenario
   comparison copy in `ScenarioComparisonTable`, lowercase archived-set error
-  code, and variant sorting by `sortOrder` then `id`.
+  code, variant sorting by `sortOrder` then `id`, BullMQ-safe reserve job IDs,
+  generated-schema integration truth, and the local node-postgres CI driver
+  path.
 - Placeholder scan: The plan uses exact files, commands, and code snippets and
   avoids deferred-fill wording.
 - Type consistency: Scenario hash envelope fields are defined once in
