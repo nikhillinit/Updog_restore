@@ -30,11 +30,11 @@ interface PortfolioChartPoint {
 interface ForecastChartPoint {
   label: string;
   constructionNav: number;
-  currentNav: number;
+  actualNav: number | null;
+  currentForecastNav: number | null;
   constructionCalledCapital: number;
-  currentCalledCapital: number;
-  constructionDistributions: number;
-  currentDistributions: number;
+  actualCalledCapital: number | null;
+  currentForecastCalledCapital: number | null;
 }
 
 function parseNumericValue(value: string | number | null | undefined): number {
@@ -179,11 +179,12 @@ export default function DualForecastDashboard() {
   const forecastData: ForecastChartPoint[] = dualForecast.series.map((point) => ({
     label: point.label,
     constructionNav: toMillions(point.construction.nav),
-    currentNav: toMillions(point.current.nav),
+    actualNav: point.actual ? toMillions(point.actual.nav) : null,
+    currentForecastNav: point.currentMode === 'forecast' ? toMillions(point.current.nav) : null,
     constructionCalledCapital: toMillions(point.construction.calledCapital),
-    currentCalledCapital: toMillions(point.current.calledCapital),
-    constructionDistributions: toMillions(point.construction.distributions),
-    currentDistributions: toMillions(point.current.distributions),
+    actualCalledCapital: point.actual ? toMillions(point.actual.calledCapital) : null,
+    currentForecastCalledCapital:
+      point.currentMode === 'forecast' ? toMillions(point.current.calledCapital) : null,
   }));
 
   // Portfolio allocation data from real API
@@ -261,11 +262,14 @@ export default function DualForecastDashboard() {
                 Construction Plan
               </Badge>
               <Badge variant="secondary" className="text-xs">
+                Actuals
+              </Badge>
+              <Badge variant="secondary" className="text-xs">
                 Current Forecast
               </Badge>
             </CardTitle>
             <CardDescription>
-              Quarterly NAV comparison from the published plan and current forecast.
+              Quarterly NAV comparison from the published plan, API actuals, and current forecast.
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -288,7 +292,15 @@ export default function DualForecastDashboard() {
                 />
                 <Line
                   type="monotone"
-                  dataKey="currentNav"
+                  dataKey="actualNav"
+                  stroke="#111827"
+                  strokeWidth={3}
+                  dot={{ r: 4 }}
+                  name="Actuals"
+                />
+                <Line
+                  type="monotone"
+                  dataKey="currentForecastNav"
                   stroke="#2563eb"
                   strokeWidth={3}
                   dot={{ r: 3 }}
@@ -359,7 +371,15 @@ export default function DualForecastDashboard() {
               />
               <Line
                 type="monotone"
-                dataKey="currentCalledCapital"
+                dataKey="actualCalledCapital"
+                stroke="#111827"
+                strokeWidth={3}
+                dot={{ r: 4 }}
+                name="Actuals"
+              />
+              <Line
+                type="monotone"
+                dataKey="currentForecastCalledCapital"
                 stroke="#2563eb"
                 strokeWidth={3}
                 dot={{ r: 4 }}

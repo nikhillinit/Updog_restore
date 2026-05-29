@@ -139,6 +139,16 @@ const FIDELITY_DUAL_FORECAST = {
         rvpi: FIDELITY_METRICS.actual.rvpi,
         irr: FIDELITY_METRICS.actual.irr,
       },
+      actual: {
+        nav: FIDELITY_METRICS.actual.currentNAV,
+        calledCapital: FIDELITY_METRICS.actual.totalCalled,
+        distributions: FIDELITY_METRICS.actual.totalDistributions,
+        tvpi: FIDELITY_METRICS.actual.tvpi,
+        dpi: FIDELITY_METRICS.actual.dpi,
+        rvpi: FIDELITY_METRICS.actual.rvpi,
+        irr: FIDELITY_METRICS.actual.irr,
+      },
+      currentMode: 'actual',
       current: {
         nav: FIDELITY_METRICS.actual.currentNAV,
         calledCapital: FIDELITY_METRICS.actual.totalCalled,
@@ -162,6 +172,8 @@ const FIDELITY_DUAL_FORECAST = {
         rvpi: 2.38,
         irr: 0.19,
       },
+      actual: null,
+      currentMode: 'forecast',
       current: {
         nav: 49_000_000,
         calledCapital: 21_500_000,

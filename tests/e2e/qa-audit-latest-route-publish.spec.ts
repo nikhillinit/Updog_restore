@@ -113,6 +113,16 @@ const ROUTE_DUAL_FORECAST = {
         rvpi: ROUTE_UNIFIED_METRICS.actual.rvpi,
         irr: ROUTE_UNIFIED_METRICS.actual.irr,
       },
+      actual: {
+        nav: ROUTE_UNIFIED_METRICS.actual.currentNAV,
+        calledCapital: ROUTE_UNIFIED_METRICS.actual.totalCalled,
+        distributions: ROUTE_UNIFIED_METRICS.actual.totalDistributions,
+        tvpi: ROUTE_UNIFIED_METRICS.actual.tvpi,
+        dpi: ROUTE_UNIFIED_METRICS.actual.dpi,
+        rvpi: ROUTE_UNIFIED_METRICS.actual.rvpi,
+        irr: ROUTE_UNIFIED_METRICS.actual.irr,
+      },
+      currentMode: 'actual',
       current: {
         nav: ROUTE_UNIFIED_METRICS.actual.currentNAV,
         calledCapital: ROUTE_UNIFIED_METRICS.actual.totalCalled,
@@ -136,6 +146,8 @@ const ROUTE_DUAL_FORECAST = {
         rvpi: 2.82,
         irr: 0.19,
       },
+      actual: null,
+      currentMode: 'forecast',
       current: {
         nav: 47_500_000,
         calledCapital: 14_500_000,

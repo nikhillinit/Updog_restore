@@ -157,6 +157,16 @@ describe('MetricsAggregator dual forecast', () => {
       quarterIndex: 0,
       label: 'As of',
       date: '2026-04-01T00:00:00.000Z',
+      currentMode: 'actual',
+      actual: {
+        nav: 30_000_000,
+        calledCapital: 25_000_000,
+        distributions: 2_000_000,
+        tvpi: 1.28,
+        dpi: 0.08,
+        rvpi: 1.2,
+        irr: 0.14,
+      },
       current: {
         nav: 30_000_000,
         calledCapital: 25_000_000,
@@ -169,12 +179,16 @@ describe('MetricsAggregator dual forecast', () => {
     });
     expect(result.series[1]?.label).toBe('Q+1');
     expect(result.series[1]?.date).toBe('2026-07-01T00:00:00.000Z');
+    expect(result.series[1]?.currentMode).toBe('forecast');
+    expect(result.series[1]?.actual).toBeNull();
     expect(result.series[1]?.current).toMatchObject({
       nav: 36_000_000,
       calledCapital: 30_000_000,
       distributions: 3_000_000,
       irr: 0.22,
     });
+    expect(result.series[2]?.currentMode).toBe('forecast');
+    expect(result.series[2]?.actual).toBeNull();
     expect(result.series[2]?.current).toMatchObject({
       nav: 44_000_000,
       calledCapital: 36_000_000,

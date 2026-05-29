@@ -105,6 +105,16 @@ function makeDualForecast() {
           rvpi: 1.2,
           irr: 0.2,
         },
+        actual: {
+          nav: 7_000_000,
+          calledCapital: 5_000_000,
+          distributions: 0,
+          tvpi: 1.4,
+          dpi: 0,
+          rvpi: 1.4,
+          irr: 0.18,
+        },
+        currentMode: 'actual',
         current: {
           nav: 7_000_000,
           calledCapital: 5_000_000,
@@ -128,6 +138,8 @@ function makeDualForecast() {
           rvpi: 1.14,
           irr: 0.2,
         },
+        actual: null,
+        currentMode: 'forecast',
         current: {
           nav: 9_000_000,
           calledCapital: 7_500_000,
@@ -252,6 +264,7 @@ describe('DualForecastDashboard', () => {
 
     expect(await screen.findAllByText('Construction Plan')).not.toHaveLength(0);
     expect(screen.getAllByText('Current Forecast')).not.toHaveLength(0);
+    expect(screen.getAllByText('Actuals')).not.toHaveLength(0);
     expect(screen.getByText('API actuals')).toBeInTheDocument();
     expect(screen.getByText(/quarterly nav comparison/i)).toBeInTheDocument();
     expect(screen.getByText(/cumulative called capital by quarter/i)).toBeInTheDocument();

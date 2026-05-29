@@ -545,23 +545,43 @@ export class MetricsAggregator {
     const constructionRemainingLength = Math.max(1, constructionLength - constructionStartIndex);
     const horizon = Math.max(1, Math.min(constructionRemainingLength, projectedFutureLength + 1));
 
-    return Array.from({ length: horizon }, (_, quarterIndex) => ({
-      quarterIndex,
-      label: quarterIndex === 0 ? 'As of' : `Q+${quarterIndex}`,
-      date: this.addQuarters(actual.asOfDate, quarterIndex),
-      construction: this.mapConstructionMetrics(
-        constructionForecast,
-        fundSize,
-        config,
-        constructionStartIndex + quarterIndex
-      ),
-      current: this.mapCurrentForecastMetrics(
-        actual,
-        projected,
+    return Array.from({ length: horizon }, (_, quarterIndex) => {
+      const actualPoint = quarterIndex === 0 ? this.mapActualMetrics(actual) : null;
+
+      return {
         quarterIndex,
-        currentProjectionStartIndex
-      ),
-    }));
+        label: quarterIndex === 0 ? 'As of' : `Q+${quarterIndex}`,
+        date: this.addQuarters(actual.asOfDate, quarterIndex),
+        construction: this.mapConstructionMetrics(
+          constructionForecast,
+          fundSize,
+          config,
+          constructionStartIndex + quarterIndex
+        ),
+        actual: actualPoint,
+        currentMode: quarterIndex === 0 ? 'actual' : 'forecast',
+        current:
+          actualPoint ??
+          this.mapCurrentForecastMetrics(
+            actual,
+            projected,
+            quarterIndex,
+            currentProjectionStartIndex
+          ),
+      };
+    });
+  }
+
+  private mapActualMetrics(actual: ActualMetrics): DualForecastMetrics {
+    return {
+      nav: actual.currentNAV,
+      calledCapital: actual.totalCalled,
+      distributions: actual.totalDistributions,
+      tvpi: actual.tvpi,
+      dpi: actual.dpi,
+      rvpi: actual.rvpi,
+      irr: actual.irr,
+    };
   }
 
   private mapConstructionMetrics(
@@ -606,15 +626,7 @@ export class MetricsAggregator {
     projectionStartIndex: number
   ): DualForecastMetrics {
     if (quarterIndex === 0) {
-      return {
-        nav: actual.currentNAV,
-        calledCapital: actual.totalCalled,
-        distributions: actual.totalDistributions,
-        tvpi: actual.tvpi,
-        dpi: actual.dpi,
-        rvpi: actual.rvpi,
-        irr: actual.irr,
-      };
+      return this.mapActualMetrics(actual);
     }
 
     const projectionIndex = projectionStartIndex + quarterIndex - 1;
