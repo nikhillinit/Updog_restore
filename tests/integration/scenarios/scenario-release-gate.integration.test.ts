@@ -102,6 +102,17 @@ async function tolerateExpectedPostgresStop(
   }
 }
 
+async function stopPostgresContainer(postgres: StartedPostgreSqlContainer | undefined): Promise<void> {
+  if (!postgres) return;
+  if (process.env.CI === 'true') {
+    console.warn(
+      '[scenario-release-gate] Postgres container left for CI cleanup after pg pools close'
+    );
+    return;
+  }
+  await postgres.stop();
+}
+
 function baseDraft(): FundDraftWriteV1 {
   return {
     fundName: 'Scenario Release Gate Fund',
@@ -443,10 +454,11 @@ describe('scenario release gate integration', () => {
 
   afterAll(async () => {
     isStoppingPostgres = true;
+    const active = runtime;
     let closePgCircuitPool: (() => Promise<void>) | null = null;
 
-    await runtime?.workerHarness.close();
-    for (const queue of runtime?.queues ?? []) {
+    await active?.workerHarness.close();
+    for (const queue of active?.queues ?? []) {
       await queue.close();
     }
     try {
@@ -461,9 +473,9 @@ describe('scenario release gate integration', () => {
     } catch {
       // Queue registry may never load if startup failed before route import.
     }
-    await runtime?.redis.stop();
-    await runtime?.postgres.stop();
-    await tolerateExpectedPostgresStop([closePgCircuitPool?.(), runtime?.pool.end()]);
+    await active?.redis.stop();
+    await tolerateExpectedPostgresStop([closePgCircuitPool?.(), active?.pool.end()]);
+    await stopPostgresContainer(active?.postgres);
     restoreEnv(originalEnv);
     vi.resetModules();
   });
