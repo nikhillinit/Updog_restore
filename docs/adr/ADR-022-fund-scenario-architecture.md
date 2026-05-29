@@ -1,285 +1,285 @@
 ---
-status: Proposed
-last_updated: 2026-05-26
+status: Implemented
+last_updated: 2026-05-29
 ---
 
 # ADR-022: Fund-Results Scenario Architecture
 
 ## Status
 
-Proposed (2026-05-25)
+Implemented (2026-05-29)
+
+This ADR records the current implementation on `main` at `55985b44`
+(`Keep cohort out of authoritative readiness until evidence exists (#735)`). It
+is no longer a future implementation proposal.
 
 ## Context
 
-The results contract at `shared/contracts/fund-results-v1.contract.ts:208`
-defines `sections.scenarios: SectionUnavailableSchema`. Replacing this with
-authoritative fund-level scenario analysis requires architectural decisions
-about scope, persistence, staleness, auth, and limits — all before schema or
-contract code is written.
+Fund-results scenarios are a fund-scoped, published-config-derived scenario
+surface. They are distinct from the repo's older scenario concepts:
 
-The repo already contains three distinct "scenario" surfaces:
+| Surface                       | Scope                                 | Current disposition                                                                                                                                               |
+| ----------------------------- | ------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Company/deal scenarios        | `company_id`-scoped                   | Separate cap-table/deal workflow in `shared/schema/scenario.ts`, `server/routes/scenario-analysis.ts`, and related client components.                             |
+| Reserve allocation scenarios  | `fund_id`-scoped, allocation-specific | Separate durable reserve planning lane in `server/routes/allocation-scenarios.ts` and `server/services/allocation-scenario-service.ts`.                           |
+| Monte Carlo scenario matrices | Cache / simulation layer              | Separate matrix cache and Monte Carlo path; `server/workers/scenarioGeneratorWorker.ts` is not reused for fund-results scenario calculations.                     |
+| Fund-results scenarios        | `fund_id`-scoped analytical outputs   | Implemented through `fund_scenario_sets`, `fund_scenario_variants`, `fund_scenario_set_events`, `fund_scenario_calculation_runs`, and `fund_snapshots.SCENARIOS`. |
 
-| Surface                       | Scope                                 | Files                                                                                                                                          |
-| ----------------------------- | ------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
-| Company/deal scenarios        | `company_id`-scoped                   | `shared/schema/scenario.ts`, `server/routes/scenario-analysis.ts`, `client/src/components/cap-table/scenario-manager.tsx`                      |
-| Reserve allocation scenarios  | `fund_id`-scoped, allocation-specific | `server/routes/allocation-scenarios.ts`, `server/services/allocation-scenario-service.ts`, migration `20260330_allocation_scenarios_v1.up.sql` |
-| Monte Carlo scenario matrices | Cache layer                           | `shared/migrations/0002_create_scenario_matrices.sql`, `server/workers/scenarioGeneratorWorker.ts`                                             |
-
-Fund-results scenarios are a fourth, distinct concept: published-config-derived,
-evidence-bearing, staleness-aware analytical outputs that belong in the
-fund-results read model.
-
-### Governing ADR
-
-ADR-014 (Snapshot Governance, Accepted 2026-04-05) establishes that
-`fund_snapshots` is the analytical snapshot store, type-scoped (`RESERVE`,
-`PACING`, `COHORT`, etc.), and must not be confused with `fund_state_snapshots`
-(time-travel/restore store). New analytical outputs land in `fund_snapshots`.
+ADR-014 still governs the storage boundary: `fund_snapshots` is the analytical
+snapshot store, while `fund_state_snapshots` is for time-travel / restore state.
 
 ## Decision
 
-### 1. Scope: new fund-scoped abstraction, quarantine existing surfaces
+### 1. Fund-scenario persistence is the dedicated abstraction
 
-Create new `fund_scenario_sets` and `fund_scenario_variants` tables. Quarantine
-existing surfaces:
+Fund-results scenarios use dedicated persistence:
 
-| Existing surface                                | Disposition                                                           |
-| ----------------------------------------------- | --------------------------------------------------------------------- |
-| `shared/schema/scenario.ts` (company scenarios) | QUARANTINE — remains for cap-table/deal workflows                     |
-| `server/routes/scenario-analysis.ts`            | QUARANTINE — company scenario CRUD                                    |
-| `server/routes/allocation-scenarios.ts`         | KEEP — reserve allocation lane (distinct from fund-results scenarios) |
-| `server/workers/scenarioGeneratorWorker.ts`     | REFERENCE_ONLY — evaluate for async path; do not reuse blindly        |
-| `client/src/pages/v2/scenarios.tsx`             | QUARANTINE — mock/prototype; not production                           |
-| `shared/utils/scenario-math.ts`                 | EVALUATE — may share portable logic                                   |
+- `fund_scenario_sets` pins each set to the current published config at create
+  time (`source_config_id`, `source_config_version`).
+- `fund_scenario_variants` stores homogeneous variants for a set. The current
+  supported override types are `fee_profile`, `reserve_allocation`,
+  `allocation`, and `sector_profile`.
+- `fund_scenario_set_events` records create, archive, calculation queued,
+  calculation started, calculation failed, and calculated events.
+- `fund_scenario_calculation_runs` deduplicates active calculation attempts by
+  scenario set, source config, source config version, and input hash.
 
-Rationale: existing `scenarios` are company-scoped by FK. Extending them with
-optional `fund_id` overloads meaning. Allocation scenarios model reserve
-snapshots and drift/apply/sync, not full fund-construction parameter scenarios.
+Current limits enforced by the shared contract / services:
 
-### 2. Snapshot attribution: extend `fund_snapshots` per ADR-014
+| Limit                      | Current implementation                                                      |
+| -------------------------- | --------------------------------------------------------------------------- |
+| Active scenario sets       | Max 10 active sets per fund.                                                |
+| Variants per set           | 1 to 5 variants.                                                            |
+| Variant override mixing    | Not allowed; all variants in a set must share the same `overrideType`.      |
+| Reserve override item list | 1 to 500 reserve allocation override items.                                 |
+| Idempotency                | Scenario-set creation accepts an idempotency key and rejects payload reuse. |
 
-Store scenario analytical outputs in `fund_snapshots` with:
+No apply-to-live-config route is implemented today. Scenario outputs remain
+analytical results, not draft mutations.
 
-```sql
-ALTER TABLE fund_snapshots
-  ADD COLUMN scenario_set_id UUID NULL;
+### 2. Snapshot attribution is implemented on `fund_snapshots`
 
--- Authoritative reads filter scenario_set_id IS NULL; this partial index
--- covers the two-tier query pattern (fund_id + type + config_version,
--- ordered by created_at DESC).
-CREATE INDEX idx_fund_snapshots_authoritative
-  ON fund_snapshots(fund_id, type, config_version, created_at DESC)
-  WHERE scenario_set_id IS NULL;
+`fund_snapshots` has nullable `scenario_set_id`:
 
--- Scenario reads filter on a specific scenario_set_id.
-CREATE INDEX idx_fund_snapshots_scenario_set
-  ON fund_snapshots(fund_id, scenario_set_id, type, config_version)
-  WHERE scenario_set_id IS NOT NULL;
-```
+- authoritative snapshots keep `scenario_set_id IS NULL`;
+- scenario snapshots use `type = 'SCENARIOS'` and non-null `scenario_set_id`;
+- scenario snapshots are deduplicated by `fund_id`, `scenario_set_id`,
+  `config_id`, `config_version`, and `state_hash`;
+- authoritative readers filter `scenario_set_id IS NULL`;
+- authoritative writers either omit `scenario_set_id` intentionally or are
+  tested as authoritative-only writers.
 
-Both indexes use standard `CREATE INDEX` inside a `BEGIN/COMMIT` migration (the
-project's migration runner does not support `CONCURRENTLY`).
+The implemented isolation proof is source-backed by
+`tests/unit/phase3/fund-snapshots-scenario-isolation.test.ts`.
 
-Use snapshot type `'SCENARIOS'` (the `type` column is `varchar(50)`, not an enum
-— no `ALTER TYPE` migration required).
+`GET /api/funds/:fundId/results` now includes `sections.scenarios` through
+`shared/contracts/fund-results-v1.contract.ts`:
 
-#### Guardrail: authoritative-read isolation (mandatory same-PR audit)
+- `unavailable` when no active scenario sets exist;
+- `pending` when sets exist but none have calculated scenario snapshots;
+- `available` when latest calculated scenario summaries exist;
+- `failed` when scenario result loading fails closed.
 
-The migration adding `scenario_set_id` MUST ship in the same PR as read-path
-patches. Every existing query against `fund_snapshots` must be audited and one
-of:
+The results read model summarizes active scenario sets only. It reads the latest
+scenario snapshot per set and emits summary payloads, not full engine payloads.
 
-- Patched to filter `scenario_set_id IS NULL` (authoritative-only reads).
-- Explicitly marked
-  `-- scenario-aware: reads both authoritative and scenario rows`.
+### 3. Calculation modes are split by override type
 
-**Merge gate:** `git grep "fund_snapshots\|fundSnapshots" -- server/ shared/`
-must show every hit either has the filter or the scenario-aware comment. No
-query may be left unclassified.
+`POST /api/funds/:fundId/scenario-sets/:scenarioSetId/calculate` handles sync
+economics calculations for:
 
-Known consumers to audit:
+- `fee_profile` as `sync_fee_profile`;
+- `allocation` as `sync_allocation`;
+- `sector_profile` as `sync_sector_profile`.
 
-- `server/services/fund-results-read-service.ts` (two-tier `loadSection`)
-- Calc-gate / calc-run completion
-- Variance reads
-- Publish-comparison service
-- Snapshot staleness derivation
+The sync path loads the pinned source config, applies the variant override to
+engine input, runs the economics model, enforces a 10s request deadline, writes
+a `fund_snapshots.SCENARIOS` row, and records a `calculated` event.
 
-This is non-negotiable. If the column ships without filters, scenario variants
-leak into authoritative surfaces from merge day forward.
+`reserve_allocation` is async:
 
-### 3. Staleness semantics
+- `POST /api/funds/:fundId/scenario-sets/reserve-optimization` creates a
+  reserve-allocation scenario set from current reserve engine recommendations.
+- `POST /api/funds/:fundId/scenario-sets/:scenarioSetId/calculate-reserve`
+  enqueues an `async_reserve_allocation` job on `fund-scenario-calc`.
+- `workers/fund-scenario-calc-worker.ts` processes the job through
+  `runReserveScenarioCalculation`.
+- The reserve path builds reserve portfolio inputs, applies reserve allocation
+  overrides, writes a `fund_snapshots.SCENARIOS` row, and records lifecycle
+  events.
 
-Scenario snapshots carry staleness derived at read time:
+`server/workers/scenarioGeneratorWorker.ts` remains unrelated; it is not the
+fund-results scenario calculator.
 
-| State           | Trigger                                                           | EvidenceHeader display                                           |
-| --------------- | ----------------------------------------------------------------- | ---------------------------------------------------------------- |
-| `CURRENT`       | Scenario calculated against current published config version      | Normal evidence                                                  |
-| `STALE_PUBLISH` | Fund published config version > scenario's `config_version`       | Yellow: "Recalculate to reflect latest published config"         |
-| `STALE_CONFIG`  | Scenario overrides reference entities removed from current config | Red: "Scenario overrides outdated — review before recalculating" |
-| `CALCULATING`   | Calc job in flight                                                | Spinner with job ID                                              |
-| `FAILED`        | Last calc attempt failed                                          | Red with error reason                                            |
-| `UNAVAILABLE`   | No scenario set exists for this fund                              | Standard unavailable                                             |
+### 4. Calculation status is currently reserve-async focused
 
-**Precedence rule:** `STALE_CONFIG` > `STALE_PUBLISH`. If a scenario's overrides
-reference a removed entity AND a new publish exists, show `STALE_CONFIG` because
-recalculation without override edits would fail.
+`GET /api/funds/:fundId/scenario-sets/:scenarioSetId/calculation-status` derives
+async reserve calculation status from the latest matching scenario snapshot and
+`fund_scenario_set_events`.
 
-Staleness is computed by comparing:
+Current status values are:
 
-- `fund_snapshots.config_version` vs. `funds.published_config_version`
-- Override payload entity references vs. current published config contents
+- `not_requested`;
+- `queued`;
+- `calculating`;
+- `succeeded`;
+- `failed`.
 
-### 4. Auth: route-local enforcement (non-negotiable guardrail)
+The current service computes the reserve scenario input identity first, so it is
+the status surface for `async_reserve_allocation`. Sync economics scenario sets
+use `calculate`, `results`, and `comparison` rather than this status endpoint as
+their primary completion surface.
 
-Every fund-scoped scenario route MUST attach `requireAuth()` and fund-access
-check inline, regardless of mount point.
+### 5. Scenario comparison is a separate fee-profile comparison surface
 
-Existing `allocation-scenarios.ts:376` uses only `parseFundRoute` with no
-route-local auth middleware — this pattern MUST NOT be repeated. The new
-scenario surface must be secure independent of which app surface mounts it (per
-ADR-021: `registerRoutes()` is authoritative, but Vercel adapter also exists).
+Scenario comparison is implemented as a separate contract:
+`shared/contracts/fund-scenario-comparison-v1.contract.ts`.
 
-Minimum permissions:
+The comparison endpoint is:
 
-| Action                              | Requirement                                          |
-| ----------------------------------- | ---------------------------------------------------- |
-| Read scenario sets/results          | Authenticated + fund access                          |
-| Create/update/archive scenario sets | Authenticated + fund access                          |
-| Apply scenario to live config       | Elevated (publish permission)                        |
-| Calculate scenario                  | Authenticated + fund access (does not imply publish) |
+`GET /api/funds/:fundId/scenario-sets/:scenarioSetId/comparison`
 
-Audit logging (actor, timestamp, change summary) is mandatory for all mutations.
-The existing company-scenario route already implements audit logging at
-`server/routes/scenario-analysis.ts`; fund scenarios must not regress below that
-baseline.
+Current behavior:
 
-### 5. Calculation path
+- loads the latest `SCENARIOS` snapshot for the scenario set;
+- supports `fee_profile` variants only;
+- loads the authoritative `ECONOMICS` baseline for the scenario set's source
+  config using `scenario_set_id IS NULL`;
+- compares economics metrics such as LP IRR, GP IRR, management fees, carry,
+  DPI, TVPI, and clawback;
+- returns `unsupported_override_type` for `reserve_allocation`, `allocation`,
+  and `sector_profile` scenario sets;
+- returns `baseline_unavailable` when the authoritative economics baseline is
+  missing.
 
-| Condition                                          | Path               | Timeout |
-| -------------------------------------------------- | ------------------ | ------- |
-| Thin slice (fee-only overrides, any variant count) | Sync (API request) | 10s     |
-| Reserve/pacing/economics overrides                 | Async (BullMQ job) | 5 min   |
+The original publish-comparison contract remains scope-limited and is not
+extended for scenario comparison.
 
-Scenario calculation MUST invoke the same engines used for authoritative
-reserve/pacing snapshots, with overrides applied to the engine inputs, not to
-the engine code paths. This ensures calc-gate coverage extends to scenario
-results without a separate validation pipeline.
+### 6. Staleness vocabulary exists, but current producers are narrower
 
-Do not reuse `scenarioGeneratorWorker` directly — it is a Monte Carlo matrix
-cache worker, not an authoritative fund-scenario calculator. If async is needed,
-create a dedicated `fundScenarioCalcWorker` that drives the existing engines.
+The scenario evidence vocabulary is:
 
-### 6. Limits
+| State           | Current implementation                                                                  |
+| --------------- | --------------------------------------------------------------------------------------- |
+| `CURRENT`       | Produced when scenario output matches the current published config version.             |
+| `STALE_PUBLISH` | Produced or patched at read time when a newer published config exists.                  |
+| `STALE_CONFIG`  | Preserved and ordered as higher priority, but no current producer proves entity checks. |
+| `CALCULATING`   | Represented by async reserve calculation status/events.                                 |
+| `FAILED`        | Represented by async reserve calculation failure events/status.                         |
+| `UNAVAILABLE`   | Used for empty or unavailable scenario evidence states.                                 |
 
-All limits are PLACEHOLDER values pending measurement of real calc cost after
-Phase 4 thin slice ships. Revisit after first 10 scenario calculations are
-timed.
+Do not document entity-reference validation as implemented until code exists
+that checks current published config contents against scenario override
+references.
 
-| Limit                                             | Placeholder value | Enforcement         |
-| ------------------------------------------------- | ----------------- | ------------------- |
-| Max scenario sets per fund                        | 10                | Service-level check |
-| Max variants per set                              | 5                 | Service-level check |
-| Max override sections per variant (first release) | 1 (fee-only)      | Contract validation |
-| Async calc timeout                                | 5 min             | BullMQ job config   |
-| Sync calc timeout                                 | 10s               | API-level timeout   |
+### 7. Auth and audit are route-local
 
-### 7. Comparison surface
+All fund-scenario routes in `server/routes/fund-scenario-sets.ts` attach
+`requireAuth()` and `requireFundAccess` at the route. Scenario mutations also
+record audit events through `fund_scenario_set_events`.
 
-Do NOT extend `fund-results-comparison-v1.contract.ts`. Its docstring (lines
-5-11) explicitly states it is "intentionally summary-level...not arbitrary
-config-body diffing, broader analytics expansion."
+This corrects the original guardrail: the fund-results scenario surface does not
+depend on mount-point-only authorization.
 
-Create a separate `fund-scenario-comparison-v1.contract.ts` when Phase 5
-(scenario comparison UI) is scoped. Until then, scenario results render
-independently from the publish-comparison surface.
+### 8. Forecast actuals are not scenario overrides
 
-### 8. Lifecycle proof requirements
+Forecast actuals are implemented on the dual-forecast surface, not on ADR-022
+scenario overrides:
 
-The DB-backed lifecycle proof (built before scenario schema ships) must exercise
-two isolation properties once `scenario_set_id` is added:
+- `GET /api/funds/:fundId/dual-forecast` returns
+  `sources.actual = 'actual_metrics_calculator'`;
+- each dual-forecast point includes `actual` and `currentMode`;
+- the as-of point is `currentMode: 'actual'` with actual metrics populated;
+- future points use `currentMode: 'forecast'` with `actual: null`;
+- the dashboard renders Actuals separately from the forward-looking Current
+  Forecast series.
 
-1. **Authoritative isolation:** with scenario rows present for the same fund +
-   type + config_version, authoritative reads return ONLY
-   `scenario_set_id IS NULL` rows.
-2. **Scenario isolation:** scenario reads return ONLY rows matching the
-   specified `scenario_set_id`, never authoritative rows.
+Scenario contracts should not be widened with forecast-mode or actuals fields
+without a separate decision.
 
-Without both assertions, the test scaffolding cannot detect the regression it
-exists to prevent.
+### 9. Cohort remains outside authoritative readiness
 
-### 9. First slice: fee-profile override
+Current authoritative readiness is intentionally limited to reserve and pacing:
 
-The first supported `overrideType` is fee-profile, not allocation/reserve.
+- `shared/contracts/fund-authoritative-calculations.contract.ts` marks `reserve`
+  and `pacing` as `authoritative`;
+- `cohort` is present in the catalog as `experimental`;
+- `EXPECTED_SNAPSHOT_TYPES` is derived from authoritative snapshot types only;
+- `COHORT` snapshots are visible as available snapshot types but do not make a
+  fund `ready`;
+- calc-run completion also filters to authoritative snapshot types and
+  `scenario_set_id IS NULL`.
 
-Rationale: allocation/reserve override directly overlaps with the existing
-`allocation_scenarios` infrastructure (planned_reserves_cents,
-allocation_cap_cents, drift/apply/sync). Starting with fees avoids immediate
-schema overlap and lets the fund-scenario abstraction establish its contract
-cleanly before integrating with allocation infrastructure.
-
-### 10. Snapshot retention
-
-Scenario snapshot rows in `fund_snapshots` follow the same retention policy as
-authoritative snapshots (no auto-delete). Archived scenario sets (via
-`archived_at` on `fund_scenario_sets`) remain queryable but excluded from active
-reads. Auto-archive after prolonged staleness is deferred to a product decision
-after Phase 6 ships.
+Do not add `COHORT` to authoritative readiness until there is evidence, backfill
+planning, and result-contract support for that boundary.
 
 ## Consequences
 
 ### Positive
 
-- Fund-results scenarios have a dedicated abstraction without overloading
-  company-scoped or allocation-scoped tables.
-- Snapshot attribution follows ADR-014 governance, keeping one analytical store.
-- Read-path isolation is enforced at merge time, not discovered after a
-  production incident.
-- Auth enforcement is inline rather than mount-dependent.
-- Staleness is visible from day one via EvidenceHeader vocabulary.
-- First slice avoids overlap with existing allocation-scenarios.
+- Fund-results scenarios have a dedicated, fund-scoped abstraction rather than
+  overloading company scenarios, allocation scenarios, or Monte Carlo matrices.
+- Scenario outputs share the analytical snapshot store while preserving
+  authoritative-read isolation.
+- Scenario comparisons use their own contract and do not widen the
+  publish-comparison contract.
+- Reserve scenario calculation is asynchronous and observable through queue,
+  event, snapshot, and status surfaces.
+- Forecast actuals are represented explicitly on the dual-forecast surface
+  without contaminating scenario contracts.
+- Cohort remains experimental and cannot accidentally satisfy authoritative
+  readiness.
 
-### Negative
+### Current limitations
 
-- Every existing `fund_snapshots` consumer must be audited and patched before
-  the column migration ships — front-loads work.
-- Placeholder limits may be too restrictive (or too generous) until real calc
-  cost is measured.
-- Separate scenario comparison contract means a second comparison surface to
-  maintain long-term.
+- Scenario comparison is fee-profile only.
+- The calculation-status endpoint is reserve-async focused.
+- `STALE_CONFIG` is contract-supported and preserved, but current calculation
+  code does not prove override-entity reference validation.
+- No apply-to-live-config route exists.
+- Scenario results expose summaries in fund results; full payloads are available
+  through scenario result endpoints.
 
 ## Alternatives Considered
 
 ### A. Separate `scenario_snapshots` table
 
-Rejected. Violates ADR-014's governance boundary, duplicates the two-tier read
-pattern, and requires a second consumer for calc-gate and staleness.
+Rejected. It would duplicate the analytical snapshot read pattern and split
+scenario outputs away from ADR-014's `fund_snapshots` governance.
 
 ### B. Extend existing `scenarios` table with optional `fund_id`
 
-Rejected. Overloads company-scoped semantics. FK complexity (optional
-`fund_id` + discriminator). Contaminates both query paths.
+Rejected. Existing scenarios are company/deal scoped. Adding optional fund scope
+would overload semantics and contaminate query paths.
 
-### C. First slice as allocation/reserve override
+### C. Treat reserve allocation scenarios as the only scenario abstraction
 
-Rejected. Directly overlaps with existing `allocation_scenarios` infrastructure.
-Creates immediate duplication of drift/apply/sync semantics. Use fee-profile to
-establish contract, then wrap allocation in a later phase.
+Rejected. The existing allocation scenario lane models reserve planning,
+drift/apply/sync, and IC decisions. Fund-results scenarios need published
+config-derived analytical outputs across economics and reserve views.
 
-### D. Extend `fund-results-comparison-v1.contract.ts` for scenario comparison
+### D. Extend `fund-results-comparison-v1.contract.ts`
 
-Rejected. Contract's own docstring forbids scope expansion beyond
-current-vs-previous-published comparison.
+Rejected. Scenario comparison now has its own contract and endpoint because the
+publish-comparison contract is intentionally limited to current-vs-previous
+published comparisons.
 
 ## References
 
 - ADR-014: Snapshot Governance (`docs/adr/ADR-014-snapshot-governance.md`)
+- ADR-020: Analysis Cohort Boundary
+  (`docs/adr/ADR-020-analysis-cohort-boundary.md`)
 - ADR-021: Runtime Authority (`docs/adr/ADR-021-runtime-authority.md`)
 - ADR-013: Scenario Comparison Activation (Superseded)
-- `shared/schema/fund.ts:119-148` — `fund_snapshots` table definition
-- `server/services/fund-results-read-service.ts:196, 204-219` — hard-coded
-  unavailable + two-tier read
-- `server/routes/allocation-scenarios.ts:376` — fund route without route-local
-  auth
-- `shared/contracts/fund-results-comparison-v1.contract.ts:5-11` — scope-limited
-  docstring
+- `shared/contracts/fund-scenario-sets-v1.contract.ts`
+- `shared/contracts/fund-scenario-comparison-v1.contract.ts`
+- `shared/contracts/fund-authoritative-calculations.contract.ts`
+- `server/routes/fund-scenario-sets.ts`
+- `server/services/fund-scenario-calculation-service.ts`
+- `server/services/fund-scenario-reserve-calculation-service.ts`
+- `server/services/fund-scenario-calculation-status-service.ts`
+- `server/services/fund-scenario-comparison-service.ts`
+- `server/services/fund-results-read-service.ts`
+- `server/services/metrics-aggregator.ts`
+- `client/src/components/fund-results/ScenarioSetsSummary.tsx`
+- `client/src/components/fund-results/ScenarioComparisonTable.tsx`

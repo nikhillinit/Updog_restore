@@ -35,7 +35,7 @@ this directory by file path and title, not by number alone.
 | [019](ADR-019-mem0-integration.md)                | mem0 Integration for AI Agent Memory Management             | Proposed    |
 | [020](ADR-020-analysis-cohort-boundary.md)        | Analysis Cohort Boundary                                    | Accepted    |
 | [021](ADR-021-runtime-authority.md)               | Runtime Authority for Contract-Integrity Work               | Accepted    |
-| [022](ADR-022-fund-scenario-architecture.md)      | Fund-Results Scenario Architecture                          | Proposed    |
+| [022](ADR-022-fund-scenario-architecture.md)      | Fund-Results Scenario Architecture                          | Implemented |
 
 ## What is an ADR?
 
