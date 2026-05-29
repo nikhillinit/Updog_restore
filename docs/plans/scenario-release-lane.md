@@ -90,8 +90,9 @@ Any PR that adds a new `server/db/migrations/*.sql` file must include:
 `0016_fund_scenario_calculation_runs.sql` is a raw ADR-022 migration under
 `server/db/migrations/`. It is not applied by `npm run db:push` or
 `scripts/run-migrations.ts`. Apply it through the repo `db-migration` release
-lane or by executing the SQL file directly against the target database before
-deploying the code that removes the old scenario-set upsert.
+lane or by executing the SQL file directly against the target database in the
+same release as the code that removes the old scenario-set upsert (see the
+deployment-ordering note below).
 
 Verification query:
 
@@ -101,7 +102,12 @@ SELECT to_regclass('public.fund_scenario_calculation_runs') AS runs_table,
        to_regclass('public.fund_snapshots_scenarios_dedup_idx') AS snapshots_idx;
 ```
 
-For `0016_fund_scenario_calculation_runs.sql`, apply the migration before the
-code path that removes `ON CONFLICT (fund_id, scenario_set_id)` is deployed. Do
-not deploy a half-state where the old overwrite index is dropped but the new
-conflict-safe code is not live.
+For `0016_fund_scenario_calculation_runs.sql`, apply the migration and deploy
+the append-only, conflict-safe code together in the same release window. Do not
+split them in either order: dropping
+`fund_snapshots_scenario_set_calculation_unique` while the old
+`ON CONFLICT (fund_id, scenario_set_id)` upsert code is still live fails inserts
+with Postgres `42P10` (no matching unique constraint), and deploying append-only
+writes while that unique index still exists fails the second write per
+`(fund_id, scenario_set_id)` with `23505` (unique violation). Co-deploy
+atomically.

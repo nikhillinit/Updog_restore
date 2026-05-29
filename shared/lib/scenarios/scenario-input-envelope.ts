@@ -3,9 +3,7 @@ import { canonicalJson, canonicalizeScenarioValue } from './canonicalize';
 export const SCENARIO_INPUT_HASH_VERSION = 'scenario-input-hash-v1' as const;
 export const FUND_SCENARIOS_CONTRACT_VERSION = 'fund-scenarios-v1' as const;
 
-export type ScenarioInputCalculationMode =
-  | 'sync_fee_profile'
-  | 'async_reserve_allocation';
+export type ScenarioInputCalculationMode = 'sync_fee_profile' | 'async_reserve_allocation';
 export type ScenarioInputOverrideType = 'fee_profile' | 'reserve_allocation';
 
 export interface ScenarioInputHashEnvelopeV1 {
@@ -24,9 +22,7 @@ export interface ScenarioInputHashEnvelopeV1 {
   }>;
 }
 
-export function normalizeScenarioInputEnvelope(
-  envelope: ScenarioInputHashEnvelopeV1
-) {
+export function normalizeScenarioInputEnvelope(envelope: ScenarioInputHashEnvelopeV1) {
   return {
     version: envelope.version,
     contractVersion: envelope.contractVersion,
@@ -39,7 +35,8 @@ export function normalizeScenarioInputEnvelope(
     variants: [...envelope.variants]
       .sort(
         (a, b) =>
-          a.sortOrder - b.sortOrder || a.variantId.localeCompare(b.variantId)
+          a.sortOrder - b.sortOrder ||
+          (a.variantId < b.variantId ? -1 : a.variantId > b.variantId ? 1 : 0)
       )
       .map((variant) => ({
         variantId: variant.variantId,
@@ -49,8 +46,6 @@ export function normalizeScenarioInputEnvelope(
   };
 }
 
-export function canonicalScenarioInputString(
-  envelope: ScenarioInputHashEnvelopeV1
-): string {
+export function canonicalScenarioInputString(envelope: ScenarioInputHashEnvelopeV1): string {
   return canonicalJson(normalizeScenarioInputEnvelope(envelope));
 }

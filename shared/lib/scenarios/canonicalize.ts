@@ -6,9 +6,7 @@ export type CanonicalValue =
 
 function normalizeNumber(value: number): number {
   if (!Number.isFinite(value)) {
-    throw new TypeError(
-      'Scenario input hash cannot canonicalize non-finite numbers'
-    );
+    throw new TypeError('Scenario input hash cannot canonicalize non-finite numbers');
   }
   return Object.is(value, -0) ? 0 : value;
 }
@@ -37,6 +35,10 @@ function canonicalizeArray(value: unknown[]): CanonicalValue[] {
 }
 
 function canonicalizeObject(value: object): Record<string, CanonicalValue> {
+  const proto = Reflect.getPrototypeOf(value);
+  if (proto !== Object.prototype && proto !== null) {
+    throw new TypeError('Scenario input hash cannot canonicalize non-POJO objects');
+  }
   const record = value as Record<string, unknown>;
   const normalized: Record<string, CanonicalValue> = {};
   for (const key of Object.keys(record).sort()) {
@@ -48,9 +50,7 @@ function canonicalizeObject(value: object): Record<string, CanonicalValue> {
   return normalized;
 }
 
-export function canonicalizeScenarioValue(
-  value: unknown
-): CanonicalValue | undefined {
+export function canonicalizeScenarioValue(value: unknown): CanonicalValue | undefined {
   if (value === undefined) return undefined;
   if (isPrimitiveInput(value)) return canonicalizePrimitive(value);
 
