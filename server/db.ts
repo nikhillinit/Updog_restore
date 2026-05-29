@@ -1,12 +1,14 @@
 /**
- * Database configuration with automatic serverless optimization
- * Uses HTTP driver on Vercel, WebSocket pool elsewhere
+ * Database configuration with automatic serverless optimization.
+ * Uses HTTP driver on Vercel, node-postgres for local Postgres, and
+ * Neon WebSocket pool for remote Neon-style connection strings.
  */
 
 import type { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import { createRequire } from 'node:module';
 import { getStorageConfigurationError, resolveStorageBootMode } from './storage-runtime-policy';
 import { combinedSchema, type CombinedSchema } from './db-schema';
+import { shouldUseNodePostgresDriver } from './db-driver-selection';
 
 // ESM-safe require for conditional imports
 const require = createRequire(import.meta.url);
@@ -60,21 +62,34 @@ if (storageBootMode === 'test-mock-db' || storageBootMode === 'explicit-memory')
   // No pool in HTTP mode
   pool = null;
 } else {
-  // Use WebSocket pool for development and traditional hosting
-  const { Pool, neonConfig } = await import('@neondatabase/serverless');
-  const { drizzle } = await import('drizzle-orm/neon-serverless');
-  const ws = await import('ws');
-
-  neonConfig.webSocketConstructor = ws;
-
   const connectionString = process.env['DATABASE_URL'] || process.env['NEON_DATABASE_URL'];
   if (!connectionString) {
     throw new Error(getStorageConfigurationError(process.env));
   }
 
-  pool = new Pool({ connectionString });
-  // @ts-expect-error - Neon Pool type doesn't perfectly align with drizzle neon-serverless signature
-  db = drizzle(pool, { schema: combinedSchema });
+  if (shouldUseNodePostgresDriver(connectionString)) {
+    const { Pool } = await import('pg');
+    const { drizzle } = await import('drizzle-orm/node-postgres');
+
+    const pgPool = new Pool({
+      connectionString,
+      connectionTimeoutMillis: 2000,
+      idleTimeoutMillis: 30000,
+      allowExitOnIdle: true,
+    });
+    pool = pgPool;
+    db = drizzle(pgPool, { schema: combinedSchema });
+  } else {
+    const { Pool, neonConfig } = await import('@neondatabase/serverless');
+    const { drizzle } = await import('drizzle-orm/neon-serverless');
+    const ws = await import('ws');
+
+    neonConfig.webSocketConstructor = ws;
+
+    pool = new Pool({ connectionString });
+    // @ts-expect-error - Neon Pool type doesn't perfectly align with drizzle neon-serverless signature
+    db = drizzle(pool, { schema: combinedSchema });
+  }
 }
 
 export { db, pool };
