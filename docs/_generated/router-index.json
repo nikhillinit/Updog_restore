@@ -11158,6 +11158,34 @@
         "categories": [
           "planning",
           "scenarios",
+          "cohorts"
+        ],
+        "keywords": [
+          "scenario-release-hardening",
+          "cohort-readiness",
+          "authoritative-calculations"
+        ],
+        "last_updated": "2026-05-29",
+        "owner": "Platform Team",
+        "review_cadence": "P90D",
+        "status": "ACTIVE"
+      },
+      "hasExecutionClaims": false,
+      "isStale": false,
+      "lastUpdated": "2026-05-29",
+      "owner": "Platform Team",
+      "path": "docs/superpowers/plans/2026-05-29-scenario-cohort-release-readiness.md",
+      "staleDays": 0,
+      "status": "ACTIVE"
+    },
+    {
+      "docType": "doc",
+      "exists": true,
+      "frontmatter": {
+        "audience": "agents",
+        "categories": [
+          "planning",
+          "scenarios",
           "forecasting"
         ],
         "keywords": [
@@ -12881,7 +12909,7 @@
   "stats": {
     "by_status": {
       "ACCEPTED": 1,
-      "ACTIVE": 438,
+      "ACTIVE": 439,
       "ARCHIVED": 1,
       "BACKLOG": 1,
       "COMPLETED": 1,
@@ -12902,7 +12930,7 @@
     },
     "missing_frontmatter": 18,
     "stale_docs": 100,
-    "total_docs": 660
+    "total_docs": 661
   },
   "version": "2.0"
 }
