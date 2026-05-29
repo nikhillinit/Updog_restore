@@ -15,6 +15,7 @@ import {
 } from './fund-scenario-set-service.js';
 
 const QUEUE_NAME = 'fund-scenario-calc';
+const JOB_ID_PREFIX = 'reserve-scenario';
 const queueConfig = getQueueConfig();
 const connection = (() => {
   try {
@@ -59,7 +60,9 @@ export async function enqueueReserveScenarioCalculation(input: {
       inputHash: identity.inputHash,
     },
     {
-      jobId: `reserve-scenario:${input.fundId}:${input.scenarioSetId}:${identity.inputHash}`,
+      jobId: [JOB_ID_PREFIX, String(input.fundId), input.scenarioSetId, identity.inputHash].join(
+        '-'
+      ),
       attempts: 2,
       backoff: {
         type: 'exponential',
