@@ -1,5 +1,6 @@
 import { Router, type NextFunction, type Request, type Response } from 'express';
 import crypto from 'node:crypto';
+import rateLimit from 'express-rate-limit';
 import { z } from 'zod';
 import {
   ArchiveFundScenarioSetV1Schema,
@@ -25,6 +26,13 @@ import {
 import { enqueueReserveScenarioCalculation } from '../services/fund-scenario-calc-queue-service.js';
 import { getFundScenarioCalculationStatus } from '../services/fund-scenario-calculation-status-service.js';
 import { getFundScenarioComparison } from '../services/fund-scenario-comparison-service.js';
+
+const scenarioSetWriteLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 100,
+  standardHeaders: true,
+  legacyHeaders: false,
+});
 
 interface HttpError extends Error {
   statusCode?: number;
@@ -187,6 +195,7 @@ router.post(
   '/funds/:fundId/scenario-sets/reserve-optimization',
   requireAuth(),
   requireFundAccess,
+  scenarioSetWriteLimiter,
   routeHandler(async (req: Request, res: Response) => {
     const fundId = parseFundId(req, res);
     if (fundId === null) {
