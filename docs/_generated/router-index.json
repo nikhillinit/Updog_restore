@@ -8228,6 +8228,21 @@
       "docType": "doc",
       "exists": true,
       "frontmatter": {
+        "last_updated": "2026-05-29",
+        "status": "ACTIVE"
+      },
+      "hasExecutionClaims": false,
+      "isStale": false,
+      "lastUpdated": "2026-05-29",
+      "owner": null,
+      "path": "docs/plans/scenario-release-lane.md",
+      "staleDays": 0,
+      "status": "ACTIVE"
+    },
+    {
+      "docType": "doc",
+      "exists": true,
+      "frontmatter": {
         "last_updated": "2026-01-19",
         "status": "ACTIVE"
       },
@@ -12739,7 +12754,7 @@
   "stats": {
     "by_status": {
       "ACCEPTED": 1,
-      "ACTIVE": 432,
+      "ACTIVE": 433,
       "ARCHIVED": 1,
       "BACKLOG": 1,
       "COMPLETED": 1,
@@ -12760,7 +12775,7 @@
     },
     "missing_frontmatter": 18,
     "stale_docs": 100,
-    "total_docs": 654
+    "total_docs": 655
   },
   "version": "2.0"
 }

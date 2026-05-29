@@ -33,6 +33,16 @@ export const ScenarioComparisonStatusV1Schema = z.enum([
   'comparable',
 ]);
 
+export const ScenarioComparisonUnavailableReasonV1Schema = z.enum([
+  'ECONOMICS_DISABLED',
+  'ECONOMICS_ASSUMPTIONS_MISSING',
+  'BASELINE_ECONOMICS_SNAPSHOT_MISSING',
+  'BASELINE_ECONOMICS_SNAPSHOT_STALE',
+  'VARIANT_ECONOMICS_FAILED',
+  'SOURCE_CONFIG_STALE_UNPINNED',
+  'UNSUPPORTED_OVERRIDE_TYPE',
+]);
+
 export const ScenarioComparisonMetricMapV1Schema = z
   .object({
     lpNetIrr: MetricValueSchema,
@@ -110,6 +120,7 @@ export const FundScenarioComparisonV1Schema = z
   .object({
     fundId: z.number().int().positive(),
     comparisonStatus: ScenarioComparisonStatusV1Schema,
+    unavailableReason: ScenarioComparisonUnavailableReasonV1Schema.nullable().optional(),
     scenarioSet: ScenarioComparisonScenarioSetV1Schema,
     baseline: ScenarioComparisonBaselineV1Schema.nullable(),
     variants: z.array(ScenarioComparisonVariantV1Schema),
@@ -122,6 +133,9 @@ export type ScenarioComparisonMetricKey = z.infer<typeof ScenarioComparisonMetri
 export type ScenarioComparisonMetricKeyV1 = ScenarioComparisonMetricKey;
 export type ScenarioComparisonStatus = z.infer<typeof ScenarioComparisonStatusV1Schema>;
 export type ScenarioComparisonStatusV1 = ScenarioComparisonStatus;
+export type ScenarioComparisonUnavailableReasonV1 = z.infer<
+  typeof ScenarioComparisonUnavailableReasonV1Schema
+>;
 export type ScenarioComparisonMetricValue = z.infer<typeof MetricValueSchema>;
 export type ScenarioComparisonMetricValueV1 = ScenarioComparisonMetricValue;
 export type ScenarioComparisonMetricMap = z.infer<typeof ScenarioComparisonMetricMapV1Schema>;

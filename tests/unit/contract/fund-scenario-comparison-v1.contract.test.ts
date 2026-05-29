@@ -113,4 +113,24 @@ describe('FundScenarioComparisonV1 contract', () => {
 
     expect(result.success).toBe(true);
   });
+
+  it('accepts typed unavailable reasons for fail-closed comparison states', () => {
+    expect(
+      FundScenarioComparisonV1Schema.parse({
+        fundId: 1,
+        comparisonStatus: 'baseline_unavailable',
+        unavailableReason: 'BASELINE_ECONOMICS_SNAPSHOT_MISSING',
+        scenarioSet: {
+          scenarioSetId: '11111111-1111-4111-8111-111111111111',
+          name: 'Fee profile scenario',
+          sourceConfigId: 10,
+          sourceConfigVersion: 3,
+        },
+        baseline: null,
+        variants: [],
+        staleness: null,
+        calculatedAt: null,
+      }).unavailableReason
+    ).toBe('BASELINE_ECONOMICS_SNAPSHOT_MISSING');
+  });
 });

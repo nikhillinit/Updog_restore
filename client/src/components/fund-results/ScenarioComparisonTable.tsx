@@ -19,6 +19,7 @@ import {
   type ScenarioComparisonMetricMap,
   type ScenarioComparisonMetricValue,
   type ScenarioComparisonStalenessV1,
+  type ScenarioComparisonUnavailableReasonV1,
   type ScenarioComparisonVariantV1,
 } from '@shared/contracts/fund-scenario-comparison-v1.contract';
 
@@ -102,7 +103,28 @@ function formatStatus(value: ScenarioComparisonStalenessV1 | null) {
     .join(' ');
 }
 
+const SCENARIO_COMPARISON_UNAVAILABLE_COPY: Record<
+  ScenarioComparisonUnavailableReasonV1,
+  string
+> = {
+  ECONOMICS_DISABLED: 'Scenario comparison unavailable because economics is disabled.',
+  ECONOMICS_ASSUMPTIONS_MISSING:
+    'Scenario comparison unavailable because economics assumptions are missing.',
+  BASELINE_ECONOMICS_SNAPSHOT_MISSING:
+    'Scenario calculated; comparison unavailable because baseline economics is missing.',
+  BASELINE_ECONOMICS_SNAPSHOT_STALE:
+    'Scenario calculated; comparison stale because baseline economics belongs to an older config.',
+  VARIANT_ECONOMICS_FAILED:
+    'Scenario calculated; comparison unavailable because variant economics failed.',
+  SOURCE_CONFIG_STALE_UNPINNED:
+    'Scenario comparison unavailable because the source config is stale.',
+  UNSUPPORTED_OVERRIDE_TYPE: 'Scenario comparison unavailable for this override type.',
+};
+
 function statusCopy(comparison: FundScenarioComparisonV1) {
+  if (comparison.unavailableReason) {
+    return SCENARIO_COMPARISON_UNAVAILABLE_COPY[comparison.unavailableReason];
+  }
   if (comparison.comparisonStatus === 'no_scenario_results') {
     return 'Calculate this scenario set to compare it with the authoritative economics baseline.';
   }

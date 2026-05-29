@@ -56,6 +56,23 @@ describe('ScenarioComparisonTable', () => {
     expect(table).not.toHaveTextContent('Net LP IRR');
   });
 
+  it('renders typed baseline economics unavailable copy', () => {
+    render(
+      <ScenarioComparisonTable
+        comparison={{
+          ...baselineUnavailableComparison(),
+          unavailableReason: 'BASELINE_ECONOMICS_SNAPSHOT_MISSING',
+        }}
+      />
+    );
+
+    expect(
+      screen.getByText(
+        'Scenario calculated; comparison unavailable because baseline economics is missing.'
+      )
+    ).toBeInTheDocument();
+  });
+
   it('renders unsupported override fallbacks without pretending reserve scenarios are comparable', () => {
     render(<ScenarioComparisonTable comparison={unsupportedReserveComparison()} />);
 

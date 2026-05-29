@@ -1,4 +1,3 @@
-import crypto from 'node:crypto';
 import type { PoolClient } from 'pg';
 import { transaction } from '../db/pg-circuit.js';
 import {
@@ -8,6 +7,10 @@ import {
   type FundScenarioResultStalenessStateV1,
   type FundScenarioSetDetailV1,
 } from '@shared/contracts/fund-scenario-sets-v1.contract';
+import {
+  FUND_SCENARIOS_CONTRACT_VERSION,
+  SCENARIO_INPUT_HASH_VERSION,
+} from '@shared/lib/scenarios/scenario-input-envelope';
 import { buildReservePortfolioInputForClient } from './reserve-input-builder';
 import { buildScenarioReserveSummary } from './fund-scenario-reserve-summary';
 import {
@@ -24,6 +27,12 @@ import {
   verifyFundExists,
   type FundScenarioMutationActor,
 } from './fund-scenario-set-service.js';
+import { createScenarioInputHash } from '../lib/scenarios/scenario-input-hash';
+import {
+  acquireScenarioCalculationRun,
+  markScenarioCalculationRunCompleted,
+  markScenarioCalculationRunRunning,
+} from './fund-scenario-calculation-run-service';
 
 type ReserveScenarioVariant = Extract<
   FundScenarioCalculationPayloadV1['variants'][number],
@@ -85,28 +94,25 @@ export function createReserveScenarioInputHash(input: {
   calculationMode: 'async_reserve_allocation';
   variants: Array<{
     id: string;
+    sortOrder: number;
     override: unknown;
   }>;
 }): string {
-  return crypto
-    .createHash('sha256')
-    .update(
-      JSON.stringify({
-        fundId: input.fundId,
-        scenarioSetId: input.scenarioSetId,
-        sourceConfigId: input.sourceConfigId,
-        sourceConfigVersion: input.sourceConfigVersion,
-        calcVersion: input.calcVersion,
-        calculationMode: input.calculationMode,
-        variants: input.variants
-          .map((variant) => ({
-            id: variant.id,
-            override: variant.override,
-          }))
-          .sort((a, b) => a.id.localeCompare(b.id)),
-      })
-    )
-    .digest('hex');
+  return createScenarioInputHash({
+    version: SCENARIO_INPUT_HASH_VERSION,
+    contractVersion: FUND_SCENARIOS_CONTRACT_VERSION,
+    scenarioSetId: input.scenarioSetId,
+    sourceConfigId: input.sourceConfigId,
+    sourceConfigVersion: input.sourceConfigVersion,
+    calculationMode: input.calculationMode,
+    overrideType: 'reserve_allocation',
+    engineVersion: input.calcVersion,
+    variants: input.variants.map((variant) => ({
+      variantId: variant.id,
+      sortOrder: variant.sortOrder,
+      override: variant.override,
+    })),
+  });
 }
 
 function assertReserveScenarioSet(scenarioSet: FundScenarioSetDetailV1): void {
@@ -221,6 +227,7 @@ async function loadReserveScenarioIdentityInTransaction(
     calculationMode: 'async_reserve_allocation',
     variants: scenarioSet.variants.map((variant) => ({
       id: variant.id,
+      sortOrder: variant.sortOrder,
       override: variant.override,
     })),
   });
@@ -416,10 +423,31 @@ async function calculateReserveScenarioForContext(
     return reusableResponse;
   }
 
+  const run = await acquireScenarioCalculationRun(client, {
+    fundId: input.fundId,
+    scenarioSetId: input.scenarioSetId,
+    sourceConfigId: context.sourceConfig.id,
+    sourceConfigVersion: context.sourceConfig.version,
+    calculationMode: 'async_reserve_allocation',
+    overrideType: 'reserve_allocation',
+    inputHash: context.inputHash,
+    correlationId: input.correlationId,
+    jobId: input.jobId,
+  });
+  if (run.status === 'completed' && run.snapshotId !== null) {
+    const completedResponse = await findReusableReserveScenarioResponse(client, input, context);
+    if (completedResponse) {
+      return completedResponse;
+    }
+  }
+  await markScenarioCalculationRunRunning(client, run.id);
+
   await recordCalculationStartedEvent(client, input, context.inputHash);
 
   const data = await buildReserveScenarioCalculationData(client, input, context);
-  return persistReserveScenarioCalculation(client, input, context, data);
+  const response = await persistReserveScenarioCalculation(client, input, context, data);
+  await markScenarioCalculationRunCompleted(client, run.id, response.snapshotId);
+  return response;
 }
 
 async function findReusableReserveScenarioResponse(

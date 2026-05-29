@@ -6,6 +6,7 @@ import { Pool } from 'pg';
 import request from 'supertest';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import { runMigrationsWithConnectionString } from '../helpers/testcontainers-migration';
+import { applyScenarioMigrations } from '../helpers/scenario-migrations';
 
 const STARTUP_TIMEOUT_MS = 90_000;
 const JOB_TIMEOUT_MS = 30_000;
@@ -53,21 +54,6 @@ function restoreEnv(snapshot: Record<string, string | undefined>): void {
     } else {
       process.env[key] = value;
     }
-  }
-}
-
-async function applyScenarioMigrations(pool: Pool): Promise<void> {
-  await pool.query('CREATE EXTENSION IF NOT EXISTS pgcrypto');
-  const fs = await import('node:fs/promises');
-  const path = await import('node:path');
-  for (const file of [
-    '0012_scenario_set_id.sql',
-    '0013_fund_scenario_sets.sql',
-    '0014_fund_scenario_calculated_event.sql',
-    '0015_fund_scenario_reserve_allocation.sql',
-  ]) {
-    const sql = await fs.readFile(path.join(process.cwd(), 'server/db/migrations', file), 'utf8');
-    await pool.query(sql);
   }
 }
 

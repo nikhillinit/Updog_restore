@@ -9,6 +9,7 @@
  */
 import {
   boolean,
+  check,
   date,
   decimal,
   index,
@@ -149,6 +150,21 @@ export const fundSnapshots = pgTable(
       table.type,
       table.createdAt.desc()
     ),
+    scenarioDedupeIdx: uniqueIndex('fund_snapshots_scenarios_dedup_idx')
+      .on(
+        table.fundId,
+        table.scenarioSetId,
+        table.configId,
+        table.configVersion,
+        table.stateHash
+      )
+      .where(sql`
+        ${table.type} = 'SCENARIOS'
+        AND ${table.scenarioSetId} IS NOT NULL
+        AND ${table.configId} IS NOT NULL
+        AND ${table.configVersion} IS NOT NULL
+        AND ${table.stateHash} IS NOT NULL
+      `),
   })
 );
 
@@ -254,6 +270,56 @@ export const fundScenarioSetEvents = pgTable(
   })
 );
 
+export const fundScenarioCalculationRuns = pgTable(
+  'fund_scenario_calculation_runs',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    fundId: integer('fund_id')
+      .notNull()
+      .references(() => funds.id, { onDelete: 'cascade' }),
+    scenarioSetId: uuid('scenario_set_id')
+      .notNull()
+      .references(() => fundScenarioSets.id, { onDelete: 'cascade' }),
+    sourceConfigId: integer('source_config_id')
+      .notNull()
+      .references(() => fundConfigs.id),
+    sourceConfigVersion: integer('source_config_version').notNull(),
+    calculationMode: varchar('calculation_mode', { length: 48 }).notNull(),
+    overrideType: varchar('override_type', { length: 48 }).notNull(),
+    inputHash: varchar('input_hash', { length: 64 }).notNull(),
+    jobId: text('job_id'),
+    correlationId: varchar('correlation_id', { length: 36 }).notNull(),
+    status: varchar('status', { length: 24 }).notNull(),
+    snapshotId: integer('snapshot_id').references(() => fundSnapshots.id),
+    failureCode: varchar('failure_code', { length: 80 }),
+    failureMessage: text('failure_message'),
+    startedAt: timestamp('started_at', { withTimezone: true }),
+    completedAt: timestamp('completed_at', { withTimezone: true }),
+    failedAt: timestamp('failed_at', { withTimezone: true }),
+    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => ({
+    runLookupIdx: index('fund_scenario_calc_runs_lookup_idx').on(
+      table.fundId,
+      table.scenarioSetId,
+      table.createdAt.desc()
+    ),
+    activeDedupeIdx: uniqueIndex('fund_scenario_calc_runs_active_dedup_idx')
+      .on(
+        table.scenarioSetId,
+        table.sourceConfigId,
+        table.sourceConfigVersion,
+        table.inputHash
+      )
+      .where(sql`${table.status} IN ('queued', 'running', 'completed')`),
+    statusCheck: check(
+      'fund_scenario_calculation_runs_status_check',
+      sql`${table.status} IN ('queued', 'running', 'completed', 'failed', 'cancelled')`
+    ),
+  })
+);
+
 // ============================================================================
 // TYPES (Insert schemas with .omit() rules are defined in schema.ts)
 // ============================================================================
@@ -272,3 +338,5 @@ export type FundScenarioVariant = typeof fundScenarioVariants.$inferSelect;
 export type NewFundScenarioVariant = typeof fundScenarioVariants.$inferInsert;
 export type FundScenarioSetEvent = typeof fundScenarioSetEvents.$inferSelect;
 export type NewFundScenarioSetEvent = typeof fundScenarioSetEvents.$inferInsert;
+export type FundScenarioCalculationRun = typeof fundScenarioCalculationRuns.$inferSelect;
+export type NewFundScenarioCalculationRun = typeof fundScenarioCalculationRuns.$inferInsert;
