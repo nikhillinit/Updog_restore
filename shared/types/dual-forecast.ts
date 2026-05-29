@@ -27,11 +27,15 @@ export interface DualForecastMetrics {
   irr: number | null;
 }
 
+export type DualForecastPointMode = 'actual' | 'forecast';
+
 export interface DualForecastPoint {
   quarterIndex: number;
   label: string;
   date: string;
   construction: DualForecastMetrics;
+  actual: DualForecastMetrics | null;
+  currentMode: DualForecastPointMode;
   current: DualForecastMetrics;
 }
 

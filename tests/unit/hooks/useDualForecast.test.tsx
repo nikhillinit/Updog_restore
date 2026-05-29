@@ -22,6 +22,16 @@ const dualForecast = {
         rvpi: 2,
         irr: 0.2,
       },
+      actual: {
+        nav: 9_000_000,
+        calledCapital: 5_000_000,
+        distributions: 0,
+        tvpi: 1.8,
+        dpi: 0,
+        rvpi: 1.8,
+        irr: 0.18,
+      },
+      currentMode: 'actual',
       current: {
         nav: 9_000_000,
         calledCapital: 5_000_000,
