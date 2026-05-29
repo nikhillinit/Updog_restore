@@ -1,4 +1,3 @@
-import crypto from 'node:crypto';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const { transactionMock, queryMock, runEconomicsModelMock } = vi.hoisted(() => ({
@@ -26,7 +25,12 @@ import {
   getAllScenarioResultsForFund,
   getScenarioResults,
 } from '../../../server/services/fund-scenario-calculation-service';
+import { createScenarioInputHash } from '../../../server/lib/scenarios/scenario-input-hash';
 import type { FundScenarioCalculationPayloadV1 } from '../../../shared/contracts/fund-scenario-sets-v1.contract';
+import {
+  FUND_SCENARIOS_CONTRACT_VERSION,
+  SCENARIO_INPUT_HASH_VERSION,
+} from '../../../shared/lib/scenarios/scenario-input-envelope';
 
 const scenarioSetId = '00000000-0000-0000-0000-000000000111';
 const variantId = '00000000-0000-0000-0000-000000000112';
@@ -249,24 +253,44 @@ function snapshotPayload(): FundScenarioCalculationPayloadV1 {
   };
 }
 
+function calculationRunRow(
+  status: 'queued' | 'running' | 'completed',
+  snapshotId: number | null = null
+) {
+  return {
+    id: '00000000-0000-0000-0000-000000000777',
+    fund_id: 1,
+    scenario_set_id: scenarioSetId,
+    source_config_id: 12,
+    source_config_version: 4,
+    calculation_mode: 'sync_fee_profile',
+    override_type: 'fee_profile',
+    input_hash: expectedInputHash(),
+    job_id: null,
+    correlation_id: correlationId,
+    status,
+    snapshot_id: snapshotId,
+  };
+}
+
 function expectedInputHash(): string {
-  return crypto
-    .createHash('sha256')
-    .update(
-      JSON.stringify({
-        scenarioSetId,
-        sourceConfigId: 12,
-        sourceConfigVersion: 4,
-        calcVersion: 'fund-scenarios-v1',
-        variants: [
-          {
-            id: variantId,
-            override: feeProfileOverride,
-          },
-        ],
-      })
-    )
-    .digest('hex');
+  return createScenarioInputHash({
+    version: SCENARIO_INPUT_HASH_VERSION,
+    contractVersion: FUND_SCENARIOS_CONTRACT_VERSION,
+    scenarioSetId,
+    sourceConfigId: 12,
+    sourceConfigVersion: 4,
+    calculationMode: 'sync_fee_profile',
+    overrideType: 'fee_profile',
+    engineVersion: 'fund-scenarios-v1',
+    variants: [
+      {
+        variantId,
+        sortOrder: 0,
+        override: feeProfileOverride,
+      },
+    ],
+  });
 }
 
 describe('fund scenario calculation service', () => {
@@ -291,6 +315,8 @@ describe('fund scenario calculation service', () => {
       .mockResolvedValueOnce({ rows: [{ id: 12, version: 4, config: baseConfig }] })
       .mockResolvedValueOnce({ rows: [{ version: 4 }] })
       .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [calculationRunRow('queued')] })
+      .mockResolvedValueOnce({ rows: [calculationRunRow('running')] })
       .mockImplementationOnce((_sql: string, params: unknown[]) => ({
         rows: [
           {
@@ -302,6 +328,7 @@ describe('fund scenario calculation service', () => {
           },
         ],
       }))
+      .mockResolvedValueOnce({ rows: [calculationRunRow('completed', 42)] })
       .mockResolvedValueOnce({ rows: [{ id: '00000000-0000-0000-0000-000000000124' }] });
 
     const result = await calculateFundScenarioSet(1, scenarioSetId, {
@@ -322,12 +349,32 @@ describe('fund scenario calculation service', () => {
       })
     );
     expect(queryMock.mock.calls[1]?.[0]).toContain('FOR UPDATE OF s');
-    expect(queryMock.mock.calls[6]?.[0]).toContain("VALUES ($1, 'SCENARIOS'");
-    expect(queryMock.mock.calls[6]?.[0]).toContain('scenario_set_id');
-    expect(queryMock.mock.calls[6]?.[0]).toContain('ON CONFLICT (fund_id, scenario_set_id)');
-    expect(queryMock.mock.calls[6]?.[1]?.[7]).toBe(scenarioSetId);
-    expect(queryMock.mock.calls[7]?.[0]).toContain('INSERT INTO fund_scenario_set_events');
-    expect(queryMock.mock.calls[7]?.[1]).toEqual([
+    const snapshotInsertCall = queryMock.mock.calls.find((call) =>
+      String(call[0]).includes('INSERT INTO fund_snapshots')
+    );
+    const snapshotInsertSql = String(snapshotInsertCall?.[0] ?? '');
+    const snapshotInsertParams = snapshotInsertCall?.[1] as unknown[] | undefined;
+    const snapshotMetadata = snapshotInsertParams?.[4];
+
+    expect(snapshotInsertSql).toContain("VALUES ($1, 'SCENARIOS'");
+    expect(snapshotInsertSql).toContain('state_hash');
+    expect(snapshotInsertSql).toContain('scenario_set_id');
+    expect(snapshotInsertSql).toContain('fund_snapshots_scenarios_dedup_idx');
+    expect(snapshotInsertSql).toContain(
+      'ON CONFLICT (fund_id, scenario_set_id, config_id, config_version, state_hash)'
+    );
+    expect(snapshotInsertSql).not.toContain('ON CONFLICT (fund_id, scenario_set_id)');
+    expect(snapshotMetadata).toMatchObject({
+      input_hash: expect.stringMatching(/^[a-f0-9]{64}$/),
+      calculation_mode: 'sync_fee_profile',
+      override_type: 'fee_profile',
+    });
+    expect(snapshotInsertParams?.[7]).toBe(expectedInputHash());
+    expect(snapshotInsertParams?.[8]).toBe(scenarioSetId);
+    const eventInsertCall = queryMock.mock.calls.find((call) =>
+      String(call[0]).includes('INSERT INTO fund_scenario_set_events')
+    );
+    expect(eventInsertCall?.[1]).toEqual([
       scenarioSetId,
       1,
       'calculated',
@@ -423,6 +470,8 @@ describe('fund scenario calculation service', () => {
       })
       .mockResolvedValueOnce({ rows: [{ version: 4 }] })
       .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [calculationRunRow('queued')] })
+      .mockResolvedValueOnce({ rows: [calculationRunRow('running')] })
       .mockImplementationOnce((_sql: string, params: unknown[]) => ({
         rows: [
           {
@@ -434,6 +483,7 @@ describe('fund scenario calculation service', () => {
           },
         ],
       }))
+      .mockResolvedValueOnce({ rows: [calculationRunRow('completed', 57)] })
       .mockResolvedValueOnce({ rows: [{ id: '00000000-0000-0000-0000-000000000126' }] });
 
     const result = await calculateFundScenarioSet(1, scenarioSetId);
@@ -470,6 +520,8 @@ describe('fund scenario calculation service', () => {
       .mockResolvedValueOnce({ rows: [{ id: 12, version: 4, config: baseConfig }] })
       .mockResolvedValueOnce({ rows: [{ version: 7 }] })
       .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [calculationRunRow('queued')] })
+      .mockResolvedValueOnce({ rows: [calculationRunRow('running')] })
       .mockImplementationOnce((_sql: string, params: unknown[]) => ({
         rows: [
           {
@@ -481,6 +533,7 @@ describe('fund scenario calculation service', () => {
           },
         ],
       }))
+      .mockResolvedValueOnce({ rows: [calculationRunRow('completed', 55)] })
       .mockResolvedValueOnce({ rows: [{ id: '00000000-0000-0000-0000-000000000125' }] });
 
     const result = await calculateFundScenarioSet(1, scenarioSetId);

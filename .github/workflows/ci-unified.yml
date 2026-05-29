@@ -172,7 +172,9 @@ jobs:
         run: npx playwright install --with-deps chromium
 
       - name: Run affected tests
-        run: npm run test:affected || npm run test:smart || npm run test:quick
+        run: |
+          npm run test:affected || npm run test:smart || npm run test:quick
+          npm run test:scenario-release-gate
         env:
           DATABASE_URL: postgresql://postgres:postgres@localhost:5432/test
           NODE_ENV: test
