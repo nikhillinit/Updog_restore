@@ -1,13 +1,5 @@
-import * as sharedSchema from '@shared/schema';
-import * as lpSchema from '@shared/schema-lp-reporting';
-import * as lpSprint3Schema from '@shared/schema-lp-sprint3';
-import * as approvalSchema from '@shared/schemas/reserve-approvals';
+import * as dbSchema from '@shared/db-schema';
 
-export const combinedSchema = {
-  ...sharedSchema,
-  ...lpSchema,
-  ...lpSprint3Schema,
-  ...approvalSchema,
-};
+export const { DB_SCHEMA_COMPATIBILITY_MAP, ...combinedSchema } = dbSchema;
 
 export type CombinedSchema = typeof combinedSchema;

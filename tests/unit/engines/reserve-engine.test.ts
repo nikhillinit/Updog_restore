@@ -4,7 +4,11 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { ReserveEngine, generateReserveSummary } from '@/core/reserves/ReserveEngine';
+import {
+  ReserveEngine as ClientReserveEngine,
+  generateReserveSummary as generateClientReserveSummary,
+} from '@/core/reserves/ReserveEngine';
+import { ReserveEngine, generateReserveSummary } from '@shared/core/reserves/ReserveEngine';
 import type { ReserveCompanyInput } from '@shared/types';
 import { ConfidenceLevel } from '@shared/types';
 
@@ -23,6 +27,50 @@ const createCompany = (overrides: Partial<ReserveCompanyInput> = {}): ReserveCom
 
 const createPortfolio = (count: number): ReserveCompanyInput[] =>
   Array.from({ length: count }, (_, i) => createCompany({ id: i + 1 }));
+
+// =============================================================================
+// CLIENT SHIM PARITY TESTS
+// =============================================================================
+
+describe('ReserveEngine - Client Shim Parity', () => {
+  it('keeps the client ReserveEngine shim in lockstep with the shared engine', () => {
+    const portfolio: ReserveCompanyInput[] = [
+      createCompany({ id: 1, stage: 'Seed', sector: 'SaaS', invested: 500000, ownership: 0.2 }),
+      createCompany({
+        id: 2,
+        stage: 'Series B',
+        sector: 'Healthcare',
+        invested: 2500000,
+        ownership: 0.08,
+      }),
+      createCompany({
+        id: 3,
+        stage: 'Growth',
+        sector: 'Infrastructure',
+        invested: 5000000,
+        ownership: 0.03,
+      }),
+    ];
+
+    expect(ClientReserveEngine(portfolio)).toEqual(ReserveEngine(portfolio));
+  });
+
+  it('keeps the client reserve summary shim in lockstep with the shared summary', () => {
+    const portfolio = createPortfolio(3);
+    const clientSummary = generateClientReserveSummary(77, portfolio);
+    const sharedSummary = generateReserveSummary(77, portfolio);
+
+    expect(clientSummary).toMatchObject({
+      fundId: sharedSummary.fundId,
+      totalAllocation: sharedSummary.totalAllocation,
+      avgConfidence: sharedSummary.avgConfidence,
+      highConfidenceCount: sharedSummary.highConfidenceCount,
+      allocations: sharedSummary.allocations,
+    });
+    expect(clientSummary.generatedAt).toBeInstanceOf(Date);
+    expect(sharedSummary.generatedAt).toBeInstanceOf(Date);
+  });
+});
 
 // =============================================================================
 // VALIDATION TESTS

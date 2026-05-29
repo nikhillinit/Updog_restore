@@ -117,13 +117,13 @@ As of 2026-05-28:
 19. Slice 15 is closed as conservative no-op: the tracked TypeScript config set
     has only active boundary configs, and live scans found no safe deletion
     candidate.
-20. Slice 16 is closed as a focused domain golden/truth gap pass. The
-    `18c3d0d9` LP metrics fixtures and golden assertions already covered the
-    core LP scenarios, so this slice only added lock metadata/hash coverage in
-    `tests/unit/golden/lp-reporting/lp-metrics-lock.test.ts`. Evidence:
-    targeted LP golden/truth run passed 10 files / 295 tests, `npm run
-    phoenix:truth` passed 7 files / 265 tests, and `npm run calc-gate` passed
-    its truth, calculation, and orphan gate segments.
+20. Slice 16 is closed as a focused domain golden/truth gap pass. The `18c3d0d9`
+    LP metrics fixtures and golden assertions already covered the core LP
+    scenarios, so this slice only added lock metadata/hash coverage in
+    `tests/unit/golden/lp-reporting/lp-metrics-lock.test.ts`. Evidence: targeted
+    LP golden/truth run passed 10 files / 295 tests, `npm run phoenix:truth`
+    passed 7 files / 265 tests, and `npm run calc-gate` passed its truth,
+    calculation, and orphan gate segments.
 21. Slice 17 is closed as a route-contract hardening pass before any service
     extraction. Existing `18c3d0d9` allocation and LP API contract tests were
     kept and extended rather than duplicated. Evidence: targeted route-contract
@@ -143,8 +143,8 @@ As of 2026-05-28:
 24. Slice 20 is closed as route-mount registration normalization. Default-router
     imports in `server/routes.ts` now use a small sequential mount helper, while
     named and special-case mounts such as deal-pipeline, reallocation, metrics,
-    and dual-forecast remain explicit. Evidence: the route-mounting run passed
-    7 files / 42 tests, and `npm run check` found 0 TypeScript errors.
+    and dual-forecast remain explicit. Evidence: the route-mounting run passed 7
+    files / 42 tests, and `npm run check` found 0 TypeScript errors.
 25. Slice 21 is closed as the first deal-pipeline service extraction pass.
     Deal-pipeline validation schemas and cursor encoding/decoding moved behind
     `server/services/deal-pipeline/`, the route module preserves
@@ -162,8 +162,8 @@ As of 2026-05-28:
     errors.
 27. Slice 23 is closed as fund-store consolidation. `useFundStore` is now a
     compatibility hook over the canonical vanilla `fundStore`, while
-    `client/src/state/useFundStore.ts`, selector wrappers, persisted storage key,
-    and hydration semantics remain compatible. Evidence: focused store,
+    `client/src/state/useFundStore.ts`, selector wrappers, persisted storage
+    key, and hydration semantics remain compatible. Evidence: focused store,
     adapter, draft-sync, KPI header tests passed, and `npm run check` found 0
     TypeScript errors.
 28. Slice 24 is closed as type-guard consolidation. Generic primitives moved to
@@ -171,10 +171,25 @@ As of 2026-05-28:
     a compatibility facade and preserves the `http-response` exports. Evidence:
     type-guard, shared type-guard, and funds-boundary tests passed, and
     `npm run check` found 0 TypeScript errors.
-29. The next separate cleanup slice is semantic money utility classification and
-    migration. Do not combine it with Phoenix docs, Playwright config, Docker
-    config, LP benchmark behavior changes, schema directory renames, engine
-    dedupe, or unrelated config cleanup.
+29. Slices 25-27 are closed from isolated branch
+    `codex/refactor-roadmap-slices-25-27`. Slice 25 split exact cents, Decimal
+    financial calculations, and display formatting behind compatibility barrels.
+    Slice 26 added `@shared/db-schema` as the compatibility-first schema
+    migration target and pointed `server/db-schema.ts` at it. Slice 27 is
+    evidence-closed as a client/shared reserve-engine shim no-op: client reserve
+    files were already re-export shims, pair-diff tests now lock parity, and
+    `server/services/reserve-optimization-calculator.ts` remains server-only
+    DB/Monte Carlo orchestration rather than behavior-equivalent engine logic.
+    Evidence: targeted money, schema, and reserve runs passed; the root orphaned
+    schema tests were repaired to the current string-decimal schema contract
+    through an ignored verifier config; `npm run phoenix:truth`,
+    `npm run calc-gate`, and `npm run check` passed. `npx drizzle-kit check`
+    remains environment-blocked without `DATABASE_URL`, and the phase0 DB proof
+    suite skipped under its own environment gate.
+30. The next separate cleanup slice is quarantine/helper/test naming cleanup. Do
+    not combine it with Phoenix docs, Playwright config, Docker config, LP
+    benchmark behavior changes, schema directory renames, engine dedupe, or
+    unrelated config cleanup.
 
 Update this section whenever the active next step changes. This is the only
 "what to do right now" pointer in the document.
@@ -1977,39 +1992,42 @@ Batches 0a-0e are quick wins from the 2026-05-27 tech debt audit that can land
 before or interleaved with the existing sequence. They require no product code
 changes and reduce future debt accumulation.
 
-| Batch | Commit                                                                                  | Validation                                                                                                                          |
-| ----: | --------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------- |
-|    0a | `chore(guardrails): add route-import guard for db/storage`                              | `npm run check`; no existing route files break                                                                                      |
-|    0b | `test(quarantine): document 3 undocumented quarantines`                                 | quarantine report shows 0 undocumented                                                                                              |
-|    0c | `test(cleanup): delete zero-assertion debug-ca020 test`                                 | `npm run test:unit`                                                                                                                 |
-|    0d | `refactor(middleware): replace console calls with Pino in middleware`                   | DONE at `df2b22fc`; middleware console scan is clean                                                                                |
-|    0e | `chore(audit): add verified tech debt baseline to refactor roadmap`                     | `rg` console scans; `guard:console:check`; `git diff --check`                                                                       |
-|     0 | `chore(audit): capture baseline and cleanup manifest`                                   | n/a                                                                                                                                 |
-|     1 | `chore(repo): record generated docs logs already absent`                                | docs link check if ignore/docs change                                                                                               |
-|     2 | DONE/no-op: `chore(docs): externalize large reference assets`                           | 2026-05-27 recheck: 0 tracked files; no active restore refs                                                                         |
-|     3 | DONE/no-op: `chore(docs): curate remaining docs archive`                                | 2026-05-27 recheck: 0 tracked files; local ignored-only files                                                                       |
-|     4 | DONE: `chore(app): migrate legacy route-story mirror`                                   | 2026-05-27 recheck: only root `src/**` file deleted; route tests migrated                                                           |
-|     5 | DONE: `test(client): lock modeling wizard machine behavior`                             | 2026-05-27 focused wizard tests: 5 files, 33 passed, 0 skipped                                                                      |
-|     6 | DONE/no-op: `docs(repo): mark external BMAD local copy as removed if references change` | 2026-05-27 scan: 0 tracked files; root path absent; no refs present the removed local copy as current                               |
-|     7 | DONE: `chore(tooling): remove package refs from app configs and scripts`                | 2026-05-27: package scans; command-path proofs; `check + test:unit + build:prod + lint`                                             |
-|     8 | DONE: `chore(tooling): remove unused ai-agent packages`                                 | 2026-05-27: package reference scans; docs routing check; `check + test:unit + build:prod`                                           |
-|     9 | DONE: `chore(scripts): classify and retire stale wave and phase scripts`                | 2026-05-28: 81 scripts; 0 allowed legacy aliases; explicit replacement chains in `validate:core` / `calc-gate` / `calc-gate:full`   |
-|    10 | DONE: `chore(hooks): simplify pre-commit and retain pre-push orchestration`             | 2026-05-28: pre-commit lint/format now uses `lint-staged`; pre-push kept because no equivalent changed-file-safe replacement exists |
-|    11 | DONE: `docs(ci): classify current workflow inventory`                                   | 2026-05-28: 19 tracked workflows classified; no safe deletion; branch protection has no required status checks or rulesets          |
-|    12 | DONE/no-op: `chore(ci): consolidate workflow checks from classification map`            | 2026-05-28: no workflow deleted; remaining candidates blocked on replacement/manual/status-consumer evidence                        |
-|    13 | DONE: `chore(env): consolidate env files behind verified loader behavior`               | 2026-05-28: `.env.test` added after `.env.${NODE_ENV}` loader proof; legacy env variants kept where referenced                      |
-|    14 | DONE: `chore(test): consolidate vitest config aliases without changing unit entry`      | 2026-05-28: `vitest.config.shared.mjs` extracts aliases; `test:unit` still uses `vitest.config.mjs`                                 |
-|    15 | DONE/no-op: `chore(tsconfig): keep only active TypeScript boundaries`                   | 2026-05-28: all tracked configs are active boundaries; no deletion candidate found                                                  |
-|    16 | DONE: `test(domain): fill fund-model golden parity gaps`                                | 2026-05-28: LP metrics lock metadata/hash coverage; targeted golden/truth 10 files / 295 tests; `phoenix:truth`; `calc-gate`        |
-|    17 | DONE: `test(routes): lock extraction contracts for route slices`                        | 2026-05-28: deal-pipeline, lp-api, allocations, funds, and performance-api contract run 5 files / 57 tests                          |
-|    18 | DONE: `refactor(client): clean main bootstrap boundaries`                               | 2026-05-28: fetch tap DEV gate, emergency rollback module, monitoring bootstrap module; focused bootstrap tests 2 files / 5 tests    |
-|    19 | DONE: `refactor(client): split App composition boundaries`                              | 2026-05-28: `App.tsx` remains provider root; route registry/rendering/layout/deferred shell moved under `client/src/app`; app route-governance 4 files / 55 tests |
-|    20 | DONE: `refactor(server): normalize route registration structure`                        | 2026-05-28: `server/routes.ts` default-router imports use sequential mount helpers while preserving URL mounts and special-case explicit mounts; route-mounting 7 files / 42 tests |
+| Batch | Commit                                                                                  | Validation                                                                                                                                                                                                       |
+| ----: | --------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+|    0a | `chore(guardrails): add route-import guard for db/storage`                              | `npm run check`; no existing route files break                                                                                                                                                                   |
+|    0b | `test(quarantine): document 3 undocumented quarantines`                                 | quarantine report shows 0 undocumented                                                                                                                                                                           |
+|    0c | `test(cleanup): delete zero-assertion debug-ca020 test`                                 | `npm run test:unit`                                                                                                                                                                                              |
+|    0d | `refactor(middleware): replace console calls with Pino in middleware`                   | DONE at `df2b22fc`; middleware console scan is clean                                                                                                                                                             |
+|    0e | `chore(audit): add verified tech debt baseline to refactor roadmap`                     | `rg` console scans; `guard:console:check`; `git diff --check`                                                                                                                                                    |
+|     0 | `chore(audit): capture baseline and cleanup manifest`                                   | n/a                                                                                                                                                                                                              |
+|     1 | `chore(repo): record generated docs logs already absent`                                | docs link check if ignore/docs change                                                                                                                                                                            |
+|     2 | DONE/no-op: `chore(docs): externalize large reference assets`                           | 2026-05-27 recheck: 0 tracked files; no active restore refs                                                                                                                                                      |
+|     3 | DONE/no-op: `chore(docs): curate remaining docs archive`                                | 2026-05-27 recheck: 0 tracked files; local ignored-only files                                                                                                                                                    |
+|     4 | DONE: `chore(app): migrate legacy route-story mirror`                                   | 2026-05-27 recheck: only root `src/**` file deleted; route tests migrated                                                                                                                                        |
+|     5 | DONE: `test(client): lock modeling wizard machine behavior`                             | 2026-05-27 focused wizard tests: 5 files, 33 passed, 0 skipped                                                                                                                                                   |
+|     6 | DONE/no-op: `docs(repo): mark external BMAD local copy as removed if references change` | 2026-05-27 scan: 0 tracked files; root path absent; no refs present the removed local copy as current                                                                                                            |
+|     7 | DONE: `chore(tooling): remove package refs from app configs and scripts`                | 2026-05-27: package scans; command-path proofs; `check + test:unit + build:prod + lint`                                                                                                                          |
+|     8 | DONE: `chore(tooling): remove unused ai-agent packages`                                 | 2026-05-27: package reference scans; docs routing check; `check + test:unit + build:prod`                                                                                                                        |
+|     9 | DONE: `chore(scripts): classify and retire stale wave and phase scripts`                | 2026-05-28: 81 scripts; 0 allowed legacy aliases; explicit replacement chains in `validate:core` / `calc-gate` / `calc-gate:full`                                                                                |
+|    10 | DONE: `chore(hooks): simplify pre-commit and retain pre-push orchestration`             | 2026-05-28: pre-commit lint/format now uses `lint-staged`; pre-push kept because no equivalent changed-file-safe replacement exists                                                                              |
+|    11 | DONE: `docs(ci): classify current workflow inventory`                                   | 2026-05-28: 19 tracked workflows classified; no safe deletion; branch protection has no required status checks or rulesets                                                                                       |
+|    12 | DONE/no-op: `chore(ci): consolidate workflow checks from classification map`            | 2026-05-28: no workflow deleted; remaining candidates blocked on replacement/manual/status-consumer evidence                                                                                                     |
+|    13 | DONE: `chore(env): consolidate env files behind verified loader behavior`               | 2026-05-28: `.env.test` added after `.env.${NODE_ENV}` loader proof; legacy env variants kept where referenced                                                                                                   |
+|    14 | DONE: `chore(test): consolidate vitest config aliases without changing unit entry`      | 2026-05-28: `vitest.config.shared.mjs` extracts aliases; `test:unit` still uses `vitest.config.mjs`                                                                                                              |
+|    15 | DONE/no-op: `chore(tsconfig): keep only active TypeScript boundaries`                   | 2026-05-28: all tracked configs are active boundaries; no deletion candidate found                                                                                                                               |
+|    16 | DONE: `test(domain): fill fund-model golden parity gaps`                                | 2026-05-28: LP metrics lock metadata/hash coverage; targeted golden/truth 10 files / 295 tests; `phoenix:truth`; `calc-gate`                                                                                     |
+|    17 | DONE: `test(routes): lock extraction contracts for route slices`                        | 2026-05-28: deal-pipeline, lp-api, allocations, funds, and performance-api contract run 5 files / 57 tests                                                                                                       |
+|    18 | DONE: `refactor(client): clean main bootstrap boundaries`                               | 2026-05-28: fetch tap DEV gate, emergency rollback module, monitoring bootstrap module; focused bootstrap tests 2 files / 5 tests                                                                                |
+|    19 | DONE: `refactor(client): split App composition boundaries`                              | 2026-05-28: `App.tsx` remains provider root; route registry/rendering/layout/deferred shell moved under `client/src/app`; app route-governance 4 files / 55 tests                                                |
+|    20 | DONE: `refactor(server): normalize route registration structure`                        | 2026-05-28: `server/routes.ts` default-router imports use sequential mount helpers while preserving URL mounts and special-case explicit mounts; route-mounting 7 files / 42 tests                               |
 |    21 | DONE: `refactor(routes): start deal-pipeline service extraction`                        | 2026-05-28: deal-pipeline schemas/cursor helpers moved to `server/services/deal-pipeline/`; schema export preserved; contract 13 tests, taxonomy 3 tests, API integration 3 active tests / 13 pre-existing skips |
-|    22 | DONE: `refactor(routes): migrate route diagnostics to Pino`                            | 2026-05-28: route console scan 0; `guard:console:check`; focused route tests; `check`                                              |
-|    23 | DONE: `refactor(client): consolidate fund store compatibility hook`                     | 2026-05-28: store, adapter, draft-sync, KPI header tests; `check`                                                                  |
-|    24 | DONE: `refactor(shared): consolidate type guard primitives`                            | 2026-05-28: client/shared type-guard tests and funds-boundary guard; `check`                                                       |
-|   25+ | Product refactors one area at a time                                                    | per-area gates                                                                                                                      |
+|    22 | DONE: `refactor(routes): migrate route diagnostics to Pino`                             | 2026-05-28: route console scan 0; `guard:console:check`; focused route tests; `check`                                                                                                                            |
+|    23 | DONE: `refactor(client): consolidate fund store compatibility hook`                     | 2026-05-28: store, adapter, draft-sync, KPI header tests; `check`                                                                                                                                                |
+|    24 | DONE: `refactor(shared): consolidate type guard primitives`                             | 2026-05-28: client/shared type-guard tests and funds-boundary guard; `check`                                                                                                                                     |
+|    25 | DONE: `refactor(shared): split money utilities by semantics`                            | 2026-05-28: exact cents, Decimal, formatting, LP metrics golden tests; `check`                                                                                                                                   |
+|    26 | DONE: `refactor(shared): add schema compatibility barrel`                               | 2026-05-28: schema integrity/drift tests, root schema tests via ignored verifier config; Drizzle check blocked without `DATABASE_URL`                                                                            |
+|    27 | DONE/no-op: `test(reserves): lock client shim parity before engine dedupe`              | 2026-05-28: reserve engine, deterministic reserve, adapter, funds-boundary, and scenario reserve-summary tests                                                                                                   |
+|   28+ | Product refactors one area at a time                                                    | per-area gates                                                                                                                                                                                                   |
 
 ---
 
@@ -2061,8 +2079,8 @@ baseline in the roadmap.
 15. DONE/no-op: TypeScript config rationalization found no tracked deletion
     candidates; active boundary configs remain.
 16. DONE: Fill gaps in existing fragmented domain golden/truth tests.
-17. DONE: Add route contract tests for `deal-pipeline`, `lp-api`,
-    `allocations`, `funds`, and `performance-api` before service extraction.
+17. DONE: Add route contract tests for `deal-pipeline`, `lp-api`, `allocations`,
+    `funds`, and `performance-api` before service extraction.
 18. DONE: Clean `main.tsx`.
 19. DONE: Split `App.tsx` while keeping it as the provider/composition root.
 20. DONE: Normalize API route mounting without changing URLs.
@@ -2076,10 +2094,11 @@ baseline in the roadmap.
     compatibility exports.
 24. DONE: Consolidate shared type guard primitives while keeping the client
     facade and `http-response` exports.
-25. NEXT: Classify and migrate money utilities semantically.
-26. Rename schema directories via compatibility barrels.
-27. Dedupe engines behind golden tests.
-28. Fix quarantine/helper/test naming issues; triage the 15 generic
+25. DONE: Classify and migrate money utilities semantically.
+26. DONE: Rename schema directories via compatibility barrels.
+27. DONE/no-op: Dedupe engines behind golden tests; client reserve surfaces are
+    already compatibility shims, with pair-diff coverage now explicit.
+28. NEXT: Fix quarantine/helper/test naming issues; triage the 15 generic
     "stabilization triage" quarantines individually.
 29. Promote `no-explicit-any` to `error` by directory after batch cleanup.
 30. Re-enable `noUncheckedIndexedAccess` for client by directory.
@@ -2132,10 +2151,10 @@ The 2026-05-27 audit adds five immediate guardrails/baseline slices
 logging migration, and this verified baseline) and corrects stale metrics from
 the raw audit. Console debt is 15 current ratcheted calls against a 39-call
 baseline, not the all-method server total; middleware is 0 matches after 0d, and
-route-layer console debt is 0 matches after slice 22. Remaining all-method server
-console is 234 matches across 45 files outside the completed route and
-middleware migrations. Client test files number ~91, not 2, and route tests exist
-but are incomplete. The corrected numbers in Section 1b are authoritative;
+route-layer console debt is 0 matches after slice 22. Remaining all-method
+server console is 234 matches across 45 files outside the completed route and
+middleware migrations. Client test files number ~91, not 2, and route tests
+exist but are incomplete. The corrected numbers in Section 1b are authoritative;
 regenerate them with the listed commands before starting any remediation PR.
 
 The highest ROI is not naming consistency. It is reducing the number of scripts,
