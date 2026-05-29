@@ -26,14 +26,15 @@ migrations, BullMQ/Redis, Vitest unit and integration projects, existing
 
 ## Current Main Facts
 
-Verified against clean `main` synced to `origin/main` at
-`2e5fb282d2ad7fba34259a40434da18ccf5196fb`.
+Implementation start reverified clean `main` synced to `origin/main` at
+`e430e7c5ef9bdf7dd0d63b3aea174440c85be0a2`, the PR #727 merge commit.
 
 Rebaseline notes from the commits merged after the original `8d9b9adc`
 planning snapshot:
 
-- This plan landed after `8d9b9adc` in `a9695da8`; do not execute the release
-  lane from the stale SHA.
+- This plan landed after `8d9b9adc` in branch commit `a9695da8` and was merged
+  through PR #727 as `e430e7c5`; do not execute the release lane from a stale
+  SHA.
 - Reserve scenario enqueue now uses deterministic BullMQ-safe job IDs in
   `server/services/fund-scenario-calc-queue-service.ts` by joining identity
   fields with `-`. Keep canonical hash migrations compatible with that
