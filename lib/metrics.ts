@@ -1,54 +1,69 @@
 import { register, Counter, Histogram, Gauge } from 'prom-client';
-import { logger } from './logger';
 
-// Initialize metrics
-const engineLatency = new Histogram({
-  name: 'engine_calculation_duration_seconds',
-  help: 'Duration of engine calculations in seconds',
-  labelNames: ['engine', 'status'],
-  buckets: [0.1, 0.5, 1, 2, 5, 10, 30, 60],
-});
+function getMetric<T>(name: string): T | undefined {
+  return register.getSingleMetric(name) as T | undefined;
+}
 
-const engineErrors = new Counter({
-  name: 'engine_calculation_errors_total',
-  help: 'Total number of engine calculation errors',
-  labelNames: ['engine', 'error_type'],
-});
+function getOrCreateHistogram(
+  name: string,
+  help: string,
+  labelNames: string[],
+  buckets: number[]
+): Histogram<string> {
+  const existing = getMetric<Histogram<string>>(name);
+  if (existing) return existing;
+  return new Histogram({ name, help, labelNames, buckets });
+}
 
-const queueDepth = new Gauge({
-  name: 'queue_depth',
-  help: 'Current depth of job queues',
-  labelNames: ['queue_name', 'job_type'],
-});
+function getOrCreateCounter(name: string, help: string, labelNames: string[]): Counter<string> {
+  const existing = getMetric<Counter<string>>(name);
+  if (existing) return existing;
+  return new Counter({ name, help, labelNames });
+}
 
-const snapshotWrites = new Counter({
-  name: 'snapshot_writes_total',
-  help: 'Total number of snapshot writes',
-  labelNames: ['type', 'status'],
-});
+function getOrCreateGauge(name: string, help: string, labelNames: string[]): Gauge<string> {
+  const existing = getMetric<Gauge<string>>(name);
+  if (existing) return existing;
+  return new Gauge({ name, help, labelNames });
+}
 
-// Register all metrics
-register.registerMetric(engineLatency);
-register.registerMetric(engineErrors);
-register.registerMetric(queueDepth);
-register.registerMetric(snapshotWrites);
+const engineLatency = getOrCreateHistogram(
+  'engine_calculation_duration_seconds',
+  'Duration of engine calculations in seconds',
+  ['engine', 'status'],
+  [0.1, 0.5, 1, 2, 5, 10, 30, 60]
+);
+
+const engineErrors = getOrCreateCounter(
+  'engine_calculation_errors_total',
+  'Total number of engine calculation errors',
+  ['engine', 'error_type']
+);
+
+const queueDepth = getOrCreateGauge('queue_depth', 'Current depth of job queues', [
+  'queue_name',
+  'job_type',
+]);
+
+const snapshotWrites = getOrCreateCounter(
+  'snapshot_writes_total',
+  'Total number of snapshot writes',
+  ['type', 'status']
+);
 
 // Metrics wrapper function
-export async function withMetrics<T>(
-  engineName: string,
-  fn: () => Promise<T>
-): Promise<T> {
+export async function withMetrics<T>(engineName: string, fn: () => Promise<T>): Promise<T> {
   const timer = engineLatency.startTimer({ engine: engineName });
-  
+
   try {
     const result = await fn();
     timer({ status: 'success' });
     return result;
   } catch (error) {
     timer({ status: 'error' });
-    engineErrors.inc({ 
-      engine: engineName, 
-      error_type: error instanceof Error ? error.constructor.name : 'unknown' 
+    engineErrors.inc({
+      engine: engineName,
+      error_type: error instanceof Error ? error.constructor.name : 'unknown',
     });
     throw error;
   }
@@ -65,12 +80,12 @@ export const metrics = {
   engineErrors,
   queueDepth,
   snapshotWrites,
-  
+
   // Helper methods
   recordQueueDepth: (queueName: string, jobType: string, depth: number) => {
     queueDepth.set({ queue_name: queueName, job_type: jobType }, depth);
   },
-  
+
   recordSnapshotWrite: (type: string, success: boolean) => {
     snapshotWrites.inc({ type, status: success ? 'success' : 'failure' });
   },
