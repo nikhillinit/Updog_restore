@@ -7,6 +7,7 @@
 import { describe, it, expect } from 'vitest';
 import { createTableRelationsHelpers, extractTablesRelationalConfig } from 'drizzle-orm/relations';
 import * as schema from '@shared/schema';
+import * as dbSchema from '@shared/db-schema';
 
 describe('Schema Module Integrity', () => {
   describe('Fund Module', () => {
@@ -91,6 +92,24 @@ describe('Schema Module Integrity', () => {
       expect(tables.investments?.relations).toHaveProperty('company');
       expect(tables.scenarios?.relations).toHaveProperty('cases');
       expect(tables.scenarioCases?.relations).toHaveProperty('scenario');
+    });
+  });
+
+  describe('Compatibility Barrel', () => {
+    it('forwards current database schema surfaces without moving legacy imports', () => {
+      expect(dbSchema.funds).toBe(schema.funds);
+      expect(dbSchema.portfolioCompanies).toBe(schema.portfolioCompanies);
+      expect(dbSchema.limitedPartners).toBeDefined();
+      expect(dbSchema.lpCapitalCalls).toBeDefined();
+      expect(dbSchema.reserveApprovals).toBeDefined();
+      expect(dbSchema.DB_SCHEMA_COMPATIBILITY_MAP.core).toMatchObject({
+        legacyImport: '@shared/schema',
+        compatibilityImport: '@shared/db-schema',
+      });
+      expect(dbSchema.DB_SCHEMA_COMPATIBILITY_MAP.lpReporting).toMatchObject({
+        legacyImport: '@shared/schema-lp-reporting',
+        compatibilityImport: '@shared/db-schema',
+      });
     });
   });
 });

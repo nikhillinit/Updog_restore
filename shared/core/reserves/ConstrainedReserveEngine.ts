@@ -7,7 +7,7 @@ import {
   minCents,
   toCents,
   type Cents,
-} from '../../money.js';
+} from '../../lib/cents.js';
 
 type StageConstraintMap = Record<string, number>;
 
@@ -44,7 +44,9 @@ export class ConstrainedReserveEngine {
     });
 
     const stageAllocated = new Map<string, Cents>();
-    const polByStage = new Map(input.stagePolicies.map((policy) => [policy.stage, policy] as const));
+    const polByStage = new Map(
+      input.stagePolicies.map((policy) => [policy.stage, policy] as const)
+    );
     const graduationYears = cst.graduationYears as StageConstraintMap | undefined;
     const graduationProb = cst.graduationProb as StageConstraintMap | undefined;
 
@@ -55,9 +57,10 @@ export class ConstrainedReserveEngine {
       }
 
       const maxPerCompany = cst.maxPerCompany;
-      const capCompanyC = typeof maxPerCompany === 'number' && Number.isFinite(maxPerCompany)
-        ? toCents(maxPerCompany)
-        : MAX_COMPANY_CAP_CENTS;
+      const capCompanyC =
+        typeof maxPerCompany === 'number' && Number.isFinite(maxPerCompany)
+          ? toCents(maxPerCompany)
+          : MAX_COMPANY_CAP_CENTS;
       const capStageC = stageMax.get(company.stage) ?? null;
       const yearsToExit = getStageConstraintValue(graduationYears, company.stage, 5);
       const exitProb = getStageConstraintValue(graduationProb, company.stage, 0.5);
