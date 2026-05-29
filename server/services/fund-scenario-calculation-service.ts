@@ -12,6 +12,10 @@ import {
   type ScenarioSetResultSummaryV1,
 } from '@shared/contracts/fund-scenario-sets-v1.contract';
 import {
+  FUND_SCENARIOS_CONTRACT_VERSION,
+  SCENARIO_INPUT_HASH_VERSION,
+} from '@shared/lib/scenarios/scenario-input-envelope';
+import {
   FundDraftWriteV1Schema,
   type FundDraftWriteV1,
 } from '@shared/contracts/fund-draft-write-v1.contract';
@@ -25,6 +29,7 @@ import {
   verifyFundExists,
   type FundScenarioMutationActor,
 } from './fund-scenario-set-service.js';
+import { createScenarioInputHash } from '../lib/scenarios/scenario-input-hash';
 
 const SYNC_CALCULATION_TIMEOUT_MS = 10_000;
 const FUND_SCENARIO_CALC_VERSION = process.env['ALG_FUND_SCENARIO_VERSION'] ?? 'fund-scenarios-v1';
@@ -155,10 +160,6 @@ export function worstScenarioStaleness(
     (worst, state) => (STALENESS_ORDER[state] > STALENESS_ORDER[worst] ? state : worst),
     'CURRENT'
   );
-}
-
-function createInputHash(input: unknown): string {
-  return crypto.createHash('sha256').update(JSON.stringify(input)).digest('hex');
 }
 
 function assertWithinSyncDeadline(startedAt: number): void {
@@ -368,9 +369,10 @@ async function persistScenarioSnapshot(
        snapshot_time,
        config_id,
        config_version,
+       state_hash,
        scenario_set_id
      )
-      VALUES ($1, 'SCENARIOS', $2, $3, $4, $5, NOW(), $6, $7, $8)
+      VALUES ($1, 'SCENARIOS', $2, $3, $4, $5, NOW(), $6, $7, $8, $9)
       ON CONFLICT (fund_id, scenario_set_id)
       WHERE scenario_set_id IS NOT NULL AND type = 'SCENARIOS'
       DO UPDATE SET
@@ -381,6 +383,7 @@ async function persistScenarioSnapshot(
         snapshot_time = EXCLUDED.snapshot_time,
         config_id = EXCLUDED.config_id,
         config_version = EXCLUDED.config_version,
+        state_hash = EXCLUDED.state_hash,
         created_at = NOW()
       RETURNING id, payload, correlation_id, created_at, snapshot_time`,
     [
@@ -391,10 +394,12 @@ async function persistScenarioSnapshot(
       {
         input_hash: input.inputHash,
         calculation_mode: 'sync_fee_profile',
+        override_type: 'fee_profile',
         timeout_ms: SYNC_CALCULATION_TIMEOUT_MS,
       },
       input.sourceConfigId,
       input.sourceConfigVersion,
+      input.inputHash,
       input.scenarioSetId,
     ]
   );
@@ -435,13 +440,18 @@ export async function calculateFundScenarioSet(
     );
     const currentPublishedVersion = await loadCurrentPublishedVersion(client, fundId);
     const sourceConfigBody = parseSourceConfig(fundId, sourceConfig);
-    const inputHash = createInputHash({
+    const inputHash = createScenarioInputHash({
+      version: SCENARIO_INPUT_HASH_VERSION,
+      contractVersion: FUND_SCENARIOS_CONTRACT_VERSION,
       scenarioSetId,
       sourceConfigId: sourceConfig.id,
       sourceConfigVersion: sourceConfig.version,
-      calcVersion: FUND_SCENARIO_CALC_VERSION,
+      calculationMode: 'sync_fee_profile',
+      overrideType: 'fee_profile',
+      engineVersion: FUND_SCENARIO_CALC_VERSION,
       variants: scenarioSet.variants.map((variant) => ({
-        id: variant.id,
+        variantId: variant.id,
+        sortOrder: variant.sortOrder,
         override: variant.override,
       })),
     });
