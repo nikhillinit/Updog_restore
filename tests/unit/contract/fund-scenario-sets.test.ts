@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+  CreateReserveOptimizationScenarioSetV1Schema,
   CreateFundScenarioSetV1Schema,
   FundScenariosSectionReasonCodeV1Schema,
   FundScenarioCalculationResponseV1Schema,
@@ -117,6 +118,26 @@ describe('FundScenarioSetsV1 contract', () => {
 
     expect(result.success).toBe(true);
     expect(result.data?.overrideType).toBe('reserve_allocation');
+  });
+
+  it('accepts strict reserve optimization scenario create options', () => {
+    const result = CreateReserveOptimizationScenarioSetV1Schema.safeParse({
+      name: 'Optimized reserve plan',
+      description: 'Created from current reserve recommendations',
+      variantName: 'Recommended follow-on allocation',
+    });
+
+    expect(result.success).toBe(true);
+    expect(result.data?.name).toBe('Optimized reserve plan');
+  });
+
+  it('rejects unknown reserve optimization scenario create options', () => {
+    const result = CreateReserveOptimizationScenarioSetV1Schema.safeParse({
+      name: 'Optimized reserve plan',
+      unexpected: true,
+    });
+
+    expect(result.success).toBe(false);
   });
 
   it('continues to reject unknown override types', () => {

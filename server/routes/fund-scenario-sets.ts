@@ -4,6 +4,7 @@ import { z } from 'zod';
 import {
   ArchiveFundScenarioSetV1Schema,
   CreateFundScenarioSetV1Schema,
+  CreateReserveOptimizationScenarioSetV1Schema,
   FundScenarioReserveCalculationRequestV1Schema,
 } from '@shared/contracts/fund-scenario-sets-v1.contract';
 import { FundIdParamSchema } from '@shared/schemas/portfolio-route';
@@ -16,6 +17,7 @@ import {
   listFundScenarioSets,
 } from '../services/fund-scenario-set-service.js';
 import { createFundScenarioSet } from '../services/fund-scenario-set-create-service.js';
+import { createReserveOptimizationScenarioSet } from '../services/fund-scenario-reserve-optimization-workflow-service.js';
 import {
   calculateFundScenarioSet,
   getScenarioResults,
@@ -177,6 +179,32 @@ router.post(
     const scenarioSet = await createFundScenarioSet(fundId, parsed.data, parseActor(req), {
       idempotencyKey: getIdempotencyKey(req),
     });
+    return res.status(201).json(scenarioSet);
+  })
+);
+
+router.post(
+  '/funds/:fundId/scenario-sets/reserve-optimization',
+  requireAuth(),
+  requireFundAccess,
+  routeHandler(async (req: Request, res: Response) => {
+    const fundId = parseFundId(req, res);
+    if (fundId === null) {
+      return;
+    }
+
+    const parsed = CreateReserveOptimizationScenarioSetV1Schema.safeParse(req.body ?? {});
+    if (!parsed.success) {
+      sendBodyValidationError(res, parsed.error, 'Invalid reserve optimization scenario payload');
+      return;
+    }
+
+    const scenarioSet = await createReserveOptimizationScenarioSet(
+      fundId,
+      parsed.data,
+      parseActor(req),
+      { idempotencyKey: getIdempotencyKey(req) }
+    );
     return res.status(201).json(scenarioSet);
   })
 );
