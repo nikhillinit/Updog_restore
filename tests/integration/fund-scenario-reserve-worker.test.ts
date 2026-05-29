@@ -191,10 +191,14 @@ async function startRuntime(): Promise<Runtime> {
   process.env.NODE_ENV = 'test';
   process.env._EXPLICIT_NODE_ENV = 'test';
   process.env.DATABASE_URL = connectionString;
+  process.env._EXPLICIT_DATABASE_URL = connectionString;
   process.env.USE_REAL_DB_IN_VITEST = '1';
   process.env.ENABLE_QUEUES = '1';
+  process.env._EXPLICIT_ENABLE_QUEUES = '1';
   process.env.REDIS_URL = 'memory://';
+  process.env._EXPLICIT_REDIS_URL = 'memory://';
   process.env.QUEUE_REDIS_URL = redisUrl;
+  process.env._EXPLICIT_QUEUE_REDIS_URL = redisUrl;
   process.env.JWT_SECRET = AUTH_SECRET;
   process.env._EXPLICIT_JWT_SECRET = AUTH_SECRET;
   process.env.JWT_ISSUER = AUTH_ISSUER;

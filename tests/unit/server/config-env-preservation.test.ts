@@ -24,6 +24,10 @@ describe('server config env preservation', () => {
     process.env._EXPLICIT_ALLOW_MEMORY_STORAGE = '0';
     process.env.REDIS_URL = 'memory://';
     process.env._EXPLICIT_REDIS_URL = 'memory://';
+    process.env.ENABLE_QUEUES = '1';
+    process.env._EXPLICIT_ENABLE_QUEUES = '1';
+    process.env.QUEUE_REDIS_URL = 'redis://localhost:6380';
+    process.env._EXPLICIT_QUEUE_REDIS_URL = 'redis://localhost:6380';
     process.env.JWT_ALG = 'HS256';
     process.env._EXPLICIT_JWT_ALG = 'HS256';
     process.env.JWT_SECRET = 'config-test-secret-minimum-32-characters';
@@ -35,5 +39,7 @@ describe('server config env preservation', () => {
     expect(config.NODE_ENV).toBe('test');
     expect(config.DATABASE_URL).toBe(DATABASE_URL);
     expect(config.ALLOW_MEMORY_STORAGE).toBe(false);
+    expect(config.ENABLE_QUEUES).toBe('1');
+    expect(config.QUEUE_REDIS_URL).toBe('redis://localhost:6380');
   });
 });

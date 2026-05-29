@@ -42,6 +42,7 @@ function applyIntegrationEnv(env: NodeJS.ProcessEnv): void {
   env.REDIS_URL = env.REDIS_URL || 'memory://';
   env._EXPLICIT_REDIS_URL = env.REDIS_URL;
   env.ENABLE_QUEUES = '0';
+  env._EXPLICIT_ENABLE_QUEUES = env.ENABLE_QUEUES;
   env.CORS_ORIGIN = VALID_TEST_CORS_ORIGIN;
   env.DATABASE_URL = env.DATABASE_URL || 'postgresql://postgres:postgres@localhost:5432/povc_test';
   env._EXPLICIT_DATABASE_URL = env.DATABASE_URL;
