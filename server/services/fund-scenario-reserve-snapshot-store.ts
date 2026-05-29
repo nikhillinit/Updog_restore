@@ -12,7 +12,8 @@ export const ASYNC_RESERVE_TIMEOUT_MS = 300_000;
 export const FUND_SCENARIO_CALC_VERSION =
   process.env['ALG_FUND_SCENARIO_VERSION'] ?? 'fund-scenarios-v1';
 
-const RESERVE_SCENARIO_SNAPSHOT_UPSERT_SQL = `INSERT INTO fund_snapshots (
+const RESERVE_SCENARIO_SNAPSHOT_UPSERT_SQL = `WITH inserted AS (
+       INSERT INTO fund_snapshots (
        fund_id,
        type,
        payload,
@@ -22,21 +23,32 @@ const RESERVE_SCENARIO_SNAPSHOT_UPSERT_SQL = `INSERT INTO fund_snapshots (
        snapshot_time,
        config_id,
        config_version,
+       state_hash,
        scenario_set_id
      )
-      VALUES ($1, 'SCENARIOS', $2, $3, $4, $5, NOW(), $6, $7, $8)
-      ON CONFLICT (fund_id, scenario_set_id)
-      WHERE scenario_set_id IS NOT NULL AND type = 'SCENARIOS'
-      DO UPDATE SET
-        payload = EXCLUDED.payload,
-        calc_version = EXCLUDED.calc_version,
-        correlation_id = EXCLUDED.correlation_id,
-        metadata = EXCLUDED.metadata,
-        snapshot_time = EXCLUDED.snapshot_time,
-        config_id = EXCLUDED.config_id,
-        config_version = EXCLUDED.config_version,
-        created_at = NOW()
-      RETURNING id, payload, correlation_id, created_at, snapshot_time`;
+      VALUES ($1, 'SCENARIOS', $2, $3, $4, $5, NOW(), $6, $7, $8, $9)
+      /* fund_snapshots_scenarios_dedup_idx */
+      ON CONFLICT (fund_id, scenario_set_id, config_id, config_version, state_hash)
+        WHERE type = 'SCENARIOS'
+          AND scenario_set_id IS NOT NULL
+          AND config_id IS NOT NULL
+          AND config_version IS NOT NULL
+          AND state_hash IS NOT NULL
+      DO NOTHING
+      RETURNING id, payload, correlation_id, created_at, snapshot_time
+      )
+      SELECT id, payload, correlation_id, created_at, snapshot_time FROM inserted
+      UNION ALL
+      SELECT id, payload, correlation_id, created_at, snapshot_time
+        FROM fund_snapshots
+       WHERE fund_id = $1
+         AND scenario_set_id = $9
+         AND config_id = $6
+         AND config_version = $7
+         AND state_hash = $8
+         AND type = 'SCENARIOS'
+       ORDER BY created_at DESC
+       LIMIT 1`;
 
 interface SnapshotRow {
   id: number;
@@ -129,7 +141,7 @@ export async function findReusableReserveScenarioSnapshot(
         AND config_id = $3
         AND config_version = $4
         AND calc_version = $5
-        AND metadata ->> 'input_hash' = $6
+        AND state_hash = $6
         AND metadata ->> 'calculation_mode' = 'async_reserve_allocation'
       ORDER BY created_at DESC
       LIMIT 1`,
@@ -159,6 +171,7 @@ export async function persistReserveScenarioSnapshot(
     reserveScenarioSnapshotMetadata(input),
     input.sourceConfigId,
     input.sourceConfigVersion,
+    input.inputHash,
     input.scenarioSetId,
   ]);
 

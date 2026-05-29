@@ -87,6 +87,20 @@ Any PR that adds a new `server/db/migrations/*.sql` file must include:
   `db-migration` path or direct SQL execution against the target database.
 - A verification query proving the table/indexes exist after application.
 
+`0016_fund_scenario_calculation_runs.sql` is a raw ADR-022 migration under
+`server/db/migrations/`. It is not applied by `npm run db:push` or
+`scripts/run-migrations.ts`. Apply it through the repo `db-migration` release
+lane or by executing the SQL file directly against the target database before
+deploying the code that removes the old scenario-set upsert.
+
+Verification query:
+
+```sql
+SELECT to_regclass('public.fund_scenario_calculation_runs') AS runs_table,
+       to_regclass('public.fund_scenario_calc_runs_active_dedup_idx') AS runs_idx,
+       to_regclass('public.fund_snapshots_scenarios_dedup_idx') AS snapshots_idx;
+```
+
 For `0016_fund_scenario_calculation_runs.sql`, apply the migration before the
 code path that removes `ON CONFLICT (fund_id, scenario_set_id)` is deployed. Do
 not deploy a half-state where the old overwrite index is dropped but the new

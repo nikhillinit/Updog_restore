@@ -28,6 +28,11 @@ import {
   type FundScenarioMutationActor,
 } from './fund-scenario-set-service.js';
 import { createScenarioInputHash } from '../lib/scenarios/scenario-input-hash';
+import {
+  acquireScenarioCalculationRun,
+  markScenarioCalculationRunCompleted,
+  markScenarioCalculationRunRunning,
+} from './fund-scenario-calculation-run-service';
 
 type ReserveScenarioVariant = Extract<
   FundScenarioCalculationPayloadV1['variants'][number],
@@ -418,10 +423,31 @@ async function calculateReserveScenarioForContext(
     return reusableResponse;
   }
 
+  const run = await acquireScenarioCalculationRun(client, {
+    fundId: input.fundId,
+    scenarioSetId: input.scenarioSetId,
+    sourceConfigId: context.sourceConfig.id,
+    sourceConfigVersion: context.sourceConfig.version,
+    calculationMode: 'async_reserve_allocation',
+    overrideType: 'reserve_allocation',
+    inputHash: context.inputHash,
+    correlationId: input.correlationId,
+    jobId: input.jobId,
+  });
+  if (run.status === 'completed' && run.snapshotId !== null) {
+    const completedResponse = await findReusableReserveScenarioResponse(client, input, context);
+    if (completedResponse) {
+      return completedResponse;
+    }
+  }
+  await markScenarioCalculationRunRunning(client, run.id);
+
   await recordCalculationStartedEvent(client, input, context.inputHash);
 
   const data = await buildReserveScenarioCalculationData(client, input, context);
-  return persistReserveScenarioCalculation(client, input, context, data);
+  const response = await persistReserveScenarioCalculation(client, input, context, data);
+  await markScenarioCalculationRunCompleted(client, run.id, response.snapshotId);
+  return response;
 }
 
 async function findReusableReserveScenarioResponse(

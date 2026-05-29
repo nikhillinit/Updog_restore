@@ -108,6 +108,21 @@ describe('ADR-022 fund scenario set schema shell', () => {
     expect(migration).toContain("type = 'SCENARIOS'");
   });
 
+  it('calculation-run migration replaces scenario-set overwrite with append-only dedupe', async () => {
+    const migration = await readRepoFile(
+      'server/db/migrations/0016_fund_scenario_calculation_runs.sql'
+    );
+
+    expect(migration).toContain(
+      'DROP INDEX IF EXISTS fund_snapshots_scenario_set_calculation_unique'
+    );
+    expect(migration).toContain(
+      'CREATE TABLE IF NOT EXISTS fund_scenario_calculation_runs'
+    );
+    expect(migration).toContain('fund_scenario_calc_runs_active_dedup_idx');
+    expect(migration).toContain('fund_snapshots_scenarios_dedup_idx');
+  });
+
   it('Drizzle fund scenario set indexes mirror the active-row SQL migration indexes', async () => {
     const schema = await import('@shared/schema');
     const config = getTableConfig(schema.fundScenarioSets);
@@ -141,6 +156,56 @@ describe('ADR-022 fund scenario set schema shell', () => {
     );
     expect(migration).toContain(
       'ON fund_scenario_sets(fund_id, lower(name))\n  WHERE archived_at IS NULL'
+    );
+  });
+
+  it('Drizzle scenario retention indexes mirror the append-only raw SQL migration', async () => {
+    const schema = await import('@shared/schema');
+
+    expect(schema.fundScenarioCalculationRuns).toBeDefined();
+    expect(schema.fundScenarioCalculationRuns.scenarioSetId.name).toBe('scenario_set_id');
+    expect(schema.fundScenarioCalculationRuns.inputHash.name).toBe('input_hash');
+    expect(schema.fundScenarioCalculationRuns.snapshotId.name).toBe('snapshot_id');
+
+    const snapshotIndexes = new Map(
+      getTableConfig(schema.fundSnapshots).indexes.map((idx) => [idx.config.name, idx.config])
+    );
+    const snapshotDedupeIdx = snapshotIndexes.get('fund_snapshots_scenarios_dedup_idx');
+    expect(snapshotDedupeIdx).toBeDefined();
+    expect(snapshotDedupeIdx?.unique).toBe(true);
+    expect(snapshotDedupeIdx?.columns.map(indexColumnName)).toEqual([
+      'fund_id',
+      'scenario_set_id',
+      'config_id',
+      'config_version',
+      'state_hash',
+    ]);
+    expect(sqlChunkColumnNames(snapshotDedupeIdx?.where)).toEqual([
+      'type',
+      'scenario_set_id',
+      'config_id',
+      'config_version',
+      'state_hash',
+    ]);
+
+    const runIndexes = new Map(
+      getTableConfig(schema.fundScenarioCalculationRuns).indexes.map((idx) => [
+        idx.config.name,
+        idx.config,
+      ])
+    );
+    const activeDedupeIdx = runIndexes.get('fund_scenario_calc_runs_active_dedup_idx');
+    expect(activeDedupeIdx).toBeDefined();
+    expect(activeDedupeIdx?.unique).toBe(true);
+    expect(activeDedupeIdx?.columns.map(indexColumnName)).toEqual([
+      'scenario_set_id',
+      'source_config_id',
+      'source_config_version',
+      'input_hash',
+    ]);
+    expect(sqlChunkColumnNames(activeDedupeIdx?.where)).toEqual(['status']);
+    expect(sqlChunkText(activeDedupeIdx?.where)).toContain(
+      " IN ('queued', 'running', 'completed')"
     );
   });
 });

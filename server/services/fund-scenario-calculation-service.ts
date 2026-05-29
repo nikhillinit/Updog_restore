@@ -30,6 +30,11 @@ import {
   type FundScenarioMutationActor,
 } from './fund-scenario-set-service.js';
 import { createScenarioInputHash } from '../lib/scenarios/scenario-input-hash';
+import {
+  acquireScenarioCalculationRun,
+  markScenarioCalculationRunCompleted,
+  markScenarioCalculationRunRunning,
+} from './fund-scenario-calculation-run-service';
 
 const SYNC_CALCULATION_TIMEOUT_MS = 10_000;
 const FUND_SCENARIO_CALC_VERSION = process.env['ALG_FUND_SCENARIO_VERSION'] ?? 'fund-scenarios-v1';
@@ -329,7 +334,7 @@ async function findReusableScenarioSnapshot(
         AND config_id = $3
         AND config_version = $4
         AND calc_version = $5
-        AND metadata ->> 'input_hash' = $6
+        AND state_hash = $6
       ORDER BY created_at DESC
       LIMIT 1`,
     [
@@ -346,7 +351,7 @@ async function findReusableScenarioSnapshot(
   return snapshot ? responseFromSnapshot(snapshot) : null;
 }
 
-async function persistScenarioSnapshot(
+export async function persistFeeProfileScenarioSnapshot(
   client: PoolClient,
   input: {
     fundId: number;
@@ -359,7 +364,8 @@ async function persistScenarioSnapshot(
   }
 ): Promise<FundScenarioCalculationResponseV1> {
   const result = await client.query<SnapshotRow>(
-    `INSERT INTO fund_snapshots (
+    `WITH inserted AS (
+       INSERT INTO fund_snapshots (
        fund_id,
        type,
        payload,
@@ -373,19 +379,28 @@ async function persistScenarioSnapshot(
        scenario_set_id
      )
       VALUES ($1, 'SCENARIOS', $2, $3, $4, $5, NOW(), $6, $7, $8, $9)
-      ON CONFLICT (fund_id, scenario_set_id)
-      WHERE scenario_set_id IS NOT NULL AND type = 'SCENARIOS'
-      DO UPDATE SET
-        payload = EXCLUDED.payload,
-        calc_version = EXCLUDED.calc_version,
-        correlation_id = EXCLUDED.correlation_id,
-        metadata = EXCLUDED.metadata,
-        snapshot_time = EXCLUDED.snapshot_time,
-        config_id = EXCLUDED.config_id,
-        config_version = EXCLUDED.config_version,
-        state_hash = EXCLUDED.state_hash,
-        created_at = NOW()
-      RETURNING id, payload, correlation_id, created_at, snapshot_time`,
+      /* fund_snapshots_scenarios_dedup_idx */
+      ON CONFLICT (fund_id, scenario_set_id, config_id, config_version, state_hash)
+        WHERE type = 'SCENARIOS'
+          AND scenario_set_id IS NOT NULL
+          AND config_id IS NOT NULL
+          AND config_version IS NOT NULL
+          AND state_hash IS NOT NULL
+      DO NOTHING
+      RETURNING id, payload, correlation_id, created_at, snapshot_time
+      )
+      SELECT id, payload, correlation_id, created_at, snapshot_time FROM inserted
+      UNION ALL
+      SELECT id, payload, correlation_id, created_at, snapshot_time
+        FROM fund_snapshots
+       WHERE fund_id = $1
+         AND scenario_set_id = $9
+         AND config_id = $6
+         AND config_version = $7
+         AND state_hash = $8
+         AND type = 'SCENARIOS'
+       ORDER BY created_at DESC
+       LIMIT 1`,
     [
       input.fundId,
       input.payload,
@@ -467,6 +482,31 @@ export async function calculateFundScenarioSet(
       return withReadTimeStaleness(reusableSnapshot, currentPublishedVersion);
     }
 
+    const correlationId = crypto.randomUUID();
+    const run = await acquireScenarioCalculationRun(client, {
+      fundId,
+      scenarioSetId,
+      sourceConfigId: sourceConfig.id,
+      sourceConfigVersion: sourceConfig.version,
+      calculationMode: 'sync_fee_profile',
+      overrideType: 'fee_profile',
+      inputHash,
+      correlationId,
+    });
+    if (run.status === 'completed' && run.snapshotId !== null) {
+      const completedSnapshot = await findReusableScenarioSnapshot(client, {
+        fundId,
+        scenarioSetId,
+        sourceConfigId: sourceConfig.id,
+        sourceConfigVersion: sourceConfig.version,
+        inputHash,
+      });
+      if (completedSnapshot) {
+        return withReadTimeStaleness(completedSnapshot, currentPublishedVersion);
+      }
+    }
+    await markScenarioCalculationRunRunning(client, run.id);
+
     const startedAt = performance.now();
     const variants = scenarioSet.variants.map((variant) => {
       assertWithinSyncDeadline(startedAt);
@@ -509,15 +549,16 @@ export async function calculateFundScenarioSet(
       variants,
     });
 
-    const response = await persistScenarioSnapshot(client, {
+    const response = await persistFeeProfileScenarioSnapshot(client, {
       fundId,
       scenarioSetId,
       sourceConfigId: sourceConfig.id,
       sourceConfigVersion: sourceConfig.version,
-      correlationId: crypto.randomUUID(),
+      correlationId,
       payload,
       inputHash,
     });
+    await markScenarioCalculationRunCompleted(client, run.id, response.snapshotId);
 
     await insertScenarioSetEvent(client, {
       scenarioSetId,
