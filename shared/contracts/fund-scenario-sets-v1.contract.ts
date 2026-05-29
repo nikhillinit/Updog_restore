@@ -125,6 +125,14 @@ export const CreateFundScenarioSetV1Schema = z
     path: ['variants'],
   });
 
+export const CreateReserveOptimizationScenarioSetV1Schema = z
+  .object({
+    name: z.string().trim().min(1).max(120).optional(),
+    description: z.string().trim().max(4000).nullable().optional(),
+    variantName: z.string().trim().min(1).max(120).optional(),
+  })
+  .strict();
+
 export const ArchiveFundScenarioSetV1Schema = z
   .object({
     reason: z.string().trim().min(1).max(4000).optional(),
@@ -463,6 +471,9 @@ export type ReserveScenarioAllocationOverrideItemV1 = z.infer<
 >;
 export type CreateFundScenarioVariantV1 = z.infer<typeof CreateFundScenarioVariantV1Schema>;
 export type CreateFundScenarioSetV1 = z.infer<typeof CreateFundScenarioSetV1Schema>;
+export type CreateReserveOptimizationScenarioSetV1 = z.infer<
+  typeof CreateReserveOptimizationScenarioSetV1Schema
+>;
 export type ArchiveFundScenarioSetV1 = z.infer<typeof ArchiveFundScenarioSetV1Schema>;
 export type FundScenarioVariantV1 = z.infer<typeof FundScenarioVariantV1Schema>;
 export type FundScenarioSetSummaryV1 = z.infer<typeof FundScenarioSetSummaryV1Schema>;

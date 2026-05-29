@@ -202,6 +202,10 @@ describe('FundScenarioWorkspacePage', () => {
         );
       }
 
+      if (method === 'POST' && url === '/api/funds/123/scenario-sets/reserve-optimization') {
+        return Promise.resolve(jsonResponse(reserveScenarioSetDetail()));
+      }
+
       return Promise.reject(new Error(`Unexpected fetch ${method} ${url}`));
     });
   }
@@ -304,6 +308,20 @@ describe('FundScenarioWorkspacePage', () => {
     await waitFor(() => {
       expect(fetchSpy).toHaveBeenCalledWith(
         '/api/funds/123/scenario-sets/00000000-0000-0000-0000-000000000411/calculate',
+        expect.objectContaining({ method: 'POST' })
+      );
+    });
+  });
+
+  it('creates an optimized reserve scenario set from the workspace', async () => {
+    mockWorkspaceFetches();
+    renderWorkspace();
+
+    fireEvent.click(await screen.findByRole('button', { name: /create optimized reserve plan/i }));
+
+    await waitFor(() => {
+      expect(fetchSpy).toHaveBeenCalledWith(
+        '/api/funds/123/scenario-sets/reserve-optimization',
         expect.objectContaining({ method: 'POST' })
       );
     });

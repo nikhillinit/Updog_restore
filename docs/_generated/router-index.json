@@ -11169,6 +11169,34 @@
         "audience": "agents",
         "categories": [
           "planning",
+          "scenarios",
+          "reserves"
+        ],
+        "keywords": [
+          "scenario-sets",
+          "reserve-optimization",
+          "reserve-allocation"
+        ],
+        "last_updated": "2026-05-29",
+        "owner": "Platform Team",
+        "review_cadence": "P90D",
+        "status": "ACTIVE"
+      },
+      "hasExecutionClaims": false,
+      "isStale": false,
+      "lastUpdated": "2026-05-29",
+      "owner": "Platform Team",
+      "path": "docs/superpowers/plans/2026-05-29-scenario-reserve-optimization-workflow.md",
+      "staleDays": 0,
+      "status": "ACTIVE"
+    },
+    {
+      "docType": "doc",
+      "exists": true,
+      "frontmatter": {
+        "audience": "agents",
+        "categories": [
+          "planning",
           "scenarios"
         ],
         "keywords": [
@@ -12796,7 +12824,7 @@
   "stats": {
     "by_status": {
       "ACCEPTED": 1,
-      "ACTIVE": 435,
+      "ACTIVE": 436,
       "ARCHIVED": 1,
       "BACKLOG": 1,
       "COMPLETED": 1,
@@ -12817,7 +12845,7 @@
     },
     "missing_frontmatter": 18,
     "stale_docs": 100,
-    "total_docs": 657
+    "total_docs": 658
   },
   "version": "2.0"
 }

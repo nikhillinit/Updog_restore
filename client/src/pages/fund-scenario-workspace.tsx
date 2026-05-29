@@ -144,6 +144,15 @@ async function calculateScenarioSet(fundId: string, detail: FundScenarioSetDetai
   return FundScenarioCalculationResponseV1Schema.parse(raw);
 }
 
+async function createReserveOptimizationScenarioSet(fundId: string) {
+  const raw = await apiRequest(
+    'POST',
+    scenarioApiPath(fundId, '/scenario-sets/reserve-optimization'),
+    {}
+  );
+  return FundScenarioSetDetailV1Schema.parse(raw);
+}
+
 function useWorkspaceFundId() {
   const [, params] = useRoute(FUND_SCENARIO_WORKSPACE_ROUTE);
   const fundId = params?.fundId ?? null;
@@ -437,6 +446,14 @@ function FundScenarioWorkspacePage() {
     onSettled: () => setPendingScenarioSetId(null),
   });
 
+  const createReserveOptimizationMutation = useMutation({
+    mutationFn: () => createReserveOptimizationScenarioSet(fundId ?? ''),
+    onSuccess: async () => {
+      if (!fundId) return;
+      await queryClient.invalidateQueries({ queryKey: workspaceQueryKey(fundId) });
+    },
+  });
+
   const detailById = useMemo(() => detailMapFromQueries(detailQueries), [detailQueries]);
   const statusById = useMemo(() => statusMapFromQueries(statusQueries), [statusQueries]);
   const comparisons = useMemo(
@@ -471,12 +488,28 @@ function FundScenarioWorkspacePage() {
   return (
     <div className="mx-auto max-w-6xl space-y-8 px-6 py-8">
       <header className="space-y-4">
-        <Button asChild variant="outline" size="sm">
-          <Link href={`/fund-model-results/${fundId}`}>
-            <ArrowLeft className="h-4 w-4" />
-            Back to Results
-          </Link>
-        </Button>
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <Button asChild variant="outline" size="sm">
+            <Link href={`/fund-model-results/${fundId}`}>
+              <ArrowLeft className="h-4 w-4" />
+              Back to Results
+            </Link>
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            disabled={createReserveOptimizationMutation.isPending}
+            onClick={() => createReserveOptimizationMutation.mutate()}
+          >
+            {createReserveOptimizationMutation.isPending && (
+              <RefreshCw className="h-4 w-4 animate-spin" />
+            )}
+            {createReserveOptimizationMutation.isPending
+              ? 'Creating'
+              : 'Create optimized reserve plan'}
+          </Button>
+        </div>
         <div>
           <h1 className="text-2xl font-semibold text-charcoal">Scenario Workspace</h1>
           <p className="mt-1 text-sm text-charcoal-500 font-poppins">
