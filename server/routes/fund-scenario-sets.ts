@@ -193,9 +193,9 @@ router.post(
 
 router.post(
   '/funds/:fundId/scenario-sets/reserve-optimization',
+  scenarioSetWriteLimiter,
   requireAuth(),
   requireFundAccess,
-  scenarioSetWriteLimiter,
   routeHandler(async (req: Request, res: Response) => {
     const fundId = parseFundId(req, res);
     if (fundId === null) {

@@ -29,5 +29,20 @@ describe('fund scenario set route contract', () => {
     expect(source).toContain('FundScenarioReserveCalculationRequestV1Schema.safeParse');
     expect(source).toContain('enqueueReserveScenarioCalculation');
     expect(source).toContain('getFundScenarioCalculationStatus');
+
+    const reserveOptimizationRouteStart = source.indexOf(
+      "'/funds/:fundId/scenario-sets/reserve-optimization'"
+    );
+    const nextRouteStart = source.indexOf(
+      "'/funds/:fundId/scenario-sets/:scenarioSetId/calculate'",
+      reserveOptimizationRouteStart
+    );
+    const reserveOptimizationRoute = source.slice(reserveOptimizationRouteStart, nextRouteStart);
+    expect(reserveOptimizationRoute.indexOf('scenarioSetWriteLimiter')).toBeLessThan(
+      reserveOptimizationRoute.indexOf('requireAuth()')
+    );
+    expect(reserveOptimizationRoute.indexOf('scenarioSetWriteLimiter')).toBeLessThan(
+      reserveOptimizationRoute.indexOf('requireFundAccess')
+    );
   });
 });
