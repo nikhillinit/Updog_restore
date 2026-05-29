@@ -90,7 +90,7 @@ describe('Phase 0 Critical Fixes - Integration', () => {
       expect(content).toContain('compare:');
 
       // Should use artifacts (the fix)
-      expect(content).toMatch(/actions\/upload-artifact@v4/);
+      expect(content).toMatch(/actions\/upload-artifact@v7/);
       expect(content).toMatch(/actions\/download-artifact@v4/);
 
       // Should NOT have multiple checkouts in same job (the bug)
@@ -169,7 +169,7 @@ describe('Phase 0 Critical Fixes - Integration', () => {
         'client/src/providers/__tests__/FeatureFlagProvider.test.tsx',
         'tests/integration/__tests__/golden-dataset-regression.test.ts',
         'tests/integration/__tests__/vite-build-regression.test.ts',
-        'tests/integration/__tests__/ci-workflow-regression.test.ts',
+        'tests/unit/ci-workflow-regression.test.ts',
       ];
 
       for (const testFile of regressionTests) {

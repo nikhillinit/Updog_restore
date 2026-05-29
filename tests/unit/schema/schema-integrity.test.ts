@@ -6,6 +6,7 @@
  */
 import { describe, it, expect } from 'vitest';
 import { createTableRelationsHelpers, extractTablesRelationalConfig } from 'drizzle-orm/relations';
+import { getTableConfig } from 'drizzle-orm/pg-core';
 import * as schema from '@shared/schema';
 import * as dbSchema from '@shared/db-schema';
 
@@ -81,6 +82,19 @@ describe('Schema Module Integrity', () => {
     it('scenarios table references portfolioCompanies correctly', () => {
       // Verify the FK relationship is intact
       expect(schema.scenarios).toHaveProperty('companyId');
+    });
+
+    it('shares fundId stays text-only until fund IDs are migrated', () => {
+      const shareForeignKeyNames = getTableConfig(schema.shares).foreignKeys.map((foreignKey) =>
+        foreignKey.getName()
+      );
+      const snapshotForeignKeyNames = getTableConfig(schema.shareSnapshots).foreignKeys.map(
+        (foreignKey) => foreignKey.getName()
+      );
+
+      expect(schema.shares.fundId.dataType).toBe('string');
+      expect(shareForeignKeyNames).not.toContain('shares_fund_id_funds_id_fk');
+      expect(snapshotForeignKeyNames).toContain('share_snapshots_share_id_shares_id_fk');
     });
   });
 
