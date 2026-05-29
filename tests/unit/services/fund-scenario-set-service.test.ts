@@ -93,6 +93,37 @@ describe('fund scenario set persistence shell', () => {
     vi.clearAllMocks();
   });
 
+  it('rejects runtime-invalid methodology override payloads before persistence', async () => {
+    const invalidInput = {
+      name: 'Unsafe methodology scenario',
+      variants: [
+        {
+          name: 'Waterfall method change',
+          override: {
+            overrideType: 'fee_profile',
+            payload: {
+              ...feeProfileOverride.payload,
+              waterfallType: 'hybrid',
+            },
+          },
+        },
+      ],
+    };
+
+    await expect(
+      createFundScenarioSet(1, invalidInput as never, {
+        userId: 17,
+        label: 'analyst@example.com',
+      })
+    ).rejects.toMatchObject({
+      statusCode: 400,
+      code: 'invalid_scenario_set_payload',
+    });
+
+    expect(transactionMock).not.toHaveBeenCalled();
+    expect(queryMock).not.toHaveBeenCalled();
+  });
+
   it('creates a scenario set against the current published config and records an audit event', async () => {
     queryMock
       .mockResolvedValueOnce({ rows: [{ id: 1 }] })

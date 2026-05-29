@@ -120,6 +120,69 @@ describe('FundScenarioSetsV1 contract', () => {
     expect(result.data?.overrideType).toBe('reserve_allocation');
   });
 
+  it('rejects methodology-changing fields in scenario override payloads', () => {
+    const forbiddenPayloads = [
+      {
+        label: 'fee-profile waterfall override',
+        override: {
+          overrideType: 'fee_profile',
+          payload: {
+            ...feeProfileOverride.payload,
+            waterfallType: 'hybrid',
+          },
+        },
+      },
+      {
+        label: 'allocation economics assumptions override',
+        override: {
+          overrideType: 'allocation',
+          payload: {
+            allocations: [{ id: 'seed-stage', category: 'Seed', percentage: 60 }],
+            economicsAssumptions: {
+              feeModel: { source: 'inline_methodology' },
+            },
+          },
+        },
+      },
+      {
+        label: 'sector profile fund size override',
+        override: {
+          overrideType: 'sector_profile',
+          payload: {
+            sectorProfiles: [
+              {
+                id: 'ai-infra',
+                name: 'AI Infrastructure',
+                targetPercentage: 35,
+              },
+            ],
+            fundSize: 100_000_000,
+          },
+        },
+      },
+      {
+        label: 'reserve forecast mode override',
+        override: {
+          overrideType: 'reserve_allocation',
+          payload: {
+            allocationVersion: 1,
+            items: [{ companyId: 101, plannedReservesCents: 10_000_000 }],
+            forecastMode: 'actuals',
+          },
+        },
+      },
+    ];
+
+    for (const { label, override } of forbiddenPayloads) {
+      const result = FundScenarioVariantOverrideV1Schema.safeParse(override);
+
+      expect(result.success, label).toBe(false);
+      if (!result.success) {
+        expect(result.error.issues[0]?.message).toContain('Unrecognized key');
+      }
+    }
+  });
+
   it('accepts strict reserve optimization scenario create options', () => {
     const result = CreateReserveOptimizationScenarioSetV1Schema.safeParse({
       name: 'Optimized reserve plan',

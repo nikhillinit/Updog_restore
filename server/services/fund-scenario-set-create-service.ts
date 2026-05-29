@@ -5,6 +5,7 @@ import type {
   CreateFundScenarioSetV1,
   FundScenarioSetDetailV1,
 } from '@shared/contracts/fund-scenario-sets-v1.contract';
+import { CreateFundScenarioSetV1Schema } from '@shared/contracts/fund-scenario-sets-v1.contract';
 import {
   createHttpError,
   fetchScenarioSetDetail,
@@ -53,9 +54,28 @@ export async function createFundScenarioSet(
   actorInput: FundScenarioMutationActor = {},
   options: CreateFundScenarioSetOptions = {}
 ): Promise<FundScenarioSetDetailV1> {
+  const parsedInput = parseCreateFundScenarioSetInput(input);
   return transaction((client) =>
-    createFundScenarioSetInTransaction(client, fundId, input, actorInput, options)
+    createFundScenarioSetInTransaction(client, fundId, parsedInput, actorInput, options)
   );
+}
+
+function parseCreateFundScenarioSetInput(input: CreateFundScenarioSetV1): CreateFundScenarioSetV1 {
+  const parsed = CreateFundScenarioSetV1Schema.safeParse(input);
+  if (parsed.success) {
+    return parsed.data;
+  }
+
+  throw createHttpError(400, 'Invalid fund scenario set payload', {
+    code: 'invalid_scenario_set_payload',
+    details: {
+      issues: parsed.error.issues.map((issue) => ({
+        path: issue.path.join('.'),
+        message: issue.message,
+        code: issue.code,
+      })),
+    },
+  });
 }
 
 async function createFundScenarioSetInTransaction(
