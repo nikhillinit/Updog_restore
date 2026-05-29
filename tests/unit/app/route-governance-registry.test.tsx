@@ -47,6 +47,7 @@ describe('route governance registry', () => {
         '/forecasting',
         '/model-results',
         '/fund-model-results/:fundId',
+        '/fund-model-results/:fundId/scenarios',
         '/reports',
         '/settings',
         '/help',

@@ -253,6 +253,10 @@ describe('FundModelResultsPage (server-backed)', () => {
     expect(screen.getByTestId('scenario-sets-summary')).toBeInTheDocument();
     expect(screen.getByText('Fee sensitivity')).toBeInTheDocument();
     expect(screen.getAllByText('2.10x').length).toBeGreaterThanOrEqual(1);
+    expect(screen.getByRole('link', { name: /open scenario workspace/i })).toHaveAttribute(
+      'href',
+      '/fund-model-results/123/scenarios'
+    );
   });
 
   it('fetches and renders scenario-set comparison for calculated scenario sets', async () => {

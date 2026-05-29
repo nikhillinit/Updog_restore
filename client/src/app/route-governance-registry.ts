@@ -47,6 +47,7 @@ const CORE_LIVE_ROUTE_PATHS = [
   '/forecasting',
   '/model-results',
   '/fund-model-results/:fundId',
+  '/fund-model-results/:fundId/scenarios',
   '/reports',
   '/settings',
   '/help',

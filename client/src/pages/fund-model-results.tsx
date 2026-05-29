@@ -793,14 +793,21 @@ function ScenarioComparisonPanel({ state }: { state: ScenarioComparisonState }) 
 }
 
 function ScenarioAnalysisCard({
+  fundId,
   payload,
   comparisonState,
 }: {
+  fundId: string;
   payload: ScenariosSectionPayloadV1;
   comparisonState: ScenarioComparisonState;
 }) {
   return (
     <div className="space-y-6">
+      <div className="flex justify-end">
+        <Button asChild variant="outline" size="sm">
+          <Link href={`/fund-model-results/${fundId}/scenarios`}>Open Scenario Workspace</Link>
+        </Button>
+      </div>
       <ScenarioSetsSummary payload={payload} />
       <ScenarioComparisonPanel state={comparisonState} />
     </div>
@@ -1920,6 +1927,7 @@ function FundModelResultsPage() {
           section={results.sections.scenarios}
           renderPayload={(p) => (
             <ScenarioAnalysisCard
+              fundId={fundId}
               payload={p as ScenariosSectionPayloadV1}
               comparisonState={scenarioComparisonState}
             />
