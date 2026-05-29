@@ -43,6 +43,7 @@ describe('fund scenario comparison service', () => {
     const result = await getFundScenarioComparison(123, scenarioSetId);
 
     expect(result.comparisonStatus).toBe('baseline_unavailable');
+    expect(result.unavailableReason).toBe('BASELINE_ECONOMICS_SNAPSHOT_MISSING');
     expect(result.baseline).toBeNull();
   });
 
@@ -52,6 +53,7 @@ describe('fund scenario comparison service', () => {
     const result = await getFundScenarioComparison(123, scenarioSetId);
 
     expect(result.comparisonStatus).toBe('unsupported_override_type');
+    expect(result.unavailableReason).toBe('UNSUPPORTED_OVERRIDE_TYPE');
     expect(result.baseline).toBeNull();
     expect(result.variants).toEqual([]);
   });

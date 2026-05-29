@@ -887,6 +887,7 @@ expect(
     baseline: null,
     variants: [],
     staleness: null,
+    calculatedAt: null,
   }).unavailableReason
 ).toBe('BASELINE_ECONOMICS_SNAPSHOT_MISSING');
 ```

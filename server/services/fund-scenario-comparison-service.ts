@@ -17,6 +17,7 @@ import {
   type ScenarioComparisonMetricKey,
   type ScenarioComparisonMetricMap,
   type ScenarioComparisonStatus,
+  type ScenarioComparisonUnavailableReasonV1,
   type ScenarioComparisonVariantV1,
 } from '@shared/contracts/fund-scenario-comparison-v1.contract';
 import { fetchScenarioSetDetail, verifyFundExists } from './fund-scenario-set-service.js';
@@ -221,11 +222,13 @@ function createBaseComparison(
 
 function comparisonWithStatus(
   baseComparison: ScenarioComparisonBase,
-  comparisonStatus: ScenarioComparisonStatus
+  comparisonStatus: ScenarioComparisonStatus,
+  unavailableReason?: ScenarioComparisonUnavailableReasonV1
 ): FundScenarioComparisonV1 {
   return FundScenarioComparisonV1Schema.parse({
     ...baseComparison,
     comparisonStatus,
+    ...(unavailableReason ? { unavailableReason } : {}),
   });
 }
 
@@ -278,7 +281,11 @@ async function buildComparableComparison(
   });
 
   if (!baselineSnapshot) {
-    return comparisonWithStatus(comparisonBase, 'baseline_unavailable');
+    return comparisonWithStatus(
+      comparisonBase,
+      'baseline_unavailable',
+      'BASELINE_ECONOMICS_SNAPSHOT_MISSING'
+    );
   }
 
   const baselineMetrics = metricMapFromEconomics(baselineSnapshot);
@@ -303,7 +310,11 @@ async function buildFundScenarioComparison(
   const baseComparison = createBaseComparison(fundId, scenarioSet);
 
   if (scenarioSet.variants.some((variant) => variant.override.overrideType !== 'fee_profile')) {
-    return comparisonWithStatus(baseComparison, 'unsupported_override_type');
+    return comparisonWithStatus(
+      baseComparison,
+      'unsupported_override_type',
+      'UNSUPPORTED_OVERRIDE_TYPE'
+    );
   }
 
   const scenarioPayload = await loadLatestScenarioSnapshot(client, fundId, scenarioSetId);
