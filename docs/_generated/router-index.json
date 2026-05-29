@@ -11158,6 +11158,35 @@
         "categories": [
           "planning",
           "scenarios",
+          "forecasting"
+        ],
+        "keywords": [
+          "scenario-release-hardening",
+          "dual-forecast",
+          "forecast-modes",
+          "actuals"
+        ],
+        "last_updated": "2026-05-29",
+        "owner": "Platform Team",
+        "review_cadence": "P90D",
+        "status": "ACTIVE"
+      },
+      "hasExecutionClaims": false,
+      "isStale": false,
+      "lastUpdated": "2026-05-29",
+      "owner": "Platform Team",
+      "path": "docs/superpowers/plans/2026-05-29-scenario-forecast-modes-actuals.md",
+      "staleDays": 0,
+      "status": "ACTIVE"
+    },
+    {
+      "docType": "doc",
+      "exists": true,
+      "frontmatter": {
+        "audience": "agents",
+        "categories": [
+          "planning",
+          "scenarios",
           "guardrails"
         ],
         "keywords": [
@@ -12852,7 +12881,7 @@
   "stats": {
     "by_status": {
       "ACCEPTED": 1,
-      "ACTIVE": 437,
+      "ACTIVE": 438,
       "ARCHIVED": 1,
       "BACKLOG": 1,
       "COMPLETED": 1,
@@ -12873,7 +12902,7 @@
     },
     "missing_frontmatter": 18,
     "stale_docs": 100,
-    "total_docs": 659
+    "total_docs": 660
   },
   "version": "2.0"
 }
