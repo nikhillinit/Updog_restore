@@ -57,6 +57,41 @@ const feeProfileOverride = {
   },
 } as const;
 
+const allocationOverride = {
+  overrideType: 'allocation',
+  payload: {
+    allocations: [{ id: 'seed-stage', category: 'Seed', percentage: 60 }],
+    capitalPlanAllocations: [
+      {
+        id: 'seed-plan',
+        name: 'Seed plan',
+        entryRound: 'Seed',
+        capitalAllocationPct: 60,
+        initialCheckStrategy: 'amount',
+        initialCheckAmount: 1_000_000,
+        followOnStrategy: 'amount',
+        followOnAmount: 500_000,
+        followOnParticipationPct: 25,
+        investmentHorizonMonths: 48,
+      },
+    ],
+  },
+} as const;
+
+const sectorProfileOverride = {
+  overrideType: 'sector_profile',
+  payload: {
+    sectorProfiles: [
+      {
+        id: 'ai-infra',
+        name: 'AI Infrastructure',
+        targetPercentage: 35,
+        description: 'Infrastructure software and tooling',
+      },
+    ],
+  },
+} as const;
+
 const baseConfig = {
   fundName: 'Test Fund',
   fundSize: 100_000_000,
@@ -213,15 +248,15 @@ function scenarioSetRow(overrides: Partial<Record<string, unknown>> = {}) {
   };
 }
 
-function variantRow() {
+function variantRow(override = feeProfileOverride) {
   return {
     id: variantId,
     scenario_set_id: scenarioSetId,
-    name: 'Lower fee',
+    name: 'Scenario variant',
     description: null,
     sort_order: 0,
-    override_type: 'fee_profile',
-    override_payload: feeProfileOverride.payload,
+    override_type: override.overrideType,
+    override_payload: override.payload,
     created_at: new Date('2026-05-26T12:00:00.000Z'),
     updated_at: new Date('2026-05-26T12:00:00.000Z'),
   };
@@ -255,17 +290,24 @@ function snapshotPayload(): FundScenarioCalculationPayloadV1 {
 
 function calculationRunRow(
   status: 'queued' | 'running' | 'completed',
-  snapshotId: number | null = null
+  snapshotId: number | null = null,
+  options: {
+    calculationMode?: 'sync_fee_profile' | 'sync_allocation' | 'sync_sector_profile';
+    overrideType?: 'fee_profile' | 'allocation' | 'sector_profile';
+    inputHash?: string;
+  } = {}
 ) {
+  const calculationMode = options.calculationMode ?? 'sync_fee_profile';
+  const overrideType = options.overrideType ?? 'fee_profile';
   return {
     id: '00000000-0000-0000-0000-000000000777',
     fund_id: 1,
     scenario_set_id: scenarioSetId,
     source_config_id: 12,
     source_config_version: 4,
-    calculation_mode: 'sync_fee_profile',
-    override_type: 'fee_profile',
-    input_hash: expectedInputHash(),
+    calculation_mode: calculationMode,
+    override_type: overrideType,
+    input_hash: options.inputHash ?? expectedInputHash(),
     job_id: null,
     correlation_id: correlationId,
     status,
@@ -274,20 +316,28 @@ function calculationRunRow(
 }
 
 function expectedInputHash(): string {
+  return expectedInputHashFor(feeProfileOverride, 'sync_fee_profile', 'fee_profile');
+}
+
+function expectedInputHashFor(
+  override: typeof feeProfileOverride | typeof allocationOverride | typeof sectorProfileOverride,
+  calculationMode: 'sync_fee_profile' | 'sync_allocation' | 'sync_sector_profile',
+  overrideType: 'fee_profile' | 'allocation' | 'sector_profile'
+): string {
   return createScenarioInputHash({
     version: SCENARIO_INPUT_HASH_VERSION,
     contractVersion: FUND_SCENARIOS_CONTRACT_VERSION,
     scenarioSetId,
     sourceConfigId: 12,
     sourceConfigVersion: 4,
-    calculationMode: 'sync_fee_profile',
-    overrideType: 'fee_profile',
+    calculationMode,
+    overrideType,
     engineVersion: 'fund-scenarios-v1',
     variants: [
       {
         variantId,
         sortOrder: 0,
-        override: feeProfileOverride,
+        override,
       },
     ],
   });
@@ -295,7 +345,9 @@ function expectedInputHash(): string {
 
 describe('fund scenario calculation service', () => {
   beforeEach(() => {
-    vi.clearAllMocks();
+    queryMock.mockReset();
+    transactionMock.mockReset();
+    runEconomicsModelMock.mockReset();
     transactionMock.mockImplementation(
       async (callback: (client: { query: typeof queryMock }) => unknown) =>
         callback({ query: queryMock })
@@ -304,7 +356,9 @@ describe('fund scenario calculation service', () => {
   });
 
   afterEach(() => {
-    vi.clearAllMocks();
+    queryMock.mockReset();
+    transactionMock.mockReset();
+    runEconomicsModelMock.mockReset();
   });
 
   it('applies fee-profile overrides, persists a scenario snapshot, and records an audit event', async () => {
@@ -386,6 +440,155 @@ describe('fund scenario calculation service', () => {
         variant_count: 1,
       }),
     ]);
+  });
+
+  it('applies allocation overrides through the sync scenario calculation path', async () => {
+    const allocationHash = expectedInputHashFor(
+      allocationOverride,
+      'sync_allocation',
+      'allocation'
+    );
+    queryMock
+      .mockResolvedValueOnce({ rows: [{ id: 1 }] })
+      .mockResolvedValueOnce({ rows: [scenarioSetRow({ name: 'Allocation sensitivity' })] })
+      .mockResolvedValueOnce({ rows: [variantRow(allocationOverride)] })
+      .mockResolvedValueOnce({ rows: [{ id: 12, version: 4, config: baseConfig }] })
+      .mockResolvedValueOnce({ rows: [{ version: 4 }] })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({
+        rows: [
+          calculationRunRow('queued', null, {
+            calculationMode: 'sync_allocation',
+            overrideType: 'allocation',
+            inputHash: allocationHash,
+          }),
+        ],
+      })
+      .mockResolvedValueOnce({
+        rows: [
+          calculationRunRow('running', null, {
+            calculationMode: 'sync_allocation',
+            overrideType: 'allocation',
+            inputHash: allocationHash,
+          }),
+        ],
+      })
+      .mockImplementationOnce((_sql: string, params: unknown[]) => ({
+        rows: [
+          {
+            id: 58,
+            payload: params[1],
+            correlation_id: params[3],
+            created_at: new Date('2026-05-26T12:05:00.000Z'),
+            snapshot_time: new Date('2026-05-26T12:05:00.000Z'),
+          },
+        ],
+      }))
+      .mockResolvedValueOnce({
+        rows: [
+          calculationRunRow('completed', 58, {
+            calculationMode: 'sync_allocation',
+            overrideType: 'allocation',
+            inputHash: allocationHash,
+          }),
+        ],
+      })
+      .mockResolvedValueOnce({ rows: [{ id: '00000000-0000-0000-0000-000000000127' }] });
+
+    const result = await calculateFundScenarioSet(1, scenarioSetId);
+    const snapshotInsertCall = queryMock.mock.calls.find((call) =>
+      String(call[0]).includes('INSERT INTO fund_snapshots')
+    );
+    const snapshotInsertParams = snapshotInsertCall?.[1] as unknown[] | undefined;
+
+    expect(result.payload.calculationMode).toBe('sync_allocation');
+    expect(result.payload.variants[0]?.overrideType).toBe('allocation');
+    expect(runEconomicsModelMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        allocations: allocationOverride.payload.allocations,
+        capitalPlanAllocations: allocationOverride.payload.capitalPlanAllocations,
+      })
+    );
+    expect(snapshotInsertParams?.[4]).toMatchObject({
+      input_hash: allocationHash,
+      calculation_mode: 'sync_allocation',
+      override_type: 'allocation',
+    });
+    expect(snapshotInsertParams?.[7]).toBe(allocationHash);
+  });
+
+  it('applies sector-profile overrides through the sync scenario calculation path', async () => {
+    const sectorHash = expectedInputHashFor(
+      sectorProfileOverride,
+      'sync_sector_profile',
+      'sector_profile'
+    );
+    queryMock
+      .mockResolvedValueOnce({ rows: [{ id: 1 }] })
+      .mockResolvedValueOnce({ rows: [scenarioSetRow({ name: 'Sector sensitivity' })] })
+      .mockResolvedValueOnce({ rows: [variantRow(sectorProfileOverride)] })
+      .mockResolvedValueOnce({ rows: [{ id: 12, version: 4, config: baseConfig }] })
+      .mockResolvedValueOnce({ rows: [{ version: 4 }] })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({
+        rows: [
+          calculationRunRow('queued', null, {
+            calculationMode: 'sync_sector_profile',
+            overrideType: 'sector_profile',
+            inputHash: sectorHash,
+          }),
+        ],
+      })
+      .mockResolvedValueOnce({
+        rows: [
+          calculationRunRow('running', null, {
+            calculationMode: 'sync_sector_profile',
+            overrideType: 'sector_profile',
+            inputHash: sectorHash,
+          }),
+        ],
+      })
+      .mockImplementationOnce((_sql: string, params: unknown[]) => ({
+        rows: [
+          {
+            id: 59,
+            payload: params[1],
+            correlation_id: params[3],
+            created_at: new Date('2026-05-26T12:05:00.000Z'),
+            snapshot_time: new Date('2026-05-26T12:05:00.000Z'),
+          },
+        ],
+      }))
+      .mockResolvedValueOnce({
+        rows: [
+          calculationRunRow('completed', 59, {
+            calculationMode: 'sync_sector_profile',
+            overrideType: 'sector_profile',
+            inputHash: sectorHash,
+          }),
+        ],
+      })
+      .mockResolvedValueOnce({ rows: [{ id: '00000000-0000-0000-0000-000000000128' }] });
+
+    const result = await calculateFundScenarioSet(1, scenarioSetId);
+    const snapshotInsertCall = queryMock.mock.calls.find((call) =>
+      String(call[0]).includes('INSERT INTO fund_snapshots')
+    );
+    const snapshotInsertParams = snapshotInsertCall?.[1] as unknown[] | undefined;
+
+    expect(result.payload.calculationMode).toBe('sync_sector_profile');
+    expect(result.payload.variants[0]?.overrideType).toBe('sector_profile');
+    expect(runEconomicsModelMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        sectorProfiles: sectorProfileOverride.payload.sectorProfiles,
+      })
+    );
+    expect(snapshotInsertParams?.[4]).toMatchObject({
+      input_hash: sectorHash,
+      calculation_mode: 'sync_sector_profile',
+      override_type: 'sector_profile',
+    });
+    expect(snapshotInsertParams?.[7]).toBe(sectorHash);
   });
 
   it('returns an existing matching scenario snapshot without recalculating', async () => {
