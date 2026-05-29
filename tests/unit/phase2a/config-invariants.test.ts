@@ -11,6 +11,10 @@
 import { describe, it, expect } from 'vitest';
 import { fundConfigs, fundSnapshots } from '@shared/schema';
 import { QUEUE_CATALOG } from '../../../server/queues/registry';
+import {
+  getCalculationEngineDescriptorByQueueKey,
+  isFundCalculationQueueKey,
+} from '@shared/contracts/fund-authoritative-calculations.contract';
 
 // ============================================================================
 // Item 1: Config invariant constraint documentation
@@ -71,6 +75,18 @@ describe('Queue name consistency', () => {
     expect(calcQueues.length).toBe(5);
     for (const entry of calcQueues) {
       expect(entry.queueName).toMatch(/^[a-z]+(?:-[a-z]+)*-calc$/);
+    }
+  });
+
+  it('mirrors calculation authority from the shared engine catalog', () => {
+    const calculationQueues = QUEUE_CATALOG.filter(
+      (entry) =>
+        entry.fundCalculationAuthority !== undefined && isFundCalculationQueueKey(entry.queueName)
+    );
+
+    for (const entry of calculationQueues) {
+      const descriptor = getCalculationEngineDescriptorByQueueKey(entry.queueName);
+      expect(entry.fundCalculationAuthority).toBe(descriptor.authority);
     }
   });
 });
