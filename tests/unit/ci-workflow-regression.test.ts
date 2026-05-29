@@ -115,7 +115,7 @@ describe('CI Workflow Regression - Fix #4', () => {
       // Base job should upload
       const buildBase = workflow.jobs['build-base'];
       const baseUpload = buildBase.steps.find((step: any) =>
-        step.uses?.includes('actions/upload-artifact@v4')
+        step.uses?.includes('actions/upload-artifact@v7')
       );
       expect(baseUpload).toBeDefined();
       expect(baseUpload.with?.name).toBeDefined();
@@ -123,7 +123,7 @@ describe('CI Workflow Regression - Fix #4', () => {
       // PR job should upload
       const buildPR = workflow.jobs['build-pr'];
       const prUpload = buildPR.steps.find((step: any) =>
-        step.uses?.includes('actions/upload-artifact@v4')
+        step.uses?.includes('actions/upload-artifact@v7')
       );
       expect(prUpload).toBeDefined();
       expect(prUpload.with?.name).toBeDefined();
@@ -385,13 +385,13 @@ describe('CI Workflow Regression - Fix #4', () => {
       expect(workflow.on.pull_request.paths).toContain('vite.config.ts');
     });
 
-    it('should use actions/upload-artifact@v4 and actions/download-artifact@v4', async () => {
+    it('should use actions/upload-artifact@v7 and actions/download-artifact@v4', async () => {
       const workflowPath = path.join(process.cwd(), '.github/workflows/bundle-size-check.yml');
 
       const workflowContent = await fs.readFile(workflowPath, 'utf-8');
 
-      // Should use v4 of artifact actions (latest stable)
-      expect(workflowContent).toMatch(/actions\/upload-artifact@v4/);
+      // Uploads intentionally follow the current pinned workflow version.
+      expect(workflowContent).toMatch(/actions\/upload-artifact@v7/);
       expect(workflowContent).toMatch(/actions\/download-artifact@v4/);
     });
   });
