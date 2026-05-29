@@ -19,7 +19,6 @@ import type { FundDraftWriteV1 } from '../../../shared/contracts/fund-draft-writ
 import type { FundResultsReadV1 } from '../../../shared/contracts/fund-results-v1.contract';
 
 const STARTUP_TIMEOUT_MS = 90_000;
-const POSTGRES_CLIENT_SHUTDOWN_DRAIN_MS = 1_000;
 const AUTH_SECRET = 'scenario-release-gate-secret-minimum-32';
 const AUTH_ISSUER = 'updog-api';
 const AUTH_AUDIENCE = 'updog-client';
@@ -90,22 +89,17 @@ function createRuntimePool(connectionString: string): Pool {
   return pool;
 }
 
-async function delay(ms: number): Promise<void> {
-  await new Promise((resolve) => setTimeout(resolve, ms));
-}
-
-async function waitForPoolDrain(pool: Pool): Promise<void> {
-  for (let attempt = 0; attempt < 20; attempt += 1) {
-    if (pool.totalCount === 0 && pool.idleCount === 0 && pool.waitingCount === 0) {
-      return;
+async function tolerateExpectedPostgresStop(
+  operations: Array<Promise<void> | undefined>
+): Promise<void> {
+  const results = await Promise.allSettled(
+    operations.map((operation) => operation ?? Promise.resolve())
+  );
+  for (const result of results) {
+    if (result.status === 'rejected' && !isExpectedPostgresStopError(result.reason)) {
+      throw result.reason;
     }
-    await delay(25);
   }
-}
-
-async function drainPostgresClients(pools: Array<Pool | null>): Promise<void> {
-  await Promise.all(pools.filter((pool): pool is Pool => pool !== null).map(waitForPoolDrain));
-  await delay(POSTGRES_CLIENT_SHUTDOWN_DRAIN_MS);
 }
 
 function baseDraft(): FundDraftWriteV1 {
@@ -449,7 +443,7 @@ describe('scenario release gate integration', () => {
 
   afterAll(async () => {
     isStoppingPostgres = true;
-    let pgCircuitPool: Pool | null = null;
+    let closePgCircuitPool: (() => Promise<void>) | null = null;
 
     await runtime?.workerHarness.close();
     for (const queue of runtime?.queues ?? []) {
@@ -457,8 +451,7 @@ describe('scenario release gate integration', () => {
     }
     try {
       const db = await import('../../../server/db/pg-circuit');
-      pgCircuitPool = db.pool;
-      await db.closePool();
+      closePgCircuitPool = db.closePool;
     } catch {
       // The pg-circuit module may never load if startup failed before route import.
     }
@@ -468,10 +461,9 @@ describe('scenario release gate integration', () => {
     } catch {
       // Queue registry may never load if startup failed before route import.
     }
-    await runtime?.pool.end();
-    await drainPostgresClients([pgCircuitPool, runtime?.pool ?? null]);
     await runtime?.redis.stop();
     await runtime?.postgres.stop();
+    await tolerateExpectedPostgresStop([closePgCircuitPool?.(), runtime?.pool.end()]);
     restoreEnv(originalEnv);
     vi.resetModules();
   });
