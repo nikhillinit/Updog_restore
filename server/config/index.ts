@@ -29,6 +29,10 @@ const explicitNodeEnv = process.env.NODE_ENV;
 const explicitNodeEnvMarker = process.env['_EXPLICIT_NODE_ENV'];
 const explicitRedisUrl = process.env.REDIS_URL;
 const explicitRedisUrlMarker = process.env['_EXPLICIT_REDIS_URL'];
+const explicitQueueRedisUrl = process.env['QUEUE_REDIS_URL'];
+const explicitQueueRedisUrlMarker = process.env['_EXPLICIT_QUEUE_REDIS_URL'];
+const explicitEnableQueues = process.env['ENABLE_QUEUES'];
+const explicitEnableQueuesMarker = process.env['_EXPLICIT_ENABLE_QUEUES'];
 const explicitDatabaseUrl = process.env.DATABASE_URL;
 const explicitDatabaseUrlMarker = process.env['_EXPLICIT_DATABASE_URL'];
 const explicitNeonDatabaseUrl = process.env['NEON_DATABASE_URL'];
@@ -78,6 +82,21 @@ if (
   explicitRedisUrl !== process.env.REDIS_URL
 ) {
   process.env.REDIS_URL = explicitRedisUrl;
+}
+// Restore explicitly-set QUEUE_REDIS_URL and ENABLE_QUEUES if .env tried to override them
+if (
+  explicitQueueRedisUrlMarker &&
+  explicitQueueRedisUrl !== undefined &&
+  explicitQueueRedisUrl !== process.env['QUEUE_REDIS_URL']
+) {
+  process.env['QUEUE_REDIS_URL'] = explicitQueueRedisUrl;
+}
+if (
+  explicitEnableQueuesMarker &&
+  explicitEnableQueues !== undefined &&
+  explicitEnableQueues !== process.env['ENABLE_QUEUES']
+) {
+  process.env['ENABLE_QUEUES'] = explicitEnableQueues;
 }
 // Restore explicitly-set DATABASE_URL if .env tried to override it
 if (

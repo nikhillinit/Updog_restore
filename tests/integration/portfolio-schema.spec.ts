@@ -8,11 +8,71 @@
  * - investments table extensions
  */
 
-import { describe, it, expect } from 'vitest';
+import { afterAll, beforeAll, describe, it, expect } from 'vitest';
 import { db } from '../../server/db';
 import { sql } from 'drizzle-orm';
 
 describe('Portfolio Route Schema - Phase 1', () => {
+  let seedFundId: number;
+  let seedCompanyId: number;
+  let seedInvestmentId: number;
+
+  beforeAll(async () => {
+    const fundResult = await db.execute(sql`
+      INSERT INTO funds (name, size, management_fee, carry_percentage, vintage_year)
+      VALUES (${`Portfolio Schema Fund ${Date.now()}`}, '10000000.00', '0.0200', '0.2000', 2026)
+      RETURNING id
+    `);
+    seedFundId = Number(fundResult.rows[0]?.id);
+
+    const companyResult = await db.execute(sql`
+      INSERT INTO portfoliocompanies (
+        fund_id,
+        name,
+        sector,
+        stage,
+        investment_amount,
+        current_valuation,
+        status
+      )
+      VALUES (
+        ${seedFundId},
+        ${`Portfolio Schema Co ${Date.now()}`},
+        'SaaS',
+        'Seed',
+        '1000000.00',
+        '2500000.00',
+        'active'
+      )
+      RETURNING id
+    `);
+    seedCompanyId = Number(companyResult.rows[0]?.id);
+
+    const investmentResult = await db.execute(sql`
+      INSERT INTO investments (
+        fund_id,
+        company_id,
+        investment_date,
+        amount,
+        round
+      )
+      VALUES (${seedFundId}, ${seedCompanyId}, NOW(), '1000000.00', 'Seed')
+      RETURNING id
+    `);
+    seedInvestmentId = Number(investmentResult.rows[0]?.id);
+  });
+
+  afterAll(async () => {
+    if (!seedFundId) return;
+
+    await db.execute(sql`DELETE FROM reserve_allocations WHERE company_id = ${seedCompanyId}`);
+    await db.execute(sql`DELETE FROM forecast_snapshots WHERE fund_id = ${seedFundId}`);
+    await db.execute(sql`DELETE FROM investment_lots WHERE investment_id = ${seedInvestmentId}`);
+    await db.execute(sql`DELETE FROM investments WHERE fund_id = ${seedFundId}`);
+    await db.execute(sql`DELETE FROM portfoliocompanies WHERE id = ${seedCompanyId}`);
+    await db.execute(sql`DELETE FROM funds WHERE id = ${seedFundId}`);
+  });
+
   describe('investment_lots table', () => {
     it('should exist with correct schema', async () => {
       const result = await db.execute(sql`
@@ -28,9 +88,7 @@ describe('Portfolio Route Schema - Phase 1', () => {
       expect(columns.length).toBeGreaterThan(0);
 
       // Verify critical columns exist with correct types
-      const columnMap = new Map(
-        columns.map((col: any) => [col.column_name, col])
-      );
+      const columnMap = new Map(columns.map((col: any) => [col.column_name, col]));
 
       // UUID primary key
       expect(columnMap.has('id')).toBe(true);
@@ -63,8 +121,8 @@ describe('Portfolio Route Schema - Phase 1', () => {
 
       // Optimistic locking version
       expect(columnMap.has('version')).toBe(true);
-      expect(columnMap.get('version')?.data_type).toBe('integer');
-      expect(columnMap.get('version')?.column_default).toBe('1');
+      expect(columnMap.get('version')?.data_type).toBe('bigint');
+      expect(columnMap.get('version')?.column_default).toBe('0');
 
       // Idempotency key
       expect(columnMap.has('idempotency_key')).toBe(true);
@@ -86,18 +144,21 @@ describe('Portfolio Route Schema - Phase 1', () => {
 
       const indexes = result.rows;
       const indexNames = indexes.map((idx: any) => idx.indexname);
+      const indexDefs = indexes.map((idx: any) => idx.indexdef.toLowerCase());
 
       // Primary key index (automatic)
-      expect(indexNames.some(name => name.includes('pkey'))).toBe(true);
+      expect(indexNames.some((name) => name.includes('pkey'))).toBe(true);
 
       // Index on investment_id for FK lookups
-      expect(indexNames.some(name => name.includes('investment_id'))).toBe(true);
+      expect(indexDefs.some((def) => def.includes('investment_id'))).toBe(true);
 
       // Composite index on (investment_id, lot_type)
-      expect(indexNames.some(name => name.includes('lot_type'))).toBe(true);
+      expect(
+        indexDefs.some((def) => def.includes('investment_id') && def.includes('lot_type'))
+      ).toBe(true);
 
       // Unique index on idempotency_key
-      expect(indexNames.some(name => name.includes('idempotency'))).toBe(true);
+      expect(indexDefs.some((def) => def.includes('idempotency_key'))).toBe(true);
     });
 
     it('should enforce lot_type check constraint', async () => {
@@ -111,13 +172,13 @@ describe('Portfolio Route Schema - Phase 1', () => {
             shares_acquired,
             cost_basis_cents
           )
-          VALUES (1, 'invalid_type', 10000, 1000, 10000000)
+          VALUES (${seedInvestmentId}, 'invalid_type', 10000, 1000, 10000000)
         `);
       }).rejects.toThrow(/check constraint/i);
     });
 
     it('should enforce idempotency_key uniqueness', async () => {
-      const idempotencyKey = `test-key-unique-${  Date.now()}`;
+      const idempotencyKey = `test-key-unique-${Date.now()}`;
 
       // First insert should succeed
       await db.execute(sql`
@@ -129,7 +190,7 @@ describe('Portfolio Route Schema - Phase 1', () => {
           cost_basis_cents,
           idempotency_key
         )
-        VALUES (1, 'initial', 10000, 1000, 10000000, ${idempotencyKey})
+        VALUES (${seedInvestmentId}, 'initial', 10000, 1000, 10000000, ${idempotencyKey})
       `);
 
       // Duplicate idempotency_key should fail
@@ -143,14 +204,14 @@ describe('Portfolio Route Schema - Phase 1', () => {
             cost_basis_cents,
             idempotency_key
           )
-          VALUES (1, 'initial', 10000, 1000, 10000000, ${idempotencyKey})
+          VALUES (${seedInvestmentId}, 'initial', 10000, 1000, 10000000, ${idempotencyKey})
         `);
       }).rejects.toThrow(/unique constraint|duplicate key/i);
     });
 
     it('should cascade delete when investment is deleted', async () => {
       // Create test investment
-      const [investment] = await db.execute(sql`
+      const investmentResult = await db.execute(sql`
         INSERT INTO investments (
           fund_id,
           company_id,
@@ -158,11 +219,11 @@ describe('Portfolio Route Schema - Phase 1', () => {
           amount,
           round
         )
-        VALUES (1, 1, NOW(), 1000000, 'Series A')
+        VALUES (${seedFundId}, ${seedCompanyId}, NOW(), 1000000, 'Series A')
         RETURNING id
       `);
 
-      const investmentId = investment.id;
+      const investmentId = investmentResult.rows[0]?.id;
 
       // Create lot
       await db.execute(sql`
@@ -204,9 +265,7 @@ describe('Portfolio Route Schema - Phase 1', () => {
       const columns = result.rows;
       expect(columns.length).toBeGreaterThan(0);
 
-      const columnMap = new Map(
-        columns.map((col: any) => [col.column_name, col])
-      );
+      const columnMap = new Map(columns.map((col: any) => [col.column_name, col]));
 
       // UUID primary key
       expect(columnMap.has('id')).toBe(true);
@@ -253,7 +312,8 @@ describe('Portfolio Route Schema - Phase 1', () => {
 
       // Optimistic locking
       expect(columnMap.has('version')).toBe(true);
-      expect(columnMap.get('version')?.column_default).toBe('1');
+      expect(columnMap.get('version')?.data_type).toBe('bigint');
+      expect(columnMap.get('version')?.column_default).toBe('0');
 
       // Idempotency
       expect(columnMap.has('idempotency_key')).toBe(true);
@@ -271,20 +331,14 @@ describe('Portfolio Route Schema - Phase 1', () => {
 
       // Composite index on (fund_id, snapshot_time DESC) for cursor pagination
       expect(
-        indexDefs.some(def =>
-          def.includes('fund_id') && def.includes('snapshot_time')
-        )
+        indexDefs.some((def) => def.includes('fund_id') && def.includes('snapshot_time'))
       ).toBe(true);
 
       // Unique index on idempotency_key
-      expect(
-        indexDefs.some(def => def.includes('idempotency_key'))
-      ).toBe(true);
+      expect(indexDefs.some((def) => def.includes('idempotency_key'))).toBe(true);
 
       // Index on source_hash for integrity verification
-      expect(
-        indexDefs.some(def => def.includes('source_hash'))
-      ).toBe(true);
+      expect(indexDefs.some((def) => def.includes('source_hash'))).toBe(true);
     });
 
     it('should enforce status check constraint', async () => {
@@ -296,7 +350,7 @@ describe('Portfolio Route Schema - Phase 1', () => {
             status,
             snapshot_time
           )
-          VALUES (1, 'Test Snapshot', 'invalid_status', NOW())
+          VALUES (${seedFundId}, 'Test Snapshot', 'invalid_status', NOW())
         `);
       }).rejects.toThrow(/check constraint/i);
     });
@@ -314,9 +368,7 @@ describe('Portfolio Route Schema - Phase 1', () => {
       const columns = result.rows;
       expect(columns.length).toBeGreaterThan(0);
 
-      const columnMap = new Map(
-        columns.map((col: any) => [col.column_name, col])
-      );
+      const columnMap = new Map(columns.map((col: any) => [col.column_name, col]));
 
       // UUID primary key
       expect(columnMap.has('id')).toBe(true);
@@ -347,17 +399,17 @@ describe('Portfolio Route Schema - Phase 1', () => {
 
     it('should cascade delete when snapshot is deleted', async () => {
       // Create test snapshot
-      const [snapshot] = await db.execute(sql`
+      const snapshotResult = await db.execute(sql`
         INSERT INTO forecast_snapshots (
           fund_id,
           name,
           snapshot_time
         )
-        VALUES (1, 'Test Snapshot for Cascade', NOW())
+        VALUES (${seedFundId}, 'Test Snapshot for Cascade', NOW())
         RETURNING id
       `);
 
-      const snapshotId = snapshot.id;
+      const snapshotId = snapshotResult.rows[0]?.id;
 
       // Create reserve allocation
       await db.execute(sql`
@@ -366,7 +418,7 @@ describe('Portfolio Route Schema - Phase 1', () => {
           company_id,
           planned_reserve_cents
         )
-        VALUES (${snapshotId}, 1, 500000000)
+        VALUES (${snapshotId}, ${seedCompanyId}, 500000000)
       `);
 
       // Delete snapshot
@@ -401,9 +453,7 @@ describe('Portfolio Route Schema - Phase 1', () => {
       `);
 
       const columns = result.rows;
-      const columnMap = new Map(
-        columns.map((col: any) => [col.column_name, col])
-      );
+      const columnMap = new Map(columns.map((col: any) => [col.column_name, col]));
 
       // share_price_cents (nullable for legacy data)
       expect(columnMap.has('share_price_cents')).toBe(true);

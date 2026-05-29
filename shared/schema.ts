@@ -32,6 +32,8 @@ export * from './schema/scenario';
 export * from './schema/shares';
 export * from './schema/user';
 export * from './schema/lp-reporting-evidence';
+export * from './schemas/flags';
+export * from './schemas/reserve-approvals';
 
 // Import tables for FK references and schema definitions
 import { funds, fundConfigs, fundSnapshots, calcRuns } from './schema/fund';
