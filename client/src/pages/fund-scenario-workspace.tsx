@@ -42,6 +42,12 @@ const FUND_SCENARIO_WORKSPACE_ROUTE = '/fund-model-results/:fundId/scenarios';
 const FUND_ID_PATH_SEGMENT_PATTERN = /^\d+$/;
 const SCENARIO_SET_ID_PATH_SEGMENT_PATTERN =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const OVERRIDE_TYPE_LABELS: Record<FundScenarioOverrideTypeV1, string> = {
+  fee_profile: 'Fee profile',
+  reserve_allocation: 'Reserve allocation',
+  allocation: 'Allocation',
+  sector_profile: 'Sector profile',
+};
 
 function workspaceQueryKey(fundId: string) {
   return ['fund-scenario-workspace', fundId] as const;
@@ -86,10 +92,7 @@ function scenarioApiPath(fundId: string, suffix: string): string {
 
 function scenarioSetApiPath(fundId: string, scenarioSetId: string, suffix = ''): string {
   assertScenarioSetId(scenarioSetId);
-  return scenarioApiPath(
-    fundId,
-    `/scenario-sets/${encodeURIComponent(scenarioSetId)}${suffix}`
-  );
+  return scenarioApiPath(fundId, `/scenario-sets/${encodeURIComponent(scenarioSetId)}${suffix}`);
 }
 
 async function fetchScenarioSetList(fundId: string) {
@@ -103,7 +106,10 @@ async function fetchScenarioSetDetail(fundId: string, scenarioSetId: string) {
 }
 
 async function fetchScenarioStatus(fundId: string, scenarioSetId: string) {
-  const raw = await apiRequest('GET', scenarioSetApiPath(fundId, scenarioSetId, '/calculation-status'));
+  const raw = await apiRequest(
+    'GET',
+    scenarioSetApiPath(fundId, scenarioSetId, '/calculation-status')
+  );
   return FundScenarioCalculationStatusV1Schema.parse(raw);
 }
 
@@ -117,14 +123,20 @@ async function fetchScenarioComparison(fundId: string, scenarioSetId: string) {
   return FundScenarioComparisonV1Schema.parse(raw);
 }
 
-function scenarioSetOverrideType(detail: FundScenarioSetDetailV1): FundScenarioOverrideTypeV1 | null {
+function scenarioSetOverrideType(
+  detail: FundScenarioSetDetailV1
+): FundScenarioOverrideTypeV1 | null {
   return detail.variants[0]?.override.overrideType ?? null;
 }
 
 async function calculateScenarioSet(fundId: string, detail: FundScenarioSetDetailV1) {
   const overrideType = scenarioSetOverrideType(detail);
   if (overrideType === 'reserve_allocation') {
-    const raw = await apiRequest('POST', scenarioSetApiPath(fundId, detail.id, '/calculate-reserve'), {});
+    const raw = await apiRequest(
+      'POST',
+      scenarioSetApiPath(fundId, detail.id, '/calculate-reserve'),
+      {}
+    );
     return FundScenarioReserveCalculationQueuedV1Schema.parse(raw);
   }
 
@@ -169,7 +181,9 @@ function scenarioStatusTone(status: FundScenarioCalculationStatusV1['status'] | 
 
 function actionLabelFor(summary: FundScenarioSetSummaryV1, detail: FundScenarioSetDetailV1 | null) {
   const overrideType = detail ? scenarioSetOverrideType(detail) : null;
-  return overrideType === 'reserve_allocation' ? `Queue ${summary.name}` : `Calculate ${summary.name}`;
+  return overrideType === 'reserve_allocation'
+    ? `Queue ${summary.name}`
+    : `Calculate ${summary.name}`;
 }
 
 function actionButtonText(detail: FundScenarioSetDetailV1 | null) {
@@ -273,11 +287,7 @@ function ScenarioSetActionCard({
             <Badge className={scenarioStatusTone(status?.status)}>
               {scenarioStatusLabel(status?.status)}
             </Badge>
-            {overrideType && (
-              <Badge variant="outline">
-                {overrideType === 'fee_profile' ? 'Fee profile' : 'Reserve allocation'}
-              </Badge>
-            )}
+            {overrideType && <Badge variant="outline">{OVERRIDE_TYPE_LABELS[overrideType]}</Badge>}
           </div>
         </div>
         <Button

@@ -12,7 +12,12 @@ import { FundDraftWriteV1Schema } from './fund-draft-write-v1.contract';
 
 const DateTimeStringSchema = z.string().datetime();
 
-export const FundScenarioOverrideTypeV1Schema = z.enum(['fee_profile', 'reserve_allocation']);
+export const FundScenarioOverrideTypeV1Schema = z.enum([
+  'fee_profile',
+  'reserve_allocation',
+  'allocation',
+  'sector_profile',
+]);
 
 const FeeProfileOverridePayloadV1Schema = FundDraftWriteV1Schema.pick({
   feeProfiles: true,
@@ -28,6 +33,40 @@ export const FundScenarioFeeProfileOverrideV1Schema = z
   .object({
     overrideType: z.literal('fee_profile'),
     payload: FeeProfileOverridePayloadV1Schema,
+  })
+  .strict();
+
+const AllocationOverridePayloadV1Schema = FundDraftWriteV1Schema.pick({
+  allocations: true,
+  capitalPlanAllocations: true,
+})
+  .partial()
+  .strict()
+  .refine((value) => value.allocations != null || value.capitalPlanAllocations != null, {
+    message: 'allocation override requires allocations or capitalPlanAllocations',
+  });
+
+export const FundScenarioAllocationOverrideV1Schema = z
+  .object({
+    overrideType: z.literal('allocation'),
+    payload: AllocationOverridePayloadV1Schema,
+  })
+  .strict();
+
+const SectorProfileOverridePayloadV1Schema = FundDraftWriteV1Schema.pick({
+  sectorProfiles: true,
+})
+  .required()
+  .strict()
+  .refine((value) => value.sectorProfiles.length > 0, {
+    message: 'sectorProfiles must include at least one profile',
+    path: ['sectorProfiles'],
+  });
+
+export const FundScenarioSectorProfileOverrideV1Schema = z
+  .object({
+    overrideType: z.literal('sector_profile'),
+    payload: SectorProfileOverridePayloadV1Schema,
   })
   .strict();
 
@@ -55,6 +94,8 @@ export const FundScenarioReserveAllocationOverrideV1Schema = z
 export const FundScenarioVariantOverrideV1Schema = z.discriminatedUnion('overrideType', [
   FundScenarioFeeProfileOverrideV1Schema,
   FundScenarioReserveAllocationOverrideV1Schema,
+  FundScenarioAllocationOverrideV1Schema,
+  FundScenarioSectorProfileOverrideV1Schema,
 ]);
 
 export const CreateFundScenarioVariantV1Schema = z
@@ -220,6 +261,24 @@ export const ScenarioSetFeeProfileVariantResultSummaryV1Schema = z
   })
   .strict();
 
+export const ScenarioSetAllocationVariantResultSummaryV1Schema = z
+  .object({
+    variantId: z.string().uuid(),
+    name: z.string(),
+    overrideType: z.literal('allocation'),
+    economicsSummary: EconomicsSummaryV1Schema,
+  })
+  .strict();
+
+export const ScenarioSetSectorProfileVariantResultSummaryV1Schema = z
+  .object({
+    variantId: z.string().uuid(),
+    name: z.string(),
+    overrideType: z.literal('sector_profile'),
+    economicsSummary: EconomicsSummaryV1Schema,
+  })
+  .strict();
+
 export const ScenarioSetReserveVariantResultSummaryV1Schema = z
   .object({
     variantId: z.string().uuid(),
@@ -231,6 +290,8 @@ export const ScenarioSetReserveVariantResultSummaryV1Schema = z
 
 export const ScenarioSetVariantResultSummaryV1Schema = z.discriminatedUnion('overrideType', [
   ScenarioSetFeeProfileVariantResultSummaryV1Schema,
+  ScenarioSetAllocationVariantResultSummaryV1Schema,
+  ScenarioSetSectorProfileVariantResultSummaryV1Schema,
   ScenarioSetReserveVariantResultSummaryV1Schema,
 ]);
 
@@ -267,6 +328,8 @@ export const ScenariosSectionPayloadV1Schema = z
 
 export const FundScenarioCalculationModeV1Schema = z.enum([
   'sync_fee_profile',
+  'sync_allocation',
+  'sync_sector_profile',
   'async_reserve_allocation',
 ]);
 
@@ -276,6 +339,26 @@ export const FundScenarioFeeProfileCalculationVariantV1Schema = z
     scenarioSetId: z.string().uuid(),
     name: z.string(),
     overrideType: z.literal('fee_profile'),
+    economics: EconomicsResultV1Schema,
+  })
+  .strict();
+
+export const FundScenarioAllocationCalculationVariantV1Schema = z
+  .object({
+    variantId: z.string().uuid(),
+    scenarioSetId: z.string().uuid(),
+    name: z.string(),
+    overrideType: z.literal('allocation'),
+    economics: EconomicsResultV1Schema,
+  })
+  .strict();
+
+export const FundScenarioSectorProfileCalculationVariantV1Schema = z
+  .object({
+    variantId: z.string().uuid(),
+    scenarioSetId: z.string().uuid(),
+    name: z.string(),
+    overrideType: z.literal('sector_profile'),
     economics: EconomicsResultV1Schema,
   })
   .strict();
@@ -292,6 +375,8 @@ export const FundScenarioReserveCalculationVariantV1Schema = z
 
 export const FundScenarioCalculationVariantV1Schema = z.discriminatedUnion('overrideType', [
   FundScenarioFeeProfileCalculationVariantV1Schema,
+  FundScenarioAllocationCalculationVariantV1Schema,
+  FundScenarioSectorProfileCalculationVariantV1Schema,
   FundScenarioReserveCalculationVariantV1Schema,
 ]);
 
@@ -310,7 +395,13 @@ export const FundScenarioCalculationPayloadV1Schema = z
   .strict()
   .superRefine((value, ctx) => {
     const expectedOverrideType =
-      value.calculationMode === 'sync_fee_profile' ? 'fee_profile' : 'reserve_allocation';
+      value.calculationMode === 'sync_fee_profile'
+        ? 'fee_profile'
+        : value.calculationMode === 'sync_allocation'
+          ? 'allocation'
+          : value.calculationMode === 'sync_sector_profile'
+            ? 'sector_profile'
+            : 'reserve_allocation';
     for (const [index, variant] of value.variants.entries()) {
       if (variant.overrideType !== expectedOverrideType) {
         ctx.addIssue({

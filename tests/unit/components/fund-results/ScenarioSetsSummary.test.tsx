@@ -60,6 +60,26 @@ describe('ScenarioSetsSummary', () => {
     expect(within(reserveCard).getByText('Warnings')).toBeInTheDocument();
     expect(within(reserveCard).getAllByText('1')).toHaveLength(2);
   });
+
+  it('renders allocation and sector-profile scenario cards with economics summaries', () => {
+    render(<ScenarioSetsSummary payload={syncOverridePayload()} />);
+
+    const allocationCard = screen.getByText('Allocation mix').closest('article');
+    if (!(allocationCard instanceof HTMLElement)) {
+      throw new Error('Allocation mix card was not rendered');
+    }
+    expect(within(allocationCard).getByText('Best TVPI')).toBeInTheDocument();
+    expect(within(allocationCard).getByText('2.20x')).toBeInTheDocument();
+    expect(within(allocationCard).getByText('Seed heavy')).toBeInTheDocument();
+
+    const sectorCard = screen.getByText('Sector mix').closest('article');
+    if (!(sectorCard instanceof HTMLElement)) {
+      throw new Error('Sector mix card was not rendered');
+    }
+    expect(within(sectorCard).getByText('Best TVPI')).toBeInTheDocument();
+    expect(within(sectorCard).getByText('2.05x')).toBeInTheDocument();
+    expect(within(sectorCard).getByText('AI infrastructure')).toBeInTheDocument();
+  });
 });
 
 function scenarioPayload(): ScenariosSectionPayloadV1 {
@@ -139,6 +159,51 @@ function reservePayload(): ScenariosSectionPayloadV1 {
               highConfidenceCount: 1,
               warningCount: 1,
             },
+          },
+        ],
+      },
+    ],
+  };
+}
+
+function syncOverridePayload(): ScenariosSectionPayloadV1 {
+  return {
+    version: 'fund-scenarios-v1',
+    aggregateStaleness: 'CURRENT',
+    sets: [
+      {
+        scenarioSetId: '00000000-0000-0000-0000-000000000411',
+        name: 'Allocation mix',
+        sourceConfigId: 15,
+        sourceConfigVersion: 7,
+        currentPublishedConfigVersion: 7,
+        calculatedAt: '2026-05-26T12:30:00.000Z',
+        staleness: 'CURRENT',
+        variantCount: 1,
+        variants: [
+          {
+            variantId: '00000000-0000-0000-0000-000000000412',
+            name: 'Seed heavy',
+            overrideType: 'allocation',
+            economicsSummary: economicsSummary({ finalTvpi: 2.2 }),
+          },
+        ],
+      },
+      {
+        scenarioSetId: '00000000-0000-0000-0000-000000000511',
+        name: 'Sector mix',
+        sourceConfigId: 16,
+        sourceConfigVersion: 7,
+        currentPublishedConfigVersion: 7,
+        calculatedAt: '2026-05-26T12:35:00.000Z',
+        staleness: 'CURRENT',
+        variantCount: 1,
+        variants: [
+          {
+            variantId: '00000000-0000-0000-0000-000000000512',
+            name: 'AI infrastructure',
+            overrideType: 'sector_profile',
+            economicsSummary: economicsSummary({ finalTvpi: 2.05 }),
           },
         ],
       },

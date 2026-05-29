@@ -54,15 +54,49 @@ describe('FundScenarioSetsV1 contract', () => {
     expect(result.data?.variants[0]?.override.overrideType).toBe('fee_profile');
   });
 
-  it('rejects non-fee override types in the first slice', () => {
+  it('accepts allocation overrides for strategy and capital-plan allocations', () => {
     const result = FundScenarioVariantOverrideV1Schema.safeParse({
       overrideType: 'allocation',
       payload: {
-        allocations: [],
+        allocations: [{ id: 'seed-stage', category: 'Seed', percentage: 60 }],
+        capitalPlanAllocations: [
+          {
+            id: 'seed-plan',
+            name: 'Seed plan',
+            entryRound: 'Seed',
+            capitalAllocationPct: 60,
+            initialCheckStrategy: 'amount',
+            initialCheckAmount: 1_000_000,
+            followOnStrategy: 'amount',
+            followOnAmount: 500_000,
+            followOnParticipationPct: 25,
+            investmentHorizonMonths: 48,
+          },
+        ],
       },
     });
 
-    expect(result.success).toBe(false);
+    expect(result.success).toBe(true);
+    expect(result.data?.overrideType).toBe('allocation');
+  });
+
+  it('accepts sector-profile overrides', () => {
+    const result = FundScenarioVariantOverrideV1Schema.safeParse({
+      overrideType: 'sector_profile',
+      payload: {
+        sectorProfiles: [
+          {
+            id: 'ai-infra',
+            name: 'AI Infrastructure',
+            targetPercentage: 35,
+            description: 'Infrastructure software and tooling',
+          },
+        ],
+      },
+    });
+
+    expect(result.success).toBe(true);
+    expect(result.data?.overrideType).toBe('sector_profile');
   });
 
   it('accepts reserve-allocation overrides with hard caps lower than planned reserves', () => {
@@ -87,7 +121,7 @@ describe('FundScenarioSetsV1 contract', () => {
 
   it('continues to reject unknown override types', () => {
     const result = FundScenarioVariantOverrideV1Schema.safeParse({
-      overrideType: 'allocation',
+      overrideType: 'waterfall',
       payload: {
         items: [],
       },
