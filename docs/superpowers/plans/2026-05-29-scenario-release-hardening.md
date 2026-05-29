@@ -1667,9 +1667,26 @@ it('proves the ADR-022 scenario lifecycle with Postgres, Redis, worker, results,
     variants: [
       {
         name: 'Higher management fee',
-        sortOrder: 1,
-        overrideType: 'fee_profile',
-        overridePayload: { managementFeeRateDecimal: '0.0210' },
+        override: {
+          overrideType: 'fee_profile',
+          payload: {
+            feeProfiles: [
+              {
+                id: 'fee-profile-release-gate',
+                name: 'Higher management fee',
+                feeTiers: [
+                  {
+                    id: 'release-gate-tier',
+                    name: 'Management fee',
+                    percentage: 2.1,
+                    feeBasis: 'committed_capital',
+                    startMonth: 0,
+                  },
+                ],
+              },
+            ],
+          },
+        },
       },
     ],
   });
@@ -1696,9 +1713,17 @@ it('proves the ADR-022 scenario lifecycle with Postgres, Redis, worker, results,
     variants: [
       {
         name: 'Reserve adjustment',
-        sortOrder: 1,
-        overrideType: 'reserve_allocation',
-        overridePayload: { allocations: [] },
+        override: {
+          overrideType: 'reserve_allocation',
+          payload: {
+            items: [
+              {
+                companyId: active.companyId,
+                plannedReservesCents: 150000000,
+              },
+            ],
+          },
+        },
       },
     ],
   });
