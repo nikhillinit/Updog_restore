@@ -136,7 +136,7 @@
     "codex": {
       "binEnv": "CODEX_BIN",
       "defaultBin": "codex",
-      "args": ["exec"]
+      "args": ["exec", "--sandbox", "danger-full-access"]
     },
     "kimi": {
       "binEnv": "KIMI_CODE_BIN",
