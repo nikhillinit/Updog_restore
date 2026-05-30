@@ -76,6 +76,7 @@
     "test:security": "vitest run -c vitest.config.int.ts tests/integration/security",
     "ai": "node scripts/ai-tools/index.js",
     "hermes": "node orchestrate.js",
+    "hermes:doctor": "node orchestrate.js doctor",
     "hermes:dry": "node orchestrate.js --dry-run",
     "hermes:route": "node orchestrate.js --json",
     "hermes:research": "node orchestrate.js --phase research",

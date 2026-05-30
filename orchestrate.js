@@ -7,7 +7,8 @@ import { fileURLToPath } from 'node:url';
 
 const __filename = fileURLToPath(import.meta.url);
 const ROOT = dirname(__filename);
-const LEGACY_COMMANDS = new Set(['bootstrap', 'smoke', 'enable-algorithms']);
+const LEGACY_COMMANDS = new Set(['bootstrap', 'smoke', 'enable-algorithms', 'doctor']);
+const DOCTOR_PROVIDERS = ['claude', 'codex', 'kimi-cli', 'gemini', 'agy'];
 
 function normalizeEntrypointPath(value) {
   return String(value || '')
@@ -308,6 +309,59 @@ function commandExists(bin) {
   return result.status === 0;
 }
 
+function findDoctorCommandConfig(routing, provider) {
+  const commands = routing.commands || {};
+  if (commands[provider]) return commands[provider];
+  return Object.values(commands).find((config) => config?.defaultBin === provider) || null;
+}
+
+function buildDoctorReport({
+  routing,
+  env = process.env,
+  providers = DOCTOR_PROVIDERS,
+  commandExists: checkCommandExists = commandExists,
+}) {
+  return providers.map((provider) => {
+    const commandConfig = findDoctorCommandConfig(routing, provider);
+    const envName = commandConfig?.binEnv;
+    const envBin = envName ? env[envName] : null;
+    const bin = envBin || commandConfig?.defaultBin || provider;
+    const source = envBin ? `env:${envName}` : 'default';
+
+    return {
+      provider,
+      bin,
+      source,
+      found: checkCommandExists(bin),
+    };
+  });
+}
+
+function formatDoctorReport(report) {
+  const rows = [
+    ['Provider', 'Binary', 'Source', 'Status'],
+    ...report.map(({ provider, bin, source, found }) => [
+      provider,
+      bin,
+      source,
+      found ? 'found' : 'missing',
+    ]),
+  ];
+  const widths = rows[0].map((_, index) =>
+    Math.max(...rows.map((row) => String(row[index]).length))
+  );
+  const formatRow = (row) =>
+    row.map((value, index) => String(value).padEnd(widths[index])).join('  ');
+  const divider = widths.map((width) => '-'.repeat(width)).join('  ');
+
+  return [formatRow(rows[0]), divider, ...rows.slice(1).map(formatRow)].join('\n');
+}
+
+function printDoctorReport(report, stdout = process.stdout) {
+  stdout.write('Hermes CLI doctor\n');
+  stdout.write(`${formatDoctorReport(report)}\n`);
+}
+
 function executeModel(model, prompt, routing, env = process.env) {
   const commandConfig = routing.commands?.[model];
   if (!commandConfig) {
@@ -419,7 +473,7 @@ Gate controls:
                  Legacy --skip-gates is rejected.
 
 Legacy commands:
-  bootstrap | smoke | enable-algorithms
+  bootstrap | smoke | enable-algorithms | doctor
 `);
 }
 
@@ -518,6 +572,20 @@ async function main(argv = process.argv.slice(2), env = process.env, io = proces
   }
 
   if (options.legacyCommand) {
+    if (options.legacyCommand === 'doctor') {
+      const routingPath =
+        env.HERMES_MODEL_ROUTING_FILE || join(ROOT, '.claude', 'hermes', 'model-routing.json');
+      const routing = deps.routing || loadJSON(routingPath);
+      const report = buildDoctorReport({
+        routing,
+        env,
+        providers: DOCTOR_PROVIDERS,
+        commandExists: deps.commandExists || commandExists,
+      });
+      printDoctorReport(report, io.stdout);
+      return 0;
+    }
+
     const orchestrator = new Orchestrator();
     if (options.legacyCommand === 'bootstrap') await orchestrator.bootstrap();
     if (options.legacyCommand === 'smoke') await orchestrator.runSmokeTests();
@@ -644,6 +712,7 @@ if (isCliEntryPoint(import.meta.url, process.argv)) {
 
 export {
   Orchestrator,
+  buildDoctorReport,
   buildPrompt,
   chooseModel,
   createRoutingPlan,
