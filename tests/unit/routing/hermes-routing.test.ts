@@ -1,6 +1,7 @@
 import { describe, expect, test } from 'vitest';
 
 import {
+  assertFinancialGate,
   buildPrompt,
   chooseModel,
   createWorkflowPlan,
@@ -841,5 +842,43 @@ describe('Hermes routing helpers', () => {
     );
 
     expect(code).toBe(0);
+  });
+
+  describe('assertFinancialGate', () => {
+    test('passes a financial production plan whose gate is npm run calc-gate', () => {
+      expect(() =>
+        assertFinancialGate({ phase: 'production', risk: 'financial', gate: 'npm run calc-gate' })
+      ).not.toThrow();
+    });
+
+    test('throws when a financial production plan resolves to any other gate', () => {
+      expect(() =>
+        assertFinancialGate({ phase: 'production', risk: 'financial', gate: 'npm run check' })
+      ).toThrow(/npm run calc-gate/);
+    });
+
+    test('is a no-op for a non-financial production plan regardless of gate', () => {
+      expect(() =>
+        assertFinancialGate({ phase: 'production', risk: 'standard', gate: 'npm run check' })
+      ).not.toThrow();
+    });
+
+    test('is a no-op for a financial-risk plan outside the production phase', () => {
+      expect(() =>
+        assertFinancialGate({ phase: 'research', risk: 'financial', gate: 'npm run doctor:quick' })
+      ).not.toThrow();
+    });
+
+    test('is a no-op for a real non-financial production plan from createRoutingPlan', () => {
+      const plan = createRoutingPlan({
+        phase: 'production',
+        task: 'update the readme copy for the dashboard',
+        routing,
+      });
+
+      expect(plan.risk).toBe('standard');
+      expect(plan.gate).toBe('npm run check');
+      expect(() => assertFinancialGate(plan)).not.toThrow();
+    });
   });
 });

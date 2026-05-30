@@ -576,6 +576,17 @@ function isProductionFinancial(plan) {
   return plan.phase === 'production' && plan.risk === 'financial';
 }
 
+function assertFinancialGate(plan) {
+  if (!isProductionFinancial(plan)) {
+    return;
+  }
+  if (plan.gate !== 'npm run calc-gate') {
+    throw new Error(
+      `Financial gate proof failed: production-financial plan must resolve gate to "npm run calc-gate", got "${plan.gate}".`
+    );
+  }
+}
+
 function shouldRunPostflightGate(plan, code, gates) {
   return gates.postflight && (code === 0 || isProductionFinancial(plan));
 }
@@ -863,6 +874,7 @@ if (isCliEntryPoint(import.meta.url, process.argv)) {
 
 export {
   Orchestrator,
+  assertFinancialGate,
   buildDoctorReport,
   buildPrompt,
   chooseModel,
