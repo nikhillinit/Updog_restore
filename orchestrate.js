@@ -9,6 +9,13 @@ const __filename = fileURLToPath(import.meta.url);
 const ROOT = dirname(__filename);
 const LEGACY_COMMANDS = new Set(['bootstrap', 'smoke', 'enable-algorithms', 'doctor']);
 const DOCTOR_PROVIDERS = ['claude', 'codex', 'kimi-cli', 'gemini', 'agy'];
+const WORKFLOW_MODES = new Set(['auto', 'solo', 'pair', 'chain', 'debate', 'review']);
+const MODEL_OVERRIDES = new Set(['claude', 'codex', 'kimi']);
+const WORKFLOW_DEFERRED_BEHAVIOR = [
+  'model execution',
+  'artifact handoff',
+  'review platform automation',
+];
 
 function normalizeEntrypointPath(value) {
   return String(value || '')
@@ -40,6 +47,8 @@ function parseArgs(argv = []) {
     help: false,
     skipPreflightGate: false,
     gateSkipReason: null,
+    workflow: 'auto',
+    workflowProvided: false,
     manualModel: null,
     legacyCommand: null,
   };
@@ -64,6 +73,25 @@ function parseArgs(argv = []) {
       options.skipPreflightGate = true;
     } else if (arg === '--skip-reason') {
       options.gateSkipReason = argv[index + 1] || '';
+      index += 1;
+    } else if (arg === '--workflow') {
+      const workflow = argv[index + 1] || '';
+      if (!WORKFLOW_MODES.has(workflow)) {
+        throw new Error(
+          `Unknown workflow "${workflow}". Expected one of: ${[...WORKFLOW_MODES].join(', ')}.`
+        );
+      }
+      options.workflow = workflow;
+      options.workflowProvided = true;
+      index += 1;
+    } else if (arg === '--model') {
+      const model = argv[index + 1] || '';
+      if (!MODEL_OVERRIDES.has(model)) {
+        throw new Error(
+          `Unknown model "${model}". Expected one of: ${[...MODEL_OVERRIDES].join(', ')}.`
+        );
+      }
+      options.manualModel = model;
       index += 1;
     } else if (arg === '--phase') {
       options.phase = argv[index + 1] || options.phase;
@@ -189,11 +217,104 @@ function resolveOwnership(phase, specialist, ownership = {}) {
   return { effectivePhase: effective, ...entry };
 }
 
+function recommendWorkflow({ phase, risk = 'standard' }) {
+  if (risk === 'financial') return 'pair';
+  if (phase === 'distribution') return 'review';
+  if (phase === 'research') return 'chain';
+  return 'solo';
+}
+
+function createWorkflowPlan({
+  requestedWorkflow = 'auto',
+  phase,
+  model,
+  specialist,
+  gate,
+  ownership = null,
+  risk = 'standard',
+}) {
+  if (!WORKFLOW_MODES.has(requestedWorkflow)) {
+    throw new Error(
+      `Unknown workflow "${requestedWorkflow}". Expected one of: ${[...WORKFLOW_MODES].join(', ')}.`
+    );
+  }
+
+  const selected =
+    requestedWorkflow === 'auto' ? recommendWorkflow({ phase, risk }) : requestedWorkflow;
+  const effectivePhase = ownership?.effectivePhase || phase;
+  const ownerModel = model || ownership?.owner;
+  const artifact = ownership?.artifact || 'artifact';
+  const steps = [];
+
+  if (selected !== 'review' && ownerModel) {
+    const role = ownership?.role ? ` ${ownership.role}` : '';
+    steps.push({
+      role: 'owner',
+      model: ownerModel,
+      action: `execute ${effectivePhase}${role} lane`,
+    });
+  }
+
+  if ((selected === 'chain' || (selected === 'pair' && risk === 'financial')) && specialist) {
+    steps.push({
+      role: 'specialist',
+      model: specialist.name || specialist,
+      action: 'review financial risk before completion',
+    });
+  }
+
+  if (
+    (selected === 'pair' || selected === 'chain' || selected === 'review') &&
+    ownership?.reviewer
+  ) {
+    steps.push({
+      role: 'reviewer',
+      model: ownership.reviewer,
+      action: `review ${artifact}`,
+    });
+  }
+
+  if ((selected === 'chain' || selected === 'debate' || selected === 'pair') && ownership?.audit) {
+    steps.push({
+      role: 'audit',
+      model: ownership.audit,
+      action:
+        risk === 'financial' ? 'audit financial readiness evidence' : 'audit workflow evidence',
+    });
+  }
+
+  if (selected === 'debate' && steps.length === 0 && ownerModel) {
+    steps.push({
+      role: 'owner',
+      model: ownerModel,
+      action: `compare ${effectivePhase} options`,
+    });
+  }
+
+  if (gate) {
+    steps.push({
+      role: 'gate',
+      model: null,
+      action: `run ${gate}`,
+    });
+  }
+
+  return {
+    requested: requestedWorkflow,
+    selected,
+    planningOnly: true,
+    gate,
+    deferred: WORKFLOW_DEFERRED_BEHAVIOR,
+    steps,
+  };
+}
+
 function createRoutingPlan({
   phase,
   task,
   routing,
   manualModel = null,
+  requestedWorkflow = null,
   skipPreflightGate = false,
   gateSkipReason = null,
 }) {
@@ -201,18 +322,31 @@ function createRoutingPlan({
   const model = chooseModel(task, phase, routing, manualModel);
   const gate = resolveGate(phase, specialist, routing.gates || {});
   const ownership = resolveOwnership(phase, specialist, routing.ownership || {});
+  const risk = specialist?.risk || 'standard';
 
   const plan = {
     phase,
     task,
     model,
     specialist: specialist?.name || null,
-    risk: specialist?.risk || 'standard',
+    risk,
     score: specialist?.score || 0,
     confidence: specialist?.confidence ?? 0,
     candidates: specialist?.candidates || [],
     gate,
   };
+
+  if (requestedWorkflow) {
+    plan.workflow = createWorkflowPlan({
+      requestedWorkflow,
+      phase,
+      model,
+      specialist,
+      gate,
+      ownership,
+      risk,
+    });
+  }
 
   if (ownership) {
     plan.ownership = ownership;
@@ -451,6 +585,7 @@ function printHelp(stdout = process.stdout) {
   node orchestrate.js --phase <research|production|distribution> --task "<description>"
   node orchestrate.js --json --phase production --task "fix xirr calculation"
   node orchestrate.js --dry-run --phase research --task "trace reserve engine flow"
+  node orchestrate.js --dry-run --workflow pair --model codex --phase production --task "implement feature"
   node orchestrate.js --phase production --task "repair calc gate" --skip-preflight-gate --skip-reason "<reason>"
 
 Phases:
@@ -461,11 +596,16 @@ Phases:
 
 Model overrides:
   --claude | --codex | --kimi
+  --model <claude|codex|kimi>
 
 Output:
   --dry-run       Print the routing plan and prompt without model execution.
   --json          Print routing plan JSON only.
   --help, -h      Show this help.
+
+Workflow planning:
+  --workflow <auto|solo|pair|chain|debate|review>
+                 Add a planning-only workflow recommendation to dry-run output.
 
 Gate controls:
   --skip-preflight-gate --skip-reason "<reason>"
@@ -485,9 +625,15 @@ class Orchestrator {
     this.soul = soul;
   }
 
-  plan({ phase = 'research', task, manualModel = null, routing = this.routing }) {
+  plan({
+    phase = 'research',
+    task,
+    manualModel = null,
+    requestedWorkflow = 'auto',
+    routing = this.routing,
+  }) {
     if (!routing) throw new Error('Routing config is required to build a Hermes plan');
-    return createRoutingPlan({ phase, task, routing, manualModel });
+    return createRoutingPlan({ phase, task, routing, manualModel, requestedWorkflow });
   }
 
   execute({
@@ -597,6 +743,10 @@ async function main(argv = process.argv.slice(2), env = process.env, io = proces
     throw new Error('--task is required. Use --help for usage.');
   }
 
+  if (options.workflowProvided && !options.dryRun && !options.json) {
+    throw new Error('--workflow is planning-only; use --dry-run or --json.');
+  }
+
   const routingPath =
     env.HERMES_MODEL_ROUTING_FILE || join(ROOT, '.claude', 'hermes', 'model-routing.json');
   const brainPath = env.HERMES_DEV_BRAIN_FILE || join(ROOT, 'DEV_BRAIN.md');
@@ -610,6 +760,7 @@ async function main(argv = process.argv.slice(2), env = process.env, io = proces
     task: options.task,
     routing,
     manualModel: options.manualModel,
+    requestedWorkflow: options.workflowProvided ? options.workflow : null,
     skipPreflightGate: options.skipPreflightGate,
     gateSkipReason: options.gateSkipReason,
   });
@@ -715,6 +866,7 @@ export {
   buildDoctorReport,
   buildPrompt,
   chooseModel,
+  createWorkflowPlan,
   createRoutingPlan,
   generateRunId,
   getGateRunPlan,
@@ -722,6 +874,7 @@ export {
   isProductionFinancial,
   main,
   parseArgs,
+  recommendWorkflow,
   resolveEffectivePhase,
   resolveGate,
   resolveOwnership,

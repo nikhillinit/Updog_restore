@@ -3,12 +3,14 @@ import { describe, expect, test } from 'vitest';
 import {
   buildPrompt,
   chooseModel,
+  createWorkflowPlan,
   createRoutingPlan,
   generateRunId,
   getGateRunPlan,
   isCliEntryPoint,
   main,
   parseArgs,
+  recommendWorkflow,
   resolveEffectivePhase,
   resolveGate,
   resolveOwnership,
@@ -141,6 +143,84 @@ describe('Hermes routing helpers', () => {
     expect(args.gateSkipReason).toBe('repairing calc-gate');
   });
 
+  test('parseArgs recognizes dry-run workflow planning options', () => {
+    const args = parseArgs([
+      '--dry-run',
+      '--phase',
+      'production',
+      '--task',
+      'implement workflow planning',
+      '--workflow',
+      'pair',
+      '--model',
+      'codex',
+    ]);
+
+    expect(args.workflow).toBe('pair');
+    expect(args.workflowProvided).toBe(true);
+    expect(args.manualModel).toBe('codex');
+  });
+
+  test('parseArgs rejects unknown workflow planning modes', () => {
+    expect(() =>
+      parseArgs(['--dry-run', '--task', 'implement workflow planning', '--workflow', 'swarm'])
+    ).toThrow('Unknown workflow');
+  });
+
+  test('main rejects workflow planning modes outside dry-run or json before model execution', async () => {
+    let modelCalls = 0;
+
+    await expect(
+      main(
+        ['--phase', 'production', '--task', 'implement workflow planning', '--workflow', 'pair'],
+        process.env,
+        {
+          stdout: { write: () => undefined },
+          stderr: { write: () => undefined },
+        },
+        {
+          routing,
+          brain: 'DEV_BRAIN',
+          soul: 'SOUL',
+          executeModel: async () => {
+            modelCalls += 1;
+            return 0;
+          },
+          writeRunLedger: null,
+        }
+      )
+    ).rejects.toThrow('--workflow is planning-only');
+
+    expect(modelCalls).toBe(0);
+  });
+
+  test('main rejects explicit auto workflow outside dry-run or json before model execution', async () => {
+    let modelCalls = 0;
+
+    await expect(
+      main(
+        ['--phase', 'production', '--task', 'implement workflow planning', '--workflow', 'auto'],
+        process.env,
+        {
+          stdout: { write: () => undefined },
+          stderr: { write: () => undefined },
+        },
+        {
+          routing,
+          brain: 'DEV_BRAIN',
+          soul: 'SOUL',
+          executeModel: async () => {
+            modelCalls += 1;
+            return 0;
+          },
+          writeRunLedger: null,
+        }
+      )
+    ).rejects.toThrow('--workflow is planning-only');
+
+    expect(modelCalls).toBe(0);
+  });
+
   test('xirr production work routes to financial specialist and calc gate', () => {
     const specialist = scoreSpecialist(
       'fix xirr calculation with management fees',
@@ -192,6 +272,7 @@ describe('Hermes routing helpers', () => {
       task: 'fix xirr calculation with management fees',
       routing,
       manualModel: null,
+      requestedWorkflow: 'auto',
     });
 
     expect(plan.phase).toBe('production');
@@ -215,6 +296,61 @@ describe('Hermes routing helpers', () => {
       role: 'worker-executor',
       humanApproval: true,
     });
+    expect(plan.workflow).toMatchObject({
+      requested: 'auto',
+      selected: 'pair',
+      planningOnly: true,
+      gate: 'npm run calc-gate',
+    });
+    expect(plan.workflow.steps).toEqual([
+      {
+        role: 'owner',
+        model: 'codex',
+        action: 'execute production-financial worker-executor lane',
+      },
+      {
+        role: 'specialist',
+        model: 'xirr-fees-validator',
+        action: 'review financial risk before completion',
+      },
+      {
+        role: 'reviewer',
+        model: 'claude',
+        action: 'review diff plus truth-case notes',
+      },
+      {
+        role: 'audit',
+        model: 'kimi',
+        action: 'audit financial readiness evidence',
+      },
+      {
+        role: 'gate',
+        model: null,
+        action: 'run npm run calc-gate',
+      },
+    ]);
+  });
+
+  test('recommendWorkflow routes long-context research through a planned chain lane', () => {
+    const plan = createRoutingPlan({
+      phase: 'research',
+      task: 'full repo audit for agent routing',
+      routing,
+      manualModel: null,
+      requestedWorkflow: 'auto',
+    });
+
+    expect(plan.model).toBe('kimi');
+    expect(plan.workflow).toMatchObject({
+      requested: 'auto',
+      selected: 'chain',
+      planningOnly: true,
+    });
+    expect(plan.workflow.steps[0]).toMatchObject({
+      role: 'owner',
+      model: 'kimi',
+      action: 'execute research leader-coordinator lane',
+    });
   });
 
   test('createRoutingPlan returns empty candidates when no specialist matches', () => {
@@ -223,6 +359,7 @@ describe('Hermes routing helpers', () => {
       task: 'prepare distribution summary for PR',
       routing,
       manualModel: null,
+      requestedWorkflow: 'auto',
     });
 
     expect(plan.specialist).toBeNull();
@@ -233,6 +370,88 @@ describe('Hermes routing helpers', () => {
       owner: 'claude',
       role: 'release-manager',
     });
+    expect(plan.workflow).toMatchObject({
+      requested: 'auto',
+      selected: 'review',
+      planningOnly: true,
+    });
+  });
+
+  test('createRoutingPlan omits the workflow key when no workflow is requested', () => {
+    const plan = createRoutingPlan({
+      phase: 'production',
+      task: 'add a dashboard button',
+      routing,
+      manualModel: null,
+    });
+
+    expect('workflow' in plan).toBe(false);
+  });
+
+  test('recommendWorkflow keeps non-financial production on a planned solo lane', () => {
+    const plan = createRoutingPlan({
+      phase: 'production',
+      task: 'add dry-run workflow plan to Hermes output',
+      routing,
+      manualModel: null,
+      requestedWorkflow: 'auto',
+    });
+
+    expect(recommendWorkflow({ phase: plan.phase, risk: plan.risk })).toBe('solo');
+    expect(plan.workflow).toMatchObject({
+      requested: 'auto',
+      selected: 'solo',
+      planningOnly: true,
+      deferred: ['model execution', 'artifact handoff', 'review platform automation'],
+    });
+    expect(plan.workflow.steps).toEqual([
+      {
+        role: 'owner',
+        model: 'codex',
+        action: 'execute production worker-executor lane',
+      },
+      {
+        role: 'gate',
+        model: null,
+        action: 'run npm run check',
+      },
+    ]);
+  });
+
+  test('createWorkflowPlan honors manual workflow overrides without adding execution behavior', () => {
+    const workflow = createWorkflowPlan({
+      requestedWorkflow: 'solo',
+      phase: 'production',
+      model: 'codex',
+      specialist: null,
+      gate: 'npm run check',
+      ownership: {
+        effectivePhase: 'production',
+        owner: 'codex',
+        reviewer: 'claude',
+        role: 'worker-executor',
+        artifact: 'diff plus tests',
+      },
+      risk: 'standard',
+    });
+
+    expect(workflow).toMatchObject({
+      requested: 'solo',
+      selected: 'solo',
+      planningOnly: true,
+    });
+    expect(workflow.steps).toEqual([
+      {
+        role: 'owner',
+        model: 'codex',
+        action: 'execute production worker-executor lane',
+      },
+      {
+        role: 'gate',
+        model: null,
+        action: 'run npm run check',
+      },
+    ]);
   });
 
   test('resolveEffectivePhase promotes financial production work', () => {
