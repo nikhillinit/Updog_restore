@@ -7,7 +7,15 @@ import { fileURLToPath } from 'node:url';
 
 const __filename = fileURLToPath(import.meta.url);
 const ROOT = dirname(__filename);
-const LEGACY_COMMANDS = new Set(['bootstrap', 'smoke', 'enable-algorithms']);
+const LEGACY_COMMANDS = new Set(['bootstrap', 'smoke', 'enable-algorithms', 'doctor']);
+const DOCTOR_PROVIDERS = ['claude', 'codex', 'kimi-cli', 'gemini', 'agy'];
+const WORKFLOW_MODES = new Set(['auto', 'solo', 'pair', 'chain', 'debate', 'review']);
+const MODEL_OVERRIDES = new Set(['claude', 'codex', 'kimi']);
+const WORKFLOW_DEFERRED_BEHAVIOR = [
+  'model execution',
+  'artifact handoff',
+  'review platform automation',
+];
 
 function normalizeEntrypointPath(value) {
   return String(value || '')
@@ -39,6 +47,8 @@ function parseArgs(argv = []) {
     help: false,
     skipPreflightGate: false,
     gateSkipReason: null,
+    workflow: 'auto',
+    workflowProvided: false,
     manualModel: null,
     legacyCommand: null,
   };
@@ -63,6 +73,25 @@ function parseArgs(argv = []) {
       options.skipPreflightGate = true;
     } else if (arg === '--skip-reason') {
       options.gateSkipReason = argv[index + 1] || '';
+      index += 1;
+    } else if (arg === '--workflow') {
+      const workflow = argv[index + 1] || '';
+      if (!WORKFLOW_MODES.has(workflow)) {
+        throw new Error(
+          `Unknown workflow "${workflow}". Expected one of: ${[...WORKFLOW_MODES].join(', ')}.`
+        );
+      }
+      options.workflow = workflow;
+      options.workflowProvided = true;
+      index += 1;
+    } else if (arg === '--model') {
+      const model = argv[index + 1] || '';
+      if (!MODEL_OVERRIDES.has(model)) {
+        throw new Error(
+          `Unknown model "${model}". Expected one of: ${[...MODEL_OVERRIDES].join(', ')}.`
+        );
+      }
+      options.manualModel = model;
       index += 1;
     } else if (arg === '--phase') {
       options.phase = argv[index + 1] || options.phase;
@@ -188,11 +217,104 @@ function resolveOwnership(phase, specialist, ownership = {}) {
   return { effectivePhase: effective, ...entry };
 }
 
+function recommendWorkflow({ phase, risk = 'standard' }) {
+  if (risk === 'financial') return 'pair';
+  if (phase === 'distribution') return 'review';
+  if (phase === 'research') return 'chain';
+  return 'solo';
+}
+
+function createWorkflowPlan({
+  requestedWorkflow = 'auto',
+  phase,
+  model,
+  specialist,
+  gate,
+  ownership = null,
+  risk = 'standard',
+}) {
+  if (!WORKFLOW_MODES.has(requestedWorkflow)) {
+    throw new Error(
+      `Unknown workflow "${requestedWorkflow}". Expected one of: ${[...WORKFLOW_MODES].join(', ')}.`
+    );
+  }
+
+  const selected =
+    requestedWorkflow === 'auto' ? recommendWorkflow({ phase, risk }) : requestedWorkflow;
+  const effectivePhase = ownership?.effectivePhase || phase;
+  const ownerModel = model || ownership?.owner;
+  const artifact = ownership?.artifact || 'artifact';
+  const steps = [];
+
+  if (selected !== 'review' && ownerModel) {
+    const role = ownership?.role ? ` ${ownership.role}` : '';
+    steps.push({
+      role: 'owner',
+      model: ownerModel,
+      action: `execute ${effectivePhase}${role} lane`,
+    });
+  }
+
+  if ((selected === 'chain' || (selected === 'pair' && risk === 'financial')) && specialist) {
+    steps.push({
+      role: 'specialist',
+      model: specialist.name || specialist,
+      action: 'review financial risk before completion',
+    });
+  }
+
+  if (
+    (selected === 'pair' || selected === 'chain' || selected === 'review') &&
+    ownership?.reviewer
+  ) {
+    steps.push({
+      role: 'reviewer',
+      model: ownership.reviewer,
+      action: `review ${artifact}`,
+    });
+  }
+
+  if ((selected === 'chain' || selected === 'debate' || selected === 'pair') && ownership?.audit) {
+    steps.push({
+      role: 'audit',
+      model: ownership.audit,
+      action:
+        risk === 'financial' ? 'audit financial readiness evidence' : 'audit workflow evidence',
+    });
+  }
+
+  if (selected === 'debate' && steps.length === 0 && ownerModel) {
+    steps.push({
+      role: 'owner',
+      model: ownerModel,
+      action: `compare ${effectivePhase} options`,
+    });
+  }
+
+  if (gate) {
+    steps.push({
+      role: 'gate',
+      model: null,
+      action: `run ${gate}`,
+    });
+  }
+
+  return {
+    requested: requestedWorkflow,
+    selected,
+    planningOnly: true,
+    gate,
+    deferred: WORKFLOW_DEFERRED_BEHAVIOR,
+    steps,
+  };
+}
+
 function createRoutingPlan({
   phase,
   task,
   routing,
   manualModel = null,
+  requestedWorkflow = null,
   skipPreflightGate = false,
   gateSkipReason = null,
 }) {
@@ -200,18 +322,31 @@ function createRoutingPlan({
   const model = chooseModel(task, phase, routing, manualModel);
   const gate = resolveGate(phase, specialist, routing.gates || {});
   const ownership = resolveOwnership(phase, specialist, routing.ownership || {});
+  const risk = specialist?.risk || 'standard';
 
   const plan = {
     phase,
     task,
     model,
     specialist: specialist?.name || null,
-    risk: specialist?.risk || 'standard',
+    risk,
     score: specialist?.score || 0,
     confidence: specialist?.confidence ?? 0,
     candidates: specialist?.candidates || [],
     gate,
   };
+
+  if (requestedWorkflow) {
+    plan.workflow = createWorkflowPlan({
+      requestedWorkflow,
+      phase,
+      model,
+      specialist,
+      gate,
+      ownership,
+      risk,
+    });
+  }
 
   if (ownership) {
     plan.ownership = ownership;
@@ -308,6 +443,59 @@ function commandExists(bin) {
   return result.status === 0;
 }
 
+function findDoctorCommandConfig(routing, provider) {
+  const commands = routing.commands || {};
+  if (commands[provider]) return commands[provider];
+  return Object.values(commands).find((config) => config?.defaultBin === provider) || null;
+}
+
+function buildDoctorReport({
+  routing,
+  env = process.env,
+  providers = DOCTOR_PROVIDERS,
+  commandExists: checkCommandExists = commandExists,
+}) {
+  return providers.map((provider) => {
+    const commandConfig = findDoctorCommandConfig(routing, provider);
+    const envName = commandConfig?.binEnv;
+    const envBin = envName ? env[envName] : null;
+    const bin = envBin || commandConfig?.defaultBin || provider;
+    const source = envBin ? `env:${envName}` : 'default';
+
+    return {
+      provider,
+      bin,
+      source,
+      found: checkCommandExists(bin),
+    };
+  });
+}
+
+function formatDoctorReport(report) {
+  const rows = [
+    ['Provider', 'Binary', 'Source', 'Status'],
+    ...report.map(({ provider, bin, source, found }) => [
+      provider,
+      bin,
+      source,
+      found ? 'found' : 'missing',
+    ]),
+  ];
+  const widths = rows[0].map((_, index) =>
+    Math.max(...rows.map((row) => String(row[index]).length))
+  );
+  const formatRow = (row) =>
+    row.map((value, index) => String(value).padEnd(widths[index])).join('  ');
+  const divider = widths.map((width) => '-'.repeat(width)).join('  ');
+
+  return [formatRow(rows[0]), divider, ...rows.slice(1).map(formatRow)].join('\n');
+}
+
+function printDoctorReport(report, stdout = process.stdout) {
+  stdout.write('Hermes CLI doctor\n');
+  stdout.write(`${formatDoctorReport(report)}\n`);
+}
+
 function executeModel(model, prompt, routing, env = process.env) {
   const commandConfig = routing.commands?.[model];
   if (!commandConfig) {
@@ -388,6 +576,17 @@ function isProductionFinancial(plan) {
   return plan.phase === 'production' && plan.risk === 'financial';
 }
 
+function assertFinancialGate(plan) {
+  if (!isProductionFinancial(plan)) {
+    return;
+  }
+  if (plan.gate !== 'npm run calc-gate') {
+    throw new Error(
+      `Financial gate proof failed: production-financial plan must resolve gate to "npm run calc-gate", got "${plan.gate}".`
+    );
+  }
+}
+
 function shouldRunPostflightGate(plan, code, gates) {
   return gates.postflight && (code === 0 || isProductionFinancial(plan));
 }
@@ -397,6 +596,7 @@ function printHelp(stdout = process.stdout) {
   node orchestrate.js --phase <research|production|distribution> --task "<description>"
   node orchestrate.js --json --phase production --task "fix xirr calculation"
   node orchestrate.js --dry-run --phase research --task "trace reserve engine flow"
+  node orchestrate.js --dry-run --workflow pair --model codex --phase production --task "implement feature"
   node orchestrate.js --phase production --task "repair calc gate" --skip-preflight-gate --skip-reason "<reason>"
 
 Phases:
@@ -407,11 +607,16 @@ Phases:
 
 Model overrides:
   --claude | --codex | --kimi
+  --model <claude|codex|kimi>
 
 Output:
   --dry-run       Print the routing plan and prompt without model execution.
   --json          Print routing plan JSON only.
   --help, -h      Show this help.
+
+Workflow planning:
+  --workflow <auto|solo|pair|chain|debate|review>
+                 Add a planning-only workflow recommendation to dry-run output.
 
 Gate controls:
   --skip-preflight-gate --skip-reason "<reason>"
@@ -419,7 +624,7 @@ Gate controls:
                  Legacy --skip-gates is rejected.
 
 Legacy commands:
-  bootstrap | smoke | enable-algorithms
+  bootstrap | smoke | enable-algorithms | doctor
 `);
 }
 
@@ -431,9 +636,15 @@ class Orchestrator {
     this.soul = soul;
   }
 
-  plan({ phase = 'research', task, manualModel = null, routing = this.routing }) {
+  plan({
+    phase = 'research',
+    task,
+    manualModel = null,
+    requestedWorkflow = 'auto',
+    routing = this.routing,
+  }) {
     if (!routing) throw new Error('Routing config is required to build a Hermes plan');
-    return createRoutingPlan({ phase, task, routing, manualModel });
+    return createRoutingPlan({ phase, task, routing, manualModel, requestedWorkflow });
   }
 
   execute({
@@ -518,6 +729,20 @@ async function main(argv = process.argv.slice(2), env = process.env, io = proces
   }
 
   if (options.legacyCommand) {
+    if (options.legacyCommand === 'doctor') {
+      const routingPath =
+        env.HERMES_MODEL_ROUTING_FILE || join(ROOT, '.claude', 'hermes', 'model-routing.json');
+      const routing = deps.routing || loadJSON(routingPath);
+      const report = buildDoctorReport({
+        routing,
+        env,
+        providers: DOCTOR_PROVIDERS,
+        commandExists: deps.commandExists || commandExists,
+      });
+      printDoctorReport(report, io.stdout);
+      return 0;
+    }
+
     const orchestrator = new Orchestrator();
     if (options.legacyCommand === 'bootstrap') await orchestrator.bootstrap();
     if (options.legacyCommand === 'smoke') await orchestrator.runSmokeTests();
@@ -527,6 +752,10 @@ async function main(argv = process.argv.slice(2), env = process.env, io = proces
 
   if (!options.task) {
     throw new Error('--task is required. Use --help for usage.');
+  }
+
+  if (options.workflowProvided && !options.dryRun && !options.json) {
+    throw new Error('--workflow is planning-only; use --dry-run or --json.');
   }
 
   const routingPath =
@@ -542,6 +771,7 @@ async function main(argv = process.argv.slice(2), env = process.env, io = proces
     task: options.task,
     routing,
     manualModel: options.manualModel,
+    requestedWorkflow: options.workflowProvided ? options.workflow : null,
     skipPreflightGate: options.skipPreflightGate,
     gateSkipReason: options.gateSkipReason,
   });
@@ -644,8 +874,11 @@ if (isCliEntryPoint(import.meta.url, process.argv)) {
 
 export {
   Orchestrator,
+  assertFinancialGate,
+  buildDoctorReport,
   buildPrompt,
   chooseModel,
+  createWorkflowPlan,
   createRoutingPlan,
   generateRunId,
   getGateRunPlan,
@@ -653,6 +886,7 @@ export {
   isProductionFinancial,
   main,
   parseArgs,
+  recommendWorkflow,
   resolveEffectivePhase,
   resolveGate,
   resolveOwnership,
