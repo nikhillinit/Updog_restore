@@ -152,7 +152,7 @@
     "gemini": {
       "binEnv": "GEMINI_BIN",
       "defaultBin": "gemini",
-      "args": ["--output-format", "text", "--yolo", "--prompt", ""]
+      "args": ["--output-format", "text", "--yolo", "--prompt="]
     },
     "agy": {
       "binEnv": "AGY_BIN",
