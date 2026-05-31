@@ -40,4 +40,25 @@ describe('Hermes doctor report', () => {
       { provider: 'agy', bin: 'agy', source: 'default', found: false },
     ]);
   });
+
+  test('resolves gemini and agy bins from configured commands and env overrides', () => {
+    const routing = {
+      commands: {
+        gemini: { binEnv: 'GEMINI_BIN', defaultBin: 'gemini' },
+        agy: { binEnv: 'AGY_BIN', defaultBin: 'agy' },
+      },
+    };
+
+    const report = buildDoctorReport({
+      routing,
+      env: { GEMINI_BIN: 'gemini-local' },
+      providers: ['gemini', 'agy'],
+      commandExists: (bin: string) => bin === 'gemini-local',
+    });
+
+    expect(report).toEqual([
+      { provider: 'gemini', bin: 'gemini-local', source: 'env:GEMINI_BIN', found: true },
+      { provider: 'agy', bin: 'agy', source: 'default', found: false },
+    ]);
+  });
 });
