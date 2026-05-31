@@ -6,6 +6,7 @@ import {
   chooseModel,
   createWorkflowPlan,
   createRoutingPlan,
+  evaluateReadiness,
   executeWorkflow,
   generateRunId,
   getGateRunPlan,
@@ -454,6 +455,51 @@ describe('Hermes routing helpers', () => {
         action: 'run npm run check',
       },
     ]);
+  });
+
+  test('createWorkflowPlan builds debate comparators and synthesis from routing config', () => {
+    const workflow = createWorkflowPlan({
+      requestedWorkflow: 'debate',
+      phase: 'production',
+      model: 'codex',
+      specialist: null,
+      gate: 'npm run check',
+      ownership: { effectivePhase: 'production', owner: 'codex', reviewer: 'claude' },
+      risk: 'standard',
+      debate: { comparators: ['claude', 'codex', 'kimi'], synthesis: 'claude' },
+    });
+
+    expect(workflow.selected).toBe('debate');
+    expect(workflow.steps.map((step) => step.role)).toEqual([
+      'comparator',
+      'comparator',
+      'comparator',
+      'synthesis',
+      'gate',
+    ]);
+    expect(
+      workflow.steps.filter((step) => step.role === 'comparator').map((step) => step.model)
+    ).toEqual(['claude', 'codex', 'kimi']);
+    const synthesis = workflow.steps.find((step) => step.role === 'synthesis');
+    expect(synthesis?.model).toBe('claude');
+    expect(workflow.steps.some((step) => step.role === 'owner')).toBe(false);
+  });
+
+  test('createWorkflowPlan falls back to the default debate roster when none is provided', () => {
+    const workflow = createWorkflowPlan({
+      requestedWorkflow: 'debate',
+      phase: 'production',
+      model: 'codex',
+      specialist: null,
+      gate: 'npm run check',
+      ownership: { effectivePhase: 'production', owner: 'codex', reviewer: 'claude' },
+      risk: 'standard',
+    });
+
+    expect(
+      workflow.steps.filter((step) => step.role === 'comparator').map((step) => step.model)
+    ).toEqual(['claude', 'codex', 'kimi']);
+    expect(workflow.steps.find((step) => step.role === 'synthesis')?.model).toBe('claude');
   });
 
   test('resolveEffectivePhase promotes financial production work', () => {
@@ -1172,6 +1218,164 @@ describe('Hermes routing helpers', () => {
         'owner',
         'reviewer',
       ]);
+    });
+
+    const debatePlan = {
+      phase: 'production',
+      risk: 'standard',
+      gate: 'npm run check',
+      workflow: {
+        selected: 'debate',
+        steps: [
+          { role: 'comparator', model: 'claude', action: 'compare production options' },
+          { role: 'comparator', model: 'codex', action: 'compare production options' },
+          { role: 'comparator', model: 'kimi', action: 'compare production options' },
+          {
+            role: 'synthesis',
+            model: 'claude',
+            action: 'synthesize production options into diff plus tests',
+          },
+          { role: 'gate', model: null, action: 'run npm run check' },
+        ],
+      },
+    };
+
+    const chainPlan = {
+      phase: 'research',
+      risk: 'standard',
+      gate: 'npm run doctor:quick',
+      workflow: {
+        selected: 'chain',
+        steps: [
+          { role: 'owner', model: 'claude', action: 'execute research leader-coordinator lane' },
+          { role: 'reviewer', model: 'kimi', action: 'review implementation brief' },
+          { role: 'gate', model: null, action: 'run npm run doctor:quick' },
+        ],
+      },
+    };
+
+    // NOTE: the synthesis step receives an ARRAY of comparator outputs as `input`,
+    // unlike every other role which receives a string or null. This test therefore
+    // uses its own inline runStep typed `input: unknown`. Do NOT reuse makeRunner
+    // here and do NOT "fix" the array-vs-string type difference; it is intentional.
+    test('runs every comparator then synthesis for a debate workflow', async () => {
+      const calls: Array<{ role: string; model: string | null; input: unknown }> = [];
+      const runStep = async ({
+        step,
+        input,
+      }: {
+        step: { role: string; model: string | null };
+        input: unknown;
+      }) => {
+        calls.push({ role: step.role, model: step.model, input });
+        return { code: 0, output: `${step.model}-option`, approved: undefined };
+      };
+
+      const record = await executeWorkflow(debatePlan, {
+        runStep,
+        gateRunner: () => ({ status: 0 }),
+        writeRunLedger: null,
+      });
+
+      expect(record.workflow).toBe('debate');
+      expect(record.exitCode).toBe(0);
+      expect(record.approved).toBe(true);
+      expect(calls.map((call) => call.role)).toEqual([
+        'comparator',
+        'comparator',
+        'comparator',
+        'synthesis',
+      ]);
+      const synthesisCall = calls.find((call) => call.role === 'synthesis');
+      expect(synthesisCall?.input).toEqual(['claude-option', 'codex-option', 'kimi-option']);
+    });
+
+    test('reports a debate comparator failure even when the gate passes', async () => {
+      const runStep = async ({
+        step,
+      }: {
+        step: { role: string; model: string | null };
+        input: unknown;
+      }) => {
+        return {
+          code: step.role === 'comparator' && step.model === 'codex' ? 7 : 0,
+          output: `${step.model}-option`,
+          approved: undefined,
+        };
+      };
+
+      const record = await executeWorkflow(debatePlan, {
+        runStep,
+        gateRunner: () => ({ status: 0 }),
+        writeRunLedger: null,
+      });
+
+      expect(record.exitCode).toBe(7);
+      expect(record.steps.find((step) => step.model === 'codex')?.code).toBe(7);
+      expect(evaluateReadiness(debatePlan, record)).toEqual({
+        ready: false,
+        reason: 'workflow exited with code 7',
+      });
+    });
+
+    test('executes a research chain through the generic engine', async () => {
+      const { runStep, calls } = makeRunner({
+        owner: { output: 'brief' },
+        reviewer: { approved: true },
+      });
+
+      const record = await executeWorkflow(chainPlan, {
+        runStep,
+        gateRunner: () => ({ status: 0 }),
+        writeRunLedger: null,
+      });
+
+      expect(record.workflow).toBe('chain');
+      expect(record.exitCode).toBe(0);
+      expect(record.approved).toBe(true);
+      expect(calls.map((call) => call.role)).toEqual(['owner', 'reviewer']);
+      expect(calls[1].input).toBe('brief');
+    });
+
+    describe('evaluateReadiness', () => {
+      test('is ready for a financial plan that resolves the correct gate', () => {
+        expect(
+          evaluateReadiness({ phase: 'production', risk: 'financial', gate: 'npm run calc-gate' })
+        ).toEqual({ ready: true, reason: null });
+      });
+
+      test('blocks a financial plan whose gate is not the calc gate', () => {
+        const verdict = evaluateReadiness({
+          phase: 'production',
+          risk: 'financial',
+          gate: 'npm run check',
+        });
+        expect(verdict.ready).toBe(false);
+        expect(verdict.reason).toContain('npm run calc-gate');
+      });
+
+      test('is ready for a non-financial plan', () => {
+        expect(
+          evaluateReadiness({ phase: 'production', risk: 'standard', gate: 'npm run check' }).ready
+        ).toBe(true);
+      });
+
+      test('blocks when the execution result has a nonzero exit code', () => {
+        const verdict = evaluateReadiness(
+          { phase: 'production', risk: 'standard', gate: 'npm run check' },
+          { exitCode: 2, approved: true }
+        );
+        expect(verdict.ready).toBe(false);
+        expect(verdict.reason).toContain('2');
+      });
+
+      test('blocks when the reviewer did not approve', () => {
+        const verdict = evaluateReadiness(
+          { phase: 'production', risk: 'standard', gate: 'npm run check' },
+          { exitCode: 0, approved: false }
+        );
+        expect(verdict.ready).toBe(false);
+      });
     });
   });
 });
