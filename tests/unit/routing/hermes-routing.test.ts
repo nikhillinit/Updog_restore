@@ -241,6 +241,84 @@ describe('Hermes routing helpers', () => {
     expect(roles).toContain('reviewer');
   });
 
+  test('main aborts a live workflow when the preflight gate fails, before any model runs', async () => {
+    const roles: string[] = [];
+    const gateCalls: string[] = [];
+
+    const code = await main(
+      ['--phase', 'production', '--task', 'ship the change', '--workflow', 'pair', '--live'],
+      process.env,
+      {
+        stdout: { write: () => undefined },
+        stderr: { write: () => undefined },
+      },
+      {
+        routing,
+        brain: 'DEV_BRAIN',
+        soul: 'SOUL',
+        gateRunner: (bin: string, args: string[]) => {
+          gateCalls.push([bin, ...args].join(' '));
+          return { status: 2 };
+        },
+        writeRunLedger: null,
+        runStep: async ({ step }: { step: { role: string } }) => {
+          roles.push(step.role);
+          return { code: 0, output: `${step.role}-output`, approved: step.role === 'reviewer' };
+        },
+      }
+    );
+
+    expect(code).toBe(2);
+    // Gate ran exactly once (preflight) and no model steps were spawned.
+    expect(gateCalls).toEqual(['npm run check']);
+    expect(roles).toEqual([]);
+  });
+
+  test('main skips the live preflight gate when --skip-preflight-gate is set', async () => {
+    const roles: string[] = [];
+    const gateCalls: string[] = [];
+
+    const code = await main(
+      [
+        '--phase',
+        'production',
+        '--task',
+        'ship the change',
+        '--workflow',
+        'pair',
+        '--live',
+        '--skip-preflight-gate',
+        '--skip-reason',
+        'iterating on the gate itself',
+      ],
+      process.env,
+      {
+        stdout: { write: () => undefined },
+        stderr: { write: () => undefined },
+      },
+      {
+        routing,
+        brain: 'DEV_BRAIN',
+        soul: 'SOUL',
+        gateRunner: (bin: string, args: string[]) => {
+          gateCalls.push([bin, ...args].join(' '));
+          return { status: 0 };
+        },
+        writeRunLedger: null,
+        runStep: async ({ step }: { step: { role: string } }) => {
+          roles.push(step.role);
+          return { code: 0, output: `${step.role}-output`, approved: step.role === 'reviewer' };
+        },
+      }
+    );
+
+    expect(code).toBe(0);
+    // Preflight skipped; only the postflight gate inside executeWorkflow runs.
+    expect(gateCalls).toEqual(['npm run check']);
+    expect(roles).toContain('owner');
+    expect(roles).toContain('reviewer');
+  });
+
   test('parseArgs rejects the broad gate skip flag', () => {
     expect(() => parseArgs(['--task', 'fix gate', '--skip-gates'])).toThrow(
       'Use --skip-preflight-gate'
@@ -1331,6 +1409,45 @@ describe('Hermes routing helpers', () => {
       ).rejects.toThrow('npm run calc-gate');
 
       expect(gateRan).toBe(false);
+    });
+
+    test('propagates a failed owner step exit code even when the gate passes', async () => {
+      const { runStep } = makeRunner({
+        owner: { code: 3, output: 'owner-crashed' },
+        reviewer: { approved: true },
+      });
+
+      const record = await executeWorkflow(pairPlan, {
+        runStep,
+        gateRunner: () => ({ status: 0 }),
+        writeRunLedger: null,
+      });
+
+      expect(record.exitCode).toBe(3);
+      expect(record.gate.status).toBe(0);
+      expect(record.steps.find((step) => step.role === 'owner')?.code).toBe(3);
+      expect(evaluateReadiness(pairPlan, record)).toEqual({
+        ready: false,
+        reason: 'workflow exited with code 3',
+      });
+    });
+
+    test('propagates a failed audit step exit code in a financial pair', async () => {
+      const { runStep } = makeRunner({
+        owner: { output: 'owner-diff' },
+        specialist: { output: 'risk-reviewed' },
+        reviewer: { approved: true },
+        audit: { code: 5, output: 'audit-crashed' },
+      });
+
+      const record = await executeWorkflow(financialPairPlan, {
+        runStep,
+        gateRunner: () => ({ status: 0 }),
+        writeRunLedger: null,
+      });
+
+      expect(record.exitCode).toBe(5);
+      expect(record.steps.find((step) => step.role === 'audit')?.code).toBe(5);
     });
 
     test('persists a run ledger capturing steps, repairs, gate, and exit code', async () => {

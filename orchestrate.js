@@ -789,16 +789,15 @@ async function executeWorkflow(plan, deps = {}) {
 
   let specialistNotes = null;
   const records = [];
-  let debateStepFailureCode = 0;
+  // First nonzero exit from ANY model step (owner, specialist, reviewer, audit,
+  // comparator, synthesis). A crashed CLI must not be reported as success just
+  // because the postflight gate passes.
+  let stepFailureCode = 0;
   const runRecorded = async (step, input, attempt) => {
     const result = await runStep({ step, input, notes: specialistNotes, plan, attempt, runId });
     const code = result.code ?? 0;
-    if (
-      debateStepFailureCode === 0 &&
-      (step.role === 'comparator' || step.role === 'synthesis') &&
-      code !== 0
-    ) {
-      debateStepFailureCode = code;
+    if (stepFailureCode === 0 && code !== 0) {
+      stepFailureCode = code;
     }
     records.push({
       role: step.role,
@@ -864,8 +863,8 @@ async function executeWorkflow(plan, deps = {}) {
   let exitCode = 0;
   if (gate.status && gate.status !== 0) {
     exitCode = gate.status;
-  } else if (debateStepFailureCode !== 0) {
-    exitCode = debateStepFailureCode;
+  } else if (stepFailureCode !== 0) {
+    exitCode = stepFailureCode;
   } else if (reviewerStep && !approved) {
     exitCode = 1;
   }
@@ -1101,6 +1100,28 @@ async function main(argv = process.argv.slice(2), env = process.env, io = proces
   }
 
   if (options.workflowProvided && liveExecution && plan.workflow) {
+    // Preflight gate parity with the non-workflow path: a failing gate (e.g.
+    // npm run check) must abort BEFORE spawning the owner/reviewer CLIs, unless
+    // explicitly skipped. executeWorkflow only runs the gate postflight.
+    const gates = getGateRunPlan(plan, options);
+    if (gates.preflight) {
+      const preflight = runGate(plan.gate, {
+        env,
+        runner: gateRunner,
+        throwOnFailure: false,
+      });
+      if (preflight.status !== 0) {
+        io.stderr.write(
+          `[hermes] preflight gate "${plan.gate}" failed with exit code ${preflight.status}; aborting live workflow before model execution.\n`
+        );
+        return preflight.status;
+      }
+    } else if (plan.gate && options.skipPreflightGate) {
+      io.stderr.write(
+        `[hermes] WARNING: skipping preflight gate "${plan.gate}"; reason: ${options.gateSkipReason}\n`
+      );
+    }
+
     const runStep = deps.runStep || createLiveRunStep({ routing, basePrompt: prompt, env });
     const record = await executeWorkflow(plan, {
       runStep,
