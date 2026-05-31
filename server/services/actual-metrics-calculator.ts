@@ -16,7 +16,7 @@
 
 import { storage } from '../storage';
 import type { ActualMetrics } from '@shared/types/metrics';
-import { fundDistributions, funds, type Fund, type PortfolioCompany } from '@shared/schema';
+import { fundDistributions, type Fund, type PortfolioCompany } from '@shared/schema';
 import { Decimal, toDecimal } from '@shared/lib/decimal-utils';
 import { xirrNewtonBisection, type CashFlow as XirrCashFlow } from '@shared/lib/finance/xirr';
 import { monthsSince } from '../lib/date-helpers';
@@ -313,22 +313,15 @@ export class ActualMetricsCalculator {
 
   private async getFund(fundId: number): Promise<Fund | undefined> {
     const storedFund = await storage.getFund(fundId);
-    if (storedFund) {
-      return {
-        ...storedFund,
-        establishmentDate: (storedFund as Partial<Fund>).establishmentDate ?? null,
-        isActive: (storedFund as Partial<Fund>).isActive ?? true,
-      } as Fund;
+    if (!storedFund) {
+      return undefined;
     }
 
-    const [persistedFund] = await db.select().from(funds).where(eq(funds.id, fundId));
-    return persistedFund
-      ? ({
-          ...persistedFund,
-          establishmentDate: (persistedFund as Partial<Fund>).establishmentDate ?? null,
-          isActive: (persistedFund as Partial<Fund>).isActive ?? true,
-        } as Fund)
-      : undefined;
+    return {
+      ...storedFund,
+      establishmentDate: (storedFund as Partial<Fund>).establishmentDate ?? null,
+      isActive: (storedFund as Partial<Fund>).isActive ?? true,
+    } as Fund;
   }
 
   private getFundAgeStartDate(fund: Fund): Date | undefined {
