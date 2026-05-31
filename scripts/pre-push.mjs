@@ -96,6 +96,12 @@ if (!changed) {
   process.exit(0);
 }
 
+const changedSkillFiles = splitLines(changed).filter((file) => file.startsWith('.claude/skills/'));
+if (changedSkillFiles.length > 0) {
+  console.log('Skill files changed; verifying skill index freshness...');
+  run('npm', ['run', 'skills:check']);
+}
+
 const classification = output('node', ['scripts/pre-push-classification.mjs'], {
   input: `${changed}\n`,
 });
