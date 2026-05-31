@@ -591,6 +591,119 @@ function shouldRunPostflightGate(plan, code, gates) {
   return gates.postflight && (code === 0 || isProductionFinancial(plan));
 }
 
+function defaultRunStep() {
+  throw new Error(
+    'executeWorkflow requires deps.runStep until live model wiring lands; pass an injected step runner.'
+  );
+}
+
+async function executeWorkflow(plan, deps = {}) {
+  const workflow = plan.workflow;
+  if (!workflow || !Array.isArray(workflow.steps)) {
+    throw new Error('executeWorkflow requires a plan with a workflow.steps array.');
+  }
+
+  const maxRepairs = Number.isInteger(deps.maxRepairs) ? deps.maxRepairs : 2;
+  const runStep = deps.runStep || defaultRunStep;
+  const gateRunner = deps.gateRunner || spawnSync;
+  const assertGate = deps.assertFinancialGate || assertFinancialGate;
+  const ledgerWriter = deps.writeRunLedger === undefined ? null : deps.writeRunLedger;
+  const clock = deps.clock || (() => new Date());
+  const runId = deps.runId || generateRunId(clock());
+
+  const stepByRole = (role) => workflow.steps.find((step) => step.role === role) || null;
+  const ownerStep = stepByRole('owner');
+  const specialistStep = stepByRole('specialist');
+  const reviewerStep = stepByRole('reviewer');
+  const auditStep = stepByRole('audit');
+
+  let specialistNotes = null;
+  const records = [];
+  const runRecorded = async (step, input, attempt) => {
+    const result = await runStep({ step, input, notes: specialistNotes, plan, attempt, runId });
+    records.push({
+      role: step.role,
+      model: step.model,
+      attempt,
+      code: result.code ?? 0,
+      approved: result.approved ?? null,
+      output: result.output ?? '',
+    });
+    return result;
+  };
+
+  let artifact = null;
+  let approved = true;
+  let repairs = 0;
+
+  if (ownerStep) {
+    const owner = await runRecorded(ownerStep, null, 0);
+    artifact = owner.output ?? '';
+  }
+
+  if (specialistStep) {
+    const specialist = await runRecorded(specialistStep, artifact, 0);
+    specialistNotes = specialist.output ?? null;
+  }
+
+  if (reviewerStep) {
+    let review = await runRecorded(reviewerStep, artifact, 0);
+    approved = Boolean(review.approved);
+    while (!approved && repairs < maxRepairs && ownerStep) {
+      repairs += 1;
+      const repair = await runRecorded(ownerStep, review.output ?? '', repairs);
+      artifact = repair.output ?? artifact;
+      review = await runRecorded(reviewerStep, artifact, repairs);
+      approved = Boolean(review.approved);
+    }
+  }
+
+  if (auditStep) {
+    await runRecorded(auditStep, artifact, repairs);
+  }
+
+  let gate = { command: plan.gate || null, skipped: !plan.gate, status: 0 };
+  if (plan.gate) {
+    if (isProductionFinancial(plan)) {
+      assertGate(plan);
+    }
+    gate = runGate(plan.gate, { runner: gateRunner, throwOnFailure: false });
+  }
+
+  let exitCode = 0;
+  if (gate.status && gate.status !== 0) {
+    exitCode = gate.status;
+  } else if (reviewerStep && !approved) {
+    exitCode = 1;
+  }
+
+  const record = {
+    runId,
+    workflow: workflow.selected,
+    phase: plan.phase,
+    risk: plan.risk,
+    approved,
+    repairs,
+    steps: records,
+    gate: {
+      command: gate.command ?? null,
+      status: gate.status ?? 0,
+      skipped: gate.skipped ?? false,
+    },
+    exitCode,
+  };
+
+  if (ledgerWriter) {
+    try {
+      ledgerWriter(record);
+    } catch {
+      // ledger persistence is best-effort; the execution result is still returned
+    }
+  }
+
+  return record;
+}
+
 function printHelp(stdout = process.stdout) {
   stdout.write(`Usage:
   node orchestrate.js --phase <research|production|distribution> --task "<description>"
@@ -880,6 +993,7 @@ export {
   chooseModel,
   createWorkflowPlan,
   createRoutingPlan,
+  executeWorkflow,
   generateRunId,
   getGateRunPlan,
   isCliEntryPoint,
