@@ -675,13 +675,22 @@ async function executeWorkflow(plan, deps = {}) {
 
   let specialistNotes = null;
   const records = [];
+  let debateStepFailureCode = 0;
   const runRecorded = async (step, input, attempt) => {
     const result = await runStep({ step, input, notes: specialistNotes, plan, attempt, runId });
+    const code = result.code ?? 0;
+    if (
+      debateStepFailureCode === 0 &&
+      (step.role === 'comparator' || step.role === 'synthesis') &&
+      code !== 0
+    ) {
+      debateStepFailureCode = code;
+    }
     records.push({
       role: step.role,
       model: step.model,
       attempt,
-      code: result.code ?? 0,
+      code,
       approved: result.approved ?? null,
       output: result.output ?? '',
     });
@@ -741,6 +750,8 @@ async function executeWorkflow(plan, deps = {}) {
   let exitCode = 0;
   if (gate.status && gate.status !== 0) {
     exitCode = gate.status;
+  } else if (debateStepFailureCode !== 0) {
+    exitCode = debateStepFailureCode;
   } else if (reviewerStep && !approved) {
     exitCode = 1;
   }

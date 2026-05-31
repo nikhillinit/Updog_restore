@@ -1290,6 +1290,34 @@ describe('Hermes routing helpers', () => {
       expect(synthesisCall?.input).toEqual(['claude-option', 'codex-option', 'kimi-option']);
     });
 
+    test('reports a debate comparator failure even when the gate passes', async () => {
+      const runStep = async ({
+        step,
+      }: {
+        step: { role: string; model: string | null };
+        input: unknown;
+      }) => {
+        return {
+          code: step.role === 'comparator' && step.model === 'codex' ? 7 : 0,
+          output: `${step.model}-option`,
+          approved: undefined,
+        };
+      };
+
+      const record = await executeWorkflow(debatePlan, {
+        runStep,
+        gateRunner: () => ({ status: 0 }),
+        writeRunLedger: null,
+      });
+
+      expect(record.exitCode).toBe(7);
+      expect(record.steps.find((step) => step.model === 'codex')?.code).toBe(7);
+      expect(evaluateReadiness(debatePlan, record)).toEqual({
+        ready: false,
+        reason: 'workflow exited with code 7',
+      });
+    });
+
     test('executes a research chain through the generic engine', async () => {
       const { runStep, calls } = makeRunner({
         owner: { output: 'brief' },
