@@ -136,9 +136,23 @@ function toHeaderMetrics(currentFundSize: number, metrics: UnifiedFundMetrics | 
   return actualHeaderMetrics(currentFundSize, actual);
 }
 
+/**
+ * Committed capital equals the fund's configured commitment and is therefore
+ * always available from fund config -- unlike NAV/IRR/DPI it is never gated on
+ * portfolio or cash-flow data; prefer the server-computed actual.totalCommitted
+ * (the server derives it from fund.size) and fall back to the client
+ * fund-config size when actual metrics have not loaded.
+ */
+export function resolveCommittedCapital(
+  currentFundSize: number,
+  actual?: Pick<ActualMetrics, 'totalCommitted'>
+): number {
+  return numberWithFallback(actual?.totalCommitted, currentFundSize);
+}
+
 function emptyHeaderMetrics(currentFundSize: number): HeaderMetrics {
   return {
-    totalCommitted: currentFundSize,
+    totalCommitted: resolveCommittedCapital(currentFundSize),
     totalInvested: null,
     currentNAV: null,
     totalValue: null,
@@ -160,7 +174,7 @@ function emptyHeaderMetrics(currentFundSize: number): HeaderMetrics {
 }
 
 function actualHeaderMetrics(currentFundSize: number, actual: ActualMetrics): HeaderMetrics {
-  const totalCommitted = numberWithFallback(actual.totalCommitted, currentFundSize);
+  const totalCommitted = resolveCommittedCapital(currentFundSize, actual);
   const totalInvested = nullableNumber(actual.totalDeployed);
   const navAvailability = getNavAvailability(actual, totalInvested);
   const currentNAV =
@@ -200,11 +214,7 @@ function getNavAvailability(
   }
 
   if (totalInvested == null || totalInvested <= 0) {
-    return unavailableMetric(
-      'portfolio_nav',
-      'Needs investment facts',
-      'investment_facts_missing'
-    );
+    return unavailableMetric('portfolio_nav', 'Needs investment facts', 'investment_facts_missing');
   }
 
   return { status: 'available', source: 'portfolio_nav' };
