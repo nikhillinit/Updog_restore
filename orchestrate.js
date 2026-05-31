@@ -54,6 +54,7 @@ function parseArgs(argv = []) {
     gateSkipReason: null,
     workflow: 'auto',
     workflowProvided: false,
+    live: false,
     manualModel: null,
     legacyCommand: null,
   };
@@ -72,6 +73,8 @@ function parseArgs(argv = []) {
       options.dryRun = true;
     } else if (arg === '--json') {
       options.json = true;
+    } else if (arg === '--live') {
+      options.live = true;
     } else if (arg === '--skip-gates') {
       throw new Error('Use --skip-preflight-gate with --skip-reason instead of --skip-gates.');
     } else if (arg === '--skip-preflight-gate') {
@@ -554,6 +557,113 @@ function executeModel(model, prompt, routing, env = process.env) {
   });
 }
 
+// Sibling of executeModel that PIPES stdout so a step's output can be captured
+// and fed back into executeWorkflow. executeModel is left untouched so the
+// non-workflow path keeps inheriting stdout.
+function executeModelCapture(
+  model,
+  prompt,
+  routing,
+  env = process.env,
+  { spawn: spawnImpl = spawn } = {}
+) {
+  const commandConfig = routing.commands?.[model];
+  if (!commandConfig) {
+    throw new Error(`No command config for model: ${model}`);
+  }
+
+  const bin = env[commandConfig.binEnv] || commandConfig.defaultBin;
+  if (!commandExists(bin)) {
+    throw new Error(
+      `Command not found for model "${model}": ${bin}. Set ${commandConfig.binEnv} or install the CLI.`
+    );
+  }
+
+  return new Promise((resolvePromise, reject) => {
+    const child = spawnImpl(bin, commandConfig.args || [], {
+      stdio: ['pipe', 'pipe', 'inherit'],
+      shell: process.platform === 'win32',
+      env,
+    });
+
+    let output = '';
+    child.stdout.on('data', (chunk) => {
+      output += chunk.toString();
+    });
+    child.stdin.write(prompt);
+    child.stdin.end();
+    child.on('error', reject);
+    child.on('close', (code) => resolvePromise({ code: code || 0, output }));
+  });
+}
+
+const APPROVAL_SENTINEL = 'APPROVED';
+const REJECTION_SENTINEL = 'CHANGES REQUESTED';
+
+// Fail-closed, line-anchored. Approval requires a line that is EXACTLY the
+// approval sentinel; any line beginning with the rejection sentinel wins, and an
+// absent or ambiguous response is treated as not approved.
+function parseApprovalSignal(output) {
+  const lines = String(output || '')
+    .split('\n')
+    .map((line) => line.trim());
+  if (lines.some((line) => line.startsWith(REJECTION_SENTINEL))) {
+    return false;
+  }
+  return lines.some((line) => line === APPROVAL_SENTINEL);
+}
+
+function formatStepInput(input) {
+  if (Array.isArray(input)) {
+    return input.map((entry, index) => `--- INPUT ${index + 1} ---\n${entry ?? ''}`).join('\n\n');
+  }
+  return input == null ? '' : String(input);
+}
+
+// Live step runner injected into executeWorkflow. Composes a per-step prompt from
+// the base task prompt plus role/action context, prior output, and specialist
+// notes, runs the step's model with stdout captured, and (for reviewer steps)
+// derives a fail-closed approval verdict. Prompt composition is intentionally a
+// minimal v1; refine as real-model output patterns are observed.
+function createLiveRunStep({
+  routing,
+  basePrompt = '',
+  env = process.env,
+  executor = executeModelCapture,
+} = {}) {
+  return async function liveRunStep({ step, input, notes }) {
+    const sections = [
+      basePrompt,
+      '',
+      '--- WORKFLOW STEP ---',
+      `ROLE: ${step.role}`,
+      `ACTION: ${step.action}`,
+    ];
+    if (notes) {
+      sections.push('', 'SPECIALIST NOTES:', String(notes));
+    }
+    const formattedInput = formatStepInput(input);
+    if (formattedInput) {
+      sections.push('', 'PRIOR OUTPUT:', formattedInput);
+    }
+    if (step.role === 'reviewer') {
+      sections.push(
+        '',
+        `Reply with exactly "${APPROVAL_SENTINEL}" on its own line if the artifact is ready to ship.`,
+        `Otherwise emit a line beginning "${REJECTION_SENTINEL}" followed by the required changes.`,
+        'An absent or ambiguous response is treated as changes requested.'
+      );
+    }
+
+    const { code, output } = await executor(step.model, sections.join('\n'), routing, env);
+    const result = { code, output };
+    if (step.role === 'reviewer') {
+      result.approved = parseApprovalSignal(output);
+    }
+    return result;
+  };
+}
+
 function runGate(
   gate,
   { runner = spawnSync, env = process.env, stdio = 'inherit', throwOnFailure = true } = {}
@@ -813,6 +923,8 @@ Output:
 Workflow planning:
   --workflow <auto|solo|pair|chain|debate|review>
                  Add a planning-only workflow recommendation to dry-run output.
+  --live         Execute the planned workflow live (spawns real model CLIs).
+                 Without --live, --workflow stays planning-only.
 
 Gate controls:
   --skip-preflight-gate --skip-reason "<reason>"
@@ -950,8 +1062,10 @@ async function main(argv = process.argv.slice(2), env = process.env, io = proces
     throw new Error('--task is required. Use --help for usage.');
   }
 
-  if (options.workflowProvided && !options.dryRun && !options.json) {
-    throw new Error('--workflow is planning-only; use --dry-run or --json.');
+  const liveExecution = options.live || env.HERMES_LIVE === '1' || env.HERMES_LIVE === 'true';
+
+  if (options.workflowProvided && !options.dryRun && !options.json && !liveExecution) {
+    throw new Error('--workflow is planning-only; use --dry-run or --json. Add --live to execute.');
   }
 
   const routingPath =
@@ -984,6 +1098,18 @@ async function main(argv = process.argv.slice(2), env = process.env, io = proces
     io.stdout.write('\n=== PROMPT ===\n');
     io.stdout.write(`${prompt}\n`);
     return 0;
+  }
+
+  if (options.workflowProvided && liveExecution && plan.workflow) {
+    const runStep = deps.runStep || createLiveRunStep({ routing, basePrompt: prompt, env });
+    const record = await executeWorkflow(plan, {
+      runStep,
+      gateRunner,
+      writeRunLedger: ledgerWriter,
+      clock,
+      runId,
+    });
+    return record.exitCode;
   }
 
   const ledger = {
@@ -1074,15 +1200,18 @@ export {
   buildDoctorReport,
   buildPrompt,
   chooseModel,
+  createLiveRunStep,
   createWorkflowPlan,
   createRoutingPlan,
   evaluateReadiness,
+  executeModelCapture,
   executeWorkflow,
   generateRunId,
   getGateRunPlan,
   isCliEntryPoint,
   isProductionFinancial,
   main,
+  parseApprovalSignal,
   parseArgs,
   recommendWorkflow,
   resolveEffectivePhase,

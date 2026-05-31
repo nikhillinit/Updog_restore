@@ -4,14 +4,17 @@ import {
   assertFinancialGate,
   buildPrompt,
   chooseModel,
+  createLiveRunStep,
   createWorkflowPlan,
   createRoutingPlan,
   evaluateReadiness,
+  executeModelCapture,
   executeWorkflow,
   generateRunId,
   getGateRunPlan,
   isCliEntryPoint,
   main,
+  parseApprovalSignal,
   parseArgs,
   recommendWorkflow,
   resolveEffectivePhase,
@@ -114,6 +117,128 @@ describe('Hermes routing helpers', () => {
   test('--model override accepts gemini and agy providers', () => {
     expect(parseArgs(['--model', 'gemini']).manualModel).toBe('gemini');
     expect(parseArgs(['--model', 'agy']).manualModel).toBe('agy');
+  });
+
+  test('parseArgs recognizes the live execution flag', () => {
+    expect(parseArgs(['--task', 'run it', '--workflow', 'pair', '--live']).live).toBe(true);
+    expect(parseArgs(['--task', 'run it']).live).toBe(false);
+  });
+
+  describe('parseApprovalSignal', () => {
+    test('approves only on an exact sentinel line', () => {
+      expect(parseApprovalSignal('looks good\nAPPROVED')).toBe(true);
+      expect(parseApprovalSignal('  APPROVED  ')).toBe(true);
+    });
+
+    test('rejects when changes are requested, even alongside an approval line', () => {
+      expect(parseApprovalSignal('CHANGES REQUESTED: rename the variable')).toBe(false);
+      expect(parseApprovalSignal('APPROVED\nCHANGES REQUESTED: one more thing')).toBe(false);
+    });
+
+    test('fails closed on absent or inline-only mentions', () => {
+      expect(parseApprovalSignal('I have not APPROVED this yet')).toBe(false);
+      expect(parseApprovalSignal('')).toBe(false);
+      expect(parseApprovalSignal('the diff is fine')).toBe(false);
+    });
+  });
+
+  describe('createLiveRunStep', () => {
+    test('derives reviewer approval from captured output and threads context into the prompt', async () => {
+      const seen = [];
+      const executor = async (model, stepPrompt) => {
+        seen.push({ model, stepPrompt });
+        return { code: 0, output: 'APPROVED' };
+      };
+      const runStep = createLiveRunStep({ routing, basePrompt: 'BASE', executor });
+
+      const review = await runStep({
+        step: { role: 'reviewer', model: 'claude', action: 'review diff plus tests' },
+        input: 'owner-diff',
+        notes: 'specialist note',
+      });
+
+      expect(review).toMatchObject({ code: 0, output: 'APPROVED', approved: true });
+      expect(seen[0].model).toBe('claude');
+      expect(seen[0].stepPrompt).toContain('ROLE: reviewer');
+      expect(seen[0].stepPrompt).toContain('PRIOR OUTPUT:');
+      expect(seen[0].stepPrompt).toContain('owner-diff');
+      expect(seen[0].stepPrompt).toContain('specialist note');
+    });
+
+    test('attaches no verdict to non-reviewer roles and formats array input', async () => {
+      const seen = [];
+      const executor = async (model, stepPrompt) => {
+        seen.push(stepPrompt);
+        return { code: 0, output: 'synthesis-result' };
+      };
+      const runStep = createLiveRunStep({ routing, basePrompt: 'BASE', executor });
+
+      const result = await runStep({
+        step: { role: 'synthesis', model: 'claude', action: 'synthesize options' },
+        input: ['option-a', 'option-b'],
+        notes: null,
+      });
+
+      expect(result).toEqual({ code: 0, output: 'synthesis-result' });
+      expect(result.approved).toBeUndefined();
+      expect(seen[0]).toContain('option-a');
+      expect(seen[0]).toContain('option-b');
+    });
+  });
+
+  test('executeModelCapture captures child stdout and resolves the exit code', async () => {
+    const events = {};
+    const fakeChild = {
+      stdin: { write: () => undefined, end: () => undefined },
+      stdout: {
+        on: (event, cb) => {
+          if (event === 'data') cb(Buffer.from('captured-output'));
+        },
+      },
+      on: (event, cb) => {
+        events[event] = cb;
+      },
+    };
+    const spawnImpl = () => {
+      queueMicrotask(() => events.close && events.close(0));
+      return fakeChild;
+    };
+    const captureRouting = {
+      commands: { stub: { binEnv: 'STUB_BIN', defaultBin: 'node' } },
+    };
+
+    const result = await executeModelCapture('stub', 'prompt', captureRouting, process.env, {
+      spawn: spawnImpl,
+    });
+
+    expect(result).toEqual({ code: 0, output: 'captured-output' });
+  });
+
+  test('main executes a live workflow through executeWorkflow and returns its exit code', async () => {
+    const roles = [];
+    const code = await main(
+      ['--phase', 'production', '--task', 'ship the change', '--workflow', 'pair', '--live'],
+      process.env,
+      {
+        stdout: { write: () => undefined },
+        stderr: { write: () => undefined },
+      },
+      {
+        routing,
+        brain: 'DEV_BRAIN',
+        soul: 'SOUL',
+        gateRunner: () => ({ status: 0 }),
+        writeRunLedger: null,
+        runStep: async ({ step }) => {
+          roles.push(step.role);
+          return { code: 0, output: `${step.role}-output`, approved: step.role === 'reviewer' };
+        },
+      }
+    );
+
+    expect(code).toBe(0);
+    expect(roles).toContain('owner');
+    expect(roles).toContain('reviewer');
   });
 
   test('parseArgs rejects the broad gate skip flag', () => {
