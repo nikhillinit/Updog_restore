@@ -56,7 +56,9 @@
   "manualFlags": {
     "--claude": "claude",
     "--codex": "codex",
-    "--kimi": "kimi"
+    "--kimi": "kimi",
+    "--gemini": "gemini",
+    "--agy": "agy"
   },
   "specialists": {
     "waterfall-specialist": {
@@ -146,6 +148,16 @@
       "binEnv": "KIMI_CODE_BIN",
       "defaultBin": "kimi-cli",
       "args": ["--print", "--input-format", "text", "--final-message-only"]
+    },
+    "gemini": {
+      "binEnv": "GEMINI_BIN",
+      "defaultBin": "gemini",
+      "args": ["--output-format", "text", "--yolo", "--prompt", ""]
+    },
+    "agy": {
+      "binEnv": "AGY_BIN",
+      "defaultBin": "agy",
+      "args": []
     }
   }
 }
