@@ -17,6 +17,11 @@ const WORKFLOW_DEFERRED_BEHAVIOR = [
   'review platform automation',
 ];
 
+const DEFAULT_DEBATE = {
+  comparators: ['claude', 'codex', 'kimi'],
+  synthesis: 'claude',
+};
+
 function normalizeEntrypointPath(value) {
   return String(value || '')
     .replace(/^file:\/\//, '')
@@ -232,6 +237,7 @@ function createWorkflowPlan({
   gate,
   ownership = null,
   risk = 'standard',
+  debate = null,
 }) {
   if (!WORKFLOW_MODES.has(requestedWorkflow)) {
     throw new Error(
@@ -246,7 +252,11 @@ function createWorkflowPlan({
   const artifact = ownership?.artifact || 'artifact';
   const steps = [];
 
-  if (selected !== 'review' && ownerModel) {
+  // 'review' mode reviews an existing artifact, so it never re-runs the owner lane;
+  // because distribution ownership has no reviewer, distribution 'review' is
+  // gate-only by design (the lint gate is the review). 'debate' replaces the single
+  // owner lane with N comparators plus a synthesis step (added below).
+  if (selected !== 'review' && selected !== 'debate' && ownerModel) {
     const role = ownership?.role ? ` ${ownership.role}` : '';
     steps.push({
       role: 'owner',
@@ -274,7 +284,8 @@ function createWorkflowPlan({
     });
   }
 
-  if ((selected === 'chain' || selected === 'debate' || selected === 'pair') && ownership?.audit) {
+  // Debate carries no audit step by design; synthesis is the accountable artifact.
+  if ((selected === 'chain' || selected === 'pair') && ownership?.audit) {
     steps.push({
       role: 'audit',
       model: ownership.audit,
@@ -283,11 +294,26 @@ function createWorkflowPlan({
     });
   }
 
-  if (selected === 'debate' && steps.length === 0 && ownerModel) {
+  if (selected === 'debate') {
+    const debateConfig = debate || DEFAULT_DEBATE;
+    const comparatorModels =
+      Array.isArray(debateConfig.comparators) && debateConfig.comparators.length > 0
+        ? debateConfig.comparators
+        : DEFAULT_DEBATE.comparators;
+    const synthesisModel = debateConfig.synthesis || DEFAULT_DEBATE.synthesis;
+
+    for (const comparatorModel of comparatorModels) {
+      steps.push({
+        role: 'comparator',
+        model: comparatorModel,
+        action: `compare ${effectivePhase} options`,
+      });
+    }
+
     steps.push({
-      role: 'owner',
-      model: ownerModel,
-      action: `compare ${effectivePhase} options`,
+      role: 'synthesis',
+      model: synthesisModel,
+      action: `synthesize ${effectivePhase} options into ${artifact}`,
     });
   }
 
@@ -345,6 +371,7 @@ function createRoutingPlan({
       gate,
       ownership,
       risk,
+      debate: routing.debate || null,
     });
   }
 
@@ -587,6 +614,33 @@ function assertFinancialGate(plan) {
   }
 }
 
+// Structured readiness boundary. assertFinancialGate stays the throwing core; this
+// wraps it so a CLI or report surface can present a not-ready outcome without
+// crashing. When an execution result is supplied, a nonzero exit or an unapproved
+// artifact also blocks readiness.
+function evaluateReadiness(plan, result = null) {
+  if (!plan || typeof plan !== 'object') {
+    return { ready: false, reason: 'evaluateReadiness requires a plan object.' };
+  }
+
+  try {
+    assertFinancialGate(plan);
+  } catch (error) {
+    return { ready: false, reason: error.message };
+  }
+
+  if (result) {
+    if (Number.isInteger(result.exitCode) && result.exitCode !== 0) {
+      return { ready: false, reason: `workflow exited with code ${result.exitCode}` };
+    }
+    if (result.approved === false) {
+      return { ready: false, reason: 'reviewer did not approve the artifact' };
+    }
+  }
+
+  return { ready: true, reason: null };
+}
+
 function shouldRunPostflightGate(plan, code, gates) {
   return gates.postflight && (code === 0 || isProductionFinancial(plan));
 }
@@ -616,6 +670,8 @@ async function executeWorkflow(plan, deps = {}) {
   const specialistStep = stepByRole('specialist');
   const reviewerStep = stepByRole('reviewer');
   const auditStep = stepByRole('audit');
+  const comparatorSteps = workflow.steps.filter((step) => step.role === 'comparator');
+  const synthesisStep = stepByRole('synthesis');
 
   let specialistNotes = null;
   const records = [];
@@ -636,30 +692,42 @@ async function executeWorkflow(plan, deps = {}) {
   let approved = true;
   let repairs = 0;
 
-  if (ownerStep) {
-    const owner = await runRecorded(ownerStep, null, 0);
-    artifact = owner.output ?? '';
-  }
-
-  if (specialistStep) {
-    const specialist = await runRecorded(specialistStep, artifact, 0);
-    specialistNotes = specialist.output ?? null;
-  }
-
-  if (reviewerStep) {
-    let review = await runRecorded(reviewerStep, artifact, 0);
-    approved = Boolean(review.approved);
-    while (!approved && repairs < maxRepairs && ownerStep) {
-      repairs += 1;
-      const repair = await runRecorded(ownerStep, review.output ?? '', repairs);
-      artifact = repair.output ?? artifact;
-      review = await runRecorded(reviewerStep, artifact, repairs);
-      approved = Boolean(review.approved);
+  if (comparatorSteps.length > 0) {
+    const comparatorOutputs = [];
+    for (const comparatorStep of comparatorSteps) {
+      const comparator = await runRecorded(comparatorStep, null, 0);
+      comparatorOutputs.push(comparator.output ?? '');
     }
-  }
+    if (synthesisStep) {
+      const synthesis = await runRecorded(synthesisStep, comparatorOutputs, 0);
+      artifact = synthesis.output ?? '';
+    }
+  } else {
+    if (ownerStep) {
+      const owner = await runRecorded(ownerStep, null, 0);
+      artifact = owner.output ?? '';
+    }
 
-  if (auditStep) {
-    await runRecorded(auditStep, artifact, repairs);
+    if (specialistStep) {
+      const specialist = await runRecorded(specialistStep, artifact, 0);
+      specialistNotes = specialist.output ?? null;
+    }
+
+    if (reviewerStep) {
+      let review = await runRecorded(reviewerStep, artifact, 0);
+      approved = Boolean(review.approved);
+      while (!approved && repairs < maxRepairs && ownerStep) {
+        repairs += 1;
+        const repair = await runRecorded(ownerStep, review.output ?? '', repairs);
+        artifact = repair.output ?? artifact;
+        review = await runRecorded(reviewerStep, artifact, repairs);
+        approved = Boolean(review.approved);
+      }
+    }
+
+    if (auditStep) {
+      await runRecorded(auditStep, artifact, repairs);
+    }
   }
 
   let gate = { command: plan.gate || null, skipped: !plan.gate, status: 0 };
@@ -993,6 +1061,7 @@ export {
   chooseModel,
   createWorkflowPlan,
   createRoutingPlan,
+  evaluateReadiness,
   executeWorkflow,
   generateRunId,
   getGateRunPlan,

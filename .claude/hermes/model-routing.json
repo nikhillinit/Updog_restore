@@ -38,6 +38,10 @@
       "gate": "npm run lint"
     }
   },
+  "debate": {
+    "comparators": ["claude", "codex", "kimi"],
+    "synthesis": "claude"
+  },
   "longContextModel": "kimi",
   "longContextTriggers": [
     "full repo audit",

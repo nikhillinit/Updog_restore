@@ -38,6 +38,18 @@ the model-specific governance files remain authoritative.
 | production-financial           | Codex plus specialist | Diff plus truth notes | `npm run calc-gate`                                                                           |
 | distribution                   | Claude                | PR-ready summary      | `npm run lint` plus relevant tests                                                            |
 
+## Workflow Modes
+
+- solo: owner only. pair: owner plus reviewer with a bounded repair loop.
+- chain: owner plus optional specialist plus reviewer (research reviewer is
+  Kimi).
+- debate: N comparators plus a synthesis step (roster in model-routing.json
+  `debate`; default claude, codex, kimi compare and claude synthesizes). Opt-in
+  via `--workflow debate`.
+- review: reviews an existing artifact and never re-runs the owner lane.
+  Distribution ownership has no reviewer, so distribution review is gate-only by
+  design.
+
 ## Specialist Escalation
 
 - Waterfall/carry/clawback: `waterfall-specialist`
