@@ -6,6 +6,7 @@ import {
   chooseModel,
   createWorkflowPlan,
   createRoutingPlan,
+  executeWorkflow,
   generateRunId,
   getGateRunPlan,
   isCliEntryPoint,
@@ -879,6 +880,298 @@ describe('Hermes routing helpers', () => {
       expect(plan.risk).toBe('standard');
       expect(plan.gate).toBe('npm run check');
       expect(() => assertFinancialGate(plan)).not.toThrow();
+    });
+  });
+
+  describe('executeWorkflow', () => {
+    type StepCall = {
+      role: string;
+      model: string | null;
+      input: string | null;
+      notes: string | null;
+      attempt: number;
+    };
+
+    type StepReply = {
+      code?: number;
+      output?: string;
+      approved?: boolean;
+    };
+
+    const makeRunner = (script: Record<string, StepReply | ((attempt: number) => StepReply)>) => {
+      const calls: StepCall[] = [];
+      const runStep = async ({
+        step,
+        input,
+        notes,
+        attempt,
+      }: {
+        step: { role: string; model: string | null };
+        input: string | null;
+        notes: string | null;
+        attempt: number;
+      }) => {
+        calls.push({ role: step.role, model: step.model, input, notes, attempt });
+        const responder = script[step.role];
+        const reply = typeof responder === 'function' ? responder(attempt) : responder || {};
+        return {
+          code: reply.code ?? 0,
+          output: reply.output ?? `${step.role}-${attempt}`,
+          approved: reply.approved,
+        };
+      };
+      return { runStep, calls };
+    };
+
+    const pairPlan = {
+      phase: 'production',
+      risk: 'standard',
+      gate: 'npm run check',
+      workflow: {
+        selected: 'pair',
+        steps: [
+          { role: 'owner', model: 'codex', action: 'execute production worker-executor lane' },
+          { role: 'reviewer', model: 'claude', action: 'review diff plus tests' },
+          { role: 'gate', model: null, action: 'run npm run check' },
+        ],
+      },
+    };
+
+    const financialPairPlan = {
+      phase: 'production',
+      risk: 'financial',
+      gate: 'npm run calc-gate',
+      workflow: {
+        selected: 'pair',
+        steps: [
+          {
+            role: 'owner',
+            model: 'codex',
+            action: 'execute production-financial worker-executor lane',
+          },
+          {
+            role: 'specialist',
+            model: 'precision-specialist',
+            action: 'review financial risk before completion',
+          },
+          { role: 'reviewer', model: 'claude', action: 'review diff plus truth-case notes' },
+          { role: 'audit', model: 'kimi', action: 'audit financial readiness evidence' },
+          { role: 'gate', model: null, action: 'run npm run calc-gate' },
+        ],
+      },
+    };
+
+    test('throws without an injected step runner', async () => {
+      await expect(
+        executeWorkflow(pairPlan, { gateRunner: () => ({ status: 0 }) })
+      ).rejects.toThrow('requires deps.runStep');
+    });
+
+    test('throws when the plan has no workflow steps', async () => {
+      await expect(executeWorkflow({ phase: 'production' }, {})).rejects.toThrow(
+        'workflow.steps array'
+      );
+    });
+
+    test('runs owner then reviewer and passes the gate when the reviewer approves first', async () => {
+      const { runStep, calls } = makeRunner({
+        owner: { output: 'owner-diff' },
+        reviewer: { approved: true },
+      });
+      const gateCalls: string[] = [];
+
+      const record = await executeWorkflow(pairPlan, {
+        runStep,
+        gateRunner: (bin: string, args: string[]) => {
+          gateCalls.push([bin, ...args].join(' '));
+          return { status: 0 };
+        },
+        writeRunLedger: null,
+      });
+
+      expect(record.approved).toBe(true);
+      expect(record.repairs).toBe(0);
+      expect(record.exitCode).toBe(0);
+      expect(record.gate).toMatchObject({ command: 'npm run check', status: 0 });
+      expect(gateCalls).toEqual(['npm run check']);
+      expect(calls.map((call) => call.role)).toEqual(['owner', 'reviewer']);
+      expect(calls[1].input).toBe('owner-diff');
+    });
+
+    test('threads review feedback back to the owner across a bounded repair loop', async () => {
+      const { runStep, calls } = makeRunner({
+        owner: (attempt) => ({ output: `owner-diff-${attempt}` }),
+        reviewer: (attempt) => ({
+          approved: attempt >= 1,
+          output: `please-fix-${attempt}`,
+        }),
+      });
+
+      const record = await executeWorkflow(pairPlan, {
+        runStep,
+        gateRunner: () => ({ status: 0 }),
+        writeRunLedger: null,
+      });
+
+      expect(record.repairs).toBe(1);
+      expect(record.approved).toBe(true);
+      expect(record.exitCode).toBe(0);
+      expect(calls.map((call) => call.role)).toEqual(['owner', 'reviewer', 'owner', 'reviewer']);
+      expect(calls[2].input).toBe('please-fix-0');
+      expect(calls[3].input).toBe('owner-diff-1');
+    });
+
+    test('stops at the repair cap and reports not-ready when the reviewer never approves', async () => {
+      const { runStep, calls } = makeRunner({
+        owner: { output: 'owner-diff' },
+        reviewer: { approved: false, output: 'still-wrong' },
+      });
+
+      const record = await executeWorkflow(pairPlan, {
+        runStep,
+        gateRunner: () => ({ status: 0 }),
+        writeRunLedger: null,
+      });
+
+      expect(record.repairs).toBe(2);
+      expect(record.approved).toBe(false);
+      expect(record.exitCode).toBe(1);
+      expect(calls.filter((call) => call.role === 'owner')).toHaveLength(3);
+      expect(calls.filter((call) => call.role === 'reviewer')).toHaveLength(3);
+    });
+
+    test('honors a custom repair cap from deps.maxRepairs', async () => {
+      const { runStep, calls } = makeRunner({
+        owner: { output: 'owner-diff' },
+        reviewer: { approved: false, output: 'still-wrong' },
+      });
+
+      const record = await executeWorkflow(pairPlan, {
+        runStep,
+        gateRunner: () => ({ status: 0 }),
+        maxRepairs: 1,
+        writeRunLedger: null,
+      });
+
+      expect(record.repairs).toBe(1);
+      expect(calls.filter((call) => call.role === 'owner')).toHaveLength(2);
+    });
+
+    test('reports the gate exit code when the gate fails after approval', async () => {
+      const { runStep } = makeRunner({
+        owner: { output: 'owner-diff' },
+        reviewer: { approved: true },
+      });
+
+      const record = await executeWorkflow(pairPlan, {
+        runStep,
+        gateRunner: () => ({ status: 2 }),
+        writeRunLedger: null,
+      });
+
+      expect(record.approved).toBe(true);
+      expect(record.exitCode).toBe(2);
+      expect(record.gate.status).toBe(2);
+    });
+
+    test('runs specialist before and audit after the loop for a financial pair', async () => {
+      const { runStep, calls } = makeRunner({
+        owner: { output: 'owner-diff' },
+        specialist: { output: 'risk-reviewed' },
+        reviewer: { approved: true },
+        audit: { output: 'audited' },
+      });
+      const gateCalls: string[] = [];
+
+      const record = await executeWorkflow(financialPairPlan, {
+        runStep,
+        gateRunner: (bin: string, args: string[]) => {
+          gateCalls.push([bin, ...args].join(' '));
+          return { status: 0 };
+        },
+        writeRunLedger: null,
+      });
+
+      expect(record.exitCode).toBe(0);
+      expect(record.approved).toBe(true);
+      expect(gateCalls).toEqual(['npm run calc-gate']);
+      expect(calls.map((call) => call.role)).toEqual(['owner', 'specialist', 'reviewer', 'audit']);
+    });
+
+    test('routes the owner diff with specialist notes to the reviewer in a financial pair', async () => {
+      const { runStep, calls } = makeRunner({
+        owner: { output: 'owner-diff' },
+        specialist: { output: 'risk-notes' },
+        reviewer: { approved: true },
+        audit: { output: 'audited' },
+      });
+
+      await executeWorkflow(financialPairPlan, {
+        runStep,
+        gateRunner: () => ({ status: 0 }),
+        writeRunLedger: null,
+      });
+
+      const reviewerCall = calls.find((call) => call.role === 'reviewer');
+      expect(reviewerCall?.input).toBe('owner-diff');
+      expect(reviewerCall?.notes).toBe('risk-notes');
+    });
+
+    test('asserts the financial readiness gate before running it', async () => {
+      const { runStep } = makeRunner({
+        owner: { output: 'owner-diff' },
+        specialist: { output: 'risk-reviewed' },
+        reviewer: { approved: true },
+        audit: { output: 'audited' },
+      });
+
+      const misconfigured = {
+        ...financialPairPlan,
+        gate: 'npm run check',
+      };
+      let gateRan = false;
+
+      await expect(
+        executeWorkflow(misconfigured, {
+          runStep,
+          gateRunner: () => {
+            gateRan = true;
+            return { status: 0 };
+          },
+          writeRunLedger: null,
+        })
+      ).rejects.toThrow('npm run calc-gate');
+
+      expect(gateRan).toBe(false);
+    });
+
+    test('persists a run ledger capturing steps, repairs, gate, and exit code', async () => {
+      const { runStep } = makeRunner({
+        owner: { output: 'owner-diff' },
+        reviewer: { approved: true },
+      });
+      const ledgerCalls: Array<Record<string, unknown>> = [];
+
+      const record = await executeWorkflow(pairPlan, {
+        runStep,
+        gateRunner: () => ({ status: 0 }),
+        clock: () => new Date('2026-05-20T18:30:45.123Z'),
+        writeRunLedger: (entry: Record<string, unknown>) => ledgerCalls.push(entry),
+      });
+
+      expect(record.runId).toBe('hermes-2026-05-20T18-30-45-123Z');
+      expect(ledgerCalls).toHaveLength(1);
+      expect(ledgerCalls[0]).toMatchObject({
+        runId: 'hermes-2026-05-20T18-30-45-123Z',
+        workflow: 'pair',
+        approved: true,
+        repairs: 0,
+        exitCode: 0,
+      });
+      expect(record.steps.map((step: { role: string }) => step.role)).toEqual([
+        'owner',
+        'reviewer',
+      ]);
     });
   });
 });
