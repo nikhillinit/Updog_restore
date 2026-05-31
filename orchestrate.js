@@ -10,7 +10,7 @@ const ROOT = dirname(__filename);
 const LEGACY_COMMANDS = new Set(['bootstrap', 'smoke', 'enable-algorithms', 'doctor']);
 const DOCTOR_PROVIDERS = ['claude', 'codex', 'kimi-cli', 'gemini', 'agy'];
 const WORKFLOW_MODES = new Set(['auto', 'solo', 'pair', 'chain', 'debate', 'review']);
-const MODEL_OVERRIDES = new Set(['claude', 'codex', 'kimi']);
+const MODEL_OVERRIDES = new Set(['claude', 'codex', 'kimi', 'gemini', 'agy']);
 const WORKFLOW_DEFERRED_BEHAVIOR = [
   'model execution',
   'artifact handoff',
@@ -110,6 +110,10 @@ function parseArgs(argv = []) {
       options.manualModel = 'codex';
     } else if (arg === '--kimi') {
       options.manualModel = 'kimi';
+    } else if (arg === '--gemini') {
+      options.manualModel = 'gemini';
+    } else if (arg === '--agy') {
+      options.manualModel = 'agy';
     }
   }
 

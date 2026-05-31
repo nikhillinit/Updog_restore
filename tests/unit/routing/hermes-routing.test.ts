@@ -99,6 +99,23 @@ describe('Hermes routing helpers', () => {
     expect(chooseModel(args.task, args.phase, routing, args.manualModel)).toBe('kimi');
   });
 
+  test('gemini and agy manual flags route through chooseModel', () => {
+    const geminiArgs = parseArgs(['--phase', 'production', '--task', 'route work', '--gemini']);
+    expect(geminiArgs.manualModel).toBe('gemini');
+    expect(chooseModel(geminiArgs.task, geminiArgs.phase, routing, geminiArgs.manualModel)).toBe(
+      'gemini'
+    );
+
+    const agyArgs = parseArgs(['--phase', 'research', '--task', 'route work', '--agy']);
+    expect(agyArgs.manualModel).toBe('agy');
+    expect(chooseModel(agyArgs.task, agyArgs.phase, routing, agyArgs.manualModel)).toBe('agy');
+  });
+
+  test('--model override accepts gemini and agy providers', () => {
+    expect(parseArgs(['--model', 'gemini']).manualModel).toBe('gemini');
+    expect(parseArgs(['--model', 'agy']).manualModel).toBe('agy');
+  });
+
   test('parseArgs rejects the broad gate skip flag', () => {
     expect(() => parseArgs(['--task', 'fix gate', '--skip-gates'])).toThrow(
       'Use --skip-preflight-gate'
