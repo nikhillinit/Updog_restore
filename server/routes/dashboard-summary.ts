@@ -1,10 +1,11 @@
 import { Router } from 'express';
 import type { Request, Response } from 'express';
 import type { ApiError } from '@shared/types';
-import { toNumber } from '@shared/number';
+import { parseFundIdParam, toNumber } from '@shared/number';
 import { storage } from '../storage';
 import { getDashboardSummaryReadModel } from '../services/dashboard-summary-read-service';
 import { handleNumberParseError } from '../lib/number-parse-error';
+import { firstString } from '../lib/request-values';
 import { enforceProvidedFundScope } from '../lib/auth/provided-fund-scope';
 import { logger } from '../lib/logger.js';
 
@@ -13,10 +14,11 @@ const log = logger.child({ route: 'dashboard-summary' });
 
 router['get']('/dashboard-summary/:fundId', async (req: Request, res: Response) => {
   try {
-    const fundIdParam = req.params['fundId'];
-    const fundId = toNumber(fundIdParam, 'fund ID');
+    const fundIdParam = firstString(req.params['fundId']);
+    const fundId = parseFundIdParam(fundIdParam);
 
-    if (fundId <= 0) {
+    if (fundId === null) {
+      toNumber(fundIdParam, 'fund ID');
       const error: ApiError = {
         error: 'Invalid fund ID',
         message: `Fund ID must be a positive integer, received: ${fundIdParam}`,

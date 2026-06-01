@@ -5,9 +5,10 @@
  * Routes are thin wrappers that delegate business logic to TimeTravelAnalyticsService
  */
 import { funds } from '@shared/schema';
+import { parseFundIdParam } from '@shared/number';
 import { eq } from 'drizzle-orm';
 import { Router } from 'express';
-import type { Express } from 'express';
+import type { Express, Request, Response } from 'express';
 import { z } from 'zod';
 import { db } from '../db';
 import { NotFoundError } from '../errors';
@@ -49,6 +50,19 @@ function createCacheAdapter(appLocalsCache: unknown): Cache | undefined {
  */
 export function createTimelineRouter(service: TimeTravelAnalyticsService) {
   const router = Router();
+  const fundIdParamsSchema = z.object({ fundId: z.string().min(1) });
+
+  function parseTimelineFundId(req: Request, res: Response): number | null {
+    const fundId = parseFundIdParam(firstString(req.params['fundId']));
+    if (fundId === null) {
+      res.status(400).json({
+        error: 'Invalid fund ID',
+        message: 'Fund ID must be a canonical positive integer',
+      });
+      return null;
+    }
+    return fundId;
+  }
 
   // Timeline range schema
   const timelineRangeSchema = z.object({
@@ -82,12 +96,15 @@ export function createTimelineRouter(service: TimeTravelAnalyticsService) {
   router.get(
     '/:fundId',
     validateRequest({
-      params: z.object({ fundId: z.coerce.number() }),
+      params: fundIdParamsSchema,
       query: timelineRangeSchema.omit({ fundId: true }),
     }),
     asyncHandler(async (req, res) => {
       const startTimer = Date.now();
-      const fundIdNum = parseInt(firstString(req.params['fundId']) ?? '', 10);
+      const fundIdNum = parseTimelineFundId(req, res);
+      if (fundIdNum === null) {
+        return;
+      }
       if (!(await enforceProvidedFundScope(req, res, fundIdNum))) {
         return;
       }
@@ -120,12 +137,15 @@ export function createTimelineRouter(service: TimeTravelAnalyticsService) {
   router.get(
     '/:fundId/state',
     validateRequest({
-      params: z.object({ fundId: z.coerce.number() }),
+      params: fundIdParamsSchema,
       query: pointInTimeSchema.omit({ fundId: true }),
     }),
     asyncHandler(async (req, res) => {
       const startTimer = Date.now();
-      const fundIdNum = parseInt(firstString(req.params['fundId']) ?? '', 10);
+      const fundIdNum = parseTimelineFundId(req, res);
+      if (fundIdNum === null) {
+        return;
+      }
       if (!(await enforceProvidedFundScope(req, res, fundIdNum))) {
         return;
       }
@@ -160,12 +180,15 @@ export function createTimelineRouter(service: TimeTravelAnalyticsService) {
   router.post(
     '/:fundId/snapshot',
     validateRequest({
-      params: z.object({ fundId: z.coerce.number() }),
+      params: fundIdParamsSchema,
       body: createSnapshotBodySchema,
     }),
     asyncHandler(async (req, res) => {
       const startTimer = Date.now();
-      const fundIdNum = parseInt(firstString(req.params['fundId']) ?? '', 10);
+      const fundIdNum = parseTimelineFundId(req, res);
+      if (fundIdNum === null) {
+        return;
+      }
       if (!(await enforceProvidedFundScope(req, res, fundIdNum))) {
         return;
       }
@@ -214,7 +237,7 @@ export function createTimelineRouter(service: TimeTravelAnalyticsService) {
   router.get(
     '/:fundId/compare',
     validateRequest({
-      params: z.object({ fundId: z.coerce.number() }),
+      params: fundIdParamsSchema,
       query: z.object({
         timestamp1: z.string().datetime(),
         timestamp2: z.string().datetime(),
@@ -223,10 +246,12 @@ export function createTimelineRouter(service: TimeTravelAnalyticsService) {
     }),
     asyncHandler(async (req, res) => {
       const startTimer = Date.now();
-      const fundId = firstString(req.params['fundId']);
       const { timestamp1, timestamp2, includeDiff } = req.query;
 
-      const fundIdNum = parseInt(fundId ?? '', 10);
+      const fundIdNum = parseTimelineFundId(req, res);
+      if (fundIdNum === null) {
+        return;
+      }
       if (!(await enforceProvidedFundScope(req, res, fundIdNum))) {
         return;
       }

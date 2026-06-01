@@ -74,6 +74,15 @@ describe('dashboard-summary route contracts', () => {
     expect(serviceState.getDashboardSummaryReadModel).not.toHaveBeenCalled();
   });
 
+  it('rejects non-canonical fundId before scope check and data read', async () => {
+    const response = await request(makeApp()).get('/dashboard-summary/01');
+
+    expect(response.status).toBe(400);
+    expect(response.body).toMatchObject({ error: 'Invalid fund ID' });
+    expect(fundScopeState.enforceProvidedFundScope).not.toHaveBeenCalled();
+    expect(serviceState.getDashboardSummaryReadModel).not.toHaveBeenCalled();
+  });
+
   it('rejects denied fund scope before data read', async () => {
     fundScopeState.enforceProvidedFundScope.mockImplementationOnce(async (_req, res) => {
       res.status(403).json({

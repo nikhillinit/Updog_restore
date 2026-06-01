@@ -16,6 +16,7 @@
  */
 
 import { Router, type Request, type Response } from 'express';
+import { parseFundIdParam } from '@shared/number';
 import {
   OneWayAnalysisRequestV1Schema,
   TwoWayAnalysisRequestV1Schema,
@@ -23,6 +24,7 @@ import {
   SensitivityRunKindSchema,
 } from '@shared/contracts/sensitivity-run-v1.contract';
 import { enforceProvidedFundScope } from '../lib/auth/provided-fund-scope';
+import { firstString } from '../lib/request-values';
 
 /**
  * Maps SensitivityEngineError codes to HTTP status codes.
@@ -43,13 +45,22 @@ const STATUS_BY_CODE: Readonly<Record<string, number>> = {
 
 const router = Router();
 
-router.post('/funds/:id/sensitivity/one-way', async (req: Request, res: Response) => {
-  const fundId = parseInt(String(req.params['id'] ?? ''), 10);
-  if (!Number.isInteger(fundId) || fundId <= 0) {
-    return res.status(400).json({
+function parseRouteFundId(req: Request, res: Response): number | null {
+  const fundId = parseFundIdParam(firstString(req.params['id']));
+  if (fundId === null) {
+    res.status(400).json({
       code: 'INVALID_FUND_ID',
       message: 'fund id must be a positive integer',
     });
+    return null;
+  }
+  return fundId;
+}
+
+router.post('/funds/:id/sensitivity/one-way', async (req: Request, res: Response) => {
+  const fundId = parseRouteFundId(req, res);
+  if (fundId === null) {
+    return;
   }
 
   if (!(await enforceProvidedFundScope(req, res, fundId))) {
@@ -90,12 +101,9 @@ router.post('/funds/:id/sensitivity/one-way', async (req: Request, res: Response
 });
 
 router.post('/funds/:id/sensitivity/two-way', async (req: Request, res: Response) => {
-  const fundId = parseInt(String(req.params['id'] ?? ''), 10);
-  if (!Number.isInteger(fundId) || fundId <= 0) {
-    return res.status(400).json({
-      code: 'INVALID_FUND_ID',
-      message: 'fund id must be a positive integer',
-    });
+  const fundId = parseRouteFundId(req, res);
+  if (fundId === null) {
+    return;
   }
 
   if (!(await enforceProvidedFundScope(req, res, fundId))) {
@@ -136,12 +144,9 @@ router.post('/funds/:id/sensitivity/two-way', async (req: Request, res: Response
 });
 
 router.post('/funds/:id/sensitivity/stress', async (req: Request, res: Response) => {
-  const fundId = parseInt(String(req.params['id'] ?? ''), 10);
-  if (!Number.isInteger(fundId) || fundId <= 0) {
-    return res.status(400).json({
-      code: 'INVALID_FUND_ID',
-      message: 'fund id must be a positive integer',
-    });
+  const fundId = parseRouteFundId(req, res);
+  if (fundId === null) {
+    return;
   }
 
   if (!(await enforceProvidedFundScope(req, res, fundId))) {
@@ -182,12 +187,9 @@ router.post('/funds/:id/sensitivity/stress', async (req: Request, res: Response)
 });
 
 router.get('/funds/:id/sensitivity/runs', async (req: Request, res: Response) => {
-  const fundId = parseInt(String(req.params['id'] ?? ''), 10);
-  if (!Number.isInteger(fundId) || fundId <= 0) {
-    return res.status(400).json({
-      code: 'INVALID_FUND_ID',
-      message: 'fund id must be a positive integer',
-    });
+  const fundId = parseRouteFundId(req, res);
+  if (fundId === null) {
+    return;
   }
 
   if (!(await enforceProvidedFundScope(req, res, fundId))) {
@@ -230,10 +232,10 @@ router.get('/funds/:id/sensitivity/runs', async (req: Request, res: Response) =>
 });
 
 router.get('/funds/:id/sensitivity/runs/:runId', async (req: Request, res: Response) => {
-  const fundId = parseInt(String(req.params['id'] ?? ''), 10);
   const runId = parseInt(String(req.params['runId'] ?? ''), 10);
-  if (!Number.isInteger(fundId) || fundId <= 0) {
-    return res.status(400).json({ code: 'INVALID_FUND_ID' });
+  const fundId = parseRouteFundId(req, res);
+  if (fundId === null) {
+    return;
   }
   if (!(await enforceProvidedFundScope(req, res, fundId))) {
     return;

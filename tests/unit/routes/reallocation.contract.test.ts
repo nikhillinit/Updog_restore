@@ -52,6 +52,14 @@ describe('reallocation route contracts', () => {
     dbState.transaction.mockResolvedValue({});
   });
 
+  it('POST preview rejects non-canonical fundId before scope check and DB read', async () => {
+    const res = await request(makeApp()).post('/api/funds/01/reallocation/preview').send({});
+    expect(res.status).toBe(400);
+    expect(res.body).toMatchObject({ error: 'Invalid fund ID' });
+    expect(fundScopeState.enforceProvidedFundScope).not.toHaveBeenCalled();
+    expect(dbState.query).not.toHaveBeenCalled();
+  });
+
   it('POST preview denies cross-fund scope before any DB read', async () => {
     denyOnce();
     const res = await request(makeApp()).post('/api/funds/2/reallocation/preview').send({});

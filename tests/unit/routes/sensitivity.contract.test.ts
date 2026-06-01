@@ -57,9 +57,41 @@ describe('sensitivity route contracts', () => {
     serviceState.getById.mockResolvedValue(null);
   });
 
+  it('GET runs rejects non-canonical fundId before scope check and history read', async () => {
+    const res = await request(makeApp()).get('/funds/01/sensitivity/runs');
+    expect(res.status).toBe(400);
+    expect(res.body).toMatchObject({ code: 'INVALID_FUND_ID' });
+    expect(fundScopeState.enforceProvidedFundScope).not.toHaveBeenCalled();
+    expect(serviceState.getHistoryByFund).not.toHaveBeenCalled();
+  });
+
   it('POST one-way denies cross-fund scope before creating a run', async () => {
     denyOnce();
     const res = await request(makeApp()).post('/funds/2/sensitivity/one-way').send({});
+    expect(res.status).toBe(403);
+    expect(fundScopeState.enforceProvidedFundScope).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.anything(),
+      2
+    );
+    expect(serviceState.createPending).not.toHaveBeenCalled();
+  });
+
+  it('POST two-way denies cross-fund scope before creating a run', async () => {
+    denyOnce();
+    const res = await request(makeApp()).post('/funds/2/sensitivity/two-way').send({});
+    expect(res.status).toBe(403);
+    expect(fundScopeState.enforceProvidedFundScope).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.anything(),
+      2
+    );
+    expect(serviceState.createPending).not.toHaveBeenCalled();
+  });
+
+  it('POST stress denies cross-fund scope before creating a run', async () => {
+    denyOnce();
+    const res = await request(makeApp()).post('/funds/2/sensitivity/stress').send({});
     expect(res.status).toBe(403);
     expect(fundScopeState.enforceProvidedFundScope).toHaveBeenCalledWith(
       expect.anything(),

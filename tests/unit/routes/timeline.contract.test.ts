@@ -79,6 +79,14 @@ describe('timeline route contracts', () => {
     service = makeService();
   });
 
+  it('GET /:fundId rejects non-canonical fundId before scope check and event read', async () => {
+    const res = await request(makeApp(service)).get('/api/timeline/01');
+    expect(res.status).toBe(400);
+    expect(res.body).toMatchObject({ error: 'Invalid fund ID' });
+    expect(fundScopeState.enforceProvidedFundScope).not.toHaveBeenCalled();
+    expect(service.getTimelineEvents).not.toHaveBeenCalled();
+  });
+
   it('GET /:fundId denies cross-fund scope before reading events', async () => {
     denyOnce();
     const res = await request(makeApp(service)).get('/api/timeline/2');
