@@ -270,6 +270,8 @@ function resetState() {
 }
 
 function expectNoShareMutation() {
+  expect(dbState.db.insert).not.toHaveBeenCalled();
+  expect(dbState.db.update).not.toHaveBeenCalled();
   expect(dbState.db.transaction).not.toHaveBeenCalled();
   expect(dbState.txMock.insert).not.toHaveBeenCalled();
   expect(dbState.txMock.update).not.toHaveBeenCalled();
@@ -279,6 +281,27 @@ function expectNoShareMutation() {
 
 async function flushPublicViewWrite() {
   await vi.waitFor(() => expect(dbState.db.insert).toHaveBeenCalled());
+}
+
+const PRIVATE_PUBLIC_RESPONSE_KEYS = new Set(['fundId', 'fundIdInternal']);
+
+function expectNoPrivateFundKeys(value: unknown, path = '$') {
+  if (Array.isArray(value)) {
+    value.forEach((item, index) => expectNoPrivateFundKeys(item, `${path}[${index}]`));
+    return;
+  }
+
+  if (value === null || typeof value !== 'object') {
+    return;
+  }
+
+  Object.entries(value as Record<string, unknown>).forEach(([key, nestedValue]) => {
+    expect(
+      PRIVATE_PUBLIC_RESPONSE_KEYS.has(key),
+      `${path}.${key} should not expose private fund identifiers`
+    ).toBe(false);
+    expectNoPrivateFundKeys(nestedValue, `${path}.${key}`);
+  });
 }
 
 describe('shares management boundary contracts', () => {
@@ -491,20 +514,37 @@ describe('shares management boundary contracts', () => {
     );
   });
 
-  it('documents the current management existence-leak ordering without changing it', async () => {
-    dbState.state.selectResults.push([]);
+  it.each([
+    {
+      name: 'PATCH /:shareId',
+      act: (shareId: string) =>
+        request(makeManagementApp({ user: deniedUser })).patch(`/${shareId}`),
+    },
+    {
+      name: 'DELETE /:shareId',
+      act: (shareId: string) =>
+        request(makeManagementApp({ user: deniedUser })).delete(`/${shareId}`),
+    },
+    {
+      name: 'GET /:shareId/analytics',
+      act: (shareId: string) =>
+        request(makeManagementApp({ user: deniedUser })).get(`/${shareId}/analytics`),
+    },
+  ])(
+    '$name documents the current management existence-leak ordering without changing it',
+    async ({ act }) => {
+      dbState.state.selectResults.push([]);
 
-    const missing = await request(makeManagementApp({ user: deniedUser })).patch('/missing-share');
+      const missing = await act('missing-share');
 
-    dbState.state.selectResults.push([makeShare({ id: 'real-share', fundId: '2' })]);
-    const existingWrongFund = await request(makeManagementApp({ user: deniedUser })).patch(
-      '/real-share'
-    );
+      dbState.state.selectResults.push([makeShare({ id: 'real-share', fundId: '2' })]);
+      const existingWrongFund = await act('real-share');
 
-    expect(missing.status).toBe(404);
-    expect(existingWrongFund.status).toBe(403);
-    expectNoShareMutation();
-  });
+      expect(missing.status).toBe(404);
+      expect(existingWrongFund.status).toBe(403);
+      expectNoShareMutation();
+    }
+  );
 });
 
 describe('public shares anonymous token boundary contracts', () => {
@@ -524,7 +564,7 @@ describe('public shares anonymous token boundary contracts', () => {
       requirePasskey: false,
       snapshot: { shareId: 'tok-public', title: 'Investor snapshot' },
     });
-    expect(response.body.share).not.toHaveProperty('fundId');
+    expectNoPrivateFundKeys(response.body);
     expect(snapshotState.getLatestShareSnapshot).toHaveBeenCalledWith('tok-public');
     await flushPublicViewWrite();
   });
@@ -626,6 +666,56 @@ describe('public shares anonymous token boundary contracts', () => {
     expect(dbState.db.select).not.toHaveBeenCalled();
   });
 
+  it('POST /:shareId/verify returns 404 for an unknown token', async () => {
+    dbState.state.selectResults.push([]);
+
+    const response = await request(makePublicApp())
+      .post('/missing-verify-token/verify')
+      .send({ passkey: 'anything' });
+
+    expect(response.status).toBe(404);
+    expect(response.body).toEqual({ success: false, error: 'Share not found' });
+    expect(snapshotState.getLatestShareSnapshot).not.toHaveBeenCalled();
+  });
+
+  it('POST /:shareId/verify returns 410 for a revoked passkey share token', async () => {
+    dbState.state.selectResults.push([
+      makeShare({
+        id: 'revoked-passkey',
+        requirePasskey: true,
+        passkeyHash: storedPasskeyHash('open-sesame'),
+        isActive: false,
+      }),
+    ]);
+
+    const response = await request(makePublicApp())
+      .post('/revoked-passkey/verify')
+      .send({ passkey: 'open-sesame' });
+
+    expect(response.status).toBe(410);
+    expect(response.body).toEqual({ success: false, error: 'Share has been revoked' });
+    expect(snapshotState.getLatestShareSnapshot).not.toHaveBeenCalled();
+  });
+
+  it('POST /:shareId/verify returns 410 for an expired passkey share token', async () => {
+    dbState.state.selectResults.push([
+      makeShare({
+        id: 'expired-passkey',
+        requirePasskey: true,
+        passkeyHash: storedPasskeyHash('open-sesame'),
+        expiresAt: new Date('2020-01-01T00:00:00.000Z'),
+      }),
+    ]);
+
+    const response = await request(makePublicApp())
+      .post('/expired-passkey/verify')
+      .send({ passkey: 'open-sesame' });
+
+    expect(response.status).toBe(410);
+    expect(response.body).toEqual({ success: false, error: 'Share has expired' });
+    expect(snapshotState.getLatestShareSnapshot).not.toHaveBeenCalled();
+  });
+
   it('POST /:shareId/verify returns 400 when the share does not require a passkey', async () => {
     dbState.state.selectResults.push([makeShare({ id: 'no-passkey-required' })]);
 
@@ -656,6 +746,25 @@ describe('public shares anonymous token boundary contracts', () => {
     expect(snapshotState.getLatestShareSnapshot).not.toHaveBeenCalled();
   });
 
+  it('POST /:shareId/verify returns 503 when the verified snapshot is unavailable', async () => {
+    dbState.state.selectResults.push([
+      makeShare({
+        id: 'verified-snapshot-missing',
+        requirePasskey: true,
+        passkeyHash: storedPasskeyHash('open-sesame'),
+      }),
+    ]);
+    snapshotState.getLatestShareSnapshot.mockResolvedValueOnce(undefined);
+
+    const response = await request(makePublicApp())
+      .post('/verified-snapshot-missing/verify')
+      .send({ passkey: 'open-sesame' });
+
+    expect(response.status).toBe(503);
+    expect(response.body).toMatchObject({ success: false, error: 'snapshot_unavailable' });
+    expect(dbState.db.insert).not.toHaveBeenCalled();
+  });
+
   it('POST /:shareId/verify returns the snapshot for a correct real passkey hash', async () => {
     dbState.state.selectResults.push([
       makeShare({
@@ -678,6 +787,7 @@ describe('public shares anonymous token boundary contracts', () => {
       requirePasskey: true,
       snapshot: { shareId: 'correct-passkey' },
     });
+    expectNoPrivateFundKeys(response.body);
     expect(snapshotState.getLatestShareSnapshot).toHaveBeenCalledWith('correct-passkey');
     await flushPublicViewWrite();
   });
