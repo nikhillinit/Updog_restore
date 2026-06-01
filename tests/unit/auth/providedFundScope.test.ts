@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import type { Request, Response } from 'express';
+import type { NextFunction, Request, Response } from 'express';
 import jwt from 'jsonwebtoken';
 
 const TEST_SECRET = 'provided-scope-test-secret-minimum-32-chars';
@@ -266,5 +266,284 @@ describe('enforceProvidedFundScope', () => {
       lpId: 42,
       fundIds: [77],
     });
+  });
+});
+
+describe('requireProvidedFundScopeFrom', () => {
+  const originalEnv = new Map<EnvKey, string | undefined>();
+
+  beforeEach(() => {
+    vi.resetModules();
+    for (const key of ENV_KEYS) {
+      originalEnv.set(key, process.env[key]);
+      delete process.env[key];
+    }
+  });
+
+  afterEach(() => {
+    for (const key of ENV_KEYS) {
+      const value = originalEnv.get(key);
+      if (value === undefined) {
+        delete process.env[key];
+      } else {
+        process.env[key] = value;
+      }
+    }
+  });
+
+  function makeScopedRequest(
+    source: 'body' | 'query',
+    fundId: unknown,
+    authorization?: string
+  ): Request {
+    const req = makeRequest(authorization);
+    (req as unknown as Record<string, unknown>)[source] = { fundId };
+    return req;
+  }
+
+  it('allows a canonical body fundId that matches the token scope', async () => {
+    setJwtEnv();
+    const token = signToken({ fundIds: [7] });
+    const { requireProvidedFundScopeFrom } = await import('@/server/lib/auth/provided-fund-scope');
+    const { res, status } = makeResponse();
+    const next = vi.fn();
+
+    await requireProvidedFundScopeFrom('body')(
+      makeScopedRequest('body', 7, `Bearer ${token}`),
+      res,
+      next as unknown as NextFunction
+    );
+
+    expect(next).toHaveBeenCalledTimes(1);
+    expect(status).not.toHaveBeenCalled();
+  });
+
+  it('allows a canonical numeric-string query fundId that matches the token scope', async () => {
+    setJwtEnv();
+    const token = signToken({ fundIds: [7] });
+    const { requireProvidedFundScopeFrom } = await import('@/server/lib/auth/provided-fund-scope');
+    const { res, status } = makeResponse();
+    const next = vi.fn();
+
+    await requireProvidedFundScopeFrom('query')(
+      makeScopedRequest('query', '7', `Bearer ${token}`),
+      res,
+      next as unknown as NextFunction
+    );
+
+    expect(next).toHaveBeenCalledTimes(1);
+    expect(status).not.toHaveBeenCalled();
+  });
+
+  it('rejects a missing fundId with 400 and does not call next', async () => {
+    setJwtEnv();
+    const token = signToken({ fundIds: [7] });
+    const { requireProvidedFundScopeFrom } = await import('@/server/lib/auth/provided-fund-scope');
+    const { res, status, json } = makeResponse();
+    const next = vi.fn();
+
+    await requireProvidedFundScopeFrom('body')(
+      makeScopedRequest('body', undefined, `Bearer ${token}`),
+      res,
+      next as unknown as NextFunction
+    );
+
+    expect(status).toHaveBeenCalledWith(400);
+    expect(json).toHaveBeenCalledWith({
+      error: 'invalid_fund_id',
+      message: 'Fund ID must be a positive integer',
+    });
+    expect(next).not.toHaveBeenCalled();
+  });
+
+  it('rejects zero and negative fundIds with 400', async () => {
+    setJwtEnv();
+    const token = signToken({ fundIds: [7] });
+    const { requireProvidedFundScopeFrom } = await import('@/server/lib/auth/provided-fund-scope');
+    const next = vi.fn();
+
+    for (const bad of [0, -1, '0', '-3']) {
+      const { res, status } = makeResponse();
+      await requireProvidedFundScopeFrom('query')(
+        makeScopedRequest('query', bad, `Bearer ${token}`),
+        res,
+        next as unknown as NextFunction
+      );
+      expect(status).toHaveBeenCalledWith(400);
+    }
+    expect(next).not.toHaveBeenCalled();
+  });
+
+  it('rejects non-canonical fundIds (1e1, leading zero, float, array) with 400', async () => {
+    setJwtEnv();
+    const token = signToken({ fundIds: [10] });
+    const { requireProvidedFundScopeFrom } = await import('@/server/lib/auth/provided-fund-scope');
+    const next = vi.fn();
+
+    for (const bad of ['1e1', '0123', '1.5', [10]]) {
+      const { res, status } = makeResponse();
+      await requireProvidedFundScopeFrom('query')(
+        makeScopedRequest('query', bad, `Bearer ${token}`),
+        res,
+        next as unknown as NextFunction
+      );
+      expect(status).toHaveBeenCalledWith(400);
+    }
+    expect(next).not.toHaveBeenCalled();
+  });
+
+  it('returns 403 without calling next when the token is scoped to another fund', async () => {
+    setJwtEnv();
+    const token = signToken({ fundIds: [8] });
+    const { requireProvidedFundScopeFrom } = await import('@/server/lib/auth/provided-fund-scope');
+    const { res, status, json } = makeResponse();
+    const next = vi.fn();
+
+    await requireProvidedFundScopeFrom('query')(
+      makeScopedRequest('query', '7', `Bearer ${token}`),
+      res,
+      next as unknown as NextFunction
+    );
+
+    expect(status).toHaveBeenCalledWith(403);
+    expect(json).toHaveBeenCalledWith({
+      error: 'Forbidden',
+      code: 'FUND_ACCESS_DENIED',
+      message: 'You do not have access to fund 7',
+    });
+    expect(next).not.toHaveBeenCalled();
+  });
+
+  it('calls next for an empty-scope (admin) token', async () => {
+    setJwtEnv();
+    const token = signToken({ fundIds: [] });
+    const { requireProvidedFundScopeFrom } = await import('@/server/lib/auth/provided-fund-scope');
+    const { res, status } = makeResponse();
+    const next = vi.fn();
+
+    await requireProvidedFundScopeFrom('body')(
+      makeScopedRequest('body', 12345, `Bearer ${token}`),
+      res,
+      next as unknown as NextFunction
+    );
+
+    expect(next).toHaveBeenCalledTimes(1);
+    expect(status).not.toHaveBeenCalled();
+  });
+
+  it('returns 401 without calling next for an invalid token', async () => {
+    setJwtEnv();
+    const token = signToken({ fundIds: [7] }, { secret: OTHER_SECRET });
+    const { requireProvidedFundScopeFrom } = await import('@/server/lib/auth/provided-fund-scope');
+    const { res, status } = makeResponse();
+    const next = vi.fn();
+
+    await requireProvidedFundScopeFrom('query')(
+      makeScopedRequest('query', '7', `Bearer ${token}`),
+      res,
+      next as unknown as NextFunction
+    );
+
+    expect(status).toHaveBeenCalledWith(401);
+    expect(next).not.toHaveBeenCalled();
+  });
+});
+
+describe('getVerifiedFundScope', () => {
+  const originalEnv = new Map<EnvKey, string | undefined>();
+
+  beforeEach(() => {
+    vi.resetModules();
+    for (const key of ENV_KEYS) {
+      originalEnv.set(key, process.env[key]);
+      delete process.env[key];
+    }
+  });
+
+  afterEach(() => {
+    for (const key of ENV_KEYS) {
+      const value = originalEnv.get(key);
+      if (value === undefined) {
+        delete process.env[key];
+      } else {
+        process.env[key] = value;
+      }
+    }
+  });
+
+  it('maps an empty-scope token to unrestricted', async () => {
+    setJwtEnv();
+    const token = signToken({ fundIds: [] });
+    const { getVerifiedFundScope } = await import('@/server/lib/auth/provided-fund-scope');
+
+    await expect(getVerifiedFundScope(makeRequest(`Bearer ${token}`))).resolves.toEqual({
+      unrestricted: true,
+      fundIds: [],
+    });
+  });
+
+  it('maps a scoped token to its fund list', async () => {
+    setJwtEnv();
+    const token = signToken({ fundIds: [1, 2] });
+    const { getVerifiedFundScope } = await import('@/server/lib/auth/provided-fund-scope');
+
+    await expect(getVerifiedFundScope(makeRequest(`Bearer ${token}`))).resolves.toEqual({
+      unrestricted: false,
+      fundIds: [1, 2],
+    });
+  });
+
+  it('returns null for an invalid (wrong-secret) token', async () => {
+    setJwtEnv();
+    const token = signToken({ fundIds: [1] }, { secret: OTHER_SECRET });
+    const { getVerifiedFundScope } = await import('@/server/lib/auth/provided-fund-scope');
+
+    await expect(getVerifiedFundScope(makeRequest(`Bearer ${token}`))).resolves.toBeNull();
+  });
+
+  it('returns null for an expired token', async () => {
+    setJwtEnv();
+    const token = signToken({ fundIds: [1] }, { expiresIn: '-1s' });
+    const { getVerifiedFundScope } = await import('@/server/lib/auth/provided-fund-scope');
+
+    await expect(getVerifiedFundScope(makeRequest(`Bearer ${token}`))).resolves.toBeNull();
+  });
+
+  it('mirrors the dev bypass: no token in development resolves to unrestricted', async () => {
+    setJwtEnv('development');
+    const { getVerifiedFundScope } = await import('@/server/lib/auth/provided-fund-scope');
+
+    await expect(getVerifiedFundScope(makeRequest())).resolves.toEqual({
+      unrestricted: true,
+      fundIds: [],
+    });
+  });
+
+  it('honors an upstream user scope when no token is present in test mode', async () => {
+    setJwtEnv();
+    const { getVerifiedFundScope } = await import('@/server/lib/auth/provided-fund-scope');
+    const req = makeRequest(undefined, {
+      id: 'upstream',
+      sub: 'upstream',
+      email: 'upstream@example.com',
+      roles: [],
+      fundIds: [99],
+      ip: '127.0.0.1',
+      userAgent: 'vitest',
+    });
+
+    await expect(getVerifiedFundScope(req)).resolves.toEqual({
+      unrestricted: false,
+      fundIds: [99],
+    });
+  });
+
+  it('throws on a missing token outside development/test (production)', async () => {
+    setJwtEnv('production');
+    const { getVerifiedFundScope } = await import('@/server/lib/auth/provided-fund-scope');
+
+    await expect(getVerifiedFundScope(makeRequest())).rejects.toThrow(
+      'Missing bearer token while enforcing provided fund scope in production'
+    );
   });
 });

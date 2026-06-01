@@ -6,25 +6,35 @@ const {
   enqueueSimulationMock,
   isQueueInitializedMock,
   runSimulationMock,
+  runBatchSimulationsMock,
+  runMultiEnvironmentSimulationMock,
   getStageValidationModeMock,
   parseStageDistributionMock,
+  enforceProvidedFundScopeMock,
 } = vi.hoisted(() => ({
   enqueueSimulationMock: vi.fn(),
   isQueueInitializedMock: vi.fn(() => false),
   runSimulationMock: vi.fn(),
+  runBatchSimulationsMock: vi.fn(),
+  runMultiEnvironmentSimulationMock: vi.fn(),
   getStageValidationModeMock: vi.fn(),
   parseStageDistributionMock: vi.fn(),
+  enforceProvidedFundScopeMock: vi.fn(),
 }));
 
 vi.mock('../../../server/services/monte-carlo-service-unified', () => ({
   unifiedMonteCarloService: {
     runSimulation: runSimulationMock,
-    runBatchSimulations: vi.fn(),
-    runMultiEnvironmentSimulation: vi.fn(),
+    runBatchSimulations: runBatchSimulationsMock,
+    runMultiEnvironmentSimulation: runMultiEnvironmentSimulationMock,
     healthCheck: vi.fn(),
     getPerformanceStats: vi.fn(),
     getOptimizationRecommendations: vi.fn(),
   },
+}));
+
+vi.mock('../../../server/lib/auth/provided-fund-scope', () => ({
+  enforceProvidedFundScope: enforceProvidedFundScopeMock,
 }));
 
 vi.mock('../../../server/queues/simulation-queue', () => ({
@@ -144,6 +154,9 @@ describe('Monte Carlo routes', () => {
     runSimulationMock.mockResolvedValue(createSimulationResult());
     enqueueSimulationMock.mockResolvedValue({ jobId: 'job-1', estimatedWaitMs: 5000 });
     isQueueInitializedMock.mockReturnValue(false);
+    enforceProvidedFundScopeMock.mockResolvedValue(true);
+    runBatchSimulationsMock.mockResolvedValue([createSimulationResult()]);
+    runMultiEnvironmentSimulationMock.mockResolvedValue({ bull: createSimulationResult() });
   });
 
   it('validates stageDistribution as a percentage record before calling the service', async () => {
@@ -256,6 +269,125 @@ describe('Monte Carlo routes', () => {
 
     expect(response.body.error).toBe('INVALID_STAGE_DISTRIBUTION');
     expect(response.headers['x-stage-warning']).toContain('unknown-stage');
+    expect(runSimulationMock).not.toHaveBeenCalled();
+  });
+
+  it('enforces fund scope with the body fundId on POST /simulate before reading', async () => {
+    await request(app).post('/simulate').send({ fundId: 7 }).expect(200);
+
+    expect(enforceProvidedFundScopeMock).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.anything(),
+      7
+    );
+    expect(runSimulationMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('denies POST /simulate for an out-of-scope fund before running the simulation', async () => {
+    enforceProvidedFundScopeMock.mockImplementationOnce(async (_req, res) => {
+      res.status(403).json({ error: 'Forbidden', code: 'FUND_ACCESS_DENIED' });
+      return false;
+    });
+
+    const response = await request(app).post('/simulate').send({ fundId: 2 }).expect(403);
+
+    expect(response.body).toMatchObject({ error: 'Forbidden', code: 'FUND_ACCESS_DENIED' });
+    expect(enforceProvidedFundScopeMock).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.anything(),
+      2
+    );
+    expect(runSimulationMock).not.toHaveBeenCalled();
+  });
+
+  it('denies POST /simulate/async for an out-of-scope fund before queueing', async () => {
+    isQueueInitializedMock.mockReturnValue(true);
+    enforceProvidedFundScopeMock.mockImplementationOnce(async (_req, res) => {
+      res.status(403).json({ error: 'Forbidden', code: 'FUND_ACCESS_DENIED' });
+      return false;
+    });
+
+    await request(app).post('/simulate/async').send({ fundId: 2 }).expect(403);
+
+    expect(enforceProvidedFundScopeMock).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.anything(),
+      2
+    );
+    expect(enqueueSimulationMock).not.toHaveBeenCalled();
+    expect(runSimulationMock).not.toHaveBeenCalled();
+  });
+
+  it('denies POST /batch on the first out-of-scope config in a mixed-fund batch', async () => {
+    enforceProvidedFundScopeMock
+      .mockImplementationOnce(async () => true)
+      .mockImplementationOnce(async (_req, res) => {
+        res.status(403).json({ error: 'Forbidden', code: 'FUND_ACCESS_DENIED' });
+        return false;
+      });
+
+    await request(app)
+      .post('/batch')
+      .send({ simulations: [{ fundId: 1 }, { fundId: 2 }] })
+      .expect(403);
+
+    expect(enforceProvidedFundScopeMock).toHaveBeenNthCalledWith(
+      1,
+      expect.anything(),
+      expect.anything(),
+      1
+    );
+    expect(enforceProvidedFundScopeMock).toHaveBeenNthCalledWith(
+      2,
+      expect.anything(),
+      expect.anything(),
+      2
+    );
+    expect(runBatchSimulationsMock).not.toHaveBeenCalled();
+  });
+
+  it('denies POST /multi-environment for an out-of-scope fund before running', async () => {
+    enforceProvidedFundScopeMock.mockImplementationOnce(async (_req, res) => {
+      res.status(403).json({ error: 'Forbidden', code: 'FUND_ACCESS_DENIED' });
+      return false;
+    });
+
+    await request(app)
+      .post('/multi-environment')
+      .send({
+        baseConfig: { fundId: 2 },
+        environments: [
+          {
+            scenario: 'bull',
+            exitMultipliers: { mean: 1, volatility: 1 },
+            failureRate: 0.1,
+            followOnProbability: 0.1,
+          },
+        ],
+      })
+      .expect(403);
+
+    expect(enforceProvidedFundScopeMock).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.anything(),
+      2
+    );
+    expect(runMultiEnvironmentSimulationMock).not.toHaveBeenCalled();
+  });
+
+  it('denies GET /funds/:fundId/simulate for an out-of-scope fund before reading', async () => {
+    enforceProvidedFundScopeMock.mockImplementationOnce(async (_req, res) => {
+      res.status(403).json({ error: 'Forbidden', code: 'FUND_ACCESS_DENIED' });
+      return false;
+    });
+
+    await request(app).get('/funds/2/simulate?runs=1000').expect(403);
+
+    expect(enforceProvidedFundScopeMock).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.anything(),
+      2
+    );
     expect(runSimulationMock).not.toHaveBeenCalled();
   });
 });
