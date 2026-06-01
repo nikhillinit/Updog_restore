@@ -22,7 +22,8 @@ export interface NumberOptions {
   integer?: boolean;
 }
 
-const CANONICAL_FUND_ID = /^\d+$/;
+// Canonical positive integer: no leading zeros, so the string equals String(Number(raw)).
+const CANONICAL_FUND_ID = /^[1-9]\d*$/;
 
 export function parseFundIdParam(raw: string | undefined): number | null {
   if (!raw || !CANONICAL_FUND_ID.test(raw)) return null;

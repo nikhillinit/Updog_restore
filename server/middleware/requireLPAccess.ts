@@ -16,6 +16,7 @@
 import type { Request, Response, NextFunction } from 'express';
 import { db } from '../db';
 import { eq } from 'drizzle-orm';
+import { parseFundIdParam } from '@shared/number';
 import { limitedPartners, lpFundCommitments } from '@shared/schema-lp-reporting';
 import { firstString } from '../lib/request-values';
 import { logger } from '../lib/logger.js';
@@ -171,9 +172,9 @@ export function requireLPFundAccess(req: Request, res: Response, next: NextFunct
     return;
   }
 
-  const fundId = parseInt(fundIdParam, 10);
+  const fundId = parseFundIdParam(fundIdParam);
 
-  if (isNaN(fundId) || fundId <= 0) {
+  if (fundId === null) {
     res.status(400).json({
       error: 'INVALID_PARAMETER',
       message: 'Invalid fund ID',
