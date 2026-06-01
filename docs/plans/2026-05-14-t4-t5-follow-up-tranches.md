@@ -1,6 +1,6 @@
 ---
 status: ACTIVE
-last_updated: 2026-05-14
+last_updated: 2026-05-31
 owner: Core Team
 review_cadence: P14D
 ---
@@ -92,11 +92,19 @@ Minimum acceptance criteria:
 Current state: fallback paths can mix canonical server data with stale client or
 direct database data.
 
-- [ ] Remove or feature-flag the T2 `totalCommitted` client fallback.
-- [ ] Remove or feature-flag the T4 `getFund` direct DB fallback in actual
-      metrics calculation paths.
-- [ ] Remove or feature-flag the T4 allocations DB-to-memory fallback, or make
-      cursor pagination behavior identical across both branches.
+- [x] Remove or feature-flag the T2 `totalCommitted` client fallback. (PR #743:
+      proven-equivalent — extracted documented `resolveCommittedCapital`;
+      committed capital is the fund's configured commitment, always available
+      from config unlike NAV/IRR/DPI, server value preferred. No behavior
+      change.)
+- [x] Remove or feature-flag the T4 `getFund` direct DB fallback in actual
+      metrics calculation paths. (PR #743: deleted — relies on
+      `storage.getFund`, returns undefined on miss; caller already throws
+      not-found.)
+- [x] Remove or feature-flag the T4 allocations DB-to-memory fallback, or make
+      cursor pagination behavior identical across both branches. (PR #743: gated
+      — explicit `storage.kind` branch replaces the "db empty -> guess memory"
+      heuristic; memory branch now honors the `id < cursor` predicate.)
 
 Minimum acceptance criteria:
 
