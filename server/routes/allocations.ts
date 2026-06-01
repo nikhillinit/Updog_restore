@@ -394,6 +394,77 @@ router['get'](
       }
     }
 
+    if (storage.kind === 'memory') {
+      const storedAll = await storage.getPortfolioCompanies(fundId);
+
+      if (storedAll.length === 0 && query.cursor === undefined) {
+        return res.status(404).json({
+          error: 'fund_not_found',
+          message: `Fund with ID ${fundId} not found or has no companies`,
+        });
+      }
+
+      const sorted = storedAll
+        .filter((company) => {
+          if (query.cursor !== undefined && company.id >= query.cursor) {
+            return false;
+          }
+          if (query.status && normalizeCompanyListStatus(company.status) !== query.status) {
+            return false;
+          }
+          if (query.sector && company.sector !== query.sector) {
+            return false;
+          }
+          if (normalizedStage && company.stage !== normalizedStage) {
+            return false;
+          }
+          if (query.q && !company.name.toLowerCase().includes(query.q.toLowerCase())) {
+            return false;
+          }
+          return true;
+        })
+        .sort((left, right) => {
+          if (query.sortBy === 'name_asc') {
+            return left.name.localeCompare(right.name) || right.id - left.id;
+          }
+          if (query.sortBy === 'planned_reserves_desc') {
+            return (
+              plannedReservesSortValue(right) - plannedReservesSortValue(left) || right.id - left.id
+            );
+          }
+          return exitMoicSortValue(right) - exitMoicSortValue(left) || right.id - left.id;
+        });
+
+      const memHasMore = sorted.length > query.limit;
+      const page = memHasMore ? sorted.slice(0, query.limit) : sorted;
+      const memNextCursor =
+        memHasMore && page.length > 0 ? String(page[page.length - 1]!.id) : null;
+      const responseCompanies = page.map((company) => companyListItemFromRow(company, fundId));
+
+      const response: CompanyListResponse = {
+        companies: responseCompanies,
+        pagination: {
+          next_cursor: memNextCursor,
+          has_more: memHasMore,
+          // Note: total_count is optional and expensive - omitted for performance
+        },
+      };
+
+      // Log request metrics
+      const duration = Date.now() - startTime;
+      logger.info(
+        {
+          requestId,
+          fundId,
+          companyCount: responseCompanies.length,
+          durationMs: duration,
+        },
+        'allocations company list served'
+      );
+
+      return res.status(200).json(response);
+    }
+
     // Build WHERE conditions
     const conditions: SQL[] = [eq(portfolioCompanies.fundId, fundId)];
 
@@ -475,54 +546,17 @@ router['get'](
       .limit(fetchLimit);
 
     // Check if we have more results
-    let hasMore = results.length > query.limit;
+    const hasMore = results.length > query.limit;
     const companies = hasMore ? results.slice(0, query.limit) : results;
 
     // Get next cursor (last company ID)
-    let nextCursor =
+    const nextCursor =
       hasMore && companies.length > 0 ? companies[companies.length - 1]!.id.toString() : null;
 
     // Convert database results to response format
-    let responseCompanies: CompanyListItem[] = companies.map((row: (typeof results)[number]) =>
+    const responseCompanies: CompanyListItem[] = companies.map((row: (typeof results)[number]) =>
       companyListItemFromRow(row, fundId)
     );
-
-    // Check if fund exists (if no results and no cursor, fund might not exist)
-    if (responseCompanies.length === 0 && !query.cursor) {
-      const storedCompanies = (await storage.getPortfolioCompanies(fundId))
-        .filter((company) => {
-          if (query.status && normalizeCompanyListStatus(company.status) !== query.status) {
-            return false;
-          }
-          if (query.sector && company.sector !== query.sector) {
-            return false;
-          }
-          if (normalizedStage && company.stage !== normalizedStage) {
-            return false;
-          }
-          if (query.q && !company.name.toLowerCase().includes(query.q.toLowerCase())) {
-            return false;
-          }
-          return true;
-        })
-        .sort((left, right) => {
-          if (query.sortBy === 'name_asc') {
-            return left.name.localeCompare(right.name) || right.id - left.id;
-          }
-          if (query.sortBy === 'planned_reserves_desc') {
-            return (
-              plannedReservesSortValue(right) - plannedReservesSortValue(left) || right.id - left.id
-            );
-          }
-          return exitMoicSortValue(right) - exitMoicSortValue(left) || right.id - left.id;
-        });
-
-      hasMore = storedCompanies.length > query.limit;
-      const storedPage = hasMore ? storedCompanies.slice(0, query.limit) : storedCompanies;
-      nextCursor =
-        hasMore && storedPage.length > 0 ? storedPage[storedPage.length - 1]!.id.toString() : null;
-      responseCompanies = storedPage.map((company) => companyListItemFromRow(company, fundId));
-    }
 
     if (responseCompanies.length === 0 && !query.cursor) {
       // Verify fund exists by checking if any companies exist for this fund

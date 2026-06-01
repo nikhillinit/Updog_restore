@@ -47,9 +47,12 @@ const writeState = vi.hoisted(() => ({
 }));
 
 const fundScopeState = vi.hoisted(() => ({
-  enforceProvidedFundScope: vi.fn(
-    async (_req: Request, _res: Response, _fundId: number) => true
-  ),
+  enforceProvidedFundScope: vi.fn(async (_req: Request, _res: Response, _fundId: number) => true),
+}));
+
+const storageState = vi.hoisted(() => ({
+  kind: 'database',
+  getPortfolioCompanies: vi.fn(async (): Promise<unknown[]> => []),
 }));
 
 vi.mock('../../../server/db', () => ({ db: dbState.db }));
@@ -85,7 +88,7 @@ vi.mock('../../../server/lib/logger.js', () => ({
 }));
 
 vi.mock('../../../server/storage', () => ({
-  storage: { getPortfolioCompanies: vi.fn(async () => []) },
+  storage: storageState,
 }));
 
 import allocationsRouter from '../../../server/routes/allocations';
@@ -119,6 +122,9 @@ function resetState() {
   writeState.transaction.mockClear();
   fundScopeState.enforceProvidedFundScope.mockReset();
   fundScopeState.enforceProvidedFundScope.mockResolvedValue(true);
+  storageState.kind = 'database';
+  storageState.getPortfolioCompanies.mockReset();
+  storageState.getPortfolioCompanies.mockResolvedValue([]);
 }
 
 function companyRow(overrides: Record<string, unknown> = {}) {
@@ -206,6 +212,28 @@ describe('allocations route contracts', () => {
       'stage',
       'status',
     ]);
+  });
+
+  it('GET /api/funds/:fundId/companies honors memory-mode cursor pagination', async () => {
+    storageState.kind = 'memory';
+    storageState.getPortfolioCompanies.mockResolvedValue([
+      companyRow({ id: 30, name: 'Gamma', exitMoicBps: 30000 }),
+      companyRow({ id: 20, name: 'Beta', exitMoicBps: 20000 }),
+      companyRow({ id: 10, name: 'Alpha', exitMoicBps: 10000 }),
+    ]);
+
+    const firstPage = await request(makeApp()).get('/api/funds/1/companies?limit=2');
+
+    expect(firstPage.status).toBe(200);
+    expect(firstPage.body.companies.map((company: { id: number }) => company.id)).toEqual([30, 20]);
+    expect(firstPage.body.pagination).toEqual({ next_cursor: '20', has_more: true });
+
+    const secondPage = await request(makeApp()).get('/api/funds/1/companies?limit=2&cursor=20');
+
+    expect(secondPage.status).toBe(200);
+    expect(secondPage.body.companies.map((company: { id: number }) => company.id)).toEqual([10]);
+    expect(secondPage.body.pagination).toEqual({ next_cursor: null, has_more: false });
+    expect(dbState.db.select).not.toHaveBeenCalled();
   });
 
   it('GET /api/funds/:fundId/allocations/latest locks latest-allocation response shape', async () => {
