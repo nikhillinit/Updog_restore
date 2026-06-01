@@ -32,6 +32,7 @@ import {
 } from '../services/xlsx-generation-service.js';
 import { registerQueueRuntime, unregisterQueueRuntime } from './registry.js';
 import { getBullMQConnection } from './redis-connection.js';
+import { resolveFundId } from './resolve-fund-id.js';
 import { logger } from '../logger';
 
 // Job types
@@ -109,18 +110,6 @@ interface ReportGenerationContext {
   reportType: ReportGenerationJobData['reportType'];
   dateRange: ReportGenerationJobData['dateRange'];
   reportMetrics: Awaited<ReturnType<typeof prefetchReportMetrics>>;
-}
-
-/** Resolve fundId once from job data or first commitment */
-function resolveFundId(
-  jobFundIds: number[] | undefined,
-  lpData: Awaited<ReturnType<typeof fetchLPReportData>>
-): number {
-  const fundId = jobFundIds?.[0] || lpData.commitments[0]?.fundId;
-  if (!fundId) {
-    throw new Error('No fund ID available for report generation');
-  }
-  return fundId;
 }
 
 /** Extract quarter label from end date */
