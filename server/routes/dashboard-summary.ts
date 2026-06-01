@@ -5,6 +5,7 @@ import { toNumber } from '@shared/number';
 import { storage } from '../storage';
 import { getDashboardSummaryReadModel } from '../services/dashboard-summary-read-service';
 import { handleNumberParseError } from '../lib/number-parse-error';
+import { enforceProvidedFundScope } from '../lib/auth/provided-fund-scope';
 import { logger } from '../lib/logger.js';
 
 const router = Router();
@@ -21,6 +22,10 @@ router['get']('/dashboard-summary/:fundId', async (req: Request, res: Response) 
         message: `Fund ID must be a positive integer, received: ${fundIdParam}`,
       };
       return res.status(400).json(error);
+    }
+
+    if (!(await enforceProvidedFundScope(req, res, fundId))) {
+      return;
     }
 
     const dashboardSummary = await getDashboardSummaryReadModel(storage, fundId);
