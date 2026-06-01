@@ -442,4 +442,20 @@ describe('LP API route contracts', () => {
       settings: { display: { currency: 'EUR', numberFormat: 'EU' } },
     });
   });
+
+  it('POST /api/lp/reports/generate rejects funds the LP is not committed to', async () => {
+    const response = await request(makeApp())
+      .post('/api/lp/reports/generate')
+      .send({
+        reportType: 'quarterly',
+        dateRange: { startDate: '2026-01-01', endDate: '2026-03-31' },
+        format: 'pdf',
+        fundIds: [99],
+        sections: ['summary'],
+      });
+
+    expect(response.status).toBe(403);
+    expect(response.body).toMatchObject({ error: 'FORBIDDEN' });
+    expect(dbState.state.insertValues).toHaveLength(0);
+  });
 });
