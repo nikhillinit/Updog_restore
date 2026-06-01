@@ -110,6 +110,13 @@ describe('cashflow route fund-scope contracts', () => {
     );
   });
 
+  it('rejects a non-canonical fundId before scope or store access', async () => {
+    const response = await call('get', '/api/cashflow/01/transactions');
+
+    expect(response.status).toBe(400);
+    expect(fundScopeState.enforceProvidedFundScope).not.toHaveBeenCalled();
+  });
+
   it('does not persist a transaction when the fund scope is denied', async () => {
     fundScopeState.enforceProvidedFundScope.mockImplementationOnce(denyImpl);
     const denied = await call('post', '/api/cashflow/8/transactions', {

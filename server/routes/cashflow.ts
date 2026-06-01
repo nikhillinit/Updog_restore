@@ -14,6 +14,7 @@ import {
   groupTransactionsByType,
   calculateLiquidityMetrics,
 } from '@shared/types';
+import { parseFundIdParam } from '@shared/number';
 import { getRouteErrorMessage } from '../lib/errorHandling';
 import { createRouteLogger } from '../lib/route-logger.js';
 import { enforceProvidedFundScope } from '../lib/auth/provided-fund-scope';
@@ -29,6 +30,28 @@ const router = Router();
 const FundIdParams = z.object({
   fundId: z.string().min(1),
 });
+
+async function requireScopedRouteFund(
+  req: Request,
+  res: Response
+): Promise<{ fundId: string } | null> {
+  const parsedParams = FundIdParams.safeParse(req.params);
+  const rawFundId = parsedParams.success ? parsedParams.data.fundId : undefined;
+  const numericFundId = parseFundIdParam(rawFundId);
+  if (numericFundId === null) {
+    res.status(400).json({
+      error: 'Invalid request parameters',
+      message: 'Fund ID must be a canonical positive integer',
+    });
+    return null;
+  }
+
+  if (!(await enforceProvidedFundScope(req, res, numericFundId))) {
+    return null;
+  }
+
+  return { fundId: String(numericFundId) };
+}
 
 const TransactionQueryParams = z.object({
   startDate: z.string().optional(),
@@ -85,11 +108,11 @@ const generateId = () => `${Date.now()}-${Math.random().toString(36).substr(2, 9
  */
 router['get']('/:fundId/transactions', async (req: Request, res: Response) => {
   try {
-    const { fundId } = FundIdParams.parse(req.params);
-
-    if (!(await enforceProvidedFundScope(req, res, Number(fundId)))) {
+    const scopedFund = await requireScopedRouteFund(req, res);
+    if (!scopedFund) {
       return;
     }
+    const { fundId } = scopedFund;
 
     const queryParams = TransactionQueryParams.parse(req.query);
 
@@ -167,11 +190,11 @@ router['get']('/:fundId/transactions', async (req: Request, res: Response) => {
  */
 router['post']('/:fundId/transactions', async (req: Request, res: Response) => {
   try {
-    const { fundId } = FundIdParams.parse(req.params);
-
-    if (!(await enforceProvidedFundScope(req, res, Number(fundId)))) {
+    const scopedFund = await requireScopedRouteFund(req, res);
+    if (!scopedFund) {
       return;
     }
+    const { fundId } = scopedFund;
 
     const transactionData = CreateTransactionRequest.parse(req.body);
 
@@ -205,11 +228,11 @@ router['post']('/:fundId/transactions', async (req: Request, res: Response) => {
  */
 router['put']('/:fundId/transactions/:transactionId', async (req: Request, res: Response) => {
   try {
-    const { fundId } = FundIdParams.parse(req.params);
-
-    if (!(await enforceProvidedFundScope(req, res, Number(fundId)))) {
+    const scopedFund = await requireScopedRouteFund(req, res);
+    if (!scopedFund) {
       return;
     }
+    const { fundId } = scopedFund;
 
     const { transactionId } = z.object({ transactionId: z.string() }).parse(req.params);
     const updates = UpdateTransactionRequest.parse(req.body);
@@ -255,11 +278,11 @@ router['put']('/:fundId/transactions/:transactionId', async (req: Request, res: 
  */
 router['delete']('/:fundId/transactions/:transactionId', async (req: Request, res: Response) => {
   try {
-    const { fundId } = FundIdParams.parse(req.params);
-
-    if (!(await enforceProvidedFundScope(req, res, Number(fundId)))) {
+    const scopedFund = await requireScopedRouteFund(req, res);
+    if (!scopedFund) {
       return;
     }
+    const { fundId } = scopedFund;
 
     const { transactionId } = z.object({ transactionId: z.string() }).parse(req.params);
 
@@ -297,11 +320,11 @@ router['delete']('/:fundId/transactions/:transactionId', async (req: Request, re
  */
 router['get']('/:fundId/capital-calls', async (req: Request, res: Response) => {
   try {
-    const { fundId } = FundIdParams.parse(req.params);
-
-    if (!(await enforceProvidedFundScope(req, res, Number(fundId)))) {
+    const scopedFund = await requireScopedRouteFund(req, res);
+    if (!scopedFund) {
       return;
     }
+    const { fundId } = scopedFund;
 
     const fundCapitalCalls = Array.from(capitalCalls.values())
       .filter((cc) => cc.fundId === fundId)
@@ -336,11 +359,11 @@ router['get']('/:fundId/capital-calls', async (req: Request, res: Response) => {
  */
 router['post']('/:fundId/capital-calls', async (req: Request, res: Response) => {
   try {
-    const { fundId } = FundIdParams.parse(req.params);
-
-    if (!(await enforceProvidedFundScope(req, res, Number(fundId)))) {
+    const scopedFund = await requireScopedRouteFund(req, res);
+    if (!scopedFund) {
       return;
     }
+    const { fundId } = scopedFund;
 
     const capitalCallData = CreateCapitalCallRequest.parse(req.body);
 
@@ -378,11 +401,11 @@ router['post']('/:fundId/capital-calls', async (req: Request, res: Response) => 
  */
 router['get']('/:fundId/liquidity-forecast', async (req: Request, res: Response) => {
   try {
-    const { fundId } = FundIdParams.parse(req.params);
-
-    if (!(await enforceProvidedFundScope(req, res, Number(fundId)))) {
+    const scopedFund = await requireScopedRouteFund(req, res);
+    if (!scopedFund) {
       return;
     }
+    const { fundId } = scopedFund;
 
     const { months = 12 } = z
       .object({
@@ -485,11 +508,11 @@ router['get']('/:fundId/liquidity-forecast', async (req: Request, res: Response)
  */
 router['get']('/:fundId/cash-position', async (req: Request, res: Response) => {
   try {
-    const { fundId } = FundIdParams.parse(req.params);
-
-    if (!(await enforceProvidedFundScope(req, res, Number(fundId)))) {
+    const scopedFund = await requireScopedRouteFund(req, res);
+    if (!scopedFund) {
       return;
     }
+    const { fundId } = scopedFund;
 
     const position = cashPositions.get(fundId) || {
       fundId,
@@ -571,11 +594,11 @@ router['get']('/:fundId/cash-position', async (req: Request, res: Response) => {
  */
 router['get']('/:fundId/recurring-expenses', async (req: Request, res: Response) => {
   try {
-    const { fundId } = FundIdParams.parse(req.params);
-
-    if (!(await enforceProvidedFundScope(req, res, Number(fundId)))) {
+    const scopedFund = await requireScopedRouteFund(req, res);
+    if (!scopedFund) {
       return;
     }
+    const { fundId } = scopedFund;
 
     const fundExpenses = Array.from(recurringExpenses.values())
       .filter((e) => e.fundId === fundId)
@@ -620,11 +643,11 @@ router['get']('/:fundId/recurring-expenses', async (req: Request, res: Response)
  */
 router['post']('/:fundId/recurring-expenses', async (req: Request, res: Response) => {
   try {
-    const { fundId } = FundIdParams.parse(req.params);
-
-    if (!(await enforceProvidedFundScope(req, res, Number(fundId)))) {
+    const scopedFund = await requireScopedRouteFund(req, res);
+    if (!scopedFund) {
       return;
     }
+    const { fundId } = scopedFund;
 
     const expenseData = CreateRecurringExpenseRequest.parse(req.body);
 
