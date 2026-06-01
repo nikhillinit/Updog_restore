@@ -214,7 +214,10 @@ describe('allocations route contracts', () => {
     ]);
   });
 
-  it('GET /api/funds/:fundId/companies honors memory-mode cursor pagination', async () => {
+  // Covers the id-aligned ordering case only (fixture ids descend with MOIC), proving
+  // memory-mode pagination reaches page 2 with parity to the DB branch. The shared
+  // id-cursor-under-non-id-sort defect is tracked in #744, not asserted here.
+  it('GET /api/funds/:fundId/companies honors memory-mode cursor pagination for id-aligned ordering', async () => {
     storageState.kind = 'memory';
     storageState.getPortfolioCompanies.mockResolvedValue([
       companyRow({ id: 30, name: 'Gamma', exitMoicBps: 30000 }),

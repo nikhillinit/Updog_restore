@@ -406,6 +406,10 @@ router['get'](
 
       const sorted = storedAll
         .filter((company) => {
+          // Id-based cursor (id < cursor), identical to the DB branch above. NOTE:
+          // like the DB path, this only paginates correctly when id order aligns
+          // with the active sort; non-id sorts (exit_moic_desc, planned_reserves_desc,
+          // name_asc) can dup/skip across pages. Shared keyset defect tracked in #744.
           if (query.cursor !== undefined && company.id >= query.cursor) {
             return false;
           }
