@@ -16,6 +16,7 @@ import {
 } from '@shared/types';
 import { getRouteErrorMessage } from '../lib/errorHandling';
 import { createRouteLogger } from '../lib/route-logger.js';
+import { enforceProvidedFundScope } from '../lib/auth/provided-fund-scope';
 
 const routeLog = createRouteLogger('cashflow');
 
@@ -85,6 +86,11 @@ const generateId = () => `${Date.now()}-${Math.random().toString(36).substr(2, 9
 router['get']('/:fundId/transactions', async (req: Request, res: Response) => {
   try {
     const { fundId } = FundIdParams.parse(req.params);
+
+    if (!(await enforceProvidedFundScope(req, res, Number(fundId)))) {
+      return;
+    }
+
     const queryParams = TransactionQueryParams.parse(req.query);
 
     // Filter transactions by fund
@@ -162,6 +168,11 @@ router['get']('/:fundId/transactions', async (req: Request, res: Response) => {
 router['post']('/:fundId/transactions', async (req: Request, res: Response) => {
   try {
     const { fundId } = FundIdParams.parse(req.params);
+
+    if (!(await enforceProvidedFundScope(req, res, Number(fundId)))) {
+      return;
+    }
+
     const transactionData = CreateTransactionRequest.parse(req.body);
 
     const transaction: CashTransaction = {
@@ -195,6 +206,11 @@ router['post']('/:fundId/transactions', async (req: Request, res: Response) => {
 router['put']('/:fundId/transactions/:transactionId', async (req: Request, res: Response) => {
   try {
     const { fundId } = FundIdParams.parse(req.params);
+
+    if (!(await enforceProvidedFundScope(req, res, Number(fundId)))) {
+      return;
+    }
+
     const { transactionId } = z.object({ transactionId: z.string() }).parse(req.params);
     const updates = UpdateTransactionRequest.parse(req.body);
 
@@ -240,6 +256,11 @@ router['put']('/:fundId/transactions/:transactionId', async (req: Request, res: 
 router['delete']('/:fundId/transactions/:transactionId', async (req: Request, res: Response) => {
   try {
     const { fundId } = FundIdParams.parse(req.params);
+
+    if (!(await enforceProvidedFundScope(req, res, Number(fundId)))) {
+      return;
+    }
+
     const { transactionId } = z.object({ transactionId: z.string() }).parse(req.params);
 
     const existingTransaction = transactions.get(transactionId);
@@ -278,6 +299,10 @@ router['get']('/:fundId/capital-calls', async (req: Request, res: Response) => {
   try {
     const { fundId } = FundIdParams.parse(req.params);
 
+    if (!(await enforceProvidedFundScope(req, res, Number(fundId)))) {
+      return;
+    }
+
     const fundCapitalCalls = Array.from(capitalCalls.values())
       .filter((cc) => cc.fundId === fundId)
       .sort((a, b) => new Date(b.noticeDate).getTime() - new Date(a.noticeDate).getTime());
@@ -312,6 +337,11 @@ router['get']('/:fundId/capital-calls', async (req: Request, res: Response) => {
 router['post']('/:fundId/capital-calls', async (req: Request, res: Response) => {
   try {
     const { fundId } = FundIdParams.parse(req.params);
+
+    if (!(await enforceProvidedFundScope(req, res, Number(fundId)))) {
+      return;
+    }
+
     const capitalCallData = CreateCapitalCallRequest.parse(req.body);
 
     const capitalCall: CapitalCall = {
@@ -349,6 +379,11 @@ router['post']('/:fundId/capital-calls', async (req: Request, res: Response) => 
 router['get']('/:fundId/liquidity-forecast', async (req: Request, res: Response) => {
   try {
     const { fundId } = FundIdParams.parse(req.params);
+
+    if (!(await enforceProvidedFundScope(req, res, Number(fundId)))) {
+      return;
+    }
+
     const { months = 12 } = z
       .object({
         months: z.coerce.number().int().min(1).max(60).optional(),
@@ -452,6 +487,10 @@ router['get']('/:fundId/cash-position', async (req: Request, res: Response) => {
   try {
     const { fundId } = FundIdParams.parse(req.params);
 
+    if (!(await enforceProvidedFundScope(req, res, Number(fundId)))) {
+      return;
+    }
+
     const position = cashPositions.get(fundId) || {
       fundId,
       asOfDate: new Date(),
@@ -534,6 +573,10 @@ router['get']('/:fundId/recurring-expenses', async (req: Request, res: Response)
   try {
     const { fundId } = FundIdParams.parse(req.params);
 
+    if (!(await enforceProvidedFundScope(req, res, Number(fundId)))) {
+      return;
+    }
+
     const fundExpenses = Array.from(recurringExpenses.values())
       .filter((e) => e.fundId === fundId)
       .filter((e) => e.isActive);
@@ -578,6 +621,11 @@ router['get']('/:fundId/recurring-expenses', async (req: Request, res: Response)
 router['post']('/:fundId/recurring-expenses', async (req: Request, res: Response) => {
   try {
     const { fundId } = FundIdParams.parse(req.params);
+
+    if (!(await enforceProvidedFundScope(req, res, Number(fundId)))) {
+      return;
+    }
+
     const expenseData = CreateRecurringExpenseRequest.parse(req.body);
 
     const expense: RecurringExpense = {
