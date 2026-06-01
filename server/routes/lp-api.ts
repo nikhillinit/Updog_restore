@@ -778,6 +778,24 @@ router.post(
       // Validate request body
       const config = ReportConfigSchema.parse(req.body);
 
+      // SECURITY: LPs may only generate reports for funds they are committed to.
+      // req.lpProfile.fundIds is the cached commitment snapshot from requireLPAccess.
+      const lpFundIds = req.lpProfile?.fundIds ?? [];
+      const unauthorizedFundId = config.fundIds?.find((id) => !lpFundIds.includes(id));
+      if (unauthorizedFundId !== undefined) {
+        const duration = endTimer();
+        recordLPRequest(endpoint, 'POST', 403, duration, lpId);
+        recordError(endpoint, 'FUND_ACCESS_DENIED', 403);
+        return res
+          .status(403)
+          .json(
+            createErrorResponse(
+              'FORBIDDEN',
+              `You do not have access to fund ${unauthorizedFundId}. LPs can only generate reports for funds they have invested in.`
+            )
+          );
+      }
+
       // Create report record
       const reportId = uuidv4();
       const idempotencyKey = `lp_${lpId}_report_${Date.now()}`;
