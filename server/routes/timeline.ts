@@ -5,9 +5,10 @@
  * Routes are thin wrappers that delegate business logic to TimeTravelAnalyticsService
  */
 import { funds } from '@shared/schema';
+import { parseFundIdParam } from '@shared/number';
 import { eq } from 'drizzle-orm';
 import { Router } from 'express';
-import type { Express } from 'express';
+import type { Express, Request, Response } from 'express';
 import { z } from 'zod';
 import { db } from '../db';
 import { NotFoundError } from '../errors';
@@ -17,6 +18,7 @@ import { firstString } from '../lib/request-values';
 import { asyncHandler } from '../middleware/async';
 import { validateRequest } from '../middleware/validation';
 import { TimeTravelAnalyticsService, type Cache } from '../services/time-travel-analytics';
+import { enforceProvidedFundScope } from '../lib/auth/provided-fund-scope';
 
 /**
  * Create timeline router with service dependency injection
@@ -48,6 +50,19 @@ function createCacheAdapter(appLocalsCache: unknown): Cache | undefined {
  */
 export function createTimelineRouter(service: TimeTravelAnalyticsService) {
   const router = Router();
+  const fundIdParamsSchema = z.object({ fundId: z.string().min(1) });
+
+  function parseTimelineFundId(req: Request, res: Response): number | null {
+    const fundId = parseFundIdParam(firstString(req.params['fundId']));
+    if (fundId === null) {
+      res.status(400).json({
+        error: 'Invalid fund ID',
+        message: 'Fund ID must be a canonical positive integer',
+      });
+      return null;
+    }
+    return fundId;
+  }
 
   // Timeline range schema
   const timelineRangeSchema = z.object({
@@ -81,12 +96,18 @@ export function createTimelineRouter(service: TimeTravelAnalyticsService) {
   router.get(
     '/:fundId',
     validateRequest({
-      params: z.object({ fundId: z.coerce.number() }),
+      params: fundIdParamsSchema,
       query: timelineRangeSchema.omit({ fundId: true }),
     }),
     asyncHandler(async (req, res) => {
       const startTimer = Date.now();
-      const fundIdNum = parseInt(firstString(req.params['fundId']) ?? '', 10);
+      const fundIdNum = parseTimelineFundId(req, res);
+      if (fundIdNum === null) {
+        return;
+      }
+      if (!(await enforceProvidedFundScope(req, res, fundIdNum))) {
+        return;
+      }
       const startTimeStr =
         typeof req.query['startTime'] === 'string' ? req.query['startTime'] : undefined;
       const endTimeStr =
@@ -116,12 +137,18 @@ export function createTimelineRouter(service: TimeTravelAnalyticsService) {
   router.get(
     '/:fundId/state',
     validateRequest({
-      params: z.object({ fundId: z.coerce.number() }),
+      params: fundIdParamsSchema,
       query: pointInTimeSchema.omit({ fundId: true }),
     }),
     asyncHandler(async (req, res) => {
       const startTimer = Date.now();
-      const fundIdNum = parseInt(firstString(req.params['fundId']) ?? '', 10);
+      const fundIdNum = parseTimelineFundId(req, res);
+      if (fundIdNum === null) {
+        return;
+      }
+      if (!(await enforceProvidedFundScope(req, res, fundIdNum))) {
+        return;
+      }
       const timestampStr = typeof req.query['timestamp'] === 'string' ? req.query['timestamp'] : '';
       const includeEventsFlag =
         typeof req.query['includeEvents'] === 'string'
@@ -153,12 +180,18 @@ export function createTimelineRouter(service: TimeTravelAnalyticsService) {
   router.post(
     '/:fundId/snapshot',
     validateRequest({
-      params: z.object({ fundId: z.coerce.number() }),
+      params: fundIdParamsSchema,
       body: createSnapshotBodySchema,
     }),
     asyncHandler(async (req, res) => {
       const startTimer = Date.now();
-      const fundIdNum = parseInt(firstString(req.params['fundId']) ?? '', 10);
+      const fundIdNum = parseTimelineFundId(req, res);
+      if (fundIdNum === null) {
+        return;
+      }
+      if (!(await enforceProvidedFundScope(req, res, fundIdNum))) {
+        return;
+      }
       const { type, description: _description } = req.body as CreateSnapshotBody;
 
       // Verify fund exists
@@ -204,7 +237,7 @@ export function createTimelineRouter(service: TimeTravelAnalyticsService) {
   router.get(
     '/:fundId/compare',
     validateRequest({
-      params: z.object({ fundId: z.coerce.number() }),
+      params: fundIdParamsSchema,
       query: z.object({
         timestamp1: z.string().datetime(),
         timestamp2: z.string().datetime(),
@@ -213,10 +246,15 @@ export function createTimelineRouter(service: TimeTravelAnalyticsService) {
     }),
     asyncHandler(async (req, res) => {
       const startTimer = Date.now();
-      const fundId = firstString(req.params['fundId']);
       const { timestamp1, timestamp2, includeDiff } = req.query;
 
-      const fundIdNum = parseInt(fundId ?? '', 10);
+      const fundIdNum = parseTimelineFundId(req, res);
+      if (fundIdNum === null) {
+        return;
+      }
+      if (!(await enforceProvidedFundScope(req, res, fundIdNum))) {
+        return;
+      }
       const ts1 = typeof timestamp1 === 'string' ? timestamp1 : '';
       const ts2 = typeof timestamp2 === 'string' ? timestamp2 : '';
 
