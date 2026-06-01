@@ -22,6 +22,7 @@ import {
   StressAnalysisRequestV1Schema,
   SensitivityRunKindSchema,
 } from '@shared/contracts/sensitivity-run-v1.contract';
+import { enforceProvidedFundScope } from '../lib/auth/provided-fund-scope';
 
 /**
  * Maps SensitivityEngineError codes to HTTP status codes.
@@ -49,6 +50,10 @@ router.post('/funds/:id/sensitivity/one-way', async (req: Request, res: Response
       code: 'INVALID_FUND_ID',
       message: 'fund id must be a positive integer',
     });
+  }
+
+  if (!(await enforceProvidedFundScope(req, res, fundId))) {
+    return;
   }
 
   const parsed = OneWayAnalysisRequestV1Schema.safeParse(req.body);
@@ -93,6 +98,10 @@ router.post('/funds/:id/sensitivity/two-way', async (req: Request, res: Response
     });
   }
 
+  if (!(await enforceProvidedFundScope(req, res, fundId))) {
+    return;
+  }
+
   const parsed = TwoWayAnalysisRequestV1Schema.safeParse(req.body);
   if (!parsed.success) {
     return res.status(400).json({
@@ -133,6 +142,10 @@ router.post('/funds/:id/sensitivity/stress', async (req: Request, res: Response)
       code: 'INVALID_FUND_ID',
       message: 'fund id must be a positive integer',
     });
+  }
+
+  if (!(await enforceProvidedFundScope(req, res, fundId))) {
+    return;
   }
 
   const parsed = StressAnalysisRequestV1Schema.safeParse(req.body);
@@ -177,6 +190,10 @@ router.get('/funds/:id/sensitivity/runs', async (req: Request, res: Response) =>
     });
   }
 
+  if (!(await enforceProvidedFundScope(req, res, fundId))) {
+    return;
+  }
+
   const kindParam = req.query['kind'];
   const kindParse = kindParam ? SensitivityRunKindSchema.safeParse(kindParam) : null;
   if (kindParse && !kindParse.success) {
@@ -217,6 +234,9 @@ router.get('/funds/:id/sensitivity/runs/:runId', async (req: Request, res: Respo
   const runId = parseInt(String(req.params['runId'] ?? ''), 10);
   if (!Number.isInteger(fundId) || fundId <= 0) {
     return res.status(400).json({ code: 'INVALID_FUND_ID' });
+  }
+  if (!(await enforceProvidedFundScope(req, res, fundId))) {
+    return;
   }
   if (!Number.isInteger(runId) || runId <= 0) {
     return res.status(400).json({ code: 'INVALID_RUN_ID' });
