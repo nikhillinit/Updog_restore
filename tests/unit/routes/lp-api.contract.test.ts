@@ -173,6 +173,10 @@ vi.mock('../../../server/storage', () => ({
   },
 }));
 
+import {
+  enqueueReportGeneration,
+  isReportQueueAvailable,
+} from '../../../server/queues/report-generation-queue';
 import lpApiRouter from '../../../server/routes/lp-api';
 
 function makeApp() {
@@ -193,6 +197,10 @@ function resetState() {
   calculatorState.calculateCapitalAccount.mockReset();
   calculatorState.calculateProRataHoldings.mockReset();
   calculatorState.calculatePerformance.mockReset();
+  vi.mocked(isReportQueueAvailable).mockClear();
+  vi.mocked(isReportQueueAvailable).mockReturnValue(true);
+  vi.mocked(enqueueReportGeneration).mockClear();
+  vi.mocked(enqueueReportGeneration).mockResolvedValue({ jobId: 'job-1', estimatedWaitMs: 0 });
   lpAccessState.mode = 'lp';
 }
 
@@ -404,6 +412,25 @@ describe('LP API route contracts', () => {
       message: 'Report generation queued',
     });
     expect(dbState.state.insertValues).toHaveLength(1);
+    expect(enqueueReportGeneration).toHaveBeenCalledTimes(1);
+  });
+
+  it('POST /api/lp/reports/generate accepts omitted fundIds as all LP-owned funds', async () => {
+    const response = await request(makeApp())
+      .post('/api/lp/reports/generate')
+      .send({
+        reportType: 'quarterly',
+        dateRange: { startDate: '2026-01-01', endDate: '2026-03-31' },
+        format: 'pdf',
+        sections: ['summary', 'capital_account'],
+      });
+
+    expect(response.status).toBe(202);
+    expect(dbState.state.insertValues).toHaveLength(1);
+    expect(enqueueReportGeneration).toHaveBeenCalledTimes(1);
+    const [queuedPayload] = vi.mocked(enqueueReportGeneration).mock.calls[0] ?? [];
+    expect(queuedPayload).toBeDefined();
+    expect(queuedPayload).not.toHaveProperty('fundIds');
   });
 
   it('POST /api/lp/reports/generate preserves validation-error envelope', async () => {
@@ -466,6 +493,24 @@ describe('LP API route contracts', () => {
     expect(response.status).toBe(403);
     expect(response.body).toMatchObject({ error: 'FORBIDDEN' });
     expect(dbState.state.insertValues).toHaveLength(0);
+    expect(enqueueReportGeneration).not.toHaveBeenCalled();
+  });
+
+  it('POST /api/lp/reports/generate rejects mixed allowed and unauthorized funds', async () => {
+    const response = await request(makeApp())
+      .post('/api/lp/reports/generate')
+      .send({
+        reportType: 'quarterly',
+        dateRange: { startDate: '2026-01-01', endDate: '2026-03-31' },
+        format: 'pdf',
+        fundIds: [7, 99],
+        sections: ['summary'],
+      });
+
+    expect(response.status).toBe(403);
+    expect(response.body).toMatchObject({ error: 'FORBIDDEN' });
+    expect(dbState.state.insertValues).toHaveLength(0);
+    expect(enqueueReportGeneration).not.toHaveBeenCalled();
   });
 });
 
@@ -523,36 +568,75 @@ describe('LP API self-scoping negative controls', () => {
     }
   );
 
-  function collectPredicateAtoms(node: unknown, params: unknown[], cols: string[]): void {
+  type PredicateComparison = { col: string; value: unknown };
+
+  function nodeColumnName(node: unknown): string | undefined {
+    if (!node || typeof node !== 'object') return undefined;
+    const name = (node as { name?: unknown }).name;
+    return typeof name === 'string' ? name : undefined;
+  }
+
+  function nodeParamValue(node: unknown): { found: boolean; value: unknown } {
+    if (!node || typeof node !== 'object') return { found: false, value: undefined };
+    const n = node as Record<string, unknown>;
+    if ('value' in n && !('queryChunks' in n)) return { found: true, value: n['value'] };
+    return { found: false, value: undefined };
+  }
+
+  function collectPredicateAtoms(
+    node: unknown,
+    params: unknown[],
+    cols: string[],
+    comparisons: PredicateComparison[]
+  ): void {
     if (!node || typeof node !== 'object') return;
     const n = node as Record<string, unknown>;
     if ('value' in n && !('queryChunks' in n)) params.push((n as { value: unknown }).value);
     if (typeof (n as { name?: unknown }).name === 'string') cols.push((n as { name: string }).name);
     const chunks = (n as { queryChunks?: unknown }).queryChunks;
-    if (Array.isArray(chunks)) for (const c of chunks) collectPredicateAtoms(c, params, cols);
+    if (Array.isArray(chunks)) {
+      const directCols = chunks.flatMap((chunk) => {
+        const col = nodeColumnName(chunk);
+        return col ? [col] : [];
+      });
+      const directParams = chunks.flatMap((chunk) => {
+        const param = nodeParamValue(chunk);
+        return param.found ? [param.value] : [];
+      });
+      for (const col of directCols) {
+        for (const value of directParams) comparisons.push({ col, value });
+      }
+      for (const c of chunks) collectPredicateAtoms(c, params, cols, comparisons);
+    }
     const inner = n as { sql?: unknown; left?: unknown; right?: unknown };
-    if (inner.sql) collectPredicateAtoms(inner.sql, params, cols);
-    if (inner.left) collectPredicateAtoms(inner.left, params, cols);
-    if (inner.right) collectPredicateAtoms(inner.right, params, cols);
+    if (inner.sql) collectPredicateAtoms(inner.sql, params, cols, comparisons);
+    if (inner.left) collectPredicateAtoms(inner.left, params, cols, comparisons);
+    if (inner.right) collectPredicateAtoms(inner.right, params, cols, comparisons);
   }
 
-  function wherePredicateAtoms(selectCallIndex = 0): { params: unknown[]; cols: string[] } {
+  function wherePredicateAtoms(selectCallIndex = 0): {
+    params: unknown[];
+    cols: string[];
+    comparisons: PredicateComparison[];
+  } {
     const queryObj = dbState.db.select.mock.results[selectCallIndex]?.value as
       | { where?: { mock?: { calls?: unknown[][] } } }
       | undefined;
     const pred = queryObj?.where?.mock?.calls?.[0]?.[0];
     const params: unknown[] = [];
     const cols: string[] = [];
-    collectPredicateAtoms(pred, params, cols);
-    return { params, cols };
+    const comparisons: PredicateComparison[] = [];
+    collectPredicateAtoms(pred, params, cols, comparisons);
+    return { params, cols, comparisons };
   }
 
   function expectLpPredicateScope(selectCallIndex = 0): void {
-    const { params, cols } = wherePredicateAtoms(selectCallIndex);
+    const { params, cols, comparisons } = wherePredicateAtoms(selectCallIndex);
     expect(params.length).toBeGreaterThan(0);
     expect(params).toContain(9001);
     expect(params).not.toContain(8888);
     expect(cols.some((c) => /lp_?id/i.test(c))).toBe(true);
+    expect(comparisons.some(({ col, value }) => /lp_?id/i.test(col) && value === 9001)).toBe(true);
   }
 
   it('GET /api/lp/summary passes the authenticated LP id to the calculator', async () => {
