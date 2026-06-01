@@ -54,6 +54,8 @@ const calculatorState = vi.hoisted(() => ({
   calculatePerformance: vi.fn(),
 }));
 
+const lpAccessState = vi.hoisted(() => ({ mode: 'lp' as 'lp' | 'non-lp' }));
+
 vi.mock('express-rate-limit', () => ({
   default: () => (_req: Request, _res: Response, next: NextFunction) => next(),
 }));
@@ -76,7 +78,13 @@ vi.mock('../../../server/lib/auth/jwt', () => ({
 }));
 
 vi.mock('../../../server/middleware/requireLPAccess', () => ({
-  requireLPAccess: (req: Request, _res: Response, next: NextFunction) => {
+  requireLPAccess: (req: Request, res: Response, next: NextFunction) => {
+    if (lpAccessState.mode === 'non-lp') {
+      return res.status(403).json({
+        error: 'FORBIDDEN',
+        message: 'LP access required. This endpoint is only available to Limited Partners.',
+      });
+    }
     req.lpProfile = {
       id: 9001,
       name: 'Contract LP',
@@ -84,7 +92,7 @@ vi.mock('../../../server/middleware/requireLPAccess', () => ({
       entityType: 'institution',
       fundIds: [7],
     };
-    next();
+    return next();
   },
   requireLPFundAccess: (req: Request, res: Response, next: NextFunction) => {
     const fundId = Number(req.params['fundId']);
@@ -165,6 +173,10 @@ vi.mock('../../../server/storage', () => ({
   },
 }));
 
+import {
+  enqueueReportGeneration,
+  isReportQueueAvailable,
+} from '../../../server/queues/report-generation-queue';
 import lpApiRouter from '../../../server/routes/lp-api';
 
 function makeApp() {
@@ -185,6 +197,11 @@ function resetState() {
   calculatorState.calculateCapitalAccount.mockReset();
   calculatorState.calculateProRataHoldings.mockReset();
   calculatorState.calculatePerformance.mockReset();
+  vi.mocked(isReportQueueAvailable).mockClear();
+  vi.mocked(isReportQueueAvailable).mockReturnValue(true);
+  vi.mocked(enqueueReportGeneration).mockClear();
+  vi.mocked(enqueueReportGeneration).mockResolvedValue({ jobId: 'job-1', estimatedWaitMs: 0 });
+  lpAccessState.mode = 'lp';
 }
 
 function transaction(overrides: Record<string, unknown> = {}) {
@@ -395,6 +412,25 @@ describe('LP API route contracts', () => {
       message: 'Report generation queued',
     });
     expect(dbState.state.insertValues).toHaveLength(1);
+    expect(enqueueReportGeneration).toHaveBeenCalledTimes(1);
+  });
+
+  it('POST /api/lp/reports/generate accepts omitted fundIds as all LP-owned funds', async () => {
+    const response = await request(makeApp())
+      .post('/api/lp/reports/generate')
+      .send({
+        reportType: 'quarterly',
+        dateRange: { startDate: '2026-01-01', endDate: '2026-03-31' },
+        format: 'pdf',
+        sections: ['summary', 'capital_account'],
+      });
+
+    expect(response.status).toBe(202);
+    expect(dbState.state.insertValues).toHaveLength(1);
+    expect(enqueueReportGeneration).toHaveBeenCalledTimes(1);
+    const [queuedPayload] = vi.mocked(enqueueReportGeneration).mock.calls[0] ?? [];
+    expect(queuedPayload).toBeDefined();
+    expect(queuedPayload).not.toHaveProperty('fundIds');
   });
 
   it('POST /api/lp/reports/generate preserves validation-error envelope', async () => {
@@ -442,4 +478,271 @@ describe('LP API route contracts', () => {
       settings: { display: { currency: 'EUR', numberFormat: 'EU' } },
     });
   });
+
+  it('POST /api/lp/reports/generate rejects funds the LP is not committed to', async () => {
+    const response = await request(makeApp())
+      .post('/api/lp/reports/generate')
+      .send({
+        reportType: 'quarterly',
+        dateRange: { startDate: '2026-01-01', endDate: '2026-03-31' },
+        format: 'pdf',
+        fundIds: [99],
+        sections: ['summary'],
+      });
+
+    expect(response.status).toBe(403);
+    expect(response.body).toMatchObject({ error: 'FORBIDDEN' });
+    expect(dbState.state.insertValues).toHaveLength(0);
+    expect(enqueueReportGeneration).not.toHaveBeenCalled();
+  });
+
+  it('POST /api/lp/reports/generate rejects mixed allowed and unauthorized funds', async () => {
+    const response = await request(makeApp())
+      .post('/api/lp/reports/generate')
+      .send({
+        reportType: 'quarterly',
+        dateRange: { startDate: '2026-01-01', endDate: '2026-03-31' },
+        format: 'pdf',
+        fundIds: [7, 99],
+        sections: ['summary'],
+      });
+
+    expect(response.status).toBe(403);
+    expect(response.body).toMatchObject({ error: 'FORBIDDEN' });
+    expect(dbState.state.insertValues).toHaveLength(0);
+    expect(enqueueReportGeneration).not.toHaveBeenCalled();
+  });
+});
+
+describe('LP API self-scoping negative controls', () => {
+  beforeEach(() => resetState());
+
+  const nonLpRoutes = [
+    ['get', '/api/lp/profile'],
+    ['get', '/api/lp/summary'],
+    ['get', '/api/lp/capital-account'],
+    ['get', '/api/lp/funds/7/detail'],
+    ['get', '/api/lp/funds/7/holdings'],
+    ['get', '/api/lp/performance'],
+    ['get', '/api/lp/performance/benchmark'],
+    [
+      'post',
+      '/api/lp/reports/generate',
+      {
+        reportType: 'quarterly',
+        dateRange: { startDate: '2026-01-01', endDate: '2026-03-31' },
+        format: 'pdf',
+        fundIds: [7],
+        sections: ['summary'],
+      },
+    ],
+    ['get', '/api/lp/reports'],
+    ['get', '/api/lp/reports/report-123'],
+    ['get', '/api/lp/reports/report-123/download'],
+    ['get', '/api/lp/settings'],
+    ['put', '/api/lp/settings', {}],
+  ] as const;
+
+  function issueRequest(method: 'get' | 'post' | 'put', path: string, body?: unknown) {
+    const app = request(makeApp());
+    if (method === 'get') return app.get(path);
+    const pendingRequest = method === 'post' ? app.post(path) : app.put(path);
+    return body === undefined ? pendingRequest : pendingRequest.send(body);
+  }
+
+  it.each(nonLpRoutes)(
+    '%s %s rejects non-LP callers before data reads',
+    async (method, path, body) => {
+      lpAccessState.mode = 'non-lp';
+
+      const response = await issueRequest(method, path, body);
+
+      expect(response.status).toBe(403);
+      expect(response.body.error).toBe('FORBIDDEN');
+      expect(dbState.db.select).not.toHaveBeenCalled();
+      expect(dbState.db.insert).not.toHaveBeenCalled();
+      expect(calculatorState.calculateSummary).not.toHaveBeenCalled();
+      expect(calculatorState.calculateCapitalAccount).not.toHaveBeenCalled();
+      expect(calculatorState.calculateProRataHoldings).not.toHaveBeenCalled();
+      expect(calculatorState.calculatePerformance).not.toHaveBeenCalled();
+    }
+  );
+
+  type PredicateComparison = { col: string; value: unknown };
+
+  function nodeColumnName(node: unknown): string | undefined {
+    if (!node || typeof node !== 'object') return undefined;
+    const name = (node as { name?: unknown }).name;
+    return typeof name === 'string' ? name : undefined;
+  }
+
+  function nodeParamValue(node: unknown): { found: boolean; value: unknown } {
+    if (!node || typeof node !== 'object') return { found: false, value: undefined };
+    const n = node as Record<string, unknown>;
+    if ('value' in n && !('queryChunks' in n)) return { found: true, value: n['value'] };
+    return { found: false, value: undefined };
+  }
+
+  function collectPredicateAtoms(
+    node: unknown,
+    params: unknown[],
+    cols: string[],
+    comparisons: PredicateComparison[]
+  ): void {
+    if (!node || typeof node !== 'object') return;
+    const n = node as Record<string, unknown>;
+    if ('value' in n && !('queryChunks' in n)) params.push((n as { value: unknown }).value);
+    if (typeof (n as { name?: unknown }).name === 'string') cols.push((n as { name: string }).name);
+    const chunks = (n as { queryChunks?: unknown }).queryChunks;
+    if (Array.isArray(chunks)) {
+      const directCols = chunks.flatMap((chunk) => {
+        const col = nodeColumnName(chunk);
+        return col ? [col] : [];
+      });
+      const directParams = chunks.flatMap((chunk) => {
+        const param = nodeParamValue(chunk);
+        return param.found ? [param.value] : [];
+      });
+      for (const col of directCols) {
+        for (const value of directParams) comparisons.push({ col, value });
+      }
+      for (const c of chunks) collectPredicateAtoms(c, params, cols, comparisons);
+    }
+    const inner = n as { sql?: unknown; left?: unknown; right?: unknown };
+    if (inner.sql) collectPredicateAtoms(inner.sql, params, cols, comparisons);
+    if (inner.left) collectPredicateAtoms(inner.left, params, cols, comparisons);
+    if (inner.right) collectPredicateAtoms(inner.right, params, cols, comparisons);
+  }
+
+  function wherePredicateAtoms(selectCallIndex = 0): {
+    params: unknown[];
+    cols: string[];
+    comparisons: PredicateComparison[];
+  } {
+    const queryObj = dbState.db.select.mock.results[selectCallIndex]?.value as
+      | { where?: { mock?: { calls?: unknown[][] } } }
+      | undefined;
+    const pred = queryObj?.where?.mock?.calls?.[0]?.[0];
+    const params: unknown[] = [];
+    const cols: string[] = [];
+    const comparisons: PredicateComparison[] = [];
+    collectPredicateAtoms(pred, params, cols, comparisons);
+    return { params, cols, comparisons };
+  }
+
+  function expectLpPredicateScope(selectCallIndex = 0): void {
+    const { params, cols, comparisons } = wherePredicateAtoms(selectCallIndex);
+    expect(params.length).toBeGreaterThan(0);
+    expect(params).toContain(9001);
+    expect(params).not.toContain(8888);
+    expect(cols.some((c) => /lp_?id/i.test(c))).toBe(true);
+    expect(comparisons.some(({ col, value }) => /lp_?id/i.test(col) && value === 9001)).toBe(true);
+  }
+
+  it('GET /api/lp/summary passes the authenticated LP id to the calculator', async () => {
+    calculatorState.calculateSummary.mockResolvedValueOnce({
+      lpId: 9001,
+      lpName: 'Contract LP',
+      totalCommittedCents: BigInt(0),
+      totalCalledCents: BigInt(0),
+      totalDistributedCents: BigInt(0),
+      totalNAVCents: BigInt(0),
+      totalUnfundedCents: BigInt(0),
+      fundCount: 1,
+      irr: 0,
+      moic: 0,
+    });
+
+    const response = await request(makeApp()).get('/api/lp/summary');
+
+    expect(response.status).toBe(200);
+    expect(calculatorState.calculateSummary).toHaveBeenCalledWith(9001);
+  });
+
+  it('GET /api/lp/funds/7/holdings passes the authenticated LP id and fund id to the calculator', async () => {
+    calculatorState.calculateProRataHoldings.mockResolvedValueOnce([]);
+
+    const response = await request(makeApp()).get('/api/lp/funds/7/holdings');
+
+    expect(response.status).toBe(200);
+    expect(calculatorState.calculateProRataHoldings).toHaveBeenCalledWith(9001, 7);
+  });
+
+  it('GET /api/lp/capital-account scopes the commitment lookup by authenticated LP id', async () => {
+    dbState.state.selectResults.push([{ id: 'c1', lpId: 9001, fundId: 7 }]);
+    calculatorState.calculateCapitalAccount.mockResolvedValueOnce([]);
+
+    const response = await request(makeApp()).get('/api/lp/capital-account?limit=2');
+
+    expect(response.status).toBe(200);
+    expectLpPredicateScope();
+  });
+
+  it('GET /api/lp/funds/7/detail scopes the commitment lookup by authenticated LP id', async () => {
+    dbState.state.selectResults.push([
+      {
+        id: 'c7',
+        lpId: 9001,
+        fundId: 7,
+        commitmentAmountCents: BigInt(0),
+        commitmentDate: new Date('2024-01-01T00:00:00.000Z'),
+        status: 'active',
+      },
+    ]);
+    calculatorState.calculateCapitalAccount.mockResolvedValueOnce([]);
+
+    const response = await request(makeApp()).get('/api/lp/funds/7/detail');
+
+    expect(response.status).toBe(200);
+    expectLpPredicateScope();
+  });
+
+  it('GET /api/lp/performance scopes the commitment lookup by authenticated LP id', async () => {
+    dbState.state.selectResults.push([{ id: 'c1', lpId: 9001, fundId: 7 }]);
+    calculatorState.calculatePerformance.mockResolvedValueOnce([]);
+
+    const response = await request(makeApp()).get('/api/lp/performance?fundId=7');
+
+    expect(response.status).toBe(200);
+    expectLpPredicateScope();
+  });
+
+  it('GET /api/lp/performance/benchmark scopes the commitment lookup by authenticated LP id', async () => {
+    dbState.state.selectResults.push([{ id: 'c1', lpId: 9001, fundId: 7 }]);
+    calculatorState.calculatePerformance.mockResolvedValueOnce([]);
+
+    const response = await request(makeApp()).get('/api/lp/performance/benchmark?fundId=7');
+
+    expect(response.status).toBe(200);
+    expectLpPredicateScope();
+  });
+
+  it('GET /api/lp/reports scopes the report list lookup by authenticated LP id', async () => {
+    dbState.state.selectResults.push([]);
+
+    const response = await request(makeApp()).get('/api/lp/reports');
+
+    expect(response.status).toBe(200);
+    expectLpPredicateScope();
+  });
+
+  it('GET /api/lp/reports/report-123 scopes the report status lookup by authenticated LP id', async () => {
+    dbState.state.selectResults.push([]);
+
+    const response = await request(makeApp()).get('/api/lp/reports/report-123');
+
+    expect(response.status).toBe(404);
+    expectLpPredicateScope();
+  });
+
+  it('GET /api/lp/reports/report-123/download scopes the report download lookup by authenticated LP id', async () => {
+    dbState.state.selectResults.push([]);
+
+    const response = await request(makeApp()).get('/api/lp/reports/report-123/download');
+
+    expect(response.status).toBe(404);
+    expectLpPredicateScope();
+  });
+
+  // Profile and settings are static/echo endpoints covered by the existing shape-lock tests.
 });
