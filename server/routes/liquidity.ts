@@ -2,6 +2,15 @@
  * Liquidity Engine API Routes
  *
  * Endpoints for cashflow analysis, liquidity forecasting, and stress testing.
+ *
+ * NOT fund-scoped (Slice 3 T4 verdict). All four POSTs (/analyze, /forecast,
+ * /stress-test, /optimize-calls) build a LiquidityEngine purely from body-supplied
+ * inputs (fundId, fundSize, transactions, currentPosition, plannedInvestments) and
+ * compute over that request data. The engine reads no stored per-fund data: its
+ * constructor only retains fundId/fundSize and echoes fundId back in the output, so
+ * a caller can only analyze data it already provided and no cross-fund disclosure is
+ * possible. If any endpoint is ever changed to read stored fund data, guard it with
+ * enforceProvidedFundScope(req, res, Number(fundId)).
  */
 
 import { Router } from 'express';
@@ -104,14 +113,8 @@ router.post(
 router.post(
   '/forecast',
   asyncHandler(async (req: Request, res: Response) => {
-    const {
-      fundId,
-      fundSize,
-      currentPosition,
-      transactions,
-      recurringExpenses,
-      months,
-    } = liquidityForecastSchema.parse(req.body);
+    const { fundId, fundSize, currentPosition, transactions, recurringExpenses, months } =
+      liquidityForecastSchema.parse(req.body);
 
     const engine = new LiquidityEngine(fundId, fundSize);
     const forecast = engine.generateLiquidityForecast(
@@ -156,7 +159,8 @@ router.post(
 router.post(
   '/optimize-calls',
   asyncHandler(async (req: Request, res: Response) => {
-    const { fundId, fundSize, currentPosition, plannedInvestments, constraints } = optimizeCallsSchema.parse(req.body);
+    const { fundId, fundSize, currentPosition, plannedInvestments, constraints } =
+      optimizeCallsSchema.parse(req.body);
 
     // Default constraints if not provided
     const callConstraints: CapitalCallConstraints = {

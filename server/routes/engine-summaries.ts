@@ -149,6 +149,12 @@ router['get']('/pacing/summary', async (req: Request, res: Response) => {
   }
 });
 
+// NOT fund-scoped (Slice 3 T2 verdict). generateCohortSummary -> CohortEngine is
+// pure synthetic compute: it builds mock companies from { vintageYear, cohortSize }
+// with Math.random() and uses fundId only as a label in `cohort-${fundId}-${vintageYear}`.
+// No stored per-fund data is read, so there is no cross-fund disclosure and the
+// DEFAULT_FUND_ID fallback is safe. If this scaffold is ever wired to real per-fund
+// data, guard it with requireProvidedFundScopeFrom('query') and drop the default.
 router['get']('/cohorts/analysis', async (req: Request, res: Response) => {
   try {
     const fundIdQuery = req.query['fundId'];
