@@ -64,8 +64,15 @@ export function validateRequest(schemas: ValidationSchemas) {
           };
           return res.status(400).json(error);
         }
-        // Use type-safe conversion instead of direct cast
-        req.query = toQueryParams(result.data);
+        // Express 5 makes req.query a getter-only property, so a direct
+        // assignment throws. Define an own data property to shadow the getter
+        // with the validated value for downstream handlers.
+        Object.defineProperty(req, 'query', {
+          value: toQueryParams(result.data),
+          writable: true,
+          configurable: true,
+          enumerable: true,
+        });
       }
 
       // Validate route parameters
