@@ -13,6 +13,7 @@ import type { Algorithm, JwtPayload } from 'jsonwebtoken';
 import jwt from 'jsonwebtoken';
 import jwksClient from 'jwks-rsa';
 import type { Request, Response, NextFunction } from 'express';
+import { parseFundIdParam } from '@shared/number';
 import { getConfig } from '../../config';
 import { authMetrics } from '../../telemetry';
 import { firstString } from '../request-values';
@@ -253,20 +254,12 @@ export const requireRole = (role: string) => (req: Request, res: Response, next:
  */
 export const requireFundAccess = (req: Request, res: Response, next: NextFunction) => {
   const fundIdParam = firstString(req.params['fundId']);
+  const fundId = parseFundIdParam(fundIdParam);
 
-  if (!fundIdParam) {
+  if (fundId === null) {
     return res.status(400).json({
       error: 'Bad Request',
-      message: 'Fund ID is required',
-    });
-  }
-
-  const fundId = parseInt(fundIdParam, 10);
-
-  if (isNaN(fundId)) {
-    return res.status(400).json({
-      error: 'Bad Request',
-      message: 'Invalid fund ID',
+      message: fundIdParam ? 'Invalid fund ID' : 'Fund ID is required',
     });
   }
 

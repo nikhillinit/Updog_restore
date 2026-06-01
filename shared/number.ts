@@ -22,12 +22,20 @@ export interface NumberOptions {
   integer?: boolean;
 }
 
+const CANONICAL_FUND_ID = /^\d+$/;
+
+export function parseFundIdParam(raw: string | undefined): number | null {
+  if (!raw || !CANONICAL_FUND_ID.test(raw)) return null;
+  const n = Number(raw);
+  return Number.isSafeInteger(n) && n >= 1 ? n : null;
+}
+
 export const toNumber = (v: unknown, label = 'value', options?: NumberOptions): number => {
   const n = typeof v === 'number' ? v : Number(v);
   if (!Number.isFinite(n)) {
     throw new NumberParseError(`${label} must be a finite number`);
   }
-  
+
   if (options) {
     if (options.integer && !Number.isInteger(n)) {
       throw new NumberParseError(`${label} must be an integer`);
@@ -39,6 +47,6 @@ export const toNumber = (v: unknown, label = 'value', options?: NumberOptions): 
       throw new NumberParseError(`${label} must be at most ${options.max}`);
     }
   }
-  
+
   return n;
 };
