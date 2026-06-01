@@ -17,6 +17,7 @@ import { query, transaction, type PoolClient } from '../db/index';
 import { dollarsToCents, centsToDollars } from '@shared/units';
 import { firstString } from '../lib/request-values';
 import { createRouteLogger } from '../lib/route-logger.js';
+import { enforceProvidedFundScope } from '../lib/auth/provided-fund-scope';
 
 const routeLog = createRouteLogger('reallocation');
 
@@ -310,6 +311,10 @@ router['post']('/api/funds/:fundId/reallocation/preview', async (req: Request, r
       return res.status(400).json({ error: 'Invalid fund ID' });
     }
 
+    if (!(await enforceProvidedFundScope(req, res, fundId))) {
+      return;
+    }
+
     // Validate request body
     const parseResult = ReallocationPreviewRequestSchema.safeParse(req.body);
     if (!parseResult.success) {
@@ -407,6 +412,10 @@ router['post']('/api/funds/:fundId/reallocation/commit', async (req: Request, re
     const fundId = parseInt(firstString(req.params['fundId']) ?? '', 10);
     if (isNaN(fundId) || fundId <= 0) {
       return res.status(400).json({ error: 'Invalid fund ID' });
+    }
+
+    if (!(await enforceProvidedFundScope(req, res, fundId))) {
+      return;
     }
 
     // Validate request body
