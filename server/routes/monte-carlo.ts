@@ -21,6 +21,7 @@ import { recordHttpMetrics } from '../metrics';
 import { toNumber } from '@shared/number';
 import { sanitizeInput } from '../utils/sanitizer.js';
 import { firstString } from '../lib/request-values';
+import { enforceProvidedFundScope } from '../lib/auth/provided-fund-scope';
 import {
   enqueueSimulation,
   getJobStatus,
@@ -300,6 +301,10 @@ router['post'](
       }
       const simulationConfig = built.config;
 
+      if (!(await enforceProvidedFundScope(req, res, simulationConfig.fundId))) {
+        return;
+      }
+
       logger.info(
         { correlationId, runs: simulationConfig.runs, fundId: simulationConfig.fundId },
         '[MONTE_CARLO] Starting simulation'
@@ -365,6 +370,10 @@ router['post'](
         return;
       }
       const simulationConfig = built.config;
+
+      if (!(await enforceProvidedFundScope(req, res, simulationConfig.fundId))) {
+        return;
+      }
 
       // Check if queue is available
       if (!isQueueInitialized()) {
@@ -566,6 +575,9 @@ router['post'](
         if (!built.ok) {
           return;
         }
+        if (!(await enforceProvidedFundScope(req, res, built.config.fundId))) {
+          return;
+        }
         normalizedConfigs.push(built.config);
       }
 
@@ -636,6 +648,10 @@ router['post'](
         getRequestCreatedBy(req)
       );
       if (!built.ok) {
+        return;
+      }
+
+      if (!(await enforceProvidedFundScope(req, res, built.config.fundId))) {
         return;
       }
 
@@ -748,6 +764,11 @@ router['get']('/performance', async (req: Request, res: Response) => {
 router['get']('/funds/:fundId/simulate', async (req: Request, res: Response) => {
   try {
     const fundId = toNumber(req.params['fundId'], 'Fund ID');
+
+    if (!(await enforceProvidedFundScope(req, res, fundId))) {
+      return;
+    }
+
     const runs = parseInt((req.query['runs'] as string) || '1000');
     const timeHorizonYears = parseInt((req.query['timeHorizonYears'] as string) || '8');
     const engine = (req.query['engine'] as 'streaming' | 'traditional' | 'auto') || 'auto';
