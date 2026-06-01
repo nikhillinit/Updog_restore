@@ -17,6 +17,7 @@ import { firstString } from '../lib/request-values';
 import { asyncHandler } from '../middleware/async';
 import { validateRequest } from '../middleware/validation';
 import { TimeTravelAnalyticsService, type Cache } from '../services/time-travel-analytics';
+import { enforceProvidedFundScope } from '../lib/auth/provided-fund-scope';
 
 /**
  * Create timeline router with service dependency injection
@@ -87,6 +88,9 @@ export function createTimelineRouter(service: TimeTravelAnalyticsService) {
     asyncHandler(async (req, res) => {
       const startTimer = Date.now();
       const fundIdNum = parseInt(firstString(req.params['fundId']) ?? '', 10);
+      if (!(await enforceProvidedFundScope(req, res, fundIdNum))) {
+        return;
+      }
       const startTimeStr =
         typeof req.query['startTime'] === 'string' ? req.query['startTime'] : undefined;
       const endTimeStr =
@@ -122,6 +126,9 @@ export function createTimelineRouter(service: TimeTravelAnalyticsService) {
     asyncHandler(async (req, res) => {
       const startTimer = Date.now();
       const fundIdNum = parseInt(firstString(req.params['fundId']) ?? '', 10);
+      if (!(await enforceProvidedFundScope(req, res, fundIdNum))) {
+        return;
+      }
       const timestampStr = typeof req.query['timestamp'] === 'string' ? req.query['timestamp'] : '';
       const includeEventsFlag =
         typeof req.query['includeEvents'] === 'string'
@@ -159,6 +166,9 @@ export function createTimelineRouter(service: TimeTravelAnalyticsService) {
     asyncHandler(async (req, res) => {
       const startTimer = Date.now();
       const fundIdNum = parseInt(firstString(req.params['fundId']) ?? '', 10);
+      if (!(await enforceProvidedFundScope(req, res, fundIdNum))) {
+        return;
+      }
       const { type, description: _description } = req.body as CreateSnapshotBody;
 
       // Verify fund exists
@@ -217,6 +227,9 @@ export function createTimelineRouter(service: TimeTravelAnalyticsService) {
       const { timestamp1, timestamp2, includeDiff } = req.query;
 
       const fundIdNum = parseInt(fundId ?? '', 10);
+      if (!(await enforceProvidedFundScope(req, res, fundIdNum))) {
+        return;
+      }
       const ts1 = typeof timestamp1 === 'string' ? timestamp1 : '';
       const ts2 = typeof timestamp2 === 'string' ? timestamp2 : '';
 
