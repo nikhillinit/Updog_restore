@@ -59,6 +59,13 @@ function loadReserveFixturePortfolio(): ReserveCompanyInput[] {
   }));
 }
 
+// NOT fund-scoped (Slice 1 verdict). loadReserveFixturePortfolio() reads a static
+// fixture (tests/fixtures/portfolio.json) identical for every fundId, and
+// generateReserveSummary -> ReserveEngine is pure compute over that portfolio; fundId
+// is used only as an output label. No stored per-fund data is read, so there is no
+// cross-fund disclosure and no existence oracle (any positive int returns 200). Same
+// class as the /cohorts/analysis verdict below. If ever wired to real per-fund data,
+// guard with enforceProvidedFundScope and drop the fixture load.
 router['get']('/reserves/:fundId', async (req: Request, res: Response) => {
   try {
     const fundIdParam = req.params['fundId'];

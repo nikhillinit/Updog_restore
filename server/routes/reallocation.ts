@@ -13,10 +13,12 @@
 import type { Request, Response } from 'express';
 import { Router } from 'express';
 import { z } from 'zod';
+import { parseFundIdParam } from '@shared/number';
 import { query, transaction, type PoolClient } from '../db/index';
 import { dollarsToCents, centsToDollars } from '@shared/units';
 import { firstString } from '../lib/request-values';
 import { createRouteLogger } from '../lib/route-logger.js';
+import { enforceProvidedFundScope } from '../lib/auth/provided-fund-scope';
 
 const routeLog = createRouteLogger('reallocation');
 
@@ -305,9 +307,13 @@ async function getFundSize(fundId: number): Promise<number> {
  */
 router['post']('/api/funds/:fundId/reallocation/preview', async (req: Request, res: Response) => {
   try {
-    const fundId = parseInt(firstString(req.params['fundId']) ?? '', 10);
-    if (isNaN(fundId) || fundId <= 0) {
+    const fundId = parseFundIdParam(firstString(req.params['fundId']));
+    if (fundId === null) {
       return res.status(400).json({ error: 'Invalid fund ID' });
+    }
+
+    if (!(await enforceProvidedFundScope(req, res, fundId))) {
+      return;
     }
 
     // Validate request body
@@ -404,9 +410,13 @@ router['post']('/api/funds/:fundId/reallocation/preview', async (req: Request, r
  */
 router['post']('/api/funds/:fundId/reallocation/commit', async (req: Request, res: Response) => {
   try {
-    const fundId = parseInt(firstString(req.params['fundId']) ?? '', 10);
-    if (isNaN(fundId) || fundId <= 0) {
+    const fundId = parseFundIdParam(firstString(req.params['fundId']));
+    if (fundId === null) {
       return res.status(400).json({ error: 'Invalid fund ID' });
+    }
+
+    if (!(await enforceProvidedFundScope(req, res, fundId))) {
+      return;
     }
 
     // Validate request body
