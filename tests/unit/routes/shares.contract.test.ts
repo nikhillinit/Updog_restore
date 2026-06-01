@@ -283,7 +283,14 @@ async function flushPublicViewWrite() {
   await vi.waitFor(() => expect(dbState.db.insert).toHaveBeenCalled());
 }
 
-const PRIVATE_PUBLIC_RESPONSE_KEYS = new Set(['fundId', 'fundIdInternal']);
+const PRIVATE_PUBLIC_RESPONSE_KEYS = new Set([
+  'fundId',
+  'fundIdInternal',
+  'passkeyHash',
+  'createdBy',
+  'idempotencyKey',
+  'idempotencyRequestHash',
+]);
 
 function expectNoPrivateFundKeys(value: unknown, path = '$') {
   if (Array.isArray(value)) {
