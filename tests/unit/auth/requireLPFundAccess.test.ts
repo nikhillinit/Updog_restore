@@ -57,6 +57,33 @@ describe('requireLPFundAccess Middleware', () => {
     expect(next).not.toHaveBeenCalled();
   });
 
+  it('rejects a leading-zero (non-canonical) fund id the LP would otherwise hold', () => {
+    req = {
+      params: { fundId: '0123' },
+      lpProfile: {
+        id: 1,
+        name: 'Test LP',
+        email: 'lp@example.com',
+        entityType: 'individual',
+        fundIds: [123],
+      },
+    };
+
+    requireLPFundAccess(req as Request, res as Response, next);
+
+    expect(statusMock).toHaveBeenCalledWith(400);
+    const body = jsonMock.mock.calls[0]?.[0];
+    expect(body).toEqual(
+      expect.objectContaining({
+        error: 'INVALID_PARAMETER',
+        message: 'Invalid fund ID',
+        field: 'fundId',
+      })
+    );
+    expect(body).toEqual(expect.objectContaining({ timestamp: expect.any(String) }));
+    expect(next).not.toHaveBeenCalled();
+  });
+
   it('calls next() for a valid canonical id the LP holds', () => {
     req = {
       params: { fundId: '123' },

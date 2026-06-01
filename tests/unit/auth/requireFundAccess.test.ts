@@ -382,8 +382,8 @@ describe('requireFundAccess Middleware', () => {
       expect(next).not.toHaveBeenCalled();
     });
 
-    it('should handle fundId with leading zeros correctly', () => {
-      req.params = { fundId: '0123' }; // parseInt('0123', 10) = 123
+    it('should reject fundId with leading zeros as non-canonical', () => {
+      req.params = { fundId: '0123' };
       req.user = {
         id: 'user-1',
         sub: 'user-1',
@@ -396,8 +396,9 @@ describe('requireFundAccess Middleware', () => {
 
       requireFundAccess(req as Request, res as Response, next);
 
-      expect(next).toHaveBeenCalledOnce();
-      expect(statusMock).not.toHaveBeenCalled();
+      expect(statusMock).toHaveBeenCalledWith(400);
+      expect(jsonMock).toHaveBeenCalledWith({ error: 'Bad Request', message: 'Invalid fund ID' });
+      expect(next).not.toHaveBeenCalled();
     });
 
     it('should reject floating point fund IDs (treated as invalid after decimal)', () => {
