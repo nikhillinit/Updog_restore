@@ -50,6 +50,10 @@ function formatVersion(label: string, value: number | null): string {
   return value == null ? `${label} UNAVAILABLE` : `${label} v${value}`;
 }
 
+function formatCalculationMode(value: ScenarioEvidenceSourceV1['calculationMode']): string {
+  return value == null ? 'MODE UNAVAILABLE' : `MODE ${value}`;
+}
+
 function formatTimestamp(value: string | null): string {
   if (!value) return 'CALCULATED UNAVAILABLE';
   const date = new Date(value);
@@ -68,6 +72,7 @@ function formatTimestamp(value: string | null): string {
 function evidenceSegments(evidence: ScenarioEvidenceSourceV1): string[] {
   return [
     `SCENARIO ${shortScenarioId(evidence.scenarioSetId)}`,
+    formatCalculationMode(evidence.calculationMode),
     formatVersion('SOURCE CONFIG', evidence.sourceConfigVersion),
     formatVersion('PUBLISHED CONFIG', evidence.currentPublishedConfigVersion),
     formatTimestamp(evidence.calculatedAt),

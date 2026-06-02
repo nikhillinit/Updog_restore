@@ -91,40 +91,16 @@ describe('FundScenarioWorkspacePage', () => {
 
       if (
         method === 'GET' &&
-        url.endsWith('/scenario-sets/00000000-0000-0000-0000-000000000111/calculation-status')
-      ) {
-        return Promise.resolve(jsonResponse(statusResponse('succeeded', 42)));
-      }
-
-      if (
-        method === 'GET' &&
         url.endsWith('/scenario-sets/00000000-0000-0000-0000-000000000211/calculation-status')
       ) {
         return Promise.resolve(
           jsonResponse(
-            statusResponse('not_requested', null, '00000000-0000-0000-0000-000000000211')
-          )
-        );
-      }
-
-      if (
-        method === 'GET' &&
-        url.endsWith('/scenario-sets/00000000-0000-0000-0000-000000000311/calculation-status')
-      ) {
-        return Promise.resolve(
-          jsonResponse(
-            statusResponse('not_requested', null, '00000000-0000-0000-0000-000000000311')
-          )
-        );
-      }
-
-      if (
-        method === 'GET' &&
-        url.endsWith('/scenario-sets/00000000-0000-0000-0000-000000000411/calculation-status')
-      ) {
-        return Promise.resolve(
-          jsonResponse(
-            statusResponse('not_requested', null, '00000000-0000-0000-0000-000000000411')
+            statusResponse(
+              'succeeded',
+              42,
+              '00000000-0000-0000-0000-000000000211',
+              'async_reserve_allocation'
+            )
           )
         );
       }
@@ -210,7 +186,7 @@ describe('FundScenarioWorkspacePage', () => {
     });
   }
 
-  it('loads scenario sets, statuses, results, and comparison cards', async () => {
+  it('loads scenario sets without polling reserve status for sync sets', async () => {
     mockWorkspaceFetches();
     renderWorkspace();
 
@@ -235,7 +211,9 @@ describe('FundScenarioWorkspacePage', () => {
     const reserveCard = screen.getByTestId(
       'scenario-workspace-set-00000000-0000-0000-0000-000000000211'
     );
-    expect(within(reserveCard).getByText('Not requested')).toBeInTheDocument();
+    await waitFor(() => {
+      expect(within(reserveCard).getByText('Succeeded')).toBeInTheDocument();
+    });
     expect(
       within(reserveCard).getByRole('button', { name: /queue reserve plan/i })
     ).toBeInTheDocument();
@@ -243,6 +221,7 @@ describe('FundScenarioWorkspacePage', () => {
     const allocationCard = screen.getByTestId(
       'scenario-workspace-set-00000000-0000-0000-0000-000000000311'
     );
+    expect(within(allocationCard).getByText('Succeeded')).toBeInTheDocument();
     expect(within(allocationCard).getByText('Allocation')).toBeInTheDocument();
     expect(
       within(allocationCard).getByRole('button', { name: /calculate allocation mix/i })
@@ -251,10 +230,18 @@ describe('FundScenarioWorkspacePage', () => {
     const sectorCard = screen.getByTestId(
       'scenario-workspace-set-00000000-0000-0000-0000-000000000411'
     );
+    expect(within(sectorCard).getByText('Succeeded')).toBeInTheDocument();
     expect(within(sectorCard).getByText('Sector profile')).toBeInTheDocument();
     expect(
       within(sectorCard).getByRole('button', { name: /calculate sector mix/i })
     ).toBeInTheDocument();
+
+    const statusUrls = fetchSpy.mock.calls
+      .map(([input]) => (typeof input === 'string' ? input : input.toString()))
+      .filter((url) => url.endsWith('/calculation-status'));
+    expect(statusUrls).toEqual([
+      '/api/funds/123/scenario-sets/00000000-0000-0000-0000-000000000211/calculation-status',
+    ]);
   });
 
   it('uses the fee-profile calculation endpoint for fee scenario sets', async () => {
@@ -563,6 +550,7 @@ function scenariosPayload() {
       {
         scenarioSetId: '00000000-0000-0000-0000-000000000111',
         name: 'Fee sensitivity',
+        calculationMode: 'sync_fee_profile',
         sourceConfigId: 12,
         sourceConfigVersion: 4,
         currentPublishedConfigVersion: 4,
@@ -581,6 +569,7 @@ function scenariosPayload() {
       {
         scenarioSetId: '00000000-0000-0000-0000-000000000311',
         name: 'Allocation mix',
+        calculationMode: 'sync_allocation',
         sourceConfigId: 14,
         sourceConfigVersion: 4,
         currentPublishedConfigVersion: 4,
@@ -599,6 +588,7 @@ function scenariosPayload() {
       {
         scenarioSetId: '00000000-0000-0000-0000-000000000411',
         name: 'Sector mix',
+        calculationMode: 'sync_sector_profile',
         sourceConfigId: 15,
         sourceConfigVersion: 4,
         currentPublishedConfigVersion: 4,
@@ -701,12 +691,8 @@ function scenarioComparisonResponse(): FundScenarioComparisonV1 {
 function statusResponse(
   status: FundScenarioCalculationStatusV1['status'],
   snapshotId: number | null,
-  scenarioSetId = snapshotId === null
-    ? '00000000-0000-0000-0000-000000000211'
-    : '00000000-0000-0000-0000-000000000111',
-  calculationMode: FundScenarioCalculationStatusV1['calculationMode'] = snapshotId === null
-    ? null
-    : 'sync_fee_profile'
+  scenarioSetId: string,
+  calculationMode: FundScenarioCalculationStatusV1['calculationMode']
 ): FundScenarioCalculationStatusV1 {
   return {
     fundId: 123,

@@ -29,6 +29,7 @@ export default defineConfig({
     include: [
       'tests/integration/testcontainers-smoke.test.ts',
       'tests/integration/migration-runner.test.ts',
+      'tests/integration/fund-lifecycle-db.test.ts',
       // DISABLED: Pre-existing issues - fix in separate PRs
       // 'tests/integration/ScenarioMatrixCache.integration.test.ts', // bucket allocation validation
       // 'tests/integration/cache-monitoring.integration.test.ts', // server/db.ts imports database-mock

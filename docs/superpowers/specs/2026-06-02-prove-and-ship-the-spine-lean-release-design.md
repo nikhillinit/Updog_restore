@@ -1,10 +1,18 @@
 # Prove & Ship the Spine — Lean Internal Release (Design)
 
-Date: 2026-06-02 Status: Approved design — pending user spec review, then
-`writing-plans` Baseline: `main` / `origin/main` at `3878e0b0` (CI Unified
-green, run 26801663394) Execution model: per repo CLAUDE.md Hermes contract,
-this session produces the spec + plan only; every edit/test is dispatched via
-Hermes after approval.
+Date: 2026-06-02 Status: Approved design — review redlines applied, then
+`writing-plans`.
+
+Branch state at this update: local `main` is at `b9bc8fcf` and contains this
+spec commit; `origin/main` is at `27fa8aec` (`#764`) after `#763` merged. Rebase
+or merge `origin/main` before execution. The earlier CI Unified run
+`26801663394` belonged to `3878e0b0`; do not use it as evidence for the current
+head. Re-check CI after rebasing.
+
+Execution model: this session produces the spec + plan only. Implementation runs
+after approval through the chosen repo-standard execution path (`$ralph`,
+`$team`, or Hermes where appropriate); Hermes is not a blanket requirement for
+every edit/test.
 
 ---
 
@@ -16,6 +24,10 @@ philosophy. Repository verification showed the first two **largely describe
 already-merged work**, not pending work:
 
 - Security Tranche A is merged: `#748`–`#762` are on `main`.
+- Analytics strategy refresh is merged: `#763` is on `origin/main`; treat the
+  merged analytics doctrine as current, not as a blocking open PR.
+- Vitest 4 upgrade has landed on `origin/main` via `#764`; rebase before turning
+  this spec into executable tasks.
 - Scenario backend is shipped: canonical hashing
   (`server/lib/scenarios/scenario-input-hash.ts`), append-only retention
   (`ON CONFLICT … DO NOTHING`), `fund_scenario_calculation_runs` + dedup indexes
@@ -89,7 +101,10 @@ Actions:
 
 Acceptance: sync sets never call `/calculation-status`; reserve sets still do
 after detail identifies them; sync cards show detail-derived state. Verify:
-`tests/unit/pages/fund-scenario-workspace.test.tsx`, `npm run check`.
+`npx vitest run tests/unit/pages/fund-scenario-workspace.test.tsx --project=client`,
+`npx vitest run tests/unit/routes/fund-scenario-sets-route-contract.test.ts --project=server`
+or the new server route contract test if created separately, and
+`npm run check`.
 
 ### Step 2 — Fix R1: stop dropping `calculationMode` (provenance)
 
@@ -130,36 +145,45 @@ Actions:
   assert response (`fundId`, `published: true`, `runId`, `dispatchState`) →
   assert DB (one `funds` row; one published `fund_configs`; one `calc_runs` with
   reserve+pacing engines; `fund_snapshots` RESERVE+PACING with run/config
-  attribution) → `GET /state` + `GET /results` (status ready/calculating; **no
+  attribution) → `GET /api/funds/:fundId/state` and
+  `GET /api/funds/:fundId/results` (status ready/calculating; **no
   `NO_PUBLISHED_CONFIG` on first run**, ref `fund-results-read-service.ts:392`)
   → re-submit same idempotency key → no duplicates.
+- Make the proof runnable: either add
+  `tests/integration/fund-lifecycle-db.test.ts` to
+  `vitest.config.testcontainers.ts` or invoke it explicitly in every release
+  command. Do not rely on the current testcontainers full run to discover it
+  automatically; the include list is explicit.
 - **State which dispatch path is proven.** Reserve/pacing are sync-capable
   (`shared/contracts/fund-authoritative-calculations.contract.ts:1-31`); if the
   proof runs inline (no Redis), say so. The scenario release gate (real Redis)
   covers the queue path; do not imply this test proves the queue path.
 
 Acceptance: a green run demonstrates the full persisted happy path +
-idempotency. Verify: the new test under the testcontainers config;
-`npm run check`.
+idempotency. Verify:
+`npx vitest run -c vitest.config.testcontainers.ts tests/integration/fund-lifecycle-db.test.ts`
+and `npm run check`.
 
-### Step 4 — Confirm-then-fix the 2 security residuals
+### Step 4 — Confirm current security residual closure
 
-Both are known-open per session memory; **confirm exploitability before
-fixing**.
+These were previously tracked as residuals, but current repo evidence indicates
+they are already guarded. Treat this as an audit/no-op lane unless current tests
+or code inspection prove a regression.
 
-- **4a Monte Carlo job IDOR** (deferred in `#752`): if `GET /jobs/:jobId` is
-  mounted and returns content without scope, attach `fundId`/owner to the job
-  record and check scope before returning content. Contract test: owner reads
-  own job; wrong-fund denied; missing job does not leak cross-fund metadata.
-- **4b LP-report worker defense-in-depth**: `resolveFundId` must not select a
-  fund outside the LP's commitments; `getPortfolioCompanies` scoped only after
-  the commitment check (`server/queues/report-generation-queue.ts`,
-  `server/services/pdf-generation/data-fetchers.ts`). Tests: unauthorized fund
-  rejected pre-fetch; omitted `fundIds` → LP-owned only; mixed → fail closed.
-  (Memory: not a live leak — shipped as defense-in-depth.)
+- **4a Backtesting job scope:** confirm `GET /jobs/:jobId` and
+  `/jobs/:jobId/stream` still use `canAccessJob` with fund and requester checks
+  (`server/routes/backtesting.ts`) and that wrong-fund tests remain present in
+  `tests/unit/routes/backtesting.contract.test.ts`.
+- **4b LP-report worker defense-in-depth:** confirm `resolveFundId` still
+  rejects unauthorized and mixed fund IDs, and that route/queue tests cover
+  omitted `fundIds` → LP-owned only plus mixed → fail closed.
+- Fix only if the audit finds missing code or a failing negative-control test.
+  Otherwise document the closure evidence in the release notes and avoid churn.
 
-Acceptance: each residual is either fixed with a negative-control test or
-documented as not-exploitable with evidence. Verify: targeted unit tests,
+Acceptance: each residual is confirmed closed with current code/tests or fixed
+with a new negative-control test if regression is found. Verify:
+`npx vitest run tests/unit/routes/backtesting.contract.test.ts --project=server`,
+`npx vitest run tests/unit/queues/resolve-fund-id.test.ts tests/unit/routes/lp-api.contract.test.ts --project=server`,
 `npm run check`, `npm run lint`.
 
 ### Step 5 — R6a + surface-honesty lock (guardrails)
@@ -200,9 +224,9 @@ Actions:
   replaces a standalone baseline track).
 - `docs/release/internal-release-notes.md`: supported surface; **explicitly
   excluded/experimental** (cohort experimental, economics flag-gated, forecast
-  modes not built, comparison breadth deferred, analytics blocked on `#763`,
-  reserve polling fast-follow, v3.1.1 multi-entity not started); known residuals
-  and their status from Step 4.
+  modes not built, comparison breadth deferred, analytics governed by the merged
+  `#763` strategy, reserve polling fast-follow, v3.1.1 multi-entity not
+  started); known residuals and their status from Step 4.
 
 Acceptance: one command runs the release union; release notes name every
 deferral. Verify: `release:check` passes locally; `npm run docs:check-links`.
@@ -241,8 +265,9 @@ Step 6 (packaging) ── last; depends on 3 + 5 scripts
 ## 6. Explicitly deferred (named in release notes)
 
 R2b reserve polling (fast-follow); R3A/R3B comparison breadth; R4 broad
-non-scenario evidence completion; R5 analytics pilot (blocked on `#763`); v3.1.1
-multi-entity workspace; forecast modes; cohort promotion.
+non-scenario evidence completion; R5 analytics pilot sequenced under the merged
+`#763` analytics strategy; v3.1.1 multi-entity workspace; forecast modes; cohort
+promotion.
 
 ---
 
@@ -265,9 +290,11 @@ multi-entity workspace; forecast modes; cohort promotion.
    flipped.
 2. `calculationMode` exposed in scenario result summaries (non-null when
    calc'd).
-3. Real-DB finalize→publish→results+idempotency proof green (dispatch path
-   named).
-4. Both security residuals fixed-with-test or documented-not-exploitable.
+3. Real-DB finalize→publish→results+idempotency proof green, explicitly invoked
+   through the testcontainers config or release script, with dispatch path
+   named.
+4. Previously tracked security residuals confirmed closed, or fixed with a
+   negative-control test if the audit finds a regression.
 5. Scenario release-gate enforcement boundary is an explicit, documented
    decision.
 6. Route guard uses route-slice assertions; surface-honesty lock green.

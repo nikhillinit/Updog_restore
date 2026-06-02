@@ -220,6 +220,14 @@ describe('FundModelResultsPage (server-backed)', () => {
     await waitFor(() => {
       expect(screen.getByText('Waterfall Setup')).toBeInTheDocument();
     });
+    const waterfallSection = screen
+      .getByRole('heading', { name: 'Waterfall Setup' })
+      .closest('div');
+    expect(waterfallSection).not.toBeNull();
+    expect(
+      within(waterfallSection as HTMLElement).queryByText(/RUN #|RUN IN PROGRESS/i)
+    ).toBeNull();
+    expect(within(waterfallSection as HTMLElement).queryByText(/CALCULATING|CURRENT/i)).toBeNull();
     expect(screen.getByText('American')).toBeInTheDocument();
     expect(screen.getByText('GP 20% / LP 80%')).toBeInTheDocument();
     expect(screen.getByText('Enabled')).toBeInTheDocument();

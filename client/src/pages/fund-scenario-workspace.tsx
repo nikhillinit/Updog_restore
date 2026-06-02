@@ -28,10 +28,12 @@ import {
   FundScenarioReserveCalculationQueuedV1Schema,
   FundScenarioSetDetailV1Schema,
   FundScenarioSetListResponseV1Schema,
+  type FundScenarioCalculationModeV1,
   type FundScenarioCalculationStatusV1,
+  type FundScenarioOverrideTypeV1,
   type FundScenarioSetDetailV1,
   type FundScenarioSetSummaryV1,
-  type FundScenarioOverrideTypeV1,
+  type ScenarioSetResultSummaryV1,
 } from '@shared/contracts/fund-scenario-sets-v1.contract';
 import {
   FundScenarioComparisonV1Schema,
@@ -48,6 +50,7 @@ const OVERRIDE_TYPE_LABELS: Record<FundScenarioOverrideTypeV1, string> = {
   allocation: 'Allocation',
   sector_profile: 'Sector profile',
 };
+const EMPTY_SCENARIO_SETS: FundScenarioSetSummaryV1[] = [];
 
 function workspaceQueryKey(fundId: string) {
   return ['fund-scenario-workspace', fundId] as const;
@@ -188,6 +191,19 @@ function scenarioStatusTone(status: FundScenarioCalculationStatusV1['status'] | 
   return 'bg-beige-100 text-charcoal-600';
 }
 
+function syncCalculationModeForOverrideType(
+  overrideType: Exclude<FundScenarioOverrideTypeV1, 'reserve_allocation'>
+): FundScenarioCalculationModeV1 {
+  switch (overrideType) {
+    case 'fee_profile':
+      return 'sync_fee_profile';
+    case 'allocation':
+      return 'sync_allocation';
+    case 'sector_profile':
+      return 'sync_sector_profile';
+  }
+}
+
 function actionLabelFor(summary: FundScenarioSetSummaryV1, detail: FundScenarioSetDetailV1 | null) {
   const overrideType = detail ? scenarioSetOverrideType(detail) : null;
   return overrideType === 'reserve_allocation'
@@ -216,6 +232,68 @@ function statusMapFromQueries(
       query.data ? [[query.data.scenarioSetId, query.data] as const] : []
     )
   );
+}
+
+function resultMapFromScenarioPayload(
+  scenarioPayload: ReturnType<typeof scenarioPayloadFromResults>
+): Map<string, ScenarioSetResultSummaryV1> {
+  return new Map(scenarioPayload?.sets.map((set) => [set.scenarioSetId, set] as const) ?? []);
+}
+
+function syncStatusFromDetailAndResults({
+  summary,
+  detail,
+  result,
+}: {
+  summary: FundScenarioSetSummaryV1;
+  detail: FundScenarioSetDetailV1 | undefined;
+  result: ScenarioSetResultSummaryV1 | undefined;
+}): FundScenarioCalculationStatusV1 | null {
+  if (!detail) return null;
+
+  const overrideType = scenarioSetOverrideType(detail);
+  if (!overrideType || overrideType === 'reserve_allocation') return null;
+
+  return {
+    fundId: summary.fundId,
+    scenarioSetId: summary.id,
+    calculationMode: syncCalculationModeForOverrideType(overrideType),
+    status: result ? 'succeeded' : 'not_requested',
+    jobId: null,
+    correlationId: null,
+    snapshotId: null,
+    lastEventAt: result?.calculatedAt ?? null,
+    lastError: null,
+  };
+}
+
+function displayStatusMapFromSources({
+  scenarioSets,
+  detailById,
+  reserveStatusQueries,
+  scenarioResultById,
+}: {
+  scenarioSets: FundScenarioSetSummaryV1[];
+  detailById: Map<string, FundScenarioSetDetailV1>;
+  reserveStatusQueries: Array<{ data: FundScenarioCalculationStatusV1 | undefined }>;
+  scenarioResultById: Map<string, ScenarioSetResultSummaryV1>;
+}): Map<string, FundScenarioCalculationStatusV1> {
+  const statusById = statusMapFromQueries(reserveStatusQueries);
+
+  for (const summary of scenarioSets) {
+    if (statusById.has(summary.id)) continue;
+
+    const status = syncStatusFromDetailAndResults({
+      summary,
+      detail: detailById.get(summary.id),
+      result: scenarioResultById.get(summary.id),
+    });
+    if (status) {
+      statusById.set(summary.id, status);
+    }
+  }
+
+  return statusById;
 }
 
 function comparisonDataFromQueries(
@@ -408,7 +486,7 @@ function FundScenarioWorkspacePage() {
     enabled: fundId != null,
   });
 
-  const scenarioSets = scenarioSetsQuery.data ?? [];
+  const scenarioSets = scenarioSetsQuery.data ?? EMPTY_SCENARIO_SETS;
 
   const detailQueries = useQueries({
     queries: scenarioSets.map((summary) => ({
@@ -418,15 +496,31 @@ function FundScenarioWorkspacePage() {
     })),
   });
 
+  const detailById = useMemo(() => detailMapFromQueries(detailQueries), [detailQueries]);
+  const reserveScenarioSetIds = useMemo(
+    () =>
+      scenarioSets
+        .filter((summary) => {
+          const detail = detailById.get(summary.id);
+          return detail ? scenarioSetOverrideType(detail) === 'reserve_allocation' : false;
+        })
+        .map((summary) => summary.id),
+    [detailById, scenarioSets]
+  );
+
   const statusQueries = useQueries({
-    queries: scenarioSets.map((summary) => ({
-      queryKey: scenarioSetStatusQueryKey(fundId ?? '', summary.id),
-      queryFn: () => fetchScenarioStatus(fundId ?? '', summary.id),
+    queries: reserveScenarioSetIds.map((scenarioSetId) => ({
+      queryKey: scenarioSetStatusQueryKey(fundId ?? '', scenarioSetId),
+      queryFn: () => fetchScenarioStatus(fundId ?? '', scenarioSetId),
       enabled: fundId != null,
     })),
   });
 
   const scenarioPayload = scenarioPayloadFromResults(resultsQuery.data);
+  const scenarioResultById = useMemo(
+    () => resultMapFromScenarioPayload(scenarioPayload),
+    [scenarioPayload]
+  );
   const calculatedScenarioSetIds = scenarioPayload?.sets.map((set) => set.scenarioSetId) ?? [];
 
   const comparisonQueries = useQueries({
@@ -454,8 +548,16 @@ function FundScenarioWorkspacePage() {
     },
   });
 
-  const detailById = useMemo(() => detailMapFromQueries(detailQueries), [detailQueries]);
-  const statusById = useMemo(() => statusMapFromQueries(statusQueries), [statusQueries]);
+  const statusById = useMemo(
+    () =>
+      displayStatusMapFromSources({
+        scenarioSets,
+        detailById,
+        reserveStatusQueries: statusQueries,
+        scenarioResultById,
+      }),
+    [detailById, scenarioResultById, scenarioSets, statusQueries]
+  );
   const comparisons = useMemo(
     () => comparisonDataFromQueries(comparisonQueries),
     [comparisonQueries]

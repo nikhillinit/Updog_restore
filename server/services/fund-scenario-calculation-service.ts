@@ -221,6 +221,7 @@ function mapScenarioResultSummary(
   return ScenarioSetResultSummaryV1Schema.parse({
     scenarioSetId: row.scenario_set_id,
     name: row.scenario_set_name,
+    calculationMode: payload.calculationMode,
     sourceConfigId: row.source_config_id,
     sourceConfigVersion: row.source_config_version,
     currentPublishedConfigVersion: currentPublishedVersion,

@@ -9,6 +9,13 @@ const alias = createVitestAlias(projectRoot, {
   includeTestMocks: true,
   includeUpstashRedisMock: true,
 });
+const scenarioReleaseGatePath =
+  'tests/integration/scenarios/scenario-release-gate.integration.test.ts';
+const testcontainersOnlyPaths = [
+  'tests/integration/testcontainers-smoke.test.ts',
+  'tests/integration/migration-runner.test.ts',
+  'tests/integration/fund-lifecycle-db.test.ts',
+];
 
 export default defineConfig({
   root: projectRoot,
@@ -17,6 +24,7 @@ export default defineConfig({
     name: 'server',
     globalSetup: ['tests/integration/global-setup.ts'],
     include: [
+      scenarioReleaseGatePath,
       'tests/integration/**/*.int.spec.ts',
       'tests/integration/**/*.spec.ts',
       'tests/integration/**/*.test.ts',
@@ -29,11 +37,10 @@ export default defineConfig({
       '**/*.quarantine.test.ts',
       'tests/quarantine/**/*',
       // Testcontainers tests require Docker - run via testcontainers-ci.yml instead
-      'tests/integration/testcontainers-smoke.test.ts',
+      ...testcontainersOnlyPaths,
       'tests/integration/ScenarioMatrixCache.integration.test.ts',
       'tests/integration/cache-monitoring.integration.test.ts',
       'tests/integration/scenarioGeneratorWorker.test.ts',
-      'tests/integration/migration-runner.test.ts',
       // Re-quarantined 2026-04-08: test asserts against pre-Phase-2A FundCreateV1
       // contract (managementFee/carryPercentage as whole-number percent, extra
       // keys deployedCapital/status/termYears, flat response). Current contract

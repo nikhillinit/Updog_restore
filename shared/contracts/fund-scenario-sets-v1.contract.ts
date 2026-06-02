@@ -303,10 +303,33 @@ export const ScenarioSetVariantResultSummaryV1Schema = z.discriminatedUnion('ove
   ScenarioSetReserveVariantResultSummaryV1Schema,
 ]);
 
+export const FundScenarioCalculationModeV1Schema = z.enum([
+  'sync_fee_profile',
+  'sync_allocation',
+  'sync_sector_profile',
+  'async_reserve_allocation',
+]);
+
+function overrideTypeForCalculationMode(
+  calculationMode: z.infer<typeof FundScenarioCalculationModeV1Schema>
+): FundScenarioOverrideTypeV1 {
+  switch (calculationMode) {
+    case 'sync_fee_profile':
+      return 'fee_profile';
+    case 'sync_allocation':
+      return 'allocation';
+    case 'sync_sector_profile':
+      return 'sector_profile';
+    case 'async_reserve_allocation':
+      return 'reserve_allocation';
+  }
+}
+
 export const ScenarioSetResultSummaryV1Schema = z
   .object({
     scenarioSetId: z.string().uuid(),
     name: z.string(),
+    calculationMode: FundScenarioCalculationModeV1Schema,
     sourceConfigId: z.number().int().positive(),
     sourceConfigVersion: z.number().int().positive(),
     currentPublishedConfigVersion: z.number().int().positive().nullable(),
@@ -324,6 +347,18 @@ export const ScenarioSetResultSummaryV1Schema = z
         message: 'variantCount must match variants.length',
       });
     }
+
+    const expectedOverrideType = overrideTypeForCalculationMode(value.calculationMode);
+
+    for (const [index, variant] of value.variants.entries()) {
+      if (variant.overrideType !== expectedOverrideType) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ['variants', index, 'overrideType'],
+          message: `${value.calculationMode} requires ${expectedOverrideType} variants`,
+        });
+      }
+    }
   });
 
 export const ScenariosSectionPayloadV1Schema = z
@@ -333,13 +368,6 @@ export const ScenariosSectionPayloadV1Schema = z
     sets: z.array(ScenarioSetResultSummaryV1Schema).min(1).max(10),
   })
   .strict();
-
-export const FundScenarioCalculationModeV1Schema = z.enum([
-  'sync_fee_profile',
-  'sync_allocation',
-  'sync_sector_profile',
-  'async_reserve_allocation',
-]);
 
 export const FundScenarioFeeProfileCalculationVariantV1Schema = z
   .object({
@@ -402,14 +430,8 @@ export const FundScenarioCalculationPayloadV1Schema = z
   })
   .strict()
   .superRefine((value, ctx) => {
-    const expectedOverrideType =
-      value.calculationMode === 'sync_fee_profile'
-        ? 'fee_profile'
-        : value.calculationMode === 'sync_allocation'
-          ? 'allocation'
-          : value.calculationMode === 'sync_sector_profile'
-            ? 'sector_profile'
-            : 'reserve_allocation';
+    const expectedOverrideType = overrideTypeForCalculationMode(value.calculationMode);
+
     for (const [index, variant] of value.variants.entries()) {
       if (variant.overrideType !== expectedOverrideType) {
         ctx.addIssue({
