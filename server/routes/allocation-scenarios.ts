@@ -20,6 +20,9 @@ import {
 } from '@shared/contracts/reserve-ic-decision-v1.contract';
 import { FundIdParamSchema } from '@shared/schemas/portfolio-route';
 import { sendBodyValidationError } from '../lib/validation-response.js';
+import { parseFundIdParam } from '@shared/number';
+import { firstString } from '../lib/request-values';
+import { enforceProvidedFundScope } from '../lib/auth/provided-fund-scope';
 
 interface HttpError extends Error {
   statusCode?: number;
@@ -52,6 +55,32 @@ interface DecisionAuditFields {
 }
 
 const router = Router();
+
+// Fund-scope guard: every route on this router is keyed on :fundId and reads or
+// writes stored per-fund data. Enforce fund scope once, at the param boundary,
+// before any handler runs. The canonical parse (parseFundIdParam) runs here, so
+// handlers never observe a non-canonical fundId. enforceProvidedFundScope
+// re-verifies the bearer token and writes its own 401/403; it is used instead of
+// requireFundAccess, which fails open on the registerRoutes surface (global auth
+// sets req.context, not req.user).
+router.param('fundId', async (req: Request, res: Response, next: NextFunction, value: string) => {
+  try {
+    const fundId = parseFundIdParam(firstString(value));
+    if (fundId === null) {
+      res.status(400).json({
+        error: 'invalid_fund_id',
+        message: 'Fund ID must be a positive integer',
+      });
+      return;
+    }
+    if (await enforceProvidedFundScope(req, res, fundId)) {
+      next();
+    }
+    // on deny, enforceProvidedFundScope already wrote 401/403
+  } catch (error) {
+    next(error);
+  }
+});
 
 function routeHandler(
   handler: (req: Request, res: Response, next: NextFunction) => Promise<unknown>
