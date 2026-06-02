@@ -645,6 +645,10 @@ router.post(
  *
  * Returns:
  * - scenarios: string[] - Array of available scenario names
+ *
+ * NOT-FUND-SCOPED (Tranche A): returns the static catalog of historical scenario
+ * names and reads no per-fund data, so it intentionally carries requireAuth() only
+ * with no fund-scope guard. Tracked on the Slice 7 not-fund-scoped allowlist.
  */
 router.get(
   '/scenarios',
