@@ -48,11 +48,8 @@ export default defineConfig({
     clearMocks: true,
     restoreMocks: true,
     pool: 'forks',
-    poolOptions: {
-      forks: {
-        singleFork: true, // Prevent parallel execution that could conflict with containers
-      },
-    },
+    maxWorkers: 1, // Prevent parallel execution that could conflict with containers
+    isolate: false, // Keep Docker-backed tests in one fork worker.
     env: {
       NODE_ENV: 'test',
       TZ: 'UTC',

@@ -42,9 +42,8 @@ export default defineConfig({
     teardownTimeout: 5000,
     retry: process.env['CI'] ? 2 : 0,
     pool: 'threads', // Try threads instead of forks for React 18
-    // CI optimization: Reduce thread count to fix memory mode failures
-    maxThreads: process.env['CI'] ? 4 : undefined,
-    minThreads: 1,
+    // CI optimization: Reduce worker count to fix memory mode failures
+    ...(process.env['CI'] ? { maxWorkers: 4 } : {}),
     // Setup file for global mocks (Sentry, etc.)
     setupFiles: [testPaths.vitestSetup],
     coverage: {
@@ -80,7 +79,7 @@ export default defineConfig({
         resources: 'usable', // be lenient loading resources
       },
     },
-    // Modern test.projects configuration (replaces deprecated environmentMatchGlobs)
+    // Project-specific environments for server and client unit tests.
     projects: [
       {
         resolve: { alias }, // Explicit alias for server project (projects don't inherit root resolve)

@@ -30,11 +30,8 @@ export default defineConfig({
     hookTimeout: 60000,
     teardownTimeout: 30000,
     pool: 'forks',
-    poolOptions: {
-      forks: {
-        singleFork: true,
-      },
-    },
+    maxWorkers: 1,
+    isolate: false,
     env: {
       NODE_ENV: 'test',
       TZ: 'UTC',
