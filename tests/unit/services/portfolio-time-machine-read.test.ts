@@ -14,9 +14,11 @@ vi.mock('../../../server/storage', () => ({
 }));
 
 vi.mock('../../../server/services/time-travel-analytics', () => ({
-  TimeTravelAnalyticsService: vi.fn(() => ({
-    getStateAtTime: mockGetStateAtTime,
-  })),
+  TimeTravelAnalyticsService: vi.fn(function () {
+    return {
+      getStateAtTime: mockGetStateAtTime,
+    };
+  }),
 }));
 
 import { portfolioTimeMachineReadService } from '../../../server/services/portfolio-time-machine-read';
