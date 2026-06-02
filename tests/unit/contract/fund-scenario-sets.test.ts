@@ -496,6 +496,39 @@ describe('FundScenarioSetsV1 contract', () => {
     expect(feeResult.success).toBe(false);
   });
 
+  it('requires calculation payload mode to match embedded override results', () => {
+    const result = FundScenarioCalculationResponseV1Schema.safeParse({
+      snapshotId: 42,
+      correlationId: '00000000-0000-0000-0000-000000000123',
+      source: 'fund_snapshots',
+      payload: {
+        version: 'fund-scenarios-v1',
+        calculationMode: 'sync_allocation',
+        fundId: 1,
+        scenarioSetId: '00000000-0000-0000-0000-000000000111',
+        sourceConfigId: 12,
+        sourceConfigVersion: 4,
+        staleness: {
+          state: 'CURRENT',
+          sourceConfigVersion: 4,
+          currentPublishedConfigVersion: 4,
+        },
+        calculatedAt: '2026-05-26T12:00:00.000Z',
+        variants: [
+          {
+            variantId: '00000000-0000-0000-0000-000000000112',
+            scenarioSetId: '00000000-0000-0000-0000-000000000111',
+            name: 'Lower fee',
+            overrideType: 'fee_profile',
+            economics: economicsResult(),
+          },
+        ],
+      },
+    });
+
+    expect(result.success).toBe(false);
+  });
+
   it('describes fund-results scenario summaries without full economics results', () => {
     const result = ScenariosSectionPayloadV1Schema.safeParse({
       version: 'fund-scenarios-v1',
@@ -504,6 +537,7 @@ describe('FundScenarioSetsV1 contract', () => {
         {
           scenarioSetId: '00000000-0000-0000-0000-000000000111',
           name: 'Fee sensitivity',
+          calculationMode: 'sync_fee_profile',
           sourceConfigId: 12,
           sourceConfigVersion: 4,
           currentPublishedConfigVersion: 4,
@@ -523,12 +557,14 @@ describe('FundScenarioSetsV1 contract', () => {
     });
 
     expect(result.success).toBe(true);
+    expect(result.data?.sets[0]?.calculationMode).toBe('sync_fee_profile');
   });
 
   it('requires scenario summary variant counts to match the embedded summaries', () => {
     const result = ScenarioSetResultSummaryV1Schema.safeParse({
       scenarioSetId: '00000000-0000-0000-0000-000000000111',
       name: 'Fee sensitivity',
+      calculationMode: 'sync_fee_profile',
       sourceConfigId: 12,
       sourceConfigVersion: 4,
       currentPublishedConfigVersion: 4,
@@ -548,10 +584,35 @@ describe('FundScenarioSetsV1 contract', () => {
     expect(result.success).toBe(false);
   });
 
+  it('requires scenario summary calculation mode to match embedded override summaries', () => {
+    const result = ScenarioSetResultSummaryV1Schema.safeParse({
+      scenarioSetId: '00000000-0000-0000-0000-000000000111',
+      name: 'Fee sensitivity',
+      calculationMode: 'sync_allocation',
+      sourceConfigId: 12,
+      sourceConfigVersion: 4,
+      currentPublishedConfigVersion: 4,
+      calculatedAt: '2026-05-26T12:00:00.000Z',
+      staleness: 'CURRENT',
+      variantCount: 1,
+      variants: [
+        {
+          variantId: '00000000-0000-0000-0000-000000000112',
+          name: 'Lower fee',
+          overrideType: 'fee_profile',
+          economicsSummary: economicsSummary(),
+        },
+      ],
+    });
+
+    expect(result.success).toBe(false);
+  });
+
   it('rejects full economics results in fund-results scenario summaries', () => {
     const result = ScenarioSetResultSummaryV1Schema.safeParse({
       scenarioSetId: '00000000-0000-0000-0000-000000000111',
       name: 'Fee sensitivity',
+      calculationMode: 'sync_fee_profile',
       sourceConfigId: 12,
       sourceConfigVersion: 4,
       currentPublishedConfigVersion: 4,

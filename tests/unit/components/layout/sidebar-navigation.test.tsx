@@ -61,10 +61,14 @@ describe('sidebar results navigation', () => {
     expect(navigation.getNavigationItems().some((item) => item.id === 'model-results')).toBe(true);
   });
 
-  it('omits planning from the navigation by default', async () => {
+  it('omits archived placeholder routes from the navigation by default', async () => {
     const { getNavigationItems } = await loadNavigationModules();
 
-    expect(getNavigationItems().some((item) => item.id === 'planning')).toBe(false);
+    const ids = getNavigationItems().map((item) => item.id);
+    expect(ids).not.toContain('planning');
+    expect(ids).not.toContain('kpi-manager');
+    expect(ids).not.toContain('kpi-submission');
+    expect(ids).not.toContain('investments');
   });
 
   it('keeps the main navigation limited to the governed core perimeter', async () => {

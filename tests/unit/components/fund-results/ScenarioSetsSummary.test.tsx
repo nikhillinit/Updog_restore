@@ -90,6 +90,7 @@ function scenarioPayload(): ScenariosSectionPayloadV1 {
       {
         scenarioSetId: '00000000-0000-0000-0000-000000000111',
         name: 'Fee sensitivity',
+        calculationMode: 'sync_fee_profile',
         sourceConfigId: 12,
         sourceConfigVersion: 4,
         currentPublishedConfigVersion: 4,
@@ -114,6 +115,7 @@ function scenarioPayload(): ScenariosSectionPayloadV1 {
       {
         scenarioSetId: '00000000-0000-0000-0000-000000000211',
         name: 'Upside fees',
+        calculationMode: 'sync_fee_profile',
         sourceConfigId: 13,
         sourceConfigVersion: 3,
         currentPublishedConfigVersion: 4,
@@ -141,6 +143,7 @@ function reservePayload(): ScenariosSectionPayloadV1 {
       {
         scenarioSetId: '00000000-0000-0000-0000-000000000311',
         name: 'Reserve plan',
+        calculationMode: 'async_reserve_allocation',
         sourceConfigId: 14,
         sourceConfigVersion: 6,
         currentPublishedConfigVersion: 6,
@@ -174,6 +177,7 @@ function syncOverridePayload(): ScenariosSectionPayloadV1 {
       {
         scenarioSetId: '00000000-0000-0000-0000-000000000411',
         name: 'Allocation mix',
+        calculationMode: 'sync_allocation',
         sourceConfigId: 15,
         sourceConfigVersion: 7,
         currentPublishedConfigVersion: 7,
@@ -192,6 +196,7 @@ function syncOverridePayload(): ScenariosSectionPayloadV1 {
       {
         scenarioSetId: '00000000-0000-0000-0000-000000000511',
         name: 'Sector mix',
+        calculationMode: 'sync_sector_profile',
         sourceConfigId: 16,
         sourceConfigVersion: 7,
         currentPublishedConfigVersion: 7,

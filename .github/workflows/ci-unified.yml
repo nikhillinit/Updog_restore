@@ -245,6 +245,8 @@ jobs:
               npm run test:unit
               ;;
             integration)
+              # vitest.config.int.ts explicitly includes the scenario release gate
+              # while excluding Docker-only testcontainers proofs from this path.
               npm run test:integration
               ;;
             e2e)

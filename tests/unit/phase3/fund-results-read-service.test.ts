@@ -916,6 +916,7 @@ function scenarioSetSummary(overrides: Record<string, unknown> = {}) {
   return {
     scenarioSetId: '00000000-0000-0000-0000-000000000111',
     name: 'Fee sensitivity',
+    calculationMode: 'sync_fee_profile',
     sourceConfigId: 12,
     sourceConfigVersion: 4,
     currentPublishedConfigVersion: 4,

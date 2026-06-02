@@ -6,7 +6,7 @@ import type {
 export interface ScenarioEvidenceSourceV1 {
   scenarioSetId: string | null;
   scenarioSetName: string | null;
-  calculationMode: string | null;
+  calculationMode: ScenarioSetResultSummaryV1['calculationMode'] | null;
   sourceConfigVersion: number | null;
   currentPublishedConfigVersion: number | null;
   calculatedAt: string | null;
@@ -28,7 +28,7 @@ export function scenarioEvidenceFromSet(set: ScenarioSetResultSummaryV1): Scenar
   return {
     scenarioSetId: set.scenarioSetId,
     scenarioSetName: set.name,
-    calculationMode: null,
+    calculationMode: set.calculationMode,
     sourceConfigVersion: set.sourceConfigVersion,
     currentPublishedConfigVersion: set.currentPublishedConfigVersion,
     calculatedAt: set.calculatedAt,

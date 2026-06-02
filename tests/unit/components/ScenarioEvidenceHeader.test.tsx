@@ -10,6 +10,7 @@ describe('ScenarioEvidenceHeader', () => {
     const header = screen.getByTestId('scenario-evidence');
     expect(within(header).getByText('CURRENT')).toBeInTheDocument();
     expect(within(header).getByText('SCENARIO 00000000')).toBeInTheDocument();
+    expect(within(header).getByText('MODE sync_fee_profile')).toBeInTheDocument();
     expect(within(header).getByText('SOURCE CONFIG v4')).toBeInTheDocument();
     expect(within(header).getByText('PUBLISHED CONFIG v4')).toBeInTheDocument();
     expect(within(header).getByText('SOURCE fund_snapshots')).toBeInTheDocument();
@@ -61,7 +62,7 @@ function evidence(overrides: Partial<ScenarioEvidenceSourceV1> = {}): ScenarioEv
   return {
     scenarioSetId: '00000000-0000-0000-0000-000000000111',
     scenarioSetName: 'Fee sensitivity',
-    calculationMode: null,
+    calculationMode: 'sync_fee_profile',
     sourceConfigVersion: 4,
     currentPublishedConfigVersion: 4,
     calculatedAt: '2026-05-26T12:00:00.000Z',
