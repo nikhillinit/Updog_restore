@@ -17,7 +17,6 @@ const AUTH_SECRET = 'fund-lifecycle-db-secret-minimum-32';
 const AUTH_ISSUER = 'updog-api';
 const AUTH_AUDIENCE = 'updog-client';
 
-type TestContextWithSkip = { skip?: () => void };
 type SignToken = (data: object) => string;
 
 interface Runtime {
@@ -35,20 +34,7 @@ interface RowCounts {
 }
 
 let runtime: Runtime | null = null;
-let skipReason: string | null = null;
 let isStoppingPostgres = false;
-
-function visibleLocalSkip(ctx: TestContextWithSkip): boolean {
-  if (!skipReason) return false;
-  console.warn(`[fund-lifecycle-db] SKIP: ${skipReason}`);
-  ctx.skip?.();
-  return true;
-}
-
-function isContainerRuntimeUnavailable(error: unknown): boolean {
-  const message = error instanceof Error ? error.message : String(error);
-  return /container runtime|docker|testcontainers/i.test(message);
-}
 
 function restoreEnv(snapshot: Record<string, string | undefined>): void {
   for (const [key, value] of Object.entries(snapshot)) {
@@ -224,16 +210,11 @@ describe('fund lifecycle DB proof', () => {
     try {
       runtime = await startRuntime();
     } catch (error) {
-      if (process.env.CI || !isContainerRuntimeUnavailable(error)) {
-        throw new Error(
-          `Fund lifecycle DB startup failed: ${
-            error instanceof Error ? error.message : String(error)
-          }`
-        );
-      }
-      skipReason = `Fund lifecycle DB infrastructure unavailable locally: ${
-        error instanceof Error ? error.message : String(error)
-      }`;
+      throw new Error(
+        `Fund lifecycle DB startup failed: ${
+          error instanceof Error ? error.message : String(error)
+        }`
+      );
     }
   }, STARTUP_TIMEOUT_MS * 2);
 
@@ -266,8 +247,7 @@ describe('fund lifecycle DB proof', () => {
     vi.resetModules();
   });
 
-  it('proves finalize -> publish -> state/results -> idempotency against real Postgres', async (ctx) => {
-    if (visibleLocalSkip(ctx)) return;
+  it('proves finalize -> publish -> state/results -> idempotency against real Postgres', async () => {
     expect(runtime).not.toBeNull();
     const active = runtime!;
     const idempotencyKey = 'lean-lifecycle-db-proof-1';
