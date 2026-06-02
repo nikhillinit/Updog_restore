@@ -13,16 +13,29 @@
 
 import { z } from 'zod';
 
+import { parseFundIdParam } from '../number';
+
 // =====================
 // REUSABLE PARAM SCHEMAS
 // =====================
 
 /**
  * Fund ID path parameter schema
- * Validates that fundId is a numeric string and transforms to Number
+ * Delegates to the canonical parseFundIdParam so the accepted set matches the
+ * auth guards: rejects '0', leading zeros, '1e1', and non-safe-integer strings.
  */
 export const FundIdParamSchema = z.object({
-  fundId: z.string().regex(/^\d+$/).transform(Number),
+  fundId: z.string().transform((value, ctx) => {
+    const parsed = parseFundIdParam(value);
+    if (parsed === null) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'Fund ID must be a positive integer',
+      });
+      return z.NEVER;
+    }
+    return parsed;
+  }),
 });
 
 // =====================
