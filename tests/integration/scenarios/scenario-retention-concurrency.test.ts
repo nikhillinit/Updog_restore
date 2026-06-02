@@ -25,6 +25,7 @@ interface Runtime {
 
 let runtime: Runtime | null = null;
 let skipReason: string | null = null;
+let isStoppingPostgres = false;
 
 function visibleLocalSkip(ctx: TestContextWithSkip): boolean {
   if (!skipReason) return false;
@@ -46,6 +47,50 @@ function restoreEnv(snapshot: Record<string, string | undefined>): void {
       process.env[key] = value;
     }
   }
+}
+
+function isExpectedPostgresStopError(error: unknown): boolean {
+  const code =
+    typeof error === 'object' && error !== null && 'code' in error
+      ? String((error as { code?: unknown }).code)
+      : '';
+  const message = error instanceof Error ? error.message : String(error);
+  return code === '57P01' || /terminating connection due to administrator command/i.test(message);
+}
+
+function createRuntimePool(connectionString: string): Pool {
+  const pool = new Pool({ connectionString, max: 4 });
+  pool.on('error', (error) => {
+    if (isStoppingPostgres && isExpectedPostgresStopError(error)) {
+      return;
+    }
+    throw error;
+  });
+  return pool;
+}
+
+async function tolerateExpectedPostgresStop(
+  operations: Array<Promise<void> | undefined>
+): Promise<void> {
+  const results = await Promise.allSettled(
+    operations.map((operation) => operation ?? Promise.resolve())
+  );
+  for (const result of results) {
+    if (result.status === 'rejected' && !isExpectedPostgresStopError(result.reason)) {
+      throw result.reason;
+    }
+  }
+}
+
+async function stopPostgresContainer(postgres: StartedPostgreSqlContainer | undefined) {
+  if (!postgres) return;
+  if (process.env.CI === 'true') {
+    console.warn(
+      '[scenario-retention-concurrency] Postgres container left for CI cleanup after pg pools close'
+    );
+    return;
+  }
+  await postgres.stop();
 }
 
 function baseDraft(): FundDraftWriteV1 {
@@ -196,7 +241,7 @@ async function startRuntime(): Promise<Runtime> {
     .start();
 
   const connectionString = postgres.getConnectionUri();
-  const pool = new Pool({ connectionString, max: 4 });
+  const pool = createRuntimePool(connectionString);
 
   await runMigrationsWithConnectionString(connectionString);
   await applyScenarioMigrations(pool);
@@ -268,14 +313,18 @@ describe('scenario retention concurrency integration', () => {
   }, STARTUP_TIMEOUT_MS * 2);
 
   afterAll(async () => {
+    isStoppingPostgres = true;
+    const active = runtime;
+    let closePgCircuitPool: (() => Promise<void>) | null = null;
+
     try {
       const db = await import('../../../server/db/pg-circuit');
-      await db.closePool();
+      closePgCircuitPool = db.closePool;
     } catch {
       // The pg-circuit module may never load if startup failed before route import.
     }
-    await runtime?.pool.end();
-    await runtime?.postgres.stop();
+    await tolerateExpectedPostgresStop([closePgCircuitPool?.(), active?.pool.end()]);
+    await stopPostgresContainer(active?.postgres);
     restoreEnv(originalEnv);
     vi.resetModules();
   });
