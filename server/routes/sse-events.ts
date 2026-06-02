@@ -9,6 +9,7 @@ import { Router } from 'express';
 import type { Request, Response } from 'express';
 import { logger } from '../logger';
 import { firstString } from '../lib/request-values';
+import { getVerifiedFundScope, type VerifiedFundScope } from '../lib/auth/provided-fund-scope';
 
 const router = Router();
 
@@ -34,12 +35,34 @@ export type SSEEventType =
   | 'heartbeat';
 
 /**
+ * Verify the caller before opening a stream. getVerifiedFundScope re-verifies the
+ * bearer token; a missing token throws outside development and an invalid token
+ * returns null -- both are treated as unauthenticated (401) here so a stream is
+ * never opened for an unverified caller. Returns the verified scope on success.
+ */
+async function resolveStreamScope(req: Request, res: Response): Promise<VerifiedFundScope | null> {
+  try {
+    const scope = await getVerifiedFundScope(req);
+    if (scope) {
+      return scope;
+    }
+  } catch {
+    // Missing bearer token outside development throws; treat as unauthenticated.
+  }
+  res.status(401).json({
+    error: 'Unauthorized',
+    message: 'Authentication is required for event streams',
+  });
+  return null;
+}
+
+/**
  * GET /api/events/fund/:fundId
  *
  * Establish an SSE connection for real-time fund events
  * Client will receive events as they occur
  */
-router['get']('/api/events/fund/:fundId', (req: Request, res: Response) => {
+router['get']('/api/events/fund/:fundId', async (req: Request, res: Response) => {
   const fundIdParam = firstString(req.params['fundId']);
   const fundId = parseInt(fundIdParam || '0', 10);
 
@@ -47,6 +70,22 @@ router['get']('/api/events/fund/:fundId', (req: Request, res: Response) => {
     return res.status(400).json({
       error: 'Invalid fund ID',
       message: 'Fund ID must be a positive integer',
+    });
+  }
+
+  // Authenticate and fund-scope before establishing the stream. Native
+  // EventSource cannot send a bearer token, so browser consumers are deferred to
+  // a future transport (query-token/cookie) decision; until then these routes are
+  // protected, not publicly streamable.
+  const scope = await resolveStreamScope(req, res);
+  if (!scope) {
+    return;
+  }
+  if (!scope.unrestricted && !scope.fundIds.includes(fundId)) {
+    return res.status(403).json({
+      error: 'Forbidden',
+      code: 'FUND_ACCESS_DENIED',
+      message: `You do not have access to fund ${fundId}`,
     });
   }
 
@@ -122,7 +161,7 @@ router['get']('/api/events/fund/:fundId', (req: Request, res: Response) => {
  * SSE stream for Monte Carlo simulation progress
  * Streams progress updates and final results
  */
-router['get']('/api/events/simulation/:simulationId', (req: Request, res: Response) => {
+router['get']('/api/events/simulation/:simulationId', async (req: Request, res: Response) => {
   const simulationId = firstString(req.params['simulationId']);
 
   if (!simulationId) {
@@ -130,6 +169,15 @@ router['get']('/api/events/simulation/:simulationId', (req: Request, res: Respon
       error: 'Invalid simulation ID',
       message: 'Simulation ID is required',
     });
+  }
+
+  // Authentication is required before streaming. This route is not fund-scoped:
+  // simulationId is not bound to a fund here, so it enforces auth only. Full
+  // fund-scoping is a follow-up requiring a reliable simulationId -> fundId
+  // resolver (e.g. the simulation queue job record).
+  const scope = await resolveStreamScope(req, res);
+  if (!scope) {
+    return;
   }
 
   // Set SSE headers
