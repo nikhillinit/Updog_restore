@@ -106,11 +106,18 @@ order is now:
 
 **Next actions:**
 
-- Extend evidence headers to every material result section that presents
-  authoritative outputs, including overview, scenarios, economics, waterfall,
-  carry, and future reserve/pacing detail panels.
-- Add compact source notes where section evidence is more specific than the
-  generic fund-results endpoint.
+- Extend evidence headers to every material result section. The overview,
+  scenarios, economics, waterfall, and reserve/pacing sections can mount a basic
+  lifecycle header now from the top-level `lifecycle` field in
+  `fund-results-v1.contract.ts` (always present, no backend work). Carry is not
+  a separate section; it renders inside the economics card and inherits its
+  header.
+- Add section-specific source notes where section evidence is more specific than
+  the generic fund-results endpoint. Prerequisite: the overview/scorecard
+  section is payload-only today (`ScorecardSectionSchema` does not use
+  `SectionAvailableSchema`, so it has no section-level `calculatedAt`/`source`).
+  A section source note for overview is therefore a separate small contract
+  sub-task; the basic header does not need it.
 - Make stale evidence actions consistent: users should know whether to
   recalculate, publish, refresh, or wait for polling.
 
@@ -145,17 +152,27 @@ inside `/fund-model-results/:fundId`.
   portfolio cost/value chart.
 - Add evidence/source bands to scenario comparison cards: source config version,
   scenario set name, comparison status, staleness, and baseline source.
-- Improve comparison density with explicit count thresholds, toggled via the
-  existing `SegmentedControl`:
+- Bound the workspace first: it currently fetches detail/status/comparison for
+  every scenario set (`fund-scenario-workspace.tsx`). Variant count is capped at
+  5 but set count is not. Add scenario-set selection/pagination ("one set at a
+  time") before layering density primitives, or the workspace becomes a
+  multi-set comparison wall.
+- Improve comparison density, toggled via a small segmented toggle (no
+  `SegmentedControl` exists yet — build one or use a minimal toggle). Scenario
+  sets are capped at 5 variants (`fund-scenario-sets-v1.contract.ts`,
+  `.max(5)`), each carrying 8 metric deltas, so density is driven by metric
+  breadth, not variant count:
   - **≤3 variants:** `ComparisonBand` (side-by-side).
-  - **4–8 variants:** `SmallMultipleGrid` (shared scales).
-  - **9+ variants:** compact matrix/table view. These thresholds pin the
-    doctrine's "matrix view when multiple variants" rule so it is testable and
-    prevents a default card-grid layout.
+  - **4–5 variants:** `SmallMultipleGrid` (shared scales).
+  - **Dense metric comparison:** a metric×variant cross-tab `matrix` (up to 5 ×
+    8), selectable regardless of variant count.
 - Keep unsupported reserve-allocation comparisons explicit until reserve
   comparison semantics are implemented.
-- Avoid adding scenario creation/editing or reserve optimization expansion until
-  the existing reading experience is solid.
+- Decide the scope of write actions explicitly. The workspace already exposes a
+  "Create optimized reserve plan" action (`fund-scenario-workspace.tsx`), which
+  contradicts "reading-first." Either gate/defer that action or update this
+  scope statement to acknowledge it — do not leave the doc and the live UI
+  disagreeing.
 
 **Tests:**
 
@@ -199,7 +216,10 @@ DPI/IRR analysis, publish comparison.
 - Show base/upside/downside/current/conservative cases side by side where
   applicable.
 - Lock scales across compared charts by default.
-- Place assumption diffs beside outcome deltas.
+- Place assumption diffs beside outcome deltas. Prerequisite: the comparison
+  contract carries no driver/assumption-diff data and locks `overrideType` to
+  `fee_profile` (`fund-scenario-comparison-v1.contract.ts`); broadening it is a
+  contract/server slice that precedes this visual work.
 - Add short captions that explain the mechanism behind the difference.
 
 **Tests:**
@@ -211,7 +231,8 @@ DPI/IRR analysis, publish comparison.
 
 ## Phase 5 — Reserve planning and ranked tables
 
-**Status:** Strategy pending; keep scoped to evidence-backed surfaces.
+**Status:** Future rollout (after this cycle); keep scoped to evidence-backed
+surfaces.
 
 **Surfaces:** Reserve planning, optimal reserves ranking, portfolio-company
 watchlists, capital allocation tables.
@@ -233,7 +254,7 @@ watchlists, capital allocation tables.
 
 ## Phase 6 — LP reports and shared dashboards
 
-**Status:** Presentation work remains.
+**Status:** Future rollout (after this cycle); presentation work remains.
 
 **Surfaces:** LP reports, shared dashboards, report exports.
 
@@ -257,8 +278,10 @@ watchlists, capital allocation tables.
 **Actions:**
 
 - Add unit tests around evidence headers and stale/demo states.
-- Add lint or static checks for suspicious `SAMPLE_DATA` usage in production
-  chart components.
+- Start a demo-data guardrail EARLY (in parallel with step 1, not at the end):
+  first inventory the real demo/mock/sample/fixture patterns in the codebase,
+  then add a static check + allowlist. Do not scope the guard to the single
+  literal `SAMPLE_DATA` identifier — that misses most demo paths.
 - Add component tests for shared-scale behavior in comparison charts.
 - Keep docs/checklist references link-checked.
 
@@ -267,6 +290,23 @@ watchlists, capital allocation tables.
 - Screenshot-perfect tests for every chart.
 - Broad chart-library migrations.
 - Overly rigid visual linting that blocks legitimate prototypes.
+
+## Contract prerequisites (server/data work that precedes the visuals)
+
+These visual goals depend on data the contracts do not carry yet. Sequence the
+contract slice before the matching UI, or the UI ships on missing data.
+
+- **Overview source note:** wrap `ScorecardSectionSchema` in
+  `SectionAvailableSchema` so it carries `calculatedAt`/`source` (basic header
+  works without this).
+- **Access-scope evidence:** add a server-emitted access-scope to the results
+  contract; `EvidenceHeaderLifecycle` has no scope field today.
+  `AccessScopeNote` must be contract-backed, not inferred client-side from the
+  route (self-certifying security is the anti-pattern this doctrine warns
+  against).
+- **Comparison drivers:** broaden `overrideType` beyond `fee_profile` and add
+  assumption-diff/driver data to `fund-scenario-comparison-v1.contract.ts`
+  before Phase 4's "why did it change" comparisons.
 
 ## Candidate implementation order from here
 
@@ -290,19 +330,39 @@ Rationale: step 1 previously mounted the header on 5+ sections before its visual
 contract existed, guaranteeing rework. Locking the contract first makes the
 breadth rollout mechanical.
 
+## Rollout boundary (stop rule)
+
+This rollout is intentionally narrow: **one evidence primitive, one live pilot,
+one contract-dependency list, then stop.**
+
+- **In this cycle:** Phases 0–4 — EvidenceHeader contract + breadth, the
+  scenario workspace pilot, comparison evidence/density, and the contract
+  prerequisites above.
+- **Future rollouts (not now):** Phases 5–7 — reserve/portfolio ranking tables,
+  LP/report provenance and exports, and broad sparkline/guardrail expansion.
+  Sequence them after the contract slices land and the pilot proves the pattern.
+
+Do not start Phase 5+ surfaces before the EvidenceHeader contract and the
+scenario pilot are solid.
+
 ## Definition of done for an analytics PR
 
-An analytics PR is done when it can answer:
+An analytics PR is done when it can answer the questions below. These are the
+PR-time subset of the canonical **Chart review checklist** in
+`analytics-visualization-principles.md`, which is the single source of truth —
+when the checklist changes, update it there, do not fork a new list. The
+PR-template Analytics / Results Truthfulness checklist references the same
+canonical list.
 
 - What decision does the visual support?
 - What is the baseline comparison?
 - What data source/run/version produced the values?
-- What states are supported: loading, empty, partial, stale, failed, demo?
+- What states are supported: loading, EMPTY (supported, no data), PARTIAL (mixed
+  success), stale, failed, demo?
 - Are labels, units, and axes honest?
 - Is any essential meaning hidden only in a tooltip?
-- Is sample data isolated from production paths?
-- What states are supported, including EMPTY (supported, no data) and PARTIAL
-  (mixed success)?
+- Is sample data isolated from production paths, and are EMPTY/PARTIAL/DEMO
+  client states distinct from calc-status?
 - Are sparklines and provenance triggers keyboard- and screen-reader-accessible?
 - Do state colors bind to v3.1.1 tokens and meet 4.5:1 contrast?
 

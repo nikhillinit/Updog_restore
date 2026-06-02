@@ -269,6 +269,16 @@ State language:
 - `UNAVAILABLE`: the section is not supported by the server response.
 - `DEMO`: synthetic or fixture-backed data, visible to users.
 
+State axes (load-bearing for implementation): `READY`, `CALCULATING`, `STALE`,
+`FAILED`, and `UNAVAILABLE` are derived from the calculation-status contract
+(`FundStateReadV1['calculationState']['status']` =
+`ready|submitted|calculating|failed|not_requested`). `EMPTY` and `PARTIAL` are
+NOT new contract states — derive them client-side from the section payload
+(empty payload = `EMPTY`; mixed sourced/unsourced fields = `PARTIAL`). `DEMO` is
+an orthogonal data-source flag ("real vs. sample data"), not a
+calculation-status value. Do not extend the shared calculation-status enum to
+add these.
+
 ### Evidence header hierarchy and responsive behavior
 
 The header is a thin inline rail, not a card. It carries three tiers of weight:
@@ -278,7 +288,7 @@ The header is a thin inline rail, not a card. It carries three tiers of weight:
   mapping). This is the trust signal and must never be truncated.
 - **Tier 2 — scannable:** config version and run ID. Medium weight, monospace.
 - **Tier 3 — audit detail:** calculated timestamp and source endpoint. Lowest
-  weight (`--muted`/`--quiet`), shown last.
+  weight (muted `text-charcoal-400`), shown last.
 
 Responsive rule: below the 960px breakpoint (or when the section panel is
 narrow), keep Tier 1 inline and collapse Tier 2 + Tier 3 behind a single `ⓘ`
@@ -298,24 +308,27 @@ Example, narrow:
 READY · FUND-SCOPED   ⓘ
 ```
 
-### State visual mapping (v3.1.1 tokens)
+### State visual mapping (live Tailwind theme)
 
-Bind every lifecycle/access state to an existing v3.1.1 semantic token; do not
-introduce new state colors. Always pair color with the text label (color is
+Bind every lifecycle/access state to the live Tailwind theme — the same approach
+`EvidenceHeader.tsx` already uses (a `Badge` rail with `emerald/amber/rose` +
+`charcoal/beige`, `font-poppins`). The app has no `--pos/--warn/--neg` CSS
+variables; v3.1.1's palette is realized through this theme (`charcoal` =
+#292929, `beige` = #E0D8D1). Always pair color with the text label (color is
 never the only signal).
 
-| State                              | Token               | Treatment                                                                     |
-| ---------------------------------- | ------------------- | ----------------------------------------------------------------------------- |
-| `READY`                            | `--pos` (#127e3d)   | StatusChip, calm; no emphasis needed                                          |
-| `CALCULATING`                      | `--blue` (#3769a6)  | StatusChip + v3.1.1 skeleton/scan motion (reduced-motion degrades to instant) |
-| `STALE`                            | `--warn` (#a95c00)  | StatusChip + visible recalculation action                                     |
-| `FAILED`                           | `--neg` (#b00020)   | StatusChip + explanation; last result only if labeled                         |
-| `EMPTY`                            | `--muted` (#7a7a7a) | Neutral; warm zero-state + primary action                                     |
-| `PARTIAL`                          | `--warn` (#a95c00)  | Available metrics render; inline note for the rest                            |
-| `UNAVAILABLE`                      | `--quiet` (#a8a8a8) | UnavailableSection placeholder                                                |
-| `DEMO`                             | `--warn` (#a95c00)  | Corner ribbon + amber section border (see below)                              |
-| `FUND-SCOPED` / `LP-SCOPED`        | `--pos` (#127e3d)   | AccessScopeNote chip                                                          |
-| `AUTH-ONLY` / `TRANSPORT-DEFERRED` | `--muted` (#7a7a7a) | AccessScopeNote chip                                                          |
+| State                              | Tailwind classes                                                           | Treatment                                                                                                         |
+| ---------------------------------- | -------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------- |
+| `READY`                            | `border-emerald-200 bg-emerald-50 text-emerald-800`                        | calm; no emphasis                                                                                                 |
+| `CALCULATING`                      | `border-sky-200 bg-sky-50 text-sky-800`                                    | skeleton/in-progress; reduced-motion degrades to instant. (Live currently reuses amber — distinguish from STALE.) |
+| `STALE`                            | `border-amber-200 bg-amber-50 text-amber-800`                              | + visible recalculation action                                                                                    |
+| `FAILED`                           | `border-rose-200 bg-rose-50 text-rose-800`                                 | + explanation; last result only if labeled                                                                        |
+| `EMPTY`                            | `text-charcoal-500`                                                        | neutral; warm zero-state + primary action                                                                         |
+| `PARTIAL`                          | `border-amber-200 bg-amber-50 text-amber-800`                              | available metrics render; inline note for the rest                                                                |
+| `UNAVAILABLE`                      | `border-beige-200 text-charcoal-500`                                       | UnavailableSection placeholder                                                                                    |
+| `DEMO`                             | solid `bg-amber-600 text-white` ribbon + `border-amber-400` section border | see Demo treatment                                                                                                |
+| `FUND-SCOPED` / `LP-SCOPED`        | `text-emerald-800`                                                         | AccessScopeNote chip                                                                                              |
+| `AUTH-ONLY` / `TRANSPORT-DEFERRED` | `text-charcoal-500`                                                        | AccessScopeNote chip                                                                                              |
 
 ### Demo / sample-data treatment
 
@@ -324,9 +337,9 @@ miss and must not depend on the reader noticing a subtle badge.
 
 When a production surface renders sample/fixture data, it must show **both**:
 
-1. A persistent `DEMO` corner ribbon (top-right of the section), `--warn` on a
-   solid fill, using the `.pill.dark` weight so it reads as a deliberate stamp.
-2. A `--warn` (#a95c00) border around the whole section.
+1. A persistent `DEMO` corner ribbon (top-right of the section): a solid amber
+   `Badge` (`bg-amber-600 text-white`) so it reads as a deliberate stamp.
+2. An `border-amber-400` border around the whole section.
 
 The ribbon and border are non-blocking (the user can still interact). A `DEMO`
 pill in the evidence header alone is not sufficient — that is the exact "looks
@@ -380,27 +393,35 @@ These are conceptual names, not mandates for exact implementation names.
 - `UnavailableSection`: honest placeholder when the server does not support a
   section.
 
-### Design-system binding (v3.1.1)
+### Design-system binding (live theme; v3.1.1 is the north star)
 
-These primitives are compositions of the existing v3.1.1 shared UI set, not a
-new component library. Build them by binding to current tokens and components:
+These primitives extend the live components and Tailwind theme. v3.1.1 is the
+design north star, but the app does not use its CSS variables — bind to what
+ships today.
 
-| Analytics primitive                    | v3.1.1 building blocks                                                                                                                                                                       |
-| -------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `EvidenceHeader`                       | `StatusChip` (Tier 1 state) + mono `.pill`s (Tier 2) + `--muted` text (Tier 3) + `Tooltip` for collapsed detail; tokens `--pos/--blue/--warn/--neg/--muted/--quiet`, `--font-mono`, `--rule` |
-| `AccessScopeNote`                      | `StatusChip` variant; `--pos` for scoped, `--muted` for auth-only/transport-deferred                                                                                                         |
-| `MetricWithProvenance`                 | KPI value + `IconButton`/`Tooltip` trigger; reuses v3.1.1 "source, sync time, assumption version, editor attribution" provenance fields                                                      |
-| `ComparisonBand` / `SmallMultipleGrid` | layout primitives toggled by `SegmentedControl`; share `--radius`, `--shadow-soft`                                                                                                           |
-| `InlineSparkline`                      | new compact element; pairs with the row value + delta (see a11y)                                                                                                                             |
-| `UnavailableSection`                   | `--quiet` placeholder using `--mist` surface + `--rule` border                                                                                                                               |
+| Analytics primitive                    | Build from                                                                                                                                                                                                      |
+| -------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `EvidenceHeader`                       | EXTEND the live `client/src/components/results/EvidenceHeader.tsx` (a `Badge` rail, `emerald/amber/rose` + `charcoal/beige`, `font-poppins`). Add EMPTY/PARTIAL/DEMO handling client-side. Not a new component. |
+| `AccessScopeNote`                      | NEW — requires a server-emitted access-scope field (see Contract prerequisites in the rollout). Do not infer scope from the route.                                                                              |
+| `MetricWithProvenance`                 | KPI value + `Tooltip`/icon trigger; provenance fields from the fund-results contract.                                                                                                                           |
+| `ComparisonBand` / `SmallMultipleGrid` | NEW layout primitives + a toggle. NOTE: `SegmentedControl` does not exist yet — build a small toggle or add the component.                                                                                      |
+| `InlineSparkline`                      | NEW compact element (today `TVPISparkline` is a stub); pairs with the row value + delta (see a11y).                                                                                                             |
+| `UnavailableSection`                   | muted placeholder using `charcoal/beige` surface + border.                                                                                                                                                      |
 
-Motion: `CALCULATING` uses the v3.1.1 skeleton-then-fade and stable-chrome rules
-and must honor `prefers-reduced-motion` (degrade to instant). Do not invent a
-new spinner.
+Step-1 plumbing (do before breadth): the live `StatusChip` only supports
+`complete|partial|fallback`, so it cannot render lifecycle states — either add
+lifecycle variants to it or keep EvidenceHeader's own `Badge` color map; and
+build the `SegmentedControl`/toggle the comparison layouts need.
 
-This analytics chart-review checklist composes with — does not replace — the
-v3.1.1 acceptance rubric (truth-first hierarchy, accountable context, keyboard
-parity, purposeful motion, LP-safe sharing). A chart PR must pass both.
+Fonts: the rail uses `font-poppins` (live); numerics use the `mono` family (Fira
+Code per tailwind.config), not JetBrains Mono.
+
+Motion: `CALCULATING` uses skeleton-then-fade and must honor
+`prefers-reduced-motion` (degrade to instant). Do not invent a new spinner.
+
+This chart-review checklist composes with — does not replace — the v3.1.1
+acceptance rubric (truth-first hierarchy, accountable context, keyboard parity,
+purposeful motion, LP-safe sharing). A chart PR must pass both.
 
 ## Anti-patterns
 
@@ -431,15 +452,15 @@ until it satisfies them (and the v3.1.1 keyboard-parity rubric).
   Enter/Space, closes on Escape, `aria-expanded` reflects state, focus returns
   to the trigger on close. Reuse the v3.1.1 `Tooltip` focus behavior.
 - **Contrast.** State colors must meet 4.5:1 against the rail/section
-  background. `--warn` (#a95c00) on light surfaces is the contrast trap — verify
-  STALE/DEMO explicitly.
+  background. Amber on light surfaces is the contrast trap (use
+  `text-amber-800`, not a lighter amber) — verify STALE/DEMO explicitly.
 - **Touch targets.** Evidence trigger, recalculate, and band/grid/matrix toggles
   are ≥44px.
 - **Reduced motion.** All CALCULATING/scan motion degrades to instant under
   `prefers-reduced-motion`, per the v3.1.1 motion grammar.
 - **Responsive.** Evidence header follows the Tier-1-always / Tier-2+3-collapse
   rule at 960px. Comparison surfaces follow the density thresholds in the
-  rollout plan (≤3 band, 4–8 grid, 9+ matrix).
+  rollout plan (≤3 band, 4–5 grid, metric×variant matrix).
 - **Color independence.** Every color-encoded state also carries a text label,
   shape, or ordering cue.
 
