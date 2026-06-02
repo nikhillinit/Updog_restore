@@ -767,6 +767,7 @@ describe('route surface inventory', () => {
       .get('/api/monte-carlo/funds/2/simulate')
       .set('Authorization', await scopedAuthorizationHeader([1]));
     expect(crossFund.status).toBe(403);
+    expect(crossFund.body).toMatchObject({ code: 'FUND_ACCESS_DENIED' });
   }, 30_000);
 
   it('keeps not-fund-scoped routes open to any authenticated caller', async () => {
