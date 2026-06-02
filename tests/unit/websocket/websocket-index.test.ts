@@ -12,8 +12,12 @@ const {
   const mockDevDashboardInstance = { cleanup: vi.fn() };
   const mockPortfolioMetricsInstance = { cleanup: vi.fn() };
 
-  const DevDashboardCtor = vi.fn(() => mockDevDashboardInstance);
-  const PortfolioMetricsCtor = vi.fn(() => mockPortfolioMetricsInstance);
+  const DevDashboardCtor = vi.fn(function () {
+    return mockDevDashboardInstance;
+  });
+  const PortfolioMetricsCtor = vi.fn(function () {
+    return mockPortfolioMetricsInstance;
+  });
   const setPortfolioMetricsWSMock = vi.fn();
   const mockLogger = {
     info: vi.fn(),

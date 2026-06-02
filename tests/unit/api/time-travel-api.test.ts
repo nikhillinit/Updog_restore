@@ -44,7 +44,9 @@ vi.mock('../../../server/services/time-travel-analytics', () => {
   };
 
   return {
-    TimeTravelAnalyticsService: vi.fn(() => mockServiceInstance),
+    TimeTravelAnalyticsService: vi.fn(function () {
+      return mockServiceInstance;
+    }),
     // Export mock for test access
     __mockServiceInstance: mockServiceInstance,
   };

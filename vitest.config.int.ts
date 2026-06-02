@@ -51,10 +51,7 @@ export default defineConfig({
     clearMocks: true,
     restoreMocks: true,
     pool: 'forks', // Better isolation for integration tests
-    poolOptions: {
-      forks: {
-        singleFork: true, // Prevent parallel execution that could conflict
-      },
-    },
+    maxWorkers: 1, // Prevent parallel execution that could conflict
+    isolate: false, // Keep integration files in one fork worker.
   },
 });

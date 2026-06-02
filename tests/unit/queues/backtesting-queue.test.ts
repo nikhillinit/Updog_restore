@@ -35,8 +35,10 @@ const { mockQueue, mockWorker, capturedProcessorRef, mockRunBacktest } = vi.hois
 });
 
 vi.mock('bullmq', () => ({
-  Queue: vi.fn(() => mockQueue),
-  Worker: vi.fn((_name: string, processor: Function) => {
+  Queue: vi.fn(function () {
+    return mockQueue;
+  }),
+  Worker: vi.fn(function (_name: string, processor: Function) {
     capturedProcessorRef.current = processor;
     return mockWorker;
   }),
