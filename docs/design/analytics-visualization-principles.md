@@ -19,7 +19,9 @@ keywords:
 source_of_truth: true
 agent_routing:
   priority: 1
-  route_hint: 'Use for any Updog chart, dashboard, report, fund results, scenario comparison, reserve analysis, or LP-facing analytical display.'
+  route_hint:
+    'Use for any Updog chart, dashboard, report, fund results, scenario
+    comparison, reserve analysis, or LP-facing analytical display.'
   use_cases:
     [
       chart_review,
@@ -39,10 +41,10 @@ maintenance:
 
 ## Purpose
 
-This document converts the Tufte-style visualization guidance into Updog-specific
-presentation-layer rules. It is highly relevant to dashboards, charts, reports,
-fund-model results, scenario comparison, reserve planning, MOIC analysis,
-portfolio monitoring, and LP reporting.
+This document converts the Tufte-style visualization guidance into
+Updog-specific presentation-layer rules. It is highly relevant to dashboards,
+charts, reports, fund-model results, scenario comparison, reserve planning, MOIC
+analysis, portfolio monitoring, and LP reporting.
 
 It is intentionally not a rewrite of the calculation engines, persistence layer,
 worker orchestration, schema contracts, or CI architecture. Those systems must
@@ -66,14 +68,30 @@ Every chart, KPI, table, report block, and dashboard panel should answer at
 least one of those questions. The best analytical surfaces answer all five
 without forcing the user into a separate explanation page.
 
+### The trust arc behind the five questions
+
+The five questions are not a checklist; they are the emotional spine of two
+high-stakes moments:
+
+- **GP, fund results.** A GP opens `/fund-model-results/:fundId` minutes before
+  an IC or LP conversation. The felt question is "is this number current, and
+  can I defend it?" The evidence header exists to relieve that anxiety at a
+  glance, not to satisfy an audit.
+- **LP, shared report.** An LP opens a report and silently asks "is this my
+  fund, and is it the latest?" Access-scope + version evidence exist to make the
+  answer obvious before they read a single metric.
+
+Design the surfaces so the relieving evidence arrives _before_ the user has to
+ask. A correct number that arrives without confidence still loses the moment.
+
 ## Non-negotiables
 
 ### 1. Truthfulness beats polish
 
 A polished chart with placeholder, stale, or mock-only data is worse than an
 empty state. Production-facing analytics must clearly distinguish live data,
-demo data, sample data, stale data, unavailable sections, and pending calculation
-states.
+demo data, sample data, stale data, unavailable sections, and pending
+calculation states.
 
 Rules:
 
@@ -117,9 +135,9 @@ Rules:
   commitment scope.
 - Canonical fund ID parsing matters. Do not hand-parse route fund IDs in a way
   that can disagree with the server guard.
-- Native browser `EventSource` cannot send bearer headers. Treat bearer-protected
-  SSE routes as server-side defense-in-depth until an explicit query-token or
-  cookie transport is designed.
+- Native browser `EventSource` cannot send bearer headers. Treat
+  bearer-protected SSE routes as server-side defense-in-depth until an explicit
+  query-token or cookie transport is designed.
 
 ### 4. Evidence must travel with the number
 
@@ -185,8 +203,8 @@ Rules:
   clearly labeled.
 - Axis truncation must be intentional and disclosed.
 - Units must be visible: dollars, cents, %, x, bps, quarters, years.
-- Avoid mixing dollars and multiples on the same axis unless the design makes the
-  encoding unmistakable.
+- Avoid mixing dollars and multiples on the same axis unless the design makes
+  the encoding unmistakable.
 
 ### 8. Compact trend cues should support scanning
 
@@ -200,8 +218,8 @@ Rules:
   excessive.
 - Sparklines should show shape, not decorative noise.
 - Pair sparklines with the current value and, when useful, a short delta.
-- Use them for portfolio-company tables, reserve rankings, KPI rows, LP reporting
-  summaries, and watchlists.
+- Use them for portfolio-company tables, reserve rankings, KPI rows, LP
+  reporting summaries, and watchlists.
 
 Example patterns:
 
@@ -214,18 +232,18 @@ Runway          9 mo   ▃▃▂▂▁
 
 ## Updog surface rules
 
-| Surface | Primary visualization job | Required evidence pattern |
-| --- | --- | --- |
-| `/fund-model-results/:fundId` | Explain authoritative published results | Evidence header per section: config version, run, timestamp, source, status |
-| `/fund-model-results/:fundId/scenarios` | Compare existing scenario sets against the authoritative baseline | Source config, scenario-set status, calculation status, comparison staleness, and fund-scoped endpoints |
-| Scenario builder | Compare changed assumptions and outcomes | Base vs. changed assumptions side by side; identical scales for outcome charts |
-| Reserve planning | Rank follow-on needs and explain why | Table with reserve need, current/planned/deployed reserve, ownership effect, trigger annotation |
-| MOIC / TVPI / DPI / IRR analysis | Show return mechanics, not only headline metrics | Direct labels, assumptions, time horizon, calculation version, stale state |
-| Construction vs. current forecasts | Reveal drift from the original plan | Small multiples or paired charts with shared scales and variance callouts |
-| Portfolio dashboards | Support scanning and triage | KPI tiles with provenance, company tables with sparklines, exception annotations |
-| LP reports / shared dashboards | Build trust with clear evidence | Integrated words/numbers/charts, source notes, export timestamp, version badge, LP commitment scope |
-| Wizard inputs | Explain effect of assumptions | Inline examples, micro-visualizations, and impact previews where possible |
-| SSE / real-time surfaces | Stream state changes without leaking cross-fund events | Auth transport decision, fund-scope validation before stream open, no browser-native consumer until transport is designed |
+| Surface                                 | Primary visualization job                                         | Required evidence pattern                                                                                                 |
+| --------------------------------------- | ----------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------- |
+| `/fund-model-results/:fundId`           | Explain authoritative published results                           | Evidence header per section: config version, run, timestamp, source, status                                               |
+| `/fund-model-results/:fundId/scenarios` | Compare existing scenario sets against the authoritative baseline | Source config, scenario-set status, calculation status, comparison staleness, and fund-scoped endpoints                   |
+| Scenario builder                        | Compare changed assumptions and outcomes                          | Base vs. changed assumptions side by side; identical scales for outcome charts                                            |
+| Reserve planning                        | Rank follow-on needs and explain why                              | Table with reserve need, current/planned/deployed reserve, ownership effect, trigger annotation                           |
+| MOIC / TVPI / DPI / IRR analysis        | Show return mechanics, not only headline metrics                  | Direct labels, assumptions, time horizon, calculation version, stale state                                                |
+| Construction vs. current forecasts      | Reveal drift from the original plan                               | Small multiples or paired charts with shared scales and variance callouts                                                 |
+| Portfolio dashboards                    | Support scanning and triage                                       | KPI tiles with provenance, company tables with sparklines, exception annotations                                          |
+| LP reports / shared dashboards          | Build trust with clear evidence                                   | Integrated words/numbers/charts, source notes, export timestamp, version badge, LP commitment scope                       |
+| Wizard inputs                           | Explain effect of assumptions                                     | Inline examples, micro-visualizations, and impact previews where possible                                                 |
+| SSE / real-time surfaces                | Stream state changes without leaking cross-fund events            | Auth transport decision, fund-scope validation before stream open, no browser-native consumer until transport is designed |
 
 ## Evidence header pattern
 
@@ -238,12 +256,81 @@ READY · CONFIG v12 · RUN #148 · CALCULATED 2026-06-02 09:41 PT · SOURCE /api
 State language:
 
 - `READY`: result is current for the published config.
-- `CALCULATING`: result is in progress; keep previous output visible if available
-  and label it as prior.
+- `CALCULATING`: result is in progress; keep previous output visible if
+  available and label it as prior.
 - `STALE`: result belongs to an older config or underlying data version.
 - `FAILED`: calculation failed; show last known result only if clearly labeled.
+- `EMPTY`: the section is supported and current, but has no data yet (e.g., a
+  fund with no scenarios). Distinct from `UNAVAILABLE`. Render a warm zero-state
+  with the primary action, never a bare "No items found."
+- `PARTIAL`: some metrics in the section calculated and others failed or are
+  pending. Render the available metrics plus an inline note for the rest; do not
+  hide the whole section.
 - `UNAVAILABLE`: the section is not supported by the server response.
 - `DEMO`: synthetic or fixture-backed data, visible to users.
+
+### Evidence header hierarchy and responsive behavior
+
+The header is a thin inline rail, not a card. It carries three tiers of weight:
+
+- **Tier 1 — glanceable (always visible at every width):** lifecycle state and
+  access state. Strongest visual weight, leftmost, color-coded (see State visual
+  mapping). This is the trust signal and must never be truncated.
+- **Tier 2 — scannable:** config version and run ID. Medium weight, monospace.
+- **Tier 3 — audit detail:** calculated timestamp and source endpoint. Lowest
+  weight (`--muted`/`--quiet`), shown last.
+
+Responsive rule: below the 960px breakpoint (or when the section panel is
+narrow), keep Tier 1 inline and collapse Tier 2 + Tier 3 behind a single `ⓘ`
+affordance that opens the existing `Tooltip`/popover. Do not let the rail wrap
+into an unranked block.
+
+Example, wide:
+
+```text
+READY · FUND-SCOPED   CONFIG v12 · RUN #148   2026-06-02 09:41 PT · /api/funds/:id/results
+└ Tier 1 (color) ───┘ └ Tier 2 (mono) ─────┘ └ Tier 3 (muted) ──────────────────────────┘
+```
+
+Example, narrow:
+
+```text
+READY · FUND-SCOPED   ⓘ
+```
+
+### State visual mapping (v3.1.1 tokens)
+
+Bind every lifecycle/access state to an existing v3.1.1 semantic token; do not
+introduce new state colors. Always pair color with the text label (color is
+never the only signal).
+
+| State                              | Token               | Treatment                                                                     |
+| ---------------------------------- | ------------------- | ----------------------------------------------------------------------------- |
+| `READY`                            | `--pos` (#127e3d)   | StatusChip, calm; no emphasis needed                                          |
+| `CALCULATING`                      | `--blue` (#3769a6)  | StatusChip + v3.1.1 skeleton/scan motion (reduced-motion degrades to instant) |
+| `STALE`                            | `--warn` (#a95c00)  | StatusChip + visible recalculation action                                     |
+| `FAILED`                           | `--neg` (#b00020)   | StatusChip + explanation; last result only if labeled                         |
+| `EMPTY`                            | `--muted` (#7a7a7a) | Neutral; warm zero-state + primary action                                     |
+| `PARTIAL`                          | `--warn` (#a95c00)  | Available metrics render; inline note for the rest                            |
+| `UNAVAILABLE`                      | `--quiet` (#a8a8a8) | UnavailableSection placeholder                                                |
+| `DEMO`                             | `--warn` (#a95c00)  | Corner ribbon + amber section border (see below)                              |
+| `FUND-SCOPED` / `LP-SCOPED`        | `--pos` (#127e3d)   | AccessScopeNote chip                                                          |
+| `AUTH-ONLY` / `TRANSPORT-DEFERRED` | `--muted` (#7a7a7a) | AccessScopeNote chip                                                          |
+
+### Demo / sample-data treatment
+
+Truthfulness is the product thesis, so the demo signal must be impossible to
+miss and must not depend on the reader noticing a subtle badge.
+
+When a production surface renders sample/fixture data, it must show **both**:
+
+1. A persistent `DEMO` corner ribbon (top-right of the section), `--warn` on a
+   solid fill, using the `.pill.dark` weight so it reads as a deliberate stamp.
+2. A `--warn` (#a95c00) border around the whole section.
+
+The ribbon and border are non-blocking (the user can still interact). A `DEMO`
+pill in the evidence header alone is not sufficient — that is the exact "looks
+production-ready while using sample data" anti-pattern this doctrine forbids.
 
 Access-state language when relevant:
 
@@ -293,6 +380,28 @@ These are conceptual names, not mandates for exact implementation names.
 - `UnavailableSection`: honest placeholder when the server does not support a
   section.
 
+### Design-system binding (v3.1.1)
+
+These primitives are compositions of the existing v3.1.1 shared UI set, not a
+new component library. Build them by binding to current tokens and components:
+
+| Analytics primitive                    | v3.1.1 building blocks                                                                                                                                                                       |
+| -------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `EvidenceHeader`                       | `StatusChip` (Tier 1 state) + mono `.pill`s (Tier 2) + `--muted` text (Tier 3) + `Tooltip` for collapsed detail; tokens `--pos/--blue/--warn/--neg/--muted/--quiet`, `--font-mono`, `--rule` |
+| `AccessScopeNote`                      | `StatusChip` variant; `--pos` for scoped, `--muted` for auth-only/transport-deferred                                                                                                         |
+| `MetricWithProvenance`                 | KPI value + `IconButton`/`Tooltip` trigger; reuses v3.1.1 "source, sync time, assumption version, editor attribution" provenance fields                                                      |
+| `ComparisonBand` / `SmallMultipleGrid` | layout primitives toggled by `SegmentedControl`; share `--radius`, `--shadow-soft`                                                                                                           |
+| `InlineSparkline`                      | new compact element; pairs with the row value + delta (see a11y)                                                                                                                             |
+| `UnavailableSection`                   | `--quiet` placeholder using `--mist` surface + `--rule` border                                                                                                                               |
+
+Motion: `CALCULATING` uses the v3.1.1 skeleton-then-fade and stable-chrome rules
+and must honor `prefers-reduced-motion` (degrade to instant). Do not invent a
+new spinner.
+
+This analytics chart-review checklist composes with — does not replace — the
+v3.1.1 acceptance rubric (truth-first hierarchy, accountable context, keyboard
+parity, purposeful motion, LP-safe sharing). A chart PR must pass both.
+
 ## Anti-patterns
 
 Avoid these unless there is a documented reason:
@@ -309,6 +418,31 @@ Avoid these unless there is a documented reason:
 - Hiding failed, forbidden, or unavailable sections to make a page look cleaner.
 - Exporting LP-facing charts without version, timestamp, and LP-scope evidence.
 
+## Accessibility and responsive requirements
+
+These are requirements, not suggestions. A chart or evidence surface is not done
+until it satisfies them (and the v3.1.1 keyboard-parity rubric).
+
+- **Sparklines.** The `▁▂▃▅▇` glyphs are illustrative only. A real sparkline
+  must be `aria-hidden` with a visually-hidden text alternative naming the value
+  and direction, e.g. "TVPI 2.1x, trending up over 5 quarters." Never expose raw
+  block glyphs to a screen reader.
+- **Evidence trigger / provenance popover.** Keyboard-focusable, opens on
+  Enter/Space, closes on Escape, `aria-expanded` reflects state, focus returns
+  to the trigger on close. Reuse the v3.1.1 `Tooltip` focus behavior.
+- **Contrast.** State colors must meet 4.5:1 against the rail/section
+  background. `--warn` (#a95c00) on light surfaces is the contrast trap — verify
+  STALE/DEMO explicitly.
+- **Touch targets.** Evidence trigger, recalculate, and band/grid/matrix toggles
+  are ≥44px.
+- **Reduced motion.** All CALCULATING/scan motion degrades to instant under
+  `prefers-reduced-motion`, per the v3.1.1 motion grammar.
+- **Responsive.** Evidence header follows the Tier-1-always / Tier-2+3-collapse
+  rule at 960px. Comparison surfaces follow the density thresholds in the
+  rollout plan (≤3 band, 4–8 grid, 9+ matrix).
+- **Color independence.** Every color-encoded state also carries a text label,
+  shape, or ordering cue.
+
 ## Testing implications
 
 This doctrine should produce testable guardrails over time. Start with
@@ -322,8 +456,8 @@ Suggested tests:
   provenance fields.
 - Comparison/small-multiple components share a common domain by default.
 - Stale results show a visible stale warning and recalculation action.
-- Forbidden/unauthenticated states render honest unavailable/access messages, not
-  empty charts.
+- Forbidden/unauthenticated states render honest unavailable/access messages,
+  not empty charts.
 - Charts with color encodings include text labels or non-color cues.
 - LP/report exports include source/version/timestamp evidence and LP-scope
   evidence.

@@ -145,8 +145,13 @@ inside `/fund-model-results/:fundId`.
   portfolio cost/value chart.
 - Add evidence/source bands to scenario comparison cards: source config version,
   scenario set name, comparison status, staleness, and baseline source.
-- Improve comparison density with small-multiple cards or a matrix view when a
-  scenario set has multiple variants.
+- Improve comparison density with explicit count thresholds, toggled via the
+  existing `SegmentedControl`:
+  - **≤3 variants:** `ComparisonBand` (side-by-side).
+  - **4–8 variants:** `SmallMultipleGrid` (shared scales).
+  - **9+ variants:** compact matrix/table view. These thresholds pin the
+    doctrine's "matrix view when multiple variants" rule so it is testable and
+    prevents a default card-grid layout.
 - Keep unsupported reserve-allocation comparisons explicit until reserve
   comparison semantics are implemented.
 - Avoid adding scenario creation/editing or reserve optimization expansion until
@@ -164,20 +169,21 @@ inside `/fund-model-results/:fundId`.
 **Status:** Pilot reset.
 
 The original chart pilot, `portfolio-cost-value-chart.tsx`, was retired because
-it had zero runtime callsites and embedded hard-coded `SAMPLE_DATA`. Refactoring a
-dead component would not have improved the product.
+it had zero runtime callsites and embedded hard-coded `SAMPLE_DATA`. Refactoring
+a dead component would not have improved the product.
 
 **Next pilot candidates:**
 
-1. Scenario comparison cards/workspace, because the contract and route now exist.
+1. Scenario comparison cards/workspace, because the contract and route now
+   exist.
 2. Economics cashflow and J-curve displays inside fund results, because they are
    live authoritative result sections and currently use compact custom visuals.
 3. Publish comparison, because it already supports publish-to-publish deltas and
    drift capability reasons.
 4. LP reports/shared dashboards, after report/source evidence is surfaced.
 
-**Selection rule:** Choose the pilot with active users, server-backed data, and a
-clear decision loop. Do not pick a dead or sample-backed component.
+**Selection rule:** Choose the pilot with active users, server-backed data, and
+a clear decision loop. Do not pick a dead or sample-backed component.
 
 ## Phase 4 — Small multiples and comparison grammar
 
@@ -199,7 +205,8 @@ DPI/IRR analysis, publish comparison.
 **Tests:**
 
 - Small multiples share a common domain unless explicitly overridden.
-- Assumption diffs and outcome deltas are visible in the same comparison surface.
+- Assumption diffs and outcome deltas are visible in the same comparison
+  surface.
 - Scenario labels are visible without relying on color alone.
 
 ## Phase 5 — Reserve planning and ranked tables
@@ -263,17 +270,25 @@ watchlists, capital allocation tables.
 
 ## Candidate implementation order from here
 
-1. Extend `EvidenceHeader` coverage across all material fund-results sections.
-2. Make the scenario workspace the first live visualization-refinement pilot.
-3. Add scenario comparison evidence/source bands and better variant comparison
-   density.
-4. Improve economics cashflow/J-curve displays with direct labels, captions, and
+1. **Lock the `EvidenceHeader` visual contract first:** Tier-1/2/3 hierarchy,
+   state→token color mapping, 960px responsive collapse, and DEMO ribbon+border.
+   Mount it on the two live sections as the reference implementation.
+2. Extend `EvidenceHeader` coverage across all material fund-results sections,
+   building from the locked contract (no per-section re-design).
+3. Make the scenario workspace the first live visualization-refinement pilot.
+4. Add scenario comparison evidence/source bands and the count-threshold density
+   switch (band / grid / matrix).
+5. Improve economics cashflow/J-curve displays with direct labels, captions, and
    evidence notes.
-5. Select a reserve/portfolio ranking table and add sparkline + “why” columns.
-6. Add LP/report provenance and export evidence.
-7. Add static/sample-data guardrails.
-8. Add shared-scale comparison tests after the first small-multiple component
+6. Select a reserve/portfolio ranking table and add sparkline + "why" columns.
+7. Add LP/report provenance and export evidence.
+8. Add static/sample-data guardrails.
+9. Add shared-scale comparison tests after the first small-multiple component
    ships.
+
+Rationale: step 1 previously mounted the header on 5+ sections before its visual
+contract existed, guaranteeing rework. Locking the contract first makes the
+breadth rollout mechanical.
 
 ## Definition of done for an analytics PR
 
@@ -286,6 +301,10 @@ An analytics PR is done when it can answer:
 - Are labels, units, and axes honest?
 - Is any essential meaning hidden only in a tooltip?
 - Is sample data isolated from production paths?
+- What states are supported, including EMPTY (supported, no data) and PARTIAL
+  (mixed success)?
+- Are sparklines and provenance triggers keyboard- and screen-reader-accessible?
+- Do state colors bind to v3.1.1 tokens and meet 4.5:1 contrast?
 
 ## Relationship to the current repo
 
