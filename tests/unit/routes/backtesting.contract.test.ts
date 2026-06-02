@@ -19,9 +19,9 @@ const queueState = vi.hoisted(() => ({
   isBacktestingTerminalStatus: vi.fn(),
 }));
 
-// Inject req.user from test headers but keep requireFundAccess + the jwt-internal
-// hasFundAccess REAL, so /fund/:fundId/history exercises the genuine middleware guard
-// and the inline route guards run their real logic.
+// Inject req.user from test headers but keep requireFundAccess real, so
+// /fund/:fundId/history exercises the genuine middleware guard and the
+// route-local inline hasFundAccess guards run their real logic.
 vi.mock('../../../server/lib/auth/jwt', async (importOriginal) => {
   const actual = (await importOriginal()) as Record<string, unknown>;
   return {
@@ -133,6 +133,29 @@ describe('backtesting route fund-scope contracts', () => {
     expect(res.status).toBe(403);
     expect(res.body).toMatchObject({ error: 'FORBIDDEN' });
     expect(queueState.enqueueBacktestJob).not.toHaveBeenCalled();
+  });
+
+  it('POST /run/async enqueues an in-scope fund config', async () => {
+    const res = await request(makeApp())
+      .post('/api/backtesting/run/async')
+      .set(identity('1', 'alice'))
+      .send({ ...VALID_CONFIG, fundId: 1 });
+    expect(res.status).toBe(202);
+    expect(res.body).toMatchObject({
+      jobId: 'job-1',
+      status: 'queued',
+      links: {
+        self: '/api/backtesting/jobs/job-1',
+        poll: '/api/backtesting/jobs/job-1',
+        stream: '/api/backtesting/jobs/job-1/stream',
+      },
+    });
+    expect(queueState.enqueueBacktestJob).toHaveBeenCalledWith(
+      expect.objectContaining({
+        config: expect.objectContaining({ fundId: 1 }),
+        requesterUserId: 'alice',
+      })
+    );
   });
 
   // --- GET /jobs/:jobId (canAccessJob; fetch-before-check, 404 unknown / 403 forbidden) ---
@@ -292,6 +315,24 @@ describe('backtesting route fund-scope contracts', () => {
       .send({ fundId: 2, scenarios: ['covid_2020'] });
     expect(res.status).toBe(403);
     expect(serviceState.compareScenariosDetailed).not.toHaveBeenCalled();
+  });
+
+  it('POST /compare-scenarios compares scenarios for an in-scope fund', async () => {
+    const res = await request(makeApp())
+      .post('/api/backtesting/compare-scenarios')
+      .set(identity('1', 'alice'))
+      .send({ fundId: 1, scenarios: ['covid_2020'] });
+    expect(res.status).toBe(200);
+    expect(res.body).toMatchObject({
+      fundId: 1,
+      comparisons: [],
+      summary: {
+        requestedScenarios: 1,
+        scenariosCompared: 0,
+        failedScenarios: [],
+      },
+    });
+    expect(serviceState.compareScenariosDetailed).toHaveBeenCalledWith(1, ['covid_2020'], 5000);
   });
 
   // --- GET /scenarios (not-fund-scoped) ---
