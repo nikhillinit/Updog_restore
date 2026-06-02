@@ -25,6 +25,7 @@ development of the Press On Ventures fund modeling platform.
 - [ADR-019: Operational Guardrails, Pino Standardization, and Policy Exclusions](#adr-019-operational-guardrails-pino-standardization-and-policy-exclusions)
 - [ADR-020: Phase 3C Track B Go/No-Go Deadline](#adr-020-phase-3c-track-b-gono-go-deadline)
 - [ADR-021: Single Required CI Gate with Internal Conditional Jobs](#adr-021-single-required-ci-gate-with-internal-conditional-jobs)
+- [ADR-022: SSE Event Routes Protected by Bearer Fund-Scope; Native EventSource Transport Deferred](#adr-022-sse-event-routes-protected-by-bearer-fund-scope-native-eventsource-transport-deferred)
 
 ---
 
@@ -4950,3 +4951,60 @@ changes.
 - `.github/actions/setup-node-env/action.yml`
 - `scripts/control-plane/git-safety.mjs`
 - `docs/workflows/README.md`
+
+---
+
+## ADR-022: SSE Event Routes Protected by Bearer Fund-Scope; Native EventSource Transport Deferred
+
+**Date:** 2026-06-02 **Status:** [IMPLEMENTED] Implemented **Decision:** Guard
+the unused server-sent-events routes (`/api/events/fund/:fundId`,
+`/api/events/simulation/:simulationId`) with the existing bearer-token
+fund-scope helper and defer a browser-native EventSource auth transport
+(query-token or cookie) until a real consumer exists.
+
+### Context
+
+`server/routes/sse-events.ts` exposed two SSE routes with zero authentication.
+The fund route could stream any fund's real-time events to any caller (a latent
+cross-fund leak). Both routes are mounted on the `registerRoutes` surface only
+(not the canonical `makeApp`/prod surface), have no client or server consumer
+(the only frontend `EventSource` targets `/api/agents/stream/:runId`), and have
+no production broadcaster, so today they emit only `connected`/`heartbeat`. The
+standard guard helpers verify a bearer token, but a browser `EventSource` cannot
+send an `Authorization` header -- which is why these routes were deferred during
+the Tranche A fund-scope rollout.
+
+### Decision
+
+Apply `getVerifiedFundScope` (bearer re-verification) inside both handlers
+before any SSE headers are flushed: 401 when the token is missing or invalid,
+403 `FUND_ACCESS_DENIED` when a restricted caller requests a fund outside its
+scope. The simulation route enforces authentication only (it carries no fund
+binding in the route; full fund-scoping is a follow-up that needs a
+`simulationId -> fundId` resolver). This closes the unauthenticated exposure
+with the smallest reversible change and matches the semantics used by every
+other Tranche A route.
+
+### Alternatives Considered
+
+- **Query-param token (`?access_token=`):** works with native EventSource and is
+  the lightest transport, but puts a JWT in URLs (access/proxy logs, history,
+  Referer). Acceptable only with a short-TTL, single-purpose SSE token.
+  Deferred.
+- **Cookie-based token:** no URL leak and cheap for a same-origin deployment,
+  but introduces cookie/CSRF/CORS infrastructure the app does not currently use
+  (credentialed CORS is incompatible with the existing
+  `Access-Control-Allow-Origin: *`). Deferred.
+- **Delete/quarantine the routes:** defensible given no consumer, but the
+  `broadcast*` exports are a public surface a future feature may wire up;
+  removal is a larger dead-code sweep. Not done.
+
+### Consequences
+
+- The unauthenticated cross-fund exposure is closed now, consistent with the
+  rest of Tranche A; no current consumer breaks (there are none).
+- A browser-native EventSource consumer cannot use these routes until the
+  query-token or cookie transport is designed. That decision is intentionally
+  deferred to when a real consumer's requirements exist.
+- The simulation route gains auth-required immediately; full simulation
+  fund-scoping remains a follow-up.
