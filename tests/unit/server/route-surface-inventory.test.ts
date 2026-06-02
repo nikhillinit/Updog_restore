@@ -391,6 +391,18 @@ async function authorizationHeader() {
   })}`;
 }
 
+// A fund-scoped bearer (non-empty fundIds restricts the caller to those funds).
+// Empty fundIds in authorizationHeader() above means unrestricted/admin.
+async function scopedAuthorizationHeader(fundIds: number[], role = 'user') {
+  const { signToken } = await import('../../../server/lib/auth/jwt');
+  return `Bearer ${signToken({
+    sub: '1',
+    email: 'route-surface-scoped@example.com',
+    role,
+    fundIds,
+  })}`;
+}
+
 async function makeRegisterRoutesApp() {
   configureTestAuthEnv();
   const app = express();
@@ -707,5 +719,63 @@ describe('route surface inventory', () => {
 
     const registerRoutesResponse = await request(registerRoutesApp).get('/api-docs');
     expect(registerRoutesResponse.status).toBe(404);
+  }, 30_000);
+
+  // ==========================================================================
+  // Wrong-fund-403 gate (Tranche A Slice 7)
+  //
+  // The per-route unit contracts (Slices 0-5) mock the fund-scope guard. These
+  // tests prove the guards actually DENY a cross-fund request on the real booted
+  // surfaces with a real scoped token. The set is REPRESENTATIVE, not exhaustive:
+  // allocation-scenarios exercises the makeApp router.param guard and the full
+  // scoped/own-fund/unrestricted discriminator; monte-carlo exercises the inline
+  // enforceProvidedFundScope guard on the registerRoutes surface. Derived-fund
+  // routes (companyId/jobId -> fund) are intentionally excluded here: their deny
+  // depends on memory-storage seed data and they are already covered by their
+  // own unit contracts.
+  // ==========================================================================
+
+  it('denies a scoped token cross-fund, allows its own fund, and allows an unrestricted token', async () => {
+    const makeApp = await makeAppWithTestAuth();
+
+    // Scoped to fund 1, requesting fund 2 -> fund-scope denial before any service.
+    const crossFund = await request(makeApp)
+      .get('/api/funds/2/allocation-scenarios')
+      .set('Authorization', await scopedAuthorizationHeader([1]));
+    expect(crossFund.status).toBe(403);
+    expect(crossFund.body).toMatchObject({ code: 'FUND_ACCESS_DENIED' });
+
+    // Scoped to fund 1, requesting fund 1 -> guard passes. Status may vary on
+    // memory storage (200/4xx/5xx) but it is never a fund denial.
+    const ownFund = await request(makeApp)
+      .get('/api/funds/1/allocation-scenarios')
+      .set('Authorization', await scopedAuthorizationHeader([1]));
+    expect(ownFund.status).not.toBe(403);
+
+    // Unrestricted token (empty fundIds) -> guard passes for any fund.
+    const unrestricted = await request(makeApp)
+      .get('/api/funds/2/allocation-scenarios')
+      .set('Authorization', await authorizationHeader());
+    expect(unrestricted.status).not.toBe(403);
+  }, 30_000);
+
+  it('denies a scoped token cross-fund on the registerRoutes surface', async () => {
+    const { app: registerRoutesApp, server } = await makeRegisterRoutesApp();
+    servers.push(server);
+
+    const crossFund = await request(registerRoutesApp)
+      .get('/api/monte-carlo/funds/2/simulate')
+      .set('Authorization', await scopedAuthorizationHeader([1]));
+    expect(crossFund.status).toBe(403);
+  }, 30_000);
+
+  it('keeps not-fund-scoped routes open to any authenticated caller', async () => {
+    const makeApp = await makeAppWithTestAuth();
+
+    const scopedScenarios = await request(makeApp)
+      .get('/api/backtesting/scenarios')
+      .set('Authorization', await scopedAuthorizationHeader([1]));
+    expect(scopedScenarios.status).toBe(200);
+    expect(scopedScenarios.body).toMatchObject({ scenarios: expect.any(Array) });
   }, 30_000);
 });
