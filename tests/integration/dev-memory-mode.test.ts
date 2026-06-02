@@ -68,6 +68,11 @@ describe('Dev memory mode', () => {
     delete process.env.QUEUE_REDIS_URL;
     delete process.env.SESSION_REDIS_URL;
 
+    // isolate:false shares the module registry across integration files; reset it so the
+    // server/storage.ts singleton (createStorageFromEnvironment) is rebuilt under the
+    // memory-mode env set above instead of inheriting a prior file's database singleton.
+    vi.resetModules();
+
     // Dynamic imports to prevent side effects at module load time
     const configModule = await import('../../server/config/index.js');
     const providersModule = await import('../../server/providers.js');
