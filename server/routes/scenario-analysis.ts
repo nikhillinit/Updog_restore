@@ -21,10 +21,24 @@ import type { ScenarioAnalysisResponse, ScenarioCase } from '@shared/types/scena
 import { requireAuth } from '../lib/auth/jwt';
 import { firstString } from '../lib/request-values';
 import { createRouteLogger } from '../lib/route-logger.js';
+import { enforceCompanyFundScope } from '../lib/auth/company-fund-scope';
 
 const routeLog = createRouteLogger('scenario-analysis');
 
 const router = Router();
+
+/**
+ * Parse a :companyId route param as a positive integer, or null when absent or
+ * non-canonical. Parsed once per request and reused for both the fund-scope
+ * resolution and the scenario query so the two can never diverge.
+ */
+function parseCompanyIdParam(raw: string | undefined): number | null {
+  if (!raw) {
+    return null;
+  }
+  const parsed = Number.parseInt(raw, 10);
+  return Number.isInteger(parsed) && parsed >= 1 ? parsed : null;
+}
 
 // ============================================================================
 // Validation Schemas
@@ -119,6 +133,14 @@ router['get'](
         return res.status(400).json({ error: 'Missing required parameters' });
       }
 
+      const companyIdNum = parseCompanyIdParam(companyId);
+      if (companyIdNum === null) {
+        return res.status(400).json({ error: 'Invalid company ID' });
+      }
+      if (!(await enforceCompanyFundScope(req, res, companyIdNum))) {
+        return;
+      }
+
       const include = firstString(req.query['include'])?.split(',') || [
         'cases',
         'weighted_summary',
@@ -127,7 +149,7 @@ router['get'](
       const scenario = await db
         .select()
         .from(scenarios)
-        .where(and(eq(scenarios.id, scenarioId), eq(scenarios.companyId, parseInt(companyId))))
+        .where(and(eq(scenarios.id, scenarioId), eq(scenarios.companyId, companyIdNum)))
         .limit(1);
 
       if (!scenario || scenario.length === 0 || !scenario[0]) {
@@ -224,6 +246,14 @@ router['post'](
         return res.status(400).json({ error: 'Missing company ID' });
       }
 
+      const companyIdNum = parseCompanyIdParam(companyId);
+      if (companyIdNum === null) {
+        return res.status(400).json({ error: 'Invalid company ID' });
+      }
+      if (!(await enforceCompanyFundScope(req, res, companyIdNum))) {
+        return;
+      }
+
       // Validate request body before destructuring to preserve types
       const { name, description } = CreateScenarioSchema.parse(req.body);
       const userId = (req as ScenarioRequest).userId;
@@ -231,7 +261,7 @@ router['post'](
       const scenario = await db
         .insert(scenarios)
         .values({
-          companyId: parseInt(companyId),
+          companyId: companyIdNum,
           name: name || 'New Scenario',
           description,
           version: 1,
@@ -277,13 +307,21 @@ router['patch'](
         return res.status(400).json({ error: 'Missing required parameters' });
       }
 
+      const companyIdNum = parseCompanyIdParam(companyId);
+      if (companyIdNum === null) {
+        return res.status(400).json({ error: 'Invalid company ID' });
+      }
+      if (!(await enforceCompanyFundScope(req, res, companyIdNum))) {
+        return;
+      }
+
       const body = UpdateScenarioRequestSchema.parse(req.body);
 
       // Fetch current scenario
       const currentScenario = await db
         .select()
         .from(scenarios)
-        .where(and(eq(scenarios.id, scenarioId), eq(scenarios.companyId, parseInt(companyId))))
+        .where(and(eq(scenarios.id, scenarioId), eq(scenarios.companyId, companyIdNum)))
         .limit(1);
 
       if (!currentScenario || currentScenario.length === 0 || !currentScenario[0]) {
@@ -420,10 +458,18 @@ router['delete'](
         return res.status(400).json({ error: 'Missing required parameters' });
       }
 
+      const companyIdNum = parseCompanyIdParam(companyId);
+      if (companyIdNum === null) {
+        return res.status(400).json({ error: 'Invalid company ID' });
+      }
+      if (!(await enforceCompanyFundScope(req, res, companyIdNum))) {
+        return;
+      }
+
       const scenarioResult = await db
         .select()
         .from(scenarios)
-        .where(and(eq(scenarios.id, scenarioId), eq(scenarios.companyId, parseInt(companyId))))
+        .where(and(eq(scenarios.id, scenarioId), eq(scenarios.companyId, companyIdNum)))
         .limit(1);
 
       if (!scenarioResult || scenarioResult.length === 0 || !scenarioResult[0]) {
@@ -477,6 +523,18 @@ router['post'](
   async (req: Request, res: Response) => {
     try {
       const companyId = firstString(req.params['companyId']);
+
+      if (!companyId) {
+        return res.status(400).json({ error: 'Missing company ID' });
+      }
+
+      const companyIdNum = parseCompanyIdParam(companyId);
+      if (companyIdNum === null) {
+        return res.status(400).json({ error: 'Invalid company ID' });
+      }
+      if (!(await enforceCompanyFundScope(req, res, companyIdNum))) {
+        return;
+      }
 
       // Validate request body before destructuring to preserve types
       const { scenario_id } = ReserveSuggestionsSchema.parse(req.body);
