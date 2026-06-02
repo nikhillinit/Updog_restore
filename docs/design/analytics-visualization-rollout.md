@@ -1,13 +1,14 @@
 ---
 status: ACTIVE
 audience: both
-last_updated: 2026-05-24
+last_updated: 2026-06-02
 categories: [design, analytics, rollout, visualization, truthfulness]
 keywords:
   [
     fund-results,
     provenance,
-    chart-refactor,
+    evidence-header,
+    scenario-workspace,
     small-multiples,
     sparklines,
     rollout,
@@ -41,97 +42,154 @@ This plan applies `docs/design/analytics-visualization-principles.md` to the
 authoritative fund-modeling flow from setup to published results.
 
 The rollout is presentation-layer first. It should not modify calculation
-semantics unless a visualization exposes a data-contract gap that must be solved
-at the source.
+semantics unless a visualization exposes a data-contract, provenance, or display
+truthfulness gap that must be solved at the source.
+
+## Current state — 2026-06-02
+
+The first pass has already landed. Treat the next work as refinement of live
+surfaces, not a fresh doctrine exercise.
+
+Delivered since the original proposal:
+
+- Analytics visualization doctrine under `docs/design/`.
+- PR-template checklist for Analytics / Results Truthfulness.
+- Docs-link CI coverage for active docs and PR-template links.
+- `EvidenceHeader` component mounted on selected fund-results sections.
+- Retired `portfolio-cost-value-chart.tsx`, which had zero runtime callsites and
+  hard-coded `SAMPLE_DATA`.
+- Shared scenario-comparison contract and server-backed comparison path.
+- Focused scenario workspace at `/fund-model-results/:fundId/scenarios`.
+- Broader route/worker/live-surface hardening around canonical fund IDs and
+  scoped data visibility.
 
 ## Sequencing principle
 
 Do not launch a cosmetic analytics redesign ahead of the data layer. The correct
-order is:
+order is now:
 
 1. Make the result true.
-2. Make the result traceable.
-3. Make the result comparable.
-4. Make the result beautiful.
+2. Make the result scoped to the right entity.
+3. Make the result traceable.
+4. Make the result comparable.
+5. Make the result beautiful.
 
 ## Phase 0 — Adopt the rule, not the redesign
 
-**Goal:** Establish a shared review standard for analytical displays.
+**Status:** Complete.
 
-**Actions:**
+**Delivered:**
 
-- Add `analytics-visualization-principles.md` to design docs.
-- Route chart/dashboard reviews through its checklist.
-- Treat it as presentation-layer doctrine, not backend architecture guidance.
-- Require any production analytics surface to state whether it is live, stale,
-  unavailable, or demo/sample-backed.
+- Analytics visualization doctrine added under `docs/design/`.
+- PR review checklist added for analytics/results truthfulness.
+- Active documentation links guarded in CI.
 
-**Exit criteria:**
+**Keep doing:**
 
-- The doctrine is discoverable through `docs/design/README.md`.
-- New chart PRs can cite the checklist.
-- Designers and engineers agree that visual truthfulness outranks decorative
-  polish.
+- Use the checklist for every production analytics, report, chart, export, or
+  scenario-view PR.
+- Treat visual truthfulness as a product quality gate, not a design preference.
 
 ## Phase 1 — Fund results evidence headers
 
+**Status:** Partially shipped.
+
 **Surface:** `/fund-model-results/:fundId`
 
-**Why first:** This is the authoritative post-publish destination for the fund
-model. It is where users need the clearest evidence that outputs came from
-server-backed results rather than UI state or local placeholders.
+**Delivered:**
 
-**Actions:**
+- `EvidenceHeader` component.
+- Lifecycle-backed evidence mounted on Reserve Allocation and Deployment Pacing
+  sections.
+- Tests for READY, CALCULATING, FAILED, STALE, and UNAVAILABLE states, including
+  null run/config fallback behavior.
 
-- Introduce an `EvidenceHeader` or equivalent component.
-- Add evidence headers to each major results section when server fields are
-  available.
-- Include calculation status, published config version, run ID, timestamp,
-  source section, and current/stale state.
-- Keep unavailable sections visible with clear explanations.
-- Preserve background polling and lifecycle behavior; do not hide prior results
-  during recalculation unless the prior result is invalid.
+**Next actions:**
 
-**Suggested UI copy:**
-
-```text
-READY · CONFIG v12 · RUN #148 · CALCULATED MAY 24, 2026 09:41 PT · SOURCE /api/funds/:id/results · CURRENT
-```
-
-**Engineering notes:**
-
-- Prefer existing contract fields before expanding API contracts.
-- If a needed provenance field is missing, add a small contract change rather
-  than fabricating UI-only evidence.
-- Keep evidence compact by default; allow expanded details for audit/review
-  workflows.
+- Extend evidence headers to every material result section that presents
+  authoritative outputs, including overview, scenarios, economics, waterfall,
+  carry, and future reserve/pacing detail panels.
+- Add compact source notes where section evidence is more specific than the
+  generic fund-results endpoint.
+- Make stale evidence actions consistent: users should know whether to
+  recalculate, publish, refresh, or wait for polling.
 
 **Tests:**
 
-- Each available results section renders its evidence state.
+- Each available result section renders an evidence state when lifecycle data is
+  present.
 - Stale lifecycle state renders a visible warning and recalculation action.
-- Failed or unavailable sections render an explanatory panel instead of
+- Failed or unavailable sections render explanatory panels instead of
   disappearing.
 
-## Phase 2 — Pilot chart refactor selection
+## Phase 2 — Scenario evidence and comparison workspace
 
-The previously named Phase 2 pilot component was retired after zero callsites
-were confirmed and the implementation was found to depend on doctrine-violating
-`SAMPLE_DATA`. The next pilot will be selected from the remaining named
-candidates in this rollout when implementation begins.
+**Status:** Shipped foundation; visualization refinement remains.
 
-## Phase 3 — Scenario comparison and small multiples
+**Surfaces:** `/fund-model-results/:fundId/scenarios`, scenario summary section
+inside `/fund-model-results/:fundId`.
 
-**Surfaces:** Scenario builder, construction vs. current forecasts,
-MOIC/TVPI/DPI/IRR analysis.
+**Delivered:**
 
-**Why:** Venture modeling is inherently comparative. Users need to see how
-assumptions change outcomes without mentally translating across different
-charts.
+- Strict shared comparison contract:
+  `shared/contracts/fund-scenario-comparison-v1.contract.ts`.
+- Client parsing through shared Zod schemas.
+- Protected scenario workspace route.
+- Route-scoped fund selection for the nested scenario path.
+- Existing scenario-set, status, result, and comparison surfaces wired together
+  with calculate/queue actions for existing sets.
+
+**Next actions:**
+
+- Treat the scenario workspace as the new pilot surface instead of the retired
+  portfolio cost/value chart.
+- Add evidence/source bands to scenario comparison cards: source config version,
+  scenario set name, comparison status, staleness, and baseline source.
+- Improve comparison density with small-multiple cards or a matrix view when a
+  scenario set has multiple variants.
+- Keep unsupported reserve-allocation comparisons explicit until reserve
+  comparison semantics are implemented.
+- Avoid adding scenario creation/editing or reserve optimization expansion until
+  the existing reading experience is solid.
+
+**Tests:**
+
+- Scenario comparison cards expose baseline, variant, source config version, and
+  stale/unavailable states.
+- Unsupported override types remain explicit, not silently hidden.
+- Scenario workspace route keeps route-scoped fund selection working.
+
+## Phase 3 — Retired pilot cleanup and next pilot selection
+
+**Status:** Pilot reset.
+
+The original chart pilot, `portfolio-cost-value-chart.tsx`, was retired because
+it had zero runtime callsites and embedded hard-coded `SAMPLE_DATA`. Refactoring a
+dead component would not have improved the product.
+
+**Next pilot candidates:**
+
+1. Scenario comparison cards/workspace, because the contract and route now exist.
+2. Economics cashflow and J-curve displays inside fund results, because they are
+   live authoritative result sections and currently use compact custom visuals.
+3. Publish comparison, because it already supports publish-to-publish deltas and
+   drift capability reasons.
+4. LP reports/shared dashboards, after report/source evidence is surfaced.
+
+**Selection rule:** Choose the pilot with active users, server-backed data, and a
+clear decision loop. Do not pick a dead or sample-backed component.
+
+## Phase 4 — Small multiples and comparison grammar
+
+**Status:** Next product-design layer.
+
+**Surfaces:** Scenario workspace, construction vs. current forecasts, MOIC/TVPI/
+DPI/IRR analysis, publish comparison.
 
 **Actions:**
 
-- Add `SmallMultipleGrid` or an equivalent layout primitive.
+- Introduce a `SmallMultipleGrid` or equivalent layout primitive only after a
+  live comparison surface needs it.
 - Show base/upside/downside/current/conservative cases side by side where
   applicable.
 - Lock scales across compared charts by default.
@@ -141,17 +199,15 @@ charts.
 **Tests:**
 
 - Small multiples share a common domain unless explicitly overridden.
-- Assumption diffs and outcome deltas are visible in the same comparison
-  surface.
+- Assumption diffs and outcome deltas are visible in the same comparison surface.
 - Scenario labels are visible without relying on color alone.
 
-## Phase 4 — Reserve planning and ranked tables
+## Phase 5 — Reserve planning and ranked tables
+
+**Status:** Strategy pending; keep scoped to evidence-backed surfaces.
 
 **Surfaces:** Reserve planning, optimal reserves ranking, portfolio-company
 watchlists, capital allocation tables.
-
-**Why:** Reserve planning is a ranked decision problem. The UI should explain
-why a company needs follow-on dollars, not just show a static total.
 
 **Actions:**
 
@@ -166,14 +222,13 @@ why a company needs follow-on dollars, not just show a static total.
 
 - Ranking tables expose the ranking basis.
 - Sparklines render with text values and do not encode meaning by color alone.
-- Empty or unsupported ranking inputs show an unavailable state.
+- Empty, unsupported, or stale ranking inputs show a truthful state.
 
-## Phase 5 — LP reports and shared dashboards
+## Phase 6 — LP reports and shared dashboards
+
+**Status:** Presentation work remains.
 
 **Surfaces:** LP reports, shared dashboards, report exports.
-
-**Why:** LP-facing surfaces need high trust and low ambiguity. They should
-integrate words, numbers, charts, and evidence notes.
 
 **Actions:**
 
@@ -188,9 +243,9 @@ integrate words, numbers, charts, and evidence notes.
 - Unsupported sections explain what is missing.
 - LP-facing metrics do not render without evidence or a visible fallback state.
 
-## Phase 6 — Visual truthfulness tests and guardrails
+## Phase 7 — Visual truthfulness tests and guardrails
 
-**Goal:** Convert the doctrine into sustainable lightweight checks.
+**Status:** Started via PR template and docs-link CI; code-level guards remain.
 
 **Actions:**
 
@@ -198,8 +253,7 @@ integrate words, numbers, charts, and evidence notes.
 - Add lint or static checks for suspicious `SAMPLE_DATA` usage in production
   chart components.
 - Add component tests for shared-scale behavior in comparison charts.
-- Add review checklist references to PR templates or design-review notes when
-  appropriate.
+- Keep docs/checklist references link-checked.
 
 **Avoid initially:**
 
@@ -207,20 +261,23 @@ integrate words, numbers, charts, and evidence notes.
 - Broad chart-library migrations.
 - Overly rigid visual linting that blocks legitimate prototypes.
 
-## Candidate implementation order
+## Candidate implementation order from here
 
-1. `docs/design/*` doctrine and README entry point.
-2. `EvidenceHeader` component prototype.
-3. Fund results section evidence headers.
-4. Select the next pilot chart from the remaining candidate surfaces.
-5. Scenario small-multiple primitive.
-6. Reserve ranking table improvements.
-7. LP/report provenance and export evidence.
-8. Static/sample-data guardrails.
+1. Extend `EvidenceHeader` coverage across all material fund-results sections.
+2. Make the scenario workspace the first live visualization-refinement pilot.
+3. Add scenario comparison evidence/source bands and better variant comparison
+   density.
+4. Improve economics cashflow/J-curve displays with direct labels, captions, and
+   evidence notes.
+5. Select a reserve/portfolio ranking table and add sparkline + “why” columns.
+6. Add LP/report provenance and export evidence.
+7. Add static/sample-data guardrails.
+8. Add shared-scale comparison tests after the first small-multiple component
+   ships.
 
-## Definition of done for a chart PR
+## Definition of done for an analytics PR
 
-A chart PR is done when it can answer:
+An analytics PR is done when it can answer:
 
 - What decision does the visual support?
 - What is the baseline comparison?
@@ -234,6 +291,7 @@ A chart PR is done when it can answer:
 
 Use this rollout with existing libraries and components first. The repo already
 includes chart libraries such as Recharts/Chart.js, route-level fund results
-behavior, and lifecycle-aware server-backed results. The first improvements
-should refine evidence, comparison, and labeling rather than introduce a new
-visualization stack.
+behavior, lifecycle-aware server-backed results, scenario comparison contracts,
+and an emerging scenario workspace. The first improvements should refine
+evidence, comparison, and labeling rather than introduce a new visualization
+stack.
