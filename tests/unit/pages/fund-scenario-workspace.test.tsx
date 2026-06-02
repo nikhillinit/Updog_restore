@@ -1,15 +1,28 @@
 import React from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createWouterWrapper } from '../../utils/withWouter';
-import FundScenarioWorkspacePage from '../../../client/src/pages/fund-scenario-workspace';
+import FundScenarioWorkspacePage, {
+  reserveStatusPollIntervalMs,
+} from '../../../client/src/pages/fund-scenario-workspace';
 import type { FundScenarioComparisonV1 } from '../../../shared/contracts/fund-scenario-comparison-v1.contract';
 import type {
   FundScenarioCalculationStatusV1,
   FundScenarioSetDetailV1,
   FundScenarioSetSummaryV1,
 } from '../../../shared/contracts/fund-scenario-sets-v1.contract';
+
+describe('reserveStatusPollIntervalMs', () => {
+  it('polls only while a reserve calculation is in flight', () => {
+    expect(reserveStatusPollIntervalMs('queued')).toBe(4000);
+    expect(reserveStatusPollIntervalMs('calculating')).toBe(4000);
+    expect(reserveStatusPollIntervalMs('succeeded')).toBe(false);
+    expect(reserveStatusPollIntervalMs('failed')).toBe(false);
+    expect(reserveStatusPollIntervalMs('not_requested')).toBe(false);
+    expect(reserveStatusPollIntervalMs(undefined)).toBe(false);
+  });
+});
 
 describe('FundScenarioWorkspacePage', () => {
   let fetchSpy: ReturnType<typeof vi.fn>;
@@ -21,6 +34,7 @@ describe('FundScenarioWorkspacePage', () => {
 
   afterEach(() => {
     vi.restoreAllMocks();
+    vi.useRealTimers();
   });
 
   function renderWorkspace(path = '/fund-model-results/123/scenarios') {
@@ -242,6 +256,98 @@ describe('FundScenarioWorkspacePage', () => {
     expect(statusUrls).toEqual([
       '/api/funds/123/scenario-sets/00000000-0000-0000-0000-000000000211/calculation-status',
     ]);
+  });
+
+  it('polls reserve calculation status until it reaches a terminal state', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    const RESERVE_STATUS_POLL_INTERVAL_MS = 4000;
+    const reserveScenarioSetId = '00000000-0000-0000-0000-000000000211';
+    const statusUrl = `/api/funds/123/scenario-sets/${reserveScenarioSetId}/calculation-status`;
+    let statusCallCount = 0;
+    const results = fundResultsResponse();
+
+    try {
+      fetchSpy.mockImplementation((input: RequestInfo | URL, init?: RequestInit) => {
+        const url = typeof input === 'string' ? input : input.toString();
+        const method = init?.method ?? 'GET';
+
+        if (method === 'GET' && url === '/api/funds/123/scenario-sets') {
+          return Promise.resolve(
+            jsonResponse({
+              scenarioSets: [scenarioSetSummary(reserveScenarioSetId, 'Reserve plan', 13, 4)],
+            })
+          );
+        }
+
+        if (method === 'GET' && url === `/api/funds/123/scenario-sets/${reserveScenarioSetId}`) {
+          return Promise.resolve(jsonResponse(reserveScenarioSetDetail()));
+        }
+
+        if (method === 'GET' && url === '/api/funds/123/results') {
+          return Promise.resolve(
+            jsonResponse({
+              ...results,
+              sections: {
+                ...results.sections,
+                scenarios: {
+                  status: 'unavailable' as const,
+                  reason: 'No scenario results available',
+                },
+              },
+            })
+          );
+        }
+
+        if (method === 'GET' && url === statusUrl) {
+          statusCallCount += 1;
+          const status = statusCallCount < 3 ? 'queued' : 'succeeded';
+          return Promise.resolve(
+            jsonResponse(
+              statusResponse(
+                status,
+                status === 'succeeded' ? 42 : null,
+                reserveScenarioSetId,
+                'async_reserve_allocation'
+              )
+            )
+          );
+        }
+
+        return Promise.reject(new Error(`Unexpected fetch ${method} ${url}`));
+      });
+
+      renderWorkspace();
+
+      const reserveCard = await screen.findByTestId(
+        `scenario-workspace-set-${reserveScenarioSetId}`
+      );
+      await waitFor(() => {
+        expect(within(reserveCard).getByText('Queued')).toBeInTheDocument();
+      });
+
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(RESERVE_STATUS_POLL_INTERVAL_MS);
+      });
+      await waitFor(() => {
+        expect(statusCallCount).toBeGreaterThanOrEqual(2);
+      });
+
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(RESERVE_STATUS_POLL_INTERVAL_MS);
+      });
+      await waitFor(() => {
+        expect(within(reserveCard).getByText('Succeeded')).toBeInTheDocument();
+      });
+
+      const terminalStatusCallCount = statusCallCount;
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(RESERVE_STATUS_POLL_INTERVAL_MS);
+        await vi.advanceTimersByTimeAsync(RESERVE_STATUS_POLL_INTERVAL_MS);
+      });
+      expect(statusCallCount).toBe(terminalStatusCallCount);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it('shows "Not requested" for a sync scenario set without a calculated result', async () => {
