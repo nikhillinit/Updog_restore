@@ -12,7 +12,13 @@
 import React, { useMemo, useState } from 'react';
 import { Link, useRoute } from 'wouter';
 import { ArrowLeft, RefreshCw } from 'lucide-react';
-import { useMutation, useQueries, useQuery, useQueryClient } from '@tanstack/react-query';
+import {
+  type Query,
+  useMutation,
+  useQueries,
+  useQuery,
+  useQueryClient,
+} from '@tanstack/react-query';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -51,6 +57,16 @@ const OVERRIDE_TYPE_LABELS: Record<FundScenarioOverrideTypeV1, string> = {
   sector_profile: 'Sector profile',
 };
 const EMPTY_SCENARIO_SETS: FundScenarioSetSummaryV1[] = [];
+const RESERVE_STATUS_POLL_INTERVAL_MS = 4000;
+
+// Poll while a reserve calculation is in flight; stop at terminal/idle states.
+// A transient poll error leaves the last successful status in query.state.data, so
+// polling continues through transient failures until a terminal status.
+export function reserveStatusPollIntervalMs(
+  status: FundScenarioCalculationStatusV1['status'] | undefined
+): number | false {
+  return status === 'queued' || status === 'calculating' ? RESERVE_STATUS_POLL_INTERVAL_MS : false;
+}
 
 function workspaceQueryKey(fundId: string) {
   return ['fund-scenario-workspace', fundId] as const;
@@ -513,6 +529,8 @@ function FundScenarioWorkspacePage() {
       queryKey: scenarioSetStatusQueryKey(fundId ?? '', scenarioSetId),
       queryFn: () => fetchScenarioStatus(fundId ?? '', scenarioSetId),
       enabled: fundId != null,
+      refetchInterval: (query: Query<FundScenarioCalculationStatusV1>) =>
+        reserveStatusPollIntervalMs(query.state.data?.status),
     })),
   });
 
