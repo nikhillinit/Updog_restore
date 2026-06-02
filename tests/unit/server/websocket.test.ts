@@ -26,12 +26,10 @@ class MockSocketIOServer {
   public connectionHandler?: (socket: MockSocket) => void;
 }
 
-const {
-  SocketIOServerMock,
-  loggerMock,
-  findFirstMock,
-} = vi.hoisted(() => ({
-  SocketIOServerMock: vi.fn(() => new MockSocketIOServer()),
+const { SocketIOServerMock, loggerMock, findFirstMock } = vi.hoisted(() => ({
+  SocketIOServerMock: vi.fn(function () {
+    return new MockSocketIOServer();
+  }),
   loggerMock: {
     info: vi.fn(),
     error: vi.fn(),

@@ -83,7 +83,7 @@ describe('ScenarioMatrixCache', () => {
     } as unknown as RedisClientType;
 
     // Mock ScenarioGenerator
-    vi.mocked(ScenarioGenerator).mockImplementation(() => {
+    vi.mocked(ScenarioGenerator).mockImplementation(function () {
       return {
         generate: vi.fn().mockResolvedValue({
           compressed: mockMatrix,
