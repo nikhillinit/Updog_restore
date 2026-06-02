@@ -244,6 +244,58 @@ describe('FundScenarioWorkspacePage', () => {
     ]);
   });
 
+  it('shows "Not requested" for a sync scenario set without a calculated result', async () => {
+    const pendingSetId = '00000000-0000-0000-0000-000000000511';
+
+    fetchSpy.mockImplementation((input: RequestInfo | URL, init?: RequestInit) => {
+      const url = typeof input === 'string' ? input : input.toString();
+      const method = init?.method ?? 'GET';
+
+      if (method === 'GET' && url === '/api/funds/123/scenario-sets') {
+        return Promise.resolve(
+          jsonResponse({
+            scenarioSets: [scenarioSetSummary(pendingSetId, 'Allocation pending', 16, 4)],
+          })
+        );
+      }
+
+      if (method === 'GET' && url === `/api/funds/123/scenario-sets/${pendingSetId}`) {
+        const detail = allocationScenarioSetDetail();
+        return Promise.resolve(
+          jsonResponse({
+            ...detail,
+            id: pendingSetId,
+            variants: detail.variants.map((variant) => ({
+              ...variant,
+              scenarioSetId: pendingSetId,
+            })),
+          })
+        );
+      }
+
+      if (method === 'GET' && url === '/api/funds/123/results') {
+        return Promise.resolve(jsonResponse(fundResultsResponse()));
+      }
+
+      if (method === 'GET' && url.endsWith('/comparison')) {
+        return Promise.resolve(jsonResponse(scenarioComparisonResponse()));
+      }
+
+      return Promise.reject(new Error(`Unexpected fetch ${method} ${url}`));
+    });
+
+    renderWorkspace();
+
+    const card = await screen.findByTestId(`scenario-workspace-set-${pendingSetId}`);
+    expect(within(card).getByText('Not requested')).toBeInTheDocument();
+    expect(within(card).getByText('Allocation')).toBeInTheDocument();
+
+    const statusUrls = fetchSpy.mock.calls
+      .map(([input]) => (typeof input === 'string' ? input : input.toString()))
+      .filter((requestUrl) => requestUrl.endsWith('/calculation-status'));
+    expect(statusUrls).toEqual([]);
+  });
+
   it('uses the fee-profile calculation endpoint for fee scenario sets', async () => {
     mockWorkspaceFetches();
     renderWorkspace();
