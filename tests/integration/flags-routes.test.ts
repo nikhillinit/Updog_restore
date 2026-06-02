@@ -210,11 +210,10 @@ describe('Flag Routes Integration', () => {
 
   describe('Admin Routes Authorization', () => {
     it('should require flag_read role for GET operations', async () => {
-      // This test assumes dev mode allows both flag_read and flag_admin
       const response = await server
         .request()
         .get('/api/flags/admin')
-        .set('Authorization', `Bearer ${createToken('flag_admin')}`);
+        .set('Authorization', `Bearer ${createToken('flag_read')}`);
 
       // Should not fail due to role (but may fail due to DB)
       expect(response.status).not.toBe(403);

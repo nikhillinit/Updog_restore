@@ -4,7 +4,7 @@
 
 import type { Express } from 'express';
 import request, { type SuperTest, type Test } from 'supertest';
-import { flagsRouter } from '../../server/routes/flags';
+import { createFlagsRouter } from '../../server/routes/flags';
 import { activateKillSwitch } from '../../server/lib/flags';
 import {
   createAdminToken as createAdminTokenHelper,
@@ -83,7 +83,7 @@ export class TestHttpServer {
     this.app = buildTestMiddleware(middlewareConfig);
 
     if (config.routes?.mountFlagRoutes) {
-      this.app.use('/api/flags', flagsRouter);
+      this.app.use('/api/flags', createFlagsRouter());
     }
 
     const initialFlags = config.state?.featureFlags;
