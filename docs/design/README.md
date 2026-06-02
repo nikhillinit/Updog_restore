@@ -1,7 +1,7 @@
 ---
 status: ACTIVE
 audience: both
-last_updated: 2026-05-24
+last_updated: 2026-06-02
 categories: [design, analytics, visualization, truthfulness]
 keywords: [design, charts, dashboards, provenance, evidence, visual-truthfulness]
 source_of_truth: false
@@ -22,7 +22,7 @@ This folder captures presentation-layer doctrine for Updog. It does not define c
 
 | Document | Purpose | Use when |
 | --- | --- | --- |
-| [analytics-visualization-principles.md](analytics-visualization-principles.md) | House rules for truthful, comparison-rich analytical displays | Creating or reviewing charts, dashboards, fund results, LP reports, and scenario views |
+| [analytics-visualization-principles.md](analytics-visualization-principles.md) | House rules for truthful, comparison-rich, access-aware analytical displays | Creating or reviewing charts, dashboards, fund results, LP reports, and scenario views |
 | [analytics-visualization-rollout.md](analytics-visualization-rollout.md) | Sequenced implementation plan for applying those rules inside `Updog_restore` | Planning PRs after the doctrine is accepted |
 
 ## Design stance
