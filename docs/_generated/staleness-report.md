@@ -1,27 +1,27 @@
 ---
-last_updated: 2026-05-29
+last_updated: 2026-06-02
 ---
 
 # Staleness Report
 
-*Generated: 2026-05-29T00:00:00.000Z*
+*Generated: 2026-06-02T00:00:00.000Z*
 *Source: docs/DISCOVERY-MAP.source.yaml*
 
 ## Summary
 
 | Metric | Value |
 |--------|-------|
-| Total Documents | 661 |
-| Stale Documents | 100 |
-| Missing Frontmatter | 18 |
+| Total Documents | 663 |
+| Stale Documents | 101 |
+| Missing Frontmatter | 19 |
 
 ### By Status
 
 | Status | Count |
 |--------|-------|
 | ACTIVE | 439 |
-| UNKNOWN | 126 |
-| DRAFT | 31 |
+| UNKNOWN | 127 |
+| DRAFT | 32 |
 | HISTORICAL | 29 |
 | VERIFIED | 9 |
 | INDEXED | 6 |
@@ -29,7 +29,7 @@ last_updated: 2026-05-29
 | ready | 3 |
 | active | 2 |
 | STALE-VALIDATION | 1 |
-| Proposed | 1 |
+| Implemented | 1 |
 | ARCHIVED | 1 |
 | HISTORICAL-SNAPSHOT | 1 |
 | ACCEPTED | 1 |
@@ -83,32 +83,32 @@ Documents that need review (older than their cadence threshold):
 | `docs/superpowers/plans/2026-05-19-ca-period-truth-harness-remediation.md` | Never | 999 | No | Unassigned |
 | `docs/superpowers/plans/2026-05-29-scenario-release-hardening.md` | Never | 999 | No | Unassigned |
 | `docs/superpowers/specs/2026-05-16-refactor-stability-strategy-design.md` | Never | 999 | YES - verify! | Unassigned |
+| `docs/superpowers/specs/2026-06-02-prove-and-ship-the-spine-lean-release-design.md` | Never | 999 | No | Unassigned |
 | `docs/tooling-catalog.md` | Never | 999 | No | Unassigned |
-| `cheatsheets/agent-architecture.md` | 2026-01-19 | 130 | No | Unassigned |
-| `cheatsheets/agent-memory/database-expert-schema-tdd.md` | 2026-01-19 | 130 | No | Unassigned |
-| `cheatsheets/ai-code-review.md` | 2026-01-19 | 130 | No | Unassigned |
-| `cheatsheets/anti-pattern-prevention.md` | 2026-01-19 | 130 | No | Unassigned |
-| `cheatsheets/api.md` | 2026-01-19 | 130 | No | Unassigned |
-| `cheatsheets/capability-checklist.md` | 2026-01-19 | 130 | No | Unassigned |
-| `cheatsheets/ci-validator-guide.md` | 2026-01-19 | 130 | No | Unassigned |
-| `cheatsheets/claude-commands.md` | 2026-01-19 | 130 | No | Unassigned |
-| `cheatsheets/claude-md-guidelines.md` | 2026-01-19 | 130 | No | Unassigned |
-| `cheatsheets/codex-collaboration-protocol.md` | 2026-01-19 | 130 | No | Unassigned |
-| `cheatsheets/coding-pairs-playbook.md` | 2026-01-19 | 130 | No | Unassigned |
+| `cheatsheets/agent-architecture.md` | 2026-01-19 | 134 | No | Unassigned |
+| `cheatsheets/agent-memory/database-expert-schema-tdd.md` | 2026-01-19 | 134 | No | Unassigned |
+| `cheatsheets/ai-code-review.md` | 2026-01-19 | 134 | No | Unassigned |
+| `cheatsheets/anti-pattern-prevention.md` | 2026-01-19 | 134 | No | Unassigned |
+| `cheatsheets/api.md` | 2026-01-19 | 134 | No | Unassigned |
+| `cheatsheets/capability-checklist.md` | 2026-01-19 | 134 | No | Unassigned |
+| `cheatsheets/ci-validator-guide.md` | 2026-01-19 | 134 | No | Unassigned |
+| `cheatsheets/claude-commands.md` | 2026-01-19 | 134 | No | Unassigned |
+| `cheatsheets/claude-md-guidelines.md` | 2026-01-19 | 134 | No | Unassigned |
+| `cheatsheets/codex-collaboration-protocol.md` | 2026-01-19 | 134 | No | Unassigned |
 
-*...and 50 more stale documents.*
+*...and 51 more stale documents.*
 
 ## Documents with Execution Claims (Need Verification)
 
 These documents contain phrases like "tests pass", "PR merged", etc. and should be verified:
 
-- [ ] **CHANGELOG.md** (9 days old)
-- [ ] **cheatsheets/emoji-free-documentation.md** (130 days old)
-- [ ] **cheatsheets/schema-alignment.md** (130 days old)
-- [ ] **docs/notebooklm-sources/reserves/01-overview.md** (130 days old)
-- [ ] **docs/notebooklm-sources/waterfall.md** (130 days old)
-- [ ] **docs/notebooklm-sources/xirr.md** (130 days old)
-- [ ] **docs/observability/EDITORIAL-V2-CHANGELOG.md** (130 days old)
+- [ ] **CHANGELOG.md** (13 days old)
+- [ ] **cheatsheets/emoji-free-documentation.md** (134 days old)
+- [ ] **cheatsheets/schema-alignment.md** (134 days old)
+- [ ] **docs/notebooklm-sources/reserves/01-overview.md** (134 days old)
+- [ ] **docs/notebooklm-sources/waterfall.md** (134 days old)
+- [ ] **docs/notebooklm-sources/xirr.md** (134 days old)
+- [ ] **docs/observability/EDITORIAL-V2-CHANGELOG.md** (134 days old)
 - [ ] **docs/skills/REFL-003-cross-platform-file-enumeration-fragility.md** (999 days old)
 - [ ] **docs/skills/REFL-014-test-key-reuse-across-test-cases.md** (999 days old)
 - [ ] **docs/skills/REFL-015-postgresql-service-missing-test-database.md** (999 days old)
@@ -137,6 +137,7 @@ Documents without proper YAML frontmatter:
 - [ ] `docs/superpowers/plans/2026-05-19-ca-period-truth-harness-remediation.md`
 - [ ] `docs/superpowers/plans/2026-05-29-scenario-release-hardening.md`
 - [ ] `docs/superpowers/specs/2026-05-16-refactor-stability-strategy-design.md`
+- [ ] `docs/superpowers/specs/2026-06-02-prove-and-ship-the-spine-lean-release-design.md`
 - [ ] `docs/tooling-catalog.md`
 
 ---
