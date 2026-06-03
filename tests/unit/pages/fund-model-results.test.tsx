@@ -290,7 +290,7 @@ describe('FundModelResultsPage (server-backed)', () => {
     expect(within(comparison).getByText('Authoritative baseline')).toBeInTheDocument();
     expect(within(comparison).getByText('Lower fee')).toBeInTheDocument();
     expect(within(comparison).getAllByText('Net LP IRR').length).toBe(1);
-    expect(within(comparison).getByText('+0.30x')).toBeInTheDocument();
+    expect(within(comparison).getByText(/Higher by \+0\.30x/)).toBeInTheDocument();
   });
 
   it('rejects scenario-set comparison payloads that drift from the shared contract', async () => {

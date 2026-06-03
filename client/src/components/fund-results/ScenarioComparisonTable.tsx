@@ -4,16 +4,19 @@
  * Renders one calculated fee-profile scenario set against the authoritative
  * economics baseline for that set's source configuration version.
  *
+ * Delta subtitles reuse the cross-set table's direction-aware copy
+ * (`scenarioDeltaCopy`) so the two surfaces never drift apart. The single-set
+ * view additionally surfaces the backend percentage delta as an unsigned
+ * magnitude (direction is already carried by the "Higher/Lower by" wording).
+ *
  * @module client/components/fund-results/ScenarioComparisonTable
  */
 
 import React from 'react';
-import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
 import {
   SCENARIO_COMPARISON_METRIC_KEYS,
   type FundScenarioComparisonV1,
-  type ScenarioComparisonDriftReason,
   type ScenarioComparisonMetricDeltaV1,
   type ScenarioComparisonMetricKey,
   type ScenarioComparisonMetricValue,
@@ -21,6 +24,7 @@ import {
   type ScenarioComparisonUnavailableReasonV1,
   type ScenarioComparisonVariantV1,
 } from '@shared/contracts/fund-scenario-comparison-v1.contract';
+import { scenarioDeltaCopy } from './CrossSetScenarioComparisonTable';
 
 export { SCENARIO_COMPARISON_METRIC_KEYS };
 export type { FundScenarioComparisonV1 };
@@ -63,32 +67,8 @@ function formatMetricValue(
   return `${value.toFixed(2)}x`;
 }
 
-function formatMetricDelta(
-  metric: ScenarioComparisonMetricKey,
-  value: ScenarioComparisonMetricValue
-) {
-  if (value == null || value === 0) return null;
-
-  const kind = METRIC_DEFINITIONS[metric].kind;
-  if (kind === 'percent') {
-    const sign = value > 0 ? '+' : '';
-    return `${sign}${(value * 100).toFixed(1)} pts`;
-  }
-  if (kind === 'money') {
-    return formatMoney(value, { showPositiveSign: true });
-  }
-  const sign = value > 0 ? '+' : '';
-  return `${sign}${value.toFixed(2)}x`;
-}
-
-function formatPercentageDelta(value: ScenarioComparisonMetricValue) {
-  if (value == null || value === 0) return null;
-  const sign = value > 0 ? '+' : '';
-  return `${sign}${value.toFixed(1)}%`;
-}
-
-function formatMoney(value: number, options: { showPositiveSign?: boolean } = {}) {
-  const sign = value < 0 ? '-' : options.showPositiveSign && value > 0 ? '+' : '';
+function formatMoney(value: number) {
+  const sign = value < 0 ? '-' : '';
   const absolute = Math.abs(value);
   if (absolute >= 1_000_000) {
     return `${sign}$${(absolute / 1_000_000).toFixed(1)}M`;
@@ -140,30 +120,8 @@ function statusCopy(comparison: FundScenarioComparisonV1) {
   return 'Scenario comparison is unavailable.';
 }
 
-function driftReasonCopy(reason: ScenarioComparisonDriftReason) {
-  switch (reason) {
-    case 'missing_baseline':
-      return 'Baseline value is unavailable.';
-    case 'missing_scenario':
-      return 'Scenario value is unavailable.';
-    case 'missing_both':
-      return 'Baseline and scenario values are unavailable.';
-    case 'zero_baseline':
-      return 'Baseline value is zero, so percentage drift is unstable.';
-    case 'stable':
-    default:
-      return 'Stable comparison.';
-  }
-}
-
 function deltaForMetric(variant: ScenarioComparisonVariantV1, metric: ScenarioComparisonMetricKey) {
   return variant.metricDeltas.find((delta) => delta.metric === metric) ?? null;
-}
-
-function deltaTextColor(delta: ScenarioComparisonMetricDeltaV1) {
-  return delta.absoluteDelta != null && delta.absoluteDelta > 0
-    ? 'text-emerald-700'
-    : 'text-red-700';
 }
 
 function MetricDeltaText({
@@ -174,24 +132,21 @@ function MetricDeltaText({
   delta: ScenarioComparisonMetricDeltaV1 | null;
 }) {
   if (!delta) return null;
-  if (!delta.driftCapable) {
-    return (
-      <p className="text-xs font-poppins text-charcoal-400">
-        Drift unavailable
-        <span className="block text-charcoal-500">{driftReasonCopy(delta.driftReason)}</span>
-      </p>
-    );
-  }
 
-  const formattedDelta = formatMetricDelta(metric, delta.absoluteDelta);
-  if (!formattedDelta) return null;
-
-  const formattedPercent = formatPercentageDelta(delta.percentageDelta);
+  const copy = scenarioDeltaCopy(metric, delta);
+  const percent =
+    delta.driftCapable &&
+    delta.absoluteDelta != null &&
+    delta.absoluteDelta !== 0 &&
+    delta.percentageDelta != null &&
+    delta.percentageDelta !== 0
+      ? `${Math.abs(delta.percentageDelta).toFixed(1)}%`
+      : null;
 
   return (
-    <p className={cn('text-xs font-poppins font-medium tabular-nums', deltaTextColor(delta))}>
-      {formattedDelta}
-      {formattedPercent && <span className="text-charcoal-400"> · {formattedPercent}</span>}
+    <p className="text-xs font-poppins text-charcoal-500">
+      {copy}
+      {percent && <span className="text-charcoal-400"> · {percent}</span>}
     </p>
   );
 }
@@ -205,13 +160,19 @@ export function ScenarioComparisonTable({ comparison }: ScenarioComparisonTableP
     comparison.variants.length > 0;
 
   return (
-    <section className="space-y-4" data-testid="scenario-comparison-table">
+    <section className="space-y-3" data-testid="scenario-comparison-table">
       <div className="space-y-1">
         <h3 className="font-inter text-base font-semibold text-charcoal">Scenario Comparison</h3>
         <p className="text-sm text-charcoal-500 font-poppins">
           {comparison.scenarioSet.name} · Source config v
           {comparison.scenarioSet.sourceConfigVersion} · {formatStatus(comparison.staleness)}
         </p>
+        {hasComparablePayload && (
+          <p className="text-xs text-charcoal-400 font-poppins">
+            Direction labels show arithmetic movement. They do not imply a universal good/bad
+            judgment across LP and GP perspectives.
+          </p>
+        )}
       </div>
 
       {!hasComparablePayload && (
@@ -225,16 +186,16 @@ export function ScenarioComparisonTable({ comparison }: ScenarioComparisonTableP
           <table className="w-full border-collapse">
             <thead>
               <tr className="border-b border-beige-200">
-                <th className="p-4 text-left text-xs uppercase text-charcoal-400 font-poppins">
+                <th className="p-3 text-left text-xs uppercase text-charcoal-400 font-poppins">
                   Metric
                 </th>
-                <th className="p-4 text-right text-xs uppercase text-charcoal-400 font-poppins">
+                <th className="p-3 text-right text-xs uppercase text-charcoal-400 font-poppins">
                   {baseline.label ?? 'Authoritative baseline'}
                 </th>
                 {comparison.variants.map((variant) => (
                   <th
                     key={variant.variantId}
-                    className="p-4 text-right text-xs uppercase text-charcoal-400 font-poppins"
+                    className="p-3 text-right text-xs uppercase text-charcoal-400 font-poppins"
                   >
                     <span className="align-middle">{variant.name}</span>
                     <Badge className="ml-2 border-0 bg-charcoal text-[10px] text-white">
@@ -247,16 +208,16 @@ export function ScenarioComparisonTable({ comparison }: ScenarioComparisonTableP
             <tbody className="divide-y divide-beige-200">
               {SCENARIO_COMPARISON_METRIC_KEYS.map((metric) => (
                 <tr key={metric}>
-                  <td className="p-4 text-xs uppercase text-charcoal-400 font-poppins">
+                  <td className="p-3 text-xs uppercase text-charcoal-400 font-poppins">
                     {METRIC_DEFINITIONS[metric].label}
                   </td>
-                  <td className="p-4 text-right">
+                  <td className="p-3 text-right">
                     <p className="font-inter text-base font-semibold tabular-nums text-charcoal">
                       {formatMetricValue(metric, baseline.metrics[metric])}
                     </p>
                   </td>
                   {comparison.variants.map((variant) => (
-                    <td key={variant.variantId} className="p-4 text-right">
+                    <td key={variant.variantId} className="p-3 text-right">
                       <p className="font-inter text-base font-semibold tabular-nums text-charcoal">
                         {formatMetricValue(metric, variant.metrics[metric])}
                       </p>

@@ -152,7 +152,7 @@ function deltaForMetric(column: VariantColumn, metric: ScenarioComparisonMetricK
   return column.metricDeltas.find((delta) => delta.metric === metric) ?? null;
 }
 
-function deltaCopy(
+export function scenarioDeltaCopy(
   metric: ScenarioComparisonMetricKey,
   delta: ScenarioComparisonMetricDeltaV1
 ): string {
@@ -229,7 +229,7 @@ export function CrossSetScenarioComparisonTable({
         data-testid="cross-set-comparison-scroll"
         className={cn('rounded-md border border-beige-200 bg-white', isWide && 'overflow-x-auto')}
       >
-        <table className="w-full border-collapse">
+        <table className={cn('border-collapse', isWide ? 'w-max min-w-full' : 'w-full')}>
           <thead>
             <tr className="border-b border-beige-200">
               <th
@@ -258,7 +258,10 @@ export function CrossSetScenarioComparisonTable({
               {columns.map((column) => (
                 <th
                   key={column.key}
-                  className="p-3 text-right text-xs text-charcoal-500 font-poppins"
+                  className={cn(
+                    'p-3 text-right text-xs text-charcoal-500 font-poppins',
+                    isWide && 'whitespace-nowrap'
+                  )}
                 >
                   <span className="align-middle">{column.variantName}</span>
                   <Badge className="ml-2 border-0 bg-charcoal text-[10px] text-white">
@@ -274,7 +277,7 @@ export function CrossSetScenarioComparisonTable({
                 <td
                   className={cn(
                     'p-3 text-xs uppercase text-charcoal-400 font-poppins',
-                    isWide && 'sticky left-0 bg-white'
+                    isWide && 'sticky left-0 bg-white whitespace-nowrap'
                   )}
                 >
                   {CROSS_SET_METRIC_DEFINITIONS[metric].label}
@@ -282,13 +285,16 @@ export function CrossSetScenarioComparisonTable({
                 {columns.map((column) => {
                   const delta = deltaForMetric(column, metric);
                   return (
-                    <td key={column.key} className="p-3 text-right">
+                    <td
+                      key={column.key}
+                      className={cn('p-3 text-right', isWide && 'whitespace-nowrap')}
+                    >
                       <p className="font-inter text-base font-semibold tabular-nums text-charcoal">
                         {formatValue(metric, column.metrics[metric])}
                       </p>
                       {delta && (
                         <p className="text-xs font-poppins text-charcoal-500">
-                          {deltaCopy(metric, delta)}
+                          {scenarioDeltaCopy(metric, delta)}
                         </p>
                       )}
                     </td>
