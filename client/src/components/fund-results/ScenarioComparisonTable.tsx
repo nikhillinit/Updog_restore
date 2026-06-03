@@ -82,6 +82,12 @@ function formatMetricDelta(
   return `${sign}${value.toFixed(2)}x`;
 }
 
+function formatPercentageDelta(value: ScenarioComparisonMetricValue) {
+  if (value == null || value === 0) return null;
+  const sign = value > 0 ? '+' : '';
+  return `${sign}${value.toFixed(1)}%`;
+}
+
 function formatMoney(value: number, options: { showPositiveSign?: boolean } = {}) {
   const sign = value < 0 ? '-' : options.showPositiveSign && value > 0 ? '+' : '';
   const absolute = Math.abs(value);
@@ -103,23 +109,21 @@ function formatStatus(value: ScenarioComparisonStalenessV1 | null) {
     .join(' ');
 }
 
-const SCENARIO_COMPARISON_UNAVAILABLE_COPY: Record<
-  ScenarioComparisonUnavailableReasonV1,
-  string
-> = {
-  ECONOMICS_DISABLED: 'Scenario comparison unavailable because economics is disabled.',
-  ECONOMICS_ASSUMPTIONS_MISSING:
-    'Scenario comparison unavailable because economics assumptions are missing.',
-  BASELINE_ECONOMICS_SNAPSHOT_MISSING:
-    'Scenario calculated; comparison unavailable because baseline economics is missing.',
-  BASELINE_ECONOMICS_SNAPSHOT_STALE:
-    'Scenario calculated; comparison stale because baseline economics belongs to an older config.',
-  VARIANT_ECONOMICS_FAILED:
-    'Scenario calculated; comparison unavailable because variant economics failed.',
-  SOURCE_CONFIG_STALE_UNPINNED:
-    'Scenario comparison unavailable because the source config is stale.',
-  UNSUPPORTED_OVERRIDE_TYPE: 'Scenario comparison unavailable for this override type.',
-};
+const SCENARIO_COMPARISON_UNAVAILABLE_COPY: Record<ScenarioComparisonUnavailableReasonV1, string> =
+  {
+    ECONOMICS_DISABLED: 'Scenario comparison unavailable because economics is disabled.',
+    ECONOMICS_ASSUMPTIONS_MISSING:
+      'Scenario comparison unavailable because economics assumptions are missing.',
+    BASELINE_ECONOMICS_SNAPSHOT_MISSING:
+      'Scenario calculated; comparison unavailable because baseline economics is missing.',
+    BASELINE_ECONOMICS_SNAPSHOT_STALE:
+      'Scenario calculated; comparison stale because baseline economics belongs to an older config.',
+    VARIANT_ECONOMICS_FAILED:
+      'Scenario calculated; comparison unavailable because variant economics failed.',
+    SOURCE_CONFIG_STALE_UNPINNED:
+      'Scenario comparison unavailable because the source config is stale.',
+    UNSUPPORTED_OVERRIDE_TYPE: 'Scenario comparison unavailable for this override type.',
+  };
 
 function statusCopy(comparison: FundScenarioComparisonV1) {
   if (comparison.unavailableReason) {
@@ -178,9 +182,12 @@ function MetricDeltaText({
   const formattedDelta = formatMetricDelta(metric, delta.absoluteDelta);
   if (!formattedDelta) return null;
 
+  const formattedPercent = formatPercentageDelta(delta.percentageDelta);
+
   return (
     <p className={cn('text-xs font-poppins font-medium tabular-nums', deltaTextColor(delta))}>
       {formattedDelta}
+      {formattedPercent && <span className="text-charcoal-400"> · {formattedPercent}</span>}
     </p>
   );
 }

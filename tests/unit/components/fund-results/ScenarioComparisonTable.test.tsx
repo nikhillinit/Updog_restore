@@ -26,6 +26,7 @@ describe('ScenarioComparisonTable', () => {
     expect(within(table).getAllByText('$2.0M').length).toBeGreaterThanOrEqual(1);
     expect(within(table).getByText('2.10x')).toBeInTheDocument();
     expect(within(table).getByText('+0.30x')).toBeInTheDocument();
+    expect(within(table).getByText(/\+16\.7%/)).toBeInTheDocument();
     expect(within(table).getAllByText('N/A').length).toBeGreaterThanOrEqual(1);
     expect(table).not.toHaveTextContent('MOIC');
     expect(table).not.toHaveTextContent('Reserve Util.');
