@@ -141,10 +141,10 @@ export function PortfolioSummary({ sectors, stages, metrics, className }: Portfo
                 className={cn(
                   'text-xs',
                   metrics.deploymentRate >= 0.7
-                    ? 'bg-green-100 text-green-700 border-green-200'
+                    ? 'bg-success/10 text-success-dark border-success/30'
                     : metrics.deploymentRate >= 0.4
-                      ? 'bg-yellow-100 text-yellow-700 border-yellow-200'
-                      : 'bg-red-100 text-red-700 border-red-200'
+                      ? 'bg-warning/10 text-warning-dark border-warning/30'
+                      : 'bg-error/10 text-error-dark border-error/30'
                 )}
               >
                 {formatPercent(metrics.deploymentRate)}

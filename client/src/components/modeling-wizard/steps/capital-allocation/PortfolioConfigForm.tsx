@@ -1,8 +1,3 @@
- 
- 
- 
- 
- 
 /**
  * Portfolio Configuration Form Component
  * Reserve ratio configuration with slider and dollar display
@@ -22,7 +17,7 @@ export interface PortfolioConfigFormProps {
 export function PortfolioConfigForm({
   fundSize,
   reserveRatio,
-  onReserveRatioChange
+  onReserveRatioChange,
 }: PortfolioConfigFormProps) {
   const reserveAmount = fundSize * reserveRatio;
   const deployedAmount = fundSize * (1 - reserveRatio);
@@ -49,7 +44,7 @@ export function PortfolioConfigForm({
         <h3 className="font-inter font-bold text-lg text-pov-charcoal mb-4">
           Reserve Strategy Configuration
         </h3>
-        <p className="text-sm text-gray-600">
+        <p className="text-sm text-charcoal-600">
           Configure the percentage of fund capital to reserve for follow-on investments.
         </p>
       </div>
@@ -71,7 +66,7 @@ export function PortfolioConfigForm({
               onChange={handleInputChange}
               className="w-20 text-right"
             />
-            <span className="text-sm text-gray-600 min-w-[60px]">
+            <span className="text-sm text-charcoal-600 min-w-[60px]">
               ({(reserveRatio * 100).toFixed(0)}%)
             </span>
           </div>
@@ -87,7 +82,7 @@ export function PortfolioConfigForm({
           className="w-full"
         />
 
-        <div className="flex items-center justify-between text-xs text-gray-500">
+        <div className="flex items-center justify-between text-xs text-charcoal-500">
           <span>0%</span>
           <span>25%</span>
           <span>50%</span>
@@ -97,26 +92,24 @@ export function PortfolioConfigForm({
       </div>
 
       {/* Capital Allocation Summary */}
-      <div className="space-y-3 pt-4 border-t border-gray-200">
-        <h4 className="font-poppins font-semibold text-sm text-pov-charcoal">
-          Capital Allocation
-        </h4>
+      <div className="space-y-3 pt-4 border-t border-beige-200">
+        <h4 className="font-poppins font-semibold text-sm text-pov-charcoal">Capital Allocation</h4>
         <div className="grid grid-cols-2 gap-4">
-          <div className="p-3 bg-green-50 border border-green-200 rounded">
-            <div className="text-xs text-gray-600 mb-1">Initial Deployment</div>
+          <div className="p-3 bg-presson-positive/10 border border-presson-positive/20 rounded">
+            <div className="text-xs text-charcoal-600 mb-1">Initial Deployment</div>
             <div className="font-inter font-bold text-lg text-pov-charcoal">
               {formatCurrency(deployedAmount)}
             </div>
-            <div className="text-xs text-gray-500">
+            <div className="text-xs text-charcoal-500">
               {((1 - reserveRatio) * 100).toFixed(1)}% of fund
             </div>
           </div>
-          <div className="p-3 bg-blue-50 border border-blue-200 rounded">
-            <div className="text-xs text-gray-600 mb-1">Reserved Capital</div>
+          <div className="p-3 bg-presson-info/10 border border-presson-info/20 rounded">
+            <div className="text-xs text-charcoal-600 mb-1">Reserved Capital</div>
             <div className="font-inter font-bold text-lg text-pov-charcoal">
               {formatCurrency(reserveAmount)}
             </div>
-            <div className="text-xs text-gray-500">
+            <div className="text-xs text-charcoal-500">
               {(reserveRatio * 100).toFixed(1)}% of fund
             </div>
           </div>
@@ -124,10 +117,10 @@ export function PortfolioConfigForm({
       </div>
 
       {/* Guidance */}
-      <div className="p-3 bg-blue-50 border border-blue-200 rounded text-sm">
+      <div className="p-3 bg-presson-info/10 border border-presson-info/30 rounded text-sm">
         <div className="flex items-start gap-2">
           <svg
-            className="h-4 w-4 text-blue-600 mt-0.5 flex-shrink-0"
+            className="h-4 w-4 text-presson-info mt-0.5 flex-shrink-0"
             fill="currentColor"
             viewBox="0 0 20 20"
           >
@@ -137,10 +130,9 @@ export function PortfolioConfigForm({
               clipRule="evenodd"
             />
           </svg>
-          <div className="text-blue-800">
-            <span className="font-medium">Typical range: 30-70%.</span>
-            {' '}
-            Higher ratios support aggressive follow-on strategies, while lower ratios allow for more initial investments.
+          <div className="text-presson-info">
+            <span className="font-medium">Typical range: 30-70%.</span> Higher ratios support
+            aggressive follow-on strategies, while lower ratios allow for more initial investments.
           </div>
         </div>
       </div>

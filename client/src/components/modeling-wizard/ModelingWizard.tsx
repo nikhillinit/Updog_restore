@@ -104,7 +104,10 @@ function buildFundFinancials(generalInfo?: GeneralInfoInput): FundFinancialsOutp
 function LegacyWizardNotice() {
   return (
     <div className="mx-auto flex min-h-[60vh] max-w-3xl items-center justify-center p-8">
-      <Alert className="border-amber-300 bg-amber-50" data-testid="legacy-modeling-wizard-notice">
+      <Alert
+        className="border-warning/50 bg-warning/10"
+        data-testid="legacy-modeling-wizard-notice"
+      >
         <AlertTitle>Legacy wizard UI is quarantined</AlertTitle>
         <AlertDescription className="space-y-4">
           <p>

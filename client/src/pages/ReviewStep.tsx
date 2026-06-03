@@ -327,19 +327,19 @@ export default function ReviewStep() {
       case 'ok':
         return (
           <span className="inline-flex items-center" aria-label="Valid">
-            <CheckCircle aria-hidden="true" className="h-4 w-4 text-green-600" />
+            <CheckCircle aria-hidden="true" className="h-4 w-4 text-success" />
           </span>
         );
       case 'warning':
         return (
           <span className="inline-flex items-center" aria-label="Warning: needs attention">
-            <AlertTriangle aria-hidden="true" className="h-4 w-4 text-amber-600" />
+            <AlertTriangle aria-hidden="true" className="h-4 w-4 text-warning" />
           </span>
         );
       case 'missing':
         return (
           <span className="inline-flex items-center" aria-label="Missing required data">
-            <AlertTriangle aria-hidden="true" className="h-4 w-4 text-red-600" />
+            <AlertTriangle aria-hidden="true" className="h-4 w-4 text-error" />
           </span>
         );
       default:
@@ -372,15 +372,15 @@ export default function ReviewStep() {
       {economicsEnabled && economicsDryRun?.status === 'failed' && (
         <Alert
           aria-live="assertive"
-          className="border-l-4 border-l-red-600 bg-red-50"
+          className="border-l-4 border-l-error bg-error/10"
           data-testid="economics-blocking-alert"
         >
-          <AlertTriangle aria-hidden="true" className="h-5 w-5 text-red-600" />
+          <AlertTriangle aria-hidden="true" className="h-5 w-5 text-error" />
           <AlertTitle>{economicsDryRun.title}</AlertTitle>
           <AlertDescription className="space-y-3">
             <p>{economicsDryRun.message}</p>
             {economicsDryRun.details.length > 0 && (
-              <div className="max-h-40 overflow-y-auto rounded-md border border-red-200 bg-white p-3">
+              <div className="max-h-40 overflow-y-auto rounded-md border border-error/30 bg-white p-3">
                 <ul className="list-disc space-y-1 pl-5">
                   {economicsDryRun.details.map((detail) => (
                     <li key={detail.message}>
@@ -393,7 +393,7 @@ export default function ReviewStep() {
             )}
             <button
               type="button"
-              className="text-sm font-medium text-red-800 underline underline-offset-4"
+              className="text-sm font-medium text-error-dark underline underline-offset-4"
               onClick={() => setLocation(`/fund-setup?step=${economicsDryRun.fixStepNumber}`)}
             >
               {economicsDryRun.fixStepLabel}
@@ -410,26 +410,26 @@ export default function ReviewStep() {
         className={cn(
           'border-l-4',
           validationSummary.missing > 0
-            ? 'border-l-red-500 bg-red-50'
+            ? 'border-l-error bg-error/10'
             : validationSummary.warnings > 0
-              ? 'border-l-amber-500 bg-amber-50'
-              : 'border-l-green-500 bg-green-50'
+              ? 'border-l-warning bg-warning/10'
+              : 'border-l-success bg-success/10'
         )}
       >
         <AlertTitle className="flex items-center gap-2">
           {validationSummary.missing > 0 ? (
             <>
-              <AlertTriangle className="h-5 w-5 text-red-500" />
+              <AlertTriangle className="h-5 w-5 text-error" />
               Missing Required Fields
             </>
           ) : validationSummary.warnings > 0 ? (
             <>
-              <AlertTriangle className="h-5 w-5 text-amber-600" />
+              <AlertTriangle className="h-5 w-5 text-warning" />
               Some Fields Need Attention
             </>
           ) : (
             <>
-              <CheckCircle className="h-5 w-5 text-green-500" />
+              <CheckCircle className="h-5 w-5 text-success" />
               Ready to Create
             </>
           )}
@@ -522,8 +522,8 @@ export default function ReviewStep() {
 
       {/* Error display */}
       {submitState === 'error' && submitError && (
-        <Alert aria-live="assertive" className="border-l-4 border-l-red-500 bg-red-50">
-          <AlertTriangle className="h-5 w-5 text-red-500" />
+        <Alert aria-live="assertive" className="border-l-4 border-l-error bg-error/10">
+          <AlertTriangle className="h-5 w-5 text-error" />
           <AlertTitle>Fund Creation and Publish Failed</AlertTitle>
           <AlertDescription>{submitError}</AlertDescription>
         </Alert>

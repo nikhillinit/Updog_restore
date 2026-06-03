@@ -10,7 +10,7 @@ import { CheckCircle2, AlertCircle, AlertTriangle } from 'lucide-react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import type {
   CapitalAllocationCalculations,
-  ValidationResult
+  ValidationResult,
 } from '@/lib/capital-allocation-calculations';
 
 // ============================================================================
@@ -45,10 +45,9 @@ function formatPercent(value: number): string {
 export function CalculationSummaryCard({
   calculations,
   validation,
-  fundSize
+  fundSize,
 }: CalculationSummaryCardProps) {
-  const deploymentPercentage =
-    (calculations.totalCapitalAllocated / fundSize) * 100;
+  const deploymentPercentage = (calculations.totalCapitalAllocated / fundSize) * 100;
 
   const reserveUtilization =
     calculations.availableReserves > 0
@@ -76,7 +75,7 @@ export function CalculationSummaryCard({
 
       {/* Warnings */}
       {validation.warnings.length > 0 && validation.isValid && (
-        <Alert >
+        <Alert>
           <AlertTriangle className="h-4 w-4" />
           <AlertDescription>
             <div className="space-y-1">
@@ -162,8 +161,8 @@ export function CalculationSummaryCard({
                 calculations.remainingCapital < 0
                   ? 'text-error'
                   : calculations.remainingCapital < fundSize * 0.05
-                  ? 'text-amber-600'
-                  : 'text-success'
+                    ? 'text-warning'
+                    : 'text-success'
               }`}
             >
               {formatMoney(calculations.remainingCapital)}
@@ -193,25 +192,19 @@ export function CalculationSummaryCard({
                 </td>
               </tr>
               <tr className="border-b border-charcoal-200">
-                <td className="py-2 text-charcoal-700">
-                  Follow-On Investments:
-                </td>
+                <td className="py-2 text-charcoal-700">Follow-On Investments:</td>
                 <td className="py-2 text-right font-inter text-pov-charcoal">
                   {formatMoney(calculations.totalFollowOnCapital)}
                 </td>
               </tr>
               <tr className="border-b-2 border-charcoal-300">
-                <td className="py-2 font-inter font-bold text-pov-charcoal">
-                  Total Allocated:
-                </td>
+                <td className="py-2 font-inter font-bold text-pov-charcoal">Total Allocated:</td>
                 <td className="py-2 text-right font-inter font-bold text-pov-charcoal">
                   {formatMoney(calculations.totalCapitalAllocated)}
                 </td>
               </tr>
               <tr>
-                <td className="py-2 font-inter font-bold text-pov-charcoal">
-                  Remaining:
-                </td>
+                <td className="py-2 font-inter font-bold text-pov-charcoal">Remaining:</td>
                 <td
                   className={`py-2 text-right font-inter font-bold ${
                     calculations.remainingCapital < 0 ? 'text-error' : 'text-success'
@@ -247,9 +240,7 @@ export function CalculationSummaryCard({
               Reserve Ratio
             </div>
             <div className="font-inter font-bold text-pov-charcoal">
-              {formatPercent(
-                (calculations.totalFollowOnCapital / fundSize) * 100
-              )}
+              {formatPercent((calculations.totalFollowOnCapital / fundSize) * 100)}
             </div>
           </div>
         </div>
