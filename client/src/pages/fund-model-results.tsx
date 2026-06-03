@@ -924,12 +924,12 @@ function EconomicsCashflowChart({ rows }: { rows: EconomicsResultV1['annual'] })
   );
   const series = [
     { key: 'lpCapitalCalls', label: 'LP Calls', color: 'bg-charcoal-300' },
-    { key: 'gpCommitmentCalls', label: 'GP Calls', color: 'bg-stone-400' },
-    { key: 'lpDistributions', label: 'LP Distributions', color: 'bg-green-600' },
-    { key: 'gpInvestmentDistributions', label: 'GP Investment', color: 'bg-blue-500' },
-    { key: 'gpCarryDistributed', label: 'GP Carry', color: 'bg-purple-500' },
-    { key: 'feesPaidToManager', label: 'Fees', color: 'bg-amber-500' },
-    { key: 'expensesPaid', label: 'Expenses', color: 'bg-red-400' },
+    { key: 'gpCommitmentCalls', label: 'GP Calls', color: 'bg-charcoal-500' },
+    { key: 'lpDistributions', label: 'LP Distributions', color: 'bg-presson-positive' },
+    { key: 'gpInvestmentDistributions', label: 'GP Investment', color: 'bg-presson-info' },
+    { key: 'gpCarryDistributed', label: 'GP Carry', color: 'bg-success' },
+    { key: 'feesPaidToManager', label: 'Fees', color: 'bg-presson-warning' },
+    { key: 'expensesPaid', label: 'Expenses', color: 'bg-presson-negative' },
   ] as const;
 
   return (
@@ -970,8 +970,8 @@ function EconomicsCashflowChart({ rows }: { rows: EconomicsResultV1['annual'] })
 function EconomicsJCurveChart({ rows }: { rows: EconomicsResultV1['annual'] }) {
   const maxMultiple = Math.max(1, ...rows.map((row) => Math.max(row.dpi, row.rvpi, row.tvpi)));
   const metrics = [
-    { key: 'dpi', label: 'DPI', color: 'bg-green-600' },
-    { key: 'rvpi', label: 'RVPI', color: 'bg-blue-500' },
+    { key: 'dpi', label: 'DPI', color: 'bg-presson-positive' },
+    { key: 'rvpi', label: 'RVPI', color: 'bg-presson-info' },
     { key: 'tvpi', label: 'TVPI', color: 'bg-charcoal-500' },
   ] as const;
 
