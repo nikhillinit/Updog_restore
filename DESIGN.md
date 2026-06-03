@@ -174,11 +174,14 @@ The three design artifacts disagreed on a few values. Resolved, with
 
 ## Relationship to existing docs
 
-- `docs/enhanced-design-system-guide.md` (ACTIVE) documents component _usage_
-  (PremiumCardEnhanced, ButtonEnhanced, confidence levels, a11y, touch targets).
-  It stays — it is the component handbook. **This file is the upstream source of
-  truth for tokens + doctrine;** the guide implements it. Where the guide shows
-  a blue accent or `#10b981` success, defer to this file's drift register.
+- This file + `client/src/theme/presson.tokens.ts` + `tailwind.config.ts` are
+  the source of truth for tokens and doctrine. The former
+  `enhanced-design-system-guide.md` and
+  `ENHANCED_DESIGN_SYSTEM_IMPLEMENTATION.md` were pruned (2026-06-03): they
+  documented the deleted "enhanced" component library (PremiumCardEnhanced,
+  ButtonEnhanced, etc.). Confidence/semantic color tokens and the animation
+  classes they described still live in `tailwind.config.ts` +
+  `client/src/styles/design-system.css`.
 
 ## Decisions log
 
