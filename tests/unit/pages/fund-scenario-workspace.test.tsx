@@ -205,7 +205,7 @@ describe('FundScenarioWorkspacePage', () => {
     renderWorkspace();
 
     expect(await screen.findByText('Scenario Workspace')).toBeInTheDocument();
-    expect(screen.getByText(/Test Fund \| Vintage 2024/)).toBeInTheDocument();
+    expect(screen.getByText('Vintage 2024')).toBeInTheDocument();
     expect(screen.getAllByText('Fee sensitivity').length).toBeGreaterThanOrEqual(1);
     expect(screen.getAllByText('Reserve plan').length).toBeGreaterThanOrEqual(1);
     expect(screen.getAllByText('Allocation mix').length).toBeGreaterThanOrEqual(1);
