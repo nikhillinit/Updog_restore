@@ -111,6 +111,20 @@ describe('ScenarioComparisonTable', () => {
       within(table).getByText('Baseline is zero; percentage delta unavailable')
     ).toBeInTheDocument();
   });
+
+  it('renders a favorable lower-better decrease with direction copy, not red color', () => {
+    render(<ScenarioComparisonTable comparison={lowerBetterDecreaseComparison()} />);
+
+    const table = screen.getByTestId('scenario-comparison-table');
+
+    // A management-fee DECREASE is favorable. It must read as a direction-aware
+    // "Lower by" movement and must never be painted red by sign-based color
+    // (the original honesty bug this guards against).
+    const delta = within(table).getByText(/Lower by -\$500K/);
+    expect(delta).toBeInTheDocument();
+    expect(delta).not.toHaveClass('text-red-700');
+    expect(within(table).getByText(/25\.0%/)).toBeInTheDocument();
+  });
 });
 
 function comparableComparison(): FundScenarioComparisonV1 {
@@ -279,6 +293,63 @@ function twoVariantComparison(): FundScenarioComparisonV1 {
             percentageDelta: null,
             driftCapable: false,
             driftReason: 'zero_baseline',
+          },
+        ],
+      },
+    ],
+    staleness: 'CURRENT',
+    calculatedAt: '2026-05-26T12:30:00.000Z',
+  };
+}
+
+function lowerBetterDecreaseComparison(): FundScenarioComparisonV1 {
+  return {
+    fundId: 123,
+    comparisonStatus: 'comparable',
+    scenarioSet: {
+      scenarioSetId: '00000000-0000-0000-0000-000000000311',
+      name: 'Fee sensitivity',
+      sourceConfigId: 12,
+      sourceConfigVersion: 4,
+    },
+    baseline: {
+      label: 'Authoritative baseline',
+      metrics: {
+        lpNetIrr: 0.15,
+        gpNetIrr: 0.1,
+        totalManagementFees: 2_000_000,
+        totalGpCarryDistributed: 500_000,
+        totalGpFeeIncome: 2_000_000,
+        finalDpi: 0.6,
+        finalTvpi: 1.8,
+        finalClawbackDue: 0,
+      },
+    },
+    variants: [
+      {
+        variantId: '00000000-0000-0000-0000-000000000312',
+        name: 'Lower fee',
+        overrideType: 'fee_profile',
+        metrics: {
+          lpNetIrr: 0.17,
+          gpNetIrr: 0.11,
+          totalManagementFees: 1_500_000,
+          totalGpCarryDistributed: 500_000,
+          totalGpFeeIncome: 1_500_000,
+          finalDpi: 0.7,
+          finalTvpi: 2.1,
+          finalClawbackDue: 0,
+        },
+        metricDeltas: [
+          {
+            metric: 'totalManagementFees',
+            displayName: 'Management Fees',
+            baselineValue: 2_000_000,
+            scenarioValue: 1_500_000,
+            absoluteDelta: -500_000,
+            percentageDelta: -25,
+            driftCapable: true,
+            driftReason: 'stable',
           },
         ],
       },
