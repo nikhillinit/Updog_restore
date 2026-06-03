@@ -5,8 +5,8 @@
  * economics baseline for that set's source configuration version.
  *
  * Delta subtitles reuse the cross-set table's direction-aware copy
- * (`scenarioDeltaCopy`) so the two surfaces never drift apart. The single-set
- * view additionally surfaces the backend percentage delta as an unsigned
+ * (`scenarioDeltaCopy`) so the shared wording stays aligned. The single-set
+ * view also surfaces the backend percentage delta as an unsigned
  * magnitude (direction is already carried by the "Higher/Lower by" wording).
  *
  * @module client/components/fund-results/ScenarioComparisonTable
@@ -55,6 +55,15 @@ const METRIC_DEFINITIONS: Record<ScenarioComparisonMetricKey, MetricDefinition> 
   finalDpi: { label: 'DPI', kind: 'multiple' },
   finalTvpi: { label: 'TVPI', kind: 'multiple' },
   finalClawbackDue: { label: 'Clawback Due', kind: 'money' },
+};
+
+// The comparison contract currently admits only fee-profile variants; keying
+// the badge by overrideType prevents future set types from inheriting this label silently.
+const VARIANT_OVERRIDE_TYPE_BADGE_LABELS: Record<
+  ScenarioComparisonVariantV1['overrideType'],
+  string
+> = {
+  fee_profile: 'FEE PROFILE',
 };
 
 function formatMetricValue(
@@ -200,7 +209,7 @@ export function ScenarioComparisonTable({ comparison }: ScenarioComparisonTableP
                   >
                     <span className="align-middle">{variant.name}</span>
                     <Badge className="ml-2 border-0 bg-charcoal text-[10px] text-white">
-                      FEE PROFILE
+                      {VARIANT_OVERRIDE_TYPE_BADGE_LABELS[variant.overrideType]}
                     </Badge>
                   </th>
                 ))}

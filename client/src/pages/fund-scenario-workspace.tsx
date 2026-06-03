@@ -321,21 +321,45 @@ function comparisonDataFromQueries(
 function WorkspaceLoadingState() {
   return (
     <div className="mx-auto max-w-6xl px-6 py-16" role="status">
-      <div className="space-y-4">
-        <div className="h-8 w-64 rounded bg-beige-100" />
-        <div className="h-28 rounded bg-beige-100" />
-        <div className="h-44 rounded bg-beige-100" />
+      <span className="sr-only">Loading scenario workspace…</span>
+      <div className="animate-pulse space-y-6">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="h-9 w-32 rounded bg-beige-100" />
+          <div className="h-9 w-48 rounded bg-beige-100" />
+        </div>
+        <div className="space-y-2">
+          <div className="h-7 w-64 rounded bg-beige-100" />
+          <div className="h-4 w-80 max-w-full rounded bg-beige-100" />
+        </div>
+        <div className="grid gap-4 md:grid-cols-2">
+          <div className="h-36 rounded-md bg-beige-100" />
+          <div className="h-36 rounded-md bg-beige-100" />
+        </div>
+        <div className="h-64 rounded-md bg-beige-100" />
       </div>
     </div>
   );
 }
 
-function WorkspaceErrorState({ title, message }: { title: string; message: string }) {
+function WorkspaceErrorState({
+  title,
+  message,
+  onRetry,
+}: {
+  title: string;
+  message: string;
+  onRetry?: () => void;
+}) {
   return (
     <div className="mx-auto max-w-3xl px-6 py-16">
       <Alert className="border-beige-200">
         <AlertTitle>{title}</AlertTitle>
         <AlertDescription className="font-poppins text-charcoal-500">{message}</AlertDescription>
+        {onRetry && (
+          <Button type="button" variant="outline" size="sm" className="mt-4" onClick={onRetry}>
+            Try again
+          </Button>
+        )}
       </Alert>
     </div>
   );
@@ -371,6 +395,7 @@ function ScenarioSetActionCard({
   const isPending = pendingScenarioSetId === summary.id;
   const overrideType = detail ? scenarioSetOverrideType(detail) : null;
   const disabled = !detail || isPending;
+  const disabledTitle = !detail && !isPending ? 'Loading scenario details…' : undefined;
 
   return (
     <article
@@ -381,9 +406,14 @@ function ScenarioSetActionCard({
         <div className="min-w-0 space-y-2">
           <div>
             <h3 className="font-inter text-base font-semibold text-charcoal">{summary.name}</h3>
-            <p className="mt-1 font-poppins text-sm text-charcoal-500">
-              {summary.variantCount === 1 ? '1 variant' : `${summary.variantCount} variants`} |
-              Source config v{summary.sourceConfigVersion}
+            <p className="mt-1 flex flex-wrap items-center gap-2 font-poppins text-sm text-charcoal-500">
+              <span>
+                {summary.variantCount === 1 ? '1 variant' : `${summary.variantCount} variants`}
+              </span>
+              <span aria-hidden="true" className="text-charcoal-300">
+                ·
+              </span>
+              <span>Source config v{summary.sourceConfigVersion}</span>
             </p>
           </div>
           <div className="flex flex-wrap items-center gap-2">
@@ -398,6 +428,7 @@ function ScenarioSetActionCard({
           variant="outline"
           aria-label={actionLabelFor(summary, detail)}
           disabled={disabled}
+          title={disabledTitle}
           onClick={() => detail && onCalculate(detail)}
         >
           {isPending && <RefreshCw className="h-4 w-4 animate-spin" />}
@@ -456,9 +487,7 @@ function ScenarioComparisonWorkspace({
   isLoading: boolean;
 }) {
   if (isLoading && comparisons.length === 0) {
-    return (
-      <p className="text-sm text-charcoal-500 font-poppins">Loading scenario comparisons...</p>
-    );
+    return <p className="text-sm text-charcoal-500 font-poppins">Loading scenario comparisons…</p>;
   }
 
   if (comparisons.length === 0) {
@@ -599,6 +628,7 @@ function FundScenarioWorkspacePage() {
       <WorkspaceErrorState
         title="Scenario workspace unavailable"
         message="Scenario workspace data could not be loaded."
+        onRetry={() => queryClient.invalidateQueries({ queryKey: workspaceQueryKey(fundId) })}
       />
     );
   }
@@ -632,9 +662,26 @@ function FundScenarioWorkspacePage() {
         </div>
         <div>
           <h1 className="text-2xl font-semibold text-charcoal">Scenario Workspace</h1>
-          <p className="mt-1 text-sm text-charcoal-500 font-poppins">
-            {fund ? `${fund.name} | Vintage ${fund.vintageYear}` : `Fund ${fundId}`} |{' '}
-            {scenarioSets.length === 1 ? '1 scenario set' : `${scenarioSets.length} scenario sets`}
+          <p className="mt-1 flex flex-wrap items-center gap-2 text-sm text-charcoal-500 font-poppins">
+            {fund ? (
+              <>
+                <span>{fund.name}</span>
+                <span aria-hidden="true" className="text-charcoal-300">
+                  ·
+                </span>
+                <span>Vintage {fund.vintageYear}</span>
+              </>
+            ) : (
+              <span>Fund {fundId}</span>
+            )}
+            <span aria-hidden="true" className="text-charcoal-300">
+              ·
+            </span>
+            <span>
+              {scenarioSets.length === 1
+                ? '1 scenario set'
+                : `${scenarioSets.length} scenario sets`}
+            </span>
           </p>
         </div>
       </header>

@@ -10,6 +10,7 @@
  */
 
 import React from 'react';
+import { AlertCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
 import {
@@ -53,6 +54,15 @@ export const CROSS_SET_METRIC_DEFINITIONS = {
 /** Above this many variant columns, the table switches to horizontal scroll. */
 export const CROSS_SET_VARIANT_COLUMN_SOFT_LIMIT = 8;
 
+// These tables currently render only fee-profile variants; keying the badge by
+// overrideType prevents future non-fee-profile sets from being mislabeled silently.
+const VARIANT_OVERRIDE_TYPE_BADGE_LABELS: Record<
+  FundScenarioComparisonV1['variants'][number]['overrideType'],
+  string
+> = {
+  fee_profile: 'FEE PROFILE',
+};
+
 export interface CrossSetScenarioComparisonTableProps {
   comparisons: FundScenarioComparisonV1[];
 }
@@ -64,6 +74,7 @@ interface VariantColumn {
   sourceConfigId: number;
   sourceConfigVersion: number;
   variantName: string;
+  overrideType: FundScenarioComparisonV1['variants'][number]['overrideType'];
   metrics: ScenarioComparisonMetricMap;
   metricDeltas: ScenarioComparisonMetricDeltaV1[];
   evidenceState: ScenarioEvidenceStateV1;
@@ -103,6 +114,7 @@ function toVariantColumns(comparisons: FundScenarioComparisonV1[]): VariantColum
         sourceConfigId: comparison.scenarioSet.sourceConfigId,
         sourceConfigVersion: comparison.scenarioSet.sourceConfigVersion,
         variantName: variant.name,
+        overrideType: variant.overrideType,
         metrics: variant.metrics,
         metricDeltas: variant.metricDeltas,
         evidenceState,
@@ -210,9 +222,20 @@ export function CrossSetScenarioComparisonTable({
     return (
       <section className="space-y-4" data-testid="cross-set-scenario-comparison-table">
         <div className="rounded-md border border-beige-200 bg-beige-50 p-4">
-          <p className="text-sm text-charcoal-600 font-poppins">
-            No comparable fee-profile scenario variants to compare.
-          </p>
+          <div className="flex gap-3">
+            <AlertCircle
+              aria-hidden="true"
+              className="mt-0.5 h-4 w-4 flex-none text-charcoal-400"
+            />
+            <div className="space-y-1">
+              <p className="text-sm text-charcoal-600 font-poppins">
+                No comparable fee-profile scenario variants to compare.
+              </p>
+              <p className="text-xs text-charcoal-500 font-poppins">
+                Calculate a scenario set to compare.
+              </p>
+            </div>
+          </div>
         </div>
       </section>
     );
@@ -307,7 +330,7 @@ export function CrossSetScenarioComparisonTable({
                 >
                   <span className="align-middle">{column.variantName}</span>
                   <Badge className="ml-2 border-0 bg-charcoal text-[10px] text-white">
-                    FEE PROFILE
+                    {VARIANT_OVERRIDE_TYPE_BADGE_LABELS[column.overrideType]}
                   </Badge>
                 </th>
               ))}
