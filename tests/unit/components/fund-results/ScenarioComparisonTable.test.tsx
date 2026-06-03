@@ -125,6 +125,22 @@ describe('ScenarioComparisonTable', () => {
     expect(delta).not.toHaveClass('text-red-700');
     expect(within(table).getByText(/25\.0%/)).toBeInTheDocument();
   });
+
+  it('renders a comparison evidence band with trust state and baseline identity', () => {
+    render(<ScenarioComparisonTable comparison={comparableComparison()} />);
+
+    const band = screen.getByTestId('scenario-comparison-evidence');
+    expect(within(band).getByText('CURRENT')).toBeInTheDocument();
+    expect(within(band).getByText('BASELINE authoritative economics v4')).toBeInTheDocument();
+  });
+
+  it('reads UNAVAILABLE and claims no baseline when the comparison is not comparable', () => {
+    render(<ScenarioComparisonTable comparison={baselineUnavailableComparison()} />);
+
+    const band = screen.getByTestId('scenario-comparison-evidence');
+    expect(within(band).getByText('UNAVAILABLE')).toBeInTheDocument();
+    expect(within(band).queryByText(/^BASELINE /)).toBeNull();
+  });
 });
 
 function comparableComparison(): FundScenarioComparisonV1 {
