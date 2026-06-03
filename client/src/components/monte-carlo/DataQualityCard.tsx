@@ -14,18 +14,18 @@ const QUALITY_CONFIG: Record<
   DataQualityResult['overallQuality'],
   { label: string; color: string; bg: string }
 > = {
-  good: { label: 'Good', color: 'text-emerald-700', bg: 'bg-emerald-50' },
-  acceptable: { label: 'Acceptable', color: 'text-amber-700', bg: 'bg-amber-50' },
-  poor: { label: 'Poor', color: 'text-red-700', bg: 'bg-red-50' },
+  good: { label: 'Good', color: 'text-success-dark', bg: 'bg-success/10' },
+  acceptable: { label: 'Acceptable', color: 'text-warning-dark', bg: 'bg-warning/10' },
+  poor: { label: 'Poor', color: 'text-error-dark', bg: 'bg-error/10' },
 };
 
 export function DataQualityCard({ dataQuality }: Props) {
   const quality = QUALITY_CONFIG[dataQuality.overallQuality];
 
   return (
-    <div className="rounded-lg border border-gray-200 p-4">
+    <div className="rounded-lg border border-beige-200 p-4">
       <div className="flex items-center justify-between mb-3">
-        <h3 className="text-sm font-medium text-gray-700">Data Quality</h3>
+        <h3 className="text-sm font-medium text-charcoal-700">Data Quality</h3>
         <span
           className={`inline-flex items-center text-xs font-medium px-2 py-1 rounded ${quality.color} ${quality.bg}`}
         >
@@ -35,8 +35,8 @@ export function DataQualityCard({ dataQuality }: Props) {
 
       <div className="grid grid-cols-2 gap-3 text-xs">
         <div>
-          <span className="text-gray-500">Baseline</span>
-          <p className="font-medium text-gray-800">
+          <span className="text-charcoal-500">Baseline</span>
+          <p className="font-medium text-pov-charcoal">
             {dataQuality.hasBaseline
               ? dataQuality.baselineAgeInDays !== null
                 ? `${dataQuality.baselineAgeInDays}d old`
@@ -45,18 +45,22 @@ export function DataQualityCard({ dataQuality }: Props) {
           </p>
         </div>
         <div>
-          <span className="text-gray-500">Variance History</span>
-          <p className="font-medium text-gray-800">{dataQuality.varianceHistoryCount} reports</p>
+          <span className="text-charcoal-500">Variance History</span>
+          <p className="font-medium text-pov-charcoal">
+            {dataQuality.varianceHistoryCount} reports
+          </p>
         </div>
         <div>
-          <span className="text-gray-500">Snapshot</span>
-          <p className="font-medium text-gray-800">
+          <span className="text-charcoal-500">Snapshot</span>
+          <p className="font-medium text-pov-charcoal">
             {dataQuality.snapshotAvailable ? 'Available' : 'None'}
           </p>
         </div>
         <div>
-          <span className="text-gray-500">Freshness</span>
-          <p className={`font-medium ${dataQuality.isStale ? 'text-amber-600' : 'text-gray-800'}`}>
+          <span className="text-charcoal-500">Freshness</span>
+          <p
+            className={`font-medium ${dataQuality.isStale ? 'text-warning' : 'text-pov-charcoal'}`}
+          >
             {dataQuality.isStale ? 'Stale' : 'Fresh'}
           </p>
         </div>
@@ -65,7 +69,7 @@ export function DataQualityCard({ dataQuality }: Props) {
       {dataQuality.warnings.length > 0 && (
         <div className="mt-3 space-y-1">
           {dataQuality.warnings.map((warning, i) => (
-            <p key={i} className="text-xs text-amber-600">
+            <p key={i} className="text-xs text-warning">
               {warning}
             </p>
           ))}

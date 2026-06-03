@@ -229,9 +229,9 @@ function SimulationRunsControl({
         disabled={disabled}
         aria-label="Simulation Runs slider"
         aria-describedby={describedBy}
-        className="mt-2 h-2 w-full cursor-pointer accent-blue-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-beige focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+        className="mt-2 h-2 w-full cursor-pointer accent-pov-charcoal focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-beige focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
       />
-      <p id={helpId} className="text-[11px] text-gray-500">
+      <p id={helpId} className="text-[11px] text-charcoal-500">
         {SIMULATION_RUNS_MIN.toLocaleString()} to {SIMULATION_RUNS_MAX.toLocaleString()} runs
       </p>
       {disabledReasonId && (
