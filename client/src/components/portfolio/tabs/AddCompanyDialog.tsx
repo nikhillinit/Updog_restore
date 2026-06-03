@@ -166,7 +166,7 @@ export function AddCompanyDialog({ fundId, open, onOpenChange }: AddCompanyDialo
               onChange={(event) => handleFieldChange('name', event.target.value)}
               placeholder="Northwind AI"
             />
-            {fieldErrors.name ? <p className="text-sm text-red-600">{fieldErrors.name}</p> : null}
+            {fieldErrors.name ? <p className="text-sm text-error">{fieldErrors.name}</p> : null}
           </div>
 
           <div className="space-y-2">
@@ -186,9 +186,7 @@ export function AddCompanyDialog({ fundId, open, onOpenChange }: AddCompanyDialo
                 ))}
               </SelectContent>
             </Select>
-            {fieldErrors.sector ? (
-              <p className="text-sm text-red-600">{fieldErrors.sector}</p>
-            ) : null}
+            {fieldErrors.sector ? <p className="text-sm text-error">{fieldErrors.sector}</p> : null}
           </div>
 
           <div className="space-y-2">
@@ -205,7 +203,7 @@ export function AddCompanyDialog({ fundId, open, onOpenChange }: AddCompanyDialo
                 ))}
               </SelectContent>
             </Select>
-            {fieldErrors.stage ? <p className="text-sm text-red-600">{fieldErrors.stage}</p> : null}
+            {fieldErrors.stage ? <p className="text-sm text-error">{fieldErrors.stage}</p> : null}
           </div>
 
           <div className="space-y-2">
@@ -219,7 +217,7 @@ export function AddCompanyDialog({ fundId, open, onOpenChange }: AddCompanyDialo
               placeholder="1,500,000"
             />
             {fieldErrors.investmentAmount ? (
-              <p className="text-sm text-red-600">{fieldErrors.investmentAmount}</p>
+              <p className="text-sm text-error">{fieldErrors.investmentAmount}</p>
             ) : null}
           </div>
 

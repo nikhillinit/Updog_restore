@@ -270,36 +270,36 @@ function CollaborationContextEventCard({
   emptyLabel: string;
 }) {
   return (
-    <div className="rounded-lg border border-slate-200 bg-white/90 p-4 shadow-sm">
+    <div className="rounded-lg border border-beige-200 bg-white/90 p-4 shadow-sm">
       <div className="flex items-start justify-between gap-3">
         <div className="space-y-1">
-          <div className="text-sm font-medium text-slate-950">{title}</div>
-          <div className="text-xs text-slate-600">
+          <div className="text-sm font-medium text-pov-charcoal">{title}</div>
+          <div className="text-xs text-charcoal-600">
             {event ? formatContextTimestamp(event.at) : emptyLabel}
           </div>
         </div>
-        <Badge variant="outline" className="border-slate-300 text-slate-700">
+        <Badge variant="outline" className="border-charcoal-300 text-charcoal-700">
           {event?.change_summary.headline ?? 'No summary yet'}
         </Badge>
       </div>
 
       {event ? (
         <>
-          <div className="mt-3 rounded-md border border-slate-200 bg-slate-50/80 px-3 py-2 text-sm text-slate-800">
+          <div className="mt-3 rounded-md border border-beige-200 bg-pov-gray/80 px-3 py-2 text-sm text-pov-charcoal">
             {event.note?.trim() || 'No note recorded.'}
           </div>
           <div className="mt-3 flex flex-wrap gap-2">
-            <Badge variant="secondary" className="bg-slate-100 text-slate-800 hover:bg-slate-100">
+            <Badge variant="secondary" className="bg-pov-gray text-pov-charcoal hover:bg-pov-gray">
               {event.by ?? 'Unknown actor'}
             </Badge>
-            <Badge variant="secondary" className="bg-slate-100 text-slate-800 hover:bg-slate-100">
+            <Badge variant="secondary" className="bg-pov-gray text-pov-charcoal hover:bg-pov-gray">
               {formatContextTimestamp(event.at)}
             </Badge>
             {formatContextChangeSummary(event.change_summary).map((label) => (
               <Badge
                 key={`${title}-${label}`}
                 variant="secondary"
-                className="bg-slate-100 text-slate-800 hover:bg-slate-100"
+                className="bg-pov-gray text-pov-charcoal hover:bg-pov-gray"
               >
                 {label}
               </Badge>
@@ -307,7 +307,7 @@ function CollaborationContextEventCard({
           </div>
         </>
       ) : (
-        <p className="mt-3 text-sm text-slate-600">
+        <p className="mt-3 text-sm text-charcoal-600">
           {title} has not been recorded yet for this scenario.
         </p>
       )}
@@ -1083,13 +1083,15 @@ export function AllocationsTab() {
           </CardHeader>
           <CardContent>
             <div
-              className="mx-auto flex max-w-md flex-col items-center py-12 text-center text-gray-600"
+              className="mx-auto flex max-w-md flex-col items-center py-12 text-center text-charcoal-600"
               data-testid="reserve-planning-empty-state"
             >
-              <div className="mb-4 rounded-full bg-slate-100 p-3">
-                <Plus className="h-5 w-5 text-slate-700" />
+              <div className="mb-4 rounded-full bg-pov-gray p-3">
+                <Plus className="h-5 w-5 text-charcoal-700" />
               </div>
-              <p className="mb-2 text-lg font-medium text-gray-900">No portfolio companies found</p>
+              <p className="mb-2 text-lg font-medium text-pov-charcoal">
+                No portfolio companies found
+              </p>
               <p className="text-sm">
                 Add a company to this fund before creating reserve allocations and IC decisions.
               </p>
@@ -1103,7 +1105,7 @@ export function AllocationsTab() {
                 Add Company
               </Button>
               {!fundId ? (
-                <p className="mt-2 text-xs text-gray-500">
+                <p className="mt-2 text-xs text-charcoal-500">
                   Select a fund before adding portfolio companies.
                 </p>
               ) : null}
@@ -1125,8 +1127,8 @@ export function AllocationsTab() {
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-2xl font-bold text-gray-900">Company Allocations</h2>
-          <p className="text-sm text-gray-500 mt-1">
+          <h2 className="text-2xl font-bold text-pov-charcoal">Company Allocations</h2>
+          <p className="text-sm text-charcoal-500 mt-1">
             Manage reserve allocations for {displayedCompanies.length} companies
           </p>
         </div>
@@ -1137,7 +1139,7 @@ export function AllocationsTab() {
       </div>
 
       {missingAllocationFactsCount > 0 ? (
-        <Alert className="border-amber-200 bg-amber-50 text-amber-950">
+        <Alert className="border-warning/30 bg-warning/10 text-warning-dark">
           <AlertCircle className="h-4 w-4" />
           <AlertDescription>
             Allocation facts are missing for {missingAllocationFactsCount}{' '}
@@ -1147,29 +1149,31 @@ export function AllocationsTab() {
         </Alert>
       ) : null}
 
-      <Card className="border-purple-200 bg-purple-50/50">
+      <Card className="border-presson-info/20 bg-presson-info/10">
         <CardHeader className="pb-3">
           <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
             <div className="space-y-2">
-              <CardTitle className="text-lg text-purple-950">Reserve Planning Workspace</CardTitle>
+              <CardTitle className="text-lg text-presson-info">
+                Reserve Planning Workspace
+              </CardTitle>
               <div className="flex flex-wrap gap-2">
                 <Badge variant="secondary">{workspaceSourceLabel}</Badge>
                 {workspaceDirty ? (
-                  <Badge variant="outline" className="border-amber-300 text-amber-900">
+                  <Badge variant="outline" className="border-warning/30 text-warning-dark">
                     Unsaved local edits
                   </Badge>
                 ) : null}
-                <Badge variant="outline" className="border-purple-200 text-purple-950">
+                <Badge variant="outline" className="border-presson-info/20 text-presson-info">
                   {activeScenarioId
                     ? `Last modified ${activeScenarioLastModifiedLabel}`
                     : `Last synced ${lastUpdatedLabel}`}
                 </Badge>
                 {activeScenarioId ? (
                   <>
-                    <Badge variant="outline" className="border-purple-200 text-purple-950">
+                    <Badge variant="outline" className="border-presson-info/20 text-presson-info">
                       {activeScenarioLastSyncedLabel}
                     </Badge>
-                    <Badge variant="outline" className="border-purple-200 text-purple-950">
+                    <Badge variant="outline" className="border-presson-info/20 text-presson-info">
                       {activeScenarioLastAppliedLabel}
                     </Badge>
                   </>
@@ -1215,7 +1219,7 @@ export function AllocationsTab() {
                 </div>
                 <div className="grid gap-2">
                   <Label>Workspace Status</Label>
-                  <div className="rounded-md border border-purple-200 bg-white/70 px-3 py-2 text-sm text-purple-950">
+                  <div className="rounded-md border border-presson-info/20 bg-white/70 px-3 py-2 text-sm text-presson-info">
                     {activeScenarioId
                       ? 'Scenario mode keeps edits local until you save.'
                       : 'Live mode edits still update the canonical allocation surface.'}
@@ -1235,11 +1239,13 @@ export function AllocationsTab() {
               </div>
 
               {activeScenarioId ? (
-                <div className="space-y-4 rounded-lg border border-purple-200 bg-white/80 p-4">
+                <div className="space-y-4 rounded-lg border border-presson-info/20 bg-white/80 p-4">
                   <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
                     <div className="space-y-1">
-                      <div className="text-sm font-medium text-purple-950">Live Sync and Apply</div>
-                      <div className="text-xs text-purple-900/70">
+                      <div className="text-sm font-medium text-presson-info">
+                        Live Sync and Apply
+                      </div>
+                      <div className="text-xs text-presson-info/80">
                         Sync refreshes this saved scenario from current live allocations. Apply
                         preview computes drift and captures the live concurrency token.
                       </div>
@@ -1284,16 +1290,19 @@ export function AllocationsTab() {
                   ) : null}
 
                   {applyPreview ? (
-                    <div className="space-y-4 rounded-lg border border-purple-200 bg-purple-50/60 p-4">
+                    <div className="space-y-4 rounded-lg border border-presson-info/20 bg-presson-info/10 p-4">
                       <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
                         <div className="space-y-1">
-                          <div className="text-sm font-medium text-purple-950">Apply Preview</div>
-                          <div className="text-xs text-purple-900/80">
+                          <div className="text-sm font-medium text-presson-info">Apply Preview</div>
+                          <div className="text-xs text-presson-info/90">
                             {getApplyPreviewDescription(applyPreview)}
                           </div>
                         </div>
                         <div className="flex flex-wrap gap-2">
-                          <Badge variant="outline" className="border-purple-300 text-purple-950">
+                          <Badge
+                            variant="outline"
+                            className="border-presson-info/30 text-presson-info"
+                          >
                             {getDriftStatusBadgeLabel(applyPreview)}
                           </Badge>
                           <Badge variant="secondary">{getApplyStateBadgeLabel(applyPreview)}</Badge>
@@ -1302,50 +1311,50 @@ export function AllocationsTab() {
 
                       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
                         <div>
-                          <div className="text-xs uppercase tracking-wide text-purple-900/60">
+                          <div className="text-xs uppercase tracking-wide text-presson-info/70">
                             Companies Changed
                           </div>
-                          <div className="mt-1 text-lg font-semibold text-purple-950">
+                          <div className="mt-1 text-lg font-semibold text-presson-info">
                             {applyPreview.summary.companies_changed}
                           </div>
                         </div>
                         <div>
-                          <div className="text-xs uppercase tracking-wide text-purple-900/60">
+                          <div className="text-xs uppercase tracking-wide text-presson-info/70">
                             Companies Unchanged
                           </div>
-                          <div className="mt-1 text-lg font-semibold text-purple-950">
+                          <div className="mt-1 text-lg font-semibold text-presson-info">
                             {applyPreview.summary.companies_unchanged}
                           </div>
                         </div>
                         <div>
-                          <div className="text-xs uppercase tracking-wide text-purple-900/60">
+                          <div className="text-xs uppercase tracking-wide text-presson-info/70">
                             Planned Delta
                           </div>
-                          <div className="mt-1 text-lg font-semibold text-purple-950">
+                          <div className="mt-1 text-lg font-semibold text-presson-info">
                             {formatDeltaLabel(applyPreview.summary.total_planned_delta_cents)}
                           </div>
                         </div>
                         <div>
-                          <div className="text-xs uppercase tracking-wide text-purple-900/60">
+                          <div className="text-xs uppercase tracking-wide text-presson-info/70">
                             Scenario-only Companies
                           </div>
-                          <div className="mt-1 text-lg font-semibold text-purple-950">
+                          <div className="mt-1 text-lg font-semibold text-presson-info">
                             {applyPreview.summary.scenario_only_count}
                           </div>
                         </div>
                         <div>
-                          <div className="text-xs uppercase tracking-wide text-purple-900/60">
+                          <div className="text-xs uppercase tracking-wide text-presson-info/70">
                             Live-only Companies
                           </div>
-                          <div className="mt-1 text-lg font-semibold text-purple-950">
+                          <div className="mt-1 text-lg font-semibold text-presson-info">
                             {applyPreview.summary.live_only_count}
                           </div>
                         </div>
                         <div>
-                          <div className="text-xs uppercase tracking-wide text-purple-900/60">
+                          <div className="text-xs uppercase tracking-wide text-presson-info/70">
                             Live Allocation Version
                           </div>
-                          <div className="mt-1 text-lg font-semibold text-purple-950">
+                          <div className="mt-1 text-lg font-semibold text-presson-info">
                             {applyPreview.live.max_allocation_version !== null
                               ? `v${applyPreview.live.max_allocation_version}`
                               : 'No live version'}
@@ -1354,7 +1363,7 @@ export function AllocationsTab() {
                       </div>
 
                       <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-                        <div className="text-xs text-purple-900/70">
+                        <div className="text-xs text-presson-info/80">
                           Live snapshot:{' '}
                           {formatDateLabel(
                             applyPreview.live.last_updated_at,
@@ -1373,7 +1382,7 @@ export function AllocationsTab() {
                       </div>
                     </div>
                   ) : (
-                    <p className="text-xs text-purple-900/70">
+                    <p className="text-xs text-presson-info/80">
                       Preview apply to compute drift against the current live allocation surface
                       before confirming.
                     </p>
@@ -1381,16 +1390,18 @@ export function AllocationsTab() {
                 </div>
               ) : null}
 
-              <div className="space-y-4 rounded-lg border border-slate-200 bg-slate-50/80 p-4">
+              <div className="space-y-4 rounded-lg border border-beige-200 bg-pov-gray/80 p-4">
                 <div className="flex flex-col gap-2 lg:flex-row lg:items-start lg:justify-between">
                   <div className="space-y-1">
-                    <div className="text-sm font-medium text-slate-950">Collaboration Context</div>
-                    <div className="text-xs text-slate-700/70">
+                    <div className="text-sm font-medium text-pov-charcoal">
+                      Collaboration Context
+                    </div>
+                    <div className="text-xs text-charcoal-700/70">
                       Durable sync and apply history from the server. Scenario notes stay in the
                       editor above, while company-level reasons remain on each allocation row.
                     </div>
                   </div>
-                  <Badge variant="outline" className="border-slate-300 text-slate-700">
+                  <Badge variant="outline" className="border-charcoal-300 text-charcoal-700">
                     {activeScenarioContext ? 'Context loaded' : 'Select a saved scenario'}
                   </Badge>
                 </div>
@@ -1417,29 +1428,31 @@ export function AllocationsTab() {
                     />
                   </div>
                 ) : (
-                  <p className="text-sm text-slate-600">
+                  <p className="text-sm text-charcoal-600">
                     Resume a saved scenario to view its durable sync and apply context here.
                   </p>
                 )}
               </div>
 
-              <div className="space-y-4 rounded-lg border border-slate-200 bg-slate-50/80 p-4">
+              <div className="space-y-4 rounded-lg border border-beige-200 bg-pov-gray/80 p-4">
                 <div className="flex flex-col gap-2 lg:flex-row lg:items-start lg:justify-between">
                   <div className="space-y-1">
-                    <div className="text-sm font-medium text-slate-950">Reserve IC Decisions</div>
-                    <div className="text-xs text-slate-700/70">
+                    <div className="text-sm font-medium text-pov-charcoal">
+                      Reserve IC Decisions
+                    </div>
+                    <div className="text-xs text-charcoal-700/70">
                       Capture company-level follow-on, defer, cut-reserve, and no-action decisions
                       for the active scenario without changing live allocations.
                     </div>
                   </div>
-                  <Badge variant="outline" className="border-slate-300 text-slate-700">
+                  <Badge variant="outline" className="border-charcoal-300 text-charcoal-700">
                     {activeScenarioId ? `${reserveIcDecisions.length} saved` : 'Select a scenario'}
                   </Badge>
                 </div>
 
                 {activeScenarioId && selectedDecisionCompany ? (
                   <div className="grid gap-4 lg:grid-cols-[minmax(0,0.7fr)_minmax(0,1.3fr)]">
-                    <div className="space-y-3 rounded-md border border-slate-200 bg-white/90 p-4">
+                    <div className="space-y-3 rounded-md border border-beige-200 bg-white/90 p-4">
                       <div className="grid gap-2">
                         <Label htmlFor="reserve-ic-company">Company</Label>
                         <select
@@ -1448,7 +1461,7 @@ export function AllocationsTab() {
                           onChange={(event) =>
                             setSelectedDecisionCompanyId(Number(event.target.value))
                           }
-                          className="px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          className="px-3 py-2 border border-charcoal-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-pov-charcoal"
                         >
                           {displayedCompanies.map((company) => (
                             <option key={company.company_id} value={company.company_id}>
@@ -1469,7 +1482,7 @@ export function AllocationsTab() {
                                 event.target.value as ReserveIcDecision['decisionType']
                               )
                             }
-                            className="px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            className="px-3 py-2 border border-charcoal-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-pov-charcoal"
                           >
                             {RESERVE_IC_DECISION_TYPE_OPTIONS.map((option) => (
                               <option key={option.value} value={option.value}>
@@ -1489,7 +1502,7 @@ export function AllocationsTab() {
                                 event.target.value as ReserveIcDecision['decisionStatus']
                               )
                             }
-                            className="px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            className="px-3 py-2 border border-charcoal-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-pov-charcoal"
                           >
                             {RESERVE_IC_DECISION_STATUS_OPTIONS.map((option) => (
                               <option key={option.value} value={option.value}>
@@ -1531,20 +1544,26 @@ export function AllocationsTab() {
                         />
                       </div>
 
-                      <div className="flex flex-wrap items-center gap-2 text-xs text-slate-600">
-                        <Badge variant="outline" className="border-slate-300 text-slate-700">
+                      <div className="flex flex-wrap items-center gap-2 text-xs text-charcoal-600">
+                        <Badge variant="outline" className="border-charcoal-300 text-charcoal-700">
                           Live planned{' '}
                           {formatCents(selectedDecisionCompany.planned_reserves_cents, {
                             compact: true,
                           })}
                         </Badge>
                         {selectedDecisionRecord ? (
-                          <Badge variant="outline" className="border-slate-300 text-slate-700">
+                          <Badge
+                            variant="outline"
+                            className="border-charcoal-300 text-charcoal-700"
+                          >
                             Existing{' '}
                             {formatDecisionStatusLabel(selectedDecisionRecord.decisionStatus)}
                           </Badge>
                         ) : (
-                          <Badge variant="outline" className="border-slate-300 text-slate-700">
+                          <Badge
+                            variant="outline"
+                            className="border-charcoal-300 text-charcoal-700"
+                          >
                             New decision
                           </Badge>
                         )}
@@ -1561,37 +1580,37 @@ export function AllocationsTab() {
                       </div>
                     </div>
 
-                    <div className="rounded-md border border-slate-200 bg-white/90 p-4">
-                      <div className="text-sm font-medium text-slate-950">Decision Snapshot</div>
-                      <div className="mt-3 space-y-3 text-sm text-slate-700">
+                    <div className="rounded-md border border-beige-200 bg-white/90 p-4">
+                      <div className="text-sm font-medium text-pov-charcoal">Decision Snapshot</div>
+                      <div className="mt-3 space-y-3 text-sm text-charcoal-700">
                         <div>
-                          <span className="font-medium text-slate-950">Company:</span>{' '}
+                          <span className="font-medium text-pov-charcoal">Company:</span>{' '}
                           {selectedDecisionCompany.company_name}
                         </div>
                         <div>
-                          <span className="font-medium text-slate-950">Type:</span>{' '}
+                          <span className="font-medium text-pov-charcoal">Type:</span>{' '}
                           {formatDecisionTypeLabel(decisionType)}
                         </div>
                         <div>
-                          <span className="font-medium text-slate-950">Status:</span>{' '}
+                          <span className="font-medium text-pov-charcoal">Status:</span>{' '}
                           {formatDecisionStatusLabel(decisionStatus)}
                         </div>
                         <div>
-                          <span className="font-medium text-slate-950">Proposed:</span>{' '}
+                          <span className="font-medium text-pov-charcoal">Proposed:</span>{' '}
                           {formatOptionalDecisionCents(decisionProposedCents)}
                         </div>
                         <div>
-                          <span className="font-medium text-slate-950">Final:</span>{' '}
+                          <span className="font-medium text-pov-charcoal">Final:</span>{' '}
                           {formatOptionalDecisionCents(decisionFinalCents)}
                         </div>
-                        <div className="rounded-md border border-slate-200 bg-slate-50/80 px-3 py-2">
+                        <div className="rounded-md border border-beige-200 bg-pov-gray/80 px-3 py-2">
                           {decisionRationale.trim() || 'No decision rationale recorded yet.'}
                         </div>
                       </div>
                     </div>
                   </div>
                 ) : (
-                  <p className="text-sm text-slate-600">
+                  <p className="text-sm text-charcoal-600">
                     Resume a saved scenario to capture or review Reserve IC decisions.
                   </p>
                 )}
@@ -1610,31 +1629,31 @@ export function AllocationsTab() {
 
               <div className="grid gap-4 md:grid-cols-3">
                 <div>
-                  <div className="text-sm text-purple-900/70">Companies with plans</div>
-                  <div className="text-2xl font-semibold text-purple-950 mt-1">
+                  <div className="text-sm text-presson-info/80">Companies with plans</div>
+                  <div className="text-2xl font-semibold text-presson-info mt-1">
                     {reservePlanCount}
                   </div>
                 </div>
                 <div>
-                  <div className="text-sm text-purple-900/70">Documented notes</div>
-                  <div className="text-2xl font-semibold text-purple-950 mt-1">
+                  <div className="text-sm text-presson-info/80">Documented notes</div>
+                  <div className="text-2xl font-semibold text-presson-info mt-1">
                     {documentedPlanCount}
                   </div>
                 </div>
                 <div>
-                  <div className="text-sm text-purple-900/70">Total planned</div>
-                  <div className="text-2xl font-semibold text-purple-950 mt-1">
+                  <div className="text-sm text-presson-info/80">Total planned</div>
+                  <div className="text-2xl font-semibold text-presson-info mt-1">
                     {formatCents(workspaceTotals.total_planned_cents, { compact: true })}
                   </div>
                 </div>
               </div>
             </div>
 
-            <div className="rounded-lg border border-purple-200 bg-white/70 p-4">
+            <div className="rounded-lg border border-presson-info/20 bg-white/70 p-4">
               <div className="flex items-center justify-between gap-3">
                 <div>
-                  <div className="text-sm font-medium text-purple-950">Saved Scenarios</div>
-                  <div className="text-xs text-purple-900/70">
+                  <div className="text-sm font-medium text-presson-info">Saved Scenarios</div>
+                  <div className="text-xs text-presson-info/80">
                     Resume a saved snapshot into the workspace.
                   </div>
                 </div>
@@ -1648,7 +1667,7 @@ export function AllocationsTab() {
                     <Skeleton className="h-16 w-full" />
                   </>
                 ) : scenarios.length === 0 ? (
-                  <p className="text-sm text-purple-900/70">
+                  <p className="text-sm text-presson-info/80">
                     Save the current workspace to create the first durable scenario.
                   </p>
                 ) : (
@@ -1657,21 +1676,21 @@ export function AllocationsTab() {
                       key={scenario.id}
                       className={`rounded-md border p-3 ${
                         scenario.id === activeScenarioId
-                          ? 'border-purple-400 bg-purple-100/80'
-                          : 'border-purple-200 bg-white/80'
+                          ? 'border-pov-charcoal bg-pov-gray'
+                          : 'border-presson-info/20 bg-white/80'
                       }`}
                     >
                       <div className="flex items-start justify-between gap-3">
                         <div className="space-y-1">
-                          <div className="font-medium text-gray-900">{scenario.name}</div>
-                          <div className="text-xs text-gray-500">
+                          <div className="font-medium text-pov-charcoal">{scenario.name}</div>
+                          <div className="text-xs text-charcoal-500">
                             Last modified {formatDateLabel(scenario.updated_at, 'Not yet saved')}
                           </div>
-                          <div className="text-xs text-gray-500">
+                          <div className="text-xs text-charcoal-500">
                             {scenario.company_count} companies ·{' '}
                             {formatCents(scenario.total_planned_cents, { compact: true })}
                           </div>
-                          <div className="text-xs text-gray-500">
+                          <div className="text-xs text-charcoal-500">
                             {formatActionStatusLabel(
                               'Synced',
                               scenario.last_synced_at,
@@ -1679,7 +1698,7 @@ export function AllocationsTab() {
                               'Not synced from live'
                             )}
                           </div>
-                          <div className="text-xs text-gray-500">
+                          <div className="text-xs text-charcoal-500">
                             {formatAppliedStatusLabel(
                               scenario.last_applied_at,
                               scenario.last_applied_by,
@@ -1695,7 +1714,7 @@ export function AllocationsTab() {
                           Resume
                         </Button>
                       </div>
-                      <p className="mt-2 text-sm text-gray-600">
+                      <p className="mt-2 text-sm text-charcoal-600">
                         {scenario.notes?.trim() || 'No notes'}
                       </p>
                     </div>
@@ -1705,7 +1724,7 @@ export function AllocationsTab() {
             </div>
           </div>
 
-          <p className="text-sm text-purple-900/80">
+          <p className="text-sm text-presson-info/90">
             Saved scenarios snapshot the current workspace. Resumed scenarios stay local until you
             save them again.
           </p>
@@ -1715,24 +1734,24 @@ export function AllocationsTab() {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <Card>
           <CardContent className="pt-6">
-            <div className="text-sm text-gray-500">Total Planned Reserves</div>
-            <div className="text-2xl font-bold text-purple-600 mt-1">
+            <div className="text-sm text-charcoal-500">Total Planned Reserves</div>
+            <div className="text-2xl font-bold text-presson-info mt-1">
               {formatCents(workspaceTotals.total_planned_cents, { compact: true })}
             </div>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="pt-6">
-            <div className="text-sm text-gray-500">Total Deployed Reserves</div>
-            <div className="text-2xl font-bold text-blue-600 mt-1">
+            <div className="text-sm text-charcoal-500">Total Deployed Reserves</div>
+            <div className="text-2xl font-bold text-presson-info mt-1">
               {formatCents(workspaceTotals.total_deployed_cents, { compact: true })}
             </div>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="pt-6">
-            <div className="text-sm text-gray-500">Remaining to Deploy</div>
-            <div className="text-2xl font-bold text-green-600 mt-1">
+            <div className="text-sm text-charcoal-500">Remaining to Deploy</div>
+            <div className="text-2xl font-bold text-presson-positive mt-1">
               {formatCents(
                 workspaceTotals.total_planned_cents - workspaceTotals.total_deployed_cents,
                 { compact: true }
@@ -1744,7 +1763,7 @@ export function AllocationsTab() {
 
       <div className="flex flex-col sm:flex-row gap-3">
         <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-charcoal-400" />
           <Input
             placeholder="Search companies..."
             value={searchQuery}
@@ -1755,7 +1774,7 @@ export function AllocationsTab() {
         <select
           value={sectorFilter}
           onChange={(event) => setSectorFilter(event.target.value)}
-          className="px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+          className="px-3 py-2 border border-charcoal-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-pov-charcoal"
         >
           <option value="all">All Sectors</option>
           {sectors.map((sector) => (
@@ -1767,7 +1786,7 @@ export function AllocationsTab() {
         <select
           value={statusFilter}
           onChange={(event) => setStatusFilter(event.target.value)}
-          className="px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+          className="px-3 py-2 border border-charcoal-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-pov-charcoal"
         >
           <option value="all">All Statuses</option>
           {statuses.map((status) => (
@@ -1816,7 +1835,7 @@ export function AllocationsTab() {
                 <TableRow>
                   <TableCell
                     colSpan={enrichedColumns.length}
-                    className="text-center py-8 text-gray-500"
+                    className="text-center py-8 text-charcoal-500"
                   >
                     No companies match your filters
                   </TableCell>

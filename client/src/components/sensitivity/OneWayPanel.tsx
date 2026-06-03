@@ -133,13 +133,13 @@ function HistoryPanel({
   const { data, isLoading } = useSensitivityHistory(fundId, 'one_way', 10);
 
   if (isLoading) {
-    return <p className="text-xs text-gray-500">Loading history...</p>;
+    return <p className="text-xs text-charcoal-500">Loading history...</p>;
   }
 
   const runs = data?.runs ?? [];
   if (runs.length === 0) {
     return (
-      <p className="text-xs text-gray-500" data-testid="one-way-history-empty">
+      <p className="text-xs text-charcoal-500" data-testid="one-way-history-empty">
         No previous one-way analyses
       </p>
     );
@@ -147,7 +147,7 @@ function HistoryPanel({
 
   return (
     <div className="space-y-1" data-testid="one-way-history-list">
-      <h3 className="mb-2 text-xs font-medium text-gray-600">Recent Runs</h3>
+      <h3 className="mb-2 text-xs font-medium text-charcoal-600">Recent Runs</h3>
       {runs.map((run) => {
         const parsed = parseHistoryResult(run);
         const disabled = parsed === null;
@@ -159,14 +159,16 @@ function HistoryPanel({
             onClick={() => parsed && onSelect(parsed)}
             className={cn(
               'w-full rounded px-2 py-1.5 text-left text-xs transition-colors',
-              disabled ? 'cursor-not-allowed text-gray-400' : 'hover:bg-gray-100 text-gray-800'
+              disabled
+                ? 'cursor-not-allowed text-charcoal-400'
+                : 'text-pov-charcoal hover:bg-pov-charcoal hover:text-pov-white'
             )}
             data-testid={`one-way-history-item-${run.id}`}
           >
             <span>#{run.id}</span>
-            <span className="mx-1 text-gray-400">·</span>
+            <span className="mx-1 text-charcoal-400">·</span>
             <span>{formatRunTimestamp(run.createdAt)}</span>
-            <span className="mx-1 text-gray-400">·</span>
+            <span className="mx-1 text-charcoal-400">·</span>
             <span className="uppercase tracking-wide text-[10px]">{run.status}</span>
           </button>
         );
@@ -344,7 +346,7 @@ export function OneWayPanel({ fundId }: OneWayPanelProps) {
                   ))}
                 </SelectContent>
               </Select>
-              <p className="text-xs text-gray-500">{variableDefinition.description}</p>
+              <p className="text-xs text-charcoal-500">{variableDefinition.description}</p>
             </div>
 
             <div className="grid grid-cols-2 gap-3">
@@ -401,7 +403,7 @@ export function OneWayPanel({ fundId }: OneWayPanelProps) {
 
             {!validation.ok && validation.errors.length > 0 && (
               <ul
-                className="space-y-0.5 text-xs text-red-600"
+                className="space-y-0.5 text-xs text-error"
                 data-testid="one-way-validation-errors"
               >
                 {validation.errors.map((err) => (
@@ -436,14 +438,14 @@ export function OneWayPanel({ fundId }: OneWayPanelProps) {
 
       <div className="space-y-4 lg:col-span-2">
         {mutation.isPending && (
-          <Card className="border-blue-200">
+          <Card className="border-presson-info/20">
             <CardContent className="px-4 py-3">
               <div className="mb-1 flex items-center justify-between">
                 <div className="flex items-center gap-2">
-                  <div className="h-2 w-2 animate-pulse rounded-full bg-blue-500" />
-                  <span className="text-sm font-medium text-gray-700">Running sweep...</span>
+                  <div className="h-2 w-2 animate-pulse rounded-full bg-presson-info" />
+                  <span className="text-sm font-medium text-charcoal-700">Running sweep...</span>
                 </div>
-                <span className="tabular-nums text-xs text-gray-500">{elapsed}s</span>
+                <span className="tabular-nums text-xs text-charcoal-500">{elapsed}s</span>
               </div>
             </CardContent>
           </Card>
@@ -466,10 +468,10 @@ export function OneWayPanel({ fundId }: OneWayPanelProps) {
 
         {!mutation.isPending && !error && !displayedResult && (
           <div
-            className="flex h-48 items-center justify-center rounded-lg border border-dashed border-gray-300"
+            className="flex h-48 items-center justify-center rounded-lg border border-dashed border-charcoal-300"
             data-testid="one-way-idle"
           >
-            <p className="text-sm text-gray-400">Configure and run a sweep to see results</p>
+            <p className="text-sm text-charcoal-400">Configure and run a sweep to see results</p>
           </div>
         )}
       </div>

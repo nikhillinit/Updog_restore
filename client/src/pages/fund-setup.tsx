@@ -173,7 +173,7 @@ export default function FundSetup() {
         });
       }}
     >
-      <div data-testid="fund-setup-wizard" className="min-h-screen bg-gray-50">
+      <div data-testid="fund-setup-wizard" className="min-h-screen bg-pov-gray">
         {/* Modern Progress Header - Single unified progress indicator */}
         <ModernWizardProgress steps={stepsWithStatus} currentStepId={key} />
 
@@ -194,10 +194,10 @@ export default function FundSetup() {
                 {status === 'error' ? (
                   <Alert
                     aria-live="assertive"
-                    className="border-l-4 border-l-red-500 bg-red-50"
+                    className="border-l-4 border-l-error bg-error/10"
                     data-testid="draft-sync-error"
                   >
-                    <AlertTriangle aria-hidden="true" className="h-4 w-4 text-red-500" />
+                    <AlertTriangle aria-hidden="true" className="h-4 w-4 text-error" />
                     <AlertTitle>Draft Sync Failed</AlertTitle>
                     <AlertDescription className="flex flex-wrap items-center gap-3">
                       <span>{error ?? 'Unable to sync the authoritative draft.'}</span>

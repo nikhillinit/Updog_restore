@@ -201,9 +201,10 @@ function scenarioStatusLabel(status: FundScenarioCalculationStatusV1['status'] |
 }
 
 function scenarioStatusTone(status: FundScenarioCalculationStatusV1['status'] | undefined) {
-  if (status === 'succeeded') return 'bg-emerald-50 text-emerald-800';
-  if (status === 'failed') return 'bg-red-50 text-red-800';
-  if (status === 'queued' || status === 'calculating') return 'bg-blue-50 text-blue-800';
+  if (status === 'succeeded') return 'bg-success/10 text-success-dark';
+  if (status === 'failed') return 'bg-error/10 text-error-dark';
+  if (status === 'queued' || status === 'calculating')
+    return 'bg-presson-info/10 text-presson-info';
   return 'bg-beige-100 text-charcoal-600';
 }
 
@@ -436,7 +437,7 @@ function ScenarioSetActionCard({
         </Button>
       </div>
       {status?.lastError && (
-        <p className="mt-3 text-sm text-red-700 font-poppins">{status.lastError}</p>
+        <p className="mt-3 text-sm text-error-dark font-poppins">{status.lastError}</p>
       )}
     </article>
   );
