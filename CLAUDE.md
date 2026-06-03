@@ -431,3 +431,19 @@ Artifacts: `HANDOFF.json`, `HANDOFF.md`, `.claude/artifacts/checkpoints/`
 - `/explore` - non-executing discovery mode
 - `CLAUDE_HOOKS_DISABLE=1` - disable all control plane hooks (logged)
 - All bypasses logged to `.claude/artifacts/metrics.jsonl`
+
+## Design System
+
+Read `DESIGN.md` (repo root) before any visual or UI change. It is the source of
+truth for color, typography, spacing, and the v3.1.1 product doctrine (screen
+grammar, role modes, acceptance rubric), and it points to the canonical token
+file (`client/src/theme/presson.tokens.ts`) and philosophy doc
+(`docs/design/updog-design-philosophy-v3.1.1.html`).
+
+- Primary action / accent is charcoal `#292929`, never blue. Status colors are
+  muted.
+- Reuse `presson.*` tokens; do not introduce new color/font vocabularies.
+- Check the DESIGN.md drift register before reusing any color in
+  `tailwind.config.ts` (blue `interactive.accent`, purple `financial.stable`,
+  duplicate greens) or `presson-v2.css`.
+- New surfaces must pass the v3.1.1 acceptance rubric.
