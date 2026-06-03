@@ -84,6 +84,34 @@ describe('ScenarioComparisonTable', () => {
     ).toBeInTheDocument();
     expect(table).not.toHaveTextContent('FEE PROFILE');
   });
+
+  it('renders one column per variant with per-variant values and drift fallbacks', () => {
+    render(<ScenarioComparisonTable comparison={twoVariantComparison()} />);
+
+    const table = screen.getByTestId('scenario-comparison-table');
+
+    // both variant columns render alongside the baseline column
+    expect(within(table).getByText('Authoritative baseline')).toBeInTheDocument();
+    expect(within(table).getByText('Lower fee')).toBeInTheDocument();
+    expect(within(table).getByText('Higher fee')).toBeInTheDocument();
+
+    // metric label is a single row header regardless of variant count (matrix, not cards)
+    expect(within(table).getAllByText('Net LP IRR').length).toBe(1);
+
+    // each column shows its own distinct value
+    expect(within(table).getByText('15.0%')).toBeInTheDocument(); // baseline
+    expect(within(table).getByText('17.0%')).toBeInTheDocument(); // variant 1
+    expect(within(table).getByText('19.0%')).toBeInTheDocument(); // variant 2
+
+    // variant 1's drift-capable delta renders in-cell
+    expect(within(table).getByText('+0.30x')).toBeInTheDocument();
+
+    // variant 2's non-drift-capable delta renders the preserved reason copy
+    expect(within(table).getByText('Drift unavailable')).toBeInTheDocument();
+    expect(
+      within(table).getByText('Baseline value is zero, so percentage drift is unstable.')
+    ).toBeInTheDocument();
+  });
 });
 
 function comparableComparison(): FundScenarioComparisonV1 {
@@ -174,5 +202,89 @@ function unsupportedReserveComparison(): FundScenarioComparisonV1 {
     variants: [],
     staleness: null,
     calculatedAt: null,
+  };
+}
+
+function twoVariantComparison(): FundScenarioComparisonV1 {
+  return {
+    fundId: 123,
+    comparisonStatus: 'comparable',
+    scenarioSet: {
+      scenarioSetId: '00000000-0000-0000-0000-000000000211',
+      name: 'Fee sensitivity',
+      sourceConfigId: 12,
+      sourceConfigVersion: 4,
+    },
+    baseline: {
+      label: 'Authoritative baseline',
+      metrics: {
+        lpNetIrr: 0.15,
+        gpNetIrr: 0.1,
+        totalManagementFees: 2_000_000,
+        totalGpCarryDistributed: 500_000,
+        totalGpFeeIncome: 2_000_000,
+        finalDpi: 0.6,
+        finalTvpi: 1.8,
+        finalClawbackDue: 0,
+      },
+    },
+    variants: [
+      {
+        variantId: '00000000-0000-0000-0000-000000000212',
+        name: 'Lower fee',
+        overrideType: 'fee_profile',
+        metrics: {
+          lpNetIrr: 0.17,
+          gpNetIrr: 0.11,
+          totalManagementFees: 1_500_000,
+          totalGpCarryDistributed: 500_000,
+          totalGpFeeIncome: 1_500_000,
+          finalDpi: 0.7,
+          finalTvpi: 2.1,
+          finalClawbackDue: 0,
+        },
+        metricDeltas: [
+          {
+            metric: 'finalTvpi',
+            displayName: 'TVPI',
+            baselineValue: 1.8,
+            scenarioValue: 2.1,
+            absoluteDelta: 0.3,
+            percentageDelta: 16.6666667,
+            driftCapable: true,
+            driftReason: 'stable',
+          },
+        ],
+      },
+      {
+        variantId: '00000000-0000-0000-0000-000000000213',
+        name: 'Higher fee',
+        overrideType: 'fee_profile',
+        metrics: {
+          lpNetIrr: 0.19,
+          gpNetIrr: 0.12,
+          totalManagementFees: 2_500_000,
+          totalGpCarryDistributed: 500_000,
+          totalGpFeeIncome: 2_500_000,
+          finalDpi: 0.5,
+          finalTvpi: 1.6,
+          finalClawbackDue: 0,
+        },
+        metricDeltas: [
+          {
+            metric: 'lpNetIrr',
+            displayName: 'Net LP IRR',
+            baselineValue: 0,
+            scenarioValue: 0.19,
+            absoluteDelta: null,
+            percentageDelta: null,
+            driftCapable: false,
+            driftReason: 'zero_baseline',
+          },
+        ],
+      },
+    ],
+    staleness: 'CURRENT',
+    calculatedAt: '2026-05-26T12:30:00.000Z',
   };
 }
