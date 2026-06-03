@@ -1,5 +1,5 @@
 {
-  "total": 29,
+  "total": 28,
   "files": [
     "client/src/components/cap-table/cap-table-calculator.tsx",
     "client/src/components/dashboard/dashboard.tsx",
@@ -7,7 +7,6 @@
     "client/src/components/planning/portfolio-construction.tsx",
     "client/src/components/portfolio/enhanced-portfolio-analytics.tsx",
     "client/src/components/ui/DataTable.tsx",
-    "client/src/components/ui/PremiumCardEnhanced.tsx",
     "client/src/components/ui/chart.tsx",
     "client/src/components/ui/sidebar.tsx",
     "client/src/lib/index.ts",
@@ -38,8 +37,6 @@
     "shared/**/*.{ts,tsx,js}",
     "types/**/*.d.ts"
   ],
-  "ignore": [
-    "**/node_modules/**"
-  ],
+  "ignore": ["**/node_modules/**"],
   "detector": "^\\s*\\/\\*\\s*eslint-disable\\b"
 }
