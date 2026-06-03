@@ -26,8 +26,8 @@ describe('ScenarioComparisonTable', () => {
     expect(within(table).getByText('17.0%')).toBeInTheDocument();
     expect(within(table).getAllByText('$2.0M').length).toBeGreaterThanOrEqual(1);
     expect(within(table).getByText('2.10x')).toBeInTheDocument();
-    expect(within(table).getByText('+0.30x')).toBeInTheDocument();
-    expect(within(table).getByText(/\+16\.7%/)).toBeInTheDocument();
+    expect(within(table).getByText(/Higher by \+0\.30x/)).toBeInTheDocument();
+    expect(within(table).getByText(/16\.7%/)).toBeInTheDocument();
     expect(within(table).getAllByText('N/A').length).toBeGreaterThanOrEqual(1);
     expect(table).not.toHaveTextContent('MOIC');
     expect(table).not.toHaveTextContent('Reserve Util.');
@@ -103,13 +103,12 @@ describe('ScenarioComparisonTable', () => {
     expect(within(table).getByText('17.0%')).toBeInTheDocument(); // variant 1
     expect(within(table).getByText('19.0%')).toBeInTheDocument(); // variant 2
 
-    // variant 1's drift-capable delta renders in-cell
-    expect(within(table).getByText('+0.30x')).toBeInTheDocument();
+    // variant 1's drift-capable delta renders in-cell with direction-aware copy
+    expect(within(table).getByText(/Higher by \+0\.30x/)).toBeInTheDocument();
 
-    // variant 2's non-drift-capable delta renders the preserved reason copy
-    expect(within(table).getByText('Drift unavailable')).toBeInTheDocument();
+    // variant 2's non-drift-capable delta renders the shared terse drift copy
     expect(
-      within(table).getByText('Baseline value is zero, so percentage drift is unstable.')
+      within(table).getByText('Baseline is zero; percentage delta unavailable')
     ).toBeInTheDocument();
   });
 });
