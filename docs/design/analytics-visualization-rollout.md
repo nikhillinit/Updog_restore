@@ -1,7 +1,7 @@
 ---
 status: ACTIVE
 audience: both
-last_updated: 2026-06-02
+last_updated: 2026-06-03
 categories: [design, analytics, rollout, visualization, truthfulness]
 keywords:
   [
@@ -307,6 +307,33 @@ contract slice before the matching UI, or the UI ships on missing data.
 - **Comparison drivers:** broaden `overrideType` beyond `fee_profile` and add
   assumption-diff/driver data to `fund-scenario-comparison-v1.contract.ts`
   before Phase 4's "why did it change" comparisons.
+
+### R5 pilot (PR C) deferred contract dependencies
+
+The R5 scenario-comparison evidence pilot surfaced these dependencies. Each is
+deferred deliberately; the comparison evidence bands only claim what the
+contracts carry today.
+
+- **Comparison calculation mode:** `fund-scenario-comparison-v1.contract.ts`
+  carries no `calculationMode`, so the comparison evidence band omits a MODE
+  segment. The per-set `ScenarioEvidenceHeader` still shows MODE from the
+  scenario-sets contract. Add `calculationMode` to the comparison contract
+  before showing it on comparison surfaces.
+- **Comparison drivers / assumption diff:** still deferred (see above) --
+  required before "why did it change" narratives on the comparison bands.
+- **Non-fee-profile comparison semantics:** reserve-allocation, allocation, and
+  sector-profile comparisons render an explicit "not supported yet" state until
+  the server emits comparison semantics for those override types.
+- **Access-scope evidence field:** still deferred (see above) -- no scope chip
+  on scenario comparison surfaces until the field is contract-backed.
+- **Scorecard source summary:** still deferred from PR B; the overview
+  mixed-source label is derived client-side from the scorecard payload's
+  per-field sources.
+- **Reading-first exception (flag, not changed in this pilot):** the scenario
+  workspace still exposes a "Create optimized reserve plan" write action
+  (`fund-scenario-workspace.tsx`). It is left in place; gating or relocating it
+  is a separate decision, recorded here so the doc and the live UI do not
+  silently disagree.
 
 ## Candidate implementation order from here
 
