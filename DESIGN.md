@@ -1,6 +1,6 @@
 ---
 status: ACTIVE
-last_updated: 2026-06-02
+last_updated: 2026-06-03
 ---
 
 # Design System — Updog / Press On Ventures
@@ -166,9 +166,16 @@ The three design artifacts disagreed on a few values. Resolved, with
 2. **Body font: Inter heading + Poppins body (unchanged).** The v3.1.1 doc's
    Inter-only rendering was page styling, not a mandate. No migration.
 3. **Warning: `#9C6F19`** (canonical) over v3.1.1's `#a95c00`. Applied
-   2026-06-03 (T-H) to `pov.warning` + `warning.DEFAULT`; `semantic.warning`
-   ramp + `confidence.low` left amber for ramp coherence (full unification
-   pending).
+   2026-06-03 (T-H) to `pov.warning` + `warning.DEFAULT`. **Resolved 2026-06-03
+   as two roles** (the success/positive pattern): brand `warning` `#9C6F19` is
+   the status-warning token (now used across the migrated dashboard /
+   fund-model- results surfaces); `semantic.warning` deliberately stays amber as
+   the AI-confidence-low color. Its only consumers are
+   `.ai-confidence-badge.low` (`design-system.css`) and
+   `.ai-confidence-indicator` low state (`tailwind.config.ts`), which must stay
+   amber for confidence-ramp coherence with `confidence.low`. No general/status
+   surface consumes `semantic.warning`, so no code change was required — the
+   roles are already cleanly separated.
 4. **Card radius: canonical scale** (`md 10` / `lg 16`); cards map to `lg`. No
    `14px` token unless brand requires it.
 

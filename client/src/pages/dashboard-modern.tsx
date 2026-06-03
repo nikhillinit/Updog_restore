@@ -34,17 +34,17 @@ function formatMultiple(value: number | null | undefined): string {
 
 function MetricTile({ label, value, detail }: { label: string; value: string; detail: string }) {
   return (
-    <div className="rounded-md border border-slate-200 bg-white p-4">
-      <p className="text-sm text-slate-600">{label}</p>
-      <p className="mt-2 text-2xl font-semibold text-slate-950">{value}</p>
-      <p className="mt-1 text-xs text-slate-500">{detail}</p>
+    <div className="rounded-md border border-pov-beige bg-white p-4">
+      <p className="text-sm text-charcoal-600">{label}</p>
+      <p className="mt-2 text-2xl font-semibold text-pov-charcoal">{value}</p>
+      <p className="mt-1 text-xs text-charcoal-500">{detail}</p>
     </div>
   );
 }
 
 function MetricsUnavailable({ error }: { error: Error | null | undefined }) {
   return (
-    <div className="rounded-md border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
+    <div className="rounded-md border border-warning/30 bg-warning-light p-4 text-sm text-warning-dark">
       <p className="font-medium">Dashboard metrics are temporarily unavailable.</p>
       <p className="mt-1">
         {error?.message || 'The unified metrics layer did not return a supported snapshot.'}
@@ -63,7 +63,7 @@ function OverviewMetricsPanel({
   error: Error | null | undefined;
 }) {
   if (isLoading) {
-    return <p className="text-sm text-slate-600">Loading dashboard metrics...</p>;
+    return <p className="text-sm text-charcoal-600">Loading dashboard metrics...</p>;
   }
 
   if (error || !metrics) {
@@ -106,7 +106,7 @@ function PerformanceMetricsPanel({
   error: Error | null | undefined;
 }) {
   if (isLoading) {
-    return <p className="text-sm text-slate-600">Loading dashboard metrics...</p>;
+    return <p className="text-sm text-charcoal-600">Loading dashboard metrics...</p>;
   }
 
   if (error || !metrics) {
@@ -137,8 +137,8 @@ function PerformanceMetricsPanel({
           detail="Residual value to paid-in"
         />
       </div>
-      <div className="rounded-md border border-slate-200 bg-slate-50 p-4 text-sm text-slate-700">
-        <p className="font-medium text-slate-900">Benchmark and attribution unavailable</p>
+      <div className="rounded-md border border-pov-beige bg-pov-gray p-4 text-sm text-charcoal-700">
+        <p className="font-medium text-pov-charcoal">Benchmark and attribution unavailable</p>
         <p className="mt-1">
           Public benchmark rank, attribution, and quartile claims remain hidden until an
           authoritative benchmark source is wired.
@@ -205,7 +205,7 @@ export default function ModernDashboard() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-100">
+    <div className="min-h-screen bg-pov-gray">
       <POVBrandHeader
         title="Dashboard"
         subtitle="Fund workspace and truthful live surfaces"

@@ -1,11 +1,6 @@
- 
- 
- 
- 
- 
 import React from 'react';
-import { POVBrandHeader } from "@/components/ui/POVLogo";
-import { PortfolioTabs } from "@/components/portfolio/PortfolioTabs";
+import { POVBrandHeader } from '@/components/ui/POVLogo';
+import { PortfolioTabs } from '@/components/portfolio/PortfolioTabs';
 
 /**
  * ModernPortfolio - Main Portfolio Page with Tab Navigation
@@ -17,9 +12,8 @@ import { PortfolioTabs } from "@/components/portfolio/PortfolioTabs";
  * Phase 1c implementation with URL state management
  */
 export default function ModernPortfolio() {
-
   return (
-    <div className="min-h-screen bg-slate-100">
+    <div className="min-h-screen bg-pov-gray">
       <POVBrandHeader
         title="Portfolio"
         subtitle="Monitor and manage your portfolio companies and allocations"
@@ -32,4 +26,3 @@ export default function ModernPortfolio() {
     </div>
   );
 }
-
