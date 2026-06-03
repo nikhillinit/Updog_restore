@@ -223,28 +223,28 @@ export function ReserveConfigurator({ portfolioState }: ReserveConfiguratorProps
   const getRiskColor = (riskLevel: string) => {
     switch (riskLevel) {
       case 'low':
-        return 'text-green-600 bg-green-100';
+        return 'text-presson-positive bg-success/10';
       case 'medium':
-        return 'text-yellow-600 bg-yellow-100';
+        return 'text-presson-warning bg-warning/10';
       case 'high':
-        return 'text-red-600 bg-red-100';
+        return 'text-error bg-error/10';
       default:
-        return 'text-gray-600 bg-gray-100';
+        return 'text-charcoal-600 bg-pov-gray';
     }
   };
 
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'allocated':
-        return 'text-blue-600 bg-blue-100';
+        return 'text-presson-info bg-presson-info/10';
       case 'available':
-        return 'text-green-600 bg-green-100';
+        return 'text-presson-positive bg-success/10';
       case 'deployed':
-        return 'text-purple-600 bg-purple-100';
+        return 'text-presson-info bg-presson-info/10';
       case 'reserved':
-        return 'text-gray-600 bg-gray-100';
+        return 'text-charcoal-600 bg-pov-gray';
       default:
-        return 'text-gray-600 bg-gray-100';
+        return 'text-charcoal-600 bg-pov-gray';
     }
   };
 
@@ -265,12 +265,12 @@ export function ReserveConfigurator({ portfolioState }: ReserveConfiguratorProps
     if (active && payload && payload.length && payload[0]) {
       const data = payload[0].payload;
       return (
-        <div className="bg-white p-3 border border-gray-200 rounded-lg shadow-lg">
-          <p className="font-medium text-gray-900">{data.name}</p>
-          <p className="text-sm text-gray-600">
+        <div className="bg-white p-3 border border-beige-200 rounded-lg shadow-lg">
+          <p className="font-medium text-pov-charcoal">{data.name}</p>
+          <p className="text-sm text-charcoal-600">
             Allocation: <span className="font-medium">{data.value.toFixed(1)}%</span>
           </p>
-          <p className="text-sm text-gray-600">
+          <p className="text-sm text-charcoal-600">
             Amount: <span className="font-medium">${(data.amount / 1000000).toFixed(1)}M</span>
           </p>
         </div>
@@ -285,7 +285,7 @@ export function ReserveConfigurator({ portfolioState }: ReserveConfiguratorProps
       <div className="flex flex-col md:flex-row md:items-center justify-between space-y-4 md:space-y-0">
         <div>
           <h3 className="text-lg font-semibold">Reserve Strategy Configuration</h3>
-          <p className="text-sm text-gray-600">
+          <p className="text-sm text-charcoal-600">
             Optimize reserve allocation across {reservePools.length} pools ($
             {(totalReserveAmount / 1000000).toFixed(1)}M total)
           </p>
@@ -325,20 +325,20 @@ export function ReserveConfigurator({ portfolioState }: ReserveConfiguratorProps
       </div>
 
       {/* Optimization Score */}
-      <Card className="border-l-4 border-l-blue-500">
+      <Card className="border-l-4 border-l-presson-info">
         <CardContent className="p-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-3">
-              <div className="p-2 bg-blue-100 rounded-lg">
-                <Target className="w-5 h-5 text-blue-600" />
+              <div className="p-2 bg-presson-info/10 rounded-lg">
+                <Target className="w-5 h-5 text-presson-info" />
               </div>
               <div>
                 <p className="font-medium">Optimization Score</p>
-                <p className="text-sm text-gray-600">Portfolio reserve allocation efficiency</p>
+                <p className="text-sm text-charcoal-600">Portfolio reserve allocation efficiency</p>
               </div>
             </div>
             <div className="text-right">
-              <p className="text-2xl font-bold text-blue-600">{optimizationScore}/100</p>
+              <p className="text-2xl font-bold text-presson-info">{optimizationScore}/100</p>
               <Badge
                 variant={
                   optimizationScore >= 80
@@ -384,7 +384,9 @@ export function ReserveConfigurator({ portfolioState }: ReserveConfiguratorProps
                   key={pool.id}
                   className={cn(
                     'p-4 border rounded-lg cursor-pointer transition-all hover:shadow-md',
-                    selectedPool === pool.id ? 'border-blue-500 bg-blue-50' : 'border-gray-200'
+                    selectedPool === pool.id
+                      ? 'border-pov-charcoal bg-pov-gray'
+                      : 'border-beige-200'
                   )}
                   onClick={() => setSelectedPool(pool.id)}
                 >
@@ -396,7 +398,7 @@ export function ReserveConfigurator({ portfolioState }: ReserveConfiguratorProps
                       />
                       <div>
                         <p className="font-medium">{pool.name}</p>
-                        <p className="text-sm text-gray-500">{pool.purpose}</p>
+                        <p className="text-sm text-charcoal-500">{pool.purpose}</p>
                       </div>
                     </div>
                     <div className="flex items-center space-x-2">
@@ -426,7 +428,7 @@ export function ReserveConfigurator({ portfolioState }: ReserveConfiguratorProps
                       disabled={optimizationMode === 'auto'}
                     />
 
-                    <div className="grid grid-cols-2 gap-4 text-xs text-gray-600">
+                    <div className="grid grid-cols-2 gap-4 text-xs text-charcoal-600">
                       <div>
                         <span className="font-medium">Trigger:</span> {pool.deploymentTrigger}
                       </div>
@@ -436,7 +438,7 @@ export function ReserveConfigurator({ portfolioState }: ReserveConfiguratorProps
                     </div>
 
                     {pool.companies.length > 0 && (
-                      <div className="text-xs text-gray-600">
+                      <div className="text-xs text-charcoal-600">
                         <span className="font-medium">Companies:</span> {pool.companies.join(', ')}
                       </div>
                     )}
@@ -453,30 +455,30 @@ export function ReserveConfigurator({ portfolioState }: ReserveConfiguratorProps
                   className={cn(
                     'font-medium',
                     isOverAllocated
-                      ? 'text-red-600'
+                      ? 'text-error'
                       : totalAllocated === 100
-                        ? 'text-green-600'
-                        : 'text-gray-600'
+                        ? 'text-presson-positive'
+                        : 'text-charcoal-600'
                   )}
                 >
                   {totalAllocated.toFixed(1)}%
                 </span>
               </div>
-              <div className="w-full bg-gray-200 rounded-full h-2">
+              <div className="w-full bg-charcoal-200 rounded-full h-2">
                 <div
                   className={cn(
                     'h-2 rounded-full transition-all',
                     isOverAllocated
-                      ? 'bg-red-500'
+                      ? 'bg-error'
                       : totalAllocated === 100
-                        ? 'bg-green-500'
-                        : 'bg-blue-500'
+                        ? 'bg-success'
+                        : 'bg-presson-info'
                   )}
                   style={{ width: `${Math.min(100, totalAllocated)}%` }}
                 />
               </div>
               {isOverAllocated && (
-                <p className="text-xs text-red-600 mt-1 flex items-center">
+                <p className="text-xs text-error mt-1 flex items-center">
                   <AlertCircle className="w-3 h-3 mr-1" />
                   Over-allocated by {(totalAllocated - 100).toFixed(1)}%
                 </p>
@@ -554,7 +556,7 @@ export function ReserveConfigurator({ portfolioState }: ReserveConfiguratorProps
               {optimizationSuggestions.map((suggestion, index) => (
                 <div
                   key={index}
-                  className="p-4 border border-gray-200 rounded-lg hover:shadow-md transition-shadow"
+                  className="p-4 border border-beige-200 rounded-lg hover:shadow-md transition-shadow"
                 >
                   <div className="flex items-start justify-between mb-3">
                     <div className="flex items-center space-x-2">
@@ -562,22 +564,22 @@ export function ReserveConfigurator({ portfolioState }: ReserveConfiguratorProps
                         className={cn(
                           'p-1 rounded-full',
                           suggestion.type === 'opportunity'
-                            ? 'bg-green-100'
+                            ? 'bg-success/10'
                             : suggestion.type === 'risk_reduction'
-                              ? 'bg-red-100'
+                              ? 'bg-error/10'
                               : suggestion.type === 'reallocation'
-                                ? 'bg-blue-100'
-                                : 'bg-yellow-100'
+                                ? 'bg-presson-info/10'
+                                : 'bg-warning/10'
                         )}
                       >
                         {suggestion.type === 'opportunity' ? (
-                          <TrendingUp className="w-4 h-4 text-green-600" />
+                          <TrendingUp className="w-4 h-4 text-presson-positive" />
                         ) : suggestion.type === 'risk_reduction' ? (
-                          <Shield className="w-4 h-4 text-red-600" />
+                          <Shield className="w-4 h-4 text-error" />
                         ) : suggestion.type === 'reallocation' ? (
-                          <Target className="w-4 h-4 text-blue-600" />
+                          <Target className="w-4 h-4 text-presson-info" />
                         ) : (
-                          <Clock className="w-4 h-4 text-yellow-600" />
+                          <Clock className="w-4 h-4 text-presson-warning" />
                         )}
                       </div>
                       <Badge variant="outline" className="text-xs">
@@ -585,17 +587,17 @@ export function ReserveConfigurator({ portfolioState }: ReserveConfiguratorProps
                       </Badge>
                     </div>
                     <div className="text-right">
-                      <p className="text-sm font-medium text-green-600">
+                      <p className="text-sm font-medium text-presson-positive">
                         +{(suggestion.impact * 100).toFixed(1)}% IRR
                       </p>
-                      <p className="text-xs text-gray-500">
+                      <p className="text-xs text-charcoal-500">
                         {(suggestion.confidence * 100).toFixed(0)}% confidence
                       </p>
                     </div>
                   </div>
 
-                  <h4 className="font-medium text-gray-900 mb-2">{suggestion.title}</h4>
-                  <p className="text-sm text-gray-600 mb-3">{suggestion.description}</p>
+                  <h4 className="font-medium text-pov-charcoal mb-2">{suggestion.title}</h4>
+                  <p className="text-sm text-charcoal-600 mb-3">{suggestion.description}</p>
 
                   <div className="flex items-center justify-between">
                     <Badge

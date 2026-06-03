@@ -318,7 +318,7 @@ export default function PortfolioConstructor() {
   if (fundsLoading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-presson-info"></div>
       </div>
     );
   }
@@ -328,8 +328,10 @@ export default function PortfolioConstructor() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">Portfolio Constructor</h1>
-          <p className="text-gray-600 mt-1">Build and optimize your fund's portfolio strategy</p>
+          <h1 className="text-3xl font-bold text-pov-charcoal">Portfolio Constructor</h1>
+          <p className="text-charcoal-600 mt-1">
+            Build and optimize your fund's portfolio strategy
+          </p>
         </div>
         <div className="flex gap-3">
           <Button
@@ -451,7 +453,7 @@ export default function PortfolioConstructor() {
                     step={5}
                     className="mt-2"
                   />
-                  <div className="flex justify-between text-sm text-gray-500 mt-1">
+                  <div className="flex justify-between text-sm text-charcoal-500 mt-1">
                     <span>20%</span>
                     <span>70%</span>
                   </div>
@@ -500,11 +502,11 @@ export default function PortfolioConstructor() {
                 </div>
 
                 <div className="pt-2">
-                  <div className="text-sm text-gray-600">
+                  <div className="text-sm text-charcoal-600">
                     Estimated Initial Deals:{' '}
                     <span className="font-medium">{calculatedMetrics.estimatedDeals}</span>
                   </div>
-                  <div className="text-sm text-gray-600">
+                  <div className="text-sm text-charcoal-600">
                     Average Check:{' '}
                     <span className="font-medium">
                       {formatCurrency(calculatedMetrics.avgCheckSize)}
@@ -776,7 +778,9 @@ export default function PortfolioConstructor() {
                     <div
                       key={index}
                       className={`p-4 rounded-lg border ${
-                        activeScenario === index ? 'border-blue-500 bg-blue-50' : 'border-gray-200'
+                        activeScenario === index
+                          ? 'border-pov-charcoal bg-pov-gray'
+                          : 'border-beige-200'
                       }`}
                     >
                       <div className="flex items-center justify-between mb-3">
@@ -796,7 +800,7 @@ export default function PortfolioConstructor() {
 
                       <div className="grid grid-cols-2 gap-4 text-sm">
                         <div>
-                          <span className="text-gray-600">Projected IRR:</span>
+                          <span className="text-charcoal-600">Projected IRR:</span>
                           <div className="font-medium">
                             {formatPercentage(
                               calculatedMetrics.projectedIRR * scenario.exitMultiplier
@@ -804,7 +808,7 @@ export default function PortfolioConstructor() {
                           </div>
                         </div>
                         <div>
-                          <span className="text-gray-600">Multiple:</span>
+                          <span className="text-charcoal-600">Multiple:</span>
                           <div className="font-medium">
                             {(
                               calculatedMetrics.projectedMultiple * scenario.exitMultiplier
@@ -813,13 +817,13 @@ export default function PortfolioConstructor() {
                           </div>
                         </div>
                         <div>
-                          <span className="text-gray-600">DPI:</span>
+                          <span className="text-charcoal-600">DPI:</span>
                           <div className="font-medium">
                             {(calculatedMetrics.projectedDPI * scenario.exitMultiplier).toFixed(1)}x
                           </div>
                         </div>
                         <div>
-                          <span className="text-gray-600">TVPI:</span>
+                          <span className="text-charcoal-600">TVPI:</span>
                           <div className="font-medium">
                             {(calculatedMetrics.projectedTVPI * scenario.exitMultiplier).toFixed(1)}
                             x
@@ -845,27 +849,27 @@ export default function PortfolioConstructor() {
               <CardContent>
                 <div className="space-y-4">
                   <div className="grid grid-cols-2 gap-4">
-                    <div className="p-4 bg-gray-50 rounded-lg">
-                      <div className="text-sm text-gray-600">Target IRR</div>
-                      <div className="text-2xl font-bold text-green-600">
+                    <div className="p-4 bg-pov-gray rounded-lg">
+                      <div className="text-sm text-charcoal-600">Target IRR</div>
+                      <div className="text-2xl font-bold text-presson-positive">
                         {formatPercentage(calculatedMetrics.projectedIRR)}
                       </div>
                     </div>
-                    <div className="p-4 bg-gray-50 rounded-lg">
-                      <div className="text-sm text-gray-600">Fund Multiple</div>
-                      <div className="text-2xl font-bold text-blue-600">
+                    <div className="p-4 bg-pov-gray rounded-lg">
+                      <div className="text-sm text-charcoal-600">Fund Multiple</div>
+                      <div className="text-2xl font-bold text-presson-info">
                         {calculatedMetrics.projectedMultiple.toFixed(1)}x
                       </div>
                     </div>
-                    <div className="p-4 bg-gray-50 rounded-lg">
-                      <div className="text-sm text-gray-600">DPI</div>
-                      <div className="text-2xl font-bold text-purple-600">
+                    <div className="p-4 bg-pov-gray rounded-lg">
+                      <div className="text-sm text-charcoal-600">DPI</div>
+                      <div className="text-2xl font-bold text-presson-info">
                         {calculatedMetrics.projectedDPI.toFixed(1)}x
                       </div>
                     </div>
-                    <div className="p-4 bg-gray-50 rounded-lg">
-                      <div className="text-sm text-gray-600">TVPI</div>
-                      <div className="text-2xl font-bold text-orange-600">
+                    <div className="p-4 bg-pov-gray rounded-lg">
+                      <div className="text-sm text-charcoal-600">TVPI</div>
+                      <div className="text-2xl font-bold text-presson-warning">
                         {calculatedMetrics.projectedTVPI.toFixed(1)}x
                       </div>
                     </div>
@@ -884,22 +888,22 @@ export default function PortfolioConstructor() {
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
-                  <div className="flex items-center justify-between p-3 bg-yellow-50 rounded-lg">
+                  <div className="flex items-center justify-between p-3 bg-warning/10 rounded-lg">
                     <span className="text-sm">Concentration Risk</span>
                     <Badge variant="outline">Medium</Badge>
                   </div>
-                  <div className="flex items-center justify-between p-3 bg-green-50 rounded-lg">
+                  <div className="flex items-center justify-between p-3 bg-success/10 rounded-lg">
                     <span className="text-sm">Diversification</span>
                     <Badge variant="outline">Good</Badge>
                   </div>
-                  <div className="flex items-center justify-between p-3 bg-blue-50 rounded-lg">
+                  <div className="flex items-center justify-between p-3 bg-presson-info/10 rounded-lg">
                     <span className="text-sm">Market Risk</span>
                     <Badge variant="outline">Low</Badge>
                   </div>
 
                   <div className="pt-2">
                     <h4 className="font-medium mb-2">Key Risk Factors:</h4>
-                    <ul className="text-sm text-gray-600 space-y-1">
+                    <ul className="text-sm text-charcoal-600 space-y-1">
                       <li>• High allocation to early-stage investments</li>
                       <li>• Geographic concentration in North America</li>
                       <li>• Sector concentration in technology</li>
@@ -945,18 +949,18 @@ export default function PortfolioConstructor() {
               </div>
 
               <div className="mt-6 grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div className="p-4 bg-gray-50 rounded-lg">
-                  <div className="text-sm text-gray-600">Deployment Period</div>
+                <div className="p-4 bg-pov-gray rounded-lg">
+                  <div className="text-sm text-charcoal-600">Deployment Period</div>
                   <div className="text-lg font-bold">{strategy.deploymentPeriodMonths} months</div>
                 </div>
-                <div className="p-4 bg-gray-50 rounded-lg">
-                  <div className="text-sm text-gray-600">Quarterly Deployment</div>
+                <div className="p-4 bg-pov-gray rounded-lg">
+                  <div className="text-sm text-charcoal-600">Quarterly Deployment</div>
                   <div className="text-lg font-bold">
                     {formatCurrency(calculatedMetrics.deploymentPerQuarter)}
                   </div>
                 </div>
-                <div className="p-4 bg-gray-50 rounded-lg">
-                  <div className="text-sm text-gray-600">Final Portfolio</div>
+                <div className="p-4 bg-pov-gray rounded-lg">
+                  <div className="text-sm text-charcoal-600">Final Portfolio</div>
                   <div className="text-lg font-bold">
                     {calculatedMetrics.estimatedDeals} companies
                   </div>
@@ -969,13 +973,13 @@ export default function PortfolioConstructor() {
 
       {/* Simulation Status */}
       {isSimulating && (
-        <Card className="border-blue-200 bg-blue-50">
+        <Card className="border-presson-info/20 bg-presson-info/10">
           <CardContent className="p-4">
             <div className="flex items-center gap-3">
-              <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
+              <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-presson-info"></div>
               <div>
                 <div className="font-medium">Running Monte Carlo Simulation</div>
-                <div className="text-sm text-gray-600">
+                <div className="text-sm text-charcoal-600">
                   Analyzing 10,000 scenarios across market conditions...
                 </div>
               </div>

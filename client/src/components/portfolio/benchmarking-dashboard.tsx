@@ -186,10 +186,10 @@ export default function BenchmarkingDashboard() {
   // Performance Score Card
   const renderScorecard = (company: (typeof PORTFOLIO_COMPANIES)[0]) => {
     const getPerformanceColor = (percentile: number) => {
-      if (percentile >= 75) return 'text-green-600 bg-green-100';
-      if (percentile >= 50) return 'text-blue-600 bg-blue-100';
-      if (percentile >= 25) return 'text-yellow-600 bg-yellow-100';
-      return 'text-red-600 bg-red-100';
+      if (percentile >= 75) return 'text-presson-positive bg-success/10';
+      if (percentile >= 50) return 'text-presson-info bg-presson-info/10';
+      if (percentile >= 25) return 'text-presson-warning bg-warning/10';
+      return 'text-error bg-error/10';
     };
 
     return (
@@ -200,15 +200,15 @@ export default function BenchmarkingDashboard() {
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="text-center">
-              <div className="text-sm text-gray-500 mb-2">My sector</div>
-              <div className="text-2xl font-bold text-blue-600">{company.sector}</div>
+              <div className="text-sm text-charcoal-500 mb-2">My sector</div>
+              <div className="text-2xl font-bold text-presson-info">{company.sector}</div>
             </div>
             <div className="text-center">
-              <div className="text-sm text-gray-500 mb-2">My annualized revenue:</div>
+              <div className="text-sm text-charcoal-500 mb-2">My annualized revenue:</div>
               <div className="text-3xl font-bold">{company.revenue}</div>
             </div>
             <div className="text-center">
-              <div className="text-sm text-gray-500 mb-2">My peers' revenue scale:</div>
+              <div className="text-sm text-charcoal-500 mb-2">My peers' revenue scale:</div>
               <div className="text-2xl font-bold">$500K-20M</div>
             </div>
           </CardContent>
@@ -269,7 +269,7 @@ export default function BenchmarkingDashboard() {
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
         <div>
           <h2 className="text-2xl font-bold">Benchmarks</h2>
-          <p className="text-gray-600">
+          <p className="text-charcoal-600">
             Compare your portfolio companies against industry benchmarks
           </p>
         </div>
@@ -316,18 +316,18 @@ export default function BenchmarkingDashboard() {
           {/* Portfolio vs Global Toggle */}
           <div className="flex items-center gap-4">
             <div className="flex items-center space-x-2">
-              <Badge variant="default" className="bg-blue-600">
+              <Badge variant="default" className="bg-pov-charcoal">
                 P
               </Badge>
               <span className="text-sm">Portfolio Benchmarks</span>
             </div>
-            <span className="text-gray-400">VS.</span>
+            <span className="text-charcoal-400">VS.</span>
             <div className="flex items-center space-x-2">
-              <Badge variant="default" className="bg-green-600">
+              <Badge variant="default" className="bg-presson-positive">
                 G
               </Badge>
               <span className="text-sm">Global Benchmarks</span>
-              <div className="w-6 h-4 bg-green-600 rounded-full relative">
+              <div className="w-6 h-4 bg-presson-positive rounded-full relative">
                 <div className="absolute right-1 top-0.5 w-3 h-3 bg-white rounded-full"></div>
               </div>
             </div>
@@ -339,9 +339,9 @@ export default function BenchmarkingDashboard() {
               <div className="flex items-center justify-between">
                 <CardTitle className="flex items-center gap-2">
                   Revenue Growth
-                  <Info className="h-4 w-4 text-gray-400" />
+                  <Info className="h-4 w-4 text-charcoal-400" />
                 </CardTitle>
-                <div className="text-sm text-gray-500">Q4 2024</div>
+                <div className="text-sm text-charcoal-500">Q4 2024</div>
               </div>
             </CardHeader>
             <CardContent>{renderBenchmarkChart()}</CardContent>
@@ -373,7 +373,7 @@ export default function BenchmarkingDashboard() {
                 ].map((metric) => (
                   <div
                     key={metric}
-                    className="p-2 text-sm border rounded cursor-pointer hover:bg-gray-50"
+                    className="p-2 text-sm border rounded cursor-pointer hover:bg-pov-gray"
                   >
                     {metric}
                   </div>
@@ -404,7 +404,7 @@ export default function BenchmarkingDashboard() {
                 ))}
               </SelectContent>
             </Select>
-            <Badge variant="outline" className="bg-green-100 text-green-800">
+            <Badge variant="outline" className="bg-success/10 text-success-dark">
               Online
             </Badge>
           </div>
@@ -417,15 +417,15 @@ export default function BenchmarkingDashboard() {
               </CardHeader>
               <CardContent className="space-y-4">
                 <div>
-                  <div className="text-sm text-gray-500 mb-1">Sector</div>
+                  <div className="text-sm text-charcoal-500 mb-1">Sector</div>
                   <div className="font-medium">{selectedCompany?.sector ?? 'N/A'}</div>
                 </div>
                 <div>
-                  <div className="text-sm text-gray-500 mb-1">Revenue scale</div>
+                  <div className="text-sm text-charcoal-500 mb-1">Revenue scale</div>
                   <div className="font-medium">{selectedCompany?.revenue ?? 'N/A'}</div>
                 </div>
                 <div>
-                  <a href="#" className="text-blue-600 text-sm hover:underline">
+                  <a href="#" className="text-presson-info text-sm hover:underline">
                     http://www.{selectedCompany?.name?.toLowerCase() ?? 'company'}.ai
                   </a>
                 </div>
@@ -438,7 +438,7 @@ export default function BenchmarkingDashboard() {
                 <div className="flex items-center justify-between">
                   <div>
                     <CardTitle>Portfolio quartile ranking</CardTitle>
-                    <p className="text-sm text-gray-600 mt-1">
+                    <p className="text-sm text-charcoal-600 mt-1">
                       Chart shows company's metrics vs. peers.
                     </p>
                   </div>
@@ -461,13 +461,13 @@ export default function BenchmarkingDashboard() {
                 {PORTFOLIO_COMPANIES.map((company) => (
                   <div
                     key={company.id}
-                    className={`flex items-center justify-between p-3 rounded-lg border cursor-pointer hover:bg-gray-50 ${
-                      company.id === selectedCompany?.id ? 'bg-blue-50 border-blue-200' : ''
+                    className={`flex items-center justify-between p-3 rounded-lg border cursor-pointer hover:bg-pov-gray ${
+                      company.id === selectedCompany?.id ? 'bg-pov-gray border-pov-charcoal' : ''
                     }`}
                     onClick={() => setSelectedCompany(company)}
                   >
                     <div className="flex items-center space-x-3">
-                      <div className="w-8 h-8 bg-gray-900 text-white rounded flex items-center justify-center text-sm font-medium">
+                      <div className="w-8 h-8 bg-pov-charcoal text-white rounded flex items-center justify-center text-sm font-medium">
                         {company.name.charAt(0)}
                       </div>
                       <span className="font-medium">{company.name}</span>
@@ -486,31 +486,31 @@ export default function BenchmarkingDashboard() {
           <Card>
             <CardHeader>
               <CardTitle>Revenue Growth</CardTitle>
-              <div className="text-right text-sm text-gray-500">As of Q2 2024</div>
+              <div className="text-right text-sm text-charcoal-500">As of Q2 2024</div>
             </CardHeader>
             <CardContent>
               <div className="space-y-6">
                 <div className="text-center">
                   <div className="text-6xl font-bold">72%</div>
-                  <Badge variant="default" className="bg-green-100 text-green-800 mt-2">
+                  <Badge variant="default" className="bg-success/10 text-success-dark mt-2">
                     Above Average
                   </Badge>
                 </div>
 
                 {/* Performance Bar */}
                 <div className="space-y-2">
-                  <div className="flex justify-between text-sm text-gray-500">
+                  <div className="flex justify-between text-sm text-charcoal-500">
                     <span>Bottom Quartile: 0.00%</span>
                     <span>Median Quartile: 10.00%</span>
                     <span>Top Quartile: 24.00%</span>
                   </div>
                   <div className="relative">
-                    <div className="w-full h-6 bg-gradient-to-r from-red-200 via-yellow-200 to-green-200 rounded"></div>
+                    <div className="w-full h-6 bg-gradient-to-r from-presson-negative/20 via-presson-warning/20 to-presson-positive/20 rounded"></div>
                     <div className="absolute top-0 right-8 transform -translate-y-1">
-                      <Badge variant="default" className="bg-gray-900 text-white text-xs">
+                      <Badge variant="default" className="bg-pov-charcoal text-white text-xs">
                         Instaspace 30.66%
                       </Badge>
-                      <div className="w-0.5 h-8 bg-gray-900 mx-auto"></div>
+                      <div className="w-0.5 h-8 bg-pov-charcoal mx-auto"></div>
                     </div>
                   </div>
                 </div>
@@ -523,7 +523,7 @@ export default function BenchmarkingDashboard() {
           {/* Company Filters */}
           <div className="flex flex-wrap items-center gap-4">
             <div className="flex items-center space-x-2">
-              <Search className="h-4 w-4 text-gray-400" />
+              <Search className="h-4 w-4 text-charcoal-400" />
               <Input
                 placeholder="Search companies..."
                 value={searchTerm}
@@ -551,7 +551,7 @@ export default function BenchmarkingDashboard() {
                 <SelectItem value="annual">Annual</SelectItem>
               </SelectContent>
             </Select>
-            <Button className="bg-blue-600 hover:bg-blue-700">Add company</Button>
+            <Button className="bg-pov-charcoal hover:bg-charcoal-700">Add company</Button>
           </div>
 
           {/* Companies Table */}
@@ -561,14 +561,18 @@ export default function BenchmarkingDashboard() {
                 <table className="w-full">
                   <thead className="border-b">
                     <tr className="text-left">
-                      <th className="p-4 font-medium text-gray-500 uppercase text-xs">Vendor</th>
-                      <th className="p-4 font-medium text-gray-500 uppercase text-xs">
+                      <th className="p-4 font-medium text-charcoal-500 uppercase text-xs">
+                        Vendor
+                      </th>
+                      <th className="p-4 font-medium text-charcoal-500 uppercase text-xs">
                         Firm Sector
                       </th>
-                      <th className="p-4 font-medium text-gray-500 uppercase text-xs">
+                      <th className="p-4 font-medium text-charcoal-500 uppercase text-xs">
                         Cash in Bank
                       </th>
-                      <th className="p-4 font-medium text-gray-500 uppercase text-xs">Revenue</th>
+                      <th className="p-4 font-medium text-charcoal-500 uppercase text-xs">
+                        Revenue
+                      </th>
                     </tr>
                   </thead>
                   <tbody>
@@ -596,7 +600,7 @@ export default function BenchmarkingDashboard() {
                         logo: 'O',
                       },
                     ].map((company, index) => (
-                      <tr key={index} className="border-b hover:bg-gray-50">
+                      <tr key={index} className="border-b hover:bg-pov-gray">
                         <td className="p-4">
                           <div className="flex items-center space-x-3">
                             <div className="text-2xl">{company.logo}</div>
