@@ -472,9 +472,7 @@ export default function InvestmentsTable() {
                     />
                   </td>
                   <td className="p-3">
-                    <div className="font-medium text-presson-info cursor-pointer hover:text-charcoal-700">
-                      {investment.company}
-                    </div>
+                    <div className="font-medium text-pov-charcoal">{investment.company}</div>
                     <div className="text-sm text-charcoal-500">{investment.entryDate}</div>
                   </td>
                   <td className="p-3 text-charcoal-700">{investment.sector}</td>

@@ -13,6 +13,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { TrendingUp, Calculator, Target, Info } from 'lucide-react';
+import { presson } from '@/theme/presson.tokens';
 
 type MOICData = {
   companyName: string;
@@ -30,6 +31,21 @@ type MOICData = {
   sector: string;
   stage: string;
 };
+
+const UI_SUCCESS_COLOR = '#10b981';
+const CHART_GRID_COLOR = presson.color.borderSubtle;
+const CHART_AXIS_COLOR = presson.color.textMuted;
+const CHART_BORDER = presson.color.borderSubtle;
+const MOIC_SERIES_COLORS = {
+  current: presson.color.positive,
+  currentInitial: presson.color.text,
+  currentDeployedReserves: presson.color.info,
+  exit: presson.color.positive,
+  exitInitial: presson.color.text,
+  exitFollowOns: presson.color.info,
+  exitPlannedReserves: UI_SUCCESS_COLOR,
+  expectedReserves: presson.color.positive,
+} as const;
 
 type TooltipLabelPayload = ReadonlyArray<{
   payload?: {
@@ -166,10 +182,9 @@ export default function MOICAnalysis() {
   };
 
   const getMOICColor = (value: number) => {
-    if (value >= 5) return 'text-presson-positive';
-    if (value >= 3) return 'text-presson-info';
-    if (value >= 2) return 'text-presson-warning';
-    return 'text-error';
+    if (value >= 2) return 'text-presson-positive';
+    if (value >= 1) return 'text-presson-warning';
+    return 'text-presson-negative';
   };
 
   const getCurrentMOICChartData = () => {
@@ -271,13 +286,19 @@ export default function MOICAnalysis() {
                 <div className="h-80">
                   <ResponsiveContainer width="100%" height="100%">
                     <BarChart data={getCurrentMOICChartData()}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-                      <XAxis dataKey="name" stroke="#666" fontSize={12} />
-                      <YAxis stroke="#666" fontSize={12} />
+                      <CartesianGrid strokeDasharray="3 3" stroke={CHART_GRID_COLOR} />
+                      <XAxis dataKey="name" stroke={CHART_AXIS_COLOR} fontSize={12} />
+                      <YAxis stroke={CHART_AXIS_COLOR} fontSize={12} />
                       <Tooltip formatter={(value) => [`${value}x`, String(value)]} />
-                      <Bar dataKey="Current MOIC" fill="#3b82f6" />
-                      <Bar dataKey="Current MOIC on Initial" fill="#06b6d4" />
-                      <Bar dataKey="Current MOIC on Deployed Reserves" fill="#10b981" />
+                      <Bar dataKey="Current MOIC" fill={MOIC_SERIES_COLORS.current} />
+                      <Bar
+                        dataKey="Current MOIC on Initial"
+                        fill={MOIC_SERIES_COLORS.currentInitial}
+                      />
+                      <Bar
+                        dataKey="Current MOIC on Deployed Reserves"
+                        fill={MOIC_SERIES_COLORS.currentDeployedReserves}
+                      />
                     </BarChart>
                   </ResponsiveContainer>
                 </div>
@@ -329,14 +350,20 @@ export default function MOICAnalysis() {
               <div className="h-80">
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart data={getExitMOICChartData()}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-                    <XAxis dataKey="name" stroke="#666" fontSize={12} />
-                    <YAxis stroke="#666" fontSize={12} />
+                    <CartesianGrid strokeDasharray="3 3" stroke={CHART_GRID_COLOR} />
+                    <XAxis dataKey="name" stroke={CHART_AXIS_COLOR} fontSize={12} />
+                    <YAxis stroke={CHART_AXIS_COLOR} fontSize={12} />
                     <Tooltip formatter={(value) => [`${value}x`, String(value)]} />
-                    <Bar dataKey="Exit MOIC" fill="#8b5cf6" />
-                    <Bar dataKey="Exit MOIC on Initial" fill="#f59e0b" />
-                    <Bar dataKey="Exit MOIC on Follow-Ons" fill="#ef4444" />
-                    <Bar dataKey="Exit MOIC on Planned Reserves" fill="#06d6a0" />
+                    <Bar dataKey="Exit MOIC" fill={MOIC_SERIES_COLORS.exit} />
+                    <Bar dataKey="Exit MOIC on Initial" fill={MOIC_SERIES_COLORS.exitInitial} />
+                    <Bar
+                      dataKey="Exit MOIC on Follow-Ons"
+                      fill={MOIC_SERIES_COLORS.exitFollowOns}
+                    />
+                    <Bar
+                      dataKey="Exit MOIC on Planned Reserves"
+                      fill={MOIC_SERIES_COLORS.exitPlannedReserves}
+                    />
                   </BarChart>
                 </ResponsiveContainer>
               </div>
@@ -357,10 +384,10 @@ export default function MOICAnalysis() {
               <div className="h-80">
                 <ResponsiveContainer width="100%" height="100%">
                   <ScatterChart data={getPlannedReservesData()}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                    <CartesianGrid strokeDasharray="3 3" stroke={CHART_GRID_COLOR} />
                     <XAxis
                       dataKey="plannedReserves"
-                      stroke="#666"
+                      stroke={CHART_AXIS_COLOR}
                       fontSize={12}
                       label={{
                         value: 'Planned Reserves ($M)',
@@ -370,7 +397,7 @@ export default function MOICAnalysis() {
                     />
                     <YAxis
                       dataKey="expectedMOIC"
-                      stroke="#666"
+                      stroke={CHART_AXIS_COLOR}
                       fontSize={12}
                       label={{ value: 'Expected MOIC', angle: -90, position: 'insideLeft' }}
                     />
@@ -383,11 +410,11 @@ export default function MOICAnalysis() {
                       labelFormatter={formatReserveTooltipLabel}
                       contentStyle={{
                         backgroundColor: 'white',
-                        border: '1px solid #e5e7eb',
+                        border: `1px solid ${CHART_BORDER}`,
                         borderRadius: '6px',
                       }}
                     />
-                    <Scatter dataKey="expectedMOIC" fill="#3b82f6" />
+                    <Scatter dataKey="expectedMOIC" fill={MOIC_SERIES_COLORS.expectedReserves} />
                   </ScatterChart>
                 </ResponsiveContainer>
               </div>

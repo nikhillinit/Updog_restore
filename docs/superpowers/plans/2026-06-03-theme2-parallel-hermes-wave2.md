@@ -306,11 +306,18 @@ filters out).
 
 Run: `npm run check` Expected: `[OK] No new TypeScript errors introduced`.
 
-- [ ] **Step 4: Targeted tests**
+- [ ] **Step 4: Client test gate**
 
-Run: `npm test -- --project=client --run client/src/components/portfolio`
-Expected: PASS (or no tests found). Local box is Node 24 — if it errors on
-engine, trust CI and note it; do not block on the local engine warning.
+Run:
+
+```bash
+npx cross-env TZ=UTC vitest run --config vitest.config.mjs --configLoader native --project=client
+```
+
+Expected: PASS. Do not use source-directory filters here; the current client
+project includes test files, not arbitrary source directories. Local box is Node
+24 — if it errors on engine, trust CI and note it; do not block on the local
+engine warning.
 
 - [ ] **Step 5: Commit group P**
 
@@ -352,9 +359,10 @@ Expected: **empty**.
 - [ ] **Step 3: Type gate** — `npm run check` →
       `[OK] No new TypeScript errors introduced`.
 
-- [ ] **Step 4: Targeted tests** —
-      `npm test -- --project=client --run client/src/components/wizard client/src/components/modeling-wizard`
-      → PASS / none found.
+- [ ] **Step 4: Client test gate** —
+      `npx cross-env TZ=UTC vitest run --config vitest.config.mjs --configLoader native --project=client`
+      → PASS. Do not use source-directory filters here; the current client
+      project includes test files, not arbitrary source directories.
 
 - [ ] **Step 5: Commit group W**
 
@@ -396,9 +404,10 @@ Expected: **empty**.
 - [ ] **Step 3: Type gate** — `npm run check` →
       `[OK] No new TypeScript errors introduced`.
 
-- [ ] **Step 4: Targeted tests** —
-      `npm test -- --project=client --run client/src/components/sensitivity client/src/components/monte-carlo client/src/components/forecasting`
-      → PASS / none found.
+- [ ] **Step 4: Client test gate** —
+      `npx cross-env TZ=UTC vitest run --config vitest.config.mjs --configLoader native --project=client`
+      → PASS. Do not use source-directory filters here; the current client
+      project includes test files, not arbitrary source directories.
 
 - [ ] **Step 5: Commit group S**
 

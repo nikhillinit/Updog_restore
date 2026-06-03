@@ -425,7 +425,10 @@ export default function BenchmarkingDashboard() {
                   <div className="font-medium">{selectedCompany?.revenue ?? 'N/A'}</div>
                 </div>
                 <div>
-                  <a href="#" className="text-presson-info text-sm hover:underline">
+                  <a
+                    href="#"
+                    className="text-pov-charcoal text-sm underline underline-offset-2 hover:text-charcoal-700"
+                  >
                     http://www.{selectedCompany?.name?.toLowerCase() ?? 'company'}.ai
                   </a>
                 </div>

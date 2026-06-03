@@ -174,8 +174,7 @@ export default function MOICAnalysisPage() {
   ];
 
   const getMOICColor = (moic: number) => {
-    if (moic >= 3.0) return 'text-presson-positive';
-    if (moic >= 2.0) return 'text-presson-info';
+    if (moic >= 2.0) return 'text-presson-positive';
     if (moic >= 1.0) return 'text-presson-warning';
     return 'text-presson-negative';
   };
@@ -328,9 +327,9 @@ export default function MOICAnalysisPage() {
           </CardContent>
         </Card>
 
-        <Card className="border-presson-info/20 bg-presson-info/10">
+        <Card className="border-presson-positive/20 bg-presson-positive/10">
           <CardHeader>
-            <CardTitle className="flex items-center space-x-2 text-presson-info">
+            <CardTitle className="flex items-center space-x-2 text-presson-positive">
               <Target className="h-5 w-5" />
               <span>Best Planned Reserves</span>
             </CardTitle>
@@ -343,7 +342,7 @@ export default function MOICAnalysisPage() {
                 .map((company) => (
                   <div key={company.company} className="flex items-center justify-between">
                     <span className="font-medium">{company.company}</span>
-                    <span className="text-presson-info font-bold">
+                    <span className="text-presson-positive font-bold">
                       {company.exitMOICOnPlannedReserves.toFixed(2)}x
                     </span>
                   </div>

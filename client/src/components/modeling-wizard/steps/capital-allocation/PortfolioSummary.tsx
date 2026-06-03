@@ -15,6 +15,7 @@ import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip } from 'recha
 import type { NameType, ValueType } from 'recharts/types/component/DefaultTooltipContent';
 import { TrendingUp, Target, Layers, DollarSign } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { presson } from '@/theme/presson.tokens';
 
 export interface SectorAllocation {
   sector: string;
@@ -44,22 +45,19 @@ export interface PortfolioSummaryProps {
   className?: string;
 }
 
-// Color palettes for charts
-const SECTOR_COLORS = [
-  '#1E40AF', // Blue
-  '#7C3AED', // Purple
-  '#DC2626', // Red
-  '#059669', // Green
-  '#D97706', // Orange
-  '#DB2777', // Pink
-];
+const UI_SUCCESS_COLOR = '#10b981';
+const CATEGORICAL_SERIES_COLORS = [
+  presson.color.text,
+  presson.color.positive,
+  presson.color.info,
+  UI_SUCCESS_COLOR,
+  presson.color.warning,
+  presson.color.negative,
+] as const;
 
-const STAGE_COLORS = [
-  '#10B981', // Green (Seed)
-  '#3B82F6', // Blue (Series A)
-  '#8B5CF6', // Purple (Series B)
-  '#F59E0B', // Amber (Series C+)
-];
+const SECTOR_COLORS = CATEGORICAL_SERIES_COLORS;
+const STAGE_COLORS = CATEGORICAL_SERIES_COLORS;
+const CHART_FALLBACK_COLOR = CATEGORICAL_SERIES_COLORS[0];
 
 interface ChartAmountPayload {
   payload?: {
@@ -204,13 +202,13 @@ export function PortfolioSummary({ sectors, stages, metrics, className }: Portfo
                   labelLine={false}
                   label={({ name, value }) => `${name}: ${(value as number).toFixed(1)}%`}
                   outerRadius={80}
-                  fill="#8884d8"
+                  fill={CHART_FALLBACK_COLOR}
                   dataKey="value"
                 >
                   {sectorData.map((entry, index) => (
                     <Cell
                       key={`cell-${index}`}
-                      fill={SECTOR_COLORS[index % SECTOR_COLORS.length] ?? '#8884d8'}
+                      fill={SECTOR_COLORS[index % SECTOR_COLORS.length] ?? CHART_FALLBACK_COLOR}
                     />
                   ))}
                 </Pie>
@@ -259,13 +257,13 @@ export function PortfolioSummary({ sectors, stages, metrics, className }: Portfo
                   labelLine={false}
                   label={({ name, value }) => `${name}: ${(value as number).toFixed(1)}%`}
                   outerRadius={80}
-                  fill="#8884d8"
+                  fill={CHART_FALLBACK_COLOR}
                   dataKey="value"
                 >
                   {stageData.map((entry, index) => (
                     <Cell
                       key={`cell-${index}`}
-                      fill={STAGE_COLORS[index % STAGE_COLORS.length] ?? '#8884d8'}
+                      fill={STAGE_COLORS[index % STAGE_COLORS.length] ?? CHART_FALLBACK_COLOR}
                     />
                   ))}
                 </Pie>

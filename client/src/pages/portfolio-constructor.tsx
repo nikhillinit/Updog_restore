@@ -28,6 +28,7 @@ import {
   Area,
   AreaChart,
 } from 'recharts';
+import { presson } from '@/theme/presson.tokens';
 import {
   Calculator,
   Target,
@@ -88,19 +89,16 @@ export interface PortfolioStrategy {
   scenarios: ScenarioConfig[];
 }
 
-// Color schemes for charts
+const UI_SUCCESS_COLOR = '#10b981';
+const CHART_FALLBACK_COLOR = presson.color.text;
 const SECTOR_COLORS = [
-  '#3B82F6',
-  '#EF4444',
-  '#10B981',
-  '#F59E0B',
-  '#8B5CF6',
-  '#EC4899',
-  '#06B6D4',
-  '#84CC16',
-  '#F97316',
-  '#6366F1',
-];
+  presson.color.text,
+  presson.color.positive,
+  presson.color.info,
+  UI_SUCCESS_COLOR,
+  presson.color.warning,
+  presson.color.negative,
+] as const;
 
 export default function PortfolioConstructor() {
   const { isLoading: fundsLoading } = useFundData() as { isLoading: boolean };
@@ -545,7 +543,9 @@ export default function PortfolioConstructor() {
                         {sectorChartData.map((entry, index) => (
                           <Cell
                             key={`sector-${index}`}
-                            fill={SECTOR_COLORS[index % SECTOR_COLORS.length] ?? '#8884d8'}
+                            fill={
+                              SECTOR_COLORS[index % SECTOR_COLORS.length] ?? CHART_FALLBACK_COLOR
+                            }
                           />
                         ))}
                       </Pie>
@@ -580,7 +580,7 @@ export default function PortfolioConstructor() {
                       <XAxis dataKey="name" />
                       <YAxis tickFormatter={(value) => formatPercentage(Number(value) || 0)} />
                       <Tooltip formatter={(value) => formatPercentage(Number(value) || 0)} />
-                      <Bar dataKey="value" fill="#3B82F6" />
+                      <Bar dataKey="value" fill={presson.color.positive} />
                     </BarChart>
                   </ResponsiveContainer>
                 </div>
@@ -939,8 +939,8 @@ export default function PortfolioConstructor() {
                     <Area
                       type="monotone"
                       dataKey="cumulative"
-                      stroke="#3B82F6"
-                      fill="#3B82F6"
+                      stroke={presson.color.positive}
+                      fill={presson.color.positive}
                       fillOpacity={0.3}
                       name="Cumulative Deployment"
                     />

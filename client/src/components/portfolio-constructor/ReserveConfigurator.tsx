@@ -24,6 +24,7 @@ import {
   Area,
   AreaChart,
 } from 'recharts';
+import { presson } from '@/theme/presson.tokens';
 import { Target, TrendingUp, Shield, AlertCircle, Clock, BarChart3, Lightbulb } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { PortfolioStrategy } from '@/pages/portfolio-constructor';
@@ -149,7 +150,16 @@ const optimizationSuggestions: OptimizationSuggestion[] = [
   },
 ];
 
-const POOL_COLORS = ['#2563eb', '#dc2626', '#059669', '#7c3aed'];
+const UI_SUCCESS_COLOR = '#10b981';
+const CHART_FALLBACK_COLOR = presson.color.text;
+const POOL_COLORS = [
+  presson.color.text,
+  presson.color.positive,
+  presson.color.info,
+  UI_SUCCESS_COLOR,
+  presson.color.warning,
+  presson.color.negative,
+] as const;
 
 export function ReserveConfigurator({ portfolioState }: ReserveConfiguratorProps) {
   const [reservePools, setReservePools] = useState<ReservePool[]>(defaultReservePools);
@@ -512,7 +522,7 @@ export function ReserveConfigurator({ portfolioState }: ReserveConfiguratorProps
                       dataKey="value"
                     >
                       {chartData.map((entry, index) => (
-                        <Cell key={`cell-${index}`} fill={entry.color ?? '#8884d8'} />
+                        <Cell key={`cell-${index}`} fill={entry.color ?? CHART_FALLBACK_COLOR} />
                       ))}
                     </Pie>
                     <Tooltip content={<CustomTooltip />} />
@@ -650,7 +660,7 @@ export function ReserveConfigurator({ portfolioState }: ReserveConfiguratorProps
                   labelFormatter={(label) => `Month ${String(label).slice(1)}`}
                 />
                 {reservePools.map((pool, index) => {
-                  const color = POOL_COLORS[index % POOL_COLORS.length] || '#6b7280';
+                  const color = POOL_COLORS[index % POOL_COLORS.length] || CHART_FALLBACK_COLOR;
                   return (
                     <Area
                       key={pool.id}
