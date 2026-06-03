@@ -1,9 +1,31 @@
-import { useState } from 'react';
+import { useState, type CSSProperties } from 'react';
 import { AppShell } from '@/components/presson-v2/AppShell';
 import { Btn } from '@/components/presson-v2/primitives';
 import { scenarios, sliders as initialSliders } from '@/components/presson-v2/mock';
 
 type Mode = 'sliders' | 'direct' | 'formula';
+type BenchStatTone = 'muted' | 'positive';
+
+type BenchStatProps = {
+  label: string;
+  value: string;
+  unit: string;
+  sub: string;
+  subTone?: BenchStatTone;
+};
+
+function BenchStat({ label, value, unit, sub, subTone = 'muted' }: BenchStatProps) {
+  return (
+    <div>
+      <div className="pv2-bench-hero-k">{label}</div>
+      <div className="pv2-bench-stat-v">
+        {value}
+        <span className="unit">{unit}</span>
+      </div>
+      <div className={`pv2-bench-stat-sub${subTone === 'positive' ? ' pos' : ''}`}>{sub}</div>
+    </div>
+  );
+}
 
 /**
  * Scenarios · Press On v2 modeling bench.
@@ -29,10 +51,6 @@ export default function ScenariosV2() {
   const fees = (fundSize * (vals[3] / 100) * 10).toFixed(1);
   const reserves = ((fundSize * reserveRatio) / 100).toFixed(1);
   const initialCap = (fundSize - parseFloat(reserves) - parseFloat(fees)).toFixed(1);
-  const slack = Math.max(
-    0,
-    fundSize - parseFloat(reserves) - parseFloat(fees) - parseFloat(initialCap)
-  ).toFixed(2);
 
   return (
     <AppShell>
@@ -90,39 +108,32 @@ export default function ScenariosV2() {
             {initialSliders.map((s, i) => {
               const range = s.max - s.min;
               const pct = ((vals[i] - s.min) / range) * 100;
+              const sliderId = `pv2-slider-${i}`;
+              const displayValue = `${s.prefix}${s.step ? vals[i].toFixed(1) : vals[i]}${s.unit}`;
               return (
                 <div key={s.label} className="pv2-slider">
-                  <span className="pv2-slider-label">{s.label}</span>
-                  <span
-                    className="pv2-slider-track"
-                    onMouseDown={(e) => {
-                      const track = e.currentTarget;
-                      const rect = track.getBoundingClientRect();
-                      const handle = (clientX: number) => {
-                        const ratio = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width));
-                        const raw = s.min + ratio * range;
-                        const stepped = s.step
-                          ? Math.round(raw / s.step) * s.step
-                          : Math.round(raw);
-                        setVals((prev) => {
-                          const next = [...prev];
-                          next[i] = stepped;
-                          return next;
-                        });
-                      };
-                      handle(e.clientX);
-                      const move = (ev: MouseEvent) => handle(ev.clientX);
-                      const up = () => {
-                        window.removeEventListener('mousemove', move);
-                        window.removeEventListener('mouseup', up);
-                      };
-                      window.addEventListener('mousemove', move);
-                      window.addEventListener('mouseup', up);
+                  <label className="pv2-slider-label" htmlFor={sliderId}>
+                    {s.label}
+                  </label>
+                  <input
+                    id={sliderId}
+                    type="range"
+                    className="pv2-slider-input"
+                    min={s.min}
+                    max={s.max}
+                    step={s.step ?? 1}
+                    value={vals[i]}
+                    aria-valuetext={displayValue}
+                    style={{ '--pv2-pct': `${pct}%` } as CSSProperties}
+                    onChange={(e) => {
+                      const nextValue = Number(e.target.value);
+                      setVals((prev) => {
+                        const next = [...prev];
+                        next[i] = nextValue;
+                        return next;
+                      });
                     }}
-                  >
-                    <span className="pv2-slider-fill" style={{ width: `${pct}%` }} />
-                    <span className="pv2-slider-thumb" style={{ left: `${pct}%` }} />
-                  </span>
+                  />
                   <span className="pv2-slider-val">
                     {s.prefix}
                     {s.step ? vals[i].toFixed(1) : vals[i]}
@@ -154,114 +165,25 @@ export default function ScenariosV2() {
             </div>
 
             <div className="pv2-bench-grid">
-              <div>
-                <div className="pv2-bench-hero-k" style={{ color: 'var(--pv2-mute)' }}>
-                  INITIAL CAPITAL
-                </div>
-                <div
-                  style={{
-                    fontFamily: 'var(--pv2-font-heading)',
-                    fontSize: 28,
-                    fontWeight: 700,
-                    letterSpacing: '-0.025em',
-                    marginTop: 8,
-                  }}
-                >
-                  ${initialCap}
-                  <span style={{ fontSize: 16, color: 'var(--pv2-mute)' }}>M</span>
-                </div>
-                <div
-                  style={{
-                    fontFamily: 'var(--pv2-font-mono)',
-                    fontSize: 10,
-                    color: 'var(--pv2-mute)',
-                    marginTop: 4,
-                  }}
-                >
-                  {((parseFloat(initialCap) / fundSize) * 100).toFixed(0)}% of fund
-                </div>
-              </div>
-              <div>
-                <div className="pv2-bench-hero-k" style={{ color: 'var(--pv2-mute)' }}>
-                  RESERVES
-                </div>
-                <div
-                  style={{
-                    fontFamily: 'var(--pv2-font-heading)',
-                    fontSize: 28,
-                    fontWeight: 700,
-                    letterSpacing: '-0.025em',
-                    marginTop: 8,
-                  }}
-                >
-                  ${reserves}
-                  <span style={{ fontSize: 16, color: 'var(--pv2-mute)' }}>M</span>
-                </div>
-                <div
-                  style={{
-                    fontFamily: 'var(--pv2-font-mono)',
-                    fontSize: 10,
-                    color: 'var(--pv2-pos)',
-                    marginTop: 4,
-                  }}
-                >
-                  {reserveRatio}% follow-on
-                </div>
-              </div>
-              <div>
-                <div className="pv2-bench-hero-k" style={{ color: 'var(--pv2-mute)' }}>
-                  FEES
-                </div>
-                <div
-                  style={{
-                    fontFamily: 'var(--pv2-font-heading)',
-                    fontSize: 28,
-                    fontWeight: 700,
-                    letterSpacing: '-0.025em',
-                    marginTop: 8,
-                  }}
-                >
-                  ${fees}
-                  <span style={{ fontSize: 16, color: 'var(--pv2-mute)' }}>M</span>
-                </div>
-                <div
-                  style={{
-                    fontFamily: 'var(--pv2-font-mono)',
-                    fontSize: 10,
-                    color: 'var(--pv2-mute)',
-                    marginTop: 4,
-                  }}
-                >
-                  {vals[3].toFixed(1)}% × 10y
-                </div>
-              </div>
-              <div>
-                <div className="pv2-bench-hero-k" style={{ color: 'var(--pv2-mute)' }}>
-                  SLACK
-                </div>
-                <div
-                  style={{
-                    fontFamily: 'var(--pv2-font-heading)',
-                    fontSize: 28,
-                    fontWeight: 700,
-                    letterSpacing: '-0.025em',
-                    marginTop: 8,
-                  }}
-                >
-                  ${slack}
-                  <span style={{ fontSize: 16, color: 'var(--pv2-mute)' }}>M</span>
-                </div>
-                <div
-                  style={{
-                    fontFamily: 'var(--pv2-font-mono)',
-                    fontSize: 10,
-                    color: 'var(--pv2-mute)',
-                    marginTop: 4,
-                  }}
-                >
-                  unallocated
-                </div>
-              </div>
+              <BenchStat
+                label="INITIAL CAPITAL"
+                value={`$${initialCap}`}
+                unit="M"
+                sub={`${((parseFloat(initialCap) / fundSize) * 100).toFixed(0)}% of fund`}
+              />
+              <BenchStat
+                label="RESERVES"
+                value={`$${reserves}`}
+                unit="M"
+                sub={`${reserveRatio}% follow-on`}
+                subTone="positive"
+              />
+              <BenchStat
+                label="FEES"
+                value={`$${fees}`}
+                unit="M"
+                sub={`${vals[3].toFixed(1)}% × 10y`}
+              />
             </div>
 
             <div className="pv2-formula">
