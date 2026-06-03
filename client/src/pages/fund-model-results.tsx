@@ -1700,7 +1700,7 @@ interface SectionRendererProps {
     [key: string]: unknown;
   };
   renderPayload?: (payload: unknown) => React.ReactNode;
-  evidenceLifecycle?: EvidenceHeaderLifecycle;
+  evidenceLifecycle?: EvidenceHeaderLifecycle | undefined;
   evidenceTestId?: string;
 }
 
@@ -1709,11 +1709,24 @@ function getSectionSource(section: SectionRendererProps['section']) {
   return typeof source === 'string' && source.trim().length > 0 ? source : null;
 }
 
+function sectionNumber(section: SectionRendererProps['section'], key: string): number | null {
+  const value = section[key];
+  return typeof value === 'number' && Number.isFinite(value) ? value : null;
+}
+
+function sectionString(section: SectionRendererProps['section'], key: string): string | null {
+  const value = section[key];
+  return typeof value === 'string' ? value : null;
+}
+
 function sectionEvidence(
   lifecycle: EvidenceHeaderLifecycle | undefined,
   section: SectionRendererProps['section']
 ): EvidenceHeaderLifecycle | null {
   if (!lifecycle) return null;
+  // Pre-resolved section/config/mixed provenance is authoritative -- do not
+  // re-derive its source from the section wrapper.
+  if (lifecycle.provenanceLevel != null) return lifecycle;
   return {
     ...lifecycle,
     source: getSectionSource(section) ?? lifecycle.source ?? null,
@@ -1728,6 +1741,76 @@ function evidenceFromLifecycle(lifecycle: FundStateReadV1): EvidenceHeaderLifecy
     lastCalculatedAt: lifecycle.calculationState.lastCalculatedAt,
     publishedVersion: lifecycle.configState.publishedVersion,
     source: '/api/funds/:id/results',
+  };
+}
+
+// GP Economics: section-owned calculation evidence. The section emits its own
+// config version and calculated timestamp and never carries a run id.
+function sectionBackedEvidence(
+  lifecycle: EvidenceHeaderLifecycle,
+  section: SectionRendererProps['section']
+): EvidenceHeaderLifecycle | undefined {
+  if (section.status !== 'available') return undefined;
+  return {
+    status: lifecycle.status,
+    provenanceLevel: 'section_backed_result',
+    configVersion: sectionNumber(section, 'configVersion'),
+    runId: null,
+    lastCalculatedAt: sectionString(section, 'calculatedAt'),
+    publishedVersion: lifecycle.publishedVersion ?? null,
+    source: getSectionSource(section) ?? 'fund_snapshots',
+  };
+}
+
+// Waterfall Setup: published configuration, not a calculation run. Shows the
+// published timestamp and the fund_config source, never a run id or freshness.
+function configBackedEvidence(
+  lifecycle: EvidenceHeaderLifecycle,
+  section: SectionRendererProps['section']
+): EvidenceHeaderLifecycle | undefined {
+  if (section.status !== 'available') return undefined;
+  return {
+    status: lifecycle.status,
+    provenanceLevel: 'config_backed_setup',
+    configVersion: sectionNumber(section, 'configVersion'),
+    runId: null,
+    lastCalculatedAt: sectionString(section, 'publishedAt'),
+    publishedVersion: lifecycle.publishedVersion ?? null,
+    source: getSectionSource(section) ?? 'fund_config',
+  };
+}
+
+// Overview/Scorecard: assembled from multiple per-field sources. The label is
+// derived from the sources actually present so it never claims a source that
+// contributed no field.
+function deriveScorecardSources(payload: unknown): string[] {
+  if (payload == null || typeof payload !== 'object') return ['funds'];
+  const seen: string[] = [];
+  for (const value of Object.values(payload as Record<string, unknown>)) {
+    if (value != null && typeof value === 'object' && 'source' in value) {
+      const source = (value as { source?: unknown }).source;
+      if (typeof source === 'string' && source.length > 0 && !seen.includes(source)) {
+        seen.push(source);
+      }
+    }
+  }
+  return seen.length > 0 ? seen : ['funds'];
+}
+
+function mixedScorecardEvidence(
+  lifecycle: EvidenceHeaderLifecycle,
+  section: SectionRendererProps['section']
+): EvidenceHeaderLifecycle | undefined {
+  if (section.status !== 'available') return undefined;
+  return {
+    status: lifecycle.status,
+    provenanceLevel: 'mixed_scorecard_sources',
+    configVersion: null,
+    runId: null,
+    lastCalculatedAt: null,
+    publishedVersion: null,
+    source: null,
+    sourceLabel: deriveScorecardSources(section.payload).join(' / '),
   };
 }
 
@@ -1970,6 +2053,8 @@ function FundModelResultsPage() {
           title="Overview"
           section={results.sections.scorecard}
           renderPayload={(p) => <OverviewCard payload={p as ScorecardPayload} />}
+          evidenceLifecycle={mixedScorecardEvidence(evidenceLifecycle, results.sections.scorecard)}
+          evidenceTestId="evidence-header-overview"
         />
       </FadeInSection>
 
@@ -1994,6 +2079,8 @@ function FundModelResultsPage() {
           title="Waterfall Setup"
           section={results.sections.waterfall}
           renderPayload={(p) => <WaterfallSetupCard payload={p as WaterfallSetupSection} />}
+          evidenceLifecycle={configBackedEvidence(evidenceLifecycle, results.sections.waterfall)}
+          evidenceTestId="evidence-header-waterfall-setup"
         />
       </FadeInSection>
 
@@ -2003,6 +2090,8 @@ function FundModelResultsPage() {
           title="GP Economics"
           section={results.sections.economics}
           renderPayload={(p) => <EconomicsResultsCard payload={p as EconomicsResultV1} />}
+          evidenceLifecycle={sectionBackedEvidence(evidenceLifecycle, results.sections.economics)}
+          evidenceTestId="evidence-header-gp-economics"
         />
       </FadeInSection>
     </div>
