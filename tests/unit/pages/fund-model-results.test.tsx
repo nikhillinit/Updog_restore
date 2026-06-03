@@ -283,7 +283,7 @@ describe('FundModelResultsPage (server-backed)', () => {
     const comparison = await screen.findByTestId('scenario-comparison-table');
     expect(within(comparison).getByText('Authoritative baseline')).toBeInTheDocument();
     expect(within(comparison).getByText('Lower fee')).toBeInTheDocument();
-    expect(within(comparison).getAllByText('Net LP IRR').length).toBe(2);
+    expect(within(comparison).getAllByText('Net LP IRR').length).toBe(1);
     expect(within(comparison).getByText('+0.30x')).toBeInTheDocument();
   });
 

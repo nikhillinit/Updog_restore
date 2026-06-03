@@ -16,7 +16,6 @@ import {
   type ScenarioComparisonDriftReason,
   type ScenarioComparisonMetricDeltaV1,
   type ScenarioComparisonMetricKey,
-  type ScenarioComparisonMetricMap,
   type ScenarioComparisonMetricValue,
   type ScenarioComparisonStalenessV1,
   type ScenarioComparisonUnavailableReasonV1,
@@ -176,7 +175,12 @@ function MetricDeltaText({
 }) {
   if (!delta) return null;
   if (!delta.driftCapable) {
-    return <p className="text-xs font-poppins text-charcoal-400">Drift unavailable</p>;
+    return (
+      <p className="text-xs font-poppins text-charcoal-400">
+        Drift unavailable
+        <span className="block text-charcoal-500">{driftReasonCopy(delta.driftReason)}</span>
+      </p>
+    );
   }
 
   const formattedDelta = formatMetricDelta(metric, delta.absoluteDelta);
@@ -189,76 +193,6 @@ function MetricDeltaText({
       {formattedDelta}
       {formattedPercent && <span className="text-charcoal-400"> · {formattedPercent}</span>}
     </p>
-  );
-}
-
-function MetricRow({
-  metric,
-  metrics,
-  variant,
-}: {
-  metric: ScenarioComparisonMetricKey;
-  metrics: ScenarioComparisonMetricMap;
-  variant?: ScenarioComparisonVariantV1 | undefined;
-}) {
-  const definition = METRIC_DEFINITIONS[metric];
-  const delta = variant ? deltaForMetric(variant, metric) : null;
-
-  return (
-    <div className="grid grid-cols-[minmax(0,1fr)_auto] gap-3 py-3">
-      <div>
-        <p className="text-xs uppercase text-charcoal-400 font-poppins">{definition.label}</p>
-        {delta && !delta.driftCapable && (
-          <p className="mt-1 text-xs text-charcoal-500 font-poppins">
-            {driftReasonCopy(delta.driftReason)}
-          </p>
-        )}
-      </div>
-      <div className="text-right">
-        <p className="font-inter text-base font-semibold tabular-nums text-charcoal">
-          {formatMetricValue(metric, metrics[metric])}
-        </p>
-        <MetricDeltaText metric={metric} delta={delta} />
-      </div>
-    </div>
-  );
-}
-
-function MetricRows({
-  metrics,
-  variant,
-}: {
-  metrics: ScenarioComparisonMetricMap;
-  variant?: ScenarioComparisonVariantV1 | undefined;
-}) {
-  return (
-    <div className="divide-y divide-beige-200">
-      {SCENARIO_COMPARISON_METRIC_KEYS.map((metric) => (
-        <MetricRow key={metric} metric={metric} metrics={metrics} variant={variant} />
-      ))}
-    </div>
-  );
-}
-
-function MetricsCard({
-  title,
-  badge,
-  metrics,
-  variant,
-}: {
-  title: string;
-  badge: string;
-  metrics: ScenarioComparisonMetricMap;
-  variant?: ScenarioComparisonVariantV1 | undefined;
-}) {
-  return (
-    <article className="rounded-md border border-beige-200 bg-white p-5">
-      <div className="mb-3 flex items-start justify-between gap-3">
-        <h4 className="font-inter text-base font-semibold text-charcoal">{title}</h4>
-        <Badge className="border-0 bg-charcoal text-[10px] text-white">{badge}</Badge>
-      </div>
-      <MetricRows metrics={metrics} variant={variant} />
-    </article>
   );
 }
 
@@ -287,21 +221,52 @@ export function ScenarioComparisonTable({ comparison }: ScenarioComparisonTableP
       )}
 
       {hasComparablePayload && baseline && (
-        <div className="grid gap-4 lg:grid-cols-2">
-          <MetricsCard
-            title={baseline.label ?? 'Authoritative baseline'}
-            badge="BASELINE"
-            metrics={baseline.metrics}
-          />
-          {comparison.variants.map((variant) => (
-            <MetricsCard
-              key={variant.variantId}
-              title={variant.name}
-              badge="FEE PROFILE"
-              metrics={variant.metrics}
-              variant={variant}
-            />
-          ))}
+        <div className="overflow-x-auto rounded-md border border-beige-200 bg-white">
+          <table className="w-full border-collapse">
+            <thead>
+              <tr className="border-b border-beige-200">
+                <th className="p-4 text-left text-xs uppercase text-charcoal-400 font-poppins">
+                  Metric
+                </th>
+                <th className="p-4 text-right text-xs uppercase text-charcoal-400 font-poppins">
+                  {baseline.label ?? 'Authoritative baseline'}
+                </th>
+                {comparison.variants.map((variant) => (
+                  <th
+                    key={variant.variantId}
+                    className="p-4 text-right text-xs uppercase text-charcoal-400 font-poppins"
+                  >
+                    <span className="align-middle">{variant.name}</span>
+                    <Badge className="ml-2 border-0 bg-charcoal text-[10px] text-white">
+                      FEE PROFILE
+                    </Badge>
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-beige-200">
+              {SCENARIO_COMPARISON_METRIC_KEYS.map((metric) => (
+                <tr key={metric}>
+                  <td className="p-4 text-xs uppercase text-charcoal-400 font-poppins">
+                    {METRIC_DEFINITIONS[metric].label}
+                  </td>
+                  <td className="p-4 text-right">
+                    <p className="font-inter text-base font-semibold tabular-nums text-charcoal">
+                      {formatMetricValue(metric, baseline.metrics[metric])}
+                    </p>
+                  </td>
+                  {comparison.variants.map((variant) => (
+                    <td key={variant.variantId} className="p-4 text-right">
+                      <p className="font-inter text-base font-semibold tabular-nums text-charcoal">
+                        {formatMetricValue(metric, variant.metrics[metric])}
+                      </p>
+                      <MetricDeltaText metric={metric} delta={deltaForMetric(variant, metric)} />
+                    </td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
       )}
     </section>
