@@ -1117,12 +1117,12 @@ function formatHistoryRunStatus(status: LifecycleStatus | null) {
 function historyBadgeClasses(status: LifecycleStatus | null) {
   switch (status) {
     case 'ready':
-      return 'bg-emerald-100 text-emerald-800 border-emerald-200';
+      return 'bg-success-light text-success-dark border-success/30';
     case 'failed':
-      return 'bg-rose-100 text-rose-800 border-rose-200';
+      return 'bg-error-light text-error-dark border-error/30';
     case 'submitted':
     case 'calculating':
-      return 'bg-amber-100 text-amber-800 border-amber-200';
+      return 'bg-warning-light text-warning-dark border-warning/30';
     default:
       return 'bg-beige-100 text-charcoal-600 border-beige-200';
   }
@@ -1207,11 +1207,11 @@ function hasStaleEvidence(lifecycle: FundStateReadV1) {
 function diagnosticAlertClasses(tone: 'neutral' | 'warning' | 'danger' | 'success') {
   switch (tone) {
     case 'danger':
-      return 'border-rose-200 bg-rose-50';
+      return 'border-error/30 bg-error-light';
     case 'warning':
-      return 'border-amber-200 bg-amber-50';
+      return 'border-warning/30 bg-warning-light';
     case 'success':
-      return 'border-emerald-200 bg-emerald-50';
+      return 'border-success/30 bg-success-light';
     default:
       return 'border-beige-200 bg-beige-50';
   }
@@ -1278,10 +1278,10 @@ function ConfigDiffBanner({ lifecycle }: { lifecycle: FundStateReadV1 }) {
   if (!hasStaleEvidence(lifecycle)) return null;
 
   return (
-    <Alert className="border-amber-200 bg-amber-50">
-      <AlertCircle className="h-4 w-4 text-amber-700" />
+    <Alert className="border-warning/30 bg-warning-light">
+      <AlertCircle className="h-4 w-4 text-warning" />
       <AlertTitle>Results are stale</AlertTitle>
-      <AlertDescription className="font-poppins text-amber-900">
+      <AlertDescription className="font-poppins text-warning-dark">
         Latest published configuration is v{lifecycle.configState.publishedVersion}, but the current
         calculation is still on v{lifecycle.calculationState.configVersion}. Recalculate to refresh
         the published results.
