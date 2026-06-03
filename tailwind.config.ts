@@ -109,7 +109,7 @@ export default {
             hover: '#1f1f1f',
             active: '#141414',
             disabled: '#a3a3a3',
-            focus: '#0ea5e9',
+            focus: '#292929',
           },
           secondary: {
             DEFAULT: '#E0D8D1',
@@ -118,9 +118,9 @@ export default {
             disabled: '#e5e7eb',
           },
           accent: {
-            DEFAULT: '#3b82f6',
-            hover: '#2563eb',
-            active: '#1d4ed8',
+            DEFAULT: '#292929',
+            hover: '#1f1f1f',
+            active: '#141414',
             disabled: '#9ca3af',
           },
         },

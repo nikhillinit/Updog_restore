@@ -71,14 +71,22 @@ classification — teal `#cfe7df`, lavender `#ddd6f5`, orange `#efd9bd`, pink
 accents. These are desaturated on purpose; they are tags, not accents. Do not
 promote them to primary actions.
 
+**Success vs positive (two greens, two roles — not duplicates).** `success` /
+emerald `#10b981` (the `success`, `pov.success`, `semantic.success` families) is
+the canonical UI-success-state color (valid, saved, complete) and is what the
+app actually uses (~25 live sites). `positive #127E3D` (brand gain green,
+consistent across `presson.tokens.ts` / pv2 / v3.1.1) is reserved for financial
+up/gain indicators; currently unadopted in code. Use `success` for UI state,
+`positive` for financial direction.
+
 ## Typography
 
 - **Headings:** Inter (`presson.typography.heading`, Tailwind `font-heading` /
   `font-inter`)
 - **Body:** Poppins (`presson.typography.body`, Tailwind `font-body` /
   `font-poppins`)
-- **Mono / data labels:** JetBrains Mono (code alignment pending via
-  token-cleanup T-D)
+- **Mono / data labels:** JetBrains Mono (applied 2026-06-03; verify the webfont
+  is loaded, else it falls back to Roboto Mono / ui-monospace)
 - Use `tabular-nums` on every numeric column (financial data must align).
 - `text-wrap: balance` / `text-pretty` on headings (utilities exist in tailwind
   config).
@@ -132,18 +140,18 @@ is true now? 2) What changed? 3) What is due? 4) What can I do next?**
 Layers in `tailwind.config.ts` and `presson-v2.css` that accreted on top of the
 canonical tokens. Classify before reuse.
 
-| Item                                                                                | Where                        | Verdict                 | Action                                                                                                                                        |
-| ----------------------------------------------------------------------------------- | ---------------------------- | ----------------------- | --------------------------------------------------------------------------------------------------------------------------------------------- |
-| `interactive.accent: #3b82f6` (blue)                                                | tailwind.config.ts:120       | **LEGACY-DRIFT**        | Contradicts canonical accent (`#292929`) and v3.1.1 "primary actions are black". Stop using for primary actions; migrate to `presson.accent`. |
-| `interactive.primary.focus: #0ea5e9` (sky)                                          | tailwind.config.ts:112       | **LEGACY-DRIFT**        | Focus color should be charcoal `presson.focus.ring`. Reconcile.                                                                               |
-| `financial.stable: #8b5cf6` (purple)                                                | tailwind.config.ts:179       | **RESOLVED 2026-06-03** | Deleted the unused `financial` color group (zero code refs) — T-A.                                                                            |
-| `pov.success #10B981` vs `semantic.success #10b981` vs canonical `positive #127E3D` | tailwind.config.ts:42/57/138 | **LEGACY-DRIFT**        | Two greens for one meaning. `presson.positive #127E3D` is canonical; treat the `#10b981` family as the AI-confidence-only green (below).      |
-| `confidence.*` (critical/low/medium/high/excellent)                                 | tailwind.config.ts:46        | **EXTENSION (scoped)**  | Legit semantic palette for AI-confidence indicators only. Do not use as general UI accent (it introduces blue `#3b82f6`).                     |
-| Enhanced micro-interactions (`fade-in`, `card-hover`, `confidence-glow`, …)         | tailwind.config.ts:282-356   | **EXTENSION**           | Keep, but every consumer must honor reduced-motion (see Motion).                                                                              |
-| `--pv2-mute: #7A7A7A`                                                               | presson-v2.css:11            | **RESOLVED 2026-06-03** | Set `--pv2-mute` to canonical `#5A5A5A` — T-B.                                                                                                |
-| `--pv2-*` pos/neg/rule                                                              | presson-v2.css:13-18         | **CANONICAL (aligned)** | `#127E3D`/`#B00020`/`#E0D8D1` already match tokens. Good.                                                                                     |
-| `/v2/*` has no `@media` (no responsive, no reduced-motion)                          | presson-v2.css               | **LEGACY-DRIFT**        | Tracked in the scenario-surfaces fix plan; bring `/v2` under canonical motion + responsive rules.                                             |
-| charcoal/beige numeric scales                                                       | tailwind.config.ts:144-170   | **EXTENSION**           | Sanctioned; consistent with `#292929`/`#E0D8D1`.                                                                                              |
+| Item                                                                                | Where                        | Verdict                 | Action                                                                                                                                                                |
+| ----------------------------------------------------------------------------------- | ---------------------------- | ----------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `interactive.accent: #3b82f6` (blue)                                                | tailwind.config.ts:120       | **RESOLVED 2026-06-03** | Redirected `interactive.accent` DEFAULT/hover/active to charcoal (was blue `#3b82f6`); sole consumer was the dead ButtonEnhanced — T-G.                               |
+| `interactive.primary.focus: #0ea5e9` (sky)                                          | tailwind.config.ts:112       | **RESOLVED 2026-06-03** | `interactive.primary.focus` `#0ea5e9` -> `#292929` charcoal; feeds `.focus-visible-ring` / `.btn-enhanced` — T-G.                                                     |
+| `financial.stable: #8b5cf6` (purple)                                                | tailwind.config.ts:179       | **RESOLVED 2026-06-03** | Deleted the unused `financial` color group (zero code refs) — T-A.                                                                                                    |
+| `pov.success #10B981` vs `semantic.success #10b981` vs canonical `positive #127E3D` | tailwind.config.ts:42/57/138 | **RESOLVED 2026-06-03** | Not drift — two roles (T-F option A). `success`/emerald `#10b981` = canonical UI-success (~25 live sites); `positive #127E3D` = brand gain, reserved. No code change. |
+| `confidence.*` (critical/low/medium/high/excellent)                                 | tailwind.config.ts:46        | **EXTENSION (scoped)**  | Legit semantic palette for AI-confidence indicators only. Do not use as general UI accent (it introduces blue `#3b82f6`).                                             |
+| Enhanced micro-interactions (`fade-in`, `card-hover`, `confidence-glow`, …)         | tailwind.config.ts:282-356   | **EXTENSION**           | Keep, but every consumer must honor reduced-motion (see Motion).                                                                                                      |
+| `--pv2-mute: #7A7A7A`                                                               | presson-v2.css:11            | **RESOLVED 2026-06-03** | Set `--pv2-mute` to canonical `#5A5A5A` — T-B.                                                                                                                        |
+| `--pv2-*` pos/neg/rule                                                              | presson-v2.css:13-18         | **CANONICAL (aligned)** | `#127E3D`/`#B00020`/`#E0D8D1` already match tokens. Good.                                                                                                             |
+| `/v2/*` has no `@media` (no responsive, no reduced-motion)                          | presson-v2.css               | **LEGACY-DRIFT**        | Tracked in the scenario-surfaces fix plan; bring `/v2` under canonical motion + responsive rules.                                                                     |
+| charcoal/beige numeric scales                                                       | tailwind.config.ts:144-170   | **EXTENSION**           | Sanctioned; consistent with `#292929`/`#E0D8D1`.                                                                                                                      |
 
 ## Reconcile items (resolved 2026-06-02)
 
