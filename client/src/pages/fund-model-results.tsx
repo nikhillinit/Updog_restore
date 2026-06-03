@@ -24,7 +24,12 @@ import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
-import { ScenarioComparisonTable, ScenarioSetsSummary } from '@/components/fund-results';
+import {
+  CrossSetScenarioComparisonTable,
+  isComparableFeeProfileComparison,
+  ScenarioComparisonTable,
+  ScenarioSetsSummary,
+} from '@/components/fund-results';
 import { EvidenceHeader, type EvidenceHeaderLifecycle } from '@/components/results/EvidenceHeader';
 import { QuarterlyReviewTrace } from '@/features/analytics-parity/QuarterlyReviewTrace';
 import { apiRequest, queryClient } from '@/lib/queryClient';
@@ -72,11 +77,21 @@ type ResultsComparisonState =
   | { kind: 'error'; message: string; comparison: FundResultsComparisonV1 | null }
   | { kind: 'data'; comparison: FundResultsComparisonV1 };
 
+interface ScenarioComparisonBatchResult {
+  comparisons: FundScenarioComparisonV1[];
+  failedScenarioSetIds: string[];
+}
+
 type ScenarioComparisonState =
-  | { kind: 'idle'; comparisons: FundScenarioComparisonV1[] }
-  | { kind: 'loading'; comparisons: FundScenarioComparisonV1[] }
-  | { kind: 'error'; message: string; comparisons: FundScenarioComparisonV1[] }
-  | { kind: 'data'; comparisons: FundScenarioComparisonV1[] };
+  | { kind: 'idle'; comparisons: FundScenarioComparisonV1[]; failedScenarioSetIds: string[] }
+  | { kind: 'loading'; comparisons: FundScenarioComparisonV1[]; failedScenarioSetIds: string[] }
+  | {
+      kind: 'error';
+      message: string;
+      comparisons: FundScenarioComparisonV1[];
+      failedScenarioSetIds: string[];
+    }
+  | { kind: 'data'; comparisons: FundScenarioComparisonV1[]; failedScenarioSetIds: string[] };
 
 type LifecycleStatus = FundStateReadV1['calculationState']['status'];
 
@@ -490,12 +505,25 @@ async function fetchScenarioComparisonForSet(fundId: string, scenarioSetId: stri
   });
 }
 
-function fetchScenarioComparisonBatch(request: ScenarioComparisonFetchRequest) {
-  return Promise.all(
+async function fetchScenarioComparisonBatch(
+  request: ScenarioComparisonFetchRequest
+): Promise<ScenarioComparisonBatchResult> {
+  const settled = await Promise.allSettled(
     request.scenarioSetIds.map((scenarioSetId) =>
       fetchScenarioComparisonForSet(request.fundId, scenarioSetId)
     )
   );
+  const comparisons: FundScenarioComparisonV1[] = [];
+  const failedScenarioSetIds: string[] = [];
+  settled.forEach((result, index) => {
+    if (result.status === 'fulfilled') {
+      comparisons.push(result.value);
+    } else {
+      const scenarioSetId = request.scenarioSetIds[index];
+      if (scenarioSetId) failedScenarioSetIds.push(scenarioSetId);
+    }
+  });
+  return { comparisons, failedScenarioSetIds };
 }
 
 function scenarioComparisonErrorMessage(error: unknown) {
@@ -516,6 +544,7 @@ function useFundScenarioComparisons(fundId: string | null, scenarioSetIds: reado
   const [state, setState] = useState<ScenarioComparisonState>({
     kind: 'idle',
     comparisons: [],
+    failedScenarioSetIds: [],
   });
   const abortRef = useRef<AbortController | null>(null);
 
@@ -534,7 +563,7 @@ function useFundScenarioComparisons(fundId: string | null, scenarioSetIds: reado
     const request = createScenarioComparisonFetchRequest(fundId, scenarioSetIdsKey);
     if (!request) {
       cancelInFlight();
-      setState({ kind: 'idle', comparisons: [] });
+      setState({ kind: 'idle', comparisons: [], failedScenarioSetIds: [] });
       return;
     }
 
@@ -544,18 +573,20 @@ function useFundScenarioComparisons(fundId: string | null, scenarioSetIds: reado
     setState((previous) => ({
       kind: 'loading',
       comparisons: previous.comparisons,
+      failedScenarioSetIds: previous.failedScenarioSetIds,
     }));
 
     try {
-      const comparisons = await fetchScenarioComparisonBatch(request);
+      const { comparisons, failedScenarioSetIds } = await fetchScenarioComparisonBatch(request);
       if (controller.signal.aborted) return;
-      setState({ kind: 'data', comparisons });
+      setState({ kind: 'data', comparisons, failedScenarioSetIds });
     } catch (error) {
       if (controller.signal.aborted) return;
       setState((previous) => ({
         kind: 'error',
         message: scenarioComparisonErrorMessage(error),
         comparisons: previous.comparisons,
+        failedScenarioSetIds: previous.failedScenarioSetIds,
       }));
     } finally {
       clearScenarioComparisonAbort(abortRef, controller);
@@ -760,15 +791,19 @@ function WaterfallSetupCard({ payload }: { payload: WaterfallSetupSection }) {
 function ScenarioComparisonPanel({ state }: { state: ScenarioComparisonState }) {
   if (state.kind === 'idle') return null;
 
-  const hasComparisons = state.comparisons.length > 0;
+  const comparable = state.comparisons.filter(isComparableFeeProfileComparison);
+  const nonComparable = state.comparisons.filter(
+    (comparison) => !isComparableFeeProfileComparison(comparison)
+  );
+  const hasContent = state.comparisons.length > 0 || state.failedScenarioSetIds.length > 0;
 
   return (
     <div className="space-y-4">
-      {state.kind === 'loading' && !hasComparisons && (
+      {state.kind === 'loading' && !hasContent && (
         <p className="text-sm text-charcoal-500 font-poppins">Loading scenario comparison...</p>
       )}
 
-      {state.kind === 'loading' && hasComparisons && (
+      {state.kind === 'loading' && hasContent && (
         <p className="text-xs text-charcoal-400 font-poppins">Refreshing scenario comparison...</p>
       )}
 
@@ -782,11 +817,29 @@ function ScenarioComparisonPanel({ state }: { state: ScenarioComparisonState }) 
         </Alert>
       )}
 
-      {state.comparisons.map((comparison) => (
+      {comparable.length >= 2 && <CrossSetScenarioComparisonTable comparisons={comparable} />}
+
+      {comparable.length === 1 && comparable[0] && (
+        <ScenarioComparisonTable comparison={comparable[0]} />
+      )}
+
+      {nonComparable.map((comparison) => (
         <ScenarioComparisonTable
           key={comparison.scenarioSet.scenarioSetId}
           comparison={comparison}
         />
+      ))}
+
+      {state.failedScenarioSetIds.map((scenarioSetId) => (
+        <div
+          key={scenarioSetId}
+          data-testid="scenario-comparison-failed-card"
+          className="rounded-md border border-beige-200 bg-beige-50 p-4"
+        >
+          <p className="text-sm text-charcoal-600 font-poppins">
+            Scenario comparison could not be loaded for this scenario set.
+          </p>
+        </div>
       ))}
     </div>
   );

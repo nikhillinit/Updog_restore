@@ -65,6 +65,7 @@ describe('FundModelResultsPage (server-backed)', () => {
     history?: ReturnType<typeof lifecycleHistoryResponse>;
     comparison?: ReturnType<typeof resultsComparisonResponse>;
     scenarioComparison?: FundScenarioComparisonV1;
+    scenarioComparisonsById?: Record<string, FundScenarioComparisonV1>;
     recalculateResponse?: {
       success: boolean;
       correlationId: string;
@@ -101,6 +102,11 @@ describe('FundModelResultsPage (server-backed)', () => {
       }
 
       if (url.includes('/scenario-sets/') && url.endsWith('/comparison')) {
+        const byId = options?.scenarioComparisonsById;
+        const matchedId = url.match(/\/scenario-sets\/([^/]+)\/comparison$/)?.[1];
+        if (byId && matchedId && byId[matchedId]) {
+          return Promise.resolve(jsonResponse(byId[matchedId]));
+        }
         return Promise.resolve(jsonResponse(scenarioComparison));
       }
 
@@ -297,8 +303,29 @@ describe('FundModelResultsPage (server-backed)', () => {
     mockFundPageFetches({ results: resp, scenarioComparison: malformedScenarioComparison });
     await renderPage('/fund-model-results/123');
 
-    expect(await screen.findByText('Scenario comparison unavailable')).toBeInTheDocument();
+    expect(
+      await screen.findByText('Scenario comparison could not be loaded for this scenario set.')
+    ).toBeInTheDocument();
     expect(screen.queryByText('Authoritative baseline')).not.toBeInTheDocument();
+  });
+
+  it('renders a cross-set comparison table when two or more sets are comparable', async () => {
+    const resp = readyResponse();
+    resp.sections.scenarios = twoSetScenariosSection();
+    mockFundPageFetches({
+      results: resp,
+      scenarioComparisonsById: {
+        '00000000-0000-0000-0000-000000000111': scenarioComparisonResponse(),
+        '00000000-0000-0000-0000-000000000222': secondScenarioComparison(),
+      },
+    });
+    await renderPage('/fund-model-results/123');
+
+    const table = await screen.findByTestId('cross-set-scenario-comparison-table');
+    expect(table).toBeInTheDocument();
+    expect(screen.queryByTestId('scenario-comparison-table')).not.toBeInTheDocument();
+    expect(within(table).getByText('Fee sensitivity')).toBeInTheDocument();
+    expect(within(table).getByText('Carry sensitivity')).toBeInTheDocument();
   });
 
   // -- Unavailable sections --
@@ -1365,6 +1392,50 @@ function validEconomicsSection() {
         errors: [],
       },
     },
+  };
+}
+
+function secondScenariosSet() {
+  const base = validScenariosSection().payload.sets[0]!;
+  return {
+    ...base,
+    scenarioSetId: '00000000-0000-0000-0000-000000000222',
+    name: 'Carry sensitivity',
+    sourceConfigVersion: 5,
+    variants: base.variants.map((variant) => ({
+      ...variant,
+      variantId: '00000000-0000-0000-0000-000000000223',
+      name: 'Higher carry',
+    })),
+  };
+}
+
+function twoSetScenariosSection() {
+  const section = validScenariosSection();
+  return {
+    ...section,
+    payload: {
+      ...section.payload,
+      sets: [section.payload.sets[0]!, secondScenariosSet()],
+    },
+  };
+}
+
+function secondScenarioComparison(): FundScenarioComparisonV1 {
+  const base = scenarioComparisonResponse();
+  return {
+    ...base,
+    scenarioSet: {
+      ...base.scenarioSet,
+      scenarioSetId: '00000000-0000-0000-0000-000000000222',
+      name: 'Carry sensitivity',
+      sourceConfigVersion: 5,
+    },
+    variants: base.variants.map((variant) => ({
+      ...variant,
+      variantId: '00000000-0000-0000-0000-000000000223',
+      name: 'Higher carry',
+    })),
   };
 }
 

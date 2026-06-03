@@ -66,7 +66,7 @@ interface ScenarioSetGroup {
   columns: VariantColumn[];
 }
 
-function isComparableFeeProfile(comparison: FundScenarioComparisonV1): boolean {
+export function isComparableFeeProfileComparison(comparison: FundScenarioComparisonV1): boolean {
   return (
     comparison.comparisonStatus === 'comparable' &&
     comparison.baseline != null &&
@@ -77,7 +77,7 @@ function isComparableFeeProfile(comparison: FundScenarioComparisonV1): boolean {
 function toVariantColumns(comparisons: FundScenarioComparisonV1[]): VariantColumn[] {
   const columns: VariantColumn[] = [];
   for (const comparison of comparisons) {
-    if (!isComparableFeeProfile(comparison)) continue;
+    if (!isComparableFeeProfileComparison(comparison)) continue;
     for (const variant of comparison.variants) {
       columns.push({
         key: `${comparison.scenarioSet.scenarioSetId}:${variant.variantId}`,
