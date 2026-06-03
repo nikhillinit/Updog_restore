@@ -14,17 +14,23 @@
 
 import React from 'react';
 import { Badge } from '@/components/ui/badge';
+import { cn } from '@/lib/utils';
 import {
   SCENARIO_COMPARISON_METRIC_KEYS,
   type FundScenarioComparisonV1,
   type ScenarioComparisonMetricDeltaV1,
   type ScenarioComparisonMetricKey,
   type ScenarioComparisonMetricValue,
-  type ScenarioComparisonStalenessV1,
-  type ScenarioComparisonUnavailableReasonV1,
   type ScenarioComparisonVariantV1,
 } from '@shared/contracts/fund-scenario-comparison-v1.contract';
+import { scenarioStateClasses } from '@/components/results/scenario-evidence';
 import { scenarioDeltaCopy } from './CrossSetScenarioComparisonTable';
+import {
+  comparisonBaselineLabel,
+  comparisonEvidenceState,
+  comparisonPublishedConfigVersion,
+  comparisonStatusCopy,
+} from './scenario-comparison-evidence';
 
 export { SCENARIO_COMPARISON_METRIC_KEYS };
 export type { FundScenarioComparisonV1 };
@@ -79,45 +85,41 @@ function formatMoney(value: number) {
   return `${sign}$${absolute.toFixed(0)}`;
 }
 
-function formatStatus(value: ScenarioComparisonStalenessV1 | null) {
-  if (!value) return 'Evidence unavailable';
-  const state = typeof value === 'string' ? value : value.state;
-  return state
-    .split('_')
-    .map((part) => part.charAt(0) + part.slice(1).toLowerCase())
-    .join(' ');
-}
+function ScenarioComparisonEvidenceBand({ comparison }: { comparison: FundScenarioComparisonV1 }) {
+  const state = comparisonEvidenceState(comparison);
+  const isComparable = comparison.comparisonStatus === 'comparable' && comparison.baseline != null;
+  const publishedVersion = comparisonPublishedConfigVersion(comparison);
 
-const SCENARIO_COMPARISON_UNAVAILABLE_COPY: Record<ScenarioComparisonUnavailableReasonV1, string> =
-  {
-    ECONOMICS_DISABLED: 'Scenario comparison unavailable because economics is disabled.',
-    ECONOMICS_ASSUMPTIONS_MISSING:
-      'Scenario comparison unavailable because economics assumptions are missing.',
-    BASELINE_ECONOMICS_SNAPSHOT_MISSING:
-      'Scenario calculated; comparison unavailable because baseline economics is missing.',
-    BASELINE_ECONOMICS_SNAPSHOT_STALE:
-      'Scenario calculated; comparison stale because baseline economics belongs to an older config.',
-    VARIANT_ECONOMICS_FAILED:
-      'Scenario calculated; comparison unavailable because variant economics failed.',
-    SOURCE_CONFIG_STALE_UNPINNED:
-      'Scenario comparison unavailable because the source config is stale.',
-    UNSUPPORTED_OVERRIDE_TYPE: 'Scenario comparison unavailable for this override type.',
-  };
+  // Comparison-specific evidence only: the per-set calculation line (config
+  // version, run, calculated timestamp, source) is owned by ScenarioSetsSummary,
+  // so this band leads on the comparison's trust state and baseline identity.
+  const segments = [
+    comparison.scenarioSet.name,
+    isComparable ? comparisonBaselineLabel(comparison) : null,
+    publishedVersion != null ? `PUBLISHED CONFIG v${publishedVersion}` : null,
+  ].filter((segment): segment is string => segment != null);
 
-function statusCopy(comparison: FundScenarioComparisonV1) {
-  if (comparison.unavailableReason) {
-    return SCENARIO_COMPARISON_UNAVAILABLE_COPY[comparison.unavailableReason];
-  }
-  if (comparison.comparisonStatus === 'no_scenario_results') {
-    return 'Calculate this scenario set to compare it with the authoritative economics baseline.';
-  }
-  if (comparison.comparisonStatus === 'baseline_unavailable') {
-    return `Authoritative economics baseline is unavailable for source config v${comparison.scenarioSet.sourceConfigVersion}.`;
-  }
-  if (comparison.comparisonStatus === 'unsupported_override_type') {
-    return 'Scenario comparison is not supported for reserve-allocation scenario sets yet.';
-  }
-  return 'Scenario comparison is unavailable.';
+  return (
+    <div
+      className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs font-poppins uppercase text-charcoal-500"
+      data-testid="scenario-comparison-evidence"
+    >
+      <Badge
+        variant="outline"
+        className={cn('font-poppins uppercase', scenarioStateClasses(state))}
+      >
+        {state}
+      </Badge>
+      {segments.map((segment) => (
+        <span key={segment} className="inline-flex items-center gap-2">
+          <span aria-hidden="true" className="text-charcoal-300">
+            ·
+          </span>
+          <span>{segment}</span>
+        </span>
+      ))}
+    </div>
+  );
 }
 
 function deltaForMetric(variant: ScenarioComparisonVariantV1, metric: ScenarioComparisonMetricKey) {
@@ -163,10 +165,7 @@ export function ScenarioComparisonTable({ comparison }: ScenarioComparisonTableP
     <section className="space-y-3" data-testid="scenario-comparison-table">
       <div className="space-y-1">
         <h3 className="font-inter text-base font-semibold text-charcoal">Scenario Comparison</h3>
-        <p className="text-sm text-charcoal-500 font-poppins">
-          {comparison.scenarioSet.name} · Source config v
-          {comparison.scenarioSet.sourceConfigVersion} · {formatStatus(comparison.staleness)}
-        </p>
+        <ScenarioComparisonEvidenceBand comparison={comparison} />
         {hasComparablePayload && (
           <p className="text-xs text-charcoal-400 font-poppins">
             Direction labels show arithmetic movement. They do not imply a universal good/bad
@@ -177,7 +176,9 @@ export function ScenarioComparisonTable({ comparison }: ScenarioComparisonTableP
 
       {!hasComparablePayload && (
         <div className="rounded-md border border-beige-200 bg-beige-50 p-4">
-          <p className="text-sm text-charcoal-600 font-poppins">{statusCopy(comparison)}</p>
+          <p className="text-sm text-charcoal-600 font-poppins">
+            {comparisonStatusCopy(comparison)}
+          </p>
         </div>
       )}
 

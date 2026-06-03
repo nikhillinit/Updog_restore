@@ -388,7 +388,7 @@ describe('FundModelResultsPage (server-backed)', () => {
       expect(screen.getByText('Scenario Analysis')).toBeInTheDocument();
     });
     expect(screen.getByTestId('scenario-sets-summary')).toBeInTheDocument();
-    expect(screen.getByText('Fee sensitivity')).toBeInTheDocument();
+    expect(screen.getAllByText('Fee sensitivity').length).toBeGreaterThanOrEqual(1);
     expect(screen.getAllByText('2.10x').length).toBeGreaterThanOrEqual(1);
     expect(screen.getByRole('link', { name: /open scenario workspace/i })).toHaveAttribute(
       'href',
