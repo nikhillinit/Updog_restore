@@ -117,12 +117,6 @@ export default {
             active: '#c4b8a5',
             disabled: '#e5e7eb',
           },
-          accent: {
-            DEFAULT: '#292929',
-            hover: '#1f1f1f',
-            active: '#141414',
-            disabled: '#9ca3af',
-          },
         },
         // Press On Ventures canonical color tokens (source: presson.tokens.ts)
         presson: {
