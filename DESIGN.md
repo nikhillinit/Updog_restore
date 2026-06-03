@@ -168,9 +168,9 @@ The three design artifacts disagreed on a few values. Resolved, with
 3. **Warning: `#9C6F19`** (canonical) over v3.1.1's `#a95c00`. Applied
    2026-06-03 (T-H) to `pov.warning` + `warning.DEFAULT`. **Resolved 2026-06-03
    as two roles** (the success/positive pattern): brand `warning` `#9C6F19` is
-   the status-warning token (now used across the migrated dashboard /
-   fund-model- results surfaces); `semantic.warning` deliberately stays amber as
-   the AI-confidence-low color. Its only consumers are
+   the status-warning token (now used across the migrated `dashboard` and
+   `fund-model-results` surfaces); `semantic.warning` deliberately stays amber
+   as the AI-confidence-low color. Its only consumers are
    `.ai-confidence-badge.low` (`design-system.css`) and
    `.ai-confidence-indicator` low state (`tailwind.config.ts`), which must stay
    amber for confidence-ramp coherence with `confidence.low`. No general/status
