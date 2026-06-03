@@ -41,7 +41,7 @@ interface ChartDataPoint {
 export function MetricDistributionChart({ distributions }: Props) {
   if (distributions.length === 0) {
     return (
-      <div className="flex items-center justify-center h-48 text-sm text-gray-500">
+      <div className="flex items-center justify-center h-48 text-sm text-charcoal-500">
         No distribution data available
       </div>
     );
@@ -64,7 +64,7 @@ export function MetricDistributionChart({ distributions }: Props) {
 
   return (
     <div className="w-full">
-      <h3 className="text-sm font-medium text-gray-700 mb-3">Metric Distributions</h3>
+      <h3 className="text-sm font-medium text-charcoal-700 mb-3">Metric Distributions</h3>
       <ResponsiveContainer width="100%" height={300}>
         <BarChart
           data={data}
@@ -77,10 +77,10 @@ export function MetricDistributionChart({ distributions }: Props) {
           <Tooltip contentStyle={{ fontSize: 12, borderRadius: 6, border: '1px solid #e5e7eb' }} />
 
           {/* IQR bar (p25-p75) */}
-          <Bar dataKey="median" fill="#1e293b" barSize={20} radius={[2, 2, 2, 2]}>
-            <ErrorBar dataKey="iqr" width={8} stroke="#1e293b" strokeWidth={2} direction="x" />
+          <Bar dataKey="median" fill="#292929" barSize={20} radius={[2, 2, 2, 2]}>
+            <ErrorBar dataKey="iqr" width={8} stroke="#292929" strokeWidth={2} direction="x" />
             {data.map((entry, index) => (
-              <Cell key={index} fill="#1e293b" opacity={0.7} />
+              <Cell key={index} fill="#292929" opacity={0.7} />
             ))}
           </Bar>
 
@@ -91,22 +91,25 @@ export function MetricDistributionChart({ distributions }: Props) {
                 <ReferenceLine
                   key={`actual-${entry.metric}`}
                   x={entry.actual}
-                  stroke="#ef4444"
+                  stroke="#2563EB"
                   strokeDasharray="4 4"
                   strokeWidth={2}
-                  label={{ value: 'Actual', fill: '#ef4444', fontSize: 10, position: 'top' }}
+                  label={{ value: 'Actual', fill: '#2563EB', fontSize: 10, position: 'top' }}
                 />
               )
           )}
         </BarChart>
       </ResponsiveContainer>
-      <div className="flex items-center gap-4 mt-2 text-xs text-gray-500">
+      <div className="flex items-center gap-4 mt-2 text-xs text-charcoal-500">
         <span className="flex items-center gap-1">
-          <span className="inline-block w-3 h-3 bg-gray-800 opacity-70 rounded-sm" />
+          <span className="inline-block w-3 h-3 bg-pov-charcoal opacity-70 rounded-sm" />
           Median (IQR)
         </span>
         <span className="flex items-center gap-1">
-          <span className="inline-block w-3 h-0.5 bg-red-500" style={{ borderTop: '2px dashed' }} />
+          <span
+            className="inline-block w-3 h-0.5 bg-presson-info"
+            style={{ borderTop: '2px dashed' }}
+          />
           Actual
         </span>
       </div>

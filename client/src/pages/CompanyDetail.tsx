@@ -11,19 +11,16 @@ const CapTablePlaceholder = ({ companyId }: { companyId?: string }) => (
   <Card className="p-6 border-[#E0D8D1]">
     <div className="flex items-center gap-3 mb-4">
       <Building2 className="w-6 h-6 text-[#292929]" />
-      <h3 className="font-inter font-semibold text-[#292929]">
-        Capitalization Table
-      </h3>
+      <h3 className="font-inter font-semibold text-[#292929]">Capitalization Table</h3>
     </div>
     <p className="font-poppins text-[#292929]/70 text-sm">
-      Cap table for company {companyId} will be displayed here.
-      This integrates with your existing cap table component.
+      Cap table for company {companyId} will be displayed here. This integrates with your existing
+      cap table component.
     </p>
     <div className="mt-4 p-4 bg-[#F2F2F2] rounded-lg">
       <p className="text-xs font-poppins text-[#292929]/60">
-        <strong>Integration Note:</strong> Import your existing CapTables component
-        and pass the companyId prop. The component is already built - this is just
-        the new contextual location.
+        <strong>Integration Note:</strong> Import your existing CapTables component and pass the
+        companyId prop. The component is already built - this is just the new contextual location.
       </p>
     </div>
   </Card>
@@ -34,9 +31,7 @@ const CompanySummary = () => (
     <Card className="p-6 border-[#E0D8D1]">
       <div className="flex items-center gap-3 mb-4">
         <Building2 className="w-6 h-6 text-[#292929]" />
-        <h3 className="font-inter font-semibold text-[#292929]">
-          Company Overview
-        </h3>
+        <h3 className="font-inter font-semibold text-[#292929]">Company Overview</h3>
       </div>
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
@@ -45,33 +40,21 @@ const CompanySummary = () => (
           <div className="text-xs font-poppins text-[#292929]/60 uppercase mb-1">
             Total Invested
           </div>
-          <div className="text-xl font-inter font-bold text-[#292929]">
-            $2.5M
-          </div>
+          <div className="text-xl font-inter font-bold text-[#292929]">$2.5M</div>
         </div>
         <div className="p-4 bg-[#F2F2F2] rounded-lg">
           <div className="text-xs font-poppins text-[#292929]/60 uppercase mb-1">
             Current Valuation
           </div>
-          <div className="text-xl font-inter font-bold text-[#292929]">
-            $12.0M
-          </div>
+          <div className="text-xl font-inter font-bold text-[#292929]">$12.0M</div>
         </div>
         <div className="p-4 bg-[#F2F2F2] rounded-lg">
-          <div className="text-xs font-poppins text-[#292929]/60 uppercase mb-1">
-            Ownership
-          </div>
-          <div className="text-xl font-inter font-bold text-[#292929]">
-            15.2%
-          </div>
+          <div className="text-xs font-poppins text-[#292929]/60 uppercase mb-1">Ownership</div>
+          <div className="text-xl font-inter font-bold text-[#292929]">15.2%</div>
         </div>
         <div className="p-4 bg-[#F2F2F2] rounded-lg">
-          <div className="text-xs font-poppins text-[#292929]/60 uppercase mb-1">
-            MOIC
-          </div>
-          <div className="text-xl font-inter font-bold text-emerald-600">
-            4.8x
-          </div>
+          <div className="text-xs font-poppins text-[#292929]/60 uppercase mb-1">MOIC</div>
+          <div className="text-xl font-inter font-bold text-presson-positive">4.8x</div>
         </div>
       </div>
 
@@ -95,10 +78,10 @@ const CompanySummary = () => (
       </div>
     </Card>
 
-    <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-      <p className="text-sm font-poppins text-blue-800">
-        <strong>Coming in Sprint 2:</strong> Full company dashboard with valuation history,
-        KPI tracking, document management, and team notes.
+    <div className="bg-presson-info/10 border border-presson-info/20 rounded-lg p-4">
+      <p className="text-sm font-poppins text-presson-info">
+        <strong>Coming in Sprint 2:</strong> Full company dashboard with valuation history, KPI
+        tracking, document management, and team notes.
       </p>
     </div>
   </div>
@@ -116,8 +99,8 @@ const InvestmentRounds = () => (
     <div className="space-y-4">
       {/* Mock round timeline */}
       <div className="flex items-start gap-4 p-4 border border-[#E0D8D1] rounded-lg">
-        <div className="flex-shrink-0 w-12 h-12 bg-emerald-100 rounded-full flex items-center justify-center">
-          <span className="font-inter font-semibold text-emerald-600">A</span>
+        <div className="flex-shrink-0 w-12 h-12 bg-pov-gray rounded-full flex items-center justify-center">
+          <span className="font-inter font-semibold text-pov-charcoal">A</span>
         </div>
         <div className="flex-1">
           <div className="flex justify-between items-start mb-2">
@@ -148,8 +131,8 @@ const InvestmentRounds = () => (
       </div>
 
       <div className="flex items-start gap-4 p-4 border border-[#E0D8D1] rounded-lg bg-[#F2F2F2]">
-        <div className="flex-shrink-0 w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center">
-          <span className="font-inter font-semibold text-blue-600">B</span>
+        <div className="flex-shrink-0 w-12 h-12 bg-presson-info/10 rounded-full flex items-center justify-center">
+          <span className="font-inter font-semibold text-presson-info">B</span>
         </div>
         <div className="flex-1">
           <div className="flex justify-between items-start mb-2">
@@ -180,10 +163,10 @@ const InvestmentRounds = () => (
       </div>
     </div>
 
-    <div className="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-      <p className="text-sm font-poppins text-blue-800">
-        <strong>Coming in Sprint 2:</strong> Full rounds timeline with dilution tracking,
-        pro-rata participation analysis, and ownership evolution chart.
+    <div className="mt-6 p-4 bg-presson-info/10 border border-presson-info/20 rounded-lg">
+      <p className="text-sm font-poppins text-presson-info">
+        <strong>Coming in Sprint 2:</strong> Full rounds timeline with dilution tracking, pro-rata
+        participation analysis, and ownership evolution chart.
       </p>
     </div>
   </Card>
@@ -193,9 +176,7 @@ const PerformancePlaceholder = () => (
   <Card className="p-6 border-[#E0D8D1]">
     <div className="flex items-center gap-3 mb-4">
       <BarChart3 className="w-6 h-6 text-[#292929]" />
-      <h3 className="font-inter font-semibold text-[#292929]">
-        Performance Metrics
-      </h3>
+      <h3 className="font-inter font-semibold text-[#292929]">Performance Metrics</h3>
     </div>
     <p className="font-poppins text-[#292929]/70 mb-4">
       KPI tracking dashboard with ARR, burn rate, runway, and custom metrics.
@@ -212,9 +193,7 @@ const DocumentsPlaceholder = () => (
   <Card className="p-6 border-[#E0D8D1]">
     <div className="flex items-center gap-3 mb-4">
       <FileText className="w-6 h-6 text-[#292929]" />
-      <h3 className="font-inter font-semibold text-[#292929]">
-        Documents & Files
-      </h3>
+      <h3 className="font-inter font-semibold text-[#292929]">Documents & Files</h3>
     </div>
     <p className="font-poppins text-[#292929]/70 mb-4">
       Investment memos, board decks, shareholder agreements, and other documents.
@@ -264,9 +243,7 @@ export default function CompanyDetail() {
         <div className="flex items-center gap-3">
           <Building2 className="w-8 h-8 text-[#292929]" />
           <div>
-            <h1 className="text-2xl font-inter font-semibold text-[#292929]">
-              Company Details
-            </h1>
+            <h1 className="text-2xl font-inter font-semibold text-[#292929]">Company Details</h1>
             <p className="text-sm font-poppins text-[#292929]/60 mt-1">
               Portfolio Company ID: {companyId}
             </p>
@@ -277,15 +254,9 @@ export default function CompanyDetail() {
       {/* Tabs */}
       <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
         <TabsList className="bg-[#F2F2F2] border border-[#E0D8D1] font-poppins">
-          <TabsTrigger value="summary">
-            Summary
-          </TabsTrigger>
-          <TabsTrigger value="rounds">
-            Rounds & Ownership
-          </TabsTrigger>
-          <TabsTrigger value="cap-table">
-            Cap Table
-          </TabsTrigger>
+          <TabsTrigger value="summary">Summary</TabsTrigger>
+          <TabsTrigger value="rounds">Rounds & Ownership</TabsTrigger>
+          <TabsTrigger value="cap-table">Cap Table</TabsTrigger>
           <TabsTrigger value="performance" disabled>
             Performance <span className="ml-2 text-xs opacity-60">(Sprint 3)</span>
           </TabsTrigger>
@@ -303,11 +274,11 @@ export default function CompanyDetail() {
         </TabsContent>
 
         <TabsContent value="cap-table" className="mt-6">
-          <CapTablePlaceholder {...spreadIfDefined("companyId", companyId)} />
-          <div className="mt-4 p-4 bg-amber-50 border border-amber-200 rounded-lg">
-            <p className="text-sm font-poppins text-amber-800">
-              <strong>🔧 Integration Needed:</strong> Replace CapTablePlaceholder with your
-              existing cap table component. Import it and pass the companyId prop.
+          <CapTablePlaceholder {...spreadIfDefined('companyId', companyId)} />
+          <div className="mt-4 p-4 bg-warning/10 border border-warning/30 rounded-lg">
+            <p className="text-sm font-poppins text-warning-dark">
+              <strong>Integration Needed:</strong> Replace CapTablePlaceholder with your existing
+              cap table component. Import it and pass the companyId prop.
             </p>
           </div>
         </TabsContent>

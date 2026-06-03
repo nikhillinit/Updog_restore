@@ -48,8 +48,9 @@ export function ProfileHeader({
             </Badge>
           )}
         </div>
-        <p className="text-sm text-gray-500 font-poppins">
-          {stageCount} investment stage{stageCount !== 1 ? 's' : ''} defined - Last edited {lastEdited}
+        <p className="text-sm text-charcoal-500 font-poppins">
+          {stageCount} investment stage{stageCount !== 1 ? 's' : ''} defined - Last edited{' '}
+          {lastEdited}
         </p>
       </div>
 
@@ -59,19 +60,14 @@ export function ProfileHeader({
             variant="ghost"
             size="sm"
             onClick={onRename}
-            className="text-gray-600 hover:text-gray-900"
+            className="text-charcoal-600 hover:text-pov-charcoal"
           >
             <Edit2 className="w-4 h-4 mr-2" />
             Rename
           </Button>
         )}
         {onDuplicate && (
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={onDuplicate}
-            className="border-[#E0D8D1]"
-          >
+          <Button variant="outline" size="sm" onClick={onDuplicate} className="border-[#E0D8D1]">
             <Copy className="w-4 h-4 mr-2" />
             Duplicate
           </Button>
@@ -81,7 +77,7 @@ export function ProfileHeader({
             variant="ghost"
             size="sm"
             onClick={onDelete}
-            className="text-red-600 hover:text-red-700 hover:bg-red-50"
+            className="text-pov-charcoal hover:text-pov-charcoal hover:bg-pov-gray"
           >
             <Trash2 className="w-4 h-4 mr-2" />
             Delete
@@ -89,7 +85,7 @@ export function ProfileHeader({
         )}
         {onAddStage && (
           <>
-            <div className="w-px h-6 bg-gray-200 mx-2" />
+            <div className="w-px h-6 bg-charcoal-300 mx-2" />
             <Button
               size="sm"
               onClick={onAddStage}

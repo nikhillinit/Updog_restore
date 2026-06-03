@@ -13,14 +13,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import {
-  TrendingUp,
-  Target,
-  AlertTriangle,
-  Clock,
-  CheckCircle2,
-  Info,
-} from 'lucide-react';
+import { TrendingUp, Target, AlertTriangle, Clock, CheckCircle2, Info } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 export interface ReserveMetrics {
@@ -83,17 +76,17 @@ export function ReserveMetricsDisplay({
     const badges = {
       low: {
         variant: 'secondary' as const,
-        className: 'bg-green-100 text-green-700 border-green-200',
+        className: 'bg-success/10 text-success-dark border-success/30',
         label: 'Low Risk',
       },
       medium: {
         variant: 'secondary' as const,
-        className: 'bg-yellow-100 text-yellow-700 border-yellow-200',
+        className: 'bg-warning/10 text-warning-dark border-warning/30',
         label: 'Medium Risk',
       },
       high: {
         variant: 'destructive' as const,
-        className: 'bg-red-100 text-red-700 border-red-200',
+        className: 'bg-error/10 text-error-dark border-error/30',
         label: 'High Risk',
       },
     };
@@ -102,10 +95,10 @@ export function ReserveMetricsDisplay({
 
   // Get utilization status
   const getUtilizationStatus = (percentage: number) => {
-    if (percentage >= 0.9) return { color: 'bg-red-500', label: 'High' };
-    if (percentage >= 0.7) return { color: 'bg-yellow-500', label: 'Good' };
-    if (percentage >= 0.5) return { color: 'bg-green-500', label: 'Healthy' };
-    return { color: 'bg-blue-500', label: 'Low' };
+    if (percentage >= 0.9) return { color: 'bg-error', label: 'High' };
+    if (percentage >= 0.7) return { color: 'bg-warning', label: 'Good' };
+    if (percentage >= 0.5) return { color: 'bg-success', label: 'Healthy' };
+    return { color: 'bg-presson-info', label: 'Low' };
   };
 
   const utilizationStatus = getUtilizationStatus(metrics.utilization.percentage);
@@ -135,10 +128,7 @@ export function ReserveMetricsDisplay({
                   {utilizationStatus.label}
                 </Badge>
               </div>
-              <Progress
-                value={metrics.utilization.percentage * 100}
-                className="h-2"
-              />
+              <Progress value={metrics.utilization.percentage * 100} className="h-2" />
             </div>
             <div className="flex items-center justify-between text-xs font-poppins">
               <span className="text-charcoal/60">
@@ -238,9 +228,7 @@ export function ReserveMetricsDisplay({
                   {formatCurrency(metrics.deployment.monthlyBurnRate)}M
                 </span>
               </div>
-              <div className="text-charcoal/60">
-                {metrics.deployment.nextMilestone}
-              </div>
+              <div className="text-charcoal/60">{metrics.deployment.nextMilestone}</div>
             </div>
           </CardContent>
         </Card>
@@ -260,30 +248,22 @@ export function ReserveMetricsDisplay({
               <Alert
                 key={idx}
                 className={cn(
-                  rec.type === 'success' &&
-                    'border-green-500 bg-green-50 dark:bg-green-900/20',
-                  rec.type === 'warning' &&
-                    'border-yellow-500 bg-yellow-50 dark:bg-yellow-900/20',
+                  rec.type === 'success' && 'border-success/30 bg-success/10 dark:bg-success/20',
+                  rec.type === 'warning' && 'border-warning/30 bg-warning/10 dark:bg-warning/20',
                   rec.type === 'info' &&
-                    'border-blue-500 bg-blue-50 dark:bg-blue-900/20'
+                    'border-presson-info/30 bg-presson-info/10 dark:bg-presson-info/20'
                 )}
               >
-                {rec.type === 'success' && (
-                  <CheckCircle2 className="h-4 w-4 text-green-600" />
-                )}
-                {rec.type === 'warning' && (
-                  <AlertTriangle className="h-4 w-4 text-yellow-600" />
-                )}
-                {rec.type === 'info' && <Info className="h-4 w-4 text-blue-600" />}
+                {rec.type === 'success' && <CheckCircle2 className="h-4 w-4 text-success" />}
+                {rec.type === 'warning' && <AlertTriangle className="h-4 w-4 text-warning" />}
+                {rec.type === 'info' && <Info className="h-4 w-4 text-presson-info" />}
 
                 <AlertTitle
                   className={cn(
                     'font-inter font-bold',
-                    rec.type === 'success' &&
-                      'text-green-800 dark:text-green-200',
-                    rec.type === 'warning' &&
-                      'text-yellow-800 dark:text-yellow-200',
-                    rec.type === 'info' && 'text-blue-800 dark:text-blue-200'
+                    rec.type === 'success' && 'text-success-dark dark:text-success-light',
+                    rec.type === 'warning' && 'text-warning-dark dark:text-warning-light',
+                    rec.type === 'info' && 'text-presson-info dark:text-presson-info'
                   )}
                 >
                   {rec.title}
@@ -291,11 +271,9 @@ export function ReserveMetricsDisplay({
                 <AlertDescription
                   className={cn(
                     'font-poppins',
-                    rec.type === 'success' &&
-                      'text-green-700 dark:text-green-300',
-                    rec.type === 'warning' &&
-                      'text-yellow-700 dark:text-yellow-300',
-                    rec.type === 'info' && 'text-blue-700 dark:text-blue-300'
+                    rec.type === 'success' && 'text-success-dark dark:text-success',
+                    rec.type === 'warning' && 'text-warning-dark dark:text-warning',
+                    rec.type === 'info' && 'text-presson-info dark:text-presson-info'
                   )}
                 >
                   {rec.message}

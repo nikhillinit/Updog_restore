@@ -112,19 +112,19 @@ export default function CapTables() {
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'active':
-        return 'bg-green-100 text-green-800';
+        return 'bg-success/10 text-success-dark';
       case 'draft':
-        return 'bg-yellow-100 text-yellow-800';
+        return 'bg-warning/10 text-warning-dark';
       case 'archived':
-        return 'bg-gray-100 text-gray-800';
+        return 'bg-pov-gray text-pov-charcoal';
       default:
-        return 'bg-gray-100 text-gray-800';
+        return 'bg-pov-gray text-pov-charcoal';
     }
   };
 
   if (showCalculator) {
     return (
-      <div className="min-h-screen bg-gray-50">
+      <div className="min-h-screen bg-pov-gray">
         <div className="p-6">
           <div className="mb-6">
             <Button variant="ghost" onClick={() => setShowCalculator(false)} className="mb-4">
@@ -141,7 +141,7 @@ export default function CapTables() {
     return (
       <div className="p-6">
         <div className="text-center py-12">
-          <p className="text-gray-500">Please select a fund to manage cap tables.</p>
+          <p className="text-charcoal-500">Please select a fund to manage cap tables.</p>
           <Button className="mt-4" onClick={() => (window.location.href = '/fund-setup')}>
             Set Up Fund
           </Button>
@@ -151,13 +151,13 @@ export default function CapTables() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-pov-gray">
       <div className="p-6">
         {/* Header */}
         <div className="flex items-center justify-between mb-6">
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">Cap Tables</h1>
-            <p className="text-gray-600">
+            <h1 className="text-2xl font-bold text-pov-charcoal">Cap Tables</h1>
+            <p className="text-charcoal-600">
               Model SAFE/Note conversions and analyze dilution scenarios
             </p>
           </div>
@@ -183,9 +183,9 @@ export default function CapTables() {
           <Card>
             <CardContent className="p-4">
               <div className="flex items-center space-x-2">
-                <Calculator className="h-5 w-5 text-blue-600" />
+                <Calculator className="h-5 w-5 text-presson-info" />
                 <div>
-                  <p className="text-sm text-gray-600">Total Scenarios</p>
+                  <p className="text-sm text-charcoal-600">Total Scenarios</p>
                   <p className="text-lg font-bold">{scenarios.length}</p>
                 </div>
               </div>
@@ -195,9 +195,9 @@ export default function CapTables() {
           <Card>
             <CardContent className="p-4">
               <div className="flex items-center space-x-2">
-                <TrendingUp className="h-5 w-5 text-green-600" />
+                <TrendingUp className="h-5 w-5 text-presson-positive" />
                 <div>
-                  <p className="text-sm text-gray-600">Active Models</p>
+                  <p className="text-sm text-charcoal-600">Active Models</p>
                   <p className="text-lg font-bold">
                     {scenarios.filter((s) => s.status === 'active').length}
                   </p>
@@ -209,9 +209,9 @@ export default function CapTables() {
           <Card>
             <CardContent className="p-4">
               <div className="flex items-center space-x-2">
-                <DollarSign className="h-5 w-5 text-purple-600" />
+                <DollarSign className="h-5 w-5 text-presson-info" />
                 <div>
-                  <p className="text-sm text-gray-600">Avg Pre-Money</p>
+                  <p className="text-sm text-charcoal-600">Avg Pre-Money</p>
                   <p className="text-lg font-bold">
                     {formatCurrency(
                       scenarios.reduce((sum, s) => sum + s.preMoneyValuation, 0) / scenarios.length
@@ -225,9 +225,9 @@ export default function CapTables() {
           <Card>
             <CardContent className="p-4">
               <div className="flex items-center space-x-2">
-                <Building2 className="h-5 w-5 text-orange-600" />
+                <Building2 className="h-5 w-5 text-presson-warning" />
                 <div>
-                  <p className="text-sm text-gray-600">Companies Modeled</p>
+                  <p className="text-sm text-charcoal-600">Companies Modeled</p>
                   <p className="text-lg font-bold">
                     {new Set(scenarios.map((s) => s.investmentCompany)).size}
                   </p>
@@ -240,7 +240,7 @@ export default function CapTables() {
         {/* Search and Filters */}
         <div className="flex flex-col md:flex-row gap-4 mb-6">
           <div className="flex-1 relative">
-            <Search className="h-4 w-4 absolute left-3 top-3 text-gray-400" />
+            <Search className="h-4 w-4 absolute left-3 top-3 text-charcoal-400" />
             <Input
               placeholder="Search cap table scenarios..."
               value={searchTerm}
@@ -265,11 +265,11 @@ export default function CapTables() {
         {filteredScenarios.length === 0 ? (
           <Card className="text-center py-16">
             <CardHeader>
-              <div className="mx-auto w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mb-4">
-                <Calculator className="h-8 w-8 text-blue-600" />
+              <div className="mx-auto w-16 h-16 bg-presson-info/10 rounded-full flex items-center justify-center mb-4">
+                <Calculator className="h-8 w-8 text-presson-info" />
               </div>
               <CardTitle>No Cap Table Scenarios</CardTitle>
-              <p className="text-gray-600">
+              <p className="text-charcoal-600">
                 Create your first cap table scenario to model SAFE/Note conversions.
               </p>
             </CardHeader>
@@ -288,7 +288,7 @@ export default function CapTables() {
                   <div className="flex items-start justify-between">
                     <div>
                       <CardTitle className="text-lg">{scenario.name}</CardTitle>
-                      <p className="text-sm text-gray-600">{scenario.investmentCompany}</p>
+                      <p className="text-sm text-charcoal-600">{scenario.investmentCompany}</p>
                     </div>
                     <Badge className={getStatusColor(scenario.status)}>{scenario.status}</Badge>
                   </div>
@@ -296,30 +296,30 @@ export default function CapTables() {
                 <CardContent className="space-y-4">
                   <div className="grid grid-cols-2 gap-4 text-sm">
                     <div>
-                      <p className="text-gray-500">Pre-Money</p>
+                      <p className="text-charcoal-500">Pre-Money</p>
                       <p className="font-medium">{formatCurrency(scenario.preMoneyValuation)}</p>
                     </div>
                     <div>
-                      <p className="text-gray-500">Round Size</p>
+                      <p className="text-charcoal-500">Round Size</p>
                       <p className="font-medium">{formatCurrency(scenario.roundSize)}</p>
                     </div>
                   </div>
 
                   <div className="grid grid-cols-2 gap-4 text-sm">
                     <div>
-                      <p className="text-gray-500">SAFEs/Notes</p>
+                      <p className="text-charcoal-500">SAFEs/Notes</p>
                       <p className="font-medium">
                         {formatCurrency(scenario.totalSAFEs + scenario.totalNotes)}
                       </p>
                     </div>
                     <div>
-                      <p className="text-gray-500">Dilution</p>
+                      <p className="text-charcoal-500">Dilution</p>
                       <p className="font-medium">{scenario.dilution.toFixed(1)}%</p>
                     </div>
                   </div>
 
                   <div className="pt-3 border-t">
-                    <p className="text-xs text-gray-500">
+                    <p className="text-xs text-charcoal-500">
                       Modified by {scenario.createdBy} •{' '}
                       {new Date(scenario.lastModified).toLocaleDateString()}
                     </p>

@@ -51,34 +51,34 @@ export function InvestmentValidationCallout({
 }: InvestmentValidationCalloutProps) {
   const styles = {
     success: {
-      bg: 'bg-emerald-50',
-      border: 'border-emerald-200',
-      icon: <CheckCircle2 className="w-5 h-5 text-emerald-600" />,
-      title: 'text-emerald-900',
-      text: 'text-emerald-700',
-      badge: 'bg-emerald-100 text-emerald-700',
-      accent: 'text-emerald-600',
-      cardBg: 'bg-white/60 border-emerald-100',
+      bg: 'bg-success/10',
+      border: 'border-success/30',
+      icon: <CheckCircle2 className="w-5 h-5 text-success" />,
+      title: 'text-success-dark',
+      text: 'text-success-dark',
+      badge: 'bg-success/10 text-success-dark',
+      accent: 'text-success',
+      cardBg: 'bg-white/60 border-success/30',
     },
     warning: {
-      bg: 'bg-amber-50',
-      border: 'border-amber-200',
-      icon: <AlertTriangle className="w-5 h-5 text-amber-600" />,
-      title: 'text-amber-900',
-      text: 'text-amber-700',
-      badge: 'bg-amber-100 text-amber-700',
-      accent: 'text-amber-600',
-      cardBg: 'bg-white/60 border-amber-100',
+      bg: 'bg-warning/10',
+      border: 'border-warning/30',
+      icon: <AlertTriangle className="w-5 h-5 text-warning" />,
+      title: 'text-warning-dark',
+      text: 'text-warning-dark',
+      badge: 'bg-warning/10 text-warning-dark',
+      accent: 'text-warning',
+      cardBg: 'bg-white/60 border-warning/30',
     },
     error: {
-      bg: 'bg-red-50',
-      border: 'border-red-200',
-      icon: <AlertCircle className="w-5 h-5 text-red-600" />,
-      title: 'text-red-900',
-      text: 'text-red-700',
-      badge: 'bg-red-100 text-red-700',
-      accent: 'text-red-600',
-      cardBg: 'bg-white/60 border-red-100',
+      bg: 'bg-error/10',
+      border: 'border-error/30',
+      icon: <AlertCircle className="w-5 h-5 text-error" />,
+      title: 'text-error-dark',
+      text: 'text-error-dark',
+      badge: 'bg-error/10 text-error-dark',
+      accent: 'text-error',
+      cardBg: 'bg-white/60 border-error/30',
     },
   };
 
@@ -162,7 +162,7 @@ export function InvestmentValidationCallout({
                 <div
                   className={cn(
                     'grid grid-cols-4 gap-4 pb-4 border-b',
-                    status === 'success' ? 'border-emerald-200/50' : 'border-gray-200/50'
+                    status === 'success' ? 'border-success/30' : 'border-beige-200/50'
                   )}
                 >
                   <div>
@@ -256,7 +256,10 @@ export function InvestmentValidationCallout({
                     </h5>
                     <div className="grid grid-cols-5 gap-2">
                       {stages.map((stage) => (
-                        <div key={stage.id} className={cn('rounded p-2 border', currentStyle.cardBg)}>
+                        <div
+                          key={stage.id}
+                          className={cn('rounded p-2 border', currentStyle.cardBg)}
+                        >
                           <div
                             className={cn(
                               'font-semibold text-xs mb-1 truncate font-poppins',

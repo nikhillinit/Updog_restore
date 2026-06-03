@@ -39,7 +39,7 @@ const STAGES: Stage[] = [
   {
     id: 'pre-seed',
     name: 'Pre-Seed',
-    color: 'bg-gray-500',
+    color: 'bg-pov-charcoal',
     graduationRate: 35,
     exitRate: 0,
     currentDeals: 54,
@@ -49,7 +49,7 @@ const STAGES: Stage[] = [
   {
     id: 'seed',
     name: 'Seed',
-    color: 'bg-blue-500',
+    color: 'bg-presson-positive',
     graduationRate: 50,
     exitRate: 5,
     currentDeals: 18,
@@ -59,7 +59,7 @@ const STAGES: Stage[] = [
   {
     id: 'series-a',
     name: 'Series A',
-    color: 'bg-green-500',
+    color: 'bg-presson-info',
     graduationRate: 60,
     exitRate: 15,
     currentDeals: 9,
@@ -69,7 +69,7 @@ const STAGES: Stage[] = [
   {
     id: 'series-b',
     name: 'Series B',
-    color: 'bg-purple-500',
+    color: 'bg-success',
     graduationRate: 0,
     exitRate: 25,
     currentDeals: 5,
@@ -207,7 +207,7 @@ export default function PortfolioFlowChart({ fundData }: PortfolioFlowChartProps
                       <h3 className="font-semibold text-lg">{stage.name}</h3>
                       {index < STAGES.length - 1 && (
                         <div className="text-sm text-muted-foreground mt-1">
-                          <span className="text-blue-600">{stage.name} Graduation %</span>
+                          <span className="text-presson-info">{stage.name} Graduation %</span>
                         </div>
                       )}
                     </div>
@@ -216,7 +216,7 @@ export default function PortfolioFlowChart({ fundData }: PortfolioFlowChartProps
                     <Card className="border-2 hover:shadow-md transition-shadow">
                       <CardContent className="p-4">
                         <div
-                          className={`w-full h-16 ${stage.color} rounded-lg flex items-center justify-center text-white font-bold text-lg mb-3`}
+                          className={`w-full h-16 ${stage.color} rounded-lg flex items-center justify-center text-pov-white font-bold text-lg mb-3`}
                         >
                           {index === 0
                             ? `${fundData.monthlyInvestmentRate} deals`
@@ -228,7 +228,10 @@ export default function PortfolioFlowChart({ fundData }: PortfolioFlowChartProps
                         <div className="space-y-2 text-sm">
                           {index < STAGES.length - 1 && (
                             <div className="text-center">
-                              <Badge variant="secondary" className="bg-blue-100 text-blue-800">
+                              <Badge
+                                variant="secondary"
+                                className="bg-presson-info/10 text-presson-info"
+                              >
                                 {stage.graduationRate}% grad rate
                               </Badge>
                             </div>
@@ -236,7 +239,10 @@ export default function PortfolioFlowChart({ fundData }: PortfolioFlowChartProps
 
                           {stage.exitRate > 0 && (
                             <div className="text-center">
-                              <Badge variant="secondary" className="bg-green-100 text-green-800">
+                              <Badge
+                                variant="secondary"
+                                className="bg-presson-positive/10 text-presson-positive"
+                              >
                                 {stage.exitRate}% exit rate
                               </Badge>
                             </div>
@@ -273,8 +279,8 @@ export default function PortfolioFlowChart({ fundData }: PortfolioFlowChartProps
                       key={i}
                       className={`h-8 rounded flex items-center justify-center text-xs font-medium ${
                         i + 1 <= currentMonth
-                          ? 'bg-blue-500 text-white'
-                          : 'bg-gray-200 text-gray-600'
+                          ? 'bg-presson-positive text-pov-white'
+                          : 'bg-pov-gray text-charcoal-600'
                       }`}
                     >
                       {i + 1}
@@ -299,24 +305,26 @@ export default function PortfolioFlowChart({ fundData }: PortfolioFlowChartProps
           <CardContent>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
               <div className="text-center">
-                <div className="text-2xl font-bold text-blue-600">{totalInvested.toFixed(1)}</div>
+                <div className="text-2xl font-bold text-presson-info">
+                  {totalInvested.toFixed(1)}
+                </div>
                 <div className="text-sm text-muted-foreground">Total Deals Invested</div>
               </div>
 
               <div className="text-center">
-                <div className="text-2xl font-bold text-green-600">
+                <div className="text-2xl font-bold text-presson-positive">
                   {totalGraduations.toFixed(1)}
                 </div>
                 <div className="text-sm text-muted-foreground">Total Graduations</div>
               </div>
 
               <div className="text-center">
-                <div className="text-2xl font-bold text-purple-600">{totalExits.toFixed(2)}</div>
+                <div className="text-2xl font-bold text-presson-info">{totalExits.toFixed(2)}</div>
                 <div className="text-sm text-muted-foreground">Total Exits</div>
               </div>
 
               <div className="text-center">
-                <div className="text-2xl font-bold text-orange-600">
+                <div className="text-2xl font-bold text-success">
                   {totalInvested > 0 ? ((totalExits / totalInvested) * 100).toFixed(1) : 0}%
                 </div>
                 <div className="text-sm text-muted-foreground">Exit Rate</div>
@@ -335,12 +343,16 @@ export default function PortfolioFlowChart({ fundData }: PortfolioFlowChartProps
                   .map((step) => (
                     <div
                       key={step.month}
-                      className="flex justify-between items-center text-sm p-2 bg-gray-50 rounded"
+                      className="flex justify-between items-center text-sm p-2 bg-pov-gray rounded"
                     >
                       <span className="font-medium">Month {step.month}</span>
                       <div className="flex space-x-4">
-                        <span className="text-blue-600">{step.preSeedInvestments} invested</span>
-                        <span className="text-green-600">{step.totalExits.toFixed(2)} exits</span>
+                        <span className="text-presson-info">
+                          {step.preSeedInvestments} invested
+                        </span>
+                        <span className="text-presson-positive">
+                          {step.totalExits.toFixed(2)} exits
+                        </span>
                       </div>
                     </div>
                   ))}

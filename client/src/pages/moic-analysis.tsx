@@ -1,24 +1,23 @@
-import { useState } from "react";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { useState } from 'react';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 // Chart libraries removed for bundle optimization
-const ChartPlaceholder = ({ title, height = "h-96" }: { title: string; height?: string }) => (
-  <div className={`${height} bg-gray-50 rounded-lg flex flex-col items-center justify-center`}>
-    <div className="w-16 h-16 bg-gray-200 rounded-full flex items-center justify-center mb-4">
-      <BarChart3 className="h-8 w-8 text-gray-400" />
+const ChartPlaceholder = ({ title, height = 'h-96' }: { title: string; height?: string }) => (
+  <div className={`${height} bg-pov-gray rounded-lg flex flex-col items-center justify-center`}>
+    <div className="w-16 h-16 bg-beige-100 rounded-full flex items-center justify-center mb-4">
+      <BarChart3 className="h-8 w-8 text-charcoal-400" />
     </div>
-    <p className="text-gray-500 font-medium">{title}</p>
-    <p className="text-gray-400 text-sm mt-1">Chart placeholder - data available via API</p>
+    <p className="text-charcoal-500 font-medium">{title}</p>
+    <p className="text-charcoal-400 text-sm mt-1">Chart placeholder - data available via API</p>
   </div>
 );
-import { 
-  TrendingUp,
-  Target,
-  Info,
-  Award,
-  AlertTriangle,
-  BarChart3
-} from "lucide-react";
+import { TrendingUp, Target, Info, Award, AlertTriangle, BarChart3 } from 'lucide-react';
 
 interface MOICMetric {
   company: string;
@@ -38,14 +37,14 @@ interface MOICMetric {
 }
 
 export default function MOICAnalysisPage() {
-  const [selectedCompany, setSelectedCompany] = useState("all");
+  const [selectedCompany, setSelectedCompany] = useState('all');
   const [_selectedView, _setSelectedView] = useState<'table' | 'chart' | 'comparison'>('table');
-  const [_selectedMOICType, _setSelectedMOICType] = useState("exitMOICOnPlannedReserves");
+  const [_selectedMOICType, _setSelectedMOICType] = useState('exitMOICOnPlannedReserves');
 
   // Sample MOIC data based on your documentation
   const moicData: MOICMetric[] = [
     {
-      company: "Company H",
+      company: 'Company H',
       currentMOIC: 3.2,
       currentMOICOnInitial: 4.1,
       currentMOICOnDeployedReserves: 2.8,
@@ -57,11 +56,11 @@ export default function MOICAnalysisPage() {
       initialInvestment: 1000000,
       deployedReserves: 800000,
       plannedReserves: 700000,
-      sector: "AI/ML",
-      stage: "Series B"
+      sector: 'AI/ML',
+      stage: 'Series B',
     },
     {
-      company: "Company L",
+      company: 'Company L',
       currentMOIC: 2.8,
       currentMOICOnInitial: 3.5,
       currentMOICOnDeployedReserves: 2.2,
@@ -73,11 +72,11 @@ export default function MOICAnalysisPage() {
       initialInvestment: 750000,
       deployedReserves: 600000,
       plannedReserves: 450000,
-      sector: "Fintech",
-      stage: "Series A"
+      sector: 'Fintech',
+      stage: 'Series A',
     },
     {
-      company: "Company J",
+      company: 'Company J',
       currentMOIC: 1.9,
       currentMOICOnInitial: 2.4,
       currentMOICOnDeployedReserves: 1.6,
@@ -89,11 +88,11 @@ export default function MOICAnalysisPage() {
       initialInvestment: 500000,
       deployedReserves: 400000,
       plannedReserves: 300000,
-      sector: "Healthcare",
-      stage: "Seed"
+      sector: 'Healthcare',
+      stage: 'Seed',
     },
     {
-      company: "Company B",
+      company: 'Company B',
       currentMOIC: 1.7,
       currentMOICOnInitial: 2.1,
       currentMOICOnDeployedReserves: 1.4,
@@ -105,11 +104,11 @@ export default function MOICAnalysisPage() {
       initialInvestment: 800000,
       deployedReserves: 650000,
       plannedReserves: 550000,
-      sector: "Enterprise",
-      stage: "Series A"
+      sector: 'Enterprise',
+      stage: 'Series A',
     },
     {
-      company: "Company D",
+      company: 'Company D',
       currentMOIC: 1.5,
       currentMOICOnInitial: 1.8,
       currentMOICOnDeployedReserves: 1.2,
@@ -121,27 +120,27 @@ export default function MOICAnalysisPage() {
       initialInvestment: 600000,
       deployedReserves: 500000,
       plannedReserves: 400000,
-      sector: "Consumer",
-      stage: "Seed"
+      sector: 'Consumer',
+      stage: 'Seed',
     },
     {
-      company: "Company X",
+      company: 'Company X',
       currentMOIC: 1.3,
       currentMOICOnInitial: 1.6,
       currentMOICOnDeployedReserves: 1.1,
-      exitMOIC: 2.80,
+      exitMOIC: 2.8,
       exitMOICOnInitial: 3.2,
       exitMOICOnFollowOns: 2.4,
-      exitMOICOnPlannedReserves: 2.80,
+      exitMOICOnPlannedReserves: 2.8,
       totalInvestment: 1800000,
       initialInvestment: 700000,
       deployedReserves: 600000,
       plannedReserves: 500000,
-      sector: "SaaS",
-      stage: "Series B"
+      sector: 'SaaS',
+      stage: 'Series B',
     },
     {
-      company: "Company A",
+      company: 'Company A',
       currentMOIC: 0.8,
       currentMOICOnInitial: 0.9,
       currentMOICOnDeployedReserves: 0.7,
@@ -153,11 +152,11 @@ export default function MOICAnalysisPage() {
       initialInvestment: 900000,
       deployedReserves: 750000,
       plannedReserves: 550000,
-      sector: "Hardware",
-      stage: "Series C"
+      sector: 'Hardware',
+      stage: 'Series C',
     },
     {
-      company: "Company Y",
+      company: 'Company Y',
       currentMOIC: 0.6,
       currentMOICOnInitial: 0.7,
       currentMOICOnDeployedReserves: 0.5,
@@ -169,19 +168,19 @@ export default function MOICAnalysisPage() {
       initialInvestment: 650000,
       deployedReserves: 550000,
       plannedReserves: 400000,
-      sector: "Biotech",
-      stage: "Series A"
-    }
+      sector: 'Biotech',
+      stage: 'Series A',
+    },
   ];
 
   const getMOICColor = (moic: number) => {
-    if (moic >= 3.0) return 'text-green-600';
-    if (moic >= 2.0) return 'text-blue-600';
-    if (moic >= 1.0) return 'text-yellow-600';
-    return 'text-red-500';
+    if (moic >= 2.0) return 'text-presson-positive';
+    if (moic >= 1.0) return 'text-presson-warning';
+    return 'text-presson-negative';
   };
 
-  const filteredData = selectedCompany === "all" ? moicData : moicData.filter(d => d.company === selectedCompany);
+  const filteredData =
+    selectedCompany === 'all' ? moicData : moicData.filter((d) => d.company === selectedCompany);
 
   return (
     <div className="container mx-auto p-6 space-y-6">
@@ -200,7 +199,7 @@ export default function MOICAnalysisPage() {
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All Companies</SelectItem>
-              {moicData.map(company => (
+              {moicData.map((company) => (
                 <SelectItem key={company.company} value={company.company}>
                   {company.company}
                 </SelectItem>
@@ -211,18 +210,19 @@ export default function MOICAnalysisPage() {
       </div>
 
       {/* Key Insight */}
-      <Card className="border-blue-200 bg-blue-50">
+      <Card className="border-presson-info/20 bg-presson-info/10">
         <CardHeader>
-          <CardTitle className="flex items-center space-x-2 text-blue-900">
+          <CardTitle className="flex items-center space-x-2 text-presson-info">
             <Info className="h-5 w-5" />
             <span>Moving Beyond Simple MOIC</span>
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <p className="text-blue-800">
-            MOICs are more than just a reporting metric - they can be a very useful <strong>planning</strong> metric, 
-            especially for reserve deployment. This analysis shows 7 different MOIC calculations that each answer 
-            different questions and help develop a more nuanced understanding of deal performance.
+          <p className="text-presson-info">
+            MOICs are more than just a reporting metric - they can be a very useful{' '}
+            <strong>planning</strong> metric, especially for reserve deployment. This analysis shows
+            7 different MOIC calculations that each answer different questions and help develop a
+            more nuanced understanding of deal performance.
           </p>
         </CardContent>
       </Card>
@@ -232,7 +232,8 @@ export default function MOICAnalysisPage() {
         <CardHeader>
           <CardTitle>Expected Exit MOIC Analysis</CardTitle>
           <CardDescription>
-            Portfolio companies ranked by expected return on planned reserves (the key planning metric)
+            Portfolio companies ranked by expected return on planned reserves (the key planning
+            metric)
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -244,13 +245,16 @@ export default function MOICAnalysisPage() {
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <Card>
           <CardHeader>
-            <CardTitle className="text-gray-800">Performance to Date</CardTitle>
+            <CardTitle className="text-pov-charcoal">Performance to Date</CardTitle>
             <CardDescription>Current returns on investments made</CardDescription>
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
               {filteredData.slice(0, 3).map((company) => (
-                <div key={company.company} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                <div
+                  key={company.company}
+                  className="flex items-center justify-between p-3 bg-pov-gray rounded-lg"
+                >
                   <div>
                     <div className="font-medium">{company.company}</div>
                     <div className="text-sm text-muted-foreground">Current MOIC</div>
@@ -266,7 +270,7 @@ export default function MOICAnalysisPage() {
 
         <Card>
           <CardHeader>
-            <CardTitle className="text-blue-800">Expected Performance at Exit</CardTitle>
+            <CardTitle className="text-presson-info">Expected Performance at Exit</CardTitle>
             <CardDescription>Projected returns including future rounds</CardDescription>
           </CardHeader>
           <CardContent>
@@ -275,16 +279,23 @@ export default function MOICAnalysisPage() {
                 .sort((a, b) => b.exitMOICOnPlannedReserves - a.exitMOICOnPlannedReserves)
                 .slice(0, 3)
                 .map((company) => (
-                <div key={company.company} className="flex items-center justify-between p-3 bg-blue-50 rounded-lg">
-                  <div>
-                    <div className="font-medium">{company.company}</div>
-                    <div className="text-sm text-muted-foreground">Exit MOIC on Planned Reserves</div>
+                  <div
+                    key={company.company}
+                    className="flex items-center justify-between p-3 bg-presson-info/10 rounded-lg"
+                  >
+                    <div>
+                      <div className="font-medium">{company.company}</div>
+                      <div className="text-sm text-muted-foreground">
+                        Exit MOIC on Planned Reserves
+                      </div>
+                    </div>
+                    <div
+                      className={`font-bold text-lg ${getMOICColor(company.exitMOICOnPlannedReserves)}`}
+                    >
+                      {company.exitMOICOnPlannedReserves.toFixed(2)}x
+                    </div>
                   </div>
-                  <div className={`font-bold text-lg ${getMOICColor(company.exitMOICOnPlannedReserves)}`}>
-                    {company.exitMOICOnPlannedReserves.toFixed(2)}x
-                  </div>
-                </div>
-              ))}
+                ))}
             </div>
           </CardContent>
         </Card>
@@ -292,9 +303,9 @@ export default function MOICAnalysisPage() {
 
       {/* Performance Insights */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <Card className="border-green-200 bg-green-50">
+        <Card className="border-presson-positive/20 bg-presson-positive/10">
           <CardHeader>
-            <CardTitle className="flex items-center space-x-2 text-green-800">
+            <CardTitle className="flex items-center space-x-2 text-presson-positive">
               <TrendingUp className="h-5 w-5" />
               <span>Top Exit MOIC</span>
             </CardTitle>
@@ -305,18 +316,20 @@ export default function MOICAnalysisPage() {
                 .sort((a, b) => b.exitMOIC - a.exitMOIC)
                 .slice(0, 3)
                 .map((company) => (
-                <div key={company.company} className="flex items-center justify-between">
-                  <span className="font-medium">{company.company}</span>
-                  <span className="text-green-700 font-bold">{company.exitMOIC.toFixed(2)}x</span>
-                </div>
-              ))}
+                  <div key={company.company} className="flex items-center justify-between">
+                    <span className="font-medium">{company.company}</span>
+                    <span className="text-presson-positive font-bold">
+                      {company.exitMOIC.toFixed(2)}x
+                    </span>
+                  </div>
+                ))}
             </div>
           </CardContent>
         </Card>
 
-        <Card className="border-blue-200 bg-blue-50">
+        <Card className="border-presson-positive/20 bg-presson-positive/10">
           <CardHeader>
-            <CardTitle className="flex items-center space-x-2 text-blue-800">
+            <CardTitle className="flex items-center space-x-2 text-presson-positive">
               <Target className="h-5 w-5" />
               <span>Best Planned Reserves</span>
             </CardTitle>
@@ -327,18 +340,20 @@ export default function MOICAnalysisPage() {
                 .sort((a, b) => b.exitMOICOnPlannedReserves - a.exitMOICOnPlannedReserves)
                 .slice(0, 3)
                 .map((company) => (
-                <div key={company.company} className="flex items-center justify-between">
-                  <span className="font-medium">{company.company}</span>
-                  <span className="text-blue-700 font-bold">{company.exitMOICOnPlannedReserves.toFixed(2)}x</span>
-                </div>
-              ))}
+                  <div key={company.company} className="flex items-center justify-between">
+                    <span className="font-medium">{company.company}</span>
+                    <span className="text-presson-positive font-bold">
+                      {company.exitMOICOnPlannedReserves.toFixed(2)}x
+                    </span>
+                  </div>
+                ))}
             </div>
           </CardContent>
         </Card>
 
-        <Card className="border-red-200 bg-red-50">
+        <Card className="border-presson-negative/20 bg-presson-negative/10">
           <CardHeader>
-            <CardTitle className="flex items-center space-x-2 text-red-800">
+            <CardTitle className="flex items-center space-x-2 text-presson-negative">
               <AlertTriangle className="h-5 w-5" />
               <span>Underperforming</span>
             </CardTitle>
@@ -346,34 +361,38 @@ export default function MOICAnalysisPage() {
           <CardContent>
             <div className="space-y-2">
               {moicData
-                .filter(c => c.exitMOIC < 1.0)
+                .filter((c) => c.exitMOIC < 1.0)
                 .map((company) => (
-                <div key={company.company} className="flex items-center justify-between">
-                  <span className="font-medium">{company.company}</span>
-                  <span className="text-red-700 font-bold">{company.exitMOIC.toFixed(2)}x</span>
-                </div>
-              ))}
+                  <div key={company.company} className="flex items-center justify-between">
+                    <span className="font-medium">{company.company}</span>
+                    <span className="text-presson-negative font-bold">
+                      {company.exitMOIC.toFixed(2)}x
+                    </span>
+                  </div>
+                ))}
             </div>
           </CardContent>
         </Card>
       </div>
 
       {/* Special Mention */}
-      <Card className="border-yellow-200 bg-yellow-50">
+      <Card className="border-presson-info/20 bg-presson-info/10">
         <CardHeader>
-          <CardTitle className="flex items-center space-x-2 text-yellow-800">
+          <CardTitle className="flex items-center space-x-2 text-presson-info">
             <Award className="h-5 w-5" />
             <span>Exit MOIC on Planned Reserves - Special Mention</span>
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <p className="text-sm text-yellow-800 mb-3">
-            The <strong>Exit MOIC on Planned Reserves</strong> deserves special mention as it is a very useful metric in optimizing reserves. 
-            By summarizing the future follow-on performance it enables us to compare one company's reserves with another.
+          <p className="text-sm text-presson-info mb-3">
+            The <strong>Exit MOIC on Planned Reserves</strong> deserves special mention as it is a
+            very useful metric in optimizing reserves. By summarizing the future follow-on
+            performance it enables us to compare one company's reserves with another.
           </p>
-          <p className="text-sm text-yellow-800">
-            When optimizing follow-on reserves, comparing this metric can guide future follow-on deployments.
-            The system automatically calculates and ranks all of your portfolio companies based on this metric.
+          <p className="text-sm text-presson-info">
+            When optimizing follow-on reserves, comparing this metric can guide future follow-on
+            deployments. The system automatically calculates and ranks all of your portfolio
+            companies based on this metric.
           </p>
         </CardContent>
       </Card>

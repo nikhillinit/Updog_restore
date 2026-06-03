@@ -82,7 +82,7 @@ export default function SavedViewsManager({
   const [editingView, setEditingView] = useState<AnalyticsView | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
-  
+
   // Form states
   const [formData, setFormData] = useState({
     name: '',
@@ -104,7 +104,7 @@ export default function SavedViewsManager({
 
   const handleSaveView = () => {
     if (!currentView || !formData.name.trim()) return;
-    
+
     const newView: Omit<AnalyticsView, 'id' | 'createdAt' | 'lastModified'> = {
       name: formData.name,
       description: formData.description,
@@ -118,7 +118,7 @@ export default function SavedViewsManager({
       isShared: formData.isShared,
       tags: formData.tags,
     };
-    
+
     onViewSave(newView);
     setShowSaveDialog(false);
     resetForm();
@@ -126,7 +126,7 @@ export default function SavedViewsManager({
 
   const handleEditView = () => {
     if (!editingView || !formData.name.trim()) return;
-    
+
     onViewUpdate(editingView.id, {
       name: formData.name,
       description: formData.description,
@@ -135,7 +135,7 @@ export default function SavedViewsManager({
       isShared: formData.isShared,
       lastModified: new Date().toISOString(),
     });
-    
+
     setShowEditDialog(false);
     setEditingView(null);
     resetForm();
@@ -153,15 +153,16 @@ export default function SavedViewsManager({
     setShowEditDialog(true);
   };
 
-  const filteredViews = views.filter(view => {
-    const matchesSearch = view.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         view.description.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesTags = selectedTags.length === 0 || 
-                       selectedTags.some(tag => view.tags.includes(tag));
+  const filteredViews = views.filter((view) => {
+    const matchesSearch =
+      view.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      view.description.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesTags =
+      selectedTags.length === 0 || selectedTags.some((tag) => view.tags.includes(tag));
     return matchesSearch && matchesTags;
   });
 
-  const allTags = Array.from(new Set(views.flatMap(view => view.tags)));
+  const allTags = Array.from(new Set(views.flatMap((view) => view.tags)));
 
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('en-US', {
@@ -182,11 +183,11 @@ export default function SavedViewsManager({
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-lg font-semibold">Saved Analytics Views</h2>
-          <p className="text-sm text-gray-600">
+          <p className="text-sm text-charcoal-600">
             Manage your custom analysis configurations and insights
           </p>
         </div>
-        
+
         <Dialog open={showSaveDialog} onOpenChange={setShowSaveDialog}>
           <DialogTrigger asChild>
             <Button>
@@ -205,17 +206,17 @@ export default function SavedViewsManager({
               <Input
                 placeholder="View name (required)"
                 value={formData.name}
-                onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
+                onChange={(e) => setFormData((prev) => ({ ...prev, name: e.target.value }))}
               />
               <Input
                 placeholder="Description (optional)"
                 value={formData.description}
-                onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
+                onChange={(e) => setFormData((prev) => ({ ...prev, description: e.target.value }))}
               />
               <Textarea
                 placeholder="Analysis notes and insights..."
                 value={formData.notes}
-                onChange={(e) => setFormData(prev => ({ ...prev, notes: e.target.value }))}
+                onChange={(e) => setFormData((prev) => ({ ...prev, notes: e.target.value }))}
                 rows={3}
               />
               <div className="flex justify-end space-x-2">
@@ -242,17 +243,15 @@ export default function SavedViewsManager({
         </div>
         {allTags.length > 0 && (
           <div className="flex items-center space-x-2">
-            <span className="text-sm text-gray-600">Tags:</span>
-            {allTags.map(tag => (
+            <span className="text-sm text-charcoal-600">Tags:</span>
+            {allTags.map((tag) => (
               <Badge
                 key={tag}
-                variant={selectedTags.includes(tag) ? "default" : "outline"}
+                variant={selectedTags.includes(tag) ? 'default' : 'outline'}
                 className="cursor-pointer"
                 onClick={() => {
-                  setSelectedTags(prev =>
-                    prev.includes(tag)
-                      ? prev.filter(t => t !== tag)
-                      : [...prev, tag]
+                  setSelectedTags((prev) =>
+                    prev.includes(tag) ? prev.filter((t) => t !== tag) : [...prev, tag]
                   );
                 }}
               >
@@ -268,9 +267,9 @@ export default function SavedViewsManager({
         {filteredViews.length === 0 ? (
           <Card>
             <CardContent className="text-center py-12">
-              <Eye className="h-12 w-12 mx-auto mb-4 text-gray-300" />
-              <h3 className="text-lg font-medium text-gray-900 mb-2">No saved views yet</h3>
-              <p className="text-gray-600 mb-4">
+              <Eye className="h-12 w-12 mx-auto mb-4 text-charcoal-300" />
+              <h3 className="text-lg font-medium text-pov-charcoal mb-2">No saved views yet</h3>
+              <p className="text-charcoal-600 mb-4">
                 Create custom chart configurations to save them for quick access
               </p>
               <Button onClick={() => setShowSaveDialog(true)}>
@@ -287,16 +286,16 @@ export default function SavedViewsManager({
                 <CardContent className="p-4">
                   <div className="flex items-start justify-between">
                     <div className="flex items-start space-x-3 flex-1">
-                      <div className="bg-blue-100 p-2 rounded">
-                        <ChartIcon className="h-5 w-5 text-blue-600" />
+                      <div className="bg-presson-info/10 p-2 rounded">
+                        <ChartIcon className="h-5 w-5 text-presson-info" />
                       </div>
                       <div className="flex-1 min-w-0">
-                        <h3 className="font-medium text-gray-900 mb-1">{view.name}</h3>
+                        <h3 className="font-medium text-pov-charcoal mb-1">{view.name}</h3>
                         {view.description && (
-                          <p className="text-sm text-gray-600 mb-2">{view.description}</p>
+                          <p className="text-sm text-charcoal-600 mb-2">{view.description}</p>
                         )}
-                        
-                        <div className="flex items-center space-x-4 text-xs text-gray-500 mb-2">
+
+                        <div className="flex items-center space-x-4 text-xs text-charcoal-500 mb-2">
                           <div className="flex items-center">
                             <Calendar className="h-3 w-3 mr-1" />
                             {formatDate(view.createdAt)}
@@ -340,15 +339,11 @@ export default function SavedViewsManager({
                     </div>
 
                     <div className="flex items-center space-x-2">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => onViewLoad(view)}
-                      >
+                      <Button variant="outline" size="sm" onClick={() => onViewLoad(view)}>
                         <Eye className="h-4 w-4 mr-1" />
                         Load
                       </Button>
-                      
+
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
                           <Button variant="ghost" size="sm">
@@ -371,7 +366,7 @@ export default function SavedViewsManager({
                           <DropdownMenuSeparator />
                           <DropdownMenuItem
                             onClick={() => onViewDelete(view.id)}
-                            className="text-red-600"
+                            className="text-error"
                           >
                             <Trash2 className="h-4 w-4 mr-2" />
                             Delete
@@ -380,11 +375,11 @@ export default function SavedViewsManager({
                       </DropdownMenu>
                     </div>
                   </div>
-                  
+
                   {view.notes && (
-                    <div className="mt-3 p-3 bg-gray-50 rounded text-sm">
-                      <div className="font-medium text-gray-700 mb-1">Analysis Notes:</div>
-                      <div className="text-gray-600">{view.notes}</div>
+                    <div className="mt-3 p-3 bg-pov-gray rounded text-sm">
+                      <div className="font-medium text-charcoal-700 mb-1">Analysis Notes:</div>
+                      <div className="text-charcoal-600">{view.notes}</div>
                     </div>
                   )}
                 </CardContent>
@@ -399,25 +394,23 @@ export default function SavedViewsManager({
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Edit Analytics View</DialogTitle>
-            <DialogDescription>
-              Update the details for this saved view
-            </DialogDescription>
+            <DialogDescription>Update the details for this saved view</DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
             <Input
               placeholder="View name (required)"
               value={formData.name}
-              onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
+              onChange={(e) => setFormData((prev) => ({ ...prev, name: e.target.value }))}
             />
             <Input
               placeholder="Description (optional)"
               value={formData.description}
-              onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
+              onChange={(e) => setFormData((prev) => ({ ...prev, description: e.target.value }))}
             />
             <Textarea
               placeholder="Analysis notes and insights..."
               value={formData.notes}
-              onChange={(e) => setFormData(prev => ({ ...prev, notes: e.target.value }))}
+              onChange={(e) => setFormData((prev) => ({ ...prev, notes: e.target.value }))}
               rows={3}
             />
             <div className="flex justify-end space-x-2">

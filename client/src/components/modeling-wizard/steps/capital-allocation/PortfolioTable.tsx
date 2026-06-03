@@ -1,8 +1,3 @@
- 
- 
- 
- 
- 
 /**
  * Portfolio Table Component
  * Displays portfolio companies with MOIC color coding and delete confirmation
@@ -15,7 +10,7 @@ import {
   TableCell,
   TableHead,
   TableHeader,
-  TableRow
+  TableRow,
 } from '@/components/ui/table';
 import {
   AlertDialog,
@@ -25,7 +20,7 @@ import {
   AlertDialogDescription,
   AlertDialogFooter,
   AlertDialogHeader,
-  AlertDialogTitle
+  AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { Button } from '@/components/ui/button';
 import type { CompanyData } from './CompanyDialog';
@@ -37,11 +32,7 @@ export interface PortfolioTableProps {
   onDelete: (id: string) => void;
 }
 
-export function PortfolioTable({
-  companies,
-  onEdit,
-  onDelete
-}: PortfolioTableProps) {
+export function PortfolioTable({ companies, onEdit, onDelete }: PortfolioTableProps) {
   const [deleteDialogOpen, setDeleteDialogOpen] = React.useState(false);
   const [companyToDelete, setCompanyToDelete] = React.useState<CompanyData | null>(null);
 
@@ -69,7 +60,7 @@ export function PortfolioTable({
 
   const renderMOIC = (moic: number) => {
     const isPositive = moic >= 1;
-    const colorClass = isPositive ? 'text-green-600' : 'text-red-600';
+    const colorClass = isPositive ? 'text-presson-positive' : 'text-presson-negative';
     const Icon = isPositive ? TrendingUp : TrendingDown;
 
     return (
@@ -82,20 +73,20 @@ export function PortfolioTable({
 
   const formatStage = (stage: string): string => {
     const stageMap: Record<string, string> = {
-      'seed': 'Seed',
+      seed: 'Seed',
       'series-a': 'Series A',
       'series-b': 'Series B',
       'series-c': 'Series C',
-      'growth': 'Growth'
+      growth: 'Growth',
     };
     return stageMap[stage] || stage;
   };
 
   if (companies.length === 0) {
     return (
-      <div className="p-12 text-center border border-dashed border-gray-300 rounded-lg bg-gray-50">
+      <div className="p-12 text-center border border-dashed border-charcoal-300 rounded-lg bg-pov-gray">
         <svg
-          className="mx-auto h-12 w-12 text-gray-400"
+          className="mx-auto h-12 w-12 text-charcoal-400"
           fill="none"
           viewBox="0 0 24 24"
           stroke="currentColor"
@@ -107,8 +98,8 @@ export function PortfolioTable({
             d="M9 13h6m-3-3v6m-9 1V7a2 2 0 012-2h6l2 2h6a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2z"
           />
         </svg>
-        <h3 className="mt-4 text-lg font-medium text-gray-900">No companies yet</h3>
-        <p className="mt-2 text-sm text-gray-600">
+        <h3 className="mt-4 text-lg font-medium text-pov-charcoal">No companies yet</h3>
+        <p className="mt-2 text-sm text-charcoal-600">
           Get started by adding your first portfolio company.
         </p>
       </div>
@@ -140,23 +131,14 @@ export function PortfolioTable({
               const isEvenRow = index % 2 === 0;
 
               return (
-                <TableRow
-                  key={company.id}
-                  className={isEvenRow ? 'bg-white' : 'bg-gray-50'}
-                >
-                  <TableCell className="font-medium text-pov-charcoal">
-                    {company.name}
-                  </TableCell>
-                  <TableCell className="text-gray-700">
-                    {company.sector}
-                  </TableCell>
-                  <TableCell className="text-gray-700">
-                    {formatStage(company.stage)}
-                  </TableCell>
-                  <TableCell className="text-right font-mono text-gray-700">
+                <TableRow key={company.id} className={isEvenRow ? 'bg-white' : 'bg-pov-gray'}>
+                  <TableCell className="font-medium text-pov-charcoal">{company.name}</TableCell>
+                  <TableCell className="text-charcoal-700">{company.sector}</TableCell>
+                  <TableCell className="text-charcoal-700">{formatStage(company.stage)}</TableCell>
+                  <TableCell className="text-right font-mono text-charcoal-700">
                     {formatCurrency(company.initialInvestment)}
                   </TableCell>
-                  <TableCell className="text-right font-mono text-gray-700">
+                  <TableCell className="text-right font-mono text-charcoal-700">
                     {formatCurrency(company.followOnInvestment || 0)}
                   </TableCell>
                   <TableCell className="text-right font-mono font-semibold text-pov-charcoal">
@@ -165,10 +147,8 @@ export function PortfolioTable({
                   <TableCell className="text-right font-mono font-semibold text-pov-charcoal">
                     {formatCurrency(company.currentValue)}
                   </TableCell>
-                  <TableCell className="text-right">
-                    {renderMOIC(moic)}
-                  </TableCell>
-                  <TableCell className="text-right text-gray-700">
+                  <TableCell className="text-right">{renderMOIC(moic)}</TableCell>
+                  <TableCell className="text-right text-charcoal-700">
                     {company.exitYear || '-'}
                   </TableCell>
                   <TableCell className="text-right">
@@ -186,7 +166,7 @@ export function PortfolioTable({
                         variant="ghost"
                         size="sm"
                         onClick={() => handleDeleteClick(company)}
-                        className="h-8 w-8 p-0 text-red-600 hover:text-red-700 hover:bg-red-50"
+                        className="h-8 w-8 p-0 text-pov-charcoal hover:text-pov-charcoal hover:bg-pov-gray"
                       >
                         <Trash2 className="h-4 w-4" />
                         <span className="sr-only">Delete {company.name}</span>
@@ -203,13 +183,11 @@ export function PortfolioTable({
       {/* Portfolio Summary */}
       <div className="grid grid-cols-4 gap-4 mt-4">
         <div className="p-4 bg-white border border-[#E0D8D1] rounded-lg">
-          <div className="text-sm text-gray-600 mb-1">Total Companies</div>
-          <div className="text-2xl font-bold text-pov-charcoal">
-            {companies.length}
-          </div>
+          <div className="text-sm text-charcoal-600 mb-1">Total Companies</div>
+          <div className="text-2xl font-bold text-pov-charcoal">{companies.length}</div>
         </div>
         <div className="p-4 bg-white border border-[#E0D8D1] rounded-lg">
-          <div className="text-sm text-gray-600 mb-1">Total Invested</div>
+          <div className="text-sm text-charcoal-600 mb-1">Total Invested</div>
           <div className="text-2xl font-bold text-pov-charcoal">
             {formatCurrency(
               companies.reduce(
@@ -220,15 +198,13 @@ export function PortfolioTable({
           </div>
         </div>
         <div className="p-4 bg-white border border-[#E0D8D1] rounded-lg">
-          <div className="text-sm text-gray-600 mb-1">Total Value</div>
+          <div className="text-sm text-charcoal-600 mb-1">Total Value</div>
           <div className="text-2xl font-bold text-pov-charcoal">
-            {formatCurrency(
-              companies.reduce((sum, c) => sum + c.currentValue, 0)
-            )}
+            {formatCurrency(companies.reduce((sum, c) => sum + c.currentValue, 0))}
           </div>
         </div>
         <div className="p-4 bg-white border border-[#E0D8D1] rounded-lg">
-          <div className="text-sm text-gray-600 mb-1">Portfolio MOIC</div>
+          <div className="text-sm text-charcoal-600 mb-1">Portfolio MOIC</div>
           <div className="text-2xl font-bold">
             {(() => {
               const totalInvested = companies.reduce(
@@ -239,7 +215,7 @@ export function PortfolioTable({
               const portfolioMOIC = totalInvested > 0 ? totalValue / totalInvested : 0;
               const isPositive = portfolioMOIC >= 1;
               return (
-                <span className={isPositive ? 'text-green-600' : 'text-red-600'}>
+                <span className={isPositive ? 'text-presson-positive' : 'text-presson-negative'}>
                   {portfolioMOIC.toFixed(2)}x
                 </span>
               );
@@ -252,22 +228,18 @@ export function PortfolioTable({
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle className="font-inter font-bold">
-              Delete Company
-            </AlertDialogTitle>
+            <AlertDialogTitle className="font-inter font-bold">Delete Company</AlertDialogTitle>
             <AlertDialogDescription>
               Are you sure you want to delete{' '}
-              <span className="font-semibold text-pov-charcoal">
-                {companyToDelete?.name}
-              </span>
-              ? This action cannot be undone.
+              <span className="font-semibold text-pov-charcoal">{companyToDelete?.name}</span>? This
+              action cannot be undone.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction
               onClick={handleConfirmDelete}
-              className="bg-red-600 hover:bg-red-700"
+              className="bg-pov-charcoal hover:bg-charcoal-700"
             >
               Delete
             </AlertDialogAction>

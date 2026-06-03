@@ -1,10 +1,5 @@
- 
- 
- 
- 
- 
 import React, { useState, useEffect } from 'react';
-import { Label } from "@/components/ui/label";
+import { Label } from '@/components/ui/label';
 
 interface FinancialInputProps {
   label: string;
@@ -31,7 +26,7 @@ export function FinancialInput({
   type = 'currency',
   description,
   error,
-  className = ''
+  className = '',
 }: FinancialInputProps) {
   const [displayValue, setDisplayValue] = useState(value);
   const [focused, setFocused] = useState(false);
@@ -60,7 +55,7 @@ export function FinancialInput({
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const newValue = e.target.value;
     setDisplayValue(newValue);
-    
+
     if (type === 'currency') {
       onChange(cleanNumber(newValue));
     } else {
@@ -99,14 +94,14 @@ export function FinancialInput({
         {label}
         {required && <span className="text-pov-error ml-1">*</span>}
       </Label>
-      
+
       <div className="relative">
         {getPrefix() && (
-          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 font-mono text-sm">
+          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-charcoal-500 font-mono text-sm">
             {getPrefix()}
           </span>
         )}
-        
+
         <input
           type="text"
           value={displayValue}
@@ -121,32 +116,25 @@ export function FinancialInput({
             ${getSuffix() ? 'pr-8' : 'pr-4'}
             py-2
             focus:ring-2 focus:ring-pov-beige focus:border-transparent
-            hover:border-gray-400
-            placeholder:text-gray-400
+            hover:border-charcoal-400
+            placeholder:text-charcoal-400
             ${error ? 'border-pov-error focus:ring-pov-error/20' : ''}
             ${focused ? 'shadow-md' : 'shadow-sm'}
           `}
         />
-        
+
         {getSuffix() && (
-          <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 font-mono text-sm">
+          <span className="absolute right-3 top-1/2 -translate-y-1/2 text-charcoal-500 font-mono text-sm">
             {getSuffix()}
           </span>
         )}
       </div>
-      
+
       {description && !error && (
-        <p className="font-poppins text-xs text-gray-600">
-          {description}
-        </p>
+        <p className="font-poppins text-xs text-charcoal-600">{description}</p>
       )}
-      
-      {error && (
-        <p className="font-poppins text-xs text-pov-error">
-          {error}
-        </p>
-      )}
+
+      {error && <p className="font-poppins text-xs text-pov-error">{error}</p>}
     </div>
   );
 }
-

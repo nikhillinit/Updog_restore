@@ -1,18 +1,18 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Textarea } from "@/components/ui/textarea";
-import { Plus, Trash2 } from "lucide-react";
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Textarea } from '@/components/ui/textarea';
+import { Plus, Trash2 } from 'lucide-react';
 import { useFundTuple, useFundAction } from '@/stores/useFundSelector';
 import { signatureForStrategy } from '@/domain/strategy-signature';
 import { traceWizard } from '@/debug/wizard-trace';
 import { useRenderTracking } from '@/utils/performance-baseline';
 import { spreadIfDefined } from '@/lib/ts/spreadIfDefined';
 import CapitalFirstCalculator from '@/components/CapitalFirstCalculator';
-import type { Stage, SectorProfile, Allocation, InvestmentStrategy } from "@shared/types";
+import type { Stage, SectorProfile, Allocation, InvestmentStrategy } from '@shared/types';
 import type { StrategyStage } from '@/stores/fundStore';
 
 /**
@@ -23,40 +23,43 @@ import type { StrategyStage } from '@/stores/fundStore';
 export default function InvestmentStrategyStep() {
   // Track render performance in development
   useRenderTracking('InvestmentStrategyStep');
-  
+
   // Use tuple selector for state values with shallow equality
-  const [hydrated, stages, sectorProfiles, allocations] = useFundTuple(s => [
+  const [hydrated, stages, sectorProfiles, allocations] = useFundTuple((s) => [
     s.hydrated,
     s.stages,
     s.sectorProfiles,
     s.allocations,
   ]);
-  
+
   // Use action selectors for stable function references
-  const fromInvestmentStrategy = useFundAction(s => s.fromInvestmentStrategy);
-  const addStage = useFundAction(s => s.addStage);
-  const removeStage = useFundAction(s => s.removeStage);
-  const updateStageName = useFundAction(s => s.updateStageName);
-  const updateStageRate = useFundAction(s => s.updateStageRate);
-  
+  const fromInvestmentStrategy = useFundAction((s) => s.fromInvestmentStrategy);
+  const addStage = useFundAction((s) => s.addStage);
+  const removeStage = useFundAction((s) => s.removeStage);
+  const updateStageName = useFundAction((s) => s.updateStageName);
+  const updateStageRate = useFundAction((s) => s.updateStageRate);
+
   // Use ref pattern to keep action reference stable across renders
   const fromStrategyRef = useRef(fromInvestmentStrategy);
   useEffect(() => {
     fromStrategyRef.current = fromInvestmentStrategy;
   }, [fromInvestmentStrategy]);
-  
+
   // Build the payload in a memo (don't recreate on each render)
-  const data: InvestmentStrategy = React.useMemo(() => ({
-    stages: stages.map((s: StrategyStage) => ({
-      id: s.id,
-      name: s.name,
-      graduationRate: s.graduate, // adapt to engine shape
-      exitRate: s.exit,
-    })),
-    sectorProfiles,
-    allocations,
-  }), [stages, sectorProfiles, allocations]);
-  
+  const data: InvestmentStrategy = React.useMemo(
+    () => ({
+      stages: stages.map((s: StrategyStage) => ({
+        id: s.id,
+        name: s.name,
+        graduationRate: s.graduate, // adapt to engine shape
+        exitRate: s.exit,
+      })),
+      sectorProfiles,
+      allocations,
+    }),
+    [stages, sectorProfiles, allocations]
+  );
+
   // Memoize validation to prevent recalculation on every render
   const { allValid: _allValid } = React.useMemo(() => {
     const errors: (string | null)[] = stages.map((r: StrategyStage, i: number) => {
@@ -67,9 +70,9 @@ export default function InvestmentStrategyStep() {
     });
     return { allValid: errors.every((e) => !e), errorsByRow: errors };
   }, [stages]);
-  
-  const [activeTab, setActiveTab] = useState("stages");
-  
+
+  const [activeTab, setActiveTab] = useState('stages');
+
   // Guarded write-back: only when hydrated and signature changes
   const lastSig = React.useRef<string>('');
   React.useEffect(() => {
@@ -85,9 +88,13 @@ export default function InvestmentStrategyStep() {
     }
 
     // Update store once per actual change
-    traceWizard('WRITE_FROM_STRATEGY', { sig, prevSig: lastSig.current }, { component: 'InvestmentStrategyStep' });
+    traceWizard(
+      'WRITE_FROM_STRATEGY',
+      { sig, prevSig: lastSig.current },
+      { component: 'InvestmentStrategyStep' }
+    );
     lastSig.current = sig;
-    
+
     // Use ref pattern to avoid stale closures - keeps React semantics
     fromStrategyRef.current(data);
   }, [hydrated, data]); // Function deliberately omitted from deps
@@ -103,7 +110,7 @@ export default function InvestmentStrategyStep() {
     if ('graduationRate' in updates || 'exitRate' in updates) {
       updateStageRate(index, {
         ...spreadIfDefined('graduate', updates.graduationRate),
-        ...spreadIfDefined('exit', updates.exitRate)
+        ...spreadIfDefined('exit', updates.exitRate),
       });
     }
   };
@@ -121,7 +128,7 @@ export default function InvestmentStrategyStep() {
     };
     fromStrategyRef.current({
       ...data,
-      sectorProfiles: [...data.sectorProfiles, newSector]
+      sectorProfiles: [...data.sectorProfiles, newSector],
     });
   };
 
@@ -131,7 +138,7 @@ export default function InvestmentStrategyStep() {
     );
     fromStrategyRef.current({
       ...data,
-      sectorProfiles: updatedSectors
+      sectorProfiles: updatedSectors,
     });
   };
 
@@ -139,7 +146,7 @@ export default function InvestmentStrategyStep() {
     const updatedSectors = data.sectorProfiles.filter((_: SectorProfile, i: number) => i !== index);
     fromStrategyRef.current({
       ...data,
-      sectorProfiles: updatedSectors
+      sectorProfiles: updatedSectors,
     });
   };
 
@@ -152,7 +159,7 @@ export default function InvestmentStrategyStep() {
     };
     fromStrategyRef.current({
       ...data,
-      allocations: [...data.allocations, newAllocation]
+      allocations: [...data.allocations, newAllocation],
     });
   };
 
@@ -162,7 +169,7 @@ export default function InvestmentStrategyStep() {
     );
     fromStrategyRef.current({
       ...data,
-      allocations: updatedAllocations
+      allocations: updatedAllocations,
     });
   };
 
@@ -170,18 +177,26 @@ export default function InvestmentStrategyStep() {
     const updatedAllocations = data.allocations.filter((_: Allocation, i: number) => i !== index);
     fromStrategyRef.current({
       ...data,
-      allocations: updatedAllocations
+      allocations: updatedAllocations,
     });
   };
 
-  const totalSectorAllocation = data.sectorProfiles.reduce((sum: number, sector: SectorProfile) => sum + sector.targetPercentage, 0);
-  const totalAllocation = data.allocations.reduce((sum: number, alloc: Allocation) => sum + alloc.percentage, 0);
+  const totalSectorAllocation = data.sectorProfiles.reduce(
+    (sum: number, sector: SectorProfile) => sum + sector.targetPercentage,
+    0
+  );
+  const totalAllocation = data.allocations.reduce(
+    (sum: number, alloc: Allocation) => sum + alloc.percentage,
+    0
+  );
 
   return (
     <div className="space-y-6">
       <div className="text-center">
         <h2 className="text-2xl font-bold text-charcoal">Investment Strategy</h2>
-        <p className="text-gray-600 mt-2">Define your investment stages, sector focus, and capital allocation</p>
+        <p className="text-charcoal-600 mt-2">
+          Define your investment stages, sector focus, and capital allocation
+        </p>
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
@@ -197,31 +212,38 @@ export default function InvestmentStrategyStep() {
             <CardHeader>
               <CardTitle>Investment Stages</CardTitle>
               <CardDescription>
-                Define the stages of investment and their graduation/exit rates. Last stage must have 0% graduation rate.
+                Define the stages of investment and their graduation/exit rates. Last stage must
+                have 0% graduation rate.
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               {data.stages.map((stage: Stage, index: number) => (
-                <div key={stage.id} className="border rounded-lg p-4 space-y-4" data-testid={`stage-${index}`}>
+                <div
+                  key={stage.id}
+                  className="border rounded-lg p-4 space-y-4"
+                  data-testid={`stage-${index}`}
+                >
                   <div className="flex items-center justify-between">
                     <h3 className="font-medium">Stage {index + 1}</h3>
                     <Button
                       variant="ghost"
                       size="sm"
                       onClick={() => handleRemoveStage(index)}
-                      className="text-red-500 hover:text-red-700"
+                      className="text-pov-charcoal hover:text-pov-charcoal"
                     >
                       <Trash2 className="h-4 w-4" />
                     </Button>
                   </div>
-                  
+
                   <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                     <div className="space-y-2">
                       <Label>Stage Name</Label>
                       <Input
                         data-testid={`stage-${index}-name`}
                         value={stage.name}
-                        onChange={(e: React.ChangeEvent<HTMLInputElement>) => updateStage(index, { name: e.target.value })}
+                        onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                          updateStage(index, { name: e.target.value })
+                        }
                         placeholder="e.g., Seed, Series A"
                       />
                     </div>
@@ -233,11 +255,15 @@ export default function InvestmentStrategyStep() {
                         min="0"
                         max="100"
                         value={stage.graduationRate}
-                        onChange={(e: React.ChangeEvent<HTMLInputElement>) => updateStage(index, { graduationRate: parseFloat(e.target.value) || 0 })}
+                        onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                          updateStage(index, { graduationRate: parseFloat(e.target.value) || 0 })
+                        }
                         disabled={index === data.stages.length - 1}
                       />
                       {index === data.stages.length - 1 && stage.graduationRate > 0 && (
-                        <p className="text-sm text-red-500">Last stage must have 0% graduation rate</p>
+                        <p className="text-sm text-error">
+                          Last stage must have 0% graduation rate
+                        </p>
                       )}
                     </div>
                     <div className="space-y-2">
@@ -248,16 +274,20 @@ export default function InvestmentStrategyStep() {
                         min="0"
                         max="100"
                         value={stage.exitRate}
-                        onChange={(e: React.ChangeEvent<HTMLInputElement>) => updateStage(index, { exitRate: parseFloat(e.target.value) || 0 })}
+                        onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                          updateStage(index, { exitRate: parseFloat(e.target.value) || 0 })
+                        }
                       />
-                      {(stage.graduationRate + stage.exitRate) > 100 && (
-                        <p className="text-sm text-red-500">Graduation + Exit rates cannot exceed 100%</p>
+                      {stage.graduationRate + stage.exitRate > 100 && (
+                        <p className="text-sm text-error">
+                          Graduation + Exit rates cannot exceed 100%
+                        </p>
                       )}
                     </div>
                     <div className="space-y-2">
                       <Label>Remain (%)</Label>
-                      <div className="p-2 bg-gray-50 rounded h-10 flex items-center">
-                        <span className="text-gray-700" data-testid={`stage-${index}-remain`}>
+                      <div className="p-2 bg-pov-gray rounded h-10 flex items-center">
+                        <span className="text-charcoal-700" data-testid={`stage-${index}-remain`}>
                           {Math.max(0, 100 - stage.graduationRate - stage.exitRate)}%
                         </span>
                       </div>
@@ -265,7 +295,7 @@ export default function InvestmentStrategyStep() {
                   </div>
                 </div>
               ))}
-              
+
               <Button onClick={handleAddStage} variant="outline" className="w-full">
                 <Plus className="h-4 w-4 mr-2" />
                 Add Stage
@@ -279,8 +309,9 @@ export default function InvestmentStrategyStep() {
             <CardHeader>
               <CardTitle>Sector Profiles</CardTitle>
               <CardDescription>
-                Define target allocation percentages by sector. Total: {totalSectorAllocation.toFixed(1)}%
-                {totalSectorAllocation > 100 && <span className="text-red-500"> (exceeds 100%)</span>}
+                Define target allocation percentages by sector. Total:{' '}
+                {totalSectorAllocation.toFixed(1)}%
+                {totalSectorAllocation > 100 && <span className="text-error"> (exceeds 100%)</span>}
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
@@ -292,18 +323,20 @@ export default function InvestmentStrategyStep() {
                       variant="ghost"
                       size="sm"
                       onClick={() => removeSectorProfile(index)}
-                      className="text-red-500 hover:text-red-700"
+                      className="text-pov-charcoal hover:text-pov-charcoal"
                     >
                       <Trash2 className="h-4 w-4" />
                     </Button>
                   </div>
-                  
+
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="space-y-2">
                       <Label>Sector Name</Label>
                       <Input
                         value={sector.name}
-                        onChange={(e: React.ChangeEvent<HTMLInputElement>) => updateSectorProfile(index, { name: e.target.value })}
+                        onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                          updateSectorProfile(index, { name: e.target.value })
+                        }
                         placeholder="e.g., FinTech, HealthTech"
                       />
                     </div>
@@ -314,7 +347,11 @@ export default function InvestmentStrategyStep() {
                         min="0"
                         max="100"
                         value={sector.targetPercentage}
-                        onChange={(e: React.ChangeEvent<HTMLInputElement>) => updateSectorProfile(index, { targetPercentage: parseFloat(e.target.value) || 0 })}
+                        onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                          updateSectorProfile(index, {
+                            targetPercentage: parseFloat(e.target.value) || 0,
+                          })
+                        }
                       />
                     </div>
                   </div>
@@ -323,13 +360,15 @@ export default function InvestmentStrategyStep() {
                     <Label>Description (Optional)</Label>
                     <Textarea
                       value={sector.description || ''}
-                      onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => updateSectorProfile(index, { description: e.target.value })}
+                      onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) =>
+                        updateSectorProfile(index, { description: e.target.value })
+                      }
                       placeholder="Describe your focus and thesis for this sector"
                     />
                   </div>
                 </div>
               ))}
-              
+
               <Button onClick={addSectorProfile} variant="outline" className="w-full">
                 <Plus className="h-4 w-4 mr-2" />
                 Add Sector
@@ -343,8 +382,9 @@ export default function InvestmentStrategyStep() {
             <CardHeader>
               <CardTitle>Capital Allocation</CardTitle>
               <CardDescription>
-                Define how capital will be allocated across different categories. Total: {totalAllocation.toFixed(1)}%
-                {totalAllocation > 100 && <span className="text-red-500"> (exceeds 100%)</span>}
+                Define how capital will be allocated across different categories. Total:{' '}
+                {totalAllocation.toFixed(1)}%
+                {totalAllocation > 100 && <span className="text-error"> (exceeds 100%)</span>}
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
@@ -356,18 +396,20 @@ export default function InvestmentStrategyStep() {
                       variant="ghost"
                       size="sm"
                       onClick={() => removeAllocation(index)}
-                      className="text-red-500 hover:text-red-700"
+                      className="text-pov-charcoal hover:text-pov-charcoal"
                     >
                       <Trash2 className="h-4 w-4" />
                     </Button>
                   </div>
-                  
+
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="space-y-2">
                       <Label>Category</Label>
                       <Input
                         value={allocation.category}
-                        onChange={(e: React.ChangeEvent<HTMLInputElement>) => updateAllocation(index, { category: e.target.value })}
+                        onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                          updateAllocation(index, { category: e.target.value })
+                        }
                         placeholder="e.g., New Investments, Reserves"
                       />
                     </div>
@@ -378,7 +420,9 @@ export default function InvestmentStrategyStep() {
                         min="0"
                         max="100"
                         value={allocation.percentage}
-                        onChange={(e: React.ChangeEvent<HTMLInputElement>) => updateAllocation(index, { percentage: parseFloat(e.target.value) || 0 })}
+                        onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                          updateAllocation(index, { percentage: parseFloat(e.target.value) || 0 })
+                        }
                       />
                     </div>
                   </div>
@@ -387,13 +431,15 @@ export default function InvestmentStrategyStep() {
                     <Label>Description (Optional)</Label>
                     <Textarea
                       value={allocation.description || ''}
-                      onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => updateAllocation(index, { description: e.target.value })}
+                      onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) =>
+                        updateAllocation(index, { description: e.target.value })
+                      }
                       placeholder="Describe this allocation category"
                     />
                   </div>
                 </div>
               ))}
-              
+
               <Button onClick={addAllocation} variant="outline" className="w-full">
                 <Plus className="h-4 w-4 mr-2" />
                 Add Allocation

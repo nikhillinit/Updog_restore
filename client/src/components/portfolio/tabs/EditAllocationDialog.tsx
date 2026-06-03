@@ -144,40 +144,40 @@ export function EditAllocationDialog({
         </DialogHeader>
 
         <div className="grid gap-4 py-4">
-          <div className="grid grid-cols-2 gap-4 p-3 bg-gray-50 rounded-md">
+          <div className="grid grid-cols-2 gap-4 p-3 bg-pov-gray rounded-md">
             <div>
-              <p className="text-sm text-gray-500">Sector</p>
+              <p className="text-sm text-charcoal-500">Sector</p>
               <p className="text-sm font-medium">{company.sector}</p>
             </div>
             <div>
-              <p className="text-sm text-gray-500">Stage</p>
+              <p className="text-sm text-charcoal-500">Stage</p>
               <p className="text-sm font-medium">{company.stage}</p>
             </div>
             <div>
-              <p className="text-sm text-gray-500">Invested Amount</p>
+              <p className="text-sm text-charcoal-500">Invested Amount</p>
               <p className="text-sm font-medium">
                 {formatCents(company.invested_amount_cents, { compact: true })}
               </p>
             </div>
             <div>
-              <p className="text-sm text-gray-500">Deployed Reserves</p>
-              <p className="text-sm font-medium text-blue-600">
+              <p className="text-sm text-charcoal-500">Deployed Reserves</p>
+              <p className="text-sm font-medium text-presson-info">
                 {formatCents(company.deployed_reserves_cents, { compact: true })}
               </p>
             </div>
             <div>
-              <p className="text-sm text-gray-500">Allocation Version</p>
+              <p className="text-sm text-charcoal-500">Allocation Version</p>
               <p className="text-sm font-medium">v{company.allocation_version}</p>
             </div>
             <div>
-              <p className="text-sm text-gray-500">Last Updated</p>
+              <p className="text-sm text-charcoal-500">Last Updated</p>
               <p className="text-sm font-medium">{lastUpdatedLabel}</p>
             </div>
           </div>
 
           <div className="grid gap-2">
             <Label htmlFor="planned-reserves">
-              Planned Reserves <span className="text-red-500">*</span>
+              Planned Reserves <span className="text-error">*</span>
             </Label>
             <Input
               id="planned-reserves"
@@ -187,12 +187,12 @@ export function EditAllocationDialog({
               value={plannedReservesDollars}
               onChange={(event) => setPlannedReservesDollars(event.target.value)}
               placeholder="e.g., 1000000"
-              className={errors['plannedReserves'] ? 'border-red-500' : ''}
+              className={errors['plannedReserves'] ? 'border-error' : ''}
             />
             {errors['plannedReserves'] && (
-              <p className="text-sm text-red-500">{errors['plannedReserves']}</p>
+              <p className="text-sm text-error">{errors['plannedReserves']}</p>
             )}
-            <p className="text-xs text-gray-500">
+            <p className="text-xs text-charcoal-500">
               Current: {formatCents(company.planned_reserves_cents)}
             </p>
           </div>
@@ -207,12 +207,12 @@ export function EditAllocationDialog({
               value={allocationCapDollars}
               onChange={(event) => setAllocationCapDollars(event.target.value)}
               placeholder="e.g., 5000000 (leave empty for no cap)"
-              className={errors['allocationCap'] ? 'border-red-500' : ''}
+              className={errors['allocationCap'] ? 'border-error' : ''}
             />
             {errors['allocationCap'] && (
-              <p className="text-sm text-red-500">{errors['allocationCap']}</p>
+              <p className="text-sm text-error">{errors['allocationCap']}</p>
             )}
-            <p className="text-xs text-gray-500">
+            <p className="text-xs text-charcoal-500">
               Current:{' '}
               {company.allocation_cap_cents !== null
                 ? formatCents(company.allocation_cap_cents)
@@ -230,7 +230,7 @@ export function EditAllocationDialog({
               className="min-h-[80px]"
               maxLength={500}
             />
-            <p className="text-xs text-gray-500">{allocationReason.length}/500 characters</p>
+            <p className="text-xs text-charcoal-500">{allocationReason.length}/500 characters</p>
           </div>
         </div>
 

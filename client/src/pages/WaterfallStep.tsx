@@ -1,20 +1,25 @@
-import { Label } from "@/components/ui/label";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import type { Waterfall } from "@shared/types";
-import { applyWaterfallChange } from "@/lib/waterfall";
+import { Label } from '@/components/ui/label';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import type { Waterfall } from '@shared/types';
+import { applyWaterfallChange } from '@/lib/waterfall';
 
 interface WaterfallStepProps {
   data: Waterfall;
   onChange: (_data: Waterfall) => void;
 }
 
-
 export default function WaterfallStep({ data, onChange }: WaterfallStepProps) {
   const handleCarryVestingChange = (field: 'cliffYears' | 'vestingYears', value: number) => {
     const updated = applyWaterfallChange(data, 'carryVesting', {
       ...data.carryVesting,
-      [field]: value
+      [field]: value,
     });
     onChange(updated);
   };
@@ -23,7 +28,7 @@ export default function WaterfallStep({ data, onChange }: WaterfallStepProps) {
     <div className="space-y-6">
       <div className="mb-6 space-y-1 text-center">
         <h2 className="text-2xl font-bold text-charcoal">Waterfall Structure</h2>
-        <p className="text-gray-600">Define the distribution waterfall and carry terms</p>
+        <p className="text-charcoal-600">Define the distribution waterfall and carry terms</p>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -31,42 +36,37 @@ export default function WaterfallStep({ data, onChange }: WaterfallStepProps) {
         <Card>
           <CardHeader>
             <CardTitle>Waterfall Type</CardTitle>
-            <CardDescription>
-              American (deal-by-deal) waterfall structure
-            </CardDescription>
+            <CardDescription>American (deal-by-deal) waterfall structure</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="p-4 border rounded-lg bg-gray-50">
+            <div className="p-4 border rounded-lg bg-pov-gray">
               <div className="space-y-2">
-                <p className="text-base font-medium">
-                  American Waterfall
-                </p>
-                <p className="text-sm text-gray-600">
-                  Deal-by-deal carry distribution. GPs receive carry on each individual exit
-                  after returning invested capital for that specific investment.
+                <p className="text-base font-medium">American Waterfall</p>
+                <p className="text-sm text-charcoal-600">
+                  Deal-by-deal carry distribution. GPs receive carry on each individual exit after
+                  returning invested capital for that specific investment.
                 </p>
               </div>
             </div>
           </CardContent>
         </Card>
-
       </div>
 
       {/* Carry Vesting */}
       <Card>
         <CardHeader>
           <CardTitle>Carry Vesting</CardTitle>
-          <CardDescription>
-            Define the vesting schedule for GP carry
-          </CardDescription>
+          <CardDescription>Define the vesting schedule for GP carry</CardDescription>
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div className="space-y-2">
               <Label className="text-base font-medium">Cliff Period</Label>
-              <Select 
-                value={data.carryVesting.cliffYears.toString()} 
-                onValueChange={(value) => handleCarryVestingChange('cliffYears', Number.parseInt(value, 10))}
+              <Select
+                value={data.carryVesting.cliffYears.toString()}
+                onValueChange={(value) =>
+                  handleCarryVestingChange('cliffYears', Number.parseInt(value, 10))
+                }
               >
                 <SelectTrigger>
                   <SelectValue placeholder="Select cliff" />
@@ -79,16 +79,16 @@ export default function WaterfallStep({ data, onChange }: WaterfallStepProps) {
                   <SelectItem value="4">4 years</SelectItem>
                 </SelectContent>
               </Select>
-              <p className="text-sm text-gray-600">
-                Period before any carry vests
-              </p>
+              <p className="text-sm text-charcoal-600">Period before any carry vests</p>
             </div>
 
             <div className="space-y-2">
               <Label className="text-base font-medium">Vesting Period</Label>
-              <Select 
-                value={data.carryVesting.vestingYears.toString()} 
-                onValueChange={(value) => handleCarryVestingChange('vestingYears', Number.parseInt(value, 10))}
+              <Select
+                value={data.carryVesting.vestingYears.toString()}
+                onValueChange={(value) =>
+                  handleCarryVestingChange('vestingYears', Number.parseInt(value, 10))
+                }
               >
                 <SelectTrigger>
                   <SelectValue placeholder="Select vesting" />
@@ -101,20 +101,18 @@ export default function WaterfallStep({ data, onChange }: WaterfallStepProps) {
                   <SelectItem value="5">5 years</SelectItem>
                 </SelectContent>
               </Select>
-              <p className="text-sm text-gray-600">
-                Total period over which carry vests
-              </p>
+              <p className="text-sm text-charcoal-600">Total period over which carry vests</p>
             </div>
           </div>
 
-          <div className="mt-6 p-4 bg-gray-50 rounded-lg">
+          <div className="mt-6 p-4 bg-pov-gray rounded-lg">
             <h4 className="font-medium text-charcoal mb-2">Vesting Summary</h4>
-            <p className="text-sm text-gray-600">
-              {data.carryVesting.cliffYears === 0 
-                ? "Carry vests immediately over " 
+            <p className="text-sm text-charcoal-600">
+              {data.carryVesting.cliffYears === 0
+                ? 'Carry vests immediately over '
                 : `After a ${data.carryVesting.cliffYears}-year cliff, carry vests over `}
               {data.carryVesting.vestingYears} year{data.carryVesting.vestingYears > 1 ? 's' : ''}.
-              {data.carryVesting.cliffYears > 0 && 
+              {data.carryVesting.cliffYears > 0 &&
                 ` No carry is earned in the first ${data.carryVesting.cliffYears} year${data.carryVesting.cliffYears > 1 ? 's' : ''}.`}
             </p>
           </div>

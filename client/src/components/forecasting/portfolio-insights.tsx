@@ -8,8 +8,8 @@ import { YAxis } from 'recharts/es6/cartesian/YAxis';
 import { CartesianGrid } from 'recharts/es6/cartesian/CartesianGrid';
 import { Tooltip } from 'recharts/es6/component/Tooltip';
 import { LazyResponsiveContainer as ResponsiveContainer } from '@/components/charts/LazyResponsiveContainer';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Building2, TrendingUp, Users } from "lucide-react";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Building2, TrendingUp, Users } from 'lucide-react';
 
 interface CoInvestorData {
   name: string;
@@ -29,48 +29,48 @@ export default function PortfolioInsights() {
   // Sample data for co-investor analysis
   const coInvestorData: CoInvestorData[] = [
     {
-      name: "Andreessen Horowitz",
+      name: 'Andreessen Horowitz',
       amount: 4059371,
       deals: 8,
-      color: "#3b82f6"
+      color: '#3b82f6',
     },
     {
-      name: "Sequoia Capital",
+      name: 'Sequoia Capital',
       amount: 10596400,
       deals: 12,
-      color: "#10b981"
+      color: '#10b981',
     },
     {
-      name: "General Catalyst",
+      name: 'General Catalyst',
       amount: 7500000,
       deals: 6,
-      color: "#f59e0b"
+      color: '#f59e0b',
     },
     {
-      name: "Benchmark Capital",
+      name: 'Benchmark Capital',
       amount: 4176131,
       deals: 5,
-      color: "#ef4444"
+      color: '#ef4444',
     },
     {
-      name: "Others",
+      name: 'Others',
       amount: 15000000,
       deals: 25,
-      color: "#6b7280"
-    }
+      color: '#6b7280',
+    },
   ];
 
   const sectorMOICData: SectorMOIC[] = [
-    { sector: "Enterprise Software", moic: 2.84 },
-    { sector: "Consumer", moic: 2.64 },
-    { sector: "Fintech", moic: 1.94 },
-    { sector: "Healthcare", moic: 1.84 },
-    { sector: "AI/ML", moic: 1.68 },
-    { sector: "Developer Tools", moic: 1.48 },
-    { sector: "Infrastructure", moic: 1.30 },
-    { sector: "Biotech", moic: 1.26 },
-    { sector: "Hardware", moic: 1.24 },
-    { sector: "Crypto", moic: 1.06 }
+    { sector: 'Enterprise Software', moic: 2.84 },
+    { sector: 'Consumer', moic: 2.64 },
+    { sector: 'Fintech', moic: 1.94 },
+    { sector: 'Healthcare', moic: 1.84 },
+    { sector: 'AI/ML', moic: 1.68 },
+    { sector: 'Developer Tools', moic: 1.48 },
+    { sector: 'Infrastructure', moic: 1.3 },
+    { sector: 'Biotech', moic: 1.26 },
+    { sector: 'Hardware', moic: 1.24 },
+    { sector: 'Crypto', moic: 1.06 },
   ];
 
   const formatCurrency = (value: number) => {
@@ -87,17 +87,17 @@ export default function PortfolioInsights() {
             <Building2 className="h-5 w-5" />
             <span>Portfolio Insights and Performance</span>
           </CardTitle>
-          <CardDescription>
-            Analysis of co-investments and sector performance
-          </CardDescription>
+          <CardDescription>Analysis of co-investments and sector performance</CardDescription>
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {/* Co-investor Analysis */}
             <div className="space-y-4">
-              <h3 className="text-lg font-semibold">Example: Which funds have we co-invested with the most?</h3>
+              <h3 className="text-lg font-semibold">
+                Example: Which funds have we co-invested with the most?
+              </h3>
               <div className="text-sm text-muted-foreground mb-4">Sum: Invested To Date</div>
-              
+
               <div className="h-80">
                 <ResponsiveContainer width="100%" height="100%">
                   <PieChart>
@@ -114,7 +114,12 @@ export default function PortfolioInsights() {
                         <Cell key={entry.name} fill={entry.color} />
                       ))}
                     </Pie>
-                    <Tooltip formatter={(value) => [value !== undefined ? formatCurrency(Number(value)) : '', 'Invested']} />
+                    <Tooltip
+                      formatter={(value) => [
+                        value !== undefined ? formatCurrency(Number(value)) : '',
+                        'Invested',
+                      ]}
+                    />
                   </PieChart>
                 </ResponsiveContainer>
               </div>
@@ -123,10 +128,10 @@ export default function PortfolioInsights() {
                 {coInvestorData.map((investor) => (
                   <div
                     key={investor.name}
-                    className="flex items-center justify-between p-2 rounded-lg bg-gray-50"
+                    className="flex items-center justify-between p-2 rounded-lg bg-pov-gray"
                   >
                     <div className="flex items-center space-x-3">
-                      <div 
+                      <div
                         className="w-3 h-3 rounded-full"
                         style={{ backgroundColor: investor.color }}
                       />
@@ -145,26 +150,20 @@ export default function PortfolioInsights() {
             <div className="space-y-4">
               <h3 className="text-lg font-semibold">Example: Average MOIC by sector</h3>
               <div className="text-sm text-muted-foreground mb-4">Mean Current MOIC</div>
-              
+
               <div className="h-80">
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart data={sectorMOICData} layout="horizontal">
                     <CartesianGrid strokeDasharray="3 3" />
                     <XAxis type="number" domain={[0, 3]} />
-                    <YAxis 
-                      dataKey="sector" 
-                      type="category" 
-                      width={120}
-                      fontSize={12}
-                    />
+                    <YAxis dataKey="sector" type="category" width={120} fontSize={12} />
                     <Tooltip
-                      formatter={(value) => [value !== undefined ? `${Number(value).toFixed(2)}x` : '', 'MOIC']}
+                      formatter={(value) => [
+                        value !== undefined ? `${Number(value).toFixed(2)}x` : '',
+                        'MOIC',
+                      ]}
                     />
-                    <Bar 
-                      dataKey="moic" 
-                      fill="#3b82f6"
-                      radius={[0, 4, 4, 0]}
-                    />
+                    <Bar dataKey="moic" fill="#3b82f6" radius={[0, 4, 4, 0]} />
                   </BarChart>
                 </ResponsiveContainer>
               </div>
@@ -175,18 +174,21 @@ export default function PortfolioInsights() {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-6">
             <Card className="p-4">
               <div className="flex items-center space-x-2 mb-2">
-                <Users className="h-4 w-4 text-blue-600" />
+                <Users className="h-4 w-4 text-presson-info" />
                 <span className="font-medium">Top Co-investor</span>
               </div>
               <div className="text-2xl font-bold">Sequoia Capital</div>
               <div className="text-sm text-muted-foreground">
-                {formatCurrency(coInvestorData.find(inv => inv.name === "Sequoia Capital")?.amount || 0)} across 12 deals
+                {formatCurrency(
+                  coInvestorData.find((inv) => inv.name === 'Sequoia Capital')?.amount || 0
+                )}{' '}
+                across 12 deals
               </div>
             </Card>
 
             <Card className="p-4">
               <div className="flex items-center space-x-2 mb-2">
-                <TrendingUp className="h-4 w-4 text-green-600" />
+                <TrendingUp className="h-4 w-4 text-presson-positive" />
                 <span className="font-medium">Best Sector</span>
               </div>
               <div className="text-2xl font-bold">Enterprise Software</div>
@@ -197,13 +199,11 @@ export default function PortfolioInsights() {
 
             <Card className="p-4">
               <div className="flex items-center space-x-2 mb-2">
-                <Building2 className="h-4 w-4 text-purple-600" />
+                <Building2 className="h-4 w-4 text-pov-charcoal" />
                 <span className="font-medium">Portfolio Size</span>
               </div>
               <div className="text-2xl font-bold">45 companies</div>
-              <div className="text-sm text-muted-foreground">
-                Across 10 sectors
-              </div>
+              <div className="text-sm text-muted-foreground">Across 10 sectors</div>
             </Card>
           </div>
         </CardContent>

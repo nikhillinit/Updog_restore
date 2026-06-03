@@ -65,7 +65,9 @@ export function CollapsibleCard({
         <div className="flex items-start justify-between gap-4">
           <div className="flex-1 min-w-0">
             <CardTitle className="text-lg">{title}</CardTitle>
-            {isExpanded && description && <CardDescription className="mt-1.5">{description}</CardDescription>}
+            {isExpanded && description && (
+              <CardDescription className="mt-1.5">{description}</CardDescription>
+            )}
             {!isExpanded && summary && (
               <div className="mt-1.5 text-sm text-muted-foreground">{summary}</div>
             )}
@@ -74,7 +76,7 @@ export function CollapsibleCard({
           {/* Chevron Icon */}
           <ChevronRight
             className={cn(
-              'h-5 w-5 text-gray-500 transition-transform duration-200 flex-shrink-0',
+              'h-5 w-5 text-charcoal-500 transition-transform duration-200 flex-shrink-0',
               isExpanded && 'rotate-90'
             )}
           />
@@ -89,9 +91,7 @@ export function CollapsibleCard({
         )}
         aria-hidden={!isExpanded}
       >
-        <CardContent className={cn('pt-0', isExpanded && 'pb-6')}>
-          {children}
-        </CardContent>
+        <CardContent className={cn('pt-0', isExpanded && 'pb-6')}>{children}</CardContent>
       </div>
     </Card>
   );

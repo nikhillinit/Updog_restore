@@ -486,7 +486,7 @@ export default function ColumnConfigurationDialog({
       <DialogContent className="max-w-4xl max-h-[80vh] overflow-hidden">
         <DialogHeader>
           <DialogTitle>Configure Investment Reporting Metrics</DialogTitle>
-          <p className="text-sm text-gray-600">
+          <p className="text-sm text-charcoal-600">
             Choose from 65+ available metrics to customize your investments table view
           </p>
         </DialogHeader>
@@ -494,7 +494,7 @@ export default function ColumnConfigurationDialog({
         <div className="flex flex-col space-y-4 h-full">
           {/* Search */}
           <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-charcoal-400" />
             <Input
               placeholder="Search metrics..."
               value={searchTerm}
@@ -554,7 +554,7 @@ export default function ColumnConfigurationDialog({
                     {category.metrics.map((metric) => (
                       <div
                         key={metric.id}
-                        className="flex items-start space-x-3 p-3 border border-gray-200 rounded-lg"
+                        className="flex items-start space-x-3 p-3 border border-beige-200 rounded-lg"
                       >
                         <Checkbox
                           checked={metric.enabled}
@@ -564,8 +564,8 @@ export default function ColumnConfigurationDialog({
                           className="mt-0.5"
                         />
                         <div className="flex-1">
-                          <div className="font-medium text-gray-900">{metric.name}</div>
-                          <div className="text-sm text-gray-600 mt-1">{metric.description}</div>
+                          <div className="font-medium text-pov-charcoal">{metric.name}</div>
+                          <div className="text-sm text-charcoal-600 mt-1">{metric.description}</div>
                         </div>
                       </div>
                     ))}
@@ -588,7 +588,7 @@ export default function ColumnConfigurationDialog({
                     ?.metrics.map((metric) => (
                       <div
                         key={metric.id}
-                        className="flex items-start space-x-3 p-3 border border-gray-200 rounded-lg"
+                        className="flex items-start space-x-3 p-3 border border-beige-200 rounded-lg"
                       >
                         <Checkbox
                           checked={metric.enabled}
@@ -598,8 +598,8 @@ export default function ColumnConfigurationDialog({
                           className="mt-0.5"
                         />
                         <div className="flex-1">
-                          <div className="font-medium text-gray-900">{metric.name}</div>
-                          <div className="text-sm text-gray-600 mt-1">{metric.description}</div>
+                          <div className="font-medium text-pov-charcoal">{metric.name}</div>
+                          <div className="text-sm text-charcoal-600 mt-1">{metric.description}</div>
                         </div>
                       </div>
                     ))}
@@ -609,13 +609,13 @@ export default function ColumnConfigurationDialog({
           </Tabs>
 
           {/* Footer */}
-          <div className="flex items-center justify-between pt-4 border-t border-gray-200">
+          <div className="flex items-center justify-between pt-4 border-t border-beige-200">
             <div className="flex items-center space-x-2">
               <Button variant="outline" size="sm">
                 <RefreshCw className="w-4 h-4 mr-1" />
                 Reset to Default
               </Button>
-              <span className="text-sm text-gray-600">
+              <span className="text-sm text-charcoal-600">
                 {localMetrics.flatMap((c) => c.metrics).filter((m) => m.enabled).length} metrics
                 selected
               </span>

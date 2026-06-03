@@ -183,13 +183,13 @@ function HistoryPanel({
   const { data, isLoading } = useSensitivityHistory(fundId, 'two_way', 10);
 
   if (isLoading) {
-    return <p className="text-xs text-gray-500">Loading history...</p>;
+    return <p className="text-xs text-charcoal-500">Loading history...</p>;
   }
 
   const runs = data?.runs ?? [];
   if (runs.length === 0) {
     return (
-      <p className="text-xs text-gray-500" data-testid="two-way-history-empty">
+      <p className="text-xs text-charcoal-500" data-testid="two-way-history-empty">
         No previous two-way analyses
       </p>
     );
@@ -197,7 +197,7 @@ function HistoryPanel({
 
   return (
     <div className="space-y-1" data-testid="two-way-history-list">
-      <h3 className="mb-2 text-xs font-medium text-gray-600">Recent Runs</h3>
+      <h3 className="mb-2 text-xs font-medium text-charcoal-600">Recent Runs</h3>
       {runs.map((run) => {
         const parsed = parseHistoryResult(run);
         const disabled = parsed === null;
@@ -209,14 +209,16 @@ function HistoryPanel({
             onClick={() => parsed && onSelect(parsed)}
             className={cn(
               'w-full rounded px-2 py-1.5 text-left text-xs transition-colors',
-              disabled ? 'cursor-not-allowed text-gray-400' : 'hover:bg-gray-100 text-gray-800'
+              disabled
+                ? 'cursor-not-allowed text-charcoal-400'
+                : 'text-pov-charcoal hover:bg-pov-charcoal hover:text-pov-white'
             )}
             data-testid={`two-way-history-item-${run.id}`}
           >
             <span>#{run.id}</span>
-            <span className="mx-1 text-gray-400">·</span>
+            <span className="mx-1 text-charcoal-400">·</span>
             <span>{formatRunTimestamp(run.createdAt)}</span>
-            <span className="mx-1 text-gray-400">·</span>
+            <span className="mx-1 text-charcoal-400">·</span>
             <span className="uppercase tracking-wide text-[10px]">{run.status}</span>
           </button>
         );
@@ -275,7 +277,7 @@ function ResultsSection({ result }: { result: TwoWayAnalysisResultV1 }) {
                 <tr>
                   <th
                     scope="col"
-                    className="border border-gray-200 bg-gray-50 px-2 py-1 text-left font-medium text-gray-500"
+                    className="border border-beige-200 bg-pov-gray px-2 py-1 text-left font-medium text-charcoal-500"
                   >
                     {`${variableY.label} \\ ${variableX.label}`}
                   </th>
@@ -283,7 +285,7 @@ function ResultsSection({ result }: { result: TwoWayAnalysisResultV1 }) {
                     <th
                       key={`x-${x}`}
                       scope="col"
-                      className="border border-gray-200 bg-gray-50 px-2 py-1 text-center font-medium text-gray-700"
+                      className="border border-beige-200 bg-pov-gray px-2 py-1 text-center font-medium text-charcoal-700"
                     >
                       {formatVariableValue(x, variableX)}
                     </th>
@@ -295,7 +297,7 @@ function ResultsSection({ result }: { result: TwoWayAnalysisResultV1 }) {
                   <tr key={`y-${y}`}>
                     <th
                       scope="row"
-                      className="border border-gray-200 bg-gray-50 px-2 py-1 text-left font-medium text-gray-700"
+                      className="border border-beige-200 bg-pov-gray px-2 py-1 text-left font-medium text-charcoal-700"
                     >
                       {formatVariableValue(y, variableY)}
                     </th>
@@ -306,7 +308,7 @@ function ResultsSection({ result }: { result: TwoWayAnalysisResultV1 }) {
                           <td
                             key={`cell-${x}-${y}`}
                             data-testid={`two-way-cell-${x}-${y}`}
-                            className="border border-gray-200 px-2 py-1 text-center text-gray-300"
+                            className="border border-beige-200 px-2 py-1 text-center text-charcoal-300"
                           >
                             —
                           </td>
@@ -316,7 +318,7 @@ function ResultsSection({ result }: { result: TwoWayAnalysisResultV1 }) {
                         <td
                           key={`cell-${x}-${y}`}
                           data-testid={`two-way-cell-${x}-${y}`}
-                          className="border border-gray-200 px-2 py-1 text-center tabular-nums"
+                          className="border border-beige-200 px-2 py-1 text-center tabular-nums"
                           style={{
                             backgroundColor: interpolateCellColor(value, minMetric, maxMetric),
                             color: cellTextColor(value, minMetric, maxMetric),
@@ -480,7 +482,7 @@ export function TwoWayPanel({ fundId }: TwoWayPanelProps): JSX.Element {
                   ))}
                 </SelectContent>
               </Select>
-              <p className="text-xs text-gray-500">{variableXDefinition.description}</p>
+              <p className="text-xs text-charcoal-500">{variableXDefinition.description}</p>
             </div>
 
             <div className="grid grid-cols-2 gap-3">
@@ -533,7 +535,7 @@ export function TwoWayPanel({ fundId }: TwoWayPanelProps): JSX.Element {
                   ))}
                 </SelectContent>
               </Select>
-              <p className="text-xs text-gray-500">{variableYDefinition.description}</p>
+              <p className="text-xs text-charcoal-500">{variableYDefinition.description}</p>
             </div>
 
             <div className="grid grid-cols-2 gap-3">
@@ -590,7 +592,7 @@ export function TwoWayPanel({ fundId }: TwoWayPanelProps): JSX.Element {
 
             {!validation.ok && validation.errors.length > 0 && (
               <ul
-                className="space-y-0.5 text-xs text-red-600"
+                className="space-y-0.5 text-xs text-error"
                 data-testid="two-way-validation-errors"
               >
                 {validation.errors.map((err) => (
@@ -625,14 +627,14 @@ export function TwoWayPanel({ fundId }: TwoWayPanelProps): JSX.Element {
 
       <div className="space-y-4 lg:col-span-2">
         {mutation.isPending && (
-          <Card className="border-blue-200">
+          <Card className="border-presson-info/20">
             <CardContent className="px-4 py-3">
               <div className="mb-1 flex items-center justify-between">
                 <div className="flex items-center gap-2">
-                  <div className="h-2 w-2 animate-pulse rounded-full bg-blue-500" />
-                  <span className="text-sm font-medium text-gray-700">Running sweep...</span>
+                  <div className="h-2 w-2 animate-pulse rounded-full bg-presson-info" />
+                  <span className="text-sm font-medium text-charcoal-700">Running sweep...</span>
                 </div>
-                <span className="tabular-nums text-xs text-gray-500">{elapsed}s</span>
+                <span className="tabular-nums text-xs text-charcoal-500">{elapsed}s</span>
               </div>
             </CardContent>
           </Card>
@@ -655,10 +657,10 @@ export function TwoWayPanel({ fundId }: TwoWayPanelProps): JSX.Element {
 
         {!mutation.isPending && !error && !displayedResult && (
           <div
-            className="flex h-48 items-center justify-center rounded-lg border border-dashed border-gray-300"
+            className="flex h-48 items-center justify-center rounded-lg border border-dashed border-charcoal-300"
             data-testid="two-way-idle"
           >
-            <p className="text-sm text-gray-400">Configure and run a sweep to see results</p>
+            <p className="text-sm text-charcoal-400">Configure and run a sweep to see results</p>
           </div>
         )}
       </div>

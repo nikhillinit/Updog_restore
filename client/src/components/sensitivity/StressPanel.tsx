@@ -58,6 +58,7 @@ interface DeltaBarStyle {
 function deltaBarStyle(delta: number, maxAbsDelta: number): DeltaBarStyle {
   const widthPct = maxAbsDelta === 0 ? 0 : (Math.abs(delta) / maxAbsDelta) * 100;
   // Red for negative (downside), emerald for positive (upside).
+  // TODO(a11y): baseline delta bar needs a non-color direction cue.
   const backgroundColor = delta < 0 ? 'rgb(239, 68, 68)' : 'rgb(16, 185, 129)';
   return { width: `${widthPct}%`, backgroundColor };
 }
@@ -132,13 +133,13 @@ function HistoryPanel({
   const { data, isLoading } = useSensitivityHistory(fundId, 'stress', 10);
 
   if (isLoading) {
-    return <p className="text-xs text-gray-500">Loading history...</p>;
+    return <p className="text-xs text-charcoal-500">Loading history...</p>;
   }
 
   const runs = data?.runs ?? [];
   if (runs.length === 0) {
     return (
-      <p className="text-xs text-gray-500" data-testid="stress-history-empty">
+      <p className="text-xs text-charcoal-500" data-testid="stress-history-empty">
         No previous stress tests
       </p>
     );
@@ -146,7 +147,7 @@ function HistoryPanel({
 
   return (
     <div className="space-y-1" data-testid="stress-history-list">
-      <h3 className="mb-2 text-xs font-medium text-gray-600">Recent Runs</h3>
+      <h3 className="mb-2 text-xs font-medium text-charcoal-600">Recent Runs</h3>
       {runs.map((run) => {
         const parsed = parseHistoryResult(run);
         const disabled = parsed === null;
@@ -158,14 +159,16 @@ function HistoryPanel({
             onClick={() => parsed && onSelect(parsed)}
             className={cn(
               'w-full rounded px-2 py-1.5 text-left text-xs transition-colors',
-              disabled ? 'cursor-not-allowed text-gray-400' : 'hover:bg-gray-100 text-gray-800'
+              disabled
+                ? 'cursor-not-allowed text-charcoal-400'
+                : 'text-pov-charcoal hover:bg-pov-charcoal hover:text-pov-white'
             )}
             data-testid={`stress-history-item-${run.id}`}
           >
             <span>#{run.id}</span>
-            <span className="mx-1 text-gray-400">·</span>
+            <span className="mx-1 text-charcoal-400">·</span>
             <span>{formatRunTimestamp(run.createdAt)}</span>
-            <span className="mx-1 text-gray-400">·</span>
+            <span className="mx-1 text-charcoal-400">·</span>
             <span className="uppercase tracking-wide text-[10px]">{run.status}</span>
           </button>
         );
@@ -222,13 +225,17 @@ function ResultsSection({ result }: { result: StressAnalysisResultV1 }) {
                   data-testid={`stress-row-${dp.scenarioId}`}
                 >
                   <div className="flex items-baseline justify-between">
-                    <span className="text-sm font-medium text-gray-800">{dp.scenarioLabel}</span>
-                    <span className="tabular-nums text-sm text-gray-700">
+                    <span className="text-sm font-medium text-pov-charcoal">
+                      {dp.scenarioLabel}
+                    </span>
+                    <span className="tabular-nums text-sm text-charcoal-700">
                       {formatMetricValue(dp.metricValue, metric)}
                     </span>
                   </div>
-                  {scenario && <div className="text-xs text-gray-500">{scenario.description}</div>}
-                  <div className="h-2 w-full overflow-hidden rounded bg-slate-100">
+                  {scenario && (
+                    <div className="text-xs text-charcoal-500">{scenario.description}</div>
+                  )}
+                  <div className="h-2 w-full overflow-hidden rounded bg-pov-gray">
                     <div
                       className="h-2 rounded"
                       style={deltaBarStyle(dp.baselineDelta, maxAbsDelta)}
@@ -337,7 +344,7 @@ export function StressPanel({ fundId }: StressPanelProps): JSX.Element {
                 return (
                   <label
                     key={scenario.id}
-                    className="flex cursor-pointer items-start gap-2 rounded p-1 hover:bg-gray-50"
+                    className="flex cursor-pointer items-start gap-2 rounded p-1 hover:bg-pov-gray"
                     htmlFor={`stress-scenario-${scenario.id}`}
                   >
                     <input
@@ -349,8 +356,8 @@ export function StressPanel({ fundId }: StressPanelProps): JSX.Element {
                       data-testid={`stress-scenario-checkbox-${scenario.id}`}
                     />
                     <div className="flex-1">
-                      <div className="text-xs font-medium text-gray-800">{scenario.label}</div>
-                      <div className="text-[10px] text-gray-500">{scenario.description}</div>
+                      <div className="text-xs font-medium text-pov-charcoal">{scenario.label}</div>
+                      <div className="text-[10px] text-charcoal-500">{scenario.description}</div>
                     </div>
                   </label>
                 );
@@ -374,10 +381,7 @@ export function StressPanel({ fundId }: StressPanelProps): JSX.Element {
             </div>
 
             {!validation.ok && validation.errors.length > 0 && (
-              <ul
-                className="space-y-0.5 text-xs text-red-600"
-                data-testid="stress-validation-errors"
-              >
+              <ul className="space-y-0.5 text-xs text-error" data-testid="stress-validation-errors">
                 {validation.errors.map((err) => (
                   <li key={err}>{err}</li>
                 ))}
@@ -410,14 +414,16 @@ export function StressPanel({ fundId }: StressPanelProps): JSX.Element {
 
       <div className="space-y-4 lg:col-span-2">
         {mutation.isPending && (
-          <Card className="border-blue-200">
+          <Card className="border-presson-info/20">
             <CardContent className="px-4 py-3">
               <div className="mb-1 flex items-center justify-between">
                 <div className="flex items-center gap-2">
-                  <div className="h-2 w-2 animate-pulse rounded-full bg-blue-500" />
-                  <span className="text-sm font-medium text-gray-700">Running stress test...</span>
+                  <div className="h-2 w-2 animate-pulse rounded-full bg-presson-info" />
+                  <span className="text-sm font-medium text-charcoal-700">
+                    Running stress test...
+                  </span>
                 </div>
-                <span className="tabular-nums text-xs text-gray-500">{elapsed}s</span>
+                <span className="tabular-nums text-xs text-charcoal-500">{elapsed}s</span>
               </div>
             </CardContent>
           </Card>
@@ -440,10 +446,10 @@ export function StressPanel({ fundId }: StressPanelProps): JSX.Element {
 
         {!mutation.isPending && !error && !displayedResult && (
           <div
-            className="flex h-48 items-center justify-center rounded-lg border border-dashed border-gray-300"
+            className="flex h-48 items-center justify-center rounded-lg border border-dashed border-charcoal-300"
             data-testid="stress-idle"
           >
-            <p className="text-sm text-gray-400">
+            <p className="text-sm text-charcoal-400">
               Select scenarios and run a stress test to see results
             </p>
           </div>

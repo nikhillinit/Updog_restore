@@ -30,29 +30,21 @@ export function ValidationDisplay({ messages, className }: ValidationDisplayProp
   }
 
   // Group messages by type
-  const errors = messages.filter(m => m.type === 'error');
-  const warnings = messages.filter(m => m.type === 'warning');
-  const successes = messages.filter(m => m.type === 'success');
+  const errors = messages.filter((m) => m.type === 'error');
+  const warnings = messages.filter((m) => m.type === 'warning');
+  const successes = messages.filter((m) => m.type === 'success');
 
   return (
     <div className={cn('space-y-3', className)}>
       {/* Error Alerts - Red */}
       {errors.map((msg, idx) => (
-        <Alert
-          key={`error-${idx}`}
-          variant="destructive"
-          className="border-error bg-error/10"
-        >
+        <Alert key={`error-${idx}`} variant="destructive" className="border-error bg-error/10">
           <AlertCircle className="h-4 w-4" />
-          <AlertTitle className="font-inter font-bold text-error">
-            {msg.title}
-          </AlertTitle>
+          <AlertTitle className="font-inter font-bold text-error">{msg.title}</AlertTitle>
           <AlertDescription className="text-error/90 font-poppins">
             {msg.message}
             {msg.field && (
-              <span className="block mt-1 text-sm font-medium">
-                Field: {msg.field}
-              </span>
+              <span className="block mt-1 text-sm font-medium">Field: {msg.field}</span>
             )}
           </AlertDescription>
         </Alert>
@@ -62,18 +54,16 @@ export function ValidationDisplay({ messages, className }: ValidationDisplayProp
       {warnings.map((msg, idx) => (
         <Alert
           key={`warning-${idx}`}
-          className="border-yellow-500 bg-yellow-50 dark:bg-yellow-900/20"
+          className="border-warning/30 bg-warning/10 dark:bg-warning/20"
         >
-          <AlertTriangle className="h-4 w-4 text-yellow-600" />
-          <AlertTitle className="font-inter font-bold text-yellow-800 dark:text-yellow-200">
+          <AlertTriangle className="h-4 w-4 text-warning" />
+          <AlertTitle className="font-inter font-bold text-warning-dark dark:text-warning-light">
             {msg.title}
           </AlertTitle>
-          <AlertDescription className="text-yellow-700 dark:text-yellow-300 font-poppins">
+          <AlertDescription className="text-warning-dark dark:text-warning font-poppins">
             {msg.message}
             {msg.field && (
-              <span className="block mt-1 text-sm font-medium">
-                Field: {msg.field}
-              </span>
+              <span className="block mt-1 text-sm font-medium">Field: {msg.field}</span>
             )}
           </AlertDescription>
         </Alert>
@@ -83,13 +73,13 @@ export function ValidationDisplay({ messages, className }: ValidationDisplayProp
       {successes.map((msg, idx) => (
         <Alert
           key={`success-${idx}`}
-          className="border-green-500 bg-green-50 dark:bg-green-900/20"
+          className="border-success/30 bg-success/10 dark:bg-success/20"
         >
-          <CheckCircle2 className="h-4 w-4 text-green-600" />
-          <AlertTitle className="font-inter font-bold text-green-800 dark:text-green-200">
+          <CheckCircle2 className="h-4 w-4 text-success" />
+          <AlertTitle className="font-inter font-bold text-success-dark dark:text-success-light">
             {msg.title}
           </AlertTitle>
-          <AlertDescription className="text-green-700 dark:text-green-300 font-poppins">
+          <AlertDescription className="text-success-dark dark:text-success font-poppins">
             {msg.message}
           </AlertDescription>
         </Alert>
@@ -109,9 +99,9 @@ export interface ValidationSummaryProps {
 
 export function ValidationSummary({ messages, className }: ValidationSummaryProps) {
   const counts = {
-    error: messages.filter(m => m.type === 'error').length,
-    warning: messages.filter(m => m.type === 'warning').length,
-    success: messages.filter(m => m.type === 'success').length,
+    error: messages.filter((m) => m.type === 'error').length,
+    warning: messages.filter((m) => m.type === 'warning').length,
+    success: messages.filter((m) => m.type === 'success').length,
   };
 
   if (counts.error === 0 && counts.warning === 0 && counts.success === 0) {
@@ -130,20 +120,18 @@ export function ValidationSummary({ messages, className }: ValidationSummaryProp
       )}
 
       {counts.warning > 0 && (
-        <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-yellow-50 border border-yellow-500">
-          <AlertTriangle className="h-3.5 w-3.5 text-yellow-600" />
-          <span className="text-sm font-medium text-yellow-700">
+        <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-warning/10 border border-warning/30">
+          <AlertTriangle className="h-3.5 w-3.5 text-warning" />
+          <span className="text-sm font-medium text-warning-dark">
             {counts.warning} {counts.warning === 1 ? 'Warning' : 'Warnings'}
           </span>
         </div>
       )}
 
       {counts.success > 0 && counts.error === 0 && (
-        <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-green-50 border border-green-500">
-          <CheckCircle2 className="h-3.5 w-3.5 text-green-600" />
-          <span className="text-sm font-medium text-green-700">
-            All Validations Passed
-          </span>
+        <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-success/10 border border-success/30">
+          <CheckCircle2 className="h-3.5 w-3.5 text-success" />
+          <span className="text-sm font-medium text-success-dark">All Validations Passed</span>
         </div>
       )}
     </div>

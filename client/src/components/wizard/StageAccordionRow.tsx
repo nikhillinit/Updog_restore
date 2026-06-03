@@ -114,7 +114,7 @@ export function StageAccordionRow({
         isExpanded
           ? 'ring-2 ring-[#292929] border-[#292929] shadow-lg'
           : 'border-[#E0D8D1] hover:border-[#292929]/50 hover:shadow-md',
-        hasError && 'ring-2 ring-red-500 border-red-500',
+        hasError && 'ring-2 ring-error border-error',
         'focus-within:ring-2 focus-within:ring-[#292929] focus-within:border-[#292929]'
       )}
     >
@@ -136,7 +136,7 @@ export function StageAccordionRow({
                 'p-2 rounded-lg transition-all',
                 isExpanded
                   ? 'bg-[#292929] text-white shadow-sm'
-                  : 'bg-gray-100 text-gray-500 group-hover:bg-gray-200'
+                  : 'bg-pov-gray text-charcoal-500 group-hover:bg-pov-gray'
               )}
             >
               {isExpanded ? (
@@ -150,7 +150,7 @@ export function StageAccordionRow({
                 {stage.name}
               </span>
               {!isExpanded && (
-                <span className="text-xs text-gray-400 flex items-center gap-1 mt-0.5">
+                <span className="text-xs text-charcoal-400 flex items-center gap-1 mt-0.5">
                   <Plus aria-hidden="true" className="w-3 h-3" />
                   {advancedFieldsCount} more fields
                 </span>
@@ -160,11 +160,11 @@ export function StageAccordionRow({
 
           {/* Round Size */}
           <div className="col-span-2" onClick={(e) => e.stopPropagation()}>
-            <label className="text-[11px] text-gray-500 uppercase tracking-wider font-semibold mb-2 block">
+            <label className="text-[11px] text-charcoal-500 uppercase tracking-wider font-semibold mb-2 block">
               Round size
             </label>
             <div className="relative">
-              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 font-medium text-sm">
+              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-charcoal-500 font-medium text-sm">
                 $
               </span>
               <Input
@@ -176,10 +176,10 @@ export function StageAccordionRow({
                 aria-label={`${stage.name} round size`}
                 className={cn(
                   'h-10 pl-6 pr-8 font-poppins',
-                  hasFieldError('roundSize') && 'border-red-300 focus:border-red-500'
+                  hasFieldError('roundSize') && 'border-error/50 focus:border-error'
                 )}
               />
-              <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 text-xs font-medium">
+              <span className="absolute right-3 top-1/2 -translate-y-1/2 text-charcoal-400 text-xs font-medium">
                 M
               </span>
             </div>
@@ -187,12 +187,12 @@ export function StageAccordionRow({
 
           {/* Valuation */}
           <div className="col-span-3" onClick={(e) => e.stopPropagation()}>
-            <label className="text-[11px] text-gray-500 uppercase tracking-wider font-semibold mb-2 block">
+            <label className="text-[11px] text-charcoal-500 uppercase tracking-wider font-semibold mb-2 block">
               Valuation
             </label>
             <div className="flex items-center gap-3">
               <div className="relative flex-1">
-                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 font-medium text-sm">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-charcoal-500 font-medium text-sm">
                   $
                 </span>
                 <Input
@@ -204,16 +204,16 @@ export function StageAccordionRow({
                   aria-label={`${stage.name} valuation`}
                   className={cn(
                     'h-10 pl-6 pr-8 font-poppins',
-                    hasFieldError('valuation') && 'border-red-300 focus:border-red-500'
+                    hasFieldError('valuation') && 'border-error/50 focus:border-error'
                   )}
                 />
-                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 text-xs font-medium">
+                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-charcoal-400 text-xs font-medium">
                   M
                 </span>
               </div>
               {/* Pre/Post Toggle with sliding indicator */}
               <div
-                className="relative flex bg-gray-100 rounded-lg p-1 border border-gray-200"
+                className="relative flex bg-pov-gray rounded-lg p-1 border border-beige-200"
                 role="group"
                 aria-label={`${stage.name} valuation basis`}
               >
@@ -235,7 +235,7 @@ export function StageAccordionRow({
                     'relative z-10 px-3 py-1.5 text-xs font-semibold rounded transition-colors',
                     stage.valuationType === 'Pre'
                       ? 'text-[#292929]'
-                      : 'text-gray-500 hover:text-gray-700'
+                      : 'text-charcoal-500 hover:text-charcoal-700'
                   )}
                   onClick={(e) => {
                     e.stopPropagation();
@@ -251,7 +251,7 @@ export function StageAccordionRow({
                     'relative z-10 px-3 py-1.5 text-xs font-semibold rounded transition-colors',
                     stage.valuationType === 'Post'
                       ? 'text-[#292929]'
-                      : 'text-gray-500 hover:text-gray-700'
+                      : 'text-charcoal-500 hover:text-charcoal-700'
                   )}
                   onClick={(e) => {
                     e.stopPropagation();
@@ -267,14 +267,14 @@ export function StageAccordionRow({
 
           {/* Graduation Rate */}
           <div className="col-span-2" onClick={(e) => e.stopPropagation()}>
-            <label className="text-[11px] text-gray-500 uppercase tracking-wider font-semibold mb-2 flex items-center gap-1.5">
+            <label className="text-[11px] text-charcoal-500 uppercase tracking-wider font-semibold mb-2 flex items-center gap-1.5">
               Grad rate
               <TooltipProvider>
                 <Tooltip>
                   <TooltipTrigger asChild>
                     <HelpCircle
                       aria-hidden="true"
-                      className="w-3.5 h-3.5 text-gray-400 hover:text-gray-600 cursor-help"
+                      className="w-3.5 h-3.5 text-charcoal-400 hover:text-charcoal-600 cursor-help"
                     />
                   </TooltipTrigger>
                   <TooltipContent>
@@ -293,10 +293,10 @@ export function StageAccordionRow({
                 aria-label={`${stage.name} graduation rate`}
                 className={cn(
                   'h-10 pr-8 font-poppins',
-                  hasFieldError('gradRate') && 'border-red-300 focus:border-red-500'
+                  hasFieldError('gradRate') && 'border-error/50 focus:border-error'
                 )}
               />
-              <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 text-xs font-medium">
+              <span className="absolute right-3 top-1/2 -translate-y-1/2 text-charcoal-400 text-xs font-medium">
                 %
               </span>
             </div>
@@ -304,7 +304,7 @@ export function StageAccordionRow({
 
           {/* Duration */}
           <div className="col-span-2" onClick={(e) => e.stopPropagation()}>
-            <label className="text-[11px] text-gray-500 uppercase tracking-wider font-semibold mb-2 block">
+            <label className="text-[11px] text-charcoal-500 uppercase tracking-wider font-semibold mb-2 block">
               Duration
             </label>
             <div className="relative">
@@ -317,10 +317,10 @@ export function StageAccordionRow({
                 aria-label={`${stage.name} duration in months`}
                 className={cn(
                   'h-10 pr-10 font-poppins',
-                  hasFieldError('monthsToNext') && 'border-red-300 focus:border-red-500'
+                  hasFieldError('monthsToNext') && 'border-error/50 focus:border-error'
                 )}
               />
-              <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 text-xs font-medium">
+              <span className="absolute right-3 top-1/2 -translate-y-1/2 text-charcoal-400 text-xs font-medium">
                 mo
               </span>
             </div>
@@ -336,19 +336,21 @@ export function StageAccordionRow({
             animate={{ height: 'auto', opacity: 1 }}
             exit={{ height: 0, opacity: 0 }}
             transition={{ duration: 0.2, ease: 'easeInOut' }}
-            className="overflow-x-auto overflow-y-hidden border-t border-gray-100 bg-gray-50/50"
+            className="overflow-x-auto overflow-y-hidden border-t border-beige-200 bg-pov-gray/50"
           >
             <div className="grid min-w-[900px] grid-cols-12 gap-6 p-6">
               <div className="col-span-3">
                 <h4 className="text-sm font-semibold text-[#292929] mb-1 font-poppins">
                   Advanced assumptions
                 </h4>
-                <p className="text-xs text-gray-500 mb-4">Fine-tune exit and equity parameters</p>
+                <p className="text-xs text-charcoal-500 mb-4">
+                  Fine-tune exit and equity parameters
+                </p>
                 {onReset && (
                   <button
                     type="button"
                     onClick={() => onReset(stage.id)}
-                    className="text-xs text-gray-500 hover:text-[#292929] flex items-center gap-1.5 transition-colors focus:outline-none focus:ring-2 focus:ring-[#292929] focus:ring-offset-2 rounded px-2 py-1 -ml-2"
+                    className="text-xs text-charcoal-500 hover:text-[#292929] flex items-center gap-1.5 transition-colors focus:outline-none focus:ring-2 focus:ring-[#292929] focus:ring-offset-2 rounded px-2 py-1 -ml-2"
                   >
                     <RotateCcw aria-hidden="true" className="w-3.5 h-3.5" />
                     Reset to defaults
@@ -359,14 +361,14 @@ export function StageAccordionRow({
               <div className="col-span-9 grid grid-cols-3 gap-6">
                 {/* ESOP Pool */}
                 <div>
-                  <label className="text-xs font-medium text-gray-600 mb-2 flex items-center gap-1.5">
+                  <label className="text-xs font-medium text-charcoal-600 mb-2 flex items-center gap-1.5">
                     ESOP pool
                     <TooltipProvider>
                       <Tooltip>
                         <TooltipTrigger asChild>
                           <HelpCircle
                             aria-hidden="true"
-                            className="w-3.5 h-3.5 text-gray-400 hover:text-gray-600 cursor-help"
+                            className="w-3.5 h-3.5 text-charcoal-400 hover:text-charcoal-600 cursor-help"
                           />
                         </TooltipTrigger>
                         <TooltipContent>
@@ -385,10 +387,10 @@ export function StageAccordionRow({
                       aria-label={`${stage.name} ESOP pool`}
                       className={cn(
                         'h-10 pr-8 font-poppins',
-                        hasFieldError('esop') && 'border-red-300 focus:border-red-500'
+                        hasFieldError('esop') && 'border-error/50 focus:border-error'
                       )}
                     />
-                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 text-xs font-medium">
+                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-charcoal-400 text-xs font-medium">
                       %
                     </span>
                   </div>
@@ -396,14 +398,14 @@ export function StageAccordionRow({
 
                 {/* Exit Rate */}
                 <div>
-                  <label className="text-xs font-medium text-gray-600 mb-2 flex items-center gap-1.5">
+                  <label className="text-xs font-medium text-charcoal-600 mb-2 flex items-center gap-1.5">
                     Exit rate
                     <TooltipProvider>
                       <Tooltip>
                         <TooltipTrigger asChild>
                           <HelpCircle
                             aria-hidden="true"
-                            className="w-3.5 h-3.5 text-gray-400 hover:text-gray-600 cursor-help"
+                            className="w-3.5 h-3.5 text-charcoal-400 hover:text-charcoal-600 cursor-help"
                           />
                         </TooltipTrigger>
                         <TooltipContent>
@@ -422,10 +424,10 @@ export function StageAccordionRow({
                       aria-label={`${stage.name} exit rate`}
                       className={cn(
                         'h-10 pr-8 font-poppins',
-                        hasFieldError('exitRate') && 'border-red-300 focus:border-red-500'
+                        hasFieldError('exitRate') && 'border-error/50 focus:border-error'
                       )}
                     />
-                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 text-xs font-medium">
+                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-charcoal-400 text-xs font-medium">
                       %
                     </span>
                   </div>
@@ -433,14 +435,14 @@ export function StageAccordionRow({
 
                 {/* Failure Rate (Computed) */}
                 <div>
-                  <label className="text-xs font-medium text-gray-600 mb-2 flex items-center gap-1.5">
+                  <label className="text-xs font-medium text-charcoal-600 mb-2 flex items-center gap-1.5">
                     Failure rate
                     <TooltipProvider>
                       <Tooltip>
                         <TooltipTrigger asChild>
                           <HelpCircle
                             aria-hidden="true"
-                            className="w-3.5 h-3.5 text-gray-400 hover:text-gray-600 cursor-help"
+                            className="w-3.5 h-3.5 text-charcoal-400 hover:text-charcoal-600 cursor-help"
                           />
                         </TooltipTrigger>
                         <TooltipContent>
@@ -449,7 +451,7 @@ export function StageAccordionRow({
                       </Tooltip>
                     </TooltipProvider>
                   </label>
-                  <div className="h-10 flex items-center px-3 text-sm font-semibold text-gray-700 bg-gray-100 rounded-md border border-gray-200 font-poppins">
+                  <div className="h-10 flex items-center px-3 text-sm font-semibold text-charcoal-700 bg-pov-gray rounded-md border border-beige-200 font-poppins">
                     {failureRate.toFixed(1)}%
                   </div>
                 </div>

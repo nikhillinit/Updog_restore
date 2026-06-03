@@ -1,4 +1,3 @@
- 
 import React from 'react';
 import {
   Table,
@@ -22,22 +21,15 @@ interface DeltaSummaryProps {
   sortByMagnitude?: boolean;
 }
 
-export function DeltaSummary({
-  deltas,
-  sortByMagnitude = true,
-}: DeltaSummaryProps) {
-  const displayDeltas = sortByMagnitude
-    ? sortDeltasByMagnitude(deltas)
-    : deltas;
+export function DeltaSummary({ deltas, sortByMagnitude = true }: DeltaSummaryProps) {
+  const displayDeltas = sortByMagnitude ? sortDeltasByMagnitude(deltas) : deltas;
 
   // Filter out unchanged items for cleaner display
-  const changedDeltas = displayDeltas.filter(
-    (delta) => delta.status !== 'unchanged'
-  );
+  const changedDeltas = displayDeltas.filter((delta) => delta.status !== 'unchanged');
 
   if (changedDeltas.length === 0) {
     return (
-      <div className="rounded-md border bg-gray-50 p-6 text-center text-gray-500">
+      <div className="rounded-md border bg-pov-gray p-6 text-center text-charcoal-500">
         No allocation changes detected
       </div>
     );
@@ -62,10 +54,8 @@ export function DeltaSummary({
 
             return (
               <TableRow key={delta.company_id}>
-                <TableCell className="font-medium">
-                  {delta.company_name}
-                </TableCell>
-                <TableCell className="text-right text-gray-600">
+                <TableCell className="font-medium">{delta.company_name}</TableCell>
+                <TableCell className="text-right text-charcoal-600">
                   {formatCents(delta.from_cents)}
                 </TableCell>
                 <TableCell className="text-right font-medium">
@@ -89,7 +79,7 @@ export function DeltaSummary({
       </Table>
 
       {changedDeltas.length !== deltas.length && (
-        <div className="border-t bg-gray-50 p-3 text-center text-xs text-gray-500">
+        <div className="border-t bg-pov-gray p-3 text-center text-xs text-charcoal-500">
           {deltas.length - changedDeltas.length} company(ies) unchanged
         </div>
       )}

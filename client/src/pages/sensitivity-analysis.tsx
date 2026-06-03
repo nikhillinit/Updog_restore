@@ -11,8 +11,8 @@ export default function SensitivityAnalysisPage() {
   return (
     <div className="max-w-7xl mx-auto p-6">
       <div className="mb-6 space-y-2">
-        <h1 className="text-2xl font-semibold text-gray-900">Sensitivity Analysis</h1>
-        <p className="max-w-3xl text-sm text-gray-600">
+        <h1 className="text-2xl font-semibold text-pov-charcoal">Sensitivity Analysis</h1>
+        <p className="max-w-3xl text-sm text-charcoal-600">
           Sensitivity analysis surface: Monte Carlo backtesting, one-way and two-way parameter
           sweeps, and named stress scenarios -- all fund-scoped and persisted.
         </p>
@@ -21,7 +21,7 @@ export default function SensitivityAnalysisPage() {
       <Tabs defaultValue="monte-carlo" className="space-y-6">
         <TabsList
           aria-label="Sensitivity analysis modes"
-          className="grid h-auto w-full grid-cols-2 gap-2 rounded-md bg-slate-100 p-1 md:grid-cols-4"
+          className="grid h-auto w-full grid-cols-2 gap-2 rounded-md bg-pov-gray p-1 md:grid-cols-4"
         >
           <TabsTrigger value="monte-carlo">Monte Carlo</TabsTrigger>
           <TabsTrigger value="one-way">One-Way</TabsTrigger>

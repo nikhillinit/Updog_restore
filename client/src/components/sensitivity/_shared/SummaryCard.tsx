@@ -6,9 +6,9 @@
 
 export function SummaryCard({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-lg border border-gray-200 p-3">
-      <p className="text-xs text-gray-500">{label}</p>
-      <p className="text-lg font-semibold text-gray-800">{value}</p>
+    <div className="rounded-lg border border-beige-200 p-3">
+      <p className="text-xs text-charcoal-500">{label}</p>
+      <p className="text-lg font-semibold text-pov-charcoal">{value}</p>
     </div>
   );
 }

@@ -256,7 +256,7 @@ export function FundConstructionKpiHeader() {
 
   return (
     <div
-      className="border-b border-slate-200 bg-white px-3 py-3 sm:px-6"
+      className="border-b border-beige-200 bg-white px-3 py-3 sm:px-6"
       data-testid="fund-construction-kpis"
     >
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6">

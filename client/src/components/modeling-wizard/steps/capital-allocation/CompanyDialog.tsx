@@ -13,7 +13,7 @@ import {
   DialogDescription,
   DialogFooter,
   DialogHeader,
-  DialogTitle
+  DialogTitle,
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -23,7 +23,7 @@ import {
   SelectContent,
   SelectItem,
   SelectTrigger,
-  SelectValue
+  SelectValue,
 } from '@/components/ui/select';
 
 // Company data schema
@@ -32,22 +32,26 @@ const companySchema = z.object({
   name: z.string().min(1, 'Company name is required').max(100, 'Name too long'),
   sector: z.string().min(1, 'Sector is required'),
   stage: z.enum(['seed', 'series-a', 'series-b', 'series-c', 'growth'], {
-    errorMap: () => ({ message: 'Invalid investment stage' })
+    errorMap: () => ({ message: 'Invalid investment stage' }),
   }),
-  initialInvestment: z.number()
+  initialInvestment: z
+    .number()
     .positive('Initial investment must be positive')
     .max(1000, 'Investment amount seems unusually large'),
-  followOnInvestment: z.number()
+  followOnInvestment: z
+    .number()
     .min(0, 'Follow-on investment cannot be negative')
     .max(1000, 'Investment amount seems unusually large'),
-  currentValue: z.number()
+  currentValue: z
+    .number()
     .positive('Current value must be positive')
     .max(10000, 'Valuation seems unusually large'),
-  exitYear: z.number()
+  exitYear: z
+    .number()
     .int('Exit year must be a whole number')
     .min(2024, 'Exit year must be in the future')
     .max(2050, 'Exit year too far in the future')
-    .optional()
+    .optional(),
 });
 
 export type CompanyData = z.infer<typeof companySchema>;
@@ -72,7 +76,7 @@ export function CompanyDialog({
   onOpenChange,
   company,
   onSave,
-  sectors = ['Technology', 'Healthcare', 'Fintech', 'SaaS', 'E-commerce', 'Other']
+  sectors = ['Technology', 'Healthcare', 'Fintech', 'SaaS', 'E-commerce', 'Other'],
 }: CompanyDialogProps) {
   const isEditing = !!company?.id;
 
@@ -82,7 +86,7 @@ export function CompanyDialog({
     setValue,
     watch,
     reset,
-    formState: { errors }
+    formState: { errors },
   } = useForm<CompanyData>({
     resolver: zodResolver(companySchema),
     defaultValues: company || {
@@ -91,28 +95,30 @@ export function CompanyDialog({
       stage: 'seed',
       initialInvestment: 0,
       followOnInvestment: 0,
-      currentValue: 0
-    }
+      currentValue: 0,
+    },
   });
 
   // Reset form when company changes or dialog opens
   React.useEffect(() => {
     if (open) {
-      reset(company || {
-        name: '',
-        sector: '',
-        stage: 'seed',
-        initialInvestment: 0,
-        followOnInvestment: 0,
-        currentValue: 0
-      });
+      reset(
+        company || {
+          name: '',
+          sector: '',
+          stage: 'seed',
+          initialInvestment: 0,
+          followOnInvestment: 0,
+          currentValue: 0,
+        }
+      );
     }
   }, [open, company, reset]);
 
   const onSubmit = (data: CompanyData) => {
     onSave({
       ...data,
-      id: company?.id || crypto.randomUUID()
+      id: company?.id || crypto.randomUUID(),
     });
     onOpenChange(false);
   };
@@ -128,7 +134,7 @@ export function CompanyDialog({
           <DialogTitle className="font-inter font-bold text-xl">
             {isEditing ? 'Edit Company' : 'Add New Company'}
           </DialogTitle>
-          <DialogDescription className="text-gray-600">
+          <DialogDescription className="text-charcoal-600">
             {isEditing
               ? 'Update company investment details and exit projections.'
               : 'Add a new portfolio company with investment details and projections.'}
@@ -141,15 +147,8 @@ export function CompanyDialog({
             <Label htmlFor="name" className="font-poppins font-medium">
               Company Name *
             </Label>
-            <Input
-              id="name"
-              {...register('name')}
-              placeholder="e.g., Acme Inc."
-              className="mt-2"
-            />
-            {errors.name && (
-              <p className="text-sm text-red-600 mt-1">{errors.name.message}</p>
-            )}
+            <Input id="name" {...register('name')} placeholder="e.g., Acme Inc." className="mt-2" />
+            {errors.name && <p className="text-sm text-error mt-1">{errors.name.message}</p>}
           </div>
 
           {/* Sector and Stage */}
@@ -173,9 +172,7 @@ export function CompanyDialog({
                   ))}
                 </SelectContent>
               </Select>
-              {errors.sector && (
-                <p className="text-sm text-red-600 mt-1">{errors.sector.message}</p>
-              )}
+              {errors.sector && <p className="text-sm text-error mt-1">{errors.sector.message}</p>}
             </div>
 
             <div>
@@ -201,9 +198,7 @@ export function CompanyDialog({
                   <SelectItem value="growth">Growth</SelectItem>
                 </SelectContent>
               </Select>
-              {errors.stage && (
-                <p className="text-sm text-red-600 mt-1">{errors.stage.message}</p>
-              )}
+              {errors.stage && <p className="text-sm text-error mt-1">{errors.stage.message}</p>}
             </div>
           </div>
 
@@ -222,7 +217,7 @@ export function CompanyDialog({
                 className="mt-2"
               />
               {errors.initialInvestment && (
-                <p className="text-sm text-red-600 mt-1">{errors.initialInvestment.message}</p>
+                <p className="text-sm text-error mt-1">{errors.initialInvestment.message}</p>
               )}
             </div>
 
@@ -239,7 +234,7 @@ export function CompanyDialog({
                 className="mt-2"
               />
               {errors.followOnInvestment && (
-                <p className="text-sm text-red-600 mt-1">{errors.followOnInvestment.message}</p>
+                <p className="text-sm text-error mt-1">{errors.followOnInvestment.message}</p>
               )}
             </div>
           </div>
@@ -259,7 +254,7 @@ export function CompanyDialog({
                 className="mt-2"
               />
               {errors.currentValue && (
-                <p className="text-sm text-red-600 mt-1">{errors.currentValue.message}</p>
+                <p className="text-sm text-error mt-1">{errors.currentValue.message}</p>
               )}
             </div>
 
@@ -275,21 +270,25 @@ export function CompanyDialog({
                 className="mt-2"
               />
               {errors.exitYear && (
-                <p className="text-sm text-red-600 mt-1">{errors.exitYear.message}</p>
+                <p className="text-sm text-error mt-1">{errors.exitYear.message}</p>
               )}
             </div>
           </div>
 
           {/* MOIC Preview */}
           {totalInvestment > 0 && (
-            <div className="p-4 bg-gray-50 border border-gray-200 rounded">
+            <div className="p-4 bg-pov-gray border border-beige-200 rounded">
               <div className="flex items-center justify-between">
-                <span className="text-sm text-gray-600">Total Investment:</span>
-                <span className="font-semibold text-pov-charcoal">${totalInvestment.toFixed(1)}M</span>
+                <span className="text-sm text-charcoal-600">Total Investment:</span>
+                <span className="font-semibold text-pov-charcoal">
+                  ${totalInvestment.toFixed(1)}M
+                </span>
               </div>
               <div className="flex items-center justify-between mt-2">
-                <span className="text-sm text-gray-600">MOIC:</span>
-                <span className={`font-bold ${moic >= 1 ? 'text-green-600' : 'text-red-600'}`}>
+                <span className="text-sm text-charcoal-600">MOIC:</span>
+                <span
+                  className={`font-bold ${moic >= 1 ? 'text-presson-positive' : 'text-presson-negative'}`}
+                >
                   {moic.toFixed(2)}x
                 </span>
               </div>
@@ -297,16 +296,10 @@ export function CompanyDialog({
           )}
 
           <DialogFooter>
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => onOpenChange(false)}
-            >
+            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
               Cancel
             </Button>
-            <Button type="submit">
-              {isEditing ? 'Update Company' : 'Add Company'}
-            </Button>
+            <Button type="submit">{isEditing ? 'Update Company' : 'Add Company'}</Button>
           </DialogFooter>
         </form>
       </DialogContent>

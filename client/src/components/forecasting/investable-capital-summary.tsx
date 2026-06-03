@@ -5,8 +5,8 @@ import { YAxis } from 'recharts/es6/cartesian/YAxis';
 import { CartesianGrid } from 'recharts/es6/cartesian/CartesianGrid';
 import { Tooltip } from 'recharts/es6/component/Tooltip';
 import { LazyResponsiveContainer as ResponsiveContainer } from '@/components/charts/LazyResponsiveContainer';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { DollarSign } from "lucide-react";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { DollarSign } from 'lucide-react';
 
 interface InvestableCapitalData {
   category: string;
@@ -36,56 +36,56 @@ interface DeploymentStatusItem {
 export default function InvestableCapitalSummary() {
   // Data for capital deployment tracking
   const capitalData: InvestableCapitalData = {
-    category: "Fund Capital",
+    category: 'Fund Capital',
     committed: 150000000,
     investable: 140200000,
     deployedPlanned: 52144483,
     remaining: 88055517,
     actual: 24000000,
     projected: 95000000,
-    fundValue: 97716532
+    fundValue: 97716532,
   };
 
   const allocationData: AllocationDataPoint[] = [
     {
-      round: "Initial Investments",
+      round: 'Initial Investments',
       deployed: 40000000,
       planned: 60000000,
       total: 100000000,
-      color: "#3b82f6"
+      color: '#3b82f6',
     },
     {
-      round: "Follow-On Investments", 
+      round: 'Follow-On Investments',
       deployed: 12000000,
       planned: 45000000,
       total: 57000000,
-      color: "#10b981"
+      color: '#10b981',
     },
     {
-      round: "Remaining",
+      round: 'Remaining',
       deployed: 0,
       planned: 0,
       total: 33000000,
-      color: "#6b7280"
-    }
+      color: '#6b7280',
+    },
   ];
 
   const deploymentStatus: DeploymentStatusItem[] = [
     {
-      category: "Deployed",
+      category: 'Deployed',
       amount: capitalData.actual,
-      percentage: (capitalData.actual / capitalData.investable) * 100
+      percentage: (capitalData.actual / capitalData.investable) * 100,
     },
     {
-      category: "Planned",
+      category: 'Planned',
       amount: capitalData.remaining - capitalData.actual,
-      percentage: ((capitalData.remaining - capitalData.actual) / capitalData.investable) * 100
+      percentage: ((capitalData.remaining - capitalData.actual) / capitalData.investable) * 100,
     },
     {
-      category: "Remaining",
+      category: 'Remaining',
       amount: capitalData.investable - capitalData.remaining,
-      percentage: ((capitalData.investable - capitalData.remaining) / capitalData.investable) * 100
-    }
+      percentage: ((capitalData.investable - capitalData.remaining) / capitalData.investable) * 100,
+    },
   ];
 
   const formatCurrency = (value: number) => {
@@ -104,7 +104,8 @@ export default function InvestableCapitalSummary() {
             <span>Investable Capital Summary</span>
           </CardTitle>
           <CardDescription>
-            Summary of investable capital, net of fees and expenses. Breakdown of investable capital by strategy and rounds.
+            Summary of investable capital, net of fees and expenses. Breakdown of investable capital
+            by strategy and rounds.
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -119,7 +120,9 @@ export default function InvestableCapitalSummary() {
             </div>
             <div className="space-y-2">
               <div className="text-sm text-muted-foreground">Deployed + Planned</div>
-              <div className="text-2xl font-bold">{formatCurrency(capitalData.deployedPlanned)}</div>
+              <div className="text-2xl font-bold">
+                {formatCurrency(capitalData.deployedPlanned)}
+              </div>
             </div>
             <div className="space-y-2">
               <div className="text-sm text-muted-foreground">Remaining</div>
@@ -146,7 +149,12 @@ export default function InvestableCapitalSummary() {
                     tickFormatter={(value: number) => `$${(value / 1000000).toFixed(0)}M`}
                   />
                   <YAxis dataKey="round" type="category" width={100} />
-                  <Tooltip formatter={(value) => [value !== undefined ? formatCurrency(Number(value)) : '', '']} />
+                  <Tooltip
+                    formatter={(value) => [
+                      value !== undefined ? formatCurrency(Number(value)) : '',
+                      '',
+                    ]}
+                  />
                   <Bar dataKey="total" fill="#3b82f6" />
                 </BarChart>
               </ResponsiveContainer>
@@ -168,11 +176,14 @@ export default function InvestableCapitalSummary() {
                     <span className="text-sm font-medium">{item.category}</span>
                     <span className="text-sm">{formatCurrency(item.amount)}</span>
                   </div>
-                  <div className="w-full bg-gray-200 rounded-full h-2">
-                    <div 
+                  <div className="w-full bg-beige-100 rounded-full h-2">
+                    <div
                       className={`h-2 rounded-full ${
-                        index === 0 ? 'bg-blue-600' : 
-                        index === 1 ? 'bg-green-600' : 'bg-gray-400'
+                        index === 0
+                          ? 'bg-pov-charcoal'
+                          : index === 1
+                            ? 'bg-presson-positive'
+                            : 'bg-presson-info'
                       }`}
                       style={{ width: `${item.percentage}%` }}
                     />
@@ -198,13 +209,13 @@ export default function InvestableCapitalSummary() {
                 <div className="text-3xl font-bold">{formatCurrency(capitalData.fundValue)}</div>
                 <div className="text-sm text-muted-foreground">Current Fund Value</div>
               </div>
-              
+
               <div className="grid grid-cols-2 gap-4">
-                <div className="text-center p-3 bg-blue-50 rounded-lg">
+                <div className="text-center p-3 bg-presson-info/10 rounded-lg">
                   <div className="text-lg font-bold">1.04x</div>
                   <div className="text-xs text-muted-foreground">Est. Actual TVPI</div>
                 </div>
-                <div className="text-center p-3 bg-green-50 rounded-lg">
+                <div className="text-center p-3 bg-presson-positive/10 rounded-lg">
                   <div className="text-lg font-bold">3.55x</div>
                   <div className="text-xs text-muted-foreground">Projected TVPI</div>
                 </div>

@@ -57,7 +57,7 @@ function SummaryMessageCard({
   return (
     <Card>
       <CardContent className="py-16 text-center space-y-4">
-        <p className="text-sm text-gray-600">{message}</p>
+        <p className="text-sm text-charcoal-600">{message}</p>
         <Button variant="outline" onClick={onAction}>
           {actionLabel}
         </Button>
@@ -103,7 +103,7 @@ export default function PortfolioCompanySummaryPage() {
 
   if (!fundId) {
     return (
-      <div className="min-h-screen bg-slate-100 p-6">
+      <div className="min-h-screen bg-pov-gray p-6">
         <SummaryMessageCard
           message="Select a fund to view company details."
           onAction={backToCompanies}
@@ -114,7 +114,7 @@ export default function PortfolioCompanySummaryPage() {
 
   if (!companyId) {
     return (
-      <div className="min-h-screen bg-slate-100 p-6">
+      <div className="min-h-screen bg-pov-gray p-6">
         <SummaryMessageCard
           message="The requested company detail route is invalid."
           onAction={backToCompanies}
@@ -126,8 +126,11 @@ export default function PortfolioCompanySummaryPage() {
   const notFound = error instanceof ApiError && error.status === 404;
 
   return (
-    <div className="min-h-screen bg-slate-100">
-      <div className="max-w-5xl mx-auto px-6 py-8 space-y-6" data-testid="portfolio-company-summary-page">
+    <div className="min-h-screen bg-pov-gray">
+      <div
+        className="max-w-5xl mx-auto px-6 py-8 space-y-6"
+        data-testid="portfolio-company-summary-page"
+      >
         <div>
           <Button variant="ghost" size="sm" className="gap-2" onClick={backToCompanies}>
             <ArrowLeft className="h-4 w-4" />
@@ -137,7 +140,7 @@ export default function PortfolioCompanySummaryPage() {
 
         {isLoading ? (
           <Card>
-            <CardContent className="py-16 text-center text-sm text-gray-600">
+            <CardContent className="py-16 text-center text-sm text-charcoal-600">
               Loading company summary...
             </CardContent>
           </Card>
@@ -160,17 +163,17 @@ export default function PortfolioCompanySummaryPage() {
                 <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
                   <div className="space-y-2">
                     <div className="flex items-center gap-3">
-                      <div className="rounded-full bg-slate-200 p-3">
-                        <Building2 className="h-5 w-5 text-slate-700" />
+                      <div className="rounded-full bg-beige-200 p-3">
+                        <Building2 className="h-5 w-5 text-charcoal-700" />
                       </div>
                       <div>
-                        <h1 className="text-2xl font-semibold text-slate-900">{company.name}</h1>
-                        <p className="text-sm text-slate-600">
+                        <h1 className="text-2xl font-semibold text-pov-charcoal">{company.name}</h1>
+                        <p className="text-sm text-charcoal-600">
                           {company.currentStage ?? company.stage} · {company.sector}
                         </p>
                       </div>
                     </div>
-                    <p className="text-sm text-slate-600 max-w-2xl">
+                    <p className="text-sm text-charcoal-600 max-w-2xl">
                       {company.description?.trim() ||
                         'Summary-only company detail is available on the live portfolio surface. Additional workflows remain intentionally unavailable until they are backed by live contracts.'}
                     </p>
@@ -183,33 +186,33 @@ export default function PortfolioCompanySummaryPage() {
                 <div className="grid gap-4 md:grid-cols-3">
                   <Card>
                     <CardContent className="pt-6 space-y-2">
-                      <div className="flex items-center gap-2 text-sm text-slate-600">
+                      <div className="flex items-center gap-2 text-sm text-charcoal-600">
                         <DollarSign className="h-4 w-4" />
                         Invested
                       </div>
-                      <div className="text-xl font-semibold text-slate-900">
+                      <div className="text-xl font-semibold text-pov-charcoal">
                         {formatCurrency(detailMetrics.invested)}
                       </div>
                     </CardContent>
                   </Card>
                   <Card>
                     <CardContent className="pt-6 space-y-2">
-                      <div className="flex items-center gap-2 text-sm text-slate-600">
+                      <div className="flex items-center gap-2 text-sm text-charcoal-600">
                         <Target className="h-4 w-4" />
                         Current value
                       </div>
-                      <div className="text-xl font-semibold text-slate-900">
+                      <div className="text-xl font-semibold text-pov-charcoal">
                         {formatCurrency(detailMetrics.currentValue)}
                       </div>
                     </CardContent>
                   </Card>
                   <Card>
                     <CardContent className="pt-6 space-y-2">
-                      <div className="flex items-center gap-2 text-sm text-slate-600">
+                      <div className="flex items-center gap-2 text-sm text-charcoal-600">
                         <TrendingUp className="h-4 w-4" />
                         MOIC
                       </div>
-                      <div className="text-xl font-semibold text-slate-900">
+                      <div className="text-xl font-semibold text-pov-charcoal">
                         {detailMetrics.moic.toFixed(2)}x
                       </div>
                     </CardContent>
@@ -225,28 +228,30 @@ export default function PortfolioCompanySummaryPage() {
                 </CardHeader>
                 <CardContent className="space-y-4 text-sm">
                   <div className="flex justify-between gap-4">
-                    <span className="text-slate-600">Stage</span>
-                    <span className="font-medium text-slate-900">
+                    <span className="text-charcoal-600">Stage</span>
+                    <span className="font-medium text-pov-charcoal">
                       {company.currentStage ?? company.stage}
                     </span>
                   </div>
                   <div className="flex justify-between gap-4">
-                    <span className="text-slate-600">Sector</span>
-                    <span className="font-medium text-slate-900">{company.sector}</span>
+                    <span className="text-charcoal-600">Sector</span>
+                    <span className="font-medium text-pov-charcoal">{company.sector}</span>
                   </div>
                   <div className="flex justify-between gap-4">
-                    <span className="text-slate-600">Status</span>
-                    <span className="font-medium text-slate-900">{company.status}</span>
+                    <span className="text-charcoal-600">Status</span>
+                    <span className="font-medium text-pov-charcoal">{company.status}</span>
                   </div>
                   <div className="flex justify-between gap-4">
-                    <span className="text-slate-600">Founded</span>
-                    <span className="font-medium text-slate-900">
+                    <span className="text-charcoal-600">Founded</span>
+                    <span className="font-medium text-pov-charcoal">
                       {company.foundedYear ?? 'Unknown'}
                     </span>
                   </div>
                   <div className="flex justify-between gap-4">
-                    <span className="text-slate-600">Fund</span>
-                    <span className="font-medium text-slate-900">Fund {company.fundId ?? fundId}</span>
+                    <span className="text-charcoal-600">Fund</span>
+                    <span className="font-medium text-pov-charcoal">
+                      Fund {company.fundId ?? fundId}
+                    </span>
                   </div>
                 </CardContent>
               </Card>
@@ -257,29 +262,29 @@ export default function PortfolioCompanySummaryPage() {
                 </CardHeader>
                 <CardContent className="space-y-4 text-sm">
                   <div className="flex justify-between gap-4">
-                    <span className="flex items-center gap-2 text-slate-600">
+                    <span className="flex items-center gap-2 text-charcoal-600">
                       <Calendar className="h-4 w-4" />
                       Investment date
                     </span>
-                    <span className="font-medium text-slate-900">
+                    <span className="font-medium text-pov-charcoal">
                       {formatDate(company.investmentDate)}
                     </span>
                   </div>
                   <div className="flex justify-between gap-4">
-                    <span className="text-slate-600">Ownership</span>
-                    <span className="font-medium text-slate-900">
+                    <span className="text-charcoal-600">Ownership</span>
+                    <span className="font-medium text-pov-charcoal">
                       {company.ownershipCurrentPct
                         ? `${Number.parseFloat(company.ownershipCurrentPct).toFixed(2)}%`
                         : 'Not captured'}
                     </span>
                   </div>
                   <div className="flex justify-between gap-4">
-                    <span className="text-slate-600">Deal tags</span>
-                    <span className="font-medium text-slate-900 text-right">
+                    <span className="text-charcoal-600">Deal tags</span>
+                    <span className="font-medium text-pov-charcoal text-right">
                       {company.dealTags?.length ? company.dealTags.join(', ') : 'None'}
                     </span>
                   </div>
-                  <div className="rounded-lg bg-slate-50 p-4 text-slate-700">
+                  <div className="rounded-lg bg-pov-gray p-4 text-charcoal-700">
                     This route intentionally stays summary-only. Cap table, rounds, performance,
                     documents, edit, and scenario workflows remain outside the live portfolio path
                     until each has a backed contract.

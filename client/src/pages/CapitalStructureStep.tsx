@@ -217,11 +217,11 @@ export default function CapitalStructureStep() {
         {/* Simplified Info Banner */}
         <div className="space-y-6">
           {totalAllocationPct > 100 && (
-            <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm text-center">
+            <div className="p-3 bg-error/10 border border-error/30 rounded-lg text-error-dark text-sm text-center">
               [!] Total initial capital allocation exceeds 100%
             </div>
           )}
-          <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg text-blue-700 text-sm">
+          <div className="p-3 bg-presson-info/10 border border-presson-info/30 rounded-lg text-presson-info text-sm">
             <p>
               <strong>[INFO] Capital Allocation:</strong> Follow-on projections use binary search
               algorithm with graduation rates from Investment Strategy. Allocations will be refined
@@ -285,7 +285,7 @@ export default function CapitalStructureStep() {
                             variant="ghost"
                             size="sm"
                             onClick={() => handleDeleteAllocation(allocation.id)}
-                            className="text-red-500 hover:text-red-700"
+                            className="text-pov-charcoal hover:text-pov-charcoal"
                             aria-label={`Delete ${allocation.name || 'allocation'}`}
                           >
                             <Trash2 aria-hidden="true" className="h-4 w-4" />
@@ -505,13 +505,13 @@ export default function CapitalStructureStep() {
                           </div>
                         )}
 
-                        <div className="text-sm bg-gray-100 p-4 rounded-xl font-poppins border border-gray-200">
-                          <p className="text-xs text-gray-500 mb-2">
+                        <div className="text-sm bg-pov-gray p-4 rounded-xl font-poppins border border-beige-200">
+                          <p className="text-xs text-charcoal-500 mb-2">
                             [INFO] CALCULATED OUTPUTS (read-only)
                           </p>
                           {calculations.impliedOwnership !== null &&
                           calculations.impliedOwnership !== undefined ? (
-                            <p className="text-gray-700">
+                            <p className="text-charcoal-700">
                               <strong>Implied Entry Ownership:</strong> ~
                               {calculations.impliedOwnership.toFixed(1)}%{' '}
                               <span className="text-xs">
@@ -519,18 +519,18 @@ export default function CapitalStructureStep() {
                               </span>
                             </p>
                           ) : (
-                            <p className="text-gray-700">
+                            <p className="text-charcoal-700">
                               <strong>Implied Entry Ownership:</strong>{' '}
-                              <span className="text-gray-400">
+                              <span className="text-charcoal-400">
                                 Not calculable - provide valuation assumptions
                               </span>
                             </p>
                           )}
-                          <p className="text-gray-700">
+                          <p className="text-charcoal-700">
                             <strong>Estimated Initial Investments:</strong>{' '}
                             {calculations.estimatedDeals}
                           </p>
-                          <p className="text-gray-700">
+                          <p className="text-charcoal-700">
                             <strong>Capital for Initial Investments:</strong> $
                             {formatCurrency(calculations.initialCapital)}
                           </p>
@@ -611,15 +611,15 @@ export default function CapitalStructureStep() {
                           </div>
                         )}
 
-                        <div className="text-sm bg-gray-100 p-4 rounded-xl font-poppins border border-gray-200">
-                          <p className="text-xs text-gray-500 mb-2">
+                        <div className="text-sm bg-pov-gray p-4 rounded-xl font-poppins border border-beige-200">
+                          <p className="text-xs text-charcoal-500 mb-2">
                             [INFO] CALCULATED OUTPUT (read-only)
                           </p>
-                          <p className="text-gray-700">
+                          <p className="text-charcoal-700">
                             <strong>Projected Follow-On Capital:</strong> $
                             {formatCurrency(calculations.followOnCapital)}
                           </p>
-                          <p className="text-xs text-gray-500 mt-1">
+                          <p className="text-xs text-charcoal-500 mt-1">
                             Based on graduation rates and participation strategy
                           </p>
                         </div>

@@ -317,7 +317,7 @@ export default function InvestmentStrategyStep() {
                               variant="ghost"
                               size="sm"
                               onClick={() => handleDeleteProfile(profile.id)}
-                              className="text-red-500 hover:text-red-700"
+                              className="text-pov-charcoal hover:text-pov-charcoal"
                               aria-label={`Delete ${profile.name || 'profile'}`}
                             >
                               <Trash2 aria-hidden="true" className="h-4 w-4" />
@@ -658,7 +658,7 @@ export default function InvestmentStrategyStep() {
                                   variant="ghost"
                                   size="sm"
                                   onClick={() => handleDeleteStage(profile.id, stage.id)}
-                                  className="h-8 w-8 p-0 text-red-500 hover:text-red-700 hover:bg-red-50"
+                                  className="h-8 w-8 p-0 text-pov-charcoal hover:text-pov-charcoal hover:bg-pov-gray"
                                   aria-label={`Delete ${stage.name || 'stage'}`}
                                 >
                                   <Trash2 aria-hidden="true" className="h-3 w-3" />
@@ -670,7 +670,7 @@ export default function InvestmentStrategyStep() {
                       </div>
 
                       {/* Important Considerations */}
-                      <div className="bg-amber-50 border border-[#E0D8D1] rounded-xl p-4 shadow-sm">
+                      <div className="bg-warning/10 border border-[#E0D8D1] rounded-xl p-4 shadow-sm">
                         <h4 className="font-inter font-bold text-[#292929] mb-2">
                           Important Considerations
                         </h4>
@@ -707,18 +707,18 @@ export default function InvestmentStrategyStep() {
         </div>
 
         {/* Pre-Recycling Validation Notice */}
-        <div className="mb-6 p-4 bg-blue-50 border-l-4 border-blue-500 rounded-r-lg">
-          <p className="text-sm font-poppins text-blue-900 leading-relaxed">
+        <div className="mb-6 p-4 bg-presson-info/10 border-l-4 border-presson-info rounded-r-lg">
+          <p className="text-sm font-poppins text-presson-info leading-relaxed">
             <strong>Capital Allocation Validation:</strong> The estimated initial and follow-on
             capital shown above represent <strong>gross investable capital</strong> before
             recycling. These estimates do <strong>not yet factor in</strong>:
           </p>
-          <ul className="mt-2 ml-6 text-sm font-poppins text-blue-800 space-y-1">
+          <ul className="mt-2 ml-6 text-sm font-poppins text-presson-info space-y-1">
             <li>• Exit proceeds that may be recycled back into new investments</li>
             <li>• Management fees and fund expenses (configured in later steps)</li>
             <li>• Reserve allocation timing and deployment schedules</li>
           </ul>
-          <p className="mt-3 text-sm font-poppins text-blue-900">
+          <p className="mt-3 text-sm font-poppins text-presson-info">
             <strong>Next:</strong> In Step 5 (Distributions), you'll configure how exit proceeds are
             reinvested, which will adjust the final capital deployment schedule.
           </p>

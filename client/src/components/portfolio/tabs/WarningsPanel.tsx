@@ -1,12 +1,7 @@
- 
 import React, { useState } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from '@/components/ui/collapsible';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import {
   getWarningIcon,
   getWarningBadgeVariant,
@@ -28,7 +23,7 @@ function WarningItem({ warning }: { warning: ReallocationWarning }) {
 
   return (
     <Collapsible open={isOpen} onOpenChange={setIsOpen}>
-      <div className="rounded-md border p-3 hover:bg-gray-50 transition-colors">
+      <div className="rounded-md border p-3 hover:bg-pov-gray transition-colors">
         <CollapsibleTrigger className="flex items-start gap-3 w-full text-left">
           <span className="text-lg mt-0.5">{icon}</span>
           <div className="flex-1 min-w-0">
@@ -37,19 +32,19 @@ function WarningItem({ warning }: { warning: ReallocationWarning }) {
                 {warning.severity.toUpperCase()}
               </Badge>
               {hasDetails && (
-                <span className="text-xs text-gray-500">
+                <span className="text-xs text-charcoal-500">
                   {warning.company_name || `Company #${warning.company_id}`}
                 </span>
               )}
             </div>
-            <p className="text-sm text-gray-900">{warning.message}</p>
+            <p className="text-sm text-pov-charcoal">{warning.message}</p>
           </div>
           {hasDetails && (
             <div className="mt-1">
               {isOpen ? (
-                <ChevronDown className="h-4 w-4 text-gray-500" />
+                <ChevronDown className="h-4 w-4 text-charcoal-500" />
               ) : (
-                <ChevronRight className="h-4 w-4 text-gray-500" />
+                <ChevronRight className="h-4 w-4 text-charcoal-500" />
               )}
             </div>
           )}
@@ -57,25 +52,21 @@ function WarningItem({ warning }: { warning: ReallocationWarning }) {
 
         {hasDetails && (
           <CollapsibleContent className="mt-3 pl-9">
-            <div className="rounded-md bg-gray-100 p-3 text-xs space-y-1">
+            <div className="rounded-md bg-pov-gray p-3 text-xs space-y-1">
               <div className="flex justify-between">
-                <span className="font-medium text-gray-700">Type:</span>
-                <span className="text-gray-900">{warning.type}</span>
+                <span className="font-medium text-charcoal-700">Type:</span>
+                <span className="text-pov-charcoal">{warning.type}</span>
               </div>
               {warning.company_id && (
                 <div className="flex justify-between">
-                  <span className="font-medium text-gray-700">
-                    Company ID:
-                  </span>
-                  <span className="text-gray-900">{warning.company_id}</span>
+                  <span className="font-medium text-charcoal-700">Company ID:</span>
+                  <span className="text-pov-charcoal">{warning.company_id}</span>
                 </div>
               )}
               {warning.company_name && (
                 <div className="flex justify-between">
-                  <span className="font-medium text-gray-700">
-                    Company Name:
-                  </span>
-                  <span className="text-gray-900">{warning.company_name}</span>
+                  <span className="font-medium text-charcoal-700">Company Name:</span>
+                  <span className="text-pov-charcoal">{warning.company_name}</span>
                 </div>
               )}
             </div>
@@ -87,20 +78,17 @@ function WarningItem({ warning }: { warning: ReallocationWarning }) {
 }
 
 export function WarningsPanel({ warnings }: WarningsPanelProps) {
-  const { errors, warnings: nonBlockingWarnings } =
-    groupWarningsBySeverity(warnings);
+  const { errors, warnings: nonBlockingWarnings } = groupWarningsBySeverity(warnings);
 
   if (warnings.length === 0) {
     return (
-      <Card className="border-green-200 bg-green-50">
+      <Card className="border-success/30 bg-success/10">
         <CardContent className="p-6">
           <div className="flex items-center gap-3">
             <span className="text-2xl">✓</span>
             <div>
-              <p className="font-medium text-green-800">All Checks Passed</p>
-              <p className="text-sm text-green-600">
-                No warnings or errors detected
-              </p>
+              <p className="font-medium text-success-dark">All Checks Passed</p>
+              <p className="text-sm text-presson-positive">No warnings or errors detected</p>
             </div>
           </div>
         </CardContent>
@@ -132,11 +120,9 @@ export function WarningsPanel({ warnings }: WarningsPanelProps) {
         {/* Blocking Errors */}
         {errors.length > 0 && (
           <div className="space-y-2">
-            <h4 className="text-sm font-semibold text-red-700 flex items-center gap-2">
+            <h4 className="text-sm font-semibold text-error-dark flex items-center gap-2">
               <span>Blocking Errors</span>
-              <span className="text-xs text-red-600">
-                (Must be resolved before commit)
-              </span>
+              <span className="text-xs text-error">(Must be resolved before commit)</span>
             </h4>
             <div className="space-y-2">
               {errors.map((warning, index) => (
@@ -149,11 +135,9 @@ export function WarningsPanel({ warnings }: WarningsPanelProps) {
         {/* Non-Blocking Warnings */}
         {nonBlockingWarnings.length > 0 && (
           <div className="space-y-2">
-            <h4 className="text-sm font-semibold text-yellow-700 flex items-center gap-2">
+            <h4 className="text-sm font-semibold text-warning-dark flex items-center gap-2">
               <span>Warnings</span>
-              <span className="text-xs text-yellow-600">
-                (Can proceed with caution)
-              </span>
+              <span className="text-xs text-presson-warning">(Can proceed with caution)</span>
             </h4>
             <div className="space-y-2">
               {nonBlockingWarnings.map((warning, index) => (

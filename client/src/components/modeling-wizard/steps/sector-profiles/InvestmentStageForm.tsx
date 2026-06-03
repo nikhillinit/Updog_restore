@@ -17,7 +17,13 @@ import React from 'react';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { Trash2, Plus, AlertCircle } from 'lucide-react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import type { InvestmentStage } from '@/schemas/modeling-wizard.schemas';
@@ -56,7 +62,7 @@ const STAGE_OPTIONS: { value: InvestmentStage; label: string }[] = [
   { value: 'series-b', label: 'Series B' },
   { value: 'series-c', label: 'Series C' },
   { value: 'series-d', label: 'Series D' },
-  { value: 'series-e-plus', label: 'Series E+' }
+  { value: 'series-e-plus', label: 'Series E+' },
 ];
 
 // ============================================================================
@@ -76,18 +82,18 @@ export function InvestmentStageForm({ stages, onChange }: InvestmentStageFormPro
       failureRate: 40.0,
       exitValuation: 50.0,
       monthsToGraduate: 18,
-      monthsToExit: 24
+      monthsToExit: 24,
     };
     onChange([...stages, newStage]);
   };
 
   const removeStage = (id: string) => {
-    onChange(stages.filter(s => s.id !== id));
+    onChange(stages.filter((s) => s.id !== id));
   };
 
   const updateStage = (id: string, updates: Partial<InvestmentStageCohort>) => {
     onChange(
-      stages.map(s => {
+      stages.map((s) => {
         if (s.id !== id) return s;
 
         const updated = { ...s, ...updates };
@@ -108,7 +114,7 @@ export function InvestmentStageForm({ stages, onChange }: InvestmentStageFormPro
     if (total > 100) {
       return {
         isValid: false,
-        message: `Graduation (${stage.graduationRate}%) + Exit (${stage.exitRate}%) = ${total}% exceeds 100%`
+        message: `Graduation (${stage.graduationRate}%) + Exit (${stage.exitRate}%) = ${total}% exceeds 100%`,
       };
     }
     return { isValid: true };
@@ -121,12 +127,7 @@ export function InvestmentStageForm({ stages, onChange }: InvestmentStageFormPro
           <p className="text-charcoal-600 font-poppins text-sm mb-4">
             No investment stages defined yet
           </p>
-          <Button
-            type="button"
-            variant="outline"
-            onClick={addStage}
-            className="gap-2"
-          >
+          <Button type="button" variant="outline" onClick={addStage} className="gap-2">
             <Plus className="w-4 h-4" />
             Add Investment Stage
           </Button>
@@ -153,7 +154,7 @@ export function InvestmentStageForm({ stages, onChange }: InvestmentStageFormPro
               </span>
               <div className="flex items-center gap-2">
                 {isLastStage && stage.graduationRate > 0 && (
-                  <span className="text-xs text-amber-600 font-poppins">
+                  <span className="text-xs text-warning font-poppins">
                     ⚠️ Final stage should have 0% graduation
                   </span>
                 )}
@@ -179,9 +180,7 @@ export function InvestmentStageForm({ stages, onChange }: InvestmentStageFormPro
 
             {/* Investment Stage Dropdown */}
             <div>
-              <Label className="font-poppins text-charcoal-700">
-                Investment Stage *
-              </Label>
+              <Label className="font-poppins text-charcoal-700">Investment Stage *</Label>
               <Select
                 value={stage.stage}
                 onValueChange={(value) =>
@@ -204,44 +203,44 @@ export function InvestmentStageForm({ stages, onChange }: InvestmentStageFormPro
             {/* Round Metrics */}
             <div className="grid grid-cols-3 gap-4">
               <div>
-                <Label className="font-poppins text-charcoal-700">
-                  Round Size ($M) *
-                </Label>
+                <Label className="font-poppins text-charcoal-700">Round Size ($M) *</Label>
                 <Input
                   type="number"
                   step="0.1"
                   min="0"
                   value={stage.roundSize || ''}
-                  onChange={(e) => updateStage(stage.id, { roundSize: parseFloat(e.target.value) || 0 })}
+                  onChange={(e) =>
+                    updateStage(stage.id, { roundSize: parseFloat(e.target.value) || 0 })
+                  }
                   className="mt-2"
                 />
               </div>
 
               <div>
-                <Label className="font-poppins text-charcoal-700">
-                  Valuation ($M) *
-                </Label>
+                <Label className="font-poppins text-charcoal-700">Valuation ($M) *</Label>
                 <Input
                   type="number"
                   step="1"
                   min="0"
                   value={stage.valuation || ''}
-                  onChange={(e) => updateStage(stage.id, { valuation: parseFloat(e.target.value) || 0 })}
+                  onChange={(e) =>
+                    updateStage(stage.id, { valuation: parseFloat(e.target.value) || 0 })
+                  }
                   className="mt-2"
                 />
               </div>
 
               <div>
-                <Label className="font-poppins text-charcoal-700">
-                  ESOP (%) *
-                </Label>
+                <Label className="font-poppins text-charcoal-700">ESOP (%) *</Label>
                 <Input
                   type="number"
                   step="0.1"
                   min="0"
                   max="30"
                   value={stage.esopPercentage || ''}
-                  onChange={(e) => updateStage(stage.id, { esopPercentage: parseFloat(e.target.value) || 0 })}
+                  onChange={(e) =>
+                    updateStage(stage.id, { esopPercentage: parseFloat(e.target.value) || 0 })
+                  }
                   className="mt-2"
                 />
               </div>
@@ -250,39 +249,37 @@ export function InvestmentStageForm({ stages, onChange }: InvestmentStageFormPro
             {/* Rates Grid */}
             <div className="grid grid-cols-3 gap-4">
               <div>
-                <Label className="font-poppins text-charcoal-700">
-                  Graduation Rate (%) *
-                </Label>
+                <Label className="font-poppins text-charcoal-700">Graduation Rate (%) *</Label>
                 <Input
                   type="number"
                   step="0.1"
                   min="0"
                   max="100"
                   value={stage.graduationRate || ''}
-                  onChange={(e) => updateStage(stage.id, { graduationRate: parseFloat(e.target.value) || 0 })}
+                  onChange={(e) =>
+                    updateStage(stage.id, { graduationRate: parseFloat(e.target.value) || 0 })
+                  }
                   className="mt-2"
                 />
               </div>
 
               <div>
-                <Label className="font-poppins text-charcoal-700">
-                  Exit Rate (%) *
-                </Label>
+                <Label className="font-poppins text-charcoal-700">Exit Rate (%) *</Label>
                 <Input
                   type="number"
                   step="0.1"
                   min="0"
                   max="100"
                   value={stage.exitRate || ''}
-                  onChange={(e) => updateStage(stage.id, { exitRate: parseFloat(e.target.value) || 0 })}
+                  onChange={(e) =>
+                    updateStage(stage.id, { exitRate: parseFloat(e.target.value) || 0 })
+                  }
                   className="mt-2"
                 />
               </div>
 
               <div>
-                <Label className="font-poppins text-charcoal-700">
-                  Failure Rate (%)
-                </Label>
+                <Label className="font-poppins text-charcoal-700">Failure Rate (%)</Label>
                 <Input
                   type="number"
                   value={stage.failureRate?.toFixed(1) || '0.0'}
@@ -297,45 +294,45 @@ export function InvestmentStageForm({ stages, onChange }: InvestmentStageFormPro
             {/* Exit Valuation & Timing */}
             <div className="grid grid-cols-3 gap-4">
               <div>
-                <Label className="font-poppins text-charcoal-700">
-                  Exit Valuation ($M) *
-                </Label>
+                <Label className="font-poppins text-charcoal-700">Exit Valuation ($M) *</Label>
                 <Input
                   type="number"
                   step="1"
                   min="0"
                   value={stage.exitValuation || ''}
-                  onChange={(e) => updateStage(stage.id, { exitValuation: parseFloat(e.target.value) || 0 })}
+                  onChange={(e) =>
+                    updateStage(stage.id, { exitValuation: parseFloat(e.target.value) || 0 })
+                  }
                   className="mt-2"
                 />
               </div>
 
               <div>
-                <Label className="font-poppins text-charcoal-700">
-                  Months to Graduate *
-                </Label>
+                <Label className="font-poppins text-charcoal-700">Months to Graduate *</Label>
                 <Input
                   type="number"
                   step="1"
                   min="1"
                   max="120"
                   value={stage.monthsToGraduate || ''}
-                  onChange={(e) => updateStage(stage.id, { monthsToGraduate: parseInt(e.target.value) || 0 })}
+                  onChange={(e) =>
+                    updateStage(stage.id, { monthsToGraduate: parseInt(e.target.value) || 0 })
+                  }
                   className="mt-2"
                 />
               </div>
 
               <div>
-                <Label className="font-poppins text-charcoal-700">
-                  Months to Exit *
-                </Label>
+                <Label className="font-poppins text-charcoal-700">Months to Exit *</Label>
                 <Input
                   type="number"
                   step="1"
                   min="1"
                   max="180"
                   value={stage.monthsToExit || ''}
-                  onChange={(e) => updateStage(stage.id, { monthsToExit: parseInt(e.target.value) || 0 })}
+                  onChange={(e) =>
+                    updateStage(stage.id, { monthsToExit: parseInt(e.target.value) || 0 })
+                  }
                   className="mt-2"
                 />
               </div>
@@ -346,12 +343,7 @@ export function InvestmentStageForm({ stages, onChange }: InvestmentStageFormPro
 
       {/* Add Stage Button */}
       {stages.length < 10 && (
-        <Button
-          type="button"
-          variant="outline"
-          onClick={addStage}
-          className="w-full gap-2"
-        >
+        <Button type="button" variant="outline" onClick={addStage} className="w-full gap-2">
           <Plus className="w-4 h-4" />
           Add Another Stage
         </Button>

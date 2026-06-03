@@ -53,11 +53,11 @@ function getDeltaBand(userValue: number, engineValue: number): DeltaBand {
 function deltaColorClasses(band: DeltaBand): string {
   switch (band) {
     case 'aligned':
-      return 'text-emerald-700 border-emerald-300 bg-emerald-50';
+      return 'text-success-dark border-success/50 bg-success/10';
     case 'divergent':
-      return 'text-amber-700 border-amber-300 bg-amber-50';
+      return 'text-warning-dark border-warning/50 bg-warning/10';
     case 'significant':
-      return 'text-red-700 border-red-300 bg-red-50';
+      return 'text-error-dark border-error/50 bg-error/10';
   }
 }
 
@@ -68,11 +68,11 @@ function concentrationLabel(risk: 'low' | 'medium' | 'high'): string {
 function concentrationBadgeClass(risk: 'low' | 'medium' | 'high'): string {
   switch (risk) {
     case 'low':
-      return 'bg-emerald-100 text-emerald-800 border-emerald-200';
+      return 'bg-success/10 text-success-dark border-success/30';
     case 'medium':
-      return 'bg-amber-100 text-amber-800 border-amber-200';
+      return 'bg-warning/10 text-warning-dark border-warning/30';
     case 'high':
-      return 'bg-red-100 text-red-800 border-red-200';
+      return 'bg-error/10 text-error-dark border-error/30';
   }
 }
 
@@ -207,9 +207,9 @@ export function EngineRecommendationsPanel({
                         <span
                           className={cn(
                             'font-bold',
-                            deltaBand === 'aligned' && 'text-emerald-700',
-                            deltaBand === 'divergent' && 'text-amber-700',
-                            deltaBand === 'significant' && 'text-red-700'
+                            deltaBand === 'aligned' && 'text-success-dark',
+                            deltaBand === 'divergent' && 'text-warning-dark',
+                            deltaBand === 'significant' && 'text-error-dark'
                           )}
                         >
                           {formatPercent(userReserveRatio)}
@@ -236,7 +236,7 @@ export function EngineRecommendationsPanel({
                         className={cn(
                           'font-inter font-bold text-2xl',
                           result.portfolioMetrics.expectedPortfolioMOIC > 5
-                            ? 'text-red-700'
+                            ? 'text-error-dark'
                             : 'text-pov-charcoal'
                         )}
                       >
@@ -278,10 +278,10 @@ export function EngineRecommendationsPanel({
 
                 {/* Risk Assessment Section */}
                 {hasRiskWarnings && (
-                  <div className="border border-amber-200 bg-amber-50 rounded-lg p-4 space-y-2">
+                  <div className="border border-warning/30 bg-warning/10 rounded-lg p-4 space-y-2">
                     <div className="flex items-center gap-2 mb-2">
-                      <AlertTriangle className="h-4 w-4 text-amber-700" />
-                      <span className="font-inter font-bold text-sm text-amber-800">
+                      <AlertTriangle className="h-4 w-4 text-warning-dark" />
+                      <span className="font-inter font-bold text-sm text-warning-dark">
                         Risk Assessment
                       </span>
                     </div>
@@ -289,7 +289,7 @@ export function EngineRecommendationsPanel({
                       {reserveExhaustionRisk && (
                         <Badge
                           variant="outline"
-                          className="bg-red-100 text-red-800 border-red-200 text-xs"
+                          className="bg-error/10 text-error-dark border-error/30 text-xs"
                         >
                           Reserve exhaustion risk (&gt;90% utilized)
                         </Badge>
@@ -297,7 +297,7 @@ export function EngineRecommendationsPanel({
                       {highConcentration && (
                         <Badge
                           variant="outline"
-                          className="bg-amber-100 text-amber-800 border-amber-200 text-xs"
+                          className="bg-warning/10 text-warning-dark border-warning/30 text-xs"
                         >
                           High portfolio concentration
                         </Badge>
@@ -305,7 +305,7 @@ export function EngineRecommendationsPanel({
                       {unrealisticReturns && (
                         <Badge
                           variant="outline"
-                          className="bg-red-100 text-red-800 border-red-200 text-xs"
+                          className="bg-error/10 text-error-dark border-error/30 text-xs"
                         >
                           Projected MOIC exceeds 5x -- verify assumptions
                         </Badge>

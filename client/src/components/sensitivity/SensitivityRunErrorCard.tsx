@@ -81,10 +81,13 @@ export function SensitivityRunErrorCard({
   }, [error, fundId, testIdPrefix]);
 
   return (
-    <Card className="border-red-200" data-testid={`${testIdPrefix}-error`}>
+    <Card className="border-error/20" data-testid={`${testIdPrefix}-error`}>
       <CardContent className="px-4 py-3">
-        <p className="text-sm font-medium text-red-700">{copy.title}</p>
-        <p className="mt-0.5 text-xs text-gray-600" data-testid={`${testIdPrefix}-error-message`}>
+        <p className="text-sm font-medium text-error-dark">{copy.title}</p>
+        <p
+          className="mt-0.5 text-xs text-charcoal-600"
+          data-testid={`${testIdPrefix}-error-message`}
+        >
           {copy.message}
         </p>
         {copy.retry ? (

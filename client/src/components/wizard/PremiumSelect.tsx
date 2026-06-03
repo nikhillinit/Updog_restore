@@ -1,5 +1,11 @@
 import React from 'react';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
 
 interface SelectOption {
@@ -44,7 +50,7 @@ export function PremiumSelect({
           h-11 border border-pov-gray bg-pov-white font-poppins
           transition-all duration-200 ease-out
           focus:ring-2 focus:ring-pov-beige focus:border-transparent
-          hover:border-gray-400
+          hover:border-charcoal-400
           ${error ? 'border-pov-error focus:ring-pov-error/20' : ''}
           shadow-sm hover:shadow-md
         `}
@@ -61,7 +67,7 @@ export function PremiumSelect({
               <div className="flex flex-col">
                 <span className="font-medium text-pov-charcoal">{option.label}</span>
                 {option.description && (
-                  <span className="text-xs text-gray-600 mt-1">{option.description}</span>
+                  <span className="text-xs text-charcoal-600 mt-1">{option.description}</span>
                 )}
               </div>
             </SelectItem>
@@ -70,7 +76,7 @@ export function PremiumSelect({
       </Select>
 
       {description && !error && (
-        <p className="font-poppins text-xs text-gray-600">{description}</p>
+        <p className="font-poppins text-xs text-charcoal-600">{description}</p>
       )}
 
       {error && <p className="font-poppins text-xs text-pov-error">{error}</p>}

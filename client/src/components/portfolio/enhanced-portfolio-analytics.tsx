@@ -136,12 +136,12 @@ export default function EnhancedPortfolioAnalytics() {
 
   if (!currentFund) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="min-h-screen bg-pov-gray flex items-center justify-center">
         <Card className="w-96">
           <CardContent className="text-center py-12">
-            <BarChart3 className="h-12 w-12 mx-auto mb-4 text-gray-300" />
-            <h3 className="text-lg font-medium text-gray-900 mb-2">No Fund Selected</h3>
-            <p className="text-gray-600">
+            <BarChart3 className="h-12 w-12 mx-auto mb-4 text-charcoal-300" />
+            <h3 className="text-lg font-medium text-pov-charcoal mb-2">No Fund Selected</h3>
+            <p className="text-charcoal-600">
               Please select or create a fund to access portfolio analytics.
             </p>
           </CardContent>
@@ -151,9 +151,9 @@ export default function EnhancedPortfolioAnalytics() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-pov-gray">
       {/* Header */}
-      <div className="bg-white border-b border-gray-200">
+      <div className="bg-white border-b border-beige-200">
         <div className="px-6 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-4">
@@ -162,8 +162,8 @@ export default function EnhancedPortfolioAnalytics() {
                 Back
               </Button>
               <div>
-                <h1 className="text-2xl font-bold text-gray-900">Portfolio Analytics</h1>
-                <p className="text-sm text-gray-600">
+                <h1 className="text-2xl font-bold text-pov-charcoal">Portfolio Analytics</h1>
+                <p className="text-sm text-charcoal-600">
                   {currentFund.name} | Advanced data exploration and visualization
                 </p>
               </div>
@@ -187,38 +187,38 @@ export default function EnhancedPortfolioAnalytics() {
 
         {/* Navigation Tabs */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="px-6">
-          <TabsList className="grid w-full grid-cols-5 bg-transparent border-t border-gray-200 rounded-none">
+          <TabsList className="grid w-full grid-cols-5 bg-transparent border-t border-beige-200 rounded-none">
             <TabsTrigger
               value="dashboard"
-              className="data-[state=active]:bg-white data-[state=active]:border-b-2 data-[state=active]:border-blue-500 rounded-none"
+              className="data-[state=active]:bg-white data-[state=active]:border-b-2 data-[state=active]:border-pov-charcoal rounded-none"
             >
               <Eye className="h-4 w-4 mr-2" />
               Analytics Dashboard
             </TabsTrigger>
             <TabsTrigger
               value="builder"
-              className="data-[state=active]:bg-white data-[state=active]:border-b-2 data-[state=active]:border-blue-500 rounded-none"
+              className="data-[state=active]:bg-white data-[state=active]:border-b-2 data-[state=active]:border-pov-charcoal rounded-none"
             >
               <BarChart3 className="h-4 w-4 mr-2" />
               Chart Builder
             </TabsTrigger>
             <TabsTrigger
               value="tag-performance"
-              className="data-[state=active]:bg-white data-[state=active]:border-b-2 data-[state=active]:border-blue-500 rounded-none"
+              className="data-[state=active]:bg-white data-[state=active]:border-b-2 data-[state=active]:border-pov-charcoal rounded-none"
             >
               <TrendingUp className="h-4 w-4 mr-2" />
               By Tags
             </TabsTrigger>
             <TabsTrigger
               value="benchmarks"
-              className="data-[state=active]:bg-white data-[state=active]:border-b-2 data-[state=active]:border-blue-500 rounded-none"
+              className="data-[state=active]:bg-white data-[state=active]:border-b-2 data-[state=active]:border-pov-charcoal rounded-none"
             >
               <TrendingUp className="h-4 w-4 mr-2" />
               Benchmarks
             </TabsTrigger>
             <TabsTrigger
               value="saved-views"
-              className="data-[state=active]:bg-white data-[state=active]:border-b-2 data-[state=active]:border-blue-500 rounded-none"
+              className="data-[state=active]:bg-white data-[state=active]:border-b-2 data-[state=active]:border-pov-charcoal rounded-none"
             >
               <Eye className="h-4 w-4 mr-2" />
               Saved Views ({savedViews.length})
@@ -238,7 +238,7 @@ export default function EnhancedPortfolioAnalytics() {
             <Card>
               <CardHeader>
                 <CardTitle>Drag & Drop Chart Builder</CardTitle>
-                <p className="text-sm text-gray-600">
+                <p className="text-sm text-charcoal-600">
                   Build custom visualizations by selecting chart types and dragging fields into
                   configuration areas
                 </p>
