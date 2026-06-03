@@ -136,11 +136,11 @@ canonical tokens. Classify before reuse.
 | ----------------------------------------------------------------------------------- | ---------------------------- | ----------------------- | --------------------------------------------------------------------------------------------------------------------------------------------- |
 | `interactive.accent: #3b82f6` (blue)                                                | tailwind.config.ts:120       | **LEGACY-DRIFT**        | Contradicts canonical accent (`#292929`) and v3.1.1 "primary actions are black". Stop using for primary actions; migrate to `presson.accent`. |
 | `interactive.primary.focus: #0ea5e9` (sky)                                          | tailwind.config.ts:112       | **LEGACY-DRIFT**        | Focus color should be charcoal `presson.focus.ring`. Reconcile.                                                                               |
-| `financial.stable: #8b5cf6` (purple)                                                | tailwind.config.ts:179       | **LEGACY-DRIFT**        | Purple has no place in this system. Marked "for future use" — remove or recolor before any use.                                               |
+| `financial.stable: #8b5cf6` (purple)                                                | tailwind.config.ts:179       | **RESOLVED 2026-06-03** | Deleted the unused `financial` color group (zero code refs) — T-A.                                                                            |
 | `pov.success #10B981` vs `semantic.success #10b981` vs canonical `positive #127E3D` | tailwind.config.ts:42/57/138 | **LEGACY-DRIFT**        | Two greens for one meaning. `presson.positive #127E3D` is canonical; treat the `#10b981` family as the AI-confidence-only green (below).      |
 | `confidence.*` (critical/low/medium/high/excellent)                                 | tailwind.config.ts:46        | **EXTENSION (scoped)**  | Legit semantic palette for AI-confidence indicators only. Do not use as general UI accent (it introduces blue `#3b82f6`).                     |
 | Enhanced micro-interactions (`fade-in`, `card-hover`, `confidence-glow`, …)         | tailwind.config.ts:282-356   | **EXTENSION**           | Keep, but every consumer must honor reduced-motion (see Motion).                                                                              |
-| `--pv2-mute: #7A7A7A`                                                               | presson-v2.css:11            | **LEGACY-DRIFT**        | Should be canonical `textMuted #5A5A5A` (also: `#7A7A7A` on white is ~4:1, borderline AA).                                                    |
+| `--pv2-mute: #7A7A7A`                                                               | presson-v2.css:11            | **RESOLVED 2026-06-03** | Set `--pv2-mute` to canonical `#5A5A5A` — T-B.                                                                                                |
 | `--pv2-*` pos/neg/rule                                                              | presson-v2.css:13-18         | **CANONICAL (aligned)** | `#127E3D`/`#B00020`/`#E0D8D1` already match tokens. Good.                                                                                     |
 | `/v2/*` has no `@media` (no responsive, no reduced-motion)                          | presson-v2.css               | **LEGACY-DRIFT**        | Tracked in the scenario-surfaces fix plan; bring `/v2` under canonical motion + responsive rules.                                             |
 | charcoal/beige numeric scales                                                       | tailwind.config.ts:144-170   | **EXTENSION**           | Sanctioned; consistent with `#292929`/`#E0D8D1`.                                                                                              |
@@ -151,12 +151,16 @@ The three design artifacts disagreed on a few values. Resolved, with
 `presson.tokens.ts` as the tie-breaker:
 
 1. **Mono font: JetBrains Mono.** Was `ui-monospace` (tokens) / Fira Code
-   (tailwind) / JetBrains (`/v2` + v3.1.1 doc). Code alignment pending via
-   token-cleanup **T-D** (update `presson.tokens.ts` mono + tailwind
-   `font-mono`).
+   (tailwind) / JetBrains (`/v2` + v3.1.1 doc). Applied 2026-06-03 (T-D):
+   `presson.tokens.ts` mono + tailwind `font-mono` set to the JetBrains Mono
+   stack. Verify a JetBrains Mono webfont is actually loaded; otherwise it falls
+   back to Roboto Mono / ui-monospace.
 2. **Body font: Inter heading + Poppins body (unchanged).** The v3.1.1 doc's
    Inter-only rendering was page styling, not a mandate. No migration.
-3. **Warning: `#9C6F19`** (canonical) over v3.1.1's `#a95c00`. Align via T-H.
+3. **Warning: `#9C6F19`** (canonical) over v3.1.1's `#a95c00`. Applied
+   2026-06-03 (T-H) to `pov.warning` + `warning.DEFAULT`; `semantic.warning`
+   ramp + `confidence.low` left amber for ramp coherence (full unification
+   pending).
 4. **Card radius: canonical scale** (`md 10` / `lg 16`); cards map to `lg`. No
    `14px` token unless brand requires it.
 
