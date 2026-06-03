@@ -20,6 +20,15 @@ import {
   type ScenarioComparisonMetricMap,
   type ScenarioComparisonMetricValue,
 } from '@shared/contracts/fund-scenario-comparison-v1.contract';
+import type { ScenarioEvidenceStateV1 } from '@shared/contracts/fund-scenario-sets-v1.contract';
+import {
+  scenarioCalculatedTimestamp,
+  scenarioStateClasses,
+} from '@/components/results/scenario-evidence';
+import {
+  comparisonEvidenceState,
+  comparisonPublishedConfigVersion,
+} from './scenario-comparison-evidence';
 
 export type ScenarioComparisonMetricKind = 'percent' | 'money' | 'multiple';
 type MetricDirection = 'higher_better' | 'lower_better' | 'neutral';
@@ -57,12 +66,18 @@ interface VariantColumn {
   variantName: string;
   metrics: ScenarioComparisonMetricMap;
   metricDeltas: ScenarioComparisonMetricDeltaV1[];
+  evidenceState: ScenarioEvidenceStateV1;
+  calculatedAt: string | null;
+  publishedConfigVersion: number | null;
 }
 
 interface ScenarioSetGroup {
   scenarioSetId: string;
   scenarioSetName: string;
   sourceConfigVersion: number;
+  evidenceState: ScenarioEvidenceStateV1;
+  calculatedAt: string | null;
+  publishedConfigVersion: number | null;
   columns: VariantColumn[];
 }
 
@@ -78,6 +93,8 @@ function toVariantColumns(comparisons: FundScenarioComparisonV1[]): VariantColum
   const columns: VariantColumn[] = [];
   for (const comparison of comparisons) {
     if (!isComparableFeeProfileComparison(comparison)) continue;
+    const evidenceState = comparisonEvidenceState(comparison);
+    const publishedConfigVersion = comparisonPublishedConfigVersion(comparison);
     for (const variant of comparison.variants) {
       columns.push({
         key: `${comparison.scenarioSet.scenarioSetId}:${variant.variantId}`,
@@ -88,6 +105,9 @@ function toVariantColumns(comparisons: FundScenarioComparisonV1[]): VariantColum
         variantName: variant.name,
         metrics: variant.metrics,
         metricDeltas: variant.metricDeltas,
+        evidenceState,
+        calculatedAt: comparison.calculatedAt,
+        publishedConfigVersion,
       });
     }
   }
@@ -103,6 +123,9 @@ function groupColumns(columns: VariantColumn[]): ScenarioSetGroup[] {
         scenarioSetId: column.scenarioSetId,
         scenarioSetName: column.scenarioSetName,
         sourceConfigVersion: column.sourceConfigVersion,
+        evidenceState: column.evidenceState,
+        calculatedAt: column.calculatedAt,
+        publishedConfigVersion: column.publishedConfigVersion,
         columns: [],
       };
       groups.push(group);
@@ -247,9 +270,28 @@ export function CrossSetScenarioComparisonTable({
                   className="p-3 text-left text-xs uppercase text-charcoal-400 font-poppins"
                 >
                   <span className="align-middle">{group.scenarioSetName}</span>
+                  <Badge
+                    variant="outline"
+                    className={cn(
+                      'ml-2 align-middle font-poppins uppercase',
+                      scenarioStateClasses(group.evidenceState)
+                    )}
+                  >
+                    {group.evidenceState}
+                  </Badge>
                   <span className="ml-2 normal-case text-charcoal-400">
                     Source config v{group.sourceConfigVersion}
                   </span>
+                  {group.publishedConfigVersion != null && (
+                    <span className="ml-2 normal-case text-charcoal-400">
+                      Published config v{group.publishedConfigVersion}
+                    </span>
+                  )}
+                  {group.calculatedAt && (
+                    <span className="ml-2 normal-case text-charcoal-400">
+                      {scenarioCalculatedTimestamp(group.calculatedAt)}
+                    </span>
+                  )}
                 </th>
               ))}
             </tr>

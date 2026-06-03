@@ -173,6 +173,33 @@ describe('CrossSetScenarioComparisonTable', () => {
     expect(within(table).getByText('Source config v5')).toBeInTheDocument();
   });
 
+  it('labels each scenario set group with its comparison trust state and calculated time', () => {
+    render(
+      <CrossSetScenarioComparisonTable
+        comparisons={[
+          mkComparison({
+            setId: SET_A,
+            name: 'Fee sensitivity',
+            sourceConfigVersion: 4,
+            variants: [{ variantId: uuid(101), name: 'Lower fee', metrics: metrics() }],
+          }),
+          mkComparison({
+            setId: SET_B,
+            name: 'Carry sensitivity',
+            sourceConfigVersion: 4,
+            variants: [{ variantId: uuid(102), name: 'Higher carry', metrics: metrics() }],
+          }),
+        ]}
+      />
+    );
+
+    const table = screen.getByTestId('cross-set-scenario-comparison-table');
+    // one Tier-1 trust-state badge per scenario set group
+    expect(within(table).getAllByText('CURRENT')).toHaveLength(2);
+    // calculated timestamp echoed per group as muted Tier-3 detail
+    expect(within(table).getAllByText(/^CALCULATED /).length).toBeGreaterThanOrEqual(2);
+  });
+
   it('warns when scenario sets use different source configs', () => {
     render(
       <CrossSetScenarioComparisonTable
