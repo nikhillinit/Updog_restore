@@ -255,6 +255,129 @@ describe('FundModelResultsPage (server-backed)', () => {
     expect(screen.getByText('Waterfall and Carry')).toBeInTheDocument();
   });
 
+  // -- PR B: section evidence provenance --
+
+  it('renders pacing evidence as lifecycle-backed with config, run, and source', async () => {
+    mockFundPageFetches();
+    await renderPage('/fund-model-results/123');
+
+    const header = await screen.findByTestId('evidence-header-deployment-pacing');
+    expect(within(header).getByText('CONFIG v1')).toBeInTheDocument();
+    expect(within(header).getByText('RUN #10')).toBeInTheDocument();
+    expect(within(header).getByText('SOURCE fund_snapshots')).toBeInTheDocument();
+  });
+
+  it('renders GP economics evidence from the section, not the lifecycle run', async () => {
+    const resp = readyResponse();
+    const economics = validEconomicsSection();
+    economics.configVersion = 2;
+    economics.calculatedAt = '2026-04-01T08:00:00.000Z';
+    resp.sections.economics = economics;
+    mockFundPageFetches({ results: resp });
+    await renderPage('/fund-model-results/123');
+
+    const header = await screen.findByTestId('evidence-header-gp-economics');
+    expect(within(header).getByText('CONFIG v2')).toBeInTheDocument();
+    expect(within(header).getByText('SOURCE fund_snapshots')).toBeInTheDocument();
+    // section evidence wins: no lifecycle run id and no lifecycle config version
+    expect(within(header).queryByText(/^RUN /)).toBeNull();
+    expect(within(header).queryByText('CONFIG v1')).toBeNull();
+  });
+
+  it('renders waterfall evidence as config-backed setup with no calculation run', async () => {
+    const resp = readyResponse();
+    resp.sections.waterfall = {
+      status: 'available',
+      source: 'fund_config',
+      configVersion: 7,
+      publishedAt: '2026-05-01T10:00:00.000Z',
+      payload: {
+        view: 'setup-summary',
+        type: 'american',
+        tierCount: 1,
+        tiers: [
+          {
+            name: 'Tier 1',
+            preferredReturn: 0.08,
+            catchUp: null,
+            gpSplit: 20,
+            lpSplit: 80,
+            condition: 'irr',
+            conditionValue: 0.08,
+          },
+        ],
+        recyclingEnabled: true,
+        recyclingType: 'both',
+        recyclingCap: 25,
+        recyclingPeriod: 24,
+        exitRecyclingRate: 0.5,
+        mgmtFeeRecyclingRate: 0.25,
+        allowFutureRecycling: false,
+      },
+    };
+    mockFundPageFetches({ results: resp });
+    await renderPage('/fund-model-results/123');
+
+    const header = await screen.findByTestId('evidence-header-waterfall-setup');
+    expect(within(header).getByText('CONFIG')).toBeInTheDocument();
+    expect(within(header).getByText('CONFIG v7')).toBeInTheDocument();
+    expect(within(header).getByText('SOURCE fund_config')).toBeInTheDocument();
+    expect(within(header).getByText(/^PUBLISHED /)).toBeInTheDocument();
+    // setup evidence never claims a calculation run or calc freshness
+    expect(within(header).queryByText(/^RUN /)).toBeNull();
+    expect(within(header).queryByText('CURRENT')).toBeNull();
+  });
+
+  it('renders overview evidence as mixed-source without claiming a single source', async () => {
+    mockFundPageFetches();
+    await renderPage('/fund-model-results/123');
+
+    const header = await screen.findByTestId('evidence-header-overview');
+    expect(within(header).getByText('MIXED')).toBeInTheDocument();
+    expect(
+      within(header).getByText('SOURCES funds / fund_snapshots / fund_state')
+    ).toBeInTheDocument();
+    // does not collapse the scorecard to a single false source
+    expect(within(header).queryByText('SOURCE fund_snapshots')).toBeNull();
+    expect(within(header).queryByText(/^RUN /)).toBeNull();
+  });
+
+  it('keeps scenario analysis on scenario-specific evidence with no generic header', async () => {
+    const resp = readyResponse();
+    resp.sections.scenarios = validScenariosSection();
+    mockFundPageFetches({ results: resp });
+    await renderPage('/fund-model-results/123');
+
+    await waitFor(() => {
+      expect(screen.getByText('Scenario Analysis')).toBeInTheDocument();
+    });
+    // a generic lifecycle evidence header is present elsewhere on the page...
+    expect(screen.getByTestId('evidence-header-reserve-allocation')).toBeInTheDocument();
+    // ...but is not mounted on the scenario section heading group
+    const scenarioHeading = screen.getByRole('heading', { name: 'Scenario Analysis' });
+    expect(
+      scenarioHeading.parentElement?.querySelector('[aria-label="Evidence header"]')
+    ).toBeNull();
+    // the scenario summary (with its own provenance) stays visible
+    expect(screen.getByTestId('scenario-sets-summary')).toBeInTheDocument();
+  });
+
+  it('keeps unavailable sections visible without an evidence header hiding them', async () => {
+    mockFundPageFetches();
+    await renderPage('/fund-model-results/123');
+
+    await waitFor(() => {
+      expect(screen.getByText('Waterfall Setup')).toBeInTheDocument();
+    });
+    expect(screen.getByText('GP Economics')).toBeInTheDocument();
+    // default fixture leaves waterfall + economics unavailable: no section
+    // evidence header, but the explanatory panel must still render
+    const waterfallHeading = screen.getByRole('heading', { name: 'Waterfall Setup' });
+    expect(
+      waterfallHeading.parentElement?.querySelector('[aria-label="Evidence header"]')
+    ).toBeNull();
+  });
+
   it('renders scenario set summaries when scenario results are available', async () => {
     const resp = readyResponse();
     resp.sections.scenarios = validScenariosSection();
