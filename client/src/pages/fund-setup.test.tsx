@@ -42,10 +42,6 @@ vi.mock('@/components/ui/wizard-container', () => ({
   WizardContainer: ({ children }: any) => <div data-testid="wizard-container">{children}</div>,
 }));
 
-vi.mock('@/components/ui/enhanced-analytics-panel', () => ({
-  EnhancedAnalyticsPanel: () => <div data-testid="analytics-panel">Analytics Panel</div>,
-}));
-
 // Mock other UI components
 vi.mock('@/components/ui/input', () => ({
   Input: React.forwardRef<HTMLInputElement, any>(({ className, type, ...props }, ref) => (
@@ -73,7 +69,7 @@ vi.mock('@/components/ui/switch', () => ({
 }));
 
 vi.mock('@/components/ui/dialog', () => ({
-  Dialog: ({ children, open }: any) => open ? <div data-testid="dialog">{children}</div> : null,
+  Dialog: ({ children, open }: any) => (open ? <div data-testid="dialog">{children}</div> : null),
   DialogContent: ({ children }: any) => <div data-testid="dialog-content">{children}</div>,
   DialogHeader: ({ children }: any) => <div data-testid="dialog-header">{children}</div>,
   DialogTitle: ({ children }: any) => <h2 data-testid="dialog-title">{children}</h2>,
@@ -87,11 +83,9 @@ const createWrapper = () => {
       mutations: { retry: false },
     },
   });
-  
+
   return ({ children }: { children: React.ReactNode }) => (
-    <QueryClientProvider client={queryClient}>
-      {children}
-    </QueryClientProvider>
+    <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
   );
 };
 
@@ -108,11 +102,10 @@ describe('FundSetup Wizard - Core Functionality', () => {
       expect(() => render(<FundSetup />, { wrapper })).not.toThrow();
     });
 
-    it('should render wizard container and analytics panel', () => {
+    it('should render wizard container', () => {
       render(<FundSetup />, { wrapper });
 
       expect(screen.getByTestId('wizard-container')).toBeInTheDocument();
-      expect(screen.getByTestId('analytics-panel')).toBeInTheDocument();
     });
 
     it('should render the first step (Fund Basics)', () => {
@@ -159,7 +152,7 @@ describe('FundSetup Wizard - Core Functionality', () => {
       // Check for common form inputs
       const inputs = screen.getAllByRole('textbox');
       const numberInputs = screen.getAllByRole('spinbutton');
-      
+
       expect(inputs.length + numberInputs.length).toBeGreaterThan(0);
     });
 
@@ -179,7 +172,7 @@ describe('FundSetup Wizard - Core Functionality', () => {
 
       // The first step should be Fund Basics
       expect(screen.getByText('Fund Basics')).toBeInTheDocument();
-      
+
       // Check if step indicator shows expected format
       const stepIndicator = screen.getByText(/Step 1 of \d+/);
       expect(stepIndicator).toBeInTheDocument();
