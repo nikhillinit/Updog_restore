@@ -30,6 +30,7 @@ import {
 import { cn } from '@/lib/utils';
 import { useStressRun, useSensitivityHistory } from '@/hooks/useSensitivityRuns';
 import type { SensitivityHookError } from '@/hooks/useSensitivityRuns';
+import { presson } from '@/theme/presson.tokens';
 import {
   SUPPORTED_STRESS_SCENARIOS,
   SUPPORTED_METRICS,
@@ -57,9 +58,9 @@ interface DeltaBarStyle {
 
 function deltaBarStyle(delta: number, maxAbsDelta: number): DeltaBarStyle {
   const widthPct = maxAbsDelta === 0 ? 0 : (Math.abs(delta) / maxAbsDelta) * 100;
-  // Red for negative (downside), emerald for positive (upside).
+  // Loss (negative) vs gain (positive) via PoV financial tokens.
   // TODO(a11y): baseline delta bar needs a non-color direction cue.
-  const backgroundColor = delta < 0 ? 'rgb(239, 68, 68)' : 'rgb(16, 185, 129)';
+  const backgroundColor = delta < 0 ? presson.color.negative : presson.color.positive;
   return { width: `${widthPct}%`, backgroundColor };
 }
 

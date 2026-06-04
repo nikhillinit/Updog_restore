@@ -48,10 +48,10 @@ import { SensitivityRunErrorCard } from './SensitivityRunErrorCard';
 // =====================
 
 function interpolateCellColor(value: number, min: number, max: number): string {
-  if (max === min) return 'rgb(148, 163, 184)'; // slate-400 midpoint
+  if (max === min) return 'rgb(160, 160, 160)'; // charcoal-400 midpoint
   const t = (value - min) / (max - min);
-  const lo = { r: 248, g: 250, b: 252 }; // slate-50
-  const hi = { r: 15, g: 23, b: 42 }; // slate-900
+  const lo = { r: 248, g: 248, b: 248 }; // charcoal-50
+  const hi = { r: 41, g: 41, b: 41 }; // charcoal-900 (#292929)
   const r = Math.round(lo.r + (hi.r - lo.r) * t);
   const g = Math.round(lo.g + (hi.g - lo.g) * t);
   const b = Math.round(lo.b + (hi.b - lo.b) * t);
@@ -59,9 +59,9 @@ function interpolateCellColor(value: number, min: number, max: number): string {
 }
 
 function cellTextColor(value: number, min: number, max: number): string {
-  if (max === min) return '#0f172a';
+  if (max === min) return '#292929'; // charcoal-900
   const t = (value - min) / (max - min);
-  return t > 0.5 ? '#f8fafc' : '#0f172a';
+  return t > 0.5 ? '#f8f8f8' : '#292929'; // charcoal-50 / charcoal-900
 }
 
 // =====================
