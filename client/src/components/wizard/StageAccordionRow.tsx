@@ -110,12 +110,12 @@ export function StageAccordionRow({
   return (
     <div
       className={cn(
-        'border rounded-lg bg-white transition-all duration-200',
+        'border rounded-lg bg-pov-white transition-all duration-200',
         isExpanded
-          ? 'ring-2 ring-[#292929] border-[#292929] shadow-lg'
-          : 'border-[#E0D8D1] hover:border-[#292929]/50 hover:shadow-md',
+          ? 'ring-2 ring-pov-charcoal border-pov-charcoal shadow-lg'
+          : 'border-beige-200 hover:border-pov-charcoal/50 hover:shadow-md',
         hasError && 'ring-2 ring-error border-error',
-        'focus-within:ring-2 focus-within:ring-[#292929] focus-within:border-[#292929]'
+        'focus-within:ring-2 focus-within:ring-pov-charcoal focus-within:border-pov-charcoal'
       )}
     >
       <div className="overflow-x-auto">
@@ -135,7 +135,7 @@ export function StageAccordionRow({
               className={cn(
                 'p-2 rounded-lg transition-all',
                 isExpanded
-                  ? 'bg-[#292929] text-white shadow-sm'
+                  ? 'bg-pov-charcoal text-pov-white shadow-sm'
                   : 'bg-pov-gray text-charcoal-500 group-hover:bg-pov-gray'
               )}
             >
@@ -146,7 +146,7 @@ export function StageAccordionRow({
               )}
             </div>
             <div>
-              <span className="font-semibold text-base text-[#292929] block font-poppins">
+              <span className="font-semibold text-base text-pov-charcoal block font-poppins">
                 {stage.name}
               </span>
               {!isExpanded && (
@@ -218,7 +218,7 @@ export function StageAccordionRow({
                 aria-label={`${stage.name} valuation basis`}
               >
                 <motion.div
-                  className="absolute inset-y-1 w-[calc(50%-4px)] bg-white rounded-md shadow-sm"
+                  className="absolute inset-y-1 w-[calc(50%-4px)] bg-pov-white rounded-md shadow-sm"
                   initial={false}
                   animate={{
                     x: stage.valuationType === 'Pre' ? 0 : 'calc(100% + 8px)',
@@ -234,7 +234,7 @@ export function StageAccordionRow({
                   className={cn(
                     'relative z-10 px-3 py-1.5 text-xs font-semibold rounded transition-colors',
                     stage.valuationType === 'Pre'
-                      ? 'text-[#292929]'
+                      ? 'text-pov-charcoal'
                       : 'text-charcoal-500 hover:text-charcoal-700'
                   )}
                   onClick={(e) => {
@@ -250,7 +250,7 @@ export function StageAccordionRow({
                   className={cn(
                     'relative z-10 px-3 py-1.5 text-xs font-semibold rounded transition-colors',
                     stage.valuationType === 'Post'
-                      ? 'text-[#292929]'
+                      ? 'text-pov-charcoal'
                       : 'text-charcoal-500 hover:text-charcoal-700'
                   )}
                   onClick={(e) => {
@@ -340,7 +340,7 @@ export function StageAccordionRow({
           >
             <div className="grid min-w-[900px] grid-cols-12 gap-6 p-6">
               <div className="col-span-3">
-                <h4 className="text-sm font-semibold text-[#292929] mb-1 font-poppins">
+                <h4 className="text-sm font-semibold text-pov-charcoal mb-1 font-poppins">
                   Advanced assumptions
                 </h4>
                 <p className="text-xs text-charcoal-500 mb-4">
@@ -350,7 +350,7 @@ export function StageAccordionRow({
                   <button
                     type="button"
                     onClick={() => onReset(stage.id)}
-                    className="text-xs text-charcoal-500 hover:text-[#292929] flex items-center gap-1.5 transition-colors focus:outline-none focus:ring-2 focus:ring-[#292929] focus:ring-offset-2 rounded px-2 py-1 -ml-2"
+                    className="text-xs text-charcoal-500 hover:text-pov-charcoal flex items-center gap-1.5 transition-colors focus:outline-none focus:ring-2 focus:ring-pov-charcoal focus:ring-offset-2 rounded px-2 py-1 -ml-2"
                   >
                     <RotateCcw aria-hidden="true" className="w-3.5 h-3.5" />
                     Reset to defaults
