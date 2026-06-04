@@ -41,9 +41,19 @@ const STATUS_CONFIG: Record<
   },
 };
 
+const UI_SUCCESS_COLOR = '#10b981';
+const UI_ERROR_COLOR = '#ef4444';
+const UI_WARNING_COLOR = '#9C6F19';
+const GAUGE_TRACK_COLOR = '#E0D8D1';
+
 function QualityGauge({ score }: { score: number }) {
   const clampedScore = Math.max(0, Math.min(100, score));
-  const color = clampedScore >= 70 ? '#10b981' : clampedScore >= 40 ? '#f59e0b' : '#ef4444';
+  const color =
+    clampedScore >= 70
+      ? UI_SUCCESS_COLOR
+      : clampedScore >= 40
+        ? UI_WARNING_COLOR
+        : UI_ERROR_COLOR;
 
   return (
     <div className="flex flex-col items-center gap-1">
@@ -52,7 +62,7 @@ function QualityGauge({ score }: { score: number }) {
           <path
             d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
             fill="none"
-            stroke="#e5e7eb"
+            stroke={GAUGE_TRACK_COLOR}
             strokeWidth="3"
           />
           <path

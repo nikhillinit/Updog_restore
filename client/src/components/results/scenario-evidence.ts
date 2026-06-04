@@ -19,15 +19,15 @@ export interface ScenarioEvidenceSourceV1 {
 export function scenarioStateClasses(state: ScenarioEvidenceStateV1): string {
   switch (state) {
     case 'CURRENT':
-      return 'border-emerald-200 bg-emerald-50 text-emerald-800';
+      return 'border-success/50 bg-success/10 text-success-dark';
     case 'STALE_PUBLISH':
     case 'CALCULATING':
-      return 'border-amber-200 bg-amber-50 text-amber-800';
+      return 'border-warning/50 bg-warning/10 text-warning-dark';
     case 'STALE_CONFIG':
     case 'FAILED':
-      return 'border-rose-200 bg-rose-50 text-rose-800';
+      return 'border-error/50 bg-error/10 text-error-dark';
     case 'UNAVAILABLE':
-      return 'border-beige-200 bg-beige-50 text-charcoal-500';
+      return 'border-beige-200 bg-pov-gray text-charcoal-500';
   }
 }
 

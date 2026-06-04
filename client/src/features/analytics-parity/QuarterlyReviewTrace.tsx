@@ -20,11 +20,11 @@ const STATUS_LABELS: Record<AnalyticsTraceStatus, string> = {
 };
 
 const STATUS_CLASSES: Record<AnalyticsTraceStatus, string> = {
-  available: 'border-emerald-200 bg-emerald-50 text-emerald-700',
-  pending: 'border-amber-200 bg-amber-50 text-amber-700',
-  unavailable: 'border-slate-200 bg-slate-50 text-slate-600',
-  linked: 'border-blue-200 bg-blue-50 text-blue-700',
-  deferred: 'border-beige-200 bg-lightGray text-charcoal-500',
+  available: 'border-success/50 bg-success/10 text-success-dark',
+  pending: 'border-warning/50 bg-warning/10 text-warning-dark',
+  unavailable: 'border-beige-200 bg-pov-gray text-charcoal-600',
+  linked: 'border-presson-info/30 bg-presson-info/10 text-presson-info',
+  deferred: 'border-beige-200 bg-pov-gray text-charcoal-500',
 };
 
 interface QuarterlyReviewTraceProps {
@@ -61,7 +61,7 @@ export function QuarterlyReviewTrace({ results, comparison, fundId }: QuarterlyR
 
   return (
     <section
-      className="bg-white rounded-lg border border-beige-200 p-6 space-y-5"
+      className="bg-pov-white rounded-lg border border-beige-200 p-6 space-y-5"
       aria-labelledby="quarterly-review-trace-title"
       data-testid="quarterly-review-trace"
     >
@@ -104,7 +104,7 @@ export function QuarterlyReviewTrace({ results, comparison, fundId }: QuarterlyR
         ))}
       </div>
 
-      <div className="rounded-md border border-beige-200 bg-lightGray p-4">
+      <div className="rounded-md border border-beige-200 bg-pov-gray p-4">
         <h3 className="text-sm font-semibold text-charcoal">Deferred Parity Ledger</h3>
         <dl className="mt-3 grid gap-3 md:grid-cols-2">
           {trace.deferred.map((item) => (

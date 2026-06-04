@@ -2,6 +2,7 @@ import { useParams, useLocation } from 'wouter';
 import { AppShell } from '@/components/presson-v2/AppShell';
 import { Btn } from '@/components/presson-v2/primitives';
 import { companies, kpiSparklines } from '@/components/presson-v2/mock';
+import { presson } from '@/theme/presson.tokens';
 
 /**
  * Company file · Press On v2.
@@ -46,10 +47,10 @@ export default function CompanyV2() {
             <div className="pv2-dossier-watchers-row">
               <span className="pv2-avatar">PJ</span>
               <span className="pv2-avatar">FC</span>
-              <span className="pv2-avatar" style={{ background: '#5A5A5A' }}>
+              <span className="pv2-avatar" style={{ background: presson.color.textMuted }}>
                 KS
               </span>
-              <span className="pv2-avatar" style={{ background: '#9A9A9A' }}>
+              <span className="pv2-avatar" style={{ background: presson.color.textMuted }}>
                 +2
               </span>
             </div>
@@ -163,9 +164,9 @@ function TrajectoryRibbon() {
         </pattern>
       </defs>
       {/* Spine */}
-      <line x1="40" y1="120" x2="1140" y2="120" stroke="#E0D8D1" strokeWidth="2" />
-      <rect x="40" y="118" width="460" height="4" fill="#292929" />
-      <rect x="500" y="118" width="640" height="4" fill="#E0D8D1" />
+      <line x1="40" y1="120" x2="1140" y2="120" stroke={presson.color.highlight} strokeWidth="2" />
+      <rect x="40" y="118" width="460" height="4" fill={presson.color.text} />
+      <rect x="500" y="118" width="640" height="4" fill={presson.color.highlight} />
 
       {/* SEED */}
       <Node x={80} r={6} label="SEED" date="JAN ’19" amount="$250K" pre="$3M pre" />
@@ -226,25 +227,25 @@ function Node({
   projected?: boolean;
 }) {
   return (
-    <g fontFamily="JetBrains Mono" fontSize="10" fill="#7A7A7A" letterSpacing="0.06em">
+    <g fontFamily="JetBrains Mono" fontSize="10" fill={presson.color.textMuted} letterSpacing="0.06em">
       {projected ? (
         <circle
           cx={x}
           cy="120"
           r={r}
           fill="none"
-          stroke="#292929"
+          stroke={presson.color.text}
           strokeWidth="1"
           strokeDasharray="2 2"
         />
       ) : (
-        <circle cx={x} cy="120" r={r} fill="#292929" />
+        <circle cx={x} cy="120" r={r} fill={presson.color.text} />
       )}
       <text
         x={x}
         y="146"
         textAnchor="middle"
-        fill="#292929"
+        fill={presson.color.text}
         fontWeight={big ? 700 : 500}
         letterSpacing="0.08em"
       >
@@ -257,7 +258,7 @@ function Node({
         x={x}
         y="100"
         textAnchor="middle"
-        fill="#292929"
+        fill={presson.color.text}
         fontFamily="Inter"
         fontSize="12"
         fontWeight="600"

@@ -8,11 +8,10 @@ export function toast(message: string, type: 'success' | 'error' | 'info' = 'suc
   const existingToasts = document.querySelectorAll('.simple-toast').length;
   const div = document.createElement('div');
   
-  const bgColor = type === 'success' ? 'bg-green-500' : 
-                  type === 'error' ? 'bg-red-500' : 
-                  'bg-blue-500';
+  const bgColor =
+    type === 'success' ? 'bg-success' : type === 'error' ? 'bg-error' : 'bg-presson-info';
   
-  div.className = `simple-toast fixed top-4 right-4 px-4 py-2 rounded shadow-lg z-50 ${bgColor} text-white transition-transform duration-300`;
+  div.className = `simple-toast fixed top-4 right-4 px-4 py-2 rounded shadow-lg z-50 ${bgColor} text-pov-white transition-transform duration-300`;
   
   // Offset new toasts from existing ones
   div.style.transform = `translateY(${existingToasts * 60}px)`;
@@ -62,4 +61,3 @@ export async function withToast<T>(
     throw err;
   }
 }
-

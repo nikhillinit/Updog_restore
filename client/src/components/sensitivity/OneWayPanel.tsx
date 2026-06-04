@@ -51,6 +51,10 @@ import {
 import { formatMetricValue, formatVariableValue, useElapsedSeconds, SummaryCard } from './_shared';
 import { SensitivityRunErrorCard } from './SensitivityRunErrorCard';
 
+const CHART_GRID_COLOR = '#E0D8D1';
+const CHART_AXIS_COLOR = '#5A5A5A';
+const CHART_LINE_COLOR = '#292929';
+
 // =====================
 // VALIDATION
 // =====================
@@ -203,18 +207,18 @@ function ResultsSection({ result }: { result: OneWayAnalysisResultV1 }) {
           <div className="h-72" data-testid="one-way-chart">
             <ResponsiveContainer width="100%" height="100%">
               <LineChart data={chartData} margin={{ top: 10, right: 24, bottom: 10, left: 12 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                <CartesianGrid strokeDasharray="3 3" stroke={CHART_GRID_COLOR} />
                 <XAxis
                   dataKey="variableValue"
                   tickFormatter={(v: number) => formatVariableValue(v, variable)}
                   fontSize={11}
-                  stroke="#6b7280"
+                  stroke={CHART_AXIS_COLOR}
                 />
                 <YAxis
                   dataKey="metricValue"
                   tickFormatter={(v: number) => formatMetricValue(v, metric)}
                   fontSize={11}
-                  stroke="#6b7280"
+                  stroke={CHART_AXIS_COLOR}
                 />
                 <Tooltip
                   formatter={
@@ -226,18 +230,22 @@ function ResultsSection({ result }: { result: OneWayAnalysisResultV1 }) {
                   labelFormatter={
                     ((label: number) => formatVariableValue(label, variable)) as never
                   }
-                  contentStyle={{ fontSize: 12, borderRadius: 6, border: '1px solid #e5e7eb' }}
+                  contentStyle={{
+                    fontSize: 12,
+                    borderRadius: 6,
+                    border: `1px solid ${CHART_GRID_COLOR}`,
+                  }}
                 />
                 <ReferenceLine
                   y={result.baselineValue}
-                  stroke="#94a3b8"
+                  stroke={CHART_AXIS_COLOR}
                   strokeDasharray="4 4"
-                  label={{ value: 'Baseline', fill: '#64748b', fontSize: 10, position: 'right' }}
+                  label={{ value: 'Baseline', fill: CHART_AXIS_COLOR, fontSize: 10, position: 'right' }}
                 />
                 <Line
                   type="monotone"
                   dataKey="metricValue"
-                  stroke="#1e293b"
+                  stroke={CHART_LINE_COLOR}
                   strokeWidth={2}
                   dot={{ r: 3 }}
                 />

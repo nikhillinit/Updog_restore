@@ -38,54 +38,62 @@ export default function PerformanceMetricsCard({
   const tvpiVariant = tvpi >= 2 ? 'default' : tvpi >= 1 ? 'secondary' : 'outline';
 
   return (
-    <Card className={`bg-white rounded-xl border border-[#E0D8D1] shadow-md ${className}`}>
+    <Card className={`bg-pov-white rounded-xl border border-beige-200 shadow-md ${className}`}>
       <CardHeader>
-        <CardTitle className="font-inter text-lg text-[#292929]">Performance Metrics</CardTitle>
+        <CardTitle className="font-inter text-lg text-pov-charcoal">Performance Metrics</CardTitle>
       </CardHeader>
       <CardContent>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
           {/* IRR */}
           <div className="text-center">
-            <div className="text-xs font-poppins text-[#292929]/50 mb-2">IRR</div>
+            <div className="text-xs font-poppins text-pov-charcoal/50 mb-2">IRR</div>
             <Badge variant={irrVariant} className="text-lg px-3 py-1">
               {formatPercent(irr)}
             </Badge>
             <div className="mt-2">
               {irr >= 0 ? (
-                <TrendingUp className="h-4 w-4 text-green-600 mx-auto" />
+                <TrendingUp className="h-4 w-4 text-presson-positive mx-auto" />
               ) : (
-                <TrendingDown className="h-4 w-4 text-red-600 mx-auto" />
+                <TrendingDown className="h-4 w-4 text-presson-negative mx-auto" />
               )}
             </div>
           </div>
 
           {/* TVPI */}
           <div className="text-center">
-            <div className="text-xs font-poppins text-[#292929]/50 mb-2">TVPI</div>
+            <div className="text-xs font-poppins text-pov-charcoal/50 mb-2">TVPI</div>
             <Badge variant={tvpiVariant} className="text-lg px-3 py-1">
               {formatMultiple(tvpi)}
             </Badge>
-            <div className="text-xs font-poppins text-[#292929]/70 mt-2">Total Value / Paid-In</div>
+            <div className="text-xs font-poppins text-pov-charcoal/70 mt-2">
+              Total Value / Paid-In
+            </div>
           </div>
 
           {/* DPI */}
           <div className="text-center">
-            <div className="text-xs font-poppins text-[#292929]/50 mb-2">DPI</div>
-            <div className="text-2xl font-bold font-inter text-[#292929]">
+            <div className="text-xs font-poppins text-pov-charcoal/50 mb-2">DPI</div>
+            <div className="text-2xl font-bold font-inter text-pov-charcoal">
               {formatMultiple(dpi)}
             </div>
-            <div className="text-xs font-poppins text-[#292929]/70 mt-2">Distributions / Paid-In</div>
+            <div className="text-xs font-poppins text-pov-charcoal/70 mt-2">
+              Distributions / Paid-In
+            </div>
           </div>
 
           {/* RVPI or MOIC */}
           <div className="text-center">
-            <div className="text-xs font-poppins text-[#292929]/50 mb-2">
+            <div className="text-xs font-poppins text-pov-charcoal/50 mb-2">
               {rvpi !== undefined ? 'RVPI' : 'MOIC'}
             </div>
-            <div className="text-2xl font-bold font-inter text-[#292929]">
-              {rvpi !== undefined ? formatMultiple(rvpi) : moic !== undefined ? formatMultiple(moic) : 'N/A'}
+            <div className="text-2xl font-bold font-inter text-pov-charcoal">
+              {rvpi !== undefined
+                ? formatMultiple(rvpi)
+                : moic !== undefined
+                  ? formatMultiple(moic)
+                  : 'N/A'}
             </div>
-            <div className="text-xs font-poppins text-[#292929]/70 mt-2">
+            <div className="text-xs font-poppins text-pov-charcoal/70 mt-2">
               {rvpi !== undefined ? 'Residual Value / Paid-In' : 'Multiple on Invested Capital'}
             </div>
           </div>

@@ -36,7 +36,7 @@ const COMPACT_KPI_DEFINITIONS: Record<CompactKpiKey, CompactKpiDefinition> = {
     key: 'deployed',
     label: 'Deployed',
     icon: 'activity',
-    colorClassName: 'text-slate-700',
+    colorClassName: 'text-charcoal-700',
     description: 'Capital deployed as a percentage of fund size',
     valueType: 'percentage',
   },
@@ -44,7 +44,7 @@ const COMPACT_KPI_DEFINITIONS: Record<CompactKpiKey, CompactKpiDefinition> = {
     key: 'remaining',
     label: 'Remaining',
     icon: 'calendar',
-    colorClassName: 'text-slate-700',
+    colorClassName: 'text-charcoal-700',
     description: 'Remaining deployable capital',
     valueType: 'currency',
   },
@@ -52,7 +52,7 @@ const COMPACT_KPI_DEFINITIONS: Record<CompactKpiKey, CompactKpiDefinition> = {
     key: 'nav',
     label: 'NAV',
     icon: 'target',
-    colorClassName: 'text-slate-700',
+    colorClassName: 'text-charcoal-700',
     description: 'Net Asset Value',
     valueType: 'currency',
   },
@@ -60,7 +60,7 @@ const COMPACT_KPI_DEFINITIONS: Record<CompactKpiKey, CompactKpiDefinition> = {
     key: 'tvpi',
     label: 'TVPI',
     icon: 'trending-up',
-    colorClassName: 'text-slate-700',
+    colorClassName: 'text-charcoal-700',
     description: 'Total Value to Paid-In',
     valueType: 'multiple',
   },
@@ -68,7 +68,7 @@ const COMPACT_KPI_DEFINITIONS: Record<CompactKpiKey, CompactKpiDefinition> = {
     key: 'dpi',
     label: 'DPI',
     icon: 'dollar',
-    colorClassName: 'text-slate-700',
+    colorClassName: 'text-charcoal-700',
     description: 'Distributions to Paid-In',
     valueType: 'multiple',
   },
@@ -76,7 +76,7 @@ const COMPACT_KPI_DEFINITIONS: Record<CompactKpiKey, CompactKpiDefinition> = {
     key: 'netIrr',
     label: 'Net IRR',
     icon: 'bar-chart',
-    colorClassName: 'text-slate-700',
+    colorClassName: 'text-charcoal-700',
     description: 'Net internal rate of return',
     valueType: 'percentage',
   },
@@ -397,8 +397,8 @@ function getLastUpdatedText(
 }
 
 function getStatusIndicatorClassName(metricUnavailable: boolean) {
-  if (metricUnavailable) return 'bg-red-500';
-  return 'bg-green-500 animate-pulse';
+  if (metricUnavailable) return 'bg-error';
+  return 'bg-success animate-pulse';
 }
 
 function getStatusIndicatorText(metricsLoading: boolean, metricUnavailable: boolean) {

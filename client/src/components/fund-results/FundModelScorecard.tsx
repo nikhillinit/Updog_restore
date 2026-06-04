@@ -71,9 +71,9 @@ function formatCurrency(value: number): string {
 }
 
 const RISK_STYLES: Record<string, string> = {
-  LOW: 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30',
-  MEDIUM: 'bg-amber-500/20 text-amber-300 border-amber-500/30',
-  HIGH: 'bg-red-500/20 text-red-300 border-red-500/30',
+  LOW: 'bg-success/20 text-pov-white border-success/50',
+  MEDIUM: 'bg-warning/20 text-pov-white border-warning/50',
+  HIGH: 'bg-error/20 text-pov-white border-error/50',
 };
 
 // ============================================================================
@@ -102,36 +102,36 @@ export function FundModelScorecard({
     >
       {/* Header row: fund identity */}
       <div className="flex flex-wrap items-baseline gap-x-6 gap-y-2 mb-8">
-        <h1 className="font-inter font-bold text-2xl text-white tracking-tight">{fundName}</h1>
-        <span className="font-poppins text-sm text-white/60">Vintage {vintageYear}</span>
-        <span className="font-poppins text-sm text-white/60">{formatCurrency(fundSize)}</span>
+        <h1 className="font-inter font-bold text-2xl text-pov-white tracking-tight">{fundName}</h1>
+        <span className="font-poppins text-sm text-pov-white/60">Vintage {vintageYear}</span>
+        <span className="font-poppins text-sm text-pov-white/60">{formatCurrency(fundSize)}</span>
       </div>
 
       {/* Metrics grid */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-8">
         {/* Expected MOIC */}
         <div className="space-y-1">
-          <p className="font-poppins text-xs uppercase tracking-wider text-white/50">
+          <p className="font-poppins text-xs uppercase tracking-wider text-pov-white/50">
             Expected MOIC
           </p>
-          <p className="font-inter font-bold text-3xl text-white tabular-nums">
+          <p className="font-inter font-bold text-3xl text-pov-white tabular-nums">
             {animatedMOIC.toFixed(1)}x
           </p>
         </div>
 
         {/* Reserve Ratio */}
         <div className="space-y-1">
-          <p className="font-poppins text-xs uppercase tracking-wider text-white/50">
+          <p className="font-poppins text-xs uppercase tracking-wider text-pov-white/50">
             Reserve Ratio
           </p>
-          <p className="font-inter font-bold text-3xl text-white tabular-nums">
+          <p className="font-inter font-bold text-3xl text-pov-white tabular-nums">
             {animatedReserve.toFixed(0)}%
           </p>
         </div>
 
         {/* Concentration Risk */}
         <div className="space-y-1">
-          <p className="font-poppins text-xs uppercase tracking-wider text-white/50">
+          <p className="font-poppins text-xs uppercase tracking-wider text-pov-white/50">
             Concentration Risk
           </p>
           <div className="pt-1">
@@ -148,8 +148,8 @@ export function FundModelScorecard({
 
         {/* Net IRR */}
         <div className="space-y-1">
-          <p className="font-poppins text-xs uppercase tracking-wider text-white/50">Net IRR</p>
-          <p className="font-inter font-bold text-3xl text-white tabular-nums">
+          <p className="font-poppins text-xs uppercase tracking-wider text-pov-white/50">Net IRR</p>
+          <p className="font-inter font-bold text-3xl text-pov-white tabular-nums">
             {netIRR != null ? `${animatedIRR.toFixed(1)}%` : 'N/A'}
           </p>
         </div>

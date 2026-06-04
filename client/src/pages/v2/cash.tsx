@@ -2,6 +2,7 @@ import type { CSSProperties } from 'react';
 import { AppShell } from '@/components/presson-v2/AppShell';
 import { Btn } from '@/components/presson-v2/primitives';
 import { cashCalls, cashBreakdown } from '@/components/presson-v2/mock';
+import { presson } from '@/theme/presson.tokens';
 
 /**
  * Cash & forecast · Press On v2 ledger.
@@ -136,7 +137,7 @@ const TABLE_STYLE: CSSProperties = {
 };
 
 function barColor(tone: 'warm' | 'tint' | 'ink'): string {
-  if (tone === 'warm') return 'var(--pv2-warm-deep, #C9BFB4)';
+  if (tone === 'warm') return presson.color.highlight;
   if (tone === 'tint') return 'var(--pv2-rule)';
   return 'var(--pv2-ink)';
 }
@@ -269,21 +270,21 @@ function CashRibbon() {
     >
       <defs>
         <linearGradient id="pv2-ribbon-grad" x1="0" x2="0" y1="0" y2="1">
-          <stop offset="0%" stopColor="#E0D8D1" stopOpacity="0.5" />
-          <stop offset="100%" stopColor="#E0D8D1" stopOpacity="0" />
+          <stop offset="0%" stopColor={presson.color.highlight} stopOpacity="0.5" />
+          <stop offset="100%" stopColor={presson.color.highlight} stopOpacity="0" />
         </linearGradient>
         <pattern id="pv2-ribbon-grain" width="3" height="3" patternUnits="userSpaceOnUse">
           <circle cx="0.5" cy="0.5" r="0.3" fill="rgba(41,41,41,0.05)" />
         </pattern>
       </defs>
 
-      <g stroke="#EEE9E3">
+      <g stroke={presson.color.borderSubtle}>
         <line x1="32" y1="70" x2="1300" y2="70" />
         <line x1="32" y1="140" x2="1300" y2="140" />
         <line x1="32" y1="210" x2="1300" y2="210" />
       </g>
 
-      <g fontFamily="JetBrains Mono" fontSize="9.5" fill="#A8A8A8" letterSpacing="0.1em">
+      <g fontFamily="JetBrains Mono" fontSize="9.5" fill={presson.color.textMuted} letterSpacing="0.1em">
         <text x="6" y="74">
           $18M
         </text>
@@ -297,7 +298,7 @@ function CashRibbon() {
 
       <path
         d="M32,96 L120,100 L208,90 L296,106 L384,112 L472,120 L560,128 L600,132"
-        stroke="#292929"
+        stroke={presson.color.text}
         strokeWidth="2.5"
         fill="none"
       />
@@ -308,32 +309,32 @@ function CashRibbon() {
       />
       <path
         d="M600,132 L740,148 L880,156 L1020,180 L1160,196 L1300,218"
-        stroke="#C9BFB4"
+        stroke={presson.color.highlight}
         strokeWidth="1"
         fill="none"
       />
       <path
         d="M600,132 L740,104 L880,82 L1020,60 L1160,70 L1300,96"
-        stroke="#C9BFB4"
+        stroke={presson.color.highlight}
         strokeWidth="1"
         fill="none"
       />
 
       <path
         d="M600,132 L740,126 L880,118 L1020,128 L1160,138 L1300,148"
-        stroke="#292929"
+        stroke={presson.color.text}
         strokeWidth="1.5"
         strokeDasharray="5 4"
         fill="none"
       />
 
-      <line x1="600" y1="20" x2="600" y2="248" stroke="#292929" strokeWidth="1" />
+      <line x1="600" y1="20" x2="600" y2="248" stroke={presson.color.text} strokeWidth="1" />
       <text
         x="608"
         y="34"
         fontFamily="JetBrains Mono"
         fontSize="10"
-        fill="#292929"
+        fill={presson.color.text}
         letterSpacing="0.1em"
       >
         TODAY · MAY 12
@@ -346,7 +347,7 @@ function CashRibbon() {
 
       <rect width="1320" height="280" fill="url(#pv2-ribbon-grain)" />
 
-      <g fontFamily="JetBrains Mono" fontSize="10" fill="#A8A8A8" letterSpacing="0.1em">
+      <g fontFamily="JetBrains Mono" fontSize="10" fill={presson.color.textMuted} letterSpacing="0.1em">
         <text x="32" y="266">
           JAN
         </text>
@@ -381,18 +382,18 @@ function Pin({ x, y, label, dashed }: { x: number; y: number; label: string; das
         y1={y}
         x2={x}
         y2={y + 18}
-        stroke="#292929"
+        stroke={presson.color.text}
         strokeWidth="1"
         strokeDasharray={dashed ? '2 2' : undefined}
       />
-      <circle cx={x} cy={y} r="3.5" fill="#292929" />
+      <circle cx={x} cy={y} r="3.5" fill={presson.color.text} />
       <text
         x={x + 8}
         y={y + 2}
         fontFamily="Inter"
         fontSize="11.5"
         fontWeight="600"
-        fill="#292929"
+        fill={presson.color.text}
         letterSpacing="-0.01em"
       >
         {label}

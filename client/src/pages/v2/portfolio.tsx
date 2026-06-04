@@ -3,6 +3,7 @@ import { useLocation } from 'wouter';
 import { AppShell } from '@/components/presson-v2/AppShell';
 import { Btn } from '@/components/presson-v2/primitives';
 import { companies, sectorGroups, type Company } from '@/components/presson-v2/mock';
+import { presson } from '@/theme/presson.tokens';
 
 /**
  * Portfolio · Press On v2 blotter.
@@ -327,8 +328,8 @@ function Inspector({ company, onOpen }: { company: Company; onOpen: () => void }
           <svg viewBox="0 0 320 64" style={{ width: '100%', height: 60 }}>
             <defs>
               <linearGradient id="pv2-spark-fade" x1="0" x2="0" y1="0" y2="1">
-                <stop offset="0%" stopColor="#E0D8D1" stopOpacity="0.6" />
-                <stop offset="100%" stopColor="#E0D8D1" stopOpacity="0" />
+                <stop offset="0%" stopColor={presson.color.highlight} stopOpacity="0.6" />
+                <stop offset="100%" stopColor={presson.color.highlight} stopOpacity="0" />
               </linearGradient>
             </defs>
             <path
@@ -338,10 +339,10 @@ function Inspector({ company, onOpen }: { company: Company; onOpen: () => void }
             <path
               d="M0,52 L53,48 L106,38 L160,40 L213,22 L266,32 L320,16"
               fill="none"
-              stroke="#292929"
+              stroke={presson.color.text}
               strokeWidth="1.5"
             />
-            <circle cx="320" cy="16" r="3" fill="#292929" />
+            <circle cx="320" cy="16" r="3" fill={presson.color.text} />
           </svg>
           <div
             style={{
@@ -418,12 +419,17 @@ function SectorSpark({ name }: { name: string }) {
   };
   return (
     <svg viewBox="0 0 100 24" preserveAspectRatio="none" style={{ width: '100%', height: '100%' }}>
-      <path d={paths[name] ?? 'M0,12 L100,12'} fill="none" stroke="#292929" strokeWidth="1.5" />
+      <path
+        d={paths[name] ?? 'M0,12 L100,12'}
+        fill="none"
+        stroke={presson.color.text}
+        strokeWidth="1.5"
+      />
       <circle
         cx="100"
         cy={Number((paths[name] ?? 'M0,12 L100,12').match(/L\s*100\s*,\s*([\d.]+)/)?.[1] ?? 12)}
         r="2.2"
-        fill="#292929"
+        fill={presson.color.text}
       />
     </svg>
   );
