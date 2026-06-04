@@ -40,7 +40,7 @@ function HomeRoute() {
   if (isLoading) {
     return (
       <div className="flex-1 flex items-center justify-center">
-        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600"></div>
+        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-pov-charcoal"></div>
       </div>
     );
   }
@@ -60,7 +60,7 @@ function ProtectedRoute({ component: Component, ...props }: ProtectedRouteProps)
   if (isLoading) {
     return (
       <div className="flex-1 flex items-center justify-center">
-        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600"></div>
+        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-pov-charcoal"></div>
       </div>
     );
   }
@@ -68,20 +68,20 @@ function ProtectedRoute({ component: Component, ...props }: ProtectedRouteProps)
   if (fundLoadError && requiresFundContextRecovery(location)) {
     return (
       <main className="flex-1 overflow-y-auto p-6 custom-scrollbar">
-        <div className="max-w-2xl rounded-lg border border-red-200 bg-red-50 p-6 text-red-950">
+        <div className="max-w-2xl rounded-lg border border-error/50 bg-error/10 p-6 text-error-dark">
           <h1 className="text-2xl font-semibold">Unable to load fund context</h1>
-          <p className="mt-2 text-sm text-red-900">
+          <p className="mt-2 text-sm text-error-dark">
             The fund list could not be loaded, so this workspace cannot determine whether setup is
             required. Retry once the API is reachable.
           </p>
           {fundLoadErrorMessage && (
-            <p className="mt-3 rounded-md bg-white/70 px-3 py-2 font-mono text-xs text-red-900">
+            <p className="mt-3 rounded-md bg-pov-white/70 px-3 py-2 font-mono text-xs text-error-dark">
               {fundLoadErrorMessage}
             </p>
           )}
           <button
             type="button"
-            className="mt-4 rounded-md bg-red-700 px-4 py-2 text-sm font-medium text-white hover:bg-red-800"
+            className="mt-4 rounded-md bg-pov-charcoal px-4 py-2 text-sm font-medium text-pov-white hover:bg-charcoal-700"
             onClick={() => queryClient.invalidateQueries({ queryKey: ['/api/funds'] })}
           >
             Retry loading funds

@@ -172,16 +172,16 @@ describe('reallocation-utils', () => {
   });
 
   describe('getDeltaColorClass', () => {
-    it('should return green for positive delta', () => {
-      expect(getDeltaColorClass(100)).toBe('text-green-600');
+    it('should return positive token for positive delta', () => {
+      expect(getDeltaColorClass(100)).toBe('text-presson-positive');
     });
 
-    it('should return red for negative delta', () => {
-      expect(getDeltaColorClass(-100)).toBe('text-red-600');
+    it('should return negative token for negative delta', () => {
+      expect(getDeltaColorClass(-100)).toBe('text-presson-negative');
     });
 
-    it('should return gray for zero delta', () => {
-      expect(getDeltaColorClass(0)).toBe('text-gray-500');
+    it('should return neutral charcoal for zero delta', () => {
+      expect(getDeltaColorClass(0)).toBe('text-charcoal-500');
     });
   });
 

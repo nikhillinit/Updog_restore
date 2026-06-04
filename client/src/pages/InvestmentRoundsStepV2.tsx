@@ -209,12 +209,12 @@ export default function InvestmentRoundsStepV2() {
             </div>
 
             {/* Navigation */}
-            <div className="flex justify-between pt-6 mt-8 border-t border-[#E0D8D1]">
+            <div className="flex justify-between pt-6 mt-8 border-t border-beige-200">
               <Button
                 data-testid="previous-step"
                 variant="outline"
                 onClick={() => navigate('/fund-setup?step=1')}
-                className="flex items-center gap-2 px-8 py-3 h-auto border-[#E0D8D1] hover:bg-[#E0D8D1]/20 hover:border-[#292929] font-poppins font-medium"
+                className="flex items-center gap-2 px-8 py-3 h-auto border-beige-200 hover:bg-beige/20 hover:border-pov-charcoal font-poppins font-medium"
               >
                 <ArrowLeft className="h-4 w-4" />
                 Previous
@@ -223,7 +223,7 @@ export default function InvestmentRoundsStepV2() {
                 data-testid="next-step"
                 onClick={() => navigate('/fund-setup?step=3')}
                 disabled={hasErrors}
-                className="flex items-center gap-2 bg-[#292929] hover:bg-[#292929]/90 text-white px-8 py-3 h-auto font-poppins font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                className="flex items-center gap-2 bg-pov-charcoal hover:bg-charcoal-700 text-pov-white px-8 py-3 h-auto font-poppins font-medium disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 Next Step
                 <ArrowRight className="h-4 w-4" />
