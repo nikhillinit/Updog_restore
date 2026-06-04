@@ -11,13 +11,21 @@ import { useLPContext } from '@/contexts/LPContext';
 import { useLPPerformance, useLPHoldings } from '@/hooks/useLPPerformance';
 import PerformanceMetricsCard from '@/components/lp/PerformanceMetricsCard';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Building2, Download, RefreshCw } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend } from 'recharts';
 import { LazyResponsiveContainer as ResponsiveContainer } from '@/components/charts/LazyResponsiveContainer';
+import { getChartColor } from '@/lib/brand-tokens';
+import { presson } from '@/theme/presson.tokens';
 
 // ============================================================================
 // COMPONENT
@@ -29,7 +37,8 @@ export default function LPPerformance() {
   const [activeTab, setActiveTab] = useState('timeseries');
 
   // Use first active fund if none selected
-  const activeFundId = selectedFundId || lpProfile?.commitments.find((c) => c.status === 'active')?.fundId;
+  const activeFundId =
+    selectedFundId || lpProfile?.commitments.find((c) => c.status === 'active')?.fundId;
 
   const {
     data: performanceData,
@@ -78,7 +87,7 @@ export default function LPPerformance() {
   if (!activeFundId) {
     return (
       <div className="p-8 text-center">
-        <p className="text-[#292929]/70 font-poppins">Please select a fund to view performance</p>
+        <p className="text-charcoal-600 font-poppins">Please select a fund to view performance</p>
       </div>
     );
   }
@@ -88,8 +97,8 @@ export default function LPPerformance() {
       {/* Header */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
-          <h1 className="text-3xl font-bold font-inter text-[#292929]">Performance Analytics</h1>
-          <p className="text-[#292929]/70 font-poppins mt-1">
+          <h1 className="text-3xl font-bold font-inter text-pov-charcoal">Performance Analytics</h1>
+          <p className="text-charcoal-600 font-poppins mt-1">
             Track performance metrics and benchmark comparisons
           </p>
         </div>
@@ -118,7 +127,10 @@ export default function LPPerformance() {
           )}
 
           {/* Granularity */}
-          <Select value={granularity} onValueChange={(v) => setGranularity(v as typeof granularity)}>
+          <Select
+            value={granularity}
+            onValueChange={(v) => setGranularity(v as typeof granularity)}
+          >
             <SelectTrigger className="w-[140px]">
               <SelectValue />
             </SelectTrigger>
@@ -146,7 +158,7 @@ export default function LPPerformance() {
 
       {/* Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="bg-white border border-[#E0D8D1]">
+        <TabsList className="bg-white border border-beige-200">
           <TabsTrigger value="timeseries">Performance Over Time</TabsTrigger>
           <TabsTrigger value="holdings">Portfolio Holdings</TabsTrigger>
         </TabsList>
@@ -154,10 +166,12 @@ export default function LPPerformance() {
         {/* Timeseries Tab */}
         <TabsContent value="timeseries" className="space-y-6">
           {/* IRR Chart */}
-          <Card className="bg-white rounded-xl border border-[#E0D8D1] shadow-md">
+          <Card className="bg-white rounded-xl border border-beige-200 shadow-md">
             <CardHeader>
-              <CardTitle className="font-inter text-lg text-[#292929]">IRR Performance</CardTitle>
-              <CardDescription className="font-poppins text-sm text-[#292929]/70">
+              <CardTitle className="font-inter text-lg text-pov-charcoal">
+                IRR Performance
+              </CardTitle>
+              <CardDescription className="font-poppins text-sm text-charcoal-600">
                 Internal rate of return over time
               </CardDescription>
             </CardHeader>
@@ -167,9 +181,22 @@ export default function LPPerformance() {
                   <LineChart data={chartData} margin={{ top: 20, right: 30, left: 20, bottom: 20 }}>
                     <CartesianGrid strokeDasharray="3 3" />
                     <XAxis dataKey="date" tick={{ fontSize: 12 }} />
-                    <YAxis tickFormatter={(v: number) => `${v.toFixed(0)}%`} tick={{ fontSize: 12 }} />
-                    <Tooltip formatter={(value) => value !== undefined ? `${Number(value).toFixed(2)}%` : ''} />
-                    <Line type="monotone" dataKey="irr" stroke="#2563eb" strokeWidth={2} dot={false} />
+                    <YAxis
+                      tickFormatter={(v: number) => `${v.toFixed(0)}%`}
+                      tick={{ fontSize: 12 }}
+                    />
+                    <Tooltip
+                      formatter={(value) =>
+                        value !== undefined ? `${Number(value).toFixed(2)}%` : ''
+                      }
+                    />
+                    <Line
+                      type="monotone"
+                      dataKey="irr"
+                      stroke={presson.color.text}
+                      strokeWidth={2}
+                      dot={false}
+                    />
                   </LineChart>
                 </ResponsiveContainer>
               </div>
@@ -177,10 +204,10 @@ export default function LPPerformance() {
           </Card>
 
           {/* Multiples Chart */}
-          <Card className="bg-white rounded-xl border border-[#E0D8D1] shadow-md">
+          <Card className="bg-white rounded-xl border border-beige-200 shadow-md">
             <CardHeader>
-              <CardTitle className="font-inter text-lg text-[#292929]">TVPI & DPI</CardTitle>
-              <CardDescription className="font-poppins text-sm text-[#292929]/70">
+              <CardTitle className="font-inter text-lg text-pov-charcoal">TVPI & DPI</CardTitle>
+              <CardDescription className="font-poppins text-sm text-charcoal-600">
                 Fund multiples over time
               </CardDescription>
             </CardHeader>
@@ -190,11 +217,30 @@ export default function LPPerformance() {
                   <LineChart data={chartData} margin={{ top: 20, right: 30, left: 20, bottom: 20 }}>
                     <CartesianGrid strokeDasharray="3 3" />
                     <XAxis dataKey="date" tick={{ fontSize: 12 }} />
-                    <YAxis tickFormatter={(v: number) => `${v.toFixed(1)}x`} tick={{ fontSize: 12 }} />
-                    <Tooltip formatter={(value) => value !== undefined ? `${Number(value).toFixed(2)}x` : ''} />
+                    <YAxis
+                      tickFormatter={(v: number) => `${v.toFixed(1)}x`}
+                      tick={{ fontSize: 12 }}
+                    />
+                    <Tooltip
+                      formatter={(value) =>
+                        value !== undefined ? `${Number(value).toFixed(2)}x` : ''
+                      }
+                    />
                     <Legend />
-                    <Line type="monotone" dataKey="tvpi" stroke="#059669" strokeWidth={2} name="TVPI" />
-                    <Line type="monotone" dataKey="dpi" stroke="#d97706" strokeWidth={2} name="DPI" />
+                    <Line
+                      type="monotone"
+                      dataKey="tvpi"
+                      stroke={getChartColor(0, true)}
+                      strokeWidth={2}
+                      name="TVPI"
+                    />
+                    <Line
+                      type="monotone"
+                      dataKey="dpi"
+                      stroke={getChartColor(1, true)}
+                      strokeWidth={2}
+                      name="DPI"
+                    />
                   </LineChart>
                 </ResponsiveContainer>
               </div>
@@ -204,12 +250,14 @@ export default function LPPerformance() {
 
         {/* Holdings Tab */}
         <TabsContent value="holdings" className="space-y-6">
-          <Card className="bg-white rounded-xl border border-[#E0D8D1] shadow-md">
+          <Card className="bg-white rounded-xl border border-beige-200 shadow-md">
             <CardHeader>
               <div className="flex justify-between items-center">
                 <div>
-                  <CardTitle className="font-inter text-lg text-[#292929]">Portfolio Holdings</CardTitle>
-                  <CardDescription className="font-poppins text-sm text-[#292929]/70">
+                  <CardTitle className="font-inter text-lg text-pov-charcoal">
+                    Portfolio Holdings
+                  </CardTitle>
+                  <CardDescription className="font-poppins text-sm text-charcoal-600">
                     Your pro-rata share of fund investments
                   </CardDescription>
                 </div>
@@ -224,29 +272,29 @@ export default function LPPerformance() {
                 <>
                   {/* Summary */}
                   <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-                    <div className="text-center p-4 bg-gray-50 rounded-lg">
-                      <div className="text-2xl font-bold font-inter text-[#292929]">
+                    <div className="text-center p-4 bg-pov-gray rounded-lg">
+                      <div className="text-2xl font-bold font-inter text-pov-charcoal">
                         {holdingsData.summary.totalCompanies}
                       </div>
-                      <div className="text-sm font-poppins text-[#292929]/70">Companies</div>
+                      <div className="text-sm font-poppins text-charcoal-600">Companies</div>
                     </div>
-                    <div className="text-center p-4 bg-gray-50 rounded-lg">
-                      <div className="text-2xl font-bold font-inter text-[#292929]">
+                    <div className="text-center p-4 bg-pov-gray rounded-lg">
+                      <div className="text-2xl font-bold font-inter text-pov-charcoal">
                         {formatCurrency(holdingsData.summary.totalDeployed)}
                       </div>
-                      <div className="text-sm font-poppins text-[#292929]/70">Deployed</div>
+                      <div className="text-sm font-poppins text-charcoal-600">Deployed</div>
                     </div>
-                    <div className="text-center p-4 bg-gray-50 rounded-lg">
-                      <div className="text-2xl font-bold font-inter text-[#292929]">
+                    <div className="text-center p-4 bg-pov-gray rounded-lg">
+                      <div className="text-2xl font-bold font-inter text-pov-charcoal">
                         {formatCurrency(holdingsData.summary.totalCurrentValue)}
                       </div>
-                      <div className="text-sm font-poppins text-[#292929]/70">Current Value</div>
+                      <div className="text-sm font-poppins text-charcoal-600">Current Value</div>
                     </div>
-                    <div className="text-center p-4 bg-gray-50 rounded-lg">
-                      <div className="text-2xl font-bold font-inter text-[#292929]">
+                    <div className="text-center p-4 bg-pov-gray rounded-lg">
+                      <div className="text-2xl font-bold font-inter text-pov-charcoal">
                         {holdingsData.summary.averageMOIC.toFixed(2)}x
                       </div>
-                      <div className="text-sm font-poppins text-[#292929]/70">Avg MOIC</div>
+                      <div className="text-sm font-poppins text-charcoal-600">Avg MOIC</div>
                     </div>
                   </div>
 
@@ -254,28 +302,61 @@ export default function LPPerformance() {
                   <div className="overflow-x-auto">
                     <table className="w-full border-collapse">
                       <thead>
-                        <tr className="border-b border-[#E0D8D1]">
-                          <th className="text-left p-3 font-inter font-bold text-[#292929]">Company</th>
-                          <th className="text-left p-3 font-inter font-bold text-[#292929]">Sector</th>
-                          <th className="text-left p-3 font-inter font-bold text-[#292929]">Stage</th>
-                          <th className="text-right p-3 font-inter font-bold text-[#292929]">Your Share</th>
-                          <th className="text-right p-3 font-inter font-bold text-[#292929]">Current Value</th>
-                          <th className="text-right p-3 font-inter font-bold text-[#292929]">MOIC</th>
-                          <th className="text-center p-3 font-inter font-bold text-[#292929]">Status</th>
+                        <tr className="border-b border-beige-200">
+                          <th className="text-left p-3 font-inter font-bold text-pov-charcoal">
+                            Company
+                          </th>
+                          <th className="text-left p-3 font-inter font-bold text-pov-charcoal">
+                            Sector
+                          </th>
+                          <th className="text-left p-3 font-inter font-bold text-pov-charcoal">
+                            Stage
+                          </th>
+                          <th className="text-right p-3 font-inter font-bold text-pov-charcoal">
+                            Your Share
+                          </th>
+                          <th className="text-right p-3 font-inter font-bold text-pov-charcoal">
+                            Current Value
+                          </th>
+                          <th className="text-right p-3 font-inter font-bold text-pov-charcoal">
+                            MOIC
+                          </th>
+                          <th className="text-center p-3 font-inter font-bold text-pov-charcoal">
+                            Status
+                          </th>
                         </tr>
                       </thead>
                       <tbody>
                         {holdingsData.holdings.map((holding) => (
-                          <tr key={holding.companyId} className="border-b border-[#E0D8D1] hover:bg-[#E0D8D1]/20">
-                            <td className="p-3 font-poppins font-medium text-[#292929]">
+                          <tr
+                            key={holding.companyId}
+                            className="border-b border-beige-200 hover:bg-beige-50"
+                          >
+                            <td className="p-3 font-poppins font-medium text-pov-charcoal">
                               {holding.companyName}
                             </td>
-                            <td className="p-3 font-poppins text-sm text-[#292929]/70">{holding.sector}</td>
-                            <td className="p-3 font-poppins text-sm text-[#292929]/70">{holding.stage}</td>
-                            <td className="p-3 text-right font-mono text-sm">{formatCurrency(holding.lpProRataShare)}</td>
-                            <td className="p-3 text-right font-mono text-sm">{formatCurrency(holding.currentValue)}</td>
+                            <td className="p-3 font-poppins text-sm text-charcoal-600">
+                              {holding.sector}
+                            </td>
+                            <td className="p-3 font-poppins text-sm text-charcoal-600">
+                              {holding.stage}
+                            </td>
+                            <td className="p-3 text-right font-mono text-sm">
+                              {formatCurrency(holding.lpProRataShare)}
+                            </td>
+                            <td className="p-3 text-right font-mono text-sm">
+                              {formatCurrency(holding.currentValue)}
+                            </td>
                             <td className="p-3 text-right">
-                              <Badge variant={holding.moic >= 2 ? 'default' : holding.moic >= 1 ? 'secondary' : 'outline'}>
+                              <Badge
+                                variant={
+                                  holding.moic >= 2
+                                    ? 'default'
+                                    : holding.moic >= 1
+                                      ? 'secondary'
+                                      : 'outline'
+                                }
+                              >
                                 {holding.moic.toFixed(2)}x
                               </Badge>
                             </td>

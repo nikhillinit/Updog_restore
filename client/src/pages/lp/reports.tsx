@@ -35,12 +35,12 @@ export default function LPReports() {
   const getStatusIcon = (status: string) => {
     switch (status) {
       case 'ready':
-        return <CheckCircle className="h-4 w-4 text-green-600" />;
+        return <CheckCircle className="h-4 w-4 text-success-dark" />;
       case 'generating':
       case 'pending':
-        return <Clock className="h-4 w-4 text-amber-600" />;
+        return <Clock className="h-4 w-4 text-warning-dark" />;
       case 'failed':
-        return <AlertCircle className="h-4 w-4 text-red-600" />;
+        return <AlertCircle className="h-4 w-4 text-error-dark" />;
       default:
         return null;
     }
@@ -50,17 +50,17 @@ export default function LPReports() {
     <div className="p-8 space-y-6">
       {/* Header */}
       <div>
-        <h1 className="text-3xl font-bold font-inter text-[#292929]">Reports</h1>
-        <p className="text-[#292929]/70 font-poppins mt-1">
-          Generate and download LP reports
-        </p>
+        <h1 className="text-3xl font-bold font-inter text-pov-charcoal">Reports</h1>
+        <p className="text-charcoal-600 font-poppins mt-1">Generate and download LP reports</p>
       </div>
 
       {/* Report Generation */}
-      <Card className="bg-white rounded-xl border border-[#E0D8D1] shadow-md">
+      <Card className="bg-white rounded-xl border border-beige-200 shadow-md">
         <CardHeader>
-          <CardTitle className="font-inter text-lg text-[#292929]">Generate New Report</CardTitle>
-          <CardDescription className="font-poppins text-sm text-[#292929]/70">
+          <CardTitle className="font-inter text-lg text-pov-charcoal">
+            Generate New Report
+          </CardTitle>
+          <CardDescription className="font-poppins text-sm text-charcoal-600">
             Create quarterly statements, annual reports, and K-1 tax documents
           </CardDescription>
         </CardHeader>
@@ -101,10 +101,10 @@ export default function LPReports() {
       </Card>
 
       {/* Report History */}
-      <Card className="bg-white rounded-xl border border-[#E0D8D1] shadow-md">
+      <Card className="bg-white rounded-xl border border-beige-200 shadow-md">
         <CardHeader>
-          <CardTitle className="font-inter text-lg text-[#292929]">Report History</CardTitle>
-          <CardDescription className="font-poppins text-sm text-[#292929]/70">
+          <CardTitle className="font-inter text-lg text-pov-charcoal">Report History</CardTitle>
+          <CardDescription className="font-poppins text-sm text-charcoal-600">
             Previously generated reports
           </CardDescription>
         </CardHeader>
@@ -114,15 +114,17 @@ export default function LPReports() {
               {reportsData.reports.map((report) => (
                 <div
                   key={report.id}
-                  className="flex items-center justify-between p-4 border border-[#E0D8D1] rounded-lg hover:shadow-md transition-shadow"
+                  className="flex items-center justify-between p-4 border border-beige-200 rounded-lg hover:shadow-md transition-shadow"
                 >
                   <div className="flex items-center gap-4">
                     {getStatusIcon(report.status)}
                     <div>
-                      <div className="font-inter font-medium text-[#292929]">
-                        {report.reportType.replace(/_/g, ' ').replace(/\b\w/g, (l) => l.toUpperCase())}
+                      <div className="font-inter font-medium text-pov-charcoal">
+                        {report.reportType
+                          .replace(/_/g, ' ')
+                          .replace(/\b\w/g, (l) => l.toUpperCase())}
                       </div>
-                      <div className="text-sm font-poppins text-[#292929]/70">
+                      <div className="text-sm font-poppins text-charcoal-600">
                         {report.generatedAt
                           ? new Date(report.generatedAt).toLocaleDateString()
                           : 'Processing...'}
@@ -147,7 +149,7 @@ export default function LPReports() {
               ))}
             </div>
           ) : (
-            <div className="text-center py-8 text-[#292929]/50 font-poppins">
+            <div className="text-center py-8 text-charcoal-400 font-poppins">
               No reports generated yet
             </div>
           )}
