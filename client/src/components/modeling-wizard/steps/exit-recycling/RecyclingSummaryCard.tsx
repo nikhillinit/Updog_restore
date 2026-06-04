@@ -10,7 +10,7 @@ import { CheckCircle2, AlertCircle, AlertTriangle, Info } from 'lucide-react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import type {
   ExitRecyclingCalculations,
-  ValidationResult
+  ValidationResult,
 } from '@/lib/exit-recycling-calculations';
 
 // ============================================================================
@@ -45,7 +45,7 @@ function formatPercent(value: number): string {
 export function RecyclingSummaryCard({
   calculations,
   validation,
-  fundSize
+  fundSize,
 }: RecyclingSummaryCardProps) {
   // If recycling is disabled, show informational message
   if (!calculations.enabled) {
@@ -53,8 +53,8 @@ export function RecyclingSummaryCard({
       <Alert className="border-charcoal-300 bg-charcoal-50">
         <Info className="h-4 w-4 text-charcoal-600" />
         <AlertDescription className="text-sm font-poppins text-charcoal-700">
-          Exit recycling is currently disabled. Enable it to extend your fund's investment
-          capacity by recycling exit proceeds back into new investments.
+          Exit recycling is currently disabled. Enable it to extend your fund's investment capacity
+          by recycling exit proceeds back into new investments.
         </AlertDescription>
       </Alert>
     );
@@ -165,9 +165,7 @@ export function RecyclingSummaryCard({
             <div className="font-inter font-bold text-2xl text-pov-charcoal">
               {formatPercent(calculations.effectiveDeploymentRate)}
             </div>
-            <div className="text-xs text-charcoal-600 mt-1 font-poppins">
-              Of committed capital
-            </div>
+            <div className="text-xs text-charcoal-600 mt-1 font-poppins">Of committed capital</div>
           </div>
         </div>
 
@@ -209,7 +207,7 @@ export function RecyclingSummaryCard({
                   </td>
                   <td
                     className={`py-2 text-right font-inter font-bold ${
-                      calculations.schedule.capReached ? 'text-amber-600' : 'text-success'
+                      calculations.schedule.capReached ? 'text-warning' : 'text-success'
                     }`}
                   >
                     {formatMoney(calculations.schedule.remainingCapacity)}
@@ -219,7 +217,7 @@ export function RecyclingSummaryCard({
             </table>
 
             {calculations.schedule.capReached && (
-              <div className="mt-3 text-xs text-amber-600 font-poppins">
+              <div className="mt-3 text-xs text-warning font-poppins">
                 Recycling cap has been reached. Additional exit proceeds will be returned to LPs.
               </div>
             )}
@@ -236,9 +234,7 @@ export function RecyclingSummaryCard({
               <div className="text-xs font-poppins text-charcoal-600 uppercase tracking-wide mb-1">
                 Base Fund Size
               </div>
-              <div className="font-inter font-bold text-pov-charcoal">
-                {formatMoney(fundSize)}
-              </div>
+              <div className="font-inter font-bold text-pov-charcoal">{formatMoney(fundSize)}</div>
             </div>
             <div>
               <div className="text-xs font-poppins text-charcoal-600 uppercase tracking-wide mb-1">

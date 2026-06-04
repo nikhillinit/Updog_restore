@@ -279,8 +279,8 @@ describe('FundPersistenceService.recalculatePublished behavior', () => {
         .mockReturnValueOnce(valuesResolved(undefined)), // fundEvent insert
     };
 
-    mockDb.transaction.mockImplementation(
-      async (callback: (t: typeof tx) => Promise<unknown>) => callback(tx)
+    mockDb.transaction.mockImplementation(async (callback: (t: typeof tx) => Promise<unknown>) =>
+      callback(tx)
     );
     mockDb.update.mockReturnValue(whereReturning([dispatchedRun]));
 
@@ -353,8 +353,8 @@ describe('FundPersistenceService.recalculatePublished behavior', () => {
         .mockReturnValueOnce(valuesResolved(undefined)),
     };
 
-    mockDb.transaction.mockImplementation(
-      async (callback: (t: typeof tx) => Promise<unknown>) => callback(tx)
+    mockDb.transaction.mockImplementation(async (callback: (t: typeof tx) => Promise<unknown>) =>
+      callback(tx)
     );
     mockDb.update.mockReturnValue(whereReturning([dispatchedRun]));
 
@@ -394,16 +394,12 @@ describe('FundPersistenceService.recalculatePublished behavior', () => {
         .mockReturnValueOnce(valuesResolved(undefined)),
     };
 
-    mockDb.transaction.mockImplementation(
-      async (callback: (t: typeof tx) => Promise<unknown>) => callback(tx)
+    mockDb.transaction.mockImplementation(async (callback: (t: typeof tx) => Promise<unknown>) =>
+      callback(tx)
     );
     mockDb.update.mockReturnValue(whereReturning([dispatchedRun]));
 
-    await service.recalculatePublished(
-      1,
-      { reserve: null, pacing: null, cohort: null },
-      42
-    );
+    await service.recalculatePublished(1, { reserve: null, pacing: null, cohort: null }, 42);
 
     // Second insert call = fundEvent
     const insertCalls = tx.insert.mock.calls;
@@ -452,8 +448,8 @@ describe('FundPersistenceService.recalculatePublished behavior', () => {
         .mockReturnValueOnce(valuesResolved(undefined)),
     };
 
-    mockDb.transaction.mockImplementation(
-      async (callback: (t: typeof tx) => Promise<unknown>) => callback(tx)
+    mockDb.transaction.mockImplementation(async (callback: (t: typeof tx) => Promise<unknown>) =>
+      callback(tx)
     );
     mockDb.update.mockReturnValue(whereReturning([dispatchedRun]));
 
@@ -551,6 +547,101 @@ describe('POST /api/funds/:id/recalculate route contract', () => {
       runId: 55,
       dispatchState: 'dispatched',
     });
+  });
+
+  it('does not forward NaN userId when authenticated subject is nonnumeric', async () => {
+    const mod = await import('../../../server/services/fund-persistence-service');
+    const recalculateSpy = vi
+      .spyOn(mod.fundPersistenceService, 'recalculatePublished')
+      .mockResolvedValue({
+        run: {
+          id: 55,
+          fundId: 1,
+          configId: 20,
+          configVersion: 2,
+          correlationId: 'recalc-corr-200',
+          engines: ['reserve', 'pacing'],
+          dispatchState: 'dispatched',
+          requestedAt: new Date(),
+          dispatchedAt: new Date(),
+          failedAt: null,
+          lastError: null,
+        },
+        correlationId: 'recalc-corr-200',
+      });
+    const appWithStringUser = express();
+    appWithStringUser.use(express.json());
+    appWithStringUser.use((req, _res, next) => {
+      req.user = {
+        id: 'auth0|user-7',
+        sub: 'auth0|user-7',
+        email: 'user7@example.com',
+        roles: [],
+        fundIds: [1],
+        ip: '127.0.0.1',
+        userAgent: 'vitest',
+      };
+      next();
+    });
+    const { registerFundConfigRoutes } = await import('../../../server/routes/fund-config');
+    registerFundConfigRoutes(appWithStringUser);
+
+    const res = await request(appWithStringUser).post('/api/funds/1/recalculate');
+
+    expect(res.status).toBe(200);
+    expect(recalculateSpy).toHaveBeenCalledWith(
+      1,
+      { reserve: null, pacing: null, cohort: null },
+      undefined
+    );
+  });
+
+  it('returns 403 without recalculating when user lacks fund scope', async () => {
+    const mod = await import('../../../server/services/fund-persistence-service');
+    const recalculateSpy = vi
+      .spyOn(mod.fundPersistenceService, 'recalculatePublished')
+      .mockResolvedValue({
+        run: {
+          id: 55,
+          fundId: 1,
+          configId: 20,
+          configVersion: 2,
+          correlationId: 'recalc-corr-200',
+          engines: ['reserve', 'pacing'],
+          dispatchState: 'dispatched',
+          requestedAt: new Date(),
+          dispatchedAt: new Date(),
+          failedAt: null,
+          lastError: null,
+        },
+        correlationId: 'recalc-corr-200',
+      });
+    const restrictedApp = express();
+    restrictedApp.use(express.json());
+    restrictedApp.use((req, _res, next) => {
+      req.user = {
+        id: 'user-7',
+        sub: 'user-7',
+        email: 'user7@example.com',
+        roles: [],
+        fundIds: [99],
+        ip: '127.0.0.1',
+        userAgent: 'vitest',
+      };
+      next();
+    });
+    const { registerFundConfigRoutes } = await import('../../../server/routes/fund-config');
+    registerFundConfigRoutes(restrictedApp);
+
+    const res = await request(restrictedApp).post('/api/funds/1/recalculate');
+
+    expect(res.status).toBe(403);
+    expect(res.body).toMatchObject({
+      error: 'Forbidden',
+      code: 'FUND_ACCESS_DENIED',
+      message: 'You do not have access to fund 1',
+    });
+    expect(recalculateSpy).not.toHaveBeenCalled();
   });
 
   it('returns 400 for non-integer fund ID', async () => {

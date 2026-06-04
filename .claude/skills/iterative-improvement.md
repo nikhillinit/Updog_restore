@@ -322,7 +322,10 @@ standards)
 
 ## Reference Implementation
 
-**See**: `packages/test-repair-agent/src/TestRepairAgent.ts`
+The former package-backed `packages/test-repair-agent` implementation was
+removed in Batch 8 after reference scans found no active dependency. Use git
+history for that example if needed; current repair work should use the
+package-free scripts and explicit failing-test output.
 
 **Key Methods**:
 
@@ -330,7 +333,8 @@ standards)
 - `evaluateFix()` - 3-criteria evaluation logic
 - `optimizeWithFeedback()` - Feedback incorporation
 
-**Documentation**: `packages/test-repair-agent/EVALUATOR_OPTIMIZER.md`
+**Documentation**: historical
+`packages/test-repair-agent/EVALUATOR_OPTIMIZER.md` from git history
 
 ## Integration with Other Skills
 

@@ -37,6 +37,26 @@ This guide complements:
 
 ## 1. Task → Agent/Skill/Tool Map
 
+> **Surface roles (complementary, not alternatives):**
+>
+> - **Agent** — delegated review in an isolated context; returns a summary. Use
+>   via the `Agent` tool when you want findings without loading the work into
+>   the current window.
+> - **Skill** — inline guidance loaded into the current context. Use via the
+>   `Skill` tool when _you_ are about to touch the code and want the invariants
+>   in your active window.
+> - **Template** — checklist/scaffold applied to the work in progress.
+> - **MCP Tool** — external service call (TaskMaster, Multi-AI).
+>
+> Each row below lists the full stack for a concern. Pick the surfaces you need
+> based on context cost and delegation intent — they are designed to be used
+> together, not as a pick-one menu.
+>
+> **Note on plugin overlap:** Plugin-installed skills (e.g.,
+> `phoenix-precision-guard` from an installed plugin) may share names with the
+> in-tree skills at `.claude/skills/phoenix-*/`. The in-tree versions are
+> authoritative for this routing doc.
+
 ### 1.1 Code Modification / Debugging / Validation
 
 **Agents:**

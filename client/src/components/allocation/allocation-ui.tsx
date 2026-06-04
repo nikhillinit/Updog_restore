@@ -253,13 +253,16 @@ export default function AllocationUI() {
           <div className="flex items-center justify-between">
             <div>
               <CardTitle className="text-xl font-bold">{allocation.name}</CardTitle>
-              <div className="flex items-center gap-6 text-sm text-gray-600 mt-2">
+              <div className="flex items-center gap-6 text-sm text-charcoal-600 mt-2">
                 <span>Capital Allocated: {formatCurrency(summary.capitalAllocated)}</span>
                 <span>Expected MOIC: {summary.expectedMOIC.toFixed(2)}x</span>
                 <span>Reserve Ratio: {formatPercentage(summary.reserveRatio)}</span>
               </div>
             </div>
-            <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">
+            <Badge
+              variant="outline"
+              className="bg-presson-info/10 text-presson-info border-presson-info/20"
+            >
               <Calculator className="w-3 h-3 mr-1" />
               Auto-Calculated
             </Badge>
@@ -281,14 +284,14 @@ export default function AllocationUI() {
                 id="allocationName"
                 value={allocation.name}
                 onChange={(e) => updateInitialParameters('name', e.target.value)}
-                className="bg-yellow-50 border-yellow-200"
+                className="bg-warning/10 border-warning/50"
               />
             </div>
 
             <div className="space-y-2">
               <Label htmlFor="sectorProfile">
                 Linked Sector Profile
-                <Info className="w-4 h-4 inline ml-1 text-gray-400" />
+                <Info className="w-4 h-4 inline ml-1 text-charcoal-400" />
               </Label>
               <Select
                 value={allocation.linkedSectorProfile}
@@ -332,7 +335,7 @@ export default function AllocationUI() {
           <CardHeader>
             <CardTitle className="text-lg">
               Initial Check Size
-              <Info className="w-4 h-4 inline ml-1 text-gray-400" />
+              <Info className="w-4 h-4 inline ml-1 text-charcoal-400" />
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
@@ -355,12 +358,12 @@ export default function AllocationUI() {
                   onChange={(e) =>
                     updateInitialParameters('initialCheckSize', parseFloat(e.target.value))
                   }
-                  className="bg-yellow-50 border-yellow-200"
+                  className="bg-warning/10 border-warning/50"
                 />
               </div>
             </div>
 
-            <div className="space-y-2 text-sm text-gray-600">
+            <div className="space-y-2 text-sm text-charcoal-600">
               <div className="flex justify-between">
                 <span>Implied Entry Ownership</span>
                 <span>{formatPercentage(allocation.impliedEntryOwnership)}</span>
@@ -381,17 +384,17 @@ export default function AllocationUI() {
         <Card>
           <CardHeader>
             <CardTitle className="text-lg flex items-center">
-              <Target className="w-5 h-5 mr-2 text-green-600" />
+              <Target className="w-5 h-5 mr-2 text-presson-positive" />
               Performance Target
             </CardTitle>
           </CardHeader>
           <CardContent>
             <div className="text-center">
-              <div className="text-3xl font-bold text-green-600">
+              <div className="text-3xl font-bold text-presson-positive">
                 {summary.expectedMOIC.toFixed(2)}x
               </div>
-              <div className="text-sm text-gray-600 mt-1">Expected MOIC</div>
-              <div className="text-xs text-gray-500 mt-2">
+              <div className="text-sm text-charcoal-600 mt-1">Expected MOIC</div>
+              <div className="text-xs text-charcoal-500 mt-2">
                 Based on sector profile and graduation rates
               </div>
             </div>
@@ -404,7 +407,7 @@ export default function AllocationUI() {
         <CardHeader>
           <CardTitle className="text-lg">
             Follow-On Strategy
-            <Info className="w-4 h-4 inline ml-1 text-gray-400" />
+            <Info className="w-4 h-4 inline ml-1 text-charcoal-400" />
           </CardTitle>
         </CardHeader>
         <CardContent>
@@ -412,18 +415,18 @@ export default function AllocationUI() {
             <table className="w-full">
               <thead>
                 <tr className="border-b">
-                  <th className="text-left py-3 px-2 font-medium text-gray-600"></th>
-                  <th className="text-center py-3 px-2 font-medium text-gray-600">Pre-Seed</th>
-                  <th className="text-center py-3 px-2 font-medium text-gray-600">Seed</th>
-                  <th className="text-center py-3 px-2 font-medium text-gray-600">Series A</th>
-                  <th className="text-center py-3 px-2 font-medium text-gray-600">Series B</th>
+                  <th className="text-left py-3 px-2 font-medium text-charcoal-600"></th>
+                  <th className="text-center py-3 px-2 font-medium text-charcoal-600">Pre-Seed</th>
+                  <th className="text-center py-3 px-2 font-medium text-charcoal-600">Seed</th>
+                  <th className="text-center py-3 px-2 font-medium text-charcoal-600">Series A</th>
+                  <th className="text-center py-3 px-2 font-medium text-charcoal-600">Series B</th>
                 </tr>
               </thead>
               <tbody className="space-y-2">
-                <tr className="border-b border-gray-100">
+                <tr className="border-b border-charcoal/7">
                   <td className="py-3 px-2 font-medium">
                     Maintain Ownership (%) of
-                    <Info className="w-3 h-3 inline ml-1 text-gray-400" />
+                    <Info className="w-3 h-3 inline ml-1 text-charcoal-400" />
                   </td>
                   <td className="py-3 px-2 text-center">
                     <Input
@@ -452,7 +455,7 @@ export default function AllocationUI() {
                           parseFloat(e.target.value) || 0
                         )
                       }
-                      className="w-16 h-8 text-center bg-yellow-50 border-yellow-200"
+                      className="w-16 h-8 text-center bg-warning/10 border-warning/50"
                     />
                     <span className="text-xs ml-1">%</span>
                   </td>
@@ -467,7 +470,7 @@ export default function AllocationUI() {
                           parseFloat(e.target.value) || 0
                         )
                       }
-                      className="w-16 h-8 text-center bg-yellow-50 border-yellow-200"
+                      className="w-16 h-8 text-center bg-warning/10 border-warning/50"
                     />
                     <span className="text-xs ml-1">%</span>
                   </td>
@@ -489,10 +492,10 @@ export default function AllocationUI() {
                   </td>
                 </tr>
 
-                <tr className="border-b border-gray-100">
+                <tr className="border-b border-charcoal/7">
                   <td className="py-3 px-2 font-medium">
                     Follow-on Participation (%)
-                    <Info className="w-3 h-3 inline ml-1 text-gray-400" />
+                    <Info className="w-3 h-3 inline ml-1 text-charcoal-400" />
                   </td>
                   <td className="py-3 px-2 text-center">
                     <Input
@@ -514,7 +517,7 @@ export default function AllocationUI() {
                           parseFloat(e.target.value) || 0
                         )
                       }
-                      className="w-16 h-8 text-center bg-yellow-50 border-yellow-200"
+                      className="w-16 h-8 text-center bg-warning/10 border-warning/50"
                     />
                     <span className="text-xs ml-1">%</span>
                   </td>
@@ -529,7 +532,7 @@ export default function AllocationUI() {
                           parseFloat(e.target.value) || 0
                         )
                       }
-                      className="w-16 h-8 text-center bg-yellow-50 border-yellow-200"
+                      className="w-16 h-8 text-center bg-warning/10 border-warning/50"
                     />
                     <span className="text-xs ml-1">%</span>
                   </td>
@@ -547,82 +550,84 @@ export default function AllocationUI() {
                 <Separator />
 
                 {/* Read-only calculated fields */}
-                <tr className="bg-gray-50">
-                  <td className="py-3 px-2 font-medium text-gray-600">Implied Follow-On Check</td>
-                  <td className="py-3 px-2 text-center text-gray-600">-</td>
-                  <td className="py-3 px-2 text-center text-gray-600">
+                <tr className="bg-pov-gray">
+                  <td className="py-3 px-2 font-medium text-charcoal-600">
+                    Implied Follow-On Check
+                  </td>
+                  <td className="py-3 px-2 text-center text-charcoal-600">-</td>
+                  <td className="py-3 px-2 text-center text-charcoal-600">
                     {formatCurrency(allocation.followOnStrategy.seed.impliedCheck)}
                   </td>
-                  <td className="py-3 px-2 text-center text-gray-600">
+                  <td className="py-3 px-2 text-center text-charcoal-600">
                     {formatCurrency(allocation.followOnStrategy.seriesA.impliedCheck)}
                   </td>
-                  <td className="py-3 px-2 text-center text-gray-600">-</td>
+                  <td className="py-3 px-2 text-center text-charcoal-600">-</td>
                 </tr>
 
-                <tr className="bg-gray-50">
-                  <td className="py-3 px-2 font-medium text-gray-600">Graduation Rate</td>
-                  <td className="py-3 px-2 text-center text-gray-600">-</td>
-                  <td className="py-3 px-2 text-center text-gray-600">
+                <tr className="bg-pov-gray">
+                  <td className="py-3 px-2 font-medium text-charcoal-600">Graduation Rate</td>
+                  <td className="py-3 px-2 text-center text-charcoal-600">-</td>
+                  <td className="py-3 px-2 text-center text-charcoal-600">
                     {formatPercentage(allocation.followOnStrategy.seed.graduationRate)}
                   </td>
-                  <td className="py-3 px-2 text-center text-gray-600">
+                  <td className="py-3 px-2 text-center text-charcoal-600">
                     {formatPercentage(allocation.followOnStrategy.seriesA.graduationRate)}
                   </td>
-                  <td className="py-3 px-2 text-center text-gray-600">
+                  <td className="py-3 px-2 text-center text-charcoal-600">
                     {formatPercentage(allocation.followOnStrategy.seriesB.graduationRate)}
                   </td>
                 </tr>
 
-                <tr className="bg-gray-50">
-                  <td className="py-3 px-2 font-medium text-gray-600">Number of Graduations</td>
-                  <td className="py-3 px-2 text-center text-gray-600">-</td>
-                  <td className="py-3 px-2 text-center text-gray-600">
+                <tr className="bg-pov-gray">
+                  <td className="py-3 px-2 font-medium text-charcoal-600">Number of Graduations</td>
+                  <td className="py-3 px-2 text-center text-charcoal-600">-</td>
+                  <td className="py-3 px-2 text-center text-charcoal-600">
                     {allocation.followOnStrategy.seed.graduations.toFixed(2)}
                   </td>
-                  <td className="py-3 px-2 text-center text-gray-600">
+                  <td className="py-3 px-2 text-center text-charcoal-600">
                     {allocation.followOnStrategy.seriesA.graduations.toFixed(2)}
                   </td>
-                  <td className="py-3 px-2 text-center text-gray-600">
+                  <td className="py-3 px-2 text-center text-charcoal-600">
                     {allocation.followOnStrategy.seriesB.graduations.toFixed(2)}
                   </td>
                 </tr>
 
-                <tr className="bg-gray-50">
-                  <td className="py-3 px-2 font-medium text-gray-600">Number of Follow-ons</td>
-                  <td className="py-3 px-2 text-center text-gray-600">-</td>
-                  <td className="py-3 px-2 text-center text-gray-600">
+                <tr className="bg-pov-gray">
+                  <td className="py-3 px-2 font-medium text-charcoal-600">Number of Follow-ons</td>
+                  <td className="py-3 px-2 text-center text-charcoal-600">-</td>
+                  <td className="py-3 px-2 text-center text-charcoal-600">
                     {allocation.followOnStrategy.seed.followOns.toFixed(2)}
                   </td>
-                  <td className="py-3 px-2 text-center text-gray-600">
+                  <td className="py-3 px-2 text-center text-charcoal-600">
                     {allocation.followOnStrategy.seriesA.followOns.toFixed(2)}
                   </td>
-                  <td className="py-3 px-2 text-center text-gray-600">-</td>
+                  <td className="py-3 px-2 text-center text-charcoal-600">-</td>
                 </tr>
 
-                <tr className="bg-blue-50 border-2 border-blue-200">
-                  <td className="py-3 px-2 font-bold text-blue-800">Capital Allocated</td>
-                  <td className="py-3 px-2 text-center font-bold text-blue-800">-</td>
-                  <td className="py-3 px-2 text-center font-bold text-blue-800">
+                <tr className="bg-presson-info/10 border-2 border-presson-info/20">
+                  <td className="py-3 px-2 font-bold text-presson-info">Capital Allocated</td>
+                  <td className="py-3 px-2 text-center font-bold text-presson-info">-</td>
+                  <td className="py-3 px-2 text-center font-bold text-presson-info">
                     {formatCurrency(allocation.followOnStrategy.seed.capitalAllocated)}
                   </td>
-                  <td className="py-3 px-2 text-center font-bold text-blue-800">
+                  <td className="py-3 px-2 text-center font-bold text-presson-info">
                     {formatCurrency(allocation.followOnStrategy.seriesA.capitalAllocated)}
                   </td>
-                  <td className="py-3 px-2 text-center font-bold text-blue-800">-</td>
+                  <td className="py-3 px-2 text-center font-bold text-presson-info">-</td>
                 </tr>
               </tbody>
             </table>
           </div>
 
-          <div className="mt-6 p-4 bg-blue-50 rounded-lg border border-blue-200">
+          <div className="mt-6 p-4 bg-presson-info/10 rounded-lg border border-presson-info/20">
             <div className="flex items-center mb-2">
-              <Info className="w-4 h-4 text-blue-600 mr-2" />
-              <span className="font-medium text-blue-800">Capital Deployment Methodology</span>
+              <Info className="w-4 h-4 text-presson-info mr-2" />
+              <span className="font-medium text-presson-info">Capital Deployment Methodology</span>
             </div>
-            <p className="text-sm text-blue-700 mb-2">
+            <p className="text-sm text-presson-info mb-2">
               <strong>All available capital is deployed</strong> - no unused capital allowed:
             </p>
-            <ul className="text-sm text-blue-700 mt-2 ml-4 space-y-1">
+            <ul className="text-sm text-presson-info mt-2 ml-4 space-y-1">
               <li>• Precise number of deals calculated to deploy 100% of available capital</li>
               <li>• Reserves auto-calculated from graduation rates and follow-on strategy</li>
               <li>• Expected MOIC built up from market data, not fixed exit multiples</li>
@@ -632,14 +637,14 @@ export default function AllocationUI() {
             </ul>
             <div className="mt-3 grid grid-cols-2 gap-4 text-sm">
               <div>
-                <span className="text-blue-600">Reserve Ratio:</span>
-                <span className="font-medium text-blue-800 ml-1">
+                <span className="text-presson-info">Reserve Ratio:</span>
+                <span className="font-medium text-presson-info ml-1">
                   {formatPercentage(summary.reserveRatio)}
                 </span>
               </div>
               <div>
-                <span className="text-blue-600">Capital Utilization:</span>
-                <span className="font-medium text-green-800 ml-1">100.00%</span>
+                <span className="text-presson-info">Capital Utilization:</span>
+                <span className="font-medium text-presson-positive ml-1">100.00%</span>
               </div>
             </div>
           </div>
@@ -650,61 +655,65 @@ export default function AllocationUI() {
       <Card>
         <CardHeader>
           <CardTitle className="text-lg flex items-center">
-            <Calendar className="w-5 h-5 mr-2 text-blue-600" />
+            <Calendar className="w-5 h-5 mr-2 text-presson-info" />
             Initial Investment Horizon
-            <Info className="w-4 h-4 ml-2 text-gray-400" />
+            <Info className="w-4 h-4 ml-2 text-charcoal-400" />
           </CardTitle>
-          <p className="text-sm text-gray-600">
+          <p className="text-sm text-charcoal-600">
             Control the pacing of capital deployment for this allocation
           </p>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="space-y-4">
-            <div className="flex items-center gap-4 p-4 bg-gray-50 rounded-lg">
-              <span className="text-sm font-medium text-gray-700 min-w-0 flex-shrink-0">
+            <div className="flex items-center gap-4 p-4 bg-pov-gray rounded-lg">
+              <span className="text-sm font-medium text-charcoal-700 min-w-0 flex-shrink-0">
                 Fund will invest
               </span>
               <Input
                 type="number"
                 defaultValue={50.0}
-                className="w-20 h-8 text-center bg-yellow-50 border-yellow-200"
+                className="w-20 h-8 text-center bg-warning/10 border-warning/50"
               />
-              <span className="text-sm text-gray-600">%</span>
-              <span className="text-sm text-gray-600">of total allocated capital, from month</span>
+              <span className="text-sm text-charcoal-600">%</span>
+              <span className="text-sm text-charcoal-600">
+                of total allocated capital, from month
+              </span>
               <Input
                 type="number"
                 defaultValue={1}
-                className="w-16 h-8 text-center bg-yellow-50 border-yellow-200"
+                className="w-16 h-8 text-center bg-warning/10 border-warning/50"
               />
-              <span className="text-sm text-gray-600">to</span>
+              <span className="text-sm text-charcoal-600">to</span>
               <Input
                 type="number"
                 defaultValue={12}
-                className="w-16 h-8 text-center bg-yellow-50 border-yellow-200"
+                className="w-16 h-8 text-center bg-warning/10 border-warning/50"
               />
             </div>
 
-            <div className="flex items-center gap-4 p-4 bg-gray-50 rounded-lg">
-              <span className="text-sm font-medium text-gray-700 min-w-0 flex-shrink-0">
+            <div className="flex items-center gap-4 p-4 bg-pov-gray rounded-lg">
+              <span className="text-sm font-medium text-charcoal-700 min-w-0 flex-shrink-0">
                 Fund will invest
               </span>
               <Input
                 type="number"
                 defaultValue={50.0}
-                className="w-20 h-8 text-center bg-yellow-50 border-yellow-200"
+                className="w-20 h-8 text-center bg-warning/10 border-warning/50"
               />
-              <span className="text-sm text-gray-600">%</span>
-              <span className="text-sm text-gray-600">of total allocated capital, from month</span>
+              <span className="text-sm text-charcoal-600">%</span>
+              <span className="text-sm text-charcoal-600">
+                of total allocated capital, from month
+              </span>
               <Input
                 type="number"
                 defaultValue={13}
-                className="w-16 h-8 text-center bg-yellow-50 border-yellow-200"
+                className="w-16 h-8 text-center bg-warning/10 border-warning/50"
               />
-              <span className="text-sm text-gray-600">to</span>
+              <span className="text-sm text-charcoal-600">to</span>
               <Input
                 type="number"
                 defaultValue={36}
-                className="w-16 h-8 text-center bg-yellow-50 border-yellow-200"
+                className="w-16 h-8 text-center bg-warning/10 border-warning/50"
               />
             </div>
           </div>

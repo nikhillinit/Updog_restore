@@ -1,4 +1,5 @@
 name: CI Unified
+
 on:
   pull_request:
     branches: [main, develop]
@@ -7,210 +8,126 @@ on:
   workflow_dispatch:
     inputs:
       run_full_suite:
-        description: 'Run full test suite (ignore smart selection)'
+        description: Run full test suite and optional validation groups.
         required: false
         type: boolean
         default: false
       enable_security:
-        description: 'Run security tests'
+        description: Run security integration tests.
         required: false
         type: boolean
         default: false
       enable_memory_mode:
-        description: 'Run memory mode tests'
+        description: Run memory mode tests.
         required: false
         type: boolean
         default: false
+
 concurrency:
-  group: ci-${{ github.ref }}
+  group: ci-${{ github.event_name }}-${{ github.ref }}
   cancel-in-progress: true
 
 permissions:
+  actions: read
   contents: read
   pull-requests: write
-  actions: read
+  security-events: write
 
 jobs:
-  # Phase 1: Detect changes for smart test selection
   changes:
     name: Detect Changes
     runs-on: ubuntu-latest
     outputs:
-      # Simplified boolean outputs - dorny/paths-filter returns 'true'/'false' strings
       code: ${{ steps.filter.outputs.code }}
       docs: ${{ steps.filter.outputs.docs }}
-      affected_tests: ${{ steps.affected.outputs.tests || 'all' }}
+      docs_links: ${{ steps.filter.outputs.docs_links }}
+      dependency: ${{ steps.filter.outputs.dependency }}
+      pr_security: ${{ steps.filter.outputs.pr_security }}
+      security_tests: ${{ steps.filter.outputs.security_tests }}
+      test_quarantine: ${{ steps.filter.outputs.test_quarantine }}
+      auto_docs_only: ${{ steps.filter.outputs.auto_docs == 'true' && steps.filter.outputs.not_auto_docs == 'false' }}
+      heavy_ci_relevant: ${{ steps.filter.outputs.code == 'true' || steps.filter.outputs.dependency == 'true' }}
     steps:
       - name: Checkout repository
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
-          fetch-depth: 0 # Required for accurate change detection
+          fetch-depth: 2
 
       - name: Detect changed file paths
-        uses: dorny/paths-filter@de90cc6fb38fc0963ad72b210f1f284cd68cea36 # v3.0.2
         id: filter
+        uses: dorny/paths-filter@fbd0ab8f3e69293af611ebaee6363fc25e6d187d # v4.0.1
         with:
-          # Output format: 'true'/'false' strings for each filter
-          filters: |
-            code:
-              - '**/*.ts'
-              - '**/*.tsx'
-              - '**/*.js'
-              - '**/*.jsx'
-              - 'package*.json'
-              - 'package-lock.json'
-              - '.github/workflows/**'
-              - 'server/**'
-              - 'client/**'
-              - 'shared/**'
-              - 'scripts/**'
-              - '!scripts/validation/**'
-              - 'tests/**'
-            docs:
-              - '**/*.md'
-              - 'docs/**'
-              - '.github/*.md'
-              - 'scripts/validation/**'
-              - '!CHANGELOG.md'
+          filters: .github/path-filters.yml
 
-      - name: Detect affected tests
-        id: affected
-        if: github.event_name == 'pull_request' && steps.filter.outputs.code == 'true'
-        run: |
-          # Smart test detection - only run tests affected by changes
-          AFFECTED=$(node scripts/test-smart.mjs --list-only 2>/dev/null || echo "all")
-          echo "tests=${AFFECTED}" >> $GITHUB_OUTPUT
-
-  # Phase 2: Setup and compile TypeScript once with caching
-  setup:
+  docs-link-check:
+    name: Documentation Links
     needs: changes
-    if: needs.changes.outputs.code == 'true' || github.event.inputs.run_full_suite == 'true'
-    name: Setup & Build Cache
+    if: needs.changes.outputs.docs_links == 'true'
     runs-on: ubuntu-latest
-    timeout-minutes: 5
-    outputs:
-      cache-key: ${{ steps.cache-key.outputs.key }}
+    timeout-minutes: 3
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
-      - uses: actions/setup-node@v4
+      - name: Setup Node environment
+        uses: ./.github/actions/setup-node-env
         with:
-          node-version: '20.19.0'
-          cache: 'npm'
+          restore-tool-cache: 'false'
 
-      - name: Generate cache key
-        id: cache-key
-        run: |
-          echo "key=tsc-${{ hashFiles('**/*.ts', '**/*.tsx', '**/tsconfig*.json', 'package-lock.json') }}" >> $GITHUB_OUTPUT
+      - name: Check documentation links
+        run: npm run docs:check-links
 
-      - name: Cache TypeScript build
-        id: tsc-cache
-        uses: actions/cache@v4
-        with:
-          path: |
-            .tsbuildinfo.*
-            **/*.tsbuildinfo
-            node_modules/.cache
-            coverage/
-          key: ${{ steps.cache-key.outputs.key }}
-          restore-keys: |
-            tsc-
-
-      - name: Install dependencies (retry on transient network failure)
-        run: |
-          npm ci --prefer-offline --no-audit || \
-          npm ci --prefer-offline --no-audit || \
-          npm ci --prefer-offline --no-audit
-
-      - name: TypeScript baseline check
-        run: |
-          # Use baseline checking to allow baselined errors (482 known errors in .tsc-baseline.json)
-          # This prevents CI failures from pre-existing type issues while enforcing no new errors
-          npm run baseline:check
-
-      - name: Upload build artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: tsbuild
-          path: |
-            .tsbuildinfo.*
-            **/*.tsbuildinfo
-          retention-days: 1
-
-  # Phase 3: Parallel checks (type checking and linting)
   check:
     name: Check ${{ matrix.job }}
-    needs: [changes, setup]
-    if: needs.changes.outputs.code == 'true' || github.event.inputs.run_full_suite == 'true'
+    needs: changes
+    if: |
+      needs.changes.outputs.heavy_ci_relevant == 'true' ||
+      github.event.inputs.run_full_suite == 'true' ||
+      github.event.inputs.enable_security == 'true' ||
+      github.event.inputs.enable_memory_mode == 'true' ||
+      (
+        needs.changes.outputs.auto_docs_only != 'true' &&
+        (
+          needs.changes.outputs.security_tests == 'true' ||
+          (github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'run:security')) ||
+          (github.ref == 'refs/heads/main' && contains(github.event.head_commit.message, '[memory]'))
+        )
+      )
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 15
     strategy:
       fail-fast: false
       matrix:
-        job: [client, server, shared, lint, unit-fast]
+        job: [typecheck, lint, unit-fast]
     steps:
-      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+      - name: Checkout repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
-      - uses: actions/setup-node@39370e3970a6d050c480ffad4ff0ed4d3fdee5af
-        with:
-          node-version: '20.19.0'
-          cache: 'npm'
+      - name: Setup Node environment
+        uses: ./.github/actions/setup-node-env
 
-      - name: Restore TypeScript cache
-        uses: actions/cache@v4
-        with:
-          path: |
-            .tsbuildinfo.*
-            **/*.tsbuildinfo
-            node_modules/.cache
-          key: ${{ needs.setup.outputs.cache-key }}
-
-      - name: Install dependencies (retry on transient network failure)
-        run: |
-          npm ci --prefer-offline --no-audit || \
-          npm ci --prefer-offline --no-audit || \
-          npm ci --prefer-offline --no-audit
-
-      - name: Download build artifacts (best effort)
-        id: download_tsbuild
-        uses: actions/download-artifact@v4
-        continue-on-error: true
-        with:
-          name: tsbuild
-
-      - name: Retry build artifact download on transient network failure
-        if: steps.download_tsbuild.outcome == 'failure'
-        uses: actions/download-artifact@v4
-        continue-on-error: true
-        with:
-          name: tsbuild
-
-      - name: Run check
+      - name: Run ${{ matrix.job }}
         env:
           NODE_OPTIONS: --max-old-space-size=4096
         run: |
           case "${{ matrix.job }}" in
-            client|server|shared)
-              # Use baseline checking instead of raw tsc to respect .tsc-baseline.json
-              # This prevents CI failures from the 482 baselined errors while catching new issues
+            typecheck)
               npm run baseline:check
               ;;
             lint)
               npm run lint
-              npm run guardrails:check
               ;;
             unit-fast)
               npm run test:unit -- --bail=1 --reporter=dot || npm run test:quick
               ;;
           esac
 
-  # Phase 4A: Smart test execution for PRs
   test-affected:
     name: Test (Affected Only)
     needs: [changes, check]
     if: |
-      github.event_name == 'pull_request' && 
-      needs.changes.outputs.code == 'true' &&
+      github.event_name == 'pull_request' &&
+      needs.changes.outputs.heavy_ci_relevant == 'true' &&
       github.event.inputs.run_full_suite != 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 15
@@ -228,7 +145,6 @@ jobs:
           --health-retries 5
         ports:
           - 5432:5432
-
       redis:
         image: redis:7-alpine
         options: >-
@@ -238,69 +154,53 @@ jobs:
           --health-retries 5
         ports:
           - 6379:6379
-
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           fetch-depth: 0
 
-      - uses: actions/setup-node@v4
-        with:
-          node-version: '20.19.0'
-          cache: 'npm'
-
-      - name: Cache test results
-        uses: actions/cache@v4
-        with:
-          path: |
-            coverage/
-            .vitest-cache/
-          key: test-affected-${{ github.sha }}
-          restore-keys: |
-            test-affected-
-
-      - run: npm ci --prefer-offline --no-audit
+      - name: Setup Node environment
+        uses: ./.github/actions/setup-node-env
 
       - name: Setup database
         run: npm run db:push
         env:
           DATABASE_URL: postgresql://postgres:postgres@localhost:5432/test
 
+      - name: Install Playwright
+        run: npx playwright install --with-deps chromium
+
       - name: Run affected tests
         run: |
           npm run test:affected || npm run test:smart || npm run test:quick
+          npm run test:scenario-release-gate
         env:
-          NODE_ENV: test
           DATABASE_URL: postgresql://postgres:postgres@localhost:5432/test
+          NODE_ENV: test
           REDIS_URL: redis://localhost:6379
           TZ: UTC
 
-  # Phase 4B: Full test matrix for main branch
   test-full:
     name: Test ${{ matrix.group }}
     needs: [changes, check]
     if: |
       (github.ref == 'refs/heads/main' || github.event.inputs.run_full_suite == 'true') &&
-      needs.changes.outputs.code == 'true'
+      (
+        needs.changes.outputs.heavy_ci_relevant == 'true' ||
+        github.event.inputs.run_full_suite == 'true' ||
+        github.event.inputs.enable_security == 'true' ||
+        github.event.inputs.enable_memory_mode == 'true'
+      )
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 35
     strategy:
       fail-fast: false
       matrix:
-        include:
-          - group: unit
-            needs-db: false
-            needs-redis: false
-          - group: integration
-            needs-db: true
-            needs-redis: true
-          - group: e2e
-            needs-db: true
-            needs-redis: true
-
+        group: [unit, integration, e2e, validate-core]
     services:
       postgres:
-        image: ${{ matrix.needs-db && 'postgres:16-alpine' || '' }}
+        image: postgres:16-alpine
         env:
           POSTGRES_USER: postgres
           POSTGRES_PASSWORD: postgres
@@ -312,9 +212,8 @@ jobs:
           --health-retries 5
         ports:
           - 5432:5432
-
       redis:
-        image: ${{ matrix.needs-redis && 'redis:7-alpine' || '' }}
+        image: redis:7-alpine
         options: >-
           --health-cmd "redis-cli ping"
           --health-interval 10s
@@ -322,29 +221,15 @@ jobs:
           --health-retries 5
         ports:
           - 6379:6379
-
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
-      - uses: actions/setup-node@v4
-        with:
-          node-version: '20.19.0'
-          cache: 'npm'
-
-      - name: Cache test results
-        uses: actions/cache@v4
-        with:
-          path: |
-            coverage/
-            .vitest-cache/
-          key: test-${{ matrix.group }}-${{ github.sha }}
-          restore-keys: |
-            test-${{ matrix.group }}-
-
-      - run: npm ci --prefer-offline --no-audit
+      - name: Setup Node environment
+        uses: ./.github/actions/setup-node-env
 
       - name: Setup database
-        if: matrix.needs-db
+        if: matrix.group == 'integration' || matrix.group == 'e2e' || matrix.group == 'validate-core'
         run: npm run db:push
         env:
           DATABASE_URL: postgresql://postgres:postgres@localhost:5432/test
@@ -360,33 +245,39 @@ jobs:
               npm run test:unit
               ;;
             integration)
+              # vitest.config.int.ts explicitly includes the scenario release gate
+              # while excluding Docker-only testcontainers proofs from this path.
               npm run test:integration
               ;;
             e2e)
               npm run test:e2e:smoke || npm run test:smoke
               ;;
+            validate-core)
+              npm run validate:core
+              ;;
           esac
         env:
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/test
           NODE_ENV: test
-          DATABASE_URL: ${{ matrix.needs-db && 'postgresql://postgres:postgres@localhost:5432/test' || '' }}
-          REDIS_URL: ${{ matrix.needs-redis && 'redis://localhost:6379' || '' }}
+          REDIS_URL: redis://localhost:6379
           TZ: UTC
 
-  # Phase 5: Build validation with dynamic bundle guard
   build:
     name: Build Production
-    needs: [setup, check]
+    needs: [changes, check]
+    if: |
+      needs.changes.outputs.heavy_ci_relevant == 'true' ||
+      github.event.inputs.run_full_suite == 'true' ||
+      github.event.inputs.enable_security == 'true' ||
+      github.event.inputs.enable_memory_mode == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
-      - uses: actions/setup-node@v4
-        with:
-          node-version: '20.19.0'
-          cache: 'npm'
-
-      - run: npm ci --prefer-offline --no-audit
+      - name: Setup Node environment
+        uses: ./.github/actions/setup-node-env
 
       - name: Build production bundle
         run: npm run build
@@ -396,83 +287,175 @@ jobs:
       - name: Bundle size check
         run: npm run bundle:check || true
 
-  # Conditional: Security tests (label or input triggered)
-  security-tests:
-    name: Security Tests
-    needs: [changes, setup]
+  dependency-validation:
+    name: Dependency Validation (Linux)
+    needs: changes
     if: |
-      contains(fromJson(toJson(github.event.pull_request.labels)).*.name, 'run:security') ||
-      github.event.inputs.enable_security == 'true'
+      github.event.inputs.run_full_suite == 'true' ||
+      (needs.changes.outputs.auto_docs_only != 'true' && needs.changes.outputs.dependency == 'true')
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 12
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
-      - uses: actions/setup-node@v4
+      - name: Setup Node environment
+        uses: ./.github/actions/setup-node-env
         with:
-          node-version: '20.19.0'
-          cache: 'npm'
+          restore-tool-cache: 'false'
 
-      - run: npm ci --prefer-offline --no-audit
+      - name: Toolchain sanity check
+        run: |
+          node -v | grep '^v20.19.0$'
+          npm -v | grep '^10.9.2$'
 
-      - name: Run security audit
-        run: npm audit --audit-level=moderate
+      - name: Verify lockfile and dev dependencies
+        run: bash scripts/verify-lockfile.sh
 
-      - name: OWASP dependency check
-        uses: dependency-check/Dependency-Check_Action@main
-        with:
-          project: 'updog'
-          path: '.'
-          format: 'HTML'
-        continue-on-error: true
+      - name: Run quick doctor
+        run: npm run doctor:quick
 
-  # Conditional: Memory mode tests
-  memory-mode:
-    name: Memory Mode Tests
-    needs: [changes, setup]
+      - name: Production dependency audit
+        run: npm audit --omit=dev --audit-level=high
+
+  pr-light-security:
+    name: PR Light Security
+    needs: changes
     if: |
-      (github.ref == 'refs/heads/main' && contains(github.event.head_commit.message, '[memory]')) ||
-      github.event.inputs.enable_memory_mode == 'true'
+      github.event.inputs.enable_security == 'true' ||
+      (needs.changes.outputs.auto_docs_only != 'true' && needs.changes.outputs.pr_security == 'true')
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
-      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+      - name: Checkout repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
-      - uses: actions/setup-node@39370e3970a6d050c480ffad4ff0ed4d3fdee5af
+      - name: Setup Node environment
+        uses: ./.github/actions/setup-node-env
         with:
-          node-version: '20.19.0'
-          cache: 'npm'
+          restore-tool-cache: 'false'
 
-      - run: npm ci --prefer-offline --no-audit
+      - name: Production dependency audit
+        run: npm audit --omit=dev --audit-level=high
+
+      - name: Trivy filesystem scan
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: fs
+          scan-ref: .
+          format: table
+          severity: CRITICAL,HIGH
+          exit-code: '1'
+          ignore-unfixed: true
+
+  security-tests:
+    name: Security Integration Tests
+    needs: [changes, check]
+    if: |
+      (
+        github.event.inputs.enable_security == 'true' ||
+        (
+          needs.changes.outputs.auto_docs_only != 'true' &&
+          (
+            needs.changes.outputs.security_tests == 'true' ||
+            (github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'run:security'))
+          )
+        )
+      )
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: test
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+      redis:
+        image: redis:7-alpine
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 6379:6379
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Setup Node environment
+        uses: ./.github/actions/setup-node-env
+
+      - name: Setup database
+        run: npm run db:push
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/test
+
+      - name: Run security integration tests
+        run: npm run test:security
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/test
+          NODE_ENV: test
+          REDIS_URL: redis://localhost:6379
+          TZ: UTC
+
+  memory-mode:
+    name: Memory Mode Tests
+    needs: [changes, check]
+    if: |
+      (
+        github.event.inputs.enable_memory_mode == 'true' ||
+        (
+          needs.changes.outputs.auto_docs_only != 'true' &&
+          github.ref == 'refs/heads/main' &&
+          contains(github.event.head_commit.message, '[memory]')
+        )
+      )
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Setup Node environment
+        uses: ./.github/actions/setup-node-env
 
       - name: Run memory mode tests
         run: |
           npm run test:memory
           npm run verify:no-redis
         env:
-          REDIS_URL: memory://
           ENABLE_QUEUES: 0
+          REDIS_URL: memory://
 
-  # Governance guards
   guards:
     name: Governance Guards
     needs: changes
     if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
-          # The guards job only inspects files and changed-file metadata.
-          # A shallow fetch is enough and is more resilient when GitHub has
-          # transient fetch/packfile failures during checkout.
-          fetch-depth: 2
-          fetch-tags: false
+          fetch-depth: 0
 
-      - name: Validate Badge URLs
+      - name: Setup Node environment
+        uses: ./.github/actions/setup-node-env
+        with:
+          restore-tool-cache: 'false'
+
+      - name: Validate badge references
         run: |
-          echo "🔍 Validating badge references..."
-
-          # Use same filtering as badge-audit script
+          echo "Validating badge references..."
           node <<'EOF'
           const fs = require('fs');
           const path = require('path');
@@ -487,49 +470,41 @@ jobs:
 
           function cleanContent(content) {
             let cleaned = content;
-            IGNORE_PATTERNS.forEach(pattern => {
-              cleaned = cleaned.replace(pattern, '');
-            });
+            for (const pattern of IGNORE_PATTERNS) cleaned = cleaned.replace(pattern, '');
             return cleaned;
           }
 
-          const BADGE_PATTERN = /workflows\/([^\/\)]+\.yml)/g;
-
-          let broken = [];
-
+          const broken = [];
+          const skipDirs = new Set(['node_modules', 'archive', '_archive', '.git']);
           function scanDir(dir) {
-            fs.readdirSync(dir, {withFileTypes: true}).forEach(entry => {
+            for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
               const fullPath = path.join(dir, entry.name);
-
-              // Skip node_modules, archive dirs (historical docs), and _archive
-              const skipDirs = ['node_modules', 'archive', '_archive'];
-              if (entry.isDirectory() && !skipDirs.some(s => entry.name.includes(s))) {
+              if (entry.isDirectory() && !skipDirs.has(entry.name)) {
                 scanDir(fullPath);
               } else if (entry.isFile() && entry.name.endsWith('.md')) {
-                const content = fs.readFileSync(fullPath, 'utf8');
-                const cleaned = cleanContent(content);
-
-                const matches = [...cleaned.matchAll(BADGE_PATTERN)];
-                matches.forEach(match => {
+                const matches = [...cleanContent(fs.readFileSync(fullPath, 'utf8')).matchAll(/workflows\/([^\/\)]+\.yml)/g)];
+                for (const match of matches) {
                   const workflow = match[1];
                   if (!fs.existsSync(`.github/workflows/${workflow}`)) {
-                    broken.push({file: fullPath, workflow});
+                    broken.push({ file: fullPath, workflow });
                   }
-                });
+                }
               }
-            });
+            }
           }
-
           scanDir('.');
-
           if (broken.length > 0) {
             console.log('[FAIL] Found broken badge references:');
-            broken.forEach(b => console.log(`  ${b.file}: workflows/${b.workflow}`));
+            for (const item of broken) console.log(`  ${item.file}: workflows/${item.workflow}`);
             process.exit(1);
           }
-
           console.log('[PASS] All badge references valid');
           EOF
+
+      - name: Archive and large-file guard
+        run: |
+          node scripts/control-plane/git-safety.mjs archive-guard "${{ github.event.pull_request.base.sha }}...${{ github.event.pull_request.head.sha }}"
+          node scripts/control-plane/git-safety.mjs pre-push "${{ github.event.pull_request.base.sha }}" "${{ github.event.pull_request.head.sha }}"
 
       - name: Feature flags guard
         id: flags-guard
@@ -540,7 +515,7 @@ jobs:
 
       - name: Check for perf budget changes
         id: perf-files
-        uses: tj-actions/changed-files@v45
+        uses: tj-actions/changed-files@v47
         with:
           files: |
             **/*.perf-budget.json
@@ -550,79 +525,270 @@ jobs:
         id: perf-guard
         if: steps.perf-files.outputs.any_changed == 'true'
         run: |
-          LABELS='${{ toJson(github.event.pull_request.labels) }}'
-          HAS_APPROVAL=$(echo "$LABELS" | jq -r 'map(select(.name == "approved:perf-budget-change")) | length > 0')
-          if [[ "$HAS_APPROVAL" != "true" ]]; then
+          labels='${{ toJson(github.event.pull_request.labels) }}'
+          has_approval=$(echo "$labels" | jq -r 'map(select(.name == "approved:perf-budget-change")) | length > 0')
+          if [[ "$has_approval" != "true" ]]; then
             echo "[FAIL] Performance budget changes require 'approved:perf-budget-change' label"
             exit 1
           fi
 
       - name: Comment guard results
         if: always()
-        uses: actions/github-script@v7
+        uses: actions/github-script@v9
         with:
           script: |
+            const marker = '<!-- ci-unified-guards -->';
             const flagsBlocked = "${{ steps.flags-guard.outcome }}" === "failure";
             const perfBlocked = "${{ steps.perf-guard.outcome }}" === "failure";
+            if (!flagsBlocked && !perfBlocked) return;
 
-            if (flagsBlocked || perfBlocked) {
-              let comment = "## [BLOCKED] Governance Guards\n\n";
-              if (flagsBlocked) comment += "[FAIL] **Feature flags changes blocked** - requires approval labels\n";
-              if (perfBlocked) comment += "[FAIL] **Performance budget changes blocked** - requires approval\n";
-              comment += "\nSee job logs for details.";
-              
-              await github.rest.issues.createComment({
+            let body = `${marker}\n## [BLOCKED] Governance Guards\n\n`;
+            if (flagsBlocked) body += "[FAIL] Feature flag changes require approval labels.\n";
+            if (perfBlocked) body += "[FAIL] Performance budget changes require the approved:perf-budget-change label.\n";
+            body += "\nSee job logs for details.";
+
+            const { data: comments } = await github.rest.issues.listComments({
+              issue_number: context.payload.pull_request.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+            });
+            const existing = comments.find(comment => comment.user.type === 'Bot' && comment.body.includes(marker));
+            if (existing) {
+              await github.rest.issues.updateComment({
+                comment_id: existing.id,
                 owner: context.repo.owner,
                 repo: context.repo.repo,
+                body,
+              });
+            } else {
+              await github.rest.issues.createComment({
                 issue_number: context.payload.pull_request.number,
-                body: comment
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                body,
               });
             }
 
-  # Final gate status
+  quality-summary:
+    name: Code Quality Metrics
+    needs: [changes, check]
+    if: github.event_name == 'pull_request' && needs.changes.outputs.heavy_ci_relevant == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Count quality metrics
+        id: metrics
+        run: |
+          any_count=$(grep -rE ":\s*any\b" client server shared --include="*.ts" --include="*.tsx" 2>/dev/null | wc -l | xargs || echo "0")
+          disable_count=$(grep -rE "eslint-disable(-next-line|-line)?" client server shared --include="*.ts" --include="*.tsx" 2>/dev/null | wc -l | xargs || echo "0")
+          {
+            echo "any_count=$any_count"
+            echo "disable_count=$disable_count"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Comment PR with metrics
+        uses: actions/github-script@v9
+        with:
+          script: |
+            const marker = '<!-- ci-unified-quality-metrics -->';
+            const body = `${marker}
+            ## Code Quality Metrics
+
+            | Metric | Current |
+            | --- | ---: |
+            | any annotations | ${{ steps.metrics.outputs.any_count }} |
+            | eslint-disable comments | ${{ steps.metrics.outputs.disable_count }} |
+
+            Blocking lint and typecheck results are reported by CI Unified.`;
+            const { data: comments } = await github.rest.issues.listComments({
+              issue_number: context.payload.pull_request.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+            });
+            const existing = comments.find(comment => comment.user.type === 'Bot' && comment.body.includes(marker));
+            if (existing) {
+              await github.rest.issues.updateComment({
+                comment_id: existing.id,
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                body,
+              });
+            } else {
+              await github.rest.issues.createComment({
+                issue_number: context.payload.pull_request.number,
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                body,
+              });
+            }
+
   gate:
     name: CI Gate Status
-    needs: [check, test-affected, test-full, build, guards]
+    needs:
+      - changes
+      - docs-link-check
+      - check
+      - test-affected
+      - test-full
+      - build
+      - dependency-validation
+      - pr-light-security
+      - security-tests
+      - memory-mode
+      - guards
     if: always()
     runs-on: ubuntu-latest
     steps:
       - name: Determine gate status
         id: status
         run: |
-          # For PRs, check test-affected; for main, check test-full
-          if [[ "${{ github.event_name }}" == "pull_request" ]]; then
-            TEST_RESULT="${{ needs.test-affected.result }}"
-          else
-            TEST_RESULT="${{ needs.test-full.result }}"
+          fail=0
+
+          changes_result="${{ needs.changes.result }}"
+          auto_docs_only="${{ needs.changes.outputs.auto_docs_only }}"
+          heavy_ci_relevant="${{ needs.changes.outputs.heavy_ci_relevant }}"
+          run_full_suite="${{ github.event.inputs.run_full_suite }}"
+          enable_security="${{ github.event.inputs.enable_security }}"
+          enable_memory_mode="${{ github.event.inputs.enable_memory_mode }}"
+          is_pr="${{ github.event_name == 'pull_request' }}"
+          docs_link_result="${{ needs.docs-link-check.result }}"
+          check_result="${{ needs.check.result }}"
+          build_result="${{ needs.build.result }}"
+          guards_result="${{ needs.guards.result }}"
+          dependency_result="${{ needs.dependency-validation.result }}"
+          pr_security_result="${{ needs.pr-light-security.result }}"
+          security_tests_result="${{ needs.security-tests.result }}"
+          memory_result="${{ needs.memory-mode.result }}"
+
+          heavy_expected=false
+          if [[ "$heavy_ci_relevant" == "true" || "$run_full_suite" == "true" || "$enable_security" == "true" || "$enable_memory_mode" == "true" ]]; then
+            heavy_expected=true
           fi
 
-          if [[ "${{ needs.check.result }}" != "success" || 
-                "$TEST_RESULT" != "success" || 
-                "${{ needs.build.result }}" != "success" ]]; then
-            echo "CI Gate Failed"
-            echo "Check: ${{ needs.check.result }}"
-            echo "Test: $TEST_RESULT"
-            echo "Build: ${{ needs.build.result }}"
+          check_expected="$heavy_expected"
+          build_expected="$heavy_expected"
+
+          if [[ "${{ github.event_name }}" == "pull_request" && "$run_full_suite" != "true" ]]; then
+            test_result="${{ needs.test-affected.result }}"
+            test_expected="$heavy_ci_relevant"
+          else
+            test_result="${{ needs.test-full.result }}"
+            test_expected="$heavy_expected"
+            if [[ "${{ github.ref }}" != "refs/heads/main" && "$run_full_suite" != "true" ]]; then
+              test_expected=false
+            fi
+          fi
+
+          guards_expected="$is_pr"
+          docs_link_expected="${{ needs.changes.outputs.docs_links == 'true' }}"
+          dependency_expected="${{ github.event.inputs.run_full_suite == 'true' || (needs.changes.outputs.auto_docs_only != 'true' && needs.changes.outputs.dependency == 'true') }}"
+          pr_security_expected="${{ github.event.inputs.enable_security == 'true' || (needs.changes.outputs.auto_docs_only != 'true' && needs.changes.outputs.pr_security == 'true') }}"
+          security_tests_expected="${{ github.event.inputs.enable_security == 'true' || (needs.changes.outputs.auto_docs_only != 'true' && (needs.changes.outputs.security_tests == 'true' || (github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'run:security')))) }}"
+          memory_expected="${{ github.event.inputs.enable_memory_mode == 'true' || (needs.changes.outputs.auto_docs_only != 'true' && github.ref == 'refs/heads/main' && contains(github.event.head_commit.message, '[memory]')) }}"
+          if [[ "$check_expected" != "true" ]]; then
+            if [[ "$security_tests_expected" == "true" || "$memory_expected" == "true" ]]; then
+              check_expected=true
+            fi
+          fi
+
+          if [[ "$changes_result" != "success" ]]; then
+            echo "Change detection failed: $changes_result"
+            fail=1
+          fi
+
+          require_result() {
+            local name="$1"
+            local result="$2"
+            local expected="$3"
+
+            if [[ "$expected" == "true" && "$result" != "success" ]]; then
+              echo "$name failed or skipped: $result"
+              fail=1
+            elif [[ "$expected" != "true" && "$result" != "skipped" ]]; then
+              echo "$name had unexpected result: $result"
+              fail=1
+            fi
+          }
+
+          require_result "Documentation links" "$docs_link_result" "$docs_link_expected"
+          require_result "Check" "$check_result" "$check_expected"
+          require_result "Test" "$test_result" "$test_expected"
+          require_result "Build" "$build_result" "$build_expected"
+          require_result "Guards" "$guards_result" "$guards_expected"
+          require_result "Dependency validation" "$dependency_result" "$dependency_expected"
+          require_result "PR light security" "$pr_security_result" "$pr_security_expected"
+          require_result "Security tests" "$security_tests_result" "$security_tests_expected"
+          require_result "Memory mode" "$memory_result" "$memory_expected"
+
+          {
+            echo "## CI Gate Inputs"
+            echo ""
+            echo "| Job | Result | Expected |"
+            echo "| --- | --- | --- |"
+            echo "| documentation-links | $docs_link_result | $docs_link_expected |"
+            echo "| check | $check_result | $check_expected |"
+            echo "| tests | $test_result | $test_expected |"
+            echo "| build | $build_result | $build_expected |"
+            echo "| guards | $guards_result | $guards_expected |"
+            echo "| dependency-validation | $dependency_result | $dependency_expected |"
+            echo "| pr-light-security | $pr_security_result | $pr_security_expected |"
+            echo "| security-tests | $security_tests_result | $security_tests_expected |"
+            echo "| memory-mode | $memory_result | $memory_expected |"
+            echo "| heavy-ci-relevant | $heavy_ci_relevant | informational |"
+            echo "| auto-docs-only | $auto_docs_only | informational |"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+          if [[ "$fail" -ne 0 ]]; then
+            echo "result=failure" >> "$GITHUB_OUTPUT"
             exit 1
           fi
-          echo "[PASS] CI Gate Passed"
+
+          echo "result=success" >> "$GITHUB_OUTPUT"
 
       - name: Comment PR status
         if: github.event_name == 'pull_request'
-        uses: actions/github-script@v7
+        uses: actions/github-script@v9
         with:
           script: |
-            const status = "${{ steps.status.outcome }}";
-            const statusIcon = status === "success" ? "[PASS]" : "[FAIL]";
-            const testType = "${{ needs.test-affected.result }}" ? "affected" : "full";
+            const marker = '<!-- ci-unified-summary -->';
+            const body = `${marker}
+            ## CI Summary
 
-            await github.rest.issues.createComment({
+            | Job | Result |
+            | --- | --- |
+            | Documentation links | ${{ needs.docs-link-check.result }} |
+            | Check | ${{ needs.check.result }} |
+            | Affected tests | ${{ needs.test-affected.result }} |
+            | Full tests | ${{ needs.test-full.result }} |
+            | Build | ${{ needs.build.result }} |
+            | Dependency validation | ${{ needs.dependency-validation.result }} |
+            | PR light security | ${{ needs.pr-light-security.result }} |
+            | Security tests | ${{ needs.security-tests.result }} |
+            | Memory mode | ${{ needs.memory-mode.result }} |
+            | Guards | ${{ needs.guards.result }} |
+
+            Gate result: ${{ steps.status.outputs.result }}`;
+            const { data: comments } = await github.rest.issues.listComments({
+              issue_number: context.payload.pull_request.number,
               owner: context.repo.owner,
               repo: context.repo.repo,
-              issue_number: context.payload.pull_request.number,
-              body: `${statusIcon} **CI Summary**
-              - Checks: ${{ needs.check.result }}
-              - Tests (${testType}): ${{ needs.test-affected.result || needs.test-full.result || 'skipped' }}
-              - Build: ${{ needs.build.result }}
-              `
             });
+            const existing = comments.find(comment => comment.user.type === 'Bot' && comment.body.includes(marker));
+            if (existing) {
+              await github.rest.issues.updateComment({
+                comment_id: existing.id,
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                body,
+              });
+            } else {
+              await github.rest.issues.createComment({
+                issue_number: context.payload.pull_request.number,
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                body,
+              });
+            }

@@ -36,7 +36,7 @@ const {
 } = vi.hoisted(() => {
   const execAsyncMock = vi.fn();
   const socketServerInstances: MockSocketServer[] = [];
-  const SocketIOServerMock = vi.fn(() => {
+  const SocketIOServerMock = vi.fn(function () {
     const server = new MockSocketServer();
     socketServerInstances.push(server);
     return server;
@@ -118,7 +118,8 @@ describe('dev dashboard websocket', () => {
   });
 
   it('emits typed metric snapshots on connection and request', async () => {
-    const { default: DevDashboardWebSocket } = await import('../../../server/websocket/dev-dashboard');
+    const { default: DevDashboardWebSocket } =
+      await import('../../../server/websocket/dev-dashboard');
     const instance = new DevDashboardWebSocket({} as HTTPServer);
     const socketServer = socketServerInstances[0];
     const socket = createSocket();
@@ -145,7 +146,8 @@ describe('dev dashboard websocket', () => {
   });
 
   it('broadcasts test execution events', async () => {
-    const { default: DevDashboardWebSocket } = await import('../../../server/websocket/dev-dashboard');
+    const { default: DevDashboardWebSocket } =
+      await import('../../../server/websocket/dev-dashboard');
     new DevDashboardWebSocket({} as HTTPServer);
     const socketServer = socketServerInstances[0];
     const socket = createSocket();

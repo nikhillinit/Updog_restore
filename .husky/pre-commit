@@ -5,6 +5,10 @@ PATH="$REPO_ROOT/node_modules/.bin:$PATH"
 
 echo "[PRE-COMMIT] Running checks..."
 
+# Block archive-like paths and newly added oversized files.
+echo "[CHECK] Running archive and large-file guard..."
+node scripts/control-plane/git-safety.mjs archive-guard
+
 # Check for emoji in staged files (exclude legacy CHANGELOG and emoji documentation)
 echo "[CHECK] Scanning for emojis..."
 EMOJI_FILES=$(git diff --cached --name-only | grep -E '\.(md|js|mjs|ts|tsx|jsx)$' | grep -v -E '(CHANGELOG\.md|cheatsheets/emoji-free-documentation\.md|HANDOFF-|PROJECT-PHOENIX-COMPREHENSIVE-STRATEGY\.md|\.claude/agents/)' || true)
@@ -42,17 +46,7 @@ if [ -n "$SCHEMA_FILES" ]; then
 fi
 
 echo "[CHECK] Running staged-file lint and format..."
-git diff --cached --name-only -z --diff-filter=ACMR -- '*.ts' '*.tsx' '*.js' '*.jsx' \
-  | xargs -0 -r eslint --fix --max-warnings 0 --cache --no-warn-ignored
-git diff --cached --name-only -z --diff-filter=ACMR -- '*.ts' '*.tsx' '*.js' '*.jsx' \
-  | xargs -0 -r node node_modules/prettier/bin/prettier.cjs --write
-git diff --cached --name-only -z --diff-filter=ACMR -- '*.ts' '*.tsx' '*.js' '*.jsx' \
-  | xargs -0 -r git add --
-
-git diff --cached --name-only -z --diff-filter=ACMR -- '*.json' '*.md' '*.yml' '*.yaml' \
-  | xargs -0 -r node node_modules/prettier/bin/prettier.cjs --write
-git diff --cached --name-only -z --diff-filter=ACMR -- '*.json' '*.md' '*.yml' '*.yaml' \
-  | xargs -0 -r git add --
+npx lint-staged
 
 # Optional: AI code review (set AI_REVIEW_ENABLED=1 to enable)
 if [ "$AI_REVIEW_ENABLED" = "1" ]; then

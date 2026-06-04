@@ -166,7 +166,13 @@ export class ConstructionForecastCalculator {
     };
 
     // Extract projected metrics (final quarter)
-    const lastIdx = jCurvePath.tvpi.length - 1;
+    const lastIdx =
+      Math.min(
+        jCurvePath.tvpi.length,
+        jCurvePath.dpi.length,
+        jCurvePath.nav.length,
+        jCurvePath.calls.length
+      ) - 1;
     const tvpiFinal = jCurvePath.tvpi[lastIdx];
     const dpiFinal = jCurvePath.dpi[lastIdx];
     const navFinal = jCurvePath.nav[lastIdx];

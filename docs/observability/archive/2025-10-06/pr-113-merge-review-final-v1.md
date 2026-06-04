@@ -33,7 +33,7 @@ This PR **combines two unrelated features** that must be separated before merge:
 - ❌ **Main branch** still has OLD jwt.ts without RS256 support
 - ✅ PR description accurately describes what's ON THE BRANCH (not what's merged)
 
-**This means:** The review document ([pr-113-review.md](pr-113-review.md)) was written assuming the PR branch code, but main branch hasn't been updated yet.
+**This means:** The review document ([pr-113-review.md](pr-113-review-v1.md)) was written assuming the PR branch code, but main branch hasn't been updated yet.
 
 ---
 
@@ -522,7 +522,7 @@ BUNDLE_SIZE_BUDGET: 450KB  # Increase from 400KB (justify in PR comment)
 
 - **PR:** https://github.com/nikhillinit/Updog_restore/pull/113
 - **Branch:** `hotfix/jwt-rs256-restoration`
-- **Original Review:** [pr-113-review.md](pr-113-review.md)
+- **Original Review:** [pr-113-review.md](pr-113-review-v1.md)
 - **CI Logs:** https://github.com/nikhillinit/Updog_restore/actions/runs/18249441080
 - **DECISIONS.md:** Architecture decision records
 - **CLAUDE.md:** Project coding conventions

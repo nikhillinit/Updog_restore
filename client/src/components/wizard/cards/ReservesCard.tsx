@@ -114,9 +114,9 @@ export function ReservesCard({
     >
       <div className="space-y-6">
         {/* Explainer */}
-        <div className="flex items-start gap-3 p-4 bg-purple-50 rounded-lg border border-purple-200">
-          <InfoIcon className="h-5 w-5 text-purple-600 flex-shrink-0 mt-0.5" />
-          <div className="text-sm text-purple-900">
+        <div className="flex items-start gap-3 p-4 bg-presson-info/10 rounded-lg border border-presson-info/30">
+          <InfoIcon className="h-5 w-5 text-presson-info flex-shrink-0 mt-0.5" />
+          <div className="text-sm text-presson-info">
             <p className="font-semibold mb-2">Why Reserves Matter</p>
             <p className="leading-relaxed">
               Reserves protect ownership in winning companies. When portfolio companies raise
@@ -128,7 +128,10 @@ export function ReservesCard({
 
         {/* Strategy Selection (Proper Radiogroup) */}
         <div role="radiogroup" aria-labelledby="reserve-strategy-label" className="space-y-3">
-          <label id="reserve-strategy-label" className="block font-semibold text-sm text-gray-900">
+          <label
+            id="reserve-strategy-label"
+            className="block font-semibold text-sm text-pov-charcoal"
+          >
             Reserve Strategy
           </label>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
@@ -143,21 +146,21 @@ export function ReservesCard({
                   onClick={() => updateField('strategy', option.value)}
                   disabled={disabled}
                   type="button"
-                  className={`p-4 rounded-lg border-2 transition-all text-left focus:outline-none focus:ring-2 focus:ring-purple-500 ${
+                  className={`p-4 rounded-lg border-2 transition-all text-left focus:outline-none focus:ring-2 focus:ring-pov-charcoal ${
                     selected
-                      ? 'border-purple-500 bg-purple-100'
-                      : 'border-gray-200 bg-white hover:border-purple-400'
+                      ? 'border-pov-charcoal bg-pov-gray'
+                      : 'border-beige-200 bg-white hover:border-charcoal-500'
                   } ${disabled ? 'opacity-50 cursor-not-allowed' : ''}`}
                 >
                   <div className="text-2xl mb-2">{option.icon}</div>
-                  <p className="font-semibold text-sm text-gray-900">{option.label}</p>
-                  <p className="text-xs text-gray-600 mt-1">{option.description}</p>
+                  <p className="font-semibold text-sm text-pov-charcoal">{option.label}</p>
+                  <p className="text-xs text-charcoal-600 mt-1">{option.description}</p>
                 </button>
               );
             })}
           </div>
           {firstError(errors ?? {}, 'strategy') && (
-            <p className="text-xs text-red-600 font-medium mt-1">
+            <p className="text-xs text-error font-medium mt-1">
               {firstError(errors ?? {}, 'strategy')}
             </p>
           )}
@@ -227,7 +230,7 @@ export function ReservesCard({
 
         {/* Strategy-Specific Settings */}
         {value.strategy === 'proRata' && (
-          <div className="p-4 bg-blue-50 rounded-lg border border-blue-200">
+          <div className="p-4 bg-pov-gray rounded-lg border border-beige-200">
             <EnhancedField
               id="target-reserve-ratio"
               label="Target Reserve Ratio"
@@ -249,7 +252,7 @@ export function ReservesCard({
         )}
 
         {value.strategy === 'selective' && (
-          <div className="p-4 bg-green-50 rounded-lg border border-green-200">
+          <div className="p-4 bg-pov-gray rounded-lg border border-beige-200">
             <EnhancedField
               id="top-performers-pct"
               label="Top Performers %"
@@ -268,21 +271,21 @@ export function ReservesCard({
 
         {/* Quick Stats */}
         {committedCapitalUSD && committedCapitalUSD > 0 && (
-          <div className="grid grid-cols-2 md:grid-cols-3 gap-3 pt-4 border-t border-purple-200">
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-3 pt-4 border-t border-beige-200">
             <div className="text-center p-3 rounded-lg bg-white border">
-              <p className="text-xs text-gray-600 mb-1">Reserves</p>
+              <p className="text-xs text-charcoal-600 mb-1">Reserves</p>
               <p className="font-bold text-lg">{formatUSD(reservesDollars)}</p>
             </div>
 
             <div className="text-center p-3 rounded-lg bg-white border">
-              <p className="text-xs text-gray-600 mb-1">Initial Investments</p>
+              <p className="text-xs text-charcoal-600 mb-1">Initial Investments</p>
               <p className="font-bold text-lg">
                 {formatUSD(Math.max(0, (committedCapitalUSD ?? 0) - reservesDollars))}
               </p>
             </div>
 
             <div className="text-center p-3 rounded-lg bg-white border col-span-2 md:col-span-1">
-              <p className="text-xs text-gray-600 mb-1">Follow-on Multiple</p>
+              <p className="text-xs text-charcoal-600 mb-1">Follow-on Multiple</p>
               <p className="font-bold text-lg">{(value.followOnMultiple ?? 0).toFixed(1)}x</p>
             </div>
           </div>

@@ -34,7 +34,7 @@ import {
   AlertCircle,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import type { PortfolioState } from '@/pages/portfolio-constructor';
+import type { PortfolioStrategy } from '@/pages/portfolio-constructor';
 import { getChartColor } from '@/lib/chart-theme';
 
 interface AllocationBucket {
@@ -52,8 +52,8 @@ interface AllocationBucket {
 }
 
 interface FundStrategyBuilderProps {
-  portfolioState: PortfolioState;
-  onUpdate: (updates: Partial<PortfolioState>) => void;
+  portfolioState: PortfolioStrategy;
+  onUpdate: (updates: Partial<PortfolioStrategy>) => void;
   isCalculating: boolean;
 }
 
@@ -107,10 +107,7 @@ const defaultBuckets: AllocationBucket[] = [
 
 // Removed hardcoded COLORS - now using getChartColor() from chart-theme
 
-export function FundStrategyBuilder({
-  portfolioState,
-  onUpdate,
-}: FundStrategyBuilderProps) {
+export function FundStrategyBuilder({ portfolioState, onUpdate }: FundStrategyBuilderProps) {
   const [buckets, setBuckets] = useState<AllocationBucket[]>(defaultBuckets);
   const [selectedCategory, setSelectedCategory] = useState<
     'sector' | 'stage' | 'geography' | 'risk'
@@ -208,12 +205,12 @@ export function FundStrategyBuilder({
     if (active && payload && payload.length && payload[0]) {
       const data = payload[0].payload;
       return (
-        <div className="bg-white p-3 border border-gray-200 rounded-lg shadow-lg">
-          <p className="font-medium text-gray-900">{data.name}</p>
-          <p className="text-sm text-gray-600">
+        <div className="bg-white p-3 border border-beige-200 rounded-lg shadow-lg">
+          <p className="font-medium text-pov-charcoal">{data.name}</p>
+          <p className="text-sm text-charcoal-600">
             Allocation: <span className="font-medium">{data.value.toFixed(1)}%</span>
           </p>
-          <p className="text-sm text-gray-600">
+          <p className="text-sm text-charcoal-600">
             Amount: <span className="font-medium">${(data.amount / 1000000).toFixed(1)}M</span>
           </p>
         </div>
@@ -273,7 +270,7 @@ export function FundStrategyBuilder({
               {filteredBuckets.map((bucket, index) => (
                 <div
                   key={bucket.id}
-                  className="bg-white border border-gray-200 rounded-lg p-4 transition-all"
+                  className="bg-white border border-beige-200 rounded-lg p-4 transition-all"
                 >
                   <div className="flex items-center space-x-3">
                     <div className="flex flex-col gap-0.5">
@@ -281,7 +278,7 @@ export function FundStrategyBuilder({
                         type="button"
                         onClick={() => moveUp(index)}
                         disabled={index === 0}
-                        className="text-gray-400 hover:text-gray-600 disabled:opacity-30 disabled:cursor-not-allowed p-0.5 rounded hover:bg-gray-100"
+                        className="text-charcoal-400 hover:text-charcoal-600 disabled:opacity-30 disabled:cursor-not-allowed p-0.5 rounded hover:bg-pov-gray"
                         aria-label={`Move ${bucket.name} up`}
                       >
                         <ChevronUp className="w-4 h-4" />
@@ -290,7 +287,7 @@ export function FundStrategyBuilder({
                         type="button"
                         onClick={() => moveDown(index)}
                         disabled={index === filteredBuckets.length - 1}
-                        className="text-gray-400 hover:text-gray-600 disabled:opacity-30 disabled:cursor-not-allowed p-0.5 rounded hover:bg-gray-100"
+                        className="text-charcoal-400 hover:text-charcoal-600 disabled:opacity-30 disabled:cursor-not-allowed p-0.5 rounded hover:bg-pov-gray"
                         aria-label={`Move ${bucket.name} down`}
                       >
                         <ChevronDown className="w-4 h-4" />
@@ -320,7 +317,7 @@ export function FundStrategyBuilder({
                           size="sm"
                           variant="ghost"
                           onClick={() => removeBucket(bucket.id)}
-                          className="text-red-500 hover:text-red-700 h-6 w-6 p-0"
+                          className="text-error hover:text-error-dark h-6 w-6 p-0"
                         >
                           <Trash2 className="w-3 h-3" />
                         </Button>
@@ -344,7 +341,7 @@ export function FundStrategyBuilder({
                         />
 
                         {bucket.constraints && (
-                          <div className="flex items-center space-x-2 text-xs text-gray-500">
+                          <div className="flex items-center space-x-2 text-xs text-charcoal-500">
                             <span>Constraints:</span>
                             <Badge variant="outline" className="text-xs">
                               Min: {bucket.constraints.min}%
@@ -369,10 +366,10 @@ export function FundStrategyBuilder({
                   className={cn(
                     'font-medium',
                     isOverAllocated
-                      ? 'text-red-600'
+                      ? 'text-error'
                       : totalAllocated === 100
-                        ? 'text-green-600'
-                        : 'text-gray-600'
+                        ? 'text-presson-positive'
+                        : 'text-charcoal-600'
                   )}
                 >
                   {totalAllocated.toFixed(1)}%
@@ -380,10 +377,10 @@ export function FundStrategyBuilder({
               </div>
               <Progress
                 value={Math.min(totalAllocated, 100)}
-                className={cn('w-full', isOverAllocated && 'bg-red-100')}
+                className={cn('w-full', isOverAllocated && 'bg-error/10')}
               />
               {isOverAllocated && (
-                <p className="text-xs text-red-600 flex items-center">
+                <p className="text-xs text-error flex items-center">
                   <AlertCircle className="w-3 h-3 mr-1" />
                   Over-allocated by {(totalAllocated - 100).toFixed(1)}%
                 </p>
@@ -449,11 +446,11 @@ export function FundStrategyBuilder({
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <Card className="p-4">
           <div className="flex items-center space-x-3">
-            <div className="p-2 bg-blue-100 rounded-lg">
-              <DollarSign className="w-5 h-5 text-blue-600" />
+            <div className="p-2 bg-presson-info/10 rounded-lg">
+              <DollarSign className="w-5 h-5 text-presson-info" />
             </div>
             <div>
-              <p className="text-sm text-gray-600">Total Allocated</p>
+              <p className="text-sm text-charcoal-600">Total Allocated</p>
               <p className="text-2xl font-bold">
                 $
                 {(filteredBuckets.reduce((sum, b) => sum + b.allocatedAmount, 0) / 1000000).toFixed(
@@ -467,11 +464,11 @@ export function FundStrategyBuilder({
 
         <Card className="p-4">
           <div className="flex items-center space-x-3">
-            <div className="p-2 bg-green-100 rounded-lg">
-              <Target className="w-5 h-5 text-green-600" />
+            <div className="p-2 bg-success/10 rounded-lg">
+              <Target className="w-5 h-5 text-presson-positive" />
             </div>
             <div>
-              <p className="text-sm text-gray-600">Buckets Defined</p>
+              <p className="text-sm text-charcoal-600">Buckets Defined</p>
               <p className="text-2xl font-bold">{filteredBuckets.length}</p>
             </div>
           </div>
@@ -479,12 +476,12 @@ export function FundStrategyBuilder({
 
         <Card className="p-4">
           <div className="flex items-center space-x-3">
-            <div className="p-2 bg-purple-100 rounded-lg">
-              <TrendingUp className="w-5 h-5 text-purple-600" />
+            <div className="p-2 bg-presson-info/10 rounded-lg">
+              <TrendingUp className="w-5 h-5 text-presson-info" />
             </div>
             <div>
-              <p className="text-sm text-gray-600">Allocation Status</p>
-              <p className="text-2xl font-bold text-gray-900">
+              <p className="text-sm text-charcoal-600">Allocation Status</p>
+              <p className="text-2xl font-bold text-pov-charcoal">
                 {totalAllocated === 100 ? 'Complete' : isOverAllocated ? 'Over' : 'Partial'}
               </p>
             </div>

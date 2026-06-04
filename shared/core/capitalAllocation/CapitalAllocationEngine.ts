@@ -479,6 +479,8 @@ function formatOutput(
 
     reserve_balance_over_time: sortedTimeSeries,
 
+    pacing_targets_by_period: [],
+
     remaining_capacity: centsToOutputUnits(remainingCapacityCents, input.unitScale),
     remainingCapacityCents,
 

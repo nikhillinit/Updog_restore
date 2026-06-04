@@ -42,7 +42,9 @@ export const createAllocationsColumns = (
         <ArrowUpDown className="ml-2 h-4 w-4" />
       </Button>
     ),
-    cell: ({ row }) => <div className="font-medium text-gray-900">{row.original.company_name}</div>,
+    cell: ({ row }) => (
+      <div className="font-medium text-pov-charcoal">{row.original.company_name}</div>
+    ),
     sortable: true,
   },
   {
@@ -69,7 +71,7 @@ export const createAllocationsColumns = (
     id: 'stage',
     accessorKey: 'stage',
     header: 'Stage',
-    cell: ({ row }) => <span className="text-gray-600">{row.original.stage}</span>,
+    cell: ({ row }) => <span className="text-charcoal-600">{row.original.stage}</span>,
   },
   {
     id: 'status',
@@ -78,16 +80,16 @@ export const createAllocationsColumns = (
     cell: ({ row }) => {
       const status = row.original.status;
       const statusColors: Record<string, string> = {
-        active: 'bg-green-50 text-green-700 border-green-200',
-        exited: 'bg-blue-50 text-blue-700 border-blue-200',
-        written_off: 'bg-red-50 text-red-700 border-red-200',
-        on_hold: 'bg-yellow-50 text-yellow-700 border-yellow-200',
+        active: 'bg-success/10 text-success-dark border-success/30',
+        exited: 'bg-presson-info/10 text-presson-info border-presson-info/20',
+        written_off: 'bg-error/10 text-error-dark border-error/30',
+        on_hold: 'bg-warning/10 text-warning-dark border-warning/30',
       };
 
       return (
         <Badge
           variant="outline"
-          className={statusColors[status] || 'bg-gray-50 text-gray-700 border-gray-200'}
+          className={statusColors[status] || 'bg-pov-gray text-charcoal-700 border-beige-200'}
         >
           {status.replace('_', ' ')}
         </Badge>
@@ -121,9 +123,9 @@ export const createAllocationsColumns = (
     cell: ({ row }) => {
       const missing = hasMissingAllocationField(row.original, 'deployed_reserves_cents');
       return (
-        <div className="text-right font-medium text-blue-600">
+        <div className="text-right font-medium text-presson-info">
           {missing ? (
-            <span className="text-gray-400 italic">Missing</span>
+            <span className="text-charcoal-400 italic">Missing</span>
           ) : (
             formatCents(row.original.deployed_reserves_cents, { compact: true })
           )}
@@ -147,9 +149,9 @@ export const createAllocationsColumns = (
     cell: ({ row }) => {
       const missing = hasMissingAllocationField(row.original, 'planned_reserves_cents');
       return (
-        <div className="text-right font-medium text-purple-600">
+        <div className="text-right font-medium text-presson-info">
           {missing ? (
-            <span className="text-gray-400 italic">Missing</span>
+            <span className="text-charcoal-400 italic">Missing</span>
           ) : (
             formatCents(row.original.planned_reserves_cents, { compact: true })
           )}
@@ -163,11 +165,11 @@ export const createAllocationsColumns = (
     accessorKey: 'allocation_cap_cents',
     header: 'Allocation Cap',
     cell: ({ row }) => (
-      <div className="text-right font-medium text-gray-700">
+      <div className="text-right font-medium text-charcoal-700">
         {row.original.allocation_cap_cents ? (
           formatCents(row.original.allocation_cap_cents, { compact: true })
         ) : (
-          <span className="text-gray-400 italic">No cap</span>
+          <span className="text-charcoal-400 italic">No cap</span>
         )}
       </div>
     ),
@@ -179,11 +181,11 @@ export const createAllocationsColumns = (
     cell: ({ row }) => {
       const note = row.original.allocation_reason?.trim();
       return note ? (
-        <div className="max-w-xs truncate text-sm text-gray-600" title={note}>
+        <div className="max-w-xs truncate text-sm text-charcoal-600" title={note}>
           {note}
         </div>
       ) : (
-        <span className="text-gray-400 italic">No note</span>
+        <span className="text-charcoal-400 italic">No note</span>
       );
     },
   },
@@ -194,11 +196,11 @@ export const createAllocationsColumns = (
     cell: ({ row }) => {
       const lastUpdated = row.original.last_allocation_at;
       return (
-        <div className="text-sm text-gray-500">
+        <div className="text-sm text-charcoal-500">
           {lastUpdated ? (
             formatDistanceToNow(new Date(lastUpdated), { addSuffix: true })
           ) : (
-            <span className="text-gray-400 italic">Never</span>
+            <span className="text-charcoal-400 italic">Never</span>
           )}
         </div>
       );

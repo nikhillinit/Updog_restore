@@ -1,20 +1,57 @@
 name: CodeQL
+# Triggers always start so this workflow can be a required check; the heavy
+# init/autobuild/analyze sequence is gated on CodeQL-relevant path filters.
+# Schedule and manual dispatches always run the full analysis.
 on:
   push: { branches: [main] }
   pull_request: { branches: [main] }
   schedule: [{ cron: '0 3 * * 1' }]
+  workflow_dispatch:
 permissions:
   actions: read
   contents: read
   security-events: write
 jobs:
-  analyze:
+  changes:
     runs-on: ubuntu-latest
+    outputs:
+      codeql_relevant: ${{ steps.filter.outputs.codeql_relevant == 'true' }}
     steps:
-      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
-      - uses: github/codeql-action/init@v3
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        if: github.event_name != 'schedule' && github.event_name != 'workflow_dispatch'
+        with:
+          fetch-depth: 2
+      - name: Detect changed file paths
+        if: github.event_name != 'schedule' && github.event_name != 'workflow_dispatch'
+        uses: dorny/paths-filter@fbd0ab8f3e69293af611ebaee6363fc25e6d187d # v4.0.1
+        id: filter
+        with:
+          filters: '.github/path-filters.yml'
+
+  analyze:
+    needs: changes
+    if: always()
+    runs-on: ubuntu-latest
+    env:
+      RUN_FULL: ${{ github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' || needs.changes.outputs.codeql_relevant == 'true' }}
+    steps:
+      - name: Verify change detection
+        if: needs.changes.result != 'success'
+        run: |
+          echo "Change detection failed: ${{ needs.changes.result }}" >> "$GITHUB_STEP_SUMMARY"
+          exit 1
+
+      - name: Report fast-path skip
+        if: env.RUN_FULL != 'true'
+        run: |
+          echo "codeql_relevant=false; CodeQL scan skipped." >> "$GITHUB_STEP_SUMMARY"
+          echo "This job stays green so CodeQL can be a required branch check." >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        if: env.RUN_FULL == 'true'
+      - uses: github/codeql-action/init@v4
+        if: env.RUN_FULL == 'true'
         with:
           languages: javascript-typescript
           config-file: ./.github/codeql-config.yml
-      - uses: github/codeql-action/autobuild@v3
-      - uses: github/codeql-action/analyze@v3
+      - uses: github/codeql-action/analyze@v4
+        if: env.RUN_FULL == 'true'

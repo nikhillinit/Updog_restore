@@ -245,9 +245,9 @@ export function EnhancedField({
     <div className={cn('space-y-1.5', className)}>
       {/* Label */}
       {label && (
-        <label htmlFor={inputId} className="block text-sm font-medium text-gray-900">
+        <label htmlFor={inputId} className="block text-sm font-medium text-pov-charcoal">
           {label}
-          {required && <span className="ml-1 text-red-600">*</span>}
+          {required && <span className="ml-1 text-error">*</span>}
         </label>
       )}
 
@@ -267,9 +267,9 @@ export function EnhancedField({
               'w-full h-10 rounded-md border px-3 text-sm outline-none transition-colors',
               'focus:ring-2 focus:ring-offset-1',
               showError
-                ? 'border-red-500 focus:ring-red-500'
-                : 'border-gray-300 focus:ring-blue-500',
-              disabled && 'bg-gray-50 cursor-not-allowed opacity-60'
+                ? 'border-error focus:ring-error'
+                : 'border-charcoal-300 focus:ring-pov-charcoal',
+              disabled && 'bg-pov-gray cursor-not-allowed opacity-60'
             )}
           >
             <option value="">{placeholder ?? 'Select...'}</option>
@@ -297,9 +297,9 @@ export function EnhancedField({
               'w-full h-10 rounded-md border px-3 text-sm outline-none transition-colors',
               'focus:ring-2 focus:ring-offset-1',
               showError
-                ? 'border-red-500 focus:ring-red-500'
-                : 'border-gray-300 focus:ring-blue-500',
-              disabled && 'bg-gray-50 cursor-not-allowed opacity-60',
+                ? 'border-error focus:ring-error'
+                : 'border-charcoal-300 focus:ring-pov-charcoal',
+              disabled && 'bg-pov-gray cursor-not-allowed opacity-60',
               format === 'number' && 'font-mono tabular-nums'
             )}
           />
@@ -308,21 +308,21 @@ export function EnhancedField({
 
       {/* Context Chip (when no error) */}
       {contextChip && !showError && (
-        <p id={helpId} className="text-xs text-gray-500">
+        <p id={helpId} className="text-xs text-charcoal-500">
           {contextChip}
         </p>
       )}
 
       {/* Help Text (when no error) */}
       {helpText && !showError && (
-        <p id={helpId} className="text-xs text-gray-600 leading-relaxed">
+        <p id={helpId} className="text-xs text-charcoal-600 leading-relaxed">
           {helpText}
         </p>
       )}
 
       {/* Error Message */}
       {showError && (
-        <p id={errorId} className="text-xs text-red-600 font-medium">
+        <p id={errorId} className="text-xs text-error font-medium">
           {hasDecimalInUSD ? 'Whole dollars only (no decimals)' : error}
         </p>
       )}

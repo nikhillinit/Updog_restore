@@ -16,6 +16,7 @@ const __dirname = path.dirname(__filename);
 // Import custom rules
 const noHardcodedFundMetrics = require('./eslint-rules/no-hardcoded-fund-metrics.cjs');
 const noDbImportInSkippedTests = require('./eslint-rules/no-db-import-in-skipped-tests.cjs');
+const noGenericQuarantineReason = require('./eslint-rules/no-generic-quarantine-reason.cjs');
 const warnStaleSkips = require('./eslint-rules/warn-stale-skips.cjs');
 const povcSecurityPlugin = require('./tools/eslint-plugin-povc-security/index.cjs');
 
@@ -51,17 +52,17 @@ export default [
       '.vercel/**',
       '.claude/**',
       '.tmp/**',
-      '.omx/tmp/**',
+      '.omx/**',
+      '.worktrees/**',
       'node_modules/**',
       'build/**',
       // Keep tests linted - removed "tests/**"
       'scripts/**',
-      'auto-discovery/**',
       'workers/**',
       'types/**',
       'tools/**',
       'ai-utils/**', // Experimental AI development tools
-      'notebooks/**', // Jupyter notebooks and examples
+      'packages/**', // Local agent packages are outside app validation.
       'server/examples/**', // Server example code
       'server/security/integration-guide.ts', // Reference integration guide, not runtime code
       'server/routes/simulations-guarded.example.ts', // Example-only route wiring
@@ -88,8 +89,6 @@ export default [
       '.migration-backup/**',
       '.backup/**',
       '_archive/**', // Archived obsolete code
-      'packages/*/dist/**',
-      'packages/*/build/**',
       'ml-service/dist/**',
       'check-db.js',
       'test-*.mjs', // Manual test scripts
@@ -111,19 +110,14 @@ export default [
       'artifacts/**',
       '.artifacts/**', // ESLint wave execution tooling scripts
       '.a5c/**',
-      'code-reviewer/**',
-      'dev-automation/**',
       'ai-logs/**',
-      'ai/**',
-      'NotebookLM Skill/**',
-      'PATCHES/**',
       'triage-output/**',
       'performance-results/**',
       'reports/**',
+      'output/**',
       'test-results/**',
       'playwright-report/**',
       'repo/**',
-      'uiux-skill/**',
     ],
   },
   js.configs.recommended,
@@ -172,6 +166,7 @@ export default [
         rules: {
           'no-hardcoded-fund-metrics': noHardcodedFundMetrics,
           'no-db-import-in-skipped-tests': noDbImportInSkippedTests,
+          'no-generic-quarantine-reason': noGenericQuarantineReason,
           'warn-stale-skips': warnStaleSkips,
         },
       },
@@ -355,37 +350,13 @@ export default [
       },
     },
   },
-  // Packages JavaScript files (test runners, examples, etc.)
-  {
-    files: ['packages/**/*.js', 'packages/**/*.mjs'],
-    languageOptions: {
-      ecmaVersion: 'latest',
-      sourceType: 'module',
-      globals: {
-        console: 'readonly',
-        process: 'readonly',
-        Buffer: 'readonly',
-        __dirname: 'readonly',
-        __filename: 'readonly',
-        require: 'readonly',
-        module: 'readonly',
-        exports: 'readonly',
-        global: 'readonly',
-        fetch: 'readonly',
-        setTimeout: 'readonly',
-        clearTimeout: 'readonly',
-        setInterval: 'readonly',
-        clearInterval: 'readonly',
-      },
-    },
-  },
   // API and server files with proper tsconfig
   {
     files: ['api/**/*.ts', 'api/**/*.js', 'server/**/*.ts', 'server/**/*.js'],
     languageOptions: {
       parser: tsParser,
       parserOptions: {
-        project: './tsconfig.eslint.server.json',
+        project: './tsconfig.eslint.json',
         tsconfigRootDir: __dirname,
       },
     },
@@ -429,6 +400,31 @@ export default [
       'custom/warn-stale-skips': 'warn',
     },
   },
+  {
+    files: ['tests/**/*.{ts,tsx}'],
+    ignores: [
+      // Existing quarantine debt is triaged in docs/quarantine/2026-05-28-stabilization-triage.md.
+      'tests/ui-conditionals.test.tsx',
+      'tests/evergreen-validation.test.ts',
+      'tests/unit/reallocation-api.test.ts',
+      'tests/unit/general-info-step.test.tsx',
+      'tests/perf/validator.microbench.test.ts',
+      'tests/integration/ScenarioMatrixCache.integration.test.ts',
+      'tests/integration/scenarioGeneratorWorker.test.ts',
+      'tests/integration/rls-middleware.test.ts',
+      'tests/integration/migration-runner.test.ts',
+      'tests/integration/circuit-breaker-db.test.ts',
+      'tests/integration/cache-monitoring.integration.test.ts',
+      'tests/api/portfolio-route.template.test.ts',
+      'tests/api/deal-pipeline.test.ts',
+      'tests/unit/services/snapshot-service.test.ts',
+      'tests/unit/pages/portfolio-constructor.test.tsx',
+      'tests/unit/database/time-travel-simple.test.ts',
+    ],
+    rules: {
+      'custom/no-generic-quarantine-reason': 'error',
+    },
+  },
   // Security test files - allow testing dangerous patterns
   {
     files: ['tests/unit/security/**/*.ts'],
@@ -450,7 +446,6 @@ export default [
       'server/**/*.ts',
       'client/**/*.ts',
       'client/**/*.tsx',
-      'ai/**/*.ts',
       'workers/**/*.ts',
     ],
     ignores: [

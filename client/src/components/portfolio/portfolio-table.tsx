@@ -24,26 +24,26 @@ export default function PortfolioTable({ companies = [] }: PortfolioTableProps) 
   const getSectorColor = (sector: string) => {
     switch (sector.toLowerCase()) {
       case 'fintech':
-        return 'bg-blue-50 text-blue-700';
+        return 'bg-presson-info/10 text-presson-info';
       case 'healthcare':
-        return 'bg-green-50 text-green-700';
+        return 'bg-success/10 text-success-dark';
       case 'saas':
-        return 'bg-purple-50 text-purple-700';
+        return 'bg-presson-info/10 text-presson-info';
       default:
-        return 'bg-gray-50 text-gray-700';
+        return 'bg-pov-gray text-charcoal-700';
     }
   };
 
   const getStatusColor = (status: string) => {
     switch (status.toLowerCase()) {
       case 'growing':
-        return 'bg-green-50 text-green-700';
+        return 'bg-success/10 text-success-dark';
       case 'scaling':
-        return 'bg-blue-50 text-blue-700';
+        return 'bg-presson-info/10 text-presson-info';
       case 'stable':
-        return 'bg-yellow-50 text-yellow-700';
+        return 'bg-warning/10 text-warning-dark';
       default:
-        return 'bg-gray-50 text-gray-700';
+        return 'bg-pov-gray text-charcoal-700';
     }
   };
 
@@ -71,7 +71,7 @@ export default function PortfolioTable({ companies = [] }: PortfolioTableProps) 
       <Card>
         <CardHeader>
           <div className="flex items-center justify-between">
-            <CardTitle className="text-lg font-semibold text-gray-800">
+            <CardTitle className="text-lg font-semibold text-pov-charcoal">
               Portfolio Companies
             </CardTitle>
             <div className="flex space-x-3">
@@ -87,7 +87,7 @@ export default function PortfolioTable({ companies = [] }: PortfolioTableProps) 
           </div>
         </CardHeader>
         <CardContent>
-          <div className="text-center py-8 text-gray-500">
+          <div className="text-center py-8 text-charcoal-500">
             <p>No portfolio companies to display</p>
           </div>
         </CardContent>
@@ -99,7 +99,9 @@ export default function PortfolioTable({ companies = [] }: PortfolioTableProps) 
     <Card>
       <CardHeader>
         <div className="flex items-center justify-between">
-          <CardTitle className="text-lg font-semibold text-gray-800">Portfolio Companies</CardTitle>
+          <CardTitle className="text-lg font-semibold text-pov-charcoal">
+            Portfolio Companies
+          </CardTitle>
           <div className="flex space-x-3">
             <Button variant="outline" size="sm">
               <Filter className="h-4 w-4 mr-2" />
@@ -116,30 +118,30 @@ export default function PortfolioTable({ companies = [] }: PortfolioTableProps) 
         <div className="overflow-x-auto">
           <table className="w-full">
             <thead>
-              <tr className="border-b border-gray-200">
-                <th className="text-left py-3 px-4 font-medium text-gray-700">Company</th>
-                <th className="text-left py-3 px-4 font-medium text-gray-700">Sector</th>
-                <th className="text-left py-3 px-4 font-medium text-gray-700">Stage</th>
-                <th className="text-left py-3 px-4 font-medium text-gray-700">Tags</th>
-                <th className="text-left py-3 px-4 font-medium text-gray-700">Investment</th>
-                <th className="text-left py-3 px-4 font-medium text-gray-700">Current Value</th>
-                <th className="text-left py-3 px-4 font-medium text-gray-700">Multiple</th>
-                <th className="text-left py-3 px-4 font-medium text-gray-700">Status</th>
+              <tr className="border-b border-beige-200">
+                <th className="text-left py-3 px-4 font-medium text-charcoal-700">Company</th>
+                <th className="text-left py-3 px-4 font-medium text-charcoal-700">Sector</th>
+                <th className="text-left py-3 px-4 font-medium text-charcoal-700">Stage</th>
+                <th className="text-left py-3 px-4 font-medium text-charcoal-700">Tags</th>
+                <th className="text-left py-3 px-4 font-medium text-charcoal-700">Investment</th>
+                <th className="text-left py-3 px-4 font-medium text-charcoal-700">Current Value</th>
+                <th className="text-left py-3 px-4 font-medium text-charcoal-700">Multiple</th>
+                <th className="text-left py-3 px-4 font-medium text-charcoal-700">Status</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-100">
+            <tbody className="divide-y divide-beige-200">
               {companies.map((company) => (
-                <tr key={company.id} className="hover:bg-gray-50 transition-colors cursor-pointer">
+                <tr key={company.id} className="hover:bg-pov-gray transition-colors cursor-pointer">
                   <td className="py-4 px-4">
                     <div className="flex items-center space-x-3">
-                      <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
-                        <span className="text-blue-600 font-medium text-sm">
+                      <div className="w-10 h-10 bg-presson-info/10 rounded-lg flex items-center justify-center">
+                        <span className="text-presson-info font-medium text-sm">
                           {getCompanyInitials(company.name)}
                         </span>
                       </div>
                       <div>
-                        <p className="font-medium text-gray-800">{company.name}</p>
-                        <p className="text-sm text-gray-600">
+                        <p className="font-medium text-pov-charcoal">{company.name}</p>
+                        <p className="text-sm text-charcoal-600">
                           Founded {company.foundedYear || 'N/A'}
                         </p>
                       </div>
@@ -149,7 +151,7 @@ export default function PortfolioTable({ companies = [] }: PortfolioTableProps) 
                     <Badge className={getSectorColor(company.sector)}>{company.sector}</Badge>
                   </td>
                   <td className="py-4 px-4">
-                    <span className="text-gray-700">{company.stage}</span>
+                    <span className="text-charcoal-700">{company.stage}</span>
                   </td>
                   <td className="py-4 px-4">
                     <div className="flex flex-wrap gap-1">
@@ -158,33 +160,33 @@ export default function PortfolioTable({ companies = [] }: PortfolioTableProps) 
                           <Badge
                             key={idx}
                             variant="outline"
-                            className="text-xs bg-blue-50 text-blue-700 border-blue-200"
+                            className="text-xs bg-presson-info/10 text-presson-info border-presson-info/20"
                           >
                             {tag}
                           </Badge>
                         ))
                       ) : (
-                        <span className="text-gray-400 text-sm">No tags</span>
+                        <span className="text-charcoal-400 text-sm">No tags</span>
                       )}
                       {company.dealTags && company.dealTags.length > 3 && (
-                        <Badge variant="outline" className="text-xs bg-gray-50 text-gray-600">
+                        <Badge variant="outline" className="text-xs bg-pov-gray text-charcoal-600">
                           +{company.dealTags.length - 3}
                         </Badge>
                       )}
                     </div>
                   </td>
                   <td className="py-4 px-4">
-                    <span className="font-medium text-gray-800">
+                    <span className="font-medium text-pov-charcoal">
                       {formatCurrency(company.investmentAmount)}
                     </span>
                   </td>
                   <td className="py-4 px-4">
-                    <span className="font-medium text-gray-800">
+                    <span className="font-medium text-pov-charcoal">
                       {company.currentValuation ? formatCurrency(company.currentValuation) : 'N/A'}
                     </span>
                   </td>
                   <td className="py-4 px-4">
-                    <span className="font-medium text-green-600">
+                    <span className="font-medium text-presson-positive">
                       {calculateMultiple(company.currentValuation, company.investmentAmount)}
                     </span>
                   </td>

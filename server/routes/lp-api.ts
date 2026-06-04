@@ -54,6 +54,9 @@ import {
   createLPApiErrorResponse as createErrorResponse,
   respondInvalidCursor,
 } from '../lib/lp-api-helpers';
+import { createRouteLogger } from '../lib/route-logger.js';
+
+const routeLog = createRouteLogger('lp-api');
 
 const router = Router();
 
@@ -82,6 +85,15 @@ const lpLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
 });
+
+function respondNumberParseError(res: Response, error: unknown): boolean {
+  if (!(error instanceof NumberParseError)) {
+    return false;
+  }
+
+  res.status(400).json(createErrorResponse('INVALID_PARAMETER', error.message));
+  return true;
+}
 
 // ============================================================================
 // ROUTES
@@ -134,7 +146,7 @@ router.get(
         fundCount: lpProfile.fundIds.length,
       });
     } catch (error) {
-      console.error('LP profile API error:', sanitizeForLogging(error));
+      routeLog.error('LP profile API error:', sanitizeForLogging(error));
       const duration = endTimer();
       recordLPRequest(endpoint, 'GET', 500, duration);
       recordError(endpoint, 'INTERNAL_ERROR', 500);
@@ -197,7 +209,7 @@ router.get(
 
       return res.json(response);
     } catch (error) {
-      console.error('LP summary API error:', sanitizeForLogging(error));
+      routeLog.error('LP summary API error:', sanitizeForLogging(error));
       const duration = endTimer();
       recordLPRequest(endpoint, 'GET', 500, duration);
       recordError(endpoint, 'INTERNAL_ERROR', 500);
@@ -344,7 +356,7 @@ router.get(
           );
       }
 
-      console.error('Capital account API error:', sanitizeForLogging(error));
+      routeLog.error('Capital account API error:', sanitizeForLogging(error));
       const duration = endTimer();
       recordLPRequest(endpoint, 'GET', 500, duration);
       recordError(endpoint, 'INTERNAL_ERROR', 500);
@@ -443,8 +455,8 @@ router.get(
 
       return res.json(response);
     } catch (error) {
-      if (error instanceof NumberParseError) {
-        return res.status(400).json(createErrorResponse('INVALID_PARAMETER', error.message));
+      if (respondNumberParseError(res, error)) {
+        return;
       }
 
       if (error instanceof z.ZodError) {
@@ -460,7 +472,7 @@ router.get(
           );
       }
 
-      console.error('Fund detail API error:', sanitizeForLogging(error));
+      routeLog.error('Fund detail API error:', sanitizeForLogging(error));
       return res
         .status(500)
         .json(createErrorResponse('INTERNAL_ERROR', 'Failed to fetch fund detail'));
@@ -512,11 +524,11 @@ router.get(
         totalValue: holdings.reduce((sum, h) => sum + h.lpProRataValue, 0),
       });
     } catch (error) {
-      if (error instanceof NumberParseError) {
-        return res.status(400).json(createErrorResponse('INVALID_PARAMETER', error.message));
+      if (respondNumberParseError(res, error)) {
+        return;
       }
 
-      console.error('Holdings API error:', sanitizeForLogging(error));
+      routeLog.error('Holdings API error:', sanitizeForLogging(error));
       return res
         .status(500)
         .json(createErrorResponse('INTERNAL_ERROR', 'Failed to fetch holdings'));
@@ -633,7 +645,7 @@ router.get(
           );
       }
 
-      console.error('Performance API error:', sanitizeForLogging(error));
+      routeLog.error('Performance API error:', sanitizeForLogging(error));
       const duration = endTimer();
       recordLPRequest(endpoint, 'GET', 500, duration);
       recordError(endpoint, 'INTERNAL_ERROR', 500);
@@ -729,7 +741,7 @@ router.get(
           );
       }
 
-      console.error('Benchmark API error:', sanitizeForLogging(error));
+      routeLog.error('Benchmark API error:', sanitizeForLogging(error));
       return res
         .status(500)
         .json(createErrorResponse('INTERNAL_ERROR', 'Failed to fetch benchmark data'));
@@ -765,6 +777,24 @@ router.post(
 
       // Validate request body
       const config = ReportConfigSchema.parse(req.body);
+
+      // SECURITY: LPs may only generate reports for funds they are committed to.
+      // req.lpProfile.fundIds is the cached commitment snapshot from requireLPAccess.
+      const lpFundIds = req.lpProfile?.fundIds ?? [];
+      const unauthorizedFundId = config.fundIds?.find((id) => !lpFundIds.includes(id));
+      if (unauthorizedFundId !== undefined) {
+        const duration = endTimer();
+        recordLPRequest(endpoint, 'POST', 403, duration, lpId);
+        recordError(endpoint, 'FUND_ACCESS_DENIED', 403);
+        return res
+          .status(403)
+          .json(
+            createErrorResponse(
+              'FORBIDDEN',
+              `You do not have access to fund ${unauthorizedFundId}. LPs can only generate reports for funds they have invested in.`
+            )
+          );
+      }
 
       // Create report record
       const reportId = uuidv4();
@@ -802,7 +832,7 @@ router.post(
             '[LP-API] queued report generation'
           );
         } catch (queueError) {
-          console.error(`[LP-API] Failed to queue report ${reportId}:`, queueError);
+          routeLog.error(`[LP-API] Failed to queue report ${reportId}:`, queueError);
           // Report is still created in pending state, can be retried
         }
       } else {
@@ -842,7 +872,7 @@ router.post(
           );
       }
 
-      console.error('Report generation API error:', sanitizeForLogging(error));
+      routeLog.error('Report generation API error:', sanitizeForLogging(error));
       const duration = endTimer();
       recordLPRequest(endpoint, 'POST', 500, duration);
       recordError(endpoint, 'INTERNAL_ERROR', 500);
@@ -898,7 +928,7 @@ router.get(
         total: reports.length,
       });
     } catch (error) {
-      console.error('Reports list API error:', sanitizeForLogging(error));
+      routeLog.error('Reports list API error:', sanitizeForLogging(error));
       return res.status(500).json(createErrorResponse('INTERNAL_ERROR', 'Failed to fetch reports'));
     }
   }
@@ -951,7 +981,7 @@ router.get(
 
       return res.json(reportData);
     } catch (error) {
-      console.error('Report status API error:', sanitizeForLogging(error));
+      routeLog.error('Report status API error:', sanitizeForLogging(error));
       return res
         .status(500)
         .json(createErrorResponse('INTERNAL_ERROR', 'Failed to fetch report status'));
@@ -1059,7 +1089,7 @@ router.get(
         });
       } catch (storageError) {
         // If storage service fails, fall back to direct URL
-        console.warn(
+        routeLog.warn(
           'Storage signed URL generation failed, falling back to direct URL:',
           sanitizeForLogging(storageError)
         );
@@ -1076,7 +1106,7 @@ router.get(
         });
       }
     } catch (error) {
-      console.error('Report download API error:', sanitizeForLogging(error));
+      routeLog.error('Report download API error:', sanitizeForLogging(error));
       return res
         .status(500)
         .json(createErrorResponse('INTERNAL_ERROR', 'Failed to download report'));
@@ -1172,7 +1202,7 @@ router.get(
 
       return res.json(defaultSettings);
     } catch (error) {
-      console.error('Settings GET API error:', sanitizeForLogging(error));
+      routeLog.error('Settings GET API error:', sanitizeForLogging(error));
       const duration = endTimer();
       recordLPRequest(endpoint, 'GET', 500, duration);
       return res
@@ -1241,7 +1271,7 @@ router.put(
           );
       }
 
-      console.error('Settings PUT API error:', sanitizeForLogging(error));
+      routeLog.error('Settings PUT API error:', sanitizeForLogging(error));
       const duration = endTimer();
       recordLPRequest(endpoint, 'PUT', 500, duration);
       return res

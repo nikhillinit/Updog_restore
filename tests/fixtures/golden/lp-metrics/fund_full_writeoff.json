@@ -1,0 +1,76 @@
+{
+  "scenario_id": "fund_full_writeoff",
+  "description": "Loss-mode fund: all remaining NAV is zero after a small interim distribution.",
+  "engine": {
+    "target": "server/services/lp-reporting/metrics-engine.computeMetrics",
+    "current_output_precision": "6dp decimal strings",
+    "requested_golden_precision": "1e-8",
+    "precision_note": "The fixture locks 1e-8 expected values, while the current LP metric-run wire contract serializes ratios and IRR to 6 decimal places. Tests compare current engine output at the documented 1e-6 contract tolerance until the wire contract is widened."
+  },
+  "input": {
+    "fundId": 101,
+    "asOfDate": "2030-12-31",
+    "perspective": "lp_net",
+    "cashFlowEvents": [
+      {
+        "id": 1,
+        "eventType": "lp_capital_call",
+        "amount": "10000000.000000",
+        "eventDate": "2024-01-02",
+        "perspective": "lp_net",
+        "status": "approved"
+      },
+      {
+        "id": 2,
+        "eventType": "lp_distribution",
+        "amount": "1000000.000000",
+        "eventDate": "2025-06-30",
+        "perspective": "lp_net",
+        "status": "approved"
+      }
+    ],
+    "valuationMarks": []
+  },
+  "derivedCapital": {
+    "investable_capital_usd": "10000000.00000000",
+    "total_deployed_usd": "10000000.00000000",
+    "remaining_capital_usd": "0.00000000",
+    "recycled_capital_usd": "0.00000000"
+  },
+  "expected": {
+    "contributionsTotal": "10000000.000000",
+    "distributionsTotal": "1000000.000000",
+    "currentNav": "0.000000",
+    "dpi": "0.10000000",
+    "rvpi": "0.00000000",
+    "tvpi": "0.10000000",
+    "irr": "-0.78629410",
+    "lp_proceeds_usd": "1000000.00",
+    "engine_decimal_strings": {
+      "dpi": "0.100000",
+      "rvpi": "0.000000",
+      "tvpi": "0.100000",
+      "netIrr": "-0.786294",
+      "grossIrr": "-0.786294",
+      "contributionsTotal": "10000000.000000",
+      "distributionsTotal": "1000000.000000",
+      "currentNav": "0.000000"
+    },
+    "tolerances": {
+      "requested_metric": "0.00000001",
+      "current_engine_metric": "0.000001",
+      "money": "0.005"
+    }
+  },
+  "notes": [],
+  "lock": {
+    "locked_at": "2026-05-28T06:36:00.558Z",
+    "inputs_hash": "37b7fb235dfa96c28343102f8693e2e57e564bc3b334729ce5f931f658d9a896",
+    "diagnostics": {
+      "engineVersion": "1.0.0",
+      "decimalPrecision": 6,
+      "excludedFutureMarks": [],
+      "warnings": []
+    }
+  }
+}

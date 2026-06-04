@@ -30,6 +30,7 @@ configuration:
     - 'docs/forecasting/*.md' # Monte Carlo, power law
     - 'cheatsheets/**/*.md'
     - '.claude/**/*.md'
+    - '.claude/**/*.json'
     - '.claude/agents/*.md'
     - '.claude/skills/**/*.md'
     - '.claude/commands/*.md'
@@ -528,19 +529,6 @@ patterns:
     target: 'docs/chaos-engineering/'
     message: 'RLS chaos testing, game day runbooks, monitoring specs'
 
-  # --- Quality Gates ---
-  - id: 'quality_gates'
-    priority: 94
-    category: 'Quality'
-    keywords:
-      - 'gate'
-      - 'quality gate'
-      - 'raci'
-      - 'gate tracking'
-      - 'approval'
-    target: 'docs/gates/'
-    message: 'RACI matrix, gate tracking for releases'
-
   # --- Wizard Implementation ---
   - id: 'wizard'
     priority: 95
@@ -593,7 +581,7 @@ patterns:
       - 'multi-agent'
       - 'orchestration'
     target: 'cheatsheets/agent-architecture.md'
-    secondary: 'packages/bundle-optimization-agents.md'
+    secondary: 'scripts/ai-tools/bundle-analyzer.mjs'
     message: 'Agent framework, BaseAgent class, multi-agent orchestration'
 
   # --- Bundle Optimization ---
@@ -607,8 +595,8 @@ patterns:
       - 'tree shaking'
       - 'code splitting'
       - 'lazy loading'
-    target: 'packages/bundle-optimization-agents.md'
-    message: 'AI-powered bundle optimization, dependency analysis, route optimization'
+    target: 'scripts/ai-tools/bundle-analyzer.mjs'
+    message: 'Package-free bundle analysis, dependency analysis, route optimization'
 
   # --- Troubleshooting (fallback) ---
   - id: 'troubleshooting'
@@ -639,9 +627,10 @@ patterns:
       - 'strategy'
       - 'approach'
       - 'blueprint'
-    target: '.claude/skills/writing-plans.md'
-    skill: 'writing-plans'
-    secondary: '.claude/skills/brainstorming.md'
+    target: 'docs/commands-and-plugins-inventory.md'
+    skill: 'superpowers:writing-plans'
+    message: 'Use the installed Superpowers writing-plans skill; the old repo-local skill file was retired.'
+    secondary: 'docs/commands-and-plugins-inventory.md'
 
   - id: 'brainstorming'
     priority: 102
@@ -652,8 +641,9 @@ patterns:
       - 'explore options'
       - 'alternatives'
       - 'creative'
-    target: '.claude/skills/brainstorming.md'
-    skill: 'brainstorming'
+    target: 'docs/commands-and-plugins-inventory.md'
+    skill: 'superpowers:brainstorming'
+    message: 'Use the installed Superpowers brainstorming skill; the old repo-local skill file was retired.'
 
   - id: 'task_decomposition'
     priority: 103
@@ -679,8 +669,8 @@ patterns:
       - 'new feature'
       - 'add feature'
     target: 'CLAUDE.md'
-    message: 'Start with CLAUDE.md, repo search, docs/INDEX.md, and .claude/DISCOVERY-MAP.md before using writing-plans'
-    skill: 'writing-plans'
+    message: 'Start with CLAUDE.md, repo search, docs/INDEX.md, and .claude/DISCOVERY-MAP.md before using superpowers:writing-plans'
+    skill: 'superpowers:writing-plans'
 
   - id: 'code_exploration'
     priority: 105
@@ -919,6 +909,18 @@ patterns:
     target: '.claude/agents/workflow-orchestrator.md'
     agent: 'workflow-orchestrator'
 
+  - id: 'hermes_dev_coop'
+    priority: 22
+    category: 'Orchestration'
+    keywords:
+      - 'hermes'
+      - 'model co-op'
+      - 'multi-model routing'
+      - 'phase routed'
+      - 'dev brain'
+    target: 'DEV_BRAIN.md'
+    message: 'Hermes phase-routed model co-op charter; config lives in .claude/hermes/model-routing.json'
+
   - id: 'context_management'
     priority: 124
     category: 'Orchestration'
@@ -1001,8 +1003,9 @@ patterns:
       - 'similar to'
       - 'like'
       - 'compare to'
-    target: '.claude/skills/analogical-thinking.md'
-    skill: 'analogical-thinking'
+    target: '.claude/skills/pattern-recognition.md'
+    skill: 'pattern-recognition'
+    message: 'Use pattern-recognition for analogy-style comparison; the old analogical-thinking skill file was retired.'
 
   - id: 'parallel_agents'
     priority: 134
@@ -1012,8 +1015,9 @@ patterns:
       - 'concurrent'
       - 'simultaneously'
       - 'multiple agents'
-    target: '.claude/skills/dispatching-parallel-agents.md'
-    skill: 'dispatching-parallel-agents'
+    target: 'docs/commands-and-plugins-inventory.md'
+    skill: 'superpowers:dispatching-parallel-agents'
+    message: 'Use the installed Superpowers dispatching-parallel-agents skill; the old repo-local skill file was retired.'
 
   - id: 'async_resilience'
     priority: 135

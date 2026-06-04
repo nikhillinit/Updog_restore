@@ -13,6 +13,15 @@ import { db } from '../../../server/db';
 import { fundStateReadService } from '../../../server/services/fund-state-read-service';
 import { fundResultsReadService } from '../../../server/services/fund-results-read-service';
 
+const { getAllScenarioResultsForFundMock, worstScenarioStalenessMock } = vi.hoisted(() => ({
+  getAllScenarioResultsForFundMock: vi.fn(),
+  worstScenarioStalenessMock: vi.fn((states: string[]) => {
+    if (states.includes('STALE_CONFIG')) return 'STALE_CONFIG';
+    if (states.includes('STALE_PUBLISH')) return 'STALE_PUBLISH';
+    return 'CURRENT';
+  }),
+}));
+
 vi.mock('../../../server/db', () => ({
   db: {
     query: {
@@ -35,6 +44,11 @@ vi.mock('../../../server/services/fund-state-read-service', () => ({
   },
 }));
 
+vi.mock('../../../server/services/fund-scenario-calculation-service', () => ({
+  getAllScenarioResultsForFund: getAllScenarioResultsForFundMock,
+  worstScenarioStaleness: worstScenarioStalenessMock,
+}));
+
 const mockDb = db as any;
 const mockFundStateReadService = fundStateReadService as any;
 
@@ -52,6 +66,7 @@ describe('FundResultsReadService', () => {
       size: '100000000',
     });
     mockDb.query.fundConfigs.findFirst.mockResolvedValue(null);
+    getAllScenarioResultsForFundMock.mockResolvedValue({ kind: 'none_exist' });
   });
 
   afterEach(async () => {
@@ -345,7 +360,7 @@ describe('FundResultsReadService', () => {
     }
   });
 
-  it('scenarios section returns unavailable with reasonCode', async () => {
+  it('scenarios section returns unavailable when no scenario sets exist', async () => {
     mockFundStateReadService.getState.mockResolvedValue(lifecycle());
     mockDb.query.fundSnapshots.findFirst
       .mockResolvedValueOnce(reserveSnapshot())
@@ -355,13 +370,85 @@ describe('FundResultsReadService', () => {
 
     expect(result?.sections.scenarios).toEqual({
       status: 'unavailable',
-      reason: 'No authoritative source',
-      reasonCode: 'NO_AUTHORITATIVE_SOURCE',
+      reason: 'No scenario sets exist for this fund',
+      reasonCode: 'SCENARIOS_NONE_EXIST',
     });
+    expect(getAllScenarioResultsForFundMock).toHaveBeenCalledWith(1);
     expect(result?.sections.economics).toEqual({
       status: 'unavailable',
       reason: 'GP economics engine is disabled',
       reasonCode: 'ECONOMICS_DISABLED',
+    });
+  });
+
+  it('scenarios section returns pending when scenario sets exist but none are calculated', async () => {
+    getAllScenarioResultsForFundMock.mockResolvedValue({
+      kind: 'none_calculated',
+      scenarioSetCount: 2,
+    });
+    mockFundStateReadService.getState.mockResolvedValue(lifecycle());
+    mockDb.query.fundSnapshots.findFirst
+      .mockResolvedValueOnce(reserveSnapshot())
+      .mockResolvedValueOnce(pacingSnapshot());
+
+    const result = await fundResultsReadService.getResults(1);
+
+    expect(result?.sections.scenarios).toEqual({
+      status: 'pending',
+      reason: 'Scenario sets exist but have not been calculated',
+      reasonCode: 'SCENARIOS_NONE_CALCULATED',
+    });
+  });
+
+  it('scenarios section returns available summaries with latest calculatedAt and worst staleness', async () => {
+    getAllScenarioResultsForFundMock.mockResolvedValue({
+      kind: 'calculated',
+      sets: [
+        scenarioSetSummary({
+          calculatedAt: '2026-05-26T12:00:00.000Z',
+          staleness: 'CURRENT',
+        }),
+        scenarioSetSummary({
+          scenarioSetId: '00000000-0000-0000-0000-000000000211',
+          name: 'Upside fees',
+          calculatedAt: '2026-05-26T12:30:00.000Z',
+          staleness: 'STALE_PUBLISH',
+        }),
+      ],
+    });
+    mockFundStateReadService.getState.mockResolvedValue(lifecycle());
+    mockDb.query.fundSnapshots.findFirst
+      .mockResolvedValueOnce(reserveSnapshot())
+      .mockResolvedValueOnce(pacingSnapshot());
+
+    const result = await fundResultsReadService.getResults(1);
+
+    expect(result?.sections.scenarios.status).toBe('available');
+    if (result?.sections.scenarios.status === 'available') {
+      expect(result.sections.scenarios.source).toBe('fund_snapshots');
+      expect(result.sections.scenarios).not.toHaveProperty('legacyEvidence');
+      expect(result.sections.scenarios.calculatedAt).toBe('2026-05-26T12:30:00.000Z');
+      expect(result.sections.scenarios.payload.aggregateStaleness).toBe('STALE_PUBLISH');
+      expect(result.sections.scenarios.payload.sets).toHaveLength(2);
+      expect(
+        result.sections.scenarios.payload.sets[0]?.variants[0]?.economicsSummary.finalTvpi
+      ).toBe(1.4);
+    }
+  });
+
+  it('scenarios section fails closed when scenario result loading throws', async () => {
+    getAllScenarioResultsForFundMock.mockRejectedValue(new Error('malformed snapshot'));
+    mockFundStateReadService.getState.mockResolvedValue(lifecycle());
+    mockDb.query.fundSnapshots.findFirst
+      .mockResolvedValueOnce(reserveSnapshot())
+      .mockResolvedValueOnce(pacingSnapshot());
+
+    const result = await fundResultsReadService.getResults(1);
+
+    expect(result?.sections.scenarios).toEqual({
+      status: 'failed',
+      reason: 'Scenario results could not be loaded',
+      reasonCode: 'SCENARIOS_LOAD_FAILED',
     });
   });
 
@@ -821,6 +908,48 @@ function economicsSnapshot(overrides: Record<string, unknown> = {}) {
     snapshotTime: createdAt,
     createdAt,
     configVersion: 1,
+    ...overrides,
+  };
+}
+
+function scenarioSetSummary(overrides: Record<string, unknown> = {}) {
+  return {
+    scenarioSetId: '00000000-0000-0000-0000-000000000111',
+    name: 'Fee sensitivity',
+    calculationMode: 'sync_fee_profile',
+    sourceConfigId: 12,
+    sourceConfigVersion: 4,
+    currentPublishedConfigVersion: 4,
+    calculatedAt: '2026-05-26T12:00:00.000Z',
+    staleness: 'CURRENT',
+    variantCount: 1,
+    variants: [
+      {
+        variantId: '00000000-0000-0000-0000-000000000112',
+        name: 'Lower fee',
+        overrideType: 'fee_profile',
+        economicsSummary: {
+          grossIrr: 0.18,
+          lpNetIrr: 0.14,
+          gpNetIrr: null,
+          totalLpPaidIn: 9_800_000,
+          totalGpCommitmentCalled: 200_000,
+          totalManagementFees: 1_500_000,
+          totalExpenses: 0,
+          totalRecycled: 0,
+          totalLpDistributions: 14_000_000,
+          totalGpInvestmentDistributions: 300_000,
+          totalGpCarryDistributed: 500_000,
+          totalGpFeeIncome: 1_500_000,
+          finalDpi: 0.6,
+          finalRvpi: 0.8,
+          finalTvpi: 1.4,
+          finalClawbackDue: 0,
+          maxEscrowAvailable: 0,
+          netGpCarryAfterClawback: 500_000,
+        },
+      },
+    ],
     ...overrides,
   };
 }

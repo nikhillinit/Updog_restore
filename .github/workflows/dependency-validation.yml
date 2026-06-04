@@ -1,47 +1,34 @@
-name: Dependency Validation
-on: [push, pull_request]
+name: Dependency Validation Windows
+
+on:
+  schedule:
+    - cron: '0 6 * * 1'
+  workflow_dispatch:
 
 jobs:
-  validate:
-    strategy:
-      matrix:
-        os: [ubuntu-latest, windows-latest]
-        node: ['20.19.0']
-    runs-on: ${{ matrix.os }}
-
+  validate-windows:
+    name: Windows dependency validation
+    runs-on: windows-latest
+    timeout-minutes: 20
     steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
+      - uses: actions/checkout@v6
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v6
         with:
-          node-version: ${{ matrix.node }}
-          cache: 'npm'
+          node-version: '20.19.0'
+          cache: npm
 
-      - name: Upgrade npm to match packageManager
-        shell: bash
+      - name: Align npm with packageManager
         run: npm install -g npm@10.9.2
 
-      - name: Toolchain Sanity Check
-        shell: bash
+      - name: Toolchain sanity check
+        shell: pwsh
         run: |
-          node -v | grep 20.19.0
-          npm -v | grep 10.9.2
+          if ((node -v) -ne 'v20.19.0') { throw "Unexpected Node version: $(node -v)" }
+          if ((npm -v) -ne '10.9.2') { throw "Unexpected npm version: $(npm -v)" }
 
-      - name: Disable Husky in CI
-        shell: bash
-        run: git config core.hooksPath /dev/null
+      - name: Install dependencies
+        run: npm ci --prefer-offline --no-audit
 
-      - name: Verify Lockfile & DevDeps
-        shell: bash
-        run: bash scripts/verify-lockfile.sh
-
-      - name: Install Dependencies
-        run: npm ci
-
-      - name: Run Doctor Check
-        run: npm run doctor
-
-      - name: Security Audit (Production Only)
-        run: npm audit --omit=dev --audit-level=high || true
+      - name: Run quick doctor
+        run: npm run doctor:quick

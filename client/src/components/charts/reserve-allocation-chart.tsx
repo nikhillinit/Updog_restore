@@ -18,7 +18,7 @@ export default function ReserveAllocationChart({ fundId }: ReserveAllocationChar
         </CardHeader>
         <CardContent>
           <div className="animate-pulse space-y-4">
-            <div className="h-64 bg-gray-200 rounded"></div>
+            <div className="h-64 bg-pov-gray rounded"></div>
           </div>
         </CardContent>
       </Card>
@@ -32,7 +32,7 @@ export default function ReserveAllocationChart({ fundId }: ReserveAllocationChar
           <CardTitle className="text-lg font-semibold">Reserve Allocations</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="flex items-center justify-center h-64 text-red-500">
+          <div className="flex items-center justify-center h-64 text-error-dark">
             <AlertCircle className="h-6 w-6 mr-2" />
             <span>Error loading reserve data: {error}</span>
           </div>
@@ -70,13 +70,13 @@ export default function ReserveAllocationChart({ fundId }: ReserveAllocationChar
           <CardContent className="pt-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-gray-600 text-sm font-medium">Total Reserves</p>
-                <p className="text-2xl font-bold text-gray-800 mt-1">
+                <p className="text-charcoal-600 text-sm font-medium">Total Reserves</p>
+                <p className="text-2xl font-bold text-pov-charcoal mt-1">
                   ${(totalAllocation / 1000000).toFixed(1)}M
                 </p>
               </div>
-              <div className="w-12 h-12 bg-blue-50 rounded-lg flex items-center justify-center">
-                <TrendingUp className="h-6 w-6 text-blue-500" />
+              <div className="w-12 h-12 bg-pov-gray rounded-lg flex items-center justify-center">
+                <TrendingUp className="h-6 w-6 text-presson-info" />
               </div>
             </div>
           </CardContent>
@@ -86,18 +86,18 @@ export default function ReserveAllocationChart({ fundId }: ReserveAllocationChar
           <CardContent className="pt-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-gray-600 text-sm font-medium">Avg Confidence</p>
-                <p className="text-2xl font-bold text-gray-800 mt-1">
+                <p className="text-charcoal-600 text-sm font-medium">Avg Confidence</p>
+                <p className="text-2xl font-bold text-pov-charcoal mt-1">
                   {(avgConfidence * 100).toFixed(0)}%
                 </p>
                 <div className="flex items-center mt-2">
                   {avgConfidence >= 0.7 ? (
-                    <TrendingUp className="h-4 w-4 text-green-500 mr-1" />
+                    <TrendingUp className="h-4 w-4 text-success-dark mr-1" />
                   ) : (
-                    <TrendingDown className="h-4 w-4 text-orange-500 mr-1" />
+                    <TrendingDown className="h-4 w-4 text-warning-dark mr-1" />
                   )}
                   <span
-                    className={`text-sm font-medium ${avgConfidence >= 0.7 ? 'text-green-600' : 'text-orange-600'}`}
+                    className={`text-sm font-medium ${avgConfidence >= 0.7 ? 'text-success-dark' : 'text-warning-dark'}`}
                   >
                     {avgConfidence >= 0.7 ? 'High confidence' : 'Cold-start mode'}
                   </span>
@@ -111,11 +111,11 @@ export default function ReserveAllocationChart({ fundId }: ReserveAllocationChar
           <CardContent className="pt-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-gray-600 text-sm font-medium">High Confidence</p>
-                <p className="text-2xl font-bold text-gray-800 mt-1">
+                <p className="text-charcoal-600 text-sm font-medium">High Confidence</p>
+                <p className="text-2xl font-bold text-pov-charcoal mt-1">
                   {highConfidenceCount}/{allocationCount}
                 </p>
-                <p className="text-sm text-gray-500 mt-1">
+                <p className="text-sm text-charcoal-500 mt-1">
                   {allocationCount > 0
                     ? ((highConfidenceCount / allocationCount) * 100).toFixed(0)
                     : 0}
@@ -137,21 +137,21 @@ export default function ReserveAllocationChart({ fundId }: ReserveAllocationChar
             {reserveData?.allocations.map((item, index) => (
               <div
                 key={index}
-                className="flex items-center justify-between p-3 bg-gray-50 rounded-lg"
+                className="flex items-center justify-between p-3 bg-pov-gray/50 rounded-lg"
               >
                 <div className="flex-1">
-                  <p className="font-medium text-gray-800">Company {index + 1}</p>
-                  <p className="text-sm text-gray-600">{item.rationale}</p>
+                  <p className="font-medium text-pov-charcoal">Company {index + 1}</p>
+                  <p className="text-sm text-charcoal-600">{item.rationale}</p>
                 </div>
                 <div className="text-right">
-                  <p className="font-semibold text-gray-800">
+                  <p className="font-semibold text-pov-charcoal">
                     ${(item.allocation / 1000000).toFixed(1)}M
                   </p>
                   <div
                     className={`px-2 py-1 rounded-full text-xs font-medium inline-block ${
                       item.confidence >= 0.7
-                        ? 'bg-green-50 text-green-700'
-                        : 'bg-orange-50 text-orange-700'
+                        ? 'bg-success/10 text-success-dark'
+                        : 'bg-warning/10 text-warning-dark'
                     }`}
                   >
                     {(item.confidence * 100).toFixed(0)}% confidence

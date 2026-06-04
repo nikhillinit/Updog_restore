@@ -211,19 +211,19 @@ export default function CapTableCalculator() {
   const getShareholderTypeColor = (type: string) => {
     switch (type) {
       case 'founder':
-        return 'bg-blue-100 text-blue-800';
+        return 'bg-[#cfe7df] text-[#145c43]';
       case 'employee':
-        return 'bg-green-100 text-green-800';
+        return 'bg-[#ddd6f5] text-[#4f4381]';
       case 'investor':
-        return 'bg-purple-100 text-purple-800';
+        return 'bg-[#f2d7dc] text-[#8d1f2f]';
       case 'safe':
-        return 'bg-orange-100 text-orange-800';
+        return 'bg-[#efd9bd] text-[#7a4a00]';
       case 'note':
-        return 'bg-red-100 text-red-800';
+        return 'bg-pov-gray text-charcoal-700';
       case 'option-pool':
-        return 'bg-gray-100 text-gray-800';
+        return 'bg-pov-gray text-charcoal-700';
       default:
-        return 'bg-gray-100 text-gray-800';
+        return 'bg-pov-gray text-charcoal-700';
     }
   };
 
@@ -233,7 +233,7 @@ export default function CapTableCalculator() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold">Cap Table Calculator</h1>
-          <p className="text-gray-600">Model SAFE/Note conversions and next round dilution</p>
+          <p className="text-charcoal-600">Model SAFE/Note conversions and next round dilution</p>
         </div>
         <div className="flex items-center space-x-2">
           <Button variant="outline">
@@ -252,9 +252,9 @@ export default function CapTableCalculator() {
         <Card>
           <CardContent className="p-4">
             <div className="flex items-center space-x-2">
-              <Users className="h-5 w-5 text-blue-600" />
+              <Users className="h-5 w-5 text-charcoal-600" />
               <div>
-                <p className="text-sm text-gray-600">Fully Diluted Shares</p>
+                <p className="text-sm text-charcoal-600">Fully Diluted Shares</p>
                 <p className="text-lg font-bold">{formatShares(metrics.fullyDilutedShares)}</p>
               </div>
             </div>
@@ -264,9 +264,9 @@ export default function CapTableCalculator() {
         <Card>
           <CardContent className="p-4">
             <div className="flex items-center space-x-2">
-              <DollarSign className="h-5 w-5 text-green-600" />
+              <DollarSign className="h-5 w-5 text-charcoal-600" />
               <div>
-                <p className="text-sm text-gray-600">Price per Share</p>
+                <p className="text-sm text-charcoal-600">Price per Share</p>
                 <p className="text-lg font-bold">{formatCurrency(metrics.pricePerShare)}</p>
               </div>
             </div>
@@ -276,9 +276,9 @@ export default function CapTableCalculator() {
         <Card>
           <CardContent className="p-4">
             <div className="flex items-center space-x-2">
-              <TrendingUp className="h-5 w-5 text-purple-600" />
+              <TrendingUp className="h-5 w-5 text-charcoal-600" />
               <div>
-                <p className="text-sm text-gray-600">Post-Money Valuation</p>
+                <p className="text-sm text-charcoal-600">Post-Money Valuation</p>
                 <p className="text-lg font-bold">{formatCurrency(metrics.postMoneyValuation)}</p>
               </div>
             </div>
@@ -288,9 +288,9 @@ export default function CapTableCalculator() {
         <Card>
           <CardContent className="p-4">
             <div className="flex items-center space-x-2">
-              <Percent className="h-5 w-5 text-orange-600" />
+              <Percent className="h-5 w-5 text-charcoal-600" />
               <div>
-                <p className="text-sm text-gray-600">SAFEs/Notes Total</p>
+                <p className="text-sm text-charcoal-600">SAFEs/Notes Total</p>
                 <p className="text-lg font-bold">{formatCurrency(totalSAFEsNotes)}</p>
               </div>
             </div>
@@ -315,7 +315,7 @@ export default function CapTableCalculator() {
                 type="number"
                 value={preMoneyValuation}
                 onChange={(e) => setPreMoneyValuation(Number(e.target.value))}
-                className="border-yellow-300 bg-yellow-50"
+                className="border-beige-300 bg-beige-100"
               />
             </div>
 
@@ -326,7 +326,7 @@ export default function CapTableCalculator() {
                 type="number"
                 value={roundSize}
                 onChange={(e) => setRoundSize(Number(e.target.value))}
-                className="border-yellow-300 bg-yellow-50"
+                className="border-beige-300 bg-beige-100"
               />
             </div>
 
@@ -337,7 +337,7 @@ export default function CapTableCalculator() {
                 type="number"
                 value={optionPoolIncrease}
                 onChange={(e) => setOptionPoolIncrease(Number(e.target.value))}
-                className="border-yellow-300 bg-yellow-50"
+                className="border-beige-300 bg-beige-100"
               />
             </div>
 
@@ -345,15 +345,15 @@ export default function CapTableCalculator() {
 
             <div className="space-y-2 text-sm">
               <div className="flex justify-between">
-                <span className="text-gray-600">New Investor Shares:</span>
+                <span className="text-charcoal-600">New Investor Shares:</span>
                 <span className="font-medium">{formatShares(metrics.newInvestorShares)}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-gray-600">Price per Share:</span>
+                <span className="text-charcoal-600">Price per Share:</span>
                 <span className="font-medium">{formatCurrency(metrics.pricePerShare)}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-gray-600">Post-Money:</span>
+                <span className="text-charcoal-600">Post-Money:</span>
                 <span className="font-medium">{formatCurrency(metrics.postMoneyValuation)}</span>
               </div>
             </div>
@@ -427,7 +427,9 @@ export default function CapTableCalculator() {
               <div className="flex items-center justify-between">
                 <div>
                   <CardTitle>Pro Forma Cap Table</CardTitle>
-                  <p className="text-sm text-gray-600">Pro Forma Cap Table after conversions.</p>
+                  <p className="text-sm text-charcoal-600">
+                    Pro Forma Cap Table after conversions.
+                  </p>
                 </div>
                 <div className="flex items-center space-x-2">
                   <Button variant="outline" size="sm" onClick={() => setConsolidate(!consolidate)}>
@@ -469,7 +471,7 @@ export default function CapTableCalculator() {
                   ))}
 
                   {/* Summary Rows */}
-                  <TableRow className="border-t-2 border-gray-300">
+                  <TableRow className="border-t-2 border-beige-200">
                     <TableCell className="font-bold">Total Shares Excluding Options</TableCell>
                     <TableCell className="text-right font-bold">
                       {formatShares(
@@ -503,7 +505,7 @@ export default function CapTableCalculator() {
                     <TableCell></TableCell>
                   </TableRow>
 
-                  <TableRow className="border-t border-gray-300">
+                  <TableRow className="border-t border-beige-200">
                     <TableCell className="font-bold">Total</TableCell>
                     <TableCell className="text-right font-bold">
                       {formatShares(proFormaCapTable.reduce((sum, sh) => sum + sh.shares, 0))}

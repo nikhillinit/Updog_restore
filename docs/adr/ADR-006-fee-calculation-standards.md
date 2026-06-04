@@ -602,12 +602,12 @@ reporting).
 
 | Calculation Type                 | Use Decimal.js? | Rationale                                        |
 | -------------------------------- | --------------- | ------------------------------------------------ |
-| **Monetary amounts** ($M values) | ✅ YES          | Precision required for LP reporting              |
-| **Basis calculations**           | ✅ YES          | Affects fee amounts (e.g., FMV, unrealized cost) |
-| **Cumulative fees**              | ✅ YES          | Errors compound over time                        |
-| **Percentage rates** (2%, 1.5%)  | ❌ NO           | Native Math sufficient (not cumulative)          |
-| **IRR calculations**             | ❌ NO           | Excel uses native float (see ADR-005)            |
-| **UI display**                   | ❌ NO           | Convert to number for formatting                 |
+| **Monetary amounts** ($M values) | YES             | Precision required for LP reporting              |
+| **Basis calculations**           | YES             | Affects fee amounts (e.g., FMV, unrealized cost) |
+| **Cumulative fees**              | YES             | Errors compound over time                        |
+| **Percentage rates** (2%, 1.5%)  | NO              | Native Math sufficient (not cumulative)          |
+| **IRR calculations**             | NO              | Excel uses native float (see ADR-005)            |
+| **UI display**                   | NO              | Convert to number for formatting                 |
 
 **Implementation:**
 
@@ -998,69 +998,68 @@ const validationResult = validateFeeStructure(feeProfile);
 
 ### Positive
 
-✅ **Schema-Driven Flexibility**: Six fee basis types support diverse fund
-structures without code changes
+- **Schema-Driven Flexibility**: Six fee basis types support diverse fund
+  structures without code changes
 
-✅ **Type Safety**: Discriminated unions prevent runtime errors for
-basis-specific calculations
+- **Type Safety**: Discriminated unions prevent runtime errors for
+  basis-specific calculations
 
-✅ **Multi-Tier Step-Downs**: Accurately model modern fund economics (2-4 tiers
-common)
+- **Multi-Tier Step-Downs**: Accurately model modern fund economics (2-4 tiers
+  common)
 
-✅ **Fee Recycling Support**: Cap-based approach enables pro-forma forecasting
-with `anticipatedRecycling` flag
+- **Fee Recycling Support**: Cap-based approach enables pro-forma forecasting
+  with `anticipatedRecycling` flag
 
-✅ **Precision Guarantee**: Decimal.js for monetary calculations eliminates
-floating-point errors
+- **Precision Guarantee**: Decimal.js for monetary calculations eliminates
+  floating-point errors
 
-✅ **DRY Integration**: Reuses waterfall module for carry calculations (single
-source of truth)
+- **DRY Integration**: Reuses waterfall module for carry calculations (single
+  source of truth)
 
-✅ **Comprehensive Metrics**: Fee drag (bps), MOIC impact, and fee load provide
-LP/GP transparency
+- **Comprehensive Metrics**: Fee drag (bps), MOIC impact, and fee load provide
+  LP/GP transparency
 
-✅ **Validation Guardrails**: Market-standard warnings guide users without
-blocking exotic structures
+- **Validation Guardrails**: Market-standard warnings guide users without
+  blocking exotic structures
 
-✅ **Performance**: <5ms per quarter calculation (<200ms for 40-quarter
-timeline)
+- **Performance**: <5ms per quarter calculation (<200ms for 40-quarter timeline)
 
-✅ **Excel Explainability**: Not strict parity (unlike XIRR), but calculations
-are auditable and match GP expectations
+- **Excel Explainability**: Not strict parity (unlike XIRR), but calculations
+  are auditable and match GP expectations
 
 ### Negative
 
-⚠️ **Schema Complexity**: Six basis types + multi-tier + recycling = steep
-learning curve for new developers
+- **WARNING: Schema Complexity**: Six basis types + multi-tier + recycling =
+  steep learning curve for new developers
 
-⚠️ **Decimal.js Overhead**: 8x slower than native Math (but acceptable for
-<200ms budgets)
+- **WARNING: Decimal.js Overhead**: 8x slower than native Math (but acceptable
+  for <200ms budgets)
 
-⚠️ **European Waterfall Removed**: `called_capital_net_of_returns` basis
-supported, but European carry calculation not fully implemented (see ADR-004)
+- **WARNING: European Waterfall Removed**: `called_capital_net_of_returns` basis
+  supported, but European carry calculation not fully implemented (see ADR-004)
 
-⚠️ **Validation Maintenance**: Market standards evolve (must update validation
-thresholds periodically)
+- **WARNING: Validation Maintenance**: Market standards evolve (must update
+  validation thresholds periodically)
 
-⚠️ **Timeline Complexity**: `FeeBasisTimeline` generation requires quarterly
-context updates (CPU-intensive for Monte Carlo)
+- **WARNING: Timeline Complexity**: `FeeBasisTimeline` generation requires
+  quarterly context updates (CPU-intensive for Monte Carlo)
 
-⚠️ **No Tax Integration**: Fee calculations ignore tax withholding (LPs must
-model separately)
+- **WARNING: No Tax Integration**: Fee calculations ignore tax withholding (LPs
+  must model separately)
 
 ### Neutral
 
-🔵 **Migration Path Required**: Existing funds using legacy `fees.ts` must
-migrate to `FeeProfile` schema
+- **NOTE: Migration Path Required**: Existing funds using legacy `fees.ts` must
+  migrate to `FeeProfile` schema
 
-🔵 **UI Changes Needed**: Multi-tier configuration requires redesigned fee setup
-wizard
+- **NOTE: UI Changes Needed**: Multi-tier configuration requires redesigned fee
+  setup wizard
 
-🔵 **Testing Surface Area**: 50+ test cases required for comprehensive coverage
-(basis types × tier scenarios × edge cases)
+- **NOTE: Testing Surface Area**: 50+ test cases required for comprehensive
+  coverage (basis types × tier scenarios × edge cases)
 
-🔵 **Documentation Burden**: ADR-006 spans 550 lines (but necessary for complex
-domain)
+- **NOTE: Documentation Burden**: ADR-006 spans 550 lines (but necessary for
+  complex domain)
 
 ---
 
@@ -1070,8 +1069,8 @@ domain)
   analysis uses XIRR for net IRR calculations
 - **[ADR-004: Waterfall Names](./ADR-004-waterfall-names.md)**: European
   waterfall removed (affects `called_capital_net_of_returns` basis)
-- **[ADR-003: Waterfall Distribution System](./ADR-003-waterfall-distribution-system.md)**:
-  Carry calculations reuse waterfall module
+- **ADR-003: Waterfall Distribution System**: Carry calculations reuse waterfall
+  module
 - **[ADR-001: Evaluator Metrics](./0001-evaluator-metrics.md)**: Fee calculation
   performance tracked in evaluator framework
 
@@ -1087,10 +1086,9 @@ domain)
   [`shared/lib/fund-math.ts`](../../shared/lib/fund-math.ts)
 - **Code (Waterfall)**:
   [`client/src/lib/waterfall.ts`](../../client/src/lib/waterfall.ts)
-- **Tests (Schema)**:
-  [`shared/schemas/__tests__/fee-profile.test.ts`](../../shared/schemas/__tests__/fee-profile.test.ts)
+- **Tests (Schema)**: `shared/schemas/__tests__/fee-profile.test.ts`
 - **Tests (Calculations)**:
-  [`client/src/lib/__tests__/fee-calculations.test.ts`](../../client/src/lib/__tests__/fee-calculations.test.ts)
+  [`tests/unit/fee-calculations.test.ts`](../../tests/unit/fee-calculations.test.ts)
 
 **External References**:
 

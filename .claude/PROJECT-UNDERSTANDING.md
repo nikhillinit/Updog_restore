@@ -17,8 +17,9 @@ Before starting any work, read these four source files in order:
 1. **[CAPABILITIES.md](../CAPABILITIES.md)** - Quick reference, check-first
    discovery (85% complete)
 2. **[docs/PHOENIX-SOT/execution-plan-v2.34.md](../docs/PHOENIX-SOT/execution-plan-v2.34.md)** -
-   Phoenix validation-first execution plan (current)
-   _(Note: PROJECT-PHOENIX-COMPREHENSIVE-STRATEGY.md archived - see docs/archive/phoenix/)_
+   Phoenix validation-first execution plan (current) _(Note:
+   PROJECT-PHOENIX-COMPREHENSIVE-STRATEGY.md archived - see
+   docs/archive/phoenix/)_
 3. **[AI-WORKFLOW-COMPLETE-GUIDE.md](../AI-WORKFLOW-COMPLETE-GUIDE.md)** - 28
    agents, orchestration patterns
 4. **[COMPREHENSIVE-WORKFLOW-GUIDE.md](../COMPREHENSIVE-WORKFLOW-GUIDE.md)** -
@@ -166,24 +167,17 @@ curated package
 
 ## Complete Infrastructure Inventory
 
-### Packages (15+ Total)
+### Package-Backed Agents
 
-**Production (3):**
+Batch 8 removed the local package-backed agent source from `packages/` after
+live reference scans found no active app, script, test, workflow, or root config
+dependency. Current agent guidance lives in `.claude/agents/`,
+`.claude/commands/`, and `scripts/ai-tools/`.
 
-- `@povc/agent-core` - Core AI agent framework with BaseAgent,
-  ConversationMemory, PromptCache, AIRouter
-- `@povc/test-repair-agent` - Autonomous test failure detection and repair
-- `@updog/memory-manager` - mem0-inspired memory system (PostgreSQL + pgvector +
-  Redis)
-
-**Experimental (5):**
-
-- `@povc/codex-review-agent` - Real-time code review with MCP multi-AI consensus
-- `@updog/multi-agent-fleet` - Multi-agent coordination framework
-- `@updog/dependency-analysis-agent` - Intelligent dependency management
-- `@updog/bundle-optimization-agent` - Autonomous bundle size optimization
-- `@updog/route-optimization-agent` - Automated route optimization and lazy
-  loading
+Previously tracked package names such as `@povc/agent-core`,
+`@povc/test-repair-agent`, `@updog/memory-manager`, `@povc/codex-review-agent`,
+and `@updog/bundle-optimization-agent` are now historical references recoverable
+from git history.
 
 **Archived (3):**
 
@@ -217,8 +211,6 @@ curated package
 
 **Root-Level Utilities:**
 
-- Extended thinking migration (`check-thinking-migration-readiness.mjs`,
-  `run-migration.ts`)
 - Documentation automation (`extract-code-references.mjs`,
   `sync-capabilities.mjs`)
 - Stage normalization (`normalize-stages.ts`, `normalize-stages-batched.ts`)

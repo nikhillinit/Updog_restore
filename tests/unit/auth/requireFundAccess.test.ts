@@ -69,7 +69,7 @@ describe('requireFundAccess Middleware', () => {
       expect(statusMock).not.toHaveBeenCalled();
     });
 
-    it('should handle fundId 0 as a valid numeric ID', () => {
+    it('should reject fundId 0 as invalid', () => {
       req.params = { fundId: '0' };
       req.user = {
         id: 'user-1',
@@ -83,8 +83,12 @@ describe('requireFundAccess Middleware', () => {
 
       requireFundAccess(req as Request, res as Response, next);
 
-      expect(next).toHaveBeenCalledOnce();
-      expect(statusMock).not.toHaveBeenCalled();
+      expect(statusMock).toHaveBeenCalledWith(400);
+      expect(jsonMock).toHaveBeenCalledWith({
+        error: 'Bad Request',
+        message: 'Invalid fund ID',
+      });
+      expect(next).not.toHaveBeenCalled();
     });
   });
 
@@ -121,6 +125,28 @@ describe('requireFundAccess Middleware', () => {
         ip: '127.0.0.1',
         userAgent: 'test',
         fundIds: [1, 2, 3],
+      };
+
+      requireFundAccess(req as Request, res as Response, next);
+
+      expect(statusMock).toHaveBeenCalledWith(400);
+      expect(jsonMock).toHaveBeenCalledWith({
+        error: 'Bad Request',
+        message: 'Invalid fund ID',
+      });
+      expect(next).not.toHaveBeenCalled();
+    });
+
+    it('should reject non-canonical scientific notation fund IDs', () => {
+      req.params = { fundId: '1e1' };
+      req.user = {
+        id: 'user-1',
+        sub: 'user-1',
+        email: 'user@example.com',
+        roles: ['user'],
+        ip: '127.0.0.1',
+        userAgent: 'test',
+        fundIds: [1],
       };
 
       requireFundAccess(req as Request, res as Response, next);
@@ -312,7 +338,7 @@ describe('requireFundAccess Middleware', () => {
   });
 
   describe('Edge Cases - Numeric Edge Values', () => {
-    it('should correctly parse and authorize access for negative fund IDs', () => {
+    it('should reject negative fund IDs', () => {
       req.params = { fundId: '-1' };
       req.user = {
         id: 'user-1',
@@ -326,8 +352,12 @@ describe('requireFundAccess Middleware', () => {
 
       requireFundAccess(req as Request, res as Response, next);
 
-      expect(next).toHaveBeenCalledOnce();
-      expect(statusMock).not.toHaveBeenCalled();
+      expect(statusMock).toHaveBeenCalledWith(400);
+      expect(jsonMock).toHaveBeenCalledWith({
+        error: 'Bad Request',
+        message: 'Invalid fund ID',
+      });
+      expect(next).not.toHaveBeenCalled();
     });
 
     it('should correctly parse and deny access for large fund IDs', () => {
@@ -352,8 +382,8 @@ describe('requireFundAccess Middleware', () => {
       expect(next).not.toHaveBeenCalled();
     });
 
-    it('should handle fundId with leading zeros correctly', () => {
-      req.params = { fundId: '0123' }; // parseInt('0123', 10) = 123
+    it('should reject fundId with leading zeros as non-canonical', () => {
+      req.params = { fundId: '0123' };
       req.user = {
         id: 'user-1',
         sub: 'user-1',
@@ -366,8 +396,9 @@ describe('requireFundAccess Middleware', () => {
 
       requireFundAccess(req as Request, res as Response, next);
 
-      expect(next).toHaveBeenCalledOnce();
-      expect(statusMock).not.toHaveBeenCalled();
+      expect(statusMock).toHaveBeenCalledWith(400);
+      expect(jsonMock).toHaveBeenCalledWith({ error: 'Bad Request', message: 'Invalid fund ID' });
+      expect(next).not.toHaveBeenCalled();
     });
 
     it('should reject floating point fund IDs (treated as invalid after decimal)', () => {
@@ -384,9 +415,12 @@ describe('requireFundAccess Middleware', () => {
 
       requireFundAccess(req as Request, res as Response, next);
 
-      // parseInt('123.456', 10) = 123, and user has access to 123
-      expect(next).toHaveBeenCalledOnce();
-      expect(statusMock).not.toHaveBeenCalled();
+      expect(statusMock).toHaveBeenCalledWith(400);
+      expect(jsonMock).toHaveBeenCalledWith({
+        error: 'Bad Request',
+        message: 'Invalid fund ID',
+      });
+      expect(next).not.toHaveBeenCalled();
     });
   });
 });

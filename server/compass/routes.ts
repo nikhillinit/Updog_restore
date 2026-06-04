@@ -34,7 +34,7 @@ type RequestWithOptionalUser = Request & { user?: { id?: string } };
  * Health check for Compass service
  */
 router['get']('/health', (_req: Request, res: Response) => {
-  res['json']({
+  res.json({
     service: 'compass',
     status: 'healthy',
     message: 'Valuation sandbox is operational',
@@ -95,10 +95,10 @@ router['get']('/portfolio-companies/:id/valuation-context', async (req: Request,
       ],
     };
 
-    res['json'](response);
+    res.json(response);
   } catch (error) {
     console.error('[Compass] Error fetching valuation context:', error);
-    res['status'](500)['json']({ error: 'Failed to fetch valuation context' });
+    res.status(500).json({ error: 'Failed to fetch valuation context' });
   }
 });
 
@@ -140,10 +140,10 @@ router['get']('/comps/search', async (req: Request, res: Response) => {
       totalCount: 1,
     };
 
-    res['json'](response);
+    res.json(response);
   } catch (error) {
     console.error('[Compass] Error searching comps:', error);
-    res['status'](500)['json']({ error: 'Failed to search comparable companies' });
+    res.status(500).json({ error: 'Failed to search comparable companies' });
   }
 });
 
@@ -170,10 +170,10 @@ router['get']('/comps/:id', async (req: Request, res: Response) => {
       lastUpdated: new Date(),
     };
 
-    res['json'](comp);
+    res.json(comp);
   } catch (error) {
     console.error('[Compass] Error fetching comp details:', error);
-    res['status'](500)['json']({ error: 'Failed to fetch comp details' });
+    res.status(500).json({ error: 'Failed to fetch comp details' });
   }
 });
 
@@ -187,7 +187,7 @@ router['post']('/calculate', async (req: Request, res: Response) => {
 
     // Validate request
     if (!companyId || !inputs || !compIds) {
-      return res['status'](400)['json']({
+      return res.status(400).json({
         error: 'Missing required fields: companyId, inputs, compIds',
       });
     }
@@ -230,15 +230,15 @@ router['post']('/calculate', async (req: Request, res: Response) => {
       result,
     };
 
-    res['json'](response);
+    res.json(response);
   } catch (error) {
     console.error('[Compass] Error calculating valuation:', error);
 
     if (error instanceof Error) {
-      return res['status'](400)['json']({ error: error.message });
+      return res.status(400).json({ error: error.message });
     }
 
-    res['status'](500)['json']({ error: 'Failed to calculate valuation' });
+    res.status(500).json({ error: 'Failed to calculate valuation' });
   }
 });
 
@@ -253,7 +253,7 @@ router['post']('/scenarios', async (req: Request, res: Response) => {
 
     // Validate request
     if (!portfolioCompanyId || !scenarioName || !result) {
-      return res['status'](400)['json']({ error: 'Missing required fields' });
+      return res.status(400).json({ error: 'Missing required fields' });
     }
 
     // TODO: Save to database
@@ -276,10 +276,10 @@ router['post']('/scenarios', async (req: Request, res: Response) => {
       },
     };
 
-    res['status'](201)['json'](response);
+    res.status(201).json(response);
   } catch (error) {
     console.error('[Compass] Error saving scenario:', error);
-    res['status'](500)['json']({ error: 'Failed to save scenario' });
+    res.status(500).json({ error: 'Failed to save scenario' });
   }
 });
 
@@ -301,13 +301,13 @@ router['get']('/scenarios', async (req: Request, res: Response) => {
     // `, [userId, companyId]);
 
     // Mock response
-    res['json']({
+    res.json({
       scenarios: [],
       totalCount: 0,
     });
   } catch (error) {
     console.error('[Compass] Error fetching scenarios:', error);
-    res['status'](500)['json']({ error: 'Failed to fetch scenarios' });
+    res.status(500).json({ error: 'Failed to fetch scenarios' });
   }
 });
 
@@ -327,10 +327,10 @@ router['delete']('/scenarios/:id', async (req: Request, res: Response) => {
     //   WHERE id = $1 AND user_id = $2
     // `, [id, userId]);
 
-    res['status'](204)['end']();
+    res.status(204).end();
   } catch (error) {
     console.error('[Compass] Error deleting scenario:', error);
-    res['status'](500)['json']({ error: 'Failed to delete scenario' });
+    res.status(500).json({ error: 'Failed to delete scenario' });
   }
 });
 
@@ -375,10 +375,10 @@ router['get']('/portfolio/heatmap', async (req: Request, res: Response) => {
       },
     };
 
-    res['json'](response);
+    res.json(response);
   } catch (error) {
     console.error('[Compass] Error fetching portfolio heatmap:', error);
-    res['status'](500)['json']({ error: 'Failed to fetch portfolio heatmap' });
+    res.status(500).json({ error: 'Failed to fetch portfolio heatmap' });
   }
 });
 

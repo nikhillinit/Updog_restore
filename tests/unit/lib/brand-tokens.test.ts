@@ -129,7 +129,7 @@ describe('Chart Tokens', () => {
 
 describe('PDF Tokens', () => {
   it('has page dimensions in points', () => {
-    expect(pdf.page.width).toBe(612);  // 8.5in
+    expect(pdf.page.width).toBe(612); // 8.5in
     expect(pdf.page.height).toBe(792); // 11in
   });
 
@@ -155,8 +155,8 @@ describe('getChartColor', () => {
   });
 
   it('wraps around for large indices', () => {
-    expect(getChartColor(5)).toBe('#292929');  // Wraps to index 0
-    expect(getChartColor(6)).toBe('#E0D8D1');  // Wraps to index 1
+    expect(getChartColor(5)).toBe('#292929'); // Wraps to index 0
+    expect(getChartColor(6)).toBe('#E0D8D1'); // Wraps to index 1
   });
 
   it('uses extended palette when specified', () => {
@@ -172,9 +172,9 @@ describe('getChartColor', () => {
 
 describe('pxToPt', () => {
   it('converts pixels to points', () => {
-    expect(pxToPt(96)).toBe(72);    // 96px = 72pt
-    expect(pxToPt(12)).toBe(9);     // 12px = 9pt
-    expect(pxToPt(16)).toBe(12);    // 16px = 12pt
+    expect(pxToPt(96)).toBe(72); // 96px = 72pt
+    expect(pxToPt(12)).toBe(9); // 12px = 9pt
+    expect(pxToPt(16)).toBe(12); // 16px = 12pt
   });
 
   it('handles zero', () => {
@@ -188,9 +188,9 @@ describe('pxToPt', () => {
 
 describe('ptToPx', () => {
   it('converts points to pixels', () => {
-    expect(ptToPx(72)).toBe(96);    // 72pt = 96px
-    expect(ptToPx(9)).toBe(12);     // 9pt = 12px
-    expect(ptToPx(12)).toBe(16);    // 12pt = 16px
+    expect(ptToPx(72)).toBe(96); // 72pt = 96px
+    expect(ptToPx(9)).toBe(12); // 9pt = 12px
+    expect(ptToPx(12)).toBe(16); // 12pt = 16px
   });
 
   it('handles zero', () => {
@@ -273,6 +273,8 @@ describe('Spacing', () => {
   it('has logo safe zones', () => {
     expect(spacing.logoSafeZone).toBe(16);
     expect(spacing.iconSafeZone).toBe(8);
+    expect(spacing.logoSafeZoneRatio).toBe(1);
+    expect(spacing.iconSafeZoneRatio).toBe(0.5);
   });
 
   it('has print spacing in points', () => {

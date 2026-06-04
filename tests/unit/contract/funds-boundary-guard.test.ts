@@ -135,6 +135,26 @@ const reExportPairs = [
     shim: 'client/src/core/cohorts/CohortEngine.ts',
   },
   {
+    source: 'shared/core/cohorts/analysis/advanced-engine.ts',
+    shim: 'client/src/core/cohorts/advanced-engine.ts',
+  },
+  {
+    source: 'shared/core/cohorts/analysis/resolvers.ts',
+    shim: 'client/src/core/cohorts/resolvers.ts',
+  },
+  {
+    source: 'shared/core/cohorts/analysis/company-cohorts.ts',
+    shim: 'client/src/core/cohorts/company-cohorts.ts',
+  },
+  {
+    source: 'shared/core/cohorts/analysis/cash-flows.ts',
+    shim: 'client/src/core/cohorts/cash-flows.ts',
+  },
+  {
+    source: 'shared/core/cohorts/analysis/metrics.ts',
+    shim: 'client/src/core/cohorts/metrics.ts',
+  },
+  {
     source: 'shared/core/liquidity/LiquidityEngine.ts',
     shim: 'client/src/core/LiquidityEngine.ts',
   },
@@ -146,6 +166,58 @@ const reExportPairs = [
   {
     source: 'shared/core/capitalAllocation/CapitalAllocationEngine.ts',
     shim: 'client/src/core/capitalAllocation/CapitalAllocationEngine.ts',
+  },
+  {
+    source: 'shared/core/capitalAllocation/adapter.ts',
+    shim: 'client/src/core/capitalAllocation/adapter.ts',
+  },
+  {
+    source: 'shared/core/capitalAllocation/allocateLRM.ts',
+    shim: 'client/src/core/capitalAllocation/allocateLRM.ts',
+  },
+  {
+    source: 'shared/core/capitalAllocation/cohorts.ts',
+    shim: 'client/src/core/capitalAllocation/cohorts.ts',
+  },
+  {
+    source: 'shared/core/capitalAllocation/index.ts',
+    shim: 'client/src/core/capitalAllocation/index.ts',
+  },
+  {
+    source: 'shared/core/capitalAllocation/invariants.ts',
+    shim: 'client/src/core/capitalAllocation/invariants.ts',
+  },
+  {
+    source: 'shared/core/capitalAllocation/pacing.ts',
+    shim: 'client/src/core/capitalAllocation/pacing.ts',
+  },
+  {
+    source: 'shared/core/capitalAllocation/periodLoop.ts',
+    shim: 'client/src/core/capitalAllocation/periodLoop.ts',
+  },
+  {
+    source: 'shared/core/capitalAllocation/periodLoopEngine.ts',
+    shim: 'client/src/core/capitalAllocation/periodLoopEngine.ts',
+  },
+  {
+    source: 'shared/core/capitalAllocation/periods.ts',
+    shim: 'client/src/core/capitalAllocation/periods.ts',
+  },
+  {
+    source: 'shared/core/capitalAllocation/rounding.ts',
+    shim: 'client/src/core/capitalAllocation/rounding.ts',
+  },
+  {
+    source: 'shared/core/capitalAllocation/sorting.ts',
+    shim: 'client/src/core/capitalAllocation/sorting.ts',
+  },
+  {
+    source: 'shared/core/capitalAllocation/types.ts',
+    shim: 'client/src/core/capitalAllocation/types.ts',
+  },
+  {
+    source: 'shared/core/capitalAllocation/units.ts',
+    shim: 'client/src/core/capitalAllocation/units.ts',
   },
   { source: 'shared/lib/fund-calc.ts', shim: 'client/src/lib/fund-calc.ts' },
   { source: 'shared/utils/resilientLimit.ts', shim: 'client/src/utils/resilientLimit.ts' },
@@ -189,7 +261,10 @@ async function resolveSourceFile(candidatePath: string): Promise<string | null> 
   return null;
 }
 
-async function getExportedNames(relativePath: string, visited = new Set<string>()): Promise<string[]> {
+async function getExportedNames(
+  relativePath: string,
+  visited = new Set<string>()
+): Promise<string[]> {
   const absolutePath = await resolveSourceFile(path.resolve(process.cwd(), relativePath));
   if (!absolutePath) {
     throw new Error(`Could not resolve source file for ${relativePath}`);

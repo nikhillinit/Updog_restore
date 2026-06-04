@@ -28,6 +28,8 @@ import {
   recordUnknownStage,
 } from '../observability/stage-metrics';
 import { setStageWarningHeaders } from '../middleware/deprecation-headers';
+import { enforceProvidedFundScope } from '../lib/auth/provided-fund-scope';
+import { storage } from '../storage';
 
 // Custom error type for HTTP status codes
 interface HttpError extends Error {
@@ -173,6 +175,7 @@ interface _UpdateAllocationResponse {
 
 interface CompanyListItem {
   id: number;
+  fundId: number;
   name: string;
   sector: string;
   stage: string;
@@ -185,6 +188,23 @@ interface CompanyListItem {
   allocation_cap_cents: number | null;
   allocation_reason: string | null;
   last_allocation_at: string | null;
+}
+
+interface CompanyListSourceRow {
+  id: number;
+  fundId: number | null;
+  name: string;
+  sector: string;
+  stage: string;
+  status: string | null;
+  investmentAmount: string | number | null;
+  deployedReservesCents?: number | bigint | null;
+  plannedReservesCents?: number | bigint | null;
+  exitMoicBps?: number | null;
+  ownershipCurrentPct?: string | number | null;
+  allocationCapCents?: number | bigint | null;
+  allocationReason?: string | null;
+  lastAllocationAt?: Date | string | null;
 }
 
 interface CompanyListResponse {
@@ -241,6 +261,53 @@ function missingAllocationFields(row: {
   return fields;
 }
 
+function normalizeCompanyListStatus(status: string | null | undefined): CompanyListItem['status'] {
+  return status === 'exited' || status === 'written-off' ? status : 'active';
+}
+
+function isoDateOrNull(value: Date | string | null | undefined): string | null {
+  if (value == null) {
+    return null;
+  }
+
+  return value instanceof Date ? value.toISOString() : value;
+}
+
+function plannedReservesSortValue(company: object): number {
+  if ('plannedReservesCents' in company) {
+    return Number(company.plannedReservesCents ?? 0);
+  }
+
+  return 0;
+}
+
+function exitMoicSortValue(company: object): number {
+  if ('exitMoicBps' in company) {
+    return Number(company.exitMoicBps ?? Number.NEGATIVE_INFINITY);
+  }
+
+  return Number.NEGATIVE_INFINITY;
+}
+
+function companyListItemFromRow(row: CompanyListSourceRow, fundId: number): CompanyListItem {
+  return {
+    id: row.id,
+    fundId: row.fundId ?? fundId,
+    name: row.name,
+    sector: row.sector,
+    stage: row.stage,
+    status: normalizeCompanyListStatus(row.status),
+    invested_cents: Math.round(parseFloat(String(row.investmentAmount ?? '0')) * 100),
+    deployed_reserves_cents: Number(row.deployedReservesCents ?? 0),
+    planned_reserves_cents: Number(row.plannedReservesCents ?? 0),
+    exit_moic_bps: row.exitMoicBps ?? null,
+    ownership_pct: parseFloat(String(row.ownershipCurrentPct ?? '0')),
+    allocation_cap_cents: row.allocationCapCents != null ? Number(row.allocationCapCents) : null,
+    allocation_reason: row.allocationReason ?? null,
+    last_allocation_at: isoDateOrNull(row.lastAllocationAt),
+  };
+}
+
 // ============================================================================
 // Route Handlers
 // ============================================================================
@@ -271,7 +338,7 @@ router['get'](
     // Validate fundId parameter
     const paramValidation = FundIdParamSchema.safeParse(req.params);
     if (!paramValidation.success) {
-      return res['status'](400)['json']({
+      return res.status(400).json({
         error: 'invalid_fund_id',
         message: 'Fund ID must be a positive integer',
         details: paramValidation.error.format(),
@@ -279,11 +346,14 @@ router['get'](
     }
 
     const { fundId } = paramValidation.data;
+    if (!(await enforceProvidedFundScope(req, res, fundId))) {
+      return;
+    }
 
     // Validate query parameters
     const queryResult = CompanyListQuerySchema.safeParse(req.query);
     if (!queryResult.success) {
-      return res['status'](400)['json']({
+      return res.status(400).json({
         error: 'invalid_query_parameters',
         message: 'Invalid query parameters',
         details: queryResult.error.format(),
@@ -306,7 +376,7 @@ router['get'](
         setStageWarningHeaders(res, [query.stage]);
 
         if (mode === 'enforce') {
-          return res['status'](400)['json']({
+          return res.status(400).json({
             error: 'invalid_query_parameters',
             message: 'Invalid investment stage in query parameters',
             details: {
@@ -322,6 +392,81 @@ router['get'](
         normalizedStage = normalized;
         recordValidationSuccess('GET /api/funds/:fundId/companies');
       }
+    }
+
+    if (storage.kind === 'memory') {
+      const storedAll = await storage.getPortfolioCompanies(fundId);
+
+      if (storedAll.length === 0 && query.cursor === undefined) {
+        return res.status(404).json({
+          error: 'fund_not_found',
+          message: `Fund with ID ${fundId} not found or has no companies`,
+        });
+      }
+
+      const sorted = storedAll
+        .filter((company) => {
+          // Id-based cursor (id < cursor), identical to the DB branch above. NOTE:
+          // like the DB path, this only paginates correctly when id order aligns
+          // with the active sort; non-id sorts (exit_moic_desc, planned_reserves_desc,
+          // name_asc) can dup/skip across pages. Shared keyset defect tracked in #744.
+          if (query.cursor !== undefined && company.id >= query.cursor) {
+            return false;
+          }
+          if (query.status && normalizeCompanyListStatus(company.status) !== query.status) {
+            return false;
+          }
+          if (query.sector && company.sector !== query.sector) {
+            return false;
+          }
+          if (normalizedStage && company.stage !== normalizedStage) {
+            return false;
+          }
+          if (query.q && !company.name.toLowerCase().includes(query.q.toLowerCase())) {
+            return false;
+          }
+          return true;
+        })
+        .sort((left, right) => {
+          if (query.sortBy === 'name_asc') {
+            return left.name.localeCompare(right.name) || right.id - left.id;
+          }
+          if (query.sortBy === 'planned_reserves_desc') {
+            return (
+              plannedReservesSortValue(right) - plannedReservesSortValue(left) || right.id - left.id
+            );
+          }
+          return exitMoicSortValue(right) - exitMoicSortValue(left) || right.id - left.id;
+        });
+
+      const memHasMore = sorted.length > query.limit;
+      const page = memHasMore ? sorted.slice(0, query.limit) : sorted;
+      const memNextCursor =
+        memHasMore && page.length > 0 ? String(page[page.length - 1]!.id) : null;
+      const responseCompanies = page.map((company) => companyListItemFromRow(company, fundId));
+
+      const response: CompanyListResponse = {
+        companies: responseCompanies,
+        pagination: {
+          next_cursor: memNextCursor,
+          has_more: memHasMore,
+          // Note: total_count is optional and expensive - omitted for performance
+        },
+      };
+
+      // Log request metrics
+      const duration = Date.now() - startTime;
+      logger.info(
+        {
+          requestId,
+          fundId,
+          companyCount: responseCompanies.length,
+          durationMs: duration,
+        },
+        'allocations company list served'
+      );
+
+      return res.status(200).json(response);
     }
 
     // Build WHERE conditions
@@ -385,6 +530,7 @@ router['get'](
     const results = await db
       .select({
         id: portfolioCompanies.id,
+        fundId: portfolioCompanies.fundId,
         name: portfolioCompanies.name,
         sector: portfolioCompanies.sector,
         stage: portfolioCompanies.stage,
@@ -412,24 +558,11 @@ router['get'](
       hasMore && companies.length > 0 ? companies[companies.length - 1]!.id.toString() : null;
 
     // Convert database results to response format
-    const responseCompanies: CompanyListItem[] = companies.map((row: (typeof results)[number]) => ({
-      id: row.id,
-      name: row.name,
-      sector: row.sector,
-      stage: row.stage,
-      status: row.status as 'active' | 'exited' | 'written-off',
-      invested_cents: Math.round(parseFloat(row.investmentAmount || '0') * 100), // Convert decimal dollars to cents
-      deployed_reserves_cents: Number(row.deployedReservesCents || 0),
-      planned_reserves_cents: Number(row.plannedReservesCents || 0),
-      exit_moic_bps: row.exitMoicBps,
-      ownership_pct: parseFloat(row.ownershipCurrentPct || '0'),
-      allocation_cap_cents: row.allocationCapCents ? Number(row.allocationCapCents) : null,
-      allocation_reason: row.allocationReason,
-      last_allocation_at: row.lastAllocationAt ? row.lastAllocationAt.toISOString() : null,
-    }));
+    const responseCompanies: CompanyListItem[] = companies.map((row: (typeof results)[number]) =>
+      companyListItemFromRow(row, fundId)
+    );
 
-    // Check if fund exists (if no results and no cursor, fund might not exist)
-    if (companies.length === 0 && !query.cursor) {
+    if (responseCompanies.length === 0 && !query.cursor) {
       // Verify fund exists by checking if any companies exist for this fund
       const fundCheck = await db
         .select({ count: sql<number>`count(*)` })
@@ -439,7 +572,7 @@ router['get'](
       const totalCompanies = fundCheck[0]?.count || 0;
 
       if (totalCompanies === 0) {
-        return res['status'](404)['json']({
+        return res.status(404).json({
           error: 'fund_not_found',
           message: `Fund with ID ${fundId} not found or has no companies`,
         });
@@ -461,13 +594,13 @@ router['get'](
       {
         requestId,
         fundId,
-        companyCount: companies.length,
+        companyCount: responseCompanies.length,
         durationMs: duration,
       },
       'allocations company list served'
     );
 
-    return res['status'](200)['json'](response);
+    return res.status(200).json(response);
   })
 );
 
@@ -486,13 +619,16 @@ router['get'](
     // Validate path parameter
     const paramValidation = FundIdParamSchema.safeParse(req.params);
     if (!paramValidation.success) {
-      return res['status'](400)['json']({
+      return res.status(400).json({
         error: 'Invalid fund ID',
         details: paramValidation.error.format(),
       });
     }
 
     const { fundId } = paramValidation.data;
+    if (!(await enforceProvidedFundScope(req, res, fundId))) {
+      return;
+    }
 
     try {
       const [fund] = await db
@@ -502,7 +638,7 @@ router['get'](
         .limit(1);
 
       if (!fund) {
-        return res['status'](404)['json']({
+        return res.status(404).json({
           error: 'fund_not_found',
           message: `Fund with ID ${fundId} was not found`,
         });
@@ -560,7 +696,7 @@ router['get'](
           .sort()
           .reverse()[0] || null;
 
-      return res['status'](200)['json']({
+      return res.status(200).json({
         fund_id: fundId,
         companies,
         metadata: {
@@ -582,7 +718,7 @@ router['get'](
         'latest allocation read failed'
       );
 
-      return res['status'](503)['json']({
+      return res.status(503).json({
         error: 'allocation_data_unavailable',
         message: allocationErrorMappingMessage(
           findAllocationErrorMapping(allocationErrorText(error))
@@ -610,7 +746,7 @@ router['post'](
     // Validate path parameter
     const paramValidation = FundIdParamSchema.safeParse(req.params);
     if (!paramValidation.success) {
-      return res['status'](400)['json']({
+      return res.status(400).json({
         error: 'Invalid fund ID',
         details: paramValidation.error.format(),
       });
@@ -619,13 +755,17 @@ router['post'](
     // Validate request body
     const bodyValidation = UpdateAllocationRequestSchema.safeParse(req.body);
     if (!bodyValidation.success) {
-      return res['status'](400)['json']({
+      return res.status(400).json({
         error: 'Invalid request body',
         details: bodyValidation.error.format(),
       });
     }
 
     const { fundId } = paramValidation.data;
+    if (!(await enforceProvidedFundScope(req, res, fundId))) {
+      return;
+    }
+
     const { expected_version, updates } = bodyValidation.data;
 
     // Get user ID from auth context (if available)
@@ -652,7 +792,7 @@ router['post'](
       };
     });
 
-    return res['status'](200)['json'](result);
+    return res.status(200).json(result);
   })
 );
 
@@ -667,7 +807,7 @@ router['post'](
 router['use']((err: unknown, req: Request, res: Response, next: NextFunction) => {
   // Handle optimistic locking conflicts
   if (isHttpError(err) && err.statusCode === 409 && err.conflicts) {
-    return res['status'](409)['json']({
+    return res.status(409).json({
       error: 'Version conflict',
       message: err.message,
       conflicts: err.conflicts,
@@ -676,7 +816,7 @@ router['use']((err: unknown, req: Request, res: Response, next: NextFunction) =>
 
   // Handle other HTTP errors
   if (isHttpError(err) && err.statusCode) {
-    return res['status'](err.statusCode)['json']({
+    return res.status(err.statusCode).json({
       error: err.statusCode === 404 ? 'fund_not_found' : 'allocation_error',
       message: err.message,
     });

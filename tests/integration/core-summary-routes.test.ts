@@ -41,4 +41,26 @@ describe('core summary routes', () => {
     expect(response.body).toHaveProperty('companies');
     expect(Array.isArray(response.body.companies)).toBe(true);
   });
+
+  it('preserves invalid-number contracts for summary route boundaries', async () => {
+    const invalidReserve = await request(app).get('/api/reserves/abc').expect(400);
+    expect(invalidReserve.body).toMatchObject({
+      error: 'Invalid fund ID',
+      message: 'fund ID must be a finite number',
+    });
+
+    const invalidPacing = await request(app).get('/api/pacing/summary?fundSize=abc').expect(400);
+    expect(invalidPacing.body).toMatchObject({
+      error: 'Invalid pacing query',
+      message: 'fund size must be a finite number',
+    });
+
+    const invalidCohort = await request(app)
+      .get('/api/cohorts/analysis?cohortSize=abc')
+      .expect(400);
+    expect(invalidCohort.body).toMatchObject({
+      error: 'Invalid cohort query',
+      message: 'cohort size must be a finite number',
+    });
+  });
 });

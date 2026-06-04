@@ -121,6 +121,18 @@ describe('post calc-run trigger (Decision 0.1b)', () => {
       expect(result).toBe(false);
       expect(mockDb.update).not.toHaveBeenCalled();
     });
+
+    it('does not treat cohort snapshots as authoritative pacing coverage', async () => {
+      mockDb.query.fundSnapshots.findMany.mockResolvedValue([
+        { type: 'RESERVE' },
+        { type: 'COHORT' },
+      ]);
+
+      const result = await markCalcRunCompletedIfReady(42);
+
+      expect(result).toBe(false);
+      expect(mockDb.update).not.toHaveBeenCalled();
+    });
   });
 
   describe('handler invocation', () => {

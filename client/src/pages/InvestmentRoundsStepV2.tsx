@@ -13,7 +13,7 @@
 
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useLocation } from 'wouter';
-import { ArrowLeft, ArrowRight, Plus } from 'lucide-react';
+import { ArrowLeft, ArrowRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ModernStepContainer } from '@/components/wizard/ModernStepContainer';
 import type { StageData } from '@/components/wizard/StageAccordionRow';
@@ -183,8 +183,8 @@ export default function InvestmentRoundsStepV2() {
 
             {/* Info Banner */}
             <InfoBanner
-              title="Investment stages will be consolidated in the next step"
-              description="Don't delete later stage rounds even if your fund doesn't participate in them. These rounds are needed to model future valuations and portfolio company trajectories accurately. You can adjust participation levels in the Capital Allocation step."
+              title="Later rounds support portfolio trajectory modeling"
+              description="Keep later-stage rounds when they affect valuation step-ups or exit timing, even if the fund does not initially enter at those rounds. Participation levels are configured in Capital Allocation."
             />
 
             {/* Stage Accordion Rows */}
@@ -199,19 +199,6 @@ export default function InvestmentRoundsStepV2() {
                 />
               ))}
             </div>
-
-            {/* Add Stage Button */}
-            <div className="flex justify-center mt-6">
-              <Button
-                onClick={handleAddStage}
-                variant="outline"
-                className="px-6 py-2 h-10 border-[#E0D8D1] hover:bg-[#E0D8D1]/20 hover:border-[#292929] font-poppins font-medium"
-              >
-                <Plus className="h-4 w-4 mr-2" />
-                Add Stage
-              </Button>
-            </div>
-
             {/* Validation Callout */}
             <div className="mt-8">
               <InvestmentValidationCallout
@@ -222,12 +209,12 @@ export default function InvestmentRoundsStepV2() {
             </div>
 
             {/* Navigation */}
-            <div className="flex justify-between pt-6 mt-8 border-t border-[#E0D8D1]">
+            <div className="flex justify-between pt-6 mt-8 border-t border-beige-200">
               <Button
                 data-testid="previous-step"
                 variant="outline"
                 onClick={() => navigate('/fund-setup?step=1')}
-                className="flex items-center gap-2 px-8 py-3 h-auto border-[#E0D8D1] hover:bg-[#E0D8D1]/20 hover:border-[#292929] font-poppins font-medium"
+                className="flex items-center gap-2 px-8 py-3 h-auto border-beige-200 hover:bg-beige/20 hover:border-pov-charcoal font-poppins font-medium"
               >
                 <ArrowLeft className="h-4 w-4" />
                 Previous
@@ -236,7 +223,7 @@ export default function InvestmentRoundsStepV2() {
                 data-testid="next-step"
                 onClick={() => navigate('/fund-setup?step=3')}
                 disabled={hasErrors}
-                className="flex items-center gap-2 bg-[#292929] hover:bg-[#292929]/90 text-white px-8 py-3 h-auto font-poppins font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                className="flex items-center gap-2 bg-pov-charcoal hover:bg-charcoal-700 text-pov-white px-8 py-3 h-auto font-poppins font-medium disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 Next Step
                 <ArrowRight className="h-4 w-4" />

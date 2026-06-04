@@ -40,7 +40,7 @@ export default function LPFundDetail() {
   if (!detailData) {
     return (
       <div className="p-8 text-center">
-        <p className="text-[#292929]/70 font-poppins">Fund not found</p>
+        <p className="text-charcoal-600 font-poppins">Fund not found</p>
       </div>
     );
   }
@@ -61,48 +61,50 @@ export default function LPFundDetail() {
       <div className="flex items-center justify-between">
         <div>
           <div className="flex items-center gap-3">
-            <h1 className="text-3xl font-bold font-inter text-[#292929]">{fundDetail.fundName}</h1>
+            <h1 className="text-3xl font-bold font-inter text-pov-charcoal">
+              {fundDetail.fundName}
+            </h1>
             <Badge variant="outline">{fundDetail.vintageYear}</Badge>
           </div>
-          <p className="text-[#292929]/70 font-poppins mt-1">
+          <p className="text-charcoal-600 font-poppins mt-1">
             As of {new Date(fundDetail.asOfDate).toLocaleDateString()}
           </p>
         </div>
       </div>
 
       {/* Fund Overview */}
-      <Card className="bg-white rounded-xl border border-[#E0D8D1] shadow-md">
+      <Card className="bg-white rounded-xl border border-beige-200 shadow-md">
         <CardHeader>
-          <CardTitle className="flex items-center gap-2 font-inter text-lg text-[#292929]">
-            <Building2 className="h-5 w-5 text-blue-600" />
+          <CardTitle className="flex items-center gap-2 font-inter text-lg text-pov-charcoal">
+            <Building2 className="h-5 w-5 text-pov-charcoal" />
             Fund Overview
           </CardTitle>
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             <div>
-              <div className="text-sm font-poppins text-[#292929]/50 mb-1">Your Commitment</div>
-              <div className="text-2xl font-bold font-inter text-[#292929]">
+              <div className="text-sm font-poppins text-charcoal-400 mb-1">Your Commitment</div>
+              <div className="text-2xl font-bold font-inter text-pov-charcoal">
                 {formatCurrency(fundDetail.commitment)}
               </div>
-              <div className="text-xs font-poppins text-[#292929]/70 mt-1">
+              <div className="text-xs font-poppins text-charcoal-600 mt-1">
                 {formatPercent(fundDetail.percentOfFund)} of fund
               </div>
             </div>
 
             <div>
-              <div className="text-sm font-poppins text-[#292929]/50 mb-1">Fund Size</div>
-              <div className="text-2xl font-bold font-inter text-[#292929]">
+              <div className="text-sm font-poppins text-charcoal-400 mb-1">Fund Size</div>
+              <div className="text-2xl font-bold font-inter text-pov-charcoal">
                 {formatCurrency(fundDetail.fundSize)}
               </div>
             </div>
 
             <div>
-              <div className="text-sm font-poppins text-[#292929]/50 mb-1">Capital Called</div>
-              <div className="text-2xl font-bold font-inter text-[#292929]">
+              <div className="text-sm font-poppins text-charcoal-400 mb-1">Capital Called</div>
+              <div className="text-2xl font-bold font-inter text-pov-charcoal">
                 {formatCurrency(fundDetail.called)}
               </div>
-              <div className="text-xs font-poppins text-[#292929]/70 mt-1">
+              <div className="text-xs font-poppins text-charcoal-600 mt-1">
                 {formatPercent(fundDetail.percentCalled)} of commitment
               </div>
             </div>
@@ -119,38 +121,38 @@ export default function LPFundDetail() {
       />
 
       {/* Value Breakdown */}
-      <Card className="bg-white rounded-xl border border-[#E0D8D1] shadow-md">
+      <Card className="bg-white rounded-xl border border-beige-200 shadow-md">
         <CardHeader>
-          <CardTitle className="font-inter text-lg text-[#292929]">Value Breakdown</CardTitle>
+          <CardTitle className="font-inter text-lg text-pov-charcoal">Value Breakdown</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-            <div className="text-center p-4 bg-gray-50 rounded-lg">
-              <div className="text-2xl font-bold font-inter text-[#292929]">
+            <div className="text-center p-4 bg-pov-gray rounded-lg">
+              <div className="text-2xl font-bold font-inter text-pov-charcoal">
                 {formatCurrency(fundDetail.distributed)}
               </div>
-              <div className="text-sm font-poppins text-[#292929]/70 mt-1">Total Distributed</div>
+              <div className="text-sm font-poppins text-charcoal-600 mt-1">Total Distributed</div>
             </div>
 
-            <div className="text-center p-4 bg-gray-50 rounded-lg">
-              <div className="text-2xl font-bold font-inter text-[#292929]">
+            <div className="text-center p-4 bg-pov-gray rounded-lg">
+              <div className="text-2xl font-bold font-inter text-pov-charcoal">
                 {formatCurrency(fundDetail.nav)}
               </div>
-              <div className="text-sm font-poppins text-[#292929]/70 mt-1">Current NAV</div>
+              <div className="text-sm font-poppins text-charcoal-600 mt-1">Current NAV</div>
             </div>
 
-            <div className="text-center p-4 bg-gray-50 rounded-lg">
-              <div className="text-2xl font-bold font-inter text-green-600">
+            <div className="text-center p-4 bg-pov-gray rounded-lg">
+              <div className="text-2xl font-bold font-inter text-presson-positive">
                 {formatCurrency(fundDetail.realizedValue)}
               </div>
-              <div className="text-sm font-poppins text-[#292929]/70 mt-1">Realized Value</div>
+              <div className="text-sm font-poppins text-charcoal-600 mt-1">Realized Value</div>
             </div>
 
-            <div className="text-center p-4 bg-gray-50 rounded-lg">
-              <div className="text-2xl font-bold font-inter text-blue-600">
+            <div className="text-center p-4 bg-pov-gray rounded-lg">
+              <div className="text-2xl font-bold font-inter text-presson-info">
                 {formatCurrency(fundDetail.unrealizedValue)}
               </div>
-              <div className="text-sm font-poppins text-[#292929]/70 mt-1">Unrealized Value</div>
+              <div className="text-sm font-poppins text-charcoal-600 mt-1">Unrealized Value</div>
             </div>
           </div>
         </CardContent>
@@ -158,28 +160,32 @@ export default function LPFundDetail() {
 
       {/* Recent Transactions */}
       {detailData.recentTransactions.length > 0 && (
-        <Card className="bg-white rounded-xl border border-[#E0D8D1] shadow-md">
+        <Card className="bg-white rounded-xl border border-beige-200 shadow-md">
           <CardHeader>
-            <CardTitle className="font-inter text-lg text-[#292929]">Recent Transactions</CardTitle>
+            <CardTitle className="font-inter text-lg text-pov-charcoal">
+              Recent Transactions
+            </CardTitle>
           </CardHeader>
           <CardContent>
             <div className="space-y-3">
               {detailData.recentTransactions.slice(0, 5).map((txn) => (
                 <div
                   key={txn.id}
-                  className="flex items-center justify-between p-3 border border-[#E0D8D1] rounded-lg"
+                  className="flex items-center justify-between p-3 border border-beige-200 rounded-lg"
                 >
                   <div className="flex items-center gap-3">
-                    <Calendar className="h-4 w-4 text-[#292929]/50" />
+                    <Calendar className="h-4 w-4 text-charcoal-400" />
                     <div>
-                      <div className="font-inter font-medium text-[#292929]">{txn.description}</div>
-                      <div className="text-sm font-poppins text-[#292929]/70">
+                      <div className="font-inter font-medium text-pov-charcoal">
+                        {txn.description}
+                      </div>
+                      <div className="text-sm font-poppins text-charcoal-600">
                         {new Date(txn.transactionDate).toLocaleDateString()}
                       </div>
                     </div>
                   </div>
                   <div
-                    className={`font-mono text-sm font-bold ${txn.amount < 0 ? 'text-red-600' : 'text-green-600'}`}
+                    className={`font-mono text-sm font-bold ${txn.amount < 0 ? 'text-presson-negative' : 'text-presson-positive'}`}
                   >
                     {formatCurrency(txn.amount)}
                   </div>

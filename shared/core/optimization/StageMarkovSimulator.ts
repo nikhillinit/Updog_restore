@@ -18,6 +18,11 @@
  */
 
 import type { SeededRNG } from './SeededRNG';
+import {
+  type CanonicalStage,
+  normalizeStageForCompatibility,
+  normalizeStageOrUndefined,
+} from '../../schemas/stage';
 
 /**
  * Investment stages in typical VC lifecycle
@@ -285,19 +290,107 @@ export function createStageSimulator(
   return new StageMarkovSimulator(transitionMatrix);
 }
 
+const MARKOV_COMPATIBILITY_STAGE_KEYS = new Set([
+  'preseed',
+  'seed',
+  'seriesa',
+  'seriesb',
+  'seriesc',
+  'seriesd',
+  'seriesdplus',
+  'growth',
+  'latestage',
+  'serieseplus',
+  'seriese+',
+]);
+
+const MARKOV_SHORT_STAGE_ALIASES: Record<string, InvestmentStage> = {
+  a: InvestmentStage.SeriesA,
+  b: InvestmentStage.SeriesB,
+  c: InvestmentStage.SeriesC,
+};
+
+const SUPPORTED_MARKOV_STAGE_LABELS = [
+  'seed',
+  'pre-seed',
+  'series-a',
+  'series-b',
+  'series-c',
+  'growth',
+  'exit',
+  'ipo',
+  'fail',
+  'failed',
+  'a',
+  'b',
+  'c',
+] as const;
+
+function unsupportedStageError(stage: string): Error {
+  return new Error(
+    `Cannot normalize stage: ${stage}. Supported Markov stages: ${SUPPORTED_MARKOV_STAGE_LABELS.join(', ')}`
+  );
+}
+
+function toStageKey(stage: string): string {
+  return stage
+    .trim()
+    .toLowerCase()
+    .replace(/[\s_-]+/g, '');
+}
+
+function hasKnownCompatibilityStageAlias(stage: string): boolean {
+  const trimmed = stage.trim();
+  // Markov must never treat the compatibility fallback as a successful match.
+  return (
+    trimmed !== '' &&
+    (normalizeStageOrUndefined(trimmed) !== undefined ||
+      MARKOV_COMPATIBILITY_STAGE_KEYS.has(toStageKey(trimmed)))
+  );
+}
+
+function mapCanonicalStageToMarkov(stage: CanonicalStage): InvestmentStage | undefined {
+  switch (stage) {
+    case 'pre_seed':
+    case 'seed':
+      return InvestmentStage.Seed;
+    case 'series_a':
+      return InvestmentStage.SeriesA;
+    case 'series_b':
+      return InvestmentStage.SeriesB;
+    case 'series_c':
+      return InvestmentStage.SeriesC;
+    case 'growth':
+      return InvestmentStage.Growth;
+    case 'series_d':
+    case 'late_stage':
+      return undefined;
+  }
+}
+
 /**
  * Map string stage names to enum (handles common variations)
  */
 export function normalizeStage(stage: string): InvestmentStage {
-  const normalized = stage.toLowerCase().replace(/[_\s-]/g, '');
+  const normalized = toStageKey(stage);
 
-  if (normalized.includes('seed')) return InvestmentStage.Seed;
-  if (normalized.includes('seriesa') || normalized === 'a') return InvestmentStage.SeriesA;
-  if (normalized.includes('seriesb') || normalized === 'b') return InvestmentStage.SeriesB;
-  if (normalized.includes('seriesc') || normalized === 'c') return InvestmentStage.SeriesC;
-  if (normalized.includes('growth')) return InvestmentStage.Growth;
-  if (normalized.includes('exit') || normalized.includes('ipo')) return InvestmentStage.Exit;
-  if (normalized.includes('fail')) return InvestmentStage.Failed;
+  const shortAlias = MARKOV_SHORT_STAGE_ALIASES[normalized];
+  if (shortAlias) {
+    return shortAlias;
+  }
 
-  throw new Error(`Cannot normalize stage: ${stage}`);
+  if (hasKnownCompatibilityStageAlias(stage)) {
+    const canonicalStage = normalizeStageForCompatibility(stage);
+    const markovStage = mapCanonicalStageToMarkov(canonicalStage);
+    if (markovStage) {
+      return markovStage;
+    }
+
+    throw unsupportedStageError(stage);
+  }
+
+  if (normalized === 'exit' || normalized === 'ipo') return InvestmentStage.Exit;
+  if (normalized === 'fail' || normalized === 'failed') return InvestmentStage.Failed;
+
+  throw unsupportedStageError(stage);
 }

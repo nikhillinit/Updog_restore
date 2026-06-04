@@ -1,14 +1,15 @@
 /**
  * Fund-related database schemas
  *
- * Contains: funds, fundConfigs, fundSnapshots
- * Note: fundEvents remains in schema.ts due to users dependency
+ * Contains: funds, fundConfigs, fundSnapshots, fundScenarioSets
+ * Note: fundEvents remains in schema.ts for legacy compatibility
  * Note: Insert schemas with .omit() rules are in schema.ts to prevent duplicate definitions
  *
  * @module shared/schema/fund
  */
 import {
   boolean,
+  check,
   date,
   decimal,
   index,
@@ -19,9 +20,13 @@ import {
   text,
   timestamp,
   unique,
+  uniqueIndex,
+  uuid,
   varchar,
 } from 'drizzle-orm/pg-core';
+import { sql } from 'drizzle-orm';
 import type { EngineResults } from '../schemas/engine-results-schema';
+import { users } from './user';
 
 // ============================================================================
 // FUNDS TABLE
@@ -136,6 +141,7 @@ export const fundSnapshots = pgTable(
     runId: integer('run_id'),
     configId: integer('config_id'),
     configVersion: integer('config_version'),
+    scenarioSetId: uuid('scenario_set_id'),
     createdAt: timestamp('created_at').defaultNow(),
   },
   (table) => ({
@@ -143,6 +149,166 @@ export const fundSnapshots = pgTable(
       table.fundId,
       table.type,
       table.createdAt.desc()
+    ),
+    scenarioDedupeIdx: uniqueIndex('fund_snapshots_scenarios_dedup_idx').on(
+      table.fundId,
+      table.scenarioSetId,
+      table.configId,
+      table.configVersion,
+      table.stateHash
+    ).where(sql`
+        ${table.type} = 'SCENARIOS'
+        AND ${table.scenarioSetId} IS NOT NULL
+        AND ${table.configId} IS NOT NULL
+        AND ${table.configVersion} IS NOT NULL
+        AND ${table.stateHash} IS NOT NULL
+      `),
+  })
+);
+
+// ============================================================================
+// FUND SCENARIO SETS TABLES (ADR-022)
+// ============================================================================
+
+export const fundScenarioSets = pgTable(
+  'fund_scenario_sets',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    fundId: integer('fund_id')
+      .notNull()
+      .references(() => funds.id, { onDelete: 'cascade' }),
+    name: varchar('name', { length: 120 }).notNull(),
+    description: text('description'),
+    sourceConfigId: integer('source_config_id')
+      .notNull()
+      .references(() => fundConfigs.id),
+    sourceConfigVersion: integer('source_config_version').notNull(),
+    createdByUserId: integer('created_by_user_id').references(() => users.id),
+    createdByLabel: text('created_by_label'),
+    updatedByUserId: integer('updated_by_user_id').references(() => users.id),
+    updatedByLabel: text('updated_by_label'),
+    archivedAt: timestamp('archived_at', { withTimezone: true }),
+    archivedByUserId: integer('archived_by_user_id').references(() => users.id),
+    archivedByLabel: text('archived_by_label'),
+    idempotencyKey: varchar('idempotency_key', { length: 128 }),
+    idempotencyRequestHash: text('idempotency_request_hash'),
+    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => ({
+    fundActiveUpdatedIdx: index('fund_scenario_sets_fund_active_updated_idx')
+      .on(table.fundId, table.updatedAt.desc(), table.id.desc())
+      .where(sql`${table.archivedAt} IS NULL`),
+    fundNameActiveUniqueIdx: uniqueIndex('fund_scenario_sets_fund_name_active_unique')
+      .on(table.fundId, sql`lower(${table.name})`)
+      .where(sql`${table.archivedAt} IS NULL`),
+    fundIdempotencyUniqueIdx: uniqueIndex('fund_scenario_sets_fund_idempotency_unique')
+      .on(table.fundId, table.idempotencyKey)
+      .where(sql`${table.idempotencyKey} IS NOT NULL`),
+  })
+);
+
+export const fundScenarioVariants = pgTable(
+  'fund_scenario_variants',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    scenarioSetId: uuid('scenario_set_id')
+      .notNull()
+      .references(() => fundScenarioSets.id, { onDelete: 'cascade' }),
+    name: varchar('name', { length: 120 }).notNull(),
+    description: text('description'),
+    sortOrder: integer('sort_order').notNull().default(0),
+    overrideType: varchar('override_type', { length: 32 })
+      .notNull()
+      .$type<'fee_profile' | 'reserve_allocation' | 'allocation' | 'sector_profile'>(),
+    overridePayload: jsonb('override_payload').notNull().$type<Record<string, unknown>>(),
+    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => ({
+    setOrderUnique: unique('fund_scenario_variants_set_order_unique').on(
+      table.scenarioSetId,
+      table.sortOrder
+    ),
+    setOrderIdx: index('fund_scenario_variants_set_order_idx').on(
+      table.scenarioSetId,
+      table.sortOrder,
+      table.id
+    ),
+  })
+);
+
+export const fundScenarioSetEvents = pgTable(
+  'fund_scenario_set_events',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    scenarioSetId: uuid('scenario_set_id')
+      .notNull()
+      .references(() => fundScenarioSets.id, { onDelete: 'cascade' }),
+    fundId: integer('fund_id')
+      .notNull()
+      .references(() => funds.id, { onDelete: 'cascade' }),
+    eventType: varchar('event_type', { length: 32 }).notNull(),
+    actorUserId: integer('actor_user_id').references(() => users.id),
+    actorLabel: text('actor_label'),
+    changeSummary: jsonb('change_summary_json').notNull().$type<Record<string, unknown>>(),
+    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => ({
+    scenarioCreatedIdx: index('fund_scenario_set_events_scenario_created_idx').on(
+      table.scenarioSetId,
+      table.createdAt.desc(),
+      table.id.desc()
+    ),
+    fundCreatedIdx: index('fund_scenario_set_events_fund_created_idx').on(
+      table.fundId,
+      table.createdAt.desc(),
+      table.id.desc()
+    ),
+  })
+);
+
+export const fundScenarioCalculationRuns = pgTable(
+  'fund_scenario_calculation_runs',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    fundId: integer('fund_id')
+      .notNull()
+      .references(() => funds.id, { onDelete: 'cascade' }),
+    scenarioSetId: uuid('scenario_set_id')
+      .notNull()
+      .references(() => fundScenarioSets.id, { onDelete: 'cascade' }),
+    sourceConfigId: integer('source_config_id')
+      .notNull()
+      .references(() => fundConfigs.id),
+    sourceConfigVersion: integer('source_config_version').notNull(),
+    calculationMode: varchar('calculation_mode', { length: 48 }).notNull(),
+    overrideType: varchar('override_type', { length: 48 }).notNull(),
+    inputHash: varchar('input_hash', { length: 64 }).notNull(),
+    jobId: text('job_id'),
+    correlationId: varchar('correlation_id', { length: 36 }).notNull(),
+    status: varchar('status', { length: 24 }).notNull(),
+    snapshotId: integer('snapshot_id').references(() => fundSnapshots.id),
+    failureCode: varchar('failure_code', { length: 80 }),
+    failureMessage: text('failure_message'),
+    startedAt: timestamp('started_at', { withTimezone: true }),
+    completedAt: timestamp('completed_at', { withTimezone: true }),
+    failedAt: timestamp('failed_at', { withTimezone: true }),
+    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => ({
+    runLookupIdx: index('fund_scenario_calc_runs_lookup_idx').on(
+      table.fundId,
+      table.scenarioSetId,
+      table.createdAt.desc()
+    ),
+    activeDedupeIdx: uniqueIndex('fund_scenario_calc_runs_active_dedup_idx')
+      .on(table.scenarioSetId, table.sourceConfigId, table.sourceConfigVersion, table.inputHash)
+      .where(sql`${table.status} IN ('queued', 'running', 'completed')`),
+    statusCheck: check(
+      'fund_scenario_calculation_runs_status_check',
+      sql`${table.status} IN ('queued', 'running', 'completed', 'failed', 'cancelled')`
     ),
   })
 );
@@ -159,3 +325,11 @@ export type FundSnapshot = typeof fundSnapshots.$inferSelect;
 export type NewFundSnapshot = typeof fundSnapshots.$inferInsert;
 export type CalcRun = typeof calcRuns.$inferSelect;
 export type NewCalcRun = typeof calcRuns.$inferInsert;
+export type FundScenarioSet = typeof fundScenarioSets.$inferSelect;
+export type NewFundScenarioSet = typeof fundScenarioSets.$inferInsert;
+export type FundScenarioVariant = typeof fundScenarioVariants.$inferSelect;
+export type NewFundScenarioVariant = typeof fundScenarioVariants.$inferInsert;
+export type FundScenarioSetEvent = typeof fundScenarioSetEvents.$inferSelect;
+export type NewFundScenarioSetEvent = typeof fundScenarioSetEvents.$inferInsert;
+export type FundScenarioCalculationRun = typeof fundScenarioCalculationRuns.$inferSelect;
+export type NewFundScenarioCalculationRun = typeof fundScenarioCalculationRuns.$inferInsert;

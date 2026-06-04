@@ -1,6 +1,6 @@
 ---
 status: ACTIVE
-last_updated: 2026-04-18
+last_updated: 2026-05-28
 ---
 
 # GitHub Actions Workflows Inventory
@@ -10,10 +10,13 @@ last_updated: 2026-04-18
 This README is a lightweight, repo-verified index of the workflow files
 currently present in `.github/workflows`.
 
-**Verified on**: 2026-04-18
+**Verified on**: 2026-05-28
 
-- **Total workflow files**: `16`
+- **Total tracked workflow YAML files**: `19`
 - **Source of truth**: `.github/workflows/*.yml`
+- **Active GitHub registry**: May contain deleted historical workflows and
+  GitHub-generated workflows such as Dependabot, Pages, or Copilot entries.
+  Treat registry cleanup as an operations task separate from YAML refactors.
 - **Historical machine-readable snapshot**:
   `docs/archive/2026-q2/generated-inventory-snapshots/inventory.generated.json`
 
@@ -37,22 +40,259 @@ because they no longer matched the live repository.
 
 The repository currently contains these workflow files:
 
-1. `bundle-size-check.yml`
-2. `ci-unified.yml`
-3. `code-quality.yml`
-4. `codeql.yml`
-5. `core-validation.yml`
-6. `dependency-validation.yml`
-7. `dockerfile-lint.yml`
-8. `docs-routing-check.yml`
-9. `docs-validate.yml`
-10. `reflection-validate.yml`
-11. `security-scan.yml`
-12. `security-tests.yml`
-13. `skip-counter.yml`
-14. `testcontainers-ci.yml`
-15. `verify-strategic-docs.yml`
-16. `zap-baseline.yml`
+1. `archive-guard.yml`
+2. `bundle-size-check.yml`
+3. `ci-unified.yml`
+4. `claude-code-review.yml`
+5. `claude.yml`
+6. `code-quality.yml`
+7. `codeql.yml`
+8. `core-validation.yml`
+9. `dependency-validation.yml`
+10. `dockerfile-lint.yml`
+11. `docs-routing-check.yml`
+12. `docs-validate.yml`
+13. `reflection-validate.yml`
+14. `security-scan.yml`
+15. `security-tests.yml`
+16. `skip-counter.yml`
+17. `testcontainers-ci.yml`
+18. `verify-strategic-docs.yml`
+19. `zap-baseline.yml`
+
+## Batch 11 Classification
+
+Batch 11 classified the tracked workflow inventory before any CI consolidation.
+No workflow was deleted in this batch.
+
+Live evidence from 2026-05-28:
+
+- `git ls-files .github/workflows` returned the 19 files listed above.
+- `Get-ChildItem .github/workflows -File` returned 19 tracked `.yml` files.
+- GitHub branch protection for `main` is enabled, but `required_status_checks`
+  is `null`.
+- `gh api repos/nikhillinit/Updog_restore/rulesets` returned `[]`.
+- The GitHub Actions registry still contains deleted historical and dynamic
+  workflows, so registry state is not safe-deletion evidence for tracked YAML.
+
+Required-check relevance below uses the live branch-protection evidence. `None`
+means the workflow is not currently required by GitHub branch protection or a
+repository ruleset; it does not prove the workflow is unused by external status
+consumers.
+
+| Workflow                    | Purpose / jobs                                                                                                                                                                              | Triggers                                                                                           | Permissions / secrets                                                                                                             | Required-check relevance                                          | Duplicate or overlap                                                                                      |
+| --------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------- |
+| `archive-guard.yml`         | Blocks tracked archive/backup directories (`archive-guard`)                                                                                                                                 | PRs touching archive/backup/governance guard paths; manual                                         | `contents: read`; no secrets                                                                                                      | None                                                              | Overlaps `ci-unified.yml` Governance Guards archive/large-file checks                                     |
+| `bundle-size-check.yml`     | Builds base and PR branches, compares bundle-size reports, comments on PR (`build-base`, `build-pr`, `compare`)                                                                             | PRs to `main` or `feat/iteration-a-deterministic-engine` touching client/shared/build budget paths | `contents: read`, `pull-requests: write`; no secrets                                                                              | None                                                              | Overlaps `ci-unified.yml` build/bundle check, but adds base-vs-PR comparison and comments                 |
+| `ci-unified.yml`            | Main CI fanout and pass-through gate (`changes`, docs links, typecheck/lint/unit-fast, affected/full tests, build, dependency, security, memory, guards, quality summary, `CI Gate Status`) | PRs to `main`/`develop`; pushes to `main`; manual inputs                                           | `actions: read`, `contents: read`, `pull-requests: write`, `security-events: write`; no secrets                                   | Planned required-check candidate after parity, not required today | Owns most overlap by design; future consolidation target                                                  |
+| `claude-code-review.yml`    | Label-gated Claude PR review (`changes`, `claude-review`)                                                                                                                                   | PR opened/synchronized/ready/reopened                                                              | Job grants `contents: read`, `pull-requests: read`, `issues: read`, `id-token: write`; `CLAUDE_CODE_OAUTH_TOKEN`                  | None                                                              | Distinct AI review lane; shares change detection with `ci-unified.yml`                                    |
+| `claude.yml`                | Comment/issue-triggered Claude responder (`claude`)                                                                                                                                         | Issue comments, PR review comments, issue opened/assigned, PR reviews containing `@claude`         | Job grants `contents: read`, `pull-requests: read`, `issues: read`, `id-token: write`, `actions: read`; `CLAUDE_CODE_OAUTH_TOKEN` | None                                                              | Distinct interactive AI lane                                                                              |
+| `code-quality.yml`          | Manual code-quality metric counts (`metrics`)                                                                                                                                               | Manual only                                                                                        | `contents: read`; no secrets                                                                                                      | None                                                              | Overlaps `ci-unified.yml` PR Code Quality Metrics                                                         |
+| `codeql.yml`                | CodeQL code scanning (`changes`, `analyze`)                                                                                                                                                 | Push to `main`; PRs to `main`; weekly schedule; manual                                             | `actions: read`, `contents: read`, `security-events: write`; no secrets                                                           | None                                                              | Overlaps security reporting surface but owns CodeQL analysis                                              |
+| `core-validation.yml`       | Manual `npm run validate:core` with DB setup (`validate-core`)                                                                                                                              | Manual only                                                                                        | Not declared; no secrets                                                                                                          | None                                                              | Overlaps `ci-unified.yml` full-test `validate-core` matrix group                                          |
+| `dependency-validation.yml` | Weekly/manual Windows dependency and doctor validation (`validate-windows`)                                                                                                                 | Weekly schedule; manual                                                                            | Not declared; no secrets                                                                                                          | None                                                              | Overlaps `ci-unified.yml` Linux dependency validation but covers Windows                                  |
+| `dockerfile-lint.yml`       | Hadolint SARIF upload for Dockerfiles (`hadolint`)                                                                                                                                          | PR/push touching Dockerfiles or this workflow                                                      | `contents: read`, `security-events: write`; no secrets                                                                            | None                                                              | Adjacent to `security-scan.yml` container scan, but checks Dockerfile lint                                |
+| `docs-routing-check.yml`    | Regenerates/checks discovery routing artifacts (`validate-routing`)                                                                                                                         | Docs/routing path PRs and pushes to `main`; manual                                                 | Not declared; no secrets                                                                                                          | None                                                              | Overlaps docs validation generally, but owns generated router freshness                                   |
+| `docs-validate.yml`         | Waterfall/domain docs validation and PR comment (`validate-waterfall-docs`)                                                                                                                 | PRs touching waterfall truth/docs/scripts; manual                                                  | `contents: read`, `pull-requests: write`; no secrets                                                                              | None                                                              | Distinct domain-doc validation; overlaps docs lanes only by category                                      |
+| `reflection-validate.yml`   | Reflection/skill validation (`validate-reflections`)                                                                                                                                        | PRs touching `docs/skills`, REFL regressions, or skill management script; manual                   | `contents: read`; no secrets                                                                                                      | None                                                              | Distinct skill/REFL policy lane                                                                           |
+| `security-scan.yml`         | Deep security scan, SARIF uploads, license check, OWASP dependency-check, SBOM, pass-through status (`security-scan`)                                                                       | Weekly schedule; manual; PRs to `main`/`develop`; pushes to `main`                                 | `contents: read`, `security-events: write`; `NVD_API_KEY`                                                                         | None                                                              | Overlaps `ci-unified.yml` PR Light Security for npm audit/Trivy, but owns deeper scheduled scans and SBOM |
+| `security-tests.yml`        | Manual security integration tests with Postgres/Redis (`security`)                                                                                                                          | Manual only                                                                                        | Not declared; no secrets                                                                                                          | None                                                              | Overlaps `ci-unified.yml` Security Integration Tests                                                      |
+| `skip-counter.yml`          | Counts `.skip`/`.todo` and enforces quarantine threshold (`count-skips`)                                                                                                                    | PRs touching tests/Vitest config                                                                   | Not declared; no secrets                                                                                                          | None                                                              | Adjacent to test governance; no equivalent enforcement in `ci-unified.yml`                                |
+| `testcontainers-ci.yml`     | Docker-managed Testcontainers integration suite (`testcontainers`)                                                                                                                          | PR labeled `test:docker` or `test:integration`; manual                                             | Not declared; no secrets                                                                                                          | None                                                              | Distinct Docker/Testcontainers lane, separate from DB service tests in `ci-unified.yml`                   |
+| `verify-strategic-docs.yml` | Remark, emoji, link, and summary checks for strategic analysis docs (`verify-docs`)                                                                                                         | PR/push touching `docs/analysis`, `.remarkrc.mjs`, or `package.json`                               | Not declared; no secrets                                                                                                          | None                                                              | Overlaps docs link/emoji concerns but targets strategic analysis docs                                     |
+| `zap-baseline.yml`          | OWASP ZAP baseline scan (`zap_scan`)                                                                                                                                                        | Weekly schedule; manual                                                                            | Not declared; `ZAP_BASE_URL`                                                                                                      | None; registry was `disabled_manually` at review time             | Distinct DAST lane; overlaps security category only                                                       |
+
+### Classification Decisions
+
+| Workflow                    | Classification            | Deletion blocker                                                                                                     | Safe-deletion evidence |
+| --------------------------- | ------------------------- | -------------------------------------------------------------------------------------------------------------------- | ---------------------- |
+| `archive-guard.yml`         | Keep, blocked             | Batch 12 found PR overlap in `ci-unified.yml`, but no replacement for the standalone manual guard entry or status    | None sufficient        |
+| `bundle-size-check.yml`     | Keep, blocked             | Base-vs-PR comparison, artifacts, PR comments, and write permissions are not replaced by `ci-unified.yml`            | None sufficient        |
+| `ci-unified.yml`            | Keep                      | Main CI/gate owner and planned required-check candidate                                                              | Not applicable         |
+| `claude-code-review.yml`    | Keep                      | Label-gated AI review uses Claude OAuth and job-level permissions                                                    | Not applicable         |
+| `claude.yml`                | Keep                      | Interactive `@claude` issue/PR workflow uses Claude OAuth and event-specific permissions                             | Not applicable         |
+| `code-quality.yml`          | Delete candidate, blocked | Manual metric workflow may still be used from Actions UI; no owner decision or replacement command has been recorded | None sufficient        |
+| `codeql.yml`                | Keep                      | Owns CodeQL/security-events upload and scheduled code scanning                                                       | Not applicable         |
+| `core-validation.yml`       | Keep, blocked             | Manual `validate:core` entry point remains the only named one-click Actions path for release/debug runs              | None sufficient        |
+| `dependency-validation.yml` | Keep                      | Windows scheduled dependency validation is distinct from Linux CI dependency validation                              | Not applicable         |
+| `dockerfile-lint.yml`       | Keep                      | Dockerfile SARIF lint has no exact replacement in security scan                                                      | Not applicable         |
+| `docs-routing-check.yml`    | Keep                      | Owns generated routing artifact freshness                                                                            | Not applicable         |
+| `docs-validate.yml`         | Keep                      | Owns waterfall/domain documentation validation and PR comments                                                       | Not applicable         |
+| `reflection-validate.yml`   | Keep                      | Owns reflection and skill index validation                                                                           | Not applicable         |
+| `security-scan.yml`         | Keep                      | Owns scheduled deep scans, SARIF uploads, license checks, dependency-check, and SBOM                                 | Not applicable         |
+| `security-tests.yml`        | Keep, blocked             | Manual security-test trigger and environment differ from `ci-unified.yml`; keep until manual replacement is proven   | None sufficient        |
+| `skip-counter.yml`          | Keep                      | Owns skip/quarantine threshold enforcement                                                                           | Not applicable         |
+| `testcontainers-ci.yml`     | Keep                      | Owns label-gated/manual Docker/Testcontainers validation                                                             | Not applicable         |
+| `verify-strategic-docs.yml` | Keep, blocked             | Strategic-doc-specific lint/link/emoji summary is not replaced by routing or generic docs checks                     | None sufficient        |
+| `zap-baseline.yml`          | Keep                      | Distinct DAST workflow; deletion needs security/ops sign-off even though the registry is disabled                    | Not applicable         |
+
+Batch 11 outcome: no workflow had enough safe-deletion evidence for removal. The
+follow-up consolidation decision pass is recorded in the Batch 12 closeout
+below.
+
+## Post-Batch 11 Candidate Pass: `code-quality.yml`
+
+The first deletion-candidate pass after Batch 11 evaluated `code-quality.yml`
+from clean `main` at `e7699495105e7c257887bbeb0ee24374f02413e3`.
+
+Fresh evidence from 2026-05-28:
+
+- `git status --short --branch` returned `## main...origin/main`.
+- `git ls-files .github/workflows` still returned the same 19 tracked workflow
+  files.
+- GitHub branch protection for `main` still returned
+  `required_status_checks: null`; repository rulesets still returned `[]`.
+- The GitHub Actions registry still lists `Code Quality Metrics` at
+  `.github/workflows/code-quality.yml` with state `active`.
+- The latest registry run sample for `code-quality.yml` was successful but
+  historical: the newest listed run was created on `2026-05-21T11:24:54Z`, and
+  the sample includes earlier `push` / `pull_request` events from before the
+  current manual-only workflow shape.
+- `ci-unified.yml` has an overlapping `quality-summary` job named
+  `Code Quality Metrics`, but it is PR-only and runs only for heavy CI-relevant
+  PRs. It comments on PRs; it does not replace the manual Actions UI summary
+  entry owned by `code-quality.yml`.
+
+Decision: do not delete `code-quality.yml` in this slice. The workflow remains
+`Delete candidate, blocked` until a maintainer confirms the manual Actions entry
+is no longer needed, or an equivalent manual command/reporting path is
+documented and external status-consumer risk is resolved.
+
+Next evidence needed before deletion:
+
+1. Owner policy for retiring or keeping the manual `Code Quality Metrics`
+   Actions entry.
+2. Replacement behavior for manual metric reporting, if the manual entry is
+   still useful.
+3. A status-consumer check for dashboards, scripts, badges, or automations that
+   may refer to `Code Quality Metrics` or `.github/workflows/code-quality.yml`.
+4. A fresh branch-protection, ruleset, tracked-workflow, and Actions-registry
+   check on the deletion branch.
+
+## Batch 12 Closeout: Remaining Consolidation Candidates
+
+Batch 12 rechecked the remaining Batch 11 consolidation candidates from clean
+`main` at `e664b0209bd41c1ab9b4e68c0f1fc5081d3c4352`.
+
+Live evidence checked for this pass:
+
+- `git status --short --branch` returned `## main...origin/main`.
+- `git ls-files .github/workflows` and `Get-ChildItem .github/workflows -File`
+  both showed the same 19 tracked workflow files.
+- GitHub branch protection for `main` returned `required_status_checks: null`,
+  and repository rulesets returned `[]`.
+- The GitHub Actions registry still lists `archive-guard.yml`,
+  `bundle-size-check.yml`, `core-validation.yml`, `security-tests.yml`,
+  `verify-strategic-docs.yml`, and `code-quality.yml` as active.
+- Recent run samples were inspected for each candidate with `gh run list`.
+- Reference scans covered workflow names, job names, local npm commands,
+  `ci-unified.yml`, `.github/path-filters.yml`, `.github/actions`,
+  `package.json`, `scripts`, and `docs`.
+
+No workflow YAML was deleted or consolidated. Batch 12 is closed as a
+no-deletion evidence pass: each remaining candidate still has a replacement,
+manual-operator, or status-consumer blocker.
+
+### Batch 12 Decisions
+
+#### `archive-guard.yml`
+
+- Live evidence checked: current YAML has PR path filters plus
+  `workflow_dispatch`; GitHub registry lists `Archive Guard` as active; recent
+  run samples include successful PR runs through 2026-05-25.
+- Overlap with `ci-unified.yml`: `Governance Guards` runs
+  `scripts/control-plane/git-safety.mjs archive-guard` on PRs, with the same
+  base/head range shape.
+- Missing replacement behavior: `ci-unified.yml`'s guard job is PR-only and does
+  not replace the standalone manual Actions entry that runs the archive guard
+  without a PR range.
+- Status-consumer/manual-operator risk: deleting the workflow would remove the
+  visible `Archive Guard / Block tracked archive directories` status and manual
+  guard entry without owner confirmation.
+- Decision: keep, blocked.
+- Next evidence needed: maintainer confirmation that the manual guard entry is
+  unnecessary, plus explicit status-consumer proof that the standalone archive
+  guard status is not referenced before deleting the YAML.
+
+#### `bundle-size-check.yml`
+
+- Live evidence checked: current YAML builds base and PR branches, uploads base
+  and PR size artifacts, compares reports, comments on PRs, and fails on
+  exceeded limits; GitHub registry lists `Bundle Size Check` as active; recent
+  run samples include PR runs on 2026-05-28.
+- Overlap with `ci-unified.yml`: `Build Production` runs `npm run build` and
+  `npm run bundle:check || true`.
+- Missing replacement behavior: `ci-unified.yml` does not build the base branch,
+  compare base-vs-PR results, upload comparison artifacts, comment on PRs, or
+  fail the comparison job when the diff exceeds limits.
+- Status-consumer/manual-operator risk: active tests and scripts still reference
+  `.github/workflows/bundle-size-check.yml` or the `Bundle Size Check` status,
+  so deletion would break in-repo consumers before external consumers are even
+  considered.
+- Decision: keep, blocked.
+- Next evidence needed: replacement base-vs-PR reporting and status behavior, or
+  owner approval to retire that behavior plus updates to tests/scripts and a
+  fresh status-consumer scan.
+
+#### `core-validation.yml`
+
+- Live evidence checked: current YAML is `workflow_dispatch` only, provisions
+  Postgres and Redis, runs `npm run db:push`, then runs `npm run validate:core`;
+  GitHub registry lists `Core Validation Manual` as active.
+- Overlap with `ci-unified.yml`: the full-test matrix includes a `validate-core`
+  group that runs `npm run validate:core` with Postgres and Redis services when
+  full validation is expected.
+- Missing replacement behavior: `ci-unified.yml` does not provide the same named
+  one-click manual workflow for operators who want only `validate:core`.
+- Status-consumer/manual-operator risk:
+  `docs/runbooks/integration-ready-file-handshake.md` documents
+  `.github/workflows/core-validation.yml` and job `validate-core` as a GitHub
+  workflow reference.
+- Decision: keep, blocked.
+- Next evidence needed: owner decision that `ci-unified.yml` manual dispatch is
+  the supported replacement for one-click core validation, plus runbook/status
+  consumer updates.
+
+#### `security-tests.yml`
+
+- Live evidence checked: current YAML is `workflow_dispatch` only, provisions
+  Postgres and Redis, sets a CI JWT secret value, runs `npm run db:push`, then
+  runs `npm run test:security`; GitHub registry lists `Security Tests Manual` as
+  active.
+- Overlap with `ci-unified.yml`: the `security-tests` job can run
+  `npm run test:security` with Postgres and Redis when security inputs, labels,
+  or path filters make the job expected.
+- Missing replacement behavior: `ci-unified.yml` does not preserve the same
+  standalone manual security-test Actions entry, and the service/database/JWT
+  setup is not byte-for-byte identical.
+- Status-consumer/manual-operator risk: `server/server.ts` documents
+  `.github/workflows/security-tests.yml` as a CI contract for security tests,
+  and no security/operator sign-off exists for removal.
+- Decision: keep, blocked.
+- Next evidence needed: security/operator sign-off or an equivalent manual
+  `ci-unified.yml` path with documented environment parity, plus consumer
+  updates.
+
+#### `verify-strategic-docs.yml`
+
+- Live evidence checked: current YAML runs on PRs and pushes touching
+  `docs/analysis/**/*.md`, `.remarkrc.mjs`, or `package.json`; it runs
+  `docs:lint`, an analysis-doc emoji check,
+  `docs:check-links -- --analysis-only`, and writes a step summary; GitHub
+  registry lists `Verify Strategic Documentation` as active; recent run samples
+  include push and PR runs on 2026-05-28.
+- Overlap with `ci-unified.yml`: `docs-link-check` covers generic documentation
+  links when `docs_links` changes; `docs-routing-check.yml` covers generated
+  routing freshness; `docs-validate.yml` covers waterfall/domain docs.
+- Missing replacement behavior: no unified workflow reproduces the strategic
+  analysis-specific remark, emoji, analysis-only link, and summary behavior.
+- Status-consumer/manual-operator risk: repo docs and prompts still reference
+  `.github/workflows/verify-strategic-docs.yml`, and the active standalone
+  status would disappear from strategic-analysis doc PRs.
+- Decision: keep, blocked.
+- Next evidence needed: migrate the strategic-analysis checks into an existing
+  docs workflow with equivalent reporting, update references, and rerun status
+  consumer scans before deleting the standalone YAML.
 
 ## Inventory Format
 
@@ -86,6 +326,9 @@ When a workflow inventory is regenerated, it should follow a shape like this:
 
 - This README should only claim metrics that are easy to verify from the live
   repo.
+- Use `CI Unified / CI Gate Status` as the planned required branch-protection
+  check after parity. Do not require standalone path-filtered workflows unless
+  they are proven to report a status for every PR shape.
 - If you need exact trigger, secret, or workflow-call statistics, regenerate the
   machine-readable inventory instead of hand-editing this file.
 - If the workflow file count changes, update the verified count and file list in

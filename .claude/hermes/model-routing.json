@@ -1,0 +1,163 @@
+{
+  "version": 2,
+  "defaults": {
+    "research": "claude",
+    "production": "codex",
+    "distribution": "claude"
+  },
+  "ownership": {
+    "research": {
+      "owner": "claude",
+      "reviewer": "kimi",
+      "role": "leader-coordinator",
+      "artifact": "implementation brief",
+      "gate": "npm run doctor:quick"
+    },
+    "production": {
+      "owner": "codex",
+      "reviewer": "claude",
+      "role": "worker-executor",
+      "artifact": "diff plus tests",
+      "gate": "npm run check"
+    },
+    "production-financial": {
+      "owner": "codex",
+      "reviewer": "claude",
+      "audit": "kimi",
+      "role": "worker-executor",
+      "specialistRequired": true,
+      "artifact": "diff plus truth-case notes",
+      "gate": "npm run calc-gate",
+      "humanApproval": true
+    },
+    "distribution": {
+      "owner": "claude",
+      "repairOwner": "codex",
+      "role": "release-manager",
+      "artifact": "PR-ready summary",
+      "gate": "npm run lint"
+    }
+  },
+  "debate": {
+    "comparators": ["claude", "codex", "kimi"],
+    "synthesis": "claude"
+  },
+  "longContextModel": "kimi",
+  "longContextTriggers": [
+    "full repo audit",
+    "repo-wide",
+    "cross-module trace",
+    "read changelog",
+    "read decisions",
+    "architecture scan",
+    "system-wide",
+    "phoenix source"
+  ],
+  "manualFlags": {
+    "--claude": "claude",
+    "--codex": "codex",
+    "--kimi": "kimi",
+    "--gemini": "gemini",
+    "--agy": "agy"
+  },
+  "specialists": {
+    "waterfall-specialist": {
+      "keywords": [
+        { "phrase": "waterfall calculation", "weight": 4 },
+        { "phrase": "carry distribution", "weight": 4 },
+        { "phrase": "lp/gp distribution", "weight": 4 },
+        { "phrase": "clawback", "weight": 4 },
+        { "phrase": "carried interest", "weight": 3 },
+        { "phrase": "waterfall tier", "weight": 3 }
+      ],
+      "risk": "financial"
+    },
+    "phoenix-precision-guardian": {
+      "keywords": [
+        { "phrase": "numeric drift", "weight": 4 },
+        { "phrase": "decimal precision", "weight": 4 },
+        { "phrase": "rounding error", "weight": 4 },
+        { "phrase": "parsefloat", "weight": 3 },
+        { "phrase": "floating point", "weight": 3 }
+      ],
+      "risk": "financial"
+    },
+    "xirr-fees-validator": {
+      "keywords": [
+        { "phrase": "xirr calculation", "weight": 4 },
+        { "phrase": "xirr", "weight": 3 },
+        { "phrase": "irr calculation", "weight": 3 },
+        { "phrase": "management fees", "weight": 3 },
+        { "phrase": "cash flow timing", "weight": 3 },
+        { "phrase": "fee schedule", "weight": 3 }
+      ],
+      "risk": "financial"
+    },
+    "test-repair": {
+      "keywords": [
+        { "phrase": "failing test", "weight": 4 },
+        { "phrase": "flaky test", "weight": 4 },
+        { "phrase": "vitest failure", "weight": 3 },
+        { "phrase": "playwright failure", "weight": 3 },
+        { "phrase": "test regression", "weight": 3 }
+      ],
+      "risk": "quality"
+    },
+    "code-reviewer": {
+      "keywords": [
+        { "phrase": "code review", "weight": 4 },
+        { "phrase": "review pass", "weight": 3 },
+        { "phrase": "risk scan", "weight": 3 },
+        { "phrase": "maintainability check", "weight": 3 }
+      ],
+      "risk": "quality"
+    },
+    "debug-expert": {
+      "keywords": [
+        { "phrase": "root cause", "weight": 4 },
+        { "phrase": "debug regression", "weight": 4 },
+        { "phrase": "incident analysis", "weight": 3 },
+        { "phrase": "unexpected behavior", "weight": 3 }
+      ],
+      "risk": "operational"
+    }
+  },
+  "scoring": {
+    "minScoreToAssign": 3,
+    "tieBreaker": "highest-risk-wins",
+    "riskOrder": ["financial", "operational", "quality"]
+  },
+  "gates": {
+    "research": "npm run doctor:quick",
+    "production": "npm run check",
+    "production-financial": "npm run calc-gate",
+    "distribution": "npm run lint"
+  },
+  "commands": {
+    "claude": {
+      "binEnv": "CLAUDE_CODE_BIN",
+      "defaultBin": "claude",
+      "args": ["-p"]
+    },
+    "codex": {
+      "binEnv": "CODEX_BIN",
+      "defaultBin": "codex",
+      "args": ["exec", "--sandbox", "danger-full-access"]
+    },
+    "kimi": {
+      "binEnv": "KIMI_CODE_BIN",
+      "defaultBin": "kimi-cli",
+      "args": ["--print", "--input-format", "text", "--final-message-only"]
+    },
+    "gemini": {
+      "binEnv": "GEMINI_BIN",
+      "defaultBin": "gemini",
+      "args": ["--output-format", "text", "--yolo", "--prompt="]
+    },
+    "agy": {
+      "binEnv": "AGY_BIN",
+      "defaultBin": "agy",
+      "args": []
+    }
+  }
+}

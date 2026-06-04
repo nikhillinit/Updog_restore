@@ -21,8 +21,12 @@ import {
   type InsertUser,
 } from '../schema/src/index.js';
 import { db } from './db';
-import { and, desc, eq, sql } from 'drizzle-orm';
-import { getStorageConfigurationError, resolveStorageBootMode } from './storage-runtime-policy';
+import { and, desc, eq, inArray, sql } from 'drizzle-orm';
+import {
+  getProfessionalDemoRuntimeConfigurationError,
+  getStorageConfigurationError,
+  resolveStorageBootMode,
+} from './storage-runtime-policy';
 
 // Round and performance case types (simplified versions without schema definition)
 export interface InvestmentRound {
@@ -110,7 +114,7 @@ export interface IStorage {
   createFundMetrics(_metrics: InsertFundMetrics): Promise<FundMetrics>;
 
   // Activity methods
-  getActivities(fundId?: number): Promise<Activity[]>;
+  getActivities(fundId?: number | number[]): Promise<Activity[]>;
   createActivity(_activity: InsertActivity): Promise<Activity>;
 }
 
@@ -452,8 +456,13 @@ export class MemStorage implements IStorage {
   }
 
   // Activity methods
-  async getActivities(fundId?: number): Promise<Activity[]> {
+  async getActivities(fundId?: number | number[]): Promise<Activity[]> {
     const activities = Array.from(this.activities.values());
+    if (Array.isArray(fundId)) {
+      if (fundId.length === 0) return [];
+      const ids = new Set(fundId);
+      return activities.filter((a) => a.fundId != null && ids.has(a.fundId));
+    }
     return fundId ? activities.filter((a) => a.fundId === fundId) : activities;
   }
 
@@ -618,7 +627,11 @@ export class DatabaseStorage implements IStorage {
     return metrics;
   }
 
-  async getActivities(fundId?: number): Promise<Activity[]> {
+  async getActivities(fundId?: number | number[]): Promise<Activity[]> {
+    if (Array.isArray(fundId)) {
+      if (fundId.length === 0) return [];
+      return await db.select().from(activities).where(inArray(activities.fundId, fundId));
+    }
     if (fundId) {
       return await db.select().from(activities).where(eq(activities.fundId, fundId));
     }
@@ -636,6 +649,11 @@ export class DatabaseStorage implements IStorage {
 }
 
 export function createStorageFromEnvironment(env: NodeJS.ProcessEnv = process.env): IStorage {
+  const professionalDemoError = getProfessionalDemoRuntimeConfigurationError(env);
+  if (professionalDemoError !== null) {
+    throw new Error(professionalDemoError);
+  }
+
   const mode = resolveStorageBootMode(env);
   if (mode === 'database') {
     return new DatabaseStorage();

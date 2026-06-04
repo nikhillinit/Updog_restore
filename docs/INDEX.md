@@ -1,7 +1,7 @@
 ---
 status: ACTIVE
 audience: both
-last_updated: 2026-04-18
+last_updated: 2026-05-28
 categories: [documentation, navigation]
 keywords: [index, docs, navigation, routing, documentation]
 source_of_truth: true
@@ -17,7 +17,7 @@ maintenance:
 # Documentation Index
 
 **Purpose**: Central routing table for all project documentation **Audience**:
-Humans AND Agents **Last Updated**: 2026-04-18
+Humans AND Agents **Last Updated**: 2026-05-28
 
 ---
 
@@ -46,11 +46,12 @@ Humans AND Agents **Last Updated**: 2026-04-18
 
 **Status**: [ACTIVE] **Audience**: Humans + Agents
 
-| Document                              | Description                                       | When to Use                  |
-| ------------------------------------- | ------------------------------------------------- | ---------------------------- |
-| [README.md](../README.md)             | Project overview, tech stack, setup               | First time setup             |
-| [CLAUDE.md](../CLAUDE.md)             | AI assistant guidelines, conventions              | Before ANY AI-assisted task  |
-| [CAPABILITIES.md](../CAPABILITIES.md) | Historical inventory of agents, tools, and skills | Historical capability lookup |
+| Document                                             | Description                                       | When to Use                  |
+| ---------------------------------------------------- | ------------------------------------------------- | ---------------------------- |
+| [README.md](../README.md)                            | Project overview, tech stack, setup               | First time setup             |
+| [processes/clone-guide.md](processes/clone-guide.md) | Blobless clone guidance and archive policy        | Size-sensitive local clones  |
+| [CLAUDE.md](../CLAUDE.md)                            | AI assistant guidelines, conventions              | Before ANY AI-assisted task  |
+| [CAPABILITIES.md](../CAPABILITIES.md)                | Historical inventory of agents, tools, and skills | Historical capability lookup |
 
 **Current Path**: CLAUDE.md -> repo search -> docs/INDEX.md -> README.md
 
@@ -80,18 +81,15 @@ Humans AND Agents **Last Updated**: 2026-04-18
 
 **Status**: [ACTIVE] **Audience**: Humans + Agents
 
-| Document                                                                                                                 | Description                                                                             | When to Use                                                  |
-| ------------------------------------------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------- | ------------------------------------------------------------ |
-| [tests/README.md](../tests/README.md)                                                                                    | Testing strategy (Unit, Integration, E2E)                                               | Writing tests, fixing test failures                          |
-| [cheatsheets/service-testing-patterns.md](../cheatsheets/service-testing-patterns.md)                                    | API/service test patterns, integration testing                                          | When writing integration tests                               |
-| [cheatsheets/testcontainers-guide.md](../cheatsheets/testcontainers-guide.md)                                            | Testcontainers setup and usage guide                                                    | Setting up Docker-based integration tests                    |
-| [plans/IMPLEMENTATION-PARITY-INTEGRATION-STRATEGY.md](plans/IMPLEMENTATION-PARITY-INTEGRATION-STRATEGY.md)               | Triage decision framework for divergence fixes                                          | When encountering implementation mismatches during hardening |
-| [ARCHITECTURAL-DEBT.md](ARCHITECTURAL-DEBT.md)                                                                           | Complex refactoring registry (10+ files, architectural)                                 | Documenting deferred architectural work                      |
-| [plans/COMPREHENSIVE-DIVERGENCE-ASSESSMENT.md](plans/COMPREHENSIVE-DIVERGENCE-ASSESSMENT.md)                             | Analysis of 22 recent PRs, divergence patterns                                          | Understanding implementation parity issues                   |
-| [plans/FOUNDATION-HARDENING-FEE-ALIGNMENT-REVIEW.md](plans/FOUNDATION-HARDENING-FEE-ALIGNMENT-REVIEW.md)                 | Fee-specific divergence analysis                                                        | When working on fee-related code                             |
-| [plans/2026-03-31-variance-roadmap-revision.md](plans/2026-03-31-variance-roadmap-revision.md)                           | Validated production order for variance, baselines, alerts, Time Machine, and analytics | When planning follow-on implementation after variance audit  |
-| [plans/2026-04-01-variance-phase1a1c-implementation-plan.md](plans/2026-04-01-variance-phase1a1c-implementation-plan.md) | Implemented variance-model slice plus rollout limitations                               | Understanding shipped current-state variance behavior        |
-| [cheatsheets/pr-merge-verification.md](../cheatsheets/pr-merge-verification.md)                                          | PR verification baseline (74.7% pass rate)                                              | Before merging PRs                                           |
+| Document                                                                                                                 | Description                                                                             | When to Use                                                 |
+| ------------------------------------------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------- | ----------------------------------------------------------- |
+| [tests/README.md](../tests/README.md)                                                                                    | Testing strategy (Unit, Integration, E2E)                                               | Writing tests, fixing test failures                         |
+| [cheatsheets/service-testing-patterns.md](../cheatsheets/service-testing-patterns.md)                                    | API/service test patterns, integration testing                                          | When writing integration tests                              |
+| [cheatsheets/testcontainers-guide.md](../cheatsheets/testcontainers-guide.md)                                            | Testcontainers setup and usage guide                                                    | Setting up Docker-based integration tests                   |
+| [ARCHITECTURAL-DEBT.md](ARCHITECTURAL-DEBT.md)                                                                           | Complex refactoring registry (10+ files, architectural)                                 | Documenting deferred architectural work                     |
+| [plans/2026-03-31-variance-roadmap-revision.md](plans/2026-03-31-variance-roadmap-revision.md)                           | Validated production order for variance, baselines, alerts, Time Machine, and analytics | When planning follow-on implementation after variance audit |
+| [plans/2026-04-01-variance-phase1a1c-implementation-plan.md](plans/2026-04-01-variance-phase1a1c-implementation-plan.md) | Implemented variance-model slice plus rollout limitations                               | Understanding shipped current-state variance behavior       |
+| [cheatsheets/pr-merge-verification.md](../cheatsheets/pr-merge-verification.md)                                          | PR verification baseline (74.7% pass rate)                                              | Before merging PRs                                          |
 
 **Key Commands**:
 
@@ -113,7 +111,7 @@ Hardening baseline)
 | ------------------------------------------------------------------ | --------------------------------------------------------- | -------------------------------------------- |
 | [scripts/README.md](../scripts/README.md)                          | Deployment scripts (progressive rollout, smoke tests)     | Deploying to staging/production              |
 | [workflows/PRODUCTION_SCRIPTS.md](workflows/PRODUCTION_SCRIPTS.md) | Production deployment system details                      | Understanding deployment process             |
-| [DEPLOYMENT_RUNBOOK.md](DEPLOYMENT_RUNBOOK.md)                     | Step-by-step production deployment and rollback runbook   | Executing or supervising production rollout  |
+| [runbooks/rollback.md](runbooks/rollback.md)                       | Step-by-step rollback runbook                             | Executing or supervising production rollback |
 | [OPERATOR_RUNBOOK.md](OPERATOR_RUNBOOK.md)                         | Unified metrics diagnostic runbook                        | Investigating production metrics anomalies   |
 | [observability.md](observability.md)                               | Monitoring, health checks, metrics, and alerting overview | Understanding runtime observability surfaces |
 
@@ -135,15 +133,17 @@ Hardening baseline)
 
 **Status**: [ACTIVE] **Audience**: Humans + Agents
 
-| Document                                                             | Description                                             | When to Use                                 |
-| -------------------------------------------------------------------- | ------------------------------------------------------- | ------------------------------------------- |
-| [DECISIONS.md](../DECISIONS.md)                                      | Architectural Decision Records (ADRs)                   | Understanding technical rationale           |
-| [adr/](adr/)                                                         | Standalone ADR files (15 files)                         | Architecture decisions outside DECISIONS.md |
-| [DEVELOPMENT_STRATEGY.md](DEVELOPMENT_STRATEGY.md)                   | Long-term development strategy                          | Strategic planning                          |
-| [MULTI-AI-DEVELOPMENT-WORKFLOW.md](MULTI-AI-DEVELOPMENT-WORKFLOW.md) | Multi-AI collaboration patterns                         | Leveraging multiple AIs                     |
-| [schema.md](schema.md)                                               | Database schema, relationships, and design patterns     | Understanding persisted data model          |
-| [IDEMPOTENCY_GUIDE.md](IDEMPOTENCY_GUIDE.md)                         | Request deduplication and exactly-once processing guide | Designing safe write paths                  |
-| [RLS-DEVELOPMENT-GUIDE.md](RLS-DEVELOPMENT-GUIDE.md)                 | Multi-tenant Row-Level Security development guide       | Building or testing tenant-scoped features  |
+| Document                                                                               | Description                                             | When to Use                                 |
+| -------------------------------------------------------------------------------------- | ------------------------------------------------------- | ------------------------------------------- |
+| [DECISIONS.md](../DECISIONS.md)                                                        | Architectural Decision Records (ADRs)                   | Understanding technical rationale           |
+| [adr/](adr/)                                                                           | Standalone ADR files (15 files)                         | Architecture decisions outside DECISIONS.md |
+| [DEVELOPMENT_STRATEGY.md](DEVELOPMENT_STRATEGY.md)                                     | Long-term development strategy                          | Strategic planning                          |
+| [governance/cleanup-manifest.md](governance/cleanup-manifest.md)                       | Current cleanup candidate register                      | Before deletion/externalization cleanup     |
+| [governance/2026-05-19-refactor-roadmap.md](governance/2026-05-19-refactor-roadmap.md) | Active refactor roadmap and priority order              | Cleanup/refactor sequencing                 |
+| [MULTI-AI-DEVELOPMENT-WORKFLOW.md](MULTI-AI-DEVELOPMENT-WORKFLOW.md)                   | Multi-AI collaboration patterns                         | Leveraging multiple AIs                     |
+| [schema.md](schema.md)                                                                 | Database schema, relationships, and design patterns     | Understanding persisted data model          |
+| [IDEMPOTENCY_GUIDE.md](IDEMPOTENCY_GUIDE.md)                                           | Request deduplication and exactly-once processing guide | Designing safe write paths                  |
+| [RLS-DEVELOPMENT-GUIDE.md](RLS-DEVELOPMENT-GUIDE.md)                                   | Multi-tenant Row-Level Security development guide       | Building or testing tenant-scoped features  |
 
 **Key ADRs**:
 
@@ -178,18 +178,16 @@ not by number alone._
 
 **Status**: [ACTIVE] **Audience**: Agents
 
-| Document                                                                                                                            | Description                                             | When to Use                          |
-| ----------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------- | ------------------------------------ |
-| [ai-utils/README.md](../ai-utils/README.md)                                                                                         | Memory-enabled code review system                       | Code review automation               |
-| [ai/prompt/README.md](../ai/prompt/README.md)                                                                                       | Type-safe prompt templates                              | Portfolio QA, Reserve Sizing         |
-| [.claude/skills/INDEX.md](../.claude/skills/INDEX.md)                                                                               | Skills index                                            | Finding skills for workflows         |
-| [.claude/DISCOVERY-MAP.md](../.claude/DISCOVERY-MAP.md)                                                                             | Agent-facing routing, including Phoenix quick reference | Finding Phoenix agents and workflows |
-| [archive/2026-q1/unused-code/claude_code-multi-AI-MCP/README.md](../archive/2026-q1/unused-code/claude_code-multi-AI-MCP/README.md) | Archived Multi-AI collaboration prototype               | Historical consensus/debate tooling  |
+| Document                                                | Description                                             | When to Use                          |
+| ------------------------------------------------------- | ------------------------------------------------------- | ------------------------------------ |
+| [ai-utils/README.md](../ai-utils/README.md)             | Memory-enabled code review system                       | Code review automation               |
+| [.claude/skills/INDEX.md](../.claude/skills/INDEX.md)   | Skills index                                            | Finding skills for workflows         |
+| [.claude/DISCOVERY-MAP.md](../.claude/DISCOVERY-MAP.md) | Agent-facing routing, including Phoenix quick reference | Finding Phoenix agents and workflows |
 
 **Key Features**:
 
-- **Memory System**: HybridMemoryManager with PostgreSQL + pgvector
-- **Pattern Learning**: Cross-conversation pattern learning
+- **Agent surfaces**: project prompt agents under `.claude/agents/`
+- **Package-free AI gateway**: `npm run ai` routes to `scripts/ai-tools/`
 - **Multi-AI**: Gemini (free), Grok/OpenAI/DeepSeek (paid)
 
 ---
@@ -206,8 +204,9 @@ not by number alone._
 
 **Current snapshot**:
 
-- 16 workflow files currently present in `.github/workflows`
-- `workflows/README.md` is the maintained repo-verified index
+- 19 workflow files currently present in `.github/workflows`
+- `workflows/README.md` is the maintained repo-verified index, Batch 11 workflow
+  classification map, and Batch 12 no-deletion closeout record
 - the archived workflow inventory snapshot is for historical reference only
 
 **Pattern Routing**:
@@ -229,10 +228,12 @@ not by number alone._
 
 **Current snapshot**:
 
-- 90 scripts are currently defined in the root `package.json`
+- 81 scripts are currently defined in the root `package.json`
 - Use `package.json` as the source of truth for exact script names
 - The highest-signal families are development/build, lint/guardrails,
   test/validation, database/seeding, docs/routing, and Phoenix/domain checks
+- `guard:scripts:check` blocks legacy wave/phase/slice script aliases; the
+  current baseline allows 0 legacy aliases
 - Phoenix (28 scripts): `phoenix:truth`, `phoenix:xirr-validate`
 
 ---
@@ -412,7 +413,7 @@ for complete workflow
 ## Maintenance
 
 **Document Owner**: Development Team **Review Cycle**: Monthly (or after major
-structural changes) **Last Updated**: 2026-04-18 **Next Review**: 2026-05-18
+structural changes) **Last Updated**: 2026-05-28 **Next Review**: 2026-06-20
 
 **Update Triggers**:
 

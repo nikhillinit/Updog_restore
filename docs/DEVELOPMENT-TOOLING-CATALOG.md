@@ -34,7 +34,7 @@ Only counts that were directly verifiable from the filesystem or root
 - `34` `SKILL.md` manifests under `.claude/skills`
 - `21` command files under `.claude/commands` (including nested paths)
 - `16` workflow files under `.github/workflows`
-- `90` npm scripts in the root `package.json`
+- `81` npm scripts in the root `package.json`
 
 Older totals for MCP functions, memory adoption percentages, skill category
 rollups, and npm script category breakdowns were removed where they were no
@@ -64,8 +64,9 @@ agents -> command workflows -> repo-native tooling -> generic fallback guidance.
 
 **Verified inventory**: `37` files under `.claude/agents`
 
-**Location**: `.claude/agents/`, plus supporting agent packages under
-`packages/`
+**Location**: `.claude/agents/`; package-backed agent source under `packages/`
+was removed in the Batch 8 cleanup after reference scans found no app, script,
+test, workflow, or root config dependency.
 
 This section is intentionally a routing aid, not a hand-maintained exhaustive
 file dump. Use `.claude/agents` as the live source of truth when you need the
@@ -175,20 +176,12 @@ The list below highlights the current repo-visible command workflow surfaces.
 
 ## 4. Agent Packages
 
-**Location**: `packages/`
+**Location**: none in the current tracked tree.
 
-This section is preserved as a package map. Historical package totals and
-memory-adoption percentages were removed in this pass because they were not
-re-verified.
-
-| Package             | Description                                                | Status |
-| ------------------- | ---------------------------------------------------------- | ------ |
-| `agent-core`        | Base agent primitives, retries, metrics, health monitoring | Active |
-| `code-review-agent` | Code review package support                                | Active |
-| `migration-agent`   | Migration-oriented package support                         | Active |
-| `patch-applicator`  | Patch application and validation                           | Active |
-| `performance-agent` | Performance regression support                             | Active |
-| `test-repair-agent` | Test failure detection and repair                          | Active |
+Batch 8 removed the local package-backed agent source from `packages/` after the
+live scan found only package-internal, governance, historical, or stale
+documentation references. Current development tooling lives in `.claude/agents`,
+`.claude/commands`, root npm scripts, and `scripts/ai-tools/`.
 
 ---
 
@@ -241,7 +234,7 @@ skills.
 
 ## 7. NPM Scripts
 
-**Verified inventory**: `90` scripts in the root `package.json`
+**Verified inventory**: `81` scripts in the root `package.json`
 
 This count is limited to the root manifest. Historical claims that combined root
 scripts with older auxiliary inventories were removed.
@@ -253,15 +246,18 @@ scripts with older auxiliary inventories were removed.
 - **Docs/tooling validation**: `docs:check-links`, `docs:lint`,
   `docs:routing:check`, `docs:routing:generate`, `docs:routing:query`,
   `validate:claude-md`
-- **Lint/guardrails**: `lint`, `lint:eslint`, `lint:fix`, `lint:phase4`,
-  `lint:phase4:strict`, `lint:wave4`, `lint:wave5:policy`,
-  `lint:wave6:residual`, `guardrails:check`, `baseline:check`
+- **Lint/guardrails**: `lint`, `lint:eslint`, `lint:fix`, `guardrails:check`,
+  `guard:scripts:check`, `baseline:check`
 - **Database/seeding**: `db:push`, `db:studio`, `db:seed:test`,
   `db:seed:test:minimal`, `db:seed:test:reset`, `seed:multi-tenant`,
   `seed:reset`
 - **Tests**: `test`, `test:quick`, `test:smart`, `test:unit`,
-  `test:integration`, `test:security`, `test:smoke`, `test:ui`, plus the
-  `test:wave*` and `test:phase4*` families
+  `test:integration`, `test:integration:routes`,
+  `test:integration:phase0-dbproof`, `test:security`, `test:smoke`, `test:ui`,
+  `test:publish-orchestration`
+- **Embedded validation chains**: `validate:core`, `calc-gate`, and
+  `calc-gate:full` embed the former wave/phase file lists directly; no
+  wave/phase/slice npm aliases remain allowed.
 - **Phoenix/domain validation**: `phoenix:truth`, `phase0`,
   `phase2:slice3:audit`, `preflight:phase0`
 
@@ -311,7 +307,7 @@ User Request
 | Agent files     | 37             | `.claude/agents/*`           |
 | Skill manifests | 34             | `.claude/skills/**/SKILL.md` |
 | Command files   | 21             | `.claude/commands/**`        |
-| NPM scripts     | 90             | `package.json` -> `scripts`  |
+| NPM scripts     | 81             | `package.json` -> `scripts`  |
 
 All other historical aggregate totals were removed pending a fresh audit.
 

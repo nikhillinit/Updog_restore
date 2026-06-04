@@ -1,10 +1,5 @@
- 
- 
- 
- 
- 
 import React from 'react';
-import { cn } from "@/lib/utils";
+import { cn } from '@/lib/utils';
 
 interface PremiumCardProps {
   title?: string;
@@ -23,14 +18,15 @@ export function PremiumCard({
   className = '',
   headerActions,
   variant = 'default',
-  loading = false
+  loading = false,
 }: PremiumCardProps) {
   const cardClasses = cn(
-    "bg-white rounded-xl transition-all duration-200 ease-out",
+    'bg-white rounded-xl transition-all duration-200 ease-out',
     {
-      'shadow-lg hover:shadow-xl border border-gray-200/80': variant === 'default',
-      'shadow-xl border-2 border-slate-300 bg-gradient-to-br from-white to-slate-50': variant === 'highlight',
-      'border-2 border-gray-300 shadow-md hover:shadow-lg': variant === 'outlined',
+      'shadow-lg hover:shadow-xl border border-beige-200': variant === 'default',
+      'shadow-xl border-2 border-beige-200 bg-gradient-to-br from-white to-pov-gray':
+        variant === 'highlight',
+      'border-2 border-beige-200 shadow-md hover:shadow-lg': variant === 'outlined',
     },
     className
   );
@@ -54,33 +50,27 @@ export function PremiumCard({
   return (
     <div className={cardClasses}>
       {(title || subtitle || headerActions) && (
-        <div className="px-6 py-4 border-b border-gray-200 bg-slate-50">
+        <div className="px-6 py-4 border-b border-beige-200 bg-pov-gray">
           <div className="flex items-center justify-between">
             <div className="flex-1">
               {title && (
-                <h3 className="font-inter font-bold text-lg text-slate-900 leading-tight">
+                <h3 className="font-inter font-bold text-lg text-pov-charcoal leading-tight">
                   {title}
                 </h3>
               )}
               {subtitle && (
-                <p className="font-poppins text-sm text-slate-600 mt-1">
-                  {subtitle}
-                </p>
+                <p className="font-poppins text-sm text-charcoal-600 mt-1">{subtitle}</p>
               )}
             </div>
             {headerActions && (
-              <div className="flex items-center space-x-2 ml-4">
-                {headerActions}
-              </div>
+              <div className="flex items-center space-x-2 ml-4">{headerActions}</div>
             )}
           </div>
         </div>
       )}
 
       <div className="p-6">
-        <div className="font-poppins text-slate-700">
-          {children}
-        </div>
+        <div className="font-poppins text-charcoal-700">{children}</div>
       </div>
     </div>
   );
@@ -89,7 +79,9 @@ export function PremiumCard({
 // Loading skeleton variant
 export function PremiumCardSkeleton({ className = '' }: { className?: string }) {
   return (
-    <div className={cn("bg-pov-white rounded-lg shadow-card border border-pov-gray/50 p-6", className)}>
+    <div
+      className={cn('bg-pov-white rounded-lg shadow-card border border-pov-gray/50 p-6', className)}
+    >
       <div className="animate-pulse space-y-4">
         <div className="h-4 bg-pov-gray rounded w-1/3"></div>
         <div className="space-y-2">
@@ -101,4 +93,3 @@ export function PremiumCardSkeleton({ className = '' }: { className?: string }) 
     </div>
   );
 }
-

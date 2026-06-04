@@ -350,6 +350,26 @@ describe('Variance Tracking API', () => {
         });
       });
 
+      it('should omit userId when setting a default baseline without an attached user', async () => {
+        const unauthenticatedApp = express();
+        unauthenticatedApp.use(express.json());
+        unauthenticatedApp.use(varianceRouter);
+
+        mockVarianceTrackingService.setDefaultBaselineAndCleanup.mockResolvedValue({
+          baseline: { id: 'baseline-123' },
+          resolvedSupersededAlerts: 0,
+        });
+
+        await request(unauthenticatedApp)
+          .post('/api/funds/1/baselines/baseline-123/set-default')
+          .expect(200);
+
+        expect(mockVarianceTrackingService.setDefaultBaselineAndCleanup).toHaveBeenCalledWith({
+          fundId: 1,
+          baselineId: 'baseline-123',
+        });
+      });
+
       it('should handle missing baseline ID', async () => {
         const _response = await request(app)
           .post('/api/funds/1/baselines//set-default')

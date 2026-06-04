@@ -2,6 +2,7 @@
 name: control-plane
 description:
   Core control plane operations - checkpoint, handoff, frame-brief, reconcile
+last_updated: 2026-05-11
 ---
 
 # Control Plane Operations

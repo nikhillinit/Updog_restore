@@ -1005,7 +1005,7 @@ router.post('/api/funds', async (req, res) => {
 **Project Documentation:**
 
 - `DECISIONS.md` - Architectural decisions
-- `cheatsheets/api-design-principles.md` - REST API patterns
+- `cheatsheets/api.md` - REST API patterns
 - `client/src/lib/waterfall.ts` - Waterfall update helpers (domain logic)
 
 **Testing Examples:**

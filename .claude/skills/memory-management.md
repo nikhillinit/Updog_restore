@@ -175,7 +175,7 @@ ReserveEngine
 ├── Called by: API routes, worker jobs
 ├── Depends on: Portfolio data, graduation rates
 ├── Related to: PacingEngine (similar pattern)
-└── Documented in: cheatsheets/reserve-calculations.md
+└── Documented in: shared/core/reserves/DeterministicReserveEngine.ts (JSDoc)
 ```
 
 ## Example: Research Session

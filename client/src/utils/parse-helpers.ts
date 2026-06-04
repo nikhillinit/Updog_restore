@@ -3,7 +3,10 @@ const MAX_MONEY_VALUE = 1e12;
 /** Parse a string to a positive dollar amount, or undefined if invalid */
 export function parseMoney(value: string | undefined): number | undefined {
   if (!value) return undefined;
-  const num = parseFloat(value);
+  const normalized = value.replace(/[$,\s]/g, '');
+  if (!normalized) return undefined;
+
+  const num = Number(normalized);
   if (!Number.isFinite(num) || num <= 0 || num > MAX_MONEY_VALUE) return undefined;
   return num;
 }

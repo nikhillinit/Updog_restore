@@ -17,21 +17,21 @@ interface DealCardProps {
 
 // Status color mapping
 const statusColors: Record<string, string> = {
-  lead: 'bg-gray-100 text-gray-700 border-gray-200',
-  qualified: 'bg-blue-50 text-blue-700 border-blue-200',
-  pitch: 'bg-purple-50 text-purple-700 border-purple-200',
-  dd: 'bg-amber-50 text-amber-700 border-amber-200',
-  committee: 'bg-indigo-50 text-indigo-700 border-indigo-200',
-  term_sheet: 'bg-pink-50 text-pink-700 border-pink-200',
-  closed: 'bg-green-50 text-green-700 border-green-200',
-  passed: 'bg-red-50 text-red-700 border-red-200',
+  lead: 'bg-pov-gray text-charcoal-700 border-beige-200',
+  qualified: 'bg-[#cfe7df] text-pov-charcoal border-[#cfe7df]',
+  pitch: 'bg-[#ddd6f5] text-pov-charcoal border-[#ddd6f5]',
+  dd: 'bg-[#efd9bd] text-pov-charcoal border-[#efd9bd]',
+  committee: 'bg-[#f2d7dc] text-pov-charcoal border-[#f2d7dc]',
+  term_sheet: 'bg-[#ddd6f5] text-pov-charcoal border-[#ddd6f5]',
+  closed: 'bg-success/10 text-success-dark border-success/50',
+  passed: 'bg-error/10 text-error-dark border-error/50',
 };
 
 // Priority color mapping
 const priorityColors: Record<string, string> = {
-  high: 'bg-red-100 text-red-700',
-  medium: 'bg-yellow-100 text-yellow-700',
-  low: 'bg-green-100 text-green-700',
+  high: 'bg-error/10 text-error-dark border-error/50',
+  medium: 'bg-warning/10 text-warning-dark border-warning/50',
+  low: 'bg-success/10 text-success-dark border-success/50',
 };
 
 // Status display labels
@@ -75,7 +75,7 @@ export function DealCard({ deal, onClick }: DealCardProps) {
             <h4 className="font-inter font-semibold text-pov-charcoal truncate">
               {deal.companyName}
             </h4>
-            <p className="font-poppins text-xs text-gray-500 truncate">{deal.sector}</p>
+            <p className="font-poppins text-xs text-charcoal-500 truncate">{deal.sector}</p>
           </div>
           <Badge
             variant="outline"
@@ -91,45 +91,49 @@ export function DealCard({ deal, onClick }: DealCardProps) {
           <Badge variant="outline" className={statusColors[deal.status] || statusColors['lead']}>
             {statusLabels[deal.status] || deal.status}
           </Badge>
-          <span className="font-poppins text-xs text-gray-400">{deal.stage}</span>
+          <span className="font-poppins text-xs text-charcoal-400">{deal.stage}</span>
         </div>
 
         {/* Key Metrics */}
-        <div className="grid grid-cols-2 gap-2 pt-2 border-t border-gray-100">
+        <div className="grid grid-cols-2 gap-2 pt-2 border-t border-charcoal/7">
           {dealSize !== null && (
             <div className="flex items-center gap-1.5">
-              <DollarSign className="h-3.5 w-3.5 text-gray-400" />
-              <span className="font-poppins text-xs text-gray-600">
+              <DollarSign className="h-3.5 w-3.5 text-charcoal-400" />
+              <span className="font-poppins text-xs text-charcoal-600">
                 ${(dealSize / 1000000).toFixed(1)}M
               </span>
             </div>
           )}
           {deal.employeeCount && (
             <div className="flex items-center gap-1.5">
-              <Users className="h-3.5 w-3.5 text-gray-400" />
-              <span className="font-poppins text-xs text-gray-600">
+              <Users className="h-3.5 w-3.5 text-charcoal-400" />
+              <span className="font-poppins text-xs text-charcoal-600">
                 {deal.employeeCount} employees
               </span>
             </div>
           )}
           {deal.foundedYear && (
             <div className="flex items-center gap-1.5">
-              <Building2 className="h-3.5 w-3.5 text-gray-400" />
-              <span className="font-poppins text-xs text-gray-600">Founded {deal.foundedYear}</span>
+              <Building2 className="h-3.5 w-3.5 text-charcoal-400" />
+              <span className="font-poppins text-xs text-charcoal-600">
+                Founded {deal.foundedYear}
+              </span>
             </div>
           )}
           {deal.sourceType && (
             <div className="flex items-center gap-1.5">
-              <TrendingUp className="h-3.5 w-3.5 text-gray-400" />
-              <span className="font-poppins text-xs text-gray-600 truncate">{deal.sourceType}</span>
+              <TrendingUp className="h-3.5 w-3.5 text-charcoal-400" />
+              <span className="font-poppins text-xs text-charcoal-600 truncate">
+                {deal.sourceType}
+              </span>
             </div>
           )}
         </div>
 
         {/* Next Action */}
         {deal.nextAction && (
-          <div className="pt-2 border-t border-gray-100">
-            <p className="font-poppins text-xs text-gray-500 truncate">
+          <div className="pt-2 border-t border-charcoal/7">
+            <p className="font-poppins text-xs text-charcoal-500 truncate">
               <span className="font-medium">Next:</span> {deal.nextAction}
             </p>
           </div>

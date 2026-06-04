@@ -745,7 +745,8 @@ validations where possible.
 ## References
 
 - **Coding Pairs Playbook**: `cheatsheets/coding-pairs-playbook.md`
-- **Multi-AI Workflows**: `cheatsheets/multi-ai-workflows.md`
+- **Codex Collaboration Protocol**:
+  `cheatsheets/codex-collaboration-protocol.md`
 - **Agent Memory Integration**: `cheatsheets/agent-memory-integration.md`
 - **Phase 1 Results**: `CHANGELOG.md` (Week 46 metrics)
 

@@ -142,7 +142,7 @@ registerInvalidator(() => {
 // Enhanced with build provenance for CI smoke gates
 router['get']('/healthz', (_req: Request, res: Response) => {
   const versionInfo = getVersionInfo();
-  res['status'](200)['json']({
+  res.status(200).json({
     status: 'ok',
     timestamp: new Date().toISOString(),
     ...versionInfo,
@@ -157,7 +157,7 @@ router['get']('/health', (req: Request, res: Response) => {
   const providers = (req as { app: { locals: { providers?: { mode?: string } } } }).app.locals
     .providers;
   const mode = providers?.mode || (process.env['REDIS_URL'] === 'memory://' ? 'memory' : 'redis');
-  res['json']({
+  res.json({
     status: 'ok',
     version: process.env['npm_package_version'] || '1.3.2',
     mode,
@@ -168,7 +168,7 @@ router['get']('/api/health', (req: Request, res: Response) => {
   const providers = (req as { app: { locals: { providers?: { mode?: string } } } }).app.locals
     .providers;
   const mode = providers?.mode || (process.env['REDIS_URL'] === 'memory://' ? 'memory' : 'redis');
-  res['json']({
+  res.json({
     status: 'ok',
     version: process.env['npm_package_version'] || '1.3.2',
     mode,
@@ -181,16 +181,16 @@ router['get']('/api/health/live', livenessCheck);
 // Richer JSON health endpoint for Guardian and canary checks
 router['get']('/health/detailed-json', async (req: Request, res: Response) => {
   // Prevent intermediary caching
-  res['set']('Cache-Control', 'no-store, max-age=0');
-  res['set']('Pragma', 'no-cache');
+  res.set('Cache-Control', 'no-store, max-age=0');
+  res.set('Pragma', 'no-cache');
 
   // Check cache first
   const cached = await healthCache['get']('healthz');
   if (cached) {
-    res['set']('X-Health-From-Cache', '1');
+    res.set('X-Health-From-Cache', '1');
     const ttlMs = await healthCache.ttlMs('healthz');
-    res['set']('X-Health-TTL-Remaining', ttlMs.toString());
-    return res['json'](cached);
+    res.set('X-Health-TTL-Remaining', ttlMs.toString());
+    return res.json(cached);
   }
 
   try {
@@ -214,11 +214,11 @@ router['get']('/health/detailed-json', async (req: Request, res: Response) => {
     // Cache with deterministic TTL
     await healthCache['set']('healthz', healthData, HEALTH_CACHE_MS);
     const ttlMs = await healthCache.ttlMs('healthz');
-    res['set']('X-Health-TTL-Set', ttlMs.toString());
+    res.set('X-Health-TTL-Set', ttlMs.toString());
 
-    res['json'](healthData);
+    res.json(healthData);
   } catch (error: unknown) {
-    res['status'](500)['json']({
+    res.status(500).json({
       error: 'Health check failed',
       message: error instanceof Error ? error.message : 'Unknown error',
       timestamp: new Date().toISOString(),
@@ -230,16 +230,16 @@ router['get']('/health/detailed-json', async (req: Request, res: Response) => {
 // Returns 200 only when all critical dependencies are ready
 router['get']('/readyz', async (req: Request, res: Response) => {
   // Prevent intermediary caching
-  res['set']('Cache-Control', 'no-store, max-age=0');
-  res['set']('Pragma', 'no-cache');
+  res.set('Cache-Control', 'no-store, max-age=0');
+  res.set('Pragma', 'no-cache');
 
   // Check cache first
   const cached = await healthCache['get']('readyz');
   if (cached) {
-    res['set']('X-Health-From-Cache', '1');
+    res.set('X-Health-From-Cache', '1');
     const ttlMs = await healthCache.ttlMs('readyz');
-    res['set']('X-Health-TTL-Remaining', ttlMs.toString());
-    return res['status'](cached['ready'] ? 200 : 503)['json'](cached);
+    res.set('X-Health-TTL-Remaining', ttlMs.toString());
+    return res.status(cached['ready'] ? 200 : 503).json(cached);
   }
 
   const checks = {
@@ -280,9 +280,9 @@ router['get']('/readyz', async (req: Request, res: Response) => {
   // Cache with deterministic TTL
   await healthCache['set']('readyz', response, HEALTH_CACHE_MS);
   const ttlMs = await healthCache.ttlMs('readyz');
-  res['set']('X-Health-TTL-Set', ttlMs.toString());
+  res.set('X-Health-TTL-Set', ttlMs.toString());
 
-  res['status'](isReady ? 200 : 503)['json'](response);
+  res.status(isReady ? 200 : 503).json(response);
 });
 
 // Detailed health endpoint for diagnostics (protected + rate limited)
@@ -300,7 +300,7 @@ router['get']('/health/detailed', rateLimitDetailed(), async (req: Request, res:
       req.hostname === 'localhost';
 
     if (!isInternal) {
-      return res['status'](403)['json']({ error: 'Forbidden' });
+      return res.status(403).json({ error: 'Forbidden' });
     }
   }
 
@@ -336,12 +336,12 @@ router['get']('/health/detailed', rateLimitDetailed(), async (req: Request, res:
   detailed.metrics['mockDatabase'] = detailed.storage.mockDatabase ? 1 : 0;
   detailed.metrics['version'] = process.env['npm_package_version'] || '1.3.2';
 
-  res['json'](detailed);
+  res.json(detailed);
 });
 
 // Simple inflight/uptime snapshot; extend as needed.
 router['get']('/health/inflight', (_req: Request, res: Response) => {
-  res['json']({
+  res.json({
     uptime: process.uptime(),
     memory: process.memoryUsage(),
   });
@@ -356,20 +356,20 @@ router['get']('/api/health/db', async (req: Request, res: Response) => {
     const dbHealthy = await storage['ping']();
 
     if (dbHealthy) {
-      res['json']({
+      res.json({
         database: 'connected',
         status: 'ok',
         timestamp: new Date().toISOString(),
       });
     } else {
-      res['status'](503)['json']({
+      res.status(503).json({
         database: 'disconnected',
         status: 'error',
         timestamp: new Date().toISOString(),
       });
     }
   } catch (error: unknown) {
-    res['status'](503)['json']({
+    res.status(503).json({
       database: 'error',
       status: 'error',
       error: error instanceof Error ? error.message : 'Unknown error',
@@ -383,13 +383,13 @@ router['get']('/api/health/cache', async (req: Request, res: Response) => {
   try {
     const redisHealthy = (await storage.isRedisHealthy?.()) ?? false;
 
-    res['json']({
+    res.json({
       cache: redisHealthy ? 'connected' : 'degraded',
       status: redisHealthy ? 'ok' : 'degraded',
       timestamp: new Date().toISOString(),
     });
   } catch (error: unknown) {
-    res['status'](503)['json']({
+    res.status(503).json({
       cache: 'error',
       status: 'error',
       error: error instanceof Error ? error.message : 'Unknown error',
@@ -405,7 +405,7 @@ router['get']('/api/health/queues', async (req: Request, res: Response) => {
     const queueConfig = getQueueConfig();
 
     if (!queueConfig.enabled || !queueConfig.queueRedisUrl) {
-      res['json']({
+      res.json({
         enabled: false,
         queues: buildDisabledQueueHealth(),
         status: 'disabled',
@@ -428,7 +428,7 @@ router['get']('/api/health/queues', async (req: Request, res: Response) => {
     const hasQueueFailure = Object.values(queueHealth).some((queue) => queue.status !== 'ok');
     const overallStatus = redisProbe.ok && !hasQueueFailure ? 'ok' : 'degraded';
 
-    res['status'](overallStatus === 'ok' ? 200 : 503)['json']({
+    res.status(overallStatus === 'ok' ? 200 : 503).json({
       enabled: true,
       queues: queueHealth,
       status: overallStatus,
@@ -437,7 +437,7 @@ router['get']('/api/health/queues', async (req: Request, res: Response) => {
       timestamp,
     });
   } catch (error: unknown) {
-    res['status'](503)['json']({
+    res.status(503).json({
       queues: {},
       status: 'error',
       error: error instanceof Error ? error.message : 'Unknown error',
@@ -462,14 +462,14 @@ router['get']('/api/health/schema', async (req: Request, res: Response) => {
 
     const tables = result?.rows?.map((row: { table_name: string }) => row.table_name) || [];
 
-    res['json']({
+    res.json({
       tables,
       count: tables.length,
       status: 'ok',
       timestamp: new Date().toISOString(),
     });
   } catch (error: unknown) {
-    res['status'](503)['json']({
+    res.status(503).json({
       tables: [],
       status: 'error',
       error: error instanceof Error ? error.message : 'Unknown error',
@@ -496,14 +496,14 @@ router['get']('/api/health/migrations', async (req: Request, res: Response) => {
 
     const migrations = result?.rows || [];
 
-    res['json']({
+    res.json({
       status: 'up-to-date',
       latestMigrations: migrations,
       count: migrations.length,
       timestamp: new Date().toISOString(),
     });
   } catch (error: unknown) {
-    res['status'](503)['json']({
+    res.status(503).json({
       status: 'error',
       error: error instanceof Error ? error.message : 'Unknown error',
       timestamp: new Date().toISOString(),
@@ -518,7 +518,7 @@ router['get']('/api/version', (req: Request, res: Response) => {
   const platform = process.platform;
   const arch = process.arch;
 
-  res['json']({
+  res.json({
     version,
     nodeVersion,
     platform,
@@ -569,12 +569,12 @@ router['get']('/api/health/alerts', async (req: Request, res: Response) => {
       });
     }
 
-    res['json']({
+    res.json({
       ...alerts,
       timestamp: new Date().toISOString(),
     });
   } catch (error: unknown) {
-    res['status'](503)['json']({
+    res.status(503).json({
       critical: [
         {
           type: 'system',
@@ -593,7 +593,7 @@ router['get']('/api/health/alerts', async (req: Request, res: Response) => {
 router['get']('/api/health/workers/:workerType', async (req: Request, res: Response) => {
   const workerType = firstString(req.params['workerType']);
   if (!workerType) {
-    return res['status'](400)['json']({
+    return res.status(400).json({
       error: 'Invalid worker type',
       message: 'Worker type is required',
     });
@@ -603,7 +603,7 @@ router['get']('/api/health/workers/:workerType', async (req: Request, res: Respo
     const redisHealthy = (await storage.isRedisHealthy?.()) ?? false;
 
     if (!redisHealthy) {
-      res['json']({
+      res.json({
         status: 'idle',
         message: 'Workers disabled (Redis not available)',
         worker: workerType,
@@ -647,7 +647,7 @@ router['get']('/api/health/workers/:workerType', async (req: Request, res: Respo
               const worker = health.workers?.find((w) => w.name.includes(workerType!));
 
               if (worker) {
-                res['json']({
+                res.json({
                   status: worker.status,
                   worker: workerType,
                   jobsProcessed: worker.jobsProcessed,
@@ -655,7 +655,7 @@ router['get']('/api/health/workers/:workerType', async (req: Request, res: Respo
                   timestamp: new Date().toISOString(),
                 });
               } else {
-                res['status'](404)['json']({
+                res.status(404).json({
                   status: 'not_found',
                   worker: workerType,
                   message: 'Worker not registered',
@@ -676,7 +676,7 @@ router['get']('/api/health/workers/:workerType', async (req: Request, res: Respo
       });
     } catch (error: unknown) {
       // Worker health server not accessible
-      res['json']({
+      res.json({
         status: 'unknown',
         worker: workerType,
         message: 'Worker health server not accessible',
@@ -685,7 +685,7 @@ router['get']('/api/health/workers/:workerType', async (req: Request, res: Respo
       });
     }
   } catch (error: unknown) {
-    res['status'](503)['json']({
+    res.status(503).json({
       status: 'error',
       worker: workerType,
       error: error instanceof Error ? error.message : 'Unknown error',

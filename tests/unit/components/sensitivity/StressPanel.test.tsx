@@ -176,7 +176,7 @@ describe('StressPanel', () => {
     expect(screen.getByText(/^\d+s$/)).toBeInTheDocument();
   });
 
-  it('renders the error code, message, and retry button when the mutation fails', () => {
+  it('maps NO_PUBLISHED_CONFIG to a prerequisite CTA without raw error codes', () => {
     installMutationState({
       isError: true,
       error: {
@@ -187,12 +187,17 @@ describe('StressPanel', () => {
     });
     renderPanel(7);
 
-    expect(screen.getByTestId('stress-error')).toBeInTheDocument();
-    expect(screen.getByTestId('stress-error-code')).toHaveTextContent('NO_PUBLISHED_CONFIG');
-    expect(screen.getByTestId('stress-error-message')).toHaveTextContent(
-      'Publish a fund config first'
+    const error = screen.getByTestId('stress-error');
+    expect(error).not.toHaveTextContent('NO_PUBLISHED_CONFIG');
+    expect(error).not.toHaveTextContent('Publish a fund config first');
+    expect(error).not.toHaveTextContent('Retry');
+    expect(
+      screen.getByText('Publish the active fund configuration before running sensitivity analysis.')
+    ).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /publish fund configuration/i })).toHaveAttribute(
+      'href',
+      '/fund-setup?step=7'
     );
-    expect(screen.getByTestId('stress-retry-button')).toBeInTheDocument();
   });
 
   it('renders one row per datapoint when results are available', () => {
@@ -244,7 +249,7 @@ describe('StressPanel', () => {
     expect(within(results).getByText('Range')).toBeInTheDocument();
   });
 
-  it('applies a red delta bar background to negative-delta rows and emerald to positive', () => {
+  it('applies a loss-colored delta bar background to negative-delta rows and a gain-colored one to positive', () => {
     installMutationState({
       isSuccess: true,
       data: { result: makeFixtureResult() },
@@ -253,9 +258,29 @@ describe('StressPanel', () => {
 
     const negBar = screen.getByTestId('stress-delta-bar-mild_downside') as HTMLElement;
     const posBar = screen.getByTestId('stress-delta-bar-best_case') as HTMLElement;
-    // Red = rgb(239, 68, 68) for negative baselineDelta.
-    expect(negBar.style.backgroundColor).toBe('rgb(239, 68, 68)');
-    // Emerald = rgb(16, 185, 129) for positive baselineDelta.
-    expect(posBar.style.backgroundColor).toBe('rgb(16, 185, 129)');
+    // presson.color.negative (#B00020) for negative baselineDelta; DOM normalizes to rgb.
+    expect(negBar.style.backgroundColor).toBe('rgb(176, 0, 32)');
+    // presson.color.positive (#127E3D) for positive baselineDelta; DOM normalizes to rgb.
+    expect(posBar.style.backgroundColor).toBe('rgb(18, 126, 61)');
+  });
+
+  it('conveys delta direction with a non-color signed-delta cue and hides the decorative bar from assistive tech (WCAG 1.4.1)', () => {
+    installMutationState({
+      isSuccess: true,
+      data: { result: makeFixtureResult() },
+    });
+    renderPanel(7);
+
+    // Direction is legible without relying on color: negative -> minus, positive -> plus.
+    const negDelta = screen.getByTestId('stress-delta-value-mild_downside');
+    const posDelta = screen.getByTestId('stress-delta-value-best_case');
+    expect(negDelta.textContent).toMatch(/^-/);
+    expect(posDelta.textContent).toMatch(/^\+/);
+
+    // The color-coded bar is decorative; direction lives in the signed text cue.
+    expect(screen.getByTestId('stress-delta-bar-mild_downside')).toHaveAttribute(
+      'aria-hidden',
+      'true'
+    );
   });
 });

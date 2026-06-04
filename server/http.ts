@@ -15,14 +15,14 @@ export type Route<
 
 // Small response helpers without Response<T> generics (cross-version safe).
 export function ok<T>(res: ExResponse, body: T) {
-  return res['status'](200)['json'](body as unknown);
+  return res.status(200).json(body as unknown);
 }
 export function created<T>(res: ExResponse, body: T) {
-  return res['status'](201)['json'](body as unknown);
+  return res.status(201).json(body as unknown);
 }
 export function noContent(res: ExResponse) {
-  return res['status'](204)['end']();
+  return res.status(204).end();
 }
 export function badRequest(res: ExResponse, message = 'Bad Request') {
-  return res['status'](400)['json']({ message });
+  return res.status(400).json({ message });
 }
