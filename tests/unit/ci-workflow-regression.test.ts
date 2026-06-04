@@ -139,7 +139,7 @@ describe('CI Workflow Regression - Fix #4', () => {
 
       // Should download artifacts
       const downloads = compare.steps.filter((step: any) =>
-        step.uses?.includes('actions/download-artifact@v4')
+        step.uses?.includes('actions/download-artifact@v8')
       );
       expect(downloads.length).toBeGreaterThanOrEqual(2);
     });
@@ -385,14 +385,14 @@ describe('CI Workflow Regression - Fix #4', () => {
       expect(workflow.on.pull_request.paths).toContain('vite.config.ts');
     });
 
-    it('should use actions/upload-artifact@v7 and actions/download-artifact@v4', async () => {
+    it('should use actions/upload-artifact@v7 and actions/download-artifact@v8', async () => {
       const workflowPath = path.join(process.cwd(), '.github/workflows/bundle-size-check.yml');
 
       const workflowContent = await fs.readFile(workflowPath, 'utf-8');
 
-      // Uploads intentionally follow the current pinned workflow version.
+      // Artifact action majors intentionally follow the current workflow versions.
       expect(workflowContent).toMatch(/actions\/upload-artifact@v7/);
-      expect(workflowContent).toMatch(/actions\/download-artifact@v4/);
+      expect(workflowContent).toMatch(/actions\/download-artifact@v8/);
     });
   });
 });

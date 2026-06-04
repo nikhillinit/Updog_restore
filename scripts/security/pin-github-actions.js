@@ -23,6 +23,8 @@ const ACTION_PINS = {
   'actions/upload-artifact@v7': 'actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a', // v7.0.0
   'actions/download-artifact@v4':
     'actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16', // v4.1.8
+  'actions/download-artifact@v8':
+    'actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c', // v8
   'actions/github-script@v7': 'actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea', // v7.0.1
   'actions/labeler@v5': 'actions/labeler@8558fd74291d67161a8a78ce36a881fa63b766a9', // v5.0.0
   'actions/setup-python@v5': 'actions/setup-python@e797f83bcb11b83ae66e0230d6156d7c80228e7c', // v6.0.0
