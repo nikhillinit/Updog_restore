@@ -396,7 +396,8 @@ export default function CashflowDashboard({ fundId, className = '' }: CashflowDa
                         value !== undefined ? formatCurrencyShort(Number(value)) : ''
                       }
                     />
-                    <Bar dataKey="netFlow" fill={CASHFLOW_CHART_COLORS.info} />
+                    {/* charcoal accent per DESIGN.md (net-flow is non-semantic; no blue) */}
+                    <Bar dataKey="netFlow" fill={CASHFLOW_CHART_COLORS.text} />
                   </BarChart>
                 </ResponsiveContainer>
               </CardContent>
