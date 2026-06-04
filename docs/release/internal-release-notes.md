@@ -1,5 +1,5 @@
 ---
-status: DRAFT
+status: PROVEN
 last_updated: 2026-06-04
 ---
 
@@ -58,26 +58,40 @@ Current-head CI evidence: `CI Unified` run `26937341250` completed successfully
 on `f523b89d622fef695bdb2ed7546bef1dbc2f1e2f`. This is baseline health only, not
 release proof.
 
-Current local release-check evidence: on 2026-06-04, `npm run release:check` was
-run without `--skip-db` (and with `UPDOG_RELEASE_CHECK_SKIP_DB` unset) from a
-clean clone of `ac71eb1a` on the supported Node 20.19.5 runtime inside WSL2
-Ubuntu-22.04, against Docker 28.3.2 on its native unix socket. The wrapper
-passed TypeScript baseline, lint and guardrails, and both lean release client
-and server/CI surface locks (stages 1-4). The Testcontainers runtime now starts
-and migrates cleanly after a migration idempotency fix:
-`shared/migrations/0001_create_job_outbox.sql` creates the `job_outbox` indexes
-with `IF NOT EXISTS`, matching the Drizzle `0005` convention so the shared raw
-SQL no longer collides with the Drizzle-applied indexes.
+Current local release-check evidence (PROVEN): on 2026-06-04,
+`npm run release:check` passed end-to-end -- all ten stages, exit 0 -- without
+`--skip-db` (and with `UPDOG_RELEASE_CHECK_SKIP_DB` unset), from a clean clone
+of `ac71eb1a` on the supported Node 20.19.5 runtime inside WSL2 Ubuntu-22.04,
+against Docker 28.3.2 on its native unix socket, with `CI=true` (the invocation
+the DB-proof harness and CI both rely on; without it the test's local container
+stop races an open connection and exits non-zero by design). Stages: TypeScript
+baseline, lint and guardrails, client and server/CI surface locks, the fund
+lifecycle DB proof, the scenario release gate, core validation, the production
+build, the whitespace diff, and release-owned file tracking.
 
-The fund lifecycle DB proof itself still fails on a pre-existing
-schema-to-migration drift: `fund_snapshots.scenario_set_id` (and sibling
-columns) are declared in `shared/schema/fund.ts` but exist in no migration file,
-so a migration-built database lacks the column and the finalize -> publish
-reserve and pacing snapshot inserts fail with Postgres `42703`
-(`column "scenario_set_id" ... does not exist`). This is latent because the DB
-proof had not previously run locally and current CI is baseline health only, not
-release proof. The drift is routed to the database-migration specialist for
-reconciliation. Release readiness is therefore not proven.
+Three journaled-migration fixes were required so a migration-built database
+matches the Drizzle schema the application code targets; all three are landed on
+`main`:
+
+- `shared/migrations/0001_create_job_outbox.sql` -- the `job_outbox` indexes now
+  use `CREATE INDEX IF NOT EXISTS`, matching Drizzle `0005` so the shared raw
+  SQL no longer collides with the Drizzle-applied indexes.
+- `migrations/0009_fund_snapshots_scenario_set_id.sql` -- adds
+  `fund_snapshots.scenario_set_id` plus its partial unique dedup index, which
+  the finalize -> publish reserve and pacing snapshot inserts require
+  (previously failed with Postgres `42703`).
+- `migrations/0010_fund_scenario_sets.sql` -- journals `fund_scenario_sets` and
+  `fund_scenario_variants`, so `GET /api/funds/:fundId/results` resolves its
+  scenarios section to a clean `SCENARIOS_NONE_EXIST` instead of a caught
+  `SCENARIOS_LOAD_FAILED` on a migration-built database.
+
+Scope honesty: the release-check gate is proven green, but "gate green" is not
+"all migrations reconciled." Residual schema-to-journaled-migration drift
+remains and is NOT exercised by this gate -- the rest of the scenario-set family
+(`fund_scenario_set_events`, `fund_scenario_calculation_runs`), the LP, shares,
+and sector schema families, and the split between the journaled `./migrations`
+stream and the unwired `server/db/migrations/` stream. Reconciling those is
+tracked follow-up work, not a release-check blocker.
 
 Current visual/a11y evidence: the route-governed screenshot audit passes across
 54 desktop/mobile captures with LP reporting enabled, including scenario
