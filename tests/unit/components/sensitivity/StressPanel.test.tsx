@@ -249,7 +249,7 @@ describe('StressPanel', () => {
     expect(within(results).getByText('Range')).toBeInTheDocument();
   });
 
-  it('applies a red delta bar background to negative-delta rows and emerald to positive', () => {
+  it('applies a loss-colored delta bar background to negative-delta rows and a gain-colored one to positive', () => {
     installMutationState({
       isSuccess: true,
       data: { result: makeFixtureResult() },
@@ -258,9 +258,9 @@ describe('StressPanel', () => {
 
     const negBar = screen.getByTestId('stress-delta-bar-mild_downside') as HTMLElement;
     const posBar = screen.getByTestId('stress-delta-bar-best_case') as HTMLElement;
-    // Red = rgb(239, 68, 68) for negative baselineDelta.
-    expect(negBar.style.backgroundColor).toBe('rgb(239, 68, 68)');
-    // Emerald = rgb(16, 185, 129) for positive baselineDelta.
-    expect(posBar.style.backgroundColor).toBe('rgb(16, 185, 129)');
+    // presson.color.negative (#B00020) for negative baselineDelta; DOM normalizes to rgb.
+    expect(negBar.style.backgroundColor).toBe('rgb(176, 0, 32)');
+    // presson.color.positive (#127E3D) for positive baselineDelta; DOM normalizes to rgb.
+    expect(posBar.style.backgroundColor).toBe('rgb(18, 126, 61)');
   });
 });

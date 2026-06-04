@@ -5,12 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Plus, Edit, Trash2, Calculator } from 'lucide-react';
 
 interface SAFENote {
@@ -35,7 +30,11 @@ interface SAFENoteEditorProps {
   pricePerShare?: number;
 }
 
-export default function SAFENoteEditor({ safesNotes, onSafesNotesChange, pricePerShare }: SAFENoteEditorProps) {
+export default function SAFENoteEditor({
+  safesNotes,
+  onSafesNotesChange,
+  pricePerShare,
+}: SAFENoteEditorProps) {
   const [showAddDialog, setShowAddDialog] = useState(false);
   const [editingInstrument, setEditingInstrument] = useState<SAFENote | null>(null);
   const defaultDate = new Date().toISOString().split('T')[0];
@@ -43,7 +42,7 @@ export default function SAFENoteEditor({ safesNotes, onSafesNotesChange, pricePe
     type: 'safe',
     principal: 0,
     valuationCap: 0,
-    discount: 0.20,
+    discount: 0.2,
     holderName: '',
     ...(defaultDate && { investmentDate: defaultDate }),
     mostFavoredNation: true,
@@ -63,7 +62,9 @@ export default function SAFENoteEditor({ safesNotes, onSafesNotesChange, pricePe
       ...(formData.discount !== undefined ? { discount: formData.discount } : {}),
       ...(formData.interestRate !== undefined ? { interestRate: formData.interestRate } : {}),
       ...(formData.maturityDate !== undefined ? { maturityDate: formData.maturityDate } : {}),
-      ...(formData.mostFavoredNation !== undefined ? { mostFavoredNation: formData.mostFavoredNation } : {}),
+      ...(formData.mostFavoredNation !== undefined
+        ? { mostFavoredNation: formData.mostFavoredNation }
+        : {}),
       ...(formData.proRataRights !== undefined ? { proRataRights: formData.proRataRights } : {}),
     };
 
@@ -74,7 +75,7 @@ export default function SAFENoteEditor({ safesNotes, onSafesNotesChange, pricePe
       type: 'safe',
       principal: 0,
       valuationCap: 0,
-      discount: 0.20,
+      discount: 0.2,
       holderName: '',
       ...(resetDate && { investmentDate: resetDate }),
       mostFavoredNation: true,
@@ -91,10 +92,8 @@ export default function SAFENoteEditor({ safesNotes, onSafesNotesChange, pricePe
   const handleUpdate = () => {
     if (!editingInstrument || !formData.principal || !formData.holderName) return;
 
-    const updatedInstruments = safesNotes.map(inst => 
-      inst.id === editingInstrument.id 
-        ? { ...inst, ...formData } as SAFENote
-        : inst
+    const updatedInstruments = safesNotes.map((inst) =>
+      inst.id === editingInstrument.id ? ({ ...inst, ...formData } as SAFENote) : inst
     );
 
     onSafesNotesChange(updatedInstruments);
@@ -105,7 +104,7 @@ export default function SAFENoteEditor({ safesNotes, onSafesNotesChange, pricePe
       type: 'safe',
       principal: 0,
       valuationCap: 0,
-      discount: 0.20,
+      discount: 0.2,
       holderName: '',
       ...(resetDate && { investmentDate: resetDate }),
       mostFavoredNation: true,
@@ -114,17 +113,17 @@ export default function SAFENoteEditor({ safesNotes, onSafesNotesChange, pricePe
   };
 
   const handleDelete = (id: string) => {
-    onSafesNotesChange(safesNotes.filter(inst => inst.id !== id));
+    onSafesNotesChange(safesNotes.filter((inst) => inst.id !== id));
   };
 
   const calculateConversion = (instrument: SAFENote, pricePerShare: number) => {
     // Calculate cap-based price
-    const capBasedPrice = instrument.valuationCap ? 
-      instrument.valuationCap / 10000000 : Infinity; // Assuming 10M fully diluted shares
+    const capBasedPrice = instrument.valuationCap ? instrument.valuationCap / 10000000 : Infinity; // Assuming 10M fully diluted shares
 
-    // Calculate discount-based price  
-    const discountBasedPrice = instrument.discount ? 
-      pricePerShare * (1 - instrument.discount) : Infinity;
+    // Calculate discount-based price
+    const discountBasedPrice = instrument.discount
+      ? pricePerShare * (1 - instrument.discount)
+      : Infinity;
 
     // Take the lower of the two (better for investor)
     const conversionPrice = Math.min(capBasedPrice, discountBasedPrice);
@@ -134,7 +133,7 @@ export default function SAFENoteEditor({ safesNotes, onSafesNotesChange, pricePe
       conversionPrice,
       shares,
       usedCap: conversionPrice === capBasedPrice,
-      usedDiscount: conversionPrice === discountBasedPrice
+      usedDiscount: conversionPrice === discountBasedPrice,
     };
   };
 
@@ -156,7 +155,7 @@ export default function SAFENoteEditor({ safesNotes, onSafesNotesChange, pricePe
       <div className="flex items-center justify-between">
         <div>
           <h3 className="text-lg font-semibold">SAFEs & Convertible Notes</h3>
-          <p className="text-sm text-gray-600">
+          <p className="text-sm text-charcoal-600">
             Manage securities that will convert in the next funding round
           </p>
         </div>
@@ -169,13 +168,19 @@ export default function SAFENoteEditor({ safesNotes, onSafesNotesChange, pricePe
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {safesNotes.map((instrument) => {
           const conversion = pricePerShare ? calculateConversion(instrument, pricePerShare) : null;
-          
+
           return (
             <Card key={instrument.id} className="relative">
               <CardHeader className="pb-3">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center space-x-2">
-                    <Badge className={instrument.type === 'safe' ? 'bg-orange-100 text-orange-800' : 'bg-red-100 text-red-800'}>
+                    <Badge
+                      className={
+                        instrument.type === 'safe'
+                          ? 'bg-[#efd9bd] text-[#7a4a00]'
+                          : 'bg-pov-gray text-charcoal-700'
+                      }
+                    >
                       {instrument.type.toUpperCase()}
                     </Badge>
                     <span className="font-medium">{instrument.holderName}</span>
@@ -190,28 +195,34 @@ export default function SAFENoteEditor({ safesNotes, onSafesNotesChange, pricePe
                   </div>
                 </div>
               </CardHeader>
-              
+
               <CardContent className="space-y-3">
                 <div className="grid grid-cols-2 gap-3 text-sm">
                   <div>
-                    <span className="text-gray-500">Principal:</span>
+                    <span className="text-charcoal-500">Principal:</span>
                     <div className="font-medium">{formatCurrency(instrument.principal)}</div>
                   </div>
                   <div>
-                    <span className="text-gray-500">Investment Date:</span>
-                    <div className="font-medium">{new Date(instrument.investmentDate).toLocaleDateString()}</div>
+                    <span className="text-charcoal-500">Investment Date:</span>
+                    <div className="font-medium">
+                      {new Date(instrument.investmentDate).toLocaleDateString()}
+                    </div>
                   </div>
                 </div>
 
                 {instrument.valuationCap && (
                   <div className="grid grid-cols-2 gap-3 text-sm">
                     <div>
-                      <span className="text-gray-500">Valuation Cap:</span>
+                      <span className="text-charcoal-500">Valuation Cap:</span>
                       <div className="font-medium">{formatCurrency(instrument.valuationCap)}</div>
                     </div>
                     <div>
-                      <span className="text-gray-500">Discount:</span>
-                      <div className="font-medium">{instrument.discount ? `${(instrument.discount * 100).toFixed(0)}%` : 'None'}</div>
+                      <span className="text-charcoal-500">Discount:</span>
+                      <div className="font-medium">
+                        {instrument.discount
+                          ? `${(instrument.discount * 100).toFixed(0)}%`
+                          : 'None'}
+                      </div>
                     </div>
                   </div>
                 )}
@@ -219,13 +230,17 @@ export default function SAFENoteEditor({ safesNotes, onSafesNotesChange, pricePe
                 {instrument.interestRate && (
                   <div className="grid grid-cols-2 gap-3 text-sm">
                     <div>
-                      <span className="text-gray-500">Interest Rate:</span>
-                      <div className="font-medium">{(instrument.interestRate * 100).toFixed(1)}%</div>
+                      <span className="text-charcoal-500">Interest Rate:</span>
+                      <div className="font-medium">
+                        {(instrument.interestRate * 100).toFixed(1)}%
+                      </div>
                     </div>
                     {instrument.maturityDate && (
                       <div>
-                        <span className="text-gray-500">Maturity:</span>
-                        <div className="font-medium">{new Date(instrument.maturityDate).toLocaleDateString()}</div>
+                        <span className="text-charcoal-500">Maturity:</span>
+                        <div className="font-medium">
+                          {new Date(instrument.maturityDate).toLocaleDateString()}
+                        </div>
                       </div>
                     )}
                   </div>
@@ -234,29 +249,33 @@ export default function SAFENoteEditor({ safesNotes, onSafesNotesChange, pricePe
                 {conversion && (
                   <div className="border-t pt-3 space-y-2">
                     <div className="flex items-center space-x-2">
-                      <Calculator className="h-4 w-4 text-blue-600" />
-                      <span className="text-sm font-medium text-blue-600">Conversion Preview</span>
+                      <Calculator className="h-4 w-4 text-charcoal-600" />
+                      <span className="text-sm font-medium text-charcoal-600">
+                        Conversion Preview
+                      </span>
                     </div>
-                    
+
                     <div className="grid grid-cols-2 gap-3 text-sm">
                       <div>
-                        <span className="text-gray-500">Conversion Price:</span>
-                        <div className="font-medium">{formatCurrency(conversion.conversionPrice)}</div>
+                        <span className="text-charcoal-500">Conversion Price:</span>
+                        <div className="font-medium">
+                          {formatCurrency(conversion.conversionPrice)}
+                        </div>
                       </div>
                       <div>
-                        <span className="text-gray-500">Shares:</span>
+                        <span className="text-charcoal-500">Shares:</span>
                         <div className="font-medium">{formatShares(conversion.shares)}</div>
                       </div>
                     </div>
 
                     <div className="flex items-center space-x-2 text-xs">
                       {conversion.usedCap && (
-                        <Badge variant="outline" className="text-green-700 border-green-300">
+                        <Badge variant="outline" className="text-charcoal-700 border-beige-300">
                           Uses Cap
                         </Badge>
                       )}
                       {conversion.usedDiscount && (
-                        <Badge variant="outline" className="text-blue-700 border-blue-300">
+                        <Badge variant="outline" className="text-charcoal-700 border-beige-300">
                           Uses Discount
                         </Badge>
                       )}
@@ -264,7 +283,7 @@ export default function SAFENoteEditor({ safesNotes, onSafesNotesChange, pricePe
                   </div>
                 )}
 
-                <div className="flex items-center space-x-2 text-xs text-gray-500">
+                <div className="flex items-center space-x-2 text-xs text-charcoal-500">
                   {instrument.mostFavoredNation && <span>MFN</span>}
                   {instrument.proRataRights && <span>Pro Rata</span>}
                 </div>
@@ -282,14 +301,19 @@ export default function SAFENoteEditor({ safesNotes, onSafesNotesChange, pricePe
               {editingInstrument ? 'Edit' : 'Add'} {formData.type?.toUpperCase()}
             </DialogTitle>
           </DialogHeader>
-          
+
           <div className="space-y-6">
-            <Tabs value={formData.type ?? 'safe'} onValueChange={(value) => setFormData({ ...formData, type: value as 'safe' | 'note' })}>
+            <Tabs
+              value={formData.type ?? 'safe'}
+              onValueChange={(value) =>
+                setFormData({ ...formData, type: value as 'safe' | 'note' })
+              }
+            >
               <TabsList className="grid w-full grid-cols-2">
                 <TabsTrigger value="safe">SAFE</TabsTrigger>
                 <TabsTrigger value="note">Convertible Note</TabsTrigger>
               </TabsList>
-              
+
               <TabsContent value="safe" className="mt-4 space-y-4">
                 <div className="grid grid-cols-2 gap-4">
                   <div>
@@ -299,7 +323,7 @@ export default function SAFENoteEditor({ safesNotes, onSafesNotesChange, pricePe
                       value={formData.holderName}
                       onChange={(e) => setFormData({ ...formData, holderName: e.target.value })}
                       placeholder="Angel Investor"
-                      className="border-yellow-300 bg-yellow-50"
+                      className="border-beige-300 bg-beige-100"
                     />
                   </div>
                   <div>
@@ -308,9 +332,11 @@ export default function SAFENoteEditor({ safesNotes, onSafesNotesChange, pricePe
                       id="principal"
                       type="number"
                       value={formData.principal}
-                      onChange={(e) => setFormData({ ...formData, principal: Number(e.target.value) })}
+                      onChange={(e) =>
+                        setFormData({ ...formData, principal: Number(e.target.value) })
+                      }
                       placeholder="500000"
-                      className="border-yellow-300 bg-yellow-50"
+                      className="border-beige-300 bg-beige-100"
                     />
                   </div>
                 </div>
@@ -322,9 +348,11 @@ export default function SAFENoteEditor({ safesNotes, onSafesNotesChange, pricePe
                       id="valuation-cap"
                       type="number"
                       value={formData.valuationCap}
-                      onChange={(e) => setFormData({ ...formData, valuationCap: Number(e.target.value) })}
+                      onChange={(e) =>
+                        setFormData({ ...formData, valuationCap: Number(e.target.value) })
+                      }
                       placeholder="8000000"
-                      className="border-yellow-300 bg-yellow-50"
+                      className="border-beige-300 bg-beige-100"
                     />
                   </div>
                   <div>
@@ -335,14 +363,16 @@ export default function SAFENoteEditor({ safesNotes, onSafesNotesChange, pricePe
                       step="0.01"
                       max="1"
                       value={formData.discount ? formData.discount * 100 : ''}
-                      onChange={(e) => setFormData({ ...formData, discount: Number(e.target.value) / 100 })}
+                      onChange={(e) =>
+                        setFormData({ ...formData, discount: Number(e.target.value) / 100 })
+                      }
                       placeholder="20"
-                      className="border-yellow-300 bg-yellow-50"
+                      className="border-beige-300 bg-beige-100"
                     />
                   </div>
                 </div>
               </TabsContent>
-              
+
               <TabsContent value="note" className="mt-4 space-y-4">
                 <div className="grid grid-cols-2 gap-4">
                   <div>
@@ -352,7 +382,7 @@ export default function SAFENoteEditor({ safesNotes, onSafesNotesChange, pricePe
                       value={formData.holderName}
                       onChange={(e) => setFormData({ ...formData, holderName: e.target.value })}
                       placeholder="Note Holder"
-                      className="border-yellow-300 bg-yellow-50"
+                      className="border-beige-300 bg-beige-100"
                     />
                   </div>
                   <div>
@@ -361,9 +391,11 @@ export default function SAFENoteEditor({ safesNotes, onSafesNotesChange, pricePe
                       id="note-principal"
                       type="number"
                       value={formData.principal}
-                      onChange={(e) => setFormData({ ...formData, principal: Number(e.target.value) })}
+                      onChange={(e) =>
+                        setFormData({ ...formData, principal: Number(e.target.value) })
+                      }
                       placeholder="750000"
-                      className="border-yellow-300 bg-yellow-50"
+                      className="border-beige-300 bg-beige-100"
                     />
                   </div>
                 </div>
@@ -376,9 +408,11 @@ export default function SAFENoteEditor({ safesNotes, onSafesNotesChange, pricePe
                       type="number"
                       step="0.01"
                       value={formData.interestRate ? formData.interestRate * 100 : ''}
-                      onChange={(e) => setFormData({ ...formData, interestRate: Number(e.target.value) / 100 })}
+                      onChange={(e) =>
+                        setFormData({ ...formData, interestRate: Number(e.target.value) / 100 })
+                      }
                       placeholder="8"
-                      className="border-yellow-300 bg-yellow-50"
+                      className="border-beige-300 bg-beige-100"
                     />
                   </div>
                   <div>
@@ -388,9 +422,11 @@ export default function SAFENoteEditor({ safesNotes, onSafesNotesChange, pricePe
                       type="number"
                       step="0.01"
                       value={formData.discount ? formData.discount * 100 : ''}
-                      onChange={(e) => setFormData({ ...formData, discount: Number(e.target.value) / 100 })}
+                      onChange={(e) =>
+                        setFormData({ ...formData, discount: Number(e.target.value) / 100 })
+                      }
                       placeholder="25"
-                      className="border-yellow-300 bg-yellow-50"
+                      className="border-beige-300 bg-beige-100"
                     />
                   </div>
                   <div>
@@ -400,7 +436,7 @@ export default function SAFENoteEditor({ safesNotes, onSafesNotesChange, pricePe
                       type="date"
                       value={formData.maturityDate}
                       onChange={(e) => setFormData({ ...formData, maturityDate: e.target.value })}
-                      className="border-yellow-300 bg-yellow-50"
+                      className="border-beige-300 bg-beige-100"
                     />
                   </div>
                 </div>
@@ -412,9 +448,11 @@ export default function SAFENoteEditor({ safesNotes, onSafesNotesChange, pricePe
                       id="note-cap"
                       type="number"
                       value={formData.valuationCap}
-                      onChange={(e) => setFormData({ ...formData, valuationCap: Number(e.target.value) })}
+                      onChange={(e) =>
+                        setFormData({ ...formData, valuationCap: Number(e.target.value) })
+                      }
                       placeholder="12000000"
-                      className="border-yellow-300 bg-yellow-50"
+                      className="border-beige-300 bg-beige-100"
                     />
                   </div>
                   <div>
@@ -424,7 +462,7 @@ export default function SAFENoteEditor({ safesNotes, onSafesNotesChange, pricePe
                       type="date"
                       value={formData.investmentDate}
                       onChange={(e) => setFormData({ ...formData, investmentDate: e.target.value })}
-                      className="border-yellow-300 bg-yellow-50"
+                      className="border-beige-300 bg-beige-100"
                     />
                   </div>
                 </div>
