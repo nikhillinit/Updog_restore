@@ -126,7 +126,7 @@ export function AllocationSliders({ initial, onChange, className }: AllocationSl
           <div key={allocation.id} className="space-y-3">
             <div className="flex items-center gap-3">
               <div className="flex-1">
-                <Label className="text-sm font-medium text-[#292929]">{allocation.label}</Label>
+                <Label className="text-sm font-medium text-pov-charcoal">{allocation.label}</Label>
                 <Input
                   value={allocation.label}
                   onChange={(e) => handleLabelChange(allocation.id, e.target.value)}
@@ -136,7 +136,7 @@ export function AllocationSliders({ initial, onChange, className }: AllocationSl
                 />
               </div>
               <div className="w-24">
-                <Label className="text-sm font-medium text-[#292929]">%</Label>
+                <Label className="text-sm font-medium text-pov-charcoal">%</Label>
                 <Input
                   type="number"
                   min="0"
@@ -153,7 +153,7 @@ export function AllocationSliders({ initial, onChange, className }: AllocationSl
                   variant="ghost"
                   size="sm"
                   onClick={() => handleRemoveAllocation(allocation.id)}
-                  className="mt-6 text-red-500 hover:text-red-700 hover:bg-red-50"
+                  className="mt-6 text-error-dark hover:bg-pov-gray"
                   aria-label={`Remove ${allocation.label || 'allocation'}`}
                 >
                   <Trash2 aria-hidden="true" className="h-4 w-4" />
@@ -181,8 +181,8 @@ export function AllocationSliders({ initial, onChange, className }: AllocationSl
         className={cn(
           'p-4 rounded-lg border-2 transition-colors',
           isValid
-            ? 'bg-green-50 border-green-200 text-green-800'
-            : 'bg-amber-50 border-amber-200 text-amber-800'
+            ? 'bg-success/10 border-success/50 text-success-dark'
+            : 'bg-warning/10 border-warning/50 text-warning-dark'
         )}
       >
         <div className="flex items-center justify-between">

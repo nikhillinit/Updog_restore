@@ -10,14 +10,7 @@ import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
 import { spreadIfDefined } from '@/lib/ts/spreadIfDefined';
-import {
-  BarChart3,
-  PieChart,
-  TrendingUp,
-  DollarSign,
-  Target,
-  Calculator
-} from 'lucide-react';
+import { BarChart3, PieChart, TrendingUp, DollarSign, Target, Calculator } from 'lucide-react';
 
 type ChartType = 'bar' | 'line' | 'pie' | 'scatter' | 'area';
 
@@ -50,20 +43,20 @@ function DashboardSkeleton({ animated = true }: { animated?: boolean }) {
       <div className="space-y-3">
         <div className="flex items-center justify-between">
           <div className="space-y-2">
-            <Skeleton className={cn("h-8 w-64", animated && "animate-pulse")} />
-            <Skeleton className={cn("h-4 w-96", animated && "animate-pulse")} />
+            <Skeleton className={cn('h-8 w-64', animated && 'animate-pulse')} />
+            <Skeleton className={cn('h-4 w-96', animated && 'animate-pulse')} />
           </div>
           <div className="flex items-center gap-2">
-            <Skeleton className={cn("h-10 w-32", animated && "animate-pulse")} />
-            <Skeleton className={cn("h-10 w-10", animated && "animate-pulse")} />
+            <Skeleton className={cn('h-10 w-32', animated && 'animate-pulse')} />
+            <Skeleton className={cn('h-10 w-10', animated && 'animate-pulse')} />
           </div>
         </div>
 
         {/* Breadcrumb skeleton */}
         <div className="flex items-center gap-2">
-          <Skeleton className={cn("h-6 w-16", animated && "animate-pulse")} />
-          <span className="text-gray-300">/</span>
-          <Skeleton className={cn("h-6 w-24", animated && "animate-pulse")} />
+          <Skeleton className={cn('h-6 w-16', animated && 'animate-pulse')} />
+          <span className="text-charcoal-300">/</span>
+          <Skeleton className={cn('h-6 w-24', animated && 'animate-pulse')} />
         </div>
       </div>
 
@@ -73,17 +66,17 @@ function DashboardSkeleton({ animated = true }: { animated?: boolean }) {
           { icon: DollarSign, label: 'Fund Size' },
           { icon: TrendingUp, label: 'Portfolio IRR' },
           { icon: Target, label: 'MOIC' },
-          { icon: PieChart, label: 'Allocation' }
+          { icon: PieChart, label: 'Allocation' },
         ].map((metric, index) => (
           <Card key={index} className="relative overflow-hidden">
             <CardContent className="p-6">
               <div className="flex items-center justify-between mb-4">
-                <metric.icon className="h-5 w-5 text-gray-300" />
-                <Skeleton className={cn("h-4 w-8", animated && "animate-pulse")} />
+                <metric.icon className="h-5 w-5 text-charcoal-300" />
+                <Skeleton className={cn('h-4 w-8', animated && 'animate-pulse')} />
               </div>
               <div className="space-y-2">
-                <Skeleton className={cn("h-8 w-20", animated && "animate-pulse")} />
-                <Skeleton className={cn("h-3 w-16", animated && "animate-pulse")} />
+                <Skeleton className={cn('h-8 w-20', animated && 'animate-pulse')} />
+                <Skeleton className={cn('h-3 w-16', animated && 'animate-pulse')} />
               </div>
             </CardContent>
             {/* Shimmer effect */}
@@ -107,7 +100,7 @@ function DashboardSkeleton({ animated = true }: { animated?: boolean }) {
 function ChartSkeleton({
   animated = true,
   chartType = 'bar',
-  height = 'h-64'
+  height = 'h-64',
 }: {
   animated?: boolean;
   chartType?: ChartType;
@@ -118,18 +111,18 @@ function ChartSkeleton({
       <CardHeader className="pb-3">
         <div className="flex items-center justify-between">
           <div className="space-y-2">
-            <Skeleton className={cn("h-5 w-32", animated && "animate-pulse")} />
-            <Skeleton className={cn("h-3 w-48", animated && "animate-pulse")} />
+            <Skeleton className={cn('h-5 w-32', animated && 'animate-pulse')} />
+            <Skeleton className={cn('h-3 w-48', animated && 'animate-pulse')} />
           </div>
           <div className="flex items-center gap-2">
-            <Skeleton className={cn("h-8 w-8", animated && "animate-pulse")} />
-            <Skeleton className={cn("h-8 w-8", animated && "animate-pulse")} />
+            <Skeleton className={cn('h-8 w-8', animated && 'animate-pulse')} />
+            <Skeleton className={cn('h-8 w-8', animated && 'animate-pulse')} />
           </div>
         </div>
       </CardHeader>
 
       <CardContent>
-        <div className={cn("relative", height, "bg-gray-50 rounded-lg p-4")}>
+        <div className={cn('relative', height, 'bg-pov-gray/50 rounded-lg p-4')}>
           {/* Chart-specific skeleton patterns */}
           {chartType === 'bar' && <BarChartPattern animated={animated} />}
           {chartType === 'line' && <LineChartPattern animated={animated} />}
@@ -139,7 +132,7 @@ function ChartSkeleton({
 
           {/* Loading indicator */}
           <div className="absolute inset-0 flex items-center justify-center">
-            <div className="flex items-center gap-2 text-gray-400">
+            <div className="flex items-center gap-2 text-charcoal-400">
               <BarChart3 className="h-6 w-6" />
               <span className="text-sm font-medium">Loading chart data...</span>
             </div>
@@ -148,10 +141,10 @@ function ChartSkeleton({
 
         {/* Legend skeleton */}
         <div className="flex items-center justify-center gap-4 mt-4">
-          {[1, 2, 3].map(i => (
+          {[1, 2, 3].map((i) => (
             <div key={i} className="flex items-center gap-2">
-              <Skeleton className={cn("h-3 w-3 rounded-full", animated && "animate-pulse")} />
-              <Skeleton className={cn("h-3 w-16", animated && "animate-pulse")} />
+              <Skeleton className={cn('h-3 w-3 rounded-full', animated && 'animate-pulse')} />
+              <Skeleton className={cn('h-3 w-16', animated && 'animate-pulse')} />
             </div>
           ))}
         </div>
@@ -170,13 +163,13 @@ function BarChartPattern({ animated }: { animated: boolean }) {
         <div
           key={index}
           className={cn(
-            "bg-gray-300 rounded-t-sm transition-all duration-1000",
-            animated && "animate-pulse"
+            'bg-pov-gray rounded-t-sm transition-all duration-1000',
+            animated && 'animate-pulse'
           )}
           style={{
             height: `${height * 100}%`,
             width: '12%',
-            animationDelay: `${index * 0.1}s`
+            animationDelay: `${index * 0.1}s`,
           }}
         />
       ))}
@@ -189,10 +182,10 @@ function LineChartPattern({ animated }: { animated: boolean }) {
     <div className="relative h-full">
       {/* Grid lines */}
       <div className="absolute inset-0">
-        {[0, 25, 50, 75, 100].map(percent => (
+        {[0, 25, 50, 75, 100].map((percent) => (
           <div
             key={percent}
-            className="absolute w-full border-b border-gray-200"
+            className="absolute w-full border-b border-beige-200"
             style={{ top: `${percent}%` }}
           />
         ))}
@@ -205,7 +198,7 @@ function LineChartPattern({ animated }: { animated: boolean }) {
           stroke="currentColor"
           strokeWidth="3"
           fill="none"
-          className={cn("text-gray-300", animated && "animate-pulse")}
+          className={cn('text-charcoal-300', animated && 'animate-pulse')}
           strokeDasharray="5,5"
         />
         {/* Data points */}
@@ -215,7 +208,7 @@ function LineChartPattern({ animated }: { animated: boolean }) {
             cx={x}
             cy={[80, 20, 40, 35, 30][index]}
             r="4"
-            className={cn("fill-gray-300", animated && "animate-pulse")}
+            className={cn('fill-charcoal-300', animated && 'animate-pulse')}
             style={{ animationDelay: `${index * 0.2}s` }}
           />
         ))}
@@ -248,7 +241,7 @@ function PieChartPattern({ animated }: { animated: boolean }) {
             `M 50 50`,
             `L ${x1} ${y1}`,
             `A 40 40 0 ${largeArcFlag} 1 ${x2} ${y2}`,
-            'Z'
+            'Z',
           ].join(' ');
 
           cumulativeAngle += angle;
@@ -257,13 +250,10 @@ function PieChartPattern({ animated }: { animated: boolean }) {
             <path
               key={index}
               d={pathData}
-              className={cn(
-                "fill-gray-300 stroke-white stroke-2",
-                animated && "animate-pulse"
-              )}
+              className={cn('fill-charcoal-300 stroke-white stroke-2', animated && 'animate-pulse')}
               style={{
-                opacity: 0.3 + (index * 0.15),
-                animationDelay: `${index * 0.1}s`
+                opacity: 0.3 + index * 0.15,
+                animationDelay: `${index * 0.1}s`,
               }}
             />
           );
@@ -277,7 +267,7 @@ function ScatterChartPattern({ animated }: { animated: boolean }) {
   const points = Array.from({ length: 20 }, () => ({
     x: Math.random() * 90 + 5,
     y: Math.random() * 90 + 5,
-    size: Math.random() * 4 + 2
+    size: Math.random() * 4 + 2,
   }));
 
   return (
@@ -289,7 +279,7 @@ function ScatterChartPattern({ animated }: { animated: boolean }) {
             cx={point.x}
             cy={point.y}
             r={point.size}
-            className={cn("fill-gray-300", animated && "animate-pulse")}
+            className={cn('fill-charcoal-300', animated && 'animate-pulse')}
             style={{ animationDelay: `${index * 0.05}s` }}
           />
         ))}
@@ -311,14 +301,14 @@ function AreaChartPattern({ animated }: { animated: boolean }) {
         <path
           d="M0,80 Q75,20 150,40 T300,30 L300,100 L0,100 Z"
           fill="url(#areaSkeleton)"
-          className={cn("text-gray-300", animated && "animate-pulse")}
+          className={cn('text-charcoal-300', animated && 'animate-pulse')}
         />
         <path
           d="M0,80 Q75,20 150,40 T300,30"
           stroke="currentColor"
           strokeWidth="2"
           fill="none"
-          className={cn("text-gray-400", animated && "animate-pulse")}
+          className={cn('text-charcoal-400', animated && 'animate-pulse')}
         />
       </svg>
     </div>
@@ -330,7 +320,7 @@ function TableSkeleton({
   rows = 5,
   columns = 4,
   showHeaders = true,
-  animated = true
+  animated = true,
 }: {
   rows?: number;
   columns?: number;
@@ -344,10 +334,10 @@ function TableSkeleton({
           {/* Table header skeleton */}
           {showHeaders && (
             <div className="flex items-center justify-between">
-              <Skeleton className={cn("h-6 w-32", animated && "animate-pulse")} />
+              <Skeleton className={cn('h-6 w-32', animated && 'animate-pulse')} />
               <div className="flex items-center gap-2">
-                <Skeleton className={cn("h-8 w-24", animated && "animate-pulse")} />
-                <Skeleton className={cn("h-8 w-8", animated && "animate-pulse")} />
+                <Skeleton className={cn('h-8 w-24', animated && 'animate-pulse')} />
+                <Skeleton className={cn('h-8 w-8', animated && 'animate-pulse')} />
               </div>
             </div>
           )}
@@ -357,7 +347,7 @@ function TableSkeleton({
             {Array.from({ length: columns }).map((_, index) => (
               <Skeleton
                 key={index}
-                className={cn("h-4 w-full", animated && "animate-pulse")}
+                className={cn('h-4 w-full', animated && 'animate-pulse')}
                 style={{ animationDelay: `${index * 0.1}s` }}
               />
             ))}
@@ -375,9 +365,9 @@ function TableSkeleton({
                   <Skeleton
                     key={colIndex}
                     className={cn(
-                      "h-4",
-                      colIndex === 0 ? "w-3/4" : colIndex === columns - 1 ? "w-1/2" : "w-full",
-                      animated && "animate-pulse"
+                      'h-4',
+                      colIndex === 0 ? 'w-3/4' : colIndex === columns - 1 ? 'w-1/2' : 'w-full',
+                      animated && 'animate-pulse'
                     )}
                     style={{ animationDelay: `${(rowIndex * columns + colIndex) * 0.05}s` }}
                   />
@@ -395,34 +385,34 @@ function TableSkeleton({
 function InsightsSkeleton({ animated = true }: { animated?: boolean }) {
   return (
     <div className="space-y-4">
-      {[1, 2, 3].map(index => (
+      {[1, 2, 3].map((index) => (
         <Card key={index} className="relative overflow-hidden">
           <CardHeader className="pb-3">
             <div className="flex items-start justify-between">
               <div className="flex items-center gap-3">
-                <Skeleton className={cn("h-10 w-10 rounded-lg", animated && "animate-pulse")} />
+                <Skeleton className={cn('h-10 w-10 rounded-lg', animated && 'animate-pulse')} />
                 <div className="space-y-2">
-                  <Skeleton className={cn("h-5 w-40", animated && "animate-pulse")} />
+                  <Skeleton className={cn('h-5 w-40', animated && 'animate-pulse')} />
                   <div className="flex items-center gap-2">
-                    <Skeleton className={cn("h-4 w-16", animated && "animate-pulse")} />
-                    <Skeleton className={cn("h-4 w-20", animated && "animate-pulse")} />
+                    <Skeleton className={cn('h-4 w-16', animated && 'animate-pulse')} />
+                    <Skeleton className={cn('h-4 w-20', animated && 'animate-pulse')} />
                   </div>
                 </div>
               </div>
-              <Skeleton className={cn("h-8 w-16", animated && "animate-pulse")} />
+              <Skeleton className={cn('h-8 w-16', animated && 'animate-pulse')} />
             </div>
           </CardHeader>
 
           <CardContent>
             <div className="space-y-3">
-              <Skeleton className={cn("h-4 w-full", animated && "animate-pulse")} />
-              <Skeleton className={cn("h-4 w-5/6", animated && "animate-pulse")} />
-              <Skeleton className={cn("h-4 w-4/6", animated && "animate-pulse")} />
+              <Skeleton className={cn('h-4 w-full', animated && 'animate-pulse')} />
+              <Skeleton className={cn('h-4 w-5/6', animated && 'animate-pulse')} />
+              <Skeleton className={cn('h-4 w-4/6', animated && 'animate-pulse')} />
 
               {/* Metrics skeleton */}
               <div className="flex items-center justify-between pt-2 border-t">
-                <Skeleton className={cn("h-3 w-20", animated && "animate-pulse")} />
-                <Skeleton className={cn("h-3 w-12", animated && "animate-pulse")} />
+                <Skeleton className={cn('h-3 w-20', animated && 'animate-pulse')} />
+                <Skeleton className={cn('h-3 w-12', animated && 'animate-pulse')} />
               </div>
             </div>
           </CardContent>
@@ -444,7 +434,7 @@ export function IntelligentSkeleton({
   variant,
   className,
   animated = true,
-  preview
+  preview,
 }: IntelligentSkeletonProps) {
   const skeletonComponents = {
     dashboard: <DashboardSkeleton animated={animated} />,
@@ -466,28 +456,26 @@ export function IntelligentSkeleton({
     metrics: <DashboardSkeleton animated={animated} />,
     insights: <InsightsSkeleton animated={animated} />,
     portfolio: <DashboardSkeleton animated={animated} />,
-    analysis: <InsightsSkeleton animated={animated} />
+    analysis: <InsightsSkeleton animated={animated} />,
   };
 
   return (
-    <div className={cn("space-y-4", className)}>
+    <div className={cn('space-y-4', className)}>
       {preview && (
-        <div className="text-center p-4 bg-slate-50 rounded-lg border border-dashed">
-          <div className="flex items-center justify-center gap-2 text-slate-600">
+        <div className="text-center p-4 bg-pov-gray rounded-lg border border-dashed">
+          <div className="flex items-center justify-center gap-2 text-charcoal-600">
             <Calculator className="h-5 w-5" />
             <span className="text-sm font-medium">
               {preview.title && `Loading ${preview.title}`}
               {preview.dataType && ` • ${preview.dataType}`}
             </span>
           </div>
-          {preview.subtitle && (
-            <p className="text-xs text-slate-500 mt-1">{preview.subtitle}</p>
-          )}
+          {preview.subtitle && <p className="text-xs text-charcoal-500 mt-1">{preview.subtitle}</p>}
         </div>
       )}
 
       {skeletonComponents[variant.type] || (
-        <div className="p-8 text-center text-gray-500">
+        <div className="p-8 text-center text-charcoal-500">
           <BarChart3 className="h-8 w-8 mx-auto mb-2" />
           <p>Loading content...</p>
         </div>

@@ -11,6 +11,7 @@ import {
   ZAxis,
 } from 'recharts';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { getChartColor } from '@/lib/brand-tokens';
 
 type MOICDatum = {
   x: number; // IRR
@@ -55,7 +56,6 @@ const NivoMOICScatter = memo(function NivoMOICScatter({
   data,
   height = 400,
 }: NivoMOICScatterProps) {
-  const colors = useMemo(() => ['#2563eb', '#dc2626', '#16a34a', '#ca8a04'], []);
   const chartSeries = useMemo(
     () =>
       data.map((series) => ({
@@ -100,9 +100,9 @@ const NivoMOICScatter = memo(function NivoMOICScatter({
                   }
 
                   return (
-                    <div className="bg-white p-3 border border-gray-200 rounded-lg shadow-lg">
+                    <div className="bg-white p-3 border border-beige-200 rounded-lg shadow-lg">
                       <div className="font-semibold">{point.company || 'Company'}</div>
-                      <div className="text-sm text-gray-600">
+                      <div className="text-sm text-charcoal-600">
                         <div>IRR: {point.x.toFixed(1)}%</div>
                         <div>MOIC: {point.y.toFixed(2)}x</div>
                         {point.investment != null && (
@@ -119,7 +119,7 @@ const NivoMOICScatter = memo(function NivoMOICScatter({
                   key={series.id}
                   name={series.id}
                   data={series.data}
-                  fill={colors[index % colors.length] ?? colors[0]!}
+                  fill={getChartColor(index)}
                 />
               ))}
             </ScatterChart>
