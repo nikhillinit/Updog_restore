@@ -1,4 +1,4 @@
-import type { Express, Request, Response, NextFunction } from 'express';
+import type { Express, Request, Response, NextFunction, Router } from 'express';
 import type { RequestListener } from 'http';
 import { createServer, type Server } from 'http';
 import { registerFundConfigRoutes } from './routes/fund-config.js';
@@ -6,6 +6,32 @@ import { recordHttpMetrics } from './metrics';
 import { monitor } from './middleware/performance-monitor.js';
 import { registerCompletionHandlers } from './services/calc-run-completion-handlers.js';
 import { varianceAlertAutomationService } from './services/variance-alert-automation.js';
+
+type DefaultRouteModule = {
+  default: Router;
+};
+
+type DefaultRouteMount = {
+  mountPath?: string;
+  load: () => Promise<DefaultRouteModule>;
+};
+
+async function mountDefaultRoute(app: Express, { mountPath, load }: DefaultRouteMount) {
+  const routeModule = await load();
+
+  if (mountPath === undefined) {
+    app.use(routeModule.default);
+    return;
+  }
+
+  app.use(mountPath, routeModule.default);
+}
+
+async function mountDefaultRoutes(app: Express, mounts: readonly DefaultRouteMount[]) {
+  for (const mount of mounts) {
+    await mountDefaultRoute(app, mount);
+  }
+}
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Wire calc-run completion automation and periodic alert scheduling.
@@ -16,118 +42,74 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.use('/api', monitor.middleware());
 
   // Fund routes
-  const fundRoutes = await import('./routes/funds.js');
-  app.use('/api', fundRoutes.default);
+  await mountDefaultRoute(app, { mountPath: '/api', load: () => import('./routes/funds.js') });
 
   // Deal pipeline routes
   const dealPipelineRoutes = await import('./routes/deal-pipeline.js');
   app.use('/api/deals', dealPipelineRoutes.dealPipelineRouter);
 
+  // Cohort Analysis routes
+  await mountDefaultRoute(app, {
+    mountPath: '/api/cohorts',
+    load: () => import('./routes/cohort-analysis.js'),
+  });
+
   // Feature flags routes
   const flagsRoutes = await import('./routes/flags.js');
   app.use('/api/flags', flagsRoutes.flagsRouter);
 
-  // Health and metrics routes
-  const healthRoutes = await import('./routes/health.js');
-  app.use('/', healthRoutes.default);
-
-  const dashboardSummaryRoutes = await import('./routes/dashboard-summary.js');
-  app.use('/api', dashboardSummaryRoutes.default);
-
-  const investmentsRoutes = await import('./routes/investments.js');
-  app.use('/api', investmentsRoutes.default);
-
-  const portfolioCompaniesRoutes = await import('./routes/portfolio-companies.js');
-  app.use('/api', portfolioCompaniesRoutes.default);
-
-  const allocationScenarioRoutes = await import('./routes/allocation-scenarios.js');
-  app.use('/api', allocationScenarioRoutes.default);
-
-  const allocationsRoutes = await import('./routes/allocations.js');
-  app.use('/api', allocationsRoutes.default);
-
-  const activitiesRoutes = await import('./routes/activities.js');
-  app.use('/api', activitiesRoutes.default);
-
-  const legacyFundMetricsRoutes = await import('./routes/fund-metrics-legacy.js');
-  app.use('/api', legacyFundMetricsRoutes.default);
-
-  const engineSummaryRoutes = await import('./routes/engine-summaries.js');
-  app.use('/api', engineSummaryRoutes.default);
-
-  // Operations polling routes
-  const operationsRoutes = await import('./routes/operations.js');
-  app.use('/', operationsRoutes.default);
-
-  // Monte Carlo simulation routes
-  const monteCarloRoutes = await import('./routes/monte-carlo.js');
-  app.use('/api/monte-carlo', monteCarloRoutes.default);
-
-  // Cache monitoring & management routes
-  const cacheRoutes = await import('./routes/cache.js');
-  app.use('/api/cache', cacheRoutes.default);
-
-  // Backtesting routes (Monte Carlo validation)
-  const backtestingRoutes = await import('./routes/backtesting.js');
-  app.use('/api/backtesting', backtestingRoutes.default);
-
-  const sensitivityRoutes = await import('./routes/sensitivity.js');
-  app.use('/api', sensitivityRoutes.default);
-
-  // MOIC Calculator routes
-  const moicRoutes = await import('./routes/moic.js');
-  app.use('/api/moic', moicRoutes.default);
-
-  // Graduation Rate Engine routes
-  const graduationRoutes = await import('./routes/graduation.js');
-  app.use('/api/graduation', graduationRoutes.default);
-
-  // Capital Allocation Engine routes
-  const capitalAllocationRoutes = await import('./routes/capital-allocation.js');
-  app.use('/api/capital-allocation', capitalAllocationRoutes.default);
-
-  // Liquidity Engine routes
-  const liquidityRoutes = await import('./routes/liquidity.js');
-  app.use('/api/liquidity', liquidityRoutes.default);
-
-  // Performance monitoring routes
-  const performanceRoutes = await import('./routes/performance-metrics.js');
-  app.use('/api/performance', performanceRoutes.default);
-
-  // Server-Sent Events (SSE) routes for real-time updates
-  const sseRoutes = await import('./routes/sse-events.js');
-  app.use('/', sseRoutes.default);
+  await mountDefaultRoutes(app, [
+    // Health and metrics routes
+    { mountPath: '/', load: () => import('./routes/health.js') },
+    { mountPath: '/api', load: () => import('./routes/dashboard-summary.js') },
+    { mountPath: '/api', load: () => import('./routes/investments.js') },
+    { mountPath: '/api', load: () => import('./routes/portfolio-companies.js') },
+    { mountPath: '/api', load: () => import('./routes/portfolio/lots.js') },
+    { mountPath: '/api', load: () => import('./routes/allocation-scenarios.js') },
+    { mountPath: '/api', load: () => import('./routes/fund-scenario-sets.js') },
+    { mountPath: '/api', load: () => import('./routes/allocations.js') },
+    { mountPath: '/api', load: () => import('./routes/activities.js') },
+    { mountPath: '/api', load: () => import('./routes/fund-metrics-legacy.js') },
+    { mountPath: '/api', load: () => import('./routes/engine-summaries.js') },
+    // Operations polling routes
+    { mountPath: '/', load: () => import('./routes/operations.js') },
+    // Monte Carlo simulation routes
+    { mountPath: '/api/monte-carlo', load: () => import('./routes/monte-carlo.js') },
+    // Cache monitoring & management routes
+    { mountPath: '/api/cache', load: () => import('./routes/cache.js') },
+    // Backtesting routes (Monte Carlo validation)
+    { mountPath: '/api/backtesting', load: () => import('./routes/backtesting.js') },
+    { mountPath: '/api', load: () => import('./routes/sensitivity.js') },
+    // MOIC Calculator routes
+    { mountPath: '/api/moic', load: () => import('./routes/moic.js') },
+    // Graduation Rate Engine routes
+    { mountPath: '/api/graduation', load: () => import('./routes/graduation.js') },
+    // Capital Allocation Engine routes
+    { mountPath: '/api/capital-allocation', load: () => import('./routes/capital-allocation.js') },
+    // Liquidity Engine routes
+    { mountPath: '/api/liquidity', load: () => import('./routes/liquidity.js') },
+    // Performance monitoring routes
+    { mountPath: '/api/performance', load: () => import('./routes/performance-metrics.js') },
+    // Server-Sent Events (SSE) routes for real-time updates
+    { mountPath: '/', load: () => import('./routes/sse-events.js') },
+  ]);
 
   // Reallocation routes (Phase 1b)
   const reallocationRoutes = await import('./routes/reallocation.js');
   app.use(reallocationRoutes.default);
 
   // Unified Metrics Layer routes
-  const fundMetricsRoutes = await import('./routes/fund-metrics.js');
-  app.use(fundMetricsRoutes.default);
+  await mountDefaultRoute(app, { load: () => import('./routes/fund-metrics.js') });
 
-  // Performance Dashboard API routes (timeseries, breakdown, comparison)
-  const performanceApiRoutes = await import('./routes/performance-api.js');
-  app.use(performanceApiRoutes.default);
+  const dualForecastRoutes = await import('./routes/dual-forecast.js');
+  app.use('/api', dualForecastRoutes.default);
 
-  // LP Reporting Dashboard API routes
-  const lpApiRoutes = await import('./routes/lp-api.js');
-  app.use(lpApiRoutes.default);
-
-  // LP Reporting Dashboard health check routes
-  const lpHealthRoutes = await import('./routes/lp-health.js');
-  app.use(lpHealthRoutes.default);
-
-  // Shares routes (fund sharing system)
-  const sharesRoutes = await import('./routes/shares.js');
-  app.use('/api/shares', sharesRoutes.sharesRouter);
-  app.use('/api/public/shares', sharesRoutes.publicSharesRouter);
-
-  // Middleware to record HTTP metrics
+  // Register before the LP/shares route groups below so requests that finish
+  // inside those routers still reach recordHttpMetrics on response finish.
   app.use((req: Request, res: Response, next: NextFunction) => {
     const startTime = Date.now();
 
-    res['on']('finish', () => {
+    res.on('finish', () => {
       const duration = (Date.now() - startTime) / 1000;
       // Express Route type has path property, but req.route may be undefined
       const route = req.route as { path?: string } | undefined;
@@ -138,6 +120,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
     next();
   });
 
+  await mountDefaultRoutes(app, [
+    // Performance Dashboard API routes (timeseries, breakdown, comparison)
+    { load: () => import('./routes/performance-api.js') },
+    // LP Reporting Dashboard API routes
+    { load: () => import('./routes/lp-api.js') },
+    // LP Reporting Dashboard health check routes
+    { load: () => import('./routes/lp-health.js') },
+    // LP Reporting workflow routes
+    { load: () => import('./routes/lp-reporting/imports.js') },
+    { load: () => import('./routes/lp-reporting/metric-runs.js') },
+  ]);
+
+  // Shares routes (fund sharing system)
+  const sharesRoutes = await import('./routes/shares.js');
+  app.use('/api/shares', sharesRoutes.sharesRouter);
+  app.use('/api/public/shares', sharesRoutes.publicSharesRouter);
+
   // Dashboard, investments, portfolio companies, activities, legacy fund
   // metrics, and engine summary routes have been extracted into dedicated
   // modules.
@@ -145,13 +144,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Register fund configuration routes
   registerFundConfigRoutes(app);
 
-  // Register variance tracking routes
-  const varianceRouter = await import('./routes/variance.js');
-  app.use('/', varianceRouter.default);
-
-  // Register timeline routes for event-sourced architecture
-  const timelineRouter = await import('./routes/timeline.js');
-  app.use('/api/timeline', timelineRouter.default);
+  await mountDefaultRoutes(app, [
+    // Register variance tracking routes
+    { mountPath: '/', load: () => import('./routes/variance.js') },
+    // Register timeline routes for event-sourced architecture
+    { mountPath: '/api/timeline', load: () => import('./routes/timeline.js') },
+  ]);
 
   // Admin routes for engine management (non-prod only)
   const { engineAdminRoutes } = await import('./routes/admin/engine.js');
@@ -161,8 +159,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Routes use /api/portfolio/* prefix internally
   const { FEATURES } = await import('./config/features.js');
   if (FEATURES.portfolioIntelligence) {
-    const portfolioIntelligenceRoutes = await import('./routes/portfolio-intelligence.js');
-    app.use(portfolioIntelligenceRoutes.default);
+    await mountDefaultRoute(app, { load: () => import('./routes/portfolio-intelligence.js') });
   }
 
   // Metrics & Observability routes (feature-flagged)
@@ -172,14 +169,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
     app.use(metricsRouter);
 
     // Error budget reporting (/api/error-budget)
-    const errorBudgetRoutes = await import('./routes/error-budget.js');
-    app.use('/api/error-budget', errorBudgetRoutes.default);
+    await mountDefaultRoute(app, {
+      mountPath: '/api/error-budget',
+      load: () => import('./routes/error-budget.js'),
+    });
   }
 
   // Development dashboard routes (development only)
   if (process.env['NODE_ENV'] === 'development') {
-    const devDashboardRoutes = await import('./routes/dev-dashboard.js');
-    app.use('/api/dev-dashboard', devDashboardRoutes.default);
+    await mountDefaultRoute(app, {
+      mountPath: '/api/dev-dashboard',
+      load: () => import('./routes/dev-dashboard.js'),
+    });
   }
 
   app.use('/api', (_req: Request, res: Response) => {

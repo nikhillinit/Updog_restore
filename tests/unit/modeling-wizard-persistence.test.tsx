@@ -1,38 +1,22 @@
 /**
- * Modeling Wizard State Machine - Persistence-Before-Navigation Tests (RED PHASE)
+ * Modeling Wizard State Machine - Persistence-Before-Navigation Tests
  *
  * These tests verify proper ordering of persistence and navigation actions.
  *
- * CURRENT BEHAVIOR (WRONG ORDER):
- * - actions: ['goToNextStep', 'persistToStorage']  // Navigation happens first!
- * - If persistence fails, user is already on next step with data loss
- *
- * EXPECTED BEHAVIOR (AFTER INVOKE REFACTOR):
+ * Locked behavior:
  * - Transitions to 'persisting' state
  * - Invokes persistDataService
  * - onDone: navigates to next step
  * - onError: stays on current step, shows error
  *
- * ALL TESTS SHOULD FAIL INITIALLY (RED PHASE)
- * After refactoring to invoke pattern, all tests should pass (GREEN PHASE)
- *
  * See: ADR-016 in DECISIONS.md for architectural decision rationale
- *
- * @quarantine tdd-red -- 2 tests skipped (TDD RED phase)
- * @owner modeling-wizard
- * @reason persistDataService not yet implemented (PR#1 pending)
- * @exitCriteria Merge PR#1 implementing persistDataService with QuotaExceededError and SecurityError handling
- * @skipCount 2
- * @addedDate 2026-02-17
  */
 
 import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest';
 import { createActor, waitFor } from 'xstate';
 import { modelingWizardMachine } from '@/machines/modeling-wizard.machine';
 
-describe('Modeling Wizard - Persistence Before Navigation (RED PHASE)', () => {
-  // RED PHASE: Tests below are skipped until invoke refactor is implemented
-  // See: ADR-016 in DECISIONS.md for architectural decision rationale
+describe('Modeling Wizard - Persistence Before Navigation', () => {
   let localStorageMock: {
     getItem: ReturnType<typeof vi.fn>;
     setItem: ReturnType<typeof vi.fn>;
@@ -71,22 +55,12 @@ describe('Modeling Wizard - Persistence Before Navigation (RED PHASE)', () => {
   /**
    * Test 1: Successful NEXT transition
    *
-   * TODO: Will pass after refactor to invoke pattern
-   *
-   * Expected behavior:
    * - User triggers NEXT with valid step data
    * - Machine transitions to 'persisting' state
    * - persistDataService succeeds
    * - onDone: navigates to next step
-   *
-   * Current behavior (WRONG):
-   * - goToNextStep executes first (navigation happens)
-   * - persistToStorage executes second
-   * - No way to block navigation on persistence failure
    */
-  // GREEN PHASE: Invoke refactor complete - test enabled
-  // Implementation uses invoke pattern with persistDataService
-  it('[GREEN] should persist data BEFORE navigating to next step', async () => {
+  it('persists data before navigating to next step', async () => {
     const actor = createActor(modelingWizardMachine, {
       input: { skipOptionalSteps: false, autoSaveInterval: 999999 },
     });
@@ -125,8 +99,6 @@ describe('Modeling Wizard - Persistence Before Navigation (RED PHASE)', () => {
 
     const snapshot = actor.getSnapshot();
 
-    // After invoke refactor: persistence completes, THEN navigation
-    // If navigation succeeded AND no error, then persistence worked correctly
     expect(snapshot.context.currentStep).toBe('sectorProfiles');
     expect(snapshot.context.persistenceError).toBeNull();
 
@@ -139,24 +111,13 @@ describe('Modeling Wizard - Persistence Before Navigation (RED PHASE)', () => {
   /**
    * Test 2: Failed NEXT with localStorage error
    *
-   * TODO: Will pass after refactor to invoke pattern
-   *
-   * Expected behavior:
    * - localStorage.setItem() throws QuotaExceededError
    * - Machine transitions to 'delaying' state (retry logic)
    * - After retries exhausted → 'editing.persistFailed'
    * - currentStep stays on 'generalInfo'
    * - persistenceError is set in context
-   *
-   * Current behavior (WRONG):
-   * - goToNextStep executes first → already on 'sectorProfiles'
-   * - persistToStorage fails silently
-   * - No error state, no user notification
-   * - Data loss!
    */
-  // GREEN PHASE: Invoke refactor complete - test enabled
-  // Implementation blocks navigation on persistence failure
-  it('[GREEN] should NOT navigate when persistence fails (QuotaExceededError)', async () => {
+  it('does not navigate when persistence fails with QuotaExceededError', async () => {
     const actor = createActor(modelingWizardMachine, {
       input: { skipOptionalSteps: false, autoSaveInterval: 999999 },
     });
@@ -196,27 +157,12 @@ describe('Modeling Wizard - Persistence Before Navigation (RED PHASE)', () => {
 
     const snapshot = actor.getSnapshot();
 
-    // TODO: After invoke refactor, this test should pass
-    // Expected: Still on 'generalInfo', persistenceError is set
-    // Current: Already on 'sectorProfiles' (navigation happened despite failure)
-
-    // This assertion will FAIL with current implementation
     expect(snapshot.context.currentStep).toBe('generalInfo');
+    expect(snapshot.context.persistenceError).toBe('Storage limit exceeded');
     expect(consoleErrorSpy).toHaveBeenCalledWith(
       '[ModelingWizard] Storage quota exceeded:',
       quotaError
     );
-
-    if (snapshot.context.currentStep !== 'generalInfo') {
-      console.error('[EXPECTED FAILURE] Navigation happened despite persistence failure');
-      console.warn('Current step:', snapshot.context.currentStep);
-      console.warn('Expected: generalInfo');
-      throw new Error('Navigation executed despite QuotaExceededError (data loss!)');
-    }
-
-    // After invoke refactor, check for error state
-    // expect(snapshot.matches({ active: { editing: 'persistFailed' } })).toBe(true);
-    // expect(snapshot.context.persistenceError).toContain('Storage limit exceeded');
 
     actor.stop();
   });
@@ -224,21 +170,13 @@ describe('Modeling Wizard - Persistence Before Navigation (RED PHASE)', () => {
   /**
    * Test 3: Retry after persistence failure
    *
-   * TODO: Will pass after refactor to invoke pattern
-   *
-   * Expected behavior:
    * - Initial persistence fails
    * - Machine enters 'delaying' state with exponential backoff
    * - After delay → retries persistence (max 3 attempts: 1s, 2s, 4s)
    * - If still fails → 'editing.persistFailed'
    * - User can trigger RETRY event manually
-   *
-   * Current behavior (WRONG):
-   * - No retry mechanism exists
-   * - No 'delaying' or 'persistFailed' states
-   * - User has no way to recover from failure
    */
-  it('[RED] should support retry after persistence failure', async () => {
+  it('supports retry after persistence failure', async () => {
     const actor = createActor(modelingWizardMachine, {
       input: { skipOptionalSteps: false, autoSaveInterval: 999999 },
     });
@@ -279,20 +217,11 @@ describe('Modeling Wizard - Persistence Before Navigation (RED PHASE)', () => {
 
     const snapshotAfterFailure = actor.getSnapshot();
 
-    // TODO: After invoke refactor, check for retry state
-    // Expected: Machine in 'delaying' state or 'editing.persistFailed'
-    // Current: No such states exist
-
-    // This check will FAIL - no retry mechanism in current implementation
     const hasRetryState =
       snapshotAfterFailure.matches({ active: 'delaying' }) ||
       snapshotAfterFailure.matches({ active: { editing: 'persistFailed' } });
 
-    if (!hasRetryState) {
-      console.error('[EXPECTED FAILURE] No retry state exists in current implementation');
-      console.warn('Current state:', snapshotAfterFailure.value);
-      throw new Error('Retry mechanism not implemented');
-    }
+    expect(hasRetryState).toBe(true);
 
     actor.stop();
   });
@@ -300,19 +229,11 @@ describe('Modeling Wizard - Persistence Before Navigation (RED PHASE)', () => {
   /**
    * Test 4: Auto-save doesn't block navigation
    *
-   * TODO: Will pass after refactor to invoke pattern
-   *
-   * Expected behavior:
    * - Auto-save timer triggers with intent='auto-save'
    * - If persistence fails, error is logged but user can still navigate
    * - Different from manual NEXT (intent='navigate') which blocks
-   *
-   * Current behavior (WRONG):
-   * - No intent tracking
-   * - No differentiation between auto-save and manual save
-   * - Auto-save uses same actions as NEXT/BACK
    */
-  it('[RED] should allow navigation even if auto-save persistence fails', async () => {
+  it('allows navigation even if auto-save persistence fails', async () => {
     const actor = createActor(modelingWizardMachine, {
       input: { skipOptionalSteps: false, autoSaveInterval: 500 }, // Short interval for test
     });
@@ -353,19 +274,7 @@ describe('Modeling Wizard - Persistence Before Navigation (RED PHASE)', () => {
 
     const snapshot = actor.getSnapshot();
 
-    // After invoke refactor with intent tracking
-    // Expected: context.navigationIntent distinguishes 'auto-save' vs 'next'
-    // Implementation uses 'navigationIntent' field
-
-    const hasIntentField = 'navigationIntent' in snapshot.context;
-
-    if (!hasIntentField) {
-      console.warn('[EXPECTED FAILURE] No navigationIntent tracking in current implementation');
-      console.warn('Context keys:', Object.keys(snapshot.context));
-      throw new Error('navigationIntent field not present in context');
-    }
-
-    // Verify navigationIntent was cleared after NEXT completed
+    expect('navigationIntent' in snapshot.context).toBe(true);
     expect(snapshot.context.navigationIntent).toBeNull();
 
     actor.stop();
@@ -374,20 +283,12 @@ describe('Modeling Wizard - Persistence Before Navigation (RED PHASE)', () => {
   /**
    * Test 5: BACK transition with persistence failure
    *
-   * TODO: Will pass after refactor to invoke pattern
-   *
-   * Expected behavior:
    * - User triggers BACK
    * - Persistence fails
    * - Stays on current step (doesn't navigate backward)
    * - Shows error notification
-   *
-   * Current behavior (WRONG):
-   * - goToPreviousStep executes first
-   * - persistToStorage fails silently
-   * - Already navigated backward with potential data loss
    */
-  it('[RED] should NOT navigate backward when persistence fails', async () => {
+  it('does not navigate backward when persistence fails', async () => {
     const actor = createActor(modelingWizardMachine, {
       input: { skipOptionalSteps: false, autoSaveInterval: 999999 },
     });
@@ -440,8 +341,6 @@ describe('Modeling Wizard - Persistence Before Navigation (RED PHASE)', () => {
 
     const snapshot = actor.getSnapshot();
 
-    // After invoke refactor: persistence fails, navigation blocked
-    // Expected: Still on 'sectorProfiles', persistenceError is set
     expect(snapshot.context.currentStep).toBe('sectorProfiles');
     expect(snapshot.context.persistenceError).toBeTruthy();
 
@@ -451,21 +350,13 @@ describe('Modeling Wizard - Persistence Before Navigation (RED PHASE)', () => {
   /**
    * Test 6: Component unmount during persistence
    *
-   * TODO: Will pass after refactor to invoke pattern
-   *
-   * Expected behavior:
    * - Persistence in progress (invoke actor running)
    * - Component unmounts → actor.stop()
    * - XState cleans up invoke actor
    * - No memory leaks, no orphaned promises
    * - No "setState after unmount" warnings
-   *
-   * Current behavior:
-   * - Synchronous actions complete immediately
-   * - No invoke cleanup needed (but also no async safety)
-   * - Future API migration would break this
    */
-  it('[RED] should cleanup gracefully when component unmounts during persistence', async () => {
+  it('cleans up gracefully when component unmounts during persistence', async () => {
     const actor = createActor(modelingWizardMachine, {
       input: { skipOptionalSteps: false, autoSaveInterval: 999999 },
     });
@@ -504,42 +395,19 @@ describe('Modeling Wizard - Persistence Before Navigation (RED PHASE)', () => {
     // Wait to ensure no errors thrown
     await new Promise((resolve) => setTimeout(resolve, 100));
 
-    // TODO: After invoke refactor, verify no active invoke actors
-    // Expected: XState cleanup prevents memory leaks
-    // Current: Synchronous implementation doesn't test async cleanup
-
     const snapshot = actor.getSnapshot();
-
-    // Check if machine has proper cleanup for invoke actors
-    // Current implementation doesn't use invoke pattern yet
-    const hasInvokeCleanup = snapshot.status === 'stopped';
-
-    if (!hasInvokeCleanup) {
-      console.warn('[EXPECTED FAILURE] Actor not properly stopped');
-      console.warn('Status:', snapshot.status);
-      throw new Error('Invoke cleanup not implemented');
-    }
-
-    // No assertions throw - cleanup successful
-    expect(true).toBe(true);
+    expect(snapshot.status).toBe('stopped');
   });
 
   /**
    * Test 7: Exponential backoff timing
    *
-   * TODO: Will pass after refactor to invoke pattern
-   *
-   * Expected behavior:
    * - Retry 1: Wait 1 second (2^0 * 1000ms)
    * - Retry 2: Wait 2 seconds (2^1 * 1000ms)
    * - Retry 3: Wait 4 seconds (2^2 * 1000ms)
    * - After 3 failures → 'editing.persistFailed'
-   *
-   * Current behavior:
-   * - No retry mechanism
-   * - No exponential backoff
    */
-  it('[RED] should implement exponential backoff for retries', async () => {
+  it('implements exponential backoff for retries', async () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date('2026-01-01T00:00:00.000Z'));
 
@@ -578,18 +446,7 @@ describe('Modeling Wizard - Persistence Before Navigation (RED PHASE)', () => {
       // Advance through the 1s + 2s + 4s retry schedule without relying on wall-clock time.
       await vi.advanceTimersByTimeAsync(8000);
 
-      const _snapshot = actor.getSnapshot();
-
-      // TODO: After invoke refactor, verify retry timing
-      // Expected: retryTimestamps show exponential backoff
-      // Current: Only 1 call (no retries)
-
-      if (retryTimestamps.length < 3) {
-        console.warn('[EXPECTED FAILURE] Retry mechanism not implemented');
-        console.warn('Retry attempts:', retryTimestamps.length);
-        console.warn('Expected: 3 retries with exponential backoff');
-        throw new Error('Exponential backoff not implemented');
-      }
+      expect(retryTimestamps.length).toBeGreaterThanOrEqual(3);
 
       // Verify exponential spacing
       const delay1 = retryTimestamps[1] - retryTimestamps[0];
@@ -608,18 +465,12 @@ describe('Modeling Wizard - Persistence Before Navigation (RED PHASE)', () => {
   /**
    * Test 8: Context fields for persistence tracking
    *
-   * TODO: Will pass after refactor to invoke pattern
-   *
-   * Expected context additions:
    * - persistenceError: string | null
    * - retryCount: number
    * - lastPersistAttempt: number | null
    * - intent: 'navigate' | 'auto-save' | null
-   *
-   * Current context:
-   * - Missing all persistence tracking fields
    */
-  it('[RED] should have context fields for persistence tracking', async () => {
+  it('has context fields for persistence tracking', async () => {
     const actor = createActor(modelingWizardMachine, {
       input: { skipOptionalSteps: false },
     });
@@ -629,7 +480,6 @@ describe('Modeling Wizard - Persistence Before Navigation (RED PHASE)', () => {
     const snapshot = actor.getSnapshot();
     const context = snapshot.context;
 
-    // TODO: After invoke refactor, these fields should exist
     const requiredFields = [
       'persistenceError',
       'retryCount',
@@ -639,13 +489,7 @@ describe('Modeling Wizard - Persistence Before Navigation (RED PHASE)', () => {
     ];
 
     const missingFields = requiredFields.filter((field) => !(field in context));
-
-    if (missingFields.length > 0) {
-      console.warn('[EXPECTED FAILURE] Missing context fields for persistence tracking');
-      console.warn('Missing fields:', missingFields);
-      console.warn('Current context keys:', Object.keys(context));
-      throw new Error(`Missing persistence tracking fields: ${missingFields.join(', ')}`);
-    }
+    expect(missingFields).toEqual([]);
 
     actor.stop();
   });
@@ -686,6 +530,7 @@ describe('PR #1: Context Fields & Service Integration', () => {
     });
 
     vi.clearAllMocks();
+    vi.spyOn(console, 'error').mockImplementation(() => {});
   });
 
   afterEach(() => {
@@ -756,9 +601,7 @@ describe('PR #1: Context Fields & Service Integration', () => {
    * Test 3: persistDataService QuotaExceededError Handling
    * Verify service throws appropriate error when storage quota exceeded
    */
-  // FIXME: persistDataService implementation pending (PR#1)
-  // SKIP: persistDataService implementation pending (PR#1)
-  it.skip('persistDataService should throw on QuotaExceededError', async () => {
+  it('persistDataService should surface QuotaExceededError through machine persistence', async () => {
     // Mock setItem to throw QuotaExceededError
     localStorageMock.setItem.mockImplementation(() => {
       const err = new Error('Quota exceeded');
@@ -766,39 +609,34 @@ describe('PR #1: Context Fields & Service Integration', () => {
       throw err;
     });
 
-    const actor = createActor(modelingWizardMachine);
+    const actor = createActor(modelingWizardMachine, {
+      input: { skipOptionalSteps: false, autoSaveInterval: 999999 },
+    });
     actor.start();
 
-    const mockContext = actor.getSnapshot().context;
+    actor.send({ type: 'NEXT' });
+    await waitFor(actor, (state) => state.matches('active'));
 
-    // Import the service
-    const { persistDataService } = await import('@/machines/modeling-wizard.machine');
+    actor.send({
+      type: 'SAVE_STEP',
+      step: 'generalInfo',
+      data: {
+        fundName: 'Test Fund',
+        vintageYear: 2024,
+        fundSize: 100000000,
+        currency: 'USD' as const,
+        establishmentDate: '2024-01-01',
+        isEvergreen: false,
+        fundLife: 10,
+        investmentPeriod: 5,
+      },
+    });
+    actor.send({ type: 'NEXT' });
 
-    // Create an actor from the fromPromise service
-    const serviceActor = createActor(persistDataService, { input: mockContext });
+    const snapshot = await waitFor(actor, (state) => state.matches({ active: 'delaying' }));
 
-    // IMPORTANT: Subscribe to error state BEFORE starting to avoid unhandled rejection
-    const errorSnapPromise = waitFor(serviceActor, (state) => state.status === 'error');
-
-    // Catch unhandled rejection to prevent Vitest from failing the test
-    const rejectionHandler = (event: PromiseRejectionEvent) => {
-      event.preventDefault();
-    };
-    global.addEventListener('unhandledrejection', rejectionHandler);
-
-    serviceActor.start();
-
-    // Wait for the actor to error
-    const snapshot = await errorSnapPromise;
-
-    global.removeEventListener('unhandledrejection', rejectionHandler);
-
-    // Verify the error name and message
-    expect(snapshot.error).toBeInstanceOf(Error);
-    expect((snapshot.error as Error).name).toBe('QuotaExceededError');
-    expect((snapshot.error as Error).message).toBe('Storage limit exceeded');
-
-    serviceActor.stop();
+    expect(snapshot.context.currentStep).toBe('generalInfo');
+    expect(snapshot.context.persistenceError).toBe('Storage limit exceeded');
     actor.stop();
   });
 
@@ -806,9 +644,7 @@ describe('PR #1: Context Fields & Service Integration', () => {
    * Test 4: persistDataService SecurityError Handling
    * Verify service throws appropriate error when storage access denied (privacy mode)
    */
-  // FIXME: persistDataService implementation pending (PR#1)
-  // SKIP: persistDataService implementation pending (PR#1)
-  it.skip('persistDataService should throw on SecurityError (privacy mode)', async () => {
+  it('persistDataService should surface SecurityError through machine persistence', async () => {
     // Mock setItem to throw SecurityError
     localStorageMock.setItem.mockImplementation(() => {
       const err = new Error('Access denied');
@@ -816,39 +652,34 @@ describe('PR #1: Context Fields & Service Integration', () => {
       throw err;
     });
 
-    const actor = createActor(modelingWizardMachine);
+    const actor = createActor(modelingWizardMachine, {
+      input: { skipOptionalSteps: false, autoSaveInterval: 999999 },
+    });
     actor.start();
 
-    const mockContext = actor.getSnapshot().context;
+    actor.send({ type: 'NEXT' });
+    await waitFor(actor, (state) => state.matches('active'));
 
-    // Import the service
-    const { persistDataService } = await import('@/machines/modeling-wizard.machine');
+    actor.send({
+      type: 'SAVE_STEP',
+      step: 'generalInfo',
+      data: {
+        fundName: 'Test Fund',
+        vintageYear: 2024,
+        fundSize: 100000000,
+        currency: 'USD' as const,
+        establishmentDate: '2024-01-01',
+        isEvergreen: false,
+        fundLife: 10,
+        investmentPeriod: 5,
+      },
+    });
+    actor.send({ type: 'NEXT' });
 
-    // Create an actor from the fromPromise service
-    const serviceActor = createActor(persistDataService, { input: mockContext });
+    const snapshot = await waitFor(actor, (state) => state.matches({ active: 'delaying' }));
 
-    // IMPORTANT: Subscribe to error state BEFORE starting to avoid unhandled rejection
-    const errorSnapPromise = waitFor(serviceActor, (state) => state.status === 'error');
-
-    // Catch unhandled rejection to prevent Vitest from failing the test
-    const rejectionHandler = (event: PromiseRejectionEvent) => {
-      event.preventDefault();
-    };
-    global.addEventListener('unhandledrejection', rejectionHandler);
-
-    serviceActor.start();
-
-    // Wait for the actor to error
-    const snapshot = await errorSnapPromise;
-
-    global.removeEventListener('unhandledrejection', rejectionHandler);
-
-    // Verify the error name and message
-    expect(snapshot.error).toBeInstanceOf(Error);
-    expect((snapshot.error as Error).name).toBe('SecurityError');
-    expect((snapshot.error as Error).message).toBe('Storage unavailable (privacy mode)');
-
-    serviceActor.stop();
+    expect(snapshot.context.currentStep).toBe('generalInfo');
+    expect(snapshot.context.persistenceError).toBe('Storage unavailable (privacy mode)');
     actor.stop();
   });
 });

@@ -1,0 +1,72 @@
+/**
+ * Navigation config -- regression test for the IA cleanup that landed alongside
+ * the sensitivity stress slice. Pure data assertion (no React render needed):
+ * the sidebar item with id "sensitivity-analysis" must surface as
+ * "Sensitivity Analysis" rather than the legacy "Backtesting" label that
+ * predated the multi-tab sensitivity surface.
+ */
+
+import { describe, expect, it } from 'vitest';
+import { getActiveNavigationId, getNavigationItems } from '@/components/layout/navigation-config';
+
+describe('navigation-config sensitivity item', () => {
+  it('exposes the sensitivity-analysis sidebar item with the new label', () => {
+    const items = getNavigationItems();
+    const item = items.find((i) => i.id === 'sensitivity-analysis');
+
+    expect(item).toBeDefined();
+    expect(item?.label).toBe('Sensitivity Analysis');
+  });
+
+  it('does NOT use the legacy "Backtesting" label', () => {
+    const items = getNavigationItems();
+    const item = items.find((i) => i.id === 'sensitivity-analysis');
+
+    expect(item).toBeDefined();
+    expect(item?.label).not.toBe('Backtesting');
+  });
+
+  it('keeps the sensitivity-analysis target path stable (no nav structure change)', () => {
+    const items = getNavigationItems();
+    const item = items.find((i) => i.id === 'sensitivity-analysis');
+
+    expect(item).toBeDefined();
+    expect(item?.target.kind).toBe('static');
+    if (item?.target.kind === 'static') {
+      expect(item.target.path).toBe('/sensitivity-analysis');
+    }
+  });
+});
+
+describe('navigation-config performance item', () => {
+  it('exposes the Performance sidebar item for the live performance route', () => {
+    const items = getNavigationItems();
+    const item = items.find((i) => i.id === 'performance');
+
+    expect(item).toBeDefined();
+    expect(item?.label).toBe('Performance');
+    expect(item?.target.kind).toBe('static');
+    if (item?.target.kind === 'static') {
+      expect(item.target.path).toBe('/performance');
+    }
+  });
+});
+
+describe('navigation-config variance item', () => {
+  it('exposes Variance Tracking as a governed navigation item', () => {
+    const items = getNavigationItems();
+    const item = items.find((i) => i.id === 'variance-tracking');
+
+    expect(item).toBeDefined();
+    expect(item?.label).toBe('Variance Tracking');
+    expect(item?.target.kind).toBe('static');
+    if (item?.target.kind === 'static') {
+      expect(item.target.path).toBe('/variance-tracking');
+    }
+  });
+
+  it('matches variance tracking routes back to the stable navigation id', () => {
+    expect(getActiveNavigationId('/variance-tracking')).toBe('variance-tracking');
+    expect(getActiveNavigationId('/variance-tracking?tab=reports')).toBe('variance-tracking');
+  });
+});

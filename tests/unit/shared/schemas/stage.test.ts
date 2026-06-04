@@ -1,11 +1,17 @@
 import { describe, it, expect } from 'vitest';
 import {
   normalizeStage,
+  normalizeStageForCompatibility,
   normalizeStageOrUndefined,
   toHyphenatedStage,
   toCamelCaseStage,
   toNoSeparatorStage,
 } from '@shared/schemas/stage';
+import {
+  CompanyStageSchema,
+  fromContractStage,
+  toContractStage,
+} from '@shared/contracts/reserve-engine.contract';
 
 describe('Stage Normalization Functions', () => {
   describe('normalizeStage', () => {
@@ -68,6 +74,34 @@ describe('Stage Normalization Functions', () => {
     });
   });
 
+  describe('normalizeStageForCompatibility', () => {
+    it('keeps display-name tolerance out of the strict normalizer', () => {
+      expect(() => normalizeStage('Series A')).toThrow('Unknown stage format: "Series A"');
+      expect(normalizeStageForCompatibility('Series A')).toBe('series_a');
+    });
+
+    it('accepts display and separator variants without changing strict normalization', () => {
+      expect(normalizeStageForCompatibility('Seed')).toBe('seed');
+      expect(normalizeStageForCompatibility('Series A')).toBe('series_a');
+      expect(normalizeStageForCompatibility('series-a')).toBe('series_a');
+      expect(normalizeStageForCompatibility('pre seed')).toBe('pre_seed');
+      expect(normalizeStageForCompatibility('series-e-plus')).toBe('late_stage');
+      expect(normalizeStageForCompatibility('Series E+')).toBe('late_stage');
+    });
+
+    it('returns the default fallback for unknown or non-string inputs', () => {
+      expect(normalizeStageForCompatibility('garbage')).toBe('seed');
+      expect(normalizeStageForCompatibility(null)).toBe('seed');
+      expect(normalizeStageForCompatibility('')).toBe('seed');
+    });
+
+    it('returns the provided fallback for unknown or empty inputs', () => {
+      expect(normalizeStageForCompatibility('garbage', 'series_a')).toBe('series_a');
+      expect(normalizeStageForCompatibility('', 'series_a')).toBe('series_a');
+      expect(normalizeStageForCompatibility(null, 'series_b')).toBe('series_b');
+    });
+  });
+
   describe('toHyphenatedStage', () => {
     it('converts all canonical stages to hyphenated format correctly', () => {
       expect(toHyphenatedStage('pre_seed')).toBe('pre-seed');
@@ -104,6 +138,19 @@ describe('Stage Normalization Functions', () => {
       expect(toNoSeparatorStage('series_d')).toBe('series_dplus');
       expect(toNoSeparatorStage('growth')).toBe('series_dplus'); // growth maps to series_dplus
       expect(toNoSeparatorStage('late_stage')).toBe('series_dplus'); // late_stage maps to series_dplus
+    });
+  });
+
+  describe('reserve contract stage adapters', () => {
+    it('converts canonical stages through the frozen reserve contract seam', () => {
+      expect(toContractStage('series_a')).toBe('series-a');
+      expect(toContractStage('series_d')).toBe('series-d-plus');
+      expect(toContractStage('growth')).toBe('late-stage');
+      expect(fromContractStage('series-d-plus')).toBe('series_d');
+    });
+
+    it('does not widen the frozen reserve contract schema for wizard-only aliases', () => {
+      expect(CompanyStageSchema.safeParse('series-e-plus').success).toBe(false);
     });
   });
 });

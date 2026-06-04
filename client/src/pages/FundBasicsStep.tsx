@@ -182,7 +182,7 @@ export default function FundBasicsStep() {
         {/* Fund Structure Section */}
         <div className="space-y-6">
           <div className="space-y-3">
-            <Label htmlFor="fund-name" className="text-sm font-poppins font-medium text-[#292929]">
+            <Label htmlFor="fund-name" className="text-sm font-poppins font-medium text-pov-charcoal">
               Fund Name *
             </Label>
             <Input
@@ -193,7 +193,9 @@ export default function FundBasicsStep() {
               }
               placeholder="Enter your fund name"
               data-testid="fund-name"
-              className="h-12 text-base font-poppins border-[#E0D8D1] focus:border-[#292929] focus:ring-[#292929]"
+              required
+              aria-required="true"
+              className="h-12 max-w-2xl text-base font-poppins border-beige-200 focus:border-pov-charcoal focus:ring-charcoal/40"
             />
           </div>
 
@@ -208,7 +210,7 @@ export default function FundBasicsStep() {
             required
           />
 
-          <div className="flex items-center space-x-3 pt-6 border-t border-[#E0D8D1]">
+          <div className="flex items-center space-x-3 pt-6 border-t border-beige-200">
             <Switch
               id="evergreen"
               checked={isEvergreen || false}
@@ -217,7 +219,7 @@ export default function FundBasicsStep() {
             />
             <Label
               htmlFor="evergreen"
-              className="cursor-pointer text-sm font-poppins font-medium text-[#292929]"
+              className="cursor-pointer text-sm font-poppins font-medium text-pov-charcoal"
             >
               Evergreen Fund Structure
             </Label>
@@ -228,7 +230,7 @@ export default function FundBasicsStep() {
               <div className="space-y-3">
                 <Label
                   htmlFor="fund-life"
-                  className="text-sm font-poppins font-medium text-[#292929]"
+                  className="text-sm font-poppins font-medium text-pov-charcoal"
                 >
                   Fund Life (years)
                 </Label>
@@ -243,14 +245,14 @@ export default function FundBasicsStep() {
                   }
                   placeholder="e.g., 10"
                   data-testid="fund-life"
-                  className="h-12 font-poppins border-[#E0D8D1] focus:border-[#292929] focus:ring-[#292929]"
+                  className="h-12 font-poppins border-beige-200 focus:border-pov-charcoal focus:ring-charcoal/40"
                 />
               </div>
 
               <div className="space-y-3">
                 <Label
                   htmlFor="investment-period"
-                  className="text-sm font-poppins font-medium text-[#292929]"
+                  className="text-sm font-poppins font-medium text-pov-charcoal"
                 >
                   Investment Period (years)
                 </Label>
@@ -265,7 +267,7 @@ export default function FundBasicsStep() {
                   }
                   placeholder="e.g., 3"
                   data-testid="investment-period"
-                  className="h-12 font-poppins border-[#E0D8D1] focus:border-[#292929] focus:ring-[#292929]"
+                  className="h-12 font-poppins border-beige-200 focus:border-pov-charcoal focus:ring-charcoal/40"
                 />
               </div>
             </div>
@@ -302,9 +304,9 @@ export default function FundBasicsStep() {
         </WizardCard>
 
         {/* Navigation */}
-        <div className="space-y-3 pt-8 border-t border-[#E0D8D1] mt-8">
+        <div className="space-y-3 pt-8 border-t border-beige-200 mt-8">
           {bootstrapError && (
-            <p role="alert" className="text-sm font-poppins text-red-600">
+            <p role="alert" className="text-sm font-poppins text-error-dark">
               {bootstrapError}
             </p>
           )}
@@ -316,7 +318,7 @@ export default function FundBasicsStep() {
                 void handleNext();
               }}
               disabled={isBootstrapping}
-              className="flex items-center gap-2 bg-[#292929] hover:bg-[#292929]/90 text-white px-8 py-3 h-auto font-poppins font-medium transition-all duration-200"
+              className="flex items-center gap-2 bg-pov-charcoal hover:bg-charcoal-700 text-pov-white px-8 py-3 h-auto font-poppins font-medium transition-all duration-200"
             >
               {bootstrapStage === 'creating'
                 ? 'Creating Draft...'

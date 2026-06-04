@@ -1,8 +1,3 @@
- 
- 
- 
- 
- 
 import React from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -39,10 +34,10 @@ export class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoun
 
       if (this.props.fallback) {
         const FallbackComponent = this.props.fallback;
-        return <FallbackComponent {...spreadIfDefined("error", this.state.error)} reset={reset} />;
+        return <FallbackComponent {...spreadIfDefined('error', this.state.error)} reset={reset} />;
       }
 
-      return <DefaultErrorFallback {...spreadIfDefined("error", this.state.error)} reset={reset} />;
+      return <DefaultErrorFallback {...spreadIfDefined('error', this.state.error)} reset={reset} />;
     }
 
     return this.props.children;
@@ -51,9 +46,9 @@ export class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoun
 
 function DefaultErrorFallback({ error, reset }: { error?: Error; reset: () => void }) {
   return (
-    <Card className="border-red-200">
+    <Card className="border-error/50">
       <CardHeader>
-        <CardTitle className="flex items-center gap-2 text-red-600">
+        <CardTitle className="flex items-center gap-2 text-error-dark">
           <AlertTriangle className="h-5 w-5" />
           Something went wrong
         </CardTitle>
@@ -63,8 +58,8 @@ function DefaultErrorFallback({ error, reset }: { error?: Error; reset: () => vo
       </CardHeader>
       <CardContent className="space-y-4">
         {error && (
-          <div className="bg-red-50 p-3 rounded-md">
-            <p className="text-sm text-red-800 font-mono">{error.message}</p>
+          <div className="bg-error/10 p-3 rounded-md">
+            <p className="text-sm text-error-dark font-mono">{error.message}</p>
           </div>
         )}
         <Button onClick={reset} variant="outline" className="w-full">

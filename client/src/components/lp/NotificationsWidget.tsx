@@ -57,17 +57,17 @@ const getNotificationIcon = (type: NotificationType) => {
 const getNotificationIconColor = (type: NotificationType): string => {
   switch (type) {
     case 'capital_call':
-      return 'text-blue-600 bg-blue-100';
+      return 'text-pov-charcoal bg-pov-gray';
     case 'distribution':
-      return 'text-green-600 bg-green-100';
+      return 'text-presson-positive bg-presson-positive/10';
     case 'document':
-      return 'text-indigo-600 bg-indigo-100';
+      return 'text-presson-info bg-presson-info/10';
     case 'report':
-      return 'text-purple-600 bg-purple-100';
+      return 'text-success-dark bg-success/10';
     case 'fund_update':
-      return 'text-orange-600 bg-orange-100';
+      return 'text-presson-warning bg-presson-warning/10';
     default:
-      return 'text-gray-600 bg-gray-100';
+      return 'text-charcoal-600 bg-pov-gray';
   }
 };
 
@@ -82,7 +82,7 @@ const getPriorityBadge = (priority: NotificationPriority) => {
       );
     case 'high':
       return (
-        <Badge variant="default" className="bg-orange-500 text-xs">
+        <Badge variant="default" className="bg-warning text-pov-white text-xs">
           High
         </Badge>
       );
@@ -125,7 +125,7 @@ export function NotificationsWidget() {
 
   if (isLoading) {
     return (
-      <Card className="bg-white rounded-xl border border-[#E0D8D1] shadow-md">
+      <Card className="bg-pov-white rounded-xl border border-beige-200 shadow-md">
         <CardHeader>
           <Skeleton className="h-6 w-40" />
           <Skeleton className="h-4 w-60" />
@@ -140,11 +140,11 @@ export function NotificationsWidget() {
   }
 
   return (
-    <Card className="bg-white rounded-xl border border-[#E0D8D1] shadow-md">
+    <Card className="bg-pov-white rounded-xl border border-beige-200 shadow-md">
       <CardHeader>
         <div className="flex items-center justify-between">
-          <CardTitle className="flex items-center gap-2 font-inter text-[#292929]">
-            <Bell className="h-5 w-5 text-amber-600" />
+          <CardTitle className="flex items-center gap-2 font-inter text-pov-charcoal">
+            <Bell className="h-5 w-5 text-presson-warning" />
             Notifications
             {unreadCount > 0 && (
               <Badge variant="destructive" className="ml-1">
@@ -165,7 +165,7 @@ export function NotificationsWidget() {
             </Button>
           )}
         </div>
-        <CardDescription className="font-poppins text-[#292929]/70">
+        <CardDescription className="font-poppins text-pov-charcoal/70">
           {unreadCount > 0
             ? `${unreadCount} unread notification${unreadCount > 1 ? 's' : ''}`
             : "You're all caught up"}
@@ -179,8 +179,8 @@ export function NotificationsWidget() {
                 key={notification.id}
                 className={`flex items-start gap-3 p-3 rounded-lg cursor-pointer transition-colors ${
                   notification.isRead
-                    ? 'bg-gray-50 hover:bg-gray-100'
-                    : 'bg-blue-50 hover:bg-blue-100 border-l-4 border-blue-500'
+                    ? 'bg-pov-gray hover:bg-beige/20'
+                    : 'bg-pov-gray hover:bg-beige/20 border-l-4 border-pov-charcoal'
                 }`}
                 onClick={() => handleNotificationClick(notification)}
               >
@@ -192,18 +192,18 @@ export function NotificationsWidget() {
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 flex-wrap">
                     <span
-                      className={`font-medium text-sm ${notification.isRead ? 'text-[#292929]/70' : 'text-[#292929]'}`}
+                      className={`font-medium text-sm ${notification.isRead ? 'text-pov-charcoal/70' : 'text-pov-charcoal'}`}
                     >
                       {notification.title}
                     </span>
                     {getPriorityBadge(notification.priority)}
                   </div>
                   <p
-                    className={`text-xs mt-1 line-clamp-2 ${notification.isRead ? 'text-[#292929]/50' : 'text-[#292929]/70'}`}
+                    className={`text-xs mt-1 line-clamp-2 ${notification.isRead ? 'text-pov-charcoal/50' : 'text-pov-charcoal/70'}`}
                   >
                     {notification.message}
                   </p>
-                  <span className="text-xs text-[#292929]/40 mt-1 block">
+                  <span className="text-xs text-pov-charcoal/40 mt-1 block">
                     {formatDistanceToNow(new Date(notification.createdAt), { addSuffix: true })}
                   </span>
                 </div>
@@ -211,8 +211,8 @@ export function NotificationsWidget() {
             ))}
           </div>
         ) : (
-          <div className="text-center py-6 text-[#292929]/60 font-poppins">
-            <Bell className="h-10 w-10 mx-auto mb-2 text-[#292929]/30" />
+          <div className="text-center py-6 text-pov-charcoal/60 font-poppins">
+            <Bell className="h-10 w-10 mx-auto mb-2 text-pov-charcoal/30" />
             <p>No notifications</p>
           </div>
         )}

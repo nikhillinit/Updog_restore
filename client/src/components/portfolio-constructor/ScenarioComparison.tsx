@@ -30,7 +30,7 @@ import {
 import { Copy, Trash2, Plus } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { spreadIfDefined } from '@/lib/ts/spreadIfDefined';
-import type { PortfolioState } from '@/pages/portfolio-constructor';
+import type { PortfolioStrategy } from '@/pages/portfolio-constructor';
 import type { NameType, Payload, ValueType } from 'recharts/types/component/DefaultTooltipContent';
 
 interface Scenario {
@@ -57,8 +57,8 @@ interface Scenario {
 }
 
 interface ScenarioComparisonProps {
-  portfolioState: PortfolioState;
-  onUpdate: (updates: Partial<PortfolioState>) => void;
+  portfolioState: PortfolioStrategy;
+  onUpdate: (updates: Partial<PortfolioStrategy>) => void;
   isCalculating: boolean;
 }
 
@@ -293,8 +293,8 @@ export function ScenarioComparison({
   const CustomTooltip = ({ active, payload, label }: CustomTooltipProps) => {
     if (active && payload && payload.length) {
       return (
-        <div className="bg-white p-3 border border-gray-200 rounded-lg shadow-lg">
-          <p className="font-medium text-gray-900">{label}</p>
+        <div className="bg-white p-3 border border-beige-200 rounded-lg shadow-lg">
+          <p className="font-medium text-pov-charcoal">{label}</p>
           {payload.map((entry, index: number) => (
             <p key={index} className="text-sm" style={{ color: entry.color }}>
               {String(entry.dataKey)}:{' '}
@@ -318,7 +318,7 @@ export function ScenarioComparison({
       <div className="flex flex-col md:flex-row md:items-center justify-between space-y-4 md:space-y-0">
         <div>
           <h3 className="text-lg font-semibold">Scenario Analysis</h3>
-          <p className="text-sm text-gray-600">Compare different strategic approaches</p>
+          <p className="text-sm text-charcoal-600">Compare different strategic approaches</p>
         </div>
 
         <div className="flex items-center space-x-3">
@@ -357,8 +357,8 @@ export function ScenarioComparison({
                 className={cn(
                   'p-3 border rounded-lg cursor-pointer transition-all hover:shadow-md',
                   selectedScenario === scenario.id
-                    ? 'border-blue-500 bg-blue-50'
-                    : 'border-gray-200'
+                    ? 'border-pov-charcoal bg-pov-gray'
+                    : 'border-beige-200'
                 )}
                 onClick={() => setSelectedScenario(scenario.id)}
               >
@@ -370,7 +370,7 @@ export function ScenarioComparison({
                     />
                     <div>
                       <p className="font-medium text-sm">{scenario.name}</p>
-                      <p className="text-xs text-gray-500">{scenario.description}</p>
+                      <p className="text-xs text-charcoal-500">{scenario.description}</p>
                     </div>
                   </div>
 
@@ -383,25 +383,25 @@ export function ScenarioComparison({
 
                 <div className="mt-2 grid grid-cols-2 gap-2 text-xs">
                   <div>
-                    <span className="text-gray-500">IRR:</span>
+                    <span className="text-charcoal-500">IRR:</span>
                     <span className="ml-1 font-medium">
                       {(scenario.projections.irr * 100).toFixed(1)}%
                     </span>
                   </div>
                   <div>
-                    <span className="text-gray-500">Multiple:</span>
+                    <span className="text-charcoal-500">Multiple:</span>
                     <span className="ml-1 font-medium">
                       {scenario.projections.multiple.toFixed(1)}x
                     </span>
                   </div>
                   <div>
-                    <span className="text-gray-500">Risk:</span>
+                    <span className="text-charcoal-500">Risk:</span>
                     <span className="ml-1 font-medium">
                       {scenario.projections.riskScore.toFixed(1)}
                     </span>
                   </div>
                   <div>
-                    <span className="text-gray-500">Success:</span>
+                    <span className="text-charcoal-500">Success:</span>
                     <span className="ml-1 font-medium">
                       {(scenario.projections.probabilityOfSuccess * 100).toFixed(0)}%
                     </span>
@@ -429,7 +429,7 @@ export function ScenarioComparison({
                         e.stopPropagation();
                         removeScenario(scenario.id);
                       }}
-                      className="h-6 w-6 p-0 text-red-500 hover:text-red-700"
+                      className="h-6 w-6 p-0 text-error hover:text-error-dark"
                     >
                       <Trash2 className="w-3 h-3" />
                     </Button>
@@ -512,7 +512,7 @@ export function ScenarioComparison({
                           step={5}
                           disabled={selectedScenarioData.isBaseline ?? false}
                         />
-                        <div className="text-sm text-gray-600">
+                        <div className="text-sm text-charcoal-600">
                           {selectedScenarioData.parameters.deploymentSpeed}% of target pace
                         </div>
                       </div>
@@ -532,7 +532,7 @@ export function ScenarioComparison({
                           step={0.5}
                           disabled={selectedScenarioData.isBaseline ?? false}
                         />
-                        <div className="text-sm text-gray-600">
+                        <div className="text-sm text-charcoal-600">
                           {selectedScenarioData.parameters.riskTolerance}/10 (Conservative →
                           Aggressive)
                         </div>
@@ -556,7 +556,7 @@ export function ScenarioComparison({
                           step={2.5}
                           {...spreadIfDefined('disabled', selectedScenarioData.isBaseline)}
                         />
-                        <div className="text-sm text-gray-600">
+                        <div className="text-sm text-charcoal-600">
                           {(selectedScenarioData.parameters.reserveRatio * 100).toFixed(1)}% held in
                           reserves
                         </div>
@@ -592,27 +592,27 @@ export function ScenarioComparison({
                 <div className="space-y-3">
                   <h4 className="font-medium">Projected Outcomes</h4>
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                    <div className="text-center p-3 bg-gray-50 rounded-lg">
-                      <p className="text-xs text-gray-600">IRR</p>
-                      <p className="text-lg font-bold text-blue-600">
+                    <div className="text-center p-3 bg-pov-gray rounded-lg">
+                      <p className="text-xs text-charcoal-600">IRR</p>
+                      <p className="text-lg font-bold text-presson-info">
                         {(selectedScenarioData.projections.irr * 100).toFixed(1)}%
                       </p>
                     </div>
-                    <div className="text-center p-3 bg-gray-50 rounded-lg">
-                      <p className="text-xs text-gray-600">Multiple</p>
-                      <p className="text-lg font-bold text-green-600">
+                    <div className="text-center p-3 bg-pov-gray rounded-lg">
+                      <p className="text-xs text-charcoal-600">Multiple</p>
+                      <p className="text-lg font-bold text-presson-positive">
                         {selectedScenarioData.projections.multiple.toFixed(1)}x
                       </p>
                     </div>
-                    <div className="text-center p-3 bg-gray-50 rounded-lg">
-                      <p className="text-xs text-gray-600">Risk Score</p>
-                      <p className="text-lg font-bold text-orange-600">
+                    <div className="text-center p-3 bg-pov-gray rounded-lg">
+                      <p className="text-xs text-charcoal-600">Risk Score</p>
+                      <p className="text-lg font-bold text-presson-warning">
                         {selectedScenarioData.projections.riskScore.toFixed(1)}
                       </p>
                     </div>
-                    <div className="text-center p-3 bg-gray-50 rounded-lg">
-                      <p className="text-xs text-gray-600">Success Prob</p>
-                      <p className="text-lg font-bold text-purple-600">
+                    <div className="text-center p-3 bg-pov-gray rounded-lg">
+                      <p className="text-xs text-charcoal-600">Success Prob</p>
+                      <p className="text-lg font-bold text-presson-info">
                         {(selectedScenarioData.projections.probabilityOfSuccess * 100).toFixed(0)}%
                       </p>
                     </div>

@@ -7,7 +7,7 @@ export function DemoBanner() {
 
   React.useEffect(() => {
     isStubMode()
-      .then(stubEnabled => {
+      .then((stubEnabled) => {
         setShowBanner(stubEnabled);
         setLoading(false);
       })
@@ -20,8 +20,8 @@ export function DemoBanner() {
   // Simple loading state for MVP
   if (loading) {
     return (
-      <div className="bg-gray-100 border-b border-gray-200 px-4 py-2 text-center">
-        <span className="text-gray-600 text-sm">Loading...</span>
+      <div className="bg-pov-gray border-b border-beige-200 px-4 py-2 text-center">
+        <span className="text-charcoal-600 text-sm">Loading...</span>
       </div>
     );
   }
@@ -29,9 +29,9 @@ export function DemoBanner() {
   if (!showBanner) return null;
 
   return (
-    <div className="bg-amber-100 border-b border-amber-200 px-4 py-2 text-center">
-      <span className="text-amber-800 text-sm font-medium">
-        🚀 Demo Mode Active - Synthetic Data
+    <div className="bg-warning/10 border-b border-warning/50 px-4 py-2 text-center">
+      <span className="text-warning-dark text-sm font-medium">
+        Demo Mode Active - Synthetic Data
       </span>
     </div>
   );

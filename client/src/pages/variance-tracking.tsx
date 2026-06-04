@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import { z } from 'zod';
 import { useFundContext } from '@/contexts/FundContext';
 import { computeRemainingCapital } from '@/lib/variance-remaining-capital';
 import {
@@ -78,6 +79,7 @@ import {
 import { format, parseISO } from 'date-fns';
 import { toast } from '@/hooks/use-toast';
 import { spreadIfDefined } from '@/lib/ts/spreadIfDefined';
+import { loadFromStorage, saveToStorage } from '@/lib/storage';
 import { useFundMetrics } from '@/hooks/useFundMetrics';
 import {
   ALERT_METRIC_GROUPS,
@@ -86,6 +88,41 @@ import {
 } from '@shared/variance-validation';
 
 type VarianceTab = 'overview' | 'baselines' | 'alerts' | 'reports' | 'settings';
+
+const VARIANCE_SETTINGS_STORAGE_KEY = 'variance-tracking-settings';
+
+const varianceSettingsSchema = z.object({
+  emailNotifications: z.boolean(),
+  realtimeAlerts: z.boolean(),
+  dailyDigest: z.boolean(),
+  defaultVarianceThreshold: z.string(),
+  analysisFrequency: z.enum(['realtime', 'hourly', 'daily', 'weekly']),
+});
+
+const persistedVarianceSettingsSchema = z.object({
+  byFundId: z.record(z.string(), varianceSettingsSchema),
+});
+
+type VarianceSettings = z.infer<typeof varianceSettingsSchema>;
+type PersistedVarianceSettings = z.infer<typeof persistedVarianceSettingsSchema>;
+
+const DEFAULT_VARIANCE_SETTINGS: VarianceSettings = {
+  emailNotifications: true,
+  realtimeAlerts: true,
+  dailyDigest: false,
+  defaultVarianceThreshold: '10',
+  analysisFrequency: 'daily',
+};
+
+function loadVarianceSettings(fundId: number | undefined): VarianceSettings {
+  if (fundId == null) {
+    return DEFAULT_VARIANCE_SETTINGS;
+  }
+
+  const persisted = loadFromStorage(VARIANCE_SETTINGS_STORAGE_KEY, persistedVarianceSettingsSchema);
+
+  return persisted?.byFundId[String(fundId)] ?? DEFAULT_VARIANCE_SETTINGS;
+}
 
 function getInitialVarianceTab(): VarianceTab {
   if (typeof window === 'undefined') {
@@ -139,6 +176,11 @@ export default function VarianceTrackingPage() {
     reportType: 'periodic' as 'periodic' | 'milestone' | 'ad_hoc' | 'alert_triggered',
     reportPeriod: '' as '' | 'monthly' | 'quarterly' | 'annual',
   });
+  const [varianceSettings, setVarianceSettings] = useState<VarianceSettings>(() =>
+    loadVarianceSettings(currentFund?.id)
+  );
+  const [settingsSaveMessage, setSettingsSaveMessage] = useState<string | null>(null);
+  const settingsDraftsByFundId = useRef<Record<string, VarianceSettings>>({});
 
   // Form states
   const [baselineForm, setBaselineForm] = useState({
@@ -209,6 +251,13 @@ export default function VarianceTrackingPage() {
   const performAnalysisMutation = usePerformVarianceAnalysis();
   const generateReportMutation = useGenerateVarianceReport();
 
+  useEffect(() => {
+    const fundKey = currentFund?.id == null ? null : String(currentFund.id);
+    const draft = fundKey == null ? undefined : settingsDraftsByFundId.current[fundKey];
+    setVarianceSettings(draft ?? loadVarianceSettings(currentFund?.id));
+    setSettingsSaveMessage(draft ? 'Unsaved changes.' : null);
+  }, [currentFund?.id]);
+
   // Report detail query (only fires when a report is selected)
   const { data: reportDetailData, isLoading: reportDetailLoading } = useVarianceReport(
     currentFund?.id || 0,
@@ -230,28 +279,36 @@ export default function VarianceTrackingPage() {
   const lastAnalysisDate = dashboardData?.data?.summary?.lastAnalysisDate;
   const alertCounts =
     dashboardData?.data?.alertsBySeverity ?? dashboardData?.data?.alertsByseverity;
-  const analysisStatus = !lastAnalysisDate
+  const isAnalysisRunning = performAnalysisMutation.isPending;
+  const analysisStatus = isAnalysisRunning
     ? {
-        value: 'Not Run',
-        description: 'Run analysis to generate the first report',
-        badgeText: 'No report',
+        value: 'Running',
+        description: 'Variance analysis is in progress',
+        badgeText: 'In progress',
         badgeVariant: 'secondary' as const,
       }
-    : totalActiveAlerts > 0
+    : !lastAnalysisDate
       ? {
-          value: 'Attention',
-          description: 'Active alerts need review',
-          badgeText: `${totalActiveAlerts} active`,
-          badgeVariant: 'destructive' as const,
+          value: 'Not Run',
+          description: 'Run analysis to generate the first report',
+          badgeText: 'No report',
+          badgeVariant: 'secondary' as const,
         }
-      : {
-          value: 'Stable',
-          description: hasReports
-            ? 'Driven by latest variance report'
-            : 'Most recent analysis completed',
-          badgeText: 'No active alerts',
-          badgeVariant: 'default' as const,
-        };
+      : totalActiveAlerts > 0
+        ? {
+            value: 'Attention',
+            description: 'Active alerts need review',
+            badgeText: `${totalActiveAlerts} active`,
+            badgeVariant: 'destructive' as const,
+          }
+        : {
+            value: 'Stable',
+            description: hasReports
+              ? 'Driven by latest variance report'
+              : 'Most recent analysis completed',
+            badgeText: 'No active alerts',
+            badgeVariant: 'default' as const,
+          };
 
   // Handle baseline creation
   const handleCreateBaseline = async () => {
@@ -404,6 +461,57 @@ export default function VarianceTrackingPage() {
     }
   };
 
+  const updateVarianceSetting = <K extends keyof VarianceSettings>(
+    key: K,
+    value: VarianceSettings[K]
+  ) => {
+    setVarianceSettings((current) => {
+      const next = { ...current, [key]: value };
+      if (currentFund?.id != null) {
+        settingsDraftsByFundId.current[String(currentFund.id)] = next;
+      }
+      return next;
+    });
+    setSettingsSaveMessage('Unsaved changes.');
+  };
+
+  const handleSaveSettings = () => {
+    if (!currentFund) return;
+
+    const persisted =
+      loadFromStorage(VARIANCE_SETTINGS_STORAGE_KEY, persistedVarianceSettingsSchema) ??
+      ({
+        byFundId: {},
+      } satisfies PersistedVarianceSettings);
+    const saved = saveToStorage(
+      VARIANCE_SETTINGS_STORAGE_KEY,
+      {
+        byFundId: {
+          ...persisted.byFundId,
+          [String(currentFund.id)]: varianceSettings,
+        },
+      },
+      persistedVarianceSettingsSchema
+    );
+
+    if (!saved) {
+      setSettingsSaveMessage('Settings could not be saved in this browser.');
+      toast({
+        title: 'Settings not saved',
+        description: 'Variance tracking settings could not be saved in this browser.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    setSettingsSaveMessage('Settings saved in this browser.');
+    delete settingsDraftsByFundId.current[String(currentFund.id)];
+    toast({
+      title: 'Settings saved',
+      description: 'Variance tracking settings have been saved in this browser workspace.',
+    });
+  };
+
   // Handle generate variance report
   const handleGenerateReport = async () => {
     if (!currentFund) return;
@@ -488,15 +596,15 @@ export default function VarianceTrackingPage() {
   const getSeverityColor = (severity: string) => {
     switch (severity) {
       case 'critical':
-        return 'bg-red-100 text-red-800 border-red-200';
+        return 'bg-error/10 text-error-dark border-error/50';
       case 'urgent':
-        return 'bg-red-100 text-red-800 border-red-200';
+        return 'bg-error/10 text-error-dark border-error/50';
       case 'warning':
-        return 'bg-yellow-100 text-yellow-800 border-yellow-200';
+        return 'bg-warning/10 text-warning-dark border-warning/50';
       case 'info':
-        return 'bg-blue-100 text-blue-800 border-blue-200';
+        return 'bg-presson-info/10 text-presson-info border-presson-info/20';
       default:
-        return 'bg-gray-100 text-gray-800 border-gray-200';
+        return 'bg-pov-gray text-pov-charcoal border-beige-200';
     }
   };
 
@@ -546,30 +654,8 @@ export default function VarianceTrackingPage() {
     unifiedMetrics?._status?.engines?.target === 'success' &&
     unifiedMetrics?._status?.engines?.variance === 'success';
 
-  return (
-    <div className="container mx-auto p-6 space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900">Variance Tracking</h1>
-          <p className="text-gray-600 mt-2">
-            Monitor fund performance against baselines and manage alerts.
-          </p>
-        </div>
-
-        <div className="flex items-center space-x-4">
-          <Button
-            onClick={handlePerformAnalysis}
-            disabled={performAnalysisMutation.isPending}
-            className="flex items-center space-x-2"
-          >
-            <Zap className="w-4 h-4" />
-            <span>{performAnalysisMutation.isPending ? 'Analyzing...' : 'Run Analysis'}</span>
-          </Button>
-        </div>
-      </div>
-
-      {/* Dashboard Stats */}
+  const varianceOverviewMetrics = (
+    <>
       <StatCardGrid>
         <StatCard
           title="Active Alerts"
@@ -608,7 +694,6 @@ export default function VarianceTrackingPage() {
         />
       </StatCardGrid>
 
-      {/* Alert Summary by Severity */}
       {alertCounts && (
         <Card>
           <CardHeader>
@@ -617,38 +702,63 @@ export default function VarianceTrackingPage() {
           </CardHeader>
           <CardContent>
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-              <div className="flex items-center justify-between p-4 bg-red-50 border border-red-200 rounded-lg">
+              <div className="flex items-center justify-between p-4 bg-error/10 border border-error/50 rounded-lg">
                 <div>
-                  <div className="text-sm font-medium text-red-800">Critical</div>
-                  <div className="text-2xl font-bold text-red-900">{alertCounts.critical}</div>
+                  <div className="text-sm font-medium text-error-dark">Critical</div>
+                  <div className="text-2xl font-bold text-error-dark">{alertCounts.critical}</div>
                 </div>
-                <AlertCircle className="w-8 h-8 text-red-600" />
+                <AlertCircle className="w-8 h-8 text-error-dark" />
               </div>
-              <div className="flex items-center justify-between p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+              <div className="flex items-center justify-between p-4 bg-warning/10 border border-warning/50 rounded-lg">
                 <div>
-                  <div className="text-sm font-medium text-yellow-800">Warning</div>
-                  <div className="text-2xl font-bold text-yellow-900">{alertCounts.warning}</div>
+                  <div className="text-sm font-medium text-warning-dark">Warning</div>
+                  <div className="text-2xl font-bold text-warning-dark">{alertCounts.warning}</div>
                 </div>
-                <AlertTriangle className="w-8 h-8 text-yellow-600" />
+                <AlertTriangle className="w-8 h-8 text-warning-dark" />
               </div>
-              <div className="flex items-center justify-between p-4 bg-blue-50 border border-blue-200 rounded-lg">
+              <div className="flex items-center justify-between p-4 bg-presson-info/10 border border-presson-info/20 rounded-lg">
                 <div>
-                  <div className="text-sm font-medium text-blue-800">Info</div>
-                  <div className="text-2xl font-bold text-blue-900">{alertCounts.info}</div>
+                  <div className="text-sm font-medium text-presson-info">Info</div>
+                  <div className="text-2xl font-bold text-presson-info">{alertCounts.info}</div>
                 </div>
-                <Bell className="w-8 h-8 text-blue-600" />
+                <Bell className="w-8 h-8 text-presson-info" />
               </div>
-              <div className="flex items-center justify-between p-4 bg-rose-50 border border-rose-200 rounded-lg">
+              <div className="flex items-center justify-between p-4 bg-error/10 border border-error/50 rounded-lg">
                 <div>
-                  <div className="text-sm font-medium text-rose-800">Urgent</div>
-                  <div className="text-2xl font-bold text-rose-900">{alertCounts.urgent}</div>
+                  <div className="text-sm font-medium text-error-dark">Urgent</div>
+                  <div className="text-2xl font-bold text-error-dark">{alertCounts.urgent}</div>
                 </div>
-                <AlertTriangle className="w-8 h-8 text-rose-600" />
+                <AlertTriangle className="w-8 h-8 text-error-dark" />
               </div>
             </div>
           </CardContent>
         </Card>
       )}
+    </>
+  );
+
+  return (
+    <div className="container mx-auto p-6 space-y-6">
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-bold text-pov-charcoal">Variance Tracking</h1>
+          <p className="text-charcoal-600 mt-2">
+            Monitor fund performance against baselines and manage alerts.
+          </p>
+        </div>
+
+        <div className="flex items-center space-x-4">
+          <Button
+            onClick={handlePerformAnalysis}
+            disabled={performAnalysisMutation.isPending}
+            className="flex items-center space-x-2"
+          >
+            <Zap className="w-4 h-4" />
+            <span>{performAnalysisMutation.isPending ? 'Analyzing...' : 'Run Analysis'}</span>
+          </Button>
+        </div>
+      </div>
 
       {/* Main Content Tabs */}
       <Tabs
@@ -665,12 +775,16 @@ export default function VarianceTrackingPage() {
         </TabsList>
 
         <TabsContent value="overview" className="space-y-6">
+          {varianceOverviewMetrics}
+
           {reportsLoading ? (
             <Card>
               <CardContent className="p-12 text-center">
-                <BarChart3 className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-                <h3 className="text-lg font-medium text-gray-900 mb-2">Loading Latest Report</h3>
-                <p className="text-gray-600">Fetching variance report data for this fund.</p>
+                <BarChart3 className="w-12 h-12 text-charcoal-400 mx-auto mb-4" />
+                <h3 className="text-lg font-medium text-pov-charcoal mb-2">
+                  Loading Latest Report
+                </h3>
+                <p className="text-charcoal-600">Fetching variance report data for this fund.</p>
               </CardContent>
             </Card>
           ) : latestReport ? (
@@ -685,20 +799,20 @@ export default function VarianceTrackingPage() {
               <CardContent>
                 <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
                   <div className="rounded-lg border p-4">
-                    <div className="text-sm font-medium text-gray-600">Total Variances</div>
-                    <div className="mt-1 text-2xl font-semibold text-gray-900">
+                    <div className="text-sm font-medium text-charcoal-600">Total Variances</div>
+                    <div className="mt-1 text-2xl font-semibold text-pov-charcoal">
                       {latestReport.summary.totalVariances}
                     </div>
                   </div>
                   <div className="rounded-lg border p-4">
-                    <div className="text-sm font-medium text-gray-600">Significant</div>
-                    <div className="mt-1 text-2xl font-semibold text-yellow-700">
+                    <div className="text-sm font-medium text-charcoal-600">Significant</div>
+                    <div className="mt-1 text-2xl font-semibold text-warning-dark">
                       {latestReport.summary.significantVariances}
                     </div>
                   </div>
                   <div className="rounded-lg border p-4">
-                    <div className="text-sm font-medium text-gray-600">Critical</div>
-                    <div className="mt-1 text-2xl font-semibold text-red-700">
+                    <div className="text-sm font-medium text-charcoal-600">Critical</div>
+                    <div className="mt-1 text-2xl font-semibold text-error-dark">
                       {latestReport.summary.criticalVariances}
                     </div>
                   </div>
@@ -708,12 +822,14 @@ export default function VarianceTrackingPage() {
           ) : (
             <Card>
               <CardContent className="p-12 text-center">
-                <BarChart3 className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-                <h3 className="text-lg font-medium text-gray-900 mb-2">No Variance Data Yet</h3>
-                <p className="text-gray-600 mb-4">
+                <BarChart3 className="w-12 h-12 text-charcoal-400 mx-auto mb-4" />
+                <h3 className="text-lg font-medium text-pov-charcoal mb-2">No Variance Data Yet</h3>
+                <p className="text-charcoal-600 mb-4">
                   Create a baseline and run a variance analysis to generate the first report.
                 </p>
-                <Button onClick={handlePerformAnalysis}>Run Variance Analysis</Button>
+                <Button onClick={handlePerformAnalysis} disabled={isAnalysisRunning}>
+                  {isAnalysisRunning ? 'Analyzing...' : 'Run Variance Analysis'}
+                </Button>
               </CardContent>
             </Card>
           )}
@@ -731,61 +847,65 @@ export default function VarianceTrackingPage() {
                 <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
                   {Array.from({ length: 3 }).map((_, index) => (
                     <div key={index} className="rounded-lg border p-4">
-                      <div className="h-4 w-32 animate-pulse rounded bg-gray-200" />
-                      <div className="mt-3 h-7 w-40 animate-pulse rounded bg-gray-200" />
+                      <div className="h-4 w-32 animate-pulse rounded bg-pov-gray" />
+                      <div className="mt-3 h-7 w-40 animate-pulse rounded bg-pov-gray" />
                     </div>
                   ))}
                 </div>
               ) : !deploymentPlanStatus ? (
-                <div className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
+                <div className="rounded-lg border border-warning/50 bg-warning/10 p-4 text-sm text-warning-dark">
                   Deployment-plan context is not available from the unified metrics response right
                   now, so this card is intentionally withheld instead of showing fallback values.
                 </div>
               ) : (
                 <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
                   <div className="rounded-lg border p-4">
-                    <div className="text-sm font-medium text-gray-600">Remaining deployable</div>
-                    <div className="mt-1 text-2xl font-semibold text-gray-900">
+                    <div className="text-sm font-medium text-charcoal-600">
+                      Remaining deployable
+                    </div>
+                    <div className="mt-1 text-2xl font-semibold text-pov-charcoal">
                       {formatCurrency(remainingDeployableCapital)}
                     </div>
-                    <div className="mt-2 text-xs text-gray-500">
+                    <div className="mt-2 text-xs text-charcoal-500">
                       Actual committed capital minus capital already deployed.
                     </div>
                   </div>
                   <div className="rounded-lg border p-4">
-                    <div className="text-sm font-medium text-gray-600">Plan remaining</div>
-                    <div className="mt-1 text-2xl font-semibold text-gray-900">
+                    <div className="text-sm font-medium text-charcoal-600">Plan remaining</div>
+                    <div className="mt-1 text-2xl font-semibold text-pov-charcoal">
                       {formatCurrency(plannedRemainingDeployableCapital)}
                     </div>
-                    <div className="mt-2 text-xs text-gray-500">
+                    <div className="mt-2 text-xs text-charcoal-500">
                       Current deployment plan implied by target deployed capital for this fund age.
                     </div>
                   </div>
                   <div className="rounded-lg border p-4">
-                    <div className="text-sm font-medium text-gray-600">Gap vs plan</div>
+                    <div className="text-sm font-medium text-charcoal-600">Gap vs plan</div>
                     <div
                       className={cn(
                         'mt-1 text-2xl font-semibold',
-                        (remainingDeployableGap ?? 0) > 0 ? 'text-blue-700' : 'text-amber-700'
+                        (remainingDeployableGap ?? 0) > 0
+                          ? 'text-presson-info'
+                          : 'text-warning-dark'
                       )}
                     >
                       {remainingDeployableGap == null
                         ? '-'
                         : `${remainingDeployableGap > 0 ? '+' : ''}${formatCurrency(remainingDeployableGap)}`}
                     </div>
-                    <div className="mt-2 text-xs text-gray-500">
+                    <div className="mt-2 text-xs text-charcoal-500">
                       Positive means more undeployed capital remains than the plan expects today.
                     </div>
                   </div>
                 </div>
               )}
 
-              <div className="mt-4 rounded-lg border border-slate-200 bg-slate-50 p-4">
-                <div className="text-sm font-medium text-slate-700">Uncalled capital</div>
-                <div className="mt-1 text-xl font-semibold text-slate-900">
+              <div className="mt-4 rounded-lg border border-beige-200 bg-pov-gray p-4">
+                <div className="text-sm font-medium text-charcoal-700">Uncalled capital</div>
+                <div className="mt-1 text-xl font-semibold text-pov-charcoal">
                   {formatCurrency(unifiedMetrics?.actual?.totalUncalled)}
                 </div>
-                <div className="mt-2 text-xs text-slate-600">
+                <div className="mt-2 text-xs text-charcoal-600">
                   Capital that has been committed but not yet called from LPs. This is not the same
                   as remaining deployable capital.
                 </div>
@@ -812,14 +932,14 @@ export default function VarianceTrackingPage() {
                           <AlertTriangle
                             className={cn(
                               'w-5 h-5',
-                              alert.severity === 'critical' && 'text-red-600',
-                              alert.severity === 'warning' && 'text-yellow-600',
-                              alert.severity === 'info' && 'text-blue-600'
+                              alert.severity === 'critical' && 'text-error-dark',
+                              alert.severity === 'warning' && 'text-warning-dark',
+                              alert.severity === 'info' && 'text-presson-info'
                             )}
                           />
                           <div>
                             <div className="font-medium text-sm">{alert.ruleName}</div>
-                            <div className="text-xs text-gray-600">{alert.message}</div>
+                            <div className="text-xs text-charcoal-600">{alert.message}</div>
                           </div>
                         </div>
                         <Badge variant="outline" className={getSeverityColor(alert.severity)}>
@@ -829,7 +949,7 @@ export default function VarianceTrackingPage() {
                     ))}
                   </div>
                 ) : (
-                  <div className="text-center py-4 text-gray-500">No recent alerts</div>
+                  <div className="text-center py-4 text-charcoal-500">No recent alerts</div>
                 )}
               </CardContent>
             </Card>
@@ -849,7 +969,7 @@ export default function VarianceTrackingPage() {
                       >
                         <div>
                           <div className="font-medium text-sm">{baseline.name}</div>
-                          <div className="text-xs text-gray-600">
+                          <div className="text-xs text-charcoal-600">
                             {baseline.baselineType} •{' '}
                             {format(parseISO(baseline.createdAt), 'MMM dd, yyyy')}
                           </div>
@@ -862,7 +982,7 @@ export default function VarianceTrackingPage() {
                     ))}
                   </div>
                 ) : (
-                  <div className="text-center py-4 text-gray-500">No baselines configured</div>
+                  <div className="text-center py-4 text-charcoal-500">No baselines configured</div>
                 )}
               </CardContent>
             </Card>
@@ -872,8 +992,8 @@ export default function VarianceTrackingPage() {
         <TabsContent value="baselines" className="space-y-6">
           <div className="flex items-center justify-between">
             <div>
-              <h2 className="text-2xl font-bold text-gray-900">Baseline Management</h2>
-              <p className="text-gray-600">Configure and manage performance baselines</p>
+              <h2 className="text-2xl font-bold text-pov-charcoal">Baseline Management</h2>
+              <p className="text-charcoal-600">Configure and manage performance baselines</p>
             </div>
 
             <Dialog open={createBaselineDialogOpen} onOpenChange={setCreateBaselineDialogOpen}>
@@ -983,10 +1103,10 @@ export default function VarianceTrackingPage() {
                         className="animate-pulse flex items-center justify-between p-4 border rounded-lg"
                       >
                         <div className="space-y-2">
-                          <div className="h-4 w-48 bg-gray-200 rounded" />
-                          <div className="h-3 w-32 bg-gray-200 rounded" />
+                          <div className="h-4 w-48 bg-pov-gray rounded" />
+                          <div className="h-3 w-32 bg-pov-gray rounded" />
                         </div>
-                        <div className="w-24 h-8 bg-gray-200 rounded" />
+                        <div className="w-24 h-8 bg-pov-gray rounded" />
                       </div>
                     ))}
                   </div>
@@ -997,12 +1117,12 @@ export default function VarianceTrackingPage() {
                     <div key={baseline.id} className="p-6 flex items-center justify-between">
                       <div className="flex-1">
                         <div className="flex items-center space-x-3 mb-2">
-                          <h3 className="font-medium text-gray-900">{baseline.name}</h3>
+                          <h3 className="font-medium text-pov-charcoal">{baseline.name}</h3>
                           {baseline.isDefault && <Badge variant="default">Default</Badge>}
                           <Badge variant="outline">{baseline.baselineType}</Badge>
                         </div>
-                        <p className="text-sm text-gray-600 mb-2">{baseline.description}</p>
-                        <div className="text-xs text-gray-500">
+                        <p className="text-sm text-charcoal-600 mb-2">{baseline.description}</p>
+                        <div className="text-xs text-charcoal-500">
                           {format(parseISO(baseline.periodStart), 'MMM dd, yyyy')} -{' '}
                           {format(parseISO(baseline.periodEnd), 'MMM dd, yyyy')}
                         </div>
@@ -1031,7 +1151,7 @@ export default function VarianceTrackingPage() {
                               baselineId: baseline.id,
                             })
                           }
-                          className="text-red-600 border-red-200 hover:bg-red-50"
+                          className="border-beige-200 bg-white text-pov-charcoal hover:bg-pov-gray"
                         >
                           Deactivate
                         </Button>
@@ -1041,9 +1161,9 @@ export default function VarianceTrackingPage() {
                 </div>
               ) : (
                 <div className="p-12 text-center">
-                  <Target className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-                  <h3 className="text-lg font-medium text-gray-900 mb-2">No Baselines</h3>
-                  <p className="text-gray-600 mb-4">
+                  <Target className="w-12 h-12 text-charcoal-400 mx-auto mb-4" />
+                  <h3 className="text-lg font-medium text-pov-charcoal mb-2">No Baselines</h3>
+                  <p className="text-charcoal-600 mb-4">
                     Create your first baseline to start tracking variance.
                   </p>
                   <Button onClick={() => setCreateBaselineDialogOpen(true)}>
@@ -1058,8 +1178,8 @@ export default function VarianceTrackingPage() {
         <TabsContent value="alerts" className="space-y-6">
           <div className="flex items-center justify-between">
             <div>
-              <h2 className="text-2xl font-bold text-gray-900">Alert Management</h2>
-              <p className="text-gray-600">Monitor and manage variance alerts</p>
+              <h2 className="text-2xl font-bold text-pov-charcoal">Alert Management</h2>
+              <p className="text-charcoal-600">Monitor and manage variance alerts</p>
             </div>
 
             <Dialog open={createAlertDialogOpen} onOpenChange={setCreateAlertDialogOpen}>
@@ -1112,7 +1232,7 @@ export default function VarianceTrackingPage() {
                           ))}
                         </SelectContent>
                       </Select>
-                      <p className="mt-1 text-xs text-gray-500">
+                      <p className="mt-1 text-xs text-charcoal-500">
                         Alert rules currently support threshold checks over the canonical fund-level
                         variance metrics only.
                       </p>
@@ -1180,7 +1300,7 @@ export default function VarianceTrackingPage() {
                         }
                         placeholder="Upper or lower bound"
                       />
-                      <p className="mt-1 text-xs text-gray-500">
+                      <p className="mt-1 text-xs text-charcoal-500">
                         The alert triggers only when the selected metric falls between the primary
                         and secondary thresholds.
                       </p>
@@ -1280,7 +1400,7 @@ export default function VarianceTrackingPage() {
                   </CardDescription>
                 </div>
                 <div className="w-full md:w-56">
-                  <Label className="mb-2 block text-xs font-medium uppercase tracking-wide text-gray-500">
+                  <Label className="mb-2 block text-xs font-medium uppercase tracking-wide text-charcoal-500">
                     Alert Scope
                   </Label>
                   <Select
@@ -1307,10 +1427,10 @@ export default function VarianceTrackingPage() {
                       className="animate-pulse flex items-center justify-between p-4 border rounded-lg"
                     >
                       <div className="space-y-2">
-                        <div className="h-4 w-48 bg-gray-200 rounded" />
-                        <div className="h-3 w-32 bg-gray-200 rounded" />
+                        <div className="h-4 w-48 bg-pov-gray rounded" />
+                        <div className="h-3 w-32 bg-pov-gray rounded" />
                       </div>
-                      <div className="w-24 h-8 bg-gray-200 rounded" />
+                      <div className="w-24 h-8 bg-pov-gray rounded" />
                     </div>
                   ))}
                 </div>
@@ -1325,16 +1445,16 @@ export default function VarianceTrackingPage() {
                         <AlertTriangle
                           className={cn(
                             'w-6 h-6',
-                            alert.severity === 'critical' && 'text-red-600',
-                            alert.severity === 'urgent' && 'text-red-600',
-                            alert.severity === 'warning' && 'text-yellow-600',
-                            alert.severity === 'info' && 'text-blue-600'
+                            alert.severity === 'critical' && 'text-error-dark',
+                            alert.severity === 'urgent' && 'text-error-dark',
+                            alert.severity === 'warning' && 'text-warning-dark',
+                            alert.severity === 'info' && 'text-presson-info'
                           )}
                         />
                         <div>
-                          <div className="font-medium text-gray-900">{alert.ruleName}</div>
-                          <div className="text-sm text-gray-600">{alert.message}</div>
-                          <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-gray-500">
+                          <div className="font-medium text-pov-charcoal">{alert.ruleName}</div>
+                          <div className="text-sm text-charcoal-600">{alert.message}</div>
+                          <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-charcoal-500">
                             <span>{format(parseISO(alert.triggeredAt), 'MMM dd, yyyy HH:mm')}</span>
                             {alertBaselineScope === 'all' && alert.baselineName ? (
                               <span>Baseline: {alert.baselineName}</span>
@@ -1343,7 +1463,10 @@ export default function VarianceTrackingPage() {
                             currentDefaultBaseline?.id &&
                             alert.baselineId &&
                             alert.baselineId !== currentDefaultBaseline.id ? (
-                              <Badge variant="outline" className="text-amber-700 border-amber-200">
+                              <Badge
+                                variant="outline"
+                                className="text-warning-dark border-warning/50"
+                              >
                                 Older baseline
                               </Badge>
                             ) : null}
@@ -1378,7 +1501,7 @@ export default function VarianceTrackingPage() {
                                   setActionType('resolve');
                                   setAlertActionDialogOpen(true);
                                 }}
-                                className="text-green-600 border-green-200 hover:bg-green-50"
+                                className="border-beige-200 bg-white text-pov-charcoal hover:bg-pov-gray"
                               >
                                 <XCircle className="w-4 h-4 mr-1" />
                                 Resolve
@@ -1392,13 +1515,13 @@ export default function VarianceTrackingPage() {
                 </div>
               ) : (
                 <div className="text-center py-8">
-                  <Bell className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-                  <h3 className="text-lg font-medium text-gray-900 mb-2">
+                  <Bell className="w-12 h-12 text-charcoal-400 mx-auto mb-4" />
+                  <h3 className="text-lg font-medium text-pov-charcoal mb-2">
                     {alertBaselineScope === 'current'
                       ? 'No Current-Baseline Alerts'
                       : 'No Open Alerts'}
                   </h3>
-                  <p className="text-gray-600">
+                  <p className="text-charcoal-600">
                     {alertBaselineScope === 'current'
                       ? 'The current default baseline is within acceptable variance ranges.'
                       : 'There are no open incidents across current or historical baselines.'}
@@ -1423,9 +1546,9 @@ export default function VarianceTrackingPage() {
               </DialogHeader>
               <div className="space-y-4">
                 {selectedAlert && (
-                  <div className="p-3 bg-gray-50 rounded-lg">
+                  <div className="p-3 bg-pov-gray rounded-lg">
                     <div className="font-medium">{selectedAlert.ruleName}</div>
-                    <div className="text-sm text-gray-600">{selectedAlert.message}</div>
+                    <div className="text-sm text-charcoal-600">{selectedAlert.message}</div>
                   </div>
                 )}
                 <div>
@@ -1469,8 +1592,8 @@ export default function VarianceTrackingPage() {
         <TabsContent value="reports" className="space-y-6">
           <div className="flex items-center justify-between">
             <div>
-              <h2 className="text-2xl font-bold text-gray-900">Variance Reports</h2>
-              <p className="text-gray-600">Generated variance analysis reports</p>
+              <h2 className="text-2xl font-bold text-pov-charcoal">Variance Reports</h2>
+              <p className="text-charcoal-600">Generated variance analysis reports</p>
             </div>
             <Button
               className="flex items-center space-x-2"
@@ -1492,10 +1615,10 @@ export default function VarianceTrackingPage() {
                         className="animate-pulse flex items-center justify-between p-4 border rounded-lg"
                       >
                         <div className="space-y-2">
-                          <div className="h-4 w-48 bg-gray-200 rounded" />
-                          <div className="h-3 w-32 bg-gray-200 rounded" />
+                          <div className="h-4 w-48 bg-pov-gray rounded" />
+                          <div className="h-3 w-32 bg-pov-gray rounded" />
                         </div>
-                        <div className="w-24 h-8 bg-gray-200 rounded" />
+                        <div className="w-24 h-8 bg-pov-gray rounded" />
                       </div>
                     ))}
                   </div>
@@ -1505,23 +1628,23 @@ export default function VarianceTrackingPage() {
                   {reportsData.data.map((report: VarianceReport) => (
                     <div
                       key={report.id}
-                      className="p-6 flex items-center justify-between cursor-pointer hover:bg-gray-50 transition-colors"
+                      className="p-6 flex items-center justify-between cursor-pointer hover:bg-pov-gray transition-colors"
                       onClick={() => setSelectedReportId(report.id)}
                     >
                       <div className="flex-1">
                         <div className="flex items-center space-x-3 mb-2">
-                          <h3 className="font-medium text-gray-900">{report.reportName}</h3>
+                          <h3 className="font-medium text-pov-charcoal">{report.reportName}</h3>
                           <Badge variant="outline">{report.reportType}</Badge>
                         </div>
-                        <div className="text-sm text-gray-600 mb-1">
+                        <div className="text-sm text-charcoal-600 mb-1">
                           {report.summary.totalVariances} variances
                           {report.summary.criticalVariances > 0 && (
-                            <span className="text-red-600 ml-2">
+                            <span className="text-error-dark ml-2">
                               ({report.summary.criticalVariances} critical)
                             </span>
                           )}
                         </div>
-                        <div className="text-xs text-gray-500">
+                        <div className="text-xs text-charcoal-500">
                           Generated {format(parseISO(report.generatedAt), 'MMM dd, yyyy')}
                         </div>
                       </div>
@@ -1530,12 +1653,16 @@ export default function VarianceTrackingPage() {
                 </div>
               ) : (
                 <div className="p-12 text-center">
-                  <FileText className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-                  <h3 className="text-lg font-medium text-gray-900 mb-2">No Reports Generated</h3>
-                  <p className="text-gray-600 mb-4">
+                  <FileText className="w-12 h-12 text-charcoal-400 mx-auto mb-4" />
+                  <h3 className="text-lg font-medium text-pov-charcoal mb-2">
+                    No Reports Generated
+                  </h3>
+                  <p className="text-charcoal-600 mb-4">
                     Run a variance analysis to generate your first report.
                   </p>
-                  <Button onClick={handlePerformAnalysis}>Run Analysis</Button>
+                  <Button onClick={handlePerformAnalysis} disabled={isAnalysisRunning}>
+                    {isAnalysisRunning ? 'Analyzing...' : 'Run Analysis'}
+                  </Button>
                 </div>
               )}
             </CardContent>
@@ -1555,24 +1682,24 @@ export default function VarianceTrackingPage() {
               </SheetHeader>
               {reportDetailLoading ? (
                 <div className="flex items-center justify-center py-12">
-                  <Loader2 className="w-8 h-8 animate-spin text-gray-400" />
+                  <Loader2 className="w-8 h-8 animate-spin text-charcoal-400" />
                 </div>
               ) : reportDetail ? (
                 <div className="space-y-6 mt-6">
                   <div className="space-y-2">
-                    <div className="text-sm font-medium text-gray-500">Report Name</div>
-                    <div className="text-gray-900">{reportDetail.reportName}</div>
+                    <div className="text-sm font-medium text-charcoal-500">Report Name</div>
+                    <div className="text-pov-charcoal">{reportDetail.reportName}</div>
                   </div>
                   <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <div className="text-sm font-medium text-gray-500">Type</div>
+                      <div className="text-sm font-medium text-charcoal-500">Type</div>
                       <Badge variant="outline" className="mt-1">
                         {reportDetail.reportType}
                       </Badge>
                     </div>
                     {reportDetail.reportPeriod && (
                       <div>
-                        <div className="text-sm font-medium text-gray-500">Period</div>
+                        <div className="text-sm font-medium text-charcoal-500">Period</div>
                         <Badge variant="outline" className="mt-1">
                           {reportDetail.reportPeriod}
                         </Badge>
@@ -1581,21 +1708,21 @@ export default function VarianceTrackingPage() {
                   </div>
                   <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <div className="text-sm font-medium text-gray-500">As Of Date</div>
-                      <div className="text-gray-900">
+                      <div className="text-sm font-medium text-charcoal-500">As Of Date</div>
+                      <div className="text-pov-charcoal">
                         {format(parseISO(reportDetail.asOfDate), 'MMM dd, yyyy')}
                       </div>
                     </div>
                     <div>
-                      <div className="text-sm font-medium text-gray-500">Generated At</div>
-                      <div className="text-gray-900">
+                      <div className="text-sm font-medium text-charcoal-500">Generated At</div>
+                      <div className="text-pov-charcoal">
                         {format(parseISO(reportDetail.generatedAt), 'MMM dd, yyyy HH:mm')}
                       </div>
                     </div>
                   </div>
 
                   {showHistoricalPortfolioAnalysisUnavailableNotice && (
-                    <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
+                    <div className="rounded-lg border border-warning/50 bg-warning/10 p-3 text-sm text-warning-dark">
                       <div className="flex items-start gap-2">
                         <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
                         <div>
@@ -1608,25 +1735,25 @@ export default function VarianceTrackingPage() {
 
                   {/* Summary cards */}
                   <div>
-                    <div className="text-sm font-medium text-gray-500 mb-2">Summary</div>
+                    <div className="text-sm font-medium text-charcoal-500 mb-2">Summary</div>
                     <div className="grid grid-cols-3 gap-3">
                       <div className="rounded-lg border p-3 text-center">
-                        <div className="text-lg font-semibold text-gray-900">
+                        <div className="text-lg font-semibold text-pov-charcoal">
                           {reportDetail.summary.totalVariances}
                         </div>
-                        <div className="text-xs text-gray-500">Total</div>
+                        <div className="text-xs text-charcoal-500">Total</div>
                       </div>
                       <div className="rounded-lg border p-3 text-center">
-                        <div className="text-lg font-semibold text-yellow-700">
+                        <div className="text-lg font-semibold text-warning-dark">
                           {reportDetail.summary.significantVariances}
                         </div>
-                        <div className="text-xs text-gray-500">Significant</div>
+                        <div className="text-xs text-charcoal-500">Significant</div>
                       </div>
                       <div className="rounded-lg border p-3 text-center">
-                        <div className="text-lg font-semibold text-red-700">
+                        <div className="text-lg font-semibold text-error-dark">
                           {reportDetail.summary.criticalVariances}
                         </div>
-                        <div className="text-xs text-gray-500">Critical</div>
+                        <div className="text-xs text-charcoal-500">Critical</div>
                       </div>
                     </div>
                   </div>
@@ -1634,11 +1761,11 @@ export default function VarianceTrackingPage() {
                   {/* Supplemental variance analysis */}
                   {reportHasSupplementalAnalysis && (
                     <div>
-                      <div className="text-sm font-medium text-gray-500 mb-2">
+                      <div className="text-sm font-medium text-charcoal-500 mb-2">
                         Portfolio Analysis
                       </div>
                       {showHistoricalPortfolioAnalysisNotice && (
-                        <div className="mb-3 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
+                        <div className="mb-3 rounded-lg border border-warning/50 bg-warning/10 p-3 text-sm text-warning-dark">
                           <div className="flex items-start gap-2">
                             <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
                             <div>
@@ -1652,47 +1779,47 @@ export default function VarianceTrackingPage() {
                       <div className="grid grid-cols-2 md:grid-cols-3 gap-2 text-sm">
                         {reportDetail.portfolioVariances && (
                           <>
-                            <div className="p-2 bg-gray-50 rounded">
-                              <span className="text-gray-500">Portfolio Count Change</span>
+                            <div className="p-2 bg-pov-gray rounded">
+                              <span className="text-charcoal-500">Portfolio Count Change</span>
                               <span className="block font-medium">
                                 {formatSignedNumber(
                                   reportDetail.portfolioVariances.portfolioCountVariance
                                 )}
                               </span>
                             </div>
-                            <div className="p-2 bg-gray-50 rounded">
-                              <span className="text-gray-500">Companies Analyzed</span>
+                            <div className="p-2 bg-pov-gray rounded">
+                              <span className="text-charcoal-500">Companies Analyzed</span>
                               <span className="block font-medium">{companyVariances.length}</span>
                             </div>
                           </>
                         )}
                         {reportDetail.sectorVariances && (
-                          <div className="p-2 bg-gray-50 rounded">
-                            <span className="text-gray-500">Sectors Tracked</span>
+                          <div className="p-2 bg-pov-gray rounded">
+                            <span className="text-charcoal-500">Sectors Tracked</span>
                             <span className="block font-medium">
                               {Object.keys(reportDetail.sectorVariances).length}
                             </span>
                           </div>
                         )}
                         {reportDetail.stageVariances && (
-                          <div className="p-2 bg-gray-50 rounded">
-                            <span className="text-gray-500">Stages Tracked</span>
+                          <div className="p-2 bg-pov-gray rounded">
+                            <span className="text-charcoal-500">Stages Tracked</span>
                             <span className="block font-medium">
                               {Object.keys(reportDetail.stageVariances).length}
                             </span>
                           </div>
                         )}
                         {reportDetail.reserveVariances && (
-                          <div className="p-2 bg-gray-50 rounded">
-                            <span className="text-gray-500">Reserve Metrics Changed</span>
+                          <div className="p-2 bg-pov-gray rounded">
+                            <span className="text-charcoal-500">Reserve Metrics Changed</span>
                             <span className="block font-medium">
                               {reserveMetricEntries.length + reserveChangeEntries.length}
                             </span>
                           </div>
                         )}
                         {reportDetail.pacingVariances && (
-                          <div className="p-2 bg-gray-50 rounded">
-                            <span className="text-gray-500">Pacing Metrics Changed</span>
+                          <div className="p-2 bg-pov-gray rounded">
+                            <span className="text-charcoal-500">Pacing Metrics Changed</span>
                             <span className="block font-medium">
                               {pacingMetricEntries.length + pacingChangeEntries.length}
                             </span>
@@ -1702,32 +1829,32 @@ export default function VarianceTrackingPage() {
 
                       {companyVariances.length > 0 && (
                         <div className="mt-4">
-                          <div className="text-sm font-medium text-gray-500 mb-2">
+                          <div className="text-sm font-medium text-charcoal-500 mb-2">
                             Company Variances
                           </div>
                           <div className="border rounded-lg overflow-x-auto">
                             <table className="w-full text-sm">
                               <thead>
-                                <tr className="bg-gray-50 border-b">
-                                  <th className="text-left p-2 font-medium text-gray-600">
+                                <tr className="bg-pov-gray border-b">
+                                  <th className="text-left p-2 font-medium text-charcoal-600">
                                     Company
                                   </th>
-                                  <th className="text-left p-2 font-medium text-gray-600">
+                                  <th className="text-left p-2 font-medium text-charcoal-600">
                                     Change
                                   </th>
-                                  <th className="text-right p-2 font-medium text-gray-600">
+                                  <th className="text-right p-2 font-medium text-charcoal-600">
                                     Baseline
                                   </th>
-                                  <th className="text-right p-2 font-medium text-gray-600">
+                                  <th className="text-right p-2 font-medium text-charcoal-600">
                                     Current
                                   </th>
-                                  <th className="text-right p-2 font-medium text-gray-600">
+                                  <th className="text-right p-2 font-medium text-charcoal-600">
                                     Invested
                                   </th>
-                                  <th className="text-right p-2 font-medium text-gray-600">
+                                  <th className="text-right p-2 font-medium text-charcoal-600">
                                     Delta
                                   </th>
-                                  <th className="text-right p-2 font-medium text-gray-600">
+                                  <th className="text-right p-2 font-medium text-charcoal-600">
                                     Delta %
                                   </th>
                                 </tr>
@@ -1738,10 +1865,10 @@ export default function VarianceTrackingPage() {
                                     key={`${company.companyId}-${company.changeType ?? 'matched'}`}
                                   >
                                     <td className="p-2 align-top">
-                                      <div className="font-medium text-gray-900">
+                                      <div className="font-medium text-pov-charcoal">
                                         {company.companyName}
                                       </div>
-                                      <div className="text-xs text-gray-500">
+                                      <div className="text-xs text-charcoal-500">
                                         {[company.sector, company.stage]
                                           .filter(Boolean)
                                           .join(' • ') || 'Unclassified'}
@@ -1754,12 +1881,12 @@ export default function VarianceTrackingPage() {
                                           className={cn(
                                             'w-fit',
                                             company.changeType === 'added' &&
-                                              'border-emerald-200 bg-emerald-50 text-emerald-700',
+                                              'border-success/50 bg-success/10 text-success-dark',
                                             company.changeType === 'removed' &&
-                                              'border-rose-200 bg-rose-50 text-rose-700',
+                                              'border-error/50 bg-error/10 text-error-dark',
                                             (!company.changeType ||
                                               company.changeType === 'matched') &&
-                                              'border-slate-200 bg-slate-50 text-slate-700'
+                                              'border-beige-200 bg-pov-gray text-charcoal-700'
                                           )}
                                         >
                                           {company.changeType ?? 'matched'}
@@ -1769,35 +1896,35 @@ export default function VarianceTrackingPage() {
                                           className={cn(
                                             'w-fit',
                                             company.riskLevel === 'critical' &&
-                                              'border-red-200 bg-red-50 text-red-700',
+                                              'border-error/50 bg-error/10 text-error-dark',
                                             company.riskLevel === 'high' &&
-                                              'border-orange-200 bg-orange-50 text-orange-700',
+                                              'border-warning/50 bg-warning/10 text-warning-dark',
                                             company.riskLevel === 'medium' &&
-                                              'border-yellow-200 bg-yellow-50 text-yellow-700',
+                                              'border-warning/50 bg-warning/10 text-warning-dark',
                                             company.riskLevel === 'low' &&
-                                              'border-emerald-200 bg-emerald-50 text-emerald-700'
+                                              'border-success/50 bg-success/10 text-success-dark'
                                           )}
                                         >
                                           {company.riskLevel}
                                         </Badge>
                                       </div>
                                     </td>
-                                    <td className="p-2 text-right text-gray-700">
+                                    <td className="p-2 text-right text-charcoal-700">
                                       {formatCurrency(company.baselineValuation)}
                                     </td>
-                                    <td className="p-2 text-right text-gray-700">
+                                    <td className="p-2 text-right text-charcoal-700">
                                       {formatCurrency(company.currentValuation)}
                                     </td>
-                                    <td className="p-2 text-right text-gray-700">
+                                    <td className="p-2 text-right text-charcoal-700">
                                       <div>{formatCurrency(company.currentInvestedCapital)}</div>
-                                      <div className="text-xs text-gray-500">
+                                      <div className="text-xs text-charcoal-500">
                                         base {formatCurrency(company.baselineInvestedCapital)}
                                       </div>
                                     </td>
-                                    <td className="p-2 text-right text-gray-700">
+                                    <td className="p-2 text-right text-charcoal-700">
                                       {formatCurrency(company.valuationVariance)}
                                     </td>
-                                    <td className="p-2 text-right text-gray-700">
+                                    <td className="p-2 text-right text-charcoal-700">
                                       {formatSignedPercent(company.valuationVariancePct)}
                                     </td>
                                   </tr>
@@ -1810,29 +1937,29 @@ export default function VarianceTrackingPage() {
 
                       {sectorVarianceEntries.length > 0 && (
                         <div className="mt-4">
-                          <div className="text-sm font-medium text-gray-500 mb-2">
+                          <div className="text-sm font-medium text-charcoal-500 mb-2">
                             Sector Distribution
                           </div>
                           <div className="border rounded-lg overflow-x-auto">
                             <table className="w-full text-sm">
                               <thead>
-                                <tr className="bg-gray-50 border-b">
-                                  <th className="text-left p-2 font-medium text-gray-600">
+                                <tr className="bg-pov-gray border-b">
+                                  <th className="text-left p-2 font-medium text-charcoal-600">
                                     Sector
                                   </th>
-                                  <th className="text-right p-2 font-medium text-gray-600">
+                                  <th className="text-right p-2 font-medium text-charcoal-600">
                                     Current
                                   </th>
-                                  <th className="text-right p-2 font-medium text-gray-600">
+                                  <th className="text-right p-2 font-medium text-charcoal-600">
                                     Baseline
                                   </th>
-                                  <th className="text-right p-2 font-medium text-gray-600">
+                                  <th className="text-right p-2 font-medium text-charcoal-600">
                                     Count Delta
                                   </th>
-                                  <th className="text-right p-2 font-medium text-gray-600">
+                                  <th className="text-right p-2 font-medium text-charcoal-600">
                                     Share Delta
                                   </th>
-                                  <th className="text-right p-2 font-medium text-gray-600">
+                                  <th className="text-right p-2 font-medium text-charcoal-600">
                                     Share Delta %
                                   </th>
                                 </tr>
@@ -1840,16 +1967,20 @@ export default function VarianceTrackingPage() {
                               <tbody className="divide-y">
                                 {sectorVarianceEntries.map(([sector, row]) => (
                                   <tr key={sector}>
-                                    <td className="p-2 text-gray-900">{sector}</td>
-                                    <td className="p-2 text-right text-gray-700">{row.current}</td>
-                                    <td className="p-2 text-right text-gray-700">{row.baseline}</td>
-                                    <td className="p-2 text-right text-gray-700">
+                                    <td className="p-2 text-pov-charcoal">{sector}</td>
+                                    <td className="p-2 text-right text-charcoal-700">
+                                      {row.current}
+                                    </td>
+                                    <td className="p-2 text-right text-charcoal-700">
+                                      {row.baseline}
+                                    </td>
+                                    <td className="p-2 text-right text-charcoal-700">
                                       {formatSignedNumber(row.delta)}
                                     </td>
-                                    <td className="p-2 text-right text-gray-700">
+                                    <td className="p-2 text-right text-charcoal-700">
                                       {formatSignedPercent(row.countShareDelta)}
                                     </td>
-                                    <td className="p-2 text-right text-gray-700">
+                                    <td className="p-2 text-right text-charcoal-700">
                                       {formatSignedPercent(row.countShareDeltaPct)}
                                     </td>
                                   </tr>
@@ -1862,27 +1993,29 @@ export default function VarianceTrackingPage() {
 
                       {stageVarianceEntries.length > 0 && (
                         <div className="mt-4">
-                          <div className="text-sm font-medium text-gray-500 mb-2">
+                          <div className="text-sm font-medium text-charcoal-500 mb-2">
                             Stage Distribution
                           </div>
                           <div className="border rounded-lg overflow-x-auto">
                             <table className="w-full text-sm">
                               <thead>
-                                <tr className="bg-gray-50 border-b">
-                                  <th className="text-left p-2 font-medium text-gray-600">Stage</th>
-                                  <th className="text-right p-2 font-medium text-gray-600">
+                                <tr className="bg-pov-gray border-b">
+                                  <th className="text-left p-2 font-medium text-charcoal-600">
+                                    Stage
+                                  </th>
+                                  <th className="text-right p-2 font-medium text-charcoal-600">
                                     Current
                                   </th>
-                                  <th className="text-right p-2 font-medium text-gray-600">
+                                  <th className="text-right p-2 font-medium text-charcoal-600">
                                     Baseline
                                   </th>
-                                  <th className="text-right p-2 font-medium text-gray-600">
+                                  <th className="text-right p-2 font-medium text-charcoal-600">
                                     Count Delta
                                   </th>
-                                  <th className="text-right p-2 font-medium text-gray-600">
+                                  <th className="text-right p-2 font-medium text-charcoal-600">
                                     Share Delta
                                   </th>
-                                  <th className="text-right p-2 font-medium text-gray-600">
+                                  <th className="text-right p-2 font-medium text-charcoal-600">
                                     Share Delta %
                                   </th>
                                 </tr>
@@ -1890,16 +2023,20 @@ export default function VarianceTrackingPage() {
                               <tbody className="divide-y">
                                 {stageVarianceEntries.map(([stage, row]) => (
                                   <tr key={stage}>
-                                    <td className="p-2 text-gray-900">{stage}</td>
-                                    <td className="p-2 text-right text-gray-700">{row.current}</td>
-                                    <td className="p-2 text-right text-gray-700">{row.baseline}</td>
-                                    <td className="p-2 text-right text-gray-700">
+                                    <td className="p-2 text-pov-charcoal">{stage}</td>
+                                    <td className="p-2 text-right text-charcoal-700">
+                                      {row.current}
+                                    </td>
+                                    <td className="p-2 text-right text-charcoal-700">
+                                      {row.baseline}
+                                    </td>
+                                    <td className="p-2 text-right text-charcoal-700">
                                       {formatSignedNumber(row.delta)}
                                     </td>
-                                    <td className="p-2 text-right text-gray-700">
+                                    <td className="p-2 text-right text-charcoal-700">
                                       {formatSignedPercent(row.countShareDelta)}
                                     </td>
-                                    <td className="p-2 text-right text-gray-700">
+                                    <td className="p-2 text-right text-charcoal-700">
                                       {formatSignedPercent(row.countShareDeltaPct)}
                                     </td>
                                   </tr>
@@ -1914,21 +2051,21 @@ export default function VarianceTrackingPage() {
                         <div className="mt-4 grid gap-4 md:grid-cols-2">
                           {reportDetail.reserveVariances && (
                             <div>
-                              <div className="text-sm font-medium text-gray-500 mb-2">
+                              <div className="text-sm font-medium text-charcoal-500 mb-2">
                                 Reserve Variances
                               </div>
                               <div className="space-y-2">
                                 {reserveMetricEntries.map(([metric, delta]) => (
                                   <div
                                     key={metric}
-                                    className="rounded-lg border bg-gray-50 p-3 text-sm"
+                                    className="rounded-lg border bg-pov-gray p-3 text-sm"
                                   >
-                                    <div className="font-medium text-gray-900">{metric}</div>
-                                    <div className="mt-1 text-gray-600">
+                                    <div className="font-medium text-pov-charcoal">{metric}</div>
+                                    <div className="mt-1 text-charcoal-600">
                                       {renderChangeValue(delta.baseline)} to{' '}
                                       {renderChangeValue(delta.current)}
                                     </div>
-                                    <div className="text-gray-700">
+                                    <div className="text-charcoal-700">
                                       delta {formatSignedNumber(delta.delta, 2)} | pct{' '}
                                       {formatSignedPercent(delta.deltaPct)}
                                     </div>
@@ -1936,8 +2073,8 @@ export default function VarianceTrackingPage() {
                                 ))}
                                 {reserveChangeEntries.map(([metric, change]) => (
                                   <div key={metric} className="rounded-lg border p-3 text-sm">
-                                    <div className="font-medium text-gray-900">{metric}</div>
-                                    <div className="text-gray-600">
+                                    <div className="font-medium text-pov-charcoal">{metric}</div>
+                                    <div className="text-charcoal-600">
                                       {renderChangeValue(change.baseline)} to{' '}
                                       {renderChangeValue(change.current)}
                                     </div>
@@ -1949,21 +2086,21 @@ export default function VarianceTrackingPage() {
 
                           {reportDetail.pacingVariances && (
                             <div>
-                              <div className="text-sm font-medium text-gray-500 mb-2">
+                              <div className="text-sm font-medium text-charcoal-500 mb-2">
                                 Pacing Variances
                               </div>
                               <div className="space-y-2">
                                 {pacingMetricEntries.map(([metric, delta]) => (
                                   <div
                                     key={metric}
-                                    className="rounded-lg border bg-gray-50 p-3 text-sm"
+                                    className="rounded-lg border bg-pov-gray p-3 text-sm"
                                   >
-                                    <div className="font-medium text-gray-900">{metric}</div>
-                                    <div className="mt-1 text-gray-600">
+                                    <div className="font-medium text-pov-charcoal">{metric}</div>
+                                    <div className="mt-1 text-charcoal-600">
                                       {renderChangeValue(delta.baseline)} to{' '}
                                       {renderChangeValue(delta.current)}
                                     </div>
-                                    <div className="text-gray-700">
+                                    <div className="text-charcoal-700">
                                       delta {formatSignedNumber(delta.delta, 2)} | pct{' '}
                                       {formatSignedPercent(delta.deltaPct)}
                                     </div>
@@ -1971,8 +2108,8 @@ export default function VarianceTrackingPage() {
                                 ))}
                                 {pacingChangeEntries.map(([metric, change]) => (
                                   <div key={metric} className="rounded-lg border p-3 text-sm">
-                                    <div className="font-medium text-gray-900">{metric}</div>
-                                    <div className="text-gray-600">
+                                    <div className="font-medium text-pov-charcoal">{metric}</div>
+                                    <div className="text-charcoal-600">
                                       {renderChangeValue(change.baseline)} to{' '}
                                       {renderChangeValue(change.current)}
                                     </div>
@@ -1989,28 +2126,32 @@ export default function VarianceTrackingPage() {
                   {/* Variances table */}
                   {reportDetail.variances.length > 0 && (
                     <div>
-                      <div className="text-sm font-medium text-gray-500 mb-2">Variances</div>
+                      <div className="text-sm font-medium text-charcoal-500 mb-2">Variances</div>
                       <div className="border rounded-lg overflow-hidden">
                         <table className="w-full text-sm">
                           <thead>
-                            <tr className="bg-gray-50 border-b">
-                              <th className="text-left p-2 font-medium text-gray-600">Metric</th>
-                              <th className="text-right p-2 font-medium text-gray-600">Value</th>
-                              <th className="text-right p-2 font-medium text-gray-600">Pct</th>
+                            <tr className="bg-pov-gray border-b">
+                              <th className="text-left p-2 font-medium text-charcoal-600">
+                                Metric
+                              </th>
+                              <th className="text-right p-2 font-medium text-charcoal-600">
+                                Value
+                              </th>
+                              <th className="text-right p-2 font-medium text-charcoal-600">Pct</th>
                             </tr>
                           </thead>
                           <tbody className="divide-y">
                             {reportDetail.variances.map((v: unknown, idx: number) => {
                               const row = v as Record<string, unknown>;
                               return (
-                                <tr key={idx} className="hover:bg-gray-50">
-                                  <td className="p-2 text-gray-900">
+                                <tr key={idx} className="hover:bg-pov-gray">
+                                  <td className="p-2 text-pov-charcoal">
                                     {String(row['metric'] ?? row['metricName'] ?? '-')}
                                   </td>
-                                  <td className="p-2 text-right text-gray-700">
+                                  <td className="p-2 text-right text-charcoal-700">
                                     {String(row['value'] ?? row['variance'] ?? '-')}
                                   </td>
-                                  <td className="p-2 text-right text-gray-700">
+                                  <td className="p-2 text-right text-charcoal-700">
                                     {(() => {
                                       const raw = row['pct'] ?? row['percentChange'];
                                       if (raw == null) return '-';
@@ -2030,7 +2171,7 @@ export default function VarianceTrackingPage() {
                   )}
                 </div>
               ) : (
-                <div className="text-center py-12 text-gray-500">Report not found.</div>
+                <div className="text-center py-12 text-charcoal-500">Report not found.</div>
               )}
             </SheetContent>
           </Sheet>
@@ -2110,8 +2251,8 @@ export default function VarianceTrackingPage() {
 
         <TabsContent value="settings" className="space-y-6">
           <div>
-            <h2 className="text-2xl font-bold text-gray-900">Variance Settings</h2>
-            <p className="text-gray-600">Configure variance tracking preferences</p>
+            <h2 className="text-2xl font-bold text-pov-charcoal">Variance Settings</h2>
+            <p className="text-charcoal-600">Configure variance tracking preferences</p>
           </div>
 
           <Card>
@@ -2122,26 +2263,46 @@ export default function VarianceTrackingPage() {
             <CardContent className="space-y-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <Label className="text-base">Email Notifications</Label>
-                  <p className="text-sm text-gray-600">Receive alerts via email</p>
+                  <Label htmlFor="variance-email-notifications" className="text-base">
+                    Email Notifications
+                  </Label>
+                  <p className="text-sm text-charcoal-600">Receive alerts via email</p>
                 </div>
-                <Switch defaultChecked />
+                <Switch
+                  id="variance-email-notifications"
+                  checked={varianceSettings.emailNotifications}
+                  onCheckedChange={(checked) =>
+                    updateVarianceSetting('emailNotifications', checked)
+                  }
+                />
               </div>
               <div className="flex items-center justify-between">
                 <div>
-                  <Label className="text-base">Real-time Alerts</Label>
-                  <p className="text-sm text-gray-600">
+                  <Label htmlFor="variance-realtime-alerts" className="text-base">
+                    Real-time Alerts
+                  </Label>
+                  <p className="text-sm text-charcoal-600">
                     Immediate notifications for critical alerts
                   </p>
                 </div>
-                <Switch defaultChecked />
+                <Switch
+                  id="variance-realtime-alerts"
+                  checked={varianceSettings.realtimeAlerts}
+                  onCheckedChange={(checked) => updateVarianceSetting('realtimeAlerts', checked)}
+                />
               </div>
               <div className="flex items-center justify-between">
                 <div>
-                  <Label className="text-base">Daily Digest</Label>
-                  <p className="text-sm text-gray-600">Summary of variance activity</p>
+                  <Label htmlFor="variance-daily-digest" className="text-base">
+                    Daily Digest
+                  </Label>
+                  <p className="text-sm text-charcoal-600">Summary of variance activity</p>
                 </div>
-                <Switch />
+                <Switch
+                  id="variance-daily-digest"
+                  checked={varianceSettings.dailyDigest}
+                  onCheckedChange={(checked) => updateVarianceSetting('dailyDigest', checked)}
+                />
               </div>
             </CardContent>
           </Card>
@@ -2153,16 +2314,29 @@ export default function VarianceTrackingPage() {
             </CardHeader>
             <CardContent className="space-y-6">
               <div>
-                <Label>Default Variance Threshold (%)</Label>
-                <Input type="number" defaultValue="10" className="mt-1" />
-                <p className="text-sm text-gray-600 mt-1">
+                <Label htmlFor="variance-default-threshold">Default Variance Threshold (%)</Label>
+                <Input
+                  id="variance-default-threshold"
+                  type="number"
+                  value={varianceSettings.defaultVarianceThreshold}
+                  onChange={(event) =>
+                    updateVarianceSetting('defaultVarianceThreshold', event.target.value)
+                  }
+                  className="mt-1"
+                />
+                <p className="text-sm text-charcoal-600 mt-1">
                   Default threshold for triggering variance alerts
                 </p>
               </div>
               <div>
-                <Label>Analysis Frequency</Label>
-                <Select defaultValue="daily">
-                  <SelectTrigger className="mt-1">
+                <Label htmlFor="variance-analysis-frequency">Analysis Frequency</Label>
+                <Select
+                  value={varianceSettings.analysisFrequency}
+                  onValueChange={(value: VarianceSettings['analysisFrequency']) =>
+                    updateVarianceSetting('analysisFrequency', value)
+                  }
+                >
+                  <SelectTrigger id="variance-analysis-frequency" className="mt-1">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -2175,6 +2349,14 @@ export default function VarianceTrackingPage() {
               </div>
             </CardContent>
           </Card>
+
+          <div className="flex flex-col gap-3 border-t pt-4 sm:flex-row sm:items-center sm:justify-between">
+            <p className="text-sm text-charcoal-600" aria-live="polite">
+              {settingsSaveMessage ??
+                'Save settings after changing alert delivery or analysis cadence.'}
+            </p>
+            <Button onClick={handleSaveSettings}>Save Settings</Button>
+          </div>
         </TabsContent>
       </Tabs>
     </div>

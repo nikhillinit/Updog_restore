@@ -12,6 +12,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import {
   Select,
   SelectContent,
@@ -21,21 +22,33 @@ import {
 } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import { apiRequest } from '@/lib/queryClient';
-import { Loader2 } from 'lucide-react';
+import {
+  COMPANY_SECTORS,
+  COMPANY_STAGES,
+  isCompanySector,
+  isCompanyStage,
+} from '@/lib/company-taxonomy';
+import { parseMoney } from '@/utils/parse-helpers';
+import { AlertCircle, Loader2 } from 'lucide-react';
 
-const COMPANY_STAGES = ['Seed', 'Series A', 'Series B', 'Series C', 'Growth'] as const;
+const ADD_COMPANY_SERVER_ERROR =
+  'Company could not be created. Review the company details and try again.';
 
 const addCompanySchema = z.object({
   name: z.string().trim().min(1, 'Company name is required'),
-  sector: z.string().trim().min(1, 'Sector is required'),
-  stage: z.enum(COMPANY_STAGES),
+  sector: z
+    .string()
+    .refine((value) => Boolean(isCompanySector(value)), 'Choose a sector from the list'),
+  stage: z
+    .string()
+    .refine((value) => Boolean(isCompanyStage(value)), 'Choose a stage from the list'),
   investmentAmount: z
     .string()
     .trim()
     .min(1, 'Initial investment is required')
     .refine((value) => {
-      const parsed = Number(value);
-      return Number.isFinite(parsed) && parsed > 0;
+      const parsed = parseMoney(value);
+      return parsed != null && parsed > 0;
     }, 'Initial investment must be a positive number'),
 });
 
@@ -78,10 +91,11 @@ export function AddCompanyDialog({ fundId, open, onOpenChange }: AddCompanyDialo
         sector: values.sector,
         stage: values.stage,
         currentStage: values.stage,
-        investmentAmount: values.investmentAmount,
+        investmentAmount: String(parseMoney(values.investmentAmount)),
       }),
     onSuccess: (_result, values) => {
       queryClient.invalidateQueries({ queryKey: ['portfolio-companies'] });
+      queryClient.invalidateQueries({ queryKey: ['allocations', 'latest', fundId] });
       toast({
         title: 'Company added',
         description: `"${values.name}" now appears in the Companies tab.`,
@@ -89,11 +103,11 @@ export function AddCompanyDialog({ fundId, open, onOpenChange }: AddCompanyDialo
       onOpenChange(false);
     },
     onError: (error: unknown) => {
-      const message = error instanceof Error ? error.message : 'Failed to add company';
-      setServerError(message);
+      console.error('[AddCompanyDialog] create failed', error);
+      setServerError(ADD_COMPANY_SERVER_ERROR);
       toast({
         title: 'Unable to add company',
-        description: message,
+        description: ADD_COMPANY_SERVER_ERROR,
         variant: 'destructive',
       });
     },
@@ -152,26 +166,33 @@ export function AddCompanyDialog({ fundId, open, onOpenChange }: AddCompanyDialo
               onChange={(event) => handleFieldChange('name', event.target.value)}
               placeholder="Northwind AI"
             />
-            {fieldErrors.name ? <p className="text-sm text-red-600">{fieldErrors.name}</p> : null}
+            {fieldErrors.name ? <p className="text-sm text-error">{fieldErrors.name}</p> : null}
           </div>
 
           <div className="space-y-2">
             <Label htmlFor="portfolio-company-sector">Sector</Label>
-            <Input
-              id="portfolio-company-sector"
+            <Select
               value={form.sector}
-              onChange={(event) => handleFieldChange('sector', event.target.value)}
-              placeholder="AI / SaaS"
-            />
-            {fieldErrors.sector ? (
-              <p className="text-sm text-red-600">{fieldErrors.sector}</p>
-            ) : null}
+              onValueChange={(value) => handleFieldChange('sector', value)}
+            >
+              <SelectTrigger id="portfolio-company-sector">
+                <SelectValue placeholder="Select sector" />
+              </SelectTrigger>
+              <SelectContent>
+                {COMPANY_SECTORS.map((sector) => (
+                  <SelectItem key={sector} value={sector}>
+                    {sector}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            {fieldErrors.sector ? <p className="text-sm text-error">{fieldErrors.sector}</p> : null}
           </div>
 
           <div className="space-y-2">
-            <Label>Stage</Label>
+            <Label htmlFor="portfolio-company-stage">Stage</Label>
             <Select value={form.stage} onValueChange={(value) => handleFieldChange('stage', value)}>
-              <SelectTrigger>
+              <SelectTrigger id="portfolio-company-stage">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -182,26 +203,30 @@ export function AddCompanyDialog({ fundId, open, onOpenChange }: AddCompanyDialo
                 ))}
               </SelectContent>
             </Select>
-            {fieldErrors.stage ? <p className="text-sm text-red-600">{fieldErrors.stage}</p> : null}
+            {fieldErrors.stage ? <p className="text-sm text-error">{fieldErrors.stage}</p> : null}
           </div>
 
           <div className="space-y-2">
             <Label htmlFor="portfolio-company-investment-amount">Initial investment ($)</Label>
             <Input
               id="portfolio-company-investment-amount"
-              type="number"
-              min="0"
-              step="0.01"
+              type="text"
+              inputMode="decimal"
               value={form.investmentAmount}
               onChange={(event) => handleFieldChange('investmentAmount', event.target.value)}
-              placeholder="1500000"
+              placeholder="1,500,000"
             />
             {fieldErrors.investmentAmount ? (
-              <p className="text-sm text-red-600">{fieldErrors.investmentAmount}</p>
+              <p className="text-sm text-error">{fieldErrors.investmentAmount}</p>
             ) : null}
           </div>
 
-          {serverError ? <p className="text-sm text-red-600">{serverError}</p> : null}
+          {serverError ? (
+            <Alert variant="destructive">
+              <AlertCircle aria-hidden="true" className="h-4 w-4" />
+              <AlertDescription>{serverError}</AlertDescription>
+            </Alert>
+          ) : null}
 
           <DialogFooter>
             <Button

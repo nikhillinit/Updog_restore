@@ -29,10 +29,7 @@ Commands:
     --dry-run             Validate patch without applying
     --verbose             Show detailed output
 
-  repair [pattern]        Repair failing tests automatically
-    --max-repairs N       Maximum number of repairs (default: 5)
-    --draft-pr            Create draft PR with repairs
-    --verbose             Show detailed output
+  repair [pattern]        Retired package-backed repair command
 
   zencoder                Archived command stub for the retired Zencoder agent
 
@@ -40,10 +37,7 @@ Commands:
     --format <type>       Output format (json|text)
     --output <file>       Save output to file
     
-  bundle-optimize         Run bundle optimization agent  
-    --target <kb>         Target bundle size in KB (default: 400)
-    --strategy <type>     Optimization strategy (safe|balanced|aggressive)
-    --preserve            Preserve functionality (run tests)
+  bundle-optimize         Retired package-backed bundle optimizer
     
   deps-analyze            Analyze dependencies for optimization
     --unused              Check for unused dependencies
@@ -81,23 +75,33 @@ Log files are stored in ai-logs/ directory.
 `);
 }
 
+function exitRetiredPackageCommand(commandName, replacement) {
+  console.error(`[AI-TOOLS] ${commandName} is retired in this app tooling tree.`);
+  console.error('The old local agent package entrypoint is no longer wired into root scripts.');
+  console.error(replacement);
+  process.exit(1);
+}
+
 async function getProjectStatus() {
   try {
     const packageJson = JSON.parse(readFileSync(join(PROJECT_ROOT, 'package.json'), 'utf8'));
-    
+
     // Check git status
     const { spawn } = await import('child_process');
     const gitStatus = await new Promise((resolve) => {
       const process = spawn('git', ['status', '--porcelain'], { cwd: PROJECT_ROOT, stdio: 'pipe' });
       let output = '';
-      process.stdout.on('data', (data) => output += data.toString());
+      process.stdout.on('data', (data) => (output += data.toString()));
       process.on('close', () => resolve(output.trim()));
     });
 
     const gitBranch = await new Promise((resolve) => {
-      const process = spawn('git', ['branch', '--show-current'], { cwd: PROJECT_ROOT, stdio: 'pipe' });
+      const process = spawn('git', ['branch', '--show-current'], {
+        cwd: PROJECT_ROOT,
+        stdio: 'pipe',
+      });
       let output = '';
-      process.stdout.on('data', (data) => output += data.toString());
+      process.stdout.on('data', (data) => (output += data.toString()));
       process.on('close', () => resolve(output.trim()));
     });
 
@@ -106,21 +110,21 @@ async function getProjectStatus() {
     console.log(`Version: ${packageJson.version}`);
     console.log(`Branch: ${gitBranch}`);
     console.log(`Git Status: ${gitStatus ? 'Modified files' : 'Clean'}`);
-    
+
     if (gitStatus) {
       console.log('\nModified files:');
-      gitStatus.split('\n').forEach(line => {
+      gitStatus.split('\n').forEach((line) => {
         if (line.trim()) console.log(`  ${line}`);
       });
     }
-    
+
     console.log('\nAvailable Scripts:');
-    Object.keys(packageJson.scripts).forEach(script => {
+    Object.keys(packageJson.scripts).forEach((script) => {
       if (script.startsWith('test') || script.startsWith('ai')) {
         console.log(`  ${script}: ${packageJson.scripts[script]}`);
       }
     });
-    
+
     console.log('=====================\n');
   } catch (error) {
     console.error('Failed to get project status:', error.message);
@@ -129,7 +133,7 @@ async function getProjectStatus() {
 
 async function main() {
   const args = process.argv.slice(2);
-  
+
   if (args.length === 0 || args[0] === 'help') {
     showHelp();
     return;
@@ -141,14 +145,14 @@ async function main() {
   try {
     switch (command) {
       case 'test': {
-        const pattern = commandArgs.find(arg => !arg.startsWith('--')) || '';
+        const pattern = commandArgs.find((arg) => !arg.startsWith('--')) || '';
         const options = {
           quick: commandArgs.includes('--quick'),
           integration: commandArgs.includes('--integration'),
           ui: commandArgs.includes('--ui'),
-          verbose: commandArgs.includes('--verbose')
+          verbose: commandArgs.includes('--verbose'),
         };
-        
+
         const runner = new TestRunner({ verbose: options.verbose });
         const result = await runner.runTests(pattern, options);
         process.exit(result.success ? 0 : 1);
@@ -156,124 +160,37 @@ async function main() {
       }
 
       case 'patch': {
-        const patchFile = commandArgs.find(arg => !arg.startsWith('--'));
+        const patchFile = commandArgs.find((arg) => !arg.startsWith('--'));
         if (!patchFile) {
           console.error('Error: patch command requires a file argument');
           console.log('Usage: npm run ai patch <file> [--dry-run] [--verbose]');
           process.exit(1);
         }
-        
+
         const options = {
           dryRun: commandArgs.includes('--dry-run'),
-          verbose: commandArgs.includes('--verbose')
+          verbose: commandArgs.includes('--verbose'),
         };
-        
+
         const applicator = new PatchApplicator(options);
-        
+
         let patchData;
         if (patchFile.endsWith('.json')) {
           patchData = JSON.parse(readFileSync(patchFile, 'utf8'));
         } else {
           patchData = readFileSync(patchFile, 'utf8');
         }
-        
+
         const result = await applicator.applyPatch(patchData);
         process.exit(result.success ? 0 : 1);
         break;
       }
 
       case 'repair': {
-        const pattern = commandArgs.find(arg => !arg.startsWith('--'));
-        const maxRepairsArg = commandArgs.find(arg => arg.startsWith('--max-repairs'));
-        const maxRepairs = maxRepairsArg ? parseInt(maxRepairsArg.split('=')[1] || '5') : 5;
-        
-        const options = {
-          maxRepairs,
-          draftPR: commandArgs.includes('--draft-pr'),
-          verbose: commandArgs.includes('--verbose')
-        };
-        
-        console.log('[AI-TOOLS] Starting test repair agent...');
-        console.log(`Pattern: ${pattern || 'all tests'}`);
-        console.log(`Max repairs: ${maxRepairs}`);
-        console.log(`Draft PR: ${options.draftPR ? 'yes' : 'no'}`);
-        
-        try {
-          // Import metrics collection
-          const { collectBMADMetrics, saveBMADMetrics } = await import('./bmad-metrics.js');
-          
-          // Start metrics collection
-          const metricsCollector = collectBMADMetrics();
-          const startTime = Date.now();
-          
-          // Dynamically import TestRepairAgent
-          const { TestRepairAgent } = await import('../../packages/test-repair-agent/src/TestRepairAgent.js');
-          
-          // Create agent instance
-          const agent = new TestRepairAgent({
-            logLevel: options.verbose ? 'debug' : 'info',
-            maxRetries: 1,
-            timeout: 180000 // 3 minutes
-          });
-          
-          // Execute repair
-          const result = await agent.execute({
-            projectRoot: PROJECT_ROOT,
-            testPattern: pattern,
-            maxRepairs: options.maxRepairs,
-            draftPR: options.draftPR
-          });
-          
-          // Collect metrics
-          const duration = Date.now() - startTime;
-          const metrics = {
-            timestamp: new Date().toISOString(),
-            repo: process.env.GITHUB_REPOSITORY || 'local',
-            pattern: pattern || 'all',
-            maxRepairs,
-            failuresFound: result.failures.length,
-            repairsAttempted: result.repairs.length,
-            repairsSuccessful: result.repairs.filter(r => r.success).length,
-            prCreated: !!result.prUrl,
-            prUrl: result.prUrl,
-            duration,
-            timeSavedSeconds: result.repairs.filter(r => r.success).length * 600, // Estimate 10 min per fix
-          };
-          
-          // Update Prometheus metrics
-          metricsCollector.recordRepair(metrics);
-          
-          // Save metrics to file for CI
-          await saveBMADMetrics(metrics, metricsCollector);
-          
-          // Display results
-          console.log('\n=== Test Repair Results ===');
-          console.log(`Failures found: ${result.failures.length}`);
-          console.log(`Repairs attempted: ${result.repairs.length}`);
-          console.log(`Successful repairs: ${result.repairs.filter(r => r.success).length}`);
-          console.log(`Time saved: ~${Math.round(metrics.timeSavedSeconds / 60)} minutes`);
-          
-          if (result.prUrl) {
-            console.log(`\n✅ Draft PR created: ${result.prUrl}`);
-          }
-          
-          if (options.verbose) {
-            console.log('\nDetailed results:');
-            console.log(JSON.stringify(result, null, 2));
-            console.log('\nMetrics collected:');
-            console.log(JSON.stringify(metrics, null, 2));
-          }
-          
-          // Exit with appropriate code
-          const hasFailures = result.failures.length > result.repairs.filter(r => r.success).length;
-          process.exit(hasFailures ? 1 : 0);
-        } catch (error) {
-          console.error('[AI-TOOLS] Test repair agent failed:', error.message);
-          if (options.verbose) {
-            console.error(error.stack);
-          }
-          process.exit(1);
-        }
+        exitRetiredPackageCommand(
+          'repair',
+          'Use `npm run test:unit` for current verification and make explicit repairs from the failing output.'
+        );
         break;
       }
 
@@ -282,9 +199,7 @@ async function main() {
         console.log(
           'Historical package: archive/2026-q1/unused-code/packages/zencoder-integration/'
         );
-        console.log(
-          'Historical docs: archive/2026-q1/unused-code/docs/ZENCODER_INTEGRATION.md'
-        );
+        console.log('Historical docs: archive/2026-q1/unused-code/docs/ZENCODER_INTEGRATION.md');
         console.log('Use `npm run ai repair` or the bundle analysis commands instead.');
         process.exit(1);
         break;
@@ -297,30 +212,23 @@ async function main() {
 
       case 'bundle-analyze': {
         const { spawn } = await import('child_process');
-        const formatArg = commandArgs.find(arg => arg.startsWith('--format'));
-        const outputArg = commandArgs.find(arg => arg.startsWith('--output'));
-        
+        const formatArg = commandArgs.find((arg) => arg.startsWith('--format'));
+        const outputArg = commandArgs.find((arg) => arg.startsWith('--output'));
+
         const args = ['scripts/ai-tools/bundle-analyzer.mjs', 'analyze'];
         if (formatArg) args.push('--format', formatArg.split('=')[1] || 'json');
         if (outputArg) args.push('--output', outputArg.split('=')[1]);
-        
+
         const child = spawn('node', args, { stdio: 'inherit' });
-        child.on('exit', code => process.exit(code));
+        child.on('exit', (code) => process.exit(code));
         break;
       }
 
       case 'bundle-optimize': {
-        const { spawn } = await import('child_process');
-        const targetArg = commandArgs.find(arg => arg.startsWith('--target'));
-        const strategyArg = commandArgs.find(arg => arg.startsWith('--strategy'));
-        
-        const args = ['scripts/ai-tools/bundle-analyzer.mjs', 'optimize'];
-        if (targetArg) args.push('--target', targetArg.split('=')[1] || '400');
-        if (strategyArg) args.push('--strategy', strategyArg.split('=')[1] || 'balanced');
-        if (commandArgs.includes('--preserve')) args.push('--preserve');
-        
-        const child = spawn('node', args, { stdio: 'inherit' });
-        child.on('exit', code => process.exit(code));
+        exitRetiredPackageCommand(
+          'bundle-optimize',
+          'Use `npm run ai bundle-analyze`, `npm run ai deps-analyze`, or `npm run build:prod` for current bundle evidence.'
+        );
         break;
       }
 
@@ -328,9 +236,9 @@ async function main() {
         const { spawn } = await import('child_process');
         const args = ['scripts/ai-tools/bundle-analyzer.mjs', 'deps'];
         if (commandArgs.includes('--verbose')) args.push('--verbose');
-        
+
         const child = spawn('node', args, { stdio: 'inherit' });
-        child.on('exit', code => process.exit(code));
+        child.on('exit', (code) => process.exit(code));
         break;
       }
 
@@ -340,24 +248,24 @@ async function main() {
         if (commandArgs.includes('--analyze-usage')) args.push('--analyze-usage');
         if (commandArgs.includes('--implement')) args.push('--apply');
         if (commandArgs.includes('--verbose')) args.push('--verbose');
-        
+
         const child = spawn('node', args, { stdio: 'inherit' });
-        child.on('exit', code => process.exit(code));
+        child.on('exit', (code) => process.exit(code));
         break;
       }
 
       case 'bundle-orchestrate': {
         const { spawn } = await import('child_process');
-        const targetArg = commandArgs.find(arg => arg.startsWith('--target'));
-        const strategyArg = commandArgs.find(arg => arg.startsWith('--strategy'));
-        
+        const targetArg = commandArgs.find((arg) => arg.startsWith('--target'));
+        const strategyArg = commandArgs.find((arg) => arg.startsWith('--strategy'));
+
         const args = ['scripts/ai-tools/orchestrate-bundle-optimization.mjs'];
         if (targetArg) args.push('--target', targetArg.split('=')[1] || '400');
         if (strategyArg) args.push('--strategy', strategyArg.split('=')[1] || 'balanced');
         if (commandArgs.includes('--dry-run')) args.push('--dry-run');
-        
+
         const child = spawn('node', args, { stdio: 'inherit' });
-        child.on('exit', code => process.exit(code));
+        child.on('exit', (code) => process.exit(code));
         break;
       }
 

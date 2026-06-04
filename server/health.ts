@@ -127,9 +127,9 @@ export async function healthCheck(req: Request, res: Response) {
     const health = await performHealthCheck();
     const statusCode = health.status === 'healthy' ? 200 : 503;
 
-    res['status'](statusCode)['json'](health);
+    res.status(statusCode).json(health);
   } catch (error) {
-    res['status'](503)['json']({
+    res.status(503).json({
       status: 'unhealthy',
       timestamp: new Date().toISOString(),
       uptime: process.uptime(),
@@ -158,19 +158,19 @@ export async function readinessCheck(req: Request, res: Response) {
     const isReady = databaseHealth.status === 'healthy';
 
     if (isReady) {
-      res['status'](200)['json']({
+      res.status(200).json({
         status: 'ready',
         timestamp: new Date().toISOString(),
       });
     } else {
-      res['status'](503)['json']({
+      res.status(503).json({
         status: 'not_ready',
         timestamp: new Date().toISOString(),
         reason: 'Database not ready',
       });
     }
   } catch (error) {
-    res['status'](503)['json']({
+    res.status(503).json({
       status: 'not_ready',
       timestamp: new Date().toISOString(),
       reason: error instanceof Error ? error.message : 'Readiness check failed',

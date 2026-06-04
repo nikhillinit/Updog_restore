@@ -12,8 +12,9 @@ review_cadence: P90D
 - `npm test` or `npm run test:unit` - Vitest unit suite (`server` + `client`)
 - `npm run test:integration` - integration suite via `vitest.config.int.ts`
 - `npm run test:integration:routes` - route-focused integration suite
-- `npm run test:phase4` - phase 4 server, client, and integration gate
-- `npm run validate:core` - baseline check plus active milestone validation
+- `npm run validate:core` - baseline check plus active milestone validation with
+  the embedded fund workflow server, client, integration, lint, and worker guard
+  command chains
 - `npm run test:smoke` or `npm run test:e2e:smoke` - Playwright smoke project
 - `npm run test:ui` - Vitest UI
 - `npm run test:quick` - faster Vitest run excluding `**/api/**`

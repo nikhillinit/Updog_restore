@@ -17,7 +17,7 @@ import { getPayloadConfigFromPayload, useChart } from './chart-core';
 import { isRecord } from '@shared/utils/type-guards';
 
 // Re-export all Recharts components that are used in the app
-export { ResponsiveContainer } from 'recharts/es6/component/ResponsiveContainer';
+export { LazyResponsiveContainer as ResponsiveContainer } from '@/components/charts/LazyResponsiveContainer';
 export { Tooltip } from 'recharts/es6/component/Tooltip';
 export { Legend } from 'recharts/es6/component/Legend';
 export { Cell } from 'recharts/es6/component/Cell';

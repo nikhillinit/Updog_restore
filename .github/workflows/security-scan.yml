@@ -1,109 +1,204 @@
 name: Security Deep Scan
+
 on:
   schedule:
-    - cron: '0 3 * * 1' # Weekly on Monday at 3 AM UTC
+    - cron: '0 3 * * 1'
   workflow_dispatch:
   pull_request:
-    paths:
-      - 'package*.json'
-      - '.github/workflows/security-scan.yml'
+    branches: [main, develop]
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+  security-events: write
+
 jobs:
+  changes:
+    name: Detect Changes
+    runs-on: ubuntu-latest
+    outputs:
+      auto_docs_only: ${{ github.event_name != 'schedule' && github.event_name != 'workflow_dispatch' && steps.filter.outputs.auto_docs == 'true' && steps.filter.outputs.not_auto_docs == 'false' }}
+      security_relevant: ${{ github.event_name != 'pull_request' || steps.filter.outputs.security_relevant == 'true' }}
+    steps:
+      - name: Checkout repository
+        if: github.event_name != 'schedule' && github.event_name != 'workflow_dispatch'
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          fetch-depth: 2
+
+      - name: Detect changed file paths
+        if: github.event_name != 'schedule' && github.event_name != 'workflow_dispatch'
+        id: filter
+        uses: dorny/paths-filter@fbd0ab8f3e69293af611ebaee6363fc25e6d187d # v4.0.1
+        with:
+          filters: .github/path-filters.yml
+
   filesystem-scan:
+    name: Trivy filesystem scan
+    needs: changes
+    if: needs.changes.outputs.security_relevant == 'true'
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
       - uses: aquasecurity/trivy-action@master
         with:
-          scan-type: 'fs'
-          scan-ref: '.'
-          format: 'sarif'
-          output: 'trivy-fs-results.sarif'
-          severity: 'CRITICAL,HIGH,MEDIUM'
+          scan-type: fs
+          scan-ref: .
+          format: sarif
+          output: trivy-fs-results.sarif
+          severity: CRITICAL,HIGH,MEDIUM
           exit-code: '0'
+
       - name: Upload Trivy FS results to GitHub Security tab
-        uses: github/codeql-action/upload-sarif@v3
+        uses: github/codeql-action/upload-sarif@v4
         if: ${{ always() && hashFiles('trivy-fs-results.sarif') != '' }}
         with:
-          sarif_file: 'trivy-fs-results.sarif'
-          category: 'trivy-filesystem'
+          sarif_file: trivy-fs-results.sarif
+          category: trivy-filesystem
 
   container-scan:
+    name: Trivy container scan
+    needs: changes
+    if: needs.changes.outputs.security_relevant == 'true'
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
       - name: Build Docker image
-        run: |
-          docker build -t povc-fund-platform:latest .
+        run: docker build -t povc-fund-platform:latest .
+
       - name: Run Trivy container scan
         uses: aquasecurity/trivy-action@master
         with:
-          image-ref: 'povc-fund-platform:latest'
-          format: 'sarif'
-          output: 'trivy-container-results.sarif'
-          severity: 'CRITICAL,HIGH,MEDIUM'
+          image-ref: povc-fund-platform:latest
+          format: sarif
+          output: trivy-container-results.sarif
+          severity: CRITICAL,HIGH,MEDIUM
           exit-code: '0'
+
       - name: Upload Trivy container results to GitHub Security tab
-        uses: github/codeql-action/upload-sarif@v3
+        uses: github/codeql-action/upload-sarif@v4
         if: ${{ always() && hashFiles('trivy-container-results.sarif') != '' }}
         with:
-          sarif_file: 'trivy-container-results.sarif'
-          category: 'trivy-container'
+          sarif_file: trivy-container-results.sarif
+          category: trivy-container
+
   license-check:
+    name: License allowlist
+    needs: changes
+    if: needs.changes.outputs.security_relevant == 'true'
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
-      - uses: actions/setup-node@39370e3970a6d050c480ffad4ff0ed4d3fdee5af
-        with:
-          node-version: '20.19.0'
-          cache: 'npm'
-      - run: npm ci
+      - name: Checkout repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Setup Node environment
+        uses: ./.github/actions/setup-node-env
+
       - name: Check licenses
-        # buffers@0.1.1 has MIT license at source but declares "Custom" in package.json
-        # BlueOak-1.0.0 is a permissive license (used by jackspeak, etc.)
         run: npx license-checker --production --onlyAllow 'MIT;Apache-2.0;BSD;BSD-2-Clause;BSD-3-Clause;ISC;CC0-1.0;CC-BY-3.0;CC-BY-4.0;Unlicense;0BSD;Python-2.0;MPL-2.0;BlueOak-1.0.0' --excludePackages 'buffers@0.1.1'
+
   dependency-check:
+    name: OWASP dependency-check
+    needs: changes
+    if: needs.changes.outputs.security_relevant == 'true'
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
       - name: OWASP Dependency-Check
         uses: dependency-check/Dependency-Check_Action@main
         id: depcheck
         with:
-          project: 'POVC-Fund-Platform'
-          path: '.'
-          format: 'ALL'
+          project: POVC-Fund-Platform
+          path: .
+          format: ALL
           args: >-
             --enableRetired
             --enableExperimental
             --suppression suppression.xml
             ${{ secrets.NVD_API_KEY && format('--nvdApiKey {0}', secrets.NVD_API_KEY) || '' }}
-      - name: Upload results
-        uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882
+
+      - name: Upload reports
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v4.6.2
         with:
           name: dependency-check-reports
           path: reports/
           retention-days: 30
-      - name: Upload to Security tab
-        uses: github/codeql-action/upload-sarif@v3
+
+      - name: Upload SARIF to Security tab
+        uses: github/codeql-action/upload-sarif@v4
         if: ${{ always() && hashFiles('reports/dependency-check-report.sarif') != '' }}
         with:
           sarif_file: reports/dependency-check-report.sarif
 
   sbom:
+    name: Generate SBOM
+    needs: changes
+    if: needs.changes.outputs.security_relevant == 'true'
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
-      - uses: actions/setup-node@39370e3970a6d050c480ffad4ff0ed4d3fdee5af
-        with:
-          node-version: '20.19.0'
-          cache: 'npm'
-      - run: npm ci
-      - name: Generate SBOM
-        run: |
-          npx -y @cyclonedx/cyclonedx-npm --output-format json --output-file sbom.cyclonedx.json
+      - name: Checkout repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Setup Node environment
+        uses: ./.github/actions/setup-node-env
+
+      - name: Generate CycloneDX SBOM
+        run: npx -y @cyclonedx/cyclonedx-npm --output-format json --output-file sbom.cyclonedx.json
+
       - name: Upload SBOM
-        uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v4.6.2
         with:
           name: sbom-cyclonedx
           path: sbom.cyclonedx.json
           retention-days: 30
+
+  security-scan:
+    name: security-scan
+    needs:
+      - changes
+      - filesystem-scan
+      - container-scan
+      - license-check
+      - dependency-check
+      - sbom
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Determine security scan status
+        run: |
+          if [[ "${{ needs.changes.result }}" != "success" ]]; then
+            echo "Change detection failed: ${{ needs.changes.result }}" >> "$GITHUB_STEP_SUMMARY"
+            exit 1
+          fi
+
+          if [[ "${{ needs.changes.outputs.security_relevant }}" != "true" ]]; then
+            echo "security_relevant=false; security deep scan skipped." >> "$GITHUB_STEP_SUMMARY"
+            echo "security-scan required context passed through relevance fast path." >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+
+          fail=0
+          require_success() {
+            local name="$1"
+            local result="$2"
+            if [[ "$result" != "success" ]]; then
+              echo "$name failed or skipped: $result"
+              fail=1
+            fi
+          }
+
+          require_success "filesystem-scan" "${{ needs.filesystem-scan.result }}"
+          require_success "container-scan" "${{ needs.container-scan.result }}"
+          require_success "license-check" "${{ needs.license-check.result }}"
+          require_success "dependency-check" "${{ needs.dependency-check.result }}"
+          require_success "sbom" "${{ needs.sbom.result }}"
+
+          if [[ "$fail" -ne 0 ]]; then
+            exit 1
+          fi
+
+          echo "security-scan passed." >> "$GITHUB_STEP_SUMMARY"

@@ -113,14 +113,28 @@ artifacts/phase0/latest/phase0-summary.txt
 ### UI/UX (if applicable)
 
 - [ ] Synthetics selectors updated (if UI change) -
-      [Test ID conventions](client/src/lib/testIds.ts)
+      [Test ID conventions](../client/src/lib/testIds.ts)
 - [ ] Responsive design tested
 - [ ] Accessibility checked (keyboard navigation, ARIA labels)
+
+### Analytics / Results Truthfulness (if applicable)
+
+See
+[analytics visualization principles](../docs/design/analytics-visualization-principles.md)
+for rationale.
+
+- [ ] Production analytics do not silently use sample, mock, or fixture data
+- [ ] Demo/sample states are visibly labeled in the UI
+- [ ] Major metrics show source, run/version, timestamp, or a truthful
+      unavailable state
+- [ ] Stale/calculating/failed states remain visible and explained
+- [ ] Comparisons use clear baselines and honest shared units/scales
+- [ ] Essential meaning is not hidden only in a tooltip
 
 ### Security
 
 - [ ] Security headers unaffected or
-      [updated tests](scripts/check-security-headers.mjs)
+      [updated tests](../scripts/check-security-headers.mjs)
 - [ ] No secrets or credentials in code
 - [ ] Input validation implemented
 

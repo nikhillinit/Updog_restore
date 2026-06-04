@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Poppins:wght@300;400;500;600;700&family=Roboto+Mono:wght@300;400;500;600&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Poppins:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap');
 /* Agent 2: Mobile Executive Dashboard Optimizations */
 @import './styles/mobile-optimizations.css';
 /* Agent 3: Enhanced Design System and Micro-interactions */
@@ -19,7 +19,7 @@
   --card-foreground: hsl(20, 14.3%, 4.1%);
   --border: hsl(20, 5.9%, 90%);
   --input: hsl(20, 5.9%, 90%);
-  --primary: hsl(207, 90%, 54%);
+  --primary: hsl(0, 0%, 16%); /* charcoal #292929 per DESIGN.md doctrine (was azure blue) */
   --primary-foreground: hsl(211, 100%, 99%);
   --secondary: hsl(60, 4.8%, 95.9%);
   --secondary-foreground: hsl(24, 9.8%, 10%);
@@ -29,14 +29,17 @@
   --destructive-foreground: hsl(60, 9.1%, 97.8%);
   --ring: hsl(20, 14.3%, 4.1%);
   --radius: 0.5rem;
-  
+
   /* Press On Ventures Official Brand Colors */
-  --press-dark: #292929;        /* Primary dark - R41 G41 B41 */
-  --press-beige: #E0D8D1;       /* Secondary beige - R224 G216 B209 */
-  --press-white: #FFFFFF;       /* White - R255 G255 B255 */
-  --press-light: #F2F2F2;       /* Light gray - R242 G242 B242 */
+  --press-dark: #292929; /* Primary dark - R41 G41 B41 */
+  --press-beige: #e0d8d1; /* Secondary beige - R224 G216 B209 */
+  --press-white: #ffffff; /* White - R255 G255 B255 */
+  --press-light: #f2f2f2; /* Light gray - R242 G242 B242 */
   --press-beige-hover: #d4cbb8; /* Beige hover state */
-  --press-beige-active: #c4b8a5;/* Beige active state */
+  --press-beige-active: #c4b8a5; /* Beige active state */
+  --press-main-gradient: linear-gradient(135deg, var(--press-beige) 0%, var(--press-white) 100%);
+  --press-logo-safe-zone-ratio: 1;
+  --press-icon-safe-zone-ratio: 0.5;
 
   /* Legacy POVC colors (deprecated - use Press On colors above) */
   --povc-primary: hsl(207, 90%, 54%);
@@ -81,7 +84,12 @@
   }
 
   /* MagicPatterns Typography System */
-  h1, h2, h3, h4, h5, h6 {
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
     @apply font-inter font-bold text-charcoal;
   }
 
@@ -178,7 +186,8 @@
 }
 
 @keyframes pulse {
-  0%, 100% {
+  0%,
+  100% {
     opacity: 1;
   }
   50% {

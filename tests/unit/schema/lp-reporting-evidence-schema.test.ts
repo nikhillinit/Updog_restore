@@ -1,0 +1,512 @@
+/**
+ * LP Reporting & Evidence Pack -- Foundation Schema Smoke Test
+ *
+ * Verifies the 8 LP-reporting tables are accessible via barrel exports
+ * from `@shared/schema`, mirror the SQL migration in
+ * server/migrations/20260508_lp_reporting_foundation_v1.up.sql, and
+ * declare the documented CHECK constraints. Catches barrel/import
+ * regressions and Drizzle-binding drift without needing a live DB.
+ */
+import { describe, expect, it } from 'vitest';
+import fs from 'node:fs';
+import path from 'node:path';
+import { getTableConfig } from 'drizzle-orm/pg-core';
+
+import * as schema from '@shared/schema';
+
+describe('LP Reporting Foundation Schema -- Drizzle bindings', () => {
+  describe('Barrel exports', () => {
+    it('vehicles table is accessible', () => {
+      expect(schema.vehicles).toBeDefined();
+      expect(typeof schema.vehicles).toBe('object');
+    });
+
+    it('cashFlowEvents table is accessible', () => {
+      expect(schema.cashFlowEvents).toBeDefined();
+      expect(typeof schema.cashFlowEvents).toBe('object');
+    });
+
+    it('valuationMarks table is accessible', () => {
+      expect(schema.valuationMarks).toBeDefined();
+      expect(typeof schema.valuationMarks).toBe('object');
+    });
+
+    it('lpMetricRuns table is accessible', () => {
+      expect(schema.lpMetricRuns).toBeDefined();
+      expect(typeof schema.lpMetricRuns).toBe('object');
+    });
+
+    it('narrativeRuns table is accessible', () => {
+      expect(schema.narrativeRuns).toBeDefined();
+      expect(typeof schema.narrativeRuns).toBe('object');
+    });
+
+    it('evidenceRecords table is accessible', () => {
+      expect(schema.evidenceRecords).toBeDefined();
+      expect(typeof schema.evidenceRecords).toBe('object');
+    });
+
+    it('lpReportPackages table is accessible', () => {
+      expect(schema.lpReportPackages).toBeDefined();
+      expect(typeof schema.lpReportPackages).toBe('object');
+    });
+
+    it('lpReportPackageExports table is accessible', () => {
+      expect(schema.lpReportPackageExports).toBeDefined();
+      expect(typeof schema.lpReportPackageExports).toBe('object');
+    });
+
+    it('lpVehicleParticipation table is accessible', () => {
+      expect(schema.lpVehicleParticipation).toBeDefined();
+      expect(typeof schema.lpVehicleParticipation).toBe('object');
+    });
+
+    it('lpVehicleParticipationHistory table is accessible', () => {
+      expect(schema.lpVehicleParticipationHistory).toBeDefined();
+      expect(typeof schema.lpVehicleParticipationHistory).toBe('object');
+    });
+  });
+
+  describe('Drizzle table names match the SQL migration', () => {
+    it.each([
+      ['vehicles', schema.vehicles],
+      ['cash_flow_events', schema.cashFlowEvents],
+      ['valuation_marks', schema.valuationMarks],
+      ['lp_metric_runs', schema.lpMetricRuns],
+      ['narrative_runs', schema.narrativeRuns],
+      ['evidence_records', schema.evidenceRecords],
+      ['lp_report_packages', schema.lpReportPackages],
+      ['lp_report_package_exports', schema.lpReportPackageExports],
+      ['lp_vehicle_participation', schema.lpVehicleParticipation],
+      ['lp_vehicle_participation_history', schema.lpVehicleParticipationHistory],
+    ])('table %s has matching SQL name', (sqlName, table) => {
+      const config = getTableConfig(table);
+      expect(config.name).toBe(sqlName);
+    });
+  });
+
+  describe('Money columns use NUMERIC(20,6) precision', () => {
+    it.each([
+      ['vehicles.committed_capital', schema.vehicles, 'committed_capital'],
+      ['cash_flow_events.amount', schema.cashFlowEvents, 'amount'],
+      ['valuation_marks.fair_value', schema.valuationMarks, 'fair_value'],
+      ['valuation_marks.cost_basis', schema.valuationMarks, 'cost_basis'],
+      [
+        'lp_vehicle_participation.commitment_amount',
+        schema.lpVehicleParticipation,
+        'commitment_amount',
+      ],
+    ])('%s is NUMERIC(20,6)', (_label, table, columnName) => {
+      const config = getTableConfig(table);
+      const column = config.columns.find((c) => c.name === columnName);
+      expect(column).toBeDefined();
+      const columnDef = column as unknown as {
+        columnType?: string;
+        precision?: number;
+        scale?: number;
+      };
+      expect(columnDef.columnType).toMatch(/Numeric/i);
+      expect(columnDef.precision).toBe(20);
+      expect(columnDef.scale).toBe(6);
+    });
+  });
+
+  describe('CHECK constraints declared on each table', () => {
+    it('vehicles declares type, status, and admin-score CHECKs', () => {
+      const config = getTableConfig(schema.vehicles);
+      const names = config.checks.map((c) => c.name);
+      expect(names).toContain('vehicles_type_check');
+      expect(names).toContain('vehicles_status_check');
+      expect(names).toContain('vehicles_admin_score_check');
+    });
+
+    it('cash_flow_events declares 4 CHECKs (event_type, perspective, status, locked-not-mutable)', () => {
+      const config = getTableConfig(schema.cashFlowEvents);
+      const names = config.checks.map((c) => c.name);
+      expect(names).toContain('cash_flow_event_type_check');
+      expect(names).toContain('cash_flow_perspective_check');
+      expect(names).toContain('cash_flow_status_check');
+      expect(names).toContain('cash_flow_locked_not_mutable');
+    });
+
+    it('valuation_marks declares 3 CHECKs (mark_source, confidence, status)', () => {
+      const config = getTableConfig(schema.valuationMarks);
+      const names = config.checks.map((c) => c.name);
+      expect(names).toContain('valuation_mark_source_check');
+      expect(names).toContain('valuation_confidence_check');
+      expect(names).toContain('valuation_status_check');
+    });
+
+    it('lp_metric_runs declares 3 CHECKs (run_type, perspective, status)', () => {
+      const config = getTableConfig(schema.lpMetricRuns);
+      const names = config.checks.map((c) => c.name);
+      expect(names).toContain('lp_metric_run_type_check');
+      expect(names).toContain('lp_metric_run_perspective_check');
+      expect(names).toContain('lp_metric_run_status_check');
+    });
+
+    it('lp_metric_runs exposes lifecycle concurrency and lock audit columns', () => {
+      const config = getTableConfig(schema.lpMetricRuns);
+      const names = config.columns.map((c) => c.name);
+      expect(names).toContain('version');
+      expect(names).toContain('updated_at');
+      expect(names).toContain('locked_by');
+    });
+
+    it('narrative_runs declares 2 CHECKs (type, status)', () => {
+      const config = getTableConfig(schema.narrativeRuns);
+      const names = config.checks.map((c) => c.name);
+      expect(names).toContain('narrative_type_check');
+      expect(names).toContain('narrative_status_check');
+    });
+
+    it('narrative_runs exposes lifecycle concurrency and review audit columns', () => {
+      const config = getTableConfig(schema.narrativeRuns);
+      const names = config.columns.map((c) => c.name);
+      expect(names).toContain('version');
+      expect(names).toContain('reviewed_by');
+      expect(names).toContain('reviewed_at');
+      expect(names).toContain('updated_at');
+    });
+
+    it('evidence_records declares the num_nonnulls=1 typed-FK CHECK plus 4 enum CHECKs', () => {
+      const config = getTableConfig(schema.evidenceRecords);
+      const names = config.checks.map((c) => c.name);
+      expect(names).toContain('evidence_one_target_check');
+      expect(names).toContain('evidence_source_check');
+      expect(names).toContain('evidence_confidence_check');
+      expect(names).toContain('evidence_materiality_check');
+      expect(names).toContain('evidence_confidentiality_check');
+    });
+
+    it('lp_report_packages declares assembled status CHECK', () => {
+      const config = getTableConfig(schema.lpReportPackages);
+      const names = config.checks.map((c) => c.name);
+      expect(names).toContain('lp_report_package_status_check');
+    });
+
+    it('lp_report_package_exports declares format, version, status, hash, and size CHECKs', () => {
+      const config = getTableConfig(schema.lpReportPackageExports);
+      const names = config.checks.map((c) => c.name);
+      expect(names).toContain('lp_report_package_export_format_check');
+      expect(names).toContain('lp_report_package_export_version_check');
+      expect(names).toContain('lp_report_package_export_status_check');
+      expect(names).toContain('lp_report_package_export_hash_algorithm_check');
+      expect(names).toContain('lp_report_package_export_hash_check');
+      expect(names).toContain('lp_report_package_export_artifact_size_check');
+
+      const source = fs.readFileSync(
+        path.join(process.cwd(), 'shared', 'schema', 'lp-reporting-evidence.ts'),
+        'utf8'
+      );
+      expect(source).toContain("format} IN ('json','csv')");
+    });
+
+    it('lp_vehicle_participation declares the status CHECK', () => {
+      const config = getTableConfig(schema.lpVehicleParticipation);
+      const names = config.checks.map((c) => c.name);
+      expect(names).toContain('lp_participation_status_check');
+    });
+  });
+
+  describe('Evidence target FK exclusivity (typed FKs, no polymorphic target_type)', () => {
+    it('exposes 4 typed nullable FKs and no target_type column', () => {
+      const config = getTableConfig(schema.evidenceRecords);
+      const names = config.columns.map((c) => c.name);
+      expect(names).toContain('valuation_mark_id');
+      expect(names).toContain('company_id');
+      expect(names).toContain('metric_run_id');
+      expect(names).toContain('narrative_run_id');
+      expect(names).toContain('idempotency_key');
+      expect(names).not.toContain('target_type');
+      expect(names).not.toContain('target_id');
+    });
+  });
+
+  describe('Foreign-key lookup indexes', () => {
+    it('indexes every evidence target FK, including narrative_run_id', () => {
+      const config = getTableConfig(schema.evidenceRecords);
+      const names = config.indexes.map((idx) => idx.config.name);
+      expect(names).toContain('idx_evidence_valuation_mark');
+      expect(names).toContain('idx_evidence_company');
+      expect(names).toContain('idx_evidence_metric_run');
+      expect(names).toContain('idx_evidence_narrative_run');
+      expect(names).toContain('evidence_records_metric_run_idempotency_unique');
+    });
+
+    it('indexes report packages by metric run and fund', () => {
+      const config = getTableConfig(schema.lpReportPackages);
+      const names = config.indexes.map((idx) => idx.config.name);
+      expect(names).toContain('lp_report_packages_metric_run_unique');
+      expect(names).toContain('idx_lp_report_packages_fund_metric');
+      expect(names).toContain('idx_lp_report_packages_fund_assembled_at');
+    });
+
+    it('indexes report package exports by natural key and route scope', () => {
+      const config = getTableConfig(schema.lpReportPackageExports);
+      const names = config.indexes.map((idx) => idx.config.name);
+      expect(names).toContain('lp_report_package_exports_package_format_version_unique');
+      expect(names).toContain('idx_lp_report_package_exports_fund_metric');
+      expect(names).toContain('idx_lp_report_package_exports_fund_metric_package');
+      expect(names).toContain('idx_lp_report_package_exports_fund_ready_at');
+    });
+
+    it('indexes parent FKs used by narrative and participation history flows', () => {
+      const narrativeConfig = getTableConfig(schema.narrativeRuns);
+      const participationConfig = getTableConfig(schema.lpVehicleParticipation);
+      const historyConfig = getTableConfig(schema.lpVehicleParticipationHistory);
+      expect(narrativeConfig.indexes.map((idx) => idx.config.name)).toContain(
+        'idx_narrative_runs_metric_run'
+      );
+      expect(narrativeConfig.indexes.map((idx) => idx.config.name)).toContain(
+        'narrative_runs_metric_run_type_unique'
+      );
+      expect(participationConfig.indexes.map((idx) => idx.config.name)).toContain(
+        'idx_lp_vehicle_participation_vehicle'
+      );
+      expect(historyConfig.indexes.map((idx) => idx.config.name)).toContain(
+        'idx_lp_vehicle_participation_history_parent_changed_at'
+      );
+    });
+  });
+
+  describe('Metric-run evidence idempotency migration', () => {
+    it('adds the idempotency key column and fund/metric-run/key unique index', () => {
+      const up = fs.readFileSync(
+        path.join(
+          process.cwd(),
+          'server',
+          'migrations',
+          '20260510_lp_reporting_metric_run_evidence_idempotency_v1.up.sql'
+        ),
+        'utf8'
+      );
+
+      expect(up).toMatch(/ADD COLUMN IF NOT EXISTS idempotency_key varchar\(128\)/i);
+      expect(up).toMatch(
+        /CREATE UNIQUE INDEX IF NOT EXISTS evidence_records_metric_run_idempotency_unique/i
+      );
+      expect(up).toMatch(
+        /ON evidence_records\s*\(\s*fund_id\s*,\s*metric_run_id\s*,\s*idempotency_key\s*\)/i
+      );
+      expect(up).toMatch(/WHERE idempotency_key IS NOT NULL/i);
+    });
+
+    it('rolls back only the metric-run evidence idempotency surface', () => {
+      const down = fs.readFileSync(
+        path.join(
+          process.cwd(),
+          'server',
+          'migrations',
+          '20260510_lp_reporting_metric_run_evidence_idempotency_v1.down.sql'
+        ),
+        'utf8'
+      );
+
+      expect(down).toMatch(/DROP INDEX IF EXISTS evidence_records_metric_run_idempotency_unique/i);
+      expect(down).toMatch(/DROP COLUMN IF EXISTS idempotency_key/i);
+      expect(down).not.toMatch(/DROP TABLE/i);
+      expect(down).not.toMatch(
+        /DROP COLUMN IF EXISTS (valuation_mark_id|company_id|metric_run_id|narrative_run_id)/i
+      );
+    });
+  });
+
+  describe('Narrative-run uniqueness migration', () => {
+    it('declares the one-draft-per-type unique index in schema and migrations', () => {
+      const narrativeConfig = getTableConfig(schema.narrativeRuns);
+      expect(narrativeConfig.indexes.map((idx) => idx.config.name)).toContain(
+        'narrative_runs_metric_run_type_unique'
+      );
+
+      // The migration files are checked with lightweight source assertions so
+      // this unit test catches schema/DDL drift without opening a DB.
+      const up = fs.readFileSync(
+        path.join(
+          process.cwd(),
+          'server',
+          'migrations',
+          '20260510_lp_reporting_narrative_run_foundation_v1.up.sql'
+        ),
+        'utf8'
+      );
+      const down = fs.readFileSync(
+        path.join(
+          process.cwd(),
+          'server',
+          'migrations',
+          '20260510_lp_reporting_narrative_run_foundation_v1.down.sql'
+        ),
+        'utf8'
+      );
+
+      expect(up).toMatch(
+        /CREATE UNIQUE INDEX IF NOT EXISTS narrative_runs_metric_run_type_unique/i
+      );
+      expect(up).toMatch(/ON narrative_runs\s*\(\s*metric_run_id\s*,\s*narrative_type\s*\)/i);
+      expect(down).toMatch(/DROP INDEX IF EXISTS narrative_runs_metric_run_type_unique/i);
+    });
+  });
+
+  describe('Narrative-run lifecycle migration', () => {
+    it('adds and removes optimistic locking and review audit columns', () => {
+      const up = fs.readFileSync(
+        path.join(
+          process.cwd(),
+          'server',
+          'migrations',
+          '20260510_lp_reporting_narrative_lifecycle_v1.up.sql'
+        ),
+        'utf8'
+      );
+      const down = fs.readFileSync(
+        path.join(
+          process.cwd(),
+          'server',
+          'migrations',
+          '20260510_lp_reporting_narrative_lifecycle_v1.down.sql'
+        ),
+        'utf8'
+      );
+
+      expect(up).toMatch(/ADD COLUMN IF NOT EXISTS version INTEGER NOT NULL DEFAULT 1/i);
+      expect(up).toMatch(/ADD COLUMN IF NOT EXISTS reviewed_by INTEGER REFERENCES users\(id\)/i);
+      expect(up).toMatch(/ADD COLUMN IF NOT EXISTS reviewed_at TIMESTAMP WITH TIME ZONE/i);
+      expect(down).toMatch(/DROP COLUMN IF EXISTS reviewed_at/i);
+      expect(down).toMatch(/DROP COLUMN IF EXISTS reviewed_by/i);
+      expect(down).toMatch(/DROP COLUMN IF EXISTS version/i);
+    });
+  });
+
+  describe('Report-package migration', () => {
+    it('creates and drops the report package table, indexes, and constraints', () => {
+      const up = fs.readFileSync(
+        path.join(
+          process.cwd(),
+          'server',
+          'migrations',
+          '20260510_lp_reporting_report_packages_v1.up.sql'
+        ),
+        'utf8'
+      );
+      const down = fs.readFileSync(
+        path.join(
+          process.cwd(),
+          'server',
+          'migrations',
+          '20260510_lp_reporting_report_packages_v1.down.sql'
+        ),
+        'utf8'
+      );
+
+      expect(up).toMatch(/CREATE TABLE IF NOT EXISTS lp_report_packages/i);
+      expect(up).toMatch(/narrative_refs JSONB NOT NULL DEFAULT '\[\]'::jsonb/i);
+      expect(up).toMatch(/payload JSONB NOT NULL DEFAULT '\{\}'::jsonb/i);
+      expect(up).toMatch(/CONSTRAINT lp_report_package_status_check CHECK/i);
+      expect(up).toMatch(/CREATE UNIQUE INDEX IF NOT EXISTS lp_report_packages_metric_run_unique/i);
+      expect(down).toMatch(/DROP TABLE IF EXISTS lp_report_packages/i);
+    });
+  });
+
+  describe('Report-package export migration', () => {
+    it('creates and drops the stored JSON export table, indexes, and constraints', () => {
+      const up = fs.readFileSync(
+        path.join(
+          process.cwd(),
+          'server',
+          'migrations',
+          '20260510_z_lp_reporting_report_package_exports_v1.up.sql'
+        ),
+        'utf8'
+      );
+      const down = fs.readFileSync(
+        path.join(
+          process.cwd(),
+          'server',
+          'migrations',
+          '20260510_z_lp_reporting_report_package_exports_v1.down.sql'
+        ),
+        'utf8'
+      );
+
+      expect(up).toMatch(/CREATE TABLE IF NOT EXISTS lp_report_package_exports/i);
+      expect(up).toMatch(/artifact_payload JSONB NOT NULL/i);
+      expect(up).toMatch(/CONSTRAINT lp_report_package_export_format_check CHECK/i);
+      expect(up).toMatch(
+        /CREATE UNIQUE INDEX IF NOT EXISTS lp_report_package_exports_package_format_version_unique/i
+      );
+      expect(up).toMatch(/ON lp_report_package_exports\(fund_id, metric_run_id\)/i);
+      expect(down).toMatch(/DROP TABLE IF EXISTS lp_report_package_exports/i);
+    });
+
+    it('sorts after the report package migration it references', () => {
+      const names = fs
+        .readdirSync(path.join(process.cwd(), 'server', 'migrations'))
+        .filter((name) => name.includes('lp_reporting_report_package'))
+        .sort();
+      const packageUp = '20260510_lp_reporting_report_packages_v1.up.sql';
+      const packageDown = '20260510_lp_reporting_report_packages_v1.down.sql';
+      const exportsUp = '20260510_z_lp_reporting_report_package_exports_v1.up.sql';
+      const exportsDown = '20260510_z_lp_reporting_report_package_exports_v1.down.sql';
+
+      expect(names.indexOf(packageUp)).toBeLessThan(names.indexOf(exportsUp));
+      expect(names.indexOf(packageDown)).toBeLessThan(names.indexOf(exportsDown));
+    });
+
+    it('expands the stored export format constraint to CSV and can restore JSON-only', () => {
+      const up = fs.readFileSync(
+        path.join(
+          process.cwd(),
+          'server',
+          'migrations',
+          '20260510_zz_lp_reporting_report_package_exports_csv_format_v1.up.sql'
+        ),
+        'utf8'
+      );
+      const down = fs.readFileSync(
+        path.join(
+          process.cwd(),
+          'server',
+          'migrations',
+          '20260510_zz_lp_reporting_report_package_exports_csv_format_v1.down.sql'
+        ),
+        'utf8'
+      );
+
+      expect(up).toMatch(/DROP CONSTRAINT IF EXISTS lp_report_package_export_format_check/i);
+      expect(up).toContain("CHECK (format IN ('json','csv'))");
+      expect(down).toMatch(/DROP CONSTRAINT IF EXISTS lp_report_package_export_format_check/i);
+      expect(down).toMatch(/DELETE FROM lp_report_package_exports\s+WHERE format = 'csv'/i);
+      expect(down).toContain("CHECK (format IN ('json'))");
+    });
+  });
+
+  describe('Type inference compiles', () => {
+    it('produces $inferSelect / $inferInsert types for each table', () => {
+      // Compile-time assertions via type-only declarations. Existence at
+      // runtime is sufficient evidence the inferred types are present.
+      const vehicleSelect: schema.Vehicle | null = null;
+      const cfeSelect: schema.CashFlowEvent | null = null;
+      const vmSelect: schema.ValuationMark | null = null;
+      const mrSelect: schema.LpMetricRun | null = null;
+      const nrSelect: schema.NarrativeRun | null = null;
+      const erSelect: schema.EvidenceRecord | null = null;
+      const rpkSelect: schema.LpReportPackage | null = null;
+      const rpkeSelect: schema.LpReportPackageExport | null = null;
+      const lvpSelect: schema.LpVehicleParticipation | null = null;
+      const lvphSelect: schema.LpVehicleParticipationHistory | null = null;
+      expect([
+        vehicleSelect,
+        cfeSelect,
+        vmSelect,
+        mrSelect,
+        nrSelect,
+        erSelect,
+        rpkSelect,
+        rpkeSelect,
+        lvpSelect,
+        lvphSelect,
+      ]).toHaveLength(10);
+    });
+  });
+});

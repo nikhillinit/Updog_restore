@@ -151,15 +151,15 @@ export default function AllocationModeling({ fundData }: AllocationModelingProps
   const getStageColor = (type: string) => {
     switch (type) {
       case 'seed':
-        return 'bg-green-500';
+        return 'bg-pov-charcoal';
       case 'series-a':
-        return 'bg-blue-500';
+        return 'bg-presson-positive';
       case 'series-b':
-        return 'bg-purple-500';
+        return 'bg-presson-info';
       case 'growth':
-        return 'bg-orange-500';
+        return 'bg-success';
       default:
-        return 'bg-gray-500';
+        return 'bg-charcoal-500';
     }
   };
 
@@ -230,7 +230,7 @@ export default function AllocationModeling({ fundData }: AllocationModelingProps
                 <div
                   className={`
                   w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium
-                  ${step.isComplete ? 'bg-green-500 text-white' : 'bg-gray-200 text-gray-600'}
+                  ${step.isComplete ? 'bg-success text-pov-white' : 'bg-pov-gray text-charcoal-600'}
                 `}
                 >
                   {step.step}
@@ -240,7 +240,7 @@ export default function AllocationModeling({ fundData }: AllocationModelingProps
                   <p className="text-sm text-muted-foreground">{step.description}</p>
                 </div>
                 {step.isComplete && (
-                  <Badge variant="secondary" className="bg-green-100 text-green-800">
+                  <Badge variant="secondary" className="bg-success/10 text-success-dark">
                     Complete
                   </Badge>
                 )}

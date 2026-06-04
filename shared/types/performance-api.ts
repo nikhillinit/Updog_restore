@@ -6,6 +6,11 @@
  * - GET /api/funds/:fundId/performance/breakdown
  * - GET /api/funds/:fundId/performance/comparison
  *
+ * These mounted analytics endpoints intentionally return their raw typed
+ * response objects. The row-list endpoints in server/routes/performance-api.ts
+ * (/performance/metrics and /pacing-history) use { success, data, count }
+ * envelopes instead.
+ *
  * @module shared/types/performance-api
  */
 

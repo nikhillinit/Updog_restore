@@ -11,7 +11,13 @@ import { useLPContext } from '@/contexts/LPContext';
 import { useLPCapitalAccount } from '@/hooks/useLPCapitalAccount';
 import CapitalAccountTable from '@/components/lp/CapitalAccountTable';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -53,8 +59,8 @@ export default function LPCapitalAccount() {
       {/* Header */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
-          <h1 className="text-3xl font-bold font-inter text-[#292929]">Capital Account</h1>
-          <p className="text-[#292929]/70 font-poppins mt-1">
+          <h1 className="text-3xl font-bold font-inter text-pov-charcoal">Capital Account</h1>
+          <p className="text-charcoal-600 font-poppins mt-1">
             Transaction history and capital flows
           </p>
         </div>
@@ -66,9 +72,9 @@ export default function LPCapitalAccount() {
       </div>
 
       {/* Filters */}
-      <Card className="bg-white rounded-xl border border-[#E0D8D1] shadow-md">
+      <Card className="bg-white rounded-xl border border-beige-200 shadow-md">
         <CardHeader>
-          <CardTitle className="font-inter text-lg text-[#292929]">Filters</CardTitle>
+          <CardTitle className="font-inter text-lg text-pov-charcoal">Filters</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -100,7 +106,7 @@ export default function LPCapitalAccount() {
             <div className="space-y-2">
               <Label htmlFor="start-date">Start Date</Label>
               <div className="relative">
-                <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[#292929]/50" />
+                <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-charcoal-400" />
                 <Input
                   id="start-date"
                   type="date"
@@ -115,7 +121,7 @@ export default function LPCapitalAccount() {
             <div className="space-y-2">
               <Label htmlFor="end-date">End Date</Label>
               <div className="relative">
-                <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[#292929]/50" />
+                <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-charcoal-400" />
                 <Input
                   id="end-date"
                   type="date"
@@ -132,39 +138,39 @@ export default function LPCapitalAccount() {
       {/* Summary */}
       {accountData && (
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          <Card className="bg-white rounded-xl border border-[#E0D8D1] shadow-md">
+          <Card className="bg-white rounded-xl border border-beige-200 shadow-md">
             <CardContent className="pt-6">
-              <div className="text-2xl font-bold font-inter text-[#292929]">
+              <div className="text-2xl font-bold font-inter text-pov-charcoal">
                 {formatCurrency(accountData.summary.totalCalled)}
               </div>
-              <div className="text-sm font-poppins text-[#292929]/70 mt-1">Total Called</div>
+              <div className="text-sm font-poppins text-charcoal-600 mt-1">Total Called</div>
             </CardContent>
           </Card>
 
-          <Card className="bg-white rounded-xl border border-[#E0D8D1] shadow-md">
+          <Card className="bg-white rounded-xl border border-beige-200 shadow-md">
             <CardContent className="pt-6">
-              <div className="text-2xl font-bold font-inter text-[#292929]">
+              <div className="text-2xl font-bold font-inter text-pov-charcoal">
                 {formatCurrency(accountData.summary.totalDistributed)}
               </div>
-              <div className="text-sm font-poppins text-[#292929]/70 mt-1">Total Distributed</div>
+              <div className="text-sm font-poppins text-charcoal-600 mt-1">Total Distributed</div>
             </CardContent>
           </Card>
 
-          <Card className="bg-white rounded-xl border border-[#E0D8D1] shadow-md">
+          <Card className="bg-white rounded-xl border border-beige-200 shadow-md">
             <CardContent className="pt-6">
-              <div className="text-2xl font-bold font-inter text-[#292929]">
+              <div className="text-2xl font-bold font-inter text-pov-charcoal">
                 {formatCurrency(accountData.summary.currentNav)}
               </div>
-              <div className="text-sm font-poppins text-[#292929]/70 mt-1">Current NAV</div>
+              <div className="text-sm font-poppins text-charcoal-600 mt-1">Current NAV</div>
             </CardContent>
           </Card>
 
-          <Card className="bg-white rounded-xl border border-[#E0D8D1] shadow-md">
+          <Card className="bg-white rounded-xl border border-beige-200 shadow-md">
             <CardContent className="pt-6">
-              <div className="text-2xl font-bold font-inter text-[#292929]">
+              <div className="text-2xl font-bold font-inter text-pov-charcoal">
                 {accountData.summary.transactionCount}
               </div>
-              <div className="text-sm font-poppins text-[#292929]/70 mt-1">Transactions</div>
+              <div className="text-sm font-poppins text-charcoal-600 mt-1">Transactions</div>
             </CardContent>
           </Card>
         </div>

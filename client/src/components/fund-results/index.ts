@@ -6,10 +6,21 @@
 
 export { FundModelScorecard } from './FundModelScorecard';
 export { ReserveAllocationBreakdown } from './ReserveAllocationBreakdown';
-export { ScenarioComparisonTable } from './ScenarioComparisonTable';
+export {
+  ScenarioComparisonTable,
+  SCENARIO_COMPARISON_METRIC_KEYS,
+} from './ScenarioComparisonTable';
+export {
+  CrossSetScenarioComparisonTable,
+  isComparableFeeProfileComparison,
+} from './CrossSetScenarioComparisonTable';
+export { ScenarioSetsSummary } from './ScenarioSetsSummary';
 export { EngineMetricsGrid } from './EngineMetricsGrid';
 
 export type { FundModelScorecardProps } from './FundModelScorecard';
 export type { ReserveAllocationBreakdownProps } from './ReserveAllocationBreakdown';
 export type { ScenarioComparisonTableProps } from './ScenarioComparisonTable';
+export type { CrossSetScenarioComparisonTableProps } from './CrossSetScenarioComparisonTable';
+export type { FundScenarioComparisonV1 } from '@shared/contracts/fund-scenario-comparison-v1.contract';
+export type { ScenarioSetsSummaryProps } from './ScenarioSetsSummary';
 export type { EngineMetricsGridProps } from './EngineMetricsGrid';

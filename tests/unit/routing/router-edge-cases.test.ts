@@ -15,8 +15,10 @@
  */
 
 import { describe, test, expect, beforeAll } from 'vitest';
+import { execFile } from 'node:child_process';
 import fs from 'node:fs/promises';
 import path from 'node:path';
+import { promisify } from 'node:util';
 
 interface Pattern {
   id: string;
@@ -40,13 +42,33 @@ interface RouterIndex {
 }
 
 let routerIndex: RouterIndex;
+const execFileAsync = promisify(execFile);
+
+function isMissingFileError(error: unknown): boolean {
+  return typeof error === 'object' && error !== null && 'code' in error && error.code === 'ENOENT';
+}
+
+async function readGeneratedRouter(routerPath: string): Promise<string> {
+  try {
+    return await fs.readFile(routerPath, 'utf-8');
+  } catch (error) {
+    if (!isMissingFileError(error)) {
+      throw error;
+    }
+
+    const tsxCliPath = path.join(process.cwd(), 'node_modules/tsx/dist/cli.mjs');
+    await execFileAsync(process.execPath, [tsxCliPath, 'scripts/generate-discovery-map.ts'], {
+      cwd: process.cwd(),
+      maxBuffer: 10 * 1024 * 1024,
+      windowsHide: true,
+    });
+    return fs.readFile(routerPath, 'utf-8');
+  }
+}
 
 beforeAll(async () => {
-  const routerPath = path.join(
-    process.cwd(),
-    'docs/_generated/router-fast.json'
-  );
-  const content = await fs.readFile(routerPath, 'utf-8');
+  const routerPath = path.join(process.cwd(), 'docs/_generated/router-fast.json');
+  const content = await readGeneratedRouter(routerPath);
   routerIndex = JSON.parse(content);
 });
 
@@ -60,9 +82,7 @@ function routeQuery(query: string): Pattern | null {
 
   for (const pattern of routerIndex.patterns) {
     const keywords = pattern.match_any_normalized || pattern.match_any;
-    const matchedKeywords = keywords.filter((kw) =>
-      queryLower.includes(kw.toLowerCase())
-    );
+    const matchedKeywords = keywords.filter((kw) => queryLower.includes(kw.toLowerCase()));
 
     if (matchedKeywords.length > 0) {
       // Score: number of matched keywords
@@ -274,12 +294,15 @@ describe('Phoenix Domain Routing', () => {
     ['gp lp waterfall split', 'waterfall-specialist', 'phoenix_waterfall'],
     ['management fee calculation', 'xirr-fees-validator', 'phoenix_xirr'],
     ['numeric drift decimal', 'phoenix-precision-guardian', 'phoenix_precision'],
-  ])('query "%s" routes to agent "%s" via pattern "%s"', (query, expectedAgent, expectedPattern) => {
-    const result = routeQuery(query);
-    expect(result).not.toBeNull();
-    expect(result!.id).toBe(expectedPattern);
-    expect(result!.agent).toBe(expectedAgent);
-  });
+  ])(
+    'query "%s" routes to agent "%s" via pattern "%s"',
+    (query, expectedAgent, expectedPattern) => {
+      const result = routeQuery(query);
+      expect(result).not.toBeNull();
+      expect(result!.id).toBe(expectedPattern);
+      expect(result!.agent).toBe(expectedAgent);
+    }
+  );
 
   test('reserves query routes to phoenix_engines', () => {
     const result = routeQuery('reserve engine allocation');
@@ -378,7 +401,8 @@ describe('Skill Routing', () => {
     expect(result).not.toBeNull();
     // Should match planning pattern
     expect(result!.id).toBe('planning');
-    expect(result!.route_to).toContain('writing-plans');
+    expect(result!.route_to).toBe('docs/commands-and-plugins-inventory.md');
+    expect(result!.why).toContain('Superpowers writing-plans');
   });
 
   test('brainstorm query routes based on substring matching', () => {

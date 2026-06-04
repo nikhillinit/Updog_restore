@@ -26,8 +26,14 @@ async function loadNavigationModules() {
   const navigation = await import('@/components/layout/navigation-config');
   const sidebar = (await import('@/components/layout/sidebar')).default;
   const expandableSidebar = (await import('@/components/layout/expandable-sidebar')).default;
+  const { MobileNavigation } = await import('@/App');
 
-  return { Sidebar: sidebar, ExpandableSidebar: expandableSidebar, ...navigation };
+  return {
+    Sidebar: sidebar,
+    ExpandableSidebar: expandableSidebar,
+    MobileNavigation,
+    ...navigation,
+  };
 }
 
 function hoverSidebar(container: HTMLElement) {
@@ -55,10 +61,14 @@ describe('sidebar results navigation', () => {
     expect(navigation.getNavigationItems().some((item) => item.id === 'model-results')).toBe(true);
   });
 
-  it('omits planning from the navigation by default', async () => {
+  it('omits archived placeholder routes from the navigation by default', async () => {
     const { getNavigationItems } = await loadNavigationModules();
 
-    expect(getNavigationItems().some((item) => item.id === 'planning')).toBe(false);
+    const ids = getNavigationItems().map((item) => item.id);
+    expect(ids).not.toContain('planning');
+    expect(ids).not.toContain('kpi-manager');
+    expect(ids).not.toContain('kpi-submission');
+    expect(ids).not.toContain('investments');
   });
 
   it('keeps the main navigation limited to the governed core perimeter', async () => {
@@ -72,6 +82,7 @@ describe('sidebar results navigation', () => {
       'financial-modeling',
       'model-results',
       'sensitivity-analysis',
+      'variance-tracking',
       'reports',
     ]);
   });
@@ -107,6 +118,24 @@ describe('sidebar results navigation', () => {
     expect(getActiveNavigationId('/model-results')).toBe('model-results');
     expect(getActiveNavigationId('/forecasting')).toBe('financial-modeling');
     expect(getActiveNavigationId('/sensitivity-analysis')).toBe('sensitivity-analysis');
+    expect(getActiveNavigationId('/variance-tracking')).toBe('variance-tracking');
+    expect(getActiveNavigationId('/variance-tracking?tab=reports')).toBe('variance-tracking');
+  });
+
+  it('renders and marks the Variance Tracking route active', async () => {
+    const { Sidebar } = await loadNavigationModules();
+    const { Wrapper } = createWouterWrapper('/variance-tracking');
+    const { container } = render(
+      <Wrapper>
+        <Sidebar activeModule="variance-tracking" />
+      </Wrapper>
+    );
+
+    hoverSidebar(container);
+
+    const link = screen.getByRole('link', { name: /variance tracking/i });
+    expect(link.getAttribute('href')).toBe('/variance-tracking');
+    expect(link).toHaveAttribute('aria-current', 'page');
   });
 
   it('renders a fund-scoped model results link when a current fund is available', async () => {
@@ -152,6 +181,141 @@ describe('sidebar results navigation', () => {
     const link = screen.getByRole('link', { name: /performance/i });
     expect(link.getAttribute('href')).toBe('/performance');
     expect(link).toHaveAttribute('title', 'Performance');
+  });
+
+  it('keeps every governed desktop item discoverable by accessible name while collapsed', async () => {
+    const { Sidebar, getNavigationItems, getFooterNavigationItems } = await loadNavigationModules();
+    const { Wrapper } = createWouterWrapper('/dashboard');
+
+    render(
+      <Wrapper>
+        <Sidebar activeModule="dashboard" />
+      </Wrapper>
+    );
+
+    const items = [...getNavigationItems(), ...getFooterNavigationItems()];
+    for (const item of items) {
+      expect(screen.getByRole('link', { name: item.label })).toBeInTheDocument();
+    }
+  });
+
+  it('keeps expanded desktop links aligned with the shared navigation hrefs', async () => {
+    const { Sidebar, getNavigationItems, getFooterNavigationItems, resolveNavigationHref } =
+      await loadNavigationModules();
+    const { Wrapper } = createWouterWrapper('/dashboard');
+    const { container } = render(
+      <Wrapper>
+        <Sidebar activeModule="dashboard" />
+      </Wrapper>
+    );
+
+    hoverSidebar(container);
+
+    const context = {
+      location: '/dashboard',
+      currentFundId: 7,
+      needsSetup: false,
+    };
+
+    for (const item of [...getNavigationItems(), ...getFooterNavigationItems()]) {
+      const expectedHref = resolveNavigationHref(item, context);
+      if (!expectedHref) continue;
+      expect(screen.getByRole('link', { name: item.label }).getAttribute('href')).toBe(
+        expectedHref
+      );
+    }
+  });
+
+  it('marks normal active routes with aria-current', async () => {
+    const { Sidebar } = await loadNavigationModules();
+    const { Wrapper } = createWouterWrapper('/performance');
+    const { container } = render(
+      <Wrapper>
+        <Sidebar activeModule="performance" />
+      </Wrapper>
+    );
+
+    hoverSidebar(container);
+
+    expect(screen.getByRole('link', { name: /performance/i })).toHaveAttribute(
+      'aria-current',
+      'page'
+    );
+  });
+
+  it('explains setup-gated disabled navigation controls', async () => {
+    mockFundContext = {
+      currentFund: {
+        id: 7,
+        name: 'Fund Seven',
+        size: 25_000_000,
+      },
+      needsSetup: true,
+    };
+
+    const { Sidebar } = await loadNavigationModules();
+    const { Wrapper } = createWouterWrapper('/dashboard');
+    const { container } = render(
+      <Wrapper>
+        <Sidebar activeModule="dashboard" />
+      </Wrapper>
+    );
+
+    hoverSidebar(container);
+
+    const dashboard = screen.getByRole('button', { name: /dashboard/i });
+    expect(dashboard).toBeDisabled();
+    expect(dashboard).toHaveAttribute('aria-describedby', 'sidebar-disabled-reason-dashboard');
+    expect(document.getElementById('sidebar-disabled-reason-dashboard')).toHaveTextContent(
+      'Complete fund setup to access this route.'
+    );
+  });
+
+  it('does not render legacy chart-category controls in the navigation rail', async () => {
+    const { Sidebar } = await loadNavigationModules();
+    const { Wrapper } = createWouterWrapper('/dashboard');
+    const { container } = render(
+      <Wrapper>
+        <Sidebar activeModule="dashboard" />
+      </Wrapper>
+    );
+
+    hoverSidebar(container);
+
+    expect(screen.queryByRole('button', { name: /chart types/i })).not.toBeInTheDocument();
+    expect(screen.queryByText('Basic Charts')).not.toBeInTheDocument();
+  });
+
+  it('keeps mobile navigation links on the same shared route map', async () => {
+    const {
+      MobileNavigation,
+      getNavigationItems,
+      getFooterNavigationItems,
+      resolveNavigationHref,
+    } = await loadNavigationModules();
+    const { Wrapper } = createWouterWrapper('/dashboard');
+    const onNavigate = vi.fn();
+
+    render(
+      <Wrapper>
+        <MobileNavigation activeModule="dashboard" onNavigate={onNavigate} />
+      </Wrapper>
+    );
+
+    const context = {
+      location: '/dashboard',
+      currentFundId: 7,
+      needsSetup: false,
+    };
+
+    for (const item of [...getNavigationItems(), ...getFooterNavigationItems()]) {
+      const expectedHref = resolveNavigationHref(item, context);
+      if (!expectedHref) continue;
+      expect(screen.getByRole('link', { name: item.label }).getAttribute('href')).toBe(
+        expectedHref
+      );
+    }
+    expect(screen.getByRole('link', { name: 'Dashboard' })).toHaveAttribute('aria-current', 'page');
   });
 
   it('keeps the results navigation active and linkable on a deep-linked results route before currentFund hydrates', async () => {

@@ -15,6 +15,7 @@ import { act, fireEvent, render, screen, waitFor, within } from '@testing-librar
 import React from 'react';
 import { createWouterWrapper } from '../../utils/withWouter';
 import FundModelResultsPage from '../../../client/src/pages/fund-model-results';
+import type { FundScenarioComparisonV1 } from '../../../shared/contracts/fund-scenario-comparison-v1.contract';
 
 describe('FundModelResultsPage (server-backed)', () => {
   let fetchSpy: ReturnType<typeof vi.fn>;
@@ -63,6 +64,8 @@ describe('FundModelResultsPage (server-backed)', () => {
     results?: ReturnType<typeof readyResponse>;
     history?: ReturnType<typeof lifecycleHistoryResponse>;
     comparison?: ReturnType<typeof resultsComparisonResponse>;
+    scenarioComparison?: FundScenarioComparisonV1;
+    scenarioComparisonsById?: Record<string, FundScenarioComparisonV1>;
     recalculateResponse?: {
       success: boolean;
       correlationId: string;
@@ -74,6 +77,7 @@ describe('FundModelResultsPage (server-backed)', () => {
     const results = options?.results ?? readyResponse();
     const history = options?.history ?? lifecycleHistoryResponse();
     const comparison = options?.comparison ?? resultsComparisonResponse();
+    const scenarioComparison = options?.scenarioComparison ?? scenarioComparisonResponse();
     const recalculateStatus = options?.recalculateStatus ?? 200;
     const recalculateResponse = options?.recalculateResponse ?? {
       success: true,
@@ -95,6 +99,15 @@ describe('FundModelResultsPage (server-backed)', () => {
 
       if (url.endsWith('/results-comparison')) {
         return Promise.resolve(jsonResponse(comparison));
+      }
+
+      if (url.includes('/scenario-sets/') && url.endsWith('/comparison')) {
+        const byId = options?.scenarioComparisonsById;
+        const matchedId = url.match(/\/scenario-sets\/([^/]+)\/comparison$/)?.[1];
+        if (byId && matchedId && byId[matchedId]) {
+          return Promise.resolve(jsonResponse(byId[matchedId]));
+        }
+        return Promise.resolve(jsonResponse(scenarioComparison));
       }
 
       if (url.endsWith('/recalculate')) {
@@ -213,6 +226,14 @@ describe('FundModelResultsPage (server-backed)', () => {
     await waitFor(() => {
       expect(screen.getByText('Waterfall Setup')).toBeInTheDocument();
     });
+    const waterfallSection = screen
+      .getByRole('heading', { name: 'Waterfall Setup' })
+      .closest('div');
+    expect(waterfallSection).not.toBeNull();
+    expect(
+      within(waterfallSection as HTMLElement).queryByText(/RUN #|RUN IN PROGRESS/i)
+    ).toBeNull();
+    expect(within(waterfallSection as HTMLElement).queryByText(/CALCULATING|CURRENT/i)).toBeNull();
     expect(screen.getByText('American')).toBeInTheDocument();
     expect(screen.getByText('GP 20% / LP 80%')).toBeInTheDocument();
     expect(screen.getByText('Enabled')).toBeInTheDocument();
@@ -232,6 +253,202 @@ describe('FundModelResultsPage (server-backed)', () => {
     expect(screen.getByText('Total GP Carry')).toBeInTheDocument();
     expect(screen.getByText('Economics Cashflows')).toBeInTheDocument();
     expect(screen.getByText('Waterfall and Carry')).toBeInTheDocument();
+  });
+
+  // -- PR B: section evidence provenance --
+
+  it('renders pacing evidence as lifecycle-backed with config, run, and source', async () => {
+    mockFundPageFetches();
+    await renderPage('/fund-model-results/123');
+
+    const header = await screen.findByTestId('evidence-header-deployment-pacing');
+    expect(within(header).getByText('CONFIG v1')).toBeInTheDocument();
+    expect(within(header).getByText('RUN #10')).toBeInTheDocument();
+    expect(within(header).getByText('SOURCE fund_snapshots')).toBeInTheDocument();
+  });
+
+  it('renders GP economics evidence from the section, not the lifecycle run', async () => {
+    const resp = readyResponse();
+    const economics = validEconomicsSection();
+    economics.configVersion = 2;
+    economics.calculatedAt = '2026-04-01T08:00:00.000Z';
+    resp.sections.economics = economics;
+    mockFundPageFetches({ results: resp });
+    await renderPage('/fund-model-results/123');
+
+    const header = await screen.findByTestId('evidence-header-gp-economics');
+    expect(within(header).getByText('CONFIG v2')).toBeInTheDocument();
+    expect(within(header).getByText('SOURCE fund_snapshots')).toBeInTheDocument();
+    // section evidence wins: no lifecycle run id and no lifecycle config version
+    expect(within(header).queryByText(/^RUN /)).toBeNull();
+    expect(within(header).queryByText('CONFIG v1')).toBeNull();
+  });
+
+  it('renders waterfall evidence as config-backed setup with no calculation run', async () => {
+    const resp = readyResponse();
+    resp.sections.waterfall = {
+      status: 'available',
+      source: 'fund_config',
+      configVersion: 7,
+      publishedAt: '2026-05-01T10:00:00.000Z',
+      payload: {
+        view: 'setup-summary',
+        type: 'american',
+        tierCount: 1,
+        tiers: [
+          {
+            name: 'Tier 1',
+            preferredReturn: 0.08,
+            catchUp: null,
+            gpSplit: 20,
+            lpSplit: 80,
+            condition: 'irr',
+            conditionValue: 0.08,
+          },
+        ],
+        recyclingEnabled: true,
+        recyclingType: 'both',
+        recyclingCap: 25,
+        recyclingPeriod: 24,
+        exitRecyclingRate: 0.5,
+        mgmtFeeRecyclingRate: 0.25,
+        allowFutureRecycling: false,
+      },
+    };
+    mockFundPageFetches({ results: resp });
+    await renderPage('/fund-model-results/123');
+
+    const header = await screen.findByTestId('evidence-header-waterfall-setup');
+    expect(within(header).getByText('CONFIG')).toBeInTheDocument();
+    expect(within(header).getByText('CONFIG v7')).toBeInTheDocument();
+    expect(within(header).getByText('SOURCE fund_config')).toBeInTheDocument();
+    expect(within(header).getByText(/^PUBLISHED /)).toBeInTheDocument();
+    // setup evidence never claims a calculation run or calc freshness
+    expect(within(header).queryByText(/^RUN /)).toBeNull();
+    expect(within(header).queryByText('CURRENT')).toBeNull();
+  });
+
+  it('renders overview evidence as mixed-source without claiming a single source', async () => {
+    mockFundPageFetches();
+    await renderPage('/fund-model-results/123');
+
+    const header = await screen.findByTestId('evidence-header-overview');
+    expect(within(header).getByText('MIXED')).toBeInTheDocument();
+    expect(
+      within(header).getByText('SOURCES funds / fund_snapshots / fund_state')
+    ).toBeInTheDocument();
+    // does not collapse the scorecard to a single false source
+    expect(within(header).queryByText('SOURCE fund_snapshots')).toBeNull();
+    expect(within(header).queryByText(/^RUN /)).toBeNull();
+  });
+
+  it('keeps scenario analysis on scenario-specific evidence with no generic header', async () => {
+    const resp = readyResponse();
+    resp.sections.scenarios = validScenariosSection();
+    mockFundPageFetches({ results: resp });
+    await renderPage('/fund-model-results/123');
+
+    await waitFor(() => {
+      expect(screen.getByText('Scenario Analysis')).toBeInTheDocument();
+    });
+    // a generic lifecycle evidence header is present elsewhere on the page...
+    expect(screen.getByTestId('evidence-header-reserve-allocation')).toBeInTheDocument();
+    // ...but is not mounted on the scenario section heading group
+    const scenarioHeading = screen.getByRole('heading', { name: 'Scenario Analysis' });
+    expect(
+      scenarioHeading.parentElement?.querySelector('[aria-label="Evidence header"]')
+    ).toBeNull();
+    // the scenario summary (with its own provenance) stays visible
+    expect(screen.getByTestId('scenario-sets-summary')).toBeInTheDocument();
+  });
+
+  it('keeps unavailable sections visible without an evidence header hiding them', async () => {
+    mockFundPageFetches();
+    await renderPage('/fund-model-results/123');
+
+    await waitFor(() => {
+      expect(screen.getByText('Waterfall Setup')).toBeInTheDocument();
+    });
+    expect(screen.getByText('GP Economics')).toBeInTheDocument();
+    // default fixture leaves waterfall + economics unavailable: no section
+    // evidence header, but the explanatory panel must still render
+    const waterfallHeading = screen.getByRole('heading', { name: 'Waterfall Setup' });
+    expect(
+      waterfallHeading.parentElement?.querySelector('[aria-label="Evidence header"]')
+    ).toBeNull();
+  });
+
+  it('renders scenario set summaries when scenario results are available', async () => {
+    const resp = readyResponse();
+    resp.sections.scenarios = validScenariosSection();
+    mockFundPageFetches({ results: resp });
+    await renderPage('/fund-model-results/123');
+
+    await waitFor(() => {
+      expect(screen.getByText('Scenario Analysis')).toBeInTheDocument();
+    });
+    expect(screen.getByTestId('scenario-sets-summary')).toBeInTheDocument();
+    expect(screen.getAllByText('Fee sensitivity').length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText('2.10x').length).toBeGreaterThanOrEqual(1);
+    expect(screen.getByRole('link', { name: /open scenario workspace/i })).toHaveAttribute(
+      'href',
+      '/fund-model-results/123/scenarios'
+    );
+  });
+
+  it('fetches and renders scenario-set comparison for calculated scenario sets', async () => {
+    const resp = readyResponse();
+    resp.sections.scenarios = validScenariosSection();
+    mockFundPageFetches({ results: resp, scenarioComparison: scenarioComparisonResponse() });
+    await renderPage('/fund-model-results/123');
+
+    await waitFor(() => {
+      expect(fetchSpy).toHaveBeenCalledWith(
+        '/api/funds/123/scenario-sets/00000000-0000-0000-0000-000000000111/comparison',
+        expect.objectContaining({ credentials: 'include' })
+      );
+    });
+
+    const comparison = await screen.findByTestId('scenario-comparison-table');
+    expect(within(comparison).getByText('Authoritative baseline')).toBeInTheDocument();
+    expect(within(comparison).getByText('Lower fee')).toBeInTheDocument();
+    expect(within(comparison).getAllByText('Net LP IRR').length).toBe(1);
+    expect(within(comparison).getByText(/Higher by \+0\.30x/)).toBeInTheDocument();
+  });
+
+  it('rejects scenario-set comparison payloads that drift from the shared contract', async () => {
+    const resp = readyResponse();
+    resp.sections.scenarios = validScenariosSection();
+    const malformedScenarioComparison = {
+      ...scenarioComparisonResponse(),
+      unexpected: true,
+    } as unknown as FundScenarioComparisonV1;
+    mockFundPageFetches({ results: resp, scenarioComparison: malformedScenarioComparison });
+    await renderPage('/fund-model-results/123');
+
+    expect(
+      await screen.findByText('Scenario comparison could not be loaded for this scenario set.')
+    ).toBeInTheDocument();
+    expect(screen.queryByText('Authoritative baseline')).not.toBeInTheDocument();
+  });
+
+  it('renders a cross-set comparison table when two or more sets are comparable', async () => {
+    const resp = readyResponse();
+    resp.sections.scenarios = twoSetScenariosSection();
+    mockFundPageFetches({
+      results: resp,
+      scenarioComparisonsById: {
+        '00000000-0000-0000-0000-000000000111': scenarioComparisonResponse(),
+        '00000000-0000-0000-0000-000000000222': secondScenarioComparison(),
+      },
+    });
+    await renderPage('/fund-model-results/123');
+
+    const table = await screen.findByTestId('cross-set-scenario-comparison-table');
+    expect(table).toBeInTheDocument();
+    expect(screen.queryByTestId('scenario-comparison-table')).not.toBeInTheDocument();
+    expect(within(table).getByText('Fee sensitivity')).toBeInTheDocument();
+    expect(within(table).getByText('Carry sensitivity')).toBeInTheDocument();
   });
 
   // -- Unavailable sections --
@@ -254,9 +471,10 @@ describe('FundModelResultsPage (server-backed)', () => {
     await renderPage('/fund-model-results/123');
 
     await waitFor(() => {
-      // scenarios and waterfall show the raw reason text
-      const matches = screen.getAllByText(/No authoritative source/i);
-      expect(matches.length).toBeGreaterThanOrEqual(2);
+      expect(
+        screen.getByText(/Create a scenario set to compare alternate fund economics/i)
+      ).toBeInTheDocument();
+      expect(screen.getByText(/No authoritative source/i)).toBeInTheDocument();
     });
   });
 
@@ -385,7 +603,11 @@ describe('FundModelResultsPage (server-backed)', () => {
             reason: 'Calculations have not produced results yet',
             reasonCode: 'CALCULATION_PENDING',
           },
-          scenarios: { status: 'unavailable', reason: 'No authoritative source' },
+          scenarios: {
+            status: 'unavailable',
+            reason: 'No scenario sets exist for this fund',
+            reasonCode: 'SCENARIOS_NONE_EXIST',
+          },
           waterfall: { status: 'unavailable', reason: 'No authoritative source' },
           economics: {
             status: 'pending',
@@ -442,10 +664,104 @@ describe('FundModelResultsPage (server-backed)', () => {
     expect(sizeMatches.length).toBeGreaterThanOrEqual(1);
     expect(screen.getByText('Published Version')).toBeInTheDocument();
     expect(screen.getByText('v1')).toBeInTheDocument();
-    expect(screen.getByText('Dispatch State')).toBeInTheDocument();
-    expect(screen.getByText('Correlation ID')).toBeInTheDocument();
+    expect(screen.queryByText('Dispatch State')).not.toBeInTheDocument();
+    expect(screen.queryByText('Correlation ID')).not.toBeInTheDocument();
+    expect(document.body).not.toHaveTextContent('corr-123');
     expect(screen.getByText('Snapshot Coverage')).toBeInTheDocument();
     expect(screen.getAllByText('RESERVE, PACING').length).toBeGreaterThanOrEqual(1);
+  });
+
+  // -- Evidence headers --
+
+  it('renders READY evidence header segments from lifecycle and section source', async () => {
+    mockFundPageFetches();
+    await renderPage('/fund-model-results/123');
+
+    const header = await screen.findByTestId('evidence-header-reserve-allocation');
+    expect(within(header).getByText('READY')).toBeInTheDocument();
+    expect(within(header).getByText('CONFIG v1')).toBeInTheDocument();
+    expect(within(header).getByText('RUN #10')).toBeInTheDocument();
+    expect(
+      within(header).getByText(`CALCULATED ${formatEvidenceTimestamp('2026-03-20T12:30:00.000Z')}`)
+    ).toBeInTheDocument();
+    expect(within(header).getByText('SOURCE fund_snapshots')).toBeInTheDocument();
+    expect(within(header).getByText('CURRENT')).toBeInTheDocument();
+  });
+
+  it('renders CALCULATING evidence with explanatory pending timestamp copy', async () => {
+    mockFundPageFetches({ results: calculatingResponse({ runId: 10 }) });
+    await renderPage('/fund-model-results/123');
+
+    const header = await screen.findByTestId('evidence-header-reserve-allocation');
+    expect(within(header).getByText('CALCULATING')).toBeInTheDocument();
+    expect(within(header).getByText('CONFIG v1')).toBeInTheDocument();
+    expect(within(header).getByText('RUN IN PROGRESS #10')).toBeInTheDocument();
+    expect(within(header).getByText('CALCULATED PENDING')).toBeInTheDocument();
+    expect(header).not.toHaveTextContent('RUN #10');
+  });
+
+  it('renders FAILED evidence when lifecycle calculation fails', async () => {
+    mockFundPageFetches({ results: failedResponse() });
+    await renderPage('/fund-model-results/123');
+
+    const header = await screen.findByTestId('evidence-header-reserve-allocation');
+    expect(within(header).getAllByText('FAILED').length).toBeGreaterThanOrEqual(1);
+    expect(within(header).getByText('CONFIG v1')).toBeInTheDocument();
+    expect(within(header).getByText('RUN #10')).toBeInTheDocument();
+    expect(
+      screen.getByText(/Worker timed out during reserve snapshot generation/i)
+    ).toBeInTheDocument();
+  });
+
+  it('renders STALE evidence with truthful run and config version', async () => {
+    const resp = readyResponse();
+    resp.lifecycle.configState.publishedVersion = 2;
+    resp.lifecycle.calculationState.configVersion = 1;
+
+    mockFundPageFetches({ results: resp });
+    await renderPage('/fund-model-results/123');
+
+    const header = await screen.findByTestId('evidence-header-reserve-allocation');
+    expect(within(header).getAllByText('STALE').length).toBeGreaterThanOrEqual(1);
+    expect(within(header).getByText('CONFIG v1')).toBeInTheDocument();
+    expect(within(header).getByText('RUN #10')).toBeInTheDocument();
+    expect(within(header).getByText('SOURCE fund_snapshots')).toBeInTheDocument();
+  });
+
+  it('renders UNAVAILABLE evidence without fabricated IDs when lifecycle fields are missing', async () => {
+    const resp = readyResponse();
+    resp.lifecycle.configState.hasPublished = false;
+    resp.lifecycle.configState.publishedVersion = null;
+    resp.lifecycle.configState.publishedAt = null;
+    resp.lifecycle.calculationState.status = 'not_requested';
+    resp.lifecycle.calculationState.configVersion = null;
+    resp.lifecycle.calculationState.runId = null;
+    resp.lifecycle.calculationState.lastCalculatedAt = null;
+
+    mockFundPageFetches({ results: resp, history: { fundId: 123, entries: [] } });
+    await renderPage('/fund-model-results/123');
+
+    const header = await screen.findByTestId('evidence-header-reserve-allocation');
+    expect(within(header).getAllByText('UNAVAILABLE').length).toBeGreaterThanOrEqual(1);
+    expect(within(header).getByText('CONFIG UNAVAILABLE')).toBeInTheDocument();
+    expect(within(header).getByText('RUN UNAVAILABLE')).toBeInTheDocument();
+    expect(within(header).getByText('CALCULATED UNAVAILABLE')).toBeInTheDocument();
+    expect(header).not.toHaveTextContent('RUN #');
+    expect(header).not.toHaveTextContent('CONFIG v');
+  });
+
+  it('renders null configVersion and runId as unavailable evidence segments', async () => {
+    const resp = readyResponse();
+    resp.lifecycle.calculationState.configVersion = null;
+    resp.lifecycle.calculationState.runId = null;
+
+    mockFundPageFetches({ results: resp });
+    await renderPage('/fund-model-results/123');
+
+    const header = await screen.findByTestId('evidence-header-reserve-allocation');
+    expect(within(header).getByText('CONFIG UNAVAILABLE')).toBeInTheDocument();
+    expect(within(header).getByText('RUN UNAVAILABLE')).toBeInTheDocument();
+    expect(header).not.toHaveTextContent('RUN #');
   });
 
   // -- Legacy evidence --
@@ -539,7 +855,8 @@ describe('FundModelResultsPage (server-backed)', () => {
     expect(
       within(diagnosticsCard).getByText(/run 10 did not complete successfully/i)
     ).toBeInTheDocument();
-    expect(within(diagnosticsCard).getByText('test-corr-id')).toBeInTheDocument();
+    expect(within(diagnosticsCard).queryByText('test-corr-id')).not.toBeInTheDocument();
+    expect(within(diagnosticsCard).queryByText('dispatched')).not.toBeInTheDocument();
     expect(
       await screen.findByText(/Worker timed out during reserve snapshot generation/i)
     ).toBeInTheDocument();
@@ -578,6 +895,58 @@ describe('FundModelResultsPage (server-backed)', () => {
         (_, element) => element?.textContent === 'Delta +$20M (+25.0%)'
       )
     ).toBeInTheDocument();
+  });
+
+  it('renders a source-labeled quarterly analytics trace with owned action links', async () => {
+    mockFundPageFetches();
+    await renderPage('/fund-model-results/123');
+
+    const trace = await screen.findByTestId('quarterly-review-trace');
+
+    expect(within(trace).getByText('Quarterly Analytics Trace')).toBeInTheDocument();
+    expect(within(trace).getByText('Are we on plan?')).toBeInTheDocument();
+    expect(within(trace).getByText('Where are the gaps by segment?')).toBeInTheDocument();
+    expect(within(trace).getByText('Which follow-ons need action?')).toBeInTheDocument();
+    expect(within(trace).getByText('What if the model changes?')).toBeInTheDocument();
+    expect(within(trace).getByText('What can LPs receive today?')).toBeInTheDocument();
+
+    expect(within(trace).getByText('Publish comparison')).toBeInTheDocument();
+    expect(within(trace).getByText('Performance breakdown route')).toBeInTheDocument();
+    expect(within(trace).getByText('Reserve snapshot')).toBeInTheDocument();
+    expect(within(trace).getByText('Scenario workspaces')).toBeInTheDocument();
+    expect(within(trace).getByText('Reports workspace')).toBeInTheDocument();
+
+    expect(within(trace).getByRole('link', { name: /Review comparison/i })).toHaveAttribute(
+      'href',
+      '/fund-model-results/123'
+    );
+    expect(
+      within(trace).getByRole('link', { name: /Open performance breakdown/i })
+    ).toHaveAttribute('href', '/performance');
+    expect(within(trace).getByRole('link', { name: /Open reserve planning/i })).toHaveAttribute(
+      'href',
+      '/portfolio?tab=reserve-planning'
+    );
+    expect(within(trace).getByRole('link', { name: /Open sensitivity analysis/i })).toHaveAttribute(
+      'href',
+      '/sensitivity-analysis'
+    );
+    expect(within(trace).getByRole('link', { name: /Open forecasting/i })).toHaveAttribute(
+      'href',
+      '/forecasting?fundId=123'
+    );
+    expect(within(trace).getByRole('link', { name: /Open reports/i })).toHaveAttribute(
+      'href',
+      '/reports'
+    );
+
+    const statuses = within(trace)
+      .getAllByTestId('analytics-trace-status')
+      .map((status) => status.textContent);
+    expect(statuses).toEqual(expect.arrayContaining(['Available', 'Linked', 'Deferred']));
+    expect(within(trace).getByText('Deferred Parity Ledger')).toBeInTheDocument();
+    expect(within(trace).getByText('MOIC distribution')).toBeInTheDocument();
+    expect(within(trace).getByText('Founder benchmarking')).toBeInTheDocument();
   });
 
   it('hides drift when a metric is not marked drift-capable', async () => {
@@ -984,6 +1353,17 @@ describe('FundModelResultsPage (server-backed)', () => {
 
 // -- Helpers --
 
+function formatEvidenceTimestamp(value: string) {
+  return new Intl.DateTimeFormat(undefined, {
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    timeZoneName: 'short',
+  }).format(new Date(value));
+}
+
 function jsonResponse(body: unknown) {
   return new Response(JSON.stringify(body), {
     status: 200,
@@ -1060,7 +1440,11 @@ function readyResponse() {
           lastCalculatedAt: { value: '2026-03-20T12:30:00.000Z', source: 'fund_state' },
         },
       },
-      scenarios: { status: 'unavailable' as const, reason: 'No authoritative source' },
+      scenarios: {
+        status: 'unavailable' as const,
+        reason: 'No scenario sets exist for this fund',
+        reasonCode: 'SCENARIOS_NONE_EXIST' as const,
+      },
       waterfall: { status: 'unavailable' as const, reason: 'No authoritative source' },
       economics: {
         status: 'unavailable' as const,
@@ -1131,6 +1515,157 @@ function validEconomicsSection() {
         errors: [],
       },
     },
+  };
+}
+
+function secondScenariosSet() {
+  const base = validScenariosSection().payload.sets[0]!;
+  return {
+    ...base,
+    scenarioSetId: '00000000-0000-0000-0000-000000000222',
+    name: 'Carry sensitivity',
+    sourceConfigVersion: 5,
+    variants: base.variants.map((variant) => ({
+      ...variant,
+      variantId: '00000000-0000-0000-0000-000000000223',
+      name: 'Higher carry',
+    })),
+  };
+}
+
+function twoSetScenariosSection() {
+  const section = validScenariosSection();
+  return {
+    ...section,
+    payload: {
+      ...section.payload,
+      sets: [section.payload.sets[0]!, secondScenariosSet()],
+    },
+  };
+}
+
+function secondScenarioComparison(): FundScenarioComparisonV1 {
+  const base = scenarioComparisonResponse();
+  return {
+    ...base,
+    scenarioSet: {
+      ...base.scenarioSet,
+      scenarioSetId: '00000000-0000-0000-0000-000000000222',
+      name: 'Carry sensitivity',
+      sourceConfigVersion: 5,
+    },
+    variants: base.variants.map((variant) => ({
+      ...variant,
+      variantId: '00000000-0000-0000-0000-000000000223',
+      name: 'Higher carry',
+    })),
+  };
+}
+
+function validScenariosSection() {
+  return {
+    status: 'available' as const,
+    source: 'fund_snapshots' as const,
+    calculatedAt: '2026-05-26T12:30:00.000Z',
+    payload: {
+      version: 'fund-scenarios-v1' as const,
+      aggregateStaleness: 'CURRENT' as const,
+      sets: [
+        {
+          scenarioSetId: '00000000-0000-0000-0000-000000000111',
+          name: 'Fee sensitivity',
+          sourceConfigId: 12,
+          sourceConfigVersion: 4,
+          calculatedAt: '2026-05-26T12:30:00.000Z',
+          staleness: 'CURRENT' as const,
+          variantCount: 1,
+          variants: [
+            {
+              variantId: '00000000-0000-0000-0000-000000000112',
+              name: 'Lower fee',
+              overrideType: 'fee_profile' as const,
+              economicsSummary: {
+                grossIrr: 0.2,
+                lpNetIrr: 0.15,
+                gpNetIrr: null,
+                totalLpPaidIn: 9_800_000,
+                totalGpCommitmentCalled: 200_000,
+                totalManagementFees: 2_000_000,
+                totalExpenses: 0,
+                totalRecycled: 0,
+                totalLpDistributions: 14_000_000,
+                totalGpInvestmentDistributions: 300_000,
+                totalGpCarryDistributed: 500_000,
+                totalGpFeeIncome: 2_000_000,
+                finalDpi: 0.6,
+                finalRvpi: 0.8,
+                finalTvpi: 2.1,
+                finalClawbackDue: 0,
+                maxEscrowAvailable: 0,
+                netGpCarryAfterClawback: 500_000,
+              },
+            },
+          ],
+        },
+      ],
+    },
+  };
+}
+
+function scenarioComparisonResponse(): FundScenarioComparisonV1 {
+  return {
+    fundId: 123,
+    comparisonStatus: 'comparable',
+    scenarioSet: {
+      scenarioSetId: '00000000-0000-0000-0000-000000000111',
+      name: 'Fee sensitivity',
+      sourceConfigId: 12,
+      sourceConfigVersion: 4,
+    },
+    baseline: {
+      label: 'Authoritative baseline',
+      metrics: {
+        lpNetIrr: 0.15,
+        gpNetIrr: null,
+        totalManagementFees: 2_000_000,
+        totalGpCarryDistributed: 500_000,
+        totalGpFeeIncome: 2_000_000,
+        finalDpi: 0.6,
+        finalTvpi: 1.8,
+        finalClawbackDue: 0,
+      },
+    },
+    variants: [
+      {
+        variantId: '00000000-0000-0000-0000-000000000112',
+        name: 'Lower fee',
+        overrideType: 'fee_profile',
+        metrics: {
+          lpNetIrr: 0.17,
+          gpNetIrr: null,
+          totalManagementFees: 1_500_000,
+          totalGpCarryDistributed: 500_000,
+          totalGpFeeIncome: 1_500_000,
+          finalDpi: 0.7,
+          finalTvpi: 2.1,
+          finalClawbackDue: 0,
+        },
+        metricDeltas: [
+          {
+            metric: 'finalTvpi',
+            displayName: 'TVPI',
+            baselineValue: 1.8,
+            scenarioValue: 2.1,
+            absoluteDelta: 0.3,
+            percentageDelta: 16.6666667,
+            driftCapable: true,
+            driftReason: 'stable',
+          },
+        ],
+      },
+    ],
+    staleness: 'CURRENT',
+    calculatedAt: '2026-05-26T12:30:00.000Z',
   };
 }
 

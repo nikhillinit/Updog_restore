@@ -65,14 +65,14 @@ const WIZARD_STEPS = [
   {
     id: 'distributions',
     number: 5,
-    title: 'EXIT RECYCLING',
-    description: 'Proceeds recycling configuration',
+    title: 'DISTRIBUTIONS & WATERFALL',
+    description: 'Carry waterfall, fees, expenses, and recycling',
   },
   {
     id: 'cashflow-management',
     number: 6,
-    title: 'WATERFALL & CARRY',
-    description: 'Distribution terms and carry structure',
+    title: 'CASHFLOW & LIQUIDITY',
+    description: 'Capital calls, expenses, and liquidity settings',
   },
   {
     id: 'review',
@@ -173,7 +173,7 @@ export default function FundSetup() {
         });
       }}
     >
-      <div data-testid="fund-setup-wizard" className="min-h-screen bg-gray-50">
+      <div data-testid="fund-setup-wizard" className="min-h-screen bg-pov-gray">
         {/* Modern Progress Header - Single unified progress indicator */}
         <ModernWizardProgress steps={stepsWithStatus} currentStepId={key} />
 
@@ -182,7 +182,7 @@ export default function FundSetup() {
             className="flex min-h-[320px] items-center justify-center px-6"
             data-testid="draft-hydrating"
           >
-            <div className="flex items-center gap-3 rounded-xl border border-[#E0D8D1] bg-white px-6 py-4 text-sm font-poppins text-[#292929] shadow-sm">
+            <div className="flex items-center gap-3 rounded-xl border border-beige-200 bg-pov-white px-6 py-4 text-sm font-poppins text-pov-charcoal shadow-sm">
               <Loader2 className="h-4 w-4 animate-spin" />
               Loading saved draft from the server...
             </div>
@@ -193,10 +193,11 @@ export default function FundSetup() {
               <div className="mx-auto max-w-5xl px-4 pt-4 sm:px-6 lg:px-8">
                 {status === 'error' ? (
                   <Alert
-                    className="border-l-4 border-l-red-500 bg-red-50"
+                    aria-live="assertive"
+                    className="border-l-4 border-l-error bg-error/10"
                     data-testid="draft-sync-error"
                   >
-                    <AlertTriangle className="h-4 w-4 text-red-500" />
+                    <AlertTriangle aria-hidden="true" className="h-4 w-4 text-error" />
                     <AlertTitle>Draft Sync Failed</AlertTitle>
                     <AlertDescription className="flex flex-wrap items-center gap-3">
                       <span>{error ?? 'Unable to sync the authoritative draft.'}</span>
@@ -208,7 +209,7 @@ export default function FundSetup() {
                 ) : (
                   <div
                     aria-live="polite"
-                    className="rounded-xl border border-[#E0D8D1] bg-white px-4 py-3 text-sm font-poppins text-[#5F564F] shadow-sm"
+                    className="rounded-xl border border-beige-200 bg-pov-white px-4 py-3 text-sm font-poppins text-charcoal-600 shadow-sm"
                     data-testid="draft-sync-status"
                   >
                     {status === 'saving'

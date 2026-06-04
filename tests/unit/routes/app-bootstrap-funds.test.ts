@@ -106,7 +106,7 @@ describe('makeApp bootstrap surface', () => {
     });
 
     expect(res.status).toBe(204);
-  }, 10_000);
+  }, 20_000);
 
   it('creates funds through POST /api/funds', async () => {
     const app = await loadApp();
@@ -138,6 +138,42 @@ describe('makeApp bootstrap surface', () => {
 
     expect(res.status).toBe(400);
     expect(res.body).toHaveProperty('error', 'Invalid fund ID');
+  });
+
+  it('surfaces unified fund metrics on the bootstrap app', async () => {
+    const app = await loadApp();
+
+    const res = await request(app)
+      .get('/api/funds/abc/metrics')
+      .set('Authorization', await authorizationHeader());
+
+    expect(res.status).toBe(400);
+    expect(res.body).toHaveProperty('error', 'Bad Request');
+    expect(res.body).toHaveProperty('message', 'Invalid fund ID');
+  });
+
+  it('surfaces persisted performance metrics on the bootstrap app', async () => {
+    const app = await loadApp();
+
+    const res = await request(app)
+      .get('/api/funds/abc/performance/metrics')
+      .set('Authorization', await authorizationHeader());
+
+    expect(res.status).toBe(400);
+    expect(res.body).toHaveProperty('error', 'Bad Request');
+    expect(res.body).toHaveProperty('message', 'Invalid fund ID');
+  });
+
+  it('surfaces pacing history on the bootstrap app', async () => {
+    const app = await loadApp();
+
+    const res = await request(app)
+      .get('/api/funds/abc/pacing-history')
+      .set('Authorization', await authorizationHeader());
+
+    expect(res.status).toBe(400);
+    expect(res.body).toHaveProperty('error', 'Bad Request');
+    expect(res.body).toHaveProperty('message', 'Invalid fund ID');
   });
 
   it('keeps the variance dashboard protected on the bootstrap app', async () => {

@@ -10,6 +10,12 @@
 
 import React, { useState, useRef, useEffect, memo } from 'react';
 import { cn } from '@/lib/utils';
+import { getChartColor } from '@/lib/brand-tokens';
+import { presson } from '@/theme/presson.tokens';
+
+const DEFAULT_CHART_COLOR = getChartColor(0);
+const getSegmentColor = (color: string | undefined, index: number) =>
+  color ?? getChartColor(index, true);
 
 // Types for chart data
 export interface ChartDataPoint {
@@ -62,7 +68,7 @@ export const MobileLineChart = memo(function MobileLineChart({
   data,
   height = 120,
   width = 300,
-  color = '#3b82f6',
+  color = DEFAULT_CHART_COLOR,
   showPoints = false,
   animateOnLoad = true,
   className,
@@ -82,7 +88,7 @@ export const MobileLineChart = memo(function MobileLineChart({
     return (
       <div
         ref={chartRef}
-        className={cn('bg-slate-100 rounded animate-pulse', className)}
+        className={cn('bg-pov-gray rounded animate-pulse', className)}
         style={{ height, width }}
       />
     );
@@ -121,7 +127,7 @@ export const MobileLineChart = memo(function MobileLineChart({
               <path
                 d="M 20 0 L 0 0 0 20"
                 fill="none"
-                stroke="#e2e8f0"
+                stroke={presson.color.surfaceSubtle}
                 strokeWidth="0.5"
                 opacity="0.5"
               />
@@ -161,7 +167,7 @@ export const MobileLineChart = memo(function MobileLineChart({
                   cy={y}
                   r="3"
                   fill={color}
-                  stroke="white"
+                  stroke={presson.color.surface}
                   strokeWidth="2"
                   className="opacity-0 animate-fadeIn"
                   style={{ animationDelay: `${index * 100}ms` }}
@@ -223,7 +229,7 @@ export const MobileDonutChart = memo(function MobileDonutChart({
     return (
       <div
         ref={chartRef}
-        className={cn('bg-slate-100 rounded-full animate-pulse', className)}
+        className={cn('bg-pov-gray rounded-full animate-pulse', className)}
         style={{ width: size, height: size }}
       />
     );
@@ -253,7 +259,7 @@ export const MobileDonutChart = memo(function MobileDonutChart({
                   cy={center}
                   r={radius}
                   fill="transparent"
-                  stroke={item.color || `hsl(${index * 137.508}, 50%, 50%)`}
+                  stroke={getSegmentColor(item.color, index)}
                   strokeWidth={selectedSegment === index ? strokeWidth + 2 : strokeWidth}
                   strokeDasharray={strokeDasharray}
                   strokeDashoffset={strokeDashoffset}
@@ -292,18 +298,18 @@ export const MobileDonutChart = memo(function MobileDonutChart({
                   key={index}
                   className={cn(
                     'flex items-center gap-2 p-2 rounded transition-colors cursor-pointer',
-                    selectedSegment === index ? 'bg-slate-100' : 'hover:bg-slate-50'
+                    selectedSegment === index ? 'bg-pov-gray' : 'hover:bg-pov-gray'
                   )}
                   onClick={() => setSelectedSegment(selectedSegment === index ? null : index)}
                 >
                   <div
                     className="w-3 h-3 rounded-full flex-shrink-0"
-                    style={{ backgroundColor: item.color || `hsl(${index * 137.508}, 50%, 50%)` }}
+                    style={{ backgroundColor: getSegmentColor(item.color, index) }}
                   />
-                  <span className="font-poppins text-sm text-slate-700 flex-grow">
+                  <span className="font-poppins text-sm text-charcoal-700 flex-grow">
                     {item.label}
                   </span>
-                  <span className="font-mono text-xs text-slate-500">
+                  <span className="font-mono text-xs text-charcoal-500">
                     {((item.value / total) * 100).toFixed(1)}%
                   </span>
                 </div>
@@ -329,7 +335,7 @@ interface MobileBarChartProps {
 export const MobileBarChart = memo(function MobileBarChart({
   data,
   height = 200,
-  color = '#3b82f6',
+  color = DEFAULT_CHART_COLOR,
   showValues = false,
   horizontal: _horizontal = false,
   className,
@@ -358,7 +364,7 @@ export const MobileBarChart = memo(function MobileBarChart({
     return (
       <div
         ref={chartRef}
-        className={cn('bg-slate-100 rounded animate-pulse', className)}
+        className={cn('bg-pov-gray rounded animate-pulse', className)}
         style={{ height }}
       />
     );
@@ -376,12 +382,14 @@ export const MobileBarChart = memo(function MobileBarChart({
           return (
             <div key={index} className="space-y-1">
               <div className="flex justify-between items-center">
-                <span className="font-poppins text-sm text-slate-700 truncate">{item.label}</span>
+                <span className="font-poppins text-sm text-charcoal-700 truncate">
+                  {item.label}
+                </span>
                 {showValues && (
-                  <span className="font-mono text-xs text-slate-500 ml-2">{item.value}</span>
+                  <span className="font-mono text-xs text-charcoal-500 ml-2">{item.value}</span>
                 )}
               </div>
-              <div className="bg-slate-200 rounded-full h-2 overflow-hidden">
+              <div className="bg-pov-gray rounded-full h-2 overflow-hidden">
                 <div
                   className="h-full rounded-full transition-all duration-1000 ease-out"
                   style={{
@@ -411,7 +419,7 @@ export const Sparkline = memo(function Sparkline({
   data,
   width = 80,
   height = 24,
-  color = '#3b82f6',
+  color = DEFAULT_CHART_COLOR,
   trend,
   className,
 }: SparklineProps) {
@@ -429,7 +437,9 @@ export const Sparkline = memo(function Sparkline({
     })
     .join(' ');
 
-  const trendColor = trend === 'up' ? '#10b981' : trend === 'down' ? '#ef4444' : color;
+  // TODO(a11y): sole-color direction
+  const trendColor =
+    trend === 'up' ? presson.color.positive : trend === 'down' ? presson.color.negative : color;
 
   return (
     <svg
@@ -473,13 +483,13 @@ export function ChartSkeleton({
       {type === 'line' && (
         <div className="space-y-4">
           <div className="flex justify-between">
-            <div className="h-4 bg-slate-200 rounded w-1/4"></div>
-            <div className="h-4 bg-slate-200 rounded w-1/6"></div>
+            <div className="h-4 bg-pov-gray rounded w-1/4"></div>
+            <div className="h-4 bg-pov-gray rounded w-1/6"></div>
           </div>
-          <div className="h-32 bg-slate-200 rounded"></div>
+          <div className="h-32 bg-pov-gray rounded"></div>
           <div className="flex justify-between">
             {Array.from({ length: 5 }).map((_, i) => (
-              <div key={i} className="h-3 bg-slate-200 rounded w-8"></div>
+              <div key={i} className="h-3 bg-pov-gray rounded w-8"></div>
             ))}
           </div>
         </div>
@@ -489,8 +499,8 @@ export function ChartSkeleton({
         <div className="space-y-3">
           {Array.from({ length: 4 }).map((_, i) => (
             <div key={i} className="space-y-2">
-              <div className="h-3 bg-slate-200 rounded w-1/3"></div>
-              <div className="h-2 bg-slate-200 rounded"></div>
+              <div className="h-3 bg-pov-gray rounded w-1/3"></div>
+              <div className="h-2 bg-pov-gray rounded"></div>
             </div>
           ))}
         </div>
@@ -498,12 +508,12 @@ export function ChartSkeleton({
 
       {type === 'donut' && (
         <div className="flex flex-col items-center space-y-4">
-          <div className="w-32 h-32 bg-slate-200 rounded-full"></div>
+          <div className="w-32 h-32 bg-pov-gray rounded-full"></div>
           <div className="space-y-2">
             {Array.from({ length: 3 }).map((_, i) => (
               <div key={i} className="flex items-center space-x-2">
-                <div className="w-3 h-3 bg-slate-200 rounded-full"></div>
-                <div className="h-3 bg-slate-200 rounded w-16"></div>
+                <div className="w-3 h-3 bg-pov-gray rounded-full"></div>
+                <div className="h-3 bg-pov-gray rounded w-16"></div>
               </div>
             ))}
           </div>

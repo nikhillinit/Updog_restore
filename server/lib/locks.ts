@@ -26,7 +26,7 @@ export function generateLockKey(orgId: string, fundId: string): bigint {
   const combined = `${orgId}:${fundId}`;
   const hash = crypto.createHash('sha256').update(combined).digest('hex');
   // Take first 16 hex chars (64 bits) and convert to bigint
-  return BigInt(`0x${  hash.substring(0, 16)}`);
+  return BigInt(`0x${hash.substring(0, 16)}`);
 }
 
 /**
@@ -42,20 +42,17 @@ export async function withFundLock<T>(
   const lockKey = generateLockKey(orgId, fundId);
 
   // Try to acquire lock with timeout
-  const lockResult = await pgClient.query(
-    'SELECT pg_try_advisory_xact_lock($1) as acquired',
-    [lockKey.toString()]
-  );
+  const lockResult = await pgClient.query('SELECT pg_try_advisory_xact_lock($1) as acquired', [
+    lockKey.toString(),
+  ]);
 
   if (!lockResult.rows[0]?.['acquired']) {
     // Lock not immediately available, wait with timeout
     try {
-      await pgClient.query(
-        'SELECT pg_advisory_xact_lock($1)',
-        [lockKey.toString()]
-      );
+      await pgClient.query('SELECT pg_advisory_xact_lock($1)', [lockKey.toString()]);
     } catch (error: unknown) {
-      if ((error as { code?: string }).code === '55P03') { // lock_timeout
+      if ((error as { code?: string }).code === '55P03') {
+        // lock_timeout
         throw new Error(`Failed to acquire lock for fund ${fundId}: timeout`);
       }
       throw error;
@@ -77,10 +74,9 @@ export async function tryFundLock(
 ): Promise<boolean> {
   const lockKey = generateLockKey(orgId, fundId);
 
-  const result = await pgClient.query(
-    'SELECT pg_try_advisory_xact_lock($1) as acquired',
-    [lockKey.toString()]
-  );
+  const result = await pgClient.query('SELECT pg_try_advisory_xact_lock($1) as acquired', [
+    lockKey.toString(),
+  ]);
 
   return result.rows[0]?.['acquired'] as boolean;
 }
@@ -95,9 +91,9 @@ export function requireFundLock() {
     }
 
     if (!req.pgClient) {
-      return res["status"](500)["json"]({
+      return res.status(500).json({
         error: 'internal_error',
-        message: 'Database connection required for locking'
+        message: 'Database connection required for locking',
       });
     }
 
@@ -116,19 +112,19 @@ export function requireFundLock() {
 
         // Wait for lock with timeout
         const lockKey = generateLockKey(req.context.orgId, req.context.fundId);
-        await (req.pgClient as PgClient).query(
-          'SELECT pg_advisory_xact_lock($1)',
-          [lockKey.toString()]
-        );
+        await (req.pgClient as PgClient).query('SELECT pg_advisory_xact_lock($1)', [
+          lockKey.toString(),
+        ]);
       }
 
       next();
     } catch (error: unknown) {
-      if ((error as { code?: string }).code === '55P03') { // lock_timeout
-        return res["status"](503)["json"]({
+      if ((error as { code?: string }).code === '55P03') {
+        // lock_timeout
+        return res.status(503).json({
           error: 'lock_timeout',
           message: 'Could not acquire fund lock due to concurrent operation',
-          retryAfter: 2
+          retryAfter: 2,
         });
       }
       next(error);
@@ -139,12 +135,14 @@ export function requireFundLock() {
 /**
  * Get current advisory locks for monitoring
  */
-export async function getActiveLocks(pgClient: PgClient): Promise<Array<{
-  lockKey: string;
-  pid: number;
-  granted: boolean;
-  mode: string;
-}>> {
+export async function getActiveLocks(pgClient: PgClient): Promise<
+  Array<{
+    lockKey: string;
+    pid: number;
+    granted: boolean;
+    mode: string;
+  }>
+> {
   const result = await pgClient.query(`
     SELECT
       objid::text as lock_key,
@@ -160,7 +158,7 @@ export async function getActiveLocks(pgClient: PgClient): Promise<Array<{
     lockKey: row['lock_key'] as string,
     pid: row['pid'] as number,
     granted: row['granted'] as boolean,
-    mode: row['mode'] as string
+    mode: row['mode'] as string,
   }));
 }
 
@@ -201,16 +199,11 @@ export async function withMultiFundLocks<T>(
   const sortedFundIds = [...fundIds].sort();
 
   // Generate all lock keys
-  const lockKeys = sortedFundIds.map(fundId =>
-    generateLockKey(orgId, fundId)
-  );
+  const lockKeys = sortedFundIds.map((fundId) => generateLockKey(orgId, fundId));
 
   // Try to acquire all locks
   for (const lockKey of lockKeys) {
-    await pgClient.query(
-      'SELECT pg_advisory_xact_lock($1)',
-      [lockKey.toString()]
-    );
+    await pgClient.query('SELECT pg_advisory_xact_lock($1)', [lockKey.toString()]);
   }
 
   // Execute function with all locks held
@@ -251,10 +244,9 @@ export class DistributedLock {
     const startTime = Date.now();
 
     while (Date.now() - startTime < timeoutMs) {
-      const result = await this.pgClient.query(
-        'SELECT pg_try_advisory_lock($1) as acquired',
-        [this.lockKey.toString()]
-      );
+      const result = await this.pgClient.query('SELECT pg_try_advisory_lock($1) as acquired', [
+        this.lockKey.toString(),
+      ]);
 
       if (result.rows[0]?.['acquired']) {
         // Start lease renewal
@@ -263,7 +255,7 @@ export class DistributedLock {
       }
 
       // Wait before retry
-      await new Promise(resolve => setTimeout(resolve, 100));
+      await new Promise((resolve) => setTimeout(resolve, 100));
     }
 
     return false;
@@ -272,20 +264,16 @@ export class DistributedLock {
   async release(): Promise<void> {
     this.stopLeaseRenewal();
 
-    await this.pgClient.query(
-      'SELECT pg_advisory_unlock($1)',
-      [this.lockKey.toString()]
-    );
+    await this.pgClient.query('SELECT pg_advisory_unlock($1)', [this.lockKey.toString()]);
   }
 
   private startLeaseRenewal(): void {
     this.leaseTimer = setInterval(async () => {
       try {
         // Verify we still hold the lock
-        const result = await this.pgClient.query(
-          'SELECT pg_try_advisory_lock($1) as acquired',
-          [this.lockKey.toString()]
-        );
+        const result = await this.pgClient.query('SELECT pg_try_advisory_lock($1) as acquired', [
+          this.lockKey.toString(),
+        ]);
 
         if (!result.rows[0]?.['acquired']) {
           // Lost the lock somehow

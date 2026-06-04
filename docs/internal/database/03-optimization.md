@@ -6,8 +6,8 @@ last_updated: 2026-01-19
 # Database Optimization: Performance & Reliability
 
 **Author**: Database Team **Last Updated**: 2025-11-06 **Status**:
-Production-Ready **Related Docs**: [01-architecture.md](./01-architecture.md),
-[02-queries.md](./02-queries.md)
+Production-Ready **Related Docs**: [01-overview.md](./01-overview.md),
+[02-patterns.md](./02-patterns.md)
 
 ---
 
@@ -552,10 +552,10 @@ PostgreSQL Database
 
 | Metric | Target   | Actual (Production) | Status |
 | ------ | -------- | ------------------- | ------ |
-| p50    | < 100ms  | 45ms                | ✅     |
-| p95    | < 500ms  | 280ms               | ✅     |
-| p99    | < 1000ms | 650ms               | ✅     |
-| Max    | < 2000ms | 1200ms              | ✅     |
+| p50    | < 100ms  | 45ms                | PASS   |
+| p95    | < 500ms  | 280ms               | PASS   |
+| p99    | < 1000ms | 650ms               | PASS   |
+| Max    | < 2000ms | 1200ms              | PASS   |
 
 **Query Performance Targets**:
 
@@ -576,7 +576,7 @@ Cache Hit (warm):  85ms
 Speedup:           4.9x
 ```
 
-**Target**: 3-5x speedup from caching (achieved ✅)
+**Target**: 3-5x speedup from caching (achieved)
 
 ### 4.3 Connection Pool Efficiency
 
@@ -1125,7 +1125,7 @@ DEADLOCK DETECTED!
    await db.transaction(async (tx) => {
      // ... 50 lines of code ...
      // ... multiple queries ...
-     // ... external API calls ... ❌
+     // ... external API calls ... avoid
    });
 
    // Good: Minimal transaction scope
@@ -1459,8 +1459,8 @@ pool.on('connect', (client) => {
 
 ### Internal Documentation
 
-- [Database Architecture](./01-architecture.md) - Schema design, patterns
-- [Query Patterns](./02-queries.md) - Common queries, Drizzle ORM usage
+- [Database Architecture](./01-overview.md) - Schema design, patterns
+- [Query Patterns](./02-patterns.md) - Common queries, Drizzle ORM usage
 - [CRITICAL_OPTIMIZATIONS.md](../../CRITICAL_OPTIMIZATIONS.md) - Historical
   optimization work
 

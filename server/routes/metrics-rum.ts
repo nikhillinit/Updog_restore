@@ -4,6 +4,7 @@ import express from 'express';
 import * as client from 'prom-client';
 import { z } from 'zod';
 import { logger } from '../lib/logger.js';
+import { getRouteErrorMessage as getErrorMessage } from '../lib/errorHandling';
 
 // Create dedicated registry for RUM metrics
 const rumRegistry = new client.Registry();
@@ -95,10 +96,6 @@ function getHistogram(name: string): client.Histogram | null {
   }
 }
 
-function getErrorMessage(error: unknown): string {
-  return error instanceof Error ? error.message : 'Unknown error';
-}
-
 export const metricsRumRouter = Router();
 
 // Import guards
@@ -119,7 +116,7 @@ metricsRumRouter.post(
     try {
       const validation = rumMetricSchema.safeParse(req.body);
       if (!validation.success) {
-        return res['status'](400)['json']({
+        return res.status(400).json({
           error: 'Invalid metric data',
           issues: validation.error.issues,
         });
@@ -141,7 +138,7 @@ metricsRumRouter.post(
 
           if (!processed) {
             // Metric was rejected by v2 validation
-            return res['status'](204)['end']();
+            return res.status(204).end();
           }
         } catch (circuitError) {
           logger.warn(
@@ -179,25 +176,25 @@ metricsRumRouter.post(
       }
 
       // Always return 204 No Content for beacon requests
-      res['status'](204)['end']();
+      res.status(204).end();
     } catch (error: unknown) {
       logger.error({ error: getErrorMessage(error) }, 'Error processing RUM metric');
       // Still return 204 to prevent beacon retries
-      res['status'](204)['end']();
+      res.status(204).end();
     }
   }
 );
 
 // Expose RUM metrics separately from main metrics
 metricsRumRouter['get']('/metrics/rum', (req: Request, res: Response) => {
-  res['set']('Content-Type', rumRegistry.contentType);
+  res.set('Content-Type', rumRegistry.contentType);
   rumRegistry
     .metrics()
     .then((metrics) => {
-      res['send'](metrics);
+      res.send(metrics);
     })
     .catch((error: unknown) => {
-      res['status'](500)['json']({
+      res.status(500).json({
         error: 'Failed to generate metrics',
         message: getErrorMessage(error),
       });
@@ -234,7 +231,7 @@ metricsRumRouter['get']('/metrics/rum/health', async (req: Request, res: Respons
     await syntheticBeaconCounter['get']();
   const syntheticTotal = syntheticCount.values.reduce((sum, metric) => sum + metric.value, 0);
 
-  res['json']({
+  res.json({
     status: 'healthy',
     metrics_received: totalReceived,
     synthetic_beacons: syntheticTotal,

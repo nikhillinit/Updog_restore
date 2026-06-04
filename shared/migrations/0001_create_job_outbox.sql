@@ -24,23 +24,23 @@ CREATE TABLE IF NOT EXISTS job_outbox (
 
 -- Correction #6: Composite index with ORDER BY (next_run_at, created_at) for CTE claiming
 -- Used by: SELECT ... WHERE status='pending' AND next_run_at <= NOW() ORDER BY next_run_at, created_at FOR UPDATE SKIP LOCKED
-CREATE INDEX idx_job_outbox_claim
+CREATE INDEX IF NOT EXISTS idx_job_outbox_claim
   ON job_outbox (next_run_at ASC, created_at ASC)
   WHERE status = 'pending';
 
 -- Correction #6: Index for priority-based job selection with DESC ordering
-CREATE INDEX idx_job_outbox_pending_priority
+CREATE INDEX IF NOT EXISTS idx_job_outbox_pending_priority
   ON job_outbox (status, priority DESC, created_at ASC)
   WHERE status = 'pending';
 
 -- Correction #7: Partial index without NOW() in predicate (invalid in Postgres)
 -- Used by stuck job reaper: WHERE status='processing' AND processing_at < NOW() - make_interval(secs => 300)
-CREATE INDEX idx_job_outbox_processing
+CREATE INDEX IF NOT EXISTS idx_job_outbox_processing
   ON job_outbox (processing_at ASC)
   WHERE status = 'processing';
 
 -- Index for job type filtering (duplicate detection, metrics)
-CREATE INDEX idx_job_outbox_job_type
+CREATE INDEX IF NOT EXISTS idx_job_outbox_job_type
   ON job_outbox (job_type);
 
 -- Updated timestamp trigger

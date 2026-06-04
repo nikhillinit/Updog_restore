@@ -1,3 +1,7 @@
+---
+last_updated: 2026-05-11
+---
+
 # Backtesting Scenario Comparison Rewrite
 
 **Phase:** 02-backtesting-scenario-comparison-rewrite-p1 **Date:** 2026-04-08

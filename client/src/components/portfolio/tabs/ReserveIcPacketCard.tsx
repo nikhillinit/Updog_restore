@@ -40,7 +40,9 @@ function formatSignedCompactCents(value: number | null) {
   return `${value > 0 ? '+' : '-'}${absoluteValue}`;
 }
 
-function formatDecisionLabel(value: ReserveIcPacket['companyRows'][number]['recordedDecisionType']) {
+function formatDecisionLabel(
+  value: ReserveIcPacket['companyRows'][number]['recordedDecisionType']
+) {
   if (!value) {
     return 'No decision';
   }
@@ -58,14 +60,10 @@ function formatDecisionStatusLabel(
   return value.replace('_', ' ');
 }
 
-export function ReserveIcPacketCard({
-  packet,
-  isLoading,
-  error,
-}: ReserveIcPacketCardProps) {
+export function ReserveIcPacketCard({ packet, isLoading, error }: ReserveIcPacketCardProps) {
   if (isLoading) {
     return (
-      <Card className="border-slate-200 bg-white/90">
+      <Card className="border-beige-200 bg-white/90">
         <CardHeader>
           <CardTitle>IC Reserve Packet</CardTitle>
           <CardDescription>Loading current packet evidence…</CardDescription>
@@ -90,7 +88,7 @@ export function ReserveIcPacketCard({
 
   if (!packet) {
     return (
-      <Card className="border-slate-200 bg-white/90">
+      <Card className="border-beige-200 bg-white/90">
         <CardHeader>
           <CardTitle>IC Reserve Packet</CardTitle>
           <CardDescription>Resume a saved scenario to assemble a review packet.</CardDescription>
@@ -100,7 +98,7 @@ export function ReserveIcPacketCard({
   }
 
   return (
-    <Card className="border-slate-200 bg-white/90">
+    <Card className="border-beige-200 bg-white/90">
       <CardHeader>
         <CardTitle>IC Reserve Packet</CardTitle>
         <CardDescription>
@@ -111,7 +109,11 @@ export function ReserveIcPacketCard({
       <CardContent className="space-y-6">
         <div className="flex flex-wrap gap-2">
           {packet.sources.map((source) => (
-            <Badge key={source.source} variant="outline" className="border-slate-300 text-slate-700">
+            <Badge
+              key={source.source}
+              variant="outline"
+              className="border-charcoal-300 text-charcoal-700"
+            >
               {source.source.replace('_', ' ')} · {formatSourceKind(source.kind)} ·{' '}
               {source.asOf ? source.asOf : 'No timestamp'}
             </Badge>
@@ -119,48 +121,54 @@ export function ReserveIcPacketCard({
         </div>
 
         <div className="grid gap-4 lg:grid-cols-2">
-          <div className="rounded-lg border border-slate-200 bg-slate-50/80 p-4">
-            <div className="text-sm font-medium text-slate-950">Published Reserve Summary</div>
+          <div className="rounded-lg border border-beige-200 bg-pov-gray/80 p-4">
+            <div className="text-sm font-medium text-pov-charcoal">Published Reserve Summary</div>
             <div className="mt-3 grid gap-3 sm:grid-cols-3">
               <div>
-                <div className="text-xs uppercase tracking-wide text-slate-500">Total Allocation</div>
-                <div className="mt-1 text-lg font-semibold text-slate-950">
+                <div className="text-xs uppercase tracking-wide text-charcoal-500">
+                  Total Allocation
+                </div>
+                <div className="mt-1 text-lg font-semibold text-pov-charcoal">
                   {packet.publishedReserve.totalAllocation != null
                     ? formatCents(packet.publishedReserve.totalAllocation, { compact: true })
                     : 'Unavailable'}
                 </div>
               </div>
               <div>
-                <div className="text-xs uppercase tracking-wide text-slate-500">Reserve Ratio</div>
-                <div className="mt-1 text-lg font-semibold text-slate-950">
+                <div className="text-xs uppercase tracking-wide text-charcoal-500">
+                  Reserve Ratio
+                </div>
+                <div className="mt-1 text-lg font-semibold text-pov-charcoal">
                   {packet.publishedReserve.reserveRatio != null
                     ? `${(packet.publishedReserve.reserveRatio * 100).toFixed(1)}%`
                     : 'Unavailable'}
                 </div>
               </div>
               <div>
-                <div className="text-xs uppercase tracking-wide text-slate-500">Avg Confidence</div>
-                <div className="mt-1 text-lg font-semibold text-slate-950">
+                <div className="text-xs uppercase tracking-wide text-charcoal-500">
+                  Avg Confidence
+                </div>
+                <div className="mt-1 text-lg font-semibold text-pov-charcoal">
                   {packet.publishedReserve.avgConfidence != null
                     ? `${(packet.publishedReserve.avgConfidence * 100).toFixed(0)}%`
                     : 'Unavailable'}
                 </div>
               </div>
             </div>
-            <p className="mt-3 text-xs text-slate-600">{packet.publishedReserve.note}</p>
+            <p className="mt-3 text-xs text-charcoal-600">{packet.publishedReserve.note}</p>
           </div>
 
-          <div className="rounded-lg border border-slate-200 bg-slate-50/80 p-4">
-            <div className="text-sm font-medium text-slate-950">Publish Comparison Evidence</div>
+          <div className="rounded-lg border border-beige-200 bg-pov-gray/80 p-4">
+            <div className="text-sm font-medium text-pov-charcoal">Publish Comparison Evidence</div>
             {packet.comparison.metricDeltas.length > 0 ? (
               <div className="mt-3 space-y-2">
                 {packet.comparison.metricDeltas.map((delta) => (
                   <div
                     key={delta.metric}
-                    className="flex items-center justify-between rounded-md border border-slate-200 bg-white px-3 py-2 text-sm"
+                    className="flex items-center justify-between rounded-md border border-beige-200 bg-white px-3 py-2 text-sm"
                   >
-                    <span className="text-slate-700">{delta.displayName}</span>
-                    <span className="font-medium text-slate-950">
+                    <span className="text-charcoal-700">{delta.displayName}</span>
+                    <span className="font-medium text-pov-charcoal">
                       {delta.absoluteDelta ?? 'N/A'} /{' '}
                       {delta.percentageDelta != null ? `${delta.percentageDelta}%` : 'N/A'}
                     </span>
@@ -168,47 +176,51 @@ export function ReserveIcPacketCard({
                 ))}
               </div>
             ) : (
-              <p className="mt-3 text-sm text-slate-600">
+              <p className="mt-3 text-sm text-charcoal-600">
                 Comparison status: {packet.comparison.comparisonStatus}
               </p>
             )}
           </div>
         </div>
 
-        <div className="overflow-x-auto rounded-lg border border-slate-200">
+        <div className="overflow-x-auto rounded-lg border border-beige-200">
           <table className="w-full text-sm">
-            <thead className="bg-slate-50">
+            <thead className="bg-pov-gray">
               <tr>
-                <th className="px-3 py-2 text-left font-medium text-slate-700">Company</th>
-                <th className="px-3 py-2 text-right font-medium text-slate-700">Live</th>
-                <th className="px-3 py-2 text-right font-medium text-slate-700">Scenario</th>
-                <th className="px-3 py-2 text-right font-medium text-slate-700">Delta</th>
-                <th className="px-3 py-2 text-left font-medium text-slate-700">Decision</th>
-                <th className="px-3 py-2 text-left font-medium text-slate-700">Status</th>
-                <th className="px-3 py-2 text-left font-medium text-slate-700">Rationale</th>
+                <th className="px-3 py-2 text-left font-medium text-charcoal-700">Company</th>
+                <th className="px-3 py-2 text-right font-medium text-charcoal-700">Live</th>
+                <th className="px-3 py-2 text-right font-medium text-charcoal-700">Scenario</th>
+                <th className="px-3 py-2 text-right font-medium text-charcoal-700">Delta</th>
+                <th className="px-3 py-2 text-left font-medium text-charcoal-700">Decision</th>
+                <th className="px-3 py-2 text-left font-medium text-charcoal-700">Status</th>
+                <th className="px-3 py-2 text-left font-medium text-charcoal-700">Rationale</th>
               </tr>
             </thead>
             <tbody>
               {packet.companyRows.map((row) => (
-                <tr key={row.companyId} className="border-t border-slate-200">
-                  <td className="px-3 py-2 font-medium text-slate-950">{row.companyName}</td>
-                  <td className="px-3 py-2 text-right text-slate-700">
+                <tr key={row.companyId} className="border-t border-beige-200">
+                  <td className="px-3 py-2 font-medium text-pov-charcoal">{row.companyName}</td>
+                  <td className="px-3 py-2 text-right text-charcoal-700">
                     {row.livePlannedReservesCents != null
                       ? formatCents(row.livePlannedReservesCents, { compact: true })
                       : 'N/A'}
                   </td>
-                  <td className="px-3 py-2 text-right text-slate-950">
+                  <td className="px-3 py-2 text-right text-pov-charcoal">
                     {formatCents(row.scenarioPlannedReservesCents, { compact: true })}
                   </td>
-                  <td className="px-3 py-2 text-right text-slate-700">
+                  <td className="px-3 py-2 text-right text-charcoal-700">
                     {formatSignedCompactCents(row.deltaPlannedReservesCents)}
                   </td>
-                  <td className="px-3 py-2 text-slate-700">{formatDecisionLabel(row.recordedDecisionType)}</td>
-                  <td className="px-3 py-2 text-slate-700">
+                  <td className="px-3 py-2 text-charcoal-700">
+                    {formatDecisionLabel(row.recordedDecisionType)}
+                  </td>
+                  <td className="px-3 py-2 text-charcoal-700">
                     {formatDecisionStatusLabel(row.recordedDecisionStatus)}
                   </td>
-                  <td className="px-3 py-2 text-slate-700">
-                    {row.decisionRationale?.trim() || row.rationale?.trim() || 'No rationale recorded'}
+                  <td className="px-3 py-2 text-charcoal-700">
+                    {row.decisionRationale?.trim() ||
+                      row.rationale?.trim() ||
+                      'No rationale recorded'}
                   </td>
                 </tr>
               ))}

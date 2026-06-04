@@ -18,6 +18,12 @@ exclude_paths:
   # This is a PostgreSQL rollback migration; Codacy's SQL Server rules request
   # T-SQL SET directives that would make the migration invalid.
   - 'server/migrations/20260427_public_share_snapshots.down.sql'
+  # This is a PostgreSQL migration; Codacy's SQL Server rules request T-SQL
+  # SET directives that would make the migration invalid.
+  - 'server/db/migrations/0012_scenario_set_id.sql'
+  - 'server/db/migrations/0013_fund_scenario_sets.sql'
+  - 'server/db/migrations/0015_fund_scenario_reserve_allocation.sql'
+  - 'server/db/migrations/0016_fund_scenario_calculation_runs.sql'
   - '**/*.test.ts'
   - '**/*.test.tsx'
   - '**/*.spec.ts'

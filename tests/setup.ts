@@ -1,6 +1,7 @@
 import '@testing-library/jest-dom';
 import 'whatwg-fetch';
 import 'vitest-canvas-mock';
+import { setupVitestCanvasMock } from 'vitest-canvas-mock';
 
 // Polyfill TextEncoder/TextDecoder for libraries that need them
 import { TextEncoder, TextDecoder } from 'node:util';
@@ -47,13 +48,17 @@ beforeAll(() => {
     if (
       typeof args[0] === 'string' &&
       (args[0].includes('Warning: ReactDOM.render') ||
-       args[0].includes('Warning: useLayoutEffect') ||
-       args[0].includes('Not implemented: navigation'))
+        args[0].includes('Warning: useLayoutEffect') ||
+        args[0].includes('Not implemented: navigation'))
     ) {
-      return;  // Suppress known JSDOM warnings
+      return; // Suppress known JSDOM warnings
     }
     originalError.call(console, ...args);
   };
+});
+
+beforeEach(() => {
+  setupVitestCanvasMock();
 });
 
 afterAll(() => {

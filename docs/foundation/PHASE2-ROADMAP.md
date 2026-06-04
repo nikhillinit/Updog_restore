@@ -755,7 +755,7 @@ passing)
 
 - [ ] Update `tests/helpers/database-mock.ts` JSDoc with constraint validation
       examples
-- [ ] Add "Constraint Validation" section to `cheatsheets/testing-guide.md`
+- [ ] Add "Constraint Validation" section to `cheatsheets/testing.md`
 
 ### Phase 2: Quick Win Edge Cases
 
@@ -763,9 +763,7 @@ passing)
 
 ### Phase 3: HTTP/Middleware Harness
 
-- [ ] Create `cheatsheets/http-harness-guide.md` with middleware testing
-      patterns
-- [ ] Update service testing examples in `cheatsheets/testing-guide.md`
+- [ ] Update service testing examples in `cheatsheets/testing.md`
 
 ### Phase 4: Testcontainers Integration
 
@@ -777,11 +775,9 @@ passing)
 ### Phase 5: Build/Golden Dataset CI Lane
 
 - [ ] Update `.github/workflows/README.md` with regression job documentation
-- [ ] Create `cheatsheets/golden-dataset-refresh-runbook.md`
 
 ### Phase 6: Feature Epics + Flaky Stabilization
 
-- [ ] Create `cheatsheets/quarantine-review-process.md`
 - [ ] Update `CAPABILITIES.md` with new test infrastructure capabilities
 - [ ] Add "Test Infrastructure" section to onboarding docs
 
@@ -858,7 +854,7 @@ passing)
 - **Phase 1 PR**: #305 - Database mock orderBy/offset/limit implementation
 - **Test Analysis**: Codex agent report (2025-12-25)
 - **Database Mock**: `tests/helpers/database-mock.ts`
-- **Testing Guide**: `cheatsheets/testing-guide.md`
+- **Testing Guide**: `cheatsheets/testing.md`
 - **CI Configuration**: `.github/workflows/test.yml`
 
 ---

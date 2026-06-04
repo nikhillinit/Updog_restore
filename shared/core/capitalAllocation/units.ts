@@ -329,9 +329,6 @@ export function validateAndNormalizeCAInput(
     );
   }
 
-  // Calculate target reserve in same units
-  const targetReserve = commitment * (targetReservePct ?? 0);
-
   // Convert to cents using banker's rounding per semantic lock Section 4.1
   const commitmentCents = dollarsToCents(commitment * unitScaleMultiplier);
   validateSanityCap(commitmentCents, 'commitment', commitment, unitScaleMultiplier);
@@ -341,7 +338,7 @@ export function validateAndNormalizeCAInput(
     validateSanityCap(minCashBufferCents, 'minCashBuffer', minCashBuffer, unitScaleMultiplier);
   }
 
-  const targetReserveCents = roundPercentDerivedToCents(targetReserve * unitScaleMultiplier);
+  const targetReserveCents = roundPercentDerivedToCents(commitmentCents * (targetReservePct ?? 0));
   // Target reserve derives from commitment, so if commitment passed sanity check,
   // target reserve (a percentage of it) will also pass - no need to double-check
 

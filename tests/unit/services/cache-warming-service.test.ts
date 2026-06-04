@@ -10,7 +10,9 @@ const { mockQueue, QueueMock, mockLogger } = vi.hoisted(() => {
     close: vi.fn().mockResolvedValue(undefined),
   };
 
-  const QueueMock = vi.fn(() => mockQueue);
+  const QueueMock = vi.fn(function () {
+    return mockQueue;
+  });
   const mockLogger = {
     info: vi.fn(),
     warn: vi.fn(),

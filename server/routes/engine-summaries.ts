@@ -6,7 +6,7 @@ import { fileURLToPath } from 'url';
 import { generateReserveSummary } from '@shared/core/reserves/ReserveEngine';
 import { generatePacingSummary } from '@shared/core/pacing/PacingEngine';
 import { generateCohortSummary } from '@shared/core/cohorts/CohortEngine';
-import { NumberParseError, toNumber } from '@shared/number';
+import { toNumber } from '@shared/number';
 import type {
   ApiError,
   ReserveCompanyInput,
@@ -16,6 +16,7 @@ import type {
   CohortInput,
   CohortSummary,
 } from '@shared/types';
+import { handleNumberParseError } from '../lib/number-parse-error';
 import { logger } from '../lib/logger.js';
 import { getConfig } from '../config/index.js';
 
@@ -58,6 +59,13 @@ function loadReserveFixturePortfolio(): ReserveCompanyInput[] {
   }));
 }
 
+// NOT fund-scoped (Slice 1 verdict). loadReserveFixturePortfolio() reads a static
+// fixture (tests/fixtures/portfolio.json) identical for every fundId, and
+// generateReserveSummary -> ReserveEngine is pure compute over that portfolio; fundId
+// is used only as an output label. No stored per-fund data is read, so there is no
+// cross-fund disclosure and no existence oracle (any positive int returns 200). Same
+// class as the /cohorts/analysis verdict below. If ever wired to real per-fund data,
+// guard with enforceProvidedFundScope and drop the fixture load.
 router['get']('/reserves/:fundId', async (req: Request, res: Response) => {
   try {
     const fundIdParam = req.params['fundId'];
@@ -68,19 +76,15 @@ router['get']('/reserves/:fundId', async (req: Request, res: Response) => {
         error: 'Invalid fund ID',
         message: `Fund ID must be a positive integer, received: ${fundIdParam}`,
       };
-      return res['status'](400)['json'](error);
+      return res.status(400).json(error);
     }
 
     const portfolio = loadReserveFixturePortfolio();
     const summary: ReserveSummary = generateReserveSummary(fundId, portfolio);
-    return res['json'](summary);
+    return res.json(summary);
   } catch (error) {
-    if (error instanceof NumberParseError) {
-      const apiError: ApiError = {
-        error: 'Invalid fund ID',
-        message: error.message,
-      };
-      return res['status'](400)['json'](apiError);
+    if (handleNumberParseError(error, res, 'Invalid fund ID')) {
+      return;
     }
 
     if (error instanceof Error && error.message === 'Invalid portfolio fixture format') {
@@ -88,7 +92,7 @@ router['get']('/reserves/:fundId', async (req: Request, res: Response) => {
         error: 'Portfolio data unavailable',
         message: 'Could not load portfolio fixture data',
       };
-      return res['status'](500)['json'](apiError);
+      return res.status(500).json(apiError);
     }
 
     log.error(
@@ -104,7 +108,7 @@ router['get']('/reserves/:fundId', async (req: Request, res: Response) => {
       message: error instanceof Error ? error.message : 'Unknown error',
       details: { fundId: req.params['fundId'] },
     };
-    return res['status'](500)['json'](apiError);
+    return res.status(500).json(apiError);
   }
 });
 
@@ -125,18 +129,14 @@ router['get']('/pacing/summary', async (req: Request, res: Response) => {
         error: 'Invalid market condition',
         message: `Market condition must be 'bull', 'bear', or 'neutral', received: ${marketConditionParam}`,
       };
-      return res['status'](400)['json'](error);
+      return res.status(400).json(error);
     }
 
     const summary: PacingSummary = generatePacingSummary(pacingInput);
-    return res['json'](summary);
+    return res.json(summary);
   } catch (error) {
-    if (error instanceof NumberParseError) {
-      const apiError: ApiError = {
-        error: 'Invalid pacing query',
-        message: error.message,
-      };
-      return res['status'](400)['json'](apiError);
+    if (handleNumberParseError(error, res, 'Invalid pacing query')) {
+      return;
     }
 
     log.error(
@@ -152,10 +152,16 @@ router['get']('/pacing/summary', async (req: Request, res: Response) => {
       message: error instanceof Error ? error.message : 'Unknown error',
       details: { query: req.query as Record<string, unknown> },
     };
-    return res['status'](500)['json'](apiError);
+    return res.status(500).json(apiError);
   }
 });
 
+// NOT fund-scoped (Slice 3 T2 verdict). generateCohortSummary -> CohortEngine is
+// pure synthetic compute: it builds mock companies from { vintageYear, cohortSize }
+// with Math.random() and uses fundId only as a label in `cohort-${fundId}-${vintageYear}`.
+// No stored per-fund data is read, so there is no cross-fund disclosure and the
+// DEFAULT_FUND_ID fallback is safe. If this scaffold is ever wired to real per-fund
+// data, guard it with requireProvidedFundScopeFrom('query') and drop the default.
 router['get']('/cohorts/analysis', async (req: Request, res: Response) => {
   try {
     const fundIdQuery = req.query['fundId'];
@@ -173,7 +179,7 @@ router['get']('/cohorts/analysis', async (req: Request, res: Response) => {
           error: 'Invalid fund ID',
           message: `Fund ID must be a positive integer, received: ${fundIdQuery}`,
         };
-        return res['status'](400)['json'](error);
+        return res.status(400).json(error);
       }
       fundId = parsedId;
     }
@@ -185,7 +191,7 @@ router['get']('/cohorts/analysis', async (req: Request, res: Response) => {
           error: 'Invalid vintage year',
           message: `Vintage year must be between 2000-2030, received: ${vintageYearQuery}`,
         };
-        return res['status'](400)['json'](error);
+        return res.status(400).json(error);
       }
       vintageYear = parsedYear;
     }
@@ -197,7 +203,7 @@ router['get']('/cohorts/analysis', async (req: Request, res: Response) => {
           error: 'Invalid cohort size',
           message: `Cohort size must be between 1-1000, received: ${cohortSizeQuery}`,
         };
-        return res['status'](400)['json'](error);
+        return res.status(400).json(error);
       }
       cohortSize = parsedSize;
     }
@@ -209,14 +215,10 @@ router['get']('/cohorts/analysis', async (req: Request, res: Response) => {
     };
 
     const summary: CohortSummary = generateCohortSummary(cohortInput);
-    return res['json'](summary);
+    return res.json(summary);
   } catch (error) {
-    if (error instanceof NumberParseError) {
-      const apiError: ApiError = {
-        error: 'Invalid cohort query',
-        message: error.message,
-      };
-      return res['status'](400)['json'](apiError);
+    if (handleNumberParseError(error, res, 'Invalid cohort query')) {
+      return;
     }
 
     log.error(
@@ -235,7 +237,7 @@ router['get']('/cohorts/analysis', async (req: Request, res: Response) => {
         note: 'This is a scaffolded endpoint for future cohort analysis features',
       },
     };
-    return res['status'](500)['json'](apiError);
+    return res.status(500).json(apiError);
   }
 });
 

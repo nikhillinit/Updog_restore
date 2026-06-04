@@ -4,13 +4,13 @@
     "noEmit": true
   },
   "include": [
+    "api/**/*",
     "client/src/**/*",
     "server/**/*",
     "shared/**/*",
     "tests/**/*",
     "scripts/**/*.ts",
     "scripts/**/*.mjs",
-    "packages/**/*.ts",
     "ai/**/*.ts",
     "ai-utils/**/*.ts",
     "tailwind.config.ts"

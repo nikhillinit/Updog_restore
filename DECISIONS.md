@@ -1,6 +1,6 @@
 ---
 status: ACTIVE
-last_updated: 2026-03-26
+last_updated: 2026-05-21
 owner: Core Team
 review_cadence: P90D
 ---
@@ -24,6 +24,8 @@ development of the Press On Ventures fund modeling platform.
 - [ADR-018: Phase 3C Truthful Rich Results - Track A](#adr-018-phase-3c-truthful-rich-results---track-a)
 - [ADR-019: Operational Guardrails, Pino Standardization, and Policy Exclusions](#adr-019-operational-guardrails-pino-standardization-and-policy-exclusions)
 - [ADR-020: Phase 3C Track B Go/No-Go Deadline](#adr-020-phase-3c-track-b-gono-go-deadline)
+- [ADR-021: Single Required CI Gate with Internal Conditional Jobs](#adr-021-single-required-ci-gate-with-internal-conditional-jobs)
+- [ADR-022: SSE Event Routes Protected by Bearer Fund-Scope; Native EventSource Transport Deferred](#adr-022-sse-event-routes-protected-by-bearer-fund-scope-native-eventsource-transport-deferred)
 
 ---
 
@@ -636,7 +638,7 @@ logic issues. Initial plan was to treat symptoms in phases by failure count.
 
 **Phase 1: Configuration (22 fixes)**
 
-- Added `@shared/` path alias to [`vitest.config.ts`](vitest.config.ts#L17)
+- Added `@shared/` path alias to [`vitest.config.mjs`](vitest.config.mjs#L23)
 - Created
   [`tests/utils/mock-shared-schema.ts`](tests/utils/mock-shared-schema.ts) -
   centralized mock factory using `importOriginal` pattern
@@ -645,9 +647,8 @@ logic issues. Initial plan was to treat symptoms in phases by failure count.
 
 **Phase 2: Data Layer (documentation)**
 
-- Created
-  [`tests/utils/jsonb-test-helper.ts`](tests/utils/jsonb-test-helper.ts) -
-  type-safe JSONB utilities
+- Created `tests/utils/jsonb-test-helper.ts` (since removed) - type-safe JSONB
+  utilities
 - **Discovery:** 32 database schema test failures due to schema evolution (not
   JSONB serialization)
 - **Decision:** Document for separate schema migration effort (out of scope)
@@ -730,7 +731,7 @@ misconfiguration:
 **Current Configuration Issue:**
 
 - Using deprecated `environmentMatchGlobs` in
-  [vitest.config.ts](vitest.config.ts#L76-L88)
+  [vitest.config.mjs](vitest.config.mjs#L98-L141)
 - Vitest silently ignores this option (removed in recent versions)
 - **Result:** All tests run in `jsdom` environment (default), including
   server-side tests
@@ -862,8 +863,8 @@ export default defineConfig({
 ### References
 
 - **Vitest Projects Documentation:** https://vitest.dev/guide/workspace.html
-- **Current Config:** [vitest.config.ts](vitest.config.ts#L76-L88) (deprecated
-  `environmentMatchGlobs`)
+- **Current Config:** [vitest.config.mjs](vitest.config.mjs#L98-L141)
+  (deprecated `environmentMatchGlobs`)
 - **Test Failures:** See CHANGELOG.md → Test Suite Environment Debugging
   (2025-10-19)
 - **Related Files:**
@@ -1237,12 +1238,11 @@ function CodeReviewPanel() {
 
 ### References
 
-- [MCP_MULTI_AI_INCIDENT_REPORT.md](./MCP_MULTI_AI_INCIDENT_REPORT.md) -
-  Complete security incident analysis
-- [PARALLEL_EXECUTION_SUMMARY.md](./PARALLEL_EXECUTION_SUMMARY.md) - Multi-AI
-  parallel execution outcomes
-- [SECURITY_REVIEW_EVALUATION.md](./SECURITY_REVIEW_EVALUATION.md) - Multi-AI
-  security validation
+- `MCP_MULTI_AI_INCIDENT_REPORT.md` (since removed) - Complete security incident
+  analysis
+- `PARALLEL_EXECUTION_SUMMARY.md` (since removed) - Multi-AI parallel execution
+  outcomes
+- `SECURITY_REVIEW_EVALUATION.md` (since removed) - Multi-AI security validation
 
 ### Future Considerations
 
@@ -4875,3 +4875,136 @@ work could not drift into Track A by assumption.
 
 - `DECISIONS.md` (ADR-018 and ADR-020)
 - `docs/plans/2026-03-22-phase-3c-implementation-plan.md`
+
+---
+
+## ADR-021: Single Required CI Gate with Internal Conditional Jobs
+
+**Date:** 2026-05-21 **Status:** [ACCEPTED]
+
+### Context
+
+The repository had many independently triggered GitHub Actions workflows, some
+of which duplicated installs, TypeScript checks, dependency validation, security
+work, and PR comments. Several workflows were path-scoped, which is appropriate
+for non-required checks but risky as branch-protection requirements because a
+required workflow skipped by top-level path filters can leave PRs waiting for a
+status that never reports.
+
+GitHub branch protection did not require a status check at the time of this
+decision. The refactor therefore establishes a future required-check shape
+without replacing an existing required-check set.
+
+### Decision
+
+Use `ci-unified.yml` as the required CI orchestrator and make
+`CI Unified / CI Gate Status` the only planned required check after parity. Keep
+path-scoped standalone workflows only when they are non-required or
+manual/scheduled.
+
+The unified workflow owns:
+
+- one `baseline:check` run through a `typecheck` matrix entry
+- separate lint and fast unit entries
+- affected PR tests and full main/manual tests
+- Linux dependency validation for dependency changes
+- lightweight PR security checks for security-relevant changes
+- governance guards for archive, large-file, feature-flag, and performance
+  budget policy
+- a final `always()` gate that fails when any intended blocking job fails
+
+Heavy security scans, Windows dependency validation, and Docker-heavy validation
+run on schedule, labels, or manual dispatch rather than ordinary PRs. CodeQL
+keeps PR coverage, but its analysis is internally gated for docs/generated-only
+changes.
+
+### Alternatives Considered
+
+1. **Multiple required path-scoped workflows** - rejected because skipped
+   workflows can block merging when branch protection waits for a missing
+   status.
+2. **Scheduled-only security** - rejected because PR-level CodeQL and
+   lightweight dependency/security feedback are still valuable.
+3. **Cross-workflow status aggregation** - rejected because polling skipped
+   workflows adds fragility and creates another failure mode.
+4. **Leave workflows as-is** - rejected because duplicated setup and repeated
+   checks waste CI minutes and make branch protection harder to reason about.
+
+### Consequences
+
+- `ci-unified.yml` becomes the primary reliability surface for PR gating.
+- Branch protection should require only `CI Unified / CI Gate Status` after the
+  refactored gate has passed consistently.
+- Standalone workflow counts and the active GitHub workflow registry must be
+  documented separately because the registry may include deleted historical or
+  GitHub-generated workflows.
+- ZAP is not part of required PR CI unless a configured DAST target and policy
+  requirement are established.
+
+### Related Files
+
+- `.github/workflows/ci-unified.yml`
+- `.github/workflows/dependency-validation.yml`
+- `.github/workflows/security-scan.yml`
+- `.github/workflows/codeql.yml`
+- `.github/path-filters.yml`
+- `.github/actions/setup-node-env/action.yml`
+- `scripts/control-plane/git-safety.mjs`
+- `docs/workflows/README.md`
+
+---
+
+## ADR-022: SSE Event Routes Protected by Bearer Fund-Scope; Native EventSource Transport Deferred
+
+**Date:** 2026-06-02 **Status:** [IMPLEMENTED] Implemented **Decision:** Guard
+the unused server-sent-events routes (`/api/events/fund/:fundId`,
+`/api/events/simulation/:simulationId`) with the existing bearer-token
+fund-scope helper and defer a browser-native EventSource auth transport
+(query-token or cookie) until a real consumer exists.
+
+### Context
+
+`server/routes/sse-events.ts` exposed two SSE routes with zero authentication.
+The fund route could stream any fund's real-time events to any caller (a latent
+cross-fund leak). Both routes are mounted on the `registerRoutes` surface only
+(not the canonical `makeApp`/prod surface), have no client or server consumer
+(the only frontend `EventSource` targets `/api/agents/stream/:runId`), and have
+no production broadcaster, so today they emit only `connected`/`heartbeat`. The
+standard guard helpers verify a bearer token, but a browser `EventSource` cannot
+send an `Authorization` header -- which is why these routes were deferred during
+the Tranche A fund-scope rollout.
+
+### Decision
+
+Apply `getVerifiedFundScope` (bearer re-verification) inside both handlers
+before any SSE headers are flushed: 401 when the token is missing or invalid,
+403 `FUND_ACCESS_DENIED` when a restricted caller requests a fund outside its
+scope. The simulation route enforces authentication only (it carries no fund
+binding in the route; full fund-scoping is a follow-up that needs a
+`simulationId -> fundId` resolver). This closes the unauthenticated exposure
+with the smallest reversible change and matches the semantics used by every
+other Tranche A route.
+
+### Alternatives Considered
+
+- **Query-param token (`?access_token=`):** works with native EventSource and is
+  the lightest transport, but puts a JWT in URLs (access/proxy logs, history,
+  Referer). Acceptable only with a short-TTL, single-purpose SSE token.
+  Deferred.
+- **Cookie-based token:** no URL leak and cheap for a same-origin deployment,
+  but introduces cookie/CSRF/CORS infrastructure the app does not currently use
+  (credentialed CORS is incompatible with the existing
+  `Access-Control-Allow-Origin: *`). Deferred.
+- **Delete/quarantine the routes:** defensible given no consumer, but the
+  `broadcast*` exports are a public surface a future feature may wire up;
+  removal is a larger dead-code sweep. Not done.
+
+### Consequences
+
+- The unauthenticated cross-fund exposure is closed now, consistent with the
+  rest of Tranche A; no current consumer breaks (there are none).
+- A browser-native EventSource consumer cannot use these routes until the
+  query-token or cookie transport is designed. That decision is intentionally
+  deferred to when a real consumer's requirements exist.
+- The simulation route gains auth-required immediately; full simulation
+  fund-scoping remains a follow-up.

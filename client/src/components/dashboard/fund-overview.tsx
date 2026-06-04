@@ -21,6 +21,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useFundContext } from '@/contexts/FundContext';
 import { DollarSign, BarChart3, Users, TrendingUp } from 'lucide-react';
 import { getChartColor } from '@/lib/chart-theme';
+import { presson } from '@/theme/presson.tokens';
 
 // Sample data matching target UI
 const areaChartData = [
@@ -35,7 +36,7 @@ const areaChartData = [
   { name: 'Sep', value: 32 },
   { name: 'Oct', value: 38 },
   { name: 'Nov', value: 42 },
-  { name: 'Dec', value: 45 }
+  { name: 'Dec', value: 45 },
 ];
 
 const pieChartData = [
@@ -43,7 +44,7 @@ const pieChartData = [
   { name: 'Fintech', value: 25 },
   { name: 'Healthcare', value: 20 },
   { name: 'Consumer', value: 15 },
-  { name: 'Enterprise', value: 5 }
+  { name: 'Enterprise', value: 5 },
 ];
 
 // Removed hardcoded COLORS - now using getChartColor() from chart-theme
@@ -67,12 +68,8 @@ export default function FundOverview() {
     <div className="space-y-6 p-6 bg-white font-poppins">
       {/* Title Section */}
       <div>
-        <h1 className="text-2xl font-inter font-bold text-charcoal">
-          Fund Dashboard
-        </h1>
-        <p className="text-charcoal/70 mt-1">
-          Overview of your fund's performance and metrics
-        </p>
+        <h1 className="text-2xl font-inter font-bold text-pov-charcoal">Fund Dashboard</h1>
+        <p className="text-charcoal-500 mt-1">Overview of your fund's performance and metrics</p>
       </div>
 
       {/* Key Metrics */}
@@ -82,7 +79,7 @@ export default function FundOverview() {
           value={`$${(fundSize / 1000000).toFixed(0)}M`}
           change={8.2}
           changeLabel="vs last quarter"
-          icon={<DollarSign size={20} className="text-charcoal" />}
+          icon={<DollarSign size={20} className="text-pov-charcoal" />}
         />
         <DashboardCard
           title="Committed Capital"
@@ -90,21 +87,21 @@ export default function FundOverview() {
           metric="(65%)"
           change={12.4}
           changeLabel="vs last quarter"
-          icon={<BarChart3 size={20} className="text-charcoal" />}
+          icon={<BarChart3 size={20} className="text-pov-charcoal" />}
         />
         <DashboardCard
           title="Active LPs"
           value={activeLPs.toString()}
           change={2}
           changeLabel="new this month"
-          icon={<Users size={20} className="text-charcoal" />}
+          icon={<Users size={20} className="text-pov-charcoal" />}
         />
         <DashboardCard
           title="IRR"
           value={`${irr}%`}
           change={-2.3}
           changeLabel="vs target"
-          icon={<TrendingUp size={20} className="text-charcoal" />}
+          icon={<TrendingUp size={20} className="text-pov-charcoal" />}
         />
       </div>
 
@@ -113,8 +110,8 @@ export default function FundOverview() {
         {/* Fund Performance Chart */}
         <Card className="lg:col-span-2 bg-white border-0 shadow-card">
           <CardHeader>
-            <CardTitle className="font-inter text-charcoal">Fund Performance</CardTitle>
-            <p className="text-sm text-charcoal/70">Capital deployment over time</p>
+            <CardTitle className="font-inter text-pov-charcoal">Fund Performance</CardTitle>
+            <p className="text-sm text-charcoal-500">Capital deployment over time</p>
           </CardHeader>
           <CardContent>
             <div className="h-80">
@@ -122,38 +119,42 @@ export default function FundOverview() {
                 <AreaChart data={areaChartData} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
                   <defs>
                     <linearGradient id="colorValue" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#E0D8D1" stopOpacity={0.8} />
-                      <stop offset="95%" stopColor="#E0D8D1" stopOpacity={0} />
+                      <stop offset="5%" stopColor={presson.color.highlight} stopOpacity={0.8} />
+                      <stop offset="95%" stopColor={presson.color.highlight} stopOpacity={0} />
                     </linearGradient>
                   </defs>
-                  <XAxis 
-                    dataKey="name" 
-                    axisLine={false} 
-                    tickLine={false} 
-                    tick={{ fill: '#292929' }} 
+                  <XAxis
+                    dataKey="name"
+                    axisLine={false}
+                    tickLine={false}
+                    tick={{ fill: presson.color.text }}
                   />
-                  <YAxis 
-                    axisLine={false} 
-                    tickLine={false} 
-                    tick={{ fill: '#292929' }} 
-                    tickFormatter={value => `$${value}M`} 
+                  <YAxis
+                    axisLine={false}
+                    tickLine={false}
+                    tick={{ fill: presson.color.text }}
+                    tickFormatter={(value) => `$${value}M`}
                   />
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f2f2f2" />
-                  <Tooltip 
-                    formatter={value => [`$${value}M`, 'Capital Deployed']} 
+                  <CartesianGrid
+                    strokeDasharray="3 3"
+                    vertical={false}
+                    stroke={presson.color.surfaceSubtle}
+                  />
+                  <Tooltip
+                    formatter={(value) => [`$${value}M`, 'Capital Deployed']}
                     contentStyle={{
-                      backgroundColor: '#fff',
-                      border: '1px solid #f2f2f2',
+                      backgroundColor: presson.color.surface,
+                      border: `1px solid ${presson.color.borderSubtle}`,
                       borderRadius: '4px',
-                      boxShadow: '0 2px 8px rgba(0, 0, 0, 0.05)'
-                    }} 
+                      boxShadow: '0 2px 8px rgba(0, 0, 0, 0.05)',
+                    }}
                   />
-                  <Area 
-                    type="monotone" 
-                    dataKey="value" 
-                    stroke="#292929" 
-                    fillOpacity={1} 
-                    fill="url(#colorValue)" 
+                  <Area
+                    type="monotone"
+                    dataKey="value"
+                    stroke={presson.color.text}
+                    fillOpacity={1}
+                    fill="url(#colorValue)"
                   />
                 </AreaChart>
               </ResponsiveContainer>
@@ -164,20 +165,20 @@ export default function FundOverview() {
         {/* Sector Allocation */}
         <Card className="bg-white border-0 shadow-card">
           <CardHeader>
-            <CardTitle className="font-inter text-charcoal">Sector Allocation</CardTitle>
-            <p className="text-sm text-charcoal/70">Current portfolio distribution</p>
+            <CardTitle className="font-inter text-pov-charcoal">Sector Allocation</CardTitle>
+            <p className="text-sm text-charcoal-500">Current portfolio distribution</p>
           </CardHeader>
           <CardContent>
             <div className="h-80 flex flex-col justify-center">
               <ResponsiveContainer width="100%" height="100%">
                 <PieChart>
-                  <Pie 
-                    data={pieChartData} 
-                    cx="50%" 
-                    cy="50%" 
-                    innerRadius={60} 
-                    outerRadius={90} 
-                    paddingAngle={2} 
+                  <Pie
+                    data={pieChartData}
+                    cx="50%"
+                    cy="50%"
+                    innerRadius={60}
+                    outerRadius={90}
+                    paddingAngle={2}
                     dataKey="value"
                     label={(props: SectorLabelProps) => {
                       const percent = props.percent ?? 0;
@@ -190,14 +191,14 @@ export default function FundOverview() {
                       <Cell key={`cell-${index}`} fill={getChartColor(index)} />
                     ))}
                   </Pie>
-                  <Tooltip 
-                    formatter={value => [`${value}%`, 'Allocation']} 
+                  <Tooltip
+                    formatter={(value) => [`${value}%`, 'Allocation']}
                     contentStyle={{
-                      backgroundColor: '#fff',
-                      border: '1px solid #f2f2f2',
+                      backgroundColor: presson.color.surface,
+                      border: `1px solid ${presson.color.borderSubtle}`,
                       borderRadius: '4px',
-                      boxShadow: '0 2px 8px rgba(0, 0, 0, 0.05)'
-                    }} 
+                      boxShadow: '0 2px 8px rgba(0, 0, 0, 0.05)',
+                    }}
                   />
                 </PieChart>
               </ResponsiveContainer>

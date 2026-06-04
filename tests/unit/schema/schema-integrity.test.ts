@@ -6,7 +6,9 @@
  */
 import { describe, it, expect } from 'vitest';
 import { createTableRelationsHelpers, extractTablesRelationalConfig } from 'drizzle-orm/relations';
+import { getTableConfig } from 'drizzle-orm/pg-core';
 import * as schema from '@shared/schema';
+import * as dbSchema from '@shared/db-schema';
 
 describe('Schema Module Integrity', () => {
   describe('Fund Module', () => {
@@ -81,6 +83,19 @@ describe('Schema Module Integrity', () => {
       // Verify the FK relationship is intact
       expect(schema.scenarios).toHaveProperty('companyId');
     });
+
+    it('shares fundId stays text-only until fund IDs are migrated', () => {
+      const shareForeignKeyNames = getTableConfig(schema.shares).foreignKeys.map((foreignKey) =>
+        foreignKey.getName()
+      );
+      const snapshotForeignKeyNames = getTableConfig(schema.shareSnapshots).foreignKeys.map(
+        (foreignKey) => foreignKey.getName()
+      );
+
+      expect(schema.shares.fundId.dataType).toBe('string');
+      expect(shareForeignKeyNames).not.toContain('shares_fund_id_funds_id_fk');
+      expect(snapshotForeignKeyNames).toContain('share_snapshots_share_id_shares_id_fk');
+    });
   });
 
   describe('Relational Query Metadata', () => {
@@ -91,6 +106,24 @@ describe('Schema Module Integrity', () => {
       expect(tables.investments?.relations).toHaveProperty('company');
       expect(tables.scenarios?.relations).toHaveProperty('cases');
       expect(tables.scenarioCases?.relations).toHaveProperty('scenario');
+    });
+  });
+
+  describe('Compatibility Barrel', () => {
+    it('forwards current database schema surfaces without moving legacy imports', () => {
+      expect(dbSchema.funds).toBe(schema.funds);
+      expect(dbSchema.portfolioCompanies).toBe(schema.portfolioCompanies);
+      expect(dbSchema.limitedPartners).toBeDefined();
+      expect(dbSchema.lpCapitalCalls).toBeDefined();
+      expect(dbSchema.reserveApprovals).toBeDefined();
+      expect(dbSchema.DB_SCHEMA_COMPATIBILITY_MAP.core).toMatchObject({
+        legacyImport: '@shared/schema',
+        compatibilityImport: '@shared/db-schema',
+      });
+      expect(dbSchema.DB_SCHEMA_COMPATIBILITY_MAP.lpReporting).toMatchObject({
+        legacyImport: '@shared/schema-lp-reporting',
+        compatibilityImport: '@shared/db-schema',
+      });
     });
   });
 });

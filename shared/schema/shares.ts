@@ -18,7 +18,6 @@ import {
 } from 'drizzle-orm/pg-core';
 import { createInsertSchema, createSelectSchema } from 'drizzle-zod';
 import { z } from 'zod';
-import { funds } from './fund';
 import type { PublicShareSnapshotPayload } from '../contracts/public-share-snapshot.contract';
 
 // Access level enum values
@@ -37,9 +36,9 @@ export const shares = pgTable(
   'shares',
   {
     id: text('id').primaryKey(), // UUID
-    fundId: text('fund_id')
-      .notNull()
-      .references(() => funds.id, { onDelete: 'cascade' }),
+    // Keep as text until share management migrates to numeric fund IDs.
+    // A FK to funds.id is invalid while funds.id remains an integer column.
+    fundId: text('fund_id').notNull(),
     createdBy: text('created_by').notNull(), // User ID who created the share
 
     // Access configuration

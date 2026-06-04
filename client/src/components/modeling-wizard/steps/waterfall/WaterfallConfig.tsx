@@ -29,13 +29,13 @@ export function WaterfallConfig({ waterfall, errors, onFieldChange }: WaterfallC
 
       <CardContent className="space-y-6">
         {/* Distribution Model Info */}
-        <div className="flex items-start space-x-3 p-4 bg-blue-50 rounded-lg border border-blue-200">
-          <Info className="h-5 w-5 text-blue-600 mt-0.5 flex-shrink-0" />
+        <div className="flex items-start space-x-3 p-4 bg-presson-info/10 rounded-lg border border-presson-info/30">
+          <Info className="h-5 w-5 text-presson-info mt-0.5 flex-shrink-0" />
           <div>
-            <p className="font-poppins font-medium text-blue-900">
+            <p className="font-poppins font-medium text-presson-info">
               American (Deal-by-Deal) Waterfall
             </p>
-            <p className="text-sm text-blue-700 mt-1">
+            <p className="text-sm text-presson-info mt-1">
               Carried interest is distributed on each individual exit as investments are realized.
               This model allows GPs to receive carry earlier but may require clawback provisions.
             </p>

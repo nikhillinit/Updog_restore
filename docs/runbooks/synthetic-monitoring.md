@@ -7,11 +7,13 @@ last_updated: 2026-01-19
 
 ## Overview
 
-Synthetic monitoring runs automated smoke tests every 5 minutes against production to detect issues before users do.
+Synthetic monitoring runs automated smoke tests every 5 minutes against
+production to detect issues before users do.
 
 ## Components
 
 ### 1. Smoke Tests (`tests/smoke/wizard.spec.ts`)
+
 - Health endpoint validation
 - Critical user flow testing
 - Login verification
@@ -22,12 +24,14 @@ Synthetic monitoring runs automated smoke tests every 5 minutes against producti
 - Memory leak detection
 
 ### 2. GitHub Actions Workflow (`.github/workflows/synthetic.yml`)
+
 - Runs every 5 minutes via cron schedule
 - Manual trigger support
 - Automatic alerting on failures
 - Test result archiving
 
 ### 3. Alerting Channels
+
 - GitHub Issues (automatic creation)
 - Slack notifications
 - PagerDuty incidents
@@ -36,6 +40,7 @@ Synthetic monitoring runs automated smoke tests every 5 minutes against producti
 ## Configuration
 
 ### Required GitHub Secrets
+
 ```
 PROD_BASE_URL     # Production URL (e.g., https://app.example.com)
 SMOKE_USER        # Test user email
@@ -45,6 +50,7 @@ PAGERDUTY_INTEGRATION_KEY # Optional: PagerDuty integration
 ```
 
 ### Setting Up Secrets
+
 ```bash
 # Via GitHub CLI
 gh secret set PROD_BASE_URL --body "https://app.example.com"
@@ -55,6 +61,7 @@ gh secret set SMOKE_PASS --body "secure-password-123"
 ## Test Coverage
 
 ### Critical Paths Monitored
+
 1. **Health Checks**
    - `/ready` endpoint
    - `/health` endpoint
@@ -94,16 +101,17 @@ gh secret set SMOKE_PASS --body "secure-password-123"
    - Tertiary: Engineering manager (Email)
 
 3. **Investigation Commands**
+
    ```bash
    # Check health
    curl https://app.example.com/health
-   
+
    # Check ready
    curl https://app.example.com/ready
-   
+
    # Check circuit breakers
    curl https://app.example.com/api/circuit-breaker/status
-   
+
    # View recent logs
    kubectl logs -l app=api --tail=100
    ```
@@ -111,6 +119,7 @@ gh secret set SMOKE_PASS --body "secure-password-123"
 ## Running Tests Locally
 
 ### Full Smoke Suite
+
 ```bash
 # With production URL
 BASE_URL=https://app.example.com \
@@ -120,12 +129,14 @@ npm run test:smoke
 ```
 
 ### Individual Tests
+
 ```bash
 # Test specific flow
 npx playwright test tests/smoke/wizard.spec.ts -g "Health endpoints"
 ```
 
 ### Debug Mode
+
 ```bash
 # Run with headed browser
 npx playwright test tests/smoke/wizard.spec.ts --headed
@@ -137,18 +148,22 @@ npx playwright test tests/smoke/wizard.spec.ts --trace on
 ## Maintenance
 
 ### Adding New Tests
+
 1. Add test cases to `tests/smoke/wizard.spec.ts`
 2. Keep tests fast (< 30s per test)
 3. Focus on critical paths only
 4. Avoid flaky selectors
 
 ### Updating Thresholds
+
 Edit in `tests/smoke/wizard.spec.ts`:
+
 - Response time limits
 - Memory usage thresholds
 - Error tolerance
 
 ### Disabling Monitoring
+
 ```yaml
 # In .github/workflows/synthetic.yml
 on:
@@ -160,13 +175,16 @@ on:
 ## Metrics
 
 ### Success Metrics
+
 - Uptime: > 99.9%
 - False positive rate: < 1%
 - Detection time: < 5 minutes
 - Alert response time: < 10 minutes
 
 ### Monitoring Dashboard
+
 Track in Grafana/Datadog:
+
 - `smoke_test_passed` - Pass/fail status
 - `smoke_test_duration_seconds` - Test execution time
 - `smoke_test_failures_total` - Cumulative failures
@@ -196,6 +214,7 @@ Track in Grafana/Datadog:
    - Adjust timing/thresholds
 
 ### Debug Workflow
+
 ```bash
 # Run workflow manually
 gh workflow run synthetic.yml
@@ -230,7 +249,8 @@ gh run download <RUN_ID>
    - Annual architecture review
 
 ## Related Documentation
+
 - [Rollback Procedures](./rollback.md)
-- [Incident Response](./incident-response.md)
-- [Monitoring Setup](../monitoring.md)
-- [Testing Strategy](../testing.md)
+- [Incident Response](./incident.md)
+- Monitoring setup
+- Testing strategy

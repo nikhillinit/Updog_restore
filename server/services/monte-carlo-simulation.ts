@@ -950,6 +950,7 @@ export class MonteCarloSimulationService {
    */
   private async storeForecast(forecast: MonteCarloForecast): Promise<void> {
     // Store in fund snapshots for integration with existing infrastructure
+    // ADR-022: authoritative-only writer. scenario_set_id intentionally omitted (defaults to NULL).
     await db.insert(fundSnapshots).values({
       fundId: forecast.fundId,
       type: 'MONTE_CARLO',

@@ -8,6 +8,7 @@ import {
   aiConsensus,
   collaborativeSolve,
 } from '../services/ai-orchestrator';
+import { getRouteErrorMessage as getErrorMessage } from '../lib/errorHandling';
 
 const router = Router();
 
@@ -18,16 +19,12 @@ const askSchema = z.object({
   tags: z.array(z.string()).optional(),
 });
 
-function getErrorMessage(error: unknown): string {
-  return error instanceof Error ? error.message : 'Unknown error';
-}
-
 function respondWithRequestError(res: Response, error: unknown): boolean {
   if (!(error instanceof z.ZodError)) {
     return false;
   }
 
-  res['status'](400)['json']({
+  res.status(400).json({
     success: false,
     error: 'Invalid request',
     details: error.errors,
@@ -41,7 +38,7 @@ function respondWithServerError(res: Response, error: unknown, includeSuccess = 
     error: getErrorMessage(error),
   };
 
-  res['status'](500)['json'](payload);
+  res.status(500).json(payload);
 }
 
 // POST /api/ai/ask - Query multiple AI models
@@ -55,7 +52,7 @@ router['post']('/ask', async (req: Request, res: Response) => {
       ...(tags && { tags }),
     });
 
-    res['json']({
+    res.json({
       success: true,
       results,
     });
@@ -71,7 +68,7 @@ router['post']('/ask', async (req: Request, res: Response) => {
 router['get']('/usage', async (req: Request, res: Response) => {
   try {
     const stats = await getUsageStats();
-    res['json'](stats);
+    res.json(stats);
   } catch (error: unknown) {
     respondWithServerError(res, error, false);
   }
@@ -94,7 +91,7 @@ router['post']('/debate', async (req: Request, res: Response) => {
       ...(ai2 && { ai2 }),
       ...(tags && { tags }),
     });
-    res['json']({ success: true, result });
+    res.json({ success: true, result });
   } catch (error: unknown) {
     if (respondWithRequestError(res, error)) {
       return;
@@ -120,7 +117,7 @@ router['post']('/consensus', async (req: Request, res: Response) => {
       ...(models && { models }),
       ...(tags && { tags }),
     });
-    res['json']({ success: true, result });
+    res.json({ success: true, result });
   } catch (error: unknown) {
     if (respondWithRequestError(res, error)) {
       return;
@@ -146,7 +143,7 @@ router['post']('/collaborate', async (req: Request, res: Response) => {
       ...(models && { models }),
       ...(tags && { tags }),
     });
-    res['json']({ success: true, result });
+    res.json({ success: true, result });
   } catch (error: unknown) {
     if (respondWithRequestError(res, error)) {
       return;

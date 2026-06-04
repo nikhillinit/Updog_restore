@@ -20,8 +20,9 @@ import {
 import { requireAuth, requireRole } from '../lib/auth/jwt.js';
 import { z } from 'zod';
 import { firstString } from '../lib/request-values';
+import { createRouteLogger } from '../lib/route-logger.js';
 
-export const flagsRouter = Router();
+const routeLog = createRouteLogger('flags');
 
 /**
  * Best-effort user identity from bearer token (no 401 on failure).
@@ -42,135 +43,83 @@ async function deriveUserFromToken(req: Request): Promise<{ id: string } | undef
 /**
  * GET /api/flags - Client-safe flags with ETag support
  */
-flagsRouter['get']('/', async (req: Request, res: Response) => {
-  try {
-    // Derive user identity from bearer token (best-effort, no 401 on failure)
-    // x-user-id header is deliberately ignored to prevent spoofing
-    const userContext = await deriveUserFromToken(req);
-    const isTargeted = !!userContext;
+function registerClientFlagRoutes(router: Router): void {
+  router['get']('/', async (req: Request, res: Response) => {
+    try {
+      // Derive user identity from bearer token (best-effort, no 401 on failure)
+      // x-user-id header is deliberately ignored to prevent spoofing
+      const userContext = await deriveUserFromToken(req);
+      const isTargeted = !!userContext;
 
-    const result = await getClientFlags(userContext);
-    const timestamp = new Date().toISOString();
+      const result = await getClientFlags(userContext);
+      const timestamp = new Date().toISOString();
 
-    // For targeted responses, compute user-specific ETag from sorted payload
-    let etag: string;
-    if (isTargeted) {
-      const { createHash } = await import('node:crypto');
-      const sortedPayload = JSON.stringify(result.flags, Object.keys(result.flags).sort());
-      etag = `W/"${createHash('sha256').update(sortedPayload).digest('hex').slice(0, 16)}"`;
-    } else {
-      etag = `W/"${result.hash}"`;
+      // For targeted responses, compute user-specific ETag from sorted payload
+      let etag: string;
+      if (isTargeted) {
+        const { createHash } = await import('node:crypto');
+        const sortedPayload = JSON.stringify(result.flags, Object.keys(result.flags).sort());
+        etag = `W/"${createHash('sha256').update(sortedPayload).digest('hex').slice(0, 16)}"`;
+      } else {
+        etag = `W/"${result.hash}"`;
+      }
+
+      res.setHeader('ETag', etag);
+
+      // Targeted: private cache with Vary; Anonymous: public shared cache
+      if (isTargeted) {
+        res.setHeader('Cache-Control', 'private, max-age=15, must-revalidate');
+        res.setHeader('Vary', 'Authorization');
+      } else {
+        res.setHeader('Cache-Control', 'max-age=15, must-revalidate');
+      }
+
+      // Handle conditional GET
+      if (req.headers['if-none-match'] === etag) {
+        return res.status(304).end();
+      }
+
+      const response = {
+        flags: result.flags,
+        version: result.version,
+        timestamp,
+        _meta: {
+          note: 'Only flags marked exposeToClient=true are included',
+          hash: result.hash,
+        },
+      };
+
+      res.json(response);
+    } catch (error) {
+      routeLog.error('Error fetching client flags:', error);
+      res.status(500).json({
+        error: 'Failed to fetch flags',
+        flags: {}, // Safe fallback
+        version: '0',
+        timestamp: new Date().toISOString(),
+      });
     }
+  });
 
-    res['setHeader']('ETag', etag);
+  /**
+   * GET /api/flags/status - Cache and system status
+   */
+  router['get']('/status', async (req: Request, res: Response) => {
+    try {
+      const status = getCacheStatus();
 
-    // Targeted: private cache with Vary; Anonymous: public shared cache
-    if (isTargeted) {
-      res['setHeader']('Cache-Control', 'private, max-age=15, must-revalidate');
-      res['setHeader']('Vary', 'Authorization');
-    } else {
-      res['setHeader']('Cache-Control', 'max-age=15, must-revalidate');
+      res.json({
+        cache: status,
+        killSwitchActive: process.env['FLAGS_DISABLED_ALL'] === '1',
+        environment: process.env['NODE_ENV'] || 'unknown',
+        timestamp: new Date().toISOString(),
+      });
+    } catch (error) {
+      routeLog.error('Error fetching flag status:', error);
+      res.status(500).json({ error: 'Failed to fetch status' });
     }
-
-    // Handle conditional GET
-    if (req.headers['if-none-match'] === etag) {
-      return res['status'](304)['end']();
-    }
-
-    const response = {
-      flags: result.flags,
-      version: result.version,
-      timestamp,
-      _meta: {
-        note: 'Only flags marked exposeToClient=true are included',
-        hash: result.hash,
-      },
-    };
-
-    res['json'](response);
-  } catch (error) {
-    console.error('Error fetching client flags:', error);
-    res['status'](500)['json']({
-      error: 'Failed to fetch flags',
-      flags: {}, // Safe fallback
-      version: '0',
-      timestamp: new Date().toISOString(),
-    });
-  }
-});
-
-/**
- * GET /api/flags/status - Cache and system status
- */
-flagsRouter['get']('/status', async (req: Request, res: Response) => {
-  try {
-    const status = getCacheStatus();
-
-    res['json']({
-      cache: status,
-      killSwitchActive: process.env['FLAGS_DISABLED_ALL'] === '1',
-      environment: process.env['NODE_ENV'] || 'unknown',
-      timestamp: new Date().toISOString(),
-    });
-  } catch (error) {
-    console.error('Error fetching flag status:', error);
-    res['status'](500)['json']({ error: 'Failed to fetch status' });
-  }
-});
-
-// Admin routes with JWT authentication and RBAC
-const adminRouter = Router();
-
-// Rate limiting for admin operations (stricter than client routes)
-const adminRateLimit = rateLimit({
-  windowMs: 60 * 1000, // 1 minute
-  max: 10, // 10 requests per minute per IP
-  standardHeaders: true,
-  legacyHeaders: false,
-  message: {
-    error: 'rate_limit_exceeded',
-    message: 'Too many admin requests. Limit: 10 per minute.',
-  },
-});
-
-// Security headers for admin routes
-adminRouter.use((req: Request, res: Response, next: NextFunction) => {
-  // Never cache admin responses
-  res['setHeader']('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
-  res['setHeader']('Pragma', 'no-cache');
-  res['setHeader']('Expires', '0');
-  res['setHeader']('Surrogate-Control', 'no-store');
-  next();
-});
-
-// Apply rate limiting and authentication to all admin routes
-adminRouter.use(adminRateLimit);
-adminRouter.use(requireAuth());
-
-/**
- * GET /api/admin/flags - Get all flags with version for admin
- */
-adminRouter['get']('/', requireRole('flag_read'), async (req: Request, res: Response) => {
-  try {
-    const version = await getFlagsVersion();
-    const hash = await getFlagsHash();
-    const snapshot = await getFlags();
-
-    res['json']({
-      version,
-      hash,
-      flags: snapshot.flags,
-      environment: snapshot.environment,
-      timestamp: new Date().toISOString(),
-      _meta: {
-        note: 'Admin view - includes all flags regardless of exposeToClient',
-      },
-    });
-  } catch (error) {
-    console.error('Error fetching admin flags:', error);
-    res['status'](500)['json']({ error: 'Failed to fetch admin flags' });
-  }
-});
+  });
+}
 
 const updateFlagSchema = z.object({
   enabled: z.boolean().optional(),
@@ -192,162 +141,222 @@ const updateFlagSchema = z.object({
   dryRun: z.boolean().optional(),
 });
 
-/**
- * PATCH /api/admin/flags/:key - Update flag with versioning
- */
-adminRouter.patch('/:key', requireRole('flag_admin'), async (req: Request, res: Response) => {
-  try {
-    const key = firstString(req.params['key']);
-    const validation = updateFlagSchema.safeParse(req.body);
+function createAdminRouter(): Router {
+  const adminRouter = Router();
 
-    if (!validation.success) {
-      return res['status'](400)['json']({
-        error: 'invalid_request',
-        issues: validation.error.issues,
-      });
-    }
+  // Rate limiting for admin operations (stricter than client routes)
+  const adminRateLimit = rateLimit({
+    windowMs: 60 * 1000, // 1 minute
+    max: 10, // 10 requests per minute per IP
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: {
+      error: 'rate_limit_exceeded',
+      message: 'Too many admin requests. Limit: 10 per minute.',
+    },
+  });
 
-    // Version-based concurrency control
-    const expectedVersion = req.headers['if-match'] as string;
-    if (!expectedVersion) {
-      return res['status'](400)['json']({
-        error: 'version_required',
-        message: 'If-Match header with current version required',
-      });
-    }
+  // Security headers for admin routes
+  adminRouter.use((req: Request, res: Response, next: NextFunction) => {
+    // Never cache admin responses
+    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+    res.setHeader('Pragma', 'no-cache');
+    res.setHeader('Expires', '0');
+    res.setHeader('Surrogate-Control', 'no-store');
+    next();
+  });
 
-    const currentVersion = await getFlagsVersion();
-    if (expectedVersion !== currentVersion) {
-      return res['status'](409)['json']({
-        error: 'version_conflict',
-        message: 'Flag version has changed since last read',
-        currentVersion,
-        expectedVersion,
-      });
-    }
+  // Apply rate limiting and authentication to all admin routes
+  adminRouter.use(adminRateLimit);
+  adminRouter.use(requireAuth());
 
-    const { reason, dryRun, ...updates } = validation.data;
+  /**
+   * GET /api/admin/flags - Get all flags with version for admin
+   */
+  adminRouter['get']('/', requireRole('flag_read'), async (req: Request, res: Response) => {
+    try {
+      const version = await getFlagsVersion();
+      const hash = await getFlagsHash();
+      const snapshot = await getFlags();
 
-    // Dry run support
-    if (dryRun) {
-      // TODO: Preview changes without committing
-      return res['json']({
-        dryRun: true,
-        preview: {
-          key,
-          updates,
-          actor: req.user?.email ?? 'unknown',
-          timestamp: new Date().toISOString(),
+      res.json({
+        version,
+        hash,
+        flags: snapshot.flags,
+        environment: snapshot.environment,
+        timestamp: new Date().toISOString(),
+        _meta: {
+          note: 'Admin view - includes all flags regardless of exposeToClient',
         },
       });
+    } catch (error) {
+      routeLog.error('Error fetching admin flags:', error);
+      res.status(500).json({ error: 'Failed to fetch admin flags' });
     }
+  });
 
-    // Construct user context for audit trail
-    const userContext = {
-      sub: req.user?.id?.toString() ?? req.user?.sub ?? 'unknown',
-      email: req.user?.email ?? 'unknown',
-      ip: req.ip ?? 'unknown',
-      userAgent: req.headers['user-agent'] ?? 'unknown',
-    };
-    const targeting =
-      updates.targeting === undefined
-        ? undefined
-        : {
-            enabled: updates.targeting.enabled,
-            rules: updates.targeting.rules.map((rule) => ({
-              attribute: rule.attribute,
-              operator: rule.operator,
-              value: rule.value,
-              ...(rule.percentage !== undefined ? { percentage: rule.percentage } : {}),
-            })),
-          };
+  adminRouter.patch('/:key', requireRole('flag_admin'), async (req: Request, res: Response) => {
+    try {
+      const key = firstString(req.params['key']);
+      const validation = updateFlagSchema.safeParse(req.body);
 
-    const flagUpdates: Partial<FlagValue> = {
-      ...(updates.enabled !== undefined ? { enabled: updates.enabled } : {}),
-      ...(updates.exposeToClient !== undefined ? { exposeToClient: updates.exposeToClient } : {}),
-      ...(targeting !== undefined ? { targeting } : {}),
-    };
-    await updateFlag(key ?? '', flagUpdates, userContext, reason!);
+      if (!validation.success) {
+        return res.status(400).json({
+          error: 'invalid_request',
+          issues: validation.error.issues,
+        });
+      }
 
-    const newVersion = await getFlagsVersion();
+      // Version-based concurrency control
+      const expectedVersion = req.headers['if-match'] as string;
+      if (!expectedVersion) {
+        return res.status(400).json({
+          error: 'version_required',
+          message: 'If-Match header with current version required',
+        });
+      }
 
-    res['json']({
-      success: true,
-      key,
-      version: newVersion,
-      message: `Flag '${key}' updated successfully`,
-      timestamp: new Date().toISOString(),
-    });
-  } catch (error) {
-    console.error('Error updating flag:', error);
-    const errorMessage = error instanceof Error ? error.message : 'Failed to update flag';
-    res['status'](500)['json']({
-      error: 'update_failed',
-      message: errorMessage,
-    });
-  }
-});
+      const currentVersion = await getFlagsVersion();
+      if (expectedVersion !== currentVersion) {
+        return res.status(409).json({
+          error: 'version_conflict',
+          message: 'Flag version has changed since last read',
+          currentVersion,
+          expectedVersion,
+        });
+      }
 
-/**
- * GET /api/admin/flags/:key/history - Get flag history
- */
-adminRouter['get']('/:key/history', async (req: Request, res: Response) => {
-  try {
-    const key = firstString(req.params['key']);
-    if (!key) {
-      return res['status'](400)['json']({ error: 'Flag key is required' });
+      const { reason, dryRun, ...updates } = validation.data;
+
+      // Dry run support
+      if (dryRun) {
+        // TODO: Preview changes without committing
+        return res.json({
+          dryRun: true,
+          preview: {
+            key,
+            updates,
+            actor: req.user?.email ?? 'unknown',
+            timestamp: new Date().toISOString(),
+          },
+        });
+      }
+
+      // Construct user context for audit trail
+      const userContext = {
+        sub: req.user?.id?.toString() ?? req.user?.sub ?? 'unknown',
+        email: req.user?.email ?? 'unknown',
+        ip: req.ip ?? 'unknown',
+        userAgent: req.headers['user-agent'] ?? 'unknown',
+      };
+      const targeting =
+        updates.targeting === undefined
+          ? undefined
+          : {
+              enabled: updates.targeting.enabled,
+              rules: updates.targeting.rules.map((rule) => ({
+                attribute: rule.attribute,
+                operator: rule.operator,
+                value: rule.value,
+                ...(rule.percentage !== undefined ? { percentage: rule.percentage } : {}),
+              })),
+            };
+
+      const flagUpdates: Partial<FlagValue> = {
+        ...(updates.enabled !== undefined ? { enabled: updates.enabled } : {}),
+        ...(updates.exposeToClient !== undefined ? { exposeToClient: updates.exposeToClient } : {}),
+        ...(targeting !== undefined ? { targeting } : {}),
+      };
+      await updateFlag(key ?? '', flagUpdates, userContext, reason!);
+
+      const newVersion = await getFlagsVersion();
+
+      res.json({
+        success: true,
+        key,
+        version: newVersion,
+        message: `Flag '${key}' updated successfully`,
+        timestamp: new Date().toISOString(),
+      });
+    } catch (error) {
+      routeLog.error('Error updating flag:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Failed to update flag';
+      res.status(500).json({
+        error: 'update_failed',
+        message: errorMessage,
+      });
     }
-    const history = await getFlagHistory(key);
+  });
 
-    res['json']({
-      key,
-      history,
-      count: history.length,
-    });
-  } catch (error) {
-    console.error('Error fetching flag history:', error);
-    res['status'](500)['json']({ error: 'Failed to fetch flag history' });
-  }
-});
+  /**
+   * GET /api/admin/flags/:key/history - Get flag history
+   */
+  adminRouter['get']('/:key/history', async (req: Request, res: Response) => {
+    try {
+      const key = firstString(req.params['key']);
+      if (!key) {
+        return res.status(400).json({ error: 'Flag key is required' });
+      }
+      const history = await getFlagHistory(key);
 
-/**
- * POST /api/admin/flags/kill-switch - Emergency kill switch
- */
-adminRouter.post('/kill-switch', (req: Request, res: Response) => {
-  try {
-    activateKillSwitch();
+      res.json({
+        key,
+        history,
+        count: history.length,
+      });
+    } catch (error) {
+      routeLog.error('Error fetching flag history:', error);
+      res.status(500).json({ error: 'Failed to fetch flag history' });
+    }
+  });
 
-    res['json']({
-      success: true,
-      message: '[CRITICAL] Kill switch activated - all flags disabled',
-      timestamp: new Date().toISOString(),
-      warning: 'This action disables ALL feature flags immediately',
-    });
-  } catch (error) {
-    console.error('Error activating kill switch:', error);
-    res['status'](500)['json']({ error: 'Failed to activate kill switch' });
-  }
-});
+  /**
+   * POST /api/admin/flags/kill-switch - Emergency kill switch
+   */
+  adminRouter.post('/kill-switch', (req: Request, res: Response) => {
+    try {
+      activateKillSwitch();
 
-/**
- * DELETE /api/admin/flags/kill-switch - Deactivate kill switch
- */
-adminRouter.delete('/kill-switch', (req: Request, res: Response) => {
-  try {
-    delete process.env['FLAGS_DISABLED_ALL'];
+      res.json({
+        success: true,
+        message: '[CRITICAL] Kill switch activated - all flags disabled',
+        timestamp: new Date().toISOString(),
+        warning: 'This action disables ALL feature flags immediately',
+      });
+    } catch (error) {
+      routeLog.error('Error activating kill switch:', error);
+      res.status(500).json({ error: 'Failed to activate kill switch' });
+    }
+  });
 
-    res['json']({
-      success: true,
-      message: 'Kill switch deactivated - flags restored',
-      timestamp: new Date().toISOString(),
-    });
-  } catch (error) {
-    console.error('Error deactivating kill switch:', error);
-    res['status'](500)['json']({ error: 'Failed to deactivate kill switch' });
-  }
-});
+  /**
+   * DELETE /api/admin/flags/kill-switch - Deactivate kill switch
+   */
+  adminRouter.delete('/kill-switch', (req: Request, res: Response) => {
+    try {
+      delete process.env['FLAGS_DISABLED_ALL'];
 
-// Mount admin routes
-flagsRouter.use('/admin', adminRouter);
+      res.json({
+        success: true,
+        message: 'Kill switch deactivated - flags restored',
+        timestamp: new Date().toISOString(),
+      });
+    } catch (error) {
+      routeLog.error('Error deactivating kill switch:', error);
+      res.status(500).json({ error: 'Failed to deactivate kill switch' });
+    }
+  });
+
+  return adminRouter;
+}
+
+export function createFlagsRouter(): Router {
+  const router = Router();
+  registerClientFlagRoutes(router);
+  router.use('/admin', createAdminRouter());
+  return router;
+}
+
+export const flagsRouter = createFlagsRouter();
 
 export default flagsRouter;

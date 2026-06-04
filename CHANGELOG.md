@@ -1,6 +1,6 @@
 ---
 status: ACTIVE
-last_updated: 2026-04-05
+last_updated: 2026-05-20
 owner: Core Team
 review_cadence: P7D
 ---
@@ -49,6 +49,34 @@ and this project adheres to
   decision.
 
 ### Added
+
+- **Tooling Script Alias Guardrail** (2026-05-20)
+  - Added `scripts/guardrails/script-alias-policy.mjs`,
+    `.baselines/script-alias-policy.json`, and
+    `tests/unit/scripts/script-alias-policy.test.ts` to block new legacy
+    wave/phase/slice npm script aliases while preserving the current migration
+    baseline.
+  - Retired package-only `test:wave5:*`, `test:wave6:*`, and
+    `lint:wave6:residual` aliases from `package.json`.
+  - Wired `guard:scripts:check` into `guardrails:check`.
+
+- **Cleanup Manifest Refresh** (2026-05-20)
+  - Added `docs/governance/cleanup-manifest.md` as the current cleanup candidate
+    register for deletion, externalization, migration, and keep decisions.
+  - Updated the refactor roadmap to point at the canonical manifest instead of
+    carrying an embedded stale table.
+
+- **Refactor Governance Roadmap** (2026-05-20)
+  - Added `docs/governance/2026-05-19-refactor-roadmap.md` as the canonical
+    cleanup/refactor sequencing document.
+  - Moved raw refactor audit reports under
+    `docs/reviews/refactor-audit-2026-05-19/` and marked them as reference
+    evidence rather than execution plans.
+  - Converted the CA period truth remediation checklist into a completed review
+    record at `docs/reviews/ca-period-truth-remediation-2026-05-19.md`.
+  - Replaced the deleted type-safety action plan with
+    `docs/tech-debt/type-safety-remediation-summary.md` to preserve durable
+    remediation guidance without stale 2025 counts.
 
 - **Governance Refresh for March 2026 Delivery** (2026-03-26)
   - Added `ADR-019` to document the ESLint ratchet strategy, Pino runtime
@@ -112,6 +140,13 @@ and this project adheres to
     path)
 
 ### Removed
+
+- **Dual Forecast Route Consolidation** (2026-05-16)
+  - Removed the unused placeholder `GET /api/funds/:fundId/portfolio-analysis`
+    scenario-analysis route after replacing the dashboard path with
+    `GET /api/funds/:fundId/dual-forecast`
+  - Confirmed no live `client/`, `server/`, `shared/`, or `tests/` consumers of
+    the old route remain; remaining references are historical docs
 
 - **Dead Code Cleanup** (2026-02-17)
   - Deleted `WalkingSkeleton.tsx` and `WalkingSkeleton.test.tsx` (dead feature
@@ -682,8 +717,6 @@ and this project adheres to
   - Updated pre-commit hook to exempt PROJECT-PHOENIX-COMPREHENSIVE-STRATEGY.md
     from emoji checks
   - Added supersession banners to older Phoenix strategy documents
-  - **Strategy**:
-    [docs/strategies/PHOENIX-PLAN-2025-11-30.md](docs/strategies/PHOENIX-PLAN-2025-11-30.md)
   - **Runbook**: [runbooks/phoenix-execution.md](runbooks/phoenix-execution.md)
 
 ### Changed
@@ -706,7 +739,8 @@ and this project adheres to
     - DeepSeek V3.2: $0.00055 input / $0.00219 output
   - **Files Updated**:
     - [.env.local.example](.env.local.example) (lines 134-148)
-    - [archive/2026-q1/unused-code/claude_code-multi-AI-MCP/credentials.template.json](archive/2026-q1/unused-code/claude_code-multi-AI-MCP/credentials.template.json)
+    - `archive/2026-q1/unused-code/claude_code-multi-AI-MCP/credentials.template.json`
+      (archived)
   - **Verified Compatibility**: All multi-AI orchestrator functions
     (`askAllAIs()`, `aiConsensus()`, `collaborativeSolve()`) confirmed working
     with new model identifiers
@@ -2823,8 +2857,7 @@ and Phase 1D (Capital Allocation).
 
 **Phase 2: Data Layer Stabilization**
 
-- Created JSONB test helper:
-  [`tests/utils/jsonb-test-helper.ts`](tests/utils/jsonb-test-helper.ts)
+- Created JSONB test helper: `tests/utils/jsonb-test-helper.ts` (since removed)
 - Documented schema mismatch in time-travel and variance-tracking database tests
 - **Discovery:** Tests reference outdated schema columns (`snapshot_type`,
   `captured_at`)
@@ -2850,7 +2883,8 @@ and Phase 1D (Capital Allocation).
 
 - `vitest.config.ts` - Added `@shared/` path alias
 - `tests/utils/mock-shared-schema.ts` - **NEW** centralized mock factory
-- `tests/utils/jsonb-test-helper.ts` - **NEW** JSONB serialization utilities
+- `tests/utils/jsonb-test-helper.ts` (since removed) - **NEW** JSONB
+  serialization utilities
 - `tests/unit/services/performance-prediction.test.ts` - Use centralized mock
 - `tests/unit/services/monte-carlo-engine.test.ts` - Use centralized mock
 - `tests/unit/services/monte-carlo-power-law-integration.test.ts` - Use
@@ -2964,7 +2998,7 @@ and Phase 1D (Capital Allocation).
 
 - ❌ **`environmentMatchGlobs` Deprecated:** Vitest configuration uses
   deprecated `environmentMatchGlobs` option (lines 76-88 in
-  [vitest.config.ts](vitest.config.ts#L76-L88))
+  [vitest.config.mjs](vitest.config.mjs#L98-L141))
 - **Impact:** Server-side tests continue running in `jsdom` environment instead
   of `node`
 - **Errors:** `default.randomUUID is not a function`,
@@ -2984,9 +3018,9 @@ and Phase 1D (Capital Allocation).
 - [tests/unit/api/time-travel-api.test.ts](tests/unit/api/time-travel-api.test.ts)
 - [tests/unit/reallocation-api.test.ts](tests/unit/reallocation-api.test.ts)
 - [tests/unit/wizard-reserve-bridge.test.ts](tests/unit/wizard-reserve-bridge.test.ts)
-- [tests/unit/setup.ts](tests/unit/setup.ts) (attempted environment-agnostic
-  changes, reverted)
-- [vitest.config.ts](vitest.config.ts) (deprecated `environmentMatchGlobs`
+- `tests/unit/setup.ts` (since reorganized into `tests/setup/`; attempted
+  environment-agnostic changes, reverted)
+- [vitest.config.mjs](vitest.config.mjs) (deprecated `environmentMatchGlobs`
   configuration)
 
 ---
@@ -3339,8 +3373,8 @@ and Phase 1D (Capital Allocation).
 - Large objects (≥ 1KB): Offload to worker thread
 - Performance: Event loop blocking 100-500ms → 0-5ms
 - Comprehensive test suite (25+ test cases)
-- See:
-  [packages/agent-core/PHASE2_ISSUE1_COMPLETION.md](packages/agent-core/PHASE2_ISSUE1_COMPLETION.md)
+- Historical detail file removed during repository cleanup; summary retained
+  here.
 
 **Phase 2 - Issue #2: Redis L2 Cache** 🚧 Day 1/3 Complete
 
@@ -3357,8 +3391,8 @@ and Phase 1D (Capital Allocation).
   HALF_OPEN)
 - Status: Foundation complete (1,368 LOC), integration pending (Day 2-3)
 - Next: ConversationCache integration with Stale-While-Revalidate pattern
-- See:
-  [packages/agent-core/PHASE2_ISSUE2_DETAILED_PLAN.md](packages/agent-core/PHASE2_ISSUE2_DETAILED_PLAN.md)
+- Historical detail file removed during repository cleanup; summary retained
+  here.
 
 **Multi-AI Review Results**:
 
@@ -3366,8 +3400,8 @@ and Phase 1D (Capital Allocation).
 - Average Score: 7.3/10, Confidence: 73%
 - Verdict: Conditional GO (fix 5 P0 issues before production)
 - All critical issues being addressed in Phase 2
-- See:
-  [packages/agent-core/reviews/MULTI_AI_CONSENSUS_REPORT.md](packages/agent-core/reviews/MULTI_AI_CONSENSUS_REPORT.md)
+- Historical review file removed during repository cleanup; summary retained
+  here.
 
 ### Changed
 
@@ -3402,8 +3436,8 @@ and Phase 1D (Capital Allocation).
   - Integrated into `BaseAgent` with `enableConversationMemory` config flag
   - Architecture inspired by
     [zen-mcp-server](https://github.com/BeehiveInnovations/zen-mcp-server)
-  - [Demo](packages/agent-core/demo-conversation-memory.ts) showing multi-agent
-    workflow
+  - `archive/2026-q1/package-demos/agent-core/demo-conversation-memory.ts`
+    (archived) - demo showing multi-agent workflow
   - Comprehensive test suite with 50+ test cases covering all scenarios
 
 ### Added (Previous)
