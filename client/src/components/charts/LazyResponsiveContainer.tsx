@@ -82,7 +82,7 @@ export function LazyResponsiveContainer({
 
   const fallback = (
     <div
-      className="animate-pulse rounded bg-gray-100"
+      className="animate-pulse rounded bg-pov-gray"
       style={{
         width: '100%',
         height: '100%',

@@ -31,8 +31,8 @@ const HEADER_ICON_COMPONENTS: Record<HeaderMetricIcon, LucideIcon> = {
 };
 
 const CARD_CLASS_NAMES: Record<HeaderMetricTheme, string> = {
-  white: 'bg-white border-charcoal-200',
-  beige: 'bg-beige-50 border-beige-300',
+  white: 'bg-white border-beige-200',
+  beige: 'bg-pov-gray/50 border-beige-200',
 };
 
 const LABEL_CLASS_NAMES: Record<HeaderMetricTheme, string> = {
@@ -65,7 +65,7 @@ export function HeaderMetricCard({
           <div className="min-w-0">
             <p className={`text-xs ${LABEL_CLASS_NAMES[card.theme]} font-medium`}>{card.title}</p>
             <p
-              className="truncate text-sm font-bold leading-tight text-charcoal-900 tabular-nums"
+              className="truncate text-sm font-bold leading-tight text-pov-charcoal tabular-nums"
               title={card.titleText}
             >
               {card.displayValue}

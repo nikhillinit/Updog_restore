@@ -1,10 +1,16 @@
 import React, { useState, useMemo } from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import {
   AreaChart,
   Area,
@@ -18,7 +24,7 @@ import {
   Line,
   PieChart,
   Pie,
-  Cell
+  Cell,
 } from 'recharts';
 import { LazyResponsiveContainer as ResponsiveContainer } from '@/components/charts/LazyResponsiveContainer';
 import {
@@ -32,10 +38,26 @@ import {
   Activity,
   RefreshCw,
   Download,
-  Zap
-} from "lucide-react";
-import { useLiquidityAnalytics, useLiquidityAlerts, useLiquidityMetrics } from '@/hooks/useLiquidityAnalytics';
+  Zap,
+} from 'lucide-react';
+import {
+  useLiquidityAnalytics,
+  useLiquidityAlerts,
+  useLiquidityMetrics,
+} from '@/hooks/useLiquidityAnalytics';
 import { useFundContext } from '@/contexts/FundContext';
+import { presson } from '@/theme/presson.tokens';
+import { colors as brandColors, getChartColor } from '@/lib/brand-tokens';
+
+const STATUS_SUCCESS = brandColors.success;
+const CASHFLOW_CHART_COLORS = {
+  positive: presson.color.positive,
+  negative: presson.color.negative,
+  warning: presson.color.warning,
+  info: presson.color.info,
+  text: presson.color.text,
+  success: STATUS_SUCCESS,
+} as const;
 
 interface CashflowDashboardProps {
   fundId: string;
@@ -62,24 +84,33 @@ export default function CashflowDashboard({ fundId, className = '' }: CashflowDa
 
   // Use additional hooks
   const { alerts } = useLiquidityAlerts(
-    analytics.liquidityForecast ? {
-      fundId,
-      asOfDate: new Date(),
-      bankAccounts: [],
-      totalCash: analytics.liquidityForecast.openingCash,
-      totalCommitted: analytics.liquidityForecast.openingCommitted,
-      totalDeployed: fundSize * 1000000 - analytics.liquidityForecast.openingCommitted,
-      availableLiquidity: analytics.liquidityForecast.openingCash,
-      pendingInflows: analytics.liquidityForecast.plannedCapitalCalls + analytics.liquidityForecast.expectedDistributions,
-      pendingOutflows: analytics.liquidityForecast.plannedInvestments + analytics.liquidityForecast.plannedExpenses,
-      netPending: (analytics.liquidityForecast.plannedCapitalCalls + analytics.liquidityForecast.expectedDistributions) -
-                  (analytics.liquidityForecast.plannedInvestments + analytics.liquidityForecast.plannedExpenses),
-      dryPowder: analytics.liquidityForecast.openingCash * 0.8,
-      reserveRequirement: fundSize * 1000000 * 0.15,
-      availableInvestment: analytics.liquidityForecast.openingCash * 0.8,
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    } : null,
+    analytics.liquidityForecast
+      ? {
+          fundId,
+          asOfDate: new Date(),
+          bankAccounts: [],
+          totalCash: analytics.liquidityForecast.openingCash,
+          totalCommitted: analytics.liquidityForecast.openingCommitted,
+          totalDeployed: fundSize * 1000000 - analytics.liquidityForecast.openingCommitted,
+          availableLiquidity: analytics.liquidityForecast.openingCash,
+          pendingInflows:
+            analytics.liquidityForecast.plannedCapitalCalls +
+            analytics.liquidityForecast.expectedDistributions,
+          pendingOutflows:
+            analytics.liquidityForecast.plannedInvestments +
+            analytics.liquidityForecast.plannedExpenses,
+          netPending:
+            analytics.liquidityForecast.plannedCapitalCalls +
+            analytics.liquidityForecast.expectedDistributions -
+            (analytics.liquidityForecast.plannedInvestments +
+              analytics.liquidityForecast.plannedExpenses),
+          dryPowder: analytics.liquidityForecast.openingCash * 0.8,
+          reserveRequirement: fundSize * 1000000 * 0.15,
+          availableInvestment: analytics.liquidityForecast.openingCash * 0.8,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        }
+      : null,
     analytics.liquidityForecast
   );
 
@@ -89,7 +120,7 @@ export default function CashflowDashboard({ fundId, className = '' }: CashflowDa
   const cashFlowChartData = useMemo(() => {
     if (!analytics.cashFlowAnalysis) return [];
 
-    return analytics.cashFlowAnalysis.byMonth.map(month => ({
+    return analytics.cashFlowAnalysis.byMonth.map((month) => ({
       month: month.month,
       inflows: month.totalInflow / 1000000, // Convert to millions
       outflows: month.totalOutflow / 1000000,
@@ -109,13 +140,18 @@ export default function CashflowDashboard({ fundId, className = '' }: CashflowDa
       date.setMonth(date.getMonth() + i);
 
       // Simple linear projection for demonstration
-      const cashDecline = (analytics.liquidityForecast.openingCash - analytics.liquidityForecast.projectedCash) / months;
-      const projectedCash = analytics.liquidityForecast.openingCash - (cashDecline * i);
+      const cashDecline =
+        (analytics.liquidityForecast.openingCash - analytics.liquidityForecast.projectedCash) /
+        months;
+      const projectedCash = analytics.liquidityForecast.openingCash - cashDecline * i;
 
       data.push({
         month: date.toLocaleDateString('en-US', { month: 'short', year: '2-digit' }),
         cash: Math.max(0, projectedCash / 1000000),
-        committed: (analytics.liquidityForecast.openingCommitted - (analytics.liquidityForecast.plannedCapitalCalls * i / months)) / 1000000,
+        committed:
+          (analytics.liquidityForecast.openingCommitted -
+            (analytics.liquidityForecast.plannedCapitalCalls * i) / months) /
+          1000000,
       });
     }
 
@@ -128,7 +164,7 @@ export default function CashflowDashboard({ fundId, className = '' }: CashflowDa
     const expenses = Object.entries(analytics.cashFlowAnalysis.byType)
       .filter(([_type, amount]) => amount < 0)
       .map(([type, amount]) => ({
-        type: type.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase()),
+        type: type.replace('_', ' ').replace(/\b\w/g, (l) => l.toUpperCase()),
         amount: Math.abs(amount / 1000000),
         color: getColorForExpenseType(type),
       }));
@@ -147,7 +183,9 @@ export default function CashflowDashboard({ fundId, className = '' }: CashflowDa
       <div className="flex justify-between items-center">
         <div>
           <h2 className="text-2xl font-bold">Cashflow & Liquidity Management</h2>
-          <p className="text-muted-foreground">Real-time liquidity monitoring and cash flow forecasting</p>
+          <p className="text-muted-foreground">
+            Real-time liquidity monitoring and cash flow forecasting
+          </p>
         </div>
         <div className="flex items-center gap-3">
           <Select value={timeframe} onValueChange={setTimeframe}>
@@ -166,19 +204,25 @@ export default function CashflowDashboard({ fundId, className = '' }: CashflowDa
             onClick={analytics.refreshAll}
             disabled={analytics.isLoadingAnalysis || analytics.isLoadingForecast}
           >
-            <RefreshCw className={`h-4 w-4 mr-2 ${analytics.isLoadingAnalysis || analytics.isLoadingForecast ? 'animate-spin' : ''}`} />
+            <RefreshCw
+              className={`h-4 w-4 mr-2 ${analytics.isLoadingAnalysis || analytics.isLoadingForecast ? 'animate-spin' : ''}`}
+            />
             Refresh
           </Button>
-          <Button variant="outline" size="sm" onClick={async () => {
-            const data = await analytics.exportData();
-            const blob = new Blob([data], { type: 'application/json' });
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = `cashflow-analysis-${fundId}-${new Date().toISOString().split('T')[0]}.json`;
-            a.click();
-            URL.revokeObjectURL(url);
-          }}>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={async () => {
+              const data = await analytics.exportData();
+              const blob = new Blob([data], { type: 'application/json' });
+              const url = URL.createObjectURL(blob);
+              const a = document.createElement('a');
+              a.href = url;
+              a.download = `cashflow-analysis-${fundId}-${new Date().toISOString().split('T')[0]}.json`;
+              a.click();
+              URL.revokeObjectURL(url);
+            }}
+          >
             <Download className="h-4 w-4 mr-2" />
             Export
           </Button>
@@ -188,7 +232,7 @@ export default function CashflowDashboard({ fundId, className = '' }: CashflowDa
       {/* Alerts */}
       {alerts.length > 0 && (
         <div className="space-y-2">
-          {alerts.map(alert => (
+          {alerts.map((alert) => (
             <Alert key={alert.id} variant={alert.type === 'error' ? 'destructive' : 'default'}>
               <AlertTriangle className="h-4 w-4" />
               <AlertDescription>
@@ -203,44 +247,85 @@ export default function CashflowDashboard({ fundId, className = '' }: CashflowDa
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <MetricCard
           title="Available Cash"
-          value={analytics.liquidityForecast?.openingCash ? formatCurrencyShort(analytics.liquidityForecast.openingCash / 1000000) : '--'}
-          {...(analytics.cashFlowAnalysis?.summary.netCashFlow ? {
-            change: `${analytics.cashFlowAnalysis.summary.netCashFlow > 0 ? '+' : ''}${formatCurrencyShort(analytics.cashFlowAnalysis.summary.netCashFlow / 1000000)} this month`
-          } : {})}
-          {...(analytics.cashFlowAnalysis?.patterns.netFlowTrend ? { trend: analytics.cashFlowAnalysis.patterns.netFlowTrend } : {})}
+          value={
+            analytics.liquidityForecast?.openingCash
+              ? formatCurrencyShort(analytics.liquidityForecast.openingCash / 1000000)
+              : '--'
+          }
+          {...(analytics.cashFlowAnalysis?.summary.netCashFlow
+            ? {
+                change: `${analytics.cashFlowAnalysis.summary.netCashFlow > 0 ? '+' : ''}${formatCurrencyShort(analytics.cashFlowAnalysis.summary.netCashFlow / 1000000)} this month`,
+              }
+            : {})}
+          {...(analytics.cashFlowAnalysis?.patterns.netFlowTrend
+            ? { trend: analytics.cashFlowAnalysis.patterns.netFlowTrend }
+            : {})}
           icon={DollarSign as React.ComponentType<{ className?: string }>}
           loading={analytics.isLoadingAnalysis}
         />
 
         <MetricCard
           title="Liquidity Ratio"
-          value={analytics.liquidityForecast?.liquidityRatio ? analytics.liquidityForecast.liquidityRatio.toFixed(2) : '--'}
-          {...(analytics.liquidityForecast?.liquidityRatio ? {
-            change: `${analytics.liquidityForecast.liquidityRatio >= 1.5 ? 'Healthy' : 'Low'}`
-          } : {})}
-          trend={analytics.liquidityForecast?.liquidityRatio && analytics.liquidityForecast.liquidityRatio >= 1.5 ? 'stable' : 'decreasing'}
+          value={
+            analytics.liquidityForecast?.liquidityRatio
+              ? analytics.liquidityForecast.liquidityRatio.toFixed(2)
+              : '--'
+          }
+          {...(analytics.liquidityForecast?.liquidityRatio
+            ? {
+                change: `${analytics.liquidityForecast.liquidityRatio >= 1.5 ? 'Healthy' : 'Low'}`,
+              }
+            : {})}
+          trend={
+            analytics.liquidityForecast?.liquidityRatio &&
+            analytics.liquidityForecast.liquidityRatio >= 1.5
+              ? 'stable'
+              : 'decreasing'
+          }
           icon={Target as React.ComponentType<{ className?: string }>}
           loading={analytics.isLoadingForecast}
         />
 
         <MetricCard
           title="Burn Rate"
-          value={analytics.liquidityForecast?.burnRate ? `${formatCurrencyShort(analytics.liquidityForecast.burnRate / 1000000)  }/mo` : '--'}
-          {...(liquidityMetrics?.deploymentRate ? {
-            change: `${(liquidityMetrics.deploymentRate * 100).toFixed(1)}% deployment rate`
-          } : {})}
-          {...(analytics.cashFlowAnalysis?.patterns.outflowTrend ? { trend: analytics.cashFlowAnalysis.patterns.outflowTrend } : {})}
+          value={
+            analytics.liquidityForecast?.burnRate
+              ? `${formatCurrencyShort(analytics.liquidityForecast.burnRate / 1000000)}/mo`
+              : '--'
+          }
+          {...(liquidityMetrics?.deploymentRate
+            ? {
+                change: `${(liquidityMetrics.deploymentRate * 100).toFixed(1)}% deployment rate`,
+              }
+            : {})}
+          {...(analytics.cashFlowAnalysis?.patterns.outflowTrend
+            ? { trend: analytics.cashFlowAnalysis.patterns.outflowTrend }
+            : {})}
           icon={Activity as React.ComponentType<{ className?: string }>}
           loading={analytics.isLoadingAnalysis}
         />
 
         <MetricCard
           title="Cash Runway"
-          value={analytics.liquidityForecast?.runwayMonths ? `${analytics.liquidityForecast.runwayMonths.toFixed(1)}mo` : '--'}
-          {...(analytics.liquidityForecast?.runwayMonths ? {
-            change: `${analytics.liquidityForecast.runwayMonths >= 12 ? 'Excellent' : analytics.liquidityForecast.runwayMonths >= 6 ? 'Good' : 'Critical'}`
-          } : {})}
-          trend={analytics.liquidityForecast?.runwayMonths && analytics.liquidityForecast.runwayMonths >= 12 ? 'increasing' : analytics.liquidityForecast?.runwayMonths && analytics.liquidityForecast.runwayMonths >= 6 ? 'stable' : 'decreasing'}
+          value={
+            analytics.liquidityForecast?.runwayMonths
+              ? `${analytics.liquidityForecast.runwayMonths.toFixed(1)}mo`
+              : '--'
+          }
+          {...(analytics.liquidityForecast?.runwayMonths
+            ? {
+                change: `${analytics.liquidityForecast.runwayMonths >= 12 ? 'Excellent' : analytics.liquidityForecast.runwayMonths >= 6 ? 'Good' : 'Critical'}`,
+              }
+            : {})}
+          trend={
+            analytics.liquidityForecast?.runwayMonths &&
+            analytics.liquidityForecast.runwayMonths >= 12
+              ? 'increasing'
+              : analytics.liquidityForecast?.runwayMonths &&
+                  analytics.liquidityForecast.runwayMonths >= 6
+                ? 'stable'
+                : 'decreasing'
+          }
           icon={Clock as React.ComponentType<{ className?: string }>}
           loading={analytics.isLoadingForecast}
         />
@@ -269,9 +354,27 @@ export default function CashflowDashboard({ fundId, className = '' }: CashflowDa
                     <CartesianGrid strokeDasharray="3 3" />
                     <XAxis dataKey="month" />
                     <YAxis />
-                    <Tooltip formatter={(value) => value !== undefined ? formatCurrencyShort(Number(value)) : ''} />
-                    <Area type="monotone" dataKey="inflows" stackId="1" stroke="#10b981" fill="#10b981" fillOpacity={0.6} />
-                    <Area type="monotone" dataKey="outflows" stackId="2" stroke="#ef4444" fill="#ef4444" fillOpacity={0.6} />
+                    <Tooltip
+                      formatter={(value) =>
+                        value !== undefined ? formatCurrencyShort(Number(value)) : ''
+                      }
+                    />
+                    <Area
+                      type="monotone"
+                      dataKey="inflows"
+                      stackId="1"
+                      stroke={CASHFLOW_CHART_COLORS.positive}
+                      fill={CASHFLOW_CHART_COLORS.positive}
+                      fillOpacity={0.6}
+                    />
+                    <Area
+                      type="monotone"
+                      dataKey="outflows"
+                      stackId="2"
+                      stroke={CASHFLOW_CHART_COLORS.negative}
+                      fill={CASHFLOW_CHART_COLORS.negative}
+                      fillOpacity={0.6}
+                    />
                   </AreaChart>
                 </ResponsiveContainer>
               </CardContent>
@@ -288,8 +391,12 @@ export default function CashflowDashboard({ fundId, className = '' }: CashflowDa
                     <CartesianGrid strokeDasharray="3 3" />
                     <XAxis dataKey="month" />
                     <YAxis />
-                    <Tooltip formatter={(value) => value !== undefined ? formatCurrencyShort(Number(value)) : ''} />
-                    <Bar dataKey="netFlow" fill="#3b82f6" />
+                    <Tooltip
+                      formatter={(value) =>
+                        value !== undefined ? formatCurrencyShort(Number(value)) : ''
+                      }
+                    />
+                    <Bar dataKey="netFlow" fill={CASHFLOW_CHART_COLORS.info} />
                   </BarChart>
                 </ResponsiveContainer>
               </CardContent>
@@ -302,7 +409,9 @@ export default function CashflowDashboard({ fundId, className = '' }: CashflowDa
           <Card>
             <CardHeader>
               <CardTitle>Liquidity Forecast</CardTitle>
-              <CardDescription>Projected cash and committed capital over {timeframe}</CardDescription>
+              <CardDescription>
+                Projected cash and committed capital over {timeframe}
+              </CardDescription>
             </CardHeader>
             <CardContent>
               <ResponsiveContainer width="100%" height={400}>
@@ -310,9 +419,26 @@ export default function CashflowDashboard({ fundId, className = '' }: CashflowDa
                   <CartesianGrid strokeDasharray="3 3" />
                   <XAxis dataKey="month" />
                   <YAxis />
-                  <Tooltip formatter={(value) => value !== undefined ? formatCurrencyShort(Number(value)) : ''} />
-                  <Line type="monotone" dataKey="cash" stroke="#3b82f6" strokeWidth={3} name="Available Cash" />
-                  <Line type="monotone" dataKey="committed" stroke="#8b5cf6" strokeWidth={2} strokeDasharray="5 5" name="Undrawn Commitments" />
+                  <Tooltip
+                    formatter={(value) =>
+                      value !== undefined ? formatCurrencyShort(Number(value)) : ''
+                    }
+                  />
+                  <Line
+                    type="monotone"
+                    dataKey="cash"
+                    stroke={CASHFLOW_CHART_COLORS.info}
+                    strokeWidth={3}
+                    name="Available Cash"
+                  />
+                  <Line
+                    type="monotone"
+                    dataKey="committed"
+                    stroke={CASHFLOW_CHART_COLORS.text}
+                    strokeWidth={2}
+                    strokeDasharray="5 5"
+                    name="Undrawn Commitments"
+                  />
                 </LineChart>
               </ResponsiveContainer>
             </CardContent>
@@ -323,19 +449,28 @@ export default function CashflowDashboard({ fundId, className = '' }: CashflowDa
             <Card>
               <CardHeader>
                 <CardTitle>Scenario Analysis</CardTitle>
-                <CardDescription>Different liquidity scenarios and their probabilities</CardDescription>
+                <CardDescription>
+                  Different liquidity scenarios and their probabilities
+                </CardDescription>
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
                   {analytics.liquidityForecast.scenarios.map((scenario, index) => (
-                    <div key={index} className="flex items-center justify-between p-4 border rounded-lg">
+                    <div
+                      key={index}
+                      className="flex items-center justify-between p-4 border rounded-lg"
+                    >
                       <div className="flex-1">
                         <h4 className="font-medium">{scenario.name}</h4>
                         <p className="text-sm text-muted-foreground">{scenario.notes}</p>
                       </div>
                       <div className="text-right">
-                        <div className="font-medium">{formatCurrencyShort(scenario.projectedCash / 1000000)}</div>
-                        <div className="text-sm text-muted-foreground">{(scenario.probability * 100).toFixed(0)}% probability</div>
+                        <div className="font-medium">
+                          {formatCurrencyShort(scenario.projectedCash / 1000000)}
+                        </div>
+                        <div className="text-sm text-muted-foreground">
+                          {(scenario.probability * 100).toFixed(0)}% probability
+                        </div>
                       </div>
                     </div>
                   ))}
@@ -361,14 +496,18 @@ export default function CashflowDashboard({ fundId, className = '' }: CashflowDa
                       cx="50%"
                       cy="50%"
                       outerRadius={100}
-                      fill="#8884d8"
+                      fill={CASHFLOW_CHART_COLORS.text}
                       dataKey="amount"
                     >
                       {expenseBreakdownData.map((entry, index) => (
                         <Cell key={`cell-${index}`} fill={entry.color} />
                       ))}
                     </Pie>
-                    <Tooltip formatter={(value) => value !== undefined ? formatCurrencyShort(Number(value)) : ''} />
+                    <Tooltip
+                      formatter={(value) =>
+                        value !== undefined ? formatCurrencyShort(Number(value)) : ''
+                      }
+                    />
                   </PieChart>
                 </ResponsiveContainer>
               </CardContent>
@@ -388,15 +527,21 @@ export default function CashflowDashboard({ fundId, className = '' }: CashflowDa
                     </div>
                     <div className="flex justify-between items-center">
                       <span className="text-sm font-medium">Deployment Rate</span>
-                      <span className="text-sm">{(liquidityMetrics.deploymentRate * 100).toFixed(1)}%</span>
+                      <span className="text-sm">
+                        {(liquidityMetrics.deploymentRate * 100).toFixed(1)}%
+                      </span>
                     </div>
                     <div className="flex justify-between items-center">
                       <span className="text-sm font-medium">Avg Cycle Time</span>
-                      <span className="text-sm">{liquidityMetrics.avgCycleTime.toFixed(0)} days</span>
+                      <span className="text-sm">
+                        {liquidityMetrics.avgCycleTime.toFixed(0)} days
+                      </span>
                     </div>
                     <div className="flex justify-between items-center">
                       <span className="text-sm font-medium">Cash Flow Volatility</span>
-                      <span className="text-sm">{formatCurrencyShort(liquidityMetrics.cashFlowVolatility / 1000000)}</span>
+                      <span className="text-sm">
+                        {formatCurrencyShort(liquidityMetrics.cashFlowVolatility / 1000000)}
+                      </span>
                     </div>
                   </div>
                 ) : (
@@ -421,20 +566,33 @@ export default function CashflowDashboard({ fundId, className = '' }: CashflowDa
                 <div className="space-y-6">
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <div className="text-center p-4 border rounded-lg">
-                      <div className="text-2xl font-bold text-green-600">
-                        {analytics.stressTestResult.scenarios.filter(s => s.endingCash > 0).length}
+                      <div className="text-2xl font-bold text-success-dark">
+                        {
+                          analytics.stressTestResult.scenarios.filter((s) => s.endingCash > 0)
+                            .length
+                        }
                       </div>
                       <div className="text-sm text-muted-foreground">Scenarios Pass</div>
                     </div>
                     <div className="text-center p-4 border rounded-lg">
-                      <div className="text-2xl font-bold text-red-600">
-                        {analytics.stressTestResult.scenarios.filter(s => s.endingCash <= 0).length}
+                      <div className="text-2xl font-bold text-error-dark">
+                        {
+                          analytics.stressTestResult.scenarios.filter((s) => s.endingCash <= 0)
+                            .length
+                        }
                       </div>
                       <div className="text-sm text-muted-foreground">Scenarios Fail</div>
                     </div>
                     <div className="text-center p-4 border rounded-lg">
-                      <div className={`text-2xl font-bold ${analytics.stressTestResult.riskLevel === 'low' ? 'text-green-600' :
-                                                           analytics.stressTestResult.riskLevel === 'medium' ? 'text-yellow-600' : 'text-red-600'}`}>
+                      <div
+                        className={`text-2xl font-bold ${
+                          analytics.stressTestResult.riskLevel === 'low'
+                            ? 'text-success-dark'
+                            : analytics.stressTestResult.riskLevel === 'medium'
+                              ? 'text-warning-dark'
+                              : 'text-error-dark'
+                        }`}
+                      >
                         {analytics.stressTestResult.riskLevel.toUpperCase()}
                       </div>
                       <div className="text-sm text-muted-foreground">Risk Level</div>
@@ -444,17 +602,29 @@ export default function CashflowDashboard({ fundId, className = '' }: CashflowDa
                   <div className="space-y-3">
                     <h4 className="font-medium">Stress Test Scenarios</h4>
                     {analytics.stressTestResult.scenarios.map((scenario, index) => (
-                      <div key={index} className="flex items-center justify-between p-4 border rounded-lg">
+                      <div
+                        key={index}
+                        className="flex items-center justify-between p-4 border rounded-lg"
+                      >
                         <div className="flex-1">
                           <h5 className="font-medium">{scenario.name}</h5>
                           <p className="text-sm text-muted-foreground">{scenario.description}</p>
                         </div>
                         <div className="text-right">
-                          <div className={`font-medium ${scenario.endingCash > 0 ? 'text-green-600' : 'text-red-600'}`}>
+                          <div
+                            className={`font-medium ${scenario.endingCash > 0 ? 'text-presson-positive' : 'text-presson-negative'}`}
+                          >
                             {formatCurrencyShort(scenario.endingCash / 1000000)}
                           </div>
-                          <Badge variant={scenario.impactRating === 'high' ? 'destructive' :
-                                          scenario.impactRating === 'medium' ? 'default' : 'secondary'}>
+                          <Badge
+                            variant={
+                              scenario.impactRating === 'high'
+                                ? 'destructive'
+                                : scenario.impactRating === 'medium'
+                                  ? 'default'
+                                  : 'secondary'
+                            }
+                          >
                             {scenario.impactRating} impact
                           </Badge>
                         </div>
@@ -467,7 +637,10 @@ export default function CashflowDashboard({ fundId, className = '' }: CashflowDa
                       <h4 className="font-medium">Recommendations</h4>
                       <ul className="space-y-1">
                         {analytics.stressTestResult.recommendations.map((rec, index) => (
-                          <li key={index} className="text-sm text-muted-foreground flex items-start gap-2">
+                          <li
+                            key={index}
+                            className="text-sm text-muted-foreground flex items-start gap-2"
+                          >
                             <ArrowUpRight className="h-4 w-4 mt-0.5 flex-shrink-0" />
                             {rec}
                           </li>
@@ -478,7 +651,10 @@ export default function CashflowDashboard({ fundId, className = '' }: CashflowDa
                 </div>
               ) : (
                 <div className="text-center py-8">
-                  <Button onClick={() => analytics.runStressTest()} disabled={analytics.isLoadingStressTest}>
+                  <Button
+                    onClick={() => analytics.runStressTest()}
+                    disabled={analytics.isLoadingStressTest}
+                  >
                     {analytics.isLoadingStressTest ? (
                       <>
                         <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
@@ -524,11 +700,15 @@ function MetricCard({ title, value, change, trend, icon: Icon, loading }: Metric
             <span className="text-sm font-medium text-muted-foreground">{title}</span>
           </div>
           {trend && (
-            <div className={`p-1 rounded ${
-              trend === 'increasing' ? 'bg-green-100 text-green-600' :
-              trend === 'decreasing' ? 'bg-red-100 text-red-600' :
-              'bg-gray-100 text-gray-600'
-            }`}>
+            <div
+              className={`p-1 rounded ${
+                trend === 'increasing'
+                  ? 'bg-success/10 text-success-dark'
+                  : trend === 'decreasing'
+                    ? 'bg-error/10 text-error-dark'
+                    : 'bg-pov-gray text-charcoal-600'
+              }`}
+            >
               {trend === 'increasing' ? (
                 <TrendingUp className="h-3 w-3" />
               ) : trend === 'decreasing' ? (
@@ -542,15 +722,13 @@ function MetricCard({ title, value, change, trend, icon: Icon, loading }: Metric
         <div className="mt-3">
           {loading ? (
             <div className="animate-pulse">
-              <div className="h-8 bg-gray-200 rounded w-24"></div>
-              <div className="h-4 bg-gray-200 rounded w-32 mt-2"></div>
+              <div className="h-8 bg-pov-gray rounded w-24"></div>
+              <div className="h-4 bg-pov-gray rounded w-32 mt-2"></div>
             </div>
           ) : (
             <>
               <div className="text-2xl font-bold">{value}</div>
-              {change && (
-                <div className="text-sm text-muted-foreground mt-1">{change}</div>
-              )}
+              {change && <div className="text-sm text-muted-foreground mt-1">{change}</div>}
             </>
           )}
         </div>
@@ -563,14 +741,17 @@ function MetricCard({ title, value, change, trend, icon: Icon, loading }: Metric
 // HELPER FUNCTIONS
 // =============================================================================
 
+// Expense types are NEUTRAL categories (all cash movements, not gain/loss), so they
+// use the monochrome brand categorical palette — avoids implying financial direction.
+const EXPENSE_TYPE_ORDER = [
+  'expense',
+  'management_fee',
+  'investment',
+  'follow_on',
+  'bridge_loan',
+  'other',
+];
 function getColorForExpenseType(type: string): string {
-  const colors: Record<string, string> = {
-    'expense': '#ef4444',
-    'management_fee': '#f97316',
-    'investment': '#3b82f6',
-    'follow_on': '#8b5cf6',
-    'bridge_loan': '#06b6d4',
-    'other': '#6b7280',
-  };
-  return colors[type] || '#6b7280';
+  const idx = EXPENSE_TYPE_ORDER.indexOf(type);
+  return getChartColor(idx >= 0 ? idx : EXPENSE_TYPE_ORDER.length, true);
 }

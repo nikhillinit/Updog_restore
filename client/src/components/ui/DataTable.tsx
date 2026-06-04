@@ -24,17 +24,14 @@ interface SortState<T> {
   direction: SortDirection;
 }
 
-export function DataTable<T extends object>({
-  columns,
-  rows
-}: DataTableProps<T>) {
+export function DataTable<T extends object>({ columns, rows }: DataTableProps<T>) {
   const [sortState, setSortState] = React.useState<SortState<T>>({
     column: null,
-    direction: null
+    direction: null,
   });
 
   const handleSort = (columnKey: keyof T) => {
-    setSortState(prev => {
+    setSortState((prev) => {
       if (prev.column !== columnKey) {
         return { column: columnKey, direction: 'asc' };
       }
@@ -76,38 +73,38 @@ export function DataTable<T extends object>({
       return null;
     }
     return (
-      <span className="ml-1 text-[#292929]">
-        {sortState.direction === 'asc' ? '▲' : '▼'}
-      </span>
+      <span className="ml-1 text-pov-charcoal">{sortState.direction === 'asc' ? '▲' : '▼'}</span>
     );
   };
 
   const isNumericColumn = (columnKey: keyof T): boolean => {
     // Check if first non-null value is a number
-    const firstValue = rows.find(row => row[columnKey] != null)?.[columnKey];
+    const firstValue = rows.find((row) => row[columnKey] != null)?.[columnKey];
     return typeof firstValue === 'number';
   };
 
   return (
-    <div className="border border-[#E0D8D1] rounded-lg overflow-hidden">
+    <div className="border border-beige-200 rounded-lg overflow-hidden">
       <div className="relative w-full overflow-auto">
         <table className="w-full caption-bottom text-sm">
-          <thead className="sticky top-0 bg-[#F2F2F2] z-10">
-            <tr className="border-b border-[#E0D8D1]">
-              {columns.map(column => (
+          <thead className="sticky top-0 bg-pov-gray z-10">
+            <tr className="border-b border-beige-200">
+              {columns.map((column) => (
                 <th
                   key={String(column.key)}
                   className={cn(
-                    'h-12 px-4 align-middle font-poppins font-bold text-[#292929]',
-                    'cursor-pointer select-none hover:bg-[#E8E8E8] transition-colors',
+                    'h-12 px-4 align-middle font-poppins font-bold text-pov-charcoal',
+                    'cursor-pointer select-none hover:bg-pov-gray transition-colors',
                     column.align === 'right' ? 'text-right' : 'text-left'
                   )}
                   onClick={() => handleSort(column.key)}
                 >
-                  <div className={cn(
-                    'flex items-center gap-1',
-                    column.align === 'right' ? 'justify-end' : 'justify-start'
-                  )}>
+                  <div
+                    className={cn(
+                      'flex items-center gap-1',
+                      column.align === 'right' ? 'justify-end' : 'justify-start'
+                    )}
+                  >
                     {column.label}
                     {renderSortIndicator(column.key)}
                   </div>
@@ -122,11 +119,11 @@ export function DataTable<T extends object>({
                 <tr
                   key={rowIndex}
                   className={cn(
-                    'border-b border-[#E0D8D1] last:border-b-0',
-                    isEvenRow ? 'bg-white' : 'bg-[#F2F2F2]'
+                    'border-b border-beige-200 last:border-b-0',
+                    isEvenRow ? 'bg-white' : 'bg-pov-gray'
                   )}
                 >
-                  {columns.map(column => {
+                  {columns.map((column) => {
                     const value = row[column.key];
                     const isNumeric = isNumericColumn(column.key);
 
