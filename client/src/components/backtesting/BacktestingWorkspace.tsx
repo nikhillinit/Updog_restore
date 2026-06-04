@@ -53,9 +53,9 @@ function useElapsedSeconds(isActive: boolean): number {
 }
 
 function getRunnerBorderColor(phase: string): string {
-  if (phase === 'failed') return 'border-red-200';
-  if (phase === 'queued' || phase === 'running') return 'border-blue-200';
-  return 'border-emerald-200';
+  if (phase === 'failed') return 'border-error/50';
+  if (phase === 'queued' || phase === 'running') return 'border-presson-info/30';
+  return 'border-success/50';
 }
 
 function getRunnerStatusText(phase: string, stage: string | null, message: string): string {
@@ -76,10 +76,10 @@ function RunnerHeader({
   return (
     <div className="mb-2 flex items-center justify-between">
       <div className="flex items-center gap-2">
-        {isActive && <div className="h-2 w-2 animate-pulse rounded-full bg-blue-500" />}
-        <span className="text-sm font-medium text-gray-700">{statusText}</span>
+        {isActive && <div className="h-2 w-2 animate-pulse rounded-full bg-presson-info" />}
+        <span className="text-sm font-medium text-charcoal-700">{statusText}</span>
       </div>
-      {isActive && <span className="tabular-nums text-xs text-gray-500">{elapsed}s</span>}
+      {isActive && <span className="tabular-nums text-xs text-charcoal-500">{elapsed}s</span>}
     </div>
   );
 }
@@ -93,9 +93,9 @@ function RunnerProgressBar({
 }) {
   if (!isActive) return null;
   return (
-    <div className="h-1.5 w-full rounded-full bg-gray-200">
+    <div className="h-1.5 w-full rounded-full bg-pov-gray">
       <div
-        className="h-1.5 rounded-full bg-blue-500 transition-all duration-500"
+        className="h-1.5 rounded-full bg-presson-info transition-all duration-500"
         style={{ width: `${Math.max(progressPercent, 2)}%` }}
       />
     </div>
@@ -113,9 +113,9 @@ function ErrorDisplay({
   const config = ERROR_TIER_MESSAGES[tier];
   return (
     <div className="text-sm">
-      <p className="font-medium text-red-700">{config.title}</p>
-      <p className="mt-0.5 text-xs text-gray-600">{errorMessage}</p>
-      <p className="mt-1 text-xs text-gray-500">{config.guidance}</p>
+      <p className="font-medium text-error-dark">{config.title}</p>
+      <p className="mt-0.5 text-xs text-charcoal-600">{errorMessage}</p>
+      <p className="mt-1 text-xs text-charcoal-500">{config.guidance}</p>
     </div>
   );
 }
@@ -182,7 +182,7 @@ function RunnerPanel(props: RunnerPanelProps) {
           {...(props.onRetry ? { onRetry: props.onRetry } : {})}
         />
         {correlationId && (
-          <p className="mt-1 font-mono text-[10px] text-gray-400">{correlationId}</p>
+          <p className="mt-1 font-mono text-[10px] text-charcoal-400">{correlationId}</p>
         )}
       </CardContent>
     </Card>
@@ -199,11 +199,11 @@ function SubmitErrorPanel({
   if (!error) return null;
 
   return (
-    <Card className="border-red-200">
+    <Card className="border-error/50">
       <CardContent className="px-4 py-3">
         <ErrorDisplay errorCode={error.errorCode} errorMessage={error.errorMessage} />
         {error.status && (
-          <p className="mt-1 font-mono text-[10px] text-gray-400">HTTP {error.status}</p>
+          <p className="mt-1 font-mono text-[10px] text-charcoal-400">HTTP {error.status}</p>
         )}
         {error.isRetryable && onRetry && (
           <Button variant="outline" size="sm" onClick={onRetry} className="mt-2">
@@ -225,9 +225,9 @@ function SummaryCard({
   highlight?: boolean;
 }) {
   return (
-    <div className="rounded-lg border border-gray-200 p-3">
-      <p className="text-xs text-gray-500">{label}</p>
-      <p className={cn('text-lg font-semibold text-gray-800', highlight && 'text-amber-600')}>
+    <div className="rounded-lg border border-beige-200 p-3">
+      <p className="text-xs text-charcoal-500">{label}</p>
+      <p className={cn('text-lg font-semibold text-pov-charcoal', highlight && 'text-warning')}>
         {value}
       </p>
     </div>
@@ -277,12 +277,12 @@ function ScenarioComparisonWarning({ result }: { result: BacktestResultViewModel
   }
 
   return (
-    <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+    <div className="rounded-lg border border-warning/50 bg-warning/10 px-4 py-3 text-sm text-warning-dark">
       <p className="font-medium">
         Scenario comparison incomplete: {summary.scenariosCompared} of {summary.requestedScenarios}{' '}
         requested historical scenarios succeeded.
       </p>
-      <p className="mt-1 text-xs text-amber-800">
+      <p className="mt-1 text-xs text-warning">
         Failed scenarios: {summary.failedScenarios.map(formatScenarioLabel).join(', ')}
       </p>
     </div>
@@ -302,15 +302,15 @@ function ScenarioComparisons({
       <CardContent>
         <div className="space-y-3">
           {comparisons.map((comparison) => (
-            <div key={comparison.scenario} className="border-l-2 border-gray-300 pl-3">
-              <p className="text-sm font-medium text-gray-800">
+            <div key={comparison.scenario} className="border-l-2 border-charcoal-300 pl-3">
+              <p className="text-sm font-medium text-pov-charcoal">
                 {formatScenarioLabel(comparison.scenario)}
               </p>
-              <p className="text-xs text-gray-500">{comparison.description}</p>
+              <p className="text-xs text-charcoal-500">{comparison.description}</p>
               {comparison.keyInsights.length > 0 && (
                 <ul className="mt-1 space-y-0.5">
                   {comparison.keyInsights.map((insight, index) => (
-                    <li key={index} className="text-xs text-gray-600">
+                    <li key={index} className="text-xs text-charcoal-600">
                       - {insight}
                     </li>
                   ))}
@@ -360,24 +360,26 @@ function HistoryPanel({
   const { data, isLoading } = useBacktestHistory(fundId);
 
   if (isLoading) {
-    return <p className="text-xs text-gray-500">Loading history...</p>;
+    return <p className="text-xs text-charcoal-500">Loading history...</p>;
   }
 
   if (!data?.history?.length) {
-    return <p className="text-xs text-gray-500">No previous backtests</p>;
+    return <p className="text-xs text-charcoal-500">No previous backtests</p>;
   }
 
   return (
     <div className="space-y-1">
-      <h3 className="mb-2 text-xs font-medium text-gray-600">Recent Backtests</h3>
+      <h3 className="mb-2 text-xs font-medium text-charcoal-600">Recent Backtests</h3>
       {data.history.slice(0, 5).map((result) => (
         <button
           key={result.backtestId}
           onClick={() => onSelect(toResultViewModel(result))}
-          className="w-full rounded px-2 py-1.5 text-left text-xs transition-colors hover:bg-gray-100"
+          className="w-full rounded px-2 py-1.5 text-left text-xs transition-colors hover:bg-pov-gray"
         >
-          <span className="text-gray-800">{new Date(result.timestamp).toLocaleDateString()}</span>
-          <span className="ml-2 text-gray-500">
+          <span className="text-pov-charcoal">
+            {new Date(result.timestamp).toLocaleDateString()}
+          </span>
+          <span className="ml-2 text-charcoal-500">
             {result.simulationSummary.runs.toLocaleString()} runs
           </span>
         </button>
@@ -483,7 +485,7 @@ function BacktestingMainPanel({
   return (
     <div className="space-y-4 lg:col-span-2">
       {state.resumeMismatch && (
-        <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+        <div className="rounded-lg border border-warning/50 bg-warning/10 px-4 py-3 text-sm text-warning-dark">
           Ignored resumed backtest job from fund {state.resumeMismatch.actualFundId} while viewing
           the currently selected fund.
         </div>
@@ -502,8 +504,8 @@ function BacktestingMainPanel({
       />
       {state.displayedResult && <ResultsSection result={state.displayedResult} />}
       {!state.displayedResult && !state.submitError && state.jobStatus.phase === 'idle' && (
-        <div className="flex h-48 items-center justify-center rounded-lg border border-dashed border-gray-300">
-          <p className="text-sm text-gray-400">Configure and run a backtest to see results</p>
+        <div className="flex h-48 items-center justify-center rounded-lg border border-dashed border-beige-200">
+          <p className="text-sm text-charcoal-400">Configure and run a backtest to see results</p>
         </div>
       )}
     </div>
@@ -532,11 +534,11 @@ export function BacktestingWorkspace({
       <div className={cn('max-w-6xl mx-auto p-6', containerClassName)}>
         {showHeader && (
           <>
-            <h1 className="mb-1 text-xl font-semibold text-gray-800">{title}</h1>
-            <p className="mb-6 text-sm text-gray-500">{description}</p>
+            <h1 className="mb-1 text-xl font-semibold text-pov-charcoal">{title}</h1>
+            <p className="mb-6 text-sm text-charcoal-500">{description}</p>
           </>
         )}
-        <p className="text-sm text-gray-500">Please select a fund to begin backtesting.</p>
+        <p className="text-sm text-charcoal-500">Please select a fund to begin backtesting.</p>
       </div>
     );
   }
@@ -545,8 +547,8 @@ export function BacktestingWorkspace({
     <div className={cn('max-w-6xl mx-auto p-6', containerClassName)}>
       {showHeader && (
         <>
-          <h1 className="mb-1 text-xl font-semibold text-gray-800">{title}</h1>
-          <p className="mb-6 text-sm text-gray-500">{description}</p>
+          <h1 className="mb-1 text-xl font-semibold text-pov-charcoal">{title}</h1>
+          <p className="mb-6 text-sm text-charcoal-500">{description}</p>
         </>
       )}
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
