@@ -94,10 +94,10 @@ export default function LPDashboard() {
       {/* Header */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
-          <h1 className="text-3xl font-bold font-inter text-[#292929]">
+          <h1 className="text-3xl font-bold font-inter text-pov-charcoal">
             {lpProfile?.name || 'LP Dashboard'}
           </h1>
-          <p className="text-[#292929]/70 font-poppins mt-1">
+          <p className="text-charcoal-600 font-poppins mt-1">
             Portfolio overview and performance metrics
           </p>
         </div>
@@ -112,7 +112,7 @@ export default function LPDashboard() {
           >
             <Bell className="h-5 w-5" />
             {unreadCount > 0 && (
-              <span className="absolute -top-1 -right-1 h-5 w-5 bg-red-500 text-white text-xs rounded-full flex items-center justify-center">
+              <span className="absolute -top-1 -right-1 h-5 w-5 bg-error text-pov-white text-xs rounded-full flex items-center justify-center">
                 {unreadCount > 9 ? '9+' : unreadCount}
               </span>
             )}
@@ -164,13 +164,13 @@ export default function LPDashboard() {
 
       {/* Fund Summaries */}
       {summaryData && summaryData.fundSummaries.length > 0 && (
-        <Card className="bg-white rounded-xl border border-[#E0D8D1] shadow-md">
+        <Card className="bg-white rounded-xl border border-beige-200 shadow-md">
           <CardHeader>
-            <CardTitle className="flex items-center gap-2 font-inter text-[#292929]">
-              <Building2 className="h-5 w-5 text-blue-600" />
+            <CardTitle className="flex items-center gap-2 font-inter text-pov-charcoal">
+              <Building2 className="h-5 w-5 text-pov-charcoal" />
               Fund Performance
             </CardTitle>
-            <CardDescription className="font-poppins text-[#292929]/70">
+            <CardDescription className="font-poppins text-charcoal-600">
               Individual fund metrics and returns
             </CardDescription>
           </CardHeader>
@@ -179,20 +179,20 @@ export default function LPDashboard() {
               {summaryData.fundSummaries.map((fund) => (
                 <div
                   key={fund.fundId}
-                  className="border border-[#E0D8D1] rounded-lg p-4 hover:shadow-md transition-shadow cursor-pointer"
+                  className="border border-beige-200 rounded-lg p-4 hover:shadow-md transition-shadow cursor-pointer"
                   onClick={() => navigate(`/lp/fund-detail/${fund.fundId}`)}
                 >
                   <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                     {/* Fund Info */}
                     <div className="flex-1">
                       <div className="flex items-center gap-3">
-                        <h3 className="font-inter font-bold text-lg text-[#292929]">
+                        <h3 className="font-inter font-bold text-lg text-pov-charcoal">
                           {fund.fundName}
                         </h3>
                         <Badge variant="outline">{fund.vintageYear}</Badge>
-                        <ExternalLink className="h-4 w-4 text-[#292929]/50" />
+                        <ExternalLink className="h-4 w-4 text-charcoal-400" />
                       </div>
-                      <div className="flex items-center gap-4 mt-2 text-sm font-poppins text-[#292929]/70">
+                      <div className="flex items-center gap-4 mt-2 text-sm font-poppins text-charcoal-600">
                         <span>Commitment: {formatCurrency(fund.commitment)}</span>
                         <span>Called: {formatCurrency(fund.called)}</span>
                         <span>Distributed: {formatCurrency(fund.distributed)}</span>
@@ -202,28 +202,28 @@ export default function LPDashboard() {
                     {/* Performance Metrics */}
                     <div className="flex items-center gap-6">
                       <div className="text-center">
-                        <div className="text-xs font-poppins text-[#292929]/50">IRR</div>
+                        <div className="text-xs font-poppins text-charcoal-400">IRR</div>
                         <div
-                          className={`text-lg font-bold font-inter ${fund.irr >= 0 ? 'text-green-600' : 'text-red-600'}`}
+                          className={`text-lg font-bold font-inter ${fund.irr >= 0 ? 'text-presson-positive' : 'text-presson-negative'}`}
                         >
                           {formatPercent(fund.irr)}
                         </div>
                       </div>
                       <div className="text-center">
-                        <div className="text-xs font-poppins text-[#292929]/50">TVPI</div>
-                        <div className="text-lg font-bold font-inter text-[#292929]">
+                        <div className="text-xs font-poppins text-charcoal-400">TVPI</div>
+                        <div className="text-lg font-bold font-inter text-pov-charcoal">
                           {fund.tvpi.toFixed(2)}x
                         </div>
                       </div>
                       <div className="text-center">
-                        <div className="text-xs font-poppins text-[#292929]/50">DPI</div>
-                        <div className="text-lg font-bold font-inter text-[#292929]">
+                        <div className="text-xs font-poppins text-charcoal-400">DPI</div>
+                        <div className="text-lg font-bold font-inter text-pov-charcoal">
                           {fund.dpi.toFixed(2)}x
                         </div>
                       </div>
                       <div className="text-center">
-                        <div className="text-xs font-poppins text-[#292929]/50">NAV</div>
-                        <div className="text-lg font-bold font-inter text-[#292929]">
+                        <div className="text-xs font-poppins text-charcoal-400">NAV</div>
+                        <div className="text-lg font-bold font-inter text-pov-charcoal">
                           {formatCurrency(fund.nav)}
                         </div>
                       </div>
@@ -231,7 +231,7 @@ export default function LPDashboard() {
                   </div>
 
                   {/* Last Updated */}
-                  <div className="flex items-center gap-2 mt-3 text-xs text-[#292929]/50 font-poppins">
+                  <div className="flex items-center gap-2 mt-3 text-xs text-charcoal-400 font-poppins">
                     <Calendar className="h-3 w-3" />
                     <span>Last updated: {new Date(fund.lastUpdated).toLocaleDateString()}</span>
                   </div>
@@ -243,9 +243,9 @@ export default function LPDashboard() {
       )}
 
       {/* Quick Actions - Enhanced for Sprint 3 */}
-      <Card className="bg-white rounded-xl border border-[#E0D8D1] shadow-md">
+      <Card className="bg-white rounded-xl border border-beige-200 shadow-md">
         <CardHeader>
-          <CardTitle className="font-inter text-[#292929]">Quick Actions</CardTitle>
+          <CardTitle className="font-inter text-pov-charcoal">Quick Actions</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
@@ -254,7 +254,7 @@ export default function LPDashboard() {
               className="h-auto py-4 flex flex-col items-center gap-2"
               onClick={() => navigate('/lp/capital-calls')}
             >
-              <DollarSign className="h-6 w-6 text-blue-600" />
+              <DollarSign className="h-6 w-6 text-charcoal-600" />
               <span className="font-poppins text-sm">Capital Calls</span>
             </Button>
             <Button
@@ -262,7 +262,7 @@ export default function LPDashboard() {
               className="h-auto py-4 flex flex-col items-center gap-2"
               onClick={() => navigate('/lp/distributions')}
             >
-              <Banknote className="h-6 w-6 text-green-600" />
+              <Banknote className="h-6 w-6 text-charcoal-600" />
               <span className="font-poppins text-sm">Distributions</span>
             </Button>
             <Button
@@ -270,7 +270,7 @@ export default function LPDashboard() {
               className="h-auto py-4 flex flex-col items-center gap-2"
               onClick={() => navigate('/lp/documents')}
             >
-              <FileText className="h-6 w-6 text-indigo-600" />
+              <FileText className="h-6 w-6 text-charcoal-600" />
               <span className="font-poppins text-sm">Documents</span>
             </Button>
             <Button
@@ -278,7 +278,7 @@ export default function LPDashboard() {
               className="h-auto py-4 flex flex-col items-center gap-2"
               onClick={() => navigate('/lp/capital-account')}
             >
-              <TrendingUp className="h-6 w-6 text-orange-600" />
+              <TrendingUp className="h-6 w-6 text-charcoal-600" />
               <span className="font-poppins text-sm">Capital Account</span>
             </Button>
             <Button
@@ -286,7 +286,7 @@ export default function LPDashboard() {
               className="h-auto py-4 flex flex-col items-center gap-2"
               onClick={() => navigate('/lp/performance')}
             >
-              <TrendingUp className="h-6 w-6 text-purple-600" />
+              <TrendingUp className="h-6 w-6 text-charcoal-600" />
               <span className="font-poppins text-sm">Performance</span>
             </Button>
             <Button
@@ -294,7 +294,7 @@ export default function LPDashboard() {
               className="h-auto py-4 flex flex-col items-center gap-2"
               onClick={() => navigate('/lp/reports')}
             >
-              <Building2 className="h-6 w-6 text-amber-600" />
+              <Building2 className="h-6 w-6 text-charcoal-600" />
               <span className="font-poppins text-sm">Reports</span>
             </Button>
           </div>
