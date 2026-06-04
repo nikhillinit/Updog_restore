@@ -26,8 +26,8 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Tag, TrendingUp, DollarSign, Target } from 'lucide-react';
-import { getChartColor } from '@/lib/chart-theme';
 import { createTupleFormatter } from '@/lib/chart-formatters';
+import { getChartColor } from '@/lib/chart-theme';
 
 interface TagPerformance {
   tag: string;
@@ -274,7 +274,7 @@ export default function TagPerformanceAnalysis({ className = '' }: TagPerformanc
                   <XAxis dataKey="name" angle={-45} textAnchor="end" height={80} fontSize={12} />
                   <YAxis fontSize={12} />
                   <Tooltip formatter={formatTooltip} />
-                  <Bar dataKey="value" fill="#3b82f6" />
+                  <Bar dataKey="value" fill={getChartColor(0)} />
                 </BarChart>
               ) : (
                 <PieChart>
@@ -285,7 +285,7 @@ export default function TagPerformanceAnalysis({ className = '' }: TagPerformanc
                     labelLine={false}
                     label={({ name, display }) => `${name}: ${display}`}
                     outerRadius={100}
-                    fill="#8884d8"
+                    fill={getChartColor(0)}
                     dataKey="value"
                   >
                     {chartData.map((_entry: unknown, index: number) => (

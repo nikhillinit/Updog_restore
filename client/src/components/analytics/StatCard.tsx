@@ -38,10 +38,10 @@ export function StatCard({
       <Card className={className}>
         <CardContent className="p-6">
           <div className="flex items-center space-x-4">
-            <div className="w-10 h-10 bg-gray-200 rounded-full animate-pulse" />
+            <div className="w-10 h-10 bg-pov-gray rounded-full animate-pulse" />
             <div className="space-y-2 flex-1">
-              <div className="h-4 w-16 bg-gray-200 rounded animate-pulse" />
-              <div className="h-6 w-24 bg-gray-200 rounded animate-pulse" />
+              <div className="h-4 w-16 bg-pov-gray rounded animate-pulse" />
+              <div className="h-6 w-24 bg-pov-gray rounded animate-pulse" />
             </div>
           </div>
         </CardContent>
@@ -65,29 +65,29 @@ export function StatCard({
   const getTrendColor = () => {
     switch (trend?.direction) {
       case 'up':
-        return 'text-green-600';
+        return 'text-presson-positive';
       case 'down':
-        return 'text-red-600';
+        return 'text-presson-negative';
       case 'neutral':
-        return 'text-gray-600';
+        return 'text-charcoal-600';
       default:
-        return 'text-gray-600';
+        return 'text-charcoal-600';
     }
   };
 
   return (
     <Card className={cn("hover:shadow-md transition-shadow", className)}>
       <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-        <CardTitle className="text-sm font-medium text-gray-600">{title}</CardTitle>
+        <CardTitle className="text-sm font-medium text-charcoal-600">{title}</CardTitle>
         {Icon && (
-          <div className="w-4 h-4 text-gray-400">
+          <div className="w-4 h-4 text-charcoal-400">
             <Icon className="w-4 h-4" />
           </div>
         )}
       </CardHeader>
       <CardContent className="space-y-3">
         <div className="flex items-baseline justify-between">
-          <div className="text-2xl font-bold text-gray-900">
+          <div className="text-2xl font-bold text-pov-charcoal">
             {typeof value === 'number' && value > 1000000
               ? `$${(value / 1000000).toFixed(1)}M`
               : typeof value === 'number' && value > 1000
@@ -106,12 +106,12 @@ export function StatCard({
           <div className={cn("flex items-center space-x-1 text-sm", getTrendColor())}>
             {getTrendIcon()}
             <span className="font-medium">{trend.value > 0 ? '+' : ''}{trend.value}%</span>
-            <span className="text-gray-500">{trend.label}</span>
+            <span className="text-charcoal-500">{trend.label}</span>
           </div>
         )}
 
         {description && (
-          <p className="text-xs text-gray-500">{description}</p>
+          <p className="text-xs text-charcoal-500">{description}</p>
         )}
       </CardContent>
     </Card>

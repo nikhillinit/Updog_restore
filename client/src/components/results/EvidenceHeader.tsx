@@ -42,7 +42,7 @@ interface EvidenceHeaderProps {
 type EvidenceState = 'READY' | 'CALCULATING' | 'FAILED' | 'STALE' | 'UNAVAILABLE';
 
 const DEFAULT_SOURCE = '/api/funds/:id/results';
-const NEUTRAL_BADGE = 'border-beige-200 bg-beige-50 text-charcoal-500';
+const NEUTRAL_BADGE = 'border-beige-200 bg-pov-gray text-charcoal-500';
 
 function deriveEvidenceState(lifecycle: EvidenceHeaderLifecycle): EvidenceState {
   if (lifecycle.status === 'failed') return 'FAILED';
@@ -63,15 +63,15 @@ function deriveEvidenceState(lifecycle: EvidenceHeaderLifecycle): EvidenceState 
 function statusClasses(state: EvidenceState) {
   switch (state) {
     case 'READY':
-      return 'border-emerald-200 bg-emerald-50 text-emerald-800';
+      return 'border-success/50 bg-success/10 text-success-dark';
     case 'CALCULATING':
-      return 'border-amber-200 bg-amber-50 text-amber-800';
+      return 'border-warning/50 bg-warning/10 text-warning-dark';
     case 'FAILED':
-      return 'border-rose-200 bg-rose-50 text-rose-800';
+      return 'border-error/50 bg-error/10 text-error-dark';
     case 'STALE':
-      return 'border-amber-200 bg-amber-50 text-amber-800';
+      return 'border-warning/50 bg-warning/10 text-warning-dark';
     default:
-      return 'border-beige-200 bg-beige-50 text-charcoal-500';
+      return 'border-beige-200 bg-pov-gray text-charcoal-500';
   }
 }
 

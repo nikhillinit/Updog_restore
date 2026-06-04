@@ -118,6 +118,22 @@ const DIMENSIONS = [
   { value: 'year', label: 'Year' },
 ];
 
+const UI_SUCCESS_COLOR = '#10b981';
+const CATEGORICAL_SERIES_COLORS = [
+  '#292929',
+  '#127E3D',
+  '#2563EB',
+  UI_SUCCESS_COLOR,
+  '#9C6F19',
+  '#B00020',
+] as const;
+const CHART_PRIMARY_COLOR = '#2563EB';
+
+function getCategoricalChartColor(index: number): string {
+  // TODO(design): Define an extended categorical palette before showing more than six slices.
+  return CATEGORICAL_SERIES_COLORS[index % CATEGORICAL_SERIES_COLORS.length] ?? '#292929';
+}
+
 const SAMPLE_COMPANIES: PortfolioCompany[] = [
   {
     id: 1,
@@ -268,7 +284,7 @@ export default function PortfolioAnalyticsDashboard() {
                   yMetric?.label,
                 ]}
               />
-              <Bar dataKey={currentChart.yAxis} fill="#3B82F6" />
+              <Bar dataKey={currentChart.yAxis} fill={CHART_PRIMARY_COLOR} />
             </BarChart>
           </ResponsiveContainer>
         );
@@ -288,7 +304,12 @@ export default function PortfolioAnalyticsDashboard() {
                   yMetric?.label,
                 ]}
               />
-              <Line type="monotone" dataKey={currentChart.yAxis} stroke="#3B82F6" strokeWidth={2} />
+              <Line
+                type="monotone"
+                dataKey={currentChart.yAxis}
+                stroke={CHART_PRIMARY_COLOR}
+                strokeWidth={2}
+              />
             </LineChart>
           </ResponsiveContainer>
         );
@@ -311,8 +332,8 @@ export default function PortfolioAnalyticsDashboard() {
               <Area
                 type="monotone"
                 dataKey={currentChart.yAxis}
-                stroke="#3B82F6"
-                fill="#3B82F6"
+                stroke={CHART_PRIMARY_COLOR}
+                fill={CHART_PRIMARY_COLOR}
                 fillOpacity={0.3}
               />
             </AreaChart>
@@ -330,7 +351,7 @@ export default function PortfolioAnalyticsDashboard() {
                 cx="50%"
                 cy="50%"
                 outerRadius={120}
-                fill="#3B82F6"
+                fill={CHART_PRIMARY_COLOR}
                 label={(props: { name?: string; value?: number }) => {
                   // Handle the case where props might have undefined properties
                   const name = props.name ?? '';
@@ -339,7 +360,7 @@ export default function PortfolioAnalyticsDashboard() {
                 }}
               >
                 {data.map((entry, index) => (
-                  <Cell key={`cell-${index}`} fill={`hsl(${210 + index * 30}, 70%, 50%)`} />
+                  <Cell key={`cell-${index}`} fill={getCategoricalChartColor(index)} />
                 ))}
               </Pie>
               <Tooltip
@@ -389,7 +410,7 @@ export default function PortfolioAnalyticsDashboard() {
   return (
     <div className="min-h-screen bg-pov-gray">
       {/* Header */}
-      <div className="bg-white border-b border-beige-200 p-6">
+      <div className="bg-pov-white border-b border-beige-200 p-6">
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-3xl font-bold text-pov-charcoal">Portfolio Analytics</h1>
@@ -449,7 +470,7 @@ export default function PortfolioAnalyticsDashboard() {
 
       <div className="flex h-[calc(100vh-120px)]">
         {/* Left Sidebar - Data Sources & Saved Views */}
-        <div className="w-80 bg-white border-r border-beige-200 p-4 overflow-y-auto">
+        <div className="w-80 bg-pov-white border-r border-beige-200 p-4 overflow-y-auto">
           <div className="space-y-6">
             {/* Search */}
             <div className="relative">
