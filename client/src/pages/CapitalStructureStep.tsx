@@ -245,11 +245,11 @@ export default function CapitalStructureStep() {
 
         {/* Current Allocations */}
         <div className="space-y-6">
-          <div className="pb-4 border-b border-[#E0D8D1]">
-            <h3 className="text-lg font-inter font-bold text-[#292929] mb-2">
+          <div className="pb-4 border-b border-beige-200">
+            <h3 className="text-lg font-inter font-bold text-pov-charcoal mb-2">
               Current Allocations
             </h3>
-            <p className="text-[#292929]/70 font-poppins">
+            <p className="text-pov-charcoal/70 font-poppins">
               Your currently defined allocations. Click on + New Allocation to create a new
               allocation or click on any allocation to edit.
             </p>
@@ -263,7 +263,7 @@ export default function CapitalStructureStep() {
               return (
                 <div
                   key={allocation.id}
-                  className="border border-[#E0D8D1] rounded-xl p-4 space-y-4"
+                  className="border border-beige-200 rounded-xl p-4 space-y-4"
                 >
                   {!isEditing ? (
                     // View Mode
@@ -295,38 +295,40 @@ export default function CapitalStructureStep() {
 
                       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 text-sm font-poppins">
                         <div>
-                          <span className="text-[#292929]/60">Entry Round:</span>
-                          <div className="font-medium text-[#292929]">{allocation.entryRound}</div>
+                          <span className="text-pov-charcoal/60">Entry Round:</span>
+                          <div className="font-medium text-pov-charcoal">
+                            {allocation.entryRound}
+                          </div>
                         </div>
                         <div>
-                          <span className="text-[#292929]/60">Initial Allocation:</span>
-                          <div className="font-medium text-[#292929]">
+                          <span className="text-pov-charcoal/60">Initial Allocation:</span>
+                          <div className="font-medium text-pov-charcoal">
                             {allocation.capitalAllocationPct}%
                           </div>
                         </div>
                         <div>
-                          <span className="text-[#292929]/60">Initial Capital:</span>
-                          <div className="font-medium text-[#292929]">
+                          <span className="text-pov-charcoal/60">Initial Capital:</span>
+                          <div className="font-medium text-pov-charcoal">
                             ${formatCurrency(calculations.initialCapital)}
                           </div>
                         </div>
                         <div>
-                          <span className="text-[#292929]/60">Follow-On Capital:</span>
-                          <div className="font-medium text-[#292929]">
+                          <span className="text-pov-charcoal/60">Follow-On Capital:</span>
+                          <div className="font-medium text-pov-charcoal">
                             ${formatCurrency(calculations.followOnCapital)}
                           </div>
                         </div>
                       </div>
                       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 text-sm font-poppins mt-2">
                         <div>
-                          <span className="text-[#292929]/60">Est. Initial Deals:</span>
-                          <div className="font-medium text-[#292929]">
+                          <span className="text-pov-charcoal/60">Est. Initial Deals:</span>
+                          <div className="font-medium text-pov-charcoal">
                             {calculations.estimatedDeals}
                           </div>
                         </div>
                         <div>
-                          <span className="text-[#292929]/60">Total Required:</span>
-                          <div className="font-medium text-[#292929]">
+                          <span className="text-pov-charcoal/60">Total Required:</span>
+                          <div className="font-medium text-pov-charcoal">
                             ${formatCurrency(calculations.totalCapitalRequired)}
                           </div>
                         </div>
@@ -349,7 +351,7 @@ export default function CapitalStructureStep() {
                       {/* Basic Info */}
                       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                         <div className="space-y-3">
-                          <Label className="text-sm font-poppins font-medium text-[#292929]">
+                          <Label className="text-sm font-poppins font-medium text-pov-charcoal">
                             Allocation Name
                           </Label>
                           <Input
@@ -358,12 +360,12 @@ export default function CapitalStructureStep() {
                               handleUpdateAllocation(allocation.id, { name: e.target.value })
                             }
                             placeholder="e.g., Seed Investments"
-                            className="h-12 border-[#E0D8D1] focus:border-[#292929] focus:ring-[#292929] font-poppins"
+                            className="h-12 border-beige-200 focus:border-pov-charcoal focus:ring-charcoal/40 font-poppins"
                           />
                         </div>
 
                         <div className="space-y-3">
-                          <Label className="text-sm font-poppins font-medium text-[#292929]">
+                          <Label className="text-sm font-poppins font-medium text-pov-charcoal">
                             Sector Profile
                           </Label>
                           <Select
@@ -386,7 +388,7 @@ export default function CapitalStructureStep() {
                         </div>
 
                         <div className="space-y-3">
-                          <Label className="text-sm font-poppins font-medium text-[#292929]">
+                          <Label className="text-sm font-poppins font-medium text-pov-charcoal">
                             Entry Round
                           </Label>
                           <Select
@@ -410,7 +412,7 @@ export default function CapitalStructureStep() {
                       </div>
 
                       <div className="space-y-3">
-                        <Label className="text-sm font-poppins font-medium text-[#292929]">
+                        <Label className="text-sm font-poppins font-medium text-pov-charcoal">
                           Initial Capital Allocation (%)
                         </Label>
                         <Input
@@ -424,22 +426,22 @@ export default function CapitalStructureStep() {
                               capitalAllocationPct: parseFloat(e.target.value) || 0,
                             })
                           }
-                          className="h-12 border-[#E0D8D1] focus:border-[#292929] focus:ring-[#292929] font-poppins"
+                          className="h-12 border-beige-200 focus:border-pov-charcoal focus:ring-charcoal/40 font-poppins"
                         />
-                        <p className="text-sm text-[#292929]/60 font-poppins">
+                        <p className="text-sm text-pov-charcoal/60 font-poppins">
                           Initial Investment Capital: $
                           {formatCurrency((fundSize * allocation.capitalAllocationPct) / 100)}
                         </p>
                       </div>
 
                       {/* Initial Check Strategy */}
-                      <div className="space-y-4 border-t border-[#E0D8D1] pt-6">
-                        <h4 className="text-lg font-inter font-bold text-[#292929]">
+                      <div className="space-y-4 border-t border-beige-200 pt-6">
+                        <h4 className="text-lg font-inter font-bold text-pov-charcoal">
                           Initial Check Strategy
                         </h4>
 
                         <div className="space-y-3">
-                          <Label className="text-sm font-poppins font-medium text-[#292929]">
+                          <Label className="text-sm font-poppins font-medium text-pov-charcoal">
                             Strategy Type
                           </Label>
                           <Select
@@ -460,7 +462,7 @@ export default function CapitalStructureStep() {
 
                         {allocation.initialCheckStrategy === 'amount' ? (
                           <div className="space-y-3">
-                            <Label className="text-sm font-poppins font-medium text-[#292929]">
+                            <Label className="text-sm font-poppins font-medium text-pov-charcoal">
                               Initial Check Size ($)
                             </Label>
                             <Input
@@ -478,12 +480,12 @@ export default function CapitalStructureStep() {
                                 })
                               }
                               placeholder="e.g., 500,000"
-                              className="h-12 border-[#E0D8D1] focus:border-[#292929] focus:ring-[#292929] font-poppins"
+                              className="h-12 border-beige-200 focus:border-pov-charcoal focus:ring-charcoal/40 font-poppins"
                             />
                           </div>
                         ) : (
                           <div className="space-y-3">
-                            <Label className="text-sm font-poppins font-medium text-[#292929]">
+                            <Label className="text-sm font-poppins font-medium text-pov-charcoal">
                               Entry Ownership (%)
                             </Label>
                             <Input
@@ -500,7 +502,7 @@ export default function CapitalStructureStep() {
                                 })
                               }
                               placeholder="e.g., 10"
-                              className="h-12 border-[#E0D8D1] focus:border-[#292929] focus:ring-[#292929] font-poppins"
+                              className="h-12 border-beige-200 focus:border-pov-charcoal focus:ring-charcoal/40 font-poppins"
                             />
                           </div>
                         )}
@@ -538,14 +540,14 @@ export default function CapitalStructureStep() {
                       </div>
 
                       {/* Follow-On Strategy */}
-                      <div className="space-y-4 border-t border-[#E0D8D1] pt-6">
-                        <h4 className="text-lg font-inter font-bold text-[#292929]">
+                      <div className="space-y-4 border-t border-beige-200 pt-6">
+                        <h4 className="text-lg font-inter font-bold text-pov-charcoal">
                           Follow-On Strategy
                         </h4>
 
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                           <div className="space-y-3">
-                            <Label className="text-sm font-poppins font-medium text-[#292929]">
+                            <Label className="text-sm font-poppins font-medium text-pov-charcoal">
                               Follow-On Strategy
                             </Label>
                             <Select
@@ -567,7 +569,7 @@ export default function CapitalStructureStep() {
                           </div>
 
                           <div className="space-y-3">
-                            <Label className="text-sm font-poppins font-medium text-[#292929]">
+                            <Label className="text-sm font-poppins font-medium text-pov-charcoal">
                               Follow-On Participation (%)
                             </Label>
                             <Input
@@ -581,14 +583,14 @@ export default function CapitalStructureStep() {
                                   followOnParticipationPct: parseFloat(e.target.value) || 0,
                                 })
                               }
-                              className="h-12 border-[#E0D8D1] focus:border-[#292929] focus:ring-[#292929] font-poppins"
+                              className="h-12 border-beige-200 focus:border-pov-charcoal focus:ring-charcoal/40 font-poppins"
                             />
                           </div>
                         </div>
 
                         {allocation.followOnStrategy === 'amount' && (
                           <div className="space-y-3">
-                            <Label className="text-sm font-poppins font-medium text-[#292929]">
+                            <Label className="text-sm font-poppins font-medium text-pov-charcoal">
                               Follow-On Check Size ($)
                             </Label>
                             <Input
@@ -606,7 +608,7 @@ export default function CapitalStructureStep() {
                                 })
                               }
                               placeholder="e.g., 1,000,000"
-                              className="h-12 border-[#E0D8D1] focus:border-[#292929] focus:ring-[#292929] font-poppins"
+                              className="h-12 border-beige-200 focus:border-pov-charcoal focus:ring-charcoal/40 font-poppins"
                             />
                           </div>
                         )}
@@ -626,8 +628,8 @@ export default function CapitalStructureStep() {
                       </div>
 
                       {/* Investment Horizon */}
-                      <div className="space-y-3 border-t border-[#E0D8D1] pt-6">
-                        <Label className="text-sm font-poppins font-medium text-[#292929]">
+                      <div className="space-y-3 border-t border-beige-200 pt-6">
+                        <Label className="text-sm font-poppins font-medium text-pov-charcoal">
                           Initial Investment Horizon (months)
                         </Label>
                         <Input
@@ -640,9 +642,9 @@ export default function CapitalStructureStep() {
                               investmentHorizonMonths: parseInt(e.target.value) || 24,
                             })
                           }
-                          className="h-12 border-[#E0D8D1] focus:border-[#292929] focus:ring-[#292929] font-poppins"
+                          className="h-12 border-beige-200 focus:border-pov-charcoal focus:ring-charcoal/40 font-poppins"
                         />
-                        <p className="text-sm text-[#292929]/60 font-poppins">
+                        <p className="text-sm text-pov-charcoal/60 font-poppins">
                           Time period over which you expect to make initial investments in this
                           allocation
                         </p>
@@ -656,7 +658,7 @@ export default function CapitalStructureStep() {
             <Button
               onClick={handleAddAllocation}
               variant="outline"
-              className="w-full h-12 border-[#E0D8D1] hover:bg-[#E0D8D1]/20 hover:border-[#292929] font-poppins font-medium"
+              className="w-full h-12 border-beige-200 hover:bg-beige/20 hover:border-pov-charcoal font-poppins font-medium"
             >
               <Plus aria-hidden="true" className="h-4 w-4 mr-2" />
               New Allocation
@@ -665,12 +667,12 @@ export default function CapitalStructureStep() {
         </div>
 
         {/* Navigation */}
-        <div className="flex justify-between pt-8 border-t border-[#E0D8D1] mt-8">
+        <div className="flex justify-between pt-8 border-t border-beige-200 mt-8">
           <Button
             data-testid="previous-step"
             variant="outline"
             onClick={() => navigate('/fund-setup?step=2')}
-            className="flex items-center gap-2 px-8 py-3 h-auto border-[#E0D8D1] hover:bg-[#E0D8D1]/20 hover:border-[#292929] font-poppins font-medium"
+            className="flex items-center gap-2 px-8 py-3 h-auto border-beige-200 hover:bg-beige/20 hover:border-pov-charcoal font-poppins font-medium"
           >
             <ArrowLeft className="h-4 w-4" />
             Previous
@@ -678,7 +680,7 @@ export default function CapitalStructureStep() {
           <Button
             data-testid="next-step"
             onClick={() => navigate('/fund-setup?step=4')}
-            className="flex items-center gap-2 bg-[#292929] hover:bg-[#292929]/90 text-white px-8 py-3 h-auto font-poppins font-medium"
+            className="flex items-center gap-2 bg-pov-charcoal hover:bg-charcoal-700 text-pov-white px-8 py-3 h-auto font-poppins font-medium"
           >
             Next Step
             <ArrowRight className="h-4 w-4" />

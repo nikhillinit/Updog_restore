@@ -192,11 +192,11 @@ export default function DistributionsStep() {
 
           <TabsContent value="waterfall" className="space-y-6">
             <div className="space-y-6">
-              <div className="pb-4 border-b border-[#E0D8D1]">
-                <h3 className="text-lg font-inter font-bold text-[#292929] mb-2">
+              <div className="pb-4 border-b border-beige-200">
+                <h3 className="text-lg font-inter font-bold text-pov-charcoal mb-2">
                   Distribution Waterfall
                 </h3>
-                <p className="text-[#292929]/70 font-poppins">
+                <p className="text-pov-charcoal/70 font-poppins">
                   Define how distributions flow between LPs and GP
                 </p>
               </div>
@@ -210,17 +210,17 @@ export default function DistributionsStep() {
               </Alert>
 
               <div className="space-y-4">
-                <h4 className="font-inter font-bold text-[#292929]">Waterfall Tiers</h4>
+                <h4 className="font-inter font-bold text-pov-charcoal">Waterfall Tiers</h4>
                 <div className="space-y-4">
                   {waterfallTiers.map((tier: WaterfallTier) => (
-                    <div key={tier.id} className="border border-[#E0D8D1] rounded-xl p-4 space-y-4">
+                    <div key={tier.id} className="border border-beige-200 rounded-xl p-4 space-y-4">
                       <div className="flex items-center justify-between">
                         <h3 className="font-medium">{tier.name}</h3>
                         <Button
                           variant="ghost"
                           size="sm"
                           onClick={() => removeWaterfallTier(tier.id)}
-                          className="text-red-500 hover:text-red-700"
+                          className="text-error hover:text-error-dark"
                           disabled={waterfallTiers.length === 1}
                           aria-label={`Remove ${tier.name} waterfall tier`}
                         >
@@ -230,7 +230,7 @@ export default function DistributionsStep() {
 
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div className="space-y-3">
-                          <Label className="text-sm font-poppins font-medium text-[#292929]">
+                          <Label className="text-sm font-poppins font-medium text-pov-charcoal">
                             Tier Name
                           </Label>
                           <Input
@@ -239,12 +239,12 @@ export default function DistributionsStep() {
                               updateWaterfallTier(tier.id, { name: e.target.value })
                             }
                             placeholder="e.g., Preferred Return"
-                            className="h-12 border-[#E0D8D1] focus:border-[#292929] focus:ring-[#292929] font-poppins"
+                            className="h-12 border-beige-200 focus:border-pov-charcoal focus:ring-charcoal/40 font-poppins"
                           />
                         </div>
 
                         <div className="space-y-3">
-                          <Label className="text-sm font-poppins font-medium text-[#292929]">
+                          <Label className="text-sm font-poppins font-medium text-pov-charcoal">
                             Condition
                           </Label>
                           <Select
@@ -272,7 +272,7 @@ export default function DistributionsStep() {
 
                       {tier.condition && tier.condition !== 'none' && (
                         <div className="space-y-3">
-                          <Label className="text-sm font-poppins font-medium text-[#292929]">
+                          <Label className="text-sm font-poppins font-medium text-pov-charcoal">
                             {tier.condition === 'irr' ? 'IRR Hurdle (%)' : 'MOIC Hurdle'}
                           </Label>
                           <Input
@@ -288,14 +288,14 @@ export default function DistributionsStep() {
                               })
                             }
                             placeholder={tier.condition === 'irr' ? 'e.g., 8.0' : 'e.g., 1.5'}
-                            className="h-12 border-[#E0D8D1] focus:border-[#292929] focus:ring-[#292929] font-poppins"
+                            className="h-12 border-beige-200 focus:border-pov-charcoal focus:ring-charcoal/40 font-poppins"
                           />
                         </div>
                       )}
 
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div className="space-y-3">
-                          <Label className="text-sm font-poppins font-medium text-[#292929]">
+                          <Label className="text-sm font-poppins font-medium text-pov-charcoal">
                             LP Split (%)
                           </Label>
                           <Input
@@ -310,20 +310,20 @@ export default function DistributionsStep() {
                                 gpSplit: 100 - lpSplit,
                               });
                             }}
-                            className="h-12 border-[#E0D8D1] focus:border-[#292929] focus:ring-[#292929] font-poppins"
+                            className="h-12 border-beige-200 focus:border-pov-charcoal focus:ring-charcoal/40 font-poppins"
                           />
                         </div>
 
                         <div className="space-y-3">
-                          <Label className="text-sm font-poppins font-medium text-[#292929]">
+                          <Label className="text-sm font-poppins font-medium text-pov-charcoal">
                             GP Split (%)
                           </Label>
                           <div
-                            className="p-3 bg-[#F2F2F2] rounded-xl h-12 flex items-center"
+                            className="p-3 bg-pov-gray rounded-xl h-12 flex items-center"
                             role="status"
                             aria-label={`GP Split is calculated as ${tier.gpSplit}% from LP Split`}
                           >
-                            <span className="text-[#292929] font-poppins">{tier.gpSplit}%</span>
+                            <span className="text-pov-charcoal font-poppins">{tier.gpSplit}%</span>
                           </div>
                         </div>
                       </div>
@@ -333,7 +333,7 @@ export default function DistributionsStep() {
                   <Button
                     onClick={handleAddTier}
                     variant="outline"
-                    className="w-full h-12 border-[#E0D8D1] hover:bg-[#E0D8D1]/20 hover:border-[#292929] font-poppins font-medium"
+                    className="w-full h-12 border-beige-200 hover:bg-beige/20 hover:border-pov-charcoal font-poppins font-medium"
                   >
                     <Plus className="h-4 w-4 mr-2" />
                     Add Waterfall Tier
@@ -346,11 +346,11 @@ export default function DistributionsStep() {
           <TabsContent value="fees" className="space-y-6">
             {/* Management Fees Section */}
             <div className="space-y-6">
-              <div className="pb-4 border-b border-[#E0D8D1]">
-                <h3 className="text-lg font-inter font-bold text-[#292929] mb-2">
+              <div className="pb-4 border-b border-beige-200">
+                <h3 className="text-lg font-inter font-bold text-pov-charcoal mb-2">
                   Management Fees
                 </h3>
-                <p className="text-[#292929]/70 font-poppins">
+                <p className="text-pov-charcoal/70 font-poppins">
                   Configure fee structures with different basis methods and step-downs
                 </p>
               </div>
@@ -359,11 +359,11 @@ export default function DistributionsStep() {
                 {feeProfiles.map((profile: FeeProfile) => (
                   <div
                     key={profile.id}
-                    className="border border-[#E0D8D1] rounded-xl p-4 space-y-4"
+                    className="border border-beige-200 rounded-xl p-4 space-y-4"
                   >
                     <div className="flex items-center justify-between">
                       <div className="space-y-3 flex-1">
-                        <Label className="text-sm font-poppins font-medium text-[#292929]">
+                        <Label className="text-sm font-poppins font-medium text-pov-charcoal">
                           Fee Profile Name
                         </Label>
                         <Input
@@ -372,7 +372,7 @@ export default function DistributionsStep() {
                             updateFeeProfile(profile.id, { name: e.target.value })
                           }
                           placeholder="e.g., Default Fee Profile"
-                          className="max-w-md h-12 border-[#E0D8D1] focus:border-[#292929] focus:ring-[#292929] font-poppins"
+                          className="max-w-md h-12 border-beige-200 focus:border-pov-charcoal focus:ring-charcoal/40 font-poppins"
                         />
                       </div>
                       <div className="flex items-center space-x-2">
@@ -389,7 +389,7 @@ export default function DistributionsStep() {
                             variant="ghost"
                             size="sm"
                             onClick={() => removeFeeProfile(profile.id)}
-                            className="text-red-500 hover:text-red-700"
+                            className="text-error hover:text-error-dark"
                             aria-label={`Remove ${profile.name} fee profile`}
                           >
                             <Trash2 aria-hidden="true" className="h-4 w-4" />
@@ -401,14 +401,14 @@ export default function DistributionsStep() {
                     {/* Fee Tiers */}
                     <div className="space-y-4">
                       {profile.feeTiers.map((tier: FeeTier, index: number) => (
-                        <div key={tier.id} className="border-l-4 border-[#E0D8D1] pl-4 space-y-4">
+                        <div key={tier.id} className="border-l-4 border-beige-200 pl-4 space-y-4">
                           <div className="flex items-center justify-between">
                             <h4 className="font-medium">Fee Tier {index + 1}</h4>
                             <Button
                               variant="ghost"
                               size="sm"
                               onClick={() => removeFeeTier(profile.id, tier.id)}
-                              className="text-red-500 hover:text-red-700"
+                              className="text-error hover:text-error-dark"
                               disabled={profile.feeTiers.length === 1}
                               aria-label={`Remove ${tier.name} fee tier`}
                             >
@@ -418,7 +418,7 @@ export default function DistributionsStep() {
 
                           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                             <div className="space-y-3">
-                              <Label className="text-sm font-poppins font-medium text-[#292929]">
+                              <Label className="text-sm font-poppins font-medium text-pov-charcoal">
                                 Fee Name
                               </Label>
                               <Input
@@ -427,12 +427,12 @@ export default function DistributionsStep() {
                                   updateFeeTier(profile.id, tier.id, { name: e.target.value })
                                 }
                                 placeholder="e.g., Management Fee"
-                                className="h-12 border-[#E0D8D1] focus:border-[#292929] focus:ring-[#292929] font-poppins"
+                                className="h-12 border-beige-200 focus:border-pov-charcoal focus:ring-charcoal/40 font-poppins"
                               />
                             </div>
 
                             <div className="space-y-3">
-                              <Label className="text-sm font-poppins font-medium text-[#292929]">
+                              <Label className="text-sm font-poppins font-medium text-pov-charcoal">
                                 Fee Percentage (%)
                               </Label>
                               <Input
@@ -447,12 +447,12 @@ export default function DistributionsStep() {
                                   })
                                 }
                                 placeholder="2.0"
-                                className="h-12 border-[#E0D8D1] focus:border-[#292929] focus:ring-[#292929] font-poppins"
+                                className="h-12 border-beige-200 focus:border-pov-charcoal focus:ring-charcoal/40 font-poppins"
                               />
                             </div>
 
                             <div className="space-y-3">
-                              <Label className="text-sm font-poppins font-medium text-[#292929]">
+                              <Label className="text-sm font-poppins font-medium text-pov-charcoal">
                                 Fee Basis
                               </Label>
                               <Select
@@ -474,7 +474,7 @@ export default function DistributionsStep() {
                                   ))}
                                 </SelectContent>
                               </Select>
-                              <p className="text-xs text-[#292929]/60 font-poppins">
+                              <p className="text-xs text-pov-charcoal/60 font-poppins">
                                 {
                                   feeBasisOptions.find((opt) => opt.value === tier.feeBasis)
                                     ?.description
@@ -483,7 +483,7 @@ export default function DistributionsStep() {
                             </div>
 
                             <div className="space-y-3">
-                              <Label className="text-sm font-poppins font-medium text-[#292929]">
+                              <Label className="text-sm font-poppins font-medium text-pov-charcoal">
                                 Start Month
                               </Label>
                               <Input
@@ -495,12 +495,12 @@ export default function DistributionsStep() {
                                     startMonth: parseInt(e.target.value) || 1,
                                   })
                                 }
-                                className="h-12 border-[#E0D8D1] focus:border-[#292929] focus:ring-[#292929] font-poppins"
+                                className="h-12 border-beige-200 focus:border-pov-charcoal focus:ring-charcoal/40 font-poppins"
                               />
                             </div>
 
                             <div className="space-y-3">
-                              <Label className="text-sm font-poppins font-medium text-[#292929]">
+                              <Label className="text-sm font-poppins font-medium text-pov-charcoal">
                                 End Month (Optional)
                               </Label>
                               <Input
@@ -515,12 +515,12 @@ export default function DistributionsStep() {
                                   })
                                 }
                                 placeholder="120"
-                                className="h-12 border-[#E0D8D1] focus:border-[#292929] focus:ring-[#292929] font-poppins"
+                                className="h-12 border-beige-200 focus:border-pov-charcoal focus:ring-charcoal/40 font-poppins"
                               />
                             </div>
 
                             <div className="space-y-3">
-                              <Label className="text-sm font-poppins font-medium text-[#292929]">
+                              <Label className="text-sm font-poppins font-medium text-pov-charcoal">
                                 Management Fee Recycling (%)
                               </Label>
                               <Input
@@ -536,9 +536,9 @@ export default function DistributionsStep() {
                                   })
                                 }
                                 placeholder="0"
-                                className="h-12 border-[#E0D8D1] focus:border-[#292929] focus:ring-[#292929] font-poppins"
+                                className="h-12 border-beige-200 focus:border-pov-charcoal focus:ring-charcoal/40 font-poppins"
                               />
-                              <p className="text-xs text-[#292929]/60 font-poppins">
+                              <p className="text-xs text-pov-charcoal/60 font-poppins">
                                 % of fees that can be recycled from this tier
                               </p>
                             </div>
@@ -552,7 +552,7 @@ export default function DistributionsStep() {
                 <Button
                   onClick={handleAddFeeProfile}
                   variant="outline"
-                  className="w-full h-12 border-[#E0D8D1] hover:bg-[#E0D8D1]/20 hover:border-[#292929] font-poppins font-medium"
+                  className="w-full h-12 border-beige-200 hover:bg-beige/20 hover:border-pov-charcoal font-poppins font-medium"
                 >
                   <Plus className="h-4 w-4 mr-2" />
                   Add Fee Profile
@@ -560,12 +560,12 @@ export default function DistributionsStep() {
               </div>
 
               {/* Fund Expenses Section */}
-              <div className="space-y-6 border-t border-[#E0D8D1] pt-8">
-                <div className="pb-4 border-b border-[#E0D8D1]">
-                  <h3 className="text-lg font-inter font-bold text-[#292929] mb-2">
+              <div className="space-y-6 border-t border-beige-200 pt-8">
+                <div className="pb-4 border-b border-beige-200">
+                  <h3 className="text-lg font-inter font-bold text-pov-charcoal mb-2">
                     Fund Expenses
                   </h3>
-                  <p className="text-[#292929]/70 font-poppins">
+                  <p className="text-pov-charcoal/70 font-poppins">
                     Define line-item fund expenses with monthly amounts and terms
                   </p>
                 </div>
@@ -574,7 +574,7 @@ export default function DistributionsStep() {
                   {fundExpenses.map((expense: FundExpense) => (
                     <div
                       key={expense.id}
-                      className="border border-[#E0D8D1] rounded-xl p-4 space-y-4"
+                      className="border border-beige-200 rounded-xl p-4 space-y-4"
                     >
                       <div className="flex items-center justify-between">
                         <h4 className="font-medium">Expense: {expense.category}</h4>
@@ -582,7 +582,7 @@ export default function DistributionsStep() {
                           variant="ghost"
                           size="sm"
                           onClick={() => removeFundExpense(expense.id)}
-                          className="text-red-500 hover:text-red-700"
+                          className="text-error hover:text-error-dark"
                           aria-label={`Remove ${expense.category} expense`}
                         >
                           <Trash2 aria-hidden="true" className="h-4 w-4" />
@@ -591,7 +591,7 @@ export default function DistributionsStep() {
 
                       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                         <div className="space-y-3">
-                          <Label className="text-sm font-poppins font-medium text-[#292929]">
+                          <Label className="text-sm font-poppins font-medium text-pov-charcoal">
                             Expense Category
                           </Label>
                           <Input
@@ -600,12 +600,12 @@ export default function DistributionsStep() {
                               updateFundExpense(expense.id, { category: e.target.value })
                             }
                             placeholder="e.g., Legal Fees"
-                            className="h-12 border-[#E0D8D1] focus:border-[#292929] focus:ring-[#292929] font-poppins"
+                            className="h-12 border-beige-200 focus:border-pov-charcoal focus:ring-charcoal/40 font-poppins"
                           />
                         </div>
 
                         <div className="space-y-3">
-                          <Label className="text-sm font-poppins font-medium text-[#292929]">
+                          <Label className="text-sm font-poppins font-medium text-pov-charcoal">
                             Monthly Amount ($)
                           </Label>
                           <Input
@@ -618,12 +618,12 @@ export default function DistributionsStep() {
                               })
                             }
                             placeholder="10000"
-                            className="h-12 border-[#E0D8D1] focus:border-[#292929] focus:ring-[#292929] font-poppins"
+                            className="h-12 border-beige-200 focus:border-pov-charcoal focus:ring-charcoal/40 font-poppins"
                           />
                         </div>
 
                         <div className="space-y-3">
-                          <Label className="text-sm font-poppins font-medium text-[#292929]">
+                          <Label className="text-sm font-poppins font-medium text-pov-charcoal">
                             Start Month
                           </Label>
                           <Input
@@ -635,12 +635,12 @@ export default function DistributionsStep() {
                                 startMonth: parseInt(e.target.value) || 1,
                               })
                             }
-                            className="h-12 border-[#E0D8D1] focus:border-[#292929] focus:ring-[#292929] font-poppins"
+                            className="h-12 border-beige-200 focus:border-pov-charcoal focus:ring-charcoal/40 font-poppins"
                           />
                         </div>
 
                         <div className="space-y-3">
-                          <Label className="text-sm font-poppins font-medium text-[#292929]">
+                          <Label className="text-sm font-poppins font-medium text-pov-charcoal">
                             End Month (Optional)
                           </Label>
                           <Input
@@ -655,7 +655,7 @@ export default function DistributionsStep() {
                               })
                             }
                             placeholder="120"
-                            className="h-12 border-[#E0D8D1] focus:border-[#292929] focus:ring-[#292929] font-poppins"
+                            className="h-12 border-beige-200 focus:border-pov-charcoal focus:ring-charcoal/40 font-poppins"
                           />
                         </div>
                       </div>
@@ -665,7 +665,7 @@ export default function DistributionsStep() {
                   <Button
                     onClick={handleAddExpense}
                     variant="outline"
-                    className="w-full h-12 border-[#E0D8D1] hover:bg-[#E0D8D1]/20 hover:border-[#292929] font-poppins font-medium"
+                    className="w-full h-12 border-beige-200 hover:bg-beige/20 hover:border-pov-charcoal font-poppins font-medium"
                   >
                     <Plus className="h-4 w-4 mr-2" />
                     Add Expense
@@ -677,25 +677,25 @@ export default function DistributionsStep() {
 
           <TabsContent value="recycling" className="space-y-6">
             <div className="space-y-6">
-              <div className="pb-4 border-b border-[#E0D8D1]">
-                <h3 className="text-lg font-inter font-bold text-[#292929] mb-2">
+              <div className="pb-4 border-b border-beige-200">
+                <h3 className="text-lg font-inter font-bold text-pov-charcoal mb-2">
                   Recycling Provisions
                 </h3>
-                <p className="text-[#292929]/70 font-poppins">
+                <p className="text-pov-charcoal/70 font-poppins">
                   Configure exit proceeds recycling for new investments
                 </p>
               </div>
 
               <div className="space-y-6">
-                <div className="flex items-center justify-between p-4 border border-[#E0D8D1] rounded-xl">
+                <div className="flex items-center justify-between p-4 border border-beige-200 rounded-xl">
                   <div className="space-y-1">
                     <Label
                       htmlFor="recycling-enabled"
-                      className="cursor-pointer font-poppins font-medium text-[#292929]"
+                      className="cursor-pointer font-poppins font-medium text-pov-charcoal"
                     >
                       Enable Exit Recycling
                     </Label>
-                    <p className="text-sm text-[#292929]/60 font-poppins">
+                    <p className="text-sm text-pov-charcoal/60 font-poppins">
                       Allow exit proceeds to be recycled for new investments
                     </p>
                   </div>
@@ -712,7 +712,7 @@ export default function DistributionsStep() {
                     <div className="space-y-3">
                       <Label
                         htmlFor="recycling-type"
-                        className="text-sm font-poppins font-medium text-[#292929]"
+                        className="text-sm font-poppins font-medium text-pov-charcoal"
                       >
                         Recycling Type
                       </Label>
@@ -730,7 +730,7 @@ export default function DistributionsStep() {
                           <SelectItem value="fees">Management Fee Recycling</SelectItem>
                         </SelectContent>
                       </Select>
-                      <p className="text-sm text-[#292929]/60 font-poppins">
+                      <p className="text-sm text-pov-charcoal/60 font-poppins">
                         {recyclingType === 'exits'
                           ? 'Fund can recycle exit proceeds up to a cap (% of committed capital)'
                           : 'Fund can recycle exit proceeds up to the level of management fees earned to date'}
@@ -740,7 +740,7 @@ export default function DistributionsStep() {
                     <div className="space-y-3">
                       <Label
                         htmlFor="exit-recycling"
-                        className="text-sm font-poppins font-medium text-[#292929]"
+                        className="text-sm font-poppins font-medium text-pov-charcoal"
                       >
                         Exit Proceeds Recycling Rate (%)
                       </Label>
@@ -757,9 +757,9 @@ export default function DistributionsStep() {
                         }
                         data-testid="exit-recycling-rate"
                         placeholder="100"
-                        className="h-12 border-[#E0D8D1] focus:border-[#292929] focus:ring-[#292929] font-poppins"
+                        className="h-12 border-beige-200 focus:border-pov-charcoal focus:ring-charcoal/40 font-poppins"
                       />
-                      <p className="text-sm text-[#292929]/60 font-poppins">
+                      <p className="text-sm text-pov-charcoal/60 font-poppins">
                         Percentage of exit proceeds that can be recycled each period (typically
                         100%)
                       </p>
@@ -769,7 +769,7 @@ export default function DistributionsStep() {
                       <div className="space-y-3">
                         <Label
                           htmlFor="recycling-cap-pct"
-                          className="text-sm font-poppins font-medium text-[#292929]"
+                          className="text-sm font-poppins font-medium text-pov-charcoal"
                         >
                           Recycling Cap (% of Committed Capital)
                         </Label>
@@ -787,9 +787,9 @@ export default function DistributionsStep() {
                             });
                           }}
                           placeholder="50"
-                          className="h-12 border-[#E0D8D1] focus:border-[#292929] focus:ring-[#292929] font-poppins"
+                          className="h-12 border-beige-200 focus:border-pov-charcoal focus:ring-charcoal/40 font-poppins"
                         />
-                        <p className="text-sm text-[#292929]/60 font-poppins">
+                        <p className="text-sm text-pov-charcoal/60 font-poppins">
                           Maximum amount that can be recycled as % of committed capital (e.g., 50%
                           cap = half the committed capital)
                         </p>
@@ -799,7 +799,7 @@ export default function DistributionsStep() {
                     <div className="space-y-3">
                       <Label
                         htmlFor="recycling-period"
-                        className="text-sm font-poppins font-medium text-[#292929]"
+                        className="text-sm font-poppins font-medium text-pov-charcoal"
                       >
                         Recycling Term (years)
                       </Label>
@@ -817,14 +817,14 @@ export default function DistributionsStep() {
                           })
                         }
                         placeholder="3"
-                        className="h-12 border-[#E0D8D1] focus:border-[#292929] focus:ring-[#292929] font-poppins"
+                        className="h-12 border-beige-200 focus:border-pov-charcoal focus:ring-charcoal/40 font-poppins"
                       />
-                      <p className="text-sm text-[#292929]/60 font-poppins">
+                      <p className="text-sm text-pov-charcoal/60 font-poppins">
                         Timeframe over which the fund can recycle exit proceeds
                       </p>
                     </div>
 
-                    <div className="flex items-center space-x-3 p-4 border border-[#E0D8D1] rounded-xl">
+                    <div className="flex items-center space-x-3 p-4 border border-beige-200 rounded-xl">
                       <Switch
                         id="allow-future-recycling"
                         checked={allowFutureRecycling || false}
@@ -836,11 +836,11 @@ export default function DistributionsStep() {
                       <div>
                         <Label
                           htmlFor="allow-future-recycling"
-                          className="cursor-pointer text-sm font-poppins font-medium text-[#292929]"
+                          className="cursor-pointer text-sm font-poppins font-medium text-pov-charcoal"
                         >
                           Allow fund to recycle future exit proceeds ahead of time
                         </Label>
-                        <p className="text-sm text-[#292929]/60 font-poppins mt-1">
+                        <p className="text-sm text-pov-charcoal/60 font-poppins mt-1">
                           If enabled, fund will aggressively invest in anticipation of future exits.
                           If disabled, fund waits for exits before recycling.
                         </p>
@@ -854,12 +854,12 @@ export default function DistributionsStep() {
         </Tabs>
 
         {/* Navigation */}
-        <div className="flex justify-between pt-8 border-t border-[#E0D8D1] mt-8">
+        <div className="flex justify-between pt-8 border-t border-beige-200 mt-8">
           <Button
             data-testid="previous-step"
             variant="outline"
             onClick={() => navigate('/fund-setup?step=4')}
-            className="flex items-center gap-2 px-8 py-3 h-auto border-[#E0D8D1] hover:bg-[#E0D8D1]/20 hover:border-[#292929] font-poppins font-medium"
+            className="flex items-center gap-2 px-8 py-3 h-auto border-beige-200 hover:bg-beige/20 hover:border-pov-charcoal font-poppins font-medium"
           >
             <ArrowLeft className="h-4 w-4" />
             Previous
@@ -867,7 +867,7 @@ export default function DistributionsStep() {
           <Button
             data-testid="next-step"
             onClick={() => navigate('/fund-setup?step=6')}
-            className="flex items-center gap-2 bg-[#292929] hover:bg-[#292929]/90 text-white px-8 py-3 h-auto font-poppins font-medium"
+            className="flex items-center gap-2 bg-pov-charcoal hover:bg-charcoal-700 text-pov-white px-8 py-3 h-auto font-poppins font-medium"
           >
             Next: Cashflow & Liquidity
             <ArrowRight className="h-4 w-4" />

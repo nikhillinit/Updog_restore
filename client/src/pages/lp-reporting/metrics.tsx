@@ -930,7 +930,7 @@ export default function LpReportingMetricsPage() {
 
                 {activeMetricRun ? (
                   <div
-                    className="grid gap-3 rounded-md border border-slate-200 p-3 text-sm md:grid-cols-2"
+                    className="grid gap-3 rounded-md border border-beige-200 p-3 text-sm md:grid-cols-2"
                     data-testid="metric-run-lifecycle-panel"
                   >
                     <div>
@@ -1030,7 +1030,7 @@ export default function LpReportingMetricsPage() {
                     <label className="space-y-1 text-sm font-medium text-charcoal">
                       Evidence source
                       <select
-                        className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm"
+                        className="w-full rounded-md border border-beige-200 bg-white px-3 py-2 text-sm"
                         value={evidenceForm.evidenceSource}
                         onChange={(event) =>
                           setEvidenceForm((current) => ({
@@ -1057,7 +1057,7 @@ export default function LpReportingMetricsPage() {
                     <label className="space-y-1 text-sm font-medium text-charcoal">
                       Source date
                       <input
-                        className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm"
+                        className="w-full rounded-md border border-beige-200 px-3 py-2 text-sm"
                         type="date"
                         required
                         value={evidenceForm.sourceDate}
@@ -1073,7 +1073,7 @@ export default function LpReportingMetricsPage() {
                     <label className="space-y-1 text-sm font-medium text-charcoal">
                       Confidence
                       <select
-                        className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm"
+                        className="w-full rounded-md border border-beige-200 bg-white px-3 py-2 text-sm"
                         value={evidenceForm.confidenceLevel}
                         onChange={(event) =>
                           setEvidenceForm((current) => ({
@@ -1091,7 +1091,7 @@ export default function LpReportingMetricsPage() {
                     <label className="space-y-1 text-sm font-medium text-charcoal">
                       Materiality
                       <select
-                        className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm"
+                        className="w-full rounded-md border border-beige-200 bg-white px-3 py-2 text-sm"
                         value={evidenceForm.materialityLevel}
                         onChange={(event) =>
                           setEvidenceForm((current) => ({
@@ -1109,7 +1109,7 @@ export default function LpReportingMetricsPage() {
                     <label className="space-y-1 text-sm font-medium text-charcoal">
                       Confidentiality
                       <select
-                        className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm"
+                        className="w-full rounded-md border border-beige-200 bg-white px-3 py-2 text-sm"
                         value={evidenceForm.confidentiality}
                         onChange={(event) =>
                           setEvidenceForm((current) => ({
@@ -1141,7 +1141,7 @@ export default function LpReportingMetricsPage() {
                     <label className="space-y-1 text-sm font-medium text-charcoal md:col-span-2">
                       Description
                       <textarea
-                        className="min-h-24 w-full rounded-md border border-slate-300 px-3 py-2 text-sm"
+                        className="min-h-24 w-full rounded-md border border-beige-200 px-3 py-2 text-sm"
                         maxLength={2000}
                         value={evidenceForm.description}
                         onChange={(event) =>
@@ -1187,7 +1187,7 @@ export default function LpReportingMetricsPage() {
                   {evidenceRecords.map((record) => (
                     <div
                       key={record.id}
-                      className="rounded-md border border-slate-200 px-3 py-2"
+                      className="rounded-md border border-beige-200 px-3 py-2"
                       data-testid="metric-run-evidence-record"
                     >
                       <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
@@ -1279,7 +1279,7 @@ export default function LpReportingMetricsPage() {
                     return (
                       <div
                         key={record.narrativeRunId}
-                        className="rounded-md border border-slate-200 px-3 py-3"
+                        className="rounded-md border border-beige-200 px-3 py-3"
                         data-testid="metric-run-narrative-record"
                       >
                         <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
@@ -1387,7 +1387,7 @@ export default function LpReportingMetricsPage() {
                     return (
                       <div
                         key={type.value}
-                        className="flex items-center justify-between rounded-md border border-slate-200 px-3 py-2"
+                        className="flex items-center justify-between rounded-md border border-beige-200 px-3 py-2"
                       >
                         <span className="text-sm font-medium text-charcoal">{type.label}</span>
                         <Badge variant={status === 'approved' ? 'default' : 'outline'}>
@@ -1420,7 +1420,7 @@ export default function LpReportingMetricsPage() {
                         return (
                           <div
                             key={ref.narrativeType}
-                            className="rounded-md border border-slate-200 px-3 py-2 text-sm"
+                            className="rounded-md border border-beige-200 px-3 py-2 text-sm"
                             data-testid={`metric-run-report-package-ref-${ref.narrativeType}`}
                           >
                             <p className="font-medium text-charcoal">
@@ -1442,7 +1442,7 @@ export default function LpReportingMetricsPage() {
                     </div>
                     {reportPackageRenderModel ? (
                       <div
-                        className="space-y-4 rounded-md border border-slate-200 p-4"
+                        className="space-y-4 rounded-md border border-beige-200 p-4"
                         data-testid="metric-run-report-package-render-preview"
                       >
                         <div className="flex flex-col gap-1 sm:flex-row sm:items-start sm:justify-between">
@@ -1464,7 +1464,7 @@ export default function LpReportingMetricsPage() {
                           {reportPackageRenderModel.metricSections.map((section) => (
                             <div
                               key={section.sectionId}
-                              className="rounded-md border border-slate-200 px-3 py-2"
+                              className="rounded-md border border-beige-200 px-3 py-2"
                               data-testid={`metric-run-report-package-render-section-${section.sectionId}`}
                             >
                               <p className="text-sm font-semibold text-charcoal">{section.title}</p>
@@ -1492,7 +1492,7 @@ export default function LpReportingMetricsPage() {
                           {reportPackageRenderModel.narrativeSections.map((section) => (
                             <section
                               key={section.sectionId}
-                              className="rounded-md border border-slate-200 px-3 py-2"
+                              className="rounded-md border border-beige-200 px-3 py-2"
                             >
                               <div className="flex items-center justify-between gap-3">
                                 <h3 className="text-sm font-semibold text-charcoal">
@@ -1642,7 +1642,7 @@ export default function LpReportingMetricsPage() {
                           </Alert>
                         ) : null}
 
-                        <div className="flex flex-col gap-3 border-t border-slate-200 pt-3 sm:flex-row sm:items-center sm:justify-between">
+                        <div className="flex flex-col gap-3 border-t border-beige-200 pt-3 sm:flex-row sm:items-center sm:justify-between">
                           <p className="text-sm text-charcoal/70 font-poppins">
                             Create the package JSON handoff for this locked metric run.
                           </p>

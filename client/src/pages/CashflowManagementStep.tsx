@@ -208,10 +208,10 @@ export default function CashflowManagementStep() {
   return (
     <div className="max-w-4xl mx-auto space-y-6">
       <div className="space-y-2">
-        <h1 className="text-3xl font-inter font-bold text-[#292929]">
+        <h1 className="text-3xl font-inter font-bold text-pov-charcoal">
           Cashflow & Liquidity Management
         </h1>
-        <p className="text-[#292929]/70 font-poppins">
+        <p className="text-pov-charcoal/70 font-poppins">
           Configure cashflow tracking, expense management, and liquidity monitoring for your fund.
         </p>
       </div>
@@ -241,31 +241,35 @@ export default function CashflowManagementStep() {
             </CardHeader>
             <CardContent className="space-y-6">
               {/* Summary */}
-              <div className="grid grid-cols-1 gap-4 p-4 bg-[#F2F2F2] rounded-xl sm:grid-cols-3">
+              <div className="grid grid-cols-1 gap-4 p-4 bg-pov-gray rounded-xl sm:grid-cols-3">
                 <div className="text-center">
-                  <div className="text-2xl font-inter font-bold text-[#292929]">
+                  <div className="text-2xl font-inter font-bold text-pov-charcoal">
                     ${totalAnnualExpenses.toLocaleString()}
                   </div>
-                  <div className="text-sm text-[#292929]/60 font-poppins">Annual Expenses</div>
+                  <div className="text-sm text-pov-charcoal/60 font-poppins">Annual Expenses</div>
                 </div>
                 <div className="text-center">
-                  <div className="text-2xl font-inter font-bold text-[#292929]">
+                  <div className="text-2xl font-inter font-bold text-pov-charcoal">
                     {expenseRatio.toFixed(1)}%
                   </div>
-                  <div className="text-sm text-[#292929]/60 font-poppins">of Fund Size</div>
+                  <div className="text-sm text-pov-charcoal/60 font-poppins">of Fund Size</div>
                 </div>
                 <div className="text-center">
-                  <div className="text-2xl font-inter font-bold text-[#292929]">
+                  <div className="text-2xl font-inter font-bold text-pov-charcoal">
                     {fundExpenses.length}
                   </div>
-                  <div className="text-sm text-[#292929]/60 font-poppins">Expense Categories</div>
+                  <div className="text-sm text-pov-charcoal/60 font-poppins">
+                    Expense Categories
+                  </div>
                 </div>
               </div>
 
               {/* Expense List */}
               <div className="space-y-4">
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                  <h3 className="text-lg font-inter font-bold text-[#292929]">Current Expenses</h3>
+                  <h3 className="text-lg font-inter font-bold text-pov-charcoal">
+                    Current Expenses
+                  </h3>
                   {fundExpenses.length > 0 && (
                     <Button type="button" variant="outline" onClick={handleAddSuggestedExpenses}>
                       <Plus aria-hidden="true" className="h-4 w-4 mr-2" />
@@ -295,23 +299,23 @@ export default function CashflowManagementStep() {
                     {fundExpenses.map((expense, _index) => (
                       <div
                         key={expense.id}
-                        className="flex items-center gap-4 p-3 border border-[#E0D8D1] rounded-xl"
+                        className="flex items-center gap-4 p-3 border border-beige-200 rounded-xl"
                       >
                         <div className="flex-1">
-                          <div className="font-poppins font-medium text-[#292929]">
+                          <div className="font-poppins font-medium text-pov-charcoal">
                             {expense.category}
                           </div>
-                          <div className="text-sm text-[#292929]/60 font-poppins">
+                          <div className="text-sm text-pov-charcoal/60 font-poppins">
                             {expense.endMonth
                               ? `Months ${expense.startMonth}-${expense.endMonth}`
                               : `Starting month ${expense.startMonth}, ongoing`}
                           </div>
                         </div>
                         <div className="text-right">
-                          <div className="font-poppins font-medium text-[#292929]">
+                          <div className="font-poppins font-medium text-pov-charcoal">
                             ${expense.monthlyAmount.toLocaleString()}/mo
                           </div>
-                          <div className="text-sm text-[#292929]/60 font-poppins">
+                          <div className="text-sm text-pov-charcoal/60 font-poppins">
                             ${(expense.monthlyAmount * 12).toLocaleString()}/yr
                           </div>
                         </div>
@@ -330,11 +334,11 @@ export default function CashflowManagementStep() {
               </div>
 
               {/* Add New Expense */}
-              <div className="space-y-4 p-4 border border-[#E0D8D1] rounded-xl">
-                <h3 className="text-lg font-inter font-bold text-[#292929]">Add New Expense</h3>
+              <div className="space-y-4 p-4 border border-beige-200 rounded-xl">
+                <h3 className="text-lg font-inter font-bold text-pov-charcoal">Add New Expense</h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                   <div className="space-y-2">
-                    <Label className="font-poppins font-medium text-[#292929]">Category</Label>
+                    <Label className="font-poppins font-medium text-pov-charcoal">Category</Label>
                     <Select
                       value={newExpense.category}
                       onValueChange={(v) =>
@@ -355,7 +359,7 @@ export default function CashflowManagementStep() {
                   </div>
 
                   <div className="space-y-2">
-                    <Label className="font-poppins font-medium text-[#292929]">
+                    <Label className="font-poppins font-medium text-pov-charcoal">
                       Monthly Amount
                     </Label>
                     <Input
@@ -369,12 +373,14 @@ export default function CashflowManagementStep() {
                         }))
                       }
                       aria-label="Monthly expense amount"
-                      className="border-[#E0D8D1] focus:border-[#292929] focus:ring-[#292929] font-poppins"
+                      className="border-beige-200 focus:border-pov-charcoal focus:ring-charcoal/40 font-poppins"
                     />
                   </div>
 
                   <div className="space-y-2">
-                    <Label className="font-poppins font-medium text-[#292929]">Start Month</Label>
+                    <Label className="font-poppins font-medium text-pov-charcoal">
+                      Start Month
+                    </Label>
                     <Input
                       type="number"
                       min="1"
@@ -387,12 +393,12 @@ export default function CashflowManagementStep() {
                         }))
                       }
                       aria-label="Expense start month"
-                      className="border-[#E0D8D1] focus:border-[#292929] focus:ring-[#292929] font-poppins"
+                      className="border-beige-200 focus:border-pov-charcoal focus:ring-charcoal/40 font-poppins"
                     />
                   </div>
 
                   <div className="space-y-2">
-                    <Label className="font-poppins font-medium text-[#292929]">Duration</Label>
+                    <Label className="font-poppins font-medium text-pov-charcoal">Duration</Label>
                     <div className="flex items-center gap-2">
                       <Switch
                         checked={newExpense.isRecurring}
@@ -405,7 +411,7 @@ export default function CashflowManagementStep() {
                         }
                         aria-label="Use ongoing expense duration"
                       />
-                      <span className="text-sm font-poppins text-[#292929]">
+                      <span className="text-sm font-poppins text-pov-charcoal">
                         {newExpense.isRecurring ? 'Ongoing' : 'Fixed term'}
                       </span>
                     </div>
@@ -423,7 +429,7 @@ export default function CashflowManagementStep() {
                           }))
                         }
                         aria-label="Expense end month"
-                        className="border-[#E0D8D1] focus:border-[#292929] focus:ring-[#292929] font-poppins"
+                        className="border-beige-200 focus:border-pov-charcoal focus:ring-charcoal/40 font-poppins"
                       />
                     )}
                   </div>
@@ -432,7 +438,7 @@ export default function CashflowManagementStep() {
                 <Button
                   onClick={handleAddExpense}
                   disabled={!canAddExpense}
-                  className="bg-[#292929] hover:bg-[#292929]/90 font-poppins font-medium"
+                  className="bg-pov-charcoal text-pov-white hover:bg-charcoal-700 font-poppins font-medium"
                 >
                   <Plus className="h-4 w-4 mr-2" />
                   Add Expense
@@ -454,7 +460,7 @@ export default function CashflowManagementStep() {
             <CardContent className="space-y-4">
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <div className="space-y-2">
-                  <Label className="font-poppins font-medium text-[#292929]">
+                  <Label className="font-poppins font-medium text-pov-charcoal">
                     Notice Period (Days)
                   </Label>
                   <Input
@@ -468,15 +474,15 @@ export default function CashflowManagementStep() {
                         capitalCallNoticeDays: parseInt(e.target.value) || 10,
                       }))
                     }
-                    className="border-[#E0D8D1] focus:border-[#292929] focus:ring-[#292929] font-poppins"
+                    className="border-beige-200 focus:border-pov-charcoal focus:ring-charcoal/40 font-poppins"
                   />
-                  <p className="text-sm text-[#292929]/60 font-poppins">
+                  <p className="text-sm text-pov-charcoal/60 font-poppins">
                     Days between capital call notice and due date
                   </p>
                 </div>
 
                 <div className="space-y-2">
-                  <Label className="font-poppins font-medium text-[#292929]">
+                  <Label className="font-poppins font-medium text-pov-charcoal">
                     Payment Period (Days)
                   </Label>
                   <Input
@@ -490,20 +496,20 @@ export default function CashflowManagementStep() {
                         capitalCallPaymentDays: parseInt(e.target.value) || 30,
                       }))
                     }
-                    className="border-[#E0D8D1] focus:border-[#292929] focus:ring-[#292929] font-poppins"
+                    className="border-beige-200 focus:border-pov-charcoal focus:ring-charcoal/40 font-poppins"
                   />
-                  <p className="text-sm text-[#292929]/60 font-poppins">
+                  <p className="text-sm text-pov-charcoal/60 font-poppins">
                     Days LPs have to fund capital calls
                   </p>
                 </div>
               </div>
 
-              <div className="flex items-center justify-between p-4 border border-[#E0D8D1] rounded-xl">
+              <div className="flex items-center justify-between p-4 border border-beige-200 rounded-xl">
                 <div>
-                  <h4 className="font-poppins font-medium text-[#292929]">
+                  <h4 className="font-poppins font-medium text-pov-charcoal">
                     Automatic Capital Calls
                   </h4>
-                  <p className="text-sm text-[#292929]/60 font-poppins">
+                  <p className="text-sm text-pov-charcoal/60 font-poppins">
                     Generate capital calls automatically based on investment pipeline
                   </p>
                 </div>
@@ -531,7 +537,7 @@ export default function CashflowManagementStep() {
             <CardContent className="space-y-4">
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <div className="space-y-2">
-                  <Label className="font-poppins font-medium text-[#292929]">
+                  <Label className="font-poppins font-medium text-pov-charcoal">
                     Minimum Cash Ratio (%)
                   </Label>
                   <Input
@@ -546,15 +552,15 @@ export default function CashflowManagementStep() {
                         minimumCashRatio: parseFloat(e.target.value) || 5,
                       }))
                     }
-                    className="border-[#E0D8D1] focus:border-[#292929] focus:ring-[#292929] font-poppins"
+                    className="border-beige-200 focus:border-pov-charcoal focus:ring-charcoal/40 font-poppins"
                   />
-                  <p className="text-sm text-[#292929]/60 font-poppins">
+                  <p className="text-sm text-pov-charcoal/60 font-poppins">
                     Minimum cash as % of fund size
                   </p>
                 </div>
 
                 <div className="space-y-2">
-                  <Label className="font-poppins font-medium text-[#292929]">
+                  <Label className="font-poppins font-medium text-pov-charcoal">
                     Forecast Horizon (Months)
                   </Label>
                   <Input
@@ -568,9 +574,9 @@ export default function CashflowManagementStep() {
                         forecastHorizonMonths: parseInt(e.target.value) || 12,
                       }))
                     }
-                    className="border-[#E0D8D1] focus:border-[#292929] focus:ring-[#292929] font-poppins"
+                    className="border-beige-200 focus:border-pov-charcoal focus:ring-charcoal/40 font-poppins"
                   />
-                  <p className="text-sm text-[#292929]/60 font-poppins">
+                  <p className="text-sm text-pov-charcoal/60 font-poppins">
                     How far ahead to project cashflows
                   </p>
                 </div>
@@ -578,31 +584,31 @@ export default function CashflowManagementStep() {
 
               {/* Liquidity Alerts */}
               <div className="space-y-3">
-                <h4 className="font-poppins font-medium text-[#292929]">Alert Thresholds</h4>
+                <h4 className="font-poppins font-medium text-pov-charcoal">Alert Thresholds</h4>
                 <div className="space-y-2">
-                  <div className="flex items-center justify-between p-3 border border-[#E0D8D1] rounded-xl">
+                  <div className="flex items-center justify-between p-3 border border-beige-200 rounded-xl">
                     <div>
-                      <span className="font-poppins font-medium text-yellow-600">
+                      <span className="font-poppins font-medium text-warning-dark">
                         Low Liquidity Warning
                       </span>
-                      <p className="text-sm text-[#292929]/60 font-poppins">
+                      <p className="text-sm text-pov-charcoal/60 font-poppins">
                         Alert when cash falls below 2% of fund size
                       </p>
                     </div>
-                    <Badge variant="outline" className="text-yellow-600">
+                    <Badge variant="outline" className="text-warning-dark">
                       2%
                     </Badge>
                   </div>
-                  <div className="flex items-center justify-between p-3 border border-[#E0D8D1] rounded-xl">
+                  <div className="flex items-center justify-between p-3 border border-beige-200 rounded-xl">
                     <div>
-                      <span className="font-poppins font-medium text-red-600">
+                      <span className="font-poppins font-medium text-error-dark">
                         Critical Liquidity Alert
                       </span>
-                      <p className="text-sm text-[#292929]/60 font-poppins">
+                      <p className="text-sm text-pov-charcoal/60 font-poppins">
                         Alert when cash falls below 1% of fund size
                       </p>
                     </div>
-                    <Badge variant="outline" className="text-red-600">
+                    <Badge variant="outline" className="text-error-dark">
                       1%
                     </Badge>
                   </div>
@@ -623,12 +629,12 @@ export default function CashflowManagementStep() {
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="space-y-4">
-                <div className="flex items-center justify-between p-4 border border-[#E0D8D1] rounded-xl">
+                <div className="flex items-center justify-between p-4 border border-beige-200 rounded-xl">
                   <div>
-                    <h4 className="font-poppins font-medium text-[#292929]">
+                    <h4 className="font-poppins font-medium text-pov-charcoal">
                       Enable Cashflow Tracking
                     </h4>
-                    <p className="text-sm text-[#292929]/60 font-poppins">
+                    <p className="text-sm text-pov-charcoal/60 font-poppins">
                       Track all fund cash inflows and outflows
                     </p>
                   </div>
@@ -641,12 +647,12 @@ export default function CashflowManagementStep() {
                   />
                 </div>
 
-                <div className="flex items-center justify-between p-4 border border-[#E0D8D1] rounded-xl">
+                <div className="flex items-center justify-between p-4 border border-beige-200 rounded-xl">
                   <div>
-                    <h4 className="font-poppins font-medium text-[#292929]">
+                    <h4 className="font-poppins font-medium text-pov-charcoal">
                       Enable Expense Tracking
                     </h4>
-                    <p className="text-sm text-[#292929]/60 font-poppins">
+                    <p className="text-sm text-pov-charcoal/60 font-poppins">
                       Detailed tracking of fund operating expenses
                     </p>
                   </div>
@@ -661,23 +667,25 @@ export default function CashflowManagementStep() {
 
                 {/* Integration Settings */}
                 <div className="space-y-3">
-                  <h4 className="font-poppins font-medium text-[#292929]">Integrations</h4>
+                  <h4 className="font-poppins font-medium text-pov-charcoal">Integrations</h4>
                   <div className="space-y-2">
-                    <div className="flex items-center justify-between p-3 border border-[#E0D8D1] rounded-xl">
+                    <div className="flex items-center justify-between p-3 border border-beige-200 rounded-xl">
                       <div>
-                        <span className="font-poppins font-medium text-[#292929]">Banking API</span>
-                        <p className="text-sm text-[#292929]/60 font-poppins">
+                        <span className="font-poppins font-medium text-pov-charcoal">
+                          Banking API
+                        </span>
+                        <p className="text-sm text-pov-charcoal/60 font-poppins">
                           Real-time bank balance sync
                         </p>
                       </div>
                       <Badge variant="outline">Coming Soon</Badge>
                     </div>
-                    <div className="flex items-center justify-between p-3 border border-[#E0D8D1] rounded-xl">
+                    <div className="flex items-center justify-between p-3 border border-beige-200 rounded-xl">
                       <div>
-                        <span className="font-poppins font-medium text-[#292929]">
+                        <span className="font-poppins font-medium text-pov-charcoal">
                           Portfolio Company Reporting
                         </span>
-                        <p className="text-sm text-[#292929]/60 font-poppins">
+                        <p className="text-sm text-pov-charcoal/60 font-poppins">
                           Automatic distribution forecasting
                         </p>
                       </div>
@@ -697,7 +705,7 @@ export default function CashflowManagementStep() {
           data-testid="previous-step"
           variant="outline"
           onClick={handlePrevious}
-          className="border-[#E0D8D1] hover:bg-[#E0D8D1]/20 hover:border-[#292929] font-poppins font-medium"
+          className="border-beige-200 hover:bg-beige/20 hover:border-pov-charcoal font-poppins font-medium"
         >
           <ArrowLeft className="h-4 w-4 mr-2" />
           Previous
@@ -705,7 +713,7 @@ export default function CashflowManagementStep() {
         <Button
           data-testid="finish-setup"
           onClick={handleNext}
-          className="bg-green-600 hover:bg-green-700 font-poppins font-medium"
+          className="bg-pov-charcoal text-pov-white hover:bg-charcoal-700 font-poppins font-medium"
         >
           Next: Review & Create
           <ArrowRight className="h-4 w-4 ml-2" />
