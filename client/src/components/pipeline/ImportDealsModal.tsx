@@ -312,10 +312,12 @@ export function ImportDealsModal({ open, onOpenChange, fundId }: ImportDealsModa
           {/* Template Download */}
           {phase === 'upload' && (
             <>
-              <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg border border-gray-200">
+              <div className="flex items-center justify-between p-3 bg-pov-gray rounded-lg border border-beige-200">
                 <div className="flex items-center gap-2">
-                  <FileSpreadsheet className="h-5 w-5 text-green-600" />
-                  <span className="font-poppins text-sm text-gray-600">Download template CSV</span>
+                  <FileSpreadsheet className="h-5 w-5 text-success" />
+                  <span className="font-poppins text-sm text-charcoal-600">
+                    Download template CSV
+                  </span>
                 </div>
                 <Button
                   type="button"
@@ -351,11 +353,11 @@ export function ImportDealsModal({ open, onOpenChange, fundId }: ImportDealsModa
                       : 'border-pov-beige hover:border-pov-charcoal/50'
                   )}
                 >
-                  <Upload className="h-10 w-10 text-gray-400 mx-auto mb-3" />
+                  <Upload className="h-10 w-10 text-charcoal-400 mx-auto mb-3" />
                   <p className="font-inter font-medium text-pov-charcoal mb-1">
                     Drop your CSV file here
                   </p>
-                  <p className="font-poppins text-sm text-gray-500 mb-3">or click to browse</p>
+                  <p className="font-poppins text-sm text-charcoal-500 mb-3">or click to browse</p>
                   <input
                     type="file"
                     accept=".csv"
@@ -376,9 +378,9 @@ export function ImportDealsModal({ open, onOpenChange, fundId }: ImportDealsModa
                 <div className="border rounded-lg p-4">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
-                      <FileSpreadsheet className="h-5 w-5 text-green-600" />
+                      <FileSpreadsheet className="h-5 w-5 text-success" />
                       <span className="font-poppins font-medium text-sm">{file.name}</span>
-                      <span className="font-poppins text-xs text-gray-400">
+                      <span className="font-poppins text-xs text-charcoal-400">
                         ({(file.size / 1024).toFixed(1)} KB)
                       </span>
                     </div>
@@ -389,7 +391,7 @@ export function ImportDealsModal({ open, onOpenChange, fundId }: ImportDealsModa
                 </div>
               )}
 
-              <div className="text-xs text-gray-500 font-poppins space-y-1">
+              <div className="text-xs text-charcoal-500 font-poppins space-y-1">
                 <p>Required columns: companyName, sector, stage, sourceType</p>
                 <p>
                   Stage values: Pre-seed, Seed, Series A, Series B, Series C, Growth, Late Stage
@@ -403,19 +405,21 @@ export function ImportDealsModal({ open, onOpenChange, fundId }: ImportDealsModa
             <div className="space-y-3">
               {/* Summary Cards */}
               <div className="grid grid-cols-3 gap-2">
-                <div className="p-3 bg-gray-50 rounded-lg text-center">
+                <div className="p-3 bg-pov-gray rounded-lg text-center">
                   <p className="font-inter font-bold text-lg text-pov-charcoal">{preview.total}</p>
-                  <p className="font-poppins text-xs text-gray-500">Total rows</p>
+                  <p className="font-poppins text-xs text-charcoal-500">Total rows</p>
                 </div>
-                <div className="p-3 bg-green-50 rounded-lg text-center">
-                  <p className="font-inter font-bold text-lg text-green-700">{preview.toImport}</p>
-                  <p className="font-poppins text-xs text-green-600">Ready to import</p>
+                <div className="p-3 bg-success/10 rounded-lg text-center">
+                  <p className="font-inter font-bold text-lg text-success-dark">
+                    {preview.toImport}
+                  </p>
+                  <p className="font-poppins text-xs text-success">Ready to import</p>
                 </div>
-                <div className="p-3 bg-amber-50 rounded-lg text-center">
-                  <p className="font-inter font-bold text-lg text-amber-700">
+                <div className="p-3 bg-warning/10 rounded-lg text-center">
+                  <p className="font-inter font-bold text-lg text-warning-dark">
                     {preview.duplicates}
                   </p>
-                  <p className="font-poppins text-xs text-amber-600">Duplicates</p>
+                  <p className="font-poppins text-xs text-warning">Duplicates</p>
                 </div>
               </div>
 
@@ -470,21 +474,19 @@ export function ImportDealsModal({ open, onOpenChange, fundId }: ImportDealsModa
           {/* Done Phase */}
           {phase === 'done' && importResult && (
             <div className="space-y-3">
-              <div className="flex items-center gap-2 p-4 bg-green-50 rounded-lg">
-                <CheckCircle2 className="h-5 w-5 text-green-600" />
+              <div className="flex items-center gap-2 p-4 bg-success/10 rounded-lg">
+                <CheckCircle2 className="h-5 w-5 text-success" />
                 <div>
-                  <p className="font-inter font-semibold text-green-800">
+                  <p className="font-inter font-semibold text-success-dark">
                     {importResult.imported} deal{importResult.imported !== 1 ? 's' : ''} imported
                   </p>
                   {importResult.skipped > 0 && (
-                    <p className="font-poppins text-xs text-green-600">
+                    <p className="font-poppins text-xs text-success">
                       {importResult.skipped} duplicates skipped
                     </p>
                   )}
                   {importResult.failed > 0 && (
-                    <p className="font-poppins text-xs text-red-600">
-                      {importResult.failed} failed
-                    </p>
+                    <p className="font-poppins text-xs text-error">{importResult.failed} failed</p>
                   )}
                 </div>
               </div>

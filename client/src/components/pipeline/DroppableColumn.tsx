@@ -50,13 +50,13 @@ export function DroppableColumn({
         ref={setNodeRef}
         className={cn(
           'space-y-3 min-h-[100px] rounded-lg transition-colors',
-          highlighted && 'ring-2 ring-blue-200 bg-blue-50/20'
+          highlighted && 'ring-2 ring-pov-charcoal/20 bg-pov-charcoal/5'
         )}
       >
         {children}
         {dealCount === 0 && (
-          <div className="border-2 border-dashed border-gray-200 rounded-lg p-4 text-center">
-            <p className="font-poppins text-xs text-gray-400">No deals</p>
+          <div className="border-2 border-dashed border-beige-200 rounded-lg p-4 text-center">
+            <p className="font-poppins text-xs text-charcoal-400">No deals</p>
           </div>
         )}
       </div>

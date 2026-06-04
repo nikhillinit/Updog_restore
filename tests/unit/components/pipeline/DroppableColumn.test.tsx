@@ -71,7 +71,7 @@ describe('DroppableColumn', () => {
     // The droppable area (second child div) gets ring-2 when highlighted
     const droppableArea = container.querySelector('.ring-2');
     expect(droppableArea).not.toBeNull();
-    expect(droppableArea?.className).toContain('ring-blue-200');
+    expect(droppableArea?.className).toContain('ring-pov-charcoal');
   });
 
   it('shows empty state when dealCount is 0', () => {

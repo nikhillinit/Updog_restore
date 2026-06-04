@@ -16,6 +16,7 @@ import {
 } from '@/core/reserves/computeReservesFromGraduation';
 import { Calculator, TrendingUp, Target, AlertTriangle } from 'lucide-react';
 import { createDynamicFormatter } from '@/lib/chart-formatters';
+import { presson } from '@/theme/presson.tokens';
 
 type GraduationRates = FundDataForReserves['graduationRates'];
 type GraduationStage = keyof GraduationRates;
@@ -42,7 +43,7 @@ export default function GraduationReservesDemo() {
     {
       name: 'Conservative VC',
       description: 'Lower graduation rates, higher follow-on checks',
-      color: '#ef4444',
+      color: presson.color.negative,
       fundData: {
         totalCommitment: 50000000,
         targetCompanies: 25,
@@ -59,7 +60,7 @@ export default function GraduationReservesDemo() {
     {
       name: 'Aggressive Growth',
       description: 'Higher graduation rates, moderate follow-ons',
-      color: '#10b981',
+      color: presson.color.positive,
       fundData: {
         totalCommitment: 50000000,
         targetCompanies: 35,
@@ -76,7 +77,7 @@ export default function GraduationReservesDemo() {
     {
       name: 'Balanced Portfolio',
       description: 'Market-average rates and check sizes',
-      color: '#3b82f6',
+      color: presson.color.info,
       fundData: {
         totalCommitment: 50000000,
         targetCompanies: 30,
@@ -132,15 +133,18 @@ export default function GraduationReservesDemo() {
           <div className="flex items-center justify-between">
             <div>
               <CardTitle className="text-2xl font-bold flex items-center">
-                <Calculator className="w-6 h-6 mr-2 text-blue-600" />
+                <Calculator className="w-6 h-6 mr-2 text-presson-info" />
                 Graduation-Driven Reserves Engine
               </CardTitle>
-              <p className="text-gray-600 mt-2">
+              <p className="text-charcoal-600 mt-2">
                 Compare how different graduation rates and follow-on strategies impact your reserve
                 requirements
               </p>
             </div>
-            <Badge variant="outline" className="bg-blue-50 text-blue-700">
+            <Badge
+              variant="outline"
+              className="bg-presson-info/10 text-presson-info border-presson-info/20"
+            >
               Expected Value v1
             </Badge>
           </div>
@@ -159,13 +163,13 @@ export default function GraduationReservesDemo() {
                 key={index}
                 variant={selectedScenario === index ? 'default' : 'outline'}
                 className={`h-auto p-4 text-left justify-start ${
-                  selectedScenario === index ? '' : 'hover:bg-gray-50'
+                  selectedScenario === index ? '' : 'hover:bg-pov-gray'
                 }`}
                 onClick={() => setSelectedScenario(index)}
               >
                 <div>
                   <div className="font-semibold">{scenario.name}</div>
-                  <div className="text-sm text-gray-600 mt-1">{scenario.description}</div>
+                  <div className="text-sm text-charcoal-600 mt-1">{scenario.description}</div>
                 </div>
               </Button>
             ))}
@@ -179,22 +183,22 @@ export default function GraduationReservesDemo() {
         <Card>
           <CardHeader>
             <CardTitle className="text-lg flex items-center">
-              <Target className="w-5 h-5 mr-2 text-green-600" />
+              <Target className="w-5 h-5 mr-2 text-presson-positive" />
               {currentScenario.name} Results
             </CardTitle>
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
-                <div className="bg-blue-50 p-4 rounded-lg">
-                  <div className="text-sm font-medium text-blue-600">Total Reserves</div>
-                  <div className="text-2xl font-bold text-blue-900">
+                <div className="bg-presson-info/10 p-4 rounded-lg">
+                  <div className="text-sm font-medium text-presson-info">Total Reserves</div>
+                  <div className="text-2xl font-bold text-presson-info">
                     {formatCurrency(result?.totalReserves ?? 0)}
                   </div>
                 </div>
-                <div className="bg-green-50 p-4 rounded-lg">
-                  <div className="text-sm font-medium text-green-600">Reserve Ratio</div>
-                  <div className="text-2xl font-bold text-green-900" data-testid="demo-ratio">
+                <div className="bg-presson-info/10 p-4 rounded-lg">
+                  <div className="text-sm font-medium text-presson-info">Reserve Ratio</div>
+                  <div className="text-2xl font-bold text-presson-info" data-testid="demo-ratio">
                     {formatPercent(result?.reserveRatioPct ?? 0)}
                   </div>
                 </div>
@@ -202,19 +206,19 @@ export default function GraduationReservesDemo() {
 
               <div className="space-y-2">
                 <div className="flex justify-between text-sm">
-                  <span className="text-gray-600">Series A Follow-ons:</span>
+                  <span className="text-charcoal-600">Series A Follow-ons:</span>
                   <span className="font-medium">
                     {formatCurrency(result?.aggregateByStage.A ?? 0)}
                   </span>
                 </div>
                 <div className="flex justify-between text-sm">
-                  <span className="text-gray-600">Series B Follow-ons:</span>
+                  <span className="text-charcoal-600">Series B Follow-ons:</span>
                   <span className="font-medium">
                     {formatCurrency(result?.aggregateByStage.B ?? 0)}
                   </span>
                 </div>
                 <div className="flex justify-between text-sm">
-                  <span className="text-gray-600">Series C Follow-ons:</span>
+                  <span className="text-charcoal-600">Series C Follow-ons:</span>
                   <span className="font-medium">
                     {formatCurrency(result?.aggregateByStage.C ?? 0)}
                   </span>
@@ -222,7 +226,7 @@ export default function GraduationReservesDemo() {
               </div>
 
               <div className="pt-4 border-t">
-                <div className="text-sm text-gray-600 space-y-1">
+                <div className="text-sm text-charcoal-600 space-y-1">
                   <div>
                     <strong>Companies per Quarter:</strong> {result?.assumptions.perQuarter ?? 0}
                   </div>
@@ -248,8 +252,8 @@ export default function GraduationReservesDemo() {
           <CardContent>
             <div className="space-y-4">
               {graduationRateEntries.map(([stage, rates]) => (
-                <div key={stage} className="bg-gray-50 p-4 rounded-lg">
-                  <div className="text-sm font-semibold text-gray-700 mb-2">
+                <div key={stage} className="bg-pov-gray p-4 rounded-lg">
+                  <div className="text-sm font-semibold text-charcoal-700 mb-2">
                     {stage === 'seedToA'
                       ? 'Seed -> Series A'
                       : stage === 'aToB'
@@ -258,16 +262,18 @@ export default function GraduationReservesDemo() {
                   </div>
                   <div className="grid grid-cols-3 gap-2 text-xs">
                     <div>
-                      <div className="text-green-600 font-medium">Graduate: {rates.graduate}%</div>
+                      <div className="text-success font-medium">Graduate: {rates.graduate}%</div>
                     </div>
                     <div>
-                      <div className="text-red-600 font-medium">Fail: {rates.fail}%</div>
+                      <div className="text-error font-medium">Fail: {rates.fail}%</div>
                     </div>
                     <div>
-                      <div className="text-yellow-600 font-medium">Remain: {rates.remain}%</div>
+                      <div className="text-warning font-medium">Remain: {rates.remain}%</div>
                     </div>
                   </div>
-                  <div className="text-xs text-gray-500 mt-1">Avg time: {rates.months} months</div>
+                  <div className="text-xs text-charcoal-500 mt-1">
+                    Avg time: {rates.months} months
+                  </div>
                 </div>
               ))}
             </div>
@@ -279,7 +285,7 @@ export default function GraduationReservesDemo() {
       <Card>
         <CardHeader>
           <CardTitle className="text-lg flex items-center">
-            <BarChart className="w-5 h-5 mr-2 text-purple-600" />
+            <BarChart className="w-5 h-5 mr-2 text-presson-info" />
             Strategy Comparison
           </CardTitle>
         </CardHeader>
@@ -304,27 +310,27 @@ export default function GraduationReservesDemo() {
                   yAxisId="left"
                   dataKey="seriesA"
                   stackId="reserves"
-                  fill="#3b82f6"
+                  fill={presson.color.text}
                   name="Series A"
                 />
                 <Bar
                   yAxisId="left"
                   dataKey="seriesB"
                   stackId="reserves"
-                  fill="#10b981"
+                  fill={presson.color.positive}
                   name="Series B"
                 />
                 <Bar
                   yAxisId="left"
                   dataKey="seriesC"
                   stackId="reserves"
-                  fill="#f59e0b"
+                  fill={presson.color.info}
                   name="Series C"
                 />
                 <Bar
                   yAxisId="right"
                   dataKey="reserveRatio"
-                  fill="#ef4444"
+                  fill={presson.color.warning}
                   name="Reserve Ratio (%)"
                 />
               </BarChart>
@@ -337,41 +343,41 @@ export default function GraduationReservesDemo() {
       <Card>
         <CardHeader>
           <CardTitle className="text-lg flex items-center">
-            <TrendingUp className="w-5 h-5 mr-2 text-orange-600" />
+            <TrendingUp className="w-5 h-5 mr-2 text-presson-warning" />
             Key Insights
           </CardTitle>
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
+            <div className="bg-warning/10 p-4 rounded-lg border border-warning/50">
               <div className="flex items-center mb-2">
-                <AlertTriangle className="w-4 h-4 text-blue-600 mr-2" />
-                <span className="text-sm font-medium text-blue-800">Conservative Strategy</span>
+                <AlertTriangle className="w-4 h-4 text-warning mr-2" />
+                <span className="text-sm font-medium text-warning-dark">Conservative Strategy</span>
               </div>
-              <p className="text-sm text-blue-700">
+              <p className="text-sm text-warning-dark">
                 Lower graduation rates require higher reserve ratios (
                 {formatPercent(comparisonData[0]?.reserveRatio ?? 0)}) due to fewer companies
                 reaching follow-on stages.
               </p>
             </div>
 
-            <div className="bg-green-50 p-4 rounded-lg border border-green-200">
+            <div className="bg-success/10 p-4 rounded-lg border border-success/50">
               <div className="flex items-center mb-2">
-                <TrendingUp className="w-4 h-4 text-green-600 mr-2" />
-                <span className="text-sm font-medium text-green-800">Aggressive Growth</span>
+                <TrendingUp className="w-4 h-4 text-success mr-2" />
+                <span className="text-sm font-medium text-success-dark">Aggressive Growth</span>
               </div>
-              <p className="text-sm text-green-700">
+              <p className="text-sm text-success-dark">
                 High graduation rates with smaller checks create the most capital-efficient reserves
                 ({formatPercent(comparisonData[1]?.reserveRatio ?? 0)}).
               </p>
             </div>
 
-            <div className="bg-purple-50 p-4 rounded-lg border border-purple-200">
+            <div className="bg-presson-info/10 p-4 rounded-lg border border-presson-info/20">
               <div className="flex items-center mb-2">
-                <Target className="w-4 h-4 text-purple-600 mr-2" />
-                <span className="text-sm font-medium text-purple-800">Dynamic Calculation</span>
+                <Target className="w-4 h-4 text-presson-info mr-2" />
+                <span className="text-sm font-medium text-presson-info">Dynamic Calculation</span>
               </div>
-              <p className="text-sm text-purple-700">
+              <p className="text-sm text-presson-info">
                 Reserve ratios automatically adjust based on your portfolio graduation assumptions
                 instead of using fixed percentages.
               </p>
