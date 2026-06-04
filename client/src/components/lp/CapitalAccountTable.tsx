@@ -8,10 +8,23 @@
 
 import { useState, useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { ArrowUpDown, ArrowDown, ArrowUp, Download, Filter } from 'lucide-react';
 import type { CapitalAccountTransaction, TransactionType } from '@shared/types/lp-api';
 
@@ -55,7 +68,9 @@ function getTransactionTypeLabel(type: TransactionType): string {
   return labels[type] || type;
 }
 
-function getTransactionTypeVariant(type: TransactionType): 'default' | 'secondary' | 'outline' | 'destructive' {
+function getTransactionTypeVariant(
+  type: TransactionType
+): 'default' | 'secondary' | 'outline' | 'destructive' {
   if (type.includes('distribution')) return 'default';
   if (type.includes('call')) return 'destructive';
   if (type.includes('fee')) return 'outline';
@@ -101,7 +116,8 @@ export default function CapitalAccountTable({
 
       switch (sortField) {
         case 'transactionDate':
-          comparison = new Date(a.transactionDate).getTime() - new Date(b.transactionDate).getTime();
+          comparison =
+            new Date(a.transactionDate).getTime() - new Date(b.transactionDate).getTime();
           break;
         case 'amount':
           comparison = a.amount - b.amount;
@@ -134,19 +150,22 @@ export default function CapitalAccountTable({
   };
 
   return (
-    <Card className="bg-white rounded-xl border border-[#E0D8D1] shadow-md">
+    <Card className="bg-pov-white rounded-xl border border-beige-200 shadow-md">
       <CardHeader>
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
           <div>
-            <CardTitle className="font-inter text-[#292929]">Capital Account</CardTitle>
-            <CardDescription className="font-poppins text-[#292929]/70">
+            <CardTitle className="font-inter text-pov-charcoal">Capital Account</CardTitle>
+            <CardDescription className="font-poppins text-pov-charcoal/70">
               Transaction history and capital flows
             </CardDescription>
           </div>
 
           <div className="flex items-center gap-3">
             {/* Filter */}
-            <Select value={filterType} onValueChange={(v) => setFilterType(v as TransactionType | 'all')}>
+            <Select
+              value={filterType}
+              onValueChange={(v) => setFilterType(v as TransactionType | 'all')}
+            >
               <SelectTrigger className="w-[180px]">
                 <Filter className="h-4 w-4 mr-2" />
                 <SelectValue />
@@ -175,7 +194,7 @@ export default function CapitalAccountTable({
             <TableHeader>
               <TableRow>
                 <TableHead
-                  className="cursor-pointer hover:bg-gray-50"
+                  className="cursor-pointer hover:bg-pov-gray"
                   onClick={() => handleSort('transactionDate')}
                 >
                   <div className="flex items-center">
@@ -185,7 +204,7 @@ export default function CapitalAccountTable({
                 </TableHead>
                 <TableHead>Fund</TableHead>
                 <TableHead
-                  className="cursor-pointer hover:bg-gray-50"
+                  className="cursor-pointer hover:bg-pov-gray"
                   onClick={() => handleSort('type')}
                 >
                   <div className="flex items-center">
@@ -195,7 +214,7 @@ export default function CapitalAccountTable({
                 </TableHead>
                 <TableHead>Description</TableHead>
                 <TableHead
-                  className="text-right cursor-pointer hover:bg-gray-50"
+                  className="text-right cursor-pointer hover:bg-pov-gray"
                   onClick={() => handleSort('amount')}
                 >
                   <div className="flex items-center justify-end">
@@ -211,7 +230,7 @@ export default function CapitalAccountTable({
 
             <TableBody>
               {sortedTransactions.map((txn) => (
-                <TableRow key={txn.id} className="hover:bg-[#E0D8D1]/20">
+                <TableRow key={txn.id} className="hover:bg-beige/20">
                   <TableCell className="font-mono text-sm">
                     {formatDate(txn.transactionDate)}
                   </TableCell>
@@ -221,11 +240,11 @@ export default function CapitalAccountTable({
                       {getTransactionTypeLabel(txn.type)}
                     </Badge>
                   </TableCell>
-                  <TableCell className="font-poppins text-sm text-[#292929]/70 max-w-xs truncate">
+                  <TableCell className="font-poppins text-sm text-pov-charcoal/70 max-w-xs truncate">
                     {txn.description}
                   </TableCell>
                   <TableCell
-                    className={`text-right font-mono text-sm ${txn.amount < 0 ? 'text-red-600' : 'text-green-600'}`}
+                    className={`text-right font-mono text-sm ${txn.amount < 0 ? 'text-presson-negative' : 'text-presson-positive'}`}
                   >
                     {formatCurrency(txn.amount)}
                   </TableCell>
@@ -243,7 +262,7 @@ export default function CapitalAccountTable({
 
               {sortedTransactions.length === 0 && !isLoading && (
                 <TableRow>
-                  <TableCell colSpan={8} className="text-center py-8 text-[#292929]/50">
+                  <TableCell colSpan={8} className="text-center py-8 text-pov-charcoal/50">
                     No transactions found
                   </TableCell>
                 </TableRow>

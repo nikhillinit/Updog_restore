@@ -34,9 +34,9 @@ export interface MetricCardProps {
 }
 
 const TONE_CLASS: Record<MetricCardTone, string> = {
-  neutral: 'text-charcoal',
-  positive: 'text-emerald-700',
-  warning: 'text-amber-700',
+  neutral: 'text-pov-charcoal',
+  positive: 'text-presson-positive',
+  warning: 'text-presson-warning',
 };
 
 export function MetricCard({

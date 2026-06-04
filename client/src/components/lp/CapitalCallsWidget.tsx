@@ -50,7 +50,7 @@ export function CapitalCallsWidget() {
         );
       case 'due':
         return (
-          <Badge variant="default" className="ml-2 bg-orange-500">
+          <Badge variant="default" className="ml-2 bg-warning text-pov-white">
             Due
           </Badge>
         );
@@ -73,7 +73,7 @@ export function CapitalCallsWidget() {
 
   if (isLoading) {
     return (
-      <Card className="bg-white rounded-xl border border-[#E0D8D1] shadow-md">
+      <Card className="bg-pov-white rounded-xl border border-beige-200 shadow-md">
         <CardHeader>
           <Skeleton className="h-6 w-40" />
           <Skeleton className="h-4 w-60" />
@@ -94,14 +94,14 @@ export function CapitalCallsWidget() {
     BigInt(summary?.totalOverdueAmount || '0');
 
   return (
-    <Card className="bg-white rounded-xl border border-[#E0D8D1] shadow-md">
+    <Card className="bg-pov-white rounded-xl border border-beige-200 shadow-md">
       <CardHeader>
-        <CardTitle className="flex items-center gap-2 font-inter text-[#292929]">
-          <DollarSign className="h-5 w-5 text-blue-600" />
+        <CardTitle className="flex items-center gap-2 font-inter text-pov-charcoal">
+          <DollarSign className="h-5 w-5 text-presson-info" />
           Capital Calls
-          {hasUrgentCalls && <AlertTriangle className="h-4 w-4 text-orange-500" />}
+          {hasUrgentCalls && <AlertTriangle className="h-4 w-4 text-warning" />}
         </CardTitle>
-        <CardDescription className="font-poppins text-[#292929]/70">
+        <CardDescription className="font-poppins text-pov-charcoal/70">
           {totalPendingAmount > 0n
             ? `${formatCurrency(totalPendingAmount.toString())} total outstanding`
             : 'No outstanding capital calls'}
@@ -115,21 +115,23 @@ export function CapitalCallsWidget() {
           <>
             <div className="grid grid-cols-3 gap-4 mb-4">
               {(summary?.totalOverdue ?? 0) > 0 && (
-                <div className="text-center p-3 bg-red-50 rounded-lg">
-                  <div className="text-2xl font-bold text-red-600">{summary?.totalOverdue}</div>
-                  <div className="text-xs text-red-600/70 font-poppins">Overdue</div>
+                <div className="text-center p-3 bg-error/10 rounded-lg">
+                  <div className="text-2xl font-bold text-error-dark">{summary?.totalOverdue}</div>
+                  <div className="text-xs text-error-dark/70 font-poppins">Overdue</div>
                 </div>
               )}
               {(summary?.totalDue ?? 0) > 0 && (
-                <div className="text-center p-3 bg-orange-50 rounded-lg">
-                  <div className="text-2xl font-bold text-orange-600">{summary?.totalDue}</div>
-                  <div className="text-xs text-orange-600/70 font-poppins">Due Now</div>
+                <div className="text-center p-3 bg-warning/10 rounded-lg">
+                  <div className="text-2xl font-bold text-warning-dark">{summary?.totalDue}</div>
+                  <div className="text-xs text-warning-dark/70 font-poppins">Due Now</div>
                 </div>
               )}
               {(summary?.totalPending ?? 0) > 0 && (
-                <div className="text-center p-3 bg-blue-50 rounded-lg">
-                  <div className="text-2xl font-bold text-blue-600">{summary?.totalPending}</div>
-                  <div className="text-xs text-blue-600/70 font-poppins">Upcoming</div>
+                <div className="text-center p-3 bg-presson-info/10 rounded-lg">
+                  <div className="text-2xl font-bold text-presson-info">
+                    {summary?.totalPending}
+                  </div>
+                  <div className="text-xs text-presson-info/70 font-poppins">Upcoming</div>
                 </div>
               )}
             </div>
@@ -139,7 +141,7 @@ export function CapitalCallsWidget() {
               {calls?.calls.slice(0, 3).map((call) => (
                 <div
                   key={call.id}
-                  className="flex items-center justify-between p-3 border border-[#E0D8D1] rounded-lg hover:bg-gray-50 cursor-pointer"
+                  className="flex items-center justify-between p-3 border border-beige-200 rounded-lg hover:bg-pov-gray cursor-pointer"
                   onClick={() => navigate(`/lp/capital-calls/${call.id}`)}
                 >
                   <div>
@@ -147,7 +149,7 @@ export function CapitalCallsWidget() {
                       <span className="font-medium font-inter text-sm">{call.fundName}</span>
                       {getStatusBadge(call.status)}
                     </div>
-                    <div className="flex items-center gap-2 text-xs text-[#292929]/60 font-poppins mt-1">
+                    <div className="flex items-center gap-2 text-xs text-pov-charcoal/60 font-poppins mt-1">
                       <Clock className="h-3 w-3" />
                       <span>Due: {formatDate(call.dueDate)}</span>
                     </div>
@@ -160,8 +162,8 @@ export function CapitalCallsWidget() {
             </div>
           </>
         ) : (
-          <div className="text-center py-6 text-[#292929]/60 font-poppins">
-            <DollarSign className="h-10 w-10 mx-auto mb-2 text-[#292929]/30" />
+          <div className="text-center py-6 text-pov-charcoal/60 font-poppins">
+            <DollarSign className="h-10 w-10 mx-auto mb-2 text-pov-charcoal/30" />
             <p>No pending capital calls</p>
           </div>
         )}

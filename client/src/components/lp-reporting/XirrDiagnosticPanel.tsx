@@ -88,12 +88,12 @@ export function XirrDiagnosticBlock({ title, diagnostic, testId }: XirrDiagnosti
             <TooltipTrigger asChild>
               <div
                 data-testid={`${testId}-bound-hit`}
-                className="inline-flex items-center gap-2 rounded-md bg-amber-50 px-3 py-2 text-xs text-amber-800 cursor-help"
+                className="inline-flex items-center gap-2 rounded-md bg-warning/10 px-3 py-2 text-xs text-warning-dark cursor-help"
               >
                 <span className="font-semibold">
                   {diagnostic.boundHit === 'max' ? 'Hit upper bound' : 'Hit lower bound'}
                 </span>
-                <span className="text-amber-700/80">
+                <span className="text-warning-dark/80">
                   ({diagnostic.boundHit === 'max' ? '200' : '-0.999999'})
                 </span>
               </div>
@@ -110,7 +110,7 @@ export function XirrDiagnosticBlock({ title, diagnostic, testId }: XirrDiagnosti
               <div
                 data-testid={`${testId}-failure-reason`}
                 data-failure-code={diagnostic.failureReason}
-                className="inline-flex items-center gap-2 rounded-md bg-red-50 px-3 py-2 text-xs text-red-800 cursor-help"
+                className="inline-flex items-center gap-2 rounded-md bg-error/10 px-3 py-2 text-xs text-error-dark cursor-help"
               >
                 <span className="font-semibold">{diagnostic.failureReason}</span>
               </div>
