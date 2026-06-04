@@ -17,7 +17,7 @@ export default function Performance() {
 
   if (fundLoading) {
     return (
-      <div className="min-h-screen bg-slate-100">
+      <div className="min-h-screen bg-pov-gray">
         <POVBrandHeader
           title="Fund Performance"
           subtitle="Current trends and portfolio breakdowns"
@@ -25,8 +25,8 @@ export default function Performance() {
         />
         <div className="max-w-7xl mx-auto px-6 py-8">
           <div className="animate-pulse space-y-6">
-            <div className="h-32 bg-white rounded-lg shadow-card" />
-            <div className="h-96 bg-white rounded-lg shadow-card" />
+            <div className="h-32 bg-pov-white rounded-lg shadow-card" />
+            <div className="h-96 bg-pov-white rounded-lg shadow-card" />
           </div>
         </div>
       </div>
@@ -35,14 +35,14 @@ export default function Performance() {
 
   if (!currentFund) {
     return (
-      <div className="min-h-screen bg-slate-100">
+      <div className="min-h-screen bg-pov-gray">
         <POVBrandHeader
           title="Fund Performance"
           subtitle="Current trends and portfolio breakdowns"
           variant="light"
         />
         <div className="max-w-7xl mx-auto px-6 py-8">
-          <div className="text-center py-12 text-[#292929]/70">
+          <div className="text-center py-12 text-pov-charcoal/70">
             Please select a fund to view performance metrics.
           </div>
         </div>
@@ -51,7 +51,7 @@ export default function Performance() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-100">
+    <div className="min-h-screen bg-pov-gray">
       <POVBrandHeader
         title="Fund Performance"
         subtitle={`Current performance trends and breakdowns for ${currentFund.name}`}
