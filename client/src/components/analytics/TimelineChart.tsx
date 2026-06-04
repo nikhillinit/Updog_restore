@@ -4,6 +4,12 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { format, parseISO, isValid } from 'date-fns';
 
+const CHART_GRID_COLOR = '#E0D8D1';
+const CHART_AXIS_COLOR = '#5A5A5A';
+const CHART_DATA_COLOR = '#2563EB';
+const CHART_REFERENCE_COLOR = '#9C6F19';
+const CHART_BACKGROUND_COLOR = '#FFFFFF';
+
 interface TimelineDataPoint {
   timestamp: string;
   value: number;
@@ -55,13 +61,13 @@ export function TimelineChart({
     if (active && payload && payload.length) {
       const data = payload[0]!.payload;
       return (
-        <div className="bg-white p-3 border border-gray-200 rounded-lg shadow-lg">
-          <p className="font-medium text-gray-900">{data.formattedDate}</p>
-          <p className="text-sm text-gray-600">
+        <div className="bg-pov-white p-3 border border-beige-200 rounded-lg shadow-lg">
+          <p className="font-medium text-pov-charcoal">{data.formattedDate}</p>
+          <p className="text-sm text-charcoal-600">
             Value: <span className="font-medium">{valueFormatter(payload[0]!.value)}</span>
           </p>
           {data.label && (
-            <p className="text-sm text-gray-600">
+            <p className="text-sm text-charcoal-600">
               Event: <span className="font-medium">{data.label}</span>
             </p>
           )}
@@ -80,11 +86,11 @@ export function TimelineChart({
     return (
       <Card className={className}>
         <CardHeader>
-          <div className="h-6 w-48 bg-gray-200 rounded animate-pulse" />
-          {description && <div className="h-4 w-72 bg-gray-200 rounded animate-pulse mt-2" />}
+          <div className="h-6 w-48 bg-pov-gray rounded animate-pulse" />
+          {description && <div className="h-4 w-72 bg-pov-gray rounded animate-pulse mt-2" />}
         </CardHeader>
         <CardContent>
-          <div style={{ height }} className="w-full bg-gray-100 rounded animate-pulse" />
+          <div style={{ height }} className="w-full bg-pov-gray rounded animate-pulse" />
         </CardContent>
       </Card>
     );
@@ -98,7 +104,7 @@ export function TimelineChart({
           {description && <CardDescription>{description}</CardDescription>}
         </CardHeader>
         <CardContent>
-          <div style={{ height }} className="w-full flex items-center justify-center text-gray-500">
+          <div style={{ height }} className="w-full flex items-center justify-center text-charcoal-500">
             No timeline data available
           </div>
         </CardContent>
@@ -116,19 +122,19 @@ export function TimelineChart({
         <div style={{ height }} className="w-full">
           <ResponsiveContainer width="100%" height="100%">
             <LineChart data={processedData} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+              <CartesianGrid strokeDasharray="3 3" stroke={CHART_GRID_COLOR} />
               <XAxis
                 dataKey="timestamp"
                 domain={['dataMin', 'dataMax']}
                 scale="time"
                 type="number"
                 tickFormatter={(timestamp: number) => format(new Date(timestamp), 'MMM dd')}
-                stroke="#6b7280"
+                stroke={CHART_AXIS_COLOR}
                 fontSize={12}
               />
               <YAxis
                 tickFormatter={valueFormatter as (value: number) => string}
-                stroke="#6b7280"
+                stroke={CHART_AXIS_COLOR}
                 fontSize={12}
               />
               <Tooltip content={<CustomTooltip />} />
@@ -136,7 +142,7 @@ export function TimelineChart({
               {showBaseline && baselineValue && (
                 <ReferenceLine
                   y={baselineValue}
-                  stroke="#dc2626"
+                  stroke={CHART_REFERENCE_COLOR}
                   strokeDasharray="5 5"
                   label={{ value: baselineLabel, position: "top" }}
                 />
@@ -145,10 +151,10 @@ export function TimelineChart({
               <Line
                 type="monotone"
                 dataKey="value"
-                stroke="#2563eb"
+                stroke={CHART_DATA_COLOR}
                 strokeWidth={2}
-                dot={{ fill: '#2563eb', strokeWidth: 2, r: 4 }}
-                activeDot={{ r: 6, stroke: '#2563eb', strokeWidth: 2, fill: '#ffffff' }}
+                dot={{ fill: CHART_DATA_COLOR, strokeWidth: 2, r: 4 }}
+                activeDot={{ r: 6, stroke: CHART_DATA_COLOR, strokeWidth: 2, fill: CHART_BACKGROUND_COLOR }}
               />
             </LineChart>
           </ResponsiveContainer>
@@ -195,9 +201,9 @@ export function EventTimelineChart({
     if (active && payload && payload.length) {
       const event = payload[0]!.payload;
       return (
-        <div className="bg-white p-3 border border-gray-200 rounded-lg shadow-lg">
-          <p className="font-medium text-gray-900">{event.label}</p>
-          <p className="text-sm text-gray-600">{event.formattedDate}</p>
+        <div className="bg-pov-white p-3 border border-beige-200 rounded-lg shadow-lg">
+          <p className="font-medium text-pov-charcoal">{event.label}</p>
+          <p className="text-sm text-charcoal-600">{event.formattedDate}</p>
           <Badge variant="outline" className="mt-1">
             {event.type}
           </Badge>
@@ -217,14 +223,14 @@ export function EventTimelineChart({
         <div style={{ height }} className="w-full">
           <ResponsiveContainer width="100%" height="100%">
             <LineChart data={processedEvents} margin={{ top: 20, right: 30, left: 20, bottom: 20 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+              <CartesianGrid strokeDasharray="3 3" stroke={CHART_GRID_COLOR} />
               <XAxis
                 dataKey="timestamp"
                 domain={['dataMin', 'dataMax']}
                 scale="time"
                 type="number"
                 tickFormatter={(timestamp: number) => format(new Date(timestamp), 'MMM dd')}
-                stroke="#6b7280"
+                stroke={CHART_AXIS_COLOR}
                 fontSize={12}
               />
               <YAxis hide />
@@ -234,7 +240,7 @@ export function EventTimelineChart({
                 type="monotone"
                 dataKey="y"
                 stroke="none"
-                dot={{ fill: '#2563eb', strokeWidth: 2, r: 6 }}
+                dot={{ fill: CHART_DATA_COLOR, strokeWidth: 2, r: 6 }}
               />
             </LineChart>
           </ResponsiveContainer>

@@ -27,13 +27,13 @@ export function ErrorState({
   return (
     <Card className={className}>
       <CardHeader className="text-center">
-        <div className="mx-auto w-12 h-12 bg-red-100 rounded-full flex items-center justify-center mb-4">
-          <AlertTriangle className="w-6 h-6 text-red-600" />
+        <div className="mx-auto w-12 h-12 bg-error/10 rounded-full flex items-center justify-center mb-4">
+          <AlertTriangle className="w-6 h-6 text-error" />
         </div>
-        <CardTitle className="text-lg font-semibold text-gray-900">{title}</CardTitle>
+        <CardTitle className="text-lg font-semibold text-pov-charcoal">{title}</CardTitle>
       </CardHeader>
       <CardContent className="text-center space-y-4">
-        <p className="text-gray-600">{message}</p>
+        <p className="text-charcoal-600">{message}</p>
 
         {showDetails && errorMessage && (
           <Alert variant="destructive" className="text-left">
@@ -121,11 +121,11 @@ export function EmptyState({
   return (
     <Card className={className}>
       <CardContent className="text-center py-12">
-        <div className="mx-auto w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center mb-4">
-          <AlertTriangle className="w-6 h-6 text-gray-400" />
+        <div className="mx-auto w-12 h-12 bg-pov-gray rounded-full flex items-center justify-center mb-4">
+          <AlertTriangle className="w-6 h-6 text-charcoal-400" />
         </div>
-        <h3 className="text-lg font-semibold text-gray-900 mb-2">{title}</h3>
-        <p className="text-gray-600 mb-6">{message}</p>
+        <h3 className="text-lg font-semibold text-pov-charcoal mb-2">{title}</h3>
+        <p className="text-charcoal-600 mb-6">{message}</p>
 
         {actionLabel && onAction && (
           <Button onClick={onAction} variant="default">

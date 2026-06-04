@@ -1,6 +1,7 @@
 import { AppShell } from '@/components/presson-v2/AppShell';
 import { Btn } from '@/components/presson-v2/primitives';
 import { decisions, watchList } from '@/components/presson-v2/mock';
+import { presson } from '@/theme/presson.tokens';
 
 /**
  * Today · Press On v2 dashboard.
@@ -193,7 +194,7 @@ function PacingChart() {
       </defs>
 
       {/* gridlines */}
-      <g stroke="#EEE9E3" strokeWidth="1">
+      <g stroke={presson.color.borderSubtle} strokeWidth="1">
         <line x1="0" y1="70" x2="1200" y2="70" />
         <line x1="0" y1="140" x2="1200" y2="140" />
         <line x1="0" y1="210" x2="1200" y2="210" />
@@ -201,7 +202,7 @@ function PacingChart() {
       </g>
 
       {/* y-axis labels */}
-      <g fontFamily="JetBrains Mono" fontSize="9.5" fill="#A8A8A8" letterSpacing="0.1em">
+      <g fontFamily="JetBrains Mono" fontSize="9.5" fill={presson.color.textMuted} letterSpacing="0.1em">
         <text x="6" y="66">
           $120M
         </text>
@@ -219,7 +220,7 @@ function PacingChart() {
       {/* Plan band (the construction plan envelope) */}
       <path
         d="M0,260 L200,220 L400,180 L600,140 L800,100 L1000,68 L1200,40 L1200,55 L1000,82 L800,118 L600,158 L400,200 L200,238 L0,275 Z"
-        fill="#E0D8D1"
+        fill={presson.color.highlight}
         opacity="0.85"
       />
       {/* Grain overlay */}
@@ -228,7 +229,7 @@ function PacingChart() {
       {/* Plan line (dashed) */}
       <path
         d="M0,267 L200,229 L400,190 L600,149 L800,109 L1000,75 L1200,47"
-        stroke="#292929"
+        stroke={presson.color.text}
         strokeWidth="1"
         strokeDasharray="4 4"
         fill="none"
@@ -237,7 +238,7 @@ function PacingChart() {
       {/* Actual (solid) */}
       <path
         d="M0,294 L100,290 L200,272 L300,255 L400,242 L500,226 L600,210"
-        stroke="#292929"
+        stroke={presson.color.text}
         strokeWidth="2.5"
         fill="none"
         strokeLinecap="round"
@@ -246,7 +247,7 @@ function PacingChart() {
       {/* Forecast (dashed continuation) */}
       <path
         d="M600,210 L720,194 L840,174 L960,150 L1080,118 L1200,82"
-        stroke="#292929"
+        stroke={presson.color.text}
         strokeWidth="1.6"
         strokeDasharray="6 5"
         fill="none"
@@ -254,28 +255,28 @@ function PacingChart() {
       />
 
       {/* NOW vertical rule */}
-      <line x1="600" y1="20" x2="600" y2="300" stroke="#292929" strokeWidth="1" />
+      <line x1="600" y1="20" x2="600" y2="300" stroke={presson.color.text} strokeWidth="1" />
       <text
         x="606"
         y="32"
         fontFamily="JetBrains Mono"
         fontSize="10"
-        fill="#292929"
+        fill={presson.color.text}
         letterSpacing="0.1em"
       >
         NOW · Q2&rsquo;26
       </text>
 
       {/* Callout */}
-      <circle cx="600" cy="210" r="5" fill="#292929" />
-      <line x1="612" y1="204" x2="660" y2="178" stroke="#292929" strokeWidth="1" />
+      <circle cx="600" cy="210" r="5" fill={presson.color.text} />
+      <line x1="612" y1="204" x2="660" y2="178" stroke={presson.color.text} strokeWidth="1" />
       <text
         x="668"
         y="174"
         fontFamily="Inter"
         fontSize="14"
         fontWeight="700"
-        fill="#292929"
+        fill={presson.color.text}
         letterSpacing="-0.01em"
       >
         $42.6M actual
@@ -285,14 +286,14 @@ function PacingChart() {
         y="190"
         fontFamily="JetBrains Mono"
         fontSize="10"
-        fill="#7A7A7A"
+        fill={presson.color.textMuted}
         letterSpacing="0.06em"
       >
         vs $48.6M plan · −6.7%
       </text>
 
       {/* x-axis */}
-      <g fontFamily="JetBrains Mono" fontSize="10" fill="#A8A8A8" letterSpacing="0.1em">
+      <g fontFamily="JetBrains Mono" fontSize="10" fill={presson.color.textMuted} letterSpacing="0.1em">
         <text x="0" y="316">
           &rsquo;21
         </text>
@@ -317,8 +318,8 @@ function PacingChart() {
       </g>
 
       {/* legend */}
-      <g fontFamily="JetBrains Mono" fontSize="10" fill="#7A7A7A" letterSpacing="0.08em">
-        <line x1="900" y1="304" x2="922" y2="304" stroke="#292929" strokeWidth="2.5" />
+      <g fontFamily="JetBrains Mono" fontSize="10" fill={presson.color.textMuted} letterSpacing="0.08em">
+        <line x1="900" y1="304" x2="922" y2="304" stroke={presson.color.text} strokeWidth="2.5" />
         <text x="930" y="308">
           ACTUAL
         </text>
@@ -327,7 +328,7 @@ function PacingChart() {
           y1="304"
           x2="1012"
           y2="304"
-          stroke="#292929"
+          stroke={presson.color.text}
           strokeWidth="1"
           strokeDasharray="4 4"
         />
@@ -339,7 +340,7 @@ function PacingChart() {
           y1="304"
           x2="1092"
           y2="304"
-          stroke="#292929"
+          stroke={presson.color.text}
           strokeWidth="1.6"
           strokeDasharray="6 5"
         />

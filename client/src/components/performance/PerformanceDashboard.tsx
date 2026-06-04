@@ -33,6 +33,8 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { TrendingUp, RefreshCw, Calendar } from 'lucide-react';
 import { usePerformanceTimeseries, usePerformanceBreakdown } from '@/hooks/usePerformanceDashboard';
+import { colors as brandColors } from '@/lib/brand-tokens';
+import { presson } from '@/theme/presson.tokens';
 import type { DataSource, Granularity, GroupByDimension } from '@shared/types/performance-api';
 
 // ============================================================================
@@ -71,11 +73,11 @@ function hasFiniteMetric(points: Array<Record<string, unknown>>, keys: string[])
 function EmptyChartState({ title, description }: { title: string; description: string }) {
   return (
     <div
-      className="flex min-h-80 flex-col items-center justify-center rounded-lg border border-dashed border-[#E0D8D1] bg-slate-50 px-6 text-center"
+      className="flex min-h-80 flex-col items-center justify-center rounded-lg border border-dashed border-beige-200 bg-pov-gray px-6 text-center"
       data-testid="performance-chart-empty-state"
     >
-      <p className="font-inter text-base font-semibold text-[#292929]">{title}</p>
-      <p className="mt-2 max-w-md font-poppins text-sm text-[#292929]/70">{description}</p>
+      <p className="font-inter text-base font-semibold text-pov-charcoal">{title}</p>
+      <p className="mt-2 max-w-md font-poppins text-sm text-pov-charcoal/70">{description}</p>
     </div>
   );
 }
@@ -117,21 +119,20 @@ function getDateRange(timeframe: string): { startDate: string; endDate: string }
 // ============================================================================
 
 const CHART_COLORS = {
-  irr: '#2563eb', // Blue
-  tvpi: '#059669', // Green
-  dpi: '#d97706', // Amber
-  totalValue: '#7c3aed', // Purple
+  irr: presson.color.text,
+  tvpi: presson.color.positive,
+  dpi: presson.color.info,
+  totalValue: brandColors.success,
 };
 
+// TODO(design): performance breakdown can exceed six categorical hues; define an extended Press On palette before assigning unique colors beyond this fixed order.
 const BREAKDOWN_COLORS = [
-  '#292929', // Charcoal
-  '#E0D8D1', // Beige
-  '#10B981', // Emerald
-  '#F59E0B', // Amber
-  '#6366F1', // Indigo
-  '#EC4899', // Pink
-  '#8B5CF6', // Purple
-  '#06B6D4', // Cyan
+  presson.color.text,
+  presson.color.positive,
+  presson.color.info,
+  brandColors.success,
+  presson.color.warning,
+  presson.color.negative,
 ];
 
 // ============================================================================
@@ -215,11 +216,11 @@ export default function PerformanceDashboard({ className }: PerformanceDashboard
   if (isLoading && !timeseriesData && !breakdownData) {
     return (
       <div className={`space-y-6 ${className}`}>
-        <Card className="bg-white rounded-xl border border-[#E0D8D1] shadow-md">
+        <Card className="bg-pov-white rounded-xl border border-beige-200 shadow-md">
           <CardContent className="pt-6">
             <div className="animate-pulse space-y-4">
-              <div className="h-8 bg-gray-200 rounded w-1/3" />
-              <div className="h-64 bg-gray-200 rounded" />
+              <div className="h-8 bg-pov-gray rounded w-1/3" />
+              <div className="h-64 bg-pov-gray rounded" />
             </div>
           </CardContent>
         </Card>
@@ -230,15 +231,15 @@ export default function PerformanceDashboard({ className }: PerformanceDashboard
   return (
     <div className={`space-y-6 ${className}`}>
       {/* Header Controls */}
-      <Card className="bg-white rounded-xl border border-[#E0D8D1] shadow-md">
+      <Card className="bg-pov-white rounded-xl border border-beige-200 shadow-md">
         <CardHeader>
           <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
             <div>
-              <CardTitle className="flex items-center space-x-2 font-inter text-[#292929]">
-                <TrendingUp className="h-5 w-5 text-blue-600" />
+              <CardTitle className="flex items-center space-x-2 font-inter text-pov-charcoal">
+                <TrendingUp className="h-5 w-5 text-presson-info" />
                 <span>Portfolio Performance</span>
               </CardTitle>
-              <CardDescription className="font-poppins text-[#292929]/70">
+              <CardDescription className="font-poppins text-pov-charcoal/70">
                 Track persisted IRR, TVPI, and DPI metrics over time
               </CardDescription>
             </div>
@@ -284,7 +285,7 @@ export default function PerformanceDashboard({ className }: PerformanceDashboard
 
       {/* Main Content Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="bg-white border border-[#E0D8D1]">
+        <TabsList className="bg-pov-white border border-beige-200">
           <TabsTrigger value="timeseries">Time Series</TabsTrigger>
           <TabsTrigger value="breakdown">Breakdown</TabsTrigger>
         </TabsList>
@@ -293,11 +294,11 @@ export default function PerformanceDashboard({ className }: PerformanceDashboard
         <TabsContent value="timeseries" className="space-y-6">
           {hasDerivedPoints && (
             <Card
-              className="bg-amber-50 border border-amber-200 shadow-sm"
+              className="bg-warning/10 border border-warning/50 shadow-sm"
               data-testid="timeseries-source-note"
             >
               <CardContent className="pt-4">
-                <div className="flex flex-wrap items-center gap-2 text-sm text-amber-950">
+                <div className="flex flex-wrap items-center gap-2 text-sm text-warning-dark">
                   <Badge variant="secondary">Data quality note</Badge>
                   {sourceSummary.interpolated > 0 && (
                     <span>
@@ -322,12 +323,12 @@ export default function PerformanceDashboard({ className }: PerformanceDashboard
           )}
 
           {/* IRR Chart */}
-          <Card className="bg-white rounded-xl border border-[#E0D8D1] shadow-md">
+          <Card className="bg-pov-white rounded-xl border border-beige-200 shadow-md">
             <CardHeader>
-              <CardTitle className="font-inter text-lg text-[#292929]">
+              <CardTitle className="font-inter text-lg text-pov-charcoal">
                 Internal Rate of Return (IRR)
               </CardTitle>
-              <CardDescription className="font-poppins text-sm text-[#292929]/70">
+              <CardDescription className="font-poppins text-sm text-pov-charcoal/70">
                 Annualized return over persisted metric snapshots
               </CardDescription>
             </CardHeader>
@@ -373,12 +374,12 @@ export default function PerformanceDashboard({ className }: PerformanceDashboard
           </Card>
 
           {/* TVPI & DPI Chart */}
-          <Card className="bg-white rounded-xl border border-[#E0D8D1] shadow-md">
+          <Card className="bg-pov-white rounded-xl border border-beige-200 shadow-md">
             <CardHeader>
-              <CardTitle className="font-inter text-lg text-[#292929]">
+              <CardTitle className="font-inter text-lg text-pov-charcoal">
                 Fund Multiples (TVPI & DPI)
               </CardTitle>
-              <CardDescription className="font-poppins text-sm text-[#292929]/70">
+              <CardDescription className="font-poppins text-sm text-pov-charcoal/70">
                 Total Value and Distributions to Paid-In Capital over persisted metric snapshots
               </CardDescription>
             </CardHeader>
@@ -436,14 +437,14 @@ export default function PerformanceDashboard({ className }: PerformanceDashboard
         {/* Breakdown Tab */}
         <TabsContent value="breakdown" className="space-y-6">
           {/* Group By Selector */}
-          <Card className="bg-white rounded-xl border border-[#E0D8D1] shadow-md">
+          <Card className="bg-pov-white rounded-xl border border-beige-200 shadow-md">
             <CardHeader>
               <div className="flex justify-between items-center">
                 <div>
-                  <CardTitle className="font-inter text-lg text-[#292929]">
+                  <CardTitle className="font-inter text-lg text-pov-charcoal">
                     Performance Breakdown
                   </CardTitle>
-                  <CardDescription className="font-poppins text-sm text-[#292929]/70">
+                  <CardDescription className="font-poppins text-sm text-pov-charcoal/70">
                     Analyze current-state returns by portfolio dimension
                   </CardDescription>
                 </div>
@@ -464,29 +465,29 @@ export default function PerformanceDashboard({ className }: PerformanceDashboard
                 <>
                   {/* Summary Stats */}
                   <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-                    <div className="text-center p-4 bg-gray-50 rounded-lg">
-                      <div className="text-2xl font-bold font-inter text-[#292929]">
+                    <div className="text-center p-4 bg-pov-gray rounded-lg">
+                      <div className="text-2xl font-bold font-inter text-pov-charcoal">
                         {breakdownData.totals.companyCount}
                       </div>
-                      <div className="text-sm font-poppins text-[#292929]/70">Companies</div>
+                      <div className="text-sm font-poppins text-pov-charcoal/70">Companies</div>
                     </div>
-                    <div className="text-center p-4 bg-gray-50 rounded-lg">
-                      <div className="text-2xl font-bold font-inter text-[#292929]">
+                    <div className="text-center p-4 bg-pov-gray rounded-lg">
+                      <div className="text-2xl font-bold font-inter text-pov-charcoal">
                         {formatCurrency(breakdownData.totals.totalDeployed)}
                       </div>
-                      <div className="text-sm font-poppins text-[#292929]/70">Deployed</div>
+                      <div className="text-sm font-poppins text-pov-charcoal/70">Deployed</div>
                     </div>
-                    <div className="text-center p-4 bg-gray-50 rounded-lg">
-                      <div className="text-2xl font-bold font-inter text-[#292929]">
+                    <div className="text-center p-4 bg-pov-gray rounded-lg">
+                      <div className="text-2xl font-bold font-inter text-pov-charcoal">
                         {formatMultiple(breakdownData.totals.averageMOIC)}
                       </div>
-                      <div className="text-sm font-poppins text-[#292929]/70">Avg MOIC</div>
+                      <div className="text-sm font-poppins text-pov-charcoal/70">Avg MOIC</div>
                     </div>
-                    <div className="text-center p-4 bg-gray-50 rounded-lg">
-                      <div className="text-2xl font-bold font-inter text-[#292929]">
+                    <div className="text-center p-4 bg-pov-gray rounded-lg">
+                      <div className="text-2xl font-bold font-inter text-pov-charcoal">
                         {formatPercent(breakdownData.totals.portfolioIRR)}
                       </div>
-                      <div className="text-sm font-poppins text-[#292929]/70">Portfolio IRR</div>
+                      <div className="text-sm font-poppins text-pov-charcoal/70">Portfolio IRR</div>
                     </div>
                   </div>
 
@@ -511,7 +512,10 @@ export default function PerformanceDashboard({ className }: PerformanceDashboard
                           {breakdownData.breakdown.slice(0, 10).map((_, index) => (
                             <Cell
                               key={`cell-${index}`}
-                              fill={BREAKDOWN_COLORS[index % BREAKDOWN_COLORS.length] ?? '#8884d8'}
+                              fill={
+                                BREAKDOWN_COLORS[index % BREAKDOWN_COLORS.length] ??
+                                presson.color.text
+                              }
                             />
                           ))}
                         </Bar>
@@ -523,30 +527,30 @@ export default function PerformanceDashboard({ className }: PerformanceDashboard
                   <div className="overflow-x-auto">
                     <table className="w-full border-collapse">
                       <thead>
-                        <tr className="border-b border-[#E0D8D1]">
-                          <th className="text-left p-3 font-inter font-bold text-[#292929]">
+                        <tr className="border-b border-beige-200">
+                          <th className="text-left p-3 font-inter font-bold text-pov-charcoal">
                             {groupBy === 'sector'
                               ? 'Sector'
                               : groupBy === 'stage'
                                 ? 'Stage'
                                 : 'Company'}
                           </th>
-                          <th className="text-right p-3 font-inter font-bold text-[#292929]">
+                          <th className="text-right p-3 font-inter font-bold text-pov-charcoal">
                             Companies
                           </th>
-                          <th className="text-right p-3 font-inter font-bold text-[#292929]">
+                          <th className="text-right p-3 font-inter font-bold text-pov-charcoal">
                             Deployed
                           </th>
-                          <th className="text-right p-3 font-inter font-bold text-[#292929]">
+                          <th className="text-right p-3 font-inter font-bold text-pov-charcoal">
                             Current Value
                           </th>
-                          <th className="text-right p-3 font-inter font-bold text-[#292929]">
+                          <th className="text-right p-3 font-inter font-bold text-pov-charcoal">
                             MOIC
                           </th>
-                          <th className="text-right p-3 font-inter font-bold text-[#292929]">
+                          <th className="text-right p-3 font-inter font-bold text-pov-charcoal">
                             IRR
                           </th>
-                          <th className="text-right p-3 font-inter font-bold text-[#292929]">
+                          <th className="text-right p-3 font-inter font-bold text-pov-charcoal">
                             % of Portfolio
                           </th>
                         </tr>
@@ -555,9 +559,9 @@ export default function PerformanceDashboard({ className }: PerformanceDashboard
                         {breakdownData.breakdown.map((row, index) => (
                           <tr
                             key={row.group}
-                            className="border-b border-[#E0D8D1] hover:bg-[#E0D8D1]/20 transition-colors"
+                            className="border-b border-beige-200 hover:bg-beige/20 transition-colors"
                           >
-                            <td className="p-3 font-poppins font-medium text-[#292929]">
+                            <td className="p-3 font-poppins font-medium text-pov-charcoal">
                               <div className="flex items-center gap-2">
                                 <div
                                   className="w-3 h-3 rounded-full"
@@ -569,13 +573,13 @@ export default function PerformanceDashboard({ className }: PerformanceDashboard
                                 {row.group}
                               </div>
                             </td>
-                            <td className="p-3 text-right font-mono text-[#292929]">
+                            <td className="p-3 text-right font-mono text-pov-charcoal">
                               {row.companyCount}
                             </td>
-                            <td className="p-3 text-right font-mono text-[#292929]">
+                            <td className="p-3 text-right font-mono text-pov-charcoal">
                               {formatCurrency(row.totalDeployed)}
                             </td>
-                            <td className="p-3 text-right font-mono text-[#292929]">
+                            <td className="p-3 text-right font-mono text-pov-charcoal">
                               {formatCurrency(row.currentValue)}
                             </td>
                             <td className="p-3 text-right">
@@ -591,10 +595,10 @@ export default function PerformanceDashboard({ className }: PerformanceDashboard
                                 {formatMultiple(row.moic)}
                               </Badge>
                             </td>
-                            <td className="p-3 text-right font-mono text-[#292929]">
+                            <td className="p-3 text-right font-mono text-pov-charcoal">
                               {formatPercent(row.irr)}
                             </td>
-                            <td className="p-3 text-right font-mono text-[#292929]">
+                            <td className="p-3 text-right font-mono text-pov-charcoal">
                               {row.percentOfPortfolio.toFixed(1)}%
                             </td>
                           </tr>
@@ -617,7 +621,7 @@ export default function PerformanceDashboard({ className }: PerformanceDashboard
 
       {/* Metadata */}
       {timeseriesData?.meta && (
-        <div className="text-xs text-[#292929]/50 font-poppins flex justify-between">
+        <div className="text-xs text-pov-charcoal/50 font-poppins flex justify-between">
           <span>
             Data range: {timeseriesData.meta.startDate} to {timeseriesData.meta.endDate}
           </span>

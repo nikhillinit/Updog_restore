@@ -54,23 +54,23 @@ export class ErrorBoundary extends Component<Props, State> {
 
       // Default error UI
       return (
-        <Card className="border-red-200 bg-red-50">
+        <Card className="border-error/50 bg-error/10">
           <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-red-800">
+            <CardTitle className="flex items-center gap-2 text-error-dark">
               <AlertCircle className="h-5 w-5" />
               Something went wrong
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            <p className="text-red-700">
+            <p className="text-error-dark">
               An unexpected error occurred while rendering this component.
             </p>
 
             {import.meta.env.DEV && this.state.error && (
-              <div className="bg-red-100 border border-red-300 rounded p-3">
-                <p className="text-sm font-mono text-red-800">{this.state.error.toString()}</p>
+              <div className="bg-error/10 border border-error/50 rounded p-3">
+                <p className="text-sm font-mono text-error-dark">{this.state.error.toString()}</p>
                 {this.state.errorInfo?.componentStack && (
-                  <pre className="text-xs text-red-700 mt-2 overflow-x-auto">
+                  <pre className="text-xs text-error-dark mt-2 overflow-x-auto">
                     {this.state.errorInfo.componentStack}
                   </pre>
                 )}
@@ -120,11 +120,11 @@ export function ChartErrorBoundary({
   return (
     <ErrorBoundary
       fallback={
-        <div className="h-64 flex items-center justify-center border border-gray-200 rounded-lg bg-gray-50">
+        <div className="h-64 flex items-center justify-center border border-beige-200 rounded-lg bg-pov-gray">
           <div className="text-center">
-            <AlertCircle className="h-8 w-8 text-gray-400 mx-auto mb-2" />
-            <p className="text-sm text-gray-600">Chart temporarily unavailable</p>
-            <p className="text-xs text-gray-500 mt-1">
+            <AlertCircle className="h-8 w-8 text-charcoal-400 mx-auto mb-2" />
+            <p className="text-sm text-charcoal-600">Chart temporarily unavailable</p>
+            <p className="text-xs text-charcoal-500 mt-1">
               {chartName ? `${chartName} data is being processed` : 'Data is being processed'}
             </p>
           </div>
@@ -154,11 +154,11 @@ export function FormErrorBoundary({
   return (
     <ErrorBoundary
       fallback={
-        <Card className="border-amber-200 bg-amber-50">
+        <Card className="border-warning/50 bg-warning/10">
           <CardContent className="p-4">
             <div className="flex items-center space-x-2">
-              <AlertCircle className="h-4 w-4 text-amber-600" />
-              <p className="text-sm text-amber-800">
+              <AlertCircle className="h-4 w-4 text-warning-dark" />
+              <p className="text-sm text-warning-dark">
                 {formName ? `${formName} form` : 'Form'} encountered an error. Your data has been
                 preserved.
               </p>
@@ -167,7 +167,7 @@ export function FormErrorBoundary({
               onClick={() => window.location.reload()}
               variant="outline"
               size="sm"
-              className="mt-2 text-amber-700 border-amber-300 hover:bg-amber-100"
+              className="mt-2 text-warning-dark border-warning/50 hover:bg-warning/10"
             >
               Refresh to continue
             </Button>
@@ -207,15 +207,15 @@ export function CalculationErrorBoundary({
     <ErrorBoundary
       fallback={
         fallbackValue || (
-          <div className="p-3 border border-blue-200 bg-blue-50 rounded">
+          <div className="p-3 border border-presson-info/30 bg-presson-info/10 rounded">
             <div className="flex items-center space-x-2">
-              <AlertCircle className="h-4 w-4 text-blue-600" />
-              <p className="text-sm text-blue-800">
+              <AlertCircle className="h-4 w-4 text-presson-info" />
+              <p className="text-sm text-presson-info">
                 {calculationType ? `${calculationType} calculation` : 'Calculation'} temporarily
                 unavailable
               </p>
             </div>
-            <p className="text-xs text-blue-600 mt-1">Using cached results or default values</p>
+            <p className="text-xs text-presson-info mt-1">Using cached results or default values</p>
           </div>
         )
       }

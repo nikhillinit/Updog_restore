@@ -18,13 +18,13 @@ export default function DemoBanner() {
   }
 
   return (
-    <div className="bg-gradient-to-r from-blue-600 to-purple-600 text-white px-6 py-2 flex items-center justify-center gap-2 text-sm font-medium shadow-md">
+    <div className="bg-pov-charcoal text-pov-white px-6 py-2 flex items-center justify-center gap-2 text-sm font-medium shadow-md">
       <Eye className="h-4 w-4" />
       <span>
-        🎯 <strong>DEMO MODE</strong> - Showing sample data
+        <strong>DEMO MODE</strong> - Showing sample data
         {currentFund ? ` for ${currentFund.name}` : ''}
       </span>
-      <span className="ml-2 px-2 py-0.5 bg-white/20 rounded text-xs">
+      <span className="ml-2 px-2 py-0.5 bg-pov-white/20 rounded text-xs">
         Press Escape to exit
       </span>
     </div>

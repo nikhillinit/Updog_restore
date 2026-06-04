@@ -41,9 +41,9 @@ function getDivergence(engine: number, user: number): number {
 }
 
 function getDeltaStyle(divergence: number): string {
-  if (divergence < 5) return 'text-emerald-600';
-  if (divergence <= 15) return 'text-amber-600';
-  return 'text-red-600';
+  if (divergence < 5) return 'text-success-dark';
+  if (divergence <= 15) return 'text-warning-dark';
+  return 'text-error-dark';
 }
 
 function getDeltaLabel(divergence: number): string {

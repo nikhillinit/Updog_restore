@@ -31,14 +31,14 @@ export function StagingRibbon() {
   };
 
   return (
-    <div className="fixed top-0 left-0 right-0 z-50 bg-amber-500 text-amber-950 px-4 py-2 flex items-center justify-center gap-3 shadow-md">
+    <div className="fixed top-0 left-0 right-0 z-50 bg-warning text-pov-white px-4 py-2 flex items-center justify-center gap-3 shadow-md">
       <AlertTriangle className="h-4 w-4 flex-shrink-0" />
       <span className="text-sm font-medium">
         STAGING ENVIRONMENT - For testing purposes only
       </span>
       <button
         onClick={handleDismiss}
-        className="ml-auto p-1 hover:bg-amber-600/20 rounded-md transition-colors"
+        className="ml-auto p-1 hover:bg-pov-white/20 rounded-md transition-colors"
         aria-label="Dismiss staging banner"
       >
         <X className="h-4 w-4" />

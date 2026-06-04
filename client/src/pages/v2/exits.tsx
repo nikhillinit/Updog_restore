@@ -1,6 +1,7 @@
 import { AppShell } from '@/components/presson-v2/AppShell';
 import { Btn } from '@/components/presson-v2/primitives';
 import { exitCases } from '@/components/presson-v2/mock';
+import { presson } from '@/theme/presson.tokens';
 
 /**
  * Exits · Press On v2 cinema.
@@ -35,7 +36,7 @@ function CinemaMast() {
         </h1>
         <p className="pv2-cinema-sub">
           Probability-weighted 25 / 50 / 25 →{' '}
-          <span style={{ color: '#fff' }}>3.42× TVPI · $599M</span>
+          <span style={{ color: presson.color.accentOn }}>3.42× TVPI · $599M</span>
         </p>
       </div>
       <div className="pv2-cinema-fig">
@@ -108,7 +109,7 @@ const FUND_RETURNS = [
 const WEIGHTED_LINE_STYLE = {
   fontFamily: 'var(--pv2-font-mono)',
   fontSize: 10,
-  color: '#888',
+  color: presson.color.highlight,
   letterSpacing: '0.1em',
   textTransform: 'uppercase',
   marginTop: 20,
@@ -142,7 +143,7 @@ function CinemaBottom() {
         ))}
         <div style={WEIGHTED_LINE_STYLE}>
           Probability-weighted · 25% / 50% / 25% →{' '}
-          <span style={{ color: '#fff' }}>3.42× TVPI · $599M</span>
+          <span style={{ color: presson.color.accentOn }}>3.42× TVPI · $599M</span>
         </div>
       </div>
     </div>
@@ -182,7 +183,7 @@ function Distribution() {
   const colW = 84;
   return (
     <svg viewBox="0 0 720 220" style={{ width: '100%', height: 220 }}>
-      <g stroke="#1F1F1F">
+      <g stroke={presson.color.text}>
         <line x1="0" y1="60" x2="720" y2="60" />
         <line x1="0" y1="120" x2="720" y2="120" />
         <line x1="0" y1="180" x2="720" y2="180" />
@@ -203,7 +204,7 @@ function Distribution() {
             fontFamily="Inter"
             fontSize="12"
             fontWeight="600"
-            fill={b.pct === 0 ? '#666' : '#fff'}
+            fill={b.pct === 0 ? presson.color.textMuted : presson.color.accentOn}
             letterSpacing="-0.01em"
           >
             {b.pct}%
@@ -214,7 +215,7 @@ function Distribution() {
             textAnchor="middle"
             fontFamily="JetBrains Mono"
             fontSize="10"
-            fill="#888"
+            fill={presson.color.highlight}
             letterSpacing="0.06em"
           >
             {b.label}

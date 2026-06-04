@@ -167,9 +167,9 @@ const MOCK_TEAR_SHEETS: TearSheet[] = [
       previousAnswer: 'Great - Really think the CEO is doing a great job with hiring SWEs.'
     },
     contacts: [
-      { name: 'Ethan Finkel', role: 'Solutions Architect', initial: 'E', color: 'bg-blue-600' },
-      { name: 'Xiaozhou Wang', role: '', initial: 'X', color: 'bg-teal-600' },
-      { name: 'Ann Demirtjis', role: 'CEO', initial: 'A', color: 'bg-green-600' }
+      { name: 'Ethan Finkel', role: 'Solutions Architect', initial: 'E', color: 'bg-pov-charcoal' },
+      { name: 'Xiaozhou Wang', role: '', initial: 'X', color: 'bg-presson-positive' },
+      { name: 'Ann Demirtjis', role: 'CEO', initial: 'A', color: 'bg-presson-info' }
     ]
   },
   {
@@ -210,8 +210,8 @@ const MOCK_TEAR_SHEETS: TearSheet[] = [
       version: 1
     },
     contacts: [
-      { name: 'Sarah Chen', role: 'Partner', initial: 'S', color: 'bg-purple-600' },
-      { name: 'Mike Rodriguez', role: 'CTO', initial: 'M', color: 'bg-orange-600' }
+      { name: 'Sarah Chen', role: 'Partner', initial: 'S', color: 'bg-pov-charcoal' },
+      { name: 'Mike Rodriguez', role: 'CTO', initial: 'M', color: 'bg-presson-positive' }
     ]
   }
 ];
@@ -376,17 +376,17 @@ export default function TearSheetDashboard() {
       <CardHeader className="pb-3">
         <div className="flex items-start justify-between">
           <div className="flex items-center space-x-3">
-            <div className="w-8 h-8 bg-orange-500 rounded flex items-center justify-center">
-              <span className="text-white font-bold text-sm">
+            <div className="w-8 h-8 bg-pov-charcoal rounded flex items-center justify-center">
+              <span className="text-pov-white font-bold text-sm">
                 {tearSheet.companyName.charAt(0)}
               </span>
             </div>
             <div>
               <CardTitle className="text-lg flex items-center gap-2">
                 {tearSheet.companyName}
-                <ExternalLink className="h-4 w-4 text-gray-400" />
+                <ExternalLink className="h-4 w-4 text-charcoal-400" />
               </CardTitle>
-              <p className="text-sm text-gray-600">
+              <p className="text-sm text-charcoal-600">
                 as of March 31, 2025
               </p>
             </div>
@@ -406,34 +406,34 @@ export default function TearSheetDashboard() {
         {/* Company Info Grid */}
         <div className="grid grid-cols-2 md:grid-cols-3 gap-4 text-sm">
           <div>
-            <div className="text-gray-500 text-xs uppercase">Fiscal Year</div>
+            <div className="text-charcoal-500 text-xs uppercase">Fiscal Year</div>
             <div className="font-medium">{tearSheet.data.fiscalYear}</div>
           </div>
           <div>
-            <div className="text-gray-500 text-xs uppercase">Location</div>
+            <div className="text-charcoal-500 text-xs uppercase">Location</div>
             <div className="font-medium">{tearSheet.data.location}</div>
           </div>
           <div>
-            <div className="text-gray-500 text-xs uppercase">Investment Lead</div>
+            <div className="text-charcoal-500 text-xs uppercase">Investment Lead</div>
             <div className="font-medium">{tearSheet.data.investmentLead}</div>
           </div>
           <div>
-            <div className="text-gray-500 text-xs uppercase">% of Fund</div>
+            <div className="text-charcoal-500 text-xs uppercase">% of Fund</div>
             <div className="font-medium">{tearSheet.data.percentOfFund}</div>
           </div>
           <div>
-            <div className="text-gray-500 text-xs uppercase">Classification</div>
+            <div className="text-charcoal-500 text-xs uppercase">Classification</div>
             <Badge variant="outline">{tearSheet.data.classification}</Badge>
           </div>
           <div>
-            <div className="text-gray-500 text-xs uppercase">Expected Exit Value</div>
+            <div className="text-charcoal-500 text-xs uppercase">Expected Exit Value</div>
             <div className="font-medium">{tearSheet.data.expectedExitValue}</div>
           </div>
         </div>
 
         {/* Board Composition */}
         <div>
-          <div className="text-gray-500 text-xs uppercase mb-2">Board Composition</div>
+          <div className="text-charcoal-500 text-xs uppercase mb-2">Board Composition</div>
           <div className="flex flex-wrap gap-1">
             {tearSheet.data.boardComposition.map((member, idx) => (
               <Badge key={idx} variant="secondary" className="text-xs">
@@ -445,7 +445,7 @@ export default function TearSheetDashboard() {
 
         {/* Co-Investors */}
         <div>
-          <div className="text-gray-500 text-xs uppercase mb-2">Co-Investors</div>
+          <div className="text-charcoal-500 text-xs uppercase mb-2">Co-Investors</div>
           <div className="flex flex-wrap gap-1">
             {tearSheet.data.coInvestors.map((investor, idx) => (
               <Badge key={idx} variant="outline" className="text-xs">
@@ -457,16 +457,16 @@ export default function TearSheetDashboard() {
 
         {/* Contacts */}
         <div className="flex items-center justify-between">
-          <div className="text-gray-500 text-xs uppercase">Contact</div>
+          <div className="text-charcoal-500 text-xs uppercase">Contact</div>
           <div className="flex items-center space-x-2">
             {tearSheet.contacts.map((contact, idx) => (
               <div key={idx} className="flex items-center space-x-1">
-                <div className={`w-6 h-6 rounded-full ${contact.color} text-white text-xs flex items-center justify-center`}>
+                <div className={`w-6 h-6 rounded-full ${contact.color} text-pov-white text-xs flex items-center justify-center`}>
                   {contact.initial}
                 </div>
                 <div className="text-sm">
                   <div className="font-medium">{contact.name}</div>
-                  {contact.role && <div className="text-gray-500 text-xs">{contact.role}</div>}
+                  {contact.role && <div className="text-charcoal-500 text-xs">{contact.role}</div>}
                 </div>
               </div>
             ))}
@@ -487,20 +487,20 @@ export default function TearSheetDashboard() {
           </div>
           
           {tearSheet.commentary.previousAnswer && (
-            <div className="mb-2 p-2 bg-gray-50 rounded text-sm">
-              <div className="text-gray-500 text-xs mb-1">Previous answer (as of Q4 2024)</div>
+            <div className="mb-2 p-2 bg-pov-gray rounded text-sm">
+              <div className="text-charcoal-500 text-xs mb-1">Previous answer (as of Q4 2024)</div>
               <div className="italic">{tearSheet.commentary.previousAnswer}</div>
             </div>
           )}
           
-          <div className="p-3 bg-blue-50 rounded">
+          <div className="p-3 bg-presson-info/10 rounded">
             <p className="text-sm">{tearSheet.commentary.content}</p>
           </div>
         </div>
 
         {/* Actions */}
         <div className="flex items-center justify-between pt-4 border-t">
-          <div className="flex items-center space-x-2 text-xs text-gray-500">
+          <div className="flex items-center space-x-2 text-xs text-charcoal-500">
             <User className="h-3 w-3" />
             <span>Modified by {tearSheet.modifiedBy}</span>
             <Clock className="h-3 w-3 ml-2" />
@@ -533,7 +533,7 @@ export default function TearSheetDashboard() {
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold">Tear Sheets</h1>
-          <p className="text-gray-600">Portfolio company tear sheets with LP commentary and audit trails</p>
+          <p className="text-charcoal-600">Portfolio company tear sheets with LP commentary and audit trails</p>
         </div>
         <div className="flex items-center space-x-2">
           <Button variant="outline">
@@ -557,7 +557,7 @@ export default function TearSheetDashboard() {
       {/* Search and Filters */}
       <div className="flex flex-col md:flex-row gap-4">
         <div className="flex-1 relative">
-          <Search className="h-4 w-4 absolute left-3 top-3 text-gray-400" />
+          <Search className="h-4 w-4 absolute left-3 top-3 text-charcoal-400" />
           <Input
             placeholder="Search companies, sectors, or team members..."
             value={searchTerm}
@@ -596,7 +596,7 @@ export default function TearSheetDashboard() {
 
       {/* Results Summary */}
       <div className="flex items-center justify-between">
-        <p className="text-sm text-gray-600">
+        <p className="text-sm text-charcoal-600">
           Showing {filteredTearSheets.length} of {tearSheets.length} tear sheets
         </p>
         <div className="flex items-center space-x-2">
@@ -621,7 +621,7 @@ export default function TearSheetDashboard() {
           
           <div className="space-y-4">
             {selectedTearSheet?.commentary.previousAnswer && (
-              <div className="p-3 bg-gray-50 rounded">
+              <div className="p-3 bg-pov-gray rounded">
                 <div className="text-sm font-medium mb-2">Previous Answer</div>
                 <p className="text-sm italic">{selectedTearSheet.commentary.previousAnswer}</p>
               </div>
@@ -638,7 +638,7 @@ export default function TearSheetDashboard() {
             </div>
             
             <div className="flex items-center justify-between">
-              <div className="text-xs text-gray-500">
+              <div className="text-xs text-charcoal-500">
                 Version {selectedTearSheet?.commentary.version || 1} • 
                 Last updated {selectedTearSheet?.commentary.createdAt ? new Date(selectedTearSheet.commentary.createdAt).toLocaleDateString() : 'Never'}
               </div>
@@ -667,7 +667,7 @@ export default function TearSheetDashboard() {
           
           <div className="space-y-4">
             {auditLog.map((entry) => (
-              <div key={entry.id} className="border-l-4 border-blue-500 pl-4 py-2">
+              <div key={entry.id} className="border-l-4 border-l-presson-info pl-4 py-2">
                 <div className="flex items-center justify-between mb-2">
                   <div className="font-medium">
                     {entry.companyName} - {entry.action}
@@ -675,18 +675,18 @@ export default function TearSheetDashboard() {
                   <Badge variant="outline">v{entry.version}</Badge>
                 </div>
                 
-                <div className="text-sm text-gray-600 mb-2">
+                <div className="text-sm text-charcoal-600 mb-2">
                   {entry.field} updated by {entry.author} on {new Date(entry.timestamp).toLocaleString()}
                 </div>
                 
                 {entry.oldValue && entry.newValue && (
                   <div className="space-y-2">
-                    <div className="p-2 bg-red-50 rounded border-l-2 border-red-300">
-                      <div className="text-xs text-red-600 font-medium">Previous Value:</div>
+                    <div className="p-2 bg-error/10 rounded border-l-2 border-error/30">
+                      <div className="text-xs text-error-dark font-medium">Previous Value:</div>
                       <div className="text-sm">{entry.oldValue}</div>
                     </div>
-                    <div className="p-2 bg-green-50 rounded border-l-2 border-green-300">
-                      <div className="text-xs text-green-600 font-medium">New Value:</div>
+                    <div className="p-2 bg-success/10 rounded border-l-2 border-success/30">
+                      <div className="text-xs text-success-dark font-medium">New Value:</div>
                       <div className="text-sm">{entry.newValue}</div>
                     </div>
                   </div>

@@ -94,9 +94,9 @@ export function formatDelta(
  * @returns Tailwind color class
  */
 export function getDeltaColorClass(deltaCents: number): string {
-  if (deltaCents > 0) return 'text-green-600';
-  if (deltaCents < 0) return 'text-red-600';
-  return 'text-gray-500';
+  if (deltaCents > 0) return 'text-presson-positive';
+  if (deltaCents < 0) return 'text-presson-negative';
+  return 'text-charcoal-500';
 }
 
 /**

@@ -68,12 +68,12 @@ describe('CalibrationStatusCard', () => {
     expect(scorePath.getAttribute('stroke-dasharray')).toBe('75, 100');
   });
 
-  it('uses amber stroke (#f59e0b) when score is in 40-69 range', () => {
+  it('uses warning stroke (#9C6F19) when score is in 40-69 range', () => {
     const { container } = render(
       <CalibrationStatusCard calibrationStatus="under-predicting" modelQualityScore={50} />
     );
     const scorePath = container.querySelectorAll('path')[1]!;
-    expect(scorePath.getAttribute('stroke')).toBe('#f59e0b');
+    expect(scorePath.getAttribute('stroke')).toBe('#9C6F19');
     expect(scorePath.getAttribute('stroke-dasharray')).toBe('50, 100');
   });
 

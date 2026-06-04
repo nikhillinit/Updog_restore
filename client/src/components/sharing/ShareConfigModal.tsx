@@ -126,8 +126,8 @@ export const ShareConfigModal: React.FC<ShareConfigModalProps> = ({
 
         {createdLink ? (
           <div className="space-y-4">
-            <div className="bg-green-50 border border-green-200 rounded-lg p-4">
-              <h3 className="font-medium text-green-900 mb-2 flex items-center gap-2">
+            <div className="bg-success/10 border border-success/50 rounded-lg p-4">
+              <h3 className="font-medium text-success-dark mb-2 flex items-center gap-2">
                 <Eye className="h-4 w-4" />
                 Share Link Created Successfully
               </h3>
@@ -194,7 +194,7 @@ export const ShareConfigModal: React.FC<ShareConfigModalProps> = ({
               <div className="flex items-center justify-between">
                 <div>
                   <Label>Require Passkey</Label>
-                  <p className="text-sm text-gray-600">Protect access with a password</p>
+                  <p className="text-sm text-charcoal-600">Protect access with a password</p>
                 </div>
                 <Switch
                   checked={config.requirePasskey}
@@ -266,7 +266,7 @@ export const ShareConfigModal: React.FC<ShareConfigModalProps> = ({
             {/* Hidden Metrics */}
             <div className="space-y-4">
               <h3 className="font-medium">Hidden Metrics (LP Protection)</h3>
-              <p className="text-sm text-gray-600">Select metrics to hide from LP view</p>
+              <p className="text-sm text-charcoal-600">Select metrics to hide from LP view</p>
 
               <div className="grid grid-cols-2 gap-3">
                 {LP_HIDDEN_METRICS.map((metric) => (

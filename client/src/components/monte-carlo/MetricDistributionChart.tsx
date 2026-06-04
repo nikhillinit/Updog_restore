@@ -19,6 +19,11 @@ import {
 } from 'recharts';
 import type { RenderableDistribution } from '@/types/backtesting-ui';
 
+const CHART_GRID_COLOR = '#E0D8D1';
+const CHART_AXIS_COLOR = '#5A5A5A';
+const CHART_BAR_COLOR = '#292929';
+const CHART_ACTUAL_COLOR = '#2563EB';
+
 interface Props {
   distributions: RenderableDistribution[];
 }
@@ -71,16 +76,22 @@ export function MetricDistributionChart({ distributions }: Props) {
           layout="vertical"
           margin={{ top: 10, right: 30, left: 60, bottom: 10 }}
         >
-          <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-          <XAxis type="number" fontSize={11} stroke="#6b7280" />
-          <YAxis type="category" dataKey="label" fontSize={12} stroke="#6b7280" width={60} />
-          <Tooltip contentStyle={{ fontSize: 12, borderRadius: 6, border: '1px solid #e5e7eb' }} />
+          <CartesianGrid strokeDasharray="3 3" stroke={CHART_GRID_COLOR} />
+          <XAxis type="number" fontSize={11} stroke={CHART_AXIS_COLOR} />
+          <YAxis type="category" dataKey="label" fontSize={12} stroke={CHART_AXIS_COLOR} width={60} />
+          <Tooltip
+            contentStyle={{
+              fontSize: 12,
+              borderRadius: 6,
+              border: `1px solid ${CHART_GRID_COLOR}`,
+            }}
+          />
 
           {/* IQR bar (p25-p75) */}
-          <Bar dataKey="median" fill="#292929" barSize={20} radius={[2, 2, 2, 2]}>
-            <ErrorBar dataKey="iqr" width={8} stroke="#292929" strokeWidth={2} direction="x" />
+          <Bar dataKey="median" fill={CHART_BAR_COLOR} barSize={20} radius={[2, 2, 2, 2]}>
+            <ErrorBar dataKey="iqr" width={8} stroke={CHART_BAR_COLOR} strokeWidth={2} direction="x" />
             {data.map((entry, index) => (
-              <Cell key={index} fill="#292929" opacity={0.7} />
+              <Cell key={index} fill={CHART_BAR_COLOR} opacity={0.7} />
             ))}
           </Bar>
 
@@ -91,10 +102,10 @@ export function MetricDistributionChart({ distributions }: Props) {
                 <ReferenceLine
                   key={`actual-${entry.metric}`}
                   x={entry.actual}
-                  stroke="#2563EB"
+                  stroke={CHART_ACTUAL_COLOR}
                   strokeDasharray="4 4"
                   strokeWidth={2}
-                  label={{ value: 'Actual', fill: '#2563EB', fontSize: 10, position: 'top' }}
+                  label={{ value: 'Actual', fill: CHART_ACTUAL_COLOR, fontSize: 10, position: 'top' }}
                 />
               )
           )}

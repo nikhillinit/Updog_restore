@@ -33,6 +33,21 @@ import {
 import { Search, Settings, Info } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 
+const UI_SUCCESS_COLOR = '#10b981';
+const BENCHMARK_SERIES_COLORS = [
+  '#292929',
+  '#127E3D',
+  '#2563EB',
+  UI_SUCCESS_COLOR,
+  '#9C6F19',
+  '#B00020',
+] as const;
+const RADAR_SERIES_COLOR = '#2563EB';
+
+function getBenchmarkSeriesColor(index: number): string {
+  return BENCHMARK_SERIES_COLORS[index % BENCHMARK_SERIES_COLORS.length] ?? '#292929';
+}
+
 // Mock data - in real app, this would come from API
 const PORTFOLIO_COMPANIES = [
   {
@@ -146,8 +161,8 @@ export default function BenchmarkingDashboard() {
           <YAxis />
           <Tooltip />
           <Legend />
-          <Bar dataKey="portfolioMedian" fill="#3b82f6" name="Portfolio Benchmarks" />
-          <Bar dataKey="globalMedian" fill="#10b981" name="Global Benchmarks" />
+          <Bar dataKey="portfolioMedian" fill={getBenchmarkSeriesColor(0)} name="Portfolio Benchmarks" />
+          <Bar dataKey="globalMedian" fill={getBenchmarkSeriesColor(1)} name="Global Benchmarks" />
         </BarChart>
       </ResponsiveContainer>
     );
@@ -173,8 +188,8 @@ export default function BenchmarkingDashboard() {
           <Radar
             name="Company Percentile"
             dataKey="value"
-            stroke="#3b82f6"
-            fill="#3b82f6"
+            stroke={RADAR_SERIES_COLOR}
+            fill={RADAR_SERIES_COLOR}
             fillOpacity={0.3}
             strokeWidth={2}
           />
@@ -328,7 +343,7 @@ export default function BenchmarkingDashboard() {
               </Badge>
               <span className="text-sm">Global Benchmarks</span>
               <div className="w-6 h-4 bg-presson-positive rounded-full relative">
-                <div className="absolute right-1 top-0.5 w-3 h-3 bg-white rounded-full"></div>
+                <div className="absolute right-1 top-0.5 w-3 h-3 bg-pov-white rounded-full"></div>
               </div>
             </div>
           </div>
@@ -470,7 +485,7 @@ export default function BenchmarkingDashboard() {
                     onClick={() => setSelectedCompany(company)}
                   >
                     <div className="flex items-center space-x-3">
-                      <div className="w-8 h-8 bg-pov-charcoal text-white rounded flex items-center justify-center text-sm font-medium">
+                      <div className="w-8 h-8 bg-pov-charcoal text-pov-white rounded flex items-center justify-center text-sm font-medium">
                         {company.name.charAt(0)}
                       </div>
                       <span className="font-medium">{company.name}</span>
@@ -510,7 +525,7 @@ export default function BenchmarkingDashboard() {
                   <div className="relative">
                     <div className="w-full h-6 bg-gradient-to-r from-presson-negative/20 via-presson-warning/20 to-presson-positive/20 rounded"></div>
                     <div className="absolute top-0 right-8 transform -translate-y-1">
-                      <Badge variant="default" className="bg-pov-charcoal text-white text-xs">
+                      <Badge variant="default" className="bg-pov-charcoal text-pov-white text-xs">
                         Instaspace 30.66%
                       </Badge>
                       <div className="w-0.5 h-8 bg-pov-charcoal mx-auto"></div>

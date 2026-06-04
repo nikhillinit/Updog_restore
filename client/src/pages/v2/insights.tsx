@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { AppShell } from '@/components/presson-v2/AppShell';
 import { Btn } from '@/components/presson-v2/primitives';
 import { insights } from '@/components/presson-v2/mock';
+import { presson } from '@/theme/presson.tokens';
 
 const LENSES = [
   {
@@ -122,7 +123,7 @@ export default function InsightsV2() {
                     display: 'inline-block',
                     width: 10,
                     height: 10,
-                    background: 'var(--pv2-warm-deep, #C9BFB4)',
+                    background: presson.color.highlight,
                     verticalAlign: 'middle',
                   }}
                 />{' '}
@@ -180,7 +181,7 @@ function DeploymentChart() {
   ];
   return (
     <svg viewBox="0 0 1100 260" style={{ width: '100%', height: 280 }}>
-      <g stroke="#EEE9E3">
+      <g stroke={presson.color.borderSubtle}>
         <line x1="0" y1="60" x2="1100" y2="60" />
         <line x1="0" y1="120" x2="1100" y2="120" />
         <line x1="0" y1="180" x2="1100" y2="180" />
@@ -196,9 +197,9 @@ function DeploymentChart() {
         const label = r[1] >= 1 ? `$${r[1].toFixed(1)}M` : `$${(r[1] * 1000).toFixed(0)}K`;
         return (
           <g key={r[0]}>
-            <rect x={x} y={y1} width="40" height={initH} fill="#292929" />
-            <rect x={x} y={y2} width="40" height={resH} fill="#C9BFB4" />
-            <rect x={x} y={y3} width="40" height={remH} fill="#E0D8D1" />
+            <rect x={x} y={y1} width="40" height={initH} fill={presson.color.text} />
+            <rect x={x} y={y2} width="40" height={resH} fill={presson.color.highlight} />
+            <rect x={x} y={y3} width="40" height={remH} fill={presson.color.surfaceSubtle} />
             <text
               x={x + 20}
               y={y3 - 6}
@@ -206,7 +207,7 @@ function DeploymentChart() {
               fontFamily="Inter"
               fontSize="10"
               fontWeight="600"
-              fill="#292929"
+              fill={presson.color.text}
               letterSpacing="-0.01em"
             >
               {label}
@@ -217,7 +218,7 @@ function DeploymentChart() {
               textAnchor="middle"
               fontFamily="JetBrains Mono"
               fontSize="9"
-              fill="#7A7A7A"
+              fill={presson.color.textMuted}
               letterSpacing="0.06em"
               transform={`rotate(35 ${x + 20} 220)`}
             >

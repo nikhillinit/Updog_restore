@@ -20,7 +20,7 @@ import {
 
 export default function SettingsPage() {
   return (
-    <div className="min-h-screen bg-slate-100">
+    <div className="min-h-screen bg-pov-gray">
       <POVBrandHeader
         title="Settings"
         subtitle="Configure your fund preferences and integrations"
@@ -45,14 +45,14 @@ export default function SettingsPage() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="font-inter text-sm font-medium text-pov-charcoal">Display Name</p>
-                <p className="font-poppins text-xs text-gray-500">Fund Manager</p>
+                <p className="font-poppins text-xs text-charcoal-500">Fund Manager</p>
               </div>
               <Button variant="outline" size="sm">Edit</Button>
             </div>
             <div className="flex items-center justify-between">
               <div>
                 <p className="font-inter text-sm font-medium text-pov-charcoal">Email</p>
-                <p className="font-poppins text-xs text-gray-500">manager@pressonfund.com</p>
+                <p className="font-poppins text-xs text-charcoal-500">manager@pressonfund.com</p>
               </div>
               <Button variant="outline" size="sm">Change</Button>
             </div>
@@ -76,14 +76,14 @@ export default function SettingsPage() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="font-inter text-sm font-medium text-pov-charcoal">Email Digests</p>
-                <p className="font-poppins text-xs text-gray-500">Weekly portfolio summary</p>
+                <p className="font-poppins text-xs text-charcoal-500">Weekly portfolio summary</p>
               </div>
               <Switch />
             </div>
             <div className="flex items-center justify-between">
               <div>
                 <p className="font-inter text-sm font-medium text-pov-charcoal">KPI Reminders</p>
-                <p className="font-poppins text-xs text-gray-500">Notify when company updates are due</p>
+                <p className="font-poppins text-xs text-charcoal-500">Notify when company updates are due</p>
               </div>
               <Switch defaultChecked />
             </div>
@@ -107,7 +107,7 @@ export default function SettingsPage() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="font-inter text-sm font-medium text-pov-charcoal">Export Data</p>
-                <p className="font-poppins text-xs text-gray-500">Download all fund data as CSV</p>
+                <p className="font-poppins text-xs text-charcoal-500">Download all fund data as CSV</p>
               </div>
               <Button variant="outline" size="sm">
                 <Database className="h-4 w-4 mr-2" />
@@ -131,12 +131,12 @@ export default function SettingsPage() {
             </div>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="flex items-center justify-between p-3 rounded-lg bg-gray-50">
+            <div className="flex items-center justify-between p-3 rounded-lg bg-pov-gray">
               <div className="flex items-center gap-3">
                 <Activity className="h-5 w-5 text-pov-charcoal/60" />
                 <div>
                   <p className="font-inter text-sm font-medium text-pov-charcoal">Secondary Market</p>
-                  <p className="font-poppins text-xs text-gray-500">
+                  <p className="font-poppins text-xs text-charcoal-500">
                     Deferred until the core internal workflow perimeter is stabilized
                   </p>
                 </div>
@@ -145,12 +145,12 @@ export default function SettingsPage() {
                 Deferred
               </Button>
             </div>
-            <div className="flex items-center justify-between p-3 rounded-lg bg-gray-50">
+            <div className="flex items-center justify-between p-3 rounded-lg bg-pov-gray">
               <div className="flex items-center gap-3">
                 <Database className="h-5 w-5 text-pov-charcoal/60" />
                 <div>
                   <p className="font-inter text-sm font-medium text-pov-charcoal">Notion Integration</p>
-                  <p className="font-poppins text-xs text-gray-500">
+                  <p className="font-poppins text-xs text-charcoal-500">
                     Deferred until the default runtime perimeter is reduced and hardened
                   </p>
                 </div>

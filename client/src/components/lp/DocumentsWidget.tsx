@@ -34,18 +34,19 @@ const getDocumentTypeLabel = (type: DocumentType): string => {
 };
 
 const getDocumentTypeColor = (type: DocumentType): string => {
+  // TODO(design): document types exceed six categorical colors; define an extended token palette before assigning unique hues to every type.
   const colors: Record<DocumentType, string> = {
-    k1: 'bg-purple-500',
-    capital_statement: 'bg-blue-500',
-    quarterly_report: 'bg-green-500',
-    annual_report: 'bg-indigo-500',
-    subscription_agreement: 'bg-orange-500',
-    side_letter: 'bg-pink-500',
-    legal: 'bg-gray-500',
-    tax: 'bg-red-500',
-    other: 'bg-gray-400',
+    k1: 'bg-pov-charcoal',
+    capital_statement: 'bg-presson-positive',
+    quarterly_report: 'bg-presson-info',
+    annual_report: 'bg-success',
+    subscription_agreement: 'bg-presson-warning',
+    side_letter: 'bg-presson-negative',
+    legal: 'bg-charcoal-700',
+    tax: 'bg-error',
+    other: 'bg-charcoal-500',
   };
-  return colors[type] || 'bg-gray-500';
+  return colors[type] || 'bg-charcoal-500';
 };
 
 const formatFileSize = (bytes: number): string => {
@@ -76,7 +77,7 @@ export function DocumentsWidget() {
 
   if (isLoading) {
     return (
-      <Card className="bg-white rounded-xl border border-[#E0D8D1] shadow-md">
+      <Card className="bg-pov-white rounded-xl border border-beige-200 shadow-md">
         <CardHeader>
           <Skeleton className="h-6 w-40" />
           <Skeleton className="h-4 w-60" />
@@ -91,14 +92,14 @@ export function DocumentsWidget() {
   }
 
   return (
-    <Card className="bg-white rounded-xl border border-[#E0D8D1] shadow-md">
+    <Card className="bg-pov-white rounded-xl border border-beige-200 shadow-md">
       <CardHeader>
-        <CardTitle className="flex items-center gap-2 font-inter text-[#292929]">
-          <FileText className="h-5 w-5 text-indigo-600" />
+        <CardTitle className="flex items-center gap-2 font-inter text-pov-charcoal">
+          <FileText className="h-5 w-5 text-presson-info" />
           Documents
-          {data?.hasNewDocuments && <Sparkles className="h-4 w-4 text-yellow-500" />}
+          {data?.hasNewDocuments && <Sparkles className="h-4 w-4 text-presson-info" />}
         </CardTitle>
-        <CardDescription className="font-poppins text-[#292929]/70">
+        <CardDescription className="font-poppins text-pov-charcoal/70">
           {data?.totalDocuments
             ? `${data.totalDocuments} document${data.totalDocuments !== 1 ? 's' : ''} available`
             : 'Fund documents and reports'}
@@ -110,25 +111,25 @@ export function DocumentsWidget() {
             {data.recentDocuments.map((doc) => (
               <div
                 key={doc.id}
-                className="flex items-center justify-between p-3 border border-[#E0D8D1] rounded-lg hover:bg-gray-50 cursor-pointer group"
+                className="flex items-center justify-between p-3 border border-beige-200 rounded-lg hover:bg-pov-gray cursor-pointer group"
                 onClick={() => navigate(`/lp/documents/${doc.id}`)}
               >
                 <div className="flex items-center gap-3 min-w-0">
                   <div
                     className={`w-10 h-10 rounded-lg ${getDocumentTypeColor(doc.documentType)} flex items-center justify-center`}
                   >
-                    <FileText className="h-5 w-5 text-white" />
+                    <FileText className="h-5 w-5 text-pov-white" />
                   </div>
                   <div className="min-w-0">
                     <div className="flex items-center gap-2">
                       <span className="font-medium font-inter text-sm truncate">{doc.title}</span>
                       {isNewDocument(doc.createdAt) && (
-                        <Badge variant="default" className="bg-yellow-500 text-xs">
+                        <Badge variant="default" className="bg-presson-info text-pov-white text-xs">
                           New
                         </Badge>
                       )}
                     </div>
-                    <div className="flex items-center gap-2 text-xs text-[#292929]/60 font-poppins">
+                    <div className="flex items-center gap-2 text-xs text-pov-charcoal/60 font-poppins">
                       <Badge variant="outline" className="text-xs">
                         {getDocumentTypeLabel(doc.documentType)}
                       </Badge>
@@ -148,8 +149,8 @@ export function DocumentsWidget() {
             ))}
           </div>
         ) : (
-          <div className="text-center py-6 text-[#292929]/60 font-poppins">
-            <FileText className="h-10 w-10 mx-auto mb-2 text-[#292929]/30" />
+          <div className="text-center py-6 text-pov-charcoal/60 font-poppins">
+            <FileText className="h-10 w-10 mx-auto mb-2 text-pov-charcoal/30" />
             <p>No documents available</p>
           </div>
         )}
