@@ -71,6 +71,20 @@
       "when": 1775433600000,
       "tag": "0008_demo_profile_import_rows",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1775520000000,
+      "tag": "0009_fund_snapshots_scenario_set_id",
+      "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1775606400000,
+      "tag": "0010_fund_scenario_sets",
+      "breakpoints": true
     }
   ]
 }
