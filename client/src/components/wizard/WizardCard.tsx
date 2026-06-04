@@ -41,13 +41,13 @@ export function WizardCard({
   contentClassName,
 }: WizardCardProps) {
   return (
-    <Card className={cn('border-[#E0D8D1]', className)}>
+    <Card className={cn('border-beige-200', className)}>
       <CardHeader className={cn('pb-4', headerClassName)}>
-        <CardTitle className="text-lg font-inter font-bold text-[#292929]">
+        <CardTitle className="text-lg font-inter font-bold text-pov-charcoal">
           {title}
         </CardTitle>
         {description && (
-          <CardDescription className="text-[#292929]/70 font-poppins mt-2">
+          <CardDescription className="text-pov-charcoal/70 font-poppins mt-2">
             {description}
           </CardDescription>
         )}

@@ -182,7 +182,7 @@ export default function FundSetup() {
             className="flex min-h-[320px] items-center justify-center px-6"
             data-testid="draft-hydrating"
           >
-            <div className="flex items-center gap-3 rounded-xl border border-[#E0D8D1] bg-white px-6 py-4 text-sm font-poppins text-[#292929] shadow-sm">
+            <div className="flex items-center gap-3 rounded-xl border border-beige-200 bg-pov-white px-6 py-4 text-sm font-poppins text-pov-charcoal shadow-sm">
               <Loader2 className="h-4 w-4 animate-spin" />
               Loading saved draft from the server...
             </div>
@@ -209,7 +209,7 @@ export default function FundSetup() {
                 ) : (
                   <div
                     aria-live="polite"
-                    className="rounded-xl border border-[#E0D8D1] bg-white px-4 py-3 text-sm font-poppins text-[#5F564F] shadow-sm"
+                    className="rounded-xl border border-beige-200 bg-pov-white px-4 py-3 text-sm font-poppins text-charcoal-600 shadow-sm"
                     data-testid="draft-sync-status"
                   >
                     {status === 'saving'

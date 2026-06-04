@@ -15,20 +15,20 @@ export function ModernStepContainer({
   className
 }: ModernStepContainerProps) {
   return (
-    <div className={cn("min-h-screen bg-[#F2F2F2]", className)}>
+    <div className={cn("min-h-screen bg-pov-gray", className)}>
       <div className="max-w-4xl mx-auto px-6 py-12">
         {/* Step Header */}
         <div className="mb-8">
-          <h2 className="text-3xl font-inter font-bold text-[#292929] mb-3">
+          <h2 className="text-3xl font-inter font-bold text-pov-charcoal mb-3">
             {title}
           </h2>
-          <p className="font-poppins text-[#292929]/70 text-lg leading-relaxed">
+          <p className="font-poppins text-pov-charcoal/70 text-lg leading-relaxed">
             {description}
           </p>
         </div>
 
         {/* Step Content */}
-        <div className="bg-white rounded-xl shadow-md border border-[#E0D8D1] p-8">
+        <div className="bg-pov-white rounded-xl shadow-md border border-beige-200 p-8">
           {children}
         </div>
       </div>

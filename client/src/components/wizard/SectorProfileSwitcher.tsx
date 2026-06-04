@@ -48,7 +48,7 @@ export function SectorProfileSwitcher({
   return (
     <div
       className={cn(
-        'w-64 bg-white border-r border-[#E0D8D1] flex flex-col h-full flex-shrink-0',
+        'w-64 bg-pov-white border-r border-beige-200 flex flex-col h-full flex-shrink-0',
         className
       )}
     >
@@ -65,9 +65,9 @@ export function SectorProfileSwitcher({
                 onClick={() => onSelectProfile(profile.id)}
                 className={cn(
                   'w-full flex items-center justify-between px-3 py-3 rounded-lg text-sm transition-all group',
-                  'focus:outline-none focus:ring-2 focus:ring-[#292929] focus:ring-offset-2',
+                  'focus:outline-none focus:ring-2 focus:ring-pov-charcoal focus:ring-offset-2',
                   isActive
-                    ? 'bg-[#292929] text-white font-semibold shadow-md ring-2 ring-[#292929] ring-offset-2'
+                    ? 'bg-pov-charcoal text-pov-white font-semibold shadow-md ring-2 ring-pov-charcoal ring-offset-2'
                     : 'text-charcoal-700 hover:bg-pov-gray hover:text-pov-charcoal font-medium'
                 )}
               >
@@ -107,7 +107,7 @@ export function SectorProfileSwitcher({
                         e.stopPropagation();
                         onProfileMenu(profile.id);
                       }}
-                      className="p-1 hover:bg-white/20 rounded"
+                      className="p-1 hover:bg-pov-white/20 rounded"
                     >
                       <MoreHorizontal
                         className={cn(

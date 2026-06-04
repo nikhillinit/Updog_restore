@@ -41,7 +41,7 @@ export function ProfileHeader({
     <div className={cn('flex items-center justify-between mb-8', className)}>
       <div>
         <div className="flex items-center gap-3 mb-1">
-          <h1 className="text-2xl font-bold text-[#292929] font-poppins">{profileName}</h1>
+          <h1 className="text-2xl font-bold text-pov-charcoal font-poppins">{profileName}</h1>
           {isDefault && (
             <Badge variant="secondary" className="text-xs">
               Default Profile
@@ -67,7 +67,7 @@ export function ProfileHeader({
           </Button>
         )}
         {onDuplicate && (
-          <Button variant="outline" size="sm" onClick={onDuplicate} className="border-[#E0D8D1]">
+          <Button variant="outline" size="sm" onClick={onDuplicate} className="border-beige-200">
             <Copy className="w-4 h-4 mr-2" />
             Duplicate
           </Button>
@@ -89,7 +89,7 @@ export function ProfileHeader({
             <Button
               size="sm"
               onClick={onAddStage}
-              className="bg-[#292929] hover:bg-[#292929]/90 text-white"
+              className="bg-pov-charcoal hover:bg-charcoal-700 text-pov-white"
             >
               <Plus className="w-4 h-4 mr-2" />
               Add Stage
