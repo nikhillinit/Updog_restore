@@ -263,4 +263,24 @@ describe('StressPanel', () => {
     // presson.color.positive (#127E3D) for positive baselineDelta; DOM normalizes to rgb.
     expect(posBar.style.backgroundColor).toBe('rgb(18, 126, 61)');
   });
+
+  it('conveys delta direction with a non-color signed-delta cue and hides the decorative bar from assistive tech (WCAG 1.4.1)', () => {
+    installMutationState({
+      isSuccess: true,
+      data: { result: makeFixtureResult() },
+    });
+    renderPanel(7);
+
+    // Direction is legible without relying on color: negative -> minus, positive -> plus.
+    const negDelta = screen.getByTestId('stress-delta-value-mild_downside');
+    const posDelta = screen.getByTestId('stress-delta-value-best_case');
+    expect(negDelta.textContent).toMatch(/^-/);
+    expect(posDelta.textContent).toMatch(/^\+/);
+
+    // The color-coded bar is decorative; direction lives in the signed text cue.
+    expect(screen.getByTestId('stress-delta-bar-mild_downside')).toHaveAttribute(
+      'aria-hidden',
+      'true'
+    );
+  });
 });

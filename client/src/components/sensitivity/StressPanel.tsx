@@ -58,8 +58,9 @@ interface DeltaBarStyle {
 
 function deltaBarStyle(delta: number, maxAbsDelta: number): DeltaBarStyle {
   const widthPct = maxAbsDelta === 0 ? 0 : (Math.abs(delta) / maxAbsDelta) * 100;
-  // Loss (negative) vs gain (positive) via PoV financial tokens.
-  // TODO(a11y): baseline delta bar needs a non-color direction cue.
+  // Loss (negative) vs gain (positive) via PoV financial tokens. Direction is also
+  // conveyed non-visually by the signed delta value rendered beside the bar (WCAG 1.4.1),
+  // so the bar itself is decorative (aria-hidden at the call site).
   const backgroundColor = delta < 0 ? presson.color.negative : presson.color.positive;
   return { width: `${widthPct}%`, backgroundColor };
 }
@@ -236,12 +237,23 @@ function ResultsSection({ result }: { result: StressAnalysisResultV1 }) {
                   {scenario && (
                     <div className="text-xs text-charcoal-500">{scenario.description}</div>
                   )}
-                  <div className="h-2 w-full overflow-hidden rounded bg-pov-gray">
-                    <div
-                      className="h-2 rounded"
-                      style={deltaBarStyle(dp.baselineDelta, maxAbsDelta)}
-                      data-testid={`stress-delta-bar-${dp.scenarioId}`}
-                    />
+                  <div className="flex items-center gap-2">
+                    <div className="h-2 flex-1 overflow-hidden rounded bg-pov-gray">
+                      <div
+                        className="h-2 rounded"
+                        style={deltaBarStyle(dp.baselineDelta, maxAbsDelta)}
+                        data-testid={`stress-delta-bar-${dp.scenarioId}`}
+                        aria-hidden="true"
+                      />
+                    </div>
+                    <span
+                      className="w-20 shrink-0 text-right tabular-nums text-xs text-charcoal-600"
+                      data-testid={`stress-delta-value-${dp.scenarioId}`}
+                      aria-label={`Baseline delta ${dp.baselineDelta >= 0 ? '+' : '-'}${formatMetricValue(Math.abs(dp.baselineDelta), metric)}`}
+                    >
+                      {dp.baselineDelta >= 0 ? '+' : '-'}
+                      {formatMetricValue(Math.abs(dp.baselineDelta), metric)}
+                    </span>
                   </div>
                 </div>
               );
