@@ -49,6 +49,11 @@ import {
   type SensitivityRunV1,
 } from '@shared/contracts/sensitivity-run-v1.contract';
 import { formatMetricValue, formatVariableValue, useElapsedSeconds, SummaryCard } from './_shared';
+import { SensitivityRunErrorCard } from './SensitivityRunErrorCard';
+
+const CHART_GRID_COLOR = '#E0D8D1';
+const CHART_AXIS_COLOR = '#5A5A5A';
+const CHART_LINE_COLOR = '#292929';
 
 // =====================
 // VALIDATION
@@ -132,13 +137,13 @@ function HistoryPanel({
   const { data, isLoading } = useSensitivityHistory(fundId, 'one_way', 10);
 
   if (isLoading) {
-    return <p className="text-xs text-gray-500">Loading history...</p>;
+    return <p className="text-xs text-charcoal-500">Loading history...</p>;
   }
 
   const runs = data?.runs ?? [];
   if (runs.length === 0) {
     return (
-      <p className="text-xs text-gray-500" data-testid="one-way-history-empty">
+      <p className="text-xs text-charcoal-500" data-testid="one-way-history-empty">
         No previous one-way analyses
       </p>
     );
@@ -146,7 +151,7 @@ function HistoryPanel({
 
   return (
     <div className="space-y-1" data-testid="one-way-history-list">
-      <h3 className="mb-2 text-xs font-medium text-gray-600">Recent Runs</h3>
+      <h3 className="mb-2 text-xs font-medium text-charcoal-600">Recent Runs</h3>
       {runs.map((run) => {
         const parsed = parseHistoryResult(run);
         const disabled = parsed === null;
@@ -158,14 +163,16 @@ function HistoryPanel({
             onClick={() => parsed && onSelect(parsed)}
             className={cn(
               'w-full rounded px-2 py-1.5 text-left text-xs transition-colors',
-              disabled ? 'cursor-not-allowed text-gray-400' : 'hover:bg-gray-100 text-gray-800'
+              disabled
+                ? 'cursor-not-allowed text-charcoal-400'
+                : 'text-pov-charcoal hover:bg-pov-charcoal hover:text-pov-white'
             )}
             data-testid={`one-way-history-item-${run.id}`}
           >
             <span>#{run.id}</span>
-            <span className="mx-1 text-gray-400">·</span>
+            <span className="mx-1 text-charcoal-400">·</span>
             <span>{formatRunTimestamp(run.createdAt)}</span>
-            <span className="mx-1 text-gray-400">·</span>
+            <span className="mx-1 text-charcoal-400">·</span>
             <span className="uppercase tracking-wide text-[10px]">{run.status}</span>
           </button>
         );
@@ -200,18 +207,18 @@ function ResultsSection({ result }: { result: OneWayAnalysisResultV1 }) {
           <div className="h-72" data-testid="one-way-chart">
             <ResponsiveContainer width="100%" height="100%">
               <LineChart data={chartData} margin={{ top: 10, right: 24, bottom: 10, left: 12 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                <CartesianGrid strokeDasharray="3 3" stroke={CHART_GRID_COLOR} />
                 <XAxis
                   dataKey="variableValue"
                   tickFormatter={(v: number) => formatVariableValue(v, variable)}
                   fontSize={11}
-                  stroke="#6b7280"
+                  stroke={CHART_AXIS_COLOR}
                 />
                 <YAxis
                   dataKey="metricValue"
                   tickFormatter={(v: number) => formatMetricValue(v, metric)}
                   fontSize={11}
-                  stroke="#6b7280"
+                  stroke={CHART_AXIS_COLOR}
                 />
                 <Tooltip
                   formatter={
@@ -223,18 +230,22 @@ function ResultsSection({ result }: { result: OneWayAnalysisResultV1 }) {
                   labelFormatter={
                     ((label: number) => formatVariableValue(label, variable)) as never
                   }
-                  contentStyle={{ fontSize: 12, borderRadius: 6, border: '1px solid #e5e7eb' }}
+                  contentStyle={{
+                    fontSize: 12,
+                    borderRadius: 6,
+                    border: `1px solid ${CHART_GRID_COLOR}`,
+                  }}
                 />
                 <ReferenceLine
                   y={result.baselineValue}
-                  stroke="#94a3b8"
+                  stroke={CHART_AXIS_COLOR}
                   strokeDasharray="4 4"
-                  label={{ value: 'Baseline', fill: '#64748b', fontSize: 10, position: 'right' }}
+                  label={{ value: 'Baseline', fill: CHART_AXIS_COLOR, fontSize: 10, position: 'right' }}
                 />
                 <Line
                   type="monotone"
                   dataKey="metricValue"
-                  stroke="#1e293b"
+                  stroke={CHART_LINE_COLOR}
                   strokeWidth={2}
                   dot={{ r: 3 }}
                 />
@@ -310,6 +321,15 @@ export function OneWayPanel({ fundId }: OneWayPanelProps) {
 
   const variableDefinition = getVariableDefinition(form.variableId);
   const runDisabled = fundId === null || mutation.isPending || !validation.ok;
+  const runDisabledReason =
+    fundId === null
+      ? 'Select a fund before running a sweep.'
+      : mutation.isPending
+        ? 'A sweep is already running.'
+        : !validation.ok
+          ? 'Resolve validation errors before running a sweep.'
+          : undefined;
+  const runDisabledReasonId = runDisabledReason ? 'one-way-run-disabled-reason' : undefined;
   const error = mutation.error as SensitivityHookError | null;
 
   return (
@@ -323,7 +343,7 @@ export function OneWayPanel({ fundId }: OneWayPanelProps) {
             <div className="space-y-1">
               <Label htmlFor="one-way-variable">Variable</Label>
               <Select value={form.variableId} onValueChange={onVariableChange}>
-                <SelectTrigger id="one-way-variable">
+                <SelectTrigger id="one-way-variable" aria-label="One-way variable">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -334,7 +354,7 @@ export function OneWayPanel({ fundId }: OneWayPanelProps) {
                   ))}
                 </SelectContent>
               </Select>
-              <p className="text-xs text-gray-500">{variableDefinition.description}</p>
+              <p className="text-xs text-charcoal-500">{variableDefinition.description}</p>
             </div>
 
             <div className="grid grid-cols-2 gap-3">
@@ -376,7 +396,7 @@ export function OneWayPanel({ fundId }: OneWayPanelProps) {
             <div className="space-y-1">
               <Label htmlFor="one-way-metric">Metric</Label>
               <Select value={form.metricId} onValueChange={onMetricChange}>
-                <SelectTrigger id="one-way-metric">
+                <SelectTrigger id="one-way-metric" aria-label="One-way metric">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -391,7 +411,7 @@ export function OneWayPanel({ fundId }: OneWayPanelProps) {
 
             {!validation.ok && validation.errors.length > 0 && (
               <ul
-                className="space-y-0.5 text-xs text-red-600"
+                className="space-y-0.5 text-xs text-error"
                 data-testid="one-way-validation-errors"
               >
                 {validation.errors.map((err) => (
@@ -404,9 +424,15 @@ export function OneWayPanel({ fundId }: OneWayPanelProps) {
               type="button"
               onClick={handleSubmit}
               disabled={runDisabled}
+              aria-describedby={runDisabledReasonId}
               className="w-full"
               data-testid="one-way-run-button"
             >
+              {runDisabledReason && (
+                <span id={runDisabledReasonId} className="sr-only">
+                  {runDisabledReason}
+                </span>
+              )}
               Run Sweep
             </Button>
           </CardContent>
@@ -420,40 +446,28 @@ export function OneWayPanel({ fundId }: OneWayPanelProps) {
 
       <div className="space-y-4 lg:col-span-2">
         {mutation.isPending && (
-          <Card className="border-blue-200">
+          <Card className="border-presson-info/20">
             <CardContent className="px-4 py-3">
               <div className="mb-1 flex items-center justify-between">
                 <div className="flex items-center gap-2">
-                  <div className="h-2 w-2 animate-pulse rounded-full bg-blue-500" />
-                  <span className="text-sm font-medium text-gray-700">Running sweep...</span>
+                  <div className="h-2 w-2 animate-pulse rounded-full bg-presson-info" />
+                  <span className="text-sm font-medium text-charcoal-700">Running sweep...</span>
                 </div>
-                <span className="tabular-nums text-xs text-gray-500">{elapsed}s</span>
+                <span className="tabular-nums text-xs text-charcoal-500">{elapsed}s</span>
               </div>
             </CardContent>
           </Card>
         )}
 
         {!mutation.isPending && error && (
-          <Card className="border-red-200" data-testid="one-way-error">
-            <CardContent className="px-4 py-3">
-              <p className="text-sm font-medium text-red-700" data-testid="one-way-error-code">
-                {error.code ?? 'UNKNOWN'}
-              </p>
-              <p className="mt-0.5 text-xs text-gray-600" data-testid="one-way-error-message">
-                {error.message}
-              </p>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={handleSubmit}
-                disabled={runDisabled}
-                className="mt-2"
-                data-testid="one-way-retry-button"
-              >
-                Retry
-              </Button>
-            </CardContent>
-          </Card>
+          <SensitivityRunErrorCard
+            error={error}
+            fundId={fundId}
+            onRetry={handleSubmit}
+            retryDisabled={runDisabled}
+            retryDisabledReason={runDisabledReason ?? null}
+            testIdPrefix="one-way"
+          />
         )}
 
         {!mutation.isPending && !error && displayedResult && (
@@ -462,10 +476,10 @@ export function OneWayPanel({ fundId }: OneWayPanelProps) {
 
         {!mutation.isPending && !error && !displayedResult && (
           <div
-            className="flex h-48 items-center justify-center rounded-lg border border-dashed border-gray-300"
+            className="flex h-48 items-center justify-center rounded-lg border border-dashed border-charcoal-300"
             data-testid="one-way-idle"
           >
-            <p className="text-sm text-gray-400">Configure and run a sweep to see results</p>
+            <p className="text-sm text-charcoal-400">Configure and run a sweep to see results</p>
           </div>
         )}
       </div>

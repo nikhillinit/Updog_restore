@@ -3,32 +3,12 @@ set -euo pipefail
 
 START_TIME=$(date +%s)
 
-# Run preflight
-./scripts/preflight.sh
+REPO_ROOT=$(git rev-parse --show-toplevel)
+cd "$REPO_ROOT"
 
-echo "🧹 Cleaning workspace..."
-./scripts/cleanup-workspace.sh
-
-echo "📦 Installing dependencies..."
-npm ci --prefer-offline --no-audit
-
-echo "🧪 Running tests..."
-if npm run test:all; then
-  echo "✅ Tests passed"
-else
-  echo "❌ Tests failed - check output above"
-  exit 1
-fi
-
-echo "🏗️ Building..."
-if npm run build; then
-  echo "✅ Build succeeded"
-else
-  echo "❌ Build failed"
-  exit 1
-fi
+node scripts/pre-push.mjs "$@"
 
 END_TIME=$(date +%s)
 DURATION=$((END_TIME - START_TIME))
-echo "⏱️ Total time: ${DURATION}s"
-echo "✅ All checks passed!"
+echo "Total time: ${DURATION}s"
+echo "All checks passed."

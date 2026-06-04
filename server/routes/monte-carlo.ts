@@ -21,6 +21,7 @@ import { recordHttpMetrics } from '../metrics';
 import { toNumber } from '@shared/number';
 import { sanitizeInput } from '../utils/sanitizer.js';
 import { firstString } from '../lib/request-values';
+import { enforceProvidedFundScope } from '../lib/auth/provided-fund-scope';
 import {
   enqueueSimulation,
   getJobStatus,
@@ -95,6 +96,7 @@ type SimulationConfigRequest = z.infer<typeof simulationConfigSchema>;
 type BatchSimulationRequest = z.infer<typeof batchSimulationSchema>;
 type MultiEnvironmentRequest = z.infer<typeof multiEnvironmentSchema>;
 type ValidatedBodyRequest<T> = Request & { validatedBody: T };
+type RequestUserWithLegacyId = Express.User & { userId?: string | number };
 
 // ============================================================================
 // MIDDLEWARE
@@ -106,7 +108,7 @@ const validateRequest = <T>(schema: z.ZodSchema<T>) => {
     try {
       const result = schema.safeParse(req.body);
       if (!result.success) {
-        return res['status'](400)['json']({
+        return res.status(400).json({
           error: 'VALIDATION_ERROR',
           message: 'Request validation failed',
           details: result.error.issues,
@@ -115,7 +117,7 @@ const validateRequest = <T>(schema: z.ZodSchema<T>) => {
       (req as ValidatedBodyRequest<T>).validatedBody = result.data;
       next();
     } catch {
-      res['status'](400)['json']({
+      res.status(400).json({
         error: 'VALIDATION_ERROR',
         message: 'Invalid request format',
       });
@@ -129,7 +131,28 @@ function getCorrelationId(req: Request, fallbackPrefix: string): string {
   );
 }
 
-function toUnifiedSimulationConfig(config: SimulationConfigRequest): UnifiedSimulationConfig {
+function toPositiveInteger(value: unknown): number | undefined {
+  if (typeof value !== 'number' && typeof value !== 'string') {
+    return undefined;
+  }
+
+  const numericValue = typeof value === 'string' ? Number(value.trim()) : value;
+  return Number.isInteger(numericValue) && numericValue > 0 ? numericValue : undefined;
+}
+
+function getRequestCreatedBy(req: Request): number | undefined {
+  const user = req.user as RequestUserWithLegacyId | undefined;
+  return (
+    toPositiveInteger(user?.id) ??
+    toPositiveInteger(user?.userId) ??
+    toPositiveInteger(req.context?.userId)
+  );
+}
+
+function toUnifiedSimulationConfig(
+  config: SimulationConfigRequest,
+  createdBy?: number
+): UnifiedSimulationConfig {
   return {
     fundId: config.fundId,
     runs: config.runs,
@@ -148,6 +171,7 @@ function toUnifiedSimulationConfig(config: SimulationConfigRequest): UnifiedSimu
     forceEngine: config.forceEngine,
     performanceMode: config.performanceMode,
     enableFallback: config.enableFallback,
+    ...(createdBy !== undefined ? { createdBy } : {}),
   };
 }
 
@@ -155,7 +179,8 @@ async function buildSimulationConfig(
   config: SimulationConfigRequest,
   res: Response,
   correlationId: string,
-  context: string
+  context: string,
+  createdBy?: number
 ): Promise<{ ok: true; config: UnifiedSimulationConfig } | { ok: false }> {
   if (config.stageDistribution && config.stageDistribution.length > 0) {
     const stagePercentages = config.stageDistribution.reduce<Record<string, number>>(
@@ -180,7 +205,7 @@ async function buildSimulationConfig(
       );
 
       if (mode === 'enforce') {
-        res['status'](400)['json']({
+        res.status(400).json({
           error: 'INVALID_STAGE_DISTRIBUTION',
           message: 'Unknown investment stage(s) in stageDistribution.',
           details: {
@@ -198,7 +223,7 @@ async function buildSimulationConfig(
 
   return {
     ok: true,
-    config: toUnifiedSimulationConfig(config),
+    config: toUnifiedSimulationConfig(config, createdBy),
   };
 }
 
@@ -219,7 +244,7 @@ const guardResponse = (req: Request, res: Response, next: NextFunction) => {
         '[ENGINE_NONFINITE] Simulation produced invalid numeric values'
       );
 
-      return res['status'](422)['json']({
+      return res.status(422).json({
         error: 'ENGINE_NONFINITE',
         path: guard.path,
         reason: guard.reason,
@@ -236,7 +261,7 @@ const guardResponse = (req: Request, res: Response, next: NextFunction) => {
 const monitorPerformance = (req: Request, res: Response, next: NextFunction) => {
   const startTime = Date.now();
 
-  res['on']('finish', () => {
+  res.on('finish', () => {
     const duration = (Date.now() - startTime) / 1000;
     recordHttpMetrics(req.method, req.path, res.statusCode, duration);
   });
@@ -264,11 +289,21 @@ router['post'](
 
     try {
       const parsedRequest = (req as ValidatedBodyRequest<SimulationConfigRequest>).validatedBody;
-      const built = await buildSimulationConfig(parsedRequest, res, correlationId, 'simulate');
+      const built = await buildSimulationConfig(
+        parsedRequest,
+        res,
+        correlationId,
+        'simulate',
+        getRequestCreatedBy(req)
+      );
       if (!built.ok) {
         return;
       }
       const simulationConfig = built.config;
+
+      if (!(await enforceProvidedFundScope(req, res, simulationConfig.fundId))) {
+        return;
+      }
 
       logger.info(
         { correlationId, runs: simulationConfig.runs, fundId: simulationConfig.fundId },
@@ -286,7 +321,7 @@ router['post'](
         '[MONTE_CARLO] Completed simulation'
       );
 
-      res['json']({
+      res.json({
         correlationId,
         ...result,
         metadata: {
@@ -299,7 +334,7 @@ router['post'](
     } catch (error) {
       logger.error({ correlationId, error }, '[MONTE_CARLO] Simulation failed');
 
-      res['status'](500)['json']({
+      res.status(500).json({
         error: 'SIMULATION_FAILED',
         correlationId,
         message:
@@ -323,16 +358,22 @@ router['post'](
 
     try {
       const parsedRequest = (req as ValidatedBodyRequest<SimulationConfigRequest>).validatedBody;
+      const createdBy = getRequestCreatedBy(req);
       const built = await buildSimulationConfig(
         parsedRequest,
         res,
         correlationId,
-        'simulate_async'
+        'simulate_async',
+        createdBy
       );
       if (!built.ok) {
         return;
       }
       const simulationConfig = built.config;
+
+      if (!(await enforceProvidedFundScope(req, res, simulationConfig.fundId))) {
+        return;
+      }
 
       // Check if queue is available
       if (!isQueueInitialized()) {
@@ -343,7 +384,7 @@ router['post'](
         );
 
         const result = await unifiedMonteCarloService.runSimulation(simulationConfig);
-        return res['json']({
+        return res.json({
           correlationId,
           mode: 'sync_fallback',
           ...result,
@@ -372,6 +413,7 @@ router['post'](
         ...(simulationConfig.portfolioSize !== undefined
           ? { portfolioSize: simulationConfig.portfolioSize }
           : {}),
+        ...(createdBy !== undefined ? { userId: createdBy } : {}),
       };
       const { jobId, estimatedWaitMs } = await enqueueSimulation(simulationJob);
 
@@ -379,7 +421,7 @@ router['post'](
       res.setHeader('Location', `/api/monte-carlo/jobs/${jobId}`);
       res.setHeader('Retry-After', '5');
 
-      res['status'](202)['json']({
+      res.status(202).json({
         correlationId,
         jobId,
         status: 'queued',
@@ -394,7 +436,7 @@ router['post'](
     } catch (error) {
       logger.error({ correlationId, error }, '[MONTE_CARLO] Failed to queue simulation');
 
-      res['status'](500)['json']({
+      res.status(500).json({
         error: 'QUEUE_FAILED',
         correlationId,
         message:
@@ -413,14 +455,14 @@ router['get']('/jobs/:jobId', async (req: Request, res: Response) => {
   try {
     const jobId = firstString(req.params['jobId']);
     if (!jobId) {
-      return res['status'](400)['json']({
+      return res.status(400).json({
         error: 'INVALID_JOB_ID',
         message: 'Job ID is required',
       });
     }
 
     if (!isQueueInitialized()) {
-      return res['status'](503)['json']({
+      return res.status(503).json({
         error: 'QUEUE_UNAVAILABLE',
         message: 'Background job queue is not available',
       });
@@ -429,7 +471,7 @@ router['get']('/jobs/:jobId', async (req: Request, res: Response) => {
     const jobStatus = await getJobStatus(jobId);
 
     if (jobStatus.status === 'unknown') {
-      return res['status'](404)['json']({
+      return res.status(404).json({
         error: 'JOB_NOT_FOUND',
         message: `Job ${jobId} not found`,
       });
@@ -440,7 +482,7 @@ router['get']('/jobs/:jobId', async (req: Request, res: Response) => {
       res.setHeader('Retry-After', '5');
     }
 
-    res['json']({
+    res.json({
       jobId,
       ...jobStatus,
       _links: {
@@ -451,7 +493,7 @@ router['get']('/jobs/:jobId', async (req: Request, res: Response) => {
       },
     });
   } catch (error) {
-    res['status'](500)['json']({
+    res.status(500).json({
       error: 'JOB_STATUS_FAILED',
       message: error instanceof Error ? error.message : 'Failed to get job status',
     });
@@ -465,14 +507,14 @@ router['get']('/jobs/:jobId', async (req: Request, res: Response) => {
 router['get']('/jobs/:jobId/stream', async (req: Request, res: Response) => {
   const jobId = firstString(req.params['jobId']);
   if (!jobId) {
-    return res['status'](400)['json']({
+    return res.status(400).json({
       error: 'INVALID_JOB_ID',
       message: 'Job ID is required',
     });
   }
 
   if (!isQueueInitialized()) {
-    return res['status'](503)['json']({
+    return res.status(503).json({
       error: 'QUEUE_UNAVAILABLE',
       message: 'Background job queue is not available',
     });
@@ -520,10 +562,20 @@ router['post'](
 
     try {
       const parsedRequest = (req as ValidatedBodyRequest<BatchSimulationRequest>).validatedBody;
+      const createdBy = getRequestCreatedBy(req);
       const normalizedConfigs: UnifiedSimulationConfig[] = [];
       for (const [index, config] of parsedRequest.simulations.entries()) {
-        const built = await buildSimulationConfig(config, res, correlationId, `batch[${index}]`);
+        const built = await buildSimulationConfig(
+          config,
+          res,
+          correlationId,
+          `batch[${index}]`,
+          createdBy
+        );
         if (!built.ok) {
+          return;
+        }
+        if (!(await enforceProvidedFundScope(req, res, built.config.fundId))) {
           return;
         }
         normalizedConfigs.push(built.config);
@@ -550,7 +602,7 @@ router['post'](
         '[MONTE_CARLO] Completed batch simulation'
       );
 
-      res['json']({
+      res.json({
         correlationId,
         results,
         summary: {
@@ -563,7 +615,7 @@ router['post'](
     } catch (error) {
       logger.error({ correlationId, error }, '[MONTE_CARLO] Batch simulation failed');
 
-      res['status'](500)['json']({
+      res.status(500).json({
         error: 'BATCH_SIMULATION_FAILED',
         correlationId,
         message:
@@ -592,9 +644,14 @@ router['post'](
         parsedRequest.baseConfig,
         res,
         correlationId,
-        'multi-environment'
+        'multi-environment',
+        getRequestCreatedBy(req)
       );
       if (!built.ok) {
+        return;
+      }
+
+      if (!(await enforceProvidedFundScope(req, res, built.config.fundId))) {
         return;
       }
 
@@ -618,7 +675,7 @@ router['post'](
 
       logger.info({ correlationId }, '[MONTE_CARLO] Completed multi-environment simulation');
 
-      res['json']({
+      res.json({
         correlationId,
         results,
         summary: {
@@ -637,7 +694,7 @@ router['post'](
     } catch (error) {
       logger.error({ correlationId, error }, '[MONTE_CARLO] Multi-environment simulation failed');
 
-      res['status'](500)['json']({
+      res.status(500).json({
         error: 'MULTI_ENVIRONMENT_FAILED',
         correlationId,
         message:
@@ -660,7 +717,7 @@ router['get']('/health', async (req: Request, res: Response) => {
     const status = health.status === 'healthy' ? 200 : health.status === 'degraded' ? 206 : 503;
     const connectionPools = health.connectionPools as Record<string, unknown>;
 
-    res['status'](status)['json']({
+    res.status(status).json({
       status: health.status,
       timestamp: new Date().toISOString(),
       engines: health.engines,
@@ -669,7 +726,7 @@ router['get']('/health', async (req: Request, res: Response) => {
       version: '3.0-streaming',
     });
   } catch (error) {
-    res['status'](503)['json']({
+    res.status(503).json({
       status: 'unhealthy',
       error: error instanceof Error ? error.message : 'Health check failed',
       timestamp: new Date().toISOString(),
@@ -686,13 +743,13 @@ router['get']('/performance', async (req: Request, res: Response) => {
     const stats = unifiedMonteCarloService.getPerformanceStats();
     const recommendations = unifiedMonteCarloService.getOptimizationRecommendations();
 
-    res['json']({
+    res.json({
       statistics: stats,
       recommendations,
       timestamp: new Date().toISOString(),
     });
   } catch (error) {
-    res['status'](500)['json']({
+    res.status(500).json({
       error: 'PERFORMANCE_STATS_FAILED',
       message: error instanceof Error ? error.message : 'Failed to retrieve performance statistics',
       timestamp: new Date().toISOString(),
@@ -707,28 +764,35 @@ router['get']('/performance', async (req: Request, res: Response) => {
 router['get']('/funds/:fundId/simulate', async (req: Request, res: Response) => {
   try {
     const fundId = toNumber(req.params['fundId'], 'Fund ID');
+
+    if (!(await enforceProvidedFundScope(req, res, fundId))) {
+      return;
+    }
+
     const runs = parseInt((req.query['runs'] as string) || '1000');
     const timeHorizonYears = parseInt((req.query['timeHorizonYears'] as string) || '8');
     const engine = (req.query['engine'] as 'streaming' | 'traditional' | 'auto') || 'auto';
 
     if (runs < 100 || runs > 10000) {
-      return res['status'](400)['json']({
+      return res.status(400).json({
         error: 'INVALID_PARAMETERS',
         message: 'Runs must be between 100 and 10,000 for GET endpoint',
       });
     }
 
+    const createdBy = getRequestCreatedBy(req);
     const config = {
       fundId,
       runs,
       timeHorizonYears,
       forceEngine: engine,
       batchSize: Math.min(runs, 1000),
+      ...(createdBy !== undefined ? { createdBy } : {}),
     };
 
     const result = await unifiedMonteCarloService.runSimulation(config);
 
-    res['json']({
+    res.json({
       fundId,
       ...result,
       metadata: {
@@ -737,7 +801,7 @@ router['get']('/funds/:fundId/simulate', async (req: Request, res: Response) => 
       },
     });
   } catch (error) {
-    res['status'](500)['json']({
+    res.status(500).json({
       error: 'QUICK_SIMULATION_FAILED',
       message: error instanceof Error ? error.message : 'Quick simulation failed',
     });
@@ -753,12 +817,12 @@ router['delete']('/cache', async (req: Request, res: Response) => {
     // This would need to be implemented in the service
     // await unifiedMonteCarloService.clearCache();
 
-    res['json']({
+    res.json({
       message: 'Performance cache cleared',
       timestamp: new Date().toISOString(),
     });
   } catch (error) {
-    res['status'](500)['json']({
+    res.status(500).json({
       error: 'CACHE_CLEAR_FAILED',
       message: error instanceof Error ? error.message : 'Failed to clear cache',
     });
@@ -773,7 +837,7 @@ router['delete']('/cache', async (req: Request, res: Response) => {
 router['use']((error: unknown, req: Request, res: Response, _next: NextFunction) => {
   logger.error({ error }, '[MONTE_CARLO_ROUTES] Error');
 
-  res['status'](500)['json']({
+  res.status(500).json({
     error: 'MONTE_CARLO_ERROR',
     message: 'An unexpected error occurred in Monte Carlo simulation',
     timestamp: new Date().toISOString(),

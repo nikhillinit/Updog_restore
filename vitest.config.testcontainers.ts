@@ -7,29 +7,16 @@
  * IMPORTANT: Only includes tests that actually require Docker containers.
  * tests/api/** are excluded - they test client engines and run via vitest.config.int.ts
  */
-import { dirname, resolve } from 'node:path';
+import { dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { defineConfig } from 'vitest/config';
+import { createVitestAlias } from './vitest.config.shared.mjs';
 
 const projectRoot = dirname(fileURLToPath(import.meta.url));
-
-// Complete alias configuration (mirrors vitest.config.ts)
-const alias = {
-  // Primary path aliases - order matters: more specific first
-  '@/core': resolve(projectRoot, './client/src/core'),
-  '@/lib': resolve(projectRoot, './client/src/lib'),
-  '@/utils': resolve(projectRoot, './client/src/utils'),
-  '@/server': resolve(projectRoot, './server'),
-  '@/': resolve(projectRoot, './client/src/'),
-  '@': resolve(projectRoot, './client/src'),
-
-  // Shared and assets
-  '@shared/': resolve(projectRoot, './shared/'),
-  '@shared': resolve(projectRoot, './shared'),
-  '@schema': resolve(projectRoot, './shared/schema'),
-  '@assets/': resolve(projectRoot, './assets/'),
-  '@assets': resolve(projectRoot, './assets'),
-};
+const alias = createVitestAlias(projectRoot, {
+  includeAppServer: true,
+  includeClientUtils: true,
+});
 
 export default defineConfig({
   root: projectRoot,
@@ -42,6 +29,7 @@ export default defineConfig({
     include: [
       'tests/integration/testcontainers-smoke.test.ts',
       'tests/integration/migration-runner.test.ts',
+      'tests/integration/fund-lifecycle-db.test.ts',
       // DISABLED: Pre-existing issues - fix in separate PRs
       // 'tests/integration/ScenarioMatrixCache.integration.test.ts', // bucket allocation validation
       // 'tests/integration/cache-monitoring.integration.test.ts', // server/db.ts imports database-mock
@@ -61,11 +49,8 @@ export default defineConfig({
     clearMocks: true,
     restoreMocks: true,
     pool: 'forks',
-    poolOptions: {
-      forks: {
-        singleFork: true, // Prevent parallel execution that could conflict with containers
-      },
-    },
+    maxWorkers: 1, // Prevent parallel execution that could conflict with containers
+    isolate: false, // Keep Docker-backed tests in one fork worker.
     env: {
       NODE_ENV: 'test',
       TZ: 'UTC',

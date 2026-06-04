@@ -7,6 +7,10 @@ import { config as loadDotenv } from 'dotenv';
 import pino from 'pino';
 import { z } from 'zod';
 import { assertSecureURL, validateCORSOrigins } from '../lib/url-security.js';
+import {
+  PROFESSIONAL_DEMO_RUNTIME_MODE,
+  getProfessionalDemoRuntimeConfigurationError,
+} from '../storage-runtime-policy.js';
 
 const logger = pino({
   level: process.env['LOG_LEVEL'] || 'info',
@@ -25,6 +29,16 @@ const explicitNodeEnv = process.env.NODE_ENV;
 const explicitNodeEnvMarker = process.env['_EXPLICIT_NODE_ENV'];
 const explicitRedisUrl = process.env.REDIS_URL;
 const explicitRedisUrlMarker = process.env['_EXPLICIT_REDIS_URL'];
+const explicitQueueRedisUrl = process.env['QUEUE_REDIS_URL'];
+const explicitQueueRedisUrlMarker = process.env['_EXPLICIT_QUEUE_REDIS_URL'];
+const explicitEnableQueues = process.env['ENABLE_QUEUES'];
+const explicitEnableQueuesMarker = process.env['_EXPLICIT_ENABLE_QUEUES'];
+const explicitDatabaseUrl = process.env.DATABASE_URL;
+const explicitDatabaseUrlMarker = process.env['_EXPLICIT_DATABASE_URL'];
+const explicitNeonDatabaseUrl = process.env['NEON_DATABASE_URL'];
+const explicitNeonDatabaseUrlMarker = process.env['_EXPLICIT_NEON_DATABASE_URL'];
+const explicitAllowMemoryStorage = process.env['ALLOW_MEMORY_STORAGE'];
+const explicitAllowMemoryStorageMarker = process.env['_EXPLICIT_ALLOW_MEMORY_STORAGE'];
 const explicitJwtSecret = process.env.JWT_SECRET;
 const explicitJwtSecretMarker = process.env['_EXPLICIT_JWT_SECRET'];
 const explicitJwtIssuer = process.env['JWT_ISSUER'];
@@ -68,6 +82,45 @@ if (
   explicitRedisUrl !== process.env.REDIS_URL
 ) {
   process.env.REDIS_URL = explicitRedisUrl;
+}
+// Restore explicitly-set QUEUE_REDIS_URL and ENABLE_QUEUES if .env tried to override them
+if (
+  explicitQueueRedisUrlMarker &&
+  explicitQueueRedisUrl !== undefined &&
+  explicitQueueRedisUrl !== process.env['QUEUE_REDIS_URL']
+) {
+  process.env['QUEUE_REDIS_URL'] = explicitQueueRedisUrl;
+}
+if (
+  explicitEnableQueuesMarker &&
+  explicitEnableQueues !== undefined &&
+  explicitEnableQueues !== process.env['ENABLE_QUEUES']
+) {
+  process.env['ENABLE_QUEUES'] = explicitEnableQueues;
+}
+// Restore explicitly-set DATABASE_URL if .env tried to override it
+if (
+  explicitDatabaseUrlMarker &&
+  explicitDatabaseUrl !== undefined &&
+  explicitDatabaseUrl !== process.env.DATABASE_URL
+) {
+  process.env.DATABASE_URL = explicitDatabaseUrl;
+}
+// Restore explicitly-set NEON_DATABASE_URL if .env tried to override it
+if (
+  explicitNeonDatabaseUrlMarker &&
+  explicitNeonDatabaseUrl !== undefined &&
+  explicitNeonDatabaseUrl !== process.env['NEON_DATABASE_URL']
+) {
+  process.env['NEON_DATABASE_URL'] = explicitNeonDatabaseUrl;
+}
+// Restore explicitly-set ALLOW_MEMORY_STORAGE if .env tried to override it
+if (
+  explicitAllowMemoryStorageMarker &&
+  explicitAllowMemoryStorage !== undefined &&
+  explicitAllowMemoryStorage !== process.env['ALLOW_MEMORY_STORAGE']
+) {
+  process.env['ALLOW_MEMORY_STORAGE'] = explicitAllowMemoryStorage;
 }
 // Restore explicitly-set JWT_SECRET if .env tried to override it
 if (
@@ -150,6 +203,7 @@ const envSchema = z.object({
 
   // Feature flags & modes
   DEMO_MODE: bool.default(false),
+  PROFESSIONAL_DEMO_MODE: z.literal(PROFESSIONAL_DEMO_RUNTIME_MODE).optional(),
   REQUIRE_AUTH: bool.default(true),
   ENGINE_FAULT_RATE: z.coerce.number().min(0).max(1).default(0),
 
@@ -241,6 +295,18 @@ export function loadEnv() {
   logger.info(
     `[config] NODE_ENV detected: ${config.NODE_ENV} (from process.env: ${process.env['NODE_ENV']})`
   );
+
+  const professionalDemoError = getProfessionalDemoRuntimeConfigurationError(
+    {
+      ...process.env,
+      PORT: String(config.PORT),
+      CLIENT_URL: config.CLIENT_URL,
+    },
+    { requireApiTarget: config.PROFESSIONAL_DEMO_MODE === PROFESSIONAL_DEMO_RUNTIME_MODE }
+  );
+  if (professionalDemoError !== null) {
+    throw new Error(professionalDemoError);
+  }
 
   // Additional validation for production
   if (config.NODE_ENV === 'production') {

@@ -74,9 +74,13 @@ export function StageAllocationCard({
 
   const summary = (
     <div className="text-sm text-muted-foreground">
-      Total: <span className={isValid ? 'text-green-700' : 'text-red-700'}>{totalPct.toFixed(0)}%</span>
+      Total:{' '}
+      <span className={isValid ? 'text-success-dark' : 'text-error-dark'}>
+        {totalPct.toFixed(0)}%
+      </span>
       {' · '}
-      Reserves: {(value.reserves ?? 0).toFixed(0)}% ({formatUSD(pctOfDollars(committedCapitalUSD, value.reserves ?? 0))})
+      Reserves: {(value.reserves ?? 0).toFixed(0)}% (
+      {formatUSD(pctOfDollars(committedCapitalUSD, value.reserves ?? 0))})
     </div>
   );
 
@@ -85,7 +89,7 @@ export function StageAllocationCard({
       title="Stage Allocation (must sum to 100%)"
       summary={summary}
       defaultExpanded
-      {...spreadIfDefined("className", className)}
+      {...spreadIfDefined('className', className)}
     >
       <div className="space-y-3">
         {/* Stage Fields */}
@@ -148,15 +152,19 @@ export function StageAllocationCard({
         <div className="mt-2 flex items-center justify-between">
           <div className="text-sm">
             Total:{' '}
-            <span className={isValid ? 'text-green-700' : 'text-red-700'}>{totalPct.toFixed(0)}%</span>
+            <span className={isValid ? 'text-success-dark' : 'text-error-dark'}>
+              {totalPct.toFixed(0)}%
+            </span>
             {!isValid && (
-              <span className="ml-2 text-red-700">Allocations must sum to 100% to continue.</span>
+              <span className="ml-2 text-error-dark">
+                Allocations must sum to 100% to continue.
+              </span>
             )}
           </div>
           {!isValid && (
             <button
               type="button"
-              className="text-sm underline hover:text-purple-700"
+              className="text-sm underline hover:text-pov-charcoal"
               onClick={balanceRemainder}
               disabled={disabled}
             >

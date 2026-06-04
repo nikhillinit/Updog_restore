@@ -1,3 +1,7 @@
+---
+last_updated: 2026-05-11
+---
+
 # Claude Code Operating Loop
 
 This document defines the canonical operating loop for Claude Code in this

@@ -311,7 +311,7 @@ From `eslint.config.js:46-125`:
 - `dist/`, `coverage/`, `.vite/`, `.vercel/`, `.claude/`, `node_modules/`,
   `build/`
 - `scripts/`, `auto-discovery/`, `workers/`, `types/`, `tools/`
-- `ai-utils/`, `notebooks/`, `server/examples/`, `docs/`, `msw/`
+- `ai-utils/`, `server/examples/`, `docs/`, `msw/`
 - `eslint-rules/`, `*.cjs`, `src/`, `k6/`, `tests/k6/`, `tests/perf/`,
   `tests/performance/*.js`
 - `archive/`, `_archive/`, `.migration-backup/`, `.backup/`

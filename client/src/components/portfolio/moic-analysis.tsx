@@ -13,6 +13,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { TrendingUp, Calculator, Target, Info } from 'lucide-react';
+import { presson } from '@/theme/presson.tokens';
 
 type MOICData = {
   companyName: string;
@@ -30,6 +31,21 @@ type MOICData = {
   sector: string;
   stage: string;
 };
+
+const UI_SUCCESS_COLOR = '#10b981';
+const CHART_GRID_COLOR = presson.color.borderSubtle;
+const CHART_AXIS_COLOR = presson.color.textMuted;
+const CHART_BORDER = presson.color.borderSubtle;
+const MOIC_SERIES_COLORS = {
+  current: presson.color.positive,
+  currentInitial: presson.color.text,
+  currentDeployedReserves: presson.color.info,
+  exit: presson.color.positive,
+  exitInitial: presson.color.text,
+  exitFollowOns: presson.color.info,
+  exitPlannedReserves: UI_SUCCESS_COLOR,
+  expectedReserves: presson.color.positive,
+} as const;
 
 type TooltipLabelPayload = ReadonlyArray<{
   payload?: {
@@ -166,10 +182,9 @@ export default function MOICAnalysis() {
   };
 
   const getMOICColor = (value: number) => {
-    if (value >= 5) return 'text-green-600';
-    if (value >= 3) return 'text-blue-600';
-    if (value >= 2) return 'text-yellow-600';
-    return 'text-red-600';
+    if (value >= 2) return 'text-presson-positive';
+    if (value >= 1) return 'text-presson-warning';
+    return 'text-presson-negative';
   };
 
   const getCurrentMOICChartData = () => {
@@ -205,8 +220,8 @@ export default function MOICAnalysis() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-2xl font-bold text-gray-900">Investment MOICs Analysis</h2>
-          <p className="text-gray-600 mt-1">
+          <h2 className="text-2xl font-bold text-pov-charcoal">Investment MOICs Analysis</h2>
+          <p className="text-charcoal-600 mt-1">
             Track seven different MOIC calculations for comprehensive investment performance
             analysis
           </p>
@@ -227,22 +242,22 @@ export default function MOICAnalysis() {
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center">
-            <Info className="w-5 h-5 mr-2 text-blue-600" />
+            <Info className="w-5 h-5 mr-2 text-presson-info" />
             Seven MOIC Calculation Types
           </CardTitle>
-          <p className="text-sm text-gray-600">
+          <p className="text-sm text-charcoal-600">
             Each MOIC represents a different and nuanced performance view of your investments
           </p>
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {moicDefinitions.map((def, index) => (
-              <div key={index} className="p-4 border border-gray-200 rounded-lg">
-                <div className="font-medium text-gray-900 mb-2">{def.name}</div>
-                <div className="text-sm text-blue-600 font-mono mb-2 bg-blue-50 p-2 rounded">
+              <div key={index} className="p-4 border border-beige-200 rounded-lg">
+                <div className="font-medium text-pov-charcoal mb-2">{def.name}</div>
+                <div className="text-sm text-presson-info font-mono mb-2 bg-presson-info/10 p-2 rounded">
                   {def.formula}
                 </div>
-                <div className="text-sm text-gray-600">{def.description}</div>
+                <div className="text-sm text-charcoal-600">{def.description}</div>
               </div>
             ))}
           </div>
@@ -263,7 +278,7 @@ export default function MOICAnalysis() {
             <Card>
               <CardHeader>
                 <CardTitle>Current MOIC Performance</CardTitle>
-                <p className="text-sm text-gray-600">
+                <p className="text-sm text-charcoal-600">
                   Performance to date across different investment components
                 </p>
               </CardHeader>
@@ -271,13 +286,19 @@ export default function MOICAnalysis() {
                 <div className="h-80">
                   <ResponsiveContainer width="100%" height="100%">
                     <BarChart data={getCurrentMOICChartData()}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-                      <XAxis dataKey="name" stroke="#666" fontSize={12} />
-                      <YAxis stroke="#666" fontSize={12} />
+                      <CartesianGrid strokeDasharray="3 3" stroke={CHART_GRID_COLOR} />
+                      <XAxis dataKey="name" stroke={CHART_AXIS_COLOR} fontSize={12} />
+                      <YAxis stroke={CHART_AXIS_COLOR} fontSize={12} />
                       <Tooltip formatter={(value) => [`${value}x`, String(value)]} />
-                      <Bar dataKey="Current MOIC" fill="#3b82f6" />
-                      <Bar dataKey="Current MOIC on Initial" fill="#06b6d4" />
-                      <Bar dataKey="Current MOIC on Deployed Reserves" fill="#10b981" />
+                      <Bar dataKey="Current MOIC" fill={MOIC_SERIES_COLORS.current} />
+                      <Bar
+                        dataKey="Current MOIC on Initial"
+                        fill={MOIC_SERIES_COLORS.currentInitial}
+                      />
+                      <Bar
+                        dataKey="Current MOIC on Deployed Reserves"
+                        fill={MOIC_SERIES_COLORS.currentDeployedReserves}
+                      />
                     </BarChart>
                   </ResponsiveContainer>
                 </div>
@@ -293,11 +314,11 @@ export default function MOICAnalysis() {
                   {sampleMOICData.map((company, index) => (
                     <div
                       key={index}
-                      className="flex items-center justify-between p-3 bg-gray-50 rounded-lg"
+                      className="flex items-center justify-between p-3 bg-pov-gray rounded-lg"
                     >
                       <div>
                         <div className="font-medium">{company.companyName}</div>
-                        <div className="text-sm text-gray-600">
+                        <div className="text-sm text-charcoal-600">
                           {company.sector} • {company.stage}
                         </div>
                       </div>
@@ -305,7 +326,7 @@ export default function MOICAnalysis() {
                         <div className={`text-lg font-bold ${getMOICColor(company.currentMOIC)}`}>
                           {company.currentMOIC.toFixed(1)}x
                         </div>
-                        <div className="text-sm text-gray-600">
+                        <div className="text-sm text-charcoal-600">
                           {formatCurrency(company.totalInvested)} invested
                         </div>
                       </div>
@@ -321,7 +342,7 @@ export default function MOICAnalysis() {
           <Card>
             <CardHeader>
               <CardTitle>Expected Exit MOIC Performance</CardTitle>
-              <p className="text-sm text-gray-600">
+              <p className="text-sm text-charcoal-600">
                 Projected performance at exit across different investment components
               </p>
             </CardHeader>
@@ -329,14 +350,20 @@ export default function MOICAnalysis() {
               <div className="h-80">
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart data={getExitMOICChartData()}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-                    <XAxis dataKey="name" stroke="#666" fontSize={12} />
-                    <YAxis stroke="#666" fontSize={12} />
+                    <CartesianGrid strokeDasharray="3 3" stroke={CHART_GRID_COLOR} />
+                    <XAxis dataKey="name" stroke={CHART_AXIS_COLOR} fontSize={12} />
+                    <YAxis stroke={CHART_AXIS_COLOR} fontSize={12} />
                     <Tooltip formatter={(value) => [`${value}x`, String(value)]} />
-                    <Bar dataKey="Exit MOIC" fill="#8b5cf6" />
-                    <Bar dataKey="Exit MOIC on Initial" fill="#f59e0b" />
-                    <Bar dataKey="Exit MOIC on Follow-Ons" fill="#ef4444" />
-                    <Bar dataKey="Exit MOIC on Planned Reserves" fill="#06d6a0" />
+                    <Bar dataKey="Exit MOIC" fill={MOIC_SERIES_COLORS.exit} />
+                    <Bar dataKey="Exit MOIC on Initial" fill={MOIC_SERIES_COLORS.exitInitial} />
+                    <Bar
+                      dataKey="Exit MOIC on Follow-Ons"
+                      fill={MOIC_SERIES_COLORS.exitFollowOns}
+                    />
+                    <Bar
+                      dataKey="Exit MOIC on Planned Reserves"
+                      fill={MOIC_SERIES_COLORS.exitPlannedReserves}
+                    />
                   </BarChart>
                 </ResponsiveContainer>
               </div>
@@ -348,7 +375,7 @@ export default function MOICAnalysis() {
           <Card>
             <CardHeader>
               <CardTitle>Exit MOIC on Planned Reserves</CardTitle>
-              <p className="text-sm text-gray-600">
+              <p className="text-sm text-charcoal-600">
                 Expected return for every $1 of future follow-on investments - key metric for
                 optimal reserve deployment
               </p>
@@ -357,10 +384,10 @@ export default function MOICAnalysis() {
               <div className="h-80">
                 <ResponsiveContainer width="100%" height="100%">
                   <ScatterChart data={getPlannedReservesData()}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                    <CartesianGrid strokeDasharray="3 3" stroke={CHART_GRID_COLOR} />
                     <XAxis
                       dataKey="plannedReserves"
-                      stroke="#666"
+                      stroke={CHART_AXIS_COLOR}
                       fontSize={12}
                       label={{
                         value: 'Planned Reserves ($M)',
@@ -370,7 +397,7 @@ export default function MOICAnalysis() {
                     />
                     <YAxis
                       dataKey="expectedMOIC"
-                      stroke="#666"
+                      stroke={CHART_AXIS_COLOR}
                       fontSize={12}
                       label={{ value: 'Expected MOIC', angle: -90, position: 'insideLeft' }}
                     />
@@ -383,11 +410,11 @@ export default function MOICAnalysis() {
                       labelFormatter={formatReserveTooltipLabel}
                       contentStyle={{
                         backgroundColor: 'white',
-                        border: '1px solid #e5e7eb',
+                        border: `1px solid ${CHART_BORDER}`,
                         borderRadius: '6px',
                       }}
                     />
-                    <Scatter dataKey="expectedMOIC" fill="#3b82f6" />
+                    <Scatter dataKey="expectedMOIC" fill={MOIC_SERIES_COLORS.expectedReserves} />
                   </ScatterChart>
                 </ResponsiveContainer>
               </div>
@@ -406,16 +433,16 @@ export default function MOICAnalysis() {
                     .map((company, index) => (
                       <div
                         key={index}
-                        className="flex items-center justify-between p-3 bg-green-50 rounded-lg"
+                        className="flex items-center justify-between p-3 bg-success/10 rounded-lg"
                       >
                         <div>
                           <div className="font-medium">{company.companyName}</div>
-                          <div className="text-sm text-gray-600">
+                          <div className="text-sm text-charcoal-600">
                             {formatCurrency(company.plannedReserves)} planned
                           </div>
                         </div>
                         <div className="text-right">
-                          <div className="text-lg font-bold text-green-600">
+                          <div className="text-lg font-bold text-presson-positive">
                             {company.exitMOICOnPlannedReserves.toFixed(1)}x
                           </div>
                           <Badge variant="outline" className="text-xs">
@@ -434,18 +461,18 @@ export default function MOICAnalysis() {
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
-                  <div className="p-4 bg-blue-50 rounded-lg">
+                  <div className="p-4 bg-presson-info/10 rounded-lg">
                     <div className="flex items-center mb-2">
-                      <TrendingUp className="w-5 h-5 text-blue-600 mr-2" />
-                      <span className="font-medium text-blue-900">Highest Expected Return</span>
+                      <TrendingUp className="w-5 h-5 text-presson-info mr-2" />
+                      <span className="font-medium text-presson-info">Highest Expected Return</span>
                     </div>
-                    <div className="text-2xl font-bold text-blue-600">
+                    <div className="text-2xl font-bold text-presson-info">
                       {Math.max(...sampleMOICData.map((c) => c.exitMOICOnPlannedReserves)).toFixed(
                         1
                       )}
                       x
                     </div>
-                    <div className="text-sm text-blue-700">
+                    <div className="text-sm text-presson-info">
                       on{' '}
                       {
                         sampleMOICData.find(
@@ -457,26 +484,26 @@ export default function MOICAnalysis() {
                     </div>
                   </div>
 
-                  <div className="p-4 bg-amber-50 rounded-lg">
-                    <div className="font-medium text-amber-900 mb-2">Average Expected MOIC</div>
-                    <div className="text-2xl font-bold text-amber-600">
+                  <div className="p-4 bg-warning/10 rounded-lg">
+                    <div className="font-medium text-warning-dark mb-2">Average Expected MOIC</div>
+                    <div className="text-2xl font-bold text-presson-warning">
                       {(
                         sampleMOICData.reduce((sum, c) => sum + c.exitMOICOnPlannedReserves, 0) /
                         sampleMOICData.length
                       ).toFixed(1)}
                       x
                     </div>
-                    <div className="text-sm text-amber-700">across all planned reserves</div>
+                    <div className="text-sm text-presson-warning">across all planned reserves</div>
                   </div>
 
-                  <div className="p-4 bg-gray-50 rounded-lg">
-                    <div className="font-medium text-gray-900 mb-2">Total Planned Reserves</div>
-                    <div className="text-2xl font-bold text-gray-700">
+                  <div className="p-4 bg-pov-gray rounded-lg">
+                    <div className="font-medium text-pov-charcoal mb-2">Total Planned Reserves</div>
+                    <div className="text-2xl font-bold text-charcoal-700">
                       {formatCurrency(
                         sampleMOICData.reduce((sum, c) => sum + c.plannedReserves, 0)
                       )}
                     </div>
-                    <div className="text-sm text-gray-600">
+                    <div className="text-sm text-charcoal-600">
                       across {sampleMOICData.length} companies
                     </div>
                   </div>
@@ -490,7 +517,7 @@ export default function MOICAnalysis() {
           <Card>
             <CardHeader>
               <CardTitle>MOIC Performance Comparison</CardTitle>
-              <p className="text-sm text-gray-600">
+              <p className="text-sm text-charcoal-600">
                 Compare current vs expected performance across all MOIC types
               </p>
             </CardHeader>
@@ -498,7 +525,7 @@ export default function MOICAnalysis() {
               <div className="overflow-x-auto">
                 <table className="w-full">
                   <thead>
-                    <tr className="border-b border-gray-200">
+                    <tr className="border-b border-beige-200">
                       <th className="text-left p-3 font-medium">Company</th>
                       <th className="text-left p-3 font-medium">Current MOIC</th>
                       <th className="text-left p-3 font-medium">Current MOIC on Initial</th>
@@ -509,10 +536,10 @@ export default function MOICAnalysis() {
                   </thead>
                   <tbody>
                     {sampleMOICData.map((company, index) => (
-                      <tr key={index} className="border-b border-gray-100 hover:bg-gray-50">
+                      <tr key={index} className="border-b border-beige-200 hover:bg-pov-gray">
                         <td className="p-3">
                           <div className="font-medium">{company.companyName}</div>
-                          <div className="text-sm text-gray-600">{company.sector}</div>
+                          <div className="text-sm text-charcoal-600">{company.sector}</div>
                         </td>
                         <td className="p-3">
                           <span className={`font-medium ${getMOICColor(company.currentMOIC)}`}>

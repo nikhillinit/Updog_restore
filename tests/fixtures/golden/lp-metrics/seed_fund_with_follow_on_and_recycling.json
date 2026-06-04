@@ -1,0 +1,114 @@
+{
+  "scenario_id": "seed_fund_with_follow_on_and_recycling",
+  "description": "LP-net seed fund with follow-on capital calls, one recallable distribution used as recycling headroom, a realized LP distribution, and terminal NAV.",
+  "engine": {
+    "target": "server/services/lp-reporting/metrics-engine.computeMetrics",
+    "current_output_precision": "6dp decimal strings",
+    "requested_golden_precision": "1e-8",
+    "precision_note": "The fixture locks 1e-8 expected values, while the current LP metric-run wire contract serializes ratios and IRR to 6 decimal places. Tests compare current engine output at the documented 1e-6 contract tolerance until the wire contract is widened."
+  },
+  "input": {
+    "fundId": 101,
+    "asOfDate": "2030-12-31",
+    "perspective": "lp_net",
+    "cashFlowEvents": [
+      {
+        "id": 1,
+        "eventType": "lp_capital_call",
+        "amount": "10000000.000000",
+        "eventDate": "2024-01-02",
+        "perspective": "lp_net",
+        "status": "approved"
+      },
+      {
+        "id": 2,
+        "eventType": "lp_capital_call",
+        "amount": "8000000.000000",
+        "eventDate": "2024-07-01",
+        "perspective": "lp_net",
+        "status": "approved"
+      },
+      {
+        "id": 3,
+        "eventType": "lp_capital_call",
+        "amount": "6000000.000000",
+        "eventDate": "2025-01-02",
+        "perspective": "lp_net",
+        "status": "approved"
+      },
+      {
+        "id": 4,
+        "eventType": "recallable_distribution",
+        "amount": "2000000.000000",
+        "eventDate": "2027-06-30",
+        "perspective": "lp_net",
+        "status": "approved"
+      },
+      {
+        "id": 5,
+        "eventType": "lp_distribution",
+        "amount": "4000000.000000",
+        "eventDate": "2027-06-30",
+        "perspective": "lp_net",
+        "status": "approved"
+      }
+    ],
+    "valuationMarks": [
+      {
+        "id": 101,
+        "fairValue": "40000000.000000",
+        "markDate": "2030-12-31",
+        "asOfDate": "2030-12-31",
+        "status": "approved",
+        "confidenceLevel": "high",
+        "companyId": 201
+      }
+    ]
+  },
+  "derivedCapital": {
+    "investable_capital_usd": "50000000.00000000",
+    "total_deployed_usd": "32000000.00000000",
+    "remaining_capital_usd": "18000000.00000000",
+    "recycled_capital_usd": "2000000.00000000"
+  },
+  "expected": {
+    "contributionsTotal": "22000000.000000",
+    "distributionsTotal": "4000000.000000",
+    "currentNav": "40000000.000000",
+    "dpi": "0.18181818",
+    "rvpi": "1.81818182",
+    "tvpi": "2.00000000",
+    "irr": "0.10245355",
+    "lp_proceeds_usd": "44000000.00",
+    "engine_decimal_strings": {
+      "dpi": "0.181818",
+      "rvpi": "1.818182",
+      "tvpi": "2.000000",
+      "netIrr": "0.102454",
+      "grossIrr": "0.102454",
+      "contributionsTotal": "22000000.000000",
+      "distributionsTotal": "4000000.000000",
+      "currentNav": "40000000.000000"
+    },
+    "tolerances": {
+      "requested_metric": "0.00000001",
+      "current_engine_metric": "0.000001",
+      "money": "0.005"
+    }
+  },
+  "notes": [
+    "TVPI is exactly 2.00000000 at the requested fixture precision.",
+    "Recallable distributions reduce LP net contributions in the current metrics engine.",
+    "This scenario is intentionally LP-net; do not add realized_proceeds unless you also adjust distributions to avoid double-counting."
+  ],
+  "lock": {
+    "locked_at": "2026-05-28T06:36:00.564Z",
+    "inputs_hash": "a83581d5cb0a0ed49921e39e8cd39ff056868f3ea48a501bd13796afe5067e1c",
+    "diagnostics": {
+      "engineVersion": "1.0.0",
+      "decimalPrecision": 6,
+      "excludedFutureMarks": [],
+      "warnings": []
+    }
+  }
+}

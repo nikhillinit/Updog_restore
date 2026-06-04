@@ -23,7 +23,7 @@ import {
   createTestInvestment,
   createSamplePortfolio,
   type Investment,
-} from '@/core/moic/MOICCalculator';
+} from '@shared/core/moic/MOICCalculator';
 
 describe('MOICCalculator', () => {
   describe('1. Current MOIC', () => {

@@ -48,12 +48,12 @@ export function SectorProfileSwitcher({
   return (
     <div
       className={cn(
-        'w-64 bg-white border-r border-[#E0D8D1] flex flex-col h-full flex-shrink-0',
+        'w-64 bg-pov-white border-r border-beige-200 flex flex-col h-full flex-shrink-0',
         className
       )}
     >
-      <div className="p-4 border-b border-gray-100">
-        <h2 className="text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-4 font-poppins">
+      <div className="p-4 border-b border-beige-200">
+        <h2 className="text-[10px] font-bold text-charcoal-500 uppercase tracking-wider mb-4 font-poppins">
           Sector profiles
         </h2>
         <div className="space-y-1">
@@ -65,16 +65,18 @@ export function SectorProfileSwitcher({
                 onClick={() => onSelectProfile(profile.id)}
                 className={cn(
                   'w-full flex items-center justify-between px-3 py-3 rounded-lg text-sm transition-all group',
-                  'focus:outline-none focus:ring-2 focus:ring-[#292929] focus:ring-offset-2',
+                  'focus:outline-none focus:ring-2 focus:ring-pov-charcoal focus:ring-offset-2',
                   isActive
-                    ? 'bg-[#292929] text-white font-semibold shadow-md ring-2 ring-[#292929] ring-offset-2'
-                    : 'text-gray-700 hover:bg-gray-100 hover:text-gray-900 font-medium'
+                    ? 'bg-pov-charcoal text-pov-white font-semibold shadow-md ring-2 ring-pov-charcoal ring-offset-2'
+                    : 'text-charcoal-700 hover:bg-pov-gray hover:text-pov-charcoal font-medium'
                 )}
               >
                 <div className="flex items-center gap-3">
                   <div
                     className={cn(
-                      isActive ? 'text-gray-300' : 'text-gray-400 group-hover:text-gray-600'
+                      isActive
+                        ? 'text-charcoal-300'
+                        : 'text-charcoal-400 group-hover:text-charcoal-600'
                     )}
                   >
                     {getProfileIcon(profile)}
@@ -84,7 +86,7 @@ export function SectorProfileSwitcher({
                     <span
                       className={cn(
                         'text-[10px] font-medium',
-                        isActive ? 'text-gray-400' : 'text-gray-400'
+                        isActive ? 'text-charcoal-400' : 'text-charcoal-400'
                       )}
                     >
                       {profile.stagesCount} stages
@@ -105,12 +107,14 @@ export function SectorProfileSwitcher({
                         e.stopPropagation();
                         onProfileMenu(profile.id);
                       }}
-                      className="p-1 hover:bg-white/20 rounded"
+                      className="p-1 hover:bg-pov-white/20 rounded"
                     >
                       <MoreHorizontal
                         className={cn(
                           'w-4 h-4',
-                          isActive ? 'text-gray-400' : 'text-gray-400 hover:text-gray-600'
+                          isActive
+                            ? 'text-charcoal-400'
+                            : 'text-charcoal-400 hover:text-charcoal-600'
                         )}
                       />
                     </button>
@@ -122,10 +126,10 @@ export function SectorProfileSwitcher({
         </div>
       </div>
 
-      <div className="p-4 mt-auto border-t border-gray-100">
+      <div className="p-4 mt-auto border-t border-beige-200">
         <Button
           variant="outline"
-          className="w-full justify-start text-gray-600 hover:text-gray-900 hover:bg-gray-50 font-medium font-poppins"
+          className="w-full justify-start text-charcoal-600 hover:text-pov-charcoal hover:bg-pov-gray font-medium font-poppins"
           size="sm"
           onClick={onAddProfile}
         >

@@ -33,7 +33,7 @@ describe('server public API route boundary', () => {
     ['GET', '/funds/finalize'],
     ['GET', '/funds/calculate'],
     ['POST', '/funds/1/allocations'],
-    ['GET', '/funds/1/portfolio-analysis'],
+    ['GET', '/funds/1/dual-forecast'],
     ['GET', '/flags/admin/audit'],
   ])('keeps %s %s protected', (method, path) => {
     expect(isPublicApiPath(method, path)).toBe(false);

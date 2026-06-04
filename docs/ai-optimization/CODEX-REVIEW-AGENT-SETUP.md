@@ -1,9 +1,13 @@
 ---
-status: ACTIVE
-last_updated: 2026-01-19
+status: HISTORICAL
+last_updated: 2026-05-27
 ---
 
-# Codex Review Agent - Setup Complete! 🎉
+# Codex Review Agent - Setup Complete!
+
+Batch 8 removed the local `packages/codex-review-agent/` source after live
+reference scans found no active root script, app, test, workflow, or config
+dependency. This document is retained as historical implementation context.
 
 ## What We Built
 
@@ -22,8 +26,8 @@ npm run review:watch
 You'll see:
 
 ```
-🚀 Starting Codex Review Agent...
-✅ Codex Review Agent is running!
+Starting Codex Review Agent...
+[OK] Codex Review Agent is running!
    Watching for file changes...
    Press Ctrl+C to stop
 ```
@@ -44,15 +48,15 @@ You'll get instant feedback like:
 
 ```
 ================================================================================
-📊 Codex Review: client/src/components/Dashboard.tsx
+Codex Review: client/src/components/Dashboard.tsx
 ================================================================================
 
-✅ GOOD: Code looks good with minimal issues
+[OK] GOOD: Code looks good with minimal issues
 
-🟡 MEDIUM (1):
+MEDIUM (1):
   1. [gemini] Avoid using "any" type - use specific types for better type safety
 
-🔵 LOW (1):
+LOW (1):
   1. [openai] Remove console.log statements before committing
 
 ================================================================================
@@ -60,10 +64,11 @@ You'll get instant feedback like:
 
 ## Key Features
 
-✅ **Real-time reviews** - Get feedback within 1 second of saving ✅ **Multi-AI
-consensus** - Reviews from 3 AI providers ✅ **Smart filtering** - Only reviews
-code files, skips node_modules ✅ **Severity levels** - Clear categorization
-(Critical → Info) ✅ **Debounced** - Won't spam if you save rapidly
+[x] **Real-time reviews** - Get feedback within 1 second of saving [x]
+**Multi-AI consensus** - Reviews from 3 AI providers [x] **Smart filtering** -
+Only reviews code files, skips node_modules [x] **Severity levels** - Clear
+categorization (Critical to Info) [x] **Debounced** - Won't spam if you save
+rapidly
 
 ## Configuration
 
@@ -78,12 +83,13 @@ The agent is pre-configured for your project:
 
 ### Enable Full MCP Integration
 
-Currently, the agent uses basic static analysis. To enable full AI reviews:
+Historically, the agent used basic static analysis. To enable full AI reviews in
+the removed package implementation:
 
 1. Ensure your MCP multi-AI server is running
-2. Update
-   [CodexReviewAgent.ts:202](packages/codex-review-agent/src/CodexReviewAgent.ts#L202)
-   to call the actual MCP server:
+2. Recover the removed `packages/codex-review-agent/` source from git history,
+   then update `CodexReviewAgent.ts` around `callMCPCodeReview()` to call the
+   actual MCP server:
 
 ```typescript
 private async callMCPCodeReview(
@@ -102,7 +108,7 @@ private async callMCPCodeReview(
 
 ### Customize Watch Paths
 
-Edit [scripts/codex-review-watch.ts](scripts/codex-review-watch.ts):
+Edit [scripts/codex-review-watch.ts](../../scripts/codex-review-watch.ts):
 
 ```typescript
 const agent = new CodexReviewAgent({
@@ -162,10 +168,10 @@ Display Results
 | **AI Count** | 1                       | 3 (consensus)      |
 | **Privacy**  | Public                  | Local              |
 
-## Files Created
+## Historical Files Created
 
 ```
-packages/codex-review-agent/
+packages/codex-review-agent/ (removed in Batch 8; recover from git history)
 ├── src/
 │   ├── CodexReviewAgent.ts    # Main agent class
 │   └── index.ts               # Exports
@@ -192,31 +198,32 @@ npm run review:watch
 # Show help
 npm run review:help
 
-# Build the agent (if you modify it)
-cd packages/codex-review-agent && npm run build
+# The local package source was removed in Batch 8.
+# There is no current package build command.
 ```
 
 ## Proven Track Record
 
 The GitHub Codex bot has already demonstrated massive value on your project:
 
-- ✅ Caught **$14M financial error** (management fee calculation)
-- ✅ Found **RS256 JWT security regression**
-- ✅ Detected **silent data loss** (wizard state)
-- ✅ Identified **dev environment blocker**
-- ✅ **100% accuracy** (0 false positives)
+- [x] Caught **$14M financial error** (management fee calculation)
+- [x] Found **RS256 JWT security regression**
+- [x] Detected **silent data loss** (wizard state)
+- [x] Identified **dev environment blocker**
+- [x] **100% accuracy** (0 false positives)
 
 Now you have that same quality of review **in real-time as you code**!
 
 ## Support
 
-- **Documentation**:
-  [packages/codex-review-agent/README.md](packages/codex-review-agent/README.md)
+- **Documentation**: historical package README was removed with
+  `packages/codex-review-agent/`; recover from git history if needed.
 - **Related**:
-  [CODEX-FIXES-EXECUTION-SUMMARY.md](docs/action-plans/CODEX-FIXES-EXECUTION-SUMMARY.md)
-- **Framework**: [BaseAgent](packages/agent-core/src/BaseAgent.ts)
+  [CODEX-FIXES-EXECUTION-SUMMARY.md](../action-plans/CODEX-FIXES-EXECUTION-SUMMARY.md)
+- **Framework**: historical `packages/agent-core/src/BaseAgent.ts` source was
+  removed with Batch 8.
 
 ---
 
-🎯 **Ready to use!** Just run `npm run review:watch` and start coding with
-instant AI feedback!
+**Ready to use!** Just run `npm run review:watch` and start coding with instant
+AI feedback!

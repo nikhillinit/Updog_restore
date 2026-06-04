@@ -24,6 +24,15 @@ import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import {
+  CrossSetScenarioComparisonTable,
+  isComparableFeeProfileComparison,
+  ScenarioComparisonTable,
+  ScenarioSetsSummary,
+} from '@/components/fund-results';
+import { EvidenceHeader, type EvidenceHeaderLifecycle } from '@/components/results/EvidenceHeader';
+import { QuarterlyReviewTrace } from '@/features/analytics-parity/QuarterlyReviewTrace';
+import { apiRequest, queryClient } from '@/lib/queryClient';
 import { cn } from '@/lib/utils';
 import type {
   FundResultsReadV1,
@@ -31,6 +40,11 @@ import type {
   WaterfallSetupSection,
 } from '@shared/contracts/fund-results-v1.contract';
 import type { EconomicsResultV1 } from '@shared/contracts/economics-v1.contract';
+import type { ScenariosSectionPayloadV1 } from '@shared/contracts/fund-scenario-sets-v1.contract';
+import {
+  FundScenarioComparisonV1Schema,
+  type FundScenarioComparisonV1,
+} from '@shared/contracts/fund-scenario-comparison-v1.contract';
 import type { FundStateReadV1 } from '@shared/contracts/fund-state-read-v1.contract';
 import type { FundLifecycleHistoryV1 } from '@shared/contracts/fund-lifecycle-history-v1.contract';
 import type {
@@ -62,6 +76,22 @@ type ResultsComparisonState =
   | { kind: 'loading'; comparison: FundResultsComparisonV1 | null }
   | { kind: 'error'; message: string; comparison: FundResultsComparisonV1 | null }
   | { kind: 'data'; comparison: FundResultsComparisonV1 };
+
+interface ScenarioComparisonBatchResult {
+  comparisons: FundScenarioComparisonV1[];
+  failedScenarioSetIds: string[];
+}
+
+type ScenarioComparisonState =
+  | { kind: 'idle'; comparisons: FundScenarioComparisonV1[]; failedScenarioSetIds: string[] }
+  | { kind: 'loading'; comparisons: FundScenarioComparisonV1[]; failedScenarioSetIds: string[] }
+  | {
+      kind: 'error';
+      message: string;
+      comparisons: FundScenarioComparisonV1[];
+      failedScenarioSetIds: string[];
+    }
+  | { kind: 'data'; comparisons: FundScenarioComparisonV1[]; failedScenarioSetIds: string[] };
 
 type LifecycleStatus = FundStateReadV1['calculationState']['status'];
 
@@ -404,6 +434,180 @@ function useFundResultsComparison(fundId: string | null) {
   return { state, refresh: fetchComparison };
 }
 
+interface ScenarioComparisonFetchRequest {
+  fundId: string;
+  scenarioSetIds: string[];
+}
+
+const FUND_ID_PATH_SEGMENT_PATTERN = /^\d+$/;
+const SCENARIO_SET_ID_PATH_SEGMENT_PATTERN =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const SCENARIO_COMPARISON_API_ROOT = '/api/funds';
+
+function scenarioComparisonIdsFromKey(scenarioSetIdsKey: string) {
+  return scenarioSetIdsKey.length > 0 ? scenarioSetIdsKey.split('|') : [];
+}
+
+function isSafeScenarioComparisonRequest(request: ScenarioComparisonFetchRequest) {
+  return (
+    FUND_ID_PATH_SEGMENT_PATTERN.test(request.fundId) &&
+    request.scenarioSetIds.length > 0 &&
+    request.scenarioSetIds.every((id) => SCENARIO_SET_ID_PATH_SEGMENT_PATTERN.test(id))
+  );
+}
+
+function createScenarioComparisonFetchRequest(
+  fundId: string | null,
+  scenarioSetIdsKey: string
+): ScenarioComparisonFetchRequest | null {
+  if (!fundId || fundId === 'latest') return null;
+
+  const request = {
+    fundId,
+    scenarioSetIds: scenarioComparisonIdsFromKey(scenarioSetIdsKey),
+  };
+  return isSafeScenarioComparisonRequest(request) ? request : null;
+}
+
+function scenarioComparisonQueryKey(fundId: string, scenarioSetId: string) {
+  return [
+    SCENARIO_COMPARISON_API_ROOT,
+    fundId,
+    'scenario-sets',
+    scenarioSetId,
+    'comparison',
+  ] as const;
+}
+
+function scenarioComparisonQueryPrefix(fundId: string) {
+  return [SCENARIO_COMPARISON_API_ROOT, fundId, 'scenario-sets'] as const;
+}
+
+function scenarioComparisonApiPath(fundId: string, scenarioSetId: string) {
+  if (
+    !FUND_ID_PATH_SEGMENT_PATTERN.test(fundId) ||
+    !SCENARIO_SET_ID_PATH_SEGMENT_PATTERN.test(scenarioSetId)
+  ) {
+    throw new Error('Invalid scenario comparison request path');
+  }
+
+  return `${SCENARIO_COMPARISON_API_ROOT}/${encodeURIComponent(fundId)}/scenario-sets/${encodeURIComponent(scenarioSetId)}/comparison`;
+}
+
+async function fetchScenarioComparisonForSet(fundId: string, scenarioSetId: string) {
+  return queryClient.fetchQuery<FundScenarioComparisonV1>({
+    queryKey: scenarioComparisonQueryKey(fundId, scenarioSetId),
+    queryFn: async () => {
+      const response = await apiRequest('GET', scenarioComparisonApiPath(fundId, scenarioSetId));
+      return FundScenarioComparisonV1Schema.parse(response);
+    },
+    staleTime: 0,
+  });
+}
+
+async function fetchScenarioComparisonBatch(
+  request: ScenarioComparisonFetchRequest
+): Promise<ScenarioComparisonBatchResult> {
+  const settled = await Promise.allSettled(
+    request.scenarioSetIds.map((scenarioSetId) =>
+      fetchScenarioComparisonForSet(request.fundId, scenarioSetId)
+    )
+  );
+  const comparisons: FundScenarioComparisonV1[] = [];
+  const failedScenarioSetIds: string[] = [];
+  settled.forEach((result, index) => {
+    if (result.status === 'fulfilled') {
+      comparisons.push(result.value);
+    } else {
+      const scenarioSetId = request.scenarioSetIds[index];
+      if (scenarioSetId) failedScenarioSetIds.push(scenarioSetId);
+    }
+  });
+  return { comparisons, failedScenarioSetIds };
+}
+
+function scenarioComparisonErrorMessage(error: unknown) {
+  return error instanceof Error ? error.message : 'Scenario comparison unavailable';
+}
+
+function clearScenarioComparisonAbort(
+  abortRef: React.MutableRefObject<AbortController | null>,
+  controller: AbortController
+) {
+  if (abortRef.current === controller) {
+    abortRef.current = null;
+  }
+}
+
+function useFundScenarioComparisons(fundId: string | null, scenarioSetIds: readonly string[]) {
+  const scenarioSetIdsKey = scenarioSetIds.join('|');
+  const [state, setState] = useState<ScenarioComparisonState>({
+    kind: 'idle',
+    comparisons: [],
+    failedScenarioSetIds: [],
+  });
+  const abortRef = useRef<AbortController | null>(null);
+
+  const cancelInFlight = useCallback(() => {
+    if (abortRef.current) {
+      abortRef.current.abort();
+      abortRef.current = null;
+    }
+    const request = createScenarioComparisonFetchRequest(fundId, scenarioSetIdsKey);
+    if (request) {
+      void queryClient.cancelQueries({ queryKey: scenarioComparisonQueryPrefix(request.fundId) });
+    }
+  }, [fundId, scenarioSetIdsKey]);
+
+  const fetchComparisons = useCallback(async () => {
+    const request = createScenarioComparisonFetchRequest(fundId, scenarioSetIdsKey);
+    if (!request) {
+      cancelInFlight();
+      setState({ kind: 'idle', comparisons: [], failedScenarioSetIds: [] });
+      return;
+    }
+
+    cancelInFlight();
+    const controller = new AbortController();
+    abortRef.current = controller;
+    setState((previous) => ({
+      kind: 'loading',
+      comparisons: previous.comparisons,
+      failedScenarioSetIds: previous.failedScenarioSetIds,
+    }));
+
+    try {
+      const { comparisons, failedScenarioSetIds } = await fetchScenarioComparisonBatch(request);
+      if (controller.signal.aborted) return;
+      setState({ kind: 'data', comparisons, failedScenarioSetIds });
+    } catch (error) {
+      if (controller.signal.aborted) return;
+      setState((previous) => ({
+        kind: 'error',
+        message: scenarioComparisonErrorMessage(error),
+        comparisons: previous.comparisons,
+        failedScenarioSetIds: previous.failedScenarioSetIds,
+      }));
+    } finally {
+      clearScenarioComparisonAbort(abortRef, controller);
+    }
+  }, [cancelInFlight, fundId, scenarioSetIdsKey]);
+
+  useEffect(() => {
+    void fetchComparisons();
+    return () => cancelInFlight();
+  }, [cancelInFlight, fetchComparisons]);
+
+  return { state, refresh: fetchComparisons };
+}
+
+function scenarioSetIdsFromFetchState(fetchState: FetchState): string[] {
+  if (fetchState.kind !== 'data') return [];
+  const scenarios = fetchState.results.sections.scenarios;
+  if (scenarios.status !== 'available') return [];
+  return scenarios.payload.sets.map((scenarioSet) => scenarioSet.scenarioSetId);
+}
+
 function useRecalculatePublished(fundId: string | null, onSuccess: () => void) {
   const [state, setState] = useState<RecalculateState>({ kind: 'idle' });
 
@@ -454,6 +658,9 @@ const REASON_COPY: Record<string, string> = {
   STALE_EVIDENCE: 'A newer configuration was published. Request recalculation to update.',
   INVALID_PUBLISHED_CONFIG: 'The published configuration has validation issues.',
   NO_AUTHORITATIVE_SOURCE: 'This section is not yet available for your fund.',
+  SCENARIOS_NONE_EXIST: 'Create a scenario set to compare alternate fund economics.',
+  SCENARIOS_NONE_CALCULATED: 'Calculate a scenario set to show scenario results here.',
+  SCENARIOS_LOAD_FAILED: 'Scenario results could not be loaded.',
   ECONOMICS_DISABLED: 'GP economics is currently disabled for this environment.',
   ECONOMICS_NOT_CONFIGURED: 'Publish economics assumptions to see GP economics.',
   ECONOMICS_SNAPSHOT_PENDING: 'Economics is configured and waiting for a calculation snapshot.',
@@ -581,6 +788,85 @@ function WaterfallSetupCard({ payload }: { payload: WaterfallSetupSection }) {
   );
 }
 
+function ScenarioComparisonPanel({ state }: { state: ScenarioComparisonState }) {
+  if (state.kind === 'idle') return null;
+
+  const comparable = state.comparisons.filter(isComparableFeeProfileComparison);
+  const nonComparable = state.comparisons.filter(
+    (comparison) => !isComparableFeeProfileComparison(comparison)
+  );
+  const hasContent = state.comparisons.length > 0 || state.failedScenarioSetIds.length > 0;
+
+  return (
+    <div className="space-y-4">
+      {state.kind === 'loading' && !hasContent && (
+        <p className="text-sm text-charcoal-500 font-poppins">Loading scenario comparison...</p>
+      )}
+
+      {state.kind === 'loading' && hasContent && (
+        <p className="text-xs text-charcoal-400 font-poppins">Refreshing scenario comparison...</p>
+      )}
+
+      {state.kind === 'error' && (
+        <Alert className="border-beige-200 bg-beige-50">
+          <AlertCircle className="h-4 w-4 text-charcoal-400" />
+          <AlertTitle>Scenario comparison unavailable</AlertTitle>
+          <AlertDescription className="font-poppins text-charcoal-500">
+            {state.message}
+          </AlertDescription>
+        </Alert>
+      )}
+
+      {comparable.length >= 2 && <CrossSetScenarioComparisonTable comparisons={comparable} />}
+
+      {comparable.length === 1 && comparable[0] && (
+        <ScenarioComparisonTable comparison={comparable[0]} />
+      )}
+
+      {nonComparable.map((comparison) => (
+        <ScenarioComparisonTable
+          key={comparison.scenarioSet.scenarioSetId}
+          comparison={comparison}
+        />
+      ))}
+
+      {state.failedScenarioSetIds.map((scenarioSetId) => (
+        <div
+          key={scenarioSetId}
+          data-testid="scenario-comparison-failed-card"
+          className="rounded-md border border-beige-200 bg-beige-50 p-4"
+        >
+          <p className="text-sm text-charcoal-600 font-poppins">
+            Scenario comparison could not be loaded for this scenario set.
+          </p>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function ScenarioAnalysisCard({
+  fundId,
+  payload,
+  comparisonState,
+}: {
+  fundId: string;
+  payload: ScenariosSectionPayloadV1;
+  comparisonState: ScenarioComparisonState;
+}) {
+  return (
+    <div className="space-y-6">
+      <div className="flex justify-end">
+        <Button asChild variant="outline" size="sm">
+          <Link href={`/fund-model-results/${fundId}/scenarios`}>Open Scenario Workspace</Link>
+        </Button>
+      </div>
+      <ScenarioSetsSummary payload={payload} />
+      <ScenarioComparisonPanel state={comparisonState} />
+    </div>
+  );
+}
+
 function EconomicsResultsCard({ payload }: { payload: EconomicsResultV1 }) {
   const { summary, annual, checks } = payload;
 
@@ -638,12 +924,12 @@ function EconomicsCashflowChart({ rows }: { rows: EconomicsResultV1['annual'] })
   );
   const series = [
     { key: 'lpCapitalCalls', label: 'LP Calls', color: 'bg-charcoal-300' },
-    { key: 'gpCommitmentCalls', label: 'GP Calls', color: 'bg-stone-400' },
-    { key: 'lpDistributions', label: 'LP Distributions', color: 'bg-green-600' },
-    { key: 'gpInvestmentDistributions', label: 'GP Investment', color: 'bg-blue-500' },
-    { key: 'gpCarryDistributed', label: 'GP Carry', color: 'bg-purple-500' },
-    { key: 'feesPaidToManager', label: 'Fees', color: 'bg-amber-500' },
-    { key: 'expensesPaid', label: 'Expenses', color: 'bg-red-400' },
+    { key: 'gpCommitmentCalls', label: 'GP Calls', color: 'bg-charcoal-500' },
+    { key: 'lpDistributions', label: 'LP Distributions', color: 'bg-presson-positive' },
+    { key: 'gpInvestmentDistributions', label: 'GP Investment', color: 'bg-presson-info' },
+    { key: 'gpCarryDistributed', label: 'GP Carry', color: 'bg-success' },
+    { key: 'feesPaidToManager', label: 'Fees', color: 'bg-presson-warning' },
+    { key: 'expensesPaid', label: 'Expenses', color: 'bg-presson-negative' },
   ] as const;
 
   return (
@@ -684,8 +970,8 @@ function EconomicsCashflowChart({ rows }: { rows: EconomicsResultV1['annual'] })
 function EconomicsJCurveChart({ rows }: { rows: EconomicsResultV1['annual'] }) {
   const maxMultiple = Math.max(1, ...rows.map((row) => Math.max(row.dpi, row.rvpi, row.tvpi)));
   const metrics = [
-    { key: 'dpi', label: 'DPI', color: 'bg-green-600' },
-    { key: 'rvpi', label: 'RVPI', color: 'bg-blue-500' },
+    { key: 'dpi', label: 'DPI', color: 'bg-presson-positive' },
+    { key: 'rvpi', label: 'RVPI', color: 'bg-presson-info' },
     { key: 'tvpi', label: 'TVPI', color: 'bg-charcoal-500' },
   ] as const;
 
@@ -831,12 +1117,12 @@ function formatHistoryRunStatus(status: LifecycleStatus | null) {
 function historyBadgeClasses(status: LifecycleStatus | null) {
   switch (status) {
     case 'ready':
-      return 'bg-emerald-100 text-emerald-800 border-emerald-200';
+      return 'bg-success-light text-success-dark border-success/30';
     case 'failed':
-      return 'bg-rose-100 text-rose-800 border-rose-200';
+      return 'bg-error-light text-error-dark border-error/30';
     case 'submitted':
     case 'calculating':
-      return 'bg-amber-100 text-amber-800 border-amber-200';
+      return 'bg-warning-light text-warning-dark border-warning/30';
     default:
       return 'bg-beige-100 text-charcoal-600 border-beige-200';
   }
@@ -921,11 +1207,11 @@ function hasStaleEvidence(lifecycle: FundStateReadV1) {
 function diagnosticAlertClasses(tone: 'neutral' | 'warning' | 'danger' | 'success') {
   switch (tone) {
     case 'danger':
-      return 'border-rose-200 bg-rose-50';
+      return 'border-error/30 bg-error-light';
     case 'warning':
-      return 'border-amber-200 bg-amber-50';
+      return 'border-warning/30 bg-warning-light';
     case 'success':
-      return 'border-emerald-200 bg-emerald-50';
+      return 'border-success/30 bg-success-light';
     default:
       return 'border-beige-200 bg-beige-50';
   }
@@ -992,10 +1278,10 @@ function ConfigDiffBanner({ lifecycle }: { lifecycle: FundStateReadV1 }) {
   if (!hasStaleEvidence(lifecycle)) return null;
 
   return (
-    <Alert className="border-amber-200 bg-amber-50">
-      <AlertCircle className="h-4 w-4 text-amber-700" />
+    <Alert className="border-warning/30 bg-warning-light">
+      <AlertCircle className="h-4 w-4 text-warning" />
       <AlertTitle>Results are stale</AlertTitle>
-      <AlertDescription className="font-poppins text-amber-900">
+      <AlertDescription className="font-poppins text-warning-dark">
         Latest published configuration is v{lifecycle.configState.publishedVersion}, but the current
         calculation is still on v{lifecycle.calculationState.configVersion}. Recalculate to refresh
         the published results.
@@ -1348,22 +1634,14 @@ function LifecycleStatusCard({
         />
       </div>
 
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
         <FactTile
           label="Draft Version"
           value={configState.draftVersion != null ? `v${configState.draftVersion}` : 'No draft'}
         />
         <FactTile
-          label="Run ID"
+          label="Latest Run"
           value={calculationState.runId != null ? String(calculationState.runId) : 'Not started'}
-        />
-        <FactTile
-          label="Dispatch State"
-          value={calculationState.dispatchState ?? 'Not dispatched'}
-        />
-        <FactTile
-          label="Correlation ID"
-          value={calculationState.correlationId ?? 'Not available'}
         />
         <FactTile
           label="Snapshot Coverage"
@@ -1422,13 +1700,136 @@ interface SectionRendererProps {
     [key: string]: unknown;
   };
   renderPayload?: (payload: unknown) => React.ReactNode;
+  evidenceLifecycle?: EvidenceHeaderLifecycle | undefined;
+  evidenceTestId?: string;
 }
 
-function SectionRenderer({ title, section, renderPayload }: SectionRendererProps) {
+function getSectionSource(section: SectionRendererProps['section']) {
+  const source = section['source'];
+  return typeof source === 'string' && source.trim().length > 0 ? source : null;
+}
+
+function sectionNumber(section: SectionRendererProps['section'], key: string): number | null {
+  const value = section[key];
+  return typeof value === 'number' && Number.isFinite(value) ? value : null;
+}
+
+function sectionString(section: SectionRendererProps['section'], key: string): string | null {
+  const value = section[key];
+  return typeof value === 'string' ? value : null;
+}
+
+function sectionEvidence(
+  lifecycle: EvidenceHeaderLifecycle | undefined,
+  section: SectionRendererProps['section']
+): EvidenceHeaderLifecycle | null {
+  if (!lifecycle) return null;
+  // Pre-resolved section/config/mixed provenance is authoritative -- do not
+  // re-derive its source from the section wrapper.
+  if (lifecycle.provenanceLevel != null) return lifecycle;
+  return {
+    ...lifecycle,
+    source: getSectionSource(section) ?? lifecycle.source ?? null,
+  };
+}
+
+function evidenceFromLifecycle(lifecycle: FundStateReadV1): EvidenceHeaderLifecycle {
+  return {
+    status: lifecycle.calculationState.status,
+    configVersion: lifecycle.calculationState.configVersion,
+    runId: lifecycle.calculationState.runId,
+    lastCalculatedAt: lifecycle.calculationState.lastCalculatedAt,
+    publishedVersion: lifecycle.configState.publishedVersion,
+    source: '/api/funds/:id/results',
+  };
+}
+
+// GP Economics: section-owned calculation evidence. The section emits its own
+// config version and calculated timestamp and never carries a run id.
+function sectionBackedEvidence(
+  lifecycle: EvidenceHeaderLifecycle,
+  section: SectionRendererProps['section']
+): EvidenceHeaderLifecycle | undefined {
+  if (section.status !== 'available') return undefined;
+  return {
+    status: lifecycle.status,
+    provenanceLevel: 'section_backed_result',
+    configVersion: sectionNumber(section, 'configVersion'),
+    runId: null,
+    lastCalculatedAt: sectionString(section, 'calculatedAt'),
+    publishedVersion: lifecycle.publishedVersion ?? null,
+    source: getSectionSource(section) ?? 'fund_snapshots',
+  };
+}
+
+// Waterfall Setup: published configuration, not a calculation run. Shows the
+// published timestamp and the fund_config source, never a run id or freshness.
+function configBackedEvidence(
+  lifecycle: EvidenceHeaderLifecycle,
+  section: SectionRendererProps['section']
+): EvidenceHeaderLifecycle | undefined {
+  if (section.status !== 'available') return undefined;
+  return {
+    status: lifecycle.status,
+    provenanceLevel: 'config_backed_setup',
+    configVersion: sectionNumber(section, 'configVersion'),
+    runId: null,
+    lastCalculatedAt: sectionString(section, 'publishedAt'),
+    publishedVersion: lifecycle.publishedVersion ?? null,
+    source: getSectionSource(section) ?? 'fund_config',
+  };
+}
+
+// Overview/Scorecard: assembled from multiple per-field sources. The label is
+// derived from the sources actually present so it never claims a source that
+// contributed no field.
+function deriveScorecardSources(payload: unknown): string[] {
+  if (payload == null || typeof payload !== 'object') return ['funds'];
+  const seen: string[] = [];
+  for (const value of Object.values(payload as Record<string, unknown>)) {
+    if (value != null && typeof value === 'object' && 'source' in value) {
+      const source = (value as { source?: unknown }).source;
+      if (typeof source === 'string' && source.length > 0 && !seen.includes(source)) {
+        seen.push(source);
+      }
+    }
+  }
+  return seen.length > 0 ? seen : ['funds'];
+}
+
+function mixedScorecardEvidence(
+  lifecycle: EvidenceHeaderLifecycle,
+  section: SectionRendererProps['section']
+): EvidenceHeaderLifecycle | undefined {
+  if (section.status !== 'available') return undefined;
+  return {
+    status: lifecycle.status,
+    provenanceLevel: 'mixed_scorecard_sources',
+    configVersion: null,
+    runId: null,
+    lastCalculatedAt: null,
+    publishedVersion: null,
+    source: null,
+    sourceLabel: deriveScorecardSources(section.payload).join(' / '),
+  };
+}
+
+function SectionRenderer({
+  title,
+  section,
+  renderPayload,
+  evidenceLifecycle,
+  evidenceTestId,
+}: SectionRendererProps) {
+  const evidence = sectionEvidence(evidenceLifecycle, section);
+
   if (section.status === 'available') {
     return (
       <div className="bg-white rounded-lg border border-beige-200 p-6">
-        <h2 className="text-lg font-medium text-charcoal mb-4">{title}</h2>
+        <div className="mb-4 space-y-2">
+          <h2 className="text-lg font-medium text-charcoal">{title}</h2>
+          {evidence && <EvidenceHeader lifecycle={evidence} testId={evidenceTestId} />}
+        </div>
         {section.legacyEvidence && (
           <p className="text-xs text-charcoal-400 mb-2">
             Based on previous calculation (legacy data)
@@ -1457,7 +1858,10 @@ function SectionRenderer({ title, section, renderPayload }: SectionRendererProps
 
   return (
     <div className="bg-beige-50 rounded-lg border border-beige-200 p-6">
-      <h2 className="text-lg font-medium text-charcoal-400 mb-2">{title}</h2>
+      <div className="mb-2 space-y-2">
+        <h2 className="text-lg font-medium text-charcoal-400">{title}</h2>
+        {evidence && <EvidenceHeader lifecycle={evidence} testId={evidenceTestId} />}
+      </div>
       <p className="text-sm text-charcoal-500 font-poppins">
         {statusLabel ? `${statusLabel}: ` : ''}
         {copy}
@@ -1539,10 +1943,14 @@ function FundModelResultsPage() {
   const { state: fetchState, refresh: refreshResults } = useFundResults(fundId);
   const { state: historyState, refresh: refreshHistory } = useFundLifecycleHistory(fundId);
   const { state: comparisonState, refresh: refreshComparison } = useFundResultsComparison(fundId);
+  const scenarioSetIds = scenarioSetIdsFromFetchState(fetchState);
+  const { state: scenarioComparisonState, refresh: refreshScenarioComparisons } =
+    useFundScenarioComparisons(fundId, scenarioSetIds);
   const { state: recalculateState, recalculate } = useRecalculatePublished(fundId, () => {
     void refreshResults();
     void refreshHistory();
     void refreshComparison();
+    void refreshScenarioComparisons();
   });
   const previousCalculationStatusRef = useRef<LifecycleStatus | null>(null);
 
@@ -1558,10 +1966,11 @@ function FundModelResultsPage() {
     ) {
       void refreshHistory();
       void refreshComparison();
+      void refreshScenarioComparisons();
     }
 
     previousCalculationStatusRef.current = status;
-  }, [fetchState, refreshComparison, refreshHistory]);
+  }, [fetchState, refreshComparison, refreshHistory, refreshScenarioComparisons]);
 
   // Handle /latest or missing fundId
   if (fundId === 'latest' || !fundId) {
@@ -1577,6 +1986,7 @@ function FundModelResultsPage() {
   }
 
   const { results } = fetchState;
+  const evidenceLifecycle = evidenceFromLifecycle(results.lifecycle);
 
   return (
     <div className="max-w-6xl mx-auto px-6 py-8 space-y-8">
@@ -1609,14 +2019,32 @@ function FundModelResultsPage() {
         <PublishComparisonCard comparisonState={comparisonState} />
       </FadeInSection>
 
+      <FadeInSection>
+        <QuarterlyReviewTrace
+          results={results}
+          comparison={comparisonState.comparison}
+          fundId={fundId}
+        />
+      </FadeInSection>
+
       {/* Reserve section */}
       <FadeInSection>
-        <SectionRenderer title="Reserve Allocation" section={results.sections.reserve} />
+        <SectionRenderer
+          title="Reserve Allocation"
+          section={results.sections.reserve}
+          evidenceLifecycle={evidenceLifecycle}
+          evidenceTestId="evidence-header-reserve-allocation"
+        />
       </FadeInSection>
 
       {/* Pacing section */}
       <FadeInSection>
-        <SectionRenderer title="Deployment Pacing" section={results.sections.pacing} />
+        <SectionRenderer
+          title="Deployment Pacing"
+          section={results.sections.pacing}
+          evidenceLifecycle={evidenceLifecycle}
+          evidenceTestId="evidence-header-deployment-pacing"
+        />
       </FadeInSection>
 
       {/* Overview (scorecard) section */}
@@ -1625,12 +2053,24 @@ function FundModelResultsPage() {
           title="Overview"
           section={results.sections.scorecard}
           renderPayload={(p) => <OverviewCard payload={p as ScorecardPayload} />}
+          evidenceLifecycle={mixedScorecardEvidence(evidenceLifecycle, results.sections.scorecard)}
+          evidenceTestId="evidence-header-overview"
         />
       </FadeInSection>
 
       {/* Scenarios section */}
       <FadeInSection>
-        <SectionRenderer title="Scenario Analysis" section={results.sections.scenarios} />
+        <SectionRenderer
+          title="Scenario Analysis"
+          section={results.sections.scenarios}
+          renderPayload={(p) => (
+            <ScenarioAnalysisCard
+              fundId={fundId}
+              payload={p as ScenariosSectionPayloadV1}
+              comparisonState={scenarioComparisonState}
+            />
+          )}
+        />
       </FadeInSection>
 
       {/* Waterfall section */}
@@ -1639,6 +2079,8 @@ function FundModelResultsPage() {
           title="Waterfall Setup"
           section={results.sections.waterfall}
           renderPayload={(p) => <WaterfallSetupCard payload={p as WaterfallSetupSection} />}
+          evidenceLifecycle={configBackedEvidence(evidenceLifecycle, results.sections.waterfall)}
+          evidenceTestId="evidence-header-waterfall-setup"
         />
       </FadeInSection>
 
@@ -1648,6 +2090,8 @@ function FundModelResultsPage() {
           title="GP Economics"
           section={results.sections.economics}
           renderPayload={(p) => <EconomicsResultsCard payload={p as EconomicsResultV1} />}
+          evidenceLifecycle={sectionBackedEvidence(evidenceLifecycle, results.sections.economics)}
+          evidenceTestId="evidence-header-gp-economics"
         />
       </FadeInSection>
     </div>

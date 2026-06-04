@@ -29,7 +29,7 @@ const chartTypes: ChartType[] = [
     description: 'Time series data',
     category: 'basic',
     icon: LineChartIcon,
-    color: 'text-blue-500',
+    color: 'text-pov-charcoal',
   },
   {
     id: 'bar',
@@ -37,7 +37,7 @@ const chartTypes: ChartType[] = [
     description: 'Categorical comparison',
     category: 'basic',
     icon: BarChart3,
-    color: 'text-cyan-500',
+    color: 'text-pov-charcoal',
   },
   {
     id: 'pie',
@@ -45,7 +45,7 @@ const chartTypes: ChartType[] = [
     description: 'Proportional data',
     category: 'basic',
     icon: PieChartIcon,
-    color: 'text-green-500',
+    color: 'text-pov-charcoal',
   },
   {
     id: 'area',
@@ -53,7 +53,7 @@ const chartTypes: ChartType[] = [
     description: 'Volume over time',
     category: 'basic',
     icon: AreaChart,
-    color: 'text-orange-500',
+    color: 'text-pov-charcoal',
   },
   {
     id: 'sankey',
@@ -61,7 +61,7 @@ const chartTypes: ChartType[] = [
     description: 'Flow visualization',
     category: 'flow',
     icon: Workflow,
-    color: 'text-purple-500',
+    color: 'text-pov-charcoal',
   },
   {
     id: 'treemap',
@@ -69,7 +69,7 @@ const chartTypes: ChartType[] = [
     description: 'Hierarchical data',
     category: 'hierarchical',
     icon: TreePine,
-    color: 'text-blue-500',
+    color: 'text-pov-charcoal',
   },
   {
     id: 'heatmap',
@@ -77,7 +77,7 @@ const chartTypes: ChartType[] = [
     description: 'Pattern analysis',
     category: 'statistical',
     icon: Grid,
-    color: 'text-red-500',
+    color: 'text-pov-charcoal',
   },
   {
     id: 'network',
@@ -85,7 +85,7 @@ const chartTypes: ChartType[] = [
     description: 'Relationship mapping',
     category: 'advanced',
     icon: Share2,
-    color: 'text-teal-500',
+    color: 'text-pov-charcoal',
   },
 ];
 
@@ -108,10 +108,10 @@ export default function ChartGallery() {
     <Card className="mb-8">
       <CardHeader>
         <div className="flex items-center justify-between">
-          <CardTitle className="text-lg font-semibold text-gray-800">
+          <CardTitle className="text-lg font-semibold text-pov-charcoal">
             AntV Chart Capabilities
           </CardTitle>
-          <p className="text-sm text-gray-600">25+ Chart Types Available</p>
+          <p className="text-sm text-charcoal-600">25+ Chart Types Available</p>
         </div>
       </CardHeader>
       <CardContent>
@@ -124,7 +124,7 @@ export default function ChartGallery() {
               onClick={() => setSelectedCategory(category.id)}
               className={
                 selectedCategory === category.id
-                  ? 'povc-bg-primary-light text-blue-700 border-blue-200'
+                  ? 'bg-pov-charcoal text-pov-white border-beige-200'
                   : ''
               }
             >
@@ -139,13 +139,13 @@ export default function ChartGallery() {
             return (
               <div
                 key={chart.id}
-                className="bg-gray-50 rounded-lg p-4 text-center hover:bg-gray-100 transition-colors cursor-pointer"
+                className="bg-pov-gray/50 rounded-lg p-4 text-center hover:bg-pov-gray transition-colors cursor-pointer"
               >
                 <div className="h-24 flex items-center justify-center mb-3">
                   <Icon className={`h-8 w-8 ${chart.color}`} />
                 </div>
-                <p className="font-medium text-gray-800 text-sm">{chart.name}</p>
-                <p className="text-xs text-gray-600 mt-1">{chart.description}</p>
+                <p className="font-medium text-pov-charcoal text-sm">{chart.name}</p>
+                <p className="text-xs text-charcoal-600 mt-1">{chart.description}</p>
               </div>
             );
           })}

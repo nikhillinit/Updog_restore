@@ -19,7 +19,7 @@ import { useState, useCallback, useEffect, useRef } from 'react';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { useSearch, useLocation } from 'wouter';
 import { useFundContext } from '@/contexts/FundContext';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
@@ -57,18 +57,19 @@ import type { DealOpportunity, PipelineStage } from '@shared/schema';
 
 // Pipeline status configuration
 const PIPELINE_STATUSES = [
-  { key: 'lead', label: 'Lead', color: 'bg-gray-100' },
-  { key: 'qualified', label: 'Qualified', color: 'bg-blue-100' },
-  { key: 'pitch', label: 'Pitch', color: 'bg-purple-100' },
-  { key: 'dd', label: 'Due Diligence', color: 'bg-amber-100' },
-  { key: 'committee', label: 'Committee', color: 'bg-indigo-100' },
-  { key: 'term_sheet', label: 'Term Sheet', color: 'bg-pink-100' },
-  { key: 'closed', label: 'Closed', color: 'bg-green-100' },
-  { key: 'passed', label: 'Passed', color: 'bg-red-100' },
+  { key: 'lead', label: 'Lead', color: 'bg-pov-gray' },
+  { key: 'qualified', label: 'Qualified', color: 'bg-beige' },
+  { key: 'pitch', label: 'Pitch', color: 'bg-beige' },
+  { key: 'dd', label: 'Due Diligence', color: 'bg-beige' },
+  { key: 'committee', label: 'Committee', color: 'bg-beige' },
+  { key: 'term_sheet', label: 'Term Sheet', color: 'bg-beige' },
+  { key: 'closed', label: 'Closed', color: 'bg-success' },
+  { key: 'passed', label: 'Passed', color: 'bg-error' },
 ] as const;
 
 // Type for view mode
 type ViewMode = 'kanban' | 'list';
+const PIPELINE_VIEW_REGION_ID = 'pipeline-view-region';
 
 // API response types
 interface DealsResponse {
@@ -130,29 +131,42 @@ function KanbanColumnSkeleton() {
 }
 
 // Empty state component
-function EmptyPipelineState({ onAddDeal }: { onAddDeal: () => void }) {
+function EmptyPipelineState({
+  onAddDeal,
+  onImportDeals,
+}: {
+  onAddDeal: () => void;
+  onImportDeals: () => void;
+}) {
   return (
-    <Card className="border-dashed border-2 border-pov-beige bg-white/50">
+    <Card
+      className="border-dashed border-2 border-pov-beige bg-white/50"
+      data-testid="pipeline-empty-state"
+    >
       <CardHeader className="text-center pb-2">
         <div className="mx-auto w-16 h-16 rounded-full bg-pov-charcoal/5 flex items-center justify-center mb-4">
           <LineChart className="h-8 w-8 text-pov-charcoal/40" />
         </div>
-        <CardTitle className="font-inter text-xl text-pov-charcoal">
+        <h3 className="font-inter text-xl font-bold text-pov-charcoal">
           No deals in your pipeline
-        </CardTitle>
+        </h3>
       </CardHeader>
       <CardContent className="text-center">
-        <p className="font-poppins text-sm text-gray-500 mb-6 max-w-md mx-auto">
+        <p className="font-poppins text-sm text-charcoal-500 mb-6 max-w-md mx-auto">
           Add deals to track diligence, scoring, and next steps. Import existing deals from a
           spreadsheet or add them manually.
         </p>
-        <div className="flex items-center justify-center gap-3">
+        <div className="flex flex-col items-center justify-center gap-3 sm:flex-row">
           <Button
             onClick={onAddDeal}
             className="bg-pov-charcoal hover:bg-pov-charcoal/90 text-pov-white"
           >
             <Plus className="h-4 w-4 mr-2" />
             Add deal
+          </Button>
+          <Button variant="outline" onClick={onImportDeals} className="border-pov-beige">
+            <Upload className="h-4 w-4 mr-2" />
+            Import deals
           </Button>
         </div>
       </CardContent>
@@ -163,17 +177,17 @@ function EmptyPipelineState({ onAddDeal }: { onAddDeal: () => void }) {
 // Error state component
 function ErrorState({ onRetry }: { onRetry: () => void }) {
   return (
-    <Card className="border-red-200 bg-red-50">
+    <Card className="border-error/50 bg-error/10">
       <CardContent className="pt-6 text-center">
-        <AlertCircle className="h-10 w-10 text-red-500 mx-auto mb-3" />
-        <h3 className="font-inter font-semibold text-red-900 mb-2">Failed to load deals</h3>
-        <p className="font-poppins text-sm text-red-700 mb-4">
+        <AlertCircle className="h-10 w-10 text-error mx-auto mb-3" />
+        <h3 className="font-inter font-semibold text-error-dark mb-2">Failed to load deals</h3>
+        <p className="font-poppins text-sm text-error-dark mb-4">
           There was an error loading your pipeline. Please try again.
         </p>
         <Button
           onClick={onRetry}
           variant="outline"
-          className="border-red-300 text-red-700 hover:bg-red-100"
+          className="border-error/50 text-error-dark hover:bg-error/10"
         >
           <RefreshCw className="h-4 w-4 mr-2" />
           Retry
@@ -280,7 +294,7 @@ function ListView({
                   onToggleSelect(deal.id);
                 }}
                 onClick={(e) => e.stopPropagation()}
-                className="h-4 w-4 rounded border-gray-300 accent-pov-charcoal"
+                className="h-4 w-4 rounded border-beige-200 accent-pov-charcoal"
                 data-testid={`deal-checkbox-${deal.id}`}
               />
             )}
@@ -289,7 +303,7 @@ function ListView({
             </div>
             <div>
               <h4 className="font-inter font-semibold text-pov-charcoal">{deal.companyName}</h4>
-              <p className="font-poppins text-xs text-gray-500">
+              <p className="font-poppins text-xs text-charcoal-500">
                 {deal.sector} • {deal.stage}
               </p>
             </div>
@@ -302,16 +316,16 @@ function ListView({
               variant="outline"
               className={
                 deal.priority === 'high'
-                  ? 'bg-red-50 text-red-700'
+                  ? 'border-error/50 bg-error/10 text-error-dark'
                   : deal.priority === 'medium'
-                    ? 'bg-yellow-50 text-yellow-700'
-                    : 'bg-green-50 text-green-700'
+                    ? 'border-warning/50 bg-warning/10 text-warning-dark'
+                    : 'border-success/50 bg-success/10 text-success-dark'
               }
             >
               {deal.priority.charAt(0).toUpperCase() + deal.priority.slice(1)}
             </Badge>
             {deal.dealSize && Number.isFinite(parseFloat(String(deal.dealSize))) && (
-              <span className="font-poppins text-sm text-gray-600 hidden sm:block">
+              <span className="font-poppins text-sm text-charcoal-600 hidden sm:block">
                 ${(parseFloat(String(deal.dealSize)) / 1000000).toFixed(1)}M
               </span>
             )}
@@ -333,7 +347,8 @@ const SORT_OPTIONS = [
 ] as const;
 
 /** Build /api/deals/opportunities URL with query params */
-function buildDealsUrl(params: {
+export function buildDealsUrl(params: {
+  fundId?: number | null;
   search?: string;
   status?: string;
   priority?: string;
@@ -342,6 +357,7 @@ function buildDealsUrl(params: {
   limit?: number;
 }): string {
   const url = new URL('/api/deals/opportunities', window.location.origin);
+  if (params.fundId != null) url.searchParams.set('fundId', String(params.fundId));
   if (params.search) url.searchParams.set('search', params.search);
   if (params.status) url.searchParams.set('status', params.status);
   if (params.priority) url.searchParams.set('priority', params.priority);
@@ -406,6 +422,7 @@ export default function PipelinePage() {
 
   // Custom queryFn: build URL with filter/sort params
   const dealsUrl = buildDealsUrl({
+    fundId,
     ...(filters.search && { search: filters.search }),
     ...(filters.status && { status: filters.status }),
     ...(filters.priority && { priority: filters.priority }),
@@ -426,6 +443,7 @@ export default function PipelinePage() {
       filters.status,
       filters.priority,
       filters.sort,
+      fundId,
     ],
     queryFn: async () => {
       const res = await fetch(dealsUrl, { credentials: 'include' });
@@ -515,7 +533,7 @@ export default function PipelinePage() {
   });
 
   return (
-    <div className="min-h-screen bg-slate-100">
+    <div className="min-h-screen bg-pov-gray">
       <POVBrandHeader
         title="Pipeline"
         subtitle="Track deals, diligence progress, and investment decisions"
@@ -527,7 +545,7 @@ export default function PipelinePage() {
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-4">
           <div>
             <h2 className="font-inter text-2xl font-bold text-pov-charcoal">Deal Pipeline</h2>
-            <p className="font-poppins text-sm text-gray-500">
+            <p className="font-poppins text-sm text-charcoal-500">
               {hasDeals
                 ? `${deals.length} deal${deals.length !== 1 ? 's' : ''} in pipeline`
                 : 'Manage your deal flow'}
@@ -559,7 +577,7 @@ export default function PipelinePage() {
         <div className="flex flex-col sm:flex-row gap-2 mb-6" data-testid="pipeline-toolbar">
           {/* Search */}
           <div className="relative flex-1 max-w-sm">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-charcoal-400" />
             <Input
               placeholder="Search deals..."
               value={searchInput}
@@ -573,7 +591,7 @@ export default function PipelinePage() {
                   setSearchInput('');
                   setFilter('q', '');
                 }}
-                className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                className="absolute right-2 top-1/2 -translate-y-1/2 text-charcoal-400 hover:text-charcoal-600"
                 aria-label="Clear search"
               >
                 <X className="h-4 w-4" />
@@ -644,7 +662,12 @@ export default function PipelinePage() {
               variant={viewMode === 'kanban' ? 'default' : 'ghost'}
               size="sm"
               onClick={() => setFilter('view', 'kanban')}
-              className={viewMode === 'kanban' ? 'bg-pov-charcoal text-white' : 'text-gray-600'}
+              aria-label="Kanban view"
+              aria-controls={PIPELINE_VIEW_REGION_ID}
+              aria-pressed={viewMode === 'kanban'}
+              className={
+                viewMode === 'kanban' ? 'bg-pov-charcoal text-pov-white' : 'text-pov-charcoal'
+              }
             >
               <LayoutGrid className="h-4 w-4" />
             </Button>
@@ -652,7 +675,12 @@ export default function PipelinePage() {
               variant={viewMode === 'list' ? 'default' : 'ghost'}
               size="sm"
               onClick={() => setFilter('view', 'list')}
-              className={viewMode === 'list' ? 'bg-pov-charcoal text-white' : 'text-gray-600'}
+              aria-label="List view"
+              aria-controls={PIPELINE_VIEW_REGION_ID}
+              aria-pressed={viewMode === 'list'}
+              className={
+                viewMode === 'list' ? 'bg-pov-charcoal text-pov-white' : 'text-pov-charcoal'
+              }
             >
               <List className="h-4 w-4" />
             </Button>
@@ -664,7 +692,7 @@ export default function PipelinePage() {
               variant="ghost"
               size="sm"
               onClick={clearFilters}
-              className="text-gray-500 hover:text-gray-700"
+              className="text-charcoal-500 hover:text-charcoal-700"
             >
               <X className="h-3 w-3 mr-1" />
               Clear
@@ -701,16 +729,21 @@ export default function PipelinePage() {
               size="sm"
               onClick={() => bulkArchiveMutation.mutate()}
               disabled={bulkArchiveMutation.isPending}
-              className="border-red-200 text-red-700 hover:bg-red-50"
+              className="border-error/50 text-error-dark hover:bg-error/10"
               data-testid="bulk-archive-btn"
             >
               Archive
             </Button>
-            <Button variant="ghost" size="sm" onClick={clearSelection} className="text-gray-500">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={clearSelection}
+              className="text-charcoal-500"
+            >
               Clear
             </Button>
             {deals.length > selectedIds.size && (
-              <Button variant="ghost" size="sm" onClick={selectAll} className="text-gray-500">
+              <Button variant="ghost" size="sm" onClick={selectAll} className="text-charcoal-500">
                 Select all ({deals.length})
               </Button>
             )}
@@ -718,42 +751,46 @@ export default function PipelinePage() {
         )}
 
         {/* Main Content */}
-        {dealsError ? (
-          <ErrorState onRetry={() => refetchDeals()} />
-        ) : isLoadingDeals ? (
-          <div className="flex gap-4 overflow-x-auto pb-4">
-            {Array.from({ length: 4 }).map((_, i) => (
-              <KanbanColumnSkeleton key={i} />
-            ))}
-          </div>
-        ) : !hasDeals && !hasFilters ? (
-          <EmptyPipelineState onAddDeal={() => setIsAddModalOpen(true)} />
-        ) : !hasDeals && hasFilters ? (
-          <Card className="border-pov-beige/50 bg-white/50">
-            <CardContent className="pt-6 text-center">
-              <Search className="h-8 w-8 text-gray-300 mx-auto mb-3" />
-              <p className="font-inter font-medium text-pov-charcoal mb-1">No matching deals</p>
-              <p className="font-poppins text-sm text-gray-500 mb-4">
-                Try adjusting your filters or search terms.
-              </p>
-              <Button variant="outline" onClick={clearFilters} className="border-pov-beige">
-                Clear filters
-              </Button>
-            </CardContent>
-          </Card>
-        ) : (
-          <>
-            {viewMode === 'kanban' ? (
-              <KanbanView deals={deals} onDealClick={handleDealClick} dndEnabled={dndEnabled} />
-            ) : (
-              <ListView
-                deals={deals}
-                onDealClick={handleDealClick}
-                {...(bulkEnabled && { selectedIds, onToggleSelect: toggleSelection })}
-              />
-            )}
-          </>
-        )}
+        <section
+          id={PIPELINE_VIEW_REGION_ID}
+          aria-label={viewMode === 'kanban' ? 'Kanban pipeline view' : 'List pipeline view'}
+        >
+          {dealsError ? (
+            <ErrorState onRetry={() => refetchDeals()} />
+          ) : isLoadingDeals ? (
+            <div className="flex gap-4 overflow-x-auto pb-4">
+              {Array.from({ length: 4 }).map((_, i) => (
+                <KanbanColumnSkeleton key={i} />
+              ))}
+            </div>
+          ) : !hasDeals && !hasFilters ? (
+            <EmptyPipelineState
+              onAddDeal={() => setIsAddModalOpen(true)}
+              onImportDeals={() => setIsImportModalOpen(true)}
+            />
+          ) : !hasDeals && hasFilters ? (
+            <Card className="border-pov-beige/50 bg-white/50">
+              <CardContent className="pt-6 text-center">
+                <Search className="h-8 w-8 text-charcoal-300 mx-auto mb-3" />
+                <p className="font-inter font-medium text-pov-charcoal mb-1">No matching deals</p>
+                <p className="font-poppins text-sm text-charcoal-500 mb-4">
+                  Try adjusting your filters or search terms.
+                </p>
+                <Button variant="outline" onClick={clearFilters} className="border-pov-beige">
+                  Clear filters
+                </Button>
+              </CardContent>
+            </Card>
+          ) : viewMode === 'kanban' ? (
+            <KanbanView deals={deals} onDealClick={handleDealClick} dndEnabled={dndEnabled} />
+          ) : (
+            <ListView
+              deals={deals}
+              onDealClick={handleDealClick}
+              {...(bulkEnabled && { selectedIds, onToggleSelect: toggleSelection })}
+            />
+          )}
+        </section>
 
         {/* Feature Preview (only show when empty and no filters) */}
         {!hasDeals && !isLoadingDeals && !dealsError && !hasFilters && (
@@ -763,7 +800,7 @@ export default function PipelinePage() {
                 <h3 className="font-inter font-semibold text-sm text-pov-charcoal mb-2">
                   Deal Scoring
                 </h3>
-                <p className="font-poppins text-xs text-gray-500">
+                <p className="font-poppins text-xs text-charcoal-500">
                   Score deals on team, market, product, and traction metrics
                 </p>
               </CardContent>
@@ -773,7 +810,7 @@ export default function PipelinePage() {
                 <h3 className="font-inter font-semibold text-sm text-pov-charcoal mb-2">
                   Diligence Tracking
                 </h3>
-                <p className="font-poppins text-xs text-gray-500">
+                <p className="font-poppins text-xs text-charcoal-500">
                   Track diligence checklist progress and key findings
                 </p>
               </CardContent>
@@ -783,7 +820,7 @@ export default function PipelinePage() {
                 <h3 className="font-inter font-semibold text-sm text-pov-charcoal mb-2">
                   Decision Workflow
                 </h3>
-                <p className="font-poppins text-xs text-gray-500">
+                <p className="font-poppins text-xs text-charcoal-500">
                   Move deals through stages from sourcing to close
                 </p>
               </CardContent>

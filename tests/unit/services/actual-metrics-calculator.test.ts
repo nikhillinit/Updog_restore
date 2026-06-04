@@ -151,4 +151,48 @@ describe('ActualMetricsCalculator actual fact plumbing', () => {
     expect(metrics.totalValue).toBe(30_000_000);
     expect(metrics.dpi).toBeNull();
   });
+
+  it('uses establishment date before vintage-year fallback for fund age', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-05-17T00:00:00.000Z'));
+    storageMock.getFund.mockResolvedValue({
+      id: 1,
+      name: 'Metrics Fund',
+      size: '50000000',
+      managementFee: '0.02',
+      carryPercentage: '0.2',
+      vintageYear: 2022,
+      establishmentDate: '2022-07-15',
+    });
+    dbMock.select.mockReturnValue(distributionQuery(Promise.resolve([])));
+
+    try {
+      const metrics = await calculator.calculate(1);
+
+      expect(metrics.fundAgeMonths).toBe(46);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  describe('storage-only fund resolution (no funds-table fallback)', () => {
+    it('resolves the fund from storage without a direct funds-table query', async () => {
+      dbMock.select.mockReturnValue(distributionQuery(Promise.resolve([])));
+
+      const metrics = await calculator.calculate(1);
+
+      expect(metrics.totalCommitted).toBe(50_000_000);
+      // A second db.select would indicate the removed funds-table fallback returned.
+      expect(dbMock.select).toHaveBeenCalledTimes(1);
+    });
+
+    it('throws fund-not-found without falling back to a direct funds-table query', async () => {
+      storageMock.getFund.mockResolvedValue(undefined);
+      dbMock.select.mockReturnValue(distributionQuery(Promise.resolve([])));
+
+      await expect(calculator.calculate(99)).rejects.toThrow('Fund 99 not found');
+      // A second db.select would indicate the removed funds-table fallback returned.
+      expect(dbMock.select).toHaveBeenCalledTimes(1);
+    });
+  });
 });

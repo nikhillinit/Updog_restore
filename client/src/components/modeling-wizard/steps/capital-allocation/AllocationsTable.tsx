@@ -79,7 +79,7 @@ export function AllocationsTable({
   const getMoicBadge = (moic?: number) => {
     if (moic === undefined) {
       return (
-        <Badge variant="secondary" className="bg-gray-100 text-gray-600 border-gray-200">
+        <Badge variant="secondary" className="bg-pov-gray text-charcoal-600 border-beige-200">
           <Minus className="h-3 w-3 mr-1" />
           N/A
         </Badge>
@@ -88,7 +88,10 @@ export function AllocationsTable({
 
     if (moic >= 3) {
       return (
-        <Badge variant="secondary" className="bg-green-100 text-green-700 border-green-200">
+        <Badge
+          variant="secondary"
+          className="bg-presson-positive/10 text-presson-positive border-presson-positive/20"
+        >
           <ArrowUp className="h-3 w-3 mr-1" />
           {moic.toFixed(1)}x
         </Badge>
@@ -97,7 +100,10 @@ export function AllocationsTable({
 
     if (moic >= 1) {
       return (
-        <Badge variant="secondary" className="bg-blue-100 text-blue-700 border-blue-200">
+        <Badge
+          variant="secondary"
+          className="bg-presson-positive/10 text-presson-positive border-presson-positive/20"
+        >
           <TrendingUp className="h-3 w-3 mr-1" />
           {moic.toFixed(1)}x
         </Badge>
@@ -105,7 +111,10 @@ export function AllocationsTable({
     }
 
     return (
-      <Badge variant="secondary" className="bg-red-100 text-red-700 border-red-200">
+      <Badge
+        variant="secondary"
+        className="bg-presson-negative/10 text-presson-negative border-presson-negative/20"
+      >
         <ArrowDown className="h-3 w-3 mr-1" />
         {moic.toFixed(1)}x
       </Badge>
@@ -115,11 +124,11 @@ export function AllocationsTable({
   // Get stage badge
   const getStageBadge = (stage: string) => {
     const badges: Record<string, { className: string }> = {
-      Seed: { className: 'bg-green-100 text-green-700 border-green-200' },
-      'Series A': { className: 'bg-blue-100 text-blue-700 border-blue-200' },
-      'Series B': { className: 'bg-purple-100 text-purple-700 border-purple-200' },
-      'Series C': { className: 'bg-orange-100 text-orange-700 border-orange-200' },
-      Growth: { className: 'bg-pink-100 text-pink-700 border-pink-200' },
+      Seed: { className: 'bg-[#cfe7df] text-[#145c43] border-[#b6d7cd]' },
+      'Series A': { className: 'bg-[#ddd6f5] text-[#4f4381] border-[#c9c0ee]' },
+      'Series B': { className: 'bg-[#efd9bd] text-[#7a4a00] border-[#e2c59e]' },
+      'Series C': { className: 'bg-[#f2d7dc] text-[#8d1f2f] border-[#e2bac2]' },
+      Growth: { className: 'bg-beige-100 text-charcoal-700 border-beige-200' },
     };
 
     return (
@@ -132,10 +141,13 @@ export function AllocationsTable({
   // Get status badge
   const getStatusBadge = (status: string) => {
     const badges: Record<string, { className: string; label: string }> = {
-      active: { className: 'bg-blue-100 text-blue-700 border-blue-200', label: 'Active' },
-      exited: { className: 'bg-green-100 text-green-700 border-green-200', label: 'Exited' },
+      active: {
+        className: 'bg-presson-info/10 text-presson-info border-presson-info/30',
+        label: 'Active',
+      },
+      exited: { className: 'bg-success/10 text-success-dark border-success/30', label: 'Exited' },
       'written-off': {
-        className: 'bg-red-100 text-red-700 border-red-200',
+        className: 'bg-error/10 text-error-dark border-error/30',
         label: 'Written Off',
       },
     };
@@ -195,12 +207,7 @@ export function AllocationsTable({
           <CardTitle className="font-inter font-bold text-charcoal">
             Reserve Allocations by Company
           </CardTitle>
-          <Button
-            onClick={handleExport}
-            variant="outline"
-            size="sm"
-            className="gap-2"
-          >
+          <Button onClick={handleExport} variant="outline" size="sm" className="gap-2">
             <Download className="h-4 w-4" />
             Export
           </Button>
@@ -226,14 +233,9 @@ export function AllocationsTable({
               {allocations.map((allocation, idx) => (
                 <TableRow
                   key={allocation.id}
-                  className={cn(
-                    'font-poppins',
-                    idx % 2 === 0 ? 'bg-white' : 'bg-gray-50/50'
-                  )}
+                  className={cn('font-poppins', idx % 2 === 0 ? 'bg-white' : 'bg-pov-gray/50')}
                 >
-                  <TableCell className="font-medium text-charcoal">
-                    {allocation.name}
-                  </TableCell>
+                  <TableCell className="font-medium text-charcoal">{allocation.name}</TableCell>
                   <TableCell className="text-charcoal/70">{allocation.sector}</TableCell>
                   <TableCell>{getStageBadge(allocation.stage)}</TableCell>
                   <TableCell>{getStatusBadge(allocation.status)}</TableCell>
@@ -249,9 +251,7 @@ export function AllocationsTable({
                   <TableCell className="text-right text-charcoal/70">
                     {formatPercent(allocation.percentOfPortfolio)}
                   </TableCell>
-                  <TableCell className="text-center">
-                    {getMoicBadge(allocation.moic)}
-                  </TableCell>
+                  <TableCell className="text-center">{getMoicBadge(allocation.moic)}</TableCell>
                 </TableRow>
               ))}
 
@@ -279,12 +279,10 @@ export function AllocationsTable({
         </div>
 
         {/* Summary Stats */}
-        <div className="mt-4 grid grid-cols-1 md:grid-cols-3 gap-4 p-4 bg-gray-50 rounded-lg">
+        <div className="mt-4 grid grid-cols-1 md:grid-cols-3 gap-4 p-4 bg-pov-gray rounded-lg">
           <div>
             <div className="text-sm text-charcoal/60 font-poppins">Total Companies</div>
-            <div className="text-2xl font-inter font-bold text-charcoal">
-              {allocations.length}
-            </div>
+            <div className="text-2xl font-inter font-bold text-charcoal">{allocations.length}</div>
           </div>
           <div>
             <div className="text-sm text-charcoal/60 font-poppins">Avg Allocation</div>
@@ -296,8 +294,7 @@ export function AllocationsTable({
             <div className="text-sm text-charcoal/60 font-poppins">Reserve Ratio</div>
             <div className="text-2xl font-inter font-bold text-charcoal">
               {formatPercent(
-                totals.reserveAllocated /
-                  (totals.initialInvestment + totals.reserveAllocated)
+                totals.reserveAllocated / (totals.initialInvestment + totals.reserveAllocated)
               )}
             </div>
           </div>
@@ -326,16 +323,11 @@ export function AllocationsTableCompact({
   return (
     <div className={cn('space-y-3', className)}>
       {allocations.map((allocation, idx) => (
-        <Card
-          key={allocation.id}
-          className={cn(idx % 2 === 0 ? 'bg-white' : 'bg-gray-50/50')}
-        >
+        <Card key={allocation.id} className={cn(idx % 2 === 0 ? 'bg-white' : 'bg-pov-gray/50')}>
           <CardContent className="p-4">
             <div className="flex items-start justify-between mb-2">
               <div>
-                <h4 className="font-inter font-bold text-charcoal">
-                  {allocation.name}
-                </h4>
+                <h4 className="font-inter font-bold text-charcoal">{allocation.name}</h4>
                 <p className="text-sm text-charcoal/60 font-poppins">
                   {allocation.sector} • {allocation.stage}
                 </p>
@@ -345,10 +337,10 @@ export function AllocationsTableCompact({
                   variant="secondary"
                   className={cn(
                     allocation.moic >= 3
-                      ? 'bg-green-100 text-green-700'
+                      ? 'bg-presson-positive/10 text-presson-positive'
                       : allocation.moic >= 1
-                      ? 'bg-blue-100 text-blue-700'
-                      : 'bg-red-100 text-red-700'
+                        ? 'bg-presson-positive/10 text-presson-positive'
+                        : 'bg-presson-negative/10 text-presson-negative'
                   )}
                 >
                   {allocation.moic.toFixed(1)}x

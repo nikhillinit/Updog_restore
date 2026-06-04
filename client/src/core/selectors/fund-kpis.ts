@@ -486,3 +486,57 @@ export function formatKPI(value: number, type: 'currency' | 'multiple' | 'percen
       return value.toString();
   }
 }
+
+// ============================================================================
+// DEPRECATED COMPATIBILITY: FundRawData shape
+// ============================================================================
+
+import type { FundRawData, FundKpis } from '../types/fund';
+
+/**
+ * Select fund KPIs from legacy FundRawData shape.
+ *
+ * @deprecated Use `selectAllKPIs` with `FundData` from `fund-domain` instead.
+ * This wrapper exists only for backward compatibility with components still
+ * passing the old `FundRawData` shape. It delegates to `safeXIRR` for IRR
+ * calculation (date-aware) instead of the broken period-index Newton-Raphson.
+ */
+export function selectFundKpis(data: FundRawData): FundKpis {
+  const called = data.capitalCalls.reduce((sum, c) => sum + c.amount, 0);
+  const dist = data.distributions.reduce((sum, d) => sum + d.amount, 0);
+  const nav = data.navSeries.length ? (data.navSeries[data.navSeries.length - 1]?.value ?? 0) : 0;
+  const invested = data.investments.reduce(
+    (sum, i) => sum + i.initialAmount + (i.followOns?.reduce((a, b) => a + b, 0) ?? 0),
+    0
+  );
+  const dpi = called > 0 ? dist / called : 0;
+  const tvpi = called > 0 ? (dist + nav) / called : 0;
+
+  // Build proper dated cash flows for XIRR (the broken fundKpis.ts used
+  // period-index Newton-Raphson that ignored actual dates).
+  const cashFlows: Array<{ date: string; amount: number }> = [];
+  data.capitalCalls.forEach((c) => cashFlows.push({ date: c.date, amount: -c.amount }));
+  data.distributions.forEach((d) => cashFlows.push({ date: d.date, amount: d.amount }));
+  if (nav > 0) {
+    cashFlows.push({
+      date: data.asOf ?? new Date().toISOString().slice(0, 10),
+      amount: nav,
+    });
+  }
+
+  const result = safeXIRR(cashFlows);
+  const irr =
+    result.converged && result.irr !== null ? Number((result.irr * 100).toFixed(2)) : null;
+
+  return {
+    committed: data.committed,
+    called,
+    uncalled: Math.max(0, data.committed - called),
+    invested,
+    nav,
+    dpi: Number(dpi.toFixed(2)),
+    tvpi: Number(tvpi.toFixed(2)),
+    irr,
+    asOf: data.asOf ?? new Date().toISOString().slice(0, 10),
+  };
+}

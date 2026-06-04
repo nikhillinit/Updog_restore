@@ -1,11 +1,11 @@
-import { Card, CardContent } from "@/components/ui/card";
-import { DollarSign, TrendingUp, Building, Percent } from "lucide-react";
-import type { FundMetrics } from "@/types/fund";
+import { Card, CardContent } from '@/components/ui/card';
+import { DollarSign, TrendingUp, Building, Percent } from 'lucide-react';
+import type { FundMetrics } from '@/types/fund';
 
-type MetricIcon = "dollar" | "trending" | "building" | "percent";
-type MetricColor = "blue" | "cyan" | "green" | "orange";
+type MetricIcon = 'dollar' | 'trending' | 'building' | 'percent';
+type MetricColor = 'neutral';
 
-type DashboardMetric = Omit<FundMetrics, "icon" | "color"> & {
+type DashboardMetric = Omit<FundMetrics, 'icon' | 'color'> & {
   icon: MetricIcon;
   color: MetricColor;
 };
@@ -33,7 +33,7 @@ export default function MetricCards({ fundData }: MetricCardsProps) {
         {SKELETON_CARD_KEYS.map((index) => (
           <Card key={index} className="animate-pulse">
             <CardContent className="pt-6">
-              <div className="h-20 bg-gray-200 rounded"></div>
+              <div className="h-20 bg-pov-gray rounded"></div>
             </CardContent>
           </Card>
         ))}
@@ -43,56 +43,60 @@ export default function MetricCards({ fundData }: MetricCardsProps) {
 
   const metrics: DashboardMetric[] = [
     {
-      label: "Total Fund Size",
+      label: 'Total Fund Size',
       value: `$${(parseFloat(fundData.fund.size) / 1000000).toFixed(0)}M`,
-      change: "+12.5%",
-      changeType: "positive",
-      icon: "dollar",
-      color: "blue"
+      change: '+12.5%',
+      changeType: 'positive',
+      icon: 'dollar',
+      color: 'neutral',
     },
     {
-      label: "Deployed Capital", 
+      label: 'Deployed Capital',
       value: `$${(parseFloat(fundData.fund.deployedCapital) / 1000000).toFixed(1)}M`,
       change: `${fundData.summary.deploymentRate.toFixed(1)}%`,
-      changeType: "positive",
-      icon: "trending",
-      color: "cyan"
+      changeType: 'positive',
+      icon: 'trending',
+      color: 'neutral',
     },
     {
-      label: "Portfolio Companies",
+      label: 'Portfolio Companies',
       value: fundData.summary.totalCompanies.toString(),
-      change: "+3",
-      changeType: "positive", 
-      icon: "building",
-      color: "green"
+      change: '+3',
+      changeType: 'positive',
+      icon: 'building',
+      color: 'neutral',
     },
     {
-      label: "Current IRR",
+      label: 'Current IRR',
       value: `${fundData.summary.currentIRR.toFixed(1)}%`,
-      change: "+2.1%",
-      changeType: "positive",
-      icon: "percent",
-      color: "orange"
-    }
+      change: '+2.1%',
+      changeType: 'positive',
+      icon: 'percent',
+      color: 'neutral',
+    },
   ];
 
   const getIcon = (iconType: MetricIcon) => {
     switch (iconType) {
-      case 'dollar': return DollarSign;
-      case 'trending': return TrendingUp;
-      case 'building': return Building;
-      case 'percent': return Percent;
-      default: return DollarSign;
+      case 'dollar':
+        return DollarSign;
+      case 'trending':
+        return TrendingUp;
+      case 'building':
+        return Building;
+      case 'percent':
+        return Percent;
+      default:
+        return DollarSign;
     }
   };
 
   const getIconColor = (color: MetricColor) => {
     switch (color) {
-      case 'blue': return 'text-blue-500 bg-blue-50';
-      case 'cyan': return 'text-cyan-500 bg-cyan-50';
-      case 'green': return 'text-green-500 bg-green-50';
-      case 'orange': return 'text-orange-500 bg-orange-50';
-      default: return 'text-blue-500 bg-blue-50';
+      case 'neutral':
+        return 'text-charcoal-600 bg-pov-gray';
+      default:
+        return 'text-charcoal-600 bg-pov-gray';
     }
   };
 
@@ -101,28 +105,24 @@ export default function MetricCards({ fundData }: MetricCardsProps) {
       {metrics.map((metric, index) => {
         const Icon = getIcon(metric.icon);
         const iconColorClass = getIconColor(metric.color);
-        
+
         return (
-          <Card key={index} className="border border-gray-200">
+          <Card key={index} className="border border-beige-200">
             <CardContent className="pt-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-gray-600 text-sm font-medium">
-                    {metric.label}
-                  </p>
-                  <p className="text-2xl font-bold text-gray-800 mt-1">
-                    {metric.value}
-                  </p>
+                  <p className="text-charcoal-500 text-sm font-medium">{metric.label}</p>
+                  <p className="text-2xl font-bold text-pov-charcoal mt-1">{metric.value}</p>
                   <div className="flex items-center mt-2">
-                    <span className="text-green-600 text-sm font-medium">
+                    <span className="text-presson-positive text-sm font-medium">
                       {metric.change}
                     </span>
-                    <span className="text-gray-500 text-xs ml-1">
-                      vs last quarter
-                    </span>
+                    <span className="text-charcoal-500 text-xs ml-1">vs last quarter</span>
                   </div>
                 </div>
-                <div className={`w-12 h-12 ${iconColorClass} rounded-lg flex items-center justify-center`}>
+                <div
+                  className={`w-12 h-12 ${iconColorClass} rounded-lg flex items-center justify-center`}
+                >
                   <Icon className="h-6 w-6" />
                 </div>
               </div>

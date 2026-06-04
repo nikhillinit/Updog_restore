@@ -13,7 +13,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Count static skips
         id: count
@@ -23,9 +23,16 @@ jobs:
           echo "skip_count=$SKIP_COUNT" >> $GITHUB_OUTPUT
           echo "Files with static describe.skip: $SKIP_COUNT"
 
+      - name: Load quarantine policy
+        id: policy
+        run: |
+          THRESHOLD=$(node -e "const policy = require('./tests/quarantine/policy.json'); if (!Number.isInteger(policy.staticSkipThreshold) || policy.staticSkipThreshold < 1) { throw new Error('tests/quarantine/policy.json must define a positive integer staticSkipThreshold'); } console.log(policy.staticSkipThreshold)")
+          echo "threshold=$THRESHOLD" >> $GITHUB_OUTPUT
+          echo "Static skip threshold: $THRESHOLD"
+
       - name: Check threshold
         run: |
-          THRESHOLD=25
+          THRESHOLD=${{ steps.policy.outputs.threshold }}
           SKIP_COUNT=${{ steps.count.outputs.skip_count }}
           echo "Current skip count: $SKIP_COUNT"
           echo "Threshold: $THRESHOLD"
@@ -49,5 +56,5 @@ jobs:
           echo "| Metric | Value |" >> $GITHUB_STEP_SUMMARY
           echo "|--------|-------|" >> $GITHUB_STEP_SUMMARY
           echo "| Static Skips | ${{ steps.count.outputs.skip_count }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| Threshold | 25 |" >> $GITHUB_STEP_SUMMARY
-          echo "| Status | $([[ ${{ steps.count.outputs.skip_count }} -le 25 ]] && echo 'PASS' || echo 'FAIL') |" >> $GITHUB_STEP_SUMMARY
+          echo "| Threshold | ${{ steps.policy.outputs.threshold }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Status | $([[ ${{ steps.count.outputs.skip_count }} -le ${{ steps.policy.outputs.threshold }} ]] && echo 'PASS' || echo 'FAIL') |" >> $GITHUB_STEP_SUMMARY

@@ -53,7 +53,7 @@ const deployments = PacingEngine(input);
 ```
 
 **Code Reference:**
-[PacingEngine.ts:124-137](client/src/core/pacing/PacingEngine.ts#L124)
+[PacingEngine.ts:124-137](../../../client/src/core/pacing/PacingEngine.ts#L124)
 
 ---
 
@@ -87,10 +87,10 @@ const summary: PacingSummary = generatePacingSummary(input);
 **Use Case:** Dashboard displays, reporting, scenario comparison
 
 **Code Reference:**
-[PacingEngine.ts:144-159](client/src/core/pacing/PacingEngine.ts#L144)
+[PacingEngine.ts:144-159](../../../client/src/core/pacing/PacingEngine.ts#L144)
 
 **Test Evidence:**
-[pacing-engine.test.ts:255-293](tests/unit/engines/pacing-engine.test.ts#L255)
+[pacing-engine.test.ts:255-293](../../../tests/unit/engines/pacing-engine.test.ts#L255)
 
 ---
 
@@ -138,12 +138,12 @@ try {
 ```
 
 **Validation Logic:**
-[PacingEngine.ts:25-31](client/src/core/pacing/PacingEngine.ts#L25)
+[PacingEngine.ts:25-31](../../../client/src/core/pacing/PacingEngine.ts#L25)
 
-**Schema Definition:** [shared/types.ts:113-117](shared/types.ts#L113)
+**Schema Definition:** [shared/types.ts:113-117](../../../shared/types.ts#L113)
 
 **Test Coverage:**
-[pacing-engine.test.ts:24-53](tests/unit/engines/pacing-engine.test.ts#L24)
+[pacing-engine.test.ts:24-53](../../../tests/unit/engines/pacing-engine.test.ts#L24)
 
 ---
 
@@ -210,10 +210,10 @@ const result = PacingEngine(input);
 ```
 
 **Mode Detection:**
-[PacingEngine.ts:47-49](client/src/core/pacing/PacingEngine.ts#L47)
+[PacingEngine.ts:47-49](../../../client/src/core/pacing/PacingEngine.ts#L47)
 
 **Test Coverage:**
-[pacing-engine.test.ts:191-222](tests/unit/engines/pacing-engine.test.ts#L191)
+[pacing-engine.test.ts:191-222](../../../tests/unit/engines/pacing-engine.test.ts#L191)
 
 ---
 
@@ -225,7 +225,7 @@ The **pacing-worker** handles background calculations asynchronously via Redis
 queues.
 
 **Worker Setup:**
-[workers/pacing-worker.ts:31-152](workers/pacing-worker.ts#L31)
+[workers/pacing-worker.ts:31-152](../../../workers/pacing-worker.ts#L31)
 
 ```typescript
 import { Worker } from 'bullmq';
@@ -392,7 +392,7 @@ retrieval, but enables high-throughput API.
 ### Worker Health Monitoring
 
 **Health Check Server:**
-[workers/pacing-worker.ts:158-159](workers/pacing-worker.ts#L158)
+[workers/pacing-worker.ts:158-159](../../../workers/pacing-worker.ts#L158)
 
 ```bash
 # Health check endpoint
@@ -459,7 +459,7 @@ CREATE INDEX idx_pacing_history_fund ON pacing_history(fund_id);
 ```
 
 **Implementation:**
-[workers/pacing-worker.ts:62-80](workers/pacing-worker.ts#L62)
+[workers/pacing-worker.ts:62-80](../../../workers/pacing-worker.ts#L62)
 
 ---
 
@@ -849,7 +849,7 @@ const comparisonData = scenarios.map((s) => ({
 ```
 
 **Test Evidence:** Multi-scenario testing validated in
-[pacing-engine.test.ts:95-108](tests/unit/engines/pacing-engine.test.ts#L95)
+[pacing-engine.test.ts:95-108](../../../tests/unit/engines/pacing-engine.test.ts#L95)
 
 ---
 
@@ -887,7 +887,7 @@ export function PacingEngine(input: unknown): PacingOutput[] {
 deterministic results.
 
 **Code Reference:**
-[PacingEngine.ts:126](client/src/core/pacing/PacingEngine.ts#L126)
+[PacingEngine.ts:126](../../../client/src/core/pacing/PacingEngine.ts#L126)
 
 ---
 
@@ -918,7 +918,7 @@ const normalized = summary.deployments.map((d) => ({
 ```
 
 **Test Evidence:**
-[pacing-engine.test.ts:157-167](tests/unit/engines/pacing-engine.test.ts#L157)
+[pacing-engine.test.ts:157-167](../../../tests/unit/engines/pacing-engine.test.ts#L157)
 
 ---
 
@@ -1004,7 +1004,7 @@ if (!validateFundSizeForPacing(input.fundSize)) {
 ```
 
 **Test Evidence:** Edge cases validated in
-[pacing-engine.test.ts:299-336](tests/unit/engines/pacing-engine.test.ts#L299)
+[pacing-engine.test.ts:299-336](../../../tests/unit/engines/pacing-engine.test.ts#L299)
 
 ---
 
@@ -1145,7 +1145,7 @@ exceed benefit. Only cache if database lookups dominate.
 ### Unit Testing Pattern
 
 **Test Structure:**
-[pacing-engine.test.ts](tests/unit/engines/pacing-engine.test.ts#L1)
+[pacing-engine.test.ts](../../../tests/unit/engines/pacing-engine.test.ts#L1)
 
 ```typescript
 import { describe, it, expect } from 'vitest';
@@ -1249,7 +1249,7 @@ test.prop([
 ### Prometheus Metrics
 
 **Worker Metrics:**
-[workers/pacing-worker.ts:98-109](workers/pacing-worker.ts#L98)
+[workers/pacing-worker.ts:98-109](../../../workers/pacing-worker.ts#L98)
 
 ```typescript
 import { metrics } from '../lib/metrics';
@@ -1293,7 +1293,7 @@ rate(pacing_calculations_total[1m])
 ### Structured Logging
 
 **Logger Integration:**
-[workers/pacing-worker.ts:36](workers/pacing-worker.ts#L36)
+[workers/pacing-worker.ts:36](../../../workers/pacing-worker.ts#L36)
 
 ```typescript
 import { logger } from '../lib/logger';
@@ -1407,13 +1407,13 @@ logger.error('Pacing calculation failed', error, {
 ## Related Documentation
 
 - **Implementation:**
-  [PacingEngine.ts](client/src/core/pacing/PacingEngine.ts#L1)
-- **Worker:** [pacing-worker.ts](workers/pacing-worker.ts#L1)
+  [PacingEngine.ts](../../../client/src/core/pacing/PacingEngine.ts#L1)
+- **Worker:** [pacing-worker.ts](../../../workers/pacing-worker.ts#L1)
 - **Test Suite:**
-  [pacing-engine.test.ts](tests/unit/engines/pacing-engine.test.ts#L1)
-- **Type Definitions:** [shared/types.ts:113-132](shared/types.ts#L113)
+  [pacing-engine.test.ts](../../../tests/unit/engines/pacing-engine.test.ts#L1)
+- **Type Definitions:** [shared/types.ts:113-132](../../../shared/types.ts#L113)
 - **Validation Config:**
-  [pacing-validation.yaml](scripts/validation/pacing-validation.yaml#L1)
+  [pacing-validation.yaml](../../../scripts/validation/pacing-validation.yaml#L1)
 - **Database Schema:** `@shared/schema` (fundSnapshots, pacingHistory)
 
 ---

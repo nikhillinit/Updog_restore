@@ -1,0 +1,38 @@
+{
+  "allowedRouteFiles": [
+    "server/routes/activities.ts",
+    "server/routes/allocations.ts",
+    "server/routes/cohort-analysis.ts",
+    "server/routes/dashboard-summary.ts",
+    "server/routes/dev-dashboard.ts",
+    "server/routes/fund-config.ts",
+    "server/routes/fund-metrics-legacy.ts",
+    "server/routes/funds.ts",
+    "server/routes/health.ts",
+    "server/routes/interleaved-thinking.ts",
+    "server/routes/investments.ts",
+    "server/routes/lp-api.ts",
+    "server/routes/lp-capital-calls.ts",
+    "server/routes/lp-distributions.ts",
+    "server/routes/lp-documents.ts",
+    "server/routes/lp-health.ts",
+    "server/routes/lp-notifications.ts",
+    "server/routes/performance-api.ts",
+    "server/routes/portfolio-companies.ts",
+    "server/routes/portfolio-optimization.ts",
+    "server/routes/reallocation.ts",
+    "server/routes/scenario-analysis.ts",
+    "server/routes/shares.ts",
+    "server/routes/timeline.ts",
+    "server/routes/v1/reserve-approvals.ts"
+  ],
+  "generatedAt": "2026-05-27T09:05:00.000Z",
+  "policy": "No new server route files may import db or storage persistence modules directly. Move new persistence access behind services.",
+  "restrictedModules": [
+    "server/db",
+    "server/db/*",
+    "server/db-serverless",
+    "server/storage"
+  ],
+  "scope": ["server/routes/**/*.ts"]
+}

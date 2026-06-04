@@ -5,17 +5,19 @@ last_updated: 2026-01-19
 
 # Fund Setup & Configuration Testing Rubric
 
-**Domain:** Fund creation and configuration
-**Estimated Time:** 45 minutes
+**Domain:** Fund creation and configuration **Estimated Time:** 45 minutes
 **Prerequisites:** Database seeded, development server running
 
 ---
 
 ## Overview
 
-This rubric covers the 7-step fund setup wizard and fund configuration management. The wizard guides users through creating a new fund with all required parameters.
+This rubric covers the 7-step fund setup wizard and fund configuration
+management. The wizard guides users through creating a new fund with all
+required parameters.
 
 **Wizard Steps:**
+
 1. Fund Details (name, size, vintage, duration)
 2. GP Commitment (commitment amount, timing)
 3. Management Fees (fee structure, timing)
@@ -29,8 +31,9 @@ This rubric covers the 7-step fund setup wizard and fund configuration managemen
 ## Test Cases
 
 ### TC-FS-001: Wizard Navigation - Happy Path
-**Objective:** Verify wizard step navigation works correctly
-**Steps:**
+
+**Objective:** Verify wizard step navigation works correctly **Steps:**
+
 1. Navigate to `/funds/new`
 2. Fill in Fund Details step (valid data)
 3. Click "Next" button
@@ -41,6 +44,7 @@ This rubric covers the 7-step fund setup wizard and fund configuration managemen
 8. Verify redirect to fund dashboard
 
 **Expected Result:**
+
 - Each step transition is smooth (no page reload)
 - Progress indicator highlights current step
 - All entered data persists across steps
@@ -48,6 +52,7 @@ This rubric covers the 7-step fund setup wizard and fund configuration managemen
 - Success toast notification appears
 
 **Data Validation:**
+
 - Fund appears in database with correct parameters
 - Fund ID is generated (integer)
 - Created timestamp is accurate
@@ -57,22 +62,25 @@ This rubric covers the 7-step fund setup wizard and fund configuration managemen
 ---
 
 ### TC-FS-002: Step 1 - Fund Details Validation
-**Objective:** Verify fund details form validation
-**Steps:**
+
+**Objective:** Verify fund details form validation **Steps:**
 
 **Test 2a: Required Fields**
+
 1. Navigate to `/funds/new`
 2. Leave all fields empty
 3. Click "Next"
 4. Verify validation errors appear for required fields
 
 **Expected Errors:**
+
 - Fund Name: "Fund name is required"
 - Fund Size: "Fund size is required"
 - Vintage Year: "Vintage year is required"
 - Fund Duration: "Duration is required"
 
 **Test 2b: Fund Size Range Validation**
+
 1. Enter fund size: $0
 2. Verify error: "Fund size must be greater than $0"
 3. Enter fund size: $999,999
@@ -83,6 +91,7 @@ This rubric covers the 7-step fund setup wizard and fund configuration managemen
 8. Verify no error, field shows "$50,000,000"
 
 **Test 2c: Vintage Year Validation**
+
 1. Enter vintage year: 1999
 2. Verify error: "Vintage year must be 2000 or later"
 3. Enter vintage year: 2051
@@ -91,6 +100,7 @@ This rubric covers the 7-step fund setup wizard and fund configuration managemen
 6. Verify no error
 
 **Test 2d: Duration Validation**
+
 1. Enter duration: 0 years
 2. Verify error: "Duration must be at least 1 year"
 3. Enter duration: 21 years
@@ -99,6 +109,7 @@ This rubric covers the 7-step fund setup wizard and fund configuration managemen
 6. Verify no error
 
 **Test 2e: Fund Name Uniqueness**
+
 1. Enter fund name matching existing fund: "Test Fund I"
 2. Fill other required fields
 3. Click "Next"
@@ -109,10 +120,11 @@ This rubric covers the 7-step fund setup wizard and fund configuration managemen
 ---
 
 ### TC-FS-003: Step 2 - GP Commitment Configuration
-**Objective:** Verify GP commitment validation and calculations
-**Steps:**
+
+**Objective:** Verify GP commitment validation and calculations **Steps:**
 
 **Test 3a: Commitment Amount Validation**
+
 1. Complete Step 1 with valid data
 2. Navigate to Step 2
 3. Enter GP commitment: $0
@@ -123,6 +135,7 @@ This rubric covers the 7-step fund setup wizard and fund configuration managemen
 8. Verify commitment percentage displays: "10.00%"
 
 **Test 3b: Commitment Timing**
+
 1. Select commitment timing: "Upfront"
 2. Verify tooltip explains: "Full GP commitment at fund inception"
 3. Select commitment timing: "Pro-rata"
@@ -135,10 +148,11 @@ This rubric covers the 7-step fund setup wizard and fund configuration managemen
 ---
 
 ### TC-FS-004: Step 3 - Management Fees Configuration
-**Objective:** Verify management fee structure validation
-**Steps:**
+
+**Objective:** Verify management fee structure validation **Steps:**
 
 **Test 4a: Fee Percentage Validation**
+
 1. Complete Steps 1-2
 2. Navigate to Step 3
 3. Enter management fee: -1%
@@ -149,11 +163,13 @@ This rubric covers the 7-step fund setup wizard and fund configuration managemen
 8. Verify no error
 
 **Test 4b: Fee Calculation Preview**
+
 1. Set management fee: 2%
 2. Verify annual fee calculation displays: "$1,000,000" (2% of $50M)
 3. Verify 10-year total displays: "$10,000,000"
 
 **Test 4c: Fee Step-Down Configuration**
+
 1. Enable "Step-down after investment period"
 2. Verify additional fields appear:
    - Investment period duration
@@ -169,10 +185,11 @@ This rubric covers the 7-step fund setup wizard and fund configuration managemen
 ---
 
 ### TC-FS-005: Step 4 - Carry Waterfall Configuration
-**Objective:** Verify American waterfall configuration and validation
-**Steps:**
+
+**Objective:** Verify American waterfall configuration and validation **Steps:**
 
 **Test 5a: GP/LP Split Validation**
+
 1. Complete Steps 1-3
 2. Navigate to Step 4
 3. Enter GP carry: 15%
@@ -184,6 +201,7 @@ This rubric covers the 7-step fund setup wizard and fund configuration managemen
 9. Verify error: "GP carry cannot exceed 100%"
 
 **Test 5b: Hurdle Rate Configuration**
+
 1. Enable "Preferred return (hurdle)"
 2. Enter hurdle rate: 0%
 3. Verify error: "Hurdle rate must be greater than 0%"
@@ -194,6 +212,7 @@ This rubric covers the 7-step fund setup wizard and fund configuration managemen
 8. Verify hurdle type options: "Hard" or "Soft"
 
 **Test 5c: Catch-Up Configuration**
+
 1. Enable "GP catch-up"
 2. Verify catch-up percentage field appears
 3. Enter catch-up: 50%
@@ -204,6 +223,7 @@ This rubric covers the 7-step fund setup wizard and fund configuration managemen
    - Tier 4: Carried interest split (20/80)
 
 **Test 5d: Waterfall Preview with Sample Data**
+
 1. Use waterfall configuration: 20% GP carry, 8% hurdle, 50% catch-up
 2. Verify preview table shows sample distributions:
    - Total proceeds: $100M
@@ -219,10 +239,11 @@ This rubric covers the 7-step fund setup wizard and fund configuration managemen
 ---
 
 ### TC-FS-006: Step 5 - Deployment Strategy Configuration
-**Objective:** Verify pacing strategy validation
-**Steps:**
+
+**Objective:** Verify pacing strategy validation **Steps:**
 
 **Test 6a: Pacing Model Selection**
+
 1. Complete Steps 1-4
 2. Navigate to Step 5
 3. Verify pacing model options:
@@ -232,12 +253,14 @@ This rubric covers the 7-step fund setup wizard and fund configuration managemen
    - Custom (manual schedule)
 
 **Test 6b: Linear Pacing**
+
 1. Select "Linear" model
 2. Set deployment period: 5 years
 3. Verify annual deployment preview: $10M/year
 4. Verify deployment schedule chart renders
 
 **Test 6c: Custom Pacing Validation**
+
 1. Select "Custom" model
 2. Add year 1: 30% ($15M)
 3. Add year 2: 30% ($15M)
@@ -252,10 +275,11 @@ This rubric covers the 7-step fund setup wizard and fund configuration managemen
 ---
 
 ### TC-FS-007: Step 6 - Reserve Strategy Configuration
-**Objective:** Verify reserve allocation rules
-**Steps:**
+
+**Objective:** Verify reserve allocation rules **Steps:**
 
 **Test 7a: Reserve Policy Selection**
+
 1. Complete Steps 1-5
 2. Navigate to Step 6
 3. Verify reserve policy options:
@@ -265,6 +289,7 @@ This rubric covers the 7-step fund setup wizard and fund configuration managemen
    - No reserves
 
 **Test 7b: Fixed Percentage Reserves**
+
 1. Select "Fixed percentage"
 2. Enter reserve ratio: 0%
 3. Verify error: "Reserve ratio must be greater than 0%"
@@ -274,6 +299,7 @@ This rubric covers the 7-step fund setup wizard and fund configuration managemen
 7. Verify example calculation: $1M initial → $500K reserved
 
 **Test 7c: Rule-Based Reserves**
+
 1. Select "Rule-based"
 2. Add rule: "Seed stage → 100% reserve"
 3. Add rule: "Series A → 50% reserve"
@@ -286,10 +312,12 @@ This rubric covers the 7-step fund setup wizard and fund configuration managemen
 ---
 
 ### TC-FS-008: Step 7 - Review & Confirm
+
 **Objective:** Verify review step displays all configurations correctly
 **Steps:**
 
 **Test 8a: Data Accuracy**
+
 1. Complete all 6 previous steps
 2. Navigate to Step 7
 3. Verify review summary displays:
@@ -301,6 +329,7 @@ This rubric covers the 7-step fund setup wizard and fund configuration managemen
    - Reserve Strategy (policy, parameters)
 
 **Test 8b: Edit Navigation**
+
 1. Click "Edit" button on Fund Details section
 2. Verify navigation back to Step 1
 3. Change fund name
@@ -308,6 +337,7 @@ This rubric covers the 7-step fund setup wizard and fund configuration managemen
 5. Verify updated fund name appears in review
 
 **Test 8c: Fund Creation**
+
 1. Review all data in Step 7
 2. Click "Create Fund"
 3. Verify loading state during creation
@@ -319,16 +349,18 @@ This rubric covers the 7-step fund setup wizard and fund configuration managemen
 ---
 
 ### TC-FS-009: Wizard State Persistence
-**Objective:** Verify wizard saves progress and handles interruptions
-**Steps:**
+
+**Objective:** Verify wizard saves progress and handles interruptions **Steps:**
 
 **Test 9a: Browser Refresh**
+
 1. Start wizard, complete Steps 1-3
 2. Refresh browser page (F5)
 3. Verify wizard restores to Step 3
 4. Verify all data from Steps 1-3 is preserved
 
 **Test 9b: Navigation Away and Back**
+
 1. Start wizard, complete Step 1
 2. Navigate to home page (`/`)
 3. Navigate back to `/funds/new`
@@ -336,6 +368,7 @@ This rubric covers the 7-step fund setup wizard and fund configuration managemen
 5. Verify Step 1 data is preserved
 
 **Test 9c: Session Expiry**
+
 1. Start wizard, complete Steps 1-2
 2. Simulate session expiry (clear localStorage or wait for timeout)
 3. Attempt to navigate to Step 3
@@ -347,8 +380,8 @@ This rubric covers the 7-step fund setup wizard and fund configuration managemen
 ---
 
 ### TC-FS-010: Fund Duplication
-**Objective:** Verify fund duplication creates accurate copy
-**Steps:**
+
+**Objective:** Verify fund duplication creates accurate copy **Steps:**
 
 1. Navigate to existing fund detail page
 2. Click "Duplicate Fund" button
@@ -368,10 +401,11 @@ This rubric covers the 7-step fund setup wizard and fund configuration managemen
 ---
 
 ### TC-FS-011: Fund Editing
-**Objective:** Verify fund parameter editing with constraints
-**Steps:**
+
+**Objective:** Verify fund parameter editing with constraints **Steps:**
 
 **Test 11a: Edit Allowed Fields (Pre-Activation)**
+
 1. Navigate to fund detail page (fund not yet activated)
 2. Click "Edit Fund" button
 3. Verify all fields are editable
@@ -380,6 +414,7 @@ This rubric covers the 7-step fund setup wizard and fund configuration managemen
 6. Verify updated fund size displays
 
 **Test 11b: Edit Restricted After Activation**
+
 1. Activate fund (make first investment or capital call)
 2. Click "Edit Fund"
 3. Verify restricted fields are disabled:
@@ -391,6 +426,7 @@ This rubric covers the 7-step fund setup wizard and fund configuration managemen
    - Management fee (with warning)
 
 **Test 11c: Edit Validation**
+
 1. Edit fund name to empty string
 2. Verify error: "Fund name is required"
 3. Edit fund name to match another fund
@@ -422,7 +458,7 @@ After completing all test cases, verify:
 Document any bugs found during testing:
 
 | Test Case | Issue Description | Severity | GitHub Issue |
-|-----------|-------------------|----------|--------------|
+| --------- | ----------------- | -------- | ------------ |
 | TC-FS-XXX | [Description]     | [Level]  | #XXX         |
 
 ---
@@ -430,6 +466,7 @@ Document any bugs found during testing:
 ## Test Data
 
 **Sample Fund Configuration:**
+
 ```json
 {
   "name": "Test Fund I",
@@ -439,9 +476,9 @@ Document any bugs found during testing:
   "gpCommitment": 5000000,
   "managementFee": 0.02,
   "carryStructure": {
-    "gpCarry": 0.20,
+    "gpCarry": 0.2,
     "hurdleRate": 0.08,
-    "catchUp": 0.50
+    "catchUp": 0.5
   }
 }
 ```
@@ -451,5 +488,5 @@ Document any bugs found during testing:
 ## Related Documentation
 
 - [DECISIONS.md](../../DECISIONS.md) - Fund setup architecture decisions
-- [cheatsheets/fund-modeling.md](../../cheatsheets/fund-modeling.md) - Fund modeling patterns
-- [shared/schemas/fund.schemas.ts](../../shared/schemas/fund.schemas.ts) - Zod validation schemas
+- [shared/schemas/fund.schemas.ts](../../shared/schemas/fund.schemas.ts) - Zod
+  validation schemas

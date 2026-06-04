@@ -1,0 +1,261 @@
+# Shared dorny/paths-filter configuration for CI fast-path gating.
+#
+# Loaded via: dorny/paths-filter with `filters: '.github/path-filters.yml'`.
+#
+# Filter groups
+# -------------
+# auto_docs:        Exact allowlist of committed generated documentation outputs that
+#                   may be touched by an automated commit.
+# not_auto_docs:    The complement of auto_docs. Used to prove the negation:
+#                   a PR is auto_docs_only when auto_docs == 'true' AND
+#                   not_auto_docs == 'false'. This makes the allowlist a
+#                   HARD boundary -- a single non-allowlisted change disqualifies
+#                   the fast path.
+# code:             Source-bearing changes that warrant the full ci-unified
+#                   pipeline. NOTE: excludes scripts/validation/** because those
+#                   are doc-validation scripts treated as docs by ci-unified.
+# docs:             Documentation changes (mirror of code's exclusions).
+# docs_links:       Active documentation link-check inputs. Kept separate from
+#                   docs because docs intentionally excludes CHANGELOG.md.
+# code_with_validation:
+#                   Like `code` but includes scripts/validation/**.
+#                   core-validation.yml's existing semantics treat validation
+#                   scripts as code. Kept separate to preserve behavior.
+# dependency:       Dependency/toolchain files that warrant lockfile, install,
+#                   doctor, and production-audit validation.
+# pr_security:      Files that warrant lightweight PR security checks.
+# security_tests:   Files that warrant the security integration test suite.
+# security_relevant:
+#                   Files that warrant deep security scans on PRs. Schedules,
+#                   dispatches, and push-to-main still run full deep scans.
+# codeql_relevant:  Files that warrant full CodeQL analysis instead of the
+#                   required-check-safe pass-through path.
+# claude_review_relevant:
+#                   Files that make opt-in Claude PR review useful.
+# test_quarantine:  Files that warrant static skip/quarantine counting.
+#
+# Generators to keep in sync with auto_docs (drift causes spurious slow-path
+# runs, which are safe; missing outputs also fail to fast-path, also safe):
+#   scripts/generate-discovery-map.ts -> docs/_generated/router-index.json
+#                                        docs/_generated/router-fast.json
+#                                        docs/_generated/staleness-report.md
+#   scripts/manage_skills.py          -> docs/skills/SKILLS_INDEX.md
+#                                        docs/skills/WIZARD_INDEX.md
+#
+# Source/tooling safety contract:
+#   - `code` is the heavy-ci trigger surface. When a new source, infra, ops,
+#     tool, or executable-script directory is added, include it here first so
+#     CI fails toward the heavy path rather than silently fast-pathing.
+#   - `codeql_relevant` and `claude_review_relevant` intentionally duplicate
+#     the JS/TS review surface. Keep shared JS/TS/toolchain patterns aligned,
+#     but do not blindly copy infra-only or non-JS runtime paths into CodeQL
+#     while CodeQL is configured for javascript-typescript only.
+
+auto_docs:
+  - 'docs/_generated/router-index.json'
+  - 'docs/_generated/router-fast.json'
+  - 'docs/_generated/staleness-report.md'
+  - 'docs/skills/SKILLS_INDEX.md'
+  - 'docs/skills/WIZARD_INDEX.md'
+
+not_auto_docs:
+  - '**'
+  - '!docs/_generated/router-index.json'
+  - '!docs/_generated/router-fast.json'
+  - '!docs/_generated/staleness-report.md'
+  - '!docs/skills/SKILLS_INDEX.md'
+  - '!docs/skills/WIZARD_INDEX.md'
+
+code:
+  - '**/*.ts'
+  - '**/*.tsx'
+  - '**/*.js'
+  - '**/*.jsx'
+  - '**/*.mjs'
+  - '**/*.cjs'
+  - '**/*.mts'
+  - '**/*.cts'
+  - '**/*.py'
+  - '**/*.sh'
+  - 'package*.json'
+  - 'package-lock.json'
+  - 'tsconfig*.json'
+  - 'vite.config.*'
+  - 'vitest.config.*'
+  - 'eslint.config.*'
+  - '.codacy.yml'
+  - '.dependency-cruiser.cjs'
+  - '.remarkrc.mjs'
+  - 'Dockerfile*'
+  - 'docker-compose*.yml'
+  - 'semgrep.yml'
+  - '.github/workflows/**'
+  - '.github/actions/**'
+  - 'server/**'
+  - 'client/**'
+  - 'shared/**'
+  - 'scripts/**'
+  - '!scripts/validation/**'
+  - 'tests/**'
+  - 'tools/**'
+  - 'eslint-rules/**'
+  - 'ai-utils/**'
+  - 'infra/**'
+  - 'ops/**'
+  - 'monitoring/**'
+  - 'observability/**'
+  - 'ml-service/**'
+  - 'openapi/**'
+  - 'flags/**'
+
+docs:
+  - '**/*.md'
+  - 'docs/**'
+  - '.github/*.md'
+  - 'scripts/validation/**'
+  - '!CHANGELOG.md'
+
+docs_links:
+  - '**/*.md'
+  - 'docs/**'
+  - '.github/*.md'
+  - 'CLAUDE.md'
+  - 'AGENTS.md'
+  - 'README.md'
+  - 'CHANGELOG.md'
+  - 'DECISIONS.md'
+  - 'CAPABILITIES.md'
+  - 'scripts/check-doc-links.mjs'
+  - 'scripts/lib/doc-link-checker.mjs'
+
+code_with_validation:
+  - '**/*.ts'
+  - '**/*.tsx'
+  - '**/*.js'
+  - '**/*.jsx'
+  - 'package*.json'
+  - 'package-lock.json'
+  - '.github/workflows/**'
+  - 'server/**'
+  - 'client/**'
+  - 'shared/**'
+  - 'scripts/**'
+  - 'tests/**'
+
+dependency:
+  - 'package.json'
+  - 'package-lock.json'
+  - '.npmrc'
+  - '.nvmrc'
+  - 'scripts/check-package-manager.mjs'
+  - 'scripts/doctor*.mjs'
+  - 'scripts/verify-lockfile.sh'
+  - '.github/actions/setup-node-env/**'
+  - '.github/path-filters.yml'
+  - '.github/workflows/ci-unified.yml'
+  - '.github/workflows/dependency-validation.yml'
+
+pr_security:
+  - 'package.json'
+  - 'package-lock.json'
+  - 'server/**'
+  - 'shared/**'
+  - 'Dockerfile*'
+  - 'suppression.xml'
+  - '.github/codeql-config.yml'
+  - '.github/workflows/ci-unified.yml'
+  - '.github/workflows/codeql.yml'
+  - '.github/workflows/security-scan.yml'
+  - '.github/workflows/security-tests.yml'
+
+security_tests:
+  - 'server/**'
+  - 'shared/**'
+  - 'tests/integration/security/**'
+  - 'package.json'
+  - 'package-lock.json'
+  - '.github/workflows/ci-unified.yml'
+  - '.github/workflows/security-tests.yml'
+
+security_relevant:
+  - 'package.json'
+  - 'package-lock.json'
+  - 'server/**'
+  - 'shared/**'
+  - 'Dockerfile*'
+  - 'suppression.xml'
+  - '.github/actions/setup-node-env/**'
+  - '.github/codeql-config.yml'
+  - '.github/path-filters.yml'
+  - '.github/workflows/codeql.yml'
+  - '.github/workflows/security-scan.yml'
+  - '.github/workflows/security-tests.yml'
+
+codeql_relevant:
+  - '**/*.ts'
+  - '**/*.tsx'
+  - '**/*.js'
+  - '**/*.jsx'
+  - '**/*.mjs'
+  - '**/*.cjs'
+  - '**/*.mts'
+  - '**/*.cts'
+  - 'client/**'
+  - 'server/**'
+  - 'shared/**'
+  - 'scripts/**'
+  - 'tests/**'
+  - 'tools/**'
+  - 'eslint-rules/**'
+  - 'package.json'
+  - 'package-lock.json'
+  - 'tsconfig*.json'
+  - 'vite.config.*'
+  - 'vitest.config.*'
+  - 'eslint.config.*'
+  - '.github/codeql-config.yml'
+  - '.github/path-filters.yml'
+  - '.github/workflows/codeql.yml'
+  - '.github/workflows/security-scan.yml'
+  - '.github/workflows/security-tests.yml'
+
+claude_review_relevant:
+  - '**/*.ts'
+  - '**/*.tsx'
+  - '**/*.js'
+  - '**/*.jsx'
+  - '**/*.mjs'
+  - '**/*.cjs'
+  - '**/*.mts'
+  - '**/*.cts'
+  - '**/*.py'
+  - '**/*.sh'
+  - 'client/**'
+  - 'server/**'
+  - 'shared/**'
+  - 'scripts/**'
+  - 'tests/**'
+  - 'tools/**'
+  - 'eslint-rules/**'
+  - 'ai-utils/**'
+  - 'infra/**'
+  - 'ops/**'
+  - 'monitoring/**'
+  - 'observability/**'
+  - 'ml-service/**'
+  - 'openapi/**'
+  - 'flags/**'
+  - 'package.json'
+  - 'package-lock.json'
+  - 'tsconfig*.json'
+  - 'vite.config.*'
+  - 'vitest.config.*'
+  - 'eslint.config.*'
+  - '.github/path-filters.yml'
+  - '.github/workflows/claude-code-review.yml'
+
+test_quarantine:
+  - 'tests/**'
+  - 'vitest.config.*'
+  - 'vitest.*.ts'
+  - 'tests/quarantine/**'

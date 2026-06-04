@@ -61,13 +61,13 @@ knowledge), Foundation Hardening fixes the "how" (implementation alignment).
 
 ## Domain Overlap
 
-| Domain                 | Phoenix Truth Cases (Auditable Counts)                                                                                                                                                 | Phoenix Doc Score (Promptfoo)                                                                          | Foundation Hardening Divergence                                                                                                                                 |
-| ---------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **XIRR**               | N cases ([/docs/xirr.truth-cases.json](/docs/xirr.truth-cases.json)) - Excel parity                                                                                                    | 96.3% ([/docs/notebooklm-sources/xirr.md](/docs/notebooklm-sources/xirr.md))                           | 4 implementations (finance/xirr.ts, lib/xirr.ts, selectors/xirr.ts, server/actual-metrics-calculator.ts) with different algorithms, error handling, rate bounds |
-| **Waterfall**          | N ledger ([/docs/waterfall-ledger.truth-cases.json](/docs/waterfall-ledger.truth-cases.json)), N tier ([/docs/waterfall-tier.truth-cases.json](/docs/waterfall-tier.truth-cases.json)) | 94.3% ([/docs/notebooklm-sources/waterfall.md](/docs/notebooklm-sources/waterfall.md))                 | Clawback only in american-ledger.ts (not fee-calculations.ts), ghost EUROPEAN types remain despite ADR-004 removal                                              |
-| **Fees**               | N cases ([/docs/fees.truth-cases.json](/docs/fees.truth-cases.json))                                                                                                                   | 94.5% ([/docs/notebooklm-sources/fees.md](/docs/notebooklm-sources/fees.md))                           | 3 separate fee systems with different basis enums (7 values vs 3 values vs 6 values), different recycling logic                                                 |
-| **Capital Allocation** | N cases ([/docs/capital-allocation.truth-cases.json](/docs/capital-allocation.truth-cases.json))                                                                                       | 99% ([/docs/notebooklm-sources/capital-allocation.md](/docs/notebooklm-sources/capital-allocation.md)) | 6+ engines with different unit systems (cents/BigInt/Decimal/dollars), different rounding strategies (Banker's vs standard)                                     |
-| **Exit Recycling**     | N cases ([/docs/exit-recycling.truth-cases.json](/docs/exit-recycling.truth-cases.json))                                                                                               | 91% ([/docs/notebooklm-sources/exit-recycling.md](/docs/notebooklm-sources/exit-recycling.md))         | Duplication in fee-calculations.ts vs fee-profile.ts                                                                                                            |
+| Domain                 | Phoenix Truth Cases (Auditable Counts)                                                                                                                                       | Phoenix Doc Score (Promptfoo)                                                                          | Foundation Hardening Divergence                                                                                                                                 |
+| ---------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **XIRR**               | N cases ([/docs/xirr.truth-cases.json](/docs/xirr.truth-cases.json)) - Excel parity                                                                                          | 96.3% ([/docs/notebooklm-sources/xirr.md](/docs/notebooklm-sources/xirr.md))                           | 4 implementations (finance/xirr.ts, lib/xirr.ts, selectors/xirr.ts, server/actual-metrics-calculator.ts) with different algorithms, error handling, rate bounds |
+| **Waterfall**          | N ledger ([/docs/waterfall-ledger.truth-cases.json](/docs/waterfall-ledger.truth-cases.json)), N tier ([/docs/waterfall.truth-cases.json](/docs/waterfall.truth-cases.json)) | 94.3% ([/docs/notebooklm-sources/waterfall.md](/docs/notebooklm-sources/waterfall.md))                 | Clawback only in american-ledger.ts (not fee-calculations.ts), ghost EUROPEAN types remain despite ADR-004 removal                                              |
+| **Fees**               | N cases ([/docs/fees.truth-cases.json](/docs/fees.truth-cases.json))                                                                                                         | 94.5% ([/docs/notebooklm-sources/fees.md](/docs/notebooklm-sources/fees.md))                           | 3 separate fee systems with different basis enums (7 values vs 3 values vs 6 values), different recycling logic                                                 |
+| **Capital Allocation** | N cases ([/docs/capital-allocation.truth-cases.json](/docs/capital-allocation.truth-cases.json))                                                                             | 99% ([/docs/notebooklm-sources/capital-allocation.md](/docs/notebooklm-sources/capital-allocation.md)) | 6+ engines with different unit systems (cents/BigInt/Decimal/dollars), different rounding strategies (Banker's vs standard)                                     |
+| **Exit Recycling**     | N cases ([/docs/exit-recycling.truth-cases.json](/docs/exit-recycling.truth-cases.json))                                                                                     | 91% ([/docs/notebooklm-sources/exit-recycling.md](/docs/notebooklm-sources/exit-recycling.md))         | Duplication in fee-calculations.ts vs fee-profile.ts                                                                                                            |
 
 **Truth-Case Counts (Computed from Files):**
 
@@ -104,8 +104,8 @@ commands above to get current counts from source JSON files.
    - Fees: `/docs/notebooklm-sources/fees.md`
    - Capital Allocation: `/docs/notebooklm-sources/capital-allocation.md`
 
-3. **Use Foundation Hardening triage** (from
-   [IMPLEMENTATION-PARITY-INTEGRATION-STRATEGY.md](/docs/plans/IMPLEMENTATION-PARITY-INTEGRATION-STRATEGY.md)):
+3. **Use Foundation Hardening triage** (from the retired Implementation Parity
+   Integration Strategy):
    - **Scenario 1 (Simple fix):** Fix immediately if <30 min, 1-2 files, no
      shared seams
    - **Scenario 2 (Complex fix):** Document in
@@ -214,8 +214,8 @@ npm run docs:routing:check
   [/docs/waterfall-ledger.truth-cases.json](/docs/waterfall-ledger.truth-cases.json)
   (14 scenarios, clawback semantics)
 - **Waterfall - Tier**:
-  [/docs/waterfall-tier.truth-cases.json](/docs/waterfall-tier.truth-cases.json)
-  (15 scenarios, hand-verified)
+  [/docs/waterfall.truth-cases.json](/docs/waterfall.truth-cases.json) (15
+  scenarios, hand-verified)
 - **Fees**: [/docs/fees.truth-cases.json](/docs/fees.truth-cases.json) (10
   scenarios, arithmetic derivations)
 - **Capital Allocation**:
@@ -395,16 +395,12 @@ validation, separate from truth-case pass/fail counts.
   [/docs/PHOENIX-SOT/execution-plan-v2.34.md](/docs/PHOENIX-SOT/execution-plan-v2.34.md)
 - **Phoenix SOT Hub**:
   [/docs/PHOENIX-SOT/README.md](/docs/PHOENIX-SOT/README.md)
-- **Foundation Hardening Plan**:
-  [/FOUNDATION-HARDENING-EXECUTION-PLAN.md](/FOUNDATION-HARDENING-EXECUTION-PLAN.md)
-- **Implementation Parity Strategy**:
-  [/docs/plans/IMPLEMENTATION-PARITY-INTEGRATION-STRATEGY.md](/docs/plans/IMPLEMENTATION-PARITY-INTEGRATION-STRATEGY.md)
+- **Foundation Hardening Plan**: retired execution plan
+- **Implementation Parity Strategy**: retired implementation parity strategy
 - **Architectural Debt Registry**:
   [/docs/ARCHITECTURAL-DEBT.md](/docs/ARCHITECTURAL-DEBT.md)
-- **Divergence Assessment**:
-  [/docs/plans/COMPREHENSIVE-DIVERGENCE-ASSESSMENT.md](/docs/plans/COMPREHENSIVE-DIVERGENCE-ASSESSMENT.md)
-- **Fee Alignment Review**:
-  [/docs/plans/FOUNDATION-HARDENING-FEE-ALIGNMENT-REVIEW.md](/docs/plans/FOUNDATION-HARDENING-FEE-ALIGNMENT-REVIEW.md)
+- **Divergence Assessment**: retired divergence assessment
+- **Fee Alignment Review**: retired fee alignment review
 - **Discovery Routing Map**:
   [/.claude/DISCOVERY-MAP.md](/.claude/DISCOVERY-MAP.md)
 - **Documentation Index**: [/docs/INDEX.md](/docs/INDEX.md)

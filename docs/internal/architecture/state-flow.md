@@ -74,10 +74,10 @@ sequenceDiagram
 
 **File References:**
 
-- Middleware: [server/routes.ts:15-25](../../server/routes.ts#L15-L25)
+- Middleware: [server/routes.ts:15-25](../../../server/routes.ts#L15-L25)
 - Validation:
-  [server/validators/fundSchema.ts:10-45](../../server/validators/fundSchema.ts#L10-L45)
-- Storage: [server/storage.ts:458-471](../../server/storage.ts#L458-L471)
+  [server/validators/fundSchema.ts:10-45](../../../server/validators/fundSchema.ts#L10-L45)
+- Storage: [server/storage.ts:458-471](../../../server/storage.ts#L458-L471)
 
 ---
 
@@ -113,16 +113,16 @@ flowchart TD
 
 **Write Path Characteristics:**
 
-- ✅ **Synchronous:** Config save + event log (< 50ms)
-- ✅ **Transactional:** All-or-nothing commit
-- ✅ **Asynchronous:** Background calculations don't block user
+- [x] **Synchronous:** Config save + event log (< 50ms)
+- [x] **Transactional:** All-or-nothing commit
+- [x] **Asynchronous:** Background calculations don't block user
 
 **File References:**
 
 - Write path:
-  [server/routes/fund-config.ts:46-120](../../server/routes/fund-config.ts#L46-L120)
+  [server/routes/fund-config.ts:46-120](../../../server/routes/fund-config.ts#L46-L120)
 - Worker:
-  [server/workers/reserve-worker.ts:15-40](../../server/workers/reserve-worker.ts#L15-L40)
+  [workers/reserve-worker.ts:15-40](../../../workers/reserve-worker.ts#L15-L40)
 
 ---
 
@@ -150,10 +150,10 @@ flowchart LR
 
 **Read Path Characteristics:**
 
-- ✅ **3-tier caching:** Browser (TanStack Query) → Redis → PostgreSQL
-- ✅ **Sub-second response:** 95% of requests < 200ms
-- ✅ **Eventually consistent:** Background workers update snapshots
-  asynchronously
+- [x] **3-tier caching:** Browser (TanStack Query) → Redis → PostgreSQL
+- [x] **Sub-second response:** 95% of requests < 200ms
+- [x] **Eventually consistent:** Background workers update snapshots
+      asynchronously
 
 **Cache TTLs:**
 
@@ -164,9 +164,9 @@ flowchart LR
 **File References:**
 
 - Read path:
-  [server/routes/funds.ts:120-145](../../server/routes/funds.ts#L120-L145)
+  [server/routes/funds.ts:120-145](../../../server/routes/funds.ts#L120-L145)
 - TanStack Query config:
-  [client/src/hooks/use-fund-data.ts:15-30](../../client/src/hooks/use-fund-data.ts#L15-L30)
+  [client/src/hooks/use-fund-data.ts:15-30](../../../client/src/hooks/use-fund-data.ts#L15-L30)
 
 ---
 
@@ -250,9 +250,9 @@ stateDiagram-v2
 **File References:**
 
 - Zustand store:
-  [client/src/stores/useFundStore.ts:45-120](../../client/src/stores/useFundStore.ts#L45-L120)
+  [client/src/stores/useFundStore.ts:45-120](../../../client/src/stores/useFundStore.ts#L45-L120)
 - Mutation hooks:
-  [client/src/hooks/use-fund-data.ts:60-85](../../client/src/hooks/use-fund-data.ts#L60-L85)
+  [client/src/hooks/use-fund-data.ts:60-85](../../../client/src/hooks/use-fund-data.ts#L60-L85)
 
 ---
 
@@ -350,10 +350,10 @@ CREATE TABLE strategy_stages (
 **File References:**
 
 - Client validation:
-  [client/src/lib/validation.ts:15-40](../../client/src/lib/validation.ts#L15-L40)
+  [client/src/lib/validation.ts:15-40](../../../client/src/lib/validation.ts#L15-L40)
 - API validation:
-  [server/validators/fundSchema.ts:45-120](../../server/validators/fundSchema.ts#L45-L120)
-- Database schema: [shared/schema.ts:95-130](../../shared/schema.ts#L95-L130)
+  [server/validators/fundSchema.ts:45-120](../../../server/validators/fundSchema.ts#L45-L120)
+- Database schema: [shared/schema.ts:95-130](../../../shared/schema.ts#L95-L130)
 
 ---
 
@@ -505,11 +505,10 @@ queryClient.invalidateQueries(['funds', fundId, 'reserves']);
 **File References:**
 
 - Cache invalidation:
-  [client/src/hooks/use-fund-data.ts:75-110](../../client/src/hooks/use-fund-data.ts#L75-L110)
-- Optimistic updates:
-  [client/src/hooks/use-reallocation.ts:45-85](../../client/src/hooks/use-reallocation.ts#L45-L85)
+  [client/src/hooks/use-fund-data.ts:75-110](../../../client/src/hooks/use-fund-data.ts#L75-L110)
+- Optimistic updates: `client/src/hooks/use-reallocation.ts:45-85`
 - Cache configuration:
-  [client/src/lib/queryClient.ts:10-25](../../client/src/lib/queryClient.ts#L10-L25)
+  [client/src/lib/queryClient.ts:10-25](../../../client/src/lib/queryClient.ts#L10-L25)
 
 ---
 
@@ -538,21 +537,21 @@ queryClient.invalidateQueries(['funds', fundId, 'reserves']);
 
 **Use Optimistic Updates When:**
 
-- ✅ User expects instant feedback (form inputs, toggles)
-- ✅ Rollback is acceptable (show error, revert state)
-- ✅ Operation is likely to succeed (> 95% success rate)
+- [x] User expects instant feedback (form inputs, toggles)
+- [x] Rollback is acceptable (show error, revert state)
+- [x] Operation is likely to succeed (> 95% success rate)
 
 **Use Write-Through Invalidation When:**
 
-- ✅ Data affects multiple queries (fund update → invalidate reserves + pacing)
-- ✅ Consistency is critical (financial calculations)
-- ✅ Rollback complexity is high
+- [x] Data affects multiple queries (fund update → invalidate reserves + pacing)
+- [x] Consistency is critical (financial calculations)
+- [x] Rollback complexity is high
 
 **Use Background Processing When:**
 
-- ✅ Operation is expensive (Monte Carlo simulation)
-- ✅ User doesn't need immediate result (analytics)
-- ✅ Async is acceptable (email notifications, reports)
+- [x] Operation is expensive (Monte Carlo simulation)
+- [x] User doesn't need immediate result (analytics)
+- [x] Async is acceptable (email notifications, reports)
 
 ---
 
@@ -571,4 +570,4 @@ next review: 2026-05-06 (after Phase 3 Week 47 completion)
 **Last Updated:** 2025-11-06 **Contributors:** Phase 3 Documentation Initiative
 **Related Docs:** [database/01-overview.md](../database/01-overview.md),
 [validation/04-integration.md](../validation/04-integration.md),
-[state/01-overview.md](../state/01-overview.md)
+`state/01-overview.md`

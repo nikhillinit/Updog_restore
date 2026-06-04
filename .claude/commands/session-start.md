@@ -1,21 +1,21 @@
 ---
-description: 'Initialize session context with Memory Manager integration'
+description: 'Initialize session context with package-free repo context'
 allowed-tools: Read, Bash
 last_updated: 2026-04-03
 ---
 
-Initialize session context with Memory Manager integration.
+Initialize session context with package-free repo context.
 
 ## Your Task
 
-Load previous session context to eliminate temporal displacement and provide
-continuity across Claude Code sessions.
+Record a lightweight session context file and review current repo docs before
+starting work.
 
 ## Process
 
-### Step 1: Run Memory Manager Initialization
+### Step 1: Run Session Context Initialization
 
-Execute the memory manager initialization script:
+Execute the package-free session context initialization script:
 
 ```bash
 npx tsx scripts/init-memory-manager.ts
@@ -23,9 +23,7 @@ npx tsx scripts/init-memory-manager.ts
 
 This will:
 
-- Load recent session context (last 10 entries)
-- Display previous session memories
-- Record current session kickoff
+- Record current session kickoff metadata
 - Save session info to `.session-memory.json`
 
 ### Step 2: Review Loaded Context
@@ -38,7 +36,7 @@ cat .session-memory.json
 
 Review:
 
-- `memoriesLoaded`: Number of context entries retrieved
+- `memoriesLoaded`: Expected to be `0` for the package-free context path
 - `sessionId`: Current session identifier
 - `startedAt`: Session start timestamp
 
@@ -68,7 +66,7 @@ Announce to the user:
 ```
 [SESSION INITIALIZED]
 - Session ID: <from .session-memory.json>
-- Context loaded: <memoriesLoaded> entries
+- Context file written: .session-memory.json
 - Documentation status: <stale count> documents flagged
 - Current phase: <from PHASE-STATUS.json or "unknown">
 - Ready for work
@@ -76,18 +74,16 @@ Announce to the user:
 
 ## Notes
 
-- Memory Manager runs in in-memory mode by default (fast startup)
-- Use `--use-database` flag for persistent cross-session storage
-- Session context helps prevent repeating work or missing previous decisions
-- Documentation freshness check prevents working from stale information
+- Session context is package-free and does not load prior memories.
+- Use repo docs and workspace memory for previous decisions.
+- Documentation freshness check prevents working from stale information.
 
 ## Error Handling
 
-If memory manager init fails:
+If session context initialization fails:
 
-1. Check if `packages/memory-manager` is installed
-2. Verify DATABASE_URL if using --use-database mode
-3. Fall back to session without memory (warn user about lack of context)
+1. Continue without `.session-memory.json`
+2. Warn user that the lightweight context file was not written
 
 If freshness checker fails:
 

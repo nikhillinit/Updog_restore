@@ -19,25 +19,18 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
+      - name: Setup Node environment
+        uses: ./.github/actions/setup-node-env
         with:
-          node-version: '20.19.0'
-          cache: 'npm'
-
-      - name: Install dependencies
-        run: |
-          npm ci --prefer-offline --no-audit
-          npm install -g markdown-link-check remark-cli
+          restore-tool-cache: 'false'
 
       - name: Run remark lint
         id: remark
         run: |
-          echo "REMARK_OUTPUT<<EOF" >> $GITHUB_OUTPUT
-          npm run docs:lint 2>&1 | tee -a $GITHUB_OUTPUT
-          echo "EOF" >> $GITHUB_OUTPUT
+          set -o pipefail
+          npm run docs:lint 2>&1 | tee remark-output.txt
         continue-on-error: true
 
       - name: Check for emoji violations
@@ -61,60 +54,65 @@ jobs:
       - name: Validate markdown links
         id: links
         run: |
-          echo "LINKS_OUTPUT<<EOF" >> $GITHUB_OUTPUT
-          npm run docs:check-links 2>&1 | tee -a $GITHUB_OUTPUT
-          echo "EOF" >> $GITHUB_OUTPUT
+          set -o pipefail
+          npm run docs:check-links -- --analysis-only 2>&1 | tee links-output.txt
         continue-on-error: true
 
       - name: Generate summary
         if: always()
         run: |
-          echo "## Documentation Verification Report" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
+          append_log() {
+            local log_file="$1"
+
+            if [ -s "$log_file" ]; then
+              echo '```text' >> "$GITHUB_STEP_SUMMARY"
+              cat "$log_file" >> "$GITHUB_STEP_SUMMARY"
+              echo '```' >> "$GITHUB_STEP_SUMMARY"
+            fi
+          }
+
+          echo "## Documentation Verification Report" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
 
           # Remark Lint Results
-          echo "### Markdown Linting" >> $GITHUB_STEP_SUMMARY
+          echo "### Markdown Linting" >> "$GITHUB_STEP_SUMMARY"
           if [ "${{ steps.remark.outcome }}" == "success" ]; then
-            echo "[PASS] Markdown linting passed" >> $GITHUB_STEP_SUMMARY
+            echo "[PASS] Markdown linting passed" >> "$GITHUB_STEP_SUMMARY"
           else
-            echo "[FAIL] Markdown linting found issues" >> $GITHUB_STEP_SUMMARY
-            echo '```' >> $GITHUB_STEP_SUMMARY
-            echo "${{ steps.remark.outputs.REMARK_OUTPUT }}" >> $GITHUB_STEP_SUMMARY
-            echo '```' >> $GITHUB_STEP_SUMMARY
+            echo "[FAIL] Markdown linting found issues" >> "$GITHUB_STEP_SUMMARY"
+            append_log remark-output.txt
           fi
-          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "" >> "$GITHUB_STEP_SUMMARY"
 
           # Emoji Check Results
-          echo "### Emoji Compliance" >> $GITHUB_STEP_SUMMARY
+          echo "### Emoji Compliance" >> "$GITHUB_STEP_SUMMARY"
           if [ "${{ steps.emoji.outputs.EMOJI_FOUND }}" == "false" ]; then
-            echo "[PASS] No emoji violations detected" >> $GITHUB_STEP_SUMMARY
+            echo "[PASS] No emoji violations detected" >> "$GITHUB_STEP_SUMMARY"
           else
-            echo "[FAIL] Found ${{ steps.emoji.outputs.EMOJI_COUNT }} emoji violations" >> $GITHUB_STEP_SUMMARY
-            echo "" >> $GITHUB_STEP_SUMMARY
-            echo "**Action Required**: Replace emoji with text equivalents per CLAUDE.md emoji policy" >> $GITHUB_STEP_SUMMARY
+            echo "[FAIL] Found ${{ steps.emoji.outputs.EMOJI_COUNT }} emoji violations" >> "$GITHUB_STEP_SUMMARY"
+            echo "" >> "$GITHUB_STEP_SUMMARY"
+            echo "**Action Required**: Replace emoji with text equivalents per CLAUDE.md emoji policy" >> "$GITHUB_STEP_SUMMARY"
           fi
-          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "" >> "$GITHUB_STEP_SUMMARY"
 
           # Link Validation Results
-          echo "### Link Validation" >> $GITHUB_STEP_SUMMARY
+          echo "### Link Validation" >> "$GITHUB_STEP_SUMMARY"
           if [ "${{ steps.links.outcome }}" == "success" ]; then
-            echo "[PASS] All markdown links are valid" >> $GITHUB_STEP_SUMMARY
+            echo "[PASS] All markdown links are valid" >> "$GITHUB_STEP_SUMMARY"
           else
-            echo "[FAIL] Broken links detected" >> $GITHUB_STEP_SUMMARY
-            echo '```' >> $GITHUB_STEP_SUMMARY
-            echo "${{ steps.links.outputs.LINKS_OUTPUT }}" >> $GITHUB_STEP_SUMMARY
-            echo '```' >> $GITHUB_STEP_SUMMARY
+            echo "[FAIL] Broken links detected" >> "$GITHUB_STEP_SUMMARY"
+            append_log links-output.txt
           fi
-          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "" >> "$GITHUB_STEP_SUMMARY"
 
           # Overall Status
-          echo "### Overall Status" >> $GITHUB_STEP_SUMMARY
+          echo "### Overall Status" >> "$GITHUB_STEP_SUMMARY"
           if [ "${{ steps.remark.outcome }}" == "success" ] && \
              [ "${{ steps.emoji.outputs.EMOJI_FOUND }}" == "false" ] && \
              [ "${{ steps.links.outcome }}" == "success" ]; then
-            echo "[PASS] All documentation verification checks passed" >> $GITHUB_STEP_SUMMARY
+            echo "[PASS] All documentation verification checks passed" >> "$GITHUB_STEP_SUMMARY"
           else
-            echo "[FAIL] Documentation verification failed - see details above" >> $GITHUB_STEP_SUMMARY
+            echo "[FAIL] Documentation verification failed - see details above" >> "$GITHUB_STEP_SUMMARY"
           fi
 
       - name: Final status check

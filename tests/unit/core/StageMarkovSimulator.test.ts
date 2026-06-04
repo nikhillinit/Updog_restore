@@ -378,6 +378,9 @@ describe('StageMarkovSimulator', () => {
       expect(normalizeStage('seed')).toBe(InvestmentStage.Seed);
       expect(normalizeStage('Seed')).toBe(InvestmentStage.Seed);
       expect(normalizeStage('SEED')).toBe(InvestmentStage.Seed);
+      expect(normalizeStage('pre-seed')).toBe(InvestmentStage.Seed);
+      expect(normalizeStage('preSeed')).toBe(InvestmentStage.Seed);
+      expect(normalizeStage('pre seed')).toBe(InvestmentStage.Seed);
     });
 
     it('should parse series stages', () => {
@@ -422,6 +425,16 @@ describe('StageMarkovSimulator', () => {
     it('should throw on invalid stage', () => {
       expect(() => normalizeStage('invalid')).toThrow('Cannot normalize stage: invalid');
       expect(() => normalizeStage('series-d')).toThrow('Cannot normalize stage: series-d');
+      expect(() => normalizeStage('late_stage')).toThrow('Cannot normalize stage: late_stage');
+      expect(() => normalizeStage('unknown-thing')).toThrow(
+        'Cannot normalize stage: unknown-thing'
+      );
+    });
+
+    it('should list supported Markov stages when rejecting an unsupported stage', () => {
+      expect(() => normalizeStage('unknown-thing')).toThrow(
+        /Supported Markov stages: seed, pre-seed, series-a, series-b, series-c, growth, exit/
+      );
     });
   });
 

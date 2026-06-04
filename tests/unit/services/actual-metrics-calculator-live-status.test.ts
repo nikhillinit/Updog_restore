@@ -109,4 +109,65 @@ describe('ActualMetricsCalculator live company status semantics', () => {
     expect(metrics.dpi).toBeNull();
     expect(metrics.tvpi).toBeCloseTo(46_100_000 / 16_700_000, 6);
   });
+
+  it('counts portfolio company investment amounts even when dated investment rows are absent', async () => {
+    storageMock.getInvestments.mockResolvedValue([]);
+
+    const metrics = await new ActualMetricsCalculator().calculate(1);
+
+    expect(metrics.totalDeployed).toBe(16_700_000);
+    expect(metrics.totalCalled).toBe(16_700_000);
+    expect(metrics.currentNAV).toBe(46_100_000);
+    expect(metrics.deploymentRate).toBeCloseTo(16.7, 2);
+    expect(metrics.tvpi).toBeCloseTo(46_100_000 / 16_700_000, 6);
+    expect(metrics.irr).toBeNull();
+    expect(metrics.availability.irr.reason).toBe('insufficient_dated_cashflows');
+  });
+
+  it('supplements normalized investments with legacy company-only amounts', async () => {
+    storageMock.getInvestments.mockResolvedValue([
+      {
+        id: 1,
+        fundId: 1,
+        companyId: 1,
+        investmentDate: new Date('2025-02-01T00:00:00.000Z'),
+        amount: '5000000',
+        round: 'Series B',
+      },
+    ]);
+
+    const metrics = await new ActualMetricsCalculator().calculate(1);
+
+    expect(metrics.totalDeployed).toBe(16_700_000);
+    expect(metrics.totalCalled).toBe(16_700_000);
+    expect(metrics.currentNAV).toBe(46_100_000);
+    expect(metrics.tvpi).toBeCloseTo(46_100_000 / 16_700_000, 6);
+  });
+
+  it('does not supplement legacy company amounts when normalized investments are unlinked', async () => {
+    storageMock.getInvestments.mockResolvedValue([
+      {
+        id: 1,
+        fundId: 1,
+        companyId: null,
+        investmentDate: new Date('2025-02-01T00:00:00.000Z'),
+        amount: '5000000',
+        round: 'Series B',
+      },
+      {
+        id: 2,
+        fundId: 1,
+        investmentDate: new Date('2025-03-01T00:00:00.000Z'),
+        amount: '3200000',
+        round: 'Series A',
+      },
+    ]);
+
+    const metrics = await new ActualMetricsCalculator().calculate(1);
+
+    expect(metrics.totalDeployed).toBe(8_200_000);
+    expect(metrics.totalCalled).toBe(8_200_000);
+    expect(metrics.currentNAV).toBe(46_100_000);
+    expect(metrics.tvpi).toBeCloseTo(46_100_000 / 8_200_000, 6);
+  });
 });

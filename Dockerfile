@@ -35,6 +35,7 @@ FROM node:22-alpine AS prod
 WORKDIR /app
 
 # Security hardening
+# hadolint ignore=DL3018
 RUN addgroup -g 1001 -S nodejs && \
     adduser -S nextjs -u 1001 && \
     apk add --no-cache dumb-init

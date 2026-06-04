@@ -122,6 +122,39 @@ describe('GET /api/funds/:id/results', () => {
     expect(res.body).toHaveProperty('error', 'Invalid fund ID');
   });
 
+  it('returns 403 without reading results when user lacks fund scope', async () => {
+    const { fundResultsReadService } =
+      await import('../../../server/services/fund-results-read-service');
+    const getResultsSpy = vi.mocked(fundResultsReadService.getResults);
+    getResultsSpy.mockClear();
+    const restrictedApp = express();
+    restrictedApp.use(express.json());
+    restrictedApp.use((req, _res, next) => {
+      req.user = {
+        id: 'user-7',
+        sub: 'user-7',
+        email: 'user7@example.com',
+        roles: [],
+        fundIds: [99],
+        ip: '127.0.0.1',
+        userAgent: 'vitest',
+      };
+      next();
+    });
+    const { registerFundConfigRoutes } = await import('../../../server/routes/fund-config');
+    registerFundConfigRoutes(restrictedApp);
+
+    const res = await request(restrictedApp).get('/api/funds/1/results');
+
+    expect(res.status).toBe(403);
+    expect(res.body).toMatchObject({
+      error: 'Forbidden',
+      code: 'FUND_ACCESS_DENIED',
+      message: 'You do not have access to fund 1',
+    });
+    expect(getResultsSpy).not.toHaveBeenCalled();
+  });
+
   it('returns 500 when service throws', async () => {
     const { fundResultsReadService } =
       await import('../../../server/services/fund-results-read-service');
@@ -150,6 +183,28 @@ describe('GET /api/funds/:id/results', () => {
     expect(res.body).toHaveProperty('lifecycle');
     expect(res.body.lifecycle).toHaveProperty('configState');
     expect(res.body.lifecycle).toHaveProperty('calculationState');
+  });
+
+  it('response includes lifecycle evidence fields for results provenance', async () => {
+    const res = await request(app).get('/api/funds/1/results');
+
+    expect(res.status).toBe(200);
+    expect(res.body.lifecycle.configState).toHaveProperty('publishedVersion', 1);
+    expect(res.body.lifecycle.calculationState).toHaveProperty('configVersion', 1);
+    expect(res.body.lifecycle.calculationState).toHaveProperty('runId', 10);
+    expect(res.body.lifecycle.calculationState).toHaveProperty('status', 'ready');
+    expect(res.body.lifecycle.calculationState).toHaveProperty(
+      'lastCalculatedAt',
+      '2026-03-20T12:30:00.000Z'
+    );
+
+    const { FundResultsReadV1Schema } = await import('@shared/contracts/fund-results-v1.contract');
+    const parsed = FundResultsReadV1Schema.parse(res.body);
+    expect(parsed.lifecycle.configState.publishedVersion).toBe(1);
+    expect(parsed.lifecycle.calculationState.configVersion).toBe(1);
+    expect(parsed.lifecycle.calculationState.runId).toBe(10);
+    expect(parsed.lifecycle.calculationState.status).toBe('ready');
+    expect(parsed.lifecycle.calculationState.lastCalculatedAt).toBe('2026-03-20T12:30:00.000Z');
   });
 
   it('available section includes legacyEvidence flag', async () => {
@@ -220,7 +275,11 @@ function validReadyResponse() {
         },
       },
       scorecard: { status: 'unavailable' as const, reason: 'No authoritative source' },
-      scenarios: { status: 'unavailable' as const, reason: 'No authoritative source' },
+      scenarios: {
+        status: 'unavailable' as const,
+        reason: 'No scenario sets exist for this fund',
+        reasonCode: 'SCENARIOS_NONE_EXIST' as const,
+      },
       waterfall: { status: 'unavailable' as const, reason: 'No authoritative source' },
       economics: {
         status: 'unavailable' as const,

@@ -41,15 +41,16 @@ export function ProfileHeader({
     <div className={cn('flex items-center justify-between mb-8', className)}>
       <div>
         <div className="flex items-center gap-3 mb-1">
-          <h1 className="text-2xl font-bold text-[#292929] font-poppins">{profileName}</h1>
+          <h1 className="text-2xl font-bold text-pov-charcoal font-poppins">{profileName}</h1>
           {isDefault && (
             <Badge variant="secondary" className="text-xs">
               Default Profile
             </Badge>
           )}
         </div>
-        <p className="text-sm text-gray-500 font-poppins">
-          {stageCount} investment stage{stageCount !== 1 ? 's' : ''} defined - Last edited {lastEdited}
+        <p className="text-sm text-charcoal-500 font-poppins">
+          {stageCount} investment stage{stageCount !== 1 ? 's' : ''} defined - Last edited{' '}
+          {lastEdited}
         </p>
       </div>
 
@@ -59,19 +60,14 @@ export function ProfileHeader({
             variant="ghost"
             size="sm"
             onClick={onRename}
-            className="text-gray-600 hover:text-gray-900"
+            className="text-charcoal-600 hover:text-pov-charcoal"
           >
             <Edit2 className="w-4 h-4 mr-2" />
             Rename
           </Button>
         )}
         {onDuplicate && (
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={onDuplicate}
-            className="border-[#E0D8D1]"
-          >
+          <Button variant="outline" size="sm" onClick={onDuplicate} className="border-beige-200">
             <Copy className="w-4 h-4 mr-2" />
             Duplicate
           </Button>
@@ -81,7 +77,7 @@ export function ProfileHeader({
             variant="ghost"
             size="sm"
             onClick={onDelete}
-            className="text-red-600 hover:text-red-700 hover:bg-red-50"
+            className="text-pov-charcoal hover:text-pov-charcoal hover:bg-pov-gray"
           >
             <Trash2 className="w-4 h-4 mr-2" />
             Delete
@@ -89,11 +85,11 @@ export function ProfileHeader({
         )}
         {onAddStage && (
           <>
-            <div className="w-px h-6 bg-gray-200 mx-2" />
+            <div className="w-px h-6 bg-charcoal-300 mx-2" />
             <Button
               size="sm"
               onClick={onAddStage}
-              className="bg-[#292929] hover:bg-[#292929]/90 text-white"
+              className="bg-pov-charcoal hover:bg-charcoal-700 text-pov-white"
             >
               <Plus className="w-4 h-4 mr-2" />
               Add Stage

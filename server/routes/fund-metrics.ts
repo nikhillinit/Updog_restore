@@ -14,10 +14,14 @@ import { Router } from 'express';
 import type { Request, Response } from 'express';
 import { metricsAggregator } from '../services/metrics-aggregator';
 import type { UnifiedFundMetrics, MetricsCalculationError } from '@shared/types/metrics';
-import { toNumber, NumberParseError } from '@shared/number';
+import { toNumber } from '@shared/number';
 import { requireAuth, requireFundAccess } from '../lib/auth/jwt';
+import { handleNumberParseError } from '../lib/number-parse-error';
 import { logger } from '../lib/logger.js';
 import rateLimit from 'express-rate-limit';
+import { createRouteLogger } from '../lib/route-logger.js';
+
+const routeLog = createRouteLogger('fund-metrics');
 
 const router = Router();
 
@@ -74,7 +78,7 @@ router['get'](
       const fundId = toNumber(fundIdParam, 'fundId');
 
       if (fundId <= 0) {
-        return res['status'](400)['json']({
+        return res.status(400).json({
           error: 'Invalid fund ID',
           message: `Fund ID must be a positive integer, received: ${fundIdParam}`,
         });
@@ -106,26 +110,23 @@ router['get'](
       });
 
       // Add response headers
-      res['setHeader']('Content-Type', 'application/json');
-      res['setHeader']('Cache-Control', 'private, max-age=60'); // Client cache for 1 minute
+      res.setHeader('Content-Type', 'application/json');
+      res.setHeader('Cache-Control', 'private, max-age=60'); // Client cache for 1 minute
 
       // Return metrics
-      return res['json'](metrics);
+      return res.json(metrics);
     } catch (error) {
-      console.error('Metrics API error:', error);
+      routeLog.error('Metrics API error:', error);
 
       // Handle parameter validation errors
-      if (error instanceof NumberParseError) {
-        return res['status'](400)['json']({
-          error: 'Invalid parameter',
-          message: error.message,
-        });
+      if (handleNumberParseError(error, res, 'Invalid parameter')) {
+        return;
       }
 
       // Handle metrics calculation errors
       if (isMetricsCalculationError(error)) {
         const statusCode = getStatusCodeForError(error.code);
-        return res['status'](statusCode)['json']({
+        return res.status(statusCode).json({
           error: error.code,
           message: error.message,
           component: error.component,
@@ -134,7 +135,7 @@ router['get'](
       }
 
       // Handle unexpected errors
-      return res['status'](500)['json']({
+      return res.status(500).json({
         error: 'INTERNAL_ERROR',
         message: 'Failed to calculate metrics',
         details: error instanceof Error ? error.message : 'Unknown error',
@@ -166,7 +167,7 @@ router['post'](
       const fundId = toNumber(fundIdParam, 'fundId');
 
       if (fundId <= 0) {
-        return res['status'](400)['json']({
+        return res.status(400).json({
           error: 'Invalid fund ID',
           message: `Fund ID must be a positive integer, received: ${fundIdParam}`,
         });
@@ -175,18 +176,15 @@ router['post'](
       await metricsAggregator.invalidateCache(fundId);
 
       // 204 No Content - successful invalidation, no body needed
-      return res['status'](204)['end']();
+      return res.status(204).end();
     } catch (error) {
-      console.error('Cache invalidation error:', error);
+      routeLog.error('Cache invalidation error:', error);
 
-      if (error instanceof NumberParseError) {
-        return res['status'](400)['json']({
-          error: 'Invalid parameter',
-          message: error.message,
-        });
+      if (handleNumberParseError(error, res, 'Invalid parameter')) {
+        return;
       }
 
-      return res['status'](500)['json']({
+      return res.status(500).json({
         error: 'INTERNAL_ERROR',
         message: 'Failed to invalidate cache',
         details: error instanceof Error ? error.message : 'Unknown error',

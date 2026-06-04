@@ -30,7 +30,7 @@ const customLevels = {
     audit: 3,
     security: 4,
     performance: 5,
-    debug: 6
+    debug: 6,
   },
   colors: {
     error: 'red',
@@ -39,8 +39,8 @@ const customLevels = {
     audit: 'cyan',
     security: 'magenta',
     performance: 'blue',
-    debug: 'gray'
-  }
+    debug: 'gray',
+  },
 };
 
 // Add colors to winston
@@ -49,10 +49,10 @@ winston.addColors(customLevels.colors);
 // Production JSON formatter
 const productionFormat = winston.format.combine(
   winston.format.timestamp({
-    format: 'YYYY-MM-DD HH:mm:ss.SSS'
+    format: 'YYYY-MM-DD HH:mm:ss.SSS',
   }),
   winston.format.errors({ stack: true }),
-  winston.format["json"](),
+  winston.format['json'](),
   winston.format.printf(({ timestamp, level, message, ...meta }) => {
     return JSON.stringify({
       timestamp,
@@ -61,7 +61,7 @@ const productionFormat = winston.format.combine(
       ...meta,
       hostname: process.env['HOSTNAME'] || 'unknown',
       service: 'updog-vc-platform',
-      version: process.env["npm_package_version"] || '1.0.0'
+      version: process.env['npm_package_version'] || '1.0.0',
     });
   })
 );
@@ -70,7 +70,7 @@ const productionFormat = winston.format.combine(
 const developmentFormat = winston.format.combine(
   winston.format.colorize({ all: true }),
   winston.format.timestamp({
-    format: 'HH:mm:ss.SSS'
+    format: 'HH:mm:ss.SSS',
   }),
   winston.format.errors({ stack: true }),
   winston.format.printf(({ timestamp, level, message, correlationId, userId, ...meta }) => {
@@ -89,7 +89,7 @@ const fileTransports = [
     level: 'info',
     maxsize: 10 * 1024 * 1024, // 10MB
     maxFiles: 5,
-    format: productionFormat
+    format: productionFormat,
   }),
   // Error logs only
   new winston.transports.File({
@@ -97,7 +97,7 @@ const fileTransports = [
     level: 'error',
     maxsize: 10 * 1024 * 1024, // 10MB
     maxFiles: 5,
-    format: productionFormat
+    format: productionFormat,
   }),
   // Audit logs
   new winston.transports.File({
@@ -105,7 +105,7 @@ const fileTransports = [
     level: 'audit',
     maxsize: 50 * 1024 * 1024, // 50MB
     maxFiles: 10,
-    format: productionFormat
+    format: productionFormat,
   }),
   // Security logs
   new winston.transports.File({
@@ -113,14 +113,14 @@ const fileTransports = [
     level: 'security',
     maxsize: 50 * 1024 * 1024, // 50MB
     maxFiles: 10,
-    format: productionFormat
-  })
+    format: productionFormat,
+  }),
 ];
 
 // Console transport configuration
 const consoleTransport = new winston.transports.Console({
   level: process.env['NODE_ENV'] === 'production' ? 'info' : 'debug',
-  format: process.env['NODE_ENV'] === 'production' ? productionFormat : developmentFormat
+  format: process.env['NODE_ENV'] === 'production' ? productionFormat : developmentFormat,
 });
 
 // Create the main logger
@@ -132,74 +132,75 @@ const logger = winston.createLogger({
     winston.format.errors({ stack: true })
   ),
   defaultMeta: {
-    service: 'updog-vc-platform'
+    service: 'updog-vc-platform',
   },
   transports: [
     consoleTransport,
-    ...(process.env['NODE_ENV'] === 'production' ? fileTransports : [])
+    ...(process.env['NODE_ENV'] === 'production' ? fileTransports : []),
   ],
-  exitOnError: false
+  exitOnError: false,
 });
+
+type SpecializedLoggerConfig = {
+  level: 'security' | 'audit' | 'performance';
+  category: 'security' | 'audit' | 'performance';
+  filename: string;
+  maxsize: number;
+  maxFiles: number;
+};
 
 // Create specialized loggers for different contexts
-export const securityLogger = winston.createLogger({
-  levels: customLevels.levels,
+const createSpecializedLogger = ({
+  level,
+  category,
+  filename,
+  maxsize,
+  maxFiles,
+}: SpecializedLoggerConfig) =>
+  winston.createLogger({
+    levels: customLevels.levels,
+    level,
+    format: productionFormat,
+    defaultMeta: {
+      service: 'updog-vc-platform',
+      category,
+    },
+    transports: [
+      consoleTransport,
+      ...(process.env['NODE_ENV'] === 'production'
+        ? [
+            new winston.transports.File({
+              filename: path.join(logsDir, filename),
+              maxsize,
+              maxFiles,
+            }),
+          ]
+        : []),
+    ],
+  });
+
+export const securityLogger = createSpecializedLogger({
   level: 'security',
-  format: productionFormat,
-  defaultMeta: {
-    service: 'updog-vc-platform',
-    category: 'security'
-  },
-  transports: [
-    consoleTransport,
-    ...(process.env['NODE_ENV'] === 'production' ? [
-      new winston.transports.File({
-        filename: path.join(logsDir, 'security.log'),
-        maxsize: 50 * 1024 * 1024,
-        maxFiles: 10
-      })
-    ] : [])
-  ]
+  category: 'security',
+  filename: 'security.log',
+  maxsize: 50 * 1024 * 1024,
+  maxFiles: 10,
 });
 
-export const auditLogger = winston.createLogger({
-  levels: customLevels.levels,
+export const auditLogger = createSpecializedLogger({
   level: 'audit',
-  format: productionFormat,
-  defaultMeta: {
-    service: 'updog-vc-platform',
-    category: 'audit'
-  },
-  transports: [
-    consoleTransport,
-    ...(process.env['NODE_ENV'] === 'production' ? [
-      new winston.transports.File({
-        filename: path.join(logsDir, 'audit.log'),
-        maxsize: 50 * 1024 * 1024,
-        maxFiles: 10
-      })
-    ] : [])
-  ]
+  category: 'audit',
+  filename: 'audit.log',
+  maxsize: 50 * 1024 * 1024,
+  maxFiles: 10,
 });
 
-export const performanceLogger = winston.createLogger({
-  levels: customLevels.levels,
+export const performanceLogger = createSpecializedLogger({
   level: 'performance',
-  format: productionFormat,
-  defaultMeta: {
-    service: 'updog-vc-platform',
-    category: 'performance'
-  },
-  transports: [
-    consoleTransport,
-    ...(process.env['NODE_ENV'] === 'production' ? [
-      new winston.transports.File({
-        filename: path.join(logsDir, 'performance.log'),
-        maxsize: 20 * 1024 * 1024,
-        maxFiles: 5
-      })
-    ] : [])
-  ]
+  category: 'performance',
+  filename: 'performance.log',
+  maxsize: 20 * 1024 * 1024,
+  maxFiles: 5,
 });
 
 // Helper functions for structured logging
@@ -210,31 +211,44 @@ export const logContext = {
     userAgent: req.get('User-Agent'),
     ip: req.ip,
     method: req.method,
-    path: req.path
+    path: req.path,
   }),
 
   addUserContext: (userId: string | number) => ({
-    userId
+    userId,
   }),
 
-  addPerformanceContext: (operation: string, duration: number, metadata?: Record<string, unknown>) => ({
+  addPerformanceContext: (
+    operation: string,
+    duration: number,
+    metadata?: Record<string, unknown>
+  ) => ({
     operation,
     duration,
-    ...metadata
+    ...metadata,
   }),
 
-  addSecurityContext: (event: string, severity: 'low' | 'medium' | 'high' | 'critical', metadata?: Record<string, unknown>) => ({
+  addSecurityContext: (
+    event: string,
+    severity: 'low' | 'medium' | 'high' | 'critical',
+    metadata?: Record<string, unknown>
+  ) => ({
     securityEvent: event,
     severity,
-    ...metadata
+    ...metadata,
   }),
 
-  addAuditContext: (action: string, entityType: string, entityId: string | number, changes?: Record<string, unknown>) => ({
+  addAuditContext: (
+    action: string,
+    entityType: string,
+    entityId: string | number,
+    changes?: Record<string, unknown>
+  ) => ({
     auditAction: action,
     entityType,
     entityId,
-    changes
-  })
+    changes,
+  }),
 };
 
 // Utility functions for specific log types
@@ -251,53 +265,77 @@ export const logPerformance = (message: string, context: Record<string, unknown>
 };
 
 // Monte Carlo specific logging
-export const logMonteCarloOperation = (operation: string, fundId: number, context: Record<string, unknown> = {}) => {
+export const logMonteCarloOperation = (
+  operation: string,
+  fundId: number,
+  context: Record<string, unknown> = {}
+) => {
   logger.info(`Monte Carlo: ${operation}`, {
     operation: 'monte_carlo',
     fundId,
-    ...context
+    ...context,
   });
 };
 
-export const logMonteCarloError = (operation: string, fundId: number, error: Error, context: Record<string, unknown> = {}) => {
+export const logMonteCarloError = (
+  operation: string,
+  fundId: number,
+  error: Error,
+  context: Record<string, unknown> = {}
+) => {
   logger.error(`Monte Carlo Error: ${operation}`, {
     operation: 'monte_carlo',
     fundId,
     error: error.message,
     stack: error.stack,
-    ...context
+    ...context,
   });
 };
 
 // Financial operation logging
-export const logFinancialOperation = (operation: string, fundId: number, amount?: number, context: Record<string, unknown> = {}) => {
+export const logFinancialOperation = (
+  operation: string,
+  fundId: number,
+  amount?: number,
+  context: Record<string, unknown> = {}
+) => {
   auditLogger.log('audit', `Financial Operation: ${operation}`, {
     operation: 'financial',
     fundId,
     amount,
-    ...context
+    ...context,
   });
 };
 
 // Input validation logging
-export const logValidationError = (field: string, value: unknown, error: string, context: Record<string, unknown> = {}) => {
+export const logValidationError = (
+  field: string,
+  value: unknown,
+  error: string,
+  context: Record<string, unknown> = {}
+) => {
   logger.warn(`Validation Error: ${field}`, {
     field,
     value: typeof value === 'object' ? JSON.stringify(value) : value,
     error,
-    ...context
+    ...context,
   });
 };
 
 // Rate limiting logging
-export const logRateLimit = (identifier: string, limit: number, current: number, context: Record<string, unknown> = {}) => {
+export const logRateLimit = (
+  identifier: string,
+  limit: number,
+  current: number,
+  context: Record<string, unknown> = {}
+) => {
   securityLogger.log('security', `Rate limit exceeded`, {
     identifier,
     limit,
     current,
     securityEvent: 'rate_limit_exceeded',
     severity: 'medium',
-    ...context
+    ...context,
   });
 };
 
@@ -318,7 +356,7 @@ export class PerformanceMonitor {
     logPerformance(`Operation completed: ${this.operation}`, {
       ...this.context,
       ...additionalContext,
-      duration
+      duration,
     });
     return duration;
   }
@@ -328,17 +366,18 @@ export class PerformanceMonitor {
 export const requestLogger = (req: Request, res: Response, next: NextFunction) => {
   const startTime = Date.now();
   const reqWithId = req as Request & { correlationId?: string };
-  const correlationId = reqWithId.correlationId || `req_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+  const correlationId =
+    reqWithId.correlationId || `req_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
   reqWithId.correlationId = correlationId;
 
   // Log request start
   logger.info('Request started', {
     ...logContext.addRequestContext(req),
-    correlationId
+    correlationId,
   });
 
   // Log response when finished
-  res['on']('finish', () => {
+  res.on('finish', () => {
     const duration = Date.now() - startTime;
     const logLevel = res.statusCode >= 400 ? 'warn' : 'info';
 
@@ -346,7 +385,7 @@ export const requestLogger = (req: Request, res: Response, next: NextFunction) =
       ...logContext.addRequestContext(req),
       correlationId,
       statusCode: res.statusCode,
-      duration
+      duration,
     });
 
     // Log slow requests
@@ -355,7 +394,7 @@ export const requestLogger = (req: Request, res: Response, next: NextFunction) =
         ...logContext.addRequestContext(req),
         correlationId,
         duration,
-        statusCode: res.statusCode
+        statusCode: res.statusCode,
       });
     }
   });
@@ -368,7 +407,7 @@ export const errorLogger = (err: Error, req: Request, res: Response, next: NextF
   logger.error('Request error', {
     ...logContext.addRequestContext(req),
     error: err.message,
-    stack: err.stack
+    stack: err.stack,
   });
   next(err);
 };

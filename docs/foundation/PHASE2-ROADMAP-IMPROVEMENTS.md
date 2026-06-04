@@ -820,14 +820,13 @@ customer impact.
 
 ### Phase 1: Database Mock Enhancements
 - [ ] Update `tests/helpers/database-mock.ts` JSDoc
-- [ ] Add "Constraint Validation" section to `cheatsheets/testing-guide.md`
+- [ ] Add "Constraint Validation" section to `cheatsheets/testing.md`
 - [ ] Document Postgres error code matching requirements
 
 ### Phase 2: Quick Win Edge Cases
 - [ ] No new documentation (trivial fixes)
 
 ### Phase 3: HTTP/Middleware Harness
-- [ ] Create `cheatsheets/http-harness-guide.md` with examples
 - [ ] Update service testing patterns in testing guide
 - [ ] Document session/cookie testing approach
 
@@ -839,11 +838,9 @@ customer impact.
 
 ### Phase 5: Build/Golden Dataset CI Lane
 - [ ] Update `.github/workflows/README.md` with regression job
-- [ ] Create `cheatsheets/golden-dataset-refresh-runbook.md`
 - [ ] Document drift detection alert process
 
 ### Phase 6: Feature Epics + Flaky Stabilization
-- [ ] Create `cheatsheets/quarantine-review-process.md`
 - [ ] Update `CAPABILITIES.md` with new test infrastructure
 - [ ] Add "Test Infrastructure" section to onboarding docs
 - [ ] Document flaky test debugging approach

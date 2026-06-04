@@ -13,7 +13,7 @@ jobs:
         run: echo "Skipping ZAP baseline scan because ZAP_BASE_URL is not configured."
       - name: ZAP Baseline Scan
         if: ${{ env.ZAP_BASE_URL != '' }}
-        uses: zaproxy/action-baseline@v0.12.0
+        uses: zaproxy/action-baseline@v0.15.0
         with:
           target: ${{ env.ZAP_BASE_URL }}
           rules_file_name: '.zap/rules.tsv'

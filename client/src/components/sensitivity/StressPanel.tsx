@@ -30,6 +30,7 @@ import {
 import { cn } from '@/lib/utils';
 import { useStressRun, useSensitivityHistory } from '@/hooks/useSensitivityRuns';
 import type { SensitivityHookError } from '@/hooks/useSensitivityRuns';
+import { presson } from '@/theme/presson.tokens';
 import {
   SUPPORTED_STRESS_SCENARIOS,
   SUPPORTED_METRICS,
@@ -44,6 +45,7 @@ import {
   type SensitivityRunV1,
 } from '@shared/contracts/sensitivity-run-v1.contract';
 import { formatMetricValue, useElapsedSeconds, SummaryCard } from './_shared';
+import { SensitivityRunErrorCard } from './SensitivityRunErrorCard';
 
 // =====================
 // DELTA BAR HELPER (inline -- scenario-row specific, no other consumers)
@@ -56,8 +58,10 @@ interface DeltaBarStyle {
 
 function deltaBarStyle(delta: number, maxAbsDelta: number): DeltaBarStyle {
   const widthPct = maxAbsDelta === 0 ? 0 : (Math.abs(delta) / maxAbsDelta) * 100;
-  // Red for negative (downside), emerald for positive (upside).
-  const backgroundColor = delta < 0 ? 'rgb(239, 68, 68)' : 'rgb(16, 185, 129)';
+  // Loss (negative) vs gain (positive) via PoV financial tokens. Direction is also
+  // conveyed non-visually by the signed delta value rendered beside the bar (WCAG 1.4.1),
+  // so the bar itself is decorative (aria-hidden at the call site).
+  const backgroundColor = delta < 0 ? presson.color.negative : presson.color.positive;
   return { width: `${widthPct}%`, backgroundColor };
 }
 
@@ -131,13 +135,13 @@ function HistoryPanel({
   const { data, isLoading } = useSensitivityHistory(fundId, 'stress', 10);
 
   if (isLoading) {
-    return <p className="text-xs text-gray-500">Loading history...</p>;
+    return <p className="text-xs text-charcoal-500">Loading history...</p>;
   }
 
   const runs = data?.runs ?? [];
   if (runs.length === 0) {
     return (
-      <p className="text-xs text-gray-500" data-testid="stress-history-empty">
+      <p className="text-xs text-charcoal-500" data-testid="stress-history-empty">
         No previous stress tests
       </p>
     );
@@ -145,7 +149,7 @@ function HistoryPanel({
 
   return (
     <div className="space-y-1" data-testid="stress-history-list">
-      <h3 className="mb-2 text-xs font-medium text-gray-600">Recent Runs</h3>
+      <h3 className="mb-2 text-xs font-medium text-charcoal-600">Recent Runs</h3>
       {runs.map((run) => {
         const parsed = parseHistoryResult(run);
         const disabled = parsed === null;
@@ -157,14 +161,16 @@ function HistoryPanel({
             onClick={() => parsed && onSelect(parsed)}
             className={cn(
               'w-full rounded px-2 py-1.5 text-left text-xs transition-colors',
-              disabled ? 'cursor-not-allowed text-gray-400' : 'hover:bg-gray-100 text-gray-800'
+              disabled
+                ? 'cursor-not-allowed text-charcoal-400'
+                : 'text-pov-charcoal hover:bg-pov-charcoal hover:text-pov-white'
             )}
             data-testid={`stress-history-item-${run.id}`}
           >
             <span>#{run.id}</span>
-            <span className="mx-1 text-gray-400">·</span>
+            <span className="mx-1 text-charcoal-400">·</span>
             <span>{formatRunTimestamp(run.createdAt)}</span>
-            <span className="mx-1 text-gray-400">·</span>
+            <span className="mx-1 text-charcoal-400">·</span>
             <span className="uppercase tracking-wide text-[10px]">{run.status}</span>
           </button>
         );
@@ -221,18 +227,33 @@ function ResultsSection({ result }: { result: StressAnalysisResultV1 }) {
                   data-testid={`stress-row-${dp.scenarioId}`}
                 >
                   <div className="flex items-baseline justify-between">
-                    <span className="text-sm font-medium text-gray-800">{dp.scenarioLabel}</span>
-                    <span className="tabular-nums text-sm text-gray-700">
+                    <span className="text-sm font-medium text-pov-charcoal">
+                      {dp.scenarioLabel}
+                    </span>
+                    <span className="tabular-nums text-sm text-charcoal-700">
                       {formatMetricValue(dp.metricValue, metric)}
                     </span>
                   </div>
-                  {scenario && <div className="text-xs text-gray-500">{scenario.description}</div>}
-                  <div className="h-2 w-full overflow-hidden rounded bg-slate-100">
-                    <div
-                      className="h-2 rounded"
-                      style={deltaBarStyle(dp.baselineDelta, maxAbsDelta)}
-                      data-testid={`stress-delta-bar-${dp.scenarioId}`}
-                    />
+                  {scenario && (
+                    <div className="text-xs text-charcoal-500">{scenario.description}</div>
+                  )}
+                  <div className="flex items-center gap-2">
+                    <div className="h-2 flex-1 overflow-hidden rounded bg-pov-gray">
+                      <div
+                        className="h-2 rounded"
+                        style={deltaBarStyle(dp.baselineDelta, maxAbsDelta)}
+                        data-testid={`stress-delta-bar-${dp.scenarioId}`}
+                        aria-hidden="true"
+                      />
+                    </div>
+                    <span
+                      className="w-20 shrink-0 text-right tabular-nums text-xs text-charcoal-600"
+                      data-testid={`stress-delta-value-${dp.scenarioId}`}
+                      aria-label={`Baseline delta ${dp.baselineDelta >= 0 ? '+' : '-'}${formatMetricValue(Math.abs(dp.baselineDelta), metric)}`}
+                    >
+                      {dp.baselineDelta >= 0 ? '+' : '-'}
+                      {formatMetricValue(Math.abs(dp.baselineDelta), metric)}
+                    </span>
                   </div>
                 </div>
               );
@@ -309,6 +330,15 @@ export function StressPanel({ fundId }: StressPanelProps): JSX.Element {
   }, [mutation.isSuccess, mutation.data]);
 
   const runDisabled = fundId === null || mutation.isPending || !validation.ok;
+  const runDisabledReason =
+    fundId === null
+      ? 'Select a fund before running a stress test.'
+      : mutation.isPending
+        ? 'A stress test is already running.'
+        : !validation.ok
+          ? 'Select at least one stress scenario before running a stress test.'
+          : undefined;
+  const runDisabledReasonId = runDisabledReason ? 'stress-run-disabled-reason' : undefined;
   const error = mutation.error as SensitivityHookError | null;
 
   return (
@@ -319,14 +349,15 @@ export function StressPanel({ fundId }: StressPanelProps): JSX.Element {
             <CardTitle className="text-sm">Stress Scenarios</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="space-y-2" data-testid="stress-scenario-picker">
+            <fieldset className="space-y-2" data-testid="stress-scenario-picker">
+              <legend className="sr-only">Stress scenarios</legend>
               {SUPPORTED_STRESS_SCENARIOS.map((scenario) => {
                 const id = scenario.id as SensitivityStressScenarioId;
                 const checked = form.selectedScenarioIds.has(id);
                 return (
                   <label
                     key={scenario.id}
-                    className="flex cursor-pointer items-start gap-2 rounded p-1 hover:bg-gray-50"
+                    className="flex cursor-pointer items-start gap-2 rounded p-1 hover:bg-pov-gray"
                     htmlFor={`stress-scenario-${scenario.id}`}
                   >
                     <input
@@ -338,18 +369,18 @@ export function StressPanel({ fundId }: StressPanelProps): JSX.Element {
                       data-testid={`stress-scenario-checkbox-${scenario.id}`}
                     />
                     <div className="flex-1">
-                      <div className="text-xs font-medium text-gray-800">{scenario.label}</div>
-                      <div className="text-[10px] text-gray-500">{scenario.description}</div>
+                      <div className="text-xs font-medium text-pov-charcoal">{scenario.label}</div>
+                      <div className="text-[10px] text-charcoal-500">{scenario.description}</div>
                     </div>
                   </label>
                 );
               })}
-            </div>
+            </fieldset>
 
             <div className="space-y-1">
               <Label htmlFor="stress-metric">Metric</Label>
               <Select value={form.metricId} onValueChange={onMetricChange}>
-                <SelectTrigger id="stress-metric">
+                <SelectTrigger id="stress-metric" aria-label="Stress metric">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -363,10 +394,7 @@ export function StressPanel({ fundId }: StressPanelProps): JSX.Element {
             </div>
 
             {!validation.ok && validation.errors.length > 0 && (
-              <ul
-                className="space-y-0.5 text-xs text-red-600"
-                data-testid="stress-validation-errors"
-              >
+              <ul className="space-y-0.5 text-xs text-error" data-testid="stress-validation-errors">
                 {validation.errors.map((err) => (
                   <li key={err}>{err}</li>
                 ))}
@@ -377,9 +405,15 @@ export function StressPanel({ fundId }: StressPanelProps): JSX.Element {
               type="button"
               onClick={handleSubmit}
               disabled={runDisabled}
+              aria-describedby={runDisabledReasonId}
               className="w-full"
               data-testid="stress-run-button"
             >
+              {runDisabledReason && (
+                <span id={runDisabledReasonId} className="sr-only">
+                  {runDisabledReason}
+                </span>
+              )}
               Run Stress Test
             </Button>
           </CardContent>
@@ -393,40 +427,30 @@ export function StressPanel({ fundId }: StressPanelProps): JSX.Element {
 
       <div className="space-y-4 lg:col-span-2">
         {mutation.isPending && (
-          <Card className="border-blue-200">
+          <Card className="border-presson-info/20">
             <CardContent className="px-4 py-3">
               <div className="mb-1 flex items-center justify-between">
                 <div className="flex items-center gap-2">
-                  <div className="h-2 w-2 animate-pulse rounded-full bg-blue-500" />
-                  <span className="text-sm font-medium text-gray-700">Running stress test...</span>
+                  <div className="h-2 w-2 animate-pulse rounded-full bg-presson-info" />
+                  <span className="text-sm font-medium text-charcoal-700">
+                    Running stress test...
+                  </span>
                 </div>
-                <span className="tabular-nums text-xs text-gray-500">{elapsed}s</span>
+                <span className="tabular-nums text-xs text-charcoal-500">{elapsed}s</span>
               </div>
             </CardContent>
           </Card>
         )}
 
         {!mutation.isPending && error && (
-          <Card className="border-red-200" data-testid="stress-error">
-            <CardContent className="px-4 py-3">
-              <p className="text-sm font-medium text-red-700" data-testid="stress-error-code">
-                {error.code ?? 'UNKNOWN'}
-              </p>
-              <p className="mt-0.5 text-xs text-gray-600" data-testid="stress-error-message">
-                {error.message}
-              </p>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={handleSubmit}
-                disabled={runDisabled}
-                className="mt-2"
-                data-testid="stress-retry-button"
-              >
-                Retry
-              </Button>
-            </CardContent>
-          </Card>
+          <SensitivityRunErrorCard
+            error={error}
+            fundId={fundId}
+            onRetry={handleSubmit}
+            retryDisabled={runDisabled}
+            retryDisabledReason={runDisabledReason ?? null}
+            testIdPrefix="stress"
+          />
         )}
 
         {!mutation.isPending && !error && displayedResult && (
@@ -435,10 +459,10 @@ export function StressPanel({ fundId }: StressPanelProps): JSX.Element {
 
         {!mutation.isPending && !error && !displayedResult && (
           <div
-            className="flex h-48 items-center justify-center rounded-lg border border-dashed border-gray-300"
+            className="flex h-48 items-center justify-center rounded-lg border border-dashed border-charcoal-300"
             data-testid="stress-idle"
           >
-            <p className="text-sm text-gray-400">
+            <p className="text-sm text-charcoal-400">
               Select scenarios and run a stress test to see results
             </p>
           </div>

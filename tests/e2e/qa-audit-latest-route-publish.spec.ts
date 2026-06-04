@@ -24,10 +24,174 @@ const FUND_TWO = {
 type FundsScenario = 'one' | 'multiple' | 'empty' | 'failed';
 type NavigationMethod = 'direct' | 'sidebar' | 'seeded-current-fund';
 
+const ROUTE_UNIFIED_METRICS = {
+  fundId: FUND_ONE.id,
+  fundName: FUND_ONE.name,
+  actual: {
+    asOfDate: '2026-01-31T00:00:00.000Z',
+    totalCommitted: FUND_ONE.size,
+    totalCalled: 12_500_000,
+    totalDeployed: FUND_ONE.deployedCapital,
+    totalUncalled: 37_500_000,
+    currentNAV: 46_000_000,
+    totalDistributions: 1_000_000,
+    totalValue: 47_000_000,
+    irr: 0.18,
+    tvpi: 2.76,
+    dpi: 0.06,
+    rvpi: 2.7,
+    activeCompanies: 1,
+    exitedCompanies: 0,
+    writtenOffCompanies: 0,
+    totalCompanies: 1,
+    deploymentRate: 20,
+    averageCheckSize: FUND_ONE.deployedCapital,
+  },
+  projected: null,
+  target: {
+    targetFundSize: FUND_ONE.size,
+    targetIRR: 0.2,
+    targetTVPI: 2.5,
+    targetDPI: 1,
+    targetDeploymentYears: 4,
+    targetCompanyCount: 20,
+    targetAverageCheckSize: 2_500_000,
+    targetReserveRatio: 0.4,
+  },
+  variance: {
+    deploymentVariance: {
+      actual: FUND_ONE.deployedCapital,
+      target: 12_500_000,
+      variance: -2_500_000,
+      percentDeviation: -20,
+      status: 'behind',
+    },
+    performanceVariance: {
+      actualIRR: 0.18,
+      targetIRR: 0.2,
+      variance: -0.02,
+      status: 'below',
+    },
+    tvpiVariance: {
+      actual: 2.76,
+      projected: 2.76,
+      target: 2.5,
+      varianceVsProjected: 0,
+      varianceVsTarget: 0.26,
+    },
+    paceVariance: {
+      status: 'behind',
+      monthsDeviation: -3,
+      periodElapsedPercent: 25,
+      capitalDeployedPercent: 20,
+    },
+    portfolioVariance: {
+      actualCompanies: 1,
+      targetCompanies: 20,
+      variance: -19,
+      onTrack: false,
+    },
+  },
+  lastUpdated: '2026-01-31T00:00:00.000Z',
+};
+
+const ROUTE_DUAL_FORECAST = {
+  fundId: FUND_ONE.id,
+  fundName: FUND_ONE.name,
+  asOfDate: ROUTE_UNIFIED_METRICS.actual.asOfDate,
+  series: [
+    {
+      quarterIndex: 0,
+      label: 'Q1 2026',
+      date: '2026-03-31',
+      construction: {
+        nav: ROUTE_UNIFIED_METRICS.actual.currentNAV,
+        calledCapital: ROUTE_UNIFIED_METRICS.actual.totalCalled,
+        distributions: ROUTE_UNIFIED_METRICS.actual.totalDistributions,
+        tvpi: ROUTE_UNIFIED_METRICS.actual.tvpi,
+        dpi: ROUTE_UNIFIED_METRICS.actual.dpi,
+        rvpi: ROUTE_UNIFIED_METRICS.actual.rvpi,
+        irr: ROUTE_UNIFIED_METRICS.actual.irr,
+      },
+      actual: {
+        nav: ROUTE_UNIFIED_METRICS.actual.currentNAV,
+        calledCapital: ROUTE_UNIFIED_METRICS.actual.totalCalled,
+        distributions: ROUTE_UNIFIED_METRICS.actual.totalDistributions,
+        tvpi: ROUTE_UNIFIED_METRICS.actual.tvpi,
+        dpi: ROUTE_UNIFIED_METRICS.actual.dpi,
+        rvpi: ROUTE_UNIFIED_METRICS.actual.rvpi,
+        irr: ROUTE_UNIFIED_METRICS.actual.irr,
+      },
+      currentMode: 'actual',
+      current: {
+        nav: ROUTE_UNIFIED_METRICS.actual.currentNAV,
+        calledCapital: ROUTE_UNIFIED_METRICS.actual.totalCalled,
+        distributions: ROUTE_UNIFIED_METRICS.actual.totalDistributions,
+        tvpi: ROUTE_UNIFIED_METRICS.actual.tvpi,
+        dpi: ROUTE_UNIFIED_METRICS.actual.dpi,
+        rvpi: ROUTE_UNIFIED_METRICS.actual.rvpi,
+        irr: ROUTE_UNIFIED_METRICS.actual.irr,
+      },
+    },
+    {
+      quarterIndex: 1,
+      label: 'Q2 2026',
+      date: '2026-06-30',
+      construction: {
+        nav: 48_000_000,
+        calledCapital: 15_000_000,
+        distributions: 1_250_000,
+        tvpi: 2.9,
+        dpi: 0.08,
+        rvpi: 2.82,
+        irr: 0.19,
+      },
+      actual: null,
+      currentMode: 'forecast',
+      current: {
+        nav: 47_500_000,
+        calledCapital: 14_500_000,
+        distributions: 1_200_000,
+        tvpi: 2.84,
+        dpi: 0.07,
+        rvpi: 2.77,
+        irr: 0.185,
+      },
+    },
+  ],
+  sources: {
+    construction: 'construction_forecast_jcurve',
+    current: 'projected_metrics_calculator',
+    actual: 'actual_metrics_calculator',
+  },
+  config: {
+    source: 'published',
+    version: 1,
+    publishedAt: '2026-01-31T00:00:00.000Z',
+    fallbackReason: null,
+  },
+  warnings: [],
+};
+
+const unexpectedApiRequestsByPage = new WeakMap<Page, string[]>();
+
+function requestLabel(request: { method: () => string; url: () => string }): string {
+  const url = new URL(request.url());
+  return `${request.method()} ${url.pathname}${url.search}`;
+}
+
 async function installQaApiStubs(page: Page, scenario: FundsScenario) {
+  const unexpectedRequests: string[] = [];
+  unexpectedApiRequestsByPage.set(page, unexpectedRequests);
+
   await page.route('**/api/**', async (route) => {
     const request = route.request();
     const url = new URL(request.url());
+
+    if (url.pathname === '/api/telemetry/wizard' || url.pathname === '/api/metrics/rum') {
+      await route.fulfill({ status: 204, body: '' });
+      return;
+    }
 
     if (request.method() === 'GET' && url.pathname === '/api/funds') {
       if (scenario === 'failed') {
@@ -75,12 +239,92 @@ async function installQaApiStubs(page: Page, scenario: FundsScenario) {
       await route.fulfill({
         status: 200,
         contentType: 'application/json',
+        body: JSON.stringify(ROUTE_UNIFIED_METRICS),
+      });
+      return;
+    }
+
+    if (request.method() === 'GET' && url.pathname === '/api/funds/1/dual-forecast') {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify(ROUTE_DUAL_FORECAST),
+      });
+      return;
+    }
+
+    if (url.pathname === '/api/funds/1/results') {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
         body: JSON.stringify({
-          actual: { totalCommitted: FUND_ONE.size, totalDeployed: FUND_ONE.deployedCapital },
-          projected: null,
-          target: null,
-          variance: null,
+          status: 'ready',
+          fundId: FUND_ONE.id,
+          fund: {
+            name: FUND_ONE.name,
+            vintageYear: FUND_ONE.vintageYear,
+            size: FUND_ONE.size,
+          },
+          lifecycle: {
+            fundId: FUND_ONE.id,
+            configState: {
+              latestVersion: 1,
+              draftVersion: null,
+              publishedVersion: 1,
+              hasDraft: false,
+              hasPublished: true,
+              publishedAt: '2026-01-31T00:00:00.000Z',
+              draftUpdatedAt: null,
+              publishedUpdatedAt: '2026-01-31T00:00:00.000Z',
+            },
+            calculationState: {
+              status: 'ready',
+              configVersion: 1,
+              runId: 1,
+              correlationId: 'qa-route-publish',
+              dispatchState: 'dispatched',
+              availableSnapshotTypes: ['RESERVE', 'PACING'],
+              expectedSnapshotTypes: ['RESERVE', 'PACING'],
+              lastCalculatedAt: '2026-01-31T00:00:00.000Z',
+              lastError: null,
+              legacyEvidence: false,
+            },
+            legacy: { engineResultsPresent: false },
+          },
+          sections: {
+            reserve: { status: 'unavailable', reason: 'Route publish fixture' },
+            pacing: { status: 'unavailable', reason: 'Route publish fixture' },
+            scorecard: {
+              status: 'available',
+              payload: {
+                fundName: { value: FUND_ONE.name, source: 'funds' },
+                fundSize: { value: FUND_ONE.size, source: 'funds' },
+                vintageYear: { value: FUND_ONE.vintageYear, source: 'funds' },
+              },
+            },
+            scenarios: { status: 'unavailable', reason: 'Route publish fixture' },
+            waterfall: { status: 'unavailable', reason: 'Route publish fixture' },
+            economics: { status: 'unavailable', reason: 'Route publish fixture' },
+          },
         }),
+      });
+      return;
+    }
+
+    if (url.pathname === '/api/funds/1/lifecycle-history') {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ fundId: 1, entries: [] }),
+      });
+      return;
+    }
+
+    if (url.pathname === '/api/funds/1/results-comparison') {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ comparisonStatus: 'no_previous_version', metricDeltas: [] }),
       });
       return;
     }
@@ -149,10 +393,12 @@ async function installQaApiStubs(page: Page, scenario: FundsScenario) {
       return;
     }
 
+    const label = requestLabel(request);
+    unexpectedRequests.push(label);
     await route.fulfill({
-      status: 200,
+      status: 500,
       contentType: 'application/json',
-      body: JSON.stringify({ success: true, data: [] }),
+      body: JSON.stringify({ error: 'UNEXPECTED_ROUTE_PUBLISH_API_REQUEST', request: label }),
     });
   });
 }
@@ -186,6 +432,10 @@ async function captureRoute(page: Page, path: string, method: NavigationMethod) 
 }
 
 test.describe('latest QA route/nav/publish closeout matrix', () => {
+  test.afterEach(async ({ page }) => {
+    expect(unexpectedApiRequestsByPage.get(page) ?? []).toEqual([]);
+  });
+
   test('model routes with funds available do not redirect to fund setup', async ({
     page,
   }, testInfo) => {
@@ -202,11 +452,23 @@ test.describe('latest QA route/nav/publish closeout matrix', () => {
       captures.push(await captureRoute(page, path, 'direct'));
       await expect(page).not.toHaveURL(/\/fund-setup\b/);
       if (path.startsWith('/model-results')) {
-        await expect(page.getByRole('heading', { name: /^model results$/i })).toBeVisible();
+        await expect(page).toHaveURL(/\/fund-model-results\/1\b/);
+        await expect(
+          page.getByRole('main').getByRole('heading', { name: /^QA Fund I$/i })
+        ).toBeVisible();
+      } else if (path === '/forecasting' || path === '/financial-modeling') {
+        await expect(
+          page.getByRole('heading', { name: /financial modeling & forecasting/i })
+        ).toBeVisible();
+        await expect(page.getByText(/fund value forecast/i)).toBeVisible();
+        await expect(
+          page.getByText(/select or create a fund to view forecasting data/i)
+        ).not.toBeVisible();
       } else {
         await expect(
           page.getByRole('heading', { name: /financial modeling & forecasting/i })
         ).toBeVisible();
+        await expect(page.getByText(/fund value forecast/i)).toBeVisible();
       }
     }
 
@@ -227,6 +489,22 @@ test.describe('latest QA route/nav/publish closeout matrix', () => {
     await expect(page).not.toHaveURL(/\/fund-model-results\/1\b/);
     await expect(page.getByRole('heading', { name: /^model results$/i })).toBeVisible();
     await expect(page.getByText(/select a fund to view model results/i)).toBeVisible();
+  });
+
+  test('direct forecasting with multiple funds requires explicit selection', async ({ page }) => {
+    await installQaApiStubs(page, 'multiple');
+
+    await page.goto('/forecasting', { waitUntil: 'domcontentloaded' });
+
+    await expect(page).not.toHaveURL(/\/fund-setup\b/);
+    await expect(
+      page.getByRole('heading', { name: /financial modeling & forecasting/i })
+    ).toBeVisible();
+    await expect(page.getByText(/select or create a fund to view forecasting data/i)).toBeVisible();
+    await expect(
+      page.getByText(/forecasting stays unavailable until an active fund context exists/i)
+    ).toBeVisible();
+    await expect(page.getByText(/fund value forecast/i)).not.toBeVisible();
   });
 
   test('failed funds response shows retryable load error on deterministic workspaces', async ({
@@ -267,7 +545,11 @@ test.describe('latest QA route/nav/publish closeout matrix', () => {
 
     await page.goto('/dashboard', { waitUntil: 'domcontentloaded' });
     await expect(page.locator('aside')).toBeVisible();
-    await page.getByRole('link', { name: /forecasting/i }).dispatchEvent('click');
+    await page.locator('aside').hover();
+    await expect(page.locator('aside').getByText(FUND_ONE.name)).toBeVisible();
+    const forecastLink = page.getByRole('link', { name: /forecasting/i });
+    await expect(forecastLink).toHaveAttribute('href', '/forecasting?fundId=1');
+    await forecastLink.dispatchEvent('click');
 
     await expect(page).toHaveURL(/\/forecasting\?fundId=1\b/);
     await expect(

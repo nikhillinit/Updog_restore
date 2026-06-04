@@ -1,4 +1,3 @@
- 
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
@@ -26,16 +25,14 @@ export function ReallocationTab() {
   const currentVersion = 1; // TODO: Get from API
 
   // State
-  const [selectedCompanies, setSelectedCompanies] = useState<
-    SelectedCompany[]
-  >([]);
-  const [previewData, setPreviewData] =
-    useState<ReallocationPreviewResponse | null>(null);
+  const [selectedCompanies, setSelectedCompanies] = useState<SelectedCompany[]>([]);
+  const [previewData, setPreviewData] = useState<ReallocationPreviewResponse | null>(null);
   const [commitReason, setCommitReason] = useState('');
 
   // Data fetching
-  const { portfolioCompanies, isLoading: isLoadingCompanies } =
-    usePortfolioCompanies(fundId || undefined);
+  const { portfolioCompanies, isLoading: isLoadingCompanies } = usePortfolioCompanies(
+    fundId || undefined
+  );
 
   // Mutations
   const previewMutation = useReallocationPreview(fundId || 0);
@@ -57,13 +54,11 @@ export function ReallocationTab() {
       return;
     }
 
-    const proposedAllocations: ProposedAllocation[] = selectedCompanies.map(
-      (company) => ({
-        company_id: company.id,
-        planned_reserves_cents: company.newAllocation,
-        ...(company.cap !== undefined ? { allocation_cap_cents: company.cap } : {}),
-      })
-    );
+    const proposedAllocations: ProposedAllocation[] = selectedCompanies.map((company) => ({
+      company_id: company.id,
+      planned_reserves_cents: company.newAllocation,
+      ...(company.cap !== undefined ? { allocation_cap_cents: company.cap } : {}),
+    }));
 
     previewMutation.mutate(
       {
@@ -119,13 +114,11 @@ export function ReallocationTab() {
       return;
     }
 
-    const proposedAllocations: ProposedAllocation[] = selectedCompanies.map(
-      (company) => ({
-        company_id: company.id,
-        planned_reserves_cents: company.newAllocation,
-        ...(company.cap !== undefined ? { allocation_cap_cents: company.cap } : {}),
-      })
-    );
+    const proposedAllocations: ProposedAllocation[] = selectedCompanies.map((company) => ({
+      company_id: company.id,
+      planned_reserves_cents: company.newAllocation,
+      ...(company.cap !== undefined ? { allocation_cap_cents: company.cap } : {}),
+    }));
 
     commitMutation.mutate(
       {
@@ -174,13 +167,9 @@ export function ReallocationTab() {
     return (
       <Card>
         <CardContent className="p-12 text-center">
-          <AlertCircle className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-          <h3 className="text-lg font-semibold text-gray-900 mb-2">
-            No Fund Selected
-          </h3>
-          <p className="text-gray-600">
-            Please select a fund to manage allocations
-          </p>
+          <AlertCircle className="h-12 w-12 text-charcoal-400 mx-auto mb-4" />
+          <h3 className="text-lg font-semibold text-pov-charcoal mb-2">No Fund Selected</h3>
+          <p className="text-charcoal-600">Please select a fund to manage allocations</p>
         </CardContent>
       </Card>
     );
@@ -190,7 +179,7 @@ export function ReallocationTab() {
   if (isLoadingCompanies) {
     return (
       <div className="flex items-center justify-center h-64">
-        <Loader2 className="h-8 w-8 animate-spin text-gray-400" />
+        <Loader2 className="h-8 w-8 animate-spin text-charcoal-400" />
       </div>
     );
   }
@@ -200,13 +189,9 @@ export function ReallocationTab() {
     return (
       <Card>
         <CardContent className="p-12 text-center">
-          <AlertCircle className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-          <h3 className="text-lg font-semibold text-gray-900 mb-2">
-            No Companies Found
-          </h3>
-          <p className="text-gray-600">
-            Add portfolio companies to begin managing allocations
-          </p>
+          <AlertCircle className="h-12 w-12 text-charcoal-400 mx-auto mb-4" />
+          <h3 className="text-lg font-semibold text-pov-charcoal mb-2">No Companies Found</h3>
+          <p className="text-charcoal-600">Add portfolio companies to begin managing allocations</p>
         </CardContent>
       </Card>
     );
@@ -222,7 +207,7 @@ export function ReallocationTab() {
         <Card>
           <CardHeader>
             <CardTitle>Select Companies to Reallocate</CardTitle>
-            <p className="text-sm text-gray-600">
+            <p className="text-sm text-charcoal-600">
               Choose companies and adjust their planned reserve allocations
             </p>
           </CardHeader>
@@ -234,14 +219,12 @@ export function ReallocationTab() {
             />
 
             <div className="flex items-center justify-between pt-4 border-t">
-              <div className="text-sm text-gray-600">
+              <div className="text-sm text-charcoal-600">
                 {selectedCompanies.length} company(ies) selected
               </div>
               <Button
                 onClick={handlePreview}
-                disabled={
-                  selectedCompanies.length === 0 || previewMutation.isPending
-                }
+                disabled={selectedCompanies.length === 0 || previewMutation.isPending}
               >
                 {previewMutation.isPending ? (
                   <>
@@ -262,22 +245,18 @@ export function ReallocationTab() {
         <Card>
           <CardHeader>
             <CardTitle>Reallocation Preview</CardTitle>
-            <p className="text-sm text-gray-600">
-              Review changes and commit when ready
-            </p>
+            <p className="text-sm text-charcoal-600">Review changes and commit when ready</p>
           </CardHeader>
           <CardContent className="space-y-4">
             {!hasPreview ? (
-              <div className="rounded-md border border-dashed border-gray-300 bg-gray-50 p-12 text-center">
-                <p className="text-gray-500">
-                  Preview changes to see detailed summary
-                </p>
+              <div className="rounded-md border border-dashed border-charcoal-300 bg-pov-gray p-12 text-center">
+                <p className="text-charcoal-500">Preview changes to see detailed summary</p>
               </div>
             ) : (
               <>
                 {/* Deltas */}
                 <div>
-                  <h3 className="text-sm font-semibold text-gray-700 mb-2">
+                  <h3 className="text-sm font-semibold text-charcoal-700 mb-2">
                     Changes by Company
                   </h3>
                   <DeltaSummary deltas={previewData.deltas} />
@@ -295,12 +274,8 @@ export function ReallocationTab() {
 
                 {/* Commit Reason */}
                 <div className="space-y-2">
-                  <label
-                    htmlFor="commit-reason"
-                    className="text-sm font-medium text-gray-700"
-                  >
-                    Reason for Reallocation{' '}
-                    <span className="text-red-500">*</span>
+                  <label htmlFor="commit-reason" className="text-sm font-medium text-charcoal-700">
+                    Reason for Reallocation <span className="text-error">*</span>
                   </label>
                   <Textarea
                     id="commit-reason"
@@ -310,18 +285,14 @@ export function ReallocationTab() {
                     rows={3}
                     className="resize-none"
                   />
-                  <p className="text-xs text-gray-500">
+                  <p className="text-xs text-charcoal-500">
                     This reason will be recorded in the audit log
                   </p>
                 </div>
 
                 {/* Commit Button */}
                 <div className="flex items-center gap-3 pt-4 border-t">
-                  <Button
-                    variant="outline"
-                    onClick={resetForm}
-                    disabled={commitMutation.isPending}
-                  >
+                  <Button variant="outline" onClick={resetForm} disabled={commitMutation.isPending}>
                     Cancel
                   </Button>
                   <Button
@@ -341,8 +312,8 @@ export function ReallocationTab() {
                 </div>
 
                 {!canCommitChanges && commitReason.trim() && (
-                  <div className="rounded-md bg-red-50 border border-red-200 p-3">
-                    <p className="text-xs text-red-700 flex items-center gap-2">
+                  <div className="rounded-md bg-error/10 border border-error/30 p-3">
+                    <p className="text-xs text-error-dark flex items-center gap-2">
                       <AlertCircle className="h-4 w-4" />
                       Cannot commit: Please resolve all blocking errors first
                     </p>

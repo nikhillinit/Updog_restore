@@ -28,7 +28,7 @@ export function WaterfallSummaryCard({ waterfall }: WaterfallSummaryCardProps) {
               Preview of waterfall structure and example distribution
             </CardDescription>
           </div>
-          <Badge variant="secondary" className="font-poppins bg-blue-100 text-blue-800">
+          <Badge variant="secondary" className="font-poppins bg-presson-info/10 text-presson-info">
             {waterfall.type}
           </Badge>
         </div>
@@ -67,8 +67,8 @@ export function WaterfallSummaryCard({ waterfall }: WaterfallSummaryCardProps) {
           <div className="space-y-3">
             <div className="flex items-center justify-between p-3 bg-charcoal-50 rounded-lg">
               <div className="flex items-center gap-3">
-                <div className="h-10 w-10 rounded-full bg-blue-100 flex items-center justify-center">
-                  <Users className="h-5 w-5 text-blue-600" />
+                <div className="h-10 w-10 rounded-full bg-charcoal-100 flex items-center justify-center">
+                  <Users className="h-5 w-5 text-charcoal-600" />
                 </div>
                 <div>
                   <p className="font-poppins font-medium text-pov-charcoal">
@@ -91,8 +91,8 @@ export function WaterfallSummaryCard({ waterfall }: WaterfallSummaryCardProps) {
 
             <div className="flex items-center justify-between p-3 bg-charcoal-50 rounded-lg">
               <div className="flex items-center gap-3">
-                <div className="h-10 w-10 rounded-full bg-green-100 flex items-center justify-center">
-                  <DollarSign className="h-5 w-5 text-green-600" />
+                <div className="h-10 w-10 rounded-full bg-presson-positive/10 flex items-center justify-center">
+                  <DollarSign className="h-5 w-5 text-presson-positive" />
                 </div>
                 <div>
                   <p className="font-poppins font-medium text-pov-charcoal">
@@ -112,8 +112,8 @@ export function WaterfallSummaryCard({ waterfall }: WaterfallSummaryCardProps) {
             </div>
           </div>
 
-          <div className="mt-4 p-3 bg-blue-50 rounded-lg border border-blue-200">
-            <p className="text-sm text-blue-800">
+          <div className="mt-4 p-3 bg-presson-info/10 rounded-lg border border-presson-info/30">
+            <p className="text-sm text-presson-info">
               <strong>Note:</strong> This example assumes $100M fund size and $250M total value
               (2.5x MOIC).
             </p>

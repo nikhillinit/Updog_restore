@@ -1,6 +1,6 @@
 ---
 status: ACTIVE
-last_updated: 2026-04-03
+last_updated: 2026-05-20
 ---
 
 # CLAUDE.md
@@ -45,6 +45,48 @@ cheatsheets for testing, APIs, and UI conventions.
 **Derivability test:** Could a future session reconstruct this from code and git
 log alone? If NO, write it down. If YES, do not create a file.
 
+### Archive Gate
+
+Session artifacts (handoff memos, checkpoints, session summaries) violate the
+prune policy but may contain non-derivable implementation details. Do not
+mass-delete. Archive only after **all three** checks pass:
+
+1. **`git log --all --oneline -- <path>`** confirms the referenced work landed
+   or became obsolete.
+2. **`grep -r <named-feature> client/ server/ shared/`** confirms the named
+   feature/code path exists or is no longer referenced anywhere.
+3. The file is **not serving as an active handoff** (not referenced by a current
+   `HANDOFF.json`, open checkpoint, or in-flight PR).
+
+Cite the evidence from these checks in the PR description that archives the
+file. Git history is the archive; `.archive/` directories are not required.
+
+### Phoenix Protected Paths
+
+Phoenix routing and validation docs are domain-locked. Do not edit, archive,
+delete, merge, or deprecate the following without specialist sign-off:
+
+- `.claude/PHOENIX-AGENTS-REGISTRY.md`
+- `.claude/PHOENIX-TOOL-ROUTING.md`
+- Phoenix-specific sections of `.claude/DISCOVERY-MAP.md`
+
+Required reviewers depend on content touched:
+
+- Waterfall, carry, clawback, LP/GP distribution: `waterfall-specialist`
+- Precision, rounding, Decimal.js, numeric drift: `phoenix-precision-guardian`
+- XIRR, IRR, fees, cash-flow timing: `xirr-fees-validator`
+
+A cleanup PR may update metadata or route pointers outside these protected
+sections, but any Phoenix content consolidation must include a content matrix
+classifying touched sections as `LOAD_BEARING`, `DUPLICATE`, or `OBSOLETE`.
+
+**Cleanup tier table:**
+
+| Tier              | Files                                     | Gate                                                            |
+| ----------------- | ----------------------------------------- | --------------------------------------------------------------- |
+| Archive-candidate | `.omx/`, session summaries, handoff memos | Archive-after-evidence: git log + grep + active-reference check |
+| Domain-locked     | Phoenix routing surfaces                  | Specialist review before edit/merge/delete/deprecate            |
+
 **Key references** (consult as needed, not mandatory pre-reads):
 
 - `CHANGELOG.md` - recent changes
@@ -72,7 +114,6 @@ log alone? If NO, write it down. If YES, do not create a file.
 - `client/src/pages/` - Application routes and page components
 - `server/routes/` - API endpoint definitions
 - `tests/` - Comprehensive test suite (API, performance, UI)
-- `packages/` - AI agent system for autonomous development
 
 ## Tech Stack
 
@@ -105,7 +146,6 @@ log alone? If NO, write it down. If YES, do not create a file.
 
 - `@/` → `client/src/`
 - `@shared/` → `shared/`
-- `@assets/` → `assets/`
 
 ## Development Setup
 
@@ -150,10 +190,8 @@ npm run doctor
   [cheatsheets/emoji-free-documentation.md](cheatsheets/emoji-free-documentation.md)
   for complete guide
 
-**Complete Documentation Index:**
-
-- All 30 cheatsheets organized by category:
-  [cheatsheets/INDEX.md](cheatsheets/INDEX.md)
+**Complete Documentation Index:** see
+[cheatsheets/INDEX.md](cheatsheets/INDEX.md)
 
 ## Essential Commands
 
@@ -221,6 +259,23 @@ report**: `docs/_generated/staleness-report.md` **Regenerate**:
   [obra/superpowers](https://github.com/obra/superpowers)
 - **Skills**: See [.claude/skills/INDEX.md](.claude/skills/INDEX.md)
 
+## Agent skills
+
+### Issue tracker
+
+Issues and PRDs are tracked in GitHub Issues for `nikhillinit/Updog_restore`.
+See `docs/agents/issue-tracker.md`.
+
+### Triage labels
+
+Triage uses the default five-label vocabulary. See
+`docs/agents/triage-labels.md`.
+
+### Domain docs
+
+This is a single-context repo using root governance docs plus `docs/adr/`. See
+`docs/agents/domain.md`.
+
 ## MANDATORY WORKFLOW - START HERE
 
 1. **CLAUDE.md** - Current operating guidance and governance
@@ -245,6 +300,10 @@ START HERE:
 
 - BEFORE changing shared test mocks or fixtures, grep for ALL assertion patterns
   that depend on current behavior across the full test suite.
+- WHEN diagnosing failing integration tests in CI, check if failures cluster at
+  the END of execution order — that's a resource-ceiling cascade (Vitest
+  `setupFiles` spawns a fresh server per file), not per-file bugs. Pre-push hook
+  reports the warm/true state; cold CI runs can flake the tail.
 - BEFORE pushing when test infrastructure changed, run `npm test` (full suite),
   not just targeted tests.
 - BEFORE writing data to JSONB, check schema for dedicated columns. Do NOT nest
@@ -261,9 +320,15 @@ START HERE:
 
 - **CLI Gateway**: `npm run ai` - AI agent operations (test, patch, repair,
   metrics)
-- **Agent Framework**: `packages/agent-core/` - BaseAgent with retry logic,
-  monitoring
+- **AI tooling**: `.claude/agents/` for prompt surfaces and `scripts/ai-tools/`
+  for the package-free CLI gateway
 - **Code Quality**: Codacy integration, Trivy security scanning
+
+### Hermes Dev Co-op
+
+For phase-routed multi-model development, see `DEV_BRAIN.md`. Hermes defaults
+are subordinate to this file. Config: `.claude/hermes/model-routing.json`. CLI:
+`node orchestrate.js --help`.
 
 ### Codex CLI Integration
 
@@ -272,8 +337,8 @@ Consult OpenAI Codex (GPT-5.3, xhigh reasoning) for complex tasks:
 
 ## Babysitter Orchestration
 
-**Profile**: `.a5c/project-profile.json` | **Autonomy**: Semi-autonomous |
-**Methodology**: TDD quality convergence with iterative refinement
+**Autonomy**: Semi-autonomous | **Methodology**: TDD quality convergence with
+iterative refinement
 
 ### Quick Commands
 
@@ -285,14 +350,8 @@ Consult OpenAI Codex (GPT-5.3, xhigh reasoning) for complex tasks:
 
 ### Installed Processes
 
-| Process                     | Description                                       |
-| --------------------------- | ------------------------------------------------- |
-| `gsd/execute`               | Primary workflow for implementing features        |
-| `gsd/verify`                | Post-implementation verification with truth cases |
-| `gsd/plan`                  | Planning and architecture design                  |
-| `gsd/iterative-convergence` | Systematic improvement loops (lint debt, tests)   |
-| `gsd/audit`                 | Codebase audit and quality assessment             |
-| `cradle/project-install`    | Project onboarding and profile management         |
+Project-specific. Run `ls .a5c/processes/` to see current set (lp-reporting-_,
+sensitivity-_, variance-\*, m4/m6/m7 milestones).
 
 ### Recommended Agents
 
@@ -320,14 +379,10 @@ Checkpoint
 See [docs/claude/operating-loop.md](docs/claude/operating-loop.md) for full
 details.
 
-| Command        | Purpose                            |
-| -------------- | ---------------------------------- |
-| `/frame-brief` | Create frame brief before work     |
-| `/checkpoint`  | Checkpoint before risky operations |
-| `/handoff`     | Session handoff artifact           |
-| `/reconcile`   | Verify after parallel work         |
-| `/explore`     | Non-executing discovery mode       |
-| `/bias-audit`  | Evidence/audience enforcement      |
+| Command       | Purpose                       |
+| ------------- | ----------------------------- |
+| `/explore`    | Non-executing discovery mode  |
+| `/bias-audit` | Evidence/audience enforcement |
 
 ## Full vs Lite Mode
 
@@ -376,3 +431,19 @@ Artifacts: `HANDOFF.json`, `HANDOFF.md`, `.claude/artifacts/checkpoints/`
 - `/explore` - non-executing discovery mode
 - `CLAUDE_HOOKS_DISABLE=1` - disable all control plane hooks (logged)
 - All bypasses logged to `.claude/artifacts/metrics.jsonl`
+
+## Design System
+
+Read `DESIGN.md` (repo root) before any visual or UI change. It is the source of
+truth for color, typography, spacing, and the v3.1.1 product doctrine (screen
+grammar, role modes, acceptance rubric), and it points to the canonical token
+file (`client/src/theme/presson.tokens.ts`) and philosophy doc
+(`docs/design/updog-design-philosophy-v3.1.1.html`).
+
+- Primary action / accent is charcoal `#292929`, never blue. Status colors are
+  muted.
+- Reuse `presson.*` tokens; do not introduce new color/font vocabularies.
+- Check the DESIGN.md drift register before reusing any color in
+  `tailwind.config.ts` (blue `interactive.accent`, purple `financial.stable`,
+  duplicate greens) or `presson-v2.css`.
+- New surfaces must pass the v3.1.1 acceptance rubric.

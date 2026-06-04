@@ -154,7 +154,7 @@ const diff = safeGitDiff(validBranch, 'HEAD');
 
 ### 3. Malformed JSON Fixed ✅
 
-**Issue:** [perf-local.json](../../perf-local.json) contained error text instead of valid JSON
+**Issue:** `perf-local.json` (removed local performance artifact) contained error text instead of valid JSON
 **Risk:** Parse errors, application crashes
 **Status:** ✅ Fixed
 

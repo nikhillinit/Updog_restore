@@ -13,8 +13,7 @@
 
 // DOMPurify not available in server environment, using built-in sanitization
 import validator from 'validator';
-import type { Request, Response, NextFunction } from 'express';
-import { logValidationError, securityLogger } from './logger.js';
+import { securityLogger } from './logger.js';
 import { sanitizeInput } from './sanitizer.js';
 
 // =============================================================================
@@ -476,85 +475,6 @@ export class SanitizationError extends Error {
   }
 }
 
-/**
- * Create a sanitization middleware that validates and sanitizes request data
- */
-export function createSanitizationMiddleware(
-  options: {
-    sanitizeBody?: boolean;
-    sanitizeQuery?: boolean;
-    sanitizeParams?: boolean;
-    strictMode?: boolean;
-    customSanitizers?: Record<string, (_value: unknown) => unknown>;
-  } = {}
-) {
-  return (req: Request, res: Response, next: NextFunction) => {
-    try {
-      const opts = {
-        sanitizeBody: true,
-        sanitizeQuery: true,
-        sanitizeParams: true,
-        strictMode: true,
-        ...options,
-      };
-
-      // Sanitize request body
-      if (opts.sanitizeBody && req.body) {
-        req.body = sanitizeObject(req.body, {
-          strictMode: opts.strictMode,
-          maxDepth: 5,
-        });
-
-        // Apply custom sanitizers
-        if (opts.customSanitizers) {
-          for (const [field, sanitizer] of Object.entries(opts.customSanitizers)) {
-            if ((req.body as Record<string, unknown>)[field] !== undefined) {
-              (req.body as Record<string, unknown>)[field] = sanitizer(
-                (req.body as Record<string, unknown>)[field]
-              );
-            }
-          }
-        }
-      }
-
-      // Sanitize query parameters
-      if (opts.sanitizeQuery && req.query) {
-        req.query = sanitizeObject(req.query, {
-          strictMode: opts.strictMode,
-          maxDepth: 3,
-        }) as typeof req.query;
-      }
-
-      // Sanitize route parameters
-      if (opts.sanitizeParams && req.params) {
-        req.params = sanitizeObject(req.params, {
-          strictMode: opts.strictMode,
-          maxDepth: 2,
-        }) as typeof req.params;
-      }
-
-      next();
-    } catch (error) {
-      logValidationError(
-        'request_sanitization',
-        {
-          body: req.body as Record<string, unknown>,
-          query: req.query as Record<string, unknown>,
-          params: req.params as Record<string, unknown>,
-        },
-        error instanceof Error ? error.message : 'Unknown sanitization error',
-        { path: req.path, method: req.method }
-      );
-
-      res.status(400).json({
-        error: 'Invalid input data',
-        message: error instanceof Error ? error.message : 'Request contains invalid data',
-        field: error instanceof SanitizationError ? error._field : undefined,
-      });
-    }
-  };
-}
-
 // =============================================================================
 // UTILITY FUNCTIONS
 // =============================================================================
@@ -607,7 +527,6 @@ export default {
   sanitizeFilePath,
   sanitizeMonteCarloConfig,
   sanitizeDistributionParams,
-  createSanitizationMiddleware,
   containsDangerousContent,
   getSanitizationStats,
   fieldSanitizers,

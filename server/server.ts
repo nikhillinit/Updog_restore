@@ -90,8 +90,8 @@ export async function createServer(
   // Version headers for observability
   app.use((req: Request, res: Response, next: NextFunction) => {
     const version = config.APP_VERSION;
-    res['set']('X-Service-Version', version);
-    res['set']('X-Service-Name', 'fund-platform-api');
+    res.set('X-Service-Version', version);
+    res.set('X-Service-Name', 'fund-platform-api');
     req.version = version;
     next();
   });
@@ -138,8 +138,8 @@ export async function createServer(
     if (!err) return next();
 
     // Ensure X-Request-ID is set
-    if (req.requestId && !res['get']('X-Request-ID')) {
-      res['set']('X-Request-ID', req.requestId);
+    if (req.requestId && !res.get('X-Request-ID')) {
+      res.set('X-Request-ID', req.requestId);
     }
 
     if (hasBodyParserErrorType(err) && err.type === 'entity.too.large') {
@@ -172,7 +172,7 @@ export async function createServer(
       return originalResJson.call(res, bodyJson);
     };
 
-    res['on']('finish', () => {
+    res.on('finish', () => {
       const duration = Date.now() - start;
       if (path.startsWith('/api')) {
         const version = config.APP_VERSION;

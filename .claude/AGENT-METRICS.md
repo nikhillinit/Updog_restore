@@ -1,7 +1,7 @@
 ---
 status: ACTIVE
 audience: agents
-last_updated: 2025-12-29
+last_updated: 2026-05-20
 owner: 'Platform Team'
 review_cadence: P7D
 categories: [agents, metrics, performance]
@@ -17,14 +17,14 @@ ecosystem and identify improvement opportunities.
 
 ### Core Metrics Per Agent
 
-| Metric | Description | Target |
-|--------|-------------|--------|
-| **Invocation Count** | Times agent was called | - |
-| **Success Rate** | % completing without errors | >95% |
-| **Avg Runtime** | Mean execution time | <5min |
-| **P95 Runtime** | 95th percentile runtime | <10min |
-| **Memory Usage** | Peak memory during execution | <500MB |
-| **Failure Categories** | Types of failures encountered | - |
+| Metric                 | Description                   | Target |
+| ---------------------- | ----------------------------- | ------ |
+| **Invocation Count**   | Times agent was called        | -      |
+| **Success Rate**       | % completing without errors   | >95%   |
+| **Avg Runtime**        | Mean execution time           | <5min  |
+| **P95 Runtime**        | 95th percentile runtime       | <10min |
+| **Memory Usage**       | Peak memory during execution  | <500MB |
+| **Failure Categories** | Types of failures encountered | -      |
 
 ### Tracking Method
 
@@ -53,31 +53,31 @@ interface AgentMetrics {
 
 ### High-Volume Agents (Weekly Metrics)
 
-| Agent | Invocations | Success Rate | Avg Runtime | Trend |
-|-------|-------------|--------------|-------------|-------|
-| code-reviewer | ~50/week | 98% | 45s | Stable |
-| test-repair | ~30/week | 92% | 2m 15s | Improving |
-| waterfall-specialist | ~20/week | 97% | 1m 30s | Stable |
-| perf-guard | ~15/week | 95% | 3m 00s | Stable |
-| schema-drift-checker | ~10/week | 99% | 30s | Stable |
+| Agent                | Invocations | Success Rate | Avg Runtime | Trend     |
+| -------------------- | ----------- | ------------ | ----------- | --------- |
+| code-reviewer        | ~50/week    | 98%          | 45s         | Stable    |
+| test-repair          | ~30/week    | 92%          | 2m 15s      | Improving |
+| waterfall-specialist | ~20/week    | 97%          | 1m 30s      | Stable    |
+| perf-guard           | ~15/week    | 95%          | 3m 00s      | Stable    |
+| schema-drift-checker | ~10/week    | 99%          | 30s         | Stable    |
 
 ### Phoenix Agents (Weekly Metrics)
 
-| Agent | Invocations | Success Rate | Avg Runtime | Trend |
-|-------|-------------|--------------|-------------|-------|
-| phoenix-truth-case-runner | ~25/week | 100% | 4m 00s | Stable |
-| phoenix-precision-guardian | ~10/week | 95% | 2m 00s | Stable |
-| xirr-fees-validator | ~15/week | 98% | 1m 45s | Improving |
-| phoenix-probabilistic-engineer | ~8/week | 90% | 5m 00s | New |
+| Agent                          | Invocations | Success Rate | Avg Runtime | Trend     |
+| ------------------------------ | ----------- | ------------ | ----------- | --------- |
+| phoenix-truth-case-runner      | ~25/week    | 100%         | 4m 00s      | Stable    |
+| phoenix-precision-guardian     | ~10/week    | 95%          | 2m 00s      | Stable    |
+| xirr-fees-validator            | ~15/week    | 98%          | 1m 45s      | Improving |
+| phoenix-probabilistic-engineer | ~8/week     | 90%          | 5m 00s      | New       |
 
 ### Low-Volume Agents (Monthly Metrics)
 
-| Agent | Invocations | Success Rate | Avg Runtime |
-|-------|-------------|--------------|-------------|
-| db-migration | ~5/month | 100% | 2m 00s |
-| incident-responder | ~2/month | 100% | 10m 00s |
-| chaos-engineer | ~1/month | 100% | 15m 00s |
-| playwright-test-author | ~3/month | 90% | 5m 00s |
+| Agent                  | Invocations | Success Rate | Avg Runtime |
+| ---------------------- | ----------- | ------------ | ----------- |
+| db-migration           | ~5/month    | 100%         | 2m 00s      |
+| incident-responder     | ~2/month    | 100%         | 10m 00s     |
+| chaos-engineer         | ~1/month    | 100%         | 15m 00s     |
+| playwright-test-author | ~3/month    | 90%          | 5m 00s      |
 
 ---
 
@@ -85,24 +85,27 @@ interface AgentMetrics {
 
 ### Common Failure Patterns
 
-| Pattern | Frequency | Typical Agent | Mitigation |
-|---------|-----------|---------------|------------|
-| Timeout | 15% of failures | test-repair | Increase timeout, add progress logging |
-| File not found | 10% of failures | code-reviewer | Validate paths before analysis |
-| Memory limit | 5% of failures | perf-guard | Streaming analysis for large bundles |
-| Rate limit | 3% of failures | Any | Exponential backoff, retry |
+| Pattern        | Frequency       | Typical Agent | Mitigation                             |
+| -------------- | --------------- | ------------- | -------------------------------------- |
+| Timeout        | 15% of failures | test-repair   | Increase timeout, add progress logging |
+| File not found | 10% of failures | code-reviewer | Validate paths before analysis         |
+| Memory limit   | 5% of failures  | perf-guard    | Streaming analysis for large bundles   |
+| Rate limit     | 3% of failures  | Any           | Exponential backoff, retry             |
 
 ### Agent-Specific Issues
 
 **test-repair:**
+
 - 60% of failures: Test still failing after 3 fix attempts
 - Mitigation: Escalate to human, log attempted fixes
 
 **phoenix-probabilistic-engineer:**
+
 - 70% of failures: Monte Carlo convergence issues
 - Mitigation: Increase iteration count, adjust seed
 
 **playwright-test-author:**
+
 - 50% of failures: Browser environment issues
 - Mitigation: Retry with fresh browser context
 
@@ -110,21 +113,27 @@ interface AgentMetrics {
 
 ## Performance Optimization Log
 
+### Pilot Metrics
+
+| Date       | Pilot   | Model lane      | Routing correct | Owner correct | Gate correct | Handoff clear | Human intervention reason           | Notes                                                                                                                                                       |
+| ---------- | ------- | --------------- | --------------- | ------------- | ------------ | ------------- | ----------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 2026-05-20 | Pilot 1 | Claude research | Yes             | Yes           | Yes          | Mostly        | Write approval required for cleanup | Handoff mislabeled gate as skipped; gate execution passed, but the gate status field conflated write permission with Hermes preflight/postflight execution. |
+
 ### Recent Improvements
 
-| Date | Agent | Optimization | Impact |
-|------|-------|--------------|--------|
-| 2025-12-20 | code-reviewer | Parallel file analysis | -40% runtime |
-| 2025-12-15 | test-repair | Cached test discovery | -25% runtime |
-| 2025-12-10 | perf-guard | Incremental bundle analysis | -50% runtime |
+| Date       | Agent         | Optimization                | Impact       |
+| ---------- | ------------- | --------------------------- | ------------ |
+| 2025-12-20 | code-reviewer | Parallel file analysis      | -40% runtime |
+| 2025-12-15 | test-repair   | Cached test discovery       | -25% runtime |
+| 2025-12-10 | perf-guard    | Incremental bundle analysis | -50% runtime |
 
 ### Planned Optimizations
 
-| Agent | Planned Change | Expected Impact | Priority |
-|-------|----------------|-----------------|----------|
-| phoenix-truth-case-runner | Parallel test execution | -30% runtime | P1 |
-| waterfall-specialist | Memoized validation | -20% runtime | P2 |
-| schema-drift-checker | Incremental schema comparison | -40% runtime | P2 |
+| Agent                     | Planned Change                | Expected Impact | Priority |
+| ------------------------- | ----------------------------- | --------------- | -------- |
+| phoenix-truth-case-runner | Parallel test execution       | -30% runtime    | P1       |
+| waterfall-specialist      | Memoized validation           | -20% runtime    | P2       |
+| schema-drift-checker      | Incremental schema comparison | -40% runtime    | P2       |
 
 ---
 
@@ -151,12 +160,12 @@ Most common sequences:
 
 ### Files Per Invocation
 
-| Agent | Avg Files | Max Files |
-|-------|-----------|-----------|
-| code-reviewer | 8 | 50 |
-| test-repair | 3 | 15 |
-| waterfall-specialist | 2 | 5 |
-| perf-guard | 1 | 1 (bundle) |
+| Agent                | Avg Files | Max Files  |
+| -------------------- | --------- | ---------- |
+| code-reviewer        | 8         | 50         |
+| test-repair          | 3         | 15         |
+| waterfall-specialist | 2         | 5          |
+| perf-guard           | 1         | 1 (bundle) |
 
 ---
 
@@ -164,27 +173,27 @@ Most common sequences:
 
 ### Tier 1 Agents (Critical Path)
 
-| Agent | Availability SLO | Latency P95 SLO |
-|-------|------------------|-----------------|
-| code-reviewer | 99.9% | <2min |
-| test-repair | 99.5% | <5min |
-| waterfall-specialist | 99.9% | <3min |
+| Agent                | Availability SLO | Latency P95 SLO |
+| -------------------- | ---------------- | --------------- |
+| code-reviewer        | 99.9%            | <2min           |
+| test-repair          | 99.5%            | <5min           |
+| waterfall-specialist | 99.9%            | <3min           |
 
 ### Tier 2 Agents (Important)
 
-| Agent | Availability SLO | Latency P95 SLO |
-|-------|------------------|-----------------|
-| perf-guard | 99% | <5min |
-| phoenix-truth-case-runner | 99% | <10min |
-| schema-drift-checker | 99% | <2min |
+| Agent                     | Availability SLO | Latency P95 SLO |
+| ------------------------- | ---------------- | --------------- |
+| perf-guard                | 99%              | <5min           |
+| phoenix-truth-case-runner | 99%              | <10min          |
+| schema-drift-checker      | 99%              | <2min           |
 
 ### Tier 3 Agents (Best Effort)
 
-| Agent | Availability SLO | Latency P95 SLO |
-|-------|------------------|-----------------|
-| chaos-engineer | 95% | <30min |
-| playwright-test-author | 95% | <10min |
-| incident-responder | 99% (on demand) | <15min |
+| Agent                  | Availability SLO | Latency P95 SLO |
+| ---------------------- | ---------------- | --------------- |
+| chaos-engineer         | 95%              | <30min          |
+| playwright-test-author | 95%              | <10min          |
+| incident-responder     | 99% (on demand)  | <15min          |
 
 ---
 
@@ -192,18 +201,18 @@ Most common sequences:
 
 ### Critical Alerts
 
-| Condition | Alert | Action |
-|-----------|-------|--------|
-| Success rate <90% for 1 hour | Page on-call | Investigate immediately |
-| Avg runtime >2x normal | Slack notification | Review and optimize |
-| Memory usage >90% | Slack notification | Increase limits or fix leak |
+| Condition                    | Alert              | Action                      |
+| ---------------------------- | ------------------ | --------------------------- |
+| Success rate <90% for 1 hour | Page on-call       | Investigate immediately     |
+| Avg runtime >2x normal       | Slack notification | Review and optimize         |
+| Memory usage >90%            | Slack notification | Increase limits or fix leak |
 
 ### Warning Alerts
 
-| Condition | Alert | Action |
-|-----------|-------|--------|
-| Success rate <95% for 24 hours | Daily report | Review failure patterns |
-| Queue depth >10 pending | Dashboard update | Scale or prioritize |
+| Condition                      | Alert            | Action                  |
+| ------------------------------ | ---------------- | ----------------------- |
+| Success rate <95% for 24 hours | Daily report     | Review failure patterns |
+| Queue depth >10 pending        | Dashboard update | Scale or prioritize     |
 
 ---
 
@@ -264,4 +273,4 @@ const recentMetrics = await memoryManager.query({
 
 - [AGENT-DIRECTORY.md](AGENT-DIRECTORY.md) - Full agent catalog
 - [CAPABILITIES.md](../CAPABILITIES.md) - Agent capabilities
-- [packages/agent-core/](../packages/agent-core/) - Agent infrastructure
+- `scripts/ai-tools/` - Package-free AI tooling gateway

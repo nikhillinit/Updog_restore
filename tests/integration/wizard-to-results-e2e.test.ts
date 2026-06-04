@@ -57,11 +57,15 @@ const mockFundState = {
   }),
 };
 
-vi.mock('@tanstack/react-query', () => ({
-  useQueryClient: () => ({
-    invalidateQueries: mockInvalidateQueries,
-  }),
-}));
+vi.mock('@tanstack/react-query', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@tanstack/react-query')>();
+  return {
+    ...actual,
+    useQueryClient: () => ({
+      invalidateQueries: mockInvalidateQueries,
+    }),
+  };
+});
 
 vi.mock('@/contexts/FundContext', () => ({
   useFundContext: () => ({
@@ -71,6 +75,8 @@ vi.mock('@/contexts/FundContext', () => ({
 
 vi.mock('@/stores/useFundSelector', () => ({
   useFundSelector: (selector: (s: typeof mockFundState) => unknown) => selector(mockFundState),
+  useFundTuple: (selector: (s: typeof mockFundState) => readonly unknown[]) =>
+    selector(mockFundState),
 }));
 
 vi.mock('@/stores/fundStore', () => ({

@@ -17,8 +17,6 @@
 /migrations/ @nikhillinit
 
 # Agent system
-/packages/agent-core/ @nikhillinit
-/packages/test-repair-agent/ @nikhillinit
 /scripts/ai-tools/ @nikhillinit
 
 # Core calculation engines - requires careful review

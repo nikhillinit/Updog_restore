@@ -16,13 +16,27 @@
 
 import { storage } from '../storage';
 import type { ActualMetrics } from '@shared/types/metrics';
-import { fundDistributions, type Investment, type PortfolioCompany } from '@shared/schema';
+import { fundDistributions, type Fund, type PortfolioCompany } from '@shared/schema';
 import { Decimal, toDecimal } from '@shared/lib/decimal-utils';
 import { xirrNewtonBisection, type CashFlow as XirrCashFlow } from '@shared/lib/finance/xirr';
 import { monthsSince } from '../lib/date-helpers';
 import { db } from '../db';
 import { eq } from 'drizzle-orm';
 import { logger } from '../lib/logger';
+
+type InvestmentAmountFact = { date: Date | null; amount: number };
+type DatedAmountFact = { date: Date; amount: number };
+type AmountLike = string | number | bigint;
+type InvestmentFactRow = {
+  investmentDate: Date | string | null | undefined;
+  amount: AmountLike;
+  companyId?: number | null;
+};
+type PortfolioCompanyFactRow = {
+  id: number;
+  investmentAmount: AmountLike;
+  investmentDate?: Date | string | null;
+};
 
 export class ActualMetricsCalculator {
   /**
@@ -33,11 +47,10 @@ export class ActualMetricsCalculator {
    */
   async calculate(fundId: number): Promise<ActualMetrics> {
     // Fetch all required data in parallel
-    const [fund, companies, investments, capitalCalls, distributions] = await Promise.all([
-      storage.getFund(fundId),
+    const [fund, companies, investmentRows, distributions] = await Promise.all([
+      this.getFund(fundId),
       storage.getPortfolioCompanies(fundId),
-      this.getInvestments(fundId),
-      this.getCapitalCalls(fundId),
+      storage.getInvestments(fundId),
       this.getDistributions(fundId),
     ]);
 
@@ -45,10 +58,12 @@ export class ActualMetricsCalculator {
       throw new Error(`Fund ${fundId} not found`);
     }
 
+    const investmentFacts = this.buildInvestmentFacts(investmentRows, companies);
+
     // Calculate capital structure
     const totalCommitted = this.parseDecimal(fund.size);
-    const totalCalled = this.sumAmounts(capitalCalls);
-    const totalDeployed = this.sumAmounts(investments);
+    const totalCalled = this.sumAmounts(investmentFacts);
+    const totalDeployed = this.sumAmounts(investmentFacts);
     const totalUncalled = totalCommitted.minus(totalCalled);
 
     // Calculate portfolio value
@@ -57,7 +72,10 @@ export class ActualMetricsCalculator {
     const totalValue = currentNAV.plus(totalDistributions);
 
     // Calculate performance metrics
-    const irr = await this.calculateIRR(investments, distributions, currentNAV);
+    const datedInvestments = investmentFacts.filter(
+      (fact): fact is DatedAmountFact => fact.date !== null
+    );
+    const irr = await this.calculateIRR(datedInvestments, distributions, currentNAV);
     const tvpi = totalCalled.gt(0) ? totalValue.div(totalCalled) : new Decimal(0);
 
     // DPI: null semantics when no distributions recorded (avoids misleading 0.00x)
@@ -79,10 +97,9 @@ export class ActualMetricsCalculator {
     const averageCheckSize =
       totalCompanies > 0 ? totalDeployed.div(totalCompanies) : new Decimal(0);
 
-    // Calculate fund age (approximate using vintage year)
-    const fundAgeMonths = fund.vintageYear
-      ? monthsSince(new Date(fund.vintageYear, 0, 1)) // Jan 1 of vintage year
-      : undefined;
+    const fundAgeStartDate = this.getFundAgeStartDate(fund);
+    const fundAgeMonths =
+      fundAgeStartDate !== undefined ? monthsSince(fundAgeStartDate) : undefined;
 
     return {
       asOfDate: new Date().toISOString(),
@@ -258,51 +275,73 @@ export class ActualMetricsCalculator {
     return new Decimal(value);
   }
 
-  /**
-   * Fetch investments for a fund
-   * TODO: This should be added to storage interface
-   */
-  private async getInvestments(fundId: number): Promise<Array<{ date: Date; amount: number }>> {
-    const investmentRows = await storage.getInvestments(fundId);
-    const datedInvestments = investmentRows
-      .map((investment) =>
-        this.toDatedAmount(investment.investmentDate, investment.amount, 'investment')
-      )
-      .filter((record): record is { date: Date; amount: number } => record !== null);
+  private buildInvestmentFacts(
+    investmentRows: InvestmentFactRow[],
+    companies: PortfolioCompanyFactRow[]
+  ): InvestmentAmountFact[] {
+    const companyIdsWithInvestmentRows = new Set<number>();
+    let hasUnlinkedInvestmentRows = false;
+    const directInvestments = investmentRows
+      .map((investment) => {
+        const fact = this.toAmountFact(investment.investmentDate, investment.amount, 'investment');
+        if (fact !== null && typeof investment.companyId === 'number') {
+          companyIdsWithInvestmentRows.add(investment.companyId);
+        } else if (fact !== null) {
+          hasUnlinkedInvestmentRows = true;
+        }
+        return fact;
+      })
+      .filter((record): record is InvestmentAmountFact => record !== null);
 
-    if (datedInvestments.length > 0) {
-      return datedInvestments;
+    if (hasUnlinkedInvestmentRows) {
+      return directInvestments;
     }
 
-    const companies = await storage.getPortfolioCompanies(fundId);
-    return companies
+    const legacyCompanyInvestments = companies
+      .filter((company) => !companyIdsWithInvestmentRows.has(company.id))
       .map((company) => {
-        const datedCompany = company as PortfolioCompany & {
-          investmentDate?: Date | string | null;
-        };
-        return this.toDatedAmount(
-          datedCompany.investmentDate,
-          datedCompany.investmentAmount,
+        return this.toAmountFact(
+          company.investmentDate,
+          company.investmentAmount,
           'portfolio company'
         );
       })
-      .filter((record): record is { date: Date; amount: number } => record !== null);
+      .filter((record): record is InvestmentAmountFact => record !== null);
+
+    return [...directInvestments, ...legacyCompanyInvestments];
   }
 
-  /**
-   * Fetch capital calls for a fund
-   * TODO: This should be added to storage interface
-   */
-  private async getCapitalCalls(fundId: number): Promise<Array<{ amount: number }>> {
-    // For now, assume all investments are capital calls
-    // In production, this would query a capital_calls table
-    const investments = await this.getInvestments(fundId);
-    return investments.map((inv) => ({ amount: inv.amount }));
+  private async getFund(fundId: number): Promise<Fund | undefined> {
+    const storedFund = await storage.getFund(fundId);
+    if (!storedFund) {
+      return undefined;
+    }
+
+    return {
+      ...storedFund,
+      establishmentDate: (storedFund as Partial<Fund>).establishmentDate ?? null,
+      isActive: (storedFund as Partial<Fund>).isActive ?? true,
+    } as Fund;
+  }
+
+  private getFundAgeStartDate(fund: Fund): Date | undefined {
+    const rawEstablishmentDate: unknown = fund.establishmentDate;
+    if (rawEstablishmentDate) {
+      const establishmentDate =
+        rawEstablishmentDate instanceof Date
+          ? rawEstablishmentDate
+          : new Date(String(rawEstablishmentDate));
+      if (!Number.isNaN(establishmentDate.getTime())) {
+        return establishmentDate;
+      }
+    }
+
+    return fund.vintageYear ? new Date(fund.vintageYear, 0, 1) : undefined;
   }
 
   /**
    * Fetch distributions for a fund
-   * TODO: This should be added to storage interface
+   * Fund distributions are read directly because the storage abstraction does not expose them.
    */
   private async getDistributions(fundId: number): Promise<Array<{ date: Date; amount: number }>> {
     try {
@@ -338,18 +377,37 @@ export class ActualMetricsCalculator {
 
   private toDatedAmount(
     dateValue: Date | string | null | undefined,
-    amountValue: Investment['amount'] | PortfolioCompany['investmentAmount'] | null | undefined,
+    amountValue: AmountLike | null | undefined,
     source: string
   ): { date: Date; amount: number } | null {
-    if (!dateValue || amountValue == null) {
+    const fact = this.toAmountFact(dateValue, amountValue, source);
+    if (fact === null || fact.date === null) {
       return null;
     }
 
-    const date = dateValue instanceof Date ? dateValue : new Date(dateValue);
+    return { date: fact.date, amount: fact.amount };
+  }
+
+  private toAmountFact(
+    dateValue: Date | string | null | undefined,
+    amountValue: AmountLike | null | undefined,
+    source: string
+  ): InvestmentAmountFact | null {
+    if (amountValue == null) {
+      return null;
+    }
+
+    const date =
+      dateValue == null ? null : dateValue instanceof Date ? dateValue : new Date(dateValue);
     const amount = toDecimal(amountValue.toString()).toNumber();
-    if (!Number.isFinite(date.getTime()) || !Number.isFinite(amount) || amount === 0) {
+    if (!Number.isFinite(amount) || amount === 0) {
       logger.debug({ source }, '[actual-metrics] skipped invalid dated cash-flow fact');
       return null;
+    }
+
+    if (date !== null && !Number.isFinite(date.getTime())) {
+      logger.debug({ source }, '[actual-metrics] accepted amount but ignored invalid date');
+      return { date: null, amount };
     }
 
     return { date, amount };

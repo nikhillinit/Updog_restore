@@ -2,6 +2,7 @@
 name: bias-audit
 description:
   Evidence and audience enforcement for audit/playbook/claims-heavy work
+last_updated: 2026-05-11
 ---
 
 # Bias Audit Skill

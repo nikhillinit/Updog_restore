@@ -50,10 +50,10 @@ const styles = StyleSheet.create({
     color: pdfTheme.colors.textMuted,
   },
   trendUp: {
-    color: '#10b981', // Success green
+    color: '#127E3D',
   },
   trendDown: {
-    color: '#ef4444', // Error red
+    color: '#B00020',
   },
 });
 

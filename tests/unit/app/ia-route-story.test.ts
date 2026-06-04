@@ -1,32 +1,44 @@
 import { describe, expect, it } from 'vitest';
-import {
-  NEW_ROUTES as CLIENT_NEW_ROUTES,
-  OLD_TO_NEW_REDIRECTS as CLIENT_OLD_TO_NEW_REDIRECTS,
-} from '@/core/routes/ia';
-import {
-  NEW_ROUTES as MIRROR_NEW_ROUTES,
-  OLD_TO_NEW_REDIRECTS as MIRROR_OLD_TO_NEW_REDIRECTS,
-} from '../../../src/core/routes/ia';
+import { APP_ROUTES, ARCHIVED_PLACEHOLDER_ROUTES } from '@/App';
+import { getRedirectTarget, shouldRedirect } from '@/config/routes';
+import { NEW_ROUTES, OLD_TO_NEW_REDIRECTS } from '@/core/routes/ia';
 
 describe('IA route story metadata', () => {
   it('does not advertise a dead /model surface', () => {
-    expect(CLIENT_NEW_ROUTES.map((route) => route.path)).not.toContain('/model');
-    expect(MIRROR_NEW_ROUTES.map((route) => route.path)).toContain('/model');
+    expect(NEW_ROUTES.map((route) => route.path)).toEqual([
+      '/overview',
+      '/portfolio',
+      '/operate',
+      '/report',
+    ]);
   });
 
-  it('does not redirect deterministic surfaces through /model', () => {
-    for (const redirectMap of [CLIENT_OLD_TO_NEW_REDIRECTS, MIRROR_OLD_TO_NEW_REDIRECTS]) {
-      expect(redirectMap['/investments']).toBeUndefined();
-      expect(redirectMap['/investment-table']).toBeUndefined();
+  it('keeps deterministic surfaces owned by runtime routes instead of /model redirects', () => {
+    const runtimeRoutePaths = APP_ROUTES.map((route) => route.path);
+    const archivedPlaceholderRoutes = new Map(
+      ARCHIVED_PLACEHOLDER_ROUTES.map((route) => [route.path, route.redirectTarget])
+    );
+    const runtimeOwnedModelSurfaces = [
+      '/financial-modeling',
+      '/forecasting',
+      '/cash-management',
+      '/portfolio-analytics',
+      '/cap-tables',
+    ];
+
+    expect(runtimeRoutePaths).toEqual(expect.arrayContaining(runtimeOwnedModelSurfaces));
+    expect(archivedPlaceholderRoutes.get('/investments')).toBe('/portfolio');
+
+    for (const pathname of runtimeOwnedModelSurfaces) {
+      expect(OLD_TO_NEW_REDIRECTS[pathname]).toBeUndefined();
+      expect(shouldRedirect(pathname)).toBe(false);
+      expect(getRedirectTarget(pathname)).toBeUndefined();
     }
 
-    expect(CLIENT_OLD_TO_NEW_REDIRECTS['/financial-modeling']).toBeUndefined();
-    expect(CLIENT_OLD_TO_NEW_REDIRECTS['/forecasting']).toBeUndefined();
-    expect(CLIENT_OLD_TO_NEW_REDIRECTS['/cash-management']).toBeUndefined();
-    expect(CLIENT_OLD_TO_NEW_REDIRECTS['/portfolio-analytics']).toBeUndefined();
-    expect(CLIENT_OLD_TO_NEW_REDIRECTS['/cap-tables']).toBeUndefined();
-    expect(Object.values(CLIENT_OLD_TO_NEW_REDIRECTS)).not.toContain('/model');
-    expect(MIRROR_OLD_TO_NEW_REDIRECTS['/financial-modeling']).toBe('/model');
-    expect(MIRROR_OLD_TO_NEW_REDIRECTS['/forecasting']).toBe('/model');
+    expect(runtimeRoutePaths).not.toContain('/investment-table');
+    expect(archivedPlaceholderRoutes.has('/investment-table')).toBe(false);
+    expect(shouldRedirect('/investment-table')).toBe(false);
+    expect(getRedirectTarget('/investment-table')).toBeUndefined();
+    expect(Object.values(OLD_TO_NEW_REDIRECTS)).not.toContain('/model');
   });
 });

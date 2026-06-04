@@ -11,6 +11,10 @@
 import { describe, it, expect } from 'vitest';
 import { fundConfigs, fundSnapshots } from '@shared/schema';
 import { QUEUE_CATALOG } from '../../../server/queues/registry';
+import {
+  getCalculationEngineDescriptorByQueueKey,
+  isFundCalculationQueueKey,
+} from '@shared/contracts/fund-authoritative-calculations.contract';
 
 // ============================================================================
 // Item 1: Config invariant constraint documentation
@@ -68,9 +72,21 @@ describe('Queue name consistency', () => {
 
   it('all calc queue names use hyphen separator consistently', () => {
     const calcQueues = QUEUE_CATALOG.filter((e) => e.key.endsWith('-calc'));
-    expect(calcQueues.length).toBe(4);
+    expect(calcQueues.length).toBe(5);
     for (const entry of calcQueues) {
-      expect(entry.queueName).toMatch(/^[a-z]+-calc$/);
+      expect(entry.queueName).toMatch(/^[a-z]+(?:-[a-z]+)*-calc$/);
+    }
+  });
+
+  it('mirrors calculation authority from the shared engine catalog', () => {
+    const calculationQueues = QUEUE_CATALOG.filter(
+      (entry) =>
+        entry.fundCalculationAuthority !== undefined && isFundCalculationQueueKey(entry.queueName)
+    );
+
+    for (const entry of calculationQueues) {
+      const descriptor = getCalculationEngineDescriptorByQueueKey(entry.queueName);
+      expect(entry.fundCalculationAuthority).toBe(descriptor.authority);
     }
   });
 });
@@ -103,6 +119,13 @@ describe('Worker queue names match registry', () => {
       fs.readFile('workers/reserve-worker.ts', 'utf-8')
     );
     expect(workerSource).toContain("'reserve-calc'");
+  });
+
+  it('fund scenario calc worker uses fund-scenario-calc', async () => {
+    const workerSource = await import('fs/promises').then((fs) =>
+      fs.readFile('workers/fund-scenario-calc-worker.ts', 'utf-8')
+    );
+    expect(workerSource).toContain("'fund-scenario-calc'");
   });
 });
 

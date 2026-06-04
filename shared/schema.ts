@@ -30,11 +30,16 @@ export * from './schema/fund';
 export * from './schema/portfolio';
 export * from './schema/scenario';
 export * from './schema/shares';
+export * from './schema/user';
+export * from './schema/lp-reporting-evidence';
+export * from './schemas/flags';
+export * from './schemas/reserve-approvals';
 
 // Import tables for FK references and schema definitions
 import { funds, fundConfigs, fundSnapshots, calcRuns } from './schema/fund';
 import { portfolioCompanies, investments } from './schema/portfolio';
 import type { scenarios, scenarioCases, scenarioAuditLogs } from './schema/scenario';
+import { users } from './schema/user';
 
 // Fund events for audit trail
 export const fundEvents = pgTable(
@@ -58,6 +63,76 @@ export const fundEvents = pgTable(
     fundEventIdx: index('fund_events_fund_idx')['on'](table.fundId, table.createdAt.desc()),
   })
 );
+
+export const demoProfileTargetPkTypeEnum = pgEnum('demo_profile_target_pk_type', [
+  'integer',
+  'uuid',
+]);
+
+export const demoProfileImportRows = pgTable(
+  'demo_profile_import_rows',
+  {
+    id: serial('id').primaryKey(),
+    fundId: integer('fund_id')
+      .notNull()
+      .references(() => funds.id, { onDelete: 'cascade' }),
+    datasetId: text('dataset_id').notNull(),
+    targetTable: text('target_table').notNull(),
+    sourceKey: text('source_key').notNull(),
+    sourceHash: text('source_hash').notNull(),
+    targetIdText: text('target_id_text').notNull(),
+    targetPkType: demoProfileTargetPkTypeEnum('target_pk_type').notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => ({
+    scopeUnique: uniqueIndex('demo_profile_import_rows_scope_unique').on(
+      table.fundId,
+      table.datasetId,
+      table.targetTable,
+      table.sourceKey
+    ),
+    fundDatasetIdx: index('demo_profile_import_rows_fund_dataset_idx').on(
+      table.fundId,
+      table.datasetId,
+      table.createdAt.desc()
+    ),
+    targetLookupIdx: index('demo_profile_import_rows_target_lookup_idx').on(
+      table.targetTable,
+      table.targetIdText
+    ),
+    targetTableCheck: check(
+      'demo_profile_import_rows_target_table_check',
+      sql`${table.targetTable} IN (
+        'portfoliocompanies',
+        'investments',
+        'investment_lots',
+        'deal_opportunities',
+        'fund_metrics',
+        'pacing_history',
+        'fund_baselines',
+        'variance_reports',
+        'backtest_results'
+      )`
+    ),
+    sourceHashCheck: check(
+      'demo_profile_import_rows_source_hash_check',
+      sql`${table.sourceHash} ~ '^[a-f0-9]{64}$'`
+    ),
+    targetIdTypeCheck: check(
+      'demo_profile_import_rows_target_id_type_check',
+      sql`(
+        ${table.targetPkType} = 'integer'
+        AND ${table.targetIdText} ~ '^[1-9][0-9]*$'
+      ) OR (
+        ${table.targetPkType} = 'uuid'
+        AND ${table.targetIdText} ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
+      )`
+    ),
+  })
+);
+
+export type DemoProfileImportRowRecord = typeof demoProfileImportRows.$inferSelect;
+export type InsertDemoProfileImportRowRecord = typeof demoProfileImportRows.$inferInsert;
 
 // ============================================================================
 // SENSITIVITY RUNS - Persists one-way / two-way / stress sensitivity analyses.
@@ -468,17 +543,6 @@ export const insertActivitySchema = createInsertSchema(activities).omit({
   createdAt: true,
 });
 
-// Users table
-export const users = pgTable('users', {
-  id: serial('id').primaryKey(),
-  username: text('username').notNull().unique(),
-  password: text('password').notNull(),
-});
-
-export const insertUserSchema = createInsertSchema(users).omit({
-  id: true,
-});
-
 // Pipeline Insert Schemas
 export const insertDealOpportunitySchema = createInsertSchema(dealOpportunities).omit({
   id: true,
@@ -572,8 +636,6 @@ export type FundMetrics = typeof fundMetrics.$inferSelect;
 export type InsertFundMetrics = typeof fundMetrics.$inferInsert;
 export type Activity = typeof activities.$inferSelect;
 export type InsertActivity = typeof activities.$inferInsert;
-export type User = typeof users.$inferSelect;
-export type InsertUser = typeof users.$inferInsert;
 export type CustomField = typeof customFields.$inferSelect;
 export type InsertCustomField = typeof customFields.$inferInsert;
 export type CustomFieldValue = typeof customFieldValues.$inferSelect;

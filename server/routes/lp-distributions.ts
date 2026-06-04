@@ -29,6 +29,9 @@ import {
   createLPApiErrorResponse as createErrorResponse,
   respondInvalidCursor,
 } from '../lib/lp-api-helpers';
+import { createRouteLogger } from '../lib/route-logger.js';
+
+const routeLog = createRouteLogger('lp-distributions');
 
 const router = Router();
 
@@ -218,7 +221,7 @@ router.get(
           );
       }
 
-      console.error('Distributions list API error:', sanitizeForLogging(error));
+      routeLog.error('Distributions list API error:', sanitizeForLogging(error));
       const duration = endTimer();
       recordLPRequest(endpoint, 'GET', 500, duration);
       recordError(endpoint, 'INTERNAL_ERROR', 500);
@@ -339,7 +342,7 @@ router.get(
           .json(createErrorResponse('VALIDATION_ERROR', firstError?.message || 'Invalid query'));
       }
 
-      console.error('Distributions summary API error:', sanitizeForLogging(error));
+      routeLog.error('Distributions summary API error:', sanitizeForLogging(error));
       const duration = endTimer();
       recordLPRequest(endpoint, 'GET', 500, duration);
       return res
@@ -498,7 +501,7 @@ router.get(
         totalDistributed: formatCentsAsString(totalDistributed),
       });
     } catch (error) {
-      console.error('Tax summary API error:', sanitizeForLogging(error));
+      routeLog.error('Tax summary API error:', sanitizeForLogging(error));
       const duration = endTimer();
       recordLPRequest(endpoint, 'GET', 500, duration);
       recordError(endpoint, 'INTERNAL_ERROR', 500);
@@ -653,7 +656,7 @@ router.get(
 
       return res.json(response);
     } catch (error) {
-      console.error('Distribution detail API error:', sanitizeForLogging(error));
+      routeLog.error('Distribution detail API error:', sanitizeForLogging(error));
       const duration = endTimer();
       recordLPRequest(endpoint, 'GET', 500, duration);
       recordError(endpoint, 'INTERNAL_ERROR', 500);

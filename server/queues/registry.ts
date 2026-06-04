@@ -1,11 +1,16 @@
 import type { Queue, Worker } from 'bullmq';
-import type { FundCalculationAuthority } from '@shared/contracts/fund-authoritative-calculations.contract';
+import {
+  getCalculationEngineDescriptorByQueueKey,
+  type FundCalculationAuthority,
+  type FundCalculationQueueKey,
+} from '@shared/contracts/fund-authoritative-calculations.contract';
 
 export type QueueRegistryKey =
   | 'simulation'
   | 'report'
   | 'backtesting'
   | 'reserve-calc'
+  | 'fund-scenario-calc'
   | 'pacing-calc'
   | 'cohort-calc'
   | 'economics-calc';
@@ -26,6 +31,10 @@ export interface RegisteredQueueRuntime {
   getQueue: () => Queue | null;
   getWorker?: () => Worker | null;
   isInitialized: () => boolean;
+}
+
+function authorityForCalculationQueue(queueKey: FundCalculationQueueKey): FundCalculationAuthority {
+  return getCalculationEngineDescriptorByQueueKey(queueKey).authority;
 }
 
 export const QUEUE_CATALOG: readonly QueueCatalogEntry[] = [
@@ -56,7 +65,15 @@ export const QUEUE_CATALOG: readonly QueueCatalogEntry[] = [
     displayName: 'Reserve Calculations',
     healthMode: 'producer',
     owner: 'route',
-    fundCalculationAuthority: 'authoritative',
+    fundCalculationAuthority: authorityForCalculationQueue('reserve-calc'),
+  },
+  {
+    key: 'fund-scenario-calc',
+    queueName: 'fund-scenario-calc',
+    displayName: 'Fund Scenario Calculations',
+    healthMode: 'producer',
+    owner: 'route',
+    fundCalculationAuthority: 'experimental',
   },
   {
     key: 'pacing-calc',
@@ -64,7 +81,7 @@ export const QUEUE_CATALOG: readonly QueueCatalogEntry[] = [
     displayName: 'Pacing Calculations',
     healthMode: 'producer',
     owner: 'route',
-    fundCalculationAuthority: 'authoritative',
+    fundCalculationAuthority: authorityForCalculationQueue('pacing-calc'),
   },
   {
     key: 'cohort-calc',
@@ -72,7 +89,7 @@ export const QUEUE_CATALOG: readonly QueueCatalogEntry[] = [
     displayName: 'Cohort Calculations',
     healthMode: 'producer',
     owner: 'route',
-    fundCalculationAuthority: 'experimental',
+    fundCalculationAuthority: authorityForCalculationQueue('cohort-calc'),
   },
   {
     key: 'economics-calc',
@@ -80,7 +97,7 @@ export const QUEUE_CATALOG: readonly QueueCatalogEntry[] = [
     displayName: 'GP Economics Calculations',
     healthMode: 'producer',
     owner: 'route',
-    fundCalculationAuthority: 'experimental',
+    fundCalculationAuthority: authorityForCalculationQueue('economics-calc'),
   },
 ] as const;
 

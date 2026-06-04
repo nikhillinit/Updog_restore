@@ -21,9 +21,22 @@ import {
   Target,
   AlertTriangle,
   CheckCircle,
-  Info
+  Info,
 } from 'lucide-react';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line, PieChart, Pie, Cell } from 'recharts';
+import {
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+  LineChart,
+  Line,
+  PieChart,
+  Pie,
+  Cell,
+} from 'recharts';
 import { getChartColor } from '@/lib/chart-theme';
 
 interface SecondaryPosition {
@@ -67,10 +80,10 @@ const MOCK_POSITIONS: SecondaryPosition[] = [
     marketInterest: 'High',
     timeToExit: 8,
     potentialBuyers: 12,
-    lastSecondaryPrice: 24.50,
+    lastSecondaryPrice: 24.5,
     priceChange: 8.5,
     riskFactors: ['Market volatility', 'Regulatory changes'],
-    stage: 'Series A'
+    stage: 'Series A',
   },
   {
     id: 'pos-2',
@@ -83,10 +96,10 @@ const MOCK_POSITIONS: SecondaryPosition[] = [
     marketInterest: 'High',
     timeToExit: 12,
     potentialBuyers: 8,
-    lastSecondaryPrice: 60.80,
+    lastSecondaryPrice: 60.8,
     priceChange: 15.2,
     riskFactors: ['Technology risk', 'Competition'],
-    stage: 'Series A'
+    stage: 'Series A',
   },
   {
     id: 'pos-3',
@@ -99,11 +112,11 @@ const MOCK_POSITIONS: SecondaryPosition[] = [
     marketInterest: 'Low',
     timeToExit: 18,
     potentialBuyers: 3,
-    lastSecondaryPrice: 9.90,
+    lastSecondaryPrice: 9.9,
     priceChange: -5.1,
     riskFactors: ['Market saturation', 'Customer acquisition'],
-    stage: 'Seed'
-  }
+    stage: 'Seed',
+  },
 ];
 
 const MOCK_OPPORTUNITIES: MarketOpportunity[] = [
@@ -111,12 +124,12 @@ const MOCK_OPPORTUNITIES: MarketOpportunity[] = [
     id: 'opp-1',
     companyName: 'CatalystLabs',
     availableShares: 25000,
-    askPrice: 34.00,
+    askPrice: 34.0,
     discount: 15,
     timeRemaining: 7,
     seller: 'Early Employee',
     confidenceLevel: 'High',
-    estimatedFairValue: 40.00
+    estimatedFairValue: 40.0,
   },
   {
     id: 'opp-2',
@@ -127,8 +140,8 @@ const MOCK_OPPORTUNITIES: MarketOpportunity[] = [
     timeRemaining: 14,
     seller: 'Strategic Investor',
     confidenceLevel: 'Medium',
-    estimatedFairValue: 34.00
-  }
+    estimatedFairValue: 34.0,
+  },
 ];
 
 // Removed hardcoded COLORS - now using getChartColor() from chart-theme
@@ -141,9 +154,11 @@ export const SecondaryMarketAnalysis: React.FC = () => {
     const totalCurrentValue = MOCK_POSITIONS.reduce((sum, pos) => sum + pos.currentValuation, 0);
     const totalCostBasis = MOCK_POSITIONS.reduce((sum, pos) => sum + pos.costBasis, 0);
     const totalUnrealizedGain = totalCurrentValue - totalCostBasis;
-    const avgLiquidityScore = MOCK_POSITIONS.reduce((sum, pos) => sum + pos.liquidityScore, 0) / MOCK_POSITIONS.length;
-    const highLiquidityCount = MOCK_POSITIONS.filter(pos => pos.liquidityScore >= 70).length;
-    const avgTimeToExit = MOCK_POSITIONS.reduce((sum, pos) => sum + pos.timeToExit, 0) / MOCK_POSITIONS.length;
+    const avgLiquidityScore =
+      MOCK_POSITIONS.reduce((sum, pos) => sum + pos.liquidityScore, 0) / MOCK_POSITIONS.length;
+    const highLiquidityCount = MOCK_POSITIONS.filter((pos) => pos.liquidityScore >= 70).length;
+    const avgTimeToExit =
+      MOCK_POSITIONS.reduce((sum, pos) => sum + pos.timeToExit, 0) / MOCK_POSITIONS.length;
 
     return {
       totalCurrentValue,
@@ -152,36 +167,39 @@ export const SecondaryMarketAnalysis: React.FC = () => {
       returnMultiple: totalCurrentValue / totalCostBasis,
       avgLiquidityScore,
       highLiquidityCount,
-      avgTimeToExit
+      avgTimeToExit,
     };
   }, []);
 
   // Prepare chart data
-  const liquidityDistribution = MOCK_POSITIONS.map(pos => ({
+  const liquidityDistribution = MOCK_POSITIONS.map((pos) => ({
     name: pos.companyName,
     liquidity: pos.liquidityScore,
-    value: pos.currentValuation
+    value: pos.currentValuation,
   }));
 
-  const sectorDistribution = MOCK_POSITIONS.reduce((acc, pos) => {
-    const existing = acc.find(item => item.sector === pos.sector);
-    if (existing) {
-      existing.value += pos.currentValuation;
-      existing.count += 1;
-    } else {
-      acc.push({
-        sector: pos.sector,
-        value: pos.currentValuation,
-        count: 1
-      });
-    }
-    return acc;
-  }, [] as Array<{ sector: string; value: number; count: number }>);
+  const sectorDistribution = MOCK_POSITIONS.reduce(
+    (acc, pos) => {
+      const existing = acc.find((item) => item.sector === pos.sector);
+      if (existing) {
+        existing.value += pos.currentValuation;
+        existing.count += 1;
+      } else {
+        acc.push({
+          sector: pos.sector,
+          value: pos.currentValuation,
+          count: 1,
+        });
+      }
+      return acc;
+    },
+    [] as Array<{ sector: string; value: number; count: number }>
+  );
 
-  const pricePerformance = MOCK_POSITIONS.map(pos => ({
+  const pricePerformance = MOCK_POSITIONS.map((pos) => ({
     name: pos.companyName.split(' ')[0],
     current: pos.lastSecondaryPrice,
-    change: pos.priceChange
+    change: pos.priceChange,
   }));
 
   const formatCurrency = (amount: number) => {
@@ -195,17 +213,21 @@ export const SecondaryMarketAnalysis: React.FC = () => {
   };
 
   const getLiquidityColor = (score: number) => {
-    if (score >= 80) return 'text-green-600';
-    if (score >= 60) return 'text-yellow-600';
-    return 'text-red-600';
+    if (score >= 80) return 'text-presson-positive';
+    if (score >= 60) return 'text-presson-warning';
+    return 'text-error';
   };
 
   const getInterestBadgeColor = (interest: string) => {
     switch (interest) {
-      case 'High': return 'bg-green-100 text-green-800 border-green-200';
-      case 'Medium': return 'bg-yellow-100 text-yellow-800 border-yellow-200';
-      case 'Low': return 'bg-red-100 text-red-800 border-red-200';
-      default: return 'bg-gray-100 text-gray-800 border-gray-200';
+      case 'High':
+        return 'bg-success/10 text-success-dark border-success/30';
+      case 'Medium':
+        return 'bg-warning/10 text-warning-dark border-warning/30';
+      case 'Low':
+        return 'bg-error/10 text-error-dark border-error/30';
+      default:
+        return 'bg-pov-gray text-pov-charcoal border-beige-200';
     }
   };
 
@@ -217,10 +239,12 @@ export const SecondaryMarketAnalysis: React.FC = () => {
           <CardContent className="p-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-gray-600">Total Position Value</p>
-                <p className="text-2xl font-bold">{formatCurrency(portfolioMetrics.totalCurrentValue)}</p>
+                <p className="text-sm text-charcoal-600">Total Position Value</p>
+                <p className="text-2xl font-bold">
+                  {formatCurrency(portfolioMetrics.totalCurrentValue)}
+                </p>
               </div>
-              <DollarSign className="h-8 w-8 text-blue-600" />
+              <DollarSign className="h-8 w-8 text-presson-info" />
             </div>
           </CardContent>
         </Card>
@@ -229,15 +253,15 @@ export const SecondaryMarketAnalysis: React.FC = () => {
           <CardContent className="p-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-gray-600">Unrealized Gain</p>
-                <p className="text-2xl font-bold text-green-600">
+                <p className="text-sm text-charcoal-600">Unrealized Gain</p>
+                <p className="text-2xl font-bold text-presson-positive">
                   {formatCurrency(portfolioMetrics.totalUnrealizedGain)}
                 </p>
-                <p className="text-xs text-gray-500">
+                <p className="text-xs text-charcoal-500">
                   {portfolioMetrics.returnMultiple.toFixed(2)}x multiple
                 </p>
               </div>
-              <TrendingUp className="h-8 w-8 text-green-600" />
+              <TrendingUp className="h-8 w-8 text-presson-positive" />
             </div>
           </CardContent>
         </Card>
@@ -246,15 +270,17 @@ export const SecondaryMarketAnalysis: React.FC = () => {
           <CardContent className="p-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-gray-600">Avg Liquidity Score</p>
-                <p className={`text-2xl font-bold ${getLiquidityColor(portfolioMetrics.avgLiquidityScore)}`}>
+                <p className="text-sm text-charcoal-600">Avg Liquidity Score</p>
+                <p
+                  className={`text-2xl font-bold ${getLiquidityColor(portfolioMetrics.avgLiquidityScore)}`}
+                >
                   {portfolioMetrics.avgLiquidityScore.toFixed(0)}
                 </p>
-                <p className="text-xs text-gray-500">
+                <p className="text-xs text-charcoal-500">
                   {portfolioMetrics.highLiquidityCount}/{MOCK_POSITIONS.length} high liquidity
                 </p>
               </div>
-              <Activity className="h-8 w-8 text-purple-600" />
+              <Activity className="h-8 w-8 text-presson-info" />
             </div>
           </CardContent>
         </Card>
@@ -263,11 +289,11 @@ export const SecondaryMarketAnalysis: React.FC = () => {
           <CardContent className="p-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-gray-600">Avg Time to Exit</p>
+                <p className="text-sm text-charcoal-600">Avg Time to Exit</p>
                 <p className="text-2xl font-bold">{portfolioMetrics.avgTimeToExit.toFixed(0)}mo</p>
-                <p className="text-xs text-gray-500">Estimated timeline</p>
+                <p className="text-xs text-charcoal-500">Estimated timeline</p>
               </div>
-              <Clock className="h-8 w-8 text-orange-600" />
+              <Clock className="h-8 w-8 text-presson-warning" />
             </div>
           </CardContent>
         </Card>
@@ -298,7 +324,10 @@ export const SecondaryMarketAnalysis: React.FC = () => {
                     <XAxis dataKey="name" />
                     <YAxis />
                     <Tooltip
-                      formatter={(value) => [value !== undefined ? `${value}%` : '', 'Liquidity Score']}
+                      formatter={(value) => [
+                        value !== undefined ? `${value}%` : '',
+                        'Liquidity Score',
+                      ]}
                       labelFormatter={(name) => `${name}`}
                     />
                     <Bar dataKey="liquidity" fill="#3B82F6" />
@@ -325,13 +354,19 @@ export const SecondaryMarketAnalysis: React.FC = () => {
                       cx="50%"
                       cy="50%"
                       outerRadius={100}
-                      label={(props: { sector?: string; value?: number }) => `${props.sector || ''}: ${formatCurrency(props.value || 0)}`}
+                      label={(props: { sector?: string; value?: number }) =>
+                        `${props.sector || ''}: ${formatCurrency(props.value || 0)}`
+                      }
                     >
                       {sectorDistribution.map((_, index) => (
                         <Cell key={`cell-${index}`} fill={getChartColor(index)} />
                       ))}
                     </Pie>
-                    <Tooltip formatter={(value) => value !== undefined ? formatCurrency(Number(value)) : ''} />
+                    <Tooltip
+                      formatter={(value) =>
+                        value !== undefined ? formatCurrency(Number(value)) : ''
+                      }
+                    />
                   </PieChart>
                 </ResponsiveContainer>
               </CardContent>
@@ -345,21 +380,28 @@ export const SecondaryMarketAnalysis: React.FC = () => {
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
-                {MOCK_POSITIONS.map(position => (
+                {MOCK_POSITIONS.map((position) => (
                   <div key={position.id} className="border rounded-lg p-4">
                     <div className="flex items-center justify-between mb-3">
                       <div>
                         <h3 className="font-semibold">{position.companyName}</h3>
-                        <p className="text-sm text-gray-600">{position.sector} • {position.stage}</p>
+                        <p className="text-sm text-charcoal-600">
+                          {position.sector} • {position.stage}
+                        </p>
                       </div>
                       <div className="flex items-center gap-2">
                         <Badge className={getInterestBadgeColor(position.marketInterest)}>
                           {position.marketInterest} Interest
                         </Badge>
                         <div className="text-right">
-                          <p className="text-sm font-medium">{formatCurrency(position.currentValuation)}</p>
-                          <p className={`text-xs ${position.priceChange >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                            {position.priceChange >= 0 ? '+' : ''}{position.priceChange}%
+                          <p className="text-sm font-medium">
+                            {formatCurrency(position.currentValuation)}
+                          </p>
+                          <p
+                            className={`text-xs ${position.priceChange >= 0 ? 'text-presson-positive' : 'text-error'}`}
+                          >
+                            {position.priceChange >= 0 ? '+' : ''}
+                            {position.priceChange}%
                           </p>
                         </div>
                       </div>
@@ -367,30 +409,32 @@ export const SecondaryMarketAnalysis: React.FC = () => {
 
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-3">
                       <div>
-                        <p className="text-xs text-gray-500">Liquidity Score</p>
+                        <p className="text-xs text-charcoal-500">Liquidity Score</p>
                         <div className="flex items-center gap-2">
                           <Progress value={position.liquidityScore} className="h-2 flex-1" />
-                          <span className={`text-sm font-medium ${getLiquidityColor(position.liquidityScore)}`}>
+                          <span
+                            className={`text-sm font-medium ${getLiquidityColor(position.liquidityScore)}`}
+                          >
                             {position.liquidityScore}
                           </span>
                         </div>
                       </div>
                       <div>
-                        <p className="text-xs text-gray-500">Time to Exit</p>
+                        <p className="text-xs text-charcoal-500">Time to Exit</p>
                         <p className="text-sm font-medium">{position.timeToExit} months</p>
                       </div>
                       <div>
-                        <p className="text-xs text-gray-500">Potential Buyers</p>
+                        <p className="text-xs text-charcoal-500">Potential Buyers</p>
                         <p className="text-sm font-medium">{position.potentialBuyers} interested</p>
                       </div>
                       <div>
-                        <p className="text-xs text-gray-500">Last Price</p>
+                        <p className="text-xs text-charcoal-500">Last Price</p>
                         <p className="text-sm font-medium">${position.lastSecondaryPrice}</p>
                       </div>
                     </div>
 
                     <div>
-                      <p className="text-xs text-gray-500 mb-1">Risk Factors</p>
+                      <p className="text-xs text-charcoal-500 mb-1">Risk Factors</p>
                       <div className="flex flex-wrap gap-1">
                         {position.riskFactors.map((risk, index) => (
                           <Badge key={index} variant="outline" className="text-xs">
@@ -424,9 +468,11 @@ export const SecondaryMarketAnalysis: React.FC = () => {
                   <Tooltip
                     formatter={(value, name) => [
                       value !== undefined
-                        ? (name === 'current' ? `$${value}` : `${Number(value) >= 0 ? '+' : ''}${value}%`)
+                        ? name === 'current'
+                          ? `$${value}`
+                          : `${Number(value) >= 0 ? '+' : ''}${value}%`
                         : '',
-                      name === 'current' ? 'Current Price' : 'Price Change'
+                      name === 'current' ? 'Current Price' : 'Price Change',
                     ]}
                   />
                   <Line type="monotone" dataKey="current" stroke="#3B82F6" strokeWidth={2} />
@@ -446,39 +492,45 @@ export const SecondaryMarketAnalysis: React.FC = () => {
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
-                {MOCK_OPPORTUNITIES.map(opportunity => (
+                {MOCK_OPPORTUNITIES.map((opportunity) => (
                   <div key={opportunity.id} className="border rounded-lg p-4">
                     <div className="flex items-center justify-between mb-3">
                       <div>
                         <h3 className="font-semibold">{opportunity.companyName}</h3>
-                        <p className="text-sm text-gray-600">Seller: {opportunity.seller}</p>
+                        <p className="text-sm text-charcoal-600">Seller: {opportunity.seller}</p>
                       </div>
                       <div className="flex items-center gap-2">
-                        <Badge variant={opportunity.confidenceLevel === 'High' ? 'default' : 'outline'}>
+                        <Badge
+                          variant={opportunity.confidenceLevel === 'High' ? 'default' : 'outline'}
+                        >
                           {opportunity.confidenceLevel} Confidence
                         </Badge>
                         <div className="text-right">
                           <p className="text-sm font-medium">${opportunity.askPrice}</p>
-                          <p className="text-xs text-green-600">{opportunity.discount}% discount</p>
+                          <p className="text-xs text-presson-positive">
+                            {opportunity.discount}% discount
+                          </p>
                         </div>
                       </div>
                     </div>
 
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                       <div>
-                        <p className="text-xs text-gray-500">Available Shares</p>
-                        <p className="text-sm font-medium">{opportunity.availableShares.toLocaleString()}</p>
+                        <p className="text-xs text-charcoal-500">Available Shares</p>
+                        <p className="text-sm font-medium">
+                          {opportunity.availableShares.toLocaleString()}
+                        </p>
                       </div>
                       <div>
-                        <p className="text-xs text-gray-500">Ask Price</p>
+                        <p className="text-xs text-charcoal-500">Ask Price</p>
                         <p className="text-sm font-medium">${opportunity.askPrice}</p>
                       </div>
                       <div>
-                        <p className="text-xs text-gray-500">Fair Value Est.</p>
+                        <p className="text-xs text-charcoal-500">Fair Value Est.</p>
                         <p className="text-sm font-medium">${opportunity.estimatedFairValue}</p>
                       </div>
                       <div>
-                        <p className="text-xs text-gray-500">Time Remaining</p>
+                        <p className="text-xs text-charcoal-500">Time Remaining</p>
                         <p className="text-sm font-medium">{opportunity.timeRemaining} days</p>
                       </div>
                     </div>
@@ -502,34 +554,35 @@ export const SecondaryMarketAnalysis: React.FC = () => {
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
-                  <CheckCircle className="h-5 w-5 text-green-600" />
+                  <CheckCircle className="h-5 w-5 text-presson-positive" />
                   Liquidity Insights
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-3">
                 <div className="flex items-start gap-3">
-                  <CheckCircle className="h-5 w-5 text-green-600 mt-0.5" />
+                  <CheckCircle className="h-5 w-5 text-presson-positive mt-0.5" />
                   <div>
                     <p className="font-medium">High Liquidity Assets</p>
-                    <p className="text-sm text-gray-600">
-                      {portfolioMetrics.highLiquidityCount} of {MOCK_POSITIONS.length} positions show strong secondary market activity
+                    <p className="text-sm text-charcoal-600">
+                      {portfolioMetrics.highLiquidityCount} of {MOCK_POSITIONS.length} positions
+                      show strong secondary market activity
                     </p>
                   </div>
                 </div>
                 <div className="flex items-start gap-3">
-                  <Info className="h-5 w-5 text-blue-600 mt-0.5" />
+                  <Info className="h-5 w-5 text-presson-info mt-0.5" />
                   <div>
                     <p className="font-medium">Market Timing</p>
-                    <p className="text-sm text-gray-600">
+                    <p className="text-sm text-charcoal-600">
                       Current market conditions favor selective secondary sales in SaaS and DeepTech
                     </p>
                   </div>
                 </div>
                 <div className="flex items-start gap-3">
-                  <AlertTriangle className="h-5 w-5 text-yellow-600 mt-0.5" />
+                  <AlertTriangle className="h-5 w-5 text-presson-warning mt-0.5" />
                   <div>
                     <p className="font-medium">Risk Monitoring</p>
-                    <p className="text-sm text-gray-600">
+                    <p className="text-sm text-charcoal-600">
                       Monitor market volatility and regulatory changes affecting portfolio liquidity
                     </p>
                   </div>
@@ -541,27 +594,30 @@ export const SecondaryMarketAnalysis: React.FC = () => {
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
-                  <Target className="h-5 w-5 text-purple-600" />
+                  <Target className="h-5 w-5 text-presson-info" />
                   Recommendations
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-3">
-                <div className="p-3 bg-green-50 border border-green-200 rounded">
-                  <p className="font-medium text-green-900">Consider Partial Exit</p>
-                  <p className="text-sm text-green-700">
-                    AlphaTech and InnovateLabs show strong secondary demand - consider 20-30% position sales
+                <div className="p-3 bg-success/10 border border-success/30 rounded">
+                  <p className="font-medium text-success-dark">Consider Partial Exit</p>
+                  <p className="text-sm text-success-dark">
+                    AlphaTech and InnovateLabs show strong secondary demand - consider 20-30%
+                    position sales
                   </p>
                 </div>
-                <div className="p-3 bg-blue-50 border border-blue-200 rounded">
-                  <p className="font-medium text-blue-900">Market Opportunity</p>
-                  <p className="text-sm text-blue-700">
-                    CatalystLabs secondary offering at 15% discount represents attractive entry point
+                <div className="p-3 bg-presson-info/10 border border-presson-info/20 rounded">
+                  <p className="font-medium text-presson-info">Market Opportunity</p>
+                  <p className="text-sm text-presson-info">
+                    CatalystLabs secondary offering at 15% discount represents attractive entry
+                    point
                   </p>
                 </div>
-                <div className="p-3 bg-yellow-50 border border-yellow-200 rounded">
-                  <p className="font-medium text-yellow-900">Portfolio Rebalancing</p>
-                  <p className="text-sm text-yellow-700">
-                    Consider increasing liquidity buffer to 15-20% of portfolio for opportunistic investments
+                <div className="p-3 bg-warning/10 border border-warning/30 rounded">
+                  <p className="font-medium text-warning-dark">Portfolio Rebalancing</p>
+                  <p className="text-sm text-warning-dark">
+                    Consider increasing liquidity buffer to 15-20% of portfolio for opportunistic
+                    investments
                   </p>
                 </div>
               </CardContent>

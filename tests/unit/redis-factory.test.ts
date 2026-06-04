@@ -57,7 +57,9 @@ describe('Redis Factory', () => {
     };
 
     // Mock IORedis constructor to return our mock instance
-    mockIORedis.mockImplementation(() => mockRedisInstance);
+    mockIORedis.mockImplementation(function () {
+      return mockRedisInstance;
+    });
   });
 
   afterEach(() => {

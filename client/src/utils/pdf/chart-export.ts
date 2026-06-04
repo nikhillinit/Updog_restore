@@ -277,9 +277,9 @@ export function createChartPlaceholder(
 ): ChartExportResult {
   const svgString = `
     <svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}">
-      <rect width="100%" height="100%" fill="#F5F5F5" stroke="#E0E0E0" stroke-width="1"/>
+      <rect width="100%" height="100%" fill="#F2F2F2" stroke="#E0D8D1" stroke-width="1"/>
       <text x="50%" y="50%" text-anchor="middle" dominant-baseline="middle"
-            font-family="Inter, sans-serif" font-size="14" fill="#666666">
+            font-family="Inter, sans-serif" font-size="14" fill="#5A5A5A">
         ${message}
       </text>
     </svg>
