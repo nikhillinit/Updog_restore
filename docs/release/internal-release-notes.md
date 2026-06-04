@@ -91,7 +91,7 @@ remains and is NOT exercised by this gate -- the rest of the scenario-set family
 (`fund_scenario_set_events`, `fund_scenario_calculation_runs`), the LP, shares,
 and sector schema families, and the split between the journaled `./migrations`
 stream and the unwired `server/db/migrations/` stream. Reconciling those is
-tracked follow-up work, not a release-check blocker.
+tracked in issue #781, not a release-check blocker.
 
 Current visual/a11y evidence: the route-governed screenshot audit passes across
 54 desktop/mobile captures with LP reporting enabled, including scenario
