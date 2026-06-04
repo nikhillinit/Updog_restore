@@ -119,7 +119,7 @@ export function PortfolioTabs({
           onOpenChange={setIsReallocationExpanded}
           className="border border-pov-beige rounded-lg bg-white"
         >
-          <CollapsibleTrigger className="w-full flex items-center justify-between p-4 hover:bg-gray-50 transition-colors rounded-lg">
+          <CollapsibleTrigger className="w-full flex items-center justify-between p-4 hover:bg-pov-gray transition-colors rounded-lg">
             <div className="flex items-center gap-3">
               {isReallocationExpanded ? (
                 <ChevronDown className="h-5 w-5 text-pov-charcoal" />
@@ -130,7 +130,7 @@ export function PortfolioTabs({
                 <h3 className="font-inter font-semibold text-sm text-pov-charcoal">
                   Reallocation Tools
                 </h3>
-                <p className="font-poppins text-xs text-gray-500">
+                <p className="font-poppins text-xs text-charcoal-500">
                   Adjust reserve allocations across portfolio companies
                 </p>
               </div>

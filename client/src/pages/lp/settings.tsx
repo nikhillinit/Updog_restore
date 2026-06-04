@@ -12,7 +12,13 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { Input } from '@/components/ui/input';
 import { AlertCircle, Bell, Monitor, User, Save } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
@@ -74,9 +80,7 @@ export default function LPSettings() {
       toast({
         title: 'Save Failed',
         description:
-          error instanceof Error
-            ? error.message
-            : 'Failed to update notification preferences.',
+          error instanceof Error ? error.message : 'Failed to update notification preferences.',
         variant: 'destructive',
       });
     }
@@ -86,20 +90,18 @@ export default function LPSettings() {
     <div className="p-8 space-y-6">
       {/* Header */}
       <div>
-        <h1 className="text-3xl font-bold font-inter text-[#292929]">Settings</h1>
-        <p className="text-[#292929]/70 font-poppins mt-1">
-          Manage your LP portal preferences
-        </p>
+        <h1 className="text-3xl font-bold font-inter text-pov-charcoal">Settings</h1>
+        <p className="text-charcoal-600 font-poppins mt-1">Manage your LP portal preferences</p>
       </div>
 
       {/* Profile Information */}
-      <Card className="bg-white rounded-xl border border-[#E0D8D1] shadow-md">
+      <Card className="bg-white rounded-xl border border-beige-200 shadow-md">
         <CardHeader>
-          <CardTitle className="flex items-center gap-2 font-inter text-lg text-[#292929]">
-            <User className="h-5 w-5 text-blue-600" />
+          <CardTitle className="flex items-center gap-2 font-inter text-lg text-pov-charcoal">
+            <User className="h-5 w-5 text-pov-charcoal" />
             Profile Information
           </CardTitle>
-          <CardDescription className="font-poppins text-sm text-[#292929]/70">
+          <CardDescription className="font-poppins text-sm text-charcoal-600">
             Your LP account details
           </CardDescription>
         </CardHeader>
@@ -122,26 +124,26 @@ export default function LPSettings() {
               <Input id="tax-id" value={lpProfile?.taxId || 'Not provided'} disabled />
             </div>
           </div>
-          <p className="text-xs text-[#292929]/50 font-poppins">
+          <p className="text-xs text-charcoal-400 font-poppins">
             To update your profile information, please contact your fund manager.
           </p>
         </CardContent>
       </Card>
 
       {/* Notification Preferences */}
-      <Card className="bg-white rounded-xl border border-[#E0D8D1] shadow-md">
+      <Card className="bg-white rounded-xl border border-beige-200 shadow-md">
         <CardHeader>
-          <CardTitle className="flex items-center gap-2 font-inter text-lg text-[#292929]">
-            <Bell className="h-5 w-5 text-blue-600" />
+          <CardTitle className="flex items-center gap-2 font-inter text-lg text-pov-charcoal">
+            <Bell className="h-5 w-5 text-pov-charcoal" />
             Email Notifications
           </CardTitle>
-          <CardDescription className="font-poppins text-sm text-[#292929]/70">
+          <CardDescription className="font-poppins text-sm text-charcoal-600">
             Choose which email notifications you receive
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           {notificationPreferencesError ? (
-            <div className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
+            <div className="rounded-md border border-warning/50 bg-warning/10 px-3 py-2 text-sm text-warning-dark">
               <div className="flex items-center gap-2 font-medium">
                 <AlertCircle className="h-4 w-4" />
                 Unable to load persisted notification preferences.
@@ -154,8 +156,10 @@ export default function LPSettings() {
 
           <div className="flex items-center justify-between">
             <div>
-              <Label htmlFor="email-capital-calls" className="font-medium">Capital Calls</Label>
-              <p className="text-sm text-[#292929]/70 font-poppins">
+              <Label htmlFor="email-capital-calls" className="font-medium">
+                Capital Calls
+              </Label>
+              <p className="text-sm text-charcoal-600 font-poppins">
                 Receive notifications for new capital call notices
               </p>
             </div>
@@ -168,8 +172,10 @@ export default function LPSettings() {
 
           <div className="flex items-center justify-between">
             <div>
-              <Label htmlFor="email-distributions" className="font-medium">Distributions</Label>
-              <p className="text-sm text-[#292929]/70 font-poppins">
+              <Label htmlFor="email-distributions" className="font-medium">
+                Distributions
+              </Label>
+              <p className="text-sm text-charcoal-600 font-poppins">
                 Receive notifications for distribution payments
               </p>
             </div>
@@ -182,8 +188,10 @@ export default function LPSettings() {
 
           <div className="flex items-center justify-between">
             <div>
-              <Label htmlFor="email-quarterly" className="font-medium">Quarterly Reports</Label>
-              <p className="text-sm text-[#292929]/70 font-poppins">
+              <Label htmlFor="email-quarterly" className="font-medium">
+                Quarterly Reports
+              </Label>
+              <p className="text-sm text-charcoal-600 font-poppins">
                 Receive quarterly performance reports
               </p>
             </div>
@@ -196,8 +204,10 @@ export default function LPSettings() {
 
           <div className="flex items-center justify-between">
             <div>
-              <Label htmlFor="email-annual" className="font-medium">Annual Reports</Label>
-              <p className="text-sm text-[#292929]/70 font-poppins">
+              <Label htmlFor="email-annual" className="font-medium">
+                Annual Reports
+              </Label>
+              <p className="text-sm text-charcoal-600 font-poppins">
                 Receive annual fund reports and K-1 tax documents
               </p>
             </div>
@@ -210,8 +220,10 @@ export default function LPSettings() {
 
           <div className="flex items-center justify-between">
             <div>
-              <Label htmlFor="email-updates" className="font-medium">Market Updates</Label>
-              <p className="text-sm text-[#292929]/70 font-poppins">
+              <Label htmlFor="email-updates" className="font-medium">
+                Market Updates
+              </Label>
+              <p className="text-sm text-charcoal-600 font-poppins">
                 Receive market insights and portfolio updates
               </p>
             </div>
@@ -225,18 +237,18 @@ export default function LPSettings() {
       </Card>
 
       {/* Display Preferences */}
-      <Card className="bg-white rounded-xl border border-[#E0D8D1] shadow-md">
+      <Card className="bg-white rounded-xl border border-beige-200 shadow-md">
         <CardHeader>
-          <CardTitle className="flex items-center gap-2 font-inter text-lg text-[#292929]">
-            <Monitor className="h-5 w-5 text-blue-600" />
+          <CardTitle className="flex items-center gap-2 font-inter text-lg text-pov-charcoal">
+            <Monitor className="h-5 w-5 text-pov-charcoal" />
             Display Preferences
           </CardTitle>
-          <CardDescription className="font-poppins text-sm text-[#292929]/70">
+          <CardDescription className="font-poppins text-sm text-charcoal-600">
             Customize how data is displayed
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-700">
+          <div className="rounded-md border border-beige-200 bg-pov-gray px-3 py-2 text-sm text-charcoal-700">
             Display preferences remain local-only in this tranche. This page only persists
             notification settings to the backend today.
           </div>
@@ -292,7 +304,9 @@ export default function LPSettings() {
         <Button
           onClick={handleSave}
           className="px-8"
-          disabled={notificationPreferencesLoading || updateNotificationPreferencesMutation.isPending}
+          disabled={
+            notificationPreferencesLoading || updateNotificationPreferencesMutation.isPending
+          }
         >
           <Save className="h-4 w-4 mr-2" />
           {updateNotificationPreferencesMutation.isPending ? 'Saving…' : 'Save Changes'}

@@ -14,17 +14,16 @@ import { z } from 'zod';
 // CORE VALIDATION SCHEMAS
 // =============================================================================
 
-export const CheckSizeConfigSchema = z.object({
-  min: z.number().positive('Minimum check size must be positive'),
-  target: z.number().positive('Target check size must be positive'),
-  max: z.number().positive('Maximum check size must be positive')
-}).refine(
-  (data) => data.min <= data.target && data.target <= data.max,
-  {
-    message: "Check sizes must follow min ≤ target ≤ max",
-    path: ["checkSizes"]
-  }
-);
+export const CheckSizeConfigSchema = z
+  .object({
+    min: z.number().positive('Minimum check size must be positive'),
+    target: z.number().positive('Target check size must be positive'),
+    max: z.number().positive('Maximum check size must be positive'),
+  })
+  .refine((data) => data.min <= data.target && data.target <= data.max, {
+    message: 'Check sizes must follow min ≤ target ≤ max',
+    path: ['checkSizes'],
+  });
 
 export const AllocationConfigSchema = z.record(
   z.string(),
@@ -37,76 +36,91 @@ export const ScenarioConfigSchema = z.object({
   marketEnvironment: z.enum(['bull', 'normal', 'bear', 'recession']),
   dealFlowMultiplier: z.number().positive('Deal flow multiplier must be positive'),
   valuationMultiplier: z.number().positive('Valuation multiplier must be positive'),
-  exitMultiplier: z.number().positive('Exit multiplier must be positive')
+  exitMultiplier: z.number().positive('Exit multiplier must be positive'),
 });
 
 // =============================================================================
 // MAIN PORTFOLIO STRATEGY SCHEMA
 // =============================================================================
 
-export const PortfolioStrategySchema = z.object({
-  id: z.string().uuid().optional(),
-  name: z.string().min(1, 'Strategy name is required'),
+export const PortfolioStrategySchema = z
+  .object({
+    id: z.string().uuid().optional(),
+    name: z.string().min(1, 'Strategy name is required'),
 
-  // Fund size properties with backward compatibility
-  fundSize: z.number().positive('Fund size must be positive'),
-  totalFundSize: z.number().positive('Total fund size must be positive'),
+    // Fund size properties with backward compatibility
+    fundSize: z.number().positive('Fund size must be positive'),
+    totalFundSize: z.number().positive('Total fund size must be positive'),
 
-  deploymentPeriodMonths: z.number().int().positive('Deployment period must be positive'),
-  targetPortfolioSize: z.number().int().positive('Target portfolio size must be positive'),
+    deploymentPeriodMonths: z.number().int().positive('Deployment period must be positive'),
+    targetPortfolioSize: z.number().int().positive('Target portfolio size must be positive'),
 
-  // Nested configuration objects
-  checkSizes: CheckSizeConfigSchema,
-  sectorAllocation: AllocationConfigSchema,
-  stageAllocation: AllocationConfigSchema,
-  geographicAllocation: AllocationConfigSchema,
+    // Nested configuration objects
+    checkSizes: CheckSizeConfigSchema,
+    sectorAllocation: AllocationConfigSchema,
+    stageAllocation: AllocationConfigSchema,
+    geographicAllocation: AllocationConfigSchema,
 
-  // Reserve properties with backward compatibility
-  reservePercentage: z.number().min(0).max(100, 'Reserve percentage must be 0-100'),
-  reserveRatio: z.number().min(0).max(1, 'Reserve ratio must be 0-1'),
+    // Reserve properties with backward compatibility
+    reservePercentage: z.number().min(0).max(100, 'Reserve percentage must be 0-100'),
+    reserveRatio: z.number().min(0).max(1, 'Reserve ratio must be 0-1'),
 
-  // Optional properties for advanced tracking
-  allocatedCapital: z.number().nonnegative().optional(),
-  projectedIRR: z.number().optional(),
-  targetReturns: z.number().optional(),
-  riskScore: z.number().min(0).max(10).optional(),
+    // Optional properties for advanced tracking
+    allocatedCapital: z.number().nonnegative().optional(),
+    projectedIRR: z.number().optional(),
+    targetReturns: z.number().optional(),
+    riskScore: z.number().min(0).max(10).optional(),
 
-  scenarios: z.array(ScenarioConfigSchema).min(1, 'At least one scenario is required')
-}).refine(
-  (data) => {
-    // Ensure fund size aliases are consistent
-    return Math.abs(data.fundSize - data.totalFundSize) < 0.01;
-  },
-  {
-    message: "fundSize and totalFundSize must be equal",
-    path: ["totalFundSize"]
-  }
-).refine(
-  (data) => {
-    // Ensure reserve percentage and ratio are consistent
-    const expectedRatio = data.reservePercentage / 100;
-    return Math.abs(data.reserveRatio - expectedRatio) < 0.001;
-  },
-  {
-    message: "reserveRatio must equal reservePercentage / 100",
-    path: ["reserveRatio"]
-  }
-).refine(
-  (data) => {
-    // Validate allocations sum to approximately 1.0
-    const sectorSum = Object.values(data.sectorAllocation).reduce((sum, val) => sum + val, 0) as number;
-    const stageSum = Object.values(data.stageAllocation).reduce((sum, val) => sum + val, 0) as number;
-    const geoSum = Object.values(data.geographicAllocation).reduce((sum, val) => sum + val, 0) as number;
+    scenarios: z.array(ScenarioConfigSchema).min(1, 'At least one scenario is required'),
+  })
+  .refine(
+    (data) => {
+      // Ensure fund size aliases are consistent
+      return Math.abs(data.fundSize - data.totalFundSize) < 0.01;
+    },
+    {
+      message: 'fundSize and totalFundSize must be equal',
+      path: ['totalFundSize'],
+    }
+  )
+  .refine(
+    (data) => {
+      // Ensure reserve percentage and ratio are consistent
+      const expectedRatio = data.reservePercentage / 100;
+      return Math.abs(data.reserveRatio - expectedRatio) < 0.001;
+    },
+    {
+      message: 'reserveRatio must equal reservePercentage / 100',
+      path: ['reserveRatio'],
+    }
+  )
+  .refine(
+    (data) => {
+      // Validate allocations sum to approximately 1.0
+      const sectorSum = Object.values(data.sectorAllocation).reduce(
+        (sum, val) => sum + val,
+        0
+      ) as number;
+      const stageSum = Object.values(data.stageAllocation).reduce(
+        (sum, val) => sum + val,
+        0
+      ) as number;
+      const geoSum = Object.values(data.geographicAllocation).reduce(
+        (sum, val) => sum + val,
+        0
+      ) as number;
 
-    return Math.abs(sectorSum - 1.0) < 0.01 &&
-           Math.abs(stageSum - 1.0) < 0.01 &&
-           Math.abs(geoSum - 1.0) < 0.01;
-  },
-  {
-    message: "All allocation percentages must sum to approximately 1.0",
-    path: ["allocations"]
-  }
-);
+      return (
+        Math.abs(sectorSum - 1.0) < 0.01 &&
+        Math.abs(stageSum - 1.0) < 0.01 &&
+        Math.abs(geoSum - 1.0) < 0.01
+      );
+    },
+    {
+      message: 'All allocation percentages must sum to approximately 1.0',
+      path: ['allocations'],
+    }
+  );
 
 // =============================================================================
 // TYPE DEFINITIONS
@@ -116,9 +130,6 @@ export type CheckSizeConfig = z.infer<typeof CheckSizeConfigSchema>;
 export type AllocationConfig = z.infer<typeof AllocationConfigSchema>;
 export type ScenarioConfig = z.infer<typeof ScenarioConfigSchema>;
 export type PortfolioStrategy = z.infer<typeof PortfolioStrategySchema>;
-
-// Backward compatibility type alias
-export type PortfolioState = PortfolioStrategy;
 
 // =============================================================================
 // UTILITY FUNCTIONS
@@ -136,12 +147,14 @@ export const createPortfolioStrategy = (input: Partial<PortfolioStrategy>): Port
     fundSize: input.fundSize || input.totalFundSize || 0,
 
     // Auto-reconcile reserve fields
-    reserveRatio: input.reserveRatio ?? (input.reservePercentage ? input.reservePercentage / 100 : 0),
-    reservePercentage: input.reservePercentage ?? (input.reserveRatio ? input.reserveRatio * 100 : 0),
+    reserveRatio:
+      input.reserveRatio ?? (input.reservePercentage ? input.reservePercentage / 100 : 0),
+    reservePercentage:
+      input.reservePercentage ?? (input.reserveRatio ? input.reserveRatio * 100 : 0),
 
     // Set safe defaults for optional fields
     allocatedCapital: input.allocatedCapital ?? 0,
-    scenarios: input.scenarios ?? []
+    scenarios: input.scenarios ?? [],
   };
 
   return PortfolioStrategySchema.parse(reconciled);
@@ -151,7 +164,9 @@ export const createPortfolioStrategy = (input: Partial<PortfolioStrategy>): Port
  * Validate PortfolioStrategy with detailed error reporting
  * Implements AI consensus: comprehensive validation with context
  */
-export const validatePortfolioStrategy = (input: unknown): {
+export const validatePortfolioStrategy = (
+  input: unknown
+): {
   success: boolean;
   data?: PortfolioStrategy;
   errors?: string[];
@@ -161,9 +176,7 @@ export const validatePortfolioStrategy = (input: unknown): {
     return { success: true, data: validated };
   } catch (error) {
     if (error instanceof z.ZodError) {
-      const errors = error.errors.map(err =>
-        `${err.path.join('.')}: ${err.message}`
-      );
+      const errors = error.errors.map((err) => `${err.path.join('.')}: ${err.message}`);
       return { success: false, errors };
     }
     return { success: false, errors: ['Unknown validation error'] };
@@ -232,15 +245,15 @@ export const migrateLegacyStrategy = (legacy: LegacyPortfolioStrategy): Portfoli
     checkSizes: legacyCheckSizes || {
       min: 500000,
       target: 2000000,
-      max: 5000000
+      max: 5000000,
     },
-    sectorAllocation: legacySectorAllocation || { 'Technology': 1.0 },
+    sectorAllocation: legacySectorAllocation || { Technology: 1.0 },
     stageAllocation: legacyStageAllocation || { 'Series A': 1.0 },
     geographicAllocation: legacyGeographicAllocation || { 'North America': 1.0 },
     reservePercentage: legacyReservePercentage || 50,
     reserveRatio: legacyReservePercentage ? legacyReservePercentage / 100 : 0.5,
     allocatedCapital: legacyAllocatedCapital || 0,
-    scenarios: legacyScenarios || []
+    scenarios: legacyScenarios || [],
   };
 
   return createPortfolioStrategy(migrated);

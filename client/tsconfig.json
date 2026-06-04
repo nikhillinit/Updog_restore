@@ -14,14 +14,7 @@
     "module": "ESNext",
     "jsx": "react-jsx"
   },
-  "include": [
-    "src",
-    "vite-env.d.ts",
-    "../types",
-    "../shared/**/*",
-    "../packages/agent-core/src/ConversationMemory.ts",
-    "../packages/agent-core/src/Logger.ts"
-  ],
+  "include": ["src", "vite-env.d.ts", "../types", "../shared/**/*"],
   "exclude": [
     "dist",
     "node_modules",
@@ -29,8 +22,6 @@
     "**/*.test.ts",
     "**/*.test.tsx",
     "**/*.spec.ts",
-    "**/*.spec.tsx",
-    "../packages/**/examples/**/*",
-    "../packages/**/manual-test-*"
+    "**/*.spec.tsx"
   ]
 }

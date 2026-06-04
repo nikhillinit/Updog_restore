@@ -118,6 +118,22 @@ const DIMENSIONS = [
   { value: 'year', label: 'Year' },
 ];
 
+const UI_SUCCESS_COLOR = '#10b981';
+const CATEGORICAL_SERIES_COLORS = [
+  '#292929',
+  '#127E3D',
+  '#2563EB',
+  UI_SUCCESS_COLOR,
+  '#9C6F19',
+  '#B00020',
+] as const;
+const CHART_PRIMARY_COLOR = '#2563EB';
+
+function getCategoricalChartColor(index: number): string {
+  // TODO(design): Define an extended categorical palette before showing more than six slices.
+  return CATEGORICAL_SERIES_COLORS[index % CATEGORICAL_SERIES_COLORS.length] ?? '#292929';
+}
+
 const SAMPLE_COMPANIES: PortfolioCompany[] = [
   {
     id: 1,
@@ -231,14 +247,17 @@ export default function PortfolioAnalyticsDashboard() {
 
   const formatValue = (value: number, type: string) => {
     switch (type) {
-      case 'currency': return formatCurrency(value);
-      case 'percentage': return formatPercentage(value);
-      default: return value.toLocaleString();
+      case 'currency':
+        return formatCurrency(value);
+      case 'percentage':
+        return formatPercentage(value);
+      default:
+        return value.toLocaleString();
     }
   };
 
   const getChartData = () => {
-    return portfolioData.map(company => ({
+    return portfolioData.map((company) => ({
       ...company,
       [currentChart.xAxis]: company[currentChart.xAxis as keyof PortfolioCompany],
       [currentChart.yAxis]: company[currentChart.yAxis as keyof PortfolioCompany],
@@ -247,8 +266,8 @@ export default function PortfolioAnalyticsDashboard() {
 
   const renderChart = () => {
     const data = getChartData();
-    const yMetric = METRICS.find(m => m.value === currentChart.yAxis);
-    
+    const yMetric = METRICS.find((m) => m.value === currentChart.yAxis);
+
     switch (currentChart.type) {
       case 'bar':
         return (
@@ -256,45 +275,71 @@ export default function PortfolioAnalyticsDashboard() {
             <BarChart data={data}>
               <CartesianGrid strokeDasharray="3 3" />
               <XAxis dataKey={currentChart.xAxis} />
-              <YAxis tickFormatter={(value) => formatValue(Number(value), yMetric?.type || 'number')} />
-              <Tooltip
-                formatter={(value) => [formatValue(Number(value), yMetric?.type || 'number'), yMetric?.label]}
+              <YAxis
+                tickFormatter={(value) => formatValue(Number(value), yMetric?.type || 'number')}
               />
-              <Bar dataKey={currentChart.yAxis} fill="#3B82F6" />
+              <Tooltip
+                formatter={(value) => [
+                  formatValue(Number(value), yMetric?.type || 'number'),
+                  yMetric?.label,
+                ]}
+              />
+              <Bar dataKey={currentChart.yAxis} fill={CHART_PRIMARY_COLOR} />
             </BarChart>
           </ResponsiveContainer>
         );
-      
+
       case 'line':
         return (
           <ResponsiveContainer width="100%" height={400}>
             <LineChart data={data}>
               <CartesianGrid strokeDasharray="3 3" />
               <XAxis dataKey={currentChart.xAxis} />
-              <YAxis tickFormatter={(value) => formatValue(Number(value), yMetric?.type || 'number')} />
-              <Tooltip
-                formatter={(value) => [formatValue(Number(value), yMetric?.type || 'number'), yMetric?.label]}
+              <YAxis
+                tickFormatter={(value) => formatValue(Number(value), yMetric?.type || 'number')}
               />
-              <Line type="monotone" dataKey={currentChart.yAxis} stroke="#3B82F6" strokeWidth={2} />
+              <Tooltip
+                formatter={(value) => [
+                  formatValue(Number(value), yMetric?.type || 'number'),
+                  yMetric?.label,
+                ]}
+              />
+              <Line
+                type="monotone"
+                dataKey={currentChart.yAxis}
+                stroke={CHART_PRIMARY_COLOR}
+                strokeWidth={2}
+              />
             </LineChart>
           </ResponsiveContainer>
         );
-      
+
       case 'area':
         return (
           <ResponsiveContainer width="100%" height={400}>
             <AreaChart data={data}>
               <CartesianGrid strokeDasharray="3 3" />
               <XAxis dataKey={currentChart.xAxis} />
-              <YAxis tickFormatter={(value) => formatValue(Number(value), yMetric?.type || 'number')} />
-              <Tooltip
-                formatter={(value) => [formatValue(Number(value), yMetric?.type || 'number'), yMetric?.label]}
+              <YAxis
+                tickFormatter={(value) => formatValue(Number(value), yMetric?.type || 'number')}
               />
-              <Area type="monotone" dataKey={currentChart.yAxis} stroke="#3B82F6" fill="#3B82F6" fillOpacity={0.3} />
+              <Tooltip
+                formatter={(value) => [
+                  formatValue(Number(value), yMetric?.type || 'number'),
+                  yMetric?.label,
+                ]}
+              />
+              <Area
+                type="monotone"
+                dataKey={currentChart.yAxis}
+                stroke={CHART_PRIMARY_COLOR}
+                fill={CHART_PRIMARY_COLOR}
+                fillOpacity={0.3}
+              />
             </AreaChart>
           </ResponsiveContainer>
         );
-      
+
       case 'pie':
         return (
           <ResponsiveContainer width="100%" height={400}>
@@ -306,7 +351,7 @@ export default function PortfolioAnalyticsDashboard() {
                 cx="50%"
                 cy="50%"
                 outerRadius={120}
-                fill="#3B82F6"
+                fill={CHART_PRIMARY_COLOR}
                 label={(props: { name?: string; value?: number }) => {
                   // Handle the case where props might have undefined properties
                   const name = props.name ?? '';
@@ -315,14 +360,16 @@ export default function PortfolioAnalyticsDashboard() {
                 }}
               >
                 {data.map((entry, index) => (
-                  <Cell key={`cell-${index}`} fill={`hsl(${210 + index * 30}, 70%, 50%)`} />
+                  <Cell key={`cell-${index}`} fill={getCategoricalChartColor(index)} />
                 ))}
               </Pie>
-              <Tooltip formatter={(value) => formatValue(Number(value), yMetric?.type || 'number')} />
+              <Tooltip
+                formatter={(value) => formatValue(Number(value), yMetric?.type || 'number')}
+              />
             </PieChart>
           </ResponsiveContainer>
         );
-      
+
       default:
         return null;
     }
@@ -342,8 +389,8 @@ export default function PortfolioAnalyticsDashboard() {
       createdAt: new Date().toISOString(),
       lastModified: new Date().toISOString(),
     };
-    
-    setSavedViews(prev => [...prev, newView]);
+
+    setSavedViews((prev) => [...prev, newView]);
     setShowCreateView(false);
     setViewNotes('');
   };
@@ -361,13 +408,15 @@ export default function PortfolioAnalyticsDashboard() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-pov-gray">
       {/* Header */}
-      <div className="bg-white border-b border-gray-200 p-6">
+      <div className="bg-pov-white border-b border-beige-200 p-6">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-3xl font-bold text-gray-900">Portfolio Analytics</h1>
-            <p className="text-gray-600 mt-1">Explore, visualize, and analyze your portfolio company data</p>
+            <h1 className="text-3xl font-bold text-pov-charcoal">Portfolio Analytics</h1>
+            <p className="text-charcoal-600 mt-1">
+              Explore, visualize, and analyze your portfolio company data
+            </p>
           </div>
           <div className="flex items-center space-x-3">
             <Button variant="outline" size="sm">
@@ -396,7 +445,9 @@ export default function PortfolioAnalyticsDashboard() {
                   <Input
                     placeholder="View name"
                     value={currentChart.title}
-                    onChange={(e) => setCurrentChart(prev => ({ ...prev, title: e.target.value }))}
+                    onChange={(e) =>
+                      setCurrentChart((prev) => ({ ...prev, title: e.target.value }))
+                    }
                   />
                   <Textarea
                     placeholder="Add notes about this analysis (optional)"
@@ -408,9 +459,7 @@ export default function PortfolioAnalyticsDashboard() {
                     <Button variant="outline" onClick={() => setShowCreateView(false)}>
                       Cancel
                     </Button>
-                    <Button onClick={saveCurrentView}>
-                      Save View
-                    </Button>
+                    <Button onClick={saveCurrentView}>Save View</Button>
                   </div>
                 </div>
               </DialogContent>
@@ -421,11 +470,11 @@ export default function PortfolioAnalyticsDashboard() {
 
       <div className="flex h-[calc(100vh-120px)]">
         {/* Left Sidebar - Data Sources & Saved Views */}
-        <div className="w-80 bg-white border-r border-gray-200 p-4 overflow-y-auto">
+        <div className="w-80 bg-pov-white border-r border-beige-200 p-4 overflow-y-auto">
           <div className="space-y-6">
             {/* Search */}
             <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-charcoal-400" />
               <Input
                 placeholder="Search data sources..."
                 value={searchTerm}
@@ -436,35 +485,35 @@ export default function PortfolioAnalyticsDashboard() {
 
             {/* Topics/Data Sources */}
             <div>
-              <h3 className="text-sm font-medium text-gray-700 mb-3">TOPICS</h3>
+              <h3 className="text-sm font-medium text-charcoal-700 mb-3">TOPICS</h3>
               <div className="space-y-2">
-                <div className="p-2 rounded bg-blue-50 border border-blue-200">
-                  <div className="font-medium text-blue-900">Portfolio Overview</div>
-                  <div className="text-xs text-blue-600">Latest company metrics</div>
+                <div className="p-2 rounded bg-presson-info/10 border border-presson-info/20">
+                  <div className="font-medium text-presson-info">Portfolio Overview</div>
+                  <div className="text-xs text-presson-info">Latest company metrics</div>
                 </div>
-                <div className="p-2 rounded hover:bg-gray-50 border">
+                <div className="p-2 rounded hover:bg-pov-gray border">
                   <div className="font-medium">Financial Performance</div>
-                  <div className="text-xs text-gray-600">Revenue, margins, burn rates</div>
+                  <div className="text-xs text-charcoal-600">Revenue, margins, burn rates</div>
                 </div>
-                <div className="p-2 rounded hover:bg-gray-50 border">
+                <div className="p-2 rounded hover:bg-pov-gray border">
                   <div className="font-medium">Growth Metrics</div>
-                  <div className="text-xs text-gray-600">ARR, MRR, user growth</div>
+                  <div className="text-xs text-charcoal-600">ARR, MRR, user growth</div>
                 </div>
-                <div className="p-2 rounded hover:bg-gray-50 border">
+                <div className="p-2 rounded hover:bg-pov-gray border">
                   <div className="font-medium">Operational Data</div>
-                  <div className="text-xs text-gray-600">Team size, cash runway</div>
+                  <div className="text-xs text-charcoal-600">Team size, cash runway</div>
                 </div>
               </div>
             </div>
 
             {/* Saved Views */}
             <div>
-              <h3 className="text-sm font-medium text-gray-700 mb-3">SAVED VIEWS</h3>
+              <h3 className="text-sm font-medium text-charcoal-700 mb-3">SAVED VIEWS</h3>
               <div className="space-y-2">
                 {savedViews.map((view) => (
                   <div
                     key={view.id}
-                    className="p-2 rounded border hover:bg-gray-50 cursor-pointer"
+                    className="p-2 rounded border hover:bg-pov-gray cursor-pointer"
                     onClick={() => loadSavedView(view)}
                   >
                     <div className="flex items-center justify-between">
@@ -473,16 +522,16 @@ export default function PortfolioAnalyticsDashboard() {
                         <Trash2 className="h-3 w-3" />
                       </Button>
                     </div>
-                    <div className="text-xs text-gray-600">{view.description}</div>
+                    <div className="text-xs text-charcoal-600">{view.description}</div>
                     {view.notes && (
-                      <div className="text-xs text-gray-500 mt-1 italic">"{view.notes}"</div>
+                      <div className="text-xs text-charcoal-500 mt-1 italic">"{view.notes}"</div>
                     )}
                   </div>
                 ))}
-                
+
                 {savedViews.length === 0 && (
-                  <div className="text-center py-4 text-gray-500">
-                    <Eye className="h-8 w-8 mx-auto mb-2 text-gray-300" />
+                  <div className="text-center py-4 text-charcoal-500">
+                    <Eye className="h-8 w-8 mx-auto mb-2 text-charcoal-300" />
                     <div className="text-sm">No saved views yet</div>
                     <div className="text-xs">Create custom analyses to save them here</div>
                   </div>
@@ -500,7 +549,10 @@ export default function PortfolioAnalyticsDashboard() {
               <CardTitle className="flex items-center justify-between">
                 <span>Chart Builder</span>
                 <div className="flex items-center space-x-2">
-                  <Tabs value={displayMode} onValueChange={(value) => setDisplayMode(value as 'results' | 'chart' | 'both')}>
+                  <Tabs
+                    value={displayMode}
+                    onValueChange={(value) => setDisplayMode(value as 'results' | 'chart' | 'both')}
+                  >
                     <TabsList>
                       <TabsTrigger value="results">Results</TabsTrigger>
                       <TabsTrigger value="chart">Chart</TabsTrigger>
@@ -522,9 +574,15 @@ export default function PortfolioAnalyticsDashboard() {
               <div className="grid grid-cols-4 gap-4">
                 <div>
                   <label className="block text-sm font-medium mb-2">Chart Type</label>
-                  <Select value={currentChart.type} onValueChange={(value) =>
-                    setCurrentChart(prev => ({ ...prev, type: value as 'bar' | 'line' | 'pie' | 'area' }))
-                  }>
+                  <Select
+                    value={currentChart.type}
+                    onValueChange={(value) =>
+                      setCurrentChart((prev) => ({
+                        ...prev,
+                        type: value as 'bar' | 'line' | 'pie' | 'area',
+                      }))
+                    }
+                  >
                     <SelectTrigger>
                       <SelectValue />
                     </SelectTrigger>
@@ -546,9 +604,12 @@ export default function PortfolioAnalyticsDashboard() {
 
                 <div>
                   <label className="block text-sm font-medium mb-2">X-Axis</label>
-                  <Select value={currentChart.xAxis} onValueChange={(value) => 
-                    setCurrentChart(prev => ({ ...prev, xAxis: value }))
-                  }>
+                  <Select
+                    value={currentChart.xAxis}
+                    onValueChange={(value) =>
+                      setCurrentChart((prev) => ({ ...prev, xAxis: value }))
+                    }
+                  >
                     <SelectTrigger>
                       <SelectValue />
                     </SelectTrigger>
@@ -564,9 +625,12 @@ export default function PortfolioAnalyticsDashboard() {
 
                 <div>
                   <label className="block text-sm font-medium mb-2">Y-Axis</label>
-                  <Select value={currentChart.yAxis} onValueChange={(value) => 
-                    setCurrentChart(prev => ({ ...prev, yAxis: value }))
-                  }>
+                  <Select
+                    value={currentChart.yAxis}
+                    onValueChange={(value) =>
+                      setCurrentChart((prev) => ({ ...prev, yAxis: value }))
+                    }
+                  >
                     <SelectTrigger>
                       <SelectValue />
                     </SelectTrigger>
@@ -584,7 +648,9 @@ export default function PortfolioAnalyticsDashboard() {
                   <label className="block text-sm font-medium mb-2">Title</label>
                   <Input
                     value={currentChart.title}
-                    onChange={(e) => setCurrentChart(prev => ({ ...prev, title: e.target.value }))}
+                    onChange={(e) =>
+                      setCurrentChart((prev) => ({ ...prev, title: e.target.value }))
+                    }
                     placeholder="Chart title"
                   />
                 </div>
@@ -593,9 +659,12 @@ export default function PortfolioAnalyticsDashboard() {
           </Card>
 
           {/* Results and Chart */}
-          <div className="grid gap-6" style={{ 
-            gridTemplateColumns: displayMode === 'both' ? '1fr 1fr' : '1fr' 
-          }}>
+          <div
+            className="grid gap-6"
+            style={{
+              gridTemplateColumns: displayMode === 'both' ? '1fr 1fr' : '1fr',
+            }}
+          >
             {/* Data Table */}
             {(displayMode === 'results' || displayMode === 'both') && (
               <Card>
@@ -617,7 +686,7 @@ export default function PortfolioAnalyticsDashboard() {
                       </thead>
                       <tbody>
                         {portfolioData.map((company) => (
-                          <tr key={company.id} className="border-b hover:bg-gray-50">
+                          <tr key={company.id} className="border-b hover:bg-pov-gray">
                             <td className="p-2 font-medium">{company.name}</td>
                             <td className="p-2">
                               <Badge variant="outline">{company.sector}</Badge>
@@ -643,9 +712,7 @@ export default function PortfolioAnalyticsDashboard() {
                 <CardHeader>
                   <CardTitle>{currentChart.title}</CardTitle>
                 </CardHeader>
-                <CardContent>
-                  {renderChart()}
-                </CardContent>
+                <CardContent>{renderChart()}</CardContent>
               </Card>
             )}
           </div>
@@ -666,7 +733,7 @@ export default function PortfolioAnalyticsDashboard() {
                 rows={4}
                 className="w-full"
               />
-              <div className="mt-2 text-sm text-gray-500">
+              <div className="mt-2 text-sm text-charcoal-500">
                 Notes will be saved with your analysis views and included in exports.
               </div>
             </CardContent>

@@ -7,27 +7,112 @@
  * - Force-push blocking
  */
 
-import { execSync } from 'child_process';
+import { execFileSync, execSync } from 'child_process';
 import { createHash } from 'crypto';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { emitTelemetry, getGitState } from './control-plane.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = path.resolve(__dirname, '../..');
 const ARTIFACTS_DIR = path.join(REPO_ROOT, '.claude/artifacts/git-audits');
+const METRICS_FILE = path.join(REPO_ROOT, '.claude/artifacts/metrics.jsonl');
 const ALLOWLIST_FILE = path.join(REPO_ROOT, '.claude/large-file-allowlist.json');
 
 // Size thresholds
 const WARN_SIZE_MB = 5;
 const BLOCK_SIZE_MB = 10;
+const NEW_FILE_BLOCK_SIZE_MB = 1;
+
+const ARCHIVE_GUARD_PATTERNS = [
+  { label: 'archive/**', regex: /^archive\// },
+  { label: 'docs/archive/**', regex: /^docs\/archive\// },
+  { label: '.backup/**', regex: /^\.backup\// },
+  { label: '**/_archive/**', regex: /(^|\/)_archive\// },
+  { label: '**/backup/**', regex: /(^|\/)backup\// },
+  { label: '**/backups/**', regex: /(^|\/)backups\// }
+];
+
+const REQUIRED_GENERATED_ATTRS = [
+  { file: 'archive/probe.md', attrs: ['linguist-generated', 'export-ignore'] },
+  { file: 'docs/archive/probe.md', attrs: ['linguist-generated', 'export-ignore'] },
+  { file: 'docs/_generated/probe.json', attrs: ['linguist-generated', 'export-ignore'] },
+  { file: '.backup/probe.txt', attrs: ['linguist-generated', 'export-ignore'] },
+  { file: 'nested/_archive/probe.md', attrs: ['linguist-generated', 'export-ignore'] },
+  { file: 'nested/backup/probe.md', attrs: ['linguist-generated', 'export-ignore'] },
+  { file: 'nested/backups/probe.md', attrs: ['linguist-generated', 'export-ignore'] },
+  { file: '.claude/skills/INDEX.md', attrs: ['linguist-generated'] },
+  { file: '.claude/skills/_index.json', attrs: ['linguist-generated'] }
+];
 
 /**
  * Get timestamp for artifact filenames
  */
 function getTimestamp() {
   return new Date().toISOString().replace(/[:-]/g, '').replace('T', '-').split('.')[0];
+}
+
+function runGit(args) {
+  try {
+    return execFileSync('git', args, {
+      cwd: REPO_ROOT,
+      encoding: 'utf8',
+      stdio: ['ignore', 'pipe', 'ignore']
+    }).trim();
+  } catch {
+    return null;
+  }
+}
+
+function getGitState() {
+  const branch = runGit(['rev-parse', '--abbrev-ref', 'HEAD']) || 'unknown';
+  const headSha = runGit(['rev-parse', 'HEAD']) || '0'.repeat(40);
+  const upstream = runGit(['rev-parse', '--abbrev-ref', `${branch}@{upstream}`]);
+  const statusPorcelain = runGit(['status', '--porcelain']) || '';
+  const statusHash = createHash('sha256').update(statusPorcelain).digest('hex');
+  const lastCommitSha = runGit(['rev-parse', 'HEAD']) || '0'.repeat(40);
+  const lastCommitSubject = runGit(['log', '-1', '--format=%s']) || '';
+  const worktreePath = runGit(['rev-parse', '--show-toplevel']);
+  const commonDir = runGit(['rev-parse', '--git-common-dir']);
+  const isWorktree = commonDir && !commonDir.endsWith('.git');
+
+  return {
+    branch,
+    headSha,
+    upstream,
+    dirty: statusPorcelain.length > 0,
+    gitStatusPorcelain: statusPorcelain,
+    gitStatusHash: statusHash,
+    lastCommit: {
+      sha: lastCommitSha,
+      subject: lastCommitSubject
+    },
+    repoRoot: REPO_ROOT,
+    worktreePath: isWorktree ? worktreePath : null
+  };
+}
+
+function emitTelemetry(event, mode, success, details = {}) {
+  try {
+    const gitState = getGitState();
+    const telemetryEvent = {
+      event,
+      ts: new Date().toISOString(),
+      repoRoot: gitState.repoRoot,
+      worktreePath: gitState.worktreePath,
+      branch: gitState.branch,
+      headSha: gitState.headSha,
+      mode,
+      success,
+      details
+    };
+
+    fs.mkdirSync(path.dirname(METRICS_FILE), { recursive: true });
+    fs.appendFileSync(METRICS_FILE, `${JSON.stringify(telemetryEvent)}\n`);
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 /**
@@ -53,6 +138,172 @@ function isAllowed(filepath, allowlist) {
     if (new RegExp(pattern).test(filepath)) return true;
   }
   return false;
+}
+
+function normalizeGitPath(filepath) {
+  return filepath.replace(/\\/g, '/');
+}
+
+function gitDiffFiles(commitRange = null, diffFilter = 'ACMR') {
+  const args = commitRange
+    ? ['diff', '--name-only', `--diff-filter=${diffFilter}`, commitRange]
+    : ['diff', '--cached', '--name-only', `--diff-filter=${diffFilter}`];
+
+  try {
+    const output = execFileSync('git', args, {
+      cwd: REPO_ROOT,
+      encoding: 'utf8'
+    }).trim();
+    return output ? output.split('\n').map(normalizeGitPath).filter(Boolean) : [];
+  } catch {
+    return [];
+  }
+}
+
+function checkGitAttributes(filepath, attrs) {
+  try {
+    const output = execFileSync('git', ['check-attr', ...attrs, '--', filepath], {
+      cwd: REPO_ROOT,
+      encoding: 'utf8'
+    }).trim();
+
+    const result = new Map();
+    for (const line of output.split('\n').filter(Boolean)) {
+      const parts = line.split(': ');
+      if (parts.length >= 3) {
+        result.set(parts[1], parts.slice(2).join(': '));
+      }
+    }
+    return result;
+  } catch {
+    return new Map();
+  }
+}
+
+function isAttributeSet(value) {
+  return value === 'set' || value === 'true';
+}
+
+function isLfsTracked(filepath) {
+  const attrs = checkGitAttributes(filepath, ['filter']);
+  return attrs.get('filter') === 'lfs';
+}
+
+function matchesArchiveGuard(filepath) {
+  const normalized = normalizeGitPath(filepath);
+  return ARCHIVE_GUARD_PATTERNS.find(({ regex }) => regex.test(normalized));
+}
+
+function verifyGeneratedAttributes() {
+  const missing = [];
+
+  for (const probe of REQUIRED_GENERATED_ATTRS) {
+    const attrs = checkGitAttributes(probe.file, probe.attrs);
+    for (const attr of probe.attrs) {
+      if (!isAttributeSet(attrs.get(attr))) {
+        missing.push({ file: probe.file, attr, actual: attrs.get(attr) || 'unspecified' });
+      }
+    }
+  }
+
+  const phoenixAttrs = checkGitAttributes('.claude/PHOENIX-AGENTS-REGISTRY.md', [
+    'linguist-generated',
+    'export-ignore'
+  ]);
+  for (const attr of ['linguist-generated', 'export-ignore']) {
+    const value = phoenixAttrs.get(attr);
+    if (value && value !== 'unspecified') {
+      missing.push({
+        file: '.claude/PHOENIX-AGENTS-REGISTRY.md',
+        attr,
+        actual: value,
+        reason: 'protected Phoenix guidance must not be marked generated'
+      });
+    }
+  }
+
+  return missing;
+}
+
+export function archiveGuardCheck(commitRange = null) {
+  console.log('Running archive and large-file guard...');
+
+  const allowlist = loadAllowlist();
+  const changedFiles = gitDiffFiles(commitRange, 'ACMR');
+  const addedFiles = gitDiffFiles(commitRange, 'A');
+  const archiveBlocks = [];
+  const largeFileBlocks = [];
+  const attributeBlocks = verifyGeneratedAttributes();
+
+  for (const file of changedFiles) {
+    const match = matchesArchiveGuard(file);
+    if (match) {
+      archiveBlocks.push({ file, pattern: match.label });
+    }
+  }
+
+  for (const file of addedFiles) {
+    const fullPath = path.join(REPO_ROOT, file);
+    if (!fs.existsSync(fullPath) || !fs.statSync(fullPath).isFile()) continue;
+    if (isAllowed(file, allowlist) || isLfsTracked(file)) continue;
+
+    const sizeMB = fs.statSync(fullPath).size / (1024 * 1024);
+    if (sizeMB >= NEW_FILE_BLOCK_SIZE_MB) {
+      largeFileBlocks.push({ file, sizeMB: sizeMB.toFixed(2) });
+    }
+  }
+
+  for (const block of archiveBlocks) {
+    emitTelemetry('archive_path_blocked', 'full', false, {
+      file: block.file,
+      pattern: block.pattern
+    });
+  }
+  for (const block of largeFileBlocks) {
+    emitTelemetry('large_file_blocked', 'full', false, {
+      file: block.file,
+      sizeMB: block.sizeMB,
+      thresholdMB: NEW_FILE_BLOCK_SIZE_MB
+    });
+  }
+
+  if (archiveBlocks.length > 0) {
+    console.log('\nBLOCKED: Archive-like paths are not allowed in tracked changes:');
+    for (const block of archiveBlocks) {
+      console.log(`  - ${block.file} matched ${block.pattern}`);
+    }
+    console.log('Use git history for archival context; see CLAUDE.md#archive-gate.');
+  }
+
+  if (largeFileBlocks.length > 0) {
+    console.log(`\nBLOCKED: Newly added files exceed ${NEW_FILE_BLOCK_SIZE_MB}MB:`);
+    for (const block of largeFileBlocks) {
+      console.log(`  - ${block.file} (${block.sizeMB}MB)`);
+    }
+    console.log('Use Git LFS or .claude/large-file-allowlist.json for intentional exceptions.');
+  }
+
+  if (attributeBlocks.length > 0) {
+    console.log('\nBLOCKED: Generated/archive gitattributes coverage is incomplete:');
+    for (const block of attributeBlocks) {
+      const reason = block.reason ? ` (${block.reason})` : '';
+      console.log(`  - ${block.file}: ${block.attr} is ${block.actual}${reason}`);
+    }
+  }
+
+  const passed =
+    archiveBlocks.length === 0 && largeFileBlocks.length === 0 && attributeBlocks.length === 0;
+
+  if (passed) {
+    console.log('[PASS] Archive and large-file guard passed');
+  }
+
+  return {
+    passed,
+    archiveBlocks,
+    largeFileBlocks,
+    attributeBlocks
+  };
 }
 
 /**
@@ -375,6 +626,13 @@ if (command === 'pre-push') {
   if (!result.passed) {
     process.exit(1);
   }
+} else if (command === 'archive-guard') {
+  const commitRange = process.argv[3] || null;
+  const result = archiveGuardCheck(commitRange);
+
+  if (!result.passed) {
+    process.exit(1);
+  }
 } else if (command === 'post-rewrite') {
   const oldHead = process.argv[3] || 'HEAD@{1}';
   const newHead = process.argv[4] || 'HEAD';
@@ -396,6 +654,7 @@ if (command === 'pre-push') {
 }
 
 export default {
+  archiveGuardCheck,
   scanLargeFiles,
   isRiskyGitCommand,
   isForcePushAcknowledged,

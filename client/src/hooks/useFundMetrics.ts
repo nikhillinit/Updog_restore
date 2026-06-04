@@ -26,6 +26,8 @@ interface UseFundMetricsOptions {
   enabled?: boolean;
   /** Custom refetch interval in ms (default: 5 minutes) */
   refetchInterval?: number;
+  /** Custom retry count for tests or narrow consumers (default: 3) */
+  retry?: number | false;
 }
 
 /**
@@ -56,7 +58,7 @@ export function useFundMetrics(
   options: UseFundMetricsOptions = {}
 ): UseQueryResult<UnifiedFundMetrics, Error> {
   const { fundId } = useFundContext();
-  const { skipProjections = false, enabled = true, refetchInterval = 300000 } = options;
+  const { skipProjections = false, enabled = true, refetchInterval = 300000, retry = 3 } = options;
 
   return useQuery<UnifiedFundMetrics, Error>({
     queryKey: ['fund-metrics', fundId, { skipProjections }],
@@ -87,7 +89,7 @@ export function useFundMetrics(
     gcTime: 600_000, // Keep in cache for 10 minutes
     refetchInterval,
     refetchOnWindowFocus: true,
-    retry: 3,
+    retry,
     retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000),
   });
 }

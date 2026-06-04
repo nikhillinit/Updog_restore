@@ -20,7 +20,7 @@ and `ToolHandler` in their agent class.
 Ask the user which agent they want to enable memory for, or search for agents if
 they're unsure:
 
-1. Search for `*Agent.ts` files in `packages/` directories
+1. Search `.claude/agents/` for the active prompt surface
 2. Present a list of found agents
 3. Ask which one they want to update
 
@@ -175,7 +175,7 @@ After making changes:
 2. Verify imports resolve correctly
 3. Show the user where to find more information:
    - `cheatsheets/agent-memory-integration.md` - Complete guide
-   - `packages/agent-core/examples/memory-enabled-agent.ts` - Working example
+   - `scripts/init-memory-manager.ts` - Package-free session context helper
 
 - `CAPABILITIES.md` - "Agent Memory Integration" section
 

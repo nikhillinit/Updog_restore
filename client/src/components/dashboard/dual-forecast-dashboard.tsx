@@ -6,8 +6,6 @@ import { CartesianGrid } from 'recharts/es6/cartesian/CartesianGrid';
 import { Tooltip } from 'recharts/es6/component/Tooltip';
 import { Legend } from 'recharts/es6/component/Legend';
 import { LazyResponsiveContainer as ResponsiveContainer } from '@/components/charts/LazyResponsiveContainer';
-import { AreaChart } from 'recharts/es6/chart/AreaChart';
-import { Area } from 'recharts/es6/cartesian/Area';
 import { BarChart } from 'recharts/es6/chart/BarChart';
 import { Bar } from 'recharts/es6/cartesian/Bar';
 import { useQuery } from '@tanstack/react-query';
@@ -17,16 +15,15 @@ import { Badge } from '@/components/ui/badge';
 import type { NameType, ValueType } from 'recharts/types/component/DefaultTooltipContent';
 import type { DashboardSummary } from '@/types/fund';
 import { useFundContext } from '@/contexts/FundContext';
+import { useDualForecast } from '@/hooks/useDualForecast';
+import { presson } from '@/theme/presson.tokens';
 
 const MILLION = 1_000_000;
-
-interface ForecastPoint {
-  month: string;
-  conservative: number;
-  realistic: number;
-  aggressive: number;
-  deployed: number;
-}
+const FORECAST_SERIES_COLORS = [
+  presson.color.text,
+  presson.color.positive,
+  presson.color.info,
+] as const;
 
 interface PortfolioChartPoint {
   name: string;
@@ -34,6 +31,16 @@ interface PortfolioChartPoint {
   investment: number;
   sector: string;
   stage: string;
+}
+
+interface ForecastChartPoint {
+  label: string;
+  constructionNav: number;
+  actualNav: number | null;
+  currentForecastNav: number | null;
+  constructionCalledCapital: number;
+  actualCalledCapital: number | null;
+  currentForecastCalledCapital: number | null;
 }
 
 function parseNumericValue(value: string | number | null | undefined): number {
@@ -66,6 +73,10 @@ function formatSeriesName(name: NameType | undefined): string {
   return name === 'value' ? 'Current Value' : 'Investment';
 }
 
+function toMillions(value: number): number {
+  return Math.round(value / MILLION);
+}
+
 export default function DualForecastDashboard() {
   const { currentFund, isLoading: isFundLoading, needsSetup, isDemoMode } = useFundContext();
   const fundId = currentFund?.id ?? null;
@@ -80,10 +91,13 @@ export default function DualForecastDashboard() {
     refetchInterval: 30000, // Refresh every 30 seconds
   });
 
-  const { data: _fundMetrics } = useQuery({
-    queryKey: [`/api/fund-metrics/${fundId}`],
+  const {
+    data: dualForecast,
+    isLoading: isForecastLoading,
+    error: forecastError,
+  } = useDualForecast(fundId, {
     enabled: fundId != null && !isDemoMode,
-    refetchInterval: 60000, // Refresh every minute
+    refetchInterval: 60000,
   });
 
   if (isFundLoading) {
@@ -128,35 +142,35 @@ export default function DualForecastDashboard() {
     );
   }
 
-  if (isLoading) {
+  if (isLoading || isForecastLoading) {
     return (
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <Card className="animate-pulse">
           <CardHeader>
-            <div className="h-6 bg-gray-200 rounded w-3/4"></div>
+            <div className="h-6 bg-pov-gray rounded w-3/4"></div>
           </CardHeader>
           <CardContent>
-            <div className="h-48 bg-gray-200 rounded"></div>
+            <div className="h-48 bg-pov-gray rounded"></div>
           </CardContent>
         </Card>
         <Card className="animate-pulse">
           <CardHeader>
-            <div className="h-6 bg-gray-200 rounded w-3/4"></div>
+            <div className="h-6 bg-pov-gray rounded w-3/4"></div>
           </CardHeader>
           <CardContent>
-            <div className="h-48 bg-gray-200 rounded"></div>
+            <div className="h-48 bg-pov-gray rounded"></div>
           </CardContent>
         </Card>
       </div>
     );
   }
 
-  if (error || !dashboardData) {
+  if (error || forecastError || !dashboardData || !dualForecast) {
     return (
       <Card>
         <CardContent className="pt-6">
           <div className="text-center py-8">
-            <p className="text-red-600 font-medium">Unable to load forecast data</p>
+            <p className="text-error-dark font-medium">Unable to load forecast data</p>
             <p className="text-muted-foreground mt-2">Please check API connectivity</p>
           </div>
         </CardContent>
@@ -168,32 +182,16 @@ export default function DualForecastDashboard() {
   const currentMetrics = dashboardData.metrics;
   const baseValue = parseNumericValue(currentMetrics?.totalValue);
   const currentIRR = parseNumericValue(currentMetrics?.irr);
-  const deployedCapital = parseNumericValue(dashboardData.fund.deployedCapital);
-
-  // Generate forecast scenarios
-  const generateForecastData = (): ForecastPoint[] => {
-    const months = Array.from({ length: 24 }, (_, index) => {
-      const date = new Date();
-      date.setMonth(date.getMonth() + index);
-      return date.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
-    });
-
-    return months.map((month, index) => {
-      const growthFactor = Math.pow(1 + currentIRR / 12, index);
-      const conservativeGrowth = Math.pow(1.15, index / 12); // 15% annual
-      const aggressiveGrowth = Math.pow(1.35, index / 12); // 35% annual
-
-      return {
-        month,
-        conservative: Math.round((baseValue * conservativeGrowth) / MILLION), // In millions
-        realistic: Math.round((baseValue * growthFactor) / MILLION),
-        aggressive: Math.round((baseValue * aggressiveGrowth) / MILLION),
-        deployed: Math.round((deployedCapital + index * 2_000_000) / MILLION),
-      };
-    });
-  };
-
-  const forecastData = generateForecastData();
+  const forecastData: ForecastChartPoint[] = dualForecast.series.map((point) => ({
+    label: point.label,
+    constructionNav: toMillions(point.construction.nav),
+    actualNav: point.actual ? toMillions(point.actual.nav) : null,
+    currentForecastNav: point.currentMode === 'forecast' ? toMillions(point.current.nav) : null,
+    constructionCalledCapital: toMillions(point.construction.calledCapital),
+    actualCalledCapital: point.actual ? toMillions(point.actual.calledCapital) : null,
+    currentForecastCalledCapital:
+      point.currentMode === 'forecast' ? toMillions(point.current.calledCapital) : null,
+  }));
 
   // Portfolio allocation data from real API
   const portfolioData: PortfolioChartPoint[] = dashboardData.portfolioCompanies.map((company) => ({
@@ -215,7 +213,7 @@ export default function DualForecastDashboard() {
                 <p className="text-sm font-medium text-muted-foreground">Current AUM</p>
                 <p className="text-2xl font-bold">${(baseValue / MILLION).toFixed(1)}M</p>
               </div>
-              <DollarSign className="h-8 w-8 text-blue-600" />
+              <DollarSign className="h-8 w-8 text-charcoal-600" />
             </div>
           </CardContent>
         </Card>
@@ -227,7 +225,7 @@ export default function DualForecastDashboard() {
                 <p className="text-sm font-medium text-muted-foreground">IRR</p>
                 <p className="text-2xl font-bold">{(currentIRR * 100).toFixed(1)}%</p>
               </div>
-              <TrendingUp className="h-8 w-8 text-green-600" />
+              <TrendingUp className="h-8 w-8 text-charcoal-600" />
             </div>
           </CardContent>
         </Card>
@@ -239,7 +237,7 @@ export default function DualForecastDashboard() {
                 <p className="text-sm font-medium text-muted-foreground">Portfolio Cos</p>
                 <p className="text-2xl font-bold">{dashboardData.portfolioCompanies.length}</p>
               </div>
-              <PieChart className="h-8 w-8 text-purple-600" />
+              <PieChart className="h-8 w-8 text-charcoal-600" />
             </div>
           </CardContent>
         </Card>
@@ -253,7 +251,7 @@ export default function DualForecastDashboard() {
                   {dashboardData.summary.deploymentRate.toFixed(0)}%
                 </p>
               </div>
-              <Target className="h-8 w-8 text-orange-600" />
+              <Target className="h-8 w-8 text-charcoal-600" />
             </div>
           </CardContent>
         </Card>
@@ -267,51 +265,54 @@ export default function DualForecastDashboard() {
             <CardTitle className="flex items-center gap-2">
               Fund Value Forecast
               <Badge variant="outline" className="text-xs">
-                Live Data
+                Construction Plan
+              </Badge>
+              <Badge variant="secondary" className="text-xs">
+                Actuals
+              </Badge>
+              <Badge variant="secondary" className="text-xs">
+                Current Forecast
               </Badge>
             </CardTitle>
             <CardDescription>
-              24-month value projection based on current {(currentIRR * 100).toFixed(1)}% IRR
+              Quarterly NAV comparison from the published plan, API actuals, and current forecast.
             </CardDescription>
           </CardHeader>
           <CardContent>
             <ResponsiveContainer width="100%" height={300}>
-              <AreaChart data={forecastData}>
+              <LineChart data={forecastData}>
                 <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="month" />
-                <YAxis label={{ value: 'Value ($M)', angle: -90, position: 'insideLeft' }} />
+                <XAxis dataKey="label" />
+                <YAxis label={{ value: 'NAV ($M)', angle: -90, position: 'insideLeft' }} />
                 <Tooltip
                   formatter={(value: ValueType | undefined) => [formatMillionValue(value), '']}
                 />
                 <Legend />
-                <Area
+                <Line
                   type="monotone"
-                  dataKey="conservative"
-                  stackId="1"
-                  stroke="#10b981"
-                  fill="#10b981"
-                  fillOpacity={0.3}
-                  name="Conservative (15%)"
+                  dataKey="constructionNav"
+                  stroke={FORECAST_SERIES_COLORS[0]}
+                  strokeWidth={3}
+                  dot={{ r: 3 }}
+                  name="Construction Plan"
                 />
-                <Area
+                <Line
                   type="monotone"
-                  dataKey="realistic"
-                  stackId="2"
-                  stroke="#3b82f6"
-                  fill="#3b82f6"
-                  fillOpacity={0.5}
-                  name={`Realistic (${(currentIRR * 100).toFixed(1)}%)`}
+                  dataKey="actualNav"
+                  stroke={FORECAST_SERIES_COLORS[1]}
+                  strokeWidth={3}
+                  dot={{ r: 4 }}
+                  name="Actuals"
                 />
-                <Area
+                <Line
                   type="monotone"
-                  dataKey="aggressive"
-                  stackId="3"
-                  stroke="#f59e0b"
-                  fill="#f59e0b"
-                  fillOpacity={0.3}
-                  name="Aggressive (35%)"
+                  dataKey="currentForecastNav"
+                  stroke={FORECAST_SERIES_COLORS[2]}
+                  strokeWidth={3}
+                  dot={{ r: 3 }}
+                  name="Current Forecast"
                 />
-              </AreaChart>
+              </LineChart>
             </ResponsiveContainer>
           </CardContent>
         </Card>
@@ -320,12 +321,12 @@ export default function DualForecastDashboard() {
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              Live Portfolio Allocation
+              Portfolio Allocation
               <Badge variant="outline" className="text-xs">
-                Real-time
+                API actuals
               </Badge>
             </CardTitle>
-            <CardDescription>Current valuation vs investment by company</CardDescription>
+            <CardDescription>Current API valuation vs invested capital by company</CardDescription>
           </CardHeader>
           <CardContent>
             <ResponsiveContainer width="100%" height={300}>
@@ -340,8 +341,8 @@ export default function DualForecastDashboard() {
                   ]}
                 />
                 <Legend />
-                <Bar dataKey="investment" fill="#94a3b8" name="Investment" />
-                <Bar dataKey="value" fill="#3b82f6" name="Current Value" />
+                <Bar dataKey="investment" fill={FORECAST_SERIES_COLORS[0]} name="Investment" />
+                <Bar dataKey="value" fill={FORECAST_SERIES_COLORS[1]} name="Current Value" />
               </BarChart>
             </ResponsiveContainer>
           </CardContent>
@@ -352,27 +353,43 @@ export default function DualForecastDashboard() {
       <Card>
         <CardHeader>
           <CardTitle>Capital Deployment Forecast</CardTitle>
-          <CardDescription>Projected deployment schedule based on current pipeline</CardDescription>
+          <CardDescription>Cumulative called capital by quarter.</CardDescription>
         </CardHeader>
         <CardContent>
           <ResponsiveContainer width="100%" height={200}>
             <LineChart data={forecastData}>
               <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="month" />
-              <YAxis label={{ value: 'Deployed ($M)', angle: -90, position: 'insideLeft' }} />
+              <XAxis dataKey="label" />
+              <YAxis label={{ value: 'Called ($M)', angle: -90, position: 'insideLeft' }} />
               <Tooltip
                 formatter={(value: ValueType | undefined) => [
                   formatMillionValue(value),
-                  'Deployed Capital',
+                  'Called Capital',
                 ]}
               />
               <Line
                 type="monotone"
-                dataKey="deployed"
-                stroke="#ef4444"
+                dataKey="constructionCalledCapital"
+                stroke={FORECAST_SERIES_COLORS[0]}
                 strokeWidth={3}
                 dot={{ r: 4 }}
-                name="Cumulative Deployment"
+                name="Construction Plan"
+              />
+              <Line
+                type="monotone"
+                dataKey="actualCalledCapital"
+                stroke={FORECAST_SERIES_COLORS[1]}
+                strokeWidth={3}
+                dot={{ r: 4 }}
+                name="Actuals"
+              />
+              <Line
+                type="monotone"
+                dataKey="currentForecastCalledCapital"
+                stroke={FORECAST_SERIES_COLORS[2]}
+                strokeWidth={3}
+                dot={{ r: 4 }}
+                name="Current Forecast"
               />
             </LineChart>
           </ResponsiveContainer>

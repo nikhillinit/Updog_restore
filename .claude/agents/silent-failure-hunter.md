@@ -7,13 +7,17 @@ color: yellow
 last_updated: 2026-04-03
 ---
 
-## Memory Integration 🧠 (PostgreSQL + pgvector)
+## Memory Integration (Historical Package Example)
+
+Batch 8 removed the local `@updog/memory-manager` package. Treat the historical
+snippet below as conceptual guidance for what this agent would store, not as a
+current import path or setup step.
 
 **Tenant ID**: `agent:silent-failure-hunter` **Memory Scope**: Project-level
 (cross-session learning) **Backend**: PostgreSQL with pgvector semantic search
 **Reference Guide**: `cheatsheets/agent-memory/silent-failure-hunter-memory.md`
 
-### Quick Setup
+### Historical Setup
 
 ```typescript
 import { MemoryManager } from '@updog/memory-manager';

@@ -31,13 +31,38 @@ import type { EconomicsResultV1 } from '@shared/contracts/economics-v1.contract'
 
 interface SummarySection {
   title: string;
-  items: Array<{ label: string; value: string | number; status?: 'ok' | 'warning' | 'missing' }>;
+  items: Array<{
+    label: string;
+    value: string | number;
+    status?: 'ok' | 'warning' | 'missing';
+    stepNumber?: number;
+  }>;
 }
 
 type SubmitState = 'idle' | 'submitting' | 'error';
 type EconomicsDryRunState =
   | { status: 'available'; result: EconomicsResultV1 }
-  | { status: 'failed'; title: string; message: string };
+  | {
+      status: 'failed';
+      title: string;
+      message: string;
+      details: Array<{ message: string; count: number }>;
+      fixStepNumber: number;
+      fixStepLabel: string;
+    };
+
+function summarizeMessages(messages: string[]) {
+  const counts = new Map<string, number>();
+
+  messages
+    .map((message) => message.trim().replace(/\s+/g, ' '))
+    .filter(Boolean)
+    .forEach((message) => {
+      counts.set(message, (counts.get(message) ?? 0) + 1);
+    });
+
+  return Array.from(counts.entries()).map(([message, count]) => ({ message, count }));
+}
 
 export default function ReviewStep() {
   const [, setLocation] = useLocation();
@@ -91,21 +116,25 @@ export default function ReviewStep() {
             label: 'Fund Name',
             value: fundName || 'Unnamed Fund',
             status: fundName ? 'ok' : 'missing',
+            stepNumber: 1,
           },
           {
             label: 'Fund Size',
             value: formatUSD(fundSize ?? 0),
             status: fundSize ? 'ok' : 'warning',
+            stepNumber: 1,
           },
           {
             label: 'Vintage Year',
             value: vintageYear ?? 'Not set',
             status: vintageYear ? 'ok' : 'warning',
+            stepNumber: 1,
           },
           {
             label: 'Fund Life',
             value: fundLife ? `${fundLife} years` : 'Not set',
             status: fundLife ? 'ok' : 'warning',
+            stepNumber: 1,
           },
         ],
       },
@@ -116,11 +145,13 @@ export default function ReviewStep() {
             label: 'Management Fee',
             value: managementFeeRate != null ? `${managementFeeRate.toFixed(2)}%` : 'Not set',
             status: managementFeeRate != null ? 'ok' : 'warning',
+            stepNumber: 1,
           },
           {
             label: 'Carry',
             value: carriedInterest != null ? `${carriedInterest.toFixed(0)}%` : 'Not set',
             status: carriedInterest != null ? 'ok' : 'warning',
+            stepNumber: 1,
           },
         ],
       },
@@ -131,17 +162,25 @@ export default function ReviewStep() {
             label: 'Investment Stages',
             value: stages.length > 0 ? `${stages.length} stages` : 'Not configured',
             status: stages.length > 0 ? 'ok' : 'warning',
+            stepNumber: 2,
           },
           {
             label: 'Waterfall',
             value: waterfallType ?? 'Not set',
             status: waterfallType ? 'ok' : 'warning',
+            stepNumber: 5,
           },
-          { label: 'Recycling', value: recyclingEnabled ? 'Enabled' : 'Disabled', status: 'ok' },
+          {
+            label: 'Recycling',
+            value: recyclingEnabled ? 'Enabled' : 'Disabled',
+            status: 'ok',
+            stepNumber: 5,
+          },
           {
             label: 'Establishment',
             value: establishmentDate ?? 'Not set',
             status: establishmentDate ? 'ok' : 'warning',
+            stepNumber: 1,
           },
         ],
       },
@@ -178,25 +217,40 @@ export default function ReviewStep() {
       return { status: 'available', result: runEconomicsModel(draft) };
     } catch (error) {
       if (error instanceof EconomicsInputValidationError) {
+        const details = summarizeMessages(
+          error.issues.map((issue) => {
+            const path = issue.path.length > 0 ? issue.path.join('.') : 'economics input';
+            return `${path}: ${issue.message}`;
+          })
+        );
         return {
           status: 'failed',
           title: 'Economics validation failed',
-          message: error.issues
-            .map((issue) => `${issue.path.join('.')}: ${issue.message}`)
-            .join('; '),
+          message: 'Review the listed economics inputs before publishing the fund.',
+          details,
+          fixStepNumber: 5,
+          fixStepLabel: 'Review distributions, fees, and recycling settings',
         };
       }
       if (error instanceof EconomicsInvariantError) {
+        const details = summarizeMessages(error.checks.errors.map((issue) => issue.message));
         return {
           status: 'failed',
           title: 'Economics invariant failed',
-          message: error.checks.errors.map((issue) => issue.message).join('; '),
+          message:
+            'Period cash sources and uses do not reconcile. Review distributions, fees, recycling, and cashflow assumptions before publishing.',
+          details,
+          fixStepNumber: 6,
+          fixStepLabel: 'Review cashflow and liquidity settings',
         };
       }
       return {
         status: 'failed',
         title: 'Economics dry-run failed',
         message: error instanceof Error ? error.message : 'Unexpected economics engine error',
+        details: [],
+        fixStepNumber: 5,
+        fixStepLabel: 'Review distribution settings',
       };
     }
   })();
@@ -271,11 +325,23 @@ export default function ReviewStep() {
   const getStatusIcon = (status?: 'ok' | 'warning' | 'missing') => {
     switch (status) {
       case 'ok':
-        return <CheckCircle className="h-4 w-4 text-green-600" />;
+        return (
+          <span className="inline-flex items-center" aria-label="Valid">
+            <CheckCircle aria-hidden="true" className="h-4 w-4 text-success" />
+          </span>
+        );
       case 'warning':
-        return <AlertTriangle className="h-4 w-4 text-amber-500" />;
+        return (
+          <span className="inline-flex items-center" aria-label="Warning: needs attention">
+            <AlertTriangle aria-hidden="true" className="h-4 w-4 text-warning" />
+          </span>
+        );
       case 'missing':
-        return <AlertTriangle className="h-4 w-4 text-red-500" />;
+        return (
+          <span className="inline-flex items-center" aria-label="Missing required data">
+            <AlertTriangle aria-hidden="true" className="h-4 w-4 text-error" />
+          </span>
+        );
       default:
         return null;
     }
@@ -283,6 +349,14 @@ export default function ReviewStep() {
 
   const isSubmitting = submitState === 'submitting';
   const economicsBlocksSubmit = economicsEnabled && economicsDryRun?.status !== 'available';
+  const createDisabledReason =
+    validationSummary.missing > 0
+      ? 'Complete missing required fields before creating the fund.'
+      : economicsBlocksSubmit
+        ? 'Resolve the economics dry-run error before publishing.'
+        : isSubmitting
+          ? 'Fund creation is already in progress.'
+          : null;
 
   return (
     <div className="space-y-6 pb-8" data-testid="review-step">
@@ -295,31 +369,67 @@ export default function ReviewStep() {
         </p>
       </div>
 
+      {economicsEnabled && economicsDryRun?.status === 'failed' && (
+        <Alert
+          aria-live="assertive"
+          className="border-l-4 border-l-error bg-error/10"
+          data-testid="economics-blocking-alert"
+        >
+          <AlertTriangle aria-hidden="true" className="h-5 w-5 text-error" />
+          <AlertTitle>{economicsDryRun.title}</AlertTitle>
+          <AlertDescription className="space-y-3">
+            <p>{economicsDryRun.message}</p>
+            {economicsDryRun.details.length > 0 && (
+              <div className="max-h-40 overflow-y-auto rounded-md border border-error/30 bg-white p-3">
+                <ul className="list-disc space-y-1 pl-5">
+                  {economicsDryRun.details.map((detail) => (
+                    <li key={detail.message}>
+                      {detail.message}
+                      {detail.count > 1 ? ` (${detail.count} occurrences)` : ''}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+            <button
+              type="button"
+              className="text-sm font-medium text-error-dark underline underline-offset-4"
+              onClick={() => setLocation(`/fund-setup?step=${economicsDryRun.fixStepNumber}`)}
+            >
+              {economicsDryRun.fixStepLabel}
+            </button>
+          </AlertDescription>
+        </Alert>
+      )}
+
       {/* Validation Summary */}
       <Alert
+        aria-live={
+          validationSummary.missing > 0 || validationSummary.warnings > 0 ? 'assertive' : 'polite'
+        }
         className={cn(
           'border-l-4',
           validationSummary.missing > 0
-            ? 'border-l-red-500 bg-red-50'
+            ? 'border-l-error bg-error/10'
             : validationSummary.warnings > 0
-              ? 'border-l-amber-500 bg-amber-50'
-              : 'border-l-green-500 bg-green-50'
+              ? 'border-l-warning bg-warning/10'
+              : 'border-l-success bg-success/10'
         )}
       >
         <AlertTitle className="flex items-center gap-2">
           {validationSummary.missing > 0 ? (
             <>
-              <AlertTriangle className="h-5 w-5 text-red-500" />
+              <AlertTriangle className="h-5 w-5 text-error" />
               Missing Required Fields
             </>
           ) : validationSummary.warnings > 0 ? (
             <>
-              <AlertTriangle className="h-5 w-5 text-amber-500" />
+              <AlertTriangle className="h-5 w-5 text-warning" />
               Some Fields Need Attention
             </>
           ) : (
             <>
-              <CheckCircle className="h-5 w-5 text-green-500" />
+              <CheckCircle className="h-5 w-5 text-success" />
               Ready to Create
             </>
           )}
@@ -343,7 +453,18 @@ export default function ReviewStep() {
                 <div key={item.label} className="flex items-center justify-between">
                   <span className="text-sm text-presson-textMuted">{item.label}</span>
                   <div className="flex items-center gap-2">
-                    <span className="text-sm font-medium text-presson-text">{item.value}</span>
+                    {item.status === 'ok' || item.stepNumber == null ? (
+                      <span className="text-sm font-medium text-presson-text">{item.value}</span>
+                    ) : (
+                      <button
+                        type="button"
+                        className="text-sm font-medium text-presson-text underline underline-offset-4"
+                        onClick={() => setLocation(`/fund-setup?step=${item.stepNumber}`)}
+                        aria-label={`Fix ${item.label} in step ${item.stepNumber}`}
+                      >
+                        {item.value}
+                      </button>
+                    )}
                     {getStatusIcon(item.status)}
                   </div>
                 </div>
@@ -353,54 +474,46 @@ export default function ReviewStep() {
         ))}
       </div>
 
-      {economicsEnabled && economicsDryRun && (
+      {economicsEnabled && economicsDryRun?.status === 'available' && (
         <Card className="border-presson-borderSubtle" data-testid="economics-dry-run-card">
           <CardHeader className="pb-3">
             <CardTitle className="text-lg text-presson-text">Economics Dry Run</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            {economicsDryRun.status === 'available' ? (
-              <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
-                <DryRunMetric
-                  label="Net LP IRR"
-                  value={formatNullablePercent(economicsDryRun.result.summary.lpNetIrr)}
-                />
-                <DryRunMetric
-                  label="Net GP IRR"
-                  value={formatNullablePercent(economicsDryRun.result.summary.gpNetIrr)}
-                />
-                <DryRunMetric
-                  label="Management Fees"
-                  value={formatUSD(economicsDryRun.result.summary.totalManagementFees)}
-                />
-                <DryRunMetric
-                  label="Total GP Carry"
-                  value={formatUSD(economicsDryRun.result.summary.totalGpCarryDistributed)}
-                />
-                <DryRunMetric
-                  label="Final DPI"
-                  value={`${economicsDryRun.result.summary.finalDpi.toFixed(2)}x`}
-                />
-                <DryRunMetric
-                  label="Final TVPI"
-                  value={`${economicsDryRun.result.summary.finalTvpi.toFixed(2)}x`}
-                />
-                <DryRunMetric
-                  label="Clawback Exposure"
-                  value={formatUSD(economicsDryRun.result.summary.finalClawbackDue)}
-                />
-                <DryRunMetric
-                  label="Invariant Status"
-                  value={economicsDryRun.result.checks.passed ? 'Passed' : 'Failed'}
-                />
-              </div>
-            ) : (
-              <Alert className="border-l-4 border-l-red-500 bg-red-50">
-                <AlertTriangle className="h-5 w-5 text-red-500" />
-                <AlertTitle>{economicsDryRun.title}</AlertTitle>
-                <AlertDescription>{economicsDryRun.message}</AlertDescription>
-              </Alert>
-            )}
+            <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+              <DryRunMetric
+                label="Net LP IRR"
+                value={formatNullablePercent(economicsDryRun.result.summary.lpNetIrr)}
+              />
+              <DryRunMetric
+                label="Net GP IRR"
+                value={formatNullablePercent(economicsDryRun.result.summary.gpNetIrr)}
+              />
+              <DryRunMetric
+                label="Management Fees"
+                value={formatUSD(economicsDryRun.result.summary.totalManagementFees)}
+              />
+              <DryRunMetric
+                label="Total GP Carry"
+                value={formatUSD(economicsDryRun.result.summary.totalGpCarryDistributed)}
+              />
+              <DryRunMetric
+                label="Final DPI"
+                value={`${economicsDryRun.result.summary.finalDpi.toFixed(2)}x`}
+              />
+              <DryRunMetric
+                label="Final TVPI"
+                value={`${economicsDryRun.result.summary.finalTvpi.toFixed(2)}x`}
+              />
+              <DryRunMetric
+                label="Clawback Exposure"
+                value={formatUSD(economicsDryRun.result.summary.finalClawbackDue)}
+              />
+              <DryRunMetric
+                label="Invariant Status"
+                value={economicsDryRun.result.checks.passed ? 'Passed' : 'Failed'}
+              />
+            </div>
           </CardContent>
         </Card>
       )}
@@ -409,8 +522,8 @@ export default function ReviewStep() {
 
       {/* Error display */}
       {submitState === 'error' && submitError && (
-        <Alert className="border-l-4 border-l-red-500 bg-red-50">
-          <AlertTriangle className="h-5 w-5 text-red-500" />
+        <Alert aria-live="assertive" className="border-l-4 border-l-error bg-error/10">
+          <AlertTriangle className="h-5 w-5 text-error" />
           <AlertTitle>Fund Creation and Publish Failed</AlertTitle>
           <AlertDescription>{submitError}</AlertDescription>
         </Alert>
@@ -431,6 +544,8 @@ export default function ReviewStep() {
           <Button
             onClick={handleCreate}
             disabled={validationSummary.missing > 0 || economicsBlocksSubmit || isSubmitting}
+            aria-describedby={createDisabledReason ? 'create-disabled-reason' : undefined}
+            title={createDisabledReason ?? undefined}
             className="gap-2 bg-presson-accent text-presson-accentOn hover:bg-presson-accent/90"
             data-testid="create-fund-button"
           >
@@ -446,6 +561,11 @@ export default function ReviewStep() {
               </>
             )}
           </Button>
+          {createDisabledReason && (
+            <p id="create-disabled-reason" className="max-w-xs text-sm text-presson-textMuted">
+              {createDisabledReason}
+            </p>
+          )}
         </div>
       </div>
     </div>

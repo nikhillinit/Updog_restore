@@ -1,8 +1,3 @@
- 
- 
- 
- 
- 
 import React from 'react';
 import { POVLogo } from '@/components/ui/POVLogo';
 
@@ -13,7 +8,7 @@ interface WizardHeaderProps {
 
 export function WizardHeader({ title }: WizardHeaderProps) {
   return (
-    <div className="bg-white border-b border-gray-200 shadow-sm">
+    <div className="bg-white border-b border-beige-200 shadow-sm">
       <div className="max-w-6xl mx-auto px-6 py-8">
         {/* Centered logo at top */}
         <div className="text-center mb-8">

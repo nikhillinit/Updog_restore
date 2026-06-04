@@ -1,0 +1,5 @@
+{
+  "allowedLegacyAliases": [],
+  "generatedAt": "2026-05-28T01:24:10.961Z",
+  "policy": "No new test/lint/validate/guard wave, phase, or slice npm aliases. Prefer capability or domain names."
+}

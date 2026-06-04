@@ -15,7 +15,6 @@ export {
 // Re-export types (type-only exports)
 export type {
   PortfolioStrategy,
-  PortfolioState,
   CheckSizeConfig,
   AllocationConfig,
   ScenarioConfig,

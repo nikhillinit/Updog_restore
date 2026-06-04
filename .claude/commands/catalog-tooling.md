@@ -28,8 +28,9 @@ You MUST catalog assets from **multiple independent sources**:
 **Agent Packages**:
 
 - Search: `packages/*/package.json`
-- Filter: Packages with "agent" in name or description
-- For each: Extract name, version, description, dependencies, scripts
+- Expected current result after Batch 8: no tracked local agent packages
+- If packages reappear, extract name, version, description, dependencies, and
+  scripts and classify why package source returned
 
 **Scripts & Automation**:
 
@@ -203,6 +204,9 @@ _Generated: [Today's date]_
 
 ## 6. AI AGENT PACKAGES (packages/)
 
+Current expected state: no tracked local agent packages. Package-backed agent
+source was removed in Batch 8 after active usage scans came back clean.
+
 ### [@scope/package-name]
 
 - **Version**: [version]
@@ -277,7 +281,8 @@ Cross-reference your catalog against:
 - ✅ All available function calls (mcp__*)
 - ✅ All files in `.claude/agents/`
 - ✅ All files in `.claude/commands/`
-- ✅ All packages in `packages/`
+- ✅ `packages/` package inventory is empty or every reintroduced package is
+  classified
 - ✅ All scripts in `package.json`
 - ✅ Built-in agents: general-purpose, statusline-setup, Explore, Plan
 
@@ -330,7 +335,7 @@ For each agent package, check:
 
 ### Integration Guides
 - `cheatsheets/agent-memory-integration.md` - Integration guide
-- `packages/agent-core/examples/memory-enabled-agent.ts` - Working example
+- `scripts/init-memory-manager.ts` - Package-free session context helper
 - `NATIVE-MEMORY-INTEGRATION.md` - Architecture documentation
 - `MIGRATION-NATIVE-MEMORY.md` - Migration guide
 
@@ -365,7 +370,7 @@ up-to-date:
 
 - Scans `.claude/agents/` for project agents
 - Scans `.claude/commands/` for slash commands
-- Scans `packages/` for agent packages
+- Scans `packages/` for any reintroduced agent packages
 - Counts NPM scripts by category
 - Updates "Last Updated" date in CAPABILITIES.md
 - Updates agent count (project + user-level + built-in)

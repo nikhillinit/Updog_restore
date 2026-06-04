@@ -3,6 +3,7 @@ import { createRequire } from 'node:module';
 import { beforeEach, describe, expect, it } from 'vitest';
 
 import { fundConfigs, funds } from '@shared/schema';
+import { lpMetricRuns } from '@shared/schema/lp-reporting-evidence';
 
 const require = createRequire(import.meta.url);
 const databaseMockModule = require('../../helpers/database-mock.cjs') as {
@@ -10,6 +11,13 @@ const databaseMockModule = require('../../helpers/database-mock.cjs') as {
     insert: (table: unknown) => {
       values: (value: unknown) => {
         returning: () => Promise<Array<Record<string, unknown>>>;
+      };
+    };
+    update: (table: unknown) => {
+      set: (value: unknown) => {
+        where: (clause: unknown) => {
+          returning: () => Promise<Array<Record<string, unknown>>>;
+        };
       };
     };
     select: () => {
@@ -51,6 +59,60 @@ describe('database-mock.cjs Drizzle clause matching', () => {
     expect(selected).toBeDefined();
     expect(selected?.id).toBe(inserted.id);
     expect(selected?.name).toBe('Mock Fund');
+  });
+
+  it('adds createdAt and updatedAt defaults to inserted rows', async () => {
+    const [inserted] = await databaseMockModule.databaseMock
+      .insert(funds)
+      .values({
+        name: 'Timestamped Mock Fund',
+        size: '100000000',
+        managementFee: '0.02',
+        carryPercentage: '0.2',
+        vintageYear: 2026,
+      })
+      .returning();
+
+    expect(typeof inserted?.createdAt).toBe('string');
+    expect(typeof inserted?.updatedAt).toBe('string');
+  });
+
+  it('applies lp_metric_runs version defaults before optimistic-lock updates', async () => {
+    const [inserted] = await databaseMockModule.databaseMock
+      .insert(lpMetricRuns)
+      .values({
+        fundId: 1,
+        asOfDate: '2026-03-31',
+        runType: 'quarterly_report',
+        perspective: 'lp_net',
+        status: 'draft',
+        inputsHash: 'a'.repeat(64),
+        sourceEventIds: [],
+        sourceMarkIds: [],
+        sourceEvidenceIds: [],
+        resultsJson: {},
+        diagnosticsJson: {},
+        methodologyVersion: 'lp-reporting-methodology-v1',
+        calculationVersion: 'lp-reporting-metrics-engine-1.0.0',
+      })
+      .returning();
+
+    const [updated] = await databaseMockModule.databaseMock
+      .update(lpMetricRuns)
+      .set({ status: 'approved', version: 2 })
+      .where(
+        and(
+          eq(lpMetricRuns.fundId, 1),
+          eq(lpMetricRuns.id, inserted?.id as number),
+          eq(lpMetricRuns.status, 'draft'),
+          eq(lpMetricRuns.version, 1)
+        )
+      )
+      .returning();
+
+    expect(inserted?.version).toBe(1);
+    expect(updated?.status).toBe('approved');
+    expect(updated?.version).toBe(2);
   });
 
   it('can read back inserted draft configs by and(eq(fundId), eq(isDraft))', async () => {

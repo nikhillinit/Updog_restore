@@ -1,32 +1,30 @@
-import { dirname, resolve } from 'node:path';
+import { dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { defineConfig } from 'vitest/config';
+import { createVitestAlias } from './vitest.config.shared.mjs';
 
 const projectRoot = dirname(fileURLToPath(import.meta.url));
+const alias = createVitestAlias(projectRoot, {
+  includeAppServer: true,
+  includeTestMocks: true,
+  includeUpstashRedisMock: true,
+});
+const scenarioReleaseGatePath =
+  'tests/integration/scenarios/scenario-release-gate.integration.test.ts';
+const testcontainersOnlyPaths = [
+  'tests/integration/testcontainers-smoke.test.ts',
+  'tests/integration/migration-runner.test.ts',
+  'tests/integration/fund-lifecycle-db.test.ts',
+];
 
 export default defineConfig({
   root: projectRoot,
-  resolve: {
-    alias: {
-      '@/core': resolve(projectRoot, './client/src/core'),
-      '@/lib': resolve(projectRoot, './client/src/lib'),
-      '@/server': resolve(projectRoot, './server'),
-      '@/metrics/reserves-metrics': resolve(projectRoot, './tests/mocks/metrics-mock.ts'),
-      '@/server/utils/logger': resolve(projectRoot, './tests/mocks/server-logger.ts'),
-      '@/': resolve(projectRoot, './client/src/'),
-      '@': resolve(projectRoot, './client/src'),
-      '@shared/': resolve(projectRoot, './shared/'),
-      '@shared': resolve(projectRoot, './shared'),
-      '@schema': resolve(projectRoot, './shared/schema'),
-      '@assets/': resolve(projectRoot, './assets/'),
-      '@assets': resolve(projectRoot, './assets'),
-      '@upstash/redis': resolve(projectRoot, './tests/mocks/upstash-redis.ts'),
-    },
-  },
+  resolve: { alias },
   test: {
-    name: 'integration',
+    name: 'server',
     globalSetup: ['tests/integration/global-setup.ts'],
     include: [
+      scenarioReleaseGatePath,
       'tests/integration/**/*.int.spec.ts',
       'tests/integration/**/*.spec.ts',
       'tests/integration/**/*.test.ts',
@@ -39,11 +37,10 @@ export default defineConfig({
       '**/*.quarantine.test.ts',
       'tests/quarantine/**/*',
       // Testcontainers tests require Docker - run via testcontainers-ci.yml instead
-      'tests/integration/testcontainers-smoke.test.ts',
+      ...testcontainersOnlyPaths,
       'tests/integration/ScenarioMatrixCache.integration.test.ts',
       'tests/integration/cache-monitoring.integration.test.ts',
       'tests/integration/scenarioGeneratorWorker.test.ts',
-      'tests/integration/migration-runner.test.ts',
       // Re-quarantined 2026-04-08: test asserts against pre-Phase-2A FundCreateV1
       // contract (managementFee/carryPercentage as whole-number percent, extra
       // keys deployedCapital/status/termYears, flat response). Current contract
@@ -61,10 +58,7 @@ export default defineConfig({
     clearMocks: true,
     restoreMocks: true,
     pool: 'forks', // Better isolation for integration tests
-    poolOptions: {
-      forks: {
-        singleFork: true, // Prevent parallel execution that could conflict
-      },
-    },
+    maxWorkers: 1, // Prevent parallel execution that could conflict
+    isolate: false, // Keep integration files in one fork worker.
   },
 });

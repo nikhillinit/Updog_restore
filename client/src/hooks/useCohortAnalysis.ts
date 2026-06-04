@@ -33,7 +33,7 @@ async function readErrorMessage(response: Response, fallback: string): Promise<s
 // ============================================================================
 
 interface CohortDefinition {
-  id: number;
+  id: string;
   fundId: number;
   name: string;
   vintageGranularity: VintageGranularity;
@@ -88,10 +88,12 @@ interface UseCohortAnalysisOptions {
   /** Filter by sector IDs (UUID strings) */
   sectorIds?: string[] | undefined;
   /** Date range for analysis */
-  dateRange?: {
-    start?: string | undefined;
-    end?: string | undefined;
-  } | undefined;
+  dateRange?:
+    | {
+        start?: string | undefined;
+        end?: string | undefined;
+      }
+    | undefined;
   /** Filter by investment stages */
   stages?: string[] | undefined;
   /** Enable/disable the query */
@@ -127,13 +129,7 @@ export function useCohortAnalysis(
   options: UseCohortAnalysisOptions = {}
 ): UseQueryResult<CohortAnalyzeResponse, Error> {
   const { fundId } = useFundContext();
-  const {
-    cohortDefinitionId,
-    sectorIds,
-    dateRange,
-    stages,
-    enabled = true,
-  } = options;
+  const { cohortDefinitionId, sectorIds, dateRange, stages, enabled = true } = options;
 
   return useQuery<CohortAnalyzeResponse, Error>({
     queryKey: [
@@ -449,8 +445,7 @@ export function useSeedCohortData(): UseMutationResult<
           predicate: (query) => {
             const key = query.queryKey[0];
             return (
-              typeof key === 'string' &&
-              (key.startsWith('cohort-') || key === 'unmapped-sectors')
+              typeof key === 'string' && (key.startsWith('cohort-') || key === 'unmapped-sectors')
             );
           },
         });

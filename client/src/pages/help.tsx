@@ -19,7 +19,7 @@ import {
 
 export default function HelpPage() {
   return (
-    <div className="min-h-screen bg-slate-100">
+    <div className="min-h-screen bg-pov-gray">
       <POVBrandHeader
         title="Help & Support"
         subtitle="Documentation, tutorials, and contact support"
@@ -39,7 +39,7 @@ export default function HelpPage() {
                   <h3 className="font-inter font-semibold text-sm text-pov-charcoal mb-1">
                     Documentation
                   </h3>
-                  <p className="font-poppins text-xs text-gray-500 mb-3">
+                  <p className="font-poppins text-xs text-charcoal-500 mb-3">
                     Comprehensive guides for all features
                   </p>
                   <Button variant="link" className="p-0 h-auto text-pov-charcoal">
@@ -60,7 +60,7 @@ export default function HelpPage() {
                   <h3 className="font-inter font-semibold text-sm text-pov-charcoal mb-1">
                     Video Tutorials
                   </h3>
-                  <p className="font-poppins text-xs text-gray-500 mb-3">
+                  <p className="font-poppins text-xs text-charcoal-500 mb-3">
                     Step-by-step walkthrough videos
                   </p>
                   <Button variant="link" className="p-0 h-auto text-pov-charcoal">
@@ -86,20 +86,20 @@ export default function HelpPage() {
             </div>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="border-b border-gray-100 pb-4">
+            <div className="border-b border-beige-200 pb-4">
               <h4 className="font-inter font-medium text-sm text-pov-charcoal mb-2">
                 How do I add a new portfolio company?
               </h4>
-              <p className="font-poppins text-xs text-gray-500">
+              <p className="font-poppins text-xs text-charcoal-500">
                 Navigate to Portfolio, then click "Add Company" in the Companies tab.
                 Fill in the company details and investment information.
               </p>
             </div>
-            <div className="border-b border-gray-100 pb-4">
+            <div className="border-b border-beige-200 pb-4">
               <h4 className="font-inter font-medium text-sm text-pov-charcoal mb-2">
                 What is Reserve Planning?
               </h4>
-              <p className="font-poppins text-xs text-gray-500">
+              <p className="font-poppins text-xs text-charcoal-500">
                 Reserve Planning helps you allocate follow-on capital across your portfolio.
                 Use the Reallocation Tools to optimize reserve distribution.
               </p>
@@ -108,7 +108,7 @@ export default function HelpPage() {
               <h4 className="font-inter font-medium text-sm text-pov-charcoal mb-2">
                 How do I create scenarios for a company?
               </h4>
-              <p className="font-poppins text-xs text-gray-500">
+              <p className="font-poppins text-xs text-charcoal-500">
                 Open any company from Portfolio, then select the Scenarios tab.
                 Create scenarios to model different exit outcomes and valuations.
               </p>
@@ -130,14 +130,14 @@ export default function HelpPage() {
             </div>
           </CardHeader>
           <CardContent>
-            <div className="flex items-center justify-between p-4 rounded-lg bg-gray-50">
+            <div className="flex items-center justify-between p-4 rounded-lg bg-pov-gray">
               <div className="flex items-center gap-3">
                 <Mail className="h-5 w-5 text-pov-charcoal/60" />
                 <div>
                   <p className="font-inter text-sm font-medium text-pov-charcoal">
                     Email Support
                   </p>
-                  <p className="font-poppins text-xs text-gray-500">
+                  <p className="font-poppins text-xs text-charcoal-500">
                     support@pressonfund.com
                   </p>
                 </div>
@@ -167,13 +167,13 @@ export default function HelpPage() {
             <div className="space-y-3">
               <div className="flex items-start gap-3">
                 <span className="font-mono text-xs text-pov-charcoal/60 mt-0.5">v2.4.0</span>
-                <p className="font-poppins text-sm text-gray-600">
+                <p className="font-poppins text-sm text-charcoal-600">
                   Simplified navigation with 4 primary nav items, merged Reserve Planning tab
                 </p>
               </div>
               <div className="flex items-start gap-3">
                 <span className="font-mono text-xs text-pov-charcoal/60 mt-0.5">v2.3.0</span>
-                <p className="font-poppins text-sm text-gray-600">
+                <p className="font-poppins text-sm text-charcoal-600">
                   Added company-level Scenarios tab with scenario comparison charts
                 </p>
               </div>

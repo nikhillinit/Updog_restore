@@ -61,11 +61,11 @@ export function LiveTotalsAside({
           {/* Allocation Progress */}
           <div>
             <div className="flex items-baseline justify-between mb-2">
-              <span className="text-sm text-gray-700">Allocation Total</span>
+              <span className="text-sm text-charcoal-700">Allocation Total</span>
               <span
                 className={cn(
                   'font-bold text-lg tabular-nums',
-                  allocationValid ? 'text-green-700' : 'text-amber-700'
+                  allocationValid ? 'text-success-dark' : 'text-warning-dark'
                 )}
               >
                 {allocationTotalPct.toFixed(0)}%
@@ -73,11 +73,11 @@ export function LiveTotalsAside({
             </div>
 
             {/* Progress Bar */}
-            <div className="h-3 bg-gray-200 rounded-full overflow-hidden">
+            <div className="h-3 bg-charcoal-300 rounded-full overflow-hidden">
               <div
                 className={cn(
                   'h-full transition-all duration-300',
-                  allocationValid ? 'bg-green-600' : 'bg-amber-500'
+                  allocationValid ? 'bg-success' : 'bg-warning'
                 )}
                 style={{
                   width: `${Math.min(100, Math.max(0, allocationTotalPct))}%`,
@@ -85,26 +85,26 @@ export function LiveTotalsAside({
               />
             </div>
 
-            <p className="text-xs text-gray-500 mt-1.5">
+            <p className="text-xs text-charcoal-500 mt-1.5">
               {allocationValid ? '✓ Ready to proceed' : `Target: 100%`}
             </p>
           </div>
 
           {/* Divider */}
-          <div className="border-t border-gray-200" />
+          <div className="border-t border-beige-200" />
 
           {/* Reserves */}
           <div className="flex items-baseline justify-between">
-            <span className="text-sm text-gray-700">Reserves (est.)</span>
-            <span className="font-bold text-lg tabular-nums text-purple-700">
+            <span className="text-sm text-charcoal-700">Reserves (est.)</span>
+            <span className="font-bold text-lg tabular-nums text-presson-info">
               {formatUSD(reservesUSD)}
             </span>
           </div>
 
           {/* Estimated Annual Fees */}
           <div className="flex items-baseline justify-between">
-            <span className="text-sm text-gray-700">Est. Annual Fees</span>
-            <span className="font-bold text-lg tabular-nums text-gray-900">
+            <span className="text-sm text-charcoal-700">Est. Annual Fees</span>
+            <span className="font-bold text-lg tabular-nums text-pov-charcoal">
               {formatUSD(estimatedAnnualFeesUSD)}
             </span>
           </div>
@@ -112,20 +112,20 @@ export function LiveTotalsAside({
           {/* First Error Alert */}
           {firstErrorLabel && (
             <>
-              <div className="border-t border-red-200" />
-              <div className="rounded-lg bg-red-50 border border-red-200 p-3">
+              <div className="border-t border-error/30" />
+              <div className="rounded-lg bg-error/10 border border-error/30 p-3">
                 <div className="flex items-start gap-2">
-                  <AlertCircle className="h-4 w-4 text-red-600 flex-shrink-0 mt-0.5" />
+                  <AlertCircle className="h-4 w-4 text-error flex-shrink-0 mt-0.5" />
                   <div className="flex-1 min-w-0">
-                    <p className="text-xs font-semibold text-red-900 mb-1">Validation Error</p>
-                    <p className="text-xs text-red-700 leading-relaxed">{firstErrorLabel}</p>
+                    <p className="text-xs font-semibold text-error-dark mb-1">Validation Error</p>
+                    <p className="text-xs text-error-dark leading-relaxed">{firstErrorLabel}</p>
                   </div>
                 </div>
 
                 {onFixFirstError && (
                   <button
                     onClick={onFixFirstError}
-                    className="mt-3 w-full px-3 py-1.5 text-xs font-medium rounded-md bg-red-600 text-white hover:bg-red-700 transition-colors"
+                    className="mt-3 w-full px-3 py-1.5 text-xs font-medium rounded-md bg-pov-charcoal text-pov-white hover:bg-charcoal-700 transition-colors"
                   >
                     Fix Error
                   </button>
@@ -137,17 +137,21 @@ export function LiveTotalsAside({
           {/* Summary Stats (when valid) */}
           {!firstErrorLabel && allocationValid && (
             <>
-              <div className="border-t border-gray-200" />
-              <div className="rounded-lg bg-green-50 border border-green-200 p-3">
-                <p className="text-xs font-semibold text-green-900 mb-2">✓ All validations passed</p>
-                <div className="space-y-1.5 text-xs text-green-700">
+              <div className="border-t border-beige-200" />
+              <div className="rounded-lg bg-success/10 border border-success/30 p-3">
+                <p className="text-xs font-semibold text-success-dark mb-2">
+                  ✓ All validations passed
+                </p>
+                <div className="space-y-1.5 text-xs text-success-dark">
                   <div className="flex justify-between">
                     <span>Committed Capital</span>
                     <span className="font-mono">{formatUSD(committedCapitalUSD)}</span>
                   </div>
                   <div className="flex justify-between">
                     <span>Initial Investments</span>
-                    <span className="font-mono">{formatUSD(committedCapitalUSD - reservesUSD)}</span>
+                    <span className="font-mono">
+                      {formatUSD(committedCapitalUSD - reservesUSD)}
+                    </span>
                   </div>
                   <div className="flex justify-between">
                     <span>Follow-on Capital</span>

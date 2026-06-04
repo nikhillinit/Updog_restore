@@ -64,7 +64,7 @@ layer:
 - Example: $100M fund × 2% = $2M/year (constant)
 - Usage: Most common in early-stage and seed funds
 - Schema:
-  [`FeeBasisType.committed_capital`](../../shared/schemas/fee-profile.ts:13-20)
+  [`FeeBasisType.committed_capital`](../../shared/schemas/fee-profile.ts#L13-L20)
 
 **2. Called Capital Cumulative (`called_capital_cumulative`)**
 
@@ -73,7 +73,7 @@ layer:
 - Example: $60M called of $100M → $60M × 2% = $1.2M
 - Usage: Growth-stage funds, LP-friendly structures
 - Schema:
-  [`FeeBasisType.called_capital_cumulative`](../../shared/schemas/fee-profile.ts:13-20)
+  [`FeeBasisType.called_capital_cumulative`](../../shared/schemas/fee-profile.ts#L13-L20)
 
 **3. Called Capital Net of Returns (`called_capital_net_of_returns`)**
 
@@ -82,7 +82,7 @@ layer:
 - Example: $60M called, $20M distributed → $40M × 2% = $0.8M
 - Usage: Later-stage funds with significant distributions
 - Schema:
-  [`FeeBasisType.called_capital_net_of_returns`](../../shared/schemas/fee-profile.ts:13-20)
+  [`FeeBasisType.called_capital_net_of_returns`](../../shared/schemas/fee-profile.ts#L13-L20)
 
 **4. Invested Capital (`invested_capital`)**
 
@@ -91,7 +91,7 @@ layer:
 - Example: $70M invested of $100M → $70M × 2% = $1.4M
 - Usage: Funds with substantial reserve strategies
 - Schema:
-  [`FeeBasisType.invested_capital`](../../shared/schemas/fee-profile.ts:13-20)
+  [`FeeBasisType.invested_capital`](../../shared/schemas/fee-profile.ts#L13-L20)
 
 **5. Fair Market Value (`fair_market_value`)**
 
@@ -100,7 +100,7 @@ layer:
 - Example: Year 1: $100M NAV → $2M, Year 8: $30M NAV → $0.6M
 - Usage: Buyout and later-stage funds
 - Schema:
-  [`FeeBasisType.fair_market_value`](../../shared/schemas/fee-profile.ts:13-20)
+  [`FeeBasisType.fair_market_value`](../../shared/schemas/fee-profile.ts#L13-L20)
 
 **6. Unrealized Cost (`unrealized_cost`)**
 
@@ -108,13 +108,13 @@ layer:
 - Alternative metric for fee basis during investment phase
 - Usage: Alternative cost basis calculations
 - Schema:
-  [`FeeBasisType.unrealized_cost`](../../shared/schemas/fee-profile.ts:13-20)
+  [`FeeBasisType.unrealized_cost`](../../shared/schemas/fee-profile.ts#L13-L20)
 
 **Basis Resolution Logic:** The runtime resolution of basis types to actual
 amounts is handled by
-[`getBasisAmount()`](../../shared/schemas/fee-profile.ts:202-217), which maps
+[`getBasisAmount()`](../../shared/schemas/fee-profile.ts#L202-L217), which maps
 schema basis types to calculated capital amounts via
-[`FeeCalculationContext`](../../shared/schemas/fee-profile.ts:142-150).
+[`FeeCalculationContext`](../../shared/schemas/fee-profile.ts#L142-L150).
 
 #### Step-Down Mechanics
 
@@ -147,7 +147,7 @@ const tiers = [
 ```
 
 **Tier Selection Logic:** Tier activation is determined by
-[`calculateManagementFees()`](../../shared/schemas/fee-profile.ts:155-197),
+[`calculateManagementFees()`](../../shared/schemas/fee-profile.ts#L155-L197),
 which evaluates `startYear` and `endYear` against current fund year.
 
 **Common Patterns:**
@@ -156,8 +156,8 @@ which evaluates `startYear` and `endYear` against current fund year.
 - Graduated Step-Down: 2% → 1.75% → 1.5% (multiple tiers)
 - Basis Change: 2% on committed → 2% on NAV
 - Fee Caps: Tiers can include
-  [`capPercent`](../../shared/schemas/fee-profile.ts:40-44) or
-  [`capAmount`](../../shared/schemas/fee-profile.ts:40-44) limits
+  [`capPercent`](../../shared/schemas/fee-profile.ts#L40-L44) or
+  [`capAmount`](../../shared/schemas/fee-profile.ts#L40-L44) limits
 
 ### Carried Interest
 
@@ -168,16 +168,16 @@ capital plus a preferred return (hurdle).
 
 The module integrates with `client/src/lib/waterfall.ts` for carry calculations.
 The primary calculation function is
-[`calculateCarriedInterest()`](../../client/src/lib/fee-calculations.ts:278-344),
+[`calculateCarriedInterest()`](../../client/src/lib/fee-calculations.ts#L278-L344),
 which implements waterfall mechanics:
 
 **Waterfall Tiers:**
 
 1. **Return of Capital**: LP receives invested capital back
 2. **Preferred Return**: LP receives hurdle (e.g., 8%) on capital
-   [computed at line 290](../../client/src/lib/fee-calculations.ts:289-291)
+   [computed at line 290](../../client/src/lib/fee-calculations.ts#L289-L291)
 3. **Catch-Up**: GP receives 100% until reaching target carry percentage
-   [catch-up logic at lines 311-338](../../client/src/lib/fee-calculations.ts:310-338)
+   [catch-up logic at lines 311-338](../../client/src/lib/fee-calculations.ts#L310-L338)
 4. **Carry Split**: Remaining profits split per carry rate (e.g., 80/20)
 
 **Integration:**
@@ -197,14 +197,14 @@ const carry = calculateCarriedInterest(carryConfig);
 ```
 
 **Type Compatibility:** Waterfall type conversion from UI format
-([uppercase in `waterfall.ts:12-13`](../../client/src/lib/waterfall.ts:12-13))
+([uppercase in `waterfall.ts:12-13`](../../client/src/lib/waterfall.ts#L12-L13))
 to calculation format (lowercase) is handled in the integration layer.
 
 #### Catch-Up Provisions
 
 Catch-up allows GPs to accelerate carry until achieving target percentage.
 Implementation is in
-[`calculateCarriedInterest()`](../../client/src/lib/fee-calculations.ts:310-338):
+[`calculateCarriedInterest()`](../../client/src/lib/fee-calculations.ts#L310-L338):
 
 **Full Catch-Up (100% to GP):**
 
@@ -212,7 +212,7 @@ Implementation is in
 - Formula:
   `CatchUp = min((carryRate × HurdleAmount) / (1 - carryRate), maxCatchUp)`
 - Implemented at
-  [lines 322-325](../../client/src/lib/fee-calculations.ts:322-325)
+  [lines 322-325](../../client/src/lib/fee-calculations.ts#L322-L325)
 - Example: 8% hurdle on $100M = $8M hurdle amount
   - Full catch-up = (0.20 × $8M) / 0.80 = $2M to GP
   - Max catch-up (100%) = $8M × 1.0 = $8M
@@ -223,14 +223,14 @@ Implementation is in
 
 - Catch-up tier splits between GP and LP
 - Takes longer for GP to reach target percentage
-- [`catchUpPercentage`](../../client/src/lib/fee-calculations.ts:69-70)
+- [`catchUpPercentage`](../../client/src/lib/fee-calculations.ts#L69-L70)
   parameter limits catch-up eligibility
 - Max catch-up = HurdleAmount × (catchUpPercentage / 100)
 
 **No Catch-Up (0%):**
 
 - Straight split on all excess returns
-- Handled by [lines 336-338](../../client/src/lib/fee-calculations.ts:336-338)
+- Handled by [lines 336-338](../../client/src/lib/fee-calculations.ts#L336-L338)
 - GP never reaches full target percentage of total profits
 - Formula: `gpCarry = excessReturns × (carryRate / 100)`
 
@@ -238,13 +238,13 @@ Implementation is in
 
 Fee recycling allows GPs to reinvest management fees subject to caps and term
 limits. Implementation is in
-[`calculateRecyclableFees()`](../../shared/schemas/fee-profile.ts:222-244) and
-[`FeeRecyclingPolicySchema`](../../shared/schemas/fee-profile.ts:52-73):
+[`calculateRecyclableFees()`](../../shared/schemas/fee-profile.ts#L222-L244) and
+[`FeeRecyclingPolicySchema`](../../shared/schemas/fee-profile.ts#L52-L73):
 
 **Recycling Cap:**
 
 The maximum recyclable amount is enforced by
-[`recyclingCapPercent`](../../shared/schemas/fee-profile.ts:56-57):
+[`recyclingCapPercent`](../../shared/schemas/fee-profile.ts#L56-L57):
 
 ```
 MaxRecyclable = BasisAmount × (recyclingCapPercent / 100)
@@ -253,15 +253,16 @@ MaxRecyclable = BasisAmount × (recyclingCapPercent / 100)
 Example: $100M fund with 10% cap = $10M maximum recyclable
 
 The cap is validated on the policy object
-[lines 67-72](../../shared/schemas/fee-profile.ts:67-72), ensuring cap and term
-are positive when enabled.
+[lines 67-72](../../shared/schemas/fee-profile.ts#L67-L72), ensuring cap and
+term are positive when enabled.
 
 **Recycling Term:**
 
 - Fees only recyclable within specified period (e.g., 84 months / 7 years)
-- Enforced by [`recyclingTermMonths`](../../shared/schemas/fee-profile.ts:59-60)
+- Enforced by
+  [`recyclingTermMonths`](../../shared/schemas/fee-profile.ts#L59-L60)
 - Term checking implemented at
-  [lines 234-236](../../shared/schemas/fee-profile.ts:234-236)
+  [lines 234-236](../../shared/schemas/fee-profile.ts#L234-L236)
 - Fees paid after term cannot be recycled
 
 **Yearly Allocation:**
@@ -271,13 +272,13 @@ Recyclable(year) = min(FeeAmount, MaxRecyclable - CumulativeRecycled)
 ```
 
 Logic implemented at
-[lines 238-243](../../shared/schemas/fee-profile.ts:238-243), using Decimal
+[lines 238-243](../../shared/schemas/fee-profile.ts#L238-L243), using Decimal
 arithmetic for precision.
 
 **Cap Basis:** The recycling cap can be based on different bases via
-[`basis`](../../shared/schemas/fee-profile.ts:62-63) field, defaulting to
+[`basis`](../../shared/schemas/fee-profile.ts#L62-L63) field, defaulting to
 committed capital. The basis is resolved through the same
-[`getBasisAmount()`](../../shared/schemas/fee-profile.ts:202-217) function as
+[`getBasisAmount()`](../../shared/schemas/fee-profile.ts#L202-L217) function as
 management fees.
 
 ### Admin Expenses
@@ -304,7 +305,7 @@ Example: $150K base with 3% growth
 **Base Formula:**
 
 The fundamental fee calculation logic is implemented in
-[`calculateManagementFees()`](../../shared/schemas/fee-profile.ts:155-197):
+[`calculateManagementFees()`](../../shared/schemas/fee-profile.ts#L155-L197):
 
 ```
 Fee(month) = BasisAmount × AnnualRatePercent / 12
@@ -313,10 +314,10 @@ Fee(month) = BasisAmount × AnnualRatePercent / 12
 Where:
 
 - BasisAmount is resolved from one of 6 basis types via
-  [`getBasisAmount()`](../../shared/schemas/fee-profile.ts:202-217)
+  [`getBasisAmount()`](../../shared/schemas/fee-profile.ts#L202-L217)
 - Monthly fees are calculated
-  [at line 182](../../shared/schemas/fee-profile.ts:182) by dividing annual rate
-  by 12
+  [at line 182](../../shared/schemas/fee-profile.ts#L182) by dividing annual
+  rate by 12
 
 **With Tier-Based Step-Downs:**
 
@@ -329,14 +330,14 @@ AnnualRate(year) = {
 ```
 
 Tier evaluation logic
-[at lines 172-176](../../shared/schemas/fee-profile.ts:172-176) checks whether
+[at lines 172-176](../../shared/schemas/fee-profile.ts#L172-L176) checks whether
 current year falls within tier's startYear and endYear bounds.
 
 **Optional Fee Caps:**
 
 Fees can be capped by percentage of basis
-([lines 185-188](../../shared/schemas/fee-profile.ts:185-188)) or fixed amount
-([lines 189-191](../../shared/schemas/fee-profile.ts:189-191)):
+([lines 185-188](../../shared/schemas/fee-profile.ts#L185-L188)) or fixed amount
+([lines 189-191](../../shared/schemas/fee-profile.ts#L189-L191)):
 
 ```
 ActualFee = min(CalculatedFee, capPercent × Basis, capAmount)
@@ -355,7 +356,7 @@ Used for waterfall calculations and cash flow projections.
 ### Carried Interest Formulas
 
 All carry calculations are implemented in
-[`calculateCarriedInterest()`](../../client/src/lib/fee-calculations.ts:278-344).
+[`calculateCarriedInterest()`](../../client/src/lib/fee-calculations.ts#L278-L344).
 
 **Preferred Return:**
 
@@ -363,7 +364,7 @@ All carry calculations are implemented in
 PreferredReturn = InvestedCapital × (1 + hurdleRate / 100)
 ```
 
-Calculated at [line 290](../../client/src/lib/fee-calculations.ts:289-291):
+Calculated at [line 290](../../client/src/lib/fee-calculations.ts#L289-L291):
 
 ```ts
 const preferredReturn = investedCapital * (1 + hurdleRate / 100);
@@ -375,9 +376,9 @@ const preferredReturn = investedCapital * (1 + hurdleRate / 100);
 ExcessReturns = max(0, GrossReturns - PreferredReturn)
 ```
 
-Calculated at [line 307](../../client/src/lib/fee-calculations.ts:306-308) with
-guard at [line 302](../../client/src/lib/fee-calculations.ts:301-304) to return
-zero carry if returns don't exceed hurdle.
+Calculated at [line 307](../../client/src/lib/fee-calculations.ts#L306-L308)
+with guard at [line 302](../../client/src/lib/fee-calculations.ts#L301-L304) to
+return zero carry if returns don't exceed hurdle.
 
 **Catch-Up (Full) Calculation:**
 
@@ -389,7 +390,7 @@ CatchUpAmount = min(FullCatchUpAmount, MaxCatchUpAmount, ExcessReturns)
 ```
 
 Implemented at
-[lines 322-325](../../client/src/lib/fee-calculations.ts:322-325):
+[lines 322-325](../../client/src/lib/fee-calculations.ts#L322-L325):
 
 ```ts
 const hurdleAmount = preferredReturn - investedCapital;
@@ -412,7 +413,7 @@ TotalGPCarry = CatchUpAmount + CarryFromSplit
 ```
 
 Implemented at
-[lines 331-334](../../client/src/lib/fee-calculations.ts:331-334):
+[lines 331-334](../../client/src/lib/fee-calculations.ts#L331-L334):
 
 ```ts
 const remainingExcess = excessReturns - catchUpAmount;
@@ -464,7 +465,7 @@ Only allocate if `y ≤ RecyclingTermYears`.
 #### `calculateManagementFees(profile: FeeProfile, context: FeeCalculationContext): Decimal`
 
 **Location:**
-[`shared/schemas/fee-profile.ts:155-197`](../../shared/schemas/fee-profile.ts:155-197)
+[`shared/schemas/fee-profile.ts:155-197`](../../shared/schemas/fee-profile.ts#L155-L197)
 
 **Parameters:**
 
@@ -476,7 +477,7 @@ Only allocate if `y ≤ RecyclingTermYears`.
 **Tier Evaluation:**
 
 The function iterates through profile tiers
-[at lines 172-194](../../shared/schemas/fee-profile.ts:172-194), evaluating:
+[at lines 172-194](../../shared/schemas/fee-profile.ts#L172-L194), evaluating:
 
 - Whether current year falls within tier's `startYear`/`endYear`
 - Basis amount for the tier
@@ -499,7 +500,7 @@ const fees = calculateManagementFees(feeProfile, {
 #### `calculateCarriedInterest(config: CarryConfig): CarryCalculation`
 
 **Location:**
-[`client/src/lib/fee-calculations.ts:278-344`](../../client/src/lib/fee-calculations.ts:278-344)
+[`client/src/lib/fee-calculations.ts:278-344`](../../client/src/lib/fee-calculations.ts#L278-L344)
 
 **Parameters:**
 
@@ -516,15 +517,15 @@ const fees = calculateManagementFees(feeProfile, {
 **Edge Cases:**
 
 - Returns below hurdle → `gpCarry = 0`
-  [handled at lines 302-304](../../client/src/lib/fee-calculations.ts:301-304)
+  [handled at lines 302-304](../../client/src/lib/fee-calculations.ts#L301-L304)
 - Zero catch-up → straight split on excess
-  [at lines 336-338](../../client/src/lib/fee-calculations.ts:336-338)
+  [at lines 336-338](../../client/src/lib/fee-calculations.ts#L336-L338)
 - Zero hurdle → no preferred return tier (preferred return = invested capital)
 
 #### `calculateRecyclableFees(profile: FeeProfile, feesPaid: Decimal, context: FeeCalculationContext): Decimal`
 
 **Location:**
-[`shared/schemas/fee-profile.ts:222-244`](../../shared/schemas/fee-profile.ts:222-244)
+[`shared/schemas/fee-profile.ts:222-244`](../../shared/schemas/fee-profile.ts#L222-L244)
 
 **Parameters:**
 
@@ -537,18 +538,18 @@ const fees = calculateManagementFees(feeProfile, {
 **Logic:**
 
 1. Check if recycling is enabled
-   [at lines 227-229](../../shared/schemas/fee-profile.ts:227-229)
+   [at lines 227-229](../../shared/schemas/fee-profile.ts#L227-L229)
 2. Verify within recycling term
-   [at lines 234-236](../../shared/schemas/fee-profile.ts:234-236)
+   [at lines 234-236](../../shared/schemas/fee-profile.ts#L234-L236)
 3. Calculate max recyclable based on basis
-   [at lines 239-240](../../shared/schemas/fee-profile.ts:239-240)
+   [at lines 239-240](../../shared/schemas/fee-profile.ts#L239-L240)
 4. Return minimum of fees paid and remaining cap
-   [at line 243](../../shared/schemas/fee-profile.ts:243)
+   [at line 243](../../shared/schemas/fee-profile.ts#L243)
 
 #### `calculateFeeImpact(fundSize: number, feeStructure: FeeStructure, fundTerm: number, grossReturns?: number, investedCapital?: number): FeeImpactResult`
 
 **Location:**
-[`client/src/lib/fee-calculations.ts:518-618`](../../client/src/lib/fee-calculations.ts:518-618)
+[`client/src/lib/fee-calculations.ts:518-618`](../../client/src/lib/fee-calculations.ts#L518-L618)
 
 Comprehensive analysis combining all fee types:
 
@@ -571,7 +572,7 @@ feeDragBps = (grossReturnPct - netReturnPct) × 10000
 ```
 
 Implemented at
-[lines 602-606](../../client/src/lib/fee-calculations.ts:602-606):
+[lines 602-606](../../client/src/lib/fee-calculations.ts#L602-L606):
 
 ```ts
 const grossReturnPct = (grossReturns - investedCapital) / investedCapital;
@@ -584,18 +585,18 @@ feeDragBps = Math.round((grossReturnPct - netReturnPct) * 10000);
 The function integrates:
 
 - Management fees
-  [lines 526-547](../../client/src/lib/fee-calculations.ts:526-547)
+  [lines 526-547](../../client/src/lib/fee-calculations.ts#L526-L547)
 - Admin expenses
-  [lines 550-558](../../client/src/lib/fee-calculations.ts:550-558)
+  [lines 550-558](../../client/src/lib/fee-calculations.ts#L550-L558)
 - Carried interest
-  [lines 583-595](../../client/src/lib/fee-calculations.ts:583-595)
+  [lines 583-595](../../client/src/lib/fee-calculations.ts#L583-L595)
 - MOIC calculations
-  [lines 598-606](../../client/src/lib/fee-calculations.ts:598-606)
+  [lines 598-606](../../client/src/lib/fee-calculations.ts#L598-L606)
 
 ### TypeScript Interfaces
 
 **Management Fee Configuration:**
-[`ManagementFeeConfig`](../../client/src/lib/fee-calculations.ts:23-39)
+[`ManagementFeeConfig`](../../client/src/lib/fee-calculations.ts#L23-L39)
 
 ```typescript
 interface ManagementFeeConfig {
@@ -616,7 +617,7 @@ interface ManagementFeeConfig {
 ```
 
 **Carried Interest Configuration:**
-[`CarryConfig`](../../client/src/lib/fee-calculations.ts:60-73)
+[`CarryConfig`](../../client/src/lib/fee-calculations.ts#L60-L73)
 
 ```typescript
 interface CarryConfig {
@@ -636,7 +637,7 @@ interface CarryConfig {
 ```
 
 **Complete Fee Structure:**
-[`FeeStructure`](../../client/src/lib/fee-calculations.ts:125-149)
+[`FeeStructure`](../../client/src/lib/fee-calculations.ts#L125-L149)
 
 ```typescript
 interface FeeStructure {
@@ -664,11 +665,11 @@ interface FeeStructure {
 ```
 
 **Yearly Fee Breakdown:**
-[`YearlyFee`](../../client/src/lib/fee-calculations.ts:44-55) interface used in
-fee arrays
+[`YearlyFee`](../../client/src/lib/fee-calculations.ts#L44-L55) interface used
+in fee arrays
 
 **Carry Calculation Result:**
-[`CarryCalculation`](../../client/src/lib/fee-calculations.ts:78-89) with
+[`CarryCalculation`](../../client/src/lib/fee-calculations.ts#L78-L89) with
 detailed tier breakdown
 
 ## Test Coverage
@@ -694,10 +695,10 @@ detailed tier breakdown
 - Basic calculation without step-down
 - Step-down after year 5 (2% → 1%)
 - Total management fees aggregation
-  [`calculateTotalManagementFees`](../../client/src/lib/fee-calculations.ts:238-243)
+  [`calculateTotalManagementFees`](../../client/src/lib/fee-calculations.ts#L238-L243)
 - Zero fund size handling
 - Effective fee rate calculation
-  [`calculateEffectiveFeeRate`](../../client/src/lib/fee-calculations.ts:630-638)
+  [`calculateEffectiveFeeRate`](../../client/src/lib/fee-calculations.ts#L630-L638)
 
 **Carried Interest:**
 
@@ -705,38 +706,38 @@ detailed tier breakdown
 - No hurdle (0%) scenario
 - Returns below hurdle (no carry)
 - Partial catch-up (50%, 80%) - tested with
-  [`catchUpPercentage`](../../client/src/lib/fee-calculations.ts:69-70)
+  [`catchUpPercentage`](../../client/src/lib/fee-calculations.ts#L69-L70)
   parameter
 - Returns exactly at hurdle (boundary condition)
 - High returns stress test (3x MOIC)
 - Effective carry rate
-  [`calculateEffectiveCarryRate`](../../client/src/lib/fee-calculations.ts:353-359)
+  [`calculateEffectiveCarryRate`](../../client/src/lib/fee-calculations.ts#L353-L359)
 
 **Fee Impact:**
 
 - Fee-only impact (no carry) - tested via
-  [`calculateFeeImpact`](../../client/src/lib/fee-calculations.ts:518-618) with
-  `carriedInterest.enabled = false`
+  [`calculateFeeImpact`](../../client/src/lib/fee-calculations.ts#L518-L618)
+  with `carriedInterest.enabled = false`
 - Combined management + admin + carry scenario
 - MOIC calculation (gross vs net)
-  [lines 598-606](../../client/src/lib/fee-calculations.ts:598-606)
+  [lines 598-606](../../client/src/lib/fee-calculations.ts#L598-L606)
 - Fee drag measurement
-  [lines 602-606](../../client/src/lib/fee-calculations.ts:602-606)
+  [lines 602-606](../../client/src/lib/fee-calculations.ts#L602-L606)
 - Step-down impact on total fees
 
 **Validation:**
 
 - Fee structure validation
-  [`validateFeeStructure`](../../client/src/lib/fee-calculations.ts:685-728)
+  [`validateFeeStructure`](../../client/src/lib/fee-calculations.ts#L685-L728)
   tests:
   - Management fee >3% warning
-    [line 692](../../client/src/lib/fee-calculations.ts:692)
+    [line 692](../../client/src/lib/fee-calculations.ts#L692)
   - Management fee <1% warning
-    [line 695](../../client/src/lib/fee-calculations.ts:695)
+    [line 695](../../client/src/lib/fee-calculations.ts#L695)
   - Step-down validation
-    [lines 700-707](../../client/src/lib/fee-calculations.ts:700-707)
+    [lines 700-707](../../client/src/lib/fee-calculations.ts#L700-L707)
   - Carry rate bounds checks
-    [lines 713-718](../../client/src/lib/fee-calculations.ts:713-718)
+    [lines 713-718](../../client/src/lib/fee-calculations.ts#L713-L718)
 
 ### Coverage Metrics
 
@@ -757,19 +758,19 @@ Integration flow:
 
 1. Waterfall configuration provides hurdle, carry rate, catch-up
 2. Fee calculations compute GP carry and LP net via
-   [`calculateCarriedInterest()`](../../client/src/lib/fee-calculations.ts:278-344)
+   [`calculateCarriedInterest()`](../../client/src/lib/fee-calculations.ts#L278-L344)
 3. Results feed into waterfall display components
 4. Fee impact includes carry in total burden via
-   [`calculateFeeImpact()`](../../client/src/lib/fee-calculations.ts:518-618)
+   [`calculateFeeImpact()`](../../client/src/lib/fee-calculations.ts#L518-L618)
 
 **Type Compatibility:**
 
 - Waterfall uses uppercase: `'AMERICAN' | 'EUROPEAN'` (defined at
-  [lines 12-13](../../client/src/lib/waterfall.ts:12-13))
+  [lines 12-13](../../client/src/lib/waterfall.ts#L12-L13))
 - Fee calculations use lowercase: `'american' | 'european'` (parameter at
-  [line 72](../../client/src/lib/fee-calculations.ts:71-72))
+  [line 72](../../client/src/lib/fee-calculations.ts#L71-L72))
 - Waterfall updates use
-  [`applyWaterfallChange()`](../../client/src/lib/waterfall.ts:50-74) for
+  [`applyWaterfallChange()`](../../client/src/lib/waterfall.ts#L50-L74) for
   type-safe modifications
 - Conversion handled in integration layer
 
@@ -778,7 +779,7 @@ Integration flow:
 **Location:** `client/src/core/calculator.ts`
 
 Fee impact provides net returns via
-[`calculateFeeImpact()`](../../client/src/lib/fee-calculations.ts:518-618):
+[`calculateFeeImpact()`](../../client/src/lib/fee-calculations.ts#L518-L618):
 
 ```typescript
 const feeImpact = calculateFeeImpact(
@@ -797,15 +798,15 @@ const netMOIC = netReturns / investedCapital;
 ```
 
 **Result Structure:**
-[`FeeImpactResult`](../../client/src/lib/fee-calculations.ts:154-174) provides
+[`FeeImpactResult`](../../client/src/lib/fee-calculations.ts#L154-L174) provides
 comprehensive metrics including:
 
 - Monthly/yearly fee breakdown
-  [lines 168-173](../../client/src/lib/fee-calculations.ts:168-173)
+  [lines 168-173](../../client/src/lib/fee-calculations.ts#L168-L173)
 - Gross and net MOIC
-  [lines 162-164](../../client/src/lib/fee-calculations.ts:162-164)
+  [lines 162-164](../../client/src/lib/fee-calculations.ts#L162-L164)
 - Fee drag in basis points
-  [lines 165-166](../../client/src/lib/fee-calculations.ts:165-166)
+  [lines 165-166](../../client/src/lib/fee-calculations.ts#L165-L166)
 
 ### Scenario Modeling
 
@@ -861,50 +862,50 @@ function getCachedFees(config: ManagementFeeConfig): YearlyFee[] {
 
 **Management Fees:**
 
-- [`calculateManagementFees(profile, context)`](../../shared/schemas/fee-profile.ts:155-197)
+- [`calculateManagementFees(profile, context)`](../../shared/schemas/fee-profile.ts#L155-L197)
   → `Decimal`
-- [`calculateTotalManagementFees(config)`](../../client/src/lib/fee-calculations.ts:238-243)
+- [`calculateTotalManagementFees(config)`](../../client/src/lib/fee-calculations.ts#L238-L243)
   → `number`
-- [`calculateEffectiveFeeRate(fees)`](../../client/src/lib/fee-calculations.ts:630-638)
+- [`calculateEffectiveFeeRate(fees)`](../../client/src/lib/fee-calculations.ts#L630-L638)
   → `number` (%)
 
 **Carried Interest:**
 
-- [`calculateCarriedInterest(config)`](../../client/src/lib/fee-calculations.ts:278-344)
+- [`calculateCarriedInterest(config)`](../../client/src/lib/fee-calculations.ts#L278-L344)
   → `CarryCalculation`
-- [`calculateEffectiveCarryRate(result, grossReturns)`](../../client/src/lib/fee-calculations.ts:353-359)
+- [`calculateEffectiveCarryRate(result, grossReturns)`](../../client/src/lib/fee-calculations.ts#L353-L359)
   → `number` (%)
 
 **Fee Recycling:**
 
-- [`calculateRecyclableFees(profile, feesPaid, context)`](../../shared/schemas/fee-profile.ts:222-244)
+- [`calculateRecyclableFees(profile, feesPaid, context)`](../../shared/schemas/fee-profile.ts#L222-L244)
   → `Decimal`
-- [`calculateFeeRecycling(config)`](../../client/src/lib/fee-calculations.ts:386-437)
+- [`calculateFeeRecycling(config)`](../../client/src/lib/fee-calculations.ts#L386-L437)
   → `RecyclingSchedule`
 
 **Admin Expenses:**
 
-- [`calculateAdminExpenses(amount, rate, term)`](../../client/src/lib/fee-calculations.ts:451-473)
+- [`calculateAdminExpenses(amount, rate, term)`](../../client/src/lib/fee-calculations.ts#L451-L473)
   → `Array<{year, amount, cumulative}>`
-- [`calculateTotalAdminExpenses(amount, rate, term)`](../../client/src/lib/fee-calculations.ts:483-490)
+- [`calculateTotalAdminExpenses(amount, rate, term)`](../../client/src/lib/fee-calculations.ts#L483-L490)
   → `number`
 
 **Fee Impact:**
 
-- [`calculateFeeImpact(fundSize, structure, term, gross?, invested?)`](../../client/src/lib/fee-calculations.ts:518-618)
+- [`calculateFeeImpact(fundSize, structure, term, gross?, invested?)`](../../client/src/lib/fee-calculations.ts#L518-L618)
   → `FeeImpactResult`
 
 **Utilities:**
 
-- [`validateFeeStructure(structure)`](../../client/src/lib/fee-calculations.ts:685-728)
+- [`validateFeeStructure(structure)`](../../client/src/lib/fee-calculations.ts#L685-L728)
   → `{valid, warnings}`
-- [`formatFeeImpact(impact)`](../../client/src/lib/fee-calculations.ts:661-677)
+- [`formatFeeImpact(impact)`](../../client/src/lib/fee-calculations.ts#L661-L677)
   → `{managementFees, carry, ...}` (strings)
-- [`calculateFeeLoad(totalFees, fundSize)`](../../client/src/lib/fee-calculations.ts:737-740)
+- [`calculateFeeLoad(totalFees, fundSize)`](../../client/src/lib/fee-calculations.ts#L737-L740)
   → `number` (%)
-- [`calculateNetToGrossRatio(gross, net)`](../../client/src/lib/fee-calculations.ts:647-653)
+- [`calculateNetToGrossRatio(gross, net)`](../../client/src/lib/fee-calculations.ts#L647-L653)
   → `number` (0-1)
-- [`projectManagementFeesCustomPeriod(baseConfig, periodYears)`](../../client/src/lib/fee-calculations.ts:751-780)
+- [`projectManagementFeesCustomPeriod(baseConfig, periodYears)`](../../client/src/lib/fee-calculations.ts#L751-L780)
   → `YearlyFee[]`
 
 ## Common Patterns
@@ -935,9 +936,10 @@ const profile: FeeProfile = {
 const fees = calculateManagementFees(profile, context);
 ```
 
-Implementation via [`FeeTierSchema`](../../shared/schemas/fee-profile.ts:27-45)
-with tier ordering validation
-[at lines 117-134](../../shared/schemas/fee-profile.ts:114-135).
+Implementation via
+[`FeeTierSchema`](../../shared/schemas/fee-profile.ts#L27-L45) with tier
+ordering validation
+[at lines 117-134](../../shared/schemas/fee-profile.ts#L114-L135).
 
 **No Step-Down (Single Tier):**
 
@@ -990,14 +992,15 @@ console.log(`Yearly Breakdown:`, impact.yearlyBreakdown);
 ```
 
 **Result formatting** uses
-[`formatFeeImpact()`](../../client/src/lib/fee-calculations.ts:661-677) for
+[`formatFeeImpact()`](../../client/src/lib/fee-calculations.ts#L661-L677) for
 display strings
 
 ### Validation Best Practices
 
 **Pre-Calculation Validation:**
 
-Use [`validateFeeStructure()`](../../client/src/lib/fee-calculations.ts:685-728)
+Use
+[`validateFeeStructure()`](../../client/src/lib/fee-calculations.ts#L685-L728)
 to check configuration before calculations:
 
 ```typescript
@@ -1010,20 +1013,20 @@ if (!validation.valid) {
 **Validation Rules Implemented:**
 
 - Management fee >3% triggers warning
-  [line 692](../../client/src/lib/fee-calculations.ts:692)
+  [line 692](../../client/src/lib/fee-calculations.ts#L692)
 - Management fee <1% triggers warning
-  [line 695](../../client/src/lib/fee-calculations.ts:695)
+  [line 695](../../client/src/lib/fee-calculations.ts#L695)
 - Step-down new rate >= initial rate triggers warning
-  [lines 700-707](../../client/src/lib/fee-calculations.ts:700-707)
+  [lines 700-707](../../client/src/lib/fee-calculations.ts#L700-L707)
 - Carry rate >25% triggers warning
-  [line 713](../../client/src/lib/fee-calculations.ts:713)
+  [line 713](../../client/src/lib/fee-calculations.ts#L713)
 - Carry rate <15% triggers warning
-  [line 716](../../client/src/lib/fee-calculations.ts:716)
+  [line 716](../../client/src/lib/fee-calculations.ts#L716)
 - Hurdle rate >10% triggers warning
-  [line 719](../../client/src/lib/fee-calculations.ts:719)
+  [line 719](../../client/src/lib/fee-calculations.ts#L719)
 
 **Schema Validation:** FeeProfile uses Zod schema validation with refine checks
-[at lines 114-135](../../shared/schemas/fee-profile.ts:114-135) for tier
+[at lines 114-135](../../shared/schemas/fee-profile.ts#L114-L135) for tier
 ordering
 
 ### Recycling Configuration
@@ -1043,7 +1046,7 @@ const recyclable = calculateRecyclableFees(profile, feesPaid, context);
 ```
 
 Policy structure defined in
-[`FeeRecyclingPolicySchema`](../../shared/schemas/fee-profile.ts:52-73)
+[`FeeRecyclingPolicySchema`](../../shared/schemas/fee-profile.ts#L52-L73)
 
 **Disabled Recycling:**
 
@@ -1059,12 +1062,12 @@ const recyclable = calculateRecyclableFees(profile, feesPaid, context);
 ```
 
 Validation ensures cap and term are positive when enabled
-[at lines 68-72](../../shared/schemas/fee-profile.ts:67-72)
+[at lines 68-72](../../shared/schemas/fee-profile.ts#L67-L72)
 
 **Proactive Recycling:**
 
-Use [`anticipatedRecycling`](../../shared/schemas/fee-profile.ts:65-66) flag for
-forecasting to assume recycling up to cap for future periods
+Use [`anticipatedRecycling`](../../shared/schemas/fee-profile.ts#L65-L66) flag
+for forecasting to assume recycling up to cap for future periods
 
 ---
 

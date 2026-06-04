@@ -1,8 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import express from 'express';
+import type { NextFunction, Request, Response } from 'express';
 import request from 'supertest';
 
 const {
+  authState,
   getFundMock,
   calculateTimeseriesMock,
   calculateBreakdownMock,
@@ -15,24 +17,40 @@ const {
   recordDataPointsMock,
   recordErrorMock,
   loggerErrorMock,
-} = vi.hoisted(() => ({
-  getFundMock: vi.fn(),
-  calculateTimeseriesMock: vi.fn(),
-  calculateBreakdownMock: vi.fn(),
-  calculateComparisonMock: vi.fn(),
-  startTimerMock: vi.fn(),
-  recordPerformanceRequestMock: vi.fn(),
-  recordCacheHitMock: vi.fn(),
-  recordCacheMissMock: vi.fn(),
-  recordCalculationMock: vi.fn(),
-  recordDataPointsMock: vi.fn(),
-  recordErrorMock: vi.fn(),
-  loggerErrorMock: vi.fn(),
-}));
+} = vi.hoisted(() => {
+  const authState = {
+    fundAccessAllowed: true,
+    requireFundAccessMock: vi.fn((_req: Request, res: Response, next: NextFunction) => {
+      if (!authState.fundAccessAllowed) {
+        return res.status(403).json({
+          error: 'Forbidden',
+          message: 'You do not have access to this fund',
+        });
+      }
+      return next();
+    }),
+  };
+
+  return {
+    authState,
+    getFundMock: vi.fn(),
+    calculateTimeseriesMock: vi.fn(),
+    calculateBreakdownMock: vi.fn(),
+    calculateComparisonMock: vi.fn(),
+    startTimerMock: vi.fn(),
+    recordPerformanceRequestMock: vi.fn(),
+    recordCacheHitMock: vi.fn(),
+    recordCacheMissMock: vi.fn(),
+    recordCalculationMock: vi.fn(),
+    recordDataPointsMock: vi.fn(),
+    recordErrorMock: vi.fn(),
+    loggerErrorMock: vi.fn(),
+  };
+});
 
 vi.mock('../../../server/lib/auth/jwt', () => ({
   requireAuth: () => (_req: unknown, _res: unknown, next: () => void) => next(),
-  requireFundAccess: (_req: unknown, _res: unknown, next: () => void) => next(),
+  requireFundAccess: authState.requireFundAccessMock,
 }));
 
 vi.mock('../../../server/storage', () => ({
@@ -72,6 +90,7 @@ describe('performance API observability', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    authState.fundAccessAllowed = true;
 
     app = express();
     app.use(express.json());
@@ -102,6 +121,22 @@ describe('performance API observability', () => {
     });
   });
 
+  it('rejects denied fund scope before storage and calculators run', async () => {
+    authState.fundAccessAllowed = false;
+
+    const response = await request(app).get(
+      '/api/funds/2/performance/timeseries?startDate=2024-01-01&endDate=2024-12-31&granularity=monthly'
+    );
+
+    expect(response.status).toBe(403);
+    expect(response.body).toEqual({
+      error: 'Forbidden',
+      message: 'You do not have access to this fund',
+    });
+    expect(getFundMock).not.toHaveBeenCalled();
+    expect(calculateTimeseriesMock).not.toHaveBeenCalled();
+  });
+
   it.each([
     [
       '/api/funds/1/performance/timeseries?startDate=2024-01-01&endDate=2024-12-31&granularity=monthly',
@@ -116,6 +151,24 @@ describe('performance API observability', () => {
     expect(response.body.meta.cacheHit).toBe(false);
     expect(recordCacheMissMock).toHaveBeenCalledWith(metricName);
     expect(recordCacheHitMock).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    [
+      '/api/funds/1/performance/timeseries?startDate=2024-01-01&endDate=2024-12-31&granularity=monthly',
+      'timeseries',
+    ],
+    ['/api/funds/1/performance/breakdown?groupBy=sector', 'breakdown'],
+    ['/api/funds/1/performance/comparison?dates=2024-03-31,2024-06-30', 'comparisons'],
+  ])('returns the raw mounted analytics contract for %s', async (path, payloadKey) => {
+    const response = await request(app).get(path);
+    const body = response.body as Record<string, unknown>;
+
+    expect(response.status).toBe(200);
+    expect(body).toHaveProperty(payloadKey);
+    expect(body).toHaveProperty('meta');
+    expect(body).not.toHaveProperty('success');
+    expect(body).not.toHaveProperty('data');
   });
 
   it.each([

@@ -42,7 +42,7 @@ standards):
 and unrealized value)
 
 **Validation Source:**
-[cohorts-validation.yaml:10-28](c:\dev\Updog_restore\scripts\validation\cohorts-validation.yaml#L10)
+[cohorts-validation.yaml:10-28](../../../scripts/validation/cohorts-validation.yaml#L10)
 defines 5 test scenarios covering standard, multi-cohort, total loss, 10x
 return, and mixed performance cases.
 
@@ -78,7 +78,7 @@ TVPI = (Distributions + Residual Value) / Paid-In Capital
    gains/losses)
 
 **Example from validation**
-([cohorts-validation.yaml:10-28](c:\dev\Updog_restore\scripts\validation\cohorts-validation.yaml#L10)):
+([cohorts-validation.yaml:10-28](../../../scripts/validation/cohorts-validation.yaml#L10)):
 
 ```yaml
 vintage: 2023
@@ -86,6 +86,7 @@ companies: 5
 totalInvested: 25000000 # Paid-In Capital = $25M
 totalValue: 40000000 # Current portfolio value = $40M
 realized: 15000000 # Distributions = $15M
+
 
 # Calculation:
 # Residual Value = $40M - $15M = $25M
@@ -101,7 +102,7 @@ realized: 15000000 # Distributions = $15M
 ### Implementation in Code
 
 The engine calculates TVPI via the `multiple` field
-([CohortEngine.ts:98-100](c:\dev\Updog_restore\client\src\core\cohorts\CohortEngine.ts#L98)):
+([CohortEngine.ts:98-100](../../../client/src/core/cohorts/CohortEngine.ts#L98)):
 
 ```typescript
 // Base multiple calculation (TVPI)
@@ -132,7 +133,7 @@ const multiple = Math.max(1.0, baseMultiple + (Math.random() * 0.5 - 0.25));
 **Scenario:** All companies in cohort write down to zero value
 
 **Validation Test**
-([cohorts-validation.yaml:59-75](c:\dev\Updog_restore\scripts\validation\cohorts-validation.yaml#L59)):
+([cohorts-validation.yaml:59-75](../../../scripts/validation/cohorts-validation.yaml#L59)):
 
 ```yaml
 vintage: 2020
@@ -140,6 +141,7 @@ companies: 3
 totalInvested: 15000000
 totalValue: 0 # Complete write-off
 realized: 0 # No distributions
+
 
 # Expected: TVPI = 0x (0 / 15M = 0)
 ```
@@ -155,7 +157,7 @@ Series A)
 **Scenario:** "Unicorn cohort" with multiple successful exits
 
 **Validation Test**
-([cohorts-validation.yaml:77-93](c:\dev\Updog_restore\scripts\validation\cohorts-validation.yaml#L77)):
+([cohorts-validation.yaml:77-93](../../../scripts/validation/cohorts-validation.yaml#L77)):
 
 ```yaml
 vintage: 2019
@@ -163,6 +165,7 @@ companies: 10
 totalInvested: 50000000
 totalValue: 500000000 # 10x portfolio value
 realized: 450000000 # 9x cash returned
+
 
 # Expected: TVPI = 10.0x (500M / 50M = 10.0)
 ```
@@ -192,7 +195,7 @@ realized: 450000000 # 9x cash returned
 ### Precision & Rounding
 
 **Implementation**
-([CohortEngine.ts:106-108](c:\dev\Updog_restore\client\src\core\cohorts\CohortEngine.ts#L106)):
+([CohortEngine.ts:106-108](../../../client/src/core/cohorts/CohortEngine.ts#L106)):
 
 ```typescript
 performance: {
@@ -232,11 +235,12 @@ DPI = Distributions / Paid-In Capital
 2. **Paid-In Capital:** Total amount invested in the cohort
 
 **Example from validation**
-([cohorts-validation.yaml:10-28](c:\dev\Updog_restore\scripts\validation\cohorts-validation.yaml#L10)):
+([cohorts-validation.yaml:10-28](../../../scripts/validation/cohorts-validation.yaml#L10)):
 
 ```yaml
 totalInvested: 25000000 # Paid-In Capital = $25M
 realized: 15000000 # Distributions = $15M
+
 
 # DPI = $15M / $25M = 0.60x (60 cents returned per dollar invested)
 ```
@@ -249,7 +253,7 @@ realized: 15000000 # Distributions = $15M
 ### Implementation in Code
 
 The engine calculates DPI based on maturity
-([CohortEngine.ts:102-103](c:\dev\Updog_restore\client\src\core\cohorts\CohortEngine.ts#L102)):
+([CohortEngine.ts:102-103](../../../client/src/core/cohorts/CohortEngine.ts#L102)):
 
 ```typescript
 // DPI calculation (distributions to paid-in)
@@ -282,7 +286,7 @@ const dpi = Math.max(0, multiple * maturityFactor * 0.4);
 value)
 
 **Validation**
-([cohort-engine.test.ts:117-120](c:\dev\Updog_restore\tests\unit\engines\cohort-engine.test.ts#L117)):
+([cohort-engine.test.ts:117-120](../../../tests/unit/engines/cohort-engine.test.ts#L117)):
 
 ```typescript
 it('should ensure DPI <= Multiple', () => {
@@ -306,7 +310,7 @@ it('should ensure DPI <= Multiple', () => {
 **Scenario:** Early-stage cohort with no exits yet
 
 **Validation Test**
-([cohorts-validation.yaml:44-48](c:\dev\Updog_restore\scripts\validation\cohorts-validation.yaml#L44)):
+([cohorts-validation.yaml:44-48](../../../scripts/validation/cohorts-validation.yaml#L44)):
 
 ```yaml
 vintage: 2024
@@ -314,6 +318,7 @@ companies: 4
 totalInvested: 20000000
 totalValue: 22000000
 realized: 0 # No distributions yet
+
 
 # Expected: DPI = 0x (0 / 20M = 0)
 ```
@@ -325,12 +330,13 @@ realized: 0 # No distributions yet
 **Scenario:** Unicorn cohort with major exits
 
 **Validation Test**
-([cohorts-validation.yaml:77-93](c:\dev\Updog_restore\scripts\validation\cohorts-validation.yaml#L77)):
+([cohorts-validation.yaml:77-93](../../../scripts/validation/cohorts-validation.yaml#L77)):
 
 ```yaml
 vintage: 2019
 totalInvested: 50000000
 realized: 450000000 # $450M cash returned
+
 
 # Expected: DPI = 9.0x (450M / 50M = 9.0)
 ```
@@ -341,7 +347,7 @@ distributions
 #### 3. DPI vs Maturity Correlation
 
 **Test Validation**
-([cohort-engine.test.ts:81-86](c:\dev\Updog_restore\tests\unit\engines\cohort-engine.test.ts#L81)):
+([cohort-engine.test.ts:81-86](../../../tests/unit/engines/cohort-engine.test.ts#L81)):
 
 ```typescript
 it('should apply maturity factor to performance', () => {
@@ -365,7 +371,7 @@ it('should apply maturity factor to performance', () => {
 ### Precision & Rounding
 
 **Implementation**
-([CohortEngine.ts:106-108](c:\dev\Updog_restore\client\src\core\cohorts\CohortEngine.ts#L106)):
+([CohortEngine.ts:106-108](../../../client/src/core/cohorts/CohortEngine.ts#L106)):
 
 ```typescript
 performance: {
@@ -409,12 +415,13 @@ RVPI = TVPI - DPI
 2. **Paid-In Capital:** Total amount invested
 
 **Example from validation**
-([cohorts-validation.yaml:10-28](c:\dev\Updog_restore\scripts\validation\cohorts-validation.yaml#L10)):
+([cohorts-validation.yaml:10-28](../../../scripts/validation/cohorts-validation.yaml#L10)):
 
 ```yaml
 totalInvested: 25000000 # Paid-In Capital = $25M
 totalValue: 40000000 # Total Value = $40M
 realized: 15000000 # Distributions = $15M
+
 
 # Method 1: Direct calculation
 # Residual Value = $40M - $15M = $25M
@@ -441,7 +448,7 @@ const rvpi = performance.multiple - performance.dpi;
 ```
 
 **Validation Relationship**
-([cohorts-validation.yaml:24-26](c:\dev\Updog_restore\scripts\validation\cohorts-validation.yaml#L24)):
+([cohorts-validation.yaml:24-26](../../../scripts/validation/cohorts-validation.yaml#L24)):
 
 ```yaml
 # Validation test expects this relationship:
@@ -472,7 +479,7 @@ result.cohorts[0].rvpi === 1.0 # RVPI = TVPI - DPI
 **Scenario:** Young cohort with minimal distributions
 
 **Validation Test**
-([cohorts-validation.yaml:44-48](c:\dev\Updog_restore\scripts\validation\cohorts-validation.yaml#L44)):
+([cohorts-validation.yaml:44-48](../../../scripts/validation/cohorts-validation.yaml#L44)):
 
 ```yaml
 vintage: 2024
@@ -584,7 +591,7 @@ years.
 ### Implementation in Code
 
 The engine uses a **simplified rule-based IRR calculation**
-([CohortEngine.ts:84-96](c:\dev\Updog_restore\client\src\core\cohorts\CohortEngine.ts#L84)):
+([CohortEngine.ts:84-96](../../../client/src/core/cohorts/CohortEngine.ts#L84)):
 
 ```typescript
 // Base IRR calculation with vintage year effects
@@ -628,7 +635,7 @@ baseIRR *= maturityFactor; // Scale by fund maturity
 ### XIRR Calculation (Full Implementation)
 
 For **actual IRR calculation** with cash flow timing, the codebase uses **XIRR**
-([client/src/lib/finance/xirr.ts](c:\dev\Updog_restore\client\src\lib\finance\xirr.ts)):
+([client/src/lib/finance/xirr.ts](../../../client/src/lib/finance/xirr.ts)):
 
 ```typescript
 import { xirrNewtonBisection } from '@/lib/finance/xirr';
@@ -644,7 +651,7 @@ console.log(result.irr); // 0.185 (18.5%)
 ```
 
 **Test Validation**
-([xirr-golden-set.test.ts:30-34](c:\dev\Updog_restore\tests\unit\xirr-golden-set.test.ts#L30)):
+([xirr-golden-set.test.ts:30-34](../../../tests/unit/xirr-golden-set.test.ts#L30)):
 
 ```typescript
 const flows = [
@@ -669,7 +676,7 @@ to 7 decimal places (±1e-7 tolerance).
 **Scenario:** Cohort returns capital with minimal gain
 
 **Validation Test**
-([cohorts-validation.yaml:112](c:\dev\Updog_restore\scripts\validation\cohorts-validation.yaml#L112)):
+([cohorts-validation.yaml:112](../../../scripts/validation/cohorts-validation.yaml#L112)):
 
 ```yaml
 vintage: 2023
@@ -680,7 +687,7 @@ realized: 0
 ```
 
 **Test Case**
-([xirr-golden-set.test.ts:109-112](c:\dev\Updog_restore\tests\unit\xirr-golden-set.test.ts#L109)):
+([xirr-golden-set.test.ts:109-112](../../../tests/unit/xirr-golden-set.test.ts#L109)):
 
 ```typescript
 const flows = [
@@ -696,7 +703,7 @@ expect(result.irr).toBeCloseTo(0.000998, 6); // ~0.1% IRR
 **Scenario:** Cohort loses money, IRR < 0%
 
 **Validation Test**
-([cohorts-validation.yaml:59-75](c:\dev\Updog_restore\scripts\validation\cohorts-validation.yaml#L59)):
+([cohorts-validation.yaml:59-75](../../../scripts/validation/cohorts-validation.yaml#L59)):
 
 ```yaml
 vintage: 2020
@@ -707,7 +714,7 @@ realized: 0
 ```
 
 **Test Case**
-([xirr-golden-set.test.ts:96-99](c:\dev\Updog_restore\tests\unit\xirr-golden-set.test.ts#L96)):
+([xirr-golden-set.test.ts:96-99](../../../tests/unit/xirr-golden-set.test.ts#L96)):
 
 ```typescript
 const flows = [
@@ -728,7 +735,7 @@ expect(result.irr).toBeCloseTo(-0.10091, 5); // -10.09% IRR (10% loss)
 **Scenario:** Unicorn cohort with rapid exits
 
 **Validation Test**
-([cohorts-validation.yaml:77-93](c:\dev\Updog_restore\scripts\validation\cohorts-validation.yaml#L77)):
+([cohorts-validation.yaml:77-93](../../../scripts/validation/cohorts-validation.yaml#L77)):
 
 ```yaml
 vintage: 2019
@@ -736,11 +743,12 @@ totalInvested: 50000000
 totalValue: 500000000 # 10x return
 realized: 450000000 # 9x cash
 
+
 # Expected: IRR > 0.50 (>50% annualized)
 ```
 
 **Test Case**
-([xirr-golden-set.test.ts:136-139](c:\dev\Updog_restore\tests\unit\xirr-golden-set.test.ts#L136)):
+([xirr-golden-set.test.ts:136-139](../../../tests/unit/xirr-golden-set.test.ts#L136)):
 
 ```typescript
 const flows = [
@@ -756,7 +764,7 @@ expect(result.irr).toBeCloseTo(99.0, 1); // 9,900% IRR (100x in 6 months!)
 ### Precision & Rounding
 
 **Implementation**
-([CohortEngine.ts:106](c:\dev\Updog_restore\client\src\core\cohorts\CohortEngine.ts#L106)):
+([CohortEngine.ts:106](../../../client/src/core/cohorts/CohortEngine.ts#L106)):
 
 ```typescript
 performance: {
@@ -768,7 +776,7 @@ performance: {
 standards
 
 **Test Validation**
-([cohort-engine.test.ts:127-128](c:\dev\Updog_restore\tests\unit\engines\cohort-engine.test.ts#L127)):
+([cohort-engine.test.ts:127-128](../../../tests/unit/engines/cohort-engine.test.ts#L127)):
 
 ```typescript
 // IRR to 4 decimal places
@@ -793,7 +801,7 @@ Portfolio TVPI = (Sum of Total Values) / (Sum of Paid-In Capital)
 ```
 
 **Validation Test**
-([cohorts-validation.yaml:50-57](c:\dev\Updog_restore\scripts\validation\cohorts-validation.yaml#L50)):
+([cohorts-validation.yaml:50-57](../../../scripts/validation/cohorts-validation.yaml#L50)):
 
 ```yaml
 cohorts:
@@ -813,7 +821,7 @@ cohorts:
 ```
 
 **Implementation**
-([CohortEngine.ts:238](c:\dev\Updog_restore\client\src\core\cohorts\CohortEngine.ts#L238)):
+([CohortEngine.ts:238](../../../client/src/core/cohorts/CohortEngine.ts#L238)):
 
 ```typescript
 const avgMultiple =
@@ -847,7 +855,7 @@ Portfolio DPI = (Sum of Distributions) / (Sum of Paid-In Capital)
 ```
 
 **Validation Test**
-([cohorts-validation.yaml:55-56](c:\dev\Updog_restore\scripts\validation\cohorts-validation.yaml#L55)):
+([cohorts-validation.yaml:55-56](../../../scripts/validation/cohorts-validation.yaml#L55)):
 
 ```yaml
 # From multi-cohort test:
@@ -896,7 +904,7 @@ const portfolioIRR = xirrNewtonBisection(allCashFlows).irr;
 ### Maturity Comparison
 
 **Validation Test**
-([cohorts-validation.yaml:57](c:\dev\Updog_restore\scripts\validation\cohorts-validation.yaml#L57)):
+([cohorts-validation.yaml:57](../../../scripts/validation/cohorts-validation.yaml#L57)):
 
 ```yaml
 # Expect older cohorts to have higher maturity
@@ -922,7 +930,7 @@ const maturity = Math.min((currentYear - vintageYear) / 5, 1.0);
 ### Validation Test Suite
 
 The engine's metrics are validated against 5 comprehensive test scenarios
-([cohorts-validation.yaml](c:\dev\Updog_restore\scripts\validation\cohorts-validation.yaml)):
+([cohorts-validation.yaml](../../../scripts/validation/cohorts-validation.yaml)):
 
 | Test Case  | Scenario          | Key Metric              | Expected Result       |
 | ---------- | ----------------- | ----------------------- | --------------------- |
@@ -988,10 +996,10 @@ const dpi = Math.max(0, calculatedDPI); // Floor at 0x
 **Scenario:** Newton-Raphson fails to converge
 
 **Fallback:** Use bisection method
-([brent-solver.ts](c:\dev\Updog_restore\client\src\lib\finance\brent-solver.ts))
+([brent-solver.ts](../../../client/src/lib/finance/brent-solver.ts))
 
 **Test Case**
-([xirr-golden-set.test.ts:268-275](c:\dev\Updog_restore\tests\unit\xirr-golden-set.test.ts#L268)):
+([xirr-golden-set.test.ts:268-275](../../../tests/unit/xirr-golden-set.test.ts#L268)):
 
 ```typescript
 describe('XIRR Method Fallbacks', () => {
@@ -1011,7 +1019,7 @@ describe('XIRR Method Fallbacks', () => {
 ### Tolerance & Precision
 
 **Excel XIRR Parity**
-([test-infrastructure.ts:258-261](c:\dev\Updog_restore\tests\setup\test-infrastructure.ts#L258)):
+([test-infrastructure.ts:258-261](../../../tests/setup/test-infrastructure.ts#L258)):
 
 ```typescript
 // Standard tolerance for XIRR/IRR comparisons

@@ -37,6 +37,9 @@ import type {
   BacktestAsyncRunResponse,
   BacktestJobStatusResponse,
 } from '@shared/types/backtesting';
+import { createRouteLogger } from '../lib/route-logger.js';
+
+const routeLog = createRouteLogger('backtesting');
 
 const router = Router();
 
@@ -210,7 +213,7 @@ router.post(
         result,
       });
     } catch (error) {
-      console.error('[backtesting] Run backtest failed:', error);
+      routeLog.error('[backtesting] Run backtest failed:', error);
 
       res.status(500).json({
         error: 'BACKTEST_FAILED',
@@ -492,7 +495,7 @@ router.get(
         },
       });
     } catch (error) {
-      console.error('[backtesting] Get history failed:', error);
+      routeLog.error('[backtesting] Get history failed:', error);
 
       res.status(500).json({
         error: 'HISTORY_FETCH_FAILED',
@@ -554,7 +557,7 @@ router.get(
 
       res.status(200).json({ result });
     } catch (error) {
-      console.error('[backtesting] Get backtest result failed:', error);
+      routeLog.error('[backtesting] Get backtest result failed:', error);
 
       res.status(500).json({
         error: 'RESULT_FETCH_FAILED',
@@ -624,7 +627,7 @@ router.post(
         },
       });
     } catch (error: unknown) {
-      console.error('[backtesting] Scenario comparison failed:', error);
+      routeLog.error('[backtesting] Scenario comparison failed:', error);
 
       res.status(500).json({
         error: 'SCENARIO_COMPARISON_FAILED',
@@ -642,6 +645,10 @@ router.post(
  *
  * Returns:
  * - scenarios: string[] - Array of available scenario names
+ *
+ * NOT-FUND-SCOPED (Tranche A): returns the static catalog of historical scenario
+ * names and reads no per-fund data, so it intentionally carries requireAuth() only
+ * with no fund-scope guard. Tracked on the Slice 7 not-fund-scoped allowlist.
  */
 router.get(
   '/scenarios',
@@ -653,7 +660,7 @@ router.get(
 
       res.status(200).json({ scenarios });
     } catch (error) {
-      console.error('[backtesting] Get scenarios failed:', error);
+      routeLog.error('[backtesting] Get scenarios failed:', error);
 
       res.status(500).json({
         error: 'SCENARIOS_FETCH_FAILED',
@@ -668,7 +675,7 @@ router.get(
 // ============================================================================
 
 router.use((err: Error, req: Request, res: Response, _next: NextFunction) => {
-  console.error('[backtesting] Unhandled error:', err);
+  routeLog.error('[backtesting] Unhandled error:', err);
 
   res.status(500).json({
     error: 'INTERNAL_ERROR',

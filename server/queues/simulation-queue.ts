@@ -12,6 +12,7 @@ import type IORedis from 'ioredis';
 import { registerQueueRuntime, unregisterQueueRuntime } from './registry';
 import { getBullMQConnection } from './redis-connection.js';
 import { logger } from '../logger';
+import type { UnifiedSimulationConfig } from '../services/monte-carlo-service-unified';
 
 // Job types
 export interface SimulationJobData {
@@ -36,6 +37,20 @@ export interface SimulationJobResult {
   };
   error?: string;
   durationMs?: number;
+}
+
+export function buildSimulationRunConfigFromJobData(
+  data: SimulationJobData,
+  runs: number
+): UnifiedSimulationConfig {
+  return {
+    fundId: data.fundId,
+    runs,
+    timeHorizonYears: data.timeHorizonYears,
+    ...(data.baselineId !== undefined ? { baselineId: data.baselineId } : {}),
+    ...(data.portfolioSize !== undefined ? { portfolioSize: data.portfolioSize } : {}),
+    ...(data.userId !== undefined ? { createdBy: data.userId } : {}),
+  };
 }
 
 export interface JobProgressEvent {
@@ -162,11 +177,9 @@ export async function initializeSimulationQueue(redisConnection: IORedis): Promi
           const runsThisBatch = Math.min(batchSize, totalRuns - completedRuns);
 
           // Run batch
-          const batchResult = await unifiedMonteCarloService.runSimulation({
-            fundId: job.data.fundId,
-            runs: runsThisBatch,
-            timeHorizonYears: job.data.timeHorizonYears,
-          });
+          const batchResult = await unifiedMonteCarloService.runSimulation(
+            buildSimulationRunConfigFromJobData(job.data, runsThisBatch)
+          );
 
           // Collect results (simplified - actual implementation would aggregate)
           const batchMetrics = (batchResult as { metrics?: { tvpiDistribution?: number[] } })

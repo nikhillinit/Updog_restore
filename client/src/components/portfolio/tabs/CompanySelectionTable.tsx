@@ -1,4 +1,3 @@
- 
 import React, { useState } from 'react';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
@@ -32,17 +31,13 @@ export function CompanySelectionTable({
   selectedCompanies,
   onSelectionChange,
 }: CompanySelectionTableProps) {
-  const [editingValues, setEditingValues] = useState<Record<number, string>>(
-    {}
-  );
+  const [editingValues, setEditingValues] = useState<Record<number, string>>({});
 
   const isSelected = (companyId: number): boolean => {
     return selectedCompanies.some((c) => c.id === companyId);
   };
 
-  const getSelectedCompany = (
-    companyId: number
-  ): SelectedCompany | undefined => {
+  const getSelectedCompany = (companyId: number): SelectedCompany | undefined => {
     return selectedCompanies.find((c) => c.id === companyId);
   };
 
@@ -54,7 +49,7 @@ export function CompanySelectionTable({
         name: company.name,
         currentAllocation: company.plannedReservesCents || 0,
         newAllocation: company.plannedReservesCents || 0,
-        ...spreadIfDefined("cap", company.allocationCapCents ?? undefined),
+        ...spreadIfDefined('cap', company.allocationCapCents ?? undefined),
       };
       onSelectionChange([...selectedCompanies, newSelection]);
     } else {
@@ -84,9 +79,7 @@ export function CompanySelectionTable({
 
     // Update selected company
     onSelectionChange(
-      selectedCompanies.map((c) =>
-        c.id === companyId ? { ...c, newAllocation: cents } : c
-      )
+      selectedCompanies.map((c) => (c.id === companyId ? { ...c, newAllocation: cents } : c))
     );
   };
 
@@ -110,9 +103,7 @@ export function CompanySelectionTable({
     return selected.newAllocation - selected.currentAllocation;
   };
 
-  const getDeltaStatus = (
-    delta: number
-  ): 'increased' | 'decreased' | 'unchanged' => {
+  const getDeltaStatus = (delta: number): 'increased' | 'decreased' | 'unchanged' => {
     if (delta > 0) return 'increased';
     if (delta < 0) return 'decreased';
     return 'unchanged';
@@ -133,7 +124,7 @@ export function CompanySelectionTable({
         <TableBody>
           {companies.length === 0 ? (
             <TableRow>
-              <TableCell colSpan={5} className="text-center text-gray-500">
+              <TableCell colSpan={5} className="text-center text-charcoal-500">
                 No companies available
               </TableCell>
             </TableRow>
@@ -162,20 +153,18 @@ export function CompanySelectionTable({
                   <TableCell className="text-right">
                     {selected ? (
                       <div className="flex items-center justify-end gap-2">
-                        <span className="text-gray-500">$</span>
+                        <span className="text-charcoal-500">$</span>
                         <Input
                           type="number"
                           min="0"
                           step="0.01"
                           value={getDisplayValue(company)}
-                          onChange={(e) =>
-                            handleAllocationChange(company.id, e.target.value)
-                          }
+                          onChange={(e) => handleAllocationChange(company.id, e.target.value)}
                           className="w-32 text-right"
                         />
                       </div>
                     ) : (
-                      <span className="text-gray-400">-</span>
+                      <span className="text-charcoal-400">-</span>
                     )}
                   </TableCell>
                   <TableCell className="text-right">
@@ -187,7 +176,7 @@ export function CompanySelectionTable({
                         <span>{formatCents(Math.abs(delta))}</span>
                       </div>
                     ) : (
-                      <span className="text-gray-400">-</span>
+                      <span className="text-charcoal-400">-</span>
                     )}
                   </TableCell>
                 </TableRow>

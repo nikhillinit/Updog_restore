@@ -13,6 +13,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import * as economicsEngine from '@shared/lib/economics/economics-engine';
 
 const { mockInvalidateQueries, mockUseFlag } = vi.hoisted(() => ({
   mockInvalidateQueries: vi.fn(),
@@ -176,6 +177,8 @@ describe('ReviewStep single-submit via finalize', () => {
   });
 
   it('renders the review step with fund data summary', () => {
+    mockUseFlag.mockReturnValue(false);
+
     render(<ReviewStep />);
 
     expect(screen.getByTestId('review-step')).toBeInTheDocument();
@@ -245,8 +248,44 @@ describe('ReviewStep single-submit via finalize', () => {
     render(<ReviewStep />);
 
     expect(screen.getByText('Economics validation failed')).toBeInTheDocument();
+    expect(screen.getByTestId('economics-blocking-alert')).toHaveTextContent(
+      'Review the listed economics inputs before publishing the fund.'
+    );
+    expect(
+      screen.getByRole('button', { name: 'Review distributions, fees, and recycling settings' })
+    ).toBeInTheDocument();
     expect(screen.getByTestId('create-fund-button')).toBeDisabled();
+    expect(
+      screen.getByText('Resolve the economics dry-run error before publishing.')
+    ).toBeInTheDocument();
     expect(mockFinalizeFund).not.toHaveBeenCalled();
+  });
+
+  it('links economics invariant failures to cashflow settings', async () => {
+    vi.spyOn(economicsEngine, 'runEconomicsModel').mockImplementation(() => {
+      throw new economicsEngine.EconomicsInvariantError({
+        passed: false,
+        tolerance: 0.01,
+        errors: [
+          {
+            year: 3,
+            code: 'PERIOD_CASH_RECONCILIATION_FAILED',
+            message: 'Period cash sources and uses do not reconcile.',
+            delta: 125,
+          },
+        ],
+      });
+    });
+
+    render(<ReviewStep />);
+
+    expect(screen.getByText('Economics invariant failed')).toBeInTheDocument();
+
+    await userEvent.click(
+      screen.getByRole('button', { name: 'Review cashflow and liquidity settings' })
+    );
+
+    expect(mockSetLocation).toHaveBeenCalledWith('/fund-setup?step=6');
   });
 
   it('skips economics dry-run blocking when the economics flag is disabled', async () => {

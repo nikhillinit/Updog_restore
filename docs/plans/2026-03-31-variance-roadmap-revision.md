@@ -33,11 +33,11 @@ statuses below are out of date:**
 - **Phase 0.P Cleanup**: settled on main as of 2026-04-08. The remaining items
   flagged below (`_reportsData`, `mockVarianceData`, restore UI) and the
   Worktrack A/B of the original strategy doc are no longer present in
-  `client/src` — see
-  `docs/archive/2026-q2/2026-04-05-todo-report-remediation-strategy.md`
-  (archived 2026-04-08 per
-  `.planning/phases/03-todo-report-remediation/03-CONTEXT.md` D-01
-  close-via-archive).
+  `client/src`. The April 5 archive copy was later pruned; current closeout
+  evidence is the accepted `docs/adr/ADR-014-snapshot-governance.md` boundary,
+  current product code/tests, and the archive-deletion history (archived
+  2026-04-08 per `.planning/phases/03-todo-report-remediation/03-CONTEXT.md`
+  D-01 close-via-archive).
 - **Phase 1A.1**: implementation recorded in
   `2026-04-01-variance-phase1a1c-implementation-plan.md`.
 - **Phase 1A.2**: hardening in

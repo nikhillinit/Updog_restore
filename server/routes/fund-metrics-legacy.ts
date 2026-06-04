@@ -1,7 +1,8 @@
 import { Router } from 'express';
 import type { Request, Response } from 'express';
 import type { ApiError } from '@shared/types';
-import { NumberParseError, toNumber } from '@shared/number';
+import { toNumber } from '@shared/number';
+import { handleNumberParseError } from '../lib/number-parse-error';
 import { logger } from '../lib/logger.js';
 import { storage } from '../storage';
 
@@ -18,18 +19,14 @@ router['get']('/fund-metrics/:fundId', async (req: Request, res: Response) => {
         error: 'Invalid fund ID',
         message: `Fund ID must be a positive integer, received: ${fundIdParam}`,
       };
-      return res['status'](400)['json'](error);
+      return res.status(400).json(error);
     }
 
     const metrics = await storage.getFundMetrics(fundId);
-    return res['json'](metrics);
+    return res.json(metrics);
   } catch (error) {
-    if (error instanceof NumberParseError) {
-      const apiError: ApiError = {
-        error: 'Invalid fund ID',
-        message: error.message,
-      };
-      return res['status'](400)['json'](apiError);
+    if (handleNumberParseError(error, res, 'Invalid fund ID')) {
+      return;
     }
 
     log.error(
@@ -44,7 +41,7 @@ router['get']('/fund-metrics/:fundId', async (req: Request, res: Response) => {
       error: 'Database query failed',
       message: error instanceof Error ? error.message : 'Failed to fetch fund metrics',
     };
-    return res['status'](500)['json'](apiError);
+    return res.status(500).json(apiError);
   }
 });
 

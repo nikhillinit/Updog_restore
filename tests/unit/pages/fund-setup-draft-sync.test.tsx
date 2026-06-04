@@ -11,6 +11,19 @@ const mockSetLocation = vi.fn((next: string) => {
 const mockMarkStepVisited = vi.fn();
 const mockFetchFundDraft = vi.fn();
 const mockSaveFundDraft = vi.fn();
+const mockModernWizardProgress = vi.fn(
+  ({
+    steps,
+    currentStepId,
+  }: {
+    steps: Array<{ id: string; title: string }>;
+    currentStepId: string;
+  }) => (
+    <div data-testid="wizard-progress-current-step">
+      {steps.find((step) => step.id === currentStepId)?.title}
+    </div>
+  )
+);
 
 vi.mock('wouter', () => ({
   useLocation: () => [mockLocation.value.split('?')[0] ?? mockLocation.value, mockSetLocation],
@@ -34,7 +47,7 @@ vi.mock('@/components/ErrorBoundary', () => ({
 }));
 
 vi.mock('@/components/wizard/ModernWizardProgress', () => ({
-  ModernWizardProgress: () => 'Wizard Progress',
+  ModernWizardProgress: mockModernWizardProgress,
 }));
 
 vi.mock('@/hooks/useWizardStepGuard', () => ({
@@ -61,6 +74,7 @@ describe('FundSetup draft sync', () => {
     mockMarkStepVisited.mockReset();
     mockFetchFundDraft.mockReset();
     mockSaveFundDraft.mockReset();
+    mockModernWizardProgress.mockClear();
     localStorage.clear();
 
     const initialState = fundStore.getInitialState();
@@ -79,6 +93,29 @@ describe('FundSetup draft sync', () => {
 
   afterEach(() => {
     vi.useRealTimers();
+  });
+
+  it('renders a fresh wizard without a draft-sync alert or draft service calls', async () => {
+    const { default: FundSetup } = await import('@/pages/fund-setup');
+    render(<FundSetup />);
+
+    expect(screen.getByText('Fund Basics Step')).toBeInTheDocument();
+    expect(screen.queryByTestId('draft-sync-error')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('draft-sync-status')).not.toBeInTheDocument();
+    expect(mockFetchFundDraft).not.toHaveBeenCalled();
+    expect(mockSaveFundDraft).not.toHaveBeenCalled();
+  });
+
+  it('labels the distributions step as the waterfall configuration step', async () => {
+    mockLocation.value = '/fund-setup?step=5';
+
+    const { default: FundSetup } = await import('@/pages/fund-setup');
+    render(<FundSetup />);
+
+    expect(screen.getByText('Distributions Step')).toBeInTheDocument();
+    expect(screen.getByTestId('wizard-progress-current-step')).toHaveTextContent(
+      'DISTRIBUTIONS & WATERFALL'
+    );
   });
 
   it('hydrates a recovered authoritative draft from the server before rendering the routed step', async () => {
@@ -193,5 +230,36 @@ describe('FundSetup draft sync', () => {
     });
 
     expect(fundStore.getState().fundName).toBe('Recovered Fund');
+  });
+
+  it('silently falls back to draftless bootstrap when no recovered server draft exists', async () => {
+    mockFetchFundDraft.mockRejectedValueOnce(new Error('No draft found'));
+
+    act(() => {
+      fundStore.setState({
+        ...fundStore.getState(),
+        fundName: 'Local Cache Fund',
+        draftFundId: 91,
+        draftServerReady: true,
+      });
+    });
+
+    const { default: FundSetup } = await import('@/pages/fund-setup');
+    render(<FundSetup />);
+
+    await waitFor(() => {
+      expect(mockFetchFundDraft).toHaveBeenCalledWith(91);
+    });
+
+    await waitFor(() => {
+      expect(fundStore.getState().draftServerReady).toBe(false);
+    });
+
+    expect(screen.getByText('Fund Basics Step')).toBeInTheDocument();
+    expect(screen.queryByTestId('draft-hydrating')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('draft-sync-error')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('draft-sync-status')).not.toBeInTheDocument();
+    expect(fundStore.getState().draftFundId).toBe(91);
+    expect(fundStore.getState().fundName).toBe('Local Cache Fund');
   });
 });

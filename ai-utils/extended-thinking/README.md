@@ -393,11 +393,6 @@ See the TypeScript types for full API documentation:
 - `AgentThinkingMetrics` - Metrics structure
 - `MODELS` - Available model configurations
 
-## Examples
-
-See `notebooks/examples/extended-thinking-multi-model.ipynb` for comprehensive
-examples.
-
 ## Resources
 
 - [Extended Thinking Docs](https://docs.claude.com/en/docs/build-with-claude/extended-thinking)

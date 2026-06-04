@@ -32,6 +32,9 @@ import {
   createLPApiErrorResponse as createErrorResponse,
   respondInvalidCursor,
 } from '../lib/lp-api-helpers';
+import { createRouteLogger } from '../lib/route-logger.js';
+
+const routeLog = createRouteLogger('lp-notifications');
 
 const router = Router();
 
@@ -217,7 +220,7 @@ router.get(
       recordLPRequest(endpoint, 'GET', 500, duration);
       recordError(endpoint, 'INTERNAL_ERROR', 500);
 
-      console.error('[LP Notifications API] Error:', error);
+      routeLog.error('[LP Notifications API] Error:', error);
       return res
         .status(500)
         .json(createErrorResponse('INTERNAL_ERROR', 'An unexpected error occurred'));
@@ -277,7 +280,7 @@ router.get(
       recordLPRequest(endpoint, 'GET', 500, duration);
       recordError(endpoint, 'INTERNAL_ERROR', 500);
 
-      console.error('[LP Notifications Unread API] Error:', error);
+      routeLog.error('[LP Notifications Unread API] Error:', error);
       return res
         .status(500)
         .json(createErrorResponse('INTERNAL_ERROR', 'An unexpected error occurred'));
@@ -384,7 +387,7 @@ router.post(
       recordLPRequest(endpoint, 'POST', 500, duration);
       recordError(endpoint, 'INTERNAL_ERROR', 500);
 
-      console.error('[LP Notifications Read API] Error:', error);
+      routeLog.error('[LP Notifications Read API] Error:', error);
       return res
         .status(500)
         .json(createErrorResponse('INTERNAL_ERROR', 'An unexpected error occurred'));
@@ -480,7 +483,7 @@ router.post(
       recordLPRequest(endpoint, 'POST', 500, duration);
       recordError(endpoint, 'INTERNAL_ERROR', 500);
 
-      console.error('[LP Notifications Read All API] Error:', error);
+      routeLog.error('[LP Notifications Read All API] Error:', error);
       return res
         .status(500)
         .json(createErrorResponse('INTERNAL_ERROR', 'An unexpected error occurred'));
@@ -550,7 +553,7 @@ router.get(
       recordLPRequest(endpoint, 'GET', 500, duration);
       recordError(endpoint, 'INTERNAL_ERROR', 500);
 
-      console.error('[LP Notifications Preferences API] Error:', error);
+      routeLog.error('[LP Notifications Preferences API] Error:', error);
       return res
         .status(500)
         .json(createErrorResponse('INTERNAL_ERROR', 'An unexpected error occurred'));
@@ -675,7 +678,7 @@ router.put(
       recordLPRequest(endpoint, 'PUT', 500, duration);
       recordError(endpoint, 'INTERNAL_ERROR', 500);
 
-      console.error('[LP Notifications Preferences Update API] Error:', error);
+      routeLog.error('[LP Notifications Preferences Update API] Error:', error);
       return res
         .status(500)
         .json(createErrorResponse('INTERNAL_ERROR', 'An unexpected error occurred'));

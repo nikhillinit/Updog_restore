@@ -18,7 +18,7 @@ export interface StorageConfig {
   provider: StorageProvider;
   // Local storage config
   localPath?: string;
-  // S3 config (for future implementation)
+  // S3 config (provider is disabled until the AWS SDK is added)
   s3Bucket?: string;
   s3Region?: string;
   s3AccessKeyId?: string;
@@ -209,7 +209,7 @@ class MemoryStorageService implements StorageService {
   }
 }
 
-/** S3 provider stub -- activate only after installing @aws-sdk/client-s3. All methods throw until implemented. */
+/** S3 provider is intentionally disabled until @aws-sdk/client-s3 is installed and wired. */
 class S3StorageService implements StorageService {
   private bucket: string;
   private region: string;
@@ -217,44 +217,36 @@ class S3StorageService implements StorageService {
   constructor(config: StorageConfig) {
     this.bucket = config.s3Bucket || '';
     this.region = config.s3Region || 'us-east-1';
+  }
 
-    if (!this.bucket) {
-      console.warn('[StorageService] S3 bucket not configured, falling back to local storage');
-    }
+  private unsupported(operation: string): Error {
+    return new Error(
+      `S3 storage ${operation} is not implemented. Use local or memory storage until @aws-sdk/client-s3 is installed and wired.`
+    );
   }
 
   async upload(_key: string, _buffer: Buffer, _contentType: string): Promise<UploadResult> {
-    // TODO: Implement with @aws-sdk/client-s3
-    // const { S3Client, PutObjectCommand } = await import('@aws-sdk/client-s3');
-    // const client = new S3Client({ region: this.region });
-    // await client.send(new PutObjectCommand({ Bucket: this.bucket, Key: key, Body: buffer, ContentType: contentType }));
-
-    throw new Error('S3 storage not yet implemented. Install @aws-sdk/client-s3 and implement.');
+    throw this.unsupported('upload');
   }
 
   async download(_key: string): Promise<DownloadResult> {
-    // TODO: Implement with @aws-sdk/client-s3
-    throw new Error('S3 storage not yet implemented');
+    throw this.unsupported('download');
   }
 
   async delete(_key: string): Promise<boolean> {
-    // TODO: Implement with @aws-sdk/client-s3
-    throw new Error('S3 storage not yet implemented');
+    throw this.unsupported('delete');
   }
 
   async exists(_key: string): Promise<boolean> {
-    // TODO: Implement with @aws-sdk/client-s3
-    throw new Error('S3 storage not yet implemented');
+    throw this.unsupported('exists');
   }
 
   async getSignedUrl(_key: string, _expirySeconds?: number): Promise<SignedUrlResult> {
-    // TODO: Implement with @aws-sdk/s3-request-presigner
-    throw new Error('S3 storage not yet implemented');
+    throw this.unsupported('signed URL generation');
   }
 
   async listFiles(_prefix: string): Promise<string[]> {
-    // TODO: Implement with @aws-sdk/client-s3
-    throw new Error('S3 storage not yet implemented');
+    throw this.unsupported('file listing');
   }
 }
 
@@ -275,6 +267,10 @@ const defaultConfig: StorageConfig = {
 export function createStorageService(config: StorageConfig = defaultConfig): StorageService {
   switch (config.provider) {
     case 's3':
+      if (!config.s3Bucket) {
+        console.warn('[StorageService] S3 bucket not configured, falling back to local storage');
+        return new LocalStorageService({ ...config, provider: 'local' });
+      }
       return new S3StorageService(config);
     case 'memory':
       return new MemoryStorageService();

@@ -44,7 +44,7 @@ algorithm guarantees:
 ```
 
 **Reference:**
-[ConstrainedReserveEngine.ts:5-74](c:/dev/Updog_restore/client/src/core/reserves/ConstrainedReserveEngine.ts#L5-L74)
+[ConstrainedReserveEngine.ts:5-74](../../../client/src/core/reserves/ConstrainedReserveEngine.ts#L5-L74)
 
 ---
 
@@ -53,7 +53,7 @@ algorithm guarantees:
 ### Phase 1: Input Parsing and Constraint Setup
 
 **Code:**
-[ConstrainedReserveEngine.ts:6-18](c:/dev/Updog_restore/client/src/core/reserves/ConstrainedReserveEngine.ts#L6-L18)
+[ConstrainedReserveEngine.ts:6-18](../../../client/src/core/reserves/ConstrainedReserveEngine.ts#L6-L18)
 
 ```typescript
 calculate(input: ReserveInput) {
@@ -66,7 +66,7 @@ calculate(input: ReserveInput) {
   // Build stage-specific caps
   const stageMax = new Map<string, Cents>();
   Object.entries(cst.maxPerStage ?? {}).forEach(([stage, max]) => {
-    stageMax['set'](stage, toCents(max));
+    stageMax.set(stage, toCents(max));
   });
 
   const stageAllocated = new Map<string, Cents>();
@@ -103,18 +103,18 @@ calculate(input: ReserveInput) {
 ### Phase 2: Company Scoring and Ranking
 
 **Code:**
-[ConstrainedReserveEngine.ts:21-41](c:/dev/Updog_restore/client/src/core/reserves/ConstrainedReserveEngine.ts#L21-L41)
+[ConstrainedReserveEngine.ts:21-41](../../../client/src/core/reserves/ConstrainedReserveEngine.ts#L21-L41)
 
 ```typescript
 const comps = input.companies.map((c) => {
-  const pol = polByStage['get'](c.stage);
+  const pol = polByStage.get(c.stage);
   if (!pol)
     throw Object.assign(new Error(`No policy for ${c.stage}`), { status: 400 });
 
   const capCompanyC = Number.isFinite(cst.maxPerCompany)
     ? toCents(cst.maxPerCompany as number)
     : BigInt(Number.MAX_SAFE_INTEGER);
-  const capStageC = stageMax['get'](c.stage) ?? null;
+  const capStageC = stageMax.get(c.stage) ?? null;
 
   // Present value calculation
   const pv =
@@ -209,7 +209,7 @@ This ensures **deterministic sorting** (no random ordering).
 ### Phase 3: Greedy Allocation with Constraint Satisfaction
 
 **Code:**
-[ConstrainedReserveEngine.ts:43-58](c:/dev/Updog_restore/client/src/core/reserves/ConstrainedReserveEngine.ts#L43-L58)
+[ConstrainedReserveEngine.ts:43-58](../../../client/src/core/reserves/ConstrainedReserveEngine.ts#L43-L58)
 
 ```typescript
 let remainingC = toCents(input.availableReserves);
@@ -218,7 +218,7 @@ let remainingC = toCents(input.availableReserves);
 for (const c of comps) {
   if (remainingC <= 0n) break;
 
-  const stAlloc = stageAllocated['get'](c.stage) ?? 0n;
+  const stAlloc = stageAllocated.get(c.stage) ?? 0n;
   const stRoom =
     c.capStageC != null
       ? c.capStageC - stAlloc > 0n
@@ -234,7 +234,7 @@ for (const c of comps) {
 
   c.allocatedC += roomC;
   remainingC -= roomC;
-  stageAllocated['set'](c.stage, stAlloc + roomC);
+  stageAllocated.set(c.stage, stAlloc + roomC);
 }
 ```
 
@@ -253,7 +253,7 @@ If no capital left, stop (can't allocate to lower-priority companies).
 #### Step 3.2: Calculate Stage Room
 
 ```typescript
-const stAlloc = stageAllocated['get'](c.stage) ?? 0n;
+const stAlloc = stageAllocated.get(c.stage) ?? 0n;
 const stRoom =
   c.capStageC != null
     ? c.capStageC - stAlloc > 0n
@@ -334,7 +334,7 @@ roomC = $30K; // Would allocate $30K
 ```typescript
 c.allocatedC += roomC;
 remainingC -= roomC;
-stageAllocated['set'](c.stage, stAlloc + roomC);
+stageAllocated.set(c.stage, stAlloc + roomC);
 ```
 
 **State Updates:**
@@ -353,7 +353,7 @@ stageAllocated['set'](c.stage, stAlloc + roomC);
 ### Phase 4: Output Construction and Conservation Check
 
 **Code:**
-[ConstrainedReserveEngine.ts:60-74](c:/dev/Updog_restore/client/src/core/reserves/ConstrainedReserveEngine.ts#L60-L74)
+[ConstrainedReserveEngine.ts:60-74](../../../client/src/core/reserves/ConstrainedReserveEngine.ts#L60-L74)
 
 ```typescript
 const totalAllocatedC = comps.reduce((s, c) => addCents(s, c.allocatedC), 0n);
@@ -602,7 +602,7 @@ stagePolicies = [
 ### Validation Test Case
 
 **From:**
-[reserves-validation.yaml:86-113](c:/dev/Updog_restore/scripts/validation/reserves-validation.yaml#L86-L113)
+[reserves-validation.yaml:86-113](../../../scripts/validation/reserves-validation.yaml#L86-L113)
 
 ```yaml
 - description: 'Multi-vintage portfolio with different deployment stages'
@@ -776,7 +776,7 @@ assert(JSON.stringify(result1) === JSON.stringify(result2));
 ```
 
 **Test Coverage:** See
-[reserves.property.test.ts:217-255](c:/dev/Updog_restore/client/src/core/reserves/__tests__/reserves.property.test.ts#L217-L255)
+[reserves.property.test.ts:217-255](../../../client/src/core/reserves/__tests__/reserves.property.test.ts#L217-L255)
 (Idempotence test)
 
 ---
@@ -789,5 +789,5 @@ assert(JSON.stringify(result1) === JSON.stringify(result2));
 
 **Related:**
 
-- [Money utilities](c:/dev/Updog_restore/shared/money.ts) - BigInt arithmetic
-- [Schemas](c:/dev/Updog_restore/shared/schemas.ts) - Input validation
+- [Money utilities](../../../shared/money.ts) - BigInt arithmetic
+- [Schemas](../../../shared/schemas.ts) - Input validation

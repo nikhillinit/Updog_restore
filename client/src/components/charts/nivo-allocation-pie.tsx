@@ -12,7 +12,7 @@ import { LazyResponsiveContainer as ResponsiveContainer } from '@/components/cha
 import { Tooltip } from 'recharts/es6/component/Tooltip';
 import { Legend } from 'recharts/es6/component/Legend';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { getChartColor } from '@/lib/chart-theme';
+import { getChartColor } from '@/lib/brand-tokens';
 
 interface AllocationData {
   id: string;
@@ -41,7 +41,7 @@ const CustomTooltip = ({
     const total = payload[0]!.payload.total || 0;
     const percentage = total > 0 ? ((data.value / total) * 100).toFixed(1) : '0';
     return (
-      <div className="bg-white p-2 border border-gray-200 rounded shadow-lg">
+      <div className="bg-white p-2 border border-beige-200 rounded shadow-lg">
         <p className="font-semibold">{data.name}</p>
         <p className="text-sm">
           ${(data.value / 1000000).toFixed(1)}M ({percentage}%)
@@ -83,7 +83,7 @@ export default function NivoAllocationPie({ title, data, height = 400 }: NivoAll
                 return `${name}: ${percentage}%`;
               }}
               outerRadius={80}
-              fill="#8884d8"
+              fill={getChartColor(0)}
               dataKey="value"
             >
               {chartData.map((entry: { fill: string }, index: number) => (

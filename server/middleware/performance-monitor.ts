@@ -8,6 +8,12 @@
 import type { Request, Response, NextFunction } from 'express';
 import { performance } from 'perf_hooks';
 import EventEmitter from 'events';
+import { logger } from '../lib/logger.js';
+
+const log =
+  typeof logger.child === 'function'
+    ? logger.child({ module: 'middleware:performance-monitor' })
+    : logger;
 
 interface PerformanceMetric {
   operation: string;
@@ -381,13 +387,27 @@ export function trackPortfolioCalculation<T>(calculationType: string, calculatio
 
 // Performance alert handlers
 monitor.on('performance_alert', (metric: PerformanceMetric) => {
-  console.warn(
-    `Performance Alert: ${metric.operation} took ${metric.duration}ms (${metric.severity})`
+  log.warn(
+    {
+      operation: metric.operation,
+      duration: metric.duration,
+      severity: metric.severity,
+      category: metric.category,
+    },
+    'Performance alert'
   );
 
   // Could integrate with external alerting systems here
   if (metric.severity === 'critical') {
-    console.error(`CRITICAL: ${metric.operation} performance degradation detected!`);
+    log.error(
+      {
+        operation: metric.operation,
+        duration: metric.duration,
+        severity: metric.severity,
+        category: metric.category,
+      },
+      'Critical performance degradation detected'
+    );
   }
 });
 

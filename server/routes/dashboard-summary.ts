@@ -1,9 +1,12 @@
 import { Router } from 'express';
 import type { Request, Response } from 'express';
 import type { ApiError } from '@shared/types';
-import { NumberParseError, toNumber } from '@shared/number';
+import { parseFundIdParam, toNumber } from '@shared/number';
 import { storage } from '../storage';
 import { getDashboardSummaryReadModel } from '../services/dashboard-summary-read-service';
+import { handleNumberParseError } from '../lib/number-parse-error';
+import { firstString } from '../lib/request-values';
+import { enforceProvidedFundScope } from '../lib/auth/provided-fund-scope';
 import { logger } from '../lib/logger.js';
 
 const router = Router();
@@ -11,15 +14,20 @@ const log = logger.child({ route: 'dashboard-summary' });
 
 router['get']('/dashboard-summary/:fundId', async (req: Request, res: Response) => {
   try {
-    const fundIdParam = req.params['fundId'];
-    const fundId = toNumber(fundIdParam, 'fund ID');
+    const fundIdParam = firstString(req.params['fundId']);
+    const fundId = parseFundIdParam(fundIdParam);
 
-    if (fundId <= 0) {
+    if (fundId === null) {
+      toNumber(fundIdParam, 'fund ID');
       const error: ApiError = {
         error: 'Invalid fund ID',
         message: `Fund ID must be a positive integer, received: ${fundIdParam}`,
       };
-      return res['status'](400)['json'](error);
+      return res.status(400).json(error);
+    }
+
+    if (!(await enforceProvidedFundScope(req, res, fundId))) {
+      return;
     }
 
     const dashboardSummary = await getDashboardSummaryReadModel(storage, fundId);
@@ -28,17 +36,13 @@ router['get']('/dashboard-summary/:fundId', async (req: Request, res: Response) 
         error: 'Fund not found',
         message: `No fund exists with ID: ${fundId}`,
       };
-      return res['status'](404)['json'](error);
+      return res.status(404).json(error);
     }
 
-    return res['json'](dashboardSummary);
+    return res.json(dashboardSummary);
   } catch (error) {
-    if (error instanceof NumberParseError) {
-      const apiError: ApiError = {
-        error: 'Invalid fund ID',
-        message: error.message,
-      };
-      return res['status'](400)['json'](apiError);
+    if (handleNumberParseError(error, res, 'Invalid fund ID')) {
+      return;
     }
 
     log.error({ err: error, fundId: req.params['fundId'] }, 'Failed to fetch dashboard summary');
@@ -47,7 +51,7 @@ router['get']('/dashboard-summary/:fundId', async (req: Request, res: Response) 
       message: error instanceof Error ? error.message : 'Failed to fetch dashboard summary',
       details: { fundId: req.params['fundId'] },
     };
-    return res['status'](500)['json'](apiError);
+    return res.status(500).json(apiError);
   }
 });
 

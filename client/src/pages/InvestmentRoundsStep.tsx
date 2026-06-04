@@ -158,9 +158,9 @@ export default function InvestmentRoundsStep() {
     >
       <div className="max-w-[1500px] mx-auto px-6">
         {/* Info Alert */}
-        <Alert className="bg-blue-50 border-blue-200 mb-4">
-          <AlertCircle className="h-4 w-4 text-blue-600" />
-          <AlertDescription className="text-blue-800 text-sm">
+        <Alert className="bg-presson-info/10 border-presson-info/30 mb-4">
+          <AlertCircle className="h-4 w-4 text-presson-info" />
+          <AlertDescription className="text-presson-info text-sm">
             <strong>Important:</strong> Do not delete later stage rounds, even if your fund doesn't
             participate in them. These rounds are needed to model future valuations and portfolio
             company trajectories.
@@ -178,11 +178,13 @@ export default function InvestmentRoundsStep() {
               journey with{' '}
               <strong className="text-[#292929]">{formatCurrency(summary.totalRoundSize)}</strong>{' '}
               capital across stages, averaging{' '}
-              <strong className="text-emerald-600">
+              <strong className="text-presson-positive">
                 {formatPercent(summary.averageGraduationRate)}
               </strong>{' '}
               graduation and{' '}
-              <strong className="text-blue-600">{formatPercent(summary.averageExitRate)}</strong>{' '}
+              <strong className="text-presson-info">
+                {formatPercent(summary.averageExitRate)}
+              </strong>{' '}
               exit rates.
             </p>
           </div>
@@ -242,8 +244,8 @@ export default function InvestmentRoundsStep() {
                       key={round.id}
                       className={cn(
                         'border-b border-[#E0D8D1]',
-                        index % 2 === 0 ? 'bg-white' : 'bg-gray-50/50',
-                        hasRoundErrors && 'bg-red-50/30'
+                        index % 2 === 0 ? 'bg-white' : 'bg-pov-gray/50',
+                        hasRoundErrors && 'bg-error/10'
                       )}
                     >
                       {/* Stage Name */}
@@ -260,11 +262,11 @@ export default function InvestmentRoundsStep() {
                             }
                             className={cn(
                               'h-8 text-sm px-2 border-[#E0D8D1] focus:border-[#292929] font-poppins font-medium',
-                              hasRoundErrors && 'border-red-300 focus:border-red-500'
+                              hasRoundErrors && 'border-error/50 focus:border-error'
                             )}
                           />
                           {round.isCustom && (
-                            <span className="text-xs px-1.5 py-0.5 bg-blue-100 text-blue-700 rounded whitespace-nowrap">
+                            <span className="text-xs px-1.5 py-0.5 bg-presson-info/10 text-presson-info rounded whitespace-nowrap">
                               Custom
                             </span>
                           )}
@@ -274,7 +276,7 @@ export default function InvestmentRoundsStep() {
                       {/* Round Size */}
                       <TableCell className="py-2">
                         <div className="relative">
-                          <span className="absolute left-2 top-1/2 -translate-y-1/2 text-gray-500 text-xs">
+                          <span className="absolute left-2 top-1/2 -translate-y-1/2 text-charcoal-500 text-xs">
                             $
                           </span>
                           <Input
@@ -289,7 +291,7 @@ export default function InvestmentRoundsStep() {
                             }
                             className={cn(
                               'h-8 pl-5 text-sm px-2 border-[#E0D8D1] focus:border-[#292929] font-poppins',
-                              hasRoundErrors && 'border-red-300 focus:border-red-500'
+                              hasRoundErrors && 'border-error/50 focus:border-error'
                             )}
                           />
                         </div>
@@ -303,8 +305,8 @@ export default function InvestmentRoundsStep() {
                             className={cn(
                               'flex-1 text-xs px-2 font-poppins transition-colors',
                               round.valuationType === 'Pre-Money'
-                                ? 'bg-blue-500 text-white'
-                                : 'bg-white text-gray-700 hover:bg-gray-100'
+                                ? 'bg-pov-charcoal text-pov-white'
+                                : 'bg-white text-charcoal-700 hover:bg-pov-gray'
                             )}
                             onClick={() => handleValuationTypeChange(round.id, 'Pre-Money')}
                           >
@@ -315,8 +317,8 @@ export default function InvestmentRoundsStep() {
                             className={cn(
                               'flex-1 text-xs px-2 font-poppins transition-colors',
                               round.valuationType === 'Post-Money'
-                                ? 'bg-blue-500 text-white'
-                                : 'bg-white text-gray-700 hover:bg-gray-100'
+                                ? 'bg-pov-charcoal text-pov-white'
+                                : 'bg-white text-charcoal-700 hover:bg-pov-gray'
                             )}
                             onClick={() => handleValuationTypeChange(round.id, 'Post-Money')}
                           >
@@ -328,7 +330,7 @@ export default function InvestmentRoundsStep() {
                       {/* Valuation */}
                       <TableCell className="py-2">
                         <div className="relative">
-                          <span className="absolute left-2 top-1/2 -translate-y-1/2 text-gray-500 text-xs">
+                          <span className="absolute left-2 top-1/2 -translate-y-1/2 text-charcoal-500 text-xs">
                             $
                           </span>
                           <Input
@@ -343,7 +345,7 @@ export default function InvestmentRoundsStep() {
                             }
                             className={cn(
                               'h-8 pl-5 text-sm px-2 border-[#E0D8D1] focus:border-[#292929] font-poppins',
-                              hasRoundErrors && 'border-red-300 focus:border-red-500'
+                              hasRoundErrors && 'border-error/50 focus:border-error'
                             )}
                           />
                         </div>
@@ -365,10 +367,10 @@ export default function InvestmentRoundsStep() {
                             }
                             className={cn(
                               'h-8 pr-5 text-sm px-2 border-[#E0D8D1] focus:border-[#292929] font-poppins',
-                              hasRoundErrors && 'border-red-300 focus:border-red-500'
+                              hasRoundErrors && 'border-error/50 focus:border-error'
                             )}
                           />
-                          <span className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-500 text-xs">
+                          <span className="absolute right-2 top-1/2 -translate-y-1/2 text-charcoal-500 text-xs">
                             %
                           </span>
                         </div>
@@ -390,10 +392,10 @@ export default function InvestmentRoundsStep() {
                             }
                             className={cn(
                               'h-8 pr-5 text-sm px-2 border-[#E0D8D1] focus:border-[#292929] font-poppins',
-                              hasRoundErrors && 'border-red-300 focus:border-red-500'
+                              hasRoundErrors && 'border-error/50 focus:border-error'
                             )}
                           />
-                          <span className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-500 text-xs">
+                          <span className="absolute right-2 top-1/2 -translate-y-1/2 text-charcoal-500 text-xs">
                             %
                           </span>
                         </div>
@@ -415,10 +417,10 @@ export default function InvestmentRoundsStep() {
                             }
                             className={cn(
                               'h-8 pr-5 text-sm px-2 border-[#E0D8D1] focus:border-[#292929] font-poppins',
-                              hasRoundErrors && 'border-red-300 focus:border-red-500'
+                              hasRoundErrors && 'border-error/50 focus:border-error'
                             )}
                           />
-                          <span className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-500 text-xs">
+                          <span className="absolute right-2 top-1/2 -translate-y-1/2 text-charcoal-500 text-xs">
                             %
                           </span>
                         </div>
@@ -431,9 +433,9 @@ export default function InvestmentRoundsStep() {
                             type="number"
                             value={round.failureRate.toFixed(0)}
                             disabled
-                            className="h-8 pr-5 text-sm px-2 bg-gray-50 border border-gray-200 rounded text-gray-600 cursor-not-allowed font-poppins"
+                            className="h-8 pr-5 text-sm px-2 bg-pov-gray border border-beige-200 rounded text-charcoal-600 cursor-not-allowed font-poppins"
                           />
-                          <span className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-500 text-xs">
+                          <span className="absolute right-2 top-1/2 -translate-y-1/2 text-charcoal-500 text-xs">
                             %
                           </span>
                         </div>
@@ -453,7 +455,7 @@ export default function InvestmentRoundsStep() {
                           }
                           className={cn(
                             'h-8 text-sm px-2 border-[#E0D8D1] focus:border-[#292929] font-poppins',
-                            hasRoundErrors && 'border-red-300 focus:border-red-500'
+                            hasRoundErrors && 'border-error/50 focus:border-error'
                           )}
                         />
                       </TableCell>
@@ -472,7 +474,7 @@ export default function InvestmentRoundsStep() {
                           }
                           className={cn(
                             'h-8 text-sm px-2 border-[#E0D8D1] focus:border-[#292929] font-poppins',
-                            hasRoundErrors && 'border-red-300 focus:border-red-500'
+                            hasRoundErrors && 'border-error/50 focus:border-error'
                           )}
                         />
                       </TableCell>
@@ -480,7 +482,7 @@ export default function InvestmentRoundsStep() {
                       {/* Exit Valuation */}
                       <TableCell className="py-2">
                         <div className="relative">
-                          <span className="absolute left-2 top-1/2 -translate-y-1/2 text-gray-500 text-xs">
+                          <span className="absolute left-2 top-1/2 -translate-y-1/2 text-charcoal-500 text-xs">
                             $
                           </span>
                           <Input
@@ -495,7 +497,7 @@ export default function InvestmentRoundsStep() {
                             }
                             className={cn(
                               'h-8 pl-5 text-sm px-2 border-[#E0D8D1] focus:border-[#292929] font-poppins',
-                              hasRoundErrors && 'border-red-300 focus:border-red-500'
+                              hasRoundErrors && 'border-error/50 focus:border-error'
                             )}
                           />
                         </div>
@@ -509,7 +511,7 @@ export default function InvestmentRoundsStep() {
                             size="sm"
                             onClick={() => handleMoveRound(round.id, 'up')}
                             disabled={index === 0}
-                            className="h-7 w-7 p-0 hover:bg-gray-200"
+                            className="h-7 w-7 p-0 hover:bg-pov-gray"
                             title="Move up"
                           >
                             <ChevronUp className="h-4 w-4" />
@@ -519,7 +521,7 @@ export default function InvestmentRoundsStep() {
                             size="sm"
                             onClick={() => handleMoveRound(round.id, 'down')}
                             disabled={index === rounds.length - 1}
-                            className="h-7 w-7 p-0 hover:bg-gray-200"
+                            className="h-7 w-7 p-0 hover:bg-pov-gray"
                             title="Move down"
                           >
                             <ChevronDown className="h-4 w-4" />
@@ -528,14 +530,14 @@ export default function InvestmentRoundsStep() {
                             variant="ghost"
                             size="sm"
                             onClick={() => handleDeleteRound(round.id)}
-                            className="h-7 w-7 p-0 text-red-500 hover:text-red-700 hover:bg-red-50"
+                            className="h-7 w-7 p-0 text-pov-charcoal hover:text-pov-charcoal hover:bg-pov-gray"
                             title="Delete round"
                           >
                             <Trash2 className="h-4 w-4" />
                           </Button>
                           {hasRoundErrors && (
                             <div className="ml-1" title={roundErrors.join(', ')}>
-                              <AlertCircle className="h-4 w-4 text-red-500" />
+                              <AlertCircle className="h-4 w-4 text-error" />
                             </div>
                           )}
                         </div>
@@ -550,9 +552,9 @@ export default function InvestmentRoundsStep() {
 
         {/* Validation Errors Summary */}
         {hasErrors && (
-          <Alert className="bg-red-50 border-red-200 mb-4">
-            <AlertCircle className="h-4 w-4 text-red-600" />
-            <AlertDescription className="text-red-800 text-sm">
+          <Alert className="bg-error/10 border-error/30 mb-4">
+            <AlertCircle className="h-4 w-4 text-error" />
+            <AlertDescription className="text-error-dark text-sm">
               <strong>
                 {totalErrors} validation error{totalErrors !== 1 ? 's' : ''} found.
               </strong>{' '}

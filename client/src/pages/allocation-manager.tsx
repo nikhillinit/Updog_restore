@@ -157,7 +157,7 @@ export default function AllocationManager() {
 
   if (selectedAllocation) {
     return (
-      <div className="min-h-screen bg-gray-50">
+      <div className="min-h-screen bg-pov-gray">
         <div className="container mx-auto p-6">
           <div className="mb-6">
             <Button variant="ghost" onClick={() => setSelectedAllocation(null)} className="mb-4">
@@ -173,7 +173,7 @@ export default function AllocationManager() {
 
   if (activeTab === 'sector-profiles') {
     return (
-      <div className="min-h-screen bg-gray-50">
+      <div className="min-h-screen bg-pov-gray">
         <div className="container mx-auto p-6">
           <div className="mb-6">
             <Button variant="ghost" onClick={() => setActiveTab('allocations')} className="mb-4">
@@ -188,20 +188,20 @@ export default function AllocationManager() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-pov-gray">
       <div className="container mx-auto p-6">
         {/* Header */}
         <div className="mb-8">
           <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-3xl font-bold text-gray-900">Allocation Manager</h1>
-              <p className="text-gray-600 mt-2">
+              <h1 className="text-3xl font-bold text-pov-charcoal">Allocation Manager</h1>
+              <p className="text-charcoal-600 mt-2">
                 Configure fund allocations with automatic reserve calculation using market-driven
                 methodology
               </p>
             </div>
             <div className="flex items-center gap-3">
-              <Badge variant="outline" className="bg-blue-50 text-blue-700">
+              <Badge variant="outline" className="bg-presson-info/10 text-presson-info">
                 <Calculator className="w-3 h-3 mr-1" />
                 Auto-Calculated Reserves
               </Badge>
@@ -222,10 +222,10 @@ export default function AllocationManager() {
           <Card>
             <CardContent className="p-6">
               <div className="flex items-center">
-                <Target className="w-8 h-8 text-blue-600" />
+                <Target className="w-8 h-8 text-charcoal-600" />
                 <div className="ml-4">
-                  <p className="text-sm font-medium text-gray-600">Total Allocated</p>
-                  <p className="text-2xl font-bold text-gray-900">
+                  <p className="text-sm font-medium text-charcoal-600">Total Allocated</p>
+                  <p className="text-2xl font-bold text-pov-charcoal">
                     {formatCurrency(totalCapitalAllocated)}
                   </p>
                 </div>
@@ -236,10 +236,10 @@ export default function AllocationManager() {
           <Card>
             <CardContent className="p-6">
               <div className="flex items-center">
-                <TrendingUp className="w-8 h-8 text-green-600" />
+                <TrendingUp className="w-8 h-8 text-charcoal-600" />
                 <div className="ml-4">
-                  <p className="text-sm font-medium text-gray-600">Initial Capital</p>
-                  <p className="text-2xl font-bold text-gray-900">
+                  <p className="text-sm font-medium text-charcoal-600">Initial Capital</p>
+                  <p className="text-2xl font-bold text-pov-charcoal">
                     {formatCurrency(totalInitialCapital)}
                   </p>
                 </div>
@@ -250,10 +250,10 @@ export default function AllocationManager() {
           <Card>
             <CardContent className="p-6">
               <div className="flex items-center">
-                <BarChart3 className="w-8 h-8 text-purple-600" />
+                <BarChart3 className="w-8 h-8 text-charcoal-600" />
                 <div className="ml-4">
-                  <p className="text-sm font-medium text-gray-600">Follow-On Reserves</p>
-                  <p className="text-2xl font-bold text-gray-900">
+                  <p className="text-sm font-medium text-charcoal-600">Follow-On Reserves</p>
+                  <p className="text-2xl font-bold text-pov-charcoal">
                     {formatCurrency(totalFollowOnCapital)}
                   </p>
                 </div>
@@ -264,10 +264,10 @@ export default function AllocationManager() {
           <Card>
             <CardContent className="p-6">
               <div className="flex items-center">
-                <Calculator className="w-8 h-8 text-orange-600" />
+                <Calculator className="w-8 h-8 text-charcoal-600" />
                 <div className="ml-4">
-                  <p className="text-sm font-medium text-gray-600">Reserve Ratio</p>
-                  <p className="text-2xl font-bold text-gray-900">
+                  <p className="text-sm font-medium text-charcoal-600">Reserve Ratio</p>
+                  <p className="text-2xl font-bold text-pov-charcoal">
                     {averageReserveRatio.toFixed(1)}%
                   </p>
                 </div>
@@ -286,12 +286,12 @@ export default function AllocationManager() {
           defaultOpen={false}
         >
           <div className="space-y-3">
-            <p className="text-sm text-gray-600">
+            <p className="text-sm text-charcoal-600">
               The system calculates your fund's expected reserve ratios instead of having you enter
               them directly. This ensures there is no "left-over" capital and enables you to "build
               up" to the ideal reserve ratio from more granular assumptions.
             </p>
-            <div className="text-sm text-gray-600">
+            <div className="text-sm text-charcoal-600">
               <strong>Follow-on reserves are calculated based on:</strong>
               <ul className="list-disc ml-6 mt-1 space-y-1">
                 <li>Number of graduations (from Sector Profile graduation rates)</li>
@@ -314,34 +314,36 @@ export default function AllocationManager() {
               <table className="w-full">
                 <thead>
                   <tr className="border-b">
-                    <th className="text-left py-3 px-4 font-medium text-gray-600">Allocation</th>
-                    <th className="text-right py-3 px-4 font-medium text-gray-600">
+                    <th className="text-left py-3 px-4 font-medium text-charcoal-600">
+                      Allocation
+                    </th>
+                    <th className="text-right py-3 px-4 font-medium text-charcoal-600">
                       Capital Allocated
                     </th>
-                    <th className="text-right py-3 px-4 font-medium text-gray-600">
+                    <th className="text-right py-3 px-4 font-medium text-charcoal-600">
                       Initial Capital
                     </th>
-                    <th className="text-right py-3 px-4 font-medium text-gray-600">
+                    <th className="text-right py-3 px-4 font-medium text-charcoal-600">
                       Follow-On Reserves
                     </th>
-                    <th className="text-center py-3 px-4 font-medium text-gray-600">
+                    <th className="text-center py-3 px-4 font-medium text-charcoal-600">
                       Reserve Ratio
                     </th>
-                    <th className="text-center py-3 px-4 font-medium text-gray-600">Deals</th>
-                    <th className="text-center py-3 px-4 font-medium text-gray-600">
+                    <th className="text-center py-3 px-4 font-medium text-charcoal-600">Deals</th>
+                    <th className="text-center py-3 px-4 font-medium text-charcoal-600">
                       Expected MOIC
                     </th>
-                    <th className="text-center py-3 px-4 font-medium text-gray-600">Status</th>
-                    <th className="text-center py-3 px-4 font-medium text-gray-600">Actions</th>
+                    <th className="text-center py-3 px-4 font-medium text-charcoal-600">Status</th>
+                    <th className="text-center py-3 px-4 font-medium text-charcoal-600">Actions</th>
                   </tr>
                 </thead>
                 <tbody>
                   {allocations.map((allocation) => (
-                    <tr key={allocation.id} className="border-b hover:bg-gray-50">
+                    <tr key={allocation.id} className="border-b hover:bg-pov-gray">
                       <td className="py-4 px-4">
                         <div>
-                          <div className="font-medium text-gray-900">{allocation.name}</div>
-                          <div className="text-sm text-gray-500">{allocation.stage}</div>
+                          <div className="font-medium text-pov-charcoal">{allocation.name}</div>
+                          <div className="text-sm text-charcoal-500">{allocation.stage}</div>
                         </div>
                       </td>
                       <td className="py-4 px-4 text-right font-medium">
@@ -354,7 +356,7 @@ export default function AllocationManager() {
                         {formatCurrency(allocation.followOnCapital)}
                       </td>
                       <td className="py-4 px-4 text-center">
-                        <Badge variant="outline" className="bg-blue-50 text-blue-700">
+                        <Badge variant="outline" className="bg-pov-gray text-pov-charcoal">
                           {allocation.reserveRatio.toFixed(1)}%
                         </Badge>
                       </td>
@@ -368,7 +370,9 @@ export default function AllocationManager() {
                         <Badge
                           variant={allocation.status === 'active' ? 'default' : 'secondary'}
                           className={
-                            allocation.status === 'active' ? 'bg-green-100 text-green-800' : ''
+                            allocation.status === 'active'
+                              ? 'border-success/50 bg-success/10 text-success-dark'
+                              : ''
                           }
                         >
                           {allocation.status}
@@ -399,17 +403,21 @@ export default function AllocationManager() {
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
-                <h4 className="font-medium text-yellow-800 mb-2">If your reserves are too low:</h4>
-                <ul className="text-sm text-yellow-700 space-y-1">
+              <div className="bg-warning/10 border border-warning/50 rounded-lg p-4">
+                <h4 className="font-medium text-warning-dark mb-2">
+                  If your reserves are too low:
+                </h4>
+                <ul className="text-sm text-warning-dark space-y-1">
                   <li>• Increase the follow-on check sizes</li>
                   <li>• Increase follow-on participation percentages</li>
                 </ul>
               </div>
 
-              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                <h4 className="font-medium text-blue-800 mb-2">If your reserves are too high:</h4>
-                <ul className="text-sm text-blue-700 space-y-1">
+              <div className="bg-presson-info/10 border border-presson-info/50 rounded-lg p-4">
+                <h4 className="font-medium text-presson-info mb-2">
+                  If your reserves are too high:
+                </h4>
+                <ul className="text-sm text-presson-info space-y-1">
                   <li>• Revisit Sector Profiles and adjust Graduation Rates</li>
                   <li>
                     • Adjust Exit Rates (follow-on capital only deployed into graduated companies)

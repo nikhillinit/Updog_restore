@@ -1,51 +1,71 @@
 ---
 status: ACTIVE
-last_updated: 2026-01-19
+last_updated: 2026-05-17
 ---
 
 # Schema System Integration Plan
 
 ## Overview
 
-Integration strategy for the new production-grade fund modeling schema system into the existing deterministic engine.
+Current integration state for fund modeling schemas and active calculation
+surfaces. Earlier schema-native engine prototype work is historical; production
+fund construction now runs through `/fund-setup`, server-backed snapshots, and
+the shared economics engine when enabled.
 
 ## Architecture
 
-### Two-Path Approach
+### Active Approach
 
-We support **both** legacy and new schema systems simultaneously:
+Production supports the store-based fund setup flow and server-backed
+calculation snapshots:
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
 │                        UI Layer                              │
 ├─────────────────────┬───────────────────────────────────────┤
-│   Legacy UI         │   New Configuration Wizard             │
-│   (fund-setup.tsx)  │   (schema-based forms)                 │
+│   Fund setup        │   Results / forecasting                 │
+│   (/fund-setup)     │   (server-backed reads)                 │
 └──────────┬──────────┴─────────────┬─────────────────────────┘
            │                        │
            │                        │
    ┌───────▼────────┐      ┌────────▼──────────┐
-   │ FundModelInputs│      │ ExtendedFundModel │
-   │   (v1.0.0)     │      │     Inputs        │
-   │                │      │   (v2.0.0)        │
+   │ FundDraftWrite │      │ fund snapshots /  │
+   │      V1        │      │ metrics services  │
+   │                │      │                   │
    └───────┬────────┘      └────────┬──────────┘
            │                        │
            │                ┌───────▼───────┐
-           │                │ Schema Adapter│
-           │                │ (optional)    │
+           │                │ shared        │
+           │                │ economics     │
            │                └───────┬───────┘
            │                        │
    ┌───────▼────────────────────────▼──────────┐
-   │        Fund Calculation Engine             │
+   │        Active Calculation Surfaces         │
    ├────────────────┬──────────────────────────┤
-   │  fund-calc.ts  │   fund-calc-v2.ts        │
-   │  (Legacy)      │   (Schema-Native)        │
+   │  fund-setup    │ shared economics +       │
+   │  publish flow  │ reserve/pacing snapshots │
    └────────────────┴──────────────────────────┘
 ```
 
 ### Components
 
-#### 1. **fund-calc.ts** (Legacy Engine - v1.0.0)
+#### 1. **fund-setup publish flow** (current)
+
+- Uses `/fund-setup` as the production owner for fund construction
+- Publishes through `POST /api/funds/finalize`
+- Dispatches authoritative reserve and pacing calculations
+- Optionally dispatches GP economics when `enable_gp_economics_engine` is
+  enabled
+- **Status**: Active
+
+#### 2. **shared economics engine** (current)
+
+- Uses `FundDraftWriteV1` plus economics assumptions
+- Produces review-step dry-runs and persisted economics snapshots
+- **Status**: Active when the GP economics feature flag is enabled
+
+#### 3. **fund-calc.ts** (legacy engine - v1.0.0)
+
 - Uses `FundModelInputs` (frozen schema from PR #2)
 - Simple deterministic calculations
 - Exit buckets via `index % 4`
@@ -53,64 +73,60 @@ We support **both** legacy and new schema systems simultaneously:
 - Upfront capital calls only
 - **Status**: Maintained for backward compatibility
 
-#### 2. **fund-calc-v2.ts** (Schema-Native Engine - v2.0.0)
-- Uses `ExtendedFundModelInputs` natively
-- Stage-driven cohort progression
-- Fractional company counts
-- Multi-tier fees with step-downs
-- Flexible capital call policies
-- European & American waterfalls
-- Exit proceeds recycling
-- **Status**: New development (PR #3.5+)
+#### 4. **schema-adapter.ts** (bridge layer)
 
-#### 3. **schema-adapter.ts** (Bridge Layer)
 Two-way conversion:
+
 - `adaptToLegacySchema()` - ExtendedFundModelInputs → FundModelInputs
 - `adaptFromLegacySchema()` - FundModelInputs → ExtendedFundModelInputs
 - `validateLegacyCompatibility()` - Warn about features lost in conversion
 
 **Use Cases**:
+
 - Migrate existing fund configurations to new schema
 - Run new configurations through legacy engine for comparison
 - Gradual migration of UI components
 
 ## Migration Path
 
-### Phase 1: Dual Engine Support (Current)
-✅ **Completed** in PR #3.5
+### Phase 1: Dual Engine Support (historical)
 
 - [x] Create `ExtendedFundModelInputs` schema system
-- [x] Build `fund-calc-v2.ts` engine
+- [x] Build schema-native engine prototype
 - [x] Create `schema-adapter.ts` bridge
 - [x] Document schemas and examples
 
-**Result**: Both engines coexist. UI can use either.
+**Current status**: the schema-native engine prototype and its worker were
+removed after B4 analysis showed no live product instantiation path. The active
+production path is `/fund-setup` plus server-backed results and forecasting.
 
-### Phase 2: UI Migration (PR #4)
-🔄 **In Progress**
+### Phase 2: Production Route Alignment (current)
 
-- [ ] Create schema-based configuration wizard
-- [ ] Add FeeProfile UI (tier editor, step-down selector)
-- [ ] Add StageProfile UI (stage builder, rate sliders)
-- [ ] Add CapitalCallPolicy UI (mode selector, schedule builder)
-- [ ] Add WaterfallPolicy UI (tier configurator)
-- [ ] Wire V2 engine into `FundProvider`
-- [ ] Feature flag: `ENABLE_SCHEMA_V2`
+- [x] Route fund construction through `/fund-setup`
+- [x] Publish through `POST /api/funds/finalize`
+- [x] Read results through `/api/funds/:id/results`
+- [x] Read deterministic forecasting through `/api/funds/:id/dual-forecast`
+- [ ] Keep schema-adapter usage under review
 
-**Result**: New UI uses ExtendedFundModelInputs. Legacy UI still supported.
+**Result**: routed product surfaces use server-backed calculations instead of a
+client-side schema-native engine prototype.
 
-### Phase 3: Golden Fixtures (PR #4-5)
-- [ ] Create canonical test cases with known outputs
-- [ ] Snapshot TVPI/DPI/IRR for regression detection
-- [ ] Parity tests: V1 vs V2 on simple scenarios
-- [ ] Performance benchmarks (< 15ms target)
+### Phase 3: Golden Fixtures
+
+- [ ] Create canonical active-surface test cases with known outputs
+- [ ] Snapshot economics, reserve, pacing, and forecast outputs for regression
+      detection
+- [ ] Keep route-level tests tied to `/fund-setup`,
+      `/fund-model-results/:fundId`, and `/financial-modeling`
 
 **Test Cases**:
+
 1. **Simple Case** - Single-stage fund, no fees, no exits
 2. **Standard VC Fund** - $100M early-stage, 2%/1.5% fees, European waterfall
 3. **Complex Case** - Multi-tier fees, recycling, American waterfall
 
-### Phase 4: Advanced Features (PR #5-6)
+### Phase 4: Advanced Features
+
 - [ ] Implement Reserve Optimizer v1 (MOIC-based ranking)
 - [ ] Add sophisticated reserve allocation strategies
 - [ ] Implement FMV marking for active investments
@@ -118,31 +134,29 @@ Two-way conversion:
 - [ ] Build waterfall tier visualization
 
 ### Phase 5: Deprecation & Cleanup (PR #7+)
-- [ ] Migrate all existing configurations to V2
-- [ ] Deprecate legacy engine (keep for historical runs)
-- [ ] Remove adapter layer (V2 only)
-- [ ] Rename `fund-calc-v2.ts` → `fund-calc.ts`
-- [ ] Archive old engine as `fund-calc-legacy.ts`
 
-## Feature Comparison
+- [x] Remove dormant schema-native engine prototype from active source
+- [ ] Reassess `schema-adapter.ts` once no active callers remain
+- [ ] Reassess legacy `fund-calc.ts` only after all active routes are confirmed
+      to use server-backed calculations
 
-| Feature | Legacy (V1) | Schema-Native (V2) |
-|---------|-------------|---------------------|
-| **Input Schema** | `FundModelInputs` | `ExtendedFundModelInputs` |
-| **Exit Modeling** | `index % 4` buckets | Stage-driven rates |
-| **Company Counts** | Integer (`floor()`) | Fractional (Decimal) |
-| **Management Fees** | Single rate, flat | Multi-tier, step-downs |
-| **Capital Calls** | Upfront only | 6 modes + custom |
-| **Waterfall** | Policy A (immediate) | European/American |
-| **Recycling** | ❌ Not supported | ✅ Fees + proceeds |
-| **Precision** | JavaScript `number` | Decimal.js (30 digits) |
-| **Validation** | Zod + runtime | Zod + cross-field |
-| **Performance** | ~5-10ms | ~10-15ms (target) |
+## Active Surface Matrix
+
+| Surface                        | Purpose                              | Status                     |
+| ------------------------------ | ------------------------------------ | -------------------------- |
+| `/fund-setup`                  | Fund construction and publish flow   | Active                     |
+| `/api/funds/finalize`          | Atomic create/publish entrypoint     | Active                     |
+| Reserve snapshots              | Authoritative reserve outputs        | Active                     |
+| Pacing snapshots               | Authoritative pacing outputs         | Active                     |
+| Shared economics engine        | GP economics outputs when flagged on | Active/flagged             |
+| `fund-calc.ts`                 | Legacy deterministic helper          | Backward compatibility     |
+| Schema-native engine prototype | Former client-side prototype         | Removed from active source |
 
 ## API Stability Guarantees
 
 ### Legacy Schema (`FundModelInputs`)
-**Status**: FROZEN ✅
+
+**Status**: FROZEN
 
 - No breaking changes without major version bump
 - Semantic versioning applies
@@ -150,44 +164,38 @@ Two-way conversion:
 - All existing integrations continue to work
 
 ### Extended Schema (`ExtendedFundModelInputs`)
-**Status**: Evolving 🔄
 
-- Version 2.0.0 released in PR #3.5
-- Minor versions may add optional fields
-- Breaking changes require migration path
+**Status**: Schema artifacts retained
+
+- Used by schema artifacts and adapters where still referenced
+- No standalone active calculation engine currently consumes it
+- Breaking changes require a migration path where persisted data is involved
 - Zod schemas provide runtime validation safety
 
 ## Testing Strategy
 
 ### Unit Tests
+
 - **Schema Validation**: All schemas validate correctly
 - **Adapter Tests**: Round-trip conversion preserves data
-- **Calculation Tests**: Engine produces expected outputs
+- **Calculation Tests**: Active engines produce expected outputs
 
 ### Integration Tests
-- **End-to-End**: UI → Engine → Results
-- **Parity Tests**: V1 vs V2 on overlapping features
-- **Performance Tests**: < 15ms for 1,000 companies × 120 months
+
+- **End-to-End**: UI → API → snapshots/results
+- **Forecasting**: dual forecast aggregation uses current server-backed sources
+- **Publish lifecycle**: finalize dispatches expected calculation engines
 
 ### Golden Fixtures
-Snapshot tests with known-good outputs:
 
-```typescript
-// Example: Standard VC Fund
-const standardFund: ExtendedFundModelInputs = { /* ... */ };
-const result = runFundModelV2(standardFund);
-
-expect(result.finalMetrics.tvpi).toBeCloseTo(2.54, 2);
-expect(result.finalMetrics.dpi).toBeCloseTo(1.23, 2);
-expect(result.finalMetrics.irr).toBeCloseTo(18.25, 2);
-```
+Snapshot tests should target active calculation surfaces: shared economics,
+reserve snapshots, pacing snapshots, and dual forecast aggregation.
 
 ## Code Organization
 
 ```
 client/src/lib/
 ├── fund-calc.ts              # Legacy engine (v1.0.0)
-├── fund-calc-v2.ts           # Schema-native engine (v2.0.0)
 ├── schema-adapter.ts         # Bridge layer
 ├── decimal-utils.ts          # Shared utilities
 └── xirr.ts                   # IRR calculations
@@ -206,22 +214,25 @@ shared/schemas/
 
 ## Performance Targets
 
-| Scenario | Target | Actual |
-|----------|--------|--------|
-| **Simple Fund** (10 cos, 40 periods) | < 5ms | TBD |
-| **Standard Fund** (25 cos, 40 periods) | < 15ms | TBD |
-| **Large Fund** (100 cos, 120 periods) | < 50ms | TBD |
-| **Complex** (100 cos, recycling, waterfall) | < 100ms | TBD |
+Performance targets should be attached to the active engine or route being
+measured, not to the removed schema-native prototype.
+
+| Surface                        | Target Evidence                                                              |
+| ------------------------------ | ---------------------------------------------------------------------------- |
+| `/api/funds/finalize`          | publish completes and dispatches calc jobs without blocking on async workers |
+| Shared economics               | bounded synchronous runtime for review-step dry-runs                         |
+| `/api/funds/:id/dual-forecast` | dashboard-ready response within route SLO                                    |
 
 ## Error Handling
 
 ### Validation Errors
-Both engines use Zod for validation:
+
+Active publish and economics paths use Zod for validation:
 
 ```typescript
 try {
-  const validated = ExtendedFundModelInputsSchema.parse(userInput);
-  const result = runFundModelV2(validated);
+  const validated = FundDraftWriteV1Schema.parse(userInput);
+  const result = runEconomicsModel(validated);
 } catch (error) {
   if (error instanceof z.ZodError) {
     // Show user-friendly validation errors
@@ -231,60 +242,58 @@ try {
 ```
 
 ### Runtime Errors
+
 - **Capital conservation**: Ensure no capital is created/destroyed
-- **Invariant checks**: Validate assumptions (e.g., shares don't increase without financing)
+- **Invariant checks**: Validate assumptions (e.g., shares don't increase
+  without financing)
 - **Graceful degradation**: Return partial results if possible
 
 ## Monitoring & Observability
 
 ### Metrics to Track
-- **Engine version**: v1 vs v2 usage
+
+- **Engine version**: snapshot `calcVersion` and route/service source
 - **Calculation time**: P50, P95, P99
 - **Validation errors**: Common failure modes
 - **Feature usage**: Which policies are used most
 
 ### Logging
+
 ```typescript
 logger.info('Fund calculation started', {
-  engineVersion: 'v2.0.0',
+  engineVersion: 'economics-v1',
   fundId: inputs.id,
-  committedCapital: inputs.committedCapital.toString()
+  fundSize: inputs.fundSize,
 });
 
 const startTime = performance.now();
-const result = runFundModelV2(inputs);
+const result = runEconomicsModel(inputs);
 const duration = performance.now() - startTime;
 
 logger.info('Fund calculation completed', {
   duration,
-  periods: result.periods.length,
-  tvpi: result.finalMetrics.tvpi.toString()
+  annualRows: result.annual.length,
+  tvpi: result.summary.finalTvpi,
 });
 ```
 
 ## Next Steps
 
-1. **Create Golden Fixtures** (PR #4)
+1. **Create Golden Fixtures**
    - Define 3-5 canonical test cases
    - Snapshot expected outputs
    - Set up CI regression tests
 
-2. **Build Configuration Wizard** (PR #4)
-   - Schema-based form UI
-   - Real-time validation
-   - Policy preview/comparison
+2. **Harden Active Results**
+   - Keep `/fund-model-results/:fundId` tied to current snapshot versions
+   - Keep `/financial-modeling` backed by dual forecast API data
 
-3. **Integrate V2 Engine** (PR #4-5)
-   - Wire into `FundProvider`
-   - Feature flag rollout
-   - A/B test V1 vs V2
-
-4. **Reserve Optimizer** (PR #5)
+3. **Reserve Optimizer**
    - MOIC-based ranking
    - Greedy allocation
    - Constraint handling
 
-5. **Performance Gates** (PR #6)
+4. **Performance Gates**
    - Benchmark suite
    - CI performance tests
    - Bundle size limits

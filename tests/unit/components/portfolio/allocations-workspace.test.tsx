@@ -493,8 +493,11 @@ describe('portfolio reserve planning workspace', () => {
 
     expect(screen.getByText('No portfolio companies found')).toBeInTheDocument();
     expect(
-      screen.getByText('Add portfolio companies to this fund before creating reserve allocations.')
+      screen.getByText(
+        'Add a company to this fund before creating reserve allocations and IC decisions.'
+      )
     ).toBeInTheDocument();
+    expect(screen.getByTestId('reserve-planning-add-company-button')).toBeInTheDocument();
     expect(screen.queryByText('Reserve Planning Workspace')).not.toBeInTheDocument();
   });
 

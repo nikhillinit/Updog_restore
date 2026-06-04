@@ -1,12 +1,12 @@
 ---
 status: ACTIVE
-last_updated: 2026-04-18
+last_updated: 2026-05-20
 ---
 
 # AGENTS.md
 
 **Start here:** Read this file first, then use repo search plus `docs/INDEX.md`
-and `.Codex/DISCOVERY-MAP.md` to find existing solutions. Consult
+and `.claude/DISCOVERY-MAP.md` to find existing solutions. Consult
 `CAPABILITIES.md` only as a historical inventory.
 
 This file provides guidance to Codex (Codex.ai/code) when working with code in
@@ -45,6 +45,23 @@ cheatsheets for testing, APIs, and UI conventions.
 **Derivability test:** Could a future session reconstruct this from code and git
 log alone? If NO, write it down. If YES, do not create a file.
 
+### Archive Gate
+
+Session artifacts (handoff memos, checkpoints, session summaries) may not be
+mass-deleted. Archive only after `git log` confirms the work landed, `grep`
+confirms the named feature/code path exists or is no longer referenced, and the
+file is not serving as an active handoff. Cite the evidence in the PR. See
+`CLAUDE.md#archive-gate`.
+
+### Phoenix Protected Paths
+
+Phoenix routing docs are domain-locked. Do not edit, merge, archive, or
+deprecate `.claude/PHOENIX-AGENTS-REGISTRY.md`,
+`.claude/PHOENIX-TOOL-ROUTING.md`, or Phoenix-specific sections of
+`.claude/DISCOVERY-MAP.md` without the relevant Phoenix specialist sign-off
+(`waterfall-specialist`, `phoenix-precision-guardian`, or `xirr-fees-validator`
+depending on content). See `CLAUDE.md#phoenix-protected-paths`.
+
 **Key references** (consult as needed, not mandatory pre-reads):
 
 - `CHANGELOG.md` - recent changes
@@ -72,7 +89,6 @@ log alone? If NO, write it down. If YES, do not create a file.
 - `client/src/pages/` - Application routes and page components
 - `server/routes/` - API endpoint definitions
 - `tests/` - Comprehensive test suite (API, performance, UI)
-- `packages/` - AI agent system for autonomous development
 
 ## Tech Stack
 
@@ -105,7 +121,6 @@ log alone? If NO, write it down. If YES, do not create a file.
 
 - `@/` → `client/src/`
 - `@shared/` → `shared/`
-- `@assets/` → `assets/`
 
 ## Development Setup
 
@@ -189,7 +204,7 @@ npm install
 - `npm run lint` - ESLint code quality check
 - `npm run lint:fix` - Auto-fix linting issues
 - **Quality Gates**: See
-  [.Codex/WORKFLOW.md](.Codex/WORKFLOW.md#quality-gate-protocol) - MANDATORY
+  [.claude/WORKFLOW.md](.claude/WORKFLOW.md#quality-gate-protocol) - MANDATORY
   pre-commit validation
 
 ### Database
@@ -205,7 +220,7 @@ npm install
 
 ## Discovery Routing (Quick Reference)
 
-For detailed routing logic, see `.Codex/DISCOVERY-MAP.md`. Key patterns:
+For detailed routing logic, see `.claude/DISCOVERY-MAP.md`. Key patterns:
 
 | Task Type                       | Route To                                  |
 | ------------------------------- | ----------------------------------------- |
@@ -232,14 +247,14 @@ report**: `docs/_generated/staleness-report.md` **Regenerate**:
 - **Superpowers**: `/superpowers:brainstorm`, `/superpowers:write-plan`,
   `/superpowers:execute-plan` - See
   [obra/superpowers](https://github.com/obra/superpowers)
-- **Skills**: See [.Codex/skills/INDEX.md](.Codex/skills/INDEX.md)
+- **Skills**: See [.claude/skills/INDEX.md](.claude/skills/INDEX.md)
 
 ## MANDATORY WORKFLOW - START HERE
 
 1. **AGENTS.md** - Current operating guidance and governance
 2. **Repo search** - Check for existing code, commands, skills, and docs
 3. **docs/INDEX.md** - Human-facing documentation routing
-4. **.Codex/DISCOVERY-MAP.md** - Agent-facing discovery routing
+4. **.claude/DISCOVERY-MAP.md** - Agent-facing discovery routing
 5. **CHANGELOG.md** - Check for similar past work
 6. **DECISIONS.md** - Review architectural decisions
 7. **CAPABILITIES.md** - Historical inventory only, if helpful
@@ -250,7 +265,7 @@ report**: `docs/_generated/staleness-report.md` **Regenerate**:
 START HERE:
 - Read AGENTS.md
 - Search the repo for existing implementations
-- Use docs/INDEX.md and .Codex/DISCOVERY-MAP.md for routing
+- Use docs/INDEX.md and .claude/DISCOVERY-MAP.md for routing
 - Consult CAPABILITIES.md only if historical inventory context helps
 ```
 
@@ -274,9 +289,15 @@ START HERE:
 
 - **CLI Gateway**: `npm run ai` - AI agent operations (test, patch, repair,
   metrics)
-- **Agent Framework**: `packages/agent-core/` - BaseAgent with retry logic,
-  monitoring
+- **AI tooling**: `.claude/agents/` for prompt surfaces and `scripts/ai-tools/`
+  for the package-free CLI gateway
 - **Code Quality**: Codacy integration, Trivy security scanning
+
+### Hermes Dev Co-op
+
+For phase-routed multi-model development, see `DEV_BRAIN.md`. Hermes defaults
+are subordinate to this file. Config: `.claude/hermes/model-routing.json`. CLI:
+`node orchestrate.js --help`.
 
 ### Codex CLI Integration
 

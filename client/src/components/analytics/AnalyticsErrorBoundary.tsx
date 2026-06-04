@@ -118,20 +118,20 @@ function AnalyticsErrorFallback({ error, onRetry }: AnalyticsErrorFallbackProps)
     <div className="min-h-[400px] flex items-center justify-center p-6">
       <Card className="max-w-2xl w-full">
         <CardHeader className="text-center">
-          <div className="mx-auto w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mb-4">
-            <AlertTriangle className="w-8 h-8 text-red-600" />
+          <div className="mx-auto w-16 h-16 bg-error/10 rounded-full flex items-center justify-center mb-4">
+            <AlertTriangle className="w-8 h-8 text-error" />
           </div>
-          <CardTitle className="text-xl font-semibold text-gray-900">{title}</CardTitle>
+          <CardTitle className="text-xl font-semibold text-pov-charcoal">{title}</CardTitle>
         </CardHeader>
         <CardContent className="space-y-6">
-          <p className="text-center text-gray-600">{message}</p>
+          <p className="text-center text-charcoal-600">{message}</p>
 
           {error && (
-            <details className="bg-gray-50 p-4 rounded-lg">
-              <summary className="cursor-pointer text-sm font-medium text-gray-700 mb-2">
+            <details className="bg-pov-gray p-4 rounded-lg">
+              <summary className="cursor-pointer text-sm font-medium text-charcoal-700 mb-2">
                 Technical Details
               </summary>
-              <pre className="text-xs text-gray-600 bg-white p-3 rounded border overflow-auto">
+              <pre className="text-xs text-charcoal-600 bg-pov-white p-3 rounded border overflow-auto">
                 {error.message}
                 {error.stack && <div className="mt-2 pt-2 border-t">{error.stack}</div>}
               </pre>
@@ -139,12 +139,12 @@ function AnalyticsErrorFallback({ error, onRetry }: AnalyticsErrorFallbackProps)
           )}
 
           {suggestions.length > 0 && (
-            <div className="bg-blue-50 p-4 rounded-lg">
-              <h4 className="font-medium text-blue-900 mb-2">Try these solutions:</h4>
-              <ul className="space-y-1 text-sm text-blue-800">
+            <div className="bg-presson-info/10 p-4 rounded-lg">
+              <h4 className="font-medium text-presson-info mb-2">Try these solutions:</h4>
+              <ul className="space-y-1 text-sm text-presson-info">
                 {suggestions.map((suggestion: string, index: number) => (
                   <li key={index} className="flex items-start">
-                    <span className="w-2 h-2 bg-blue-400 rounded-full mt-2 mr-2 flex-shrink-0" />
+                    <span className="w-2 h-2 bg-presson-info rounded-full mt-2 mr-2 flex-shrink-0" />
                     {suggestion}
                   </li>
                 ))}

@@ -37,6 +37,12 @@ import { Textarea } from '@/components/ui/textarea';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useToast } from '@/hooks/use-toast';
 import { apiRequest, ApiError } from '@/lib/queryClient';
+import {
+  COMPANY_SECTORS,
+  COMPANY_STAGES,
+  isCompanySector,
+  isCompanyStage,
+} from '@/lib/company-taxonomy';
 import { parseMoney, parseIntSafe } from '@/utils/parse-helpers';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -51,8 +57,12 @@ interface AddDealModalProps {
 // Form validation schema matching API expectations
 const formSchema = z.object({
   companyName: z.string().min(1, 'Company name is required').max(255),
-  sector: z.string().min(1, 'Sector is required').max(100),
-  stage: z.enum(['Pre-seed', 'Seed', 'Series A', 'Series B', 'Series C', 'Growth', 'Late Stage']),
+  sector: z
+    .string()
+    .refine((value) => Boolean(isCompanySector(value)), 'Choose a sector from the list'),
+  stage: z
+    .string()
+    .refine((value) => Boolean(isCompanyStage(value)), 'Choose a stage from the list'),
   sourceType: z.enum(['Referral', 'Cold outreach', 'Inbound', 'Event', 'Network', 'Other']),
   dealSize: z.string().optional(),
   valuation: z.string().optional(),
@@ -73,6 +83,8 @@ const formSchema = z.object({
 });
 
 type FormValues = z.infer<typeof formSchema>;
+
+const ADD_DEAL_SERVER_ERROR = 'Deal could not be created. Review the deal details and try again.';
 
 export function AddDealModal({ open, onOpenChange, fundId }: AddDealModalProps) {
   const { toast } = useToast();
@@ -143,11 +155,17 @@ export function AddDealModal({ open, onOpenChange, fundId }: AddDealModalProps) 
           }
         }
         if (!mappedAny) {
-          setServerError(error.message);
+          setServerError(ADD_DEAL_SERVER_ERROR);
         }
       } else {
-        setServerError(error.message);
+        console.error('[AddDealModal] create failed', error);
+        setServerError(ADD_DEAL_SERVER_ERROR);
       }
+      toast({
+        title: 'Unable to add deal',
+        description: ADD_DEAL_SERVER_ERROR,
+        variant: 'destructive',
+      });
     },
   });
 
@@ -208,10 +226,23 @@ export function AddDealModal({ open, onOpenChange, fundId }: AddDealModalProps) 
                   name="sector"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel className="font-poppins">Sector *</FormLabel>
-                      <FormControl>
-                        <Input placeholder="e.g., FinTech" {...field} />
-                      </FormControl>
+                      <FormLabel htmlFor="pipeline-deal-sector" className="font-poppins">
+                        Sector *
+                      </FormLabel>
+                      <Select value={field.value} onValueChange={field.onChange}>
+                        <FormControl>
+                          <SelectTrigger id="pipeline-deal-sector">
+                            <SelectValue placeholder="Select sector" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {COMPANY_SECTORS.map((sector) => (
+                            <SelectItem key={sector} value={sector}>
+                              {sector}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
                       <FormMessage />
                     </FormItem>
                   )}
@@ -222,21 +253,21 @@ export function AddDealModal({ open, onOpenChange, fundId }: AddDealModalProps) 
                   name="stage"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel className="font-poppins">Stage *</FormLabel>
-                      <Select onValueChange={field.onChange} defaultValue={field.value}>
+                      <FormLabel htmlFor="pipeline-deal-stage" className="font-poppins">
+                        Stage *
+                      </FormLabel>
+                      <Select value={field.value} onValueChange={field.onChange}>
                         <FormControl>
-                          <SelectTrigger>
+                          <SelectTrigger id="pipeline-deal-stage">
                             <SelectValue placeholder="Select stage" />
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
-                          <SelectItem value="Pre-seed">Pre-seed</SelectItem>
-                          <SelectItem value="Seed">Seed</SelectItem>
-                          <SelectItem value="Series A">Series A</SelectItem>
-                          <SelectItem value="Series B">Series B</SelectItem>
-                          <SelectItem value="Series C">Series C</SelectItem>
-                          <SelectItem value="Growth">Growth</SelectItem>
-                          <SelectItem value="Late Stage">Late Stage</SelectItem>
+                          {COMPANY_STAGES.map((stage) => (
+                            <SelectItem key={stage} value={stage}>
+                              {stage}
+                            </SelectItem>
+                          ))}
                         </SelectContent>
                       </Select>
                       <FormMessage />
@@ -397,7 +428,7 @@ export function AddDealModal({ open, onOpenChange, fundId }: AddDealModalProps) 
                     <FormItem>
                       <FormLabel className="font-poppins">Deal Size ($)</FormLabel>
                       <FormControl>
-                        <Input type="number" placeholder="1000000" {...field} />
+                        <Input type="text" inputMode="decimal" placeholder="1,000,000" {...field} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -411,7 +442,12 @@ export function AddDealModal({ open, onOpenChange, fundId }: AddDealModalProps) 
                     <FormItem>
                       <FormLabel className="font-poppins">Valuation ($)</FormLabel>
                       <FormControl>
-                        <Input type="number" placeholder="10000000" {...field} />
+                        <Input
+                          type="text"
+                          inputMode="decimal"
+                          placeholder="10,000,000"
+                          {...field}
+                        />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -425,7 +461,7 @@ export function AddDealModal({ open, onOpenChange, fundId }: AddDealModalProps) 
                     <FormItem>
                       <FormLabel className="font-poppins">Revenue ($)</FormLabel>
                       <FormControl>
-                        <Input type="number" placeholder="500000" {...field} />
+                        <Input type="text" inputMode="decimal" placeholder="500,000" {...field} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>

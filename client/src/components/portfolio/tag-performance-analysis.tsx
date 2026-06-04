@@ -26,8 +26,8 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Tag, TrendingUp, DollarSign, Target } from 'lucide-react';
-import { getChartColor } from '@/lib/chart-theme';
 import { createTupleFormatter } from '@/lib/chart-formatters';
+import { getChartColor } from '@/lib/chart-theme';
 
 interface TagPerformance {
   tag: string;
@@ -152,15 +152,15 @@ export default function TagPerformanceAnalysis({ className = '' }: TagPerformanc
   const getPerformanceColor = (performance: string) => {
     switch (performance) {
       case 'excellent':
-        return 'bg-green-100 text-green-800 border-green-200';
+        return 'bg-success/10 text-success-dark border-success/30';
       case 'good':
-        return 'bg-blue-100 text-blue-800 border-blue-200';
+        return 'bg-presson-info/10 text-presson-info border-presson-info/20';
       case 'average':
-        return 'bg-yellow-100 text-yellow-800 border-yellow-200';
+        return 'bg-warning/10 text-warning-dark border-warning/30';
       case 'poor':
-        return 'bg-red-100 text-red-800 border-red-200';
+        return 'bg-error/10 text-error-dark border-error/30';
       default:
-        return 'bg-gray-100 text-gray-800 border-gray-200';
+        return 'bg-pov-gray text-pov-charcoal border-beige-200';
     }
   };
 
@@ -227,7 +227,7 @@ export default function TagPerformanceAnalysis({ className = '' }: TagPerformanc
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center space-x-2">
-          <Tag className="h-5 w-5 text-blue-600" />
+          <Tag className="h-5 w-5 text-presson-info" />
           <h3 className="text-lg font-semibold">Tag Performance Analysis</h3>
         </div>
         <div className="flex items-center space-x-2">
@@ -274,7 +274,7 @@ export default function TagPerformanceAnalysis({ className = '' }: TagPerformanc
                   <XAxis dataKey="name" angle={-45} textAnchor="end" height={80} fontSize={12} />
                   <YAxis fontSize={12} />
                   <Tooltip formatter={formatTooltip} />
-                  <Bar dataKey="value" fill="#3b82f6" />
+                  <Bar dataKey="value" fill={getChartColor(0)} />
                 </BarChart>
               ) : (
                 <PieChart>
@@ -285,7 +285,7 @@ export default function TagPerformanceAnalysis({ className = '' }: TagPerformanc
                     labelLine={false}
                     label={({ name, display }) => `${name}: ${display}`}
                     outerRadius={100}
-                    fill="#8884d8"
+                    fill={getChartColor(0)}
                     dataKey="value"
                   >
                     {chartData.map((_entry: unknown, index: number) => (
@@ -310,36 +310,36 @@ export default function TagPerformanceAnalysis({ className = '' }: TagPerformanc
             {MOCK_TAG_PERFORMANCE.map((tag) => (
               <div
                 key={tag.tag}
-                className="flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50"
+                className="flex items-center justify-between p-4 border rounded-lg hover:bg-pov-gray"
               >
                 <div className="flex items-center space-x-4">
                   <Badge variant="outline" className="font-medium">
                     {tag.tag}
                   </Badge>
                   <Badge className={getPerformanceColor(tag.performance)}>{tag.performance}</Badge>
-                  <div className="text-sm text-gray-600">{tag.count} companies</div>
+                  <div className="text-sm text-charcoal-600">{tag.count} companies</div>
                 </div>
 
                 <div className="flex items-center space-x-6 text-sm">
                   <div className="text-center">
                     <div className="font-medium">{formatCurrency(tag.totalInvested)}</div>
-                    <div className="text-gray-500">Invested</div>
+                    <div className="text-charcoal-500">Invested</div>
                   </div>
                   <div className="text-center">
                     <div className="font-medium">{tag.moic.toFixed(2)}x</div>
-                    <div className="text-gray-500">MOIC</div>
+                    <div className="text-charcoal-500">MOIC</div>
                   </div>
                   <div className="text-center">
                     <div className="font-medium">{tag.irr.toFixed(1)}%</div>
-                    <div className="text-gray-500">IRR</div>
+                    <div className="text-charcoal-500">IRR</div>
                   </div>
                   <div className="text-center">
                     <div className="font-medium">{formatCurrency(tag.averageInvestment)}</div>
-                    <div className="text-gray-500">Avg Investment</div>
+                    <div className="text-charcoal-500">Avg Investment</div>
                   </div>
                   <div className="text-center">
-                    <div className="font-medium text-blue-600">{tag.topPerformer}</div>
-                    <div className="text-gray-500">Top Performer</div>
+                    <div className="font-medium text-presson-info">{tag.topPerformer}</div>
+                    <div className="text-charcoal-500">Top Performer</div>
                   </div>
                 </div>
               </div>
@@ -353,10 +353,10 @@ export default function TagPerformanceAnalysis({ className = '' }: TagPerformanc
         <Card>
           <CardContent className="p-4">
             <div className="flex items-center space-x-2">
-              <TrendingUp className="h-5 w-5 text-green-600" />
+              <TrendingUp className="h-5 w-5 text-presson-positive" />
               <div>
                 <div className="font-medium">Best Performing Tag</div>
-                <div className="text-sm text-gray-600">AI/ML (1.81x MOIC)</div>
+                <div className="text-sm text-charcoal-600">AI/ML (1.81x MOIC)</div>
               </div>
             </div>
           </CardContent>
@@ -365,10 +365,10 @@ export default function TagPerformanceAnalysis({ className = '' }: TagPerformanc
         <Card>
           <CardContent className="p-4">
             <div className="flex items-center space-x-2">
-              <DollarSign className="h-5 w-5 text-blue-600" />
+              <DollarSign className="h-5 w-5 text-presson-info" />
               <div>
                 <div className="font-medium">Highest Investment</div>
-                <div className="text-sm text-gray-600">AI/ML ($3.2M)</div>
+                <div className="text-sm text-charcoal-600">AI/ML ($3.2M)</div>
               </div>
             </div>
           </CardContent>
@@ -377,10 +377,10 @@ export default function TagPerformanceAnalysis({ className = '' }: TagPerformanc
         <Card>
           <CardContent className="p-4">
             <div className="flex items-center space-x-2">
-              <Target className="h-5 w-5 text-purple-600" />
+              <Target className="h-5 w-5 text-presson-info" />
               <div>
                 <div className="font-medium">Most Diversified</div>
-                <div className="text-sm text-gray-600">AI/ML (6 companies)</div>
+                <div className="text-sm text-charcoal-600">AI/ML (6 companies)</div>
               </div>
             </div>
           </CardContent>

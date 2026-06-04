@@ -16,7 +16,7 @@ tags:
     pattern,
   ]
 error_codes: []
-last_updated: 2026-04-08
+last_updated: 2026-05-11
 ---
 
 # REFL-037: Dynamic-Import Seam for Route-Handler Mocking

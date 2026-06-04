@@ -100,6 +100,45 @@ describe('TargetMetricsSnapshot', () => {
     expect(screen.getAllByText('On Track').length).toBeGreaterThanOrEqual(1);
   });
 
+  it('uses neutral pending states for a new fund without actual activity', () => {
+    mockUseFundMetrics.mockReturnValue({
+      data: {
+        actual: {
+          totalDeployed: 0,
+          totalCalled: 0,
+          tvpi: 0,
+          totalCompanies: 0,
+        },
+        target: {
+          targetTVPI: 2.5,
+          targetCompanyCount: 20,
+        },
+        variance: {
+          deploymentVariance: {
+            actual: 0,
+            target: 10_000_000,
+            status: 'behind',
+          },
+        },
+      },
+      isLoading: false,
+      error: null,
+    });
+
+    render(
+      <TargetMetricsSnapshot
+        title="Target-Aware Snapshot"
+        subtitle="Truthful live metrics sourced from the unified metrics layer."
+      />
+    );
+
+    expect(screen.getByText('Awaiting deployment')).toBeInTheDocument();
+    expect(screen.getByText('Awaiting paid-in capital')).toBeInTheDocument();
+    expect(screen.getByText('Awaiting companies')).toBeInTheDocument();
+    expect(screen.queryByText('Behind Plan')).not.toBeInTheDocument();
+    expect(screen.queryByText('Below Target')).not.toBeInTheDocument();
+  });
+
   it('shows a truthful warning instead of crashing when target snapshots are unavailable', () => {
     mockUseFundMetrics.mockReturnValue({
       data: {
@@ -122,8 +161,6 @@ describe('TargetMetricsSnapshot', () => {
       />
     );
 
-    expect(
-      screen.getByText(/require a published target snapshot before plan comparisons can be shown/i)
-    ).toBeInTheDocument();
+    expect(screen.getByText(/baseline pending.*published target snapshot/i)).toBeInTheDocument();
   });
 });

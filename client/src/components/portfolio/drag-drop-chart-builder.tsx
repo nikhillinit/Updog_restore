@@ -140,10 +140,25 @@ const AVAILABLE_FIELDS: MetricField[] = [
 ];
 
 const CHART_TYPES: ChartTypeOption[] = [
-  { id: 'bar', name: 'Bar Chart', icon: BarChart3, color: 'bg-blue-100 border-blue-300' },
-  { id: 'line', name: 'Line Chart', icon: LineChart, color: 'bg-green-100 border-green-300' },
-  { id: 'pie', name: 'Pie Chart', icon: PieChart, color: 'bg-purple-100 border-purple-300' },
-  { id: 'area', name: 'Area Chart', icon: TrendingUp, color: 'bg-orange-100 border-orange-300' },
+  {
+    id: 'bar',
+    name: 'Bar Chart',
+    icon: BarChart3,
+    color: 'bg-presson-info/10 border-presson-info/30',
+  },
+  { id: 'line', name: 'Line Chart', icon: LineChart, color: 'bg-success/10 border-success/30' },
+  {
+    id: 'pie',
+    name: 'Pie Chart',
+    icon: PieChart,
+    color: 'bg-presson-info/10 border-presson-info/30',
+  },
+  {
+    id: 'area',
+    name: 'Area Chart',
+    icon: TrendingUp,
+    color: 'bg-presson-warning/10 border-presson-warning/30',
+  },
 ];
 
 const CATEGORIES: MetricCategory[] = ['financial', 'growth', 'operational', 'dimension'];
@@ -205,13 +220,13 @@ export default function DragDropChartBuilder({
   const getCategoryColor = (category: MetricCategory) => {
     switch (category) {
       case 'financial':
-        return 'bg-blue-50 border-blue-200 text-blue-800';
+        return 'bg-pov-gray border-pov-charcoal text-presson-info';
       case 'growth':
-        return 'bg-green-50 border-green-200 text-green-800';
+        return 'bg-success/10 border-success/30 text-success-dark';
       case 'operational':
-        return 'bg-purple-50 border-purple-200 text-purple-800';
+        return 'bg-presson-info/10 border-presson-info/20 text-presson-info';
       case 'dimension':
-        return 'bg-gray-50 border-gray-200 text-gray-800';
+        return 'bg-pov-gray border-beige-200 text-pov-charcoal';
     }
   };
 
@@ -242,7 +257,7 @@ export default function DragDropChartBuilder({
             <div className="space-y-4">
               {CATEGORIES.map((category) => (
                 <div key={category}>
-                  <h4 className="text-xs font-semibold text-gray-600 uppercase tracking-wide mb-2">
+                  <h4 className="text-xs font-semibold text-charcoal-600 uppercase tracking-wide mb-2">
                     {category.replace(/([A-Z])/g, ' $1').replace(/^./, (str) => str.toUpperCase())}
                   </h4>
                   <div className="space-y-2">
@@ -305,7 +320,7 @@ export default function DragDropChartBuilder({
                       ${
                         selectedChartType === chartType.id
                           ? `${chartType.color} border-current shadow-md`
-                          : 'border-gray-200 hover:border-gray-300'
+                          : 'border-beige-200 hover:border-charcoal-300'
                       }
                     `}
                     onClick={() => {
@@ -330,7 +345,7 @@ export default function DragDropChartBuilder({
         <Card className="h-full">
           <CardHeader>
             <CardTitle className="text-sm">Chart Configuration</CardTitle>
-            <p className="text-xs text-gray-600">
+            <p className="text-xs text-charcoal-600">
               Drag fields from the left panel into the areas below to build your chart
             </p>
           </CardHeader>
@@ -338,11 +353,11 @@ export default function DragDropChartBuilder({
             <div className="grid grid-cols-2 gap-4">
               {chartAreas.map((area) => (
                 <div key={area.id} className="space-y-2">
-                  <label className="text-sm font-medium text-gray-700">{area.label}</label>
+                  <label className="text-sm font-medium text-charcoal-700">{area.label}</label>
                   <div
                     className={`
                       min-h-[80px] p-4 rounded-lg border-2 border-dashed transition-colors
-                      ${area.field ? 'border-green-300 bg-green-50' : 'border-gray-300 bg-gray-50'}
+                      ${area.field ? 'border-success/30 bg-success/10' : 'border-charcoal-300 bg-pov-gray'}
                     `}
                   >
                     {area.field ? (
@@ -367,7 +382,7 @@ export default function DragDropChartBuilder({
                         </div>
                       </div>
                     ) : (
-                      <div className="flex items-center justify-center h-full text-gray-500">
+                      <div className="flex items-center justify-center h-full text-charcoal-500">
                         <div className="text-center">
                           <div className="text-sm">Click + on field to add here</div>
                           <div className="text-xs mt-1">Accepts: {area.accepts.join(', ')}</div>
@@ -380,7 +395,7 @@ export default function DragDropChartBuilder({
             </div>
 
             {/* Configuration Summary */}
-            <div className="mt-6 p-4 bg-gray-50 rounded-lg">
+            <div className="mt-6 p-4 bg-pov-gray rounded-lg">
               <h4 className="text-sm font-medium mb-2">Current Configuration</h4>
               <div className="space-y-1 text-xs">
                 <div>

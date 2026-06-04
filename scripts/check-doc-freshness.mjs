@@ -27,6 +27,7 @@ const DOC_PATHS_TO_CHECK = [
 ];
 const EXCLUDE_PREFIXES = [
   'docs/archive/',
+  'docs/observability/archive/',
 ];
 let usingFilesystemFallback = false;
 

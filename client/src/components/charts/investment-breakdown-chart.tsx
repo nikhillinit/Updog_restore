@@ -5,6 +5,8 @@ import { LazyResponsiveContainer as ResponsiveContainer } from '@/components/cha
 import { Tooltip } from 'recharts/es6/component/Tooltip';
 import ChartContainer from './chart-container';
 import { createPayloadFormatter } from '@/lib/chart-formatters';
+import { getChartColor } from '@/lib/brand-tokens';
+import { presson } from '@/theme/presson.tokens';
 
 interface SectorData {
   name: string;
@@ -15,10 +17,10 @@ interface SectorData {
 }
 
 const sectorData: SectorData[] = [
-  { name: 'Fintech', value: 35, color: '#3b82f6', amount: 52.5 },
-  { name: 'Healthcare', value: 28, color: '#06b6d4', amount: 42.0 },
-  { name: 'SaaS', value: 22, color: '#10b981', amount: 33.0 },
-  { name: 'Other', value: 15, color: '#f59e0b', amount: 22.5 },
+  { name: 'Fintech', value: 35, color: getChartColor(0), amount: 52.5 },
+  { name: 'Healthcare', value: 28, color: getChartColor(1), amount: 42.0 },
+  { name: 'SaaS', value: 22, color: getChartColor(2), amount: 33.0 },
+  { name: 'Other', value: 15, color: getChartColor(3), amount: 22.5 },
 ];
 
 interface InvestmentBreakdownChartProps {
@@ -47,7 +49,7 @@ export default function InvestmentBreakdownChart({
         description="Investment distribution across sectors"
         height={height}
       >
-        <div className="flex items-center justify-center h-full text-gray-500">
+        <div className="flex items-center justify-center h-full text-charcoal-500">
           No allocation data available
         </div>
       </ChartContainer>
@@ -73,7 +75,7 @@ export default function InvestmentBreakdownChart({
                 dataKey="value"
                 label={({ value }) => `${value}%`}
                 labelLine={false}
-                stroke="#fff"
+                stroke={presson.color.surface}
                 strokeWidth={2}
               >
                 {data.map((entry: SectorData, index: number) => (
@@ -83,17 +85,17 @@ export default function InvestmentBreakdownChart({
               <Tooltip
                 formatter={formatTooltipValue}
                 contentStyle={{
-                  backgroundColor: '#fff',
-                  border: '1px solid #e0e0e0',
+                  backgroundColor: presson.color.surface,
+                  border: `1px solid ${presson.color.borderSubtle}`,
                   borderRadius: '8px',
-                  boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
+                  boxShadow: presson.shadow.card,
                 }}
               />
             </PieChart>
           </ResponsiveContainer>
         </div>
 
-        <div className="space-y-3 pt-4 border-t border-gray-100">
+        <div className="space-y-3 pt-4 border-t border-charcoal/7">
           {data.map((sector: SectorData, index: number) => (
             <div key={index} className="flex items-center justify-between text-sm">
               <div className="flex items-center space-x-3">
@@ -101,11 +103,13 @@ export default function InvestmentBreakdownChart({
                   className="w-4 h-4 rounded-full shadow-sm"
                   style={{ backgroundColor: sector.color }}
                 ></div>
-                <span className="text-gray-700 font-medium">{sector.name}</span>
+                <span className="text-charcoal-700 font-medium">{sector.name}</span>
               </div>
               <div className="text-right">
-                <span className="font-semibold text-gray-800">{sector.value}%</span>
-                {sector.amount && <div className="text-xs text-gray-500">${sector.amount}M</div>}
+                <span className="font-semibold text-pov-charcoal">{sector.value}%</span>
+                {sector.amount && (
+                  <div className="text-xs text-charcoal-500">${sector.amount}M</div>
+                )}
               </div>
             </div>
           ))}
