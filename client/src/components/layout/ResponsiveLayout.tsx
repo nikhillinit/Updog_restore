@@ -16,12 +16,12 @@ import { cn } from '@/lib/utils';
 
 // Breakpoint definitions aligned with Tailwind CSS
 export const BREAKPOINTS = {
-  xs: 320,   // Small phones
-  sm: 640,   // Large phones / small tablets
-  md: 768,   // Tablets
-  lg: 1024,  // Small desktops
-  xl: 1280,  // Large desktops
-  '2xl': 1536 // Very large screens
+  xs: 320, // Small phones
+  sm: 640, // Large phones / small tablets
+  md: 768, // Tablets
+  lg: 1024, // Small desktops
+  xl: 1280, // Large desktops
+  '2xl': 1536, // Very large screens
 } as const;
 
 export type Breakpoint = keyof typeof BREAKPOINTS;
@@ -54,7 +54,7 @@ const DEFAULT_CONFIG: ResponsiveConfig = {
     spacing: 'tight',
     cardSize: 'compact',
     showSidebar: false,
-    navigationStyle: 'tabs'
+    navigationStyle: 'tabs',
   },
   tablet: {
     maxColumns: 2,
@@ -62,7 +62,7 @@ const DEFAULT_CONFIG: ResponsiveConfig = {
     spacing: 'normal',
     cardSize: 'normal',
     showSidebar: false,
-    navigationStyle: 'pills'
+    navigationStyle: 'pills',
   },
   desktop: {
     maxColumns: 4,
@@ -70,8 +70,8 @@ const DEFAULT_CONFIG: ResponsiveConfig = {
     spacing: 'loose',
     cardSize: 'large',
     showSidebar: true,
-    navigationStyle: 'full'
-  }
+    navigationStyle: 'full',
+  },
 };
 
 // Hook to track viewport size and breakpoints
@@ -133,7 +133,7 @@ export function useResponsiveBreakpoint() {
     isMobile: viewport === 'mobile',
     isTablet: viewport === 'tablet',
     isDesktop: viewport === 'desktop',
-    isTouch: viewport === 'mobile' || viewport === 'tablet'
+    isTouch: viewport === 'mobile' || viewport === 'tablet',
   };
 }
 
@@ -170,14 +170,14 @@ export function ResponsiveGrid({
   config,
   className,
   gap = 'md',
-  children
+  children,
 }: ResponsiveGridProps) {
   const { viewport, isMobile, isTablet, isDesktop } = useResponsiveBreakpoint();
   const layoutConfig = { ...DEFAULT_CONFIG, ...config };
   const currentConfig = layoutConfig[viewport];
 
   // Filter items based on priority for current viewport
-  const visibleItems = items.filter(item =>
+  const visibleItems = items.filter((item) =>
     currentConfig.contentPriority.includes(item.priority)
   );
 
@@ -187,7 +187,7 @@ export function ResponsiveGrid({
     sm: 'gap-2 md:gap-3',
     md: 'gap-3 md:gap-4 lg:gap-6',
     lg: 'gap-4 md:gap-6 lg:gap-8',
-    xl: 'gap-6 md:gap-8 lg:gap-12'
+    xl: 'gap-6 md:gap-8 lg:gap-12',
   };
 
   // Grid column configuration
@@ -195,22 +195,18 @@ export function ResponsiveGrid({
     1: 'grid-cols-1',
     2: 'grid-cols-1 md:grid-cols-2',
     3: 'grid-cols-1 md:grid-cols-2 lg:grid-cols-3',
-    4: 'grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4'
+    4: 'grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4',
   };
 
-  const gridClass = gridColsClasses[currentConfig.maxColumns as keyof typeof gridColsClasses] || 'grid-cols-1';
+  const gridClass =
+    gridColsClasses[currentConfig.maxColumns as keyof typeof gridColsClasses] || 'grid-cols-1';
 
   return (
     <div
-      className={cn(
-        'grid w-full',
-        gridClass,
-        spacingClasses[gap],
-        className
-      )}
+      className={cn('grid w-full', gridClass, spacingClasses[gap], className)}
       style={{
         // Ensure proper touch targets on mobile
-        minHeight: isMobile ? 'auto' : undefined
+        minHeight: isMobile ? 'auto' : undefined,
       }}
     >
       {visibleItems.map((item) => {
@@ -271,7 +267,7 @@ export function ResponsiveContainer({
   padding = 'md',
   className,
   enableVirtualScrolling = false,
-  lazyLoadThreshold = 100
+  lazyLoadThreshold = 100,
 }: ResponsiveContainerProps) {
   const { isMobile, dimensions } = useResponsiveBreakpoint();
   const containerRef = useRef<HTMLDivElement>(null);
@@ -287,7 +283,7 @@ export function ResponsiveContainer({
       },
       {
         threshold: 0.1,
-        rootMargin: `${lazyLoadThreshold}px`
+        rootMargin: `${lazyLoadThreshold}px`,
       }
     );
 
@@ -301,7 +297,7 @@ export function ResponsiveContainer({
     lg: 'max-w-lg',
     xl: 'max-w-xl',
     '2xl': 'max-w-2xl',
-    full: 'max-w-full'
+    full: 'max-w-full',
   };
 
   const paddingClasses = {
@@ -309,7 +305,7 @@ export function ResponsiveContainer({
     sm: 'p-2 md:p-3',
     md: 'p-3 md:p-4 lg:p-6',
     lg: 'p-4 md:p-6 lg:p-8',
-    xl: 'p-6 md:p-8 lg:p-12'
+    xl: 'p-6 md:p-8 lg:p-12',
   };
 
   return (
@@ -329,12 +325,14 @@ export function ResponsiveContainer({
         // Optimize for mobile performance
         WebkitOverflowScrolling: 'touch',
         // Ensure content doesn't overflow on small screens
-        maxWidth: isMobile ? `${dimensions.width}px` : undefined
+        maxWidth: isMobile ? `${dimensions.width}px` : undefined,
       }}
     >
-      {(!enableVirtualScrolling || isVisible) ? children : (
+      {!enableVirtualScrolling || isVisible ? (
+        children
+      ) : (
         <div className="flex items-center justify-center min-h-[200px]">
-          <div className="animate-pulse text-slate-400">Loading...</div>
+          <div className="animate-pulse text-charcoal-400">Loading...</div>
         </div>
       )}
     </div>
@@ -353,7 +351,7 @@ export function ResponsiveStack({
   children,
   spacing = 'md',
   alignment = 'stretch',
-  className
+  className,
 }: ResponsiveStackProps) {
   const { isMobile } = useResponsiveBreakpoint();
 
@@ -363,14 +361,14 @@ export function ResponsiveStack({
     sm: 'space-y-2 md:space-y-3',
     md: 'space-y-3 md:space-y-4 lg:space-y-6',
     lg: 'space-y-4 md:space-y-6 lg:space-y-8',
-    xl: 'space-y-6 md:space-y-8 lg:space-y-12'
+    xl: 'space-y-6 md:space-y-8 lg:space-y-12',
   };
 
   const alignmentClasses = {
     start: 'items-start',
     center: 'items-center',
     end: 'items-end',
-    stretch: 'items-stretch'
+    stretch: 'items-stretch',
   };
 
   return (
@@ -407,7 +405,7 @@ export function ResponsiveFlex({
   justify = 'start',
   align = 'stretch',
   gap = 'md',
-  className
+  className,
 }: ResponsiveFlexProps) {
   const { isMobile } = useResponsiveBreakpoint();
 
@@ -415,7 +413,7 @@ export function ResponsiveFlex({
     row: 'flex-row',
     col: 'flex-col',
     'row-mobile-col': isMobile ? 'flex-col' : 'flex-row',
-    'col-mobile-row': isMobile ? 'flex-row' : 'flex-col'
+    'col-mobile-row': isMobile ? 'flex-row' : 'flex-col',
   };
 
   const justifyClasses = {
@@ -424,14 +422,14 @@ export function ResponsiveFlex({
     end: 'justify-end',
     between: 'justify-between',
     around: 'justify-around',
-    evenly: 'justify-evenly'
+    evenly: 'justify-evenly',
   };
 
   const alignClasses = {
     start: 'items-start',
     center: 'items-center',
     end: 'items-end',
-    stretch: 'items-stretch'
+    stretch: 'items-stretch',
   };
 
   const gapClasses = {
@@ -440,7 +438,7 @@ export function ResponsiveFlex({
     sm: 'gap-2 md:gap-3',
     md: 'gap-3 md:gap-4 lg:gap-6',
     lg: 'gap-4 md:gap-6 lg:gap-8',
-    xl: 'gap-6 md:gap-8 lg:gap-12'
+    xl: 'gap-6 md:gap-8 lg:gap-12',
   };
 
   return (
@@ -467,10 +465,12 @@ export function ResponsiveLayoutDebugger({ enabled = false }: { enabled?: boolea
   if (!enabled) return null;
 
   return (
-    <div className="fixed bottom-4 right-4 bg-black/80 text-white p-2 rounded text-xs font-mono z-50">
+    <div className="fixed bottom-4 right-4 bg-pov-charcoal text-pov-white p-2 rounded text-xs font-mono z-50">
       <div>Viewport: {viewport}</div>
       <div>Breakpoint: {breakpoint}</div>
-      <div>Size: {dimensions.width}×{dimensions.height}</div>
+      <div>
+        Size: {dimensions.width}×{dimensions.height}
+      </div>
     </div>
   );
 }
@@ -481,5 +481,5 @@ export default {
   ResponsiveStack,
   ResponsiveFlex,
   ResponsiveLayoutDebugger,
-  useResponsiveBreakpoint
+  useResponsiveBreakpoint,
 };

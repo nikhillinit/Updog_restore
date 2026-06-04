@@ -47,7 +47,7 @@ export default function HeaderKpis() {
 
   return (
     <div
-      className="flex min-w-0 flex-col gap-2 border-b border-slate-200 bg-white px-3 py-2 sm:flex-row sm:items-center sm:gap-4 sm:px-6"
+      className="flex min-w-0 flex-col gap-2 border-b border-beige-200 bg-white px-3 py-2 sm:flex-row sm:items-center sm:gap-4 sm:px-6"
       data-testid="header-kpis"
     >
       <div
@@ -63,7 +63,7 @@ export default function HeaderKpis() {
         ))}
       </div>
 
-      <div className="min-w-0 truncate text-xs text-slate-600 sm:ml-auto sm:text-sm">
+      <div className="min-w-0 truncate text-xs text-charcoal-600 sm:ml-auto sm:text-sm">
         {viewModel.fundName}
       </div>
     </div>

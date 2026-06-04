@@ -30,45 +30,37 @@ export function EmptyFundHeader({
   fundSize,
   targetTVPI,
   projectedTVPI,
-  className = ''
+  className = '',
 }: EmptyFundHeaderProps) {
   return (
     <div className={`bg-white rounded-lg shadow p-6 ${className}`}>
       <div className="flex items-center justify-between mb-4">
         <div>
-          <h2 className="text-2xl font-bold text-gray-900">{fundName}</h2>
-          <p className="text-sm text-gray-600">
-            ${(fundSize / 1_000_000).toFixed(0)}M Fund
-          </p>
+          <h2 className="text-2xl font-bold text-pov-charcoal">{fundName}</h2>
+          <p className="text-sm text-charcoal-600">${(fundSize / 1_000_000).toFixed(0)}M Fund</p>
         </div>
         <SourceBadge source="construction_forecast" />
       </div>
 
-      <div className="border-t border-gray-200 pt-4">
-        <div className="bg-blue-50 border border-blue-200 rounded p-4 mb-4">
-          <h3 className="text-sm font-semibold text-blue-900 mb-2">
-            Construction View
-          </h3>
-          <p className="text-sm text-blue-700">
-            This fund has no investments yet. Metrics shown are based on J-curve
-            mathematical forecasting using industry-standard assumptions.
+      <div className="border-t border-beige-200 pt-4">
+        <div className="bg-pov-gray border border-beige-200 rounded p-4 mb-4">
+          <h3 className="text-sm font-semibold text-presson-info mb-2">Construction View</h3>
+          <p className="text-sm text-charcoal-600">
+            This fund has no investments yet. Metrics shown are based on J-curve mathematical
+            forecasting using industry-standard assumptions.
           </p>
         </div>
 
         <div className="grid grid-cols-2 gap-4">
-          <div className="bg-gray-50 rounded p-3">
-            <p className="text-xs text-gray-600 mb-1">Target TVPI</p>
-            <p className="text-2xl font-bold text-gray-900">
-              {targetTVPI.toFixed(2)}x
-            </p>
+          <div className="bg-pov-gray rounded p-3">
+            <p className="text-xs text-charcoal-600 mb-1">Target TVPI</p>
+            <p className="text-2xl font-bold text-pov-charcoal">{targetTVPI.toFixed(2)}x</p>
           </div>
 
           {projectedTVPI !== undefined && (
-            <div className="bg-gray-50 rounded p-3">
-              <p className="text-xs text-gray-600 mb-1">Projected TVPI</p>
-              <p className="text-2xl font-bold text-gray-900">
-                {projectedTVPI.toFixed(2)}x
-              </p>
+            <div className="bg-pov-gray rounded p-3">
+              <p className="text-xs text-charcoal-600 mb-1">Projected TVPI</p>
+              <p className="text-2xl font-bold text-pov-charcoal">{projectedTVPI.toFixed(2)}x</p>
             </div>
           )}
         </div>

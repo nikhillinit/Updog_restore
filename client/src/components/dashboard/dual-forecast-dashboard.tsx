@@ -16,8 +16,14 @@ import type { NameType, ValueType } from 'recharts/types/component/DefaultToolti
 import type { DashboardSummary } from '@/types/fund';
 import { useFundContext } from '@/contexts/FundContext';
 import { useDualForecast } from '@/hooks/useDualForecast';
+import { presson } from '@/theme/presson.tokens';
 
 const MILLION = 1_000_000;
+const FORECAST_SERIES_COLORS = [
+  presson.color.text,
+  presson.color.positive,
+  presson.color.info,
+] as const;
 
 interface PortfolioChartPoint {
   name: string;
@@ -141,18 +147,18 @@ export default function DualForecastDashboard() {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <Card className="animate-pulse">
           <CardHeader>
-            <div className="h-6 bg-gray-200 rounded w-3/4"></div>
+            <div className="h-6 bg-pov-gray rounded w-3/4"></div>
           </CardHeader>
           <CardContent>
-            <div className="h-48 bg-gray-200 rounded"></div>
+            <div className="h-48 bg-pov-gray rounded"></div>
           </CardContent>
         </Card>
         <Card className="animate-pulse">
           <CardHeader>
-            <div className="h-6 bg-gray-200 rounded w-3/4"></div>
+            <div className="h-6 bg-pov-gray rounded w-3/4"></div>
           </CardHeader>
           <CardContent>
-            <div className="h-48 bg-gray-200 rounded"></div>
+            <div className="h-48 bg-pov-gray rounded"></div>
           </CardContent>
         </Card>
       </div>
@@ -164,7 +170,7 @@ export default function DualForecastDashboard() {
       <Card>
         <CardContent className="pt-6">
           <div className="text-center py-8">
-            <p className="text-red-600 font-medium">Unable to load forecast data</p>
+            <p className="text-error-dark font-medium">Unable to load forecast data</p>
             <p className="text-muted-foreground mt-2">Please check API connectivity</p>
           </div>
         </CardContent>
@@ -207,7 +213,7 @@ export default function DualForecastDashboard() {
                 <p className="text-sm font-medium text-muted-foreground">Current AUM</p>
                 <p className="text-2xl font-bold">${(baseValue / MILLION).toFixed(1)}M</p>
               </div>
-              <DollarSign className="h-8 w-8 text-blue-600" />
+              <DollarSign className="h-8 w-8 text-charcoal-600" />
             </div>
           </CardContent>
         </Card>
@@ -219,7 +225,7 @@ export default function DualForecastDashboard() {
                 <p className="text-sm font-medium text-muted-foreground">IRR</p>
                 <p className="text-2xl font-bold">{(currentIRR * 100).toFixed(1)}%</p>
               </div>
-              <TrendingUp className="h-8 w-8 text-green-600" />
+              <TrendingUp className="h-8 w-8 text-charcoal-600" />
             </div>
           </CardContent>
         </Card>
@@ -231,7 +237,7 @@ export default function DualForecastDashboard() {
                 <p className="text-sm font-medium text-muted-foreground">Portfolio Cos</p>
                 <p className="text-2xl font-bold">{dashboardData.portfolioCompanies.length}</p>
               </div>
-              <PieChart className="h-8 w-8 text-purple-600" />
+              <PieChart className="h-8 w-8 text-charcoal-600" />
             </div>
           </CardContent>
         </Card>
@@ -245,7 +251,7 @@ export default function DualForecastDashboard() {
                   {dashboardData.summary.deploymentRate.toFixed(0)}%
                 </p>
               </div>
-              <Target className="h-8 w-8 text-orange-600" />
+              <Target className="h-8 w-8 text-charcoal-600" />
             </div>
           </CardContent>
         </Card>
@@ -285,7 +291,7 @@ export default function DualForecastDashboard() {
                 <Line
                   type="monotone"
                   dataKey="constructionNav"
-                  stroke="#0f766e"
+                  stroke={FORECAST_SERIES_COLORS[0]}
                   strokeWidth={3}
                   dot={{ r: 3 }}
                   name="Construction Plan"
@@ -293,7 +299,7 @@ export default function DualForecastDashboard() {
                 <Line
                   type="monotone"
                   dataKey="actualNav"
-                  stroke="#111827"
+                  stroke={FORECAST_SERIES_COLORS[1]}
                   strokeWidth={3}
                   dot={{ r: 4 }}
                   name="Actuals"
@@ -301,7 +307,7 @@ export default function DualForecastDashboard() {
                 <Line
                   type="monotone"
                   dataKey="currentForecastNav"
-                  stroke="#2563eb"
+                  stroke={FORECAST_SERIES_COLORS[2]}
                   strokeWidth={3}
                   dot={{ r: 3 }}
                   name="Current Forecast"
@@ -335,8 +341,8 @@ export default function DualForecastDashboard() {
                   ]}
                 />
                 <Legend />
-                <Bar dataKey="investment" fill="#94a3b8" name="Investment" />
-                <Bar dataKey="value" fill="#3b82f6" name="Current Value" />
+                <Bar dataKey="investment" fill={FORECAST_SERIES_COLORS[0]} name="Investment" />
+                <Bar dataKey="value" fill={FORECAST_SERIES_COLORS[1]} name="Current Value" />
               </BarChart>
             </ResponsiveContainer>
           </CardContent>
@@ -364,7 +370,7 @@ export default function DualForecastDashboard() {
               <Line
                 type="monotone"
                 dataKey="constructionCalledCapital"
-                stroke="#0f766e"
+                stroke={FORECAST_SERIES_COLORS[0]}
                 strokeWidth={3}
                 dot={{ r: 4 }}
                 name="Construction Plan"
@@ -372,7 +378,7 @@ export default function DualForecastDashboard() {
               <Line
                 type="monotone"
                 dataKey="actualCalledCapital"
-                stroke="#111827"
+                stroke={FORECAST_SERIES_COLORS[1]}
                 strokeWidth={3}
                 dot={{ r: 4 }}
                 name="Actuals"
@@ -380,7 +386,7 @@ export default function DualForecastDashboard() {
               <Line
                 type="monotone"
                 dataKey="currentForecastCalledCapital"
-                stroke="#2563eb"
+                stroke={FORECAST_SERIES_COLORS[2]}
                 strokeWidth={3}
                 dot={{ r: 4 }}
                 name="Current Forecast"

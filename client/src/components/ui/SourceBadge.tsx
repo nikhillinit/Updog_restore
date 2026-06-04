@@ -7,11 +7,11 @@
 import React from 'react';
 
 export type MetricSource =
-  | 'actual'               // Real portfolio data
-  | 'model'                // Monte Carlo / projection
+  | 'actual' // Real portfolio data
+  | 'model' // Monte Carlo / projection
   | 'construction_forecast' // J-curve construction forecast
-  | 'forecast'             // Generic forecast
-  | 'N/A';                 // No data available
+  | 'forecast' // Generic forecast
+  | 'N/A'; // No data available
 
 interface SourceBadgeProps {
   source: MetricSource;
@@ -43,14 +43,14 @@ export function SourceBadge({ source, className = '' }: SourceBadgeProps) {
 function getSourceStyles(source: MetricSource): string {
   switch (source) {
     case 'actual':
-      return 'bg-green-100 text-green-800 border border-green-300';
+      return 'bg-success/10 text-success-dark border border-success/50';
     case 'model':
-      return 'bg-blue-100 text-blue-800 border border-blue-300';
+      return 'bg-presson-info/10 text-presson-info border border-presson-info/30';
     case 'construction_forecast':
     case 'forecast':
-      return 'bg-orange-100 text-orange-800 border border-orange-300';
+      return 'bg-warning/10 text-warning-dark border border-warning/50';
     case 'N/A':
-      return 'bg-gray-100 text-gray-600 border border-gray-300';
+      return 'bg-pov-gray text-charcoal-500 border border-beige-200';
   }
 }
 

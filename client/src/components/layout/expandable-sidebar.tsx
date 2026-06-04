@@ -128,25 +128,25 @@ export default function ExpandableSidebar({
   return (
     <aside
       className={cn(
-        'bg-gray-900 text-white shadow-lg border-r border-gray-800 flex-shrink-0 flex flex-col transition-all duration-300 ease-in-out overflow-hidden',
+        'bg-white text-pov-charcoal shadow-lg border-r border-beige-200 flex-shrink-0 flex flex-col transition-all duration-300 ease-in-out overflow-hidden',
         isExpanded ? 'w-64' : 'w-16'
       )}
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
     >
       {/* Header */}
-      <div className="p-4 border-b border-gray-800">
+      <div className="p-4 border-b border-beige-200">
         <div className="flex items-center space-x-3">
-          <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center flex-shrink-0">
-            <BarChart3 className="text-white h-5 w-5" />
+          <div className="w-8 h-8 bg-pov-charcoal rounded-lg flex items-center justify-center flex-shrink-0">
+            <BarChart3 className="text-pov-white h-5 w-5" />
           </div>
           {isExpanded && (
             <div className="flex-1 min-w-0">
-              <h1 className="text-lg font-bold text-white">{BRANDING.app.name}</h1>
+              <h1 className="text-lg font-bold text-pov-charcoal">{BRANDING.app.name}</h1>
               {currentFund ? (
-                <p className="text-sm text-gray-300 truncate">{currentFund.name}</p>
+                <p className="text-sm text-charcoal-600 truncate">{currentFund.name}</p>
               ) : (
-                <p className="text-sm text-gray-300">Venture Fund</p>
+                <p className="text-sm text-charcoal-600">Venture Fund</p>
               )}
             </div>
           )}
@@ -162,8 +162,9 @@ export default function ExpandableSidebar({
               variant="ghost"
               size="sm"
               className={cn(
-                'w-full justify-start text-gray-300 hover:text-white hover:bg-gray-800',
-                activeModule === 'dashboard' && 'bg-gray-800 text-white',
+                'w-full justify-start text-pov-charcoal hover:text-charcoal-700 hover:bg-pov-gray',
+                activeModule === 'dashboard' &&
+                  'bg-pov-charcoal text-pov-white hover:bg-charcoal-700',
                 !isExpanded && 'px-2'
               )}
               onClick={() => onModuleChange('dashboard')}
@@ -174,21 +175,21 @@ export default function ExpandableSidebar({
           </Link>
 
           <div className="flex items-center space-x-2 px-2 py-1">
-            <div className="w-6 h-6 bg-gray-700 rounded flex items-center justify-center flex-shrink-0">
-              <Users className="h-3 w-3 text-gray-400" />
+            <div className="w-6 h-6 bg-pov-gray rounded flex items-center justify-center flex-shrink-0">
+              <Users className="h-3 w-3 text-charcoal-500" />
             </div>
-            {isExpanded && <span className="text-sm text-gray-400">Account</span>}
+            {isExpanded && <span className="text-sm text-charcoal-500">Account</span>}
           </div>
 
           <div className="flex items-center space-x-2 px-2 py-1">
-            <div className="w-6 h-6 bg-gray-700 rounded flex items-center justify-center flex-shrink-0">
-              <HelpCircle className="h-3 w-3 text-gray-400" />
+            <div className="w-6 h-6 bg-pov-gray rounded flex items-center justify-center flex-shrink-0">
+              <HelpCircle className="h-3 w-3 text-charcoal-500" />
             </div>
-            {isExpanded && <span className="text-sm text-gray-400">Logout</span>}
+            {isExpanded && <span className="text-sm text-charcoal-500">Logout</span>}
           </div>
         </div>
 
-        {isExpanded && <Separator className="bg-gray-800 mb-4" />}
+        {isExpanded && <Separator className="bg-pov-gray mb-4" />}
 
         {/* Main Navigation Sections */}
         {(Object.entries(NAVIGATION_STRUCTURE) as NavigationSectionEntry[]).map(
@@ -197,7 +198,7 @@ export default function ExpandableSidebar({
               {isExpanded && (
                 <button
                   onClick={() => toggleSection(sectionKey)}
-                  className="w-full flex items-center justify-between px-2 py-2 text-sm font-medium text-gray-400 hover:text-white transition-colors"
+                  className="w-full flex items-center justify-between px-2 py-2 text-sm font-medium text-charcoal-500 hover:text-charcoal-700 transition-colors"
                 >
                   <div className="flex items-center space-x-2">
                     <section.icon className="h-4 w-4" />
@@ -226,9 +227,9 @@ export default function ExpandableSidebar({
                           size="sm"
                           disabled={isDisabled}
                           className={cn(
-                            'w-full justify-start text-gray-300 hover:text-white hover:bg-gray-800',
-                            isActive && 'bg-blue-600 text-white hover:bg-blue-700',
-                            isDisabled && 'text-gray-500 cursor-not-allowed',
+                            'w-full justify-start text-pov-charcoal hover:text-charcoal-700 hover:bg-pov-gray',
+                            isActive && 'bg-pov-charcoal text-pov-white hover:bg-charcoal-700',
+                            isDisabled && 'text-charcoal-300 cursor-not-allowed',
                             !isExpanded && 'px-2'
                           )}
                           onClick={() => !isDisabled && onModuleChange(item.id)}
@@ -252,7 +253,7 @@ export default function ExpandableSidebar({
         {/* Additional Tools */}
         {isExpanded && (
           <div className="space-y-1">
-            <Separator className="bg-gray-800 mb-2" />
+            <Separator className="bg-pov-gray mb-2" />
 
             {/* Sensitivity Analysis - New Addition */}
             <Link href="/sensitivity-analysis">
@@ -260,9 +261,9 @@ export default function ExpandableSidebar({
                 variant="ghost"
                 size="sm"
                 className={cn(
-                  'w-full justify-start text-gray-300 hover:text-white hover:bg-gray-800',
+                  'w-full justify-start text-pov-charcoal hover:text-charcoal-700 hover:bg-pov-gray',
                   activeModule === 'sensitivity-analysis' &&
-                    'bg-blue-600 text-white hover:bg-blue-700'
+                    'bg-pov-charcoal text-pov-white hover:bg-charcoal-700'
                 )}
                 onClick={() => onModuleChange('sensitivity-analysis')}
               >
@@ -280,8 +281,9 @@ export default function ExpandableSidebar({
                 variant="ghost"
                 size="sm"
                 className={cn(
-                  'w-full justify-start text-gray-300 hover:text-white hover:bg-gray-800',
-                  activeModule === 'cash-management' && 'bg-blue-600 text-white hover:bg-blue-700'
+                  'w-full justify-start text-pov-charcoal hover:text-charcoal-700 hover:bg-pov-gray',
+                  activeModule === 'cash-management' &&
+                    'bg-pov-charcoal text-pov-white hover:bg-charcoal-700'
                 )}
                 onClick={() => onModuleChange('cash-management')}
               >
@@ -296,9 +298,9 @@ export default function ExpandableSidebar({
                 variant="ghost"
                 size="sm"
                 className={cn(
-                  'w-full justify-start text-gray-300 hover:text-white hover:bg-gray-800',
+                  'w-full justify-start text-pov-charcoal hover:text-charcoal-700 hover:bg-pov-gray',
                   activeModule === 'portfolio-analytics' &&
-                    'bg-blue-600 text-white hover:bg-blue-700'
+                    'bg-pov-charcoal text-pov-white hover:bg-charcoal-700'
                 )}
                 onClick={() => onModuleChange('portfolio-analytics')}
               >
@@ -312,9 +314,9 @@ export default function ExpandableSidebar({
 
       {/* Footer */}
       {isExpanded && (
-        <div className="p-4 border-t border-gray-800">
-          <div className="flex items-center space-x-2 text-xs text-gray-400">
-            <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+        <div className="p-4 border-t border-beige-200">
+          <div className="flex items-center space-x-2 text-xs text-charcoal-500">
+            <div className="w-2 h-2 bg-success rounded-full"></div>
             <span>Connected</span>
           </div>
         </div>

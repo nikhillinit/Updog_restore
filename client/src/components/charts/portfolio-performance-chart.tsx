@@ -15,10 +15,9 @@ import { LazyResponsiveContainer as ResponsiveContainer } from '@/components/cha
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { useState } from 'react';
-import {
-  rechartsProps,
-  getChartColor,
-} from '@/lib/chart-theme';
+import { rechartsProps } from '@/lib/chart-theme';
+import { getChartColor } from '@/lib/brand-tokens';
+import { presson } from '@/theme/presson.tokens';
 
 interface PerformanceData {
   month: string;
@@ -50,7 +49,7 @@ export default function PortfolioPerformanceChart() {
     <Card className="lg:col-span-2">
       <CardHeader>
         <div className="flex items-center justify-between">
-          <CardTitle className="text-lg font-semibold text-gray-800">
+          <CardTitle className="text-lg font-semibold text-pov-charcoal">
             Portfolio Performance
           </CardTitle>
           <div className="flex space-x-2">
@@ -61,7 +60,7 @@ export default function PortfolioPerformanceChart() {
                 size="sm"
                 onClick={() => setTimeRange(range)}
                 className={
-                  timeRange === range ? 'povc-bg-primary-light text-blue-700 border-blue-200' : ''
+                  timeRange === range ? 'bg-pov-charcoal text-pov-white border-beige-200' : ''
                 }
               >
                 {range}
@@ -97,7 +96,12 @@ export default function PortfolioPerformanceChart() {
                 strokeWidth={2}
                 name="Portfolio Value ($M)"
                 dot={{ r: 4, fill: portfolioValueColor }}
-                activeDot={{ r: 6, stroke: portfolioValueColor, strokeWidth: 2, fill: '#FFFFFF' }}
+                activeDot={{
+                  r: 6,
+                  stroke: portfolioValueColor,
+                  strokeWidth: 2,
+                  fill: presson.color.surface,
+                }}
               />
               <Line
                 yAxisId="right"
@@ -107,7 +111,12 @@ export default function PortfolioPerformanceChart() {
                 strokeWidth={2}
                 name="IRR (%)"
                 dot={{ r: 4, fill: irrColor }}
-                activeDot={{ r: 6, stroke: irrColor, strokeWidth: 2, fill: '#FFFFFF' }}
+                activeDot={{
+                  r: 6,
+                  stroke: irrColor,
+                  strokeWidth: 2,
+                  fill: presson.color.surface,
+                }}
               />
             </LineChart>
           </ResponsiveContainer>

@@ -15,12 +15,9 @@ type LazyChartVariantProps = Omit<LazyChartProps, 'component'>;
 // Loading fallback for charts
 export function ChartSkeleton({ height = 300 }: { height?: number }) {
   return (
-    <div 
-      className="animate-pulse bg-gray-100 rounded-lg" 
-      style={{ height: `${height}px` }}
-    >
+    <div className="animate-pulse bg-pov-gray rounded-lg" style={{ height: `${height}px` }}>
       <div className="flex items-center justify-center h-full">
-        <div className="text-gray-400">
+        <div className="text-charcoal-400">
           <svg
             className="w-8 h-8 animate-spin"
             xmlns="http://www.w3.org/2000/svg"
@@ -48,12 +45,7 @@ export function ChartSkeleton({ height = 300 }: { height?: number }) {
 }
 
 // Wrapper component for lazy-loaded charts
-export function LazyChart({ 
-  component, 
-  height = 300, 
-  children, 
-  ...props 
-}: LazyChartProps) {
+export function LazyChart({ component, height = 300, children, ...props }: LazyChartProps) {
   return (
     <Suspense fallback={<ChartSkeleton height={height} />}>
       <RechartsBundle component={component} {...props}>

@@ -92,21 +92,21 @@ export function POVBrandHeader({
   variant?: 'light' | 'dark' | 'beige';
 }) {
   const backgroundClasses = {
-    light: 'bg-white text-slate-900 border-slate-200',
-    dark: 'bg-slate-900 text-white border-slate-700',
-    beige: 'bg-slate-50 text-slate-900 border-slate-200',
+    light: 'bg-white text-pov-charcoal border-beige-200',
+    dark: 'bg-pov-charcoal text-pov-white border-beige-200',
+    beige: 'bg-pov-gray text-pov-charcoal border-beige-200',
   };
 
   const subtitleClasses = {
-    light: 'text-slate-600',
-    dark: 'text-slate-300',
-    beige: 'text-slate-600',
+    light: 'text-charcoal-600',
+    dark: 'text-charcoal-300',
+    beige: 'text-charcoal-600',
   };
 
   const iconFrameClasses = {
-    light: 'border-slate-200 bg-slate-50',
-    dark: 'border-white/15 bg-white/10',
-    beige: 'border-slate-200 bg-white',
+    light: 'border-beige-200 bg-pov-gray',
+    dark: 'border-beige-200 bg-white/10',
+    beige: 'border-beige-200 bg-white',
   };
 
   const logoVariant = variant === 'dark' ? 'white' : 'dark';

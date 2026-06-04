@@ -20,9 +20,30 @@ import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { TrendingUp, Building2, Target } from 'lucide-react';
 import PortfolioConcentration from './portfolio-concentration';
+import { presson } from '@/theme/presson.tokens';
+import { colors as brandColors } from '@/lib/brand-tokens';
 
 type DashboardViewType = 'construction' | 'current';
 type DashboardTab = 'fund' | 'performance' | 'exits' | 'rounds' | 'lp' | 'insights' | 'visualizer';
+
+const STATUS_SUCCESS = brandColors.success;
+const DASHBOARD_CHART_COLORS = {
+  text: presson.color.text,
+  grid: presson.color.surfaceSubtle,
+  positive: presson.color.positive,
+  info: presson.color.info,
+  warning: presson.color.warning,
+  negative: presson.color.negative,
+  success: STATUS_SUCCESS,
+} as const;
+const CATEGORY_SERIES_COLORS = [
+  DASHBOARD_CHART_COLORS.text,
+  DASHBOARD_CHART_COLORS.positive,
+  DASHBOARD_CHART_COLORS.info,
+  DASHBOARD_CHART_COLORS.success,
+  DASHBOARD_CHART_COLORS.warning,
+  DASHBOARD_CHART_COLORS.negative,
+] as const;
 
 const formatMillionsTick = (value: number | string): string => {
   const numericValue = typeof value === 'number' ? value : Number(value);
@@ -38,8 +59,8 @@ export default function Dashboard() {
     return (
       <div className="flex-1 overflow-y-auto p-6 custom-scrollbar">
         <div className="animate-pulse space-y-8">
-          <div className="h-20 bg-gray-200 rounded-xl"></div>
-          <div className="h-96 bg-gray-200 rounded-xl"></div>
+          <div className="h-20 bg-pov-gray rounded-xl"></div>
+          <div className="h-96 bg-pov-gray rounded-xl"></div>
         </div>
       </div>
     );
@@ -99,13 +120,13 @@ export default function Dashboard() {
         <Card className="bg-white border-0 shadow-card">
           <CardContent className="p-6">
             <div className="text-center">
-              <div className="text-3xl font-inter font-bold text-charcoal">
+              <div className="text-3xl font-inter font-bold text-pov-charcoal">
                 ${(investableCapital / 1000000).toFixed(1)}M
               </div>
-              <div className="text-beige/80 font-medium mt-1">
+              <div className="text-charcoal-600 font-medium mt-1">
                 {((investableCapital / committedCapital) * 100).toFixed(2)}%
               </div>
-              <div className="text-sm text-charcoal/70 mt-2">Investable Capital</div>
+              <div className="text-sm text-charcoal-500 mt-2">Investable Capital</div>
             </div>
           </CardContent>
         </Card>
@@ -114,22 +135,22 @@ export default function Dashboard() {
           <CardContent className="p-6">
             <div className="grid grid-cols-2 gap-4">
               <div className="text-center">
-                <div className="text-2xl font-inter font-bold text-charcoal">
+                <div className="text-2xl font-inter font-bold text-pov-charcoal">
                   ${(initialCapital / 1000000).toFixed(1)}M
                 </div>
-                <div className="text-beige/80 font-medium">
+                <div className="text-charcoal-600 font-medium">
                   {((initialCapital / investableCapital) * 100).toFixed(2)}%
                 </div>
-                <div className="text-sm text-charcoal/70 mt-1">Projected Initial</div>
+                <div className="text-sm text-charcoal-500 mt-1">Projected Initial</div>
               </div>
               <div className="text-center">
-                <div className="text-2xl font-inter font-bold text-charcoal">
+                <div className="text-2xl font-inter font-bold text-pov-charcoal">
                   ${(followOnCapital / 1000000).toFixed(1)}M
                 </div>
-                <div className="text-beige/80 font-medium">
+                <div className="text-charcoal-600 font-medium">
                   {((followOnCapital / investableCapital) * 100).toFixed(2)}%
                 </div>
-                <div className="text-sm text-charcoal/70 mt-1">Projected Follow-On</div>
+                <div className="text-sm text-charcoal-500 mt-1">Projected Follow-On</div>
               </div>
             </div>
           </CardContent>
@@ -138,19 +159,19 @@ export default function Dashboard() {
         <Card className="bg-white border-0 shadow-card">
           <CardContent className="p-6">
             <div className="text-center">
-              <div className="text-3xl font-inter font-bold text-charcoal">
+              <div className="text-3xl font-inter font-bold text-pov-charcoal">
                 {projectedInvestments}
               </div>
-              <div className="text-charcoal/70 font-medium mt-1">Projected</div>
-              <div className="text-sm text-charcoal/70 mt-2">Number of Initial Investments</div>
+              <div className="text-charcoal-500 font-medium mt-1">Projected</div>
+              <div className="text-sm text-charcoal-500 mt-2">Number of Initial Investments</div>
               <div className="flex justify-center space-x-4 mt-4">
                 <div className="text-center">
-                  <div className="text-lg font-bold text-charcoal">27</div>
-                  <div className="text-xs text-charcoal/50">By Entry Round</div>
+                  <div className="text-lg font-bold text-pov-charcoal">27</div>
+                  <div className="text-xs text-charcoal-400">By Entry Round</div>
                 </div>
                 <div className="text-center">
-                  <div className="text-lg font-bold text-charcoal">26</div>
-                  <div className="text-xs text-charcoal/50">By Allocations</div>
+                  <div className="text-lg font-bold text-pov-charcoal">26</div>
+                  <div className="text-xs text-charcoal-400">By Allocations</div>
                 </div>
               </div>
             </div>
@@ -162,38 +183,38 @@ export default function Dashboard() {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
         <Card className="bg-white border-0 shadow-card">
           <CardHeader>
-            <CardTitle className="text-lg font-inter text-charcoal">
+            <CardTitle className="text-lg font-inter text-pov-charcoal">
               Investable Capital Breakdown
             </CardTitle>
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
               <div className="flex justify-between items-center">
-                <span className="text-charcoal/70">Committed Capital</span>
-                <span className="font-mono text-charcoal">
+                <span className="text-charcoal-500">Committed Capital</span>
+                <span className="font-mono text-pov-charcoal">
                   ${(committedCapital / 1000000).toFixed(0)}M
                 </span>
               </div>
               <div className="flex justify-between items-center">
-                <span className="text-charcoal/70">Cashless Commit</span>
-                <span className="font-mono text-red-600">($0.8M)</span>
+                <span className="text-charcoal-500">Cashless Commit</span>
+                <span className="font-mono text-presson-negative">($0.8M)</span>
               </div>
               <div className="flex justify-between items-center">
-                <span className="text-charcoal/70">Management Fees</span>
-                <span className="font-mono text-red-600">($30.5M)</span>
+                <span className="text-charcoal-500">Management Fees</span>
+                <span className="font-mono text-presson-negative">($30.5M)</span>
               </div>
               <div className="flex justify-between items-center">
-                <span className="text-charcoal/70">Fund Expenses</span>
-                <span className="font-mono text-red-600">($3.4M)</span>
+                <span className="text-charcoal-500">Fund Expenses</span>
+                <span className="font-mono text-presson-negative">($3.4M)</span>
               </div>
               <div className="flex justify-between items-center">
-                <span className="text-charcoal/70">Exit Proceeds Recycled</span>
-                <span className="font-mono text-green-600">$40.0M</span>
+                <span className="text-charcoal-500">Exit Proceeds Recycled</span>
+                <span className="font-mono text-presson-positive">$40.0M</span>
               </div>
-              <div className="border-t border-charcoal/20 pt-4">
+              <div className="border-t border-charcoal/7 pt-4">
                 <div className="flex justify-between items-center font-bold">
-                  <span className="text-charcoal">Total Investable</span>
-                  <span className="font-mono text-charcoal">
+                  <span className="text-pov-charcoal">Total Investable</span>
+                  <span className="font-mono text-pov-charcoal">
                     ${(investableCapital / 1000000).toFixed(1)}M
                   </span>
                 </div>
@@ -204,7 +225,7 @@ export default function Dashboard() {
 
         <Card className="bg-white border-0 shadow-card">
           <CardHeader>
-            <CardTitle className="text-lg font-inter text-charcoal">
+            <CardTitle className="text-lg font-inter text-pov-charcoal">
               Capital Allocation by Entry Round
             </CardTitle>
           </CardHeader>
@@ -214,11 +235,22 @@ export default function Dashboard() {
                 data={investableCapitalData}
                 margin={{ top: 20, right: 30, left: 20, bottom: 5 }}
               >
-                <CartesianGrid strokeDasharray="3 3" stroke="#f2f2f2" />
-                <XAxis dataKey="name" tick={{ fill: '#292929' }} />
-                <YAxis tick={{ fill: '#292929' }} tickFormatter={formatMillionsTick} />
-                <Bar dataKey="initial" fill="#292929" name="Initial Investments" />
-                <Bar dataKey="followOn" fill="#E0D8D1" name="Follow-On Investments" />
+                <CartesianGrid strokeDasharray="3 3" stroke={DASHBOARD_CHART_COLORS.grid} />
+                <XAxis dataKey="name" tick={{ fill: DASHBOARD_CHART_COLORS.text }} />
+                <YAxis
+                  tick={{ fill: DASHBOARD_CHART_COLORS.text }}
+                  tickFormatter={formatMillionsTick}
+                />
+                <Bar
+                  dataKey="initial"
+                  fill={CATEGORY_SERIES_COLORS[0]}
+                  name="Initial Investments"
+                />
+                <Bar
+                  dataKey="followOn"
+                  fill={CATEGORY_SERIES_COLORS[1]}
+                  name="Follow-On Investments"
+                />
               </BarChart>
             </ResponsiveContainer>
           </CardContent>
@@ -241,11 +273,11 @@ export default function Dashboard() {
                 <CartesianGrid strokeDasharray="3 3" />
                 <XAxis dataKey="period" />
                 <YAxis />
-                <Bar dataKey="inPeriod" fill="#3b82f6" name="In-Period" />
+                <Bar dataKey="inPeriod" fill={CATEGORY_SERIES_COLORS[0]} name="In-Period" />
                 <Line
                   type="monotone"
                   dataKey="cumulative"
-                  stroke="#1d4ed8"
+                  stroke={CATEGORY_SERIES_COLORS[1]}
                   strokeWidth={2}
                   name="Cumulative"
                 />
@@ -269,8 +301,8 @@ export default function Dashboard() {
                   type="monotone"
                   dataKey="cumulative"
                   stackId="1"
-                  stroke="#1d4ed8"
-                  fill="#3b82f6"
+                  stroke={CATEGORY_SERIES_COLORS[0]}
+                  fill={CATEGORY_SERIES_COLORS[1]}
                 />
               </AreaChart>
             </ResponsiveContainer>
@@ -289,19 +321,19 @@ export default function Dashboard() {
         </CardHeader>
         <CardContent>
           <div className="mb-4">
-            <div className="text-2xl font-bold text-blue-600">$199,200,000</div>
-            <div className="text-gray-600">Total Projected</div>
+            <div className="text-2xl font-bold text-presson-info">$199,200,000</div>
+            <div className="text-charcoal-600">Total Projected</div>
           </div>
           <ResponsiveContainer width="100%" height={400}>
             <ComposedChart data={capitalCallsData}>
               <CartesianGrid strokeDasharray="3 3" />
               <XAxis dataKey="period" />
               <YAxis tickFormatter={formatMillionsTick} />
-              <Bar dataKey="amount" fill="#3b82f6" name="In Period" />
+              <Bar dataKey="amount" fill={CATEGORY_SERIES_COLORS[0]} name="In Period" />
               <Line
                 type="monotone"
                 dataKey="cumulative"
-                stroke="#1d4ed8"
+                stroke={CATEGORY_SERIES_COLORS[1]}
                 strokeWidth={3}
                 name="Cumulative"
               />
@@ -315,52 +347,56 @@ export default function Dashboard() {
   return (
     <div className="flex-1 overflow-y-auto p-6 custom-scrollbar bg-white font-poppins">
       {/* Fund Header */}
-      <div className="bg-lightGray rounded-lg shadow-card border-0 p-6 mb-8">
+      <div className="bg-pov-gray rounded-lg shadow-card border-0 p-6 mb-8">
         <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between space-y-4 lg:space-y-0">
           <div>
-            <h1 className="text-2xl font-inter font-bold text-charcoal">{currentFund.name}</h1>
+            <h1 className="text-2xl font-inter font-bold text-pov-charcoal">{currentFund.name}</h1>
             <div className="flex items-center space-x-8 mt-4">
               <div>
-                <div className="text-sm text-charcoal/70">Capital</div>
+                <div className="text-sm text-charcoal-500">Capital</div>
                 <div className="grid grid-cols-3 gap-6 mt-2">
                   <div>
-                    <div className="text-sm font-medium text-charcoal/70">Committed</div>
-                    <div className="text-lg font-bold text-charcoal">
+                    <div className="text-sm font-medium text-charcoal-500">Committed</div>
+                    <div className="text-lg font-bold text-pov-charcoal">
                       ${(committedCapital / 1000000).toFixed(0)}M
                     </div>
                   </div>
                   <div>
-                    <div className="text-sm font-medium text-charcoal/70">Investable</div>
-                    <div className="text-lg font-bold text-charcoal">
+                    <div className="text-sm font-medium text-charcoal-500">Investable</div>
+                    <div className="text-lg font-bold text-pov-charcoal">
                       ${(investableCapital / 1000000).toFixed(1)}M
                     </div>
                   </div>
                   <div>
-                    <div className="text-sm font-medium text-charcoal/70">Reserve Ratio</div>
-                    <div className="text-lg font-bold text-charcoal">{reserveRatio}%</div>
+                    <div className="text-sm font-medium text-charcoal-500">Reserve Ratio</div>
+                    <div className="text-lg font-bold text-pov-charcoal">{reserveRatio}%</div>
                   </div>
                 </div>
               </div>
               <div>
-                <div className="text-sm text-charcoal/70">Investments</div>
-                <div className="text-lg font-bold mt-2 text-charcoal">{projectedInvestments}</div>
+                <div className="text-sm text-charcoal-500">Investments</div>
+                <div className="text-lg font-bold mt-2 text-pov-charcoal">
+                  {projectedInvestments}
+                </div>
               </div>
               <div>
-                <div className="text-sm text-charcoal/70">Fund Returns</div>
+                <div className="text-sm text-charcoal-500">Fund Returns</div>
                 <div className="grid grid-cols-3 gap-4 mt-2">
                   <div>
-                    <div className="text-sm font-medium text-charcoal/70">Projected Fund Value</div>
-                    <div className="text-lg font-bold text-charcoal">
+                    <div className="text-sm font-medium text-charcoal-500">
+                      Projected Fund Value
+                    </div>
+                    <div className="text-lg font-bold text-pov-charcoal">
                       ${(projectedFundValue / 1000000).toFixed(0)}M
                     </div>
                   </div>
                   <div>
-                    <div className="text-sm font-medium text-charcoal/70">Gross Multiple</div>
-                    <div className="text-lg font-bold text-charcoal">{grossMultiple}x</div>
+                    <div className="text-sm font-medium text-charcoal-500">Gross Multiple</div>
+                    <div className="text-lg font-bold text-pov-charcoal">{grossMultiple}x</div>
                   </div>
                   <div>
-                    <div className="text-sm font-medium text-charcoal/70">TVPI</div>
-                    <div className="text-lg font-bold text-charcoal">{tvpi}x</div>
+                    <div className="text-sm font-medium text-charcoal-500">TVPI</div>
+                    <div className="text-lg font-bold text-pov-charcoal">{tvpi}x</div>
                   </div>
                 </div>
               </div>
@@ -369,7 +405,7 @@ export default function Dashboard() {
 
           <div className="flex items-center space-x-4">
             <div className="flex items-center space-x-2">
-              <Label htmlFor="view-toggle" className="text-sm font-medium text-charcoal">
+              <Label htmlFor="view-toggle" className="text-sm font-medium text-pov-charcoal">
                 View Actual
               </Label>
               <Switch
@@ -385,8 +421,8 @@ export default function Dashboard() {
                 variant={viewType === 'construction' ? 'default' : 'secondary'}
                 className={
                   viewType === 'construction'
-                    ? 'bg-charcoal text-white'
-                    : 'bg-white text-charcoal border-charcoal/20'
+                    ? 'bg-pov-charcoal text-pov-white'
+                    : 'bg-white text-pov-charcoal border-beige-200'
                 }
               >
                 Construction Forecast
@@ -395,8 +431,8 @@ export default function Dashboard() {
                 variant={viewType === 'current' ? 'default' : 'secondary'}
                 className={
                   viewType === 'current'
-                    ? 'bg-charcoal text-white'
-                    : 'bg-white text-charcoal border-charcoal/20'
+                    ? 'bg-pov-charcoal text-pov-white'
+                    : 'bg-white text-pov-charcoal border-beige-200'
                 }
               >
                 Current Forecast
@@ -405,7 +441,7 @@ export default function Dashboard() {
             <Button
               variant="outline"
               size="sm"
-              className="border-charcoal/20 text-charcoal hover:bg-charcoal hover:text-white transition-colors"
+              className="border-beige-200 bg-white text-pov-charcoal hover:bg-pov-gray transition-colors"
             >
               Construction Parameters
             </Button>
@@ -459,7 +495,9 @@ export default function Dashboard() {
                   <CardTitle>Commitment Analysis</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <p className="text-gray-500">LP commitment details and analysis coming soon...</p>
+                  <p className="text-charcoal-500">
+                    LP commitment details and analysis coming soon...
+                  </p>
                 </CardContent>
               </Card>
             </TabsContent>
@@ -470,7 +508,7 @@ export default function Dashboard() {
                   <CardTitle>Exit Proceeds Recycling</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <p className="text-gray-500">Recycling analysis and management tools...</p>
+                  <p className="text-charcoal-500">Recycling analysis and management tools...</p>
                 </CardContent>
               </Card>
             </TabsContent>
@@ -481,7 +519,7 @@ export default function Dashboard() {
                   <CardTitle>Fund Expenses</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <p className="text-gray-500">Expense tracking and budget management...</p>
+                  <p className="text-charcoal-500">Expense tracking and budget management...</p>
                 </CardContent>
               </Card>
             </TabsContent>
@@ -492,7 +530,7 @@ export default function Dashboard() {
                   <CardTitle>Line of Credit</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <p className="text-gray-500">Credit facility management and utilization...</p>
+                  <p className="text-charcoal-500">Credit facility management and utilization...</p>
                 </CardContent>
               </Card>
             </TabsContent>
@@ -505,7 +543,7 @@ export default function Dashboard() {
               <CardTitle>Fund Performance Analytics</CardTitle>
             </CardHeader>
             <CardContent>
-              <p className="text-gray-500">Performance metrics and analysis coming soon...</p>
+              <p className="text-charcoal-500">Performance metrics and analysis coming soon...</p>
             </CardContent>
           </Card>
         </TabsContent>
@@ -516,7 +554,7 @@ export default function Dashboard() {
               <CardTitle>Exit Analysis</CardTitle>
             </CardHeader>
             <CardContent>
-              <p className="text-gray-500">Exit performance and distribution analysis...</p>
+              <p className="text-charcoal-500">Exit performance and distribution analysis...</p>
             </CardContent>
           </Card>
         </TabsContent>
@@ -527,7 +565,7 @@ export default function Dashboard() {
               <CardTitle>Round Analysis</CardTitle>
             </CardHeader>
             <CardContent>
-              <p className="text-gray-500">Investment round tracking and analysis...</p>
+              <p className="text-charcoal-500">Investment round tracking and analysis...</p>
             </CardContent>
           </Card>
         </TabsContent>
@@ -538,7 +576,7 @@ export default function Dashboard() {
               <CardTitle>Limited Partner Dashboard</CardTitle>
             </CardHeader>
             <CardContent>
-              <p className="text-gray-500">LP reporting and relationship management...</p>
+              <p className="text-charcoal-500">LP reporting and relationship management...</p>
             </CardContent>
           </Card>
         </TabsContent>
@@ -555,32 +593,32 @@ export default function Dashboard() {
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
-                  <div className="flex items-center justify-between p-3 bg-blue-50 rounded-lg">
+                  <div className="flex items-center justify-between p-3 bg-pov-gray rounded-lg">
                     <div>
-                      <p className="font-medium text-blue-900">Top Performing Sector</p>
-                      <p className="text-sm text-blue-700">
+                      <p className="font-medium text-pov-charcoal">Top Performing Sector</p>
+                      <p className="text-sm text-charcoal-600">
                         SaaS companies showing 3.2x average MOIC
                       </p>
                     </div>
-                    <TrendingUp className="h-5 w-5 text-blue-600" />
+                    <TrendingUp className="h-5 w-5 text-charcoal-600" />
                   </div>
-                  <div className="flex items-center justify-between p-3 bg-green-50 rounded-lg">
+                  <div className="flex items-center justify-between p-3 bg-pov-gray rounded-lg">
                     <div>
-                      <p className="font-medium text-green-900">Geographic Performance</p>
-                      <p className="text-sm text-green-700">
+                      <p className="font-medium text-pov-charcoal">Geographic Performance</p>
+                      <p className="text-sm text-charcoal-600">
                         SF Bay Area leading with 28% portfolio value
                       </p>
                     </div>
-                    <Building2 className="h-5 w-5 text-green-600" />
+                    <Building2 className="h-5 w-5 text-charcoal-600" />
                   </div>
-                  <div className="flex items-center justify-between p-3 bg-amber-50 rounded-lg">
+                  <div className="flex items-center justify-between p-3 bg-pov-gray rounded-lg">
                     <div>
-                      <p className="font-medium text-amber-900">Stage Distribution</p>
-                      <p className="text-sm text-amber-700">
+                      <p className="font-medium text-pov-charcoal">Stage Distribution</p>
+                      <p className="text-sm text-charcoal-600">
                         42% concentrated in Seed stage investments
                       </p>
                     </div>
-                    <Target className="h-5 w-5 text-amber-600" />
+                    <Target className="h-5 w-5 text-charcoal-600" />
                   </div>
                 </div>
               </CardContent>
@@ -594,7 +632,7 @@ export default function Dashboard() {
               <CardTitle>Data Visualizer</CardTitle>
             </CardHeader>
             <CardContent>
-              <p className="text-gray-500">Interactive data visualization tools...</p>
+              <p className="text-charcoal-500">Interactive data visualization tools...</p>
             </CardContent>
           </Card>
         </TabsContent>

@@ -6,6 +6,7 @@ import { CartesianGrid } from 'recharts/es6/cartesian/CartesianGrid';
 import { Tooltip } from 'recharts/es6/component/Tooltip';
 import { LazyResponsiveContainer as ResponsiveContainer } from '@/components/charts/LazyResponsiveContainer';
 import { memo } from 'react';
+import { getChartColor } from '@/lib/brand-tokens';
 
 interface PerformanceDataPoint {
   month: string;
@@ -31,7 +32,7 @@ const PerformanceOptimizer = memo(function PerformanceOptimizer({
         <Line
           type="monotone"
           dataKey="value"
-          stroke="#3b82f6"
+          stroke={getChartColor(0)}
           strokeWidth={2}
           dot={false} // Remove dots for better performance
         />

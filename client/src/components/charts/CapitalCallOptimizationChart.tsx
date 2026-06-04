@@ -9,13 +9,15 @@ import {
   ResponsiveContainer,
   ComposedChart,
   Area,
-  Line
+  Line,
 } from 'recharts';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { CalendarDays, TrendingUp, DollarSign, Clock, Target } from "lucide-react";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { CalendarDays, TrendingUp, DollarSign, Clock, Target } from 'lucide-react';
 import type { OptimizedCapitalCallSchedule } from '@/core/LiquidityEngine';
+import { getChartColor } from '@/lib/brand-tokens';
+import { presson } from '@/theme/presson.tokens';
 
 interface CapitalCallOptimizationChartProps {
   schedule: OptimizedCapitalCallSchedule | null;
@@ -28,9 +30,8 @@ export default function CapitalCallOptimizationChart({
   schedule,
   onOptimize,
   isOptimizing = false,
-  className = ''
+  className = '',
 }: CapitalCallOptimizationChartProps) {
-
   // Prepare timeline data for visualization
   const timelineData = useMemo(() => {
     if (!schedule?.calls) return [];
@@ -54,7 +55,7 @@ export default function CapitalCallOptimizationChart({
     if (!timelineData.length) return [];
 
     let cumulative = 0;
-    return timelineData.map(call => {
+    return timelineData.map((call) => {
       cumulative += call.amount;
       return {
         callNumber: call.callNumber,
@@ -77,7 +78,7 @@ export default function CapitalCallOptimizationChart({
       date: 'Current',
       cash: currentCash,
       committed: schedule.totalAmount / 1000000,
-      type: 'current'
+      type: 'current',
     });
 
     schedule.calls.forEach((call, index) => {
@@ -87,9 +88,12 @@ export default function CapitalCallOptimizationChart({
       data.push({
         date: call.dueDate.toLocaleDateString('en-US', { month: 'short' }),
         cash: currentCash,
-        committed: (schedule.totalAmount - (call.amount + schedule.calls.slice(0, index).reduce((sum, c) => sum + c.amount, 0))) / 1000000,
+        committed:
+          (schedule.totalAmount -
+            (call.amount + schedule.calls.slice(0, index).reduce((sum, c) => sum + c.amount, 0))) /
+          1000000,
         type: 'call',
-        callAmount: call.amount / 1000000
+        callAmount: call.amount / 1000000,
       });
 
       // Assume deployment of ~80% of called capital over the next month
@@ -98,8 +102,12 @@ export default function CapitalCallOptimizationChart({
         data.push({
           date: `${call.dueDate.toLocaleDateString('en-US', { month: 'short' })}+`,
           cash: currentCash,
-          committed: (schedule.totalAmount - (call.amount + schedule.calls.slice(0, index).reduce((sum, c) => sum + c.amount, 0))) / 1000000,
-          type: 'deployment'
+          committed:
+            (schedule.totalAmount -
+              (call.amount +
+                schedule.calls.slice(0, index).reduce((sum, c) => sum + c.amount, 0))) /
+            1000000,
+          type: 'deployment',
         });
       }
     });
@@ -124,9 +132,7 @@ export default function CapitalCallOptimizationChart({
         </CardHeader>
         <CardContent className="flex flex-col items-center justify-center py-12">
           <div className="text-center space-y-4">
-            <div className="text-muted-foreground">
-              No optimization schedule available
-            </div>
+            <div className="text-muted-foreground">No optimization schedule available</div>
             {onOptimize && (
               <Button onClick={onOptimize} disabled={isOptimizing}>
                 {isOptimizing ? (
@@ -169,7 +175,9 @@ export default function CapitalCallOptimizationChart({
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-muted-foreground">Total Amount</p>
-                <p className="text-2xl font-bold">{formatCurrency(schedule.totalAmount / 1000000)}</p>
+                <p className="text-2xl font-bold">
+                  {formatCurrency(schedule.totalAmount / 1000000)}
+                </p>
               </div>
               <DollarSign className="h-8 w-8 text-muted-foreground" />
             </div>
@@ -181,7 +189,9 @@ export default function CapitalCallOptimizationChart({
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-muted-foreground">Avg Call Size</p>
-                <p className="text-2xl font-bold">{formatCurrency(schedule.averageCallSize / 1000000)}</p>
+                <p className="text-2xl font-bold">
+                  {formatCurrency(schedule.averageCallSize / 1000000)}
+                </p>
               </div>
               <Target className="h-8 w-8 text-muted-foreground" />
             </div>
@@ -198,8 +208,20 @@ export default function CapitalCallOptimizationChart({
               <TrendingUp className="h-8 w-8 text-muted-foreground" />
             </div>
             <div className="mt-2">
-              <Badge variant={schedule.efficiency >= 90 ? 'default' : schedule.efficiency >= 75 ? 'secondary' : 'destructive'}>
-                {schedule.efficiency >= 90 ? 'Excellent' : schedule.efficiency >= 75 ? 'Good' : 'Needs Improvement'}
+              <Badge
+                variant={
+                  schedule.efficiency >= 90
+                    ? 'default'
+                    : schedule.efficiency >= 75
+                      ? 'secondary'
+                      : 'destructive'
+                }
+              >
+                {schedule.efficiency >= 90
+                  ? 'Excellent'
+                  : schedule.efficiency >= 75
+                    ? 'Good'
+                    : 'Needs Improvement'}
               </Badge>
             </div>
           </CardContent>
@@ -210,9 +232,7 @@ export default function CapitalCallOptimizationChart({
       <Card>
         <CardHeader>
           <CardTitle>Capital Call Timeline</CardTitle>
-          <CardDescription>
-            Optimized schedule showing call amounts and timing
-          </CardDescription>
+          <CardDescription>Optimized schedule showing call amounts and timing</CardDescription>
         </CardHeader>
         <CardContent>
           <ResponsiveContainer width="100%" height={300}>
@@ -222,19 +242,19 @@ export default function CapitalCallOptimizationChart({
                 dataKey="callNumber"
                 label={{ value: 'Capital Call #', position: 'insideBottom', offset: -5 }}
               />
-              <YAxis
-                label={{ value: 'Amount ($M)', angle: -90, position: 'insideLeft' }}
-              />
+              <YAxis label={{ value: 'Amount ($M)', angle: -90, position: 'insideLeft' }} />
               <Tooltip
                 formatter={(value, name) => [
                   value !== undefined
-                    ? (name === 'amount' ? formatCurrency(Number(value)) : formatPercent(Number(value)))
+                    ? name === 'amount'
+                      ? formatCurrency(Number(value))
+                      : formatPercent(Number(value))
                     : '',
-                  name === 'amount' ? 'Call Amount' : 'Utilization Rate'
+                  name === 'amount' ? 'Call Amount' : 'Utilization Rate',
                 ]}
                 labelFormatter={(label) => `Capital Call #${label}`}
               />
-              <Bar dataKey="amount" fill="#3b82f6" name="amount" />
+              <Bar dataKey="amount" fill={presson.color.info} name="amount" />
             </BarChart>
           </ResponsiveContainer>
         </CardContent>
@@ -255,20 +275,20 @@ export default function CapitalCallOptimizationChart({
               <XAxis dataKey="date" />
               <YAxis label={{ value: 'Amount ($M)', angle: -90, position: 'insideLeft' }} />
               <Tooltip
-                formatter={(value) => value !== undefined ? formatCurrency(Number(value)) : ''}
+                formatter={(value) => (value !== undefined ? formatCurrency(Number(value)) : '')}
               />
               <Area
                 type="monotone"
                 dataKey="committed"
-                fill="#8b5cf6"
+                fill={getChartColor(0)}
                 fillOpacity={0.3}
-                stroke="#8b5cf6"
+                stroke={getChartColor(0)}
                 name="Remaining Commitments"
               />
               <Line
                 type="monotone"
                 dataKey="cash"
-                stroke="#10b981"
+                stroke={presson.color.positive}
                 strokeWidth={3}
                 name="Available Cash"
               />
@@ -281,21 +301,23 @@ export default function CapitalCallOptimizationChart({
       <Card>
         <CardHeader>
           <CardTitle>Detailed Call Schedule</CardTitle>
-          <CardDescription>
-            Complete breakdown of optimized capital calls
-          </CardDescription>
+          <CardDescription>Complete breakdown of optimized capital calls</CardDescription>
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
             {schedule.calls.map((call, index) => (
-              <div key={call.id} className="flex items-center justify-between p-4 border rounded-lg">
+              <div
+                key={call.id}
+                className="flex items-center justify-between p-4 border rounded-lg"
+              >
                 <div className="flex-1">
                   <div className="flex items-center gap-3">
                     <Badge variant="outline">Call #{index + 1}</Badge>
                     <div>
                       <h4 className="font-medium">{call.purpose}</h4>
                       <p className="text-sm text-muted-foreground">
-                        {call.investments.length} investment{call.investments.length !== 1 ? 's' : ''}
+                        {call.investments.length} investment
+                        {call.investments.length !== 1 ? 's' : ''}
                       </p>
                     </div>
                   </div>
@@ -317,7 +339,11 @@ export default function CapitalCallOptimizationChart({
                 </div>
 
                 <div className="text-right">
-                  <Badge variant={call.priority <= 1 ? 'default' : call.priority <= 3 ? 'secondary' : 'outline'}>
+                  <Badge
+                    variant={
+                      call.priority <= 1 ? 'default' : call.priority <= 3 ? 'secondary' : 'outline'
+                    }
+                  >
                     Priority {call.priority}
                   </Badge>
                 </div>
@@ -347,16 +373,25 @@ export default function CapitalCallOptimizationChart({
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Timeline Duration:</span>
                   <span className="font-medium">
-                    {Math.ceil((schedule.timeline.lastCall.getTime() - schedule.timeline.firstCall.getTime()) / (1000 * 60 * 60 * 24))} days
+                    {Math.ceil(
+                      (schedule.timeline.lastCall.getTime() -
+                        schedule.timeline.firstCall.getTime()) /
+                        (1000 * 60 * 60 * 24)
+                    )}{' '}
+                    days
                   </span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Average Time Between Calls:</span>
                   <span className="font-medium">
-                    {schedule.calls.length > 1 ?
-                      Math.ceil((schedule.timeline.lastCall.getTime() - schedule.timeline.firstCall.getTime()) /
-                               (1000 * 60 * 60 * 24 * (schedule.calls.length - 1))) :
-                      0} days
+                    {schedule.calls.length > 1
+                      ? Math.ceil(
+                          (schedule.timeline.lastCall.getTime() -
+                            schedule.timeline.firstCall.getTime()) /
+                            (1000 * 60 * 60 * 24 * (schedule.calls.length - 1))
+                        )
+                      : 0}{' '}
+                    days
                   </span>
                 </div>
               </div>

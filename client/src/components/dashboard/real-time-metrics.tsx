@@ -60,7 +60,7 @@ export default function RealTimeMetrics() {
       <div className="flex items-center justify-between">
         <h3 className="text-lg font-semibold">Real-Time Metrics</h3>
         <div className="flex items-center space-x-2">
-          <div className={`w-2 h-2 rounded-full ${isLive ? 'bg-green-500' : 'bg-gray-400'}`} />
+          <div className={`w-2 h-2 rounded-full ${isLive ? 'bg-success' : 'bg-pov-gray'}`} />
           <span className="text-sm text-muted-foreground">
             Last updated: {lastUpdate.toLocaleTimeString()}
           </span>

@@ -63,35 +63,35 @@ function MetricCard({
 
   const severityConfig = {
     success: {
-      bg: 'bg-green-50',
-      border: 'border-green-200',
-      text: 'text-green-800',
-      iconBg: 'bg-green-100',
+      bg: 'bg-success/10',
+      border: 'border-success/50',
+      text: 'text-success-dark',
+      iconBg: 'bg-success/10',
     },
     warning: {
-      bg: 'bg-yellow-50',
-      border: 'border-yellow-200',
-      text: 'text-yellow-800',
-      iconBg: 'bg-yellow-100',
+      bg: 'bg-warning/10',
+      border: 'border-warning/50',
+      text: 'text-warning-dark',
+      iconBg: 'bg-warning/10',
     },
     critical: {
-      bg: 'bg-red-50',
-      border: 'border-red-200',
-      text: 'text-red-800',
-      iconBg: 'bg-red-100',
+      bg: 'bg-error/10',
+      border: 'border-error/50',
+      text: 'text-error-dark',
+      iconBg: 'bg-error/10',
     },
     neutral: {
-      bg: 'bg-slate-50',
-      border: 'border-slate-200',
-      text: 'text-slate-800',
-      iconBg: 'bg-slate-100',
+      bg: 'bg-pov-gray',
+      border: 'border-beige-200',
+      text: 'text-charcoal-700',
+      iconBg: 'bg-white',
     },
   };
 
   const trendConfig = {
-    up: { symbol: '^', color: 'text-green-600' },
-    down: { symbol: 'v', color: 'text-red-600' },
-    stable: { symbol: '>', color: 'text-slate-500' },
+    up: { symbol: '^', color: 'text-presson-positive' },
+    down: { symbol: 'v', color: 'text-presson-negative' },
+    stable: { symbol: '>', color: 'text-charcoal-500' },
   };
 
   const config = severityConfig[metric.severity];
@@ -105,7 +105,7 @@ function MetricCard({
         'min-h-[120px]', // Ensure proper touch target
         config.bg,
         config.border,
-        isActive && 'ring-2 ring-blue-500 ring-offset-2 shadow-lg',
+        isActive && 'ring-2 ring-charcoal/40 ring-offset-2 shadow-lg',
         compactMode && 'min-h-[100px]',
         className
       )}
@@ -150,7 +150,7 @@ function MetricCard({
         {/* Active indicator */}
         {isActive && (
           <div className="mt-2 flex justify-center">
-            <div className="w-8 h-1 bg-blue-500 rounded-full" />
+            <div className="w-8 h-1 bg-pov-charcoal rounded-full" />
           </div>
         )}
       </CardContent>
@@ -348,7 +348,7 @@ export function SwipeableMetricCards({
       {/* Header with title and navigation */}
       {showNavigation && (
         <div className="flex items-center justify-between">
-          <h3 className="font-inter font-semibold text-lg text-slate-900">Key Metrics</h3>
+          <h3 className="font-inter font-semibold text-lg text-pov-charcoal">Key Metrics</h3>
           <div className="flex items-center gap-2">
             <Button
               variant="ghost"
@@ -368,7 +368,9 @@ export function SwipeableMetricCards({
                     key={index}
                     className={cn(
                       'w-2 h-2 rounded-full transition-all duration-300',
-                      index === currentIndex ? 'bg-blue-600 w-4' : 'bg-slate-300 hover:bg-slate-400'
+                      index === currentIndex
+                        ? 'bg-pov-charcoal w-4'
+                        : 'bg-pov-gray hover:bg-pov-gray'
                     )}
                     onClick={() => handleIndexChange(index)}
                     aria-label={`Go to metric ${index + 1}`}

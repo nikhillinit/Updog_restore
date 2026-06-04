@@ -21,13 +21,13 @@ interface SidebarProps {
 
 function baseNavClassName(isHovered: boolean, isActive: boolean, isDisabled: boolean): string {
   return cn(
-    'w-full flex items-center rounded-md transition-colors font-poppins relative group focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-beige focus-visible:ring-offset-2',
+    'w-full flex items-center rounded-md transition-colors font-poppins relative group focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-charcoal/40 focus-visible:ring-offset-2',
     isHovered ? 'space-x-3 px-3 py-2.5' : 'justify-center p-2.5',
     isDisabled
-      ? 'text-charcoal/40 cursor-not-allowed bg-lightGray'
+      ? 'text-charcoal-300 cursor-not-allowed bg-pov-gray'
       : isActive
-        ? 'bg-beige/30 text-charcoal font-medium'
-        : 'text-charcoal/70 hover:bg-lightGray'
+        ? 'bg-pov-charcoal text-pov-white font-medium'
+        : 'text-pov-charcoal hover:bg-pov-gray'
   );
 }
 
@@ -52,7 +52,7 @@ function NavItemContent({
       )}
 
       {!isHovered && (
-        <div className="absolute left-full ml-2 px-2 py-1 bg-charcoal text-white text-xs rounded-md opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap z-50">
+        <div className="absolute left-full ml-2 px-2 py-1 bg-pov-charcoal text-pov-white text-xs rounded-md opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap z-50">
           {item.label}
         </div>
       )}
@@ -81,7 +81,7 @@ function FooterNavItemContent({
       )}
 
       {!isHovered && (
-        <div className="absolute left-full ml-2 px-2 py-1 bg-charcoal text-white text-xs rounded-md opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap z-50">
+        <div className="absolute left-full ml-2 px-2 py-1 bg-pov-charcoal text-pov-white text-xs rounded-md opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap z-50">
           {item.label}
         </div>
       )}
@@ -110,13 +110,13 @@ function NavigationButton({
   const disabledReasonId = disabledReason ? `sidebar-disabled-reason-${item.id}` : undefined;
   const className = compact
     ? cn(
-        'w-full flex items-center rounded-md transition-colors font-poppins relative group focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-beige focus-visible:ring-offset-2',
+        'w-full flex items-center rounded-md transition-colors font-poppins relative group focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-charcoal/40 focus-visible:ring-offset-2',
         isHovered ? 'space-x-3 px-3 py-2' : 'justify-center p-2',
         isActive
-          ? 'bg-beige/30 text-charcoal font-medium'
+          ? 'bg-pov-charcoal text-pov-white font-medium'
           : isDisabled
-            ? 'text-charcoal/40 cursor-not-allowed bg-lightGray'
-            : 'text-charcoal/60 hover:bg-lightGray hover:text-charcoal'
+            ? 'text-charcoal-300 cursor-not-allowed bg-pov-gray'
+            : 'text-pov-charcoal hover:bg-pov-gray hover:text-charcoal-700'
       )
     : baseNavClassName(isHovered, isActive, isDisabled);
 
@@ -180,14 +180,14 @@ export default function Sidebar({ activeModule, className }: SidebarProps) {
   return (
     <aside
       className={cn(
-        'bg-white shadow-card border-r border-lightGray flex-shrink-0 flex flex-col transition-all duration-300 ease-in-out',
+        'bg-white shadow-card border-r border-beige-200 flex-shrink-0 flex flex-col transition-all duration-300 ease-in-out',
         isHovered ? 'w-64' : 'w-16',
         className
       )}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
     >
-      <div className="p-3 border-b border-lightGray bg-charcoal">
+      <div className="p-3 border-b border-charcoal/7 bg-pov-charcoal">
         <div className="flex items-center mb-4">
           <div className="flex items-center justify-center w-10 h-10">
             <POVIcon variant="white" size="md" />
@@ -195,18 +195,20 @@ export default function Sidebar({ activeModule, className }: SidebarProps) {
           <div
             className={`ml-3 transition-opacity duration-300 ${isHovered ? 'opacity-100' : 'opacity-0 pointer-events-none'} overflow-hidden`}
           >
-            <h1 className="font-inter font-bold text-lg text-white whitespace-nowrap">
+            <h1 className="font-inter font-bold text-lg text-pov-white whitespace-nowrap">
               {BRANDING.app.nameStyled}
             </h1>
-            <p className="font-poppins text-xs text-slate-300 whitespace-nowrap">Fund Management</p>
+            <p className="font-poppins text-xs text-charcoal-300 whitespace-nowrap">
+              Fund Management
+            </p>
           </div>
         </div>
         {currentFund && isHovered && (
-          <div className="bg-charcoal/30 rounded-lg p-3 border border-beige/30 transition-all duration-300">
-            <p className="font-poppins font-medium text-sm text-white truncate">
+          <div className="bg-white/10 rounded-lg p-3 border border-white/10 transition-all duration-300">
+            <p className="font-poppins font-medium text-sm text-pov-white truncate">
               {currentFund.name}
             </p>
-            <p className="font-mono text-xs text-white/70 mt-1">
+            <p className="font-mono text-xs text-charcoal-300 mt-1">
               ${(currentFund.size / 1000000).toFixed(0)}M Fund
             </p>
           </div>
@@ -215,19 +217,19 @@ export default function Sidebar({ activeModule, className }: SidebarProps) {
 
       <nav className="flex-1 p-2 overflow-y-auto custom-scrollbar bg-white">
         {needsSetup && isHovered && (
-          <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 mb-4 transition-all duration-300">
+          <div className="bg-warning/10 border border-warning/50 rounded-lg p-3 mb-4 transition-all duration-300">
             <div className="flex items-center space-x-2 mb-2">
-              <Plus className="h-4 w-4 text-amber-700" />
-              <span className="font-poppins text-sm font-medium text-amber-800">
+              <Plus className="h-4 w-4 text-warning-dark" />
+              <span className="font-poppins text-sm font-medium text-warning-dark">
                 Setup Required
               </span>
             </div>
-            <p className="font-poppins text-xs text-amber-600 mb-3">
+            <p className="font-poppins text-xs text-warning-dark mb-3">
               Configure your fund to access all features
             </p>
             <Link
               href="/fund-setup"
-              className="block w-full bg-amber-600 text-white px-3 py-2 rounded-md text-sm font-medium hover:bg-amber-700 transition-all duration-200 text-center focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-800 focus-visible:ring-offset-2"
+              className="block w-full bg-pov-charcoal text-pov-white px-3 py-2 rounded-md text-sm font-medium hover:bg-charcoal-700 transition-all duration-200 text-center focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-charcoal/40 focus-visible:ring-offset-2"
             >
               Start Fund Setup
             </Link>
@@ -256,7 +258,7 @@ export default function Sidebar({ activeModule, className }: SidebarProps) {
       </nav>
 
       {footerItems.length > 0 && (
-        <div className="border-t border-lightGray p-2 bg-gray-50">
+        <div className="border-t border-beige-200 p-2 bg-pov-gray">
           <ul className="space-y-1">
             {footerItems.map((item) => {
               const href = resolveNavigationHref(item, navigationContext);

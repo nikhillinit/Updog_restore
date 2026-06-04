@@ -12,6 +12,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Download, Info, DollarSign, Percent, TrendingUp } from 'lucide-react';
+import { getChartColor } from '@/lib/brand-tokens';
+import { presson } from '@/theme/presson.tokens';
 
 interface ExpenseData {
   date: string;
@@ -149,16 +151,16 @@ export default function FundExpenseCharts({ className }: FundExpenseChartsProps)
           total: item.totalRatio,
         }));
 
-  // Color scheme for expense categories
+  // TODO(design): expense charts exceed the six-token categorical palette.
   const expenseColors = {
-    legal: '#60a5fa', // Blue
-    administration: '#1e293b', // Dark slate
-    tax: '#94a3b8', // Light slate
-    audit: '#fb923c', // Orange
-    software: '#22c55e', // Green
-    setup: '#a855f7', // Purple
-    other: '#ef4444', // Red
-    total: '#fbbf24', // Yellow
+    legal: getChartColor(0, true),
+    administration: getChartColor(1, true),
+    tax: getChartColor(2, true),
+    audit: getChartColor(3, true),
+    software: getChartColor(4, true),
+    setup: getChartColor(5, true),
+    other: getChartColor(6, true),
+    total: presson.color.info,
   };
 
   const formatCurrency = (value: number) => {
@@ -191,9 +193,9 @@ export default function FundExpenseCharts({ className }: FundExpenseChartsProps)
       const totalValue = currentData.total;
 
       return (
-        <div className="bg-white p-4 border border-gray-200 rounded-lg shadow-lg max-w-xs">
+        <div className="bg-white p-4 border border-beige-200 rounded-lg shadow-lg max-w-xs">
           <p className="font-medium mb-2">{label ? formatDate(label) : ''}</p>
-          <p className="font-bold text-yellow-600 mb-2">
+          <p className="font-bold text-presson-info mb-2">
             Total:{' '}
             {viewType === 'expenses' ? formatCurrency(totalValue) : formatPercent(totalValue)}
           </p>
@@ -235,7 +237,7 @@ export default function FundExpenseCharts({ className }: FundExpenseChartsProps)
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-2xl font-bold flex items-center space-x-2">
-            <DollarSign className="h-6 w-6 text-blue-600" />
+            <DollarSign className="h-6 w-6 text-presson-info" />
             <span>Fund Expenses</span>
           </h2>
           <p className="text-muted-foreground">
@@ -423,13 +425,13 @@ export default function FundExpenseCharts({ className }: FundExpenseChartsProps)
 
       {/* Summary Statistics */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <Card className="border-blue-200 bg-blue-50">
+        <Card className="border-beige-200 bg-white">
           <CardContent className="pt-6">
             <div className="flex items-center space-x-3">
-              <DollarSign className="h-8 w-8 text-blue-600" />
+              <DollarSign className="h-8 w-8 text-presson-info" />
               <div>
-                <div className="text-sm text-blue-800">Total Expenses</div>
-                <div className="font-bold text-blue-900">
+                <div className="text-sm text-charcoal-600">Total Expenses</div>
+                <div className="font-bold text-pov-charcoal">
                   {formatCurrency(expenseData[expenseData.length - 1]?.total || 0)}
                 </div>
               </div>
@@ -437,13 +439,13 @@ export default function FundExpenseCharts({ className }: FundExpenseChartsProps)
           </CardContent>
         </Card>
 
-        <Card className="border-green-200 bg-green-50">
+        <Card className="border-beige-200 bg-white">
           <CardContent className="pt-6">
             <div className="flex items-center space-x-3">
-              <Percent className="h-8 w-8 text-green-600" />
+              <Percent className="h-8 w-8 text-pov-charcoal" />
               <div>
-                <div className="text-sm text-green-800">Total Expense Ratio</div>
-                <div className="font-bold text-green-900">
+                <div className="text-sm text-charcoal-600">Total Expense Ratio</div>
+                <div className="font-bold text-pov-charcoal">
                   {formatPercent(expenseRatioData[expenseRatioData.length - 1]?.totalRatio || 0)}
                 </div>
               </div>
@@ -451,27 +453,27 @@ export default function FundExpenseCharts({ className }: FundExpenseChartsProps)
           </CardContent>
         </Card>
 
-        <Card className="border-orange-200 bg-orange-50">
+        <Card className="border-beige-200 bg-white">
           <CardContent className="pt-6">
             <div className="flex items-center space-x-3">
-              <TrendingUp className="h-8 w-8 text-orange-600" />
+              <TrendingUp className="h-8 w-8 text-pov-charcoal" />
               <div>
-                <div className="text-sm text-orange-800">Largest Category</div>
-                <div className="font-bold text-orange-900">Administration</div>
-                <div className="text-xs text-orange-700">0.75% ratio</div>
+                <div className="text-sm text-charcoal-600">Largest Category</div>
+                <div className="font-bold text-pov-charcoal">Administration</div>
+                <div className="text-xs text-charcoal-500">0.75% ratio</div>
               </div>
             </div>
           </CardContent>
         </Card>
 
-        <Card className="border-purple-200 bg-purple-50">
+        <Card className="border-beige-200 bg-white">
           <CardContent className="pt-6">
             <div className="flex items-center space-x-3">
-              <Info className="h-8 w-8 text-purple-600" />
+              <Info className="h-8 w-8 text-presson-info" />
               <div>
-                <div className="text-sm text-purple-800">Active Categories</div>
-                <div className="font-bold text-purple-900">7</div>
-                <div className="text-xs text-purple-700">Expense types</div>
+                <div className="text-sm text-charcoal-600">Active Categories</div>
+                <div className="font-bold text-pov-charcoal">7</div>
+                <div className="text-xs text-charcoal-500">Expense types</div>
               </div>
             </div>
           </CardContent>

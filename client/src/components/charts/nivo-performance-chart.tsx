@@ -10,6 +10,8 @@ import {
   YAxis,
 } from 'recharts';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { getChartColor } from '@/lib/brand-tokens';
+import { presson } from '@/theme/presson.tokens';
 
 interface PerformanceData {
   id: string;
@@ -30,7 +32,6 @@ const NivoPerformanceChart = memo(function NivoPerformanceChart({
   data,
   height = 400,
 }: NivoPerformanceChartProps) {
-  const colors = useMemo(() => ['#2563eb', '#dc2626', '#16a34a', '#ca8a04'], []);
   const chartRows = useMemo(() => {
     const rows = new Map<string, Record<string, number | string>>();
 
@@ -58,12 +59,12 @@ const NivoPerformanceChart = memo(function NivoPerformanceChart({
               <XAxis
                 dataKey="period"
                 tick={{ fontSize: 12 }}
-                tickLine={{ stroke: '#e5e7eb' }}
+                tickLine={{ stroke: presson.color.surfaceSubtle }}
                 label={{ value: 'Time Period', position: 'insideBottom', offset: -10 }}
               />
               <YAxis
                 tick={{ fontSize: 12 }}
-                tickLine={{ stroke: '#e5e7eb' }}
+                tickLine={{ stroke: presson.color.surfaceSubtle }}
                 tickFormatter={(value: number) => `$${(value / 1000000).toFixed(1)}M`}
                 label={{ value: 'Value ($M)', angle: -90, position: 'insideLeft' }}
               />
@@ -80,7 +81,7 @@ const NivoPerformanceChart = memo(function NivoPerformanceChart({
                   type="monotone"
                   dataKey={series.id}
                   name={series.id}
-                  stroke={colors[index % colors.length] ?? colors[0]!}
+                  stroke={getChartColor(index)}
                   strokeWidth={2}
                   dot={{ r: 4 }}
                   activeDot={{ r: 6 }}
