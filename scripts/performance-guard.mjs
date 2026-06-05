@@ -3,14 +3,14 @@
  * Performance guard: Ensures build performance doesn't regress
  */
 
-import { execSync } from 'node:child_process';
-import { existsSync, readFileSync } from 'node:fs';
+import { execFileSync, execSync } from 'node:child_process';
+import { existsSync, readdirSync, statSync } from 'node:fs';
 import path from 'node:path';
 
 const THRESHOLDS = {
   buildTime: 8000, // 8 seconds max (was 5.5s, allow some variance)
   bundleSize: 2 * 1024 * 1024, // 2MB max for main bundle
-  typeCheckTime: 15000 // 15 seconds max for type checking
+  typeCheckTime: 15000, // 15 seconds max for type checking
 };
 
 const colors = {
@@ -18,7 +18,7 @@ const colors = {
   green: '\x1b[32m',
   red: '\x1b[31m',
   yellow: '\x1b[33m',
-  cyan: '\x1b[36m'
+  cyan: '\x1b[36m',
 };
 
 function log(message, color = 'reset') {
@@ -50,32 +50,36 @@ function measureTypeCheckTime() {
   }
 }
 
+function measureDirectorySize(directoryPath) {
+  let totalSize = 0;
+
+  for (const entry of readdirSync(directoryPath, { withFileTypes: true })) {
+    const entryPath = path.join(directoryPath, entry.name);
+    if (entry.isDirectory()) {
+      totalSize += measureDirectorySize(entryPath);
+    } else if (entry.isFile()) {
+      totalSize += statSync(entryPath).size;
+    }
+  }
+
+  return totalSize;
+}
+
 function measureBundleSize() {
   const bundlePath = path.join(process.cwd(), 'dist/public/assets');
-  
+
   if (!existsSync(bundlePath)) {
     return 0;
   }
-  
+
   try {
-    const output = execSync(`du -sb ${bundlePath}`, { encoding: 'utf8' });
+    const output = execFileSync('du', ['-sb', bundlePath], { encoding: 'utf8' });
     const size = parseInt(output.split('\t')[0]);
     return size;
   } catch {
-    // Fallback for Windows
+    // Fallback for Windows and environments without GNU du.
     try {
-      const files = execSync(`dir /s /b ${bundlePath}`, { encoding: 'utf8' })
-        .split('\n')
-        .filter(Boolean);
-      
-      let totalSize = 0;
-      for (const file of files) {
-        if (existsSync(file)) {
-          const stats = readFileSync(file);
-          totalSize += stats.length;
-        }
-      }
-      return totalSize;
+      return measureDirectorySize(bundlePath);
     } catch {
       return 0;
     }
@@ -92,57 +96,66 @@ function formatSize(bytes) {
 }
 
 async function main() {
-  log('⚡ Performance Guard', 'cyan');
-  log('=' .repeat(40), 'cyan');
-  
+  log('Performance Guard', 'cyan');
+  log('='.repeat(40), 'cyan');
+
   const results = {
     buildTime: null,
     typeCheckTime: null,
-    bundleSize: null
+    bundleSize: null,
   };
-  
+
   // Measure build time
-  log('\n📦 Measuring build performance...', 'yellow');
+  log('\n[MEASURE] Build performance...', 'yellow');
   results.buildTime = measureBuildTime();
-  
+
   if (results.buildTime > 0) {
-    const status = results.buildTime <= THRESHOLDS.buildTime ? '✅' : '❌';
+    const status = results.buildTime <= THRESHOLDS.buildTime ? 'PASS' : 'FAIL';
     const color = results.buildTime <= THRESHOLDS.buildTime ? 'green' : 'red';
-    log(`${status} Build time: ${formatTime(results.buildTime)} (threshold: ${formatTime(THRESHOLDS.buildTime)})`, color);
+    log(
+      `${status} Build time: ${formatTime(results.buildTime)} (threshold: ${formatTime(THRESHOLDS.buildTime)})`,
+      color
+    );
   }
-  
+
   // Measure type check time
-  log('\n🔍 Measuring type check performance...', 'yellow');
+  log('\n[MEASURE] Type check performance...', 'yellow');
   results.typeCheckTime = measureTypeCheckTime();
-  
-  const typeStatus = results.typeCheckTime <= THRESHOLDS.typeCheckTime ? '✅' : '❌';
+
+  const typeStatus = results.typeCheckTime <= THRESHOLDS.typeCheckTime ? 'PASS' : 'FAIL';
   const typeColor = results.typeCheckTime <= THRESHOLDS.typeCheckTime ? 'green' : 'red';
-  log(`${typeStatus} Type check: ${formatTime(results.typeCheckTime)} (threshold: ${formatTime(THRESHOLDS.typeCheckTime)})`, typeColor);
-  
+  log(
+    `${typeStatus} Type check: ${formatTime(results.typeCheckTime)} (threshold: ${formatTime(THRESHOLDS.typeCheckTime)})`,
+    typeColor
+  );
+
   // Measure bundle size
-  log('\n📏 Measuring bundle size...', 'yellow');
+  log('\n[MEASURE] Bundle size...', 'yellow');
   results.bundleSize = measureBundleSize();
-  
+
   if (results.bundleSize > 0) {
-    const sizeStatus = results.bundleSize <= THRESHOLDS.bundleSize ? '✅' : '❌';
+    const sizeStatus = results.bundleSize <= THRESHOLDS.bundleSize ? 'PASS' : 'FAIL';
     const sizeColor = results.bundleSize <= THRESHOLDS.bundleSize ? 'green' : 'red';
-    log(`${sizeStatus} Bundle size: ${formatSize(results.bundleSize)} (threshold: ${formatSize(THRESHOLDS.bundleSize)})`, sizeColor);
+    log(
+      `${sizeStatus} Bundle size: ${formatSize(results.bundleSize)} (threshold: ${formatSize(THRESHOLDS.bundleSize)})`,
+      sizeColor
+    );
   }
-  
+
   // Overall assessment
-  log('\n' + '=' .repeat(40), 'cyan');
-  
-  const hasRegression = 
+  log('\n' + '='.repeat(40), 'cyan');
+
+  const hasRegression =
     (results.buildTime > 0 && results.buildTime > THRESHOLDS.buildTime) ||
     results.typeCheckTime > THRESHOLDS.typeCheckTime ||
     (results.bundleSize > 0 && results.bundleSize > THRESHOLDS.bundleSize);
-  
+
   if (hasRegression) {
-    log('❌ Performance regression detected!', 'red');
+    log('FAIL: Performance regression detected!', 'red');
     log('Please investigate and optimize before merging.', 'yellow');
     process.exit(1);
   } else {
-    log('✅ All performance metrics within thresholds!', 'green');
+    log('PASS: All performance metrics within thresholds!', 'green');
     log('60% build performance improvement preserved.', 'green');
   }
 }

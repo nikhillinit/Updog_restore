@@ -9,6 +9,7 @@ import { parseFundIdParam } from '@shared/number';
 import { eq } from 'drizzle-orm';
 import { Router } from 'express';
 import type { Express, Request, Response } from 'express';
+import rateLimit from 'express-rate-limit';
 import { z } from 'zod';
 import { db } from '../db';
 import { NotFoundError } from '../errors';
@@ -19,6 +20,20 @@ import { asyncHandler } from '../middleware/async';
 import { validateRequest } from '../middleware/validation';
 import { TimeTravelAnalyticsService, type Cache } from '../services/time-travel-analytics';
 import { enforceProvidedFundScope } from '../lib/auth/provided-fund-scope';
+
+const timelineReadLimiter = rateLimit({
+  windowMs: 60_000,
+  max: 240,
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+const timelineWriteLimiter = rateLimit({
+  windowMs: 60_000,
+  max: 30,
+  standardHeaders: true,
+  legacyHeaders: false,
+});
 
 /**
  * Create timeline router with service dependency injection
@@ -95,6 +110,7 @@ export function createTimelineRouter(service: TimeTravelAnalyticsService) {
    */
   router.get(
     '/:fundId',
+    timelineReadLimiter,
     validateRequest({
       params: fundIdParamsSchema,
       query: timelineRangeSchema.omit({ fundId: true }),
@@ -136,6 +152,7 @@ export function createTimelineRouter(service: TimeTravelAnalyticsService) {
    */
   router.get(
     '/:fundId/state',
+    timelineReadLimiter,
     validateRequest({
       params: fundIdParamsSchema,
       query: pointInTimeSchema.omit({ fundId: true }),
@@ -179,6 +196,7 @@ export function createTimelineRouter(service: TimeTravelAnalyticsService) {
    */
   router.post(
     '/:fundId/snapshot',
+    timelineWriteLimiter,
     validateRequest({
       params: fundIdParamsSchema,
       body: createSnapshotBodySchema,
@@ -236,6 +254,7 @@ export function createTimelineRouter(service: TimeTravelAnalyticsService) {
    */
   router.get(
     '/:fundId/compare',
+    timelineReadLimiter,
     validateRequest({
       params: fundIdParamsSchema,
       query: z.object({
@@ -282,6 +301,7 @@ export function createTimelineRouter(service: TimeTravelAnalyticsService) {
    */
   router.get(
     '/events/latest',
+    timelineReadLimiter,
     validateRequest({
       query: z.object({
         limit: z.coerce.number().int().min(1).max(100).default(20),

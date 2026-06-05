@@ -265,8 +265,16 @@ export function sanitizeFilePath(value: unknown): string {
   // Use sanitizeInput to remove any HTML/script injection attempts
   let cleaned = sanitizeInput(str);
 
-  // Remove path traversal attempts - more comprehensive pattern
-  cleaned = cleaned.replace(/\.\.[/\\]/g, '').replace(/[/\\]/g, '_');
+  try {
+    cleaned = decodeURIComponent(cleaned);
+  } catch {
+    // Keep the sanitized input when percent-decoding fails.
+  }
+
+  cleaned = cleaned
+    .split(/[/\\]+/)
+    .filter((segment) => segment !== '' && segment !== '.' && segment !== '..')
+    .join('_');
 
   // Remove potentially dangerous characters
   const safe = cleaned.replace(/[<>:"|?*\0]/g, '');

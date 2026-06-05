@@ -34,6 +34,13 @@ const scenarioSetWriteLimiter = rateLimit({
   legacyHeaders: false,
 });
 
+const scenarioSetReadLimiter = rateLimit({
+  windowMs: 60_000,
+  max: 240,
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
 interface HttpError extends Error {
   statusCode?: number;
   code?: string;
@@ -138,6 +145,7 @@ function statusForError(statusCode?: number, code?: string) {
 
 router.get(
   '/funds/:fundId/scenario-sets',
+  scenarioSetReadLimiter,
   requireAuth(),
   requireFundAccess,
   routeHandler(async (req: Request, res: Response) => {
@@ -154,6 +162,7 @@ router.get(
 
 router.get(
   '/funds/:fundId/scenario-sets/:scenarioSetId',
+  scenarioSetReadLimiter,
   requireAuth(),
   requireFundAccess,
   routeHandler(async (req: Request, res: Response) => {
@@ -170,6 +179,7 @@ router.get(
 
 router.post(
   '/funds/:fundId/scenario-sets',
+  scenarioSetWriteLimiter,
   requireAuth(),
   requireFundAccess,
   routeHandler(async (req: Request, res: Response) => {
@@ -220,6 +230,7 @@ router.post(
 
 router.post(
   '/funds/:fundId/scenario-sets/:scenarioSetId/calculate',
+  scenarioSetWriteLimiter,
   requireAuth(),
   requireFundAccess,
   routeHandler(async (req: Request, res: Response) => {
@@ -236,6 +247,7 @@ router.post(
 
 router.post(
   '/funds/:fundId/scenario-sets/:scenarioSetId/calculate-reserve',
+  scenarioSetWriteLimiter,
   requireAuth(),
   requireFundAccess,
   routeHandler(async (req: Request, res: Response) => {
@@ -263,6 +275,7 @@ router.post(
 
 router.get(
   '/funds/:fundId/scenario-sets/:scenarioSetId/calculation-status',
+  scenarioSetReadLimiter,
   requireAuth(),
   requireFundAccess,
   routeHandler(async (req: Request, res: Response) => {
@@ -279,6 +292,7 @@ router.get(
 
 router.get(
   '/funds/:fundId/scenario-sets/:scenarioSetId/comparison',
+  scenarioSetReadLimiter,
   requireAuth(),
   requireFundAccess,
   routeHandler(async (req: Request, res: Response) => {
@@ -295,6 +309,7 @@ router.get(
 
 router.get(
   '/funds/:fundId/scenario-sets/:scenarioSetId/results',
+  scenarioSetReadLimiter,
   requireAuth(),
   requireFundAccess,
   routeHandler(async (req: Request, res: Response) => {
@@ -317,6 +332,7 @@ router.get(
 
 router.post(
   '/funds/:fundId/scenario-sets/:scenarioSetId/archive',
+  scenarioSetWriteLimiter,
   requireAuth(),
   requireFundAccess,
   routeHandler(async (req: Request, res: Response) => {

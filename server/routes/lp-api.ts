@@ -106,9 +106,9 @@ function respondNumberParseError(res: Response, error: unknown): boolean {
  */
 router.get(
   '/api/lp/profile',
+  lpLimiter,
   requireAuth(),
   requireLPAccess,
-  lpLimiter,
   async (req: Request, res: Response) => {
     const endTimer = startTimer();
     const endpoint = '/api/lp/profile';
@@ -164,9 +164,9 @@ router.get(
  */
 router.get(
   '/api/lp/summary',
+  lpLimiter,
   requireAuth(),
   requireLPAccess,
-  lpLimiter,
   async (req: Request, res: Response) => {
     const endTimer = startTimer();
     const endpoint = '/api/lp/summary';
@@ -235,9 +235,9 @@ router.get(
  */
 router.get(
   '/api/lp/capital-account',
+  lpLimiter,
   requireAuth(),
   requireLPAccess,
-  lpLimiter,
   async (req: Request, res: Response) => {
     const endTimer = startTimer();
     const endpoint = '/api/lp/capital-account';
@@ -379,10 +379,10 @@ router.get(
  */
 router.get(
   '/api/lp/funds/:fundId/detail',
+  lpLimiter,
   requireAuth(),
   requireLPAccess,
   requireLPFundAccess,
-  lpLimiter,
   async (req: Request, res: Response) => {
     try {
       const fundIdParam = req.params['fundId'];
@@ -487,10 +487,10 @@ router.get(
  */
 router.get(
   '/api/lp/funds/:fundId/holdings',
+  lpLimiter,
   requireAuth(),
   requireLPAccess,
   requireLPFundAccess,
-  lpLimiter,
   async (req: Request, res: Response) => {
     try {
       const fundIdParam = req.params['fundId'];
@@ -551,9 +551,9 @@ router.get(
  */
 router.get(
   '/api/lp/performance',
+  lpLimiter,
   requireAuth(),
   requireLPAccess,
-  lpLimiter,
   async (req: Request, res: Response) => {
     const endTimer = startTimer();
     const endpoint = '/api/lp/performance';
@@ -663,9 +663,9 @@ router.get(
  */
 router.get(
   '/api/lp/performance/benchmark',
+  lpLimiter,
   requireAuth(),
   requireLPAccess,
-  lpLimiter,
   async (req: Request, res: Response) => {
     try {
       const lpId = req.lpProfile?.id;
@@ -758,9 +758,9 @@ router.get(
  */
 router.post(
   '/api/lp/reports/generate',
+  lpLimiter,
   requireAuth(),
   requireLPAccess,
-  lpLimiter,
   async (req: Request, res: Response) => {
     const endTimer = startTimer();
     const endpoint = '/api/lp/reports/generate';
@@ -890,9 +890,9 @@ router.post(
  */
 router.get(
   '/api/lp/reports',
+  lpLimiter,
   requireAuth(),
   requireLPAccess,
-  lpLimiter,
   async (req: Request, res: Response) => {
     try {
       const lpId = req.lpProfile?.id;
@@ -941,9 +941,9 @@ router.get(
  */
 router.get(
   '/api/lp/reports/:reportId',
+  lpLimiter,
   requireAuth(),
   requireLPAccess,
-  lpLimiter,
   async (req: Request, res: Response) => {
     try {
       const reportId = firstString(req.params['reportId']);
@@ -996,9 +996,9 @@ router.get(
  */
 router.get(
   '/api/lp/reports/:reportId/download',
+  lpLimiter,
   requireAuth(),
   requireLPAccess,
-  lpLimiter,
   async (req: Request, res: Response) => {
     try {
       const reportId = firstString(req.params['reportId']);
@@ -1160,9 +1160,9 @@ const LPSettingsSchema = z.object({
  */
 router.get(
   '/api/lp/settings',
+  lpLimiter,
   requireAuth(),
   requireLPAccess,
-  lpLimiter,
   async (req: Request, res: Response) => {
     const endTimer = startTimer();
     const endpoint = '/api/lp/settings';
@@ -1219,9 +1219,9 @@ router.get(
  */
 router.put(
   '/api/lp/settings',
+  lpLimiter,
   requireAuth(),
   requireLPAccess,
-  lpLimiter,
   async (req: Request, res: Response) => {
     const endTimer = startTimer();
     const endpoint = '/api/lp/settings';

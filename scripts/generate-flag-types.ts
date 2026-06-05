@@ -49,6 +49,10 @@ interface FlagRegistry {
   }>;
 }
 
+function tsStringLiteral(value: string): string {
+  return JSON.stringify(value);
+}
+
 function generateFlagTypes(registry: FlagRegistry): string {
   const flagKeys = Object.keys(registry.flags);
   const clientFlags = Object.entries(registry.flags)
@@ -73,25 +77,25 @@ function generateFlagTypes(registry: FlagRegistry): string {
  * All available feature flag keys
  */
 export type FlagKey =
-${flagKeys.map(k => `  | '${k}'`).join('\n')};
+${flagKeys.map((k) => `  | '${k}'`).join('\n')};
 
 /**
  * Flags safe to expose to client
  */
 export type ClientFlagKey =
-${clientFlags.map(k => `  | '${k}'`).join('\n')};
+${clientFlags.map((k) => `  | '${k}'`).join('\n')};
 
 /**
  * Server-only flags (not exposed to client)
  */
 export type ServerOnlyFlagKey =
-${serverOnlyFlags.map(k => `  | '${k}'`).join('\n')};
+${serverOnlyFlags.map((k) => `  | '${k}'`).join('\n')};
 
 /**
  * Admin flags (no localStorage override)
  */
 export type AdminFlagKey =
-${adminFlags.map(k => `  | '${k}'`).join('\n')};
+${adminFlags.map((k) => `  | '${k}'`).join('\n')};
 
 /**
  * Flag risk levels
@@ -133,21 +137,21 @@ export type ClientFlagRecord = Record<ClientFlagKey, boolean>;
  * Array of all flag keys
  */
 export const ALL_FLAG_KEYS: readonly FlagKey[] = [
-${flagKeys.map(k => `  '${k}',`).join('\n')}
+${flagKeys.map((k) => `  '${k}',`).join('\n')}
 ] as const;
 
 /**
  * Array of client-safe flag keys
  */
 export const CLIENT_FLAG_KEYS: readonly ClientFlagKey[] = [
-${clientFlags.map(k => `  '${k}',`).join('\n')}
+${clientFlags.map((k) => `  '${k}',`).join('\n')}
 ] as const;
 
 /**
  * Array of admin flag keys (no localStorage override)
  */
 export const ADMIN_FLAG_KEYS: readonly AdminFlagKey[] = [
-${adminFlags.map(k => `  '${k}',`).join('\n')}
+${adminFlags.map((k) => `  '${k}',`).join('\n')}
 ] as const;
 
 /**
@@ -191,11 +195,13 @@ import type { FlagKey, FlagDefinition, FlagRecord } from './flag-types.js';
  * Complete flag definitions
  */
 export const FLAG_DEFINITIONS: Record<FlagKey, FlagDefinition> = {
-${entries.map(([key, def]) => `  '${key}': {
+${entries
+  .map(
+    ([key, def]) => `  '${key}': {
     default: ${def.default},
-    description: '${def.description.replace(/'/g, "\\'")}',
-    owner: '${def.owner}',
-    risk: '${def.risk}',
+    description: ${tsStringLiteral(def.description)},
+    owner: ${tsStringLiteral(def.owner)},
+    risk: ${tsStringLiteral(def.risk)},
     exposeToClient: ${def.exposeToClient},
     ${def.adminOnly ? `adminOnly: true,` : ''}
     environments: {
@@ -203,11 +209,13 @@ ${entries.map(([key, def]) => `  '${key}': {
       staging: ${def.environments.staging},
       production: ${def.environments.production},
     },
-    dependencies: [${def.dependencies.map(d => `'${d}'`).join(', ')}],
-    expiresAt: ${def.expiresAt ? `'${def.expiresAt}'` : 'null'},
-    ${def.aliases ? `aliases: [${def.aliases.map(a => `'${a}'`).join(', ')}],` : ''}
+    dependencies: [${def.dependencies.map(tsStringLiteral).join(', ')}],
+    expiresAt: ${def.expiresAt ? tsStringLiteral(def.expiresAt) : 'null'},
+    ${def.aliases ? `aliases: [${def.aliases.map(tsStringLiteral).join(', ')}],` : ''}
     ${def.rolloutPercentage !== undefined ? `rolloutPercentage: ${def.rolloutPercentage},` : ''}
-  },`).join('\n')}
+  },`
+  )
+  .join('\n')}
 };
 
 /**
@@ -282,7 +290,7 @@ export function resolveFlagWithDependencies(
 export const FLAG_ALIASES: Record<string, FlagKey> = {
 ${entries
   .filter(([_, def]) => def.aliases && def.aliases.length > 0)
-  .flatMap(([key, def]) => def.aliases!.map(alias => `  '${alias}': '${key}',`))
+  .flatMap(([key, def]) => def.aliases!.map((alias) => `  '${alias}': '${key}',`))
   .join('\n')}
 };
 

@@ -1,5 +1,11 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { clearTelemetry, readTelemetry, track } from '@/lib/telemetry';
+import {
+  clearTelemetry,
+  generateRequestId,
+  getOrCreateSessionId,
+  readTelemetry,
+  track,
+} from '@/lib/telemetry';
 
 describe('Wave 2 telemetry boundary', () => {
   let consoleErrorSpy: ReturnType<typeof vi.spyOn>;
@@ -46,5 +52,15 @@ describe('Wave 2 telemetry boundary', () => {
         throttled: false,
       },
     });
+  });
+
+  it('creates session and request IDs without Math.random', () => {
+    const randomSpy = vi.spyOn(Math, 'random');
+
+    expect(getOrCreateSessionId()).toMatch(/^sess_\d+_/);
+    expect(generateRequestId()).toMatch(/^req_\d+_/);
+    expect(randomSpy).not.toHaveBeenCalled();
+
+    randomSpy.mockRestore();
   });
 });

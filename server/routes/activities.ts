@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import type { Request, Response } from 'express';
+import rateLimit from 'express-rate-limit';
 import { insertActivitySchema, type Activity } from '@shared/schema';
 import type { ApiError } from '@shared/types';
 import { toNumber } from '@shared/number';
@@ -9,7 +10,14 @@ import { storage } from '../storage';
 
 const router = Router();
 
-router['get']('/activities', async (req: Request, res: Response) => {
+const activitiesLimiter = rateLimit({
+  windowMs: 60_000,
+  max: 120,
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+router['get']('/activities', activitiesLimiter, async (req: Request, res: Response) => {
   try {
     const fundIdQuery = req.query['fundId'];
 
@@ -64,7 +72,7 @@ router['get']('/activities', async (req: Request, res: Response) => {
   }
 });
 
-router.post('/activities', async (req: Request, res: Response) => {
+router.post('/activities', activitiesLimiter, async (req: Request, res: Response) => {
   try {
     const result = insertActivitySchema.safeParse(req.body);
     if (!result.success) {
