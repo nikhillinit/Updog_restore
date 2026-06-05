@@ -130,13 +130,13 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         if: needs.build-base.outputs.artifact-ready == 'true'
         with:
           name: base-size-results
           path: base-results
 
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           name: pr-size-results
           path: pr-results
