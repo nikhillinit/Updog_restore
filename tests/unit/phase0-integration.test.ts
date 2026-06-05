@@ -91,7 +91,7 @@ describe('Phase 0 Critical Fixes - Integration', () => {
 
       // Should use artifacts (the fix)
       expect(content).toMatch(/actions\/upload-artifact@v7/);
-      expect(content).toMatch(/actions\/download-artifact@v4/);
+      expect(content).toMatch(/actions\/download-artifact@v8/);
 
       // Should NOT have multiple checkouts in same job (the bug)
       // Parse job sections
