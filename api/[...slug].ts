@@ -11,15 +11,16 @@ let app: Express | undefined;
 
 async function getApp() {
   if (!app) {
-    // NOTE: do not import 'tsconfig-paths/register' here. This project is ESM
-    // ("type":"module"); that CJS require-hook throws ERR_MODULE_NOT_FOUND on
-    // import under ESM and cannot resolve ESM `import()` path aliases anyway.
-    // Dynamic import for ESM compatibility
-    const appModule = await import('../server/app.js');
+    // Import the pre-bundled server app (api/_app.generated.mjs), produced by
+    // scripts/build-vercel-api.mjs during the Vercel build. We bundle because
+    // the raw server source uses extensionless relative imports and @shared/*
+    // aliases that fail under Node's ESM resolver when @vercel/node ships the
+    // files individually; esbuild resolves both at bundle time.
+    const appModule = await import('./_app.generated.mjs');
     const makeApp = appModule.makeApp ?? appModule.default;
 
     if (!makeApp) {
-      throw new Error('Could not find makeApp export from server/app.js');
+      throw new Error('Could not find makeApp export from _app.generated.mjs');
     }
 
     app = makeApp();
