@@ -24,6 +24,10 @@ try {
   await build({
     entryPoints: [resolve(root, 'server/app.ts')],
     outfile: resolve(root, 'api/_app.generated.mjs'),
+    // Use the server tsconfig explicitly: esbuild otherwise auto-picks the
+    // nested server/tsconfig.json (missing @schema), leaving @schema external
+    // and crashing at runtime. tsconfig.server.json defines @shared + @schema.
+    tsconfig: resolve(root, 'tsconfig.server.json'),
     bundle: true,
     format: 'esm',
     platform: 'node',
