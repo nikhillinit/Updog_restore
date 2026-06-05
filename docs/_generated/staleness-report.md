@@ -1,27 +1,27 @@
 ---
-last_updated: 2026-06-04
+last_updated: 2026-06-05
 ---
 
 # Staleness Report
 
-*Generated: 2026-06-04T00:00:00.000Z*
+*Generated: 2026-06-05T00:00:00.000Z*
 *Source: docs/DISCOVERY-MAP.source.yaml*
 
 ## Summary
 
 | Metric | Value |
 |--------|-------|
-| Total Documents | 666 |
-| Stale Documents | 104 |
-| Missing Frontmatter | 20 |
+| Total Documents | 641 |
+| Stale Documents | 97 |
+| Missing Frontmatter | 15 |
 
 ### By Status
 
 | Status | Count |
 |--------|-------|
-| ACTIVE | 439 |
-| UNKNOWN | 128 |
-| DRAFT | 33 |
+| ACTIVE | 438 |
+| UNKNOWN | 110 |
+| DRAFT | 30 |
 | HISTORICAL | 29 |
 | VERIFIED | 9 |
 | INDEXED | 6 |
@@ -32,13 +32,10 @@ last_updated: 2026-06-04
 | Implemented | 1 |
 | ARCHIVED | 1 |
 | HISTORICAL-SNAPSHOT | 1 |
-| ACCEPTED | 1 |
-| HISTORICAL-FRAMEWORK | 1 |
-| IMPLEMENTED | 1 |
 | TRACKED (not scheduled) | 1 |
 | BACKLOG | 1 |
+| PROVEN | 1 |
 | COMPLETED | 1 |
-| DRAFT (scope only — NOT approved for execution) | 1 |
 
 ## Stale Documents
 
@@ -79,44 +76,41 @@ Documents that need review (older than their cadence threshold):
 | `docs/skills/SKILLS_INDEX.md` | Never | 999 | No | Unassigned |
 | `docs/skills/WIZARD_INDEX.md` | Never | 999 | No | Unassigned |
 | `docs/skills/template-refl.md` | Never | 999 | No | Unassigned |
-| `docs/superpowers/plans/2026-05-15-term-conflict-tier2-fixes.md` | Never | 999 | YES - verify! | Unassigned |
-| `docs/superpowers/plans/2026-05-16-variance-calculation-extraction.md` | Never | 999 | YES - verify! | Unassigned |
 | `docs/superpowers/plans/2026-05-19-ca-period-truth-harness-remediation.md` | Never | 999 | No | Unassigned |
-| `docs/superpowers/plans/2026-05-29-scenario-release-hardening.md` | Never | 999 | No | Unassigned |
-| `docs/superpowers/plans/2026-06-03-theme2-parallel-hermes-wave2.md` | Never | 999 | No | Unassigned |
 | `docs/superpowers/specs/2026-05-16-refactor-stability-strategy-design.md` | Never | 999 | YES - verify! | Unassigned |
-| `docs/superpowers/specs/2026-06-02-prove-and-ship-the-spine-lean-release-design.md` | Never | 999 | No | Unassigned |
-| `docs/superpowers/specs/2026-06-03-theme2-parallel-hermes-partition-design.md` | Never | 999 | YES - verify! | Unassigned |
-| `docs/superpowers/specs/2026-06-04-theme2-longtail-census-sweep.md` | Never | 999 | No | Unassigned |
 | `docs/tooling-catalog.md` | Never | 999 | No | Unassigned |
-| `cheatsheets/agent-architecture.md` | 2026-01-19 | 136 | No | Unassigned |
-| `cheatsheets/agent-memory/database-expert-schema-tdd.md` | 2026-01-19 | 136 | No | Unassigned |
-| `cheatsheets/ai-code-review.md` | 2026-01-19 | 136 | No | Unassigned |
-| `cheatsheets/anti-pattern-prevention.md` | 2026-01-19 | 136 | No | Unassigned |
-| `cheatsheets/api.md` | 2026-01-19 | 136 | No | Unassigned |
-| `cheatsheets/capability-checklist.md` | 2026-01-19 | 136 | No | Unassigned |
-| `cheatsheets/ci-validator-guide.md` | 2026-01-19 | 136 | No | Unassigned |
+| `cheatsheets/agent-architecture.md` | 2026-01-19 | 137 | No | Unassigned |
+| `cheatsheets/agent-memory/database-expert-schema-tdd.md` | 2026-01-19 | 137 | No | Unassigned |
+| `cheatsheets/ai-code-review.md` | 2026-01-19 | 137 | No | Unassigned |
+| `cheatsheets/anti-pattern-prevention.md` | 2026-01-19 | 137 | No | Unassigned |
+| `cheatsheets/api.md` | 2026-01-19 | 137 | No | Unassigned |
+| `cheatsheets/capability-checklist.md` | 2026-01-19 | 137 | No | Unassigned |
+| `cheatsheets/ci-validator-guide.md` | 2026-01-19 | 137 | No | Unassigned |
+| `cheatsheets/claude-commands.md` | 2026-01-19 | 137 | No | Unassigned |
+| `cheatsheets/claude-md-guidelines.md` | 2026-01-19 | 137 | No | Unassigned |
+| `cheatsheets/codex-collaboration-protocol.md` | 2026-01-19 | 137 | No | Unassigned |
+| `cheatsheets/coding-pairs-playbook.md` | 2026-01-19 | 137 | No | Unassigned |
+| `cheatsheets/command-summary.md` | 2026-01-19 | 137 | No | Unassigned |
+| `cheatsheets/correct-workflow-example.md` | 2026-01-19 | 137 | No | Unassigned |
+| `cheatsheets/document-review-workflow.md` | 2026-01-19 | 137 | No | Unassigned |
 
-*...and 54 more stale documents.*
+*...and 47 more stale documents.*
 
 ## Documents with Execution Claims (Need Verification)
 
 These documents contain phrases like "tests pass", "PR merged", etc. and should be verified:
 
-- [ ] **CHANGELOG.md** (15 days old)
-- [ ] **cheatsheets/emoji-free-documentation.md** (136 days old)
-- [ ] **cheatsheets/schema-alignment.md** (136 days old)
-- [ ] **docs/notebooklm-sources/reserves/01-overview.md** (136 days old)
-- [ ] **docs/notebooklm-sources/waterfall.md** (136 days old)
-- [ ] **docs/notebooklm-sources/xirr.md** (136 days old)
-- [ ] **docs/observability/EDITORIAL-V2-CHANGELOG.md** (136 days old)
+- [ ] **CHANGELOG.md** (16 days old)
+- [ ] **cheatsheets/emoji-free-documentation.md** (137 days old)
+- [ ] **cheatsheets/schema-alignment.md** (137 days old)
+- [ ] **docs/notebooklm-sources/reserves/01-overview.md** (137 days old)
+- [ ] **docs/notebooklm-sources/waterfall.md** (137 days old)
+- [ ] **docs/notebooklm-sources/xirr.md** (137 days old)
+- [ ] **docs/observability/EDITORIAL-V2-CHANGELOG.md** (137 days old)
 - [ ] **docs/skills/REFL-003-cross-platform-file-enumeration-fragility.md** (999 days old)
 - [ ] **docs/skills/REFL-014-test-key-reuse-across-test-cases.md** (999 days old)
 - [ ] **docs/skills/REFL-015-postgresql-service-missing-test-database.md** (999 days old)
-- [ ] **docs/superpowers/plans/2026-05-15-term-conflict-tier2-fixes.md** (999 days old)
-- [ ] **docs/superpowers/plans/2026-05-16-variance-calculation-extraction.md** (999 days old)
 - [ ] **docs/superpowers/specs/2026-05-16-refactor-stability-strategy-design.md** (999 days old)
-- [ ] **docs/superpowers/specs/2026-06-03-theme2-parallel-hermes-partition-design.md** (999 days old)
 
 ## Missing Frontmatter
 
@@ -134,13 +128,8 @@ Documents without proper YAML frontmatter:
 - [ ] `docs/quarantine/2026-05-28-stabilization-triage.md`
 - [ ] `docs/skills/SKILLS_INDEX.md`
 - [ ] `docs/skills/WIZARD_INDEX.md`
-- [ ] `docs/superpowers/plans/2026-05-15-term-conflict-tier2-fixes.md`
-- [ ] `docs/superpowers/plans/2026-05-16-variance-calculation-extraction.md`
 - [ ] `docs/superpowers/plans/2026-05-19-ca-period-truth-harness-remediation.md`
-- [ ] `docs/superpowers/plans/2026-05-29-scenario-release-hardening.md`
-- [ ] `docs/superpowers/plans/2026-06-03-theme2-parallel-hermes-wave2.md`
 - [ ] `docs/superpowers/specs/2026-05-16-refactor-stability-strategy-design.md`
-- [ ] `docs/superpowers/specs/2026-06-02-prove-and-ship-the-spine-lean-release-design.md`
 - [ ] `docs/tooling-catalog.md`
 
 ---
