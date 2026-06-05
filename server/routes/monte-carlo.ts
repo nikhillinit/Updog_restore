@@ -12,6 +12,7 @@
  */
 
 import { Router } from 'express';
+import rateLimit from 'express-rate-limit';
 import { z } from 'zod';
 import { unifiedMonteCarloService } from '../services/monte-carlo-service-unified';
 import type { UnifiedSimulationConfig } from '../services/monte-carlo-service-unified';
@@ -35,6 +36,17 @@ import { logger } from '../lib/logger';
 // import { setStageWarningHeaders } from '../middleware/deprecation-headers';
 
 const router = Router();
+
+const monteCarloSimulationLimiter = rateLimit({
+  windowMs: 5 * 60_000,
+  max: 10,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: {
+    error: 'MONTE_CARLO_RATE_LIMITED',
+    message: 'Too many simulation requests. Please wait before starting another simulation.',
+  },
+});
 
 // ============================================================================
 // VALIDATION SCHEMAS
@@ -283,6 +295,7 @@ router['use'](monitorPerformance);
  */
 router['post'](
   '/simulate',
+  monteCarloSimulationLimiter,
   validateRequest(simulationConfigSchema),
   async (req: Request, res: Response) => {
     const correlationId = getCorrelationId(req, 'sim');
@@ -352,6 +365,7 @@ router['post'](
  */
 router['post'](
   '/simulate/async',
+  monteCarloSimulationLimiter,
   validateRequest(simulationConfigSchema),
   async (req: Request, res: Response) => {
     const correlationId = getCorrelationId(req, 'sim_async');
@@ -556,6 +570,7 @@ router['get']('/jobs/:jobId/stream', async (req: Request, res: Response) => {
  */
 router['post'](
   '/batch',
+  monteCarloSimulationLimiter,
   validateRequest(batchSimulationSchema),
   async (req: Request, res: Response) => {
     const correlationId = getCorrelationId(req, 'batch');
@@ -634,6 +649,7 @@ router['post'](
  */
 router['post'](
   '/multi-environment',
+  monteCarloSimulationLimiter,
   validateRequest(multiEnvironmentSchema),
   async (req: Request, res: Response) => {
     const correlationId = getCorrelationId(req, 'multi');
@@ -761,52 +777,56 @@ router['get']('/performance', async (req: Request, res: Response) => {
  * GET /api/monte-carlo/funds/:fundId/simulate
  * Quick simulation for a specific fund (GET endpoint for convenience)
  */
-router['get']('/funds/:fundId/simulate', async (req: Request, res: Response) => {
-  try {
-    const fundId = toNumber(req.params['fundId'], 'Fund ID');
+router['get'](
+  '/funds/:fundId/simulate',
+  monteCarloSimulationLimiter,
+  async (req: Request, res: Response) => {
+    try {
+      const fundId = toNumber(req.params['fundId'], 'Fund ID');
 
-    if (!(await enforceProvidedFundScope(req, res, fundId))) {
-      return;
-    }
+      if (!(await enforceProvidedFundScope(req, res, fundId))) {
+        return;
+      }
 
-    const runs = parseInt((req.query['runs'] as string) || '1000');
-    const timeHorizonYears = parseInt((req.query['timeHorizonYears'] as string) || '8');
-    const engine = (req.query['engine'] as 'streaming' | 'traditional' | 'auto') || 'auto';
+      const runs = parseInt((req.query['runs'] as string) || '1000');
+      const timeHorizonYears = parseInt((req.query['timeHorizonYears'] as string) || '8');
+      const engine = (req.query['engine'] as 'streaming' | 'traditional' | 'auto') || 'auto';
 
-    if (runs < 100 || runs > 10000) {
-      return res.status(400).json({
-        error: 'INVALID_PARAMETERS',
-        message: 'Runs must be between 100 and 10,000 for GET endpoint',
+      if (runs < 100 || runs > 10000) {
+        return res.status(400).json({
+          error: 'INVALID_PARAMETERS',
+          message: 'Runs must be between 100 and 10,000 for GET endpoint',
+        });
+      }
+
+      const createdBy = getRequestCreatedBy(req);
+      const config = {
+        fundId,
+        runs,
+        timeHorizonYears,
+        forceEngine: engine,
+        batchSize: Math.min(runs, 1000),
+        ...(createdBy !== undefined ? { createdBy } : {}),
+      };
+
+      const result = await unifiedMonteCarloService.runSimulation(config);
+
+      res.json({
+        fundId,
+        ...result,
+        metadata: {
+          quickSimulation: true,
+          engineUsed: result.performance.engineUsed,
+        },
+      });
+    } catch (error) {
+      res.status(500).json({
+        error: 'QUICK_SIMULATION_FAILED',
+        message: error instanceof Error ? error.message : 'Quick simulation failed',
       });
     }
-
-    const createdBy = getRequestCreatedBy(req);
-    const config = {
-      fundId,
-      runs,
-      timeHorizonYears,
-      forceEngine: engine,
-      batchSize: Math.min(runs, 1000),
-      ...(createdBy !== undefined ? { createdBy } : {}),
-    };
-
-    const result = await unifiedMonteCarloService.runSimulation(config);
-
-    res.json({
-      fundId,
-      ...result,
-      metadata: {
-        quickSimulation: true,
-        engineUsed: result.performance.engineUsed,
-      },
-    });
-  } catch (error) {
-    res.status(500).json({
-      error: 'QUICK_SIMULATION_FAILED',
-      message: error instanceof Error ? error.message : 'Quick simulation failed',
-    });
   }
-});
+);
 
 /**
  * DELETE /api/monte-carlo/cache

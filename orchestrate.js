@@ -693,7 +693,7 @@ function runGate(
 }
 
 function generateRunId(now = new Date()) {
-  const iso = now.toISOString().replace(/[:.]/g, '-').replace('Z', 'Z');
+  const iso = now.toISOString().replace(/[:.]/g, '-');
   return `hermes-${iso}`;
 }
 

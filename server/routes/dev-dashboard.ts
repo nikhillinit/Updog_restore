@@ -3,6 +3,7 @@ import { exec } from 'child_process';
 import { promisify } from 'util';
 import fs from 'fs/promises';
 import path from 'path';
+import rateLimit from 'express-rate-limit';
 import { storage } from '../storage';
 import type { Request, Response } from 'express';
 import { isRecord } from '@shared/utils/type-guards';
@@ -10,6 +11,13 @@ import type { DevHealthMetrics, TypeScriptErrorMetric } from '@shared/types/dev-
 
 const router = Router();
 const execAsync = promisify(exec);
+
+const devDashboardActionLimiter = rateLimit({
+  windowMs: 60_000,
+  max: 5,
+  standardHeaders: true,
+  legacyHeaders: false,
+});
 
 interface ErrorHistoryEntry {
   timestamp: number;
@@ -338,7 +346,7 @@ router.get('/health', async (_req: Request, res: Response) => {
 });
 
 // Quick fix endpoints
-router.post('/fix/typescript', async (_req: Request, res: Response) => {
+router.post('/fix/typescript', devDashboardActionLimiter, async (_req: Request, res: Response) => {
   try {
     await execAsync('npm run check && npm run lint:fix');
     res.json({ success: true, message: 'TypeScript issues fixed' });
@@ -350,7 +358,7 @@ router.post('/fix/typescript', async (_req: Request, res: Response) => {
   }
 });
 
-router.post('/fix/tests', async (_req: Request, res: Response) => {
+router.post('/fix/tests', devDashboardActionLimiter, async (_req: Request, res: Response) => {
   try {
     await execAsync('npm run test:quick');
     res.json({ success: true, message: 'Tests executed' });
@@ -362,7 +370,7 @@ router.post('/fix/tests', async (_req: Request, res: Response) => {
   }
 });
 
-router.post('/fix/build', async (_req: Request, res: Response) => {
+router.post('/fix/build', devDashboardActionLimiter, async (_req: Request, res: Response) => {
   try {
     await execAsync('npm run build:fast');
     res.json({ success: true, message: 'Build completed' });

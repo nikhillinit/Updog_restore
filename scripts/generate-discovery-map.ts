@@ -314,7 +314,7 @@ function flattenFrontmatterData(source: Record<string, unknown>): Record<string,
 }
 
 function escapeMarkdownTableCell(value: string): string {
-  return value.replace(/\|/g, '\\|').replace(/\n/g, '<br>');
+  return value.replace(/\\/g, '\\\\').replace(/\|/g, '\\|').replace(/\n/g, '<br>');
 }
 
 /**
