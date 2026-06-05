@@ -40,7 +40,6 @@ npm run validate:core
 ## Authoritative References
 
 - [README](../README.md)
-- [Development Spec Set](plans/2026-03-26-development-spec-set.md)
 - [Secondary-Surface Decisions](plans/2026-03-27-secondary-surface-decisions.md)
 
 ## Historical Note
