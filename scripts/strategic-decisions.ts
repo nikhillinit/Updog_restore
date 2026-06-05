@@ -40,7 +40,7 @@ class StrategyDecisionMaker {
   private auditResults: ArchitectureAudit | null = null;
 
   async makeStrategicDecisions(): Promise<DecisionCriteria> {
-    console.log('🎯 Making strategic decisions based on audit data...\n');
+    console.log('[TARGET] Making strategic decisions based on audit data...\n');
 
     // Get audit results
     this.auditResults = await runAudit();
@@ -49,14 +49,14 @@ class StrategyDecisionMaker {
       frameworkChoice: await this.analyzeFrameworkChoice(),
       chartLibrary: await this.analyzeChartLibrary(),
       deploymentStrategy: await this.analyzeDeploymentStrategy(),
-      timeline: await this.estimateTimeline()
+      timeline: await this.estimateTimeline(),
     };
 
     return decisions;
   }
 
   private async analyzeFrameworkChoice(): Promise<DecisionCriteria['frameworkChoice']> {
-    console.log('📋 Analyzing framework choice...');
+    console.log('[ANALYZE] Framework choice...');
 
     if (!this.auditResults) throw new Error('Audit results not available');
 
@@ -89,18 +89,20 @@ class StrategyDecisionMaker {
       reasoning.push('Express is safer default choice');
     }
 
-    console.log(`   Framework: ${framework.current} → ${recommendation} (${Math.round(confidence * 100)}% confidence)`);
-    
+    console.log(
+      `   Framework: ${framework.current} → ${recommendation} (${Math.round(confidence * 100)}% confidence)`
+    );
+
     return {
       current: framework.current,
       recommendation,
       confidence,
-      reasoning
+      reasoning,
     };
   }
 
   private async analyzeChartLibrary(): Promise<DecisionCriteria['chartLibrary']> {
-    console.log('📊 Analyzing chart library choice...');
+    console.log('[ANALYZE] Chart library choice...');
 
     if (!this.auditResults) throw new Error('Audit results not available');
 
@@ -138,7 +140,7 @@ class StrategyDecisionMaker {
       migrationComplexity = 'medium';
       reasoning.push(`Mixed usage detected (${nivoUsage} nivo, ${rechartsUsage} recharts)`);
       reasoning.push('Gradual migration to single library recommended');
-      
+
       // Determine target based on ecosystem fit and bundle analysis
       if (this.auditResults.performance.bundleSize > 500) {
         reasoning.push('Large bundle size suggests consolidation needed');
@@ -147,17 +149,17 @@ class StrategyDecisionMaker {
     }
 
     console.log(`   Charts: ${current} → ${recommendation} (${migrationComplexity} complexity)`);
-    
+
     return {
       current,
       recommendation,
       migrationComplexity,
-      reasoning
+      reasoning,
     };
   }
 
   private async analyzeDeploymentStrategy(): Promise<DecisionCriteria['deploymentStrategy']> {
-    console.log('🚀 Analyzing deployment strategy...');
+    console.log('[ANALYZE] Deployment strategy...');
 
     if (!this.auditResults) throw new Error('Audit results not available');
 
@@ -174,7 +176,7 @@ class StrategyDecisionMaker {
 
     // Calculate serverless feasibility
     feasibility = 1.0;
-    
+
     if (hasLongRunningTasks) {
       feasibility -= 0.3;
       risks.push('Long-running tasks detected - may exceed serverless time limits');
@@ -214,18 +216,20 @@ class StrategyDecisionMaker {
       risks.push('Current architecture not suitable for serverless');
     }
 
-    console.log(`   Deployment: ${current} → ${recommendation} (${Math.round(feasibility * 100)}% feasible)`);
-    
+    console.log(
+      `   Deployment: ${current} → ${recommendation} (${Math.round(feasibility * 100)}% feasible)`
+    );
+
     return {
       current,
       recommendation,
       feasibility,
-      risks
+      risks,
     };
   }
 
   private async estimateTimeline(): Promise<DecisionCriteria['timeline']> {
-    console.log('⏱️  Estimating project timeline...');
+    console.log('[ESTIMATE] Project timeline...');
 
     if (!this.auditResults) throw new Error('Audit results not available');
 
@@ -261,8 +265,8 @@ class StrategyDecisionMaker {
     }
 
     // Adjust based on chart migration complexity
-    const chartComplexity = this.auditResults.chartLibraries.nivo.usage + 
-                           this.auditResults.chartLibraries.recharts.usage;
+    const chartComplexity =
+      this.auditResults.chartLibraries.nivo.usage + this.auditResults.chartLibraries.recharts.usage;
     if (chartComplexity > 20) {
       baselineDays += 4;
       criticalPath.push('Complete chart library migration');
@@ -277,16 +281,16 @@ class StrategyDecisionMaker {
     criticalPath.push('Implement and validate Excel parity');
 
     const conservative = Math.ceil(baselineDays * 1.3); // Add 30% buffer
-    const aggressive = Math.ceil(baselineDays * 0.8);   // Aggressive estimate
-    const recommended = baselineDays;                   // Realistic estimate
+    const aggressive = Math.ceil(baselineDays * 0.8); // Aggressive estimate
+    const recommended = baselineDays; // Realistic estimate
 
     console.log(`   Timeline: ${aggressive}-${conservative} days (recommended: ${recommended})`);
-    
+
     return {
       conservative,
       aggressive,
       recommended,
-      criticalPath
+      criticalPath,
     };
   }
 
@@ -308,10 +312,12 @@ class StrategyDecisionMaker {
   private checkForWebSockets(): boolean {
     try {
       const allFiles = this.findFiles('.', ['.ts', '.js', '.json']);
+      const websocketUsagePattern =
+        /(?:^|[^A-Za-z0-9_-])(?:(?:socket\.io|websocket|ws)(?=[^A-Za-z0-9_-]|$)|wss?:\/\/)/i;
       for (const file of allFiles) {
         if (file.includes('node_modules')) continue;
         const content = fs.readFileSync(file, 'utf8');
-        if (content.includes('socket.io') || content.includes('websocket') || content.includes('ws')) {
+        if (websocketUsagePattern.test(content)) {
           return true;
         }
       }
@@ -338,10 +344,10 @@ class StrategyDecisionMaker {
 
   private analyzeDatabaseUsage(): { connectionPooling: boolean; longQueries: boolean } {
     try {
-      const dbFiles = this.findFiles('server/', ['.ts', '.js']).filter(f => 
-        f.includes('db') || f.includes('database') || f.includes('drizzle')
+      const dbFiles = this.findFiles('server/', ['.ts', '.js']).filter(
+        (f) => f.includes('db') || f.includes('database') || f.includes('drizzle')
       );
-      
+
       let connectionPooling = false;
       let longQueries = false;
 
@@ -364,24 +370,24 @@ class StrategyDecisionMaker {
 
   private findFiles(directory: string, extensions: string[]): string[] {
     const files: string[] = [];
-    
+
     try {
       const items = fs.readdirSync(directory);
-      
+
       for (const item of items) {
         const fullPath = `${directory}/${item}`;
         const stat = fs.statSync(fullPath);
-        
+
         if (stat.isDirectory() && !item.startsWith('.') && item !== 'node_modules') {
           files.push(...this.findFiles(fullPath, extensions));
-        } else if (stat.isFile() && extensions.some(ext => item.endsWith(ext))) {
+        } else if (stat.isFile() && extensions.some((ext) => item.endsWith(ext))) {
           files.push(fullPath);
         }
       }
     } catch (error) {
       // Skip directories that can't be read
     }
-    
+
     return files;
   }
 }
@@ -393,54 +399,56 @@ export async function makeStrategicDecisions(): Promise<DecisionCriteria> {
 
 // CLI execution
 if (require.main === module) {
-  makeStrategicDecisions().then(decisions => {
-    console.log('\n🎯 STRATEGIC DECISIONS COMPLETE\n');
-    console.log('='.repeat(60));
-    
-    console.log('\n📋 FRAMEWORK DECISION:');
-    console.log(`   Current: ${decisions.frameworkChoice.current}`);
-    console.log(`   Recommendation: ${decisions.frameworkChoice.recommendation}`);
-    console.log(`   Confidence: ${Math.round(decisions.frameworkChoice.confidence * 100)}%`);
-    console.log('   Reasoning:');
-    decisions.frameworkChoice.reasoning.forEach(reason => {
-      console.log(`   - ${reason}`);
-    });
+  makeStrategicDecisions()
+    .then((decisions) => {
+      console.log('\nSTRATEGIC DECISIONS COMPLETE\n');
+      console.log('='.repeat(60));
 
-    console.log('\n📊 CHART LIBRARY DECISION:');
-    console.log(`   Current: ${decisions.chartLibrary.current}`);
-    console.log(`   Recommendation: ${decisions.chartLibrary.recommendation}`);
-    console.log(`   Migration Complexity: ${decisions.chartLibrary.migrationComplexity}`);
-    console.log('   Reasoning:');
-    decisions.chartLibrary.reasoning.forEach(reason => {
-      console.log(`   - ${reason}`);
-    });
-
-    console.log('\n🚀 DEPLOYMENT STRATEGY:');
-    console.log(`   Current: ${decisions.deploymentStrategy.current}`);
-    console.log(`   Recommendation: ${decisions.deploymentStrategy.recommendation}`);
-    console.log(`   Feasibility: ${Math.round(decisions.deploymentStrategy.feasibility * 100)}%`);
-    if (decisions.deploymentStrategy.risks.length > 0) {
-      console.log('   Risks:');
-      decisions.deploymentStrategy.risks.forEach(risk => {
-        console.log(`   - ${risk}`);
+      console.log('\nFRAMEWORK DECISION:');
+      console.log(`   Current: ${decisions.frameworkChoice.current}`);
+      console.log(`   Recommendation: ${decisions.frameworkChoice.recommendation}`);
+      console.log(`   Confidence: ${Math.round(decisions.frameworkChoice.confidence * 100)}%`);
+      console.log('   Reasoning:');
+      decisions.frameworkChoice.reasoning.forEach((reason) => {
+        console.log(`   - ${reason}`);
       });
-    }
 
-    console.log('\n⏱️  TIMELINE ESTIMATE:');
-    console.log(`   Conservative: ${decisions.timeline.conservative} days`);
-    console.log(`   Recommended: ${decisions.timeline.recommended} days`);
-    console.log(`   Aggressive: ${decisions.timeline.aggressive} days`);
-    console.log('   Critical Path:');
-    decisions.timeline.criticalPath.forEach(item => {
-      console.log(`   - ${item}`);
+      console.log('\nCHART LIBRARY DECISION:');
+      console.log(`   Current: ${decisions.chartLibrary.current}`);
+      console.log(`   Recommendation: ${decisions.chartLibrary.recommendation}`);
+      console.log(`   Migration Complexity: ${decisions.chartLibrary.migrationComplexity}`);
+      console.log('   Reasoning:');
+      decisions.chartLibrary.reasoning.forEach((reason) => {
+        console.log(`   - ${reason}`);
+      });
+
+      console.log('\nDEPLOYMENT STRATEGY:');
+      console.log(`   Current: ${decisions.deploymentStrategy.current}`);
+      console.log(`   Recommendation: ${decisions.deploymentStrategy.recommendation}`);
+      console.log(`   Feasibility: ${Math.round(decisions.deploymentStrategy.feasibility * 100)}%`);
+      if (decisions.deploymentStrategy.risks.length > 0) {
+        console.log('   Risks:');
+        decisions.deploymentStrategy.risks.forEach((risk) => {
+          console.log(`   - ${risk}`);
+        });
+      }
+
+      console.log('\nTIMELINE ESTIMATE:');
+      console.log(`   Conservative: ${decisions.timeline.conservative} days`);
+      console.log(`   Recommended: ${decisions.timeline.recommended} days`);
+      console.log(`   Aggressive: ${decisions.timeline.aggressive} days`);
+      console.log('   Critical Path:');
+      decisions.timeline.criticalPath.forEach((item) => {
+        console.log(`   - ${item}`);
+      });
+
+      console.log('\nSaving decisions to strategic-decisions.json...');
+      fs.writeFileSync('strategic-decisions.json', JSON.stringify(decisions, null, 2));
+
+      console.log('\nPASS: Strategic analysis complete - proceed to Phase 1');
+    })
+    .catch((error) => {
+      console.error('FAIL: Strategic decisions failed:', error);
+      process.exit(1);
     });
-
-    console.log('\n💾 Saving decisions to strategic-decisions.json...');
-    fs.writeFileSync('strategic-decisions.json', JSON.stringify(decisions, null, 2));
-    
-    console.log('\n✅ Strategic analysis complete - proceed to Phase 1');
-  }).catch(error => {
-    console.error('❌ Strategic decisions failed:', error);
-    process.exit(1);
-  });
 }

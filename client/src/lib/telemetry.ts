@@ -121,6 +121,24 @@ interface ValidationResult {
   reason?: string;
 }
 
+let fallbackIdCounter = 0;
+
+function secureIdSegment(): string {
+  const cryptoObject = globalThis.crypto;
+  if (typeof cryptoObject?.randomUUID === 'function') {
+    return cryptoObject.randomUUID();
+  }
+
+  if (typeof cryptoObject?.getRandomValues === 'function') {
+    const values = new Uint32Array(2);
+    cryptoObject.getRandomValues(values);
+    return Array.from(values, (value) => value.toString(36).padStart(7, '0')).join('');
+  }
+
+  fallbackIdCounter = (fallbackIdCounter + 1) % Number.MAX_SAFE_INTEGER;
+  return `${Date.now().toString(36)}_${fallbackIdCounter.toString(36)}`;
+}
+
 function isTelemetryEvent(value: unknown): value is TelemetryEvent {
   if (typeof value !== 'object' || value === null) return false;
 
@@ -210,7 +228,7 @@ export function getOrCreateSessionId(): string {
   let sessionId = localStorage.getItem(key);
 
   if (!sessionId) {
-    sessionId = `sess_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
+    sessionId = `sess_${Date.now()}_${secureIdSegment()}`;
     localStorage.setItem(key, sessionId);
   }
 
@@ -218,7 +236,7 @@ export function getOrCreateSessionId(): string {
 }
 
 export function generateRequestId(): string {
-  return `req_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
+  return `req_${Date.now()}_${secureIdSegment()}`;
 }
 
 // ============================================================================

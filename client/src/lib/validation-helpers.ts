@@ -112,10 +112,7 @@ export function ensureDateString(value: unknown, fallback?: string): string {
  * @param validator Optional validator for each element
  * @returns A validated array with defined elements
  */
-export function ensureValidArray<T>(
-  value: unknown,
-  validator?: (item: unknown) => item is T
-): T[] {
+export function ensureValidArray<T>(value: unknown, validator?: (item: unknown) => item is T): T[] {
   if (!Array.isArray(value)) {
     return [];
   }
@@ -206,8 +203,15 @@ export function sanitizeUserInput(input: unknown, maxLength: number = 1000): str
       sanitized = sanitized.replace(/\w+:/gi, '');
     }
   } else {
-    // Remove protocol patterns like javascript:, vbscript:, etc.
-    sanitized = sanitized.replace(/javascript:/gi, '').replace(/vbscript:/gi, '');
+    // Remove protocol patterns that can execute or embed active content.
+    const maxSchemeStrips = sanitized.length;
+    for (let stripCount = 0; stripCount < maxSchemeStrips; stripCount += 1) {
+      const next = sanitized.replace(/javascript:|vbscript:|data:/gi, '');
+      if (next === sanitized) {
+        break;
+      }
+      sanitized = next;
+    }
   }
 
   return sanitized;
@@ -221,12 +225,7 @@ export function sanitizeUserInput(input: unknown, maxLength: number = 1000): str
  * @param step Step increment (for rounding)
  * @returns A value within the specified range
  */
-export function ensureRange(
-  value: unknown,
-  min: number,
-  max: number,
-  step?: number
-): number {
+export function ensureRange(value: unknown, min: number, max: number, step?: number): number {
   let num = ensureFinancialNumber(value, min);
 
   // Clamp to range
@@ -247,12 +246,7 @@ export function ensureRange(
  * @returns True if the value is a valid array index
  */
 export function isValidArrayIndex(value: unknown, arrayLength: number): value is number {
-  return (
-    typeof value === 'number' &&
-    Number.isInteger(value) &&
-    value >= 0 &&
-    value < arrayLength
-  );
+  return typeof value === 'number' && Number.isInteger(value) && value >= 0 && value < arrayLength;
 }
 
 /**
@@ -263,11 +257,7 @@ export function isValidArrayIndex(value: unknown, arrayLength: number): value is
  * @param fallback Fallback value if access fails
  * @returns The array element or fallback
  */
-export function safeArrayAccess<T>(
-  array: T[] | null | undefined,
-  index: unknown,
-  fallback: T
-): T {
+export function safeArrayAccess<T>(array: T[] | null | undefined, index: unknown, fallback: T): T {
   if (!Array.isArray(array) || !isValidArrayIndex(index, array.length)) {
     return fallback;
   }
@@ -308,10 +298,7 @@ export function formatCurrencySafe(
  * @param decimals Number of decimal places (default: 1)
  * @returns Formatted percentage string
  */
-export function formatPercentageSafe(
-  value: unknown,
-  decimals: number = 1
-): string {
+export function formatPercentageSafe(value: unknown, decimals: number = 1): string {
   const num = ensureFinancialNumber(value, 0);
   return `${(num * 100).toFixed(decimals)}%`;
 }
