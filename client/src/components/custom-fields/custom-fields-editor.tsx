@@ -12,11 +12,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from '@/components/ui/popover';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
 import { format } from 'date-fns/format';
 import { CalendarIcon, Tag, X } from 'lucide-react';
@@ -59,11 +55,16 @@ const COLOR_PRESETS = [
   { value: '#1f2937', label: 'Dark Gray' },
 ];
 
-export default function CustomFieldsEditor({ fields, values, onValuesChange, className = '' }: CustomFieldsEditorProps) {
+export default function CustomFieldsEditor({
+  fields,
+  values,
+  onValuesChange,
+  className = '',
+}: CustomFieldsEditorProps) {
   const [tagInputs, setTagInputs] = useState<Record<string, string>>({});
 
   const getFieldValue = (fieldId: string) => {
-    const fieldValue = values.find(v => v.fieldId === fieldId);
+    const fieldValue = values.find((v) => v.fieldId === fieldId);
     return fieldValue?.value;
   };
 
@@ -73,8 +74,11 @@ export default function CustomFieldsEditor({ fields, values, onValuesChange, cla
   const isDateLikeValue = (value: CustomFieldPrimitiveValue): value is string | number | Date =>
     typeof value === 'string' || typeof value === 'number' || value instanceof Date;
 
-  const updateFieldValue = (fieldId: string, value: string | number | boolean | Date | string[]) => {
-    const updatedValues = values.filter(v => v.fieldId !== fieldId);
+  const updateFieldValue = (
+    fieldId: string,
+    value: string | number | boolean | Date | string[]
+  ) => {
+    const updatedValues = values.filter((v) => v.fieldId !== fieldId);
     if (value !== undefined && value !== null && value !== '') {
       updatedValues.push({ fieldId, value });
     }
@@ -96,10 +100,16 @@ export default function CustomFieldsEditor({ fields, values, onValuesChange, cla
   const removeTag = (fieldId: string, tagToRemove: string) => {
     const fieldValue = getFieldValue(fieldId);
     const currentTags = isStringArrayValue(fieldValue) ? fieldValue : [];
-    updateFieldValue(fieldId, currentTags.filter((tag: string) => tag !== tagToRemove));
+    updateFieldValue(
+      fieldId,
+      currentTags.filter((tag: string) => tag !== tagToRemove)
+    );
   };
 
-  const handleTagInputKeyPress = (fieldId: string, event: React.KeyboardEvent<HTMLInputElement>) => {
+  const handleTagInputKeyPress = (
+    fieldId: string,
+    event: React.KeyboardEvent<HTMLInputElement>
+  ) => {
     if (event.key === 'Enter') {
       event.preventDefault();
       addTag(fieldId);
@@ -187,21 +197,18 @@ export default function CustomFieldsEditor({ fields, values, onValuesChange, cla
                 <SelectValue placeholder="Select a color">
                   {value && typeof value === 'string' && (
                     <div className="flex items-center gap-2">
-                      <div 
-                        className="w-4 h-4 rounded-full" 
-                        style={{ backgroundColor: value }}
-                      />
-                      {COLOR_PRESETS.find(c => c.value === value)?.label || value}
+                      <div className="w-4 h-4 rounded-full" style={{ backgroundColor: value }} />
+                      {COLOR_PRESETS.find((c) => c.value === value)?.label || value}
                     </div>
                   )}
                 </SelectValue>
               </SelectTrigger>
               <SelectContent>
-                {COLOR_PRESETS.map(color => (
+                {COLOR_PRESETS.map((color) => (
                   <SelectItem key={color.value} value={color.value}>
                     <div className="flex items-center gap-2">
-                      <div 
-                        className="w-4 h-4 rounded-full" 
+                      <div
+                        className="w-4 h-4 rounded-full"
                         style={{ backgroundColor: color.value }}
                       />
                       {color.label}
@@ -217,26 +224,19 @@ export default function CustomFieldsEditor({ fields, values, onValuesChange, cla
         return (
           <Popover>
             <PopoverTrigger asChild>
-              <Button
-                variant="outline"
-                className="w-full justify-start text-left font-normal"
-              >
+              <Button variant="outline" className="w-full justify-start text-left font-normal">
                 <CalendarIcon className="mr-2 h-4 w-4" />
-                {value && isDateLikeValue(value)
-                  ? format(new Date(value), 'PPP')
-                  : 'Pick a date'}
+                {value && isDateLikeValue(value) ? format(new Date(value), 'PPP') : 'Pick a date'}
               </Button>
             </PopoverTrigger>
             <PopoverContent className="w-auto p-0" align="start">
               <Calendar
                 mode="single"
-                selected={value && isDateLikeValue(value)
-                  ? new Date(value)
-                  : undefined}
+                selected={value && isDateLikeValue(value) ? new Date(value) : undefined}
                 onSelect={(date: Date | undefined) =>
                   updateFieldValue(field.id, date?.toISOString() ?? '')
                 }
-                initialFocus
+                autoFocus
               />
             </PopoverContent>
           </Popover>
@@ -252,7 +252,9 @@ export default function CustomFieldsEditor({ fields, values, onValuesChange, cla
       <Card className={className}>
         <CardContent className="p-6 text-center text-gray-500">
           <p>No custom fields defined.</p>
-          <p className="text-sm mt-1">Define custom fields in the Custom Fields management section.</p>
+          <p className="text-sm mt-1">
+            Define custom fields in the Custom Fields management section.
+          </p>
         </CardContent>
       </Card>
     );
