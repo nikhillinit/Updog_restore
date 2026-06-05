@@ -24,6 +24,7 @@ import scenarioAnalysisRouter from './routes/scenario-analysis.js';
 import dualForecastRouter from './routes/dual-forecast.js';
 import allocationsRouter from './routes/allocations.js';
 import allocationScenariosRouter from './routes/allocation-scenarios.js';
+import fundScenarioSetsRouter from './routes/fund-scenario-sets.js';
 import backtestingRouter from './routes/backtesting.js';
 import fundsRouter from './routes/funds.js';
 import fundMetricsRouter from './routes/fund-metrics.js';
@@ -215,6 +216,7 @@ export function makeApp() {
   // Fund Allocation Management API (Phase 1b - Reserve allocations with optimistic locking)
   app.use('/api', allocationsRouter);
   app.use('/api', allocationScenariosRouter);
+  app.use('/api', fundScenarioSetsRouter);
 
   // Deal Pipeline API (Sprint 1 - Deal tracking, DD, scoring)
   app.use('/api/deals', dealPipelineRouter);
