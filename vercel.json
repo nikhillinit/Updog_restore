@@ -17,8 +17,8 @@
       "destination": "/api/metrics/:path*"
     },
     {
-      "source": "/api/:path*",
-      "destination": "/api/:path*"
+      "source": "/api/:slug*",
+      "destination": "/api/[...slug]"
     },
     {
       "source": "/:path*",
