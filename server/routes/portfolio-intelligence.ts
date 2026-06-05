@@ -762,9 +762,10 @@ router['post'](
         return res.status(404).json(error);
       }
 
-      // MVP STUB: Monte Carlo simulation returns placeholder results
-      // Integration with actual simulation engine deferred to Phase 2
-      // See: client/src/core/simulation/MonteCarloEngine.ts for engine reference
+      // PLACEHOLDER: hardcoded simulation results, NOT a real computation. This route is a
+      // flag-off prototype (ENABLE_PORTFOLIO_INTELLIGENCE, default false). The real Monte Carlo
+      // engine is server/services/monte-carlo-orchestrator.ts, served by /api/monte-carlo;
+      // this surface is not wired to it.
       const simulationResults = {
         mean: { irr: 0.2, multiple: 2.5, dpi: 1.8 },
         median: { irr: 0.18, multiple: 2.3, dpi: 1.6 },
@@ -869,9 +870,9 @@ router['post'](
         return res.status(401).json(error);
       }
 
-      // MVP STUB: Reserve optimization returns placeholder allocation
-      // Integration with DeterministicReserveEngine deferred to Phase 2
-      // See: client/src/core/reserves/ReserveEngine.ts for engine reference
+      // PLACEHOLDER: hardcoded allocation, NOT a real optimization. The real engine is
+      // shared/core/reserves/DeterministicReserveEngine.ts; this flag-off prototype route
+      // is not wired to it.
       const optimalAllocation = {
         initialReserve: 0.5,
         followOnReserve: 0.5,
@@ -1206,8 +1207,8 @@ router['post']('/api/portfolio/forecasts/validate', async (req: Request, res: Re
       return res.status(404).json(error);
     }
 
-    // MVP STUB: Forecast validation returns placeholder accuracy metrics
-    // Actual MAPE/RMSE calculation requires historical data comparison - Phase 2
+    // PLACEHOLDER: hardcoded accuracy metrics. Real MAPE/RMSE would require comparing
+    // forecasts against historical actuals; this flag-off prototype route does not compute it.
     const accuracyMetrics = {
       mape: 0.12,
       rmse: 0.08,
@@ -1275,7 +1276,8 @@ router['get']('/api/portfolio/templates', async (req: Request, res: Response) =>
     const category = firstString(req.query['category']);
     const riskProfile = firstString(req.query['riskProfile']);
 
-    // MVP: Static strategy templates - database-backed templates deferred to Phase 2
+    // Static, hardcoded strategy templates (not DB-backed). This flag-off prototype route
+    // returns the literal array below.
     const templates = [
       {
         id: 'template_1',
@@ -1422,9 +1424,8 @@ router['get']('/api/portfolio/metrics/:scenarioId', async (req: Request, res: Re
     const _metricType = firstString(req.query['metricType']);
     const _timeRange = firstString(req.query['timeRange']) || '1y';
 
-    // MVP STUB: Scenario metrics returns sample data
-    // Real-time calculation from portfolio data deferred to Phase 2
-    // Use SSE endpoint /api/events/fund/:fundId for live updates
+    // PLACEHOLDER: hardcoded sample metrics, NOT computed from portfolio data. This flag-off
+    // prototype route returns the literal values below. (Live updates: SSE /api/events/fund/:fundId.)
     const metrics = {
       scenarioId,
       lastUpdated: new Date().toISOString(),

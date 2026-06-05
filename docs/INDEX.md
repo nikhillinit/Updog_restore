@@ -87,8 +87,6 @@ Humans AND Agents **Last Updated**: 2026-05-28
 | [cheatsheets/service-testing-patterns.md](../cheatsheets/service-testing-patterns.md)                                    | API/service test patterns, integration testing                                          | When writing integration tests                              |
 | [cheatsheets/testcontainers-guide.md](../cheatsheets/testcontainers-guide.md)                                            | Testcontainers setup and usage guide                                                    | Setting up Docker-based integration tests                   |
 | [ARCHITECTURAL-DEBT.md](ARCHITECTURAL-DEBT.md)                                                                           | Complex refactoring registry (10+ files, architectural)                                 | Documenting deferred architectural work                     |
-| [plans/2026-03-31-variance-roadmap-revision.md](plans/2026-03-31-variance-roadmap-revision.md)                           | Validated production order for variance, baselines, alerts, Time Machine, and analytics | When planning follow-on implementation after variance audit |
-| [plans/2026-04-01-variance-phase1a1c-implementation-plan.md](plans/2026-04-01-variance-phase1a1c-implementation-plan.md) | Implemented variance-model slice plus rollout limitations                               | Understanding shipped current-state variance behavior       |
 | [cheatsheets/pr-merge-verification.md](../cheatsheets/pr-merge-verification.md)                                          | PR verification baseline (74.7% pass rate)                                              | Before merging PRs                                          |
 
 **Key Commands**:
