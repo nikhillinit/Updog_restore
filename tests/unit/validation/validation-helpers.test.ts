@@ -26,4 +26,14 @@ describe('sanitizeUserInput', () => {
     expect(sanitizeUserInput('vbscript:alert(1)')).not.toMatch(/vbscript:/i);
     expect(sanitizeUserInput('data:text/html,<script>alert(1)</script>')).not.toMatch(/data:/i);
   });
+
+  it('removes executable schemes reconstructed by repeated stripping', () => {
+    for (const input of [
+      'dadata:ta:text/html',
+      'jajavascript:vascript:alert(1)',
+      'vbvbscript:script:msgbox(1)',
+    ]) {
+      expect(sanitizeUserInput(input)).not.toMatch(/javascript:|vbscript:|data:/i);
+    }
+  });
 });

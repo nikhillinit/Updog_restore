@@ -313,7 +313,7 @@ class StrategyDecisionMaker {
     try {
       const allFiles = this.findFiles('.', ['.ts', '.js', '.json']);
       const websocketUsagePattern =
-        /(?:^|[^A-Za-z0-9_-])(?:socket\.io|websocket|ws)(?:[^A-Za-z0-9_-]|$)/i;
+        /(?:^|[^A-Za-z0-9_-])(?:(?:socket\.io|websocket|ws)(?=[^A-Za-z0-9_-]|$)|wss?:\/\/)/i;
       for (const file of allFiles) {
         if (file.includes('node_modules')) continue;
         const content = fs.readFileSync(file, 'utf8');

@@ -204,10 +204,14 @@ export function sanitizeUserInput(input: unknown, maxLength: number = 1000): str
     }
   } else {
     // Remove protocol patterns that can execute or embed active content.
-    sanitized = sanitized
-      .replace(/javascript:/gi, '')
-      .replace(/vbscript:/gi, '')
-      .replace(/data:/gi, '');
+    const maxSchemeStrips = sanitized.length;
+    for (let stripCount = 0; stripCount < maxSchemeStrips; stripCount += 1) {
+      const next = sanitized.replace(/javascript:|vbscript:|data:/gi, '');
+      if (next === sanitized) {
+        break;
+      }
+      sanitized = next;
+    }
   }
 
   return sanitized;

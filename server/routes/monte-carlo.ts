@@ -37,6 +37,7 @@ import { logger } from '../lib/logger';
 
 const router = Router();
 
+// Heavy simulation endpoints intentionally share one 10-request bucket per 5 minutes.
 const monteCarloSimulationLimiter = rateLimit({
   windowMs: 5 * 60_000,
   max: 10,
