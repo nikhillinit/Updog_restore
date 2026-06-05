@@ -11,9 +11,9 @@ let app: Express | undefined;
 
 async function getApp() {
   if (!app) {
-    // Register path aliases before importing app
-    await import('tsconfig-paths/register');
-
+    // NOTE: do not import 'tsconfig-paths/register' here. This project is ESM
+    // ("type":"module"); that CJS require-hook throws ERR_MODULE_NOT_FOUND on
+    // import under ESM and cannot resolve ESM `import()` path aliases anyway.
     // Dynamic import for ESM compatibility
     const appModule = await import('../server/app.js');
     const makeApp = appModule.makeApp ?? appModule.default;
