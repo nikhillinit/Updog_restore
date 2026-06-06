@@ -5,6 +5,8 @@
  */
 
 import type { NodePgDatabase } from 'drizzle-orm/node-postgres';
+import { neon as createNeonHttpClient } from '@neondatabase/serverless';
+import { drizzle as drizzleNeonHttp } from 'drizzle-orm/neon-http';
 import { createRequire } from 'node:module';
 import { getStorageConfigurationError, resolveStorageBootMode } from './storage-runtime-policy';
 import { combinedSchema, type CombinedSchema } from './db-schema';
@@ -40,24 +42,16 @@ if (storageBootMode === 'test-mock-db' || storageBootMode === 'explicit-memory')
   pool = null;
 } else if (isVercel) {
   // Use HTTP driver for Vercel (no persistent connections)
-  const { drizzle } = require('drizzle-orm/neon-http') as {
-    drizzle: (
-      client: unknown,
-      options: { schema: typeof combinedSchema }
-    ) => NodePgDatabase<CombinedSchema>;
-  };
-  const { neon } = require('@neondatabase/serverless') as {
-    neon: (url: string) => unknown;
-  };
-
   const DATABASE_URL = process.env['DATABASE_URL'] || process.env['NEON_DATABASE_URL'];
 
   if (!DATABASE_URL) {
     throw new Error('DATABASE_URL or NEON_DATABASE_URL environment variable is required');
   }
 
-  const sql = neon(DATABASE_URL);
-  db = drizzle(sql, { schema: combinedSchema });
+  const sql = createNeonHttpClient(DATABASE_URL);
+  db = drizzleNeonHttp(sql, {
+    schema: combinedSchema,
+  }) as unknown as NodePgDatabase<CombinedSchema>;
 
   // No pool in HTTP mode
   pool = null;

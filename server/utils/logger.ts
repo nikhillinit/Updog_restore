@@ -15,9 +15,15 @@ import path from 'path';
 import fs from 'fs';
 import type { Request, Response, NextFunction } from 'express';
 
-// Ensure logs directory exists
+// File logging is disabled on read-only serverless filesystems (e.g. Vercel),
+// where only /tmp is writable. There we log to console, which the platform
+// captures as runtime logs. Docker/Railway keep file logging.
+const fileLoggingEnabled =
+  process.env['NODE_ENV'] === 'production' && !process.env['VERCEL'];
+
+// Ensure logs directory exists (only when file logging is enabled)
 const logsDir = path.join(process.cwd(), 'logs');
-if (!fs.existsSync(logsDir)) {
+if (fileLoggingEnabled && !fs.existsSync(logsDir)) {
   fs.mkdirSync(logsDir, { recursive: true });
 }
 
@@ -81,8 +87,10 @@ const developmentFormat = winston.format.combine(
   })
 );
 
-// File transport for production logs
-const fileTransports = [
+// File transport for production logs (empty on serverless read-only FS)
+const fileTransports = !fileLoggingEnabled
+  ? []
+  : [
   // All logs
   new winston.transports.File({
     filename: path.join(logsDir, 'application.log'),
@@ -136,7 +144,7 @@ const logger = winston.createLogger({
   },
   transports: [
     consoleTransport,
-    ...(process.env['NODE_ENV'] === 'production' ? fileTransports : []),
+    ...fileTransports,
   ],
   exitOnError: false,
 });
@@ -167,7 +175,7 @@ const createSpecializedLogger = ({
     },
     transports: [
       consoleTransport,
-      ...(process.env['NODE_ENV'] === 'production'
+      ...(fileLoggingEnabled
         ? [
             new winston.transports.File({
               filename: path.join(logsDir, filename),
