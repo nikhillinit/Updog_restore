@@ -54,20 +54,22 @@ The fund lifecycle DB proof is an inline no-Redis proof for reserve and pacing
 snapshot publication. The scenario release gate remains the Redis-backed
 worker-path proof. Do not merge those claims together.
 
-Current-head CI evidence: `CI Unified` run `26937341250` completed successfully
-on `f523b89d622fef695bdb2ed7546bef1dbc2f1e2f`. This is baseline health only, not
+Current-head CI evidence: `CI Unified` run `27059620383` completed successfully
+on `037cef40287ddd3362d6e348c42ea18ce6d57285`. This is baseline health only, not
 release proof.
 
-Current local release-check evidence (PROVEN): on 2026-06-04,
+Current local release-check evidence (PROVEN): on 2026-06-06,
 `npm run release:check` passed end-to-end -- all ten stages, exit 0 -- without
 `--skip-db` (and with `UPDOG_RELEASE_CHECK_SKIP_DB` unset), from a clean clone
-of `ac71eb1a` on the supported Node 20.19.5 runtime inside WSL2 Ubuntu-22.04,
+of `037cef40` on the supported Node 20.19.0 runtime inside WSL2 Ubuntu-22.04,
 against Docker 28.3.2 on its native unix socket, with `CI=true` (the invocation
 the DB-proof harness and CI both rely on; without it the test's local container
 stop races an open connection and exits non-zero by design). Stages: TypeScript
-baseline, lint and guardrails, client and server/CI surface locks, the fund
-lifecycle DB proof, the scenario release gate, core validation, the production
-build, the whitespace diff, and release-owned file tracking.
+baseline (0 errors), lint and guardrails, client surface lock (6 files, 132
+tests), server/CI surface lock (9 files, 144 tests), the fund lifecycle DB proof
+(1 file, 1 test via Testcontainers), the scenario release gate (1 file, 1 test),
+core validation (265+ tests, 2 skipped), the production build (build
+verification passed), the whitespace diff, and release-owned file tracking.
 
 Three journaled-migration fixes were required so a migration-built database
 matches the Drizzle schema the application code targets; all three are landed on
@@ -98,10 +100,9 @@ Current visual/a11y evidence: the route-governed screenshot audit passes across
 results, LP pages, shared dashboard, reports, and the required core/internal
 routes. The StressPanel non-color delta cue is covered by its focused unit test.
 
-Current PR disposition: PR #606 remains open but is superseded release work, not
-an active merge candidate. Live GitHub state on 2026-06-04 reports
-`mergeable: CONFLICTING`, `mergeStateStatus: DIRTY`, base `main`, and head
-`qa-design-cleanup-2026-04-28`.
+Current PR disposition: PR #606 was closed on 2026-06-04, unmerged. It was
+superseded release work (head `qa-design-cleanup-2026-04-28`, conflicting with
+main). Not an active merge candidate.
 
 ## Deferred Or Experimental
 
