@@ -619,13 +619,13 @@ describe('route surface inventory', () => {
       readRepoFile('docs/observability/rum.md'),
     ]);
 
-    expect(routesTs).toContain('app.use(metricsRouter)');
+    expect(routesTs).toContain('app.use(authenticateMetrics, metricsRouter)');
     expect(routesTs).not.toContain('metricsRumRouter');
     expect(metricsEndpointTs).toContain("metricsRouter['get']('/metrics'");
 
     for (const source of [appTs, serverTs]) {
-      expect(source).toContain("app.use('/metrics', metricsRouter)");
-      expect(source).toContain("app.use('/api', metricsRouter)");
+      expect(source).toContain("app.use('/metrics', authenticateMetrics, metricsRouter)");
+      expect(source).toContain("app.use('/api', authenticateMetrics, metricsRouter)");
       expect(source).toContain('installRumIngressGuards(app)');
       expect(source).toContain('app.use(metricsRumRouter)');
       expect(source).toContain("app.use('/api', metricsRumRouter)");
