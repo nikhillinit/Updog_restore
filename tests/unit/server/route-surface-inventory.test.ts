@@ -619,13 +619,13 @@ describe('route surface inventory', () => {
       readRepoFile('docs/observability/rum.md'),
     ]);
 
-    expect(routesTs).toContain('app.use(metricsRouter)');
+    expect(routesTs).toContain('app.use(authenticateMetrics, metricsRouter)');
     expect(routesTs).not.toContain('metricsRumRouter');
     expect(metricsEndpointTs).toContain("metricsRouter['get']('/metrics'");
 
     for (const source of [appTs, serverTs]) {
-      expect(source).toContain("app.use('/metrics', metricsRouter)");
-      expect(source).toContain("app.use('/api', metricsRouter)");
+      expect(source).toContain("app.use('/metrics', authenticateMetrics, metricsRouter)");
+      expect(source).toContain("app.use('/api', authenticateMetrics, metricsRouter)");
       expect(source).toContain('installRumIngressGuards(app)');
       expect(source).toContain('app.use(metricsRumRouter)');
       expect(source).toContain("app.use('/api', metricsRumRouter)");
@@ -658,15 +658,31 @@ describe('route surface inventory', () => {
     const makeAppAuthBoundary = 'const requireApiAuth = requireAuth();';
     expectFragmentBefore(appTs, "app['get']('/api-docs'", makeAppAuthBoundary);
     expectFragmentBefore(appTs, "app['get']('/api-docs.json'", makeAppAuthBoundary);
-    expectFragmentBefore(appTs, "app.use('/metrics', metricsRouter)", makeAppAuthBoundary);
-    expectFragmentBefore(appTs, "app.use('/api', metricsRouter)", makeAppAuthBoundary);
+    expectFragmentBefore(
+      appTs,
+      "app.use('/metrics', authenticateMetrics, metricsRouter)",
+      makeAppAuthBoundary
+    );
+    expectFragmentBefore(
+      appTs,
+      "app.use('/api', authenticateMetrics, metricsRouter)",
+      makeAppAuthBoundary
+    );
     expectFragmentBefore(appTs, 'app.use(metricsRumRouter)', makeAppAuthBoundary);
     expectFragmentBefore(appTs, "app.use('/api', metricsRumRouter)", makeAppAuthBoundary);
 
     const createServerAuthBoundary =
       '// Apply authentication and RLS middleware to protected routes';
-    expectFragmentBefore(serverTs, "app.use('/metrics', metricsRouter)", createServerAuthBoundary);
-    expectFragmentBefore(serverTs, "app.use('/api', metricsRouter)", createServerAuthBoundary);
+    expectFragmentBefore(
+      serverTs,
+      "app.use('/metrics', authenticateMetrics, metricsRouter)",
+      createServerAuthBoundary
+    );
+    expectFragmentBefore(
+      serverTs,
+      "app.use('/api', authenticateMetrics, metricsRouter)",
+      createServerAuthBoundary
+    );
     expectFragmentBefore(serverTs, 'app.use(metricsRumRouter)', createServerAuthBoundary);
     expectFragmentBefore(serverTs, "app.use('/api', metricsRumRouter)", createServerAuthBoundary);
   });

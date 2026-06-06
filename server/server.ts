@@ -215,9 +215,10 @@ export async function createServer(
     )
   );
 
-  // Metrics endpoints (public, no auth required)
-  app.use('/metrics', metricsRouter);
-  app.use('/api', metricsRouter);
+  // Metrics endpoints — auth required (METRICS_KEY or METRICS_ALLOW_FROM)
+  const { authenticateMetrics } = await import('./middleware/auth-metrics.js');
+  app.use('/metrics', authenticateMetrics, metricsRouter);
+  app.use('/api', authenticateMetrics, metricsRouter);
   installRumIngressGuards(app);
 
   // RUM metrics endpoint (public, for browser telemetry)
