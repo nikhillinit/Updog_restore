@@ -17,7 +17,7 @@ import { logger } from '../lib/logger.js';
 import { applyAllocationUpdates } from '../services/allocation-write-service.js';
 import { funds, portfolioCompanies } from '@shared/schema';
 import { FundIdParamSchema } from '@shared/schemas/portfolio-route';
-import { eq, lt, sql, desc, asc, and } from 'drizzle-orm';
+import { eq, sql, desc, asc, and } from 'drizzle-orm';
 import type { SQL } from 'drizzle-orm';
 // Stage normalization and validation
 import { normalizeStage, CANONICAL_STAGES } from '@shared/schemas/parse-stage-distribution';
@@ -75,6 +75,17 @@ const ALLOCATION_ERROR_MAPPINGS = [
 // Validation Schemas
 // ============================================================================
 
+const COMPANY_LIST_CURSOR_BASE64URL_PATTERN = /^[A-Za-z0-9_-]+$/;
+const CompanyListSortBySchema = z.enum(['exit_moic_desc', 'planned_reserves_desc', 'name_asc']);
+
+type CompanyListSortBy = z.infer<typeof CompanyListSortBySchema>;
+type CompanyListCursorKey = string | number | null;
+
+interface CompanyListCursor {
+  k: CompanyListCursorKey;
+  id: number;
+}
+
 /**
  * Schema for updating a single company's allocation
  */
@@ -112,22 +123,45 @@ const UpdateAllocationRequestSchema = z
 /**
  * Query parameter schema for company list endpoint
  */
-const CompanyListQuerySchema = z.object({
-  cursor: z.string().regex(/^\d+$/).transform(Number).optional(),
-  limit: z
-    .string()
-    .regex(/^\d+$/)
-    .transform(Number)
-    .default('50')
-    .refine((val) => val >= 1 && val <= 200, {
-      message: 'Limit must be between 1 and 200',
-    }),
-  q: z.string().max(255).optional(), // Search query
-  status: z.enum(['active', 'exited', 'written-off']).optional(),
-  sector: z.string().max(100).optional(),
-  stage: z.string().max(50).optional(), // Investment stage (will be normalized)
-  sortBy: z.enum(['exit_moic_desc', 'planned_reserves_desc', 'name_asc']).default('exit_moic_desc'),
-});
+const CompanyListQuerySchema = z
+  .object({
+    cursor: z
+      .string()
+      .transform((value, context) => {
+        const decoded = decodeCompanyListCursor(value);
+        if (!decoded) {
+          context.addIssue({
+            code: z.ZodIssueCode.custom,
+            message: 'Invalid cursor',
+          });
+          return z.NEVER;
+        }
+        return decoded;
+      })
+      .optional(),
+    limit: z
+      .string()
+      .regex(/^\d+$/)
+      .transform(Number)
+      .default('50')
+      .refine((val) => val >= 1 && val <= 200, {
+        message: 'Limit must be between 1 and 200',
+      }),
+    q: z.string().max(255).optional(), // Search query
+    status: z.enum(['active', 'exited', 'written-off']).optional(),
+    sector: z.string().max(100).optional(),
+    stage: z.string().max(50).optional(), // Investment stage (will be normalized)
+    sortBy: CompanyListSortBySchema.default('exit_moic_desc'),
+  })
+  .superRefine((query, context) => {
+    if (query.cursor && !isCompanyListCursorCompatible(query.cursor, query.sortBy)) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['cursor'],
+        message: 'Cursor does not match sort order',
+      });
+    }
+  });
 
 // ============================================================================
 // Type Definitions
@@ -220,6 +254,60 @@ interface CompanyListResponse {
 // Helper Functions
 // ============================================================================
 
+function decodeCompanyListCursor(cursor: string): CompanyListCursor | null {
+  if (!COMPANY_LIST_CURSOR_BASE64URL_PATTERN.test(cursor)) {
+    return null;
+  }
+
+  try {
+    const decoded = Buffer.from(cursor, 'base64url').toString('utf8');
+    const parsed = JSON.parse(decoded) as unknown;
+
+    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+      return null;
+    }
+
+    const payload = parsed as Record<string, unknown>;
+    const id = payload['id'];
+    const key = payload['k'];
+
+    if (!Object.prototype.hasOwnProperty.call(payload, 'k')) {
+      return null;
+    }
+
+    if (typeof id !== 'number' || !Number.isSafeInteger(id) || id <= 0) {
+      return null;
+    }
+
+    if (
+      key !== null &&
+      typeof key !== 'string' &&
+      (typeof key !== 'number' || !Number.isFinite(key))
+    ) {
+      return null;
+    }
+
+    return { k: key as CompanyListCursorKey, id };
+  } catch {
+    return null;
+  }
+}
+
+function isCompanyListCursorCompatible(
+  cursor: CompanyListCursor,
+  sortBy: CompanyListSortBy
+): boolean {
+  if (sortBy === 'name_asc') {
+    return typeof cursor.k === 'string';
+  }
+
+  if (sortBy === 'planned_reserves_desc') {
+    return typeof cursor.k === 'number';
+  }
+
+  return cursor.k === null || typeof cursor.k === 'number';
+}
+
 function allocationErrorText(error: unknown): string {
   if (error instanceof Error) return error.message;
   return String(error);
@@ -281,12 +369,135 @@ function plannedReservesSortValue(company: object): number {
   return 0;
 }
 
-function exitMoicSortValue(company: object): number {
+function exitMoicSortKey(company: object): number | null {
   if ('exitMoicBps' in company) {
-    return Number(company.exitMoicBps ?? Number.NEGATIVE_INFINITY);
+    if (company.exitMoicBps == null) {
+      return null;
+    }
+    const value = Number(company.exitMoicBps);
+    return Number.isFinite(value) ? value : null;
   }
 
-  return Number.NEGATIVE_INFINITY;
+  return null;
+}
+
+function companyListSortKey(
+  company: CompanyListSourceRow,
+  sortBy: CompanyListSortBy
+): CompanyListCursorKey {
+  if (sortBy === 'name_asc') {
+    return company.name;
+  }
+
+  if (sortBy === 'planned_reserves_desc') {
+    return plannedReservesSortValue(company);
+  }
+
+  return exitMoicSortKey(company);
+}
+
+function compareNullableNumberDesc(left: number | null, right: number | null): number {
+  if (left === null && right === null) {
+    return 0;
+  }
+  if (left === null) {
+    return 1;
+  }
+  if (right === null) {
+    return -1;
+  }
+  return right - left;
+}
+
+function compareCompanyListRows(
+  left: CompanyListSourceRow,
+  right: CompanyListSourceRow,
+  sortBy: CompanyListSortBy
+): number {
+  if (sortBy === 'name_asc') {
+    return left.name.localeCompare(right.name) || right.id - left.id;
+  }
+
+  if (sortBy === 'planned_reserves_desc') {
+    return plannedReservesSortValue(right) - plannedReservesSortValue(left) || right.id - left.id;
+  }
+
+  return (
+    compareNullableNumberDesc(exitMoicSortKey(left), exitMoicSortKey(right)) || right.id - left.id
+  );
+}
+
+function isAfterCompanyListCursor(
+  company: CompanyListSourceRow,
+  cursor: CompanyListCursor,
+  sortBy: CompanyListSortBy
+): boolean {
+  const key = companyListSortKey(company, sortBy);
+
+  if (sortBy === 'name_asc') {
+    return (
+      typeof key === 'string' &&
+      typeof cursor.k === 'string' &&
+      (key.localeCompare(cursor.k) > 0 || (key === cursor.k && company.id < cursor.id))
+    );
+  }
+
+  if (sortBy === 'planned_reserves_desc') {
+    return (
+      typeof key === 'number' &&
+      typeof cursor.k === 'number' &&
+      (key < cursor.k || (key === cursor.k && company.id < cursor.id))
+    );
+  }
+
+  if (cursor.k === null) {
+    return key === null && company.id < cursor.id;
+  }
+
+  return (
+    typeof cursor.k === 'number' &&
+    (key === null ||
+      (typeof key === 'number' && (key < cursor.k || (key === cursor.k && company.id < cursor.id))))
+  );
+}
+
+function encodeCompanyListCursor(company: CompanyListSourceRow, sortBy: CompanyListSortBy): string {
+  return Buffer.from(
+    JSON.stringify({ k: companyListSortKey(company, sortBy), id: company.id })
+  ).toString('base64url');
+}
+
+function requireCompanyListCursorNumberKey(cursor: CompanyListCursor): number {
+  if (typeof cursor.k !== 'number') {
+    throw new Error('Invalid numeric company-list cursor key');
+  }
+  return cursor.k;
+}
+
+function requireCompanyListCursorStringKey(cursor: CompanyListCursor): string {
+  if (typeof cursor.k !== 'string') {
+    throw new Error('Invalid string company-list cursor key');
+  }
+  return cursor.k;
+}
+
+function companyListCursorPredicate(cursor: CompanyListCursor, sortBy: CompanyListSortBy): SQL {
+  if (sortBy === 'planned_reserves_desc') {
+    const key = requireCompanyListCursorNumberKey(cursor);
+    return sql`(${portfolioCompanies.plannedReservesCents}, ${portfolioCompanies.id}) < (${key}, ${cursor.id})`;
+  }
+
+  if (sortBy === 'name_asc') {
+    const key = requireCompanyListCursorStringKey(cursor);
+    return sql`(${portfolioCompanies.name}, -${portfolioCompanies.id}) > (${key}, ${-cursor.id})`;
+  }
+
+  if (cursor.k === null) {
+    return sql`${portfolioCompanies.exitMoicBps} IS NULL AND ${portfolioCompanies.id} < ${cursor.id}`;
+  }
+
+  const key = requireCompanyListCursorNumberKey(cursor);
+  return sql`((${portfolioCompanies.exitMoicBps}, ${portfolioCompanies.id}) < (${key}, ${cursor.id}) OR ${portfolioCompanies.exitMoicBps} IS NULL)`;
 }
 
 function companyListItemFromRow(row: CompanyListSourceRow, fundId: number): CompanyListItem {
@@ -318,7 +529,7 @@ function companyListItemFromRow(row: CompanyListSourceRow, fundId: number): Comp
  * List portfolio companies with allocation data
  *
  * Query Parameters:
- * - cursor: ID of last company from previous page (for pagination)
+ * - cursor: Opaque cursor from previous page (for pagination)
  * - limit: Number of results (default: 50, max: 200)
  * - q: Search query (company name, case-insensitive)
  * - status: Filter by company status
@@ -406,11 +617,7 @@ router['get'](
 
       const sorted = storedAll
         .filter((company) => {
-          // Id-based cursor (id < cursor), identical to the DB branch above. NOTE:
-          // like the DB path, this only paginates correctly when id order aligns
-          // with the active sort; non-id sorts (exit_moic_desc, planned_reserves_desc,
-          // name_asc) can dup/skip across pages. Shared keyset defect tracked in #744.
-          if (query.cursor !== undefined && company.id >= query.cursor) {
+          if (query.cursor && !isAfterCompanyListCursor(company, query.cursor, query.sortBy)) {
             return false;
           }
           if (query.status && normalizeCompanyListStatus(company.status) !== query.status) {
@@ -427,22 +634,14 @@ router['get'](
           }
           return true;
         })
-        .sort((left, right) => {
-          if (query.sortBy === 'name_asc') {
-            return left.name.localeCompare(right.name) || right.id - left.id;
-          }
-          if (query.sortBy === 'planned_reserves_desc') {
-            return (
-              plannedReservesSortValue(right) - plannedReservesSortValue(left) || right.id - left.id
-            );
-          }
-          return exitMoicSortValue(right) - exitMoicSortValue(left) || right.id - left.id;
-        });
+        .sort((left, right) => compareCompanyListRows(left, right, query.sortBy));
 
       const memHasMore = sorted.length > query.limit;
       const page = memHasMore ? sorted.slice(0, query.limit) : sorted;
       const memNextCursor =
-        memHasMore && page.length > 0 ? String(page[page.length - 1]!.id) : null;
+        memHasMore && page.length > 0
+          ? encodeCompanyListCursor(page[page.length - 1]!, query.sortBy)
+          : null;
       const responseCompanies = page.map((company) => companyListItemFromRow(company, fundId));
 
       const response: CompanyListResponse = {
@@ -472,9 +671,9 @@ router['get'](
     // Build WHERE conditions
     const conditions: SQL[] = [eq(portfolioCompanies.fundId, fundId)];
 
-    // Cursor pagination (id < cursor for DESC ordering)
+    // Cursor pagination follows the active ORDER BY key plus id DESC tiebreaker.
     if (query.cursor !== undefined) {
-      conditions.push(lt(portfolioCompanies.id, query.cursor));
+      conditions.push(companyListCursorPredicate(query.cursor, query.sortBy));
     }
 
     // Status filter
@@ -553,16 +752,18 @@ router['get'](
     const hasMore = results.length > query.limit;
     const companies = hasMore ? results.slice(0, query.limit) : results;
 
-    // Get next cursor (last company ID)
+    // Get next cursor from the last row's active sort key and id.
     const nextCursor =
-      hasMore && companies.length > 0 ? companies[companies.length - 1]!.id.toString() : null;
+      hasMore && companies.length > 0
+        ? encodeCompanyListCursor(companies[companies.length - 1]!, query.sortBy)
+        : null;
 
     // Convert database results to response format
     const responseCompanies: CompanyListItem[] = companies.map((row: (typeof results)[number]) =>
       companyListItemFromRow(row, fundId)
     );
 
-    if (responseCompanies.length === 0 && !query.cursor) {
+    if (responseCompanies.length === 0 && query.cursor === undefined) {
       // Verify fund exists by checking if any companies exist for this fund
       const fundCheck = await db
         .select({ count: sql<number>`count(*)` })
