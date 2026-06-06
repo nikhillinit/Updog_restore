@@ -12,9 +12,12 @@
 #                   HARD boundary -- a single non-allowlisted change disqualifies
 #                   the fast path.
 # code:             Source-bearing changes that warrant the full ci-unified
-#                   pipeline. NOTE: excludes scripts/validation/** because those
-#                   are doc-validation scripts treated as docs by ci-unified.
-# docs:             Documentation changes (mirror of code's exclusions).
+#                   pipeline. Includes all of scripts/**; scripts/validation/**
+#                   is intentionally NOT excluded. A bare '!glob' negation under
+#                   dorny/paths-filter any-match semantics matches nearly every
+#                   path (everything except the negated glob), which made `code`
+#                   true for docs-only PRs and broke fast-path detection (#656).
+# docs:             Documentation changes.
 # docs_links:       Active documentation link-check inputs. Kept separate from
 #                   docs because docs intentionally excludes CHANGELOG.md.
 # code_with_validation:
@@ -95,7 +98,6 @@ code:
   - 'client/**'
   - 'shared/**'
   - 'scripts/**'
-  - '!scripts/validation/**'
   - 'tests/**'
   - 'tools/**'
   - 'eslint-rules/**'
