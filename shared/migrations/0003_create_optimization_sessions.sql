@@ -31,15 +31,15 @@ CREATE TABLE IF NOT EXISTS optimization_sessions (
 );
 
 -- Index for matrix lookup
-CREATE INDEX idx_optimization_sessions_matrix
+CREATE INDEX IF NOT EXISTS idx_optimization_sessions_matrix
   ON optimization_sessions (matrix_id);
 
 -- Index for status filtering
-CREATE INDEX idx_optimization_sessions_status
+CREATE INDEX IF NOT EXISTS idx_optimization_sessions_status
   ON optimization_sessions (status);
 
 -- Index for chronological ordering (DESC for most recent first)
-CREATE INDEX idx_optimization_sessions_created
+CREATE INDEX IF NOT EXISTS idx_optimization_sessions_created
   ON optimization_sessions (created_at DESC);
 
 -- Updated timestamp trigger
@@ -51,10 +51,20 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
-CREATE TRIGGER optimization_sessions_updated_at
-  BEFORE UPDATE ON optimization_sessions
-  FOR EACH ROW
-  EXECUTE FUNCTION update_optimization_sessions_updated_at();
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_trigger
+    WHERE tgname = 'optimization_sessions_updated_at'
+      AND tgrelid = 'optimization_sessions'::regclass
+  ) THEN
+    CREATE TRIGGER optimization_sessions_updated_at
+      BEFORE UPDATE ON optimization_sessions
+      FOR EACH ROW
+      EXECUTE FUNCTION update_optimization_sessions_updated_at();
+  END IF;
+END $$;
 
 -- Comments
 COMMENT ON TABLE optimization_sessions IS 'MILP optimization sessions with deterministic two-pass tie-break';

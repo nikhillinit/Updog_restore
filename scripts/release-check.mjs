@@ -30,8 +30,12 @@ const serverSurfaceTests = [
 
 const releaseOwnedPaths = [
   'docs/release',
+  'migrations',
+  'shared/migrations',
   'scripts/release-check.mjs',
   'tests/integration/fund-lifecycle-db.test.ts',
+  'tests/integration/migration-drift.test.ts',
+  'vitest.config.testcontainers.ts',
 ];
 
 function checkReleaseOwnedFilesTracked() {
@@ -93,6 +97,11 @@ if (skipDbProof) {
     name: 'Fund lifecycle DB proof',
     command:
       'cross-env TZ=UTC vitest run -c vitest.config.testcontainers.ts tests/integration/fund-lifecycle-db.test.ts',
+  });
+  steps.push({
+    name: 'Migration drift guard',
+    command:
+      'cross-env TZ=UTC vitest run -c vitest.config.testcontainers.ts tests/integration/migration-drift.test.ts',
   });
 }
 
