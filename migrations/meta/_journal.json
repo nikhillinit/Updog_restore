@@ -85,6 +85,34 @@
       "when": 1775606400000,
       "tag": "0010_fund_scenario_sets",
       "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1775692800000,
+      "tag": "0011_scenario_share_sensitivity_drift",
+      "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1775779200000,
+      "tag": "0012_sector_variance_drift",
+      "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "7",
+      "when": 1775865600000,
+      "tag": "0013_lp_reporting_core_drift",
+      "breakpoints": true
+    },
+    {
+      "idx": 15,
+      "version": "7",
+      "when": 1775952000000,
+      "tag": "0014_lp_evidence_sprint3_drift",
+      "breakpoints": true
     }
   ]
 }
