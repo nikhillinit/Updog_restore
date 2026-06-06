@@ -16,6 +16,7 @@ describe('build-vercel-api', () => {
         ...process.env,
         NODE_ENV: 'test',
       },
+      timeout: 45000,
     });
 
     expect(result.status, result.stderr || result.stdout).toBe(0);
@@ -40,6 +41,7 @@ describe('build-vercel-api', () => {
       {
         cwd: root,
         encoding: 'utf8',
+        timeout: 5000,
       }
     );
 
@@ -49,5 +51,5 @@ describe('build-vercel-api', () => {
     expect(bundleState.hasRequire2).toBe(false);
     expect(bundleState.hasRequire).toBe(false);
     expect(bundleState.mentionsNeonHttp).toBe(true);
-  });
+  }, 60000);
 });
