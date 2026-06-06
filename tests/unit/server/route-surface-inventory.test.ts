@@ -101,19 +101,26 @@ const routeSurfaceInventory = {
     intent: 'Core API route available through both active app bootstrap surfaces.',
   },
   reallocation: {
-    surfaceStatus: 'registerRoutes-only-defect',
+    surfaceStatus: 'both',
     registerRoutesMount: '/api/funds/:fundId/reallocation/*',
+    makeAppMount: '/api/funds/:fundId/reallocation/*',
     exposure: 'protected',
     endpoints: [
       {
         method: 'POST',
         path: '/api/funds/:fundId/reallocation/preview',
-        mountSurfaces: ['registerRoutes'],
+        mountSurfaces: ['registerRoutes', 'makeApp'],
+        authPosture: 'protected',
+      },
+      {
+        method: 'POST',
+        path: '/api/funds/:fundId/reallocation/commit',
+        mountSurfaces: ['registerRoutes', 'makeApp'],
         authPosture: 'protected',
       },
     ],
     intent:
-      'Current route gap: full-path router is registerRoutes-only and must not be silently blessed before extraction.',
+      'Fund-scoped reallocation router (preview + commit) mounted on both active bootstrap surfaces; guarded by parseFundIdParam + enforceProvidedFundScope.',
   },
   'api-docs': {
     surfaceStatus: 'makeApp-only-intentional',
@@ -486,8 +493,9 @@ describe('route surface inventory', () => {
     );
 
     expect(routeSurfaceInventory.reallocation).toMatchObject({
-      surfaceStatus: 'registerRoutes-only-defect',
+      surfaceStatus: 'both',
       registerRoutesMount: '/api/funds/:fundId/reallocation/*',
+      makeAppMount: '/api/funds/:fundId/reallocation/*',
       exposure: 'protected',
     });
 
@@ -581,7 +589,7 @@ describe('route surface inventory', () => {
     expect(appTs).toContain("app.use('/api/deals', dealPipelineRouter)");
 
     expect(routesTs).toContain('app.use(reallocationRoutes.default)');
-    expect(appTs).not.toContain('reallocationRoutes');
+    expect(appTs).toContain('app.use(reallocationRouter)');
 
     expect(appTs).toContain("app['get']('/api-docs'");
     expect(routesTs).not.toContain('/api-docs');
@@ -685,7 +693,7 @@ describe('route surface inventory', () => {
     });
   }, 30_000);
 
-  it('keeps reallocation on registerRoutes only', async () => {
+  it('exposes reallocation through both registerRoutes and makeApp', async () => {
     const { app: registerRoutesApp, server } = await makeRegisterRoutesApp();
     servers.push(server);
 
@@ -697,14 +705,17 @@ describe('route surface inventory', () => {
       error: 'Invalid fund ID',
     });
 
+    // After mounting on makeApp, a non-numeric fundId reaches the reallocation
+    // handler and returns its own 400 (NOT the makeApp catch-all 404). This
+    // 400-vs-404 distinction is a DB-free proof that the router is mounted.
     const makeApp = await makeAppWithTestAuth();
     const makeAppResponse = await request(makeApp)
       .post('/api/funds/not-a-number/reallocation/preview')
       .set('Authorization', await authorizationHeader())
       .send({});
-    expect(makeAppResponse.status).toBe(404);
-    expect(makeAppResponse.body).toEqual({
-      error: 'not_found',
+    expect(makeAppResponse.status).toBe(400);
+    expect(makeAppResponse.body).toMatchObject({
+      error: 'Invalid fund ID',
     });
   }, 30_000);
 
@@ -757,6 +768,21 @@ describe('route surface inventory', () => {
       .get('/api/funds/2/allocation-scenarios')
       .set('Authorization', await authorizationHeader());
     expect(unrestricted.status).not.toBe(403);
+  }, 30_000);
+
+  it('denies a scoped token cross-fund on reallocation (makeApp surface)', async () => {
+    const makeApp = await makeAppWithTestAuth();
+
+    // Scoped to fund 1, POSTing to fund 2 -> fund-scope denial before body parse.
+    const crossFund = await request(makeApp)
+      .post('/api/funds/2/reallocation/preview')
+      .set('Authorization', await scopedAuthorizationHeader([1]))
+      .send({
+        current_version: 1,
+        proposed_allocations: [{ company_id: 1, planned_reserves_cents: 0 }],
+      });
+    expect(crossFund.status).toBe(403);
+    expect(crossFund.body).toMatchObject({ code: 'FUND_ACCESS_DENIED' });
   }, 30_000);
 
   it('denies a scoped token cross-fund on the registerRoutes surface', async () => {
