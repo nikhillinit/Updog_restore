@@ -147,6 +147,10 @@ function companyRow(overrides: Record<string, unknown> = {}) {
   };
 }
 
+function cursorFor(payload: Record<string, unknown>) {
+  return Buffer.from(JSON.stringify(payload)).toString('base64url');
+}
+
 describe('allocations route contracts', () => {
   beforeEach(() => resetState());
 
@@ -194,7 +198,10 @@ describe('allocations route contracts', () => {
 
     expect(response.status).toBe(200);
     expect(Object.keys(response.body).sort()).toEqual(['companies', 'pagination']);
-    expect(response.body.pagination).toEqual({ next_cursor: '20', has_more: true });
+    expect(response.body.pagination).toEqual({
+      next_cursor: cursorFor({ k: 35000, id: 20 }),
+      has_more: true,
+    });
     expect(response.body.companies).toHaveLength(2);
     expect(Object.keys(response.body.companies[0]).sort()).toEqual([
       'allocation_cap_cents',
@@ -214,10 +221,7 @@ describe('allocations route contracts', () => {
     ]);
   });
 
-  // Covers the id-aligned ordering case only (fixture ids descend with MOIC), proving
-  // memory-mode pagination reaches page 2 with parity to the DB branch. The shared
-  // id-cursor-under-non-id-sort defect is tracked in #744, not asserted here.
-  it('GET /api/funds/:fundId/companies honors memory-mode cursor pagination for id-aligned ordering', async () => {
+  it('GET /api/funds/:fundId/companies honors memory-mode composite cursor pagination', async () => {
     storageState.kind = 'memory';
     storageState.getPortfolioCompanies.mockResolvedValue([
       companyRow({ id: 30, name: 'Gamma', exitMoicBps: 30000 }),
@@ -229,9 +233,14 @@ describe('allocations route contracts', () => {
 
     expect(firstPage.status).toBe(200);
     expect(firstPage.body.companies.map((company: { id: number }) => company.id)).toEqual([30, 20]);
-    expect(firstPage.body.pagination).toEqual({ next_cursor: '20', has_more: true });
+    expect(firstPage.body.pagination).toEqual({
+      next_cursor: cursorFor({ k: 20000, id: 20 }),
+      has_more: true,
+    });
 
-    const secondPage = await request(makeApp()).get('/api/funds/1/companies?limit=2&cursor=20');
+    const secondPage = await request(makeApp())
+      .get('/api/funds/1/companies')
+      .query({ limit: '2', cursor: firstPage.body.pagination.next_cursor });
 
     expect(secondPage.status).toBe(200);
     expect(secondPage.body.companies.map((company: { id: number }) => company.id)).toEqual([10]);
