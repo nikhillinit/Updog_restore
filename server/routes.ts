@@ -166,7 +166,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   if (FEATURES.metrics) {
     // Prometheus metrics endpoint (/metrics)
     const { metricsRouter } = await import('./routes/metrics-endpoint.js');
-    app.use(metricsRouter);
+    const { authenticateMetrics } = await import('./middleware/auth-metrics.js');
+    app.use(authenticateMetrics, metricsRouter);
 
     // Error budget reporting (/api/error-budget)
     await mountDefaultRoute(app, {

@@ -40,6 +40,7 @@ import performanceApiRouter from './routes/performance-api.js';
 import lpReportingImportsRouter from './routes/lp-reporting/imports.js';
 import lpReportingMetricRunsRouter from './routes/lp-reporting/metric-runs.js';
 import metricsRouter from './routes/metrics-endpoint.js';
+import { authenticateMetrics } from './middleware/auth-metrics.js';
 import { installRumIngressGuards } from './routes/metrics-rum-ingress.js';
 import { metricsRumRouter } from './routes/metrics-rum.js';
 import { swaggerSpec } from './config/swagger.js';
@@ -166,9 +167,9 @@ export function makeApp() {
   // Health endpoints (must be before other routes for /healthz)
   app.use(healthRouter);
 
-  // Metrics endpoints (public, no auth required)
-  app.use('/metrics', metricsRouter);
-  app.use('/api', metricsRouter);
+  // Metrics endpoints — auth required (METRICS_KEY or METRICS_ALLOW_FROM)
+  app.use('/metrics', authenticateMetrics, metricsRouter);
+  app.use('/api', authenticateMetrics, metricsRouter);
   installRumIngressGuards(app);
   app.use(metricsRumRouter);
   app.use('/api', metricsRumRouter);
@@ -248,12 +249,14 @@ export function makeApp() {
 
   // 404 + error handler
   app.use((_req: Request, res: Response) => res.status(404).json({ error: 'not_found' }));
-  app.use((err: HttpError, _req: Request, res: Response, _next: NextFunction) =>
-    res.status(err.status ?? 500).json({
-      error: 'internal',
-      message: err.message ?? 'unknown',
-    })
-  );
+  app.use((err: HttpError, _req: Request, res: Response, _next: NextFunction) => {
+    const status = err.status ?? 500;
+    const message =
+      status < 500 || process.env['NODE_ENV'] !== 'production'
+        ? (err.message ?? 'unknown')
+        : 'internal_error';
+    res.status(status).json({ error: 'internal', message });
+  });
 
   return app;
 }
