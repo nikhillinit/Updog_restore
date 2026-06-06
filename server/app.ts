@@ -25,6 +25,7 @@ import dualForecastRouter from './routes/dual-forecast.js';
 import allocationsRouter from './routes/allocations.js';
 import allocationScenariosRouter from './routes/allocation-scenarios.js';
 import fundScenarioSetsRouter from './routes/fund-scenario-sets.js';
+import reallocationRouter from './routes/reallocation.js';
 import backtestingRouter from './routes/backtesting.js';
 import fundsRouter from './routes/funds.js';
 import fundMetricsRouter from './routes/fund-metrics.js';
@@ -217,6 +218,10 @@ export function makeApp() {
   app.use('/api', allocationsRouter);
   app.use('/api', allocationScenariosRouter);
   app.use('/api', fundScenarioSetsRouter);
+
+  // Reallocation API (Phase 1b) - mounted at root; the router self-defines its
+  // full /api/funds/:fundId/reallocation/* paths (mirrors the registerRoutes mount).
+  app.use(reallocationRouter);
 
   // Deal Pipeline API (Sprint 1 - Deal tracking, DD, scoring)
   app.use('/api/deals', dealPipelineRouter);
