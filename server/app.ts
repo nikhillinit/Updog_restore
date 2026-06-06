@@ -248,12 +248,14 @@ export function makeApp() {
 
   // 404 + error handler
   app.use((_req: Request, res: Response) => res.status(404).json({ error: 'not_found' }));
-  app.use((err: HttpError, _req: Request, res: Response, _next: NextFunction) =>
-    res.status(err.status ?? 500).json({
-      error: 'internal',
-      message: err.message ?? 'unknown',
-    })
-  );
+  app.use((err: HttpError, _req: Request, res: Response, _next: NextFunction) => {
+    const status = err.status ?? 500;
+    const message =
+      status < 500 || process.env['NODE_ENV'] !== 'production'
+        ? (err.message ?? 'unknown')
+        : 'internal_error';
+    res.status(status).json({ error: 'internal', message });
+  });
 
   return app;
 }
