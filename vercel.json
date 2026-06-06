@@ -1,6 +1,6 @@
 {
   "version": 2,
-  "buildCommand": "npm run build:web",
+  "buildCommand": "npm run build:web && node scripts/build-vercel-api.mjs",
   "outputDirectory": "dist/public",
   "installCommand": "npm ci",
   "framework": "vite",
@@ -17,8 +17,8 @@
       "destination": "/api/metrics/:path*"
     },
     {
-      "source": "/api/:path*",
-      "destination": "/api/:path*"
+      "source": "/api/:slug*",
+      "destination": "/api/[...slug]"
     },
     {
       "source": "/:path*",
