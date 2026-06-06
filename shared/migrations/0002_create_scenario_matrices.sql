@@ -47,15 +47,15 @@ CREATE TABLE IF NOT EXISTS scenario_matrices (
 );
 
 -- Index for fund/taxonomy/status queries
-CREATE INDEX idx_scenario_matrices_fund_tax_status
+CREATE INDEX IF NOT EXISTS idx_scenario_matrices_fund_tax_status
   ON scenario_matrices (fund_id, taxonomy_version, status);
 
 -- Index for matrix key lookup
-CREATE INDEX idx_scenario_matrices_matrix_key
+CREATE INDEX IF NOT EXISTS idx_scenario_matrices_matrix_key
   ON scenario_matrices (matrix_key);
 
 -- Index for status filtering
-CREATE INDEX idx_scenario_matrices_status
+CREATE INDEX IF NOT EXISTS idx_scenario_matrices_status
   ON scenario_matrices (status);
 
 -- Updated timestamp trigger
@@ -67,10 +67,20 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
-CREATE TRIGGER scenario_matrices_updated_at
-  BEFORE UPDATE ON scenario_matrices
-  FOR EACH ROW
-  EXECUTE FUNCTION update_scenario_matrices_updated_at();
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_trigger
+    WHERE tgname = 'scenario_matrices_updated_at'
+      AND tgrelid = 'scenario_matrices'::regclass
+  ) THEN
+    CREATE TRIGGER scenario_matrices_updated_at
+      BEFORE UPDATE ON scenario_matrices
+      FOR EACH ROW
+      EXECUTE FUNCTION update_scenario_matrices_updated_at();
+  END IF;
+END $$;
 
 -- Comments
 COMMENT ON TABLE scenario_matrices IS 'Monte Carlo MOIC matrices with metadata (S x B dimensional arrays)';
