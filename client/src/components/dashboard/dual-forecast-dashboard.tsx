@@ -102,6 +102,7 @@ function DriftCallout({
 
 interface ForecastTooltipPayloadItem {
   name?: NameType;
+  dataKey?: NameType;
   value?: ValueType;
   color?: string;
   payload?: ForecastChartPoint;
@@ -130,8 +131,13 @@ function ForecastTooltip({
       <p className="mb-2 font-medium text-pov-charcoal">{label}</p>
       <div className="space-y-1">
         {payload.map((item) => (
-          <div key={String(item.name)} className="flex items-center justify-between gap-4">
-            <span className="text-charcoal-600">{formatForecastSeriesName(item.name)}</span>
+          <div
+            key={String(item.dataKey ?? item.name)}
+            className="flex items-center justify-between gap-4"
+          >
+            <span className="text-charcoal-600">
+              {formatForecastSeriesName(item.dataKey ?? item.name)}
+            </span>
             <span className="font-medium tabular-nums text-pov-charcoal">
               {formatRechartsMillionValue(item.value)}
             </span>
