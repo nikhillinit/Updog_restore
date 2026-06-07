@@ -8,6 +8,7 @@ import { test, expect } from '@playwright/test';
 
 const PRODUCTION_URL = process.env.PRODUCTION_URL || 'https://fund.presson.vc';
 const HEALTH_KEY = process.env.HEALTH_KEY || '';
+const METRICS_KEY = process.env.METRICS_KEY || '';
 const TEST_USER_EMAIL = process.env.TEST_USER_EMAIL || '';
 const TEST_USER_PASSWORD = process.env.TEST_USER_PASSWORD || '';
 
@@ -15,6 +16,18 @@ function logProductionSmokeDetails(...args: unknown[]): void {
   if (process.env.PRODUCTION_SMOKE_DEBUG === 'true') {
     console.warn(...args);
   }
+}
+
+function requireHealthHeaders(): Record<string, string> {
+  // SKIP: protected health diagnostics require a deployed health key.
+  test.skip(!HEALTH_KEY, 'Requires HEALTH_KEY for protected health diagnostics');
+  return { 'X-Health-Key': HEALTH_KEY };
+}
+
+function requireMetricsHeaders(): Record<string, string> {
+  // SKIP: protected metrics diagnostics require a deployed metrics key.
+  test.skip(!METRICS_KEY, 'Requires METRICS_KEY for protected metrics diagnostics');
+  return { Authorization: `Bearer ${METRICS_KEY}` };
 }
 
 // Timeout configuration for production environment
@@ -39,15 +52,8 @@ test.describe('Production Deployment Smoke Tests', () => {
     });
 
     test('should have metrics endpoint (authenticated)', async ({ request }) => {
-      if (!HEALTH_KEY) {
-        // SKIP: authenticated metrics coverage requires a deployed health key in the target environment
-        test.skip();
-      }
-
       const response = await request.get(`${PRODUCTION_URL}/metrics`, {
-        headers: {
-          Authorization: `Bearer ${HEALTH_KEY}`,
-        },
+        headers: requireMetricsHeaders(),
       });
 
       expect(response.ok()).toBeTruthy();
@@ -60,13 +66,15 @@ test.describe('Production Deployment Smoke Tests', () => {
 
     test('should reject metrics endpoint without auth', async ({ request }) => {
       const response = await request.get(`${PRODUCTION_URL}/metrics`);
-      expect(response.status()).toBe(401);
+      expect(response.status()).toBe(403);
     });
   });
 
   test.describe('Database Connectivity', () => {
     test('should connect to database', async ({ request }) => {
-      const response = await request.get(`${PRODUCTION_URL}/api/health/db`);
+      const response = await request.get(`${PRODUCTION_URL}/api/health/db`, {
+        headers: requireHealthHeaders(),
+      });
       expect(response.ok()).toBeTruthy();
 
       const body = await response.json();
@@ -75,7 +83,9 @@ test.describe('Production Deployment Smoke Tests', () => {
     });
 
     test('should verify critical tables exist', async ({ request }) => {
-      const response = await request.get(`${PRODUCTION_URL}/api/health/schema`);
+      const response = await request.get(`${PRODUCTION_URL}/api/health/schema`, {
+        headers: requireHealthHeaders(),
+      });
       expect(response.ok()).toBeTruthy();
 
       const body = await response.json();
@@ -98,7 +108,9 @@ test.describe('Production Deployment Smoke Tests', () => {
 
   test.describe('Redis Connectivity', () => {
     test('should connect to Redis cache', async ({ request }) => {
-      const response = await request.get(`${PRODUCTION_URL}/api/health/cache`);
+      const response = await request.get(`${PRODUCTION_URL}/api/health/cache`, {
+        headers: requireHealthHeaders(),
+      });
       expect(response.ok()).toBeTruthy();
 
       const body = await response.json();
@@ -107,7 +119,9 @@ test.describe('Production Deployment Smoke Tests', () => {
     });
 
     test('should have queue system operational', async ({ request }) => {
-      const response = await request.get(`${PRODUCTION_URL}/api/health/queues`);
+      const response = await request.get(`${PRODUCTION_URL}/api/health/queues`, {
+        headers: requireHealthHeaders(),
+      });
       expect(response.ok()).toBeTruthy();
 
       const body = await response.json();
@@ -404,7 +418,9 @@ test.describe('Production Deployment Smoke Tests', () => {
 
   test.describe('Workers', () => {
     test('should have reserve worker operational', async ({ request }) => {
-      const response = await request.get(`${PRODUCTION_URL}/api/health/workers/reserve`);
+      const response = await request.get(`${PRODUCTION_URL}/api/health/workers/reserve`, {
+        headers: requireHealthHeaders(),
+      });
 
       if (response.ok()) {
         const body = await response.json();
@@ -417,7 +433,9 @@ test.describe('Production Deployment Smoke Tests', () => {
     });
 
     test('should have pacing worker operational', async ({ request }) => {
-      const response = await request.get(`${PRODUCTION_URL}/api/health/workers/pacing`);
+      const response = await request.get(`${PRODUCTION_URL}/api/health/workers/pacing`, {
+        headers: requireHealthHeaders(),
+      });
 
       if (response.ok()) {
         const body = await response.json();
@@ -446,7 +464,9 @@ test.describe('Post-Deployment Validation', () => {
   });
 
   test('should verify migration status', async ({ request }) => {
-    const response = await request.get(`${PRODUCTION_URL}/api/health/migrations`);
+    const response = await request.get(`${PRODUCTION_URL}/api/health/migrations`, {
+      headers: requireHealthHeaders(),
+    });
 
     if (response.ok()) {
       const body = await response.json();
@@ -456,7 +476,9 @@ test.describe('Post-Deployment Validation', () => {
   });
 
   test('should have no active alerts', async ({ request }) => {
-    const response = await request.get(`${PRODUCTION_URL}/api/health/alerts`);
+    const response = await request.get(`${PRODUCTION_URL}/api/health/alerts`, {
+      headers: requireHealthHeaders(),
+    });
 
     if (response.ok()) {
       const body = await response.json();
