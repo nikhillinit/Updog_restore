@@ -1,3 +1,3 @@
-// Tests are in dual-forecast-display.test.ts (server project, pure TS, no DOM).
-// This file exists only to satisfy client-project globs without conflicts.
-export {};
+// The client project only includes .tsx tests, so this shim runs the pure helper
+// coverage from the .ts file under the client Vitest project as well.
+import './dual-forecast-display.test';
