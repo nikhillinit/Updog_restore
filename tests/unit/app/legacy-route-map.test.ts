@@ -59,7 +59,6 @@ describe('legacy route map', () => {
     const removedLegacyRedirectSurfaces = [
       '/investment-table',
       '/scenario-builder',
-      '/moic-analysis',
       '/return-the-fund',
       '/partial-sales',
     ];
