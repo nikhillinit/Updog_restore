@@ -18,6 +18,7 @@ const ForecastingPage = React.lazy(() => import('@/pages/forecasting'));
 const ModelResultsPage = React.lazy(() => import('@/pages/model-results'));
 const SensitivityAnalysisPage = React.lazy(() => import('@/pages/sensitivity-analysis'));
 const ReservesDemo = React.lazy(() => import('@/pages/reserves-demo'));
+const MOICAnalysisPage = React.lazy(() => import('@/pages/moic-analysis'));
 const AllocationManager = React.lazy(() => import('@/pages/allocation-manager'));
 const CashManagement = React.lazy(() => import('@/pages/cash-management'));
 const PortfolioAnalytics = React.lazy(() => import('@/pages/portfolio-analytics'));
@@ -78,7 +79,11 @@ export const APP_ROUTES: AppRouteEntry[] = [
   { path: '/forecasting', component: ForecastingPage, isProtected: true },
   { path: '/financial-modeling', component: FinancialModelingPage, isProtected: true },
   { path: '/model-results', component: ModelResultsPage, isProtected: true },
-  { path: '/fund-model-results/:fundId/scenarios', component: FundScenarioWorkspace, isProtected: true },
+  {
+    path: '/fund-model-results/:fundId/scenarios',
+    component: FundScenarioWorkspace,
+    isProtected: true,
+  },
   { path: '/fund-model-results/:fundId', component: FundModelResults, isProtected: true },
   { path: '/sensitivity-analysis', component: SensitivityAnalysisPage, isProtected: true },
   { path: '/allocation-manager', component: AllocationManager, isProtected: true },
@@ -86,6 +91,7 @@ export const APP_ROUTES: AppRouteEntry[] = [
   { path: '/portfolio-analytics', component: PortfolioAnalytics, isProtected: true },
   { path: '/cap-tables', component: CapTables, isProtected: true },
   { path: '/reports', component: Reports, isProtected: true },
+  { path: '/moic-analysis', component: MOICAnalysisPage, isProtected: true },
   { path: '/variance-tracking', component: VarianceTrackingPage, isProtected: true },
   { path: '/pipeline', component: PipelinePage, isProtected: true },
   { path: '/lp-reporting/ledger', component: LpReportingLedgerPage, isProtected: true },

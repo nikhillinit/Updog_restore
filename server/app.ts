@@ -14,6 +14,7 @@ import dualForecastRouter from './routes/dual-forecast.js';
 import allocationsRouter from './routes/allocations.js';
 import allocationScenariosRouter from './routes/allocation-scenarios.js';
 import fundScenarioSetsRouter from './routes/fund-scenario-sets.js';
+import fundMoicRouter from './routes/fund-moic.js';
 import reallocationRouter from './routes/reallocation.js';
 import backtestingRouter from './routes/backtesting.js';
 import fundsRouter from './routes/funds.js';
@@ -211,6 +212,7 @@ export function makeApp() {
   app.use('/api', allocationsRouter);
   app.use('/api', allocationScenariosRouter);
   app.use('/api', fundScenarioSetsRouter);
+  app.use('/api', fundMoicRouter);
 
   // Reallocation API (Phase 1b) - mounted at root; the router self-defines its
   // full /api/funds/:fundId/reallocation/* paths (mirrors the registerRoutes mount).
