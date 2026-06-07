@@ -1,6 +1,6 @@
 ---
 status: PROVEN
-last_updated: 2026-06-04
+last_updated: 2026-06-06
 ---
 
 # Lean Spine Internal Release Notes
@@ -54,9 +54,9 @@ The fund lifecycle DB proof is an inline no-Redis proof for reserve and pacing
 snapshot publication. The scenario release gate remains the Redis-backed
 worker-path proof. Do not merge those claims together.
 
-Current-head CI evidence: `CI Unified` run `27059620383` completed successfully
-on `037cef40287ddd3362d6e348c42ea18ce6d57285`. This is baseline health only, not
-release proof.
+Current-head CI evidence: `CI Unified` completed successfully on
+`7eb20a37033542cd173a5889c81d98e565bb4aec` (post-#801 head). This is baseline
+health only, not release proof.
 
 Current local release-check evidence (PROVEN): on 2026-06-06,
 `npm run release:check` passed end-to-end -- all ten stages, exit 0 -- without
@@ -71,29 +71,71 @@ tests), server/CI surface lock (9 files, 144 tests), the fund lifecycle DB proof
 core validation (265+ tests, 2 skipped), the production build (build
 verification passed), the whitespace diff, and release-owned file tracking.
 
-Three journaled-migration fixes were required so a migration-built database
-matches the Drizzle schema the application code targets; all three are landed on
-`main`:
+Note: the above release:check run was on `037cef40`. PRs #799-#801 have since
+landed. A re-run against the current head (`7eb20a37`) in WSL2 is required
+before the next release cut.
 
-- `shared/migrations/0001_create_job_outbox.sql` -- the `job_outbox` indexes now
-  use `CREATE INDEX IF NOT EXISTS`, matching Drizzle `0005` so the shared raw
-  SQL no longer collides with the Drizzle-applied indexes.
+## Journaled Migration History (issue #781 closed)
+
+Issue #781 (schema-to-journaled-migration drift) is closed by PR #799. Seven
+journal migrations are now on `main` and replay-safe:
+
+- `shared/migrations/0001_create_job_outbox.sql` -- `job_outbox` indexes use
+  `CREATE INDEX IF NOT EXISTS`, matching Drizzle `0005` to avoid collision.
 - `migrations/0009_fund_snapshots_scenario_set_id.sql` -- adds
-  `fund_snapshots.scenario_set_id` plus its partial unique dedup index, which
-  the finalize -> publish reserve and pacing snapshot inserts require
-  (previously failed with Postgres `42703`).
+  `fund_snapshots.scenario_set_id` and its partial unique dedup index.
 - `migrations/0010_fund_scenario_sets.sql` -- journals `fund_scenario_sets` and
-  `fund_scenario_variants`, so `GET /api/funds/:fundId/results` resolves its
-  scenarios section to a clean `SCENARIOS_NONE_EXIST` instead of a caught
-  `SCENARIOS_LOAD_FAILED` on a migration-built database.
+  `fund_scenario_variants`.
+- `migrations/0011_scenario_share_sensitivity_drift.sql` -- journals
+  `fund_scenario_set_events`, `fund_scenario_calculation_runs`,
+  `scenario_matrices`, `optimization_sessions`, `shares`, `share_snapshots`,
+  `share_analytics`, and `sensitivity_runs`.
+- `migrations/0012_sector_variance_drift.sql` -- journals `sector_taxonomy`,
+  `sector_mappings`, `company_overrides`, `investment_overrides`,
+  `cohort_definitions`, and `variance_planner_leader`.
+- `migrations/0013_lp_reporting_core_drift.sql` -- journals the LP reporting
+  core tables (`limited_partners`, `lp_fund_commitments`, `capital_activities`,
+  `lp_distributions`, `lp_capital_accounts`, `lp_performance_snapshots`,
+  `lp_reports`, `report_templates`, `lp_audit_log`, `vehicles`,
+  `cash_flow_events`, `valuation_marks`, `lp_metric_runs`, `narrative_runs`,
+  `evidence_records`, `lp_report_packages`, `lp_report_package_exports`,
+  `lp_vehicle_participation`, `lp_vehicle_participation_history`).
+- `migrations/0014_lp_evidence_sprint3_drift.sql` -- journals LP sprint-3 tables
+  (`lp_capital_calls`, `lp_payment_submissions`, `lp_distribution_details`,
+  `lp_documents`, `lp_notifications`, `lp_notification_preferences`).
 
-Scope honesty: the release-check gate is proven green, but "gate green" is not
-"all migrations reconciled." Residual schema-to-journaled-migration drift
-remains and is NOT exercised by this gate -- the rest of the scenario-set family
-(`fund_scenario_set_events`, `fund_scenario_calculation_runs`), the LP, shares,
-and sector schema families, and the split between the journaled `./migrations`
-stream and the unwired `server/db/migrations/` stream. Reconciling those is
-tracked in issue #781, not a release-check blocker.
+A migration drift guard (`tests/integration/migration-drift.test.ts`) now runs
+inside `release:check` as a dedicated stage after the fund lifecycle DB proof.
+It replays all journaled migrations against a Testcontainers Postgres instance
+and asserts table presence for the full #781 table set. Table-presence parity is
+the current guard scope; column/index/constraint parity is not enforced and
+remains a future improvement if regressions emerge.
+
+## Observability and Security Hardening (#800-#801)
+
+PR #800 (merged 2026-06-06):
+
+- `authenticateMetrics` wired on all three metrics mount surfaces
+  (`registerRoutes`, `makeApp`, `createServer`). Requires `METRICS_KEY` bearer
+  token or `METRICS_ALLOW_FROM` IP allowlist in production; denies by default.
+- `makeApp()` 500 error handler now returns `"internal_error"` in production
+  instead of the raw `err.message`. Dev and 4xx responses retain real messages.
+
+PR #801 (merged 2026-06-06):
+
+- Detailed health diagnostics (`/api/health/schema`, `/api/health/migrations`,
+  `/api/health/queues`, `/api/health/workers/:type`, `/api/health/db`,
+  `/api/health/cache`, `/api/health/alerts`) now require `X-Health-Key` header
+  or bearer JWT auth. Minimal probes (`/healthz`, `/readyz`, `/health`,
+  `/api/health/ready`, `/api/health/live`) remain public.
+- RUM origin validation replaced `startsWith` prefix matching with
+  `new URL().origin` exact matching, closing the
+  `https://app.example.com.evil.com` bypass.
+- `public-api-boundary.ts` allowlist tightened to exact minimal paths only.
+
+Production smoke for the #800-#801 auth boundaries has not been run against a
+deployed Vercel environment. This is required before the next release cut (see
+M1 in the prioritized backlog).
 
 Current visual/a11y evidence: the route-governed screenshot audit passes across
 54 desktop/mobile captures with LP reporting enabled, including scenario
