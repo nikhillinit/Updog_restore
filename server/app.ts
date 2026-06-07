@@ -1,16 +1,5 @@
 import type { Request, Response, NextFunction } from 'express';
 import express from 'express';
-
-// Extended Request interface for request ID tracking
-interface RequestWithId extends Request {
-  rid?: string;
-}
-
-// Error type for error handler
-interface HttpError {
-  status?: number;
-  message?: string;
-}
 import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
 import crypto from 'node:crypto';
@@ -40,13 +29,13 @@ import performanceApiRouter from './routes/performance-api.js';
 import lpReportingImportsRouter from './routes/lp-reporting/imports.js';
 import lpReportingMetricRunsRouter from './routes/lp-reporting/metric-runs.js';
 import metricsRouter from './routes/metrics-endpoint.js';
-import { authenticateMetrics } from './middleware/auth-metrics.js';
 import { installRumIngressGuards } from './routes/metrics-rum-ingress.js';
 import { metricsRumRouter } from './routes/metrics-rum.js';
 import { swaggerSpec } from './config/swagger.js';
 import { cspDirectives, securityHeaders } from './config/csp.js';
 import { requireAuth } from './lib/auth/jwt.js';
 import { isPublicApiPath } from './lib/public-api-boundary.js';
+import { errorHandler } from './errors.js';
 
 export function makeApp() {
   const app = express();
@@ -128,9 +117,11 @@ export function makeApp() {
   // JSON limit + Request IDs + Rate limit
   app.use(express['json']({ limit: '256kb' }));
   app.use((req: Request, res: Response, next: NextFunction) => {
-    const reqWithId = req as RequestWithId;
-    reqWithId.rid = (req.headers['x-request-id'] as string | undefined) || crypto.randomUUID();
-    res.setHeader('x-request-id', reqWithId.rid);
+    const requestId = (req.headers['x-request-id'] as string | undefined) || crypto.randomUUID();
+    req.rid = requestId;
+    req.id = requestId;
+    req.requestId = requestId;
+    res.setHeader('x-request-id', requestId);
     next();
   });
   app.use(rateLimit({ windowMs: rateLimitWindowMs, max: rateLimitMax, standardHeaders: true }));
@@ -168,8 +159,8 @@ export function makeApp() {
   app.use(healthRouter);
 
   // Metrics endpoints — auth required (METRICS_KEY or METRICS_ALLOW_FROM)
-  app.use('/metrics', authenticateMetrics, metricsRouter);
-  app.use('/api', authenticateMetrics, metricsRouter);
+  app.use(metricsRouter);
+  app.use('/api', metricsRouter);
   installRumIngressGuards(app);
   app.use(metricsRumRouter);
   app.use('/api', metricsRumRouter);
@@ -177,7 +168,8 @@ export function makeApp() {
   const requireApiAuth = requireAuth();
 
   // Keep the makeApp/serverless surface aligned with the canonical /api boundary:
-  // health/flags status/metrics remain public, while fund data stays authenticated.
+  // minimal health probes and explicitly public product routes remain public,
+  // while fund data and detailed observability stay authenticated.
   app.use('/api', (req: Request, res: Response, next: NextFunction) => {
     if (isPublicApiPath(req.method, req.path)) {
       return next();
@@ -249,14 +241,7 @@ export function makeApp() {
 
   // 404 + error handler
   app.use((_req: Request, res: Response) => res.status(404).json({ error: 'not_found' }));
-  app.use((err: HttpError, _req: Request, res: Response, _next: NextFunction) => {
-    const status = err.status ?? 500;
-    const message =
-      status < 500 || process.env['NODE_ENV'] !== 'production'
-        ? (err.message ?? 'unknown')
-        : 'internal_error';
-    res.status(status).json({ error: 'internal', message });
-  });
+  app.use(errorHandler());
 
   return app;
 }

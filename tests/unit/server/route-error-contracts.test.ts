@@ -129,6 +129,7 @@ describe('route error contracts', () => {
 
   afterEach(async () => {
     await Promise.all(servers.splice(0).map((server) => closeServer(server)));
+    vi.doUnmock('../../../server/routes/ai.js');
     restoreEnv();
     vi.restoreAllMocks();
   });
@@ -191,6 +192,43 @@ describe('route error contracts', () => {
     expect(response.headers['x-request-id']).toEqual(expect.any(String));
     expect(response.body).toMatchObject({
       error: 'validation_error',
+    });
+  }, 30_000);
+
+  it('pins makeApp fallback error masking to the shared error handler contract', async () => {
+    configureDevelopmentAuthBypass();
+    vi.doMock('../../../server/routes/ai.js', () => {
+      const router = express.Router();
+      router.get('/contract-4xx', (_req, _res, next) => {
+        next(Object.assign(new Error('Route contract validation failed'), { status: 400 }));
+      });
+      router.get('/contract-5xx', (_req, _res, next) => {
+        next(Object.assign(new Error('database password leaked in stack'), { status: 500 }));
+      });
+      return { default: router };
+    });
+
+    const { makeApp } = await import('../../../server/app');
+    const app = makeApp();
+
+    const clientError = await request(app).get('/api/ai/contract-4xx');
+    expect(clientError.status).toBe(400);
+    expect(clientError.headers['x-request-id']).toEqual(expect.any(String));
+    expect(clientError.body).toEqual({
+      code: 'BAD_REQUEST',
+      message: 'Route contract validation failed',
+      requestId: clientError.headers['x-request-id'],
+      ts: expect.any(String),
+    });
+
+    const serverError = await request(app).get('/api/ai/contract-5xx');
+    expect(serverError.status).toBe(500);
+    expect(serverError.headers['x-request-id']).toEqual(expect.any(String));
+    expect(serverError.body).toEqual({
+      code: 'INTERNAL_ERROR',
+      message: 'Internal Server Error',
+      requestId: serverError.headers['x-request-id'],
+      ts: expect.any(String),
     });
   }, 30_000);
 });

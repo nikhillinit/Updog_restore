@@ -4,13 +4,8 @@ import { createRouteLogger } from '../lib/route-logger.js';
 
 const routeLog = createRouteLogger('metrics-rum.guard');
 
-// Parse allowed origins from environment
-const ORIGINS = (process.env['RUM_ORIGIN_ALLOWLIST'] || '')
-  .split(',')
-  .map((s) => s.trim())
-  .filter(Boolean);
 const SAMPLE = Number(process.env['RUM_SAMPLE_RATE'] || '0.2'); // 20% default sampling
-const RUM_PATH_PREFIX = '/metrics/rum';
+const RUM_PATH_PREFIXES = ['/metrics/rum', '/api/metrics/rum'];
 const UUID_SEGMENT_PATTERN = /\/[a-f0-9-]{36}/gi;
 const LARGE_NUMERIC_SEGMENT_PATTERN = /\/\d{5,}/g;
 
@@ -35,8 +30,38 @@ export function sanitizeRumPathname(pathname: string): string {
     .replace(LARGE_NUMERIC_SEGMENT_PATTERN, '/:id');
 }
 
+function parseHttpOrigin(value: string): string | undefined {
+  if (!value) {
+    return undefined;
+  }
+
+  try {
+    const parsed = new URL(value);
+    if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
+      return undefined;
+    }
+
+    return parsed.origin;
+  } catch {
+    return undefined;
+  }
+}
+
+function getAllowedOrigins(): string[] {
+  return (process.env['RUM_ORIGIN_ALLOWLIST'] || '')
+    .split(',')
+    .map((s) => parseHttpOrigin(s.trim()))
+    .filter((origin): origin is string => Boolean(origin));
+}
+
 function isRumRequest(req: Request): boolean {
-  return req.path === RUM_PATH_PREFIX || req.path.startsWith(`${RUM_PATH_PREFIX}/`);
+  return RUM_PATH_PREFIXES.some(
+    (prefix) => req.path === prefix || req.path.startsWith(`${prefix}/`)
+  );
+}
+
+function isProductionRumEnabled(): boolean {
+  return process.env['NODE_ENV'] === 'production' && process.env['ENABLE_RUM_V2'] === '1';
 }
 
 /**
@@ -48,7 +73,9 @@ export function rumOriginGuard(req: Request, res: Response, next: NextFunction) 
   }
 
   // In development, allow all origins
-  if (process.env['NODE_ENV'] === 'development' && ORIGINS.length === 0) {
+  const allowedOrigins = getAllowedOrigins();
+
+  if (process.env['NODE_ENV'] === 'development' && allowedOrigins.length === 0) {
     return next();
   }
 
@@ -56,13 +83,20 @@ export function rumOriginGuard(req: Request, res: Response, next: NextFunction) 
   const referer = req['get']('referer') || '';
 
   // Allow if no allowlist configured (opt-in security)
-  if (ORIGINS.length === 0) {
+  if (allowedOrigins.length === 0) {
+    if (isProductionRumEnabled()) {
+      routeLog.warn('RUM_ORIGIN_ALLOWLIST required when production RUM is enabled');
+      return res.status(403).json({ error: 'forbidden_origin' });
+    }
+
     routeLog.warn('RUM_ORIGIN_ALLOWLIST not configured - accepting all origins');
     return next();
   }
 
-  // Check if origin or referer matches allowlist
-  const ok = ORIGINS.some((o) => origin.startsWith(o) || referer.startsWith(o));
+  const requestOrigins = [parseHttpOrigin(origin), parseHttpOrigin(referer)].filter(
+    (value): value is string => Boolean(value)
+  );
+  const ok = requestOrigins.some((requestOrigin) => allowedOrigins.includes(requestOrigin));
 
   if (!ok) {
     routeLog.warn(`RUM origin blocked: ${origin || referer}`);
