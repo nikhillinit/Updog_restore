@@ -409,6 +409,11 @@ describe('DynamicFundHeader', () => {
 
     render(<DynamicFundHeader />);
 
+    const summary = screen.getByLabelText('Selected fund KPI summary');
+    expect(summary).toHaveClass('grid-flow-col');
+    expect(summary).toHaveClass('auto-cols-[7rem]');
+    expect(summary).toHaveClass('sm:grid-cols-6');
+
     const panel = screen.getByTestId('header-kpis');
     const cards = within(panel).getAllByTestId(/^compact-kpi-/);
     expect(cards.map((card) => card.textContent)).toEqual([

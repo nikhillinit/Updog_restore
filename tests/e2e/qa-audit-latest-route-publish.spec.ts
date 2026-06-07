@@ -158,6 +158,56 @@ const ROUTE_DUAL_FORECAST = {
         irr: 0.185,
       },
     },
+    {
+      quarterIndex: 2,
+      label: 'Q3 2026',
+      date: '2026-09-30',
+      construction: {
+        nav: 52_000_000,
+        calledCapital: 28_000_000,
+        distributions: 2_000_000,
+        tvpi: null,
+        dpi: null,
+        rvpi: null,
+        irr: null,
+      },
+      actual: null,
+      currentMode: 'forecast',
+      current: {
+        nav: 50_000_000,
+        calledCapital: 29_000_000,
+        distributions: 1_800_000,
+        tvpi: null,
+        dpi: null,
+        rvpi: null,
+        irr: null,
+      },
+    },
+    {
+      quarterIndex: 3,
+      label: 'Q4 2026',
+      date: '2026-12-31',
+      construction: {
+        nav: 59_000_000,
+        calledCapital: 34_000_000,
+        distributions: 3_000_000,
+        tvpi: null,
+        dpi: null,
+        rvpi: null,
+        irr: null,
+      },
+      actual: null,
+      currentMode: 'forecast',
+      current: {
+        nav: 51_000_000,
+        calledCapital: 39_000_000,
+        distributions: 2_500_000,
+        tvpi: null,
+        dpi: null,
+        rvpi: null,
+        irr: null,
+      },
+    },
   ],
   sources: {
     construction: 'construction_forecast_jcurve',
@@ -465,10 +515,14 @@ test.describe('latest QA route/nav/publish closeout matrix', () => {
           page.getByText(/select or create a fund to view forecasting data/i)
         ).not.toBeVisible();
       } else {
+        // /forecasting?fundId=1 — full forecast surface with drift callouts
         await expect(
           page.getByRole('heading', { name: /financial modeling & forecasting/i })
         ).toBeVisible();
         await expect(page.getByText(/fund value forecast/i)).toBeVisible();
+        await expect(page.getByLabel('Forecast drift summary')).toContainText('Q4 2026 NAV drift');
+        await expect(page.getByLabel('Forecast drift summary')).toContainText('-$8M');
+        await expect(page.getByLabel('Called capital drift summary')).toContainText('+$5M');
       }
     }
 
