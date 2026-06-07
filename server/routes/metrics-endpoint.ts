@@ -4,6 +4,7 @@
 
 import type { Request, Response } from 'express';
 import { Router } from 'express';
+import { authenticateMetrics } from '../middleware/auth-metrics.js';
 import { getMetrics, getContentType } from '../observability/production-metrics.js';
 import { createRouteLogger } from '../lib/route-logger.js';
 
@@ -15,7 +16,7 @@ export const metricsRouter = Router();
  * GET /metrics
  * Prometheus metrics endpoint
  */
-metricsRouter['get']('/metrics', async (req: Request, res: Response) => {
+metricsRouter['get']('/metrics', authenticateMetrics, async (_req: Request, res: Response) => {
   try {
     const metrics = await getMetrics();
 

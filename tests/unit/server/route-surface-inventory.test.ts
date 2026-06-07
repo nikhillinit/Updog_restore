@@ -32,7 +32,7 @@ type SurfaceStatus =
   | 'makeApp-only-defect';
 
 type RouteSurface = 'registerRoutes' | 'makeApp' | 'createServer';
-type AuthPosture = 'protected' | 'public-pre-auth';
+type AuthPosture = 'protected' | 'public-pre-auth' | 'health-key-or-auth';
 type HttpMethod = 'DELETE' | 'GET' | 'POST' | 'PUT';
 
 type RouteSurfaceEndpoint = {
@@ -54,7 +54,7 @@ type RouteSurfaceInventoryEntry = {
   registerRoutesMount?: string;
   makeAppMount?: string;
   createServerMount?: string;
-  exposure: AuthPosture;
+  exposure: AuthPosture | 'mixed';
   endpoints: readonly RouteSurfaceEndpoint[];
   externalOwnership?: ExternalOwnership;
   intent: string;
@@ -145,7 +145,7 @@ const routeSurfaceInventory = {
   health: {
     surfaceStatus: 'makeApp-only-intentional',
     makeAppMount: '/',
-    exposure: 'public-pre-auth',
+    exposure: 'mixed',
     endpoints: [
       {
         method: 'GET',
@@ -187,54 +187,84 @@ const routeSurfaceInventory = {
         method: 'GET',
         path: '/health/detailed-json',
         mountSurfaces: ['makeApp'],
-        authPosture: 'public-pre-auth',
+        authPosture: 'health-key-or-auth',
+      },
+      {
+        method: 'GET',
+        path: '/health/detailed',
+        mountSurfaces: ['makeApp'],
+        authPosture: 'health-key-or-auth',
       },
       {
         method: 'GET',
         path: '/health/inflight',
         mountSurfaces: ['makeApp'],
-        authPosture: 'public-pre-auth',
+        authPosture: 'health-key-or-auth',
       },
       {
         method: 'GET',
         path: '/api/health/db',
         mountSurfaces: ['makeApp'],
-        authPosture: 'public-pre-auth',
+        authPosture: 'health-key-or-auth',
       },
       {
         method: 'GET',
         path: '/api/health/cache',
         mountSurfaces: ['makeApp'],
-        authPosture: 'public-pre-auth',
+        authPosture: 'health-key-or-auth',
       },
       {
         method: 'GET',
         path: '/api/health/queues',
         mountSurfaces: ['makeApp'],
-        authPosture: 'public-pre-auth',
+        authPosture: 'health-key-or-auth',
+      },
+      {
+        method: 'GET',
+        path: '/api/health/schema',
+        mountSurfaces: ['makeApp'],
+        authPosture: 'health-key-or-auth',
+      },
+      {
+        method: 'GET',
+        path: '/api/health/migrations',
+        mountSurfaces: ['makeApp'],
+        authPosture: 'health-key-or-auth',
+      },
+      {
+        method: 'GET',
+        path: '/api/health/alerts',
+        mountSurfaces: ['makeApp'],
+        authPosture: 'health-key-or-auth',
+      },
+      {
+        method: 'GET',
+        path: '/api/health/workers/:workerType',
+        mountSurfaces: ['makeApp'],
+        authPosture: 'health-key-or-auth',
       },
     ],
     intent:
-      'Health probes are mounted before the makeApp auth boundary for platform readiness checks.',
+      'Minimal health probes remain public; detailed diagnostics require HEALTH_KEY or bearer auth.',
   },
   metrics: {
     surfaceStatus: 'both',
     registerRoutesMount: '/metrics',
     makeAppMount: '/metrics + /api/metrics',
     createServerMount: '/metrics + /api/metrics',
-    exposure: 'public-pre-auth',
+    exposure: 'protected',
     endpoints: [
       {
         method: 'GET',
         path: '/metrics',
         mountSurfaces: ['registerRoutes', 'makeApp', 'createServer'],
-        authPosture: 'public-pre-auth',
+        authPosture: 'protected',
       },
       {
         method: 'GET',
         path: '/api/metrics',
         mountSurfaces: ['makeApp', 'createServer'],
-        authPosture: 'public-pre-auth',
+        authPosture: 'protected',
         aliasOf: '/metrics',
       },
     ],
@@ -244,7 +274,7 @@ const routeSurfaceInventory = {
       evidenceFiles: ['docs/observability.md'],
     },
     intent:
-      'Operational telemetry endpoint mounted before auth; /api/metrics is a compatibility alias for serverless/API-base consumers.',
+      'Operational telemetry endpoint is self-authenticating; /api/metrics is a compatibility alias for serverless/API-base consumers.',
   },
   rum: {
     surfaceStatus: 'makeApp-and-createServer-intentional',
@@ -332,6 +362,9 @@ const ENV_KEYS = [
   'JWT_JWKS_URL',
   '_EXPLICIT_JWT_JWKS_URL',
   'SESSION_SECRET',
+  'METRICS_KEY',
+  'METRICS_ALLOW_FROM',
+  'HEALTH_KEY',
 ] as const;
 
 const originalEnv = new Map<string, string | undefined>();
@@ -380,6 +413,9 @@ function configureTestAuthEnv() {
   delete process.env.JWT_JWKS_URL;
   delete process.env._EXPLICIT_JWT_JWKS_URL;
   process.env.SESSION_SECRET = 'route-surface-session-secret-32-chars-min';
+  process.env.METRICS_KEY = 'route-surface-metrics-secret-32-chars-min';
+  delete process.env.METRICS_ALLOW_FROM;
+  process.env.HEALTH_KEY = 'route-surface-health-secret-32-chars-min';
 }
 
 async function makeAppWithTestAuth() {
@@ -517,24 +553,34 @@ describe('route surface inventory', () => {
           path: '/api/health/ready',
           authPosture: 'public-pre-auth',
         }),
+        expect.objectContaining({
+          method: 'GET',
+          path: '/api/health/schema',
+          authPosture: 'health-key-or-auth',
+        }),
+        expect.objectContaining({
+          method: 'GET',
+          path: '/api/health/workers/:workerType',
+          authPosture: 'health-key-or-auth',
+        }),
       ])
     );
   });
 
-  it('pins public telemetry aliases to owners, consumers, and auth posture', () => {
+  it('pins telemetry aliases to owners, consumers, and auth posture', () => {
     expect(routeSurfaceInventory.metrics.endpoints).toEqual(
       expect.arrayContaining([
         {
           method: 'GET',
           path: '/metrics',
           mountSurfaces: ['registerRoutes', 'makeApp', 'createServer'],
-          authPosture: 'public-pre-auth',
+          authPosture: 'protected',
         },
         {
           method: 'GET',
           path: '/api/metrics',
           mountSurfaces: ['makeApp', 'createServer'],
-          authPosture: 'public-pre-auth',
+          authPosture: 'protected',
           aliasOf: '/metrics',
         },
       ])
@@ -619,13 +665,14 @@ describe('route surface inventory', () => {
       readRepoFile('docs/observability/rum.md'),
     ]);
 
-    expect(routesTs).toContain('app.use(authenticateMetrics, metricsRouter)');
+    expect(routesTs).toContain('app.use(metricsRouter)');
     expect(routesTs).not.toContain('metricsRumRouter');
-    expect(metricsEndpointTs).toContain("metricsRouter['get']('/metrics'");
+    expect(metricsEndpointTs).toContain('import { authenticateMetrics }');
+    expect(metricsEndpointTs).toContain("metricsRouter['get']('/metrics', authenticateMetrics");
 
     for (const source of [appTs, serverTs]) {
-      expect(source).toContain("app.use('/metrics', authenticateMetrics, metricsRouter)");
-      expect(source).toContain("app.use('/api', authenticateMetrics, metricsRouter)");
+      expect(source).toContain('app.use(metricsRouter)');
+      expect(source).toContain("app.use('/api', metricsRouter)");
       expect(source).toContain('installRumIngressGuards(app)');
       expect(source).toContain('app.use(metricsRumRouter)');
       expect(source).toContain("app.use('/api', metricsRumRouter)");
@@ -641,15 +688,19 @@ describe('route surface inventory', () => {
     expect(rumDoc).toContain('# Real User Monitoring (RUM)');
   });
 
-  it('keeps public telemetry and docs out of the protected API allowlist', () => {
+  it('keeps telemetry and docs out of the protected API allowlist', () => {
     expect(isPublicApiPath('GET', '/deals/opportunities')).toBe(false);
     expect(isPublicApiPath('POST', '/funds/1/reallocation/preview')).toBe(false);
     expect(isPublicApiPath('GET', '/metrics')).toBe(false);
     expect(isPublicApiPath('POST', '/metrics/rum')).toBe(false);
+    expect(isPublicApiPath('GET', '/health/schema')).toBe(false);
+    expect(isPublicApiPath('GET', '/health/queues')).toBe(false);
+    expect(isPublicApiPath('GET', '/health/workers/reserve')).toBe(false);
+    expect(isPublicApiPath('GET', '/health/ready')).toBe(true);
     expect(isPublicApiPath('GET', '/api-docs')).toBe(false);
   });
 
-  it('pins telemetry and docs publicness to pre-auth mount order', async () => {
+  it('pins telemetry and docs to pre-auth mount order with route-level telemetry auth', async () => {
     const [appTs, serverTs] = await Promise.all([
       readRepoFile('server/app.ts'),
       readRepoFile('server/server.ts'),
@@ -658,34 +709,59 @@ describe('route surface inventory', () => {
     const makeAppAuthBoundary = 'const requireApiAuth = requireAuth();';
     expectFragmentBefore(appTs, "app['get']('/api-docs'", makeAppAuthBoundary);
     expectFragmentBefore(appTs, "app['get']('/api-docs.json'", makeAppAuthBoundary);
-    expectFragmentBefore(
-      appTs,
-      "app.use('/metrics', authenticateMetrics, metricsRouter)",
-      makeAppAuthBoundary
-    );
-    expectFragmentBefore(
-      appTs,
-      "app.use('/api', authenticateMetrics, metricsRouter)",
-      makeAppAuthBoundary
-    );
+    expectFragmentBefore(appTs, 'app.use(metricsRouter)', makeAppAuthBoundary);
+    expectFragmentBefore(appTs, "app.use('/api', metricsRouter)", makeAppAuthBoundary);
     expectFragmentBefore(appTs, 'app.use(metricsRumRouter)', makeAppAuthBoundary);
     expectFragmentBefore(appTs, "app.use('/api', metricsRumRouter)", makeAppAuthBoundary);
 
     const createServerAuthBoundary =
       '// Apply authentication and RLS middleware to protected routes';
-    expectFragmentBefore(
-      serverTs,
-      "app.use('/metrics', authenticateMetrics, metricsRouter)",
-      createServerAuthBoundary
-    );
-    expectFragmentBefore(
-      serverTs,
-      "app.use('/api', authenticateMetrics, metricsRouter)",
-      createServerAuthBoundary
-    );
+    expectFragmentBefore(serverTs, 'app.use(metricsRouter)', createServerAuthBoundary);
+    expectFragmentBefore(serverTs, "app.use('/api', metricsRouter)", createServerAuthBoundary);
     expectFragmentBefore(serverTs, 'app.use(metricsRumRouter)', createServerAuthBoundary);
     expectFragmentBefore(serverTs, "app.use('/api', metricsRumRouter)", createServerAuthBoundary);
   });
+
+  it('requires metrics auth on both bootstrap telemetry aliases', async () => {
+    const makeApp = await makeAppWithTestAuth();
+    const metricsKey = process.env.METRICS_KEY;
+    expect(metricsKey).toEqual(expect.any(String));
+
+    await request(makeApp).get('/metrics').expect(403);
+    await request(makeApp).get('/api/metrics').expect(403);
+
+    await request(makeApp).get('/metrics').set('Authorization', `Bearer ${metricsKey}`).expect(200);
+    await request(makeApp)
+      .get('/api/metrics')
+      .set('Authorization', `Bearer ${metricsKey}`)
+      .expect(200);
+  }, 30_000);
+
+  it('keeps detailed health diagnostics behind HEALTH_KEY or bearer auth', async () => {
+    const makeApp = await makeAppWithTestAuth();
+    const healthKey = process.env.HEALTH_KEY;
+    expect(healthKey).toEqual(expect.any(String));
+
+    const publicProbe = await request(makeApp).get('/api/health/ready');
+    expect(publicProbe.status).not.toBe(401);
+    expect(publicProbe.status).not.toBe(403);
+
+    await request(makeApp).get('/api/health/schema').expect(401);
+    await request(makeApp).get('/api/health/queues').expect(401);
+    await request(makeApp).get('/api/health/workers/reserve').expect(401);
+    await request(makeApp).get('/health/detailed').expect(401);
+
+    await request(makeApp).get('/api/health/schema').set('X-Health-Key', healthKey).expect(200);
+    await request(makeApp).get('/api/health/queues').set('X-Health-Key', healthKey).expect(200);
+    await request(makeApp).get('/health/detailed').set('X-Health-Key', healthKey).expect(200);
+
+    const bearerAuth = await authorizationHeader();
+    const workerResponse = await request(makeApp)
+      .get('/api/health/workers/reserve')
+      .set('Authorization', bearerAuth);
+    expect(workerResponse.status).not.toBe(401);
+    expect(workerResponse.status).not.toBe(403);
+  }, 30_000);
 
   it('exposes deal pipeline through both registerRoutes and makeApp', async () => {
     const { app: registerRoutesApp, server } = await makeRegisterRoutesApp();

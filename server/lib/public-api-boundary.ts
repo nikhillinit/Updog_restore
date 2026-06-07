@@ -1,5 +1,12 @@
-const ALWAYS_PUBLIC_EXACT = new Set(['/healthz', '/readyz', '/flags', '/flags/status']);
-const ALWAYS_PUBLIC_PREFIXES = ['/health/', '/health'];
+const ALWAYS_PUBLIC_EXACT = new Set([
+  '/healthz',
+  '/readyz',
+  '/health',
+  '/health/ready',
+  '/health/live',
+  '/flags',
+  '/flags/status',
+]);
 
 function normalizeMountRelativePath(mountRelativePath: string): string {
   if (mountRelativePath.endsWith('/') && mountRelativePath.length > 1) {
@@ -25,7 +32,5 @@ export function isPublicApiPath(method: string, mountRelativePath: string): bool
     return true;
   }
 
-  return ALWAYS_PUBLIC_PREFIXES.some(
-    (prefix) => normalizedPath === prefix || normalizedPath.startsWith(prefix)
-  );
+  return false;
 }
