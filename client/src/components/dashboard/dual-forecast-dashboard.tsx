@@ -17,6 +17,16 @@ import type { DashboardSummary } from '@/types/fund';
 import { useFundContext } from '@/contexts/FundContext';
 import { useDualForecast } from '@/hooks/useDualForecast';
 import { presson } from '@/theme/presson.tokens';
+import {
+  buildForecastChartPoints,
+  formatForecastSeriesName,
+  formatMillionValue,
+  formatSignedMillion,
+  formatSignedPercent,
+  getLatestForecastDrift,
+  type ForecastChartPoint,
+  type ForecastMetricDrift,
+} from '@/lib/dual-forecast-display';
 
 const MILLION = 1_000_000;
 const FORECAST_SERIES_COLORS = [
@@ -33,16 +43,6 @@ interface PortfolioChartPoint {
   stage: string;
 }
 
-interface ForecastChartPoint {
-  label: string;
-  constructionNav: number;
-  actualNav: number | null;
-  currentForecastNav: number | null;
-  constructionCalledCapital: number;
-  actualCalledCapital: number | null;
-  currentForecastCalledCapital: number | null;
-}
-
 function parseNumericValue(value: string | number | null | undefined): number {
   if (typeof value === 'number') {
     return Number.isFinite(value) ? value : 0;
@@ -56,25 +56,96 @@ function parseNumericValue(value: string | number | null | undefined): number {
   return 0;
 }
 
-function formatMillionValue(value: ValueType | undefined): string {
-  if (Array.isArray(value)) {
-    return value.join(', ');
-  }
-
-  if (typeof value === 'number' || typeof value === 'string') {
-    const parsed = Number(value);
-    return Number.isFinite(parsed) ? `$${parsed}M` : `${value}`;
-  }
-
-  return '';
-}
-
 function formatSeriesName(name: NameType | undefined): string {
   return name === 'value' ? 'Current Value' : 'Investment';
 }
 
-function toMillions(value: number): number {
-  return Math.round(value / MILLION);
+function formatRechartsMillionValue(value: ValueType | undefined): string {
+  if (value == null) {
+    return formatMillionValue(undefined);
+  }
+
+  if (typeof value === 'number' || typeof value === 'string') {
+    return formatMillionValue(value);
+  }
+
+  return formatMillionValue([...value]);
+}
+
+function DriftCallout({
+  metricLabel,
+  drift,
+}: {
+  metricLabel: string;
+  drift: ForecastMetricDrift | null;
+}) {
+  if (!drift) return null;
+
+  const percentPhrase = formatSignedPercent(drift.deltaPct);
+
+  return (
+    <div className="rounded-md border border-beige-200 bg-white px-3 py-2 text-sm">
+      <p className="font-medium text-pov-charcoal">
+        {drift.label} {metricLabel} drift
+      </p>
+      <p className="mt-1 text-lg font-semibold tabular-nums text-pov-charcoal">
+        {formatSignedMillion(drift.delta)}
+      </p>
+      {percentPhrase ? (
+        <p className="text-xs text-charcoal-600">
+          Current forecast is {percentPhrase} construction plan.
+        </p>
+      ) : null}
+    </div>
+  );
+}
+
+interface ForecastTooltipPayloadItem {
+  name?: NameType;
+  value?: ValueType;
+  color?: string;
+  payload?: ForecastChartPoint;
+}
+
+function ForecastTooltip({
+  active,
+  label,
+  payload,
+  metric,
+}: {
+  active?: boolean;
+  label?: string;
+  payload?: ForecastTooltipPayloadItem[];
+  metric: 'nav' | 'calledCapital';
+}) {
+  if (!active || !payload?.length) return null;
+
+  const point = payload[0]?.payload;
+  const delta = metric === 'nav' ? point?.navDelta : point?.calledCapitalDelta;
+  const deltaPct = metric === 'nav' ? point?.navDeltaPct : point?.calledCapitalDeltaPct;
+  const percentPhrase = formatSignedPercent(deltaPct ?? null);
+
+  return (
+    <div className="rounded-md border border-beige-200 bg-white p-3 text-xs shadow-md">
+      <p className="mb-2 font-medium text-pov-charcoal">{label}</p>
+      <div className="space-y-1">
+        {payload.map((item) => (
+          <div key={String(item.name)} className="flex items-center justify-between gap-4">
+            <span className="text-charcoal-600">{formatForecastSeriesName(item.name)}</span>
+            <span className="font-medium tabular-nums text-pov-charcoal">
+              {formatRechartsMillionValue(item.value)}
+            </span>
+          </div>
+        ))}
+      </div>
+      {delta != null ? (
+        <p className="mt-2 border-t border-beige-200 pt-2 font-medium text-pov-charcoal">
+          Delta vs construction: {formatSignedMillion(delta)}
+          {percentPhrase ? ` (${percentPhrase})` : ''}
+        </p>
+      ) : null}
+    </div>
+  );
 }
 
 export default function DualForecastDashboard() {
@@ -182,16 +253,8 @@ export default function DualForecastDashboard() {
   const currentMetrics = dashboardData.metrics;
   const baseValue = parseNumericValue(currentMetrics?.totalValue);
   const currentIRR = parseNumericValue(currentMetrics?.irr);
-  const forecastData: ForecastChartPoint[] = dualForecast.series.map((point) => ({
-    label: point.label,
-    constructionNav: toMillions(point.construction.nav),
-    actualNav: point.actual ? toMillions(point.actual.nav) : null,
-    currentForecastNav: point.currentMode === 'forecast' ? toMillions(point.current.nav) : null,
-    constructionCalledCapital: toMillions(point.construction.calledCapital),
-    actualCalledCapital: point.actual ? toMillions(point.actual.calledCapital) : null,
-    currentForecastCalledCapital:
-      point.currentMode === 'forecast' ? toMillions(point.current.calledCapital) : null,
-  }));
+  const forecastData: ForecastChartPoint[] = buildForecastChartPoints(dualForecast.series);
+  const latestDrift = getLatestForecastDrift(forecastData);
 
   // Portfolio allocation data from real API
   const portfolioData: PortfolioChartPoint[] = dashboardData.portfolioCompanies.map((company) => ({
@@ -284,9 +347,7 @@ export default function DualForecastDashboard() {
                 <CartesianGrid strokeDasharray="3 3" />
                 <XAxis dataKey="label" />
                 <YAxis label={{ value: 'NAV ($M)', angle: -90, position: 'insideLeft' }} />
-                <Tooltip
-                  formatter={(value: ValueType | undefined) => [formatMillionValue(value), '']}
-                />
+                <Tooltip content={<ForecastTooltip metric="nav" />} />
                 <Legend />
                 <Line
                   type="monotone"
@@ -314,6 +375,9 @@ export default function DualForecastDashboard() {
                 />
               </LineChart>
             </ResponsiveContainer>
+            <div className="mt-3" aria-label="Forecast drift summary">
+              <DriftCallout metricLabel="NAV" drift={latestDrift?.nav ?? null} />
+            </div>
           </CardContent>
         </Card>
 
@@ -336,7 +400,7 @@ export default function DualForecastDashboard() {
                 <YAxis label={{ value: 'Value ($M)', angle: -90, position: 'insideLeft' }} />
                 <Tooltip
                   formatter={(value: ValueType | undefined, name: NameType | undefined) => [
-                    formatMillionValue(value),
+                    formatRechartsMillionValue(value),
                     formatSeriesName(name),
                   ]}
                 />
@@ -361,12 +425,8 @@ export default function DualForecastDashboard() {
               <CartesianGrid strokeDasharray="3 3" />
               <XAxis dataKey="label" />
               <YAxis label={{ value: 'Called ($M)', angle: -90, position: 'insideLeft' }} />
-              <Tooltip
-                formatter={(value: ValueType | undefined) => [
-                  formatMillionValue(value),
-                  'Called Capital',
-                ]}
-              />
+              <Tooltip content={<ForecastTooltip metric="calledCapital" />} />
+              <Legend />
               <Line
                 type="monotone"
                 dataKey="constructionCalledCapital"
@@ -393,6 +453,9 @@ export default function DualForecastDashboard() {
               />
             </LineChart>
           </ResponsiveContainer>
+          <div className="mt-3" aria-label="Called capital drift summary">
+            <DriftCallout metricLabel="called capital" drift={latestDrift?.calledCapital ?? null} />
+          </div>
         </CardContent>
       </Card>
     </div>

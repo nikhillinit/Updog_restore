@@ -127,7 +127,7 @@ function makeDualForecast() {
       },
       {
         quarterIndex: 1,
-        label: 'Q+1',
+        label: 'Q2 2026',
         date: '2026-07-01T00:00:00.000Z',
         construction: {
           nav: 8_000_000,
@@ -148,6 +148,56 @@ function makeDualForecast() {
           dpi: 0.07,
           rvpi: 1.2,
           irr: 0.18,
+        },
+      },
+      {
+        quarterIndex: 2,
+        label: 'Q3 2026',
+        date: '2026-10-01T00:00:00.000Z',
+        construction: {
+          nav: 40_000_000,
+          calledCapital: 25_000_000,
+          distributions: 0,
+          tvpi: null,
+          dpi: null,
+          rvpi: null,
+          irr: null,
+        },
+        actual: null,
+        currentMode: 'forecast',
+        current: {
+          nav: 38_000_000,
+          calledCapital: 26_000_000,
+          distributions: 0,
+          tvpi: null,
+          dpi: null,
+          rvpi: null,
+          irr: null,
+        },
+      },
+      {
+        quarterIndex: 3,
+        label: 'Q4 2026',
+        date: '2027-01-01T00:00:00.000Z',
+        construction: {
+          nav: 59_000_000,
+          calledCapital: 34_000_000,
+          distributions: 0,
+          tvpi: null,
+          dpi: null,
+          rvpi: null,
+          irr: null,
+        },
+        actual: null,
+        currentMode: 'forecast',
+        current: {
+          nav: 51_000_000,
+          calledCapital: 39_000_000,
+          distributions: 0,
+          tvpi: null,
+          dpi: null,
+          rvpi: null,
+          irr: null,
         },
       },
     ],
@@ -270,5 +320,16 @@ describe('DualForecastDashboard', () => {
     expect(screen.getByText(/cumulative called capital by quarter/i)).toBeInTheDocument();
     expect(screen.queryByText('Live Data')).toBeNull();
     expect(screen.queryByText('Real-time')).toBeNull();
+
+    // Drift callouts: Q4 2026 is the latest forecast point with meaningful variance
+    const navSummary = await screen.findByLabelText('Forecast drift summary');
+    expect(navSummary).toHaveTextContent('Q4 2026 NAV drift');
+    expect(navSummary).toHaveTextContent('-$8M');
+    expect(navSummary).toHaveTextContent('Current forecast is 13.6% below construction plan.');
+
+    const calledSummary = screen.getByLabelText('Called capital drift summary');
+    expect(calledSummary).toHaveTextContent('Q4 2026 called capital drift');
+    expect(calledSummary).toHaveTextContent('+$5M');
+    expect(calledSummary).toHaveTextContent('Current forecast is 14.7% above construction plan.');
   });
 });
