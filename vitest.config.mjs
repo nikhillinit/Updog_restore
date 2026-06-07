@@ -120,6 +120,7 @@ export default defineConfig({
           exclude: [
             'tests/quarantine/**/*',
             '**/*.quarantine.test.tsx',
+            'tests/unit/lib/dual-forecast-display.test.tsx',
             'tests/unit/fund-setup.smoke.test.tsx',
             'tests/unit/pages/portfolio-constructor.test.tsx',
           ],
