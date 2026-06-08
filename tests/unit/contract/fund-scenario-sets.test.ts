@@ -643,6 +643,55 @@ describe('FundScenarioSetsV1 contract', () => {
       'SCENARIOS_LOAD_FAILED',
     ]);
   });
+
+  it('accepts a methodology override with waterfallType only', () => {
+    const result = FundScenarioVariantOverrideV1Schema.safeParse({
+      overrideType: 'methodology',
+      payload: { waterfallType: 'hybrid' },
+    });
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.overrideType).toBe('methodology');
+    }
+  });
+
+  it('accepts a methodology override specifying managementFeeRate', () => {
+    const result = FundScenarioVariantOverrideV1Schema.safeParse({
+      overrideType: 'methodology',
+      payload: { waterfallType: 'american', managementFeeRate: 0.025 },
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it('rejects a methodology override with no fields set', () => {
+    const result = FundScenarioVariantOverrideV1Schema.safeParse({
+      overrideType: 'methodology',
+      payload: {},
+    });
+    expect(result.success).toBe(false);
+  });
+
+  it('rejects a methodology override with an unknown key', () => {
+    const result = FundScenarioVariantOverrideV1Schema.safeParse({
+      overrideType: 'methodology',
+      payload: { waterfallType: 'hybrid', unknownKey: true },
+    });
+    expect(result.success).toBe(false);
+  });
+
+  it('accepts a full scenario set create payload with a methodology override', () => {
+    const result = CreateFundScenarioSetV1Schema.safeParse({
+      name: 'Waterfall comparison',
+      variants: [
+        {
+          name: 'Hybrid waterfall',
+          override: { overrideType: 'methodology', payload: { waterfallType: 'hybrid' } },
+        },
+      ],
+    });
+    expect(result.success).toBe(true);
+    expect(result.data?.variants[0]?.override.overrideType).toBe('methodology');
+  });
 });
 
 function economicsResult() {

@@ -124,6 +124,46 @@ describe('fund scenario set persistence shell', () => {
     expect(queryMock).not.toHaveBeenCalled();
   });
 
+  it('accepts a valid methodology override at the service boundary', async () => {
+    const methodologyVariantRow = {
+      id: variantId,
+      scenario_set_id: scenarioSetId,
+      name: 'Hybrid waterfall',
+      description: null,
+      sort_order: 0,
+      override_type: 'methodology',
+      override_payload: { waterfallType: 'hybrid' },
+      created_at: new Date('2026-05-26T12:00:00.000Z'),
+      updated_at: new Date('2026-05-26T12:00:00.000Z'),
+    };
+
+    queryMock
+      .mockResolvedValueOnce({ rows: [{ id: 1 }] })
+      .mockResolvedValueOnce({ rows: [{ id: 12, version: 4 }] })
+      .mockResolvedValueOnce({ rows: [{ active_count: '0' }] })
+      .mockResolvedValueOnce({ rows: [scenarioSetRow()] })
+      .mockResolvedValueOnce({ rows: [methodologyVariantRow] })
+      .mockResolvedValueOnce({ rows: [{ id: '00000000-0000-0000-0000-000000000113' }] })
+      .mockResolvedValueOnce({ rows: [scenarioSetRow()] })
+      .mockResolvedValueOnce({ rows: [methodologyVariantRow] });
+
+    const result = await createFundScenarioSet(
+      1,
+      {
+        name: 'Waterfall comparison',
+        variants: [
+          {
+            name: 'Hybrid waterfall',
+            override: { overrideType: 'methodology', payload: { waterfallType: 'hybrid' } },
+          },
+        ],
+      },
+      { userId: 17, label: 'analyst@example.com' }
+    );
+
+    expect(result).toBeDefined();
+  });
+
   it('creates a scenario set against the current published config and records an audit event', async () => {
     queryMock
       .mockResolvedValueOnce({ rows: [{ id: 1 }] })
