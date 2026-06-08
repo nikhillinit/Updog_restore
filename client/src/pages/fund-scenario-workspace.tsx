@@ -55,6 +55,7 @@ const OVERRIDE_TYPE_LABELS: Record<FundScenarioOverrideTypeV1, string> = {
   reserve_allocation: 'Reserve allocation',
   allocation: 'Allocation',
   sector_profile: 'Sector profile',
+  methodology: 'Methodology',
 };
 const EMPTY_SCENARIO_SETS: FundScenarioSetSummaryV1[] = [];
 const RESERVE_STATUS_POLL_INTERVAL_MS = 4000;
@@ -218,6 +219,8 @@ function syncCalculationModeForOverrideType(
       return 'sync_allocation';
     case 'sector_profile':
       return 'sync_sector_profile';
+    case 'methodology':
+      return 'sync_methodology';
   }
 }
 

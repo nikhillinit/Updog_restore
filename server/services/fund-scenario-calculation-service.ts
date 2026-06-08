@@ -392,6 +392,7 @@ function syncCalculationModeForOverrideType(
 ): FundScenarioCalculationModeV1 {
   if (overrideType === 'fee_profile') return 'sync_fee_profile';
   if (overrideType === 'allocation') return 'sync_allocation';
+  if (overrideType === 'methodology') return 'sync_methodology';
   return 'sync_sector_profile';
 }
 
@@ -412,6 +413,21 @@ function applySyncScenarioOverride(
       ...(override.payload.capitalPlanAllocations != null
         ? { capitalPlanAllocations: override.payload.capitalPlanAllocations }
         : {}),
+    };
+  }
+
+  if (override.overrideType === 'methodology') {
+    return {
+      ...sourceConfig,
+      ...(override.payload.waterfallType !== undefined && {
+        waterfallType: override.payload.waterfallType,
+      }),
+      ...(override.payload.waterfallTiers !== undefined && {
+        waterfallTiers: override.payload.waterfallTiers,
+      }),
+      ...(override.payload.managementFeeRate !== undefined && {
+        managementFeeRate: override.payload.managementFeeRate,
+      }),
     };
   }
 
