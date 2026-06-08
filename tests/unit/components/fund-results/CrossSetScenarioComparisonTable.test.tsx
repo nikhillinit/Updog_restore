@@ -145,7 +145,7 @@ describe('CrossSetScenarioComparisonTable', () => {
       expect(within(table).getByText(name)).toBeInTheDocument();
     }
     expect(
-      within(table).getByText('Showing 4 fee-profile variants across 2 scenario sets.')
+      within(table).getByText('Showing 4 comparable variants across 2 scenario sets.')
     ).toBeInTheDocument();
   });
 
@@ -410,7 +410,7 @@ describe('CrossSetScenarioComparisonTable', () => {
 
     const table = screen.getByTestId('cross-set-scenario-comparison-table');
     expect(
-      within(table).getByText('Showing 10 fee-profile variants across 2 scenario sets.')
+      within(table).getByText('Showing 10 comparable variants across 2 scenario sets.')
     ).toBeInTheDocument();
     expect(screen.getByTestId('cross-set-comparison-scroll')).toHaveClass('overflow-x-auto');
   });
@@ -420,7 +420,7 @@ describe('CrossSetScenarioComparisonTable', () => {
 
     const table = screen.getByTestId('cross-set-scenario-comparison-table');
     expect(
-      within(table).getByText(/No comparable fee-profile scenario variants/i)
+      within(table).getByText(/No comparable scenario variants/i)
     ).toBeInTheDocument();
   });
 
