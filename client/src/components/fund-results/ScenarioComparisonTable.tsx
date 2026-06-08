@@ -57,13 +57,14 @@ const METRIC_DEFINITIONS: Record<ScenarioComparisonMetricKey, MetricDefinition> 
   finalClawbackDue: { label: 'Clawback Due', kind: 'money' },
 };
 
-// The comparison contract currently admits only fee-profile variants; keying
-// the badge by overrideType prevents future set types from inheriting this label silently.
 const VARIANT_OVERRIDE_TYPE_BADGE_LABELS: Record<
   ScenarioComparisonVariantV1['overrideType'],
   string
 > = {
   fee_profile: 'FEE PROFILE',
+  allocation: 'ALLOCATION',
+  sector_profile: 'SECTOR PROFILE',
+  methodology: 'METHODOLOGY',
 };
 
 function formatMetricValue(

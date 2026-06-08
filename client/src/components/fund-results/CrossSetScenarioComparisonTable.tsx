@@ -54,13 +54,16 @@ export const CROSS_SET_METRIC_DEFINITIONS = {
 /** Above this many variant columns, the table switches to horizontal scroll. */
 export const CROSS_SET_VARIANT_COLUMN_SOFT_LIMIT = 8;
 
-// These tables currently render only fee-profile variants; keying the badge by
-// overrideType prevents future non-fee-profile sets from being mislabeled silently.
+// All economics-backed comparison types use badge labels; the Record ensures any
+// future economics type added to the contract must also provide a badge label here.
 const VARIANT_OVERRIDE_TYPE_BADGE_LABELS: Record<
   FundScenarioComparisonV1['variants'][number]['overrideType'],
   string
 > = {
   fee_profile: 'FEE PROFILE',
+  allocation: 'ALLOCATION',
+  sector_profile: 'SECTOR PROFILE',
+  methodology: 'METHODOLOGY',
 };
 
 export interface CrossSetScenarioComparisonTableProps {
