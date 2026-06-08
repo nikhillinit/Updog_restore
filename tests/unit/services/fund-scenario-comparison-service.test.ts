@@ -58,26 +58,92 @@ describe('fund scenario comparison service', () => {
     expect(result.variants).toEqual([]);
   });
 
-  it('returns unsupported_override_type for allocation scenario sets', async () => {
+  it('returns comparable for allocation scenario sets', async () => {
     mockScenarioSet('allocation');
+    queryMock.mockResolvedValueOnce({ rows: [scenarioSnapshotRow('allocation')] });
+    queryMock.mockResolvedValueOnce({ rows: [economicsSnapshotRow(baselineEconomics())] });
 
     const result = await getFundScenarioComparison(123, scenarioSetId);
 
-    expect(result.comparisonStatus).toBe('unsupported_override_type');
-    expect(result.unavailableReason).toBe('UNSUPPORTED_OVERRIDE_TYPE');
-    expect(result.baseline).toBeNull();
-    expect(result.variants).toEqual([]);
+    expect(result.comparisonStatus).toBe('comparable');
+    expect(result.variants[0]?.overrideType).toBe('allocation');
+    expect(result.variants[0]?.metrics.finalTvpi).toBe(2.1);
   });
 
-  it('returns unsupported_override_type for sector-profile scenario sets', async () => {
+  it('returns comparable for sector_profile scenario sets', async () => {
     mockScenarioSet('sector_profile');
+    queryMock.mockResolvedValueOnce({ rows: [scenarioSnapshotRow('sector_profile')] });
+    queryMock.mockResolvedValueOnce({ rows: [economicsSnapshotRow(baselineEconomics())] });
+
+    const result = await getFundScenarioComparison(123, scenarioSetId);
+
+    expect(result.comparisonStatus).toBe('comparable');
+    expect(result.variants[0]?.overrideType).toBe('sector_profile');
+    expect(result.variants[0]?.metrics.finalTvpi).toBe(2.1);
+  });
+
+  it('returns comparable for methodology scenario sets', async () => {
+    mockScenarioSet('methodology');
+    queryMock.mockResolvedValueOnce({ rows: [scenarioSnapshotRow('methodology')] });
+    queryMock.mockResolvedValueOnce({ rows: [economicsSnapshotRow(baselineEconomics())] });
+
+    const result = await getFundScenarioComparison(123, scenarioSetId);
+
+    expect(result.comparisonStatus).toBe('comparable');
+    expect(result.variants[0]?.overrideType).toBe('methodology');
+    expect(result.variants[0]?.metrics.finalTvpi).toBe(2.1);
+    expect(result.variants[0]?.metricDeltas.find((d) => d.metric === 'finalTvpi')).toEqual(
+      expect.objectContaining({
+        baselineValue: 1.8,
+        scenarioValue: 2.1,
+        driftCapable: true,
+        driftReason: 'stable',
+      })
+    );
+  });
+
+  it('returns unsupported_override_type when the snapshot payload contains reserve variants despite set being economics-typed', async () => {
+    mockScenarioSet('methodology');
+    // Snapshot payload claims reserve_allocation (corrupt/mismatched data)
+    const corruptPayload: FundScenarioCalculationPayloadV1 = {
+      version: 'fund-scenarios-v1',
+      calculationMode: 'async_reserve_allocation',
+      fundId: 123,
+      scenarioSetId,
+      sourceConfigId: 12,
+      sourceConfigVersion: 4,
+      staleness: { state: 'CURRENT', sourceConfigVersion: 4, currentPublishedConfigVersion: 4 },
+      calculatedAt: '2026-05-26T12:30:00.000Z',
+      variants: [
+        {
+          variantId,
+          scenarioSetId,
+          name: 'Follow-on cap',
+          overrideType: 'reserve_allocation',
+          reserve: {
+            fundId: 123,
+            totalBaseAllocationCents: 10_000_000,
+            totalScenarioAllocationCents: 7_500_000,
+            totalAllocationDeltaCents: -2_500_000,
+            avgConfidence: 0.62,
+            highConfidenceCount: 1,
+            allocations: [],
+            warnings: [],
+            generatedAt: '2026-05-26T12:30:00.000Z',
+          },
+        },
+      ],
+    };
+    queryMock.mockResolvedValueOnce({
+      rows: [
+        { id: 42, payload: corruptPayload, created_at: new Date(), snapshot_time: new Date() },
+      ],
+    });
 
     const result = await getFundScenarioComparison(123, scenarioSetId);
 
     expect(result.comparisonStatus).toBe('unsupported_override_type');
     expect(result.unavailableReason).toBe('UNSUPPORTED_OVERRIDE_TYPE');
-    expect(result.baseline).toBeNull();
-    expect(result.variants).toEqual([]);
   });
 
   it('builds comparable fee-profile variants against the authoritative economics baseline', async () => {
@@ -124,7 +190,12 @@ function sqlForQueryContaining(fragment: string) {
 }
 
 function mockScenarioSet(
-  overrideType: 'fee_profile' | 'reserve_allocation' | 'allocation' | 'sector_profile'
+  overrideType:
+    | 'fee_profile'
+    | 'reserve_allocation'
+    | 'allocation'
+    | 'sector_profile'
+    | 'methodology'
 ) {
   queryMock.mockResolvedValueOnce({ rows: [{ id: 123 }] });
   queryMock.mockResolvedValueOnce({
@@ -167,7 +238,12 @@ function mockScenarioSet(
 }
 
 function overridePayloadFor(
-  overrideType: 'fee_profile' | 'reserve_allocation' | 'allocation' | 'sector_profile'
+  overrideType:
+    | 'fee_profile'
+    | 'reserve_allocation'
+    | 'allocation'
+    | 'sector_profile'
+    | 'methodology'
 ) {
   if (overrideType === 'fee_profile') {
     return {
@@ -194,13 +270,18 @@ function overridePayloadFor(
   if (overrideType === 'allocation') {
     return { allocations: [{ id: 'seed', category: 'Seed', percentage: 60 }] };
   }
+  if (overrideType === 'methodology') {
+    return { waterfallType: 'hybrid' };
+  }
   return { sectorProfiles: [{ id: 'ai', name: 'AI Infrastructure', targetPercentage: 35 }] };
 }
 
-function scenarioSnapshotRow() {
+function scenarioSnapshotRow(
+  overrideType: 'fee_profile' | 'allocation' | 'sector_profile' | 'methodology' = 'fee_profile'
+) {
   return {
     id: 42,
-    payload: scenarioPayload(),
+    payload: scenarioPayload(overrideType),
     created_at: new Date('2026-05-26T12:30:00.000Z'),
     snapshot_time: new Date('2026-05-26T12:30:00.000Z'),
   };
@@ -215,10 +296,12 @@ function economicsSnapshotRow(payload: EconomicsResultV1) {
   };
 }
 
-function scenarioPayload(): FundScenarioCalculationPayloadV1 {
+function scenarioPayload(
+  overrideType: 'fee_profile' | 'allocation' | 'sector_profile' | 'methodology' = 'fee_profile'
+): FundScenarioCalculationPayloadV1 {
   return {
     version: 'fund-scenarios-v1',
-    calculationMode: 'sync_fee_profile',
+    calculationMode: calculationModeFor(overrideType),
     fundId: 123,
     scenarioSetId,
     sourceConfigId: 12,
@@ -233,8 +316,8 @@ function scenarioPayload(): FundScenarioCalculationPayloadV1 {
       {
         variantId,
         scenarioSetId,
-        name: 'Lower fee',
-        overrideType: 'fee_profile',
+        name: overrideType === 'fee_profile' ? 'Lower fee' : `${overrideType} variant`,
+        overrideType,
         economics: scenarioEconomics(),
       },
     ],
@@ -331,4 +414,19 @@ function economicsResult(summary: {
       errors: [],
     },
   };
+}
+
+function calculationModeFor(
+  overrideType: 'fee_profile' | 'allocation' | 'sector_profile' | 'methodology'
+): 'sync_fee_profile' | 'sync_allocation' | 'sync_sector_profile' | 'sync_methodology' {
+  switch (overrideType) {
+    case 'fee_profile':
+      return 'sync_fee_profile';
+    case 'allocation':
+      return 'sync_allocation';
+    case 'sector_profile':
+      return 'sync_sector_profile';
+    case 'methodology':
+      return 'sync_methodology';
+  }
 }
