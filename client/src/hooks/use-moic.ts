@@ -4,8 +4,9 @@
  * React hooks for MOIC calculations via API.
  */
 
-import { useMutation } from '@tanstack/react-query';
+import { useMutation, useQuery } from '@tanstack/react-query';
 import type { Investment, PortfolioMOICSummary, MOICResult } from '@shared/core/moic';
+import type { FundMoicRankingsResponseV1 } from '@shared/contracts/fund-moic-v1.contract';
 
 interface RankedInvestment {
   investment: Investment;
@@ -66,5 +67,19 @@ export function useMOICRanking() {
 
       return (await res.json()) as RankedInvestment[];
     },
+  });
+}
+
+export function useFundMoicRankings(fundId: number | null) {
+  return useQuery<FundMoicRankingsResponseV1>({
+    queryKey: ['fund-moic-rankings', fundId],
+    queryFn: async () => {
+      const res = await fetch(`/api/funds/${fundId}/moic/rankings`, {
+        credentials: 'include',
+      });
+      if (!res.ok) throw new Error('Failed to load follow-on rankings');
+      return (await res.json()) as FundMoicRankingsResponseV1;
+    },
+    enabled: fundId !== null && fundId > 0,
   });
 }

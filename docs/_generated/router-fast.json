@@ -2,7 +2,7 @@
   "config": {
     "max_docs_per_keyword": 25
   },
-  "generatedAt": "2026-06-05T00:00:00.000Z",
+  "generatedAt": "2026-06-07T00:00:00.000Z",
   "keyword_to_docs": {
     "add feature": [
       "CLAUDE.md"
