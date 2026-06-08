@@ -1,7 +1,7 @@
 /**
  * ScenarioComparisonTable - ADR-022 scenario-set comparison cards.
  *
- * Renders one calculated fee-profile scenario set against the authoritative
+ * Renders one calculated economics-backed scenario set against the authoritative
  * economics baseline for that set's source configuration version.
  *
  * Delta subtitles reuse the cross-set table's direction-aware copy

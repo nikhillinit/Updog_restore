@@ -54,6 +54,7 @@ function mkComparison(args: {
   name: string;
   sourceConfigVersion: number;
   sourceConfigId?: number;
+  overrideType?: FundScenarioComparisonV1['variants'][number]['overrideType'];
   variants: Array<{
     variantId: string;
     name: string;
@@ -74,7 +75,7 @@ function mkComparison(args: {
     variants: args.variants.map((variant) => ({
       variantId: variant.variantId,
       name: variant.name,
-      overrideType: 'fee_profile' as const,
+      overrideType: args.overrideType ?? 'fee_profile',
       metrics: variant.metrics,
       metricDeltas: variant.metricDeltas ?? [],
     })),
@@ -442,5 +443,56 @@ describe('CrossSetScenarioComparisonTable', () => {
 
   it('keeps metric definitions exhaustive against the contract keys', () => {
     expect(Object.keys(CROSS_SET_METRIC_DEFINITIONS)).toEqual([...SCENARIO_COMPARISON_METRIC_KEYS]);
+  });
+
+  it('renders ALLOCATION badge for allocation variants', () => {
+    render(
+      <CrossSetScenarioComparisonTable
+        comparisons={[
+          mkComparison({
+            setId: SET_A,
+            name: 'Allocation mix',
+            sourceConfigVersion: 4,
+            overrideType: 'allocation',
+            variants: [{ variantId: uuid(101), name: 'Seed heavy', metrics: metrics() }],
+          }),
+        ]}
+      />
+    );
+    expect(screen.getByText('ALLOCATION')).toBeInTheDocument();
+  });
+
+  it('renders METHODOLOGY badge for methodology variants', () => {
+    render(
+      <CrossSetScenarioComparisonTable
+        comparisons={[
+          mkComparison({
+            setId: SET_A,
+            name: 'Waterfall comparison',
+            sourceConfigVersion: 4,
+            overrideType: 'methodology',
+            variants: [{ variantId: uuid(101), name: 'Hybrid waterfall', metrics: metrics() }],
+          }),
+        ]}
+      />
+    );
+    expect(screen.getByText('METHODOLOGY')).toBeInTheDocument();
+  });
+
+  it('renders SECTOR PROFILE badge for sector_profile variants', () => {
+    render(
+      <CrossSetScenarioComparisonTable
+        comparisons={[
+          mkComparison({
+            setId: SET_A,
+            name: 'Sector mix',
+            sourceConfigVersion: 4,
+            overrideType: 'sector_profile',
+            variants: [{ variantId: uuid(101), name: 'AI infrastructure', metrics: metrics() }],
+          }),
+        ]}
+      />
+    );
+    expect(screen.getByText('SECTOR PROFILE')).toBeInTheDocument();
   });
 });
