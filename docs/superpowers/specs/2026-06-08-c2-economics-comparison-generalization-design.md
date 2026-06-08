@@ -28,13 +28,16 @@ produce full `EconomicsResultV1` payloads.
 
 ## Decision
 
-**Approach: Single generic `economicsVariants()` function.**
+**Approach: Single generic `economicsVariants()` function with a positive
+allowlist.**
 
 All four sync economics override types share identical comparison shape
 (`metrics` + `metricDeltas`). No discriminated union is needed in the comparison
-contract. The reservation boundary is `reserve_allocation` only — it is the sole
-type that does not produce economics and must continue returning
-`unsupported_override_type`.
+contract. The economics boundary is defined as an explicit allowlist —
+comparable means explicitly economics-backed, not merely "not reserve." This
+keeps the design fail-closed: a future non-economics override type fails to
+`unsupported_override_type` automatically rather than accidentally passing
+through.
 
 ---
 
@@ -74,35 +77,55 @@ remain for any future override type that does not produce economics.
 
 **File:** `server/services/fund-scenario-comparison-service.ts`
 
-**2a. Gate flip** (line ~312) — from "reject non-fee_profile" to "reject
-reserve_allocation only":
+**2a. Define an explicit economics allowlist** — positive membership, not
+negated exclusion:
+
+```ts
+const ECONOMICS_COMPARISON_OVERRIDE_TYPES = [
+  'fee_profile',
+  'allocation',
+  'sector_profile',
+  'methodology',
+] as const;
+
+type EconomicsComparisonOverrideType =
+  (typeof ECONOMICS_COMPARISON_OVERRIDE_TYPES)[number];
+
+function isEconomicsComparisonOverrideType(
+  overrideType: string
+): overrideType is EconomicsComparisonOverrideType {
+  return (ECONOMICS_COMPARISON_OVERRIDE_TYPES as readonly string[]).includes(
+    overrideType
+  );
+}
+```
+
+**2b. Gate flip** (line ~312) — use the positive allowlist:
 
 ```ts
 // Before
 if (scenarioSet.variants.some((v) => v.override.overrideType !== 'fee_profile')) {
 
 // After
-if (scenarioSet.variants.some((v) => v.override.overrideType === 'reserve_allocation')) {
+if (
+  scenarioSet.variants.some(
+    (v) => !isEconomicsComparisonOverrideType(v.override.overrideType)
+  )
+) {
 ```
 
-**2b. Replace `feeProfileVariants()` with `economicsVariants()`:**
+**2c. Replace `feeProfileVariants()` with `economicsVariants()`:**
 
 ```ts
 type EconomicsCalculationVariant = Extract<
   FundScenarioCalculationVariantV1,
-  {
-    overrideType:
-      | 'fee_profile'
-      | 'allocation'
-      | 'sector_profile'
-      | 'methodology';
-  }
+  { overrideType: EconomicsComparisonOverrideType }
 >;
 
 function isEconomicsVariant(
-  v: FundScenarioCalculationVariantV1
-): v is EconomicsCalculationVariant {
-  return v.overrideType !== 'reserve_allocation';
+  variant: FundScenarioCalculationVariantV1
+): variant is EconomicsCalculationVariant {
+  return isEconomicsComparisonOverrideType(variant.overrideType);
 }
 
 function economicsVariants(
@@ -122,7 +145,27 @@ function economicsVariants(
 }
 ```
 
-**2c. Callsite in `buildComparableComparison`:**
+**2d. Defensive snapshot check in `buildComparableComparison`** — the gate
+checks `scenarioSet.variants` (DB rows), but `economicsVariants()` operates on
+the latest `SCENARIOS` snapshot payload. A corrupt/stale snapshot could
+mismatch. Add before building the comparable response:
+
+```ts
+const scenarioVariants = input.scenarioPayload.variants;
+
+if (
+  scenarioVariants.length === 0 ||
+  scenarioVariants.some((variant) => !isEconomicsVariant(variant))
+) {
+  return comparisonWithStatus(
+    comparisonBase,
+    'unsupported_override_type',
+    'UNSUPPORTED_OVERRIDE_TYPE'
+  );
+}
+```
+
+**2e. Callsite in `buildComparableComparison`:**
 
 ```ts
 // Before
@@ -215,12 +258,13 @@ fails the `comparisonStatus === 'comparable'` check.
 Changes:
 
 - Rename `isComparableFeeProfileComparison` → `isComparableEconomicsComparison`.
-  Keep the same `comparable`/`baseline`/`variants` checks. An explicit
-  `overrideType` membership guard (checking for the four economics types) is
-  defensive-only — omit it unless a failing test warrants it.
+  Keep the same `comparable`/`baseline`/`variants` checks. Include the positive
+  allowlist guard from Section 2 as a defensive check.
 - Expand `VARIANT_OVERRIDE_TYPE_BADGE_LABELS` to match Section 3a.
-- Update copy from "fee-profile variants" to "economics-backed scenario
-  variants" where it appears.
+- Update user-visible copy from "fee-profile variants" to "scenario variants" or
+  "comparable variants" — avoid "economics-backed" as product copy
+  (implementation jargon). Exact string:
+  `Showing N comparable variants across M scenario sets.`
 - Update the renamed predicate in all three consumer files:
   `CrossSetScenarioComparisonTable.tsx`, `fund-model-results.tsx`, and
   `client/src/components/fund-results/index.ts`.
@@ -235,11 +279,25 @@ Resulting behavior on the results page:
 
 ## Section 4: Tests
 
-### 4a. `tests/unit/services/fund-scenario-comparison-service.test.ts`
+### 4a. `tests/unit/contract/fund-scenario-comparison.test.ts` (new file)
 
-The existing test file already has allocation/sector-profile cases — they
-currently assert `unsupported_override_type`. Flip those to `comparable` and
-add:
+Pure contract boundary test, independent of React fixtures:
+
+- `FundScenarioComparisonV1Schema` accepts variants with
+  `overrideType: 'fee_profile'`
+- `FundScenarioComparisonV1Schema` accepts variants with
+  `overrideType: 'allocation'`
+- `FundScenarioComparisonV1Schema` accepts variants with
+  `overrideType: 'sector_profile'`
+- `FundScenarioComparisonV1Schema` accepts variants with
+  `overrideType: 'methodology'`
+- `FundScenarioComparisonV1Schema` rejects variants with
+  `overrideType: 'reserve_allocation'`
+
+### 4b. `tests/unit/services/fund-scenario-comparison-service.test.ts`
+
+The existing test file already has allocation/sector-profile cases asserting
+`unsupported_override_type` — flip those to `comparable`. Add:
 
 - Methodology set returns `comparable` with correct metric deltas
 - Allocation set returns `comparable`
@@ -247,44 +305,99 @@ add:
 - Reserve allocation still returns `unsupported_override_type`
 - Mixed economics + reserve (defensive/corrupt-data guard) returns
   `unsupported_override_type`
-  - Note: `CreateFundScenarioSetV1Schema` enforces homogeneous `overrideType`
-    across variants, so this mix is invalid at the API layer; the service test
-    covers the DB boundary directly.
+  - The `CreateFundScenarioSetV1Schema` enforces homogeneous `overrideType` at
+    the API layer; this test covers the DB/snapshot boundary directly.
+- Corrupt snapshot (snapshot contains reserve variants despite set metadata
+  claiming economics) returns `unsupported_override_type`
 
-### 4b. `tests/unit/components/fund-results/ScenarioComparisonTable.test.tsx`
+**Payload helper parameterization:** The existing `scenarioPayload()` helper
+likely hard-codes `sync_fee_profile` / `overrideType: 'fee_profile'`. It must be
+parameterized so `calculationMode` matches the variant's `overrideType` —
+otherwise tests fail contract parsing even if the comparison logic is correct:
+
+```ts
+function calculationModeFor(
+  overrideType: 'fee_profile' | 'allocation' | 'sector_profile' | 'methodology'
+) {
+  switch (overrideType) {
+    case 'fee_profile':
+      return 'sync_fee_profile';
+    case 'allocation':
+      return 'sync_allocation';
+    case 'sector_profile':
+      return 'sync_sector_profile';
+    case 'methodology':
+      return 'sync_methodology';
+  }
+}
+```
+
+### 4c. `tests/unit/components/fund-results/ScenarioComparisonTable.test.tsx`
 
 Add fixture variants with `overrideType: 'methodology'` / `'allocation'` /
 `'sector_profile'`. Assert badge labels render as `METHODOLOGY`, `ALLOCATION`,
 `SECTOR PROFILE`.
 
-### 4c. `tests/unit/components/fund-results/ScenarioSetsSummary.test.tsx`
+### 4d. `tests/unit/components/fund-results/ScenarioSetsSummary.test.tsx`
 
 Add a methodology set fixture with `economicsSummary` populated. Assert "Best
 TVPI" renders. Mirrors existing fee_profile/allocation/sector_profile test
 shape.
 
-### 4d. `tests/unit/pages/fund-scenario-workspace.test.tsx`
+### 4e. `CrossSetScenarioComparisonTable` tests
+
+Scope: this component only — do not assert parent-panel routing behavior here.
+
+- Comparable methodology/allocation/sector_profile variants render with correct
+  badge labels.
+- The empty/no-comparable state still renders correctly when no comparable
+  columns are passed.
+
+### 4f. `fund-model-results.tsx` / `ScenarioComparisonPanel` tests
+
+Scope: the parent panel that splits comparable vs non-comparable.
+
+- `reserve_allocation` unsupported comparisons are excluded from cross-set
+  grouping.
+- `reserve_allocation` unsupported comparisons render as single-set fallback
+  cards.
+
+### 4g. `tests/unit/pages/fund-scenario-workspace.test.tsx`
 
 - Extend `scenariosPayload()` to include a methodology calculated set.
 - Assert the workspace renders "Best TVPI" / economics metrics for the
   methodology set.
-- Add a mock handler for `GET /scenario-sets/.../comparison` for the methodology
-  set — the page queries comparisons for every calculated set; without this mock
-  the test will fail on an unexpected fetch.
-
-### 4e. `CrossSetScenarioComparisonTable` tests
-
-- Add test: 2+ comparable economics sets (including
-  methodology/allocation/sector_profile) appear in the cross-set table.
-- Add/keep test: reserve_allocation comparison does not enter cross-set and
-  renders as unsupported single-set fallback.
+- Add mock comparison handlers for **every calculated set in
+  `scenariosPayload()`** — fee_profile, allocation, sector_profile, and
+  methodology. The page queries comparisons for every calculated set; missing
+  mocks cause silent React Query errors and noisy unexpected fetches.
 
 ---
 
 ## Gates
 
+### Focused (run after each implementation task)
+
+```powershell
+# Server-side: contract + service
+& .\scripts\windows-node-env.ps1 npx.cmd vitest run --config vitest.config.mjs --configLoader native `
+  tests/unit/contract/fund-scenario-comparison.test.ts `
+  tests/unit/services/fund-scenario-comparison-service.test.ts `
+  --project=server
+
+# Client-side: components + workspace
+& .\scripts\windows-node-env.ps1 npx.cmd vitest run --config vitest.config.mjs --configLoader native `
+  tests/unit/components/fund-results/ScenarioComparisonTable.test.tsx `
+  tests/unit/components/fund-results/ScenarioSetsSummary.test.tsx `
+  tests/unit/components/fund-results/CrossSetScenarioComparisonTable.test.tsx `
+  tests/unit/pages/fund-scenario-workspace.test.tsx `
+  --project=client
 ```
-npm run test:scenario-release-gate   # must pass before PR
-npm run check                        # zero TypeScript errors
-npm run lint                         # zero lint errors
+
+### Required before PR
+
+```
+npm run test:scenario-release-gate
+npm run check
+npm run lint
 ```
