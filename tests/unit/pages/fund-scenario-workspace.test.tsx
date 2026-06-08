@@ -92,6 +92,34 @@ describe('FundScenarioWorkspacePage', () => {
         return Promise.resolve(jsonResponse(sectorProfileScenarioSetDetail()));
       }
 
+      if (
+        method === 'GET' &&
+        url === '/api/funds/123/scenario-sets/00000000-0000-0000-0000-000000000511'
+      ) {
+        return Promise.resolve(jsonResponse(methodologyScenarioSetDetail()));
+      }
+
+      if (
+        method === 'POST' &&
+        url === '/api/funds/123/scenario-sets/00000000-0000-0000-0000-000000000511/calculate'
+      ) {
+        return Promise.resolve(
+          jsonResponse({
+            snapshotId: 45,
+            correlationId: '00000000-0000-0000-0000-000000000995',
+            source: 'fund_snapshots',
+            payload: syncCalculationPayload({
+              calculationMode: 'sync_methodology',
+              scenarioSetId: '00000000-0000-0000-0000-000000000511',
+              variantId: '00000000-0000-0000-0000-000000000512',
+              overrideType: 'methodology',
+              sourceConfigId: 16,
+              name: 'Hybrid waterfall',
+            }),
+          })
+        );
+      }
+
       if (method === 'GET' && url === '/api/funds/123/results') {
         return Promise.resolve(jsonResponse(fundResultsResponse()));
       }
@@ -458,6 +486,33 @@ describe('FundScenarioWorkspacePage', () => {
     });
   });
 
+  it('shows the Methodology badge and Calculate button for methodology scenario sets', async () => {
+    mockWorkspaceFetches();
+    renderWorkspace();
+
+    const methodologyCard = await screen.findByTestId(
+      'scenario-workspace-set-00000000-0000-0000-0000-000000000511'
+    );
+    expect(within(methodologyCard).getByText('Methodology')).toBeInTheDocument();
+    expect(
+      within(methodologyCard).getByRole('button', { name: /calculate waterfall comparison/i })
+    ).toBeInTheDocument();
+  });
+
+  it('uses the sync calculation endpoint for methodology scenario sets', async () => {
+    mockWorkspaceFetches();
+    renderWorkspace();
+
+    fireEvent.click(await screen.findByRole('button', { name: /calculate waterfall comparison/i }));
+
+    await waitFor(() => {
+      expect(fetchSpy).toHaveBeenCalledWith(
+        '/api/funds/123/scenario-sets/00000000-0000-0000-0000-000000000511/calculate',
+        expect.objectContaining({ method: 'POST' })
+      );
+    });
+  });
+
   it('creates an optimized reserve scenario set from the workspace', async () => {
     mockWorkspaceFetches();
     renderWorkspace();
@@ -493,6 +548,7 @@ function scenarioSetSummaries(): FundScenarioSetSummaryV1[] {
     scenarioSetSummary('00000000-0000-0000-0000-000000000211', 'Reserve plan', 13, 4),
     scenarioSetSummary('00000000-0000-0000-0000-000000000311', 'Allocation mix', 14, 4),
     scenarioSetSummary('00000000-0000-0000-0000-000000000411', 'Sector mix', 15, 4),
+    scenarioSetSummary('00000000-0000-0000-0000-000000000511', 'Waterfall comparison', 16, 4),
   ];
 }
 
@@ -609,6 +665,27 @@ function sectorProfileScenarioSetDetail(): FundScenarioSetDetailV1 {
           payload: {
             sectorProfiles: [{ id: 'ai-infra', name: 'AI infrastructure', targetPercentage: 40 }],
           },
+        },
+        createdAt: '2026-05-29T12:00:00.000Z',
+        updatedAt: '2026-05-29T12:00:00.000Z',
+      },
+    ],
+  };
+}
+
+function methodologyScenarioSetDetail(): FundScenarioSetDetailV1 {
+  return {
+    ...scenarioSetSummary('00000000-0000-0000-0000-000000000511', 'Waterfall comparison', 16, 4),
+    variants: [
+      {
+        id: '00000000-0000-0000-0000-000000000512',
+        scenarioSetId: '00000000-0000-0000-0000-000000000511',
+        name: 'Hybrid waterfall',
+        description: null,
+        sortOrder: 0,
+        override: {
+          overrideType: 'methodology',
+          payload: { waterfallType: 'hybrid' },
         },
         createdAt: '2026-05-29T12:00:00.000Z',
         updatedAt: '2026-05-29T12:00:00.000Z',
@@ -884,10 +961,14 @@ function syncCalculationPayload({
   sourceConfigId,
   name,
 }: {
-  calculationMode: 'sync_fee_profile' | 'sync_allocation' | 'sync_sector_profile';
+  calculationMode:
+    | 'sync_fee_profile'
+    | 'sync_allocation'
+    | 'sync_sector_profile'
+    | 'sync_methodology';
   scenarioSetId: string;
   variantId: string;
-  overrideType: 'fee_profile' | 'allocation' | 'sector_profile';
+  overrideType: 'fee_profile' | 'allocation' | 'sector_profile' | 'methodology';
   sourceConfigId: number;
   name: string;
 }) {
