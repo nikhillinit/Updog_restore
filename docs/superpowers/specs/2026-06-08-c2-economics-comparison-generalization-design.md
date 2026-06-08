@@ -1,3 +1,13 @@
+---
+status: ACTIVE
+audience: agents
+last_updated: 2026-06-08
+owner: 'Platform Team'
+review_cadence: P90D
+categories: [architecture, scenarios, economics]
+keywords: [scenario-comparison, economics-overrides, c2, methodology]
+---
+
 # C2: Economics Comparison Generalization — Design Spec
 
 **Date:** 2026-06-08 **Branch:** main (off `d79ee5b2`) **Goal:** Extend scenario

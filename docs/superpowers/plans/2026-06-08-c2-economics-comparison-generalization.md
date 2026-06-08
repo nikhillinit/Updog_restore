@@ -1,3 +1,13 @@
+---
+status: ACTIVE
+audience: agents
+last_updated: 2026-06-08
+owner: 'Platform Team'
+review_cadence: P90D
+categories: [planning, scenarios, economics]
+keywords: [scenario-comparison, economics-overrides, c2, methodology]
+---
+
 # C2: Economics Comparison Generalization — Implementation Plan
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use
