@@ -114,6 +114,110 @@ describe('FundScenarioComparisonV1 contract', () => {
     expect(result.success).toBe(true);
   });
 
+  it('accepts methodology variants after contract widening', () => {
+    const result = FundScenarioComparisonV1Schema.safeParse({
+      fundId: 1,
+      comparisonStatus: 'comparable',
+      scenarioSet: {
+        scenarioSetId: '11111111-1111-4111-8111-111111111111',
+        name: 'Waterfall comparison',
+        sourceConfigId: 10,
+        sourceConfigVersion: 3,
+      },
+      baseline: { label: 'Authoritative baseline', metrics: metricMap },
+      variants: [
+        {
+          variantId: '22222222-2222-4222-8222-222222222222',
+          name: 'Hybrid waterfall',
+          overrideType: 'methodology',
+          metrics: metricMap,
+          metricDeltas: [],
+        },
+      ],
+      staleness: null,
+      calculatedAt: null,
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it('accepts allocation variants after contract widening', () => {
+    const result = FundScenarioComparisonV1Schema.safeParse({
+      fundId: 1,
+      comparisonStatus: 'comparable',
+      scenarioSet: {
+        scenarioSetId: '11111111-1111-4111-8111-111111111111',
+        name: 'Allocation mix',
+        sourceConfigId: 10,
+        sourceConfigVersion: 3,
+      },
+      baseline: { label: 'Authoritative baseline', metrics: metricMap },
+      variants: [
+        {
+          variantId: '22222222-2222-4222-8222-222222222222',
+          name: 'Seed heavy',
+          overrideType: 'allocation',
+          metrics: metricMap,
+          metricDeltas: [],
+        },
+      ],
+      staleness: null,
+      calculatedAt: null,
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it('accepts sector_profile variants after contract widening', () => {
+    const result = FundScenarioComparisonV1Schema.safeParse({
+      fundId: 1,
+      comparisonStatus: 'comparable',
+      scenarioSet: {
+        scenarioSetId: '11111111-1111-4111-8111-111111111111',
+        name: 'Sector mix',
+        sourceConfigId: 10,
+        sourceConfigVersion: 3,
+      },
+      baseline: { label: 'Authoritative baseline', metrics: metricMap },
+      variants: [
+        {
+          variantId: '22222222-2222-4222-8222-222222222222',
+          name: 'AI infrastructure',
+          overrideType: 'sector_profile',
+          metrics: metricMap,
+          metricDeltas: [],
+        },
+      ],
+      staleness: null,
+      calculatedAt: null,
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it('rejects reserve_allocation overrideType in variant positions', () => {
+    const result = FundScenarioComparisonV1Schema.safeParse({
+      fundId: 1,
+      comparisonStatus: 'comparable',
+      scenarioSet: {
+        scenarioSetId: '11111111-1111-4111-8111-111111111111',
+        name: 'Reserve plan',
+        sourceConfigId: 10,
+        sourceConfigVersion: 3,
+      },
+      baseline: { label: 'Authoritative baseline', metrics: metricMap },
+      variants: [
+        {
+          variantId: '22222222-2222-4222-8222-222222222222',
+          name: 'Follow-on cap',
+          overrideType: 'reserve_allocation',
+          metrics: metricMap,
+          metricDeltas: [],
+        },
+      ],
+      staleness: null,
+      calculatedAt: null,
+    });
+    expect(result.success).toBe(false);
+  });
+
   it('accepts typed unavailable reasons for fail-closed comparison states', () => {
     expect(
       FundScenarioComparisonV1Schema.parse({

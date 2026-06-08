@@ -26,7 +26,7 @@ import { Badge } from '@/components/ui/badge';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import {
   CrossSetScenarioComparisonTable,
-  isComparableFeeProfileComparison,
+  isComparableEconomicsComparison,
   ScenarioComparisonTable,
   ScenarioSetsSummary,
 } from '@/components/fund-results';
@@ -791,9 +791,9 @@ function WaterfallSetupCard({ payload }: { payload: WaterfallSetupSection }) {
 function ScenarioComparisonPanel({ state }: { state: ScenarioComparisonState }) {
   if (state.kind === 'idle') return null;
 
-  const comparable = state.comparisons.filter(isComparableFeeProfileComparison);
+  const comparable = state.comparisons.filter(isComparableEconomicsComparison);
   const nonComparable = state.comparisons.filter(
-    (comparison) => !isComparableFeeProfileComparison(comparison)
+    (comparison) => !isComparableEconomicsComparison(comparison)
   );
   const hasContent = state.comparisons.length > 0 || state.failedScenarioSetIds.length > 0;
 

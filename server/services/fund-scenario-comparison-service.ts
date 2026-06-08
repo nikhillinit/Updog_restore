@@ -7,6 +7,7 @@ import {
 import {
   FundScenarioCalculationPayloadV1Schema,
   type FundScenarioCalculationPayloadV1,
+  type FundScenarioCalculationVariantV1,
   type FundScenarioSetDetailV1,
 } from '@shared/contracts/fund-scenario-sets-v1.contract';
 import {
@@ -41,6 +42,32 @@ const METRIC_LABELS: Record<ScenarioComparisonMetricKey, string> = {
   finalTvpi: 'TVPI',
   finalClawbackDue: 'Clawback Due',
 };
+
+const ECONOMICS_COMPARISON_OVERRIDE_TYPES = [
+  'fee_profile',
+  'allocation',
+  'sector_profile',
+  'methodology',
+] as const;
+
+type EconomicsComparisonOverrideType = (typeof ECONOMICS_COMPARISON_OVERRIDE_TYPES)[number];
+
+function isEconomicsComparisonOverrideType(
+  overrideType: string
+): overrideType is EconomicsComparisonOverrideType {
+  return (ECONOMICS_COMPARISON_OVERRIDE_TYPES as readonly string[]).includes(overrideType);
+}
+
+type EconomicsCalculationVariant = Extract<
+  FundScenarioCalculationVariantV1,
+  { overrideType: EconomicsComparisonOverrideType }
+>;
+
+function isEconomicsVariant(
+  variant: FundScenarioCalculationVariantV1
+): variant is EconomicsCalculationVariant {
+  return isEconomicsComparisonOverrideType(variant.overrideType);
+}
 
 function parseJsonPayload(value: unknown): unknown {
   if (typeof value !== 'string') {
@@ -243,22 +270,20 @@ function comparisonWithScenarioEvidence(
   };
 }
 
-function feeProfileVariants(
+function economicsVariants(
   scenarioPayload: FundScenarioCalculationPayloadV1,
   baselineMetrics: ScenarioComparisonMetricMap
 ): ScenarioComparisonVariantV1[] {
-  return scenarioPayload.variants
-    .filter((variant) => variant.overrideType === 'fee_profile')
-    .map((variant) => {
-      const metrics = metricMapFromEconomics(variant.economics);
-      return {
-        variantId: variant.variantId,
-        name: variant.name,
-        overrideType: variant.overrideType,
-        metrics,
-        metricDeltas: metricDeltas(baselineMetrics, metrics),
-      };
-    });
+  return scenarioPayload.variants.filter(isEconomicsVariant).map((variant) => {
+    const metrics = metricMapFromEconomics(variant.economics);
+    return {
+      variantId: variant.variantId,
+      name: variant.name,
+      overrideType: variant.overrideType,
+      metrics,
+      metricDeltas: metricDeltas(baselineMetrics, metrics),
+    };
+  });
 }
 
 async function buildComparableComparison(
@@ -274,6 +299,19 @@ async function buildComparableComparison(
     input.baseComparison,
     input.scenarioPayload
   );
+
+  const scenarioVariants = input.scenarioPayload.variants;
+  if (
+    scenarioVariants.length === 0 ||
+    scenarioVariants.some((variant) => !isEconomicsVariant(variant))
+  ) {
+    return comparisonWithStatus(
+      comparisonBase,
+      'unsupported_override_type',
+      'UNSUPPORTED_OVERRIDE_TYPE'
+    );
+  }
+
   const baselineSnapshot = await loadAuthoritativeEconomicsSnapshot(client, {
     fundId: input.fundId,
     sourceConfigId: input.scenarioSet.sourceConfigId,
@@ -296,7 +334,7 @@ async function buildComparableComparison(
       label: 'Authoritative baseline',
       metrics: baselineMetrics,
     },
-    variants: feeProfileVariants(input.scenarioPayload, baselineMetrics),
+    variants: economicsVariants(input.scenarioPayload, baselineMetrics),
   });
 }
 
@@ -309,7 +347,11 @@ async function buildFundScenarioComparison(
   const scenarioSet = await fetchScenarioSetDetail(client, fundId, scenarioSetId);
   const baseComparison = createBaseComparison(fundId, scenarioSet);
 
-  if (scenarioSet.variants.some((variant) => variant.override.overrideType !== 'fee_profile')) {
+  if (
+    scenarioSet.variants.some(
+      (variant) => !isEconomicsComparisonOverrideType(variant.override.overrideType)
+    )
+  ) {
     return comparisonWithStatus(
       baseComparison,
       'unsupported_override_type',

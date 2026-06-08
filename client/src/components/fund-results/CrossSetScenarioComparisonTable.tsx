@@ -1,8 +1,8 @@
 /**
  * CrossSetScenarioComparisonTable - ADR-022 cross-set scenario comparison.
  *
- * Compares multiple calculated fee-profile scenario SETS side-by-side: one column
- * per fee-profile variant, grouped under its scenario set. Every delta stays scoped
+ * Compares multiple calculated economics-backed scenario sets side-by-side: one column
+ * per comparable variant, grouped under its scenario set. Every delta stays scoped
  * to that set's own pinned authoritative baseline (the server-provided metricDeltas);
  * this component never computes a cross-set delta.
  *
@@ -54,13 +54,16 @@ export const CROSS_SET_METRIC_DEFINITIONS = {
 /** Above this many variant columns, the table switches to horizontal scroll. */
 export const CROSS_SET_VARIANT_COLUMN_SOFT_LIMIT = 8;
 
-// These tables currently render only fee-profile variants; keying the badge by
-// overrideType prevents future non-fee-profile sets from being mislabeled silently.
+// All economics-backed comparison types use badge labels; the Record ensures any
+// future economics type added to the contract must also provide a badge label here.
 const VARIANT_OVERRIDE_TYPE_BADGE_LABELS: Record<
   FundScenarioComparisonV1['variants'][number]['overrideType'],
   string
 > = {
   fee_profile: 'FEE PROFILE',
+  allocation: 'ALLOCATION',
+  sector_profile: 'SECTOR PROFILE',
+  methodology: 'METHODOLOGY',
 };
 
 export interface CrossSetScenarioComparisonTableProps {
@@ -92,7 +95,7 @@ interface ScenarioSetGroup {
   columns: VariantColumn[];
 }
 
-export function isComparableFeeProfileComparison(comparison: FundScenarioComparisonV1): boolean {
+export function isComparableEconomicsComparison(comparison: FundScenarioComparisonV1): boolean {
   return (
     comparison.comparisonStatus === 'comparable' &&
     comparison.baseline != null &&
@@ -103,7 +106,7 @@ export function isComparableFeeProfileComparison(comparison: FundScenarioCompari
 function toVariantColumns(comparisons: FundScenarioComparisonV1[]): VariantColumn[] {
   const columns: VariantColumn[] = [];
   for (const comparison of comparisons) {
-    if (!isComparableFeeProfileComparison(comparison)) continue;
+    if (!isComparableEconomicsComparison(comparison)) continue;
     const evidenceState = comparisonEvidenceState(comparison);
     const publishedConfigVersion = comparisonPublishedConfigVersion(comparison);
     for (const variant of comparison.variants) {
@@ -212,7 +215,7 @@ export function scenarioDeltaCopy(
   return absolute > 0 ? `Higher by +${magnitude}` : `Lower by -${magnitude}`;
 }
 
-/** Cross-set side-by-side comparison of fee-profile scenario variants. */
+/** Cross-set side-by-side comparison of economics-backed scenario variants. */
 export function CrossSetScenarioComparisonTable({
   comparisons,
 }: CrossSetScenarioComparisonTableProps) {
@@ -229,7 +232,7 @@ export function CrossSetScenarioComparisonTable({
             />
             <div className="space-y-1">
               <p className="text-sm text-charcoal-600 font-poppins">
-                No comparable fee-profile scenario variants to compare.
+                No comparable scenario variants to compare.
               </p>
               <p className="text-xs text-charcoal-500 font-poppins">
                 Calculate a scenario set to compare.
@@ -250,7 +253,7 @@ export function CrossSetScenarioComparisonTable({
       <div className="space-y-1">
         <h3 className="font-inter text-base font-semibold text-charcoal">Scenario Comparison</h3>
         <p className="text-sm text-charcoal-500 font-poppins">
-          Showing {columns.length} fee-profile {columns.length === 1 ? 'variant' : 'variants'}{' '}
+          Showing {columns.length} comparable {columns.length === 1 ? 'variant' : 'variants'}{' '}
           across {groups.length} scenario {groups.length === 1 ? 'set' : 'sets'}.
         </p>
         <p className="text-xs text-charcoal-400 font-poppins">

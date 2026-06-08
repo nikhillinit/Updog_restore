@@ -573,4 +573,7 @@ export type FundScenarioReserveCalculationQueuedV1 = z.infer<
   typeof FundScenarioReserveCalculationQueuedV1Schema
 >;
 export type FundScenarioCalculationStatusV1 = z.infer<typeof FundScenarioCalculationStatusV1Schema>;
+export type FundScenarioCalculationVariantV1 = z.infer<
+  typeof FundScenarioCalculationVariantV1Schema
+>;
 export type MethodologyOverridePayloadV1 = z.infer<typeof MethodologyOverridePayloadV1Schema>;

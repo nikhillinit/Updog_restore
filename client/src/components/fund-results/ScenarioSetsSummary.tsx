@@ -31,7 +31,7 @@ interface ScenarioSetCardProps {
 
 type EconomicsScenarioVariant = Extract<
   ScenarioSetVariantResultSummaryV1,
-  { overrideType: 'fee_profile' | 'allocation' | 'sector_profile' }
+  { overrideType: 'fee_profile' | 'allocation' | 'sector_profile' | 'methodology' }
 >;
 
 function formatMultiple(value: number): string {
@@ -66,7 +66,8 @@ function hasEconomicsSummary(
   return (
     variant.overrideType === 'fee_profile' ||
     variant.overrideType === 'allocation' ||
-    variant.overrideType === 'sector_profile'
+    variant.overrideType === 'sector_profile' ||
+    variant.overrideType === 'methodology'
   );
 }
 

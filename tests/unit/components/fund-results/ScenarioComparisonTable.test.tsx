@@ -134,6 +134,51 @@ describe('ScenarioComparisonTable', () => {
     expect(within(band).getByText('BASELINE authoritative economics v4')).toBeInTheDocument();
   });
 
+  it('renders METHODOLOGY badge for methodology variants', () => {
+    const comparison: FundScenarioComparisonV1 = {
+      ...comparableComparison(),
+      variants: [
+        {
+          ...comparableComparison().variants[0]!,
+          overrideType: 'methodology',
+          name: 'Hybrid waterfall',
+        },
+      ],
+    };
+    render(<ScenarioComparisonTable comparison={comparison} />);
+    expect(screen.getByText('METHODOLOGY')).toBeInTheDocument();
+  });
+
+  it('renders ALLOCATION badge for allocation variants', () => {
+    const comparison: FundScenarioComparisonV1 = {
+      ...comparableComparison(),
+      variants: [
+        {
+          ...comparableComparison().variants[0]!,
+          overrideType: 'allocation',
+          name: 'Seed heavy',
+        },
+      ],
+    };
+    render(<ScenarioComparisonTable comparison={comparison} />);
+    expect(screen.getByText('ALLOCATION')).toBeInTheDocument();
+  });
+
+  it('renders SECTOR PROFILE badge for sector_profile variants', () => {
+    const comparison: FundScenarioComparisonV1 = {
+      ...comparableComparison(),
+      variants: [
+        {
+          ...comparableComparison().variants[0]!,
+          overrideType: 'sector_profile',
+          name: 'AI infrastructure',
+        },
+      ],
+    };
+    render(<ScenarioComparisonTable comparison={comparison} />);
+    expect(screen.getByText('SECTOR PROFILE')).toBeInTheDocument();
+  });
+
   it('reads UNAVAILABLE and claims no baseline when the comparison is not comparable', () => {
     render(<ScenarioComparisonTable comparison={baselineUnavailableComparison()} />);
 
