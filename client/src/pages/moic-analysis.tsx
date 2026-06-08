@@ -1,5 +1,7 @@
 import { useState } from 'react';
+import { useSearch } from 'wouter';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { useFundMoicRankings } from '@/hooks/use-moic';
 import {
   Select,
   SelectContent,
@@ -37,6 +39,10 @@ interface MOICMetric {
 }
 
 export default function MOICAnalysisPage() {
+  const search = useSearch();
+  const fundIdParam = new URLSearchParams(search).get('fundId');
+  const parsedFundId = fundIdParam ? parseInt(fundIdParam, 10) : null;
+  const { data: rankings, isLoading: rankingsLoading } = useFundMoicRankings(parsedFundId);
   const [selectedCompany, setSelectedCompany] = useState('all');
   const [_selectedView, _setSelectedView] = useState<'table' | 'chart' | 'comparison'>('table');
   const [_selectedMOICType, _setSelectedMOICType] = useState('exitMOICOnPlannedReserves');
@@ -396,6 +402,42 @@ export default function MOICAnalysisPage() {
           </p>
         </CardContent>
       </Card>
+
+      {parsedFundId !== null && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center space-x-2">
+              <Award className="h-5 w-5" />
+              <span>Follow-on Rankings</span>
+            </CardTitle>
+            <CardDescription>
+              Companies ranked by probability-weighted reserves MOIC (highest first)
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            {rankingsLoading ? (
+              <p className="text-sm text-charcoal-500">Loading follow-on rankings...</p>
+            ) : (
+              <ol className="space-y-2">
+                {rankings?.rankings.map((item) => (
+                  <li
+                    key={item.investmentId}
+                    className="flex items-center justify-between rounded-md border border-beige-200 px-3 py-2 text-sm"
+                  >
+                    <span className="font-medium text-charcoal-600">#{item.rank}</span>
+                    <span className="flex-1 px-3 text-pov-charcoal">{item.investmentName}</span>
+                    <span className="tabular-nums text-charcoal-500">
+                      {item.reservesMoic.value !== null
+                        ? `${item.reservesMoic.value.toFixed(2)}x`
+                        : '—'}
+                    </span>
+                  </li>
+                ))}
+              </ol>
+            )}
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }

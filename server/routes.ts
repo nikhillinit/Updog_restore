@@ -82,6 +82,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     { mountPath: '/api', load: () => import('./routes/sensitivity.js') },
     // MOIC Calculator routes
     { mountPath: '/api/moic', load: () => import('./routes/moic.js') },
+    // Fund-scoped MOIC follow-on rankings (authenticated, fund-scoped)
+    { mountPath: '/api', load: () => import('./routes/fund-moic.js') },
     // Graduation Rate Engine routes
     { mountPath: '/api/graduation', load: () => import('./routes/graduation.js') },
     // Capital Allocation Engine routes
