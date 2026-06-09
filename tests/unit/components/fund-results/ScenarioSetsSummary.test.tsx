@@ -61,6 +61,18 @@ describe('ScenarioSetsSummary', () => {
     expect(within(reserveCard).getAllByText('1')).toHaveLength(2);
   });
 
+  it('renders methodology scenario cards with economics summaries', () => {
+    render(<ScenarioSetsSummary payload={methodologyPayload()} />);
+
+    const card = screen.getByText('Waterfall comparison').closest('article');
+    if (!(card instanceof HTMLElement)) {
+      throw new Error('Waterfall comparison card was not rendered');
+    }
+    expect(within(card).getByText('Best TVPI')).toBeInTheDocument();
+    expect(within(card).getByText('2.30x')).toBeInTheDocument();
+    expect(within(card).getByText('Hybrid waterfall')).toBeInTheDocument();
+  });
+
   it('renders allocation and sector-profile scenario cards with economics summaries', () => {
     render(<ScenarioSetsSummary payload={syncOverridePayload()} />);
 
@@ -209,6 +221,34 @@ function syncOverridePayload(): ScenariosSectionPayloadV1 {
             name: 'AI infrastructure',
             overrideType: 'sector_profile',
             economicsSummary: economicsSummary({ finalTvpi: 2.05 }),
+          },
+        ],
+      },
+    ],
+  };
+}
+
+function methodologyPayload(): ScenariosSectionPayloadV1 {
+  return {
+    version: 'fund-scenarios-v1',
+    aggregateStaleness: 'CURRENT',
+    sets: [
+      {
+        scenarioSetId: '00000000-0000-0000-0000-000000000611',
+        name: 'Waterfall comparison',
+        calculationMode: 'sync_methodology',
+        sourceConfigId: 16,
+        sourceConfigVersion: 5,
+        currentPublishedConfigVersion: 5,
+        calculatedAt: '2026-05-26T12:40:00.000Z',
+        staleness: 'CURRENT',
+        variantCount: 1,
+        variants: [
+          {
+            variantId: '00000000-0000-0000-0000-000000000612',
+            name: 'Hybrid waterfall',
+            overrideType: 'methodology',
+            economicsSummary: economicsSummary({ finalTvpi: 2.3 }),
           },
         ],
       },
