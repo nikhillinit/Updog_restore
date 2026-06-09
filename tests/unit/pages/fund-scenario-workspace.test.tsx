@@ -92,15 +92,41 @@ describe('FundScenarioWorkspacePage', () => {
         return Promise.resolve(jsonResponse(sectorProfileScenarioSetDetail()));
       }
 
+      if (
+        method === 'GET' &&
+        url === '/api/funds/123/scenario-sets/00000000-0000-0000-0000-000000000511'
+      ) {
+        return Promise.resolve(jsonResponse(methodologyScenarioSetDetail()));
+      }
+
+      if (
+        method === 'POST' &&
+        url === '/api/funds/123/scenario-sets/00000000-0000-0000-0000-000000000511/calculate'
+      ) {
+        return Promise.resolve(
+          jsonResponse({
+            snapshotId: 45,
+            correlationId: '00000000-0000-0000-0000-000000000995',
+            source: 'fund_snapshots',
+            payload: syncCalculationPayload({
+              calculationMode: 'sync_methodology',
+              scenarioSetId: '00000000-0000-0000-0000-000000000511',
+              variantId: '00000000-0000-0000-0000-000000000512',
+              overrideType: 'methodology',
+              sourceConfigId: 16,
+              name: 'Hybrid waterfall',
+            }),
+          })
+        );
+      }
+
       if (method === 'GET' && url === '/api/funds/123/results') {
         return Promise.resolve(jsonResponse(fundResultsResponse()));
       }
 
-      if (
-        method === 'GET' &&
-        url === '/api/funds/123/scenario-sets/00000000-0000-0000-0000-000000000111/comparison'
-      ) {
-        return Promise.resolve(jsonResponse(scenarioComparisonResponse()));
+      if (method === 'GET' && url.endsWith('/comparison')) {
+        const setId = url.split('/scenario-sets/')[1]?.split('/')[0] ?? '';
+        return Promise.resolve(jsonResponse(scenarioComparisonResponse(setId)));
       }
 
       if (
@@ -211,8 +237,8 @@ describe('FundScenarioWorkspacePage', () => {
     expect(screen.getAllByText('Allocation mix').length).toBeGreaterThanOrEqual(1);
     expect(screen.getAllByText('Sector mix').length).toBeGreaterThanOrEqual(1);
     expect(screen.getByTestId('scenario-sets-summary')).toBeInTheDocument();
-    expect(screen.getByTestId('scenario-comparison-table')).toBeInTheDocument();
-    expect(screen.getByText('Authoritative baseline')).toBeInTheDocument();
+    expect(screen.getAllByTestId('scenario-comparison-table').length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText('Authoritative baseline').length).toBeGreaterThanOrEqual(1);
 
     const feeCard = screen.getByTestId(
       'scenario-workspace-set-00000000-0000-0000-0000-000000000111'
@@ -248,6 +274,15 @@ describe('FundScenarioWorkspacePage', () => {
     expect(within(sectorCard).getByText('Sector profile')).toBeInTheDocument();
     expect(
       within(sectorCard).getByRole('button', { name: /calculate sector mix/i })
+    ).toBeInTheDocument();
+
+    const methodologyCard = screen.getByTestId(
+      'scenario-workspace-set-00000000-0000-0000-0000-000000000511'
+    );
+    expect(within(methodologyCard).getByText('Succeeded')).toBeInTheDocument();
+    expect(within(methodologyCard).getByText('Methodology')).toBeInTheDocument();
+    expect(
+      within(methodologyCard).getByRole('button', { name: /calculate waterfall comparison/i })
     ).toBeInTheDocument();
 
     const statusUrls = fetchSpy.mock.calls
@@ -351,7 +386,7 @@ describe('FundScenarioWorkspacePage', () => {
   });
 
   it('shows "Not requested" for a sync scenario set without a calculated result', async () => {
-    const pendingSetId = '00000000-0000-0000-0000-000000000511';
+    const pendingSetId = '00000000-0000-0000-0000-000000000611';
 
     fetchSpy.mockImplementation((input: RequestInfo | URL, init?: RequestInit) => {
       const url = typeof input === 'string' ? input : input.toString();
@@ -458,6 +493,33 @@ describe('FundScenarioWorkspacePage', () => {
     });
   });
 
+  it('shows the Methodology badge and Calculate button for methodology scenario sets', async () => {
+    mockWorkspaceFetches();
+    renderWorkspace();
+
+    const methodologyCard = await screen.findByTestId(
+      'scenario-workspace-set-00000000-0000-0000-0000-000000000511'
+    );
+    expect(within(methodologyCard).getByText('Methodology')).toBeInTheDocument();
+    expect(
+      within(methodologyCard).getByRole('button', { name: /calculate waterfall comparison/i })
+    ).toBeInTheDocument();
+  });
+
+  it('uses the sync calculation endpoint for methodology scenario sets', async () => {
+    mockWorkspaceFetches();
+    renderWorkspace();
+
+    fireEvent.click(await screen.findByRole('button', { name: /calculate waterfall comparison/i }));
+
+    await waitFor(() => {
+      expect(fetchSpy).toHaveBeenCalledWith(
+        '/api/funds/123/scenario-sets/00000000-0000-0000-0000-000000000511/calculate',
+        expect.objectContaining({ method: 'POST' })
+      );
+    });
+  });
+
   it('creates an optimized reserve scenario set from the workspace', async () => {
     mockWorkspaceFetches();
     renderWorkspace();
@@ -478,6 +540,29 @@ describe('FundScenarioWorkspacePage', () => {
     expect(screen.getByText('Invalid scenario workspace route')).toBeInTheDocument();
     expect(fetchSpy).not.toHaveBeenCalled();
   });
+
+  it('renders New methodology scenario button and opens modal on click', async () => {
+    mockWorkspaceFetches();
+    renderWorkspace();
+
+    const newScenarioBtn = await screen.findByRole('button', {
+      name: /new methodology scenario/i,
+    });
+    expect(newScenarioBtn).toBeInTheDocument();
+
+    fireEvent.click(newScenarioBtn);
+    expect(await screen.findByRole('dialog')).toBeInTheDocument();
+
+    // No create POST issued merely by opening the modal
+    const createPosts = (fetchSpy.mock.calls as [string, RequestInit][]).filter(
+      ([url, init]) =>
+        url.includes('/scenario-sets') &&
+        (init?.method ?? 'GET') === 'POST' &&
+        !url.includes('/reserve-optimization') &&
+        !url.includes('/calculate')
+    );
+    expect(createPosts).toHaveLength(0);
+  });
 });
 
 function jsonResponse(body: unknown) {
@@ -493,6 +578,7 @@ function scenarioSetSummaries(): FundScenarioSetSummaryV1[] {
     scenarioSetSummary('00000000-0000-0000-0000-000000000211', 'Reserve plan', 13, 4),
     scenarioSetSummary('00000000-0000-0000-0000-000000000311', 'Allocation mix', 14, 4),
     scenarioSetSummary('00000000-0000-0000-0000-000000000411', 'Sector mix', 15, 4),
+    scenarioSetSummary('00000000-0000-0000-0000-000000000511', 'Waterfall comparison', 16, 4),
   ];
 }
 
@@ -609,6 +695,27 @@ function sectorProfileScenarioSetDetail(): FundScenarioSetDetailV1 {
           payload: {
             sectorProfiles: [{ id: 'ai-infra', name: 'AI infrastructure', targetPercentage: 40 }],
           },
+        },
+        createdAt: '2026-05-29T12:00:00.000Z',
+        updatedAt: '2026-05-29T12:00:00.000Z',
+      },
+    ],
+  };
+}
+
+function methodologyScenarioSetDetail(): FundScenarioSetDetailV1 {
+  return {
+    ...scenarioSetSummary('00000000-0000-0000-0000-000000000511', 'Waterfall comparison', 16, 4),
+    variants: [
+      {
+        id: '00000000-0000-0000-0000-000000000512',
+        scenarioSetId: '00000000-0000-0000-0000-000000000511',
+        name: 'Hybrid waterfall',
+        description: null,
+        sortOrder: 0,
+        override: {
+          overrideType: 'methodology',
+          payload: { waterfallType: 'hybrid' },
         },
         createdAt: '2026-05-29T12:00:00.000Z',
         updatedAt: '2026-05-29T12:00:00.000Z',
@@ -762,6 +869,25 @@ function scenariosPayload() {
           },
         ],
       },
+      {
+        scenarioSetId: '00000000-0000-0000-0000-000000000511',
+        name: 'Waterfall comparison',
+        calculationMode: 'sync_methodology',
+        sourceConfigId: 16,
+        sourceConfigVersion: 4,
+        currentPublishedConfigVersion: 4,
+        calculatedAt: '2026-05-29T12:36:00.000Z',
+        staleness: 'CURRENT' as const,
+        variantCount: 1,
+        variants: [
+          {
+            variantId: '00000000-0000-0000-0000-000000000512',
+            name: 'Hybrid waterfall',
+            overrideType: 'methodology' as const,
+            economicsSummary: economicsSummary(),
+          },
+        ],
+      },
     ],
   };
 }
@@ -789,12 +915,14 @@ function economicsSummary() {
   };
 }
 
-function scenarioComparisonResponse(): FundScenarioComparisonV1 {
+function scenarioComparisonResponse(
+  scenarioSetId = '00000000-0000-0000-0000-000000000111'
+): FundScenarioComparisonV1 {
   return {
     fundId: 123,
     comparisonStatus: 'comparable',
     scenarioSet: {
-      scenarioSetId: '00000000-0000-0000-0000-000000000111',
+      scenarioSetId,
       name: 'Fee sensitivity',
       sourceConfigId: 12,
       sourceConfigVersion: 4,
@@ -884,10 +1012,14 @@ function syncCalculationPayload({
   sourceConfigId,
   name,
 }: {
-  calculationMode: 'sync_fee_profile' | 'sync_allocation' | 'sync_sector_profile';
+  calculationMode:
+    | 'sync_fee_profile'
+    | 'sync_allocation'
+    | 'sync_sector_profile'
+    | 'sync_methodology';
   scenarioSetId: string;
   variantId: string;
-  overrideType: 'fee_profile' | 'allocation' | 'sector_profile';
+  overrideType: 'fee_profile' | 'allocation' | 'sector_profile' | 'methodology';
   sourceConfigId: number;
   name: string;
 }) {

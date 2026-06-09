@@ -11,8 +11,14 @@ export interface ScenarioCalculationRunIdentity {
     | 'sync_fee_profile'
     | 'sync_allocation'
     | 'sync_sector_profile'
+    | 'sync_methodology'
     | 'async_reserve_allocation';
-  overrideType: 'fee_profile' | 'allocation' | 'sector_profile' | 'reserve_allocation';
+  overrideType:
+    | 'fee_profile'
+    | 'allocation'
+    | 'sector_profile'
+    | 'methodology'
+    | 'reserve_allocation';
   inputHash: string;
   correlationId: string;
   jobId?: string | null;

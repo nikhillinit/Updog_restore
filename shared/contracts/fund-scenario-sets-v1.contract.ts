@@ -17,6 +17,7 @@ export const FundScenarioOverrideTypeV1Schema = z.enum([
   'reserve_allocation',
   'allocation',
   'sector_profile',
+  'methodology',
 ]);
 
 const FeeProfileOverridePayloadV1Schema = FundDraftWriteV1Schema.pick({
@@ -91,11 +92,34 @@ export const FundScenarioReserveAllocationOverrideV1Schema = z
   })
   .strict();
 
+export const MethodologyOverridePayloadV1Schema = z
+  .object({
+    waterfallType: FundDraftWriteV1Schema.shape.waterfallType,
+    waterfallTiers: FundDraftWriteV1Schema.shape.waterfallTiers,
+    managementFeeRate: FundDraftWriteV1Schema.shape.managementFeeRate,
+  })
+  .strict()
+  .refine(
+    (p) =>
+      p.waterfallType !== undefined ||
+      p.waterfallTiers !== undefined ||
+      p.managementFeeRate !== undefined,
+    { message: 'Methodology override must specify at least one field' }
+  );
+
+export const FundScenarioMethodologyOverrideV1Schema = z
+  .object({
+    overrideType: z.literal('methodology'),
+    payload: MethodologyOverridePayloadV1Schema,
+  })
+  .strict();
+
 export const FundScenarioVariantOverrideV1Schema = z.discriminatedUnion('overrideType', [
   FundScenarioFeeProfileOverrideV1Schema,
   FundScenarioReserveAllocationOverrideV1Schema,
   FundScenarioAllocationOverrideV1Schema,
   FundScenarioSectorProfileOverrideV1Schema,
+  FundScenarioMethodologyOverrideV1Schema,
 ]);
 
 export const CreateFundScenarioVariantV1Schema = z
@@ -296,17 +320,28 @@ export const ScenarioSetReserveVariantResultSummaryV1Schema = z
   })
   .strict();
 
+export const ScenarioSetMethodologyVariantResultSummaryV1Schema = z
+  .object({
+    variantId: z.string().uuid(),
+    name: z.string(),
+    overrideType: z.literal('methodology'),
+    economicsSummary: EconomicsSummaryV1Schema,
+  })
+  .strict();
+
 export const ScenarioSetVariantResultSummaryV1Schema = z.discriminatedUnion('overrideType', [
   ScenarioSetFeeProfileVariantResultSummaryV1Schema,
   ScenarioSetAllocationVariantResultSummaryV1Schema,
   ScenarioSetSectorProfileVariantResultSummaryV1Schema,
   ScenarioSetReserveVariantResultSummaryV1Schema,
+  ScenarioSetMethodologyVariantResultSummaryV1Schema,
 ]);
 
 export const FundScenarioCalculationModeV1Schema = z.enum([
   'sync_fee_profile',
   'sync_allocation',
   'sync_sector_profile',
+  'sync_methodology',
   'async_reserve_allocation',
 ]);
 
@@ -320,6 +355,8 @@ function overrideTypeForCalculationMode(
       return 'allocation';
     case 'sync_sector_profile':
       return 'sector_profile';
+    case 'sync_methodology':
+      return 'methodology';
     case 'async_reserve_allocation':
       return 'reserve_allocation';
   }
@@ -409,11 +446,22 @@ export const FundScenarioReserveCalculationVariantV1Schema = z
   })
   .strict();
 
+export const FundScenarioMethodologyCalculationVariantV1Schema = z
+  .object({
+    variantId: z.string().uuid(),
+    scenarioSetId: z.string().uuid(),
+    name: z.string(),
+    overrideType: z.literal('methodology'),
+    economics: EconomicsResultV1Schema,
+  })
+  .strict();
+
 export const FundScenarioCalculationVariantV1Schema = z.discriminatedUnion('overrideType', [
   FundScenarioFeeProfileCalculationVariantV1Schema,
   FundScenarioAllocationCalculationVariantV1Schema,
   FundScenarioSectorProfileCalculationVariantV1Schema,
   FundScenarioReserveCalculationVariantV1Schema,
+  FundScenarioMethodologyCalculationVariantV1Schema,
 ]);
 
 export const FundScenarioCalculationPayloadV1Schema = z
@@ -525,3 +573,7 @@ export type FundScenarioReserveCalculationQueuedV1 = z.infer<
   typeof FundScenarioReserveCalculationQueuedV1Schema
 >;
 export type FundScenarioCalculationStatusV1 = z.infer<typeof FundScenarioCalculationStatusV1Schema>;
+export type FundScenarioCalculationVariantV1 = z.infer<
+  typeof FundScenarioCalculationVariantV1Schema
+>;
+export type MethodologyOverridePayloadV1 = z.infer<typeof MethodologyOverridePayloadV1Schema>;

@@ -110,7 +110,7 @@ export const ScenarioComparisonVariantV1Schema = z
   .object({
     variantId: z.string().uuid(),
     name: z.string(),
-    overrideType: z.literal('fee_profile'),
+    overrideType: z.enum(['fee_profile', 'allocation', 'sector_profile', 'methodology']),
     metrics: ScenarioComparisonMetricMapV1Schema,
     metricDeltas: z.array(ScenarioComparisonMetricDeltaV1Schema),
   })
