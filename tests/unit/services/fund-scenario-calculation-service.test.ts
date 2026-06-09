@@ -92,6 +92,14 @@ const sectorProfileOverride = {
   },
 } as const;
 
+const methodologyOverride = {
+  overrideType: 'methodology',
+  payload: {
+    waterfallType: 'hybrid',
+    managementFeeRate: 3,
+  },
+} as const;
+
 const baseConfig = {
   fundName: 'Test Fund',
   fundSize: 100_000_000,
@@ -292,8 +300,12 @@ function calculationRunRow(
   status: 'queued' | 'running' | 'completed',
   snapshotId: number | null = null,
   options: {
-    calculationMode?: 'sync_fee_profile' | 'sync_allocation' | 'sync_sector_profile';
-    overrideType?: 'fee_profile' | 'allocation' | 'sector_profile';
+    calculationMode?:
+      | 'sync_fee_profile'
+      | 'sync_allocation'
+      | 'sync_sector_profile'
+      | 'sync_methodology';
+    overrideType?: 'fee_profile' | 'allocation' | 'sector_profile' | 'methodology';
     inputHash?: string;
   } = {}
 ) {
@@ -320,9 +332,17 @@ function expectedInputHash(): string {
 }
 
 function expectedInputHashFor(
-  override: typeof feeProfileOverride | typeof allocationOverride | typeof sectorProfileOverride,
-  calculationMode: 'sync_fee_profile' | 'sync_allocation' | 'sync_sector_profile',
-  overrideType: 'fee_profile' | 'allocation' | 'sector_profile'
+  override:
+    | typeof feeProfileOverride
+    | typeof allocationOverride
+    | typeof sectorProfileOverride
+    | typeof methodologyOverride,
+  calculationMode:
+    | 'sync_fee_profile'
+    | 'sync_allocation'
+    | 'sync_sector_profile'
+    | 'sync_methodology',
+  overrideType: 'fee_profile' | 'allocation' | 'sector_profile' | 'methodology'
 ): string {
   return createScenarioInputHash({
     version: SCENARIO_INPUT_HASH_VERSION,
@@ -440,6 +460,79 @@ describe('fund scenario calculation service', () => {
         variant_count: 1,
       }),
     ]);
+  });
+
+  it('applies methodology overrides to nested economics assumptions before calculation', async () => {
+    const methodologyHash = expectedInputHashFor(
+      methodologyOverride,
+      'sync_methodology',
+      'methodology'
+    );
+    const methodologyRunOptions = {
+      calculationMode: 'sync_methodology' as const,
+      overrideType: 'methodology' as const,
+      inputHash: methodologyHash,
+    };
+
+    queryMock
+      .mockResolvedValueOnce({ rows: [{ id: 1 }] })
+      .mockResolvedValueOnce({ rows: [scenarioSetRow({ name: 'Methodology sensitivity' })] })
+      .mockResolvedValueOnce({ rows: [variantRow(methodologyOverride)] })
+      .mockResolvedValueOnce({
+        rows: [
+          {
+            id: 12,
+            version: 4,
+            config: {
+              ...baseConfig,
+              economicsAssumptions: explicitFeeTierEconomicsAssumptions,
+            },
+          },
+        ],
+      })
+      .mockResolvedValueOnce({ rows: [{ version: 4 }] })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [calculationRunRow('queued', null, methodologyRunOptions)] })
+      .mockResolvedValueOnce({ rows: [calculationRunRow('running', null, methodologyRunOptions)] })
+      .mockImplementationOnce((_sql: string, params: unknown[]) => ({
+        rows: [
+          {
+            id: 43,
+            payload: params[1],
+            correlation_id: params[3],
+            created_at: new Date('2026-05-26T12:05:00.000Z'),
+            snapshot_time: new Date('2026-05-26T12:05:00.000Z'),
+          },
+        ],
+      }))
+      .mockResolvedValueOnce({ rows: [calculationRunRow('completed', 43, methodologyRunOptions)] })
+      .mockResolvedValueOnce({ rows: [{ id: '00000000-0000-0000-0000-000000000127' }] });
+
+    const result = await calculateFundScenarioSet(1, scenarioSetId, {
+      userId: 17,
+      label: 'analyst@example.com',
+    });
+
+    expect(result.payload.calculationMode).toBe('sync_methodology');
+    expect(runEconomicsModelMock).toHaveBeenCalledTimes(1);
+
+    const calledConfig = runEconomicsModelMock.mock.calls[0]?.[0] as {
+      managementFeeRate?: number;
+      waterfallType?: string;
+      feeProfiles?: unknown;
+      economicsAssumptions?: {
+        feeModel?: unknown;
+        waterfallModel?: unknown;
+      };
+    };
+    expect(calledConfig.managementFeeRate).toBe(3);
+    expect(calledConfig.waterfallType).toBe('hybrid');
+    expect(calledConfig.feeProfiles).toBeUndefined();
+    expect(calledConfig.economicsAssumptions?.feeModel).toEqual({
+      source: 'economics_override',
+      defaultRate: 0.03,
+    });
+    expect(calledConfig.economicsAssumptions).not.toHaveProperty('waterfallModel');
   });
 
   it('applies allocation overrides through the sync scenario calculation path', async () => {

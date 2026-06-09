@@ -37,6 +37,10 @@ export class ApiError extends Error {
   }
 }
 
+interface ApiRequestOptions {
+  headers?: Record<string, string>;
+}
+
 async function throwIfResNotOk(res: Response) {
   if (!res.ok) {
     const text = (await res.text()) || res.statusText;
@@ -55,12 +59,14 @@ async function throwIfResNotOk(res: Response) {
 export async function apiRequest<TResponse = unknown>(
   method: 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH',
   url: string,
-  body?: unknown
+  body?: unknown,
+  requestOptions: ApiRequestOptions = {}
 ): Promise<TResponse> {
   const options: RequestInit = {
     method,
     headers: {
       'Content-Type': 'application/json',
+      ...requestOptions.headers,
     },
     credentials: 'include',
   };
@@ -75,12 +81,15 @@ export async function apiRequest<TResponse = unknown>(
     type ErrorBody = {
       message?: string;
       error?: string;
+      code?: string;
       issues?: Array<{ path: (string | number)[]; message: string }>;
+      details?: unknown;
     };
     const errorData = (await response.json().catch(() => ({}) as ErrorBody)) as ErrorBody;
     const errorMessage =
       errorData.message || errorData.error || `API request failed: ${response.statusText}`;
-    throw new ApiError(response.status, errorMessage, errorData.error, errorData.issues);
+    const errorCode = errorData.code ?? errorData.error;
+    throw new ApiError(response.status, errorMessage, errorCode, errorData.issues);
   }
 
   return response.json() as Promise<TResponse>;

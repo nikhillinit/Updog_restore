@@ -381,6 +381,60 @@ function applyFeeProfileOverride(
   };
 }
 
+function percentToRatio(percent: number): number {
+  return percent / 100;
+}
+
+function applyMethodologyOverride(
+  sourceConfig: FundDraftWriteV1,
+  override: Extract<FundScenarioVariantOverrideV1, { overrideType: 'methodology' }>
+): FundDraftWriteV1 {
+  const { payload } = override;
+  let variantConfig: FundDraftWriteV1 = {
+    ...sourceConfig,
+    ...(payload.waterfallType !== undefined && {
+      waterfallType: payload.waterfallType,
+    }),
+    ...(payload.waterfallTiers !== undefined && {
+      waterfallTiers: payload.waterfallTiers,
+    }),
+  };
+
+  if (payload.managementFeeRate !== undefined) {
+    variantConfig = {
+      ...variantConfig,
+      managementFeeRate: payload.managementFeeRate,
+      feeProfiles: undefined,
+    };
+  }
+
+  const economicsAssumptions = sourceConfig.economicsAssumptions;
+  if (economicsAssumptions == null) {
+    return variantConfig;
+  }
+
+  const nextEconomicsAssumptions = { ...economicsAssumptions };
+
+  if (payload.managementFeeRate !== undefined) {
+    nextEconomicsAssumptions.feeModel = {
+      source: 'economics_override',
+      defaultRate: percentToRatio(payload.managementFeeRate),
+      ...(economicsAssumptions.feeModel?.defaultBasis !== undefined && {
+        defaultBasis: economicsAssumptions.feeModel.defaultBasis,
+      }),
+    };
+  }
+
+  if (payload.waterfallType !== undefined || payload.waterfallTiers !== undefined) {
+    delete nextEconomicsAssumptions.waterfallModel;
+  }
+
+  return {
+    ...variantConfig,
+    economicsAssumptions: nextEconomicsAssumptions,
+  };
+}
+
 function isSyncScenarioOverride(
   override: FundScenarioVariantOverrideV1
 ): override is SyncScenarioVariantOverride {
@@ -417,18 +471,7 @@ function applySyncScenarioOverride(
   }
 
   if (override.overrideType === 'methodology') {
-    return {
-      ...sourceConfig,
-      ...(override.payload.waterfallType !== undefined && {
-        waterfallType: override.payload.waterfallType,
-      }),
-      ...(override.payload.waterfallTiers !== undefined && {
-        waterfallTiers: override.payload.waterfallTiers,
-      }),
-      ...(override.payload.managementFeeRate !== undefined && {
-        managementFeeRate: override.payload.managementFeeRate,
-      }),
-    };
+    return applyMethodologyOverride(sourceConfig, override);
   }
 
   return {
