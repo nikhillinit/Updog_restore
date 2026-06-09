@@ -339,7 +339,7 @@
     "ts-morph": "27.0.2",
     "tsc-baseline": "1.9.0",
     "tsx": "4.22.4",
-    "typescript": "^5.9.3",
+    "typescript": "^6.0.3",
     "vite": "^6.4.2",
     "vite-plugin-virtual": "^0.5.0",
     "vite-tsconfig-paths": "^5.1.4",
