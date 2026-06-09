@@ -11063,6 +11063,35 @@
     {
       "docType": "doc",
       "exists": true,
+      "frontmatter": {
+        "audience": "agents",
+        "categories": [
+          "planning",
+          "scenarios",
+          "workers"
+        ],
+        "keywords": [
+          "c3-scenario-async-worker",
+          "fund-scenario-calc",
+          "bullmq",
+          "reserve-allocation"
+        ],
+        "last_updated": "2026-06-09",
+        "owner": "Platform Team",
+        "review_cadence": "P90D",
+        "status": "ACTIVE"
+      },
+      "hasExecutionClaims": true,
+      "isStale": false,
+      "lastUpdated": "2026-06-09",
+      "owner": "Platform Team",
+      "path": "docs/superpowers/plans/2026-06-09-c3-scenario-async-worker-wiring.md",
+      "staleDays": 0,
+      "status": "ACTIVE"
+    },
+    {
+      "docType": "doc",
+      "exists": true,
       "frontmatter": {},
       "hasExecutionClaims": true,
       "isStale": true,
@@ -11116,6 +11145,35 @@
       "owner": "Platform Team",
       "path": "docs/superpowers/specs/2026-06-08-c2-economics-comparison-generalization-design.md",
       "staleDays": 1,
+      "status": "ACTIVE"
+    },
+    {
+      "docType": "doc",
+      "exists": true,
+      "frontmatter": {
+        "audience": "agents",
+        "categories": [
+          "architecture",
+          "scenarios",
+          "workers"
+        ],
+        "keywords": [
+          "c3-scenario-async-worker",
+          "fund-scenario-calc",
+          "bullmq",
+          "reserve-allocation"
+        ],
+        "last_updated": "2026-06-09",
+        "owner": "Platform Team",
+        "review_cadence": "P180D",
+        "status": "ACTIVE"
+      },
+      "hasExecutionClaims": false,
+      "isStale": false,
+      "lastUpdated": "2026-06-09",
+      "owner": "Platform Team",
+      "path": "docs/superpowers/specs/2026-06-09-c3-scenario-async-worker-wiring-design.md",
+      "staleDays": 0,
       "status": "ACTIVE"
     },
     {
@@ -12712,7 +12770,7 @@
   ],
   "stats": {
     "by_status": {
-      "ACTIVE": 442,
+      "ACTIVE": 444,
       "ARCHIVED": 1,
       "BACKLOG": 1,
       "COMPLETE": 1,
@@ -12733,7 +12791,7 @@
     },
     "missing_frontmatter": 15,
     "stale_docs": 97,
-    "total_docs": 646
+    "total_docs": 648
   },
   "version": "2.0"
 }
