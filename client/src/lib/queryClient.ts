@@ -75,12 +75,15 @@ export async function apiRequest<TResponse = unknown>(
     type ErrorBody = {
       message?: string;
       error?: string;
+      code?: string;
       issues?: Array<{ path: (string | number)[]; message: string }>;
+      details?: unknown;
     };
     const errorData = (await response.json().catch(() => ({}) as ErrorBody)) as ErrorBody;
     const errorMessage =
       errorData.message || errorData.error || `API request failed: ${response.statusText}`;
-    throw new ApiError(response.status, errorMessage, errorData.error, errorData.issues);
+    const errorCode = errorData.code ?? errorData.error;
+    throw new ApiError(response.status, errorMessage, errorCode, errorData.issues);
   }
 
   return response.json() as Promise<TResponse>;
