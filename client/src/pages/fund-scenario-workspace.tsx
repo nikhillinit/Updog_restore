@@ -12,6 +12,8 @@
 import React, { useMemo, useState } from 'react';
 import { Link, useRoute } from 'wouter';
 import { ArrowLeft, RefreshCw } from 'lucide-react';
+import { cn } from '@/lib/utils';
+import { CreateMethodologyScenarioModal } from '@/components/scenarios/CreateMethodologyScenarioModal';
 import {
   type Query,
   useMutation,
@@ -348,12 +350,14 @@ function ScenarioSetActionCard({
   detail,
   status,
   pendingScenarioSetId,
+  isHighlighted,
   onCalculate,
 }: {
   summary: FundScenarioSetSummaryV1;
   detail: FundScenarioSetDetailV1 | null;
   status: FundScenarioCalculationStatusV1 | null;
   pendingScenarioSetId: string | null;
+  isHighlighted?: boolean;
   onCalculate: (detail: FundScenarioSetDetailV1) => void;
 }) {
   const isPending = pendingScenarioSetId === summary.id;
@@ -363,7 +367,10 @@ function ScenarioSetActionCard({
 
   return (
     <article
-      className="rounded-md border border-beige-200 bg-white p-4"
+      className={cn(
+        'rounded-md border border-beige-200 bg-white p-4',
+        isHighlighted && 'ring-2 ring-charcoal'
+      )}
       data-testid={`scenario-workspace-set-${summary.id}`}
     >
       <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
@@ -411,12 +418,14 @@ function ScenarioActionList({
   detailById,
   statusById,
   pendingScenarioSetId,
+  highlightedScenarioSetId,
   onCalculate,
 }: {
   scenarioSets: FundScenarioSetSummaryV1[];
   detailById: Map<string, FundScenarioSetDetailV1>;
   statusById: Map<string, FundScenarioCalculationStatusV1>;
   pendingScenarioSetId: string | null;
+  highlightedScenarioSetId?: string | null;
   onCalculate: (detail: FundScenarioSetDetailV1) => void;
 }) {
   return (
@@ -435,6 +444,7 @@ function ScenarioActionList({
             detail={detailById.get(summary.id) ?? null}
             status={statusById.get(summary.id) ?? null}
             pendingScenarioSetId={pendingScenarioSetId}
+            isHighlighted={summary.id === highlightedScenarioSetId}
             onCalculate={onCalculate}
           />
         ))}
@@ -482,6 +492,8 @@ function FundScenarioWorkspacePage() {
   const fundId = useWorkspaceFundId();
   const queryClient = useQueryClient();
   const [pendingScenarioSetId, setPendingScenarioSetId] = useState<string | null>(null);
+  const [isCreateMethodologyOpen, setIsCreateMethodologyOpen] = useState(false);
+  const [highlightedScenarioSetId, setHighlightedScenarioSetId] = useState<string | null>(null);
 
   const scenarioSetsQuery = useQuery({
     queryKey: fundId ? scenarioSetListQueryKey(fundId) : ['fund-scenario-workspace', 'invalid'],
@@ -609,20 +621,25 @@ function FundScenarioWorkspacePage() {
               Back to Results
             </Link>
           </Button>
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            disabled={createReserveOptimizationMutation.isPending}
-            onClick={() => createReserveOptimizationMutation.mutate()}
-          >
-            {createReserveOptimizationMutation.isPending && (
-              <RefreshCw className="h-4 w-4 animate-spin" />
-            )}
-            {createReserveOptimizationMutation.isPending
-              ? 'Creating'
-              : 'Create optimized reserve plan'}
-          </Button>
+          <div className="flex flex-wrap items-center gap-2">
+            <Button variant="outline" size="sm" onClick={() => setIsCreateMethodologyOpen(true)}>
+              New methodology scenario
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              disabled={createReserveOptimizationMutation.isPending}
+              onClick={() => createReserveOptimizationMutation.mutate()}
+            >
+              {createReserveOptimizationMutation.isPending && (
+                <RefreshCw className="h-4 w-4 animate-spin" />
+              )}
+              {createReserveOptimizationMutation.isPending
+                ? 'Creating'
+                : 'Create optimized reserve plan'}
+            </Button>
+          </div>
         </div>
         <div>
           <h1 className="text-2xl font-semibold text-charcoal">Scenario Workspace</h1>
@@ -655,6 +672,7 @@ function FundScenarioWorkspacePage() {
         detailById={detailById}
         statusById={statusById}
         pendingScenarioSetId={pendingScenarioSetId}
+        highlightedScenarioSetId={highlightedScenarioSetId}
         onCalculate={(detail) => {
           setPendingScenarioSetId(detail.id);
           calculateMutation.mutate(detail);
@@ -678,6 +696,12 @@ function FundScenarioWorkspacePage() {
       <ScenarioComparisonWorkspace
         comparisons={comparisons}
         isLoading={comparisonQueries.some((query) => query.isLoading)}
+      />
+      <CreateMethodologyScenarioModal
+        fundId={fundId}
+        open={isCreateMethodologyOpen}
+        onOpenChange={setIsCreateMethodologyOpen}
+        onSuccess={(created) => setHighlightedScenarioSetId(created.id)}
       />
     </div>
   );
