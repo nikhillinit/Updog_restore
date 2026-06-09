@@ -45,11 +45,17 @@ import {
   FundScenarioComparisonV1Schema,
   type FundScenarioComparisonV1,
 } from '@shared/contracts/fund-scenario-comparison-v1.contract';
+import {
+  fundResultsQueryKey,
+  scenarioComparisonQueryKey,
+  scenarioSetDetailQueryKey,
+  scenarioSetListQueryKey,
+  scenarioSetStatusQueryKey,
+  workspaceQueryKey,
+} from '@/lib/fund-scenario-workspace-query-keys';
+import { scenarioApiPath, scenarioSetApiPath } from '@/lib/fund-scenario-workspace-api';
 
 const FUND_SCENARIO_WORKSPACE_ROUTE = '/fund-model-results/:fundId/scenarios';
-const FUND_ID_PATH_SEGMENT_PATTERN = /^\d+$/;
-const SCENARIO_SET_ID_PATH_SEGMENT_PATTERN =
-  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const OVERRIDE_TYPE_LABELS: Record<FundScenarioOverrideTypeV1, string> = {
   fee_profile: 'Fee profile',
   reserve_allocation: 'Reserve allocation',
@@ -67,52 +73,6 @@ export function reserveStatusPollIntervalMs(
   status: FundScenarioCalculationStatusV1['status'] | undefined
 ): number | false {
   return status === 'queued' || status === 'calculating' ? RESERVE_STATUS_POLL_INTERVAL_MS : false;
-}
-
-function workspaceQueryKey(fundId: string) {
-  return ['fund-scenario-workspace', fundId] as const;
-}
-
-function scenarioSetListQueryKey(fundId: string) {
-  return [...workspaceQueryKey(fundId), 'scenario-sets'] as const;
-}
-
-function scenarioSetDetailQueryKey(fundId: string, scenarioSetId: string) {
-  return [...workspaceQueryKey(fundId), 'scenario-sets', scenarioSetId, 'detail'] as const;
-}
-
-function scenarioSetStatusQueryKey(fundId: string, scenarioSetId: string) {
-  return [...workspaceQueryKey(fundId), 'scenario-sets', scenarioSetId, 'status'] as const;
-}
-
-function fundResultsQueryKey(fundId: string) {
-  return [...workspaceQueryKey(fundId), 'results'] as const;
-}
-
-function scenarioComparisonQueryKey(fundId: string, scenarioSetId: string) {
-  return [...workspaceQueryKey(fundId), 'scenario-sets', scenarioSetId, 'comparison'] as const;
-}
-
-function assertFundId(fundId: string): void {
-  if (!FUND_ID_PATH_SEGMENT_PATTERN.test(fundId)) {
-    throw new Error('Invalid fund ID');
-  }
-}
-
-function assertScenarioSetId(scenarioSetId: string): void {
-  if (!SCENARIO_SET_ID_PATH_SEGMENT_PATTERN.test(scenarioSetId)) {
-    throw new Error('Invalid scenario set ID');
-  }
-}
-
-function scenarioApiPath(fundId: string, suffix: string): string {
-  assertFundId(fundId);
-  return `/api/funds/${encodeURIComponent(fundId)}${suffix}`;
-}
-
-function scenarioSetApiPath(fundId: string, scenarioSetId: string, suffix = ''): string {
-  assertScenarioSetId(scenarioSetId);
-  return scenarioApiPath(fundId, `/scenario-sets/${encodeURIComponent(scenarioSetId)}${suffix}`);
 }
 
 async function fetchScenarioSetList(fundId: string) {
@@ -176,7 +136,7 @@ async function createReserveOptimizationScenarioSet(fundId: string) {
 function useWorkspaceFundId() {
   const [, params] = useRoute(FUND_SCENARIO_WORKSPACE_ROUTE);
   const fundId = params?.fundId ?? null;
-  return fundId && FUND_ID_PATH_SEGMENT_PATTERN.test(fundId) ? fundId : null;
+  return fundId && /^\d+$/.test(fundId) ? fundId : null;
 }
 
 function scenarioPayloadFromResults(results: FundResultsReadV1 | undefined) {
