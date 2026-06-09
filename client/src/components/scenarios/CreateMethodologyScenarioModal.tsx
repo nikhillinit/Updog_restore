@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle,
@@ -88,6 +89,13 @@ function extractErrorCode(error: unknown): string | null {
   return error instanceof ApiError ? (error.errorCode ?? null) : null;
 }
 
+function createIdempotencyKey(): string {
+  return (
+    globalThis.crypto?.randomUUID?.() ??
+    `methodology-scenario-${Date.now()}-${Math.random().toString(36).slice(2)}`
+  );
+}
+
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export interface CreateMethodologyScenarioModalProps {
@@ -118,9 +126,9 @@ export function CreateMethodologyScenarioModal({
 
   const createMutation = useMutation({
     mutationFn: (payload: CreateFundScenarioSetV1) =>
-      apiRequest('POST', scenarioApiPath(fundId, '/scenario-sets'), payload).then((raw) =>
-        FundScenarioSetDetailV1Schema.parse(raw)
-      ),
+      apiRequest('POST', scenarioApiPath(fundId, '/scenario-sets'), payload, {
+        headers: { 'Idempotency-Key': createIdempotencyKey() },
+      }).then((raw) => FundScenarioSetDetailV1Schema.parse(raw)),
     onMutate: () => {
       setServerError(null);
     },
@@ -176,6 +184,9 @@ export function CreateMethodologyScenarioModal({
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle className="font-inter text-charcoal">New methodology scenario</DialogTitle>
+          <DialogDescription className="sr-only">
+            Create one scenario variant by changing waterfall type, management fee rate, or both.
+          </DialogDescription>
         </DialogHeader>
 
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">

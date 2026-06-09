@@ -52,4 +52,33 @@ describe('apiRequest', () => {
     expect(err).toBeInstanceOf(ApiError);
     expect((err as ApiError).errorCode).toBe('invalid_request');
   });
+
+  it('merges caller-provided headers into the request', async () => {
+    vi.mocked(globalThis.fetch).mockResolvedValueOnce(
+      new Response(JSON.stringify({ ok: true }), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      })
+    );
+
+    await apiRequest(
+      'POST',
+      '/api/test',
+      { name: 'Scenario' },
+      {
+        headers: { 'Idempotency-Key': 'scenario-create-1' },
+      }
+    );
+
+    expect(globalThis.fetch).toHaveBeenCalledWith(
+      '/api/test',
+      expect.objectContaining({
+        method: 'POST',
+        headers: expect.objectContaining({
+          'Content-Type': 'application/json',
+          'Idempotency-Key': 'scenario-create-1',
+        }),
+      })
+    );
+  });
 });

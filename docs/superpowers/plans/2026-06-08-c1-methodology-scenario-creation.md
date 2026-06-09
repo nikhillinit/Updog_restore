@@ -1,3 +1,10 @@
+---
+status: ACTIVE
+audience: agents
+last_updated: 2026-06-08
+owner: 'Platform Team'
+---
+
 # C1: Methodology Scenario Creation UI — Implementation Plan
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use

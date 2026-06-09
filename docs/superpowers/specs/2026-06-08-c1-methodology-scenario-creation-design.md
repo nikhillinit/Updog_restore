@@ -1,3 +1,10 @@
+---
+status: ACTIVE
+audience: agents
+last_updated: 2026-06-08
+owner: 'Platform Team'
+---
+
 # C1: Methodology Scenario Creation UI — Design Spec
 
 **Date:** 2026-06-08 **Branch:** main (off `46373b70`, #817) **Goal:** Add a

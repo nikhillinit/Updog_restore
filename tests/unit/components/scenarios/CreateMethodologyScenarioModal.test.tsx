@@ -176,6 +176,7 @@ describe('CreateMethodologyScenarioModal', () => {
     expect(screen.getByLabelText(/variant name/i)).toBeInTheDocument();
     expect(screen.getByLabelText(/waterfall type/i)).toBeInTheDocument();
     expect(screen.getByLabelText(/management fee rate/i)).toBeInTheDocument();
+    expect(screen.getByText(/create one scenario variant/i)).toBeInTheDocument();
   });
 
   it('does not render dialog content when closed', () => {
@@ -244,6 +245,12 @@ describe('CreateMethodologyScenarioModal', () => {
     expect(body.variants[0].override.overrideType).toBe('methodology');
     expect(body.variants[0].override.payload).toEqual({ managementFeeRate: 2 });
     expect('waterfallType' in body.variants[0].override.payload).toBe(false);
+    expect(init.headers).toEqual(
+      expect.objectContaining({
+        'Content-Type': 'application/json',
+        'Idempotency-Key': expect.any(String),
+      })
+    );
   });
 
   it('shows duplicate_scenario_set_name error under name field', async () => {
