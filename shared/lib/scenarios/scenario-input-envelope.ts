@@ -7,11 +7,13 @@ export type ScenarioInputCalculationMode =
   | 'sync_fee_profile'
   | 'sync_allocation'
   | 'sync_sector_profile'
+  | 'sync_methodology'
   | 'async_reserve_allocation';
 export type ScenarioInputOverrideType =
   | 'fee_profile'
   | 'allocation'
   | 'sector_profile'
+  | 'methodology'
   | 'reserve_allocation';
 
 export interface ScenarioInputHashEnvelopeV1 {

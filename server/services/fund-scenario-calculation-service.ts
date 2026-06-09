@@ -381,6 +381,60 @@ function applyFeeProfileOverride(
   };
 }
 
+function percentToRatio(percent: number): number {
+  return percent / 100;
+}
+
+function applyMethodologyOverride(
+  sourceConfig: FundDraftWriteV1,
+  override: Extract<FundScenarioVariantOverrideV1, { overrideType: 'methodology' }>
+): FundDraftWriteV1 {
+  const { payload } = override;
+  let variantConfig: FundDraftWriteV1 = {
+    ...sourceConfig,
+    ...(payload.waterfallType !== undefined && {
+      waterfallType: payload.waterfallType,
+    }),
+    ...(payload.waterfallTiers !== undefined && {
+      waterfallTiers: payload.waterfallTiers,
+    }),
+  };
+
+  if (payload.managementFeeRate !== undefined) {
+    variantConfig = {
+      ...variantConfig,
+      managementFeeRate: payload.managementFeeRate,
+      feeProfiles: undefined,
+    };
+  }
+
+  const economicsAssumptions = sourceConfig.economicsAssumptions;
+  if (economicsAssumptions == null) {
+    return variantConfig;
+  }
+
+  const nextEconomicsAssumptions = { ...economicsAssumptions };
+
+  if (payload.managementFeeRate !== undefined) {
+    nextEconomicsAssumptions.feeModel = {
+      source: 'economics_override',
+      defaultRate: percentToRatio(payload.managementFeeRate),
+      ...(economicsAssumptions.feeModel?.defaultBasis !== undefined && {
+        defaultBasis: economicsAssumptions.feeModel.defaultBasis,
+      }),
+    };
+  }
+
+  if (payload.waterfallType !== undefined || payload.waterfallTiers !== undefined) {
+    delete nextEconomicsAssumptions.waterfallModel;
+  }
+
+  return {
+    ...variantConfig,
+    economicsAssumptions: nextEconomicsAssumptions,
+  };
+}
+
 function isSyncScenarioOverride(
   override: FundScenarioVariantOverrideV1
 ): override is SyncScenarioVariantOverride {
@@ -392,6 +446,7 @@ function syncCalculationModeForOverrideType(
 ): FundScenarioCalculationModeV1 {
   if (overrideType === 'fee_profile') return 'sync_fee_profile';
   if (overrideType === 'allocation') return 'sync_allocation';
+  if (overrideType === 'methodology') return 'sync_methodology';
   return 'sync_sector_profile';
 }
 
@@ -413,6 +468,10 @@ function applySyncScenarioOverride(
         ? { capitalPlanAllocations: override.payload.capitalPlanAllocations }
         : {}),
     };
+  }
+
+  if (override.overrideType === 'methodology') {
+    return applyMethodologyOverride(sourceConfig, override);
   }
 
   return {

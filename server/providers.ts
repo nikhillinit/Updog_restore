@@ -217,6 +217,8 @@ async function buildQueue(
     const { initializeSimulationQueue } = await import('./queues/simulation-queue.js');
     const { initializeReportQueue } = await import('./queues/report-generation-queue.js');
     const { initializeBacktestingQueue } = await import('./queues/backtesting-queue.js');
+    const { initializeFundScenarioCalcWorker } =
+      await import('./queues/fund-scenario-calc-worker-init.js');
 
     const redis = new IORedis(queueConfig.queueRedisUrl, {
       lazyConnect: true,
@@ -230,6 +232,7 @@ async function buildQueue(
       initializeSimulationQueue(redis),
       initializeReportQueue(redis),
       initializeBacktestingQueue(redis),
+      initializeFundScenarioCalcWorker(redis),
     ]);
 
     const closers = initResults.flatMap((result) =>

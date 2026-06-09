@@ -12,7 +12,7 @@ export {
 } from './ScenarioComparisonTable';
 export {
   CrossSetScenarioComparisonTable,
-  isComparableFeeProfileComparison,
+  isComparableEconomicsComparison,
 } from './CrossSetScenarioComparisonTable';
 export { ScenarioSetsSummary } from './ScenarioSetsSummary';
 export { EngineMetricsGrid } from './EngineMetricsGrid';
