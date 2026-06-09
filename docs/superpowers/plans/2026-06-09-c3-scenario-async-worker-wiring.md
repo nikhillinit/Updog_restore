@@ -1,3 +1,13 @@
+---
+status: ACTIVE
+audience: agents
+last_updated: 2026-06-09
+owner: "Platform Team"
+review_cadence: P90D
+categories: [planning, scenarios, workers]
+keywords: [c3-scenario-async-worker, fund-scenario-calc, bullmq, reserve-allocation]
+---
+
 # C3: Scenario Async Worker Persistence — Implementation Plan
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use

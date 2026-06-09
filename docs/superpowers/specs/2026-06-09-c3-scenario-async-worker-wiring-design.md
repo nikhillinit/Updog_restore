@@ -1,3 +1,13 @@
+---
+status: ACTIVE
+audience: agents
+last_updated: 2026-06-09
+owner: "Platform Team"
+review_cadence: P180D
+categories: [architecture, scenarios, workers]
+keywords: [c3-scenario-async-worker, fund-scenario-calc, bullmq, reserve-allocation]
+---
+
 # C3: Scenario Async Worker Persistence — Design Spec
 
 **Date:** 2026-06-09 **Status:** Approved **M8 Item:** C3 — Async worker
