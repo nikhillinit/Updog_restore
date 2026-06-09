@@ -540,6 +540,29 @@ describe('FundScenarioWorkspacePage', () => {
     expect(screen.getByText('Invalid scenario workspace route')).toBeInTheDocument();
     expect(fetchSpy).not.toHaveBeenCalled();
   });
+
+  it('renders New methodology scenario button and opens modal on click', async () => {
+    mockWorkspaceFetches();
+    renderWorkspace();
+
+    const newScenarioBtn = await screen.findByRole('button', {
+      name: /new methodology scenario/i,
+    });
+    expect(newScenarioBtn).toBeInTheDocument();
+
+    fireEvent.click(newScenarioBtn);
+    expect(await screen.findByRole('dialog')).toBeInTheDocument();
+
+    // No create POST issued merely by opening the modal
+    const createPosts = (fetchSpy.mock.calls as [string, RequestInit][]).filter(
+      ([url, init]) =>
+        url.includes('/scenario-sets') &&
+        (init?.method ?? 'GET') === 'POST' &&
+        !url.includes('/reserve-optimization') &&
+        !url.includes('/calculate')
+    );
+    expect(createPosts).toHaveLength(0);
+  });
 });
 
 function jsonResponse(body: unknown) {
