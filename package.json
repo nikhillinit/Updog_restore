@@ -19,6 +19,7 @@
     "dev:api": "npx tsx server/main.ts",
     "build:web": "npm run clean:spa-dist && npx vite build --mode preact",
     "build:server": "node scripts/build-server.mjs",
+    "build:workers": "node scripts/build-workers.mjs",
     "build:prod": "npm run build:web && npm run build:server",
     "build": "npm run build:prod",
     "preview": "npx vite preview",
