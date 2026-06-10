@@ -56,6 +56,7 @@ const CreateMethodologyScenarioFormSchema = z
   });
 
 type CreateMethodologyScenarioFormValues = z.infer<typeof CreateMethodologyScenarioFormSchema>;
+type CreateMethodologyScenarioFormInput = z.input<typeof CreateMethodologyScenarioFormSchema>;
 
 const WATERFALL_UNSET_VALUE = '__unset__';
 
@@ -114,7 +115,11 @@ export function CreateMethodologyScenarioModal({
   const queryClient = useQueryClient();
   const [serverError, setServerError] = useState<string | null>(null);
 
-  const form = useForm<CreateMethodologyScenarioFormValues>({
+  const form = useForm<
+    CreateMethodologyScenarioFormInput,
+    unknown,
+    CreateMethodologyScenarioFormValues
+  >({
     resolver: zodResolver(CreateMethodologyScenarioFormSchema),
     defaultValues: {
       scenarioSetName: '',

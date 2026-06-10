@@ -83,6 +83,7 @@ const formSchema = z.object({
 });
 
 type FormValues = z.infer<typeof formSchema>;
+type FormInput = z.input<typeof formSchema>;
 
 const ADD_DEAL_SERVER_ERROR = 'Deal could not be created. Review the deal details and try again.';
 
@@ -91,7 +92,7 @@ export function AddDealModal({ open, onOpenChange, fundId }: AddDealModalProps) 
   const queryClient = useQueryClient();
   const [serverError, setServerError] = useState<string | null>(null);
 
-  const form = useForm<FormValues>({
+  const form = useForm<FormInput, unknown, FormValues>({
     resolver: zodResolver(formSchema),
     defaultValues: {
       companyName: '',
@@ -350,7 +351,7 @@ export function AddDealModal({ open, onOpenChange, fundId }: AddDealModalProps) 
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel className="font-poppins">Status *</FormLabel>
-                      <Select onValueChange={field.onChange} defaultValue={field.value}>
+                      <Select onValueChange={field.onChange} value={field.value ?? 'lead'}>
                         <FormControl>
                           <SelectTrigger>
                             <SelectValue placeholder="Select status" />
@@ -378,7 +379,7 @@ export function AddDealModal({ open, onOpenChange, fundId }: AddDealModalProps) 
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel className="font-poppins">Priority *</FormLabel>
-                      <Select onValueChange={field.onChange} defaultValue={field.value}>
+                      <Select onValueChange={field.onChange} value={field.value ?? 'medium'}>
                         <FormControl>
                           <SelectTrigger>
                             <SelectValue placeholder="Select priority" />
