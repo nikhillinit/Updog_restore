@@ -1,0 +1,19 @@
+# Railway config for the dedicated fund-scenario-calc worker service.
+# In the Railway dashboard, set this service's "Config-as-code" file path to
+# railway.worker.toml so it does not pick up the API config in railway.toml.
+#
+# Required service variables (set in the Railway dashboard, never committed):
+#   NODE_ENV=production
+#   ENABLE_QUEUES=1
+#   REDIS_URL=<same prod Redis as the Vercel API>
+#   DATABASE_URL=<same prod Postgres as the Vercel API>
+#   WORKER_HEALTH_PORT=${{PORT}}   # maps Railway's injected PORT onto the worker health server
+
+[build]
+builder = "dockerfile"
+dockerfilePath = "Dockerfile.worker"
+
+[deploy]
+healthcheckPath = "/health"
+healthcheckTimeout = 300
+restartPolicyType = "always"
