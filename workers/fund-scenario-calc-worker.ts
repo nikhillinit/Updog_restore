@@ -26,7 +26,10 @@ interface FundScenarioCalcWorkerRuntime {
 }
 
 function getHealthPort(): number {
-  return Number.parseInt(process.env.FUND_SCENARIO_WORKER_HEALTH_PORT || '9004', 10);
+  return Number.parseInt(
+    process.env.WORKER_HEALTH_PORT ?? process.env.FUND_SCENARIO_WORKER_HEALTH_PORT ?? '9004',
+    10
+  );
 }
 
 export function createFundScenarioCalcWorker(input: {

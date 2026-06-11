@@ -27,6 +27,7 @@ COPY . .
 
 # Build with error checking and optimization
 RUN npm run build && \
+    npm run build:workers && \
     npm run check && \
     npm prune --omit=dev
 
@@ -47,11 +48,11 @@ ENV HUSKY=0
 COPY --from=build --chown=worker:nodejs /app/dist ./dist
 COPY --from=build --chown=worker:nodejs /app/node_modules ./node_modules
 COPY --from=build --chown=worker:nodejs /app/package*.json ./
-COPY --from=build --chown=worker:nodejs /app/workers ./workers
 COPY --from=build --chown=worker:nodejs /app/shared ./shared
 
 # Worker type environment variable (set at runtime)
-ENV WORKER_TYPE=reserve
+ENV WORKER_TYPE=fund-scenario-calc
+ENV WORKER_HEALTH_PORT=9000
 
 # Health check script
 COPY --chown=worker:nodejs <<'EOF' /app/healthcheck.js
@@ -148,4 +149,4 @@ USER worker
 ENTRYPOINT ["dumb-init", "--"]
 
 # Worker entry point (determined by WORKER_TYPE env var)
-CMD node -e "const workerType = process.env.WORKER_TYPE || 'reserve'; require('./workers/' + workerType + '-worker.js')"
+CMD node dist/workers/${WORKER_TYPE}-worker.js
