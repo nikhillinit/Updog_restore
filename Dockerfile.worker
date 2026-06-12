@@ -142,6 +142,9 @@ EOF
 HEALTHCHECK --interval=30s --timeout=10s --start-period=15s --retries=3 \
     CMD node /app/healthcheck.js
 
+# Winston file transports create this directory before the health server starts.
+RUN mkdir -p /app/logs && chown worker:nodejs /app/logs
+
 # Security: switch to non-root user
 RUN mkdir -p /app/logs && chown worker:nodejs /app/logs
 USER worker
