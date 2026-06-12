@@ -1,7 +1,8 @@
 import { expect, test, type APIResponse } from '@playwright/test';
 
 // Authoritative post-#800/#801 deployed boundary gate.
-const PRODUCTION_URL = process.env.PRODUCTION_URL ?? '';
+const PRODUCTION_URL =
+  process.env.PRODUCTION_URL ?? process.env.PROD_URL ?? process.env.BASE_URL ?? '';
 const HEALTH_KEY = process.env.HEALTH_KEY ?? '';
 const METRICS_KEY = process.env.METRICS_KEY ?? '';
 const RUM_BODY = {
