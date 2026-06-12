@@ -25,10 +25,22 @@ interface FundScenarioCalcWorkerRuntime {
   close: () => Promise<void>;
 }
 
+function parseHealthPort(value: string | undefined): number | null {
+  const normalized = value?.trim();
+  if (!normalized) {
+    return null;
+  }
+
+  const parsed = Number(normalized);
+  return Number.isInteger(parsed) && parsed > 0 && parsed <= 65_535 ? parsed : null;
+}
+
 function getHealthPort(): number {
-  return Number.parseInt(
-    process.env.WORKER_HEALTH_PORT ?? process.env.FUND_SCENARIO_WORKER_HEALTH_PORT ?? '9004',
-    10
+  return (
+    parseHealthPort(process.env['WORKER_HEALTH_PORT']) ??
+    parseHealthPort(process.env['FUND_SCENARIO_WORKER_HEALTH_PORT']) ??
+    parseHealthPort(process.env['PORT']) ??
+    9004
   );
 }
 
