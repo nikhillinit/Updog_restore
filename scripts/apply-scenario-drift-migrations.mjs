@@ -7,6 +7,13 @@
  * and safe to replay narrowly. Do NOT run db:migrate against prod (0000 is
  * unguarded) and never db:push against prod.
  *
+ * Scope note: 0011 is applied IN FULL, so beyond the scenario family this
+ * also creates the guarded share/sensitivity drift objects it contains
+ * (shares, share_snapshots, share_analytics, scenario_matrices,
+ * sensitivity_runs, optimization_sessions, snapshot_versions). All are
+ * schema-truth per shared/schema and no-ops where present; the audit below
+ * checks every table this script can create. Applied to prod 2026-06-11.
+ *
  * Default mode is audit-only:
  *   DATABASE_URL=<prod> node scripts/apply-scenario-drift-migrations.mjs
  *
@@ -33,11 +40,20 @@ const MIGRATION_FILES = [
   'migrations/0011_scenario_share_sensitivity_drift.sql',
 ];
 
+// Every table a full run of 0009/0010/0011 can create (scenario family
+// first, then the share/sensitivity drift objects bundled in 0011).
 const EXPECTED_TABLES = [
   'fund_scenario_sets',
   'fund_scenario_variants',
   'fund_scenario_set_events',
   'fund_scenario_calculation_runs',
+  'shares',
+  'share_snapshots',
+  'share_analytics',
+  'scenario_matrices',
+  'sensitivity_runs',
+  'optimization_sessions',
+  'snapshot_versions',
 ];
 
 const args = new Set(process.argv.slice(2));
