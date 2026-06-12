@@ -134,7 +134,7 @@ export default defineConfig({
     // Production smoke tests (when BASE_URL is external)
     {
       name: 'production',
-      testMatch: '**/production-smoke.spec.ts',
+      testMatch: ['**/production-smoke.spec.ts', '**/production-boundaries.spec.ts'],
       use: {
         ...devices['Desktop Chrome'],
         baseURL: process.env.PROD_URL || process.env.BASE_URL,
