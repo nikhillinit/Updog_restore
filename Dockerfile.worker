@@ -146,6 +146,7 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=15s --retries=3 \
 RUN mkdir -p /app/logs && chown worker:nodejs /app/logs
 
 # Security: switch to non-root user
+RUN mkdir -p /app/logs && chown worker:nodejs /app/logs
 USER worker
 
 # Use dumb-init for proper signal handling
