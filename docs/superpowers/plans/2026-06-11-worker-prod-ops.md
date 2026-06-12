@@ -1,6 +1,6 @@
 # Worker Prod Ops Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [x]`) syntax for tracking.
 
 **Goal:** Make async reserve-allocation scenarios actually compute in prod by running the `fund-scenario-calc` worker as a dedicated Railway service and enabling the Vercel producer.
 
@@ -27,7 +27,7 @@
 - Create: `railway.worker.toml`
 - Reference (do not modify): `railway.toml`, `Dockerfile.worker`
 
-- [ ] **Step 1: Write the Hermes task prompt to a temp file**
+- [x] **Step 1: Write the Hermes task prompt to a temp file**
 
 Write this exact content to `C:\Users\nikhi\AppData\Local\Temp\hermes-railway-worker.txt` (single file, full prompt):
 
@@ -57,7 +57,7 @@ restartPolicyType = "always"
 After creating the file, run npm run check and confirm it passes.
 ```
 
-- [ ] **Step 2: Dry-run the routing to confirm no financial-specialist promotion**
+- [x] **Step 2: Dry-run the routing to confirm no financial-specialist promotion**
 
 Run (git-bash):
 ```bash
@@ -66,7 +66,7 @@ node orchestrate.js --dry-run --phase production --task "$task"
 ```
 Expected: routing plan JSON shows `phase: production` (NOT `production-financial`), gate `npm run check`, no specialist assigned. If a financial specialist scores in, reword the prompt (the file content itself contains no financial keywords; "fund-scenario-calc" does not match any specialist keyword list in `.claude/hermes/model-routing.json`).
 
-- [ ] **Step 3: Dispatch live via Hermes**
+- [x] **Step 3: Dispatch live via Hermes**
 
 ```bash
 task=$(cat /c/Users/nikhi/AppData/Local/Temp/hermes-railway-worker.txt)
@@ -74,7 +74,7 @@ npm run hermes:production -- --task "$task" --live
 ```
 Expected: codex creates `railway.worker.toml`; Hermes postflight `npm run check` passes (exit 0). If the Hermes/codex lane fails twice, fall back to a direct Write of the same content and note the fallback in the commit body.
 
-- [ ] **Step 4: Verify the file and run lint yourself (Hermes does not)**
+- [x] **Step 4: Verify the file and run lint yourself (Hermes does not)**
 
 ```bash
 git diff --stat && git status --short
@@ -82,7 +82,7 @@ npm run lint
 ```
 Expected: only `railway.worker.toml` added; lint zero warnings. Confirm the file content matches Step 1 exactly (codex sometimes normalizes comments — exact match required for the `${{PORT}}` template syntax, which is Railway template syntax, not shell).
 
-- [ ] **Step 5: Commit and push**
+- [x] **Step 5: Commit and push**
 
 ```bash
 git add railway.worker.toml
@@ -97,18 +97,18 @@ git ls-remote origin main   # verify the push landed (never trust piped push out
 
 **Files:** none (Railway dashboard / CLI ops)
 
-- [ ] **Step 1: Check for an authenticated Railway CLI**
+- [x] **Step 1: Check for an authenticated Railway CLI**
 
 ```bash
 npx -y @railway/cli whoami
 ```
 Expected: either a logged-in account (CLI path available) or an auth error (dashboard path; the owner performs the clicks while you supply exact values). If the owner's Railway account/plan is unusable, STOP and surface fallback options A/C from the spec.
 
-- [ ] **Step 2: Create project + service from the GitHub repo**
+- [x] **Step 2: Create project + service from the GitHub repo**
 
 Dashboard path (owner): New Project → Deploy from GitHub repo → `nikhillinit/Updog_restore`. Name the service `fund-scenario-calc-worker`. Before the first deploy finishes, open Service → Settings → Config-as-code and set the file path to `railway.worker.toml` (otherwise Railway uses `railway.toml` and deploys the API image).
 
-- [ ] **Step 3: Set service variables**
+- [x] **Step 3: Set service variables**
 
 Service → Variables (values for `REDIS_URL`/`DATABASE_URL` copied by the owner from the Vercel project's production env — do not paste secrets into the chat):
 
@@ -120,7 +120,7 @@ DATABASE_URL=<prod Postgres URL>
 WORKER_HEALTH_PORT=${{PORT}}
 ```
 
-- [ ] **Step 4: Deploy and verify health**
+- [x] **Step 4: Deploy and verify health**
 
 Trigger a deploy (variables change usually redeploys automatically). Watch deploy logs for:
 - `npm run build:workers` emitting `dist/workers/fund-scenario-calc-worker.js`
@@ -137,11 +137,11 @@ Expected: service healthy and stable for at least one healthcheck interval.
 
 **Files:** none (Vercel env ops). Do NOT do this before Task 2 is green.
 
-- [ ] **Step 1: Verify current producer state (read-only)**
+- [x] **Step 1: Verify current producer state (read-only)**
 
 Owner checks the Vercel project → Settings → Environment Variables (production): confirm `REDIS_URL` exists and is a real `redis(s)://` URL (not `memory://`), and whether `ENABLE_QUEUES` is set. Do not pull the full env (`vercel env pull` is blocked policy — it dumps all secrets).
 
-- [ ] **Step 2: Set `ENABLE_QUEUES=1` (production) and redeploy**
+- [x] **Step 2: Set `ENABLE_QUEUES=1` (production) and redeploy**
 
 Dashboard: add `ENABLE_QUEUES=1` to Production env, then redeploy the latest production deployment (env changes do not apply to existing deployments).
 
@@ -153,7 +153,7 @@ Expected: new production deployment ready; `/api/health` still healthy (the `fun
 
 **Files:** none
 
-- [ ] **Step 1: Fire a real reserve-scenario calculation in prod**
+- [x] **Step 1: Fire a real reserve-scenario calculation in prod**
 
 Owner (authenticated GP session) opens the scenario workspace for a real fund and triggers reserve calculation, or curls:
 
@@ -162,13 +162,13 @@ curl -i -X POST "https://<prod-host>/api/funds/<fundId>/scenario-sets/<scenarioS
 ```
 Expected: HTTP 202 with a job descriptor (NOT 503 `scenario_calculation_queue_unavailable`).
 
-- [ ] **Step 2: Confirm the job drains**
+- [x] **Step 2: Confirm the job drains**
 
 Watch the workspace status transition `queued → calculating → succeeded` and results render. Cross-check Railway worker logs for the job id (`reserve-scenario-<fundId>-<scenarioSetId>-...`) being processed.
 
 Expected: succeeded with visible results. If it sticks at `queued`: worker and producer are not sharing the same Redis — re-compare `REDIS_URL` on both hosts.
 
-- [ ] **Step 3: Acceptance check against the spec**
+- [x] **Step 3: Acceptance check against the spec**
 
 All three spec acceptance criteria hold: worker `/health` healthy, prod job `queued → succeeded`, Vercel `/api/health` unchanged.
 
@@ -180,7 +180,7 @@ All three spec acceptance criteria hold: worker `/health` healthy, prod job `que
 - Modify: `CHANGELOG.md` (one entry)
 - Modify: `.remember/NEXT-SESSION-TASKS.md` (mark Task 1 done; Task 3 healthMode flip stays deferred)
 
-- [ ] **Step 1: Add CHANGELOG entry**
+- [x] **Step 1: Add CHANGELOG entry**
 
 Add under the current date, following the file's existing entry format:
 
@@ -190,7 +190,7 @@ Add under the current date, following the file's existing entry format:
   with `ENABLE_QUEUES=1`. Reserve-allocation scenarios now compute in prod.
 ```
 
-- [ ] **Step 2: Update the handoff and commit**
+- [x] **Step 2: Update the handoff and commit**
 
 In `.remember/NEXT-SESSION-TASKS.md`, mark TASK 1 resolved (note the chosen option (a): dedicated worker service) and leave TASK 3 (healthMode flip) open with its per-host-semantics caveat.
 
