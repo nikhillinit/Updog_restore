@@ -123,8 +123,14 @@ test.describe('production boundary smoke', () => {
     expectNotSpaRewrite(response);
     expect(response.status()).toBe(403);
 
-    const body = await expectJsonObject(response);
-    expect(body['error']).toBe('forbidden_origin');
+    // Rejection may come from the strict-CORS perimeter (text/plain Forbidden)
+    // or from rumOriginGuard (application/json forbidden_origin). Both prove
+    // the lookalike-origin boundary; the origin must simply never be accepted.
+    const contentType = response.headers()['content-type'] ?? '';
+    if (contentType.toLowerCase().startsWith('application/json')) {
+      const body = await expectJsonObject(response);
+      expect(body['error']).toBe('forbidden_origin');
+    }
   });
 
   test('rum exact origin is not origin-blocked', async ({ request }) => {
@@ -137,9 +143,9 @@ test.describe('production boundary smoke', () => {
 
     expectNotSpaRewrite(response);
 
-    if (response.status() === 403) {
-      const body = await expectJsonObject(response);
-      expect(body['error']).not.toBe('forbidden_origin');
-    }
+    // The exact deployed origin must never be rejected by any origin layer
+    // (strict-CORS perimeter or rumOriginGuard). Non-403 schema/validation
+    // responses are acceptable; verified live as 204 on 2026-06-12.
+    expect(response.status()).not.toBe(403);
   });
 });
