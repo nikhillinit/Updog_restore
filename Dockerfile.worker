@@ -59,8 +59,23 @@ COPY --chown=worker:nodejs <<'EOF' /app/healthcheck.js
 const net = require('net');
 const workerType = process.env.WORKER_TYPE || 'reserve';
 
-// Check if worker health server is running (port 9000)
-const healthServerPort = parseInt(process.env.WORKER_HEALTH_PORT || '9000');
+function firstValidPort(...values) {
+  for (const value of values) {
+    const parsed = Number(String(value ?? '').trim());
+    if (Number.isInteger(parsed) && parsed > 0 && parsed <= 65535) {
+      return parsed;
+    }
+  }
+  return 9000;
+}
+
+// Check if worker health server is running.
+const healthServerPort = firstValidPort(
+  process.env.WORKER_HEALTH_PORT,
+  process.env.FUND_SCENARIO_WORKER_HEALTH_PORT,
+  process.env.PORT,
+  '9000'
+);
 
 const socket = new net.Socket();
 socket.setTimeout(2000);
@@ -146,7 +161,6 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=15s --retries=3 \
 RUN mkdir -p /app/logs && chown worker:nodejs /app/logs
 
 # Security: switch to non-root user
-RUN mkdir -p /app/logs && chown worker:nodejs /app/logs
 USER worker
 
 # Use dumb-init for proper signal handling

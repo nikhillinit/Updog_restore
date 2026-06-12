@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const {
   runReserveScenarioCalculationMock,
@@ -124,9 +124,18 @@ describe('fund scenario calc worker handler', () => {
 });
 
 describe('fund scenario calc worker startup', () => {
+  const originalEnv = {
+    FUND_SCENARIO_WORKER_HEALTH_PORT: process.env['FUND_SCENARIO_WORKER_HEALTH_PORT'],
+    PORT: process.env['PORT'],
+    WORKER_HEALTH_PORT: process.env['WORKER_HEALTH_PORT'],
+  };
+
   beforeEach(() => {
     vi.resetModules();
     vi.clearAllMocks();
+    delete process.env['FUND_SCENARIO_WORKER_HEALTH_PORT'];
+    delete process.env['PORT'];
+    delete process.env['WORKER_HEALTH_PORT'];
     getQueueConnectionOptionsMock.mockReturnValue({
       host: 'queue-host',
       port: 6380,
@@ -134,6 +143,16 @@ describe('fund scenario calc worker startup', () => {
       password: 'queue-pass',
       db: 4,
     });
+  });
+
+  afterEach(() => {
+    for (const [key, value] of Object.entries(originalEnv)) {
+      if (value === undefined) {
+        delete process.env[key];
+      } else {
+        process.env[key] = value;
+      }
+    }
   });
 
   it('uses the shared queue connection resolver for production worker startup', async () => {
@@ -158,6 +177,28 @@ describe('fund scenario calc worker startup', () => {
     );
     expect(registerWorkerMock).toHaveBeenCalledWith('fund-scenario-calc', expect.any(Object));
     expect(createHealthServerMock).toHaveBeenCalledWith(0);
+  });
+
+  it('falls back to Railway PORT when WORKER_HEALTH_PORT resolves empty', async () => {
+    process.env['WORKER_HEALTH_PORT'] = '';
+    process.env['PORT'] = '19234';
+    const { startFundScenarioCalcWorker } =
+      await import('../../../workers/fund-scenario-calc-worker');
+
+    startFundScenarioCalcWorker();
+
+    expect(createHealthServerMock).toHaveBeenCalledWith(19234);
+  });
+
+  it('ignores unresolved Railway variable templates when selecting the health port', async () => {
+    process.env['WORKER_HEALTH_PORT'] = '${{PORT}}';
+    process.env['PORT'] = '19235';
+    const { startFundScenarioCalcWorker } =
+      await import('../../../workers/fund-scenario-calc-worker');
+
+    startFundScenarioCalcWorker();
+
+    expect(createHealthServerMock).toHaveBeenCalledWith(19235);
   });
 
   it('fails fast when queue Redis is not configured', async () => {
