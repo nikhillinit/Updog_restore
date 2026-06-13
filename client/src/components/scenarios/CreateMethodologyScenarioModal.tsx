@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -114,6 +114,8 @@ export function CreateMethodologyScenarioModal({
 }: CreateMethodologyScenarioModalProps) {
   const queryClient = useQueryClient();
   const [serverError, setServerError] = useState<string | null>(null);
+  const idempotencyRef = useRef<{ signature: string; key: string } | null>(null);
+  const submitInFlightRef = useRef(false);
 
   const form = useForm<
     CreateMethodologyScenarioFormInput,
@@ -129,10 +131,26 @@ export function CreateMethodologyScenarioModal({
     },
   });
 
+  function resolveIdempotencyKey(payload: CreateFundScenarioSetV1): string {
+    const signature = JSON.stringify(payload);
+    if (idempotencyRef.current?.signature === signature) {
+      return idempotencyRef.current.key;
+    }
+    const key = createIdempotencyKey();
+    idempotencyRef.current = { signature, key };
+    return key;
+  }
+
   const createMutation = useMutation({
-    mutationFn: (payload: CreateFundScenarioSetV1) =>
+    mutationFn: ({
+      payload,
+      idempotencyKey,
+    }: {
+      payload: CreateFundScenarioSetV1;
+      idempotencyKey: string;
+    }) =>
       apiRequest('POST', scenarioApiPath(fundId, '/scenario-sets'), payload, {
-        headers: { 'Idempotency-Key': createIdempotencyKey() },
+        headers: { 'Idempotency-Key': idempotencyKey },
       }).then((raw) => FundScenarioSetDetailV1Schema.parse(raw)),
     onMutate: () => {
       setServerError(null);
@@ -141,6 +159,7 @@ export function CreateMethodologyScenarioModal({
       queryClient.setQueryData(scenarioSetDetailQueryKey(fundId, created.id), created);
       await queryClient.invalidateQueries({ queryKey: workspaceQueryKey(fundId) });
       form.reset();
+      idempotencyRef.current = null;
       setServerError(null);
       onOpenChange(false);
       onSuccess(created);
@@ -165,13 +184,25 @@ export function CreateMethodologyScenarioModal({
     if (!nextOpen && createMutation.isPending) return;
     if (!nextOpen) {
       form.reset();
+      idempotencyRef.current = null;
       setServerError(null);
     }
     onOpenChange(nextOpen);
   }
 
   function onSubmit(values: CreateMethodologyScenarioFormValues) {
-    createMutation.mutate(buildCreateMethodologyScenarioPayload(values));
+    if (submitInFlightRef.current) return;
+    const payload = buildCreateMethodologyScenarioPayload(values);
+    const idempotencyKey = resolveIdempotencyKey(payload);
+    submitInFlightRef.current = true;
+    createMutation.mutate(
+      { payload, idempotencyKey },
+      {
+        onSettled: () => {
+          submitInFlightRef.current = false;
+        },
+      }
+    );
   }
 
   const {
