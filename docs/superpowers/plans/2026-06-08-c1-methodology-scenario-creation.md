@@ -1569,5 +1569,8 @@ Expected: 0 errors.
   specialist because it is a shared contract value, not a cosmetic label.
 - Deferred for separate routing: React duplicate-key warning in a sibling
   comparison view.
-- Final sign-off still requires a NON-skipped
-  `npm run test:scenario-release-gate` result from CI or a provisioned DB.
+- Release gate VERIFIED on 2026-06-13: `npm run test:scenario-release-gate`
+  passed non-skipped on `e7fe43f9` against real Postgres + Redis + worker via
+  WSL2 testcontainers (`CI=true`), exercising the full ADR-022 scenario
+  lifecycle (create, calculate, async reserve, results read, archive, and the
+  archived-recalculate 409 guard). 1 passed / 0 skipped.
