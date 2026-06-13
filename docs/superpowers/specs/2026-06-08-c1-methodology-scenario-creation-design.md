@@ -1,7 +1,7 @@
 ---
-status: ACTIVE
+status: COMPLETE
 audience: agents
-last_updated: 2026-06-08
+last_updated: 2026-06-13
 owner: 'Platform Team'
 ---
 
@@ -619,3 +619,18 @@ npm run lint                         # zero lint errors
 | `tests/unit/lib/queryClient.test.ts`                                      | Create — `apiRequest` error code preservation (blocker)                             |
 | `tests/unit/components/scenarios/CreateMethodologyScenarioModal.test.tsx` | Create — 19 modal cases + payload builder cases                                     |
 | `tests/unit/pages/fund-scenario-workspace.test.tsx`                       | Modify — thin integration: button renders + opens modal                             |
+
+## Closeout hardening (2026-06-13)
+
+- Feature implemented and merged on main.
+- Modal now uses a payload-scoped idempotency key plus a synchronous re-entrancy
+  guard.
+- Regression tests added for re-entrant single-POST behavior, same-payload retry
+  key reuse, changed-payload key rotation, and the Radix Select override POST
+  path.
+- Deferred for separate routing: waterfall enum terminology to a domain
+  specialist because it is a shared contract value, not a cosmetic label.
+- Deferred for separate routing: React duplicate-key warning in a sibling
+  comparison view.
+- Final sign-off still requires a NON-skipped
+  `npm run test:scenario-release-gate` result from CI or a provisioned DB.
