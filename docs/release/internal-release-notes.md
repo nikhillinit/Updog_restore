@@ -1,6 +1,6 @@
 ---
 status: PROVEN
-last_updated: 2026-06-06
+last_updated: 2026-06-12
 ---
 
 # Lean Spine Internal Release Notes
@@ -54,26 +54,26 @@ The fund lifecycle DB proof is an inline no-Redis proof for reserve and pacing
 snapshot publication. The scenario release gate remains the Redis-backed
 worker-path proof. Do not merge those claims together.
 
-Current-head CI evidence: `CI Unified` completed successfully on
-`7eb20a37033542cd173a5889c81d98e565bb4aec` (post-#801 head). This is baseline
-health only, not release proof.
+Current-head CI evidence (CORRECTED 2026-06-12): every full `CI Unified` run on
+`main` failed between the #801 merge (2026-06-06) and 2026-06-12 on exactly one
+stale integration test, `tests/integration/storage-health-mode.test.ts`, which
+probed the now-protected `/health/detailed` anonymously (verified identical
+single-test failure on runs 27243198438, 27393791456, 27447553556). Docs-only
+pushes in that window produced fast path-filtered "green" runs that skip
+integration; any green sampled from those runs was vacuous and must not be cited
+as baseline health. PR #835 fixes the stale test; CI baseline health is restored
+only when the first post-#835 full main run completes green.
 
-Current local release-check evidence (PROVEN): on 2026-06-06,
-`npm run release:check` passed end-to-end -- all ten stages, exit 0 -- without
-`--skip-db` (and with `UPDOG_RELEASE_CHECK_SKIP_DB` unset), from a clean clone
-of `037cef40` on the supported Node 20.19.0 runtime inside WSL2 Ubuntu-22.04,
-against Docker 28.3.2 on its native unix socket, with `CI=true` (the invocation
-the DB-proof harness and CI both rely on; without it the test's local container
-stop races an open connection and exits non-zero by design). Stages: TypeScript
-baseline (0 errors), lint and guardrails, client surface lock (6 files, 132
-tests), server/CI surface lock (9 files, 144 tests), the fund lifecycle DB proof
-(1 file, 1 test via Testcontainers), the scenario release gate (1 file, 1 test),
-core validation (265+ tests, 2 skipped), the production build (build
-verification passed), the whitespace diff, and release-owned file tracking.
-
-Note: the above release:check run was on `037cef40`. PRs #799-#801 have since
-landed. A re-run against the current head (`7eb20a37`) in WSL2 is required
-before the next release cut.
+Current local release-check evidence (PROVEN, current head): on 2026-06-12,
+`npm run release:check` passed end-to-end -- all eleven stages, exit 0 --
+without `--skip-db` (and with `UPDOG_RELEASE_CHECK_SKIP_DB` unset), from clean
+WSL2 Ubuntu-22.04 clones of both `0e0781a8` and `a01c180b` (the head after the
+boundary-smoke and CI-pin merges), on Node 20.19.x with Docker 28.3.2 and
+`CI=true TZ=UTC`. Stages: TypeScript baseline (0 errors), lint and guardrails,
+client surface lock, server/CI surface lock, the fund lifecycle DB proof
+(Testcontainers Postgres), the migration drift guard, the scenario release gate,
+core validation, the production build, the whitespace diff, and release-owned
+file tracking. The earlier `037cef40` proof of 2026-06-06 is historical only.
 
 ## Journaled Migration History (issue #781 closed)
 
@@ -133,9 +133,34 @@ PR #801 (merged 2026-06-06):
   `https://app.example.com.evil.com` bypass.
 - `public-api-boundary.ts` allowlist tightened to exact minimal paths only.
 
-Production smoke for the #800-#801 auth boundaries has not been run against a
-deployed Vercel environment. This is required before the next release cut (see
-M1 in the prioritized backlog).
+Deployed production smoke for the #800-#801 auth boundaries (PROVEN
+unauthenticated surface, 2026-06-12):
+`tests/smoke/production-boundaries.spec.ts` (merged via PR #833) ran against the
+deployed Vercel environment `https://updog-restore.vercel.app` -- 7 passed, 0
+failed, 2 credential-gated skips. Proven against the live deployment: the public
+`/api/health` probe is a real JSON handler (not an SPA rewrite), `/api/metrics`
+denies unauthenticated requests (403 JSON), the bare `/metrics` path is not
+exposed, protected health diagnostics deny anonymous access (401), RUM
+prefix-lookalike origins are rejected while the exact deployed origin is
+accepted (204). Every assertion carries a content-type guard because `/healthz`
+and `/health` are SPA-rewritten to `index.html` on this topology and must never
+be cited as health proof.
+
+The two credential-gated assertions (`/api/metrics` with bearer `METRICS_KEY`
+returning Prometheus text; `/api/health/db` with `X-Health-Key` returning 200
+JSON) are EXPLICITLY UNPROVEN, classified by the release owner on 2026-06-12 as
+non-blocking pending a real credentialed run. A local 9-skipped Playwright
+result (junit 2026-06-12T22:21Z) is environment-less readiness only, not proof.
+
+Deployed-environment defects found and fixed during this proof (2026-06-12):
+`ENABLE_QUEUES` carried a trailing CRLF that made Zod config validation throw
+inside `requireAuth`, turning every JWT-protected route into a 500; and
+`ALLOWED_ORIGINS` was unset, so the strict-CORS perimeter returned a blanket 403
+for every Origin-bearing request, including the deployed SPA's own mutations.
+Both were fixed by production env corrections plus a redeploy of the same build,
+then re-verified live. The smoke spec's previous default target
+`fund.presson.vc` does not resolve; the deployed target is
+`https://updog-restore.vercel.app` and must be passed via `PRODUCTION_URL`.
 
 Current visual/a11y evidence: the route-governed screenshot audit passes across
 54 desktop/mobile captures with LP reporting enabled, including scenario
