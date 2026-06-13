@@ -1,12 +1,14 @@
 import React from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import userEvent from '@testing-library/user-event';
+import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   CreateMethodologyScenarioModal,
   buildCreateMethodologyScenarioPayload,
 } from '../../../../client/src/components/scenarios/CreateMethodologyScenarioModal';
 import type { FundScenarioSetDetailV1 } from '../../../../shared/contracts/fund-scenario-sets-v1.contract';
+import { installRadixSelectShim } from '../../../helpers/radix-select-shim';
 
 function makeQueryClient() {
   return new QueryClient({
@@ -161,6 +163,8 @@ describe('buildCreateMethodologyScenarioPayload', () => {
 describe('CreateMethodologyScenarioModal', () => {
   let fetchSpy: ReturnType<typeof vi.fn>;
 
+  beforeAll(installRadixSelectShim);
+
   beforeEach(() => {
     fetchSpy = vi.fn();
     globalThis.fetch = fetchSpy;
@@ -251,6 +255,101 @@ describe('CreateMethodologyScenarioModal', () => {
         'Idempotency-Key': expect.any(String),
       })
     );
+  });
+
+  it('guards against re-entrant submit (one POST)', async () => {
+    fetchSpy.mockReturnValueOnce(new Promise(() => {}));
+    renderModal();
+    fireEvent.change(screen.getByLabelText(/scenario set name/i), {
+      target: { value: 'S' },
+    });
+    fireEvent.change(screen.getByLabelText(/variant name/i), { target: { value: 'V' } });
+    fireEvent.change(screen.getByLabelText(/management fee rate/i), {
+      target: { value: '2', valueAsNumber: 2 },
+    });
+
+    const form = document.querySelector('form') as HTMLFormElement;
+    fireEvent.submit(form);
+    fireEvent.submit(form);
+
+    await waitFor(() => expect(fetchSpy).toHaveBeenCalledTimes(1));
+  });
+
+  it('reuses the same Idempotency-Key on same-payload retry after a transient failure', async () => {
+    fetchSpy.mockResolvedValueOnce(errorResponse(500, 'server_error', 'boom'));
+    renderModal();
+    fireEvent.change(screen.getByLabelText(/scenario set name/i), {
+      target: { value: 'S' },
+    });
+    fireEvent.change(screen.getByLabelText(/variant name/i), { target: { value: 'V' } });
+    fireEvent.change(screen.getByLabelText(/management fee rate/i), {
+      target: { value: '2', valueAsNumber: 2 },
+    });
+    fireEvent.click(screen.getByRole('button', { name: /create scenario/i }));
+    await waitFor(() => expect(fetchSpy).toHaveBeenCalledTimes(1));
+    const firstInit = fetchSpy.mock.calls[0][1] as RequestInit;
+    const key1 = (firstInit.headers as Record<string, string>)['Idempotency-Key'];
+
+    await waitFor(() => {
+      expect(screen.getByText(/failed to create scenario/i)).toBeInTheDocument();
+    });
+
+    fetchSpy.mockResolvedValueOnce(jsonResponse(makeCreatedDetail()));
+    fireEvent.click(screen.getByRole('button', { name: /create scenario/i }));
+    await waitFor(() => expect(fetchSpy).toHaveBeenCalledTimes(2));
+    const secondInit = fetchSpy.mock.calls[1][1] as RequestInit;
+    const key2 = (secondInit.headers as Record<string, string>)['Idempotency-Key'];
+
+    expect(key2).toBe(key1);
+  });
+
+  it('mints a new Idempotency-Key when the payload changes after a failure', async () => {
+    fetchSpy.mockResolvedValueOnce(errorResponse(500, 'server_error', 'boom'));
+    renderModal();
+    fireEvent.change(screen.getByLabelText(/scenario set name/i), {
+      target: { value: 'S' },
+    });
+    fireEvent.change(screen.getByLabelText(/variant name/i), { target: { value: 'V' } });
+    fireEvent.change(screen.getByLabelText(/management fee rate/i), {
+      target: { value: '2', valueAsNumber: 2 },
+    });
+    fireEvent.click(screen.getByRole('button', { name: /create scenario/i }));
+    await waitFor(() => expect(fetchSpy).toHaveBeenCalledTimes(1));
+    const firstInit = fetchSpy.mock.calls[0][1] as RequestInit;
+    const key1 = (firstInit.headers as Record<string, string>)['Idempotency-Key'];
+
+    await waitFor(() => {
+      expect(screen.getByText(/failed to create scenario/i)).toBeInTheDocument();
+    });
+
+    fireEvent.change(screen.getByLabelText(/variant name/i), { target: { value: 'V2' } });
+    fetchSpy.mockResolvedValueOnce(jsonResponse(makeCreatedDetail()));
+    fireEvent.click(screen.getByRole('button', { name: /create scenario/i }));
+    await waitFor(() => expect(fetchSpy).toHaveBeenCalledTimes(2));
+    const secondInit = fetchSpy.mock.calls[1][1] as RequestInit;
+    const key2 = (secondInit.headers as Record<string, string>)['Idempotency-Key'];
+
+    expect(key2).not.toBe(key1);
+  });
+
+  it('POSTs waterfallType when chosen via the Select dropdown', async () => {
+    fetchSpy.mockResolvedValueOnce(jsonResponse(makeCreatedDetail()));
+    renderModal();
+    fireEvent.change(screen.getByLabelText(/scenario set name/i), {
+      target: { value: 'Wf set' },
+    });
+    fireEvent.change(screen.getByLabelText(/variant name/i), { target: { value: 'Wf v' } });
+    const user = userEvent.setup();
+
+    await user.click(screen.getByLabelText(/waterfall type/i));
+    await user.click(screen.getByRole('option', { name: /american \(deal-by-deal\)/i }));
+
+    fireEvent.click(screen.getByRole('button', { name: /create scenario/i }));
+    await waitFor(() => expect(fetchSpy).toHaveBeenCalled());
+    const [, init] = fetchSpy.mock.calls[0] as [string, RequestInit];
+    const body = JSON.parse(init.body as string);
+    expect(body.variants[0].override.payload).toEqual({ waterfallType: 'american' });
+    expect('managementFeeRate' in body.variants[0].override.payload).toBe(false);
   });
 
   it('shows duplicate_scenario_set_name error under name field', async () => {
