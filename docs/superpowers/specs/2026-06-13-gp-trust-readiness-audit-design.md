@@ -123,7 +123,10 @@ Checks per material section:
   `READY / CALCULATING / STALE / FAILED / EMPTY / PARTIAL / UNAVAILABLE`?
   Specifically: are FAILED/UNAVAILABLE sections kept visible with an explanation
   rather than hidden; do STALE results show why and offer a recalculation
-  action?
+  action? For the newly-deployed `fund-scenario-calc` async path (Refinement D):
+  does a dead or timed-out worker job render `FAILED`/`STALE` truthfully rather
+  than an infinite spinner or a silently-stale number? Worker reliability itself
+  stays out of scope; the UI's honesty about worker failure does not.
 - A3. Is any `SAMPLE_DATA` / mock / fixture rendered without the mandated `DEMO`
   ribbon + section border? (The "looks production-ready while using sample data"
   anti-pattern.)
@@ -151,6 +154,15 @@ Checks per material metric:
   `fund-authoritative-calculations.contract.ts` makes reserve + pacing
   authoritative and cohort + economics experimental — does the UI tell the GP
   which is which?
+
+**Correctness floor and the reference problem (Refinement B).** True end-to-end
+correctness — "does the displayed TVPI match what this GP's Excel produces for
+their fund" — cannot be proven without a reference model. Absent a reference
+Excel, Axis B is honestly only an _authoritative-path + truth-case coverage_
+check (B1/B2), not a value-level correctness proof. Do not report B1/B2 passes
+as "the number is correct"; report them as "the number comes from the
+authoritative path and is truth-case covered." Acquiring a reference is a Phase
+0 input (Section 5).
 
 ### Axis C — Access scope (right number, right user)
 
@@ -238,16 +250,30 @@ gaps). Cells with no material output are marked `N/A` with a one-line reason.
 - Method: fan-out read-only analysis, one pass per in-scope surface, each
   applying the Axis A/B/C checklist and returning structured findings;
   synthesize into the register. No code changes in this phase.
+- Effort weighting (Refinement C): spend the real audit budget on **Axis B +
+  `UNVERIFIED` cells** — those carry genuinely new information. Treat Axis A as
+  a fast _confirm-and-map_ pass onto the already-specced PR B/C/D, since it
+  largely reproduces gaps those plans already enumerate.
+- Input (Refinement B): obtain one real fund + the GP's own Excel model as a
+  correctness reference before scoring Axis B. If unobtainable, scope Axis B to
+  the honest floor (authoritative-path + truth-case coverage) and flag the
+  missing reference as the top correctness follow-up.
 - Owner: Claude (intake / context-gathering / verification — permitted by the
   workflow contract since no edits occur).
 - Deliverable: the trust-readiness register (Section 4).
 - This is the first thing built. It is reviewed before any fix.
 
-### Gate
+### Gate and rollout posture (Refinement A)
 
 No fix-PR starts until the register is reviewed and the go/no-go list is agreed.
 This prevents polishing provenance on numbers that are themselves wrong, and
 prevents scope creep into out-of-scope surfaces.
+
+Rollout is **two-tier, not all-or-nothing**: a thin rollout to 1–2 friendly GPs
+proceeds once `blocker` cells are clear (it does not wait for a fully-green
+register), so the audit is informed by real first-use and does not become
+indefinite pre-rollout perfectionism. Broad rollout waits until golden-path
+`high` cells are cleared.
 
 ### Phase 1+ — Fixes (one scoped PR per blocker/high cluster)
 
@@ -289,18 +315,56 @@ provided they are non-gating by definition.
 
 ## 7. Risks
 
-| Risk                                                | Mitigation                                                                                  |
-| --------------------------------------------------- | ------------------------------------------------------------------------------------------- |
-| Audit becomes an unbounded governance program       | Scope fixed to GP golden-path surfaces; severity model gates only `blocker`/`high`.         |
-| Provenance polish applied to numbers that are wrong | Audit-first + gate; Axis B (correctness) scored before Phase 1 fixes start.                 |
-| Re-deriving design that already exists              | Findings map onto existing PR B/C/D specs; new design only for cells no existing PR covers. |
-| "Verified" without code evidence                    | Every register row cites `file:line`; `UNVERIFIED` headline metric counts as `high`.        |
-| Scope creep into LP / cohort-authoritative          | Explicitly out of scope (Section 2); cohort fix is _labeling_, not promotion.               |
-| Phoenix truth-case count quoted from stale docs     | Use `npm run phoenix:truth` live; ignore hardcoded counts in historical reports.            |
+| Risk                                                     | Mitigation                                                                                                                |
+| -------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------- |
+| Audit becomes an unbounded governance program            | Scope fixed to GP golden-path surfaces; severity model gates only `blocker`/`high`.                                       |
+| Provenance polish applied to numbers that are wrong      | Audit-first + gate; Axis B (correctness) scored before Phase 1 fixes start.                                               |
+| Re-deriving design that already exists                   | Findings map onto existing PR B/C/D specs; new design only for cells no existing PR covers.                               |
+| "Verified" without code evidence                         | Every register row cites `file:line`; `UNVERIFIED` headline metric counts as `high`.                                      |
+| Scope creep into LP / cohort-authoritative               | Explicitly out of scope (Section 2); cohort fix is _labeling_, not promotion.                                             |
+| Phoenix truth-case count quoted from stale docs          | Use `npm run phoenix:truth` live; ignore hardcoded counts in historical reports.                                          |
+| Axis B claims correctness it cannot prove pre-rollout    | Refinement B: obtain a reference Excel; else scope Axis B to authoritative-path + truth-case coverage and label honestly. |
+| Audit becomes pre-rollout perfectionism (zero-user tool) | Refinement A: two-tier rollout — thin GP rollout gated only on `blocker` cells, run in parallel with the audit.           |
 
 ---
 
-## 8. References
+## 8. Red-team refinements (2026-06-13)
+
+A `deliberation-debate-red-teaming` steelman pass stress-tested this plan from
+the GP/customer, long-term, engineering-efficiency, operations, and pessimist
+perspectives. The plan's shape held — bounded artifact, correctness-before-
+provenance sequencing, doctrine-grounded rubric, safe read-only Phase 0, good
+timing — but four refinements make it load-bearing for adoption rather than
+merely safe. They are reflected in the sections above.
+
+- **A — Two-tier rollout, not all-or-nothing (Section 5 Gate).** Defuses the
+  strongest objection ("you're hardening a tool with zero users"). A thin
+  rollout to 1–2 friendly GPs proceeds once `blocker` cells clear, in parallel
+  with the audit, so trust work is informed by real first-use and cannot drift
+  into indefinite perfectionism. Broad rollout still waits for golden-path
+  `high` cells.
+- **B — Acquire a correctness reference (Axis B, Section 5 Input).** True
+  value-level correctness needs one real fund + the GP's Excel to diff against.
+  Without it, Axis B is honestly only an authoritative-path +
+  truth-case-coverage check and must be labeled as such — never reported as "the
+  number is correct."
+- **C — Re-weight Phase 0 toward Axis B + `UNVERIFIED` (Section 5 Method).**
+  Axis A largely reproduces the already-specced PR B/C/D gaps, so it is a fast
+  confirm-and-map pass; the genuinely new information is which headline numbers
+  are unverified.
+- **D — Worker-failure honesty in Axis A2.** The days-old `fund-scenario-calc`
+  async path must render `FAILED`/`STALE` truthfully on a dead or timed-out job.
+  Worker reliability itself remains out of scope; the UI's honesty about worker
+  failure does not.
+
+Residual accepted risk: the audit removes reasons for distrust but cannot
+manufacture trust, and cannot detect a product-fit miss ("the tool doesn't model
+what I care about"). Refinement A's thin rollout is the chosen detector for that
+class of risk.
+
+---
+
+## 9. References
 
 - `docs/design/analytics-visualization-principles.md` — the audit rubric's
   source of truth (five trust questions, evidence states, chart checklist,
