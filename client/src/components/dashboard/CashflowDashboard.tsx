@@ -46,6 +46,7 @@ import {
   useLiquidityMetrics,
 } from '@/hooks/useLiquidityAnalytics';
 import { useFundContext } from '@/contexts/FundContext';
+import { isDemoMode } from '@/core/demo/persona';
 import { presson } from '@/theme/presson.tokens';
 import { colors as brandColors, getChartColor } from '@/lib/brand-tokens';
 
@@ -80,6 +81,7 @@ export default function CashflowDashboard({ fundId, className = '' }: CashflowDa
     refreshIntervalMs: 30000, // 30 seconds
     defaultForecastMonths: timeframe === '6m' ? 6 : timeframe === '12m' ? 12 : 24,
     enableRealTimeAlerts: true,
+    allowDemoFallback: isDemoMode(),
   });
 
   // Use additional hooks
@@ -188,6 +190,9 @@ export default function CashflowDashboard({ fundId, className = '' }: CashflowDa
           </p>
         </div>
         <div className="flex items-center gap-3">
+          {analytics.isDemoData && (
+            <Badge className="border-beige-200 bg-pov-gray text-charcoal-700">Demo data</Badge>
+          )}
           <Select value={timeframe} onValueChange={setTimeframe}>
             <SelectTrigger className="w-32">
               <SelectValue />

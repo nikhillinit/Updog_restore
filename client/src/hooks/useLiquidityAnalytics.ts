@@ -1,5 +1,9 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import { LiquidityEngine, type CashFlowAnalysis, type StressTestResult } from '@/core/LiquidityEngine';
+import {
+  LiquidityEngine,
+  type CashFlowAnalysis,
+  type StressTestResult,
+} from '@/core/LiquidityEngine';
 import type {
   CashTransaction,
   CashTransactionType,
@@ -66,6 +70,11 @@ export interface UseLiquidityAnalyticsOptions {
   // Analysis settings
   defaultForecastMonths?: number;
   enableRealTimeAlerts?: boolean;
+  /**
+   * Demo fallback must be opt-in. Production surfaces pass `false`/omit so absent
+   * data renders explicit empty states instead of fabricated fund truth.
+   */
+  allowDemoFallback?: boolean;
 }
 
 const defaultStressFactors = {
@@ -77,8 +86,7 @@ const defaultStressFactors = {
 
 export function useLiquidityAnalytics(
   options: UseLiquidityAnalyticsOptions
-): LiquidityAnalyticsState & LiquidityAnalyticsActions {
-
+): LiquidityAnalyticsState & LiquidityAnalyticsActions & { isDemoData: boolean } {
   // =============================================================================
   // STATE MANAGEMENT
   // =============================================================================
@@ -118,7 +126,7 @@ export function useLiquidityAnalytics(
     const startDate = new Date(Date.now() - 365 * 24 * 60 * 60 * 1000); // 1 year ago
 
     for (let i = 0; i < 50; i++) {
-      const date = new Date(startDate.getTime() + (i * 7 * 24 * 60 * 60 * 1000)); // Weekly intervals
+      const date = new Date(startDate.getTime() + i * 7 * 24 * 60 * 60 * 1000); // Weekly intervals
 
       // Random transaction type
       const transactionTypes: CashTransactionType[] = [
@@ -266,96 +274,151 @@ export function useLiquidityAnalytics(
     ];
   }, [options.fundId, options.recurringExpenses]);
 
+  // ---------------------------------------------------------------------------
+  // DATA ACCESSORS — real data first, opt-in demo fallback, else explicit empty
+  // ---------------------------------------------------------------------------
+
+  const getTransactions = useCallback((): CashTransaction[] => {
+    if (options.transactions) return options.transactions;
+    if (options.allowDemoFallback) return generateMockTransactions();
+    return [];
+  }, [options.transactions, options.allowDemoFallback, generateMockTransactions]);
+
+  const getCurrentPosition = useCallback((): CashPosition | null => {
+    if (options.currentPosition) return options.currentPosition;
+    if (options.allowDemoFallback) return generateMockCurrentPosition();
+    return null;
+  }, [options.currentPosition, options.allowDemoFallback, generateMockCurrentPosition]);
+
+  const getRecurringExpenses = useCallback((): RecurringExpense[] => {
+    if (options.recurringExpenses) return options.recurringExpenses;
+    if (options.allowDemoFallback) return generateMockRecurringExpenses();
+    return [];
+  }, [options.recurringExpenses, options.allowDemoFallback, generateMockRecurringExpenses]);
+
   // =============================================================================
   // CORE ACTIONS
   // =============================================================================
 
   const runCashFlowAnalysis = useCallback(async () => {
-    setState(prev => ({ ...prev, isLoadingAnalysis: true, analysisError: null }));
+    setState((prev) => ({ ...prev, isLoadingAnalysis: true, analysisError: null }));
 
     try {
-      const transactions = generateMockTransactions();
+      const transactions = getTransactions();
+      if (transactions.length === 0) {
+        setState((prev) => ({
+          ...prev,
+          cashFlowAnalysis: null,
+          isLoadingAnalysis: false,
+          lastAnalysisUpdate: new Date(),
+        }));
+        return;
+      }
       const analysis = liquidityEngine.analyzeCashFlows(transactions);
 
-      setState(prev => ({
+      setState((prev) => ({
         ...prev,
         cashFlowAnalysis: analysis,
         isLoadingAnalysis: false,
         lastAnalysisUpdate: new Date(),
       }));
     } catch (error) {
-      setState(prev => ({
+      setState((prev) => ({
         ...prev,
         isLoadingAnalysis: false,
         analysisError: error instanceof Error ? error : new Error('Analysis failed'),
       }));
     }
-  }, [liquidityEngine, generateMockTransactions]);
+  }, [liquidityEngine, getTransactions]);
 
-  const generateLiquidityForecast = useCallback(async (months = options.defaultForecastMonths || 12) => {
-    setState(prev => ({ ...prev, isLoadingForecast: true, forecastError: null }));
+  const generateLiquidityForecast = useCallback(
+    async (months = options.defaultForecastMonths || 12) => {
+      setState((prev) => ({ ...prev, isLoadingForecast: true, forecastError: null }));
 
-    try {
-      const currentPosition = generateMockCurrentPosition();
-      const transactions = generateMockTransactions();
-      const recurringExpenses = generateMockRecurringExpenses();
+      try {
+        const currentPosition = getCurrentPosition();
+        if (!currentPosition) {
+          setState((prev) => ({
+            ...prev,
+            liquidityForecast: null,
+            isLoadingForecast: false,
+          }));
+          return;
+        }
+        const transactions = getTransactions();
+        const recurringExpenses = getRecurringExpenses();
 
-      const forecast = liquidityEngine.generateLiquidityForecast(
-        currentPosition,
-        transactions,
-        recurringExpenses,
-        months
-      );
+        const forecast = liquidityEngine.generateLiquidityForecast(
+          currentPosition,
+          transactions,
+          recurringExpenses,
+          months
+        );
 
-      setState(prev => ({
-        ...prev,
-        liquidityForecast: forecast,
-        isLoadingForecast: false,
-        lastForecastUpdate: new Date(),
-      }));
-    } catch (error) {
-      setState(prev => ({
-        ...prev,
-        isLoadingForecast: false,
-        forecastError: error instanceof Error ? error : new Error('Forecast failed'),
-      }));
-    }
-  }, [options.defaultForecastMonths, liquidityEngine, generateMockCurrentPosition, generateMockTransactions, generateMockRecurringExpenses]);
+        setState((prev) => ({
+          ...prev,
+          liquidityForecast: forecast,
+          isLoadingForecast: false,
+          lastForecastUpdate: new Date(),
+        }));
+      } catch (error) {
+        setState((prev) => ({
+          ...prev,
+          isLoadingForecast: false,
+          forecastError: error instanceof Error ? error : new Error('Forecast failed'),
+        }));
+      }
+    },
+    [
+      options.defaultForecastMonths,
+      liquidityEngine,
+      getCurrentPosition,
+      getTransactions,
+      getRecurringExpenses,
+    ]
+  );
 
-  const runStressTest = useCallback(async (factors?: Partial<typeof defaultStressFactors>) => {
-    setState(prev => ({ ...prev, isLoadingStressTest: true, stressTestError: null }));
+  const runStressTest = useCallback(
+    async (factors?: Partial<typeof defaultStressFactors>) => {
+      setState((prev) => ({ ...prev, isLoadingStressTest: true, stressTestError: null }));
 
-    try {
-      const currentPosition = generateMockCurrentPosition();
-      const mergedFactors = { ...defaultStressFactors, ...(factors || {}) };
+      try {
+        const currentPosition = getCurrentPosition();
+        if (!currentPosition) {
+          setState((prev) => ({
+            ...prev,
+            stressTestResult: null,
+            isLoadingStressTest: false,
+          }));
+          return;
+        }
+        const mergedFactors = { ...defaultStressFactors, ...(factors || {}) };
 
-      const stressTestResult = liquidityEngine.runStressTest(currentPosition, mergedFactors);
+        const stressTestResult = liquidityEngine.runStressTest(currentPosition, mergedFactors);
 
-      setState(prev => ({
-        ...prev,
-        stressTestResult,
-        isLoadingStressTest: false,
-        lastStressTestUpdate: new Date(),
-      }));
-    } catch (error) {
-      setState(prev => ({
-        ...prev,
-        isLoadingStressTest: false,
-        stressTestError: error instanceof Error ? error : new Error('Stress test failed'),
-      }));
-    }
-  }, [liquidityEngine, generateMockCurrentPosition]);
+        setState((prev) => ({
+          ...prev,
+          stressTestResult,
+          isLoadingStressTest: false,
+          lastStressTestUpdate: new Date(),
+        }));
+      } catch (error) {
+        setState((prev) => ({
+          ...prev,
+          isLoadingStressTest: false,
+          stressTestError: error instanceof Error ? error : new Error('Stress test failed'),
+        }));
+      }
+    },
+    [liquidityEngine, getCurrentPosition]
+  );
 
   // =============================================================================
   // UTILITY ACTIONS
   // =============================================================================
 
   const refreshAll = useCallback(async () => {
-    await Promise.all([
-      runCashFlowAnalysis(),
-      generateLiquidityForecast(),
-      runStressTest(),
-    ]);
+    await Promise.all([runCashFlowAnalysis(), generateLiquidityForecast(), runStressTest()]);
   }, [runCashFlowAnalysis, generateLiquidityForecast, runStressTest]);
 
   const clearResults = useCallback(() => {
@@ -402,7 +465,8 @@ export function useLiquidityAnalytics(
 
     const interval = setInterval(() => {
       // Check for liquidity alerts and update if needed
-      const currentPosition = generateMockCurrentPosition();
+      const currentPosition = getCurrentPosition();
+      if (!currentPosition) return;
 
       // Simple alert logic
       const lowLiquidityThreshold = options.fundSize * 0.02; // 2% of fund size
@@ -421,7 +485,7 @@ export function useLiquidityAnalytics(
     }, options.refreshIntervalMs || 60000); // Default 1 minute
 
     setMonitoringInterval(interval);
-  }, [monitoringInterval, options, generateMockCurrentPosition, refreshAll]);
+  }, [monitoringInterval, options, getCurrentPosition, refreshAll]);
 
   const stopRealTimeMonitoring = useCallback(() => {
     if (monitoringInterval) {
@@ -456,9 +520,16 @@ export function useLiquidityAnalytics(
   // RETURN HOOK INTERFACE
   // =============================================================================
 
+  const isDemoData =
+    Boolean(options.allowDemoFallback) &&
+    !options.transactions &&
+    !options.currentPosition &&
+    !options.recurringExpenses;
+
   return {
     // State
     ...state,
+    isDemoData,
 
     // Actions
     runCashFlowAnalysis,
