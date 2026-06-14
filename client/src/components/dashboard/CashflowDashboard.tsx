@@ -49,6 +49,8 @@ import { useFundContext } from '@/contexts/FundContext';
 import { isDemoMode } from '@/core/demo/persona';
 import { presson } from '@/theme/presson.tokens';
 import { colors as brandColors, getChartColor } from '@/lib/brand-tokens';
+import { getImpactBadgeClass, getImpactTextClass } from '@/lib/display/impact-semantics';
+import { toStressScenarioViewModel } from './stress-test-view-model';
 
 const STATUS_SUCCESS = brandColors.success;
 const CASHFLOW_CHART_COLORS = {
@@ -159,6 +161,16 @@ export default function CashflowDashboard({ fundId, className = '' }: CashflowDa
 
     return data;
   }, [analytics.liquidityForecast, timeframe]);
+
+  const forecastMax = useMemo(() => {
+    const values = liquidityForecastData
+      .flatMap((d) => [d.cash, d.committed])
+      .filter((n) => Number.isFinite(n));
+    const max = Math.max(0, ...values);
+    return max === 0 ? 1 : Math.ceil(max * 1.1);
+  }, [liquidityForecastData]);
+
+  const stressBaselineCash = analytics.stressTestResult?.currentPosition.totalCash ?? 0;
 
   const expenseBreakdownData = useMemo(() => {
     if (!analytics.cashFlowAnalysis) return [];
@@ -354,34 +366,40 @@ export default function CashflowDashboard({ fundId, className = '' }: CashflowDa
                 <CardDescription>Monthly inflows vs outflows over time</CardDescription>
               </CardHeader>
               <CardContent>
-                <ResponsiveContainer width="100%" height={300}>
-                  <AreaChart data={cashFlowChartData}>
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="month" />
-                    <YAxis />
-                    <Tooltip
-                      formatter={(value) =>
-                        value !== undefined ? formatCurrencyShort(Number(value)) : ''
-                      }
-                    />
-                    <Area
-                      type="monotone"
-                      dataKey="inflows"
-                      stackId="1"
-                      stroke={CASHFLOW_CHART_COLORS.positive}
-                      fill={CASHFLOW_CHART_COLORS.positive}
-                      fillOpacity={0.6}
-                    />
-                    <Area
-                      type="monotone"
-                      dataKey="outflows"
-                      stackId="2"
-                      stroke={CASHFLOW_CHART_COLORS.negative}
-                      fill={CASHFLOW_CHART_COLORS.negative}
-                      fillOpacity={0.6}
-                    />
-                  </AreaChart>
-                </ResponsiveContainer>
+                {cashFlowChartData.length === 0 ? (
+                  <div className="flex h-[300px] items-center justify-center text-sm text-charcoal-500">
+                    No cash flow data available.
+                  </div>
+                ) : (
+                  <ResponsiveContainer width="100%" height={300}>
+                    <AreaChart data={cashFlowChartData}>
+                      <CartesianGrid strokeDasharray="3 3" />
+                      <XAxis dataKey="month" />
+                      <YAxis tickFormatter={(value) => formatCurrencyShort(Number(value))} />
+                      <Tooltip
+                        formatter={(value) =>
+                          value !== undefined ? formatCurrencyShort(Number(value)) : ''
+                        }
+                      />
+                      <Area
+                        type="monotone"
+                        dataKey="inflows"
+                        stackId="1"
+                        stroke={CASHFLOW_CHART_COLORS.positive}
+                        fill={CASHFLOW_CHART_COLORS.positive}
+                        fillOpacity={0.6}
+                      />
+                      <Area
+                        type="monotone"
+                        dataKey="outflows"
+                        stackId="2"
+                        stroke={CASHFLOW_CHART_COLORS.negative}
+                        fill={CASHFLOW_CHART_COLORS.negative}
+                        fillOpacity={0.6}
+                      />
+                    </AreaChart>
+                  </ResponsiveContainer>
+                )}
               </CardContent>
             </Card>
 
@@ -391,20 +409,26 @@ export default function CashflowDashboard({ fundId, className = '' }: CashflowDa
                 <CardDescription>Monthly net cash position</CardDescription>
               </CardHeader>
               <CardContent>
-                <ResponsiveContainer width="100%" height={300}>
-                  <BarChart data={cashFlowChartData}>
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="month" />
-                    <YAxis />
-                    <Tooltip
-                      formatter={(value) =>
-                        value !== undefined ? formatCurrencyShort(Number(value)) : ''
-                      }
-                    />
-                    {/* charcoal accent per DESIGN.md (net-flow is non-semantic; no blue) */}
-                    <Bar dataKey="netFlow" fill={CASHFLOW_CHART_COLORS.text} />
-                  </BarChart>
-                </ResponsiveContainer>
+                {cashFlowChartData.length === 0 ? (
+                  <div className="flex h-[300px] items-center justify-center text-sm text-charcoal-500">
+                    No cash flow data available.
+                  </div>
+                ) : (
+                  <ResponsiveContainer width="100%" height={300}>
+                    <BarChart data={cashFlowChartData}>
+                      <CartesianGrid strokeDasharray="3 3" />
+                      <XAxis dataKey="month" />
+                      <YAxis tickFormatter={(value) => formatCurrencyShort(Number(value))} />
+                      <Tooltip
+                        formatter={(value) =>
+                          value !== undefined ? formatCurrencyShort(Number(value)) : ''
+                        }
+                      />
+                      {/* charcoal accent per DESIGN.md (net-flow is non-semantic; no blue) */}
+                      <Bar dataKey="netFlow" fill={CASHFLOW_CHART_COLORS.text} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                )}
               </CardContent>
             </Card>
           </div>
@@ -420,33 +444,42 @@ export default function CashflowDashboard({ fundId, className = '' }: CashflowDa
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <ResponsiveContainer width="100%" height={400}>
-                <LineChart data={liquidityForecastData}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="month" />
-                  <YAxis />
-                  <Tooltip
-                    formatter={(value) =>
-                      value !== undefined ? formatCurrencyShort(Number(value)) : ''
-                    }
-                  />
-                  <Line
-                    type="monotone"
-                    dataKey="cash"
-                    stroke={CASHFLOW_CHART_COLORS.info}
-                    strokeWidth={3}
-                    name="Available Cash"
-                  />
-                  <Line
-                    type="monotone"
-                    dataKey="committed"
-                    stroke={CASHFLOW_CHART_COLORS.text}
-                    strokeWidth={2}
-                    strokeDasharray="5 5"
-                    name="Undrawn Commitments"
-                  />
-                </LineChart>
-              </ResponsiveContainer>
+              {liquidityForecastData.length === 0 ? (
+                <div className="flex h-[400px] items-center justify-center text-sm text-charcoal-500">
+                  No forecast data available.
+                </div>
+              ) : (
+                <ResponsiveContainer width="100%" height={400}>
+                  <LineChart data={liquidityForecastData}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="month" />
+                    <YAxis
+                      domain={[0, forecastMax]}
+                      tickFormatter={(value) => formatCurrencyShort(Number(value))}
+                    />
+                    <Tooltip
+                      formatter={(value) =>
+                        value !== undefined ? formatCurrencyShort(Number(value)) : ''
+                      }
+                    />
+                    <Line
+                      type="monotone"
+                      dataKey="cash"
+                      stroke={CASHFLOW_CHART_COLORS.info}
+                      strokeWidth={3}
+                      name="Available Cash"
+                    />
+                    <Line
+                      type="monotone"
+                      dataKey="committed"
+                      stroke={CASHFLOW_CHART_COLORS.text}
+                      strokeWidth={2}
+                      strokeDasharray="5 5"
+                      name="Undrawn Commitments"
+                    />
+                  </LineChart>
+                </ResponsiveContainer>
+              )}
             </CardContent>
           </Card>
 
@@ -607,35 +640,43 @@ export default function CashflowDashboard({ fundId, className = '' }: CashflowDa
 
                   <div className="space-y-3">
                     <h4 className="font-medium">Stress Test Scenarios</h4>
-                    {analytics.stressTestResult.scenarios.map((scenario, index) => (
-                      <div
-                        key={index}
-                        className="flex items-center justify-between p-4 border rounded-lg"
-                      >
-                        <div className="flex-1">
-                          <h5 className="font-medium">{scenario.name}</h5>
-                          <p className="text-sm text-muted-foreground">{scenario.description}</p>
-                        </div>
-                        <div className="text-right">
-                          <div
-                            className={`font-medium ${scenario.endingCash > 0 ? 'text-presson-positive' : 'text-presson-negative'}`}
-                          >
-                            {formatCurrencyShort(scenario.endingCash / 1000000)}
+                    {analytics.stressTestResult.scenarios.map((scenario, index) => {
+                      const vm = toStressScenarioViewModel(scenario, stressBaselineCash);
+                      const DirectionIcon =
+                        vm.impactDirection === 'unfavorable'
+                          ? TrendingDown
+                          : vm.impactDirection === 'favorable'
+                            ? TrendingUp
+                            : Activity;
+                      const signedImpact = `${vm.liquidityImpact >= 0 ? '+' : '-'}${formatCurrencyShort(
+                        Math.abs(vm.liquidityImpact) / 1000000
+                      )}`;
+                      return (
+                        <div
+                          key={index}
+                          className="flex items-center justify-between p-4 border rounded-lg"
+                        >
+                          <div className="flex-1">
+                            <h5 className="font-medium">{vm.name}</h5>
+                            <p className="text-sm text-muted-foreground">{vm.description}</p>
                           </div>
-                          <Badge
-                            variant={
-                              scenario.impactRating === 'high'
-                                ? 'destructive'
-                                : scenario.impactRating === 'medium'
-                                  ? 'default'
-                                  : 'secondary'
-                            }
-                          >
-                            {scenario.impactRating} impact
-                          </Badge>
+                          <div className="text-right">
+                            <div
+                              className={`font-medium ${getImpactTextClass({ direction: vm.impactDirection, severity: vm.impactSeverity })}`}
+                            >
+                              {formatCurrencyShort(vm.endingCash / 1000000)}
+                            </div>
+                            <div className="flex items-center justify-end gap-1 text-xs text-charcoal-600">
+                              <DirectionIcon className="h-3 w-3" aria-hidden="true" />
+                              <span>{signedImpact} vs current</span>
+                            </div>
+                            <Badge className={getImpactBadgeClass(vm.impactSeverity)}>
+                              {vm.impactSeverity} impact
+                            </Badge>
+                          </div>
                         </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
 
                   {analytics.stressTestResult.recommendations.length > 0 && (
