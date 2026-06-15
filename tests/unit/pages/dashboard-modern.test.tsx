@@ -88,6 +88,14 @@ describe('ModernDashboard', () => {
     expect(screen.queryByText(/Portfolio Value Trend/i)).not.toBeInTheDocument();
   });
 
+  it('keeps only the real global action in the top bar (no dead placeholder controls)', () => {
+    render(<ModernDashboard />);
+
+    expect(screen.getByText('Share with LPs')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /^filter$/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /export/i })).not.toBeInTheDocument();
+  });
+
   it('renders supported performance metrics while keeping unsupported claims unavailable', async () => {
     const user = userEvent.setup();
     render(<ModernDashboard />);
