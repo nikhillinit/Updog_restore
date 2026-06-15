@@ -205,6 +205,16 @@ export const POLISH_FLAGS: Record<string, FeatureFlag> = {
     dependencies: ['enable_kpi_selectors', 'enable_operations_hub'],
   },
 
+  enable_lp_snapshot_mode: {
+    key: 'enable_lp_snapshot_mode',
+    name: 'LP Snapshot Review',
+    description:
+      'Show an immutable-snapshot summary (scope, hidden metrics, freshness) in the LP share modal so the GP can verify what LPs will see.',
+    enabled: false,
+    rolloutPercentage: 0,
+    dependencies: [],
+  },
+
   enable_route_redirects: {
     key: 'enable_route_redirects',
     name: 'Legacy Route Redirects',
