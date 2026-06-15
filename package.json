@@ -339,7 +339,7 @@
     "terser": "^5.48.0",
     "testcontainers": "11.14.0",
     "tinybench": "^4.0.1",
-    "ts-morph": "27.0.2",
+    "ts-morph": "28.0.0",
     "tsc-baseline": "1.9.0",
     "tsx": "4.22.4",
     "typescript": "^5.9.3",
