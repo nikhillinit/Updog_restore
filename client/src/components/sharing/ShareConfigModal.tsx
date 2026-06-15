@@ -12,6 +12,7 @@ import {
   DialogTrigger,
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
@@ -27,6 +28,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Share2, Copy, Eye, Clock, Shield, Users } from 'lucide-react';
 import type { CreateShareLinkRequest } from '@shared/sharing-schema';
 import { LP_HIDDEN_METRICS } from '@shared/sharing-schema';
+import { useFlag } from '@/shared/useFlags';
 
 type ShareAccessLevel = CreateShareLinkRequest['accessLevel'];
 
@@ -46,6 +48,16 @@ const SHARE_ACCESS_LEVELS = [
 
 const isShareAccessLevel = (value: string): value is ShareAccessLevel =>
   SHARE_ACCESS_LEVELS.includes(value as ShareAccessLevel);
+
+const ACCESS_LABELS: Record<ShareAccessLevel, string> = {
+  view_only: 'View only',
+  view_with_details: 'View with details',
+  collaborator: 'Collaborator (can comment)',
+  admin: 'Admin',
+};
+
+const humanizeMetric = (metric: string) =>
+  metric.replace(/_/g, ' ').replace(/\b\w/g, (l) => l.toUpperCase());
 
 export const ShareConfigModal: React.FC<ShareConfigModalProps> = ({
   fundId,
@@ -67,12 +79,15 @@ export const ShareConfigModal: React.FC<ShareConfigModalProps> = ({
     customTitle: `${fundName} - Portfolio Dashboard`,
     customMessage: '',
   });
+  const lpSnapshotMode = useFlag('enable_lp_snapshot_mode');
+  const [snapshot, setSnapshot] = useState<{ shareId: string; capturedAt: string } | null>(null);
 
   const handleCreateShare = async () => {
     setIsCreating(true);
     try {
       const result = await onCreateShare(config);
       setCreatedLink(result.shareUrl);
+      setSnapshot({ shareId: result.shareId, capturedAt: new Date().toISOString() });
     } catch (error) {
       console.error('Failed to create share link:', error);
     } finally {
@@ -87,6 +102,7 @@ export const ShareConfigModal: React.FC<ShareConfigModalProps> = ({
 
   const resetForm = () => {
     setCreatedLink(null);
+    setSnapshot(null);
     setConfig({
       fundId,
       accessLevel: 'view_only',
@@ -144,6 +160,49 @@ export const ShareConfigModal: React.FC<ShareConfigModalProps> = ({
                 </Button>
               </div>
             </div>
+
+            {lpSnapshotMode && snapshot && (
+              <div className="space-y-3 rounded-lg border border-beige-200 bg-pov-gray/50 p-4">
+                <h4 className="flex items-center gap-2 font-medium text-charcoal-900">
+                  <Shield className="h-4 w-4" />
+                  Immutable snapshot
+                </h4>
+                <p className="text-sm text-charcoal-600">
+                  LPs see a frozen snapshot captured now. Later dashboard changes do not affect this
+                  share.
+                </p>
+                <dl className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
+                  <dt className="text-charcoal-600">Snapshot ID</dt>
+                  <dd className="truncate font-mono text-charcoal-900">{snapshot.shareId}</dd>
+                  <dt className="text-charcoal-600">Captured</dt>
+                  <dd className="text-charcoal-900">
+                    {new Date(snapshot.capturedAt).toLocaleString()}
+                  </dd>
+                  <dt className="text-charcoal-600">Access</dt>
+                  <dd className="text-charcoal-900">{ACCESS_LABELS[config.accessLevel]}</dd>
+                  <dt className="text-charcoal-600">Expires</dt>
+                  <dd className="text-charcoal-900">
+                    {config.expiresInDays ? `in ${config.expiresInDays} days` : 'never'}
+                  </dd>
+                </dl>
+                <div>
+                  <p className="text-sm font-medium text-charcoal-700">Hidden from LPs</p>
+                  {config.hiddenMetrics.length === 0 ? (
+                    <p className="text-sm text-charcoal-600">
+                      Nothing hidden — all metrics visible.
+                    </p>
+                  ) : (
+                    <div className="mt-1 flex flex-wrap gap-1">
+                      {config.hiddenMetrics.map((metric) => (
+                        <Badge key={metric} className="border-beige-200 bg-white text-charcoal-700">
+                          {humanizeMetric(metric)}
+                        </Badge>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
 
             <div className="flex gap-2">
               <Button onClick={resetForm} variant="outline" className="flex-1">
