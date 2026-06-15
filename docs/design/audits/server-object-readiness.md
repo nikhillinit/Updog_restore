@@ -1,3 +1,13 @@
+---
+status: ACTIVE
+audience: both
+last_updated: 2026-06-15
+owner: "Platform Team"
+review_cadence: P90D
+categories: [design, audits, backend-readiness, persistence]
+keywords: [server-object, readiness, persistence, lp-snapshot, cash-event]
+---
+
 # Server-object readiness audit (PR 0-S)
 
 **Purpose:** gate the operating-object PRs (tasks / assumptions / comments /
