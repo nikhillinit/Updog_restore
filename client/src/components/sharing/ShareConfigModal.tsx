@@ -31,6 +31,11 @@ import { LP_HIDDEN_METRICS } from '@shared/sharing-schema';
 import { useFlag } from '@/shared/useFlags';
 
 type ShareAccessLevel = CreateShareLinkRequest['accessLevel'];
+type CreatedShareSnapshot = {
+  shareId: string;
+  capturedAt: string;
+  config: CreateShareLinkRequest;
+};
 
 interface ShareConfigModalProps {
   fundId: string;
@@ -80,14 +85,19 @@ export const ShareConfigModal: React.FC<ShareConfigModalProps> = ({
     customMessage: '',
   });
   const lpSnapshotMode = useFlag('enable_lp_snapshot_mode');
-  const [snapshot, setSnapshot] = useState<{ shareId: string; capturedAt: string } | null>(null);
+  const [snapshot, setSnapshot] = useState<CreatedShareSnapshot | null>(null);
 
   const handleCreateShare = async () => {
+    const submittedConfig = { ...config, hiddenMetrics: [...config.hiddenMetrics] };
     setIsCreating(true);
     try {
-      const result = await onCreateShare(config);
+      const result = await onCreateShare(submittedConfig);
       setCreatedLink(result.shareUrl);
-      setSnapshot({ shareId: result.shareId, capturedAt: new Date().toISOString() });
+      setSnapshot({
+        shareId: result.shareId,
+        capturedAt: new Date().toISOString(),
+        config: submittedConfig,
+      });
     } catch (error) {
       console.error('Failed to create share link:', error);
     } finally {
@@ -172,28 +182,30 @@ export const ShareConfigModal: React.FC<ShareConfigModalProps> = ({
                   share.
                 </p>
                 <dl className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
-                  <dt className="text-charcoal-600">Snapshot ID</dt>
+                  <dt className="text-charcoal-600">Share ID</dt>
                   <dd className="truncate font-mono text-charcoal-900">{snapshot.shareId}</dd>
                   <dt className="text-charcoal-600">Captured</dt>
                   <dd className="text-charcoal-900">
                     {new Date(snapshot.capturedAt).toLocaleString()}
                   </dd>
                   <dt className="text-charcoal-600">Access</dt>
-                  <dd className="text-charcoal-900">{ACCESS_LABELS[config.accessLevel]}</dd>
+                  <dd className="text-charcoal-900">{ACCESS_LABELS[snapshot.config.accessLevel]}</dd>
                   <dt className="text-charcoal-600">Expires</dt>
                   <dd className="text-charcoal-900">
-                    {config.expiresInDays ? `in ${config.expiresInDays} days` : 'never'}
+                    {snapshot.config.expiresInDays
+                      ? `in ${snapshot.config.expiresInDays} days`
+                      : 'never'}
                   </dd>
                 </dl>
                 <div>
                   <p className="text-sm font-medium text-charcoal-700">Hidden from LPs</p>
-                  {config.hiddenMetrics.length === 0 ? (
+                  {snapshot.config.hiddenMetrics.length === 0 ? (
                     <p className="text-sm text-charcoal-600">
                       Nothing hidden — all metrics visible.
                     </p>
                   ) : (
                     <div className="mt-1 flex flex-wrap gap-1">
-                      {config.hiddenMetrics.map((metric) => (
+                      {snapshot.config.hiddenMetrics.map((metric) => (
                         <Badge key={metric} className="border-beige-200 bg-white text-charcoal-700">
                           {humanizeMetric(metric)}
                         </Badge>
