@@ -1,5 +1,5 @@
-import React from 'react';
-import { describe, expect, it, vi, beforeEach } from 'vitest';
+import type { ReactNode } from 'react';
+import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import ModernDashboard from '@/pages/dashboard-modern';
@@ -29,7 +29,7 @@ vi.mock('@/components/dashboard/CashflowDashboard', () => ({
 }));
 
 vi.mock('@/components/sharing/ShareConfigModal', () => ({
-  default: ({ children }: { children: React.ReactNode }) => <>{children}</>,
+  default: ({ children }: { children: ReactNode }) => <>{children}</>,
 }));
 
 describe('ModernDashboard', () => {
@@ -74,6 +74,10 @@ describe('ModernDashboard', () => {
     });
   });
 
+  afterEach(() => {
+    window.localStorage.clear();
+  });
+
   it('renders supported overview metrics instead of broad deferred copy', () => {
     render(<ModernDashboard />);
 
@@ -94,6 +98,21 @@ describe('ModernDashboard', () => {
     expect(screen.getByText('Share with LPs')).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /^filter$/i })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /export/i })).not.toBeInTheDocument();
+  });
+
+  it('hides the context rail and trigger when the flag is off (default)', () => {
+    render(<ModernDashboard />);
+    expect(screen.queryByRole('complementary', { name: 'Context rail' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /^context$/i })).not.toBeInTheDocument();
+  });
+
+  it('renders the inline context rail and the below-xl trigger when the flag is on', () => {
+    window.localStorage.setItem('ff_enable_context_rail', '1');
+    render(<ModernDashboard />);
+    expect(screen.getByRole('complementary', { name: 'Context rail' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /^context$/i })).toBeInTheDocument();
+    // honest freshness item from the mocked asOfDate (2026-04-24)
+    expect(screen.getByText('As of Apr 24, 2026')).toBeInTheDocument();
   });
 
   it('renders supported performance metrics while keeping unsupported claims unavailable', async () => {
