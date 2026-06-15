@@ -241,7 +241,7 @@ export default function CashflowDashboard({ fundId, className = '' }: CashflowDa
             }}
           >
             <Download className="h-4 w-4 mr-2" />
-            Export
+            Export cashflow
           </Button>
         </div>
       </div>

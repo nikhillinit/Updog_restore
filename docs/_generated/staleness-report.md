@@ -11,16 +11,16 @@ last_updated: 2026-06-15
 
 | Metric | Value |
 |--------|-------|
-| Total Documents | 655 |
-| Stale Documents | 101 |
-| Missing Frontmatter | 19 |
+| Total Documents | 656 |
+| Stale Documents | 102 |
+| Missing Frontmatter | 20 |
 
 ### By Status
 
 | Status | Count |
 |--------|-------|
 | ACTIVE | 445 |
-| UNKNOWN | 114 |
+| UNKNOWN | 115 |
 | DRAFT | 30 |
 | HISTORICAL | 29 |
 | VERIFIED | 9 |
@@ -51,6 +51,7 @@ Documents that need review (older than their cadence threshold):
 | `docs/agents/domain.md` | Never | 999 | No | Unassigned |
 | `docs/agents/issue-tracker.md` | Never | 999 | No | Unassigned |
 | `docs/agents/triage-labels.md` | Never | 999 | No | Unassigned |
+| `docs/design/implementation/action-scope-grammar.md` | Never | 999 | No | Unassigned |
 | `docs/design/updog-design-philosophy-v3.1.1-implementation-notes.md` | Never | 999 | No | Unassigned |
 | `docs/phase2-calibration-benchmarks.md` | Never | 999 | No | Unassigned |
 | `docs/quarantine/2026-05-28-stabilization-triage.md` | Never | 999 | No | Unassigned |
@@ -93,9 +94,8 @@ Documents that need review (older than their cadence threshold):
 | `cheatsheets/ci-validator-guide.md` | 2026-01-19 | 147 | No | Unassigned |
 | `cheatsheets/claude-commands.md` | 2026-01-19 | 147 | No | Unassigned |
 | `cheatsheets/claude-md-guidelines.md` | 2026-01-19 | 147 | No | Unassigned |
-| `cheatsheets/codex-collaboration-protocol.md` | 2026-01-19 | 147 | No | Unassigned |
 
-*...and 51 more stale documents.*
+*...and 52 more stale documents.*
 
 ## Documents with Execution Claims (Need Verification)
 
@@ -125,6 +125,7 @@ Documents without proper YAML frontmatter:
 - [ ] `docs/agents/domain.md`
 - [ ] `docs/agents/issue-tracker.md`
 - [ ] `docs/agents/triage-labels.md`
+- [ ] `docs/design/implementation/action-scope-grammar.md`
 - [ ] `docs/design/updog-design-philosophy-v3.1.1-implementation-notes.md`
 - [ ] `docs/phase2-calibration-benchmarks.md`
 - [ ] `docs/quarantine/2026-05-28-stabilization-triage.md`
