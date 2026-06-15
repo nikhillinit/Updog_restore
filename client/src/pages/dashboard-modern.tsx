@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { useFundContext } from '@/contexts/FundContext';
 import { PremiumCard } from '@/components/ui/PremiumCard';
 import { POVBrandHeader } from '@/components/ui/POVLogo';
@@ -12,6 +12,10 @@ import { useFundMetrics } from '@/hooks/useFundMetrics';
 import { dollarsToCents, formatCents } from '@/lib/units';
 import type { UnifiedFundMetrics } from '@shared/types/metrics';
 import { getErrorMessage } from '@/lib/http-response';
+import { useFlag } from '@/shared/useFlags';
+import { ContextRail } from '@/components/context-rail/ContextRail';
+import { ContextRailTrigger } from '@/components/context-rail/ContextRailTrigger';
+import { buildContextRailSections } from '@/components/context-rail/context-rail-view-model';
 
 function formatDollars(value: number): string {
   return formatCents(dollarsToCents(value), { compact: true });
@@ -145,6 +149,10 @@ export default function ModernDashboard() {
   const { currentFund, isLoading } = useFundContext();
   const [activeView, setActiveView] = useState('overview');
   const metricsQuery = useFundMetrics({ enabled: Boolean(currentFund) });
+  const contextRailEnabled = useFlag('enable_context_rail');
+  const contextRailSections = buildContextRailSections({
+    asOfDate: metricsQuery.data?.actual.asOfDate ?? null,
+  });
 
   const handleCreateShare = async (
     config: CreateShareLinkRequest
@@ -196,6 +204,43 @@ export default function ModernDashboard() {
     );
   }
 
+  const dashboardTabs = (
+    <Tabs value={activeView} className="space-y-8">
+      {/* Overview Tab */}
+      <TabsContent value="overview" className="space-y-8">
+        <PremiumCard
+          title="Supported overview metrics"
+          subtitle="Backed by the unified metrics layer for the selected fund"
+        >
+          <OverviewMetricsPanel
+            metrics={metricsQuery.data}
+            isLoading={metricsQuery.isLoading}
+            error={metricsQuery.error}
+          />
+        </PremiumCard>
+      </TabsContent>
+
+      {/* Performance Tab */}
+      <TabsContent value="performance" className="space-y-8">
+        <PremiumCard
+          title="Supported performance metrics"
+          subtitle="Current fund performance from supported metrics contracts"
+        >
+          <PerformanceMetricsPanel
+            metrics={metricsQuery.data}
+            isLoading={metricsQuery.isLoading}
+            error={metricsQuery.error}
+          />
+        </PremiumCard>
+      </TabsContent>
+
+      {/* Cashflow Management Tab */}
+      <TabsContent value="cashflow" className="space-y-8">
+        <CashflowDashboard fundId={String(currentFund?.id || 'default')} className="max-w-none" />
+      </TabsContent>
+    </Tabs>
+  );
+
   return (
     <div className="min-h-screen bg-pov-gray">
       <POVBrandHeader
@@ -235,6 +280,9 @@ export default function ModernDashboard() {
           </div>
 
           <div className="flex items-center space-x-3">
+            {contextRailEnabled && (
+              <ContextRailTrigger sections={contextRailSections} className="xl:hidden" />
+            )}
             <ShareConfigModal
               fundId={String(currentFund.id || 'demo-fund')}
               fundName={currentFund.name || 'Demo Fund'}
@@ -252,43 +300,14 @@ export default function ModernDashboard() {
           </div>
         </div>
 
-        <Tabs value={activeView} className="space-y-8">
-          {/* Overview Tab */}
-          <TabsContent value="overview" className="space-y-8">
-            <PremiumCard
-              title="Supported overview metrics"
-              subtitle="Backed by the unified metrics layer for the selected fund"
-            >
-              <OverviewMetricsPanel
-                metrics={metricsQuery.data}
-                isLoading={metricsQuery.isLoading}
-                error={metricsQuery.error}
-              />
-            </PremiumCard>
-          </TabsContent>
-
-          {/* Performance Tab */}
-          <TabsContent value="performance" className="space-y-8">
-            <PremiumCard
-              title="Supported performance metrics"
-              subtitle="Current fund performance from supported metrics contracts"
-            >
-              <PerformanceMetricsPanel
-                metrics={metricsQuery.data}
-                isLoading={metricsQuery.isLoading}
-                error={metricsQuery.error}
-              />
-            </PremiumCard>
-          </TabsContent>
-
-          {/* Cashflow Management Tab */}
-          <TabsContent value="cashflow" className="space-y-8">
-            <CashflowDashboard
-              fundId={String(currentFund?.id || 'default')}
-              className="max-w-none"
-            />
-          </TabsContent>
-        </Tabs>
+        {contextRailEnabled ? (
+          <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_320px]">
+            <section className="min-w-0">{dashboardTabs}</section>
+            <ContextRail sections={contextRailSections} className="hidden xl:block" />
+          </div>
+        ) : (
+          dashboardTabs
+        )}
       </div>
     </div>
   );
