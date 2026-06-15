@@ -215,6 +215,16 @@ export const POLISH_FLAGS: Record<string, FeatureFlag> = {
     dependencies: [],
   },
 
+  enable_context_rail: {
+    key: 'enable_context_rail',
+    name: 'Dashboard Context Rail',
+    description:
+      'Fourth-zone context rail on the GP dashboard (freshness/attention/activity), inline on xl+ and a Sheet below xl.',
+    enabled: false,
+    rolloutPercentage: 0,
+    dependencies: [],
+  },
+
   enable_route_redirects: {
     key: 'enable_route_redirects',
     name: 'Legacy Route Redirects',
