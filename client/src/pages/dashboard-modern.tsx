@@ -4,14 +4,7 @@ import { PremiumCard } from '@/components/ui/PremiumCard';
 import { POVBrandHeader } from '@/components/ui/POVLogo';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
-import { Filter, Download, Activity, Share2 } from 'lucide-react';
+import { Activity, Share2 } from 'lucide-react';
 import CashflowDashboard from '@/components/dashboard/CashflowDashboard';
 import ShareConfigModal from '@/components/sharing/ShareConfigModal';
 import type { CreateShareLinkRequest } from '@shared/sharing-schema';
@@ -150,7 +143,6 @@ function PerformanceMetricsPanel({
 
 export default function ModernDashboard() {
   const { currentFund, isLoading } = useFundContext();
-  const [timeframe, setTimeframe] = useState('12m');
   const [activeView, setActiveView] = useState('overview');
   const metricsQuery = useFundMetrics({ enabled: Boolean(currentFund) });
 
@@ -243,36 +235,6 @@ export default function ModernDashboard() {
           </div>
 
           <div className="flex items-center space-x-3">
-            <Select value={timeframe} onValueChange={setTimeframe}>
-              <SelectTrigger className="w-32 bg-pov-white border-pov-gray">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="3m">3 Months</SelectItem>
-                <SelectItem value="6m">6 Months</SelectItem>
-                <SelectItem value="12m">12 Months</SelectItem>
-                <SelectItem value="all">All Time</SelectItem>
-              </SelectContent>
-            </Select>
-
-            <Button
-              variant="outline"
-              size="sm"
-              className="border-pov-gray hover:bg-pov-charcoal hover:text-pov-white"
-            >
-              <Filter className="h-4 w-4 mr-2" />
-              Filter
-            </Button>
-
-            <Button
-              variant="outline"
-              size="sm"
-              className="border-pov-gray hover:bg-pov-charcoal hover:text-pov-white"
-            >
-              <Download className="h-4 w-4 mr-2" />
-              Export
-            </Button>
-
             <ShareConfigModal
               fundId={String(currentFund.id || 'demo-fund')}
               fundName={currentFund.name || 'Demo Fund'}

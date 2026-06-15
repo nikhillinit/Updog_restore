@@ -6303,6 +6303,18 @@
       "isStale": true,
       "lastUpdated": null,
       "owner": null,
+      "path": "docs/design/implementation/action-scope-grammar.md",
+      "staleDays": 999,
+      "status": "UNKNOWN"
+    },
+    {
+      "docType": "doc",
+      "exists": true,
+      "frontmatter": {},
+      "hasExecutionClaims": false,
+      "isStale": true,
+      "lastUpdated": null,
+      "owner": null,
       "path": "docs/design/updog-design-philosophy-v3.1.1-implementation-notes.md",
       "staleDays": 999,
       "status": "UNKNOWN"
@@ -12927,14 +12939,14 @@
       "REFERENCE": 6,
       "STALE-VALIDATION": 1,
       "TRACKED (not scheduled)": 1,
-      "UNKNOWN": 114,
+      "UNKNOWN": 115,
       "VERIFIED": 9,
       "active": 2,
       "ready": 3
     },
-    "missing_frontmatter": 19,
-    "stale_docs": 101,
-    "total_docs": 655
+    "missing_frontmatter": 20,
+    "stale_docs": 102,
+    "total_docs": 656
   },
   "version": "2.0"
 }
