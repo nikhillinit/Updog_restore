@@ -225,6 +225,16 @@ export const POLISH_FLAGS: Record<string, FeatureFlag> = {
     dependencies: [],
   },
 
+  enable_work_panel: {
+    key: 'enable_work_panel',
+    name: 'WorkPanel Drill-down',
+    description:
+      'Context-preserving drill-down panels (side Sheet) on the GP dashboard; URL-addressable via ?panel=&object=&panelTab=.',
+    enabled: false,
+    rolloutPercentage: 0,
+    dependencies: [],
+  },
+
   enable_route_redirects: {
     key: 'enable_route_redirects',
     name: 'Legacy Route Redirects',
