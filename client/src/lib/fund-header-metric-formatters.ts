@@ -16,10 +16,8 @@ export function unavailableMetric(
 }
 
 export function formatUnavailableMetric(availability: MetricAvailabilityDetail | undefined) {
-  if (!availability) return 'N/A';
-  if (availability.reason === 'no_distributions_recorded') return 'No distributions';
-  if (availability.reason === 'insufficient_dated_cashflows') return 'Needs history';
-  return availability.message ?? 'Unavailable';
+  // The value slot must stay a stable placeholder so numeric rhythm is preserved.
+  return availability ? '—' : 'N/A';
 }
 
 export function formatCurrency(value: number | null | undefined) {

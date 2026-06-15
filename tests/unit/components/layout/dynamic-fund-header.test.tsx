@@ -202,9 +202,9 @@ describe('DynamicFundHeader', () => {
     expect(metricLabel('Current Value').parentElement).toHaveTextContent('$46M');
     expect(screen.getByText('$46M')).toHaveClass('tabular-nums');
     expect(metricLabel('Remaining').parentElement).toHaveTextContent('$38M');
-    expect(metricLabel('Net IRR').parentElement).toHaveTextContent('Needs history');
+    expect(metricLabel('Net IRR').parentElement).toHaveTextContent('—');
     expect(metricLabel('TVPI').parentElement).toHaveTextContent('2.30x');
-    expect(metricLabel('DPI').parentElement).toHaveTextContent('No distributions');
+    expect(metricLabel('DPI').parentElement).toHaveTextContent('—');
     expect(metricLabel('Active').parentElement).toHaveTextContent('3');
     expect(screen.queryByText('Avg Check')).not.toBeInTheDocument();
     expect(screen.getByText('24% Deployed')).toBeInTheDocument();
@@ -280,7 +280,7 @@ describe('DynamicFundHeader', () => {
 
     expect(screen.getByText('Awaiting deployment')).toBeInTheDocument();
     expect(metricLabel('Total Invested').parentElement).toHaveTextContent('$0');
-    expect(metricLabel('Current Value').parentElement).toHaveTextContent('Needs investment facts');
+    expect(metricLabel('Current Value').parentElement).toHaveTextContent('—');
     expect(metricLabel('Current Value').parentElement).not.toHaveTextContent('$46M');
     expect(screen.queryByText('$46M')).not.toBeInTheDocument();
   });
@@ -352,7 +352,7 @@ describe('DynamicFundHeader', () => {
     render(<DynamicFundHeader />);
 
     const panel = screen.getByTestId('compact-kpi-dpi');
-    expect(panel).toHaveTextContent('No distributions');
+    expect(panel).toHaveTextContent('—');
     expect(panel).toHaveAttribute(
       'title',
       'DPI is unavailable because no distributions have been recorded.'
@@ -391,7 +391,7 @@ describe('DynamicFundHeader', () => {
 
     const navCard = screen.getByTestId('compact-kpi-nav');
     expect(navCard).toHaveTextContent('NAV');
-    expect(navCard).toHaveTextContent('Needs investment facts');
+    expect(navCard).toHaveTextContent('—');
     expect(navCard).toHaveAttribute(
       'title',
       'NAV is unavailable until investment facts are recorded for valued portfolio companies.'
@@ -442,7 +442,7 @@ describe('DynamicFundHeader', () => {
     render(<DynamicFundHeader />);
 
     const panel = screen.getByTestId('compact-kpi-dpi');
-    expect(panel).toHaveTextContent('Metrics unavailable');
+    expect(panel).toHaveTextContent('—');
     expect(panel).toHaveAttribute(
       'title',
       'Metrics unavailable because the live metrics source is unavailable.'
