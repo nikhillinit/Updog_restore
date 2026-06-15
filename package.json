@@ -345,7 +345,7 @@
     "typescript": "^5.9.3",
     "vite": "^6.4.2",
     "vite-plugin-virtual": "^0.5.0",
-    "vite-tsconfig-paths": "^5.1.4",
+    "vite-tsconfig-paths": "^6.1.1",
     "vitest": "^4.1.8",
     "vitest-canvas-mock": "^1.1.4",
     "wait-on": "^9.0.10",
