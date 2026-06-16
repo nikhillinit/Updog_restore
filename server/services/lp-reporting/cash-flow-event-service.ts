@@ -150,3 +150,78 @@ export async function updateLpCapitalCallDraft(
   // Reload for the fresh row + fresh xmin token (post-update).
   return loadCashFlowEvent(fundId, eventId, options);
 }
+
+interface ApproveArgs {
+  fundId: number;
+  eventId: number;
+  expectedXmin: string;
+}
+
+/**
+ * Atomic draft->approved transition. WHERE pins fund/id/status='draft'/xmin, so a
+ * locked, already-approved, or concurrently-modified row updates zero rows ->
+ * returns undefined. Writes ONLY status + updatedAt (no approve-audit columns
+ * exist). sourceHash is never written.
+ */
+export async function approveLpCapitalCallEvent(
+  args: ApproveArgs,
+  options: CashFlowEventServiceOptions = {}
+): Promise<CashFlowEventRow | undefined> {
+  const database = options.database ?? db;
+  const { fundId, eventId, expectedXmin } = args;
+
+  const updated = await database
+    .update(cashFlowEvents)
+    .set({ status: 'approved', updatedAt: new Date() })
+    .where(
+      and(
+        eq(cashFlowEvents.fundId, fundId),
+        eq(cashFlowEvents.id, eventId),
+        eq(cashFlowEvents.status, 'draft'),
+        sql`xmin = ${expectedXmin}::xid`
+      )
+    )
+    .returning({ id: cashFlowEvents.id });
+
+  if (updated.length === 0) return undefined;
+  return loadCashFlowEvent(fundId, eventId, options);
+}
+
+interface LockArgs {
+  fundId: number;
+  eventId: number;
+  expectedXmin: string;
+  /** Best-effort actor id (nullable users.id FK); NULL when identity is not numeric. */
+  lockedBy: number | null;
+}
+
+/**
+ * Atomic approved->locked transition. WHERE pins fund/id/status='approved'/xmin.
+ * Sets lockedAt=now() (DB check requires it for locked), updatedAt=now() (the
+ * client-visible mutation timestamp; lockedAt is not in the response serializer),
+ * and best-effort lockedBy. sourceHash is never written; locked rows are terminal.
+ */
+export async function lockLpCapitalCallEvent(
+  args: LockArgs,
+  options: CashFlowEventServiceOptions = {}
+): Promise<CashFlowEventRow | undefined> {
+  const database = options.database ?? db;
+  const { fundId, eventId, expectedXmin, lockedBy } = args;
+  const now = new Date();
+
+  const updated = await database
+    .update(cashFlowEvents)
+    .set({ status: 'locked', lockedAt: now, lockedBy, updatedAt: now })
+    .where(
+      and(
+        eq(cashFlowEvents.fundId, fundId),
+        eq(cashFlowEvents.id, eventId),
+        eq(cashFlowEvents.status, 'approved'),
+        sql`xmin = ${expectedXmin}::xid`
+      )
+    )
+    .returning({ id: cashFlowEvents.id });
+
+  if (updated.length === 0) return undefined;
+  return loadCashFlowEvent(fundId, eventId, options);
+}
