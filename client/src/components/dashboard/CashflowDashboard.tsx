@@ -27,6 +27,7 @@ import {
   Cell,
 } from 'recharts';
 import { LazyResponsiveContainer as ResponsiveContainer } from '@/components/charts/LazyResponsiveContainer';
+import { StressScenarioProofPanel } from './StressScenarioProofPanel';
 import {
   TrendingUp,
   TrendingDown,
@@ -47,9 +48,11 @@ import {
 } from '@/hooks/useLiquidityAnalytics';
 import { useFundContext } from '@/contexts/FundContext';
 import { isDemoMode } from '@/core/demo/persona';
+import { useWorkPanelUrlState } from '@/components/work-panel/useWorkPanelUrlState';
 import { presson } from '@/theme/presson.tokens';
 import { colors as brandColors, getChartColor } from '@/lib/brand-tokens';
 import { getImpactBadgeClass, getImpactTextClass } from '@/lib/display/impact-semantics';
+import { useFlag } from '@/shared/useFlags';
 import { toStressScenarioViewModel } from './stress-test-view-model';
 
 const STATUS_SUCCESS = brandColors.success;
@@ -119,6 +122,8 @@ export default function CashflowDashboard({ fundId, className = '' }: CashflowDa
   );
 
   const liquidityMetrics = useLiquidityMetrics(analytics.cashFlowAnalysis);
+  const workPanelEnabled = useFlag('enable_work_panel');
+  const workPanel = useWorkPanelUrlState();
 
   // Generate chart data
   const cashFlowChartData = useMemo(() => {
@@ -673,6 +678,24 @@ export default function CashflowDashboard({ fundId, className = '' }: CashflowDa
                             <Badge className={getImpactBadgeClass(vm.impactSeverity)}>
                               {vm.impactSeverity} impact
                             </Badge>
+                            {workPanelEnabled && (
+                              <div className="mt-2">
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className="h-auto p-0 text-xs text-charcoal-600 hover:text-charcoal-900"
+                                  onClick={() =>
+                                    workPanel.openPanel({
+                                      panel: 'scenario',
+                                      object: String(index),
+                                      tab: 'proof',
+                                    })
+                                  }
+                                >
+                                  View proof
+                                </Button>
+                              </div>
+                            )}
                           </div>
                         </div>
                       );
@@ -720,6 +743,14 @@ export default function CashflowDashboard({ fundId, className = '' }: CashflowDa
           </Card>
         </TabsContent>
       </Tabs>
+      {workPanelEnabled && (
+        <StressScenarioProofPanel
+          scenarios={analytics.stressTestResult?.scenarios ?? []}
+          baselineCash={stressBaselineCash}
+          state={workPanel.state}
+          onClose={workPanel.closePanel}
+        />
+      )}
     </div>
   );
 }
