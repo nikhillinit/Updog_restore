@@ -4,11 +4,13 @@ import {
   BarChart3,
   Calendar,
   DollarSign,
+  Info,
   PieChart,
   Target,
   TrendingUp,
 } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import type { HeaderMetricIcon, HeaderMetricTheme } from '@/types/fund-header-metrics';
 
 export interface HeaderMetricCardView {
@@ -58,16 +60,28 @@ export function HeaderMetricCard({
     <Card
       className={`${CARD_CLASS_NAMES[card.theme]} shadow-sm hover:shadow-md transition-shadow`}
       data-testid={testId}
-      title={card.titleText}
     >
       <CardContent className="p-2">
         <div className="flex items-center justify-between gap-2">
           <div className="min-w-0">
-            <p className={`text-xs ${LABEL_CLASS_NAMES[card.theme]} font-medium`}>{card.title}</p>
-            <p
-              className="truncate text-sm font-bold leading-tight text-pov-charcoal tabular-nums"
-              title={card.titleText}
-            >
+            <div className="flex items-center gap-1">
+              <p className={`text-xs ${LABEL_CLASS_NAMES[card.theme]} font-medium`}>{card.title}</p>
+              {card.titleText && (
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger
+                      type="button"
+                      aria-label={card.titleText}
+                      className="flex-shrink-0 rounded text-charcoal-400 hover:text-charcoal-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-charcoal-400"
+                    >
+                      <Info className="h-3 w-3" />
+                    </TooltipTrigger>
+                    <TooltipContent>{card.titleText}</TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              )}
+            </div>
+            <p className="truncate text-sm font-bold leading-tight text-pov-charcoal tabular-nums">
               {card.displayValue}
             </p>
           </div>
