@@ -33,6 +33,8 @@ import {
   createLpCapitalCallEvent,
   loadCashFlowEvent,
   updateLpCapitalCallDraft,
+  approveLpCapitalCallEvent,
+  lockLpCapitalCallEvent,
 } from '../../../../server/services/lp-reporting/cash-flow-event-service';
 
 const record = (o: Record<string, unknown> = {}) => ({
@@ -125,6 +127,64 @@ describe('cash-flow-event-service', () => {
       expectedXmin: '5',
       currentRow: serviceRow(),
       patch: { amount: '7' },
+    });
+    expect(out).toBeUndefined();
+    expect(dbMock.db.select).not.toHaveBeenCalled();
+  });
+
+  it('approveLpCapitalCallEvent writes only status + updatedAt, never sourceHash/lockedBy', async () => {
+    captured.returnRows = [{ id: 10 }];
+    captured.selectRows = [record({ status: 'approved', rowXmin: '6' })];
+    const out = await approveLpCapitalCallEvent({ fundId: 1, eventId: 10, expectedXmin: '5' });
+    expect(out?.xmin).toBe('6');
+    expect(out?.row.status).toBe('approved');
+    const keys = Object.keys(captured.setValues as object);
+    expect(keys).toContain('status');
+    expect(keys).toContain('updatedAt');
+    expect(keys).not.toContain('sourceHash');
+    expect(keys).not.toContain('lockedBy');
+    expect(captured.setValues).toMatchObject({ status: 'approved' });
+  });
+
+  it('approveLpCapitalCallEvent returns undefined (no reload) on zero-row update', async () => {
+    captured.returnRows = [];
+    const out = await approveLpCapitalCallEvent({ fundId: 1, eventId: 10, expectedXmin: '5' });
+    expect(out).toBeUndefined();
+    expect(dbMock.db.select).not.toHaveBeenCalled();
+  });
+
+  it('lockLpCapitalCallEvent writes status + lockedAt + lockedBy, never sourceHash', async () => {
+    captured.returnRows = [{ id: 10 }];
+    captured.selectRows = [record({ status: 'locked', rowXmin: '6' })];
+    const out = await lockLpCapitalCallEvent({
+      fundId: 1,
+      eventId: 10,
+      expectedXmin: '5',
+      lockedBy: 42,
+    });
+    expect(out?.xmin).toBe('6');
+    expect(out?.row.status).toBe('locked');
+    const set = captured.setValues as Record<string, unknown>;
+    expect(set).toMatchObject({ status: 'locked', lockedBy: 42 });
+    expect(set['lockedAt']).toBeInstanceOf(Date);
+    expect(set['updatedAt']).toBeInstanceOf(Date);
+    expect(Object.keys(set)).not.toContain('sourceHash');
+  });
+
+  it('lockLpCapitalCallEvent accepts a NULL lockedBy', async () => {
+    captured.returnRows = [{ id: 10 }];
+    captured.selectRows = [record({ status: 'locked', rowXmin: '6' })];
+    await lockLpCapitalCallEvent({ fundId: 1, eventId: 10, expectedXmin: '5', lockedBy: null });
+    expect((captured.setValues as Record<string, unknown>)['lockedBy']).toBeNull();
+  });
+
+  it('lockLpCapitalCallEvent returns undefined (no reload) on zero-row update', async () => {
+    captured.returnRows = [];
+    const out = await lockLpCapitalCallEvent({
+      fundId: 1,
+      eventId: 10,
+      expectedXmin: '5',
+      lockedBy: 1,
     });
     expect(out).toBeUndefined();
     expect(dbMock.db.select).not.toHaveBeenCalled();
