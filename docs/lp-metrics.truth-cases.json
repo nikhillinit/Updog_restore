@@ -1,0 +1,442 @@
+[
+  {
+    "id": "LPM-001",
+    "category": "baseline",
+    "description": "three calls, one distribution, one active mark, one future mark excluded",
+    "input": {
+      "fundId": 1,
+      "asOfDate": "2024-12-31",
+      "perspective": "lp_net",
+      "cashFlowEvents": [
+        {
+          "id": 1,
+          "eventType": "lp_capital_call",
+          "amount": "1000000.000000",
+          "eventDate": "2024-01-01",
+          "perspective": "lp_net",
+          "status": "approved"
+        },
+        {
+          "id": 2,
+          "eventType": "lp_capital_call",
+          "amount": "2000000.000000",
+          "eventDate": "2024-04-01",
+          "perspective": "lp_net",
+          "status": "approved"
+        },
+        {
+          "id": 3,
+          "eventType": "lp_capital_call",
+          "amount": "3000000.000000",
+          "eventDate": "2024-07-01",
+          "perspective": "lp_net",
+          "status": "approved"
+        },
+        {
+          "id": 4,
+          "eventType": "lp_distribution",
+          "amount": "1500000.000000",
+          "eventDate": "2024-12-15",
+          "perspective": "lp_net",
+          "status": "approved"
+        }
+      ],
+      "valuationMarks": [
+        {
+          "id": 10,
+          "fairValue": "5000000.000000",
+          "markDate": "2024-09-30",
+          "asOfDate": "2024-09-30",
+          "status": "approved",
+          "confidenceLevel": "high"
+        },
+        {
+          "id": 11,
+          "fairValue": "7000000.000000",
+          "markDate": "2025-06-30",
+          "asOfDate": "2025-06-30",
+          "status": "approved",
+          "confidenceLevel": "low"
+        }
+      ]
+    },
+    "expected": {
+      "contributionsTotal": "6000000.000000",
+      "distributionsTotal": "1500000.000000",
+      "currentNav": "5000000.000000",
+      "dpi": "0.250000",
+      "rvpi": "0.833333",
+      "tvpi": "1.083333",
+      "moic": "1.083333",
+      "markConfidenceMix": { "high": 1, "medium": 0, "low": 0 },
+      "excludedFutureMarks": [11],
+      "netIrrConverges": true,
+      "warningCodes": []
+    },
+    "tags": ["baseline"]
+  },
+  {
+    "id": "LPM-002",
+    "category": "recallable",
+    "description": "recallable distribution nets down contributions; does not count as a distribution",
+    "input": {
+      "fundId": 1,
+      "asOfDate": "2024-12-31",
+      "perspective": "lp_net",
+      "cashFlowEvents": [
+        {
+          "id": 1,
+          "eventType": "lp_capital_call",
+          "amount": "5000000.000000",
+          "eventDate": "2024-01-01",
+          "perspective": "lp_net",
+          "status": "approved"
+        },
+        {
+          "id": 2,
+          "eventType": "recallable_distribution",
+          "amount": "1000000.000000",
+          "eventDate": "2024-06-01",
+          "perspective": "lp_net",
+          "status": "approved"
+        },
+        {
+          "id": 3,
+          "eventType": "lp_distribution",
+          "amount": "2000000.000000",
+          "eventDate": "2024-09-01",
+          "perspective": "lp_net",
+          "status": "approved"
+        }
+      ],
+      "valuationMarks": [
+        {
+          "id": 10,
+          "fairValue": "6000000.000000",
+          "markDate": "2024-09-30",
+          "asOfDate": "2024-09-30",
+          "status": "approved",
+          "confidenceLevel": "high"
+        }
+      ]
+    },
+    "expected": {
+      "contributionsTotal": "4000000.000000",
+      "distributionsTotal": "2000000.000000",
+      "currentNav": "6000000.000000",
+      "dpi": "0.500000",
+      "rvpi": "1.500000",
+      "tvpi": "2.000000",
+      "moic": "2.000000",
+      "markConfidenceMix": { "high": 1, "medium": 0, "low": 0 },
+      "excludedFutureMarks": [],
+      "netIrrConverges": true,
+      "warningCodes": []
+    },
+    "tags": ["recallable"]
+  },
+  {
+    "id": "LPM-003",
+    "category": "realized-proceeds",
+    "description": "realized_proceeds count toward distributions alongside lp_distribution",
+    "input": {
+      "fundId": 1,
+      "asOfDate": "2024-12-31",
+      "perspective": "lp_net",
+      "cashFlowEvents": [
+        {
+          "id": 1,
+          "eventType": "lp_capital_call",
+          "amount": "10000000.000000",
+          "eventDate": "2024-01-01",
+          "perspective": "lp_net",
+          "status": "approved"
+        },
+        {
+          "id": 2,
+          "eventType": "lp_distribution",
+          "amount": "3000000.000000",
+          "eventDate": "2024-08-01",
+          "perspective": "lp_net",
+          "status": "approved"
+        },
+        {
+          "id": 3,
+          "eventType": "realized_proceeds",
+          "amount": "2000000.000000",
+          "eventDate": "2024-10-01",
+          "perspective": "fund_gross",
+          "status": "approved"
+        }
+      ],
+      "valuationMarks": [
+        {
+          "id": 10,
+          "fairValue": "8000000.000000",
+          "markDate": "2024-09-30",
+          "asOfDate": "2024-09-30",
+          "status": "approved",
+          "confidenceLevel": "high"
+        }
+      ]
+    },
+    "expected": {
+      "contributionsTotal": "10000000.000000",
+      "distributionsTotal": "5000000.000000",
+      "currentNav": "8000000.000000",
+      "dpi": "0.500000",
+      "rvpi": "0.800000",
+      "tvpi": "1.300000",
+      "moic": "1.300000",
+      "markConfidenceMix": { "high": 1, "medium": 0, "low": 0 },
+      "excludedFutureMarks": [],
+      "netIrrConverges": true,
+      "warningCodes": []
+    },
+    "tags": ["realized-proceeds"]
+  },
+  {
+    "id": "LPM-004",
+    "category": "reversal",
+    "description": "a reversed call and its reversal marker are both excluded from the math",
+    "input": {
+      "fundId": 1,
+      "asOfDate": "2024-12-31",
+      "perspective": "lp_net",
+      "cashFlowEvents": [
+        {
+          "id": 1,
+          "eventType": "lp_capital_call",
+          "amount": "4000000.000000",
+          "eventDate": "2024-01-01",
+          "perspective": "lp_net",
+          "status": "approved"
+        },
+        {
+          "id": 2,
+          "eventType": "lp_capital_call",
+          "amount": "1000000.000000",
+          "eventDate": "2024-03-01",
+          "perspective": "lp_net",
+          "status": "reversed"
+        },
+        {
+          "id": 3,
+          "eventType": "reversal",
+          "amount": "1000000.000000",
+          "eventDate": "2024-03-02",
+          "perspective": "lp_net",
+          "status": "approved",
+          "reversalOfEventId": 2
+        },
+        {
+          "id": 4,
+          "eventType": "lp_distribution",
+          "amount": "1000000.000000",
+          "eventDate": "2024-11-01",
+          "perspective": "lp_net",
+          "status": "approved"
+        }
+      ],
+      "valuationMarks": [
+        {
+          "id": 10,
+          "fairValue": "4000000.000000",
+          "markDate": "2024-09-30",
+          "asOfDate": "2024-09-30",
+          "status": "approved",
+          "confidenceLevel": "high"
+        }
+      ]
+    },
+    "expected": {
+      "contributionsTotal": "4000000.000000",
+      "distributionsTotal": "1000000.000000",
+      "currentNav": "4000000.000000",
+      "dpi": "0.250000",
+      "rvpi": "1.000000",
+      "tvpi": "1.250000",
+      "moic": "1.250000",
+      "markConfidenceMix": { "high": 1, "medium": 0, "low": 0 },
+      "excludedFutureMarks": [],
+      "netIrrConverges": true,
+      "warningCodes": []
+    },
+    "tags": ["reversal", "edge-case"]
+  },
+  {
+    "id": "LPM-005",
+    "category": "mark-selection",
+    "description": "superseded mark is the most-recent for its company yet must be dropped; per-company dedup then keeps the next most-recent approved mark",
+    "input": {
+      "fundId": 1,
+      "asOfDate": "2024-12-31",
+      "perspective": "lp_net",
+      "cashFlowEvents": [
+        {
+          "id": 1,
+          "eventType": "lp_capital_call",
+          "amount": "2000000.000000",
+          "eventDate": "2024-01-01",
+          "perspective": "lp_net",
+          "status": "approved"
+        }
+      ],
+      "valuationMarks": [
+        {
+          "id": 1,
+          "fairValue": "1000000.000000",
+          "markDate": "2024-03-31",
+          "asOfDate": "2024-03-31",
+          "status": "approved",
+          "confidenceLevel": "high",
+          "companyId": 100
+        },
+        {
+          "id": 2,
+          "fairValue": "1500000.000000",
+          "markDate": "2024-06-30",
+          "asOfDate": "2024-06-30",
+          "status": "approved",
+          "confidenceLevel": "high",
+          "companyId": 100
+        },
+        {
+          "id": 3,
+          "fairValue": "9999999.000000",
+          "markDate": "2024-09-30",
+          "asOfDate": "2024-09-30",
+          "status": "superseded",
+          "confidenceLevel": "low",
+          "companyId": 100
+        },
+        {
+          "id": 4,
+          "fairValue": "500000.000000",
+          "markDate": "2024-06-30",
+          "asOfDate": "2024-06-30",
+          "status": "approved",
+          "confidenceLevel": "medium",
+          "companyId": 200
+        }
+      ]
+    },
+    "expected": {
+      "contributionsTotal": "2000000.000000",
+      "distributionsTotal": "0.000000",
+      "currentNav": "2000000.000000",
+      "dpi": "0.000000",
+      "rvpi": "1.000000",
+      "tvpi": "1.000000",
+      "moic": "1.000000",
+      "markConfidenceMix": { "high": 1, "medium": 1, "low": 0 },
+      "excludedFutureMarks": [],
+      "netIrrConverges": true,
+      "warningCodes": []
+    },
+    "tags": ["mark-selection", "edge-case"]
+  },
+  {
+    "id": "LPM-006",
+    "category": "zero-contributions",
+    "description": "recallable exactly cancels the only call; ratios are null with a ZERO_CONTRIBUTIONS warning",
+    "input": {
+      "fundId": 1,
+      "asOfDate": "2024-12-31",
+      "perspective": "lp_net",
+      "cashFlowEvents": [
+        {
+          "id": 1,
+          "eventType": "lp_capital_call",
+          "amount": "1000000.000000",
+          "eventDate": "2024-01-01",
+          "perspective": "lp_net",
+          "status": "approved"
+        },
+        {
+          "id": 2,
+          "eventType": "recallable_distribution",
+          "amount": "1000000.000000",
+          "eventDate": "2024-06-01",
+          "perspective": "lp_net",
+          "status": "approved"
+        },
+        {
+          "id": 3,
+          "eventType": "lp_distribution",
+          "amount": "500000.000000",
+          "eventDate": "2024-09-01",
+          "perspective": "lp_net",
+          "status": "approved"
+        }
+      ],
+      "valuationMarks": [
+        {
+          "id": 10,
+          "fairValue": "2000000.000000",
+          "markDate": "2024-09-30",
+          "asOfDate": "2024-09-30",
+          "status": "approved",
+          "confidenceLevel": "high"
+        }
+      ]
+    },
+    "expected": {
+      "contributionsTotal": "0.000000",
+      "distributionsTotal": "500000.000000",
+      "currentNav": "2000000.000000",
+      "dpi": null,
+      "rvpi": null,
+      "tvpi": null,
+      "moic": null,
+      "markConfidenceMix": { "high": 1, "medium": 0, "low": 0 },
+      "excludedFutureMarks": [],
+      "netIrrConverges": true,
+      "warningCodes": ["ZERO_CONTRIBUTIONS"]
+    },
+    "tags": ["zero-contributions", "edge-case"]
+  },
+  {
+    "id": "LPM-007",
+    "category": "no-marks",
+    "description": "no valuation marks; NAV is zero and RVPI is zero",
+    "input": {
+      "fundId": 1,
+      "asOfDate": "2024-12-31",
+      "perspective": "lp_net",
+      "cashFlowEvents": [
+        {
+          "id": 1,
+          "eventType": "lp_capital_call",
+          "amount": "3000000.000000",
+          "eventDate": "2024-01-01",
+          "perspective": "lp_net",
+          "status": "approved"
+        },
+        {
+          "id": 2,
+          "eventType": "lp_distribution",
+          "amount": "3600000.000000",
+          "eventDate": "2024-12-01",
+          "perspective": "lp_net",
+          "status": "approved"
+        }
+      ],
+      "valuationMarks": []
+    },
+    "expected": {
+      "contributionsTotal": "3000000.000000",
+      "distributionsTotal": "3600000.000000",
+      "currentNav": "0.000000",
+      "dpi": "1.200000",
+      "rvpi": "0.000000",
+      "tvpi": "1.200000",
+      "moic": "1.200000",
+      "markConfidenceMix": { "high": 0, "medium": 0, "low": 0 },
+      "excludedFutureMarks": [],
+      "netIrrConverges": true,
+      "warningCodes": []
+    },
+    "tags": ["no-marks", "edge-case"]
+  }
+]
