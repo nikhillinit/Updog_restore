@@ -126,4 +126,85 @@ describe('cash-flow-events persistence integration', () => {
       .send({ amount: '4000000' })
       .expect(409);
   });
+
+  it('approves then locks a draft, rejecting stale tokens and wrong-status transitions', async () => {
+    const created = await request(app)
+      .post(`/api/funds/${testFundId}/cash-flow-events`)
+      .set('Authorization', authHeader)
+      .send({
+        eventType: 'lp_capital_call',
+        fundId: testFundId,
+        amount: '1000000',
+        eventDate: '2026-06-15T00:00:00.000Z',
+        perspective: 'lp_net',
+        payload: { callNumber: 1 },
+      })
+      .expect(201);
+    const id = created.body.id as number;
+    const staleEtag = created.body.etag as string;
+
+    // Advance xmin via a draft edit so the create-time token is now stale.
+    const edited = await request(app)
+      .patch(`/api/funds/${testFundId}/cash-flow-events/${id}`)
+      .set('Authorization', authHeader)
+      .set('If-Match', staleEtag)
+      .send({ description: 'pre-approve edit' })
+      .expect(200);
+    const draftEtag = edited.body.etag as string;
+    expect(draftEtag).not.toBe(staleEtag);
+
+    // approve with the now-stale token -> 412, no transition.
+    await request(app)
+      .post(`/api/funds/${testFundId}/cash-flow-events/${id}/approve`)
+      .set('Authorization', authHeader)
+      .set('If-Match', staleEtag)
+      .expect(412);
+
+    // approve with the fresh token -> 200 approved.
+    const approved = await request(app)
+      .post(`/api/funds/${testFundId}/cash-flow-events/${id}/approve`)
+      .set('Authorization', authHeader)
+      .set('If-Match', draftEtag)
+      .expect(200);
+    expect(approved.body.status).toBe('approved');
+    const approvedEtag = approved.body.etag as string;
+    expect(approvedEtag).not.toBe(draftEtag);
+
+    // lock on draft-required transition is rejected; approve again on approved -> 409.
+    await request(app)
+      .post(`/api/funds/${testFundId}/cash-flow-events/${id}/approve`)
+      .set('Authorization', authHeader)
+      .set('If-Match', approvedEtag)
+      .expect(409);
+
+    // lock with the fresh approved token -> 200 locked.
+    const locked = await request(app)
+      .post(`/api/funds/${testFundId}/cash-flow-events/${id}/lock`)
+      .set('Authorization', authHeader)
+      .set('If-Match', approvedEtag)
+      .expect(200);
+    expect(locked.body.status).toBe('locked');
+    expect(locked.body.etag).not.toBe(approvedEtag);
+
+    // Persisted lifecycle columns: locked terminal, lockedAt set, lockedBy NULL (non-numeric sub).
+    const dbRow = await pool.query(
+      'SELECT status, locked_at, locked_by FROM cash_flow_events WHERE id = $1',
+      [id]
+    );
+    expect(dbRow.rows[0].status).toBe('locked');
+    expect(dbRow.rows[0].locked_at).not.toBeNull();
+    expect(dbRow.rows[0].locked_by).toBeNull();
+
+    // locked is terminal: further transitions -> 409.
+    await request(app)
+      .post(`/api/funds/${testFundId}/cash-flow-events/${id}/lock`)
+      .set('Authorization', authHeader)
+      .set('If-Match', locked.body.etag)
+      .expect(409);
+    await request(app)
+      .post(`/api/funds/${testFundId}/cash-flow-events/${id}/approve`)
+      .set('Authorization', authHeader)
+      .set('If-Match', locked.body.etag)
+      .expect(409);
+  });
 });
