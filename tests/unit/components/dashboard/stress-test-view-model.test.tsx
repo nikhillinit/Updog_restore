@@ -1,6 +1,9 @@
 import { describe, expect, it } from 'vitest';
 
-import { toStressScenarioViewModel } from '@/components/dashboard/stress-test-view-model';
+import {
+  toStressScenarioProofRows,
+  toStressScenarioViewModel,
+} from '@/components/dashboard/stress-test-view-model';
 import type { StressTestScenario } from '@/core/LiquidityEngine';
 import { getImpactTextClass } from '@/lib/display/impact-semantics';
 
@@ -54,5 +57,28 @@ describe('toStressScenarioViewModel', () => {
     expect(
       getImpactTextClass({ direction: vm.impactDirection, severity: vm.impactSeverity })
     ).not.toBe('text-presson-positive');
+  });
+});
+
+describe('toStressScenarioProofRows', () => {
+  it('produces labeled proof rows with a signed impact for an unfavorable scenario', () => {
+    const vm = toStressScenarioViewModel(
+      makeScenario({ endingCash: 3_000_000, impactRating: 'medium', probability: 0.35 }),
+      5_000_000
+    );
+    const rows = toStressScenarioProofRows(vm, 5_000_000);
+    const byKey = Object.fromEntries(rows.map((r) => [r.key, r.value]));
+
+    expect(byKey.baseline).toBe('$5.0M');
+    expect(byKey.ending).toBe('$3.0M');
+    expect(byKey.impact).toBe('-$2.0M');
+    expect(byKey.probability).toBe('35%');
+  });
+
+  it('shows a positive signed impact for a favorable scenario', () => {
+    const vm = toStressScenarioViewModel(makeScenario({ endingCash: 7_000_000 }), 5_000_000);
+    const rows = toStressScenarioProofRows(vm, 5_000_000);
+
+    expect(rows.find((r) => r.key === 'impact')?.value).toBe('+$2.0M');
   });
 });
