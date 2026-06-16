@@ -764,7 +764,13 @@ export default function CashflowDashboard({ fundId, className = '' }: CashflowDa
         />
       )}
       {cashEventEnabled && (
-        <CashEventsPanel fundId={fundId} state={workPanel.state} onClose={workPanel.closePanel} />
+        <CashEventsPanel
+          fundId={fundId}
+          state={workPanel.state}
+          onClose={workPanel.closePanel}
+          onSelect={(eventId) => workPanel.openPanel({ panel: 'cash-events', object: eventId })}
+          onBack={() => workPanel.openPanel({ panel: 'cash-events' })}
+        />
       )}
     </div>
   );
