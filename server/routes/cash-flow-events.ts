@@ -1,26 +1,26 @@
 import { Router } from 'express';
 import type { Request, Response } from 'express';
-import { desc, eq } from 'drizzle-orm';
 import { parseFundIdParam } from '@shared/number';
-import { cashFlowEvents } from '@shared/schema/lp-reporting-evidence';
+import type { CashFlowEvent } from '@shared/schema/lp-reporting-evidence';
 import {
   CashFlowEventResponseSchema,
   LpCapitalCallSchema,
   type CashFlowEventResponse,
 } from '@shared/contracts/lp-reporting/cash-flow-event.contract';
-import { db } from '../db';
 import { firstString } from '../lib/request-values';
 import { enforceProvidedFundScope } from '../lib/auth/provided-fund-scope';
+import {
+  createLpCapitalCallEvent,
+  listCashFlowEventsForFund,
+} from '../services/lp-reporting/cash-flow-event-service';
 
 const router = Router();
-
-type CashFlowEventRow = typeof cashFlowEvents.$inferSelect;
 
 // Whitelist mapping: build the exact response shape, then validate through the
 // strict schema so no internal column (source_hash, lock/supersede/reversal,
 // provenance) can ever leak. Money (`amount`) is a Drizzle decimal string -- pass
 // it through untouched (ADR-011).
-function toResponse(row: CashFlowEventRow): CashFlowEventResponse {
+function toResponse(row: CashFlowEvent): CashFlowEventResponse {
   return CashFlowEventResponseSchema.parse({
     id: row.id,
     fundId: row.fundId,
@@ -65,20 +65,7 @@ router['post']('/api/funds/:fundId/cash-flow-events', async (req: Request, res: 
       });
     }
 
-    const [row] = await db
-      .insert(cashFlowEvents)
-      .values({
-        fundId,
-        eventType: 'lp_capital_call',
-        amount: parsed.data.amount,
-        currency: 'USD',
-        eventDate: new Date(parsed.data.eventDate),
-        perspective: parsed.data.perspective,
-        description: parsed.data.description ?? null,
-        payload: parsed.data.payload,
-        status: 'draft',
-      })
-      .returning();
+    const row = await createLpCapitalCallEvent({ ...parsed.data, fundId });
 
     if (!row) {
       return res.status(500).json({ error: 'Failed to create cash flow event' });
@@ -101,12 +88,7 @@ router['get']('/api/funds/:fundId/cash-flow-events', async (req: Request, res: R
       return;
     }
 
-    // Newest-first; hits idx_cash_flow_fund_date (fund_id, event_date DESC).
-    const rows = await db
-      .select()
-      .from(cashFlowEvents)
-      .where(eq(cashFlowEvents.fundId, fundId))
-      .orderBy(desc(cashFlowEvents.eventDate));
+    const rows = await listCashFlowEventsForFund(fundId);
 
     return res.status(200).json({ data: rows.map(toResponse) });
   } catch {
