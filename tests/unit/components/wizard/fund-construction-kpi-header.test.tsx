@@ -29,7 +29,9 @@ describe('FundConstructionKpiHeader', () => {
     const investedCard = screen.getByTestId('construction-kpi-totalInvested');
     expect(investedCard).toHaveTextContent('Total Invested');
     expect(investedCard).toHaveTextContent('$75.0M');
-    expect(investedCard).toHaveAttribute('title', 'Planned capital from Builder Fund I');
+    expect(
+      within(investedCard).getByRole('button', { name: 'Planned capital from Builder Fund I' })
+    ).toBeInTheDocument();
 
     expect(screen.getByTestId('construction-kpi-dpi')).toHaveTextContent('DPI');
     expect(screen.getByTestId('construction-kpi-dpi')).not.toHaveTextContent('No distributions');

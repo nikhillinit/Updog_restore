@@ -1,5 +1,5 @@
 import React from 'react';
-import { render, screen, within } from '@testing-library/react';
+import { act, render, screen, within } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { UnifiedFundMetrics } from '@shared/types/metrics';
 import DynamicFundHeader from '@/components/layout/dynamic-fund-header';
@@ -122,7 +122,8 @@ function makeMetrics(
 
 function metricLabel(name: string) {
   const matches = screen.getAllByText(name);
-  return matches[matches.length - 1];
+  const label = matches[matches.length - 1];
+  return label.parentElement ?? label;
 }
 
 describe('DynamicFundHeader', () => {
@@ -339,11 +340,36 @@ describe('DynamicFundHeader', () => {
     const tvpiCard = screen.getByTestId('compact-kpi-tvpi');
     expect(tvpiCard).toHaveTextContent('TVPI');
     expect(tvpiCard).toHaveTextContent('N/A');
-    expect(tvpiCard).toHaveAttribute(
-      'title',
-      'TVPI is unavailable until paid-in capital is available.'
-    );
+    expect(
+      within(tvpiCard).getByRole('button', {
+        name: 'TVPI is unavailable until paid-in capital is available.',
+      })
+    ).toBeInTheDocument();
     expect(screen.queryByText('0.00')).not.toBeInTheDocument();
+  });
+
+  it('exposes the compact KPI explanation through a keyboard-focusable info control', () => {
+    mockUseFlag.mockReturnValue(true);
+    mockUseFundMetrics.mockReturnValue({
+      data: makeMetrics({
+        totalCalled: 0,
+        totalValue: 0,
+        tvpi: 0,
+      }),
+      isLoading: false,
+      error: null,
+    });
+
+    render(<DynamicFundHeader />);
+
+    const tvpiCard = screen.getByTestId('compact-kpi-tvpi');
+    const info = within(tvpiCard).getByRole('button', {
+      name: 'TVPI is unavailable until paid-in capital is available.',
+    });
+    act(() => {
+      info.focus();
+    });
+    expect(info).toHaveFocus();
   });
 
   it('keeps compact DPI truthful when distributions have not been recorded', () => {
@@ -353,10 +379,11 @@ describe('DynamicFundHeader', () => {
 
     const panel = screen.getByTestId('compact-kpi-dpi');
     expect(panel).toHaveTextContent('—');
-    expect(panel).toHaveAttribute(
-      'title',
-      'DPI is unavailable because no distributions have been recorded.'
-    );
+    expect(
+      within(panel).getByRole('button', {
+        name: 'DPI is unavailable because no distributions have been recorded.',
+      })
+    ).toBeInTheDocument();
     expect(screen.queryByText('DPI:')).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'DPI' })).not.toBeInTheDocument();
   });
@@ -392,10 +419,11 @@ describe('DynamicFundHeader', () => {
     const navCard = screen.getByTestId('compact-kpi-nav');
     expect(navCard).toHaveTextContent('NAV');
     expect(navCard).toHaveTextContent('—');
-    expect(navCard).toHaveAttribute(
-      'title',
-      'NAV is unavailable until investment facts are recorded for valued portfolio companies.'
-    );
+    expect(
+      within(navCard).getByRole('button', {
+        name: 'NAV is unavailable until investment facts are recorded for valued portfolio companies.',
+      })
+    ).toBeInTheDocument();
     expect(screen.queryByText('$46.0M')).not.toBeInTheDocument();
   });
 
@@ -443,10 +471,11 @@ describe('DynamicFundHeader', () => {
 
     const panel = screen.getByTestId('compact-kpi-dpi');
     expect(panel).toHaveTextContent('—');
-    expect(panel).toHaveAttribute(
-      'title',
-      'Metrics unavailable because the live metrics source is unavailable.'
-    );
+    expect(
+      within(panel).getByRole('button', {
+        name: 'Metrics unavailable because the live metrics source is unavailable.',
+      })
+    ).toBeInTheDocument();
     expect(screen.queryByText('$12M')).not.toBeInTheDocument();
   });
 });
