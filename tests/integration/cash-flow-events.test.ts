@@ -158,6 +158,7 @@ describe('cash-flow-events persistence integration', () => {
       .post(`/api/funds/${testFundId}/cash-flow-events/${id}/approve`)
       .set('Authorization', authHeader)
       .set('If-Match', staleEtag)
+      .send({})
       .expect(412);
 
     // approve with the fresh token -> 200 approved.
@@ -165,6 +166,7 @@ describe('cash-flow-events persistence integration', () => {
       .post(`/api/funds/${testFundId}/cash-flow-events/${id}/approve`)
       .set('Authorization', authHeader)
       .set('If-Match', draftEtag)
+      .send({})
       .expect(200);
     expect(approved.body.status).toBe('approved');
     const approvedEtag = approved.body.etag as string;
@@ -175,6 +177,7 @@ describe('cash-flow-events persistence integration', () => {
       .post(`/api/funds/${testFundId}/cash-flow-events/${id}/approve`)
       .set('Authorization', authHeader)
       .set('If-Match', approvedEtag)
+      .send({})
       .expect(409);
 
     // lock with the fresh approved token -> 200 locked.
@@ -182,6 +185,7 @@ describe('cash-flow-events persistence integration', () => {
       .post(`/api/funds/${testFundId}/cash-flow-events/${id}/lock`)
       .set('Authorization', authHeader)
       .set('If-Match', approvedEtag)
+      .send({})
       .expect(200);
     expect(locked.body.status).toBe('locked');
     expect(locked.body.etag).not.toBe(approvedEtag);
@@ -200,11 +204,13 @@ describe('cash-flow-events persistence integration', () => {
       .post(`/api/funds/${testFundId}/cash-flow-events/${id}/lock`)
       .set('Authorization', authHeader)
       .set('If-Match', locked.body.etag)
+      .send({})
       .expect(409);
     await request(app)
       .post(`/api/funds/${testFundId}/cash-flow-events/${id}/approve`)
       .set('Authorization', authHeader)
       .set('If-Match', locked.body.etag)
+      .send({})
       .expect(409);
   });
 });
