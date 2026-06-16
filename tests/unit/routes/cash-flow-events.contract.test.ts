@@ -78,6 +78,8 @@ function dbRow(overrides: Record<string, unknown> = {}) {
     payload: { callNumber: 1 },
     status: 'draft',
     createdAt: new Date('2026-06-15T00:00:00.000Z'),
+    updatedAt: new Date('2026-06-15T00:00:00.000Z'),
+    rowXmin: '1',
     ...overrides,
   };
 }
@@ -126,6 +128,9 @@ describe('cash-flow-events route contracts', () => {
       currency: 'USD',
     });
     expect(typeof res.body.amount).toBe('string');
+    expect(typeof res.body.updatedAt).toBe('string');
+    expect(typeof res.body.etag).toBe('string');
+    expect(res.body.etag.length).toBeGreaterThan(0);
     expect(res.body).not.toHaveProperty('sourceHash');
     expect(res.body).not.toHaveProperty('source_hash');
     expect(dbState.db.insert).toHaveBeenCalledTimes(1);
@@ -157,6 +162,7 @@ describe('cash-flow-events route contracts', () => {
     expect(res.body.data).toHaveLength(2);
     expect(res.body.data[0].id).toBe(20);
     expect(res.body.data[1].id).toBe(11);
+    expect(typeof res.body.data[0].etag).toBe('string');
     expect(dbState.db.select).toHaveBeenCalledTimes(1);
   });
 
