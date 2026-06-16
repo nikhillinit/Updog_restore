@@ -1,5 +1,6 @@
 import type { StressTestScenario } from '@/core/LiquidityEngine';
 import type { ImpactDirection, ImpactSeverity } from '@/lib/display/impact-semantics';
+import { dollarsToCents, formatCents } from '@/lib/units';
 
 export type StressScenarioViewModel = {
   name: string;
@@ -35,4 +36,38 @@ export function toStressScenarioViewModel(
     impactSeverity: scenario.impactRating,
     probability: scenario.probability,
   };
+}
+
+export interface StressScenarioProofRow {
+  key: 'baseline' | 'ending' | 'impact' | 'probability';
+  label: string;
+  value: string;
+}
+
+function formatProofMoney(value: number): string {
+  return formatCents(dollarsToCents(value), { compact: true });
+}
+
+/**
+ * Read-only "proof" rows for a stress scenario: the derivation that justifies the
+ * displayed impact (baseline -> ending -> signed delta -> probability). Severity is
+ * surfaced as a badge by the panel, not as a row, to avoid duplication.
+ */
+export function toStressScenarioProofRows(
+  vm: StressScenarioViewModel,
+  baselineCash: number
+): StressScenarioProofRow[] {
+  const signedImpact = `${vm.liquidityImpact >= 0 ? '+' : '-'}${formatProofMoney(
+    Math.abs(vm.liquidityImpact)
+  )}`;
+  return [
+    { key: 'baseline', label: 'Baseline cash position', value: formatProofMoney(baselineCash) },
+    { key: 'ending', label: 'Projected ending cash', value: formatProofMoney(vm.endingCash) },
+    { key: 'impact', label: 'Liquidity impact vs baseline', value: signedImpact },
+    {
+      key: 'probability',
+      label: 'Scenario probability',
+      value: `${Math.round(vm.probability * 100)}%`,
+    },
+  ];
 }
