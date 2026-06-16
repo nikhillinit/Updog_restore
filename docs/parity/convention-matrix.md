@@ -1,3 +1,16 @@
+---
+status: ACTIVE
+audience: both
+last_updated: 2026-06-16
+owner: 'Platform Team'
+review_cadence: P90D
+categories: [testing, validation, parity]
+keywords: [lp-metrics, truth-cases, nav, capital-account, validation]
+related_code:
+  - 'server/services/lp-reporting/metrics-engine.ts'
+  - 'tests/unit/truth-cases/lp-metrics.test.ts'
+---
+
 # Convention matrix — LP metrics validation
 
 Comparison contract for cross-checking
