@@ -182,12 +182,49 @@ export const CashFlowEventResponseSchema = z
     payload: z.record(z.unknown()),
     status: z.enum(['draft', 'approved', 'locked', 'reversed']),
     createdAt: z.string().datetime(),
+    updatedAt: z.string().datetime(),
+    etag: z.string().min(1),
   })
   .strict();
 
 export const CashFlowEventListResponseSchema = z.object({
   data: z.array(CashFlowEventResponseSchema),
 });
+
+// ============================================================================
+// PATCH (draft edit) -- lp_capital_call only. Strict partial update.
+// `null` stores JSON/SQL null; omitted keys preserve existing values.
+// ============================================================================
+
+export const LpCapitalCallPatchSchema = z
+  .object({
+    fundId: z.number().int().positive().optional(),
+    amount: MoneyStringSchema.optional(),
+    description: z.string().max(1000).nullable().optional(),
+    eventDate: z.string().datetime().optional(),
+    payload: z
+      .object({
+        callNumber: z.number().int().positive().nullable().optional(),
+        dueDate: z.string().date().nullable().optional(),
+        purpose: z.string().max(500).nullable().optional(),
+      })
+      .strict()
+      .optional(),
+  })
+  .strict()
+  .refine(
+    (value) => {
+      const editKeys = Object.keys(value).filter((key) => key !== 'fundId');
+      if (editKeys.length === 0) return false;
+      if (editKeys.length === 1 && editKeys[0] === 'payload') {
+        return value.payload !== undefined && Object.keys(value.payload).length > 0;
+      }
+      return true;
+    },
+    { message: 'PATCH must include at least one editable field' }
+  );
+
+export type LpCapitalCallPatch = z.infer<typeof LpCapitalCallPatchSchema>;
 
 export type CashFlowEventResponse = z.infer<typeof CashFlowEventResponseSchema>;
 export type CashFlowEventListResponse = z.infer<typeof CashFlowEventListResponseSchema>;

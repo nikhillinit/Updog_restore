@@ -79,4 +79,51 @@ describe('cash-flow-events persistence integration', () => {
     expect(listResponse.body.data).toHaveLength(1);
     expect(listResponse.body.data[0]).toMatchObject({ id: createdId, fundId: testFundId });
   });
+
+  it('edits a draft via PATCH with If-Match and rejects a stale token (xmin)', async () => {
+    const created = await request(app)
+      .post(`/api/funds/${testFundId}/cash-flow-events`)
+      .set('Authorization', authHeader)
+      .send({
+        eventType: 'lp_capital_call',
+        fundId: testFundId,
+        amount: '1000000',
+        eventDate: '2026-06-15T00:00:00.000Z',
+        perspective: 'lp_net',
+        payload: { callNumber: 1 },
+      })
+      .expect(201);
+    const id = created.body.id as number;
+    const etag1 = created.body.etag as string;
+    expect(typeof etag1).toBe('string');
+
+    const ok = await request(app)
+      .patch(`/api/funds/${testFundId}/cash-flow-events/${id}`)
+      .set('Authorization', authHeader)
+      .set('If-Match', etag1)
+      .send({ amount: '2000000', description: 'updated', payload: { dueDate: '2026-08-01' } })
+      .expect(200);
+    expect(ok.body.amount).toBe('2000000.000000');
+    expect(ok.body.description).toBe('updated');
+    expect(ok.body.payload.dueDate).toBe('2026-08-01');
+    expect(ok.body.payload.callNumber).toBe(1); // preserved
+    expect(ok.body.etag).not.toBe(etag1); // xmin advanced
+
+    // AC#12: immediate reuse of the now-stale first token -> 412, no mutation.
+    await request(app)
+      .patch(`/api/funds/${testFundId}/cash-flow-events/${id}`)
+      .set('Authorization', authHeader)
+      .set('If-Match', etag1)
+      .send({ amount: '3000000' })
+      .expect(412);
+
+    // 409: a non-draft row is not editable.
+    await pool.query(`UPDATE cash_flow_events SET status = 'approved' WHERE id = $1`, [id]);
+    await request(app)
+      .patch(`/api/funds/${testFundId}/cash-flow-events/${id}`)
+      .set('Authorization', authHeader)
+      .set('If-Match', ok.body.etag)
+      .send({ amount: '4000000' })
+      .expect(409);
+  });
 });
