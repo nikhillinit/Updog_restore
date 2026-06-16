@@ -1,7 +1,10 @@
-import { desc, eq } from 'drizzle-orm';
+import { and, desc, eq, sql } from 'drizzle-orm';
 
 import { db } from '../../db';
-import type { LpCapitalCall } from '@shared/contracts/lp-reporting/cash-flow-event.contract';
+import type {
+  LpCapitalCall,
+  LpCapitalCallPatch,
+} from '@shared/contracts/lp-reporting/cash-flow-event.contract';
 import { cashFlowEvents, type CashFlowEvent } from '@shared/schema/lp-reporting-evidence';
 
 type CashFlowEventDatabase = typeof db;
@@ -10,12 +13,52 @@ interface CashFlowEventServiceOptions {
   database?: CashFlowEventDatabase;
 }
 
+export interface CashFlowEventRow {
+  row: CashFlowEvent;
+  /** Postgres xmin system column as text -- opaque per-row concurrency token. */
+  xmin: string;
+}
+
+// Explicit column map + xmin::text. getTableColumns is unused elsewhere in this
+// repo, so we list columns rather than rely on an unproven import.
+const columnsWithXmin = {
+  id: cashFlowEvents.id,
+  fundId: cashFlowEvents.fundId,
+  vehicleId: cashFlowEvents.vehicleId,
+  companyId: cashFlowEvents.companyId,
+  lpId: cashFlowEvents.lpId,
+  eventType: cashFlowEvents.eventType,
+  amount: cashFlowEvents.amount,
+  currency: cashFlowEvents.currency,
+  eventDate: cashFlowEvents.eventDate,
+  perspective: cashFlowEvents.perspective,
+  description: cashFlowEvents.description,
+  payload: cashFlowEvents.payload,
+  status: cashFlowEvents.status,
+  lockedAt: cashFlowEvents.lockedAt,
+  lockedBy: cashFlowEvents.lockedBy,
+  supersedesEventId: cashFlowEvents.supersedesEventId,
+  reversalOfEventId: cashFlowEvents.reversalOfEventId,
+  importedFrom: cashFlowEvents.importedFrom,
+  importBatchId: cashFlowEvents.importBatchId,
+  sourceHash: cashFlowEvents.sourceHash,
+  createdBy: cashFlowEvents.createdBy,
+  createdAt: cashFlowEvents.createdAt,
+  updatedAt: cashFlowEvents.updatedAt,
+  rowXmin: sql<string>`xmin::text`,
+} as const;
+
+function splitXmin(record: CashFlowEvent & { rowXmin: string }): CashFlowEventRow {
+  const { rowXmin, ...row } = record;
+  return { row: row as CashFlowEvent, xmin: rowXmin };
+}
+
 export async function createLpCapitalCallEvent(
   input: LpCapitalCall,
   options: CashFlowEventServiceOptions = {}
-): Promise<CashFlowEvent | undefined> {
+): Promise<CashFlowEventRow | undefined> {
   const database = options.database ?? db;
-  const [row] = await database
+  const [record] = await database
     .insert(cashFlowEvents)
     .values({
       fundId: input.fundId,
@@ -28,21 +71,82 @@ export async function createLpCapitalCallEvent(
       payload: input.payload,
       status: 'draft',
     })
-    .returning();
+    .returning(columnsWithXmin);
 
-  return row;
+  return record ? splitXmin(record) : undefined;
 }
 
 export async function listCashFlowEventsForFund(
   fundId: number,
   options: CashFlowEventServiceOptions = {}
-): Promise<CashFlowEvent[]> {
+): Promise<CashFlowEventRow[]> {
   const database = options.database ?? db;
-
   // Newest-first; hits idx_cash_flow_fund_date (fund_id, event_date DESC).
-  return database
-    .select()
+  const records = await database
+    .select(columnsWithXmin)
     .from(cashFlowEvents)
     .where(eq(cashFlowEvents.fundId, fundId))
     .orderBy(desc(cashFlowEvents.eventDate));
+  return records.map(splitXmin);
+}
+
+export async function loadCashFlowEvent(
+  fundId: number,
+  eventId: number,
+  options: CashFlowEventServiceOptions = {}
+): Promise<CashFlowEventRow | undefined> {
+  const database = options.database ?? db;
+  const [record] = await database
+    .select(columnsWithXmin)
+    .from(cashFlowEvents)
+    .where(and(eq(cashFlowEvents.fundId, fundId), eq(cashFlowEvents.id, eventId)))
+    .limit(1);
+  return record ? splitXmin(record) : undefined;
+}
+
+interface UpdateDraftArgs {
+  fundId: number;
+  eventId: number;
+  expectedXmin: string;
+  currentRow: CashFlowEvent;
+  patch: LpCapitalCallPatch;
+}
+
+/**
+ * Atomic draft update. WHERE pins fund/id/status='draft'/xmin, so locked or
+ * concurrently-modified rows update zero rows -> returns undefined. sourceHash
+ * is NEVER written here (manual edits are not import-identity events).
+ */
+export async function updateLpCapitalCallDraft(
+  args: UpdateDraftArgs,
+  options: CashFlowEventServiceOptions = {}
+): Promise<CashFlowEventRow | undefined> {
+  const database = options.database ?? db;
+  const { fundId, eventId, expectedXmin, currentRow, patch } = args;
+
+  const setValues: Partial<typeof cashFlowEvents.$inferInsert> = { updatedAt: new Date() };
+  if (patch.amount !== undefined) setValues.amount = patch.amount;
+  if ('description' in patch) setValues.description = patch.description ?? null;
+  if (patch.eventDate !== undefined) setValues.eventDate = new Date(patch.eventDate);
+  if (patch.payload !== undefined) {
+    const base = (currentRow.payload ?? {}) as Record<string, unknown>;
+    setValues.payload = { ...base, ...patch.payload };
+  }
+
+  const updated = await database
+    .update(cashFlowEvents)
+    .set(setValues)
+    .where(
+      and(
+        eq(cashFlowEvents.fundId, fundId),
+        eq(cashFlowEvents.id, eventId),
+        eq(cashFlowEvents.status, 'draft'),
+        sql`xmin = ${expectedXmin}::xid`
+      )
+    )
+    .returning({ id: cashFlowEvents.id });
+
+  if (updated.length === 0) return undefined;
+  // Reload for the fresh row + fresh xmin token (post-update).
+  return loadCashFlowEvent(fundId, eventId, options);
 }
