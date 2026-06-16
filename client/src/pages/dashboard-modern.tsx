@@ -8,6 +8,7 @@ import { Activity, Share2 } from 'lucide-react';
 import CashflowDashboard from '@/components/dashboard/CashflowDashboard';
 import ShareConfigModal from '@/components/sharing/ShareConfigModal';
 import type { CreateShareLinkRequest } from '@shared/sharing-schema';
+import type { PublicShareSnapshotPayload } from '@shared/contracts/public-share-snapshot.contract';
 import { useFundMetrics } from '@/hooks/useFundMetrics';
 import { dollarsToCents, formatCents } from '@/lib/units';
 import type { UnifiedFundMetrics } from '@shared/types/metrics';
@@ -156,7 +157,7 @@ export default function ModernDashboard() {
 
   const handleCreateShare = async (
     config: CreateShareLinkRequest
-  ): Promise<{ shareUrl: string; shareId: string }> => {
+  ): Promise<{ shareUrl: string; shareId: string; snapshot?: PublicShareSnapshotPayload }> => {
     const response = await fetch('/api/shares', {
       method: 'POST',
       headers: {
@@ -171,7 +172,11 @@ export default function ModernDashboard() {
       throw new Error(getErrorMessage(body) ?? 'Failed to create share link');
     }
 
-    const share = (body as { share?: { id?: string; shareUrl?: string } }).share;
+    const typed = body as {
+      share?: { id?: string; shareUrl?: string };
+      snapshot?: PublicShareSnapshotPayload;
+    };
+    const share = typed.share;
     if (!share?.id || !share.shareUrl) {
       throw new Error('Share API returned an invalid response');
     }
@@ -179,6 +184,7 @@ export default function ModernDashboard() {
     return {
       shareId: share.id,
       shareUrl: `${window.location.origin}${share.shareUrl}`,
+      ...(typed.snapshot ? { snapshot: typed.snapshot } : {}),
     };
   };
 
