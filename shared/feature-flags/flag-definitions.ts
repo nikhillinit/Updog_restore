@@ -235,6 +235,16 @@ export const POLISH_FLAGS: Record<string, FeatureFlag> = {
     dependencies: [],
   },
 
+  enable_cash_event_object: {
+    key: 'enable_cash_event_object',
+    name: 'Cash Event Operating Object',
+    description:
+      'Read-only WorkPanel list of persisted cash-flow events (lp_capital_call) on the cashflow dashboard. Reads /api/funds/:fundId/cash-flow-events.',
+    enabled: false,
+    rolloutPercentage: 0,
+    dependencies: [],
+  },
+
   enable_route_redirects: {
     key: 'enable_route_redirects',
     name: 'Legacy Route Redirects',
