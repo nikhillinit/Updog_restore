@@ -28,6 +28,7 @@ import {
 } from 'recharts';
 import { LazyResponsiveContainer as ResponsiveContainer } from '@/components/charts/LazyResponsiveContainer';
 import { StressScenarioProofPanel } from './StressScenarioProofPanel';
+import { CashEventsPanel } from './CashEventsPanel';
 import {
   TrendingUp,
   TrendingDown,
@@ -124,6 +125,7 @@ export default function CashflowDashboard({ fundId, className = '' }: CashflowDa
   const liquidityMetrics = useLiquidityMetrics(analytics.cashFlowAnalysis);
   const workPanelEnabled = useFlag('enable_work_panel');
   const workPanel = useWorkPanelUrlState();
+  const cashEventEnabled = useFlag('enable_cash_event_object');
 
   // Generate chart data
   const cashFlowChartData = useMemo(() => {
@@ -248,6 +250,16 @@ export default function CashflowDashboard({ fundId, className = '' }: CashflowDa
             <Download className="h-4 w-4 mr-2" />
             Export cashflow
           </Button>
+          {cashEventEnabled && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => workPanel.openPanel({ panel: 'cash-events' })}
+            >
+              <DollarSign className="h-4 w-4 mr-2" />
+              Cash events
+            </Button>
+          )}
         </div>
       </div>
 
@@ -750,6 +762,9 @@ export default function CashflowDashboard({ fundId, className = '' }: CashflowDa
           state={workPanel.state}
           onClose={workPanel.closePanel}
         />
+      )}
+      {cashEventEnabled && (
+        <CashEventsPanel fundId={fundId} state={workPanel.state} onClose={workPanel.closePanel} />
       )}
     </div>
   );
