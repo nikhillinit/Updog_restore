@@ -162,3 +162,32 @@ export type FundExpense = z.infer<typeof FundExpenseSchema>;
 export type RecallableDistribution = z.infer<typeof RecallableDistributionSchema>;
 export type Reversal = z.infer<typeof ReversalSchema>;
 export type CashFlowEventCreate = z.infer<typeof CashFlowEventCreateSchema>;
+
+// ============================================================================
+// RESPONSE SHAPES (server -> client) -- Phase 1
+// Money as decimal string (ADR-011). NEVER expose source_hash, lock/supersede/
+// reversal internals, or import provenance.
+// ============================================================================
+
+export const CashFlowEventResponseSchema = z
+  .object({
+    id: z.number().int().positive(),
+    fundId: z.number().int().positive(),
+    eventType: CashFlowEventTypeSchema,
+    amount: MoneyStringSchema,
+    currency: z.literal('USD'),
+    eventDate: z.string().datetime(),
+    perspective: CashFlowPerspectiveSchema,
+    description: z.string().nullable(),
+    payload: z.record(z.unknown()),
+    status: z.enum(['draft', 'approved', 'locked', 'reversed']),
+    createdAt: z.string().datetime(),
+  })
+  .strict();
+
+export const CashFlowEventListResponseSchema = z.object({
+  data: z.array(CashFlowEventResponseSchema),
+});
+
+export type CashFlowEventResponse = z.infer<typeof CashFlowEventResponseSchema>;
+export type CashFlowEventListResponse = z.infer<typeof CashFlowEventListResponseSchema>;
