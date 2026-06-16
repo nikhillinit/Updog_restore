@@ -245,6 +245,16 @@ export const POLISH_FLAGS: Record<string, FeatureFlag> = {
     dependencies: [],
   },
 
+  enable_cash_event_edit: {
+    key: 'enable_cash_event_edit',
+    name: 'Cash Event Draft Editing',
+    description:
+      'Draft-only editing of persisted lp_capital_call cash events in the WorkPanel detail view (PATCH with If-Match concurrency). Read-only without this flag.',
+    enabled: false,
+    rolloutPercentage: 0,
+    dependencies: ['enable_cash_event_object'],
+  },
+
   enable_route_redirects: {
     key: 'enable_route_redirects',
     name: 'Legacy Route Redirects',
