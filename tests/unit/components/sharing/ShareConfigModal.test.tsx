@@ -82,4 +82,38 @@ describe('ShareConfigModal', () => {
     });
     expect(screen.getByText('Management Fees')).toBeInTheDocument();
   });
+
+  it('shows the server as-of date and portfolio preview from the snapshot payload', async () => {
+    mockUseFlag.mockReturnValue(true);
+    const onCreate = vi.fn().mockResolvedValue({
+      shareUrl: '/shared/s1',
+      shareId: 'share-1',
+      snapshot: {
+        payloadVersion: 'public-share-snapshot.v1',
+        snapshotId: 'snap-1',
+        shareId: 'share-1',
+        title: 'Fund I',
+        message: null,
+        asOfDate: '2026-03-31T00:00:00.000Z',
+        generatedAt: '2026-06-15T12:00:00.000Z',
+        metrics: [],
+        portfolioCompanies: [
+          { name: 'Alpha AI', stage: 'Seed', moic: 2.1, status: 'active' },
+          { name: 'Beta Bio', stage: 'Series A', moic: null, status: 'active' },
+        ],
+        hiddenMetricPolicy: { requested: ['moic'], applied: ['moic'] },
+        sourceCalculationRunIds: [],
+      },
+    });
+
+    renderShareConfigModal(onCreate);
+    await createShareLink();
+
+    expect(screen.getByText('Data as of')).toBeInTheDocument();
+    expect(screen.getByText('Portfolio companies LPs will see')).toBeInTheDocument();
+    expect(screen.getByText('Alpha AI')).toBeInTheDocument();
+    expect(screen.getByText('Seed · 2.10x')).toBeInTheDocument();
+    // moic in applied hidden policy -> redacted to null -> shown as Hidden, not "—"
+    expect(screen.getByText('Series A · Hidden')).toBeInTheDocument();
+  });
 });

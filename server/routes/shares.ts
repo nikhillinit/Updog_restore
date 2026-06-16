@@ -13,7 +13,13 @@ import { v4 as uuidv4 } from 'uuid';
 import crypto from 'node:crypto';
 import { and, desc, eq, sql } from 'drizzle-orm';
 import { db } from '../db';
-import { shares, shareAnalytics, SHARE_ACCESS_LEVELS, type Share } from '@shared/schema/shares';
+import {
+  shares,
+  shareAnalytics,
+  SHARE_ACCESS_LEVELS,
+  type Share,
+  type ShareSnapshotRecord,
+} from '@shared/schema/shares';
 import { LP_HIDDEN_METRICS } from '@shared/sharing-schema';
 import { firstString } from '../lib/request-values';
 import { parseETag } from '../lib/http-preconditions';
@@ -249,7 +255,7 @@ function buildShareInsertValues(params: {
 async function createShareWithSnapshot(
   values: typeof shares.$inferInsert,
   generatedBy: string
-): Promise<Share> {
+): Promise<{ share: Share; snapshot: ShareSnapshotRecord }> {
   return db.transaction(async (tx) => {
     const [createdShare] = await tx.insert(shares).values(values).returning();
 
@@ -257,8 +263,8 @@ async function createShareWithSnapshot(
       throw new Error('Failed to create share');
     }
 
-    await createShareSnapshot(createdShare, generatedBy, tx);
-    return createdShare;
+    const snapshot = await createShareSnapshot(createdShare, generatedBy, tx);
+    return { share: createdShare, snapshot };
   });
 }
 
@@ -415,7 +421,7 @@ managementRouter.post('/', async (req: Request, res: Response, next: NextFunctio
 
     const shareId = uuidv4();
     const now = new Date();
-    const share = await createShareWithSnapshot(
+    const { share, snapshot } = await createShareWithSnapshot(
       buildShareInsertValues({
         body,
         shareId,
@@ -433,6 +439,7 @@ managementRouter.post('/', async (req: Request, res: Response, next: NextFunctio
     return res.status(201).json({
       success: true,
       share: serializeManagementShare(share),
+      snapshot: snapshot.payload,
     });
   } catch (error) {
     if (error instanceof z.ZodError) {

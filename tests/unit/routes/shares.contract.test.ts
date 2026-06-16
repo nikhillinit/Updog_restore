@@ -447,6 +447,28 @@ describe('shares management boundary contracts', () => {
     );
   });
 
+  it('POST / returns the created immutable snapshot payload in the response', async () => {
+    const createdShare = makeShare({ id: 'snap-share', fundId: '2', createdBy: 'u1' });
+    dbState.state.selectResults.push([]);
+    dbState.state.txInsertResults.push([createdShare]);
+    snapshotState.createShareSnapshot.mockResolvedValueOnce(
+      makeSnapshot({ shareId: 'snap-share' })
+    );
+
+    const response = await request(makeManagementApp({ user: makeUser({ fundIds: [2] }) }))
+      .post('/')
+      .set('Idempotency-Key', 'snap-create-2')
+      .send(validCreateBody('2'));
+
+    expect(response.status).toBe(201);
+    expect(response.body.share).toMatchObject({ id: 'snap-share', fundId: '2' });
+    expect(response.body.snapshot).toMatchObject({
+      payloadVersion: 'public-share-snapshot.v1',
+      shareId: 'snap-share',
+    });
+    expect(response.body.snapshot.portfolioCompanies).toHaveLength(1);
+  });
+
   it('GET / allows the strict string req.context.fundId path', async () => {
     dbState.state.selectResults.push([makeShare({ id: 'context-share', fundId: '2' })]);
 

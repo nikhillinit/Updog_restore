@@ -28,6 +28,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Share2, Copy, Eye, Clock, Shield, Users } from 'lucide-react';
 import type { CreateShareLinkRequest } from '@shared/sharing-schema';
 import { LP_HIDDEN_METRICS } from '@shared/sharing-schema';
+import type { PublicShareSnapshotPayload } from '@shared/contracts/public-share-snapshot.contract';
 import { useFlag } from '@/shared/useFlags';
 
 type ShareAccessLevel = CreateShareLinkRequest['accessLevel'];
@@ -35,12 +36,15 @@ type CreatedShareSnapshot = {
   shareId: string;
   capturedAt: string;
   config: CreateShareLinkRequest;
+  snapshotPayload?: PublicShareSnapshotPayload;
 };
 
 interface ShareConfigModalProps {
   fundId: string;
   fundName: string;
-  onCreateShare: (config: CreateShareLinkRequest) => Promise<{ shareUrl: string; shareId: string }>;
+  onCreateShare: (
+    config: CreateShareLinkRequest
+  ) => Promise<{ shareUrl: string; shareId: string; snapshot?: PublicShareSnapshotPayload }>;
   children?: React.ReactNode;
 }
 
@@ -64,6 +68,11 @@ const ACCESS_LABELS: Record<ShareAccessLevel, string> = {
 const humanizeMetric = (metric: string) =>
   metric.replace(/_/g, ' ').replace(/\b\w/g, (l) => l.toUpperCase());
 
+const formatPreviewMoic = (moic: number | null, moicHidden: boolean): string => {
+  if (moic !== null) return `${moic.toFixed(2)}x`;
+  return moicHidden ? 'Hidden' : '—';
+};
+
 export const ShareConfigModal: React.FC<ShareConfigModalProps> = ({
   fundId,
   fundName,
@@ -86,6 +95,8 @@ export const ShareConfigModal: React.FC<ShareConfigModalProps> = ({
   });
   const lpSnapshotMode = useFlag('enable_lp_snapshot_mode');
   const [snapshot, setSnapshot] = useState<CreatedShareSnapshot | null>(null);
+  const snapshotPayload = snapshot?.snapshotPayload ?? null;
+  const moicHidden = snapshotPayload?.hiddenMetricPolicy.applied.includes('moic') ?? false;
 
   const handleCreateShare = async () => {
     const submittedConfig = { ...config, hiddenMetrics: [...config.hiddenMetrics] };
@@ -97,6 +108,7 @@ export const ShareConfigModal: React.FC<ShareConfigModalProps> = ({
         shareId: result.shareId,
         capturedAt: new Date().toISOString(),
         config: submittedConfig,
+        ...(result.snapshot ? { snapshotPayload: result.snapshot } : {}),
       });
     } catch (error) {
       console.error('Failed to create share link:', error);
@@ -186,10 +198,20 @@ export const ShareConfigModal: React.FC<ShareConfigModalProps> = ({
                   <dd className="truncate font-mono text-charcoal-900">{snapshot.shareId}</dd>
                   <dt className="text-charcoal-600">Captured</dt>
                   <dd className="text-charcoal-900">
-                    {new Date(snapshot.capturedAt).toLocaleString()}
+                    {new Date(snapshotPayload?.generatedAt ?? snapshot.capturedAt).toLocaleString()}
                   </dd>
+                  {snapshotPayload && (
+                    <>
+                      <dt className="text-charcoal-600">Data as of</dt>
+                      <dd className="text-charcoal-900">
+                        {new Date(snapshotPayload.asOfDate).toLocaleDateString()}
+                      </dd>
+                    </>
+                  )}
                   <dt className="text-charcoal-600">Access</dt>
-                  <dd className="text-charcoal-900">{ACCESS_LABELS[snapshot.config.accessLevel]}</dd>
+                  <dd className="text-charcoal-900">
+                    {ACCESS_LABELS[snapshot.config.accessLevel]}
+                  </dd>
                   <dt className="text-charcoal-600">Expires</dt>
                   <dd className="text-charcoal-900">
                     {snapshot.config.expiresInDays
@@ -213,6 +235,26 @@ export const ShareConfigModal: React.FC<ShareConfigModalProps> = ({
                     </div>
                   )}
                 </div>
+                {snapshotPayload && snapshotPayload.portfolioCompanies.length > 0 && (
+                  <div>
+                    <p className="text-sm font-medium text-charcoal-700">
+                      Portfolio companies LPs will see
+                    </p>
+                    <ul className="mt-1 space-y-1">
+                      {snapshotPayload.portfolioCompanies.map((company) => (
+                        <li
+                          key={company.name}
+                          className="flex items-center justify-between gap-2 text-sm"
+                        >
+                          <span className="truncate text-charcoal-900">{company.name}</span>
+                          <span className="text-charcoal-600">
+                            {company.stage ?? '—'} · {formatPreviewMoic(company.moic, moicHidden)}
+                          </span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
               </div>
             )}
 
