@@ -419,17 +419,19 @@ const createMutation = useMutation({
 
 ### Idempotency
 
-C1 defers idempotency key support. The submit button is disabled while the
-mutation is pending, which is the only duplicate-protection mechanism in this
-pass. A follow-on pass should add:
+C1 uses payload-scoped idempotency key support. The modal computes a stable
+payload signature for each submit, reuses the same `Idempotency-Key` when the
+same payload is retried after a transient failure, and rotates to a new key when
+the payload changes before retry. Successful creation and ordinary close reset
+the stored key so a later creation starts fresh.
 
-```ts
-// In mutationFn options
-headers: { 'Idempotency-Key': crypto.randomUUID() },
-```
-
-The backend already supports this via `x-idempotency-key` — the create service
-resolves, hashes, and replays existing scenario sets on key reuse.
+The submit path also has synchronous re-entrant protection: `onSubmit` returns
+immediately when a submit is already in flight, so rapid duplicate submit events
+cannot issue multiple POSTs before React mutation state settles. The disabled
+pending button remains user feedback, not the only duplicate-protection
+mechanism. The backend accepts the key via `x-idempotency-key` /
+`Idempotency-Key`; the create service resolves, hashes, and replays existing
+scenario sets on same-key reuse.
 
 ### Close guard
 
