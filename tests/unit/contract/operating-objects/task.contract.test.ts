@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import {
   TaskCreateSchema,
+  TaskPatchSchema,
   TaskResponseSchema,
   TaskStatusSchema,
 } from '@shared/contracts/operating-objects/task.contract';
@@ -82,5 +83,57 @@ describe('TaskResponseSchema', () => {
 
   it('rejects internal provenance leakage (.strict on created_by)', () => {
     expect(TaskResponseSchema.safeParse({ ...row, createdBy: 7 }).success).toBe(false);
+  });
+});
+
+describe('TaskPatchSchema', () => {
+  it('accepts a single-field edit', () => {
+    expect(TaskPatchSchema.safeParse({ title: 'New title' }).success).toBe(true);
+  });
+
+  it('accepts a status-only edit (free transition)', () => {
+    expect(TaskPatchSchema.safeParse({ status: 'done' }).success).toBe(true);
+  });
+
+  it('accepts explicit null to clear each nullable field', () => {
+    expect(TaskPatchSchema.safeParse({ ownerId: null }).success).toBe(true);
+    expect(TaskPatchSchema.safeParse({ dueDate: null }).success).toBe(true);
+    expect(TaskPatchSchema.safeParse({ description: null }).success).toBe(true);
+  });
+
+  it('rejects a null title (NOT NULL column)', () => {
+    expect(TaskPatchSchema.safeParse({ title: null }).success).toBe(false);
+  });
+
+  it('rejects an empty patch (no editable field)', () => {
+    expect(TaskPatchSchema.safeParse({}).success).toBe(false);
+  });
+
+  it('rejects a fundId-only patch (fundId is not an editable field)', () => {
+    expect(TaskPatchSchema.safeParse({ fundId: 1 }).success).toBe(false);
+  });
+
+  it('accepts fundId alongside an editable field (path-consistency check)', () => {
+    expect(TaskPatchSchema.safeParse({ fundId: 1, title: 'x' }).success).toBe(true);
+  });
+
+  it('rejects unknown keys (.strict)', () => {
+    expect(TaskPatchSchema.safeParse({ title: 'x', bogus: 1 }).success).toBe(false);
+  });
+
+  it('rejects an invalid status value', () => {
+    expect(TaskPatchSchema.safeParse({ status: 'archived' }).success).toBe(false);
+  });
+
+  it('rejects a datetime dueDate (date-only only)', () => {
+    expect(TaskPatchSchema.safeParse({ dueDate: '2026-07-01T00:00:00Z' }).success).toBe(false);
+  });
+
+  it('rejects a whitespace-only title', () => {
+    expect(TaskPatchSchema.safeParse({ title: '   ' }).success).toBe(false);
+  });
+
+  it('trims the title', () => {
+    expect(TaskPatchSchema.parse({ title: '  hi  ' }).title).toBe('hi');
   });
 });
