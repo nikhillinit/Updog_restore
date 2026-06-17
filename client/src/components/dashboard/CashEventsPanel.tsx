@@ -11,7 +11,9 @@ import {
   buildLpCapitalCallPatch,
   formFromEvent,
   isCashEventFormValid,
+  useApproveCashFlowEvent,
   useCashFlowEvents,
+  useLockCashFlowEvent,
   useUpdateCashFlowEvent,
   type CashEventEditForm,
   type CashFlowEventMutationError,
@@ -31,6 +33,13 @@ function conflictMessage(error: CashFlowEventMutationError): string {
     return 'This event is no longer an editable draft. The latest version is now shown.';
   }
   return error.message || 'Failed to save changes.';
+}
+
+function optionalAuditValue(event: CashFlowEventResponse, key: 'lockedAt' | 'lockedBy') {
+  const value = (event as CashFlowEventResponse & Record<typeof key, unknown>)[key];
+  if (typeof value === 'string' && value.length > 0) return value;
+  if (typeof value === 'number') return String(value);
+  return null;
 }
 
 export function CashEventsPanel({
@@ -53,10 +62,16 @@ export function CashEventsPanel({
   const query = useCashFlowEvents(fundId, { enabled: isOpen });
   const events = query.data;
   const mutation = useUpdateCashFlowEvent(fundId);
+  const approveMutation = useApproveCashFlowEvent(fundId);
+  const lockMutation = useLockCashFlowEvent(fundId);
 
   const selectedEvent =
     objectId != null ? events?.find((event) => String(event.id) === objectId) : undefined;
 
+  const [transitionOverride, setTransitionOverride] = useState<CashFlowEventResponse | null>(null);
+  const [pendingTransitionStatus, setPendingTransitionStatus] = useState<
+    'approved' | 'locked' | null
+  >(null);
   const [loadedEvent, setLoadedEvent] = useState<CashFlowEventResponse | null>(null);
   const [form, setForm] = useState<CashEventEditForm | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
@@ -72,21 +87,47 @@ export function CashEventsPanel({
       setLoadedEvent(null);
       setForm(null);
     }
+    setErrorMsg(null);
+    setTransitionOverride(null);
+    setPendingTransitionStatus(null);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [editKey]);
 
   // Clear any stale conflict note when switching to a different row.
   useEffect(() => {
     setErrorMsg(null);
+    setTransitionOverride(null);
+    setPendingTransitionStatus(null);
   }, [objectId]);
 
+  const effectiveEvent = transitionOverride ?? selectedEvent;
+  const effectiveStatus = pendingTransitionStatus ?? effectiveEvent?.status;
+  const effectiveEtag =
+    typeof effectiveEvent?.etag === 'string' && effectiveEvent.etag.length > 0
+      ? effectiveEvent.etag
+      : null;
+  const isLifecycleTarget =
+    editFlag && effectiveEvent != null && effectiveEvent.eventType === 'lp_capital_call';
+  const isTransitionRefreshPending = pendingTransitionStatus != null;
   const isEditable =
-    editFlag &&
-    selectedEvent != null &&
-    selectedEvent.eventType === 'lp_capital_call' &&
-    selectedEvent.status === 'draft' &&
-    typeof selectedEvent.etag === 'string' &&
-    selectedEvent.etag.length > 0;
+    isLifecycleTarget &&
+    effectiveStatus === 'draft' &&
+    effectiveEtag != null &&
+    !isTransitionRefreshPending;
+  const showApprove =
+    isLifecycleTarget && effectiveStatus === 'draft' && !isTransitionRefreshPending;
+  const showLock =
+    isLifecycleTarget && effectiveStatus === 'approved' && !isTransitionRefreshPending;
+  const canApprove = showApprove && effectiveEtag != null && !approveMutation.isPending;
+  const canLock = showLock && effectiveEtag != null && !lockMutation.isPending;
+  const disabledTransitionReason =
+    (showApprove || showLock) && effectiveEtag == null
+      ? "This record can't be advanced yet."
+      : null;
+  const disabledTransitionReasonId =
+    disabledTransitionReason && effectiveEvent
+      ? `cash-event-${effectiveEvent.id}-transition-reason`
+      : undefined;
 
   const patch = loadedEvent && form ? buildLpCapitalCallPatch(loadedEvent, form) : {};
   const isDirty = Object.keys(patch).length > 0;
@@ -123,6 +164,54 @@ export function CashEventsPanel({
             void query.refetch();
           }
         },
+      }
+    );
+  };
+
+  const handleTransitionSuccess = (
+    updated: CashFlowEventResponse | undefined,
+    status: 'approved' | 'locked'
+  ) => {
+    setErrorMsg(null);
+    if (updated) {
+      setTransitionOverride(updated);
+      setPendingTransitionStatus(null);
+      setLoadedEvent(updated);
+      setForm(formFromEvent(updated));
+      return;
+    }
+    setTransitionOverride(null);
+    setPendingTransitionStatus(status);
+    setLoadedEvent(null);
+    setForm(null);
+    void query.refetch();
+  };
+
+  const handleTransitionError = (error: CashFlowEventMutationError) => {
+    setErrorMsg(conflictMessage(error));
+    if (error.status === 412 || error.status === 409 || error.status === 428) {
+      void query.refetch();
+    }
+  };
+
+  const handleApprove = () => {
+    if (!effectiveEvent || !effectiveEtag || !canApprove) return;
+    approveMutation.mutate(
+      { eventId: effectiveEvent.id, etag: effectiveEtag },
+      {
+        onSuccess: (updated) => handleTransitionSuccess(updated, 'approved'),
+        onError: handleTransitionError,
+      }
+    );
+  };
+
+  const handleLock = () => {
+    if (!effectiveEvent || !effectiveEtag || !canLock) return;
+    lockMutation.mutate(
+      { eventId: effectiveEvent.id, etag: effectiveEtag },
+      {
+        onSuccess: (updated) => handleTransitionSuccess(updated, 'locked'),
+        onError: handleTransitionError,
       }
     );
   };
@@ -188,7 +277,7 @@ export function CashEventsPanel({
             </p>
           ) : null}
 
-          {isEditable && form ? (
+          {isEditable && form && effectiveEvent ? (
             <form
               className="space-y-4"
               onSubmit={(submitEvent) => {
@@ -251,7 +340,29 @@ export function CashEventsPanel({
                 />
               </div>
 
+              {disabledTransitionReason && disabledTransitionReasonId ? (
+                <p
+                  id={disabledTransitionReasonId}
+                  role="note"
+                  className="text-sm text-charcoal-600"
+                >
+                  {disabledTransitionReason}
+                </p>
+              ) : null}
+
               <div className="flex items-center justify-end gap-2 border-t border-beige-200 pt-4">
+                {showApprove ? (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={handleApprove}
+                    disabled={!canApprove}
+                    aria-describedby={disabledTransitionReasonId}
+                  >
+                    {approveMutation.isPending ? 'Approving...' : 'Approve'}
+                  </Button>
+                ) : null}
                 <Button
                   type="button"
                   variant="outline"
@@ -266,15 +377,66 @@ export function CashEventsPanel({
                 </Button>
               </div>
             </form>
-          ) : (
-            <dl className="space-y-3 text-sm">
-              <ReadOnlyRow label="Type" value={selectedEvent.eventType} />
-              <ReadOnlyRow label="Status" value={selectedEvent.status} />
-              <ReadOnlyRow label="Amount" value={selectedEvent.amount} />
-              <ReadOnlyRow label="Event date" value={formatEventDate(selectedEvent.eventDate)} />
-              <ReadOnlyRow label="Description" value={selectedEvent.description ?? '—'} />
-            </dl>
-          )}
+          ) : effectiveEvent ? (
+            <>
+              <dl className="space-y-3 text-sm">
+                <ReadOnlyRow label="Type" value={effectiveEvent.eventType} />
+                <ReadOnlyRow label="Status" value={effectiveStatus ?? effectiveEvent.status} />
+                <ReadOnlyRow label="Amount" value={effectiveEvent.amount} />
+                <ReadOnlyRow label="Event date" value={formatEventDate(effectiveEvent.eventDate)} />
+                <ReadOnlyRow label="Description" value={effectiveEvent.description ?? '—'} />
+                {optionalAuditValue(effectiveEvent, 'lockedAt') ? (
+                  <ReadOnlyRow
+                    label="Locked at"
+                    value={optionalAuditValue(effectiveEvent, 'lockedAt') ?? ''}
+                  />
+                ) : null}
+                {optionalAuditValue(effectiveEvent, 'lockedBy') ? (
+                  <ReadOnlyRow
+                    label="Locked by"
+                    value={optionalAuditValue(effectiveEvent, 'lockedBy') ?? ''}
+                  />
+                ) : null}
+              </dl>
+
+              {disabledTransitionReason && disabledTransitionReasonId ? (
+                <p
+                  id={disabledTransitionReasonId}
+                  role="note"
+                  className="text-sm text-charcoal-600"
+                >
+                  {disabledTransitionReason}
+                </p>
+              ) : null}
+
+              {showApprove || showLock ? (
+                <div className="flex items-center justify-end gap-2 border-t border-beige-200 pt-4">
+                  {showApprove ? (
+                    <Button
+                      type="button"
+                      size="sm"
+                      onClick={handleApprove}
+                      disabled={!canApprove}
+                      aria-describedby={disabledTransitionReasonId}
+                    >
+                      {approveMutation.isPending ? 'Approving...' : 'Approve'}
+                    </Button>
+                  ) : null}
+                  {showLock ? (
+                    <Button
+                      type="button"
+                      size="sm"
+                      onClick={handleLock}
+                      disabled={!canLock}
+                      aria-describedby={disabledTransitionReasonId}
+                    >
+                      {lockMutation.isPending ? 'Locking...' : 'Lock'}
+                    </Button>
+                  ) : null}
+                </div>
+              ) : null}
+            </>
+          ) : null}
         </div>
       )}
     </WorkPanel>
