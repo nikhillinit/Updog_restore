@@ -19,3 +19,4 @@ export * from './scenario';
 export * from './shares';
 export * from './user';
 export * from './lp-reporting-evidence';
+export * from './operating-objects';

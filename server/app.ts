@@ -17,6 +17,7 @@ import fundScenarioSetsRouter from './routes/fund-scenario-sets.js';
 import fundMoicRouter from './routes/fund-moic.js';
 import reallocationRouter from './routes/reallocation.js';
 import cashFlowEventsRouter from './routes/cash-flow-events.js';
+import operatingObjectTasksRouter from './routes/operating-object-tasks.js';
 import backtestingRouter from './routes/backtesting.js';
 import fundsRouter from './routes/funds.js';
 import fundMetricsRouter from './routes/fund-metrics.js';
@@ -222,6 +223,10 @@ export function makeApp() {
   // Cash-flow-events API (Candidate C, Phase 1) - mounted at root; the router
   // self-defines its full /api/funds/:fundId/cash-flow-events paths (mirrors reallocation).
   app.use(cashFlowEventsRouter);
+
+  // Operating-object Tasks API (backend-first; minimal create/list) - mounted at
+  // root; the router self-defines /api/funds/:fundId/tasks (mirrors cash-flow-events).
+  app.use(operatingObjectTasksRouter);
 
   // Deal Pipeline API (Sprint 1 - Deal tracking, DD, scoring)
   app.use('/api/deals', dealPipelineRouter);
