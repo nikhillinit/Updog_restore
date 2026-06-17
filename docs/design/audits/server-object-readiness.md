@@ -2,7 +2,7 @@
 status: ACTIVE
 audience: both
 last_updated: 2026-06-15
-owner: "Platform Team"
+owner: 'Platform Team'
 review_cadence: P90D
 categories: [design, audits, backend-readiness, persistence]
 keywords: [server-object, readiness, persistence, lp-snapshot, cash-event]
@@ -24,13 +24,13 @@ routes (`server/routes/**`), schema + migrations (`shared/schema*`,
 
 ## Readiness matrix
 
-| Object          | Server route                             | DB table / schema                 | Migration | Worker / queue            | Verdict             |
-| --------------- | ---------------------------------------- | --------------------------------- | --------- | ------------------------- | ------------------- |
-| **cash_event**  | YES — `server/routes/cashflow.ts` (CRUD) | YES — `cashFlowEvents`            | YES       | YES — capital-call worker | **HAS_PERSISTENCE** |
-| **lp_snapshot** | YES — `server/routes/shares.ts`          | YES — `shares` + `shareSnapshots` | YES       | YES — report-generation   | **HAS_PERSISTENCE** |
-| **task**        | NONE                                     | NONE                              | NONE      | NONE                      | **NONE**            |
-| **assumption**  | NONE                                     | NONE                              | NONE      | NONE                      | **NONE**            |
-| **comment**     | NONE                                     | NONE                              | NONE      | NONE                      | **NONE**            |
+| Object          | Server route                                                  | DB table / schema                                    | Migration                                                            | Worker / queue                      | Verdict             |
+| --------------- | ------------------------------------------------------------- | ---------------------------------------------------- | -------------------------------------------------------------------- | ----------------------------------- | ------------------- |
+| **cash_event**  | YES — `server/routes/cashflow.ts` (CRUD)                      | YES — `cashFlowEvents`                               | YES                                                                  | YES — capital-call worker           | **HAS_PERSISTENCE** |
+| **lp_snapshot** | YES — `server/routes/shares.ts`                               | YES — `shares` + `shareSnapshots`                    | YES                                                                  | YES — report-generation             | **HAS_PERSISTENCE** |
+| **task**        | YES — `server/routes/operating-object-tasks.ts` (create/list) | YES — `tasks` (`shared/schema/operating-objects.ts`) | YES (PR-T1 — `server/migrations/20260616_operating_object_tasks_v1`) | N/A (none required for create/list) | **HAS_PERSISTENCE** |
+| **assumption**  | NONE                                                          | NONE                                                 | NONE                                                                 | NONE                                | **NONE**            |
+| **comment**     | NONE                                                          | NONE                                                 | NONE                                                                 | NONE                                | **NONE**            |
 
 ---
 
