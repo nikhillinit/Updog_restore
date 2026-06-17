@@ -30,6 +30,33 @@ export const TaskCreateSchema = z
 
 export type TaskCreate = z.infer<typeof TaskCreateSchema>;
 
+// PATCH (edit fields + status). All keys optional and `.strict()` (unknown keys
+// reject). `fundId` is a path-consistency check only (NOT an editable field), so
+// the refine requires >=1 ACTUAL editable field -- a fundId-only body is a 400,
+// never a no-op that rotates the row version. Nullable fields accept explicit
+// `null` to clear (owner_id set-null FK, due_date, description); the service uses
+// `'key' in patch` to tell absent from explicit-null. `status` is enum-only --
+// free transitions (any state -> any state), no terminal/immutable state. dueDate
+// stays date-only (`z.string().date()`); it is NEVER serialized through a Date.
+const TASK_EDITABLE_KEYS = ['title', 'ownerId', 'dueDate', 'description', 'status'] as const;
+
+export const TaskPatchSchema = z
+  .object({
+    fundId: z.number().int().positive().optional(),
+    title: z.string().trim().min(1).max(200).optional(),
+    ownerId: z.number().int().positive().nullable().optional(),
+    dueDate: z.string().date().nullable().optional(),
+    description: z.string().max(2000).nullable().optional(),
+    status: TaskStatusSchema.optional(),
+  })
+  .strict()
+  .refine((patch) => TASK_EDITABLE_KEYS.some((key) => key in patch), {
+    message:
+      'At least one editable field (title, ownerId, dueDate, description, status) is required',
+  });
+
+export type TaskPatch = z.infer<typeof TaskPatchSchema>;
+
 // RESPONSE (server -> client). `.strict()` so internal provenance (created_by)
 // can never leak. dueDate is date-only; timestamps are ISO datetimes.
 export const TaskResponseSchema = z
