@@ -103,8 +103,8 @@ route**.
    | column                      | type                                                                                   | notes                                                                                                                                                                                             |
    | --------------------------- | -------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
    | `id`                        | `serial` PK                                                                            | mirror `tasks`/`cashFlowEvents`                                                                                                                                                                   |
-   | `investment_id`             | `integer NOT NULL` FK→`investments.id` ON DELETE CASCADE                               | aggregate parent                                                                                                                                                                                  |
-   | `fund_id`                   | `integer NOT NULL` FK→`funds.id`                                                       | denormalized for fund-scope index; MUST equal `investments.fund_id` (enforced at create)                                                                                                          |
+   | `investment_id`             | `integer NOT NULL`                                                                     | aggregate parent; FK via the COMPOSITE FK below (ON DELETE **RESTRICT** — protect immutable financing history, NOT cascade; adversarial finding C)                                                |
+   | `fund_id`                   | `integer NOT NULL`                                                                     | denormalized for fund-scope index; consistency enforced by the COMPOSITE FK below, **not** app code (adversarial finding B)                                                                       |
    | `round_name`                | `varchar(120) NOT NULL`                                                                |                                                                                                                                                                                                   |
    | `security_type`             | `varchar(32) NOT NULL` CHECK in (`equity`,`convertible_note`,`safe`,`warrant`,`other`) |                                                                                                                                                                                                   |
    | `round_date`                | `date NOT NULL`                                                                        | the financing-event effective date                                                                                                                                                                |
@@ -112,12 +112,28 @@ route**.
    | `investment_amount`         | `numeric(20,6) NOT NULL`                                                               | this fund's investment                                                                                                                                                                            |
    | `round_size`                | `numeric(20,6)`                                                                        | nullable                                                                                                                                                                                          |
    | `pre_money_valuation`       | `numeric(20,6)`                                                                        | nullable                                                                                                                                                                                          |
-   | `idempotency_key`           | `varchar(255)`                                                                         | create-idempotency (see 4)                                                                                                                                                                        |
+   | `idempotency_key`           | `varchar(255) NOT NULL`                                                                | create-idempotency (see 4)                                                                                                                                                                        |
+   | `request_hash`              | `varchar(64) NOT NULL`                                                                 | sha256 of the canonical create body; enables 409-on-conflicting-reuse (adversarial finding A) — reuse `canonicalize`+sha256 from `import-reconciliation-service.ts`                               |
    | `created_by`                | `integer` FK→`users.id`                                                                | nullable, best-effort actor                                                                                                                                                                       |
    | `created_at` / `updated_at` | `timestamptz DEFAULT now()`                                                            |                                                                                                                                                                                                   |
 
-   Indexes: `(fund_id, investment_id)`, `(investment_id, round_date DESC)`, and
-   a **UNIQUE `(fund_id, idempotency_key)`** (see 4). **Share-mechanics fields**
+   Indexes/constraints: `(fund_id, investment_id)`,
+   `(investment_id, round_date DESC)`, **UNIQUE `(fund_id, idempotency_key)`**
+   (see 4), and a **COMPOSITE FK
+   `(investment_id, fund_id) → investments(id, fund_id)` ON UPDATE RESTRICT ON
+   DELETE RESTRICT** — makes Postgres enforce that a round's `fund_id` always
+   equals its parent investment's `fund_id`, blocks deletion of an investment
+   that has rounds (protects financing history), and blocks silent re-parenting
+   (no app-code-only invariant). **Precondition (codex finding):**
+   `investments.fund_id` is **nullable today**
+   (`shared/schema/portfolio.ts:65`); the composite FK target
+   `UNIQUE (id, fund_id)` on `investments` cannot include rows with a NULL
+   `fund_id`. So the L3b migration must FIRST add `UNIQUE (id, fund_id)` on
+   `investments` (cheap; `id` already unique) AND either backfill `fund_id` NOT
+   NULL or have round-create reject investments with a NULL `fund_id` (400). Do
+   NOT copy `investmentLots`, which cascades from investments — rounds must
+   RESTRICT. Ship the DDL + a schema test proving
+   delete-of-investment-with-rounds is blocked. **Share-mechanics fields**
    (`sharePrice`, `newSharesPurchased`, …) and **`graduation_rate`** are
    **deferred** to a follow-up tranche (optional in the dialog; additive
    nullable columns later). `graduation_rate` is deferred specifically to avoid
@@ -132,12 +148,17 @@ route**.
 4. **Create idempotency: REQUIRED `Idempotency-Key` header.** Round create is a
    financial write; per the cross-lane "every mutation idempotent" rule it
    requires a client key. Missing key → **428** `precondition_required` (mirrors
-   the If-Match 428 shape). Mechanism = DB-level UNIQUE
-   `(fund_id, idempotency_key)` with `ON CONFLICT … RETURNING`: a **replay**
-   (same key) returns the stored row (stable response); a **conflicting reuse**
-   (same key, materially different body) → **409** `idempotency_key_reused`.
-   This is simpler than the Redis middleware and durable across restarts
-   (extends the fund-scenario-sets service-level precedent).
+   the If-Match 428 shape). **Mechanism (corrected — adversarial finding A):** a
+   bare `UNIQUE (fund_id, idempotency_key)` + `ON CONFLICT … RETURNING` CANNOT
+   distinguish a benign retry from a key reused with a different body — it just
+   returns the existing row, so the **409** below is unimplementable without a
+   stored fingerprint. Therefore the row also stores `request_hash` (sha256 of
+   the canonical create body). On conflict: `SELECT` the existing row; if its
+   `request_hash` **equals** the new body's hash → **replay** the stored row
+   (stable 200/201); if it **differs** → **409** `idempotency_key_reused`.
+   Missing key → **428**. Reuse `canonicalize`+sha256 from
+   `import-reconciliation-service.ts` (do not invent a hash). Durable across
+   restarts; extends the fund-scenario-sets service-level precedent.
 
 5. **Update model: append-only first tranche — NO update/delete route.** A
    recorded round is an immutable financing event. Corrections are a future
@@ -145,7 +166,12 @@ route**.
    additively later, mirroring `cashFlowEvents.supersedesEventId`). The table
    inherits `xmin` automatically, so a future If-Match update route is a clean
    add. Tranche-1 routes = **create + list + read** only. The PRD permits
-   "append-only/immutable → no update mutation."
+   "append-only/immutable → no update mutation." **Correction guardrail
+   (architect decision, post-debate):** because there is no correction path
+   until the supersede tranche ships, `enable_investment_rounds` **MUST stay OFF
+   in production** until that tranche lands — so no uncorrectable immutable rows
+   reach prod. L3b is backend + flagged-off only; enabling the flag is a
+   separate, later gate.
 
 6. **Route shape: keep investment-scoped
    `/api/investments/:investmentId/rounds`, add mandatory route-level fund
@@ -155,7 +181,10 @@ route**.
    requirement to "load the investment and prove fund-access before mutation."
    Enforcement: load investment by `:investmentId` → 404 if absent → derive
    `investment.fund_id` → `enforceProvidedFundScope(req, res, fundId)` → 403 on
-   denial → then mutate. (Fund-scoped `/api/funds/:fundId/…` is the consistency
+   denial → then act. **This enforcement is mandatory on the GET list/read
+   routes too, not just the write** (adversarial finding D): the existing
+   `GET /investments/:id` has NO fund check, so the round read routes must NOT
+   inherit that IDOR gap. (Fund-scoped `/api/funds/:fundId/…` is the consistency
    "north star" but is rejected for tranche 1 as higher churn; revisit if the
    investment surface is broadly refactored.)
 
@@ -178,7 +207,13 @@ route**.
    uses `shared/lib/decimal-config.ts` (Decimal.js, precision 28,
    ROUND_HALF_UP). `currency` is `varchar(3)` ISO-4217, default `USD` (NOT
    `char(3)` — see column table). **No JS-number money fields** (ADR-011 gate).
-   No new money utility is introduced.
+   No new money utility is introduced. **Client unit conversion (codex
+   finding):** `new-round-dialog.tsx` stores currency _labels_
+   (`"United States Dollar ($)"`) and money/percent as JS numbers; the L3b
+   `useCreateRound` serializer MUST map the label → ISO-4217 code and number →
+   `DecimalString` at the client boundary before POST (mirror
+   `cash-event-edit-model.ts`). Deferred share counts/price get their own units
+   — never reuse a money column for share data.
 
 9. **Effective-date / as-of.** Tranche 1 is **current-state only**. `round_date`
    is the financing-event effective date (a stored attribute, not a bitemporal
@@ -239,6 +274,56 @@ reversible.
   supersede tranche to correct; acceptable for a financing-event record.
 
 ---
+
+## Adversarial review — Round 1 (Claude lane, 2026-06-17)
+
+Stress-tested via a Hermes `debate` framing; the codex/kimi comparator
+subprocesses degraded on the Windows sandbox and the API Claude lanes
+credit-failed, so the live Claude session ran the adversarial pass directly. Six
+findings; the four structural ones are **fixed inline above**.
+
+| #   | Severity | Finding                                                                                                                                                                                                                                                                                        | Resolution                                                                                                                                                                                                                                                                                               |
+| --- | -------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| A   | **HIGH** | "Conflicting reuse → 409" is unimplementable: `UNIQUE(fund_id, idempotency_key)` + `ON CONFLICT RETURNING` only replays the existing row; it can't detect a different body.                                                                                                                    | Added `request_hash` column + hash-compare on conflict (decision 4 + column table).                                                                                                                                                                                                                      |
+| B   | MED      | Denormalized `fund_id` had only "enforced at create" (app code) — drift risk, esp. on investment re-parent.                                                                                                                                                                                    | COMPOSITE FK `(investment_id, fund_id) → investments(id, fund_id)` ON UPDATE CASCADE; + `UNIQUE(id, fund_id)` on investments.                                                                                                                                                                            |
+| C   | MED      | `ON DELETE CASCADE` silently destroys "immutable financing history" when an investment is deleted — self-contradictory.                                                                                                                                                                        | Changed to **ON DELETE RESTRICT** (via the composite FK).                                                                                                                                                                                                                                                |
+| D   | MED      | Read-path IDOR: only the write was specified to enforce fund scope; `GET /investments/:id` already has no fund check.                                                                                                                                                                          | Decision 6 now mandates the same load-investment + `enforceProvidedFundScope` on GET list/read.                                                                                                                                                                                                          |
+| E   | LOW-MED  | The "flip the 501 test to 201" framing understates the work: the existing test body `{name, amount}` will NOT satisfy the new contract (missing `round_name`/`security_type`/`round_date`/`investment_amount`/`currency` + the required `Idempotency-Key` header → it would 400/428, not 201). | L3b must **rewrite the test request** (full valid payload + `Idempotency-Key`), not just the assertion. Recorded here for the L3b author.                                                                                                                                                                |
+| F   | LOW      | Shipping `useCreateRound` with no live UI risks a dead-export lint (the concern that deferred L2a's create mutation).                                                                                                                                                                          | Mitigated: L2a already shipped `useTasks` exported-but-UI-unused and passed lint (test-only usage is tolerated), and L3b's idempotency is designed (the real L2a blocker is resolved). L3b author must still confirm the lint tolerates the test-only hook; if not, fold the hook into the UI follow-up. |
+
+These refinements **strengthen** the accepted decisions (they make the
+signed-off behaviour implementable and DB-enforced); they do not reverse any
+architect or Phoenix sign-off. Money/precision (§8) is unaffected.
+
+### Round 2 — codex comparator (Hermes debate, run `hermes-2026-06-17T20-31-34-205Z`)
+
+The codex lane (6.2k-char critique; claude lanes credit-failed, kimi minimal)
+**converged** on findings A–F and added three refinements (folded in above) plus
+two items that touch already-signed-off decisions (recorded, not silently
+changed):
+
+- **(refinement, folded)** `investments.fund_id` is **NULLABLE today** — the
+  composite FK's `UNIQUE(id, fund_id)` target excludes NULL-fund rows, so L3b
+  must add the unique constraint AND backfill-NOT-NULL / reject NULL-fund
+  investments. Don't copy `investmentLots`' cascade. (Added to the constraint
+  note.)
+- **(refinement, folded)** the dialog stores currency _labels_ + JS-number
+  money/percent → the client serializer must convert to ISO + DecimalString.
+  (Added to §8.)
+- **(dissent on decision 6 — recorded)** codex prefers **fund-scoped**
+  `/api/funds/:fundId/investments/:investmentId/rounds` over investment-scoped,
+  on IDOR grounds. The architect chose investment-scoped (decision 6); this
+  stands, but ONLY because finding D now makes fund enforcement mandatory on
+  **every** round route (read + write). If that enforcement is not implemented
+  exactly, codex's IDOR concern is live — L3b route tests must prove 403/404 on
+  cross-fund access.
+- **(escalation on decision 5 — RESOLVED by architect 2026-06-17)** codex rated
+  append-only with **no correction path** as HIGH risk: a fat-fingered round
+  amount can only be fixed by manual DB surgery until the deferred supersede
+  tranche exists. **Architect decision: keep append-only** (over a draft→locked
+  lifecycle or tranche-1 supersede) **and bind `enable_investment_rounds` OFF in
+  prod until the supersede tranche ships** (now recorded in decision 5). Risk
+  accepted and contained by the flag; L3b is backend + flagged-off only.
 
 ## Sign-off log (the L3 hard gate)
 
