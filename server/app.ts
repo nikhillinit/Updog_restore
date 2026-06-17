@@ -92,7 +92,10 @@ export function makeApp() {
       res.setHeader('Access-Control-Allow-Origin', origin);
       res.setHeader('Vary', 'Origin');
       res.setHeader('Access-Control-Allow-Credentials', 'true');
-      res.setHeader('Access-Control-Allow-Headers', 'content-type, authorization, x-request-id');
+      res.setHeader(
+        'Access-Control-Allow-Headers',
+        'content-type, authorization, x-request-id, if-match'
+      );
       res.setHeader('Access-Control-Allow-Methods', 'GET,POST,PUT,PATCH,DELETE,OPTIONS');
     }
     if (req.method === 'OPTIONS') return res.sendStatus(ok ? 200 : 403);
