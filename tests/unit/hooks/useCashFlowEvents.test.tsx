@@ -6,7 +6,9 @@ import {
   buildLpCapitalCallPatch,
   formFromEvent,
   isCashEventFormValid,
+  useApproveCashFlowEvent,
   useCashFlowEvents,
+  useLockCashFlowEvent,
   useUpdateCashFlowEvent,
 } from '@/hooks/useCashFlowEvents';
 import type { CashFlowEventResponse } from '@shared/contracts/lp-reporting/cash-flow-event.contract';
@@ -176,5 +178,59 @@ describe('useUpdateCashFlowEvent (mutation)', () => {
     await expect(
       result.current.mutateAsync({ eventId: 10, etag: 'W/"abc"', patch: { amount: '5' } })
     ).rejects.toMatchObject({ status: 412, message: 'Event has been modified' });
+  });
+});
+
+describe('useApproveCashFlowEvent / useLockCashFlowEvent', () => {
+  it('approve POSTs bodyless to the approve URL with If-Match and invalidates', async () => {
+    mockFetchJson({ ...sampleEvent, status: 'approved', etag: 'W/"v2"' });
+    const client = new QueryClient({ defaultOptions: { mutations: { retry: false } } });
+    const invalidateSpy = vi.spyOn(client, 'invalidateQueries');
+    const { result } = renderHook(() => useApproveCashFlowEvent('1'), {
+      wrapper: createWrapper(client),
+    });
+
+    await result.current.mutateAsync({ eventId: 10, etag: 'W/"v1"' });
+
+    const [url, init] = (fetch as unknown as ReturnType<typeof vi.fn>).mock.calls[0];
+    expect(url).toBe('/api/funds/1/cash-flow-events/10/approve');
+    expect(init.method).toBe('POST');
+    expect(init.body).toBeUndefined();
+    expect(init.headers).toEqual(expect.objectContaining({ 'If-Match': 'W/"v1"' }));
+    expect(init.headers).not.toHaveProperty('Idempotency-Key');
+    expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ['cash-flow-events', '1'] });
+  });
+
+  it('lock POSTs to the lock URL', async () => {
+    mockFetchJson({ ...sampleEvent, status: 'locked', etag: 'W/"v3"' });
+    const client = new QueryClient({ defaultOptions: { mutations: { retry: false } } });
+    const { result } = renderHook(() => useLockCashFlowEvent('1'), {
+      wrapper: createWrapper(client),
+    });
+    await result.current.mutateAsync({ eventId: 10, etag: 'W/"v2"' });
+    const [url, init] = (fetch as unknown as ReturnType<typeof vi.fn>).mock.calls[0];
+    expect(url).toBe('/api/funds/1/cash-flow-events/10/lock');
+    expect(init.method).toBe('POST');
+  });
+
+  it('preserves server status + message on 412 conflict', async () => {
+    mockFetchJson({ message: 'Event has been modified' }, false, 412);
+    const client = new QueryClient({ defaultOptions: { mutations: { retry: false } } });
+    const { result } = renderHook(() => useApproveCashFlowEvent('1'), {
+      wrapper: createWrapper(client),
+    });
+    await expect(
+      result.current.mutateAsync({ eventId: 10, etag: 'W/"stale"' })
+    ).rejects.toMatchObject({ status: 412, message: expect.stringMatching(/modified/i) });
+  });
+
+  it('does not POST when fundId is missing', async () => {
+    const client = new QueryClient({ defaultOptions: { mutations: { retry: false } } });
+    const { result } = renderHook(() => useApproveCashFlowEvent(undefined), {
+      wrapper: createWrapper(client),
+    });
+    await expect(result.current.mutateAsync({ eventId: 10, etag: 'W/"v1"' })).rejects.toMatchObject(
+      { status: 0 }
+    );
   });
 });
