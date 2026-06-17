@@ -111,3 +111,69 @@ export function useUpdateCashFlowEvent(
     },
   });
 }
+
+export interface TransitionCashFlowEventVariables {
+  eventId: number;
+  /** Opaque etag of the loaded row; echoed verbatim as If-Match. */
+  etag: string;
+}
+
+function useTransitionCashFlowEvent(
+  fundId: string | undefined,
+  action: 'approve' | 'lock'
+): UseMutationResult<
+  CashFlowEventResponse,
+  CashFlowEventMutationError,
+  TransitionCashFlowEventVariables
+> {
+  const queryClient = useQueryClient();
+
+  return useMutation<
+    CashFlowEventResponse,
+    CashFlowEventMutationError,
+    TransitionCashFlowEventVariables
+  >({
+    mutationFn: async ({ eventId, etag }) => {
+      if (!fundId) {
+        throw { status: 0, message: 'No fund ID available' } as CashFlowEventMutationError;
+      }
+      try {
+        return await apiRequest<CashFlowEventResponse>(
+          'POST',
+          `/api/funds/${fundId}/cash-flow-events/${eventId}/${action}`,
+          undefined,
+          { headers: { 'If-Match': etag } }
+        );
+      } catch (error: unknown) {
+        const err = error as { status?: number; message?: string };
+        throw {
+          status: err.status ?? 500,
+          message: err.message ?? `Failed to ${action} cash flow event`,
+        } as CashFlowEventMutationError;
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['cash-flow-events', fundId] });
+    },
+  });
+}
+
+export function useApproveCashFlowEvent(
+  fundId: string | undefined
+): UseMutationResult<
+  CashFlowEventResponse,
+  CashFlowEventMutationError,
+  TransitionCashFlowEventVariables
+> {
+  return useTransitionCashFlowEvent(fundId, 'approve');
+}
+
+export function useLockCashFlowEvent(
+  fundId: string | undefined
+): UseMutationResult<
+  CashFlowEventResponse,
+  CashFlowEventMutationError,
+  TransitionCashFlowEventVariables
+> {
+  return useTransitionCashFlowEvent(fundId, 'lock');
+}
