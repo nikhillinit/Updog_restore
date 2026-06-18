@@ -17,12 +17,7 @@ const FinancialModelingPage = React.lazy(() => import('@/pages/financial-modelin
 const ForecastingPage = React.lazy(() => import('@/pages/forecasting'));
 const ModelResultsPage = React.lazy(() => import('@/pages/model-results'));
 const SensitivityAnalysisPage = React.lazy(() => import('@/pages/sensitivity-analysis'));
-const ReservesDemo = React.lazy(() => import('@/pages/reserves-demo'));
 const MOICAnalysisPage = React.lazy(() => import('@/pages/moic-analysis'));
-const AllocationManager = React.lazy(() => import('@/pages/allocation-manager'));
-const CashManagement = React.lazy(() => import('@/pages/cash-management'));
-const PortfolioAnalytics = React.lazy(() => import('@/pages/portfolio-analytics'));
-const CapTables = React.lazy(() => import('@/pages/CapTables'));
 // LP Sharing
 export const SharedDashboard = React.lazy(() => import('@/pages/shared-dashboard'));
 // New IA pages (Codex-validated restructure)
@@ -70,6 +65,39 @@ export interface AppRouteEntry {
   isProtected?: boolean;
 }
 
+// Internal/demo surfaces. import.meta.env.DEV is statically replaced with false
+// in production builds, so Rollup tree-shakes these dynamic imports out of the prod
+// bundle (same mechanism as the Tear Sheet dashboard in pages/reports.tsx).
+// Production decision for /reserves-demo: Branch A - production-disabled.
+// Guarded by scripts/check-prod-bundle.mjs (QUARANTINED_MODULES).
+const SHOW_INTERNAL_DEMOS = import.meta.env.DEV;
+
+const INTERNAL_DEMO_ROUTES: AppRouteEntry[] = SHOW_INTERNAL_DEMOS
+  ? [
+      {
+        path: '/allocation-manager',
+        component: React.lazy(() => import('@/pages/allocation-manager')),
+        isProtected: true,
+      },
+      {
+        path: '/cash-management',
+        component: React.lazy(() => import('@/pages/cash-management')),
+        isProtected: true,
+      },
+      {
+        path: '/portfolio-analytics',
+        component: React.lazy(() => import('@/pages/portfolio-analytics')),
+        isProtected: true,
+      },
+      {
+        path: '/cap-tables',
+        component: React.lazy(() => import('@/pages/CapTables')),
+        isProtected: true,
+      },
+      { path: '/reserves-demo', component: React.lazy(() => import('@/pages/reserves-demo')) },
+    ]
+  : [];
+
 export const APP_ROUTES: AppRouteEntry[] = [
   { path: '/fund-setup', component: FundSetup },
   { path: '/dashboard', component: Dashboard, isProtected: true },
@@ -86,10 +114,6 @@ export const APP_ROUTES: AppRouteEntry[] = [
   },
   { path: '/fund-model-results/:fundId', component: FundModelResults, isProtected: true },
   { path: '/sensitivity-analysis', component: SensitivityAnalysisPage, isProtected: true },
-  { path: '/allocation-manager', component: AllocationManager, isProtected: true },
-  { path: '/cash-management', component: CashManagement, isProtected: true },
-  { path: '/portfolio-analytics', component: PortfolioAnalytics, isProtected: true },
-  { path: '/cap-tables', component: CapTables, isProtected: true },
   { path: '/reports', component: Reports, isProtected: true },
   { path: '/moic-analysis', component: MOICAnalysisPage, isProtected: true },
   { path: '/variance-tracking', component: VarianceTrackingPage, isProtected: true },
@@ -100,7 +124,7 @@ export const APP_ROUTES: AppRouteEntry[] = [
   { path: '/lp-reporting/imports', component: LpReportingImportsPage, isProtected: true },
   { path: '/settings', component: SettingsPage, isProtected: true },
   { path: '/help', component: HelpPage },
-  { path: '/reserves-demo', component: ReservesDemo },
+  ...INTERNAL_DEMO_ROUTES,
 ];
 
 export interface ArchivedPlaceholderRouteEntry {
