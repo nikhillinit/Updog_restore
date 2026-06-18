@@ -221,8 +221,15 @@ describe('fund lifecycle DB proof', () => {
   afterAll(async () => {
     isStoppingPostgres = true;
     const active = runtime;
+    let closePrimaryDbPool: (() => Promise<void>) | null = null;
     let closePgCircuitPool: (() => Promise<void>) | null = null;
 
+    try {
+      const primaryDb = await import('../../server/db');
+      closePrimaryDbPool = primaryDb.closeDatabasePool;
+    } catch {
+      // The primary db module may never load if startup failed before route import.
+    }
     try {
       const db = await import('../../server/db/pg-circuit');
       closePgCircuitPool = db.closePool;
@@ -241,7 +248,11 @@ describe('fund lifecycle DB proof', () => {
     } catch {
       // Idempotency middleware may never load if startup failed before route import.
     }
-    await tolerateExpectedPostgresStop([closePgCircuitPool?.(), active?.pool.end()]);
+    await tolerateExpectedPostgresStop([
+      closePrimaryDbPool?.(),
+      closePgCircuitPool?.(),
+      active?.pool.end(),
+    ]);
     await stopPostgresContainer(active?.postgres);
     restoreEnv(originalEnv);
     vi.resetModules();

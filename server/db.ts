@@ -5,6 +5,7 @@
  */
 
 import type { NodePgDatabase } from 'drizzle-orm/node-postgres';
+import type { Pool as NodePostgresPool, PoolClient as NodePostgresPoolClient } from 'pg';
 import { neon as createNeonHttpClient } from '@neondatabase/serverless';
 import { drizzle as drizzleNeonHttp } from 'drizzle-orm/neon-http';
 import { createRequire } from 'node:module';
@@ -22,6 +23,23 @@ const storageBootMode = resolveStorageBootMode(process.env);
 // Dynamic imports based on environment
 let db: NodePgDatabase<CombinedSchema>;
 let pool: unknown;
+let isClosingNodePostgresPool = false;
+
+function isExpectedNodePostgresCloseError(error: unknown): boolean {
+  const code =
+    typeof error === 'object' && error !== null && 'code' in error
+      ? String((error as { code?: unknown }).code)
+      : '';
+  const message = error instanceof Error ? error.message : String(error);
+  return code === '57P01' || /terminating connection due to administrator command/i.test(message);
+}
+
+function handleNodePostgresPoolError(error: unknown): void {
+  if (isClosingNodePostgresPool && isExpectedNodePostgresCloseError(error)) {
+    return;
+  }
+  throw error;
+}
 
 async function loadDatabaseMock(): Promise<NodePgDatabase<CombinedSchema>> {
   // Import the database mock for testing
@@ -70,7 +88,11 @@ if (storageBootMode === 'test-mock-db' || storageBootMode === 'explicit-memory')
       connectionTimeoutMillis: 2000,
       idleTimeoutMillis: 30000,
       allowExitOnIdle: true,
+    }) as NodePostgresPool;
+    pgPool.on('connect', (client: NodePostgresPoolClient) => {
+      client.on('error', handleNodePostgresPoolError);
     });
+    pgPool.on('error', handleNodePostgresPoolError);
     pool = pgPool;
     db = drizzle(pgPool, { schema: combinedSchema });
   } else {
@@ -84,6 +106,14 @@ if (storageBootMode === 'test-mock-db' || storageBootMode === 'explicit-memory')
     // @ts-expect-error - Neon Pool type doesn't perfectly align with drizzle neon-serverless signature
     db = drizzle(pool, { schema: combinedSchema });
   }
+}
+
+export async function closeDatabasePool(): Promise<void> {
+  if (!pool || typeof (pool as { end?: unknown }).end !== 'function') {
+    return;
+  }
+  isClosingNodePostgresPool = true;
+  await (pool as { end: () => Promise<void> }).end();
 }
 
 export { db, pool };
