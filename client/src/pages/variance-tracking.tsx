@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { z } from 'zod';
 import { useFundContext } from '@/contexts/FundContext';
 import { computeRemainingCapital } from '@/lib/variance-remaining-capital';
+import { deriveAlertSummaryState } from '@/lib/variance-alert-summary';
 import {
   useVarianceDashboard,
   useBaselines,
@@ -275,40 +276,85 @@ export default function VarianceTrackingPage() {
         )[0]
       : null;
   const hasReports = reports.length > 0;
-  const totalActiveAlerts = dashboardData?.data?.summary?.totalActiveAlerts || 0;
+  const alertSummary = deriveAlertSummaryState({
+    isLoading: dashboardLoading,
+    isError: Boolean(dashboardError),
+    totalActiveAlerts: dashboardData?.data?.summary?.totalActiveAlerts,
+  });
+  const totalActiveAlerts = alertSummary.state === 'LIVE' ? alertSummary.count : 0;
   const lastAnalysisDate = dashboardData?.data?.summary?.lastAnalysisDate;
   const alertCounts =
     dashboardData?.data?.alertsBySeverity ?? dashboardData?.data?.alertsByseverity;
   const isAnalysisRunning = performAnalysisMutation.isPending;
-  const analysisStatus = isAnalysisRunning
-    ? {
-        value: 'Running',
-        description: 'Variance analysis is in progress',
-        badgeText: 'In progress',
-        badgeVariant: 'secondary' as const,
-      }
-    : !lastAnalysisDate
+  const analysisStatus =
+    alertSummary.state === 'LOADING'
       ? {
-          value: 'Not Run',
-          description: 'Run analysis to generate the first report',
-          badgeText: 'No report',
+          value: 'Loading',
+          description: 'Loading alert summary',
+          badgeText: 'Loading',
           badgeVariant: 'secondary' as const,
         }
-      : totalActiveAlerts > 0
+      : alertSummary.state === 'FAILED'
         ? {
-            value: 'Attention',
-            description: 'Active alerts need review',
-            badgeText: `${totalActiveAlerts} active`,
+            value: 'Unavailable',
+            description: 'Alert summary failed to load',
+            badgeText: 'Data error',
             badgeVariant: 'destructive' as const,
           }
-        : {
-            value: 'Stable',
-            description: hasReports
-              ? 'Driven by latest variance report'
-              : 'Most recent analysis completed',
-            badgeText: 'No active alerts',
-            badgeVariant: 'default' as const,
-          };
+        : alertSummary.state === 'UNAVAILABLE'
+          ? {
+              value: 'Unavailable',
+              description: 'No alert summary available yet',
+              badgeText: 'No data',
+              badgeVariant: 'secondary' as const,
+            }
+          : isAnalysisRunning
+            ? {
+                value: 'Running',
+                description: 'Variance analysis is in progress',
+                badgeText: 'In progress',
+                badgeVariant: 'secondary' as const,
+              }
+            : !lastAnalysisDate
+              ? {
+                  value: 'Not Run',
+                  description: 'Run analysis to generate the first report',
+                  badgeText: 'No report',
+                  badgeVariant: 'secondary' as const,
+                }
+              : totalActiveAlerts > 0
+                ? {
+                    value: 'Attention',
+                    description: 'Active alerts need review',
+                    badgeText: `${totalActiveAlerts} active`,
+                    badgeVariant: 'destructive' as const,
+                  }
+                : {
+                    value: 'Stable',
+                    description: hasReports
+                      ? 'Driven by latest variance report'
+                      : 'Most recent analysis completed',
+                    badgeText: 'No active alerts',
+                    badgeVariant: 'default' as const,
+                  };
+
+  const activeAlertsValue: string | number =
+    alertSummary.state === 'LIVE'
+      ? alertSummary.count
+      : alertSummary.state === 'LOADING'
+        ? '…'
+        : '—';
+  const activeAlertsBadge =
+    alertSummary.state === 'LIVE'
+      ? {
+          text: `${alertCounts?.critical || 0} Critical`,
+          variant: ((alertCounts?.critical || 0) > 0 ? 'destructive' : 'secondary') as
+            | 'destructive'
+            | 'secondary',
+        }
+      : alertSummary.state === 'FAILED'
+        ? { text: 'Unavailable', variant: 'destructive' as const }
+        : { text: 'No data', variant: 'secondary' as const };
 
   // Handle baseline creation
   const handleCreateBaseline = async () => {
@@ -659,12 +705,9 @@ export default function VarianceTrackingPage() {
       <StatCardGrid>
         <StatCard
           title="Active Alerts"
-          value={dashboardData?.data?.summary?.totalActiveAlerts || 0}
+          value={activeAlertsValue}
           icon={AlertTriangle}
-          badge={{
-            text: `${alertCounts?.critical || 0} Critical`,
-            variant: (alertCounts?.critical || 0) > 0 ? 'destructive' : 'secondary',
-          }}
+          badge={activeAlertsBadge}
         />
         <StatCard
           title="Total Baselines"
