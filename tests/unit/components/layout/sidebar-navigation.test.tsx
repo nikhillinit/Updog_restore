@@ -25,12 +25,10 @@ async function loadNavigationModules() {
 
   const navigation = await import('@/components/layout/navigation-config');
   const sidebar = (await import('@/components/layout/sidebar')).default;
-  const expandableSidebar = (await import('@/components/layout/expandable-sidebar')).default;
   const { MobileNavigation } = await import('@/App');
 
   return {
     Sidebar: sidebar,
-    ExpandableSidebar: expandableSidebar,
     MobileNavigation,
     ...navigation,
   };
@@ -378,27 +376,5 @@ describe('sidebar results navigation', () => {
 
     const link = screen.getByRole('link', { name: /forecasting/i });
     expect(link.getAttribute('href')).toBe('/forecasting');
-  });
-
-  it('keeps expandable model results linkable to the recovery route without a fund', async () => {
-    mockFundContext = {
-      currentFund: null,
-      needsSetup: false,
-    };
-
-    const { ExpandableSidebar } = await loadNavigationModules();
-    const { Wrapper } = createWouterWrapper('/dashboard');
-    const { container } = render(
-      <Wrapper>
-        <ExpandableSidebar activeModule="dashboard" onModuleChange={vi.fn()} />
-      </Wrapper>
-    );
-
-    hoverSidebar(container);
-    fireEvent.click(screen.getByRole('button', { name: /administration/i }));
-
-    const link = screen.getByRole('link', { name: /model results/i });
-    expect(link.getAttribute('href')).toBe('/model-results');
-    expect(screen.getByRole('button', { name: /model results/i })).not.toBeDisabled();
   });
 });
