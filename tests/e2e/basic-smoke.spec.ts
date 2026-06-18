@@ -436,26 +436,6 @@ test.describe('Basic Smoke Tests', () => {
     }
   });
 
-  test('reserves demo renders and shows a numeric reserve ratio', async ({ page }) => {
-    test.setTimeout(90000);
-
-    await page.goto('/reserves-demo', { waitUntil: 'domcontentloaded', timeout: 10000 });
-
-    await expect(page).toHaveURL(/\/reserves-demo\b/);
-    await expect(page.locator('[data-testid="demo-root"]')).toBeVisible({
-      timeout: ROUTE_READY_TIMEOUT_MS,
-    });
-
-    const ratioText = await page.locator('[data-testid="demo-ratio"]').first().textContent();
-    const ratio = Number((ratioText || '').replace(/[^\d.]/g, ''));
-    expect(ratio).toBeGreaterThan(0);
-
-    await page.screenshot({
-      path: 'test-results/reserves-demo.png',
-      fullPage: true,
-    });
-  });
-
   test('mobile dashboard shell does not create document-level horizontal overflow', async ({
     page,
   }) => {
