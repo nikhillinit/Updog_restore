@@ -1,21 +1,22 @@
 ---
 status: ACTIVE
-last_updated: 2026-03-28
+last_updated: 2026-06-18
 ---
 
 # Secondary Surface Decisions
 
 ## Summary
 
-| Surface          | State                      | Owner Path                                                                                                              | Exposure Control                               | Rollback                                                                   |
-| ---------------- | -------------------------- | ----------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------- | -------------------------------------------------------------------------- |
-| `planning`       | Archived redirect          | `client/src/App.tsx`, `client/src/app/route-governance-registry.ts`                                                    | explicit route redirect                        | restore only via a new owned implementation and route decision             |
-| `kpi-manager`    | Archived redirect          | `client/src/App.tsx`, `client/src/app/route-governance-registry.ts`                                                    | explicit route redirect                        | restore only via a new owned implementation and route decision             |
-| `kpi-submission` | Archived redirect          | `client/src/App.tsx`, `client/src/app/route-governance-registry.ts`                                                    | explicit route redirect                        | restore only via a new owned implementation and route decision             |
-| `/reserves-demo` | Internal live demo         | `client/src/App.tsx`, `client/src/app/route-governance-registry.ts`, `tests/unit/app/route-perimeter-governance.test.tsx` | intentional direct route mount                 | retire only with an explicit demo deprecation decision                     |
-| `/shared/:shareId` | Public contract         | `client/src/App.tsx`, `client/src/app/route-governance-registry.ts`                                                    | intentional public mount                       | remove only with an explicit external-link migration                       |
-| `/portal/:rest*` | Public contract            | `client/src/App.tsx`, `client/src/app/route-governance-registry.ts`                                                    | intentional public mount to access denied      | change only with an explicit portal activation or deprecation plan         |
-| Compass          | Experimental and unmounted | `server/compass/routes.ts` plus future server mount gate                                                                | no server mount                                | mount only behind an explicit activation decision                          |
+| Surface                                                                          | State                                    | Owner Path                                                                              | Exposure Control                                                   | Rollback                                                                      |
+| -------------------------------------------------------------------------------- | ---------------------------------------- | --------------------------------------------------------------------------------------- | ------------------------------------------------------------------ | ----------------------------------------------------------------------------- |
+| `planning`                                                                       | Archived redirect                        | `client/src/App.tsx`, `client/src/app/route-governance-registry.ts`                     | explicit route redirect                                            | restore only via a new owned implementation and route decision                |
+| `kpi-manager`                                                                    | Archived redirect                        | `client/src/App.tsx`, `client/src/app/route-governance-registry.ts`                     | explicit route redirect                                            | restore only via a new owned implementation and route decision                |
+| `kpi-submission`                                                                 | Archived redirect                        | `client/src/App.tsx`, `client/src/app/route-governance-registry.ts`                     | explicit route redirect                                            | restore only via a new owned implementation and route decision                |
+| `/reserves-demo`                                                                 | Production-disabled (Branch A, dev-only) | `client/src/app/app-routes.tsx` (INTERNAL_DEMO_ROUTES), `scripts/check-prod-bundle.mjs` | import.meta.env.DEV gate; build-excluded and bundle-verifier guard | re-enable in prod only via an owned implementation and a fresh route decision |
+| `/allocation-manager`, `/cash-management`, `/portfolio-analytics`, `/cap-tables` | Production-disabled (Branch A, dev-only) | `client/src/app/app-routes.tsx` (INTERNAL_DEMO_ROUTES), `scripts/check-prod-bundle.mjs` | import.meta.env.DEV gate; build-excluded and bundle-verifier guard | replace mock surfaces with owned implementations before any prod re-enable    |
+| `/shared/:shareId`                                                               | Public contract                          | `client/src/App.tsx`, `client/src/app/route-governance-registry.ts`                     | intentional public mount                                           | remove only with an explicit external-link migration                          |
+| `/portal/:rest*`                                                                 | Public contract                          | `client/src/App.tsx`, `client/src/app/route-governance-registry.ts`                     | intentional public mount to access denied                          | change only with an explicit portal activation or deprecation plan            |
+| Compass                                                                          | Experimental and unmounted               | `server/compass/routes.ts` plus future server mount gate                                | no server mount                                                    | mount only behind an explicit activation decision                             |
 
 ## Planning
 
@@ -60,14 +61,24 @@ implementation and route decision.
 
 ## Reserves Demo
 
+> Supersession (2026-06-18, PR-1 Firebreaks): the 'intentionally mounted demo'
+> decision below is superseded. /reserves-demo and the four mock operational
+> surfaces (/allocation-manager, /cash-management, /portfolio-analytics,
+> /cap-tables) are now production-disabled - mounted only in development via
+> INTERNAL_DEMO_ROUTES (import.meta.env.DEV) in client/src/app/app-routes.tsx,
+> build-excluded from the production bundle, and guarded by
+> scripts/check-prod-bundle.mjs (QUARANTINED_MODULES). This replaces the source
+> proposal's PR-B policy-registry ceremony. These routes remain nav-orphaned and
+> were never sidebar destinations.
+
 - White: `/reserves-demo` is a direct smoke-tested surface backed by a real page
   component, but it was missing from the mounted app route list.
 - Red: leaving the page file unmounted makes CI pass depend on implementation
   luck instead of route truth.
 - Yellow: it is not a core workflow destination or sidebar item, but it is still
   a deliberate demo surface that should remain directly reachable.
-- Black: treating the demo as an accidental page guarantees future regressions in
-  build-only and smoke lanes.
+- Black: treating the demo as an accidental page guarantees future regressions
+  in build-only and smoke lanes.
 - Green: keep it mounted as an intentional internal-live route and cover it in
   route-perimeter tests.
 - Blue: final decision is to preserve `/reserves-demo` as an intentionally
@@ -83,15 +94,15 @@ design. Rollback: remove only with an explicit demo retirement decision.
   but they are still mounted entrypoints.
 - Red: treating them like incidental leftovers risks breaking externally
   addressable links during perimeter reduction.
-- Yellow: the portal is not active product scope yet, but the catch-all is
-  still the current auth/access-denied entrypoint.
+- Yellow: the portal is not active product scope yet, but the catch-all is still
+  the current auth/access-denied entrypoint.
 - Black: deleting either route without an explicit contract decision would
   create accidental regressions while hiding them from internal navigation
   review.
 - Green: keep both routes mounted and label them as public contracts in the
   governance registry and active docs.
-- Blue: final decision is to preserve `/shared/:shareId` and `/portal/:rest*`
-  as intentional public contracts during stabilization.
+- Blue: final decision is to preserve `/shared/:shareId` and `/portal/:rest*` as
+  intentional public contracts during stabilization.
 
 Benefits: makes the perimeter reduction honest without breaking external entry
 points. Trade-off: two non-core routes remain mounted by design. Rollback:
