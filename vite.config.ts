@@ -342,7 +342,7 @@ export default defineConfig(({ mode }: { mode: string }) => {
     build: {
       outDir: path.resolve(import.meta.dirname, 'dist/public'),
       emptyOutDir: true,
-      sourcemap: process.env['VITE_SOURCEMAP'] === 'true' ? true : true, // Always enable source maps for profiling (keeping environment option)
+      sourcemap: process.env['VITE_SOURCEMAP'] === 'true', // Off by default in production; opt in with VITE_SOURCEMAP=true. Avoids publishing maps that ease extraction of source/mock literals.
       minify: 'esbuild',
       target: 'es2020', // More compatible target for production
       cssMinify: 'lightningcss',

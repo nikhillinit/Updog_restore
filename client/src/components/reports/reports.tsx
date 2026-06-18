@@ -84,6 +84,14 @@ const REPORT_SURFACES: ReportSurface[] = [
   },
 ];
 
+// Tear Sheets are a DEV-only surface (gated in client/src/pages/reports.tsx). Drop the
+// entry in production so the Reporting Surfaces list does not advertise a tab that is
+// build-excluded and not rendered.
+const SHOW_TEAR_SHEETS = import.meta.env.DEV;
+const VISIBLE_REPORT_SURFACES = REPORT_SURFACES.filter(
+  (surface) => SHOW_TEAR_SHEETS || surface.id !== 'tear-sheets'
+);
+
 function formatMetricLabel(metric: string): string {
   switch (metric) {
     case 'totalValue':
@@ -472,7 +480,7 @@ export default function Reports() {
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            {REPORT_SURFACES.map((surface, index) => {
+            {VISIBLE_REPORT_SURFACES.map((surface, index) => {
               const Icon = surface.icon;
               const statusVariant =
                 surface.status === 'live'
@@ -532,7 +540,7 @@ export default function Reports() {
                     </div>
                   </div>
 
-                  {index < REPORT_SURFACES.length - 1 && <Separator />}
+                  {index < VISIBLE_REPORT_SURFACES.length - 1 && <Separator />}
                 </div>
               );
             })}
