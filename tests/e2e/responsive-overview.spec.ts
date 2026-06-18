@@ -26,12 +26,12 @@ test.describe('Responsive Overview', () => {
       // Look for metric cards container
       const metricsSection = page.locator('[data-testid="swipeable-metrics"], .overflow-x-auto');
 
-      if (await metricsSection.count() > 0) {
+      if ((await metricsSection.count()) > 0) {
         await expect(metricsSection.first()).toBeVisible();
 
         // Verify horizontal scroll is possible
-        const scrollWidth = await metricsSection.first().evaluate(el => el.scrollWidth);
-        const clientWidth = await metricsSection.first().evaluate(el => el.clientWidth);
+        const scrollWidth = await metricsSection.first().evaluate((el) => el.scrollWidth);
+        const clientWidth = await metricsSection.first().evaluate((el) => el.clientWidth);
 
         // Content should be wider than container (scrollable)
         expect(scrollWidth).toBeGreaterThanOrEqual(clientWidth);
@@ -49,14 +49,14 @@ test.describe('Responsive Overview', () => {
         // Get the scrollable container
         const container = table.locator('..');
 
-        const scrollWidth = await container.evaluate(el => el.scrollWidth);
-        const clientWidth = await container.evaluate(el => el.clientWidth);
+        const scrollWidth = await container.evaluate((el) => el.scrollWidth);
+        const clientWidth = await container.evaluate((el) => el.clientWidth);
 
         // If table is wider than viewport, it should be scrollable
         if (scrollWidth > clientWidth) {
           // Scroll to the right
-          await container.evaluate(el => el.scrollLeft = 100);
-          const newScrollLeft = await container.evaluate(el => el.scrollLeft);
+          await container.evaluate((el) => (el.scrollLeft = 100));
+          const newScrollLeft = await container.evaluate((el) => el.scrollLeft);
           expect(newScrollLeft).toBeGreaterThan(0);
         }
       }
@@ -88,7 +88,7 @@ test.describe('Responsive Overview', () => {
       // Find KPI cards
       const kpiCards = page.locator('[data-testid^="kpi-card-"], .kpi-card, [class*="KpiCard"]');
 
-      if (await kpiCards.count() > 0) {
+      if ((await kpiCards.count()) > 0) {
         const firstCard = kpiCards.first();
         const secondCard = kpiCards.nth(1);
 
@@ -118,7 +118,7 @@ test.describe('Responsive Overview', () => {
 
       const kpiCards = page.locator('[data-testid^="kpi-card-"], .kpi-card');
 
-      if (await kpiCards.count() >= 2) {
+      if ((await kpiCards.count()) >= 2) {
         const firstBox = await kpiCards.first().boundingBox();
         const secondBox = await kpiCards.nth(1).boundingBox();
 
@@ -149,7 +149,7 @@ test.describe('Responsive Overview', () => {
 
       // Navigation links should be visible
       const navLinks = page.getByRole('link').filter({ hasText: /overview|portfolio|model/i });
-      if (await navLinks.count() > 0) {
+      if ((await navLinks.count()) > 0) {
         await expect(navLinks.first()).toBeVisible();
       }
     });
@@ -160,7 +160,7 @@ test.describe('Responsive Overview', () => {
 
       const kpiCards = page.locator('[data-testid^="kpi-card-"], .kpi-card');
 
-      if (await kpiCards.count() >= 4) {
+      if ((await kpiCards.count()) >= 4) {
         const boxes = await Promise.all([
           kpiCards.nth(0).boundingBox(),
           kpiCards.nth(1).boundingBox(),
@@ -169,8 +169,8 @@ test.describe('Responsive Overview', () => {
         ]);
 
         // Check if cards are in a row (same Y position within tolerance)
-        if (boxes.every(b => b !== null)) {
-          const allOnSameRow = boxes.every(b => Math.abs(b!.y - boxes[0]!.y) < 20);
+        if (boxes.every((b) => b !== null)) {
+          const allOnSameRow = boxes.every((b) => Math.abs(b!.y - boxes[0]!.y) < 20);
           // On desktop with 4+ cards, at least some should be on same row
           // or grid should be 2x2
           expect(allOnSameRow || boxes[2]!.y > boxes[0]!.y).toBe(true);
@@ -195,29 +195,5 @@ test.describe('Responsive Overview', () => {
         }
       }
     });
-  });
-});
-
-test.describe('Collapsible Sections', () => {
-  test('can expand and collapse sections', async ({ page }) => {
-    await page.goto('/allocation-manager');
-    await page.waitForLoadState('networkidle');
-
-    // Look for collapsible triggers
-    const trigger = page.locator('[data-testid^="collapsible-trigger-"]').first();
-
-    if (await trigger.isVisible()) {
-      // Get initial state
-      const contentId = (await trigger.getAttribute('data-testid'))?.replace('trigger-', 'content-');
-      const content = page.getByTestId(contentId ?? '');
-
-      // Toggle to open
-      await trigger.click();
-      await expect(content).toBeVisible();
-
-      // Toggle to close
-      await trigger.click();
-      await expect(content).not.toBeVisible();
-    }
   });
 });

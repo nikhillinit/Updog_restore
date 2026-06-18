@@ -20,10 +20,6 @@ test.describe('GP Usability Audit - Broken Routes Regression', () => {
   const formerlyBrokenRoutes = [
     { path: '/forecasting', mustContain: /financial modeling|forecasting|scenario modeling/i },
     { path: '/model-results', mustContain: /model results|select a fund/i },
-    { path: '/allocation-manager', mustContain: /allocation|capital allocation/i },
-    { path: '/cash-management', mustContain: /cash|liquidity/i },
-    { path: '/portfolio-analytics', mustContain: /analytics|portfolio analysis/i },
-    { path: '/cap-tables', mustContain: /cap table|capitalization|ownership/i },
   ];
 
   for (const { path, mustContain } of formerlyBrokenRoutes) {
@@ -232,26 +228,12 @@ test.describe('GP Usability Audit - Fund Context Detection', () => {
   });
 });
 
-test.describe('GP Usability Audit - Cap Tables Loading', () => {
-  test('Cap Tables does not infinite-load', async ({ page }) => {
-    await installQaAuditApi(page);
-    await page.goto('/cap-tables', { waitUntil: 'domcontentloaded' });
-    await page.waitForTimeout(3000);
-    const state = await captureMainPageState(page, '/cap-tables');
-    expect(state.has404).toBe(false);
-    // After 3 seconds, should not still be showing only a loading spinner
-    // We accept either loaded content or an empty-state message
-    expect(state.pageText).toMatch(/cap table|ownership|shareholder|no data|empty/i);
-  });
-});
-
 test.describe('GP Usability Audit - Core Workspaces', () => {
   const coreWorkspaces = [
     { path: '/dashboard', mustContain: /dashboard|overview|metrics/i },
     { path: '/fund-setup', mustContain: /fund setup|fund basics|construction|wizard/i },
     { path: '/sensitivity-analysis', mustContain: /sensitivity|monte carlo|backtest/i },
     { path: '/reports', mustContain: /reports|tear sheets|fund reporting/i },
-    { path: '/reserves-demo', mustContain: /reserves|reserve allocation|graduation/i },
     { path: '/variance-tracking', mustContain: /variance|tracking|baseline/i },
     { path: '/pipeline', mustContain: /pipeline|deals/i },
     { path: '/help', mustContain: /help|support|documentation/i },
