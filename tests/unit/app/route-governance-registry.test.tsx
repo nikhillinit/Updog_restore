@@ -92,21 +92,6 @@ describe('route governance registry', () => {
     });
   });
 
-  it('governs restored operational entrypoints as intentionally mounted internal-live surfaces', () => {
-    for (const pathname of [
-      '/allocation-manager',
-      '/cash-management',
-      '/portfolio-analytics',
-      '/cap-tables',
-    ]) {
-      expect(getRouteGovernanceEntry(pathname)).toMatchObject({
-        exposure: 'internal-live',
-        surface: 'app-route',
-        isProtected: true,
-      });
-    }
-  });
-
   it('tracks archived placeholder routes as redirect-only entrypoints', () => {
     expect(sorted(ARCHIVED_PLACEHOLDER_GOVERNED_PATHS)).toEqual(
       sorted(['/planning', '/kpi-manager', '/kpi-submission', '/investments'])
@@ -176,5 +161,10 @@ describe('route governance registry', () => {
     expect(getRouteGovernanceEntry('/dev-dashboard')).toBeUndefined();
     expect(getRouteGovernanceEntry('/investments/:id')).toBeUndefined();
     expect(getRouteGovernanceEntry('/investments/company/:id')).toBeUndefined();
+    expect(getRouteGovernanceEntry('/reserves-demo')).toBeUndefined();
+    expect(getRouteGovernanceEntry('/allocation-manager')).toBeUndefined();
+    expect(getRouteGovernanceEntry('/cash-management')).toBeUndefined();
+    expect(getRouteGovernanceEntry('/portfolio-analytics')).toBeUndefined();
+    expect(getRouteGovernanceEntry('/cap-tables')).toBeUndefined();
   });
 });
