@@ -7,10 +7,10 @@ const read = (relativePath: string) =>
 
 describe('LP Reporting report-package source guards', () => {
   it('does not add a standalone /lp-reporting/reports client route or navigation item', () => {
-    const appSource = read('client/src/App.tsx');
-    const navigationSource = read('client/src/config/navigation.ts');
+    const appRoutesSource = read('client/src/app/app-routes.tsx');
+    const navigationSource = read('client/src/components/layout/navigation-config.ts');
 
-    expect(appSource).not.toContain('/lp-reporting/reports');
+    expect(appRoutesSource).not.toContain('/lp-reporting/reports');
     expect(navigationSource).not.toContain('/lp-reporting/reports');
   });
 

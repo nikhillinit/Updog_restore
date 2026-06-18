@@ -14,7 +14,14 @@ const DIST_DIR = resolve(process.cwd(), 'dist/public');
 const MANIFEST_PATH = join(DIST_DIR, '.vite/manifest.json');
 
 // Source-path substrings that must never appear in a production build manifest.
-export const QUARANTINED_MODULES = ['tear-sheet-dashboard'];
+export const QUARANTINED_MODULES = [
+  'tear-sheet-dashboard',
+  'reserves-demo',
+  'allocation-manager',
+  'cash-management',
+  'portfolio-analytics',
+  'CapTables',
+];
 
 /** Pure: return manifest entries whose key/src/file matches a forbidden substring. */
 export function findForbiddenModules(manifest, forbiddenSubstrings) {
