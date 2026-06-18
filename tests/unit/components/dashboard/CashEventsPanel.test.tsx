@@ -276,6 +276,37 @@ describe('CashEventsPanel lifecycle controls', () => {
     expect(mockApprove).not.toHaveBeenCalled();
   });
 
+  it('disables Approve and does not POST while draft edits are unsaved', async () => {
+    const user = userEvent.setup();
+    mockUseFlag.mockReturnValue(true);
+    render(
+      <CashEventsPanel fundId="1" state={{ panel: 'cash-events', object: '10' }} {...noopProps()} />
+    );
+
+    await user.clear(screen.getByLabelText('Amount'));
+    await user.type(screen.getByLabelText('Amount'), '2000000');
+
+    const approve = screen.getByRole('button', { name: /approve/i });
+    expect(screen.getByRole('button', { name: 'Save' })).toBeEnabled();
+    expect(approve).toBeDisabled();
+    await user.click(approve).catch(() => {});
+    expect(mockApprove).not.toHaveBeenCalled();
+  });
+
+  it('re-enables Approve after dirty draft edits are cancelled', async () => {
+    const user = userEvent.setup();
+    mockUseFlag.mockReturnValue(true);
+    render(
+      <CashEventsPanel fundId="1" state={{ panel: 'cash-events', object: '10' }} {...noopProps()} />
+    );
+
+    await user.clear(screen.getByLabelText('Amount'));
+    await user.type(screen.getByLabelText('Amount'), '2000000');
+    await user.click(screen.getByRole('button', { name: 'Cancel' }));
+
+    expect(screen.getByRole('button', { name: /approve/i })).toBeEnabled();
+  });
+
   it('surfaces a 412 conflict via role=alert on approve', async () => {
     const user = userEvent.setup();
     mockUseFlag.mockReturnValue(true);

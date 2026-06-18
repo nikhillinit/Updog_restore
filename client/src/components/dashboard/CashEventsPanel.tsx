@@ -114,23 +114,25 @@ export function CashEventsPanel({
     effectiveStatus === 'draft' &&
     effectiveEtag != null &&
     !isTransitionRefreshPending;
+  const patch = loadedEvent && form ? buildLpCapitalCallPatch(loadedEvent, form) : {};
+  const isDirty = Object.keys(patch).length > 0;
   const showApprove =
     isLifecycleTarget && effectiveStatus === 'draft' && !isTransitionRefreshPending;
   const showLock =
     isLifecycleTarget && effectiveStatus === 'approved' && !isTransitionRefreshPending;
-  const canApprove = showApprove && effectiveEtag != null && !approveMutation.isPending;
+  const canApprove = showApprove && effectiveEtag != null && !isDirty && !approveMutation.isPending;
   const canLock = showLock && effectiveEtag != null && !lockMutation.isPending;
   const disabledTransitionReason =
     (showApprove || showLock) && effectiveEtag == null
       ? "This record can't be advanced yet."
-      : null;
+      : showApprove && isDirty
+        ? 'Save or cancel unsaved changes before approving.'
+        : null;
   const disabledTransitionReasonId =
     disabledTransitionReason && effectiveEvent
       ? `cash-event-${effectiveEvent.id}-transition-reason`
       : undefined;
 
-  const patch = loadedEvent && form ? buildLpCapitalCallPatch(loadedEvent, form) : {};
-  const isDirty = Object.keys(patch).length > 0;
   const canSave =
     isEditable && isDirty && form != null && isCashEventFormValid(form) && !mutation.isPending;
   const panelDescription =
