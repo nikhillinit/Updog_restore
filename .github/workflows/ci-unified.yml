@@ -284,6 +284,9 @@ jobs:
         env:
           NODE_ENV: production
 
+      - name: Verify production bundle
+        run: npm run build:verify
+
       - name: Bundle size check
         run: npm run bundle:check || true
 
