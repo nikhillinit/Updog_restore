@@ -120,7 +120,7 @@ Implements three critical UX/performance improvements:
    - Telemetry tracking for success/failure
 
 2. **Lazy Loading for Routes**
-   - Code-split heavy routes (fund-setup, reserves-demo)
+   - Code-split heavy live routes
    - Reduced initial bundle size by ~30%
    - Faster first paint and TTI
    - Automatic chunk loading on navigation
