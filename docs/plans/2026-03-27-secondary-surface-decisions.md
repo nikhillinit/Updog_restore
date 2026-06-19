@@ -155,3 +155,27 @@ hook with zero impact on any live endpoint. Trade-off: the version-history
 backend is no longer a recoverable runtime surface without re-implementation.
 Rollback: revert the branch; the `snapshotVersions` table is left intact, so no
 data is lost.
+
+## Verified-Orphan Cleanup (PR-6)
+
+Two zero-importer orphan files removed after parallel closure analysis +
+adversarial verification across all nine reference channels (static/dynamic
+import, path-string read, route registry, navigation-config, redirect map,
+Playwright testMatch across all configs, server mount, worker registration):
+
+- `server/routes/public/flags.ts` — DELETED. `@deprecated` legacy flags route,
+  superseded by the secure `flagsRouter` (`server/routes/flags.ts`) mounted at
+  `/api/flags` in both `app.ts` and `routes.ts`; `server.ts` had already removed
+  it. Zero callers, tests, or registry hits.
+- `client/src/components/common/ComingSoonPage.tsx` — DELETED. Pure-orphan
+  minimal duplicate (legacy CSS) of `client/src/components/ComingSoonPage.tsx`.
+- `client/src/components/ComingSoonPage.tsx` — KEPT as inventory. Richer variant
+  with hub-specific named exports; currently unimported but retained by decision
+  for future integration.
+
+Deferred (separate decisions, not in this PR): LP-sibling routes
+(`lp-{capital-calls,distributions,documents,notifications}.ts`) are unmounted
+but called by live `/lp/dashboard` widgets (a 404 bug) — decision: MOUNT the
+routes (tracked as follow-up). `NotionIntegrationHub` + `notion-integration.tsx`
+remain dormant per the keep-registry. The other nine `@deprecated` symbols have
+live callers and are retained.
