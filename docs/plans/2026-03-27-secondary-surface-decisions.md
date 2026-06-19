@@ -1,22 +1,23 @@
 ---
 status: ACTIVE
-last_updated: 2026-06-18
+last_updated: 2026-06-19
 ---
 
 # Secondary Surface Decisions
 
 ## Summary
 
-| Surface                                                                          | State                      | Owner Path                                                          | Exposure Control                                                      | Rollback                                                              |
-| -------------------------------------------------------------------------------- | -------------------------- | ------------------------------------------------------------------- | --------------------------------------------------------------------- | --------------------------------------------------------------------- |
-| `planning`                                                                       | Archived redirect          | `client/src/App.tsx`, `client/src/app/route-governance-registry.ts` | explicit route redirect                                               | restore only via a new owned implementation and route decision        |
-| `kpi-manager`                                                                    | Archived redirect          | `client/src/App.tsx`, `client/src/app/route-governance-registry.ts` | explicit route redirect                                               | restore only via a new owned implementation and route decision        |
-| `kpi-submission`                                                                 | Archived redirect          | `client/src/App.tsx`, `client/src/app/route-governance-registry.ts` | explicit route redirect                                               | restore only via a new owned implementation and route decision        |
-| `/reserves-demo`                                                                 | Deleted (Branch B)         | removed in branch chore/remove-mock-surface-pages                   | not mounted in any environment; bundle verifier guards reintroduction | re-create only via an owned implementation and a fresh route decision |
-| `/allocation-manager`, `/cash-management`, `/portfolio-analytics`, `/cap-tables` | Deleted (Branch B)         | removed in branch chore/remove-mock-surface-pages                   | not mounted in any environment; bundle verifier guards reintroduction | re-create only via owned implementations                              |
-| `/shared/:shareId`                                                               | Public contract            | `client/src/App.tsx`, `client/src/app/route-governance-registry.ts` | intentional public mount                                              | remove only with an explicit external-link migration                  |
-| `/portal/:rest*`                                                                 | Public contract            | `client/src/App.tsx`, `client/src/app/route-governance-registry.ts` | intentional public mount to access denied                             | change only with an explicit portal activation or deprecation plan    |
-| Compass                                                                          | Experimental and unmounted | `server/compass/routes.ts` plus future server mount gate            | no server mount                                                       | mount only behind an explicit activation decision                     |
+| Surface                                                                                                            | State                                   | Owner Path                                                          | Exposure Control                                                                                                                           | Rollback                                                                                     |
+| ------------------------------------------------------------------------------------------------------------------ | --------------------------------------- | ------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------- |
+| `planning`                                                                                                         | Archived redirect                       | `client/src/App.tsx`, `client/src/app/route-governance-registry.ts` | explicit route redirect                                                                                                                    | restore only via a new owned implementation and route decision                               |
+| `kpi-manager`                                                                                                      | Archived redirect                       | `client/src/App.tsx`, `client/src/app/route-governance-registry.ts` | explicit route redirect                                                                                                                    | restore only via a new owned implementation and route decision                               |
+| `kpi-submission`                                                                                                   | Archived redirect                       | `client/src/App.tsx`, `client/src/app/route-governance-registry.ts` | explicit route redirect                                                                                                                    | restore only via a new owned implementation and route decision                               |
+| `/reserves-demo`                                                                                                   | Deleted (Branch B)                      | removed in branch chore/remove-mock-surface-pages                   | not mounted in any environment; bundle verifier guards reintroduction                                                                      | re-create only via an owned implementation and a fresh route decision                        |
+| `/allocation-manager`, `/cash-management`, `/portfolio-analytics`, `/cap-tables`                                   | Deleted (Branch B)                      | removed in branch chore/remove-mock-surface-pages                   | not mounted in any environment; bundle verifier guards reintroduction                                                                      | re-create only via owned implementations                                                     |
+| `/shared/:shareId`                                                                                                 | Public contract                         | `client/src/App.tsx`, `client/src/app/route-governance-registry.ts` | intentional public mount                                                                                                                   | remove only with an explicit external-link migration                                         |
+| `/portal/:rest*`                                                                                                   | Public contract                         | `client/src/App.tsx`, `client/src/app/route-governance-registry.ts` | intentional public mount to access denied                                                                                                  | change only with an explicit portal activation or deprecation plan                           |
+| Compass                                                                                                            | Experimental and unmounted              | `server/compass/routes.ts` plus future server mount gate            | no server mount                                                                                                                            | mount only behind an explicit activation decision                                            |
+| Portfolio snapshot/version API (`/api/funds/:fundId/portfolio/snapshots`, `/api/snapshots/:snapshotId/versions/*`) | Archived (deleted; unmounted dead code) | removed in branch chore/archive-snapshot-version-surface            | never mounted in any environment (vestigial `server/routes/portfolio/index.ts` barrel imported by nobody; `lots.ts` mounted independently) | restore only via an owned implementation + an explicit makeApp/registerRoutes mount decision |
 
 ## Planning
 
@@ -124,3 +125,33 @@ replace only through an explicit deprecation or activation plan.
 Benefits: reduces false scope and keeps Sprint 4 focused on real exposure.
 Trade-off: Compass remains intentionally out of the shipped surface. Rollback:
 add a separate activation spec and server mount gate before exposing it.
+
+## Portfolio Snapshot / Version History API
+
+- White: `server/routes/portfolio/{snapshots,versions}.ts` (+ the `index.ts`
+  barrel that mounted them, plus `snapshot-version-service`,
+  `version-comparison-service`, and the `version-pruning-worker`) were fully
+  implemented but the barrel was never imported, so none of the routes were ever
+  mounted. `lots.ts` is mounted on its own.
+- Red: carrying an unmounted 15-route version-history API plus an unregistered
+  daily pruning worker is dead weight that implies a capability the app does not
+  expose.
+- Yellow: the live `/api/timeline` router and the live `snapshot-service` (used
+  by `shares.ts`) already cover the real, wired snapshot needs; the
+  `forecastSnapshots` table is retained for them.
+- Black: the only client caller, `useRestoreSnapshotVersion`, was an exported
+  but uncalled hook; shipping it kept a 404-on-call path one wire away from
+  users.
+- Green: delete the unmounted routes, the barrel, the two exclusive services,
+  the unregistered worker, the exclusive `version-schemas`, the dead client
+  hook, and the three tests that target the deleted modules. Keep all DB tables
+  (no migration).
+- Blue: final decision is to archive (delete) the surface; git history preserves
+  it if portfolio version-history is ever wired with an owned implementation and
+  a real mount.
+
+Benefits: removes ~15 uncalled routes, an unregistered worker, and a dead client
+hook with zero impact on any live endpoint. Trade-off: the version-history
+backend is no longer a recoverable runtime surface without re-implementation.
+Rollback: revert the branch; the `snapshotVersions` table is left intact, so no
+data is lost.
