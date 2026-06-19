@@ -100,15 +100,6 @@ vi.mock('@/pages/sensitivity-analysis', () => ({
 }));
 vi.mock('@/pages/settings', () => ({ default: () => <div>Settings Page</div> }));
 vi.mock('@/pages/help', () => ({ default: () => <div>Help Page</div> }));
-vi.mock('@/pages/reserves-demo', () => ({ default: () => <div>Reserves Demo Page</div> }));
-vi.mock('@/pages/allocation-manager', () => ({
-  default: () => <div>Allocation Manager Page</div>,
-}));
-vi.mock('@/pages/cash-management', () => ({ default: () => <div>Cash Management Page</div> }));
-vi.mock('@/pages/portfolio-analytics', () => ({
-  default: () => <div>Portfolio Analytics Page</div>,
-}));
-vi.mock('@/pages/CapTables', () => ({ default: () => <div>Cap Tables Page</div> }));
 vi.mock('@/pages/fund-model-results', () => ({
   default: () => <div>Fund Model Results Page</div>,
 }));

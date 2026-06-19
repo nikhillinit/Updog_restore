@@ -103,15 +103,6 @@ vi.mock('@/pages/sensitivity-analysis', () => ({
 }));
 vi.mock('@/pages/settings', () => ({ default: () => <div>Settings Page</div> }));
 vi.mock('@/pages/help', () => ({ default: () => <div>Help Page</div> }));
-vi.mock('@/pages/reserves-demo', () => ({ default: () => <div>Reserves Demo Page</div> }));
-vi.mock('@/pages/allocation-manager', () => ({
-  default: () => <div>Allocation Manager Page</div>,
-}));
-vi.mock('@/pages/cash-management', () => ({ default: () => <div>Cash Management Page</div> }));
-vi.mock('@/pages/portfolio-analytics', () => ({
-  default: () => <div>Portfolio Analytics Page</div>,
-}));
-vi.mock('@/pages/CapTables', () => ({ default: () => <div>Cap Tables Page</div> }));
 vi.mock('@/pages/fund-model-results', () => ({
   default: () => <div>Fund Model Results Page</div>,
 }));
@@ -172,11 +163,6 @@ describe('route perimeter governance', () => {
     ['/sensitivity-analysis', 'Sensitivity Analysis Page'],
     ['/settings', 'Settings Page'],
     ['/help', 'Help Page'],
-    ['/reserves-demo', 'Reserves Demo Page'],
-    ['/allocation-manager', 'Allocation Manager Page'],
-    ['/cash-management', 'Cash Management Page'],
-    ['/portfolio-analytics', 'Portfolio Analytics Page'],
-    ['/cap-tables', 'Cap Tables Page'],
     ['/fund-model-results/42', 'Fund Model Results Page'],
   ])('keeps mounted route %s live', async (path, expectedText) => {
     await renderAt(path);
@@ -211,6 +197,11 @@ describe('route perimeter governance', () => {
     '/portfolio/1',
     '/investments/1',
     '/investments/company/1',
+    '/reserves-demo',
+    '/allocation-manager',
+    '/cash-management',
+    '/portfolio-analytics',
+    '/cap-tables',
   ])('removes non-core internal route %s from the default runtime perimeter', async (path) => {
     await renderAt(path);
 

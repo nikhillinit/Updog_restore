@@ -65,39 +65,6 @@ export interface AppRouteEntry {
   isProtected?: boolean;
 }
 
-// Internal/demo surfaces. import.meta.env.DEV is statically replaced with false
-// in production builds, so Rollup tree-shakes these dynamic imports out of the prod
-// bundle (same mechanism as the Tear Sheet dashboard in pages/reports.tsx).
-// Production decision for /reserves-demo: Branch A - production-disabled.
-// Guarded by scripts/check-prod-bundle.mjs (QUARANTINED_MODULES).
-const SHOW_INTERNAL_DEMOS = import.meta.env.DEV;
-
-const INTERNAL_DEMO_ROUTES: AppRouteEntry[] = SHOW_INTERNAL_DEMOS
-  ? [
-      {
-        path: '/allocation-manager',
-        component: React.lazy(() => import('@/pages/allocation-manager')),
-        isProtected: true,
-      },
-      {
-        path: '/cash-management',
-        component: React.lazy(() => import('@/pages/cash-management')),
-        isProtected: true,
-      },
-      {
-        path: '/portfolio-analytics',
-        component: React.lazy(() => import('@/pages/portfolio-analytics')),
-        isProtected: true,
-      },
-      {
-        path: '/cap-tables',
-        component: React.lazy(() => import('@/pages/CapTables')),
-        isProtected: true,
-      },
-      { path: '/reserves-demo', component: React.lazy(() => import('@/pages/reserves-demo')) },
-    ]
-  : [];
-
 export const APP_ROUTES: AppRouteEntry[] = [
   { path: '/fund-setup', component: FundSetup },
   { path: '/dashboard', component: Dashboard, isProtected: true },
@@ -124,7 +91,6 @@ export const APP_ROUTES: AppRouteEntry[] = [
   { path: '/lp-reporting/imports', component: LpReportingImportsPage, isProtected: true },
   { path: '/settings', component: SettingsPage, isProtected: true },
   { path: '/help', component: HelpPage },
-  ...INTERNAL_DEMO_ROUTES,
 ];
 
 export interface ArchivedPlaceholderRouteEntry {
