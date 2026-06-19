@@ -44,14 +44,7 @@ describe('legacy route map', () => {
     ]);
 
     expect(runtimeRoutePaths).toEqual(
-      expect.arrayContaining([
-        '/financial-modeling',
-        '/forecasting',
-        '/allocation-manager',
-        '/cash-management',
-        '/portfolio-analytics',
-        '/cap-tables',
-      ])
+      expect.arrayContaining(['/financial-modeling', '/forecasting'])
     );
     expect(archivedPlaceholderRoutes.get('/planning')).toBe('/portfolio?tab=reserve-planning');
     expect(archivedPlaceholderRoutes.get('/investments')).toBe('/portfolio');

@@ -7,16 +7,16 @@ last_updated: 2026-06-18
 
 ## Summary
 
-| Surface                                                                          | State                                    | Owner Path                                                                              | Exposure Control                                                   | Rollback                                                                      |
-| -------------------------------------------------------------------------------- | ---------------------------------------- | --------------------------------------------------------------------------------------- | ------------------------------------------------------------------ | ----------------------------------------------------------------------------- |
-| `planning`                                                                       | Archived redirect                        | `client/src/App.tsx`, `client/src/app/route-governance-registry.ts`                     | explicit route redirect                                            | restore only via a new owned implementation and route decision                |
-| `kpi-manager`                                                                    | Archived redirect                        | `client/src/App.tsx`, `client/src/app/route-governance-registry.ts`                     | explicit route redirect                                            | restore only via a new owned implementation and route decision                |
-| `kpi-submission`                                                                 | Archived redirect                        | `client/src/App.tsx`, `client/src/app/route-governance-registry.ts`                     | explicit route redirect                                            | restore only via a new owned implementation and route decision                |
-| `/reserves-demo`                                                                 | Production-disabled (Branch A, dev-only) | `client/src/app/app-routes.tsx` (INTERNAL_DEMO_ROUTES), `scripts/check-prod-bundle.mjs` | import.meta.env.DEV gate; build-excluded and bundle-verifier guard | re-enable in prod only via an owned implementation and a fresh route decision |
-| `/allocation-manager`, `/cash-management`, `/portfolio-analytics`, `/cap-tables` | Production-disabled (Branch A, dev-only) | `client/src/app/app-routes.tsx` (INTERNAL_DEMO_ROUTES), `scripts/check-prod-bundle.mjs` | import.meta.env.DEV gate; build-excluded and bundle-verifier guard | replace mock surfaces with owned implementations before any prod re-enable    |
-| `/shared/:shareId`                                                               | Public contract                          | `client/src/App.tsx`, `client/src/app/route-governance-registry.ts`                     | intentional public mount                                           | remove only with an explicit external-link migration                          |
-| `/portal/:rest*`                                                                 | Public contract                          | `client/src/App.tsx`, `client/src/app/route-governance-registry.ts`                     | intentional public mount to access denied                          | change only with an explicit portal activation or deprecation plan            |
-| Compass                                                                          | Experimental and unmounted               | `server/compass/routes.ts` plus future server mount gate                                | no server mount                                                    | mount only behind an explicit activation decision                             |
+| Surface                                                                          | State                      | Owner Path                                                          | Exposure Control                                                      | Rollback                                                              |
+| -------------------------------------------------------------------------------- | -------------------------- | ------------------------------------------------------------------- | --------------------------------------------------------------------- | --------------------------------------------------------------------- |
+| `planning`                                                                       | Archived redirect          | `client/src/App.tsx`, `client/src/app/route-governance-registry.ts` | explicit route redirect                                               | restore only via a new owned implementation and route decision        |
+| `kpi-manager`                                                                    | Archived redirect          | `client/src/App.tsx`, `client/src/app/route-governance-registry.ts` | explicit route redirect                                               | restore only via a new owned implementation and route decision        |
+| `kpi-submission`                                                                 | Archived redirect          | `client/src/App.tsx`, `client/src/app/route-governance-registry.ts` | explicit route redirect                                               | restore only via a new owned implementation and route decision        |
+| `/reserves-demo`                                                                 | Deleted (Branch B)         | removed in branch chore/remove-mock-surface-pages                   | not mounted in any environment; bundle verifier guards reintroduction | re-create only via an owned implementation and a fresh route decision |
+| `/allocation-manager`, `/cash-management`, `/portfolio-analytics`, `/cap-tables` | Deleted (Branch B)         | removed in branch chore/remove-mock-surface-pages                   | not mounted in any environment; bundle verifier guards reintroduction | re-create only via owned implementations                              |
+| `/shared/:shareId`                                                               | Public contract            | `client/src/App.tsx`, `client/src/app/route-governance-registry.ts` | intentional public mount                                              | remove only with an explicit external-link migration                  |
+| `/portal/:rest*`                                                                 | Public contract            | `client/src/App.tsx`, `client/src/app/route-governance-registry.ts` | intentional public mount to access denied                             | change only with an explicit portal activation or deprecation plan    |
+| Compass                                                                          | Experimental and unmounted | `server/compass/routes.ts` plus future server mount gate            | no server mount                                                       | mount only behind an explicit activation decision                     |
 
 ## Planning
 
@@ -61,15 +61,14 @@ implementation and route decision.
 
 ## Reserves Demo
 
-> Supersession (2026-06-18, PR-1 Firebreaks): the 'intentionally mounted demo'
-> decision below is superseded. /reserves-demo and the four mock operational
-> surfaces (/allocation-manager, /cash-management, /portfolio-analytics,
-> /cap-tables) are now production-disabled - mounted only in development via
-> INTERNAL_DEMO_ROUTES (import.meta.env.DEV) in client/src/app/app-routes.tsx,
-> build-excluded from the production bundle, and guarded by
-> scripts/check-prod-bundle.mjs (QUARANTINED_MODULES). This replaces the source
-> proposal's PR-B policy-registry ceremony. These routes remain nav-orphaned and
-> were never sidebar destinations.
+> Supersession (2026-06-18, Branch B): /reserves-demo and the four mock
+> operational surfaces (/allocation-manager, /cash-management,
+> /portfolio-analytics, /cap-tables) plus their transitively-dead component
+> closure have been DELETED entirely. PR-1 (the firebreak) first build-excluded
+> them as dev-only; this follow-up removes the page modules and 12 dead
+> components outright. They are no longer mounted in any environment.
+> scripts/check-prod-bundle.mjs (QUARANTINED_MODULES) remains as a permanent
+> guard against reintroduction into the production bundle.
 
 - White: `/reserves-demo` is a direct smoke-tested surface backed by a real page
   component, but it was missing from the mounted app route list.
