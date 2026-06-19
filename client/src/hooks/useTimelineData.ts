@@ -18,19 +18,6 @@ export interface Snapshot {
   metadata: Record<string, unknown>;
 }
 
-export interface RestoreSnapshotVersionResponse {
-  success: boolean;
-  data: {
-    id: string;
-    snapshotId: string;
-    versionNumber: number;
-    versionName: string | null;
-    isCurrent: boolean;
-    createdAt: string;
-  };
-  message: string;
-}
-
 export interface SnapshotRequestQueuedResponse {
   message: string;
   fundId: number;
@@ -221,53 +208,6 @@ export function useCreateSnapshot() {
       queryClient.invalidateQueries({
         queryKey: ['/api/timeline', variables.fundId],
       });
-    },
-  });
-}
-
-export function useRestoreSnapshotVersion(fundId: number) {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: async (params: {
-      snapshotId: string;
-      versionId: string;
-      description?: string;
-      expectedCurrentVersionId?: string;
-    }) =>
-      apiRequest<RestoreSnapshotVersionResponse>(
-        'POST',
-        `/api/snapshots/${params.snapshotId}/versions/${params.versionId}/restore`,
-        {
-          description: params.description,
-          expectedCurrentVersionId: params.expectedCurrentVersionId,
-        }
-      ),
-    onSuccess: async () => {
-      if (!fundId) {
-        return;
-      }
-
-      await Promise.all([
-        queryClient.invalidateQueries({
-          queryKey: ['/api/timeline', fundId],
-        }),
-        queryClient.invalidateQueries({
-          queryKey: ['fund-metrics', fundId],
-        }),
-      ]);
-
-      const invalidateResponse = await fetch(`/api/funds/${fundId}/metrics/invalidate`, {
-        method: 'POST',
-        credentials: 'include',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      });
-
-      if (!invalidateResponse.ok) {
-        throw new Error('Restore succeeded, but server metrics cache invalidation failed');
-      }
     },
   });
 }
