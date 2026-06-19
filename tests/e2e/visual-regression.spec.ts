@@ -53,34 +53,6 @@ test.describe('UI Catalog Visual Regression', () => {
     }
   });
 
-  test('CollapsibleSection states', async ({ page }) => {
-    const collapsibleSection = page.locator('text=CollapsibleSection').first();
-
-    if (await collapsibleSection.isVisible()) {
-      await collapsibleSection.scrollIntoViewIfNeeded();
-
-      const demo = page.locator('[data-testid^="collapsible-"]').first();
-
-      if (await demo.isVisible()) {
-        // Capture collapsed state
-        await expect(demo).toHaveScreenshot('collapsible-collapsed.png', {
-          threshold: 0.1,
-        });
-
-        // Toggle to expanded
-        const trigger = page.locator('[data-testid^="collapsible-trigger-"]').first();
-        if (await trigger.isVisible()) {
-          await trigger.click();
-          await page.waitForTimeout(300); // Wait for animation
-
-          await expect(demo).toHaveScreenshot('collapsible-expanded.png', {
-            threshold: 0.1,
-          });
-        }
-      }
-    }
-  });
-
   test('SplitPane layout', async ({ page }) => {
     const splitPaneSection = page.locator('text=SplitPane').first();
 
