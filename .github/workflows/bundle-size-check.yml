@@ -23,11 +23,11 @@ jobs:
     outputs:
       artifact-ready: ${{ steps.base-artifact.outputs.ready }}
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
         with:
           path: pr-tools
 
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
         with:
           ref: ${{ github.base_ref }}
           path: base-branch
@@ -99,7 +99,7 @@ jobs:
     name: Build PR Branch
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
       - uses: actions/setup-node@v6
         with:
@@ -128,7 +128,7 @@ jobs:
     needs: [build-base, build-pr]
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
       - uses: actions/download-artifact@v8
         if: needs.build-base.outputs.artifact-ready == 'true'
