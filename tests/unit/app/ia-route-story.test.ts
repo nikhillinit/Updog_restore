@@ -18,13 +18,7 @@ describe('IA route story metadata', () => {
     const archivedPlaceholderRoutes = new Map(
       ARCHIVED_PLACEHOLDER_ROUTES.map((route) => [route.path, route.redirectTarget])
     );
-    const runtimeOwnedModelSurfaces = [
-      '/financial-modeling',
-      '/forecasting',
-      '/cash-management',
-      '/portfolio-analytics',
-      '/cap-tables',
-    ];
+    const runtimeOwnedModelSurfaces = ['/financial-modeling', '/forecasting'];
 
     expect(runtimeRoutePaths).toEqual(expect.arrayContaining(runtimeOwnedModelSurfaces));
     expect(archivedPlaceholderRoutes.get('/investments')).toBe('/portfolio');

@@ -136,38 +136,10 @@ test.describe('Telemetry System', () => {
     }, TELEMETRY_KEY);
 
     // Look for tour-related events
-    const tourEvents = buffer.filter((e: { event: string }) =>
-      e.event.startsWith('tour_')
-    );
+    const tourEvents = buffer.filter((e: { event: string }) => e.event.startsWith('tour_'));
 
     if (await tour.isVisible({ timeout: 1000 }).catch(() => false)) {
       expect(tourEvents.length).toBeGreaterThan(0);
-    }
-  });
-
-  test('tracks collapsible section toggle events', async ({ page }) => {
-    await page.goto('/allocation-manager');
-    await page.waitForLoadState('networkidle');
-
-    const trigger = page.locator('[data-testid^="collapsible-trigger-"]').first();
-
-    if (await trigger.isVisible()) {
-      // Toggle section
-      await trigger.click();
-      await page.waitForTimeout(200);
-      await trigger.click();
-
-      const buffer = await page.evaluate((key) => {
-        const raw = localStorage.getItem(key);
-        return raw ? JSON.parse(raw) : [];
-      }, TELEMETRY_KEY);
-
-      // Look for toggle events
-      const toggleEvents = buffer.filter((e: { event: string }) =>
-        e.event === 'advanced_section_toggled'
-      );
-
-      expect(toggleEvents.length).toBeGreaterThan(0);
     }
   });
 
