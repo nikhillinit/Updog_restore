@@ -12,6 +12,12 @@ export function buildMoicRankingsFromInvestments(
 
   return {
     fundId,
+    provenance: {
+      source: 'portfolio_companies',
+      calculation: 'reserves_moic_rankings',
+      metricBasis: 'planned_reserves',
+      sourceRecordCount: investments.length,
+    },
     generatedAt: new Date().toISOString(),
     rankings: ranked.map((item) => ({
       rank: item.rank,
