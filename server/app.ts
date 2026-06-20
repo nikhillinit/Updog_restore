@@ -29,6 +29,11 @@ import cohortAnalysisRouter from './routes/cohort-analysis.js';
 import sensitivityRouter from './routes/sensitivity.js';
 import portfolioLotsRouter from './routes/portfolio/lots.js';
 import performanceApiRouter from './routes/performance-api.js';
+import lpApiRouter from './routes/lp-api.js';
+import lpCapitalCallsRouter from './routes/lp-capital-calls.js';
+import lpDistributionsRouter from './routes/lp-distributions.js';
+import lpDocumentsRouter from './routes/lp-documents.js';
+import lpNotificationsRouter from './routes/lp-notifications.js';
 import lpReportingImportsRouter from './routes/lp-reporting/imports.js';
 import lpReportingMetricRunsRouter from './routes/lp-reporting/metric-runs.js';
 import metricsRouter from './routes/metrics-endpoint.js';
@@ -239,6 +244,11 @@ export function makeApp() {
 
   // Sensitivity Analysis API (Phase 1A - one-way sweeps; fund-scoped)
   app.use('/api', sensitivityRouter);
+  app.use(lpApiRouter);
+  app.use(lpCapitalCallsRouter);
+  app.use(lpDistributionsRouter);
+  app.use('/api/lp', lpDocumentsRouter);
+  app.use('/api/lp', lpNotificationsRouter);
   app.use(lpReportingImportsRouter);
   app.use(lpReportingMetricRunsRouter);
 

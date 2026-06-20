@@ -39,18 +39,20 @@ export function DistributionsWidget() {
 
   const getDistributionTypeBadge = (type: string) => {
     switch (type) {
-      case 'special':
+      case 'capital_gains':
         return (
           <Badge variant="default" className="bg-presson-info text-pov-white">
-            Special
+            Gains
           </Badge>
         );
-      case 'final':
-        return <Badge variant="destructive">Final</Badge>;
+      case 'dividend':
+        return <Badge variant="secondary">Dividend</Badge>;
       case 'return_of_capital':
         return <Badge variant="secondary">ROC</Badge>;
+      case 'mixed':
+        return <Badge variant="outline">Mixed</Badge>;
       default:
-        return <Badge variant="outline">Regular</Badge>;
+        return <Badge variant="outline">Distribution</Badge>;
     }
   };
 
