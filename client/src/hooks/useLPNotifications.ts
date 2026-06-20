@@ -17,8 +17,7 @@ export type NotificationType =
   | 'capital_call'
   | 'distribution'
   | 'document'
-  | 'report'
-  | 'fund_update'
+  | 'report_ready'
   | 'system';
 
 export type NotificationPriority = 'low' | 'normal' | 'high' | 'urgent';
@@ -50,6 +49,64 @@ interface UseLPNotificationsOptions {
   type?: NotificationType;
   limit?: number;
   enabled?: boolean;
+}
+
+type ServerLPNotification = {
+  id: string;
+  lpId?: number;
+  type: NotificationType;
+  priority?: NotificationPriority;
+  title: string;
+  message: string;
+  relatedEntityType: string | null;
+  relatedEntityId: string | null;
+  actionUrl: string | null;
+  read: boolean;
+  readAt: string | null;
+  createdAt: string;
+};
+
+type ServerNotificationsResponse = {
+  notifications: ServerLPNotification[];
+  nextCursor: string | null;
+  hasMore: boolean;
+  unreadCount: number;
+};
+
+type ServerMarkAllNotificationsReadResponse = {
+  success: boolean;
+  markedCount: number;
+};
+
+function normalizeNotification(notification: ServerLPNotification, lpId: number): LPNotification {
+  return {
+    id: notification.id,
+    lpId: notification.lpId ?? lpId,
+    type: notification.type,
+    priority: notification.priority ?? 'normal',
+    title: notification.title,
+    message: notification.message,
+    relatedEntityType: notification.relatedEntityType,
+    relatedEntityId: notification.relatedEntityId,
+    actionUrl: notification.actionUrl,
+    isRead: notification.read,
+    readAt: notification.readAt,
+    createdAt: notification.createdAt,
+  };
+}
+
+function normalizeNotificationsResponse(
+  response: ServerNotificationsResponse,
+  lpId: number
+): NotificationsResponse {
+  return {
+    notifications: response.notifications.map((notification) =>
+      normalizeNotification(notification, lpId)
+    ),
+    nextCursor: response.nextCursor,
+    hasMore: response.hasMore,
+    totalUnread: response.unreadCount,
+  };
 }
 
 // ============================================================================
@@ -93,7 +150,8 @@ export function useLPNotifications(options: UseLPNotificationsOptions = {}) {
         );
       }
 
-      return response.json() as Promise<NotificationsResponse>;
+      const data = (await response.json()) as ServerNotificationsResponse;
+      return normalizeNotificationsResponse(data, lpId);
     },
     enabled: enabled && !!lpId,
     staleTime: 30_000, // 30 seconds - notifications should be fresh
@@ -153,6 +211,8 @@ export function useMarkNotificationRead() {
 
       const response = await fetch(`/api/lp/notifications/${notificationId}/read?lpId=${lpId}`, {
         method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({}),
       });
 
       if (!response.ok) {
@@ -185,8 +245,10 @@ export function useMarkAllNotificationsRead() {
         throw new Error('No LP ID available');
       }
 
-      const response = await fetch(`/api/lp/notifications/mark-all-read?lpId=${lpId}`, {
+      const response = await fetch(`/api/lp/notifications/read-all?lpId=${lpId}`, {
         method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({}),
       });
 
       if (!response.ok) {
@@ -196,7 +258,8 @@ export function useMarkAllNotificationsRead() {
         );
       }
 
-      return response.json() as Promise<{ success: boolean; count: number }>;
+      const data = (await response.json()) as ServerMarkAllNotificationsReadResponse;
+      return { success: data.success, count: data.markedCount };
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['lp-notifications'] });

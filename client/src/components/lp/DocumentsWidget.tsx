@@ -20,14 +20,12 @@ import { useLocation } from 'wouter';
 
 const getDocumentTypeLabel = (type: DocumentType): string => {
   const labels: Record<DocumentType, string> = {
-    k1: 'K-1',
-    capital_statement: 'Capital Statement',
     quarterly_report: 'Quarterly Report',
     annual_report: 'Annual Report',
-    subscription_agreement: 'Subscription',
+    k1: 'K-1',
+    lpa: 'LPA',
     side_letter: 'Side Letter',
-    legal: 'Legal',
-    tax: 'Tax',
+    fund_overview: 'Fund Overview',
     other: 'Other',
   };
   return labels[type] || type;
@@ -36,14 +34,12 @@ const getDocumentTypeLabel = (type: DocumentType): string => {
 const getDocumentTypeColor = (type: DocumentType): string => {
   // TODO(design): document types exceed six categorical colors; define an extended token palette before assigning unique hues to every type.
   const colors: Record<DocumentType, string> = {
-    k1: 'bg-pov-charcoal',
-    capital_statement: 'bg-presson-positive',
     quarterly_report: 'bg-presson-info',
     annual_report: 'bg-success',
-    subscription_agreement: 'bg-presson-warning',
+    k1: 'bg-pov-charcoal',
+    lpa: 'bg-presson-positive',
     side_letter: 'bg-presson-negative',
-    legal: 'bg-charcoal-700',
-    tax: 'bg-error',
+    fund_overview: 'bg-presson-warning',
     other: 'bg-charcoal-500',
   };
   return colors[type] || 'bg-charcoal-500';
@@ -71,8 +67,9 @@ export function DocumentsWidget() {
 
   const handleDownload = (doc: LPDocument, e: React.MouseEvent) => {
     e.stopPropagation();
-    // In real implementation, this would trigger a download
-    window.open(doc.downloadUrl, '_blank');
+    if (doc.downloadUrl) {
+      window.open(doc.downloadUrl, '_blank');
+    }
   };
 
   if (isLoading) {
@@ -142,6 +139,8 @@ export function DocumentsWidget() {
                   size="sm"
                   className="opacity-0 group-hover:opacity-100 transition-opacity"
                   onClick={(e) => handleDownload(doc, e)}
+                  disabled={!doc.downloadUrl}
+                  title={doc.downloadUrl ? 'Download document' : 'Open document details to download'}
                 >
                   <Download className="h-4 w-4" />
                 </Button>
