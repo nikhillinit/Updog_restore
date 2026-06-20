@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { buildMoicRankingsFromInvestments } from '../../../server/services/fund-moic-ranking-service';
+import { FundMoicRankingsResponseV1Schema } from '../../../shared/contracts/fund-moic-v1.contract';
 import type { Investment } from '../../../shared/core/moic/MOICCalculator';
 
 const makeInvestment = (overrides: Partial<Investment> = {}): Investment => ({
@@ -27,6 +28,12 @@ describe('fund MOIC ranking service', () => {
     const result = buildMoicRankingsFromInvestments(10, investments);
 
     expect(result.fundId).toBe(10);
+    expect(result.provenance).toEqual({
+      source: 'portfolio_companies',
+      calculation: 'reserves_moic_rankings',
+      metricBasis: 'planned_reserves',
+      sourceRecordCount: 3,
+    });
     expect(result.rankings).toHaveLength(3);
     expect(result.rankings[0]?.rank).toBe(1);
     expect(result.rankings[0]?.investmentName).toBe('High');
@@ -46,6 +53,7 @@ describe('fund MOIC ranking service', () => {
     const result = buildMoicRankingsFromInvestments(99, []);
 
     expect(result.fundId).toBe(99);
+    expect(result.provenance.sourceRecordCount).toBe(0);
     expect(result.rankings).toHaveLength(0);
   });
 
@@ -67,5 +75,14 @@ describe('fund MOIC ranking service', () => {
       description: expect.any(String),
       formula: expect.any(String),
     });
+  });
+
+  it('parses the full service response through the shared schema', () => {
+    const investments: Investment[] = [makeInvestment({ id: '1', name: 'Test' })];
+
+    const result = buildMoicRankingsFromInvestments(1, investments);
+    const parsed = FundMoicRankingsResponseV1Schema.safeParse(result);
+
+    expect(parsed.success).toBe(true);
   });
 });
