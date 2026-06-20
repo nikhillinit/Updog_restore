@@ -1,5 +1,6 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useSearch } from 'wouter';
+import { AlertTriangle, Award, Info, Loader2 } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { useFundMoicRankings } from '@/hooks/use-moic';
 import {
@@ -9,435 +10,257 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-// Chart libraries removed for bundle optimization
-const ChartPlaceholder = ({ title, height = 'h-96' }: { title: string; height?: string }) => (
-  <div className={`${height} bg-pov-gray rounded-lg flex flex-col items-center justify-center`}>
-    <div className="w-16 h-16 bg-beige-100 rounded-full flex items-center justify-center mb-4">
-      <BarChart3 className="h-8 w-8 text-charcoal-400" />
-    </div>
-    <p className="text-charcoal-500 font-medium">{title}</p>
-    <p className="text-charcoal-400 text-sm mt-1">Chart placeholder - data available via API</p>
-  </div>
-);
-import { TrendingUp, Target, Info, Award, AlertTriangle, BarChart3 } from 'lucide-react';
+import type { FundMoicRankingItemV1 } from '@shared/contracts/fund-moic-v1.contract';
 
-interface MOICMetric {
-  company: string;
-  currentMOIC: number;
-  currentMOICOnInitial: number;
-  currentMOICOnDeployedReserves: number;
-  exitMOIC: number;
-  exitMOICOnInitial: number;
-  exitMOICOnFollowOns: number;
-  exitMOICOnPlannedReserves: number;
-  totalInvestment: number;
-  initialInvestment: number;
-  deployedReserves: number;
-  plannedReserves: number;
-  sector: string;
-  stage: string;
+type FundIdParseResult =
+  | { status: 'missing'; fundId: null }
+  | { status: 'invalid'; fundId: null }
+  | { status: 'valid'; fundId: number };
+
+function parseFundId(search: string): FundIdParseResult {
+  const rawValue = new URLSearchParams(search).get('fundId');
+
+  if (rawValue === null) {
+    return { status: 'missing', fundId: null };
+  }
+
+  const trimmed = rawValue.trim();
+  const parsed = Number(trimmed);
+
+  if (!/^\d+$/.test(trimmed) || !Number.isSafeInteger(parsed) || parsed <= 0) {
+    return { status: 'invalid', fundId: null };
+  }
+
+  return { status: 'valid', fundId: parsed };
+}
+
+function formatMoicValue(value: number | null): string {
+  return value === null ? 'Unavailable' : `${value.toFixed(2)}x`;
+}
+
+function getMoicTone(value: number | null): string {
+  if (value === null) return 'text-charcoal-500';
+  if (value >= 2) return 'text-presson-positive';
+  if (value >= 1) return 'text-presson-warning';
+  return 'text-presson-negative';
+}
+
+function StateCard({
+  title,
+  description,
+  icon = 'warning',
+}: {
+  title: string;
+  description: string;
+  icon?: 'loading' | 'info' | 'warning';
+}) {
+  const Icon = icon === 'loading' ? Loader2 : icon === 'info' ? Info : AlertTriangle;
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2 text-pov-charcoal">
+          <Icon className={`h-5 w-5 ${icon === 'loading' ? 'animate-spin' : ''}`} />
+          <span>{title}</span>
+        </CardTitle>
+        <CardDescription>{description}</CardDescription>
+      </CardHeader>
+    </Card>
+  );
+}
+
+function RankingRow({ item }: { item: FundMoicRankingItemV1 }) {
+  return (
+    <li className="grid grid-cols-[4rem_minmax(0,1fr)_8rem] items-center gap-3 rounded-md border border-beige-200 px-3 py-2 text-sm">
+      <span className="font-semibold text-charcoal-600">#{item.rank}</span>
+      <span className="min-w-0">
+        <span className="block truncate font-medium text-pov-charcoal">{item.investmentName}</span>
+        <span className="block truncate text-xs text-muted-foreground">
+          {item.reservesMoic.description}
+        </span>
+      </span>
+      <span className={`text-right font-bold tabular-nums ${getMoicTone(item.reservesMoic.value)}`}>
+        {formatMoicValue(item.reservesMoic.value)}
+      </span>
+    </li>
+  );
 }
 
 export default function MOICAnalysisPage() {
   const search = useSearch();
-  const fundIdParam = new URLSearchParams(search).get('fundId');
-  const parsedFundId = fundIdParam ? parseInt(fundIdParam, 10) : null;
-  const { data: rankings, isLoading: rankingsLoading } = useFundMoicRankings(parsedFundId);
-  const [selectedCompany, setSelectedCompany] = useState('all');
-  const [_selectedView, _setSelectedView] = useState<'table' | 'chart' | 'comparison'>('table');
-  const [_selectedMOICType, _setSelectedMOICType] = useState('exitMOICOnPlannedReserves');
+  const fundIdResult = parseFundId(search);
+  const { data, error, isLoading } = useFundMoicRankings(fundIdResult.fundId);
+  const [selectedInvestmentId, setSelectedInvestmentId] = useState('all');
 
-  // Sample MOIC data based on your documentation
-  const moicData: MOICMetric[] = [
-    {
-      company: 'Company H',
-      currentMOIC: 3.2,
-      currentMOICOnInitial: 4.1,
-      currentMOICOnDeployedReserves: 2.8,
-      exitMOIC: 7.06,
-      exitMOICOnInitial: 8.2,
-      exitMOICOnFollowOns: 6.1,
-      exitMOICOnPlannedReserves: 7.06,
-      totalInvestment: 2500000,
-      initialInvestment: 1000000,
-      deployedReserves: 800000,
-      plannedReserves: 700000,
-      sector: 'AI/ML',
-      stage: 'Series B',
-    },
-    {
-      company: 'Company L',
-      currentMOIC: 2.8,
-      currentMOICOnInitial: 3.5,
-      currentMOICOnDeployedReserves: 2.2,
-      exitMOIC: 6.21,
-      exitMOICOnInitial: 7.1,
-      exitMOICOnFollowOns: 5.4,
-      exitMOICOnPlannedReserves: 6.21,
-      totalInvestment: 1800000,
-      initialInvestment: 750000,
-      deployedReserves: 600000,
-      plannedReserves: 450000,
-      sector: 'Fintech',
-      stage: 'Series A',
-    },
-    {
-      company: 'Company J',
-      currentMOIC: 1.9,
-      currentMOICOnInitial: 2.4,
-      currentMOICOnDeployedReserves: 1.6,
-      exitMOIC: 3.24,
-      exitMOICOnInitial: 3.8,
-      exitMOICOnFollowOns: 2.9,
-      exitMOICOnPlannedReserves: 3.24,
-      totalInvestment: 1200000,
-      initialInvestment: 500000,
-      deployedReserves: 400000,
-      plannedReserves: 300000,
-      sector: 'Healthcare',
-      stage: 'Seed',
-    },
-    {
-      company: 'Company B',
-      currentMOIC: 1.7,
-      currentMOICOnInitial: 2.1,
-      currentMOICOnDeployedReserves: 1.4,
-      exitMOIC: 3.13,
-      exitMOICOnInitial: 3.6,
-      exitMOICOnFollowOns: 2.7,
-      exitMOICOnPlannedReserves: 3.13,
-      totalInvestment: 2000000,
-      initialInvestment: 800000,
-      deployedReserves: 650000,
-      plannedReserves: 550000,
-      sector: 'Enterprise',
-      stage: 'Series A',
-    },
-    {
-      company: 'Company D',
-      currentMOIC: 1.5,
-      currentMOICOnInitial: 1.8,
-      currentMOICOnDeployedReserves: 1.2,
-      exitMOIC: 3.12,
-      exitMOICOnInitial: 3.5,
-      exitMOICOnFollowOns: 2.8,
-      exitMOICOnPlannedReserves: 3.12,
-      totalInvestment: 1500000,
-      initialInvestment: 600000,
-      deployedReserves: 500000,
-      plannedReserves: 400000,
-      sector: 'Consumer',
-      stage: 'Seed',
-    },
-    {
-      company: 'Company X',
-      currentMOIC: 1.3,
-      currentMOICOnInitial: 1.6,
-      currentMOICOnDeployedReserves: 1.1,
-      exitMOIC: 2.8,
-      exitMOICOnInitial: 3.2,
-      exitMOICOnFollowOns: 2.4,
-      exitMOICOnPlannedReserves: 2.8,
-      totalInvestment: 1800000,
-      initialInvestment: 700000,
-      deployedReserves: 600000,
-      plannedReserves: 500000,
-      sector: 'SaaS',
-      stage: 'Series B',
-    },
-    {
-      company: 'Company A',
-      currentMOIC: 0.8,
-      currentMOICOnInitial: 0.9,
-      currentMOICOnDeployedReserves: 0.7,
-      exitMOIC: 0.53,
-      exitMOICOnInitial: 0.6,
-      exitMOICOnFollowOns: 0.4,
-      exitMOICOnPlannedReserves: 0.53,
-      totalInvestment: 2200000,
-      initialInvestment: 900000,
-      deployedReserves: 750000,
-      plannedReserves: 550000,
-      sector: 'Hardware',
-      stage: 'Series C',
-    },
-    {
-      company: 'Company Y',
-      currentMOIC: 0.6,
-      currentMOICOnInitial: 0.7,
-      currentMOICOnDeployedReserves: 0.5,
-      exitMOIC: 0.45,
-      exitMOICOnInitial: 0.5,
-      exitMOICOnFollowOns: 0.3,
-      exitMOICOnPlannedReserves: 0.45,
-      totalInvestment: 1600000,
-      initialInvestment: 650000,
-      deployedReserves: 550000,
-      plannedReserves: 400000,
-      sector: 'Biotech',
-      stage: 'Series A',
-    },
-  ];
+  const displayedRankings = useMemo(() => {
+    const rankings = data?.rankings ?? [];
 
-  const getMOICColor = (moic: number) => {
-    if (moic >= 2.0) return 'text-presson-positive';
-    if (moic >= 1.0) return 'text-presson-warning';
-    return 'text-presson-negative';
-  };
+    if (selectedInvestmentId === 'all') {
+      return rankings;
+    }
 
-  const filteredData =
-    selectedCompany === 'all' ? moicData : moicData.filter((d) => d.company === selectedCompany);
+    return rankings.filter((item) => item.investmentId === selectedInvestmentId);
+  }, [data?.rankings, selectedInvestmentId]);
+
+  const topRanking = data?.rankings[0] ?? null;
+  const queryError = error;
+  const hasParsedLiveResponse = fundIdResult.status === 'valid' && !queryError && data;
 
   return (
-    <div className="container mx-auto p-6 space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
+    <div className="container mx-auto space-y-6 p-6">
+      <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
         <div>
-          <h1 className="text-3xl font-bold">Advanced MOIC Analysis</h1>
+          <h1 className="text-3xl font-bold">Reserves MOIC Rankings</h1>
           <p className="text-muted-foreground">
-            Moving beyond simple MOIC - analyze 7 different types of MOIC calculations
+            Live planned-reserves rankings from portfolio company records.
           </p>
         </div>
-        <div className="flex space-x-2">
-          <Select value={selectedCompany} onValueChange={setSelectedCompany}>
-            <SelectTrigger className="w-[200px]">
-              <SelectValue placeholder="Select company" />
+
+        {hasParsedLiveResponse && data.rankings.length > 0 ? (
+          <Select value={selectedInvestmentId} onValueChange={setSelectedInvestmentId}>
+            <SelectTrigger className="w-full md:w-[240px]" aria-label="Filter live rankings">
+              <SelectValue placeholder="Filter rankings" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">All Companies</SelectItem>
-              {moicData.map((company) => (
-                <SelectItem key={company.company} value={company.company}>
-                  {company.company}
+              <SelectItem value="all">All live rankings</SelectItem>
+              {data.rankings.map((item) => (
+                <SelectItem key={item.investmentId} value={item.investmentId}>
+                  {item.investmentName}
                 </SelectItem>
               ))}
             </SelectContent>
           </Select>
-        </div>
+        ) : null}
       </div>
 
-      {/* Key Insight */}
-      <Card className="border-presson-info/20 bg-presson-info/10">
-        <CardHeader>
-          <CardTitle className="flex items-center space-x-2 text-presson-info">
-            <Info className="h-5 w-5" />
-            <span>Moving Beyond Simple MOIC</span>
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <p className="text-presson-info">
-            MOICs are more than just a reporting metric - they can be a very useful{' '}
-            <strong>planning</strong> metric, especially for reserve deployment. This analysis shows
-            7 different MOIC calculations that each answer different questions and help develop a
-            more nuanced understanding of deal performance.
-          </p>
-        </CardContent>
-      </Card>
+      {fundIdResult.status === 'missing' ? (
+        <StateCard
+          title="Fund ID required"
+          description="Live MOIC rankings are unavailable because the page was opened without a fund ID."
+          icon="info"
+        />
+      ) : null}
 
-      {/* Chart View - Main Focus */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Expected Exit MOIC Analysis</CardTitle>
-          <CardDescription>
-            Portfolio companies ranked by expected return on planned reserves (the key planning
-            metric)
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <ChartPlaceholder title="Expected Exit MOIC Analysis Bar Chart" />
-        </CardContent>
-      </Card>
+      {fundIdResult.status === 'invalid' ? (
+        <StateCard
+          title="Invalid fund ID"
+          description="Live MOIC rankings are unavailable because the fund ID is not a positive integer."
+        />
+      ) : null}
 
-      {/* MOIC Types Breakdown */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-pov-charcoal">Performance to Date</CardTitle>
-            <CardDescription>Current returns on investments made</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              {filteredData.slice(0, 3).map((company) => (
-                <div
-                  key={company.company}
-                  className="flex items-center justify-between p-3 bg-pov-gray rounded-lg"
-                >
-                  <div>
-                    <div className="font-medium">{company.company}</div>
-                    <div className="text-sm text-muted-foreground">Current MOIC</div>
-                  </div>
-                  <div className={`font-bold text-lg ${getMOICColor(company.currentMOIC)}`}>
-                    {company.currentMOIC.toFixed(2)}x
-                  </div>
+      {fundIdResult.status === 'valid' && isLoading ? (
+        <StateCard
+          title="Loading live MOIC rankings"
+          description="Fetching the fund-scoped reserves MOIC rankings from the primary endpoint."
+          icon="loading"
+        />
+      ) : null}
+
+      {fundIdResult.status === 'valid' && queryError ? (
+        <StateCard
+          title={
+            queryError.code === 'CONTRACT_PARSE_ERROR'
+              ? 'Live MOIC contract mismatch'
+              : 'Unable to load live MOIC rankings'
+          }
+          description={
+            queryError.code === 'CONTRACT_PARSE_ERROR'
+              ? 'The live response did not match the required provenance contract, so rankings are not shown.'
+              : 'The live rankings endpoint returned a load error, so rankings are not shown.'
+          }
+        />
+      ) : null}
+
+      {hasParsedLiveResponse && data.rankings.length === 0 ? (
+        <StateCard
+          title="No live rankings available"
+          description="The live rankings endpoint returned zero reserves MOIC ranking rows for this fund."
+          icon="info"
+        />
+      ) : null}
+
+      {hasParsedLiveResponse && data.rankings.length > 0 ? (
+        <>
+          <Card className="border-presson-info/20 bg-presson-info/10">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-presson-info">
+                <Info className="h-5 w-5" />
+                <span>Live Provenance</span>
+              </CardTitle>
+              <CardDescription>
+                Parsed from the shared fund MOIC rankings contract.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <dl className="grid grid-cols-1 gap-3 text-sm md:grid-cols-4">
+                <div>
+                  <dt className="text-muted-foreground">Source</dt>
+                  <dd className="font-medium text-pov-charcoal">{data.provenance.source}</dd>
                 </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
+                <div>
+                  <dt className="text-muted-foreground">Calculation</dt>
+                  <dd className="font-medium text-pov-charcoal">{data.provenance.calculation}</dd>
+                </div>
+                <div>
+                  <dt className="text-muted-foreground">Metric basis</dt>
+                  <dd className="font-medium text-pov-charcoal">{data.provenance.metricBasis}</dd>
+                </div>
+                <div>
+                  <dt className="text-muted-foreground">Source records</dt>
+                  <dd className="font-medium text-pov-charcoal">
+                    {data.provenance.sourceRecordCount.toLocaleString()}
+                  </dd>
+                </div>
+              </dl>
+            </CardContent>
+          </Card>
 
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-presson-info">Expected Performance at Exit</CardTitle>
-            <CardDescription>Projected returns including future rounds</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              {filteredData
-                .sort((a, b) => b.exitMOICOnPlannedReserves - a.exitMOICOnPlannedReserves)
-                .slice(0, 3)
-                .map((company) => (
-                  <div
-                    key={company.company}
-                    className="flex items-center justify-between p-3 bg-presson-info/10 rounded-lg"
-                  >
-                    <div>
-                      <div className="font-medium">{company.company}</div>
-                      <div className="text-sm text-muted-foreground">
-                        Exit MOIC on Planned Reserves
-                      </div>
-                    </div>
-                    <div
-                      className={`font-bold text-lg ${getMOICColor(company.exitMOICOnPlannedReserves)}`}
-                    >
-                      {company.exitMOICOnPlannedReserves.toFixed(2)}x
-                    </div>
-                  </div>
-                ))}
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Performance Insights */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <Card className="border-presson-positive/20 bg-presson-positive/10">
-          <CardHeader>
-            <CardTitle className="flex items-center space-x-2 text-presson-positive">
-              <TrendingUp className="h-5 w-5" />
-              <span>Top Exit MOIC</span>
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-2">
-              {moicData
-                .sort((a, b) => b.exitMOIC - a.exitMOIC)
-                .slice(0, 3)
-                .map((company) => (
-                  <div key={company.company} className="flex items-center justify-between">
-                    <span className="font-medium">{company.company}</span>
-                    <span className="text-presson-positive font-bold">
-                      {company.exitMOIC.toFixed(2)}x
-                    </span>
-                  </div>
-                ))}
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="border-presson-positive/20 bg-presson-positive/10">
-          <CardHeader>
-            <CardTitle className="flex items-center space-x-2 text-presson-positive">
-              <Target className="h-5 w-5" />
-              <span>Best Planned Reserves</span>
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-2">
-              {moicData
-                .sort((a, b) => b.exitMOICOnPlannedReserves - a.exitMOICOnPlannedReserves)
-                .slice(0, 3)
-                .map((company) => (
-                  <div key={company.company} className="flex items-center justify-between">
-                    <span className="font-medium">{company.company}</span>
-                    <span className="text-presson-positive font-bold">
-                      {company.exitMOICOnPlannedReserves.toFixed(2)}x
-                    </span>
-                  </div>
-                ))}
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="border-presson-negative/20 bg-presson-negative/10">
-          <CardHeader>
-            <CardTitle className="flex items-center space-x-2 text-presson-negative">
-              <AlertTriangle className="h-5 w-5" />
-              <span>Underperforming</span>
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-2">
-              {moicData
-                .filter((c) => c.exitMOIC < 1.0)
-                .map((company) => (
-                  <div key={company.company} className="flex items-center justify-between">
-                    <span className="font-medium">{company.company}</span>
-                    <span className="text-presson-negative font-bold">
-                      {company.exitMOIC.toFixed(2)}x
-                    </span>
-                  </div>
-                ))}
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Special Mention */}
-      <Card className="border-presson-info/20 bg-presson-info/10">
-        <CardHeader>
-          <CardTitle className="flex items-center space-x-2 text-presson-info">
-            <Award className="h-5 w-5" />
-            <span>Exit MOIC on Planned Reserves - Special Mention</span>
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <p className="text-sm text-presson-info mb-3">
-            The <strong>Exit MOIC on Planned Reserves</strong> deserves special mention as it is a
-            very useful metric in optimizing reserves. By summarizing the future follow-on
-            performance it enables us to compare one company's reserves with another.
-          </p>
-          <p className="text-sm text-presson-info">
-            When optimizing follow-on reserves, comparing this metric can guide future follow-on
-            deployments. The system automatically calculates and ranks all of your portfolio
-            companies based on this metric.
-          </p>
-        </CardContent>
-      </Card>
-
-      {parsedFundId !== null && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center space-x-2">
-              <Award className="h-5 w-5" />
-              <span>Follow-on Rankings</span>
-            </CardTitle>
-            <CardDescription>
-              Companies ranked by probability-weighted reserves MOIC (highest first)
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            {rankingsLoading ? (
-              <p className="text-sm text-charcoal-500">Loading follow-on rankings...</p>
-            ) : (
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Award className="h-5 w-5" />
+                <span>Planned-Reserves MOIC Ranking</span>
+              </CardTitle>
+              <CardDescription>
+                Companies ranked by the live reserves MOIC calculation.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
               <ol className="space-y-2">
-                {rankings?.rankings.map((item) => (
-                  <li
-                    key={item.investmentId}
-                    className="flex items-center justify-between rounded-md border border-beige-200 px-3 py-2 text-sm"
-                  >
-                    <span className="font-medium text-charcoal-600">#{item.rank}</span>
-                    <span className="flex-1 px-3 text-pov-charcoal">{item.investmentName}</span>
-                    <span className="tabular-nums text-charcoal-500">
-                      {item.reservesMoic.value !== null
-                        ? `${item.reservesMoic.value.toFixed(2)}x`
-                        : '—'}
-                    </span>
-                  </li>
+                {displayedRankings.map((item) => (
+                  <RankingRow key={item.investmentId} item={item} />
                 ))}
               </ol>
-            )}
-          </CardContent>
-        </Card>
-      )}
+            </CardContent>
+          </Card>
+
+          {topRanking ? (
+            <Card>
+              <CardHeader>
+                <CardTitle>Top Planned-Reserves MOIC</CardTitle>
+                <CardDescription>
+                  Highest live reserves MOIC ranking for this fund response.
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="flex flex-col gap-1 rounded-md bg-pov-gray p-4 sm:flex-row sm:items-center sm:justify-between">
+                  <div>
+                    <p className="font-medium text-pov-charcoal">{topRanking.investmentName}</p>
+                    <p className="text-sm text-muted-foreground">{topRanking.reservesMoic.formula}</p>
+                  </div>
+                  <p
+                    className={`text-2xl font-bold tabular-nums ${getMoicTone(
+                      topRanking.reservesMoic.value
+                    )}`}
+                  >
+                    {formatMoicValue(topRanking.reservesMoic.value)}
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
+          ) : null}
+        </>
+      ) : null}
     </div>
   );
 }

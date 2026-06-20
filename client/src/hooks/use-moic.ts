@@ -6,13 +6,21 @@
 
 import { useMutation, useQuery } from '@tanstack/react-query';
 import type { Investment, PortfolioMOICSummary, MOICResult } from '@shared/core/moic';
-import type { FundMoicRankingsResponseV1 } from '@shared/contracts/fund-moic-v1.contract';
+import {
+  FundMoicRankingsResponseV1Schema,
+  type FundMoicRankingsResponseV1,
+} from '@shared/contracts/fund-moic-v1.contract';
 
 interface RankedInvestment {
   investment: Investment;
   reservesMOIC: MOICResult;
   rank: number;
 }
+
+export type FundMoicRankingsHookError = Error & {
+  code?: 'CONTRACT_PARSE_ERROR';
+  status?: number;
+};
 
 function getErrorMessage(response: unknown, fallback: string): string {
   if (typeof response === 'object' && response !== null && 'message' in response) {
@@ -24,6 +32,15 @@ function getErrorMessage(response: unknown, fallback: string): string {
   }
 
   return fallback;
+}
+
+function buildFundMoicContractError(status?: number): FundMoicRankingsHookError {
+  const error = new Error('MOIC rankings contract parse failed') as FundMoicRankingsHookError;
+  error.code = 'CONTRACT_PARSE_ERROR';
+  if (status !== undefined) {
+    error.status = status;
+  }
+  return error;
 }
 
 /**
@@ -71,15 +88,39 @@ export function useMOICRanking() {
 }
 
 export function useFundMoicRankings(fundId: number | null) {
-  return useQuery<FundMoicRankingsResponseV1>({
-    queryKey: ['fund-moic-rankings', fundId],
+  const validFundId = fundId !== null && Number.isInteger(fundId) && fundId > 0 ? fundId : null;
+
+  return useQuery<FundMoicRankingsResponseV1, FundMoicRankingsHookError>({
+    queryKey: ['fund-moic-rankings', validFundId],
     queryFn: async () => {
-      const res = await fetch(`/api/funds/${fundId}/moic/rankings`, {
+      if (validFundId === null) {
+        throw new Error('A positive fund ID is required') as FundMoicRankingsHookError;
+      }
+
+      const res = await fetch(`/api/funds/${validFundId}/moic/rankings`, {
         credentials: 'include',
       });
-      if (!res.ok) throw new Error('Failed to load follow-on rankings');
-      return (await res.json()) as FundMoicRankingsResponseV1;
+
+      if (!res.ok) {
+        const errorBody: unknown = await res.json().catch(() => ({}));
+        const error = new Error(
+          getErrorMessage(errorBody, 'Failed to load live MOIC rankings')
+        ) as FundMoicRankingsHookError;
+        error.status = res.status;
+        throw error;
+      }
+
+      const raw: unknown = await res.json().catch(() => {
+        throw buildFundMoicContractError(res.status);
+      });
+      const parsed = FundMoicRankingsResponseV1Schema.safeParse(raw);
+
+      if (!parsed.success) {
+        throw buildFundMoicContractError(res.status);
+      }
+
+      return parsed.data;
     },
-    enabled: fundId !== null && fundId > 0,
+    enabled: validFundId !== null,
   });
 }
