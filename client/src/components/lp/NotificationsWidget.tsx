@@ -45,9 +45,9 @@ const getNotificationIcon = (type: NotificationType) => {
       return <Banknote className="h-4 w-4" />;
     case 'document':
       return <FileText className="h-4 w-4" />;
-    case 'report':
+    case 'report_ready':
       return <TrendingUp className="h-4 w-4" />;
-    case 'fund_update':
+    case 'system':
       return <Info className="h-4 w-4" />;
     default:
       return <Bell className="h-4 w-4" />;
@@ -62,9 +62,9 @@ const getNotificationIconColor = (type: NotificationType): string => {
       return 'text-presson-positive bg-presson-positive/10';
     case 'document':
       return 'text-presson-info bg-presson-info/10';
-    case 'report':
+    case 'report_ready':
       return 'text-success-dark bg-success/10';
-    case 'fund_update':
+    case 'system':
       return 'text-presson-warning bg-presson-warning/10';
     default:
       return 'text-charcoal-600 bg-pov-gray';

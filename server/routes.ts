@@ -129,6 +129,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
     { load: () => import('./routes/lp-api.js') },
     // LP Reporting Dashboard health check routes
     { load: () => import('./routes/lp-health.js') },
+    // LP dashboard widget routes
+    { load: () => import('./routes/lp-capital-calls.js') },
+    { load: () => import('./routes/lp-distributions.js') },
+    { mountPath: '/api/lp', load: () => import('./routes/lp-documents.js') },
+    { mountPath: '/api/lp', load: () => import('./routes/lp-notifications.js') },
     // LP Reporting workflow routes
     { load: () => import('./routes/lp-reporting/imports.js') },
     { load: () => import('./routes/lp-reporting/metric-runs.js') },

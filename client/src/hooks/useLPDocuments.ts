@@ -14,14 +14,12 @@ import { useLPContext } from '@/contexts/LPContext';
 // ============================================================================
 
 export type DocumentType =
-  | 'k1'
-  | 'capital_statement'
   | 'quarterly_report'
   | 'annual_report'
-  | 'subscription_agreement'
+  | 'k1'
+  | 'lpa'
   | 'side_letter'
-  | 'legal'
-  | 'tax'
+  | 'fund_overview'
   | 'other';
 
 export interface LPDocument {
@@ -38,7 +36,7 @@ export interface LPDocument {
   taxYear: number | null;
   isConfidential: boolean;
   createdAt: string;
-  downloadUrl: string;
+  downloadUrl?: string;
 }
 
 export interface DocumentsResponse {
@@ -54,6 +52,62 @@ interface UseLPDocumentsOptions {
   search?: string;
   limit?: number;
   enabled?: boolean;
+}
+
+type ServerLPDocument = {
+  id: string;
+  fundId: number;
+  fundName: string;
+  documentType: DocumentType;
+  title: string;
+  description: string | null;
+  fileName: string;
+  fileSize: number;
+  mimeType?: string | null;
+  documentDate?: string | null;
+  publishedAt: string;
+  accessLevel?: string | null;
+  downloadUrl?: string;
+};
+
+type ServerDocumentsResponse = {
+  documents: ServerLPDocument[];
+  nextCursor: string | null;
+  hasMore: boolean;
+  totalCount: number;
+};
+
+function normalizeDocument(document: ServerLPDocument): LPDocument {
+  const normalized: LPDocument = {
+    id: document.id,
+    fundId: document.fundId,
+    fundName: document.fundName,
+    documentType: document.documentType,
+    title: document.title,
+    description: document.description,
+    fileName: document.fileName,
+    fileType: document.mimeType ?? 'application/octet-stream',
+    fileSizeBytes: document.fileSize,
+    reportingPeriod: document.documentDate ?? null,
+    taxYear: null,
+    isConfidential: document.accessLevel === 'sensitive',
+    createdAt: document.publishedAt,
+  };
+
+  if (document.downloadUrl) {
+    normalized.downloadUrl = document.downloadUrl;
+  }
+
+  return normalized;
+}
+
+function normalizeDocumentsResponse(response: ServerDocumentsResponse): DocumentsResponse {
+  return {
+    documents: response.documents.map(normalizeDocument),
+    nextCursor: response.nextCursor,
+    hasMore: response.hasMore,
+    totalCount: response.totalCount,
+  };
 }
 
 // ============================================================================
@@ -85,7 +139,7 @@ export function useLPDocuments(options: UseLPDocumentsOptions = {}) {
       const params = new URLSearchParams();
       params.append('lpId', lpId.toString());
       if (fundId) params.append('fundId', fundId.toString());
-      if (documentType) params.append('documentType', documentType);
+      if (documentType) params.append('type', documentType);
       if (search) params.append('search', search);
       params.append('limit', limit.toString());
 
@@ -96,7 +150,8 @@ export function useLPDocuments(options: UseLPDocumentsOptions = {}) {
         throw new Error(errorData.message || `HTTP ${response.status}: Failed to fetch documents`);
       }
 
-      return response.json() as Promise<DocumentsResponse>;
+      const data = (await response.json()) as ServerDocumentsResponse;
+      return normalizeDocumentsResponse(data);
     },
     enabled: enabled && !!lpId,
     staleTime: 300_000, // 5 minutes
@@ -133,7 +188,7 @@ export function useLPRecentDocuments(options: { limit?: number; enabled?: boolea
         );
       }
 
-      const data = (await response.json()) as DocumentsResponse;
+      const data = normalizeDocumentsResponse((await response.json()) as ServerDocumentsResponse);
 
       // Check if any documents are from the last 7 days
       const oneWeekAgo = new Date();

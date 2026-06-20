@@ -18,14 +18,14 @@ export interface Distribution {
   fundId: number;
   fundName: string;
   distributionNumber: number;
-  distributionType: 'regular' | 'special' | 'final' | 'return_of_capital';
+  distributionType: 'return_of_capital' | 'capital_gains' | 'dividend' | 'mixed';
   grossAmount: string;
   netAmount: string;
   distributionDate: string;
   recordDate: string;
   paymentDate: string | null;
   paymentMethod: 'wire' | 'check' | 'ach' | null;
-  status: 'announced' | 'pending' | 'paid' | 'processed';
+  status: 'pending' | 'processing' | 'completed';
   taxYear: number | null;
 }
 
@@ -43,6 +43,86 @@ interface UseLPDistributionsOptions {
   year?: number;
   limit?: number;
   enabled?: boolean;
+}
+
+type ServerDistribution = {
+  id: string;
+  fundId: number;
+  fundName: string;
+  distributionNumber: number;
+  distributionType: Distribution['distributionType'];
+  totalAmount?: string;
+  grossAmount?: string;
+  netAmount?: string;
+  distributionDate: string;
+  recordDate?: string;
+  paymentDate?: string | null;
+  paymentMethod?: Distribution['paymentMethod'];
+  status: Distribution['status'];
+  taxYear?: number | null;
+};
+
+type ServerDistributionsResponse = {
+  distributions: ServerDistribution[];
+  nextCursor: string | null;
+  hasMore: boolean;
+  totalCount?: number;
+  totalDistributed?: string;
+  totalGrossAmount?: string;
+  totalNetAmount?: string;
+};
+
+type ServerDistributionYearSummary = {
+  year: number;
+  totalDistributed: string;
+};
+
+type ServerDistributionsSummaryResponse = {
+  summary: ServerDistributionYearSummary[];
+  totalAllTime: string;
+};
+
+function normalizeDistribution(distribution: ServerDistribution): Distribution {
+  const amount = distribution.netAmount ?? distribution.totalAmount ?? '0';
+
+  return {
+    id: distribution.id,
+    fundId: distribution.fundId,
+    fundName: distribution.fundName,
+    distributionNumber: distribution.distributionNumber,
+    distributionType: distribution.distributionType,
+    grossAmount: distribution.grossAmount ?? distribution.totalAmount ?? amount,
+    netAmount: amount,
+    distributionDate: distribution.distributionDate,
+    recordDate: distribution.recordDate ?? distribution.distributionDate,
+    paymentDate: distribution.paymentDate ?? null,
+    paymentMethod: distribution.paymentMethod ?? null,
+    status: distribution.status,
+    taxYear: distribution.taxYear ?? null,
+  };
+}
+
+function normalizeDistributionsResponse(
+  response: ServerDistributionsResponse
+): DistributionsResponse {
+  const totalAmount = response.totalNetAmount ?? response.totalDistributed ?? '0';
+
+  return {
+    distributions: response.distributions.map(normalizeDistribution),
+    nextCursor: response.nextCursor,
+    hasMore: response.hasMore,
+    totalCount: response.totalCount ?? response.distributions.length,
+    totalGrossAmount: response.totalGrossAmount ?? response.totalDistributed ?? totalAmount,
+    totalNetAmount: totalAmount,
+  };
+}
+
+function ytdDistributedFromSummary(
+  response: ServerDistributionsSummaryResponse,
+  currentYear: number
+): string {
+  return response.summary.find((yearSummary) => yearSummary.year === currentYear)
+    ?.totalDistributed ?? '0';
 }
 
 // ============================================================================
@@ -86,7 +166,8 @@ export function useLPDistributions(options: UseLPDistributionsOptions = {}) {
         );
       }
 
-      return response.json() as Promise<DistributionsResponse>;
+      const data = (await response.json()) as ServerDistributionsResponse;
+      return normalizeDistributionsResponse(data);
     },
     enabled: enabled && !!lpId,
     staleTime: 300_000, // 5 minutes
@@ -117,29 +198,33 @@ export function useLPDistributionsSummary(options: { enabled?: boolean } = {}) {
 
       const currentYear = new Date().getFullYear();
 
-      // Fetch all distributions and YTD distributions
-      const [allResponse, ytdResponse] = await Promise.all([
+      // Fetch recent rows separately from aggregate totals. The list route totals
+      // are page-derived, while the summary route totals are all-time.
+      const [recentResponse, summaryResponse] = await Promise.all([
         fetch(`/api/lp/distributions?lpId=${lpId}&limit=5`),
-        fetch(`/api/lp/distributions?lpId=${lpId}&year=${currentYear}&limit=100`),
+        fetch(`/api/lp/distributions/summary?lpId=${lpId}`),
       ]);
 
-      if (!allResponse.ok || !ytdResponse.ok) {
+      if (!recentResponse.ok || !summaryResponse.ok) {
         throw new Error('Failed to fetch distributions summary');
       }
 
-      const [allData, ytdData] = (await Promise.all([
-        allResponse.json() as Promise<DistributionsResponse>,
-        ytdResponse.json() as Promise<DistributionsResponse>,
-      ])) as [DistributionsResponse, DistributionsResponse];
+      const [recentData, summaryData] = await Promise.all([
+        recentResponse.json() as Promise<ServerDistributionsResponse>,
+        summaryResponse.json() as Promise<ServerDistributionsSummaryResponse>,
+      ]);
+
+      const allData = normalizeDistributionsResponse(recentData);
+      const ytdDistributed = ytdDistributedFromSummary(summaryData, currentYear);
 
       // Calculate pending count
       const pendingCount = allData.distributions.filter(
-        (d) => d.status === 'announced' || d.status === 'pending'
+        (d) => d.status === 'pending' || d.status === 'processing'
       ).length;
 
       return {
-        totalDistributed: allData.totalNetAmount,
-        ytdDistributed: ytdData.totalNetAmount,
+        totalDistributed: summaryData.totalAllTime,
+        ytdDistributed,
         recentDistributions: allData.distributions.slice(0, 3),
         pendingDistributions: pendingCount,
       };
