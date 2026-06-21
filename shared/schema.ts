@@ -33,6 +33,7 @@ export * from './schema/shares';
 export * from './schema/user';
 export * from './schema/lp-reporting-evidence';
 export * from './schema/operating-objects';
+export * from './schema/investment-rounds';
 export * from './schemas/flags';
 export * from './schemas/reserve-approvals';
 

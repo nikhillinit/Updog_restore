@@ -33,6 +33,7 @@ const CANONICAL_TO_LEGACY_ALIASES: Record<ClientFlagKey, string[]> = {
   enable_cap_table_tabs: [],
   enable_modeling_wizard: [],
   enable_operations_hub: [],
+  enable_investment_rounds: [],
   enable_lp_reporting: [],
   enable_reserve_engine: [],
   enable_portfolio_table_v2: [],

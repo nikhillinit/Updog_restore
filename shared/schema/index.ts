@@ -20,3 +20,4 @@ export * from './shares';
 export * from './user';
 export * from './lp-reporting-evidence';
 export * from './operating-objects';
+export * from './investment-rounds';

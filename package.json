@@ -85,6 +85,7 @@
     "hermes:research": "node orchestrate.js --phase research",
     "hermes:production": "node orchestrate.js --phase production",
     "hermes:distribution": "node orchestrate.js --phase distribution",
+    "flags:generate": "npx tsx scripts/generate-flag-types.ts",
     "prepare": "husky install && node scripts/normalize-husky-shims.mjs",
     "pre-push": "node scripts/pre-push.mjs",
     "docs:lint": "remark docs/analysis --frail --quiet",
