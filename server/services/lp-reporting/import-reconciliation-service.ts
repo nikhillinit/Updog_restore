@@ -12,9 +12,10 @@
  * @see docs/adr/ADR-011-decimal-string-api-convention.md
  */
 
-import { createHash, randomUUID } from 'node:crypto';
+import { randomUUID } from 'node:crypto';
 
 import { Decimal } from '@shared/lib/decimal-config';
+import { canonicalSha256 } from '@shared/lib/canonical-hash';
 import type {
   ImportDryRunResponse,
   ImportError,
@@ -84,31 +85,6 @@ export interface ExistingFundState {
 
 export type ImportKind = 'ledger' | 'valuation-marks';
 
-function canonicalize(value: unknown): unknown {
-  if (value === null || typeof value !== 'object') {
-    return value;
-  }
-  if (Array.isArray(value)) {
-    return value.map(canonicalize);
-  }
-
-  const record = value as Record<string, unknown>;
-  const canonical: Record<string, unknown> = {};
-  for (const key of Object.keys(record).sort()) {
-    const child = record[key];
-    if (child !== undefined) {
-      canonical[key] = canonicalize(child);
-    }
-  }
-  return canonical;
-}
-
-function sha256Hex(value: unknown): string {
-  return createHash('sha256')
-    .update(JSON.stringify(canonicalize(value)))
-    .digest('hex');
-}
-
 export function computeImportPreviewHash(input: {
   fundId: number;
   importKind: ImportKind;
@@ -122,7 +98,7 @@ export function computeImportPreviewHash(input: {
   reconciliation: ReconciliationSummary;
   preview: ImportPreviewRow[];
 }): string {
-  return sha256Hex(input);
+  return canonicalSha256(input);
 }
 
 export function computeSourceRowHash(input: {
@@ -131,7 +107,7 @@ export function computeSourceRowHash(input: {
   sourceType: SourceType;
   row: unknown;
 }): string {
-  return sha256Hex(input);
+  return canonicalSha256(input);
 }
 
 // ============================================================================
