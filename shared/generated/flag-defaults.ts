@@ -1,7 +1,7 @@
 /**
  * AUTO-GENERATED FILE - DO NOT EDIT
  * Generated from: flags/registry.yaml
- * Generated at: 2026-05-08T03:13:17.920Z
+ * Generated at: 2026-06-21T13:04:18.724Z
  *
  * Run `npm run flags:generate` to regenerate
  */
@@ -105,6 +105,21 @@ export const FLAG_DEFINITIONS: Record<FlagKey, FlagDefinition> = {
     dependencies: ['enable_new_ia', 'enable_kpi_selectors'],
     expiresAt: null,
     aliases: ['ENABLE_OPERATIONS_HUB'],
+  },
+  enable_investment_rounds: {
+    default: false,
+    description: 'Investment round persistence',
+    owner: 'gp-team',
+    risk: 'medium',
+    exposeToClient: true,
+
+    environments: {
+      development: false,
+      staging: false,
+      production: false,
+    },
+    dependencies: [],
+    expiresAt: '2026-12-31',
   },
   enable_lp_reporting: {
     default: false,
@@ -541,6 +556,7 @@ export const FLAG_DEFAULTS: FlagRecord = {
   enable_cap_table_tabs: false,
   enable_modeling_wizard: false,
   enable_operations_hub: false,
+  enable_investment_rounds: false,
   enable_lp_reporting: false,
   enable_reserve_engine: false,
   enable_portfolio_table_v2: false,
