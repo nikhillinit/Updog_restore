@@ -1,6 +1,6 @@
 ---
-status: ACCEPTED
-last_updated: 2026-06-17
+status: ACCEPTED (amended 2026-06-21)
+last_updated: 2026-06-21
 ---
 
 # ADR-023: Investment Event Persistence Backbone (Rounds First Tranche)
@@ -24,6 +24,30 @@ of `prd-fund-management-roadmap-execution-20260617` (amendment-3), with the R7
 Tier-1 promotions (aggregate boundary, fund-local-vs-shared, money/precision,
 effective-date/as-of). **No code lands under this ADR.** L3b is conditionally
 authorized only after this ADR is reviewed and accepted.
+
+---
+
+## Amendment 1 — 2026-06-21 (decision 5: append-only WITH supersede correction)
+
+Decision 5 originally specified append-only with **no** correction route, binding
+`enable_investment_rounds` OFF in prod until a separate supersede tranche. Per the
+red-team-hardened, architect-approved L3b design spec
+(`docs/superpowers/specs/2026-06-21-investment-round-persistence-l3b-design.md`),
+decision 5 is **amended**: the supersede correction edge is **folded into the
+tranche-1 PR** — a nullable `supersedes_round_id` self-FK + partial
+`UNIQUE (supersedes_round_id) WHERE … IS NOT NULL` (no correction fork) +
+service/route/test handling, mirroring `cashFlowEvents.supersedesEventId`. Rounds
+remain immutable (a correction **appends** a superseding row, never mutates).
+Because a correction path now exists within L3b, the
+flag-off-until-separate-tranche guardrail is satisfied in-tranche;
+`enable_investment_rounds` still **defaults OFF** (enabling is a soak/ops gate,
+no longer an architectural block).
+
+**Unaffected:** all other decisions; `phoenix-precision-guardian` §8
+money/precision sign-off (supersede reuses the existing `NUMERIC(20,6)` columns
+and adds no money semantics). **Architect re-sign-off on decision 5: RECEIVED
+2026-06-21.** The precondition migration is also split to a standalone precursor
+PR (de-risks the only row-affecting atom from feature CI).
 
 ---
 
