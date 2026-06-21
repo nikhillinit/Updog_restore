@@ -16,6 +16,7 @@ import {
   serial,
   text,
   timestamp,
+  unique,
   uniqueIndex,
   uuid,
 } from 'drizzle-orm/pg-core';
@@ -87,6 +88,7 @@ export const investments = pgTable(
       'investments_pricing_confidence_check',
       sql`${table.pricingConfidence} IN ('calculated', 'verified')`
     ),
+    idFundKey: unique('investments_id_fund_id_key').on(table.id, table.fundId),
   })
 );
 
