@@ -99,6 +99,19 @@ flags:
     expiresAt: null
     aliases: ['ENABLE_OPERATIONS_HUB']
 
+  enable_investment_rounds:
+    default: false
+    description: 'Investment round persistence'
+    owner: 'gp-team'
+    risk: medium
+    exposeToClient: true
+    environments:
+      development: false
+      staging: false
+      production: false
+    dependencies: []
+    expiresAt: '2026-12-31'
+
   enable_lp_reporting:
     default: false
     description: 'LP reporting dashboard'

@@ -1,7 +1,7 @@
 /**
  * AUTO-GENERATED FILE - DO NOT EDIT
  * Generated from: flags/registry.yaml
- * Generated at: 2026-05-08T03:13:17.918Z
+ * Generated at: 2026-06-21T13:04:18.722Z
  *
  * Run `npm run flags:generate` to regenerate
  */
@@ -16,6 +16,7 @@ export type FlagKey =
   | 'enable_cap_table_tabs'
   | 'enable_modeling_wizard'
   | 'enable_operations_hub'
+  | 'enable_investment_rounds'
   | 'enable_lp_reporting'
   | 'enable_reserve_engine'
   | 'enable_portfolio_table_v2'
@@ -54,6 +55,7 @@ export type ClientFlagKey =
   | 'enable_cap_table_tabs'
   | 'enable_modeling_wizard'
   | 'enable_operations_hub'
+  | 'enable_investment_rounds'
   | 'enable_lp_reporting'
   | 'enable_reserve_engine'
   | 'enable_portfolio_table_v2'
@@ -135,6 +137,7 @@ export const ALL_FLAG_KEYS: readonly FlagKey[] = [
   'enable_cap_table_tabs',
   'enable_modeling_wizard',
   'enable_operations_hub',
+  'enable_investment_rounds',
   'enable_lp_reporting',
   'enable_reserve_engine',
   'enable_portfolio_table_v2',
@@ -174,6 +177,7 @@ export const CLIENT_FLAG_KEYS: readonly ClientFlagKey[] = [
   'enable_cap_table_tabs',
   'enable_modeling_wizard',
   'enable_operations_hub',
+  'enable_investment_rounds',
   'enable_lp_reporting',
   'enable_reserve_engine',
   'enable_portfolio_table_v2',
