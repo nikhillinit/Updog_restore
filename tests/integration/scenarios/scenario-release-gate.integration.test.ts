@@ -102,7 +102,9 @@ async function tolerateExpectedPostgresStop(
   }
 }
 
-async function stopPostgresContainer(postgres: StartedPostgreSqlContainer | undefined): Promise<void> {
+async function stopPostgresContainer(
+  postgres: StartedPostgreSqlContainer | undefined
+): Promise<void> {
   if (!postgres) return;
   if (process.env.CI === 'true') {
     console.warn(
@@ -456,6 +458,7 @@ describe('scenario release gate integration', () => {
     isStoppingPostgres = true;
     const active = runtime;
     let closePgCircuitPool: (() => Promise<void>) | null = null;
+    let closePrimaryDatabasePool: (() => Promise<void>) | null = null;
 
     await active?.workerHarness.close();
     for (const queue of active?.queues ?? []) {
@@ -468,66 +471,68 @@ describe('scenario release gate integration', () => {
       // The pg-circuit module may never load if startup failed before route import.
     }
     try {
+      const db = await import('../../../server/db');
+      closePrimaryDatabasePool = db.closeDatabasePool;
+    } catch {
+      // The primary db module may never load if startup failed before route import.
+    }
+    try {
       const registry = await import('../../../server/queues/registry');
       registry.resetQueueRegistry();
     } catch {
       // Queue registry may never load if startup failed before route import.
     }
+    await tolerateExpectedPostgresStop([
+      closePgCircuitPool?.(),
+      closePrimaryDatabasePool?.(),
+      active?.pool.end(),
+    ]);
     await active?.redis.stop();
-    await tolerateExpectedPostgresStop([closePgCircuitPool?.(), active?.pool.end()]);
     await stopPostgresContainer(active?.postgres);
     restoreEnv(originalEnv);
     vi.resetModules();
   });
 
-  it(
-    'proves the ADR-022 scenario lifecycle with Postgres, Redis, worker, results, and archive behavior',
-    async (ctx) => {
-      if (visibleLocalSkip(ctx)) return;
-      expect(runtime).not.toBeNull();
-      const active = runtime!;
-      const fund = await seedPublishedFundConfig(active);
+  it('proves the ADR-022 scenario lifecycle with Postgres, Redis, worker, results, and archive behavior', async (ctx) => {
+    if (visibleLocalSkip(ctx)) return;
+    expect(runtime).not.toBeNull();
+    const active = runtime!;
+    const fund = await seedPublishedFundConfig(active);
 
-      const feeScenarioSet = await createScenarioSet(active, fund, feeProfileScenarioInput());
-      const feeResult = await calculateFeeProfileScenario(active, fund, feeScenarioSet.id);
-      expect(feeResult.snapshotId).toEqual(expect.any(Number));
+    const feeScenarioSet = await createScenarioSet(active, fund, feeProfileScenarioInput());
+    const feeResult = await calculateFeeProfileScenario(active, fund, feeScenarioSet.id);
+    expect(feeResult.snapshotId).toEqual(expect.any(Number));
 
-      const comparison = await readScenarioComparison(active, fund, feeScenarioSet.id);
-      expect(['comparable', 'baseline_unavailable']).toContain(comparison.comparisonStatus);
-      if (comparison.comparisonStatus === 'baseline_unavailable') {
-        expect(comparison.unavailableReason).toEqual(expect.any(String));
-      }
+    const comparison = await readScenarioComparison(active, fund, feeScenarioSet.id);
+    expect(['comparable', 'baseline_unavailable']).toContain(comparison.comparisonStatus);
+    if (comparison.comparisonStatus === 'baseline_unavailable') {
+      expect(comparison.unavailableReason).toEqual(expect.any(String));
+    }
 
-      const reserveScenarioSet = await createScenarioSet(active, fund, reserveScenarioInput(fund));
-      await enqueueReserveScenarioCalculation(active, fund, reserveScenarioSet.id);
-      const terminalStatus = await pollScenarioCalculationStatus(
-        active,
-        fund,
-        reserveScenarioSet.id
-      );
-      expect(terminalStatus.status).toBe('succeeded');
+    const reserveScenarioSet = await createScenarioSet(active, fund, reserveScenarioInput(fund));
+    await enqueueReserveScenarioCalculation(active, fund, reserveScenarioSet.id);
+    const terminalStatus = await pollScenarioCalculationStatus(active, fund, reserveScenarioSet.id);
+    expect(terminalStatus.status).toBe('succeeded');
 
-      const results = await readFundResults(active, fund);
-      expect(results.sections.scenarios.status).not.toBe('unavailable');
+    const results = await readFundResults(active, fund);
+    expect(results.sections.scenarios.status).not.toBe('unavailable');
 
-      await archiveScenarioSet(active, fund, feeScenarioSet.id);
-      const archivedRecalculate = await request(active.app)
-        .post(`/api/funds/${fund.fundId}/scenario-sets/${feeScenarioSet.id}/calculate`)
-        .set('Authorization', fund.authHeader)
-        .send({});
-      expect(archivedRecalculate.status).toBe(409);
-      expect(archivedRecalculate.body.code).toBe('scenario_set_archived');
+    await archiveScenarioSet(active, fund, feeScenarioSet.id);
+    const archivedRecalculate = await request(active.app)
+      .post(`/api/funds/${fund.fundId}/scenario-sets/${feeScenarioSet.id}/calculate`)
+      .set('Authorization', fund.authHeader)
+      .send({});
+    expect(archivedRecalculate.status).toBe(409);
+    expect(archivedRecalculate.body.code).toBe('scenario_set_archived');
 
-      const authoritativeRows = await active.pool.query<{ id: number }>(
-        `SELECT id
+    const authoritativeRows = await active.pool.query<{ id: number }>(
+      `SELECT id
            FROM fund_snapshots
           WHERE fund_id = $1
             AND type IN ('RESERVE', 'PACING', 'ECONOMICS')
             AND scenario_set_id IS NOT NULL`,
-        [fund.fundId]
-      );
-      expect(authoritativeRows.rows).toHaveLength(0);
-    },
-    45_000
-  );
+      [fund.fundId]
+    );
+    expect(authoritativeRows.rows).toHaveLength(0);
+  }, 45_000);
 });
