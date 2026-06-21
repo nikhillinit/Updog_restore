@@ -5,6 +5,7 @@ import { drizzle } from 'drizzle-orm/node-postgres';
 import { Pool } from 'pg';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
+import { applyInvestmentRoundConstraints } from '../../helpers/apply-investment-round-constraints';
 import { setupTestDB } from '../../helpers/testcontainers';
 
 const STARTUP_TIMEOUT_MS = 90_000;
@@ -116,6 +117,7 @@ describe.skipIf(skipIfNoDocker)('investment_rounds schema', () => {
 
     const connectionString = container.getConnectionUri();
     runDrizzlePush(connectionString);
+    await applyInvestmentRoundConstraints(connectionString);
 
     pool = new Pool({ connectionString, max: 1 });
   }, STARTUP_TIMEOUT_MS * 2);

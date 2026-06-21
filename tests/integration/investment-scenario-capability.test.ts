@@ -5,6 +5,7 @@ import express, { type NextFunction, type Request, type Response, type Router } 
 import request from 'supertest';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 
+import { applyInvestmentRoundConstraints } from '../helpers/apply-investment-round-constraints';
 import { setupTestDB } from '../helpers/testcontainers';
 
 const STARTUP_TIMEOUT_MS = 90_000;
@@ -182,6 +183,7 @@ describe.skipIf(!process.env.CI && process.platform === 'win32')(
       process.env._EXPLICIT_ALLOW_MEMORY_STORAGE = '0';
 
       runDrizzlePush(connectionString);
+      await applyInvestmentRoundConstraints(connectionString);
       vi.resetModules();
 
       const [{ default: investmentsRouter }, dbModule, schema] = await Promise.all([
