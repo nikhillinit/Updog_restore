@@ -2,8 +2,8 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { renderHook, waitFor } from '@testing-library/react';
 import type { ReactNode } from 'react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { useInvestmentRounds } from './useInvestmentRounds';
-import { investmentRoundsQueryKey } from './useCreateRound';
+import { useInvestmentRounds } from '@/hooks/useInvestmentRounds';
+import { investmentRoundsQueryKey } from '@/hooks/useCreateRound';
 import { apiRequest } from '@/lib/queryClient';
 
 vi.mock('@/lib/queryClient', async (orig) => {
