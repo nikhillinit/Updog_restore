@@ -123,11 +123,15 @@ export default function AddEventDropdown({
         {...(investment !== undefined ? { investment } : {})}
       />
 
-      <NewRoundDialog
-        isOpen={showNewRoundDialog}
-        onOpenChange={setShowNewRoundDialog}
-        {...(investment !== undefined ? { investment } : {})}
-      />
+      {investment?.id && /^\d+$/.test(investment.id) && (
+        <NewRoundDialog
+          isOpen={showNewRoundDialog}
+          onOpenChange={setShowNewRoundDialog}
+          investmentId={Number(investment.id)}
+          fundId={0}
+          companyName={investment.company}
+        />
+      )}
 
       <ValuationUpdateDialog
         isOpen={showValuationDialog}
