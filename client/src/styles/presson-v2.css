@@ -2567,3 +2567,55 @@
   text-transform: uppercase;
 }
 .pv2-lp-agg td b { font-weight: 700; }
+
+/* ── Investment-rounds form controls (pv2) ───────────────────────────────
+   Token-driven, no transitions on entrance; safe under reduced-motion. */
+.pv2-field { display: flex; flex-direction: column; gap: 6px; margin-bottom: 16px; }
+.pv2-label {
+  font-family: var(--pv2-font-mono);
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--pv2-mute);
+}
+.pv2-input,
+.pv2-select {
+  font-family: var(--pv2-font-mono);
+  font-size: 14px;
+  color: var(--pv2-ink);
+  background: #fff;
+  border: 1px solid var(--pv2-rule, #E0D8D1);
+  border-radius: 4px;
+  padding: 8px 10px;
+  font-variant-numeric: tabular-nums;
+}
+.pv2-input:focus-visible,
+.pv2-select:focus-visible {
+  outline: none;
+  border-color: var(--pv2-ink);
+  box-shadow: 0 0 0 3px rgba(41, 41, 41, 0.25);
+}
+.pv2-supersede-banner {
+  font-family: var(--pv2-font-mono);
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  color: var(--pv2-ink);
+  background: var(--pv2-warm);
+  border: 1px solid var(--pv2-rule, #E0D8D1);
+  border-radius: 4px;
+  padding: 8px 10px;
+  margin-bottom: 16px;
+}
+.pv2-form-error {
+  font-family: var(--pv2-font-mono);
+  font-size: 11px;
+  color: var(--pv2-neg);
+  margin-top: 8px;
+}
+.pv2-rounds-empty {
+  font-family: var(--pv2-font-mono);
+  font-size: 12px;
+  color: var(--pv2-mute);
+  padding: 24px 0;
+  text-align: center;
+}
