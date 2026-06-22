@@ -25,8 +25,8 @@ interface NewRoundDialogProps {
   onOpenChange: (open: boolean) => void;
   investmentId: number;
   fundId: number;
-  companyName?: string;
-  supersedesRound?: SupersedeTarget | null;
+  companyName?: string | undefined;
+  supersedesRound?: SupersedeTarget | null | undefined;
 }
 
 const SECURITY_OPTIONS = ['Equity', 'Convertible Note', 'SAFE', 'Warrant', 'Other'];
@@ -82,7 +82,7 @@ export default function NewRoundDialog({
 
     const form: InvestmentRoundEditForm = {
       roundName: roundName.trim(),
-      securityType,
+      securityType: securityType as InvestmentRoundEditForm['securityType'],
       roundDate,
       currency,
       investmentAmount: Number(investmentAmount),
