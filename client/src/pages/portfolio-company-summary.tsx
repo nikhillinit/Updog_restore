@@ -7,6 +7,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useFundContext } from '@/contexts/FundContext';
 import { usePortfolioCompany } from '@/hooks/use-fund-data';
 import { ApiError } from '@/lib/queryClient';
+import { useFlag } from '@/shared/useFlags';
+import { InvestmentRoundsSection } from '@/components/investments/investment-rounds-section';
 
 function toNumber(value: string | number | null | undefined): number {
   if (typeof value === 'number') {
@@ -70,6 +72,7 @@ export default function PortfolioCompanySummaryPage() {
   const [, params] = useRoute('/portfolio/company/:id');
   const [, setLocation] = useLocation();
   const { fundId } = useFundContext();
+  const roundsEnabled = useFlag('enable_investment_rounds');
 
   const companyId = useMemo(() => {
     const rawId = params?.id;
@@ -292,6 +295,14 @@ export default function PortfolioCompanySummaryPage() {
                 </CardContent>
               </Card>
             </div>
+
+            {roundsEnabled && companyId != null && fundId != null && (
+              <InvestmentRoundsSection
+                fundId={fundId}
+                companyId={companyId}
+                companyName={company.name}
+              />
+            )}
           </>
         ) : null}
       </div>
