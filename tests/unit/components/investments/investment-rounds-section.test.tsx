@@ -1,12 +1,14 @@
 import { render, screen } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { InvestmentRoundsSection } from './investment-rounds-section';
+import { InvestmentRoundsSection } from '@/components/investments/investment-rounds-section';
 import { useCompanyInvestments } from '@/hooks/useCompanyInvestments';
 import { useInvestmentRounds } from '@/hooks/useInvestmentRounds';
 
 vi.mock('@/hooks/useCompanyInvestments', () => ({ useCompanyInvestments: vi.fn() }));
 vi.mock('@/hooks/useInvestmentRounds', () => ({ useInvestmentRounds: vi.fn() }));
-vi.mock('./new-round-dialog', () => ({ default: () => <div data-testid="round-dialog" /> }));
+vi.mock('@/components/investments/new-round-dialog', () => ({
+  default: () => <div data-testid="round-dialog" />,
+}));
 
 const mockInvestments = vi.mocked(useCompanyInvestments);
 const mockRounds = vi.mocked(useInvestmentRounds);

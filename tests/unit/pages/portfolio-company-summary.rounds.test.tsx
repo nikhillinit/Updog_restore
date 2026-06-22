@@ -1,6 +1,6 @@
 import { render, screen } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import PortfolioCompanySummaryPage from './portfolio-company-summary';
+import PortfolioCompanySummaryPage from '@/pages/portfolio-company-summary';
 import { usePortfolioCompany } from '@/hooks/use-fund-data';
 import { useFlag } from '@/shared/useFlags';
 

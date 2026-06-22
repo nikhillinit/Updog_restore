@@ -1,7 +1,7 @@
 import { render, screen, fireEvent } from '@testing-library/react';
 import { describe, it, expect, vi } from 'vitest';
 import type { InvestmentRoundResponse } from '@shared/contracts/investments/investment-round.contract';
-import { RoundsTable } from './rounds-table';
+import { RoundsTable } from '@/components/investments/rounds-table';
 
 function round(over: Partial<InvestmentRoundResponse>): InvestmentRoundResponse {
   return {

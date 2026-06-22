@@ -1,7 +1,7 @@
 import { render, screen } from '@testing-library/react';
 import { describe, it, expect } from 'vitest';
 import type { InvestmentRoundResponse } from '@shared/contracts/investments/investment-round.contract';
-import { TrajectoryRibbon } from './trajectory-ribbon';
+import { TrajectoryRibbon } from '@/components/investments/trajectory-ribbon';
 
 function round(over: Partial<InvestmentRoundResponse>): InvestmentRoundResponse {
   return {

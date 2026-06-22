@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { formatRoundMoney, formatRoundDate } from './investment-round-format';
+import { formatRoundMoney, formatRoundDate } from '@/lib/investment-round-format';
 
 describe('investment-round-format', () => {
   it('formats ISO-currency decimal strings as whole money', () => {
