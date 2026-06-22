@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { ApiError } from '@/lib/queryClient';
-import { roundErrorMessage } from './investment-round-error';
+import { roundErrorMessage } from '@/lib/investment-round-error';
 
 describe('roundErrorMessage', () => {
   it('distinguishes 409 sub-codes via errorCode', () => {

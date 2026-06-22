@@ -1,7 +1,7 @@
 import { render, screen, fireEvent } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { ApiError } from '@/lib/queryClient';
-import NewRoundDialog from './new-round-dialog';
+import NewRoundDialog from '@/components/investments/new-round-dialog';
 
 const { mutate } = vi.hoisted(() => ({ mutate: vi.fn() }));
 vi.mock('@/hooks/useCreateRound', async (orig) => {

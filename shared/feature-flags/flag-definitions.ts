@@ -255,6 +255,16 @@ export const POLISH_FLAGS: Record<string, FeatureFlag> = {
     dependencies: ['enable_cash_event_object'],
   },
 
+  enable_investment_rounds: {
+    key: 'enable_investment_rounds',
+    name: 'Investment Rounds',
+    description:
+      'Investment-rounds surface (list + add/supersede dialog, trajectory ribbon) on the live company detail page. Reads/writes /api/investments/:id/rounds. OFF by default.',
+    enabled: false,
+    rolloutPercentage: 0,
+    dependencies: [],
+  },
+
   enable_route_redirects: {
     key: 'enable_route_redirects',
     name: 'Legacy Route Redirects',
