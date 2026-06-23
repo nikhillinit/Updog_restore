@@ -7,7 +7,35 @@ import {
   makeStaticTemplateProvenance,
 } from '../../../server/lib/portfolio-prototype-block.js';
 
+type Equal<Actual, Expected> =
+  (<Value>() => Value extends Actual ? 1 : 2) extends (
+    <Value>() => Value extends Expected ? 1 : 2
+  )
+    ? true
+    : false;
+type Expect<Value extends true> = Value;
+
 describe('portfolio prototype financial block helpers', () => {
+  it('preserves literal contract types for blocked route errors', () => {
+    const error = buildPrototypeFinancialBlockedError({
+      routeId: 'portfolio.scenario.simulate',
+      sourceRoute: 'POST /api/portfolio/scenarios/:id/simulate',
+    });
+
+    type TypeAssertions = [
+      Expect<Equal<typeof error.error, 'not_implemented'>>,
+      Expect<Equal<typeof error.code, 'PROTOTYPE_FINANCIAL_OUTPUT_BLOCKED'>>,
+      Expect<Equal<typeof error.routeId, 'portfolio.scenario.simulate'>>,
+      Expect<Equal<typeof error.provenance.sourceKind, 'prototype_blocked'>>,
+      Expect<Equal<typeof error.provenance.actionability, 'non_actionable'>>,
+      Expect<Equal<typeof error.provenance.isFinanciallyActionable, false>>,
+    ];
+
+    const typeAssertions: TypeAssertions = [true, true, true, true, true, true];
+    expect(error.error).toBe('not_implemented');
+    expect(typeAssertions).toHaveLength(6);
+  });
+
   it('builds a blocked route error with schema-valid prototype provenance', () => {
     const error = buildPrototypeFinancialBlockedError({
       routeId: 'portfolio.scenario.simulate',
