@@ -39,14 +39,8 @@ import {
 const router = Router();
 router.use(securityMiddlewareStack);
 
-const replacementRoutes: Record<PortfolioPrototypeRouteId, string> = {
-  'portfolio.scenarios.compare': '/api/funds/:fundId/scenarios/compare',
+const verifiedReplacementRoutes: Partial<Record<PortfolioPrototypeRouteId, string>> = {
   'portfolio.scenario.simulate': '/api/monte-carlo/simulate',
-  'portfolio.reserves.optimize': '/api/funds/:fundId/reserves/optimize',
-  'portfolio.reserves.backtest': '/api/funds/:fundId/reserves/backtest',
-  'portfolio.forecasts.create': '/api/funds/:fundId/forecast-runs',
-  'portfolio.forecasts.validate': '/api/funds/:fundId/forecast-runs/:forecastRunId/validation',
-  'portfolio.quickScenario.create': '/api/funds/:fundId/scenarios',
   'portfolio.metrics.read': '/api/events/fund/:fundId',
 };
 
@@ -57,15 +51,16 @@ const sendPrototypeBlocked = (
     sourceRoute: string;
   }
 ) => {
+  const replacement = verifiedReplacementRoutes[input.routeId];
   const blockedError = buildPrototypeFinancialBlockedError({
     ...input,
-    replacement: replacementRoutes[input.routeId],
+    ...(replacement ? { replacement } : {}),
   });
 
   return res.status(501).json({
     success: false,
     ...blockedError,
-    replacementRoute: blockedError.replacement,
+    ...(blockedError.replacement ? { replacementRoute: blockedError.replacement } : {}),
     warnings: blockedError.provenance.warnings,
   });
 };

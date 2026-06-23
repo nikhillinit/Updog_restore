@@ -151,28 +151,32 @@ const createTestApp = () => {
   return app;
 };
 
-const prototypeBlockedReplacements = {
-  'portfolio.scenarios.compare': '/api/funds/:fundId/scenarios/compare',
-  'portfolio.scenario.simulate': '/api/monte-carlo/simulate',
-  'portfolio.reserves.optimize': '/api/funds/:fundId/reserves/optimize',
-  'portfolio.reserves.backtest': '/api/funds/:fundId/reserves/backtest',
-  'portfolio.forecasts.create': '/api/funds/:fundId/forecast-runs',
-  'portfolio.forecasts.validate': '/api/funds/:fundId/forecast-runs/:forecastRunId/validation',
-  'portfolio.quickScenario.create': '/api/funds/:fundId/scenarios',
-  'portfolio.metrics.read': '/api/events/fund/:fundId',
-} as const;
-
-type PrototypeBlockedRouteId = keyof typeof prototypeBlockedReplacements;
+type PrototypeBlockedRouteId =
+  | 'portfolio.scenarios.compare'
+  | 'portfolio.scenario.simulate'
+  | 'portfolio.reserves.optimize'
+  | 'portfolio.reserves.backtest'
+  | 'portfolio.forecasts.create'
+  | 'portfolio.forecasts.validate'
+  | 'portfolio.quickScenario.create'
+  | 'portfolio.metrics.read';
 
 const expectPrototypeBlocked = (
   response: request.Response,
-  routeId: PrototypeBlockedRouteId
+  routeId: PrototypeBlockedRouteId,
+  expectedReplacement?: string
 ) => {
   expect(response.status).toBe(501);
   expect(response.body.success).toBe(false);
   expect(response.body.code).toBe('PROTOTYPE_FINANCIAL_OUTPUT_BLOCKED');
   expect(response.body.routeId).toBe(routeId);
-  expect(response.body.replacementRoute).toBe(prototypeBlockedReplacements[routeId]);
+  if (expectedReplacement) {
+    expect(response.body.replacement).toBe(expectedReplacement);
+    expect(response.body.replacementRoute).toBe(expectedReplacement);
+  } else {
+    expect(response.body).not.toHaveProperty('replacement');
+    expect(response.body).not.toHaveProperty('replacementRoute');
+  }
   expect(response.body.provenance).toMatchObject({
     sourceKind: 'prototype_blocked',
     isFinanciallyActionable: false,
@@ -620,7 +624,11 @@ describe('Portfolio Intelligence API Routes', () => {
           .post(`/api/portfolio/scenarios/${scenarioId}/simulate`)
           .send(validSimulationData);
 
-        expectPrototypeBlocked(response, 'portfolio.scenario.simulate');
+        expectPrototypeBlocked(
+          response,
+          'portfolio.scenario.simulate',
+          '/api/monte-carlo/simulate'
+        );
         expect(createSimulation).not.toHaveBeenCalled();
       });
 
@@ -1037,21 +1045,21 @@ describe('Portfolio Intelligence API Routes', () => {
       it('blocks prototype metrics output', async () => {
         const response = await request(app).get('/api/portfolio/metrics/scenario_123');
 
-        expectPrototypeBlocked(response, 'portfolio.metrics.read');
+        expectPrototypeBlocked(response, 'portfolio.metrics.read', '/api/events/fund/:fundId');
       });
 
       it('blocks prototype metrics output with metric type filtering', async () => {
         const response = await request(app)
           .get('/api/portfolio/metrics/scenario_123?metricType=risk');
 
-        expectPrototypeBlocked(response, 'portfolio.metrics.read');
+        expectPrototypeBlocked(response, 'portfolio.metrics.read', '/api/events/fund/:fundId');
       });
 
       it('blocks prototype metrics output with time range filtering', async () => {
         const response = await request(app)
           .get('/api/portfolio/metrics/scenario_123?timeRange=6m');
 
-        expectPrototypeBlocked(response, 'portfolio.metrics.read');
+        expectPrototypeBlocked(response, 'portfolio.metrics.read', '/api/events/fund/:fundId');
       });
 
       it('should require scenario ID', async () => {
