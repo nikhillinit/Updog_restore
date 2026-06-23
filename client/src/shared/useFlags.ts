@@ -55,9 +55,11 @@ const getRuntimeFlag = (flagKey: string): boolean | undefined => {
 /**
  * Get environment variable flag value
  */
-const getEnvFlag = (flagKey: string): boolean | undefined => {
+export const getEnvFlag = (
+  flagKey: string,
+  env: unknown = getImportMetaEnv()
+): boolean | undefined => {
   try {
-    const env = getImportMetaEnv();
     if (!isRecord(env)) {
       return undefined;
     }
@@ -70,6 +72,7 @@ const getEnvFlag = (flagKey: string): boolean | undefined => {
     if (envVal === 'false' || envVal === '0') return false;
   } catch {
     // Ignore - might be SSR or no import.meta
+    return undefined;
   }
   return undefined;
 };
@@ -87,11 +90,11 @@ const subscribe = (callback: () => void) => {
   };
 };
 
-export function getFlagSnapshot(): FlagSnapshot {
+export function getFlagSnapshot(env: unknown = getImportMetaEnv()): FlagSnapshot {
   const snapshot = {} as FlagSnapshot;
 
   for (const key of Object.keys(ALL_FLAGS) as FlagName[]) {
-    snapshot[key] = getRuntimeFlag(key) ?? getEnvFlag(key) ?? ALL_FLAGS[key]?.enabled ?? false;
+    snapshot[key] = getRuntimeFlag(key) ?? getEnvFlag(key, env) ?? ALL_FLAGS[key]?.enabled ?? false;
   }
 
   return snapshot;

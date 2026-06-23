@@ -1,7 +1,7 @@
 /**
  * AUTO-GENERATED FILE - DO NOT EDIT
  * Generated from: flags/registry.yaml
- * Generated at: 2026-06-21T13:04:18.722Z
+ * Generated at: 2026-06-23T04:01:13.265Z
  *
  * Run `npm run flags:generate` to regenerate
  */
@@ -84,12 +84,16 @@ export type ClientFlagKey =
 /**
  * Server-only flags (not exposed to client)
  */
-export type ServerOnlyFlagKey = 'demo_mode' | 'require_auth' | 'enable_faults';
+export type ServerOnlyFlagKey =
+  | 'demo_mode'
+  | 'require_auth'
+  | 'enable_faults';
 
 /**
  * Admin flags (no localStorage override)
  */
-export type AdminFlagKey = 'ui_catalog';
+export type AdminFlagKey =
+  | 'ui_catalog';
 
 /**
  * Flag risk levels
@@ -207,7 +211,9 @@ export const CLIENT_FLAG_KEYS: readonly ClientFlagKey[] = [
 /**
  * Array of admin flag keys (no localStorage override)
  */
-export const ADMIN_FLAG_KEYS: readonly AdminFlagKey[] = ['ui_catalog'] as const;
+export const ADMIN_FLAG_KEYS: readonly AdminFlagKey[] = [
+  'ui_catalog',
+] as const;
 
 /**
  * Check if a key is a valid flag key
