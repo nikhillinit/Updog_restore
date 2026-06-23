@@ -75,7 +75,7 @@ function generateFlagTypes(registry: FlagRegistry): string {
   return `/**
  * AUTO-GENERATED FILE - DO NOT EDIT
  * Generated from: flags/registry.yaml
- * Generated at: ${new Date().toISOString()}
+ * Generated deterministically; timestamps are omitted for idempotence.
  *
  * Run \`npm run flags:generate\` to regenerate
  */
@@ -191,7 +191,7 @@ function generateFlagDefaults(registry: FlagRegistry): string {
   return `/**
  * AUTO-GENERATED FILE - DO NOT EDIT
  * Generated from: flags/registry.yaml
- * Generated at: ${new Date().toISOString()}
+ * Generated deterministically; timestamps are omitted for idempotence.
  *
  * Run \`npm run flags:generate\` to regenerate
  */
