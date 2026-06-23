@@ -15,7 +15,7 @@ export const FEATURES = {
   sessions: flag(process.env['ENABLE_SESSIONS'], false),
   metrics: flag(process.env['ENABLE_METRICS'], true), // enable locally by default
   statGating: flag(process.env['ENABLE_STAT_GATING'], false),
-  // Portfolio Intelligence API - graduated from WIP (default: false for safe rollout)
+  // Canonical declaration: flags/registry.yaml; intentionally enforced by this env var, not client flags.
   portfolioIntelligence: flag(process.env['ENABLE_PORTFOLIO_INTELLIGENCE'], false),
 };
 
