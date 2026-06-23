@@ -94,6 +94,7 @@
     "validate:claude-md": "npx markdown-link-check CLAUDE.md --config .markdown-link-check.json",
     "docs:routing:generate": "npx tsx scripts/generate-discovery-map.ts",
     "docs:routing:check": "npx tsx scripts/generate-discovery-map.ts --check",
+    "docs:routing:check:ci": "npx tsx scripts/generate-discovery-map.ts --check --allow-doc-inventory-drift",
     "docs:routing:query": "npx tsx scripts/routeQueryFast.ts",
     "skills:index": "npx tsx scripts/generate-skill-index.ts",
     "skills:check": "npx tsx scripts/generate-skill-index.ts --check",

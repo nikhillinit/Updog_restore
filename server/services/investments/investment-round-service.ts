@@ -22,8 +22,12 @@ export type CreateRoundResult =
   | ({ kind: 'created' } & InvestmentRoundRow)
   | ({ kind: 'replayed' } & InvestmentRoundRow)
   | { kind: 'key_reused' }
+  | SupersedeRoundPreflightDenial;
+
+type SupersedeRoundPreflightDenial =
   | { kind: 'already_superseded' }
   | { kind: 'supersede_target_missing' }
+  | { kind: 'supersede_target_other_fund' }
   | { kind: 'supersede_target_other_investment' };
 
 interface CreateRoundArgs extends InvestmentRoundCreate {
@@ -31,6 +35,14 @@ interface CreateRoundArgs extends InvestmentRoundCreate {
   idempotencyKey: string;
   /** Best-effort creator id (nullable users.id FK); NULL when identity is not numeric. */
   createdBy: number | null;
+}
+
+type SupersedeRoundPreflightResult = { kind: 'ok' } | SupersedeRoundPreflightDenial;
+
+interface SupersedeRoundPreflightArgs {
+  investmentId: number;
+  fundId: number;
+  supersedesRoundId: number;
 }
 
 // Explicit column map + xmin::text (mirrors task-service). List the columns
@@ -99,6 +111,26 @@ async function loadRoundById(
   return record ? splitXmin(record) : undefined;
 }
 
+export async function supersedeRoundPreflight(
+  input: SupersedeRoundPreflightArgs,
+  options: InvestmentRoundServiceOptions = {}
+): Promise<SupersedeRoundPreflightResult> {
+  const target = await loadRoundById(input.supersedesRoundId, options);
+  if (!target) {
+    return { kind: 'supersede_target_missing' };
+  }
+  if (target.row.fundId !== input.fundId) {
+    return { kind: 'supersede_target_other_fund' };
+  }
+  if (target.row.investmentId !== input.investmentId) {
+    return { kind: 'supersede_target_other_investment' };
+  }
+  if (await hasSupersedingRound(input.supersedesRoundId, options)) {
+    return { kind: 'already_superseded' };
+  }
+  return { kind: 'ok' };
+}
+
 async function hasSupersedingRound(
   roundId: number,
   options: InvestmentRoundServiceOptions = {}
@@ -136,15 +168,16 @@ export async function createRound(
   const requestHash = requestHashFor(input);
 
   if (input.supersedesRoundId !== undefined) {
-    const target = await loadRoundById(input.supersedesRoundId, options);
-    if (!target) {
-      return { kind: 'supersede_target_missing' };
-    }
-    if (target.row.investmentId !== input.investmentId) {
-      return { kind: 'supersede_target_other_investment' };
-    }
-    if (await hasSupersedingRound(input.supersedesRoundId, options)) {
-      return { kind: 'already_superseded' };
+    const preflight = await supersedeRoundPreflight(
+      {
+        investmentId: input.investmentId,
+        fundId: input.fundId,
+        supersedesRoundId: input.supersedesRoundId,
+      },
+      options
+    );
+    if (preflight.kind !== 'ok') {
+      return preflight;
     }
   }
 
@@ -215,6 +248,7 @@ export async function listRoundsForInvestment(
 }
 
 export async function loadRound(
+  fundId: number,
   investmentId: number,
   roundId: number,
   options: InvestmentRoundServiceOptions = {}
@@ -223,7 +257,16 @@ export async function loadRound(
   const [record] = await database
     .select(columnsWithXmin)
     .from(investmentRounds)
-    .where(and(eq(investmentRounds.investmentId, investmentId), eq(investmentRounds.id, roundId)))
+    .where(
+      and(
+        eq(investmentRounds.fundId, fundId),
+        eq(investmentRounds.investmentId, investmentId),
+        eq(investmentRounds.id, roundId)
+      )
+    )
     .limit(1);
-  return record ? splitXmin(record) : undefined;
+  if (!record || record.fundId !== fundId || record.investmentId !== investmentId) {
+    return undefined;
+  }
+  return splitXmin(record);
 }

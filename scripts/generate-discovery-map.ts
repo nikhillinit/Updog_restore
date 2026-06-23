@@ -6,7 +6,8 @@
  *
  * Usage:
  *   npm run docs:routing:generate  # Generate artifacts
- *   npm run docs:routing:check     # Verify sync (CI mode)
+ *   npm run docs:routing:check     # Verify strict artifact sync
+ *   npm run docs:routing:check:ci  # Verify routing behavior; warn on inventory-only drift
  *
  * Output:
  *   docs/_generated/router-index.json    # Machine-readable routing index
@@ -821,6 +822,7 @@ function extractField(content: string, field: string): string | null {
 async function main(): Promise<void> {
   const isCheckMode = process.argv.includes('--check');
   const isVerbose = process.argv.includes('--verbose');
+  const allowDocInventoryDrift = process.argv.includes('--allow-doc-inventory-drift');
   const generatedAt = isCheckMode
     ? '1970-01-01T00:00:00.000Z'
     : `${new Date().toISOString().split('T')[0]}T00:00:00.000Z`;
@@ -1216,14 +1218,15 @@ Documents without proper YAML frontmatter:
     const stalenessExists = existingStaleness.length > 0;
     const trackedInventoryOnly = existingUntrackedDocPaths.length === 0;
     const noLocalPollutionMentions = localPollutionMentions.length === 0;
+    const docInventoryFailure =
+      !docsInventoryMatch || !trackedInventoryOnly || !noLocalPollutionMentions;
+    const shouldFailDocInventory = docInventoryFailure && !allowDocInventoryDrift;
 
     if (
       !jsonMatch ||
-      !docsInventoryMatch ||
+      shouldFailDocInventory ||
       !existingStatsMatch ||
       !newStatsMatch ||
-      !trackedInventoryOnly ||
-      !noLocalPollutionMentions ||
       !fastMatch ||
       !stalenessExists
     ) {
@@ -1256,6 +1259,33 @@ Documents without proper YAML frontmatter:
       if (!fastMatch) console.error('  - router-fast.json needs regeneration');
       if (!stalenessExists) console.error('  - staleness-report.md is missing');
       process.exit(1);
+    }
+
+    if (docInventoryFailure && allowDocInventoryDrift) {
+      console.warn(
+        'WARNING: Documentation inventory changed, but routing behavior is in sync.'
+      );
+      console.warn(
+        'Run npm run docs:routing:generate to refresh router-index.json and staleness-report.md.'
+      );
+      console.warn(
+        'CI will generate and upload current discovery-routing-artifacts for review.'
+      );
+      if (!docsInventoryMatch) {
+        console.warn('  - router-index.json doc inventory differs from deterministic scan');
+      }
+      if (!trackedInventoryOnly) {
+        console.warn('  - existing router-index.json contains untracked doc paths:');
+        for (const filePath of existingUntrackedDocPaths) {
+          console.warn(`    - ${filePath}`);
+        }
+      }
+      if (!noLocalPollutionMentions) {
+        console.warn('  - generated artifacts contain untracked local path mentions:');
+        for (const mention of localPollutionMentions) {
+          console.warn(`    - ${mention}`);
+        }
+      }
     }
 
     console.log('PASS: Discovery map is in sync.');
