@@ -1,6 +1,6 @@
 ---
 status: ACTIVE
-last_updated: 2026-06-19
+last_updated: 2026-06-22
 ---
 
 # Secondary Surface Decisions
@@ -12,8 +12,8 @@ last_updated: 2026-06-19
 | `planning`                                                                                                         | Archived redirect                       | `client/src/App.tsx`, `client/src/app/route-governance-registry.ts` | explicit route redirect                                                                                                                    | restore only via a new owned implementation and route decision                               |
 | `kpi-manager`                                                                                                      | Archived redirect                       | `client/src/App.tsx`, `client/src/app/route-governance-registry.ts` | explicit route redirect                                                                                                                    | restore only via a new owned implementation and route decision                               |
 | `kpi-submission`                                                                                                   | Archived redirect                       | `client/src/App.tsx`, `client/src/app/route-governance-registry.ts` | explicit route redirect                                                                                                                    | restore only via a new owned implementation and route decision                               |
-| `/reserves-demo`                                                                                                   | Deleted (Branch B)                      | removed in branch chore/remove-mock-surface-pages                   | not mounted in any environment; bundle verifier guards reintroduction                                                                      | re-create only via an owned implementation and a fresh route decision                        |
-| `/allocation-manager`, `/cash-management`, `/portfolio-analytics`, `/cap-tables`                                   | Deleted (Branch B)                      | removed in branch chore/remove-mock-surface-pages                   | not mounted in any environment; bundle verifier guards reintroduction                                                                      | re-create only via owned implementations                                                     |
+| `/reserves-demo`                                                                                                   | Deleted (Branch B)                      | removed in branch chore/remove-mock-surface-pages                   | not mounted in any environment; `scripts/check-prod-bundle.mjs` guards reintroduction                                                      | re-create only via an owned implementation and a fresh route decision                        |
+| `/allocation-manager`, `/cash-management`, `/portfolio-analytics`, `/cap-tables`                                   | Deleted (Branch B)                      | removed in branch chore/remove-mock-surface-pages                   | not mounted in any environment; `scripts/check-prod-bundle.mjs` guards reintroduction                                                      | re-create only via owned implementations and fresh route decisions                           |
 | `/shared/:shareId`                                                                                                 | Public contract                         | `client/src/App.tsx`, `client/src/app/route-governance-registry.ts` | intentional public mount                                                                                                                   | remove only with an explicit external-link migration                                         |
 | `/portal/:rest*`                                                                                                   | Public contract                         | `client/src/App.tsx`, `client/src/app/route-governance-registry.ts` | intentional public mount to access denied                                                                                                  | change only with an explicit portal activation or deprecation plan                           |
 | Compass                                                                                                            | Experimental and unmounted              | `server/compass/routes.ts` plus future server mount gate            | no server mount                                                                                                                            | mount only behind an explicit activation decision                                            |
@@ -60,33 +60,34 @@ future reactivation path in source control. Trade-off: KPI pages are no longer
 recoverable through client-side flags. Rollback requires a new owned
 implementation and route decision.
 
-## Reserves Demo
+## Deleted Mock Operational Surfaces
 
-> Supersession (2026-06-18, Branch B): /reserves-demo and the four mock
-> operational surfaces (/allocation-manager, /cash-management,
-> /portfolio-analytics, /cap-tables) plus their transitively-dead component
-> closure have been DELETED entirely. PR-1 (the firebreak) first build-excluded
-> them as dev-only; this follow-up removes the page modules and 12 dead
-> components outright. They are no longer mounted in any environment.
-> scripts/check-prod-bundle.mjs (QUARANTINED_MODULES) remains as a permanent
-> guard against reintroduction into the production bundle.
+Supersession (2026-06-18/19, Branch B): `/reserves-demo` and the four mock
+operational surfaces (`/allocation-manager`, `/cash-management`,
+`/portfolio-analytics`, `/cap-tables`) plus their transitively-dead component
+closure have been **deleted entirely**. The firebreak first build-excluded them
+as dev-only; the follow-up removed the page modules and their exclusive
+components outright. They are no longer mounted in any environment.
+`scripts/check-prod-bundle.mjs` (`QUARANTINED_MODULES`) remains as a permanent
+guard against reintroduction into the production bundle.
 
-- White: `/reserves-demo` is a direct smoke-tested surface backed by a real page
-  component, but it was missing from the mounted app route list.
-- Red: leaving the page file unmounted makes CI pass depend on implementation
-  luck instead of route truth.
-- Yellow: it is not a core workflow destination or sidebar item, but it is still
-  a deliberate demo surface that should remain directly reachable.
-- Black: treating the demo as an accidental page guarantees future regressions
-  in build-only and smoke lanes.
-- Green: keep it mounted as an intentional internal-live route and cover it in
-  route-perimeter tests.
-- Blue: final decision is to preserve `/reserves-demo` as an intentionally
-  mounted demo surface, separate from the core workflow perimeter.
+- White: the pages existed, but they were mock/sample-backed or nav-orphaned and
+  implied product capabilities the platform could not truthfully support.
+- Red: leaving them mounted or bundled let users, QA, and future agents mistake
+  sample-backed surfaces for product commitments.
+- Yellow: each concept may return later, but only as an owned implementation
+  with live contracts and a fresh route decision.
+- Black: preserving dev-only route exceptions after deletion would keep stale
+  documentation and tests alive.
+- Green: delete the route/page/component closure and keep bundle quarantine as
+  the anti-regression guard.
+- Blue: final decision is Branch B deletion. Reintroduction requires a new owned
+  implementation, route-policy entry, tests, and production-bundle verification.
 
-Benefits: keeps the smoke target honest and makes the mounted route explicit in
-governance. Trade-off: one non-core demo route remains directly reachable by
-design. Rollback: remove only with an explicit demo retirement decision.
+Benefits: removes false product promises and shrinks the production trust
+surface. Trade-off: these surfaces are no longer recoverable at runtime without
+re-implementation. Rollback: revert the deletion branch or rebuild behind a new
+owned route decision.
 
 ## Public Contracts
 
@@ -173,9 +174,10 @@ Playwright testMatch across all configs, server mount, worker registration):
   with hub-specific named exports; currently unimported but retained by decision
   for future integration.
 
-Deferred (separate decisions, not in this PR): LP-sibling routes
-(`lp-{capital-calls,distributions,documents,notifications}.ts`) are unmounted
-but called by live `/lp/dashboard` widgets (a 404 bug) — decision: MOUNT the
-routes (tracked as follow-up). `NotionIntegrationHub` + `notion-integration.tsx`
-remain dormant per the keep-registry. The other nine `@deprecated` symbols have
-live callers and are retained.
+Follow-up completed: LP-sibling routes
+(`lp-{capital-calls,distributions,documents,notifications}.ts`) are now mounted
+for the live `/lp/dashboard` widgets in both active server surfaces. Keep them
+covered by mount-parity tests so the 404 regression does not return.
+`NotionIntegrationHub` + `notion-integration.tsx` remain dormant per the
+keep-registry. The other nine `@deprecated` symbols have live callers and are
+retained.

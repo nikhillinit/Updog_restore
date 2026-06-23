@@ -10,9 +10,9 @@
 # Feature flags governance
 /flags/ @nikhillinit
 /flags/* @nikhillinit
+/shared/feature-flags/ @nikhillinit
 
 # Security-sensitive paths
-/server/auth/ @nikhillinit
 /server/rum/ @nikhillinit
 /migrations/ @nikhillinit
 
@@ -34,8 +34,8 @@
 
 # Infrastructure and observability
 /client/src/metrics/ @nikhillinit
-/client/src/lib/feature-flags.ts @nikhillinit
 /client/src/engines/ @nikhillinit
+/scripts/check-prod-bundle.mjs @nikhillinit
 
 # Testing
 /tests/unit/reserves-*.test.ts @nikhillinit
@@ -43,14 +43,15 @@
 /tests/integration/ @nikhillinit
 
 # CI/CD
-/.github/workflows/ci-reserves-v11.yml @nikhillinit
-/.github/workflows/canary-gate.yml @nikhillinit
+/.github/workflows/ci-unified.yml @nikhillinit
 
 # Documentation
-/docs/reserves/ @nikhillinit
+/README.md @nikhillinit
+/docs/BUILD_READINESS.md @nikhillinit
 /docs/ROLLBACK_TRIGGERS.md @nikhillinit
 /docs/INCIDENT_RESPONSE.md @nikhillinit
+/docs/plans/2026-03-27-secondary-surface-decisions.md @nikhillinit
+/docs/plans/2026-06-22-current-state-steelman-roadmap.md @nikhillinit
 
-# Server-side implementation
-/server/routes/reserves.ts @nikhillinit
-/server/plugins/reserves-metrics.plugin.ts @nikhillinit
+# Route governance (policy registry)
+/client/src/app/route-governance-registry.ts @nikhillinit
