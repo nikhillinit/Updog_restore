@@ -1165,6 +1165,42 @@
       "status": "UNKNOWN"
     },
     {
+      "docType": "doc",
+      "exists": true,
+      "frontmatter": {
+        "audience": "agents",
+        "last_updated": "2026-06-23",
+        "owner": "Platform / GP Modeling",
+        "review_cadence": "P365D",
+        "status": "REFERENCE"
+      },
+      "hasExecutionClaims": false,
+      "isStale": false,
+      "lastUpdated": "2026-06-23",
+      "owner": "Platform / GP Modeling",
+      "path": ".claude/artifacts/debate-rubric-v33.md",
+      "staleDays": 0,
+      "status": "REFERENCE"
+    },
+    {
+      "docType": "doc",
+      "exists": true,
+      "frontmatter": {
+        "audience": "agents",
+        "last_updated": "2026-06-23",
+        "owner": "Platform / GP Modeling",
+        "review_cadence": "P365D",
+        "status": "REFERENCE"
+      },
+      "hasExecutionClaims": false,
+      "isStale": false,
+      "lastUpdated": "2026-06-23",
+      "owner": "Platform / GP Modeling",
+      "path": ".claude/artifacts/debate-synthesis-v33.md",
+      "staleDays": 0,
+      "status": "REFERENCE"
+    },
+    {
       "docType": "command",
       "exists": true,
       "frontmatter": {
@@ -11348,6 +11384,42 @@
     {
       "docType": "doc",
       "exists": true,
+      "frontmatter": {
+        "audience": "agents",
+        "last_updated": "2026-06-23",
+        "owner": "Platform / GP Modeling",
+        "review_cadence": "P90D",
+        "status": "HISTORICAL"
+      },
+      "hasExecutionClaims": false,
+      "isStale": false,
+      "lastUpdated": "2026-06-23",
+      "owner": "Platform / GP Modeling",
+      "path": "docs/superpowers/plans/2026-06-23-trust-first-milestones-v3.3.md",
+      "staleDays": 0,
+      "status": "HISTORICAL"
+    },
+    {
+      "docType": "doc",
+      "exists": true,
+      "frontmatter": {
+        "audience": "agents",
+        "last_updated": "2026-06-23",
+        "owner": "Platform / GP Modeling",
+        "review_cadence": "P90D",
+        "status": "DRAFT"
+      },
+      "hasExecutionClaims": true,
+      "isStale": false,
+      "lastUpdated": "2026-06-23",
+      "owner": "Platform / GP Modeling",
+      "path": "docs/superpowers/plans/2026-06-23-trust-first-milestones-v3.4.md",
+      "staleDays": 0,
+      "status": "DRAFT"
+    },
+    {
+      "docType": "doc",
+      "exists": true,
       "frontmatter": {},
       "hasExecutionClaims": true,
       "isStale": true,
@@ -13108,14 +13180,14 @@
       "BACKLOG": 1,
       "COMPLETE": 3,
       "COMPLETED": 1,
-      "DRAFT": 32,
+      "DRAFT": 33,
       "DRAFT (red-team hardened 2026-06-21)": 1,
-      "HISTORICAL": 29,
+      "HISTORICAL": 30,
       "HISTORICAL-SNAPSHOT": 1,
       "INDEXED": 6,
       "Implemented": 1,
       "PROVEN": 1,
-      "REFERENCE": 6,
+      "REFERENCE": 8,
       "STALE-VALIDATION": 1,
       "TRACKED (not scheduled)": 1,
       "UNKNOWN": 117,
@@ -13125,7 +13197,7 @@
     },
     "missing_frontmatter": 22,
     "stale_docs": 104,
-    "total_docs": 664
+    "total_docs": 668
   },
   "version": "2.0"
 }
