@@ -55,23 +55,27 @@ const getRuntimeFlag = (flagKey: string): boolean | undefined => {
 /**
  * Get environment variable flag value
  */
+export const resolveEnvFlag = (flagKey: string, env: unknown): boolean | undefined => {
+  if (!isRecord(env)) {
+    return undefined;
+  }
+
+  const envVal = env[`VITE_${flagKey.toUpperCase()}`];
+  if (typeof envVal !== 'string') {
+    return undefined;
+  }
+  if (envVal === 'true' || envVal === '1') return true;
+  if (envVal === 'false' || envVal === '0') return false;
+  return undefined;
+};
+
 const getEnvFlag = (flagKey: string): boolean | undefined => {
   try {
-    const env = getImportMetaEnv();
-    if (!isRecord(env)) {
-      return undefined;
-    }
-
-    const envVal = env[`VITE_${flagKey.toUpperCase()}`];
-    if (typeof envVal !== 'string') {
-      return undefined;
-    }
-    if (envVal === 'true' || envVal === '1') return true;
-    if (envVal === 'false' || envVal === '0') return false;
+    return resolveEnvFlag(flagKey, getImportMetaEnv());
   } catch {
     // Ignore - might be SSR or no import.meta
+    return undefined;
   }
-  return undefined;
 };
 
 /**

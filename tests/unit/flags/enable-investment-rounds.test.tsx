@@ -1,29 +1,46 @@
 import { describe, it, expect, afterEach } from 'vitest';
 import { renderHook } from '@testing-library/react';
 import { ALL_FLAGS } from '@shared/feature-flags/flag-definitions';
-import { useFlag } from '@/shared/useFlags';
+import { resolveEnvFlag, useFlag } from '@/shared/useFlags';
 
-// Regression guard: the flag groups are typed `Record<string, FeatureFlag>`, so
-// `FlagKey` collapses to `string` and `useFlag('enable_investment_rounds')`
-// compiles even when the key is NOT registered. If the key is missing from
-// ALL_FLAGS the gate is silently always-false AND not runtime-overridable, which
-// makes the whole investment-rounds surface dead. These runtime checks catch that.
+// Regression guards for the Part B ramp. The live UI resolves the flag via
+// client/src/shared/useFlags.ts in priority order:
+//   runtime (?ff_/localStorage) ?? VITE_ENABLE_INVESTMENT_ROUNDS ?? ALL_FLAGS.enabled ?? false
+// The per-environment lever is the VITE_* build env, NOT a per-env branch in
+// flag-definitions.ts (none exists) and NOT the global ALL_FLAGS.enabled bit
+// (flipping that enables prod too - the NO-GO tripwire below).
 describe('enable_investment_rounds flag registration', () => {
   afterEach(() => {
     window.localStorage.clear();
   });
 
-  it('is registered in ALL_FLAGS and defaults OFF', () => {
+  it('is registered in ALL_FLAGS and the global default stays OFF (prod-leak tripwire)', () => {
     expect(Object.keys(ALL_FLAGS)).toContain('enable_investment_rounds');
     expect(ALL_FLAGS['enable_investment_rounds']?.enabled).toBe(false);
   });
 
-  it('defaults OFF but is runtime-overridable (so dev can enable it)', () => {
+  it('defaults OFF but is runtime-overridable (manual dev verification)', () => {
     const off = renderHook(() => useFlag('enable_investment_rounds'));
     expect(off.result.current).toBe(false);
 
     window.localStorage.setItem('ff_enable_investment_rounds', '1');
     const on = renderHook(() => useFlag('enable_investment_rounds'));
     expect(on.result.current).toBe(true);
+  });
+
+  it('VITE_ENABLE_INVESTMENT_ROUNDS=true is the per-environment ON lever (dev/staging)', () => {
+    expect(
+      resolveEnvFlag('enable_investment_rounds', {
+        VITE_ENABLE_INVESTMENT_ROUNDS: 'true',
+      })
+    ).toBe(true);
+  });
+
+  it('VITE_ENABLE_INVESTMENT_ROUNDS=false takes precedence over the default (prod build resolves OFF)', () => {
+    expect(
+      resolveEnvFlag('enable_investment_rounds', {
+        VITE_ENABLE_INVESTMENT_ROUNDS: 'false',
+      })
+    ).toBe(false);
   });
 });
