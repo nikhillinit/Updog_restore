@@ -23,6 +23,9 @@ const BANNED_LITERALS = [
   'currentIrr: 0.18',
   'currentMultiple: 2.1',
   "dataFreshness: 'real-time'",
+  'quickProjections: {',
+  'timeToExit: 5',
+  "message: 'Quick scenario generated successfully'",
 ];
 
 function lineNumberAt(source, index) {
