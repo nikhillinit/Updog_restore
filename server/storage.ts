@@ -189,6 +189,7 @@ export class MemStorage implements IStorage {
       carryPercentage: '0.20',
       vintageYear: 2020,
       status: 'active',
+      baseCurrency: 'USD',
       engineResults: null,
       createdAt: new Date(),
     };
@@ -348,6 +349,7 @@ export class MemStorage implements IStorage {
       carryPercentage: String(insertFund.carryPercentage),
       vintageYear: insertFund.vintageYear,
       status: 'active', // Default value from schema
+      baseCurrency: 'USD',
       engineResults: insertFund.engineResults ?? null,
       createdAt: new Date(),
     };
