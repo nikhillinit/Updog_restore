@@ -48,34 +48,31 @@ router['get'](
     try {
       const fundIdQuery = req.query['fundId'];
       const asOfQuery = req.query['asOf'];
-      let fundId: number | undefined;
       let asOf: Date | undefined;
 
-      if (fundIdQuery) {
-        const parsedId = toNumber(fundIdQuery as string, 'fund ID');
-        if (parsedId <= 0) {
-          const error: ApiError = {
-            error: 'Invalid fund ID query',
-            message: `Fund ID must be a positive integer, received: ${fundIdQuery}`,
-          };
-          return res.status(400).json(error);
-        }
-        fundId = parsedId;
+      if (fundIdQuery === undefined || fundIdQuery === '') {
+        const error: ApiError = {
+          error: 'fund_scope_required',
+          message: 'A fundId query parameter is required to list portfolio companies',
+        };
+        return res.status(400).json(error);
       }
 
-      if (fundId !== undefined && !(await enforceProvidedFundScope(req, res, fundId))) {
+      const parsedId = toNumber(fundIdQuery as string, 'fund ID');
+      if (parsedId <= 0) {
+        const error: ApiError = {
+          error: 'Invalid fund ID query',
+          message: `Fund ID must be a positive integer, received: ${fundIdQuery}`,
+        };
+        return res.status(400).json(error);
+      }
+      const fundId = parsedId;
+
+      if (!(await enforceProvidedFundScope(req, res, fundId))) {
         return;
       }
 
       if (typeof asOfQuery === 'string') {
-        if (!fundId) {
-          const error: ApiError = {
-            error: 'Invalid asOf query',
-            message: 'asOf requires a positive fundId query parameter',
-          };
-          return res.status(400).json(error);
-        }
-
         asOf = parseAsOfQuery(asOfQuery);
       }
 
@@ -114,7 +111,6 @@ router['get'](
       const idParam = req.params['id'];
       const fundIdQuery = req.query['fundId'];
       const id = toNumber(idParam, 'ID');
-      let fundId: number | undefined;
 
       if (id <= 0) {
         const error: ApiError = {
@@ -124,30 +120,33 @@ router['get'](
         return res.status(400).json(error);
       }
 
-      if (fundIdQuery) {
-        const parsedFundId = toNumber(fundIdQuery as string, 'fund ID');
-        if (parsedFundId <= 0) {
-          const error: ApiError = {
-            error: 'Invalid fund ID query',
-            message: `Fund ID must be a positive integer, received: ${fundIdQuery}`,
-          };
-          return res.status(400).json(error);
-        }
-        fundId = parsedFundId;
+      if (fundIdQuery === undefined || fundIdQuery === '') {
+        const error: ApiError = {
+          error: 'fund_scope_required',
+          message: 'A fundId query parameter is required to fetch portfolio company',
+        };
+        return res.status(400).json(error);
       }
 
-      if (fundId !== undefined && !(await enforceProvidedFundScope(req, res, fundId))) {
+      const parsedFundId = toNumber(fundIdQuery as string, 'fund ID');
+      if (parsedFundId <= 0) {
+        const error: ApiError = {
+          error: 'Invalid fund ID query',
+          message: `Fund ID must be a positive integer, received: ${fundIdQuery}`,
+        };
+        return res.status(400).json(error);
+      }
+      const fundId = parsedFundId;
+
+      if (!(await enforceProvidedFundScope(req, res, fundId))) {
         return;
       }
 
       const company = await storage.getPortfolioCompany(id);
-      if (!company || (fundId !== undefined && company.fundId !== fundId)) {
+      if (!company || company.fundId !== fundId) {
         const error: ApiError = {
           error: 'Company not found',
-          message:
-            fundId !== undefined
-              ? `No portfolio company exists for fund ${fundId} with ID: ${id}`
-              : `No portfolio company exists with ID: ${id}`,
+          message: `No portfolio company exists for fund ${fundId} with ID: ${id}`,
         };
         return res.status(404).json(error);
       }
