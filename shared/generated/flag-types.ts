@@ -18,6 +18,7 @@ export type FlagKey =
   | 'enable_operations_hub'
   | 'enable_investment_rounds'
   | 'enable_lp_reporting'
+  | 'enable_lp_snapshot_mode'
   | 'enable_reserve_engine'
   | 'enable_portfolio_table_v2'
   | 'enable_engine_integration'
@@ -32,6 +33,12 @@ export type FlagKey =
   | 'metrics_collection'
   | 'enable_pipeline_bulk_actions'
   | 'enable_pipeline_dnd'
+  | 'enable_work_panel'
+  | 'enable_context_rail'
+  | 'enable_cash_event_object'
+  | 'enable_cash_event_edit'
+  | 'enable_route_redirects'
+  | 'enable_observability'
   | 'ui_catalog'
   | 'onboarding_tour'
   | 'demo_mode'
@@ -39,10 +46,13 @@ export type FlagKey =
   | 'enable_portfolio_intelligence'
   | 'enable_faults'
   | 'enable_wizard_step_general'
+  | 'enable_wizard_step_sectors'
+  | 'enable_wizard_step_allocations'
   | 'enable_wizard_step_sizing'
   | 'enable_wizard_step_pacing'
   | 'enable_wizard_step_reserves'
   | 'enable_wizard_step_fees'
+  | 'enable_wizard_step_recycling'
   | 'enable_wizard_step_waterfall'
   | 'enable_wizard_step_results';
 
@@ -58,6 +68,7 @@ export type ClientFlagKey =
   | 'enable_operations_hub'
   | 'enable_investment_rounds'
   | 'enable_lp_reporting'
+  | 'enable_lp_snapshot_mode'
   | 'enable_reserve_engine'
   | 'enable_portfolio_table_v2'
   | 'enable_engine_integration'
@@ -72,13 +83,22 @@ export type ClientFlagKey =
   | 'metrics_collection'
   | 'enable_pipeline_bulk_actions'
   | 'enable_pipeline_dnd'
+  | 'enable_work_panel'
+  | 'enable_context_rail'
+  | 'enable_cash_event_object'
+  | 'enable_cash_event_edit'
+  | 'enable_route_redirects'
+  | 'enable_observability'
   | 'ui_catalog'
   | 'onboarding_tour'
   | 'enable_wizard_step_general'
+  | 'enable_wizard_step_sectors'
+  | 'enable_wizard_step_allocations'
   | 'enable_wizard_step_sizing'
   | 'enable_wizard_step_pacing'
   | 'enable_wizard_step_reserves'
   | 'enable_wizard_step_fees'
+  | 'enable_wizard_step_recycling'
   | 'enable_wizard_step_waterfall'
   | 'enable_wizard_step_results';
 
@@ -145,6 +165,7 @@ export const ALL_FLAG_KEYS: readonly FlagKey[] = [
   'enable_operations_hub',
   'enable_investment_rounds',
   'enable_lp_reporting',
+  'enable_lp_snapshot_mode',
   'enable_reserve_engine',
   'enable_portfolio_table_v2',
   'enable_engine_integration',
@@ -159,6 +180,12 @@ export const ALL_FLAG_KEYS: readonly FlagKey[] = [
   'metrics_collection',
   'enable_pipeline_bulk_actions',
   'enable_pipeline_dnd',
+  'enable_work_panel',
+  'enable_context_rail',
+  'enable_cash_event_object',
+  'enable_cash_event_edit',
+  'enable_route_redirects',
+  'enable_observability',
   'ui_catalog',
   'onboarding_tour',
   'demo_mode',
@@ -166,10 +193,13 @@ export const ALL_FLAG_KEYS: readonly FlagKey[] = [
   'enable_portfolio_intelligence',
   'enable_faults',
   'enable_wizard_step_general',
+  'enable_wizard_step_sectors',
+  'enable_wizard_step_allocations',
   'enable_wizard_step_sizing',
   'enable_wizard_step_pacing',
   'enable_wizard_step_reserves',
   'enable_wizard_step_fees',
+  'enable_wizard_step_recycling',
   'enable_wizard_step_waterfall',
   'enable_wizard_step_results',
 ] as const;
@@ -186,6 +216,7 @@ export const CLIENT_FLAG_KEYS: readonly ClientFlagKey[] = [
   'enable_operations_hub',
   'enable_investment_rounds',
   'enable_lp_reporting',
+  'enable_lp_snapshot_mode',
   'enable_reserve_engine',
   'enable_portfolio_table_v2',
   'enable_engine_integration',
@@ -200,13 +231,22 @@ export const CLIENT_FLAG_KEYS: readonly ClientFlagKey[] = [
   'metrics_collection',
   'enable_pipeline_bulk_actions',
   'enable_pipeline_dnd',
+  'enable_work_panel',
+  'enable_context_rail',
+  'enable_cash_event_object',
+  'enable_cash_event_edit',
+  'enable_route_redirects',
+  'enable_observability',
   'ui_catalog',
   'onboarding_tour',
   'enable_wizard_step_general',
+  'enable_wizard_step_sectors',
+  'enable_wizard_step_allocations',
   'enable_wizard_step_sizing',
   'enable_wizard_step_pacing',
   'enable_wizard_step_reserves',
   'enable_wizard_step_fees',
+  'enable_wizard_step_recycling',
   'enable_wizard_step_waterfall',
   'enable_wizard_step_results',
 ] as const;

@@ -1,12 +1,12 @@
 import {
   ADMIN_GATED_ROUTES,
+  APP_ROUTE_DEFINITIONS,
   ARCHIVED_PLACEHOLDER_ROUTES,
-  APP_ROUTES,
   LEGACY_REDIRECT_ROUTES,
-  LP_ROUTES,
+  LP_ROUTE_DEFINITIONS,
   PUBLIC_ENTRY_ROUTES,
-} from '@/App';
-import type { RouteControlFlag } from '@/app/route-control-flags';
+  type RouteControlFlag,
+} from './app-route-definitions';
 
 export type RouteSurface =
   | 'root-entry'
@@ -66,14 +66,16 @@ function ensureUniquePaths(entries: RouteGovernanceEntry[]): readonly RouteGover
   return entries;
 }
 
-function toAppRouteGovernanceEntry(route: (typeof APP_ROUTES)[number]): RouteGovernanceEntry {
+function toAppRouteGovernanceEntry(
+  route: (typeof APP_ROUTE_DEFINITIONS)[number]
+): RouteGovernanceEntry {
   return {
     path: route.path,
     surface: 'app-route',
     exposure: CORE_LIVE_ROUTE_PATHS.includes(route.path as (typeof CORE_LIVE_ROUTE_PATHS)[number])
       ? 'core-live'
       : 'internal-live',
-    isProtected: Boolean(route.isProtected),
+    isProtected: 'isProtected' in route ? route.isProtected : false,
   };
 }
 
@@ -90,7 +92,9 @@ function toArchivedPlaceholderEntry(
   };
 }
 
-function toLPRouteGovernanceEntry(route: (typeof LP_ROUTES)[number]): RouteGovernanceEntry {
+function toLPRouteGovernanceEntry(
+  route: (typeof LP_ROUTE_DEFINITIONS)[number]
+): RouteGovernanceEntry {
   return {
     path: route.path,
     surface: 'lp-route',
@@ -152,9 +156,9 @@ const SPECIAL_ROUTE_GOVERNANCE: RouteGovernanceEntry[] = [
 
 export const ROUTE_GOVERNANCE_REGISTRY = ensureUniquePaths([
   ...SPECIAL_ROUTE_GOVERNANCE,
-  ...APP_ROUTES.map(toAppRouteGovernanceEntry),
+  ...APP_ROUTE_DEFINITIONS.map(toAppRouteGovernanceEntry),
   ...ARCHIVED_PLACEHOLDER_ROUTES.map(toArchivedPlaceholderEntry),
-  ...LP_ROUTES.map(toLPRouteGovernanceEntry),
+  ...LP_ROUTE_DEFINITIONS.map(toLPRouteGovernanceEntry),
 ]);
 
 export const CORE_LIVE_GOVERNED_PATHS = ROUTE_GOVERNANCE_REGISTRY.filter(
