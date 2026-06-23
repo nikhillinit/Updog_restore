@@ -317,6 +317,9 @@ router.post('/investments/:id/rounds', async (req: Request, res: Response) => {
     if (result.kind === 'supersede_target_missing') {
       return res.status(404).json({ error: 'supersede_target_missing' });
     }
+    if (result.kind === 'supersede_target_other_fund') {
+      return res.status(400).json({ error: 'supersede_target_other_fund' });
+    }
     return res.status(400).json({ error: 'supersede_target_other_investment' });
   } catch (error) {
     if (handleNumberParseError(error, res, 'Invalid investment ID')) {
@@ -374,7 +377,7 @@ router.get('/investments/:id/rounds/:roundId', async (req: Request, res: Respons
       return res.status(400).json(error);
     }
 
-    const round = await loadRound(scope.investmentId, roundId);
+    const round = await loadRound(scope.fundId, scope.investmentId, roundId);
     if (!round) {
       return res.status(404).json({ error: 'Investment round not found' });
     }
