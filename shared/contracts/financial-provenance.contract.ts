@@ -38,6 +38,22 @@ export const FinancialProvenanceSchema = z
   })
   .strict()
   .superRefine((value, ctx) => {
+    if (value.isFinanciallyActionable && value.actionability !== 'actionable') {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['actionability'],
+        message: 'Financially actionable provenance must use actionable actionability',
+      });
+    }
+
+    if (value.actionability === 'actionable' && !value.isFinanciallyActionable) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['isFinanciallyActionable'],
+        message: 'Actionable provenance must set isFinanciallyActionable to true',
+      });
+    }
+
     if (
       value.isFinanciallyActionable &&
       value.sourceKind !== 'computed' &&
@@ -60,6 +76,25 @@ export const FinancialProvenanceSchema = z
           });
         }
       }
+    }
+
+    if (
+      (value.actionability === 'quarantined' || value.sourceKind === 'prototype_blocked') &&
+      !value.quarantineReason
+    ) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['quarantineReason'],
+        message: 'Quarantined or prototype-blocked provenance requires quarantineReason',
+      });
+    }
+
+    if (value.isFinanciallyActionable && value.quarantineReason) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['quarantineReason'],
+        message: 'Financially actionable provenance cannot include quarantineReason',
+      });
     }
   });
 
