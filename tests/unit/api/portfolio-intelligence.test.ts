@@ -151,6 +151,41 @@ const createTestApp = () => {
   return app;
 };
 
+type PrototypeBlockedRouteId =
+  | 'portfolio.scenarios.compare'
+  | 'portfolio.scenario.simulate'
+  | 'portfolio.reserves.optimize'
+  | 'portfolio.reserves.backtest'
+  | 'portfolio.forecasts.create'
+  | 'portfolio.forecasts.validate'
+  | 'portfolio.quickScenario.create'
+  | 'portfolio.metrics.read';
+
+const expectPrototypeBlocked = (
+  response: request.Response,
+  routeId: PrototypeBlockedRouteId,
+  expectedReplacement?: string
+) => {
+  expect(response.status).toBe(501);
+  expect(response.body.success).toBe(false);
+  expect(response.body.code).toBe('PROTOTYPE_FINANCIAL_OUTPUT_BLOCKED');
+  expect(response.body.routeId).toBe(routeId);
+  if (expectedReplacement) {
+    expect(response.body.replacement).toBe(expectedReplacement);
+    expect(response.body.replacementRoute).toBe(expectedReplacement);
+  } else {
+    expect(response.body).not.toHaveProperty('replacement');
+    expect(response.body).not.toHaveProperty('replacementRoute');
+  }
+  expect(response.body.provenance).toMatchObject({
+    sourceKind: 'prototype_blocked',
+    isFinanciallyActionable: false,
+    quarantineReason: 'prototype_financial_output_blocked',
+  });
+  expect(response.body.provenance.warnings).toEqual(expect.arrayContaining([expect.any(String)]));
+  expect(response.body.warnings).toEqual(expect.arrayContaining([expect.any(String)]));
+};
+
 describe('Portfolio Intelligence API Routes', () => {
   let app: express.Application;
 
@@ -518,17 +553,13 @@ describe('Portfolio Intelligence API Routes', () => {
         },
       };
 
-      it('should compare multiple scenarios', async () => {
+      it('blocks prototype scenario comparison output', async () => {
         const response = await request(app)
           .post('/api/portfolio/scenarios/compare')
-          .send(validComparisonData)
-          .expect(201);
+          .send(validComparisonData);
 
-        expect(response.body.success).toBe(true);
-        expect(response.body.data.baseScenarioId).toBe(validComparisonData.baseScenarioId);
-        expect(response.body.data.comparisonType).toBe(validComparisonData.comparisonType);
-        expect(response.body.data.status).toBe('ready');
-        expect(response.body.message).toBe('Scenario comparison completed successfully');
+        expectPrototypeBlocked(response, 'portfolio.scenarios.compare');
+        expect(testStorage.comparisons.size).toBe(0);
       });
 
       it('should validate UUID formats', async () => {
@@ -586,19 +617,19 @@ describe('Portfolio Intelligence API Routes', () => {
       };
       const scenarioId = seedScenarioId;
 
-      it('should run Monte Carlo simulation on scenario', async () => {
+      it('blocks prototype Monte Carlo simulation output after scenario existence check', async () => {
+        const createSimulation = vi.spyOn(portfolioIntelligenceService.simulations, 'create');
+
         const response = await request(app)
           .post(`/api/portfolio/scenarios/${scenarioId}/simulate`)
-          .send(validSimulationData)
-          .expect(201);
+          .send(validSimulationData);
 
-        expect(response.body.success).toBe(true);
-        expect(response.body.data.scenarioId).toBe(scenarioId);
-        expect(response.body.data.simulationType).toBe(validSimulationData.simulationType);
-        expect(response.body.data.numberOfRuns).toBe(validSimulationData.numberOfRuns);
-        expect(response.body.data.summaryStatistics).toBeDefined();
-        expect(response.body.data.riskMetrics).toBeDefined();
-        expect(response.body.message).toBe('Monte Carlo simulation completed successfully');
+        expectPrototypeBlocked(
+          response,
+          'portfolio.scenario.simulate',
+          '/api/monte-carlo/simulate'
+        );
+        expect(createSimulation).not.toHaveBeenCalled();
       });
 
       it('should validate simulation type', async () => {
@@ -646,18 +677,15 @@ describe('Portfolio Intelligence API Routes', () => {
         monteCarloIterations: 5000,
       };
 
-      it('should optimize reserve allocation', async () => {
+      it('blocks prototype reserve optimization output', async () => {
+        const createReserve = vi.spyOn(portfolioIntelligenceService.reserves, 'create');
+
         const response = await request(app)
           .post('/api/portfolio/reserves/optimize?fundId=1')
-          .send(validOptimizationData)
-          .expect(201);
+          .send(validOptimizationData);
 
-        expect(response.body.success).toBe(true);
-        expect(response.body.data.fundId).toBe(1);
-        expect(response.body.data.strategyType).toBe(validOptimizationData.strategyType);
-        expect(response.body.data.optimalAllocation).toBeDefined();
-        expect(response.body.data.performanceProjection).toBeDefined();
-        expect(response.body.message).toBe('Reserve optimization completed successfully');
+        expectPrototypeBlocked(response, 'portfolio.reserves.optimize');
+        expect(createReserve).not.toHaveBeenCalled();
       });
 
       it('should validate strategy type enum', async () => {
@@ -731,18 +759,13 @@ describe('Portfolio Intelligence API Routes', () => {
         benchmarkStrategy: 'market_cap',
       };
 
-      it('should run reserve strategy backtest', async () => {
+      it('blocks prototype reserve backtest output', async () => {
         const response = await request(app)
           .post('/api/portfolio/reserves/backtest')
-          .send(validBacktestData)
-          .expect(201);
+          .send(validBacktestData);
 
-        expect(response.body.success).toBe(true);
-        expect(response.body.data.strategyId).toBe(validBacktestData.strategyId);
-        expect(response.body.data.backtestPeriod.start).toBe(validBacktestData.backtestPeriodStart);
-        expect(response.body.data.results).toBeDefined();
-        expect(response.body.data.performanceAttribution).toBeDefined();
-        expect(response.body.message).toBe('Reserve strategy backtest completed successfully');
+        expectPrototypeBlocked(response, 'portfolio.reserves.backtest');
+        expect(testStorage.backtests.size).toBe(0);
       });
 
       it('should validate date formats', async () => {
@@ -785,19 +808,13 @@ describe('Portfolio Intelligence API Routes', () => {
         },
       };
 
-      it('should generate performance forecast', async () => {
+      it('blocks prototype performance forecast output', async () => {
         const response = await request(app)
           .post('/api/portfolio/forecasts?fundId=1')
-          .send(validForecastData)
-          .expect(201);
+          .send(validForecastData);
 
-        expect(response.body.success).toBe(true);
-        expect(response.body.data.fundId).toBe(1);
-        expect(response.body.data.forecastName).toBe(validForecastData.forecastName);
-        expect(response.body.data.forecastPeriods).toBeDefined();
-        expect(response.body.data.confidenceIntervals).toBeDefined();
-        expect(response.body.data.status).toBe('complete');
-        expect(response.body.message).toBe('Performance forecast generated successfully');
+        expectPrototypeBlocked(response, 'portfolio.forecasts.create');
+        expect(testStorage.forecasts.size).toBe(0);
       });
 
       it('should validate forecast type', async () => {
@@ -879,18 +896,15 @@ describe('Portfolio Intelligence API Routes', () => {
         validationPeriod: '2024-12-31T23:59:59.999Z',
       };
 
-      it('should validate forecast against actuals', async () => {
+      it('blocks prototype forecast validation output after forecast existence check', async () => {
+        const updateForecast = vi.spyOn(portfolioIntelligenceService.forecasts, 'update');
+
         const response = await request(app)
           .post('/api/portfolio/forecasts/validate')
-          .send(validValidationData)
-          .expect(200);
+          .send(validValidationData);
 
-        expect(response.body.success).toBe(true);
-        expect(response.body.data.forecastId).toBe(seedForecastId);
-        expect(response.body.data.accuracyMetrics).toBeDefined();
-        expect(response.body.data.calibration).toBeDefined();
-        expect(response.body.data.keyInsights).toBeInstanceOf(Array);
-        expect(response.body.message).toBe('Forecast validation completed successfully');
+        expectPrototypeBlocked(response, 'portfolio.forecasts.validate');
+        expect(updateForecast).not.toHaveBeenCalled();
       });
 
       it('should validate UUID format for forecastId', async () => {
@@ -935,6 +949,13 @@ describe('Portfolio Intelligence API Routes', () => {
           expect(template.riskProfile).toBeDefined();
           expect(template.sectorAllocation).toBeDefined();
           expect(template.stageAllocation).toBeDefined();
+          expect(template.provenance).toMatchObject({
+            sourceKind: 'static_template',
+            isFinanciallyActionable: false,
+          });
+          expect(template.provenance.warnings).toEqual(
+            expect.arrayContaining([expect.any(String)])
+          );
         }
       });
 
@@ -971,19 +992,13 @@ describe('Portfolio Intelligence API Routes', () => {
         timeHorizon: 10,
       };
 
-      it('should generate quick scenario', async () => {
+      it('blocks prototype quick scenario output', async () => {
         const response = await request(app)
           .post('/api/portfolio/quick-scenario')
-          .send(validQuickScenarioData)
-          .expect(201);
+          .send(validQuickScenarioData);
 
-        expect(response.body.success).toBe(true);
-        expect(response.body.data.strategyModelId).toBe(validQuickScenarioData.strategyModelId);
-        expect(response.body.data.name).toContain(validQuickScenarioData.riskProfile);
-        expect(response.body.data.name).toContain(validQuickScenarioData.marketCondition);
-        expect(response.body.data.quickProjections).toBeDefined();
-        expect(response.body.data.status).toBe('ready');
-        expect(response.body.message).toBe('Quick scenario generated successfully');
+        expectPrototypeBlocked(response, 'portfolio.quickScenario.create');
+        expect(testStorage.quickScenarios.size).toBe(0);
       });
 
       it('should validate market condition', async () => {
@@ -1008,7 +1023,7 @@ describe('Portfolio Intelligence API Routes', () => {
         expect(response.body.error).toBe('Validation failed');
       });
 
-      it('should generate different projections for different risk profiles', async () => {
+      it('blocks quick scenario projections for different risk profiles', async () => {
         const aggressiveData = { ...validQuickScenarioData, riskProfile: 'aggressive' };
         const conservativeData = { ...validQuickScenarioData, riskProfile: 'conservative' };
 
@@ -1020,39 +1035,31 @@ describe('Portfolio Intelligence API Routes', () => {
           .post('/api/portfolio/quick-scenario')
           .send(conservativeData);
 
-        expect(aggressiveResponse.body.data.quickProjections.expectedIrr).toBeGreaterThan(
-          conservativeResponse.body.data.quickProjections.expectedIrr
-        );
+        expectPrototypeBlocked(aggressiveResponse, 'portfolio.quickScenario.create');
+        expectPrototypeBlocked(conservativeResponse, 'portfolio.quickScenario.create');
+        expect(testStorage.quickScenarios.size).toBe(0);
       });
     });
 
     describe('GET /api/portfolio/metrics/:scenarioId', () => {
-      it('should retrieve real-time metrics for scenario', async () => {
-        const response = await request(app).get('/api/portfolio/metrics/scenario_123').expect(200);
+      it('blocks prototype metrics output', async () => {
+        const response = await request(app).get('/api/portfolio/metrics/scenario_123');
 
-        expect(response.body.success).toBe(true);
-        expect(response.body.data.scenarioId).toBe('scenario_123');
-        expect(response.body.data.fundMetrics).toBeDefined();
-        expect(response.body.data.portfolioMetrics).toBeDefined();
-        expect(response.body.data.riskMetrics).toBeDefined();
-        expect(response.body.data.performanceTrends).toBeDefined();
-        expect(response.body.cacheInfo).toBeDefined();
+        expectPrototypeBlocked(response, 'portfolio.metrics.read', '/api/events/fund/:fundId');
       });
 
-      it('should support metric type filtering', async () => {
+      it('blocks prototype metrics output with metric type filtering', async () => {
         const response = await request(app)
-          .get('/api/portfolio/metrics/scenario_123?metricType=risk')
-          .expect(200);
+          .get('/api/portfolio/metrics/scenario_123?metricType=risk');
 
-        expect(response.body.success).toBe(true);
+        expectPrototypeBlocked(response, 'portfolio.metrics.read', '/api/events/fund/:fundId');
       });
 
-      it('should support time range filtering', async () => {
+      it('blocks prototype metrics output with time range filtering', async () => {
         const response = await request(app)
-          .get('/api/portfolio/metrics/scenario_123?timeRange=6m')
-          .expect(200);
+          .get('/api/portfolio/metrics/scenario_123?timeRange=6m');
 
-        expect(response.body.success).toBe(true);
+        expectPrototypeBlocked(response, 'portfolio.metrics.read', '/api/events/fund/:fundId');
       });
 
       it('should require scenario ID', async () => {
