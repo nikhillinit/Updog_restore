@@ -1,0 +1,1 @@
+ALTER TABLE funds ADD COLUMN IF NOT EXISTS base_currency varchar(3) NOT NULL DEFAULT 'USD';
