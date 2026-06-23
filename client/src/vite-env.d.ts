@@ -20,6 +20,7 @@ interface ImportMetaEnv {
   VITE_ENABLE_SELECTOR_KPIS?: string;
   VITE_ENABLE_MODELING_WIZARD?: string;
   VITE_ENABLE_OPERATIONS_HUB?: string;
+  VITE_ENABLE_INVESTMENT_ROUNDS?: string;
   VITE_ENABLE_LP_REPORTING?: string;
   DEMO_MODE?: string;
 
