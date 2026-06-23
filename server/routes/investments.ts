@@ -29,21 +29,31 @@ const log = logger.child({ route: 'investments' });
 router['get']('/investments', async (req: Request, res: Response) => {
   try {
     const fundIdQuery = req.query['fundId'];
-    let fundId: number | undefined;
 
-    if (fundIdQuery) {
-      const parsedId = toNumber(fundIdQuery as string, 'fund ID');
-      if (parsedId <= 0) {
-        const error: ApiError = {
-          error: 'Invalid fund ID query',
-          message: `Fund ID must be a positive integer, received: ${fundIdQuery}`,
-        };
-        return res.status(400).json(error);
-      }
-      fundId = parsedId;
+    // PR-H1: close the unscoped list path. Without an explicit fundId the prior
+    // handler issued a query with no fund predicate (storage.getInvestments(undefined)
+    // returns every row), letting any authenticated caller enumerate investments
+    // across funds/orgs. Require an explicit fund scope; the only caller
+    // (useCompanyInvestments) already passes ?fundId=.
+    if (fundIdQuery === undefined || fundIdQuery === '') {
+      const error: ApiError = {
+        error: 'fund_scope_required',
+        message: 'A fundId query parameter is required to list investments',
+      };
+      return res.status(400).json(error);
     }
 
-    if (fundId !== undefined && !(await enforceProvidedFundScope(req, res, fundId))) {
+    const parsedId = toNumber(fundIdQuery as string, 'fund ID');
+    if (parsedId <= 0) {
+      const error: ApiError = {
+        error: 'Invalid fund ID query',
+        message: `Fund ID must be a positive integer, received: ${fundIdQuery}`,
+      };
+      return res.status(400).json(error);
+    }
+    const fundId = parsedId;
+
+    if (!(await enforceProvidedFundScope(req, res, fundId))) {
       return;
     }
 
@@ -83,6 +93,21 @@ router['get']('/investments/:id', async (req: Request, res: Response) => {
       };
       return res.status(404).json(error);
     }
+
+    // PR-H1: a direct entity read must enforce the same fund scope as the round
+    // routes (resolveInvestmentRoundRouteScope), or any authenticated caller can
+    // read another fund's/org's investment detail by id.
+    if (investment.fundId == null) {
+      const error: ApiError = {
+        error: 'invalid_investment_fund_scope',
+        message: 'Cannot fund-scope a NULL-fund investment',
+      };
+      return res.status(400).json(error);
+    }
+    if (!(await enforceProvidedFundScope(req, res, investment.fundId))) {
+      return;
+    }
+
     return res.json(investment);
   } catch (error) {
     if (handleNumberParseError(error, res, 'Invalid investment ID')) {

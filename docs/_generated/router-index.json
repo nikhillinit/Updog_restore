@@ -6287,6 +6287,39 @@
         "categories": [
           "design",
           "audits",
+          "security",
+          "access-control"
+        ],
+        "keywords": [
+          "entity-access",
+          "fund-scope",
+          "investments",
+          "rls",
+          "idor",
+          "bola",
+          "pr-h1"
+        ],
+        "last_updated": "2026-06-22",
+        "owner": "Platform Team",
+        "review_cadence": "P90D",
+        "status": "ACTIVE"
+      },
+      "hasExecutionClaims": false,
+      "isStale": false,
+      "lastUpdated": "2026-06-22",
+      "owner": "Platform Team",
+      "path": "docs/design/audits/2026-06-22-entity-access-boundary.md",
+      "staleDays": 1,
+      "status": "ACTIVE"
+    },
+    {
+      "docType": "doc",
+      "exists": true,
+      "frontmatter": {
+        "audience": "both",
+        "categories": [
+          "design",
+          "audits",
           "backend-readiness",
           "persistence"
         ],
@@ -13070,7 +13103,7 @@
   "stats": {
     "by_status": {
       "ACCEPTED (amended 2026-06-21)": 1,
-      "ACTIVE": 446,
+      "ACTIVE": 447,
       "ARCHIVED": 1,
       "BACKLOG": 1,
       "COMPLETE": 3,
@@ -13092,7 +13125,7 @@
     },
     "missing_frontmatter": 22,
     "stale_docs": 104,
-    "total_docs": 663
+    "total_docs": 664
   },
   "version": "2.0"
 }
