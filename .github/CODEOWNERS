@@ -55,3 +55,16 @@
 
 # Route governance (policy registry)
 /client/src/app/route-governance-registry.ts @nikhillinit
+/server/route-policy/** @nikhillinit
+/shared/contracts/route-policy.contract.ts @nikhillinit
+
+# Financial route surfaces
+/server/routes/fund-config.ts @nikhillinit
+/server/routes/fund-scenario-sets.ts @nikhillinit
+/server/routes/investments.ts @nikhillinit
+/server/routes/portfolio-intelligence.ts @nikhillinit
+/server/routes/portfolio-companies.ts @nikhillinit
+/server/routes/moic.ts @nikhillinit
+/server/routes/fund-moic.ts @nikhillinit
+/server/routes/lp-*.ts @nikhillinit
+/server/routes/lp-reporting/** @nikhillinit
