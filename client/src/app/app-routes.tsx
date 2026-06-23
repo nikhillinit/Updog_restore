@@ -1,4 +1,20 @@
 import React from 'react';
+import {
+  APP_ROUTE_DEFINITIONS,
+  LP_ROUTE_DEFINITIONS,
+  type AppRouteDefinition,
+  type LPRouteDefinition,
+} from './app-route-definitions';
+
+export {
+  ADMIN_GATED_ROUTES,
+  ARCHIVED_PLACEHOLDER_ROUTES,
+  LEGACY_REDIRECT_ROUTES,
+  LP_INDEX_REDIRECT_PATH,
+  LP_INDEX_REDIRECT_TARGET,
+  PUBLIC_ENTRY_ROUTES,
+} from './app-route-definitions';
+export type { ArchivedPlaceholderRouteEntry } from './app-route-definitions';
 
 // Page components - Heavy routes lazy loaded for bundle optimization
 const Dashboard = React.lazy(() => import('@/pages/dashboard'));
@@ -59,101 +75,62 @@ export const ExitsV2 = React.lazy(() => import('@/pages/v2/exits'));
 export const InsightsV2 = React.lazy(() => import('@/pages/v2/insights'));
 export const PartnersV2 = React.lazy(() => import('@/pages/v2/partners'));
 
-export interface AppRouteEntry {
-  path: string;
+export interface AppRouteEntry extends AppRouteDefinition {
   component: React.ComponentType<Record<string, unknown>>;
-  isProtected?: boolean;
 }
 
-export const APP_ROUTES: AppRouteEntry[] = [
-  { path: '/fund-setup', component: FundSetup },
-  { path: '/dashboard', component: Dashboard, isProtected: true },
-  { path: '/portfolio/company/:id', component: PortfolioCompanySummary, isProtected: true },
-  { path: '/portfolio', component: Portfolio, isProtected: true },
-  { path: '/performance', component: PerformancePage, isProtected: true },
-  { path: '/forecasting', component: ForecastingPage, isProtected: true },
-  { path: '/financial-modeling', component: FinancialModelingPage, isProtected: true },
-  { path: '/model-results', component: ModelResultsPage, isProtected: true },
-  {
-    path: '/fund-model-results/:fundId/scenarios',
-    component: FundScenarioWorkspace,
-    isProtected: true,
-  },
-  { path: '/fund-model-results/:fundId', component: FundModelResults, isProtected: true },
-  { path: '/sensitivity-analysis', component: SensitivityAnalysisPage, isProtected: true },
-  { path: '/reports', component: Reports, isProtected: true },
-  { path: '/moic-analysis', component: MOICAnalysisPage, isProtected: true },
-  { path: '/variance-tracking', component: VarianceTrackingPage, isProtected: true },
-  { path: '/pipeline', component: PipelinePage, isProtected: true },
-  { path: '/lp-reporting/ledger', component: LpReportingLedgerPage, isProtected: true },
-  { path: '/lp-reporting/valuations', component: LpReportingValuationsPage, isProtected: true },
-  { path: '/lp-reporting/metrics', component: LpReportingMetricsPage, isProtected: true },
-  { path: '/lp-reporting/imports', component: LpReportingImportsPage, isProtected: true },
-  { path: '/settings', component: SettingsPage, isProtected: true },
-  { path: '/help', component: HelpPage },
-];
+const APP_ROUTE_COMPONENTS: Record<
+  (typeof APP_ROUTE_DEFINITIONS)[number]['path'],
+  React.ComponentType<Record<string, unknown>>
+> = {
+  '/fund-setup': FundSetup,
+  '/dashboard': Dashboard,
+  '/portfolio/company/:id': PortfolioCompanySummary,
+  '/portfolio': Portfolio,
+  '/performance': PerformancePage,
+  '/forecasting': ForecastingPage,
+  '/financial-modeling': FinancialModelingPage,
+  '/model-results': ModelResultsPage,
+  '/fund-model-results/:fundId/scenarios': FundScenarioWorkspace,
+  '/fund-model-results/:fundId': FundModelResults,
+  '/sensitivity-analysis': SensitivityAnalysisPage,
+  '/reports': Reports,
+  '/moic-analysis': MOICAnalysisPage,
+  '/variance-tracking': VarianceTrackingPage,
+  '/pipeline': PipelinePage,
+  '/lp-reporting/ledger': LpReportingLedgerPage,
+  '/lp-reporting/valuations': LpReportingValuationsPage,
+  '/lp-reporting/metrics': LpReportingMetricsPage,
+  '/lp-reporting/imports': LpReportingImportsPage,
+  '/settings': SettingsPage,
+  '/help': HelpPage,
+};
 
-export interface ArchivedPlaceholderRouteEntry {
-  path: string;
-  redirectTarget: string;
-  notes: string;
-}
+export const APP_ROUTES: AppRouteEntry[] = APP_ROUTE_DEFINITIONS.map((route) => ({
+  ...route,
+  component: APP_ROUTE_COMPONENTS[route.path],
+}));
 
-export const ARCHIVED_PLACEHOLDER_ROUTES: ArchivedPlaceholderRouteEntry[] = [
-  {
-    path: '/planning',
-    redirectTarget: '/portfolio?tab=reserve-planning',
-    notes:
-      'Standalone planning is archived; reserve planning remains inside the portfolio workspace.',
-  },
-  {
-    path: '/kpi-manager',
-    redirectTarget: '/dashboard',
-    notes: 'Legacy KPI manager is archived until there is an owned, persistent KPI workflow.',
-  },
-  {
-    path: '/kpi-submission',
-    redirectTarget: '/dashboard',
-    notes: 'Legacy KPI submission is archived until there is an owned, persistent KPI workflow.',
-  },
-  {
-    path: '/investments',
-    redirectTarget: '/portfolio',
-    notes:
-      'Investments are managed inside the portfolio workspace; this compatibility route preserves direct links.',
-  },
-];
-
-export interface LPRouteEntry {
-  path: string;
+export interface LPRouteEntry extends LPRouteDefinition {
   component: React.ComponentType;
 }
 
-export const LP_ROUTES: LPRouteEntry[] = [
-  { path: '/lp/dashboard', component: LPDashboard },
-  { path: '/lp/fund-detail/:fundId', component: LPFundDetail },
-  { path: '/lp/capital-account', component: LPCapitalAccount },
-  { path: '/lp/performance', component: LPPerformance },
-  { path: '/lp/reports', component: LPReports },
-  { path: '/lp/settings', component: LPSettings },
-];
+const LP_ROUTE_COMPONENTS: Record<
+  (typeof LP_ROUTE_DEFINITIONS)[number]['path'],
+  React.ComponentType
+> = {
+  '/lp/dashboard': LPDashboard,
+  '/lp/fund-detail/:fundId': LPFundDetail,
+  '/lp/capital-account': LPCapitalAccount,
+  '/lp/performance': LPPerformance,
+  '/lp/reports': LPReports,
+  '/lp/settings': LPSettings,
+};
 
-export const LP_INDEX_REDIRECT_PATH = '/lp';
-export const LP_INDEX_REDIRECT_TARGET = '/lp/dashboard';
-
-export const LEGACY_REDIRECT_ROUTES = {
-  analyticsLegacy: '/analytics-legacy',
-  planningLegacy: '/planning-legacy',
-} as const;
-
-export const PUBLIC_ENTRY_ROUTES = {
-  sharedDashboard: '/shared/:shareId',
-  portalCatchAll: '/portal/:rest*',
-} as const;
-
-export const ADMIN_GATED_ROUTES = {
-  uiCatalog: '/admin/ui-catalog',
-} as const;
+export const LP_ROUTES: LPRouteEntry[] = LP_ROUTE_DEFINITIONS.map((route) => ({
+  ...route,
+  component: LP_ROUTE_COMPONENTS[route.path],
+}));
 
 export function PageLoadingFallback() {
   return (

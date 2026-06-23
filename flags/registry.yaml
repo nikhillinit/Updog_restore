@@ -126,6 +126,19 @@ flags:
     expiresAt: null
     aliases: ['ENABLE_LP_REPORTING']
 
+  enable_lp_snapshot_mode:
+    default: false
+    description: 'Immutable-snapshot summary in the LP share modal for GP verification.'
+    owner: 'gp-team'
+    risk: low
+    exposeToClient: true
+    environments:
+      development: false
+      staging: false
+      production: false
+    dependencies: []
+    expiresAt: null
+
   enable_reserve_engine:
     default: false
     description: 'Deterministic reserve allocation engine'
@@ -321,6 +334,84 @@ flags:
     dependencies: []
     expiresAt: null
 
+  enable_work_panel:
+    default: false
+    description: 'Context-preserving drill-down panels (side Sheet) on the GP dashboard.'
+    owner: 'gp-team'
+    risk: low
+    exposeToClient: true
+    environments:
+      development: false
+      staging: false
+      production: false
+    dependencies: []
+    expiresAt: null
+
+  enable_context_rail:
+    default: false
+    description: 'Fourth-zone context rail on the GP dashboard (freshness/attention/activity).'
+    owner: 'gp-team'
+    risk: low
+    exposeToClient: true
+    environments:
+      development: false
+      staging: false
+      production: false
+    dependencies: []
+    expiresAt: null
+
+  enable_cash_event_object:
+    default: false
+    description: 'Read-only WorkPanel list of persisted cash-flow events on the cashflow dashboard.'
+    owner: 'gp-team'
+    risk: low
+    exposeToClient: true
+    environments:
+      development: false
+      staging: false
+      production: false
+    dependencies: []
+    expiresAt: null
+
+  enable_cash_event_edit:
+    default: false
+    description: 'Draft-only editing of persisted cash events in the WorkPanel detail view (PATCH If-Match).'
+    owner: 'gp-team'
+    risk: low
+    exposeToClient: true
+    environments:
+      development: false
+      staging: false
+      production: false
+    dependencies: ['enable_cash_event_object']
+    expiresAt: null
+
+  enable_route_redirects:
+    default: false
+    description: 'Hard redirects from old routes to new IA.'
+    owner: 'gp-team'
+    risk: low
+    exposeToClient: true
+    environments:
+      development: false
+      staging: false
+      production: false
+    dependencies: ['enable_new_ia']
+    expiresAt: '2026-04-01T00:00:00Z'
+
+  enable_observability:
+    default: false
+    description: 'Error boundaries, Sentry, vitals logging per route.'
+    owner: 'gp-team'
+    risk: low
+    exposeToClient: true
+    environments:
+      development: false
+      staging: false
+      production: false
+    dependencies: []
+    expiresAt: null
+
   # ============================================
   # ADMIN FLAGS (no localStorage override)
   # ============================================
@@ -429,6 +520,32 @@ flags:
     expiresAt: null
     aliases: ['ENABLE_WIZARD_STEP_GENERAL']
 
+  enable_wizard_step_sectors:
+    default: false
+    description: 'Wizard Step 2: Sector Profiles.'
+    owner: 'gp-team'
+    risk: low
+    exposeToClient: true
+    environments:
+      development: false
+      staging: false
+      production: false
+    dependencies: ['enable_wizard_step_general']
+    expiresAt: null
+
+  enable_wizard_step_allocations:
+    default: false
+    description: 'Wizard Step 3: Capital Allocations.'
+    owner: 'gp-team'
+    risk: low
+    exposeToClient: true
+    environments:
+      development: false
+      staging: false
+      production: false
+    dependencies: ['enable_wizard_step_sectors']
+    expiresAt: null
+
   enable_wizard_step_sizing:
     default: false
     description: 'Wizard Step 2: Fund sizing'
@@ -484,6 +601,19 @@ flags:
     dependencies: ['enable_wizard_step_reserves']
     expiresAt: null
     aliases: ['ENABLE_WIZARD_STEP_FEES']
+
+  enable_wizard_step_recycling:
+    default: false
+    description: 'Wizard Step 5: Exit Recycling.'
+    owner: 'gp-team'
+    risk: low
+    exposeToClient: true
+    environments:
+      development: false
+      staging: false
+      production: false
+    dependencies: ['enable_wizard_step_fees']
+    expiresAt: null
 
   enable_wizard_step_waterfall:
     default: false

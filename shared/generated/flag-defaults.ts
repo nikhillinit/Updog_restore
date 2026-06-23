@@ -148,6 +148,23 @@ export const FLAG_DEFINITIONS: Record<FlagKey, FlagDefinition> = {
     aliases: ["ENABLE_LP_REPORTING"],
 
   },
+  'enable_lp_snapshot_mode': {
+    default: false,
+    description: "Immutable-snapshot summary in the LP share modal for GP verification.",
+    owner: "gp-team",
+    risk: "low",
+    exposeToClient: true,
+
+    environments: {
+      development: false,
+      staging: false,
+      production: false,
+    },
+    dependencies: [],
+    expiresAt: null,
+
+
+  },
   'enable_reserve_engine': {
     default: false,
     description: "Deterministic reserve allocation engine",
@@ -386,6 +403,108 @@ export const FLAG_DEFINITIONS: Record<FlagKey, FlagDefinition> = {
 
 
   },
+  'enable_work_panel': {
+    default: false,
+    description: "Context-preserving drill-down panels (side Sheet) on the GP dashboard.",
+    owner: "gp-team",
+    risk: "low",
+    exposeToClient: true,
+
+    environments: {
+      development: false,
+      staging: false,
+      production: false,
+    },
+    dependencies: [],
+    expiresAt: null,
+
+
+  },
+  'enable_context_rail': {
+    default: false,
+    description: "Fourth-zone context rail on the GP dashboard (freshness/attention/activity).",
+    owner: "gp-team",
+    risk: "low",
+    exposeToClient: true,
+
+    environments: {
+      development: false,
+      staging: false,
+      production: false,
+    },
+    dependencies: [],
+    expiresAt: null,
+
+
+  },
+  'enable_cash_event_object': {
+    default: false,
+    description: "Read-only WorkPanel list of persisted cash-flow events on the cashflow dashboard.",
+    owner: "gp-team",
+    risk: "low",
+    exposeToClient: true,
+
+    environments: {
+      development: false,
+      staging: false,
+      production: false,
+    },
+    dependencies: [],
+    expiresAt: null,
+
+
+  },
+  'enable_cash_event_edit': {
+    default: false,
+    description: "Draft-only editing of persisted cash events in the WorkPanel detail view (PATCH If-Match).",
+    owner: "gp-team",
+    risk: "low",
+    exposeToClient: true,
+
+    environments: {
+      development: false,
+      staging: false,
+      production: false,
+    },
+    dependencies: ["enable_cash_event_object"],
+    expiresAt: null,
+
+
+  },
+  'enable_route_redirects': {
+    default: false,
+    description: "Hard redirects from old routes to new IA.",
+    owner: "gp-team",
+    risk: "low",
+    exposeToClient: true,
+
+    environments: {
+      development: false,
+      staging: false,
+      production: false,
+    },
+    dependencies: ["enable_new_ia"],
+    expiresAt: "2026-04-01T00:00:00Z",
+
+
+  },
+  'enable_observability': {
+    default: false,
+    description: "Error boundaries, Sentry, vitals logging per route.",
+    owner: "gp-team",
+    risk: "low",
+    exposeToClient: true,
+
+    environments: {
+      development: false,
+      staging: false,
+      production: false,
+    },
+    dependencies: [],
+    expiresAt: null,
+
+
+  },
   'ui_catalog': {
     default: false,
     description: "Admin UI component catalog",
@@ -505,6 +624,40 @@ export const FLAG_DEFINITIONS: Record<FlagKey, FlagDefinition> = {
     aliases: ["ENABLE_WIZARD_STEP_GENERAL"],
 
   },
+  'enable_wizard_step_sectors': {
+    default: false,
+    description: "Wizard Step 2: Sector Profiles.",
+    owner: "gp-team",
+    risk: "low",
+    exposeToClient: true,
+
+    environments: {
+      development: false,
+      staging: false,
+      production: false,
+    },
+    dependencies: ["enable_wizard_step_general"],
+    expiresAt: null,
+
+
+  },
+  'enable_wizard_step_allocations': {
+    default: false,
+    description: "Wizard Step 3: Capital Allocations.",
+    owner: "gp-team",
+    risk: "low",
+    exposeToClient: true,
+
+    environments: {
+      development: false,
+      staging: false,
+      production: false,
+    },
+    dependencies: ["enable_wizard_step_sectors"],
+    expiresAt: null,
+
+
+  },
   'enable_wizard_step_sizing': {
     default: false,
     description: "Wizard Step 2: Fund sizing",
@@ -573,6 +726,23 @@ export const FLAG_DEFINITIONS: Record<FlagKey, FlagDefinition> = {
     aliases: ["ENABLE_WIZARD_STEP_FEES"],
 
   },
+  'enable_wizard_step_recycling': {
+    default: false,
+    description: "Wizard Step 5: Exit Recycling.",
+    owner: "gp-team",
+    risk: "low",
+    exposeToClient: true,
+
+    environments: {
+      development: false,
+      staging: false,
+      production: false,
+    },
+    dependencies: ["enable_wizard_step_fees"],
+    expiresAt: null,
+
+
+  },
   'enable_wizard_step_waterfall': {
     default: false,
     description: "Wizard Step 6: Waterfall distribution",
@@ -621,6 +791,7 @@ export const FLAG_DEFAULTS: FlagRecord = {
   'enable_operations_hub': false,
   'enable_investment_rounds': false,
   'enable_lp_reporting': false,
+  'enable_lp_snapshot_mode': false,
   'enable_reserve_engine': false,
   'enable_portfolio_table_v2': false,
   'enable_engine_integration': false,
@@ -635,6 +806,12 @@ export const FLAG_DEFAULTS: FlagRecord = {
   'metrics_collection': true,
   'enable_pipeline_bulk_actions': false,
   'enable_pipeline_dnd': false,
+  'enable_work_panel': false,
+  'enable_context_rail': false,
+  'enable_cash_event_object': false,
+  'enable_cash_event_edit': false,
+  'enable_route_redirects': false,
+  'enable_observability': false,
   'ui_catalog': false,
   'onboarding_tour': false,
   'demo_mode': false,
@@ -642,10 +819,13 @@ export const FLAG_DEFAULTS: FlagRecord = {
   'enable_portfolio_intelligence': false,
   'enable_faults': false,
   'enable_wizard_step_general': false,
+  'enable_wizard_step_sectors': false,
+  'enable_wizard_step_allocations': false,
   'enable_wizard_step_sizing': false,
   'enable_wizard_step_pacing': false,
   'enable_wizard_step_reserves': false,
   'enable_wizard_step_fees': false,
+  'enable_wizard_step_recycling': false,
   'enable_wizard_step_waterfall': false,
   'enable_wizard_step_results': false,
 };
