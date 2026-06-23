@@ -55,27 +55,26 @@ const getRuntimeFlag = (flagKey: string): boolean | undefined => {
 /**
  * Get environment variable flag value
  */
-export const resolveEnvFlag = (flagKey: string, env: unknown): boolean | undefined => {
-  if (!isRecord(env)) {
-    return undefined;
-  }
-
-  const envVal = env[`VITE_${flagKey.toUpperCase()}`];
-  if (typeof envVal !== 'string') {
-    return undefined;
-  }
-  if (envVal === 'true' || envVal === '1') return true;
-  if (envVal === 'false' || envVal === '0') return false;
-  return undefined;
-};
-
-const getEnvFlag = (flagKey: string): boolean | undefined => {
+export const getEnvFlag = (
+  flagKey: string,
+  env: unknown = getImportMetaEnv()
+): boolean | undefined => {
   try {
-    return resolveEnvFlag(flagKey, getImportMetaEnv());
+    if (!isRecord(env)) {
+      return undefined;
+    }
+
+    const envVal = env[`VITE_${flagKey.toUpperCase()}`];
+    if (typeof envVal !== 'string') {
+      return undefined;
+    }
+    if (envVal === 'true' || envVal === '1') return true;
+    if (envVal === 'false' || envVal === '0') return false;
   } catch {
     // Ignore - might be SSR or no import.meta
     return undefined;
   }
+  return undefined;
 };
 
 /**
@@ -91,11 +90,11 @@ const subscribe = (callback: () => void) => {
   };
 };
 
-export function getFlagSnapshot(): FlagSnapshot {
+export function getFlagSnapshot(env: unknown = getImportMetaEnv()): FlagSnapshot {
   const snapshot = {} as FlagSnapshot;
 
   for (const key of Object.keys(ALL_FLAGS) as FlagName[]) {
-    snapshot[key] = getRuntimeFlag(key) ?? getEnvFlag(key) ?? ALL_FLAGS[key]?.enabled ?? false;
+    snapshot[key] = getRuntimeFlag(key) ?? getEnvFlag(key, env) ?? ALL_FLAGS[key]?.enabled ?? false;
   }
 
   return snapshot;

@@ -1,7 +1,7 @@
 import { describe, it, expect, afterEach } from 'vitest';
 import { renderHook } from '@testing-library/react';
 import { ALL_FLAGS } from '@shared/feature-flags/flag-definitions';
-import { resolveEnvFlag, useFlag } from '@/shared/useFlags';
+import { getEnvFlag, getFlagSnapshot, useFlag } from '@/shared/useFlags';
 
 // Regression guards for the Part B ramp. The live UI resolves the flag via
 // client/src/shared/useFlags.ts in priority order:
@@ -29,18 +29,16 @@ describe('enable_investment_rounds flag registration', () => {
   });
 
   it('VITE_ENABLE_INVESTMENT_ROUNDS=true is the per-environment ON lever (dev/staging)', () => {
-    expect(
-      resolveEnvFlag('enable_investment_rounds', {
-        VITE_ENABLE_INVESTMENT_ROUNDS: 'true',
-      })
-    ).toBe(true);
+    const env = { VITE_ENABLE_INVESTMENT_ROUNDS: 'true' };
+
+    expect(getEnvFlag('enable_investment_rounds', env)).toBe(true);
+    expect(getFlagSnapshot(env).enable_investment_rounds).toBe(true);
   });
 
   it('VITE_ENABLE_INVESTMENT_ROUNDS=false takes precedence over the default (prod build resolves OFF)', () => {
-    expect(
-      resolveEnvFlag('enable_investment_rounds', {
-        VITE_ENABLE_INVESTMENT_ROUNDS: 'false',
-      })
-    ).toBe(false);
+    const env = { VITE_ENABLE_INVESTMENT_ROUNDS: 'false' };
+
+    expect(getEnvFlag('enable_investment_rounds', env)).toBe(false);
+    expect(getFlagSnapshot(env).enable_investment_rounds).toBe(false);
   });
 });
