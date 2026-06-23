@@ -47,7 +47,7 @@ jobs:
 
       - name: Cache Docker images
         id: docker-cache
-        uses: actions/cache@v5
+        uses: actions/cache@v6
         with:
           path: /tmp/docker-cache
           key: docker-${{ runner.os }}-postgres-16-alpine-redis-7-alpine-${{ hashFiles('.github/workflows/testcontainers-ci.yml') }}
