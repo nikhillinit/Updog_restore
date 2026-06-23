@@ -8,7 +8,6 @@
 
 import { Router } from 'express';
 import type { Request, Response } from 'express';
-import { randomUUID } from 'crypto';
 import { z } from 'zod';
 import idempotency from '../middleware/idempotency';
 import { securityMiddlewareStack } from '../middleware/security';
@@ -31,43 +30,45 @@ import { setStageWarningHeaders } from '../middleware/deprecation-headers';
 import { firstString, getUserId } from '../lib/request-values';
 import { getRouteErrorMessage as getErrorMessage } from '../lib/errorHandling';
 import { handleNumberParseError } from '../lib/number-parse-error';
-
-// Type for portfolio storage
-type PortfolioStorage = {
-  strategies: Map<string, unknown>;
-  scenarios: Map<string, unknown>;
-  forecasts: Map<string, unknown>;
-  reserveStrategies: Map<string, unknown>;
-  comparisons: Map<string, unknown>;
-  simulations: Map<string, unknown>;
-  optimizations: Map<string, unknown>;
-  backtests: Map<string, unknown>;
-  validations: Map<string, unknown>;
-  quickScenarios: Map<string, unknown>;
-};
-
-// Helper to get storage from request
-const getPortfolioStorage = (req: Request): PortfolioStorage => {
-  const locals = req.app.locals as { portfolioStorage?: PortfolioStorage };
-  if (!locals.portfolioStorage) {
-    locals.portfolioStorage = {
-      strategies: new Map(),
-      scenarios: new Map(),
-      forecasts: new Map(),
-      reserveStrategies: new Map(),
-      comparisons: new Map(),
-      simulations: new Map(),
-      optimizations: new Map(),
-      backtests: new Map(),
-      validations: new Map(),
-      quickScenarios: new Map(),
-    };
-  }
-  return locals.portfolioStorage;
-};
+import {
+  buildPrototypeFinancialBlockedError,
+  makeStaticTemplateProvenance,
+  type PortfolioPrototypeRouteId,
+} from '../lib/portfolio-prototype-block';
 
 const router = Router();
 router.use(securityMiddlewareStack);
+
+const replacementRoutes: Record<PortfolioPrototypeRouteId, string> = {
+  'portfolio.scenarios.compare': '/api/funds/:fundId/scenarios/compare',
+  'portfolio.scenario.simulate': '/api/monte-carlo/simulate',
+  'portfolio.reserves.optimize': '/api/funds/:fundId/reserves/optimize',
+  'portfolio.reserves.backtest': '/api/funds/:fundId/reserves/backtest',
+  'portfolio.forecasts.create': '/api/funds/:fundId/forecast-runs',
+  'portfolio.forecasts.validate': '/api/funds/:fundId/forecast-runs/:forecastRunId/validation',
+  'portfolio.quickScenario.create': '/api/funds/:fundId/scenarios',
+  'portfolio.metrics.read': '/api/events/fund/:fundId',
+};
+
+const sendPrototypeBlocked = (
+  res: Response,
+  input: {
+    routeId: PortfolioPrototypeRouteId;
+    sourceRoute: string;
+  }
+) => {
+  const blockedError = buildPrototypeFinancialBlockedError({
+    ...input,
+    replacement: replacementRoutes[input.routeId],
+  });
+
+  return res.status(501).json({
+    success: false,
+    ...blockedError,
+    replacementRoute: blockedError.replacement,
+    warnings: blockedError.provenance.warnings,
+  });
+};
 
 // ============================================================================
 // VALIDATION SCHEMAS
@@ -677,8 +678,6 @@ router['post'](
         return res.status(400).json(error);
       }
 
-      const validatedData = validation.data;
-
       const userId = getUserId(req);
       if (!userId) {
         const error: ApiError = {
@@ -688,19 +687,9 @@ router['post'](
         return res.status(401).json(error);
       }
 
-      const storage = getPortfolioStorage(req);
-      const item = {
-        id: randomUUID(),
-        ...validatedData,
-        status: 'ready',
-        createdBy: userId,
-        createdAt: new Date().toISOString(),
-      };
-      storage.comparisons.set(item.id, item);
-      res.status(201).json({
-        success: true,
-        data: item,
-        message: 'Scenario comparison completed successfully',
+      return sendPrototypeBlocked(res, {
+        routeId: 'portfolio.scenarios.compare',
+        sourceRoute: 'POST /api/portfolio/scenarios/compare',
       });
     } catch (error: unknown) {
       routeLog.error('Scenario comparison error:', error);
@@ -741,8 +730,6 @@ router['post'](
         return res.status(400).json(error);
       }
 
-      const validatedData = validation.data;
-
       const userId = getUserId(req);
       if (!userId) {
         const error: ApiError = {
@@ -762,49 +749,9 @@ router['post'](
         return res.status(404).json(error);
       }
 
-      // PLACEHOLDER: hardcoded simulation results, NOT a real computation. This route is a
-      // flag-off prototype (ENABLE_PORTFOLIO_INTELLIGENCE, default false). The real Monte Carlo
-      // engine is server/services/monte-carlo-orchestrator.ts, served by /api/monte-carlo;
-      // this surface is not wired to it.
-      const simulationResults = {
-        mean: { irr: 0.2, multiple: 2.5, dpi: 1.8 },
-        median: { irr: 0.18, multiple: 2.3, dpi: 1.6 },
-        percentiles: { p10: 0.12, p25: 0.15, p75: 0.25, p90: 0.3 },
-      };
-      const riskMetrics = {
-        volatility: 0.08,
-        var95: 0.1,
-        cvar95: 0.12,
-        sharpeRatio: 1.8,
-      };
-
-      // Persist simulation to database
-      const simulation = await portfolioIntelligenceService.simulations.create({
-        fundId: scenario.fundId,
-        scenarioId,
-        simulationName: `${scenario.name ?? 'Scenario'} Simulation`,
-        simulationType: validatedData.simulationType,
-        numberOfRuns: validatedData.numberOfRuns,
-        inputDistributions: validatedData.inputDistributions,
-        correlationMatrix: validatedData.correlationMatrix,
-        constraints: validatedData.constraints,
-        summaryStatistics: simulationResults,
-        percentileResults: simulationResults.percentiles,
-        varCalculations: { var95: riskMetrics.var95 },
-        cvarCalculations: { cvar95: riskMetrics.cvar95 },
-        downsideRisk: { volatility: riskMetrics.volatility },
-        tailRiskAnalysis: { sharpeRatio: riskMetrics.sharpeRatio },
-        createdBy: userId,
-      });
-
-      res.status(201).json({
-        success: true,
-        data: {
-          ...simulation,
-          summaryStatistics: simulationResults,
-          riskMetrics,
-        },
-        message: 'Monte Carlo simulation completed successfully',
+      return sendPrototypeBlocked(res, {
+        routeId: 'portfolio.scenario.simulate',
+        sourceRoute: 'POST /api/portfolio/scenarios/:id/simulate',
       });
     } catch (error: unknown) {
       routeLog.error('Simulation error:', error);
@@ -839,9 +786,8 @@ router['post'](
         return res.status(400).json(error);
       }
 
-      let parsedFundId: number;
       try {
-        parsedFundId = toNumber(fundId as string, 'fund ID', { integer: true, min: 1 });
+        toNumber(fundId as string, 'fund ID', { integer: true, min: 1 });
       } catch (err) {
         if (handleNumberParseError(err, res, 'Invalid fund ID')) {
           return;
@@ -859,8 +805,6 @@ router['post'](
         return res.status(400).json(error);
       }
 
-      const validatedData = validation.data;
-
       const userId = getUserId(req);
       if (!userId) {
         const error: ApiError = {
@@ -870,53 +814,9 @@ router['post'](
         return res.status(401).json(error);
       }
 
-      // PLACEHOLDER: hardcoded allocation, NOT a real optimization. The real engine is
-      // shared/core/reserves/DeterministicReserveEngine.ts; this flag-off prototype route
-      // is not wired to it.
-      const optimalAllocation = {
-        initialReserve: 0.5,
-        followOnReserve: 0.5,
-        allocationByCompany: {},
-      };
-      const performanceProjection = {
-        expectedIrr: 0.22,
-        expectedMultiple: 2.8,
-        riskAdjustedReturn: 0.18,
-      };
-
-      // Persist reserve strategy to database
-      const reserveStrategy = await portfolioIntelligenceService.reserves.create({
-        fundId: parsedFundId,
-        name: `Optimization ${new Date().toISOString().split('T')[0]}`,
-        strategyType: validatedData.strategyType,
-        allocationRules: {
-          ...validatedData.allocationRules,
-          optimalAllocation,
-          performanceProjection,
-        },
-        triggerConditions: validatedData.allocationRules,
-        totalReserveAmount: String(validatedData.totalReserveAmount),
-        reserveTranches: {
-          base: {
-            amount: validatedData.totalReserveAmount,
-            maxPerCompanyPct: validatedData.maxPerCompanyPct,
-          },
-        },
-        maxPerCompanyPct: String(validatedData.maxPerCompanyPct),
-        optimizationObjective: validatedData.optimizationObjective,
-        monteCarloIterations: validatedData.monteCarloIterations,
-        isActive: true,
-        createdBy: userId,
-      });
-
-      res.status(201).json({
-        success: true,
-        data: {
-          ...reserveStrategy,
-          optimalAllocation,
-          performanceProjection,
-        },
-        message: 'Reserve optimization completed successfully',
+      return sendPrototypeBlocked(res, {
+        routeId: 'portfolio.reserves.optimize',
+        sourceRoute: 'POST /api/portfolio/reserves/optimize',
       });
     } catch (error: unknown) {
       routeLog.error('Reserve optimization error:', error);
@@ -993,8 +893,6 @@ router['post'](
         return res.status(400).json(error);
       }
 
-      const validatedData = validation.data;
-
       const userId = getUserId(req);
       if (!userId) {
         const error: ApiError = {
@@ -1004,33 +902,9 @@ router['post'](
         return res.status(401).json(error);
       }
 
-      const storage = getPortfolioStorage(req);
-      const item = {
-        id: randomUUID(),
-        strategyId: validatedData.strategyId,
-        backtestPeriod: {
-          start: validatedData.backtestPeriodStart,
-          end: validatedData.backtestPeriodEnd,
-        },
-        benchmarkStrategy: validatedData.benchmarkStrategy,
-        results: {
-          totalReturn: 0.22,
-          annualizedReturn: 0.18,
-          sharpeRatio: 1.5,
-        },
-        performanceAttribution: {
-          selectionEffect: 0.05,
-          timingEffect: 0.03,
-          interactionEffect: 0.02,
-        },
-        createdBy: userId,
-        createdAt: new Date().toISOString(),
-      };
-      storage.backtests.set(item.id, item);
-      res.status(201).json({
-        success: true,
-        data: item,
-        message: 'Reserve strategy backtest completed successfully',
+      return sendPrototypeBlocked(res, {
+        routeId: 'portfolio.reserves.backtest',
+        sourceRoute: 'POST /api/portfolio/reserves/backtest',
       });
     } catch (error: unknown) {
       routeLog.error('Backtest error:', error);
@@ -1062,9 +936,8 @@ router['post']('/api/portfolio/forecasts', idempotency, async (req: Request, res
       return res.status(400).json(error);
     }
 
-    let parsedFundId: number;
     try {
-      parsedFundId = toNumber(fundId as string, 'fund ID', { integer: true, min: 1 });
+      toNumber(fundId as string, 'fund ID', { integer: true, min: 1 });
     } catch (err) {
       if (handleNumberParseError(err, res, 'Invalid fund ID')) {
         return;
@@ -1082,8 +955,6 @@ router['post']('/api/portfolio/forecasts', idempotency, async (req: Request, res
       return res.status(400).json(error);
     }
 
-    const validatedData = validation.data;
-
     const userId = getUserId(req);
     if (!userId) {
       const error: ApiError = {
@@ -1093,33 +964,9 @@ router['post']('/api/portfolio/forecasts', idempotency, async (req: Request, res
       return res.status(401).json(error);
     }
 
-    const storage = getPortfolioStorage(req);
-    const item = {
-      id: randomUUID(),
-      fundId: parsedFundId,
-      ...validatedData,
-      forecastPeriods: [
-        { year: 1, expectedValue: 1.2, confidence: { low: 1.0, high: 1.4 } },
-        { year: 2, expectedValue: 1.5, confidence: { low: 1.2, high: 1.8 } },
-        { year: 3, expectedValue: 1.8, confidence: { low: 1.4, high: 2.2 } },
-      ],
-      confidenceIntervals: {
-        p10: 0.8,
-        p25: 1.0,
-        p50: 1.5,
-        p75: 2.0,
-        p90: 2.5,
-      },
-      status: 'complete',
-      createdBy: userId,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    };
-    storage.forecasts.set(item.id, item);
-    res.status(201).json({
-      success: true,
-      data: item,
-      message: 'Performance forecast generated successfully',
+    return sendPrototypeBlocked(res, {
+      routeId: 'portfolio.forecasts.create',
+      sourceRoute: 'POST /api/portfolio/forecasts',
     });
   } catch (error: unknown) {
     routeLog.error('Forecast generation error:', error);
@@ -1207,51 +1054,9 @@ router['post']('/api/portfolio/forecasts/validate', async (req: Request, res: Re
       return res.status(404).json(error);
     }
 
-    // PLACEHOLDER: hardcoded accuracy metrics. Real MAPE/RMSE would require comparing
-    // forecasts against historical actuals; this flag-off prototype route does not compute it.
-    const accuracyMetrics = {
-      mape: 0.12,
-      rmse: 0.08,
-      mae: 0.06,
-    };
-    const calibration = {
-      inRange: 0.85,
-      overconfident: 0.1,
-      underconfident: 0.05,
-    };
-    const keyInsights = [
-      'Forecast accuracy is within acceptable range',
-      'Model shows slight overconfidence in tail events',
-      'Calibration could be improved for extreme scenarios',
-    ];
-
-    // Update forecast with validation results
-    const updatedForecast = await portfolioIntelligenceService.forecasts.update(
-      validatedData.forecastId,
-      {
-        status: 'validated',
-        validationResults: {
-          accuracyMetrics,
-          calibration,
-          keyInsights,
-          validatedBy: userId,
-          validatedAt: new Date().toISOString(),
-          actualData: validatedData.actualMetrics,
-          comparisonPeriod: validatedData.validationPeriod,
-        },
-      }
-    );
-
-    res.json({
-      success: true,
-      data: {
-        forecastId: validatedData.forecastId,
-        accuracyMetrics,
-        calibration,
-        keyInsights,
-        forecast: updatedForecast,
-      },
-      message: 'Forecast validation completed successfully',
+    return sendPrototypeBlocked(res, {
+      routeId: 'portfolio.forecasts.validate',
+      sourceRoute: 'POST /api/portfolio/forecasts/validate',
     });
   } catch (error: unknown) {
     routeLog.error('Forecast validation error:', error);
@@ -1317,11 +1122,12 @@ router['get']('/api/portfolio/templates', async (req: Request, res: Response) =>
       },
     ];
 
+    const provenance = makeStaticTemplateProvenance('GET /api/portfolio/templates');
     const filteredTemplates = templates.filter((t) => {
       if (category && t.category !== category) return false;
       if (riskProfile && t.riskProfile !== riskProfile) return false;
       return true;
-    });
+    }).map((template) => ({ ...template, provenance }));
 
     res.json({
       success: true,
@@ -1354,8 +1160,6 @@ router['post']('/api/portfolio/quick-scenario', async (req: Request, res: Respon
       return res.status(400).json(error);
     }
 
-    const validatedData = validation.data;
-
     const userId = getUserId(req);
     if (!userId) {
       const error: ApiError = {
@@ -1365,36 +1169,9 @@ router['post']('/api/portfolio/quick-scenario', async (req: Request, res: Respon
       return res.status(401).json(error);
     }
 
-    const storage = getPortfolioStorage(req);
-    const item = {
-      id: randomUUID(),
-      ...validatedData,
-      name: `Quick scenario (${validatedData.riskProfile} / ${validatedData.marketCondition} market)`,
-      scenarioType: 'custom',
-      status: 'ready',
-      quickProjections: {
-        expectedIrr:
-          validatedData.riskProfile === 'aggressive'
-            ? 0.25
-            : validatedData.riskProfile === 'conservative'
-              ? 0.15
-              : 0.2,
-        expectedMultiple:
-          validatedData.riskProfile === 'aggressive'
-            ? 3.0
-            : validatedData.riskProfile === 'conservative'
-              ? 2.0
-              : 2.5,
-        timeToExit: 5,
-      },
-      createdBy: userId,
-      createdAt: new Date().toISOString(),
-    };
-    storage.quickScenarios.set(item.id, item);
-    res.status(201).json({
-      success: true,
-      data: item,
-      message: 'Quick scenario generated successfully',
+    return sendPrototypeBlocked(res, {
+      routeId: 'portfolio.quickScenario.create',
+      sourceRoute: 'POST /api/portfolio/quick-scenario',
     });
   } catch (error: unknown) {
     routeLog.error('Quick scenario error:', error);
@@ -1421,55 +1198,9 @@ router['get']('/api/portfolio/metrics/:scenarioId', async (req: Request, res: Re
       return res.status(400).json(error);
     }
 
-    const _metricType = firstString(req.query['metricType']);
-    const _timeRange = firstString(req.query['timeRange']) || '1y';
-
-    // PLACEHOLDER: hardcoded sample metrics, NOT computed from portfolio data. This flag-off
-    // prototype route returns the literal values below. (Live updates: SSE /api/events/fund/:fundId.)
-    const metrics = {
-      scenarioId,
-      lastUpdated: new Date().toISOString(),
-      fundMetrics: {
-        currentIrr: 0.18,
-        currentMultiple: 2.1,
-        deployedCapital: 65000000,
-        reservesRemaining: 35000000,
-        portfolioCompanies: 18,
-      },
-      portfolioMetrics: {
-        averageValuation: 12500000,
-        topPerformers: [
-          { name: 'Company A', multiple: 4.2 },
-          { name: 'Company B', multiple: 3.8 },
-        ],
-        sectorBreakdown: {
-          fintech: 0.35,
-          healthtech: 0.3,
-          enterprise: 0.2,
-          other: 0.15,
-        },
-      },
-      riskMetrics: {
-        portfolioVaR: 0.28,
-        concentrationRisk: 0.15,
-        sectorConcentration: 0.35,
-        liquidityRisk: 0.22,
-      },
-      performanceTrends: {
-        irrTrend: [0.12, 0.15, 0.17, 0.18],
-        multipleTrend: [1.2, 1.6, 1.9, 2.1],
-        periods: ['Q1', 'Q2', 'Q3', 'Q4'],
-      },
-    };
-
-    res.json({
-      success: true,
-      data: metrics,
-      cacheInfo: {
-        lastCalculated: new Date().toISOString(),
-        nextUpdate: new Date(Date.now() + 3600000).toISOString(), // 1 hour
-        dataFreshness: 'real-time',
-      },
+    return sendPrototypeBlocked(res, {
+      routeId: 'portfolio.metrics.read',
+      sourceRoute: 'GET /api/portfolio/metrics/:scenarioId',
     });
   } catch (error: unknown) {
     routeLog.error('Metrics fetch error:', error);
