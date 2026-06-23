@@ -34,7 +34,7 @@ jobs:
 
       - name: Restore base bundle report cache
         id: base-report-cache
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: base-branch/size-limit-report.json
           key: bundle-base-v1-${{ runner.os }}-${{ github.event.pull_request.base.sha }}-${{ hashFiles('pr-tools/scripts/check-budgets.cjs', 'pr-tools/.size-limit.json', 'pr-tools/scripts/compare-bundle-size.js') }}
