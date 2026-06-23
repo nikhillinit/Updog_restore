@@ -384,6 +384,20 @@ flags:
     dependencies: []
     expiresAt: null
 
+  enable_portfolio_intelligence:
+    default: false
+    description: 'Gates Portfolio Intelligence prototype endpoints that remain fail-closed until backed by computed financial data'
+    owner: 'platform'
+    risk: high
+    exposeToClient: false
+    environments:
+      development: false
+      staging: false
+      production: false
+    dependencies: []
+    expiresAt: null
+    aliases: ['ENABLE_PORTFOLIO_INTELLIGENCE']
+
   enable_faults:
     default: false
     description: 'Enable fault injection for testing'

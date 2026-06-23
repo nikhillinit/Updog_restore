@@ -1,7 +1,7 @@
 /**
  * AUTO-GENERATED FILE - DO NOT EDIT
  * Generated from: flags/registry.yaml
- * Generated at: 2026-06-23T04:01:13.265Z
+ * Generated at: 2026-06-23T06:54:55.811Z
  *
  * Run `npm run flags:generate` to regenerate
  */
@@ -36,6 +36,7 @@ export type FlagKey =
   | 'onboarding_tour'
   | 'demo_mode'
   | 'require_auth'
+  | 'enable_portfolio_intelligence'
   | 'enable_faults'
   | 'enable_wizard_step_general'
   | 'enable_wizard_step_sizing'
@@ -87,6 +88,7 @@ export type ClientFlagKey =
 export type ServerOnlyFlagKey =
   | 'demo_mode'
   | 'require_auth'
+  | 'enable_portfolio_intelligence'
   | 'enable_faults';
 
 /**
@@ -161,6 +163,7 @@ export const ALL_FLAG_KEYS: readonly FlagKey[] = [
   'onboarding_tour',
   'demo_mode',
   'require_auth',
+  'enable_portfolio_intelligence',
   'enable_faults',
   'enable_wizard_step_general',
   'enable_wizard_step_sizing',

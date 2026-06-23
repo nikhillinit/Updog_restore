@@ -1,7 +1,7 @@
 /**
  * AUTO-GENERATED FILE - DO NOT EDIT
  * Generated from: flags/registry.yaml
- * Generated at: 2026-06-23T04:01:13.271Z
+ * Generated at: 2026-06-23T06:54:55.816Z
  *
  * Run `npm run flags:generate` to regenerate
  */
@@ -454,6 +454,23 @@ export const FLAG_DEFINITIONS: Record<FlagKey, FlagDefinition> = {
 
 
   },
+  'enable_portfolio_intelligence': {
+    default: false,
+    description: "Gates Portfolio Intelligence prototype endpoints that remain fail-closed until backed by computed financial data",
+    owner: "platform",
+    risk: "high",
+    exposeToClient: false,
+
+    environments: {
+      development: false,
+      staging: false,
+      production: false,
+    },
+    dependencies: [],
+    expiresAt: null,
+    aliases: ["ENABLE_PORTFOLIO_INTELLIGENCE"],
+
+  },
   'enable_faults': {
     default: false,
     description: "Enable fault injection for testing",
@@ -622,6 +639,7 @@ export const FLAG_DEFAULTS: FlagRecord = {
   'onboarding_tour': false,
   'demo_mode': false,
   'require_auth': false,
+  'enable_portfolio_intelligence': false,
   'enable_faults': false,
   'enable_wizard_step_general': false,
   'enable_wizard_step_sizing': false,
@@ -705,6 +723,7 @@ export const FLAG_ALIASES: Record<string, FlagKey> = {
   'ENABLE_GP_ECONOMICS_ENGINE': 'enable_gp_economics_engine',
   'UI_CATALOG': 'ui_catalog',
   'ONBOARDING_TOUR': 'onboarding_tour',
+  'ENABLE_PORTFOLIO_INTELLIGENCE': 'enable_portfolio_intelligence',
   'ENABLE_WIZARD_STEP_GENERAL': 'enable_wizard_step_general',
   'ENABLE_WIZARD_STEP_SIZING': 'enable_wizard_step_sizing',
   'ENABLE_WIZARD_STEP_SECTORS': 'enable_wizard_step_sizing',
