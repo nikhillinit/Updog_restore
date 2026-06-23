@@ -1,17 +1,17 @@
 ---
-last_updated: 2026-06-22
+last_updated: 2026-06-23
 ---
 
 # Staleness Report
 
-*Generated: 2026-06-22T00:00:00.000Z*
+*Generated: 2026-06-23T00:00:00.000Z*
 *Source: docs/DISCOVERY-MAP.source.yaml*
 
 ## Summary
 
 | Metric | Value |
 |--------|-------|
-| Total Documents | 662 |
+| Total Documents | 663 |
 | Stale Documents | 104 |
 | Missing Frontmatter | 22 |
 
@@ -21,7 +21,7 @@ last_updated: 2026-06-22
 |--------|-------|
 | ACTIVE | 446 |
 | UNKNOWN | 117 |
-| DRAFT | 31 |
+| DRAFT | 32 |
 | HISTORICAL | 29 |
 | VERIFIED | 9 |
 | INDEXED | 6 |
@@ -89,13 +89,13 @@ Documents that need review (older than their cadence threshold):
 | `docs/superpowers/specs/2026-06-11-worker-prod-ops-design.md` | Never | 999 | No | Unassigned |
 | `docs/superpowers/specs/2026-06-21-investment-rounds-ui-v2-design.md` | Never | 999 | No | Unassigned |
 | `docs/tooling-catalog.md` | Never | 999 | No | Unassigned |
-| `cheatsheets/agent-architecture.md` | 2026-01-19 | 154 | No | Unassigned |
-| `cheatsheets/agent-memory/database-expert-schema-tdd.md` | 2026-01-19 | 154 | No | Unassigned |
-| `cheatsheets/ai-code-review.md` | 2026-01-19 | 154 | No | Unassigned |
-| `cheatsheets/anti-pattern-prevention.md` | 2026-01-19 | 154 | No | Unassigned |
-| `cheatsheets/api.md` | 2026-01-19 | 154 | No | Unassigned |
-| `cheatsheets/capability-checklist.md` | 2026-01-19 | 154 | No | Unassigned |
-| `cheatsheets/ci-validator-guide.md` | 2026-01-19 | 154 | No | Unassigned |
+| `cheatsheets/agent-architecture.md` | 2026-01-19 | 155 | No | Unassigned |
+| `cheatsheets/agent-memory/database-expert-schema-tdd.md` | 2026-01-19 | 155 | No | Unassigned |
+| `cheatsheets/ai-code-review.md` | 2026-01-19 | 155 | No | Unassigned |
+| `cheatsheets/anti-pattern-prevention.md` | 2026-01-19 | 155 | No | Unassigned |
+| `cheatsheets/api.md` | 2026-01-19 | 155 | No | Unassigned |
+| `cheatsheets/capability-checklist.md` | 2026-01-19 | 155 | No | Unassigned |
+| `cheatsheets/ci-validator-guide.md` | 2026-01-19 | 155 | No | Unassigned |
 
 *...and 54 more stale documents.*
 
@@ -103,13 +103,13 @@ Documents that need review (older than their cadence threshold):
 
 These documents contain phrases like "tests pass", "PR merged", etc. and should be verified:
 
-- [ ] **CHANGELOG.md** (33 days old)
-- [ ] **cheatsheets/emoji-free-documentation.md** (154 days old)
-- [ ] **cheatsheets/schema-alignment.md** (154 days old)
-- [ ] **docs/notebooklm-sources/reserves/01-overview.md** (154 days old)
-- [ ] **docs/notebooklm-sources/waterfall.md** (154 days old)
-- [ ] **docs/notebooklm-sources/xirr.md** (154 days old)
-- [ ] **docs/observability/EDITORIAL-V2-CHANGELOG.md** (154 days old)
+- [ ] **CHANGELOG.md** (34 days old)
+- [ ] **cheatsheets/emoji-free-documentation.md** (155 days old)
+- [ ] **cheatsheets/schema-alignment.md** (155 days old)
+- [ ] **docs/notebooklm-sources/reserves/01-overview.md** (155 days old)
+- [ ] **docs/notebooklm-sources/waterfall.md** (155 days old)
+- [ ] **docs/notebooklm-sources/xirr.md** (155 days old)
+- [ ] **docs/observability/EDITORIAL-V2-CHANGELOG.md** (155 days old)
 - [ ] **docs/skills/REFL-003-cross-platform-file-enumeration-fragility.md** (999 days old)
 - [ ] **docs/skills/REFL-014-test-key-reuse-across-test-cases.md** (999 days old)
 - [ ] **docs/skills/REFL-015-postgresql-service-missing-test-database.md** (999 days old)
