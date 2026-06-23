@@ -1,3 +1,11 @@
+---
+status: DRAFT
+audience: agents
+last_updated: 2026-06-23
+owner: 'Platform / GP Modeling'
+review_cadence: P90D
+---
+
 # Trust-First Development Milestones for `nikhillinit/Updog_restore`
 
 **Revision:** v3.4 -- debate-amended (Hermes 3-lane: Kimi + Codex + Claude)

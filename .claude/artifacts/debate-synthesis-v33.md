@@ -1,3 +1,11 @@
+---
+status: REFERENCE
+audience: agents
+last_updated: 2026-06-23
+owner: 'Platform / GP Modeling'
+review_cadence: P365D
+---
+
 # Debate Synthesis: v3.3 Trust-First Milestones
 
 **Date:** 2026-06-23 **Comparators:** Kimi (hermes-2026-06-23T09-10-46-409Z),

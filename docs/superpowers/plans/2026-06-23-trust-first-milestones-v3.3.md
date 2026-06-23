@@ -1,3 +1,11 @@
+---
+status: HISTORICAL
+audience: agents
+last_updated: 2026-06-23
+owner: 'Platform / GP Modeling'
+review_cadence: P90D
+---
+
 # Trust-First Development Milestones for `nikhillinit/Updog_restore`
 
 **Revision:** v3.3 — rebased onto PR #910 (financial-actionability P0) and

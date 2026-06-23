@@ -1,3 +1,11 @@
+---
+status: REFERENCE
+audience: agents
+last_updated: 2026-06-23
+owner: 'Platform / GP Modeling'
+review_cadence: P365D
+---
+
 # Debate Rubric: v3.3 Trust-First Milestones Plan Review
 
 ## Context
