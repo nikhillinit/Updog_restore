@@ -53,6 +53,13 @@ function tsStringLiteral(value: string): string {
   return JSON.stringify(value);
 }
 
+function trimTrailingWhitespace(content: string): string {
+  return content
+    .split('\n')
+    .map((line) => line.trimEnd())
+    .join('\n');
+}
+
 function generateFlagTypes(registry: FlagRegistry): string {
   const flagKeys = Object.keys(registry.flags);
   const clientFlags = Object.entries(registry.flags)
@@ -323,12 +330,12 @@ function main() {
   // Generate types
   console.log('Generating flag-types.ts...');
   const typesContent = generateFlagTypes(registry);
-  writeFileSync(join(OUTPUT_DIR, 'flag-types.ts'), typesContent);
+  writeFileSync(join(OUTPUT_DIR, 'flag-types.ts'), trimTrailingWhitespace(typesContent));
 
   // Generate defaults
   console.log('Generating flag-defaults.ts...');
   const defaultsContent = generateFlagDefaults(registry);
-  writeFileSync(join(OUTPUT_DIR, 'flag-defaults.ts'), defaultsContent);
+  writeFileSync(join(OUTPUT_DIR, 'flag-defaults.ts'), trimTrailingWhitespace(defaultsContent));
 
   console.log('Done! Generated:');
   console.log('  - shared/generated/flag-types.ts');
