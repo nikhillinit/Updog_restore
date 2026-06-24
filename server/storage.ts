@@ -125,6 +125,7 @@ type NormalizedInsertPortfolioCompany = {
   stage: string;
   investmentAmount: string | number;
   currentValuation?: string | number | null;
+  exitProbability?: string | number | null;
   foundedYear?: number | null;
   status?: string | null;
   description?: string | null;
@@ -140,6 +141,7 @@ function createPortfolioCompanyAllocationDefaults(
   | 'deployedReservesCents'
   | 'plannedReservesCents'
   | 'exitMoicBps'
+  | 'exitProbability'
   | 'ownershipCurrentPct'
   | 'allocationCapCents'
   | 'allocationReason'
@@ -153,6 +155,7 @@ function createPortfolioCompanyAllocationDefaults(
     deployedReservesCents: 0,
     plannedReservesCents: 0,
     exitMoicBps: null,
+    exitProbability: null,
     ownershipCurrentPct: null,
     allocationCapCents: null,
     allocationReason: null,
@@ -425,6 +428,10 @@ export class MemStorage implements IStorage {
       description: normalizedCompany.description ?? null,
       dealTags: normalizedCompany.dealTags ?? null,
       ...createPortfolioCompanyAllocationDefaults(normalizedCompany.stage),
+      exitProbability:
+        normalizedCompany.exitProbability != null
+          ? String(normalizedCompany.exitProbability)
+          : null,
     };
     this.portfolioCompanies.set(id, company);
     return company;

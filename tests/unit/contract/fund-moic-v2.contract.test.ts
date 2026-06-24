@@ -16,7 +16,7 @@ import {
  */
 
 const makeValidV2 = (): FundMoicRankingsResponseV2 => ({
-  contractVersion: '2.0.0',
+  contractVersion: '2.1.0',
   fundId: 7,
   rankings: [
     {
@@ -29,6 +29,29 @@ const makeValidV2 = (): FundMoicRankingsResponseV2 => ({
   provenance: { mode: 'legacy', warnings: [] },
   latestReconciliation: null,
   materiality: { status: 'not_run', candidateMaterial: false, epsilon: 1e-8 },
+  modePreview: {
+    calculationKey: 'fund_moic_rankings_exit_probability',
+    configuredMode: 'off',
+    effectiveMode: 'off',
+    killSwitchActive: false,
+    shadowStartedAt: null,
+    eligibleAt: null,
+    residencyDaysRequired: 7,
+    residencyStatus: 'not_applicable',
+    currentSourceMatchesAccepted: false,
+    unreconciledEditsPresent: false,
+    blockers: [],
+    version: 0,
+  },
+  moicInputSummary: {
+    sourceVersion: 'moic-exit-probability-v1',
+    explicitExitProbabilityCount: 1,
+    defaultedExitProbabilityCount: 0,
+    activationBlockingDefaultedExitProbabilityCount: 0,
+    explicitReserveExitMultipleCount: 1,
+    defaultedReserveExitMultipleCount: 0,
+    activationBlockingDefaultedReserveExitMultipleCount: 0,
+  },
   roundEvidenceSummary: { activeRoundCount: 0, activeOverrideCount: 0, warningCodes: [] },
   generatedAt: '2026-06-24T00:00:00.000Z',
 });
@@ -47,6 +70,8 @@ describe('FundMoicRankingsResponseV2 contract — allowlist', () => {
         'generatedAt',
         'latestReconciliation',
         'materiality',
+        'modePreview',
+        'moicInputSummary',
         'provenance',
         'rankings',
         'roundEvidenceSummary',
@@ -68,11 +93,50 @@ describe('FundMoicRankingsResponseV2 contract — allowlist', () => {
 
   it('pins the EXACT latestReconciliation key set (when present)', () => {
     const payload = makeValidV2();
-    payload.latestReconciliation = { runId: 'run-1', createdAt: '2026-06-24T00:00:00.000Z' };
+    payload.latestReconciliation = {
+      runId: 'run-1',
+      createdAt: '2026-06-24T00:00:00.000Z',
+      currentInputMatches: true,
+    };
     const parsed = FundMoicRankingsResponseV2Schema.parse(payload);
     expect(parsed.latestReconciliation).not.toBeNull();
     expect(Object.keys(parsed.latestReconciliation ?? {}).sort()).toEqual(
-      ['createdAt', 'runId'].sort()
+      ['createdAt', 'currentInputMatches', 'runId'].sort()
+    );
+  });
+
+  it('pins the EXACT modePreview key set', () => {
+    const parsed = FundMoicRankingsResponseV2Schema.parse(makeValidV2());
+    expect(Object.keys(parsed.modePreview).sort()).toEqual(
+      [
+        'blockers',
+        'calculationKey',
+        'configuredMode',
+        'currentSourceMatchesAccepted',
+        'effectiveMode',
+        'eligibleAt',
+        'killSwitchActive',
+        'residencyDaysRequired',
+        'residencyStatus',
+        'shadowStartedAt',
+        'unreconciledEditsPresent',
+        'version',
+      ].sort()
+    );
+  });
+
+  it('pins the EXACT moicInputSummary key set', () => {
+    const parsed = FundMoicRankingsResponseV2Schema.parse(makeValidV2());
+    expect(Object.keys(parsed.moicInputSummary).sort()).toEqual(
+      [
+        'activationBlockingDefaultedExitProbabilityCount',
+        'activationBlockingDefaultedReserveExitMultipleCount',
+        'defaultedExitProbabilityCount',
+        'defaultedReserveExitMultipleCount',
+        'explicitExitProbabilityCount',
+        'explicitReserveExitMultipleCount',
+        'sourceVersion',
+      ].sort()
     );
   });
 
@@ -121,6 +185,7 @@ describe('FundMoicRankingsResponseV2 contract — forbidden-field rejection', ()
     bad.latestReconciliation = {
       runId: 'run-1',
       createdAt: '2026-06-24T00:00:00.000Z',
+      currentInputMatches: true,
       // @ts-expect-error injecting a forbidden key
       legacyOutputHash: 'deadbeef',
     };
@@ -136,23 +201,22 @@ describe('FundMoicRankingsResponseV2 contract — forbidden-field rejection', ()
 });
 
 describe('FundMoicRankingsResponseV2 contract — literal/enum pins', () => {
-  it('rejects a contractVersion other than 2.0.0', () => {
+  it('rejects a contractVersion other than 2.1.0', () => {
     const bad = { ...makeValidV2(), contractVersion: '1.0.0' };
     expect(FundMoicRankingsResponseV2Schema.safeParse(bad).success).toBe(false);
   });
 
-  it('rejects provenance.mode other than legacy', () => {
+  it('rejects provenance.mode outside the effective-source enum', () => {
     const bad = makeValidV2();
-    // @ts-expect-error narrowing literal
-    bad.provenance.mode = 'on';
+    // @ts-expect-error narrowing enum
+    bad.provenance.mode = 'shadow';
     expect(FundMoicRankingsResponseV2Schema.safeParse(bad).success).toBe(false);
   });
 
-  it('rejects materiality.candidateMaterial === true (PR-E candidate is a no-op)', () => {
-    const bad = makeValidV2();
-    // @ts-expect-error literal false only
-    bad.materiality.candidateMaterial = true;
-    expect(FundMoicRankingsResponseV2Schema.safeParse(bad).success).toBe(false);
+  it('accepts materiality.candidateMaterial true when candidate differs', () => {
+    const ok = makeValidV2();
+    ok.materiality.candidateMaterial = true;
+    expect(FundMoicRankingsResponseV2Schema.safeParse(ok).success).toBe(true);
   });
 
   it('rejects a materiality.epsilon other than 1e-8', () => {
@@ -175,9 +239,29 @@ describe('FundMoicRankingsResponseV2 contract — literal/enum pins', () => {
     expect(FundMoicRankingsResponseV2Schema.safeParse(ok).success).toBe(true);
   });
 
+  it('accepts materiality.status === stale', () => {
+    const ok = makeValidV2();
+    ok.materiality.status = 'stale';
+    expect(FundMoicRankingsResponseV2Schema.safeParse(ok).success).toBe(true);
+  });
+
   it('accepts a null runId/createdAt inside a present latestReconciliation', () => {
     const ok = makeValidV2();
-    ok.latestReconciliation = { runId: null, createdAt: null };
+    ok.latestReconciliation = { runId: null, createdAt: null, currentInputMatches: false };
     expect(FundMoicRankingsResponseV2Schema.safeParse(ok).success).toBe(true);
+  });
+
+  it('rejects unknown mode enums and accepts known activation blockers', () => {
+    const ok = makeValidV2();
+    ok.modePreview.configuredMode = 'shadow';
+    ok.modePreview.effectiveMode = 'shadow';
+    ok.modePreview.residencyStatus = 'pending';
+    ok.modePreview.blockers = ['shadow_residency_pending', 'exit_probability_source_incomplete'];
+    expect(FundMoicRankingsResponseV2Schema.safeParse(ok).success).toBe(true);
+
+    const bad = makeValidV2();
+    // @ts-expect-error enum only
+    bad.modePreview.effectiveMode = 'candidate';
+    expect(FundMoicRankingsResponseV2Schema.safeParse(bad).success).toBe(false);
   });
 });

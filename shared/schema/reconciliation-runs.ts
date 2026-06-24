@@ -10,6 +10,7 @@ import {
   serial,
   text,
   timestamp,
+  unique,
   varchar,
 } from 'drizzle-orm/pg-core';
 
@@ -23,7 +24,7 @@ export const reconciliationRuns = pgTable(
     fundId: integer('fund_id')
       .notNull()
       .references(() => funds.id, { onDelete: 'cascade' }),
-    idempotencyKey: text('idempotency_key').notNull().unique(),
+    idempotencyKey: text('idempotency_key').notNull(),
     requestHash: text('request_hash').notNull(),
     requestedBy: integer('requested_by').references(() => users.id),
     requestedAt: timestamp('requested_at', { withTimezone: true }).notNull().defaultNow(),
@@ -47,6 +48,10 @@ export const reconciliationRuns = pgTable(
     fundRequestedIdx: index('idx_reconciliation_runs_fund_requested').on(
       table.fundId,
       table.requestedAt.desc()
+    ),
+    fundIdempotencyKeyUnique: unique('reconciliation_runs_fund_id_idempotency_key_unique').on(
+      table.fundId,
+      table.idempotencyKey
     ),
   })
 );

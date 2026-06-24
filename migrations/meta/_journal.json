@@ -120,6 +120,20 @@
       "when": 1782172800000,
       "tag": "0015_funds_base_currency",
       "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "7",
+      "when": 1782259200000,
+      "tag": "0016_reconciliation_runs",
+      "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1782345600000,
+      "tag": "0017_moic_exit_probability_modes",
+      "breakpoints": true
     }
   ]
 }

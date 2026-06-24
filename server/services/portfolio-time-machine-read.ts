@@ -169,6 +169,7 @@ function mergeHistoricalCompany(
     deployedReservesCents: liveMatch?.deployedReservesCents ?? 0,
     plannedReservesCents: liveMatch?.plannedReservesCents ?? 0,
     exitMoicBps: liveMatch?.exitMoicBps ?? null,
+    exitProbability: liveMatch?.exitProbability ?? null,
     ownershipCurrentPct:
       coerceDecimalString(historicalCompany.ownershipCurrentPct, null) ??
       liveMatch?.ownershipCurrentPct ??

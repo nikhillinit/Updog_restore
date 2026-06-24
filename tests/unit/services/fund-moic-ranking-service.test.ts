@@ -26,7 +26,10 @@ vi.mock('../../../server/routes/moic', async (importOriginal) => {
   };
 });
 
-import { buildMoicRankingsFromInvestments } from '../../../server/services/fund-moic-ranking-service';
+import {
+  buildMoicRankingSourcesFromCompanies,
+  buildMoicRankingsFromInvestments,
+} from '../../../server/services/fund-moic-ranking-service';
 import { FundMoicRankingsResponseV1Schema } from '../../../shared/contracts/fund-moic-v1.contract';
 import type { Investment } from '../../../shared/core/moic/MOICCalculator';
 
@@ -144,9 +147,7 @@ describe('fund MOIC ranking service', () => {
     expect(result.rankings).toHaveLength(1);
   });
 
-  // --- PR-E characterization: pin current (defective) live behavior ---
-
-  it('pins the live defect: getFundMoicRankings hardcodes exitProbability=null, so probability-weighted reservesMoic collapses to 0 even when the source row carries a real exit probability', async () => {
+  it('keeps legacy/off rankings on the existing null-coerced probability path', async () => {
     findMany.mockResolvedValue([
       {
         id: 1,
@@ -160,18 +161,135 @@ describe('fund MOIC ranking service', () => {
       },
     ]);
 
-    const { getFundMoicRankings } = await import(
-      '../../../server/services/fund-moic-ranking-service'
-    );
+    const { getFundMoicRankings } =
+      await import('../../../server/services/fund-moic-ranking-service');
     const result = await getFundMoicRankings(10);
 
-    // DEFECT pinned: getFundMoicRankings maps every company with a hardcoded
-    // exitProbability: null (it never reads the source column), so
-    // calculateReservesMOIC(applyProbability=true) multiplies by 0 -> the
-    // reservesMoic.value is 0 regardless of the real 0.8 above. The 0.8 is
-    // deliberately ignored here to prove the column is dropped, not just null.
-    // V2 shadow reconciliation exists to surface/correct this; pin V1 behavior.
     expect(result.rankings[0]?.reservesMoic.value).toBe(0);
+  });
+
+  it('builds a positive source-backed candidate from explicit exit probability', () => {
+    const result = buildMoicRankingSourcesFromCompanies(10, [
+      {
+        id: 1,
+        fundId: 10,
+        name: 'Acme',
+        investmentAmount: 500_000,
+        currentValuation: 1_500_000,
+        plannedReservesCents: 300_000_00,
+        exitMoicBps: 35000,
+        exitProbability: 0.8,
+        investmentDate: new Date('2022-01-01T00:00:00.000Z'),
+      },
+    ]);
+
+    expect(result.legacy.rankings[0]?.reservesMoic.value).toBe(0);
+    expect(result.candidate.rankings[0]?.reservesMoic.value).toBe(280);
+    expect(result.moicInputSummary).toMatchObject({
+      explicitExitProbabilityCount: 1,
+      defaultedExitProbabilityCount: 0,
+      activationBlockingDefaultedExitProbabilityCount: 0,
+      explicitReserveExitMultipleCount: 1,
+      defaultedReserveExitMultipleCount: 0,
+      activationBlockingDefaultedReserveExitMultipleCount: 0,
+    });
+  });
+
+  it('falls missing candidate probability back to 1.0 and counts activation blocking rows', () => {
+    const result = buildMoicRankingSourcesFromCompanies(10, [
+      {
+        id: 1,
+        fundId: 10,
+        name: 'Acme',
+        investmentAmount: 500_000,
+        currentValuation: 1_500_000,
+        plannedReservesCents: 300_000_00,
+        exitMoicBps: 25000,
+        exitProbability: null,
+        investmentDate: new Date('2022-01-01T00:00:00.000Z'),
+      },
+    ]);
+
+    expect(result.candidate.rankings[0]?.reservesMoic.value).toBe(250);
+    expect(result.moicInputSummary.defaultedExitProbabilityCount).toBe(1);
+    expect(result.moicInputSummary.activationBlockingDefaultedExitProbabilityCount).toBe(1);
+    expect(result.moicInputSummary.activationBlockingDefaultedReserveExitMultipleCount).toBe(0);
+  });
+
+  it('falls missing reserve multiples back to 1x and blocks activation without double-counting probability', () => {
+    const result = buildMoicRankingSourcesFromCompanies(10, [
+      {
+        id: 1,
+        fundId: 10,
+        name: 'Acme',
+        investmentAmount: 500_000,
+        currentValuation: 1_500_000,
+        plannedReservesCents: 300_000_00,
+        exitMoicBps: 0,
+        exitProbability: null,
+        investmentDate: new Date('2022-01-01T00:00:00.000Z'),
+      },
+    ]);
+
+    expect(result.candidate.rankings[0]?.reservesMoic.value).toBe(1);
+    expect(result.moicInputSummary.defaultedExitProbabilityCount).toBe(1);
+    expect(result.moicInputSummary.activationBlockingDefaultedExitProbabilityCount).toBe(0);
+    expect(result.moicInputSummary.defaultedReserveExitMultipleCount).toBe(1);
+    expect(result.moicInputSummary.activationBlockingDefaultedReserveExitMultipleCount).toBe(1);
+  });
+
+  it('parses numeric-string exit probabilities before candidate MOIC math', () => {
+    const result = buildMoicRankingSourcesFromCompanies(10, [
+      {
+        id: 1,
+        fundId: 10,
+        name: 'Acme',
+        investmentAmount: '500000',
+        currentValuation: '1500000',
+        plannedReservesCents: 300_000_00,
+        exitMoicBps: '12500',
+        exitProbability: '0.500000',
+        investmentDate: new Date('2022-01-01T00:00:00.000Z'),
+      },
+    ]);
+
+    expect(result.candidate.rankings[0]?.reservesMoic.value).toBe(62.5);
+    expect(result.moicInputSummary.explicitExitProbabilityCount).toBe(1);
+  });
+
+  it('hashes candidate inputs deterministically by company ID and changes on source edits', () => {
+    const companyA = {
+      id: 2,
+      fundId: 10,
+      name: 'Beta',
+      investmentAmount: 500_000,
+      currentValuation: 1_500_000,
+      plannedReservesCents: 200_000_00,
+      exitMoicBps: 20000,
+      exitProbability: 0.4,
+      investmentDate: new Date('2022-01-01T00:00:00.000Z'),
+    };
+    const companyB = {
+      id: 1,
+      fundId: 10,
+      name: 'Acme',
+      investmentAmount: 500_000,
+      currentValuation: 1_500_000,
+      plannedReservesCents: 300_000_00,
+      exitMoicBps: 35000,
+      exitProbability: 0.8,
+      investmentDate: new Date('2022-01-01T00:00:00.000Z'),
+    };
+
+    const forward = buildMoicRankingSourcesFromCompanies(10, [companyA, companyB]);
+    const reverse = buildMoicRankingSourcesFromCompanies(10, [companyB, companyA]);
+    const edited = buildMoicRankingSourcesFromCompanies(10, [
+      companyA,
+      { ...companyB, exitProbability: 0.7 },
+    ]);
+
+    expect(forward.moicSourceInputHash).toBe(reverse.moicSourceInputHash);
+    expect(edited.moicSourceInputHash).not.toBe(forward.moicSourceInputHash);
   });
 
   it('characterizes follow-on/initial-only changes as no-ops for reserves MOIC value and rank', () => {

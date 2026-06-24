@@ -7,14 +7,11 @@ import {
   type InsertReconciliationRun,
   type ReconciliationRun,
 } from '../../shared/schema';
-import {
-  assessMoicMateriality,
-  MOIC_MATERIALITY_EPSILON,
-} from './fund-moic-materiality';
-import { getFundMoicRankings } from './fund-moic-ranking-service';
+import { assessMoicMateriality, MOIC_MATERIALITY_EPSILON } from './fund-moic-materiality';
+import { FUND_MOIC_CALCULATION_KEY, getFundMoicRankingSources } from './fund-moic-ranking-service';
 import { buildRoundsToModelEvidence } from './rounds-to-model-evidence-service';
 
-const MOIC_RECONCILIATION_CONTRACT_VERSION = '2.0.0';
+const MOIC_RECONCILIATION_CONTRACT_VERSION = '2.1.0';
 
 type MoicReconciliationDatabase = typeof db;
 
@@ -36,12 +33,19 @@ export class MoicReconciliationConflictError extends Error {
 export interface MoicReconciliationRunRef {
   runId: string;
   createdAt: string;
+  candidateInputHash?: string;
+  candidateMaterial?: boolean;
 }
 
-function runRef(row: Pick<ReconciliationRun, 'id' | 'requestedAt'>): MoicReconciliationRunRef {
+function runRef(
+  row: Pick<ReconciliationRun, 'id' | 'requestedAt'> &
+    Partial<Pick<ReconciliationRun, 'candidateInputHash' | 'candidateMaterial'>>
+): MoicReconciliationRunRef {
   return {
     runId: String(row.id),
     createdAt: row.requestedAt.toISOString(),
+    ...(row.candidateInputHash ? { candidateInputHash: row.candidateInputHash } : {}),
+    ...(row.candidateMaterial !== undefined ? { candidateMaterial: row.candidateMaterial } : {}),
   };
 }
 
@@ -57,22 +61,30 @@ function summarizeRoundEvidence(coverage: {
   };
 }
 
-function requestHashFor(fundId: number): string {
+function requestHashFor(params: { fundId: number; moicSourceInputHash: string }): string {
   return canonicalSha256({
     kind: 'moic_reconciliation',
-    fundId,
+    fundId: params.fundId,
+    calculationKey: FUND_MOIC_CALCULATION_KEY,
     contractVersion: MOIC_RECONCILIATION_CONTRACT_VERSION,
+    moicSourceInputHash: params.moicSourceInputHash,
   });
 }
 
 async function loadReconciliationByIdempotencyKey(
+  fundId: number,
   idempotencyKey: string,
   database: MoicReconciliationDatabase
 ): Promise<ReconciliationRun | undefined> {
   const [existing] = await database
     .select()
     .from(reconciliationRuns)
-    .where(eq(reconciliationRuns.idempotencyKey, idempotencyKey))
+    .where(
+      and(
+        eq(reconciliationRuns.fundId, fundId),
+        eq(reconciliationRuns.idempotencyKey, idempotencyKey)
+      )
+    )
     .limit(1);
   return existing;
 }
@@ -108,17 +120,26 @@ export async function recordMoicReconciliation(params: {
   database?: MoicReconciliationDatabase;
 }): Promise<{ run: MoicReconciliationRunRef; replayed: boolean }> {
   const database = params.database ?? db;
-  const requestHash = requestHashFor(params.fundId);
-  const existing = await loadReconciliationByIdempotencyKey(params.idempotencyKey, database);
+  const sources = await getFundMoicRankingSources(params.fundId, database);
+  const requestHash = requestHashFor({
+    fundId: params.fundId,
+    moicSourceInputHash: sources.moicSourceInputHash,
+  });
+  const existing = await loadReconciliationByIdempotencyKey(
+    params.fundId,
+    params.idempotencyKey,
+    database
+  );
   if (existing) {
     return replayOrConflict(existing, requestHash);
   }
 
-  const legacy = await getFundMoicRankings(params.fundId);
-  const candidate = legacy;
+  const legacy = sources.legacy;
+  const candidate = sources.candidate;
   const materiality = assessMoicMateriality(legacy.rankings, candidate.rankings);
   const evidence = await buildRoundsToModelEvidence({ fundId: params.fundId, database });
-  const rankingsHash = canonicalSha256(legacy.rankings);
+  const legacyOutputHash = canonicalSha256(legacy.rankings);
+  const candidateOutputHash = canonicalSha256(candidate.rankings);
   const roundEvidenceSummary = summarizeRoundEvidence(evidence.coverage);
 
   const insertValues: InsertReconciliationRun = {
@@ -127,16 +148,21 @@ export async function recordMoicReconciliation(params: {
     requestHash,
     requestedBy: params.requestedBy,
     status: 'completed',
-    legacyInputHash: rankingsHash,
-    candidateInputHash: rankingsHash,
+    legacyInputHash: canonicalSha256({
+      kind: 'fund_moic_legacy_source',
+      fundId: params.fundId,
+      sourceRecordCount: legacy.provenance.sourceRecordCount,
+    }),
+    candidateInputHash: sources.moicSourceInputHash,
     evidenceInputHash: canonicalSha256(evidence.coverage),
     assumptionsHash: canonicalSha256({
       epsilon: MOIC_MATERIALITY_EPSILON,
       contractVersion: MOIC_RECONCILIATION_CONTRACT_VERSION,
+      calculationKey: FUND_MOIC_CALCULATION_KEY,
     }),
-    legacyOutputHash: rankingsHash,
-    candidateOutputHash: rankingsHash,
-    candidateMaterial: false,
+    legacyOutputHash,
+    candidateOutputHash,
+    candidateMaterial: materiality.candidateMaterial,
     materialityEpsilon: MOIC_MATERIALITY_EPSILON,
     diffSummary: {
       comparedInvestmentCount: materiality.comparedInvestmentCount,
@@ -150,14 +176,20 @@ export async function recordMoicReconciliation(params: {
   const [inserted] = await database
     .insert(reconciliationRuns)
     .values(insertValues)
-    .onConflictDoNothing({ target: reconciliationRuns.idempotencyKey })
+    .onConflictDoNothing({
+      target: [reconciliationRuns.fundId, reconciliationRuns.idempotencyKey],
+    })
     .returning();
 
   if (inserted) {
     return { run: runRef(inserted), replayed: false };
   }
 
-  const replayed = await loadReconciliationByIdempotencyKey(params.idempotencyKey, database);
+  const replayed = await loadReconciliationByIdempotencyKey(
+    params.fundId,
+    params.idempotencyKey,
+    database
+  );
   if (!replayed) {
     throw new Error('Idempotency conflict did not return an existing MOIC reconciliation run');
   }
