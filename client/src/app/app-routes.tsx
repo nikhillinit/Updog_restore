@@ -29,10 +29,14 @@ export const NotFound = React.lazy(() => import('@/pages/not-found'));
 // Fund Model Results (post-wizard output)
 const FundModelResults = React.lazy(() => import('@/pages/fund-model-results'));
 const FundScenarioWorkspace = React.lazy(() => import('@/pages/fund-scenario-workspace'));
+const FundModelResultsMoicAnalysis = React.lazy(
+  () => import('@/pages/fund-model-results-moic-analysis')
+);
 const FinancialModelingPage = React.lazy(() => import('@/pages/financial-modeling'));
 const ForecastingPage = React.lazy(() => import('@/pages/forecasting'));
 const ModelResultsPage = React.lazy(() => import('@/pages/model-results'));
 const SensitivityAnalysisPage = React.lazy(() => import('@/pages/sensitivity-analysis'));
+// Keep /moic-analysis on the existing live page; the redirect page is not registered here.
 const MOICAnalysisPage = React.lazy(() => import('@/pages/moic-analysis'));
 // LP Sharing
 export const SharedDashboard = React.lazy(() => import('@/pages/shared-dashboard'));
@@ -92,6 +96,7 @@ const APP_ROUTE_COMPONENTS: Record<
   '/financial-modeling': FinancialModelingPage,
   '/model-results': ModelResultsPage,
   '/fund-model-results/:fundId/scenarios': FundScenarioWorkspace,
+  '/fund-model-results/:fundId/moic-analysis': FundModelResultsMoicAnalysis,
   '/fund-model-results/:fundId': FundModelResults,
   '/sensitivity-analysis': SensitivityAnalysisPage,
   '/reports': Reports,

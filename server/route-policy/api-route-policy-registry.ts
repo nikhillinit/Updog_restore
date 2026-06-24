@@ -71,7 +71,11 @@ export function getFinancialSurfaceForGovernanceEntry(
     return 'export_artifact';
   }
 
-  if (entry.path === '/performance' || entry.path === '/moic-analysis') {
+  if (
+    entry.path === '/performance' ||
+    entry.path === '/moic-analysis' ||
+    entry.path === '/fund-model-results/:fundId/moic-analysis'
+  ) {
     return 'moic_reserves';
   }
 
@@ -261,6 +265,19 @@ const GOVERNANCE_ROUTE_POLICY_DECISIONS: Readonly<Record<string, RoutePolicyDeci
   '/fund-model-results/:fundId': {
     lifecycle: 'durable_crud',
     financialSurface: 'fund_modeling',
+    apiAuthBoundary: 'require_auth_and_fund_access',
+    fundScopeMode: 'route_param_fund_id',
+    workflowRequirement: 'fund_scope_verified',
+    exportPolicy: 'not_exportable',
+    provenanceRequired: false,
+    staleBlocksExport: false,
+    staleBlocksRender: true,
+    humanReviewRequired: true,
+    performanceBudgetMs: null,
+  },
+  '/fund-model-results/:fundId/moic-analysis': {
+    lifecycle: 'durable_crud',
+    financialSurface: 'moic_reserves',
     apiAuthBoundary: 'require_auth_and_fund_access',
     fundScopeMode: 'route_param_fund_id',
     workflowRequirement: 'fund_scope_verified',
