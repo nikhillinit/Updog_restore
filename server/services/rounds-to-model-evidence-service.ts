@@ -194,6 +194,18 @@ function createdAtTimestamp(createdAt: Date | null): number {
   return Number.isFinite(timestamp) ? timestamp : Number.POSITIVE_INFINITY;
 }
 
+function compareCreatedAt(left: Date | null, right: Date | null): number {
+  const leftTimestamp = createdAtTimestamp(left);
+  const rightTimestamp = createdAtTimestamp(right);
+  if (leftTimestamp < rightTimestamp) {
+    return -1;
+  }
+  if (leftTimestamp > rightTimestamp) {
+    return 1;
+  }
+  return 0;
+}
+
 export function buildRoundsToModelEvidenceFromRows(params: BuildParams): RoundsToModelEvidence {
   const warnings: StructuredWarning[] = [];
   const activeOverrides = filterOverridesToActiveRounds({
@@ -224,7 +236,7 @@ export function buildRoundsToModelEvidenceFromRows(params: BuildParams): RoundsT
       if (dateOrder !== 0) {
         return dateOrder;
       }
-      const createdOrder = createdAtTimestamp(left.createdAt) - createdAtTimestamp(right.createdAt);
+      const createdOrder = compareCreatedAt(left.createdAt, right.createdAt);
       if (createdOrder !== 0) {
         return createdOrder;
       }

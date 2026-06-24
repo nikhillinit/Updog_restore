@@ -18,7 +18,7 @@ const bannedPatterns = [
 ];
 
 const allowlist = new Set([
-  'client/src/components/investments/InvestmentRoundsSection.tsx',
+  'client/src/components/investments/investment-rounds-section.tsx',
   'client/src/hooks/useInvestmentRounds.ts',
 ]);
 

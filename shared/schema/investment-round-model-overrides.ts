@@ -17,6 +17,9 @@ import { funds } from './fund';
 import { investmentRounds } from './investment-rounds';
 import { users } from './user';
 
+/**
+ * Mirrors server/migrations/20260624_investment_round_model_overrides_v1.up.sql.
+ */
 export const investmentRoundModelOverrides = pgTable(
   'investment_round_model_overrides',
   {

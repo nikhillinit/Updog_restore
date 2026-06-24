@@ -172,6 +172,46 @@ describe('buildRoundsToModelEvidenceFromRows', () => {
     expect(evidence.companies[0]?.followOnAmount).toBe('250000.000000');
   });
 
+  it('uses round id as the same-date tiebreaker when created timestamps are null', () => {
+    const evidence = buildRoundsToModelEvidenceFromRows({
+      fundId: 10,
+      now,
+      rows: {
+        ...baseRows,
+        activeRounds: [
+          {
+            id: 4,
+            fundId: 10,
+            investmentId: 201,
+            roundDate: '2024-01-15',
+            createdAt: null,
+            securityType: 'equity',
+            currency: 'USD',
+            investmentAmount: '250000.000000',
+          },
+          {
+            id: 3,
+            fundId: 10,
+            investmentId: 201,
+            roundDate: '2024-01-15',
+            createdAt: null,
+            securityType: 'equity',
+            currency: 'USD',
+            investmentAmount: '500000.000000',
+          },
+        ],
+      },
+    });
+
+    const rounds = evidence.companies[0]?.rounds;
+    expect(rounds?.map((round) => [round.roundId, round.role])).toEqual([
+      [3, 'initial'],
+      [4, 'follow_on'],
+    ]);
+    expect(evidence.companies[0]?.initialAmount).toBe('500000.000000');
+    expect(evidence.companies[0]?.followOnAmount).toBe('250000.000000');
+  });
+
   it('blocks mismatched currency after override classification', () => {
     const evidence = buildRoundsToModelEvidenceFromRows({
       fundId: 10,

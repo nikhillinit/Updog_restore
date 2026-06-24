@@ -259,6 +259,27 @@ describe('rounds provenance factories', () => {
     expect(provenance.core.assumptionsHash).toMatch(/^[a-f0-9]{64}$/);
   });
 
+  it('includes Date-valued round fields in provenance input hashes', () => {
+    const baseline = makeLiveRoundsProvenance({
+      now,
+      hashParams: {
+        ...hashParams,
+        activeRounds: [{ id: 1, createdAt: new Date('2026-06-24T00:00:00.000Z') }],
+      },
+      structuredWarnings: [],
+    });
+    const changedCreatedAt = makeLiveRoundsProvenance({
+      now,
+      hashParams: {
+        ...hashParams,
+        activeRounds: [{ id: 1, createdAt: new Date('2026-06-24T00:00:01.000Z') }],
+      },
+      structuredWarnings: [],
+    });
+
+    expect(baseline.core.inputHash).not.toBe(changedCreatedAt.core.inputHash);
+  });
+
   it('creates hash-bound PARTIAL provenance', () => {
     const provenance = makePartialRoundsProvenance({
       now,
