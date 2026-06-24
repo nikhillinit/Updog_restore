@@ -39,7 +39,8 @@ logs
 # Claude Code temporary files
 tmpclaude-*-cwd
 
-# Control plane artifacts (ephemeral)
+# Control plane artifacts (ephemeral) — generated/session output, not tracked
+.claude/artifacts/
 .claude/artifacts/metrics.jsonl
 .claude/artifacts/.session-files.json
 .claude/locks/
