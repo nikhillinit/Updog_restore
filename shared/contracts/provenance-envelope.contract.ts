@@ -32,6 +32,12 @@ function hasWarningCode(
   return warnings.some((warning) => warning.code === code);
 }
 
+function hasNonInfoWarning(warnings: Array<z.infer<typeof StructuredWarningSchema>>): boolean {
+  return warnings.some(
+    (warning) => warning.severity === 'warning' || warning.severity === 'blocking'
+  );
+}
+
 function requireHashBoundComputed(
   value: z.infer<typeof FinancialProvenanceSchema>,
   ctx: z.RefinementCtx
@@ -82,6 +88,13 @@ export const ProvenanceEnvelopeSchema = z
           code: z.ZodIssueCode.custom,
           path: ['core', 'quarantineReason'],
           message: 'LIVE provenance cannot include quarantineReason',
+        });
+      }
+      if (hasNonInfoWarning(value.structuredWarnings)) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ['structuredWarnings'],
+          message: 'LIVE provenance may include only info structured warnings',
         });
       }
     }

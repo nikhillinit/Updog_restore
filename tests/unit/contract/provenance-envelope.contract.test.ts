@@ -52,6 +52,48 @@ describe('ProvenanceEnvelopeSchema', () => {
     expect(ProvenanceEnvelopeSchema.parse(value)).toEqual(value);
   });
 
+  it('rejects LIVE provenance with currency blocking warnings', () => {
+    const result = ProvenanceEnvelopeSchema.safeParse({
+      trustState: 'LIVE',
+      core: computedCore,
+      structuredWarnings: [
+        {
+          code: 'CURRENCY_MISMATCH_BLOCK',
+          severity: 'blocking',
+          message: 'Round currency does not match fund base currency.',
+        },
+      ],
+    });
+
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.error.issues.map((issue) => issue.path.join('.'))).toContain(
+        'structuredWarnings'
+      );
+    }
+  });
+
+  it('rejects LIVE provenance with warning-severity non-equity warnings', () => {
+    const result = ProvenanceEnvelopeSchema.safeParse({
+      trustState: 'LIVE',
+      core: computedCore,
+      structuredWarnings: [
+        {
+          code: 'NON_EQUITY_AMOUNT_ONLY',
+          severity: 'warning',
+          message: 'A non-equity round can only contribute amount evidence.',
+        },
+      ],
+    });
+
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.error.issues.map((issue) => issue.path.join('.'))).toContain(
+        'structuredWarnings'
+      );
+    }
+  });
+
   it('requires hash-bound PARTIAL computed provenance at the envelope layer', () => {
     const result = ProvenanceEnvelopeSchema.safeParse({
       trustState: 'PARTIAL',

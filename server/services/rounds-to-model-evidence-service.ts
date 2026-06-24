@@ -117,6 +117,14 @@ function latestOverrideByRound(overrides: ActiveOverrideRow[]): Map<number, Acti
   return byRound;
 }
 
+function filterOverridesToActiveRounds(params: {
+  overrides: ActiveOverrideRow[];
+  activeRounds: ActiveRoundRow[];
+}): ActiveOverrideRow[] {
+  const activeRoundIds = new Set(params.activeRounds.map((round) => round.id));
+  return params.overrides.filter((override) => activeRoundIds.has(override.roundId));
+}
+
 function defaultEquityRole(
   indexWithinInvestment: number
 ): Extract<RoundModelRole, 'initial' | 'follow_on'> {
@@ -188,13 +196,17 @@ function createdAtTimestamp(createdAt: Date | null): number {
 
 export function buildRoundsToModelEvidenceFromRows(params: BuildParams): RoundsToModelEvidence {
   const warnings: StructuredWarning[] = [];
+  const activeOverrides = filterOverridesToActiveRounds({
+    overrides: params.rows.activeOverrides,
+    activeRounds: params.rows.activeRounds,
+  });
   const byCompany = new Map(params.rows.companies.map((company) => [company.id, company]));
   const byInvestment = new Map(
     params.rows.investments
       .filter((investment) => investment.fundId === params.fundId)
       .map((investment) => [investment.id, investment])
   );
-  const overridesByRound = latestOverrideByRound(params.rows.activeOverrides);
+  const overridesByRound = latestOverrideByRound(activeOverrides);
   const roundsByInvestment = new Map<number, ActiveRoundRow[]>();
 
   for (const round of params.rows.activeRounds) {
@@ -335,7 +347,7 @@ export function buildRoundsToModelEvidenceFromRows(params: BuildParams): RoundsT
     fundId: params.fundId,
     baseCurrency: params.rows.fund.baseCurrency,
     activeRounds: params.rows.activeRounds,
-    activeOverrides: params.rows.activeOverrides,
+    activeOverrides,
     parentInvestments: params.rows.investments,
     companies: params.rows.companies,
   };
@@ -364,7 +376,7 @@ export function buildRoundsToModelEvidenceFromRows(params: BuildParams): RoundsT
       companyCount: companyEvidence.size,
       investmentCount: params.rows.investments.length,
       activeRoundCount: params.rows.activeRounds.length,
-      activeOverrideCount: params.rows.activeOverrides.length,
+      activeOverrideCount: activeOverrides.length,
       warningsByCode,
     },
     provenance,
@@ -444,7 +456,24 @@ export async function buildRoundsToModelEvidence(params: {
         createdAt: investmentRoundModelOverrides.createdAt,
       })
       .from(investmentRoundModelOverrides)
-      .where(eq(investmentRoundModelOverrides.fundId, params.fundId))
+      .innerJoin(
+        investmentRounds,
+        and(
+          eq(investmentRoundModelOverrides.roundId, investmentRounds.id),
+          eq(investmentRoundModelOverrides.fundId, investmentRounds.fundId)
+        )
+      )
+      .where(
+        and(
+          eq(investmentRoundModelOverrides.fundId, params.fundId),
+          notExists(
+            database
+              .select({ id: supersedingRounds.id })
+              .from(supersedingRounds)
+              .where(eq(supersedingRounds.supersedesRoundId, investmentRounds.id))
+          )
+        )
+      )
       .orderBy(
         asc(investmentRoundModelOverrides.roundId),
         asc(investmentRoundModelOverrides.createdAt),

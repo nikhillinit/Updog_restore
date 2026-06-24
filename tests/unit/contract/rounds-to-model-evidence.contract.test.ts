@@ -5,19 +5,26 @@ import {
 } from '../../../shared/contracts/rounds-to-model-evidence.contract';
 
 const provenance = {
-  trustState: 'LIVE',
+  trustState: 'PARTIAL',
   core: {
     sourceKind: 'computed',
-    actionability: 'actionable',
+    actionability: 'input_only',
     sourceEngine: 'rounds-to-model',
     engineVersion: 'rounds-to-model-v1',
     inputHash: 'input-hash',
     assumptionsHash: 'assumptions-hash',
     generatedAt: '2026-06-24T00:00:00.000Z',
-    isFinanciallyActionable: true,
+    isFinanciallyActionable: false,
     warnings: [],
   },
-  structuredWarnings: [],
+  structuredWarnings: [
+    {
+      code: 'NON_EQUITY_AMOUNT_ONLY',
+      severity: 'warning',
+      message: 'Round 2 is safe and contributes amount-only evidence.',
+      source: 'round:2',
+    },
+  ],
 };
 
 const validEvidence = {
@@ -30,8 +37,8 @@ const validEvidence = {
       companyName: 'Acme',
       investmentIds: [201],
       initialAmount: '500000.000000',
-      followOnAmount: '125000.000000',
-      amountOnlyNonEquityAmount: '0.000000',
+      followOnAmount: '0.000000',
+      amountOnlyNonEquityAmount: '125000.000000',
       roundCount: 2,
       rounds: [
         {
@@ -52,14 +59,21 @@ const validEvidence = {
           companyId: 101,
           roundDate: '2025-02-01',
           securityType: 'safe',
-          role: 'follow_on',
+          role: 'amount_only',
           currency: 'USD',
           investmentAmount: '125000.000000',
           amountOnly: true,
           overrideApplied: false,
         },
       ],
-      warnings: [],
+      warnings: [
+        {
+          code: 'NON_EQUITY_AMOUNT_ONLY',
+          severity: 'warning',
+          message: 'Round 2 is safe and contributes amount-only evidence.',
+          source: 'round:2',
+        },
+      ],
     },
   ],
   coverage: {
@@ -67,7 +81,7 @@ const validEvidence = {
     investmentCount: 1,
     activeRoundCount: 2,
     activeOverrideCount: 0,
-    warningsByCode: {},
+    warningsByCode: { NON_EQUITY_AMOUNT_ONLY: 1 },
   },
   provenance,
 };

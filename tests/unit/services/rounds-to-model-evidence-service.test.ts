@@ -99,6 +99,39 @@ describe('buildRoundsToModelEvidenceFromRows', () => {
     }
   );
 
+  it('ignores overrides for superseded inactive rounds in coverage and hash input', () => {
+    const baselineEvidence = buildRoundsToModelEvidenceFromRows({
+      fundId: 10,
+      now,
+      rows: baseRows,
+    });
+    const evidence = buildRoundsToModelEvidenceFromRows({
+      fundId: 10,
+      now,
+      rows: {
+        ...baseRows,
+        activeOverrides: [
+          {
+            id: 20,
+            fundId: 10,
+            roundId: 99,
+            overrideRole: 'follow_on',
+            supersedesOverrideId: null,
+            createdAt: new Date('2025-02-03T00:00:00.000Z'),
+          },
+        ],
+      },
+    });
+
+    expect(evidence.coverage.activeOverrideCount).toBe(0);
+    expect(evidence.coverage.warningsByCode.ROUND_MODEL_OVERRIDE_APPLIED).toBeUndefined();
+    expect(evidence.companies[0]?.rounds.map((round) => round.overrideApplied)).toEqual([
+      false,
+      false,
+    ]);
+    expect(evidence.provenance.core.inputHash).toBe(baselineEvidence.provenance.core.inputHash);
+  });
+
   it('orders same-date equity rounds by created timestamp before assigning model roles', () => {
     const evidence = buildRoundsToModelEvidenceFromRows({
       fundId: 10,
