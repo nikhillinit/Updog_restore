@@ -286,16 +286,6 @@ This is a single-context repo using root governance docs plus `docs/adr/`. See
 6. **DECISIONS.md** - Review architectural decisions
 7. **CAPABILITIES.md** - Historical inventory only, if helpful
 
-## BEFORE ANY TASK
-
-```
-START HERE:
-- Read CLAUDE.md
-- Search the repo for existing implementations
-- Use docs/INDEX.md and .claude/DISCOVERY-MAP.md for routing
-- Consult CAPABILITIES.md only if historical inventory context helps
-```
-
 ## Mandatory Pre-Action Checks
 
 - BEFORE changing shared test mocks or fixtures, grep for ALL assertion patterns
@@ -332,7 +322,7 @@ are subordinate to this file. Config: `.claude/hermes/model-routing.json`. CLI:
 
 ### Codex CLI Integration
 
-Consult OpenAI Codex (GPT-5.3, xhigh reasoning) for complex tasks:
+Consult OpenAI Codex (GPT-5.5, xhigh reasoning) for complex tasks:
 `codex exec "question" --sandbox read-only`. See memory for setup details.
 
 ## Babysitter Orchestration
