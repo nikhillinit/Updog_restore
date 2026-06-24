@@ -7,7 +7,7 @@ import type { FundMoicRankingsResponseV2 } from '../../../shared/contracts/fund-
 
 function makeV2Response(fundId: number): FundMoicRankingsResponseV2 {
   return {
-    contractVersion: '2.0.0',
+    contractVersion: '2.1.0',
     fundId,
     rankings: [
       {
@@ -24,6 +24,29 @@ function makeV2Response(fundId: number): FundMoicRankingsResponseV2 {
     provenance: { mode: 'legacy', warnings: [] },
     latestReconciliation: null,
     materiality: { status: 'not_run', candidateMaterial: false, epsilon: 1e-8 },
+    modePreview: {
+      calculationKey: 'fund_moic_rankings_exit_probability',
+      configuredMode: 'off',
+      effectiveMode: 'off',
+      killSwitchActive: false,
+      shadowStartedAt: null,
+      eligibleAt: null,
+      residencyDaysRequired: 7,
+      residencyStatus: 'not_applicable',
+      currentSourceMatchesAccepted: false,
+      unreconciledEditsPresent: false,
+      blockers: [],
+      version: 0,
+    },
+    moicInputSummary: {
+      sourceVersion: 'moic-exit-probability-v1',
+      explicitExitProbabilityCount: 1,
+      defaultedExitProbabilityCount: 0,
+      activationBlockingDefaultedExitProbabilityCount: 0,
+      explicitReserveExitMultipleCount: 1,
+      defaultedReserveExitMultipleCount: 0,
+      activationBlockingDefaultedReserveExitMultipleCount: 0,
+    },
     roundEvidenceSummary: { activeRoundCount: 0, activeOverrideCount: 0, warningCodes: [] },
     generatedAt: '2026-06-24T00:00:00.000Z',
   };
@@ -63,7 +86,7 @@ describe('useFundMoicRankingsV2', () => {
       expect(result.current.isSuccess).toBe(true);
     });
 
-    expect(result.current.data?.contractVersion).toBe('2.0.0');
+    expect(result.current.data?.contractVersion).toBe('2.1.0');
     expect(result.current.data?.materiality.status).toBe('not_run');
     expect(fetchSpy).toHaveBeenCalledWith('/api/funds/5/moic/rankings?contract=v2', {
       credentials: 'include',

@@ -28,32 +28,44 @@ import { funds } from './fund';
 // PORTFOLIO COMPANIES TABLE
 // ============================================================================
 
-export const portfolioCompanies = pgTable('portfoliocompanies', {
-  id: serial('id').primaryKey(),
-  fundId: integer('fund_id').references(() => funds.id),
-  name: text('name').notNull(),
-  sector: text('sector').notNull(),
-  stage: text('stage').notNull(),
-  currentStage: text('current_stage'),
-  investmentAmount: decimal('investment_amount', { precision: 15, scale: 2 }).notNull(),
-  investmentDate: timestamp('investment_date'),
-  currentValuation: decimal('current_valuation', { precision: 15, scale: 2 }),
-  foundedYear: integer('founded_year'),
-  status: text('status').notNull().default('active'),
-  description: text('description'),
-  dealTags: text('deal_tags').array(),
-  createdAt: timestamp('created_at').defaultNow(),
-  // Fund Allocation Management (Phase 1a) fields
-  deployedReservesCents: bigint('deployed_reserves_cents', { mode: 'number' }).default(0).notNull(),
-  plannedReservesCents: bigint('planned_reserves_cents', { mode: 'number' }).default(0).notNull(),
-  exitMoicBps: integer('exit_moic_bps'),
-  ownershipCurrentPct: decimal('ownership_current_pct', { precision: 7, scale: 4 }),
-  allocationCapCents: bigint('allocation_cap_cents', { mode: 'number' }),
-  allocationReason: text('allocation_reason'),
-  allocationIteration: integer('allocation_iteration').default(0).notNull(),
-  lastAllocationAt: timestamp('last_allocation_at', { withTimezone: true }),
-  allocationVersion: integer('allocation_version').default(1).notNull(),
-});
+export const portfolioCompanies = pgTable(
+  'portfoliocompanies',
+  {
+    id: serial('id').primaryKey(),
+    fundId: integer('fund_id').references(() => funds.id),
+    name: text('name').notNull(),
+    sector: text('sector').notNull(),
+    stage: text('stage').notNull(),
+    currentStage: text('current_stage'),
+    investmentAmount: decimal('investment_amount', { precision: 15, scale: 2 }).notNull(),
+    investmentDate: timestamp('investment_date'),
+    currentValuation: decimal('current_valuation', { precision: 15, scale: 2 }),
+    foundedYear: integer('founded_year'),
+    status: text('status').notNull().default('active'),
+    description: text('description'),
+    dealTags: text('deal_tags').array(),
+    createdAt: timestamp('created_at').defaultNow(),
+    // Fund Allocation Management (Phase 1a) fields
+    deployedReservesCents: bigint('deployed_reserves_cents', { mode: 'number' })
+      .default(0)
+      .notNull(),
+    plannedReservesCents: bigint('planned_reserves_cents', { mode: 'number' }).default(0).notNull(),
+    exitMoicBps: integer('exit_moic_bps'),
+    exitProbability: decimal('exit_probability', { precision: 7, scale: 6 }),
+    ownershipCurrentPct: decimal('ownership_current_pct', { precision: 7, scale: 4 }),
+    allocationCapCents: bigint('allocation_cap_cents', { mode: 'number' }),
+    allocationReason: text('allocation_reason'),
+    allocationIteration: integer('allocation_iteration').default(0).notNull(),
+    lastAllocationAt: timestamp('last_allocation_at', { withTimezone: true }),
+    allocationVersion: integer('allocation_version').default(1).notNull(),
+  },
+  (table) => ({
+    exitProbabilityCheck: check(
+      'portfoliocompanies_exit_probability_check',
+      sql`${table.exitProbability} IS NULL OR (${table.exitProbability} >= 0 AND ${table.exitProbability} <= 1)`
+    ),
+  })
+);
 
 // ============================================================================
 // INVESTMENTS TABLE
