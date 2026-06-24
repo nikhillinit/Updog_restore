@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */ // Database seeding utilities
 
 import { db } from '../server/db';
-import { funds, portfolioCompanies, investments, fundMetrics, activities } from '@schema';
+import { funds, portfolioCompanies, investments, fundMetrics, activities } from '@shared/schema';
 
 // Self-executing script when run directly
 if (import.meta.url === `file://${process.argv[1]!}`) {

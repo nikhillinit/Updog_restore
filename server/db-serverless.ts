@@ -5,7 +5,7 @@
 
 import { drizzle } from 'drizzle-orm/neon-http';
 import { neon } from '@neondatabase/serverless';
-import * as schema from '@schema';
+import * as schema from '@shared/schema';
 
 // Determine which database URL to use
 const DATABASE_URL = process.env['DATABASE_URL'] || process.env['NEON_DATABASE_URL'];

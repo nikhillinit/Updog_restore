@@ -3,7 +3,7 @@
  * Orchestrates ML and rules engines with comprehensive logging and fallback
  */
 
-import { reserveDecisions } from '@schema';
+import { reserveDecisions, type NewReserveDecision } from '@shared/schema';
 import { db } from '../../db.js';
 import type {
   ReserveEnginePort,
@@ -28,6 +28,19 @@ import { nanoid } from 'nanoid';
 // import { performanceMonitor } from '@shared/lib/performance-monitor.js';
 
 const MAX_INVESTED_DOLLARS = 100_000_000_000;
+
+function parsePositiveIntegerId(value: string, label: string): number {
+  if (!/^[1-9]\d*$/.test(value)) {
+    throw new Error(`${label} must be a positive integer string to persist reserve decisions`);
+  }
+
+  const parsed = Number.parseInt(value, 10);
+  if (!Number.isSafeInteger(parsed)) {
+    throw new Error(`${label} exceeds JavaScript's safe integer range`);
+  }
+
+  return parsed;
+}
 
 export interface FeatureFlagConfig {
   useMl: boolean;
@@ -400,9 +413,9 @@ export class FeatureFlaggedReserveEngine implements ReserveEnginePort {
       : new Date(market.asOfDate);
     const periodEndDate = opts.periodEnd ? new Date(opts.periodEnd) : new Date(market.asOfDate);
 
-    const insertData = {
-      fundId: company.fundId,
-      companyId: company.id,
+    const insertData: NewReserveDecision = {
+      fundId: parsePositiveIntegerId(company.fundId, 'company.fundId'),
+      companyId: parsePositiveIntegerId(company.id, 'company.id'),
       decisionTs: new Date(),
       periodStart: periodStartDate.toISOString().split('T')[0]!, // date type expects YYYY-MM-DD
       periodEnd: periodEndDate.toISOString().split('T')[0]!, // date type expects YYYY-MM-DD
