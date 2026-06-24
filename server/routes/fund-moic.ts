@@ -67,7 +67,7 @@ router.get(
     const fundId = parseFundId(req, res);
     if (fundId === null) return;
 
-    const contract = req.query.contract;
+    const contract = req.query['contract'];
     if (contract === undefined || contract === 'v1') {
       const rankings = await getFundMoicRankings(fundId);
       return res.json(rankings);
