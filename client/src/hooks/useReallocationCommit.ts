@@ -1,5 +1,6 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiRequest } from '@/lib/queryClient';
+import { invalidatePortfolioData } from '@/lib/invalidate-portfolio-data';
 import type {
   ReallocationCommitRequest,
   ReallocationCommitResponse,
@@ -36,8 +37,8 @@ export function useReallocationCommit(fundId: number) {
     onSuccess: () => {
       // Invalidate queries to refresh data
       queryClient.invalidateQueries({ queryKey: ['/api/allocations'] });
-      queryClient.invalidateQueries({ queryKey: ['portfolio-companies'] });
       queryClient.invalidateQueries({ queryKey: [`/api/funds/${fundId}`] });
+      invalidatePortfolioData(queryClient, fundId);
     },
   });
 }
