@@ -159,22 +159,30 @@ function addWarning(params: {
 function accumulateModelAmount(params: {
   company: CompanyAccumulator;
   round: ActiveRoundRow;
-  indexWithinInvestment: number;
   role: RoundModelRole;
 }): void {
-  const role =
-    params.role === 'amount_only' ? defaultEquityRole(params.indexWithinInvestment) : params.role;
-  if (role === 'initial') {
+  if (params.role === 'amount_only') {
+    return;
+  }
+  if (params.role === 'initial') {
     params.company.initialAmount = decimalAdd(
       params.company.initialAmount,
       params.round.investmentAmount
     );
-  } else if (role === 'follow_on') {
+  } else if (params.role === 'follow_on') {
     params.company.followOnAmount = decimalAdd(
       params.company.followOnAmount,
       params.round.investmentAmount
     );
   }
+}
+
+function createdAtTimestamp(createdAt: Date | null): number {
+  if (!createdAt) {
+    return Number.NEGATIVE_INFINITY;
+  }
+  const timestamp = createdAt.getTime();
+  return Number.isFinite(timestamp) ? timestamp : Number.POSITIVE_INFINITY;
 }
 
 export function buildRoundsToModelEvidenceFromRows(params: BuildParams): RoundsToModelEvidence {
@@ -203,9 +211,7 @@ export function buildRoundsToModelEvidenceFromRows(params: BuildParams): RoundsT
       if (dateOrder !== 0) {
         return dateOrder;
       }
-      const createdOrder = String(left.createdAt ?? '').localeCompare(
-        String(right.createdAt ?? '')
-      );
+      const createdOrder = createdAtTimestamp(left.createdAt) - createdAtTimestamp(right.createdAt);
       if (createdOrder !== 0) {
         return createdOrder;
       }
@@ -290,7 +296,7 @@ export function buildRoundsToModelEvidenceFromRows(params: BuildParams): RoundsT
         );
       }
 
-      accumulateModelAmount({ company: evidence, round, indexWithinInvestment, role });
+      accumulateModelAmount({ company: evidence, round, role });
       evidence.rounds.push({
         roundId: round.id,
         investmentId: round.investmentId,
