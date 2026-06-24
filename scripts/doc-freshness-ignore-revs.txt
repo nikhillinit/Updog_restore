@@ -1,0 +1,18 @@
+# Doc-freshness ignore-revs
+#
+# Commits listed here are treated as "date-unreliable" by
+# scripts/check-doc-freshness.mjs: when a doc's most recent commit is one of
+# these, the checker walks back to the next real commit instead of trusting
+# the bulk-touch date.
+#
+# Use this ONLY for genuine bulk-touch commits in a FULL clone -- e.g. a
+# repo-wide reformat/lint/license-header sweep that bumped git mtimes without
+# meaningfully editing content. Format mirrors .git-blame-ignore-revs:
+# one 40-character hex SHA per line; lines starting with # are comments.
+#
+# NOTE: Shallow-clone boundary commits (those in .git/shallow) are handled
+# AUTOMATICALLY and dynamically by the checker -- do NOT list them here.
+# In particular, do not add the current shallow-boundary SHAs; they are
+# environment-specific and change with clone depth.
+#
+# (No revisions are currently ignored.)
