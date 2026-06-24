@@ -129,6 +129,17 @@ describe('route policy coverage', () => {
     }
   });
 
+  it('covers the portfolio overview API route with query-scoped fund access', () => {
+    const policyEntry = expectPolicy('GET /api/portfolio-overview');
+
+    expect(policyEntry.governanceRef).toBe('/portfolio');
+    expect(policyEntry.financialSurface).toBe('portfolio_management');
+    expect(policyEntry.apiAuthBoundary).toBe('require_auth_and_fund_access');
+    expect(policyEntry.fundScopeMode).toBe('query_param_fund_id');
+    expect(policyEntry.workflowRequirement).toBe('fund_scope_verified');
+    expect(policyEntry.provenanceRequired).toBe(true);
+  });
+
   it('fails verification when an active financial governance route has no explicit policy', () => {
     const errors = verifyRoutePolicy({
       ...defaultRoutePolicyVerificationInput,
@@ -143,9 +154,7 @@ describe('route policy coverage', () => {
       ],
     });
 
-    expect(errors).toContain(
-      'Missing active financial route policy: /synthetic-financial-route'
-    );
+    expect(errors).toContain('Missing active financial route policy: /synthetic-financial-route');
   });
 
   it('fails verification when a scoped financial route downgrades API auth', () => {
