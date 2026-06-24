@@ -28,8 +28,67 @@ const DOC_PATHS_TO_CHECK = [
 const EXCLUDE_PREFIXES = [
   'docs/archive/',
   'docs/observability/archive/',
+  'docs/_generated/', // machine-generated; no hand-maintained date stamps
 ];
+const IGNORE_REVS_FILE = 'scripts/doc-freshness-ignore-revs.txt';
 let usingFilesystemFallback = false;
+
+// Sentinel returned by getGitModificationDate when a file's only commits are
+// "date-unreliable" (shallow-clone boundary or ignored revs), so we cannot
+// determine its true last-modified date in this clone.
+const INDETERMINATE_GIT_DATE = Symbol('indeterminate-git-date');
+
+/**
+ * Collect the set of "date-unreliable" commit SHAs whose timestamps must not be
+ * trusted as a doc's real last-modified date:
+ *   1. Shallow-clone boundary commits (`<git-dir>/shallow`). A boundary commit
+ *      has no visible parent, so `git log -1` collapses every older file onto
+ *      it, fabricating staleness. Detected dynamically so this is a no-op in a
+ *      full clone (no `shallow` file) and robust across clone depths.
+ *   2. Optional explicit ignore-revs (`scripts/doc-freshness-ignore-revs.txt`),
+ *      for genuine bulk-touch commits in a full clone. Mirrors the
+ *      `.git-blame-ignore-revs` convention.
+ */
+async function getUnreliableCommits() {
+  const unreliable = new Set();
+
+  // 1. Shallow boundary commits.
+  try {
+    const gitDir = execFileSync('git', ['rev-parse', '--git-dir'], {
+      encoding: 'utf-8',
+    }).trim();
+    const shallowPath = path.join(gitDir, 'shallow');
+    const shallowContent = await fs.readFile(shallowPath, 'utf-8');
+    for (const line of shallowContent.split('\n')) {
+      const sha = line.trim();
+      if (/^[0-9a-f]{40}$/i.test(sha)) {
+        unreliable.add(sha.toLowerCase());
+      }
+    }
+  } catch {
+    // Full clone (no shallow file) or git unavailable: nothing to add.
+  }
+
+  // 2. Explicit ignore-revs file.
+  try {
+    const content = await fs.readFile(IGNORE_REVS_FILE, 'utf-8');
+    for (const rawLine of content.split('\n')) {
+      const line = rawLine.trim();
+      if (!line || line.startsWith('#')) {
+        continue;
+      }
+      if (/^[0-9a-f]{40}$/i.test(line)) {
+        unreliable.add(line.toLowerCase());
+      } else {
+        console.warn(`[WARN] Ignoring malformed SHA in ${IGNORE_REVS_FILE}: "${line}"`);
+      }
+    }
+  } catch {
+    // File absent: no explicit ignore-revs (no behavior change).
+  }
+
+  return unreliable;
+}
 
 // Parse command-line arguments
 const args = process.argv.slice(2);
@@ -57,24 +116,48 @@ async function getFilesystemModificationDate(filePath) {
 /**
  * Get last git modification date for a file, or fall back to filesystem mtime
  * when git process execution is unavailable in the current environment.
+ *
+ * Walks the file's commit list newest-first and returns the date of the first
+ * commit that is NOT date-unreliable (see getUnreliableCommits). Returns:
+ *   - null                     when the file has no git history (not in git)
+ *   - INDETERMINATE_GIT_DATE   when every commit is date-unreliable (e.g. the
+ *                              file's only commit is a shallow-clone boundary)
+ *   - a Date                   for the most recent trustworthy commit
  */
-async function getGitModificationDate(filePath) {
+async function getGitModificationDate(filePath, unreliableCommits) {
   if (usingFilesystemFallback) {
     return getFilesystemModificationDate(filePath);
   }
 
   try {
-    const gitDate = execFileSync(
+    // Tab-delimited so the SHA and the (space-containing) ISO date parse
+    // unambiguously; %aI is strict ISO-8601.
+    const log = execFileSync(
       'git',
-      ['log', '-1', '--format=%ai', '--', filePath],
+      ['log', '--format=%H%x09%aI', '--', filePath],
       { encoding: 'utf-8' }
     ).trim();
 
-    if (!gitDate) {
+    if (!log) {
       return null; // File not in git
     }
 
-    return new Date(gitDate);
+    let sawCommit = false;
+    for (const line of log.split('\n')) {
+      const tab = line.indexOf('\t');
+      if (tab === -1) {
+        continue;
+      }
+      sawCommit = true;
+      const sha = line.slice(0, tab).trim().toLowerCase();
+      const isoDate = line.slice(tab + 1).trim();
+      if (!unreliableCommits.has(sha)) {
+        return new Date(isoDate);
+      }
+    }
+
+    // Every commit for this file is date-unreliable.
+    return sawCommit ? INDETERMINATE_GIT_DATE : null;
   } catch (error) {
     usingFilesystemFallback = true;
     return getFilesystemModificationDate(filePath);
@@ -224,16 +307,26 @@ async function checkDocFreshness() {
     console.log('[INFO] Git metadata unavailable; using filesystem modification times as fallback\n');
   }
 
+  const unreliableCommits = await getUnreliableCommits();
+
   const results = {
     fresh: [],
     stale: [],
     noDocDate: [],
     noGitDate: [],
+    indeterminate: [],
   };
 
   for (const file of files) {
     const docDate = await getDocumentDate(file);
-    const gitDate = await getGitModificationDate(file);
+    const gitDate = await getGitModificationDate(file, unreliableCommits);
+
+    if (gitDate === INDETERMINATE_GIT_DATE) {
+      // True last-modified date is unknowable in this clone (shallow boundary
+      // or explicitly ignored commit); do not fabricate staleness.
+      results.indeterminate.push({ file });
+      continue;
+    }
 
     if (!gitDate) {
       results.noGitDate.push({ file });
@@ -271,6 +364,11 @@ async function checkDocFreshness() {
   console.log(`  Stale documents: ${results.stale.length}`);
   console.log(`  Missing doc date: ${results.noDocDate.length}`);
   console.log(`  Not in git: ${results.noGitDate.length}`);
+  console.log(`  Indeterminate (shallow clone / ignored commits): ${results.indeterminate.length}`);
+  if (results.indeterminate.length > 0) {
+    console.log('    (tracked files whose true last-modified date is unknown in this clone;');
+    console.log('     not counted as stale)');
+  }
 
   if (results.stale.length > 0) {
     console.log('\n[WARNING] Stale Documents Found:');
