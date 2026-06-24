@@ -65,28 +65,55 @@ function StateCard({
 
 function ProvenanceStrip({ data }: { data: FundMoicRankingsResponseV2 }) {
   const warningCodes = data.roundEvidenceSummary.warningCodes;
+  const modeBlockers = data.modePreview.blockers;
 
   return (
     <Card className="border-presson-info/20 bg-presson-info/10">
-      <CardContent className="grid gap-3 p-4 text-sm md:grid-cols-3">
+      <CardContent className="grid gap-3 p-4 text-sm md:grid-cols-4">
         <div>
           <p className="text-muted-foreground">Materiality</p>
           <p className="font-medium text-pov-charcoal">{data.materiality.status}</p>
         </div>
         <div>
-          <p className="text-muted-foreground">Provenance</p>
-          <p className="font-medium text-pov-charcoal">{data.provenance.mode}</p>
+          <p className="text-muted-foreground">Mode</p>
+          <p className="font-medium text-pov-charcoal">
+            {data.modePreview.configuredMode} / {data.modePreview.effectiveMode}
+          </p>
+        </div>
+        <div>
+          <p className="text-muted-foreground">Residency</p>
+          <p className="font-medium text-pov-charcoal">{data.modePreview.residencyStatus}</p>
+        </div>
+        <div>
+          <p className="text-muted-foreground">Kill switch</p>
+          <p className="font-medium text-pov-charcoal">
+            {data.modePreview.killSwitchActive ? 'Active' : 'Inactive'}
+          </p>
+        </div>
+        <div>
+          <p className="text-muted-foreground">Unreconciled edits</p>
+          <p className="font-medium text-pov-charcoal">
+            {data.modePreview.unreconciledEditsPresent ? 'Yes' : 'No'}
+          </p>
+        </div>
+        <div>
+          <p className="text-muted-foreground">Missing probabilities</p>
+          <p className="font-medium text-pov-charcoal tabular-nums">
+            {data.moicInputSummary.activationBlockingDefaultedExitProbabilityCount}
+          </p>
+        </div>
+        <div>
+          <p className="text-muted-foreground">Missing reserve multiples</p>
+          <p className="font-medium text-pov-charcoal tabular-nums">
+            {data.moicInputSummary.activationBlockingDefaultedReserveExitMultipleCount}
+          </p>
         </div>
         <div>
           <p className="text-muted-foreground">Warning codes</p>
           <div className="mt-1 flex flex-wrap gap-2">
-            {warningCodes.length > 0 ? (
-              warningCodes.map((code) => (
-                <Badge
-                  key={code}
-                  variant="outline"
-                  className="border-beige-200 text-charcoal-700"
-                >
+            {[...new Set([...warningCodes, ...modeBlockers])].length > 0 ? (
+              [...new Set([...warningCodes, ...modeBlockers])].map((code) => (
+                <Badge key={code} variant="outline" className="border-beige-200 text-charcoal-700">
                   {code}
                 </Badge>
               ))

@@ -24,7 +24,8 @@ describe('fund-moic route contract', () => {
 
   it('calls the fund MOIC ranking service', async () => {
     const source = await readRepoFile('server/routes/fund-moic.ts');
-    expect(source).toContain('getFundMoicRankings');
+    expect(source).toContain('getFundMoicRankingSources');
+    expect(source).toContain('resolveFundCalculationMode');
   });
 
   it('branches the GET on a v1/v2 contract query and rejects unknown contracts', async () => {
@@ -50,5 +51,34 @@ describe('fund-moic route contract', () => {
     expect(source).toContain('MoicReconciliationConflictError');
     expect(source).toContain('409');
     expect(source).toContain('replayed ? 200 : 201');
+  });
+
+  it('exposes the admin MOIC input PUT with role, fund access, and idempotency guards', async () => {
+    const source = await readRepoFile('server/routes/fund-moic.ts');
+    expect(source).toContain('/admin/funds/:fundId/moic-inputs/portfolio-companies/:companyId');
+    expect(source).toContain('requireAuth()');
+    expect(source).toContain('requireFundAccess');
+    expect(source).toContain("requireRole('admin')");
+    expect(source).toContain('Idempotency-Key');
+    expect(source).toContain('MoicInputUpdateBodySchema');
+    expect(source).toContain('updateFundMoicInputs');
+  });
+
+  it('maps admin MOIC input optimistic-lock and idempotency errors', async () => {
+    const source = await readRepoFile('server/routes/fund-moic.ts');
+    expect(source).toContain('FundMoicInputNotFoundError');
+    expect(source).toContain('FundMoicInputVersionConflictError');
+    expect(source).toContain('FundMoicInputIdempotencyConflictError');
+    expect(source).toContain('FundMoicInputInProgressError');
+    expect(source).toContain('invalid_company_id');
+    expect(source).toContain('invalid_moic_input_update');
+  });
+
+  it('exposes the admin mode PUT with role, fund access, and idempotency guards', async () => {
+    const source = await readRepoFile('server/routes/fund-moic.ts');
+    expect(source).toContain('/admin/funds/:fundId/calculation-modes/fund-moic-rankings');
+    expect(source).toContain('ModeUpdateBodySchema');
+    expect(source).toContain('updateFundMoicCalculationMode');
+    expect(source).toContain('FundCalculationModeVersionConflictError');
   });
 });

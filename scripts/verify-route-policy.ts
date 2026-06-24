@@ -111,6 +111,14 @@ function hasAllowedAuthScopePair(
   }
 
   if (
+    policyEntry.apiAuthBoundary === 'admin_only' &&
+    policyEntry.financialSurface !== 'none' &&
+    FUND_SCOPE_MODES.has(policyEntry.fundScopeMode)
+  ) {
+    return true;
+  }
+
+  if (
     policyEntry.apiAuthBoundary === 'require_auth' &&
     policyEntry.fundScopeMode === 'not_applicable'
   ) {
@@ -129,7 +137,9 @@ export function verifyRoutePolicy(
   input: RoutePolicyVerificationInput = defaultRoutePolicyVerificationInput
 ): string[] {
   const errors: string[] = [];
-  const governanceByPath = new Map(input.routeGovernanceRegistry.map((entry) => [entry.path, entry]));
+  const governanceByPath = new Map(
+    input.routeGovernanceRegistry.map((entry) => [entry.path, entry])
+  );
   const activeFinancialGovernancePaths = new Set(
     input.activeFinancialGovernanceEntries.map((entry) => entry.path)
   );
