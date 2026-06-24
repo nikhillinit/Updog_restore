@@ -20,6 +20,7 @@ export const funds = pgTable('funds', {
   carryPercentage: decimal('carry_percentage', { precision: 5, scale: 4 }).notNull(),
   vintageYear: integer('vintage_year').notNull(),
   status: text('status').notNull().default('active'),
+  baseCurrency: varchar('base_currency', { length: 3 }).notNull().default('USD'),
   engineResults: jsonb('engine_results').$type<EngineResults>(),
   createdAt: timestamp('created_at').defaultNow(),
 });

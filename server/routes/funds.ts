@@ -113,6 +113,7 @@ function normalizeStoredFund(fund: StoredFund): PersistedFund {
     ...fund,
     establishmentDate: (fund as Partial<PersistedFund>).establishmentDate ?? null,
     isActive: (fund as Partial<PersistedFund>).isActive ?? true,
+    baseCurrency: (fund as Partial<PersistedFund>).baseCurrency ?? 'USD',
   };
 }
 

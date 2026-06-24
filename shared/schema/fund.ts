@@ -43,6 +43,7 @@ export const funds = pgTable('funds', {
   establishmentDate: date('establishment_date'),
   status: text('status').notNull().default('active'),
   isActive: boolean('is_active').default(true),
+  baseCurrency: varchar('base_currency', { length: 3 }).notNull().default('USD'),
   engineResults: jsonb('engine_results').$type<EngineResults>(),
   createdAt: timestamp('created_at').defaultNow(),
 });
