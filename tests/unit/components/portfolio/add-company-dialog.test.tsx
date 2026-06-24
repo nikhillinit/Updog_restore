@@ -5,11 +5,14 @@ import type React from 'react';
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { AddCompanyDialog } from '@/components/portfolio/tabs/AddCompanyDialog';
 
-const { mockApiRequest, mockToast, mockOpenChange } = vi.hoisted(() => ({
-  mockApiRequest: vi.fn(),
-  mockToast: vi.fn(),
-  mockOpenChange: vi.fn(),
-}));
+const { mockApiRequest, mockToast, mockOpenChange, mockInvalidatePortfolioData } = vi.hoisted(
+  () => ({
+    mockApiRequest: vi.fn(),
+    mockToast: vi.fn(),
+    mockOpenChange: vi.fn(),
+    mockInvalidatePortfolioData: vi.fn(),
+  })
+);
 
 vi.mock('@/lib/queryClient', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@/lib/queryClient')>();
@@ -18,6 +21,10 @@ vi.mock('@/lib/queryClient', async (importOriginal) => {
     apiRequest: (...args: unknown[]) => mockApiRequest(...args),
   };
 });
+
+vi.mock('@/lib/invalidate-portfolio-data', () => ({
+  invalidatePortfolioData: (...args: unknown[]) => mockInvalidatePortfolioData(...args),
+}));
 
 vi.mock('@/hooks/use-toast', () => ({
   useToast: () => ({ toast: mockToast }),
@@ -81,6 +88,7 @@ describe('AddCompanyDialog', () => {
     mockApiRequest.mockReset();
     mockToast.mockReset();
     mockOpenChange.mockReset();
+    mockInvalidatePortfolioData.mockReset();
     consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => undefined);
   });
 
@@ -104,6 +112,18 @@ describe('AddCompanyDialog', () => {
         currentStage: 'Seed',
         investmentAmount: '1500000',
       })
+    );
+  });
+
+  it('invalidates portfolio data (including the server overview) after a successful create', async () => {
+    mockApiRequest.mockResolvedValue({ id: 1 });
+    renderWithQuery(<AddCompanyDialog fundId={7} open={true} onOpenChange={mockOpenChange} />);
+
+    await fillRequiredCompanyFields();
+    await userEvent.click(screen.getByRole('button', { name: /create company/i }));
+
+    await waitFor(() =>
+      expect(mockInvalidatePortfolioData).toHaveBeenCalledWith(expect.anything(), 7)
     );
   });
 

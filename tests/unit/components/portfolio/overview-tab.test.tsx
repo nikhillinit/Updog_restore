@@ -5,7 +5,7 @@ import { OverviewTab } from '../../../../client/src/components/portfolio/tabs/Ov
 import { TestQueryClientProvider } from '../../../utils/test-query-client';
 
 const mockSetLocation = vi.fn();
-const mockUsePortfolioCompanies = vi.fn();
+const mockUsePortfolioOverview = vi.fn();
 const mockApiRequest = vi.fn();
 const mockToast = vi.fn();
 
@@ -14,7 +14,7 @@ vi.mock('@/contexts/FundContext', () => ({
 }));
 
 vi.mock('@/hooks/use-fund-data', () => ({
-  usePortfolioCompanies: (...args: unknown[]) => mockUsePortfolioCompanies(...args),
+  usePortfolioOverview: (...args: unknown[]) => mockUsePortfolioOverview(...args),
 }));
 
 vi.mock('wouter', () => ({
@@ -29,6 +29,70 @@ vi.mock('@/lib/queryClient', () => ({
 vi.mock('@/hooks/use-toast', () => ({
   useToast: () => ({ toast: mockToast }),
 }));
+
+type ServerCompany = {
+  id: number;
+  name: string;
+  sector: string;
+  stage: string;
+  status: string;
+  invested: string;
+  currentValue: string;
+  moic: string;
+};
+
+const liveMeta = {
+  mode: 'live' as const,
+  requestedAsOf: null,
+  resolvedAsOf: null,
+  source: 'live' as const,
+  historicalAvailable: false,
+};
+
+function makeOverview(
+  companies: ServerCompany[],
+  meta: Record<string, unknown> = liveMeta,
+  metricsOverrides: Record<string, unknown> = {}
+) {
+  const data = {
+    fundId: 1,
+    generatedAt: '2026-06-24T00:00:00.000Z',
+    currency: 'USD',
+    provenance: { isFinanciallyActionable: true },
+    sourceRecordCounts: { companies: companies.length },
+    metrics: {
+      totalInvested: '5000000',
+      totalValue: '12500000',
+      averageMOIC: '2.5',
+      returnPct: '150',
+      totalCompanies: companies.length,
+      activeCompanies: companies.length,
+      exitedCompanies: 0,
+      ...metricsOverrides,
+    },
+    companies,
+    meta,
+  };
+
+  return {
+    data,
+    meta,
+    isLoading: false,
+    isUnavailable: false,
+    isHistoricalEmpty: meta['mode'] === 'historical' && !meta['historicalAvailable'],
+  };
+}
+
+const techCorp: ServerCompany = {
+  id: 1,
+  name: 'TechCorp',
+  sector: 'Fintech',
+  stage: 'Series B',
+  status: 'Growing',
+  invested: '5000000',
+  currentValue: '12500000',
+  moic: '2.5',
+};
 
 function renderOverviewTab() {
   return render(
@@ -70,45 +134,8 @@ describe('OverviewTab', () => {
     vi.clearAllMocks();
   });
 
-  it('renders live companies from the portfolio hook', () => {
-    mockUsePortfolioCompanies.mockReturnValue({
-      portfolioCompanies: [
-        {
-          id: 1,
-          fundId: 1,
-          name: 'TechCorp',
-          sector: 'Fintech',
-          stage: 'Series B',
-          currentStage: 'Series B',
-          investmentAmount: '5000000',
-          investmentDate: new Date('2024-01-15T00:00:00.000Z'),
-          currentValuation: '12500000',
-          foundedYear: 2019,
-          status: 'Growing',
-          description: null,
-          dealTags: ['B2B'],
-          createdAt: new Date('2024-01-15T00:00:00.000Z'),
-          deployedReservesCents: 0,
-          plannedReservesCents: 0,
-          exitMoicBps: null,
-          ownershipCurrentPct: '8.5000',
-          allocationCapCents: null,
-          allocationReason: null,
-          allocationIteration: 0,
-          lastAllocationAt: null,
-          allocationVersion: 1,
-        },
-      ],
-      meta: {
-        mode: 'live',
-        requestedAsOf: null,
-        resolvedAsOf: null,
-        source: 'live',
-        historicalAvailable: false,
-      },
-      isLoading: false,
-      error: null,
-    });
+  it('renders live companies and server-computed KPIs from the overview hook', () => {
+    mockUsePortfolioOverview.mockReturnValue(makeOverview([techCorp]));
 
     renderOverviewTab();
 
@@ -123,45 +150,38 @@ describe('OverviewTab', () => {
     }
   });
 
-  it('navigates to the mounted company summary route from live detail controls', () => {
-    mockUsePortfolioCompanies.mockReturnValue({
-      portfolioCompanies: [
-        {
-          id: 1,
-          fundId: 1,
-          name: 'TechCorp',
-          sector: 'Fintech',
-          stage: 'Series B',
-          currentStage: 'Series B',
-          investmentAmount: '5000000',
-          investmentDate: new Date('2024-01-15T00:00:00.000Z'),
-          currentValuation: '12500000',
-          foundedYear: 2019,
-          status: 'Growing',
-          description: null,
-          dealTags: ['B2B'],
-          createdAt: new Date('2024-01-15T00:00:00.000Z'),
-          deployedReservesCents: 0,
-          plannedReservesCents: 0,
-          exitMoicBps: null,
-          ownershipCurrentPct: '8.5000',
-          allocationCapCents: null,
-          allocationReason: null,
-          allocationIteration: 0,
-          lastAllocationAt: null,
-          allocationVersion: 1,
-        },
-      ],
-      meta: {
-        mode: 'live',
-        requestedAsOf: null,
-        resolvedAsOf: null,
-        source: 'live',
-        historicalAvailable: false,
-      },
+  it('renders the server-provided MOIC verbatim and performs no client-side division', () => {
+    // currentValue/invested would be 2.5x, but the server reports 9.99x. The UI
+    // must display the server value, proving it does not recompute MOIC.
+    mockUsePortfolioOverview.mockReturnValue(
+      makeOverview([{ ...techCorp, moic: '9.99' }], liveMeta, { averageMOIC: '9.99' })
+    );
+
+    renderOverviewTab();
+
+    expect(screen.getAllByText('9.99x').length).toBeGreaterThan(0);
+    expect(screen.queryByText('2.50x')).toBeNull();
+  });
+
+  it('fails closed when the trusted overview is unavailable', () => {
+    mockUsePortfolioOverview.mockReturnValue({
+      data: null,
+      meta: liveMeta,
       isLoading: false,
-      error: null,
+      isUnavailable: true,
+      isHistoricalEmpty: false,
     });
+
+    renderOverviewTab();
+
+    expect(screen.getByText('Portfolio metrics unavailable')).toBeTruthy();
+    // No KPI values or company rows are rendered in the fail-closed state.
+    expect(screen.queryByText('TechCorp')).toBeNull();
+    expect(screen.queryByText('Average MOIC')).toBeNull();
+  });
+
+  it('navigates to the mounted company summary route from live detail controls', () => {
+    mockUsePortfolioOverview.mockReturnValue(makeOverview([techCorp]));
 
     renderOverviewTab();
 
@@ -171,44 +191,15 @@ describe('OverviewTab', () => {
   });
 
   it('shows historical-mode notice and resets URL state back to today', () => {
-    mockUsePortfolioCompanies.mockReturnValue({
-      portfolioCompanies: [
-        {
-          id: 1,
-          fundId: 1,
-          name: 'TechCorp',
-          sector: 'Fintech',
-          stage: 'Series B',
-          currentStage: 'Series B',
-          investmentAmount: '5000000',
-          investmentDate: new Date('2024-01-15T00:00:00.000Z'),
-          currentValuation: '9800000',
-          foundedYear: 2019,
-          status: 'Growing',
-          description: null,
-          dealTags: ['B2B'],
-          createdAt: new Date('2024-01-15T00:00:00.000Z'),
-          deployedReservesCents: 0,
-          plannedReservesCents: 0,
-          exitMoicBps: null,
-          ownershipCurrentPct: '8.5000',
-          allocationCapCents: null,
-          allocationReason: null,
-          allocationIteration: 0,
-          lastAllocationAt: null,
-          allocationVersion: 1,
-        },
-      ],
-      meta: {
+    mockUsePortfolioOverview.mockReturnValue(
+      makeOverview([{ ...techCorp, currentValue: '9800000', moic: '1.96' }], {
         mode: 'historical',
         requestedAsOf: '2025-03',
         resolvedAsOf: '2025-03-31T23:59:59.999Z',
         source: 'snapshot',
         historicalAvailable: true,
-      },
-      isLoading: false,
-      error: null,
-    });
+      })
+    );
 
     renderOverviewTab();
 
@@ -219,19 +210,16 @@ describe('OverviewTab', () => {
   });
 
   it('renders deterministic no-snapshot historical empty state', () => {
-    mockUsePortfolioCompanies.mockReturnValue({
-      portfolioCompanies: [],
-      meta: {
+    mockUsePortfolioOverview.mockReturnValue(
+      makeOverview([], {
         mode: 'historical',
         requestedAsOf: '2025-03',
         resolvedAsOf: '2025-03',
         source: 'snapshot',
         historicalAvailable: false,
         emptyReason: 'no_snapshot',
-      },
-      isLoading: false,
-      error: null,
-    });
+      })
+    );
 
     renderOverviewTab();
 
@@ -248,18 +236,7 @@ describe('OverviewTab', () => {
       sector: 'AI / ML',
       stage: 'Seed',
     });
-    mockUsePortfolioCompanies.mockReturnValue({
-      portfolioCompanies: [],
-      meta: {
-        mode: 'live',
-        requestedAsOf: null,
-        resolvedAsOf: null,
-        source: 'live',
-        historicalAvailable: false,
-      },
-      isLoading: false,
-      error: null,
-    });
+    mockUsePortfolioOverview.mockReturnValue(makeOverview([], liveMeta, { totalCompanies: 0 }));
 
     renderOverviewTab();
 
@@ -293,44 +270,15 @@ describe('OverviewTab', () => {
   });
 
   it('keeps company creation disabled in historical mode', () => {
-    mockUsePortfolioCompanies.mockReturnValue({
-      portfolioCompanies: [
-        {
-          id: 1,
-          fundId: 1,
-          name: 'TechCorp',
-          sector: 'Fintech',
-          stage: 'Series B',
-          currentStage: 'Series B',
-          investmentAmount: '5000000',
-          investmentDate: new Date('2024-01-15T00:00:00.000Z'),
-          currentValuation: '9800000',
-          foundedYear: 2019,
-          status: 'Growing',
-          description: null,
-          dealTags: ['B2B'],
-          createdAt: new Date('2024-01-15T00:00:00.000Z'),
-          deployedReservesCents: 0,
-          plannedReservesCents: 0,
-          exitMoicBps: null,
-          ownershipCurrentPct: '8.5000',
-          allocationCapCents: null,
-          allocationReason: null,
-          allocationIteration: 0,
-          lastAllocationAt: null,
-          allocationVersion: 1,
-        },
-      ],
-      meta: {
+    mockUsePortfolioOverview.mockReturnValue(
+      makeOverview([{ ...techCorp, currentValue: '9800000', moic: '1.96' }], {
         mode: 'historical',
         requestedAsOf: '2025-03',
         resolvedAsOf: '2025-03-31T23:59:59.999Z',
         source: 'snapshot',
         historicalAvailable: true,
-      },
-      isLoading: false,
-      error: null,
-    });
+      })
+    );
 
     renderOverviewTab();
 

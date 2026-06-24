@@ -9,6 +9,10 @@ import {
   routePolicyKey,
 } from '../../../server/route-policy/api-route-policy-registry';
 import {
+  defaultRoutePolicyVerificationInput,
+  verifyRoutePolicy,
+} from '../../../scripts/verify-route-policy';
+import {
   buildPrototypeFinancialBlockedError,
   type PortfolioPrototypeRouteId,
 } from '../../../server/lib/portfolio-prototype-block';
@@ -44,6 +48,10 @@ function expectPolicy(key: string): RoutePolicyEntry {
 }
 
 describe('route policy coverage', () => {
+  it('passes the shared route-policy verifier for the checked-in registry', () => {
+    expect(verifyRoutePolicy()).toEqual([]);
+  });
+
   it('covers every active financial governance route', () => {
     expect(ACTIVE_FINANCIAL_GOVERNANCE_ENTRIES.length).toBeGreaterThan(0);
 
@@ -119,5 +127,68 @@ describe('route policy coverage', () => {
       expect(provenance.actionability).toBe('non_actionable');
       expect(provenance.isFinanciallyActionable).toBe(false);
     }
+  });
+
+  it('covers the portfolio overview API route with query-scoped fund access', () => {
+    const policyEntry = expectPolicy('GET /api/portfolio-overview');
+
+    expect(policyEntry.governanceRef).toBe('/portfolio');
+    expect(policyEntry.financialSurface).toBe('portfolio_management');
+    expect(policyEntry.apiAuthBoundary).toBe('require_auth_and_fund_access');
+    expect(policyEntry.fundScopeMode).toBe('query_param_fund_id');
+    expect(policyEntry.workflowRequirement).toBe('fund_scope_verified');
+    expect(policyEntry.provenanceRequired).toBe(true);
+  });
+
+  it('fails verification when an active financial governance route has no explicit policy', () => {
+    const errors = verifyRoutePolicy({
+      ...defaultRoutePolicyVerificationInput,
+      activeFinancialGovernanceEntries: [
+        ...defaultRoutePolicyVerificationInput.activeFinancialGovernanceEntries,
+        {
+          path: '/synthetic-financial-route',
+          surface: 'app-route',
+          exposure: 'internal-live',
+          isProtected: true,
+        },
+      ],
+    });
+
+    expect(errors).toContain('Missing active financial route policy: /synthetic-financial-route');
+  });
+
+  it('fails verification when a scoped financial route downgrades API auth', () => {
+    const mutatedPolicyEntries = API_ROUTE_POLICY_REGISTRY.map((entry) =>
+      routePolicyKey(entry) === '/portfolio'
+        ? { ...entry, apiAuthBoundary: 'require_auth' as const }
+        : entry
+    );
+
+    const errors = verifyRoutePolicy({
+      ...defaultRoutePolicyVerificationInput,
+      policyEntries: mutatedPolicyEntries,
+    });
+
+    expect(errors).toContain(
+      'Policy /portfolio does not declare API-side fund, LP, or share scope'
+    );
+  });
+
+  it('fails verification when a portfolio-intelligence fixture route lacks an explicit override', () => {
+    const errors = verifyRoutePolicy({
+      ...defaultRoutePolicyVerificationInput,
+      portfolioIntelligenceRouteClassifications: [
+        ...defaultRoutePolicyVerificationInput.portfolioIntelligenceRouteClassifications,
+        {
+          method: 'GET',
+          path: '/api/portfolio/synthetic',
+          classification: 'durable_crud',
+        },
+      ],
+    });
+
+    expect(errors).toContain(
+      'Missing explicit portfolio-intelligence route policy override: GET /api/portfolio/synthetic'
+    );
   });
 });
