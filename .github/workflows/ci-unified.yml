@@ -456,6 +456,9 @@ jobs:
         with:
           restore-tool-cache: 'false'
 
+      - name: Verify route policy
+        run: npm run policy:verify
+
       - name: Validate badge references
         run: |
           echo "Validating badge references..."

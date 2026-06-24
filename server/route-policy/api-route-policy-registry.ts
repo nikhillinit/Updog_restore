@@ -4,20 +4,35 @@ import {
 } from '../../client/src/app/route-governance-registry';
 import {
   RoutePolicyEntrySchema,
-  type ApiAuthBoundary,
-  type ExportPolicy,
   type FinancialSurface,
-  type FundScopeMode,
-  type RouteLifecycle,
   type RoutePolicyEntry,
 } from '../../shared/contracts/route-policy.contract';
-import {
-  portfolioIntelligenceRouteClassifications,
-  type PortfolioIntelligenceRouteClassification,
-} from '../../tests/fixtures/portfolio-intelligence-route-classification';
+import { portfolioIntelligenceRouteClassifications } from '../../tests/fixtures/portfolio-intelligence-route-classification';
 
 type PortfolioIntelligenceClassificationEntry =
   (typeof portfolioIntelligenceRouteClassifications)[number];
+
+type RoutePolicyDecision = Pick<
+  RoutePolicyEntry,
+  | 'lifecycle'
+  | 'financialSurface'
+  | 'apiAuthBoundary'
+  | 'fundScopeMode'
+  | 'workflowRequirement'
+  | 'exportPolicy'
+  | 'provenanceRequired'
+  | 'staleBlocksExport'
+  | 'staleBlocksRender'
+  | 'humanReviewRequired'
+  | 'performanceBudgetMs'
+  | 'notes'
+>;
+
+type PortfolioIntelligenceRouteDecisionMap = {
+  [Route in PortfolioIntelligenceClassificationEntry as `${Route['method']} ${Route['path']}`]: RoutePolicyDecision;
+};
+
+type PortfolioIntelligenceRouteKey = keyof PortfolioIntelligenceRouteDecisionMap & string;
 
 function telemetryKeyForRoute(prefix: string, path: string): string {
   const normalized = path
@@ -104,113 +119,358 @@ function ownerForFinancialSurface(surface: FinancialSurface): string {
   }
 }
 
-function authBoundaryForGovernanceEntry(
-  entry: RouteGovernanceEntry,
-  financialSurface: FinancialSurface
-): ApiAuthBoundary {
-  if (entry.path === '/shared/:shareId') {
-    return 'signed_public_share';
+function requireGovernanceEntry(path: string): RouteGovernanceEntry {
+  const entry = ROUTE_GOVERNANCE_REGISTRY.find((candidate) => candidate.path === path);
+  if (!entry) {
+    throw new Error(`Missing governed route reference for route policy: ${path}`);
   }
-
-  if (entry.surface === 'lp-route') {
-    return 'require_auth_and_lp_access';
-  }
-
-  if (financialSurface === 'export_artifact' || entry.path.startsWith('/lp-reporting')) {
-    return 'require_auth_and_fund_access';
-  }
-
-  if (entry.isProtected) {
-    return 'require_auth_and_fund_access';
-  }
-
-  return financialSurface === 'none' ? 'none_public' : 'require_auth';
+  return entry;
 }
 
-function fundScopeModeForGovernanceEntry(
-  entry: RouteGovernanceEntry,
-  authBoundary: ApiAuthBoundary
-): FundScopeMode {
-  if (entry.path === '/shared/:shareId') {
-    return 'share_token_scope';
-  }
-
-  if (entry.surface === 'lp-route') {
-    return 'lp_claim_scope';
-  }
-
-  if (entry.path.includes(':fundId')) {
-    return 'route_param_fund_id';
-  }
-
-  if (authBoundary === 'require_auth_and_fund_access') {
-    return 'parent_entity_lookup';
-  }
-
-  return 'not_applicable';
-}
-
-function exportPolicyForGovernanceEntry(
-  entry: RouteGovernanceEntry,
-  financialSurface: FinancialSurface
-): ExportPolicy {
-  if (entry.path === '/shared/:shareId') {
-    return 'preview_only';
-  }
-
-  if (financialSurface === 'export_artifact' || entry.path === '/lp/reports') {
-    return 'qualified_exportable';
-  }
-
-  return 'not_exportable';
-}
-
-function workflowRequirementForGovernanceEntry(
-  entry: RouteGovernanceEntry,
-  authBoundary: ApiAuthBoundary
-): string | null {
-  if (authBoundary === 'require_auth_and_lp_access') {
-    return 'lp_access_verified';
-  }
-
-  if (authBoundary === 'require_auth_and_fund_access') {
-    return 'fund_scope_verified';
-  }
-
-  if (entry.path === '/shared/:shareId') {
-    return 'share_token_verified';
-  }
-
-  return null;
-}
-
-function toGovernancePolicyEntry(entry: RouteGovernanceEntry): RoutePolicyEntry {
-  const financialSurface = getFinancialSurfaceForGovernanceEntry(entry);
-  const apiAuthBoundary = authBoundaryForGovernanceEntry(entry, financialSurface);
-  const fundScopeMode = fundScopeModeForGovernanceEntry(entry, apiAuthBoundary);
-  const exportPolicy = exportPolicyForGovernanceEntry(entry, financialSurface);
-
-  return {
-    id: `client:${entry.path}`,
-    path: entry.path,
+const GOVERNANCE_ROUTE_POLICY_DECISIONS: Readonly<Record<string, RoutePolicyDecision>> = {
+  '/shared/:shareId': {
     lifecycle: 'durable_crud',
-    governanceRef: entry.path,
-    surface: entry.surface,
-    owner: ownerForFinancialSurface(financialSurface),
-    telemetryKey: telemetryKeyForRoute('client.route', entry.path),
-    financialSurface,
-    apiAuthBoundary,
-    fundScopeMode,
-    workflowRequirement: workflowRequirementForGovernanceEntry(entry, apiAuthBoundary),
-    exportPolicy,
+    financialSurface: 'lp_reporting',
+    apiAuthBoundary: 'signed_public_share',
+    fundScopeMode: 'share_token_scope',
+    workflowRequirement: 'share_token_verified',
+    exportPolicy: 'preview_only',
     provenanceRequired: false,
-    staleBlocksExport: exportPolicy !== 'not_exportable',
-    staleBlocksRender: financialSurface !== 'none',
-    humanReviewRequired: financialSurface !== 'none',
+    staleBlocksExport: true,
+    staleBlocksRender: true,
+    humanReviewRequired: true,
     performanceBudgetMs: null,
-    ...(entry.notes ? { notes: entry.notes } : {}),
-  };
-}
+  },
+  '/fund-setup': {
+    lifecycle: 'durable_crud',
+    financialSurface: 'fund_modeling',
+    apiAuthBoundary: 'require_auth',
+    fundScopeMode: 'not_applicable',
+    workflowRequirement: null,
+    exportPolicy: 'not_exportable',
+    provenanceRequired: false,
+    staleBlocksExport: false,
+    staleBlocksRender: true,
+    humanReviewRequired: true,
+    performanceBudgetMs: null,
+  },
+  '/dashboard': {
+    lifecycle: 'durable_crud',
+    financialSurface: 'portfolio_management',
+    apiAuthBoundary: 'require_auth_and_fund_access',
+    fundScopeMode: 'parent_entity_lookup',
+    workflowRequirement: 'fund_scope_verified',
+    exportPolicy: 'not_exportable',
+    provenanceRequired: false,
+    staleBlocksExport: false,
+    staleBlocksRender: true,
+    humanReviewRequired: true,
+    performanceBudgetMs: null,
+  },
+  '/portfolio/company/:id': {
+    lifecycle: 'durable_crud',
+    financialSurface: 'portfolio_management',
+    apiAuthBoundary: 'require_auth_and_fund_access',
+    fundScopeMode: 'parent_entity_lookup',
+    workflowRequirement: 'fund_scope_verified',
+    exportPolicy: 'not_exportable',
+    provenanceRequired: false,
+    staleBlocksExport: false,
+    staleBlocksRender: true,
+    humanReviewRequired: true,
+    performanceBudgetMs: null,
+  },
+  '/portfolio': {
+    lifecycle: 'durable_crud',
+    financialSurface: 'portfolio_management',
+    apiAuthBoundary: 'require_auth_and_fund_access',
+    fundScopeMode: 'parent_entity_lookup',
+    workflowRequirement: 'fund_scope_verified',
+    exportPolicy: 'not_exportable',
+    provenanceRequired: false,
+    staleBlocksExport: false,
+    staleBlocksRender: true,
+    humanReviewRequired: true,
+    performanceBudgetMs: null,
+  },
+  '/performance': {
+    lifecycle: 'durable_crud',
+    financialSurface: 'moic_reserves',
+    apiAuthBoundary: 'require_auth_and_fund_access',
+    fundScopeMode: 'parent_entity_lookup',
+    workflowRequirement: 'fund_scope_verified',
+    exportPolicy: 'not_exportable',
+    provenanceRequired: false,
+    staleBlocksExport: false,
+    staleBlocksRender: true,
+    humanReviewRequired: true,
+    performanceBudgetMs: null,
+  },
+  '/forecasting': {
+    lifecycle: 'durable_crud',
+    financialSurface: 'fund_modeling',
+    apiAuthBoundary: 'require_auth_and_fund_access',
+    fundScopeMode: 'parent_entity_lookup',
+    workflowRequirement: 'fund_scope_verified',
+    exportPolicy: 'not_exportable',
+    provenanceRequired: false,
+    staleBlocksExport: false,
+    staleBlocksRender: true,
+    humanReviewRequired: true,
+    performanceBudgetMs: null,
+  },
+  '/financial-modeling': {
+    lifecycle: 'durable_crud',
+    financialSurface: 'fund_modeling',
+    apiAuthBoundary: 'require_auth_and_fund_access',
+    fundScopeMode: 'parent_entity_lookup',
+    workflowRequirement: 'fund_scope_verified',
+    exportPolicy: 'not_exportable',
+    provenanceRequired: false,
+    staleBlocksExport: false,
+    staleBlocksRender: true,
+    humanReviewRequired: true,
+    performanceBudgetMs: null,
+  },
+  '/model-results': {
+    lifecycle: 'durable_crud',
+    financialSurface: 'fund_modeling',
+    apiAuthBoundary: 'require_auth_and_fund_access',
+    fundScopeMode: 'parent_entity_lookup',
+    workflowRequirement: 'fund_scope_verified',
+    exportPolicy: 'not_exportable',
+    provenanceRequired: false,
+    staleBlocksExport: false,
+    staleBlocksRender: true,
+    humanReviewRequired: true,
+    performanceBudgetMs: null,
+  },
+  '/fund-model-results/:fundId/scenarios': {
+    lifecycle: 'durable_crud',
+    financialSurface: 'fund_modeling',
+    apiAuthBoundary: 'require_auth_and_fund_access',
+    fundScopeMode: 'route_param_fund_id',
+    workflowRequirement: 'fund_scope_verified',
+    exportPolicy: 'not_exportable',
+    provenanceRequired: false,
+    staleBlocksExport: false,
+    staleBlocksRender: true,
+    humanReviewRequired: true,
+    performanceBudgetMs: null,
+  },
+  '/fund-model-results/:fundId': {
+    lifecycle: 'durable_crud',
+    financialSurface: 'fund_modeling',
+    apiAuthBoundary: 'require_auth_and_fund_access',
+    fundScopeMode: 'route_param_fund_id',
+    workflowRequirement: 'fund_scope_verified',
+    exportPolicy: 'not_exportable',
+    provenanceRequired: false,
+    staleBlocksExport: false,
+    staleBlocksRender: true,
+    humanReviewRequired: true,
+    performanceBudgetMs: null,
+  },
+  '/sensitivity-analysis': {
+    lifecycle: 'durable_crud',
+    financialSurface: 'fund_modeling',
+    apiAuthBoundary: 'require_auth_and_fund_access',
+    fundScopeMode: 'parent_entity_lookup',
+    workflowRequirement: 'fund_scope_verified',
+    exportPolicy: 'not_exportable',
+    provenanceRequired: false,
+    staleBlocksExport: false,
+    staleBlocksRender: true,
+    humanReviewRequired: true,
+    performanceBudgetMs: null,
+  },
+  '/reports': {
+    lifecycle: 'durable_crud',
+    financialSurface: 'export_artifact',
+    apiAuthBoundary: 'require_auth_and_fund_access',
+    fundScopeMode: 'parent_entity_lookup',
+    workflowRequirement: 'fund_scope_verified',
+    exportPolicy: 'qualified_exportable',
+    provenanceRequired: false,
+    staleBlocksExport: true,
+    staleBlocksRender: true,
+    humanReviewRequired: true,
+    performanceBudgetMs: null,
+  },
+  '/moic-analysis': {
+    lifecycle: 'durable_crud',
+    financialSurface: 'moic_reserves',
+    apiAuthBoundary: 'require_auth_and_fund_access',
+    fundScopeMode: 'parent_entity_lookup',
+    workflowRequirement: 'fund_scope_verified',
+    exportPolicy: 'not_exportable',
+    provenanceRequired: false,
+    staleBlocksExport: false,
+    staleBlocksRender: true,
+    humanReviewRequired: true,
+    performanceBudgetMs: null,
+  },
+  '/variance-tracking': {
+    lifecycle: 'durable_crud',
+    financialSurface: 'fund_modeling',
+    apiAuthBoundary: 'require_auth_and_fund_access',
+    fundScopeMode: 'parent_entity_lookup',
+    workflowRequirement: 'fund_scope_verified',
+    exportPolicy: 'not_exportable',
+    provenanceRequired: false,
+    staleBlocksExport: false,
+    staleBlocksRender: true,
+    humanReviewRequired: true,
+    performanceBudgetMs: null,
+  },
+  '/pipeline': {
+    lifecycle: 'durable_crud',
+    financialSurface: 'portfolio_management',
+    apiAuthBoundary: 'require_auth_and_fund_access',
+    fundScopeMode: 'parent_entity_lookup',
+    workflowRequirement: 'fund_scope_verified',
+    exportPolicy: 'not_exportable',
+    provenanceRequired: false,
+    staleBlocksExport: false,
+    staleBlocksRender: true,
+    humanReviewRequired: true,
+    performanceBudgetMs: null,
+  },
+  '/lp-reporting/ledger': {
+    lifecycle: 'durable_crud',
+    financialSurface: 'lp_reporting',
+    apiAuthBoundary: 'require_auth_and_fund_access',
+    fundScopeMode: 'parent_entity_lookup',
+    workflowRequirement: 'fund_scope_verified',
+    exportPolicy: 'not_exportable',
+    provenanceRequired: false,
+    staleBlocksExport: false,
+    staleBlocksRender: true,
+    humanReviewRequired: true,
+    performanceBudgetMs: null,
+  },
+  '/lp-reporting/valuations': {
+    lifecycle: 'durable_crud',
+    financialSurface: 'lp_reporting',
+    apiAuthBoundary: 'require_auth_and_fund_access',
+    fundScopeMode: 'parent_entity_lookup',
+    workflowRequirement: 'fund_scope_verified',
+    exportPolicy: 'not_exportable',
+    provenanceRequired: false,
+    staleBlocksExport: false,
+    staleBlocksRender: true,
+    humanReviewRequired: true,
+    performanceBudgetMs: null,
+  },
+  '/lp-reporting/metrics': {
+    lifecycle: 'durable_crud',
+    financialSurface: 'lp_reporting',
+    apiAuthBoundary: 'require_auth_and_fund_access',
+    fundScopeMode: 'parent_entity_lookup',
+    workflowRequirement: 'fund_scope_verified',
+    exportPolicy: 'not_exportable',
+    provenanceRequired: false,
+    staleBlocksExport: false,
+    staleBlocksRender: true,
+    humanReviewRequired: true,
+    performanceBudgetMs: null,
+  },
+  '/lp-reporting/imports': {
+    lifecycle: 'durable_crud',
+    financialSurface: 'lp_reporting',
+    apiAuthBoundary: 'require_auth_and_fund_access',
+    fundScopeMode: 'parent_entity_lookup',
+    workflowRequirement: 'fund_scope_verified',
+    exportPolicy: 'not_exportable',
+    provenanceRequired: false,
+    staleBlocksExport: false,
+    staleBlocksRender: true,
+    humanReviewRequired: true,
+    performanceBudgetMs: null,
+  },
+  '/lp/dashboard': {
+    lifecycle: 'durable_crud',
+    financialSurface: 'lp_reporting',
+    apiAuthBoundary: 'require_auth_and_lp_access',
+    fundScopeMode: 'lp_claim_scope',
+    workflowRequirement: 'lp_access_verified',
+    exportPolicy: 'not_exportable',
+    provenanceRequired: false,
+    staleBlocksExport: false,
+    staleBlocksRender: true,
+    humanReviewRequired: true,
+    performanceBudgetMs: null,
+  },
+  '/lp/fund-detail/:fundId': {
+    lifecycle: 'durable_crud',
+    financialSurface: 'lp_reporting',
+    apiAuthBoundary: 'require_auth_and_lp_access',
+    fundScopeMode: 'lp_claim_scope',
+    workflowRequirement: 'lp_access_verified',
+    exportPolicy: 'not_exportable',
+    provenanceRequired: false,
+    staleBlocksExport: false,
+    staleBlocksRender: true,
+    humanReviewRequired: true,
+    performanceBudgetMs: null,
+  },
+  '/lp/capital-account': {
+    lifecycle: 'durable_crud',
+    financialSurface: 'lp_reporting',
+    apiAuthBoundary: 'require_auth_and_lp_access',
+    fundScopeMode: 'lp_claim_scope',
+    workflowRequirement: 'lp_access_verified',
+    exportPolicy: 'not_exportable',
+    provenanceRequired: false,
+    staleBlocksExport: false,
+    staleBlocksRender: true,
+    humanReviewRequired: true,
+    performanceBudgetMs: null,
+  },
+  '/lp/performance': {
+    lifecycle: 'durable_crud',
+    financialSurface: 'lp_reporting',
+    apiAuthBoundary: 'require_auth_and_lp_access',
+    fundScopeMode: 'lp_claim_scope',
+    workflowRequirement: 'lp_access_verified',
+    exportPolicy: 'not_exportable',
+    provenanceRequired: false,
+    staleBlocksExport: false,
+    staleBlocksRender: true,
+    humanReviewRequired: true,
+    performanceBudgetMs: null,
+  },
+  '/lp/reports': {
+    lifecycle: 'durable_crud',
+    financialSurface: 'lp_reporting',
+    apiAuthBoundary: 'require_auth_and_lp_access',
+    fundScopeMode: 'lp_claim_scope',
+    workflowRequirement: 'lp_access_verified',
+    exportPolicy: 'qualified_exportable',
+    provenanceRequired: false,
+    staleBlocksExport: true,
+    staleBlocksRender: true,
+    humanReviewRequired: true,
+    performanceBudgetMs: null,
+  },
+  '/lp/settings': {
+    lifecycle: 'durable_crud',
+    financialSurface: 'lp_reporting',
+    apiAuthBoundary: 'require_auth_and_lp_access',
+    fundScopeMode: 'lp_claim_scope',
+    workflowRequirement: 'lp_access_verified',
+    exportPolicy: 'not_exportable',
+    provenanceRequired: false,
+    staleBlocksExport: false,
+    staleBlocksRender: true,
+    humanReviewRequired: true,
+    performanceBudgetMs: null,
+  },
+};
+
+export const EXPLICIT_GOVERNANCE_POLICY_KEYS = new Set<string>(
+  Object.keys(GOVERNANCE_ROUTE_POLICY_DECISIONS)
+);
 
 function governanceRefForPortfolioIntelligenceRoute(
   route: PortfolioIntelligenceClassificationEntry
@@ -226,94 +486,303 @@ function governanceRefForPortfolioIntelligenceRoute(
   return '/portfolio';
 }
 
-function financialSurfaceForPortfolioIntelligenceRoute(
-  route: PortfolioIntelligenceClassificationEntry
-): FinancialSurface {
-  if (route.path.includes('/reserves') || route.path.includes('/metrics')) {
-    return 'moic_reserves';
+const PROTOTYPE_ROUTE_NOTE = 'Prototype route must return 501 with non_actionable provenance.';
+
+const PORTFOLIO_INTELLIGENCE_ROUTE_POLICY_DECISIONS: Readonly<PortfolioIntelligenceRouteDecisionMap> = {
+  'POST /api/portfolio/strategies': {
+    lifecycle: 'durable_crud',
+    financialSurface: 'portfolio_management',
+    apiAuthBoundary: 'require_auth_and_fund_access',
+    fundScopeMode: 'query_param_fund_id',
+    workflowRequirement: 'fund_scope_verified',
+    exportPolicy: 'not_exportable',
+    provenanceRequired: false,
+    staleBlocksExport: false,
+    staleBlocksRender: true,
+    humanReviewRequired: true,
+    performanceBudgetMs: null,
+  },
+  'GET /api/portfolio/strategies/:fundId': {
+    lifecycle: 'durable_crud',
+    financialSurface: 'portfolio_management',
+    apiAuthBoundary: 'require_auth_and_fund_access',
+    fundScopeMode: 'route_param_fund_id',
+    workflowRequirement: 'fund_scope_verified',
+    exportPolicy: 'not_exportable',
+    provenanceRequired: false,
+    staleBlocksExport: false,
+    staleBlocksRender: true,
+    humanReviewRequired: true,
+    performanceBudgetMs: null,
+  },
+  'PUT /api/portfolio/strategies/:id': {
+    lifecycle: 'durable_crud',
+    financialSurface: 'portfolio_management',
+    apiAuthBoundary: 'require_auth_and_fund_access',
+    fundScopeMode: 'parent_entity_lookup',
+    workflowRequirement: 'fund_scope_verified',
+    exportPolicy: 'not_exportable',
+    provenanceRequired: false,
+    staleBlocksExport: false,
+    staleBlocksRender: true,
+    humanReviewRequired: true,
+    performanceBudgetMs: null,
+  },
+  'DELETE /api/portfolio/strategies/:id': {
+    lifecycle: 'durable_crud',
+    financialSurface: 'portfolio_management',
+    apiAuthBoundary: 'require_auth_and_fund_access',
+    fundScopeMode: 'parent_entity_lookup',
+    workflowRequirement: 'fund_scope_verified',
+    exportPolicy: 'not_exportable',
+    provenanceRequired: false,
+    staleBlocksExport: false,
+    staleBlocksRender: true,
+    humanReviewRequired: true,
+    performanceBudgetMs: null,
+  },
+  'POST /api/portfolio/scenarios': {
+    lifecycle: 'durable_crud',
+    financialSurface: 'fund_modeling',
+    apiAuthBoundary: 'require_auth_and_fund_access',
+    fundScopeMode: 'query_param_fund_id',
+    workflowRequirement: 'fund_scope_verified',
+    exportPolicy: 'not_exportable',
+    provenanceRequired: false,
+    staleBlocksExport: false,
+    staleBlocksRender: true,
+    humanReviewRequired: true,
+    performanceBudgetMs: null,
+  },
+  'GET /api/portfolio/scenarios/:fundId': {
+    lifecycle: 'durable_crud',
+    financialSurface: 'fund_modeling',
+    apiAuthBoundary: 'require_auth_and_fund_access',
+    fundScopeMode: 'route_param_fund_id',
+    workflowRequirement: 'fund_scope_verified',
+    exportPolicy: 'not_exportable',
+    provenanceRequired: false,
+    staleBlocksExport: false,
+    staleBlocksRender: true,
+    humanReviewRequired: true,
+    performanceBudgetMs: null,
+  },
+  'POST /api/portfolio/scenarios/compare': {
+    lifecycle: 'prototype_501',
+    financialSurface: 'fund_modeling',
+    apiAuthBoundary: 'require_auth_and_fund_access',
+    fundScopeMode: 'parent_entity_lookup',
+    workflowRequirement: 'prototype_financial_output_blocked',
+    exportPolicy: 'not_exportable',
+    provenanceRequired: true,
+    staleBlocksExport: false,
+    staleBlocksRender: true,
+    humanReviewRequired: true,
+    performanceBudgetMs: null,
+    notes: PROTOTYPE_ROUTE_NOTE,
+  },
+  'POST /api/portfolio/scenarios/:id/simulate': {
+    lifecycle: 'prototype_501',
+    financialSurface: 'fund_modeling',
+    apiAuthBoundary: 'require_auth_and_fund_access',
+    fundScopeMode: 'parent_entity_lookup',
+    workflowRequirement: 'prototype_financial_output_blocked',
+    exportPolicy: 'not_exportable',
+    provenanceRequired: true,
+    staleBlocksExport: false,
+    staleBlocksRender: true,
+    humanReviewRequired: true,
+    performanceBudgetMs: null,
+    notes: PROTOTYPE_ROUTE_NOTE,
+  },
+  'POST /api/portfolio/reserves/optimize': {
+    lifecycle: 'prototype_501',
+    financialSurface: 'moic_reserves',
+    apiAuthBoundary: 'require_auth_and_fund_access',
+    fundScopeMode: 'query_param_fund_id',
+    workflowRequirement: 'prototype_financial_output_blocked',
+    exportPolicy: 'not_exportable',
+    provenanceRequired: true,
+    staleBlocksExport: false,
+    staleBlocksRender: true,
+    humanReviewRequired: true,
+    performanceBudgetMs: null,
+    notes: PROTOTYPE_ROUTE_NOTE,
+  },
+  'GET /api/portfolio/reserves/strategies/:fundId': {
+    lifecycle: 'durable_crud',
+    financialSurface: 'moic_reserves',
+    apiAuthBoundary: 'require_auth_and_fund_access',
+    fundScopeMode: 'route_param_fund_id',
+    workflowRequirement: 'fund_scope_verified',
+    exportPolicy: 'not_exportable',
+    provenanceRequired: false,
+    staleBlocksExport: false,
+    staleBlocksRender: true,
+    humanReviewRequired: true,
+    performanceBudgetMs: null,
+  },
+  'POST /api/portfolio/reserves/backtest': {
+    lifecycle: 'prototype_501',
+    financialSurface: 'moic_reserves',
+    apiAuthBoundary: 'require_auth_and_fund_access',
+    fundScopeMode: 'parent_entity_lookup',
+    workflowRequirement: 'prototype_financial_output_blocked',
+    exportPolicy: 'not_exportable',
+    provenanceRequired: true,
+    staleBlocksExport: false,
+    staleBlocksRender: true,
+    humanReviewRequired: true,
+    performanceBudgetMs: null,
+    notes: PROTOTYPE_ROUTE_NOTE,
+  },
+  'POST /api/portfolio/forecasts': {
+    lifecycle: 'prototype_501',
+    financialSurface: 'fund_modeling',
+    apiAuthBoundary: 'require_auth_and_fund_access',
+    fundScopeMode: 'query_param_fund_id',
+    workflowRequirement: 'prototype_financial_output_blocked',
+    exportPolicy: 'not_exportable',
+    provenanceRequired: true,
+    staleBlocksExport: false,
+    staleBlocksRender: true,
+    humanReviewRequired: true,
+    performanceBudgetMs: null,
+    notes: PROTOTYPE_ROUTE_NOTE,
+  },
+  'GET /api/portfolio/forecasts/:scenarioId': {
+    lifecycle: 'durable_crud',
+    financialSurface: 'fund_modeling',
+    apiAuthBoundary: 'require_auth_and_fund_access',
+    fundScopeMode: 'parent_entity_lookup',
+    workflowRequirement: 'fund_scope_verified',
+    exportPolicy: 'not_exportable',
+    provenanceRequired: false,
+    staleBlocksExport: false,
+    staleBlocksRender: true,
+    humanReviewRequired: true,
+    performanceBudgetMs: null,
+  },
+  'POST /api/portfolio/forecasts/validate': {
+    lifecycle: 'prototype_501',
+    financialSurface: 'fund_modeling',
+    apiAuthBoundary: 'require_auth_and_fund_access',
+    fundScopeMode: 'parent_entity_lookup',
+    workflowRequirement: 'prototype_financial_output_blocked',
+    exportPolicy: 'not_exportable',
+    provenanceRequired: true,
+    staleBlocksExport: false,
+    staleBlocksRender: true,
+    humanReviewRequired: true,
+    performanceBudgetMs: null,
+    notes: PROTOTYPE_ROUTE_NOTE,
+  },
+  'GET /api/portfolio/templates': {
+    lifecycle: 'static_template',
+    financialSurface: 'portfolio_management',
+    apiAuthBoundary: 'require_auth',
+    fundScopeMode: 'not_applicable',
+    workflowRequirement: null,
+    exportPolicy: 'preview_only',
+    provenanceRequired: true,
+    staleBlocksExport: false,
+    staleBlocksRender: true,
+    humanReviewRequired: true,
+    performanceBudgetMs: null,
+  },
+  'POST /api/portfolio/quick-scenario': {
+    lifecycle: 'prototype_501',
+    financialSurface: 'portfolio_management',
+    apiAuthBoundary: 'require_auth_and_fund_access',
+    fundScopeMode: 'parent_entity_lookup',
+    workflowRequirement: 'prototype_financial_output_blocked',
+    exportPolicy: 'not_exportable',
+    provenanceRequired: true,
+    staleBlocksExport: false,
+    staleBlocksRender: true,
+    humanReviewRequired: true,
+    performanceBudgetMs: null,
+    notes: PROTOTYPE_ROUTE_NOTE,
+  },
+  'GET /api/portfolio/metrics/:scenarioId': {
+    lifecycle: 'prototype_501',
+    financialSurface: 'moic_reserves',
+    apiAuthBoundary: 'require_auth_and_fund_access',
+    fundScopeMode: 'parent_entity_lookup',
+    workflowRequirement: 'prototype_financial_output_blocked',
+    exportPolicy: 'not_exportable',
+    provenanceRequired: true,
+    staleBlocksExport: false,
+    staleBlocksRender: true,
+    humanReviewRequired: true,
+    performanceBudgetMs: null,
+    notes: PROTOTYPE_ROUTE_NOTE,
+  },
+};
+
+export const PORTFOLIO_INTELLIGENCE_ROUTE_POLICY_KEYS = new Set<string>(
+  Object.keys(PORTFOLIO_INTELLIGENCE_ROUTE_POLICY_DECISIONS)
+);
+
+export const EXPLICIT_API_ROUTE_POLICY_ENTRIES: RoutePolicyEntry[] = [];
+
+export const EXPLICIT_API_ROUTE_POLICY_KEYS = new Set<string>(
+  EXPLICIT_API_ROUTE_POLICY_ENTRIES.map(routePolicyKey)
+);
+
+function buildGovernancePolicyEntry(entry: RouteGovernanceEntry): RoutePolicyEntry | undefined {
+  const decision = GOVERNANCE_ROUTE_POLICY_DECISIONS[entry.path];
+  if (!decision) {
+    return undefined;
   }
 
-  if (route.path.includes('/forecasts') || route.path.includes('/scenarios')) {
-    return 'fund_modeling';
-  }
-
-  return 'portfolio_management';
+  return {
+    id: `client:${entry.path}`,
+    path: entry.path,
+    governanceRef: entry.path,
+    surface: entry.surface,
+    owner: ownerForFinancialSurface(decision.financialSurface),
+    telemetryKey: telemetryKeyForRoute('client.route', entry.path),
+    ...decision,
+    ...(decision.notes || entry.notes ? { notes: decision.notes ?? entry.notes } : {}),
+  };
 }
 
-function fundScopeModeForPortfolioIntelligenceRoute(
+function buildPortfolioIntelligencePolicyEntry(
   route: PortfolioIntelligenceClassificationEntry
-): FundScopeMode {
-  if (route.path.includes(':fundId')) {
-    return 'route_param_fund_id';
+): RoutePolicyEntry | undefined {
+  const key = `${route.method} ${route.path}` as PortfolioIntelligenceRouteKey;
+  const decision = PORTFOLIO_INTELLIGENCE_ROUTE_POLICY_DECISIONS[key];
+  if (!decision) {
+    return undefined;
   }
 
-  if (
-    route.method === 'POST' &&
-    (route.path === '/api/portfolio/strategies' ||
-      route.path === '/api/portfolio/scenarios' ||
-      route.path === '/api/portfolio/reserves/optimize' ||
-      route.path === '/api/portfolio/forecasts')
-  ) {
-    return 'query_param_fund_id';
-  }
-
-  if (route.path === '/api/portfolio/templates') {
-    return 'not_applicable';
-  }
-
-  return 'parent_entity_lookup';
-}
-
-function authBoundaryForPortfolioIntelligenceRoute(
-  route: PortfolioIntelligenceClassificationEntry
-): ApiAuthBoundary {
-  return route.path === '/api/portfolio/templates'
-    ? 'require_auth'
-    : 'require_auth_and_fund_access';
-}
-
-function toPortfolioIntelligencePolicyEntry(
-  route: PortfolioIntelligenceClassificationEntry
-): RoutePolicyEntry {
-  const financialSurface = financialSurfaceForPortfolioIntelligenceRoute(route);
-  const apiAuthBoundary = authBoundaryForPortfolioIntelligenceRoute(route);
-  const fundScopeMode = fundScopeModeForPortfolioIntelligenceRoute(route);
-  const lifecycle = route.classification satisfies PortfolioIntelligenceRouteClassification;
-  const workflowRequirement =
-    route.classification === 'prototype_501'
-      ? 'prototype_financial_output_blocked'
-      : apiAuthBoundary === 'require_auth_and_fund_access'
-        ? 'fund_scope_verified'
-        : null;
+  const governanceRef = governanceRefForPortfolioIntelligenceRoute(route);
+  const governanceEntry = requireGovernanceEntry(governanceRef);
 
   return {
     id: `api:${route.method.toLowerCase()}:${route.path}`,
     method: route.method.toUpperCase(),
     path: route.path,
-    lifecycle: lifecycle as RouteLifecycle,
-    governanceRef: governanceRefForPortfolioIntelligenceRoute(route),
+    governanceRef,
     surface: 'portfolio-intelligence-api',
-    owner: ownerForFinancialSurface(financialSurface),
+    owner: ownerForFinancialSurface(decision.financialSurface),
     telemetryKey: telemetryKeyForRoute('api.route', route.path),
-    financialSurface,
-    apiAuthBoundary,
-    fundScopeMode,
-    workflowRequirement,
-    exportPolicy: route.classification === 'static_template' ? 'preview_only' : 'not_exportable',
-    provenanceRequired: route.classification !== 'durable_crud',
-    staleBlocksExport: false,
-    staleBlocksRender: true,
-    humanReviewRequired: true,
-    performanceBudgetMs: null,
-    ...(route.classification === 'prototype_501'
-      ? { notes: 'Prototype route must return 501 with non_actionable provenance.' }
-      : {}),
+    ...decision,
+    ...(governanceEntry.notes && !decision.notes ? { notes: governanceEntry.notes } : {}),
   };
 }
 
 const routePolicyEntries: RoutePolicyEntry[] = [
-  ...ACTIVE_FINANCIAL_GOVERNANCE_ENTRIES.map(toGovernancePolicyEntry),
-  ...portfolioIntelligenceRouteClassifications.map(toPortfolioIntelligencePolicyEntry),
+  ...ACTIVE_FINANCIAL_GOVERNANCE_ENTRIES.flatMap((entry) => {
+    const policyEntry = buildGovernancePolicyEntry(entry);
+    return policyEntry ? [policyEntry] : [];
+  }),
+  ...portfolioIntelligenceRouteClassifications.flatMap((route) => {
+    const policyEntry = buildPortfolioIntelligencePolicyEntry(route);
+    return policyEntry ? [policyEntry] : [];
+  }),
+  ...EXPLICIT_API_ROUTE_POLICY_ENTRIES,
 ];
 
 export const API_ROUTE_POLICY_REGISTRY: RoutePolicyEntry[] =
