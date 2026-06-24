@@ -143,4 +143,65 @@ describe('fund MOIC ranking service', () => {
     expect(result.provenance.metricBasis).toBe('planned_reserves');
     expect(result.rankings).toHaveLength(1);
   });
+
+  // --- PR-E characterization: pin current (defective) live behavior ---
+
+  it('pins the live defect: getFundMoicRankings hardcodes exitProbability=null, so probability-weighted reservesMoic collapses to 0 even when the source row carries a real exit probability', async () => {
+    findMany.mockResolvedValue([
+      {
+        id: 1,
+        name: 'Acme',
+        investmentAmount: 500_000,
+        currentValuation: 1_500_000,
+        plannedReservesCents: 300_000_00, // non-zero planned reserves
+        exitMoicBps: 35000, // non-zero reserve exit multiple (350x)
+        exitProbability: 0.8, // real, non-null probability in the source row
+        investmentDate: new Date('2022-01-01T00:00:00.000Z'),
+      },
+    ]);
+
+    const { getFundMoicRankings } = await import(
+      '../../../server/services/fund-moic-ranking-service'
+    );
+    const result = await getFundMoicRankings(10);
+
+    // DEFECT pinned: getFundMoicRankings maps every company with a hardcoded
+    // exitProbability: null (it never reads the source column), so
+    // calculateReservesMOIC(applyProbability=true) multiplies by 0 -> the
+    // reservesMoic.value is 0 regardless of the real 0.8 above. The 0.8 is
+    // deliberately ignored here to prove the column is dropped, not just null.
+    // V2 shadow reconciliation exists to surface/correct this; pin V1 behavior.
+    expect(result.rankings[0]?.reservesMoic.value).toBe(0);
+  });
+
+  it('characterizes follow-on/initial-only changes as no-ops for reserves MOIC value and rank', () => {
+    const base: Investment[] = [
+      makeInvestment({ id: '1', name: 'A', reserveExitMultiple: 3.0 }),
+      makeInvestment({ id: '2', name: 'B', reserveExitMultiple: 2.0 }),
+    ];
+    const followOnAndInitialChanged: Investment[] = [
+      makeInvestment({
+        id: '1',
+        name: 'A',
+        reserveExitMultiple: 3.0,
+        followOnInvestment: 999_999,
+        initialInvestment: 12_345,
+      }),
+      makeInvestment({
+        id: '2',
+        name: 'B',
+        reserveExitMultiple: 2.0,
+        followOnInvestment: 5,
+        initialInvestment: 1,
+      }),
+    ];
+
+    const before = buildMoicRankingsFromInvestments(1, base);
+    const after = buildMoicRankingsFromInvestments(1, followOnAndInitialChanged);
+
+    const project = (r: typeof before) =>
+      r.rankings.map((x) => [x.investmentId, x.rank, x.reservesMoic.value]);
+
+    expect(project(after)).toEqual(project(before));
+  });
 });

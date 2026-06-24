@@ -33,6 +33,7 @@ export * from './schema/shares';
 export * from './schema/user';
 export * from './schema/lp-reporting-evidence';
 export * from './schema/operating-objects';
+export * from './schema/reconciliation-runs';
 export * from './schema/investment-rounds';
 export * from './schema/investment-round-model-overrides';
 export * from './schemas/flags';
