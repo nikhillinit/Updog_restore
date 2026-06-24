@@ -7,6 +7,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import { applyInvestmentRoundConstraints } from '../../helpers/apply-investment-round-constraints';
 import { setupTestDB } from '../../helpers/testcontainers';
+import { createRound } from '../../../server/services/investments/investment-round-service';
 
 const STARTUP_TIMEOUT_MS = 90_000;
 const skipIfNoDocker = !process.env.CI && process.platform === 'win32';
@@ -119,7 +120,7 @@ describe.skipIf(skipIfNoDocker)('investment_rounds schema', () => {
     runDrizzlePush(connectionString);
     await applyInvestmentRoundConstraints(connectionString);
 
-    pool = new Pool({ connectionString, max: 1 });
+    pool = new Pool({ connectionString, max: 4 });
   }, STARTUP_TIMEOUT_MS * 2);
 
   afterAll(async () => {
@@ -139,6 +140,28 @@ describe.skipIf(skipIfNoDocker)('investment_rounds schema', () => {
     `);
 
     expect(rows.rows).toHaveLength(1);
+  });
+
+  it('has the operational readiness schema additions', async () => {
+    expect(pool).toBeDefined();
+    const db = drizzle(pool!);
+
+    const fundsBaseCurrency = await db.execute(sql`
+      SELECT 1
+      FROM information_schema.columns
+      WHERE table_schema = 'public'
+        AND table_name = 'funds'
+        AND column_name = 'base_currency'
+    `);
+    expect(fundsBaseCurrency.rows).toHaveLength(1);
+
+    const positiveAmountConstraint = await db.execute(sql`
+      SELECT 1
+      FROM pg_constraint
+      WHERE conname = 'investment_rounds_amount_positive'
+        AND contype = 'c'
+    `);
+    expect(positiveAmountConstraint.rows).toHaveLength(1);
   });
 
   it('blocks deleting an investment that has a round', async () => {
@@ -187,5 +210,72 @@ describe.skipIf(skipIfNoDocker)('investment_rounds schema', () => {
         }),
       '23505'
     );
+  });
+
+  it('allows exactly one concurrent supersede for the same base round', async () => {
+    expect(pool).toBeDefined();
+    const db = drizzle(pool!);
+    const { fundId, investmentId } = await insertFundAndInvestment();
+
+    const base = await createRound(
+      {
+        fundId,
+        investmentId,
+        idempotencyKey: 'concurrent-base-round',
+        roundName: 'Concurrent Base Round',
+        securityType: 'equity',
+        roundDate: '2026-03-01',
+        currency: 'USD',
+        investmentAmount: '500000.000000',
+        createdBy: null,
+      },
+      { database: db }
+    );
+    expect(base.kind).toBe('created');
+    if (base.kind !== 'created') {
+      throw new Error(`Expected base round creation, received ${base.kind}`);
+    }
+
+    const results = await Promise.all([
+      createRound(
+        {
+          fundId,
+          investmentId,
+          idempotencyKey: 'concurrent-correction-a',
+          roundName: 'Concurrent Correction A',
+          securityType: 'equity',
+          roundDate: '2026-03-02',
+          currency: 'USD',
+          investmentAmount: '525000.000000',
+          supersedesRoundId: base.row.id,
+          createdBy: null,
+        },
+        { database: db }
+      ),
+      createRound(
+        {
+          fundId,
+          investmentId,
+          idempotencyKey: 'concurrent-correction-b',
+          roundName: 'Concurrent Correction B',
+          securityType: 'equity',
+          roundDate: '2026-03-03',
+          currency: 'USD',
+          investmentAmount: '550000.000000',
+          supersedesRoundId: base.row.id,
+          createdBy: null,
+        },
+        { database: db }
+      ),
+    ]);
+
+    expect(results.map((result) => result.kind).sort()).toEqual(['already_superseded', 'created']);
+
+    const supersedingRows = await db.execute(sql`
+      SELECT id
+      FROM investment_rounds
+      WHERE supersedes_round_id = ${base.row.id}
+    `);
+    expect(supersedingRows.rows).toHaveLength(1);
   });
 });

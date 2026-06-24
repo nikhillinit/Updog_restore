@@ -62,6 +62,10 @@ export const investmentRounds = pgTable(
       'investment_rounds_security_type_check',
       sql`${table.securityType} IN ('equity', 'convertible_note', 'safe', 'warrant', 'other')`
     ),
+    amountPositiveCheck: check(
+      'investment_rounds_amount_positive',
+      sql`${table.investmentAmount} > 0`
+    ),
     investmentFundFk: foreignKey({
       name: 'investment_rounds_investment_fund_fk',
       columns: [table.investmentId, table.fundId],
@@ -76,6 +80,13 @@ export const investmentRounds = pgTable(
     investmentRoundDateIdx: index('investment_rounds_investment_round_date_idx').on(
       table.investmentId,
       table.roundDate.desc()
+    ),
+    fundRoundOrderIdx: index('investment_rounds_fund_round_order_idx').on(
+      table.fundId,
+      table.investmentId,
+      table.roundDate,
+      table.createdAt,
+      table.id
     ),
     fundIdempotencyKey: unique('investment_rounds_fund_idem_key').on(
       table.fundId,
