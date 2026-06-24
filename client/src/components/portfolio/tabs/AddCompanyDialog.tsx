@@ -22,6 +22,7 @@ import {
 } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import { apiRequest } from '@/lib/queryClient';
+import { invalidatePortfolioData } from '@/lib/invalidate-portfolio-data';
 import {
   COMPANY_SECTORS,
   COMPANY_STAGES,
@@ -94,8 +95,7 @@ export function AddCompanyDialog({ fundId, open, onOpenChange }: AddCompanyDialo
         investmentAmount: String(parseMoney(values.investmentAmount)),
       }),
     onSuccess: (_result, values) => {
-      queryClient.invalidateQueries({ queryKey: ['portfolio-companies'] });
-      queryClient.invalidateQueries({ queryKey: ['allocations', 'latest', fundId] });
+      invalidatePortfolioData(queryClient, fundId);
       toast({
         title: 'Company added',
         description: `"${values.name}" now appears in the Companies tab.`,

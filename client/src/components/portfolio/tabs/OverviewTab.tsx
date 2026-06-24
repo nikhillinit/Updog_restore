@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { useLocation, useSearch } from 'wouter';
-import type { PortfolioCompany } from '@shared/schema';
+import type { PortfolioOverviewResponseV1 } from '@shared/contracts/portfolio-overview-v1.contract';
 import { KpiCard } from '@/components/ui/KpiCard';
 import { SwipeableMetricCards } from '@/components/ui/SwipeableMetricCards';
 import type { MetricCardData } from '@/components/ui/SwipeableMetricCards';
@@ -8,7 +8,14 @@ import { PremiumCard } from '@/components/ui/PremiumCard';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
 import {
   Select,
   SelectContent,
@@ -18,7 +25,7 @@ import {
 } from '@/components/ui/select';
 import { AddCompanyDialog } from './AddCompanyDialog';
 import { useFundContext } from '@/contexts/FundContext';
-import { usePortfolioCompanies } from '@/hooks/use-fund-data';
+import { usePortfolioOverview } from '@/hooks/use-fund-data';
 import {
   Search,
   Plus,
@@ -33,6 +40,8 @@ import {
   History,
   RotateCcw,
 } from 'lucide-react';
+
+type OverviewCompany = PortfolioOverviewResponseV1['companies'][number];
 
 type PortfolioRow = {
   id: number;
@@ -86,24 +95,18 @@ function formatMonthLabel(value: string | null): string {
   });
 }
 
-function isExitedStatus(status: string): boolean {
-  const normalized = status.trim().toLowerCase();
-  return normalized === 'exited' || normalized === 'closed' || normalized === 'liquidated';
-}
-
-function buildPortfolioRow(company: PortfolioCompany): PortfolioRow {
-  const invested = toNumber(company.investmentAmount);
-  const currentValue = toNumber(company.currentValuation);
-  const moic = invested > 0 ? currentValue / invested : 0;
-
+// Server-computed overview row -> display row. The server already applied the
+// `currentStage ?? stage` fallback and computed MOIC; the client only parses the
+// decimal strings for display formatting and performs no financial derivation.
+function buildPortfolioRow(company: OverviewCompany): PortfolioRow {
   return {
     id: company.id,
     company: company.name,
     sector: company.sector,
-    stage: company.currentStage ?? company.stage,
-    invested,
-    currentValue,
-    moic,
+    stage: company.stage,
+    invested: toNumber(company.invested),
+    currentValue: toNumber(company.currentValue),
+    moic: toNumber(company.moic),
     status: company.status,
   };
 }
@@ -186,9 +189,7 @@ function PortfolioCard({
         className="w-full mt-2"
         data-testid={`portfolio-company-detail-button-${company.id}`}
         disabled={!canViewDetails}
-        aria-label={
-          canViewDetails ? getDetailButtonLabel(company.company, false) : disabledLabel
-        }
+        aria-label={canViewDetails ? getDetailButtonLabel(company.company, false) : disabledLabel}
         onClick={canViewDetails ? onView : undefined}
       >
         <Eye className="h-4 w-4 mr-2" />
@@ -210,13 +211,13 @@ export function OverviewTab() {
   const [filterStatus, setFilterStatus] = useState('all');
   const [filterSector, setFilterSector] = useState('all');
 
-  const { portfolioCompanies, meta, isLoading } = usePortfolioCompanies(fundId || undefined, {
+  const { data, meta, isLoading, isUnavailable } = usePortfolioOverview(fundId || undefined, {
     ...(activeAsOf ? { asOf: activeAsOf } : {}),
   });
 
   const companyRows = useMemo(
-    () => portfolioCompanies.map((company) => buildPortfolioRow(company)),
-    [portfolioCompanies]
+    () => (data?.companies ?? []).map((company) => buildPortfolioRow(company)),
+    [data]
   );
 
   const filteredCompanies = useMemo(() => {
@@ -231,26 +232,25 @@ export function OverviewTab() {
     });
   }, [companyRows, filterSector, filterStatus, searchTerm]);
 
+  // Portfolio KPIs are server-computed (with provenance). The client only parses
+  // the decimal strings for display; it derives no financial values. `null` when
+  // the trusted overview is unavailable so the UI can fail closed.
   const portfolioMetrics = useMemo(() => {
-    const activeCompanies = companyRows.filter((company) => !isExitedStatus(company.status));
-    const totalInvested = companyRows.reduce((sum, company) => sum + company.invested, 0);
-    const totalValue = companyRows.reduce((sum, company) => sum + company.currentValue, 0);
-    const averageMOIC =
-      companyRows.length > 0
-        ? companyRows.reduce((sum, company) => sum + company.moic, 0) / companyRows.length
-        : 0;
-    const returnPct = totalInvested > 0 ? ((totalValue - totalInvested) / totalInvested) * 100 : 0;
+    if (!data) {
+      return null;
+    }
 
+    const { metrics } = data;
     return {
-      totalCompanies: companyRows.length,
-      activeCompanies: activeCompanies.length,
-      exitedCompanies: companyRows.filter((company) => isExitedStatus(company.status)).length,
-      totalInvested,
-      totalValue,
-      averageMOIC,
-      returnPct,
+      totalCompanies: metrics.totalCompanies,
+      activeCompanies: metrics.activeCompanies,
+      exitedCompanies: metrics.exitedCompanies,
+      totalInvested: toNumber(metrics.totalInvested),
+      totalValue: toNumber(metrics.totalValue),
+      averageMOIC: toNumber(metrics.averageMOIC),
+      returnPct: toNumber(metrics.returnPct),
     };
-  }, [companyRows]);
+  }, [data]);
 
   const sectors = useMemo(
     () => ['all', ...new Set(companyRows.map((company) => company.sector).filter(Boolean))],
@@ -268,48 +268,50 @@ export function OverviewTab() {
   const historicalLabel = formatMonthLabel(meta.resolvedAsOf ?? activeAsOf);
   const monthInputValue = activeAsOf ? activeAsOf.slice(0, 7) : '';
 
-  const mobileMetrics: MetricCardData[] = [
-    {
-      id: 'companies',
-      title: 'Total Companies',
-      value: String(portfolioMetrics.totalCompanies),
-      subtitle: `${portfolioMetrics.activeCompanies} Active`,
-      change: `${portfolioMetrics.exitedCompanies} Exited`,
-      trend: 'stable',
-      severity: 'neutral',
-      icon: Building2,
-    },
-    {
-      id: 'invested',
-      title: 'Total Invested',
-      value: formatCurrency(portfolioMetrics.totalInvested),
-      subtitle: 'Capital deployed',
-      change: '',
-      trend: 'stable',
-      severity: 'neutral',
-      icon: DollarSign,
-    },
-    {
-      id: 'value',
-      title: isHistoricalMode ? 'Historical Value' : 'Current Value',
-      value: formatCurrency(portfolioMetrics.totalValue),
-      subtitle: isHistoricalMode ? `As of ${historicalLabel}` : 'Portfolio value',
-      change: `${portfolioMetrics.returnPct >= 0 ? '+' : ''}${portfolioMetrics.returnPct.toFixed(1)}%`,
-      trend: portfolioMetrics.returnPct > 0 ? 'up' : 'down',
-      severity: portfolioMetrics.returnPct > 0 ? 'success' : 'warning',
-      icon: Target,
-    },
-    {
-      id: 'moic',
-      title: 'Average MOIC',
-      value: `${portfolioMetrics.averageMOIC.toFixed(2)}x`,
-      subtitle: 'Multiple on invested capital',
-      change: '',
-      trend: portfolioMetrics.averageMOIC > 2 ? 'up' : 'stable',
-      severity: portfolioMetrics.averageMOIC > 2 ? 'success' : 'neutral',
-      icon: BarChart3,
-    },
-  ];
+  const mobileMetrics: MetricCardData[] = portfolioMetrics
+    ? [
+        {
+          id: 'companies',
+          title: 'Total Companies',
+          value: String(portfolioMetrics.totalCompanies),
+          subtitle: `${portfolioMetrics.activeCompanies} Active`,
+          change: `${portfolioMetrics.exitedCompanies} Exited`,
+          trend: 'stable',
+          severity: 'neutral',
+          icon: Building2,
+        },
+        {
+          id: 'invested',
+          title: 'Total Invested',
+          value: formatCurrency(portfolioMetrics.totalInvested),
+          subtitle: 'Capital deployed',
+          change: '',
+          trend: 'stable',
+          severity: 'neutral',
+          icon: DollarSign,
+        },
+        {
+          id: 'value',
+          title: isHistoricalMode ? 'Historical Value' : 'Current Value',
+          value: formatCurrency(portfolioMetrics.totalValue),
+          subtitle: isHistoricalMode ? `As of ${historicalLabel}` : 'Portfolio value',
+          change: `${portfolioMetrics.returnPct >= 0 ? '+' : ''}${portfolioMetrics.returnPct.toFixed(1)}%`,
+          trend: portfolioMetrics.returnPct > 0 ? 'up' : 'down',
+          severity: portfolioMetrics.returnPct > 0 ? 'success' : 'warning',
+          icon: Target,
+        },
+        {
+          id: 'moic',
+          title: 'Average MOIC',
+          value: `${portfolioMetrics.averageMOIC.toFixed(2)}x`,
+          subtitle: 'Multiple on invested capital',
+          change: '',
+          trend: portfolioMetrics.averageMOIC > 2 ? 'up' : 'stable',
+          severity: portfolioMetrics.averageMOIC > 2 ? 'success' : 'neutral',
+          icon: BarChart3,
+        },
+      ]
+    : [];
 
   const setAsOfValue = (nextAsOf: string | null) => {
     const nextParams = new URLSearchParams(searchParams);
@@ -395,7 +397,7 @@ export function OverviewTab() {
     );
   }
 
-  const isLiveEmpty = !isLoading && !isHistoricalMode && companyRows.length === 0;
+  const isLiveEmpty = !isLoading && !isUnavailable && !isHistoricalMode && companyRows.length === 0;
 
   return (
     <div className="space-y-6">
@@ -500,6 +502,18 @@ export function OverviewTab() {
           </div>
           <div className="h-72 rounded-lg border border-presson-borderSubtle bg-white" />
         </div>
+      ) : isUnavailable ? (
+        <PremiumCard>
+          <div className="py-12 text-center space-y-2">
+            <h3 className="text-lg font-semibold text-presson-text">
+              Portfolio metrics unavailable
+            </h3>
+            <p className="mx-auto max-w-md text-sm text-presson-textMuted">
+              Server-computed portfolio metrics could not be loaded right now. Values are hidden to
+              avoid showing untrusted figures. Please try again shortly.
+            </p>
+          </div>
+        </PremiumCard>
       ) : isLiveEmpty ? (
         <PremiumCard>
           <EmptyState onGetStarted={handleAddCompany} />
@@ -524,7 +538,7 @@ export function OverviewTab() {
             </Button>
           </div>
         </PremiumCard>
-      ) : (
+      ) : portfolioMetrics ? (
         <>
           <div className="hidden md:grid md:grid-cols-4 gap-4">
             <KpiCard
@@ -656,7 +670,7 @@ export function OverviewTab() {
             )}
           </div>
         </>
-      )}
+      ) : null}
     </div>
   );
 }
