@@ -19,7 +19,7 @@ import {
   type InsertFundMetrics,
   type InsertActivity,
   type InsertUser,
-} from '../schema/src/index.js';
+} from '@shared/schema';
 import { db } from './db';
 import { and, desc, eq, inArray, sql } from 'drizzle-orm';
 import {
@@ -131,6 +131,37 @@ type NormalizedInsertPortfolioCompany = {
   dealTags?: string[] | null;
 };
 
+function createPortfolioCompanyAllocationDefaults(
+  currentStage: string | null
+): Pick<
+  PortfolioCompany,
+  | 'currentStage'
+  | 'investmentDate'
+  | 'deployedReservesCents'
+  | 'plannedReservesCents'
+  | 'exitMoicBps'
+  | 'ownershipCurrentPct'
+  | 'allocationCapCents'
+  | 'allocationReason'
+  | 'allocationIteration'
+  | 'lastAllocationAt'
+  | 'allocationVersion'
+> {
+  return {
+    currentStage,
+    investmentDate: null,
+    deployedReservesCents: 0,
+    plannedReservesCents: 0,
+    exitMoicBps: null,
+    ownershipCurrentPct: null,
+    allocationCapCents: null,
+    allocationReason: null,
+    allocationIteration: 0,
+    lastAllocationAt: null,
+    allocationVersion: 1,
+  };
+}
+
 export class MemStorage implements IStorage {
   readonly kind = 'memory' as const;
   readonly capabilities = {
@@ -189,6 +220,8 @@ export class MemStorage implements IStorage {
       carryPercentage: '0.20',
       vintageYear: 2020,
       status: 'active',
+      establishmentDate: null,
+      isActive: true,
       baseCurrency: 'USD',
       engineResults: null,
       createdAt: new Date(),
@@ -211,6 +244,7 @@ export class MemStorage implements IStorage {
         description: 'Leading fintech platform',
         dealTags: ['B2B', 'SaaS', 'Fintech'],
         createdAt: new Date(),
+        ...createPortfolioCompanyAllocationDefaults('Series B'),
       },
       {
         id: 2,
@@ -225,6 +259,7 @@ export class MemStorage implements IStorage {
         description: 'AI-powered healthcare solutions',
         dealTags: ['Healthcare', 'AI', 'B2B'],
         createdAt: new Date(),
+        ...createPortfolioCompanyAllocationDefaults('Series A'),
       },
       {
         id: 3,
@@ -239,6 +274,7 @@ export class MemStorage implements IStorage {
         description: 'Enterprise data analytics platform',
         dealTags: ['SaaS', 'Analytics', 'Enterprise'],
         createdAt: new Date(),
+        ...createPortfolioCompanyAllocationDefaults('Series C'),
       },
     ];
 
@@ -349,6 +385,8 @@ export class MemStorage implements IStorage {
       carryPercentage: String(insertFund.carryPercentage),
       vintageYear: insertFund.vintageYear,
       status: 'active', // Default value from schema
+      establishmentDate: insertFund.establishmentDate ?? null,
+      isActive: insertFund.isActive ?? true,
       baseCurrency: 'USD',
       engineResults: insertFund.engineResults ?? null,
       createdAt: new Date(),
@@ -386,6 +424,7 @@ export class MemStorage implements IStorage {
       status: normalizedCompany.status ?? 'active',
       description: normalizedCompany.description ?? null,
       dealTags: normalizedCompany.dealTags ?? null,
+      ...createPortfolioCompanyAllocationDefaults(normalizedCompany.stage),
     };
     this.portfolioCompanies.set(id, company);
     return company;
@@ -413,6 +452,11 @@ export class MemStorage implements IStorage {
       ownershipPercentage: null, // Optional field
       valuationAtInvestment: null, // Optional field
       dealTags: null, // Optional field
+      sharePriceCents: null,
+      sharesAcquired: null,
+      costBasisCents: null,
+      pricingConfidence: 'calculated',
+      version: 1,
       createdAt: new Date(),
     };
     this.investments.set(id, investment);

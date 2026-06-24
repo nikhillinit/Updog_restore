@@ -1,6 +1,6 @@
 import type { Express, Request, Response } from 'express';
 import { db } from '../db';
-import { funds, fundConfigs, fundEvents, fundSnapshots } from '@schema';
+import { funds, fundConfigs, fundEvents, fundSnapshots } from '@shared/schema';
 import { eq, and, desc, max, isNull } from 'drizzle-orm';
 import type { ApiError } from '@shared/types';
 import { Queue } from 'bullmq';

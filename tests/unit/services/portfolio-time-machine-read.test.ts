@@ -80,6 +80,7 @@ describe('PortfolioTimeMachineReadService', () => {
             sector: 'Fintech',
             stage: 'Series B',
             valuation: 9800000,
+            ownershipCurrentPct: '7.2500',
           },
         ],
       },
@@ -103,7 +104,9 @@ describe('PortfolioTimeMachineReadService', () => {
       name: 'TechCorp',
       currentValuation: '9800000',
       stage: 'Series B',
+      currentStage: 'Series B',
       investmentAmount: '5000000',
+      ownershipCurrentPct: '7.2500',
     });
   });
 

@@ -49,8 +49,7 @@ try {
     entryPoints: [resolve(root, 'server/app.ts')],
     outfile: resolve(root, 'api/_app.generated.mjs'),
     // Use the server tsconfig explicitly: esbuild otherwise auto-picks the
-    // nested server/tsconfig.json (missing @schema), leaving @schema external
-    // and crashing at runtime. tsconfig.server.json defines @shared + @schema.
+    // nested server/tsconfig.json and can leave shared path aliases external.
     tsconfig: resolve(root, 'tsconfig.server.json'),
     bundle: true,
     format: 'esm',
