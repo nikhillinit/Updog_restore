@@ -25,7 +25,6 @@ export function createVitestAlias(projectRoot, options = {}) {
     '@': resolve(projectRoot, './client/src'),
     '@shared/': resolve(projectRoot, './shared/'),
     '@shared': resolve(projectRoot, './shared'),
-    '@schema': resolve(projectRoot, './shared/schema'),
     ...(includeAssets ? { '@assets': resolve(projectRoot, './assets') } : {}),
     ...(includeServerShorthand ? { '@server': resolve(projectRoot, './server') } : {}),
     ...(includeUpstashRedisMock

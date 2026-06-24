@@ -8,6 +8,7 @@ last_updated: 2026-01-19
 ## 📋 Pre-Deployment Checklist
 
 ### 1. Local Validation (2 minutes)
+
 ```bash
 # Verify TypeScript compilation
 npm run check
@@ -23,7 +24,9 @@ npm run build:web
 ```
 
 ### 2. Environment Variables Ready
+
 Ensure you have values for:
+
 - `DATABASE_URL` - Neon HTTP connection string
 - `JWT_SECRET` - Generate with: `openssl rand -base64 32`
 - `ALLOWED_ORIGINS` - Your production domain
@@ -31,12 +34,13 @@ Ensure you have values for:
 ## 🚀 Deployment Steps
 
 ### Step 1: Push to GitHub (1 minute)
+
 ```bash
 git add -A
 git commit -m "feat: production-ready Vercel deployment
 
 - Direct Express handling (no serverless-http overhead)
-- Serverless-optimized DB client (HTTP on Vercel, WebSocket locally)  
+- Serverless-optimized DB client (HTTP on Vercel, WebSocket locally)
 - Filesystem-first routing (prevents asset serving bugs)
 - Health endpoints for monitoring
 - 0 TypeScript errors, 258KB bundle"
@@ -47,6 +51,7 @@ git push origin feat/build-optimizations-and-fixes
 ### Step 2: Initial Vercel Setup (5 minutes)
 
 #### First-time setup:
+
 ```bash
 # Install Vercel CLI if needed
 npm i -g vercel
@@ -57,6 +62,7 @@ vercel link
 ```
 
 #### Set environment variables:
+
 ```bash
 # Production secrets
 vercel env add DATABASE_URL production
@@ -70,6 +76,7 @@ vercel env add DATABASE_URL preview
 ```
 
 ### Step 3: Deploy to Preview (2 minutes)
+
 ```bash
 # Deploy to preview for testing
 vercel
@@ -80,6 +87,7 @@ vercel --env preview
 ```
 
 ### Step 4: Smoke Test Preview (1 minute)
+
 ```bash
 # Run smoke tests against preview
 ./scripts/smoke.sh https://your-app-abc123.vercel.app
@@ -89,6 +97,7 @@ vercel --env preview
 ```
 
 ### Step 5: Deploy to Production (1 minute)
+
 ```bash
 # If smoke tests pass, deploy to production
 vercel --prod
@@ -98,6 +107,7 @@ vercel --prod
 ```
 
 ### Step 6: Verify Production (1 minute)
+
 ```bash
 # Quick production check
 curl https://your-app.vercel.app/api/health
@@ -110,15 +120,17 @@ curl https://your-app.vercel.app/api/version
 ## 🔍 Post-Deployment Verification
 
 ### Health Monitoring
+
 ```bash
 # Continuous health check (run for 30 seconds)
-for i in {1..30}; do 
+for i in {1..30}; do
   curl -s https://your-app.vercel.app/api/health | jq .status
   sleep 1
 done
 ```
 
 ### Performance Check
+
 ```bash
 # Verify bundle size hasn't regressed
 curl -s https://your-app.vercel.app/ | grep -o '/assets/.*\.js' | head -1 | \
@@ -127,6 +139,7 @@ curl -s https://your-app.vercel.app/ | grep -o '/assets/.*\.js' | head -1 | \
 ```
 
 ### Database Connectivity
+
 ```bash
 # Test API endpoints that hit the database
 curl https://your-app.vercel.app/api/flags
@@ -138,6 +151,7 @@ curl https://your-app.vercel.app/api/flags
 If issues are detected:
 
 ### Quick Rollback (30 seconds)
+
 ```bash
 # In Vercel Dashboard:
 # 1. Go to Deployments tab
@@ -152,6 +166,7 @@ vercel rollback
 ### Troubleshooting
 
 #### Function Timeout Issues
+
 ```bash
 # Check function logs
 vercel logs https://your-app.vercel.app --since 10m
@@ -161,7 +176,8 @@ vercel logs https://your-app.vercel.app --since 10m
 # - Cold start delays (normal, will improve after warming)
 ```
 
-#### Asset Serving Issues  
+#### Asset Serving Issues
+
 ```bash
 # Verify routes configuration
 cat vercel.json | jq .routes
@@ -169,9 +185,10 @@ cat vercel.json | jq .routes
 ```
 
 #### TypeScript Alias Issues
+
 ```bash
-# If you see "Cannot find module '@schema'" errors:
-# We've already added tsconfig-paths, but verify:
+# If you see shared schema alias resolution errors:
+# Verify the canonical shared alias is bundled:
 grep tsconfig-paths api/\[\[...slug\]\].ts
 # Should show: import 'tsconfig-paths/register';
 ```
@@ -179,18 +196,21 @@ grep tsconfig-paths api/\[\[...slug\]\].ts
 ## 📊 Production Metrics
 
 ### What to Monitor
+
 - **Response Times**: Should be <100ms after warm
-- **Error Rate**: Should be <0.1%  
+- **Error Rate**: Should be <0.1%
 - **Bundle Size**: Should stay ~258KB
 - **TypeScript Errors**: Must stay at 0
 
 ### Vercel Analytics
+
 ```bash
 # View in dashboard
 open https://vercel.com/[your-team]/[your-project]/analytics
 ```
 
 ### Manual Health Check
+
 ```bash
 # Create a simple monitoring script
 cat > monitor.sh << 'EOF'
@@ -218,11 +238,12 @@ Your deployment is successful when:
 ✅ `/api/health` returns 200 OK  
 ✅ Assets load with correct content-type (not HTML)  
 ✅ Database queries complete in <100ms  
-✅ No errors in Vercel function logs  
+✅ No errors in Vercel function logs
 
 ## 📝 Notes
 
-- **Cold Starts**: First request after idle may take 2-3 seconds. This is normal for serverless.
+- **Cold Starts**: First request after idle may take 2-3 seconds. This is normal
+  for serverless.
 - **Database**: We use HTTP driver on Vercel to prevent connection exhaustion.
 - **Monitoring**: Consider adding Sentry for error tracking in production.
 - **Scaling**: Vercel automatically scales based on traffic.
@@ -230,11 +251,13 @@ Your deployment is successful when:
 ## 🔄 Regular Maintenance
 
 ### Weekly
+
 - Review Vercel function logs for errors
 - Check bundle size hasn't increased significantly
 - Verify all gate tests still pass
 
-### Monthly  
+### Monthly
+
 - Update dependencies with security patches
 - Review and optimize slow database queries
 - Audit environment variables for unused entries

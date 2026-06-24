@@ -147,10 +147,13 @@ function mergeHistoricalCompany(
     name: resolvedName,
     sector: historicalCompany.sector ?? liveMatch?.sector ?? 'Unknown',
     stage: historicalCompany.stage ?? liveMatch?.stage ?? 'Unknown',
+    currentStage:
+      historicalCompany.stage ?? liveMatch?.currentStage ?? liveMatch?.stage ?? 'Unknown',
     investmentAmount:
       coerceDecimalString(historicalCompany.investmentAmount, null) ??
       liveMatch?.investmentAmount ??
       '0',
+    investmentDate: liveMatch?.investmentDate ?? null,
     currentValuation:
       coerceDecimalString(
         historicalCompany.currentValuation ?? historicalCompany.valuation,
@@ -163,6 +166,18 @@ function mergeHistoricalCompany(
     description: liveMatch?.description ?? null,
     dealTags: liveMatch?.dealTags ?? null,
     createdAt: liveMatch?.createdAt ?? new Date(),
+    deployedReservesCents: liveMatch?.deployedReservesCents ?? 0,
+    plannedReservesCents: liveMatch?.plannedReservesCents ?? 0,
+    exitMoicBps: liveMatch?.exitMoicBps ?? null,
+    ownershipCurrentPct:
+      coerceDecimalString(historicalCompany.ownershipCurrentPct, null) ??
+      liveMatch?.ownershipCurrentPct ??
+      null,
+    allocationCapCents: liveMatch?.allocationCapCents ?? null,
+    allocationReason: liveMatch?.allocationReason ?? null,
+    allocationIteration: liveMatch?.allocationIteration ?? 0,
+    lastAllocationAt: liveMatch?.lastAllocationAt ?? null,
+    allocationVersion: liveMatch?.allocationVersion ?? 1,
   };
 }
 

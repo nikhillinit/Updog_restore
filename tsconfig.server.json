@@ -11,9 +11,7 @@
       "@/core/*": ["./client/src/core/*"],
       "@/lib/*": ["./client/src/lib/*"],
       "@shared/*": ["./shared/*"],
-      "@server/*": ["./server/*"],
-      "@schema": ["./schema/src/index.ts"],
-      "@schema/*": ["./schema/src/*"]
+      "@server/*": ["./server/*"]
     },
     "outDir": "dist/server",
     "rootDir": ".",
@@ -37,7 +35,6 @@
     "types",
     "server/**/*",
     "shared/**/*",
-    "schema/src/**/*",
     "lib/**/*",
     "client/src/core/**/*",
     "client/src/lib/**/*",

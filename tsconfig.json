@@ -8,9 +8,7 @@
     "shared/**/*.d.ts",
     "server/**/*.ts",
     "server/**/*.tsx",
-    "server/**/*.d.ts",
-    "schema/src/**/*.ts",
-    "schema/src/**/*.d.ts"
+    "server/**/*.d.ts"
   ],
   "exclude": [
     "node_modules",
@@ -51,9 +49,7 @@
       "@/core/*": ["./client/src/core/*"],
       "@/lib/*": ["./client/src/lib/*"],
       "@shared/*": ["./shared/*"],
-      "@server/*": ["./server/*"],
-      "@schema": ["./schema/src/index.ts"],
-      "@schema/*": ["./schema/src/*"]
+      "@server/*": ["./server/*"]
     }
   }
 }
