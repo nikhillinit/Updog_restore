@@ -29,7 +29,7 @@ describe('fund-moic route contract', () => {
 
   it('branches the GET on a v1/v2 contract query and rejects unknown contracts', async () => {
     const source = await readRepoFile('server/routes/fund-moic.ts');
-    expect(source).toContain('req.query.contract');
+    expect(source).toContain("req.query['contract']");
     expect(source).toContain("'v2'");
     expect(source).toContain('invalid_contract');
     // V2 output is re-validated against the strict allowlist contract.
