@@ -160,8 +160,9 @@ function accumulateModelAmount(params: {
   company: CompanyAccumulator;
   round: ActiveRoundRow;
   role: RoundModelRole;
+  amountOnly: boolean;
 }): void {
-  if (params.role === 'amount_only') {
+  if (params.amountOnly) {
     return;
   }
   if (params.role === 'initial') {
@@ -296,7 +297,7 @@ export function buildRoundsToModelEvidenceFromRows(params: BuildParams): RoundsT
         );
       }
 
-      accumulateModelAmount({ company: evidence, round, role });
+      accumulateModelAmount({ company: evidence, round, role, amountOnly });
       evidence.rounds.push({
         roundId: round.id,
         investmentId: round.investmentId,

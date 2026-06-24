@@ -66,6 +66,39 @@ describe('buildRoundsToModelEvidenceFromRows', () => {
     expect(evidence.coverage.warningsByCode.NON_EQUITY_AMOUNT_ONLY).toBe(1);
   });
 
+  it.each(['initial', 'follow_on'] as const)(
+    'keeps non-equity rounds amount-only when override role is %s',
+    (overrideRole) => {
+      const evidence = buildRoundsToModelEvidenceFromRows({
+        fundId: 10,
+        now,
+        rows: {
+          ...baseRows,
+          activeOverrides: [
+            {
+              id: 10,
+              fundId: 10,
+              roundId: 2,
+              overrideRole,
+              supersedesOverrideId: null,
+              createdAt: new Date('2025-02-03T00:00:00.000Z'),
+            },
+          ],
+        },
+      });
+
+      const safeRound = evidence.companies[0]?.rounds.find((round) => round.roundId === 2);
+      expect(safeRound?.role).toBe(overrideRole);
+      expect(safeRound?.amountOnly).toBe(true);
+      expect(safeRound?.overrideApplied).toBe(true);
+      expect(evidence.companies[0]?.amountOnlyNonEquityAmount).toBe('125000.000000');
+      expect(evidence.companies[0]?.initialAmount).toBe('500000.000000');
+      expect(evidence.companies[0]?.followOnAmount).toBe('0.000000');
+      expect(evidence.coverage.warningsByCode.NON_EQUITY_AMOUNT_ONLY).toBe(1);
+      expect(evidence.coverage.warningsByCode.ROUND_MODEL_OVERRIDE_APPLIED).toBe(1);
+    }
+  );
+
   it('orders same-date equity rounds by created timestamp before assigning model roles', () => {
     const evidence = buildRoundsToModelEvidenceFromRows({
       fundId: 10,
