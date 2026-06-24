@@ -48,9 +48,21 @@ export const investmentRoundModelOverrides = pgTable(
     })
       .onUpdate('restrict')
       .onDelete('restrict'),
+    supersedesLineageFk: foreignKey({
+      name: 'investment_round_model_overrides_supersedes_lineage_fk',
+      columns: [table.supersedesOverrideId, table.fundId, table.roundId],
+      foreignColumns: [table.id, table.fundId, table.roundId],
+    })
+      .onUpdate('restrict')
+      .onDelete('restrict'),
     supersedesUniqueIdx: uniqueIndex('investment_round_model_overrides_supersedes_uq')
       .on(table.supersedesOverrideId)
       .where(sql`supersedes_override_id IS NOT NULL`),
+    idFundRoundUniqueIdx: uniqueIndex('investment_round_model_overrides_id_fund_round_uq').on(
+      table.id,
+      table.fundId,
+      table.roundId
+    ),
     rootLineageUniqueIdx: uniqueIndex('investment_round_model_overrides_root_lineage_uq')
       .on(table.fundId, table.roundId)
       .where(sql`supersedes_override_id IS NULL`),
