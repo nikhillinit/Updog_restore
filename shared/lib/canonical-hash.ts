@@ -7,6 +7,9 @@ function canonicalize(value: unknown): unknown {
   if (Array.isArray(value)) {
     return value.map(canonicalize);
   }
+  if (value instanceof Date) {
+    return value.toJSON();
+  }
 
   const record = value as Record<string, unknown>;
   const canonical: Record<string, unknown> = {};
