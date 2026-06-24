@@ -1,0 +1,14 @@
+ALTER TABLE IF EXISTS investment_round_model_overrides
+  DROP CONSTRAINT IF EXISTS investment_round_model_overrides_supersedes_lineage_fk;
+
+ALTER TABLE IF EXISTS investment_round_model_overrides
+  DROP CONSTRAINT IF EXISTS investment_round_model_overrides_round_fund_fk;
+
+DROP INDEX IF EXISTS investment_round_model_overrides_fund_round_idx;
+DROP INDEX IF EXISTS investment_round_model_overrides_root_lineage_uq;
+DROP INDEX IF EXISTS investment_round_model_overrides_id_fund_round_uq;
+DROP INDEX IF EXISTS investment_round_model_overrides_supersedes_uq;
+
+DROP TABLE IF EXISTS investment_round_model_overrides;
+
+DROP INDEX IF EXISTS investment_rounds_id_fund_uq;

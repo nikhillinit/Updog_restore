@@ -92,6 +92,7 @@ export const investmentRounds = pgTable(
       table.fundId,
       table.idempotencyKey
     ),
+    idFundUniqueIdx: uniqueIndex('investment_rounds_id_fund_uq').on(table.id, table.fundId),
     supersedesUniqueIdx: uniqueIndex('investment_rounds_supersedes_uq')
       .on(table.supersedesRoundId)
       .where(sql`supersedes_round_id IS NOT NULL`),
