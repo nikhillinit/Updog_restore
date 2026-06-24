@@ -95,6 +95,7 @@
     "command": "echo 'Commands: /test-smart /fix-auto /deploy-check /workflows | Agents: waterfall-specialist test-repair perf-guard db-migration'"
   },
   "enabledPlugins": {
-    "cicd-automation@claude-code-workflows": true
+    "cicd-automation@claude-code-workflows": true,
+    "playwright@claude-plugins-official": true
   }
 }
