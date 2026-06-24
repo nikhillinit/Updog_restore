@@ -9,6 +9,7 @@ import {
   serial,
   text,
   timestamp,
+  unique,
   uniqueIndex,
   varchar,
 } from 'drizzle-orm/pg-core';
@@ -61,7 +62,10 @@ export const investmentRoundModelOverrides = pgTable(
     supersedesUniqueIdx: uniqueIndex('investment_round_model_overrides_supersedes_uq')
       .on(table.supersedesOverrideId)
       .where(sql`supersedes_override_id IS NOT NULL`),
-    idFundRoundUniqueIdx: uniqueIndex('investment_round_model_overrides_id_fund_round_uq').on(
+    // FK target for supersedes_lineage_fk (self-reference). Must be a UNIQUE
+    // CONSTRAINT (not a unique index) so drizzle-kit push creates it before the
+    // FK phase; a uniqueIndex is created after FKs -> PG 42830 aborts the push.
+    idFundRoundUnique: unique('investment_round_model_overrides_id_fund_round_uq').on(
       table.id,
       table.fundId,
       table.roundId
