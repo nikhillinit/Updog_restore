@@ -45,6 +45,7 @@ import {
   commitValuationMarkImport,
   ImportCommitError,
 } from '../../services/lp-reporting/import-commit-service';
+import { invalidateH9Artifacts } from '../../services/h9-artifact-invalidation-service';
 
 const router = Router();
 
@@ -214,6 +215,9 @@ router.post(
         ...parsedBody.data,
       });
       const validated = ImportCommitResponseSchema.parse(result);
+      if (validated.insertedCount > 0) {
+        await invalidateH9Artifacts(parseFundId(req));
+      }
       return res.status(validated.insertedCount > 0 ? 201 : 200).json(validated);
     } catch (err) {
       return sendCommitError(res, err);
@@ -243,6 +247,9 @@ router.post(
         ...parsedBody.data,
       });
       const validated = ImportCommitResponseSchema.parse(result);
+      if (validated.insertedCount > 0) {
+        await invalidateH9Artifacts(parseFundId(req));
+      }
       return res.status(validated.insertedCount > 0 ? 201 : 200).json(validated);
     } catch (err) {
       return sendCommitError(res, err);

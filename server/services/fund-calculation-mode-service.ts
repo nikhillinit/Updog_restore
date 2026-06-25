@@ -13,6 +13,7 @@ import {
   getFundMoicRankingSources,
   type FundMoicRankingSources,
 } from './fund-moic-ranking-service';
+import { invalidateH9Artifacts } from './h9-artifact-invalidation-service';
 import { reconciliationRuns } from '../../shared/schema';
 import { buildRoundsToModelEvidence } from './rounds-to-model-evidence-service';
 
@@ -719,7 +720,7 @@ export async function updateFundMoicCalculationMode(params: {
     acceptedReconciliationRunId: params.acceptedReconciliationRunId ?? null,
   });
 
-  return database.transaction(async (tx) => {
+  const result = await database.transaction(async (tx) => {
     const claim = await claimOrReplay({
       tx,
       fundId: params.fundId,
@@ -830,4 +831,8 @@ export async function updateFundMoicCalculationMode(params: {
 
     return { response, replayed: false };
   });
+  if (!result.replayed) {
+    await invalidateH9Artifacts(params.fundId);
+  }
+  return result;
 }
