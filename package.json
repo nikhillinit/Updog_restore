@@ -45,7 +45,7 @@
     "guard:financial-placeholders:check": "node scripts/guardrails/no-portfolio-placeholder-financial-success.mjs",
     "guard:round-derived-financial-claims:check": "node scripts/guardrails/no-client-round-derived-financial-claims.mjs",
     "guardrails:check": "npm run guard:console:check && npm run guard:eslint-disable:check && npm run guard:scripts:check && npm run guard:route-imports:check && npm run guard:financial-placeholders:check && npm run guard:round-derived-financial-claims:check",
-    "db:push": "drizzle-kit push",
+    "db:push": "node scripts/db-push.mjs",
     "db:studio": "drizzle-kit studio",
     "db:seed:demo": "cross-env DEMO_SEED=1 npx tsx server/seed-demo-data.ts",
     "demo-profile:import": "npx tsx scripts/import-demo-profile.ts",
