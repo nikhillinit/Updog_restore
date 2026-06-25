@@ -31,6 +31,9 @@ export default defineConfig({
       'tests/integration/migration-runner.test.ts',
       'tests/integration/fund-lifecycle-db.test.ts',
       'tests/integration/migration-drift.test.ts',
+      'tests/integration/migrations/investment-rounds-schema.test.ts',
+      'tests/integration/migrations/investments-id-fund-unique.test.ts',
+      'tests/integration/investment-scenario-capability.test.ts',
       // DISABLED: Pre-existing issues - fix in separate PRs
       // 'tests/integration/ScenarioMatrixCache.integration.test.ts', // bucket allocation validation
       // 'tests/integration/cache-monitoring.integration.test.ts', // server/db.ts imports database-mock
