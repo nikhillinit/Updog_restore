@@ -338,6 +338,14 @@ export function createMoicActionabilityResolver(params: { database?: unknown; no
   };
 }
 
+const defaultMoicActionabilityResolver = createMoicActionabilityResolver({ database: db });
+
+export function resolveMoicActionability(
+  input: MoicActionabilityResolveInput
+): Promise<MoicActionabilityResult> {
+  return defaultMoicActionabilityResolver.resolve(input);
+}
+
 function requestHashFor(params: {
   fundId: number;
   expectedVersion: number;

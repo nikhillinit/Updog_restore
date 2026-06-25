@@ -29,15 +29,13 @@ import {
   FundCalculationModeIdempotencyConflictError,
   FundCalculationModeInProgressError,
   FundCalculationModeVersionConflictError,
-  createMoicActionabilityResolver,
+  resolveMoicActionability,
   resolveFundCalculationMode,
   updateFundMoicCalculationMode,
 } from '../services/fund-calculation-mode-service.js';
 import { buildRoundsToModelEvidence } from '../services/rounds-to-model-evidence-service.js';
-import { db } from '../db.js';
 
 const router = Router();
-const moicActionabilityResolver = createMoicActionabilityResolver({ database: db });
 
 const ConfiguredModeSchema = z.enum(['off', 'shadow', 'on']);
 const MoicInputUpdateBodySchema = z
@@ -116,7 +114,7 @@ router.get(
     if (contract === undefined || contract === 'v1') {
       const sources = await getFundMoicRankingSources(fundId);
       const modePreview = await resolveFundCalculationMode({ fundId, sources });
-      const actionability = await moicActionabilityResolver.resolve({ fundId, sources });
+      const actionability = await resolveMoicActionability({ fundId, sources });
       const rankings =
         modePreview.effectiveMode === 'on' && actionability.actionability === 'actionable'
           ? sources.candidate
@@ -137,7 +135,7 @@ router.get(
       buildRoundsToModelEvidence({ fundId }),
     ]);
     const modePreview = await resolveFundCalculationMode({ fundId, sources });
-    const actionability = await moicActionabilityResolver.resolve({ fundId, sources, evidence });
+    const actionability = await resolveMoicActionability({ fundId, sources, evidence });
     const usingCandidateRankings =
       modePreview.effectiveMode === 'on' && actionability.actionability === 'actionable';
     const rankings = usingCandidateRankings ? sources.candidate : sources.legacy;
