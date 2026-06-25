@@ -54,6 +54,22 @@ const ISSUE_781_SCHEMA_TABLES = [
   'lp_notification_preferences',
 ] as const;
 
+const H9_ACTIONABILITY_COLUMN_TABLES = [
+  'fund_snapshots',
+  'fund_calculation_modes',
+  'lp_report_packages',
+  'pacing_history',
+] as const;
+
+const H9_ACTIONABILITY_COLUMNS = [
+  'h9_moic_source_input_hash',
+  'h9_round_evidence_input_hash',
+  'h9_round_evidence_assumptions_hash',
+  'h9_fingerprint_hash',
+  'h9_policy_version',
+  'h9_actionability_status',
+] as const;
+
 const skipIfNoDocker = !process.env.CI && process.platform === 'win32';
 
 let postgres: StartedPostgreSqlContainer | undefined;
@@ -84,6 +100,24 @@ async function publicTables(activePool: Pool): Promise<Set<string>> {
   );
 
   return new Set(result.rows.map((row) => row.table_name));
+}
+
+async function publicColumns(
+  activePool: Pool,
+  tableNames: readonly string[]
+): Promise<Set<string>> {
+  const result = await activePool.query<{ table_name: string; column_name: string }>(
+    `
+      SELECT table_name, column_name
+      FROM information_schema.columns
+      WHERE table_schema = 'public'
+        AND table_name = ANY($1::text[])
+        AND column_name = ANY($2::text[])
+    `,
+    [tableNames, H9_ACTIONABILITY_COLUMNS]
+  );
+
+  return new Set(result.rows.map((row) => `${row.table_name}.${row.column_name}`));
 }
 
 describe.skipIf(skipIfNoDocker)('migration drift guard', () => {
@@ -124,5 +158,22 @@ describe.skipIf(skipIfNoDocker)('migration drift guard', () => {
     );
 
     expect(missingTables).toEqual([]);
+  });
+
+  it('keeps H9 actionability columns present in the journaled migration stream', async () => {
+    expect(pool).toBeDefined();
+
+    const declaredTables = schemaTableNames();
+    const undeclaredH9Tables = H9_ACTIONABILITY_COLUMN_TABLES.filter(
+      (tableName) => !declaredTables.has(tableName)
+    );
+    expect(undeclaredH9Tables).toEqual([]);
+
+    const migratedColumns = await publicColumns(pool!, H9_ACTIONABILITY_COLUMN_TABLES);
+    const missingColumns = H9_ACTIONABILITY_COLUMN_TABLES.flatMap((tableName) =>
+      H9_ACTIONABILITY_COLUMNS.map((columnName) => `${tableName}.${columnName}`)
+    ).filter((columnKey) => !migratedColumns.has(columnKey));
+
+    expect(missingColumns).toEqual([]);
   });
 });

@@ -51,6 +51,14 @@ import { funds } from './fund';
 import { portfolioCompanies } from './portfolio';
 import { users } from './user';
 import { limitedPartners } from '../schema-lp-reporting';
+import {
+  FinancialActionabilitySchema,
+  type FinancialActionability,
+} from '../contracts/financial-provenance.contract';
+
+const h9FinancialActionabilityValuesSql = sql.raw(
+  FinancialActionabilitySchema.options.map((value) => `'${value}'`).join(', ')
+);
 
 // ============================================================================
 // VEHICLES
@@ -499,12 +507,38 @@ export const lpReportPackages = pgTable(
       .notNull()
       .references(() => users.id),
     assembledAt: timestamp('assembled_at', { withTimezone: true }).notNull().defaultNow(),
+    h9MoicSourceInputHash: text('h9_moic_source_input_hash'),
+    h9RoundEvidenceInputHash: text('h9_round_evidence_input_hash'),
+    h9RoundEvidenceAssumptionsHash: text('h9_round_evidence_assumptions_hash'),
+    h9FingerprintHash: text('h9_fingerprint_hash'),
+    h9PolicyVersion: text('h9_policy_version'),
+    h9ActionabilityStatus: varchar('h9_actionability_status', {
+      length: 24,
+    }).$type<FinancialActionability>(),
     version: integer('version').notNull().default(1),
     createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow(),
   },
   (table) => ({
     statusCheck: check('lp_report_package_status_check', sql`${table.status} IN ('assembled')`),
+    h9ActionabilityStatusCheck: check(
+      'lp_report_packages_h9_actionability_status_check',
+      sql`${table.h9ActionabilityStatus} IS NULL OR ${table.h9ActionabilityStatus} IN (${h9FinancialActionabilityValuesSql})`
+    ),
+    h9ActionableFingerprintCheck: check(
+      'lp_report_packages_h9_actionable_fingerprint_check',
+      sql`
+        ${table.h9ActionabilityStatus} IS NULL
+        OR ${table.h9ActionabilityStatus} <> 'actionable'
+        OR (
+          ${table.h9MoicSourceInputHash} IS NOT NULL
+          AND ${table.h9RoundEvidenceInputHash} IS NOT NULL
+          AND ${table.h9RoundEvidenceAssumptionsHash} IS NOT NULL
+          AND ${table.h9FingerprintHash} IS NOT NULL
+          AND ${table.h9PolicyVersion} IS NOT NULL
+        )
+      `
+    ),
     metricRunUniqueIdx: uniqueIndex('lp_report_packages_metric_run_unique').on(table.metricRunId),
     fundMetricIdx: index('idx_lp_report_packages_fund_metric').on(table.fundId, table.metricRunId),
     assembledAtIdx: index('idx_lp_report_packages_fund_assembled_at').on(

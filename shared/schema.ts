@@ -22,6 +22,10 @@ import {
   varchar,
 } from 'drizzle-orm/pg-core';
 import { createInsertSchema } from 'drizzle-zod';
+import {
+  FinancialActionabilitySchema,
+  type FinancialActionability,
+} from './contracts/financial-provenance.contract';
 
 // ============================================================================
 // DOMAIN MODULE RE-EXPORTS (barrel pattern for backward compatibility)
@@ -46,6 +50,10 @@ import { funds, fundConfigs, fundSnapshots, calcRuns } from './schema/fund';
 import { portfolioCompanies, investments } from './schema/portfolio';
 import type { scenarios, scenarioCases, scenarioAuditLogs } from './schema/scenario';
 import { users } from './schema/user';
+
+const h9FinancialActionabilityValuesSql = sql.raw(
+  FinancialActionabilitySchema.options.map((value) => `'${value}'`).join(', ')
+);
 
 // Fund events for audit trail
 export const fundEvents = pgTable(
@@ -711,10 +719,36 @@ export const pacingHistory = pgTable(
     quarter: varchar('quarter', { length: 8 }).notNull(),
     deploymentAmount: decimal('deployment_amount', { precision: 15, scale: 2 }).notNull(),
     marketCondition: varchar('market_condition', { length: 16 }),
+    h9MoicSourceInputHash: text('h9_moic_source_input_hash'),
+    h9RoundEvidenceInputHash: text('h9_round_evidence_input_hash'),
+    h9RoundEvidenceAssumptionsHash: text('h9_round_evidence_assumptions_hash'),
+    h9FingerprintHash: text('h9_fingerprint_hash'),
+    h9PolicyVersion: text('h9_policy_version'),
+    h9ActionabilityStatus: varchar('h9_actionability_status', {
+      length: 24,
+    }).$type<FinancialActionability>(),
     createdAt: timestamp('created_at').defaultNow(),
   },
   (table) => ({
     fundQuarterUnique: unique('unique_fund_quarter')['on'](table.fundId, table.quarter),
+    h9ActionabilityStatusCheck: check(
+      'pacing_history_h9_actionability_status_check',
+      sql`${table.h9ActionabilityStatus} IS NULL OR ${table.h9ActionabilityStatus} IN (${h9FinancialActionabilityValuesSql})`
+    ),
+    h9ActionableFingerprintCheck: check(
+      'pacing_history_h9_actionable_fingerprint_check',
+      sql`
+        ${table.h9ActionabilityStatus} IS NULL
+        OR ${table.h9ActionabilityStatus} <> 'actionable'
+        OR (
+          ${table.h9MoicSourceInputHash} IS NOT NULL
+          AND ${table.h9RoundEvidenceInputHash} IS NOT NULL
+          AND ${table.h9RoundEvidenceAssumptionsHash} IS NOT NULL
+          AND ${table.h9FingerprintHash} IS NOT NULL
+          AND ${table.h9PolicyVersion} IS NOT NULL
+        )
+      `
+    ),
   })
 );
 

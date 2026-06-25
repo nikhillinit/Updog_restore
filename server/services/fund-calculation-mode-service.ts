@@ -1,12 +1,20 @@
-import { sql, type SQL } from 'drizzle-orm';
+import { and, desc, eq, sql, type SQL } from 'drizzle-orm';
 
 import { db } from '../db';
+import {
+  ACTIONABILITY_POLICY_VERSION,
+  H9SourceFingerprintSchema,
+  type H9ActionabilityStatus,
+  type H9SourceFingerprint,
+} from '../../shared/contracts/h9-actionability.contract';
 import { canonicalSha256 } from '../../shared/lib/canonical-hash';
 import {
   FUND_MOIC_CALCULATION_KEY,
   getFundMoicRankingSources,
   type FundMoicRankingSources,
 } from './fund-moic-ranking-service';
+import { reconciliationRuns } from '../../shared/schema';
+import { buildRoundsToModelEvidence } from './rounds-to-model-evidence-service';
 
 const MODE_ROUTE = 'PUT /api/admin/funds/:fundId/calculation-modes/fund-moic-rankings';
 export const MOIC_MODE_RESIDENCY_DAYS_REQUIRED = 7;
@@ -102,12 +110,240 @@ type ReconciliationRow = {
   requested_at?: Date | string;
 };
 
+type AcceptedMoicReconciliationRow = {
+  id?: number;
+  requestedAt?: Date | string;
+  requested_at?: Date | string;
+  status?: string;
+  candidateInputHash?: string | null;
+  candidate_input_hash?: string | null;
+  evidenceInputHash?: string | null;
+  evidence_input_hash?: string | null;
+  assumptionsHash?: string | null;
+  assumptions_hash?: string | null;
+};
+
+type RoundsCoverageForActionability = {
+  activeRoundCount: number;
+  activeOverrideCount: number;
+  warningsByCode: Record<string, number>;
+};
+
+type RoundsEvidenceForActionability = {
+  coverage: RoundsCoverageForActionability;
+};
+
+type MoicActionabilityResolveInput = {
+  fundId: number;
+  sources?: FundMoicRankingSources;
+  evidence?: RoundsEvidenceForActionability;
+};
+
+export type MoicActionabilityResult = {
+  sourceFingerprintMatches: boolean;
+  actionability: H9ActionabilityStatus;
+  actionabilityStatus: H9ActionabilityStatus;
+  sourceFingerprint: H9SourceFingerprint;
+  acceptedReconciliationRunId: string | null;
+};
+
+type SelectLimitStep = {
+  limit: (count: number) => Promise<unknown[]>;
+};
+
+type SelectOrderByStep = {
+  orderBy: (...clauses: unknown[]) => SelectLimitStep;
+};
+
+type SelectWhereStep = SelectLimitStep & SelectOrderByStep;
+
+type SelectFromStep = {
+  from: (table: unknown) => {
+    where: (condition: unknown) => SelectWhereStep;
+  };
+};
+
+type QueryReconciliationLookup = {
+  query: {
+    reconciliationRuns: {
+      findFirst: (query: unknown) => Promise<unknown>;
+    };
+  };
+};
+
+type SelectReconciliationLookup = {
+  select: () => SelectFromStep;
+};
+
 async function executeRows<T>(
   executor: Pick<FundCalculationModeTransaction, 'execute'>,
   query: SQL
 ): Promise<T[]> {
   const result = (await executor.execute(query)) as ExecuteResult<T>;
   return result.rows;
+}
+
+function hasQueryReconciliationLookup(database: unknown): database is QueryReconciliationLookup {
+  return (
+    typeof database === 'object' &&
+    database !== null &&
+    'query' in database &&
+    typeof (database as { query?: unknown }).query === 'object' &&
+    (database as { query?: unknown }).query !== null &&
+    'reconciliationRuns' in (database as { query: { reconciliationRuns?: unknown } }).query &&
+    typeof (database as { query: { reconciliationRuns?: { findFirst?: unknown } } }).query
+      .reconciliationRuns?.findFirst === 'function'
+  );
+}
+
+function hasSelectReconciliationLookup(database: unknown): database is SelectReconciliationLookup {
+  return (
+    typeof database === 'object' &&
+    database !== null &&
+    'select' in database &&
+    typeof (database as { select?: unknown }).select === 'function'
+  );
+}
+
+function coerceAcceptedReconciliationRow(value: unknown): AcceptedMoicReconciliationRow | null {
+  if (typeof value !== 'object' || value === null) {
+    return null;
+  }
+  return value as AcceptedMoicReconciliationRow;
+}
+
+function acceptedCandidateInputHash(row: AcceptedMoicReconciliationRow | null): string | null {
+  return row?.candidateInputHash ?? row?.candidate_input_hash ?? null;
+}
+
+function acceptedEvidenceInputHash(row: AcceptedMoicReconciliationRow | null): string | null {
+  return row?.evidenceInputHash ?? row?.evidence_input_hash ?? null;
+}
+
+function acceptedReconciliationRunId(row: AcceptedMoicReconciliationRow | null): string | null {
+  if (row?.id === undefined) {
+    return null;
+  }
+  return String(row.id);
+}
+
+async function loadAcceptedMoicReconciliation(params: {
+  database: unknown;
+  fundId: number;
+}): Promise<AcceptedMoicReconciliationRow | null> {
+  if (hasQueryReconciliationLookup(params.database)) {
+    const row = await params.database.query.reconciliationRuns.findFirst({
+      where: (run: typeof reconciliationRuns, operators: { and: typeof and; eq: typeof eq }) =>
+        operators.and(
+          operators.eq(run.fundId, params.fundId),
+          operators.eq(run.status, 'completed')
+        ),
+      orderBy: (run: typeof reconciliationRuns, operators: { desc: typeof desc }) => [
+        operators.desc(run.requestedAt),
+        operators.desc(run.id),
+      ],
+    });
+    return coerceAcceptedReconciliationRow(row);
+  }
+
+  if (hasSelectReconciliationLookup(params.database)) {
+    const rows = await params.database
+      .select()
+      .from(reconciliationRuns)
+      .where(
+        and(
+          eq(reconciliationRuns.fundId, params.fundId),
+          eq(reconciliationRuns.status, 'completed')
+        )
+      )
+      .orderBy(desc(reconciliationRuns.requestedAt), desc(reconciliationRuns.id))
+      .limit(1);
+    return coerceAcceptedReconciliationRow(rows[0]);
+  }
+
+  throw new Error('MOIC actionability resolver requires a reconciliation lookup database');
+}
+
+function buildRoundEvidenceAssumptionsHash(now: Date): string {
+  return canonicalSha256({
+    policyVersion: ACTIONABILITY_POLICY_VERSION,
+    generatedAt: now.toISOString(),
+  });
+}
+
+function buildH9SourceFingerprint(params: {
+  moicSourceInputHash: string;
+  roundEvidenceInputHash: string;
+  roundEvidenceAssumptionsHash: string;
+}): H9SourceFingerprint {
+  const fingerprintBase = {
+    moicSourceInputHash: params.moicSourceInputHash,
+    roundEvidenceInputHash: params.roundEvidenceInputHash,
+    roundEvidenceAssumptionsHash: params.roundEvidenceAssumptionsHash,
+    policyVersion: ACTIONABILITY_POLICY_VERSION,
+  };
+
+  return H9SourceFingerprintSchema.parse({
+    ...fingerprintBase,
+    fingerprintHash: canonicalSha256(fingerprintBase),
+  });
+}
+
+export function createMoicActionabilityResolver(params: { database?: unknown; now?: Date }) {
+  if (!params.database) {
+    throw new Error('createMoicActionabilityResolver requires database');
+  }
+
+  const database = params.database;
+
+  async function resolve(input: MoicActionabilityResolveInput): Promise<MoicActionabilityResult> {
+    const now = params.now ?? new Date();
+    const sources =
+      input.sources ??
+      (await getFundMoicRankingSources(input.fundId, database as FundCalculationModeDatabase));
+    const evidence =
+      input.evidence ??
+      (await buildRoundsToModelEvidence({
+        fundId: input.fundId,
+        now,
+        database: database as FundCalculationModeDatabase,
+      }));
+    const sourceFingerprint = buildH9SourceFingerprint({
+      moicSourceInputHash: sources.moicSourceInputHash,
+      roundEvidenceInputHash: canonicalSha256(evidence.coverage),
+      roundEvidenceAssumptionsHash: buildRoundEvidenceAssumptionsHash(now),
+    });
+    const accepted = await loadAcceptedMoicReconciliation({ database, fundId: input.fundId });
+    const sourceFingerprintMatches = Boolean(
+      accepted &&
+      acceptedCandidateInputHash(accepted) === sourceFingerprint.moicSourceInputHash &&
+      acceptedEvidenceInputHash(accepted) === sourceFingerprint.roundEvidenceInputHash
+    );
+    const actionability: H9ActionabilityStatus = sourceFingerprintMatches
+      ? 'actionable'
+      : 'non_actionable';
+
+    return {
+      sourceFingerprintMatches,
+      actionability,
+      actionabilityStatus: actionability,
+      sourceFingerprint,
+      acceptedReconciliationRunId: acceptedReconciliationRunId(accepted),
+    };
+  }
+
+  return {
+    resolve,
+    resolveForFund: (fundId: number) => resolve({ fundId }),
+  };
+}
+
+const defaultMoicActionabilityResolver = createMoicActionabilityResolver({ database: db });
+
+export function resolveMoicActionability(
+  input: MoicActionabilityResolveInput
+): Promise<MoicActionabilityResult> {
+  return defaultMoicActionabilityResolver.resolve(input);
 }
 
 function requestHashFor(params: {
