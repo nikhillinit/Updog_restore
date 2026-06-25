@@ -244,6 +244,31 @@ describe('fund calculation mode service', () => {
     });
   });
 
+  it('rolls back from on to off with kill switch without requiring a fresh reconciliation', async () => {
+    const { database } = makeDatabase([
+      [{ id: 100 }],
+      [modeRow({ configured_mode: 'on', version: 2 })],
+      [modeRow({ configured_mode: 'off', kill_switch_active: true, version: 3 })],
+      [],
+    ]);
+
+    const result = await updateFundMoicCalculationMode({
+      ...baseUpdate,
+      expectedVersion: 2,
+      configuredMode: 'off',
+      killSwitchActive: true,
+      database: database as never,
+    });
+
+    expect(result.response).toMatchObject({
+      configuredMode: 'off',
+      effectiveMode: 'off',
+      killSwitchActive: true,
+      version: 3,
+    });
+    expect(result.replayed).toBe(false);
+  });
+
   it('keeps configured on effective candidate after source drift while marking stale', async () => {
     const { database } = makeDatabase([
       [
