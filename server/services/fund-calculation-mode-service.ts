@@ -345,6 +345,17 @@ export function resolveMoicActionability(
   return defaultMoicActionabilityResolver.resolve(input);
 }
 
+export function toH9SnapshotColumns(result: MoicActionabilityResult) {
+  return {
+    h9MoicSourceInputHash: result.sourceFingerprint.moicSourceInputHash,
+    h9RoundEvidenceInputHash: result.sourceFingerprint.roundEvidenceInputHash,
+    h9RoundEvidenceAssumptionsHash: result.sourceFingerprint.roundEvidenceAssumptionsHash,
+    h9FingerprintHash: result.sourceFingerprint.fingerprintHash,
+    h9PolicyVersion: result.sourceFingerprint.policyVersion,
+    h9ActionabilityStatus: result.actionability,
+  };
+}
+
 function requestHashFor(params: {
   fundId: number;
   expectedVersion: number;
