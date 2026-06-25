@@ -41,6 +41,10 @@ type MoicActionabilityResult = {
   actionability?: unknown;
   actionabilityStatus?: unknown;
   status?: unknown;
+  sourceFingerprint?: {
+    roundEvidenceAssumptionsHash?: unknown;
+    fingerprintHash?: unknown;
+  };
 };
 
 type ResolveByParams = (input: { fundId: number }) => Promise<MoicActionabilityResult>;
@@ -188,5 +192,24 @@ describe('fund MOIC actionability resolver', () => {
 
     expect(result.sourceFingerprintMatches).toBe(false);
     expect(actionabilityStatus(result)).toBe('non_actionable');
+  });
+
+  it('produces a now-independent fingerprint so cache keys and snapshot stamps stay stable', async () => {
+    const database = makeDatabase([reconciliationRow()]);
+    const early = await resolveForFund(
+      createMoicActionabilityResolver({ database, now: new Date('2020-01-01T00:00:00.000Z') }),
+      7
+    );
+    const late = await resolveForFund(
+      createMoicActionabilityResolver({ database, now: new Date('2023-06-15T12:00:00.000Z') }),
+      7
+    );
+
+    expect(early.sourceFingerprint?.roundEvidenceAssumptionsHash).toBe(
+      late.sourceFingerprint?.roundEvidenceAssumptionsHash
+    );
+    expect(early.sourceFingerprint?.fingerprintHash).toBe(
+      late.sourceFingerprint?.fingerprintHash
+    );
   });
 });
