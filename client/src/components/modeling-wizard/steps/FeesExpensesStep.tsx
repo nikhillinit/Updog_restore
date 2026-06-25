@@ -17,7 +17,6 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { feesExpensesSchema, type FeesExpensesInput } from '@/schemas/modeling-wizard.schemas';
-import { useDebounceDeep } from '@/hooks/useDebounceDeep';
 
 export interface FeesExpensesStepProps {
   initialData?: Partial<FeesExpensesInput>;
@@ -54,19 +53,32 @@ export function FeesExpensesStep({ initialData, onSave }: FeesExpensesStepProps)
 
   const stepDownEnabled = watch('managementFee.stepDown.enabled');
 
-  // Watch all form values and debounce to prevent infinite save loop
-  // watch() returns new object every render, defeating memoization
-  // useDebounceDeep uses JSON-based deep equality to stabilize references
-  const formValues = watch();
-  const debouncedFormValues = useDebounceDeep(formValues, 250);
-
-  // Auto-save when valid (uses debounced value to prevent 460+ saves/sec)
+  // Auto-save valid edits without depending on watch() object identity across renders.
   React.useEffect(() => {
-    const result = feesExpensesSchema.safeParse(debouncedFormValues);
-    if (result.success) {
-      onSave(result.data);
-    }
-  }, [debouncedFormValues, onSave]);
+    let saveTimeout: ReturnType<typeof setTimeout> | null = null;
+
+    const subscription = watch((value) => {
+      if (saveTimeout) {
+        clearTimeout(saveTimeout);
+        saveTimeout = null;
+      }
+
+      const result = feesExpensesSchema.safeParse(value);
+      if (result.success) {
+        saveTimeout = setTimeout(() => {
+          onSave(result.data);
+          saveTimeout = null;
+        }, 250);
+      }
+    });
+
+    return () => {
+      subscription.unsubscribe();
+      if (saveTimeout) {
+        clearTimeout(saveTimeout);
+      }
+    };
+  }, [watch, onSave]);
 
   // Toggle handler with preservation pattern
   const handleStepDownToggle = (enabled: boolean) => {
