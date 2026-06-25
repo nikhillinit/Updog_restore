@@ -1,6 +1,7 @@
 import { db } from '../db';
 import { fundSnapshots } from '@shared/schema';
 import { generateReserveSummary } from '@shared/core/reserves/ReserveEngine';
+import { resolveMoicActionability, toH9SnapshotColumns } from './fund-calculation-mode-service';
 import { markCalcRunCompletedIfReady } from './calc-run-tracking';
 import { buildReservePortfolioInput } from './reserve-input-builder';
 
@@ -59,6 +60,9 @@ export async function runReserveCalculation({
   const portfolio = await retryWithBackoff(() => buildReservePortfolioInput(fundId));
 
   const reserves = generateReserveSummary(fundId, portfolio);
+  // H9: stamp the actionability fingerprint onto the authoritative snapshot so
+  // downstream reuse/cache/export can gate on it. Display reads are unaffected.
+  const actionability = await resolveMoicActionability({ fundId });
 
   // ADR-022: authoritative-only writer. scenario_set_id intentionally omitted (defaults to NULL).
   const insertedSnapshots = await db
@@ -73,6 +77,7 @@ export async function runReserveCalculation({
       ...(runId != null && { runId }),
       ...(configId != null && { configId }),
       ...(configVersion != null && { configVersion }),
+      ...toH9SnapshotColumns(actionability),
       metadata: {
         portfolioCount: portfolio.length,
         engineRuntime: performance.now() - startTime,
