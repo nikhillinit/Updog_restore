@@ -134,6 +134,13 @@
       "when": 1782345600000,
       "tag": "0017_moic_exit_probability_modes",
       "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "7",
+      "when": 1782345601000,
+      "tag": "0018_h9_actionability_snapshot_columns",
+      "breakpoints": true
     }
   ]
 }
