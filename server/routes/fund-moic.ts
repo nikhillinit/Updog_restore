@@ -33,6 +33,7 @@ import {
   resolveFundCalculationMode,
   updateFundMoicCalculationMode,
 } from '../services/fund-calculation-mode-service.js';
+import { invalidateH9Artifacts } from '../services/h9-artifact-invalidation-service';
 import { buildRoundsToModelEvidence } from '../services/rounds-to-model-evidence-service.js';
 
 const router = Router();
@@ -204,6 +205,9 @@ router.post(
         idempotencyKey,
         requestedBy: resolveActorId(req),
       });
+      if (!replayed) {
+        await invalidateH9Artifacts(fundId);
+      }
       return res.status(replayed ? 200 : 201).json({
         runId: run.runId,
         createdAt: run.createdAt,
