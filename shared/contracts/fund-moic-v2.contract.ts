@@ -53,6 +53,7 @@ export const FundMoicRankingsResponseV2Schema = z
         runId: z.string().nullable(),
         createdAt: z.string().datetime().nullable(),
         currentInputMatches: z.boolean(),
+        sourceFingerprintMatches: z.boolean(),
       })
       .strict()
       .nullable(),

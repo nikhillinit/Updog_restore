@@ -29,6 +29,7 @@ import {
   FundCalculationModeIdempotencyConflictError,
   FundCalculationModeInProgressError,
   FundCalculationModeVersionConflictError,
+  resolveMoicActionability,
   resolveFundCalculationMode,
   updateFundMoicCalculationMode,
 } from '../services/fund-calculation-mode-service.js';
@@ -113,7 +114,11 @@ router.get(
     if (contract === undefined || contract === 'v1') {
       const sources = await getFundMoicRankingSources(fundId);
       const modePreview = await resolveFundCalculationMode({ fundId, sources });
-      const rankings = modePreview.effectiveMode === 'on' ? sources.candidate : sources.legacy;
+      const actionability = await resolveMoicActionability({ fundId, sources });
+      const rankings =
+        modePreview.effectiveMode === 'on' && actionability.actionability === 'actionable'
+          ? sources.candidate
+          : sources.legacy;
       return res.json(rankings);
     }
 
@@ -130,17 +135,23 @@ router.get(
       buildRoundsToModelEvidence({ fundId }),
     ]);
     const modePreview = await resolveFundCalculationMode({ fundId, sources });
-    const rankings = modePreview.effectiveMode === 'on' ? sources.candidate : sources.legacy;
+    const actionability = await resolveMoicActionability({ fundId, sources, evidence });
+    const usingCandidateRankings =
+      modePreview.effectiveMode === 'on' && actionability.actionability === 'actionable';
+    const rankings = usingCandidateRankings ? sources.candidate : sources.legacy;
     const materiality = assessMoicMateriality(sources.legacy.rankings, sources.candidate.rankings);
     const latestCurrentMatches =
       latestReconciliation?.candidateInputHash === sources.moicSourceInputHash;
+    const latestSourceFingerprintMatches = latestReconciliation
+      ? actionability.sourceFingerprintMatches
+      : false;
 
     const response: FundMoicRankingsResponseV2 = {
       contractVersion: '2.1.0',
       fundId,
       rankings: rankings.rankings,
       provenance: {
-        mode: modePreview.effectiveMode === 'on' ? 'candidate' : 'legacy',
+        mode: usingCandidateRankings ? 'candidate' : 'legacy',
         warnings: modePreview.blockers,
       },
       latestReconciliation: latestReconciliation
@@ -148,10 +159,15 @@ router.get(
             runId: latestReconciliation.runId,
             createdAt: latestReconciliation.createdAt,
             currentInputMatches: latestCurrentMatches,
+            sourceFingerprintMatches: latestSourceFingerprintMatches,
           }
         : null,
       materiality: {
-        status: latestReconciliation ? (latestCurrentMatches ? 'recorded' : 'stale') : 'not_run',
+        status: latestReconciliation
+          ? latestSourceFingerprintMatches
+            ? 'recorded'
+            : 'stale'
+          : 'not_run',
         candidateMaterial: materiality.candidateMaterial,
         epsilon: MOIC_MATERIALITY_EPSILON,
       },

@@ -26,7 +26,15 @@ import {
 } from 'drizzle-orm/pg-core';
 import { sql } from 'drizzle-orm';
 import type { EngineResults } from '../schemas/engine-results-schema';
+import {
+  FinancialActionabilitySchema,
+  type FinancialActionability,
+} from '../contracts/financial-provenance.contract';
 import { users } from './user';
+
+const h9FinancialActionabilityValuesSql = sql.raw(
+  FinancialActionabilitySchema.options.map((value) => `'${value}'`).join(', ')
+);
 
 // ============================================================================
 // FUNDS TABLE
@@ -143,6 +151,14 @@ export const fundSnapshots = pgTable(
     configId: integer('config_id'),
     configVersion: integer('config_version'),
     scenarioSetId: uuid('scenario_set_id'),
+    h9MoicSourceInputHash: text('h9_moic_source_input_hash'),
+    h9RoundEvidenceInputHash: text('h9_round_evidence_input_hash'),
+    h9RoundEvidenceAssumptionsHash: text('h9_round_evidence_assumptions_hash'),
+    h9FingerprintHash: text('h9_fingerprint_hash'),
+    h9PolicyVersion: text('h9_policy_version'),
+    h9ActionabilityStatus: varchar('h9_actionability_status', {
+      length: 24,
+    }).$type<FinancialActionability>(),
     createdAt: timestamp('created_at').defaultNow(),
   },
   (table) => ({
@@ -164,6 +180,24 @@ export const fundSnapshots = pgTable(
         AND ${table.configVersion} IS NOT NULL
         AND ${table.stateHash} IS NOT NULL
       `),
+    h9ActionabilityStatusCheck: check(
+      'fund_snapshots_h9_actionability_status_check',
+      sql`${table.h9ActionabilityStatus} IS NULL OR ${table.h9ActionabilityStatus} IN (${h9FinancialActionabilityValuesSql})`
+    ),
+    h9ActionableFingerprintCheck: check(
+      'fund_snapshots_h9_actionable_fingerprint_check',
+      sql`
+        ${table.h9ActionabilityStatus} IS NULL
+        OR ${table.h9ActionabilityStatus} <> 'actionable'
+        OR (
+          ${table.h9MoicSourceInputHash} IS NOT NULL
+          AND ${table.h9RoundEvidenceInputHash} IS NOT NULL
+          AND ${table.h9RoundEvidenceAssumptionsHash} IS NOT NULL
+          AND ${table.h9FingerprintHash} IS NOT NULL
+          AND ${table.h9PolicyVersion} IS NOT NULL
+        )
+      `
+    ),
   })
 );
 

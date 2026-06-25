@@ -97,11 +97,12 @@ describe('FundMoicRankingsResponseV2 contract — allowlist', () => {
       runId: 'run-1',
       createdAt: '2026-06-24T00:00:00.000Z',
       currentInputMatches: true,
+      sourceFingerprintMatches: true,
     };
     const parsed = FundMoicRankingsResponseV2Schema.parse(payload);
     expect(parsed.latestReconciliation).not.toBeNull();
     expect(Object.keys(parsed.latestReconciliation ?? {}).sort()).toEqual(
-      ['createdAt', 'currentInputMatches', 'runId'].sort()
+      ['createdAt', 'currentInputMatches', 'runId', 'sourceFingerprintMatches'].sort()
     );
   });
 
@@ -186,6 +187,7 @@ describe('FundMoicRankingsResponseV2 contract — forbidden-field rejection', ()
       runId: 'run-1',
       createdAt: '2026-06-24T00:00:00.000Z',
       currentInputMatches: true,
+      sourceFingerprintMatches: true,
       // @ts-expect-error injecting a forbidden key
       legacyOutputHash: 'deadbeef',
     };
@@ -247,7 +249,12 @@ describe('FundMoicRankingsResponseV2 contract — literal/enum pins', () => {
 
   it('accepts a null runId/createdAt inside a present latestReconciliation', () => {
     const ok = makeValidV2();
-    ok.latestReconciliation = { runId: null, createdAt: null, currentInputMatches: false };
+    ok.latestReconciliation = {
+      runId: null,
+      createdAt: null,
+      currentInputMatches: false,
+      sourceFingerprintMatches: false,
+    };
     expect(FundMoicRankingsResponseV2Schema.safeParse(ok).success).toBe(true);
   });
 
@@ -263,5 +270,41 @@ describe('FundMoicRankingsResponseV2 contract — literal/enum pins', () => {
     // @ts-expect-error enum only
     bad.modePreview.effectiveMode = 'candidate';
     expect(FundMoicRankingsResponseV2Schema.safeParse(bad).success).toBe(false);
+  });
+});
+
+describe('FundMoicRankingsResponseV2 contract - latest reconciliation freshness', () => {
+  it('accepts currentInputMatches and sourceFingerprintMatches together', () => {
+    const payload = makeValidV2();
+    payload.latestReconciliation = {
+      runId: 'run-1',
+      createdAt: '2026-06-24T00:00:00.000Z',
+      currentInputMatches: true,
+      sourceFingerprintMatches: true,
+    };
+
+    expect(FundMoicRankingsResponseV2Schema.safeParse(payload).success).toBe(true);
+  });
+
+  it('requires sourceFingerprintMatches on a present latestReconciliation', () => {
+    const payload = makeValidV2();
+    payload.latestReconciliation = {
+      runId: 'run-1',
+      createdAt: '2026-06-24T00:00:00.000Z',
+      currentInputMatches: true,
+    };
+
+    expect(FundMoicRankingsResponseV2Schema.safeParse(payload).success).toBe(false);
+  });
+
+  it('still requires currentInputMatches on a present latestReconciliation', () => {
+    const payload = makeValidV2();
+    payload.latestReconciliation = {
+      runId: 'run-1',
+      createdAt: '2026-06-24T00:00:00.000Z',
+      sourceFingerprintMatches: true,
+    };
+
+    expect(FundMoicRankingsResponseV2Schema.safeParse(payload).success).toBe(false);
   });
 });
