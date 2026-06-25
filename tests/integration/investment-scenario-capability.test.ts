@@ -1,11 +1,10 @@
-import { execFileSync } from 'node:child_process';
-
 import { sql } from 'drizzle-orm';
 import express, { type NextFunction, type Request, type Response, type Router } from 'express';
 import request from 'supertest';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 
 import { applyInvestmentRoundConstraints } from '../helpers/apply-investment-round-constraints';
+import { runDrizzlePush } from './helpers/run-drizzle-push';
 import { setupTestDB } from '../helpers/testcontainers';
 
 const STARTUP_TIMEOUT_MS = 90_000;
@@ -37,18 +36,6 @@ let runtime: Runtime | undefined;
 let startedContainer: Awaited<ReturnType<typeof setupTestDB>> | undefined;
 let teardownDatabase: DbModule['db'] | undefined;
 let closeTeardownDatabasePool: DbModule['closeDatabasePool'] | undefined;
-
-function runDrizzlePush(connectionString: string): void {
-  const npxCommand = process.platform === 'win32' ? 'npx.cmd' : 'npx';
-  execFileSync(npxCommand, ['drizzle-kit', 'push', '--force'], {
-    cwd: process.cwd(),
-    env: {
-      ...process.env,
-      DATABASE_URL: connectionString,
-    },
-    stdio: 'pipe',
-  });
-}
 
 function restoreEnv(snapshot: Record<string, string | undefined>): void {
   for (const [key, value] of Object.entries(snapshot)) {

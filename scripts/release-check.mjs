@@ -26,6 +26,7 @@ const serverSurfaceTests = [
   'tests/unit/queues/resolve-fund-id.test.ts',
   'tests/unit/routes/lp-api.contract.test.ts',
   'tests/regressions/ci-unified-playwright-install.test.ts',
+  'tests/unit/scripts/db-push.test.mjs',
 ];
 
 const releaseOwnedPaths = [
@@ -33,6 +34,8 @@ const releaseOwnedPaths = [
   'migrations',
   'shared/migrations',
   'scripts/release-check.mjs',
+  'scripts/db-push.mjs',
+  'scripts/db-push-core.mjs',
   'tests/integration/fund-lifecycle-db.test.ts',
   'tests/integration/migration-drift.test.ts',
   'vitest.config.testcontainers.ts',

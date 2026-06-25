@@ -1,10 +1,9 @@
-import { execFileSync } from 'node:child_process';
-
 import { sql } from 'drizzle-orm';
 import { drizzle } from 'drizzle-orm/node-postgres';
 import { Pool } from 'pg';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
+import { runDrizzlePush } from '../helpers/run-drizzle-push';
 import { applyInvestmentRoundConstraints } from '../../helpers/apply-investment-round-constraints';
 import { setupTestDB } from '../../helpers/testcontainers';
 
@@ -13,18 +12,6 @@ const skipIfNoDocker = !process.env.CI && process.platform === 'win32';
 
 let container: Awaited<ReturnType<typeof setupTestDB>> | undefined;
 let pool: Pool | undefined;
-
-function runDrizzlePush(connectionString: string): void {
-  const npxCommand = process.platform === 'win32' ? 'npx.cmd' : 'npx';
-  execFileSync(npxCommand, ['drizzle-kit', 'push', '--force'], {
-    cwd: process.cwd(),
-    env: {
-      ...process.env,
-      DATABASE_URL: connectionString,
-    },
-    stdio: 'pipe',
-  });
-}
 
 describe.skipIf(skipIfNoDocker)('investments (id, fund_id) unique', () => {
   beforeAll(async () => {
