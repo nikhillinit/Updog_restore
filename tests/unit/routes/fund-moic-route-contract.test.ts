@@ -45,6 +45,16 @@ describe('fund-moic route contract', () => {
     expect(source).toContain('recordMoicReconciliation');
   });
 
+  it('mounts the fund MOIC router on both server boot surfaces', async () => {
+    const appSource = await readRepoFile('server/app.ts');
+    expect(appSource).toMatch(/app\.use\(\s*['"]\/api['"]\s*,\s*fundMoicRouter\s*\)/);
+
+    const routesSource = await readRepoFile('server/routes.ts');
+    expect(routesSource).toMatch(
+      /\{\s*mountPath:\s*['"]\/api['"]\s*,\s*load:\s*\(\)\s*=>\s*import\(['"]\.\/routes\/fund-moic\.js['"]\)\s*\}/s
+    );
+  });
+
   it('maps the idempotency lifecycle to 428 (missing key), 409 (conflict), 201/200 (new/replay)', async () => {
     const source = await readRepoFile('server/routes/fund-moic.ts');
     expect(source).toContain('428');
