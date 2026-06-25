@@ -264,10 +264,9 @@ async function loadAcceptedMoicReconciliation(params: {
   throw new Error('MOIC actionability resolver requires a reconciliation lookup database');
 }
 
-function buildRoundEvidenceAssumptionsHash(now: Date): string {
+function buildRoundEvidenceAssumptionsHash(): string {
   return canonicalSha256({
     policyVersion: ACTIONABILITY_POLICY_VERSION,
-    generatedAt: now.toISOString(),
   });
 }
 
@@ -311,7 +310,7 @@ export function createMoicActionabilityResolver(params: { database?: unknown; no
     const sourceFingerprint = buildH9SourceFingerprint({
       moicSourceInputHash: sources.moicSourceInputHash,
       roundEvidenceInputHash: canonicalSha256(evidence.coverage),
-      roundEvidenceAssumptionsHash: buildRoundEvidenceAssumptionsHash(now),
+      roundEvidenceAssumptionsHash: buildRoundEvidenceAssumptionsHash(),
     });
     const accepted = await loadAcceptedMoicReconciliation({ database, fundId: input.fundId });
     const sourceFingerprintMatches = Boolean(
