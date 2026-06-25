@@ -83,6 +83,38 @@ describe('fund MOIC input service', () => {
     expect(tx.execute).toHaveBeenCalledTimes(5);
   });
 
+  it('treats the same idempotency key on a different company as an independent update', async () => {
+    expect(requestHashFor({ ...baseParams, companyId: 12 })).not.toBe(
+      requestHashFor({ ...baseParams, companyId: 13 })
+    );
+
+    const { database, tx } = makeDatabase([
+      [{ id: 2 }],
+      [{ allocation_version: 3 }],
+      [{ allocation_version: 4, exit_probability: '0.800000', exit_moic_bps: 35000 }],
+      [],
+      [],
+    ]);
+
+    const result = await updateFundMoicInputs({
+      ...baseParams,
+      companyId: 13,
+      database: database as never,
+    });
+
+    expect(result).toEqual({
+      response: {
+        fundId: 7,
+        companyId: 13,
+        allocationVersion: 4,
+        exitProbability: 0.8,
+        exitMoicBps: 35000,
+      },
+      replayed: false,
+    });
+    expect(tx.execute).toHaveBeenCalledTimes(5);
+  });
+
   it('replays a completed idempotency ledger response without updating again', async () => {
     const response: FundMoicInputUpdateResponse = {
       fundId: 7,
