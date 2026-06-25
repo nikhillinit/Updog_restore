@@ -34,17 +34,21 @@ export interface MoicReconciliationRunRef {
   runId: string;
   createdAt: string;
   candidateInputHash?: string;
+  evidenceInputHash?: string;
   candidateMaterial?: boolean;
 }
 
 function runRef(
   row: Pick<ReconciliationRun, 'id' | 'requestedAt'> &
-    Partial<Pick<ReconciliationRun, 'candidateInputHash' | 'candidateMaterial'>>
+    Partial<
+      Pick<ReconciliationRun, 'candidateInputHash' | 'evidenceInputHash' | 'candidateMaterial'>
+    >
 ): MoicReconciliationRunRef {
   return {
     runId: String(row.id),
     createdAt: row.requestedAt.toISOString(),
     ...(row.candidateInputHash ? { candidateInputHash: row.candidateInputHash } : {}),
+    ...(row.evidenceInputHash ? { evidenceInputHash: row.evidenceInputHash } : {}),
     ...(row.candidateMaterial !== undefined ? { candidateMaterial: row.candidateMaterial } : {}),
   };
 }

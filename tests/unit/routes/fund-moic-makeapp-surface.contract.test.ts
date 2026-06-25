@@ -116,13 +116,13 @@ describe('fund MOIC makeApp surface', () => {
     expect(allowHeaders).toContain('idempotency-key');
   }, 30_000);
 
-  it('mounts the fund MOIC router on the production makeApp API surface', async () => {
+  it('keeps the fund MOIC rankings route mounted with the invalid fund ID guard', async () => {
     const app = await makeAppWithTestAuth();
     const res = await request(app)
       .get('/api/funds/abc/moic/rankings')
       .set('Authorization', await authorizationHeader());
 
     expect(res.status).toBe(400);
-    expect(res.body).toMatchObject({ error: 'Bad Request', message: 'Invalid fund ID' });
+    expect(res.body).toEqual({ error: 'Bad Request', message: 'Invalid fund ID' });
   }, 30_000);
 });

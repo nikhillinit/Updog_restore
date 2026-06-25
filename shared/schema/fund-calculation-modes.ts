@@ -16,6 +16,14 @@ import {
 import { funds } from './fund';
 import { reconciliationRuns } from './reconciliation-runs';
 import { users } from './user';
+import {
+  FinancialActionabilitySchema,
+  type FinancialActionability,
+} from '../contracts/financial-provenance.contract';
+
+const h9FinancialActionabilityValuesSql = sql.raw(
+  FinancialActionabilitySchema.options.map((value) => `'${value}'`).join(', ')
+);
 
 export const fundCalculationModes = pgTable(
   'fund_calculation_modes',
@@ -33,6 +41,14 @@ export const fundCalculationModes = pgTable(
     ),
     lastMoicSourceInputHash: text('last_moic_source_input_hash'),
     lastCandidateOutputHash: text('last_candidate_output_hash'),
+    h9MoicSourceInputHash: text('h9_moic_source_input_hash'),
+    h9RoundEvidenceInputHash: text('h9_round_evidence_input_hash'),
+    h9RoundEvidenceAssumptionsHash: text('h9_round_evidence_assumptions_hash'),
+    h9FingerprintHash: text('h9_fingerprint_hash'),
+    h9PolicyVersion: text('h9_policy_version'),
+    h9ActionabilityStatus: varchar('h9_actionability_status', {
+      length: 24,
+    }).$type<FinancialActionability>(),
     version: integer('version').notNull().default(1),
     updatedBy: integer('updated_by').references(() => users.id),
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
@@ -49,6 +65,24 @@ export const fundCalculationModes = pgTable(
     configuredModeCheck: check(
       'fund_calculation_modes_configured_mode_check',
       sql`${table.configuredMode} IN ('off','shadow','on')`
+    ),
+    h9ActionabilityStatusCheck: check(
+      'fund_calculation_modes_h9_actionability_status_check',
+      sql`${table.h9ActionabilityStatus} IS NULL OR ${table.h9ActionabilityStatus} IN (${h9FinancialActionabilityValuesSql})`
+    ),
+    h9ActionableFingerprintCheck: check(
+      'fund_calculation_modes_h9_actionable_fingerprint_check',
+      sql`
+        ${table.h9ActionabilityStatus} IS NULL
+        OR ${table.h9ActionabilityStatus} <> 'actionable'
+        OR (
+          ${table.h9MoicSourceInputHash} IS NOT NULL
+          AND ${table.h9RoundEvidenceInputHash} IS NOT NULL
+          AND ${table.h9RoundEvidenceAssumptionsHash} IS NOT NULL
+          AND ${table.h9FingerprintHash} IS NOT NULL
+          AND ${table.h9PolicyVersion} IS NOT NULL
+        )
+      `
     ),
     versionCheck: check('fund_calculation_modes_version_check', sql`${table.version} >= 1`),
   })
