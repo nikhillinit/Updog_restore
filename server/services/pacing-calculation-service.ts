@@ -4,6 +4,7 @@ import { eq } from 'drizzle-orm';
 import { generatePacingSummary } from '@shared/core/pacing/PacingEngine';
 import type { PacingInput } from '@shared/types';
 import { markCalcRunCompletedIfReady } from './calc-run-tracking';
+import { resolveMoicActionability, toH9SnapshotColumns } from './fund-calculation-mode-service';
 import { resolvePacingFundSize } from './pacing-fund-size';
 
 export interface PacingCalculationInput {
@@ -50,12 +51,15 @@ export async function runPacingCalculation({
   };
 
   const pacingSummary = generatePacingSummary(pacingInput);
+  const actionability = await resolveMoicActionability({ fundId });
+  const h9Columns = toH9SnapshotColumns(actionability);
 
   const historyInserts = pacingSummary.deployments.map((deployment) => ({
     fundId,
     quarter: `Q${deployment.quarter}`,
     deploymentAmount: deployment.deployment.toString(),
     marketCondition,
+    ...h9Columns,
   }));
 
   for (const history of historyInserts) {
@@ -67,6 +71,7 @@ export async function runPacingCalculation({
         set: {
           deploymentAmount: history.deploymentAmount,
           marketCondition: history.marketCondition,
+          ...h9Columns,
         },
       });
   }
@@ -84,6 +89,7 @@ export async function runPacingCalculation({
       ...(runId != null && { runId }),
       ...(configId != null && { configId }),
       ...(configVersion != null && { configVersion }),
+      ...h9Columns,
       metadata: {
         totalQuarters: pacingSummary.totalQuarters,
         avgQuarterlyDeployment: pacingSummary.avgQuarterlyDeployment,
