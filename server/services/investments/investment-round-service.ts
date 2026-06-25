@@ -2,6 +2,7 @@ import { and, desc, eq, notExists, sql } from 'drizzle-orm';
 import { aliasedTable } from 'drizzle-orm/alias';
 
 import { db } from '../../db';
+import { invalidateH9Artifacts } from '../h9-artifact-invalidation-service';
 import type { InvestmentRoundCreate } from '@shared/contracts/investments/investment-round.contract';
 import { canonicalSha256 } from '@shared/lib/canonical-hash';
 import { investmentRounds, type InvestmentRound } from '@shared/schema/investment-rounds';
@@ -205,6 +206,7 @@ export async function createRound(
       .returning(columnsWithXmin);
 
     if (record) {
+      await invalidateH9Artifacts(input.fundId);
       return { kind: 'created', ...splitXmin(record) };
     }
   } catch (error) {
