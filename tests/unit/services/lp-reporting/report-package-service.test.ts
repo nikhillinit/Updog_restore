@@ -387,6 +387,32 @@ describe('assembleMetricRunReportPackage', () => {
     });
   });
 
+  it('replay after H9 source drift returns the stored package (inserted:false), NOT a 409, and does not re-resolve', async () => {
+    const database = makeDatabase();
+    const input = {
+      fundId: 1,
+      metricRunId: 11,
+      userId: 7,
+      body: { expectedMetricRunVersion: 4, expectedNarratives: expectedNarratives() },
+    };
+
+    const first = await assembleMetricRunReportPackage(input, { database });
+    expect(first.inserted).toBe(true);
+    const resolvesAfterFirst = resolveForFund.mock.calls.length;
+
+    // Source drifts AFTER assembly. If the replay path re-resolved H9, this would
+    // surface as an extra resolve (and, with intra-call drift, a 409) — Decision 2
+    // requires the replay branch to short-circuit BEFORE any H9 stamp/recheck.
+    resolveForFund.mockResolvedValue({
+      ...H9_RESULT,
+      sourceFingerprint: { ...H9_RESULT.sourceFingerprint, fingerprintHash: 'f'.repeat(64) },
+    });
+
+    const second = await assembleMetricRunReportPackage(input, { database });
+    expect(second.inserted).toBe(false);
+    expect(resolveForFund.mock.calls.length).toBe(resolvesAfterFirst);
+  });
+
   it('returns inserted false for same-input retry without rewriting the package', async () => {
     const database = makeDatabase();
     const first = await assembleMetricRunReportPackage(
