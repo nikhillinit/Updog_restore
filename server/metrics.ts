@@ -82,6 +82,12 @@ export const httpRequestTotal = getOrCreateCounter(
   ['method', 'route', 'status_code']
 );
 
+export const moicActionabilityBlocksTotal = getOrCreateCounter(
+  'povc_fund_moic_actionability_blocks_total',
+  'Count of LP report-package render/export operations blocked by H9 actionability gating',
+  ['surface', 'blocker_code']
+);
+
 export const databaseConnections = getOrCreateGauge(
   'povc_fund_database_connections',
   'Number of active database connections'
