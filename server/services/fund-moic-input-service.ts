@@ -1,6 +1,7 @@
 import { sql, type SQL } from 'drizzle-orm';
 
 import { db } from '../db';
+import { invalidateH9Artifacts } from './h9-artifact-invalidation-service';
 import { canonicalSha256 } from '../../shared/lib/canonical-hash';
 
 const MOIC_INPUT_ROUTE = 'PUT /api/admin/funds/:fundId/moic-inputs/portfolio-companies/:companyId';
@@ -165,7 +166,7 @@ export async function updateFundMoicInputs(params: {
   const database = params.database ?? db;
   const requestHash = requestHashFor(params);
 
-  return database.transaction(async (tx) => {
+  const result = await database.transaction(async (tx) => {
     const claim = await claimOrReplay({ ...params, tx, requestHash });
     if (!claim.claimed) {
       return { response: claim.response, replayed: true };
@@ -260,4 +261,8 @@ export async function updateFundMoicInputs(params: {
 
     return { response, replayed: false };
   });
+  if (!result.replayed) {
+    await invalidateH9Artifacts(params.fundId);
+  }
+  return result;
 }

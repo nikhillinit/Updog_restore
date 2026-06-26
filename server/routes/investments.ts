@@ -21,6 +21,7 @@ import {
   listRoundsForInvestment,
   loadRound,
 } from '../services/investments/investment-round-service';
+import { invalidateH9Artifacts } from '../services/h9-artifact-invalidation-service';
 import { storage, UnsupportedStorageOperationError } from '../storage';
 
 const router = Router();
@@ -142,6 +143,9 @@ router.post('/investments', async (req: Request, res: Response) => {
     }
 
     const investment = await storage.createInvestment(result.data);
+    if (typeof result.data.fundId === 'number') {
+      await invalidateH9Artifacts(result.data.fundId);
+    }
     return res.status(201).json(investment);
   } catch (error) {
     const apiError: ApiError = {
