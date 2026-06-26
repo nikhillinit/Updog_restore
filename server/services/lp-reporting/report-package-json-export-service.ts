@@ -166,7 +166,10 @@ export async function getMetricRunReportPackageJsonExport(
 ): Promise<ReportPackageJsonExportResponse> {
   const database = options.database ?? db;
   const renderModelService = options.renderModelService ?? getMetricRunReportPackageRenderModel;
-  const { renderModel } = await renderModelService(input, { database });
+  const { renderModel } = await renderModelService(input, {
+    database,
+    h9Surface: 'live_json_export',
+  });
 
   const evidenceRecordIds = uniqueSorted(renderModel.references.evidenceRecordIds);
   const evidenceRows = await loadReferencedEvidenceRows(

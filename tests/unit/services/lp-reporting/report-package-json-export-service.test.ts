@@ -15,6 +15,10 @@ import {
   type ReportPackageJsonExportResponse,
 } from '@shared/contracts/lp-reporting';
 import { evidenceRecords, type EvidenceRecord } from '@shared/schema/lp-reporting-evidence';
+import {
+  H9ExportBlockedError,
+  type H9ExportSurface,
+} from '../../../../server/services/lp-reporting/h9-export-gate';
 
 interface State {
   evidenceRows: EvidenceRecord[];
@@ -191,9 +195,28 @@ describe('getMetricRunReportPackageJsonExport', () => {
     );
     expect(renderModelService).toHaveBeenCalledWith(
       { fundId: 1, metricRunId: 11 },
-      { database: expect.any(Object) }
+      { database: expect.any(Object), h9Surface: 'live_json_export' }
     );
     expect(state.writeCalls).toEqual([]);
+  });
+
+  it('blocks the live JSON export with surface live_json_export when H9 has drifted', async () => {
+    const renderModelService = vi.fn(
+      async (_input: unknown, opts: { h9Surface?: H9ExportSurface }) => {
+        throw new H9ExportBlockedError(
+          opts.h9Surface ?? 'render_model',
+          'H9_FINGERPRINT_STALE',
+          'stale'
+        );
+      }
+    );
+
+    await expect(
+      getMetricRunReportPackageJsonExport(
+        { fundId: 1, metricRunId: 11 },
+        { database: makeDatabase(), renderModelService }
+      )
+    ).rejects.toMatchObject({ code: 'H9_FINGERPRINT_STALE', surface: 'live_json_export' });
   });
 
   it('collapses missing and out-of-scope evidence into EVIDENCE_REFERENCE_INVALID', async () => {
