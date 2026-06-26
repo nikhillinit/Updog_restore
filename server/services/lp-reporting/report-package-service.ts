@@ -44,6 +44,10 @@ import {
   type NarrativeRun,
 } from '@shared/schema/lp-reporting-evidence';
 import { users } from '@shared/schema/user';
+import {
+  createMoicActionabilityResolver,
+  toH9SnapshotColumns,
+} from '../fund-calculation-mode-service';
 import { MetricRunCommitError } from './metric-run-commit-service';
 
 type ReportPackageDatabase = typeof db;
@@ -515,6 +519,17 @@ function toReportPackageRecord(row: LpReportPackage): ReportPackageRecord {
     metricRunLockedAt: isoDateTimeNullable(row.metricRunLockedAt),
     narrativeRefs: row.narrativeRefs,
     payload: row.payload,
+    h9Metadata:
+      row.h9ActionabilityStatus == null
+        ? null
+        : {
+            moicSourceInputHash: row.h9MoicSourceInputHash,
+            roundEvidenceInputHash: row.h9RoundEvidenceInputHash,
+            roundEvidenceAssumptionsHash: row.h9RoundEvidenceAssumptionsHash,
+            fingerprintHash: row.h9FingerprintHash,
+            policyVersion: row.h9PolicyVersion,
+            actionabilityStatus: row.h9ActionabilityStatus,
+          },
     assembledBy: row.assembledBy,
     assembledAt: isoDateTime(row.assembledAt, 'assembledAt'),
     version: normalizeVersion(row.version),
@@ -607,10 +622,14 @@ export async function assembleMetricRunReportPackage(
       packageAlreadyAssembled();
     }
 
+    const h9Resolver = createMoicActionabilityResolver({ database: tx });
+    const h9 = await h9Resolver.resolveForFund(input.fundId);
+    const h9Columns = toH9SnapshotColumns(h9);
+
     const now = new Date();
     const insertedRows = await tx
       .insert(lpReportPackages)
-      .values(insertValues(input, source, narrativeRefs, payload, now))
+      .values({ ...insertValues(input, source, narrativeRefs, payload, now), ...h9Columns })
       .onConflictDoNothing({ target: lpReportPackages.metricRunId })
       .returning();
 
