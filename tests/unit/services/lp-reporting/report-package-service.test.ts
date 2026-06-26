@@ -366,6 +366,27 @@ describe('assembleMetricRunReportPackage', () => {
     expect(resolveForFund).toHaveBeenCalledWith(1);
   });
 
+  it('aborts assembly with H9_SOURCE_CHANGED_DURING_ASSEMBLY when the fingerprint drifts mid-assembly', async () => {
+    resolveForFund.mockResolvedValueOnce(H9_RESULT).mockResolvedValueOnce({
+      ...H9_RESULT,
+      sourceFingerprint: { ...H9_RESULT.sourceFingerprint, fingerprintHash: 'f'.repeat(64) },
+    });
+
+    await expect(
+      assembleMetricRunReportPackage(
+        {
+          fundId: 1,
+          metricRunId: 11,
+          userId: 7,
+          body: { expectedMetricRunVersion: 4, expectedNarratives: expectedNarratives() },
+        },
+        { database: makeDatabase() }
+      )
+    ).rejects.toMatchObject({
+      code: 'H9_SOURCE_CHANGED_DURING_ASSEMBLY',
+    });
+  });
+
   it('returns inserted false for same-input retry without rewriting the package', async () => {
     const database = makeDatabase();
     const first = await assembleMetricRunReportPackage(

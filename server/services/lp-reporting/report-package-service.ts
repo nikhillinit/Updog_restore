@@ -626,6 +626,15 @@ export async function assembleMetricRunReportPackage(
     const h9 = await h9Resolver.resolveForFund(input.fundId);
     const h9Columns = toH9SnapshotColumns(h9);
 
+    const h9Recheck = await h9Resolver.resolveForFund(input.fundId);
+    if (h9Recheck.sourceFingerprint.fingerprintHash !== h9.sourceFingerprint.fingerprintHash) {
+      throw new MetricRunCommitError(
+        409,
+        'H9_SOURCE_CHANGED_DURING_ASSEMBLY',
+        'H9 source changed during report package assembly; retry.'
+      );
+    }
+
     const now = new Date();
     const insertedRows = await tx
       .insert(lpReportPackages)
