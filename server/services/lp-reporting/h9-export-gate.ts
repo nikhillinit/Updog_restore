@@ -1,3 +1,7 @@
+import { and, eq } from 'drizzle-orm';
+
+import { db } from '../../db';
+import { lpReportPackages } from '@shared/schema/lp-reporting-evidence';
 import {
   createMoicActionabilityResolver,
   type MoicActionabilityResult,
@@ -79,4 +83,42 @@ export async function assertH9ExportActionable(params: {
   ) {
     block(surface, 'H9_FINGERPRINT_STALE', 'Report package H9 fingerprint is stale.');
   }
+}
+
+/**
+ * Load the stored H9 columns for a package and run the export gate. For the
+ * stored export surfaces, which hold only the export record, not the package row.
+ * No-op when the package row is absent (the caller's own not-found path wins).
+ */
+export async function assertH9PackageExportable(params: {
+  surface: H9ExportSurface;
+  fundId: number;
+  metricRunId: number;
+  database?: unknown;
+}): Promise<void> {
+  const database = (params.database ?? db) as typeof db;
+  const [row] = await database
+    .select({
+      h9MoicSourceInputHash: lpReportPackages.h9MoicSourceInputHash,
+      h9RoundEvidenceInputHash: lpReportPackages.h9RoundEvidenceInputHash,
+      h9RoundEvidenceAssumptionsHash: lpReportPackages.h9RoundEvidenceAssumptionsHash,
+      h9FingerprintHash: lpReportPackages.h9FingerprintHash,
+      h9PolicyVersion: lpReportPackages.h9PolicyVersion,
+      h9ActionabilityStatus: lpReportPackages.h9ActionabilityStatus,
+    })
+    .from(lpReportPackages)
+    .where(
+      and(
+        eq(lpReportPackages.fundId, params.fundId),
+        eq(lpReportPackages.metricRunId, params.metricRunId)
+      )
+    )
+    .limit(1);
+  if (!row) return;
+  await assertH9ExportActionable({
+    surface: params.surface,
+    fundId: params.fundId,
+    stored: row,
+    database,
+  });
 }

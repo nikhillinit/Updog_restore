@@ -31,6 +31,7 @@ import {
   type LpMetricRun,
   type LpReportPackage,
 } from '@shared/schema/lp-reporting-evidence';
+import { assertH9ExportActionable, type H9ExportSurface } from './h9-export-gate';
 import { MetricRunCommitError } from './metric-run-commit-service';
 
 type ReportPackageRenderModelDatabase = typeof db;
@@ -42,6 +43,7 @@ export interface ReportPackageRenderModelInput {
 
 interface ReportPackageRenderModelServiceOptions {
   database?: ReportPackageRenderModelDatabase;
+  h9Surface?: H9ExportSurface;
 }
 
 interface NarrativeTitle {
@@ -191,6 +193,17 @@ function toReportPackageRecord(row: LpReportPackage): ReportPackageRecord {
     metricRunLockedAt: isoDateTimeNullable(row.metricRunLockedAt),
     narrativeRefs: row.narrativeRefs,
     payload: payload.data,
+    h9Metadata:
+      row.h9ActionabilityStatus == null
+        ? null
+        : {
+            moicSourceInputHash: row.h9MoicSourceInputHash,
+            roundEvidenceInputHash: row.h9RoundEvidenceInputHash,
+            roundEvidenceAssumptionsHash: row.h9RoundEvidenceAssumptionsHash,
+            fingerprintHash: row.h9FingerprintHash,
+            policyVersion: row.h9PolicyVersion,
+            actionabilityStatus: row.h9ActionabilityStatus,
+          },
     assembledBy: row.assembledBy,
     assembledAt: isoDateTime(row.assembledAt, 'assembledAt'),
     version: normalizeVersion(row.version),
@@ -337,9 +350,14 @@ export async function getMetricRunReportPackageRenderModel(
 ): Promise<ReportPackageRenderModelResponse> {
   const database = options.database ?? db;
   await loadMetricRun(database, input.fundId, input.metricRunId);
-  const reportPackage = toReportPackageRecord(
-    await loadReportPackage(database, input.fundId, input.metricRunId)
-  );
+  const rawPackage = await loadReportPackage(database, input.fundId, input.metricRunId);
+  await assertH9ExportActionable({
+    surface: options.h9Surface ?? 'render_model',
+    fundId: input.fundId,
+    stored: rawPackage,
+    database,
+  });
+  const reportPackage = toReportPackageRecord(rawPackage);
   const fundDisplay = await loadFundDisplay(database, input.fundId);
   const payload = reportPackage.payload;
 
