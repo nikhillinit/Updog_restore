@@ -44,10 +44,6 @@ import {
   type NarrativeRun,
 } from '@shared/schema/lp-reporting-evidence';
 import { users } from '@shared/schema/user';
-import {
-  createMoicActionabilityResolver,
-  toH9SnapshotColumns,
-} from '../fund-calculation-mode-service';
 import { MetricRunCommitError } from './metric-run-commit-service';
 
 type ReportPackageDatabase = typeof db;
@@ -622,6 +618,8 @@ export async function assembleMetricRunReportPackage(
       packageAlreadyAssembled();
     }
 
+    const { createMoicActionabilityResolver, toH9SnapshotColumns } =
+      await import('../fund-calculation-mode-service');
     const h9Resolver = createMoicActionabilityResolver({ database: tx });
     const h9 = await h9Resolver.resolveForFund(input.fundId);
     const h9Columns = toH9SnapshotColumns(h9);

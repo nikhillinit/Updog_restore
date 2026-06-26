@@ -296,6 +296,7 @@ function makeReportPackageRecord(): ReportPackageRecord {
       evidenceRecordIds: [1000],
       narratives: narrativeRows.map((row) => row.payload),
     },
+    h9Metadata: null,
     assembledBy: 7,
     assembledAt: '2026-05-10T03:00:00.000Z',
     version: 1,

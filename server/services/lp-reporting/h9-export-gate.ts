@@ -2,10 +2,7 @@ import { and, eq } from 'drizzle-orm';
 
 import { db } from '../../db';
 import { lpReportPackages } from '@shared/schema/lp-reporting-evidence';
-import {
-  createMoicActionabilityResolver,
-  type MoicActionabilityResult,
-} from '../fund-calculation-mode-service';
+import type { MoicActionabilityResult } from '../fund-calculation-mode-service';
 import { MetricRunCommitError } from './metric-run-commit-service';
 import { moicActionabilityBlocksTotal } from '../../metrics';
 
@@ -64,6 +61,7 @@ export async function assertH9ExportActionable(params: {
     block(surface, 'H9_METADATA_MISSING', 'Report package has no H9 actionability metadata.');
   }
 
+  const { createMoicActionabilityResolver } = await import('../fund-calculation-mode-service');
   let current: MoicActionabilityResult;
   try {
     current = await createMoicActionabilityResolver({ database }).resolveForFund(fundId);
