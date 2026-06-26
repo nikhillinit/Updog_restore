@@ -12,6 +12,7 @@ vi.mock('../../../../server/metrics', () => ({
 
 import {
   assertH9ExportActionable,
+  assertH9PackageExportable,
   H9ExportBlockedError,
 } from '../../../../server/services/lp-reporting/h9-export-gate';
 
@@ -109,5 +110,31 @@ describe('assertH9ExportActionable', () => {
       expect(err).toBeInstanceOf(H9ExportBlockedError);
       expect((err as H9ExportBlockedError).surface).toBe('render_model');
     }
+  });
+
+  it('blocks as a 409 so route handlers map it to a typed 4xx (not 500)', async () => {
+    await expect(
+      call(storedActionable({ h9ActionabilityStatus: 'non_actionable' }))
+    ).rejects.toMatchObject({
+      status: 409,
+      code: 'H9_NOT_ACTIONABLE',
+    });
+  });
+});
+
+describe('assertH9PackageExportable', () => {
+  const emptyDb = {
+    select: () => ({ from: () => ({ where: () => ({ limit: async () => [] }) }) }),
+  };
+
+  it('blocks H9_METADATA_MISSING when the package row is absent (fail closed)', async () => {
+    await expect(
+      assertH9PackageExportable({
+        surface: 'stored_json_export',
+        fundId: 7,
+        metricRunId: 11,
+        database: emptyDb as never,
+      })
+    ).rejects.toMatchObject({ code: 'H9_METADATA_MISSING', status: 409 });
   });
 });

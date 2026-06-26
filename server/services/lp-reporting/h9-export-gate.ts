@@ -6,6 +6,7 @@ import {
   createMoicActionabilityResolver,
   type MoicActionabilityResult,
 } from '../fund-calculation-mode-service';
+import { MetricRunCommitError } from './metric-run-commit-service';
 import { moicActionabilityBlocksTotal } from '../../metrics';
 
 export type H9ExportSurface =
@@ -20,14 +21,12 @@ export type H9ExportBlockerCode =
   | 'H9_FINGERPRINT_STALE'
   | 'H9_REVALIDATION_UNAVAILABLE';
 
-export class H9ExportBlockedError extends Error {
-  readonly code: H9ExportBlockerCode;
+export class H9ExportBlockedError extends MetricRunCommitError {
   readonly surface: H9ExportSurface;
 
   constructor(surface: H9ExportSurface, code: H9ExportBlockerCode, message: string) {
-    super(message);
+    super(409, code, message, { surface });
     this.name = 'H9ExportBlockedError';
-    this.code = code;
     this.surface = surface;
   }
 }
@@ -88,7 +87,7 @@ export async function assertH9ExportActionable(params: {
 /**
  * Load the stored H9 columns for a package and run the export gate. For the
  * stored export surfaces, which hold only the export record, not the package row.
- * No-op when the package row is absent (the caller's own not-found path wins).
+ * Fail-closed when the package row is absent because H9 cannot be revalidated.
  */
 export async function assertH9PackageExportable(params: {
   surface: H9ExportSurface;
@@ -114,7 +113,13 @@ export async function assertH9PackageExportable(params: {
       )
     )
     .limit(1);
-  if (!row) return;
+  if (!row) {
+    block(
+      params.surface,
+      'H9_METADATA_MISSING',
+      'Report package row not found; cannot revalidate H9 actionability.'
+    );
+  }
   await assertH9ExportActionable({
     surface: params.surface,
     fundId: params.fundId,
