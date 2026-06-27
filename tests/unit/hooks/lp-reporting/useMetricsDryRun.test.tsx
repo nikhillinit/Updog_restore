@@ -316,6 +316,7 @@ function makeReportPackageRecord(): ReportPackageRecord {
         },
       ],
     },
+    h9Metadata: null,
     assembledBy: 7,
     assembledAt: '2026-05-10T01:05:00.000Z',
     version: 1,

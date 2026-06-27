@@ -1,7 +1,7 @@
 /**
  * Unit tests for LP Reporting report-package assembly service.
  */
-import { beforeEach, describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import type { db } from '../../../../server/db';
 import type { MetricRunCommitError } from '../../../../server/services/lp-reporting/metric-run-commit-service';
@@ -21,6 +21,30 @@ import {
   type NarrativeRun,
 } from '@shared/schema/lp-reporting-evidence';
 import { users } from '@shared/schema/user';
+
+const { resolveForFund } = vi.hoisted(() => ({ resolveForFund: vi.fn() }));
+
+vi.mock('../../../../server/services/fund-calculation-mode-service', async (importOriginal) => {
+  const actual =
+    await importOriginal<
+      typeof import('../../../../server/services/fund-calculation-mode-service')
+    >();
+  return { ...actual, createMoicActionabilityResolver: () => ({ resolveForFund }) };
+});
+
+const H9_RESULT = {
+  sourceFingerprintMatches: true,
+  actionability: 'actionable' as const,
+  actionabilityStatus: 'actionable' as const,
+  sourceFingerprint: {
+    moicSourceInputHash: 'a'.repeat(64),
+    roundEvidenceInputHash: 'b'.repeat(64),
+    roundEvidenceAssumptionsHash: 'c'.repeat(64),
+    fingerprintHash: 'd'.repeat(64),
+    policyVersion: 'h9-policy-v1',
+  },
+  acceptedReconciliationRunId: 42,
+};
 
 const validXirrDiagnostic = {
   convergence: 'converged',
@@ -216,6 +240,12 @@ function makePackage(row: InsertLpReportPackage): LpReportPackage {
     version: row.version ?? 1,
     createdAt: row.createdAt ?? new Date('2026-05-10T03:00:00Z'),
     updatedAt: row.updatedAt ?? new Date('2026-05-10T03:00:00Z'),
+    h9MoicSourceInputHash: row.h9MoicSourceInputHash ?? null,
+    h9RoundEvidenceInputHash: row.h9RoundEvidenceInputHash ?? null,
+    h9RoundEvidenceAssumptionsHash: row.h9RoundEvidenceAssumptionsHash ?? null,
+    h9FingerprintHash: row.h9FingerprintHash ?? null,
+    h9PolicyVersion: row.h9PolicyVersion ?? null,
+    h9ActionabilityStatus: row.h9ActionabilityStatus ?? null,
   };
 }
 
@@ -273,6 +303,7 @@ beforeEach(() => {
   state.operations = [];
   state.nextPackageId = 500;
   state.dropNextInsert = false;
+  resolveForFund.mockResolvedValue(H9_RESULT);
 });
 
 describe('getMetricRunReportPackage', () => {
@@ -312,6 +343,74 @@ describe('assembleMetricRunReportPackage', () => {
       'lock-row',
       'lock-row',
     ]);
+  });
+
+  it('stamps the resolved H9 fingerprint onto the assembled package', async () => {
+    const response = await assembleMetricRunReportPackage(
+      {
+        fundId: 1,
+        metricRunId: 11,
+        userId: 7,
+        body: { expectedMetricRunVersion: 4, expectedNarratives: expectedNarratives() },
+      },
+      { database: makeDatabase() }
+    );
+
+    expect(response.inserted).toBe(true);
+    expect(response.record.h9Metadata).toMatchObject({
+      fingerprintHash: 'd'.repeat(64),
+      policyVersion: 'h9-policy-v1',
+      actionabilityStatus: 'actionable',
+      moicSourceInputHash: 'a'.repeat(64),
+    });
+    expect(resolveForFund).toHaveBeenCalledWith(1);
+  });
+
+  it('aborts assembly with H9_SOURCE_CHANGED_DURING_ASSEMBLY when the fingerprint drifts mid-assembly', async () => {
+    resolveForFund.mockResolvedValueOnce(H9_RESULT).mockResolvedValueOnce({
+      ...H9_RESULT,
+      sourceFingerprint: { ...H9_RESULT.sourceFingerprint, fingerprintHash: 'f'.repeat(64) },
+    });
+
+    await expect(
+      assembleMetricRunReportPackage(
+        {
+          fundId: 1,
+          metricRunId: 11,
+          userId: 7,
+          body: { expectedMetricRunVersion: 4, expectedNarratives: expectedNarratives() },
+        },
+        { database: makeDatabase() }
+      )
+    ).rejects.toMatchObject({
+      code: 'H9_SOURCE_CHANGED_DURING_ASSEMBLY',
+    });
+  });
+
+  it('replay after H9 source drift returns the stored package (inserted:false), NOT a 409, and does not re-resolve', async () => {
+    const database = makeDatabase();
+    const input = {
+      fundId: 1,
+      metricRunId: 11,
+      userId: 7,
+      body: { expectedMetricRunVersion: 4, expectedNarratives: expectedNarratives() },
+    };
+
+    const first = await assembleMetricRunReportPackage(input, { database });
+    expect(first.inserted).toBe(true);
+    const resolvesAfterFirst = resolveForFund.mock.calls.length;
+
+    // Source drifts AFTER assembly. If the replay path re-resolved H9, this would
+    // surface as an extra resolve (and, with intra-call drift, a 409) — Decision 2
+    // requires the replay branch to short-circuit BEFORE any H9 stamp/recheck.
+    resolveForFund.mockResolvedValue({
+      ...H9_RESULT,
+      sourceFingerprint: { ...H9_RESULT.sourceFingerprint, fingerprintHash: 'f'.repeat(64) },
+    });
+
+    const second = await assembleMetricRunReportPackage(input, { database });
+    expect(second.inserted).toBe(false);
+    expect(resolveForFund.mock.calls.length).toBe(resolvesAfterFirst);
   });
 
   it('returns inserted false for same-input retry without rewriting the package', async () => {

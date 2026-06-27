@@ -11,6 +11,7 @@ import { z } from 'zod';
 
 import { LpMetricRunDiagnosticsSchema, LpMetricRunResultsSchema } from './lp-metric-run.contract';
 import { NarrativeTypeSchema } from './lp-narrative-run.contract';
+import { H9ActionabilityStatusSchema } from '../h9-actionability.contract';
 
 const PositiveIdSchema = z.number().int().positive();
 const PositiveVersionSchema = z.number().int().positive();
@@ -60,6 +61,17 @@ export const ReportPackagePayloadSchema = z
   })
   .strict();
 
+export const ReportPackageH9MetadataSchema = z
+  .object({
+    moicSourceInputHash: z.string().min(1),
+    roundEvidenceInputHash: z.string().min(1),
+    roundEvidenceAssumptionsHash: z.string().min(1),
+    fingerprintHash: z.string().min(1),
+    policyVersion: z.string().min(1),
+    actionabilityStatus: H9ActionabilityStatusSchema,
+  })
+  .strict();
+
 export const ReportPackageRecordSchema = z
   .object({
     reportPackageId: PositiveIdSchema,
@@ -72,6 +84,7 @@ export const ReportPackageRecordSchema = z
     metricRunLockedAt: z.string().datetime().nullable(),
     narrativeRefs: z.array(ReportPackageNarrativeRefSchema),
     payload: ReportPackagePayloadSchema,
+    h9Metadata: ReportPackageH9MetadataSchema.nullable(),
     assembledBy: PositiveIdSchema,
     assembledAt: z.string().datetime(),
     version: PositiveVersionSchema,
@@ -98,6 +111,7 @@ export type ReportPackageExpectedNarrative = z.infer<typeof ReportPackageExpecte
 export type ReportPackageAssembleRequest = z.infer<typeof ReportPackageAssembleRequestSchema>;
 export type ReportPackageNarrativeRef = z.infer<typeof ReportPackageNarrativeRefSchema>;
 export type ReportPackagePayload = z.infer<typeof ReportPackagePayloadSchema>;
+export type ReportPackageH9Metadata = z.infer<typeof ReportPackageH9MetadataSchema>;
 export type ReportPackageRecord = z.infer<typeof ReportPackageRecordSchema>;
 export type ReportPackageGetResponse = z.infer<typeof ReportPackageGetResponseSchema>;
 export type ReportPackageAssembleResponse = z.infer<typeof ReportPackageAssembleResponseSchema>;

@@ -212,6 +212,12 @@ interface MockReportPackageRow {
   version: number;
   createdAt: Date;
   updatedAt: Date;
+  h9MoicSourceInputHash: string | null;
+  h9RoundEvidenceInputHash: string | null;
+  h9RoundEvidenceAssumptionsHash: string | null;
+  h9FingerprintHash: string | null;
+  h9PolicyVersion: string | null;
+  h9ActionabilityStatus: string | null;
 }
 
 interface MockReportPackageExportRow {
@@ -298,6 +304,37 @@ vi.mock('@shared/schema/lp-reporting-evidence', () => ({
     status: 'lpReportPackageExports.status',
   },
 }));
+
+// H9 resolver is mocked so the assembly stamp and the export gate behave transparently:
+// the resolver returns a fixed actionable fingerprint that matches the stamped columns,
+// so assembly stamps cleanly and the export gate never blocks. (H9 integration coverage
+// is covered by the service-level suites; this route test keeps its pre-H9 behavior.)
+vi.mock('../../../../server/services/fund-calculation-mode-service', () => {
+  const result = {
+    sourceFingerprintMatches: true,
+    actionability: 'actionable' as const,
+    actionabilityStatus: 'actionable' as const,
+    sourceFingerprint: {
+      moicSourceInputHash: 'a'.repeat(64),
+      roundEvidenceInputHash: 'b'.repeat(64),
+      roundEvidenceAssumptionsHash: 'c'.repeat(64),
+      fingerprintHash: 'd'.repeat(64),
+      policyVersion: 'h9-policy-v1',
+    },
+    acceptedReconciliationRunId: 42,
+  };
+  return {
+    createMoicActionabilityResolver: () => ({ resolveForFund: async () => result }),
+    toH9SnapshotColumns: (r: typeof result) => ({
+      h9MoicSourceInputHash: r.sourceFingerprint.moicSourceInputHash,
+      h9RoundEvidenceInputHash: r.sourceFingerprint.roundEvidenceInputHash,
+      h9RoundEvidenceAssumptionsHash: r.sourceFingerprint.roundEvidenceAssumptionsHash,
+      h9FingerprintHash: r.sourceFingerprint.fingerprintHash,
+      h9PolicyVersion: r.sourceFingerprint.policyVersion,
+      h9ActionabilityStatus: r.actionability,
+    }),
+  };
+});
 
 vi.mock('@shared/schema/user', () => ({
   users: { _kind: 'users', id: 'users.id' },
@@ -611,6 +648,16 @@ vi.mock('../../../../server/db', () => {
                     (row['createdAt'] as Date | undefined) ?? new Date('2026-05-10T03:00:00Z'),
                   updatedAt:
                     (row['updatedAt'] as Date | undefined) ?? new Date('2026-05-10T03:00:00Z'),
+                  h9MoicSourceInputHash:
+                    (row['h9MoicSourceInputHash'] as string | undefined) ?? null,
+                  h9RoundEvidenceInputHash:
+                    (row['h9RoundEvidenceInputHash'] as string | undefined) ?? null,
+                  h9RoundEvidenceAssumptionsHash:
+                    (row['h9RoundEvidenceAssumptionsHash'] as string | undefined) ?? null,
+                  h9FingerprintHash: (row['h9FingerprintHash'] as string | undefined) ?? null,
+                  h9PolicyVersion: (row['h9PolicyVersion'] as string | undefined) ?? null,
+                  h9ActionabilityStatus:
+                    (row['h9ActionabilityStatus'] as string | undefined) ?? null,
                 };
                 dbState.reportPackages.push(reportPackageRow);
                 if (dbState.dropNextInsert) {
