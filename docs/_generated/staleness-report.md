@@ -1,18 +1,18 @@
 ---
-last_updated: 2026-06-26
+last_updated: 2026-06-27
 ---
 
 # Staleness Report
 
-*Generated: 2026-06-26T00:00:00.000Z*
+*Generated: 2026-06-27T00:00:00.000Z*
 *Source: docs/DISCOVERY-MAP.source.yaml*
 
 ## Summary
 
 | Metric | Value |
 |--------|-------|
-| Total Documents | 673 |
-| Stale Documents | 107 |
+| Total Documents | 664 |
+| Stale Documents | 111 |
 | Missing Frontmatter | 24 |
 
 ### By Status
@@ -22,7 +22,7 @@ last_updated: 2026-06-26
 | ACTIVE | 450 |
 | UNKNOWN | 119 |
 | DRAFT | 33 |
-| HISTORICAL | 30 |
+| HISTORICAL | 21 |
 | VERIFIED | 9 |
 | REFERENCE | 8 |
 | INDEXED | 6 |
@@ -91,30 +91,32 @@ Documents that need review (older than their cadence threshold):
 | `docs/superpowers/specs/2026-06-11-worker-prod-ops-design.md` | Never | 999 | No | Unassigned |
 | `docs/superpowers/specs/2026-06-21-investment-rounds-ui-v2-design.md` | Never | 999 | No | Unassigned |
 | `docs/tooling-catalog.md` | Never | 999 | No | Unassigned |
-| `cheatsheets/agent-architecture.md` | 2026-01-19 | 158 | No | Unassigned |
-| `cheatsheets/agent-memory/database-expert-schema-tdd.md` | 2026-01-19 | 158 | No | Unassigned |
-| `cheatsheets/ai-code-review.md` | 2026-01-19 | 158 | No | Unassigned |
-| `cheatsheets/anti-pattern-prevention.md` | 2026-01-19 | 158 | No | Unassigned |
-| `cheatsheets/api.md` | 2026-01-19 | 158 | No | Unassigned |
+| `.claude/AGENT-DIRECTORY.md` | 2025-12-29 | 180 | No | Platform Team |
+| `.claude/docs/TEST-STRATEGY.md` | 2025-12-29 | 180 | No | Platform Team |
+| `.claude/plan.md` | 2025-12-29 | 180 | YES - verify! | Platform Developer |
+| `docs/xirr-consolidation-roadmap.md` | 2025-12-29 | 180 | YES - verify! | Platform Developer |
+| `cheatsheets/agent-architecture.md` | 2026-01-19 | 159 | No | Unassigned |
 
-*...and 57 more stale documents.*
+*...and 61 more stale documents.*
 
 ## Documents with Execution Claims (Need Verification)
 
 These documents contain phrases like "tests pass", "PR merged", etc. and should be verified:
 
-- [ ] **CHANGELOG.md** (37 days old)
-- [ ] **cheatsheets/emoji-free-documentation.md** (158 days old)
-- [ ] **cheatsheets/schema-alignment.md** (158 days old)
-- [ ] **docs/notebooklm-sources/reserves/01-overview.md** (158 days old)
-- [ ] **docs/notebooklm-sources/waterfall.md** (158 days old)
-- [ ] **docs/notebooklm-sources/xirr.md** (158 days old)
-- [ ] **docs/observability/EDITORIAL-V2-CHANGELOG.md** (158 days old)
+- [ ] **.claude/plan.md** (180 days old)
+- [ ] **CHANGELOG.md** (38 days old)
+- [ ] **cheatsheets/emoji-free-documentation.md** (159 days old)
+- [ ] **cheatsheets/schema-alignment.md** (159 days old)
+- [ ] **docs/notebooklm-sources/reserves/01-overview.md** (159 days old)
+- [ ] **docs/notebooklm-sources/waterfall.md** (159 days old)
+- [ ] **docs/notebooklm-sources/xirr.md** (159 days old)
+- [ ] **docs/observability/EDITORIAL-V2-CHANGELOG.md** (159 days old)
 - [ ] **docs/skills/REFL-003-cross-platform-file-enumeration-fragility.md** (999 days old)
 - [ ] **docs/skills/REFL-014-test-key-reuse-across-test-cases.md** (999 days old)
 - [ ] **docs/skills/REFL-015-postgresql-service-missing-test-database.md** (999 days old)
 - [ ] **docs/superpowers/plans/2026-06-07-forecast-drift-ux-completion.md** (999 days old)
 - [ ] **docs/superpowers/specs/2026-05-16-refactor-stability-strategy-design.md** (999 days old)
+- [ ] **docs/xirr-consolidation-roadmap.md** (180 days old)
 
 ## Missing Frontmatter
 
