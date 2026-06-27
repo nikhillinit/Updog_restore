@@ -201,7 +201,6 @@
 - **Postbuild verification:** `node scripts/verify-build.mjs`
 - **Vercel build:** `npm run vercel-build` (uses default React mode, not preact)
 - **Bundle budgets:** `node scripts/check-budgets.cjs` (`npm run bundle:check`)
-- **Replit:** `replit-deployment.config.js` exists at root
 - **Devcontainer:** `.devcontainer/`
 
 ## Containers / Infra
