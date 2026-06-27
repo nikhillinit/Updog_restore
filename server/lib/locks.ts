@@ -25,8 +25,9 @@ type PgClient = {
 export function generateLockKey(orgId: string, fundId: string): bigint {
   const combined = `${orgId}:${fundId}`;
   const hash = crypto.createHash('sha256').update(combined).digest('hex');
-  // Take first 16 hex chars (64 bits) and convert to bigint
-  return BigInt(`0x${hash.substring(0, 16)}`);
+  // Take first 16 hex chars (64 bits) and clamp to signed int8 range
+  // (Postgres advisory-lock keys are signed bigint; an unsigned value can exceed int8 max).
+  return BigInt.asIntN(64, BigInt(`0x${hash.substring(0, 16)}`));
 }
 
 /**
