@@ -172,6 +172,30 @@ function assertRowsBelongToFund(
   }
 }
 
+function assertRealizedProceedsValid(eventRows: CashFlowEvent[]): void {
+  const offending = eventRows
+    .filter((row) => row.eventType === 'realized_proceeds')
+    .filter((row) => {
+      const amount = Number(row.amount);
+      return (
+        row.status !== 'locked' ||
+        row.reversalOfEventId != null ||
+        !Number.isFinite(amount) ||
+        amount <= 0
+      );
+    })
+    .map((row) => row.id);
+
+  if (offending.length > 0) {
+    throw new MetricRunCommitError(
+      422,
+      'REALIZED_PROCEEDS_INVALID',
+      'One or more realized-proceeds source events are not locked, are reversed, or have a non-positive amount.',
+      { eventIds: offending }
+    );
+  }
+}
+
 function eventFingerprint(row: CashFlowEvent): Record<string, unknown> {
   return {
     id: row.id,
@@ -274,6 +298,7 @@ async function loadSources(
     'One or more source mark IDs were not found.'
   );
   assertRowsBelongToFund(fundId, eventRows, markRows);
+  assertRealizedProceedsValid(eventRows);
 
   return { eventRows, markRows };
 }

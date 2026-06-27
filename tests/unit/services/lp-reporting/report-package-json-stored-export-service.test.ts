@@ -17,9 +17,34 @@ import type {
 } from '@shared/contracts/lp-reporting';
 import {
   lpReportPackageExports,
+  lpReportPackages,
   type LpReportPackageExport,
 } from '@shared/schema/lp-reporting-evidence';
 import { users } from '@shared/schema/user';
+
+const { resolveForFund } = vi.hoisted(() => ({ resolveForFund: vi.fn() }));
+
+vi.mock('../../../../server/services/fund-calculation-mode-service', async (importOriginal) => {
+  const actual =
+    await importOriginal<
+      typeof import('../../../../server/services/fund-calculation-mode-service')
+    >();
+  return { ...actual, createMoicActionabilityResolver: () => ({ resolveForFund }) };
+});
+
+const H9_FP = 'd'.repeat(64);
+const CURRENT_OK = {
+  actionability: 'actionable' as const,
+  sourceFingerprint: { fingerprintHash: H9_FP, policyVersion: 'h9-policy-v1' },
+};
+const storedPackageRow = {
+  h9MoicSourceInputHash: 'a'.repeat(64),
+  h9RoundEvidenceInputHash: 'b'.repeat(64),
+  h9RoundEvidenceAssumptionsHash: 'c'.repeat(64),
+  h9FingerprintHash: H9_FP,
+  h9PolicyVersion: 'h9-policy-v1',
+  h9ActionabilityStatus: 'actionable',
+};
 
 interface State {
   exportRows: LpReportPackageExport[];
@@ -122,6 +147,7 @@ function makeResponse(hash = 'c'.repeat(64)): ReportPackageJsonExportResponse {
 function rowsFor(table: unknown): unknown[] {
   if (table === users) return state.users.map((id) => ({ id }));
   if (table === lpReportPackageExports) return [...state.exportRows];
+  if (table === lpReportPackages) return [storedPackageRow];
   return [];
 }
 
@@ -188,6 +214,7 @@ beforeEach(() => {
   state.users = [7];
   state.nextId = 4100;
   state.dropNextInsert = false;
+  resolveForFund.mockResolvedValue(CURRENT_OK);
 });
 
 describe('stored report package JSON exports', () => {
@@ -319,5 +346,33 @@ describe('stored report package JSON exports', () => {
     expect(artifactResponse.record.reportPackageExportId).toBe(4100);
     expect(artifactResponse.export.contentHash).toBe('c'.repeat(64));
     expect(artifactResponse.export.source.reportPackageId).toBe(3000);
+  });
+
+  it('serves the stored JSON artifact when H9 matches', async () => {
+    const database = makeDatabase();
+    await createMetricRunReportPackageStoredJsonExport(
+      { fundId: 1, metricRunId: 500, userId: 7 },
+      { database, jsonExportService: vi.fn(async () => makeResponse()) }
+    );
+    const res = await getMetricRunReportPackageStoredJsonArtifact(
+      { fundId: 1, metricRunId: 500 },
+      { database }
+    );
+    expect(res.export).toBeDefined();
+  });
+
+  it('blocks the stored JSON artifact with surface stored_json_export when H9 has drifted', async () => {
+    const database = makeDatabase();
+    await createMetricRunReportPackageStoredJsonExport(
+      { fundId: 1, metricRunId: 500, userId: 7 },
+      { database, jsonExportService: vi.fn(async () => makeResponse()) }
+    );
+    resolveForFund.mockResolvedValue({
+      actionability: 'actionable',
+      sourceFingerprint: { fingerprintHash: 'e'.repeat(64), policyVersion: 'h9-policy-v1' },
+    });
+    await expect(
+      getMetricRunReportPackageStoredJsonArtifact({ fundId: 1, metricRunId: 500 }, { database })
+    ).rejects.toMatchObject({ code: 'H9_FINGERPRINT_STALE', surface: 'stored_json_export' });
   });
 });

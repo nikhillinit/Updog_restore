@@ -31,6 +31,7 @@ import {
   type LpReportPackageExport,
 } from '@shared/schema/lp-reporting-evidence';
 import { users } from '@shared/schema/user';
+import { assertH9PackageExportable } from './h9-export-gate';
 import { MetricRunCommitError } from './metric-run-commit-service';
 import {
   canonicalJson,
@@ -287,6 +288,15 @@ export async function getMetricRunReportPackageStoredJsonArtifact(
 
   const artifact = ReportPackageJsonExportArtifactSchema.parse(existing.artifactPayload);
   assertRouteScope(input, artifact);
+
+  // Finding 8: the stored-readiness status endpoint (getMetricRunReportPackageStoredJsonExport)
+  // defers to this authoritative artifact-GET gate; the artifact never serves on stale/non-actionable H9.
+  await assertH9PackageExportable({
+    surface: 'stored_json_export',
+    fundId: input.fundId,
+    metricRunId: input.metricRunId,
+    database,
+  });
 
   return ReportPackageJsonStoredArtifactResponseSchema.parse({
     record: toExportRecord(existing),

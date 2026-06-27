@@ -2,7 +2,7 @@
  * Unit tests for stored LP Reporting package CSV exports.
  */
 import { createHash } from 'node:crypto';
-import { beforeEach, describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import type { db } from '../../../../server/db';
 import type { MetricRunCommitError } from '../../../../server/services/lp-reporting/metric-run-commit-service';
@@ -15,9 +15,34 @@ import {
 import type { ReportPackageJsonExportArtifact } from '@shared/contracts/lp-reporting';
 import {
   lpReportPackageExports,
+  lpReportPackages,
   type LpReportPackageExport,
 } from '@shared/schema/lp-reporting-evidence';
 import { users } from '@shared/schema/user';
+
+const { resolveForFund } = vi.hoisted(() => ({ resolveForFund: vi.fn() }));
+
+vi.mock('../../../../server/services/fund-calculation-mode-service', async (importOriginal) => {
+  const actual =
+    await importOriginal<
+      typeof import('../../../../server/services/fund-calculation-mode-service')
+    >();
+  return { ...actual, createMoicActionabilityResolver: () => ({ resolveForFund }) };
+});
+
+const H9_FP = 'd'.repeat(64);
+const CURRENT_OK = {
+  actionability: 'actionable' as const,
+  sourceFingerprint: { fingerprintHash: H9_FP, policyVersion: 'h9-policy-v1' },
+};
+const storedPackageRow = {
+  h9MoicSourceInputHash: 'a'.repeat(64),
+  h9RoundEvidenceInputHash: 'b'.repeat(64),
+  h9RoundEvidenceAssumptionsHash: 'c'.repeat(64),
+  h9FingerprintHash: H9_FP,
+  h9PolicyVersion: 'h9-policy-v1',
+  h9ActionabilityStatus: 'actionable',
+};
 
 interface State {
   exportRows: LpReportPackageExport[];
@@ -147,6 +172,7 @@ function sha256(text: string): string {
 function rowsFor(table: unknown): unknown[] {
   if (table === users) return state.users.map((id) => ({ id }));
   if (table === lpReportPackageExports) return [...state.exportRows];
+  if (table === lpReportPackages) return [storedPackageRow];
   return [];
 }
 
@@ -236,6 +262,7 @@ beforeEach(() => {
   state.users = [7];
   state.nextId = 4101;
   state.dropNextInsert = false;
+  resolveForFund.mockResolvedValue(CURRENT_OK);
 });
 
 describe('stored report package CSV exports', () => {
@@ -393,5 +420,35 @@ describe('stored report package CSV exports', () => {
     expect(metadata.record?.format).toBe('csv');
     expect(artifactResponse.record.reportPackageExportId).toBe(4101);
     expect(artifactResponse.csv.csv).toBe(buildReportPackageCsv(artifact));
+  });
+
+  it('serves the stored CSV artifact when H9 matches', async () => {
+    seedStoredJson();
+    const database = makeDatabase();
+    await createMetricRunReportPackageStoredCsvExport(
+      { fundId: 1, metricRunId: 500, userId: 7 },
+      { database }
+    );
+    const res = await getMetricRunReportPackageStoredCsvArtifact(
+      { fundId: 1, metricRunId: 500 },
+      { database }
+    );
+    expect(res.csv).toBeDefined();
+  });
+
+  it('blocks the stored CSV artifact with surface stored_csv_export when H9 has drifted', async () => {
+    seedStoredJson();
+    const database = makeDatabase();
+    await createMetricRunReportPackageStoredCsvExport(
+      { fundId: 1, metricRunId: 500, userId: 7 },
+      { database }
+    );
+    resolveForFund.mockResolvedValue({
+      actionability: 'actionable',
+      sourceFingerprint: { fingerprintHash: 'e'.repeat(64), policyVersion: 'h9-policy-v1' },
+    });
+    await expect(
+      getMetricRunReportPackageStoredCsvArtifact({ fundId: 1, metricRunId: 500 }, { database })
+    ).rejects.toMatchObject({ code: 'H9_FINGERPRINT_STALE', surface: 'stored_csv_export' });
   });
 });

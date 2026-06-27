@@ -353,3 +353,73 @@ describe('commitMetricRun', () => {
     expect(fakeDb.metricRuns).toHaveLength(1);
   });
 });
+
+describe('realized-proceeds source validation', () => {
+  function pushProceeds(fakeDb: FakeMetricRunDb, overrides: Partial<FakeCashFlowEvent> = {}): void {
+    fakeDb.events.push({
+      id: 301,
+      fundId: 1,
+      eventType: 'realized_proceeds',
+      amount: '1000000.000000',
+      eventDate: new Date('2025-03-01T00:00:00Z'),
+      perspective: 'lp_net',
+      status: 'locked',
+      reversalOfEventId: null,
+      sourceHash: '4'.repeat(64),
+      importBatchId: 10,
+      updatedAt: new Date('2026-01-01T00:00:00Z'),
+      ...overrides,
+    });
+  }
+
+  // The validator runs in loadSources, BEFORE the previewHash check in commitMetricRun,
+  // so a dummy previewHash is fine for the reject cases.
+  function rejectInput(eventIds: number[]): MetricRunCommitInput {
+    return {
+      fundId: 1,
+      asOfDate: '2026-03-31',
+      runType: 'quarterly_report' as const,
+      perspective: 'lp_net' as const,
+      sourceEventIds: eventIds,
+      sourceMarkIds: [],
+      previewHash: 'validation-throws-before-this-is-checked',
+      userId: 7,
+    };
+  }
+
+  it('rejects a realized_proceeds source event that is not locked', async () => {
+    const fakeDb = new FakeMetricRunDb();
+    pushProceeds(fakeDb, { status: 'draft' });
+    await expect(
+      commitMetricRun(rejectInput([301]), { database: fakeDb.asDatabase() })
+    ).rejects.toMatchObject({ code: 'REALIZED_PROCEEDS_INVALID' });
+  });
+
+  it('rejects a realized_proceeds source event with a non-positive amount', async () => {
+    const fakeDb = new FakeMetricRunDb();
+    pushProceeds(fakeDb, { amount: '0.000000' });
+    await expect(
+      commitMetricRun(rejectInput([301]), { database: fakeDb.asDatabase() })
+    ).rejects.toMatchObject({ code: 'REALIZED_PROCEEDS_INVALID' });
+  });
+
+  it('rejects a realized_proceeds source event that is a reversal', async () => {
+    const fakeDb = new FakeMetricRunDb();
+    pushProceeds(fakeDb, { reversalOfEventId: 55 });
+    await expect(
+      commitMetricRun(rejectInput([301]), { database: fakeDb.asDatabase() })
+    ).rejects.toMatchObject({ code: 'REALIZED_PROCEEDS_INVALID' });
+  });
+
+  it('accepts a locked, positive, non-reversal realized_proceeds source event alongside other events', async () => {
+    const fakeDb = new FakeMetricRunDb();
+    const sourceIds = seedHappyPath(fakeDb);
+    pushProceeds(fakeDb);
+    const input = await buildCommitInput(fakeDb, {
+      eventIds: [...sourceIds.eventIds, 301],
+      markIds: sourceIds.markIds,
+    });
+    const result = await commitMetricRun(input, { database: fakeDb.asDatabase() });
+    expect(result).toBeDefined();
+  });
+});
