@@ -1,7 +1,7 @@
 /**
  * Unit tests for LP Reporting report-package render model service.
  */
-import { beforeEach, describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import type { db } from '../../../../server/db';
 import type { MetricRunCommitError } from '../../../../server/services/lp-reporting/metric-run-commit-service';
@@ -13,6 +13,30 @@ import {
   type LpMetricRun,
   type LpReportPackage,
 } from '@shared/schema/lp-reporting-evidence';
+
+const { resolveForFund } = vi.hoisted(() => ({ resolveForFund: vi.fn() }));
+
+vi.mock('../../../../server/services/fund-calculation-mode-service', async (importOriginal) => {
+  const actual =
+    await importOriginal<
+      typeof import('../../../../server/services/fund-calculation-mode-service')
+    >();
+  return { ...actual, createMoicActionabilityResolver: () => ({ resolveForFund }) };
+});
+
+const H9_FP = 'd'.repeat(64);
+const CURRENT_OK = {
+  actionability: 'actionable' as const,
+  sourceFingerprint: { fingerprintHash: H9_FP, policyVersion: 'h9-policy-v1' },
+};
+const H9_COLUMNS = {
+  h9MoicSourceInputHash: 'a'.repeat(64),
+  h9RoundEvidenceInputHash: 'b'.repeat(64),
+  h9RoundEvidenceAssumptionsHash: 'c'.repeat(64),
+  h9FingerprintHash: H9_FP,
+  h9PolicyVersion: 'h9-policy-v1',
+  h9ActionabilityStatus: 'actionable',
+};
 
 const validXirrDiagnostic = {
   convergence: 'converged',
@@ -158,6 +182,7 @@ function reportPackageRow(overrides: Partial<LpReportPackage> = {}): LpReportPac
     version: 1,
     createdAt: new Date('2026-05-10T03:00:00Z'),
     updatedAt: new Date('2026-05-10T03:00:00Z'),
+    ...H9_COLUMNS,
     ...overrides,
   };
 }
@@ -204,6 +229,7 @@ beforeEach(() => {
   state.metricRuns = [metricRunRow()];
   state.reportPackages = [reportPackageRow()];
   state.writeCalls = [];
+  resolveForFund.mockResolvedValue(CURRENT_OK);
 });
 
 describe('getMetricRunReportPackageRenderModel', () => {
@@ -239,6 +265,27 @@ describe('getMetricRunReportPackageRenderModel', () => {
     });
     expect(response.renderModel.diagnostics.excludedFutureMarks).toEqual([800, 900]);
     expect(state.writeCalls).toEqual([]);
+  });
+
+  it('serves the render model when stored H9 matches the current fingerprint', async () => {
+    const response = await getMetricRunReportPackageRenderModel(
+      { fundId: 1, metricRunId: 11 },
+      { database: makeDatabase() }
+    );
+    expect(response.renderModel).toBeDefined();
+  });
+
+  it('blocks H9_FINGERPRINT_STALE when the source fingerprint has drifted', async () => {
+    resolveForFund.mockResolvedValue({
+      actionability: 'actionable',
+      sourceFingerprint: { fingerprintHash: 'e'.repeat(64), policyVersion: 'h9-policy-v1' },
+    });
+    await expect(
+      getMetricRunReportPackageRenderModel(
+        { fundId: 1, metricRunId: 11 },
+        { database: makeDatabase() }
+      )
+    ).rejects.toMatchObject({ code: 'H9_FINGERPRINT_STALE' });
   });
 
   it('returns REPORT_PACKAGE_NOT_FOUND when the package has not been assembled', async () => {

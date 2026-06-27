@@ -1,26 +1,26 @@
 ---
-last_updated: 2026-06-23
+last_updated: 2026-06-26
 ---
 
 # Staleness Report
 
-*Generated: 2026-06-23T00:00:00.000Z*
+*Generated: 2026-06-26T00:00:00.000Z*
 *Source: docs/DISCOVERY-MAP.source.yaml*
 
 ## Summary
 
 | Metric | Value |
 |--------|-------|
-| Total Documents | 671 |
-| Stale Documents | 104 |
-| Missing Frontmatter | 22 |
+| Total Documents | 673 |
+| Stale Documents | 107 |
+| Missing Frontmatter | 24 |
 
 ### By Status
 
 | Status | Count |
 |--------|-------|
 | ACTIVE | 450 |
-| UNKNOWN | 117 |
+| UNKNOWN | 119 |
 | DRAFT | 33 |
 | HISTORICAL | 30 |
 | VERIFIED | 9 |
@@ -46,6 +46,7 @@ Documents that need review (older than their cadence threshold):
 
 | Document | Last Updated | Days Old | Has Execution Claims | Owner |
 |----------|--------------|----------|---------------------|-------|
+| `.claude/artifacts/prC-storage-fund-investigation.md` | Never | 999 | No | Unassigned |
 | `CONTEXT.md` | Never | 999 | No | Unassigned |
 | `DIRECTORY_DELETION_INVESTIGATION.md` | Never | 999 | No | Unassigned |
 | `docs/CA-PACING-ORACLE.md` | Never | 999 | No | Unassigned |
@@ -85,31 +86,30 @@ Documents that need review (older than their cadence threshold):
 | `docs/superpowers/plans/2026-06-11-worker-prod-ops.md` | Never | 999 | No | Unassigned |
 | `docs/superpowers/plans/2026-06-13-gp-trust-readiness-audit.md` | Never | 999 | No | Unassigned |
 | `docs/superpowers/plans/2026-06-22-investment-rounds-ui-v2.md` | Never | 999 | No | Unassigned |
+| `docs/superpowers/plans/2026-06-25-h9-pr3-lp-package-export-revalidation.md` | Never | 999 | No | Unassigned |
 | `docs/superpowers/specs/2026-05-16-refactor-stability-strategy-design.md` | Never | 999 | YES - verify! | Unassigned |
 | `docs/superpowers/specs/2026-06-11-worker-prod-ops-design.md` | Never | 999 | No | Unassigned |
 | `docs/superpowers/specs/2026-06-21-investment-rounds-ui-v2-design.md` | Never | 999 | No | Unassigned |
 | `docs/tooling-catalog.md` | Never | 999 | No | Unassigned |
-| `cheatsheets/agent-architecture.md` | 2026-01-19 | 155 | No | Unassigned |
-| `cheatsheets/agent-memory/database-expert-schema-tdd.md` | 2026-01-19 | 155 | No | Unassigned |
-| `cheatsheets/ai-code-review.md` | 2026-01-19 | 155 | No | Unassigned |
-| `cheatsheets/anti-pattern-prevention.md` | 2026-01-19 | 155 | No | Unassigned |
-| `cheatsheets/api.md` | 2026-01-19 | 155 | No | Unassigned |
-| `cheatsheets/capability-checklist.md` | 2026-01-19 | 155 | No | Unassigned |
-| `cheatsheets/ci-validator-guide.md` | 2026-01-19 | 155 | No | Unassigned |
+| `cheatsheets/agent-architecture.md` | 2026-01-19 | 158 | No | Unassigned |
+| `cheatsheets/agent-memory/database-expert-schema-tdd.md` | 2026-01-19 | 158 | No | Unassigned |
+| `cheatsheets/ai-code-review.md` | 2026-01-19 | 158 | No | Unassigned |
+| `cheatsheets/anti-pattern-prevention.md` | 2026-01-19 | 158 | No | Unassigned |
+| `cheatsheets/api.md` | 2026-01-19 | 158 | No | Unassigned |
 
-*...and 54 more stale documents.*
+*...and 57 more stale documents.*
 
 ## Documents with Execution Claims (Need Verification)
 
 These documents contain phrases like "tests pass", "PR merged", etc. and should be verified:
 
-- [ ] **CHANGELOG.md** (34 days old)
-- [ ] **cheatsheets/emoji-free-documentation.md** (155 days old)
-- [ ] **cheatsheets/schema-alignment.md** (155 days old)
-- [ ] **docs/notebooklm-sources/reserves/01-overview.md** (155 days old)
-- [ ] **docs/notebooklm-sources/waterfall.md** (155 days old)
-- [ ] **docs/notebooklm-sources/xirr.md** (155 days old)
-- [ ] **docs/observability/EDITORIAL-V2-CHANGELOG.md** (155 days old)
+- [ ] **CHANGELOG.md** (37 days old)
+- [ ] **cheatsheets/emoji-free-documentation.md** (158 days old)
+- [ ] **cheatsheets/schema-alignment.md** (158 days old)
+- [ ] **docs/notebooklm-sources/reserves/01-overview.md** (158 days old)
+- [ ] **docs/notebooklm-sources/waterfall.md** (158 days old)
+- [ ] **docs/notebooklm-sources/xirr.md** (158 days old)
+- [ ] **docs/observability/EDITORIAL-V2-CHANGELOG.md** (158 days old)
 - [ ] **docs/skills/REFL-003-cross-platform-file-enumeration-fragility.md** (999 days old)
 - [ ] **docs/skills/REFL-014-test-key-reuse-across-test-cases.md** (999 days old)
 - [ ] **docs/skills/REFL-015-postgresql-service-missing-test-database.md** (999 days old)
@@ -120,6 +120,7 @@ These documents contain phrases like "tests pass", "PR merged", etc. and should 
 
 Documents without proper YAML frontmatter:
 
+- [ ] `.claude/artifacts/prC-storage-fund-investigation.md`
 - [ ] `CONTEXT.md`
 - [ ] `DIRECTORY_DELETION_INVESTIGATION.md`
 - [ ] `docs/CA-PACING-ORACLE.md`
@@ -138,6 +139,7 @@ Documents without proper YAML frontmatter:
 - [ ] `docs/superpowers/plans/2026-06-11-worker-prod-ops.md`
 - [ ] `docs/superpowers/plans/2026-06-13-gp-trust-readiness-audit.md`
 - [ ] `docs/superpowers/plans/2026-06-22-investment-rounds-ui-v2.md`
+- [ ] `docs/superpowers/plans/2026-06-25-h9-pr3-lp-package-export-revalidation.md`
 - [ ] `docs/superpowers/specs/2026-05-16-refactor-stability-strategy-design.md`
 - [ ] `docs/superpowers/specs/2026-06-11-worker-prod-ops-design.md`
 - [ ] `docs/superpowers/specs/2026-06-21-investment-rounds-ui-v2-design.md`

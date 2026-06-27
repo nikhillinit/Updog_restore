@@ -40,6 +40,7 @@ import {
   type LpReportPackageExport,
 } from '@shared/schema/lp-reporting-evidence';
 import { users } from '@shared/schema/user';
+import { assertH9PackageExportable } from './h9-export-gate';
 import { MetricRunCommitError } from './metric-run-commit-service';
 
 type StoredCsvExportDatabase = typeof db;
@@ -489,6 +490,13 @@ export async function getMetricRunReportPackageStoredCsvArtifact(
   if (existing === null) {
     throw new ReportPackageCsvExportNotFoundError();
   }
+
+  await assertH9PackageExportable({
+    surface: 'stored_csv_export',
+    fundId: input.fundId,
+    metricRunId: input.metricRunId,
+    database,
+  });
 
   const document = ReportPackageCsvExportDocumentSchema.parse(existing.artifactPayload);
   return ReportPackageCsvStoredArtifactResponseSchema.parse({
