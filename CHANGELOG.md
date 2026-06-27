@@ -26,8 +26,8 @@ and this project adheres to
 - **Reserve-allocation scenarios now compute in production.** Dedicated
   `fund-scenario-calc` worker service on Railway (`railway.worker.toml` +
   `Dockerfile.worker` image, PRs #826/#828/#829) with Vercel as producer
-  (`ENABLE_QUEUES=1` set on Production env). Live proof: calculate-reserve
-  202 -> `queued -> succeeded` -> results read with
+  (`ENABLE_QUEUES=1` set on Production env). Live proof: calculate-reserve 202
+  -> `queued -> succeeded` -> results read with
   `calculationMode=async_reserve_allocation`.
 - **Prod scenario-family schema drift closed.** Production (db:push lineage)
   lacked `fund_scenario_sets`, `fund_scenario_variants`,
@@ -35,13 +35,12 @@ and this project adheres to
   `fund_snapshots.scenario_set_id`. Applied journaled drift migrations
   0009/0010/0011 narrowly via new operator helper
   `scripts/apply-scenario-drift-migrations.mjs` (audit-by-default,
-  `--apply --yes` gated, transactional). Note 0011 is applied in full, so
-  the guarded share/sensitivity drift objects it bundles (shares,
-  share_snapshots, share_analytics, scenario_matrices, sensitivity_runs,
-  optimization_sessions, snapshot_versions) were created too — all
-  schema-truth per shared/schema, and the helper audits every table it can
-  create. Do NOT run `db:migrate` against prod (0000 is unguarded); never
-  `db:push` against prod.
+  `--apply --yes` gated, transactional). Note 0011 is applied in full, so the
+  guarded share/sensitivity drift objects it bundles (shares, share_snapshots,
+  share_analytics, scenario_matrices, sensitivity_runs, optimization_sessions,
+  snapshot_versions) were created too — all schema-truth per shared/schema, and
+  the helper audits every table it can create. Do NOT run `db:migrate` against
+  prod (0000 is unguarded); never `db:push` against prod.
 
 ### Reconciliation Notes (2026-04-05 / corrected 2026-04-06)
 
@@ -2969,7 +2968,6 @@ and Phase 1D (Capital Allocation).
   `environmentMatchGlobs`
 - `tests/setup/node-setup.ts` - Server environment setup (NEW)
 - `tests/setup/jsdom-setup.ts` - Client environment setup (NEW)
-- `.backup/2025-10-19/setup.ts.original` - Original setup file (archived)
 
 **Remaining Failures (72):**
 
