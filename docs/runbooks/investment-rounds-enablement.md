@@ -95,9 +95,14 @@ create rounds through the UI or the API. `seed-db.ts` seeds the base
 - Keep `flags/registry.yaml` → `enable_investment_rounds.default: false` and
   `environments.production: false`.
 - Keep `.env.production` → `VITE_ENABLE_INVESTMENT_ROUNDS=false`.
-- The flag carries `expiresAt: 2026-12-31`; after that, `isFlagEnabled` returns
-  `false` regardless of overrides (see `flag-definitions.ts`). Re-home the
-  feature before then if it must persist.
+- The flag carries `expiresAt: 2026-12-31`, but this is metadata only honored by
+  the shared `isFlagEnabled(flagKey, flagStates)` helper in
+  `flag-definitions.ts`. The investment-rounds UI gate --
+  `useFlag('enable_investment_rounds')` in `client/src/shared/useFlags.ts`, plus
+  the `isUnifiedFlagEnabled` runtime -- does NOT evaluate `expiresAt`, so the
+  feature will NOT auto-disable on that date; `VITE_ENABLE_INVESTMENT_ROUNDS`
+  and runtime overrides stay authoritative. Re-home the feature (or route the UI
+  through `isFlagEnabled`) before then if expiry must actually gate it.
 - Guard test: `tests/unit/flags/enable-investment-rounds.test.tsx` asserts the
   global default stays OFF (prod-leak tripwire) and that the `VITE_*` lever
   works both ways. Keep it green.

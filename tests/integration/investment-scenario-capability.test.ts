@@ -586,12 +586,50 @@ describe.skipIf(!process.env.CI && process.platform === 'win32')(
           const list = await request(active.app).get(`/api/investments/${investmentId}/rounds`);
           expect(list.status, JSON.stringify(list.body)).toBe(200);
           const activeIds = (list.body as RoundListResponseBody).data.map((round) => round.id);
-          // Exactly one active head survives; every superseded round is gone.
+          // Exactly one active head survives in the filtered view; superseded
+          // rounds are retained in the ledger (proven by the direct DB read
+          // below), never deleted.
           expect(activeIds.length).toBe(1);
           expect(activeIds).toContain(headId);
           for (const supersededId of supersededIds) {
             expect(activeIds).not.toContain(supersededId);
           }
+
+          // Append-only ledger proof: the list endpoint filters superseded rows
+          // out, so read the table directly. Every write is retained -- base +
+          // one row per correction = chainLength + 1 -- and the
+          // supersedesRoundId links form a single unbroken chain from the
+          // active head back to the base.
+          const persisted = await active.database
+            .select({
+              id: investmentRounds.id,
+              supersedesRoundId: investmentRounds.supersedesRoundId,
+            })
+            .from(investmentRounds)
+            .where(eq(investmentRounds.investmentId, investmentId));
+
+          expect(persisted.length).toBe(chainLength + 1);
+
+          const baseId = (base.body as RoundResponseBody).id;
+          const linkById = new Map<number, number | null>(
+            persisted.map((row): [number, number | null] => [row.id, row.supersedesRoundId])
+          );
+          // Exactly one root (the base) has no predecessor.
+          expect([...linkById.values()].filter((link) => link === null)).toHaveLength(1);
+          expect(linkById.get(baseId)).toBeNull();
+
+          // Walk head -> base via supersedesRoundId; the chain must visit every
+          // persisted row exactly once and terminate at the base.
+          const walked: number[] = [];
+          let cursor: number | null = headId;
+          while (cursor !== null) {
+            walked.push(cursor);
+            expect(linkById.has(cursor)).toBe(true);
+            cursor = linkById.get(cursor) ?? null;
+          }
+          expect(walked).toHaveLength(chainLength + 1);
+          expect(walked[walked.length - 1]).toBe(baseId);
+          expect(new Set(walked).size).toBe(walked.length);
         },
         SOAK_TIMEOUT_MS
       );
