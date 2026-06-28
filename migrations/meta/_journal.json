@@ -141,6 +141,13 @@
       "when": 1782345601000,
       "tag": "0018_h9_actionability_snapshot_columns",
       "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "7",
+      "when": 1782345602000,
+      "tag": "0019_investments_id_fund_unique",
+      "breakpoints": true
     }
   ]
 }
