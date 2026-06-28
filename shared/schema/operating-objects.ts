@@ -6,7 +6,7 @@
  * (fund-scoped work items, minimal create/list). assumption/comment follow in
  * later PRs and slot in beside `tasks` here.
  *
- * Mirrors server/migrations/20260616_operating_object_tasks_v1.up.sql. Use the
+ * Mirrors migrations/0020_operating_tasks_drift.sql. Use the
  * exported $inferSelect / $inferInsert types in services/contracts; never
  * hand-declare a column type in a consumer.
  *

@@ -31,6 +31,7 @@ export default defineConfig({
       'tests/integration/migration-runner.test.ts',
       'tests/integration/fund-lifecycle-db.test.ts',
       'tests/integration/migration-drift.test.ts',
+      'tests/integration/prod-schema-clone.test.ts',
       'tests/integration/migrations/investment-rounds-schema.test.ts',
       'tests/integration/migrations/investments-id-fund-unique.test.ts',
       'tests/integration/investment-scenario-capability.test.ts',

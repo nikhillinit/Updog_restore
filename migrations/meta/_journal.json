@@ -148,6 +148,13 @@
       "when": 1782345602000,
       "tag": "0019_investments_id_fund_unique",
       "breakpoints": true
+    },
+    {
+      "idx": 21,
+      "version": "7",
+      "when": 1782691200000,
+      "tag": "0020_operating_tasks_drift",
+      "breakpoints": true
     }
   ]
 }

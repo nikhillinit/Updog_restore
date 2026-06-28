@@ -31,9 +31,7 @@ describe('active schema drift surface manifest', () => {
     expect(referencedPaths).toContain('shared/schema.ts');
     expect(referencedPaths).toContain('shared/schema/lp-reporting-evidence.ts');
     expect(referencedPaths).toContain('shared/contracts/fund-state-read-v1.contract.ts');
-    expect(
-      referencedPaths.some((entry) => entry === 'migrations' || entry.startsWith('migrations/'))
-    ).toBe(false);
+    expect(referencedPaths).toContain('migrations/0020_operating_tasks_drift.sql');
     expect(
       referencedPaths.some(
         (entry) => entry === 'server/db/schema' || entry.startsWith('server/db/schema/')

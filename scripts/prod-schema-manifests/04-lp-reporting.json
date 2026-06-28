@@ -1,0 +1,217 @@
+{
+  "name": "M4-lp-reporting",
+  "order": 4,
+  "description": "LP reporting evidence tables mounted through makeApp LP reporting routes.",
+  "sqlFiles": ["migrations/0014_lp_evidence_sprint3_drift.sql"],
+  "allowedCreateTables": [
+    "vehicles",
+    "cash_flow_events",
+    "valuation_marks",
+    "lp_metric_runs",
+    "narrative_runs",
+    "evidence_records",
+    "lp_report_packages",
+    "lp_report_package_exports",
+    "lp_vehicle_participation",
+    "lp_vehicle_participation_history",
+    "lp_capital_calls",
+    "lp_payment_submissions",
+    "lp_distribution_details",
+    "lp_documents",
+    "lp_notifications",
+    "lp_notification_preferences"
+  ],
+  "expectedTables": [
+    {
+      "name": "vehicles",
+      "columns": [
+        { "name": "id", "nullable": false },
+        { "name": "fund_id", "nullable": false },
+        { "name": "vehicle_slug", "nullable": false },
+        { "name": "vehicle_type", "nullable": false },
+        { "name": "name", "nullable": false }
+      ],
+      "constraints": [
+        "vehicles_fund_slug_unique",
+        "vehicles_type_check",
+        "vehicles_status_check",
+        "vehicles_admin_score_check",
+        "vehicles_fund_id_funds_id_fk"
+      ],
+      "indexes": ["idx_vehicles_fund_type"]
+    },
+    {
+      "name": "cash_flow_events",
+      "columns": [
+        { "name": "id", "nullable": false },
+        { "name": "fund_id", "nullable": false },
+        { "name": "event_type", "nullable": false },
+        { "name": "amount", "nullable": false },
+        { "name": "event_date", "nullable": false },
+        { "name": "perspective", "nullable": false }
+      ],
+      "constraints": [
+        "cash_flow_event_type_check",
+        "cash_flow_perspective_check",
+        "cash_flow_status_check",
+        "cash_flow_locked_not_mutable",
+        "cash_flow_events_fund_id_funds_id_fk",
+        "cash_flow_events_vehicle_id_vehicles_id_fk",
+        "cash_flow_events_company_id_portfoliocompanies_id_fk",
+        "cash_flow_events_lp_id_limited_partners_id_fk"
+      ],
+      "indexes": [
+        "idx_cash_flow_fund_date",
+        "idx_cash_flow_vehicle_date",
+        "idx_cash_flow_company_date",
+        "idx_cash_flow_event_type",
+        "idx_cash_flow_import_batch",
+        "cash_flow_events_fund_source_hash_unique"
+      ]
+    },
+    {
+      "name": "valuation_marks",
+      "columns": [
+        { "name": "id", "nullable": false },
+        { "name": "fund_id", "nullable": false },
+        { "name": "company_id", "nullable": false },
+        { "name": "mark_date", "nullable": false },
+        { "name": "as_of_date", "nullable": false },
+        { "name": "fair_value", "nullable": false }
+      ],
+      "constraints": [
+        "valuation_mark_source_check",
+        "valuation_confidence_check",
+        "valuation_status_check",
+        "valuation_marks_fund_id_funds_id_fk",
+        "valuation_marks_vehicle_id_vehicles_id_fk",
+        "valuation_marks_company_id_portfoliocompanies_id_fk"
+      ],
+      "indexes": [
+        "idx_valuation_marks_fund_asof",
+        "idx_valuation_marks_company_asof",
+        "idx_valuation_marks_vehicle_asof",
+        "idx_valuation_marks_import_batch",
+        "valuation_marks_fund_source_hash_unique"
+      ]
+    },
+    {
+      "name": "lp_metric_runs",
+      "columns": [
+        { "name": "id", "nullable": false },
+        { "name": "fund_id", "nullable": false },
+        { "name": "run_type", "nullable": false },
+        { "name": "perspective", "nullable": false },
+        { "name": "as_of_date", "nullable": false },
+        { "name": "status", "nullable": false }
+      ],
+      "constraints": [
+        "lp_metric_run_type_check",
+        "lp_metric_run_perspective_check",
+        "lp_metric_run_status_check",
+        "lp_metric_runs_fund_id_funds_id_fk",
+        "lp_metric_runs_vehicle_id_vehicles_id_fk"
+      ],
+      "indexes": [
+        "idx_lp_metric_runs_fund_asof",
+        "idx_lp_metric_runs_vehicle_asof",
+        "idx_lp_metric_runs_status",
+        "lp_metric_runs_fund_run_inputs_unique"
+      ]
+    },
+    {
+      "name": "evidence_records",
+      "columns": [
+        { "name": "id", "nullable": false },
+        { "name": "fund_id", "nullable": false },
+        { "name": "evidence_source", "nullable": false },
+        { "name": "confidence_level", "nullable": false },
+        { "name": "materiality_level", "nullable": false },
+        { "name": "confidentiality", "nullable": false }
+      ],
+      "constraints": [
+        "evidence_one_target_check",
+        "evidence_source_check",
+        "evidence_confidence_check",
+        "evidence_materiality_check",
+        "evidence_confidentiality_check",
+        "evidence_records_fund_id_funds_id_fk"
+      ],
+      "indexes": [
+        "idx_evidence_fund",
+        "idx_evidence_valuation_mark",
+        "idx_evidence_company",
+        "idx_evidence_metric_run",
+        "evidence_records_metric_run_idempotency_unique",
+        "idx_evidence_narrative_run",
+        "idx_evidence_expiration_date",
+        "idx_evidence_confidence",
+        "idx_evidence_confidentiality"
+      ]
+    },
+    {
+      "name": "narrative_runs",
+      "columns": [
+        { "name": "id", "nullable": false },
+        { "name": "fund_id", "nullable": false },
+        { "name": "metric_run_id", "nullable": false },
+        { "name": "narrative_type", "nullable": false },
+        { "name": "status", "nullable": false }
+      ],
+      "constraints": [
+        "narrative_type_check",
+        "narrative_status_check",
+        "narrative_runs_metric_run_id_lp_metric_runs_id_fk"
+      ],
+      "indexes": [
+        "idx_narrative_runs_metric_run",
+        "narrative_runs_metric_run_type_unique"
+      ]
+    },
+    {
+      "name": "lp_report_packages",
+      "columns": [
+        { "name": "id", "nullable": false },
+        { "name": "fund_id", "nullable": false },
+        { "name": "metric_run_id", "nullable": false },
+        { "name": "status", "nullable": false }
+      ],
+      "constraints": [
+        "lp_report_package_status_check",
+        "lp_report_packages_fund_id_funds_id_fk",
+        "lp_report_packages_metric_run_id_lp_metric_runs_id_fk"
+      ],
+      "indexes": [
+        "lp_report_packages_metric_run_unique",
+        "idx_lp_report_packages_fund_metric",
+        "idx_lp_report_packages_fund_assembled_at"
+      ]
+    },
+    {
+      "name": "lp_report_package_exports",
+      "columns": [
+        { "name": "id", "nullable": false },
+        { "name": "fund_id", "nullable": false },
+        { "name": "report_package_id", "nullable": false },
+        { "name": "format", "nullable": false },
+        { "name": "status", "nullable": false }
+      ],
+      "constraints": [
+        "lp_report_package_export_format_check",
+        "lp_report_package_export_version_check",
+        "lp_report_package_export_status_check",
+        "lp_report_package_export_hash_algorithm_check",
+        "lp_report_package_export_hash_check",
+        "lp_report_package_export_artifact_size_check",
+        "lp_report_package_exports_fund_id_funds_id_fk",
+        "lp_report_package_exports_report_package_id_lp_report_packages_id_fk"
+      ],
+      "indexes": [
+        "lp_report_package_exports_package_format_version_unique",
+        "idx_lp_report_package_exports_fund_metric",
+        "idx_lp_report_package_exports_fund_metric_package",
+        "idx_lp_report_package_exports_fund_ready_at"
+      ]
+    }
+  ]
+}
