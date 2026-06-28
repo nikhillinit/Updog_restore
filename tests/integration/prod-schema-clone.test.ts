@@ -2,6 +2,7 @@ import { PostgreSqlContainer, type StartedPostgreSqlContainer } from '@testconta
 import { Pool } from 'pg';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
+import { pgIdentifier } from '../../scripts/db-push-core.mjs';
 import { loadManifests } from '../../scripts/reconcile-prod-schema.mjs';
 import { runMigrationsWithConnectionString } from '../helpers/testcontainers-migration';
 
@@ -72,11 +73,13 @@ describe.skipIf(skipIfNoDocker)('prod schema synthetic clone', () => {
     const expectedTables = manifests.flatMap((manifest) =>
       (manifest.expectedTables ?? []).map((table: { name: string }) => table.name)
     );
-    const expectedConstraints = manifests.flatMap((manifest) =>
-      (manifest.expectedTables ?? []).flatMap(
-        (table: { constraints?: string[] }) => table.constraints ?? []
+    const expectedConstraints = manifests
+      .flatMap((manifest) =>
+        (manifest.expectedTables ?? []).flatMap(
+          (table: { constraints?: string[] }) => table.constraints ?? []
+        )
       )
-    );
+      .map(pgIdentifier);
 
     expect(expectedTables).toHaveLength(16);
 
