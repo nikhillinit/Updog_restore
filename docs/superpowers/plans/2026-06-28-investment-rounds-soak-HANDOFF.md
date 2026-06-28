@@ -16,8 +16,10 @@ audience: cloud Claude session (fresh GitHub checkout, no local Docker/Hermes)
 
 P0 release-gate lint unblock landed in **PR #943** (merge commit `9026db77`,
 2026-06-28). `.remember/**` is in `eslint.config.js` global ignores (`:56`) and
-`npm run lint` is green on `main`. There is no local Hermes/`orchestrate.js` in a cloud
-checkout and no Docker — work the GitHub repo only, implement directly, open a PR.
+`npm run lint` is green on `main`. Do not depend on Hermes/Codex orchestration in the cloud
+session: `orchestrate.js` is tracked in the repo, but its toolchain (Docker, model routing,
+local `node_modules`/API keys) may be absent or non-functional in a fresh checkout, and there
+is no Docker. Work the GitHub repo directly — implement, then open a PR.
 
 ## Your milestone — P1: Investment Rounds Controlled Soak Proof
 
@@ -29,8 +31,11 @@ proof + tests, **not** new schema or new features.
 
 - Keep the `enable_investment_rounds` flag **default OFF globally and OFF in production**.
   Never flip it on for prod.
-- Local/staging enable levers only: `VITE_ENABLE_INVESTMENT_ROUNDS=true` (build-time),
-  plus query/runtime override and localStorage. Seed via `scripts/seed-db.ts`.
+- Local/staging enable levers only (resolution order: `?ff_enable_investment_rounds=1` query
+  or `localStorage['ff_enable_investment_rounds']='1'` runtime override, then
+  `VITE_ENABLE_INVESTMENT_ROUNDS=true` build-time, else default OFF).
+- `scripts/seed-db.ts` is NOT an enable lever — it only seeds sample fund/company/investment
+  DATA so the enabled UI has something to render. Enable the flag separately via the levers above.
 - Valuation, performance, and bulk investment-round paths stay **UNSUPPORTED** — do not
   build them.
 
