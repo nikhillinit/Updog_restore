@@ -53,6 +53,7 @@ export default [
       '.claude/**',
       '.tmp/**',
       '.omx/**',
+      '.remember/**',
       '.worktrees/**',
       'node_modules/**',
       'build/**',
