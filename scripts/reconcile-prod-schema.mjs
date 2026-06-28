@@ -14,6 +14,7 @@ import {
   classifyDrizzlePushOutput,
   findMissingSentinels,
   matchesDbError,
+  pgIdentifier,
 } from './db-push-core.mjs';
 
 const { Client } = pg;
@@ -558,6 +559,7 @@ async function loadColumns(client, tableNames) {
 async function loadConstraints(client, tableNames, expectedTables) {
   const constraintNames = expectedTables.flatMap((table) => table.constraints ?? []);
   if (constraintNames.length === 0) return [];
+  const lookupNames = constraintNames.map(pgIdentifier);
 
   const result = await client.query(
     `
@@ -569,7 +571,7 @@ async function loadConstraints(client, tableNames, expectedTables) {
         AND rel.relname = ANY($1::text[])
         AND c.conname = ANY($2::text[])
     `,
-    [tableNames, constraintNames]
+    [tableNames, lookupNames]
   );
   return result.rows;
 }

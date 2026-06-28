@@ -14,6 +14,7 @@ import {
   findMissingSentinels,
   matchesDbError,
   parseDbPushArgs,
+  pgIdentifier,
   resolveLocalDrizzleBinary,
   resolveLocalDrizzleEntrypoint,
   shouldRefuseProdDbPush,
@@ -313,6 +314,11 @@ describe('db-push production URL guard', () => {
 });
 
 describe('db-push sentinel postcheck', () => {
+  it('normalizes PostgreSQL identifiers to the 63-byte stored form', () => {
+    expect(pgIdentifier('a'.repeat(75))).toHaveLength(63);
+    expect(pgIdentifier('short')).toBe('short');
+  });
+
   it('passes when all public-schema sentinels are present', async () => {
     const mockClient = createMockClient();
 
@@ -388,6 +394,20 @@ describe('db-push sentinel postcheck', () => {
     expect(INDEX_SENTINEL_QUERY).toContain("schemaname = 'public'");
     expect(missing.constraints).toEqual(sentinels.constraints);
     expect(missing.indexes).toEqual(sentinels.indexes);
+  });
+
+  it('treats a truncated PostgreSQL constraint name as present', () => {
+    const longConstraintName = 'a'.repeat(75);
+    const missing = findMissingSentinels({
+      sentinels: {
+        constraints: [longConstraintName],
+        indexes: [],
+      },
+      constraintRows: [{ conname: longConstraintName.slice(0, 63) }],
+      indexRows: [],
+    });
+
+    expect(missing.constraints).toEqual([]);
   });
 
   it('fails closed when DATABASE_URL is set but the database is unreachable', async () => {

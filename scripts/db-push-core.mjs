@@ -254,13 +254,21 @@ function rowNames(rows, fieldName) {
   );
 }
 
+// PostgreSQL truncates identifiers to 63 bytes (NAMEDATALEN-1). Manifest/sentinel
+// names can exceed this; the stored conname/indexname is the truncated form, so
+// compare against the truncated name. Manifest identifiers are ASCII, so a 63-char
+// slice equals the 63-byte truncation PostgreSQL applies.
+export function pgIdentifier(name) {
+  return name.length > 63 ? name.slice(0, 63) : name;
+}
+
 export function findMissingSentinels({ sentinels, constraintRows, indexRows }) {
   const presentConstraints = rowNames(constraintRows, 'conname');
   const presentIndexes = rowNames(indexRows, 'indexname');
 
   return {
-    constraints: sentinels.constraints.filter((name) => !presentConstraints.has(name)),
-    indexes: sentinels.indexes.filter((name) => !presentIndexes.has(name)),
+    constraints: sentinels.constraints.filter((name) => !presentConstraints.has(pgIdentifier(name))),
+    indexes: sentinels.indexes.filter((name) => !presentIndexes.has(pgIdentifier(name))),
   };
 }
 
