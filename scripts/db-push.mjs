@@ -14,6 +14,7 @@ import {
   classifyDrizzlePushOutput,
   matchesDbError,
   parseDbPushArgs,
+  shouldRefuseProdDbPush,
   shouldRunPostcheck,
   verifyPostPushSentinels,
 } from './db-push-core.mjs';
@@ -84,6 +85,12 @@ export function runDrizzlePushChild({
 
 export async function runDbPushCli({ argv = process.argv.slice(2), env = process.env } = {}) {
   const { drizzleArgs, skipPostcheck } = parseDbPushArgs(argv, env);
+  const prodGuard = shouldRefuseProdDbPush({ databaseUrl: env.DATABASE_URL, env });
+  if (prodGuard.refuse) {
+    console.error(`[db:push] ${prodGuard.message}`);
+    return 1;
+  }
+
   const drizzleCommand = buildDrizzleSpawnCommand({
     drizzleArgs,
     repoRoot: process.cwd(),

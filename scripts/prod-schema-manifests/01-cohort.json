@@ -1,0 +1,119 @@
+{
+  "name": "M1-cohort",
+  "order": 1,
+  "description": "Cohort and sector analysis tables mounted through makeApp /api/cohorts.",
+  "sqlFiles": ["migrations/0012_sector_variance_drift.sql"],
+  "allowedCreateTables": [
+    "sector_taxonomy",
+    "sector_mappings",
+    "company_overrides",
+    "investment_overrides",
+    "cohort_definitions",
+    "variance_planner_leader"
+  ],
+  "expectedTables": [
+    {
+      "name": "sector_taxonomy",
+      "columns": [
+        { "name": "id", "nullable": false },
+        { "name": "fund_id", "nullable": false },
+        { "name": "taxonomy_version", "nullable": false },
+        { "name": "slug", "nullable": false }
+      ],
+      "constraints": [
+        "sector_taxonomy_fund_version_slug_unique",
+        "sector_taxonomy_fund_id_funds_id_fk",
+        "sector_taxonomy_parent_sector_id_sector_taxonomy_id_fk",
+        "sector_taxonomy_created_by_user_id_users_id_fk",
+        "sector_taxonomy_updated_by_user_id_users_id_fk"
+      ],
+      "indexes": [
+        "sector_taxonomy_fund_version_idx",
+        "sector_taxonomy_parent_idx"
+      ]
+    },
+    {
+      "name": "sector_mappings",
+      "columns": [
+        { "name": "id", "nullable": false },
+        { "name": "fund_id", "nullable": false },
+        { "name": "taxonomy_version", "nullable": false },
+        { "name": "raw_value_normalized", "nullable": false },
+        { "name": "canonical_sector_id", "nullable": false }
+      ],
+      "constraints": [
+        "sector_mappings_fund_version_normalized_unique",
+        "sector_mappings_fund_id_funds_id_fk",
+        "sector_mappings_canonical_sector_id_sector_taxonomy_id_fk",
+        "sector_mappings_created_by_user_id_users_id_fk",
+        "sector_mappings_updated_by_user_id_users_id_fk"
+      ],
+      "indexes": [
+        "sector_mappings_fund_version_idx",
+        "sector_mappings_canonical_sector_idx"
+      ]
+    },
+    {
+      "name": "company_overrides",
+      "columns": [
+        { "name": "id", "nullable": false },
+        { "name": "fund_id", "nullable": false },
+        { "name": "taxonomy_version", "nullable": false },
+        { "name": "company_id", "nullable": false },
+        { "name": "canonical_sector_id", "nullable": false }
+      ],
+      "constraints": [
+        "company_overrides_fund_version_company_unique",
+        "company_overrides_fund_id_funds_id_fk",
+        "company_overrides_company_id_portfoliocompanies_id_fk",
+        "company_overrides_canonical_sector_id_sector_taxonomy_id_fk",
+        "company_overrides_created_by_user_id_users_id_fk",
+        "company_overrides_updated_by_user_id_users_id_fk"
+      ],
+      "indexes": [
+        "company_overrides_fund_version_idx",
+        "company_overrides_company_idx"
+      ]
+    },
+    {
+      "name": "investment_overrides",
+      "columns": [
+        { "name": "id", "nullable": false },
+        { "name": "fund_id", "nullable": false },
+        { "name": "investment_id", "nullable": false }
+      ],
+      "constraints": [
+        "investment_overrides_fund_investment_unique",
+        "investment_overrides_vintage_quarter_check",
+        "investment_overrides_vintage_year_check",
+        "investment_overrides_fund_id_funds_id_fk",
+        "investment_overrides_investment_id_investments_id_fk",
+        "investment_overrides_created_by_user_id_users_id_fk",
+        "investment_overrides_updated_by_user_id_users_id_fk"
+      ],
+      "indexes": [
+        "investment_overrides_fund_idx",
+        "investment_overrides_investment_idx"
+      ]
+    },
+    {
+      "name": "cohort_definitions",
+      "columns": [
+        { "name": "id", "nullable": false },
+        { "name": "fund_id", "nullable": false },
+        { "name": "name", "nullable": false },
+        { "name": "is_default", "nullable": false }
+      ],
+      "constraints": [
+        "cohort_definitions_fund_name_unique",
+        "cohort_definitions_fund_id_funds_id_fk",
+        "cohort_definitions_created_by_user_id_users_id_fk",
+        "cohort_definitions_updated_by_user_id_users_id_fk"
+      ],
+      "indexes": [
+        "cohort_definitions_fund_idx",
+        "cohort_definitions_default_idx"
+      ]
+    }
+  ]
+}

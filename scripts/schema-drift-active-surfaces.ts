@@ -10,6 +10,7 @@ export const ACTIVE_SURFACE_IDS = [
   'shares',
   'sensitivity',
   'snapshots',
+  'prod-schema-reconcile',
 ] as const;
 
 export type ActiveSurfaceId = (typeof ACTIVE_SURFACE_IDS)[number];
@@ -370,6 +371,38 @@ export const ACTIVE_SCHEMA_SURFACES: readonly ActiveSchemaSurface[] = [
       'tests/unit/phase2b/fund-state-contract.test.ts',
     ],
     notes: 'The fund-state route contract is covered, but migration evidence is fragmented.',
+  },
+  {
+    id: 'prod-schema-reconcile',
+    label: 'Production schema reconciliation PR-1 guardrails',
+    requiredFiles: [
+      {
+        path: 'scripts/reconcile-prod-schema.mjs',
+        layer: 'test',
+        description: 'audit-first manifest runner for operator-gated prod schema reconciliation',
+      },
+      {
+        path: 'scripts/prod-schema-manifests/03-operating-tasks.json',
+        layer: 'test',
+        description: 'manifest that binds the makeApp tasks surface to journaled SQL',
+      },
+    ],
+    requiredExports: [],
+    migrationEvidence: [
+      {
+        pattern: 'migrations/0020_operating_tasks_drift.sql',
+        required: true,
+        description: 'journaled tasks CREATE for makeApp mount parity',
+      },
+    ],
+    tests: [
+      'tests/unit/mount-parity-migrations.test.ts',
+      'tests/unit/reconcile-prod-schema.test.ts',
+      'tests/integration/prod-schema-clone.test.ts',
+      'tests/integration/prod-schema-contract.test.ts',
+    ],
+    notes:
+      'shared/schema remains the shape source; migrations are the applied-SQL ledger for the runner.',
   },
 ];
 
