@@ -10,6 +10,7 @@
   "packageManager": "npm@10.9.2",
   "scripts": {
     "preinstall": "node scripts/check-package-manager.mjs",
+    "postinstall": "node scripts/patch-vitest-sourcemap.mjs",
     "doctor": "node scripts/doctor.mjs",
     "doctor:shell": "node scripts/doctor-shell.mjs",
     "doctor:quick": "node scripts/doctor-quick.mjs",
