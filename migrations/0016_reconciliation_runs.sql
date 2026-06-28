@@ -1,3 +1,4 @@
+-- @drift-patch
 -- Migration: 0016_reconciliation_runs
 -- Purpose: Persist MOIC reconciliation run metadata and evidence summaries.
 -- Replay safety: CREATE TABLE/INDEX IF NOT EXISTS plus guarded constraints.

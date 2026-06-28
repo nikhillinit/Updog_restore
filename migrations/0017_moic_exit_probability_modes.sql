@@ -1,3 +1,4 @@
+-- @drift-patch
 -- Migration: 0017_moic_exit_probability_modes
 -- Purpose: Add source-backed MOIC exit probability inputs and fund-scoped mode state.
 -- Replay safety: guarded ALTERs, CREATE TABLE IF NOT EXISTS, guarded constraints/indexes.

@@ -1,0 +1,53 @@
+{
+  "name": "M2-fund-moic",
+  "order": 2,
+  "description": "Fund MOIC reconciliation and calculation-mode tables mounted through makeApp.",
+  "sqlFiles": [
+    "migrations/0016_reconciliation_runs.sql",
+    "migrations/0017_moic_exit_probability_modes.sql"
+  ],
+  "allowedCreateTables": [
+    "reconciliation_runs",
+    "fund_calculation_modes",
+    "fund_calculation_mode_requests",
+    "fund_moic_input_update_requests"
+  ],
+  "expectedTables": [
+    {
+      "name": "reconciliation_runs",
+      "columns": [
+        { "name": "id", "nullable": false },
+        { "name": "fund_id", "nullable": false },
+        { "name": "idempotency_key", "nullable": false },
+        { "name": "status", "nullable": false }
+      ],
+      "constraints": [
+        "reconciliation_runs_fund_id_funds_id_fk",
+        "reconciliation_runs_requested_by_users_id_fk",
+        "reconciliation_runs_fund_id_idempotency_key_unique",
+        "reconciliation_runs_status_check"
+      ],
+      "indexes": ["idx_reconciliation_runs_fund_requested"]
+    },
+    {
+      "name": "fund_calculation_modes",
+      "columns": [
+        { "name": "id", "nullable": false },
+        { "name": "fund_id", "nullable": false },
+        { "name": "calculation_key", "nullable": false },
+        { "name": "configured_mode", "nullable": false },
+        { "name": "kill_switch_active", "nullable": false },
+        { "name": "version", "nullable": false }
+      ],
+      "constraints": [
+        "fund_calculation_modes_fund_calculation_key_unique",
+        "fund_calculation_modes_configured_mode_check",
+        "fund_calculation_modes_version_check",
+        "fund_calculation_modes_fund_id_funds_id_fk",
+        "fund_calculation_modes_last_reconciliation_run_id_reconciliation_runs_id_fk",
+        "fund_calculation_modes_updated_by_users_id_fk"
+      ],
+      "indexes": ["idx_fund_calculation_modes_fund_updated"]
+    }
+  ]
+}

@@ -5,6 +5,7 @@ import {
   DB_PUSH_POSTCHECK_SKIP_FLAG,
   INDEX_SENTINEL_QUERY,
   MISSING_DATABASE_URL_MESSAGE,
+  PROD_DB_PUSH_REFUSAL_MESSAGE,
   appendBoundedOutput,
   buildDrizzleArgs,
   buildDrizzleSpawnCommand,
@@ -15,6 +16,7 @@ import {
   parseDbPushArgs,
   resolveLocalDrizzleBinary,
   resolveLocalDrizzleEntrypoint,
+  shouldRefuseProdDbPush,
   shouldRunPostcheck,
   verifyPostPushSentinels,
 } from '../../../scripts/db-push-core.mjs';
@@ -262,6 +264,50 @@ describe('db-push postcheck decisions', () => {
     ).toMatchObject({
       ok: false,
       reason: 'database-error',
+    });
+  });
+});
+
+describe('db-push production URL guard', () => {
+  it('refuses an explicit production database URL match without comparing secrets', () => {
+    const prodUrl = 'postgres://user:secret@prod.example.com:5432/updog?sslmode=require';
+    const sameTargetDifferentSecret =
+      'postgres://user:different@prod.example.com:5432/updog?sslmode=require';
+
+    expect(
+      shouldRefuseProdDbPush({
+        databaseUrl: sameTargetDifferentSecret,
+        env: { UPDOG_PRODUCTION_DATABASE_URL: prodUrl },
+      })
+    ).toMatchObject({
+      refuse: true,
+      reason: 'explicit-production-url-match',
+      message: PROD_DB_PUSH_REFUSAL_MESSAGE,
+    });
+  });
+
+  it('refuses the known Neon production host from the drift handoff', () => {
+    expect(
+      shouldRefuseProdDbPush({
+        databaseUrl:
+          'postgres://user:secret@ep-snowy-boat-ad1z3h07-pooler.us-east-1.aws.neon.tech/updog',
+        env: {},
+      })
+    ).toMatchObject({
+      refuse: true,
+      reason: 'known-production-host',
+    });
+  });
+
+  it('refuses Vercel production environments', () => {
+    expect(
+      shouldRefuseProdDbPush({
+        databaseUrl: 'postgres://user:secret@db.example.com/updog',
+        env: { VERCEL_ENV: 'production' },
+      })
+    ).toMatchObject({
+      refuse: true,
+      reason: 'vercel-production-env',
     });
   });
 });

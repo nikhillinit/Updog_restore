@@ -1,3 +1,4 @@
+-- @drift-patch
 -- Migration: 0014_lp_evidence_sprint3_drift
 -- Purpose: LP evidence and Sprint 3 schema drift; closes journal drift for issue #781.
 -- Source of truth: drizzle-kit export from shared/schema.ts, shared/schema-lp-reporting.ts, and shared/schema-lp-sprint3.ts.

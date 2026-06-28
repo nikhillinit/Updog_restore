@@ -4,6 +4,9 @@ export const DB_PUSH_POSTCHECK_SKIP_FLAG = '--skip-postcheck';
 export const DEFAULT_OUTPUT_CONTEXT_LIMIT = 16 * 1024;
 export const MISSING_DATABASE_URL_MESSAGE =
   'DATABASE_URL is required for db:push postcheck; pass --skip-postcheck only for explicit offline inspection';
+export const PROD_DB_PUSH_REFUSAL_MESSAGE =
+  'Refusing db:push against the production database; use scripts/reconcile-prod-schema.mjs for operator-gated prod DDL';
+export const KNOWN_PRODUCTION_DB_HOST_PREFIXES = ['ep-snowy-boat-ad1z3h07'];
 
 export const UNIQUE_CONSTRAINT_SENTINELS = [
   'investment_rounds_id_fund_uq',
@@ -170,6 +173,70 @@ export function shouldRunPostcheck({ skipPostcheck, databaseUrlPresent }) {
   };
 }
 
+export function databaseUrlSignature(connectionString) {
+  if (!connectionString || connectionString === 'memory://') {
+    return null;
+  }
+
+  try {
+    const url = new URL(connectionString);
+    return `${url.protocol}//${url.username}@${url.hostname}${url.pathname}`.toLowerCase();
+  } catch {
+    return null;
+  }
+}
+
+export function shouldRefuseProdDbPush({ databaseUrl, env = process.env } = {}) {
+  const signature = databaseUrlSignature(databaseUrl);
+  if (!signature) {
+    return {
+      refuse: false,
+      reason: 'no-database-url',
+      message: 'no database URL to classify',
+    };
+  }
+
+  const productionUrlKeys = [
+    'UPDOG_PRODUCTION_DATABASE_URL',
+    'PRODUCTION_DATABASE_URL',
+    'PROD_DATABASE_URL',
+  ];
+  const productionSignatures = productionUrlKeys
+    .map((key) => databaseUrlSignature(env[key]))
+    .filter((value) => typeof value === 'string');
+
+  if (productionSignatures.includes(signature)) {
+    return {
+      refuse: true,
+      reason: 'explicit-production-url-match',
+      message: PROD_DB_PUSH_REFUSAL_MESSAGE,
+    };
+  }
+
+  if (env.VERCEL_ENV === 'production') {
+    return {
+      refuse: true,
+      reason: 'vercel-production-env',
+      message: PROD_DB_PUSH_REFUSAL_MESSAGE,
+    };
+  }
+
+  const host = hostFromDatabaseUrl(databaseUrl);
+  if (host && KNOWN_PRODUCTION_DB_HOST_PREFIXES.some((prefix) => host.startsWith(prefix))) {
+    return {
+      refuse: true,
+      reason: 'known-production-host',
+      message: PROD_DB_PUSH_REFUSAL_MESSAGE,
+    };
+  }
+
+  return {
+    refuse: false,
+    reason: 'not-production',
+    message: 'database URL is not classified as production',
+  };
+}
+
 export function appendBoundedOutput(current, chunk, limit = DEFAULT_OUTPUT_CONTEXT_LIMIT) {
   const next = `${current}${chunk}`;
   if (next.length <= limit) {
@@ -217,6 +284,14 @@ function hasMissingSentinels(missing) {
 
 function errorMessage(error) {
   return error instanceof Error ? error.message : String(error);
+}
+
+function hostFromDatabaseUrl(connectionString) {
+  try {
+    return new URL(connectionString).hostname.toLowerCase();
+  } catch {
+    return null;
+  }
 }
 
 export async function verifyPostPushSentinels({
