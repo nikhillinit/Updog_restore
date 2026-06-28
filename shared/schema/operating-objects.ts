@@ -62,3 +62,5 @@ export const tasks = pgTable(
 
 export type Task = typeof tasks.$inferSelect;
 export type InsertTask = typeof tasks.$inferInsert;
+
+// ci schema-gate validation touch (throwaway; will not be merged)
