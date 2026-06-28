@@ -332,5 +332,223 @@ describe.skipIf(!process.env.CI && process.platform === 'win32')(
 
       expect(response.status, JSON.stringify(response.body)).toBe(501);
     });
+
+    // P1 controlled soak proof. The cases above prove each investment-round
+    // contract once; these prove the same contracts hold under sustained,
+    // repeated traffic (no duplicate persistence on replay, no row leakage from
+    // rejected writes, deterministic conflict detection, supersede-chain
+    // integrity). Reuses this file's testcontainer + router + supertest harness.
+    describe('controlled soak proof', () => {
+      const rawSoakIterations = Number.parseInt(
+        process.env['INVESTMENT_ROUNDS_SOAK_ITERATIONS'] ?? '50',
+        10
+      );
+      const SOAK_ITERATIONS = Number.isFinite(rawSoakIterations)
+        ? Math.min(Math.max(rawSoakIterations, 1), 500)
+        : 50;
+      const SOAK_TIMEOUT_MS = 120_000;
+
+      // Each soak case seeds its own dedicated investment so absolute-count
+      // assertions are order-independent and isolated from the cases above.
+      async function seedSoakInvestment(label: string): Promise<number> {
+        expect(runtime).toBeDefined();
+        const active = runtime!;
+        const schema: SchemaModule = await import('@shared/schema');
+
+        const [company] = await active.database
+          .insert(schema.portfolioCompanies)
+          .values({
+            fundId: active.testFundId,
+            name: label,
+            sector: 'Software',
+            stage: 'Series A',
+            investmentAmount: '1000000.00',
+            investmentDate: new Date('2026-02-01T00:00:00.000Z'),
+            currentValuation: '10000000.00',
+            status: 'active',
+          })
+          .returning({ id: schema.portfolioCompanies.id });
+        if (!company) {
+          throw new Error('Failed to seed soak portfolio company');
+        }
+
+        const [investment] = await active.database
+          .insert(schema.investments)
+          .values({
+            fundId: active.testFundId,
+            companyId: company.id,
+            investmentDate: new Date('2026-02-01T00:00:00.000Z'),
+            amount: '1000000.00',
+            round: 'Seed',
+            ownershipPercentage: '0.1000',
+            valuationAtInvestment: '10000000.00',
+          })
+          .returning({ id: schema.investments.id });
+        if (!investment) {
+          throw new Error('Failed to seed soak investment');
+        }
+
+        return investment.id;
+      }
+
+      it(
+        'sustains idempotent create and replay with no duplicate persistence',
+        async () => {
+          const active = runtime!;
+          const investmentId = await seedSoakInvestment('SoakReplayCo');
+          const createdIds = new Set<number>();
+
+          for (let i = 0; i < SOAK_ITERATIONS; i += 1) {
+            const key = `soak-create-${i}`;
+            const body = { ...baseRoundBody(active.testFundId), roundName: `Soak Round ${i}` };
+
+            const created = await request(active.app)
+              .post(`/api/investments/${investmentId}/rounds`)
+              .set('Idempotency-Key', key)
+              .send(body);
+            expect(created.status, JSON.stringify(created.body)).toBe(201);
+            const id = (created.body as RoundResponseBody).id;
+
+            // Replaying the same key + body must always return the same row.
+            for (let replay = 0; replay < 3; replay += 1) {
+              const replayed = await request(active.app)
+                .post(`/api/investments/${investmentId}/rounds`)
+                .set('Idempotency-Key', key)
+                .send(body);
+              expect(replayed.status, JSON.stringify(replayed.body)).toBe(200);
+              expect((replayed.body as RoundResponseBody).id).toBe(id);
+            }
+
+            createdIds.add(id);
+          }
+
+          expect(createdIds.size).toBe(SOAK_ITERATIONS);
+
+          const list = await request(active.app).get(`/api/investments/${investmentId}/rounds`);
+          expect(list.status, JSON.stringify(list.body)).toBe(200);
+          const listedIds = (list.body as RoundListResponseBody).data.map((round) => round.id);
+          expect(listedIds.length).toBe(SOAK_ITERATIONS);
+          expect(new Set(listedIds)).toEqual(createdIds);
+        },
+        SOAK_TIMEOUT_MS
+      );
+
+      it(
+        'rejects every reused key whose body changed (deterministic conflict)',
+        async () => {
+          const active = runtime!;
+          const investmentId = await seedSoakInvestment('SoakConflictCo');
+
+          for (let i = 0; i < SOAK_ITERATIONS; i += 1) {
+            const key = `soak-conflict-${i}`;
+            const body = { ...baseRoundBody(active.testFundId), roundName: `Soak Conflict ${i}` };
+
+            const created = await request(active.app)
+              .post(`/api/investments/${investmentId}/rounds`)
+              .set('Idempotency-Key', key)
+              .send(body);
+            expect(created.status, JSON.stringify(created.body)).toBe(201);
+
+            const conflicting = await request(active.app)
+              .post(`/api/investments/${investmentId}/rounds`)
+              .set('Idempotency-Key', key)
+              .send({ ...body, roundName: `Soak Conflict Mutated ${i}` });
+            expect(conflicting.status, JSON.stringify(conflicting.body)).toBe(409);
+            expect(conflicting.body).toEqual({ error: 'idempotency_key_reused' });
+          }
+
+          // Conflicts must never persist a second row for the key.
+          const list = await request(active.app).get(`/api/investments/${investmentId}/rounds`);
+          expect(list.status, JSON.stringify(list.body)).toBe(200);
+          expect((list.body as RoundListResponseBody).data.length).toBe(SOAK_ITERATIONS);
+        },
+        SOAK_TIMEOUT_MS
+      );
+
+      it(
+        'upholds precondition and cross-fund guards across sustained traffic',
+        async () => {
+          const active = runtime!;
+          const investmentId = await seedSoakInvestment('SoakGuardCo');
+
+          for (let i = 0; i < SOAK_ITERATIONS; i += 1) {
+            const body = { ...baseRoundBody(active.testFundId), roundName: `Soak Guard ${i}` };
+
+            const missingKey = await request(active.app)
+              .post(`/api/investments/${investmentId}/rounds`)
+              .send(body);
+            expect(missingKey.status, JSON.stringify(missingKey.body)).toBe(428);
+
+            const crossFund = await request(active.otherFundApp)
+              .post(`/api/investments/${investmentId}/rounds`)
+              .set('Idempotency-Key', `soak-guard-${i}`)
+              .send(body);
+            expect(crossFund.status, JSON.stringify(crossFund.body)).toBe(403);
+          }
+
+          // Rejected writes must not leak rows into the ledger.
+          const list = await request(active.app).get(`/api/investments/${investmentId}/rounds`);
+          expect(list.status, JSON.stringify(list.body)).toBe(200);
+          expect((list.body as RoundListResponseBody).data.length).toBe(0);
+        },
+        SOAK_TIMEOUT_MS
+      );
+
+      it(
+        'keeps the supersede chain append-only under repeated correction',
+        async () => {
+          const active = runtime!;
+          const investmentId = await seedSoakInvestment('SoakChainCo');
+          const chainLength = Math.min(SOAK_ITERATIONS, 25);
+
+          const base = await request(active.app)
+            .post(`/api/investments/${investmentId}/rounds`)
+            .set('Idempotency-Key', 'soak-chain-base')
+            .send({ ...baseRoundBody(active.testFundId), roundName: 'Soak Chain Base' });
+          expect(base.status, JSON.stringify(base.body)).toBe(201);
+
+          let headId = (base.body as RoundResponseBody).id;
+          const supersededIds: number[] = [];
+
+          for (let i = 0; i < chainLength; i += 1) {
+            const corrected = await request(active.app)
+              .post(`/api/investments/${investmentId}/rounds`)
+              .set('Idempotency-Key', `soak-chain-${i}`)
+              .send({
+                ...baseRoundBody(active.testFundId),
+                roundName: `Soak Chain Correction ${i}`,
+                supersedesRoundId: headId,
+              });
+            expect(corrected.status, JSON.stringify(corrected.body)).toBe(201);
+
+            // Re-superseding a round that was just superseded must always 409.
+            const doubleSupersede = await request(active.app)
+              .post(`/api/investments/${investmentId}/rounds`)
+              .set('Idempotency-Key', `soak-chain-double-${i}`)
+              .send({
+                ...baseRoundBody(active.testFundId),
+                roundName: `Soak Chain Double ${i}`,
+                supersedesRoundId: headId,
+              });
+            expect(doubleSupersede.status, JSON.stringify(doubleSupersede.body)).toBe(409);
+            expect(doubleSupersede.body).toEqual({ error: 'round_already_superseded' });
+
+            supersededIds.push(headId);
+            headId = (corrected.body as RoundResponseBody).id;
+          }
+
+          const list = await request(active.app).get(`/api/investments/${investmentId}/rounds`);
+          expect(list.status, JSON.stringify(list.body)).toBe(200);
+          const activeIds = (list.body as RoundListResponseBody).data.map((round) => round.id);
+          // Exactly one active head survives; every superseded round is gone.
+          expect(activeIds.length).toBe(1);
+          expect(activeIds).toContain(headId);
+          for (const supersededId of supersededIds) {
+            expect(activeIds).not.toContain(supersededId);
+          }
+        },
+        SOAK_TIMEOUT_MS
+      );
+    });
   }
 );
