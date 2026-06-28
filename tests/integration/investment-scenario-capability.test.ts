@@ -1,8 +1,9 @@
-import { sql } from 'drizzle-orm';
+import { and, eq, sql } from 'drizzle-orm';
 import express, { type NextFunction, type Request, type Response, type Router } from 'express';
 import request from 'supertest';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 
+import { investmentRounds } from '@shared/schema';
 import { applyInvestmentRoundConstraints } from '../helpers/apply-investment-round-constraints';
 import { runDrizzlePush } from './helpers/run-drizzle-push';
 import { setupTestDB } from '../helpers/testcontainers';
@@ -244,6 +245,51 @@ describe.skipIf(!process.env.CI && process.platform === 'win32')(
 
       expect(conflicting.status, JSON.stringify(conflicting.body)).toBe(409);
       expect(conflicting.body).toEqual({ error: 'idempotency_key_reused' });
+    });
+
+    it('holds idempotency-key stability across a repeated create soak', async () => {
+      expect(runtime).toBeDefined();
+      const active = runtime!;
+      const body = baseRoundBody(active.testFundId);
+      const idempotencyKey = 'soak-k1';
+      let firstBody: RoundResponseBody | undefined;
+
+      for (let attempt = 0; attempt < 25; attempt += 1) {
+        const response = await request(active.app)
+          .post(`/api/investments/${active.testInvestmentId}/rounds`)
+          .set('Idempotency-Key', idempotencyKey)
+          .send(body);
+
+        expect(response.status, JSON.stringify(response.body)).toBe(attempt === 0 ? 201 : 200);
+        expect(response.body).toEqual(
+          expect.objectContaining({
+            id: expect.any(Number),
+            etag: expect.any(String),
+          })
+        );
+
+        const responseBody = response.body as RoundResponseBody;
+        if (attempt === 0) {
+          firstBody = responseBody;
+        } else {
+          expect(firstBody).toBeDefined();
+          expect(responseBody.id).toBe(firstBody?.id);
+          expect(responseBody.etag).toBe(firstBody?.etag);
+        }
+      }
+
+      expect(firstBody).toBeDefined();
+      const [roundCount] = await active.database
+        .select({ count: sql<number>`count(*)::int` })
+        .from(investmentRounds)
+        .where(
+          and(
+            eq(investmentRounds.investmentId, active.testInvestmentId),
+            eq(investmentRounds.idempotencyKey, idempotencyKey)
+          )
+        );
+
+      expect(roundCount?.count).toBe(1);
     });
 
     it('requires an Idempotency-Key header for round writes', async () => {
