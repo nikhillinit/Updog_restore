@@ -157,6 +157,16 @@ dependency:
   - '.github/workflows/ci-unified.yml'
   - '.github/workflows/dependency-validation.yml'
 
+schema:
+  - 'migrations/**'
+  - 'shared/schema/**'
+  - 'shared/schema.ts'
+  - 'scripts/prod-schema-manifests/**'
+  - 'scripts/reconcile-prod-schema.mjs'
+  - 'scripts/db-push.mjs'
+  - 'scripts/db-push-core.mjs'
+  - 'drizzle.config.ts'
+
 pr_security:
   - 'package.json'
   - 'package-lock.json'
