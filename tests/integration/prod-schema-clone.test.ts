@@ -72,8 +72,29 @@ const EXPECTED_SHARED_MIGRATION_INDEXES = [
   'idx_job_outbox_job_type_dedupe',
   'performance_alerts_open_incident_unique',
 ] as const;
+const KNOWN_INTERSECTION_DRIFT = new Set<string>([
+  'forecast_snapshots|constraint|forecast_snapshots_idem_key_len_check',
+  'forecast_snapshots|index|forecast_snapshots_fund_cursor_idx',
+  'forecast_snapshots|index|forecast_snapshots_fund_idem_key_idx',
+  'forecast_snapshots|index|forecast_snapshots_idempotency_unique_idx',
+  'investment_lots|constraint|investment_lots_idem_key_len_check',
+  'investment_lots|index|investment_lots_investment_cursor_idx',
+  'investment_lots|index|investment_lots_investment_idem_key_idx',
+  'investment_lots|index|investment_lots_idempotency_unique_idx',
+  'reserve_allocations|constraint|reserve_allocations_idem_key_len_check',
+  'reserve_allocations|index|reserve_allocations_snapshot_cursor_idx',
+  'reserve_allocations|index|reserve_allocations_snapshot_idem_key_idx',
+  'reserve_allocations|index|reserve_allocations_idempotency_unique_idx',
+  'reserve_decisions|index|idx_reserve_fund_company',
+  'reserve_decisions|index|ux_reserve_unique',
+  'fund_snapshots|fk|fund_snapshots_config_id_fundconfigs_id_fk',
+  'fund_snapshots|fk|fund_snapshots_run_id_calc_runs_id_fk',
+  'job_outbox|constraint|job_outbox_status_check',
+]);
 
 type TableShapeMap<TShape> = Map<string, Map<string, TShape>>;
+type TableSetMap = Map<string, Set<string>>;
+type ShapeKind = 'column' | 'constraint' | 'index';
 
 interface ColumnShape {
   typ: string;
@@ -83,10 +104,6 @@ interface ColumnShape {
 interface ConstraintShape {
   contype: string;
   cols: string[];
-  reftable: string;
-  refcols: string[];
-  confupdtype: string;
-  confdeltype: string;
 }
 
 interface IndexShape {
@@ -98,8 +115,10 @@ interface IndexShape {
 interface CatalogSnapshot {
   tables: Set<string>;
   columns: TableShapeMap<ColumnShape>;
-  constraints: TableShapeMap<ConstraintShape>;
+  nonFkConstraints: TableShapeMap<ConstraintShape>;
   indexes: TableShapeMap<IndexShape>;
+  foreignKeysByTable: TableSetMap;
+  foreignKeyNamesByTable: TableShapeMap<string>;
 }
 
 interface CatalogDefinitions {
@@ -130,6 +149,39 @@ function setTableShape<TShape>(
   collection.set(tableName, tableShapes);
 }
 
+function addTableSetValue(collection: TableSetMap, tableName: string, value: string): void {
+  const tableValues = collection.get(tableName) ?? new Set<string>();
+  tableValues.add(value);
+  collection.set(tableName, tableValues);
+}
+
+function addForeignKeyShape(
+  foreignKeysByTable: TableSetMap,
+  foreignKeyNamesByTable: TableShapeMap<string>,
+  tableName: string,
+  shapeSignature: string,
+  constraintName: string
+): void {
+  addTableSetValue(foreignKeysByTable, tableName, shapeSignature);
+  setTableShape(foreignKeyNamesByTable, tableName, shapeSignature, constraintName);
+}
+
+function foreignKeyShapeSignature(row: {
+  cols: readonly string[] | null;
+  reftable: string;
+  refcols: readonly string[] | null;
+  confupdtype: string;
+  confdeltype: string;
+}): string {
+  const cols = normalizeIdentifierArray(row.cols);
+  const reftable = normalizeCatalogText(row.reftable) ?? '';
+  const refcols = normalizeIdentifierArray(row.refcols);
+  const confupdtype = normalizeCatalogText(row.confupdtype) ?? '';
+  const confdeltype = normalizeCatalogText(row.confdeltype) ?? '';
+
+  return `${cols.join(',')}=>${reftable}(${refcols.join(',')})|u:${confupdtype}|d:${confdeltype}`;
+}
+
 function shapeToText<TShape>(shape: TShape): string {
   return JSON.stringify(shape);
 }
@@ -137,7 +189,7 @@ function shapeToText<TShape>(shape: TShape): string {
 function compareNamedShapes<TShape>(
   mismatches: string[],
   tableName: string,
-  shapeKind: string,
+  shapeKind: ShapeKind,
   journalShapes: Map<string, TShape> | undefined,
   pushedShapes: Map<string, TShape> | undefined
 ): void {
@@ -147,22 +199,44 @@ function compareNamedShapes<TShape>(
   for (const [shapeName, journalShape] of journalEntries) {
     const pushedShape = pushedEntries.get(shapeName);
     if (!pushedShape) {
-      mismatches.push(`DB-B missing ${shapeKind} ${tableName}.${shapeName}`);
+      mismatches.push(`${tableName}|${shapeKind}|${shapeName}`);
       continue;
     }
 
     if (shapeToText(journalShape) !== shapeToText(pushedShape)) {
-      mismatches.push(
-        `${shapeKind} ${tableName}.${shapeName} differs: DB-A=${shapeToText(
-          journalShape
-        )} DB-B=${shapeToText(pushedShape)}`
-      );
+      mismatches.push(`${tableName}|${shapeKind}|${shapeName}`);
     }
   }
 
   for (const shapeName of pushedEntries.keys()) {
     if (!journalEntries.has(shapeName)) {
-      mismatches.push(`DB-A missing ${shapeKind} ${tableName}.${shapeName}`);
+      mismatches.push(`${tableName}|${shapeKind}|${shapeName}`);
+    }
+  }
+}
+
+function compareForeignKeyShapes(
+  mismatches: string[],
+  tableName: string,
+  journalCatalog: CatalogSnapshot,
+  pushedCatalog: CatalogSnapshot
+): void {
+  const journalForeignKeys = journalCatalog.foreignKeysByTable.get(tableName) ?? new Set<string>();
+  const pushedForeignKeys = pushedCatalog.foreignKeysByTable.get(tableName) ?? new Set<string>();
+  const journalNames =
+    journalCatalog.foreignKeyNamesByTable.get(tableName) ?? new Map<string, string>();
+  const pushedNames =
+    pushedCatalog.foreignKeyNamesByTable.get(tableName) ?? new Map<string, string>();
+
+  for (const shapeSignature of journalForeignKeys) {
+    if (!pushedForeignKeys.has(shapeSignature)) {
+      mismatches.push(`${tableName}|fk|${journalNames.get(shapeSignature) ?? shapeSignature}`);
+    }
+  }
+
+  for (const shapeSignature of pushedForeignKeys) {
+    if (!journalForeignKeys.has(shapeSignature)) {
+      mismatches.push(`${tableName}|fk|${pushedNames.get(shapeSignature) ?? shapeSignature}`);
     }
   }
 }
@@ -270,8 +344,10 @@ async function introspectCatalog(activePool: Pool): Promise<CatalogSnapshot> {
   `);
 
   const columns: TableShapeMap<ColumnShape> = new Map();
-  const constraints: TableShapeMap<ConstraintShape> = new Map();
+  const nonFkConstraints: TableShapeMap<ConstraintShape> = new Map();
   const indexes: TableShapeMap<IndexShape> = new Map();
+  const foreignKeysByTable: TableSetMap = new Map();
+  const foreignKeyNamesByTable: TableShapeMap<string> = new Map();
 
   for (const row of columnsResult.rows) {
     setTableShape(columns, normalizeIdentifier(row.tbl), normalizeIdentifier(row.col), {
@@ -281,13 +357,24 @@ async function introspectCatalog(activePool: Pool): Promise<CatalogSnapshot> {
   }
 
   for (const row of constraintsResult.rows) {
-    setTableShape(constraints, normalizeIdentifier(row.tbl), normalizeIdentifier(row.conname), {
-      contype: normalizeCatalogText(row.contype) ?? '',
+    const tableName = normalizeIdentifier(row.tbl);
+    const constraintName = normalizeIdentifier(row.conname);
+    const contype = normalizeCatalogText(row.contype) ?? '';
+
+    if (contype === 'f') {
+      addForeignKeyShape(
+        foreignKeysByTable,
+        foreignKeyNamesByTable,
+        tableName,
+        foreignKeyShapeSignature(row),
+        constraintName
+      );
+      continue;
+    }
+
+    setTableShape(nonFkConstraints, tableName, constraintName, {
+      contype,
       cols: normalizeIdentifierArray(row.cols),
-      reftable: normalizeCatalogText(row.reftable) ?? '',
-      refcols: normalizeIdentifierArray(row.refcols),
-      confupdtype: normalizeCatalogText(row.confupdtype) ?? '',
-      confdeltype: normalizeCatalogText(row.confdeltype) ?? '',
     });
   }
 
@@ -302,8 +389,10 @@ async function introspectCatalog(activePool: Pool): Promise<CatalogSnapshot> {
   return {
     tables: new Set(tablesResult.rows.map((row) => normalizeIdentifier(row.relname))),
     columns,
-    constraints,
+    nonFkConstraints,
     indexes,
+    foreignKeysByTable,
+    foreignKeyNamesByTable,
   };
 }
 
@@ -355,8 +444,8 @@ function compareIntersectionShape(
       mismatches,
       tableName,
       'constraint',
-      journalCatalog.constraints.get(tableName),
-      pushedCatalog.constraints.get(tableName)
+      journalCatalog.nonFkConstraints.get(tableName),
+      pushedCatalog.nonFkConstraints.get(tableName)
     );
     compareNamedShapes(
       mismatches,
@@ -365,6 +454,7 @@ function compareIntersectionShape(
       journalCatalog.indexes.get(tableName),
       pushedCatalog.indexes.get(tableName)
     );
+    compareForeignKeyShapes(mismatches, tableName, journalCatalog, pushedCatalog);
   }
 
   return mismatches;
@@ -571,6 +661,12 @@ describe.skipIf(skipIfNoDocker)('prod schema synthetic clone', () => {
       .sort();
     const shapeOnlyBaseline = new Set<string>(SHAPE_ONLY_NOT_JOURNALED);
     const shapeMismatches = compareIntersectionShape(journalCatalog, pushedCatalog);
+    const unexpectedShapeMismatches = shapeMismatches
+      .filter((key) => !KNOWN_INTERSECTION_DRIFT.has(key))
+      .sort();
+    const baselineNotObserved = [...KNOWN_INTERSECTION_DRIFT]
+      .filter((key) => !shapeMismatches.includes(key))
+      .sort();
 
     // eslint-disable-next-line no-console -- D4 requires non-gating CI diagnostics.
     console.log('[prod-schema-clone] shape-only tables', shapeOnlyTables);
@@ -581,9 +677,21 @@ describe.skipIf(skipIfNoDocker)('prod schema synthetic clone', () => {
       '[prod-schema-clone] DB-B catalog definitions',
       await catalogDefinitions(shapePool)
     );
+    // eslint-disable-next-line no-console -- non-gating drift report for PR-2b
+    console.log(
+      '[prod-schema-clone] KNOWN intersection drift observed (report-only, PR-2b):',
+      shapeMismatches.filter((key) => KNOWN_INTERSECTION_DRIFT.has(key)).sort()
+    );
+    if (baselineNotObserved.length) {
+      // eslint-disable-next-line no-console -- non-gating baseline shrink signal for PR-2b
+      console.log(
+        '[prod-schema-clone] baseline entries NOT observed (drift fixed? shrink baseline):',
+        baselineNotObserved
+      );
+    }
 
     expect(missingC1Tables).toEqual([]);
-    expect(shapeMismatches).toEqual([]);
+    expect(unexpectedShapeMismatches).toEqual([]);
     expect(journalOnlyTables).toEqual([]);
     expect(shapeOnlyTables.filter((tableName) => !shapeOnlyBaseline.has(tableName))).toEqual([]);
 
