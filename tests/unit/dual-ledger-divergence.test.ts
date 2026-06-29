@@ -6,6 +6,7 @@ import { afterEach, describe, expect, it } from 'vitest';
 
 import {
   detectDualLedgerDivergence,
+  extractDdlObjects,
   formatDualLedgerReport,
   type DualLedgerDivergenceResult,
 } from '../../scripts/dual-ledger-divergence';
@@ -81,6 +82,31 @@ describe('dual ledger divergence detector', () => {
     expect(report).toContain('uniqueObjectFiles=1');
     expect(report).toContain('duplicateFiles=0');
     expect(report).toContain('activeConsumerFiles=0');
+  });
+
+  it('extracts every column from a multi-column ALTER TABLE statement', () => {
+    const objects = extractDdlObjects(`
+      ALTER TABLE "allocation_scenario_events"
+        ADD COLUMN "allocation_scenario_id" uuid,
+        ADD COLUMN IF NOT EXISTS "event_type" text,
+        ADD CONSTRAINT "allocation_scenario_events_pkey" PRIMARY KEY ("allocation_scenario_id"),
+        ADD CONSTRAINT "allocation_scenario_events_event_type_check" CHECK ("event_type" <> '');
+    `);
+
+    const columnObjects = objects.filter((object) => object.kind === 'column');
+    const objectKeys = objects.map(
+      (object) => `${object.kind}:${object.table ?? ''}:${object.name}`
+    );
+
+    expect(columnObjects.length).toBeGreaterThan(1);
+    expect(objectKeys).toEqual(
+      expect.arrayContaining([
+        'column:allocation_scenario_events:allocation_scenario_id',
+        'column:allocation_scenario_events:event_type',
+        'constraint::allocation_scenario_events_event_type_check',
+        'constraint::allocation_scenario_events_pkey',
+      ])
+    );
   });
 });
 

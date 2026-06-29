@@ -54,9 +54,14 @@ const TABLE_PATTERN = new RegExp(
   'i'
 );
 
-const ALTER_ADD_COLUMN_PATTERN = new RegExp(
-  String.raw`\balter\s+table\s+(?:if\s+exists\s+)?(?:only\s+)?(${IDENTIFIER_PATTERN})\s+add\s+column\s+(?:if\s+not\s+exists\s+)?(${IDENTIFIER_PATTERN})(?=\s|,|;)`,
+const ALTER_TABLE_PATTERN = new RegExp(
+  String.raw`\balter\s+table\s+(?:if\s+exists\s+)?(?:only\s+)?(${IDENTIFIER_PATTERN})(?=\s)`,
   'i'
+);
+
+const ADD_COLUMN_CLAUSE_PATTERN = new RegExp(
+  String.raw`\badd\s+column\s+(?:if\s+not\s+exists\s+)?(${IDENTIFIER_PATTERN})(?=\s|,|;)`,
+  'gi'
 );
 
 const CONSTRAINT_PATTERN = new RegExp(
@@ -83,6 +88,21 @@ const ACTIVE_CONSUMER_FILES = [
 const ACTIVE_CONSUMER_GLOBS = [
   { dir: 'shared/contracts/lp-reporting', suffix: '.contract.ts' },
   { dir: 'shared/schema', suffix: '.ts' },
+] as const;
+
+const UNPARSED_DDL_PATTERNS = [
+  {
+    label: 'ALTER COLUMN TYPE',
+    pattern: /^\s*alter\s+table\b[\s\S]*\balter\s+(?:column\s+)?[\s\S]*\btype\b/i,
+  },
+  { label: 'CREATE EXTENSION', pattern: /^\s*create\s+extension\b/i },
+  { label: 'CREATE FUNCTION', pattern: /^\s*create\s+(?:or\s+replace\s+)?function\b/i },
+  { label: 'CREATE MATERIALIZED VIEW', pattern: /^\s*create\s+materialized\s+view\b/i },
+  { label: 'CREATE POLICY', pattern: /^\s*create\s+(?:or\s+replace\s+)?policy\b/i },
+  { label: 'CREATE TRIGGER', pattern: /^\s*create\s+(?:or\s+replace\s+)?trigger\b/i },
+  { label: 'CREATE TYPE', pattern: /^\s*create\s+(?:or\s+replace\s+)?type\b/i },
+  { label: 'CREATE VIEW', pattern: /^\s*create\s+(?:or\s+replace\s+)?view\b/i },
+  { label: 'DROP', pattern: /^\s*drop\b/i },
 ] as const;
 
 export function extractDdlObjects(sql: string): DdlObject[] {
@@ -130,10 +150,12 @@ export function detectDualLedgerDivergence(rootDir: string): DualLedgerDivergenc
     const absolutePath = path.join(resolvedRoot, 'server', 'migrations', file);
     const relativePath = normalizePath(path.relative(resolvedRoot, absolutePath));
     let objects: DdlObject[];
+    let unparsedDdlKeywords: string[] = [];
 
     try {
       const sql = fs.readFileSync(absolutePath, 'utf8');
       objects = parseDdlForDetector(sql, relativePath, errors);
+      unparsedDdlKeywords = detectUnparsedDdlKeywords(sql);
     } catch (error) {
       errors.push({
         severity: 'error',
@@ -152,6 +174,17 @@ export function detectDualLedgerDivergence(rootDir: string): DualLedgerDivergenc
         code: 'server-unique-content',
         file: relativePath,
         message: `Server forward migration creates objects absent from the journal/shared ledger: ${missingObjectKeys.join(', ')}`,
+      });
+    }
+
+    if (unparsedDdlKeywords.length > 0 && missingObjectKeys.length === 0) {
+      divergences.push({
+        severity: 'info',
+        code: 'server-unparsed-ddl',
+        file: relativePath,
+        message: `Server forward migration contains unparsed DDL (${unparsedDdlKeywords.join(
+          ', '
+        )}); inspect manually before PR-2b deletion.`,
       });
     }
 
@@ -288,16 +321,20 @@ function collectCreateTableObject(statement: string, objects: Map<string, DdlObj
 }
 
 function collectAlterAddColumnObject(statement: string, objects: Map<string, DdlObject>): void {
-  const match = ALTER_ADD_COLUMN_PATTERN.exec(statement);
-  const tableIdentifier = match?.[1];
-  const columnIdentifier = match?.[2];
-  if (!tableIdentifier || !columnIdentifier) return;
+  const tableMatch = ALTER_TABLE_PATTERN.exec(statement);
+  const tableIdentifier = tableMatch?.[1];
+  if (!tableIdentifier) return;
 
-  addObject(objects, {
-    kind: 'column',
-    table: normalizeIdentifier(tableIdentifier),
-    name: normalizeIdentifier(columnIdentifier),
-  });
+  for (const match of statement.matchAll(ADD_COLUMN_CLAUSE_PATTERN)) {
+    const columnIdentifier = match[1];
+    if (!columnIdentifier) continue;
+
+    addObject(objects, {
+      kind: 'column',
+      table: normalizeIdentifier(tableIdentifier),
+      name: normalizeIdentifier(columnIdentifier),
+    });
+  }
 }
 
 function collectConstraintObjects(statement: string, objects: Map<string, DdlObject>): void {
@@ -338,6 +375,23 @@ function shouldParseStatement(statement: string): boolean {
     /\bcreate\s+(?:unique\s+)?index\b/i.test(statement) ||
     (/\balter\s+table\b/i.test(statement) && /\badd\s+(?:column|constraint)\b/i.test(statement))
   );
+}
+
+function detectUnparsedDdlKeywords(sql: string): string[] {
+  const keywords = new Set<string>();
+
+  for (const statement of splitSqlStatements(sql)) {
+    const normalizedStatement = stripSqlComments(statement).trim();
+    if (normalizedStatement.length === 0) continue;
+
+    for (const { label, pattern } of UNPARSED_DDL_PATTERNS) {
+      if (pattern.test(normalizedStatement)) {
+        keywords.add(label);
+      }
+    }
+  }
+
+  return Array.from(keywords).sort((left, right) => left.localeCompare(right));
 }
 
 function hasUnclosedQuotedIdentifier(statement: string): boolean {

@@ -434,6 +434,10 @@ async function checkMigrations() {
     manifestDir: process.env.UPDOG_SCHEMA_MANIFEST_DIR ?? 'scripts/prod-schema-manifests',
     expectedDb: process.env.UPDOG_EXPECTED_DATABASE ?? null,
   });
+  if (result.status === 'skipped') {
+    console.warn(result.message);
+    return false;
+  }
   return result.ok;
 }
 

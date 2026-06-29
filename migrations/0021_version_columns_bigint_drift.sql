@@ -1,5 +1,8 @@
 -- @drift-patch
 -- Reason: align optimistic-lock version columns with the shared/schema bigint shape source; journal 0001 created them as integer before the shape widened to bigint. Proven by tests/integration/prod-schema-clone.test.ts.
+-- NOTE: ALTER COLUMN TYPE bigint is a NON-additive in-place type change (table rewrite under ACCESS EXCLUSIVE lock on a populated table).
+-- Safe here because: replayed only on empty CI clones; prod is already bigint (built by db:push from the shape source); the reconcile M2 predicate refuses non-additive DDL on populated tables.
+-- If ever applied to a populated table, schedule a maintenance window.
 
 DO $$
 BEGIN
