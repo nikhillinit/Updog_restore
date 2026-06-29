@@ -38,6 +38,7 @@ const releaseOwnedPaths = [
   'scripts/db-push-core.mjs',
   'tests/integration/fund-lifecycle-db.test.ts',
   'tests/integration/migration-drift.test.ts',
+  'tests/integration/prod-schema-clone.test.ts',
   'vitest.config.testcontainers.ts',
 ];
 
@@ -105,6 +106,11 @@ if (skipDbProof) {
     name: 'Migration drift guard',
     command:
       'cross-env TZ=UTC vitest run -c vitest.config.testcontainers.ts tests/integration/migration-drift.test.ts',
+  });
+  steps.push({
+    name: 'Production schema clone proof',
+    command:
+      'cross-env TZ=UTC vitest run -c vitest.config.testcontainers.ts tests/integration/prod-schema-clone.test.ts',
   });
 }
 
