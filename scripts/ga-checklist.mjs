@@ -428,7 +428,7 @@ async function checkCanaryFlags() {
   return true;
 }
 
-async function checkMigrations() {
+export async function checkMigrations() {
   const result = await runSchemaAuditPreflight({
     databaseUrl: process.env.DATABASE_URL,
     manifestDir: process.env.UPDOG_SCHEMA_MANIFEST_DIR ?? 'scripts/prod-schema-manifests',
@@ -436,7 +436,7 @@ async function checkMigrations() {
   });
   if (result.status === 'skipped') {
     console.warn(result.message);
-    return false;
+    return result.ok;
   }
   return result.ok;
 }

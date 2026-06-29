@@ -479,10 +479,12 @@ that file so they inherit its container, its journal-aware helper, and its
 `skipIfNoDocker = !process.env.CI && process.platform === 'win32'` guard. A new
 filename is acceptable only if it reuses the same helper/container and the PR
 justifies the parallel validator against Principle 5; if used, it must be added
-to the `vitest.config.testcontainers.ts` include list (see below). Because of
-the `skipIfNoDocker` guard, a local Windows run of this gate SKIPS and proves
-nothing; real proof comes from CI or the supported Docker/Node environment, the
-same evidence tier as `release:check`.
+to the `vitest.config.testcontainers.ts` include list (see below). The
+testcontainers global setup starts containers before the per-file
+`skipIfNoDocker` guard, so on a host with no container runtime this command
+HARD-FAILS in global setup, not as a clean skip; either way, local Windows is
+NON-EVIDENCE. Real proof comes from CI or the supported Docker/Node environment,
+the same evidence tier as `release:check`.
 
 Extensions are defensive, not load-bearing on the current image. Keep a
 `CREATE EXTENSION IF NOT EXISTS pgcrypto` (and `vector` if a vector column ever
@@ -743,11 +745,12 @@ The shape-equivalence proof extends
 `tests/integration/prod-schema-clone.test.ts` (already in the include list — see
 §7), so no `vitest.config.testcontainers.ts` edit is needed. The comparator must
 actually instantiate DB-A and DB-B and compare catalog shape; a mock-only test
-is insufficient. On local Windows the Testcontainers lane SKIPS via
-`skipIfNoDocker` — a skip is NON-EVIDENCE, not a pass. Merge requires BOTH lanes
-green: the unit lane proven locally or in CI, and the Docker lane proven in CI /
-the supported environment. A flaky Docker proof must never be able to mask a red
-unit-lane guard.
+is insufficient. On local Windows without a container runtime, the
+testcontainers global setup HARD-FAILS before the per-file `skipIfNoDocker`
+guard can produce a clean skip; either way, local Windows is NON-EVIDENCE.
+Merge requires BOTH lanes green: the unit lane proven locally or in CI, and the
+Docker lane proven in CI / the supported environment. A flaky Docker proof must
+never be able to mask a red unit-lane guard.
 
 `npm run release:check` must run in the supported Docker/Node environment for
 this repo. If the local environment cannot run the supported gate, the PR must
@@ -770,7 +773,8 @@ PR-2a is not complete unless the PR description includes:
   defensive, not a precondition.
 - Confirmation that the DB-A/DB-B comparator was collected and run by
   `vitest.config.testcontainers.ts` in CI or the supported environment (a local
-  Windows run SKIPS via `skipIfNoDocker` and is not proof).
+  Windows run is not proof, and without a container runtime HARD-FAILS in
+  global setup before `skipIfNoDocker` can produce a clean skip).
 - The dual-ledger divergence report summary for `server/migrations`.
 - Confirmation that deploy/GA no longer call `db:migrate --dry-run`.
 - Confirmation that no production DDL was run.
@@ -1060,8 +1064,9 @@ Second review pass (verified against `3524a1bf`):
 - Changed §7 to reuse the existing green-in-CI journaled-clone harness
   (`tests/integration/prod-schema-clone.test.ts` +
   `runMigrationsWithConnectionString`) and extend it to a two-sided diff, rather
-  than building a parallel comparator (Principle 5). Noted its `skipIfNoDocker`
-  guard means a local Windows run SKIPS and is not proof.
+  than building a parallel comparator (Principle 5). Noted local Windows is not
+  proof, and without a container runtime the testcontainers global setup
+  HARD-FAILS before `skipIfNoDocker` can produce a clean skip.
 - Corrected the extension precondition: the "both builds fail to construct
   without `pgcrypto`/`vector`" claim is empirically false on pg16. The journaled
   clone builds with no explicit extensions (`gen_random_uuid()` is pg16 core;
