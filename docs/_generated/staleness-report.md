@@ -1,26 +1,26 @@
 ---
-last_updated: 2026-06-27
+last_updated: 2026-06-29
 ---
 
 # Staleness Report
 
-*Generated: 2026-06-27T00:00:00.000Z*
+*Generated: 2026-06-29T00:00:00.000Z*
 *Source: docs/DISCOVERY-MAP.source.yaml*
 
 ## Summary
 
 | Metric | Value |
 |--------|-------|
-| Total Documents | 664 |
-| Stale Documents | 111 |
-| Missing Frontmatter | 24 |
+| Total Documents | 674 |
+| Stale Documents | 119 |
+| Missing Frontmatter | 32 |
 
 ### By Status
 
 | Status | Count |
 |--------|-------|
-| ACTIVE | 450 |
-| UNKNOWN | 119 |
+| ACTIVE | 452 |
+| UNKNOWN | 127 |
 | DRAFT | 33 |
 | HISTORICAL | 21 |
 | VERIFIED | 9 |
@@ -50,6 +50,7 @@ Documents that need review (older than their cadence threshold):
 | `CONTEXT.md` | Never | 999 | No | Unassigned |
 | `DIRECTORY_DELETION_INVESTIGATION.md` | Never | 999 | No | Unassigned |
 | `docs/CA-PACING-ORACLE.md` | Never | 999 | No | Unassigned |
+| `docs/CRITICAL-REVIEW-secondary-surface-governance.md` | Never | 999 | No | Unassigned |
 | `docs/adr/ADR-020-analysis-cohort-boundary.md` | Never | 999 | No | Unassigned |
 | `docs/agents/domain.md` | Never | 999 | No | Unassigned |
 | `docs/agents/issue-tracker.md` | Never | 999 | No | Unassigned |
@@ -85,38 +86,37 @@ Documents that need review (older than their cadence threshold):
 | `docs/superpowers/plans/2026-06-07-forecast-drift-ux-completion.md` | Never | 999 | YES - verify! | Unassigned |
 | `docs/superpowers/plans/2026-06-11-worker-prod-ops.md` | Never | 999 | No | Unassigned |
 | `docs/superpowers/plans/2026-06-13-gp-trust-readiness-audit.md` | Never | 999 | No | Unassigned |
+| `docs/superpowers/plans/2026-06-17-secondary-surface-production-safety.md` | Never | 999 | No | Unassigned |
+| `docs/superpowers/plans/2026-06-18-secondary-surface-trust-slim.md` | Never | 999 | No | Unassigned |
 | `docs/superpowers/plans/2026-06-22-investment-rounds-ui-v2.md` | Never | 999 | No | Unassigned |
+| `docs/superpowers/plans/2026-06-23-financial-actionability-p0.md` | Never | 999 | No | Unassigned |
+| `docs/superpowers/plans/2026-06-23-part-b-investment-rounds-ramp.md` | Never | 999 | No | Unassigned |
+| `docs/superpowers/plans/2026-06-24-pr-d-provenance-envelope-rounds-evidence.md` | Never | 999 | No | Unassigned |
+| `docs/superpowers/plans/2026-06-24-pr-e-moic-shadow-recording-canonical-route.md` | Never | 999 | No | Unassigned |
 | `docs/superpowers/plans/2026-06-25-h9-pr3-lp-package-export-revalidation.md` | Never | 999 | No | Unassigned |
+| `docs/superpowers/plans/2026-06-28-prod-schema-drift-debate-synthesis.md` | Never | 999 | No | Unassigned |
 | `docs/superpowers/specs/2026-05-16-refactor-stability-strategy-design.md` | Never | 999 | YES - verify! | Unassigned |
-| `docs/superpowers/specs/2026-06-11-worker-prod-ops-design.md` | Never | 999 | No | Unassigned |
-| `docs/superpowers/specs/2026-06-21-investment-rounds-ui-v2-design.md` | Never | 999 | No | Unassigned |
-| `docs/tooling-catalog.md` | Never | 999 | No | Unassigned |
-| `.claude/AGENT-DIRECTORY.md` | 2025-12-29 | 180 | No | Platform Team |
-| `.claude/docs/TEST-STRATEGY.md` | 2025-12-29 | 180 | No | Platform Team |
-| `.claude/plan.md` | 2025-12-29 | 180 | YES - verify! | Platform Developer |
-| `docs/xirr-consolidation-roadmap.md` | 2025-12-29 | 180 | YES - verify! | Platform Developer |
-| `cheatsheets/agent-architecture.md` | 2026-01-19 | 159 | No | Unassigned |
 
-*...and 61 more stale documents.*
+*...and 69 more stale documents.*
 
 ## Documents with Execution Claims (Need Verification)
 
 These documents contain phrases like "tests pass", "PR merged", etc. and should be verified:
 
-- [ ] **.claude/plan.md** (180 days old)
-- [ ] **CHANGELOG.md** (38 days old)
-- [ ] **cheatsheets/emoji-free-documentation.md** (159 days old)
-- [ ] **cheatsheets/schema-alignment.md** (159 days old)
-- [ ] **docs/notebooklm-sources/reserves/01-overview.md** (159 days old)
-- [ ] **docs/notebooklm-sources/waterfall.md** (159 days old)
-- [ ] **docs/notebooklm-sources/xirr.md** (159 days old)
-- [ ] **docs/observability/EDITORIAL-V2-CHANGELOG.md** (159 days old)
+- [ ] **.claude/plan.md** (182 days old)
+- [ ] **CHANGELOG.md** (40 days old)
+- [ ] **cheatsheets/emoji-free-documentation.md** (161 days old)
+- [ ] **cheatsheets/schema-alignment.md** (161 days old)
+- [ ] **docs/notebooklm-sources/reserves/01-overview.md** (161 days old)
+- [ ] **docs/notebooklm-sources/waterfall.md** (161 days old)
+- [ ] **docs/notebooklm-sources/xirr.md** (161 days old)
+- [ ] **docs/observability/EDITORIAL-V2-CHANGELOG.md** (161 days old)
 - [ ] **docs/skills/REFL-003-cross-platform-file-enumeration-fragility.md** (999 days old)
 - [ ] **docs/skills/REFL-014-test-key-reuse-across-test-cases.md** (999 days old)
 - [ ] **docs/skills/REFL-015-postgresql-service-missing-test-database.md** (999 days old)
 - [ ] **docs/superpowers/plans/2026-06-07-forecast-drift-ux-completion.md** (999 days old)
 - [ ] **docs/superpowers/specs/2026-05-16-refactor-stability-strategy-design.md** (999 days old)
-- [ ] **docs/xirr-consolidation-roadmap.md** (180 days old)
+- [ ] **docs/xirr-consolidation-roadmap.md** (182 days old)
 
 ## Missing Frontmatter
 
@@ -126,6 +126,7 @@ Documents without proper YAML frontmatter:
 - [ ] `CONTEXT.md`
 - [ ] `DIRECTORY_DELETION_INVESTIGATION.md`
 - [ ] `docs/CA-PACING-ORACLE.md`
+- [ ] `docs/CRITICAL-REVIEW-secondary-surface-governance.md`
 - [ ] `docs/adr/ADR-020-analysis-cohort-boundary.md`
 - [ ] `docs/agents/domain.md`
 - [ ] `docs/agents/issue-tracker.md`
@@ -140,8 +141,15 @@ Documents without proper YAML frontmatter:
 - [ ] `docs/superpowers/plans/2026-06-07-forecast-drift-ux-completion.md`
 - [ ] `docs/superpowers/plans/2026-06-11-worker-prod-ops.md`
 - [ ] `docs/superpowers/plans/2026-06-13-gp-trust-readiness-audit.md`
+- [ ] `docs/superpowers/plans/2026-06-17-secondary-surface-production-safety.md`
+- [ ] `docs/superpowers/plans/2026-06-18-secondary-surface-trust-slim.md`
 - [ ] `docs/superpowers/plans/2026-06-22-investment-rounds-ui-v2.md`
+- [ ] `docs/superpowers/plans/2026-06-23-financial-actionability-p0.md`
+- [ ] `docs/superpowers/plans/2026-06-23-part-b-investment-rounds-ramp.md`
+- [ ] `docs/superpowers/plans/2026-06-24-pr-d-provenance-envelope-rounds-evidence.md`
+- [ ] `docs/superpowers/plans/2026-06-24-pr-e-moic-shadow-recording-canonical-route.md`
 - [ ] `docs/superpowers/plans/2026-06-25-h9-pr3-lp-package-export-revalidation.md`
+- [ ] `docs/superpowers/plans/2026-06-28-prod-schema-drift-debate-synthesis.md`
 - [ ] `docs/superpowers/specs/2026-05-16-refactor-stability-strategy-design.md`
 - [ ] `docs/superpowers/specs/2026-06-11-worker-prod-ops-design.md`
 - [ ] `docs/superpowers/specs/2026-06-21-investment-rounds-ui-v2-design.md`
