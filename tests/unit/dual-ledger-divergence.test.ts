@@ -108,6 +108,39 @@ describe('dual ledger divergence detector', () => {
       ])
     );
   });
+
+  it('reports unparsed server DDL even when the same file has parsed missing objects', () => {
+    const root = makeFixtureRoot();
+    writeJournal(root, []);
+    writeSql(
+      root,
+      'server/migrations/9999_mixed.up.sql',
+      `
+        CREATE TABLE mixed_table (id integer primary key);
+        CREATE TRIGGER mixed_table_updated_at
+        BEFORE UPDATE ON mixed_table
+        FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+      `
+    );
+
+    const result = detectDualLedgerDivergence(root);
+
+    expect(result.ok).toBe(true);
+    expect(result.divergences).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          code: 'server-unique-content',
+          file: 'server/migrations/9999_mixed.up.sql',
+          message: expect.stringContaining('table:mixed_table'),
+        }),
+        expect.objectContaining({
+          code: 'server-unparsed-ddl',
+          file: 'server/migrations/9999_mixed.up.sql',
+          message: expect.stringContaining('CREATE TRIGGER'),
+        }),
+      ])
+    );
+  });
 });
 
 function countRealServerForwardFiles(): number {

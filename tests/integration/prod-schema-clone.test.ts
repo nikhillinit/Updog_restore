@@ -90,17 +90,26 @@ type ShapeKind = 'column' | 'constraint' | 'index';
 interface ColumnShape {
   typ: string;
   notnull: boolean;
+  defaultExpression: string | null;
+  identity: string;
+  generated: string;
 }
 
 interface ConstraintShape {
   contype: string;
   cols: string[];
+  def: string | null;
+  deferrable: boolean;
+  deferred: boolean;
+  validated: boolean;
 }
 
 interface IndexShape {
   uniq: boolean;
+  method: string | null;
   predicate: string | null;
   cols: string[];
+  def: string | null;
 }
 
 interface CatalogSnapshot {
@@ -163,14 +172,27 @@ function foreignKeyShapeSignature(row: {
   refcols: readonly string[] | null;
   confupdtype: string;
   confdeltype: string;
+  def: string | null;
+  deferrable: boolean;
+  deferred: boolean;
+  validated: boolean;
 }): string {
   const cols = normalizeIdentifierArray(row.cols);
   const reftable = normalizeCatalogText(row.reftable) ?? '';
   const refcols = normalizeIdentifierArray(row.refcols);
   const confupdtype = normalizeCatalogText(row.confupdtype) ?? '';
   const confdeltype = normalizeCatalogText(row.confdeltype) ?? '';
+  const def = normalizeCatalogText(row.def) ?? '';
 
-  return `${cols.join(',')}=>${reftable}(${refcols.join(',')})|u:${confupdtype}|d:${confdeltype}`;
+  return [
+    `${cols.join(',')}=>${reftable}(${refcols.join(',')})`,
+    `u:${confupdtype}`,
+    `d:${confdeltype}`,
+    `def:${def}`,
+    `deferrable:${String(row.deferrable)}`,
+    `deferred:${String(row.deferred)}`,
+    `validated:${String(row.validated)}`,
+  ].join('|');
 }
 
 function shapeToText<TShape>(shape: TShape): string {
@@ -256,11 +278,22 @@ async function introspectCatalog(activePool: Pool): Promise<CatalogSnapshot> {
     col: string;
     typ: string;
     notnull: boolean;
+    default_expression: string | null;
+    identity: string;
+    generated: string;
   }>(`
-    SELECT c.relname tbl, a.attname col, format_type(a.atttypid, a.atttypmod) typ, a.attnotnull notnull
+    SELECT
+      c.relname tbl,
+      a.attname col,
+      format_type(a.atttypid, a.atttypmod) typ,
+      a.attnotnull notnull,
+      pg_get_expr(ad.adbin, ad.adrelid) default_expression,
+      a.attidentity identity,
+      a.attgenerated generated
     FROM pg_attribute a
     JOIN pg_class c ON c.oid = a.attrelid
     JOIN pg_namespace n ON n.oid = c.relnamespace
+    LEFT JOIN pg_attrdef ad ON ad.adrelid = a.attrelid AND ad.adnum = a.attnum
     WHERE n.nspname = 'public'
       AND c.relkind = 'r'
       AND a.attnum > 0
@@ -276,11 +309,19 @@ async function introspectCatalog(activePool: Pool): Promise<CatalogSnapshot> {
     refcols: string[];
     confupdtype: string;
     confdeltype: string;
+    def: string;
+    deferrable: boolean;
+    deferred: boolean;
+    validated: boolean;
   }>(`
     SELECT
       con.conname,
       con.contype,
       c.relname tbl,
+      pg_get_constraintdef(con.oid, true) def,
+      con.condeferrable deferrable,
+      con.condeferred deferred,
+      con.convalidated validated,
       COALESCE(
         (
           SELECT array_agg(a.attname::text ORDER BY k.ord)
@@ -309,14 +350,18 @@ async function introspectCatalog(activePool: Pool): Promise<CatalogSnapshot> {
   const indexesResult = await activePool.query<{
     idxname: string;
     uniq: boolean;
+    method: string;
     predicate: string | null;
+    def: string;
     tbl: string;
     cols: string[];
   }>(`
     SELECT
       i.relname idxname,
       ix.indisunique uniq,
+      am.amname method,
       pg_get_expr(ix.indpred, ix.indrelid) predicate,
+      pg_get_indexdef(ix.indexrelid) def,
       c.relname tbl,
       COALESCE(
         (
@@ -329,6 +374,7 @@ async function introspectCatalog(activePool: Pool): Promise<CatalogSnapshot> {
     FROM pg_index ix
     JOIN pg_class i ON i.oid = ix.indexrelid
     JOIN pg_class c ON c.oid = ix.indrelid
+    JOIN pg_am am ON am.oid = i.relam
     JOIN pg_namespace n ON n.oid = c.relnamespace
     WHERE n.nspname = 'public'
       AND c.relname <> 'drizzle_migrations'
@@ -344,6 +390,9 @@ async function introspectCatalog(activePool: Pool): Promise<CatalogSnapshot> {
     setTableShape(columns, normalizeIdentifier(row.tbl), normalizeIdentifier(row.col), {
       typ: normalizeCatalogText(row.typ) ?? '',
       notnull: row.notnull,
+      defaultExpression: normalizeCatalogText(row.default_expression),
+      identity: normalizeCatalogText(row.identity) ?? '',
+      generated: normalizeCatalogText(row.generated) ?? '',
     });
   }
 
@@ -366,14 +415,20 @@ async function introspectCatalog(activePool: Pool): Promise<CatalogSnapshot> {
     setTableShape(nonFkConstraints, tableName, constraintName, {
       contype,
       cols: normalizeIdentifierArray(row.cols),
+      def: normalizeCatalogText(row.def),
+      deferrable: row.deferrable,
+      deferred: row.deferred,
+      validated: row.validated,
     });
   }
 
   for (const row of indexesResult.rows) {
     setTableShape(indexes, normalizeIdentifier(row.tbl), normalizeIdentifier(row.idxname), {
       uniq: row.uniq,
+      method: normalizeCatalogText(row.method),
       predicate: normalizeCatalogText(row.predicate),
       cols: normalizeIdentifierArray(row.cols),
+      def: normalizeCatalogText(row.def),
     });
   }
 

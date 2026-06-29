@@ -177,7 +177,7 @@ export function detectDualLedgerDivergence(rootDir: string): DualLedgerDivergenc
       });
     }
 
-    if (unparsedDdlKeywords.length > 0 && missingObjectKeys.length === 0) {
+    if (unparsedDdlKeywords.length > 0) {
       divergences.push({
         severity: 'info',
         code: 'server-unparsed-ddl',

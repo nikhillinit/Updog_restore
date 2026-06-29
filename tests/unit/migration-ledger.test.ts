@@ -165,6 +165,25 @@ describe('migration ledger helpers', () => {
       ])
     );
   });
+
+  it('errors when synthetic loose root SQL is unmarked and not grandfathered', () => {
+    const root = makeFixtureRoot();
+    writeJournal(root, []);
+    writeSql(root, '9999_new_loose_root.sql', 'CREATE TABLE new_loose_root (id integer);');
+
+    const result = validateMigrationLedger(root);
+
+    expect(result.ok).toBe(false);
+    expect(result.findings).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          severity: 'error',
+          code: 'loose-migration-sql-missing-marker',
+          file: '9999_new_loose_root.sql',
+        }),
+      ])
+    );
+  });
 });
 
 function classifyRealFile(file: string, journalTags: ReadonlySet<string>) {

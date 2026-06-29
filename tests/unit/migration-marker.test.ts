@@ -167,6 +167,26 @@ describe('migration marker validation', () => {
       );
     }
   });
+
+  it('fails a new unjournaled loose root migration without a marker', () => {
+    const root = makeFixtureRoot();
+    writeJournal(root, []);
+    writeSql(root, '9999_unmarked_loose.sql', 'CREATE TABLE unmarked_loose (id integer);');
+
+    const result = validateMigrationLedger(root);
+
+    expect(result.ok).toBe(false);
+    expect(result.findings).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          severity: 'error',
+          code: 'loose-migration-sql-missing-marker',
+          file: '9999_unmarked_loose.sql',
+          message: expect.stringContaining('new or edited root SQL needs'),
+        }),
+      ])
+    );
+  });
 });
 
 function makeFixtureRoot(): string {

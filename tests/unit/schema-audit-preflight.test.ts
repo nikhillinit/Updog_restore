@@ -28,7 +28,7 @@ describe('schema-audit-preflight', () => {
       manifestDir: 'custom/manifests',
       runReconcile: (args: string[]) => {
         captured = args;
-        return { code: 0, stdout: '', stderr: '' };
+        return { code: 0, stdout: 'fixture: SKIP\n', stderr: '' };
       },
     });
 
@@ -47,7 +47,7 @@ describe('schema-audit-preflight', () => {
       expectedDb: 'updog_prod',
       runReconcile: (args: string[]) => {
         captured = args;
-        return { code: 0, stdout: '', stderr: '' };
+        return { code: 0, stdout: 'fixture: SKIP\n', stderr: '' };
       },
     });
 
@@ -64,5 +64,33 @@ describe('schema-audit-preflight', () => {
     });
 
     expect(result).toMatchObject({ status: 'audited', ok: false, code: 1 });
+  });
+
+  it('fails audit-only success when any manifest action needs DDL', async () => {
+    const result = await runSchemaAuditPreflight({
+      databaseUrl: 'postgres://user:pass@direct.neon.tech/db',
+      runReconcile: () => ({
+        code: 0,
+        stdout: [
+          'Target database: updog_prod user=deploy',
+          'Mode: audit-only',
+          'c1-runtime-alignment: SKIP',
+          'pr1-prod-schema: APPLY-MISSING-DDL',
+          '  tasks: APPLY-MISSING-DDL (missing-column)',
+          '',
+        ].join('\n'),
+      }),
+    });
+
+    expect(result).toMatchObject({
+      status: 'audited',
+      ok: false,
+      code: 0,
+      auditActions: [
+        { manifest: 'c1-runtime-alignment', action: 'SKIP' },
+        { manifest: 'pr1-prod-schema', action: 'APPLY-MISSING-DDL' },
+      ],
+    });
+    expect(result.message).toContain('reported drift');
   });
 });

@@ -4,7 +4,7 @@ import { spawnSync } from 'node:child_process';
 import process from 'node:process';
 import { fileURLToPath } from 'node:url';
 
-import { isPoolerUrl } from './reconcile-prod-schema.mjs';
+import { ACTION_SKIP, isPoolerUrl } from './reconcile-prod-schema.mjs';
 
 const SKIP_MESSAGE = 'schema audit skipped: no direct DATABASE_URL';
 
@@ -33,13 +33,29 @@ export async function runSchemaAuditPreflight({
         expectedDb,
       }));
   const result = run(args);
+  const auditActions = parseAuditActions(result.stdout ?? '');
+  const driftActions = auditActions.filter((audit) => audit.action !== ACTION_SKIP);
+  const ok = result.code === 0 && driftActions.length === 0;
 
   return {
     status: 'audited',
-    ok: result.code === 0,
-    message: `schema audit ${result.code === 0 ? 'passed' : 'reported drift'} (reconcile audit-only)`,
+    ok,
+    message: `schema audit ${ok ? 'passed' : 'reported drift'} (reconcile audit-only)`,
     code: result.code,
+    auditActions,
   };
+}
+
+export function parseAuditActions(stdout) {
+  const actions = [];
+  const actionPattern = /^([^\s:][^:]*):\s+(SKIP|APPLY-MISSING-DDL|REFUSE-FOR-HUMAN)\s*$/gm;
+  for (const match of stdout.matchAll(actionPattern)) {
+    actions.push({
+      manifest: match[1],
+      action: match[2],
+    });
+  }
+  return actions;
 }
 
 function assertAuditOnlyArgs(args) {
