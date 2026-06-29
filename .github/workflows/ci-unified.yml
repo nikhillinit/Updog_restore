@@ -42,11 +42,12 @@ jobs:
       docs: ${{ steps.filter.outputs.docs }}
       docs_links: ${{ steps.filter.outputs.docs_links }}
       dependency: ${{ steps.filter.outputs.dependency }}
+      schema: ${{ steps.filter.outputs.schema }}
       pr_security: ${{ steps.filter.outputs.pr_security }}
       security_tests: ${{ steps.filter.outputs.security_tests }}
       test_quarantine: ${{ steps.filter.outputs.test_quarantine }}
       auto_docs_only: ${{ steps.filter.outputs.auto_docs == 'true' && steps.filter.outputs.not_auto_docs == 'false' }}
-      heavy_ci_relevant: ${{ steps.filter.outputs.code == 'true' || steps.filter.outputs.dependency == 'true' }}
+      heavy_ci_relevant: ${{ steps.filter.outputs.code == 'true' || steps.filter.outputs.dependency == 'true' || steps.filter.outputs.schema == 'true' }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
@@ -185,12 +186,13 @@ jobs:
     name: Test ${{ matrix.group }}
     needs: [changes, check]
     if: |
-      (github.ref == 'refs/heads/main' || github.event.inputs.run_full_suite == 'true') &&
+      (github.ref == 'refs/heads/main' || github.event.inputs.run_full_suite == 'true' || needs.changes.outputs.schema == 'true') &&
       (
         needs.changes.outputs.heavy_ci_relevant == 'true' ||
         github.event.inputs.run_full_suite == 'true' ||
         github.event.inputs.enable_security == 'true' ||
-        github.event.inputs.enable_memory_mode == 'true'
+        github.event.inputs.enable_memory_mode == 'true' ||
+        needs.changes.outputs.schema == 'true'
       )
     runs-on: ubuntu-latest
     timeout-minutes: 35
@@ -660,6 +662,7 @@ jobs:
           enable_security="${{ github.event.inputs.enable_security }}"
           enable_memory_mode="${{ github.event.inputs.enable_memory_mode }}"
           is_pr="${{ github.event_name == 'pull_request' }}"
+          schema_changed="${{ needs.changes.outputs.schema }}"
           docs_link_result="${{ needs.docs-link-check.result }}"
           check_result="${{ needs.check.result }}"
           build_result="${{ needs.build.result }}"
@@ -722,6 +725,9 @@ jobs:
           require_result "Documentation links" "$docs_link_result" "$docs_link_expected"
           require_result "Check" "$check_result" "$check_expected"
           require_result "Test" "$test_result" "$test_expected"
+          if [[ "$is_pr" == "true" && "$run_full_suite" != "true" ]]; then
+            require_result "Test (full integration)" "${{ needs.test-full.result }}" "$schema_changed"
+          fi
           require_result "Build" "$build_result" "$build_expected"
           require_result "Guards" "$guards_result" "$guards_expected"
           require_result "Dependency validation" "$dependency_result" "$dependency_expected"
@@ -737,6 +743,7 @@ jobs:
             echo "| documentation-links | $docs_link_result | $docs_link_expected |"
             echo "| check | $check_result | $check_expected |"
             echo "| tests | $test_result | $test_expected |"
+            echo "| tests-full (schema gate) | ${{ needs.test-full.result }} | $schema_changed |"
             echo "| build | $build_result | $build_expected |"
             echo "| guards | $guards_result | $guards_expected |"
             echo "| dependency-validation | $dependency_result | $dependency_expected |"
