@@ -166,7 +166,7 @@ export const LEGACY_LOOSE_MIGRATION_ALLOWLIST: { file: string; sha256: string }[
   },
   {
     file: 'manual-migration.sql',
-    sha256: '774a69d3a5ec66625542eab6dba462808cac2ab67afae9981f41239d998e1e9f',
+    sha256: '2b4ea3a8d8c06d24f6cd71119fa7b6e6e14e93b7fbe1de54e1382b6dee836558',
   },
 ];
 
@@ -375,6 +375,13 @@ export function sha256OfFile(absPath: string): string {
   return crypto.createHash('sha256').update(contents).digest('hex');
 }
 
+function sha256OfFileNormalized(absPath: string): string {
+  // Hashes are line-ending-normalized so grandfathering matches CRLF Windows
+  // worktrees and LF CI checkouts; .gitattributes stores .sql as LF.
+  const contents = fs.readFileSync(absPath, 'utf-8').replace(/\r\n/g, '\n');
+  return crypto.createHash('sha256').update(contents).digest('hex');
+}
+
 export function validateMigrationLedger(
   rootDir: string,
   migrationsDir = 'migrations'
@@ -420,7 +427,7 @@ export function validateMigrationLedger(
 
     const sql = fs.readFileSync(absPath, 'utf-8');
     const classification = classifyMigrationSqlFile(file, sql, journalTags);
-    const currentHash = sha256OfFile(absPath);
+    const currentHash = sha256OfFileNormalized(absPath);
 
     if (classification.class === 'legacy-journaled-unmarked') {
       const expectedHash = allowlist.get(entry.tag);
@@ -467,7 +474,7 @@ export function validateMigrationLedger(
     const sql = fs.readFileSync(loose.absPath, 'utf-8');
     const classification = classifyMigrationSqlFile(loose.file, sql, journalTags);
     const expectedHash = looseAllowlist.get(loose.file);
-    const isGrandfathered = expectedHash === sha256OfFile(loose.absPath);
+    const isGrandfathered = expectedHash === sha256OfFileNormalized(loose.absPath);
     const isMarked = classification.marker !== null;
 
     if (!isGrandfathered && !isMarked) {
