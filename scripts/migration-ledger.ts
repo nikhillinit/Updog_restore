@@ -524,8 +524,28 @@ function hasSnapshotFileForEntry(
   migrationsDir: string,
   entryIndex: number
 ): boolean {
-  return fs.existsSync(
-    path.join(rootDir, migrationsDir, 'meta', snapshotFileNameForIndex(entryIndex))
+  const snapshotPath = path.join(
+    rootDir,
+    migrationsDir,
+    'meta',
+    snapshotFileNameForIndex(entryIndex)
+  );
+  if (!fs.existsSync(snapshotPath)) return false;
+
+  try {
+    const parsed = JSON.parse(fs.readFileSync(snapshotPath, 'utf-8')) as unknown;
+    return isDrizzleSnapshotFile(parsed);
+  } catch {
+    return false;
+  }
+}
+
+function isDrizzleSnapshotFile(value: unknown): boolean {
+  return (
+    isRecord(value) &&
+    typeof value.version === 'string' &&
+    Object.prototype.hasOwnProperty.call(value, 'dialect') &&
+    Object.prototype.hasOwnProperty.call(value, 'tables')
   );
 }
 

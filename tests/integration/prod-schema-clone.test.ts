@@ -63,15 +63,6 @@ const EXPECTED_TRIGGERS = [
   'scenario_matrices_updated_at',
   'optimization_sessions_updated_at',
 ] as const;
-const EXPECTED_SHARED_MIGRATION_TABLES = ['alert_evaluation_executions'] as const;
-const EXPECTED_SHARED_MIGRATION_COLUMNS = [
-  ['job_outbox', 'dedupe_key'],
-  ['backtest_results', 'scenario_comparison_summary'],
-] as const;
-const EXPECTED_SHARED_MIGRATION_INDEXES = [
-  'idx_job_outbox_job_type_dedupe',
-  'performance_alerts_open_incident_unique',
-] as const;
 const KNOWN_INTERSECTION_DRIFT = new Set<string>([
   'forecast_snapshots|constraint|forecast_snapshots_idem_key_len_check',
   'forecast_snapshots|index|forecast_snapshots_fund_cursor_idx',
@@ -499,51 +490,6 @@ async function publicTriggerNames(activePool: Pool, triggerNames: readonly strin
   return new Set(result.rows.map((row) => row.tgname));
 }
 
-function columnKey(tableName: string, columnName: string): string {
-  return `${tableName}.${columnName}`;
-}
-
-async function publicColumnsPresent(
-  activePool: Pool,
-  columnPairs: readonly (readonly [string, string])[]
-) {
-  const columnKeys = columnPairs.map(([tableName, columnName]) => columnKey(tableName, columnName));
-  const result = await activePool.query<{ key: string }>(
-    `
-      SELECT c.relname || '.' || a.attname AS key
-      FROM pg_attribute a
-      JOIN pg_class c ON c.oid = a.attrelid
-      JOIN pg_namespace n ON n.oid = c.relnamespace
-      WHERE n.nspname = 'public'
-        AND c.relkind = 'r'
-        AND a.attnum > 0
-        AND NOT a.attisdropped
-        AND c.relname || '.' || a.attname = ANY($1::text[])
-    `,
-    [columnKeys]
-  );
-
-  return new Set(result.rows.map((row) => row.key));
-}
-
-async function publicIndexesPresent(activePool: Pool, indexNames: readonly string[]) {
-  const result = await activePool.query<{ idxname: string }>(
-    `
-      SELECT i.relname idxname
-      FROM pg_index ix
-      JOIN pg_class i ON i.oid = ix.indexrelid
-      JOIN pg_class c ON c.oid = ix.indrelid
-      JOIN pg_namespace n ON n.oid = c.relnamespace
-      WHERE n.nspname = 'public'
-        AND c.relkind = 'r'
-        AND i.relname = ANY($1::text[])
-    `,
-    [indexNames]
-  );
-
-  return new Set(result.rows.map((row) => row.idxname));
-}
-
 async function publicTables(activePool: Pool, tableNames: readonly string[]) {
   const result = await activePool.query<{ table_name: string }>(
     `
@@ -695,6 +641,12 @@ describe.skipIf(skipIfNoDocker)('prod schema synthetic clone', () => {
     expect(journalOnlyTables).toEqual([]);
     expect(shapeOnlyTables.filter((tableName) => !shapeOnlyBaseline.has(tableName))).toEqual([]);
 
+    const procedureNamesBefore = await publicProcedureNames(pool!, EXPECTED_PROCEDURES);
+    const triggerNamesBefore = await publicTriggerNames(pool!, EXPECTED_TRIGGERS);
+
+    expect([...procedureNamesBefore]).toEqual([]);
+    expect([...triggerNamesBefore]).toEqual([]);
+
     await applyProceduralMigrations(pool!);
     const procedureNames = await publicProcedureNames(pool!, EXPECTED_PROCEDURES);
     const triggerNames = await publicTriggerNames(pool!, EXPECTED_TRIGGERS);
@@ -704,28 +656,6 @@ describe.skipIf(skipIfNoDocker)('prod schema synthetic clone', () => {
     ).toEqual([]);
     expect(EXPECTED_TRIGGERS.filter((triggerName) => !triggerNames.has(triggerName))).toEqual([]);
 
-    const sharedMigrationTables = await publicTables(pool!, EXPECTED_SHARED_MIGRATION_TABLES);
-    const sharedMigrationColumns = await publicColumnsPresent(
-      pool!,
-      EXPECTED_SHARED_MIGRATION_COLUMNS
-    );
-    const sharedMigrationIndexes = await publicIndexesPresent(
-      pool!,
-      EXPECTED_SHARED_MIGRATION_INDEXES
-    );
-
-    expect(
-      EXPECTED_SHARED_MIGRATION_TABLES.filter((tableName) => !sharedMigrationTables.has(tableName))
-    ).toEqual([]);
-    expect(
-      EXPECTED_SHARED_MIGRATION_COLUMNS.map(([tableName, columnName]) =>
-        columnKey(tableName, columnName)
-      ).filter((key) => !sharedMigrationColumns.has(key))
-    ).toEqual([]);
-    expect(
-      EXPECTED_SHARED_MIGRATION_INDEXES.filter(
-        (indexName) => !sharedMigrationIndexes.has(indexName)
-      )
-    ).toEqual([]);
+    // alert_evaluation_executions, job_outbox.dedupe_key, idx_job_outbox_job_type_dedupe, performance_alerts_open_incident_unique, backtest_results.scenario_comparison_summary are in BOTH the journal and shape source -> proven by the sentinel intersection diff above; asserting them here would be vacuous (the journal pre-supplies them).
   });
 });

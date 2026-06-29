@@ -68,6 +68,62 @@ describe('migration marker validation', () => {
     );
   });
 
+  it('fails when a generated journaled migration has a malformed meta snapshot file', () => {
+    const malformedSnapshots = [
+      { tag: '9999_generated_empty_snapshot', contents: '' },
+      { tag: '9999_generated_garbage_snapshot', contents: 'not json' },
+      { tag: '9999_generated_wrong_shape_snapshot', contents: '{}' },
+    ] as const;
+
+    for (const snapshot of malformedSnapshots) {
+      const root = makeFixtureRoot();
+      writeJournal(root, [{ idx: 5, when: 1, tag: snapshot.tag, breakpoints: true }]);
+      writeMetaFile(root, '0005_snapshot.json', snapshot.contents);
+      writeSql(
+        root,
+        `${snapshot.tag}.sql`,
+        `-- @generated\nCREATE TABLE ${snapshot.tag} (id integer);`
+      );
+
+      const result = validateMigrationLedger(root);
+
+      expect(result.ok).toBe(false);
+      expect(result.findings).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            severity: 'error',
+            code: 'generated-migration-missing-snapshot',
+            file: `${snapshot.tag}.sql`,
+          }),
+        ])
+      );
+    }
+  });
+
+  it('passes when a generated journaled migration has a drizzle-shaped meta snapshot file', () => {
+    const root = makeFixtureRoot();
+    writeJournal(root, [
+      { idx: 5, when: 1, tag: '9999_generated_with_snapshot', breakpoints: true },
+    ]);
+    writeMetaFile(
+      root,
+      '0005_snapshot.json',
+      JSON.stringify({ version: '7', dialect: 'postgresql', tables: {} })
+    );
+    writeSql(
+      root,
+      '9999_generated_with_snapshot.sql',
+      '-- @generated\nCREATE TABLE generated_with_snapshot (id integer);'
+    );
+
+    const result = validateMigrationLedger(root);
+
+    expect(result.ok).toBe(true);
+    expect(
+      result.findings.filter((finding) => finding.code === 'generated-migration-missing-snapshot')
+    ).toEqual([]);
+  });
+
   it('fails when a drift patch marker has no Reason line', () => {
     const root = makeFixtureRoot();
     writeJournal(root, [{ idx: 0, when: 1, tag: '9999_drift_missing_reason', breakpoints: true }]);
