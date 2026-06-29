@@ -63,6 +63,15 @@ const EXPECTED_TRIGGERS = [
   'scenario_matrices_updated_at',
   'optimization_sessions_updated_at',
 ] as const;
+const EXPECTED_SHARED_MIGRATION_TABLES = ['alert_evaluation_executions'] as const;
+const EXPECTED_SHARED_MIGRATION_COLUMNS = [
+  ['job_outbox', 'dedupe_key'],
+  ['backtest_results', 'scenario_comparison_summary'],
+] as const;
+const EXPECTED_SHARED_MIGRATION_INDEXES = [
+  'idx_job_outbox_job_type_dedupe',
+  'performance_alerts_open_incident_unique',
+] as const;
 
 type TableShapeMap<TShape> = Map<string, Map<string, TShape>>;
 
@@ -73,7 +82,9 @@ interface ColumnShape {
 
 interface ConstraintShape {
   contype: string;
+  cols: string[];
   reftable: string;
+  refcols: string[];
   confupdtype: string;
   confdeltype: string;
 }
@@ -81,6 +92,7 @@ interface ConstraintShape {
 interface IndexShape {
   uniq: boolean;
   predicate: string | null;
+  cols: string[];
 }
 
 interface CatalogSnapshot {
@@ -101,6 +113,10 @@ function normalizeIdentifier(value: string): string {
 
 function normalizeCatalogText(value: string | null): string | null {
   return value === null ? null : value.toLowerCase().replace(/\s+/g, ' ').trim();
+}
+
+function normalizeIdentifierArray(value: readonly string[] | null): string[] {
+  return (value ?? []).map((entry) => normalizeIdentifier(entry));
 }
 
 function setTableShape<TShape>(
@@ -190,11 +206,35 @@ async function introspectCatalog(activePool: Pool): Promise<CatalogSnapshot> {
     conname: string;
     contype: string;
     tbl: string;
+    cols: string[];
     reftable: string;
+    refcols: string[];
     confupdtype: string;
     confdeltype: string;
   }>(`
-    SELECT con.conname, con.contype, c.relname tbl, confrelid::regclass::text reftable, con.confupdtype, con.confdeltype
+    SELECT
+      con.conname,
+      con.contype,
+      c.relname tbl,
+      COALESCE(
+        (
+          SELECT array_agg(a.attname::text ORDER BY k.ord)
+          FROM unnest(con.conkey) WITH ORDINALITY AS k(attnum, ord)
+          JOIN pg_attribute a ON a.attrelid = con.conrelid AND a.attnum = k.attnum
+        ),
+        ARRAY[]::text[]
+      ) cols,
+      CASE WHEN con.confrelid = 0 THEN '' ELSE con.confrelid::regclass::text END reftable,
+      COALESCE(
+        (
+          SELECT array_agg(a.attname::text ORDER BY k.ord)
+          FROM unnest(con.confkey) WITH ORDINALITY AS k(attnum, ord)
+          JOIN pg_attribute a ON a.attrelid = con.confrelid AND a.attnum = k.attnum
+        ),
+        ARRAY[]::text[]
+      ) refcols,
+      con.confupdtype,
+      con.confdeltype
     FROM pg_constraint con
     JOIN pg_class c ON c.oid = con.conrelid
     JOIN pg_namespace n ON n.oid = con.connamespace
@@ -206,8 +246,21 @@ async function introspectCatalog(activePool: Pool): Promise<CatalogSnapshot> {
     uniq: boolean;
     predicate: string | null;
     tbl: string;
+    cols: string[];
   }>(`
-    SELECT i.relname idxname, ix.indisunique uniq, pg_get_expr(ix.indpred, ix.indrelid) predicate, c.relname tbl
+    SELECT
+      i.relname idxname,
+      ix.indisunique uniq,
+      pg_get_expr(ix.indpred, ix.indrelid) predicate,
+      c.relname tbl,
+      COALESCE(
+        (
+          SELECT array_agg(COALESCE(a.attname::text, '(expr)') ORDER BY k.ord)
+          FROM unnest(ix.indkey) WITH ORDINALITY AS k(attnum, ord)
+          LEFT JOIN pg_attribute a ON a.attrelid = ix.indrelid AND a.attnum = k.attnum
+        ),
+        ARRAY[]::text[]
+      ) cols
     FROM pg_index ix
     JOIN pg_class i ON i.oid = ix.indexrelid
     JOIN pg_class c ON c.oid = ix.indrelid
@@ -230,7 +283,9 @@ async function introspectCatalog(activePool: Pool): Promise<CatalogSnapshot> {
   for (const row of constraintsResult.rows) {
     setTableShape(constraints, normalizeIdentifier(row.tbl), normalizeIdentifier(row.conname), {
       contype: normalizeCatalogText(row.contype) ?? '',
+      cols: normalizeIdentifierArray(row.cols),
       reftable: normalizeCatalogText(row.reftable) ?? '',
+      refcols: normalizeIdentifierArray(row.refcols),
       confupdtype: normalizeCatalogText(row.confupdtype) ?? '',
       confdeltype: normalizeCatalogText(row.confdeltype) ?? '',
     });
@@ -240,6 +295,7 @@ async function introspectCatalog(activePool: Pool): Promise<CatalogSnapshot> {
     setTableShape(indexes, normalizeIdentifier(row.tbl), normalizeIdentifier(row.idxname), {
       uniq: row.uniq,
       predicate: normalizeCatalogText(row.predicate),
+      cols: normalizeIdentifierArray(row.cols),
     });
   }
 
@@ -351,6 +407,51 @@ async function publicTriggerNames(activePool: Pool, triggerNames: readonly strin
   );
 
   return new Set(result.rows.map((row) => row.tgname));
+}
+
+function columnKey(tableName: string, columnName: string): string {
+  return `${tableName}.${columnName}`;
+}
+
+async function publicColumnsPresent(
+  activePool: Pool,
+  columnPairs: readonly (readonly [string, string])[]
+) {
+  const columnKeys = columnPairs.map(([tableName, columnName]) => columnKey(tableName, columnName));
+  const result = await activePool.query<{ key: string }>(
+    `
+      SELECT c.relname || '.' || a.attname AS key
+      FROM pg_attribute a
+      JOIN pg_class c ON c.oid = a.attrelid
+      JOIN pg_namespace n ON n.oid = c.relnamespace
+      WHERE n.nspname = 'public'
+        AND c.relkind = 'r'
+        AND a.attnum > 0
+        AND NOT a.attisdropped
+        AND c.relname || '.' || a.attname = ANY($1::text[])
+    `,
+    [columnKeys]
+  );
+
+  return new Set(result.rows.map((row) => row.key));
+}
+
+async function publicIndexesPresent(activePool: Pool, indexNames: readonly string[]) {
+  const result = await activePool.query<{ idxname: string }>(
+    `
+      SELECT i.relname idxname
+      FROM pg_index ix
+      JOIN pg_class i ON i.oid = ix.indexrelid
+      JOIN pg_class c ON c.oid = ix.indrelid
+      JOIN pg_namespace n ON n.oid = c.relnamespace
+      WHERE n.nspname = 'public'
+        AND c.relkind = 'r'
+        AND i.relname = ANY($1::text[])
+    `,
+    [indexNames]
+  );
+
+  return new Set(result.rows.map((row) => row.idxname));
 }
 
 async function publicTables(activePool: Pool, tableNames: readonly string[]) {
@@ -494,5 +595,29 @@ describe.skipIf(skipIfNoDocker)('prod schema synthetic clone', () => {
       EXPECTED_PROCEDURES.filter((procedureName) => !procedureNames.has(procedureName))
     ).toEqual([]);
     expect(EXPECTED_TRIGGERS.filter((triggerName) => !triggerNames.has(triggerName))).toEqual([]);
+
+    const sharedMigrationTables = await publicTables(pool!, EXPECTED_SHARED_MIGRATION_TABLES);
+    const sharedMigrationColumns = await publicColumnsPresent(
+      pool!,
+      EXPECTED_SHARED_MIGRATION_COLUMNS
+    );
+    const sharedMigrationIndexes = await publicIndexesPresent(
+      pool!,
+      EXPECTED_SHARED_MIGRATION_INDEXES
+    );
+
+    expect(
+      EXPECTED_SHARED_MIGRATION_TABLES.filter((tableName) => !sharedMigrationTables.has(tableName))
+    ).toEqual([]);
+    expect(
+      EXPECTED_SHARED_MIGRATION_COLUMNS.map(([tableName, columnName]) =>
+        columnKey(tableName, columnName)
+      ).filter((key) => !sharedMigrationColumns.has(key))
+    ).toEqual([]);
+    expect(
+      EXPECTED_SHARED_MIGRATION_INDEXES.filter(
+        (indexName) => !sharedMigrationIndexes.has(indexName)
+      )
+    ).toEqual([]);
   });
 });

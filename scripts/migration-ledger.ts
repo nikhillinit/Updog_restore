@@ -386,13 +386,13 @@ export function validateMigrationLedger(
 
     if (
       classification.class === 'journaled-generated' &&
-      !hasAnySnapshotFile(rootDir, migrationsDir)
+      !hasSnapshotFileForEntry(rootDir, migrationsDir, entry.idx)
     ) {
       findings.push({
         severity: 'error',
         code: 'generated-migration-missing-snapshot',
         file,
-        message: `Generated journaled SQL ${entry.tag} lacks a sibling ${migrationsDir}/meta/*snapshot* file.`,
+        message: `Generated journaled SQL ${entry.tag} lacks sibling ${migrationsDir}/meta/${snapshotFileNameForIndex(entry.idx)}.`,
       });
     }
   }
@@ -519,11 +519,16 @@ function hasDriftPatchReason(sql: string, tag: string): boolean {
   return hasReason || LEGACY_DRIFT_PATCH_REASON_ALLOWLIST.has(tag);
 }
 
-function hasAnySnapshotFile(rootDir: string, migrationsDir: string): boolean {
-  const metaDir = path.join(rootDir, migrationsDir, 'meta');
-  if (!fs.existsSync(metaDir)) return false;
+function hasSnapshotFileForEntry(
+  rootDir: string,
+  migrationsDir: string,
+  entryIndex: number
+): boolean {
+  return fs.existsSync(
+    path.join(rootDir, migrationsDir, 'meta', snapshotFileNameForIndex(entryIndex))
+  );
+}
 
-  return fs
-    .readdirSync(metaDir, { withFileTypes: true })
-    .some((entry) => entry.isFile() && entry.name.includes('snapshot'));
+function snapshotFileNameForIndex(entryIndex: number): string {
+  return `${String(entryIndex).padStart(4, '0')}_snapshot.json`;
 }

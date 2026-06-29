@@ -100,7 +100,7 @@ describe('migration ledger helpers', () => {
     expect(
       result.findings.filter((finding) => finding.code === 'legacy-journaled-unmarked-allowlisted')
     ).toHaveLength(LEGACY_JOURNALED_UNMARKED_ALLOWLIST.length);
-    expect(markedJournaled).toHaveLength(5);
+    expect(markedJournaled).toHaveLength(6);
   });
 
   it('errors when a synthetic new journaled migration has no marker', () => {

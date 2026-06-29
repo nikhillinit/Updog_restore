@@ -45,8 +45,9 @@ describe('migration marker validation', () => {
   it('fails when a generated journaled migration has no meta snapshot file', () => {
     const root = makeFixtureRoot();
     writeJournal(root, [
-      { idx: 0, when: 1, tag: '9999_generated_without_snapshot', breakpoints: true },
+      { idx: 5, when: 1, tag: '9999_generated_without_snapshot', breakpoints: true },
     ]);
+    writeMetaFile(root, '0000_snapshot.json', '{}');
     writeSql(
       root,
       '9999_generated_without_snapshot.sql',
@@ -129,4 +130,8 @@ function writeJournal(root: string, entries: JournalFile['entries']): void {
 
 function writeSql(root: string, file: string, sql: string): void {
   fs.writeFileSync(path.join(root, 'migrations', file), `${sql}\n`);
+}
+
+function writeMetaFile(root: string, file: string, contents: string): void {
+  fs.writeFileSync(path.join(root, 'migrations', 'meta', file), `${contents}\n`);
 }
