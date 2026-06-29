@@ -10,6 +10,8 @@ import fetch from 'node-fetch';
 import fs from 'fs/promises';
 import path from 'path';
 
+import { runSchemaAuditPreflight } from './schema-audit-preflight.mjs';
+
 const CHECKS = {
   // CI/CD checks
   ci: {
@@ -427,13 +429,12 @@ async function checkCanaryFlags() {
 }
 
 async function checkMigrations() {
-  try {
-    // Check if migrations can run successfully
-    const result = execSync('npm run db:migrate -- --dry-run', { encoding: 'utf-8' });
-    return !result.includes('error') && !result.includes('failed');
-  } catch {
-    return false;
-  }
+  const result = await runSchemaAuditPreflight({
+    databaseUrl: process.env.DATABASE_URL,
+    manifestDir: process.env.UPDOG_SCHEMA_MANIFEST_DIR ?? 'scripts/prod-schema-manifests',
+    expectedDb: process.env.UPDOG_EXPECTED_DATABASE ?? null,
+  });
+  return result.ok;
 }
 
 async function checkRollbackCapability() {
@@ -456,7 +457,7 @@ async function checkBackupStatus() {
 
 // Run checklist
 async function runChecklist() {
-  console.log('🚀 GA Pre-deployment Checklist');
+  console.log('GA Pre-deployment Checklist');
   console.log('=' .repeat(50));
   
   const results = {
@@ -467,7 +468,7 @@ async function runChecklist() {
   };
   
   for (const [categoryKey, category] of Object.entries(CHECKS)) {
-    console.log(`\n📋 ${category.name}`);
+    console.log(`\n${category.name}`);
     
     const categoryResult = {
       name: category.name,
@@ -480,7 +481,7 @@ async function runChecklist() {
       process.stdout.write(`  Checking ${check.name}...`);
       
       const result = await check.fn();
-      const status = result ? '✅' : check.critical ? '❌' : '⚠️';
+      const status = result ? 'PASS:' : check.critical ? 'FAIL:' : 'WARN:';
       
       console.log(` ${status}`);
       
@@ -502,13 +503,13 @@ async function runChecklist() {
   
   // Summary
   console.log('\n' + '=' .repeat(50));
-  console.log('📊 CHECKLIST SUMMARY');
+  console.log('CHECKLIST SUMMARY');
   console.log('=' .repeat(50));
   
   if (results.passed) {
-    console.log('✅ All checks passed - READY FOR GA');
+    console.log('PASS: All checks passed - READY FOR GA');
   } else {
-    console.log('❌ Critical failures detected - NOT READY FOR GA');
+    console.log('FAIL: Critical failures detected - NOT READY FOR GA');
     console.log('\nCritical failures:');
     results.criticalFailures.forEach(f => console.log(`  - ${f}`));
   }
@@ -519,7 +520,7 @@ async function runChecklist() {
     JSON.stringify(results, null, 2)
   );
   
-  console.log('\n📁 Results saved to ga-checklist-results.json');
+  console.log('\nResults saved to ga-checklist-results.json');
   
   return results.passed ? 0 : 1;
 }
