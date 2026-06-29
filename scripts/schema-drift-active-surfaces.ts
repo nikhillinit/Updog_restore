@@ -3,6 +3,9 @@ import path from 'node:path';
 import process from 'node:process';
 import { fileURLToPath } from 'node:url';
 
+import { detectDualLedgerDivergence, formatDualLedgerReport } from './dual-ledger-divergence.js';
+import { validateMigrationLedger } from './migration-ledger.js';
+
 export const ACTIVE_SURFACE_IDS = [
   'cohort',
   'portfolio-optimization',
@@ -439,6 +442,16 @@ export function validateActiveSchemaSurfaces(
   };
 }
 
+export function validateMigrationLedgerAndDualLedger(rootDir = process.cwd()): {
+  ok: boolean;
+  ledger: ReturnType<typeof validateMigrationLedger>;
+  dualLedger: ReturnType<typeof detectDualLedgerDivergence>;
+} {
+  const ledger = validateMigrationLedger(rootDir);
+  const dualLedger = detectDualLedgerDivergence(rootDir);
+  return { ok: ledger.ok && dualLedger.ok, ledger, dualLedger };
+}
+
 export function formatSchemaDriftReport(result: SchemaDriftValidationResult): string {
   const lines = [
     'Schema Drift Active Surface Report',
@@ -856,6 +869,52 @@ function parseFormat(args: readonly string[]): 'text' | 'json' {
   return args.includes('--json') ? 'json' : 'text';
 }
 
+function formatMigrationLedgerFindings(ledger: ReturnType<typeof validateMigrationLedger>): string {
+  const lines = ['Migration Ledger Findings'];
+
+  if (ledger.findings.length === 0) {
+    lines.push('INFO no-findings - No migration ledger findings.');
+    return lines.join('\n');
+  }
+
+  for (const finding of ledger.findings) {
+    const severity = finding.severity.toUpperCase();
+    const file = finding.file ?? '-';
+    lines.push(`${severity} ${finding.code} ${file} ${finding.message}`);
+  }
+
+  return lines.join('\n');
+}
+
+function formatSchemaDriftCliOutput(
+  result: SchemaDriftValidationResult,
+  ledgerResult: ReturnType<typeof validateMigrationLedgerAndDualLedger>,
+  format: 'text' | 'json',
+  combinedOk: boolean
+): string {
+  if (format === 'json') {
+    return JSON.stringify(
+      {
+        ...result,
+        ok: combinedOk,
+        surfaceOk: result.ok,
+        migrationLedger: ledgerResult.ledger,
+        dualLedger: ledgerResult.dualLedger,
+      },
+      null,
+      2
+    );
+  }
+
+  return [
+    formatSchemaDriftReport(result),
+    '',
+    formatMigrationLedgerFindings(ledgerResult.ledger),
+    '',
+    formatDualLedgerReport(ledgerResult.dualLedger),
+  ].join('\n');
+}
+
 function isCliInvocation(): boolean {
   const invokedPath = process.argv[1];
   return typeof invokedPath === 'string' && path.resolve(invokedPath) === currentModulePath;
@@ -863,15 +922,16 @@ function isCliInvocation(): boolean {
 
 if (isCliInvocation()) {
   const result = validateActiveSchemaSurfaces();
+  const ledgerResult = validateMigrationLedgerAndDualLedger(process.cwd());
+  const combinedOk = result.ok && ledgerResult.ok;
   const format = parseFormat(process.argv.slice(2));
-  const output =
-    format === 'json' ? JSON.stringify(result, null, 2) : formatSchemaDriftReport(result);
+  const output = formatSchemaDriftCliOutput(result, ledgerResult, format, combinedOk);
 
-  if (result.ok) {
+  if (combinedOk) {
     console.log(output);
   } else {
     console.error(output);
   }
 
-  process.exit(result.ok ? 0 : 1);
+  process.exit(combinedOk ? 0 : 1);
 }

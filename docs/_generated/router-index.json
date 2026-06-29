@@ -11736,6 +11736,23 @@
       "docType": "doc",
       "exists": true,
       "frontmatter": {
+        "created": "2026-06-29",
+        "source": "docs/superpowers/plans/2026-06-28-prod-schema-drift-debate-synthesis.md",
+        "status": "DRAFT",
+        "verified_head": "3524a1bfcc2ce05d3574430f92b39442c3df29d1"
+      },
+      "hasExecutionClaims": false,
+      "isStale": true,
+      "lastUpdated": null,
+      "owner": null,
+      "path": "docs/superpowers/specs/2026-06-28-prod-schema-canonicalize-pr2-design.md",
+      "staleDays": 999,
+      "status": "DRAFT"
+    },
+    {
+      "docType": "doc",
+      "exists": true,
+      "frontmatter": {
         "categories": [
           "tech-debt",
           "type-safety"
@@ -13332,7 +13349,7 @@
       "BACKLOG": 1,
       "COMPLETE": 3,
       "COMPLETED": 1,
-      "DRAFT": 33,
+      "DRAFT": 34,
       "DRAFT (red-team hardened 2026-06-21)": 1,
       "HISTORICAL": 21,
       "HISTORICAL-SNAPSHOT": 1,
@@ -13348,8 +13365,8 @@
       "ready": 3
     },
     "missing_frontmatter": 32,
-    "stale_docs": 119,
-    "total_docs": 674
+    "stale_docs": 120,
+    "total_docs": 675
   },
   "version": "2.0"
 }

@@ -8,12 +8,12 @@ import { execSync } from 'child_process';
 import { readFileSync, writeFileSync, existsSync } from 'fs';
 import { join } from 'path';
 import * as crypto from 'crypto';
-import { 
-  DeploymentError, 
-  HealthCheckError, 
+import {
+  DeploymentError,
+  HealthCheckError,
   RolloutMetrics,
   createDeploymentError,
-  createHealthCheckError
+  createHealthCheckError,
 } from '../server/types/errors.js';
 import { DeploymentTracer, tracer } from '../server/lib/tracing.js';
 import { DeploymentCircuitBreaker } from './deployment-circuit-breaker.js';
@@ -47,7 +47,7 @@ function loadConfig(): DeploymentConfig {
       errorRate: Number(process.env.DEPLOY_ERROR_THRESHOLD || 0.01),
       p99Latency: Number(process.env.DEPLOY_P99_THRESHOLD || 1000),
       memoryUsage: Number(process.env.DEPLOY_MEMORY_THRESHOLD || 0.8),
-      cpuUsage: Number(process.env.DEPLOY_CPU_THRESHOLD || 0.7)
+      cpuUsage: Number(process.env.DEPLOY_CPU_THRESHOLD || 0.7),
     },
     stages: [
       { name: 'smoke', percentage: 0, duration: 120000, smoothing: 1 },
@@ -56,12 +56,12 @@ function loadConfig(): DeploymentConfig {
       { name: 'expanded', percentage: 25, duration: 900000, smoothing: 5 },
       { name: 'majority', percentage: 50, duration: 900000, smoothing: 5 },
       { name: 'nearly-full', percentage: 95, duration: 600000, smoothing: 3 },
-      { name: 'full', percentage: 100, duration: 300000, smoothing: 3 }
+      { name: 'full', percentage: 100, duration: 300000, smoothing: 3 },
     ],
     rollback: {
       automatic: true,
-      timeoutMs: 120000
-    }
+      timeoutMs: 120000,
+    },
   };
 
   // Override with config file if exists
@@ -75,22 +75,24 @@ function loadConfig(): DeploymentConfig {
 }
 
 // Execute command with proper error handling and specific types
-async function exec(command: string): Promise<{ success: boolean; output?: string; error?: string }> {
+async function exec(
+  command: string
+): Promise<{ success: boolean; output?: string; error?: string }> {
   try {
     const output = execSync(command, { encoding: 'utf-8', stdio: 'pipe' });
     return { success: true, output };
   } catch (error: unknown) {
     const execError = error as { message: string; stdout?: Buffer };
-    return { 
-      success: false, 
+    return {
+      success: false,
       error: execError.message,
-      output: execError.stdout?.toString() || ''
+      output: execError.stdout?.toString() || '',
     };
   }
 }
 
 // Sleep helper
-const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 // Statistical analysis for canary deployments
 interface StatisticalTest {
@@ -101,8 +103,10 @@ interface StatisticalTest {
 }
 
 function twoProportionZTest(
-  successes1: number, total1: number, 
-  successes2: number, total2: number,
+  successes1: number,
+  total1: number,
+  successes2: number,
+  total2: number,
   alpha: number = 0.05
 ): StatisticalTest {
   if (total1 === 0 || total2 === 0) {
@@ -112,32 +116,33 @@ function twoProportionZTest(
   const p1 = successes1 / total1;
   const p2 = successes2 / total2;
   const pooledP = (successes1 + successes2) / (total1 + total2);
-  
+
   if (pooledP === 0 || pooledP === 1) {
     return { pValue: 1.0, significant: false, confidenceLevel: 1 - alpha, effect: 'neutral' };
   }
 
-  const se = Math.sqrt(pooledP * (1 - pooledP) * (1/total1 + 1/total2));
+  const se = Math.sqrt(pooledP * (1 - pooledP) * (1 / total1 + 1 / total2));
   const z = Math.abs(p1 - p2) / se;
-  
+
   // Two-tailed p-value approximation
   const pValue = 2 * (1 - normalCDF(Math.abs(z)));
-  
+
   const effect = p1 > p2 ? 'positive' : p1 < p2 ? 'negative' : 'neutral';
-  
+
   return {
     pValue,
     significant: pValue < alpha,
     confidenceLevel: 1 - alpha,
-    effect
+    effect,
   };
 }
 
 function normalCDF(x: number): number {
   // Approximation of standard normal CDF
   const t = 1 / (1 + 0.2316419 * Math.abs(x));
-  const d = 0.3989423 * Math.exp(-x * x / 2);
-  const prob = d * t * (0.3193815 + t * (-0.3565638 + t * (1.781478 + t * (-1.821256 + t * 1.330274))));
+  const d = 0.3989423 * Math.exp((-x * x) / 2);
+  const prob =
+    d * t * (0.3193815 + t * (-0.3565638 + t * (1.781478 + t * (-1.821256 + t * 1.330274))));
   return x > 0 ? 1 - prob : prob;
 }
 
@@ -148,7 +153,7 @@ class ProductionDeployment {
   private startTime: number;
   private confidence: number = 0.5;
   private tracer: DeploymentTracer;
-  private history: Array<{success: boolean; duration: number; version: string}> = [];
+  private history: Array<{ success: boolean; duration: number; version: string }> = [];
   private circuitBreaker: DeploymentCircuitBreaker;
   private sloValidator: SLOValidator;
   private statisticalGates: StatisticalGates;
@@ -161,27 +166,27 @@ class ProductionDeployment {
       version,
       startTime: this.startTime,
       stages: [],
-      metrics: []
+      metrics: [],
     };
-    
+
     // Initialize distributed tracing
     this.tracer = new DeploymentTracer(this.deployment.id, version);
-    
+
     // Initialize circuit breaker with Redis persistence
     this.circuitBreaker = new DeploymentCircuitBreaker({
       failureThreshold: Number(process.env.CIRCUIT_BREAKER_THRESHOLD || 3),
       resetTimeout: Number(process.env.CIRCUIT_BREAKER_RESET_TIMEOUT || 3600000),
       halfOpenTests: 1,
       redisUrl: process.env.REDIS_URL,
-      persistenceKey: 'deployment-circuit-breaker'
+      persistenceKey: 'deployment-circuit-breaker',
     });
-    
+
     // Initialize SLO validator
     this.sloValidator = new SLOValidator();
-    
+
     // Initialize statistical gates
     this.statisticalGates = new StatisticalGates();
-    
+
     // Load deployment history and adjust confidence
     this.loadDeploymentHistory();
     this.updateConfidenceFromHistory();
@@ -190,7 +195,7 @@ class ProductionDeployment {
   async execute() {
     // Check circuit breaker status first
     const circuitStatus = this.circuitBreaker.getStatus();
-    console.log(`🔌 Circuit Breaker Status: ${circuitStatus.state.toUpperCase()}`);
+    console.log(`Circuit Breaker Status: ${circuitStatus.state.toUpperCase()}`);
     if (!circuitStatus.healthy) {
       console.log(`   Will reset at: ${circuitStatus.willResetAt?.toISOString()}`);
     }
@@ -198,7 +203,7 @@ class ProductionDeployment {
     // Execute deployment with circuit breaker protection
     try {
       return await this.circuitBreaker.executeDeployment(async () => {
-        console.log('🚀 Production Deployment Starting');
+        console.log('Production Deployment Starting');
         console.log(`   Version: ${this.version}`);
         console.log(`   Deployment ID: ${this.deployment.id}`);
         console.log(`   Confidence: ${(this.confidence * 100).toFixed(1)}%\n`);
@@ -208,8 +213,10 @@ class ProductionDeployment {
 
         // Phase 2: Progressive deployment with adaptive stages
         const adaptiveStages = this.getAdaptiveStages();
-        console.log(`📈 Using ${adaptiveStages.length}-stage rollout based on confidence: ${(this.confidence * 100).toFixed(1)}%\n`);
-        
+        console.log(
+          `Using ${adaptiveStages.length}-stage rollout based on confidence: ${(this.confidence * 100).toFixed(1)}%\n`
+        );
+
         for (const stage of adaptiveStages) {
           await this.deployStage(stage);
         }
@@ -219,18 +226,18 @@ class ProductionDeployment {
 
         // Success!
         await this.recordSuccess();
-        
+
         // Finish tracing
         this.tracer.finishDeployment('success', {
           totalDuration: Date.now() - this.startTime,
           stagesCompleted: adaptiveStages.length,
-          finalConfidence: this.confidence
+          finalConfidence: this.confidence,
         });
-        
-        console.log('\n✅ Deployment successful!');
+
+        console.log('\nPASS: Deployment successful!');
         console.log(`   Total time: ${Math.round((Date.now() - this.startTime) / 60000)} minutes`);
         console.log(`   Trace ID: ${this.tracer.getRootSpanId()}`);
-        
+
         return this.deployment;
       }); // End of circuit breaker execution
     } catch (error) {
@@ -240,43 +247,44 @@ class ProductionDeployment {
   }
 
   async handleFailure(error: unknown) {
-    const deploymentError = error instanceof Error 
-      ? createDeploymentError(error.message, {
-          deploymentId: this.deployment.id,
-          version: this.version,
-          confidence: this.confidence
-        })
-      : createDeploymentError('Unknown deployment error', {
-          deploymentId: this.deployment.id,
-          version: this.version,
-          confidence: this.confidence
-        });
+    const deploymentError =
+      error instanceof Error
+        ? createDeploymentError(error.message, {
+            deploymentId: this.deployment.id,
+            version: this.version,
+            confidence: this.confidence,
+          })
+        : createDeploymentError('Unknown deployment error', {
+            deploymentId: this.deployment.id,
+            version: this.version,
+            confidence: this.confidence,
+          });
 
-    console.error(`\n❌ Deployment failed: ${deploymentError.message}`);
-    
+    console.error(`\nFAIL: Deployment failed: ${deploymentError.message}`);
+
     if (this.config.rollback.automatic) {
       deploymentError.rollbackTriggered = true;
       await this.rollback();
     }
-    
+
     // Finish tracing with failure
     this.tracer.finishDeployment('failed', {
       error: deploymentError.message,
       rollbackTriggered: deploymentError.rollbackTriggered,
-      failureStage: deploymentError.stage
+      failureStage: deploymentError.stage,
     });
-    
+
     await this.recordFailure(deploymentError);
     console.log(`   Trace ID: ${this.tracer.getRootSpanId()}`);
-    
+
     // Circuit breaker will handle the failure tracking
     throw deploymentError;
   }
 
   private async preflight() {
     const preflightSpan = this.tracer.startPreflight();
-    console.log('✈️  Preflight Checks\n');
-    
+    console.log('Preflight Checks\n');
+
     // Hard gates for external dependencies
     await this.validateExternalDependencies();
 
@@ -284,43 +292,45 @@ class ProductionDeployment {
       {
         name: 'Git tag exists',
         command: `git rev-parse ${this.version}`,
-        critical: true
+        critical: true,
       },
       {
         name: 'All tests passing',
         command: 'npm test -- --run',
-        critical: true
+        critical: true,
       },
       {
         name: 'TypeScript compilation',
         command: 'npm run check',
-        critical: true
+        critical: true,
       },
       {
-        name: 'Database migrations',
-        command: 'npm run db:migrate -- --dry-run',
-        critical: false
+        name: 'Schema audit (audit-only reconcile)',
+        command: 'node scripts/schema-audit-preflight.mjs',
+        critical: false,
       },
       {
         name: 'Security audit',
         command: 'npm audit --audit-level=high',
-        critical: false
-      }
+        critical: false,
+      },
     ];
 
     try {
       for (const check of checks) {
         process.stdout.write(`   ${check.name}... `);
         tracer.log(preflightSpan.id, 'info', `Running check: ${check.name}`);
-        
+
         const result = await exec(check.command);
-        
+
         if (result.success) {
-          console.log('✅');
+          console.log('PASS:');
           tracer.log(preflightSpan.id, 'info', `Check passed: ${check.name}`);
         } else {
-          console.log('❌');
-          tracer.log(preflightSpan.id, 'error', `Check failed: ${check.name}`, { error: result.error });
+          console.log('FAIL:');
+          tracer.log(preflightSpan.id, 'error', `Check failed: ${check.name}`, {
+            error: result.error,
+          });
           if (check.critical) {
             throw new Error(`Critical check failed: ${check.name}`);
           }
@@ -330,14 +340,16 @@ class ProductionDeployment {
       tracer.finishSpan(preflightSpan.id, 'completed', { checksCompleted: checks.length });
       console.log();
     } catch (error) {
-      tracer.finishSpan(preflightSpan.id, 'failed', { error: error instanceof Error ? error.message : 'Unknown error' });
+      tracer.finishSpan(preflightSpan.id, 'failed', {
+        error: error instanceof Error ? error.message : 'Unknown error',
+      });
       throw error;
     }
   }
 
   private async validateExternalDependencies() {
-    console.log('🔍 Validating External Dependencies\n');
-    
+    console.log('Validating External Dependencies\n');
+
     const dependencies = [
       {
         name: 'Database Connection',
@@ -351,7 +363,7 @@ class ProductionDeployment {
           } else {
             throw new Error('DATABASE_URL environment variable not set');
           }
-        }
+        },
       },
       {
         name: 'Redis Connection',
@@ -365,7 +377,7 @@ class ProductionDeployment {
           } else {
             throw new Error('REDIS_URL environment variable not set');
           }
-        }
+        },
       },
       {
         name: 'Error Tracking DSN',
@@ -377,7 +389,7 @@ class ProductionDeployment {
               const url = new URL(process.env.ERROR_TRACKING_DSN);
               const response = await fetch(`${url.protocol}//${url.host}/api/0/`, {
                 method: 'HEAD',
-                timeout: 5000
+                timeout: 5000,
               });
               if (!response.ok) {
                 throw new Error(`Error tracking service returned ${response.status}`);
@@ -386,19 +398,19 @@ class ProductionDeployment {
               throw new Error(`Error tracking service unreachable: ${error}`);
             }
           } else {
-            console.warn('   ⚠️  ERROR_TRACKING_DSN not configured (optional)');
+            console.warn('   WARN: ERROR_TRACKING_DSN not configured (optional)');
           }
-        }
+        },
       },
       {
         name: 'Required Environment Variables',
         test: async () => {
           const required = ['NODE_ENV', 'CORS_ORIGIN', 'BODY_LIMIT'];
-          const missing = required.filter(env => !process.env[env]);
+          const missing = required.filter((env) => !process.env[env]);
           if (missing.length > 0) {
             throw new Error(`Missing required environment variables: ${missing.join(', ')}`);
           }
-        }
+        },
       },
       {
         name: 'Prometheus Endpoint',
@@ -406,9 +418,12 @@ class ProductionDeployment {
           // Test Prometheus connectivity if configured
           if (process.env.PROMETHEUS_URL) {
             try {
-              const response = await fetch(`${process.env.PROMETHEUS_URL}/api/v1/label/__name__/values`, {
-                timeout: 5000
-              });
+              const response = await fetch(
+                `${process.env.PROMETHEUS_URL}/api/v1/label/__name__/values`,
+                {
+                  timeout: 5000,
+                }
+              );
               if (!response.ok) {
                 throw new Error(`Prometheus returned ${response.status}`);
               }
@@ -416,31 +431,31 @@ class ProductionDeployment {
               throw new Error(`Prometheus unreachable: ${error}`);
             }
           } else {
-            console.log('   ℹ️  PROMETHEUS_URL not configured (using simulation mode)');
+            console.log('   INFO: PROMETHEUS_URL not configured (using simulation mode)');
           }
-        }
-      }
+        },
+      },
     ];
 
     for (const dep of dependencies) {
       try {
         console.log(`   Testing ${dep.name}...`);
         await dep.test();
-        console.log(`   ✅ ${dep.name} - OK`);
+        console.log(`   PASS: ${dep.name} - OK`);
       } catch (error) {
-        console.error(`   ❌ ${dep.name} - FAILED: ${error}`);
+        console.error(`   FAIL: ${dep.name} - FAILED: ${error}`);
         throw new Error(`Dependency validation failed: ${dep.name} - ${error}`);
       }
     }
-    
-    console.log('\n✅ All external dependencies validated\n');
+
+    console.log('\nPASS: All external dependencies validated\n');
   }
 
-  private async deployStage(stage: typeof this.config.stages[0]) {
+  private async deployStage(stage: (typeof this.config.stages)[0]) {
     const stageStart = Date.now();
     const stageSpan = this.tracer.startStage(stage.name, stage.percentage, stage.duration);
-    console.log(`📦 Stage: ${stage.name} (${stage.percentage}%)`);
-    
+    console.log(`Stage: ${stage.name} (${stage.percentage}%)`);
+
     // Update traffic routing
     if (stage.percentage > 0) {
       console.log(`   Routing ${stage.percentage}% traffic to v${this.version}`);
@@ -457,9 +472,9 @@ class ProductionDeployment {
     const monitoring = await this.monitorWithSmoothing(stage.duration, stage.smoothing, stage.name);
 
     if (!monitoring.healthy) {
-      tracer.finishSpan(stageSpan.id, 'failed', { 
+      tracer.finishSpan(stageSpan.id, 'failed', {
         reason: monitoring.reason,
-        metrics: monitoring.metrics 
+        metrics: monitoring.metrics,
       });
       throw new Error(`Stage ${stage.name} failed: ${monitoring.reason}`);
     }
@@ -473,19 +488,23 @@ class ProductionDeployment {
       percentage: stage.percentage,
       duration: Date.now() - stageStart,
       metrics: monitoring.metrics,
-      completedAt: Date.now()
+      completedAt: Date.now(),
     });
 
     tracer.finishSpan(stageSpan.id, 'completed', {
       actualDuration: Date.now() - stageStart,
       confidence: this.confidence,
-      metricsCollected: monitoring.metrics?.length || 0
+      metricsCollected: monitoring.metrics?.length || 0,
     });
 
-    console.log(`   ✅ Stage completed successfully\n`);
+    console.log(`   PASS: Stage completed successfully\n`);
   }
 
-  private async monitorWithSmoothing(duration: number, intervals: number, stageName?: string): Promise<any> {
+  private async monitorWithSmoothing(
+    duration: number,
+    intervals: number,
+    stageName?: string
+  ): Promise<any> {
     const startTime = Date.now();
     const checkInterval = Math.min(10000, duration / intervals);
     const samples: any[] = [];
@@ -493,57 +512,70 @@ class ProductionDeployment {
 
     while (Date.now() - startTime < duration) {
       const metrics = await this.fetchMetrics(stageName);
-      
+
       // For canary stages, use statistical gates for authoritative decisions
       if (stageName && (stageName.includes('canary') || stageName.includes('small'))) {
         const canaryMetrics = await this.fetchCanarySpecificMetrics(stageName);
         const baselineMetrics = await this.fetchBaselineMetrics();
-        
+
         // Build statistical arms for comparison
         const canaryArm: StatisticalArm = {
           successes: Math.round(canaryMetrics.sampleSize * metrics.successRate),
           total: canaryMetrics.sampleSize,
-          latencySamples: this.generateLatencySamples(metrics.p99Latency, Math.min(canaryMetrics.sampleSize, 10000)),
+          latencySamples: this.generateLatencySamples(
+            metrics.p99Latency,
+            Math.min(canaryMetrics.sampleSize, 10000)
+          ),
           errorRate: metrics.errorRate,
-          p99Latency: metrics.p99Latency
+          p99Latency: metrics.p99Latency,
         };
-        
+
         const baselineArm: StatisticalArm = {
           successes: Math.round(canaryMetrics.sampleSize * baselineMetrics.successRate),
           total: canaryMetrics.sampleSize,
-          latencySamples: this.generateLatencySamples(baselineMetrics.p99Latency, Math.min(canaryMetrics.sampleSize, 10000)),
+          latencySamples: this.generateLatencySamples(
+            baselineMetrics.p99Latency,
+            Math.min(canaryMetrics.sampleSize, 10000)
+          ),
           errorRate: baselineMetrics.errorRate,
-          p99Latency: baselineMetrics.p99Latency
+          p99Latency: baselineMetrics.p99Latency,
         };
-        
+
         // Apply statistical gates
         const gateResult = this.statisticalGates.evaluateCanary(canaryArm, baselineArm);
-        
-        console.log(`\n   🧮 Statistical Gate Decision: ${gateResult.decision}`);
+
+        console.log(`\n   Statistical Gate Decision: ${gateResult.decision}`);
         console.log(`      Reason: ${gateResult.reason}`);
-        
+
         if (gateResult.decision === 'FAIL') {
           return {
             healthy: false,
             reason: `Statistical gate failed: ${gateResult.reason}`,
             metrics: samples,
-            statisticalResult: gateResult
+            statisticalResult: gateResult,
           };
         } else if (gateResult.decision === 'EXTEND') {
           console.log(`      Extending monitoring period for more samples...`);
           // Extend duration by 50% if we need more samples
           duration = Math.min(duration * 1.5, duration + 300000); // Max 5 min extension
         }
-        
+
         samples.push({ ...metrics, canary: canaryMetrics, statisticalGate: gateResult });
-        
+
         // Log canary-specific insights
-        if (samples.length % 3 === 0) { // Every 3rd sample
-          console.log(`\n   📊 Canary Analysis (${this.version}):`);
-          console.log(`      Error rate: ${canaryMetrics.comparison.errorRateDiff.toFixed(2)}% vs baseline`);
-          console.log(`      Latency: ${canaryMetrics.comparison.latencyDiff.toFixed(2)}% vs baseline`);
+        if (samples.length % 3 === 0) {
+          // Every 3rd sample
+          console.log(`\n   Canary Analysis (${this.version}):`);
+          console.log(
+            `      Error rate: ${canaryMetrics.comparison.errorRateDiff.toFixed(2)}% vs baseline`
+          );
+          console.log(
+            `      Latency: ${canaryMetrics.comparison.latencyDiff.toFixed(2)}% vs baseline`
+          );
           console.log(`      Sample size: ${canaryMetrics.sampleSize} requests`);
-          console.log(`      Required samples: ${gateResult.details.requiresSamples.errors} errors, ${gateResult.details.requiresSamples.latency} latency`);
+          console.log(
+            `      Required samples: ${gateResult.details.requiresSamples.errors} errors, ${gateResult.details.requiresSamples.latency} latency`
+          );
         }
       } else {
         samples.push(metrics);
@@ -554,13 +586,13 @@ class ProductionDeployment {
 
       if (!healthy) {
         failures++;
-        
+
         // N-of-M gating
         if (failures >= Math.ceil(intervals * 0.6)) {
           return {
             healthy: false,
             reason: `${failures}/${intervals} health checks failed`,
-            metrics: samples
+            metrics: samples,
           };
         }
       } else {
@@ -577,7 +609,7 @@ class ProductionDeployment {
     return {
       healthy: true,
       metrics: samples,
-      successRate: (intervals - failures) / intervals
+      successRate: (intervals - failures) / intervals,
     };
   }
 
@@ -586,7 +618,7 @@ class ProductionDeployment {
     // Example Prometheus queries:
     // - rate(http_requests_total{version="v1.3.2",stage="canary"}[5m])
     // - histogram_quantile(0.99, rate(http_request_duration_seconds_bucket{version="v1.3.2"}[5m]))
-    
+
     const baseMetrics = {
       timestamp: Date.now(),
       errorRate: Math.random() * 0.005, // 0-0.5% error rate
@@ -594,7 +626,7 @@ class ProductionDeployment {
       memoryUsage: 0.4 + Math.random() * 0.3, // 40-70%
       cpuUsage: 0.3 + Math.random() * 0.3, // 30-60%
       requestRate: 1000 + Math.random() * 500, // 1000-1500 RPS
-      successRate: 0.995 + Math.random() * 0.005 // 99.5-100% success
+      successRate: 0.995 + Math.random() * 0.005, // 99.5-100% success
     };
 
     // Add version-specific and stage-specific variations for realism
@@ -620,16 +652,23 @@ class ProductionDeployment {
     // Version-specific metrics comparison
     const currentMetrics = await this.fetchMetrics(stage);
     const baselineMetrics = await this.fetchBaselineMetrics();
-    
+
     return {
       version: this.version,
       stage,
       comparison: {
-        errorRateDiff: ((currentMetrics.errorRate - baselineMetrics.errorRate) / baselineMetrics.errorRate) * 100,
-        latencyDiff: ((currentMetrics.p99Latency - baselineMetrics.p99Latency) / baselineMetrics.p99Latency) * 100,
-        performanceDiff: ((currentMetrics.successRate - baselineMetrics.successRate) / baselineMetrics.successRate) * 100
+        errorRateDiff:
+          ((currentMetrics.errorRate - baselineMetrics.errorRate) / baselineMetrics.errorRate) *
+          100,
+        latencyDiff:
+          ((currentMetrics.p99Latency - baselineMetrics.p99Latency) / baselineMetrics.p99Latency) *
+          100,
+        performanceDiff:
+          ((currentMetrics.successRate - baselineMetrics.successRate) /
+            baselineMetrics.successRate) *
+          100,
       },
-      sampleSize: Math.floor(1000 * (stage === 'canary' ? 0.01 : 0.05)) // Realistic sample sizes
+      sampleSize: Math.floor(1000 * (stage === 'canary' ? 0.01 : 0.05)), // Realistic sample sizes
     };
   }
 
@@ -643,7 +682,7 @@ class ProductionDeployment {
       memoryUsage: 0.5,
       cpuUsage: 0.4,
       requestRate: 1200,
-      successRate: 0.998
+      successRate: 0.998,
     };
   }
 
@@ -652,17 +691,17 @@ class ProductionDeployment {
       metrics.errorRate < this.config.thresholds.errorRate,
       metrics.p99Latency < this.config.thresholds.p99Latency,
       metrics.memoryUsage < this.config.thresholds.memoryUsage,
-      metrics.cpuUsage < this.config.thresholds.cpuUsage
+      metrics.cpuUsage < this.config.thresholds.cpuUsage,
     ];
 
-    return checks.every(check => check);
+    return checks.every((check) => check);
   }
 
   private async updateTrafficSplit(percentage: number) {
     // In production, update load balancer/service mesh
     // Example: kubectl set image deployment/api api=myapp:${this.version}
     // Example: aws elbv2 modify-target-group-attributes
-    
+
     // For now, simulate
     await sleep(1000);
   }
@@ -671,10 +710,10 @@ class ProductionDeployment {
     // Bayesian confidence using Beta distribution
     const priorSuccesses = Math.max(1, this.confidence * 20); // Convert to beta parameters
     const priorFailures = Math.max(1, (1 - this.confidence) * 20);
-    
+
     const posteriorSuccesses = priorSuccesses + (score > 0.5 ? 1 : 0);
     const posteriorFailures = priorFailures + (score <= 0.5 ? 1 : 0);
-    
+
     // Update confidence as the mean of the posterior Beta distribution
     this.confidence = posteriorSuccesses / (posteriorSuccesses + posteriorFailures);
     this.confidence = Math.max(0.1, Math.min(0.95, this.confidence)); // Clamp between 10% and 95%
@@ -688,7 +727,7 @@ class ProductionDeployment {
         this.history = data.map((d: any) => ({
           success: d.status === 'success',
           duration: d.duration || 0,
-          version: d.version || 'unknown'
+          version: d.version || 'unknown',
         }));
       } catch (error) {
         console.warn('Failed to load deployment history:', error);
@@ -700,17 +739,23 @@ class ProductionDeployment {
     const recentDeployments = this.history.slice(-10);
     if (recentDeployments.length === 0) return;
 
-    const successRate = recentDeployments.filter(d => d.success).length / recentDeployments.length;
-    const avgDuration = recentDeployments.reduce((sum, d) => sum + d.duration, 0) / recentDeployments.length;
+    const successRate =
+      recentDeployments.filter((d) => d.success).length / recentDeployments.length;
+    const avgDuration =
+      recentDeployments.reduce((sum, d) => sum + d.duration, 0) / recentDeployments.length;
 
     // Adjust confidence based on history
-    if (successRate > 0.9 && avgDuration < 1800000) { // >90% success, <30min avg
+    if (successRate > 0.9 && avgDuration < 1800000) {
+      // >90% success, <30min avg
       this.confidence = Math.min(0.9, this.confidence * 1.1);
-    } else if (successRate < 0.5) { // <50% success
+    } else if (successRate < 0.5) {
+      // <50% success
       this.confidence = Math.max(0.2, this.confidence * 0.7);
     }
 
-    console.log(`📊 Confidence adjusted from history: ${(this.confidence * 100).toFixed(1)}% (${successRate * 100}% success rate)`);
+    console.log(
+      `Confidence adjusted from history: ${(this.confidence * 100).toFixed(1)}% (${successRate * 100}% success rate)`
+    );
   }
 
   private getAdaptiveStages() {
@@ -721,17 +766,17 @@ class ProductionDeployment {
         { name: 'smoke', percentage: 0, duration: 60000, smoothing: 1 },
         { name: 'canary', percentage: 10, duration: 120000, smoothing: 3 },
         { name: 'majority', percentage: 50, duration: 180000, smoothing: 5 },
-        { name: 'full', percentage: 100, duration: 300000, smoothing: 3 }
+        { name: 'full', percentage: 100, duration: 300000, smoothing: 3 },
       ];
     } else if (this.confidence > 0.7) {
-      // Medium confidence - standard rollout  
+      // Medium confidence - standard rollout
       return [
         { name: 'smoke', percentage: 0, duration: 120000, smoothing: 1 },
         { name: 'canary', percentage: 5, duration: 180000, smoothing: 3 },
         { name: 'early', percentage: 25, duration: 300000, smoothing: 5 },
         { name: 'majority', percentage: 50, duration: 300000, smoothing: 5 },
         { name: 'nearly-full', percentage: 95, duration: 180000, smoothing: 3 },
-        { name: 'full', percentage: 100, duration: 300000, smoothing: 3 }
+        { name: 'full', percentage: 100, duration: 300000, smoothing: 3 },
       ];
     } else {
       // Low confidence - cautious rollout
@@ -743,25 +788,25 @@ class ProductionDeployment {
         { name: 'quarter', percentage: 25, duration: 900000, smoothing: 5 },
         { name: 'half', percentage: 50, duration: 900000, smoothing: 5 },
         { name: 'most', percentage: 95, duration: 600000, smoothing: 3 },
-        { name: 'full', percentage: 100, duration: 600000, smoothing: 3 }
+        { name: 'full', percentage: 100, duration: 600000, smoothing: 3 },
       ];
     }
   }
 
   private async finalValidation() {
-    console.log('🔍 Final Validation\n');
+    console.log('Final Validation\n');
 
     const validations = [
       { name: 'SLO compliance', check: () => this.validateSLOs() },
       { name: 'Synthetic tests', check: () => this.runSyntheticTests() },
-      { name: 'Health endpoints', check: () => this.checkHealthEndpoints() }
+      { name: 'Health endpoints', check: () => this.checkHealthEndpoints() },
     ];
 
     for (const validation of validations) {
       process.stdout.write(`   ${validation.name}... `);
       const passed = await validation.check();
-      console.log(passed ? '✅' : '❌');
-      
+      console.log(passed ? 'PASS:' : 'FAIL:');
+
       if (!passed) {
         throw new Error(`Final validation failed: ${validation.name}`);
       }
@@ -771,14 +816,14 @@ class ProductionDeployment {
   private async validateSLOs(): Promise<boolean> {
     // Use comprehensive multi-window burn rate analysis
     const sloResult = await this.sloValidator.validate(this.version);
-    
+
     console.log(`   SLO Status: ${sloResult.overallSeverity.toUpperCase()}`);
     console.log(`   Recommendation: ${sloResult.recommendation}`);
-    
+
     // Log error budget status
     const budgetStatus = await this.sloValidator.getErrorBudgetStatus();
     console.log(`   Error Budget: ${(budgetStatus.remaining * 100).toFixed(1)}% remaining`);
-    
+
     return sloResult.passing;
   }
 
@@ -800,43 +845,43 @@ class ProductionDeployment {
     const samples: number[] = [];
     const mean = Math.log(p99 * 0.6); // Mean is lower than p99
     const stddev = 0.3;
-    
+
     for (let i = 0; i < count; i++) {
       // Box-Muller transform for normal distribution
       const u1 = Math.random();
       const u2 = Math.random();
       const z = Math.sqrt(-2 * Math.log(u1)) * Math.cos(2 * Math.PI * u2);
-      
+
       // Convert to log-normal
       const sample = Math.exp(mean + stddev * z);
       samples.push(Math.max(10, Math.round(sample))); // Min 10ms
     }
-    
+
     return samples.sort((a, b) => a - b);
   }
 
   private async rollback() {
-    console.log('\n🔄 Rolling back deployment...');
-    
+    console.log('\nRolling back deployment...');
+
     const rollbackStart = Date.now();
-    
+
     // Get previous version
     const result = await exec('git describe --abbrev=0 --tags HEAD~1');
     const previousVersion = result.output?.trim() || 'previous';
-    
+
     console.log(`   Rolling back to ${previousVersion}`);
-    
+
     // Update traffic to previous version
     await this.updateTrafficSplit(0);
-    
+
     // Record rollback
     this.deployment.rollback = {
       triggeredAt: rollbackStart,
       duration: Date.now() - rollbackStart,
-      previousVersion
+      previousVersion,
     };
-    
-    console.log('   ✅ Rollback completed\n');
+
+    console.log('   PASS: Rollback completed\n');
   }
 
   private async recordSuccess() {
@@ -844,15 +889,13 @@ class ProductionDeployment {
       ...this.deployment,
       status: 'success',
       duration: Date.now() - this.startTime,
-      confidence: this.confidence
+      confidence: this.confidence,
     };
-    
+
     // Write to deployment history
     const historyPath = join(process.cwd(), 'deployments.json');
-    const history = existsSync(historyPath) 
-      ? JSON.parse(readFileSync(historyPath, 'utf-8'))
-      : [];
-    
+    const history = existsSync(historyPath) ? JSON.parse(readFileSync(historyPath, 'utf-8')) : [];
+
     history.push(record);
     writeFileSync(historyPath, JSON.stringify(history, null, 2));
   }
@@ -863,15 +906,13 @@ class ProductionDeployment {
       status: 'failed',
       error: error.message,
       duration: Date.now() - this.startTime,
-      confidence: this.confidence
+      confidence: this.confidence,
     };
-    
+
     // Write to deployment history
     const historyPath = join(process.cwd(), 'deployments.json');
-    const history = existsSync(historyPath)
-      ? JSON.parse(readFileSync(historyPath, 'utf-8'))
-      : [];
-    
+    const history = existsSync(historyPath) ? JSON.parse(readFileSync(historyPath, 'utf-8')) : [];
+
     history.push(record);
     writeFileSync(historyPath, JSON.stringify(history, null, 2));
   }
@@ -880,7 +921,7 @@ class ProductionDeployment {
 // Main execution
 async function main() {
   const version = process.argv[2] || process.env.DEPLOY_VERSION;
-  
+
   if (!version) {
     console.error('Usage: deploy-production.ts <version>');
     console.error('   or: DEPLOY_VERSION=v1.2.3 deploy-production.ts');
@@ -893,7 +934,7 @@ async function main() {
 
 // Run if called directly (ES module compatible)
 if (import.meta.url === `file://${process.argv[1]}`) {
-  main().catch(error => {
+  main().catch((error) => {
     console.error('Fatal error:', error);
     process.exit(1);
   });

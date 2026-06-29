@@ -11,8 +11,8 @@ last_updated: 2026-06-29
 
 | Metric | Value |
 |--------|-------|
-| Total Documents | 674 |
-| Stale Documents | 119 |
+| Total Documents | 675 |
+| Stale Documents | 120 |
 | Missing Frontmatter | 32 |
 
 ### By Status
@@ -21,7 +21,7 @@ last_updated: 2026-06-29
 |--------|-------|
 | ACTIVE | 452 |
 | UNKNOWN | 127 |
-| DRAFT | 33 |
+| DRAFT | 34 |
 | HISTORICAL | 21 |
 | VERIFIED | 9 |
 | REFERENCE | 8 |
@@ -97,7 +97,7 @@ Documents that need review (older than their cadence threshold):
 | `docs/superpowers/plans/2026-06-28-prod-schema-drift-debate-synthesis.md` | Never | 999 | No | Unassigned |
 | `docs/superpowers/specs/2026-05-16-refactor-stability-strategy-design.md` | Never | 999 | YES - verify! | Unassigned |
 
-*...and 69 more stale documents.*
+*...and 70 more stale documents.*
 
 ## Documents with Execution Claims (Need Verification)
 
