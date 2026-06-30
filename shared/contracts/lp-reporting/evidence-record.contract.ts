@@ -2,7 +2,7 @@
  * LP Reporting -- Evidence Record Contract (CREATE shape)
  *
  * Mirrors the evidence_records table from
- * server/migrations/20260508_lp_reporting_foundation_v1.up.sql, including
+ * migrations/0014_lp_evidence_sprint3_drift.sql, including
  * the typed-FK exclusivity constraint: exactly one of
  * {valuationMarkId, companyId, metricRunId, narrativeRunId} must be set.
  *

@@ -48,9 +48,8 @@ const describeOrSkip = skipTest ? describe.skip : describe;
 
 const FOUNDATION_UP_SQL_PATH = path.join(
   process.cwd(),
-  'server',
   'migrations',
-  '20260508_lp_reporting_foundation_v1.up.sql'
+  '0014_lp_evidence_sprint3_drift.sql'
 );
 
 const SYNTHETIC_FUND_NAME = `phase1-metric-run-${Date.now()}-${Math.floor(Math.random() * 10000)}`;

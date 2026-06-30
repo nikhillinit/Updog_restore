@@ -2,7 +2,7 @@
  * LP Reporting -- Cash Flow Event Contract (CREATE shape)
  *
  * Discriminated union over the 7 documented event types from
- * server/migrations/20260508_lp_reporting_foundation_v1.up.sql:
+ * migrations/0014_lp_evidence_sprint3_drift.sql:
  *   lp_capital_call, lp_distribution, fund_expense, portfolio_investment,
  *   realized_proceeds, recallable_distribution, reversal.
  *
