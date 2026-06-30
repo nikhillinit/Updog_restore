@@ -38,9 +38,9 @@ const useDocker = process.env.RUN_DOCKER_PHASE0_TEST === '1';
 const skipTest = !useCloudDb && !useDocker;
 
 const MIGRATIONS_DIR = path.join(process.cwd(), 'migrations');
-// LP-reporting is journaled across two tags: 0013 (core: lp_fund_commitments,
-// limited_partners, ...) then 0014 (evidence). 0014 adds FKs to lp_fund_commitments
-// (created in 0013), so 0013 must be applied first.
+// LP-reporting is journaled across two tags: 0013 (core: limited_partners,
+// lp_fund_commitments, ...) then 0014 (evidence). 0014 adds FKs to
+// lp_fund_commitments, so 0013 must be applied first.
 const CORE_SQL_PATH = path.join(MIGRATIONS_DIR, '0013_lp_reporting_core_drift.sql');
 const UP_SQL_PATH = path.join(MIGRATIONS_DIR, '0014_lp_evidence_sprint3_drift.sql');
 
@@ -54,10 +54,6 @@ const PREREQ_STUB_SQL = `
     email TEXT NOT NULL UNIQUE
   );
   CREATE TABLE IF NOT EXISTS portfoliocompanies (
-    id SERIAL PRIMARY KEY,
-    name TEXT NOT NULL
-  );
-  CREATE TABLE IF NOT EXISTS limited_partners (
     id SERIAL PRIMARY KEY,
     name TEXT NOT NULL
   );
@@ -361,9 +357,9 @@ describe.skipIf(skipTest)('Phase 0.2: LP Reporting Foundation canonical journal'
           `INSERT INTO lp_metric_runs
              (fund_id, as_of_date, run_type, perspective, status, inputs_hash,
               results_json, methodology_version, calculation_version)
-           VALUES ($1, NOW(), 'quarterly_report', 'lp_net', $2, 'hash',
-                   '{}'::jsonb, 'v1', 'v1')`,
-          [fundId, status]
+           VALUES ($1, NOW(), 'quarterly_report', 'lp_net', $2, $3,
+                    '{}'::jsonb, 'v1', 'v1')`,
+          [fundId, status, `status-hash-${status}`]
         );
       }
     });
@@ -419,5 +415,4 @@ describe.skipIf(skipTest)('Phase 0.2: LP Reporting Foundation canonical journal'
       );
     });
   });
-
 });

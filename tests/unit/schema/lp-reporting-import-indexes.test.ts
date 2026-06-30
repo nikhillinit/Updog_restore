@@ -41,19 +41,65 @@ describe('LP reporting metric-run lifecycle columns', () => {
   });
 });
 
-describe('LP reporting partial unique indexes are journaled in the canonical 0014 migration', () => {
+describe('LP reporting unique indexes are journaled in the canonical 0014 migration', () => {
   const journal = fs.readFileSync(
     path.join(process.cwd(), 'migrations', '0014_lp_evidence_sprint3_drift.sql'),
     'utf8'
   );
+  const compactJournal = journal.replace(/\s+/g, ' ');
 
-  it('declares the source_hash and metric-run unique indexes (guards a journal-only drop)', () => {
+  function expectJournalUniqueIndex(
+    name: string,
+    table: string,
+    columns: readonly string[],
+    predicate?: string
+  ): void {
+    const columnList = columns.map((column) => `"${column}"`).join(',');
+    expect(compactJournal).toContain(
+      `CREATE UNIQUE INDEX IF NOT EXISTS "${name}" ON "${table}" USING btree (${columnList})`
+    );
+    if (predicate) {
+      expect(compactJournal).toContain(predicate);
+    }
+  }
+
+  it('declares source-hash, idempotency, narrative, and package unique indexes', () => {
     // Shape assertions above prove shared/schema; this proves the canonical
-    // journal still carries the same indexes, so a drop in 0014 without a
-    // matching shape change is caught here (the §7 journal==shape proof is
-    // Docker-gated and does not auto-run on every PR).
-    expect(journal).toMatch(/cash_flow_events_fund_source_hash_unique/);
-    expect(journal).toMatch(/valuation_marks_fund_source_hash_unique/);
-    expect(journal).toMatch(/lp_metric_runs_fund_run_inputs_unique/);
+    // journal still carries the same indexes, so a journal-only drop is caught
+    // here without relying on the Docker-gated journal==shape proof.
+    expectJournalUniqueIndex(
+      'cash_flow_events_fund_source_hash_unique',
+      'cash_flow_events',
+      ['fund_id', 'source_hash'],
+      '"cash_flow_events"."source_hash" IS NOT NULL'
+    );
+    expectJournalUniqueIndex(
+      'valuation_marks_fund_source_hash_unique',
+      'valuation_marks',
+      ['fund_id', 'source_hash'],
+      '"valuation_marks"."source_hash" IS NOT NULL'
+    );
+    expectJournalUniqueIndex('lp_metric_runs_fund_run_inputs_unique', 'lp_metric_runs', [
+      'fund_id',
+      'run_type',
+      'perspective',
+      'as_of_date',
+      'inputs_hash',
+    ]);
+    expectJournalUniqueIndex(
+      'evidence_records_metric_run_idempotency_unique',
+      'evidence_records',
+      ['fund_id', 'metric_run_id', 'idempotency_key'],
+      '"evidence_records"."idempotency_key" IS NOT NULL'
+    );
+    expectJournalUniqueIndex('narrative_runs_metric_run_type_unique', 'narrative_runs', [
+      'metric_run_id',
+      'narrative_type',
+    ]);
+    expectJournalUniqueIndex(
+      'lp_report_package_exports_package_format_version_unique',
+      'lp_report_package_exports',
+      ['report_package_id', 'format', 'export_version']
+    );
   });
 });
