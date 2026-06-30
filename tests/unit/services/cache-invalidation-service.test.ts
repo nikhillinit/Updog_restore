@@ -36,7 +36,7 @@ vi.mock('../../../server/lib/logger', () => ({
 
 function createRedis(scanKeys: string[] = []): RedisClientType {
   return {
-    scan: vi.fn(async () => ({ cursor: 0, keys: scanKeys })),
+    scan: vi.fn(async () => ({ cursor: '0', keys: scanKeys })),
     del: vi.fn(async (keys: string[] | string) => (Array.isArray(keys) ? keys.length : 1)),
   } as unknown as RedisClientType;
 }
@@ -61,7 +61,7 @@ describe('CacheInvalidationService', () => {
       redis
     );
 
-    expect(redis.scan).toHaveBeenCalledWith(0, {
+    expect(redis.scan).toHaveBeenCalledWith('0', {
       MATCH: 'scenario-matrix:*',
       COUNT: 100,
     });

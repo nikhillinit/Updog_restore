@@ -25,7 +25,7 @@ function createSocketOptions(tlsEnabled: boolean, keepAlive?: number): RedisSock
   const baseOptions = {
     reconnectStrategy: (retries: number) => Math.min(1000 * retries, 5000),
     connectTimeout: 5000,
-    ...(keepAlive !== undefined ? { keepAlive } : {}),
+    ...(keepAlive !== undefined ? { keepAlive: true, keepAliveInitialDelay: keepAlive } : {}),
   };
 
   if (!tlsEnabled) {
