@@ -455,8 +455,8 @@ class QualityGateSystem {
   private async checkDatabaseMigrations(): Promise<boolean> {
     try {
       // Check if migrations directory exists and has migrations
-      if (fs.existsSync('server/migrations/') || fs.existsSync('migrations/')) {
-        const migrationDir = fs.existsSync('server/migrations/') ? 'server/migrations/' : 'migrations/';
+      if (fs.existsSync('migrations/')) {
+        const migrationDir = 'migrations/';
         const migrations = fs.readdirSync(migrationDir).filter(f => f.endsWith('.sql'));
         
         if (migrations.length === 0) {

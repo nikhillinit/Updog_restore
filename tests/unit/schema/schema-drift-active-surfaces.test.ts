@@ -27,7 +27,7 @@ describe('active schema drift surface manifest', () => {
       ...surface.tests,
     ]);
 
-    expect(referencedPaths).toContain('server/migrations/*lp_reporting*.sql');
+    expect(referencedPaths).toContain('migrations/0014_lp_evidence_sprint3_drift.sql');
     expect(referencedPaths).toContain('shared/schema.ts');
     expect(referencedPaths).toContain('shared/schema/lp-reporting-evidence.ts');
     expect(referencedPaths).toContain('shared/contracts/fund-state-read-v1.contract.ts');
@@ -37,6 +37,29 @@ describe('active schema drift surface manifest', () => {
         (entry) => entry === 'server/db/schema' || entry.startsWith('server/db/schema/')
       )
     ).toBe(false);
+  });
+
+  it('requires concrete canonical migration evidence instead of warning-only checks', () => {
+    const migrationEvidence = ACTIVE_SCHEMA_SURFACES.flatMap((surface) =>
+      surface.migrationEvidence.map((entry) => ({
+        surfaceId: surface.id,
+        pattern: entry.pattern,
+        required: entry.required,
+      }))
+    );
+
+    expect(
+      migrationEvidence.filter((entry) => entry.pattern.startsWith('server/migrations/'))
+    ).toEqual([]);
+    expect(
+      migrationEvidence.filter(
+        (entry) =>
+          entry.pattern.startsWith('migrations/') &&
+          entry.pattern.endsWith('.sql') &&
+          !entry.pattern.includes('*') &&
+          !entry.required
+      )
+    ).toEqual([]);
   });
 
   it('fails with structured context when a required export is missing', () => {
