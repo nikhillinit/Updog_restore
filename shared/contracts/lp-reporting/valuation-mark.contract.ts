@@ -2,7 +2,7 @@
  * LP Reporting -- Valuation Mark Contract (CREATE shape)
  *
  * Mirrors the valuation_marks table from
- * server/migrations/20260508_lp_reporting_foundation_v1.up.sql.
+ * migrations/0014_lp_evidence_sprint3_drift.sql.
  * fairValue and costBasis are decimal strings per ADR-011; never JS
  * number for money.
  *
