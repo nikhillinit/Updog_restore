@@ -160,9 +160,14 @@ export const ACTIVE_SCHEMA_SURFACES: readonly ActiveSchemaSurface[] = [
     ],
     migrationEvidence: [
       {
-        pattern: 'migrations/*optimization*.sql',
-        required: false,
-        description: 'no portfolio-optimization migration is currently present; keep this visible',
+        pattern: 'migrations/0005_phase1c2_alert_automation.sql',
+        required: true,
+        description: 'job_outbox table (journaled in 0005 phase1c2 alert automation)',
+      },
+      {
+        pattern: 'migrations/0011_scenario_share_sensitivity_drift.sql',
+        required: true,
+        description: 'scenario_matrices + optimization_sessions tables (journaled in 0011)',
       },
     ],
     tests: ['tests/unit/schema/portfolio-optimization-schema.test.ts'],
@@ -219,6 +224,11 @@ export const ACTIVE_SCHEMA_SURFACES: readonly ActiveSchemaSurface[] = [
         pattern: 'migrations/0014_lp_evidence_sprint3_drift.sql',
         required: true,
         description: 'LP reporting migration family (journaled in 0014 lp-evidence sprint3 drift)',
+      },
+      {
+        pattern: 'migrations/0022_planning_fmv_override_requests_drift.sql',
+        required: true,
+        description: 'Planning FMV override requests table (journaled in 0022)',
       },
     ],
     tests: [
