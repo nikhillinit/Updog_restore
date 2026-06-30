@@ -2,7 +2,7 @@
  * LP Reporting -- LP Metric Run Contract (CREATE shape)
  *
  * Mirrors the lp_metric_runs table from
- * server/migrations/20260508_lp_reporting_foundation_v1.up.sql.
+ * migrations/0014_lp_evidence_sprint3_drift.sql.
  *
  * Phase 1.1 locks the wire format for `resultsJson` and `diagnosticsJson`.
  * The metric-run results shape is the canonical contract for DPI / RVPI /
