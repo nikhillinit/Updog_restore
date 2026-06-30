@@ -24,6 +24,10 @@ const C1_MOUNTED_TABLES = [
   'narrative_runs',
   'lp_report_packages',
   'lp_report_package_exports',
+  'allocation_scenarios',
+  'allocation_scenario_items',
+  'allocation_scenario_ic_decisions',
+  'allocation_scenario_events',
 ] as const;
 
 const DEFERRED_DOMAIN_LOCKED_TABLES = [
@@ -44,7 +48,15 @@ const MAKEAPP_ROUTE_INVENTORY: Record<string, { kind: MountKind; tables?: string
   scenarioAnalysisRouter: { kind: 'other-table' },
   dualForecastRouter: { kind: 'other-table' },
   allocationsRouter: { kind: 'other-table' },
-  allocationScenariosRouter: { kind: 'other-table' },
+  allocationScenariosRouter: {
+    kind: 'c1',
+    tables: [
+      'allocation_scenarios',
+      'allocation_scenario_items',
+      'allocation_scenario_ic_decisions',
+      'allocation_scenario_events',
+    ],
+  },
   planningFmvOverridesRouter: {
     kind: 'c1',
     tables: ['valuation_marks', 'planning_fmv_override_requests'],
