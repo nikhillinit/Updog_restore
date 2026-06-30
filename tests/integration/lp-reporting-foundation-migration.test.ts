@@ -13,7 +13,7 @@
  * Pack foundation schema.
  *
  * Verifies:
- *   - Applies the canonical journal (0014) up-migration and asserts the
+ *   - Applies the canonical journal (0013 + 0014) up-migration and asserts the
  *     LP-reporting foundation shape.
  *   - Each documented CHECK constraint fires on bad input.
  *   - The typed-FK exclusivity CHECK on evidence_records (num_nonnulls = 1)
@@ -38,6 +38,10 @@ const useDocker = process.env.RUN_DOCKER_PHASE0_TEST === '1';
 const skipTest = !useCloudDb && !useDocker;
 
 const MIGRATIONS_DIR = path.join(process.cwd(), 'migrations');
+// LP-reporting is journaled across two tags: 0013 (core: lp_fund_commitments,
+// limited_partners, ...) then 0014 (evidence). 0014 adds FKs to lp_fund_commitments
+// (created in 0013), so 0013 must be applied first.
+const CORE_SQL_PATH = path.join(MIGRATIONS_DIR, '0013_lp_reporting_core_drift.sql');
 const UP_SQL_PATH = path.join(MIGRATIONS_DIR, '0014_lp_evidence_sprint3_drift.sql');
 
 const PREREQ_STUB_SQL = `
@@ -143,6 +147,8 @@ describe.skipIf(skipTest)('Phase 0.2: LP Reporting Foundation canonical journal'
     }
     await resetSchema();
     await pool.query(PREREQ_STUB_SQL);
+    const coreSql = fs.readFileSync(CORE_SQL_PATH, 'utf8');
+    await pool.query(coreSql);
     const upSql = fs.readFileSync(UP_SQL_PATH, 'utf8');
     await pool.query(upSql);
   }, STARTUP_TIMEOUT_MS + 30_000);
