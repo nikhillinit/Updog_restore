@@ -1,7 +1,7 @@
 /**
  * @quarantine flaky-env
  * @owner lp-reporting
- * @reason Default test runs do not provide an isolated PostgreSQL runtime safe for the migration up/down round trip and schema reset operations.
+ * @reason Default test runs do not provide an isolated PostgreSQL runtime safe for the canonical journal migration shape assertions and schema reset operations.
  * @until 2026-08-25
  * @exitCriteria Add a dedicated LP reporting migration integration profile with TEST_DATABASE_URL or RUN_DOCKER_PHASE0_TEST, then pass this file 5 consecutive times under that profile.
  * @addedDate 2026-05-27
@@ -9,19 +9,16 @@
  * @group integration
  * @group testcontainers
  *
- * Phase 0.2 round-trip migration test for the LP Reporting & Evidence
+ * Phase 0.2 canonical journal migration test for the LP Reporting & Evidence
  * Pack foundation schema.
  *
  * Verifies:
- *   - server/migrations/20260508_lp_reporting_foundation_v1.up.sql creates
- *     the 8 owned tables.
+ *   - Applies the canonical journal (0014) up-migration and asserts the
+ *     LP-reporting foundation shape.
  *   - Each documented CHECK constraint fires on bad input.
  *   - The typed-FK exclusivity CHECK on evidence_records (num_nonnulls = 1)
  *     accepts exactly one of {valuation_mark_id, company_id, metric_run_id,
  *     narrative_run_id} and rejects 0 or 2+.
- *   - server/migrations/20260508_lp_reporting_foundation_v1.down.sql removes
- *     all 8 tables and leaves the prerequisite stubs (funds, users,
- *     portfoliocompanies, limited_partners) untouched.
  *
  * Dual-mode (mirrors phase0-migrated-postgres.test.ts):
  *   - TEST_DATABASE_URL=postgres://... (cloud DB; e.g. Neon)
@@ -40,9 +37,8 @@ const useCloudDb = Boolean(cloudDbUrl);
 const useDocker = process.env.RUN_DOCKER_PHASE0_TEST === '1';
 const skipTest = !useCloudDb && !useDocker;
 
-const MIGRATIONS_DIR = path.join(process.cwd(), 'server', 'migrations');
-const UP_SQL_PATH = path.join(MIGRATIONS_DIR, '20260508_lp_reporting_foundation_v1.up.sql');
-const DOWN_SQL_PATH = path.join(MIGRATIONS_DIR, '20260508_lp_reporting_foundation_v1.down.sql');
+const MIGRATIONS_DIR = path.join(process.cwd(), 'migrations');
+const UP_SQL_PATH = path.join(MIGRATIONS_DIR, '0014_lp_evidence_sprint3_drift.sql');
 
 const PREREQ_STUB_SQL = `
   CREATE TABLE IF NOT EXISTS funds (
@@ -132,7 +128,7 @@ async function expectQueryFails(sqlStmt: string, params: unknown[]): Promise<voi
   expect(threw).toBe(true);
 }
 
-describe.skipIf(skipTest)('Phase 0.2: LP Reporting Foundation migration round-trip', () => {
+describe.skipIf(skipTest)('Phase 0.2: LP Reporting Foundation canonical journal', () => {
   beforeAll(async () => {
     if (useCloudDb) {
       connectionString = cloudDbUrl as string;
@@ -418,18 +414,4 @@ describe.skipIf(skipTest)('Phase 0.2: LP Reporting Foundation migration round-tr
     });
   });
 
-  describe('down.sql cleanly drops all 8 tables and leaves prerequisites intact', () => {
-    it('drops every LP-reporting table and preserves prerequisites', async () => {
-      const downSql = fs.readFileSync(DOWN_SQL_PATH, 'utf8');
-      await pool.query(downSql);
-
-      for (const name of LP_TABLE_NAMES) {
-        expect(await tableExists(name)).toBe(false);
-      }
-
-      for (const prereq of ['funds', 'users', 'portfoliocompanies', 'limited_partners']) {
-        expect(await tableExists(prereq)).toBe(true);
-      }
-    });
-  });
 });

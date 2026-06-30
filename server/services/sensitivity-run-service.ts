@@ -8,7 +8,7 @@
  *
  * Mirrors the Zod contract at shared/contracts/sensitivity-run-v1.contract.ts
  * and the SQL CHECK constraints in
- * server/migrations/20260406_create_sensitivity_runs.sql. All three must move
+ * migrations/0011_scenario_share_sensitivity_drift.sql. All three must move
  * together.
  *
  * Test seam: production paths build Drizzle eq()/and()/desc() expressions via

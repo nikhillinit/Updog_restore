@@ -20,8 +20,8 @@ import { users } from './user';
 
 // ============================================================================
 // ALLOCATION SCENARIOS — durable allocation planning surface.
-// Promoted PR-2b-1 from server/migrations (20260330_*/20260406_*) into the
-// canonical Drizzle shape + journal (0025). Live makeApp prod surface
+// Promoted PR-2b-1 into the canonical journal
+// migrations/0025_allocation_scenarios_promote_drift.sql. Live makeApp prod surface
 // (server/routes/allocation-scenarios.ts). allocation_scenario_decisions is
 // dead (no consumer) and intentionally NOT promoted.
 // ============================================================================

@@ -2,7 +2,7 @@
  * LP Reporting & Evidence Pack -- Foundation Schema
  *
  * Drizzle bindings for the 8 tables created in
- * server/migrations/20260508_lp_reporting_foundation_v1.up.sql:
+ * migrations/0014_lp_evidence_sprint3_drift.sql:
  *   - vehicles
  *   - cash_flow_events
  *   - valuation_marks

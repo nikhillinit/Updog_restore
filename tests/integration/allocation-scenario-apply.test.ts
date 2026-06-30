@@ -74,14 +74,11 @@ async function ensureScenarioSchema() {
     )
   `);
 
-  for (const filename of [
-    '20260330_allocation_scenarios_v1.up.sql',
-    '20260330_allocation_scenario_events_v1.up.sql',
-    '20260406_allocation_scenario_ic_decisions_v1.up.sql',
-  ]) {
-    const sql = fs.readFileSync(path.resolve('server/migrations', filename), 'utf8');
-    await pool.query(sql);
-  }
+  const allocationSql = fs.readFileSync(
+    path.resolve('migrations', '0025_allocation_scenarios_promote_drift.sql'),
+    'utf8'
+  );
+  await pool.query(allocationSql);
 }
 
 describe('allocation scenario sync/apply integration', () => {
