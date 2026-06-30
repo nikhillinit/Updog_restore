@@ -109,7 +109,7 @@ export const ACTIVE_SCHEMA_SURFACES: readonly ActiveSchemaSurface[] = [
     migrationEvidence: [
       {
         pattern: 'migrations/0012_sector_variance_drift.sql',
-        required: false,
+        required: true,
         description: 'cohort definitions (journaled in 0012 sector/variance drift)',
       },
     ],
@@ -368,17 +368,17 @@ export const ACTIVE_SCHEMA_SURFACES: readonly ActiveSchemaSurface[] = [
     migrationEvidence: [
       {
         pattern: 'migrations/0001_certain_miracleman.sql',
-        required: false,
+        required: true,
         description: 'forecast snapshot tables (journaled in 0001 baseline)',
       },
       {
         pattern: 'migrations/0000_quick_vivisector.sql',
-        required: false,
+        required: true,
         description: 'fund-state snapshot tables (journaled in 0000 baseline)',
       },
       {
         pattern: 'migrations/0011_scenario_share_sensitivity_drift.sql',
-        required: false,
+        required: true,
         description: 'snapshot version tables (journaled in 0011)',
       },
     ],
