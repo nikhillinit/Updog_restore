@@ -34,6 +34,7 @@ export * from './schema/fund';
 export * from './schema/portfolio';
 export * from './schema/scenario';
 export * from './schema/shares';
+export * from './schema/allocation-scenarios';
 export * from './schema/user';
 export * from './schema/lp-reporting-evidence';
 export * from './schema/operating-objects';
