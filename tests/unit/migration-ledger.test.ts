@@ -43,6 +43,9 @@ const expectedJournaledDriftPatchFiles = [
   '0020_operating_tasks_drift.sql',
   '0021_version_columns_bigint_drift.sql',
   '0022_planning_fmv_override_requests_drift.sql',
+  '0023_version_default_resync_drift.sql',
+  '0024_idempotency_cursor_resync_drift.sql',
+  '0025_allocation_scenarios_promote_drift.sql',
 ].sort();
 
 afterEach(() => {
