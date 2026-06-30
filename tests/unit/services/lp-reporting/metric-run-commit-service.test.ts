@@ -241,6 +241,51 @@ describe('commitMetricRun', () => {
     expect(fakeDb.insertedMetricRows).toHaveLength(1);
   });
 
+  it('active_as_of resolves and stores concrete contributing mark IDs', async () => {
+    const fakeDb = new FakeMetricRunDb();
+    const sourceIds = seedHappyPath(fakeDb);
+    fakeDb.marks.push(
+      {
+        id: 202,
+        fundId: 1,
+        fairValue: '5000000.000000',
+        markDate: '2026-03-31',
+        asOfDate: '2026-03-31',
+        status: 'approved',
+        confidenceLevel: 'medium',
+        companyId: 42,
+        sourceHash: '5'.repeat(64),
+        importBatchId: 11,
+        updatedAt: new Date('2026-01-03T00:00:00Z'),
+      },
+      {
+        id: 203,
+        fundId: 1,
+        fairValue: '9000000.000000',
+        markDate: '2026-06-30',
+        asOfDate: '2026-06-30',
+        status: 'approved',
+        confidenceLevel: 'low',
+        companyId: 42,
+        sourceHash: '6'.repeat(64),
+        importBatchId: 11,
+        updatedAt: new Date('2026-01-04T00:00:00Z'),
+      }
+    );
+
+    const input = await buildCommitInput(
+      fakeDb,
+      { eventIds: sourceIds.eventIds, markIds: [] },
+      { sourceMarkSelection: 'active_as_of' }
+    );
+    await commitMetricRun(input, { database: fakeDb.asDatabase() });
+
+    const inserted = fakeDb.insertedMetricRows[0] as Record<string, unknown>;
+    const results = inserted['resultsJson'] as { currentNav?: string };
+    expect(inserted['sourceMarkIds']).toEqual([202]);
+    expect(results.currentNav).toBe('5000000.000000');
+  });
+
   it('rejects stale source-row fingerprints with PREVIEW_HASH_MISMATCH', async () => {
     const fakeDb = new FakeMetricRunDb();
     const sourceIds = seedHappyPath(fakeDb);

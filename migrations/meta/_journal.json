@@ -162,6 +162,13 @@
       "when": 1782777600000,
       "tag": "0021_version_columns_bigint_drift",
       "breakpoints": true
+    },
+    {
+      "idx": 23,
+      "version": "7",
+      "when": 1782777601000,
+      "tag": "0022_planning_fmv_override_requests_drift",
+      "breakpoints": true
     }
   ]
 }

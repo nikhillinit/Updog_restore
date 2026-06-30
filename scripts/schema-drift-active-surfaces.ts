@@ -190,6 +190,7 @@ export const ACTIVE_SCHEMA_SURFACES: readonly ActiveSchemaSurface[] = [
           'vehicles',
           'cashFlowEvents',
           'valuationMarks',
+          'planningFmvOverrideRequests',
           'lpMetricRuns',
           'narrativeRuns',
           'evidenceRecords',
@@ -204,6 +205,9 @@ export const ACTIVE_SCHEMA_SURFACES: readonly ActiveSchemaSurface[] = [
         layer: 'contract-or-zod',
         names: [
           'LpMetricRunCreateSchema',
+          'PlanningFmvOverrideCreateRequestSchema',
+          'PlanningFmvOverrideCreateResponseSchema',
+          'PlanningFmvOverrideLatestResponseSchema',
           'MetricRunDetailResponseSchema',
           'ReportPackageRecordSchema',
           'ReportPackageGetResponseSchema',

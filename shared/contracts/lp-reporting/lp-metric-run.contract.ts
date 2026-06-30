@@ -42,6 +42,10 @@ export type LpMetricRunType = z.infer<typeof LpMetricRunTypeSchema>;
 export type LpMetricRunPerspective = z.infer<typeof LpMetricRunPerspectiveSchema>;
 export type LpMetricRunStatus = z.infer<typeof LpMetricRunStatusSchema>;
 
+export const MetricRunSourceMarkSelectionSchema = z.enum(['explicit', 'active_as_of']);
+
+export type MetricRunSourceMarkSelection = z.infer<typeof MetricRunSourceMarkSelectionSchema>;
+
 // ---------------------------------------------------------------------------
 // XIRR diagnostic enums + shape (per ADR-010, mirrors XIRRResult in
 // shared/lib/finance/xirr.ts and the Phase 1 diagnostic wrapper contract).
@@ -148,15 +152,35 @@ export type LpMetricRunDiagnostics = z.infer<typeof LpMetricRunDiagnosticsSchema
 // Dry-run + commit endpoint contracts.
 // ---------------------------------------------------------------------------
 
+const MetricRunSourceSelectionMessage =
+  'sourceMarkIds must be empty when sourceMarkSelection is active_as_of';
+
+const MetricRunRequestBaseShape = {
+  asOfDate: z.string().date(),
+  runType: LpMetricRunTypeSchema,
+  perspective: LpMetricRunPerspectiveSchema,
+  sourceEventIds: z.array(z.number().int().positive()).default([]),
+  sourceMarkIds: z.array(z.number().int().positive()).default([]),
+  sourceMarkSelection: MetricRunSourceMarkSelectionSchema.default('explicit'),
+} as const;
+
+function rejectExplicitMarksWithActiveSelection(
+  value: { sourceMarkSelection: MetricRunSourceMarkSelection; sourceMarkIds: number[] },
+  context: z.RefinementCtx
+) {
+  if (value.sourceMarkSelection === 'active_as_of' && value.sourceMarkIds.length > 0) {
+    context.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['sourceMarkIds'],
+      message: MetricRunSourceSelectionMessage,
+    });
+  }
+}
+
 export const MetricRunDryRunRequestSchema = z
-  .object({
-    asOfDate: z.string().date(),
-    runType: LpMetricRunTypeSchema,
-    perspective: LpMetricRunPerspectiveSchema,
-    sourceEventIds: z.array(z.number().int().positive()).default([]),
-    sourceMarkIds: z.array(z.number().int().positive()).default([]),
-  })
-  .strict();
+  .object(MetricRunRequestBaseShape)
+  .strict()
+  .superRefine(rejectExplicitMarksWithActiveSelection);
 
 export const MetricRunDryRunResponseSchema = z
   .object({
@@ -168,9 +192,13 @@ export const MetricRunDryRunResponseSchema = z
   })
   .strict();
 
-export const MetricRunCommitRequestSchema = MetricRunDryRunRequestSchema.extend({
-  previewHash: PreviewHashSchema,
-}).strict();
+export const MetricRunCommitRequestSchema = z
+  .object({
+    ...MetricRunRequestBaseShape,
+    previewHash: PreviewHashSchema,
+  })
+  .strict()
+  .superRefine(rejectExplicitMarksWithActiveSelection);
 
 export const MetricRunCommitResponseSchema = z
   .object({

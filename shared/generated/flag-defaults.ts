@@ -12,11 +12,11 @@ import type { FlagKey, FlagDefinition, FlagRecord } from './flag-types.js';
  * Complete flag definitions
  */
 export const FLAG_DEFINITIONS: Record<FlagKey, FlagDefinition> = {
-  'enable_new_ia': {
+  enable_new_ia: {
     default: false,
-    description: "5-route navigation (Overview, Portfolio, Model, Operate, Report)",
-    owner: "gp-team",
-    risk: "low",
+    description: '5-route navigation (Overview, Portfolio, Model, Operate, Report)',
+    owner: 'gp-team',
+    risk: 'low',
     exposeToClient: true,
 
     environments: {
@@ -26,14 +26,13 @@ export const FLAG_DEFINITIONS: Record<FlagKey, FlagDefinition> = {
     },
     dependencies: [],
     expiresAt: null,
-    aliases: ["NEW_IA", "new_ia"],
-
+    aliases: ['NEW_IA', 'new_ia'],
   },
-  'enable_kpi_selectors': {
+  enable_kpi_selectors: {
     default: false,
-    description: "KPI selector system for metrics dashboard",
-    owner: "gp-team",
-    risk: "low",
+    description: 'KPI selector system for metrics dashboard',
+    owner: 'gp-team',
+    risk: 'low',
     exposeToClient: true,
 
     environments: {
@@ -41,16 +40,15 @@ export const FLAG_DEFINITIONS: Record<FlagKey, FlagDefinition> = {
       staging: false,
       production: false,
     },
-    dependencies: ["enable_new_ia"],
+    dependencies: ['enable_new_ia'],
     expiresAt: null,
-    aliases: ["ENABLE_SELECTOR_KPIS"],
-
+    aliases: ['ENABLE_SELECTOR_KPIS'],
   },
-  'enable_brand_tokens': {
+  enable_brand_tokens: {
     default: false,
-    description: "Press On Ventures brand token system",
-    owner: "design",
-    risk: "low",
+    description: 'Press On Ventures brand token system',
+    owner: 'design',
+    risk: 'low',
     exposeToClient: true,
 
     environments: {
@@ -60,14 +58,12 @@ export const FLAG_DEFINITIONS: Record<FlagKey, FlagDefinition> = {
     },
     dependencies: [],
     expiresAt: null,
-
-
   },
-  'enable_cap_table_tabs': {
+  enable_cap_table_tabs: {
     default: false,
-    description: "Cap table access inside company detail tabs",
-    owner: "gp-team",
-    risk: "low",
+    description: 'Cap table access inside company detail tabs',
+    owner: 'gp-team',
+    risk: 'low',
     exposeToClient: true,
 
     environments: {
@@ -75,16 +71,14 @@ export const FLAG_DEFINITIONS: Record<FlagKey, FlagDefinition> = {
       staging: false,
       production: false,
     },
-    dependencies: ["enable_new_ia"],
+    dependencies: ['enable_new_ia'],
     expiresAt: null,
-
-
   },
-  'enable_modeling_wizard': {
+  enable_modeling_wizard: {
     default: false,
-    description: "7-step modeling wizard",
-    owner: "gp-team",
-    risk: "medium",
+    description: '7-step modeling wizard',
+    owner: 'gp-team',
+    risk: 'medium',
     exposeToClient: true,
 
     environments: {
@@ -92,16 +86,15 @@ export const FLAG_DEFINITIONS: Record<FlagKey, FlagDefinition> = {
       staging: false,
       production: false,
     },
-    dependencies: ["enable_new_ia", "enable_kpi_selectors"],
+    dependencies: ['enable_new_ia', 'enable_kpi_selectors'],
     expiresAt: null,
-    aliases: ["ENABLE_MODELING_WIZARD"],
-
+    aliases: ['ENABLE_MODELING_WIZARD'],
   },
-  'enable_operations_hub': {
+  enable_operations_hub: {
     default: false,
-    description: "Capital calls and distributions hub",
-    owner: "gp-team",
-    risk: "medium",
+    description: 'Capital calls and distributions hub',
+    owner: 'gp-team',
+    risk: 'medium',
     exposeToClient: true,
 
     environments: {
@@ -109,16 +102,15 @@ export const FLAG_DEFINITIONS: Record<FlagKey, FlagDefinition> = {
       staging: false,
       production: false,
     },
-    dependencies: ["enable_new_ia", "enable_kpi_selectors"],
+    dependencies: ['enable_new_ia', 'enable_kpi_selectors'],
     expiresAt: null,
-    aliases: ["ENABLE_OPERATIONS_HUB"],
-
+    aliases: ['ENABLE_OPERATIONS_HUB'],
   },
-  'enable_investment_rounds': {
+  enable_investment_rounds: {
     default: false,
-    description: "Investment round persistence",
-    owner: "gp-team",
-    risk: "medium",
+    description: 'Investment round persistence',
+    owner: 'gp-team',
+    risk: 'medium',
     exposeToClient: true,
 
     environments: {
@@ -127,15 +119,13 @@ export const FLAG_DEFINITIONS: Record<FlagKey, FlagDefinition> = {
       production: false,
     },
     dependencies: [],
-    expiresAt: "2026-12-31",
-
-
+    expiresAt: '2026-12-31',
   },
-  'enable_lp_reporting': {
+  enable_lp_reporting: {
     default: false,
-    description: "LP reporting dashboard",
-    owner: "gp-team",
-    risk: "medium",
+    description: 'LP reporting dashboard',
+    owner: 'gp-team',
+    risk: 'medium',
     exposeToClient: true,
 
     environments: {
@@ -143,16 +133,15 @@ export const FLAG_DEFINITIONS: Record<FlagKey, FlagDefinition> = {
       staging: false,
       production: false,
     },
-    dependencies: ["enable_kpi_selectors", "enable_operations_hub"],
+    dependencies: ['enable_kpi_selectors', 'enable_operations_hub'],
     expiresAt: null,
-    aliases: ["ENABLE_LP_REPORTING"],
-
+    aliases: ['ENABLE_LP_REPORTING'],
   },
-  'enable_lp_snapshot_mode': {
+  enable_lp_snapshot_mode: {
     default: false,
-    description: "Immutable-snapshot summary in the LP share modal for GP verification.",
-    owner: "gp-team",
-    risk: "low",
+    description: 'Immutable-snapshot summary in the LP share modal for GP verification.',
+    owner: 'gp-team',
+    risk: 'low',
     exposeToClient: true,
 
     environments: {
@@ -162,48 +151,12 @@ export const FLAG_DEFINITIONS: Record<FlagKey, FlagDefinition> = {
     },
     dependencies: [],
     expiresAt: null,
-
-
   },
-  'enable_reserve_engine': {
+  enable_planning_fmv_overrides: {
     default: false,
-    description: "Deterministic reserve allocation engine",
-    owner: "analytics",
-    risk: "medium",
-    exposeToClient: true,
-
-    environments: {
-      development: true,
-      staging: false,
-      production: false,
-    },
-    dependencies: ["enable_kpi_selectors"],
-    expiresAt: null,
-
-
-  },
-  'enable_portfolio_table_v2': {
-    default: false,
-    description: "Unified portfolio table with virtualization",
-    owner: "gp-team",
-    risk: "medium",
-    exposeToClient: true,
-
-    environments: {
-      development: true,
-      staging: false,
-      production: false,
-    },
-    dependencies: ["enable_new_ia"],
-    expiresAt: null,
-
-
-  },
-  'enable_engine_integration': {
-    default: false,
-    description: "Wizard engine comparison and recommendations panel",
-    owner: "analytics",
-    risk: "medium",
+    description: 'Approved Planning FMV override workflow in the reserve allocation workspace.',
+    owner: 'gp-team',
+    risk: 'medium',
     exposeToClient: true,
 
     environments: {
@@ -213,14 +166,58 @@ export const FLAG_DEFINITIONS: Record<FlagKey, FlagDefinition> = {
     },
     dependencies: [],
     expiresAt: null,
-    aliases: ["ENABLE_ENGINE_INTEGRATION"],
-
   },
-  'enable_gp_economics_engine': {
+  enable_reserve_engine: {
     default: false,
-    description: "Experimental GP economics engine and results section",
-    owner: "analytics",
-    risk: "high",
+    description: 'Deterministic reserve allocation engine',
+    owner: 'analytics',
+    risk: 'medium',
+    exposeToClient: true,
+
+    environments: {
+      development: true,
+      staging: false,
+      production: false,
+    },
+    dependencies: ['enable_kpi_selectors'],
+    expiresAt: null,
+  },
+  enable_portfolio_table_v2: {
+    default: false,
+    description: 'Unified portfolio table with virtualization',
+    owner: 'gp-team',
+    risk: 'medium',
+    exposeToClient: true,
+
+    environments: {
+      development: true,
+      staging: false,
+      production: false,
+    },
+    dependencies: ['enable_new_ia'],
+    expiresAt: null,
+  },
+  enable_engine_integration: {
+    default: false,
+    description: 'Wizard engine comparison and recommendations panel',
+    owner: 'analytics',
+    risk: 'medium',
+    exposeToClient: true,
+
+    environments: {
+      development: false,
+      staging: false,
+      production: false,
+    },
+    dependencies: [],
+    expiresAt: null,
+    aliases: ['ENABLE_ENGINE_INTEGRATION'],
+  },
+  enable_gp_economics_engine: {
+    default: false,
+    description: 'Experimental GP economics engine and results section',
+    owner: 'analytics',
+    risk: 'high',
     exposeToClient: true,
 
     environments: {
@@ -230,14 +227,13 @@ export const FLAG_DEFINITIONS: Record<FlagKey, FlagDefinition> = {
     },
     dependencies: [],
     expiresAt: null,
-    aliases: ["ENABLE_GP_ECONOMICS_ENGINE"],
-
+    aliases: ['ENABLE_GP_ECONOMICS_ENGINE'],
   },
-  'ts_reserves': {
+  ts_reserves: {
     default: true,
-    description: "TypeScript reserves calculation engine",
-    owner: "analytics",
-    risk: "low",
+    description: 'TypeScript reserves calculation engine',
+    owner: 'analytics',
+    risk: 'low',
     exposeToClient: true,
 
     environments: {
@@ -250,11 +246,11 @@ export const FLAG_DEFINITIONS: Record<FlagKey, FlagDefinition> = {
 
     rolloutPercentage: 100,
   },
-  'wasm_reserves': {
+  wasm_reserves: {
     default: false,
-    description: "WebAssembly reserves calculation engine (experimental)",
-    owner: "analytics",
-    risk: "high",
+    description: 'WebAssembly reserves calculation engine (experimental)',
+    owner: 'analytics',
+    risk: 'high',
     exposeToClient: true,
 
     environments: {
@@ -267,11 +263,11 @@ export const FLAG_DEFINITIONS: Record<FlagKey, FlagDefinition> = {
 
     rolloutPercentage: 0,
   },
-  'shadow_compare': {
+  shadow_compare: {
     default: false,
-    description: "Shadow comparison between TS and WASM engines",
-    owner: "analytics",
-    risk: "low",
+    description: 'Shadow comparison between TS and WASM engines',
+    owner: 'analytics',
+    risk: 'low',
     exposeToClient: true,
 
     environments: {
@@ -279,16 +275,16 @@ export const FLAG_DEFINITIONS: Record<FlagKey, FlagDefinition> = {
       staging: false,
       production: false,
     },
-    dependencies: ["ts_reserves", "wasm_reserves"],
+    dependencies: ['ts_reserves', 'wasm_reserves'],
     expiresAt: null,
 
     rolloutPercentage: 0,
   },
-  'reserves_v11': {
+  reserves_v11: {
     default: true,
-    description: "Reserves v1.1 calculation improvements",
-    owner: "analytics",
-    risk: "medium",
+    description: 'Reserves v1.1 calculation improvements',
+    owner: 'analytics',
+    risk: 'medium',
     exposeToClient: true,
 
     environments: {
@@ -298,14 +294,12 @@ export const FLAG_DEFINITIONS: Record<FlagKey, FlagDefinition> = {
     },
     dependencies: [],
     expiresAt: null,
-
-
   },
-  'remain_pass': {
+  remain_pass: {
     default: true,
-    description: "Remaining pass calculation",
-    owner: "analytics",
-    risk: "low",
+    description: 'Remaining pass calculation',
+    owner: 'analytics',
+    risk: 'low',
     exposeToClient: true,
 
     environments: {
@@ -315,14 +309,12 @@ export const FLAG_DEFINITIONS: Record<FlagKey, FlagDefinition> = {
     },
     dependencies: [],
     expiresAt: null,
-
-
   },
-  'stage_based_caps': {
+  stage_based_caps: {
     default: true,
-    description: "Stage-based capital allocation caps",
-    owner: "analytics",
-    risk: "low",
+    description: 'Stage-based capital allocation caps',
+    owner: 'analytics',
+    risk: 'low',
     exposeToClient: true,
 
     environments: {
@@ -332,14 +324,12 @@ export const FLAG_DEFINITIONS: Record<FlagKey, FlagDefinition> = {
     },
     dependencies: [],
     expiresAt: null,
-
-
   },
-  'export_async': {
+  export_async: {
     default: true,
-    description: "Async export functionality",
-    owner: "gp-team",
-    risk: "low",
+    description: 'Async export functionality',
+    owner: 'gp-team',
+    risk: 'low',
     exposeToClient: true,
 
     environments: {
@@ -349,14 +339,12 @@ export const FLAG_DEFINITIONS: Record<FlagKey, FlagDefinition> = {
     },
     dependencies: [],
     expiresAt: null,
-
-
   },
-  'metrics_collection': {
+  metrics_collection: {
     default: true,
-    description: "Client-side metrics collection",
-    owner: "analytics",
-    risk: "low",
+    description: 'Client-side metrics collection',
+    owner: 'analytics',
+    risk: 'low',
     exposeToClient: true,
 
     environments: {
@@ -366,14 +354,12 @@ export const FLAG_DEFINITIONS: Record<FlagKey, FlagDefinition> = {
     },
     dependencies: [],
     expiresAt: null,
-
-
   },
-  'enable_pipeline_bulk_actions': {
+  enable_pipeline_bulk_actions: {
     default: false,
-    description: "Pipeline selection and bulk status actions",
-    owner: "gp-team",
-    risk: "medium",
+    description: 'Pipeline selection and bulk status actions',
+    owner: 'gp-team',
+    risk: 'medium',
     exposeToClient: true,
 
     environments: {
@@ -383,14 +369,12 @@ export const FLAG_DEFINITIONS: Record<FlagKey, FlagDefinition> = {
     },
     dependencies: [],
     expiresAt: null,
-
-
   },
-  'enable_pipeline_dnd': {
+  enable_pipeline_dnd: {
     default: false,
-    description: "Drag deal cards between pipeline status columns",
-    owner: "gp-team",
-    risk: "medium",
+    description: 'Drag deal cards between pipeline status columns',
+    owner: 'gp-team',
+    risk: 'medium',
     exposeToClient: true,
 
     environments: {
@@ -400,14 +384,12 @@ export const FLAG_DEFINITIONS: Record<FlagKey, FlagDefinition> = {
     },
     dependencies: [],
     expiresAt: null,
-
-
   },
-  'enable_work_panel': {
+  enable_work_panel: {
     default: false,
-    description: "Context-preserving drill-down panels (side Sheet) on the GP dashboard.",
-    owner: "gp-team",
-    risk: "low",
+    description: 'Context-preserving drill-down panels (side Sheet) on the GP dashboard.',
+    owner: 'gp-team',
+    risk: 'low',
     exposeToClient: true,
 
     environments: {
@@ -417,14 +399,12 @@ export const FLAG_DEFINITIONS: Record<FlagKey, FlagDefinition> = {
     },
     dependencies: [],
     expiresAt: null,
-
-
   },
-  'enable_context_rail': {
+  enable_context_rail: {
     default: false,
-    description: "Fourth-zone context rail on the GP dashboard (freshness/attention/activity).",
-    owner: "gp-team",
-    risk: "low",
+    description: 'Fourth-zone context rail on the GP dashboard (freshness/attention/activity).',
+    owner: 'gp-team',
+    risk: 'low',
     exposeToClient: true,
 
     environments: {
@@ -434,14 +414,13 @@ export const FLAG_DEFINITIONS: Record<FlagKey, FlagDefinition> = {
     },
     dependencies: [],
     expiresAt: null,
-
-
   },
-  'enable_cash_event_object': {
+  enable_cash_event_object: {
     default: false,
-    description: "Read-only WorkPanel list of persisted cash-flow events on the cashflow dashboard.",
-    owner: "gp-team",
-    risk: "low",
+    description:
+      'Read-only WorkPanel list of persisted cash-flow events on the cashflow dashboard.',
+    owner: 'gp-team',
+    risk: 'low',
     exposeToClient: true,
 
     environments: {
@@ -451,14 +430,13 @@ export const FLAG_DEFINITIONS: Record<FlagKey, FlagDefinition> = {
     },
     dependencies: [],
     expiresAt: null,
-
-
   },
-  'enable_cash_event_edit': {
+  enable_cash_event_edit: {
     default: false,
-    description: "Draft-only editing of persisted cash events in the WorkPanel detail view (PATCH If-Match).",
-    owner: "gp-team",
-    risk: "low",
+    description:
+      'Draft-only editing of persisted cash events in the WorkPanel detail view (PATCH If-Match).',
+    owner: 'gp-team',
+    risk: 'low',
     exposeToClient: true,
 
     environments: {
@@ -466,16 +444,14 @@ export const FLAG_DEFINITIONS: Record<FlagKey, FlagDefinition> = {
       staging: false,
       production: false,
     },
-    dependencies: ["enable_cash_event_object"],
+    dependencies: ['enable_cash_event_object'],
     expiresAt: null,
-
-
   },
-  'enable_route_redirects': {
+  enable_route_redirects: {
     default: false,
-    description: "Hard redirects from old routes to new IA.",
-    owner: "gp-team",
-    risk: "low",
+    description: 'Hard redirects from old routes to new IA.',
+    owner: 'gp-team',
+    risk: 'low',
     exposeToClient: true,
 
     environments: {
@@ -483,16 +459,14 @@ export const FLAG_DEFINITIONS: Record<FlagKey, FlagDefinition> = {
       staging: false,
       production: false,
     },
-    dependencies: ["enable_new_ia"],
-    expiresAt: "2026-04-01T00:00:00Z",
-
-
+    dependencies: ['enable_new_ia'],
+    expiresAt: '2026-04-01T00:00:00Z',
   },
-  'enable_observability': {
+  enable_observability: {
     default: false,
-    description: "Error boundaries, Sentry, vitals logging per route.",
-    owner: "gp-team",
-    risk: "low",
+    description: 'Error boundaries, Sentry, vitals logging per route.',
+    owner: 'gp-team',
+    risk: 'low',
     exposeToClient: true,
 
     environments: {
@@ -502,14 +476,12 @@ export const FLAG_DEFINITIONS: Record<FlagKey, FlagDefinition> = {
     },
     dependencies: [],
     expiresAt: null,
-
-
   },
-  'ui_catalog': {
+  ui_catalog: {
     default: false,
-    description: "Admin UI component catalog",
-    owner: "design",
-    risk: "low",
+    description: 'Admin UI component catalog',
+    owner: 'design',
+    risk: 'low',
     exposeToClient: true,
     adminOnly: true,
     environments: {
@@ -519,14 +491,13 @@ export const FLAG_DEFINITIONS: Record<FlagKey, FlagDefinition> = {
     },
     dependencies: [],
     expiresAt: null,
-    aliases: ["UI_CATALOG"],
-
+    aliases: ['UI_CATALOG'],
   },
-  'onboarding_tour': {
+  onboarding_tour: {
     default: false,
-    description: "GP onboarding tour for new users",
-    owner: "gp-team",
-    risk: "low",
+    description: 'GP onboarding tour for new users',
+    owner: 'gp-team',
+    risk: 'low',
     exposeToClient: true,
 
     environments: {
@@ -536,14 +507,13 @@ export const FLAG_DEFINITIONS: Record<FlagKey, FlagDefinition> = {
     },
     dependencies: [],
     expiresAt: null,
-    aliases: ["ONBOARDING_TOUR"],
-
+    aliases: ['ONBOARDING_TOUR'],
   },
-  'demo_mode': {
+  demo_mode: {
     default: false,
-    description: "Demo mode with sample data",
-    owner: "platform",
-    risk: "low",
+    description: 'Demo mode with sample data',
+    owner: 'platform',
+    risk: 'low',
     exposeToClient: false,
 
     environments: {
@@ -553,14 +523,12 @@ export const FLAG_DEFINITIONS: Record<FlagKey, FlagDefinition> = {
     },
     dependencies: [],
     expiresAt: null,
-
-
   },
-  'require_auth': {
+  require_auth: {
     default: false,
-    description: "Require authentication for API access",
-    owner: "platform",
-    risk: "high",
+    description: 'Require authentication for API access',
+    owner: 'platform',
+    risk: 'high',
     exposeToClient: false,
 
     environments: {
@@ -570,14 +538,13 @@ export const FLAG_DEFINITIONS: Record<FlagKey, FlagDefinition> = {
     },
     dependencies: [],
     expiresAt: null,
-
-
   },
-  'enable_portfolio_intelligence': {
+  enable_portfolio_intelligence: {
     default: false,
-    description: "Gates Portfolio Intelligence prototype endpoints that remain fail-closed until backed by computed financial data",
-    owner: "platform",
-    risk: "high",
+    description:
+      'Gates Portfolio Intelligence prototype endpoints that remain fail-closed until backed by computed financial data',
+    owner: 'platform',
+    risk: 'high',
     exposeToClient: false,
 
     environments: {
@@ -587,14 +554,13 @@ export const FLAG_DEFINITIONS: Record<FlagKey, FlagDefinition> = {
     },
     dependencies: [],
     expiresAt: null,
-    aliases: ["ENABLE_PORTFOLIO_INTELLIGENCE"],
-
+    aliases: ['ENABLE_PORTFOLIO_INTELLIGENCE'],
   },
-  'enable_faults': {
+  enable_faults: {
     default: false,
-    description: "Enable fault injection for testing",
-    owner: "platform",
-    risk: "high",
+    description: 'Enable fault injection for testing',
+    owner: 'platform',
+    risk: 'high',
     exposeToClient: false,
 
     environments: {
@@ -604,14 +570,12 @@ export const FLAG_DEFINITIONS: Record<FlagKey, FlagDefinition> = {
     },
     dependencies: [],
     expiresAt: null,
-
-
   },
-  'enable_wizard_step_general': {
+  enable_wizard_step_general: {
     default: false,
-    description: "Wizard Step 1: General fund info",
-    owner: "gp-team",
-    risk: "low",
+    description: 'Wizard Step 1: General fund info',
+    owner: 'gp-team',
+    risk: 'low',
     exposeToClient: true,
 
     environments: {
@@ -619,16 +583,15 @@ export const FLAG_DEFINITIONS: Record<FlagKey, FlagDefinition> = {
       staging: false,
       production: false,
     },
-    dependencies: ["enable_modeling_wizard"],
+    dependencies: ['enable_modeling_wizard'],
     expiresAt: null,
-    aliases: ["ENABLE_WIZARD_STEP_GENERAL"],
-
+    aliases: ['ENABLE_WIZARD_STEP_GENERAL'],
   },
-  'enable_wizard_step_sectors': {
+  enable_wizard_step_sectors: {
     default: false,
-    description: "Wizard Step 2: Sector Profiles.",
-    owner: "gp-team",
-    risk: "low",
+    description: 'Wizard Step 2: Sector Profiles.',
+    owner: 'gp-team',
+    risk: 'low',
     exposeToClient: true,
 
     environments: {
@@ -636,16 +599,14 @@ export const FLAG_DEFINITIONS: Record<FlagKey, FlagDefinition> = {
       staging: false,
       production: false,
     },
-    dependencies: ["enable_wizard_step_general"],
+    dependencies: ['enable_wizard_step_general'],
     expiresAt: null,
-
-
   },
-  'enable_wizard_step_allocations': {
+  enable_wizard_step_allocations: {
     default: false,
-    description: "Wizard Step 3: Capital Allocations.",
-    owner: "gp-team",
-    risk: "low",
+    description: 'Wizard Step 3: Capital Allocations.',
+    owner: 'gp-team',
+    risk: 'low',
     exposeToClient: true,
 
     environments: {
@@ -653,16 +614,14 @@ export const FLAG_DEFINITIONS: Record<FlagKey, FlagDefinition> = {
       staging: false,
       production: false,
     },
-    dependencies: ["enable_wizard_step_sectors"],
+    dependencies: ['enable_wizard_step_sectors'],
     expiresAt: null,
-
-
   },
-  'enable_wizard_step_sizing': {
+  enable_wizard_step_sizing: {
     default: false,
-    description: "Wizard Step 2: Fund sizing",
-    owner: "gp-team",
-    risk: "low",
+    description: 'Wizard Step 2: Fund sizing',
+    owner: 'gp-team',
+    risk: 'low',
     exposeToClient: true,
 
     environments: {
@@ -670,16 +629,15 @@ export const FLAG_DEFINITIONS: Record<FlagKey, FlagDefinition> = {
       staging: false,
       production: false,
     },
-    dependencies: ["enable_wizard_step_general"],
+    dependencies: ['enable_wizard_step_general'],
     expiresAt: null,
-    aliases: ["ENABLE_WIZARD_STEP_SIZING", "ENABLE_WIZARD_STEP_SECTORS"],
-
+    aliases: ['ENABLE_WIZARD_STEP_SIZING', 'ENABLE_WIZARD_STEP_SECTORS'],
   },
-  'enable_wizard_step_pacing': {
+  enable_wizard_step_pacing: {
     default: false,
-    description: "Wizard Step 3: Pacing and deployment",
-    owner: "gp-team",
-    risk: "low",
+    description: 'Wizard Step 3: Pacing and deployment',
+    owner: 'gp-team',
+    risk: 'low',
     exposeToClient: true,
 
     environments: {
@@ -687,16 +645,15 @@ export const FLAG_DEFINITIONS: Record<FlagKey, FlagDefinition> = {
       staging: false,
       production: false,
     },
-    dependencies: ["enable_wizard_step_sizing"],
+    dependencies: ['enable_wizard_step_sizing'],
     expiresAt: null,
-    aliases: ["ENABLE_WIZARD_STEP_PACING"],
-
+    aliases: ['ENABLE_WIZARD_STEP_PACING'],
   },
-  'enable_wizard_step_reserves': {
+  enable_wizard_step_reserves: {
     default: false,
-    description: "Wizard Step 4: Reserve allocation",
-    owner: "gp-team",
-    risk: "medium",
+    description: 'Wizard Step 4: Reserve allocation',
+    owner: 'gp-team',
+    risk: 'medium',
     exposeToClient: true,
 
     environments: {
@@ -704,16 +661,15 @@ export const FLAG_DEFINITIONS: Record<FlagKey, FlagDefinition> = {
       staging: false,
       production: false,
     },
-    dependencies: ["enable_wizard_step_pacing"],
+    dependencies: ['enable_wizard_step_pacing'],
     expiresAt: null,
-    aliases: ["ENABLE_WIZARD_STEP_RESERVES", "ENABLE_WIZARD_STEP_ALLOCATIONS"],
-
+    aliases: ['ENABLE_WIZARD_STEP_RESERVES', 'ENABLE_WIZARD_STEP_ALLOCATIONS'],
   },
-  'enable_wizard_step_fees': {
+  enable_wizard_step_fees: {
     default: false,
-    description: "Wizard Step 5: Fee structure",
-    owner: "gp-team",
-    risk: "medium",
+    description: 'Wizard Step 5: Fee structure',
+    owner: 'gp-team',
+    risk: 'medium',
     exposeToClient: true,
 
     environments: {
@@ -721,16 +677,15 @@ export const FLAG_DEFINITIONS: Record<FlagKey, FlagDefinition> = {
       staging: false,
       production: false,
     },
-    dependencies: ["enable_wizard_step_reserves"],
+    dependencies: ['enable_wizard_step_reserves'],
     expiresAt: null,
-    aliases: ["ENABLE_WIZARD_STEP_FEES"],
-
+    aliases: ['ENABLE_WIZARD_STEP_FEES'],
   },
-  'enable_wizard_step_recycling': {
+  enable_wizard_step_recycling: {
     default: false,
-    description: "Wizard Step 5: Exit Recycling.",
-    owner: "gp-team",
-    risk: "low",
+    description: 'Wizard Step 5: Exit Recycling.',
+    owner: 'gp-team',
+    risk: 'low',
     exposeToClient: true,
 
     environments: {
@@ -738,16 +693,14 @@ export const FLAG_DEFINITIONS: Record<FlagKey, FlagDefinition> = {
       staging: false,
       production: false,
     },
-    dependencies: ["enable_wizard_step_fees"],
+    dependencies: ['enable_wizard_step_fees'],
     expiresAt: null,
-
-
   },
-  'enable_wizard_step_waterfall': {
+  enable_wizard_step_waterfall: {
     default: false,
-    description: "Wizard Step 6: Waterfall distribution",
-    owner: "gp-team",
-    risk: "medium",
+    description: 'Wizard Step 6: Waterfall distribution',
+    owner: 'gp-team',
+    risk: 'medium',
     exposeToClient: true,
 
     environments: {
@@ -755,16 +708,15 @@ export const FLAG_DEFINITIONS: Record<FlagKey, FlagDefinition> = {
       staging: false,
       production: false,
     },
-    dependencies: ["enable_wizard_step_fees"],
+    dependencies: ['enable_wizard_step_fees'],
     expiresAt: null,
-    aliases: ["ENABLE_WIZARD_STEP_WATERFALL", "ENABLE_WIZARD_STEP_RECYCLING"],
-
+    aliases: ['ENABLE_WIZARD_STEP_WATERFALL', 'ENABLE_WIZARD_STEP_RECYCLING'],
   },
-  'enable_wizard_step_results': {
+  enable_wizard_step_results: {
     default: false,
-    description: "Wizard Step 7: Results summary",
-    owner: "gp-team",
-    risk: "low",
+    description: 'Wizard Step 7: Results summary',
+    owner: 'gp-team',
+    risk: 'low',
     exposeToClient: true,
 
     environments: {
@@ -772,10 +724,9 @@ export const FLAG_DEFINITIONS: Record<FlagKey, FlagDefinition> = {
       staging: false,
       production: false,
     },
-    dependencies: ["enable_wizard_step_waterfall"],
+    dependencies: ['enable_wizard_step_waterfall'],
     expiresAt: null,
-    aliases: ["ENABLE_WIZARD_STEP_RESULTS"],
-
+    aliases: ['ENABLE_WIZARD_STEP_RESULTS'],
   },
 };
 
@@ -783,51 +734,52 @@ export const FLAG_DEFINITIONS: Record<FlagKey, FlagDefinition> = {
  * Default flag values (from registry)
  */
 export const FLAG_DEFAULTS: FlagRecord = {
-  'enable_new_ia': false,
-  'enable_kpi_selectors': false,
-  'enable_brand_tokens': false,
-  'enable_cap_table_tabs': false,
-  'enable_modeling_wizard': false,
-  'enable_operations_hub': false,
-  'enable_investment_rounds': false,
-  'enable_lp_reporting': false,
-  'enable_lp_snapshot_mode': false,
-  'enable_reserve_engine': false,
-  'enable_portfolio_table_v2': false,
-  'enable_engine_integration': false,
-  'enable_gp_economics_engine': false,
-  'ts_reserves': true,
-  'wasm_reserves': false,
-  'shadow_compare': false,
-  'reserves_v11': true,
-  'remain_pass': true,
-  'stage_based_caps': true,
-  'export_async': true,
-  'metrics_collection': true,
-  'enable_pipeline_bulk_actions': false,
-  'enable_pipeline_dnd': false,
-  'enable_work_panel': false,
-  'enable_context_rail': false,
-  'enable_cash_event_object': false,
-  'enable_cash_event_edit': false,
-  'enable_route_redirects': false,
-  'enable_observability': false,
-  'ui_catalog': false,
-  'onboarding_tour': false,
-  'demo_mode': false,
-  'require_auth': false,
-  'enable_portfolio_intelligence': false,
-  'enable_faults': false,
-  'enable_wizard_step_general': false,
-  'enable_wizard_step_sectors': false,
-  'enable_wizard_step_allocations': false,
-  'enable_wizard_step_sizing': false,
-  'enable_wizard_step_pacing': false,
-  'enable_wizard_step_reserves': false,
-  'enable_wizard_step_fees': false,
-  'enable_wizard_step_recycling': false,
-  'enable_wizard_step_waterfall': false,
-  'enable_wizard_step_results': false,
+  enable_new_ia: false,
+  enable_kpi_selectors: false,
+  enable_brand_tokens: false,
+  enable_cap_table_tabs: false,
+  enable_modeling_wizard: false,
+  enable_operations_hub: false,
+  enable_investment_rounds: false,
+  enable_lp_reporting: false,
+  enable_lp_snapshot_mode: false,
+  enable_planning_fmv_overrides: false,
+  enable_reserve_engine: false,
+  enable_portfolio_table_v2: false,
+  enable_engine_integration: false,
+  enable_gp_economics_engine: false,
+  ts_reserves: true,
+  wasm_reserves: false,
+  shadow_compare: false,
+  reserves_v11: true,
+  remain_pass: true,
+  stage_based_caps: true,
+  export_async: true,
+  metrics_collection: true,
+  enable_pipeline_bulk_actions: false,
+  enable_pipeline_dnd: false,
+  enable_work_panel: false,
+  enable_context_rail: false,
+  enable_cash_event_object: false,
+  enable_cash_event_edit: false,
+  enable_route_redirects: false,
+  enable_observability: false,
+  ui_catalog: false,
+  onboarding_tour: false,
+  demo_mode: false,
+  require_auth: false,
+  enable_portfolio_intelligence: false,
+  enable_faults: false,
+  enable_wizard_step_general: false,
+  enable_wizard_step_sectors: false,
+  enable_wizard_step_allocations: false,
+  enable_wizard_step_sizing: false,
+  enable_wizard_step_pacing: false,
+  enable_wizard_step_reserves: false,
+  enable_wizard_step_fees: false,
+  enable_wizard_step_recycling: false,
+  enable_wizard_step_waterfall: false,
+  enable_wizard_step_results: false,
 };
 
 /**
@@ -893,27 +845,27 @@ export function resolveFlagWithDependencies(
  * Legacy alias mapping (for migration)
  */
 export const FLAG_ALIASES: Record<string, FlagKey> = {
-  'NEW_IA': 'enable_new_ia',
-  'new_ia': 'enable_new_ia',
-  'ENABLE_SELECTOR_KPIS': 'enable_kpi_selectors',
-  'ENABLE_MODELING_WIZARD': 'enable_modeling_wizard',
-  'ENABLE_OPERATIONS_HUB': 'enable_operations_hub',
-  'ENABLE_LP_REPORTING': 'enable_lp_reporting',
-  'ENABLE_ENGINE_INTEGRATION': 'enable_engine_integration',
-  'ENABLE_GP_ECONOMICS_ENGINE': 'enable_gp_economics_engine',
-  'UI_CATALOG': 'ui_catalog',
-  'ONBOARDING_TOUR': 'onboarding_tour',
-  'ENABLE_PORTFOLIO_INTELLIGENCE': 'enable_portfolio_intelligence',
-  'ENABLE_WIZARD_STEP_GENERAL': 'enable_wizard_step_general',
-  'ENABLE_WIZARD_STEP_SIZING': 'enable_wizard_step_sizing',
-  'ENABLE_WIZARD_STEP_SECTORS': 'enable_wizard_step_sizing',
-  'ENABLE_WIZARD_STEP_PACING': 'enable_wizard_step_pacing',
-  'ENABLE_WIZARD_STEP_RESERVES': 'enable_wizard_step_reserves',
-  'ENABLE_WIZARD_STEP_ALLOCATIONS': 'enable_wizard_step_reserves',
-  'ENABLE_WIZARD_STEP_FEES': 'enable_wizard_step_fees',
-  'ENABLE_WIZARD_STEP_WATERFALL': 'enable_wizard_step_waterfall',
-  'ENABLE_WIZARD_STEP_RECYCLING': 'enable_wizard_step_waterfall',
-  'ENABLE_WIZARD_STEP_RESULTS': 'enable_wizard_step_results',
+  NEW_IA: 'enable_new_ia',
+  new_ia: 'enable_new_ia',
+  ENABLE_SELECTOR_KPIS: 'enable_kpi_selectors',
+  ENABLE_MODELING_WIZARD: 'enable_modeling_wizard',
+  ENABLE_OPERATIONS_HUB: 'enable_operations_hub',
+  ENABLE_LP_REPORTING: 'enable_lp_reporting',
+  ENABLE_ENGINE_INTEGRATION: 'enable_engine_integration',
+  ENABLE_GP_ECONOMICS_ENGINE: 'enable_gp_economics_engine',
+  UI_CATALOG: 'ui_catalog',
+  ONBOARDING_TOUR: 'onboarding_tour',
+  ENABLE_PORTFOLIO_INTELLIGENCE: 'enable_portfolio_intelligence',
+  ENABLE_WIZARD_STEP_GENERAL: 'enable_wizard_step_general',
+  ENABLE_WIZARD_STEP_SIZING: 'enable_wizard_step_sizing',
+  ENABLE_WIZARD_STEP_SECTORS: 'enable_wizard_step_sizing',
+  ENABLE_WIZARD_STEP_PACING: 'enable_wizard_step_pacing',
+  ENABLE_WIZARD_STEP_RESERVES: 'enable_wizard_step_reserves',
+  ENABLE_WIZARD_STEP_ALLOCATIONS: 'enable_wizard_step_reserves',
+  ENABLE_WIZARD_STEP_FEES: 'enable_wizard_step_fees',
+  ENABLE_WIZARD_STEP_WATERFALL: 'enable_wizard_step_waterfall',
+  ENABLE_WIZARD_STEP_RECYCLING: 'enable_wizard_step_waterfall',
+  ENABLE_WIZARD_STEP_RESULTS: 'enable_wizard_step_results',
 };
 
 /**

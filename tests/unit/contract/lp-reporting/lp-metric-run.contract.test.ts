@@ -116,6 +116,31 @@ describe('Metric-run dry-run and commit endpoint contracts', () => {
 
     expect(parsed.sourceEventIds).toEqual([2, 1]);
     expect(parsed.sourceMarkIds).toEqual([10]);
+    expect(parsed.sourceMarkSelection).toBe('explicit');
+  });
+
+  it('accepts active_as_of only when sourceMarkIds is empty', () => {
+    const parsed = MetricRunDryRunRequestSchema.parse({
+      asOfDate: '2026-03-31',
+      runType: 'quarterly_report',
+      perspective: 'lp_net',
+      sourceMarkSelection: 'active_as_of',
+    });
+
+    expect(parsed.sourceMarkSelection).toBe('active_as_of');
+    expect(parsed.sourceMarkIds).toEqual([]);
+  });
+
+  it('rejects active_as_of with explicit sourceMarkIds', () => {
+    expect(() =>
+      MetricRunDryRunRequestSchema.parse({
+        asOfDate: '2026-03-31',
+        runType: 'quarterly_report',
+        perspective: 'lp_net',
+        sourceMarkSelection: 'active_as_of',
+        sourceMarkIds: [10],
+      })
+    ).toThrow(/sourceMarkIds must be empty/);
   });
 
   it('dry-run response wrapper requires results, diagnostics, inputsHash, runType, and previewHash', () => {

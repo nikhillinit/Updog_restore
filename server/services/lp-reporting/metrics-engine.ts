@@ -25,6 +25,7 @@ import type {
   XirrDiagnostic,
 } from '@shared/contracts/lp-reporting';
 
+import { isoDay, selectActiveValuationMarks } from './active-valuation-mark-selector';
 import { xirrDiagnostic } from './xirr-diagnostic-service';
 
 const ENGINE_VERSION = '1.0.0';
@@ -104,23 +105,12 @@ export interface ComputeMetricsOutput {
 // ============================================================================
 
 const REVERSED_EVENT_STATUS = new Set<EventStatus>(['reversed']);
-const EXCLUDED_MARK_STATUS = new Set<MarkStatus>(['superseded', 'reversed']);
-
 /**
  * Render a Decimal as a fixed-precision decimal string at engine precision
  * (6 dp).  Mirrors the toFixed(6) calls used in import-reconciliation-service.
  */
 function decToString(value: Decimal): string {
   return value.toFixed(DECIMAL_PRECISION);
-}
-
-/**
- * Calendar-day comparison.  All event/mark dates in this engine are
- * compared as ISO date strings (YYYY-MM-DD), which is lexicographically
- * date-ordered.  We slice to 10 chars to be tolerant of full ISO datetimes.
- */
-function isoDay(value: string): string {
-  return value.slice(0, 10);
 }
 
 function isLiveEvent(event: ParsedCashFlowEvent): boolean {
@@ -147,56 +137,6 @@ function sumAmountsByType(
   return events
     .filter((e) => isLiveEvent(e) && types.has(e.eventType))
     .reduce((acc, e) => acc.plus(new Decimal(e.amount).abs()), new Decimal(0));
-}
-
-/**
- * Select the marks that contribute to currentNav at asOfDate:
- *   - markDate <= asOfDate (future-dated marks excluded)
- *   - status NOT IN (superseded, reversed)
- *   - one mark per company (or per mark id when companyId is absent);
- *     pick the most recent markDate <= asOfDate.
- *
- * Returns { active: chosen marks, excludedFutureMarkIds }.
- */
-function selectActiveMarks(
-  marks: ParsedValuationMark[],
-  asOfDate: string
-): {
-  active: ParsedValuationMark[];
-  excludedFutureMarkIds: number[];
-} {
-  const asOfDay = isoDay(asOfDate);
-  const excludedFutureMarkIds: number[] = [];
-
-  // Step 1: drop future-dated marks (regardless of status).  They are
-  // surfaced in diagnostics so reviewers can see them.
-  const onOrBefore: ParsedValuationMark[] = [];
-  for (const m of marks) {
-    if (isoDay(m.markDate) > asOfDay) {
-      excludedFutureMarkIds.push(m.id);
-    } else {
-      onOrBefore.push(m);
-    }
-  }
-
-  // Step 2: drop marks whose status excludes them from the live set.
-  const live = onOrBefore.filter((m) => !(m.status && EXCLUDED_MARK_STATUS.has(m.status)));
-
-  // Step 3: deduplicate by companyId (or by id when companyId is absent),
-  // keeping the most recent markDate.
-  const byKey = new Map<string, ParsedValuationMark>();
-  for (const m of live) {
-    const key = m.companyId !== undefined ? `c:${m.companyId}` : `m:${m.id}`;
-    const existing = byKey.get(key);
-    if (!existing || isoDay(m.markDate) > isoDay(existing.markDate)) {
-      byKey.set(key, m);
-    }
-  }
-
-  return {
-    active: Array.from(byKey.values()),
-    excludedFutureMarkIds,
-  };
 }
 
 function tallyConfidence(activeMarks: ParsedValuationMark[]): MarkConfidenceMix {
@@ -357,7 +297,10 @@ export function computeMetrics(input: ComputeMetricsInput): ComputeMetricsOutput
   );
 
   // ---- NAV (active marks at asOfDate) ----
-  const { active, excludedFutureMarkIds } = selectActiveMarks(input.valuationMarks, input.asOfDate);
+  const { active, excludedFutureMarkIds } = selectActiveValuationMarks(
+    input.valuationMarks,
+    input.asOfDate
+  );
   const currentNav = active.reduce((acc, m) => acc.plus(new Decimal(m.fairValue)), new Decimal(0));
   const markConfidenceMix = tallyConfidence(active);
 
