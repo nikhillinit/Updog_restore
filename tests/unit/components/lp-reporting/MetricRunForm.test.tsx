@@ -5,7 +5,7 @@
  *   - zodResolver rejects malformed asOfDate strings
  *   - default asOfDate is today's UTC date (TZ=UTC tests)
  *   - submitting fires `useMetricsDryRun.mutateAsync` with
- *     `{ asOfDate, runType, perspective, sourceEventIds, sourceMarkIds }`
+ *     `{ asOfDate, runType, perspective, sourceEventIds, sourceMarkIds, sourceMarkSelection }`
  *   - on success the parent's `onSuccess` callback receives the
  *     parsed metric-run dry-run envelope and original request
  *   - on 401 the parent's `onError` callback receives the typed error
@@ -202,6 +202,7 @@ describe('MetricRunForm', () => {
       perspective: 'fund_gross',
       sourceEventIds: [],
       sourceMarkIds: [],
+      sourceMarkSelection: 'explicit',
     });
 
     const passed = onSuccess.mock.calls[0]![0] as MetricRunDryRunResponse;
@@ -212,6 +213,7 @@ describe('MetricRunForm', () => {
       asOfDate: '2026-03-31',
       runType: 'quarterly_report',
       perspective: 'fund_gross',
+      sourceMarkSelection: 'explicit',
     });
   });
 

@@ -35,6 +35,7 @@ const C1_MOUNTED_TABLES = [
   'narrative_runs',
   'lp_report_packages',
   'lp_report_package_exports',
+  'planning_fmv_override_requests',
 ] as const;
 const SHAPE_ONLY_NOT_JOURNALED = [
   'investment_rounds',
@@ -259,7 +260,11 @@ function compareForeignKeyShapes(
 
 type ShapeDiagnosticValue = ColumnShape | ConstraintShape | IndexShape | string | null;
 
-function foreignKeyShapeValue(catalog: CatalogSnapshot, tableName: string, shapeName: string): string | null {
+function foreignKeyShapeValue(
+  catalog: CatalogSnapshot,
+  tableName: string,
+  shapeName: string
+): string | null {
   const signatures = catalog.foreignKeysByTable.get(tableName);
   if (signatures?.has(shapeName)) {
     return shapeName;
@@ -667,7 +672,7 @@ describe.skipIf(skipIfNoDocker)('prod schema synthetic clone', () => {
       )
       .map(pgIdentifier);
 
-    expect(expectedTables).toHaveLength(16);
+    expect([...expectedTables].sort()).toEqual([...C1_MOUNTED_TABLES].sort());
 
     const migratedTables = await publicTables(pool!, expectedTables);
     const migratedConstraints = await publicConstraints(pool!, expectedConstraints);

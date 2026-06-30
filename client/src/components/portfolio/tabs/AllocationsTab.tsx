@@ -21,8 +21,9 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
 import { useFundContext } from '@/contexts/FundContext';
+import { useFlag } from '@/shared/useFlags';
 import { format } from 'date-fns';
-import { AlertCircle, ArrowLeft, Plus, RefreshCw, Save, Search } from 'lucide-react';
+import { AlertCircle, ArrowLeft, Banknote, Plus, RefreshCw, Save, Search } from 'lucide-react';
 import { useLatestAllocations } from './hooks/useLatestAllocations';
 import {
   useAllocationScenarioApplyPreview,
@@ -39,10 +40,12 @@ import {
 import { useReserveIcPacketEvidence } from './hooks/useReserveIcPacketEvidence';
 import { AddCompanyDialog } from './AddCompanyDialog';
 import { EditAllocationDialog } from './EditAllocationDialog';
+import { FmvOverrideDialog } from './FmvOverrideDialog';
 import { ReserveIcPacketCard } from './ReserveIcPacketCard';
-import { createAllocationsColumns } from './allocations-table-columns';
+import { createAllocationsColumns, type ColumnDef } from './allocations-table-columns';
 import { formatCents } from '@/lib/units';
 import { buildReserveIcPacket } from './reserve-ic-packet';
+import { useLatestPlanningFmvOverrides } from './hooks/usePlanningFmvOverrides';
 import type {
   AllocationCompany,
   AllocationScenarioCollaborationContext,
@@ -55,6 +58,7 @@ import type {
   CreateAllocationScenarioPayload,
   UpdateAllocationPayload,
 } from './types';
+import type { PlanningFmvOverrideRecord } from '@shared/contracts/lp-reporting';
 
 const EMPTY_RESERVE_IC_DECISIONS: ReserveIcDecision[] = [];
 
@@ -175,6 +179,23 @@ function formatDeltaLabel(value: number) {
 
   const absoluteValue = formatCents(Math.abs(value), { compact: true });
   return `${value > 0 ? '+' : '-'}${absoluteValue}`;
+}
+
+function formatPlanningFmvValue(value: string | null | undefined): string {
+  if (!value) {
+    return 'No approved mark';
+  }
+
+  const numeric = Number(value);
+  if (!Number.isFinite(numeric)) {
+    return value;
+  }
+
+  return new Intl.NumberFormat('en-US', {
+    style: 'currency',
+    currency: 'USD',
+    maximumFractionDigits: 0,
+  }).format(numeric);
 }
 
 function formatAppliedStatusLabel(
@@ -318,6 +339,7 @@ function CollaborationContextEventCard({
 export function AllocationsTab() {
   const { toast } = useToast();
   const { fundId } = useFundContext();
+  const planningFmvEnabled = useFlag('enable_planning_fmv_overrides');
   const { data, isLoading, error, refetch } = useLatestAllocations();
   const {
     data: scenarioListData,
@@ -325,7 +347,9 @@ export function AllocationsTab() {
     error: scenarioListError,
   } = useAllocationScenarioList();
   const [selectedCompanyId, setSelectedCompanyId] = useState<number | null>(null);
+  const [selectedFmvCompanyId, setSelectedFmvCompanyId] = useState<number | null>(null);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [isFmvDialogOpen, setIsFmvDialogOpen] = useState(false);
   const [isAddCompanyDialogOpen, setIsAddCompanyDialogOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [sectorFilter, setSectorFilter] = useState<string>('all');
@@ -365,6 +389,7 @@ export function AllocationsTab() {
   const syncScenarioMutation = useSyncAllocationScenario(activeScenarioId);
   const applyScenarioMutation = useApplyAllocationScenario(activeScenarioId);
   const { publishedResultsQuery, comparisonQuery } = useReserveIcPacketEvidence(!!activeScenarioId);
+  const latestPlanningFmvQuery = useLatestPlanningFmvOverrides({ enabled: planningFmvEnabled });
 
   const liveCompanies = useMemo(() => data?.companies ?? [], [data?.companies]);
   const displayedCompanies = workspaceCompanies.length > 0 ? workspaceCompanies : liveCompanies;
@@ -445,6 +470,20 @@ export function AllocationsTab() {
     [displayedCompanies, selectedCompanyId]
   );
 
+  const planningFmvByCompanyId = useMemo(() => {
+    const marks = latestPlanningFmvQuery.data?.marks ?? [];
+    return new Map<number, PlanningFmvOverrideRecord>(marks.map((mark) => [mark.companyId, mark]));
+  }, [latestPlanningFmvQuery.data?.marks]);
+
+  const selectedFmvCompany = useMemo(
+    () => displayedCompanies.find((company) => company.company_id === selectedFmvCompanyId) ?? null,
+    [displayedCompanies, selectedFmvCompanyId]
+  );
+
+  const selectedFmvMark = selectedFmvCompany
+    ? (planningFmvByCompanyId.get(selectedFmvCompany.company_id) ?? null)
+    : null;
+
   const selectedDecisionCompany = useMemo(
     () =>
       displayedCompanies.find((company) => company.company_id === selectedDecisionCompanyId) ??
@@ -490,6 +529,11 @@ export function AllocationsTab() {
     setIsEditDialogOpen(true);
   }, []);
 
+  const handleFmvOverride = useCallback((company: AllocationCompany) => {
+    setSelectedFmvCompanyId(company.company_id);
+    setIsFmvDialogOpen(true);
+  }, []);
+
   const handleScenarioWorkspaceSave = useCallback((update: UpdateAllocationPayload) => {
     setWorkspaceCompanies((current) =>
       current.map((company) =>
@@ -506,7 +550,47 @@ export function AllocationsTab() {
     setWorkspaceDirty(true);
   }, []);
 
-  const columns = useMemo(() => createAllocationsColumns(handleEdit), [handleEdit]);
+  const columns = useMemo(() => {
+    const baseColumns = createAllocationsColumns(handleEdit);
+    if (!planningFmvEnabled) {
+      return baseColumns;
+    }
+
+    const currentFmvColumn: ColumnDef<AllocationCompany> = {
+      id: 'current_fmv',
+      header: 'Current FMV',
+      cell: ({ row }) => {
+        const mark = planningFmvByCompanyId.get(row.original.company_id);
+        return (
+          <div className="min-w-[150px] space-y-2">
+            <div>
+              <div className="text-right font-medium text-pov-charcoal">
+                {formatPlanningFmvValue(mark?.fairValue)}
+              </div>
+              <div className="text-right text-xs text-charcoal-500">
+                {mark?.markDate ?? 'No mark date'}
+              </div>
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-8 w-full"
+              onClick={() => handleFmvOverride(row.original)}
+            >
+              <Banknote className="mr-1 h-4 w-4" />
+              Save approved mark
+            </Button>
+          </div>
+        );
+      },
+    };
+
+    const actionColumn = baseColumns.at(-1);
+    const leadingColumns = actionColumn ? baseColumns.slice(0, -1) : baseColumns;
+    return actionColumn
+      ? [...leadingColumns, currentFmvColumn, actionColumn]
+      : [...leadingColumns, currentFmvColumn];
+  }, [handleEdit, handleFmvOverride, planningFmvByCompanyId, planningFmvEnabled]);
 
   const reservePlanCount = useMemo(
     () => displayedCompanies.filter((company) => company.planned_reserves_cents > 0).length,
@@ -643,6 +727,7 @@ export function AllocationsTab() {
     setScenarioActionNote('');
     setApplyPreview(null);
     setSelectedCompanyId(null);
+    setSelectedFmvCompanyId(null);
   }, [liveCompanies]);
 
   const handleResumeScenario = useCallback((scenarioId: string) => {
@@ -652,6 +737,7 @@ export function AllocationsTab() {
     setScenarioActionNote('');
     setApplyPreview(null);
     setSelectedCompanyId(null);
+    setSelectedFmvCompanyId(null);
   }, []);
 
   const buildScenarioPayload = useCallback((): CreateAllocationScenarioPayload => {
@@ -1816,6 +1902,17 @@ export function AllocationsTab() {
         </div>
       ) : null}
 
+      {planningFmvEnabled && latestPlanningFmvQuery.error ? (
+        <Alert variant="destructive">
+          <AlertCircle className="h-4 w-4" />
+          <AlertDescription>
+            {latestPlanningFmvQuery.error instanceof Error
+              ? latestPlanningFmvQuery.error.message
+              : 'Failed to load Planning FMV marks'}
+          </AlertDescription>
+        </Alert>
+      ) : null}
+
       <Card>
         <CardContent className="p-0">
           <Table>
@@ -1866,6 +1963,13 @@ export function AllocationsTab() {
         onOpenChange={setIsEditDialogOpen}
         mode={activeScenarioId ? 'scenario' : 'live'}
         onSaveScenarioDraft={handleScenarioWorkspaceSave}
+      />
+      <FmvOverrideDialog
+        company={selectedFmvCompany}
+        currentMark={selectedFmvMark}
+        open={isFmvDialogOpen}
+        onOpenChange={setIsFmvDialogOpen}
+        scenarioActive={!!activeScenarioId}
       />
     </div>
   );

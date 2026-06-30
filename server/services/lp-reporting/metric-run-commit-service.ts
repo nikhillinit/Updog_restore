@@ -11,6 +11,7 @@ import { createHash } from 'node:crypto';
 import { and, eq, inArray } from 'drizzle-orm';
 
 import { db } from '../../db';
+import { logger } from '../../lib/logger';
 import {
   LpMetricRunCreateSchema,
   type LpMetricRunDiagnostics,
@@ -19,6 +20,7 @@ import {
   type LpMetricRunType,
   type MetricRunCommitResponse,
   type MetricRunDryRunResponse,
+  type MetricRunSourceMarkSelection,
 } from '@shared/contracts/lp-reporting';
 import {
   cashFlowEvents,
@@ -41,8 +43,11 @@ import {
   type ParsedCashFlowEvent,
   type ParsedValuationMark,
 } from './metrics-engine';
+import { selectActiveValuationMarks } from './active-valuation-mark-selector';
 
 type MetricRunDatabase = typeof db;
+
+const log = logger.child({ module: 'lp-reporting:metric-run-commit' });
 
 export class MetricRunCommitError extends Error {
   readonly status: number;
@@ -65,6 +70,7 @@ export interface MetricRunRequestInput {
   perspective: LpMetricRunPerspective;
   sourceEventIds?: number[];
   sourceMarkIds?: number[];
+  sourceMarkSelection?: MetricRunSourceMarkSelection;
 }
 
 export interface MetricRunCommitInput extends MetricRunRequestInput {
@@ -79,6 +85,7 @@ interface MetricRunServiceOptions {
 interface MetricRunSources {
   eventRows: CashFlowEvent[];
   markRows: ValuationMark[];
+  sourceMarkIds: number[];
 }
 
 interface MetricRunPreviewParts {
@@ -86,6 +93,7 @@ interface MetricRunPreviewParts {
   asOfDate: string;
   runType: LpMetricRunType;
   perspective: LpMetricRunPerspective;
+  sourceMarkSelection: MetricRunSourceMarkSelection;
   sourceEventIds: number[];
   sourceMarkIds: number[];
   eventRows: CashFlowEvent[];
@@ -93,6 +101,7 @@ interface MetricRunPreviewParts {
   results: LpMetricRunResults;
   diagnostics: LpMetricRunDiagnostics;
   inputsHash: string;
+  previewHash: string;
 }
 
 const METHODOLOGY_VERSION = 'lp-reporting-methodology-v1';
@@ -152,6 +161,16 @@ function assertAllRequestedRowsFound(
   const missing = requestedIds.filter((id) => !found.has(id));
   if (missing.length > 0) {
     throw new MetricRunCommitError(404, code, message, { ids: missing });
+  }
+}
+
+function assertActiveAsOfRequestIsImplicit(sourceMarkIds: number[]): void {
+  if (sourceMarkIds.length > 0) {
+    throw new MetricRunCommitError(
+      400,
+      'ACTIVE_AS_OF_SOURCE_MARK_IDS_NOT_ALLOWED',
+      'sourceMarkIds must be empty when sourceMarkSelection is active_as_of.'
+    );
   }
 }
 
@@ -234,6 +253,7 @@ function computePreviewHash(parts: MetricRunPreviewParts): string {
     asOfDate: parts.asOfDate,
     runType: parts.runType,
     perspective: parts.perspective,
+    sourceMarkSelection: parts.sourceMarkSelection,
     sourceEventIds: parts.sourceEventIds,
     sourceMarkIds: parts.sourceMarkIds,
     eventFingerprints: parts.eventRows
@@ -275,15 +295,44 @@ function toParsedValuationMark(row: ValuationMark): ParsedValuationMark {
 async function loadSources(
   database: MetricRunDatabase,
   fundId: number,
+  asOfDate: string,
   sourceEventIds: number[],
-  sourceMarkIds: number[]
+  requestedSourceMarkIds: number[],
+  sourceMarkSelection: MetricRunSourceMarkSelection
 ): Promise<MetricRunSources> {
   const eventRows = sourceEventIds.length
     ? await database.select().from(cashFlowEvents).where(inArray(cashFlowEvents.id, sourceEventIds))
     : [];
-  const markRows = sourceMarkIds.length
-    ? await database.select().from(valuationMarks).where(inArray(valuationMarks.id, sourceMarkIds))
-    : [];
+  let markRows: ValuationMark[] = [];
+  let sourceMarkIds = requestedSourceMarkIds;
+
+  if (sourceMarkSelection === 'explicit') {
+    markRows = requestedSourceMarkIds.length
+      ? await database
+          .select()
+          .from(valuationMarks)
+          .where(inArray(valuationMarks.id, requestedSourceMarkIds))
+      : [];
+  } else {
+    assertActiveAsOfRequestIsImplicit(requestedSourceMarkIds);
+    const candidateRows = await database
+      .select()
+      .from(valuationMarks)
+      .where(eq(valuationMarks.fundId, fundId));
+    const fundRows = candidateRows.filter((row) => row.fundId === fundId);
+    const selection = selectActiveValuationMarks(fundRows.map(toParsedValuationMark), asOfDate);
+    sourceMarkIds = uniqueSorted(selection.active.map((mark) => mark.id));
+    markRows = fundRows;
+    log.info(
+      {
+        fundId,
+        asOfDate,
+        sourceMarkIds,
+        excludedFutureMarkIds: selection.excludedFutureMarkIds,
+      },
+      'lp_reporting.metric_run.active_as_of_selection'
+    );
+  }
 
   assertAllRequestedRowsFound(
     sourceEventIds,
@@ -291,16 +340,18 @@ async function loadSources(
     'SOURCE_EVENT_NOT_FOUND',
     'One or more source event IDs were not found.'
   );
-  assertAllRequestedRowsFound(
-    sourceMarkIds,
-    markRows.map((row) => row.id),
-    'SOURCE_MARK_NOT_FOUND',
-    'One or more source mark IDs were not found.'
-  );
+  if (sourceMarkSelection === 'explicit') {
+    assertAllRequestedRowsFound(
+      requestedSourceMarkIds,
+      markRows.map((row) => row.id),
+      'SOURCE_MARK_NOT_FOUND',
+      'One or more source mark IDs were not found.'
+    );
+  }
   assertRowsBelongToFund(fundId, eventRows, markRows);
   assertRealizedProceedsValid(eventRows);
 
-  return { eventRows, markRows };
+  return { eventRows, markRows, sourceMarkIds };
 }
 
 async function assertUserExists(database: MetricRunDatabase, userId: number): Promise<void> {
@@ -345,7 +396,7 @@ async function findExistingMetricRun(
 
 function metricRunInsertValues(
   input: MetricRunCommitInput,
-  preview: MetricRunDryRunResponse
+  preview: MetricRunPreviewParts
 ): InsertLpMetricRun {
   const create = LpMetricRunCreateSchema.parse({
     fundId: input.fundId,
@@ -355,7 +406,7 @@ function metricRunInsertValues(
     status: 'draft',
     inputsHash: preview.inputsHash,
     sourceEventIds: uniqueSorted(input.sourceEventIds),
-    sourceMarkIds: uniqueSorted(input.sourceMarkIds),
+    sourceMarkIds: preview.sourceMarkIds,
     sourceEvidenceIds: [],
     methodologyVersion: METHODOLOGY_VERSION,
     calculationVersion: CALCULATION_VERSION,
@@ -382,19 +433,22 @@ function metricRunInsertValues(
   };
 }
 
-export async function buildMetricRunDryRun(
+async function buildMetricRunPreviewParts(
   input: MetricRunRequestInput,
   options: MetricRunServiceOptions = {}
-): Promise<MetricRunDryRunResponse> {
+): Promise<MetricRunPreviewParts> {
   const database = options.database ?? db;
   assertSupportedPerspective(input.perspective);
   const sourceEventIds = uniqueSorted(input.sourceEventIds);
-  const sourceMarkIds = uniqueSorted(input.sourceMarkIds);
-  const { eventRows, markRows } = await loadSources(
+  const requestedSourceMarkIds = uniqueSorted(input.sourceMarkIds);
+  const sourceMarkSelection = input.sourceMarkSelection ?? 'explicit';
+  const { eventRows, markRows, sourceMarkIds } = await loadSources(
     database,
     input.fundId,
+    input.asOfDate,
     sourceEventIds,
-    sourceMarkIds
+    requestedSourceMarkIds,
+    sourceMarkSelection
   );
 
   const computed = computeMetrics({
@@ -404,8 +458,9 @@ export async function buildMetricRunDryRun(
     cashFlowEvents: eventRows.map(toParsedCashFlowEvent),
     valuationMarks: markRows.map(toParsedValuationMark),
   });
-  const previewHash = computePreviewHash({
+  const parts = {
     ...input,
+    sourceMarkSelection,
     sourceEventIds,
     sourceMarkIds,
     eventRows,
@@ -413,14 +468,26 @@ export async function buildMetricRunDryRun(
     results: computed.results,
     diagnostics: computed.diagnostics,
     inputsHash: computed.inputsHash,
-  });
+    previewHash: '',
+  };
 
   return {
-    results: computed.results,
-    diagnostics: computed.diagnostics,
-    inputsHash: computed.inputsHash,
-    runType: input.runType,
-    previewHash,
+    ...parts,
+    previewHash: computePreviewHash(parts),
+  };
+}
+
+export async function buildMetricRunDryRun(
+  input: MetricRunRequestInput,
+  options: MetricRunServiceOptions = {}
+): Promise<MetricRunDryRunResponse> {
+  const preview = await buildMetricRunPreviewParts(input, options);
+  return {
+    results: preview.results,
+    diagnostics: preview.diagnostics,
+    inputsHash: preview.inputsHash,
+    runType: preview.runType,
+    previewHash: preview.previewHash,
   };
 }
 
@@ -429,7 +496,7 @@ export async function commitMetricRun(
   options: MetricRunServiceOptions = {}
 ): Promise<MetricRunCommitResponse> {
   const database = options.database ?? db;
-  const preview = await buildMetricRunDryRun(input, { database });
+  const preview = await buildMetricRunPreviewParts(input, { database });
   if (preview.previewHash !== input.previewHash) {
     throw new MetricRunCommitError(
       409,

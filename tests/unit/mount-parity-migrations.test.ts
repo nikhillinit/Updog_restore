@@ -18,6 +18,7 @@ const C1_MOUNTED_TABLES = [
   'vehicles',
   'cash_flow_events',
   'valuation_marks',
+  'planning_fmv_override_requests',
   'lp_metric_runs',
   'evidence_records',
   'narrative_runs',
@@ -44,6 +45,10 @@ const MAKEAPP_ROUTE_INVENTORY: Record<string, { kind: MountKind; tables?: string
   dualForecastRouter: { kind: 'other-table' },
   allocationsRouter: { kind: 'other-table' },
   allocationScenariosRouter: { kind: 'other-table' },
+  planningFmvOverridesRouter: {
+    kind: 'c1',
+    tables: ['valuation_marks', 'planning_fmv_override_requests'],
+  },
   fundScenarioSetsRouter: { kind: 'other-table' },
   fundMoicRouter: { kind: 'c1', tables: ['fund_calculation_modes', 'reconciliation_runs'] },
   reallocationRouter: { kind: 'other-table' },

@@ -2,7 +2,10 @@
   "name": "M4-lp-reporting",
   "order": 4,
   "description": "LP reporting evidence tables mounted through makeApp LP reporting routes.",
-  "sqlFiles": ["migrations/0014_lp_evidence_sprint3_drift.sql"],
+  "sqlFiles": [
+    "migrations/0014_lp_evidence_sprint3_drift.sql",
+    "migrations/0022_planning_fmv_override_requests_drift.sql"
+  ],
   "allowedCreateTables": [
     "vehicles",
     "cash_flow_events",
@@ -19,7 +22,8 @@
     "lp_distribution_details",
     "lp_documents",
     "lp_notifications",
-    "lp_notification_preferences"
+    "lp_notification_preferences",
+    "planning_fmv_override_requests"
   ],
   "expectedTables": [
     {
@@ -91,6 +95,7 @@
         "idx_valuation_marks_fund_asof",
         "idx_valuation_marks_company_asof",
         "idx_valuation_marks_vehicle_asof",
+        "idx_valuation_marks_planning_active_mark_date",
         "idx_valuation_marks_import_batch",
         "valuation_marks_fund_source_hash_unique"
       ]
@@ -211,6 +216,29 @@
         "idx_lp_report_package_exports_fund_metric",
         "idx_lp_report_package_exports_fund_metric_package",
         "idx_lp_report_package_exports_fund_ready_at"
+      ]
+    },
+    {
+      "name": "planning_fmv_override_requests",
+      "columns": [
+        { "name": "id", "nullable": false },
+        { "name": "fund_id", "nullable": false },
+        { "name": "company_id", "nullable": false },
+        { "name": "idempotency_key", "nullable": false },
+        { "name": "request_hash", "nullable": false },
+        { "name": "source_hash", "nullable": false },
+        { "name": "status", "nullable": false }
+      ],
+      "constraints": [
+        "planning_fmv_override_request_status_check",
+        "planning_fmv_override_requests_idempotency_unique",
+        "planning_fmv_override_requests_fund_id_funds_id_fk",
+        "planning_fmv_override_requests_company_id_portfoliocompanies_id_fk",
+        "planning_fmv_override_requests_valuation_mark_id_valuation_marks_id_fk"
+      ],
+      "indexes": [
+        "idx_planning_fmv_override_requests_fund_company_created",
+        "idx_planning_fmv_override_requests_valuation_mark"
       ]
     }
   ]
