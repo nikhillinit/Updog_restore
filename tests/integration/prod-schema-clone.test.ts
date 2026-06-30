@@ -65,27 +65,22 @@ const EXPECTED_TRIGGERS = [
   'optimization_sessions_updated_at',
 ] as const;
 const KNOWN_INTERSECTION_DRIFT = new Set<string>([
-  'forecast_snapshots|constraint|forecast_snapshots_idem_key_len_check',
-  'forecast_snapshots|index|forecast_snapshots_fund_cursor_idx',
-  'forecast_snapshots|index|forecast_snapshots_fund_idem_key_idx',
+  // Deferred to PR-1/operator (NOT additive journal catch-up): these three are a global->scoped
+  // idempotency rename — journal 0001_certain_miracleman created UNIQUE(idempotency_key) alone;
+  // shared/schema now declares the scoped *_idem_key_idx (added by 0024). Reconciling the old name
+  // means a DROP that implicates prod, so it ships with the FK-name seam in PR-1/operator scope.
   'forecast_snapshots|index|forecast_snapshots_idempotency_unique_idx',
-  'investment_lots|constraint|investment_lots_idem_key_len_check',
-  'investment_lots|index|investment_lots_investment_cursor_idx',
-  'investment_lots|index|investment_lots_investment_idem_key_idx',
   'investment_lots|index|investment_lots_idempotency_unique_idx',
-  'reserve_allocations|constraint|reserve_allocations_idem_key_len_check',
-  'reserve_allocations|index|reserve_allocations_snapshot_cursor_idx',
-  'reserve_allocations|index|reserve_allocations_snapshot_idem_key_idx',
   'reserve_allocations|index|reserve_allocations_idempotency_unique_idx',
+  // §7 (run 28437747790) CONFIRMED these as still-observed = REAL drift, not stale: identical
+  // column set / method / uniqueness by introspection, yet DB-A (journal) != DB-B (shape push)
+  // on some catalog detail the comparator gates (storage param / collation). Deferred to
+  // PR-1/operator; do NOT shrink without a fresh §7 baselineNotObserved signal.
   'reserve_decisions|index|idx_reserve_fund_company',
   'reserve_decisions|index|ux_reserve_unique',
   'fund_snapshots|fk|fund_snapshots_config_id_fundconfigs_id_fk',
   'fund_snapshots|fk|fund_snapshots_run_id_calc_runs_id_fk',
   'job_outbox|constraint|job_outbox_status_check',
-  // version column default drift: journal DEFAULT 1 vs shared/schema DEFAULT 0 (0021 fixed the type, not the default) — deferred to PR-2b re-sync.
-  'forecast_snapshots|column|version',
-  'investment_lots|column|version',
-  'reserve_allocations|column|version',
 ]);
 
 type TableShapeMap<TShape> = Map<string, Map<string, TShape>>;
