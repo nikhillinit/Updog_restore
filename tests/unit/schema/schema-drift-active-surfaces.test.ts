@@ -27,7 +27,7 @@ describe('active schema drift surface manifest', () => {
       ...surface.tests,
     ]);
 
-    expect(referencedPaths).toContain('server/migrations/*lp_reporting*.sql');
+    expect(referencedPaths).toContain('migrations/0014_lp_evidence_sprint3_drift.sql');
     expect(referencedPaths).toContain('shared/schema.ts');
     expect(referencedPaths).toContain('shared/schema/lp-reporting-evidence.ts');
     expect(referencedPaths).toContain('shared/contracts/fund-state-read-v1.contract.ts');

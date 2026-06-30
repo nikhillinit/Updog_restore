@@ -108,9 +108,9 @@ export const ACTIVE_SCHEMA_SURFACES: readonly ActiveSchemaSurface[] = [
     ],
     migrationEvidence: [
       {
-        pattern: 'server/migrations/*cohort*.sql',
+        pattern: 'migrations/0012_sector_variance_drift.sql',
         required: false,
-        description: 'no cohort-specific migration is currently present; keep this visible',
+        description: 'cohort definitions (journaled in 0012 sector/variance drift)',
       },
     ],
     tests: [
@@ -160,7 +160,7 @@ export const ACTIVE_SCHEMA_SURFACES: readonly ActiveSchemaSurface[] = [
     ],
     migrationEvidence: [
       {
-        pattern: 'server/migrations/*optimization*.sql',
+        pattern: 'migrations/*optimization*.sql',
         required: false,
         description: 'no portfolio-optimization migration is currently present; keep this visible',
       },
@@ -216,9 +216,9 @@ export const ACTIVE_SCHEMA_SURFACES: readonly ActiveSchemaSurface[] = [
     ],
     migrationEvidence: [
       {
-        pattern: 'server/migrations/*lp_reporting*.sql',
+        pattern: 'migrations/0014_lp_evidence_sprint3_drift.sql',
         required: true,
-        description: 'LP reporting migration family',
+        description: 'LP reporting migration family (journaled in 0014 lp-evidence sprint3 drift)',
       },
     ],
     tests: [
@@ -263,9 +263,9 @@ export const ACTIVE_SCHEMA_SURFACES: readonly ActiveSchemaSurface[] = [
     ],
     migrationEvidence: [
       {
-        pattern: 'server/migrations/20260427_public_share_snapshots.*.sql',
+        pattern: 'migrations/0011_scenario_share_sensitivity_drift.sql',
         required: true,
-        description: 'public share snapshot and idempotency migration',
+        description: 'public share snapshot and idempotency migration (journaled in 0011)',
       },
     ],
     tests: [
@@ -313,9 +313,9 @@ export const ACTIVE_SCHEMA_SURFACES: readonly ActiveSchemaSurface[] = [
     ],
     migrationEvidence: [
       {
-        pattern: 'server/migrations/20260406_create_sensitivity_runs_v1.*.sql',
+        pattern: 'migrations/0011_scenario_share_sensitivity_drift.sql',
         required: true,
-        description: 'sensitivity run persistence migration',
+        description: 'sensitivity run persistence migration (journaled in 0011)',
       },
     ],
     tests: [
@@ -357,19 +357,19 @@ export const ACTIVE_SCHEMA_SURFACES: readonly ActiveSchemaSurface[] = [
     ],
     migrationEvidence: [
       {
-        pattern: 'server/migrations/*forecast_snapshot*.sql',
+        pattern: 'migrations/0001_certain_miracleman.sql',
         required: false,
-        description: 'no forecast snapshot migration is currently present; keep this visible',
+        description: 'forecast snapshot tables (journaled in 0001 baseline)',
       },
       {
-        pattern: 'server/migrations/*fund_state_snapshot*.sql',
+        pattern: 'migrations/0000_quick_vivisector.sql',
         required: false,
-        description: 'no fund-state snapshot migration is currently present; keep this visible',
+        description: 'fund-state snapshot tables (journaled in 0000 baseline)',
       },
       {
-        pattern: 'server/migrations/*snapshot_version*.sql',
+        pattern: 'migrations/0011_scenario_share_sensitivity_drift.sql',
         required: false,
-        description: 'no snapshot version migration is currently present; keep this visible',
+        description: 'snapshot version tables (journaled in 0011)',
       },
     ],
     tests: [
