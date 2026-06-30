@@ -139,6 +139,19 @@ flags:
     dependencies: []
     expiresAt: null
 
+  enable_planning_fmv_overrides:
+    default: false
+    description: 'Approved Planning FMV override workflow in the reserve allocation workspace.'
+    owner: 'gp-team'
+    risk: medium
+    exposeToClient: true
+    environments:
+      development: false
+      staging: false
+      production: false
+    dependencies: []
+    expiresAt: null
+
   enable_reserve_engine:
     default: false
     description: 'Deterministic reserve allocation engine'

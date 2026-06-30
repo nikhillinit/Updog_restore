@@ -31,6 +31,11 @@ describe('LP Reporting Foundation Schema -- Drizzle bindings', () => {
       expect(typeof schema.valuationMarks).toBe('object');
     });
 
+    it('planningFmvOverrideRequests table is accessible', () => {
+      expect(schema.planningFmvOverrideRequests).toBeDefined();
+      expect(typeof schema.planningFmvOverrideRequests).toBe('object');
+    });
+
     it('lpMetricRuns table is accessible', () => {
       expect(schema.lpMetricRuns).toBeDefined();
       expect(typeof schema.lpMetricRuns).toBe('object');
@@ -72,6 +77,7 @@ describe('LP Reporting Foundation Schema -- Drizzle bindings', () => {
       ['vehicles', schema.vehicles],
       ['cash_flow_events', schema.cashFlowEvents],
       ['valuation_marks', schema.valuationMarks],
+      ['planning_fmv_override_requests', schema.planningFmvOverrideRequests],
       ['lp_metric_runs', schema.lpMetricRuns],
       ['narrative_runs', schema.narrativeRuns],
       ['evidence_records', schema.evidenceRecords],
@@ -143,6 +149,12 @@ describe('LP Reporting Foundation Schema -- Drizzle bindings', () => {
       expect(names).toContain('lp_metric_run_type_check');
       expect(names).toContain('lp_metric_run_perspective_check');
       expect(names).toContain('lp_metric_run_status_check');
+    });
+
+    it('planning_fmv_override_requests declares the status CHECK', () => {
+      const config = getTableConfig(schema.planningFmvOverrideRequests);
+      const names = config.checks.map((c) => c.name);
+      expect(names).toContain('planning_fmv_override_request_status_check');
     });
 
     it('lp_metric_runs exposes lifecycle concurrency and lock audit columns', () => {
@@ -266,6 +278,20 @@ describe('LP Reporting Foundation Schema -- Drizzle bindings', () => {
       );
       expect(historyConfig.indexes.map((idx) => idx.config.name)).toContain(
         'idx_lp_vehicle_participation_history_parent_changed_at'
+      );
+    });
+
+    it('indexes Planning FMV override ledger and active valuation mark selection', () => {
+      const valuationConfig = getTableConfig(schema.valuationMarks);
+      const requestConfig = getTableConfig(schema.planningFmvOverrideRequests);
+      expect(valuationConfig.indexes.map((idx) => idx.config.name)).toContain(
+        'idx_valuation_marks_planning_active_mark_date'
+      );
+      expect(requestConfig.indexes.map((idx) => idx.config.name)).toContain(
+        'idx_planning_fmv_override_requests_fund_company_created'
+      );
+      expect(requestConfig.indexes.map((idx) => idx.config.name)).toContain(
+        'idx_planning_fmv_override_requests_valuation_mark'
       );
     });
   });
@@ -488,6 +514,7 @@ describe('LP Reporting Foundation Schema -- Drizzle bindings', () => {
       const vehicleSelect: schema.Vehicle | null = null;
       const cfeSelect: schema.CashFlowEvent | null = null;
       const vmSelect: schema.ValuationMark | null = null;
+      const pfmvSelect: schema.PlanningFmvOverrideRequest | null = null;
       const mrSelect: schema.LpMetricRun | null = null;
       const nrSelect: schema.NarrativeRun | null = null;
       const erSelect: schema.EvidenceRecord | null = null;
@@ -499,6 +526,7 @@ describe('LP Reporting Foundation Schema -- Drizzle bindings', () => {
         vehicleSelect,
         cfeSelect,
         vmSelect,
+        pfmvSelect,
         mrSelect,
         nrSelect,
         erSelect,
@@ -506,7 +534,7 @@ describe('LP Reporting Foundation Schema -- Drizzle bindings', () => {
         rpkeSelect,
         lvpSelect,
         lvphSelect,
-      ]).toHaveLength(10);
+      ]).toHaveLength(11);
     });
   });
 });

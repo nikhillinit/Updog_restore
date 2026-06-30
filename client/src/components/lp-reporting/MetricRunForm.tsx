@@ -35,17 +35,15 @@ import { Label } from '@/components/ui/label';
 import { useMetricsDryRun } from '@/hooks/lp-reporting';
 import type { LpReportingHookError } from '@/hooks/lp-reporting';
 import {
-  MetricRunDryRunRequestSchema,
+  LpMetricRunTypeSchema,
   type MetricRunDryRunRequest,
   type MetricRunDryRunResponse,
 } from '@shared/contracts/lp-reporting';
 
-export const MetricRunDryRunRequestClientSchema = MetricRunDryRunRequestSchema.pick({
-  asOfDate: true,
-  runType: true,
-  perspective: true,
-})
-  .extend({
+export const MetricRunDryRunRequestClientSchema = z
+  .object({
+    asOfDate: z.string().date(),
+    runType: LpMetricRunTypeSchema,
     perspective: z.enum(['lp_net', 'fund_gross']),
   })
   .strict();
@@ -115,6 +113,7 @@ export function MetricRunForm({ fundId, onSuccess, onError }: MetricRunFormProps
         perspective: values.perspective,
         sourceEventIds: [],
         sourceMarkIds: [],
+        sourceMarkSelection: 'explicit',
       };
       const result = await mutation.mutateAsync(request);
       onSuccess(result, request);

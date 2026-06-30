@@ -19,6 +19,7 @@ export type FlagKey =
   | 'enable_investment_rounds'
   | 'enable_lp_reporting'
   | 'enable_lp_snapshot_mode'
+  | 'enable_planning_fmv_overrides'
   | 'enable_reserve_engine'
   | 'enable_portfolio_table_v2'
   | 'enable_engine_integration'
@@ -69,6 +70,7 @@ export type ClientFlagKey =
   | 'enable_investment_rounds'
   | 'enable_lp_reporting'
   | 'enable_lp_snapshot_mode'
+  | 'enable_planning_fmv_overrides'
   | 'enable_reserve_engine'
   | 'enable_portfolio_table_v2'
   | 'enable_engine_integration'
@@ -114,8 +116,7 @@ export type ServerOnlyFlagKey =
 /**
  * Admin flags (no localStorage override)
  */
-export type AdminFlagKey =
-  | 'ui_catalog';
+export type AdminFlagKey = 'ui_catalog';
 
 /**
  * Flag risk levels
@@ -166,6 +167,7 @@ export const ALL_FLAG_KEYS: readonly FlagKey[] = [
   'enable_investment_rounds',
   'enable_lp_reporting',
   'enable_lp_snapshot_mode',
+  'enable_planning_fmv_overrides',
   'enable_reserve_engine',
   'enable_portfolio_table_v2',
   'enable_engine_integration',
@@ -217,6 +219,7 @@ export const CLIENT_FLAG_KEYS: readonly ClientFlagKey[] = [
   'enable_investment_rounds',
   'enable_lp_reporting',
   'enable_lp_snapshot_mode',
+  'enable_planning_fmv_overrides',
   'enable_reserve_engine',
   'enable_portfolio_table_v2',
   'enable_engine_integration',
@@ -254,9 +257,7 @@ export const CLIENT_FLAG_KEYS: readonly ClientFlagKey[] = [
 /**
  * Array of admin flag keys (no localStorage override)
  */
-export const ADMIN_FLAG_KEYS: readonly AdminFlagKey[] = [
-  'ui_catalog',
-] as const;
+export const ADMIN_FLAG_KEYS: readonly AdminFlagKey[] = ['ui_catalog'] as const;
 
 /**
  * Check if a key is a valid flag key

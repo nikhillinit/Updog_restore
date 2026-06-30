@@ -13,6 +13,7 @@ import scenarioAnalysisRouter from './routes/scenario-analysis.js';
 import dualForecastRouter from './routes/dual-forecast.js';
 import allocationsRouter from './routes/allocations.js';
 import allocationScenariosRouter from './routes/allocation-scenarios.js';
+import planningFmvOverridesRouter from './routes/planning-fmv-overrides.js';
 import fundScenarioSetsRouter from './routes/fund-scenario-sets.js';
 import fundMoicRouter from './routes/fund-moic.js';
 import reallocationRouter from './routes/reallocation.js';
@@ -221,6 +222,7 @@ export function makeApp() {
   // Fund Allocation Management API (Phase 1b - Reserve allocations with optimistic locking)
   app.use('/api', allocationsRouter);
   app.use('/api', allocationScenariosRouter);
+  app.use('/api', planningFmvOverridesRouter);
   app.use('/api', fundScenarioSetsRouter);
   app.use('/api', fundMoicRouter);
 

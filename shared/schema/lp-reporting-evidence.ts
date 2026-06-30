@@ -246,6 +246,11 @@ export const valuationMarks = pgTable(
       table.vehicleId,
       table.asOfDate.desc()
     ),
+    planningActiveIdx: index('idx_valuation_marks_planning_active_mark_date')
+      .on(table.fundId, table.companyId, table.markDate.desc(), table.id.desc())
+      .where(
+        sql`${table.importedFrom} = 'planning_fmv_override' AND ${table.status} IN ('approved', 'locked')`
+      ),
     importBatchIdx: index('idx_valuation_marks_import_batch').on(table.importBatchId),
     sourceHashUniqueIdx: uniqueIndex('valuation_marks_fund_source_hash_unique')
       .on(table.fundId, table.sourceHash)
@@ -255,6 +260,58 @@ export const valuationMarks = pgTable(
 
 export type ValuationMark = typeof valuationMarks.$inferSelect;
 export type InsertValuationMark = typeof valuationMarks.$inferInsert;
+
+// ============================================================================
+// PLANNING FMV OVERRIDE REQUESTS
+// ============================================================================
+
+export const planningFmvOverrideRequests = pgTable(
+  'planning_fmv_override_requests',
+  {
+    id: serial('id').primaryKey(),
+    fundId: integer('fund_id')
+      .notNull()
+      .references(() => funds.id, { onDelete: 'cascade' }),
+    companyId: integer('company_id')
+      .notNull()
+      .references(() => portfolioCompanies.id, { onDelete: 'cascade' }),
+    valuationMarkId: integer('valuation_mark_id').references(() => valuationMarks.id, {
+      onDelete: 'restrict',
+    }),
+    idempotencyKey: varchar('idempotency_key', { length: 128 }).notNull(),
+    requestHash: varchar('request_hash', { length: 64 }).notNull(),
+    sourceHash: varchar('source_hash', { length: 128 }).notNull(),
+    status: varchar('status', { length: 16 }).notNull().default('pending'),
+    responseBody: jsonb('response_body'),
+    failureCode: varchar('failure_code', { length: 64 }),
+    failureMessage: text('failure_message'),
+    createdBy: integer('created_by').references(() => users.id),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    completedAt: timestamp('completed_at', { withTimezone: true }),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => ({
+    statusCheck: check(
+      'planning_fmv_override_request_status_check',
+      sql`${table.status} IN ('pending', 'completed', 'failed')`
+    ),
+    idempotencyUnique: unique('planning_fmv_override_requests_idempotency_unique').on(
+      table.fundId,
+      table.idempotencyKey
+    ),
+    fundCompanyCreatedIdx: index('idx_planning_fmv_override_requests_fund_company_created').on(
+      table.fundId,
+      table.companyId,
+      table.createdAt.desc()
+    ),
+    valuationMarkIdx: index('idx_planning_fmv_override_requests_valuation_mark').on(
+      table.valuationMarkId
+    ),
+  })
+);
+
+export type PlanningFmvOverrideRequest = typeof planningFmvOverrideRequests.$inferSelect;
+export type InsertPlanningFmvOverrideRequest = typeof planningFmvOverrideRequests.$inferInsert;
 
 // ============================================================================
 // LP METRIC RUNS

@@ -36,6 +36,7 @@ const CANONICAL_TO_LEGACY_ALIASES: Record<ClientFlagKey, string[]> = {
   enable_investment_rounds: [],
   enable_lp_reporting: [],
   enable_lp_snapshot_mode: [],
+  enable_planning_fmv_overrides: [],
   enable_reserve_engine: [],
   enable_portfolio_table_v2: [],
   enable_engine_integration: [],
