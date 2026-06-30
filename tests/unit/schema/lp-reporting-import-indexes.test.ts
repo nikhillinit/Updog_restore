@@ -40,3 +40,20 @@ describe('LP reporting metric-run lifecycle columns', () => {
     expect(columns).toContain('locked_by');
   });
 });
+
+describe('LP reporting partial unique indexes are journaled in the canonical 0014 migration', () => {
+  const journal = fs.readFileSync(
+    path.join(process.cwd(), 'migrations', '0014_lp_evidence_sprint3_drift.sql'),
+    'utf8'
+  );
+
+  it('declares the source_hash and metric-run unique indexes (guards a journal-only drop)', () => {
+    // Shape assertions above prove shared/schema; this proves the canonical
+    // journal still carries the same indexes, so a drop in 0014 without a
+    // matching shape change is caught here (the §7 journal==shape proof is
+    // Docker-gated and does not auto-run on every PR).
+    expect(journal).toMatch(/cash_flow_events_fund_source_hash_unique/);
+    expect(journal).toMatch(/valuation_marks_fund_source_hash_unique/);
+    expect(journal).toMatch(/lp_metric_runs_fund_run_inputs_unique/);
+  });
+});
