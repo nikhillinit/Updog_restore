@@ -186,7 +186,7 @@ export class CacheStatsService {
     try {
       // Count all cache keys using SCAN
       const allKeys: string[] = [];
-      let cursor = 0;
+      let cursor = '0';
 
       do {
         const result = await redis.scan(cursor, {
@@ -195,7 +195,7 @@ export class CacheStatsService {
         });
         cursor = result.cursor;
         allKeys.push(...result.keys);
-      } while (cursor !== 0 && allKeys.length < 10000); // Safety limit
+      } while (cursor !== '0' && allKeys.length < 10000); // Safety limit
 
       const entriesCount = allKeys.length;
 

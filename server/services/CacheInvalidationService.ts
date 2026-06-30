@@ -117,7 +117,7 @@ export class CacheInvalidationService {
    */
   private static async deleteAllRedisKeys(redis: RedisClientType): Promise<number> {
     const keysToDelete: string[] = [];
-    let cursor = 0;
+    let cursor = '0';
 
     // Scan all cache keys
     do {
@@ -127,7 +127,7 @@ export class CacheInvalidationService {
       });
       cursor = result.cursor;
       keysToDelete.push(...result.keys);
-    } while (cursor !== 0 && keysToDelete.length < 100000); // Safety limit
+    } while (cursor !== '0' && keysToDelete.length < 100000); // Safety limit
 
     // Delete in batches of 1000
     let deletedCount = 0;
