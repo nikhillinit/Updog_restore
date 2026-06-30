@@ -72,8 +72,10 @@ const KNOWN_INTERSECTION_DRIFT = new Set<string>([
   'forecast_snapshots|index|forecast_snapshots_idempotency_unique_idx',
   'investment_lots|index|investment_lots_idempotency_unique_idx',
   'reserve_allocations|index|reserve_allocations_idempotency_unique_idx',
-  // Pending §7 baselineNotObserved: identical columns/method/uniqueness on both sides; if the
-  // testcontainers run lists these as not-observed, shrink them in a follow-up Set edit.
+  // §7 (run 28437747790) CONFIRMED these as still-observed = REAL drift, not stale: identical
+  // column set / method / uniqueness by introspection, yet DB-A (journal) != DB-B (shape push)
+  // on some catalog detail the comparator gates (storage param / collation). Deferred to
+  // PR-1/operator; do NOT shrink without a fresh §7 baselineNotObserved signal.
   'reserve_decisions|index|idx_reserve_fund_company',
   'reserve_decisions|index|ux_reserve_unique',
   'fund_snapshots|fk|fund_snapshots_config_id_fundconfigs_id_fk',
