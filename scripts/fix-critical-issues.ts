@@ -469,7 +469,7 @@ console.log(`
 
 Next Steps:
 -----------
-1. Run the migration: npm run db:push
+1. Apply the generated SQL (db:push does NOT run loose SQL files): psql "$DATABASE_URL" -f migrations/999_fix_materialized_view.sql
 2. Update environment variables:
    - REDIS_URL (required for production)
    - RATE_LIMIT_REDIS_URL (can be same as REDIS_URL)

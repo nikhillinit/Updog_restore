@@ -5,6 +5,8 @@ last_updated: 2026-01-19
 
 # Scenario Analysis Implementation Status
 
+> **RETIRED (PR-2b-3):** `server/migrations/` is retired. These schemas now live in the canonical Drizzle schema (`shared/schema`), provisioned locally via `npm run db:push`. The `psql -f server/migrations/...` commands below are historical and reference files that now exist only in git history.
+
 **Last Updated:** 2025-10-07
 **Status:** Backend Complete ✅ | Frontend Pending
 **Approach:** Optimized for 5-person internal tool
