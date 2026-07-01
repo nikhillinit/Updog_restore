@@ -79,7 +79,7 @@ if (passed === checks.length) {
   console.log('\n🎯 All critical fixes are in place!');
   console.log('\nNext steps:');
   console.log('1. Set environment variables (REDIS_URL, DB_POOL_MAX, etc.)');
-  console.log('2. Run database migration: npm run db:migrate');
+  console.log('2. Apply the generated SQL: psql "$DATABASE_URL" -f migrations/999_fix_materialized_view.sql');
   console.log('3. Deploy with confidence!');
 } else {
   console.log('\n⚠️  Some fixes missing. Run scripts/fix-critical-issues.ts first.');

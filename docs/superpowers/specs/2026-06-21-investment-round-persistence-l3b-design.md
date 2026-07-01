@@ -129,7 +129,7 @@ existing `NUMERIC(20,6)` money columns; no new money semantics.
   table / contract / service absent. Client scaffolding present
   (`new-round-dialog.tsx` + `lib/investment-round-{defaults,utils}.ts` +
   `types/investment-rounds.ts`).
-- Migration template — `server/migrations/20260616_operating_object_tasks_v1.{up,down}.sql`.
+- Migration template — `server/migrations/20260616_operating_object_tasks_v1.{up,down}.sql` (retired in PR-2b-3; see git history / canonical journal under `migrations/`).
 
 ---
 

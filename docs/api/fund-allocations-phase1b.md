@@ -270,7 +270,7 @@ curl 'http://localhost:3001/api/funds/1/companies?limit=50&cursor=42'
 
 ## Migration Reference
 
-**Migration:** `server/migrations/20251007_fund_allocation_phase1a.up.sql`
+**Migration:** `server/migrations/20251007_fund_allocation_phase1a.up.sql` (retired in PR-2b-3; see git history / canonical journal under `migrations/`)
 
 - Added 9 columns to portfoliocompanies
 - Created 4 performance indexes

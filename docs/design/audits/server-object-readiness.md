@@ -28,7 +28,7 @@ routes (`server/routes/**`), schema + migrations (`shared/schema*`,
 | --------------- | ------------------------------------------------------------- | ---------------------------------------------------- | -------------------------------------------------------------------- | ----------------------------------- | ------------------- |
 | **cash_event**  | YES — `server/routes/cashflow.ts` (CRUD)                      | YES — `cashFlowEvents`                               | YES                                                                  | YES — capital-call worker           | **HAS_PERSISTENCE** |
 | **lp_snapshot** | YES — `server/routes/shares.ts`                               | YES — `shares` + `shareSnapshots`                    | YES                                                                  | YES — report-generation             | **HAS_PERSISTENCE** |
-| **task**        | YES — `server/routes/operating-object-tasks.ts` (create/list) | YES — `tasks` (`shared/schema/operating-objects.ts`) | YES (PR-T1 — `server/migrations/20260616_operating_object_tasks_v1`) | N/A (none required for create/list) | **HAS_PERSISTENCE** |
+| **task**        | YES — `server/routes/operating-object-tasks.ts` (create/list) | YES — `tasks` (`shared/schema/operating-objects.ts`) | YES (PR-T1 — `server/migrations/20260616_operating_object_tasks_v1`, source retired PR-2b-3) | N/A (none required for create/list) | **HAS_PERSISTENCE** |
 | **assumption**  | NONE                                                          | NONE                                                 | NONE                                                                 | NONE                                | **NONE**            |
 | **comment**     | NONE                                                          | NONE                                                 | NONE                                                                 | NONE                                | **NONE**            |
 
@@ -46,7 +46,7 @@ routes (`server/routes/**`), schema + migrations (`shared/schema*`,
 - **Schema:** `shared/schema/lp-reporting-evidence.ts:106` table
   `cashFlowEvents`; adjacent `capitalActivities`, `lpCapitalCalls`,
   `lpDistributions`, `fundDistributions`.
-- **Migration:** `server/migrations/20260508_lp_reporting_foundation_v1.up.sql`
+- **Migration:** `server/migrations/20260508_lp_reporting_foundation_v1.up.sql` (retired in PR-2b-3; see git history / canonical journal under `migrations/`)
   (`cash_flow_events`).
 - **Worker:** `server/workers/capital-call-status-worker.ts:105` (status
   transitions, payments, notifications).

@@ -5,6 +5,8 @@ last_updated: 2026-01-19
 
 # Fund Allocation Management - Phase 1b: Reallocation Preview/Commit API
 
+> **RETIRED (PR-2b-3):** `server/migrations/` is retired. These schemas now live in the canonical Drizzle schema (`shared/schema`), provisioned locally via `npm run db:push`. The `psql -f server/migrations/...` commands below are historical and reference files that now exist only in git history.
+
 **Status:** ✅ Complete
 **Date:** 2025-10-07
 **Phase:** 1b (Reallocation API)

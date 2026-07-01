@@ -262,7 +262,8 @@ route**.
 ### Tier 3 — deferrable (recorded, finalized in L3b)
 
 - **Migration & back-out:** journaled `up`/`down` SQL mirroring
-  `server/migrations/20260616_operating_object_tasks_v1.{up,down}.sql`; `down`
+  `server/migrations/20260616_operating_object_tasks_v1.{up,down}.sql` (source
+  retired in PR-2b-3; see git history / canonical journal under `migrations/`); `down`
   drops `investment_rounds`. Post-rollback validation = the integration test
   reverts to expecting 501. Gate the UI behind a new `enable_investment_rounds`
   flag (off by default) via the registry/generation path, with `expiresAt`
