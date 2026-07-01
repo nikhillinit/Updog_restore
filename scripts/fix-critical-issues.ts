@@ -469,7 +469,7 @@ console.log(`
 
 Next Steps:
 -----------
-1. Run the migration: npm run db:migrate
+1. Run the migration: npm run db:push
 2. Update environment variables:
    - REDIS_URL (required for production)
    - RATE_LIMIT_REDIS_URL (can be same as REDIS_URL)
