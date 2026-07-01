@@ -1,9 +1,18 @@
 ---
-status: ACTIVE
-last_updated: 2026-01-19
+status: HISTORICAL
+last_updated: 2026-07-01
 ---
 
 # Infrastructure Remediation Guide
+
+> **HISTORICAL (2026-07-01):** The loose-SQL migration runner family referenced
+> throughout this guide (`scripts/migrations/rollback-engine.ts`,
+> `scripts/migrations/rollback-migration.ts`, `scripts/run-migration.ts`,
+> `scripts/migrations/verify-migration.ts`) was retired in the PR-2b-3
+> follow-up (Cluster-B runner audit). Schema changes now flow exclusively
+> through the canonical Drizzle journal (`migrations/`) and `npm run db:push`;
+> there is no supported loose-SQL rollback runner. The commands below are kept
+> as a point-in-time record and no longer execute.
 
 ## Overview
 
