@@ -301,7 +301,7 @@ curl 'http://localhost:3001/api/funds/1/companies?limit=50&cursor=42'
 
 ## Related Documentation
 
-- [Phase 1a Migration](../../server/migrations/20251007_fund_allocation_phase1a.up.sql)
+- Phase 1a migration: `server/migrations/20251007_fund_allocation_phase1a.up.sql` (retired in PR-2b-3; see git history / canonical journal under `migrations/`)
 - [Allocation POST API](../../server/routes/allocations.ts#L372) - Update
   allocations
 - [Allocation GET Latest API](../../server/routes/allocations.ts#L281) - Get
