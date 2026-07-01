@@ -79,7 +79,7 @@ jobs.
 ## Migration Policy
 
 ADR-022 SQL migrations currently live under `server/db/migrations/*.sql`.
-`npm run db:push` and `scripts/run-migrations.ts` do not apply that directory.
+`npm run db:push` does not apply that directory.
 Any PR that adds a new `server/db/migrations/*.sql` file must include:
 
 - Local/integration application proof for that migration.
@@ -88,8 +88,8 @@ Any PR that adds a new `server/db/migrations/*.sql` file must include:
 - A verification query proving the table/indexes exist after application.
 
 `0016_fund_scenario_calculation_runs.sql` is a raw ADR-022 migration under
-`server/db/migrations/`. It is not applied by `npm run db:push` or
-`scripts/run-migrations.ts`. Apply it through the repo `db-migration` release
+`server/db/migrations/`. It is not applied by `npm run db:push`. Apply it
+through the repo `db-migration` release
 lane or by executing the SQL file directly against the target database in the
 same release as the code that removes the old scenario-set upsert (see the
 deployment-ordering note below).
