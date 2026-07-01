@@ -486,8 +486,8 @@ All operations log to structured JSON:
 
 ## References
 
-- [Phase 1a Migration](../server/migrations/20251007_fund_allocation_phase1a.up.sql)
-- [Phase 1b Migration](../server/migrations/20251007_fund_allocation_phase1b.up.sql)
+- Phase 1a migration: `server/migrations/20251007_fund_allocation_phase1a.up.sql` (retired in PR-2b-3; see git history / canonical journal under `migrations/`)
+- Phase 1b migration: `server/migrations/20251007_fund_allocation_phase1b.up.sql` (retired in PR-2b-3; see git history / canonical journal under `migrations/`)
 - [Reallocation Route](../server/routes/reallocation.ts)
 - [Unit Tests](../tests/unit/reallocation-api.test.ts)
 - [Units Library](../client/src/lib/units.ts)

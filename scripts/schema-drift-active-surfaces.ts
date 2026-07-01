@@ -3,7 +3,6 @@ import path from 'node:path';
 import process from 'node:process';
 import { fileURLToPath } from 'node:url';
 
-import { detectDualLedgerDivergence, formatDualLedgerReport } from './dual-ledger-divergence.js';
 import { validateMigrationLedger } from './migration-ledger.js';
 
 export const ACTIVE_SURFACE_IDS = [
@@ -456,16 +455,6 @@ export function validateActiveSchemaSurfaces(
   };
 }
 
-export function validateMigrationLedgerAndDualLedger(rootDir = process.cwd()): {
-  ok: boolean;
-  ledger: ReturnType<typeof validateMigrationLedger>;
-  dualLedger: ReturnType<typeof detectDualLedgerDivergence>;
-} {
-  const ledger = validateMigrationLedger(rootDir);
-  const dualLedger = detectDualLedgerDivergence(rootDir);
-  return { ok: ledger.ok && dualLedger.ok, ledger, dualLedger };
-}
-
 export function formatSchemaDriftReport(result: SchemaDriftValidationResult): string {
   const lines = [
     'Schema Drift Active Surface Report',
@@ -902,7 +891,7 @@ function formatMigrationLedgerFindings(ledger: ReturnType<typeof validateMigrati
 
 function formatSchemaDriftCliOutput(
   result: SchemaDriftValidationResult,
-  ledgerResult: ReturnType<typeof validateMigrationLedgerAndDualLedger>,
+  ledgerResult: ReturnType<typeof validateMigrationLedger>,
   format: 'text' | 'json',
   combinedOk: boolean
 ): string {
@@ -912,8 +901,7 @@ function formatSchemaDriftCliOutput(
         ...result,
         ok: combinedOk,
         surfaceOk: result.ok,
-        migrationLedger: ledgerResult.ledger,
-        dualLedger: ledgerResult.dualLedger,
+        migrationLedger: ledgerResult,
       },
       null,
       2
@@ -923,9 +911,7 @@ function formatSchemaDriftCliOutput(
   return [
     formatSchemaDriftReport(result),
     '',
-    formatMigrationLedgerFindings(ledgerResult.ledger),
-    '',
-    formatDualLedgerReport(ledgerResult.dualLedger),
+    formatMigrationLedgerFindings(ledgerResult),
   ].join('\n');
 }
 
@@ -936,7 +922,7 @@ function isCliInvocation(): boolean {
 
 if (isCliInvocation()) {
   const result = validateActiveSchemaSurfaces();
-  const ledgerResult = validateMigrationLedgerAndDualLedger(process.cwd());
+  const ledgerResult = validateMigrationLedger(process.cwd());
   const combinedOk = result.ok && ledgerResult.ok;
   const format = parseFormat(process.argv.slice(2));
   const output = formatSchemaDriftCliOutput(result, ledgerResult, format, combinedOk);
