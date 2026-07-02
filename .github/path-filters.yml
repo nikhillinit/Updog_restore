@@ -300,3 +300,4 @@ schema_tests:
   - 'tests/integration/migration-drift.test.ts'
   - 'tests/integration/prod-schema-clone.test.ts'
   - 'tests/integration/investment-scenario-capability.test.ts'
+  - 'scripts/audit-prod-operator-seam.mjs'
