@@ -280,9 +280,10 @@ test_quarantine:
 # Docker-proof trigger surface for schema test infrastructure. The deleted
 # helper path stays listed as a resurrection guard (dorny/paths-filter matches
 # deleted files). Covers the files that define the Testcontainers proof lane:
-# migration tests, DB builders (journal replay + push), the hand-maintained
-# vitest include list, and the workflow itself. Keep in sync with
-# testcontainers-ci.yml detect-schema outputs.
+# every file in the vitest.config.testcontainers.ts include list, the DB
+# builders (journal replay + push), the vitest config, global setup, the
+# workflow, and this filter file itself (so edits to this group must run the
+# proof they gate). Keep in sync with the vitest include list.
 schema_tests:
   - 'tests/helpers/apply-investment-round-constraints.ts'
   - 'tests/integration/migrations/**'
@@ -293,3 +294,10 @@ schema_tests:
   - 'vitest.config.testcontainers.ts'
   - 'tests/setup/global-setup.testcontainers.ts'
   - '.github/workflows/testcontainers-ci.yml'
+  - '.github/path-filters.yml'
+  - 'tests/integration/testcontainers-smoke.test.ts'
+  - 'tests/integration/migration-runner.test.ts'
+  - 'tests/integration/fund-lifecycle-db.test.ts'
+  - 'tests/integration/migration-drift.test.ts'
+  - 'tests/integration/prod-schema-clone.test.ts'
+  - 'tests/integration/investment-scenario-capability.test.ts'
