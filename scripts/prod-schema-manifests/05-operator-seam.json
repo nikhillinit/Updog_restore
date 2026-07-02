@@ -1,0 +1,50 @@
+{
+  "name": "M5-operator-seam",
+  "order": 5,
+  "description": "s8.1 operator seam (ADR-023, D1 lane B). Creates the fund/investment/snapshot-scoped idempotency indexes, length CHECKs, and cursor indexes (0024 design) on the three snapshot tables, then retires the stale 0001-era GLOBAL idempotency uniques that enforce cross-scope uniqueness the #924 scoped design deliberately relaxed. Prod audit 2026-07-02 (artifact sha256 62131f6aa21bf7ad32c57c9c748b966526e956cb451311571326a0c05cf72b86): globals PRESENT valid+ready, scoped ABSENT, all three tables 0 rows, duplicate scoped-key groups 0/0/0. Creates run before drops in one transaction, so the scoped replacement provably exists before its global predecessor is removed.",
+  "sqlFiles": ["migrations/0024_idempotency_cursor_resync_drift.sql"],
+  "allowedCreateTables": [],
+  "expectedTables": [
+    {
+      "name": "forecast_snapshots",
+      "constraints": ["forecast_snapshots_idem_key_len_check"],
+      "indexes": ["forecast_snapshots_fund_idem_key_idx", "forecast_snapshots_fund_cursor_idx"]
+    },
+    {
+      "name": "investment_lots",
+      "constraints": ["investment_lots_idem_key_len_check"],
+      "indexes": [
+        "investment_lots_investment_idem_key_idx",
+        "investment_lots_investment_cursor_idx"
+      ]
+    },
+    {
+      "name": "reserve_allocations",
+      "constraints": ["reserve_allocations_idem_key_len_check"],
+      "indexes": [
+        "reserve_allocations_snapshot_idem_key_idx",
+        "reserve_allocations_snapshot_cursor_idx"
+      ]
+    }
+  ],
+  "dropObjects": [
+    {
+      "kind": "index",
+      "name": "forecast_snapshots_idempotency_unique_idx",
+      "reason": "Stale 0001-era GLOBAL unique on idempotency_key; enforces cross-scope uniqueness the #924 fund-scoped design relaxed (latent 409/23505 on legitimate key reuse). Replaced by forecast_snapshots_fund_idem_key_idx. Rollback caveat: recreating the global index FAILS if legitimate cross-scope duplicate keys were inserted after the drop - accepted, the scoped design permits them.",
+      "reverseSql": "CREATE UNIQUE INDEX \"forecast_snapshots_idempotency_unique_idx\" ON \"forecast_snapshots\" USING btree (\"idempotency_key\") WHERE \"forecast_snapshots\".\"idempotency_key\" IS NOT NULL"
+    },
+    {
+      "kind": "index",
+      "name": "investment_lots_idempotency_unique_idx",
+      "reason": "Stale 0001-era GLOBAL unique on idempotency_key; replaced by investment_lots_investment_idem_key_idx (investment-scoped). Same rollback caveat as forecast_snapshots.",
+      "reverseSql": "CREATE UNIQUE INDEX \"investment_lots_idempotency_unique_idx\" ON \"investment_lots\" USING btree (\"idempotency_key\") WHERE \"investment_lots\".\"idempotency_key\" IS NOT NULL"
+    },
+    {
+      "kind": "index",
+      "name": "reserve_allocations_idempotency_unique_idx",
+      "reason": "Stale 0001-era GLOBAL unique on idempotency_key; replaced by reserve_allocations_snapshot_idem_key_idx (snapshot-scoped). Same rollback caveat as forecast_snapshots.",
+      "reverseSql": "CREATE UNIQUE INDEX \"reserve_allocations_idempotency_unique_idx\" ON \"reserve_allocations\" USING btree (\"idempotency_key\") WHERE \"reserve_allocations\".\"idempotency_key\" IS NOT NULL"
+    }
+  ]
+}

@@ -23,10 +23,17 @@ interface ManifestTable {
   indexes?: string[];
 }
 
+interface DropObject {
+  kind: 'index' | 'constraint';
+  table?: string;
+  name: string;
+}
+
 interface Manifest {
   name: string;
   sqlFiles?: string[];
   expectedTables?: ManifestTable[];
+  dropObjects?: DropObject[];
 }
 
 function loadManifestFiles(): Array<{ file: string; manifest: Manifest }> {
@@ -74,12 +81,13 @@ function namesSurvivingSql(sqlFiles: string[]): Set<string> {
 describe('prod-schema manifest sentinels', () => {
   const manifests = loadManifestFiles();
 
-  it('finds the four PR-1 manifests', () => {
+  it('finds the four PR-1 manifests plus the s8.1 operator-seam manifest', () => {
     expect(manifests.map((entry) => entry.file)).toEqual([
       '01-cohort.json',
       '02-fund-moic.json',
       '03-operating-tasks.json',
       '04-lp-reporting.json',
+      '05-operator-seam.json',
     ]);
   });
 
@@ -118,6 +126,16 @@ describe('prod-schema manifest sentinels', () => {
     // the survival pin, because post-apply reconciliation checks the catalog.
     expect(surviving.has('reconciliation_runs_idempotency_key_unique')).toBe(false);
     expect(surviving.has('reconciliation_runs_fund_id_idempotency_key_unique')).toBe(true);
+  });
+
+  it('dropObjects never target a name the manifest own SQL creates', () => {
+    for (const { file, manifest } of manifests) {
+      const surviving = namesSurvivingSql(manifest.sqlFiles ?? []);
+      const incoherent = (manifest.dropObjects ?? [])
+        .map((drop) => drop.name)
+        .filter((name) => surviving.has(pgIdentifier(name.toLowerCase())));
+      expect(incoherent, `${file} drops what its own SQL creates`).toEqual([]);
+    }
   });
 
   it('no duplicate sentinel names within a manifest', () => {

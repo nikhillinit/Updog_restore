@@ -41,6 +41,14 @@ const C1_MOUNTED_TABLES = [
   'lp_report_package_exports',
   'planning_fmv_override_requests',
 ] as const;
+// Manifest 05-operator-seam declares existing journal tables (scoped idem
+// indexes + len-checks via 0024; global idem drops via dropObjects) rather
+// than new C1 mounts.
+const SEAM_MANIFEST_TABLES = [
+  'forecast_snapshots',
+  'investment_lots',
+  'reserve_allocations',
+] as const;
 const SHAPE_ONLY_NOT_JOURNALED = [
   'flag_changes',
   'flags_state',
@@ -669,7 +677,9 @@ describe.skipIf(skipIfNoDocker)('prod schema synthetic clone', () => {
       )
       .map(pgIdentifier);
 
-    expect([...expectedTables].sort()).toEqual([...C1_MOUNTED_TABLES].sort());
+    expect([...expectedTables].sort()).toEqual(
+      [...C1_MOUNTED_TABLES, ...SEAM_MANIFEST_TABLES].sort()
+    );
 
     const migratedTables = await publicTables(pool!, expectedTables);
     const migratedConstraints = await publicConstraints(pool!, expectedConstraints);

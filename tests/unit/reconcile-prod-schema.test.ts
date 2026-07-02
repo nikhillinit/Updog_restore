@@ -10,8 +10,12 @@ import {
   assertExpectedDatabase,
   auditManifest,
   decideObjectAction,
+  dropStatements,
+  manifestChecksum,
   parseReconcileArgs,
   runReconciliation,
+  statementHashes,
+  validateDropObjects,
   validateManifestSql,
   extractCreateTableNames,
 } from '../../scripts/reconcile-prod-schema.mjs';
@@ -34,6 +38,9 @@ interface MockClientOptions {
   readonly constraints?: readonly string[];
   readonly indexes?: readonly string[];
   readonly populatedTables?: readonly string[];
+  /** When true, DROP statements do NOT mutate mock state - simulates a drop
+   * that silently fails to take effect, so the post-apply audit must catch it. */
+  readonly dropsHaveNoEffect?: boolean;
 }
 
 function createMockClient(options: MockClientOptions = {}) {
@@ -124,6 +131,44 @@ function createMockClient(options: MockClientOptions = {}) {
 
       if (text === 'SELECT pg_advisory_unlock($1)') {
         return { rows: [{ pg_advisory_unlock: true }], rowCount: 1 };
+      }
+
+      const dropIndexMatch = text.match(/^DROP INDEX IF EXISTS "([^"]+)"$/);
+      if (dropIndexMatch?.[1]) {
+        if (!options.dropsHaveNoEffect) {
+          indexes.delete(dropIndexMatch[1]);
+        }
+        return { rows: [], rowCount: 0 };
+      }
+
+      const dropConstraintMatch = text.match(
+        /^ALTER TABLE "[^"]+" DROP CONSTRAINT IF EXISTS "([^"]+)"$/
+      );
+      if (dropConstraintMatch?.[1]) {
+        if (!options.dropsHaveNoEffect) {
+          constraints.delete(dropConstraintMatch[1]);
+        }
+        return { rows: [], rowCount: 0 };
+      }
+
+      if (/^(BEGIN|COMMIT|ROLLBACK)$/.test(text) || text.startsWith('SET ')) {
+        return { rows: [], rowCount: 0 };
+      }
+
+      if (text.includes('CREATE TABLE IF NOT EXISTS') || text.includes('CREATE UNIQUE INDEX IF NOT EXISTS')) {
+        return { rows: [], rowCount: 0 };
+      }
+
+      if (text.includes('"committed_at" IS NOT NULL')) {
+        return { rows: [], rowCount: 0 };
+      }
+
+      if (text.includes('INSERT INTO')) {
+        return { rows: [{ id: 1 }], rowCount: 1 };
+      }
+
+      if (text.includes('UPDATE')) {
+        return { rows: [], rowCount: 0 };
       }
 
       throw new Error(`Unexpected query: ${text}`);
@@ -336,5 +381,138 @@ describe('reconcile-prod-schema shape decisions', () => {
     expect(
       client.calls.some((call) => /\bBEGIN\b|INSERT INTO|CREATE TABLE|COMMIT/.test(call.text))
     ).toBe(false);
+  });
+});
+
+describe('reconcile-prod-schema dropObjects path (s8.1 slice 3.5)', () => {
+  const dropManifest = {
+    name: 'seam-fixture',
+    dropObjects: [
+      {
+        kind: 'index',
+        name: 'legacy_global_idx',
+        reason: 'stale global unique replaced by scoped design',
+        reverseSql: 'CREATE UNIQUE INDEX "legacy_global_idx" ON "t" ("k")',
+      },
+      {
+        kind: 'constraint',
+        table: 'jobs',
+        name: 'jobs_legacy_check',
+        reason: 'stale check',
+        reverseSql: 'ALTER TABLE "jobs" ADD CONSTRAINT "jobs_legacy_check" CHECK (true)',
+      },
+    ],
+  };
+
+  it('manifest checksum changes when a drop entry changes (red-team F3)', () => {
+    const base = manifestChecksum(dropManifest, []);
+    const identical = manifestChecksum({ ...dropManifest }, []);
+    const reverseSqlChanged = manifestChecksum(
+      {
+        ...dropManifest,
+        dropObjects: [
+          { ...dropManifest.dropObjects[0]!, reverseSql: 'CREATE INDEX "other" ON "t" ("k")' },
+          dropManifest.dropObjects[1]!,
+        ],
+      },
+      []
+    );
+    const entryRemoved = manifestChecksum(
+      { ...dropManifest, dropObjects: [dropManifest.dropObjects[0]!] },
+      []
+    );
+
+    expect(identical).toBe(base);
+    expect(reverseSqlChanged).not.toBe(base);
+    expect(entryRemoved).not.toBe(base);
+  });
+
+  it('statement hashes include generated drop statements', () => {
+    const hashes = statementHashes([], dropStatements(dropManifest));
+    expect(hashes).toHaveLength(2);
+    expect(hashes.every((entry) => entry.file === '<dropObjects>')).toBe(true);
+  });
+
+  it('generates guarded drop statements per kind', () => {
+    expect(dropStatements(dropManifest)).toEqual([
+      'DROP INDEX IF EXISTS "legacy_global_idx"',
+      'ALTER TABLE "jobs" DROP CONSTRAINT IF EXISTS "jobs_legacy_check"',
+    ]);
+  });
+
+  it('rejects malformed drop objects', () => {
+    const bad = [
+      { kind: 'table', name: 'x', reason: 'r', reverseSql: 's' },
+      { kind: 'index', name: 'x; DROP TABLE users', reason: 'r', reverseSql: 's' },
+      { kind: 'constraint', name: 'x', reason: 'r', reverseSql: 's' },
+      { kind: 'index', name: 'x', reason: 'r', reverseSql: '   ' },
+      { kind: 'index', name: 'x', reason: '', reverseSql: 's' },
+      { kind: 'index', name: `x${'y'.repeat(70)}`, reason: 'r', reverseSql: 's' },
+    ];
+    for (const drop of bad) {
+      expect(() => validateDropObjects({ name: 'm', dropObjects: [drop] })).toThrow(
+        ReconcileError
+      );
+    }
+    expect(() => validateDropObjects(dropManifest)).not.toThrow();
+  });
+
+  it('audits a present drop target as APPLY and an absent one as SKIP', async () => {
+    const presentClient = createMockClient({
+      indexes: ['legacy_global_idx'],
+      constraints: ['jobs_legacy_check'],
+    });
+    const presentAudit = await auditManifest(presentClient, dropManifest);
+    expect(presentAudit.action).toBe(ACTION_APPLY_MISSING_DDL);
+    expect(
+      presentAudit.objects.flatMap((object) => object.deltas.map((delta) => delta.kind))
+    ).toEqual(['extra-object-present', 'extra-object-present']);
+
+    const absentClient = createMockClient();
+    const absentAudit = await auditManifest(absentClient, dropManifest);
+    expect(absentAudit.action).toBe(ACTION_SKIP);
+  });
+
+  it('apply executes drops in the guarded flow and post-apply audit passes', async () => {
+    const client = createMockClient({
+      indexes: ['legacy_global_idx'],
+      constraints: ['jobs_legacy_check'],
+    });
+    const output: string[] = [];
+
+    const result = await runReconciliation({
+      client,
+      manifests: [dropManifest],
+      apply: true,
+      stdout: { write: (chunk: string) => output.push(chunk) },
+    });
+
+    expect(result.applied).toEqual(['seam-fixture']);
+    expect(client.calls.map((call) => call.text)).toContain(
+      'DROP INDEX IF EXISTS "legacy_global_idx"'
+    );
+    expect(client.calls.map((call) => call.text)).toContain(
+      'ALTER TABLE "jobs" DROP CONSTRAINT IF EXISTS "jobs_legacy_check"'
+    );
+    expect(client.calls.map((call) => call.text)).toContain('COMMIT');
+  });
+
+  it('post-apply audit fails and rolls back when a drop does not take effect', async () => {
+    const client = createMockClient({
+      indexes: ['legacy_global_idx'],
+      constraints: ['jobs_legacy_check'],
+      dropsHaveNoEffect: true,
+    });
+    const output: string[] = [];
+
+    await expect(
+      runReconciliation({
+        client,
+        manifests: [dropManifest],
+        apply: true,
+        stdout: { write: (chunk: string) => output.push(chunk) },
+      })
+    ).rejects.toThrow(/Post-apply shape audit failed/);
+    expect(client.calls.map((call) => call.text)).toContain('ROLLBACK');
   });
 });
