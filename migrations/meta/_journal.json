@@ -190,6 +190,13 @@
       "when": 1782777604000,
       "tag": "0025_allocation_scenarios_promote_drift",
       "breakpoints": true
+    },
+    {
+      "idx": 27,
+      "version": "7",
+      "when": 1782952890536,
+      "tag": "0026_reserve_decisions_index_resync_drift",
+      "breakpoints": true
     }
   ]
 }

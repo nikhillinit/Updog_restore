@@ -72,12 +72,12 @@ const KNOWN_INTERSECTION_DRIFT = new Set<string>([
   'forecast_snapshots|index|forecast_snapshots_idempotency_unique_idx',
   'investment_lots|index|investment_lots_idempotency_unique_idx',
   'reserve_allocations|index|reserve_allocations_idempotency_unique_idx',
-  // §7 (run 28437747790) CONFIRMED these as still-observed = REAL drift, not stale: identical
-  // column set / method / uniqueness by introspection, yet DB-A (journal) != DB-B (shape push)
-  // on some catalog detail the comparator gates (storage param / collation). Deferred to
+  // §7 (run 28437747790) CONFIRMED these as still-observed = REAL drift, not stale. Deferred to
   // PR-1/operator; do NOT shrink without a fresh §7 baselineNotObserved signal.
-  'reserve_decisions|index|idx_reserve_fund_company',
-  'reserve_decisions|index|ux_reserve_unique',
+  // NB (s8.4): the two reserve_decisions index entries formerly baselined here were NOT a
+  // catalog-detail mismatch — they were missing from DB-A outright (0001's DROP/ADD COLUMN
+  // dropped them; nothing recreated them). Fixed by 0026_reserve_decisions_index_resync_drift;
+  // §7 run 28557795657 reported both under baselineNotObserved, so they were shrunk.
   'fund_snapshots|fk|fund_snapshots_config_id_fundconfigs_id_fk',
   'fund_snapshots|fk|fund_snapshots_run_id_calc_runs_id_fk',
   'job_outbox|constraint|job_outbox_status_check',

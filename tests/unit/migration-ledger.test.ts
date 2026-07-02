@@ -46,6 +46,7 @@ const expectedJournaledDriftPatchFiles = [
   '0023_version_default_resync_drift.sql',
   '0024_idempotency_cursor_resync_drift.sql',
   '0025_allocation_scenarios_promote_drift.sql',
+  '0026_reserve_decisions_index_resync_drift.sql',
 ].sort();
 
 afterEach(() => {
