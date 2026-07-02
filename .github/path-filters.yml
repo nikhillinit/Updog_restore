@@ -276,3 +276,12 @@ test_quarantine:
   - 'vitest.config.*'
   - 'vitest.*.ts'
   - 'tests/quarantine/**'
+
+# Docker-proof trigger surface for schema test infrastructure. The deleted
+# helper path stays listed as a resurrection guard (dorny/paths-filter matches
+# deleted files). Keep in sync with testcontainers-ci.yml detect-schema outputs.
+schema_tests:
+  - 'tests/helpers/apply-investment-round-constraints.ts'
+  - 'tests/integration/migrations/**'
+  - 'server/migrations/**'
+  - 'scripts/guardrails/server-migrations-new-file.mjs'
