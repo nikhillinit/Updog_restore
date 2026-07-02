@@ -40,28 +40,35 @@ function loadManifestFiles(): Array<{ file: string; manifest: Manifest }> {
     }));
 }
 
-function namesCreatedBySql(sqlFiles: string[]): Set<string> {
-  const created = new Set<string>();
-  const patterns = [
-    /CONSTRAINT\s+"([^"]+)"/gi,
-    /CONSTRAINT\s+([a-z0-9_]+)\s/gi,
-    /CREATE\s+(?:UNIQUE\s+)?INDEX\s+(?:CONCURRENTLY\s+)?(?:IF\s+NOT\s+EXISTS\s+)?"?([a-z0-9_]+)"?/gi,
-  ];
+// Single alternation, applied left-to-right so each statement is exactly one
+// event: DROP alternatives are listed first and consume through the name, so
+// the CONSTRAINT-create alternative can never re-match the name inside a
+// "DROP CONSTRAINT" statement. Names created after a drop survive (0017's
+// scoped replacement pattern); names dropped and never recreated do not
+// (review 4621209185 - the pin must reject sentinels the SQL sequence drops).
+const SQL_NAME_EVENT =
+  /(?<dropIndex>DROP\s+INDEX\s+(?:CONCURRENTLY\s+)?(?:IF\s+EXISTS\s+)?"?([a-z0-9_]+)"?)|(?<dropConstraint>DROP\s+CONSTRAINT\s+(?:IF\s+EXISTS\s+)?"?([a-z0-9_]+)"?)|(?<createConstraint>CONSTRAINT\s+"?([a-z0-9_]+)"?)|(?<createIndex>CREATE\s+(?:UNIQUE\s+)?INDEX\s+(?:CONCURRENTLY\s+)?(?:IF\s+NOT\s+EXISTS\s+)?"?([a-z0-9_]+)"?)/gi;
+
+function namesSurvivingSql(sqlFiles: string[]): Set<string> {
+  const surviving = new Set<string>();
 
   for (const sqlFile of sqlFiles) {
     const sql = fs.readFileSync(path.join(repoRoot, sqlFile), 'utf8');
-    for (const pattern of patterns) {
-      let match: RegExpExecArray | null;
-      while ((match = pattern.exec(sql)) !== null) {
-        const name = match[1];
-        if (name) {
-          created.add(pgIdentifier(name.toLowerCase()));
-        }
+    const pattern = new RegExp(SQL_NAME_EVENT.source, 'gi');
+    let match: RegExpExecArray | null;
+    while ((match = pattern.exec(sql)) !== null) {
+      const [, , droppedIndexName, , droppedConstraintName, , constraintName, , indexName] = match;
+      const dropped = droppedIndexName ?? droppedConstraintName;
+      const created = constraintName ?? indexName;
+      if (dropped) {
+        surviving.delete(pgIdentifier(dropped.toLowerCase()));
+      } else if (created) {
+        surviving.add(pgIdentifier(created.toLowerCase()));
       }
     }
   }
 
-  return created;
+  return surviving;
 }
 
 describe('prod-schema manifest sentinels', () => {
@@ -84,14 +91,14 @@ describe('prod-schema manifest sentinels', () => {
     }
   });
 
-  it('every sentinel name is created by the manifest own SQL (63-byte aware)', () => {
+  it('every sentinel name SURVIVES the manifest own SQL sequence (63-byte aware)', () => {
     const failures: string[] = [];
 
     for (const { file, manifest } of manifests) {
-      const created = namesCreatedBySql(manifest.sqlFiles ?? []);
+      const surviving = namesSurvivingSql(manifest.sqlFiles ?? []);
       for (const table of manifest.expectedTables ?? []) {
         for (const sentinel of [...(table.constraints ?? []), ...(table.indexes ?? [])]) {
-          if (!created.has(pgIdentifier(sentinel.toLowerCase()))) {
+          if (!surviving.has(pgIdentifier(sentinel.toLowerCase()))) {
             failures.push(`${file}: ${sentinel}`);
           }
         }
@@ -99,6 +106,18 @@ describe('prod-schema manifest sentinels', () => {
     }
 
     expect(failures).toEqual([]);
+  });
+
+  it('negative control: a dropped-then-replaced name does not survive (0016/0017 case)', () => {
+    const fundMoic = manifests.find((entry) => entry.file === '02-fund-moic.json');
+    expect(fundMoic).toBeDefined();
+    const surviving = namesSurvivingSql(fundMoic!.manifest.sqlFiles ?? []);
+
+    // 0016 creates the global unique; 0017 drops it and adds the fund-scoped
+    // replacement. A manifest regression back to the dropped name must FAIL
+    // the survival pin, because post-apply reconciliation checks the catalog.
+    expect(surviving.has('reconciliation_runs_idempotency_key_unique')).toBe(false);
+    expect(surviving.has('reconciliation_runs_fund_id_idempotency_key_unique')).toBe(true);
   });
 
   it('no duplicate sentinel names within a manifest', () => {
