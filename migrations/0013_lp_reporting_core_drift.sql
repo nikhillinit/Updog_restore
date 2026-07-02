@@ -1,3 +1,5 @@
+-- @drift-patch
+-- Reason: LP reporting core schema drift; closes journal drift for issue #781. Marker added 2026-07-02 (s8.1 slice 4a) so the M4 manifest can reference this file - its LP-core tables are FK dependencies of 0014 that prod lacked.
 -- Migration: 0013_lp_reporting_core_drift
 -- Purpose: LP reporting core schema drift; closes journal drift for issue #781.
 -- Source of truth: drizzle-kit export from shared/schema.ts, shared/schema-lp-reporting.ts, and shared/schema-lp-sprint3.ts.

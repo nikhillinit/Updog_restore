@@ -2,7 +2,9 @@
   "name": "M1-cohort",
   "order": 1,
   "description": "Cohort and sector analysis tables mounted through makeApp /api/cohorts.",
-  "sqlFiles": ["migrations/0012_sector_variance_drift.sql"],
+  "sqlFiles": [
+    "migrations/0012_sector_variance_drift.sql"
+  ],
   "allowedCreateTables": [
     "sector_taxonomy",
     "sector_mappings",
@@ -15,10 +17,22 @@
     {
       "name": "sector_taxonomy",
       "columns": [
-        { "name": "id", "nullable": false },
-        { "name": "fund_id", "nullable": false },
-        { "name": "taxonomy_version", "nullable": false },
-        { "name": "slug", "nullable": false }
+        {
+          "name": "id",
+          "nullable": false
+        },
+        {
+          "name": "fund_id",
+          "nullable": false
+        },
+        {
+          "name": "taxonomy_version",
+          "nullable": false
+        },
+        {
+          "name": "slug",
+          "nullable": false
+        }
       ],
       "constraints": [
         "sector_taxonomy_fund_version_slug_unique",
@@ -35,11 +49,26 @@
     {
       "name": "sector_mappings",
       "columns": [
-        { "name": "id", "nullable": false },
-        { "name": "fund_id", "nullable": false },
-        { "name": "taxonomy_version", "nullable": false },
-        { "name": "raw_value_normalized", "nullable": false },
-        { "name": "canonical_sector_id", "nullable": false }
+        {
+          "name": "id",
+          "nullable": false
+        },
+        {
+          "name": "fund_id",
+          "nullable": false
+        },
+        {
+          "name": "taxonomy_version",
+          "nullable": false
+        },
+        {
+          "name": "raw_value_normalized",
+          "nullable": false
+        },
+        {
+          "name": "canonical_sector_id",
+          "nullable": false
+        }
       ],
       "constraints": [
         "sector_mappings_fund_version_normalized_unique",
@@ -56,11 +85,26 @@
     {
       "name": "company_overrides",
       "columns": [
-        { "name": "id", "nullable": false },
-        { "name": "fund_id", "nullable": false },
-        { "name": "taxonomy_version", "nullable": false },
-        { "name": "company_id", "nullable": false },
-        { "name": "canonical_sector_id", "nullable": false }
+        {
+          "name": "id",
+          "nullable": false
+        },
+        {
+          "name": "fund_id",
+          "nullable": false
+        },
+        {
+          "name": "taxonomy_version",
+          "nullable": false
+        },
+        {
+          "name": "company_id",
+          "nullable": false
+        },
+        {
+          "name": "canonical_sector_id",
+          "nullable": true
+        }
       ],
       "constraints": [
         "company_overrides_fund_version_company_unique",
@@ -78,9 +122,18 @@
     {
       "name": "investment_overrides",
       "columns": [
-        { "name": "id", "nullable": false },
-        { "name": "fund_id", "nullable": false },
-        { "name": "investment_id", "nullable": false }
+        {
+          "name": "id",
+          "nullable": false
+        },
+        {
+          "name": "fund_id",
+          "nullable": false
+        },
+        {
+          "name": "investment_id",
+          "nullable": false
+        }
       ],
       "constraints": [
         "investment_overrides_fund_investment_unique",
@@ -99,10 +152,22 @@
     {
       "name": "cohort_definitions",
       "columns": [
-        { "name": "id", "nullable": false },
-        { "name": "fund_id", "nullable": false },
-        { "name": "name", "nullable": false },
-        { "name": "is_default", "nullable": false }
+        {
+          "name": "id",
+          "nullable": false
+        },
+        {
+          "name": "fund_id",
+          "nullable": false
+        },
+        {
+          "name": "name",
+          "nullable": false
+        },
+        {
+          "name": "is_default",
+          "nullable": false
+        }
       ],
       "constraints": [
         "cohort_definitions_fund_name_unique",

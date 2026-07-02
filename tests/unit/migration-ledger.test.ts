@@ -37,6 +37,7 @@ const expectedLooseFiles = [
 
 const expectedJournaledDriftPatchFiles = [
   '0012_sector_variance_drift.sql',
+  '0013_lp_reporting_core_drift.sql',
   '0014_lp_evidence_sprint3_drift.sql',
   '0016_reconciliation_runs.sql',
   '0017_moic_exit_probability_modes.sql',

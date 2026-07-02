@@ -3,10 +3,20 @@
   "order": 4,
   "description": "LP reporting evidence tables mounted through makeApp LP reporting routes.",
   "sqlFiles": [
+    "migrations/0013_lp_reporting_core_drift.sql",
     "migrations/0014_lp_evidence_sprint3_drift.sql",
     "migrations/0022_planning_fmv_override_requests_drift.sql"
   ],
   "allowedCreateTables": [
+    "limited_partners",
+    "lp_fund_commitments",
+    "capital_activities",
+    "lp_distributions",
+    "lp_capital_accounts",
+    "lp_performance_snapshots",
+    "lp_reports",
+    "report_templates",
+    "lp_audit_log",
     "vehicles",
     "cash_flow_events",
     "valuation_marks",
@@ -27,13 +37,55 @@
   ],
   "expectedTables": [
     {
+      "name": "limited_partners"
+    },
+    {
+      "name": "lp_fund_commitments"
+    },
+    {
+      "name": "capital_activities"
+    },
+    {
+      "name": "lp_distributions"
+    },
+    {
+      "name": "lp_capital_accounts"
+    },
+    {
+      "name": "lp_performance_snapshots"
+    },
+    {
+      "name": "lp_reports"
+    },
+    {
+      "name": "report_templates"
+    },
+    {
+      "name": "lp_audit_log"
+    },
+    {
       "name": "vehicles",
       "columns": [
-        { "name": "id", "nullable": false },
-        { "name": "fund_id", "nullable": false },
-        { "name": "vehicle_slug", "nullable": false },
-        { "name": "vehicle_type", "nullable": false },
-        { "name": "name", "nullable": false }
+        {
+          "name": "id",
+          "nullable": false
+        },
+        {
+          "name": "fund_id",
+          "nullable": false
+        },
+        {
+          "name": "vehicle_slug",
+          "nullable": false
+        },
+        {
+          "name": "vehicle_type",
+          "nullable": false
+        },
+        {
+          "name": "name",
+          "nullable": false
+        }
       ],
       "constraints": [
         "vehicles_fund_slug_unique",
@@ -42,17 +94,37 @@
         "vehicles_admin_score_check",
         "vehicles_fund_id_funds_id_fk"
       ],
-      "indexes": ["idx_vehicles_fund_type"]
+      "indexes": [
+        "idx_vehicles_fund_type"
+      ]
     },
     {
       "name": "cash_flow_events",
       "columns": [
-        { "name": "id", "nullable": false },
-        { "name": "fund_id", "nullable": false },
-        { "name": "event_type", "nullable": false },
-        { "name": "amount", "nullable": false },
-        { "name": "event_date", "nullable": false },
-        { "name": "perspective", "nullable": false }
+        {
+          "name": "id",
+          "nullable": false
+        },
+        {
+          "name": "fund_id",
+          "nullable": false
+        },
+        {
+          "name": "event_type",
+          "nullable": false
+        },
+        {
+          "name": "amount",
+          "nullable": false
+        },
+        {
+          "name": "event_date",
+          "nullable": false
+        },
+        {
+          "name": "perspective",
+          "nullable": false
+        }
       ],
       "constraints": [
         "cash_flow_event_type_check",
@@ -76,12 +148,30 @@
     {
       "name": "valuation_marks",
       "columns": [
-        { "name": "id", "nullable": false },
-        { "name": "fund_id", "nullable": false },
-        { "name": "company_id", "nullable": false },
-        { "name": "mark_date", "nullable": false },
-        { "name": "as_of_date", "nullable": false },
-        { "name": "fair_value", "nullable": false }
+        {
+          "name": "id",
+          "nullable": false
+        },
+        {
+          "name": "fund_id",
+          "nullable": false
+        },
+        {
+          "name": "company_id",
+          "nullable": false
+        },
+        {
+          "name": "mark_date",
+          "nullable": false
+        },
+        {
+          "name": "as_of_date",
+          "nullable": false
+        },
+        {
+          "name": "fair_value",
+          "nullable": false
+        }
       ],
       "constraints": [
         "valuation_mark_source_check",
@@ -103,12 +193,30 @@
     {
       "name": "lp_metric_runs",
       "columns": [
-        { "name": "id", "nullable": false },
-        { "name": "fund_id", "nullable": false },
-        { "name": "run_type", "nullable": false },
-        { "name": "perspective", "nullable": false },
-        { "name": "as_of_date", "nullable": false },
-        { "name": "status", "nullable": false }
+        {
+          "name": "id",
+          "nullable": false
+        },
+        {
+          "name": "fund_id",
+          "nullable": false
+        },
+        {
+          "name": "run_type",
+          "nullable": false
+        },
+        {
+          "name": "perspective",
+          "nullable": false
+        },
+        {
+          "name": "as_of_date",
+          "nullable": false
+        },
+        {
+          "name": "status",
+          "nullable": false
+        }
       ],
       "constraints": [
         "lp_metric_run_type_check",
@@ -127,12 +235,30 @@
     {
       "name": "evidence_records",
       "columns": [
-        { "name": "id", "nullable": false },
-        { "name": "fund_id", "nullable": false },
-        { "name": "evidence_source", "nullable": false },
-        { "name": "confidence_level", "nullable": false },
-        { "name": "materiality_level", "nullable": false },
-        { "name": "confidentiality", "nullable": false }
+        {
+          "name": "id",
+          "nullable": false
+        },
+        {
+          "name": "fund_id",
+          "nullable": false
+        },
+        {
+          "name": "evidence_source",
+          "nullable": false
+        },
+        {
+          "name": "confidence_level",
+          "nullable": false
+        },
+        {
+          "name": "materiality_level",
+          "nullable": false
+        },
+        {
+          "name": "confidentiality",
+          "nullable": false
+        }
       ],
       "constraints": [
         "evidence_one_target_check",
@@ -157,11 +283,26 @@
     {
       "name": "narrative_runs",
       "columns": [
-        { "name": "id", "nullable": false },
-        { "name": "fund_id", "nullable": false },
-        { "name": "metric_run_id", "nullable": false },
-        { "name": "narrative_type", "nullable": false },
-        { "name": "status", "nullable": false }
+        {
+          "name": "id",
+          "nullable": false
+        },
+        {
+          "name": "fund_id",
+          "nullable": false
+        },
+        {
+          "name": "metric_run_id",
+          "nullable": false
+        },
+        {
+          "name": "narrative_type",
+          "nullable": false
+        },
+        {
+          "name": "status",
+          "nullable": false
+        }
       ],
       "constraints": [
         "narrative_type_check",
@@ -176,10 +317,22 @@
     {
       "name": "lp_report_packages",
       "columns": [
-        { "name": "id", "nullable": false },
-        { "name": "fund_id", "nullable": false },
-        { "name": "metric_run_id", "nullable": false },
-        { "name": "status", "nullable": false }
+        {
+          "name": "id",
+          "nullable": false
+        },
+        {
+          "name": "fund_id",
+          "nullable": false
+        },
+        {
+          "name": "metric_run_id",
+          "nullable": false
+        },
+        {
+          "name": "status",
+          "nullable": false
+        }
       ],
       "constraints": [
         "lp_report_package_status_check",
@@ -195,11 +348,26 @@
     {
       "name": "lp_report_package_exports",
       "columns": [
-        { "name": "id", "nullable": false },
-        { "name": "fund_id", "nullable": false },
-        { "name": "report_package_id", "nullable": false },
-        { "name": "format", "nullable": false },
-        { "name": "status", "nullable": false }
+        {
+          "name": "id",
+          "nullable": false
+        },
+        {
+          "name": "fund_id",
+          "nullable": false
+        },
+        {
+          "name": "report_package_id",
+          "nullable": false
+        },
+        {
+          "name": "format",
+          "nullable": false
+        },
+        {
+          "name": "status",
+          "nullable": false
+        }
       ],
       "constraints": [
         "lp_report_package_export_format_check",
@@ -221,13 +389,34 @@
     {
       "name": "planning_fmv_override_requests",
       "columns": [
-        { "name": "id", "nullable": false },
-        { "name": "fund_id", "nullable": false },
-        { "name": "company_id", "nullable": false },
-        { "name": "idempotency_key", "nullable": false },
-        { "name": "request_hash", "nullable": false },
-        { "name": "source_hash", "nullable": false },
-        { "name": "status", "nullable": false }
+        {
+          "name": "id",
+          "nullable": false
+        },
+        {
+          "name": "fund_id",
+          "nullable": false
+        },
+        {
+          "name": "company_id",
+          "nullable": false
+        },
+        {
+          "name": "idempotency_key",
+          "nullable": false
+        },
+        {
+          "name": "request_hash",
+          "nullable": false
+        },
+        {
+          "name": "source_hash",
+          "nullable": false
+        },
+        {
+          "name": "status",
+          "nullable": false
+        }
       ],
       "constraints": [
         "planning_fmv_override_request_status_check",
