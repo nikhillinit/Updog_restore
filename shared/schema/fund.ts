@@ -146,9 +146,11 @@ export const fundSnapshots = pgTable(
     eventCount: integer('event_count').default(0),
     stateHash: varchar('state_hash', { length: 64 }),
     state: jsonb('state'), // Snapshot state data
-    // Phase 2A Item 8: snapshot attribution (nullable for legacy rows)
-    runId: integer('run_id'),
-    configId: integer('config_id'),
+    // Phase 2A Item 8: snapshot attribution (nullable for legacy rows).
+    // FKs restored 2026-07-02 (ADR-023, D1 lane B): journal 0002 and prod both
+    // carry them validated; the shape omission was drift, not design.
+    runId: integer('run_id').references(() => calcRuns.id),
+    configId: integer('config_id').references(() => fundConfigs.id),
     configVersion: integer('config_version'),
     scenarioSetId: uuid('scenario_set_id'),
     h9MoicSourceInputHash: text('h9_moic_source_input_hash'),
