@@ -133,18 +133,79 @@ export function manifestChecksum(manifest, sqlFiles) {
       name: manifest.name,
       sqlFiles: sqlFiles.map((file) => ({ path: file.path, checksum: file.checksum })),
       expectedTables: manifest.expectedTables ?? [],
+      // Drop entries (incl. reverseSql) are ledger-identity: a materially
+      // different drop manifest must never dedup against a committed row
+      // (s8.1 red-team F3). Safe to add while the prod ledger is empty.
+      dropObjects: manifest.dropObjects ?? [],
     })
   );
 }
 
-export function statementHashes(sqlFiles) {
-  return sqlFiles.flatMap((file) =>
-    file.statements.map((statement, index) => ({
-      file: file.path,
+export function statementHashes(sqlFiles, extraStatements = []) {
+  return [
+    ...sqlFiles.flatMap((file) =>
+      file.statements.map((statement, index) => ({
+        file: file.path,
+        index,
+        hash: sha256(statement),
+      }))
+    ),
+    ...extraStatements.map((statement, index) => ({
+      file: '<dropObjects>',
       index,
       hash: sha256(statement),
-    }))
-  );
+    })),
+  ];
+}
+
+export function validateDropObjects(manifest) {
+  for (const drop of manifest.dropObjects ?? []) {
+    if (drop.kind !== 'index' && drop.kind !== 'constraint') {
+      throw new ReconcileError(
+        `Manifest ${manifest.name} dropObjects: unsupported kind ${String(drop.kind)}`,
+        { kind: 'unsupported-drop-kind', manifest: manifest.name, drop }
+      );
+    }
+    assertSafeIdentifier(drop.name);
+    if (drop.name.length > 63) {
+      throw new ReconcileError(
+        `Manifest ${manifest.name} dropObjects: ${drop.name} exceeds the 63-byte identifier limit; drop targets must be actual catalog names`,
+        { kind: 'drop-name-too-long', manifest: manifest.name, name: drop.name }
+      );
+    }
+    if (drop.kind === 'constraint') {
+      if (!drop.table) {
+        throw new ReconcileError(
+          `Manifest ${manifest.name} dropObjects: constraint ${drop.name} is missing its table`,
+          { kind: 'missing-drop-table', manifest: manifest.name, name: drop.name }
+        );
+      }
+      assertSafeIdentifier(drop.table);
+    }
+    if (typeof drop.reverseSql !== 'string' || drop.reverseSql.trim().length === 0) {
+      throw new ReconcileError(
+        `Manifest ${manifest.name} dropObjects: ${drop.name} is missing reverseSql (emergency rollback must be written down, not improvised)`,
+        { kind: 'missing-reverse-sql', manifest: manifest.name, name: drop.name }
+      );
+    }
+    if (typeof drop.reason !== 'string' || drop.reason.trim().length === 0) {
+      throw new ReconcileError(
+        `Manifest ${manifest.name} dropObjects: ${drop.name} is missing its reason`,
+        { kind: 'missing-drop-reason', manifest: manifest.name, name: drop.name }
+      );
+    }
+  }
+}
+
+export function dropStatements(manifest) {
+  return (manifest.dropObjects ?? []).map((drop) => {
+    assertSafeIdentifier(drop.name);
+    if (drop.kind === 'index') {
+      return `DROP INDEX IF EXISTS "${drop.name}"`;
+    }
+    assertSafeIdentifier(drop.table);
+    return `ALTER TABLE "${drop.table}" DROP CONSTRAINT IF EXISTS "${drop.name}"`;
+  });
 }
 
 export function validateManifestSql(manifest, sqlFiles) {
@@ -196,8 +257,9 @@ export function extractCreateTableNames(sql) {
 
 export async function auditManifest(client, manifest) {
   const expectedTables = manifest.expectedTables ?? [];
+  const dropObjects = manifest.dropObjects ?? [];
   const tableNames = expectedTables.map((table) => table.name);
-  if (tableNames.length === 0) {
+  if (tableNames.length === 0 && dropObjects.length === 0) {
     return {
       manifest: manifest.name,
       action: ACTION_SKIP,
@@ -205,23 +267,30 @@ export async function auditManifest(client, manifest) {
     };
   }
 
-  const presentTables = await loadPresentTables(client, tableNames);
-  const columns = await loadColumns(client, tableNames);
-  const constraints = await loadConstraints(client, tableNames, expectedTables);
-  const indexes = await loadIndexes(client, expectedTables);
   const objects = [];
 
-  for (const expectedTable of expectedTables) {
-    objects.push(
-      await auditTable({
-        client,
-        expectedTable,
-        tablePresent: presentTables.has(expectedTable.name),
-        columns: columns.get(expectedTable.name) ?? new Map(),
-        constraints,
-        indexes,
-      })
-    );
+  if (tableNames.length > 0) {
+    const presentTables = await loadPresentTables(client, tableNames);
+    const columns = await loadColumns(client, tableNames);
+    const constraints = await loadConstraints(client, tableNames, expectedTables);
+    const indexes = await loadIndexes(client, expectedTables);
+
+    for (const expectedTable of expectedTables) {
+      objects.push(
+        await auditTable({
+          client,
+          expectedTable,
+          tablePresent: presentTables.has(expectedTable.name),
+          columns: columns.get(expectedTable.name) ?? new Map(),
+          constraints,
+          indexes,
+        })
+      );
+    }
+  }
+
+  if (dropObjects.length > 0) {
+    objects.push(...(await auditDropObjects(client, dropObjects)));
   }
 
   return {
@@ -229,6 +298,57 @@ export async function auditManifest(client, manifest) {
     action: summarizeAction(objects.map((object) => object.action)),
     objects,
   };
+}
+
+// Extra-objects audit: a dropObject PRESENT on the target means the manifest
+// still has work (APPLY); absent means done (SKIP). The post-apply re-audit
+// therefore verifies drops through the same must-be-SKIP gate as creates.
+async function auditDropObjects(client, dropObjects) {
+  const indexNames = dropObjects.filter((drop) => drop.kind === 'index').map((drop) => drop.name);
+  const constraintDrops = dropObjects.filter((drop) => drop.kind === 'constraint');
+
+  const presentIndexes = await loadPresentDropIndexes(client, indexNames);
+  const presentConstraints = await loadPresentDropConstraints(client, constraintDrops);
+
+  return dropObjects.map((drop) => {
+    const present =
+      drop.kind === 'index' ? presentIndexes.has(drop.name) : presentConstraints.has(drop.name);
+    return {
+      table: drop.table ?? drop.name,
+      present,
+      populated: false,
+      deltas: present
+        ? [{ kind: 'extra-object-present', name: drop.name, additiveSafe: true }]
+        : [],
+      action: present ? ACTION_APPLY_MISSING_DDL : ACTION_SKIP,
+    };
+  });
+}
+
+async function loadPresentDropIndexes(client, names) {
+  if (names.length === 0) return new Set();
+  const result = await client.query(
+    `SELECT indexname FROM pg_indexes WHERE schemaname = 'public' AND indexname = ANY($1::text[])`,
+    [names]
+  );
+  return new Set(result.rows.map((row) => row.indexname));
+}
+
+async function loadPresentDropConstraints(client, constraintDrops) {
+  if (constraintDrops.length === 0) return new Set();
+  const result = await client.query(
+    `
+      SELECT con.conname
+      FROM pg_constraint con
+      JOIN pg_class c ON c.oid = con.conrelid
+      JOIN pg_namespace n ON n.oid = c.relnamespace
+      WHERE n.nspname = 'public'
+        AND c.relname = ANY($1::text[])
+        AND con.conname = ANY($2::text[])
+    `,
+    [constraintDrops.map((drop) => drop.table), constraintDrops.map((drop) => drop.name)]
+  );
+  return new Set(result.rows.map((row) => row.conname));
 }
 
 export function decideObjectAction({ tablePresent, deltas, populated }) {
@@ -342,11 +462,14 @@ export async function runReconciliation({
   for (const manifest of manifests) {
     const sqlFiles = await readManifestSql(manifest, rootDir);
     validateManifestSql(manifest, sqlFiles);
+    validateDropObjects(manifest);
+    const manifestDropStatements = dropStatements(manifest);
     preparedManifests.push({
       manifest,
       sqlFiles,
       checksum: manifestChecksum(manifest, sqlFiles),
-      statementHashes: statementHashes(sqlFiles),
+      statementHashes: statementHashes(sqlFiles, manifestDropStatements),
+      dropStatements: manifestDropStatements,
     });
   }
 
@@ -693,6 +816,15 @@ async function applyPreparedManifest({ client, prepared, identity, stdout }) {
     for (const file of prepared.sqlFiles) {
       stdout.write(`\nApplying ${file.path} (${file.statements.length} statements)\n`);
       for (const statement of file.statements) {
+        await client.query(statement);
+      }
+    }
+
+    if (prepared.dropStatements.length > 0) {
+      stdout.write(
+        `\nApplying ${prepared.dropStatements.length} dropObjects statements for ${prepared.manifest.name}\n`
+      );
+      for (const statement of prepared.dropStatements) {
         await client.query(statement);
       }
     }
