@@ -295,7 +295,6 @@ schema_tests:
   - 'tests/setup/global-setup.testcontainers.ts'
   - '.github/workflows/testcontainers-ci.yml'
   - '.github/path-filters.yml'
-  - 'tests/integration/testcontainers-smoke.test.ts'
   - 'tests/integration/migration-runner.test.ts'
   - 'tests/integration/fund-lifecycle-db.test.ts'
   - 'tests/integration/migration-drift.test.ts'

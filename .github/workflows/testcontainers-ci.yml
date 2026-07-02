@@ -102,21 +102,7 @@ jobs:
           echo "Docker daemon not ready after retries."
           exit 1
 
-      # Smoke test first; testcontainers handles health checks via Wait strategies.
-      - name: Run testcontainers smoke test (with retries)
-        run: |
-          set -e
-          for attempt in 1 2 3; do
-            echo "Smoke test attempt $attempt..."
-            if npx vitest run -c vitest.config.testcontainers.ts tests/integration/testcontainers-smoke.test.ts; then
-              exit 0
-            fi
-            echo "Smoke test failed; retrying in 10s..."
-            sleep 10
-          done
-          exit 1
-
-      # Full integration suite once containers are verified.
+      # Full integration suite; testcontainers handles health checks via Wait strategies.
       - name: Run full integration test suite
         run: npx vitest run -c vitest.config.testcontainers.ts
 

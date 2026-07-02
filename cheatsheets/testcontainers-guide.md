@@ -40,10 +40,10 @@ docker --version
 docker ps
 ```
 
-### 2. Run Smoke Tests
+### 2. Run a Docker-backed Test
 
 ```bash
-npm test -- tests/integration/testcontainers-smoke.test.ts
+npx vitest run -c vitest.config.testcontainers.ts tests/integration/migration-runner.test.ts
 ```
 
 Expected: containers start in under 30 seconds and migrations complete
