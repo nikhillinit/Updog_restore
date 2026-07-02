@@ -9,19 +9,10 @@ import { pathToFileURL } from 'node:url';
 const MIGRATIONS_DIR = path.join('server', 'migrations');
 const CODE = 'server-migrations-new-file';
 
-// Lane-B carve-out: the investment_rounds / investments_id_fund_unique /
-// investment_round_model_overrides family, retired in a separate lane-B follow-up.
-// The follow-up removes entries here as it deletes those files.
-export const LANE_B_ALLOWLIST = [
-  '20260621_investments_id_fund_unique_v1.up.sql',
-  '20260621_investments_id_fund_unique_v1.down.sql',
-  '20260621_z_investment_rounds_v1.up.sql',
-  '20260621_z_investment_rounds_v1.down.sql',
-  '20260623_z_investment_rounds_operational_v1.up.sql',
-  '20260623_z_investment_rounds_operational_v1.down.sql',
-  '20260624_investment_round_model_overrides_v1.up.sql',
-  '20260624_investment_round_model_overrides_v1.down.sql',
-];
+// Lane-B carve-out retired (s8.2 slice 3): the investment_rounds family now lives in the
+// canonical Drizzle journal (migrations/0027). The allowlist is intentionally empty:
+// every file under server/migrations/ is an offender.
+export const LANE_B_ALLOWLIST = [];
 
 export function analyzeServerMigrations({ entries, allowlist = LANE_B_ALLOWLIST }) {
   const allowed = new Set(allowlist);

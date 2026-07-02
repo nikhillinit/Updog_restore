@@ -19,7 +19,7 @@ import { investmentRounds } from './investment-rounds';
 import { users } from './user';
 
 /**
- * Mirrors server/migrations/20260624_investment_round_model_overrides_v1.up.sql.
+ * Model-assumption overrides scoped to an investment round (ADR-023 L3b).
  */
 export const investmentRoundModelOverrides = pgTable(
   'investment_round_model_overrides',
