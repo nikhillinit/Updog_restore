@@ -2522,6 +2522,12 @@ export const jobOutbox = pgTable(
       .where(sql`${table.status} = 'processing'`),
     jobTypeIdx: index('idx_job_outbox_job_type').on(table.jobType),
     dedupeKeyIdx: uniqueIndex('idx_job_outbox_job_type_dedupe').on(table.jobType, table.dedupeKey),
+    // Restored 2026-07-02 (ADR-023, D1 lane B): journal 0005 and prod both carry
+    // this CHECK; the shape had only the TS $type. Predicate matches 0005 verbatim.
+    statusCheck: check(
+      'job_outbox_status_check',
+      sql`${table.status} IN ('pending', 'processing', 'completed', 'failed', 'cancelled')`
+    ),
   })
 );
 

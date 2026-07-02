@@ -812,13 +812,24 @@ describe.skipIf(skipIfNoDocker)('prod schema synthetic clone', () => {
         };
       };
 
-      // Positive control: DB-A (journal replay) MUST contain all six seam objects,
-      // so every detection query is proven before an operator session relies on it.
+      // Positive control on the detection queries, pinned to post-0028 DB-A truth:
+      // the three old GLOBAL idempotency indexes are DROPPED by 0028 (the script
+      // must report them absent, not error), while the scoped indexes (0024),
+      // fund_snapshots FKs (0002), and job_outbox_status_check (0005) remain
+      // present. This proves detection in BOTH directions before an operator
+      // session relies on it.
       expect(artifact.completed).toBe(true);
       expect(artifact.query_count).toBeGreaterThan(0);
       expect(
-        artifact.results.old_global_indexes.filter((entry) => entry.absent)
-      ).toEqual([]);
+        artifact.results.old_global_indexes
+          .filter((entry) => entry.absent)
+          .map((entry) => entry.index_name)
+          .sort()
+      ).toEqual([
+        'forecast_snapshots_idempotency_unique_idx',
+        'investment_lots_idempotency_unique_idx',
+        'reserve_allocations_idempotency_unique_idx',
+      ]);
       expect(
         artifact.results.scoped_indexes.filter(
           (entry) => entry.absent || !entry.is_valid || !entry.is_ready
