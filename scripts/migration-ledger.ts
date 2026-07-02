@@ -357,7 +357,7 @@ export function classifyMigrationSqlFile(
   }
 
   if (hasOverlap(tableNames, SERVER_LEDGER_TABLES)) {
-    reasons.push('table names overlap server/migrations');
+    reasons.push('table names overlap the retired server/migrations ledger');
     return { file: fileName, class: 'loose-server-ledger-candidate', marker, reasons };
   }
 
