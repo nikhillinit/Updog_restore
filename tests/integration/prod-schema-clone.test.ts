@@ -38,8 +38,6 @@ const C1_MOUNTED_TABLES = [
   'planning_fmv_override_requests',
 ] as const;
 const SHAPE_ONLY_NOT_JOURNALED = [
-  'investment_rounds',
-  'investment_round_model_overrides',
   'flag_changes',
   'flags_state',
   'reserve_approvals',
