@@ -26,7 +26,12 @@ import { parseArgs } from 'node:util';
 
 import pg from 'pg';
 
-import { assertDirectDatabaseUrl } from './reconcile-prod-schema.mjs';
+// Captured BEFORE importing reconcile-prod-schema.mjs (dynamic import in main):
+// that module runs dotenv config() at module load, which would silently fill
+// DATABASE_URL from a local .env and produce a complete-looking audit against
+// the wrong database. This tool only accepts a URL from the actual invocation
+// environment.
+const CONNECTION_STRING_FROM_INVOCATION = process.env.DATABASE_URL;
 
 const OLD_GLOBAL_INDEXES = [
   'forecast_snapshots_idempotency_unique_idx',
@@ -244,18 +249,22 @@ async function main() {
   });
   const outPath = values.out;
 
-  const connectionString = process.env.DATABASE_URL;
-  assertDirectDatabaseUrl(connectionString);
-
-  const client = new pg.Client({ connectionString });
+  const connectionString = CONNECTION_STRING_FROM_INVOCATION;
   const results = {};
   let queryCount = 0;
+  let client;
   const counted = async (promise) => {
     queryCount += 1;
     return promise;
   };
 
   try {
+    // Inside the try so a refusal (missing URL, memory://, pooler URL) still
+    // writes the completed:false artifact instead of exiting artifact-less.
+    const { assertDirectDatabaseUrl } = await import('./reconcile-prod-schema.mjs');
+    assertDirectDatabaseUrl(connectionString);
+
+    client = new pg.Client({ connectionString });
     await client.connect();
     await client.query('SET default_transaction_read_only = on');
     await client.query("SET statement_timeout = '30s'");
@@ -308,7 +317,7 @@ async function main() {
     console.error(JSON.stringify(artifact));
     process.exitCode = 1;
   } finally {
-    await client.end().catch(() => {});
+    await client?.end().catch(() => {});
   }
 }
 
