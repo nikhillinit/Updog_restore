@@ -27,7 +27,6 @@ export default defineConfig({
     // Only include tests that actually work with testcontainers
     // Other tests have pre-existing issues tracked in separate issues
     include: [
-      'tests/integration/testcontainers-smoke.test.ts',
       'tests/integration/migration-runner.test.ts',
       'tests/integration/fund-lifecycle-db.test.ts',
       'tests/integration/migration-drift.test.ts',
