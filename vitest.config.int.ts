@@ -12,7 +12,6 @@ const alias = createVitestAlias(projectRoot, {
 const scenarioReleaseGatePath =
   'tests/integration/scenarios/scenario-release-gate.integration.test.ts';
 const testcontainersOnlyPaths = [
-  'tests/integration/testcontainers-smoke.test.ts',
   'tests/integration/migration-runner.test.ts',
   'tests/integration/fund-lifecycle-db.test.ts',
 ];

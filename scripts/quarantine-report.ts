@@ -103,7 +103,7 @@ async function generateReport(): Promise<void> {
     const content = fs.readFileSync(file, 'utf-8');
 
     // Check for @quarantine tag or describe.skip
-    if (content.includes('@quarantine') || content.includes('describe.skip')) {
+    if (content.includes('@quarantine') || /describe\.skip\(/.test(content)) {
       const parsed = parseQuarantineJSDoc(content);
       const relativePath = path.relative(process.cwd(), file).replace(/\\/g, '/');
 
