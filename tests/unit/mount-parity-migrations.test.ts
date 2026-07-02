@@ -28,9 +28,11 @@ const C1_MOUNTED_TABLES = [
   'allocation_scenario_items',
   'allocation_scenario_ic_decisions',
   'allocation_scenario_events',
-  // s8.2 slice 3: deferred domain-locked exemption retired — investment_rounds is
-  // journaled (migrations/0027) and mounted via the investmentsRouter rounds routes.
+  // s8.2 slice 3: deferred domain-locked exemption retired — both rounds tables are
+  // journaled (migrations/0027) and read by mounted routes (investmentsRouter rounds
+  // endpoints; fundMoicRouter via rounds-to-model-evidence-service).
   'investment_rounds',
+  'investment_round_model_overrides',
 ] as const;
 
 type MountKind = 'c1' | 'non-table' | 'other-table';
@@ -59,7 +61,16 @@ const MAKEAPP_ROUTE_INVENTORY: Record<string, { kind: MountKind; tables?: string
     tables: ['valuation_marks', 'planning_fmv_override_requests'],
   },
   fundScenarioSetsRouter: { kind: 'other-table' },
-  fundMoicRouter: { kind: 'c1', tables: ['fund_calculation_modes', 'reconciliation_runs'] },
+  fundMoicRouter: {
+    kind: 'c1',
+    tables: [
+      'fund_calculation_modes',
+      'reconciliation_runs',
+      // via rounds-to-model-evidence-service (buildRoundsToModelEvidence)
+      'investment_rounds',
+      'investment_round_model_overrides',
+    ],
+  },
   reallocationRouter: { kind: 'other-table' },
   cashFlowEventsRouter: { kind: 'c1', tables: ['cash_flow_events'] },
   operatingObjectTasksRouter: { kind: 'c1', tables: ['tasks'] },
@@ -170,13 +181,11 @@ describe('makeApp mount parity with journaled migrations', () => {
     expect(missingCreateTables).toEqual([]);
   });
 
-  it('covers the formerly deferred rounds tables in the journal (exemption retired)', () => {
-    // investment_rounds is asserted via the C1 parity set above; the overrides
-    // table has no mounted route reader yet, so its journal coverage is pinned
-    // here directly.
-    const sql = migrationSql();
-    expect(hasCreateTable(sql, 'investment_rounds')).toBe(true);
-    expect(hasCreateTable(sql, 'investment_round_model_overrides')).toBe(true);
+  it('keeps the formerly deferred rounds tables inside the C1 parity set (exemption retired)', () => {
+    // Journal coverage itself is asserted by the C1 parity test above; this pin
+    // guards against a silent re-exemption of either table.
+    expect(C1_MOUNTED_TABLES).toContain('investment_rounds');
+    expect(C1_MOUNTED_TABLES).toContain('investment_round_model_overrides');
   });
 
   it('classifies every makeApp route mount (D6 recurrence guard)', () => {
