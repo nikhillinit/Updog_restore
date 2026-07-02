@@ -1,8 +1,11 @@
 import { PostgreSqlContainer, type StartedPostgreSqlContainer } from '@testcontainers/postgresql';
 import { pushSchema } from 'drizzle-kit/api';
 import { drizzle } from 'drizzle-orm/node-postgres';
+import { execFile } from 'node:child_process';
 import { readFile } from 'node:fs/promises';
+import os from 'node:os';
 import path from 'node:path';
+import { promisify } from 'node:util';
 import { Pool } from 'pg';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
@@ -12,6 +15,7 @@ import { runMigrationsWithConnectionString } from '../helpers/testcontainers-mig
 
 const STARTUP_TIMEOUT_MS = 90_000;
 const skipIfNoDocker = !process.env.CI && process.platform === 'win32';
+const execFileAsync = promisify(execFile);
 
 let postgres: StartedPostgreSqlContainer | undefined;
 let pool: Pool | undefined;
@@ -715,11 +719,14 @@ describe.skipIf(skipIfNoDocker)('prod schema synthetic clone', () => {
     // eslint-disable-next-line no-console -- D4 requires non-gating CI diagnostics.
     console.log('[prod-schema-clone] shape-only tables', shapeOnlyTables);
     // eslint-disable-next-line no-console -- D4 requires non-gating CI diagnostics.
-    console.log('[prod-schema-clone] DB-A catalog definitions', await catalogDefinitions(pool!));
+    console.log(
+      '[prod-schema-clone] DB-A catalog definitions',
+      JSON.stringify(await catalogDefinitions(pool!))
+    );
     // eslint-disable-next-line no-console -- D4 requires non-gating CI diagnostics.
     console.log(
       '[prod-schema-clone] DB-B catalog definitions',
-      await catalogDefinitions(shapePool)
+      JSON.stringify(await catalogDefinitions(shapePool))
     );
     // eslint-disable-next-line no-console -- non-gating drift report for PR-2b
     console.log(
@@ -769,4 +776,69 @@ describe.skipIf(skipIfNoDocker)('prod schema synthetic clone', () => {
 
     // alert_evaluation_executions, job_outbox.dedupe_key, idx_job_outbox_job_type_dedupe, performance_alerts_open_incident_unique, backtest_results.scenario_comparison_summary are in BOTH the journal and shape source -> proven by the sentinel intersection diff above; asserting them here would be vacuous (the journal pre-supplies them).
   });
+
+  it(
+    'smoke-runs the s8.1 operator-seam audit script against the journal clone',
+    async () => {
+      expect(postgres).toBeDefined();
+      const outPath = path.join(
+        os.tmpdir(),
+        `s81-audit-smoke-${process.pid}-${Date.now()}.json`
+      );
+
+      await execFileAsync('node', ['scripts/audit-prod-operator-seam.mjs', '--out', outPath], {
+        cwd: process.cwd(),
+        env: { ...process.env, DATABASE_URL: postgres!.getConnectionUri() },
+      });
+
+      const artifact = JSON.parse(await readFile(outPath, 'utf8')) as {
+        completed: boolean;
+        query_count: number;
+        results: {
+          old_global_indexes: Array<{ index_name: string; absent?: boolean }>;
+          scoped_indexes: Array<{
+            index_name: string;
+            absent?: boolean;
+            is_valid?: boolean;
+            is_ready?: boolean;
+          }>;
+          fund_snapshot_fks: Array<{ constraint_name: string; absent?: boolean }>;
+          outbox_status_checks: Array<{ constraint_name: string }>;
+          orphan_counts: {
+            fund_snapshots_run_id_orphans: number;
+            fund_snapshots_config_id_orphans: number;
+          };
+          row_counts: Record<string, number>;
+        };
+      };
+
+      // Positive control: DB-A (journal replay) MUST contain all six seam objects,
+      // so every detection query is proven before an operator session relies on it.
+      expect(artifact.completed).toBe(true);
+      expect(artifact.query_count).toBeGreaterThan(0);
+      expect(
+        artifact.results.old_global_indexes.filter((entry) => entry.absent)
+      ).toEqual([]);
+      expect(
+        artifact.results.scoped_indexes.filter(
+          (entry) => entry.absent || !entry.is_valid || !entry.is_ready
+        )
+      ).toEqual([]);
+      const foundFks = artifact.results.fund_snapshot_fks
+        .filter((entry) => !entry.absent)
+        .map((entry) => entry.constraint_name)
+        .sort();
+      expect(foundFks).toEqual([
+        'fund_snapshots_config_id_fundconfigs_id_fk',
+        'fund_snapshots_run_id_calc_runs_id_fk',
+      ]);
+      expect(
+        artifact.results.outbox_status_checks.map((entry) => entry.constraint_name)
+      ).toContain('job_outbox_status_check');
+      expect(artifact.results.orphan_counts.fund_snapshots_run_id_orphans).toBe(0);
+      expect(artifact.results.orphan_counts.fund_snapshots_config_id_orphans).toBe(0);
+      expect(Object.keys(artifact.results.row_counts)).toHaveLength(7);
+    },
+    60_000
+  );
 });

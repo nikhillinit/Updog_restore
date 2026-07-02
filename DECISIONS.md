@@ -26,6 +26,7 @@ development of the Press On Ventures fund modeling platform.
 - [ADR-020: Phase 3C Track B Go/No-Go Deadline](#adr-020-phase-3c-track-b-gono-go-deadline)
 - [ADR-021: Single Required CI Gate with Internal Conditional Jobs](#adr-021-single-required-ci-gate-with-internal-conditional-jobs)
 - [ADR-022: SSE Event Routes Protected by Bearer Fund-Scope; Native EventSource Transport Deferred](#adr-022-sse-event-routes-protected-by-bearer-fund-scope-native-eventsource-transport-deferred)
+- [ADR-023: s8.1 Operator Seam - Evidence-First Slice Ordering and D1 Triage-First Decision Procedure](#adr-023-s81-operator-seam---evidence-first-slice-ordering-and-d1-triage-first-decision-procedure)
 
 ---
 
@@ -5008,3 +5009,75 @@ other Tranche A route.
   deferred to when a real consumer's requirements exist.
 - The simulation route gains auth-required immediately; full simulation
   fund-scoping remains a follow-up.
+
+## ADR-023: s8.1 Operator Seam - Evidence-First Slice Ordering and D1 Triage-First Decision Procedure
+
+**Date:** 2026-07-02 **Status:** [ACCEPTED] Accepted **Decision:** Retire the
+6-entry `KNOWN_INTERSECTION_DRIFT` baseline via a locked evidence-first slice
+pipeline (audit before any decision, reviewed code before any prod apply,
+fresh-signal-plus-prod-outcome pin before any baseline shrink), with the
+fund_snapshots-FK / job_outbox-CHECK direction (D1) decided by a triage-first
+procedure rather than by fiat.
+
+### Context
+
+The prod-schema drift gate (`tests/integration/prod-schema-clone.test.ts`)
+tolerates six known intersection-drift entries: three stale global idempotency
+unique indexes (journal `0001` created them; `0024` added the scoped
+replacements; nothing journaled drops the old ones), two journal-only
+fund_snapshots FKs (`0002`), and a journal-only `job_outbox_status_check`
+(`0005`). The gate compares journal-replay (DB-A) against shape-push (DB-B) in
+Docker; production (Neon, historically push-built) is not in that loop, so the
+baseline could shrink while prod still carried a latent hazard: if prod retains
+the old GLOBAL unique index, it enforces cross-scope idempotency-key uniqueness
+that the scoped design (#924 lineage) deliberately relaxed - a latent 409/23505
+on legitimate key reuse. Evidence cut both ways on D1 (drop the journal-side
+constraints vs add them to shape+prod): real readers join snapshots by these
+columns and `fund_metrics` keeps equivalent FKs in shape, but adding FKs to prod
+validates existing rows (orphan/lock risk). Gate reviews ran 2026-07-02 (CEO
+hold-scope, engineering, codex red-team; plan
+`~/.claude/plans/EXECUTE-s81-operator-seam.md` section 6 holds the full log).
+
+### Decision
+
+1. Slice ordering locked: 0 (read-only prod audit + un-truncated §7 dumps) ->
+   1 (decision lock) -> 2 (journal drift-patch `0028`) -> 3 (FK-name manifest
+   reconcile) -> 3.5 (drop-capable manifest path in `reconcile-prod-schema.mjs`
+   as its own reviewed PR) -> 4 (guarded operator apply, only if audit demands)
+   -> 5 (baseline shrink). Manifest reconcile precedes prod apply; operator
+   sessions run only reviewed code; the shrink commit must pin the fresh §7 run
+   ID, the slice-4 outcome, the audit-artifact sha256, the target DB identity,
+   and this decision record.
+2. D1 procedure locked (triage-first): zero orphans and in-list status values ->
+   lane B (add `.references()`/`check()` to shape; prod gains constraints via
+   `NOT VALID` then `VALIDATE`). Nonzero orphans -> triage first
+   (count/age/repairability); cheaply repairable -> repair then lane B; only
+   unrepairable or ambiguous -> lane A (journal-side drop), recording explicitly
+   that DB integrity is being relaxed. Repairable orphans never decide permanent
+   integrity relaxation.
+3. Slice-4 lock strategy: plain `DROP INDEX` inside the guarded transaction by
+   default; `CONCURRENTLY` outside the transaction only on row-count/traffic
+   evidence, with mandatory `pg_index.indisvalid`/`indisready` prechecks on the
+   scoped replacement before any global-index drop.
+
+### Alternatives Considered
+
+- **Journal-only reconcile (no prod audit):** disqualified - the §7 gate cannot
+  see prod, so the baseline would clear while the latent global-index hazard
+  persisted silently.
+- **Big-bang (journal patch + same-day prod apply + immediate shrink):**
+  rejected - violates the shrink-only-after-fresh-signal rule that previously
+  caused a gate failure, and applies prod DDL on unaudited state.
+- **Nonzero orphans -> lane A directly (pre-red-team procedure):** rejected -
+  lets temporary bad data decide permanent integrity relaxation.
+
+### Consequences
+
+- Positive: the drift gate ends with zero tolerated entries backed by prod
+  evidence, not assumption; every prod-affecting step has a reviewed-code and
+  recorded-evidence gate; the latent 409 hazard is either disproven or fixed.
+- Negative: more PRs and two human operator touchpoints (read-only audit,
+  possible apply) before the baseline can shrink; D1 remains open until slice-0
+  evidence lands (by design).
+- Neutral: `reconcile-prod-schema.mjs` gains a drop-capable manifest path whose
+  checksum must cover drop entries and reverse SQL.
