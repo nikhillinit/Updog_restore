@@ -157,10 +157,15 @@ dependency:
   - '.github/workflows/ci-unified.yml'
   - '.github/workflows/dependency-validation.yml'
 
+# Keep the shared/* entries in sync with the `schema` array in
+# drizzle.config.ts: every Drizzle schema input must be listed here, or
+# schema-only PRs touching it skip the schema CI lane.
 schema:
   - 'migrations/**'
   - 'shared/schema/**'
   - 'shared/schema.ts'
+  - 'shared/schema-lp-reporting.ts'
+  - 'shared/schema-lp-sprint3.ts'
   - 'scripts/prod-schema-manifests/**'
   - 'scripts/reconcile-prod-schema.mjs'
   - 'scripts/db-push.mjs'
