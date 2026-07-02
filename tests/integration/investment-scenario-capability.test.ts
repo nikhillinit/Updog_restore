@@ -4,7 +4,6 @@ import request from 'supertest';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 
 import { investmentRounds } from '@shared/schema';
-import { applyInvestmentRoundConstraints } from '../helpers/apply-investment-round-constraints';
 import { runDrizzlePush } from './helpers/run-drizzle-push';
 import { setupTestDB } from '../helpers/testcontainers';
 
@@ -171,7 +170,6 @@ describe.skipIf(!process.env.CI && process.platform === 'win32')(
       process.env._EXPLICIT_ALLOW_MEMORY_STORAGE = '0';
 
       runDrizzlePush(connectionString);
-      await applyInvestmentRoundConstraints(connectionString);
       vi.resetModules();
 
       const [{ default: investmentsRouter }, dbModule, schema] = await Promise.all([

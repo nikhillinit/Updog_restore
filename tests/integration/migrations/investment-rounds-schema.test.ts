@@ -4,7 +4,6 @@ import { Pool } from 'pg';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import { runDrizzlePush } from '../helpers/run-drizzle-push';
-import { applyInvestmentRoundConstraints } from '../../helpers/apply-investment-round-constraints';
 import { setupTestDB } from '../../helpers/testcontainers';
 import { createRound } from '../../../server/services/investments/investment-round-service';
 
@@ -105,7 +104,6 @@ describe.skipIf(skipIfNoDocker)('investment_rounds schema', () => {
 
     const connectionString = container.getConnectionUri();
     runDrizzlePush(connectionString);
-    await applyInvestmentRoundConstraints(connectionString);
 
     pool = new Pool({ connectionString, max: 4 });
   }, STARTUP_TIMEOUT_MS * 2);
