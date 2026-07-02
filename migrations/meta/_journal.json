@@ -204,6 +204,13 @@
       "when": 1782957704018,
       "tag": "0027_investment_rounds_journal_drift",
       "breakpoints": true
+    },
+    {
+      "idx": 29,
+      "version": "7",
+      "when": 1783022913852,
+      "tag": "0028_operator_seam_drift",
+      "breakpoints": true
     }
   ]
 }
