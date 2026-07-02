@@ -5,8 +5,6 @@
  * denormalized for indexed reads and enforced against the parent investment by
  * a composite FK.
  *
- * Mirrors server/migrations/20260621_z_investment_rounds_v1.up.sql.
- *
  * @module shared/schema/investment-rounds
  * @see docs/adr/ADR-023-investment-event-persistence.md
  */

@@ -1,2 +1,0 @@
-DROP INDEX IF EXISTS investment_rounds_fund_round_order_idx;
-ALTER TABLE investment_rounds DROP CONSTRAINT IF EXISTS investment_rounds_amount_positive;

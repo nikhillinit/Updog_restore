@@ -11,7 +11,7 @@ Analyze current schema requirements and ensure Drizzle/PostgreSQL compatibility.
 ## Responsibilities
 - Extend `shared/schema.ts` to include missing quant tables (e.g. `reserve_strategies`, `pacing_history`)
 - Ensure decimal types use correct precision (e.g. `NUMERIC(15,2)`)
-- Create associated migration files in `server/migrations/`
+- Create journaled migrations in `migrations/` (append a `migrations/meta/_journal.json` entry; drift patches carry `-- @drift-patch` + `-- Reason:` headers, idempotent SQL, and the `expectedJournaledDriftPatchFiles` pin in `tests/unit/migration-ledger.test.ts`)
 - Add appropriate indices and constraints
 - Validate schema-to-migration alignment
 
@@ -22,4 +22,4 @@ Analyze current schema requirements and ensure Drizzle/PostgreSQL compatibility.
 
 ## Outputs
 - Updated schema
-- Two migration files: `add_reserve_strategies.ts`, `add_pacing_history.ts`
+- Journaled migration files under `migrations/` when schema changes require them
