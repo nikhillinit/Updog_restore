@@ -1,24 +1,42 @@
 name: Testcontainers Integration Tests
 
-# Run on label trigger (test:docker or test:integration) or manual dispatch.
+# Run on label trigger (test:docker or test:integration), schema-path changes, or manual dispatch.
 # This workflow requires Docker, which may not be available in all environments.
 on:
   pull_request:
-    types: [labeled]
+    types: [opened, synchronize, reopened, labeled]
   workflow_dispatch:
 
 jobs:
+  detect-schema:
+    name: Detect Schema Changes
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    if: github.event_name == 'pull_request'
+    outputs:
+      schema: ${{ steps.filter.outputs.schema }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: dorny/paths-filter@fbd0ab8f3e69293af611ebaee6363fc25e6d187d # v4.0.1
+        id: filter
+        with:
+          filters: .github/path-filters.yml
+
   testcontainers:
     name: Testcontainers
+    needs: detect-schema
     runs-on: ubuntu-latest
     timeout-minutes: 30
-    # Only run if labeled with test:docker or test:integration
+    # Run if manually dispatched, labeled, or schema paths changed.
     if: |
-      github.event_name == 'workflow_dispatch' ||
-      (github.event_name == 'pull_request' && (
-        contains(github.event.pull_request.labels.*.name, 'test:docker') ||
-        contains(github.event.pull_request.labels.*.name, 'test:integration')
-      ))
+      !cancelled() &&
+      (github.event_name == 'workflow_dispatch' ||
+       (github.event_name == 'pull_request' && (
+         contains(github.event.pull_request.labels.*.name, 'test:docker') ||
+         contains(github.event.pull_request.labels.*.name, 'test:integration') ||
+         needs.detect-schema.outputs.schema == 'true'
+       )))
     # No services section: testcontainers manages Docker services itself.
     env:
       ENABLE_PHASE4_TESTS: 'true'
