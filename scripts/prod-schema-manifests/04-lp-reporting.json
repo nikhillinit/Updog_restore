@@ -37,31 +37,172 @@
   ],
   "expectedTables": [
     {
-      "name": "limited_partners"
+      "name": "limited_partners",
+      "columns": [
+        {
+          "name": "id",
+          "type": "integer",
+          "nullable": false
+        },
+        {
+          "name": "name",
+          "type": "text",
+          "nullable": false
+        },
+        {
+          "name": "email",
+          "type": "varchar",
+          "nullable": false
+        },
+        {
+          "name": "entity_type",
+          "type": "varchar",
+          "nullable": false
+        },
+        {
+          "name": "version",
+          "type": "bigint",
+          "nullable": false
+        }
+      ],
+      "constraints": [
+        "limited_partners_email_unique",
+        "limited_partners_entity_type_check"
+      ]
     },
     {
-      "name": "lp_fund_commitments"
+      "name": "lp_fund_commitments",
+      "columns": [
+        {
+          "name": "id",
+          "type": "integer",
+          "nullable": false
+        },
+        {
+          "name": "lp_id",
+          "type": "integer",
+          "nullable": false
+        },
+        {
+          "name": "fund_id",
+          "type": "integer",
+          "nullable": false
+        },
+        {
+          "name": "commitment_amount_cents",
+          "type": "bigint",
+          "nullable": false
+        },
+        {
+          "name": "status",
+          "type": "varchar",
+          "nullable": false
+        },
+        {
+          "name": "version",
+          "type": "bigint",
+          "nullable": false
+        }
+      ],
+      "constraints": [
+        "lp_fund_commitments_lp_id_fund_id_unique",
+        "lp_fund_commitments_status_check",
+        "lp_fund_commitments_fund_id_funds_id_fk",
+        "lp_fund_commitments_lp_id_limited_partners_id_fk"
+      ],
+      "indexes": [
+        "lp_fund_commitments_lp_id_idx",
+        "lp_fund_commitments_fund_id_idx"
+      ]
     },
     {
-      "name": "capital_activities"
+      "name": "capital_activities",
+      "columns": [
+        {
+          "name": "id",
+          "type": "integer",
+          "nullable": false
+        }
+      ],
+      "constraints": [
+        "capital_activities_commitment_id_lp_fund_commitments_id_fk",
+        "capital_activities_fund_id_funds_id_fk"
+      ]
     },
     {
-      "name": "lp_distributions"
+      "name": "lp_distributions",
+      "columns": [
+        {
+          "name": "id",
+          "type": "integer",
+          "nullable": false
+        }
+      ],
+      "constraints": [
+        "lp_distributions_activity_id_capital_activities_id_fk"
+      ]
     },
     {
-      "name": "lp_capital_accounts"
+      "name": "lp_capital_accounts",
+      "columns": [
+        {
+          "name": "id",
+          "type": "integer",
+          "nullable": false
+        }
+      ],
+      "constraints": [
+        "lp_capital_accounts_commitment_id_lp_fund_commitments_id_fk"
+      ]
     },
     {
-      "name": "lp_performance_snapshots"
+      "name": "lp_performance_snapshots",
+      "columns": [
+        {
+          "name": "id",
+          "type": "integer",
+          "nullable": false
+        }
+      ],
+      "constraints": [
+        "lp_performance_snapshots_commitment_id_lp_fund_commitments_id_fk"
+      ]
     },
     {
-      "name": "lp_reports"
+      "name": "lp_reports",
+      "columns": [
+        {
+          "name": "id",
+          "type": "uuid",
+          "nullable": false
+        }
+      ],
+      "constraints": [
+        "lp_reports_lp_id_limited_partners_id_fk"
+      ]
     },
     {
-      "name": "report_templates"
+      "name": "report_templates",
+      "columns": [
+        {
+          "name": "id",
+          "type": "integer",
+          "nullable": false
+        }
+      ]
     },
     {
-      "name": "lp_audit_log"
+      "name": "lp_audit_log",
+      "columns": [
+        {
+          "name": "id",
+          "type": "uuid",
+          "nullable": false
+        }
+      ],
+      "constraints": [
+        "lp_audit_log_lp_id_limited_partners_id_fk"
+      ]
     },
     {
       "name": "vehicles",

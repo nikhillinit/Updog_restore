@@ -10,7 +10,7 @@ import { Pool } from 'pg';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import { pgIdentifier } from '../../scripts/db-push-core.mjs';
-import { auditManifest, loadManifests } from '../../scripts/reconcile-prod-schema.mjs';
+import { ACTION_SKIP, auditManifest, loadManifests } from '../../scripts/reconcile-prod-schema.mjs';
 import { runMigrationsWithConnectionString } from '../helpers/testcontainers-migration';
 
 const STARTUP_TIMEOUT_MS = 90_000;
@@ -881,15 +881,22 @@ describe.skipIf(skipIfNoDocker)('prod schema synthetic clone', () => {
     async () => {
       expect(pool).toBeDefined();
       const manifests = await loadManifests();
-      const failures: Array<{ manifest: string; table: string; deltas: unknown[] }> = [];
+      const failures: Array<{
+        manifest: string;
+        table: string;
+        action: string;
+        deltas: unknown[];
+      }> = [];
 
       for (const manifest of manifests) {
         const audit = await auditManifest(pool!, manifest);
+        expect(audit.action, `${audit.manifest} manifest-level action`).toBe(ACTION_SKIP);
         for (const object of audit.objects) {
-          if (object.deltas.length > 0) {
+          if (object.deltas.length > 0 || object.action !== ACTION_SKIP) {
             failures.push({
               manifest: audit.manifest,
               table: object.table,
+              action: object.action,
               deltas: object.deltas,
             });
           }
