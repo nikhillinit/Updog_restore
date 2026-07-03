@@ -11558,6 +11558,18 @@
       "docType": "doc",
       "exists": true,
       "frontmatter": {},
+      "hasExecutionClaims": false,
+      "isStale": true,
+      "lastUpdated": null,
+      "owner": null,
+      "path": "docs/superpowers/plans/2026-07-03-trust-activation.md",
+      "staleDays": 999,
+      "status": "UNKNOWN"
+    },
+    {
+      "docType": "doc",
+      "exists": true,
+      "frontmatter": {},
       "hasExecutionClaims": true,
       "isStale": true,
       "lastUpdated": null,
@@ -13344,14 +13356,14 @@
       "REFERENCE": 8,
       "STALE-VALIDATION": 1,
       "TRACKED (not scheduled)": 1,
-      "UNKNOWN": 127,
+      "UNKNOWN": 128,
       "VERIFIED": 9,
       "active": 2,
       "ready": 3
     },
-    "missing_frontmatter": 32,
-    "stale_docs": 126,
-    "total_docs": 674
+    "missing_frontmatter": 33,
+    "stale_docs": 127,
+    "total_docs": 675
   },
   "version": "2.0"
 }
