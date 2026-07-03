@@ -10,7 +10,7 @@ import { Pool } from 'pg';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import { pgIdentifier } from '../../scripts/db-push-core.mjs';
-import { loadManifests } from '../../scripts/reconcile-prod-schema.mjs';
+import { ACTION_SKIP, auditManifest, loadManifests } from '../../scripts/reconcile-prod-schema.mjs';
 import { runMigrationsWithConnectionString } from '../helpers/testcontainers-migration';
 
 const STARTUP_TIMEOUT_MS = 90_000;
@@ -48,6 +48,19 @@ const SEAM_MANIFEST_TABLES = [
   'forecast_snapshots',
   'investment_lots',
   'reserve_allocations',
+] as const;
+// LP-core dependency layer (0013): FK targets of 0014 that prod lacked -
+// added to M4 at s8.1 slice 4a after the first operator apply rolled back.
+const LP_CORE_MANIFEST_TABLES = [
+  'limited_partners',
+  'lp_fund_commitments',
+  'capital_activities',
+  'lp_distributions',
+  'lp_capital_accounts',
+  'lp_performance_snapshots',
+  'lp_reports',
+  'report_templates',
+  'lp_audit_log',
 ] as const;
 const SHAPE_ONLY_NOT_JOURNALED = [
   'flag_changes',
@@ -678,7 +691,7 @@ describe.skipIf(skipIfNoDocker)('prod schema synthetic clone', () => {
       .map(pgIdentifier);
 
     expect([...expectedTables].sort()).toEqual(
-      [...C1_MOUNTED_TABLES, ...SEAM_MANIFEST_TABLES].sort()
+      [...C1_MOUNTED_TABLES, ...SEAM_MANIFEST_TABLES, ...LP_CORE_MANIFEST_TABLES].sort()
     );
 
     const migratedTables = await publicTables(pool!, expectedTables);
@@ -861,5 +874,42 @@ describe.skipIf(skipIfNoDocker)('prod schema synthetic clone', () => {
       expect(Object.keys(artifact.results.row_counts)).toHaveLength(7);
     },
     60_000
+  );
+
+  it(
+    'every manifest audits clean (SKIP) against the journal clone',
+    async () => {
+      expect(pool).toBeDefined();
+      const manifests = await loadManifests();
+      const failures: Array<{
+        manifest: string;
+        table: string;
+        action: string;
+        deltas: unknown[];
+      }> = [];
+
+      for (const manifest of manifests) {
+        const audit = await auditManifest(pool!, manifest);
+        expect(audit.action, `${audit.manifest} manifest-level action`).toBe(ACTION_SKIP);
+        for (const object of audit.objects) {
+          if (object.deltas.length > 0 || object.action !== ACTION_SKIP) {
+            failures.push({
+              manifest: audit.manifest,
+              table: object.table,
+              action: object.action,
+              deltas: object.deltas,
+            });
+          }
+        }
+      }
+
+      // Declaration-vs-catalog agreement: the replayed journal materializes
+      // every manifest table/constraint/index (and 0028 already dropped the
+      // seam dropObjects targets), so any delta here is a WRONG MANIFEST
+      // DECLARATION - the bug class that rolled back the first slice-4
+      // operator apply (company_overrides.canonical_sector_id nullability).
+      expect(failures).toEqual([]);
+    },
+    120_000
   );
 });
