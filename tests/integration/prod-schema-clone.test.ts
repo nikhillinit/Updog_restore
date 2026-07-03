@@ -87,24 +87,10 @@ const EXPECTED_TRIGGERS = [
   'scenario_matrices_updated_at',
   'optimization_sessions_updated_at',
 ] as const;
-const KNOWN_INTERSECTION_DRIFT = new Set<string>([
-  // Deferred to PR-1/operator (NOT additive journal catch-up): these three are a global->scoped
-  // idempotency rename — journal 0001_certain_miracleman created UNIQUE(idempotency_key) alone;
-  // shared/schema now declares the scoped *_idem_key_idx (added by 0024). Reconciling the old name
-  // means a DROP that implicates prod, so it ships with the FK-name seam in PR-1/operator scope.
-  'forecast_snapshots|index|forecast_snapshots_idempotency_unique_idx',
-  'investment_lots|index|investment_lots_idempotency_unique_idx',
-  'reserve_allocations|index|reserve_allocations_idempotency_unique_idx',
-  // §7 (run 28437747790) CONFIRMED these as still-observed = REAL drift, not stale. Deferred to
-  // PR-1/operator; do NOT shrink without a fresh §7 baselineNotObserved signal.
-  // NB (s8.4): the two reserve_decisions index entries formerly baselined here were NOT a
-  // catalog-detail mismatch — they were missing from DB-A outright (0001's DROP/ADD COLUMN
-  // dropped them; nothing recreated them). Fixed by 0026_reserve_decisions_index_resync_drift;
-  // §7 run 28557795657 reported both under baselineNotObserved, so they were shrunk.
-  'fund_snapshots|fk|fund_snapshots_config_id_fundconfigs_id_fk',
-  'fund_snapshots|fk|fund_snapshots_run_id_calc_runs_id_fk',
-  'job_outbox|constraint|job_outbox_status_check',
-]);
+// Empty since s8.1 slice 5 (ADR-023): the final six entries were fixed by #980 (journal 0028 +
+// shape .references()/CHECK) and materialized on prod by the slice-4 operator apply. The gate now
+// tolerates ZERO intersection drift — new mismatches fail; fix the drift, don't re-baseline.
+const KNOWN_INTERSECTION_DRIFT = new Set<string>([]);
 
 type TableShapeMap<TShape> = Map<string, Map<string, TShape>>;
 type TableSetMap = Map<string, Set<string>>;
