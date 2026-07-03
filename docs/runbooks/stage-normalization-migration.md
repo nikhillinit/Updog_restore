@@ -36,9 +36,11 @@ The migration uses a batch-based approach with progress tracking:
 ## Prerequisites
 
 1. **Database Access**: `DATABASE_URL` environment variable must be set
-2. **Migration Tables**: Run these migrations first:
-   - `migrations/20251030_stage_migration_tracking.sql`
-   - `migrations/20251030_stage_normalization_log.sql`
+2. **Migration Tables**: `stage_migration_batches` and
+   `stage_normalization_log` must exist before a run. Their DDL is not
+   journaled: the loose audit-log file was deleted in PR #987 (recover with
+   `git show ef5f9408:migrations/20251030_stage_normalization_log.sql`), and
+   the tracking-table DDL was never committed to `migrations/`.
 3. **Backup**: Take a database snapshot before running in production
 4. **Read Access**: Verify current stage values with:
    ```sql
@@ -388,9 +390,8 @@ FROM stage_migration_progress;
 ## References
 
 - **ADR-011**: Stage Normalization v2 architecture decision
-- **Migration Tracking Schema**:
-  `migrations/20251030_stage_migration_tracking.sql`
-- **Audit Log Schema**: `migrations/20251030_stage_normalization_log.sql`
+- **Audit Log Schema**: deleted in PR #987 (never journaled); recover with
+  `git show ef5f9408:migrations/20251030_stage_normalization_log.sql`
 - **Normalization Logic**: `shared/schemas/investment-stages.ts`
 - **Migration Script**: `scripts/normalize-stages-v2.ts`
 - **Verification Script**: `scripts/verify-migration-integrity.ts`
