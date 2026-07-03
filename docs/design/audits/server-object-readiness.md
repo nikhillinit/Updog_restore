@@ -61,7 +61,7 @@ routes (`server/routes/**`), schema + migrations (`shared/schema*`,
 - **Schema:** `shared/schema/shares.ts:85` table `shareSnapshots` (+ `shares`);
   separate LP-reporting `lpPerformanceSnapshots`
   (`shared/schema-lp-reporting.ts:217`).
-- **Migration:** `migrations/001_lp_reporting_schema.sql`
+- **Migration:** journaled `migrations/0013_lp_reporting_core_drift.sql`
   (`lp_performance_snapshots`); shares tables under `shared/schema/shares.ts`.
 - **Worker:** `server/queues/report-generation-queue.ts:272` queue
   `lp-report-generation` (PDF/XLSX/CSV; writes `lpReports`).

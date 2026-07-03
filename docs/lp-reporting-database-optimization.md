@@ -855,10 +855,14 @@ psql -d updog_lp -c "SELECT COUNT(*) FROM limited_partners;"
 
 ### Phase 1: Foundation (Week 1)
 
-- [x] Create core schema (`migrations/001_lp_reporting_schema.sql`)
-- [x] Add indexes (`migrations/002_lp_reporting_indexes.sql`)
-- [x] Create materialized views
-      (`migrations/003_lp_dashboard_materialized_view.sql`)
+- [x] Create core schema (legacy `001_lp_reporting_schema.sql`, deleted in
+      PR #987; superseded by journaled
+      `migrations/0013_lp_reporting_core_drift.sql`)
+- [x] Add indexes (legacy `002_lp_reporting_indexes.sql`, deleted in PR #987;
+      indexes now owned by `shared/schema-lp-reporting.ts`)
+- [x] Create materialized views (legacy
+      `003_lp_dashboard_materialized_view.sql`, deleted in PR #987; recover
+      from git history)
 
 ### Phase 2: Application Layer (Week 2)
 
