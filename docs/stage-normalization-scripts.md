@@ -262,14 +262,13 @@ npm run db:verify-migration
 
 Both scripts require these tables to be created first:
 
-1. **`stage_migration_batches`** (from
-   `migrations/20251030_stage_migration_tracking.sql`)
+1. **`stage_migration_batches`** (DDL was never committed to `migrations/`)
    - Tracks batch processing progress
    - Supports idempotent resumability
    - Provides real-time progress monitoring
 
-2. **`stage_normalization_log`** (from
-   `migrations/20251030_stage_normalization_log.sql`)
+2. **`stage_normalization_log`** (loose DDL deleted in PR #987; recover with
+   `git show ef5f9408:migrations/20251030_stage_normalization_log.sql`)
    - Audit trail for all changes
    - Supports rollback if needed
    - Compliance/retention logging
@@ -459,9 +458,8 @@ WHERE table_name = 'portfoliocompanies'
 
 - **ADR-011**: Stage Normalization v2 Architecture Decision Record
 - **Runbook**: `docs/runbooks/stage-normalization-migration.md`
-- **Migration Tracking Schema**:
-  `migrations/20251030_stage_migration_tracking.sql`
-- **Audit Log Schema**: `migrations/20251030_stage_normalization_log.sql`
+- **Audit Log Schema**: deleted in PR #987 (never journaled); recover with
+  `git show ef5f9408:migrations/20251030_stage_normalization_log.sql`
 - **Normalization Logic**: `shared/schemas/investment-stages.ts`
 - **Original Script**: `scripts/normalize-stages.ts` (v1, single-transaction
   approach)

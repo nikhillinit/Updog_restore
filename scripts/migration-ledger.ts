@@ -106,19 +106,11 @@ export const LEGACY_JOURNALED_UNMARKED_ALLOWLIST: { tag: string; sha256: string 
   },
 ];
 
+// 11 dead loose files left this allowlist 2026-07-03 (#978): superseded or
+// wrong-shape legacy, deleted from migrations/. The 4 survivors are the RLS
+// set (dedicated PR-2b decision pending) and the rollback pair of journaled
+// 0008. Do not add entries without a per-file evidence trail.
 export const LEGACY_LOOSE_MIGRATION_ALLOWLIST: { file: string; sha256: string }[] = [
-  {
-    file: '0001_create_portfolio_tables.sql',
-    sha256: '151399cf65832c82b144eb1a84de1d18bd9e087dd52ca17900721eb288844789',
-  },
-  {
-    file: '0001_portfolio_schema_hardening.sql',
-    sha256: '54256efa95cacb7fd424cdc1295365590b0b39c35c726df5aeb354ffb2f5753c',
-  },
-  {
-    file: '0001_portfolio_schema_hardening_ROLLBACK.sql',
-    sha256: '7c3eae251749986b8a0e6019d232007419a676764eeb33936142945b8f3363ad',
-  },
   {
     file: '0002_add_organizations.sql',
     sha256: 'b585d5d690cf41bad3ed285a488cb781b644a16a2a1e7fefcdf4e8009dcd1dc5',
@@ -134,38 +126,6 @@ export const LEGACY_LOOSE_MIGRATION_ALLOWLIST: { file: string; sha256: string }[
   {
     file: '0008_demo_profile_import_rows_rollback.sql',
     sha256: '94480995d55bace16808cb09945e7e6f1e52b963bb348a3f537bba069c392ad1',
-  },
-  {
-    file: '001_lp_reporting_schema.sql',
-    sha256: '37aec6891e791a502169e2f65fab5b973adb2fe2abcfef75fba43485a2d16384',
-  },
-  {
-    file: '002_lp_reporting_indexes.sql',
-    sha256: '8c0d99a94f25c370e876ef67b60362298b08d76b5301b051ccb12333cb9a61ff',
-  },
-  {
-    file: '003_lp_dashboard_materialized_view.sql',
-    sha256: '9aad80209c3504e6a0150f46befeea7a9824cbd8ad293411296777648e703218',
-  },
-  {
-    file: '004_lp_sprint3_tables.sql',
-    sha256: '6cb2f94270775c72abe6bc4812e1f3a829e8311f17b4cb9fe98615a9bc600185',
-  },
-  {
-    file: '20251030_stage_normalization_log.sql',
-    sha256: '83da5c19d242be44e94b02ba26fa3a37090a754f5ff3c9b69bc3f1f8f4b07bd9',
-  },
-  {
-    file: '20251031_add_agent_memories.sql',
-    sha256: '60d0c3580adfbfae8e0352361c20543d528f64de48f622ab7836da8706582491',
-  },
-  {
-    file: '999_fix_materialized_view.sql',
-    sha256: 'fa75fe753dbd03009871c6f4936bd5b4cfd5462ce5b76e0b33092701c2f69b7d',
-  },
-  {
-    file: 'manual-migration.sql',
-    sha256: '2b4ea3a8d8c06d24f6cd71119fa7b6e6e14e93b7fbe1de54e1382b6dee836558',
   },
 ];
 

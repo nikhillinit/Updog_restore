@@ -12,9 +12,9 @@ last_updated: 2026-04-03
 
 | Component | File                                                | Lines |
 | --------- | --------------------------------------------------- | ----- |
-| Schema    | `migrations/001_lp_reporting_schema.sql`            | 600+  |
-| Indexes   | `migrations/002_lp_reporting_indexes.sql`           | 300+  |
-| Views     | `migrations/003_lp_dashboard_materialized_view.sql` | 400+  |
+| Schema    | `shared/schema-lp-reporting.ts` (canonical) + journaled `migrations/0013_lp_reporting_core_drift.sql` | -     |
+| Indexes   | `shared/schema-lp-reporting.ts` (defined inline)     | -     |
+| Views     | legacy MV DDL deleted in PR #987 (git history)       | -     |
 | Queries   | `server/services/lp-queries.ts`                     | 450+  |
 | Cache     | `server/services/lp-cache.ts`                       | 400+  |
 | Worker    | `server/workers/lp-materialized-view-refresh.ts`    | 400+  |
@@ -464,7 +464,7 @@ const avgIrr = irrs.reduce((a, b) => a + b) / irrs.length;
 
 **Quick Links:**
 
-- [Full Schema](../migrations/001_lp_reporting_schema.sql)
+- [Full Schema](../shared/schema-lp-reporting.ts)
 - [Query Service](../server/services/lp-queries.ts)
 - [Cache Service](../server/services/lp-cache.ts)
 - [Refresh Worker](../server/workers/lp-materialized-view-refresh.ts)

@@ -18,21 +18,10 @@ const repoRoot = process.cwd();
 const tempRoots: string[] = [];
 
 const expectedLooseFiles = [
-  '0001_create_portfolio_tables.sql',
-  '0001_portfolio_schema_hardening.sql',
-  '0001_portfolio_schema_hardening_ROLLBACK.sql',
   '0002_add_organizations.sql',
   '0002_multi_tenant_rls_setup.sql',
   '0002_multi_tenant_rls_setup_ROLLBACK.sql',
   '0008_demo_profile_import_rows_rollback.sql',
-  '001_lp_reporting_schema.sql',
-  '002_lp_reporting_indexes.sql',
-  '003_lp_dashboard_materialized_view.sql',
-  '004_lp_sprint3_tables.sql',
-  '20251030_stage_normalization_log.sql',
-  '20251031_add_agent_memories.sql',
-  '999_fix_materialized_view.sql',
-  'manual-migration.sql',
 ].sort();
 
 const expectedJournaledDriftPatchFiles = [
@@ -86,16 +75,20 @@ describe('migration ledger helpers', () => {
     const journaledFiles = new Set(readJournaledMigrationFiles(repoRoot).map((file) => file.file));
 
     expect(looseFiles).toEqual(expectedLooseFiles);
-    expect(looseFiles).toHaveLength(15);
+    expect(looseFiles).toHaveLength(4);
     expect(looseFiles.some((file) => journaledFiles.has(file))).toBe(false);
   });
 
   it('classifies materialized-view, RLS, and rollback loose files', () => {
     const journalTags = new Set(readDrizzleJournal(repoRoot).entries.map((entry) => entry.tag));
 
-    expect(classifyRealFile('003_lp_dashboard_materialized_view.sql', journalTags).class).toBe(
-      'loose-materialized-view'
-    );
+    expect(
+      classifyMigrationSqlFile(
+        '9999_mv_fixture.sql',
+        'CREATE MATERIALIZED VIEW mv_fixture AS SELECT 1;\n',
+        journalTags
+      ).class
+    ).toBe('loose-materialized-view');
     expect(classifyRealFile('0002_multi_tenant_rls_setup.sql', journalTags).class).toBe(
       'loose-rls'
     );
