@@ -89,10 +89,9 @@ export const LEGACY_JOURNALED_UNMARKED_ALLOWLIST: { tag: string; sha256: string 
     tag: '0011_scenario_share_sensitivity_drift',
     sha256: '31aaacc07bcc9b070e109bf6b97fa30d5c86d268b8d6a37e2fc9f5cfa41b9054',
   },
-  {
-    tag: '0013_lp_reporting_core_drift',
-    sha256: '22546f7bfc76fd4e3a2c9e50c6dccfde2f35cf416acb3d6a706979704e6e5149',
-  },
+  // 0013_lp_reporting_core_drift left this allowlist 2026-07-02: it gained the
+  // @drift-patch marker so the M4 manifest can reference it (its LP-core tables
+  // are FK dependencies of 0014 that prod lacked - s8.1 slice 4a).
   {
     tag: '0015_funds_base_currency',
     sha256: '82f989cbee1c5f36c00ac42668936bc7df842489b80af52cbde9aaab7b73adbd',

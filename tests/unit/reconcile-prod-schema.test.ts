@@ -1,3 +1,9 @@
+
+// Default import on purpose: node-setup.ts vi.mock('fs') stubs the NAMED
+// readFileSync export, but its ...actual spread preserves `default` as the
+// real fs module - same pattern as the sibling ledger/sentinel tests.
+import fs from 'node:fs';
+
 import { describe, expect, it } from 'vitest';
 
 import {
@@ -495,6 +501,35 @@ describe('reconcile-prod-schema dropObjects path (s8.1 slice 3.5)', () => {
       'ALTER TABLE "jobs" DROP CONSTRAINT IF EXISTS "jobs_legacy_check"'
     );
     expect(client.calls.map((call) => call.text)).toContain('COMMIT');
+  });
+
+  it('a legacy wrong-shape limited_partners table does NOT audit clean (review 4a-1)', async () => {
+    // The loose 001_lp_reporting_schema.sql created limited_partners with a
+    // UUID id; canonical 0013 uses serial/integer. The real M4 manifest must
+    // surface that shape divergence instead of treating any same-named table
+    // as satisfied - name-only sentinels false-SKIP legacy tables.
+    const m4 = JSON.parse(
+      fs.readFileSync('scripts/prod-schema-manifests/04-lp-reporting.json', 'utf8')
+    ) as { expectedTables: Array<{ name: string }> };
+
+    const legacyShapeClient = createMockClient({
+      presentTables: ['limited_partners'],
+      populatedTables: ['limited_partners'],
+      columns: [
+        {
+          table_name: 'limited_partners',
+          column_name: 'id',
+          data_type: 'uuid',
+          udt_name: 'uuid',
+          is_nullable: 'NO',
+        },
+      ],
+    });
+
+    const audit = await auditManifest(legacyShapeClient, m4);
+    expect(audit.action).toBe(ACTION_REFUSE_FOR_HUMAN);
+    const lpObject = audit.objects.find((object) => object.table === 'limited_partners');
+    expect(lpObject?.deltas.map((delta) => delta.kind)).toContain('column-type-mismatch');
   });
 
   it('post-apply audit fails and rolls back when a drop does not take effect', async () => {

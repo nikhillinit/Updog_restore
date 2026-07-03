@@ -831,10 +831,19 @@ async function applyPreparedManifest({ client, prepared, identity, stdout }) {
 
     const after = await auditManifest(client, prepared.manifest);
     if (after.action !== ACTION_SKIP) {
-      throw new ReconcileError(`Post-apply shape audit failed for ${prepared.manifest.name}`, {
-        kind: 'post-apply-audit-failed',
-        audit: after,
-      });
+      // The CLI surfaces only error.message - the failing deltas must live IN
+      // the message or the operator gets no diagnosis (s8.1 slice 4a lesson).
+      const failingObjects = after.objects
+        .filter((object) => object.deltas.length > 0 || object.action !== ACTION_SKIP)
+        .map((object) => `${object.table}: ${JSON.stringify(object.deltas)}`)
+        .join('; ');
+      throw new ReconcileError(
+        `Post-apply shape audit failed for ${prepared.manifest.name} - ${failingObjects}`,
+        {
+          kind: 'post-apply-audit-failed',
+          audit: after,
+        }
+      );
     }
 
     await client.query(
