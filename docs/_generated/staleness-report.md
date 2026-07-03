@@ -11,16 +11,16 @@ last_updated: 2026-07-03
 
 | Metric | Value |
 |--------|-------|
-| Total Documents | 674 |
-| Stale Documents | 126 |
-| Missing Frontmatter | 32 |
+| Total Documents | 675 |
+| Stale Documents | 127 |
+| Missing Frontmatter | 33 |
 
 ### By Status
 
 | Status | Count |
 |--------|-------|
 | ACTIVE | 450 |
-| UNKNOWN | 127 |
+| UNKNOWN | 128 |
 | DRAFT | 34 |
 | HISTORICAL | 22 |
 | VERIFIED | 9 |
@@ -95,9 +95,9 @@ Documents that need review (older than their cadence threshold):
 | `docs/superpowers/plans/2026-06-24-pr-e-moic-shadow-recording-canonical-route.md` | Never | 999 | No | Unassigned |
 | `docs/superpowers/plans/2026-06-25-h9-pr3-lp-package-export-revalidation.md` | Never | 999 | No | Unassigned |
 | `docs/superpowers/plans/2026-06-28-prod-schema-drift-debate-synthesis.md` | Never | 999 | No | Unassigned |
-| `docs/superpowers/specs/2026-05-16-refactor-stability-strategy-design.md` | Never | 999 | YES - verify! | Unassigned |
+| `docs/superpowers/plans/2026-07-03-trust-activation.md` | Never | 999 | No | Unassigned |
 
-*...and 76 more stale documents.*
+*...and 77 more stale documents.*
 
 ## Documents with Execution Claims (Need Verification)
 
@@ -151,6 +151,7 @@ Documents without proper YAML frontmatter:
 - [ ] `docs/superpowers/plans/2026-06-24-pr-e-moic-shadow-recording-canonical-route.md`
 - [ ] `docs/superpowers/plans/2026-06-25-h9-pr3-lp-package-export-revalidation.md`
 - [ ] `docs/superpowers/plans/2026-06-28-prod-schema-drift-debate-synthesis.md`
+- [ ] `docs/superpowers/plans/2026-07-03-trust-activation.md`
 - [ ] `docs/superpowers/specs/2026-05-16-refactor-stability-strategy-design.md`
 - [ ] `docs/superpowers/specs/2026-06-11-worker-prod-ops-design.md`
 - [ ] `docs/superpowers/specs/2026-06-21-investment-rounds-ui-v2-design.md`
