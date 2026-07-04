@@ -19,7 +19,7 @@ Vitest, Vite, Tailwind, shadcn/ui.
 
 ## Current Baseline
 
-- Current checkout: `main...origin/main` at `2658bd2c` (2026-07-03).
+- Current checkout: `main...origin/main` at `cedc282f` (2026-07-03).
 - Preserve unrelated untracked paths:
   - `node_modules.broken/`
   - `s81-prod-audit-output.json`
@@ -32,43 +32,50 @@ Vitest, Vite, Tailwind, shadcn/ui.
 
 ### P0: Live Baseline Preflight
 
-- [ ] Run `git status -sb`.
-- [ ] Run `git rev-parse --short HEAD`.
-- [ ] Run `git rev-parse --short origin/main`.
-- [ ] Confirm `HEAD == origin/main`.
-- [ ] Confirm only the untracked paths listed in Current Baseline are present.
-- [ ] Do not stage, delete, or normalize unrelated dirt.
+- [x] Run `git status -sb`.
+- [x] Run `git rev-parse --short HEAD`.
+- [x] Run `git rev-parse --short origin/main`.
+- [x] Confirm `HEAD == origin/main`.
+- [x] Confirm only the untracked paths listed in Current Baseline are present.
+- [x] Do not stage, delete, or normalize unrelated dirt.
 
 CI-run verification (required before any baseline claim):
 
-- [ ] Resolve the CI run for the origin/main head SHA:
+- [x] Resolve the CI run for the origin/main head SHA:
       `gh run list --commit <sha> --workflow "CI Unified"`.
-- [ ] Confirm it is a full run, not a vacuous docs-only run: `Test integration`,
+- [x] Confirm it is a full run, not a vacuous docs-only run: `Test integration`,
       `Test unit`, `Test e2e`, and `Test validate-core` jobs must have executed.
       A path-filtered ~1m run proves nothing; full runs take ~7-10m.
-- [ ] If the head landed via a docs-only merge, dispatch
+- [x] If the head landed via a docs-only merge, dispatch
       `gh workflow run ci-unified.yml --ref main -f run_full_suite=true` and
       wait for green before claiming baseline.
-- [ ] Record run ID, conclusion, and duration. Every downstream "CI green" claim
+- [x] Record run ID, conclusion, and duration. Every downstream "CI green" claim
       must cite this run ID plus the head SHA it ran against. Dashboard green,
       deploy status, and local checks are not CI evidence.
 
-Current baseline evidence: run `28672783353` (CI Unified on `2658bd2c`,
-2026-07-03, success, ~9m; integration/unit/e2e/validate-core executed;
-`CI Gate Status` success).
+Current baseline evidence: run `28681002068` (CI Unified on `cedc282f`,
+workflow_dispatch full run, 2026-07-03, success, ~8.5m;
+integration/unit/e2e/validate-core executed; `CI Gate Status` success). Prior
+head evidence: run `28672783353` on `2658bd2c`.
 
 Exit: product work starts only from current `origin/main` with a cited full CI
 run ID for that head.
 
 ### P1: Full Release Proof
 
-- [ ] Run non-skipped `npm run release:check` in Docker/WSL2 or CI.
-- [ ] If it passes, record release proof.
+- [x] Run non-skipped `npm run release:check` in Docker/WSL2 or CI.
+- [x] If it passes, record release proof.
 - [ ] If it fails, stop and record the first `[release:check]` failing step,
       command, and exit status.
 
 Do not claim release proof from `UPDOG_RELEASE_CHECK_SKIP_DB=1`, `--skip-db`, CI
 green, or deploy status.
+
+Release proof: `RELEASE_CHECK_EXIT=0` on `cedc282f`, 2026-07-04 04:50 UTC, WSL2
+Ubuntu-22.04 (Docker unix socket), Node v20.19.5 / npm 10.8.2, `CI=true`
+`TZ=UTC`, no skip flags. All 12 stages ran sequentially; stage 5 fund-lifecycle
+DB proof, stage 7 production schema clone proof, and stage 8 scenario release
+gate all executed, proving the skip path was not taken.
 
 ### P2: Planning FMV Activation Closeout
 
