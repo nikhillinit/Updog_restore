@@ -248,6 +248,13 @@ export const requireRole = (role: string) => (req: Request, res: Response, next:
   next();
 };
 
+export const requireAnyRole =
+  (roles: readonly string[]) => (req: Request, res: Response, next: NextFunction) => {
+    const role = req.user?.role;
+    if (typeof role !== 'string' || !roles.includes(role)) return res.sendStatus(403);
+    next();
+  };
+
 /**
  * Require user to have access to a specific fund
  * Use after requireAuth to check fund-level permissions
@@ -272,6 +279,22 @@ export const requireFundAccess = (req: Request, res: Response, next: NextFunctio
     error: 'Forbidden',
     message: `You do not have access to fund ${fundId}`,
   });
+};
+
+export const requireExportFundGrant = (req: Request, res: Response, next: NextFunction) => {
+  if (req.user?.role === 'admin') {
+    return next();
+  }
+
+  const fundIds = fundIdsFromClaims(req.user?.fundIds);
+  if (fundIds.length === 0) {
+    return res.status(403).json({
+      error: 'Forbidden',
+      message: 'Export routes require an explicit fund grant.',
+    });
+  }
+
+  return next();
 };
 
 export function signToken(data: string | Buffer | object): string {
