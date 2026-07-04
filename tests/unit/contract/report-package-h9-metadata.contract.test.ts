@@ -2,7 +2,9 @@ import { describe, expect, it } from 'vitest';
 import {
   ReportPackageH9MetadataSchema,
   ReportPackageRecordSchema,
-} from '@shared/contracts/lp-reporting/lp-report-package.contract';
+  ReportPackageRenderSourceH9StampSchema,
+  type ReportPackageRenderSourceH9Stamp,
+} from '@shared/contracts/lp-reporting';
 
 const h9 = {
   moicSourceInputHash: 'a'.repeat(64),
@@ -69,6 +71,28 @@ const baseRecord = {
 describe('ReportPackageH9MetadataSchema', () => {
   it('accepts a full H9 metadata object', () => {
     expect(ReportPackageH9MetadataSchema.parse(h9)).toEqual(h9);
+  });
+
+  it('pins the full metadata fields and render-source stamp subset', () => {
+    expect(Object.keys(ReportPackageH9MetadataSchema.shape)).toEqual([
+      'moicSourceInputHash',
+      'roundEvidenceInputHash',
+      'roundEvidenceAssumptionsHash',
+      'fingerprintHash',
+      'policyVersion',
+      'actionabilityStatus',
+    ]);
+    expect(Object.keys(ReportPackageRenderSourceH9StampSchema.shape)).toEqual([
+      'fingerprintHash',
+      'policyVersion',
+      'actionabilityStatus',
+    ]);
+    const stamp: ReportPackageRenderSourceH9Stamp = {
+      fingerprintHash: h9.fingerprintHash,
+      policyVersion: h9.policyVersion,
+      actionabilityStatus: h9.actionabilityStatus,
+    };
+    expect(ReportPackageRenderSourceH9StampSchema.parse(stamp)).toEqual(stamp);
   });
 
   it('rejects an unknown actionability status', () => {

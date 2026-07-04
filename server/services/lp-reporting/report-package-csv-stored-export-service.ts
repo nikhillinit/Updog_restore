@@ -420,7 +420,18 @@ export async function createMetricRunReportPackageStoredCsvExport(
     throw new ReportPackageCsvSourceJsonExportRequiredError();
   }
 
-  const sourceArtifact = ReportPackageJsonExportArtifactSchema.parse(sourceJson.artifactPayload);
+  const parsedSourceArtifact = ReportPackageJsonExportArtifactSchema.safeParse(
+    sourceJson.artifactPayload
+  );
+  if (!parsedSourceArtifact.success) {
+    throw new MetricRunCommitError(
+      500,
+      'REPORT_PACKAGE_EXPORT_ROW_INVALID',
+      'Stored report package export artifact does not match the export contract.',
+      parsedSourceArtifact.error.issues
+    );
+  }
+  const sourceArtifact = parsedSourceArtifact.data;
   assertJsonSourceRouteScope(input, sourceArtifact);
   const csvDocument = buildCsvDocument(input, sourceJson, sourceArtifact);
   const contentHash = sha256Csv(csvDocument.csv);

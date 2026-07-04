@@ -286,7 +286,16 @@ export async function getMetricRunReportPackageStoredJsonArtifact(
     throw new ReportPackageExportNotFoundError();
   }
 
-  const artifact = ReportPackageJsonExportArtifactSchema.parse(existing.artifactPayload);
+  const parsedArtifact = ReportPackageJsonExportArtifactSchema.safeParse(existing.artifactPayload);
+  if (!parsedArtifact.success) {
+    throw new MetricRunCommitError(
+      500,
+      'REPORT_PACKAGE_EXPORT_ROW_INVALID',
+      'Stored report package export artifact does not match the export contract.',
+      parsedArtifact.error.issues
+    );
+  }
+  const artifact = parsedArtifact.data;
   assertRouteScope(input, artifact);
 
   // Finding 8: the stored-readiness status endpoint (getMetricRunReportPackageStoredJsonExport)
