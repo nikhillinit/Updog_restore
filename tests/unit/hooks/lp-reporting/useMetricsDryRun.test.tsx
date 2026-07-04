@@ -123,6 +123,12 @@ const baseRequest: MetricsDryRunRequest = {
   sourceMarkIds: [],
 };
 
+const H9_STAMP = {
+  fingerprintHash: 'd'.repeat(64),
+  policyVersion: 'h9-policy-v1',
+  actionabilityStatus: 'actionable' as const,
+};
+
 function makeDryRunResponse(): MetricRunDryRunResponse {
   return {
     results: makeCanonicalResults(),
@@ -357,6 +363,7 @@ function makeReportPackageRenderModelResponse(): ReportPackageRenderModelRespons
         assembledAt: record.assembledAt,
         packageVersion: record.version,
         payloadVersion: record.payload.payloadVersion,
+        h9Stamp: H9_STAMP,
       },
       fundDisplay: {
         fundId: 7,
