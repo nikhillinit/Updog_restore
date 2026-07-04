@@ -49,64 +49,45 @@ import type { FundStateReadV1 } from '@shared/contracts/fund-state-read-v1.contr
 import type { FundLifecycleHistoryV1 } from '@shared/contracts/fund-lifecycle-history-v1.contract';
 import type {
   FundResultsComparisonV1,
-  MetricDelta,
   PublishedVersionSummary,
 } from '@shared/contracts/fund-results-comparison-v1.contract';
-
-// ============================================================================
-// TYPES
-// ============================================================================
-
-type FetchState =
-  | { kind: 'loading' }
-  | { kind: 'error'; message: string }
-  | { kind: 'data'; results: FundResultsReadV1 };
-
-type LifecycleHistoryState =
-  | { kind: 'loading'; history: FundLifecycleHistoryV1 | null }
-  | { kind: 'error'; message: string; history: FundLifecycleHistoryV1 | null }
-  | { kind: 'data'; history: FundLifecycleHistoryV1 };
-
-type RecalculateState =
-  | { kind: 'idle' }
-  | { kind: 'submitting' }
-  | { kind: 'error'; message: string };
-
-type ResultsComparisonState =
-  | { kind: 'loading'; comparison: FundResultsComparisonV1 | null }
-  | { kind: 'error'; message: string; comparison: FundResultsComparisonV1 | null }
-  | { kind: 'data'; comparison: FundResultsComparisonV1 };
-
-interface ScenarioComparisonBatchResult {
-  comparisons: FundScenarioComparisonV1[];
-  failedScenarioSetIds: string[];
-}
-
-type ScenarioComparisonState =
-  | { kind: 'idle'; comparisons: FundScenarioComparisonV1[]; failedScenarioSetIds: string[] }
-  | { kind: 'loading'; comparisons: FundScenarioComparisonV1[]; failedScenarioSetIds: string[] }
-  | {
-      kind: 'error';
-      message: string;
-      comparisons: FundScenarioComparisonV1[];
-      failedScenarioSetIds: string[];
-    }
-  | { kind: 'data'; comparisons: FundScenarioComparisonV1[]; failedScenarioSetIds: string[] };
-
-type LifecycleStatus = FundStateReadV1['calculationState']['status'];
-
-interface FetchOptions {
-  initial?: boolean;
-  background?: boolean;
-  resetBackoff?: boolean;
-}
-
-interface LifecyclePollingKey {
-  fundId: string;
-  status: LifecycleStatus;
-  runId: number | null;
-  configVersion: number | null;
-}
+import {
+  configBackedEvidence,
+  evidenceFromLifecycle,
+  getLifecycleDiagnostic,
+  mixedScorecardEvidence,
+  reasonCopyFor,
+  sectionBackedEvidence,
+  sectionEvidence,
+} from './fund-model-results/evidence';
+import {
+  capitalize,
+  diagnosticAlertClasses,
+  formatCompactMoney,
+  formatComparisonDelta,
+  formatComparisonMetricValue,
+  formatDateOrFallback,
+  formatDriftCapabilityReason,
+  formatHistoryRunStatus,
+  formatLifecycleStatus,
+  formatMultiple,
+  formatNullablePercent,
+  hasStaleEvidence,
+  historyBadgeClasses,
+  percent,
+  percentPoints,
+} from './fund-model-results/formatters';
+import type {
+  FetchOptions,
+  FetchState,
+  LifecycleHistoryState,
+  LifecyclePollingKey,
+  LifecycleStatus,
+  RecalculateState,
+  ResultsComparisonState,
+  ScenarioComparisonBatchResult,
+  ScenarioComparisonState,
+} from './fund-model-results/types';
 
 const RESULTS_BACKOFF_MS = [2000, 4000, 8000, 15000] as const;
 
@@ -649,39 +630,6 @@ function useRecalculatePublished(fundId: string | null, onSuccess: () => void) {
 }
 
 // ============================================================================
-// REASON CODE COPY
-// ============================================================================
-
-const REASON_COPY: Record<string, string> = {
-  NO_PUBLISHED_CONFIG: 'Publish your fund configuration to see this section.',
-  CALCULATION_PENDING: 'Results are being calculated. Check back shortly.',
-  STALE_EVIDENCE: 'A newer configuration was published. Request recalculation to update.',
-  INVALID_PUBLISHED_CONFIG: 'The published configuration has validation issues.',
-  NO_AUTHORITATIVE_SOURCE: 'This section is not yet available for your fund.',
-  SCENARIOS_NONE_EXIST: 'Create a scenario set to compare alternate fund economics.',
-  SCENARIOS_NONE_CALCULATED: 'Calculate a scenario set to show scenario results here.',
-  SCENARIOS_LOAD_FAILED: 'Scenario results could not be loaded.',
-  ECONOMICS_DISABLED: 'GP economics is currently disabled for this environment.',
-  ECONOMICS_NOT_CONFIGURED: 'Publish economics assumptions to see GP economics.',
-  ECONOMICS_SNAPSHOT_PENDING: 'Economics is configured and waiting for a calculation snapshot.',
-  ECONOMICS_INPUT_INVALID: 'The published economics assumptions have validation issues.',
-  ECONOMICS_ENGINE_FAILED: 'The economics engine failed before producing a valid result.',
-  ECONOMICS_INVARIANT_FAILED: 'The economics engine found a reconciliation issue.',
-  ECONOMICS_STALE_CONFIG_VERSION:
-    'Economics results belong to an older published configuration. Recalculate to update.',
-};
-
-function reasonCopyFor(section: { [key: string]: unknown }): string {
-  // Bracket notation required: TS4111 with noPropertyAccessFromIndexSignature
-  const code = typeof section['reasonCode'] === 'string' ? section['reasonCode'] : undefined;
-  const reason = typeof section['reason'] === 'string' ? section['reason'] : undefined;
-  if (code && REASON_COPY[code]) {
-    return REASON_COPY[code];
-  }
-  return reason ?? 'Not available';
-}
-
-// ============================================================================
 // OVERVIEW (SCORECARD) CARD
 // ============================================================================
 
@@ -1051,34 +999,6 @@ function EconomicsCarryTable({ rows }: { rows: EconomicsResultV1['annual'] }) {
   );
 }
 
-function percent(value: number) {
-  return `${(value * 100).toFixed(1)}%`;
-}
-
-function percentPoints(value: number) {
-  return `${value}%`;
-}
-
-function capitalize(value: string) {
-  return value.charAt(0).toUpperCase() + value.slice(1);
-}
-
-function formatCompactMoney(value: number) {
-  const abs = Math.abs(value);
-  if (abs >= 1_000_000_000) return `$${(value / 1_000_000_000).toFixed(1)}B`;
-  if (abs >= 1_000_000) return `$${(value / 1_000_000).toFixed(1)}M`;
-  if (abs >= 1_000) return `$${(value / 1_000).toFixed(0)}K`;
-  return `$${value.toFixed(0)}`;
-}
-
-function formatNullablePercent(value: number | null) {
-  return value == null ? 'N/A' : `${(value * 100).toFixed(1)}%`;
-}
-
-function formatMultiple(value: number) {
-  return `${value.toFixed(2)}x`;
-}
-
 function FactTile({ label, value }: { label: string; value: string }) {
   return (
     <div className="bg-beige-50 rounded-md p-3">
@@ -1086,92 +1006,6 @@ function FactTile({ label, value }: { label: string; value: string }) {
       <p className="text-lg font-medium text-charcoal">{value}</p>
     </div>
   );
-}
-
-function formatDateOrFallback(value: string | null, fallback = 'Not available') {
-  return value ? new Date(value).toLocaleDateString() : fallback;
-}
-
-function formatLifecycleStatus(status: FundStateReadV1['calculationState']['status']) {
-  switch (status) {
-    case 'not_requested':
-      return 'Not requested';
-    case 'submitted':
-      return 'Submitted';
-    case 'calculating':
-      return 'Calculating';
-    case 'ready':
-      return 'Ready';
-    case 'failed':
-      return 'Failed';
-    default:
-      return status;
-  }
-}
-
-function formatHistoryRunStatus(status: LifecycleStatus | null) {
-  if (!status) return 'Not started';
-  return formatLifecycleStatus(status);
-}
-
-function historyBadgeClasses(status: LifecycleStatus | null) {
-  switch (status) {
-    case 'ready':
-      return 'bg-success-light text-success-dark border-success/30';
-    case 'failed':
-      return 'bg-error-light text-error-dark border-error/30';
-    case 'submitted':
-    case 'calculating':
-      return 'bg-warning-light text-warning-dark border-warning/30';
-    default:
-      return 'bg-beige-100 text-charcoal-600 border-beige-200';
-  }
-}
-
-function formatComparisonMetricValue(metric: MetricDelta['metric'], value: number | null) {
-  if (value == null) return 'Not available';
-
-  switch (metric) {
-    case 'fundSize':
-      return `$${(value / 1_000_000).toFixed(0)}M`;
-    case 'reserveRatio':
-    case 'avgConfidence':
-      return `${(value * 100).toFixed(1)}%`;
-    case 'yearsToFullDeploy':
-      return `${Number.isInteger(value) ? value.toFixed(0) : value.toFixed(1)} yrs`;
-    default:
-      return String(value);
-  }
-}
-
-function formatComparisonDelta(delta: MetricDelta) {
-  if (delta.absoluteDelta == null) return 'No delta available';
-
-  const sign = delta.absoluteDelta > 0 ? '+' : delta.absoluteDelta < 0 ? '-' : '';
-  const magnitude = formatComparisonMetricValue(delta.metric, Math.abs(delta.absoluteDelta));
-
-  if (delta.percentageDelta == null) {
-    return `${sign}${magnitude}`;
-  }
-
-  const percentSign = delta.percentageDelta > 0 ? '+' : '';
-  return `${sign}${magnitude} (${percentSign}${delta.percentageDelta.toFixed(1)}%)`;
-}
-
-function formatDriftCapabilityReason(delta: MetricDelta) {
-  switch (delta.driftReason) {
-    case 'missing_both':
-      return 'Current and previous values are unavailable.';
-    case 'missing_current':
-      return 'Current value is unavailable.';
-    case 'missing_previous':
-      return 'Previous value is unavailable.';
-    case 'zero_previous':
-      return 'Previous value is zero, so percentage drift is unstable.';
-    case 'stable':
-    default:
-      return 'Drift is stable.';
-  }
 }
 
 function renderRunSummary(summary: PublishedVersionSummary) {
@@ -1194,84 +1028,6 @@ function renderRunSummary(summary: PublishedVersionSummary) {
       <span className="text-sm text-charcoal-500 font-poppins">Run {summary.calcRun.runId}</span>
     </div>
   );
-}
-
-function hasStaleEvidence(lifecycle: FundStateReadV1) {
-  const publishedVersion = lifecycle.configState.publishedVersion;
-  const calculationVersion = lifecycle.calculationState.configVersion;
-  return (
-    publishedVersion != null && calculationVersion != null && calculationVersion < publishedVersion
-  );
-}
-
-function diagnosticAlertClasses(tone: 'neutral' | 'warning' | 'danger' | 'success') {
-  switch (tone) {
-    case 'danger':
-      return 'border-error/30 bg-error-light';
-    case 'warning':
-      return 'border-warning/30 bg-warning-light';
-    case 'success':
-      return 'border-success/30 bg-success-light';
-    default:
-      return 'border-beige-200 bg-beige-50';
-  }
-}
-
-function getLifecycleDiagnostic(lifecycle: FundStateReadV1) {
-  const { configState, calculationState } = lifecycle;
-  const publishedVersion =
-    configState.publishedVersion != null
-      ? `v${configState.publishedVersion}`
-      : 'an unpublished draft';
-  const runLabel =
-    calculationState.runId != null ? `run ${calculationState.runId}` : 'the next calculation run';
-
-  if (!configState.hasPublished) {
-    return {
-      tone: 'neutral' as const,
-      title: 'No published configuration yet',
-      description:
-        'This fund does not have a published configuration yet, so authoritative calculations have not started. Publish a configuration before relying on lifecycle-backed results.',
-    };
-  }
-
-  if (calculationState.status === 'failed') {
-    return {
-      tone: 'danger' as const,
-      title: 'Published configuration exists, but the latest calculation failed',
-      description: `${publishedVersion} is published, but ${runLabel} did not complete successfully. Review the latest calculation error and retry once the issue is resolved.`,
-    };
-  }
-
-  if (calculationState.status === 'submitted' || calculationState.status === 'calculating') {
-    return {
-      tone: 'warning' as const,
-      title: 'Calculation is in progress',
-      description: `${publishedVersion} is currently being processed under ${runLabel}. The page will keep polling the results endpoint until the lifecycle reaches a terminal state.`,
-    };
-  }
-
-  if (hasStaleEvidence(lifecycle)) {
-    return {
-      tone: 'warning' as const,
-      title: 'Published configuration is ahead of the current calculation',
-      description: `The latest publish is ${publishedVersion}, but the current evidence is still tied to v${calculationState.configVersion}. Recalculate to bring the displayed results back in sync.`,
-    };
-  }
-
-  if (calculationState.status === 'ready') {
-    return {
-      tone: 'success' as const,
-      title: 'Results are current',
-      description: `${publishedVersion} has a completed calculation run, and the results page is showing current server-backed evidence for that publish.`,
-    };
-  }
-
-  return {
-    tone: 'neutral' as const,
-    title: 'Calculation has not been requested',
-    description: `${publishedVersion} is published, but no calculation run has been requested yet.`,
-  };
 }
 
 function ConfigDiffBanner({ lifecycle }: { lifecycle: FundStateReadV1 }) {
@@ -1702,116 +1458,6 @@ interface SectionRendererProps {
   renderPayload?: (payload: unknown) => React.ReactNode;
   evidenceLifecycle?: EvidenceHeaderLifecycle | undefined;
   evidenceTestId?: string;
-}
-
-function getSectionSource(section: SectionRendererProps['section']) {
-  const source = section['source'];
-  return typeof source === 'string' && source.trim().length > 0 ? source : null;
-}
-
-function sectionNumber(section: SectionRendererProps['section'], key: string): number | null {
-  const value = section[key];
-  return typeof value === 'number' && Number.isFinite(value) ? value : null;
-}
-
-function sectionString(section: SectionRendererProps['section'], key: string): string | null {
-  const value = section[key];
-  return typeof value === 'string' ? value : null;
-}
-
-function sectionEvidence(
-  lifecycle: EvidenceHeaderLifecycle | undefined,
-  section: SectionRendererProps['section']
-): EvidenceHeaderLifecycle | null {
-  if (!lifecycle) return null;
-  // Pre-resolved section/config/mixed provenance is authoritative -- do not
-  // re-derive its source from the section wrapper.
-  if (lifecycle.provenanceLevel != null) return lifecycle;
-  return {
-    ...lifecycle,
-    source: getSectionSource(section) ?? lifecycle.source ?? null,
-  };
-}
-
-function evidenceFromLifecycle(lifecycle: FundStateReadV1): EvidenceHeaderLifecycle {
-  return {
-    status: lifecycle.calculationState.status,
-    configVersion: lifecycle.calculationState.configVersion,
-    runId: lifecycle.calculationState.runId,
-    lastCalculatedAt: lifecycle.calculationState.lastCalculatedAt,
-    publishedVersion: lifecycle.configState.publishedVersion,
-    source: '/api/funds/:id/results',
-  };
-}
-
-// GP Economics: section-owned calculation evidence. The section emits its own
-// config version and calculated timestamp and never carries a run id.
-function sectionBackedEvidence(
-  lifecycle: EvidenceHeaderLifecycle,
-  section: SectionRendererProps['section']
-): EvidenceHeaderLifecycle | undefined {
-  if (section.status !== 'available') return undefined;
-  return {
-    status: lifecycle.status,
-    provenanceLevel: 'section_backed_result',
-    configVersion: sectionNumber(section, 'configVersion'),
-    runId: null,
-    lastCalculatedAt: sectionString(section, 'calculatedAt'),
-    publishedVersion: lifecycle.publishedVersion ?? null,
-    source: getSectionSource(section) ?? 'fund_snapshots',
-  };
-}
-
-// Waterfall Setup: published configuration, not a calculation run. Shows the
-// published timestamp and the fund_config source, never a run id or freshness.
-function configBackedEvidence(
-  lifecycle: EvidenceHeaderLifecycle,
-  section: SectionRendererProps['section']
-): EvidenceHeaderLifecycle | undefined {
-  if (section.status !== 'available') return undefined;
-  return {
-    status: lifecycle.status,
-    provenanceLevel: 'config_backed_setup',
-    configVersion: sectionNumber(section, 'configVersion'),
-    runId: null,
-    lastCalculatedAt: sectionString(section, 'publishedAt'),
-    publishedVersion: lifecycle.publishedVersion ?? null,
-    source: getSectionSource(section) ?? 'fund_config',
-  };
-}
-
-// Overview/Scorecard: assembled from multiple per-field sources. The label is
-// derived from the sources actually present so it never claims a source that
-// contributed no field.
-function deriveScorecardSources(payload: unknown): string[] {
-  if (payload == null || typeof payload !== 'object') return ['funds'];
-  const seen: string[] = [];
-  for (const value of Object.values(payload as Record<string, unknown>)) {
-    if (value != null && typeof value === 'object' && 'source' in value) {
-      const source = (value as { source?: unknown }).source;
-      if (typeof source === 'string' && source.length > 0 && !seen.includes(source)) {
-        seen.push(source);
-      }
-    }
-  }
-  return seen.length > 0 ? seen : ['funds'];
-}
-
-function mixedScorecardEvidence(
-  lifecycle: EvidenceHeaderLifecycle,
-  section: SectionRendererProps['section']
-): EvidenceHeaderLifecycle | undefined {
-  if (section.status !== 'available') return undefined;
-  return {
-    status: lifecycle.status,
-    provenanceLevel: 'mixed_scorecard_sources',
-    configVersion: null,
-    runId: null,
-    lastCalculatedAt: null,
-    publishedVersion: null,
-    source: null,
-    sourceLabel: deriveScorecardSources(section.payload).join(' / '),
-  };
 }
 
 function SectionRenderer({
