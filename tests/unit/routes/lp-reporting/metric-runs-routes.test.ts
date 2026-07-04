@@ -63,6 +63,11 @@ const dbState = vi.hoisted(() => ({
   dropNextInsert: false,
 }));
 let nextUserId = 800;
+const H9_STAMP = {
+  fingerprintHash: 'd'.repeat(64),
+  policyVersion: 'h9-policy-v1',
+  actionabilityStatus: 'actionable' as const,
+};
 
 vi.mock('../../../../server/lib/auth/jwt', () => ({
   requireAuth: () => (req: Request, res: Response, next: NextFunction) => {
@@ -1795,6 +1800,7 @@ describe('metric-run report package routes', () => {
     expect(res.status).toBe(200);
     const parsed = ReportPackageRenderModelResponseSchema.parse(res.body);
     expect(parsed.renderModel.source.reportPackageId).toBe(3000);
+    expect(parsed.renderModel.source.h9Stamp).toEqual(H9_STAMP);
     expect(parsed.renderModel.fundDisplay.name).toBe('Press On Fund I');
     expect(parsed.renderModel.metricSections.map((section) => section.sectionId)).toEqual([
       'performance',
@@ -1829,6 +1835,8 @@ describe('metric-run report package routes', () => {
     expect(parsed.export.source.reportPackageId).toBe(3000);
     expect(parsed.export.source.fundId).toBe(1);
     expect(parsed.export.source.metricRunId).toBe(500);
+    expect(parsed.export.source.h9Stamp).toEqual(H9_STAMP);
+    expect(parsed.export.renderModel.source.h9Stamp).toEqual(H9_STAMP);
     expect(parsed.export.renderModel.narrativeSections.map((section) => section.sectionId)).toEqual(
       ['no_dpi', 'methodology', 'portfolio_update', 'risk_disclosure']
     );

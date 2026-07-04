@@ -40,23 +40,27 @@ vi.mock('@/contexts/FundContext', () => ({
 }));
 
 import LpReportingMetricsPage from '@/pages/lp-reporting/metrics';
-import type {
-  LpMetricRunResults,
-  MetricRunCommitResponse,
-  MetricRunDetailResponse,
-  MetricRunDryRunResponse,
-  MetricRunLifecycleResponse,
-  NarrativeRunRecord,
-  ReportPackageCsvStoredArtifactResponse,
-  ReportPackageCsvStoredExportGetResponse,
-  ReportPackageCsvStoredExportResponse,
-  ReportPackageExportRecord,
-  ReportPackageJsonExportResponse,
-  ReportPackageJsonStoredArtifactResponse,
-  ReportPackageJsonStoredExportGetResponse,
-  ReportPackageJsonStoredExportResponse,
-  ReportPackageRecord,
-  ReportPackageRenderModelResponse,
+import {
+  ReportPackageJsonExportResponseSchema,
+  ReportPackageJsonStoredArtifactResponseSchema,
+  ReportPackageRecordSchema,
+  ReportPackageRenderModelResponseSchema,
+  type LpMetricRunResults,
+  type MetricRunCommitResponse,
+  type MetricRunDetailResponse,
+  type MetricRunDryRunResponse,
+  type MetricRunLifecycleResponse,
+  type NarrativeRunRecord,
+  type ReportPackageCsvStoredArtifactResponse,
+  type ReportPackageCsvStoredExportGetResponse,
+  type ReportPackageCsvStoredExportResponse,
+  type ReportPackageExportRecord,
+  type ReportPackageJsonExportResponse,
+  type ReportPackageJsonStoredArtifactResponse,
+  type ReportPackageJsonStoredExportGetResponse,
+  type ReportPackageJsonStoredExportResponse,
+  type ReportPackageRecord,
+  type ReportPackageRenderModelResponse,
 } from '@shared/contracts/lp-reporting';
 
 function renderPage() {
@@ -258,6 +262,20 @@ function makeApprovedNarratives(): NarrativeRunRecord[] {
   ];
 }
 
+const H9_METADATA = {
+  moicSourceInputHash: 'a'.repeat(64),
+  roundEvidenceInputHash: 'b'.repeat(64),
+  roundEvidenceAssumptionsHash: 'c'.repeat(64),
+  fingerprintHash: 'd'.repeat(64),
+  policyVersion: 'h9-policy-v1',
+  actionabilityStatus: 'actionable' as const,
+};
+const H9_STAMP = {
+  fingerprintHash: H9_METADATA.fingerprintHash,
+  policyVersion: H9_METADATA.policyVersion,
+  actionabilityStatus: H9_METADATA.actionabilityStatus,
+};
+
 function makeReportPackageRecord(): ReportPackageRecord {
   const narrativeRows = makeApprovedNarratives().map((record) => {
     const ref = {
@@ -277,7 +295,7 @@ function makeReportPackageRecord(): ReportPackageRecord {
     };
   });
   const narrativeRefs = narrativeRows.map((row) => row.ref);
-  return {
+  return ReportPackageRecordSchema.parse({
     reportPackageId: 501,
     fundId: 7,
     metricRunId: 17,
@@ -296,18 +314,18 @@ function makeReportPackageRecord(): ReportPackageRecord {
       evidenceRecordIds: [1000],
       narratives: narrativeRows.map((row) => row.payload),
     },
-    h9Metadata: null,
+    h9Metadata: H9_METADATA,
     assembledBy: 7,
     assembledAt: '2026-05-10T03:00:00.000Z',
     version: 1,
     createdAt: '2026-05-10T03:00:00.000Z',
     updatedAt: '2026-05-10T03:00:00.000Z',
-  };
+  });
 }
 
 function makeReportPackageRenderModelResponse(): ReportPackageRenderModelResponse {
   const record = makeReportPackageRecord();
-  return {
+  return ReportPackageRenderModelResponseSchema.parse({
     renderModel: {
       renderModelVersion: 1,
       source: {
@@ -323,6 +341,7 @@ function makeReportPackageRenderModelResponse(): ReportPackageRenderModelRespons
         assembledAt: record.assembledAt,
         packageVersion: record.version,
         payloadVersion: record.payload.payloadVersion,
+        h9Stamp: H9_STAMP,
       },
       fundDisplay: {
         fundId: 7,
@@ -410,12 +429,12 @@ function makeReportPackageRenderModelResponse(): ReportPackageRenderModelRespons
         narrativeRunIds: record.narrativeRefs.map((ref) => ref.narrativeRunId),
       },
     },
-  };
+  });
 }
 
 function makeReportPackageJsonExportResponse(): ReportPackageJsonExportResponse {
   const renderModelResponse = makeReportPackageRenderModelResponse();
-  return {
+  return ReportPackageJsonExportResponseSchema.parse({
     export: {
       exportVersion: 1,
       format: 'json',
@@ -424,7 +443,7 @@ function makeReportPackageJsonExportResponse(): ReportPackageJsonExportResponse 
       contentHashAlgorithm: 'sha256',
       contentHash: 'c'.repeat(64),
     },
-  };
+  });
 }
 
 function makeReportPackageStoredExportRecord(): ReportPackageExportRecord {
@@ -462,10 +481,10 @@ function makeReportPackageStoredExportResponse(
 }
 
 function makeReportPackageStoredArtifactResponse(): ReportPackageJsonStoredArtifactResponse {
-  return {
+  return ReportPackageJsonStoredArtifactResponseSchema.parse({
     record: makeReportPackageStoredExportRecord(),
     export: makeReportPackageJsonExportResponse().export,
-  };
+  });
 }
 
 function makeReportPackageStoredCsvExportRecord(): ReportPackageExportRecord {

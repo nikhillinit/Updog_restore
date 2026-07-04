@@ -25,6 +25,7 @@ import {
   ReportPackagePayloadSchema,
   ReportPackageRecordSchema,
   ReportPackageRenderModelResponseSchema,
+  ReportPackageRenderSourceSchema,
   ReportPackageStatusSchema,
   type LpMetricRunDiagnostics,
   type LpMetricRunResults,
@@ -108,6 +109,11 @@ const record = {
   createdAt: '2026-05-10T01:05:00.000Z',
   updatedAt: '2026-05-10T01:05:00.000Z',
 } as const;
+const h9Stamp = {
+  fingerprintHash: 'd'.repeat(64),
+  policyVersion: 'h9-policy-v1',
+  actionabilityStatus: 'actionable' as const,
+};
 
 describe('report package enums', () => {
   it('accepts assembled status only', () => {
@@ -220,6 +226,7 @@ describe('ReportPackageRenderModelResponseSchema', () => {
         assembledAt: record.assembledAt,
         packageVersion: record.version,
         payloadVersion: record.payload.payloadVersion,
+        h9Stamp,
       },
       fundDisplay: {
         fundId: 1,
@@ -275,8 +282,33 @@ describe('ReportPackageRenderModelResponseSchema', () => {
     const parsed = ReportPackageRenderModelResponseSchema.parse(renderModelResponse);
 
     expect(parsed.renderModel.source.reportPackageId).toBe(501);
+    expect(parsed.renderModel.source.h9Stamp).toEqual(h9Stamp);
     expect(parsed.renderModel.fundDisplay.name).toBe('Press On Fund I');
     expect(parsed.renderModel.metricSections[0]?.rows[0]?.metricId).toBe('dpi');
+  });
+
+  it('pins render source fields and requires the H9 stamp', () => {
+    expect(Object.keys(ReportPackageRenderSourceSchema.shape)).toEqual([
+      'reportPackageId',
+      'fundId',
+      'metricRunId',
+      'reportPackageStatus',
+      'asOfDate',
+      'metricRunVersion',
+      'metricRunLockedBy',
+      'metricRunLockedAt',
+      'assembledBy',
+      'assembledAt',
+      'packageVersion',
+      'payloadVersion',
+      'h9Stamp',
+    ]);
+
+    const sourceWithoutStamp: Record<string, unknown> = {
+      ...renderModelResponse.renderModel.source,
+    };
+    delete sourceWithoutStamp.h9Stamp;
+    expect(() => ReportPackageRenderSourceSchema.parse(sourceWithoutStamp)).toThrow();
   });
 
   it.each(['record', 'downloadUrl', 'fileUrl', 'signedUrl', 'storageKey', 'queueJobId'])(
