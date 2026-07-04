@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { relative, resolve } from 'node:path';
 import { execFileSync } from 'node:child_process';
 
@@ -29,6 +29,9 @@ for (const file of tracked) {
     continue;
   }
   const absolute = resolve(root, file);
+  if (!existsSync(absolute)) {
+    continue;
+  }
   const content = readFileSync(absolute, 'utf8');
   for (const pattern of bannedPatterns) {
     if (pattern.test(content)) {

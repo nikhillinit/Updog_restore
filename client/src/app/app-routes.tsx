@@ -36,8 +36,6 @@ const FinancialModelingPage = React.lazy(() => import('@/pages/financial-modelin
 const ForecastingPage = React.lazy(() => import('@/pages/forecasting'));
 const ModelResultsPage = React.lazy(() => import('@/pages/model-results'));
 const SensitivityAnalysisPage = React.lazy(() => import('@/pages/sensitivity-analysis'));
-// Keep /moic-analysis on the existing live page; the redirect page is not registered here.
-const MOICAnalysisPage = React.lazy(() => import('@/pages/moic-analysis'));
 // LP Sharing
 export const SharedDashboard = React.lazy(() => import('@/pages/shared-dashboard'));
 // New IA pages (Codex-validated restructure)
@@ -100,7 +98,6 @@ const APP_ROUTE_COMPONENTS: Record<
   '/fund-model-results/:fundId': FundModelResults,
   '/sensitivity-analysis': SensitivityAnalysisPage,
   '/reports': Reports,
-  '/moic-analysis': MOICAnalysisPage,
   '/variance-tracking': VarianceTrackingPage,
   '/pipeline': PipelinePage,
   '/lp-reporting/ledger': LpReportingLedgerPage,

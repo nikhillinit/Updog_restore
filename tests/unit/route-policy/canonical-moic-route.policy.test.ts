@@ -7,7 +7,10 @@ import {
   getFinancialSurfaceForGovernanceEntry,
   routePolicyKey,
 } from '../../../server/route-policy/api-route-policy-registry';
-import type { RouteGovernanceEntry } from '../../../client/src/app/route-governance-registry';
+import {
+  getRouteGovernanceEntry,
+  type RouteGovernanceEntry,
+} from '../../../client/src/app/route-governance-registry';
 import { verifyRoutePolicy } from '../../../scripts/verify-route-policy';
 
 const CANONICAL = '/fund-model-results/:fundId/moic-analysis';
@@ -50,6 +53,26 @@ describe('route-policy: canonical fund-model-results MOIC route', () => {
     const entry = API_ROUTE_POLICY_REGISTRY.find((candidate) => candidate.path === CANONICAL);
     expect(entry).toBeDefined();
     expect(entry?.financialSurface).toBe('moic_reserves');
+  });
+
+  it('keeps the retired V1 MOIC route archived outside financial policy', () => {
+    const retiredEntry = getRouteGovernanceEntry('/moic-analysis');
+
+    if (!retiredEntry) {
+      throw new Error('Expected /moic-analysis to be governed as an archived placeholder');
+    }
+
+    expect(retiredEntry).toMatchObject({
+      exposure: 'archived-placeholder',
+      surface: 'archived-placeholder',
+      isProtected: false,
+      redirectTarget: '/overview',
+    });
+    expect(getFinancialSurfaceForGovernanceEntry(retiredEntry)).toBe('none');
+    expect(EXPLICIT_GOVERNANCE_POLICY_KEYS.has('/moic-analysis')).toBe(false);
+    expect(API_ROUTE_POLICY_REGISTRY.some((candidate) => candidate.path === '/moic-analysis')).toBe(
+      false
+    );
   });
 
   it('registers explicit scoped admin API policy for MOIC input and mode writes', () => {
