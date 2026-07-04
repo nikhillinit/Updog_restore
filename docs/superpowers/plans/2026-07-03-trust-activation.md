@@ -215,6 +215,33 @@ project). Verdict: NOT production-trust-qualified (1 of 5 dimensions enforced);
 AC-1..AC-4 are the implementation backlog and need their own PRD/spec per
 Strategic Backlog rules.
 
+P5 verdict update (2026-07-04, post-PRD-#996): AC-1..AC-4 landed as four
+sequential slices, each with a cited full CI run; AC-5 remained green in every
+run. Decision record: issue #996 comments (D1/D2/D3), ADR-025/026/027.
+
+- AC-4 provenance-in-artifact: #1000, run 28700834375 - required `h9Stamp`
+  (fingerprint hash, policy version, actionability status) embedded in the
+  render-source/artifact contract and covered by `contentHash`; legacy pre-stamp
+  stored artifacts fail structured (`REPORT_PACKAGE_EXPORT_ROW_INVALID`).
+- AC-1 role policy: #1001, run 28708813112 - ADR-025; partner+admin allowlist on
+  all eight Surface-A export routes; empty-fundIds bypass closed for non-admin
+  callers; explicit registry entries under `require_auth_fund_access_and_role`
+  with a coverage test that fails if an export route lacks a role-gated
+  declaration.
+- AC-2 workflow state: #1002, run 28714582530 - ADR-026; export re-gates on
+  `lp_metric_runs.status` in {locked, exported} (409 `METRIC_RUN_NOT_EXPORTABLE`
+  otherwise); stored JSON create writes locked->exported idempotently with no
+  version bump.
+- AC-3 watermark/admin policy: #1003, run 28715447072 - ADR-027; watermark
+  scoped out of Surface A (JSON/CSV artifacts are hash-attested); orphaned
+  `workers/report-worker.ts` deleted reader-free.
+
+VERDICT (supersedes the 2026-07-04 initial verdict above): Surface-A LP
+report-package exports are PRODUCTION-TRUST-QUALIFIED. All five dimensions are
+enforced or explicitly ADR'd: eligibility ENFORCED (H9 + evidence blockers,
+unchanged), provenance ENFORCED (in-artifact), role ENFORCED, workflow ENFORCED,
+watermark/admin policy RESOLVED by scope ADR.
+
 ## Strategic Backlog Only
 
 Do not execute these from this plan. Each needs its own refreshed PRD/test spec:
