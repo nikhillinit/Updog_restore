@@ -129,15 +129,34 @@ tripwire `tests/unit/flags/enable-investment-rounds.test.tsx` 4/4 green.
 
 ### P4: MOIC/H9 Operator Truthfulness
 
-- [ ] Preserve V2 contract behavior for
+- [x] Preserve V2 contract behavior for
       `/api/funds/:fundId/moic/rankings?contract=v2`.
-- [ ] Improve operator-facing language for: legacy vs candidate mode, stale
+- [x] Improve operator-facing language for: legacy vs candidate mode, stale
       materiality, kill switch, unreconciled edits, missing probability inputs,
       missing reserve multiples, and round-evidence warnings.
-- [ ] Do not invent new schema unless a concrete storage gap is proven.
-- [ ] Keep contract-parse failures fail-closed: no stale/sample rankings
+- [x] Do not invent new schema unless a concrete storage gap is proven.
+- [x] Keep contract-parse failures fail-closed: no stale/sample rankings
       rendered after parse failure.
-- [ ] Add or update page tests around the exact operator states shown.
+- [x] Add or update page tests around the exact operator states shown.
+
+P4 evidence (2026-07-04): PR #993 (squash `61ff8473`), display-only change to
+`client/src/pages/fund-model-results-moic-analysis.tsx`. `provenance.mode`
+(legacy vs candidate) now rendered - previously never shown; kill-switch and
+stale-materiality warning banners; activation blockers (7 codes) and
+round-evidence warnings (6 codes) split into labeled groups with human-readable
+mappings and raw fallback for unknown codes; latest-reconciliation indicators
+added. No server/shared/contract changes (V2 contract preserved by
+construction); no new schema (no storage gap proven); no render gating added (H9
+gates persistence/reuse/export, not read-model display). Fail-closed parse
+behavior preserved and tested. Tests: page suite 7/7 with a schema-validated
+fixture (prior fixture was silently contract-invalid); new
+`tests/unit/routes/fund-moic-rankings.behavior.test.ts` 7/7 pins GET
+`?contract=v2` assembly (legacy default, candidate switch, kill-switch blocker,
+stale materiality, warning-code propagation, 400 invalid_contract, V1
+unchanged). CI: run `28698269825` on `61ff8473`, full run, success (~9m;
+integration/unit/e2e/validate-core all green). Flagged out-of-scope follow-ups:
+V1 `/moic-analysis` page lacks mode/stale/kill-switch disclosure; declared
+`staleBlocksRender` policy has no runtime consumer.
 
 ### P5: LP Export Production-Trust Qualification
 
