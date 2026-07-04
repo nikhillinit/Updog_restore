@@ -5303,3 +5303,51 @@ be filed as its own issue or PRD amendment.
 - Historical documentation that mentions the deleted worker remains provenance
   and is not edited by this decision.
 - PDF/Surface-B watermarking remains an open, separate product-policy question.
+
+## ADR-028: Staleness Is Disclose-Not-Block on Read Surfaces (Issue #998)
+
+**Date:** 2026-07-04 **Status:** [IMPLEMENTED] Implemented **Decision:** Remove
+the `staleBlocksRender` policy field. Staleness never blocks render or read
+surfaces; disclosure is the mechanism through the V2 page staleness banner from
+PR #993. The `staleBlocksExport` policy field is retained and enforced at export
+gates.
+
+### Context
+
+The `staleBlocksRender` field was declared in `RoutePolicyEntrySchema` and
+stamped on every registry entry since the Trust-First v3.4 scaffold, but no
+runtime consumer ever existed. H9 gate policy scopes staleness enforcement to
+persistence, reuse, and export; it does not scope enforcement to read-display
+surfaces.
+
+### Decision
+
+Delete `staleBlocksRender` from the route-policy contract, registry decisions,
+and tests. Read surfaces keep the disclose-not-block posture, while export
+staleness gating remains represented by `staleBlocksExport`.
+
+Any future requirement to block render surfaces on stale data must arrive as its
+own ADR and implementation plan.
+
+### Reader-Free Evidence
+
+- Before removal, `git grep staleBlocksRender -- ':!docs'` hit only the contract
+  schema field, the registry declarations, and one test pin.
+- No middleware, page, renderer, or API route consumed `staleBlocksRender`.
+- The V2 page staleness banner from PR #993 is the read-surface disclosure
+  mechanism.
+- `staleBlocksExport` remains in the route-policy contract and registry for
+  export-gate enforcement.
+
+### Alternatives Considered
+
+- **Wire up render-blocking enforcement:** rejected because it contradicts the
+  disclose-not-block posture and the H9 scope.
+- **Keep the field as documentation:** rejected because a dead policy knob
+  misleads audits into believing render-blocking exists.
+
+### Consequences
+
+- Route-policy registry entries drop one field.
+- Export staleness gating is unchanged.
+- Future render-blocking requirements must arrive as their own ADR.
