@@ -19,7 +19,6 @@ export const APP_ROUTE_DEFINITIONS = [
   { path: '/fund-model-results/:fundId', isProtected: true },
   { path: '/sensitivity-analysis', isProtected: true },
   { path: '/reports', isProtected: true },
-  { path: '/moic-analysis', isProtected: true },
   { path: '/variance-tracking', isProtected: true },
   { path: '/pipeline', isProtected: true },
   { path: '/lp-reporting/ledger', isProtected: true },
@@ -42,6 +41,12 @@ export const ARCHIVED_PLACEHOLDER_ROUTES: ArchivedPlaceholderRouteEntry[] = [
     redirectTarget: '/portfolio?tab=reserve-planning',
     notes:
       'Standalone planning is archived; reserve planning remains inside the portfolio workspace.',
+  },
+  {
+    path: '/moic-analysis',
+    redirectTarget: '/overview',
+    notes:
+      'V1 MOIC analysis retired (#997): it served candidate-or-legacy rankings with no mode/stale/kill-switch disclosure. The disclosed surface is /fund-model-results/:fundId/moic-analysis.',
   },
   {
     path: '/kpi-manager',

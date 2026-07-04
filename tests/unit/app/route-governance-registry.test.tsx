@@ -94,13 +94,18 @@ describe('route governance registry', () => {
 
   it('tracks archived placeholder routes as redirect-only entrypoints', () => {
     expect(sorted(ARCHIVED_PLACEHOLDER_GOVERNED_PATHS)).toEqual(
-      sorted(['/planning', '/kpi-manager', '/kpi-submission', '/investments'])
+      sorted(['/planning', '/moic-analysis', '/kpi-manager', '/kpi-submission', '/investments'])
     );
 
     expect(getRouteGovernanceEntry('/planning')).toMatchObject({
       exposure: 'archived-placeholder',
       surface: 'archived-placeholder',
       redirectTarget: '/portfolio?tab=reserve-planning',
+    });
+    expect(getRouteGovernanceEntry('/moic-analysis')).toMatchObject({
+      exposure: 'archived-placeholder',
+      surface: 'archived-placeholder',
+      redirectTarget: '/overview',
     });
     expect(getRouteGovernanceEntry('/kpi-manager')).toMatchObject({
       exposure: 'archived-placeholder',
