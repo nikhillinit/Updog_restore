@@ -56,7 +56,6 @@ export const RoutePolicyEntrySchema = z
     exportPolicy: ExportPolicySchema,
     provenanceRequired: z.boolean(),
     staleBlocksExport: z.boolean(),
-    staleBlocksRender: z.boolean(),
     humanReviewRequired: z.boolean(),
     performanceBudgetMs: z.number().nullable(),
     notes: z.string().min(1).optional(),

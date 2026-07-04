@@ -161,7 +161,6 @@ describe('route policy coverage', () => {
       expect(policyEntry.exportPolicy, key).toBe('qualified_exportable');
       expect(policyEntry.provenanceRequired, key).toBe(true);
       expect(policyEntry.staleBlocksExport, key).toBe(true);
-      expect(policyEntry.staleBlocksRender, key).toBe(false);
       expect(policyEntry.workflowRequirement, key).toBe('metric_run_locked_or_exported');
     }
   });
