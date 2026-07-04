@@ -79,16 +79,27 @@ gate all executed, proving the skip path was not taken.
 
 ### P2: Planning FMV Activation Closeout
 
-- [ ] Confirm `enable_planning_fmv_overrides` remains production-off.
-- [ ] Decide and document whether LP metric-run `active_as_of` is API-only or
+- [x] Confirm `enable_planning_fmv_overrides` remains production-off.
+- [x] Decide and document whether LP metric-run `active_as_of` is API-only or
       exposed in `MetricRunForm`.
 - [ ] If UI exposure is chosen, update
       `client/src/components/lp-reporting/MetricRunForm.tsx` so operators can
-      choose explicit marks vs active approved marks.
-- [ ] Test default `sourceMarkSelection: 'explicit'` remains unchanged.
-- [ ] Test `active_as_of` submits empty `sourceMarkIds`.
-- [ ] Test Planning FMV UI remains disabled outside the live allocation
+      choose explicit marks vs active approved marks. (N/A: API-only chosen,
+      ADR-024.)
+- [x] Test default `sourceMarkSelection: 'explicit'` remains unchanged.
+- [x] Test `active_as_of` submits empty `sourceMarkIds`.
+- [x] Test Planning FMV UI remains disabled outside the live allocation
       workspace.
+
+P2 evidence (2026-07-04): flag production-off - registry default false
+(flags/registry.yaml), generated defaults false, and Vercel production env
+contains no VITE_ENABLE_PLANNING_FMV_OVERRIDES (verified via
+`vercel env ls production`); UI gate point is AllocationsTab.tsx
+`useFlag('enable_planning_fmv_overrides')`. Decision: `active_as_of` is API-only
+(ADR-024); `MetricRunForm` hardcodes `explicit` + empty `sourceMarkIds`. Tests
+green: lp-metric-run contract + metric-run commit service (55/55, server
+project) and enable-planning-fmv-overrides flag gating (3/3, client project),
+TZ=UTC.
 
 ### P3: Investment Rounds Controlled Soak
 

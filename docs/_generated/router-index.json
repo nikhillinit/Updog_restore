@@ -3113,17 +3113,17 @@
       "docType": "doc",
       "exists": true,
       "frontmatter": {
-        "last_updated": "2026-05-21",
+        "last_updated": "2026-07-04",
         "owner": "Core Team",
         "review_cadence": "P90D",
         "status": "ACTIVE"
       },
       "hasExecutionClaims": true,
       "isStale": false,
-      "lastUpdated": "2026-05-21",
+      "lastUpdated": "2026-07-04",
       "owner": "Core Team",
       "path": "DECISIONS.md",
-      "staleDays": 44,
+      "staleDays": 0,
       "status": "ACTIVE"
     },
     {

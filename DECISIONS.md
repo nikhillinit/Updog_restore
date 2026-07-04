@@ -1,6 +1,6 @@
 ---
 status: ACTIVE
-last_updated: 2026-05-21
+last_updated: 2026-07-04
 owner: Core Team
 review_cadence: P90D
 ---
@@ -27,6 +27,7 @@ development of the Press On Ventures fund modeling platform.
 - [ADR-021: Single Required CI Gate with Internal Conditional Jobs](#adr-021-single-required-ci-gate-with-internal-conditional-jobs)
 - [ADR-022: SSE Event Routes Protected by Bearer Fund-Scope; Native EventSource Transport Deferred](#adr-022-sse-event-routes-protected-by-bearer-fund-scope-native-eventsource-transport-deferred)
 - [ADR-023: s8.1 Operator Seam - Evidence-First Slice Ordering and D1 Triage-First Decision Procedure](#adr-023-s81-operator-seam---evidence-first-slice-ordering-and-d1-triage-first-decision-procedure)
+- [ADR-024: LP Metric-Run active_as_of Source-Mark Selection Is API-Only](#adr-024-lp-metric-run-active_as_of-source-mark-selection-is-api-only)
 
 ---
 
@@ -5040,8 +5041,8 @@ hold-scope, engineering, codex red-team; plan
 
 ### Decision
 
-1. Slice ordering locked: 0 (read-only prod audit + un-truncated §7 dumps) ->
-   1 (decision lock) -> 2 (journal drift-patch `0028`) -> 3 (FK-name manifest
+1. Slice ordering locked: 0 (read-only prod audit + un-truncated §7 dumps) -> 1
+   (decision lock) -> 2 (journal drift-patch `0028`) -> 3 (FK-name manifest
    reconcile) -> 3.5 (drop-capable manifest path in `reconcile-prod-schema.mjs`
    as its own reviewed PR) -> 4 (guarded operator apply, only if audit demands)
    -> 5 (baseline shrink). Manifest reconcile precedes prod apply; operator
@@ -5081,3 +5082,45 @@ hold-scope, engineering, codex red-team; plan
   evidence lands (by design).
 - Neutral: `reconcile-prod-schema.mjs` gains a drop-capable manifest path whose
   checksum must cover drop entries and reverse SQL.
+
+---
+
+## ADR-024: LP Metric-Run active_as_of Source-Mark Selection Is API-Only
+
+**Date:** 2026-07-04 **Status:** [IMPLEMENTED] Implemented **Decision:** Keep
+`sourceMarkSelection: 'active_as_of'` as an API-only capability; do not expose
+it in `MetricRunForm`.
+
+### Context
+
+The LP metric-run contract supports two source-mark selection modes: `explicit`
+(operator-chosen mark IDs, the default) and `active_as_of` (server resolves the
+active approved marks as of the run date). PLAN(48) trust-activation P2 required
+deciding whether operators get UI access to `active_as_of` in `MetricRunForm`
+(docs/superpowers/plans/2026-07-03-trust-activation.md).
+
+### Decision
+
+API-only. `MetricRunForm` continues to submit `sourceMarkSelection: 'explicit'`
+with explicit `sourceMarkIds`
+(client/src/components/lp-reporting/MetricRunForm.tsx:115-116). The contract
+keeps enforcing the `active_as_of` invariant server-side: request-level
+`sourceMarkIds` must be empty
+(shared/contracts/lp-reporting/lp-metric-run.contract.ts:167-178), and the
+commit service resolves and stores the concrete contributing mark IDs.
+
+### Rationale
+
+- Trust-activation sequencing: the operator surface stays single-path until the
+  P4/P5 gates improve operator-facing language; a second selection mode in the
+  form adds decision burden without a proven operator need.
+- The invariant surface is already server-enforced and test-covered; API
+  consumers (automation) can use `active_as_of` today.
+- Reversible: exposing it later is additive UI work; supersede this ADR on
+  operator demand.
+
+### Consequences
+
+- `MetricRunForm` requires no change; the behavioral default is pinned by
+  tests/unit/contract/lp-reporting/lp-metric-run.contract.test.ts:119.
+- Any future UI exposure must revisit this ADR and PLAN(48) P2.
