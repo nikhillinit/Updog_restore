@@ -605,7 +605,8 @@ vi.mock('../../../../server/db', () => {
                 values['status'] === 'locked' &&
                 current.status === 'approved' &&
                 (current.version ?? 1) === expectedVersion;
-              if (!validApprove && !validLock) {
+              const validExport = values['status'] === 'exported' && current.status === 'locked';
+              if (!validApprove && !validLock && !validExport) {
                 return [];
               }
               const updated = { ...current, ...values } as MockMetricRunRow;
@@ -1005,6 +1006,236 @@ function reportPackageBody() {
         expectedVersion: row.version,
       })),
   };
+}
+
+function reportPackagePayload() {
+  const narratives = dbState.narrativeRuns
+    .filter((row) => row.metricRunId === 500)
+    .map((row) => ({
+      narrativeType: row.narrativeType,
+      narrativeRunId: row.id,
+      narrativeVersion: row.version,
+      approvedBy: row.approvedBy,
+      approvedAt: row.approvedAt?.toISOString() ?? '2026-05-10T02:30:00.000Z',
+      textHash: 'a'.repeat(64),
+      effectiveText: row.editedText ?? row.generatedText,
+    }));
+
+  return {
+    payloadVersion: 1,
+    results: makeMetricResults(),
+    diagnostics: makeMetricDiagnostics(),
+    sourceEventIds: [101, 102],
+    sourceMarkIds: [201],
+    evidenceRecordIds: [1000],
+    narratives,
+  };
+}
+
+function renderModelSource() {
+  return {
+    reportPackageId: 3000,
+    fundId: 1,
+    metricRunId: 500,
+    reportPackageStatus: 'assembled',
+    asOfDate: '2026-03-31',
+    metricRunVersion: 3,
+    metricRunLockedBy: authState.userId,
+    metricRunLockedAt: '2026-05-10T02:00:00.000Z',
+    assembledBy: authState.userId,
+    assembledAt: '2026-05-10T03:00:00.000Z',
+    packageVersion: 1,
+    payloadVersion: 1,
+    h9Stamp: H9_STAMP,
+  };
+}
+
+function reportPackageJsonArtifact() {
+  const payload = reportPackagePayload();
+  const source = renderModelSource();
+  const renderModel = {
+    renderModelVersion: 1,
+    source,
+    fundDisplay: {
+      fundId: 1,
+      name: 'Press On Fund I',
+      vintageYear: 2024,
+      size: '100000000.00',
+    },
+    metricSections: [
+      {
+        sectionId: 'performance',
+        title: 'Performance',
+        rows: [
+          {
+            metricId: 'dpi',
+            label: 'DPI',
+            value: payload.results.dpi,
+            valueKind: 'multiple',
+            currency: null,
+          },
+        ],
+      },
+    ],
+    narrativeSections: payload.narratives.map((narrative) => ({
+      sectionId: narrative.narrativeType,
+      title: narrative.narrativeType,
+      narrativeType: narrative.narrativeType,
+      narrativeRunId: narrative.narrativeRunId,
+      narrativeVersion: narrative.narrativeVersion,
+      approvedBy: narrative.approvedBy,
+      approvedAt: narrative.approvedAt,
+      textHash: narrative.textHash,
+      body: narrative.effectiveText,
+    })),
+    diagnostics: {
+      engineVersion: payload.diagnostics.engineVersion,
+      decimalPrecision: payload.diagnostics.decimalPrecision,
+      excludedFutureMarks: payload.diagnostics.excludedFutureMarks,
+      warnings: payload.diagnostics.warnings,
+      xirr: payload.results.xirrDiagnostic,
+    },
+    references: {
+      sourceEventIds: payload.sourceEventIds,
+      sourceMarkIds: payload.sourceMarkIds,
+      evidenceRecordIds: payload.evidenceRecordIds,
+      narrativeRunIds: payload.narratives.map((narrative) => narrative.narrativeRunId),
+    },
+  };
+
+  return {
+    exportVersion: 1,
+    format: 'json',
+    source,
+    renderModel,
+  };
+}
+
+function seedAssembledReportPackage() {
+  dbState.reportPackages.push({
+    id: 3000,
+    fundId: 1,
+    metricRunId: 500,
+    status: 'assembled',
+    asOfDate: '2026-03-31',
+    metricRunVersion: 3,
+    metricRunLockedBy: authState.userId,
+    metricRunLockedAt: new Date('2026-05-10T02:00:00Z'),
+    narrativeRefs: dbState.narrativeRuns
+      .filter((row) => row.metricRunId === 500)
+      .map((row) => ({
+        narrativeType: row.narrativeType,
+        narrativeRunId: row.id,
+        narrativeVersion: row.version,
+        approvedBy: row.approvedBy,
+        approvedAt: row.approvedAt?.toISOString() ?? '2026-05-10T02:30:00.000Z',
+        textHash: 'a'.repeat(64),
+      })),
+    payload: reportPackagePayload(),
+    assembledBy: authState.userId,
+    assembledAt: new Date('2026-05-10T03:00:00Z'),
+    version: 1,
+    createdAt: new Date('2026-05-10T03:00:00Z'),
+    updatedAt: new Date('2026-05-10T03:00:00Z'),
+    h9MoicSourceInputHash: 'a'.repeat(64),
+    h9RoundEvidenceInputHash: 'b'.repeat(64),
+    h9RoundEvidenceAssumptionsHash: 'c'.repeat(64),
+    h9FingerprintHash: H9_STAMP.fingerprintHash,
+    h9PolicyVersion: H9_STAMP.policyVersion,
+    h9ActionabilityStatus: H9_STAMP.actionabilityStatus,
+  });
+}
+
+function seedStoredJsonExport() {
+  dbState.reportPackageExports.push({
+    id: 4000,
+    fundId: 1,
+    metricRunId: 500,
+    reportPackageId: 3000,
+    format: 'json',
+    exportVersion: 1,
+    status: 'ready',
+    contentHashAlgorithm: 'sha256',
+    contentHash: 'c'.repeat(64),
+    artifactPayload: reportPackageJsonArtifact(),
+    artifactSizeBytes: 1000,
+    createdBy: authState.userId,
+    readyAt: new Date('2026-05-10T04:00:00Z'),
+    createdAt: new Date('2026-05-10T04:00:00Z'),
+    updatedAt: new Date('2026-05-10T04:00:00Z'),
+  });
+}
+
+function seedStoredCsvExport() {
+  dbState.reportPackageExports.push({
+    id: 4001,
+    fundId: 1,
+    metricRunId: 500,
+    reportPackageId: 3000,
+    format: 'csv',
+    exportVersion: 1,
+    status: 'ready',
+    contentHashAlgorithm: 'sha256',
+    contentHash: 'd'.repeat(64),
+    artifactPayload: {
+      exportVersion: 1,
+      format: 'csv',
+      sourceJsonExportId: 4000,
+      sourceJsonContentHash: 'c'.repeat(64),
+      contentType: 'text/csv; charset=utf-8',
+      filename: 'lp-report-package-1-500-csv-v1.csv',
+      csv: 'section,field,value\n',
+    },
+    artifactSizeBytes: 20,
+    createdBy: authState.userId,
+    readyAt: new Date('2026-05-10T04:00:00Z'),
+    createdAt: new Date('2026-05-10T04:00:00Z'),
+    updatedAt: new Date('2026-05-10T04:00:00Z'),
+  });
+}
+
+function resetReportPackageProbeState() {
+  dbState.events = [];
+  dbState.marks = [];
+  dbState.metricRuns = [];
+  dbState.evidenceRecords = [];
+  dbState.narrativeRuns = [];
+  dbState.reportPackages = [];
+  dbState.reportPackageExports = [];
+  dbState.insertedReportPackageRows = [];
+  dbState.insertedReportPackageExportRows = [];
+  dbState.nextReportPackageExportId = 4000;
+}
+
+function seedExportRouteProbe(
+  status: string,
+  route: (typeof REPORT_PACKAGE_EXPORT_ROUTE_PROBES)[number]
+) {
+  resetReportPackageProbeState();
+  seedLockedMetricRun({ status });
+  seedMetricRunEvidence();
+  seedApprovedNarratives();
+  seedAssembledReportPackage();
+  if (
+    route.path.endsWith('/exports/json/artifact') ||
+    route.path.endsWith('/exports/csv') ||
+    route.path.endsWith('/exports/csv/artifact')
+  ) {
+    seedStoredJsonExport();
+  }
+  if (route.path.endsWith('/exports/csv/artifact')) {
+    seedStoredCsvExport();
+  }
+}
+
+async function requestExportProbe(
+  app: express.Express,
+  route: (typeof REPORT_PACKAGE_EXPORT_ROUTE_PROBES)[number]
+) {
+  if (route.method === 'POST') {
+    return request(app).post(route.path).send({});
+  }
+  return request(app).get(route.path);
 }
 
 beforeEach(() => {
@@ -1831,14 +2062,44 @@ describe('metric-run report package routes', () => {
     authState.fundIds = [1];
 
     for (const route of REPORT_PACKAGE_EXPORT_ROUTE_PROBES) {
-      const res =
-        route.method === 'POST'
-          ? await request(buildApp()).post(route.path).send({})
-          : await request(buildApp()).get(route.path);
+      const res = await requestExportProbe(buildApp(), route);
 
       expect(res.status, `${route.method} ${route.path}`).toBe(403);
     }
   });
+
+  it.each(['draft', 'approved', 'superseded'])(
+    'returns structured METRIC_RUN_NOT_EXPORTABLE across Surface-A export routes for %s metric runs',
+    async (status) => {
+      for (const route of REPORT_PACKAGE_EXPORT_ROUTE_PROBES) {
+        seedExportRouteProbe(status, route);
+
+        const res = await requestExportProbe(buildApp(), route);
+
+        expect(res.status, `${status} ${route.method} ${route.path}`).toBe(409);
+        expect(res.body).toMatchObject({
+          error: 'METRIC_RUN_NOT_EXPORTABLE',
+          details: {
+            expected: ['locked', 'exported'],
+            actual: status,
+          },
+        });
+      }
+    }
+  );
+
+  it.each(['locked', 'exported'])(
+    'allows Surface-A export routes for %s metric runs',
+    async (status) => {
+      for (const route of REPORT_PACKAGE_EXPORT_ROUTE_PROBES) {
+        seedExportRouteProbe(status, route);
+
+        const res = await requestExportProbe(buildApp(), route);
+
+        expect(res.status, `${status} ${route.method} ${route.path}`).toBeLessThan(400);
+      }
+    }
+  );
 
   it('allows partner export access when the token has an explicit matching fund grant', async () => {
     authState.role = 'partner';

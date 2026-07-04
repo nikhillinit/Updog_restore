@@ -18,6 +18,7 @@ import {
   type ReportPackageRenderSource,
 } from '@shared/contracts/lp-reporting';
 import {
+  lpMetricRuns,
   lpReportPackageExports,
   lpReportPackages,
   type LpReportPackageExport,
@@ -55,15 +56,29 @@ const H9_STAMP = {
 
 interface State {
   exportRows: LpReportPackageExport[];
+  metricRuns: MetricRunStatusRow[];
   insertedRows: unknown[];
+  statusUpdates: unknown[];
   users: number[];
   nextId: number;
   dropNextInsert: boolean;
 }
 
+interface MetricRunStatusRow {
+  id: number;
+  fundId: number;
+  status: string;
+  version: number;
+  updatedAt: Date;
+  lockedBy: number | null;
+  lockedAt: Date | null;
+}
+
 const state: State = {
   exportRows: [],
+  metricRuns: [],
   insertedRows: [],
+  statusUpdates: [],
   users: [7],
   nextId: 4100,
   dropNextInsert: false,
@@ -183,6 +198,7 @@ function makeResponse(hash = 'c'.repeat(64)): ReportPackageJsonExportResponse {
 
 function rowsFor(table: unknown): unknown[] {
   if (table === users) return state.users.map((id) => ({ id }));
+  if (table === lpMetricRuns) return [...state.metricRuns];
   if (table === lpReportPackageExports) return [...state.exportRows];
   if (table === lpReportPackages) return [storedPackageRow];
   return [];
@@ -242,13 +258,50 @@ function makeDatabase(): typeof db {
         }),
       }),
     }),
+    update: (table: unknown) => ({
+      set: (values: Record<string, unknown>) => ({
+        where: () => ({
+          returning: async () => {
+            if (table !== lpMetricRuns) {
+              return [];
+            }
+            const current = state.metricRuns.find((row) => row.id === 500 && row.fundId === 1);
+            if (!current || current.status !== 'locked') {
+              return [];
+            }
+            const updated: MetricRunStatusRow = {
+              ...current,
+              status: values['status'] as string,
+              updatedAt: values['updatedAt'] as Date,
+            };
+            state.metricRuns = state.metricRuns.map((row) =>
+              row.id === updated.id && row.fundId === updated.fundId ? updated : row
+            );
+            state.statusUpdates.push(values);
+            return [updated];
+          },
+        }),
+      }),
+    }),
   } as unknown as typeof db;
 }
 
 beforeEach(() => {
   ReportPackageJsonExportArtifactSchema.parse(artifact);
   state.exportRows = [];
+  state.metricRuns = [
+    {
+      id: 500,
+      fundId: 1,
+      status: 'locked',
+      version: 3,
+      updatedAt: new Date('2026-05-10T02:00:00Z'),
+      lockedBy: 7,
+      lockedAt: new Date('2026-05-10T02:00:00Z'),
+    },
+  ];
   state.insertedRows = [];
+  state.statusUpdates = [];
   state.users = [7];
   state.nextId = 4100;
   state.dropNextInsert = false;
@@ -269,6 +322,14 @@ describe('stored report package JSON exports', () => {
     expect(response.record.contentHash).toBe('c'.repeat(64));
     expect(response.record.artifactSizeBytes).toBeGreaterThan(0);
     expect(state.insertedRows).toHaveLength(1);
+    expect(state.statusUpdates).toHaveLength(1);
+    expect(state.statusUpdates[0]).toMatchObject({ status: 'exported' });
+    expect(state.metricRuns[0]).toMatchObject({
+      status: 'exported',
+      version: 3,
+      lockedBy: 7,
+      lockedAt: new Date('2026-05-10T02:00:00Z'),
+    });
     const inserted = state.insertedRows[0] as { artifactPayload: unknown };
     const persistedArtifact = ReportPackageJsonExportArtifactSchema.parse(inserted.artifactPayload);
     expect(persistedArtifact.source.h9Stamp).toEqual(H9_STAMP);
@@ -296,6 +357,67 @@ describe('stored report package JSON exports', () => {
     expect(second.inserted).toBe(false);
     expect(second.record.reportPackageExportId).toBe(first.record.reportPackageExportId);
     expect(state.insertedRows).toHaveLength(1);
+    expect(state.statusUpdates).toHaveLength(1);
+    expect(state.metricRuns[0]?.status).toBe('exported');
+  });
+
+  it('replays an already exported metric run without a second status update', async () => {
+    state.metricRuns[0] = { ...state.metricRuns[0]!, status: 'exported' };
+    state.exportRows.push({
+      id: 4100,
+      fundId: 1,
+      metricRunId: 500,
+      reportPackageId: 3000,
+      format: 'json',
+      exportVersion: 1,
+      status: 'ready',
+      contentHashAlgorithm: 'sha256',
+      contentHash: 'c'.repeat(64),
+      artifactPayload: artifact,
+      artifactSizeBytes: 1000,
+      createdBy: 7,
+      readyAt: new Date('2026-05-10T04:00:00Z'),
+      createdAt: new Date('2026-05-10T04:00:00Z'),
+      updatedAt: new Date('2026-05-10T04:00:00Z'),
+    });
+
+    const response = await createMetricRunReportPackageStoredJsonExport(
+      { fundId: 1, metricRunId: 500, userId: 7 },
+      { database: makeDatabase(), jsonExportService: vi.fn(async () => makeResponse()) }
+    );
+
+    expect(response.inserted).toBe(false);
+    expect(state.metricRuns[0]?.status).toBe('exported');
+    expect(state.statusUpdates).toHaveLength(0);
+  });
+
+  it('replay catches up a locked pre-PR-3 stored JSON export row to exported', async () => {
+    state.exportRows.push({
+      id: 4100,
+      fundId: 1,
+      metricRunId: 500,
+      reportPackageId: 3000,
+      format: 'json',
+      exportVersion: 1,
+      status: 'ready',
+      contentHashAlgorithm: 'sha256',
+      contentHash: 'c'.repeat(64),
+      artifactPayload: artifact,
+      artifactSizeBytes: 1000,
+      createdBy: 7,
+      readyAt: new Date('2026-05-10T04:00:00Z'),
+      createdAt: new Date('2026-05-10T04:00:00Z'),
+      updatedAt: new Date('2026-05-10T04:00:00Z'),
+    });
+
+    const response = await createMetricRunReportPackageStoredJsonExport(
+      { fundId: 1, metricRunId: 500, userId: 7 },
+      { database: makeDatabase(), jsonExportService: vi.fn(async () => makeResponse()) }
+    );
+
+    expect(response.inserted).toBe(false);
+    expect(state.statusUpdates).toHaveLength(1);
+    expect(state.metricRuns[0]).toMatchObject({ status: 'exported', version: 3 });
   });
 
   it('rejects hash drift on the same package natural key', async () => {
@@ -391,6 +513,46 @@ describe('stored report package JSON exports', () => {
       code: 'REPORT_PACKAGE_JSON_EXPORT_BLOCKED',
     });
     expect(state.insertedRows).toHaveLength(0);
+  });
+
+  it('re-gates stored JSON metadata and artifact reads before serving export rows', async () => {
+    state.metricRuns[0] = { ...state.metricRuns[0]!, status: 'draft' };
+    state.exportRows.push({
+      id: 4100,
+      fundId: 1,
+      metricRunId: 500,
+      reportPackageId: 3000,
+      format: 'json',
+      exportVersion: 1,
+      status: 'ready',
+      contentHashAlgorithm: 'sha256',
+      contentHash: 'c'.repeat(64),
+      artifactPayload: artifact,
+      artifactSizeBytes: 1000,
+      createdBy: 7,
+      readyAt: new Date('2026-05-10T04:00:00Z'),
+      createdAt: new Date('2026-05-10T04:00:00Z'),
+      updatedAt: new Date('2026-05-10T04:00:00Z'),
+    });
+
+    await expect(
+      getMetricRunReportPackageStoredJsonExport(
+        { fundId: 1, metricRunId: 500 },
+        { database: makeDatabase() }
+      )
+    ).rejects.toMatchObject<Partial<MetricRunCommitError>>({
+      status: 409,
+      code: 'METRIC_RUN_NOT_EXPORTABLE',
+    });
+    await expect(
+      getMetricRunReportPackageStoredJsonArtifact(
+        { fundId: 1, metricRunId: 500 },
+        { database: makeDatabase() }
+      )
+    ).rejects.toMatchObject<Partial<MetricRunCommitError>>({
+      status: 409,
+      code: 'METRIC_RUN_NOT_EXPORTABLE',
+    });
   });
 
   it('returns nullable metadata before create and immutable artifact after create', async () => {

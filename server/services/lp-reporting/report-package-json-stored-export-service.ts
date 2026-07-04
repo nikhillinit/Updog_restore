@@ -26,12 +26,14 @@ import {
   type ReportPackageJsonStoredExportResponse,
 } from '@shared/contracts/lp-reporting';
 import {
+  lpMetricRuns,
   lpReportPackageExports,
   type InsertLpReportPackageExport,
   type LpReportPackageExport,
 } from '@shared/schema/lp-reporting-evidence';
 import { users } from '@shared/schema/user';
 import { assertH9PackageExportable } from './h9-export-gate';
+import { assertMetricRunExportWorkflowState } from './metric-run-export-workflow-gate';
 import { MetricRunCommitError } from './metric-run-commit-service';
 import {
   canonicalJson,
@@ -206,6 +208,23 @@ function assertHashMatch(row: LpReportPackageExport, currentContentHash: string)
   }
 }
 
+async function markMetricRunStoredJsonExported(
+  database: StoredExportDatabase,
+  input: ReportPackageStoredJsonExportInput
+): Promise<void> {
+  await database
+    .update(lpMetricRuns)
+    .set({ status: 'exported', updatedAt: new Date() })
+    .where(
+      and(
+        eq(lpMetricRuns.fundId, input.fundId),
+        eq(lpMetricRuns.id, input.metricRunId),
+        eq(lpMetricRuns.status, 'locked')
+      )
+    )
+    .returning({ id: lpMetricRuns.id });
+}
+
 export async function createMetricRunReportPackageStoredJsonExport(
   input: CreateReportPackageStoredJsonExportInput,
   options: ReportPackageStoredJsonExportServiceOptions = {}
@@ -244,6 +263,7 @@ export async function createMetricRunReportPackageStoredJsonExport(
 
   const inserted = (insertedRows as LpReportPackageExport[])[0];
   if (inserted) {
+    await markMetricRunStoredJsonExported(database, input);
     return ReportPackageJsonStoredExportResponseSchema.parse({
       record: toExportRecord(inserted),
       inserted: true,
@@ -259,6 +279,7 @@ export async function createMetricRunReportPackageStoredJsonExport(
     );
   }
   assertHashMatch(existing, contentHash);
+  await markMetricRunStoredJsonExported(database, input);
   return ReportPackageJsonStoredExportResponseSchema.parse({
     record: toExportRecord(existing),
     inserted: false,
@@ -270,6 +291,12 @@ export async function getMetricRunReportPackageStoredJsonExport(
   options: ReportPackageStoredJsonExportServiceOptions = {}
 ): Promise<ReportPackageJsonStoredExportGetResponse> {
   const database = options.database ?? db;
+  await assertMetricRunExportWorkflowState({
+    surface: 'stored_json_export',
+    fundId: input.fundId,
+    metricRunId: input.metricRunId,
+    database,
+  });
   const existing = await loadStoredExport(database, input);
   return ReportPackageJsonStoredExportGetResponseSchema.parse({
     record: existing === null ? null : toExportRecord(existing),
@@ -281,6 +308,12 @@ export async function getMetricRunReportPackageStoredJsonArtifact(
   options: ReportPackageStoredJsonExportServiceOptions = {}
 ): Promise<ReportPackageJsonStoredArtifactResponse> {
   const database = options.database ?? db;
+  await assertMetricRunExportWorkflowState({
+    surface: 'stored_json_export',
+    fundId: input.fundId,
+    metricRunId: input.metricRunId,
+    database,
+  });
   const existing = await loadStoredExport(database, input);
   if (existing === null) {
     throw new ReportPackageExportNotFoundError();
