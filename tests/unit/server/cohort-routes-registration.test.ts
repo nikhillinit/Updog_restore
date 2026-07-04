@@ -70,6 +70,14 @@ vi.mock('../../../server/lib/auth/jwt', () => ({
   },
   requireRole: () => (_req: express.Request, _res: express.Response, next: express.NextFunction) =>
     next(),
+  requireAnyRole:
+    () => (_req: express.Request, _res: express.Response, next: express.NextFunction) =>
+      next(),
+  requireExportFundGrant: (
+    _req: express.Request,
+    _res: express.Response,
+    next: express.NextFunction
+  ) => next(),
 }));
 
 vi.mock('../../../server/services/calc-run-completion-handlers.js', () => ({

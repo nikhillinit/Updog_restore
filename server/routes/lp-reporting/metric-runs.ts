@@ -39,7 +39,12 @@ import { Router, type Request, type Response } from 'express';
 import rateLimit from 'express-rate-limit';
 import { z } from 'zod';
 
-import { requireAuth, requireFundAccess } from '../../lib/auth/jwt';
+import {
+  requireAnyRole,
+  requireAuth,
+  requireExportFundGrant,
+  requireFundAccess,
+} from '../../lib/auth/jwt';
 import { firstString } from '../../lib/request-values';
 import {
   MetricRunCommitRequestSchema,
@@ -131,6 +136,7 @@ import { getMetricRunReportPackageRenderModel } from '../../services/lp-reportin
 
 const router = Router();
 const EmptyRequestBodySchema = z.object({}).strict();
+const REPORT_PACKAGE_EXPORT_ROLES = ['partner', 'admin'] as const;
 
 const metricRunLimiter = rateLimit({
   windowMs: 60 * 60 * 1000,
@@ -472,7 +478,9 @@ router.get(
 router.get(
   '/api/funds/:fundId/metric-runs/:metricRunId/report-package/render-model',
   requireAuth(),
+  requireAnyRole(REPORT_PACKAGE_EXPORT_ROLES),
   requireFundAccess,
+  requireExportFundGrant,
   metricRunLimiter,
   async (req: Request, res: Response) => {
     try {
@@ -491,7 +499,9 @@ router.get(
 router.get(
   '/api/funds/:fundId/metric-runs/:metricRunId/report-package/export/json',
   requireAuth(),
+  requireAnyRole(REPORT_PACKAGE_EXPORT_ROLES),
   requireFundAccess,
+  requireExportFundGrant,
   metricRunLimiter,
   async (req: Request, res: Response) => {
     try {
@@ -510,7 +520,9 @@ router.get(
 router.post(
   '/api/funds/:fundId/metric-runs/:metricRunId/report-package/exports/json',
   requireAuth(),
+  requireAnyRole(REPORT_PACKAGE_EXPORT_ROLES),
   requireFundAccess,
+  requireExportFundGrant,
   metricRunLimiter,
   async (req: Request, res: Response) => {
     const parsed = EmptyRequestBodySchema.safeParse(req.body ?? {});
@@ -538,7 +550,9 @@ router.post(
 router.get(
   '/api/funds/:fundId/metric-runs/:metricRunId/report-package/exports/json',
   requireAuth(),
+  requireAnyRole(REPORT_PACKAGE_EXPORT_ROLES),
   requireFundAccess,
+  requireExportFundGrant,
   metricRunLimiter,
   async (req: Request, res: Response) => {
     try {
@@ -557,7 +571,9 @@ router.get(
 router.get(
   '/api/funds/:fundId/metric-runs/:metricRunId/report-package/exports/json/artifact',
   requireAuth(),
+  requireAnyRole(REPORT_PACKAGE_EXPORT_ROLES),
   requireFundAccess,
+  requireExportFundGrant,
   metricRunLimiter,
   async (req: Request, res: Response) => {
     try {
@@ -576,7 +592,9 @@ router.get(
 router.post(
   '/api/funds/:fundId/metric-runs/:metricRunId/report-package/exports/csv',
   requireAuth(),
+  requireAnyRole(REPORT_PACKAGE_EXPORT_ROLES),
   requireFundAccess,
+  requireExportFundGrant,
   metricRunLimiter,
   async (req: Request, res: Response) => {
     const parsed = EmptyRequestBodySchema.safeParse(req.body ?? {});
@@ -604,7 +622,9 @@ router.post(
 router.get(
   '/api/funds/:fundId/metric-runs/:metricRunId/report-package/exports/csv',
   requireAuth(),
+  requireAnyRole(REPORT_PACKAGE_EXPORT_ROLES),
   requireFundAccess,
+  requireExportFundGrant,
   metricRunLimiter,
   async (req: Request, res: Response) => {
     try {
@@ -623,7 +643,9 @@ router.get(
 router.get(
   '/api/funds/:fundId/metric-runs/:metricRunId/report-package/exports/csv/artifact',
   requireAuth(),
+  requireAnyRole(REPORT_PACKAGE_EXPORT_ROLES),
   requireFundAccess,
+  requireExportFundGrant,
   metricRunLimiter,
   async (req: Request, res: Response) => {
     try {

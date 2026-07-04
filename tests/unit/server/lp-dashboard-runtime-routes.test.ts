@@ -83,11 +83,13 @@ vi.mock('../../../server/lib/auth/jwt', () => ({
     next();
   },
   requireRole: () => (_req: Request, _res: Response, next: NextFunction) => next(),
+  requireAnyRole: () => (_req: Request, _res: Response, next: NextFunction) => next(),
   requireFundAccess: (req: Request, res: Response, next: NextFunction) => {
     const fundId = Number(req.params['fundId']);
     if (Number.isFinite(fundId) && req.user?.fundIds?.includes(fundId)) return next();
     return res.status(403).json({ error: 'Forbidden' });
   },
+  requireExportFundGrant: (_req: Request, _res: Response, next: NextFunction) => next(),
 }));
 
 vi.mock('../../../server/middleware/requireLPAccess', () => ({

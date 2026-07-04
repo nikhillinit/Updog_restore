@@ -28,6 +28,7 @@ development of the Press On Ventures fund modeling platform.
 - [ADR-022: SSE Event Routes Protected by Bearer Fund-Scope; Native EventSource Transport Deferred](#adr-022-sse-event-routes-protected-by-bearer-fund-scope-native-eventsource-transport-deferred)
 - [ADR-023: s8.1 Operator Seam - Evidence-First Slice Ordering and D1 Triage-First Decision Procedure](#adr-023-s81-operator-seam---evidence-first-slice-ordering-and-d1-triage-first-decision-procedure)
 - [ADR-024: LP Metric-Run active_as_of Source-Mark Selection Is API-Only](#adr-024-lp-metric-run-active_as_of-source-mark-selection-is-api-only)
+- [ADR-025: LP Export Role Policy (PRD #996 D1)](#adr-025-lp-export-role-policy-prd-996-d1)
 
 ---
 
@@ -5124,3 +5125,48 @@ commit service resolves and stores the concrete contributing mark IDs.
 - `MetricRunForm` requires no change; the behavioral default is pinned by
   tests/unit/contract/lp-reporting/lp-metric-run.contract.test.ts:119.
 - Any future UI exposure must revisit this ADR and PLAN(48) P2.
+
+---
+
+## ADR-025: LP Export Role Policy (PRD #996 D1)
+
+**Date:** 2026-07-04 **Status:** [IMPLEMENTED] Implemented **Decision:** Gate
+Surface-A LP report-package export routes to partner and admin roles, and deny
+empty-fundIds export access for non-admin callers.
+
+### Context
+
+PRD #996 AC-1 separated report-package assembly from export. The eight Surface-A
+export routes are GP-side LP-reporting APIs that produce or expose qualified
+export artifacts from a metric run. The existing fund-scope contract treats
+missing or empty `fundIds` as privileged unrestricted access for trusted admin
+or service issuers, and local dev-auth intentionally injects an admin user with
+`fundIds: []`.
+
+### Decision
+
+Require authenticated callers on the eight Surface-A export routes to satisfy:
+
+- role allowlist: `partner` or `admin`;
+- route fund access through the existing fund-scope helper;
+- explicit non-empty fund grants for non-admin export callers.
+
+Admin callers keep the documented empty-scope exemption so the issuer contract
+and dev-auth seam continue to work. Partner callers must carry an explicit grant
+for the route fund before they can export.
+
+### Alternatives Considered
+
+- **Admin-only exports:** rejected because approved policy allows partners to
+  export when they have explicit fund grants.
+- **New `lp_export` role:** rejected as unnecessary role proliferation for this
+  slice; the approved allowlist is partner plus admin.
+- **Strict empty-scope denial for all roles:** rejected because it breaks the
+  documented admin/service issuer contract and local dev-auth behavior.
+
+### Consequences
+
+- Partner tokens without explicit fund grants receive 403 on Surface-A exports.
+- Admin empty-scope tokens continue to pass export authorization.
+- Route-policy registry entries now distinguish role-gated fund access from
+  ordinary authenticated fund access for these export APIs.

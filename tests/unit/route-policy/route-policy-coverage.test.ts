@@ -39,6 +39,17 @@ const policyByKey = new Map(
   API_ROUTE_POLICY_REGISTRY.map((entry) => [routePolicyKey(entry), entry])
 );
 
+const LP_REPORT_PACKAGE_EXPORT_POLICY_KEYS = [
+  'GET /api/funds/:fundId/metric-runs/:metricRunId/report-package/render-model',
+  'GET /api/funds/:fundId/metric-runs/:metricRunId/report-package/export/json',
+  'POST /api/funds/:fundId/metric-runs/:metricRunId/report-package/exports/json',
+  'GET /api/funds/:fundId/metric-runs/:metricRunId/report-package/exports/json',
+  'GET /api/funds/:fundId/metric-runs/:metricRunId/report-package/exports/json/artifact',
+  'POST /api/funds/:fundId/metric-runs/:metricRunId/report-package/exports/csv',
+  'GET /api/funds/:fundId/metric-runs/:metricRunId/report-package/exports/csv',
+  'GET /api/funds/:fundId/metric-runs/:metricRunId/report-package/exports/csv/artifact',
+] as const;
+
 function expectPolicy(key: string): RoutePolicyEntry {
   const entry = policyByKey.get(key);
   if (!entry) {
@@ -138,6 +149,21 @@ describe('route policy coverage', () => {
     expect(policyEntry.fundScopeMode).toBe('query_param_fund_id');
     expect(policyEntry.workflowRequirement).toBe('fund_scope_verified');
     expect(policyEntry.provenanceRequired).toBe(true);
+  });
+
+  it('covers PRD #996 Surface-A report-package exports with role-gated fund access', () => {
+    for (const key of LP_REPORT_PACKAGE_EXPORT_POLICY_KEYS) {
+      const policyEntry = expectPolicy(key);
+
+      expect(policyEntry.apiAuthBoundary, key).toBe('require_auth_fund_access_and_role');
+      expect(policyEntry.financialSurface, key).toBe('lp_reporting');
+      expect(policyEntry.fundScopeMode, key).toBe('route_param_fund_id');
+      expect(policyEntry.exportPolicy, key).toBe('qualified_exportable');
+      expect(policyEntry.provenanceRequired, key).toBe(true);
+      expect(policyEntry.staleBlocksExport, key).toBe(true);
+      expect(policyEntry.staleBlocksRender, key).toBe(false);
+      expect(policyEntry.workflowRequirement, key).toBeNull();
+    }
   });
 
   it('fails verification when an active financial governance route has no explicit policy', () => {

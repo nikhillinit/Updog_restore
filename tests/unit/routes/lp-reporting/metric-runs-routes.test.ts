@@ -37,6 +37,7 @@ import {
 const authState = vi.hoisted(() => ({
   authenticated: true,
   userId: 7,
+  role: 'admin' as string | undefined,
   fundIds: [1, 2] as number[],
 }));
 const dbState = vi.hoisted(() => ({
@@ -68,19 +69,71 @@ const H9_STAMP = {
   policyVersion: 'h9-policy-v1',
   actionabilityStatus: 'actionable' as const,
 };
+const REPORT_PACKAGE_EXPORT_ROUTE_PROBES = [
+  {
+    method: 'GET',
+    path: '/api/funds/1/metric-runs/500/report-package/render-model',
+  },
+  {
+    method: 'GET',
+    path: '/api/funds/1/metric-runs/500/report-package/export/json',
+  },
+  {
+    method: 'POST',
+    path: '/api/funds/1/metric-runs/500/report-package/exports/json',
+  },
+  {
+    method: 'GET',
+    path: '/api/funds/1/metric-runs/500/report-package/exports/json',
+  },
+  {
+    method: 'GET',
+    path: '/api/funds/1/metric-runs/500/report-package/exports/json/artifact',
+  },
+  {
+    method: 'POST',
+    path: '/api/funds/1/metric-runs/500/report-package/exports/csv',
+  },
+  {
+    method: 'GET',
+    path: '/api/funds/1/metric-runs/500/report-package/exports/csv',
+  },
+  {
+    method: 'GET',
+    path: '/api/funds/1/metric-runs/500/report-package/exports/csv/artifact',
+  },
+] as const;
 
 vi.mock('../../../../server/lib/auth/jwt', () => ({
   requireAuth: () => (req: Request, res: Response, next: NextFunction) => {
     if (!authState.authenticated) {
       return res.sendStatus(401);
     }
-    (req as Request & { user?: { id: number; userId: number; fundIds: number[] } }).user = {
+    type MockAuthUser = {
+      id: number;
+      userId: number;
+      role?: string;
+      roles: string[];
+      fundIds: number[];
+    };
+    const user: MockAuthUser = {
       id: authState.userId,
       userId: authState.userId,
+      roles: authState.role === undefined ? [] : [authState.role],
       fundIds: [...authState.fundIds],
+      ...(authState.role !== undefined && { role: authState.role }),
     };
+    (req as Request & { user?: MockAuthUser }).user = user;
     next();
   },
+  requireAnyRole:
+    (roles: readonly string[]) => (req: Request, res: Response, next: NextFunction) => {
+      const user = (req as Request & { user?: { role?: string } }).user;
+      if (!user?.role || !roles.includes(user.role)) {
+        return res.sendStatus(403);
+      }
+      return next();
+    },
   requireFundAccess: (req: Request, res: Response, next: NextFunction) => {
     const fundIdParam = req.params['fundId'];
     if (!fundIdParam) {
@@ -96,6 +149,19 @@ vi.mock('../../../../server/lib/auth/jwt', () => ({
       return next();
     }
     return res.status(403).json({ error: 'Forbidden' });
+  },
+  requireExportFundGrant: (req: Request, res: Response, next: NextFunction) => {
+    const user = (req as Request & { user?: { role?: string; fundIds: number[] } }).user;
+    if (user?.role === 'admin') {
+      return next();
+    }
+    if ((user?.fundIds ?? []).length === 0) {
+      return res.status(403).json({
+        error: 'Forbidden',
+        message: 'Export routes require an explicit fund grant.',
+      });
+    }
+    return next();
   },
 }));
 
@@ -944,6 +1010,7 @@ function reportPackageBody() {
 beforeEach(() => {
   authState.authenticated = true;
   authState.userId = nextUserId++;
+  authState.role = 'admin';
   authState.fundIds = [1, 2];
   dbState.events = [];
   dbState.marks = [];
@@ -1759,6 +1826,101 @@ describe('metric-run narrative routes', () => {
 });
 
 describe('metric-run report package routes', () => {
+  it('returns 403 for non-export roles across all Surface-A export routes', async () => {
+    authState.role = 'analyst';
+    authState.fundIds = [1];
+
+    for (const route of REPORT_PACKAGE_EXPORT_ROUTE_PROBES) {
+      const res =
+        route.method === 'POST'
+          ? await request(buildApp()).post(route.path).send({})
+          : await request(buildApp()).get(route.path);
+
+      expect(res.status, `${route.method} ${route.path}`).toBe(403);
+    }
+  });
+
+  it('allows partner export access when the token has an explicit matching fund grant', async () => {
+    authState.role = 'partner';
+    authState.fundIds = [1];
+    seedLockedMetricRun();
+    seedApprovedNarratives();
+    seedMetricRunEvidence();
+    const app = buildApp();
+
+    const assemble = await request(app)
+      .post('/api/funds/1/metric-runs/500/report-package')
+      .send(reportPackageBody());
+    expect(assemble.status).toBe(201);
+
+    const getRes = await request(app).get(
+      '/api/funds/1/metric-runs/500/report-package/render-model'
+    );
+    const postRes = await request(app)
+      .post('/api/funds/1/metric-runs/500/report-package/exports/json')
+      .send({});
+
+    expect([401, 403]).not.toContain(getRes.status);
+    expect([401, 403]).not.toContain(postRes.status);
+  });
+
+  it('preserves admin empty-fundIds export access', async () => {
+    authState.role = 'admin';
+    authState.fundIds = [];
+    seedLockedMetricRun();
+    seedApprovedNarratives();
+    seedMetricRunEvidence();
+    const app = buildApp();
+
+    const assemble = await request(app)
+      .post('/api/funds/1/metric-runs/500/report-package')
+      .send(reportPackageBody());
+    expect(assemble.status).toBe(201);
+
+    const getRes = await request(app).get(
+      '/api/funds/1/metric-runs/500/report-package/export/json'
+    );
+    const postRes = await request(app)
+      .post('/api/funds/1/metric-runs/500/report-package/exports/json')
+      .send({});
+
+    expect(getRes.status).not.toBe(403);
+    expect(postRes.status).not.toBe(403);
+  });
+
+  it('denies partner empty-fundIds export access', async () => {
+    authState.role = 'partner';
+    authState.fundIds = [];
+
+    const res = await request(buildApp()).get(
+      '/api/funds/1/metric-runs/500/report-package/export/json'
+    );
+
+    expect(res.status).toBe(403);
+  });
+
+  it('denies partner export access when the fund grant does not match the route fund', async () => {
+    authState.role = 'partner';
+    authState.fundIds = [2];
+
+    const res = await request(buildApp()).get(
+      '/api/funds/1/metric-runs/500/report-package/export/json'
+    );
+
+    expect(res.status).toBe(403);
+  });
+
+  it('returns 400 for non-numeric export fundId after the admin role guard passes', async () => {
+    authState.role = 'admin';
+    authState.fundIds = [];
+
+    const res = await request(buildApp()).get(
+      '/api/funds/not-a-number/metric-runs/500/report-package/export/json'
+    );
+
+    expect(res.status).toBe(400);
+  });
+
   it('GET returns nullable package response before assembly', async () => {
     seedLockedMetricRun();
 
