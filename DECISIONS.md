@@ -30,6 +30,7 @@ development of the Press On Ventures fund modeling platform.
 - [ADR-024: LP Metric-Run active_as_of Source-Mark Selection Is API-Only](#adr-024-lp-metric-run-active_as_of-source-mark-selection-is-api-only)
 - [ADR-025: LP Export Role Policy (PRD #996 D1)](#adr-025-lp-export-role-policy-prd-996-d1)
 - [ADR-026: LP Export Workflow State (PRD #996 D2)](#adr-026-lp-export-workflow-state-prd-996-d2)
+- [ADR-027: LP Export Watermark Policy (PRD #996 D3)](#adr-027-lp-export-watermark-policy-prd-996-d3)
 
 ---
 
@@ -5242,3 +5243,63 @@ draft row. No workflow-continuity guard needed widening from `locked` to
   role, fund-scope, H9, evidence, and artifact gates.
 - Stored JSON create and replay catch up locked metric runs to exported without
   changing version, lock audit fields, package `metricRunVersion`, or H9 stamps.
+
+---
+
+## ADR-027: LP Export Watermark Policy (PRD #996 D3)
+
+**Date:** 2026-07-04 **Status:** [IMPLEMENTED] Implemented **Decision:** Scope
+watermarking out of Surface-A LP JSON/CSV export artifacts and delete the
+orphaned legacy report worker that contained unused watermark code.
+
+### Context
+
+PRD #996 D3 resolved the remaining Surface-A watermark/admin-policy question.
+Surface-A artifacts are machine-readable JSON and CSV exports served through the
+LP reporting metric-run export routes. PRD #996 PR-1 already established the
+provenance chain for these artifacts through `h9Stamp` plus `contentHash`;
+visual watermarks are a rendered-document concern, not a JSON/CSV artifact
+integrity mechanism.
+
+The only implementation carrying watermark behavior was
+`workers/report-worker.ts`. It registered a BullMQ queue named
+`report-generation`, but the live LP report queue is `lp-report-generation` in
+`server/queues/report-generation-queue.ts` and `server/queues/registry.ts`. No
+runtime entrypoint imported the orphaned worker.
+
+### Decision
+
+Watermarking is out of scope for Surface-A JSON/CSV LP export artifacts. Their
+policy chain is hash attestation via `h9Stamp` and `contentHash`, enforced by
+the existing export gates.
+
+Delete `workers/report-worker.ts` instead of wiring it into production. The live
+`lp-report-generation` queue is a PDF/Surface-B path and is intentionally
+unchanged by this Surface-A decision. Any future PDF watermark requirement must
+be filed as its own issue or PRD amendment.
+
+### Reader-Free Evidence
+
+- Before deletion, `git grep report-worker` found only two historical docs plus
+  one scenario-isolation inventory pin.
+- Before deletion, searching for the single-quoted `report-generation` queue
+  literal found only the orphaned `workers/report-worker.ts` queue registration.
+- Live queue evidence remains `server/queues/report-generation-queue.ts` and
+  `server/queues/registry.ts`, both using `lp-report-generation`.
+- Before deletion, the only code hits for `addWatermark` and the report
+  `watermarked` context field were in `workers/report-worker.ts`.
+
+### Alternatives Considered
+
+- **Wire the legacy worker into the live queue:** rejected because it expands
+  the approved Surface-A slice into Surface-B PDF behavior.
+- **Keep the orphaned worker:** rejected because dead watermark code misleads
+  audits into believing Surface-A artifacts carry a visual watermark policy.
+
+### Consequences
+
+- Surface-A export qualification rests on role gates, workflow-state gates, H9
+  stamps, content hashes, evidence checks, and artifact gates, not watermarks.
+- Historical documentation that mentions the deleted worker remains provenance
+  and is not edited by this decision.
+- PDF/Surface-B watermarking remains an open, separate product-policy question.
