@@ -288,6 +288,30 @@ describe('getMetricRunReportPackageRenderModel', () => {
     ).rejects.toMatchObject({ code: 'H9_FINGERPRINT_STALE' });
   });
 
+  it.each(['draft', 'approved', 'superseded'])(
+    'blocks %s metric runs before H9 validation and without writes',
+    async (status) => {
+      state.metricRuns = [metricRunRow({ status })];
+
+      await expect(
+        getMetricRunReportPackageRenderModel(
+          { fundId: 1, metricRunId: 11 },
+          { database: makeDatabase() }
+        )
+      ).rejects.toMatchObject<Partial<MetricRunCommitError>>({
+        status: 409,
+        code: 'METRIC_RUN_NOT_EXPORTABLE',
+        details: {
+          expected: ['locked', 'exported'],
+          actual: status,
+          surface: 'render_model',
+        },
+      });
+      expect(assertH9ExportActionable).not.toHaveBeenCalled();
+      expect(state.writeCalls).toEqual([]);
+    }
+  );
+
   it('returns REPORT_PACKAGE_ROW_INVALID when H9 metadata is missing after the gate', async () => {
     state.reportPackages = [
       reportPackageRow({

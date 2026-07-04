@@ -504,8 +504,9 @@ function governanceRefForPortfolioIntelligenceRoute(
 }
 
 const PROTOTYPE_ROUTE_NOTE = 'Prototype route must return 501 with non_actionable provenance.';
+const LP_REPORT_PACKAGE_EXPORT_WORKFLOW_REQUIREMENT = 'metric_run_locked_or_exported';
 const LP_REPORT_PACKAGE_EXPORT_NOTE =
-  'PRD #996 AC-1 + D1: Surface-A report-package export requires partner/admin role and denies empty-fundIds non-admin exports; admin keeps the documented issuer-contract exemption.';
+  'PRD #996 AC-1, AC-2, D1, and D2: Surface-A report-package export requires partner/admin role, denies empty-fundIds non-admin exports, and requires metric-run workflow state locked or exported.';
 
 const PORTFOLIO_INTELLIGENCE_ROUTE_POLICY_DECISIONS: Readonly<PortfolioIntelligenceRouteDecisionMap> =
   {
@@ -804,7 +805,7 @@ export const EXPLICIT_API_ROUTE_POLICY_ENTRIES: RoutePolicyEntry[] = [
     financialSurface: 'lp_reporting',
     apiAuthBoundary: 'require_auth_fund_access_and_role',
     fundScopeMode: 'route_param_fund_id',
-    workflowRequirement: null,
+    workflowRequirement: LP_REPORT_PACKAGE_EXPORT_WORKFLOW_REQUIREMENT,
     exportPolicy: 'qualified_exportable',
     provenanceRequired: true,
     staleBlocksExport: true,
@@ -828,7 +829,7 @@ export const EXPLICIT_API_ROUTE_POLICY_ENTRIES: RoutePolicyEntry[] = [
     financialSurface: 'lp_reporting',
     apiAuthBoundary: 'require_auth_fund_access_and_role',
     fundScopeMode: 'route_param_fund_id',
-    workflowRequirement: null,
+    workflowRequirement: LP_REPORT_PACKAGE_EXPORT_WORKFLOW_REQUIREMENT,
     exportPolicy: 'qualified_exportable',
     provenanceRequired: true,
     staleBlocksExport: true,
@@ -852,7 +853,7 @@ export const EXPLICIT_API_ROUTE_POLICY_ENTRIES: RoutePolicyEntry[] = [
     financialSurface: 'lp_reporting',
     apiAuthBoundary: 'require_auth_fund_access_and_role',
     fundScopeMode: 'route_param_fund_id',
-    workflowRequirement: null,
+    workflowRequirement: LP_REPORT_PACKAGE_EXPORT_WORKFLOW_REQUIREMENT,
     exportPolicy: 'qualified_exportable',
     provenanceRequired: true,
     staleBlocksExport: true,
@@ -876,7 +877,7 @@ export const EXPLICIT_API_ROUTE_POLICY_ENTRIES: RoutePolicyEntry[] = [
     financialSurface: 'lp_reporting',
     apiAuthBoundary: 'require_auth_fund_access_and_role',
     fundScopeMode: 'route_param_fund_id',
-    workflowRequirement: null,
+    workflowRequirement: LP_REPORT_PACKAGE_EXPORT_WORKFLOW_REQUIREMENT,
     exportPolicy: 'qualified_exportable',
     provenanceRequired: true,
     staleBlocksExport: true,
@@ -900,7 +901,7 @@ export const EXPLICIT_API_ROUTE_POLICY_ENTRIES: RoutePolicyEntry[] = [
     financialSurface: 'lp_reporting',
     apiAuthBoundary: 'require_auth_fund_access_and_role',
     fundScopeMode: 'route_param_fund_id',
-    workflowRequirement: null,
+    workflowRequirement: LP_REPORT_PACKAGE_EXPORT_WORKFLOW_REQUIREMENT,
     exportPolicy: 'qualified_exportable',
     provenanceRequired: true,
     staleBlocksExport: true,
@@ -924,7 +925,7 @@ export const EXPLICIT_API_ROUTE_POLICY_ENTRIES: RoutePolicyEntry[] = [
     financialSurface: 'lp_reporting',
     apiAuthBoundary: 'require_auth_fund_access_and_role',
     fundScopeMode: 'route_param_fund_id',
-    workflowRequirement: null,
+    workflowRequirement: LP_REPORT_PACKAGE_EXPORT_WORKFLOW_REQUIREMENT,
     exportPolicy: 'qualified_exportable',
     provenanceRequired: true,
     staleBlocksExport: true,
@@ -948,7 +949,7 @@ export const EXPLICIT_API_ROUTE_POLICY_ENTRIES: RoutePolicyEntry[] = [
     financialSurface: 'lp_reporting',
     apiAuthBoundary: 'require_auth_fund_access_and_role',
     fundScopeMode: 'route_param_fund_id',
-    workflowRequirement: null,
+    workflowRequirement: LP_REPORT_PACKAGE_EXPORT_WORKFLOW_REQUIREMENT,
     exportPolicy: 'qualified_exportable',
     provenanceRequired: true,
     staleBlocksExport: true,
@@ -972,7 +973,7 @@ export const EXPLICIT_API_ROUTE_POLICY_ENTRIES: RoutePolicyEntry[] = [
     financialSurface: 'lp_reporting',
     apiAuthBoundary: 'require_auth_fund_access_and_role',
     fundScopeMode: 'route_param_fund_id',
-    workflowRequirement: null,
+    workflowRequirement: LP_REPORT_PACKAGE_EXPORT_WORKFLOW_REQUIREMENT,
     exportPolicy: 'qualified_exportable',
     provenanceRequired: true,
     staleBlocksExport: true,

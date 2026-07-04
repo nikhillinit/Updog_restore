@@ -18,6 +18,7 @@ import {
   type ReportPackageRenderSource,
 } from '@shared/contracts/lp-reporting';
 import {
+  lpMetricRuns,
   lpReportPackageExports,
   lpReportPackages,
   type LpReportPackageExport,
@@ -55,15 +56,25 @@ const H9_STAMP = {
 
 interface State {
   exportRows: LpReportPackageExport[];
+  metricRuns: MetricRunStatusRow[];
   insertedRows: unknown[];
+  statusUpdates: unknown[];
   users: number[];
   nextId: number;
   dropNextInsert: boolean;
 }
 
+interface MetricRunStatusRow {
+  id: number;
+  fundId: number;
+  status: string;
+}
+
 const state: State = {
   exportRows: [],
+  metricRuns: [],
   insertedRows: [],
+  statusUpdates: [],
   users: [7],
   nextId: 4101,
   dropNextInsert: false,
@@ -210,6 +221,7 @@ function sha256(text: string): string {
 
 function rowsFor(table: unknown): unknown[] {
   if (table === users) return state.users.map((id) => ({ id }));
+  if (table === lpMetricRuns) return [...state.metricRuns];
   if (table === lpReportPackageExports) return [...state.exportRows];
   if (table === lpReportPackages) return [storedPackageRow];
   return [];
@@ -269,6 +281,12 @@ function makeDatabase(): typeof db {
         }),
       }),
     }),
+    update: () => ({
+      set: (values: Record<string, unknown>) => {
+        state.statusUpdates.push(values);
+        throw new Error('CSV export service must not update metric-run workflow state');
+      },
+    }),
   } as unknown as typeof db;
 }
 
@@ -298,7 +316,9 @@ function seedStoredJson(overrides: Partial<LpReportPackageExport> = {}): LpRepor
 beforeEach(() => {
   ReportPackageJsonExportArtifactSchema.parse(artifact);
   state.exportRows = [];
+  state.metricRuns = [{ id: 500, fundId: 1, status: 'locked' }];
   state.insertedRows = [];
+  state.statusUpdates = [];
   state.users = [7];
   state.nextId = 4101;
   state.dropNextInsert = false;
@@ -349,6 +369,7 @@ describe('stored report package CSV exports', () => {
     expect(state.exportRows.find((row) => row.format === 'csv')?.contentHash).toBe(
       sha256(payload.csv)
     );
+    expect(state.statusUpdates).toHaveLength(0);
   });
 
   it('requires a stored JSON source in the same route scope', async () => {
@@ -364,6 +385,7 @@ describe('stored report package CSV exports', () => {
       code: 'REPORT_PACKAGE_CSV_SOURCE_JSON_EXPORT_REQUIRED',
     });
     expect(state.insertedRows).toHaveLength(0);
+    expect(state.statusUpdates).toHaveLength(0);
   });
 
   it('returns a structured contract error when the stored JSON source is legacy pre-stamp', async () => {
@@ -475,6 +497,41 @@ describe('stored report package CSV exports', () => {
     expect(metadata.record?.format).toBe('csv');
     expect(artifactResponse.record.reportPackageExportId).toBe(4101);
     expect(artifactResponse.csv.csv).toBe(buildReportPackageCsv(artifact));
+    expect(state.statusUpdates).toHaveLength(0);
+  });
+
+  it('re-gates CSV create, metadata, and artifact paths without workflow writes', async () => {
+    state.metricRuns[0] = { ...state.metricRuns[0]!, status: 'approved' };
+    seedStoredJson();
+
+    await expect(
+      createMetricRunReportPackageStoredCsvExport(
+        { fundId: 1, metricRunId: 500, userId: 7 },
+        { database: makeDatabase() }
+      )
+    ).rejects.toMatchObject<Partial<MetricRunCommitError>>({
+      status: 409,
+      code: 'METRIC_RUN_NOT_EXPORTABLE',
+    });
+    await expect(
+      getMetricRunReportPackageStoredCsvExport(
+        { fundId: 1, metricRunId: 500 },
+        { database: makeDatabase() }
+      )
+    ).rejects.toMatchObject<Partial<MetricRunCommitError>>({
+      status: 409,
+      code: 'METRIC_RUN_NOT_EXPORTABLE',
+    });
+    await expect(
+      getMetricRunReportPackageStoredCsvArtifact(
+        { fundId: 1, metricRunId: 500 },
+        { database: makeDatabase() }
+      )
+    ).rejects.toMatchObject<Partial<MetricRunCommitError>>({
+      status: 409,
+      code: 'METRIC_RUN_NOT_EXPORTABLE',
+    });
+    expect(state.statusUpdates).toHaveLength(0);
   });
 
   it('serves the stored CSV artifact when H9 matches', async () => {
