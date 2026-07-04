@@ -160,13 +160,60 @@ V1 `/moic-analysis` page lacks mode/stale/kill-switch disclosure; declared
 
 ### P5: LP Export Production-Trust Qualification
 
-- [ ] Treat current H9 export blockers as necessary but insufficient.
-- [ ] Add acceptance criteria for role policy, workflow state, watermark/admin
+- [x] Treat current H9 export blockers as necessary but insufficient.
+- [x] Add acceptance criteria for role policy, workflow state, watermark/admin
       policy, provenance, and export eligibility before any production-ready
       claim.
-- [ ] Keep `REPORT_PACKAGE_JSON_EXPORT_BLOCKED` structured responses covered.
-- [ ] Do not call exports production-trust-qualified until
+- [x] Keep `REPORT_PACKAGE_JSON_EXPORT_BLOCKED` structured responses covered.
+- [x] Do not call exports production-trust-qualified until
       role/workflow/watermark/provenance gates are accepted.
+
+Accepted criteria (2026-07-04). Production-trust-qualified requires AC-1 through
+AC-4 implemented and proven with cited CI run IDs; AC-5 must stay green. Until
+then exports are NOT production-trust-qualified. Current enforcement:
+eligibility ENFORCED+tested; role ABSENT; workflow-at-export DECLARED-ONLY;
+watermark ORPHANED; artifact provenance PARTIAL.
+
+- AC-1 Role policy: every Surface-A export route in
+  `server/routes/lp-reporting/metric-runs.ts` (render-model, live JSON, stored
+  JSON/CSV create/status/artifact) carries an explicit role guard beyond
+  `requireAuth` + `requireFundAccess` (today `requireRole` is never applied to
+  any export route and no `gp` role exists); `api-route-policy-registry.ts`
+  gains explicit API entries for these paths (none exist today); the privileged
+  empty-`fundIds` bypass in `requireFundAccess` is explicitly decided for
+  exports. Tests: 403 role-denied and role-allowed per endpoint.
+- AC-2 Workflow state: export endpoints re-gate on `lp_metric_runs.status` at
+  export time (today only assembly gates on `locked`; export never re-checks)
+  and a successful export transitions the run to `exported` (enum value exists;
+  nothing writes it today) - or an ADR explicitly rejects the transition. Tests:
+  export blocked per disallowed status; transition asserted.
+- AC-3 Watermark/admin policy: resolve the orphaned watermark seam -
+  `workers/report-worker.ts` watermarks a queue nothing enqueues to, while the
+  live `lp-report-generation` worker applies none. Either the live path applies
+  the policy (and the orphan is wired or deleted) or an ADR scopes watermarking
+  out for Surface A. Tests: watermark asserted on whichever path claims it.
+- AC-4 Provenance in artifact: the export artifact embeds the reserve stamp (H9
+  fingerprint hash + policy version + actionability status) in the
+  render-source/artifact contract with `contentHash` covering it - today
+  `h9Metadata` is computed in the render-model service and dropped before
+  return, so the stamp gates the export but is not in the artifact. Tests:
+  artifact fields match the stored package row.
+- AC-5 Export eligibility (enforced today - keep green): H9 fail-closed codes
+  (`H9_METADATA_MISSING`, `H9_REVALIDATION_UNAVAILABLE`, `H9_NOT_ACTIONABLE`,
+  `H9_FINGERPRINT_STALE`) and evidence blockers (`EVIDENCE_REFERENCE_INVALID`,
+  `EVIDENCE_RESTRICTED`, `EVIDENCE_REDACTION_REQUIRED`) keep returning
+  structured 409s.
+
+P5 evidence (2026-07-04): enforcement map from full surface audit on
+`09ea2080` - Surface A = metric-run report-package export routes
+(`lpReportingMetricRunsRouter`, app.ts mount), two distinct 409 families
+(`REPORT_PACKAGE_JSON_EXPORT_BLOCKED` with per-blocker evidence ids; H9\_\* with
+`details.surface`). Coverage green on `09ea2080`: 128/128 across
+report-package-json-export-service, json-stored-export-service, h9-export-gate,
+lp-report-package contract, and metric-runs-routes suites (TZ=UTC, server
+project). Verdict: NOT production-trust-qualified (1 of 5 dimensions enforced);
+AC-1..AC-4 are the implementation backlog and need their own PRD/spec per
+Strategic Backlog rules.
 
 ## Strategic Backlog Only
 
