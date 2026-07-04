@@ -11,16 +11,16 @@ last_updated: 2026-07-04
 
 | Metric | Value |
 |--------|-------|
-| Total Documents | 675 |
-| Stale Documents | 127 |
-| Missing Frontmatter | 33 |
+| Total Documents | 676 |
+| Stale Documents | 128 |
+| Missing Frontmatter | 34 |
 
 ### By Status
 
 | Status | Count |
 |--------|-------|
 | ACTIVE | 450 |
-| UNKNOWN | 128 |
+| UNKNOWN | 129 |
 | DRAFT | 34 |
 | HISTORICAL | 22 |
 | VERIFIED | 9 |
@@ -97,7 +97,7 @@ Documents that need review (older than their cadence threshold):
 | `docs/superpowers/plans/2026-06-28-prod-schema-drift-debate-synthesis.md` | Never | 999 | No | Unassigned |
 | `docs/superpowers/plans/2026-07-03-trust-activation.md` | Never | 999 | No | Unassigned |
 
-*...and 77 more stale documents.*
+*...and 78 more stale documents.*
 
 ## Documents with Execution Claims (Need Verification)
 
@@ -152,6 +152,7 @@ Documents without proper YAML frontmatter:
 - [ ] `docs/superpowers/plans/2026-06-25-h9-pr3-lp-package-export-revalidation.md`
 - [ ] `docs/superpowers/plans/2026-06-28-prod-schema-drift-debate-synthesis.md`
 - [ ] `docs/superpowers/plans/2026-07-03-trust-activation.md`
+- [ ] `docs/superpowers/plans/2026-07-04-fund-model-results-refactor.md`
 - [ ] `docs/superpowers/specs/2026-05-16-refactor-stability-strategy-design.md`
 - [ ] `docs/superpowers/specs/2026-06-11-worker-prod-ops-design.md`
 - [ ] `docs/superpowers/specs/2026-06-21-investment-rounds-ui-v2-design.md`
