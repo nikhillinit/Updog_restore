@@ -32,6 +32,7 @@ import {
   type LpReportPackage,
 } from '@shared/schema/lp-reporting-evidence';
 import { assertH9ExportActionable, type H9ExportSurface } from './h9-export-gate';
+import { assertMetricRunExportWorkflowState } from './metric-run-export-workflow-gate';
 import { MetricRunCommitError } from './metric-run-commit-service';
 
 type ReportPackageRenderModelDatabase = typeof db;
@@ -349,7 +350,14 @@ export async function getMetricRunReportPackageRenderModel(
   options: ReportPackageRenderModelServiceOptions = {}
 ): Promise<ReportPackageRenderModelResponse> {
   const database = options.database ?? db;
-  await loadMetricRun(database, input.fundId, input.metricRunId);
+  const metricRun = await loadMetricRun(database, input.fundId, input.metricRunId);
+  await assertMetricRunExportWorkflowState({
+    surface: options.h9Surface ?? 'render_model',
+    fundId: input.fundId,
+    metricRunId: input.metricRunId,
+    database,
+    preloaded: metricRun,
+  });
   const rawPackage = await loadReportPackage(database, input.fundId, input.metricRunId);
   await assertH9ExportActionable({
     surface: options.h9Surface ?? 'render_model',

@@ -29,6 +29,7 @@ development of the Press On Ventures fund modeling platform.
 - [ADR-023: s8.1 Operator Seam - Evidence-First Slice Ordering and D1 Triage-First Decision Procedure](#adr-023-s81-operator-seam---evidence-first-slice-ordering-and-d1-triage-first-decision-procedure)
 - [ADR-024: LP Metric-Run active_as_of Source-Mark Selection Is API-Only](#adr-024-lp-metric-run-active_as_of-source-mark-selection-is-api-only)
 - [ADR-025: LP Export Role Policy (PRD #996 D1)](#adr-025-lp-export-role-policy-prd-996-d1)
+- [ADR-026: LP Export Workflow State (PRD #996 D2)](#adr-026-lp-export-workflow-state-prd-996-d2)
 
 ---
 
@@ -5170,3 +5171,74 @@ for the route fund before they can export.
 - Admin empty-scope tokens continue to pass export authorization.
 - Route-policy registry entries now distinguish role-gated fund access from
   ordinary authenticated fund access for these export APIs.
+
+---
+
+## ADR-026: LP Export Workflow State (PRD #996 D2)
+
+**Date:** 2026-07-04 **Status:** [IMPLEMENTED] Implemented **Decision:** Require
+Surface-A LP report-package export routes to re-check metric-run workflow state
+at export time and allow only `locked` or `exported`.
+
+### Context
+
+PRD #996 AC-2 closes the gap between assembly readiness and export readiness.
+Surface-A exports must not serve draft, approved, or superseded metric runs,
+even when an older package/export row exists. The policy decision also requires
+the first successful stored JSON export to mark the metric run `exported`
+without changing version or lock audit fields, because bumping the metric-run
+version would make stored H9 fingerprints appear stale.
+
+### Decision
+
+All eight Surface-A export routes re-gate against
+`lp_metric_runs.status IN ('locked', 'exported')` at export time:
+
+- render model;
+- live JSON export;
+- stored JSON create, status GET, and artifact GET;
+- stored CSV create, status GET, and artifact GET.
+
+Stored JSON create performs the only workflow-state write in this policy. After
+a successful insert or idempotent replay with a matching hash, it runs a guarded
+update:
+
+`status='exported', updated_at=now WHERE fund_id=? AND id=? AND status='locked'`.
+
+The update intentionally does not touch `version`, `metricRunVersion`,
+`lockedAt`, or `lockedBy`. Live/preview routes, stored JSON GETs, and all CSV
+routes re-gate but never write. CSV creation depends on the stored JSON source;
+pre-PR-3 rows that are still `locked` are caught up by the stored JSON replay
+path, not by CSV.
+
+Assembly and narrative lifecycle surfaces remain locked-only. Post-export
+immutability is an accepted consequence: once a metric run is exported, package
+assembly and narrative edits must not reopen against it.
+
+### Supersede/New-Version Finding
+
+The metric-run commit path does not have a locked-only prior-version guard.
+`commitMetricRun` deduplicates by the unique fund/run/perspective/asOfDate/input
+hash and returns an existing row regardless of status, otherwise inserts a new
+draft row. No workflow-continuity guard needed widening from `locked` to
+`locked`/`exported` in this slice.
+
+### Alternatives Considered
+
+- **No workflow-state transition:** rejected because the approved D2 policy
+  requires stored JSON create to persist the export milestone.
+- **Transition from live/render routes:** rejected because read/preview surfaces
+  must remain side-effect free.
+- **Bump metric-run version on export:** rejected because it would cascade H9
+  fingerprint staleness into otherwise valid stored artifacts.
+- **Allow CSV to transition state:** rejected because CSV is derived from a
+  stored JSON source and must not become a second lifecycle writer.
+
+### Consequences
+
+- Draft, approved, and superseded metric runs now receive structured 409
+  `METRIC_RUN_NOT_EXPORTABLE` responses on Surface-A export routes.
+- Locked and exported metric runs can serve export routes subject to existing
+  role, fund-scope, H9, evidence, and artifact gates.
+- Stored JSON create and replay catch up locked metric runs to exported without
+  changing version, lock audit fields, package `metricRunVersion`, or H9 stamps.

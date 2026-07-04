@@ -41,6 +41,7 @@ import {
 } from '@shared/schema/lp-reporting-evidence';
 import { users } from '@shared/schema/user';
 import { assertH9PackageExportable } from './h9-export-gate';
+import { assertMetricRunExportWorkflowState } from './metric-run-export-workflow-gate';
 import { MetricRunCommitError } from './metric-run-commit-service';
 
 type StoredCsvExportDatabase = typeof db;
@@ -414,6 +415,12 @@ export async function createMetricRunReportPackageStoredCsvExport(
 ): Promise<ReportPackageCsvStoredExportResponse> {
   const database = options.database ?? db;
   await assertUserExists(database, input.userId);
+  await assertMetricRunExportWorkflowState({
+    surface: 'stored_csv_export',
+    fundId: input.fundId,
+    metricRunId: input.metricRunId,
+    database,
+  });
 
   const sourceJson = await loadStoredExport(database, input, 'json');
   if (sourceJson === null) {
@@ -480,6 +487,12 @@ export async function getMetricRunReportPackageStoredCsvExport(
   options: ReportPackageStoredCsvExportServiceOptions = {}
 ): Promise<ReportPackageCsvStoredExportGetResponse> {
   const database = options.database ?? db;
+  await assertMetricRunExportWorkflowState({
+    surface: 'stored_csv_export',
+    fundId: input.fundId,
+    metricRunId: input.metricRunId,
+    database,
+  });
   const existing = await loadStoredExport(database, input, 'csv');
   if (existing === null) {
     return ReportPackageCsvStoredExportGetResponseSchema.parse({ record: null });
@@ -497,6 +510,12 @@ export async function getMetricRunReportPackageStoredCsvArtifact(
   options: ReportPackageStoredCsvExportServiceOptions = {}
 ): Promise<ReportPackageCsvStoredArtifactResponse> {
   const database = options.database ?? db;
+  await assertMetricRunExportWorkflowState({
+    surface: 'stored_csv_export',
+    fundId: input.fundId,
+    metricRunId: input.metricRunId,
+    database,
+  });
   const existing = await loadStoredExport(database, input, 'csv');
   if (existing === null) {
     throw new ReportPackageCsvExportNotFoundError();
