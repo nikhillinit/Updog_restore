@@ -111,6 +111,13 @@ function hasAllowedAuthScopePair(
   }
 
   if (
+    policyEntry.apiAuthBoundary === 'require_auth_fund_access_and_role' &&
+    FUND_SCOPE_MODES.has(policyEntry.fundScopeMode)
+  ) {
+    return true;
+  }
+
+  if (
     policyEntry.apiAuthBoundary === 'admin_only' &&
     policyEntry.financialSurface !== 'none' &&
     FUND_SCOPE_MODES.has(policyEntry.fundScopeMode)
