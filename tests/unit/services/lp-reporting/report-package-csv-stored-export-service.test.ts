@@ -12,7 +12,11 @@ import {
   getMetricRunReportPackageStoredCsvArtifact,
   getMetricRunReportPackageStoredCsvExport,
 } from '../../../../server/services/lp-reporting/report-package-csv-stored-export-service';
-import type { ReportPackageJsonExportArtifact } from '@shared/contracts/lp-reporting';
+import {
+  ReportPackageJsonExportArtifactSchema,
+  type ReportPackageJsonExportArtifact,
+  type ReportPackageRenderSource,
+} from '@shared/contracts/lp-reporting';
 import {
   lpReportPackageExports,
   lpReportPackages,
@@ -42,6 +46,11 @@ const storedPackageRow = {
   h9FingerprintHash: H9_FP,
   h9PolicyVersion: 'h9-policy-v1',
   h9ActionabilityStatus: 'actionable',
+};
+const H9_STAMP = {
+  fingerprintHash: H9_FP,
+  policyVersion: 'h9-policy-v1',
+  actionabilityStatus: 'actionable' as const,
 };
 
 interface State {
@@ -76,6 +85,7 @@ const artifact: ReportPackageJsonExportArtifact = {
     assembledAt: '2026-05-10T03:00:00.000Z',
     packageVersion: 1,
     payloadVersion: 1,
+    h9Stamp: H9_STAMP,
   },
   renderModel: {
     renderModelVersion: 1,
@@ -92,6 +102,7 @@ const artifact: ReportPackageJsonExportArtifact = {
       assembledAt: '2026-05-10T03:00:00.000Z',
       packageVersion: 1,
       payloadVersion: 1,
+      h9Stamp: H9_STAMP,
     },
     fundDisplay: {
       fundId: 1,
@@ -164,6 +175,34 @@ const artifact: ReportPackageJsonExportArtifact = {
     },
   },
 };
+
+function legacyRenderSource(source: ReportPackageRenderSource) {
+  return {
+    reportPackageId: source.reportPackageId,
+    fundId: source.fundId,
+    metricRunId: source.metricRunId,
+    reportPackageStatus: source.reportPackageStatus,
+    asOfDate: source.asOfDate,
+    metricRunVersion: source.metricRunVersion,
+    metricRunLockedBy: source.metricRunLockedBy,
+    metricRunLockedAt: source.metricRunLockedAt,
+    assembledBy: source.assembledBy,
+    assembledAt: source.assembledAt,
+    packageVersion: source.packageVersion,
+    payloadVersion: source.payloadVersion,
+  };
+}
+
+function legacyArtifactPayload() {
+  return {
+    ...artifact,
+    source: legacyRenderSource(artifact.source),
+    renderModel: {
+      ...artifact.renderModel,
+      source: legacyRenderSource(artifact.renderModel.source),
+    },
+  };
+}
 
 function sha256(text: string): string {
   return createHash('sha256').update(text, 'utf8').digest('hex');
@@ -257,6 +296,7 @@ function seedStoredJson(overrides: Partial<LpReportPackageExport> = {}): LpRepor
 }
 
 beforeEach(() => {
+  ReportPackageJsonExportArtifactSchema.parse(artifact);
   state.exportRows = [];
   state.insertedRows = [];
   state.users = [7];
@@ -322,6 +362,21 @@ describe('stored report package CSV exports', () => {
     ).rejects.toMatchObject<Partial<MetricRunCommitError>>({
       status: 409,
       code: 'REPORT_PACKAGE_CSV_SOURCE_JSON_EXPORT_REQUIRED',
+    });
+    expect(state.insertedRows).toHaveLength(0);
+  });
+
+  it('returns a structured contract error when the stored JSON source is legacy pre-stamp', async () => {
+    seedStoredJson({ artifactPayload: legacyArtifactPayload() });
+
+    await expect(
+      createMetricRunReportPackageStoredCsvExport(
+        { fundId: 1, metricRunId: 500, userId: 7 },
+        { database: makeDatabase() }
+      )
+    ).rejects.toMatchObject<Partial<MetricRunCommitError>>({
+      status: 500,
+      code: 'REPORT_PACKAGE_EXPORT_ROW_INVALID',
     });
     expect(state.insertedRows).toHaveLength(0);
   });

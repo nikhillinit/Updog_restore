@@ -14,7 +14,10 @@ import { z } from 'zod';
 import { DecimalStringSchema } from './cash-flow-event.contract';
 import { XirrDiagnosticSchema } from './lp-metric-run.contract';
 import { NarrativeTypeSchema } from './lp-narrative-run.contract';
-import { ReportPackageStatusSchema } from './lp-report-package.contract';
+import {
+  ReportPackageH9MetadataSchema,
+  ReportPackageStatusSchema,
+} from './lp-report-package.contract';
 
 const PositiveIdSchema = z.number().int().positive();
 const PositiveVersionSchema = z.number().int().positive();
@@ -50,6 +53,12 @@ export const ReportPackageRenderMetricValueKindSchema = z.enum([
   'count',
 ]);
 
+export const ReportPackageRenderSourceH9StampSchema = ReportPackageH9MetadataSchema.pick({
+  fingerprintHash: true,
+  policyVersion: true,
+  actionabilityStatus: true,
+});
+
 export const ReportPackageRenderSourceSchema = z
   .object({
     reportPackageId: PositiveIdSchema,
@@ -64,6 +73,7 @@ export const ReportPackageRenderSourceSchema = z
     assembledAt: z.string().datetime(),
     packageVersion: PositiveVersionSchema,
     payloadVersion: z.literal(1),
+    h9Stamp: ReportPackageRenderSourceH9StampSchema,
   })
   .strict();
 
@@ -163,6 +173,9 @@ export type ReportPackageRenderMetricSectionId = z.infer<
 export type ReportPackageRenderMetricId = z.infer<typeof ReportPackageRenderMetricIdSchema>;
 export type ReportPackageRenderMetricValueKind = z.infer<
   typeof ReportPackageRenderMetricValueKindSchema
+>;
+export type ReportPackageRenderSourceH9Stamp = z.infer<
+  typeof ReportPackageRenderSourceH9StampSchema
 >;
 export type ReportPackageRenderSource = z.infer<typeof ReportPackageRenderSourceSchema>;
 export type ReportPackageRenderFundDisplay = z.infer<typeof ReportPackageRenderFundDisplaySchema>;

@@ -37,6 +37,11 @@ const validXirrDiagnostic = {
   boundHit: null,
   failureReason: null,
 } as const;
+const H9_STAMP = {
+  fingerprintHash: 'd'.repeat(64),
+  policyVersion: 'h9-policy-v1',
+  actionabilityStatus: 'actionable' as const,
+};
 
 const renderModel = {
   renderModelVersion: 1,
@@ -53,6 +58,7 @@ const renderModel = {
     assembledAt: '2026-05-10T03:00:00.000Z',
     packageVersion: 1,
     payloadVersion: 1,
+    h9Stamp: H9_STAMP,
   },
   fundDisplay: {
     fundId: 1,
@@ -171,6 +177,12 @@ function artifactFrom(response: ReportPackageJsonExportResponse) {
 }
 
 beforeEach(() => {
+  ReportPackageJsonExportArtifactSchema.parse({
+    exportVersion: 1,
+    format: 'json',
+    source: renderModel.source,
+    renderModel,
+  });
   state.evidenceRows = [evidenceRow({ id: 300 }), evidenceRow({ id: 301 })];
   state.writeCalls = [];
 });
@@ -188,6 +200,8 @@ describe('getMetricRunReportPackageJsonExport', () => {
     expect(response.export.exportVersion).toBe(1);
     expect(response.export.format).toBe('json');
     expect(response.export.source.reportPackageId).toBe(501);
+    expect(response.export.source.h9Stamp).toEqual(H9_STAMP);
+    expect(response.export.renderModel.source.h9Stamp).toEqual(H9_STAMP);
     expect(response.export.renderModel.references.evidenceRecordIds).toEqual([301, 300, 301]);
     expect(contentHashAlgorithm).toBe('sha256');
     expect(contentHash).toBe(
@@ -278,5 +292,26 @@ describe('canonicalJson', () => {
     expect(canonicalJson({ b: 2, a: [3, { d: 4, c: 5 }] })).toBe('{"a":[3,{"c":5,"d":4}],"b":2}');
     expect(() => canonicalJson({ a: undefined })).toThrow(/undefined field/);
     expect(() => canonicalJson(new Date('2026-05-10T00:00:00Z'))).toThrow(/non-plain/);
+  });
+
+  it('covers render-source H9 stamp fields in the canonical hash', () => {
+    const baseArtifact = ReportPackageJsonExportArtifactSchema.parse({
+      exportVersion: 1,
+      format: 'json',
+      source: renderModel.source,
+      renderModel,
+    });
+    const changedArtifact = ReportPackageJsonExportArtifactSchema.parse({
+      ...baseArtifact,
+      source: {
+        ...baseArtifact.source,
+        h9Stamp: {
+          ...baseArtifact.source.h9Stamp,
+          policyVersion: 'h9-policy-v2',
+        },
+      },
+    });
+
+    expect(sha256CanonicalJson(changedArtifact)).not.toBe(sha256CanonicalJson(baseArtifact));
   });
 });

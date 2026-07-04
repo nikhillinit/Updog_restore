@@ -360,6 +360,13 @@ export async function getMetricRunReportPackageRenderModel(
   const reportPackage = toReportPackageRecord(rawPackage);
   const fundDisplay = await loadFundDisplay(database, input.fundId);
   const payload = reportPackage.payload;
+  if (reportPackage.h9Metadata == null) {
+    throw new MetricRunCommitError(
+      500,
+      'REPORT_PACKAGE_ROW_INVALID',
+      'Report package H9 metadata is required on render-model responses.'
+    );
+  }
 
   return ReportPackageRenderModelResponseSchema.parse({
     renderModel: {
@@ -377,6 +384,11 @@ export async function getMetricRunReportPackageRenderModel(
         assembledAt: reportPackage.assembledAt,
         packageVersion: reportPackage.version,
         payloadVersion: payload.payloadVersion,
+        h9Stamp: {
+          fingerprintHash: reportPackage.h9Metadata.fingerprintHash,
+          policyVersion: reportPackage.h9Metadata.policyVersion,
+          actionabilityStatus: reportPackage.h9Metadata.actionabilityStatus,
+        },
       },
       fundDisplay,
       metricSections: buildMetricSections(payload),

@@ -11,9 +11,11 @@ import {
   getMetricRunReportPackageStoredJsonArtifact,
   getMetricRunReportPackageStoredJsonExport,
 } from '../../../../server/services/lp-reporting/report-package-json-stored-export-service';
-import type {
-  ReportPackageJsonExportArtifact,
-  ReportPackageJsonExportResponse,
+import {
+  ReportPackageJsonExportArtifactSchema,
+  type ReportPackageJsonExportArtifact,
+  type ReportPackageJsonExportResponse,
+  type ReportPackageRenderSource,
 } from '@shared/contracts/lp-reporting';
 import {
   lpReportPackageExports,
@@ -44,6 +46,11 @@ const storedPackageRow = {
   h9FingerprintHash: H9_FP,
   h9PolicyVersion: 'h9-policy-v1',
   h9ActionabilityStatus: 'actionable',
+};
+const H9_STAMP = {
+  fingerprintHash: H9_FP,
+  policyVersion: 'h9-policy-v1',
+  actionabilityStatus: 'actionable' as const,
 };
 
 interface State {
@@ -78,6 +85,7 @@ const artifact: ReportPackageJsonExportArtifact = {
     assembledAt: '2026-05-10T03:00:00.000Z',
     packageVersion: 1,
     payloadVersion: 1,
+    h9Stamp: H9_STAMP,
   },
   renderModel: {
     renderModelVersion: 1,
@@ -94,6 +102,7 @@ const artifact: ReportPackageJsonExportArtifact = {
       assembledAt: '2026-05-10T03:00:00.000Z',
       packageVersion: 1,
       payloadVersion: 1,
+      h9Stamp: H9_STAMP,
     },
     fundDisplay: {
       fundId: 1,
@@ -133,6 +142,34 @@ const artifact: ReportPackageJsonExportArtifact = {
     },
   },
 };
+
+function legacyRenderSource(source: ReportPackageRenderSource) {
+  return {
+    reportPackageId: source.reportPackageId,
+    fundId: source.fundId,
+    metricRunId: source.metricRunId,
+    reportPackageStatus: source.reportPackageStatus,
+    asOfDate: source.asOfDate,
+    metricRunVersion: source.metricRunVersion,
+    metricRunLockedBy: source.metricRunLockedBy,
+    metricRunLockedAt: source.metricRunLockedAt,
+    assembledBy: source.assembledBy,
+    assembledAt: source.assembledAt,
+    packageVersion: source.packageVersion,
+    payloadVersion: source.payloadVersion,
+  };
+}
+
+function legacyArtifactPayload() {
+  return {
+    ...artifact,
+    source: legacyRenderSource(artifact.source),
+    renderModel: {
+      ...artifact.renderModel,
+      source: legacyRenderSource(artifact.renderModel.source),
+    },
+  };
+}
 
 function makeResponse(hash = 'c'.repeat(64)): ReportPackageJsonExportResponse {
   return {
@@ -209,6 +246,7 @@ function makeDatabase(): typeof db {
 }
 
 beforeEach(() => {
+  ReportPackageJsonExportArtifactSchema.parse(artifact);
   state.exportRows = [];
   state.insertedRows = [];
   state.users = [7];
@@ -231,6 +269,10 @@ describe('stored report package JSON exports', () => {
     expect(response.record.contentHash).toBe('c'.repeat(64));
     expect(response.record.artifactSizeBytes).toBeGreaterThan(0);
     expect(state.insertedRows).toHaveLength(1);
+    const inserted = state.insertedRows[0] as { artifactPayload: unknown };
+    const persistedArtifact = ReportPackageJsonExportArtifactSchema.parse(inserted.artifactPayload);
+    expect(persistedArtifact.source.h9Stamp).toEqual(H9_STAMP);
+    expect(persistedArtifact.renderModel.source.h9Stamp).toEqual(H9_STAMP);
     expect(liveExport).toHaveBeenCalledWith(
       { fundId: 1, metricRunId: 500 },
       { database: expect.any(Object) }
@@ -275,6 +317,39 @@ describe('stored report package JSON exports', () => {
       currentContentHash: 'd'.repeat(64),
     });
     expect(state.insertedRows).toHaveLength(1);
+  });
+
+  it('keeps legacy pre-stamp rows on the hash-conflict path during create replay', async () => {
+    state.exportRows.push({
+      id: 4100,
+      fundId: 1,
+      metricRunId: 500,
+      reportPackageId: 3000,
+      format: 'json',
+      exportVersion: 1,
+      status: 'ready',
+      contentHashAlgorithm: 'sha256',
+      contentHash: 'b'.repeat(64),
+      artifactPayload: legacyArtifactPayload(),
+      artifactSizeBytes: 1000,
+      createdBy: 7,
+      readyAt: new Date('2026-05-10T04:00:00Z'),
+      createdAt: new Date('2026-05-10T04:00:00Z'),
+      updatedAt: new Date('2026-05-10T04:00:00Z'),
+    });
+
+    await expect(
+      createMetricRunReportPackageStoredJsonExport(
+        { fundId: 1, metricRunId: 500, userId: 7 },
+        { database: makeDatabase(), jsonExportService: vi.fn(async () => makeResponse()) }
+      )
+    ).rejects.toMatchObject({
+      status: 409,
+      code: 'EXPORT_CONTENT_HASH_CONFLICT',
+      storedContentHash: 'b'.repeat(64),
+      currentContentHash: 'c'.repeat(64),
+    });
+    expect(state.insertedRows).toHaveLength(0);
   });
 
   it('reloads an existing row after an insert race', async () => {
@@ -346,6 +421,36 @@ describe('stored report package JSON exports', () => {
     expect(artifactResponse.record.reportPackageExportId).toBe(4100);
     expect(artifactResponse.export.contentHash).toBe('c'.repeat(64));
     expect(artifactResponse.export.source.reportPackageId).toBe(3000);
+  });
+
+  it('returns a structured contract error when reading a legacy pre-stamp artifact row', async () => {
+    state.exportRows.push({
+      id: 4100,
+      fundId: 1,
+      metricRunId: 500,
+      reportPackageId: 3000,
+      format: 'json',
+      exportVersion: 1,
+      status: 'ready',
+      contentHashAlgorithm: 'sha256',
+      contentHash: 'b'.repeat(64),
+      artifactPayload: legacyArtifactPayload(),
+      artifactSizeBytes: 1000,
+      createdBy: 7,
+      readyAt: new Date('2026-05-10T04:00:00Z'),
+      createdAt: new Date('2026-05-10T04:00:00Z'),
+      updatedAt: new Date('2026-05-10T04:00:00Z'),
+    });
+
+    await expect(
+      getMetricRunReportPackageStoredJsonArtifact(
+        { fundId: 1, metricRunId: 500 },
+        { database: makeDatabase() }
+      )
+    ).rejects.toMatchObject<Partial<MetricRunCommitError>>({
+      status: 500,
+      code: 'REPORT_PACKAGE_EXPORT_ROW_INVALID',
+    });
   });
 
   it('serves the stored JSON artifact when H9 matches', async () => {
