@@ -103,14 +103,29 @@ TZ=UTC.
 
 ### P3: Investment Rounds Controlled Soak
 
-- [ ] Run the Testcontainers-backed investment-round suite, including
+- [x] Run the Testcontainers-backed investment-round suite, including
       `tests/integration/investment-scenario-capability.test.ts`.
-- [ ] Use `INVESTMENT_ROUNDS_SOAK_ITERATIONS=50` unless intentionally
+- [x] Use `INVESTMENT_ROUNDS_SOAK_ITERATIONS=50` unless intentionally
       stress-testing higher.
-- [ ] Prove create/replay/conflict, cross-fund denial, list/read, supersede,
+- [x] Prove create/replay/conflict, cross-fund denial, list/read, supersede,
       double-supersede rejection, and repeated soak behavior.
-- [ ] Keep staging/production flag posture explicit; do not infer production
+- [x] Keep staging/production flag posture explicit; do not infer production
       readiness from dev defaults.
+
+P3 evidence (2026-07-04):
+`tests/integration/investment-scenario-capability.test.ts` 11/11 passed (7
+capability + 4 controlled-soak cases) with
+`INVESTMENT_ROUNDS_SOAK_ITERATIONS=50`, Testcontainers Postgres, WSL2 harness
+(`CI=true` `TZ=UTC`), vitest duration 20.19s, `P3_SOAK_EXIT=0`. Ran on
+`a8a9cdc4`; current head `768ca423` differs only by docs-only #991
+(DECISIONS/plan/router) - no code delta. Proven under 50 iterations: idempotent
+create + 3x replay with no duplicate persistence; deterministic reused-key 409
+`idempotency_key_reused`; 428 key-less and 403 cross-fund writes with zero
+leaked rows; append-only supersede chain with double-supersede 409
+`round_already_superseded`. Flag posture explicit: `enable_investment_rounds`
+default false (flags/registry.yaml), Vercel production env sets no
+`VITE_ENABLE_INVESTMENT_ROUNDS` (verified `vercel env ls production`), prod-leak
+tripwire `tests/unit/flags/enable-investment-rounds.test.tsx` 4/4 green.
 
 ### P4: MOIC/H9 Operator Truthfulness
 
