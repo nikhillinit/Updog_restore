@@ -1,10 +1,10 @@
 ---
-last_updated: 2026-07-04
+last_updated: 2026-07-05
 ---
 
 # Staleness Report
 
-*Generated: 2026-07-04T00:00:00.000Z*
+*Generated: 2026-07-05T00:00:00.000Z*
 *Source: docs/DISCOVERY-MAP.source.yaml*
 
 ## Summary
@@ -12,7 +12,7 @@ last_updated: 2026-07-04
 | Metric | Value |
 |--------|-------|
 | Total Documents | 676 |
-| Stale Documents | 128 |
+| Stale Documents | 129 |
 | Missing Frontmatter | 34 |
 
 ### By Status
@@ -97,27 +97,28 @@ Documents that need review (older than their cadence threshold):
 | `docs/superpowers/plans/2026-06-28-prod-schema-drift-debate-synthesis.md` | Never | 999 | No | Unassigned |
 | `docs/superpowers/plans/2026-07-03-trust-activation.md` | Never | 999 | No | Unassigned |
 
-*...and 78 more stale documents.*
+*...and 79 more stale documents.*
 
 ## Documents with Execution Claims (Need Verification)
 
 These documents contain phrases like "tests pass", "PR merged", etc. and should be verified:
 
-- [ ] **.claude/plan.md** (187 days old)
-- [ ] **CHANGELOG.md** (45 days old)
-- [ ] **cheatsheets/daily-workflow.md** (92 days old)
-- [ ] **cheatsheets/emoji-free-documentation.md** (166 days old)
-- [ ] **cheatsheets/schema-alignment.md** (166 days old)
-- [ ] **docs/notebooklm-sources/reserves/01-overview.md** (166 days old)
-- [ ] **docs/notebooklm-sources/waterfall.md** (166 days old)
-- [ ] **docs/notebooklm-sources/xirr.md** (166 days old)
-- [ ] **docs/observability/EDITORIAL-V2-CHANGELOG.md** (166 days old)
+- [ ] **.claude/plan.md** (188 days old)
+- [ ] **CHANGELOG.md** (46 days old)
+- [ ] **cheatsheets/daily-workflow.md** (93 days old)
+- [ ] **cheatsheets/emoji-free-documentation.md** (167 days old)
+- [ ] **cheatsheets/pr-merge-verification.md** (90 days old)
+- [ ] **cheatsheets/schema-alignment.md** (167 days old)
+- [ ] **docs/notebooklm-sources/reserves/01-overview.md** (167 days old)
+- [ ] **docs/notebooklm-sources/waterfall.md** (167 days old)
+- [ ] **docs/notebooklm-sources/xirr.md** (167 days old)
+- [ ] **docs/observability/EDITORIAL-V2-CHANGELOG.md** (167 days old)
 - [ ] **docs/skills/REFL-003-cross-platform-file-enumeration-fragility.md** (999 days old)
 - [ ] **docs/skills/REFL-014-test-key-reuse-across-test-cases.md** (999 days old)
 - [ ] **docs/skills/REFL-015-postgresql-service-missing-test-database.md** (999 days old)
 - [ ] **docs/superpowers/plans/2026-06-07-forecast-drift-ux-completion.md** (999 days old)
 - [ ] **docs/superpowers/specs/2026-05-16-refactor-stability-strategy-design.md** (999 days old)
-- [ ] **docs/xirr-consolidation-roadmap.md** (187 days old)
+- [ ] **docs/xirr-consolidation-roadmap.md** (188 days old)
 
 ## Missing Frontmatter
 
