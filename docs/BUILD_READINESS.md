@@ -1,6 +1,6 @@
 ---
 status: ACTIVE
-last_updated: 2026-06-22
+last_updated: 2026-07-05
 ---
 
 # Build Readiness Verification Report
@@ -32,13 +32,17 @@ Authoritative product surface:
 - Investment round create/list/read routes enforce fund scope through the parent
   investment before returning round data
 - LP dashboard/profile widget routes are mounted in both active server surfaces
-- LP Reporting export and report-download routes already exist and are mounted
-  (`server/routes/lp-reporting/metric-runs.ts` JSON/CSV exports behind
-  `requireAuth`+`requireFundAccess`; `server/routes/lp-api.ts` report download
-  behind `requireAuth`+`requireLPAccess`, filtered by `lpId`). They are
-  authenticated but not yet admin-only or watermarked, so they are not
-  production-trust-qualified until role, workflow-state, provenance, and
-  export-eligibility gates are accepted
+- LP Reporting Surface-A report-package JSON/CSV exports in
+  `server/routes/lp-reporting/metric-runs.ts` are production-trust-qualified:
+  partner/admin role gates, fund-scope checks, locked/exported workflow gates,
+  H9/evidence blockers, `h9Stamp`, and `contentHash` provenance are enforced.
+  ADR-027 scopes visual watermarking out for these machine-readable artifacts;
+  `workers/report-worker.ts` is deleted, and the live `lp-report-generation`
+  queue remains the separate legacy PDF/XLSX/CSV report path.
+- `/api/lp/reports/*` generation/download in `server/routes/lp-api.ts` remains
+  the LP-access report-center path backed by `lp-report-generation`. It is not
+  the PRD #996 Surface-A export surface, and any future PDF/report-center
+  watermark requirement needs its own issue or PRD amendment.
 
 ## Required Validation Commands
 
