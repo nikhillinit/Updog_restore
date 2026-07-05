@@ -133,7 +133,7 @@ Target file ownership after the refactor:
 - Produces: evidence that execution is allowed and a green baseline before any
   refactor edit.
 
-- [ ] **Step 1: Confirm checkout and create the working branch**
+- [x] **Step 1: Confirm checkout and create the working branch**
 
 Run:
 
@@ -154,7 +154,7 @@ Expected:
   are recorded in the task notes.
 - Any unrelated dirty files are listed and left untouched.
 
-- [ ] **Step 2: Confirm this is not launching from the retired rebaseline
+- [x] **Step 2: Confirm this is not launching from the retired rebaseline
       handoff**
 
 Run:
@@ -177,7 +177,7 @@ Expected:
 - If fresh intake has not been done, stop before code edits and report that this
   plan is ready but gated.
 
-- [ ] **Step 3: Recount the local target and evidence metrics**
+- [x] **Step 3: Recount the local target and evidence metrics**
 
 Run:
 
@@ -191,7 +191,7 @@ Expected:
 - Line count is recorded.
 - Focused page test passes before any refactor edit.
 
-- [ ] **Step 4: Commit nothing**
+- [x] **Step 4: Commit nothing**
 
 Run:
 
@@ -249,7 +249,7 @@ Expected:
   - `mixedScorecardEvidence(lifecycle, section)`
   - `getLifecycleDiagnostic(lifecycle)`
 
-- [ ] **Step 1: Write the failing helper tests**
+- [x] **Step 1: Write the failing helper tests**
 
 Create `tests/unit/pages/fund-model-results/evidence-and-formatters.test.tsx`
 (the `.tsx` extension is required for the client Vitest project to pick the file
@@ -425,7 +425,7 @@ describe('fund model results evidence helpers', () => {
 });
 ```
 
-- [ ] **Step 2: Run the helper tests to verify the modules are missing**
+- [x] **Step 2: Run the helper tests to verify the modules are missing**
 
 Run:
 
@@ -442,7 +442,7 @@ Expected:
   being picked up by the client project, and continuing would leave every later
   "green" vacuous.
 
-- [ ] **Step 3: Create local shared types**
+- [x] **Step 3: Create local shared types**
 
 Create `client/src/pages/fund-model-results/types.ts` by moving the existing
 type declarations from `client/src/pages/fund-model-results.tsx`:
@@ -531,7 +531,7 @@ export interface SectionLike {
 }
 ```
 
-- [ ] **Step 4: Create formatters module**
+- [x] **Step 4: Create formatters module**
 
 Create `client/src/pages/fund-model-results/formatters.ts` by moving the
 existing formatter and lifecycle helpers from the page:
@@ -693,7 +693,7 @@ export function diagnosticAlertClasses(
 }
 ```
 
-- [ ] **Step 5: Create evidence module**
+- [x] **Step 5: Create evidence module**
 
 Create `client/src/pages/fund-model-results/evidence.ts` by moving the existing
 reason/evidence/diagnostic helpers from the page:
@@ -923,7 +923,7 @@ export function getLifecycleDiagnostic(lifecycle: FundStateReadV1) {
 }
 ```
 
-- [ ] **Step 6: Replace local definitions in the page with imports**
+- [x] **Step 6: Replace local definitions in the page with imports**
 
 Modify the top of `client/src/pages/fund-model-results.tsx` so it imports from
 the new modules. Remove the duplicate local type, formatter, and evidence helper
@@ -960,7 +960,7 @@ import {
 } from './fund-model-results/formatters';
 ```
 
-- [ ] **Step 7: Run helper and page tests**
+- [x] **Step 7: Run helper and page tests**
 
 Run:
 
@@ -974,7 +974,7 @@ Expected:
 - If the page test fails, revert only this task's local imports/moves and fix
   the extraction before continuing.
 
-- [ ] **Step 8: Commit Task 2**
+- [x] **Step 8: Commit Task 2**
 
 Run:
 
@@ -1011,7 +1011,7 @@ Expected:
   - `LatestErrorState()`
   - `ErrorState({ message }: { message: string })`
 
-- [ ] **Step 1: Move the fade-in wrapper unchanged**
+- [x] **Step 1: Move the fade-in wrapper unchanged**
 
 Create `client/src/pages/fund-model-results/FadeInSection.tsx`:
 
@@ -1059,7 +1059,7 @@ export function FadeInSection({ children }: { children: React.ReactNode }) {
 }
 ```
 
-- [ ] **Step 2: Move terminal state components unchanged**
+- [x] **Step 2: Move terminal state components unchanged**
 
 Create `client/src/pages/fund-model-results/states.tsx`:
 
@@ -1130,7 +1130,7 @@ export function ErrorState({ message }: { message: string }) {
 }
 ```
 
-- [ ] **Step 3: Replace local component definitions with imports**
+- [x] **Step 3: Replace local component definitions with imports**
 
 Modify `client/src/pages/fund-model-results.tsx` imports:
 
@@ -1146,7 +1146,7 @@ import {
 Then remove the local `useFadeInOnScroll`, `FadeInSection`, `LoadingState`,
 `LatestErrorState`, and `ErrorState` declarations from the page.
 
-- [ ] **Step 4: Run focused page test**
+- [x] **Step 4: Run focused page test**
 
 Run:
 
@@ -1158,7 +1158,7 @@ Expected:
 
 - PASS.
 
-- [ ] **Step 5: Commit Task 3**
+- [x] **Step 5: Commit Task 3**
 
 Run:
 
@@ -1207,7 +1207,7 @@ Expected:
   - `PublishHistoryCard({ historyState })`
   - `PublishComparisonCard({ comparisonState })`
 
-- [ ] **Step 1: Move SectionRenderer unchanged**
+- [x] **Step 1: Move SectionRenderer unchanged**
 
 Create `client/src/pages/fund-model-results/SectionRenderer.tsx`:
 
@@ -1289,7 +1289,7 @@ export function SectionRenderer({
 }
 ```
 
-- [ ] **Step 2: Move result section cards with unchanged bodies**
+- [x] **Step 2: Move result section cards with unchanged bodies**
 
 Create `client/src/pages/fund-model-results/result-section-cards.tsx`.
 
@@ -1331,7 +1331,7 @@ Export exactly these symbols:
 export { FactTile, OverviewCard, WaterfallSetupCard, EconomicsResultsCard };
 ```
 
-- [ ] **Step 3: Move scenario section with unchanged bodies**
+- [x] **Step 3: Move scenario section with unchanged bodies**
 
 Create `client/src/pages/fund-model-results/scenario-section.tsx`.
 
@@ -1364,7 +1364,7 @@ Export exactly:
 export { ScenarioAnalysisCard, ScenarioComparisonPanel };
 ```
 
-- [ ] **Step 4: Move lifecycle cards with unchanged bodies**
+- [x] **Step 4: Move lifecycle cards with unchanged bodies**
 
 Create `client/src/pages/fund-model-results/lifecycle-cards.tsx`.
 
@@ -1428,7 +1428,7 @@ export {
 };
 ```
 
-- [ ] **Step 5: Replace page-local component definitions with imports**
+- [x] **Step 5: Replace page-local component definitions with imports**
 
 Modify `client/src/pages/fund-model-results.tsx` imports:
 
@@ -1454,7 +1454,7 @@ this move. Stale imports will fight the lint auto-fix hook and fail the
 pre-commit lint on this task's commit; confirm with `npm run lint` before
 committing.
 
-- [ ] **Step 6: Run section and page tests**
+- [x] **Step 6: Run section and page tests**
 
 Run:
 
@@ -1468,7 +1468,7 @@ Expected:
 - No copy changes in snapshot-free assertions unless the existing tests prove
   the change.
 
-- [ ] **Step 7: Commit Task 4**
+- [x] **Step 7: Commit Task 4**
 
 Run:
 
@@ -1513,7 +1513,7 @@ Expected:
   - `scenarioSetIdsFromFetchState(fetchState: FetchState): string[]`
   - `useRecalculatePublished(fundId: string | null, onSuccess: () => void)`
 
-- [ ] **Step 1: Create hooks module by moving hook code unchanged**
+- [x] **Step 1: Create hooks module by moving hook code unchanged**
 
 Create `client/src/pages/fund-model-results/results-hooks.ts` with this import
 header:
@@ -1583,7 +1583,7 @@ export {
 };
 ```
 
-- [ ] **Step 2: Replace page-local hook declarations with imports**
+- [x] **Step 2: Replace page-local hook declarations with imports**
 
 Modify `client/src/pages/fund-model-results.tsx`:
 
@@ -1602,7 +1602,7 @@ import {
 
 Remove the moved hook and scenario-comparison helper declarations from the page.
 
-- [ ] **Step 3: Check that the route shell is now only composition**
+- [x] **Step 3: Check that the route shell is now only composition**
 
 Run:
 
@@ -1618,7 +1618,7 @@ Expected:
   `client/src/pages/fund-model-results.tsx`.
 - The page still exports `FundModelResultsPage` as default.
 
-- [ ] **Step 4: Run focused behavior and contract tests**
+- [x] **Step 4: Run focused behavior and contract tests**
 
 Run:
 
@@ -1632,7 +1632,7 @@ Expected:
 - PASS for page/helper tests.
 - PASS for fund results route and comparison contract tests.
 
-- [ ] **Step 5: Commit Task 5**
+- [x] **Step 5: Commit Task 5**
 
 Run:
 
@@ -1662,7 +1662,7 @@ Expected:
 - Produces: final proof that the refactor preserved behavior and left the route
   shell smaller and reviewable.
 
-- [ ] **Step 1: Run the full focused fund-results verification set**
+- [x] **Step 1: Run the full focused fund-results verification set**
 
 Run:
 
@@ -1675,7 +1675,7 @@ Expected:
 
 - PASS for every listed test file.
 
-- [ ] **Step 2: Run static gates**
+- [x] **Step 2: Run static gates**
 
 Run:
 
@@ -1689,7 +1689,7 @@ Expected:
 - `npm run lint` exits 0.
 - `npm run check` exits 0.
 
-- [ ] **Step 3: Review diff boundaries**
+- [x] **Step 3: Review diff boundaries**
 
 Run:
 
@@ -1713,7 +1713,7 @@ Expected:
   - `QuarterlyReviewTrace`
   - all six `SectionRenderer` sections
 
-- [ ] **Step 4: Commit final verification note if needed**
+- [x] **Step 4: Commit final verification note if needed**
 
 If Task 6 required test-only or import-order fixes, commit them:
 
@@ -1727,7 +1727,7 @@ Expected:
 - Commit succeeds only if there is a real final diff.
 - If no final diff exists, do not create an empty commit.
 
-- [ ] **Step 5: Open the integration PR**
+- [x] **Step 5: Open the integration PR**
 
 Run:
 
@@ -1744,7 +1744,7 @@ Expected:
 - The PR waits for the full CI run (roughly 7-10 minutes); the ~1 minute
   docs-only gate is not acceptable evidence.
 
-- [ ] **Step 6: Final report**
+- [x] **Step 6: Final report**
 
 Report:
 
