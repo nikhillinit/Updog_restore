@@ -38,7 +38,8 @@ WORKDIR /app
 # hadolint ignore=DL3018
 RUN addgroup -g 1001 -S nodejs && \
     adduser -S nextjs -u 1001 && \
-    apk add --no-cache dumb-init
+    apk add --no-cache dumb-init && \
+    rm -rf /usr/local/lib/node_modules/npm /usr/local/bin/npm /usr/local/bin/npx
 
 # Environment
 ENV NODE_ENV=production
