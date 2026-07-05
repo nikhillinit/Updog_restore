@@ -462,7 +462,7 @@ function governanceRefForPortfolioIntelligenceRoute(
 const PROTOTYPE_ROUTE_NOTE = 'Prototype route must return 501 with non_actionable provenance.';
 const LP_REPORT_PACKAGE_EXPORT_WORKFLOW_REQUIREMENT = 'metric_run_locked_or_exported';
 const LP_REPORT_PACKAGE_EXPORT_NOTE =
-  'PRD #996 AC-1, AC-2, D1, and D2: Surface-A report-package export requires partner/admin role, denies empty-fundIds non-admin exports, and requires metric-run workflow state locked or exported.';
+  'PRD #996 AC-1, AC-2, AC-3, D1, D2, and D3: Surface-A report-package export requires partner/admin role, denies empty-fundIds non-admin exports, requires metric-run workflow state locked or exported, and scopes visual watermarking out by ADR-027 because h9Stamp plus contentHash provide JSON/CSV hash attestation.';
 
 const PORTFOLIO_INTELLIGENCE_ROUTE_POLICY_DECISIONS: Readonly<PortfolioIntelligenceRouteDecisionMap> =
   {

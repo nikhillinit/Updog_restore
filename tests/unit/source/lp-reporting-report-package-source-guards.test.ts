@@ -5,6 +5,8 @@ import { describe, expect, it } from 'vitest';
 const read = (relativePath: string) =>
   fs.readFileSync(path.resolve(process.cwd(), relativePath), 'utf8');
 
+const exists = (relativePath: string) => fs.existsSync(path.resolve(process.cwd(), relativePath));
+
 describe('LP Reporting report-package source guards', () => {
   it('does not add a standalone /lp-reporting/reports client route or navigation item', () => {
     const appRoutesSource = read('client/src/app/app-routes.tsx');
@@ -108,6 +110,48 @@ describe('LP Reporting report-package source guards', () => {
     expect(metricsPageSource).not.toContain('@/hooks/useLPReports');
     expect(metricsPageSource).not.toMatch(
       /\bDownload\b|\bShare\b|Export PDF|Export XLSX|Public link|\bEmail\b|LP portal/
+    );
+  });
+
+  it('locks PRD #996 AC-3 to the ADR-027 Surface-A watermark decision', () => {
+    const queueSource = read('server/queues/report-generation-queue.ts');
+    const queueRegistrySource = read('server/queues/registry.ts');
+    const lpApiRouteSource = read('server/routes/lp-api.ts');
+    const reportPackageRouteSource = read('server/routes/lp-reporting/metric-runs.ts');
+    const routePolicySource = read('server/route-policy/api-route-policy-registry.ts');
+    const decisionsSource = read('DECISIONS.md');
+    const buildReadinessSource = read('docs/BUILD_READINESS.md');
+
+    expect(exists('workers/report-worker.ts')).toBe(false);
+    expect(queueSource).toContain("const QUEUE_NAME = 'lp-report-generation'");
+    expect(queueRegistrySource).toContain("queueName: 'lp-report-generation'");
+    expect(lpApiRouteSource).toContain('enqueueReportGeneration');
+    expect(lpApiRouteSource).toContain('/api/lp/reports/generate');
+    expect(reportPackageRouteSource).not.toMatch(/enqueueReportGeneration|lp-report-generation/);
+
+    for (const source of [
+      queueSource,
+      queueRegistrySource,
+      lpApiRouteSource,
+      reportPackageRouteSource,
+      routePolicySource,
+    ]) {
+      expect(source).not.toContain("'report-generation'");
+      expect(source).not.toMatch(/\baddWatermark\b|\bwatermarked\b/);
+    }
+
+    expect(routePolicySource).toContain('scopes visual watermarking out by ADR-027');
+    expect(routePolicySource).toContain('h9Stamp plus contentHash');
+    expect(decisionsSource).toContain('## ADR-027: LP Export Watermark Policy (PRD #996 D3)');
+    expect(decisionsSource).toContain('Watermarking is out of scope for Surface-A JSON/CSV');
+    expect(decisionsSource).toContain('Delete `workers/report-worker.ts` instead of wiring it');
+    expect(decisionsSource).toContain('### Current-Main Revalidation (2026-07-05)');
+    expect(decisionsSource).toContain("`const QUEUE_NAME = 'lp-report-generation'`");
+    expect(buildReadinessSource).toContain(
+      'ADR-027 scopes visual watermarking out for these machine-readable artifacts'
+    );
+    expect(buildReadinessSource).toContain(
+      '`workers/report-worker.ts` is deleted, and the live `lp-report-generation`'
     );
   });
 });

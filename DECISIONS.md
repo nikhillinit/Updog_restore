@@ -5289,6 +5289,20 @@ be filed as its own issue or PRD amendment.
 - Before deletion, the only code hits for `addWatermark` and the report
   `watermarked` context field were in `workers/report-worker.ts`.
 
+### Current-Main Revalidation (2026-07-05)
+
+On current `main` at `dfb24b8a45e6f5851b948c5a26c732d44eab04fd` (`HEAD`,
+`origin/main`, and `FETCH_HEAD` matched after `git fetch origin main`):
+
+- `Test-Path workers\report-worker.ts` returned `False`.
+- `server/queues/report-generation-queue.ts` declares
+  `const QUEUE_NAME = 'lp-report-generation'`.
+- `server/queues/registry.ts` declares `queueName: 'lp-report-generation'`.
+- `server/routes/lp-api.ts` is the route path that calls
+  `enqueueReportGeneration` from `/api/lp/reports/generate`.
+- `server/routes/lp-reporting/metric-runs.ts` Surface-A export routes do not
+  call `enqueueReportGeneration` or reference `lp-report-generation`.
+
 ### Alternatives Considered
 
 - **Wire the legacy worker into the live queue:** rejected because it expands
