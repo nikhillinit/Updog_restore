@@ -5,6 +5,7 @@ import { DatasetTrustStateSchema, StructuredWarningSchema } from '../provenance-
 import {
   FundCompanyActualsCurrencyStatusSchema,
   FundCompanyActualsPlanningFmvStatusSchema,
+  FundCompanyActualsSupersedeLineageSchema,
 } from '../fund-actuals/fund-company-actuals-fact.contract';
 
 /**
@@ -59,6 +60,13 @@ export const DualForecastMetricsSchema = z
 
 export const DualForecastPointModeSchema = z.enum(['actual', 'forecast']);
 
+/**
+ * PR-2 per-quarter Construction-vs-Current variance (PRD #1020): each field is
+ * `current` minus `construction` for the same quarter; ratio deltas are null
+ * whenever either side is null. Same shape as the metrics they difference.
+ */
+export const DualForecastVarianceSchema = DualForecastMetricsSchema;
+
 export const DualForecastPointSchema = z
   .object({
     quarterIndex: z.number().int(),
@@ -68,14 +76,17 @@ export const DualForecastPointSchema = z
     actual: DualForecastMetricsSchema.nullable(),
     currentMode: DualForecastPointModeSchema,
     current: DualForecastMetricsSchema,
+    variance: DualForecastVarianceSchema,
   })
   .strict();
 
 /**
- * PR-1 shadow-read provenance (ADR-031): per-company trust state and anchor
- * attribution copied verbatim from the facts contract - money stays decimal
- * strings, never parsed numbers. The numeric series are NOT derived from
- * these values until the PR-2 blend lands.
+ * Per-company facts provenance copied verbatim from the facts contract -
+ * money stays decimal strings, never parsed numbers (ADR-031). ADR-032
+ * decision 1 requires the non-monetary facts to surface FULLY even (and
+ * especially) for currency-blocked companies: `activeRoundIds` and
+ * `supersedeLineage` carry the round identity/lineage a blocked company
+ * still discloses while its monetary values are refused.
  */
 export const DualForecastActualsFactsCompanySchema = z
   .object({
@@ -85,6 +96,8 @@ export const DualForecastActualsFactsCompanySchema = z
     planningFmvStatus: FundCompanyActualsPlanningFmvStatusSchema,
     currency: CurrencyCodeSchema,
     currencyStatus: FundCompanyActualsCurrencyStatusSchema,
+    activeRoundIds: z.array(PositiveIdSchema),
+    supersedeLineage: z.array(FundCompanyActualsSupersedeLineageSchema),
     latestRoundDate: IsoDateSchema.nullable(),
     latestRoundValuation: DecimalStringSchema.nullable(),
     latestPlanningFmvDate: IsoDateSchema.nullable(),
@@ -108,6 +121,81 @@ export const DualForecastActualsFactsSchema = z
   })
   .strict();
 
+/**
+ * ADR-029 anchor ladder attribution: which value anchored a company's NAV
+ * contribution. `planning_fmv` = active Planning FMV mark; `planning_fmv_stale`
+ * = stale mark, disclosed; `legacy_current_valuation` = the un-provenanced
+ * `portfolio_companies.currentValuation` fallback; `none` = the disclosed zero
+ * that used to be silent.
+ */
+export const DualForecastNavAnchorSchema = z.enum([
+  'planning_fmv',
+  'planning_fmv_stale',
+  'legacy_current_valuation',
+  'none',
+]);
+
+const NonNegativeIntSchema = z.number().int().nonnegative();
+
+/**
+ * ADR-030 response-level rollup: a per-trust-state count map over the facts
+ * companies. Deliberately NOT a worst-of scalar; a badge stays derivable
+ * client-side.
+ */
+export const DualForecastTrustCountsSchema = z
+  .object({
+    LIVE: NonNegativeIntSchema,
+    PARTIAL: NonNegativeIntSchema,
+    UNAVAILABLE: NonNegativeIntSchema,
+    FAILED: NonNegativeIntSchema,
+  })
+  .strict();
+
+/**
+ * Per-company NAV anchor attribution (ADR-029/030). `inNavUniverse` is false
+ * for exited/written-off companies and for facts companies missing from the
+ * portfolio read - they contribute no NAV and `anchor`/`contribution` are
+ * null. `trustState` is null when the company has no facts entry (a live
+ * company outside the facts universe descends the ladder on legacy rungs).
+ * `contribution` is money, so it stays a decimal string.
+ */
+export const DualForecastNavAnchorCompanySchema = z
+  .object({
+    companyId: PositiveIdSchema,
+    companyName: z.string().min(1),
+    inNavUniverse: z.boolean(),
+    trustState: DatasetTrustStateSchema.nullable(),
+    anchor: DualForecastNavAnchorSchema.nullable(),
+    contribution: DecimalStringSchema.nullable(),
+  })
+  .strict();
+
+/**
+ * PR-2 blend disclosure block (ADR-029/030/032). `null` means the facts fetch
+ * failed (`actualsFacts` is null too) and the series is NOT blended - it falls
+ * back to the legacy calculator NAV, disclosed via the top-level warnings.
+ */
+export const DualForecastNavAnchoringSchema = z
+  .object({
+    blendedNav: DecimalStringSchema,
+    countsByTrustState: DualForecastTrustCountsSchema,
+    companies: z.array(DualForecastNavAnchorCompanySchema),
+  })
+  .strict();
+
+/**
+ * PR-2 structured disclosure of the Current-projection fallback (PRD #1020):
+ * `fallback_default` means the projection engine failed and the future
+ * Current quarters come from `getDefaultProjectedMetrics` - previously a
+ * silent string warning.
+ */
+export const DualForecastCurrentProjectionSchema = z
+  .object({
+    status: z.enum(['projected', 'fallback_default']),
+    fallbackReason: z.string().nullable(),
+  })
+  .strict();
+
 export const DualForecastResponseSchema = z
   .object({
     fundId: PositiveIdSchema,
@@ -117,6 +205,8 @@ export const DualForecastResponseSchema = z
     sources: DualForecastSourceMetadataSchema,
     config: DualForecastConfigMetadataSchema,
     actualsFacts: DualForecastActualsFactsSchema.nullable(),
+    navAnchoring: DualForecastNavAnchoringSchema.nullable(),
+    currentProjection: DualForecastCurrentProjectionSchema,
     warnings: z.array(z.string()),
   })
   .strict();
@@ -129,4 +219,9 @@ export type DualForecastPointMode = z.infer<typeof DualForecastPointModeSchema>;
 export type DualForecastPoint = z.infer<typeof DualForecastPointSchema>;
 export type DualForecastActualsFactsCompany = z.infer<typeof DualForecastActualsFactsCompanySchema>;
 export type DualForecastActualsFacts = z.infer<typeof DualForecastActualsFactsSchema>;
+export type DualForecastNavAnchor = z.infer<typeof DualForecastNavAnchorSchema>;
+export type DualForecastTrustCounts = z.infer<typeof DualForecastTrustCountsSchema>;
+export type DualForecastNavAnchorCompany = z.infer<typeof DualForecastNavAnchorCompanySchema>;
+export type DualForecastNavAnchoring = z.infer<typeof DualForecastNavAnchoringSchema>;
+export type DualForecastCurrentProjection = z.infer<typeof DualForecastCurrentProjectionSchema>;
 export type DualForecastResponse = z.infer<typeof DualForecastResponseSchema>;

@@ -58,6 +58,8 @@ function dualForecastPayload() {
       fallbackReason: null,
     },
     actualsFacts: null,
+    navAnchoring: null,
+    currentProjection: { status: 'projected', fallbackReason: null },
     warnings: [],
   };
 }
