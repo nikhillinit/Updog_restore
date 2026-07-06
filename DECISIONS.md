@@ -31,6 +31,11 @@ development of the Press On Ventures fund modeling platform.
 - [ADR-025: LP Export Role Policy (PRD #996 D1)](#adr-025-lp-export-role-policy-prd-996-d1)
 - [ADR-026: LP Export Workflow State (PRD #996 D2)](#adr-026-lp-export-workflow-state-prd-996-d2)
 - [ADR-027: LP Export Watermark Policy (PRD #996 D3)](#adr-027-lp-export-watermark-policy-prd-996-d3)
+- [ADR-028: Staleness Is Disclose-Not-Block on Read Surfaces (Issue #998)](#adr-028-staleness-is-disclose-not-block-on-read-surfaces-issue-998)
+- [ADR-029: Current-Forecast NAV Anchor Ladder (PRD #1020 D1)](#adr-029-current-forecast-nav-anchor-ladder-prd-1020-d1)
+- [ADR-030: Trust Blending Keyed by the Provenance Envelope (PRD #1020 D2)](#adr-030-trust-blending-keyed-by-the-provenance-envelope-prd-1020-d2)
+- [ADR-031: Dual-Forecast Response Contract and Invalidation Seam (PRD #1020 D3)](#adr-031-dual-forecast-response-contract-and-invalidation-seam-prd-1020-d3)
+- [ADR-032: Currency Blocks Contribute No Facts-Derived Money (PRD #1020 D4)](#adr-032-currency-blocks-contribute-no-facts-derived-money-prd-1020-d4)
 
 ---
 
@@ -5365,3 +5370,242 @@ own ADR and implementation plan.
 - Route-policy registry entries drop one field.
 - Export staleness gating is unchanged.
 - Future render-blocking requirements must arrive as their own ADR.
+
+## ADR-029: Current-Forecast NAV Anchor Ladder (PRD #1020 D1)
+
+**Date:** 2026-07-06 **Status:** [ACCEPTED] Accepted **Decision:** Per-company
+NAV in the blended Current stream anchors on the active Planning FMV mark's
+position-level `fairValue`, falls back to `portfolio_companies.currentValuation`
+with per-company anchor disclosure, and never derives NAV from round pre-money
+valuations or ownership estimates in this lane.
+
+### Context
+
+Today's Current/Actual NAV is `SUM(portfolio_companies.currentValuation)` over
+live companies - a nullable, hand-maintained column with no provenance or
+staleness policy; null contributes a silent zero. The facts contract (PR #1015)
+exposes `latestPlanningFmvValue` (position-level `valuation_marks.fairValue`,
+approval-workflowed, NAV-grade by design) and `latestRoundValuation`
+(company-level pre-money, requiring post-money conversion AND ownership to
+become a position value). Ownership is not NAV-grade: `ownershipCurrentPct` is
+nullable and the reserve path defaults it to 0.15 - the hardcoded-fallback
+pathology the H9 NO-GO audit flagged.
+
+### Decision
+
+Deterministic anchor ladder with mandatory per-company anchor attribution:
+
+1. `planningFmvStatus: active` -> `latestPlanningFmvValue`, no ownership
+   adjustment. Anchor `planning_fmv`.
+2. `planningFmvStatus: stale` -> same value, disclosed stale (ADR-028); rollup
+   semantics belong to ADR-030. Anchor `planning_fmv_stale`.
+3. No usable mark, or money blocked by `currencyStatus: mismatch_blocked`
+   (ADR-032) -> `currentValuation` fallback, disclosed. Anchor
+   `legacy_current_valuation`.
+4. Fallback null -> disclosed zero. Anchor `none`.
+
+Hard rules: `latestRoundValuation` (pre-money) never enters NAV in this lane
+(display/variance context only); no ownership-adjusted rounds-derived NAV
+(future derivation requires its own ADR and must not default missing ownership);
+mixed-anchor NAV is visibly mixed via attribution; the NAV company universe
+keeps the existing live-company filter (`isLivePortfolioCompany`) - exited
+companies contribute no NAV regardless of anchor state, and any universe change
+requires its own decision.
+
+### Alternatives Considered
+
+- **Rounds-derived position value** (ownership x post-money): two speculative
+  conversions compounding into NAV; same class of silent fabrication H9 flagged.
+  Rejected.
+- **Marks-only NAV:** a coverage cliff - NAV moves because data coverage
+  changed, not value. Rejected.
+- **Overlay-only:** fails the lane's purpose; already represented as the PR-1
+  shadow slice, not the end state.
+
+### Consequences
+
+- NAV anchors on the only position-level, approval-workflowed valuation source;
+  zero fabricated math and no new silent fallbacks.
+- The ladder is enumerable - every anchor state x currency block x null fallback
+  is a test case.
+- Mixed-anchor NAV is harder to reason about (mitigated by attribution); numeric
+  benefit is adoption-dependent on marks entry; `currentValuation` survives
+  inside the blend until a future retirement lane.
+
+Full draft with verified evidence: issue #1020 comment 4894286410 (amended
+2026-07-06).
+
+## ADR-030: Trust Blending Keyed by the Provenance Envelope (PRD #1020 D2)
+
+**Date:** 2026-07-06 **Status:** [ACCEPTED] Accepted **Decision:** Per-company
+inclusion in the blended Current stream is keyed by the existing
+`ProvenanceEnvelope.trustState`: LIVE blends normally; PARTIAL blends per the
+ADR-029 ladder include-with-flag; UNAVAILABLE and FAILED contribute no
+facts-derived money and descend the ladder. The response rollup is a
+per-trust-state count map plus per-company attribution - never a worst-of
+scalar.
+
+### Context
+
+Every fact carries a Zod-enforced envelope: LIVE must be financially actionable
+and tolerates only `info` warnings; PARTIAL is non-actionable `input_only`
+evidence requiring at least one structured warning; UNAVAILABLE is reserved for
+the currency quarantine; FAILED for adapter failure. A stale Planning FMV mark
+emits `PLANNING_FMV_STALE` at severity `warning`, and the producer routes any
+warning-severity fact to PARTIAL - so staleness already degrades trust at the
+contract layer. ADR-030 inherits that rule rather than inventing one.
+
+### Decision
+
+No new trust vocabulary. Include-with-flag for PARTIAL (dual-forecast is a read
+surface; ADR-028 discloses rather than blocks; blending does not upgrade
+actionability - H9 gates persistence/reuse/export elsewhere).
+Exclude-and-disclose facts-derived money for UNAVAILABLE (ADR-032's domain) and
+FAILED, descending the ADR-029 ladder. Rollup is `countsByTrustState` over all
+four states plus per-company entries (companyId, trustState, anchor, warnings);
+no worst-of field exists in the contract. Stale contributions degrade the rollup
+mechanically because the stale warning forces the envelope out of LIVE.
+
+### Alternatives Considered
+
+- **Worst-of scalar rollup:** one stale mark relabels the whole fund series;
+  invites block-on-stale UI contra ADR-028; derivable from counts anyway.
+- **Exclude-and-disclose PARTIAL:** turns every 121-day-old mark into a NAV
+  coverage cliff.
+- **Include-without-flag (strings only):** today's failure mode.
+- **New blending-specific trust enum:** two vocabularies guarantee drift.
+
+### Consequences
+
+- Zero new trust vocabulary; every trust state x anchor rung is a test case;
+  export seams can later derive verdicts from counts (H9 territory).
+- Count map costs more payload and UI design than one badge (PR-3 carries it); a
+  PARTIAL company's number is indistinguishable inside the headline aggregate
+  (mitigated by mandatory adjacent attribution).
+- Fact-grain FAILED is producer-unreachable today (defensive
+  contract-completeness); companies without any mark also land PARTIAL via
+  `PLANNING_FMV_MISSING`, so counts are PARTIAL-dominated until marks adoption.
+
+Full draft with verified evidence: issue #1020 comment 4894517247 (amended
+2026-07-06).
+
+## ADR-031: Dual-Forecast Response Contract and Invalidation Seam (PRD #1020 D3)
+
+**Date:** 2026-07-06 **Status:** [ACCEPTED] Accepted **Decision:** Extend
+`GET /api/funds/:fundId/dual-forecast` additively in place (no v2 endpoint);
+introduce a Zod response contract parsed at route egress and client ingress,
+retiring the unvalidated TS interface; keep the response compute-on-request (no
+new cache); close the remaining invalidation gap by wiring the
+Planning-FMV-override write path into `invalidateH9Artifacts` (round writes are
+already wired at the service layer).
+
+### Context
+
+Verified against main 2026-07-06: `getDualForecast` was never server-cached -
+the `unified:v2` keys cache a different payload (`UnifiedFundMetrics`);
+freshness is the disclosed 60s HTTP/client window. Seam compliance: investments
+POST and LP import commits call the seam; the round-write route is already
+compliant at the service layer (`createRound` invalidates on created rows,
+skipping idempotent replays, with a dedicated wiring test) - a route-file grep
+misses this. The one non-compliant write path is the Planning-FMV override
+route. The facts contract parses at producer egress; its client hook casts, so
+the client-ingress parsing adopted here is stricter than that precedent.
+
+### Decision
+
+1. Additive in place; no v2 endpoint (one consumer; a second mount means
+   MAKEAPP_ROUTE_INVENTORY classification, parity coverage, and a deprecation
+   lane for nothing). Versioning lives in the contract module, not the URL.
+2. Zod contract at
+   `shared/contracts/dual-forecast/dual-forecast-response.contract.ts`; the TS
+   interface retires via `z.infer`; server egress `safeParse` (invalid payload
+   is a defect -> 500, no ADR-028 tension); client parses instead of casting.
+3. No new cache and no `unified:v2` bump. Pre-commitment: any future server-side
+   cache key MUST embed a `DUAL_FORECAST_CONTRACT_VERSION` constant exported
+   from the contract module.
+4. Wire the Planning-FMV-override write path into the seam (best-effort
+   post-success, same pattern as investments POST). Marks do not feed
+   `UnifiedFundMetrics` today, so this is prospective seam compliance that
+   becomes user-visible once facts drive the forecast; the wiring PR also amends
+   the seam doc comment to name mark writes.
+
+### Alternatives Considered
+
+- **v2 endpoint:** URL versioning where contract versioning suffices.
+- **Client-side-only validation:** server stays free to emit malformed payloads.
+- **Add Redis caching now:** no load evidence; YAGNI - constraint recorded
+  instead.
+- **Bump `unified:v2` -> `v3`:** evicts unrelated valid entries for zero
+  benefit.
+- **Storage-layer/event-bus invalidation hooks:** one missing call site does not
+  justify infrastructure.
+- **Duplicate route-level call for round writes:** redundant; masks the
+  service-layer contract.
+
+### Consequences
+
+- The unvalidated-cast bug class closes at both boundaries; seam compliance
+  becomes complete; the stale-shape-cache failure mode is pre-empted.
+- Route-egress parsing adds bounded per-request cost (measure in PR-1 if it
+  matters); retiring the TS interface touches every importer in one mechanical
+  PR.
+
+Full draft with verified evidence: issue #1020 comment 4894517597 (amended
+2026-07-06).
+
+## ADR-032: Currency Blocks Contribute No Facts-Derived Money (PRD #1020 D4)
+
+**Date:** 2026-07-06 **Status:** [ACCEPTED] Accepted **Decision:** A company
+with `currencyStatus: mismatch_blocked` contributes NO facts-derived monetary
+value to any blended stream, variance field, or rollup, even though the facts
+contract still carries its numbers; ids, lineage, and warnings surface, and the
+company descends the ADR-029 ladder. Rollups annotate the blocks and keep the
+company in the universe - never exclude, never convert, never withhold.
+
+### Context
+
+`currencySummary` blocks the whole company if any active round or the selected
+Planning FMV mark is off the fund base currency; the block cascades at the
+producer (`planningFmvStatus: blocked`, a blocking `CURRENCY_MISMATCH_BLOCK`
+warning, and an `UNAVAILABLE` quarantine that the contract reserves for currency
+mismatch). Decisive detail: the fact still CARRIES the monetary values when
+blocked - the producer discloses what exists; non-consumption is the consumer's
+obligation. No FX conversion exists anywhere in the seam.
+
+### Decision
+
+Consumer-side hard rule across all streams: no facts-derived money from blocked
+companies (not the mark, not the round valuation, not observed investment
+amounts); non-monetary facts surface fully. NAV contribution follows ADR-029
+rung 3 (`currentValuation` fallback, base-currency by construction) or rung 4
+(disclosed zero). Rollups annotate and retain the company (it lands in ADR-030's
+UNAVAILABLE count bucket); the Current/Actual NAV universe is stable across
+block status, so deltas reflect value changes, never membership changes. No
+conversion in this lane - a future FX seam (trusted rate source + as-of policy)
+requires its own ADR, and because values are already carried, consumers need no
+rewrite when it lands.
+
+### Alternatives Considered
+
+- **Exclude blocked companies from rollups:** a coverage cliff; streams stop
+  being comparable.
+- **Convert at any available rate:** unpriced conversion inside an aggregate is
+  silent fabrication.
+- **Withhold the fund-level rollup:** blocks a read surface on data quality,
+  contra ADR-028.
+- **Strip monetary fields at the producer:** changes the facts contract,
+  destroys disclosure value, and is redundant - the UNAVAILABLE quarantine
+  already encodes non-consumability.
+
+### Consequences
+
+- Exactly one currency rule, owned by the facts layer; consumers obey a status
+  instead of re-deriving policy.
+- Blocked funds still render (ADR-028) with per-company and rollup visibility;
+  an FX seam later upgrades behavior without a contract change.
+- A blocked company's NAV reverts to the un-provenanced legacy column (the
+  accepted, disclosed rung-3 tradeoff); heavily foreign-currency funds see
+  little numeric benefit until an FX seam exists.
+
+Full draft with verified evidence: issue #1020 comment 4894518091 (amended
+2026-07-06).
