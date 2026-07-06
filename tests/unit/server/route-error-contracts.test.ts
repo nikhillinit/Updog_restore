@@ -9,10 +9,12 @@ import { errorHandler, ValidationError } from '../../../server/errors';
 import { requestId } from '../../../server/middleware/requestId';
 import { validateRequest } from '../../../server/middleware/validation';
 
-const { mockRegisterCompletionHandlers, mockAutomationStart } = vi.hoisted(() => ({
-  mockRegisterCompletionHandlers: vi.fn(),
-  mockAutomationStart: vi.fn(),
-}));
+const { mockRegisterCompletionHandlers, mockAutomationStart, mockSetupWebSocketServers } =
+  vi.hoisted(() => ({
+    mockRegisterCompletionHandlers: vi.fn(),
+    mockAutomationStart: vi.fn(),
+    mockSetupWebSocketServers: vi.fn(),
+  }));
 
 vi.mock('../../../server/services/calc-run-completion-handlers.js', () => ({
   registerCompletionHandlers: mockRegisterCompletionHandlers,
@@ -22,6 +24,10 @@ vi.mock('../../../server/services/variance-alert-automation.js', () => ({
   varianceAlertAutomationService: {
     start: mockAutomationStart,
   },
+}));
+
+vi.mock('../../../server/websocket/index.js', () => ({
+  setupWebSocketServers: mockSetupWebSocketServers,
 }));
 
 const ENV_KEYS = [

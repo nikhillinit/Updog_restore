@@ -2,10 +2,12 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import express from 'express';
 import request from 'supertest';
 
-const { mockRegisterCompletionHandlers, mockAutomationStart } = vi.hoisted(() => ({
-  mockRegisterCompletionHandlers: vi.fn(),
-  mockAutomationStart: vi.fn(),
-}));
+const { mockRegisterCompletionHandlers, mockAutomationStart, mockSetupWebSocketServers } =
+  vi.hoisted(() => ({
+    mockRegisterCompletionHandlers: vi.fn(),
+    mockAutomationStart: vi.fn(),
+    mockSetupWebSocketServers: vi.fn(),
+  }));
 
 vi.mock('../../../server/services/calc-run-completion-handlers.js', () => ({
   registerCompletionHandlers: mockRegisterCompletionHandlers,
@@ -15,6 +17,10 @@ vi.mock('../../../server/services/variance-alert-automation.js', () => ({
   varianceAlertAutomationService: {
     start: mockAutomationStart,
   },
+}));
+
+vi.mock('../../../server/websocket/index.js', () => ({
+  setupWebSocketServers: mockSetupWebSocketServers,
 }));
 
 describe('registerRoutes automation startup', () => {
@@ -46,6 +52,7 @@ describe('registerRoutes automation startup', () => {
 
     expect(mockRegisterCompletionHandlers).toHaveBeenCalledTimes(1);
     expect(mockAutomationStart).toHaveBeenCalledTimes(1);
+    expect(mockSetupWebSocketServers).toHaveBeenCalledTimes(1);
   }, 30_000);
 
   it('mounts the deal pipeline router on the registerRoutes surface', async () => {

@@ -2,13 +2,17 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import express from 'express';
 import request from 'supertest';
 
-const { mockRecordHttpMetrics, mockRegisterCompletionHandlers, mockAutomationStart } = vi.hoisted(
-  () => ({
-    mockRecordHttpMetrics: vi.fn(),
-    mockRegisterCompletionHandlers: vi.fn(),
-    mockAutomationStart: vi.fn(),
-  })
-);
+const {
+  mockRecordHttpMetrics,
+  mockRegisterCompletionHandlers,
+  mockAutomationStart,
+  mockSetupWebSocketServers,
+} = vi.hoisted(() => ({
+  mockRecordHttpMetrics: vi.fn(),
+  mockRegisterCompletionHandlers: vi.fn(),
+  mockAutomationStart: vi.fn(),
+  mockSetupWebSocketServers: vi.fn(),
+}));
 
 vi.mock('../../../server/metrics', async () => {
   const actual =
@@ -27,6 +31,10 @@ vi.mock('../../../server/services/variance-alert-automation.js', () => ({
   varianceAlertAutomationService: {
     start: mockAutomationStart,
   },
+}));
+
+vi.mock('../../../server/websocket/index.js', () => ({
+  setupWebSocketServers: mockSetupWebSocketServers,
 }));
 
 describe('route metrics registration', () => {

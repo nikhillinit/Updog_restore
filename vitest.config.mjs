@@ -42,8 +42,11 @@ export default defineConfig({
     teardownTimeout: 5000,
     retry: process.env['CI'] ? 2 : 0,
     pool: 'threads', // Try threads instead of forks for React 18
-    // CI optimization: Reduce worker count to fix memory mode failures
-    ...(process.env['CI'] ? { maxWorkers: 4 } : {}),
+    // Bound worker count. Several route-surface tests import the full API
+    // tree; too many concurrent transforms make timeout assertions depend on
+    // machine contention instead of behavior. CI runners tolerate 4 workers;
+    // local (Windows) runs stay at 2.
+    ...(process.env['CI'] ? { maxWorkers: 4 } : { maxWorkers: 2 }),
     // Setup file for global mocks (Sentry, etc.)
     setupFiles: [testPaths.vitestSetup],
     coverage: {
@@ -89,6 +92,9 @@ export default defineConfig({
         test: {
           name: 'server',
           environment: 'node',
+          testTimeout: 30000,
+          hookTimeout: 20000,
+          teardownTimeout: 5000,
           globalTeardown: testPaths.globalTeardown,
           // Unit tests only - integration/api tests run via vitest.config.int.ts
           // Also includes reflection system regression tests
@@ -115,6 +121,9 @@ export default defineConfig({
         test: {
           name: 'client',
           environment: 'jsdom',
+          testTimeout: 30000,
+          hookTimeout: 20000,
+          teardownTimeout: 5000,
           // Simplified: All .test.tsx files run in jsdom environment
           include: ['tests/unit/**/*.test.tsx'],
           exclude: [

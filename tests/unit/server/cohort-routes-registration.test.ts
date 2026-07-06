@@ -14,6 +14,7 @@ const {
   resetMockDb,
   mockRegisterCompletionHandlers,
   mockAutomationStart,
+  mockSetupWebSocketServers,
 } = vi.hoisted(() => {
   const selectResults: unknown[][] = [];
 
@@ -47,6 +48,7 @@ const {
     },
     mockRegisterCompletionHandlers: vi.fn(),
     mockAutomationStart: vi.fn(),
+    mockSetupWebSocketServers: vi.fn(),
   };
 });
 
@@ -88,6 +90,10 @@ vi.mock('../../../server/services/variance-alert-automation.js', () => ({
   varianceAlertAutomationService: {
     start: mockAutomationStart,
   },
+}));
+
+vi.mock('../../../server/websocket/index.js', () => ({
+  setupWebSocketServers: mockSetupWebSocketServers,
 }));
 
 describe('cohort routes on registerRoutes surface', () => {
