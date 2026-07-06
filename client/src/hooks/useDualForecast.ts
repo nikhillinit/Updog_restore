@@ -1,6 +1,9 @@
 import type { UseQueryResult } from '@tanstack/react-query';
 import { useQuery } from '@tanstack/react-query';
-import type { DualForecastResponse } from '@shared/types/dual-forecast';
+import {
+  DualForecastResponseSchema,
+  type DualForecastResponse,
+} from '@shared/contracts/dual-forecast/dual-forecast-response.contract';
 import { getErrorMessage } from '@/lib/http-response';
 
 interface UseDualForecastOptions {
@@ -33,7 +36,10 @@ export function useDualForecast(
         );
       }
 
-      return response.json() as Promise<DualForecastResponse>;
+      // Ingress contract parse (ADR-031): validate instead of casting so a
+      // malformed payload surfaces as a query error, not a render-time crash.
+      const payload: unknown = await response.json();
+      return DualForecastResponseSchema.parse(payload);
     },
     enabled: enabled && fundId != null,
     // Keep the client freshness window aligned with the route Cache-Control max-age.

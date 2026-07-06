@@ -21,11 +21,13 @@ import type {
   UnifiedFundMetrics,
 } from '@shared/types/metrics';
 import type {
+  DualForecastActualsFacts,
   DualForecastConfigMetadata,
   DualForecastMetrics,
   DualForecastPoint,
   DualForecastResponse,
-} from '@shared/types/dual-forecast';
+} from '@shared/contracts/dual-forecast/dual-forecast-response.contract';
+import { buildFundCompanyActualsFacts } from './fund-actuals/fund-company-actuals-facts-service';
 import { ActualMetricsCalculator } from './actual-metrics-calculator';
 import { ProjectedMetricsCalculator } from './projected-metrics-calculator';
 import { VarianceCalculator } from './variance-calculator';
@@ -379,6 +381,7 @@ export class MetricsAggregator {
         config.fundSizeOverride != null ? { ...fund, size: String(config.fundSizeOverride) } : fund;
 
       const actual = await this.actualCalculator.calculate(fundId);
+      const actualsFacts = await this.fetchActualsFactsBlock(fundId, actual.asOfDate, warnings);
       const constructionStartIndex = this.getElapsedQuarterIndex(
         effectiveFund.establishmentDate ?? effectiveFund.createdAt,
         actual.asOfDate
@@ -425,6 +428,7 @@ export class MetricsAggregator {
           actual: 'actual_metrics_calculator',
         },
         config: metadata,
+        actualsFacts,
         warnings,
       };
     } catch (error) {
@@ -440,6 +444,49 @@ export class MetricsAggregator {
         'aggregator',
         error
       );
+    }
+  }
+
+  /**
+   * PR-1 shadow read (ADR-031): fetch Round/FMV actuals facts through the
+   * sanctioned service seam and surface provenance only - the numeric series
+   * are unchanged until the PR-2 blend. A facts failure discloses through the
+   * warnings array and never blocks the read surface (ADR-028).
+   */
+  private async fetchActualsFactsBlock(
+    fundId: number,
+    asOfDateTime: string,
+    warnings: string[]
+  ): Promise<DualForecastActualsFacts | null> {
+    try {
+      const facts = await buildFundCompanyActualsFacts({
+        fundId,
+        asOfDate: asOfDateTime.slice(0, 10),
+      });
+      return {
+        asOfDate: facts.asOfDate,
+        generatedAt: facts.generatedAt,
+        inputHash: facts.inputHash,
+        companies: facts.facts.map((fact) => ({
+          companyId: fact.companyId,
+          companyName: fact.companyName,
+          trustState: fact.provenance.trustState,
+          planningFmvStatus: fact.planningFmvStatus,
+          currency: fact.currency,
+          currencyStatus: fact.currencyStatus,
+          latestRoundDate: fact.latestRoundDate,
+          latestRoundValuation: fact.latestRoundValuation,
+          latestPlanningFmvDate: fact.latestPlanningFmvDate,
+          latestPlanningFmvValue: fact.latestPlanningFmvValue,
+          warnings: fact.warnings,
+        })),
+        warnings: facts.facts.flatMap((fact) => fact.warnings),
+      };
+    } catch (error) {
+      warnings.push(
+        `Actuals facts unavailable: ${error instanceof Error ? error.message : 'Unknown error'}`
+      );
+      return null;
     }
   }
 

@@ -52,7 +52,7 @@ The plan integrates a **Scenario Analysis** feature with two main tabs:
 
 ### Key Technical Decisions:
 1. **Math utilities** (\`shared/utils/scenario-math.ts\`): \`safeDiv\`, \`deltas\`, \`weighted\`, \`normalizeProbabilities\` using decimal.js
-2. **Shared types**: \`shared/types/dual-forecast.ts\` for fund forecasts; \`shared/types/scenario.ts\` for \`ScenarioCase\` and \`WeightedSummary\`
+2. **Shared types**: \`shared/contracts/dual-forecast/dual-forecast-response.contract.ts\` for fund forecasts; \`shared/types/scenario.ts\` for \`ScenarioCase\` and \`WeightedSummary\`
 3. **Database**: New tables \`scenarios\` and \`scenario_cases\`
 4. **Validation**: Probability sum checking (soft warning + auto-normalize, optional strict mode)
 5. **Navigation**: Replace \`/scenario-builder\` with \`/scenario-analysis\` in sidebar
