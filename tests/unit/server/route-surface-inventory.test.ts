@@ -8,10 +8,12 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { isPublicApiPath } from '../../../server/lib/public-api-boundary';
 
-const { mockRegisterCompletionHandlers, mockAutomationStart } = vi.hoisted(() => ({
-  mockRegisterCompletionHandlers: vi.fn(),
-  mockAutomationStart: vi.fn(),
-}));
+const { mockRegisterCompletionHandlers, mockAutomationStart, mockSetupWebSocketServers } =
+  vi.hoisted(() => ({
+    mockRegisterCompletionHandlers: vi.fn(),
+    mockAutomationStart: vi.fn(),
+    mockSetupWebSocketServers: vi.fn(),
+  }));
 
 vi.mock('../../../server/services/calc-run-completion-handlers.js', () => ({
   registerCompletionHandlers: mockRegisterCompletionHandlers,
@@ -21,6 +23,10 @@ vi.mock('../../../server/services/variance-alert-automation.js', () => ({
   varianceAlertAutomationService: {
     start: mockAutomationStart,
   },
+}));
+
+vi.mock('../../../server/websocket/index.js', () => ({
+  setupWebSocketServers: mockSetupWebSocketServers,
 }));
 
 type SurfaceStatus =
