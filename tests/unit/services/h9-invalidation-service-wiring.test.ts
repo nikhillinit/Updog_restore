@@ -14,6 +14,8 @@ vi.mock('../../../server/services/h9-artifact-invalidation-service', () => ({
 import { createRound } from '../../../server/services/investments/investment-round-service';
 import { updateFundMoicInputs } from '../../../server/services/fund-moic-input-service';
 import { updateFundMoicCalculationMode } from '../../../server/services/fund-calculation-mode-service';
+import { createPlanningFmvOverride } from '../../../server/services/lp-reporting/planning-fmv-override-service';
+import { canonicalSha256 } from '@shared/lib/canonical-hash';
 
 const FUND_ID = 7;
 
@@ -164,6 +166,169 @@ describe('updateFundMoicCalculationMode -> H9 invalidation wiring', () => {
 
   it('does NOT invalidate on an idempotent replay', async () => {
     await updateFundMoicCalculationMode({ ...params(), database: transactionDb(true) as never });
+
+    expect(invalidateH9Artifacts).not.toHaveBeenCalled();
+  });
+});
+
+// ---- Planning-FMV marks: createPlanningFmvOverride --------------------------
+
+function planningFmvInput() {
+  return {
+    fundId: FUND_ID,
+    idempotencyKey: 'idem-planning-mark',
+    actor: { userId: 1 },
+    body: {
+      companyId: 1,
+      markDate: '2026-06-01',
+      fairValue: '1000000',
+      currency: 'USD' as const,
+      confidenceLevel: 'medium' as const,
+      reason: 'quarterly planning update',
+      source: {
+        allocationVersion: 1,
+        plannedReservesCents: 1000000,
+        allocationReason: 'quarterly planning update',
+      },
+    },
+  };
+}
+
+function planningFmvMark(overrides: Record<string, unknown> = {}) {
+  return {
+    id: 101,
+    fundId: FUND_ID,
+    companyId: 1,
+    markDate: '2026-06-01',
+    asOfDate: '2026-06-01',
+    fairValue: '1000000',
+    currency: 'USD',
+    confidenceLevel: 'medium',
+    status: 'approved',
+    priorMarkId: null,
+    methodologyNotes: 'quarterly planning update',
+    approvedBy: 1,
+    approvedAt: '2026-06-01T00:00:00.000Z',
+    createdAt: '2026-06-01T00:00:00.000Z',
+    ...overrides,
+  };
+}
+
+function planningFmvResponse(overrides: Record<string, unknown> = {}) {
+  return {
+    requestId: 501,
+    idempotencyKey: 'idem-planning-mark',
+    replayed: false,
+    valuationMark: planningFmvMark(),
+    ...overrides,
+  };
+}
+
+function pendingPlanningFmvRequest(overrides: Record<string, unknown> = {}) {
+  return {
+    id: 501,
+    fundId: FUND_ID,
+    companyId: 1,
+    valuationMarkId: null,
+    idempotencyKey: 'idem-planning-mark',
+    requestHash: 'pending-request-hash',
+    sourceHash: 'pending-source-hash',
+    status: 'pending',
+    responseBody: null,
+    failureCode: null,
+    failureMessage: null,
+    createdBy: 1,
+    createdAt: new Date('2026-06-01T00:00:00.000Z'),
+    completedAt: null,
+    updatedAt: new Date('2026-06-01T00:00:00.000Z'),
+    ...overrides,
+  };
+}
+
+function completedPlanningFmvRequest(overrides: Record<string, unknown> = {}) {
+  const input = planningFmvInput();
+
+  return pendingPlanningFmvRequest({
+    valuationMarkId: 101,
+    requestHash: canonicalSha256({ fundId: input.fundId, body: input.body }),
+    status: 'completed',
+    responseBody: planningFmvResponse(),
+    completedAt: new Date('2026-06-01T00:00:00.000Z'),
+    ...overrides,
+  });
+}
+
+function planningFmvDb(opts: {
+  insertReturns: unknown[];
+  existing?: unknown[];
+  transactionResult?: unknown;
+  transactionError?: Error;
+}) {
+  return {
+    insert: vi.fn(() => ({
+      values: vi.fn(() => ({
+        onConflictDoNothing: vi.fn(() => ({
+          returning: vi.fn(async () => opts.insertReturns),
+        })),
+      })),
+    })),
+    select: vi.fn(() => ({
+      from: vi.fn(() => ({
+        where: vi.fn(() => ({
+          limit: vi.fn(async () => opts.existing ?? []),
+        })),
+      })),
+    })),
+    update: vi.fn(() => ({
+      set: vi.fn(() => ({
+        where: vi.fn(async () => undefined),
+      })),
+    })),
+    transaction: vi.fn(async () => {
+      if (opts.transactionError) {
+        throw opts.transactionError;
+      }
+      return opts.transactionResult;
+    }),
+  };
+}
+
+describe('createPlanningFmvOverride -> H9 invalidation wiring', () => {
+  it('invalidates H9 artifacts when a new Planning FMV mark is written', async () => {
+    const result = await createPlanningFmvOverride(planningFmvInput(), {
+      database: planningFmvDb({
+        insertReturns: [pendingPlanningFmvRequest()],
+        transactionResult: planningFmvResponse(),
+      }) as never,
+    });
+
+    expect(result.replayed).toBe(false);
+    expect(invalidateH9Artifacts).toHaveBeenCalledWith(FUND_ID);
+  });
+
+  it('does NOT invalidate on an idempotent replay (no mark written)', async () => {
+    const result = await createPlanningFmvOverride(planningFmvInput(), {
+      database: planningFmvDb({
+        insertReturns: [],
+        existing: [completedPlanningFmvRequest()],
+      }) as never,
+    });
+
+    expect(result.replayed).toBe(true);
+    expect(invalidateH9Artifacts).not.toHaveBeenCalled();
+  });
+
+  it('does NOT invalidate when the mark write fails', async () => {
+    const writeError = new Error('Planning FMV write failed');
+
+    await expect(
+      createPlanningFmvOverride(planningFmvInput(), {
+        database: planningFmvDb({
+          insertReturns: [pendingPlanningFmvRequest()],
+          transactionError: writeError,
+        }) as never,
+      })
+    ).rejects.toBe(writeError);
 
     expect(invalidateH9Artifacts).not.toHaveBeenCalled();
   });

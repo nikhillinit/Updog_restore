@@ -21,6 +21,7 @@ import {
   type ValuationMark,
 } from '@shared/schema/lp-reporting-evidence';
 import { portfolioCompanies } from '@shared/schema/portfolio';
+import { invalidateH9Artifacts } from '../h9-artifact-invalidation-service';
 import { selectActiveValuationMarks } from './active-valuation-mark-selector';
 import type { ConfidenceLevel, MarkStatus, ParsedValuationMark } from './metrics-engine';
 
@@ -435,7 +436,9 @@ export async function createPlanningFmvOverride(
   }
 
   try {
-    return await writePlanningFmvMark(database, input, pending, sourceHash);
+    const response = await writePlanningFmvMark(database, input, pending, sourceHash);
+    await invalidateH9Artifacts(input.fundId);
+    return response;
   } catch (error) {
     const mappedError =
       error instanceof PlanningFmvOverrideError

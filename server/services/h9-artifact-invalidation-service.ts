@@ -7,9 +7,9 @@ const log = logger.child({ service: 'h9-artifact-invalidation' });
  * H9 artifact invalidation seam.
  *
  * Source-mutation sites (rounds, investments, MOIC inputs, reconciliations,
- * calculation-mode changes, realized proceeds) call this AFTER a successful
- * write so stale current/actionable artifacts cannot be reused, cached, or
- * exported after the source changed.
+ * calculation-mode changes, realized proceeds, Planning-FMV mark writes) call
+ * this AFTER a successful write so stale current/actionable artifacts cannot be
+ * reused, cached, or exported after the source changed.
  *
  * Today the only live fund-keyed cache is the 300s metrics cache, which is NOT
  * fingerprint-protected, so it must be busted explicitly on mutation. The
