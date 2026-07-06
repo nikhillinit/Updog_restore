@@ -212,6 +212,7 @@ function makeDualForecast() {
       publishedAt: '2026-03-01T00:00:00.000Z',
       fallbackReason: null,
     },
+    actualsFacts: null,
     warnings: [],
   };
 }
