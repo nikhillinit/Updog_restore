@@ -188,6 +188,8 @@ function expectedActualsFactsBlock(facts = factsFixture) {
       planningFmvStatus: fact.planningFmvStatus,
       currency: fact.currency,
       currencyStatus: fact.currencyStatus,
+      activeRoundIds: fact.activeRoundIds,
+      supersedeLineage: fact.supersedeLineage,
       latestRoundDate: fact.latestRoundDate,
       latestRoundValuation: fact.latestRoundValuation,
       latestPlanningFmvDate: fact.latestPlanningFmvDate,
@@ -725,6 +727,56 @@ describe('MetricsAggregator dual forecast', () => {
       expect(result.actualsFacts?.warnings).toEqual(
         expect.arrayContaining([expect.objectContaining({ code: 'CURRENCY_MISMATCH_BLOCK' })])
       );
+    });
+
+    it('ADR-032: a blocked superseded-round chain surfaces ids and lineage while its money stays out', async () => {
+      // Round 7 (EUR) supersedes round 5: the company is currency-blocked,
+      // the 999M mark is refused, but activeRoundIds + supersedeLineage
+      // must surface fully (ADR-032 decision 1).
+      buildFundCompanyActualsFactsMock.mockResolvedValue(
+        makeFacts({
+          allRounds: [
+            BASE_EQUITY_ROUND,
+            {
+              ...BASE_EQUITY_ROUND,
+              id: 7,
+              roundDate: '2026-02-15',
+              currency: 'EUR',
+              investmentAmount: '30000000.000000',
+              preMoneyValuation: '150000000.000000',
+              supersedesRoundId: 5,
+            },
+          ],
+          planningMarks: [
+            {
+              id: 301,
+              fundId: 1,
+              companyId: 10,
+              markDate: '2026-03-01',
+              fairValue: '999000000.000000',
+              currency: 'USD',
+              status: 'approved',
+            },
+          ],
+        })
+      );
+
+      const aggregator = new MetricsAggregator();
+      const result = await aggregator.getDualForecast(1);
+
+      expect(result.actualsFacts?.companies[0]).toMatchObject({
+        currencyStatus: 'mismatch_blocked',
+        activeRoundIds: [7],
+        supersedeLineage: [
+          { roundId: 5, supersedesRoundId: null },
+          { roundId: 7, supersedesRoundId: 5 },
+        ],
+      });
+      // Money refused: neither the 999M mark nor the 150M pre-money enters;
+      // the company descends to the legacy fallback.
+      expect(result.series[0]?.actual?.nav).toBe(10_000_000);
+      expect(result.navAnchoring?.blendedNav).toBe('10000000.000000');
+      expect(result.navAnchoring?.countsByTrustState).toEqual(trustCounts({ UNAVAILABLE: 1 }));
     });
 
     it('exited companies stay out of the NAV universe regardless of anchor state', async () => {

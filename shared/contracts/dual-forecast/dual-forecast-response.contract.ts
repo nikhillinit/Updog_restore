@@ -5,6 +5,7 @@ import { DatasetTrustStateSchema, StructuredWarningSchema } from '../provenance-
 import {
   FundCompanyActualsCurrencyStatusSchema,
   FundCompanyActualsPlanningFmvStatusSchema,
+  FundCompanyActualsSupersedeLineageSchema,
 } from '../fund-actuals/fund-company-actuals-fact.contract';
 
 /**
@@ -80,10 +81,12 @@ export const DualForecastPointSchema = z
   .strict();
 
 /**
- * PR-1 shadow-read provenance (ADR-031): per-company trust state and anchor
- * attribution copied verbatim from the facts contract - money stays decimal
- * strings, never parsed numbers. The numeric series are NOT derived from
- * these values until the PR-2 blend lands.
+ * Per-company facts provenance copied verbatim from the facts contract -
+ * money stays decimal strings, never parsed numbers (ADR-031). ADR-032
+ * decision 1 requires the non-monetary facts to surface FULLY even (and
+ * especially) for currency-blocked companies: `activeRoundIds` and
+ * `supersedeLineage` carry the round identity/lineage a blocked company
+ * still discloses while its monetary values are refused.
  */
 export const DualForecastActualsFactsCompanySchema = z
   .object({
@@ -93,6 +96,8 @@ export const DualForecastActualsFactsCompanySchema = z
     planningFmvStatus: FundCompanyActualsPlanningFmvStatusSchema,
     currency: CurrencyCodeSchema,
     currencyStatus: FundCompanyActualsCurrencyStatusSchema,
+    activeRoundIds: z.array(PositiveIdSchema),
+    supersedeLineage: z.array(FundCompanyActualsSupersedeLineageSchema),
     latestRoundDate: IsoDateSchema.nullable(),
     latestRoundValuation: DecimalStringSchema.nullable(),
     latestPlanningFmvDate: IsoDateSchema.nullable(),

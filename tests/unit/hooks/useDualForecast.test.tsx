@@ -83,6 +83,8 @@ const dualForecast = {
         planningFmvStatus: 'none',
         currency: 'USD',
         currencyStatus: 'base_currency',
+        activeRoundIds: [5],
+        supersedeLineage: [{ roundId: 5, supersedesRoundId: null }],
         latestRoundDate: '2026-01-15',
         latestRoundValuation: '120000000.000000',
         latestPlanningFmvDate: null,

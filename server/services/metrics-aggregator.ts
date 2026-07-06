@@ -489,6 +489,10 @@ export class MetricsAggregator {
           planningFmvStatus: fact.planningFmvStatus,
           currency: fact.currency,
           currencyStatus: fact.currencyStatus,
+          // ADR-032 decision 1: round ids and supersede lineage surface fully
+          // even when the company's monetary values are currency-blocked.
+          activeRoundIds: fact.activeRoundIds,
+          supersedeLineage: fact.supersedeLineage,
           latestRoundDate: fact.latestRoundDate,
           latestRoundValuation: fact.latestRoundValuation,
           latestPlanningFmvDate: fact.latestPlanningFmvDate,
