@@ -1,4 +1,4 @@
-import type { DualForecastPoint } from '@shared/types/dual-forecast';
+import type { DualForecastPoint } from '@shared/contracts/dual-forecast/dual-forecast-response.contract';
 
 type NameType = string | number;
 type ValueType = string | number | Array<string | number>;

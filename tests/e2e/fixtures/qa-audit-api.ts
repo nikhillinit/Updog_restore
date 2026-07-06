@@ -706,6 +706,7 @@ const DUAL_FORECAST_RESPONSE = {
     publishedAt: '2026-01-31T00:00:00.000Z',
     fallbackReason: null,
   },
+  actualsFacts: null,
   warnings: [],
 };
 
