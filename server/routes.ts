@@ -69,6 +69,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     { mountPath: '/api', load: () => import('./routes/allocation-scenarios.js') },
     { mountPath: '/api', load: () => import('./routes/planning-fmv-overrides.js') },
     { mountPath: '/api', load: () => import('./routes/fund-scenario-sets.js') },
+    { mountPath: '/api', load: () => import('./routes/fund-actuals.js') },
     { mountPath: '/api', load: () => import('./routes/allocations.js') },
     { mountPath: '/api', load: () => import('./routes/activities.js') },
     { mountPath: '/api', load: () => import('./routes/fund-metrics-legacy.js') },

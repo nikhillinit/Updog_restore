@@ -32,9 +32,13 @@ Current secondary-surface exposure is intentionally narrow:
   `enable_investment_rounds` flag remains off for production until explicit
   readiness gates are accepted
 - LP dashboard/profile widget routes are mounted in both active server surfaces.
-  LP Reporting export/download routes already exist and are authenticated, but
-  are not yet admin-only or watermarked, so they remain subject to
-  role/workflow/provenance qualification before production trust claims
+  LP Reporting Surface-A report-package JSON/CSV exports are
+  production-trust-qualified for the PRD #996 Surface-A scope: partner/admin
+  role gates, fund-scope checks, locked/exported workflow gates, H9/evidence
+  blockers, `h9Stamp`, and `contentHash` provenance are enforced. ADR-027 scopes
+  visual watermarking out for these machine-readable artifacts.
+  `/api/lp/reports/*` remains a separate LP report-center path and any future
+  PDF/report-center watermark requirement needs its own issue or PRD amendment.
 
 ## Development
 

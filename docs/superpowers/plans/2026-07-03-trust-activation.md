@@ -1,5 +1,26 @@
 # Current Main Trust Activation Implementation Plan
 
+> **Status:** EXECUTED/CLOSED for the PLAN(48) trust-activation scope.
+> **Closure update:** 2026-07-06 current-main rebaseline at
+> `34c9f1d715e634ef9075973a2e9f32a3df05c365` confirms the trust lane is
+> historical. Do not execute further modeling work from this plan. New modeling
+> work starts from the separate Round/FMV-derived actuals facts contract plan.
+
+## 2026-07-06 Current-Main Rebaseline
+
+- `origin/main` SHA `34c9f1d7` (PR #1014, MOIC dead-surface closeout).
+- CI Unified push run `28782325296`: success at this head.
+- Security Deep Scan push run `28782325330`: success (OWASP Dependency-Check,
+  Trivy filesystem and container scans, SBOM, license allowlist).
+- CodeQL push run `28782325373`: success.
+- GitHub Pages run `28782324701`: success at this head; the earlier Pages
+  deploy failure recorded at `ea9eef9b` is superseded and remains classified
+  documentation-site-only.
+- Security alert inventory: 0 open alerts as of the 2026-07-05 dependency
+  hygiene close (PR #1012). Local `gh api` security endpoints return 404
+  without security scopes, so the GitHub Security UI or a scoped token remains
+  the verification path.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use
 > `superpowers:subagent-driven-development` or `superpowers:executing-plans`
 > task-by-task. Steps use checkbox syntax for tracking.
