@@ -49,6 +49,15 @@ const dualForecast = {
         rvpi: 1.8,
         irr: 0.18,
       },
+      variance: {
+        nav: -1_000_000,
+        calledCapital: 0,
+        distributions: 0,
+        tvpi: -0.2,
+        dpi: 0,
+        rvpi: -0.2,
+        irr: -0.02,
+      },
     },
   ],
   sources: {
@@ -83,6 +92,21 @@ const dualForecast = {
     ],
     warnings: [factsWarning],
   },
+  navAnchoring: {
+    blendedNav: '9000000.000000',
+    countsByTrustState: { LIVE: 0, PARTIAL: 1, UNAVAILABLE: 0, FAILED: 0 },
+    companies: [
+      {
+        companyId: 10,
+        companyName: 'Northstar AI',
+        inNavUniverse: true,
+        trustState: 'PARTIAL',
+        anchor: 'legacy_current_valuation',
+        contribution: '9000000.000000',
+      },
+    ],
+  },
+  currentProjection: { status: 'projected', fallbackReason: null },
   warnings: [],
 };
 

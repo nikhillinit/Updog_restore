@@ -38,6 +38,39 @@ type PortfolioCompanyFactRow = {
   investmentDate?: Date | string | null;
 };
 
+function normalizeCompanyStatus(status: string | null | undefined): string {
+  return (status ?? 'active')
+    .trim()
+    .toLowerCase()
+    .replace(/[\s_]+/g, '-');
+}
+
+function isExitedCompany(company: Pick<PortfolioCompany, 'status'>): boolean {
+  const status = normalizeCompanyStatus(company.status);
+  return status === 'exited' || status === 'exit' || status === 'realized' || status === 'realised';
+}
+
+function isWrittenOffCompany(company: Pick<PortfolioCompany, 'status'>): boolean {
+  const status = normalizeCompanyStatus(company.status);
+  return (
+    status === 'written-off' ||
+    status === 'write-off' ||
+    status === 'writtenoff' ||
+    status === 'failed' ||
+    status === 'lost' ||
+    status === 'inactive'
+  );
+}
+
+/**
+ * NAV-universe classification. Exported because the dual-forecast blend
+ * (ADR-029) retains this exact live-company universe; any change here changes
+ * both surfaces by construction.
+ */
+export function isLivePortfolioCompany(company: Pick<PortfolioCompany, 'status'>): boolean {
+  return !isExitedCompany(company) && !isWrittenOffCompany(company);
+}
+
 export class ActualMetricsCalculator {
   /**
    * Calculate actual metrics from database records
@@ -174,33 +207,19 @@ export class ActualMetricsCalculator {
   }
 
   private normalizeCompanyStatus(status: string | null | undefined): string {
-    return (status ?? 'active')
-      .trim()
-      .toLowerCase()
-      .replace(/[\s_]+/g, '-');
+    return normalizeCompanyStatus(status);
   }
 
   private isExitedCompany(company: Pick<PortfolioCompany, 'status'>): boolean {
-    const status = this.normalizeCompanyStatus(company.status);
-    return (
-      status === 'exited' || status === 'exit' || status === 'realized' || status === 'realised'
-    );
+    return isExitedCompany(company);
   }
 
   private isWrittenOffCompany(company: Pick<PortfolioCompany, 'status'>): boolean {
-    const status = this.normalizeCompanyStatus(company.status);
-    return (
-      status === 'written-off' ||
-      status === 'write-off' ||
-      status === 'writtenoff' ||
-      status === 'failed' ||
-      status === 'lost' ||
-      status === 'inactive'
-    );
+    return isWrittenOffCompany(company);
   }
 
   private isLivePortfolioCompany(company: Pick<PortfolioCompany, 'status'>): boolean {
-    return !this.isExitedCompany(company) && !this.isWrittenOffCompany(company);
+    return isLivePortfolioCompany(company);
   }
 
   /**

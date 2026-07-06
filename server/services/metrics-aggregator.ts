@@ -22,13 +22,18 @@ import type {
 } from '@shared/types/metrics';
 import type {
   DualForecastActualsFacts,
+  DualForecastActualsFactsCompany,
   DualForecastConfigMetadata,
+  DualForecastCurrentProjection,
   DualForecastMetrics,
+  DualForecastNavAnchor,
+  DualForecastNavAnchorCompany,
+  DualForecastNavAnchoring,
   DualForecastPoint,
   DualForecastResponse,
 } from '@shared/contracts/dual-forecast/dual-forecast-response.contract';
 import { buildFundCompanyActualsFacts } from './fund-actuals/fund-company-actuals-facts-service';
-import { ActualMetricsCalculator } from './actual-metrics-calculator';
+import { ActualMetricsCalculator, isLivePortfolioCompany } from './actual-metrics-calculator';
 import { ProjectedMetricsCalculator } from './projected-metrics-calculator';
 import { VarianceCalculator } from './variance-calculator';
 import {
@@ -37,7 +42,7 @@ import {
 } from './construction-forecast-calculator';
 import { getFundAge, isConstructionPhase, type FundAge } from '@shared/lib/lifecycle-rules';
 import { funds, type Fund, type PortfolioCompany } from '@shared/schema';
-import { toDecimal } from '@shared/lib/decimal-utils';
+import { toDecimal, type Decimal } from '@shared/lib/decimal-utils';
 import { FundDraftWriteV1Schema } from '@shared/contracts/fund-draft-write-v1.contract';
 import { db } from '../db';
 import { eq } from 'drizzle-orm';
@@ -382,6 +387,10 @@ export class MetricsAggregator {
 
       const actual = await this.actualCalculator.calculate(fundId);
       const actualsFacts = await this.fetchActualsFactsBlock(fundId, actual.asOfDate, warnings);
+      // PR-2 blend (ADR-029/030/032): a null facts block means no blend - the
+      // series keeps the legacy calculator NAV, disclosed via warnings.
+      const navAnchoring = this.buildNavAnchoring(companies, actualsFacts);
+      const anchoredActual = navAnchoring ? this.applyNavAnchoring(actual, navAnchoring) : actual;
       const constructionStartIndex = this.getElapsedQuarterIndex(
         effectiveFund.establishmentDate ?? effectiveFund.createdAt,
         actual.asOfDate
@@ -390,6 +399,10 @@ export class MetricsAggregator {
 
       let projected: ProjectedMetrics;
       let currentProjectionStartIndex = 0;
+      let currentProjection: DualForecastCurrentProjection = {
+        status: 'projected',
+        fallbackReason: null,
+      };
       try {
         projected = await this.calculateProjectedMetrics(
           fund,
@@ -400,15 +413,15 @@ export class MetricsAggregator {
         );
         currentProjectionStartIndex = usesConstructionProjection ? constructionStartIndex + 1 : 0;
       } catch (error) {
-        warnings.push(
-          `Projected metrics calculation failed: ${error instanceof Error ? error.message : 'Unknown error'}`
-        );
+        const fallbackReason = error instanceof Error ? error.message : 'Unknown error';
+        warnings.push(`Projected metrics calculation failed: ${fallbackReason}`);
         projected = this.getDefaultProjectedMetrics(config);
+        currentProjection = { status: 'fallback_default', fallbackReason };
       }
 
       const constructionForecast = this.buildConstructionForecast(effectiveFund, config);
       const series = this.buildDualForecastSeries(
-        actual,
+        anchoredActual,
         projected,
         constructionForecast,
         toDecimal(effectiveFund.size),
@@ -429,6 +442,8 @@ export class MetricsAggregator {
         },
         config: metadata,
         actualsFacts,
+        navAnchoring,
+        currentProjection,
         warnings,
       };
     } catch (error) {
@@ -488,6 +503,141 @@ export class MetricsAggregator {
       );
       return null;
     }
+  }
+
+  /**
+   * PR-2 blend disclosure (ADR-029/030/032): per-company anchor attribution
+   * over the FULL portfolio read plus the ADR-030 per-trust-state count map
+   * over the facts companies. The NAV universe is exactly the live-company
+   * universe the legacy calculator uses (`isLivePortfolioCompany`); exited and
+   * written-off companies stay disclosed but contribute nothing.
+   */
+  private buildNavAnchoring(
+    companies: MetricsPortfolioCompany[],
+    actualsFacts: DualForecastActualsFacts | null
+  ): DualForecastNavAnchoring | null {
+    if (!actualsFacts) {
+      return null;
+    }
+
+    const countsByTrustState = { LIVE: 0, PARTIAL: 0, UNAVAILABLE: 0, FAILED: 0 };
+    for (const factCompany of actualsFacts.companies) {
+      countsByTrustState[factCompany.trustState] += 1;
+    }
+
+    const factsByCompanyId = new Map(
+      actualsFacts.companies.map((factCompany) => [factCompany.companyId, factCompany])
+    );
+    const portfolioCompanyIds = new Set(companies.map((company) => company.id));
+
+    let blendedNav = toDecimal(0);
+    const entries: DualForecastNavAnchorCompany[] = companies.map((company) => {
+      const fact = factsByCompanyId.get(company.id) ?? null;
+      if (!isLivePortfolioCompany(company)) {
+        return {
+          companyId: company.id,
+          companyName: company.name,
+          inNavUniverse: false,
+          trustState: fact?.trustState ?? null,
+          anchor: null,
+          contribution: null,
+        };
+      }
+
+      const { anchor, contribution } = this.resolveNavAnchor(company, fact);
+      blendedNav = blendedNav.plus(contribution);
+      return {
+        companyId: company.id,
+        companyName: company.name,
+        inNavUniverse: true,
+        trustState: fact?.trustState ?? null,
+        anchor,
+        contribution: contribution.toFixed(6),
+      };
+    });
+
+    // Facts can carry companies the portfolio read no longer returns; disclose
+    // them outside the NAV universe instead of dropping them silently.
+    for (const factCompany of actualsFacts.companies) {
+      if (!portfolioCompanyIds.has(factCompany.companyId)) {
+        entries.push({
+          companyId: factCompany.companyId,
+          companyName: factCompany.companyName,
+          inNavUniverse: false,
+          trustState: factCompany.trustState,
+          anchor: null,
+          contribution: null,
+        });
+      }
+    }
+
+    return {
+      blendedNav: blendedNav.toFixed(6),
+      countsByTrustState,
+      companies: entries,
+    };
+  }
+
+  /**
+   * ADR-029 anchor ladder. UNAVAILABLE/FAILED envelopes and currency-blocked
+   * companies contribute no facts-derived money (ADR-030/ADR-032) and descend
+   * to the legacy rungs. `latestRoundValuation` (pre-money) NEVER enters NAV.
+   */
+  private resolveNavAnchor(
+    company: MetricsPortfolioCompany,
+    fact: DualForecastActualsFactsCompany | null
+  ): { anchor: DualForecastNavAnchor; contribution: Decimal } {
+    const factsMoneyUsable =
+      fact !== null &&
+      fact.trustState !== 'UNAVAILABLE' &&
+      fact.trustState !== 'FAILED' &&
+      fact.currencyStatus !== 'mismatch_blocked';
+
+    if (factsMoneyUsable && fact.latestPlanningFmvValue !== null) {
+      if (fact.planningFmvStatus === 'active') {
+        return { anchor: 'planning_fmv', contribution: toDecimal(fact.latestPlanningFmvValue) };
+      }
+      if (fact.planningFmvStatus === 'stale') {
+        return {
+          anchor: 'planning_fmv_stale',
+          contribution: toDecimal(fact.latestPlanningFmvValue),
+        };
+      }
+    }
+
+    if (company.currentValuation != null) {
+      return {
+        anchor: 'legacy_current_valuation',
+        contribution: toDecimal(company.currentValuation),
+      };
+    }
+
+    return { anchor: 'none', contribution: toDecimal(0) };
+  }
+
+  /**
+   * Re-anchor the as-of Current/Actual point on the blended NAV (ADR-029).
+   * TVPI/RVPI mirror ActualMetricsCalculator semantics (0, not null, when no
+   * capital is called). DPI and IRR are cash-flow-derived and unchanged by a
+   * NAV re-anchor; IRR keeps the legacy calculator's terminal-value basis.
+   */
+  private applyNavAnchoring(
+    actual: ActualMetrics,
+    navAnchoring: DualForecastNavAnchoring
+  ): ActualMetrics {
+    const nav = toDecimal(navAnchoring.blendedNav);
+    const totalCalled = toDecimal(actual.totalCalled);
+    const totalValue = nav.plus(toDecimal(actual.totalDistributions));
+    const tvpi = totalCalled.gt(0) ? totalValue.div(totalCalled) : toDecimal(0);
+    const rvpi = totalCalled.gt(0) ? nav.div(totalCalled) : toDecimal(0);
+
+    return {
+      ...actual,
+      currentNAV: nav.toNumber(),
+      totalValue: totalValue.toNumber(),
+      tvpi: tvpi.toNumber(),
+      rvpi: rvpi.toNumber(),
+    };
   }
 
   /**
@@ -594,29 +744,57 @@ export class MetricsAggregator {
 
     return Array.from({ length: horizon }, (_, quarterIndex) => {
       const actualPoint = quarterIndex === 0 ? this.mapActualMetrics(actual) : null;
+      const construction = this.mapConstructionMetrics(
+        constructionForecast,
+        fundSize,
+        config,
+        constructionStartIndex + quarterIndex
+      );
+      const current =
+        actualPoint ??
+        this.mapCurrentForecastMetrics(
+          actual,
+          projected,
+          quarterIndex,
+          currentProjectionStartIndex
+        );
 
       return {
         quarterIndex,
         label: quarterIndex === 0 ? 'As of' : `Q+${quarterIndex}`,
         date: this.addQuarters(actual.asOfDate, quarterIndex),
-        construction: this.mapConstructionMetrics(
-          constructionForecast,
-          fundSize,
-          config,
-          constructionStartIndex + quarterIndex
-        ),
+        construction,
         actual: actualPoint,
         currentMode: quarterIndex === 0 ? 'actual' : 'forecast',
-        current:
-          actualPoint ??
-          this.mapCurrentForecastMetrics(
-            actual,
-            projected,
-            quarterIndex,
-            currentProjectionStartIndex
-          ),
+        current,
+        variance: this.mapVariance(current, construction),
       };
     });
+  }
+
+  /**
+   * PR-2 per-quarter Construction-vs-Current variance: `current` minus
+   * `construction`, null-propagating on the nullable ratios. Both inputs are
+   * already number-typed series values, so this is plain number arithmetic -
+   * no decimal strings are involved at this seam.
+   */
+  private mapVariance(
+    current: DualForecastMetrics,
+    construction: DualForecastMetrics
+  ): DualForecastMetrics {
+    return {
+      nav: current.nav - construction.nav,
+      calledCapital: current.calledCapital - construction.calledCapital,
+      distributions: current.distributions - construction.distributions,
+      tvpi: this.nullableDelta(current.tvpi, construction.tvpi),
+      dpi: this.nullableDelta(current.dpi, construction.dpi),
+      rvpi: this.nullableDelta(current.rvpi, construction.rvpi),
+      irr: this.nullableDelta(current.irr, construction.irr),
+    };
+  }
+
+  private nullableDelta(current: number | null, construction: number | null): number | null {
+    return current == null || construction == null ? null : current - construction;
   }
 
   private mapActualMetrics(actual: ActualMetrics): DualForecastMetrics {
