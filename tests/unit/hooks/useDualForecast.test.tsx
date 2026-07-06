@@ -3,6 +3,14 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { renderHook, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { useDualForecast } from '@/hooks/useDualForecast';
+import { DualForecastResponseSchema } from '@shared/contracts/dual-forecast/dual-forecast-response.contract';
+
+const factsWarning = {
+  code: 'PLANNING_FMV_MISSING',
+  severity: 'warning',
+  message: 'No approved planning FMV mark is available for this company.',
+  source: 'company:10',
+};
 
 const dualForecast = {
   fundId: 7,
@@ -53,6 +61,27 @@ const dualForecast = {
     version: 2,
     publishedAt: '2026-03-01T00:00:00.000Z',
     fallbackReason: null,
+  },
+  actualsFacts: {
+    asOfDate: '2026-04-01',
+    generatedAt: '2026-04-01T00:00:00.000Z',
+    inputHash: 'a1'.repeat(32),
+    companies: [
+      {
+        companyId: 10,
+        companyName: 'Northstar AI',
+        trustState: 'PARTIAL',
+        planningFmvStatus: 'none',
+        currency: 'USD',
+        currencyStatus: 'base_currency',
+        latestRoundDate: '2026-01-15',
+        latestRoundValuation: '120000000.000000',
+        latestPlanningFmvDate: null,
+        latestPlanningFmvValue: null,
+        warnings: [factsWarning],
+      },
+    ],
+    warnings: [factsWarning],
   },
   warnings: [],
 };
@@ -124,6 +153,21 @@ describe('useDualForecast', () => {
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
 
     expect(queryClient.getQueryData(['dual-forecast', 7])).toEqual(dualForecast);
+  });
+
+  it('uses a fixture that satisfies the response contract (fixture guard)', () => {
+    expect(DualForecastResponseSchema.parse(dualForecast)).toEqual(dualForecast);
+  });
+
+  it('surfaces a contract-invalid payload as a query error instead of caching it', async () => {
+    mockFetchJson({ ...dualForecast, fundId: 'twelve' });
+
+    const { result } = renderHook(() => useDualForecast(7, { retry: false }), {
+      wrapper: createWrapper(),
+    });
+
+    await waitFor(() => expect(result.current.isError).toBe(true));
+    expect(result.current.data).toBeUndefined();
   });
 
   it('surfaces API error messages', async () => {

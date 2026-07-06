@@ -31,6 +31,7 @@ vi.mock('../../../server/services/metrics-aggregator', () => ({
 }));
 
 import dualForecastRouter from '../../../server/routes/dual-forecast';
+import { DualForecastResponseSchema } from '@shared/contracts/dual-forecast/dual-forecast-response.contract';
 
 function makeApp() {
   const app = express();
@@ -39,30 +40,40 @@ function makeApp() {
   return app;
 }
 
+function dualForecastPayload() {
+  return {
+    fundId: 12,
+    fundName: 'Route Fund',
+    asOfDate: '2026-04-01T00:00:00.000Z',
+    series: [],
+    sources: {
+      construction: 'construction_forecast_jcurve',
+      current: 'projected_metrics_calculator',
+      actual: 'actual_metrics_calculator',
+    },
+    config: {
+      source: 'published',
+      version: 1,
+      publishedAt: '2026-03-01T00:00:00.000Z',
+      fallbackReason: null,
+    },
+    actualsFacts: null,
+    warnings: [],
+  };
+}
+
 describe('dual forecast route', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     authCalls.length = 0;
     accessCalls.length = 0;
     accessMode.value = 'allow';
-    getDualForecastMock.mockResolvedValue({
-      fundId: 12,
-      fundName: 'Route Fund',
-      asOfDate: '2026-04-01T00:00:00.000Z',
-      series: [],
-      sources: {
-        construction: 'construction_forecast_jcurve',
-        current: 'projected_metrics_calculator',
-        actual: 'actual_metrics_calculator',
-      },
-      config: {
-        source: 'published',
-        version: 1,
-        publishedAt: '2026-03-01T00:00:00.000Z',
-        fallbackReason: null,
-      },
-      warnings: [],
-    });
+    getDualForecastMock.mockResolvedValue(dualForecastPayload());
+  });
+
+  it('serves a mocked payload that satisfies the response contract (fixture guard)', () => {
+    const payload = dualForecastPayload();
+    expect(DualForecastResponseSchema.parse(payload)).toEqual(payload);
   });
 
   it('returns the dual forecast for an authorized fund request', async () => {
@@ -110,6 +121,17 @@ describe('dual forecast route', () => {
 
     expect(response.body).toEqual({ error: 'forbidden' });
     expect(getDualForecastMock).not.toHaveBeenCalled();
+  });
+
+  it('returns 500 CONTRACT_VIOLATION when the aggregator emits a contract-invalid payload', async () => {
+    getDualForecastMock.mockResolvedValue({ ...dualForecastPayload(), fundName: 123 });
+
+    const response = await request(makeApp()).get('/api/funds/12/dual-forecast').expect(500);
+
+    expect(response.body).toMatchObject({
+      error: 'CONTRACT_VIOLATION',
+      message: 'Dual forecast response failed contract validation',
+    });
   });
 
   it('maps missing fund errors to 404', async () => {

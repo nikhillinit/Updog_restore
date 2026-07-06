@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import type { DualForecastPoint } from '@shared/types/dual-forecast';
+import type { DualForecastPoint } from '@shared/contracts/dual-forecast/dual-forecast-response.contract';
 import {
   buildForecastChartPoints,
   describeDriftDirection,

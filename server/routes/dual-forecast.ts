@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import type { NextFunction, Request, Response } from 'express';
 import { metricsAggregator } from '../services/metrics-aggregator';
+import { DualForecastResponseSchema } from '@shared/contracts/dual-forecast/dual-forecast-response.contract';
 import type { MetricsCalculationError } from '@shared/types/metrics';
 import { toNumber } from '@shared/number';
 import { requireAuth, requireFundAccess } from '../lib/auth/jwt';
@@ -36,9 +37,20 @@ router['get'](
 
       const dualForecast = await metricsAggregator.getDualForecast(fundId);
 
+      // Egress contract parse (ADR-031): a contract-invalid payload is a
+      // defect, not staleness, so it fails loudly instead of shipping.
+      const parsed = DualForecastResponseSchema.safeParse(dualForecast);
+      if (!parsed.success) {
+        routeLog.error('Dual forecast contract violation:', parsed.error);
+        return res.status(500).json({
+          error: 'CONTRACT_VIOLATION',
+          message: 'Dual forecast response failed contract validation',
+        });
+      }
+
       res.setHeader('Content-Type', 'application/json');
       res.setHeader('Cache-Control', 'private, max-age=60');
-      return res.json(dualForecast);
+      return res.json(parsed.data);
     } catch (error) {
       routeLog.error('Dual forecast API error:', error);
 
