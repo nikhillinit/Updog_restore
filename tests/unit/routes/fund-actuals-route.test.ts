@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import express from 'express';
+import type { Server } from 'http';
 import request from 'supertest';
 
 const AUTH_MODULE = '../../../server/lib/auth/jwt';
@@ -32,14 +33,31 @@ const ENV_KEYS = [
   'SESSION_SECRET',
 ] as const;
 
-const { buildFundCompanyActualsFactsMock, authCalls, accessCalls, accessMode } = vi.hoisted(
-  () => ({
+const {
+  buildFundCompanyActualsFactsMock,
+  authCalls,
+  accessCalls,
+  accessMode,
+  mockRegisterCompletionHandlers,
+  mockAutomationStart,
+} = vi.hoisted(() => ({
     buildFundCompanyActualsFactsMock: vi.fn(),
     authCalls: [] as string[],
     accessCalls: [] as string[],
     accessMode: { value: 'allow' as 'allow' | 'deny' },
-  })
-);
+    mockRegisterCompletionHandlers: vi.fn(),
+    mockAutomationStart: vi.fn(),
+  }));
+
+vi.mock('../../../server/services/calc-run-completion-handlers.js', () => ({
+  registerCompletionHandlers: mockRegisterCompletionHandlers,
+}));
+
+vi.mock('../../../server/services/variance-alert-automation.js', () => ({
+  varianceAlertAutomationService: {
+    start: mockAutomationStart,
+  },
+}));
 
 const originalEnv = new Map<string, string | undefined>();
 
@@ -166,6 +184,17 @@ async function makeRouteApp() {
   return app;
 }
 
+async function closeServer(server: Server) {
+  await new Promise<void>((resolve, reject) => {
+    if (!server.listening) {
+      resolve();
+      return;
+    }
+
+    server.close((error) => (error ? reject(error) : resolve()));
+  });
+}
+
 describe('fund actuals facts route', () => {
   beforeEach(() => {
     saveEnv();
@@ -282,5 +311,31 @@ describe('fund actuals facts route', () => {
       error: 'Invalid parameter',
     });
     expect(buildFundCompanyActualsFactsMock).not.toHaveBeenCalled();
+  }, 30_000);
+
+  it('keeps the actuals facts route mounted on the registerRoutes API surface', async () => {
+    vi.doUnmock(AUTH_MODULE);
+    vi.doUnmock(SERVICE_MODULE);
+    vi.resetModules();
+    configureTestAuthEnv();
+
+    const app = express();
+    app.set('trust proxy', false);
+    app.use(express.json({ limit: '1mb' }));
+    const { registerRoutes } = await import('../../../server/routes');
+    const server = await registerRoutes(app);
+
+    try {
+      const response = await request(app)
+        .get('/api/funds/abc/actuals/facts')
+        .set('Authorization', await authorizationHeader())
+        .expect(400);
+
+      expect(response.body).toMatchObject({
+        error: 'Invalid parameter',
+      });
+    } finally {
+      await closeServer(server);
+    }
   }, 30_000);
 });

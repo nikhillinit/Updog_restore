@@ -71,6 +71,10 @@ const MAKEAPP_ROUTE_INVENTORY: Record<string, { kind: MountKind; tables?: string
       'investment_round_model_overrides',
     ],
   },
+  fundActualsRouter: {
+    kind: 'c1',
+    tables: ['valuation_marks', 'investment_rounds', 'investment_round_model_overrides'],
+  },
   reallocationRouter: { kind: 'other-table' },
   cashFlowEventsRouter: { kind: 'c1', tables: ['cash_flow_events'] },
   operatingObjectTasksRouter: { kind: 'c1', tables: ['tasks'] },

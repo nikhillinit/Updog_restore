@@ -190,6 +190,25 @@ function deriveActiveRounds(allRounds: RoundRow[]): RoundRow[] {
     });
 }
 
+function deriveAppliedOverrides(params: {
+  activeOverrides: ActiveOverrideRow[];
+  activeRoundIds: Iterable<number>;
+}): ActiveOverrideRow[] {
+  const activeRoundIds = new Set(params.activeRoundIds);
+  const roundOverrides = params.activeOverrides.filter((override) =>
+    activeRoundIds.has(override.roundId)
+  );
+  const supersededOverrideIds = new Set(
+    roundOverrides
+      .map((override) => override.supersedesOverrideId)
+      .filter((id): id is number => id !== null)
+  );
+
+  return roundOverrides
+    .filter((override) => !supersededOverrideIds.has(override.id))
+    .sort((left, right) => left.id - right.id);
+}
+
 function toRoundsEvidenceRows(params: {
   fundId: number;
   fund: FundRow;
@@ -405,6 +424,10 @@ export function buildFundCompanyActualsFactsFromRows(
       .map((mark) => ({ ...mark, markDate: isoDay(mark.markDate) }))
   );
   const activeRounds = deriveActiveRounds(fundRounds);
+  const appliedOverrides = deriveAppliedOverrides({
+    activeOverrides,
+    activeRoundIds: activeRounds.map((round) => round.id),
+  });
   const evidence = buildRoundsToModelEvidenceFromRows({
     fundId: params.fundId,
     now: params.now,
@@ -463,9 +486,10 @@ export function buildFundCompanyActualsFactsFromRows(
     const companyAllRounds = fundRounds.filter((round) =>
       companyInvestmentIds.has(round.investmentId)
     );
-    const companyOverrides = activeOverrides.filter((override) =>
-      companyActiveRoundIds.includes(override.roundId)
-    );
+    const companyOverrides = deriveAppliedOverrides({
+      activeOverrides,
+      activeRoundIds: companyActiveRoundIds,
+    });
     const selectedPlanningFmvMark = toSourcePlanningMark(
       selectedPlanningMarksByCompany.get(company.id)
     );
@@ -537,6 +561,7 @@ export function buildFundCompanyActualsFactsFromRows(
         asOfDate: params.asOfDate,
         baseCurrency: params.rows.fund.baseCurrency,
         activeRounds: companyActiveSourceRounds,
+        activeOverrides: companyOverrides,
         selectedPlanningFmvMark,
         parentInvestments: companyInvestments,
       }),
@@ -564,6 +589,7 @@ export function buildFundCompanyActualsFactsFromRows(
       asOfDate: params.asOfDate,
       baseCurrency: params.rows.fund.baseCurrency,
       activeRounds,
+      activeOverrides: appliedOverrides,
       selectedPlanningFmvMarks,
       parentInvestments: fundInvestments,
     }),

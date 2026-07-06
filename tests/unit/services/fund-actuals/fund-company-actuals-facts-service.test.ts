@@ -366,7 +366,7 @@ describe('buildFundCompanyActualsFactsFromRows', () => {
     expect(fact.latestRoundValuation).toBeNull();
   });
 
-  it('changes hashes for active round or selected planning mark changes and stays stable otherwise', () => {
+  it('changes hashes for active round, selected planning mark, or applied override changes', () => {
     const baseline = build();
     const baselineAgain = build();
     const roundChanged = build(
@@ -389,6 +389,20 @@ describe('buildFundCompanyActualsFactsFromRows', () => {
         ],
       })
     );
+    const overrideChanged = build(
+      createRows({
+        activeOverrides: [
+          {
+            id: 401,
+            fundId: FUND_ID,
+            roundId: 1,
+            overrideRole: 'follow_on',
+            supersedesOverrideId: null,
+            createdAt: new Date('2026-06-01T00:00:00.000Z'),
+          },
+        ],
+      })
+    );
 
     expect(factFor(baseline).inputHash).toBe(factFor(baselineAgain).inputHash);
     expect(baseline.inputHash).toBe(baselineAgain.inputHash);
@@ -396,6 +410,10 @@ describe('buildFundCompanyActualsFactsFromRows', () => {
     expect(roundChanged.inputHash).not.toBe(baseline.inputHash);
     expect(factFor(markChanged).inputHash).not.toBe(factFor(baseline).inputHash);
     expect(markChanged.inputHash).not.toBe(baseline.inputHash);
+    expect(factFor(overrideChanged).initialInvestmentAmount).toBe('0.000000');
+    expect(factFor(overrideChanged).followOnInvestmentAmount).toBe('500000.000000');
+    expect(factFor(overrideChanged).inputHash).not.toBe(factFor(baseline).inputHash);
+    expect(overrideChanged.inputHash).not.toBe(baseline.inputHash);
   });
 });
 
