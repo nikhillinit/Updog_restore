@@ -132,6 +132,15 @@ const ROUTE_DUAL_FORECAST = {
         rvpi: ROUTE_UNIFIED_METRICS.actual.rvpi,
         irr: ROUTE_UNIFIED_METRICS.actual.irr,
       },
+      variance: {
+        nav: 0,
+        calledCapital: 0,
+        distributions: 0,
+        tvpi: 0,
+        dpi: 0,
+        rvpi: 0,
+        irr: 0,
+      },
     },
     {
       quarterIndex: 1,
@@ -157,6 +166,15 @@ const ROUTE_DUAL_FORECAST = {
         rvpi: 2.77,
         irr: 0.185,
       },
+      variance: {
+        nav: -500_000,
+        calledCapital: -500_000,
+        distributions: -50_000,
+        tvpi: -0.06,
+        dpi: -0.01,
+        rvpi: -0.05,
+        irr: -0.005,
+      },
     },
     {
       quarterIndex: 2,
@@ -177,6 +195,15 @@ const ROUTE_DUAL_FORECAST = {
         nav: 50_000_000,
         calledCapital: 29_000_000,
         distributions: 1_800_000,
+        tvpi: null,
+        dpi: null,
+        rvpi: null,
+        irr: null,
+      },
+      variance: {
+        nav: -2_000_000,
+        calledCapital: 1_000_000,
+        distributions: -200_000,
         tvpi: null,
         dpi: null,
         rvpi: null,
@@ -207,6 +234,15 @@ const ROUTE_DUAL_FORECAST = {
         rvpi: null,
         irr: null,
       },
+      variance: {
+        nav: -8_000_000,
+        calledCapital: 5_000_000,
+        distributions: -500_000,
+        tvpi: null,
+        dpi: null,
+        rvpi: null,
+        irr: null,
+      },
     },
   ],
   sources: {
@@ -220,6 +256,9 @@ const ROUTE_DUAL_FORECAST = {
     publishedAt: '2026-01-31T00:00:00.000Z',
     fallbackReason: null,
   },
+  actualsFacts: null,
+  navAnchoring: null,
+  currentProjection: { status: 'projected', fallbackReason: null },
   warnings: [],
 };
 
