@@ -3,6 +3,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { cleanup, render, screen, waitFor } from '@testing-library/react';
 import DualForecastDashboard from '@/components/dashboard/dual-forecast-dashboard';
+import { DualForecastResponseSchema } from '@shared/contracts/dual-forecast/dual-forecast-response.contract';
 
 type MockFundContext = {
   currentFund: { id: number; name: string } | null;
@@ -124,6 +125,15 @@ function makeDualForecast() {
           rvpi: 1.4,
           irr: 0.18,
         },
+        variance: {
+          nav: 1_000_000,
+          calledCapital: 0,
+          distributions: 0,
+          tvpi: 0.2,
+          dpi: 0,
+          rvpi: 0.2,
+          irr: -0.02,
+        },
       },
       {
         quarterIndex: 1,
@@ -149,6 +159,15 @@ function makeDualForecast() {
           rvpi: 1.2,
           irr: 0.18,
         },
+        variance: {
+          nav: 1_000_000,
+          calledCapital: 500_000,
+          distributions: 500_000,
+          tvpi: 0.13,
+          dpi: 0.07,
+          rvpi: 0.06,
+          irr: -0.02,
+        },
       },
       {
         quarterIndex: 2,
@@ -168,6 +187,15 @@ function makeDualForecast() {
         current: {
           nav: 38_000_000,
           calledCapital: 26_000_000,
+          distributions: 0,
+          tvpi: null,
+          dpi: null,
+          rvpi: null,
+          irr: null,
+        },
+        variance: {
+          nav: -2_000_000,
+          calledCapital: 1_000_000,
           distributions: 0,
           tvpi: null,
           dpi: null,
@@ -199,6 +227,15 @@ function makeDualForecast() {
           rvpi: null,
           irr: null,
         },
+        variance: {
+          nav: -8_000_000,
+          calledCapital: 5_000_000,
+          distributions: 0,
+          tvpi: null,
+          dpi: null,
+          rvpi: null,
+          irr: null,
+        },
       },
     ],
     sources: {
@@ -213,11 +250,18 @@ function makeDualForecast() {
       fallbackReason: null,
     },
     actualsFacts: null,
+    navAnchoring: null,
+    currentProjection: { status: 'projected', fallbackReason: null },
     warnings: [],
   };
 }
 
 describe('DualForecastDashboard', () => {
+  it('uses a fixture that satisfies the response contract (fixture guard)', () => {
+    const fixture = makeDualForecast();
+    expect(DualForecastResponseSchema.parse(fixture)).toEqual(fixture);
+  });
+
   afterEach(() => {
     cleanup();
     vi.restoreAllMocks();

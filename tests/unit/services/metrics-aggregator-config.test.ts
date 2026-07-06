@@ -1,31 +1,34 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { isUnifiedFundMetrics } from '@shared/types/metrics';
 
-const {
-  storageMock,
-  actualCalculateMock,
-  projectedCalculateMock,
-  varianceCalculateMock,
-} = vi.hoisted(() => ({
-  storageMock: {
-    getFund: vi.fn(),
-    getPortfolioCompanies: vi.fn(),
-    getFundConfig: vi.fn(),
-  },
-  actualCalculateMock: vi.fn(),
-  projectedCalculateMock: vi.fn(),
-  varianceCalculateMock: vi.fn(),
-}));
+const { storageMock, actualCalculateMock, projectedCalculateMock, varianceCalculateMock } =
+  vi.hoisted(() => ({
+    storageMock: {
+      getFund: vi.fn(),
+      getPortfolioCompanies: vi.fn(),
+      getFundConfig: vi.fn(),
+    },
+    actualCalculateMock: vi.fn(),
+    projectedCalculateMock: vi.fn(),
+    varianceCalculateMock: vi.fn(),
+  }));
 
 vi.mock('../../../server/storage', () => ({
   storage: storageMock,
 }));
 
-vi.mock('../../../server/services/actual-metrics-calculator', () => ({
-  ActualMetricsCalculator: class {
-    calculate = actualCalculateMock;
-  },
-}));
+// Spread importOriginal so new module exports (e.g. isLivePortfolioCompany)
+// keep flowing to importers; only the class is replaced.
+vi.mock('../../../server/services/actual-metrics-calculator', async (importOriginal) => {
+  const original =
+    await importOriginal<typeof import('../../../server/services/actual-metrics-calculator')>();
+  return {
+    ...original,
+    ActualMetricsCalculator: class {
+      calculate = actualCalculateMock;
+    },
+  };
+});
 
 vi.mock('../../../server/services/projected-metrics-calculator', () => ({
   ProjectedMetricsCalculator: class {
@@ -82,23 +85,25 @@ describe('MetricsAggregator config-backed target metrics', () => {
       fundAgeMonths: 3,
     });
 
-    projectedCalculateMock.mockImplementation(async (_fund: unknown, _companies: unknown, config: any) => ({
-      asOfDate: '2026-04-01T00:00:00.000Z',
-      projectionDate: '2026-04-01T00:00:00.000Z',
-      projectedDeployment: Array(12).fill(0),
-      projectedDistributions: Array(12).fill(0),
-      projectedNAV: Array(12).fill(0),
-      expectedTVPI: config.targetTVPI ?? 2.5,
-      expectedIRR: config.targetIRR ?? 0.25,
-      expectedDPI: config.targetDPI ?? 1,
-      totalReserveNeeds: 0,
-      allocatedReserves: 0,
-      unallocatedReserves: 0,
-      reserveAllocationRate: 0,
-      deploymentPace: 'on-track',
-      quartersRemaining: 12,
-      recommendedQuarterlyDeployment: 0,
-    }));
+    projectedCalculateMock.mockImplementation(
+      async (_fund: unknown, _companies: unknown, config: any) => ({
+        asOfDate: '2026-04-01T00:00:00.000Z',
+        projectionDate: '2026-04-01T00:00:00.000Z',
+        projectedDeployment: Array(12).fill(0),
+        projectedDistributions: Array(12).fill(0),
+        projectedNAV: Array(12).fill(0),
+        expectedTVPI: config.targetTVPI ?? 2.5,
+        expectedIRR: config.targetIRR ?? 0.25,
+        expectedDPI: config.targetDPI ?? 1,
+        totalReserveNeeds: 0,
+        allocatedReserves: 0,
+        unallocatedReserves: 0,
+        reserveAllocationRate: 0,
+        deploymentPace: 'on-track',
+        quartersRemaining: 12,
+        recommendedQuarterlyDeployment: 0,
+      })
+    );
 
     varianceCalculateMock.mockImplementation((actual: any, projected: any, target: any) => ({
       deploymentVariance: {
@@ -209,9 +214,7 @@ describe('MetricsAggregator config-backed target metrics', () => {
       })
     );
     expect(result._status?.warnings ?? []).not.toEqual(
-      expect.arrayContaining([
-        expect.stringContaining('legacy generic targets'),
-      ])
+      expect.arrayContaining([expect.stringContaining('legacy generic targets')])
     );
   });
 
@@ -243,9 +246,7 @@ describe('MetricsAggregator config-backed target metrics', () => {
     expect(result.target.targetDeploymentYears).toBe(4);
     expect(result.projected.expectedIRR).toBe(0.25);
     expect(result._status?.warnings).toEqual(
-      expect.arrayContaining([
-        expect.stringContaining('has no targetMetrics block'),
-      ])
+      expect.arrayContaining([expect.stringContaining('has no targetMetrics block')])
     );
   });
 
@@ -312,9 +313,7 @@ describe('MetricsAggregator config-backed target metrics', () => {
     expect(result.target.targetIRR).toBe(0.25);
     expect(result.target.targetTVPI).toBe(2.5);
     expect(result._status?.warnings).toEqual(
-      expect.arrayContaining([
-        expect.stringContaining('invalid for target extraction'),
-      ])
+      expect.arrayContaining([expect.stringContaining('invalid for target extraction')])
     );
   });
 });

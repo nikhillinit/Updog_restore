@@ -668,6 +668,15 @@ const DUAL_FORECAST_RESPONSE = {
         rvpi: UNIFIED_METRICS.actual.rvpi,
         irr: UNIFIED_METRICS.actual.irr,
       },
+      variance: {
+        nav: 0,
+        calledCapital: 0,
+        distributions: 0,
+        tvpi: 0,
+        dpi: 0,
+        rvpi: 0,
+        irr: 0,
+      },
     },
     {
       quarterIndex: 1,
@@ -693,6 +702,15 @@ const DUAL_FORECAST_RESPONSE = {
         rvpi: 2.34,
         irr: 0.188,
       },
+      variance: {
+        nav: -500_000,
+        calledCapital: -500_000,
+        distributions: -50_000,
+        tvpi: -0.02,
+        dpi: 0,
+        rvpi: -0.02,
+        irr: -0.002,
+      },
     },
   ],
   sources: {
@@ -707,6 +725,8 @@ const DUAL_FORECAST_RESPONSE = {
     fallbackReason: null,
   },
   actualsFacts: null,
+  navAnchoring: null,
+  currentProjection: { status: 'projected', fallbackReason: null },
   warnings: [],
 };
 

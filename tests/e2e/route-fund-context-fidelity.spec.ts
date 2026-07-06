@@ -158,6 +158,15 @@ const FIDELITY_DUAL_FORECAST = {
         rvpi: FIDELITY_METRICS.actual.rvpi,
         irr: FIDELITY_METRICS.actual.irr,
       },
+      variance: {
+        nav: 0,
+        calledCapital: 0,
+        distributions: 0,
+        tvpi: 0,
+        dpi: 0,
+        rvpi: 0,
+        irr: 0,
+      },
     },
     {
       quarterIndex: 1,
@@ -183,6 +192,15 @@ const FIDELITY_DUAL_FORECAST = {
         rvpi: 2.34,
         irr: 0.188,
       },
+      variance: {
+        nav: -1_000_000,
+        calledCapital: -500_000,
+        distributions: -100_000,
+        tvpi: -0.05,
+        dpi: -0.01,
+        rvpi: -0.04,
+        irr: -0.002,
+      },
     },
   ],
   sources: {
@@ -196,6 +214,9 @@ const FIDELITY_DUAL_FORECAST = {
     publishedAt: '2026-02-01T00:00:00.000Z',
     fallbackReason: null,
   },
+  actualsFacts: null,
+  navAnchoring: null,
+  currentProjection: { status: 'projected', fallbackReason: null },
   warnings: [],
 };
 
