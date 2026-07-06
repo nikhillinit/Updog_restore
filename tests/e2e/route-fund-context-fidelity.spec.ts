@@ -1,4 +1,5 @@
 import { expect, test, type Page, type Route } from '@playwright/test';
+import { PortfolioOverviewResponseV1Schema } from '../../shared/contracts/portfolio-overview-v1.contract';
 
 const ROUTE_READY_TIMEOUT_MS = 60_000;
 const APP_BASE_URL = process.env.BASE_URL ?? 'http://localhost:4173';
@@ -220,6 +221,56 @@ const FIDELITY_DUAL_FORECAST = {
   warnings: [],
 };
 
+const FIDELITY_PORTFOLIO_OVERVIEW = PortfolioOverviewResponseV1Schema.parse({
+  fundId: FIDELITY_FUND.id,
+  generatedAt: FIDELITY_METRICS.actual.asOfDate,
+  currency: 'USD',
+  provenance: {
+    sourceKind: 'computed',
+    actionability: 'actionable',
+    sourceEngine: 'portfolio-overview',
+    engineVersion: 'route-fidelity-fixture@1',
+    inputHash: 'route-fund-context-fidelity-input',
+    assumptionsHash: 'route-fund-context-fidelity-assumptions',
+    generatedAt: FIDELITY_METRICS.actual.asOfDate,
+    sourceRoute: 'GET /api/portfolio-overview',
+    isFinanciallyActionable: true,
+    warnings: [],
+  },
+  sourceRecordCounts: {
+    funds: 1,
+    companies: FIDELITY_COMPANIES.length,
+    investments: FIDELITY_COMPANIES.length,
+    valuations: FIDELITY_COMPANIES.length,
+  },
+  metrics: {
+    totalInvested: String(FIDELITY_METRICS.actual.totalDeployed),
+    totalValue: String(FIDELITY_METRICS.actual.currentNAV),
+    averageMOIC: '2.7604790419161677',
+    returnPct: '176.04790419161677',
+    totalCompanies: FIDELITY_COMPANIES.length,
+    activeCompanies: FIDELITY_COMPANIES.length,
+    exitedCompanies: 0,
+  },
+  companies: FIDELITY_COMPANIES.map((company) => ({
+    id: company.id,
+    name: company.name,
+    sector: company.sector,
+    stage: company.stage,
+    status: company.status,
+    invested: String(company.invested),
+    currentValue: String(company.currentValue),
+    moic: String(company.moic),
+  })),
+  meta: {
+    mode: 'live',
+    requestedAsOf: null,
+    resolvedAsOf: null,
+    source: 'live',
+    historicalAvailable: false,
+  },
+});
+
 const EMPTY_VARIANCE_DASHBOARD = {
   success: true,
   data: {
@@ -414,6 +465,15 @@ async function installRouteFidelityApi(page: Page): Promise<RouteFidelityApiTrac
       (url.pathname === '/api/portfolio' || url.pathname === '/api/portfolio-companies')
     ) {
       await fulfillJson(route, FIDELITY_COMPANIES);
+      return;
+    }
+
+    if (
+      request.method() === 'GET' &&
+      url.pathname === '/api/portfolio-overview' &&
+      url.searchParams.get('fundId') === String(FIDELITY_FUND.id)
+    ) {
+      await fulfillJson(route, FIDELITY_PORTFOLIO_OVERVIEW);
       return;
     }
 
