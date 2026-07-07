@@ -69,6 +69,41 @@ function toIsoTimestamp(value: Date | string | null | undefined): string | null 
   return Number.isNaN(date.getTime()) ? null : date.toISOString();
 }
 
+type StoredFundMetrics = Awaited<ReturnType<IStorage['getFundMetrics']>>[number];
+
+function toEpoch(value: Date | string | null | undefined): number {
+  if (value == null) {
+    return Number.NEGATIVE_INFINITY;
+  }
+
+  const time = (value instanceof Date ? value : new Date(value)).getTime();
+  return Number.isNaN(time) ? Number.NEGATIVE_INFINITY : time;
+}
+
+// storage.getFundMetrics has no ORDER BY (and MemStorage returns insertion
+// order), so "last row" is arbitrary. Latest must be chosen here or the
+// evidence envelope can present a stale row as current provenance.
+function selectLatestMetrics(metrics: StoredFundMetrics[]): StoredFundMetrics | null {
+  let latest: StoredFundMetrics | null = null;
+
+  for (const row of metrics) {
+    if (latest === null) {
+      latest = row;
+      continue;
+    }
+
+    const byAsOf = toEpoch(row.asOfDate) - toEpoch(latest.asOfDate);
+    const byCreated = byAsOf !== 0 ? 0 : toEpoch(row.createdAt) - toEpoch(latest.createdAt);
+    const byId = byAsOf !== 0 || byCreated !== 0 ? 0 : row.id - latest.id;
+
+    if (byAsOf > 0 || byCreated > 0 || byId > 0) {
+      latest = row;
+    }
+  }
+
+  return latest;
+}
+
 function makeKpiEvidence(input: {
   fundId: number;
   source: string;
@@ -112,7 +147,7 @@ export async function getDashboardSummaryReadModel(
     return undefined;
   }
 
-  const latestMetrics = metrics.length > 0 ? (metrics[metrics.length - 1] ?? null) : null;
+  const latestMetrics = selectLatestMetrics(metrics);
   const recentActivities = activities.slice(0, 5);
 
   const fundSize = toNumber(fund.size || 0, 'fund size');

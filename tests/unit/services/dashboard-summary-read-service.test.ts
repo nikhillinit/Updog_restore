@@ -214,6 +214,51 @@ describe('dashboard summary read service evidence', () => {
     });
   });
 
+  it('selects the latest metrics row by asOfDate when storage returns unsorted rows', async () => {
+    const latest = makeMetric({
+      id: 2,
+      asOfDate: new Date('2026-05-01T00:00:00.000Z'),
+      createdAt: new Date('2026-05-02T00:00:00.000Z'),
+      totalValue: '6000000',
+      irr: '0.2100',
+    });
+    const stale = makeMetric({
+      id: 9,
+      asOfDate: new Date('2026-02-01T00:00:00.000Z'),
+      createdAt: new Date('2026-02-02T00:00:00.000Z'),
+      totalValue: '3000000',
+      irr: '0.0500',
+    });
+
+    const readModel = await getDashboardSummaryReadModel(
+      makeStore({ fund: makeFund(), metrics: [latest, stale] }),
+      7
+    );
+
+    expect(readModel?.metrics).toBe(latest);
+    expect(readModel?.summary.currentIRR).toBe(21);
+    expect(readModel?.evidence.kpis.currentAum.asOfDate).toBe('2026-05-01T00:00:00.000Z');
+  });
+
+  it('breaks asOfDate ties by createdAt, then id', async () => {
+    const older = makeMetric({ id: 30, createdAt: new Date('2026-04-02T00:00:00.000Z') });
+    const newer = makeMetric({ id: 20, createdAt: new Date('2026-04-03T00:00:00.000Z') });
+
+    const byCreated = await getDashboardSummaryReadModel(
+      makeStore({ fund: makeFund(), metrics: [newer, older] }),
+      7
+    );
+    expect(byCreated?.metrics).toBe(newer);
+
+    const idLow = makeMetric({ id: 5 });
+    const idHigh = makeMetric({ id: 6 });
+    const byId = await getDashboardSummaryReadModel(
+      makeStore({ fund: makeFund(), metrics: [idHigh, idLow] }),
+      7
+    );
+    expect(byId?.metrics).toBe(idHigh);
+  });
+
   it('returns undefined when the scoped fund does not exist', async () => {
     await expect(getDashboardSummaryReadModel(makeStore({}), 7)).resolves.toBeUndefined();
   });
