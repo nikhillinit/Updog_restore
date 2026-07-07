@@ -46,6 +46,9 @@ const MAKEAPP_ROUTE_INVENTORY: Record<string, { kind: MountKind; tables?: string
   aiRouter: { kind: 'non-table' },
   scenarioAnalysisRouter: { kind: 'other-table' },
   dualForecastRouter: { kind: 'other-table' },
+  // Reads fund_metrics/portfolio_companies/activities via IStorage (no direct DB
+  // writes, none in C1_MOUNTED_TABLES) — same posture as fundMetricsRouter (#1032).
+  dashboardSummaryRouter: { kind: 'other-table' },
   allocationsRouter: { kind: 'other-table' },
   allocationScenariosRouter: {
     kind: 'c1',
