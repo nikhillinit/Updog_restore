@@ -1,5 +1,6 @@
 import { expect, test, type Page, type Route } from '@playwright/test';
 import { PortfolioOverviewResponseV1Schema } from '../../shared/contracts/portfolio-overview-v1.contract';
+import { makeDashboardSummaryFixture } from './fixtures/dashboard-summary';
 import { makeDualForecastResponse } from './fixtures/qa-audit-api';
 
 const ROUTE_READY_TIMEOUT_MS = 60_000;
@@ -322,21 +323,22 @@ async function installRouteFidelityApi(page: Page): Promise<RouteFidelityApiTrac
       request.method() === 'GET' &&
       url.pathname === `/api/dashboard-summary/${FIDELITY_FUND.id}`
     ) {
-      await fulfillJson(route, {
-        fund: FIDELITY_FUND,
-        metrics: {
-          totalValue: FIDELITY_METRICS.actual.totalValue,
-          irr: FIDELITY_METRICS.actual.irr,
-          tvpi: FIDELITY_METRICS.actual.tvpi,
-          dpi: FIDELITY_METRICS.actual.dpi,
-        },
-        summary: {
+      await fulfillJson(
+        route,
+        makeDashboardSummaryFixture({
+          fund: FIDELITY_FUND,
+          metrics: {
+            totalValue: FIDELITY_METRICS.actual.totalValue,
+            irr: FIDELITY_METRICS.actual.irr,
+            tvpi: FIDELITY_METRICS.actual.tvpi,
+            dpi: FIDELITY_METRICS.actual.dpi,
+            asOfDate: FIDELITY_METRICS.actual.asOfDate,
+            createdAt: FIDELITY_METRICS.lastUpdated,
+          },
           deploymentRate: FIDELITY_METRICS.actual.deploymentRate,
-          companiesCount: FIDELITY_COMPANIES.length,
-          targetCompanies: 20,
-        },
-        portfolioCompanies: FIDELITY_COMPANIES,
-      });
+          portfolioCompanies: FIDELITY_COMPANIES,
+        })
+      );
       return;
     }
 

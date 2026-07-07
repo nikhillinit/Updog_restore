@@ -1,4 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
+import { makeDashboardSummaryFixture } from './fixtures/dashboard-summary';
 import { makeDualForecastResponse } from './fixtures/qa-audit-api';
 
 const FUND_ONE = {
@@ -147,20 +148,22 @@ async function installQaApiStubs(page: Page, scenario: FundsScenario) {
       await route.fulfill({
         status: 200,
         contentType: 'application/json',
-        body: JSON.stringify({
-          fund: FUND_ONE,
-          metrics: { totalValue: 46_000_000, irr: 0.18 },
-          summary: { deploymentRate: 20 },
-          portfolioCompanies: [
-            {
-              name: 'Alpha Co',
-              currentValuation: 20_000_000,
-              investmentAmount: 5_000_000,
-              sector: 'SaaS',
-              stage: 'Seed',
-            },
-          ],
-        }),
+        body: JSON.stringify(
+          makeDashboardSummaryFixture({
+            fund: FUND_ONE,
+            metrics: { totalValue: 46_000_000, irr: 0.18 },
+            deploymentRate: 20,
+            portfolioCompanies: [
+              {
+                name: 'Alpha Co',
+                currentValuation: 20_000_000,
+                investmentAmount: 5_000_000,
+                sector: 'SaaS',
+                stage: 'Seed',
+              },
+            ],
+          })
+        ),
       });
       return;
     }
