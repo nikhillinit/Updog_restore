@@ -1,5 +1,6 @@
 import { expect, test, type Page, type Route } from '@playwright/test';
 import { PortfolioOverviewResponseV1Schema } from '../../shared/contracts/portfolio-overview-v1.contract';
+import { makeDualForecastResponse } from './fixtures/qa-audit-api';
 
 const ROUTE_READY_TIMEOUT_MS = 60_000;
 const APP_BASE_URL = process.env.BASE_URL ?? 'http://localhost:4173';
@@ -122,104 +123,12 @@ const FIDELITY_METRICS = {
   lastUpdated: '2026-02-01T00:00:00.000Z',
 };
 
-const FIDELITY_DUAL_FORECAST = {
+const FIDELITY_DUAL_FORECAST = makeDualForecastResponse({
   fundId: FIDELITY_FUND.id,
   fundName: FIDELITY_FUND.name,
   asOfDate: FIDELITY_METRICS.actual.asOfDate,
-  series: [
-    {
-      quarterIndex: 0,
-      label: 'Q1 2026',
-      date: '2026-03-31',
-      construction: {
-        nav: FIDELITY_METRICS.actual.currentNAV,
-        calledCapital: FIDELITY_METRICS.actual.totalCalled,
-        distributions: FIDELITY_METRICS.actual.totalDistributions,
-        tvpi: FIDELITY_METRICS.actual.tvpi,
-        dpi: FIDELITY_METRICS.actual.dpi,
-        rvpi: FIDELITY_METRICS.actual.rvpi,
-        irr: FIDELITY_METRICS.actual.irr,
-      },
-      actual: {
-        nav: FIDELITY_METRICS.actual.currentNAV,
-        calledCapital: FIDELITY_METRICS.actual.totalCalled,
-        distributions: FIDELITY_METRICS.actual.totalDistributions,
-        tvpi: FIDELITY_METRICS.actual.tvpi,
-        dpi: FIDELITY_METRICS.actual.dpi,
-        rvpi: FIDELITY_METRICS.actual.rvpi,
-        irr: FIDELITY_METRICS.actual.irr,
-      },
-      currentMode: 'actual',
-      current: {
-        nav: FIDELITY_METRICS.actual.currentNAV,
-        calledCapital: FIDELITY_METRICS.actual.totalCalled,
-        distributions: FIDELITY_METRICS.actual.totalDistributions,
-        tvpi: FIDELITY_METRICS.actual.tvpi,
-        dpi: FIDELITY_METRICS.actual.dpi,
-        rvpi: FIDELITY_METRICS.actual.rvpi,
-        irr: FIDELITY_METRICS.actual.irr,
-      },
-      variance: {
-        nav: 0,
-        calledCapital: 0,
-        distributions: 0,
-        tvpi: 0,
-        dpi: 0,
-        rvpi: 0,
-        irr: 0,
-      },
-    },
-    {
-      quarterIndex: 1,
-      label: 'Q2 2026',
-      date: '2026-06-30',
-      construction: {
-        nav: 50_000_000,
-        calledCapital: 22_000_000,
-        distributions: 1_500_000,
-        tvpi: 2.45,
-        dpi: 0.07,
-        rvpi: 2.38,
-        irr: 0.19,
-      },
-      actual: null,
-      currentMode: 'forecast',
-      current: {
-        nav: 49_000_000,
-        calledCapital: 21_500_000,
-        distributions: 1_400_000,
-        tvpi: 2.4,
-        dpi: 0.06,
-        rvpi: 2.34,
-        irr: 0.188,
-      },
-      variance: {
-        nav: -1_000_000,
-        calledCapital: -500_000,
-        distributions: -100_000,
-        tvpi: -0.05,
-        dpi: -0.01,
-        rvpi: -0.04,
-        irr: -0.002,
-      },
-    },
-  ],
-  sources: {
-    construction: 'construction_forecast_jcurve',
-    current: 'projected_metrics_calculator',
-    actual: 'actual_metrics_calculator',
-  },
-  config: {
-    source: 'published',
-    version: 1,
-    publishedAt: '2026-02-01T00:00:00.000Z',
-    fallbackReason: null,
-  },
-  actualsFacts: null,
-  navAnchoring: null,
-  currentProjection: { status: 'projected', fallbackReason: null },
-  warnings: [],
-};
+  actual: FIDELITY_METRICS.actual,
+});
 
 const FIDELITY_PORTFOLIO_OVERVIEW = PortfolioOverviewResponseV1Schema.parse({
   fundId: FIDELITY_FUND.id,
