@@ -11,6 +11,7 @@ import calculationsRouter from './routes/calculations.js';
 import aiRouter from './routes/ai.js';
 import scenarioAnalysisRouter from './routes/scenario-analysis.js';
 import dualForecastRouter from './routes/dual-forecast.js';
+import dashboardSummaryRouter from './routes/dashboard-summary.js';
 import fundActualsRouter from './routes/fund-actuals.js';
 import allocationsRouter from './routes/allocations.js';
 import allocationScenariosRouter from './routes/allocation-scenarios.js';
@@ -209,6 +210,10 @@ export function makeApp() {
   // Scenario Analysis API (Construction vs Current, deal modeling)
   app.use('/api', scenarioAnalysisRouter);
   app.use('/api', dualForecastRouter);
+  // Dashboard header KPI cards + Portfolio Allocation read model (#1032). Mounted
+  // here so the Vercel/makeApp surface matches the Docker routes.ts mount; without
+  // it the endpoint 404s in prod and the KPI provenance envelope stays invisible.
+  app.use('/api', dashboardSummaryRouter);
   app.use('/api', fundActualsRouter);
 
   // Keep the makeApp/serverless surface aligned with the canonical fund routes
