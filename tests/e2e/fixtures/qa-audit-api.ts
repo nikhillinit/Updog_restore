@@ -3,6 +3,7 @@ import {
   DualForecastResponseSchema,
   type DualForecastResponse,
 } from '../../../shared/contracts/dual-forecast/dual-forecast-response.contract';
+import { makeDashboardSummaryFixture } from './dashboard-summary';
 
 export const MOCK_FUND = {
   id: 1,
@@ -974,12 +975,15 @@ export async function installQaAuditApi(page: Page) {
     }
 
     if (url.pathname === '/api/dashboard-summary/1') {
-      await fulfillJson(route, {
-        fund: MOCK_FUND,
-        metrics: { totalValue: 46_100_000, irr: 0.18, tvpi: 2.76, dpi: 0.05 },
-        summary: { deploymentRate: 16.7, companiesCount: 3, targetCompanies: 20 },
-        portfolioCompanies: MOCK_COMPANIES,
-      });
+      await fulfillJson(
+        route,
+        makeDashboardSummaryFixture({
+          fund: MOCK_FUND,
+          metrics: { totalValue: 46_100_000, irr: 0.18, tvpi: 2.76, dpi: 0.05 },
+          deploymentRate: 16.7,
+          portfolioCompanies: MOCK_COMPANIES,
+        })
+      );
       return;
     }
 
