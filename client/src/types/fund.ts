@@ -1,8 +1,3 @@
- 
- 
- 
- 
- 
 export interface FundMetrics {
   label: string;
   value: string;
@@ -52,15 +47,53 @@ export interface DashboardSummary {
   }>;
   metrics: {
     totalValue: string;
-    irr: string;
-    multiple: string;
-    dpi: string;
-    tvpi: string;
+    irr: string | null;
+    multiple: string | null;
+    dpi: string | null;
+    tvpi: string | null;
+    asOfDate?: string;
+    createdAt?: string;
   } | null;
   summary: {
     totalCompanies: number;
     deploymentRate: number;
     currentIRR: number;
   };
+  evidence: {
+    fundId: number;
+    sourceEndpoint: 'GET /api/dashboard-summary/:fundId';
+    readModel: 'dashboard-summary-read-service';
+    generatedAt: string;
+    kpis: {
+      currentAum: DashboardKpiEvidence;
+      irr: DashboardKpiEvidence;
+      portfolioCompanies: DashboardKpiEvidence;
+      deployment: DashboardKpiEvidence;
+    };
+    portfolioAllocation: {
+      source: 'storage.getPortfolioCompanies';
+      sourceTable: 'portfoliocompanies';
+      sourceEndpoint: 'GET /api/dashboard-summary/:fundId';
+      readModel: 'dashboard-summary-read-service';
+      fundId: number;
+      companyCount: number;
+      valuedCompanyCount: number;
+      valuationFreshness: {
+        status: 'unavailable';
+        reason: string;
+      };
+    };
+  };
 }
 
+export interface DashboardKpiEvidence {
+  source: string;
+  sourceEndpoint: 'GET /api/dashboard-summary/:fundId';
+  readModel: 'dashboard-summary-read-service';
+  fundId: number;
+  asOfDate: string | null;
+  calculatedAt: string | null;
+  freshness: 'timestamped' | 'timestamp_unavailable' | 'source_unavailable';
+  status: 'available' | 'unavailable' | 'unverified';
+  note: string;
+}

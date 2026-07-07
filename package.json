@@ -247,7 +247,7 @@
     "npm": "10.9.2"
   },
   "overrides": {
-    "esbuild": "^0.28.1",
+    "esbuild": "^0.25.0",
     "@react-pdf/pdfkit": "^4.1.0",
     "uuid": "^11.1.1",
     "ws": "^8.21.0",
@@ -297,7 +297,7 @@
     "csv-parse": "7.0.1",
     "dependency-cruiser": "18.0.0",
     "drizzle-kit": "0.31.10",
-    "esbuild": "^0.28.1",
+    "esbuild": "^0.25.0",
     "eslint": "9.39.2",
     "eslint-import-resolver-typescript": "^4.4.5",
     "eslint-plugin-import": "^2.32.0",
