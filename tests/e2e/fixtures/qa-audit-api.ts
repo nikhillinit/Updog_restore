@@ -1,9 +1,4 @@
 import { expect, type Page, type Route } from '@playwright/test';
-import {
-  DualForecastResponseSchema,
-  type DualForecastResponse,
-} from '../../../shared/contracts/dual-forecast/dual-forecast-response.contract';
-import { makeDashboardSummaryFixture } from './dashboard-summary';
 
 export const MOCK_FUND = {
   id: 1,
@@ -636,292 +631,104 @@ const UNIFIED_METRICS = {
   lastUpdated: '2026-01-31T00:00:00.000Z',
 };
 
-interface DualForecastAnchorMetrics {
-  currentNAV: number;
-  totalCalled: number;
-  totalDistributions: number;
-  tvpi: number;
-  dpi: number;
-  rvpi: number;
-  irr: number;
-}
-
-/**
- * The ONE shared populated dual-forecast builder (PR-3 CP3): every e2e stub
- * goes through the response contract at module scope, so contract drift fails
- * the suite at import time instead of silently stubbing an invalid shape.
- * Disclosure blocks are populated so the real trust surface renders in a
- * browser; Q4 2026 carries the canonical -$8M NAV / +$5M called-capital drift
- * the route-publish spec asserts.
- */
-export function makeDualForecastResponse(options: {
-  fundId: number;
-  fundName: string;
-  asOfDate: string;
-  actual: DualForecastAnchorMetrics;
-}): DualForecastResponse {
-  const anchor = {
-    nav: options.actual.currentNAV,
-    calledCapital: options.actual.totalCalled,
-    distributions: options.actual.totalDistributions,
-    tvpi: options.actual.tvpi,
-    dpi: options.actual.dpi,
-    rvpi: options.actual.rvpi,
-    irr: options.actual.irr,
-  };
-  const factsAsOfDate = options.asOfDate.slice(0, 10);
-
-  return DualForecastResponseSchema.parse({
-    fundId: options.fundId,
-    fundName: options.fundName,
-    asOfDate: options.asOfDate,
-    series: [
-      {
-        quarterIndex: 0,
-        label: 'Q1 2026',
-        date: '2026-03-31',
-        construction: anchor,
-        actual: anchor,
-        currentMode: 'actual',
-        current: anchor,
-        variance: { nav: 0, calledCapital: 0, distributions: 0, tvpi: 0, dpi: 0, rvpi: 0, irr: 0 },
-      },
-      {
-        quarterIndex: 1,
-        label: 'Q2 2026',
-        date: '2026-06-30',
-        construction: {
-          nav: 48_000_000,
-          calledCapital: 24_000_000,
-          distributions: 1_250_000,
-          tvpi: 2.42,
-          dpi: 0.06,
-          rvpi: 2.36,
-          irr: 0.19,
-        },
-        actual: null,
-        currentMode: 'forecast',
-        current: {
-          nav: 47_500_000,
-          calledCapital: 23_500_000,
-          distributions: 1_200_000,
-          tvpi: 2.4,
-          dpi: 0.06,
-          rvpi: 2.34,
-          irr: 0.188,
-        },
-        variance: {
-          nav: -500_000,
-          calledCapital: -500_000,
-          distributions: -50_000,
-          tvpi: -0.02,
-          dpi: 0,
-          rvpi: -0.02,
-          irr: -0.002,
-        },
-      },
-      {
-        quarterIndex: 2,
-        label: 'Q3 2026',
-        date: '2026-09-30',
-        construction: {
-          nav: 53_000_000,
-          calledCapital: 29_000_000,
-          distributions: 1_500_000,
-          tvpi: null,
-          dpi: null,
-          rvpi: null,
-          irr: null,
-        },
-        actual: null,
-        currentMode: 'forecast',
-        current: {
-          nav: 50_000_000,
-          calledCapital: 31_000_000,
-          distributions: 1_400_000,
-          tvpi: null,
-          dpi: null,
-          rvpi: null,
-          irr: null,
-        },
-        variance: {
-          nav: -3_000_000,
-          calledCapital: 2_000_000,
-          distributions: -100_000,
-          tvpi: null,
-          dpi: null,
-          rvpi: null,
-          irr: null,
-        },
-      },
-      {
-        quarterIndex: 3,
-        label: 'Q4 2026',
-        date: '2026-12-31',
-        construction: {
-          nav: 59_000_000,
-          calledCapital: 34_000_000,
-          distributions: 1_750_000,
-          tvpi: null,
-          dpi: null,
-          rvpi: null,
-          irr: null,
-        },
-        actual: null,
-        currentMode: 'forecast',
-        current: {
-          nav: 51_000_000,
-          calledCapital: 39_000_000,
-          distributions: 1_600_000,
-          tvpi: null,
-          dpi: null,
-          rvpi: null,
-          irr: null,
-        },
-        variance: {
-          nav: -8_000_000,
-          calledCapital: 5_000_000,
-          distributions: -150_000,
-          tvpi: null,
-          dpi: null,
-          rvpi: null,
-          irr: null,
-        },
-      },
-    ],
-    sources: {
-      construction: 'construction_forecast_jcurve',
-      current: 'projected_metrics_calculator',
-      actual: 'actual_metrics_calculator',
-    },
-    config: {
-      source: 'published',
-      version: 1,
-      publishedAt: '2026-01-31T00:00:00.000Z',
-      fallbackReason: null,
-    },
-    actualsFacts: {
-      asOfDate: factsAsOfDate,
-      generatedAt: options.asOfDate,
-      inputHash: 'a1b2c3d4'.repeat(8),
-      companies: [
-        {
-          companyId: 1,
-          companyName: 'Alpha Systems',
-          trustState: 'LIVE',
-          planningFmvStatus: 'active',
-          currency: 'USD',
-          currencyStatus: 'base_currency',
-          activeRoundIds: [],
-          supersedeLineage: [],
-          latestRoundDate: null,
-          latestRoundValuation: null,
-          latestPlanningFmvDate: factsAsOfDate,
-          latestPlanningFmvValue: '13200000',
-          warnings: [],
-        },
-        {
-          companyId: 2,
-          companyName: 'Beta Health',
-          trustState: 'PARTIAL',
-          planningFmvStatus: 'none',
-          currency: 'USD',
-          currencyStatus: 'base_currency',
-          activeRoundIds: [],
-          supersedeLineage: [],
-          latestRoundDate: null,
-          latestRoundValuation: null,
-          latestPlanningFmvDate: null,
-          latestPlanningFmvValue: null,
-          warnings: [
-            {
-              code: 'PLANNING_FMV_MISSING',
-              severity: 'warning',
-              message: 'Planning FMV mark missing; descended to recorded valuation.',
-            },
-          ],
-        },
-        {
-          companyId: 3,
-          companyName: 'Gamma Robotics',
-          trustState: 'UNAVAILABLE',
-          planningFmvStatus: 'blocked',
-          currency: 'EUR',
-          currencyStatus: 'mismatch_blocked',
-          activeRoundIds: [7],
-          supersedeLineage: [{ roundId: 7, supersedesRoundId: null }],
-          latestRoundDate: '2026-05-01',
-          latestRoundValuation: '15000000',
-          latestPlanningFmvDate: null,
-          latestPlanningFmvValue: null,
-          warnings: [
-            {
-              code: 'CURRENCY_MISMATCH_BLOCK',
-              severity: 'blocking',
-              message: 'EUR valuation blocked pending currency normalization.',
-            },
-          ],
-        },
-      ],
-      warnings: [],
-    },
-    navAnchoring: {
-      blendedNav: '47500000',
-      countsByTrustState: { LIVE: 1, PARTIAL: 1, UNAVAILABLE: 1, FAILED: 0 },
-      companies: [
-        {
-          companyId: 1,
-          companyName: 'Alpha Systems',
-          inNavUniverse: true,
-          trustState: 'LIVE',
-          anchor: 'planning_fmv',
-          contribution: '13200000',
-        },
-        {
-          companyId: 2,
-          companyName: 'Beta Health',
-          inNavUniverse: true,
-          trustState: 'PARTIAL',
-          anchor: 'legacy_current_valuation',
-          contribution: '7000000',
-        },
-        {
-          companyId: 3,
-          companyName: 'Gamma Robotics',
-          inNavUniverse: true,
-          trustState: 'UNAVAILABLE',
-          anchor: 'legacy_current_valuation',
-          contribution: '4000000',
-        },
-        {
-          companyId: 4,
-          companyName: 'Delta NoFacts',
-          inNavUniverse: true,
-          trustState: null,
-          anchor: 'legacy_current_valuation',
-          contribution: '2000000',
-        },
-        {
-          companyId: 5,
-          companyName: 'Omega Exited',
-          inNavUniverse: false,
-          trustState: null,
-          anchor: null,
-          contribution: null,
-        },
-      ],
-    },
-    currentProjection: { status: 'projected', fallbackReason: null },
-    warnings: [],
-  });
-}
-
-const DUAL_FORECAST_RESPONSE = makeDualForecastResponse({
+const DUAL_FORECAST_RESPONSE = {
   fundId: MOCK_FUND.id,
   fundName: MOCK_FUND.name,
   asOfDate: UNIFIED_METRICS.actual.asOfDate,
-  actual: UNIFIED_METRICS.actual,
-});
+  series: [
+    {
+      quarterIndex: 0,
+      label: 'Q1 2026',
+      date: '2026-03-31',
+      construction: {
+        nav: UNIFIED_METRICS.actual.currentNAV,
+        calledCapital: UNIFIED_METRICS.actual.totalCalled,
+        distributions: UNIFIED_METRICS.actual.totalDistributions,
+        tvpi: UNIFIED_METRICS.actual.tvpi,
+        dpi: UNIFIED_METRICS.actual.dpi,
+        rvpi: UNIFIED_METRICS.actual.rvpi,
+        irr: UNIFIED_METRICS.actual.irr,
+      },
+      actual: {
+        nav: UNIFIED_METRICS.actual.currentNAV,
+        calledCapital: UNIFIED_METRICS.actual.totalCalled,
+        distributions: UNIFIED_METRICS.actual.totalDistributions,
+        tvpi: UNIFIED_METRICS.actual.tvpi,
+        dpi: UNIFIED_METRICS.actual.dpi,
+        rvpi: UNIFIED_METRICS.actual.rvpi,
+        irr: UNIFIED_METRICS.actual.irr,
+      },
+      currentMode: 'actual',
+      current: {
+        nav: UNIFIED_METRICS.actual.currentNAV,
+        calledCapital: UNIFIED_METRICS.actual.totalCalled,
+        distributions: UNIFIED_METRICS.actual.totalDistributions,
+        tvpi: UNIFIED_METRICS.actual.tvpi,
+        dpi: UNIFIED_METRICS.actual.dpi,
+        rvpi: UNIFIED_METRICS.actual.rvpi,
+        irr: UNIFIED_METRICS.actual.irr,
+      },
+      variance: {
+        nav: 0,
+        calledCapital: 0,
+        distributions: 0,
+        tvpi: 0,
+        dpi: 0,
+        rvpi: 0,
+        irr: 0,
+      },
+    },
+    {
+      quarterIndex: 1,
+      label: 'Q2 2026',
+      date: '2026-06-30',
+      construction: {
+        nav: 48_000_000,
+        calledCapital: 24_000_000,
+        distributions: 1_250_000,
+        tvpi: 2.42,
+        dpi: 0.06,
+        rvpi: 2.36,
+        irr: 0.19,
+      },
+      actual: null,
+      currentMode: 'forecast',
+      current: {
+        nav: 47_500_000,
+        calledCapital: 23_500_000,
+        distributions: 1_200_000,
+        tvpi: 2.4,
+        dpi: 0.06,
+        rvpi: 2.34,
+        irr: 0.188,
+      },
+      variance: {
+        nav: -500_000,
+        calledCapital: -500_000,
+        distributions: -50_000,
+        tvpi: -0.02,
+        dpi: 0,
+        rvpi: -0.02,
+        irr: -0.002,
+      },
+    },
+  ],
+  sources: {
+    construction: 'construction_forecast_jcurve',
+    current: 'projected_metrics_calculator',
+    actual: 'actual_metrics_calculator',
+  },
+  config: {
+    source: 'published',
+    version: 1,
+    publishedAt: '2026-01-31T00:00:00.000Z',
+    fallbackReason: null,
+  },
+  actualsFacts: null,
+  navAnchoring: null,
+  currentProjection: { status: 'projected', fallbackReason: null },
+  warnings: [],
+};
 
 function asJson(body: unknown, status = 200) {
   return {
@@ -975,15 +782,12 @@ export async function installQaAuditApi(page: Page) {
     }
 
     if (url.pathname === '/api/dashboard-summary/1') {
-      await fulfillJson(
-        route,
-        makeDashboardSummaryFixture({
-          fund: MOCK_FUND,
-          metrics: { totalValue: 46_100_000, irr: 0.18, tvpi: 2.76, dpi: 0.05 },
-          deploymentRate: 16.7,
-          portfolioCompanies: MOCK_COMPANIES,
-        })
-      );
+      await fulfillJson(route, {
+        fund: MOCK_FUND,
+        metrics: { totalValue: 46_100_000, irr: 0.18, tvpi: 2.76, dpi: 0.05 },
+        summary: { deploymentRate: 16.7, companiesCount: 3, targetCompanies: 20 },
+        portfolioCompanies: MOCK_COMPANIES,
+      });
       return;
     }
 
