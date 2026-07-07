@@ -78,11 +78,79 @@ function makeDashboardSummary() {
       multiple: '2.8',
       dpi: '0',
       tvpi: '2.8',
+      asOfDate: '2026-04-01T00:00:00.000Z',
+      createdAt: '2026-04-02T00:00:00.000Z',
     },
     summary: {
       totalCompanies: 1,
       deploymentRate: 25,
       currentIRR: 0.18,
+    },
+    evidence: {
+      fundId: 42,
+      sourceEndpoint: 'GET /api/dashboard-summary/:fundId',
+      readModel: 'dashboard-summary-read-service',
+      generatedAt: '2026-04-02T00:00:00.000Z',
+      kpis: {
+        currentAum: {
+          source: 'fund_metrics.totalvalue',
+          sourceEndpoint: 'GET /api/dashboard-summary/:fundId',
+          readModel: 'dashboard-summary-read-service',
+          fundId: 42,
+          asOfDate: '2026-04-01T00:00:00.000Z',
+          calculatedAt: '2026-04-02T00:00:00.000Z',
+          freshness: 'timestamped',
+          status: 'available',
+          note: 'Dashboard summary value from the latest fund_metrics row.',
+        },
+        irr: {
+          source: 'fund_metrics.irr',
+          sourceEndpoint: 'GET /api/dashboard-summary/:fundId',
+          readModel: 'dashboard-summary-read-service',
+          fundId: 42,
+          asOfDate: '2026-04-01T00:00:00.000Z',
+          calculatedAt: '2026-04-02T00:00:00.000Z',
+          freshness: 'timestamped',
+          status: 'unverified',
+          note: 'Unverified dashboard metric; not authoritative IRR/XIRR.',
+        },
+        portfolioCompanies: {
+          source: 'storage.getPortfolioCompanies.count',
+          sourceEndpoint: 'GET /api/dashboard-summary/:fundId',
+          readModel: 'dashboard-summary-read-service',
+          fundId: 42,
+          asOfDate: null,
+          calculatedAt: null,
+          freshness: 'timestamp_unavailable',
+          status: 'available',
+          note: 'Count is scoped to the requested fund in the dashboard summary read model.',
+        },
+        deployment: {
+          source: 'funds.deployed_capital / funds.size',
+          sourceEndpoint: 'GET /api/dashboard-summary/:fundId',
+          readModel: 'dashboard-summary-read-service',
+          fundId: 42,
+          asOfDate: null,
+          calculatedAt: null,
+          freshness: 'timestamp_unavailable',
+          status: 'available',
+          note: 'Deployment is derived from the fund row; this read model has no fund updated timestamp.',
+        },
+      },
+      portfolioAllocation: {
+        source: 'storage.getPortfolioCompanies',
+        sourceTable: 'portfoliocompanies',
+        sourceEndpoint: 'GET /api/dashboard-summary/:fundId',
+        readModel: 'dashboard-summary-read-service',
+        fundId: 42,
+        companyCount: 1,
+        valuedCompanyCount: 1,
+        valuationFreshness: {
+          status: 'unavailable',
+          reason:
+            'Legacy portfolio company rows do not include valuation timestamps; valuation freshness is unavailable until valuation marks feed this read model.',
+        },
+      },
     },
   };
 }
@@ -500,6 +568,19 @@ describe('DualForecastDashboard', () => {
 
     renderWithQueryClient();
 
+    expect(await screen.findByText('Dashboard IRR')).toBeInTheDocument();
+    expect(
+      screen.getByText(/fund_metrics\.totalvalue · fund 42 · as of 2026-04-01/i)
+    ).toBeInTheDocument();
+    expect(screen.getByText(/fund_metrics\.irr · fund 42 · as of 2026-04-01/i)).toBeInTheDocument();
+    expect(screen.getByText(/not authoritative IRR\/XIRR/i)).toBeInTheDocument();
+    expect(
+      screen.getByText(/storage\.getPortfolioCompanies\.count · fund 42 · timestamp unavailable/i)
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(/funds\.deployed_capital \/ funds\.size · fund 42 · timestamp unavailable/i)
+    ).toBeInTheDocument();
+
     // CP2 (D4): the Portfolio Allocation surfaces stopped claiming "actuals" —
     // currentValuation is ADR-029's un-provenanced legacy rung.
     expect(await screen.findByText('Recorded valuations')).toBeInTheDocument();
@@ -511,6 +592,14 @@ describe('DualForecastDashboard', () => {
     expect(screen.getByText(/cumulative called capital by quarter/i)).toBeInTheDocument();
     expect(screen.queryByText('Live Data')).toBeNull();
     expect(screen.queryByText('Real-time')).toBeNull();
+    const allocationEvidence = screen.getByRole('note', {
+      name: /portfolio allocation evidence/i,
+    });
+    expect(allocationEvidence).toHaveTextContent(
+      'Source: storage.getPortfolioCompanies · fund 42 · 1 companies · 1 valued'
+    );
+    expect(allocationEvidence).toHaveTextContent('Valuation freshness unavailable');
+    expect(allocationEvidence).toHaveTextContent('dashboard-summary-read-service');
 
     // Drift callouts: Q4 2026 is the latest forecast point with meaningful variance
     const navSummary = await screen.findByLabelText('Forecast drift summary');
