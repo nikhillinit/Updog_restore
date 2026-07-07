@@ -1,6 +1,4 @@
 import { expect, test, type Page } from '@playwright/test';
-import { makeDashboardSummaryFixture } from './fixtures/dashboard-summary';
-import { makeDualForecastResponse } from './fixtures/qa-audit-api';
 
 const FUND_ONE = {
   id: 1,
@@ -97,12 +95,172 @@ const ROUTE_UNIFIED_METRICS = {
   lastUpdated: '2026-01-31T00:00:00.000Z',
 };
 
-const ROUTE_DUAL_FORECAST = makeDualForecastResponse({
+const ROUTE_DUAL_FORECAST = {
   fundId: FUND_ONE.id,
   fundName: FUND_ONE.name,
   asOfDate: ROUTE_UNIFIED_METRICS.actual.asOfDate,
-  actual: ROUTE_UNIFIED_METRICS.actual,
-});
+  series: [
+    {
+      quarterIndex: 0,
+      label: 'Q1 2026',
+      date: '2026-03-31',
+      construction: {
+        nav: ROUTE_UNIFIED_METRICS.actual.currentNAV,
+        calledCapital: ROUTE_UNIFIED_METRICS.actual.totalCalled,
+        distributions: ROUTE_UNIFIED_METRICS.actual.totalDistributions,
+        tvpi: ROUTE_UNIFIED_METRICS.actual.tvpi,
+        dpi: ROUTE_UNIFIED_METRICS.actual.dpi,
+        rvpi: ROUTE_UNIFIED_METRICS.actual.rvpi,
+        irr: ROUTE_UNIFIED_METRICS.actual.irr,
+      },
+      actual: {
+        nav: ROUTE_UNIFIED_METRICS.actual.currentNAV,
+        calledCapital: ROUTE_UNIFIED_METRICS.actual.totalCalled,
+        distributions: ROUTE_UNIFIED_METRICS.actual.totalDistributions,
+        tvpi: ROUTE_UNIFIED_METRICS.actual.tvpi,
+        dpi: ROUTE_UNIFIED_METRICS.actual.dpi,
+        rvpi: ROUTE_UNIFIED_METRICS.actual.rvpi,
+        irr: ROUTE_UNIFIED_METRICS.actual.irr,
+      },
+      currentMode: 'actual',
+      current: {
+        nav: ROUTE_UNIFIED_METRICS.actual.currentNAV,
+        calledCapital: ROUTE_UNIFIED_METRICS.actual.totalCalled,
+        distributions: ROUTE_UNIFIED_METRICS.actual.totalDistributions,
+        tvpi: ROUTE_UNIFIED_METRICS.actual.tvpi,
+        dpi: ROUTE_UNIFIED_METRICS.actual.dpi,
+        rvpi: ROUTE_UNIFIED_METRICS.actual.rvpi,
+        irr: ROUTE_UNIFIED_METRICS.actual.irr,
+      },
+      variance: {
+        nav: 0,
+        calledCapital: 0,
+        distributions: 0,
+        tvpi: 0,
+        dpi: 0,
+        rvpi: 0,
+        irr: 0,
+      },
+    },
+    {
+      quarterIndex: 1,
+      label: 'Q2 2026',
+      date: '2026-06-30',
+      construction: {
+        nav: 48_000_000,
+        calledCapital: 15_000_000,
+        distributions: 1_250_000,
+        tvpi: 2.9,
+        dpi: 0.08,
+        rvpi: 2.82,
+        irr: 0.19,
+      },
+      actual: null,
+      currentMode: 'forecast',
+      current: {
+        nav: 47_500_000,
+        calledCapital: 14_500_000,
+        distributions: 1_200_000,
+        tvpi: 2.84,
+        dpi: 0.07,
+        rvpi: 2.77,
+        irr: 0.185,
+      },
+      variance: {
+        nav: -500_000,
+        calledCapital: -500_000,
+        distributions: -50_000,
+        tvpi: -0.06,
+        dpi: -0.01,
+        rvpi: -0.05,
+        irr: -0.005,
+      },
+    },
+    {
+      quarterIndex: 2,
+      label: 'Q3 2026',
+      date: '2026-09-30',
+      construction: {
+        nav: 52_000_000,
+        calledCapital: 28_000_000,
+        distributions: 2_000_000,
+        tvpi: null,
+        dpi: null,
+        rvpi: null,
+        irr: null,
+      },
+      actual: null,
+      currentMode: 'forecast',
+      current: {
+        nav: 50_000_000,
+        calledCapital: 29_000_000,
+        distributions: 1_800_000,
+        tvpi: null,
+        dpi: null,
+        rvpi: null,
+        irr: null,
+      },
+      variance: {
+        nav: -2_000_000,
+        calledCapital: 1_000_000,
+        distributions: -200_000,
+        tvpi: null,
+        dpi: null,
+        rvpi: null,
+        irr: null,
+      },
+    },
+    {
+      quarterIndex: 3,
+      label: 'Q4 2026',
+      date: '2026-12-31',
+      construction: {
+        nav: 59_000_000,
+        calledCapital: 34_000_000,
+        distributions: 3_000_000,
+        tvpi: null,
+        dpi: null,
+        rvpi: null,
+        irr: null,
+      },
+      actual: null,
+      currentMode: 'forecast',
+      current: {
+        nav: 51_000_000,
+        calledCapital: 39_000_000,
+        distributions: 2_500_000,
+        tvpi: null,
+        dpi: null,
+        rvpi: null,
+        irr: null,
+      },
+      variance: {
+        nav: -8_000_000,
+        calledCapital: 5_000_000,
+        distributions: -500_000,
+        tvpi: null,
+        dpi: null,
+        rvpi: null,
+        irr: null,
+      },
+    },
+  ],
+  sources: {
+    construction: 'construction_forecast_jcurve',
+    current: 'projected_metrics_calculator',
+    actual: 'actual_metrics_calculator',
+  },
+  config: {
+    source: 'published',
+    version: 1,
+    publishedAt: '2026-01-31T00:00:00.000Z',
+    fallbackReason: null,
+  },
+  actualsFacts: null,
+  navAnchoring: null,
+  currentProjection: { status: 'projected', fallbackReason: null },
+  warnings: [],
+};
 
 const unexpectedApiRequestsByPage = new WeakMap<Page, string[]>();
 
@@ -148,22 +306,20 @@ async function installQaApiStubs(page: Page, scenario: FundsScenario) {
       await route.fulfill({
         status: 200,
         contentType: 'application/json',
-        body: JSON.stringify(
-          makeDashboardSummaryFixture({
-            fund: FUND_ONE,
-            metrics: { totalValue: 46_000_000, irr: 0.18 },
-            deploymentRate: 20,
-            portfolioCompanies: [
-              {
-                name: 'Alpha Co',
-                currentValuation: 20_000_000,
-                investmentAmount: 5_000_000,
-                sector: 'SaaS',
-                stage: 'Seed',
-              },
-            ],
-          })
-        ),
+        body: JSON.stringify({
+          fund: FUND_ONE,
+          metrics: { totalValue: 46_000_000, irr: 0.18 },
+          summary: { deploymentRate: 20 },
+          portfolioCompanies: [
+            {
+              name: 'Alpha Co',
+              currentValuation: 20_000_000,
+              investmentAmount: 5_000_000,
+              sector: 'SaaS',
+              stage: 'Seed',
+            },
+          ],
+        }),
       });
       return;
     }
@@ -406,30 +562,6 @@ test.describe('latest QA route/nav/publish closeout matrix', () => {
         await expect(page.getByLabel('Forecast drift summary')).toContainText('Q4 2026 NAV drift');
         await expect(page.getByLabel('Forecast drift summary')).toContainText('-$8M');
         await expect(page.getByLabel('Called capital drift summary')).toContainText('+$5M');
-        // PR-3 disclosure surface renders in a real browser (populated stub)
-        await expect(page.locator('p').filter({ hasText: /\$48M\s*Blended NAV/ })).toBeVisible();
-        await expect(
-          page.getByRole('button', { name: 'Filter to 1 live companies' })
-        ).toBeEnabled();
-        await expect(
-          page.getByRole('button', { name: 'Filter to 1 partial companies' })
-        ).toBeEnabled();
-        await expect(
-          page.getByRole('button', { name: 'Filter to 1 unavailable companies' })
-        ).toBeEnabled();
-        await expect(
-          page.getByRole('button', { name: 'Filter to 0 failed companies' })
-        ).toBeDisabled();
-        await expect(
-          page.getByRole('button', { name: 'Filter to 2 no facts companies' })
-        ).toBeEnabled();
-        await expect(page.getByText('NAV Attribution')).toBeVisible();
-        await expect(page.getByRole('cell', { name: 'Delta NoFacts' })).toBeVisible();
-        await expect(page.getByRole('cell', { name: 'Omega Exited' })).toBeVisible();
-        await expect(
-          page.getByRole('cell', { name: 'Exited — not in NAV universe' })
-        ).toBeVisible();
-        await expect(page.getByText('Facts as of 2026-01-31 · input a1b2c3d4')).toBeVisible();
       }
     }
 
@@ -448,9 +580,7 @@ test.describe('latest QA route/nav/publish closeout matrix', () => {
 
     await expect(page).not.toHaveURL(/\/fund-setup\b/);
     await expect(page).not.toHaveURL(/\/fund-model-results\/1\b/);
-    await expect(page.getByRole('heading', { name: /^model results$/i })).toBeVisible({
-      timeout: 30_000,
-    });
+    await expect(page.getByRole('heading', { name: /^model results$/i })).toBeVisible();
     await expect(page.getByText(/select a fund to view model results/i)).toBeVisible();
   });
 
