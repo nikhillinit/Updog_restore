@@ -8,6 +8,7 @@ import { Legend } from 'recharts/es6/component/Legend';
 import { LazyResponsiveContainer as ResponsiveContainer } from '@/components/charts/LazyResponsiveContainer';
 import { BarChart } from 'recharts/es6/chart/BarChart';
 import { Bar } from 'recharts/es6/cartesian/Bar';
+import { useCallback, useMemo, useRef, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { TrendingUp, DollarSign, Target, PieChart } from 'lucide-react';
@@ -18,15 +19,24 @@ import { useFundContext } from '@/contexts/FundContext';
 import { useDualForecast } from '@/hooks/useDualForecast';
 import { presson } from '@/theme/presson.tokens';
 import {
+  buildAttributionRows,
+  buildAttributionSummary,
   buildForecastChartPoints,
+  countNoFactsRows,
   formatForecastSeriesName,
   formatMillionValue,
   formatSignedMillion,
   formatSignedPercent,
   getLatestForecastDrift,
+  SUMMARY_UNAVAILABLE_NOTICE_COPY,
   type ForecastChartPoint,
   type ForecastMetricDrift,
+  type TrustFilterKey,
 } from '@/lib/dual-forecast-display';
+import { CurrentProjectionNotice } from '@/components/dashboard/CurrentProjectionNotice';
+import { FactsUnavailableNotice } from '@/components/dashboard/FactsUnavailableNotice';
+import { NavAttributionTable } from '@/components/dashboard/NavAttributionTable';
+import { TrustStateCounts } from '@/components/dashboard/TrustStateCounts';
 
 const MILLION = 1_000_000;
 const FORECAST_SERIES_COLORS = [
@@ -57,7 +67,7 @@ function parseNumericValue(value: string | number | null | undefined): number {
 }
 
 function formatSeriesName(name: NameType | undefined): string {
-  return name === 'value' ? 'Current Value' : 'Investment';
+  return name === 'value' ? 'Recorded Value' : 'Investment';
 }
 
 function formatRechartsMillionValue(value: ValueType | undefined): string {
@@ -177,6 +187,41 @@ export default function DualForecastDashboard() {
     refetchInterval: 60000,
   });
 
+  const [trustFilter, setTrustFilter] = useState<TrustFilterKey | null>(null);
+  const attributionRef = useRef<HTMLDivElement | null>(null);
+
+  const forecastData: ForecastChartPoint[] = useMemo(
+    () => buildForecastChartPoints(dualForecast?.series ?? []),
+    [dualForecast]
+  );
+
+  // Filter keys on trustState value, not row index: the 60s refetch can
+  // reorder/regrow the companies array under an open filter.
+  const attributionRows = useMemo(
+    () =>
+      buildAttributionRows(dualForecast?.navAnchoring ?? null, dualForecast?.actualsFacts ?? null),
+    [dualForecast]
+  );
+
+  const clearTrustFilter = useCallback(() => setTrustFilter(null), []);
+
+  const handleTrustFilterChange = useCallback((filter: TrustFilterKey | null) => {
+    setTrustFilter(filter);
+    if (filter == null) {
+      return;
+    }
+
+    const node = attributionRef.current;
+    if (!node || typeof node.scrollIntoView !== 'function') {
+      return;
+    }
+
+    const prefersReducedMotion =
+      typeof window.matchMedia === 'function' &&
+      window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    node.scrollIntoView({ behavior: prefersReducedMotion ? 'auto' : 'smooth', block: 'start' });
+  }, []);
+
   if (isFundLoading) {
     return (
       <Card>
@@ -242,7 +287,13 @@ export default function DualForecastDashboard() {
     );
   }
 
-  if (error || forecastError || !dashboardData || !dualForecast) {
+  // CP1 decoupling (ADR-028): the two sources fail independently. Summary
+  // failure degrades the header cards + Portfolio Allocation behind one
+  // notice; forecast failure blocks only the forecast region.
+  const summaryFailed = Boolean(error) || !dashboardData;
+  const forecastFailed = Boolean(forecastError) || !dualForecast;
+
+  if (summaryFailed && forecastFailed) {
     return (
       <Card>
         <CardContent className="pt-6">
@@ -256,116 +307,247 @@ export default function DualForecastDashboard() {
   }
 
   // Transform real data for forecasting charts
-  const currentMetrics = dashboardData.metrics;
+  const currentMetrics = dashboardData?.metrics;
   const baseValue = parseNumericValue(currentMetrics?.totalValue);
   const currentIRR = parseNumericValue(currentMetrics?.irr);
-  const forecastData: ForecastChartPoint[] = buildForecastChartPoints(dualForecast.series);
   const latestDrift = getLatestForecastDrift(forecastData);
+  const navAnchoring = dualForecast?.navAnchoring ?? null;
+  const noFactsCount = countNoFactsRows(attributionRows);
+  const attributionSummary = navAnchoring
+    ? buildAttributionSummary(navAnchoring.countsByTrustState, attributionRows.length)
+    : null;
 
   // Portfolio allocation data from real API
-  const portfolioData: PortfolioChartPoint[] = dashboardData.portfolioCompanies.map((company) => ({
-    name: company.name,
-    value: Math.round(parseNumericValue(company.currentValuation) / MILLION),
-    investment: Math.round(parseNumericValue(company.investmentAmount) / MILLION),
-    sector: company.sector,
-    stage: company.stage,
-  }));
+  const portfolioData: PortfolioChartPoint[] = (dashboardData?.portfolioCompanies ?? []).map(
+    (company) => ({
+      name: company.name,
+      value: Math.round(parseNumericValue(company.currentValuation) / MILLION),
+      investment: Math.round(parseNumericValue(company.investmentAmount) / MILLION),
+      sector: company.sector,
+      stage: company.stage,
+    })
+  );
 
   return (
     <div className="space-y-6">
-      {/* Live Metrics Header */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <Card>
-          <CardContent className="pt-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-muted-foreground">Current AUM</p>
-                <p className="text-2xl font-bold">${(baseValue / MILLION).toFixed(1)}M</p>
+      {/* Live Metrics Header (degrades behind one notice on summary failure) */}
+      {summaryFailed || !dashboardData ? (
+        <div role="status" className="rounded-md border border-beige-200 bg-white px-3 py-2">
+          <p className="text-sm font-medium text-pov-charcoal">
+            {SUMMARY_UNAVAILABLE_NOTICE_COPY.headline}
+          </p>
+          <p className="mt-1 text-xs text-charcoal-600">{SUMMARY_UNAVAILABLE_NOTICE_COPY.body}</p>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <Card>
+            <CardContent className="pt-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-muted-foreground">Current AUM</p>
+                  <p className="text-2xl font-bold">${(baseValue / MILLION).toFixed(1)}M</p>
+                </div>
+                <DollarSign className="h-8 w-8 text-charcoal-600" />
               </div>
-              <DollarSign className="h-8 w-8 text-charcoal-600" />
-            </div>
-          </CardContent>
-        </Card>
+            </CardContent>
+          </Card>
 
-        <Card>
-          <CardContent className="pt-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-muted-foreground">IRR</p>
-                <p className="text-2xl font-bold">{(currentIRR * 100).toFixed(1)}%</p>
+          <Card>
+            <CardContent className="pt-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-muted-foreground">IRR</p>
+                  <p className="text-2xl font-bold">{(currentIRR * 100).toFixed(1)}%</p>
+                </div>
+                <TrendingUp className="h-8 w-8 text-charcoal-600" />
               </div>
-              <TrendingUp className="h-8 w-8 text-charcoal-600" />
-            </div>
-          </CardContent>
-        </Card>
+            </CardContent>
+          </Card>
 
-        <Card>
-          <CardContent className="pt-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-muted-foreground">Portfolio Cos</p>
-                <p className="text-2xl font-bold">{dashboardData.portfolioCompanies.length}</p>
+          <Card>
+            <CardContent className="pt-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-muted-foreground">Portfolio Cos</p>
+                  <p className="text-2xl font-bold">{dashboardData.portfolioCompanies.length}</p>
+                </div>
+                <PieChart className="h-8 w-8 text-charcoal-600" />
               </div>
-              <PieChart className="h-8 w-8 text-charcoal-600" />
-            </div>
-          </CardContent>
-        </Card>
+            </CardContent>
+          </Card>
 
-        <Card>
-          <CardContent className="pt-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-muted-foreground">Deployment</p>
-                <p className="text-2xl font-bold">
-                  {dashboardData.summary.deploymentRate.toFixed(0)}%
-                </p>
+          <Card>
+            <CardContent className="pt-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-muted-foreground">Deployment</p>
+                  <p className="text-2xl font-bold">
+                    {dashboardData.summary.deploymentRate.toFixed(0)}%
+                  </p>
+                </div>
+                <Target className="h-8 w-8 text-charcoal-600" />
               </div>
-              <Target className="h-8 w-8 text-charcoal-600" />
-            </div>
-          </CardContent>
-        </Card>
-      </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
 
       {/* Dual Forecast Charts */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Value Projection Chart */}
+        {/* Value Projection Chart (forecast failure blocks only this region) */}
+        {forecastFailed || !dualForecast ? (
+          <Card>
+            <CardContent className="pt-6">
+              <div className="text-center py-8">
+                <p className="text-error-dark font-medium">Unable to load forecast data</p>
+                <p className="text-muted-foreground mt-2">Please check API connectivity</p>
+              </div>
+            </CardContent>
+          </Card>
+        ) : (
+          <Card>
+            <CardHeader>
+              <CardTitle>Fund Value Forecast</CardTitle>
+              {navAnchoring ? (
+                <TrustStateCounts
+                  blendedNav={navAnchoring.blendedNav}
+                  counts={navAnchoring.countsByTrustState}
+                  noFactsCount={noFactsCount}
+                  activeFilter={trustFilter}
+                  onFilterChange={handleTrustFilterChange}
+                />
+              ) : (
+                <FactsUnavailableNotice />
+              )}
+              <CardDescription>
+                Quarterly NAV comparison from the published plan, blended actuals, and current
+                forecast.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <CurrentProjectionNotice projection={dualForecast.currentProjection} />
+              <ResponsiveContainer width="100%" height={300}>
+                <LineChart data={forecastData}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="label" />
+                  <YAxis label={{ value: 'NAV ($M)', angle: -90, position: 'insideLeft' }} />
+                  <Tooltip content={<ForecastTooltip metric="nav" />} />
+                  <Legend />
+                  <Line
+                    type="monotone"
+                    dataKey="constructionNav"
+                    stroke={FORECAST_SERIES_COLORS[0]}
+                    strokeWidth={3}
+                    dot={{ r: 3 }}
+                    name="Construction Plan"
+                  />
+                  <Line
+                    type="monotone"
+                    dataKey="actualNav"
+                    stroke={FORECAST_SERIES_COLORS[1]}
+                    strokeWidth={3}
+                    dot={{ r: 4 }}
+                    name="Actuals"
+                  />
+                  <Line
+                    type="monotone"
+                    dataKey="currentForecastNav"
+                    stroke={FORECAST_SERIES_COLORS[2]}
+                    strokeWidth={3}
+                    dot={{ r: 3 }}
+                    name="Current Forecast"
+                  />
+                </LineChart>
+              </ResponsiveContainer>
+              <div className="mt-3" aria-label="Forecast drift summary">
+                <DriftCallout metricLabel="NAV" drift={latestDrift?.nav ?? null} />
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Portfolio Allocation (CP2: un-provenanced legacy valuations, ADR-029) */}
+        {!summaryFailed && dashboardData ? (
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                Portfolio Allocation
+                <Badge variant="outline" className="text-xs">
+                  Recorded valuations
+                </Badge>
+              </CardTitle>
+              <CardDescription>
+                Recorded (unverified) valuation vs invested capital by company
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <ResponsiveContainer width="100%" height={300}>
+                <BarChart data={portfolioData}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="name" />
+                  <YAxis label={{ value: 'Value ($M)', angle: -90, position: 'insideLeft' }} />
+                  <Tooltip
+                    formatter={(value: ValueType | undefined, name: NameType | undefined) => [
+                      formatRechartsMillionValue(value),
+                      formatSeriesName(name),
+                    ]}
+                  />
+                  <Legend />
+                  <Bar dataKey="investment" fill={FORECAST_SERIES_COLORS[0]} name="Investment" />
+                  <Bar dataKey="value" fill={FORECAST_SERIES_COLORS[1]} name="Recorded Value" />
+                </BarChart>
+              </ResponsiveContainer>
+            </CardContent>
+          </Card>
+        ) : null}
+      </div>
+
+      {/* NAV Attribution (ADR-030 mandatory adjacent attribution) */}
+      {!forecastFailed && dualForecast && navAnchoring ? (
+        <div ref={attributionRef}>
+          <NavAttributionTable
+            rows={attributionRows}
+            activeFilter={trustFilter}
+            onClearFilter={clearTrustFilter}
+            summary={attributionSummary}
+            freshness={
+              dualForecast.actualsFacts
+                ? {
+                    asOfDate: dualForecast.actualsFacts.asOfDate,
+                    inputHash: dualForecast.actualsFacts.inputHash,
+                  }
+                : null
+            }
+          />
+        </div>
+      ) : null}
+
+      {/* Deployment Timeline */}
+      {!forecastFailed && dualForecast ? (
         <Card>
           <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              Fund Value Forecast
-              <Badge variant="outline" className="text-xs">
-                Construction Plan
-              </Badge>
-              <Badge variant="secondary" className="text-xs">
-                Actuals
-              </Badge>
-              <Badge variant="secondary" className="text-xs">
-                Current Forecast
-              </Badge>
-            </CardTitle>
-            <CardDescription>
-              Quarterly NAV comparison from the published plan, API actuals, and current forecast.
-            </CardDescription>
+            <CardTitle>Capital Deployment Forecast</CardTitle>
+            <CardDescription>Cumulative called capital by quarter.</CardDescription>
           </CardHeader>
           <CardContent>
-            <ResponsiveContainer width="100%" height={300}>
+            <ResponsiveContainer width="100%" height={200}>
               <LineChart data={forecastData}>
                 <CartesianGrid strokeDasharray="3 3" />
                 <XAxis dataKey="label" />
-                <YAxis label={{ value: 'NAV ($M)', angle: -90, position: 'insideLeft' }} />
-                <Tooltip content={<ForecastTooltip metric="nav" />} />
+                <YAxis label={{ value: 'Called ($M)', angle: -90, position: 'insideLeft' }} />
+                <Tooltip content={<ForecastTooltip metric="calledCapital" />} />
                 <Legend />
                 <Line
                   type="monotone"
-                  dataKey="constructionNav"
+                  dataKey="constructionCalledCapital"
                   stroke={FORECAST_SERIES_COLORS[0]}
                   strokeWidth={3}
-                  dot={{ r: 3 }}
+                  dot={{ r: 4 }}
                   name="Construction Plan"
                 />
                 <Line
                   type="monotone"
-                  dataKey="actualNav"
+                  dataKey="actualCalledCapital"
                   stroke={FORECAST_SERIES_COLORS[1]}
                   strokeWidth={3}
                   dot={{ r: 4 }}
@@ -373,97 +555,23 @@ export default function DualForecastDashboard() {
                 />
                 <Line
                   type="monotone"
-                  dataKey="currentForecastNav"
+                  dataKey="currentForecastCalledCapital"
                   stroke={FORECAST_SERIES_COLORS[2]}
                   strokeWidth={3}
-                  dot={{ r: 3 }}
+                  dot={{ r: 4 }}
                   name="Current Forecast"
                 />
               </LineChart>
             </ResponsiveContainer>
-            <div className="mt-3" aria-label="Forecast drift summary">
-              <DriftCallout metricLabel="NAV" drift={latestDrift?.nav ?? null} />
+            <div className="mt-3" aria-label="Called capital drift summary">
+              <DriftCallout
+                metricLabel="called capital"
+                drift={latestDrift?.calledCapital ?? null}
+              />
             </div>
           </CardContent>
         </Card>
-
-        {/* Portfolio Allocation */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              Portfolio Allocation
-              <Badge variant="outline" className="text-xs">
-                API actuals
-              </Badge>
-            </CardTitle>
-            <CardDescription>Current API valuation vs invested capital by company</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <ResponsiveContainer width="100%" height={300}>
-              <BarChart data={portfolioData}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="name" />
-                <YAxis label={{ value: 'Value ($M)', angle: -90, position: 'insideLeft' }} />
-                <Tooltip
-                  formatter={(value: ValueType | undefined, name: NameType | undefined) => [
-                    formatRechartsMillionValue(value),
-                    formatSeriesName(name),
-                  ]}
-                />
-                <Legend />
-                <Bar dataKey="investment" fill={FORECAST_SERIES_COLORS[0]} name="Investment" />
-                <Bar dataKey="value" fill={FORECAST_SERIES_COLORS[1]} name="Current Value" />
-              </BarChart>
-            </ResponsiveContainer>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Deployment Timeline */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Capital Deployment Forecast</CardTitle>
-          <CardDescription>Cumulative called capital by quarter.</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <ResponsiveContainer width="100%" height={200}>
-            <LineChart data={forecastData}>
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="label" />
-              <YAxis label={{ value: 'Called ($M)', angle: -90, position: 'insideLeft' }} />
-              <Tooltip content={<ForecastTooltip metric="calledCapital" />} />
-              <Legend />
-              <Line
-                type="monotone"
-                dataKey="constructionCalledCapital"
-                stroke={FORECAST_SERIES_COLORS[0]}
-                strokeWidth={3}
-                dot={{ r: 4 }}
-                name="Construction Plan"
-              />
-              <Line
-                type="monotone"
-                dataKey="actualCalledCapital"
-                stroke={FORECAST_SERIES_COLORS[1]}
-                strokeWidth={3}
-                dot={{ r: 4 }}
-                name="Actuals"
-              />
-              <Line
-                type="monotone"
-                dataKey="currentForecastCalledCapital"
-                stroke={FORECAST_SERIES_COLORS[2]}
-                strokeWidth={3}
-                dot={{ r: 4 }}
-                name="Current Forecast"
-              />
-            </LineChart>
-          </ResponsiveContainer>
-          <div className="mt-3" aria-label="Called capital drift summary">
-            <DriftCallout metricLabel="called capital" drift={latestDrift?.calledCapital ?? null} />
-          </div>
-        </CardContent>
-      </Card>
+      ) : null}
     </div>
   );
 }
