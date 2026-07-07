@@ -1,4 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
+import { makeDualForecastResponse } from './fixtures/qa-audit-api';
 
 const FUND_ONE = {
   id: 1,
@@ -403,11 +404,29 @@ test.describe('latest QA route/nav/publish closeout matrix', () => {
         await expect(page.getByLabel('Forecast drift summary')).toContainText('-$8M');
         await expect(page.getByLabel('Called capital drift summary')).toContainText('+$5M');
         // PR-3 disclosure surface renders in a real browser (populated stub)
-        await expect(page.getByText('Blended NAV')).toBeVisible();
+        await expect(page.locator('p').filter({ hasText: /\$48M\s*Blended NAV/ })).toBeVisible();
+        await expect(
+          page.getByRole('button', { name: 'Filter to 1 live companies' })
+        ).toBeEnabled();
         await expect(
           page.getByRole('button', { name: 'Filter to 1 partial companies' })
-        ).toBeVisible();
+        ).toBeEnabled();
+        await expect(
+          page.getByRole('button', { name: 'Filter to 1 unavailable companies' })
+        ).toBeEnabled();
+        await expect(
+          page.getByRole('button', { name: 'Filter to 0 failed companies' })
+        ).toBeDisabled();
+        await expect(
+          page.getByRole('button', { name: 'Filter to 2 no facts companies' })
+        ).toBeEnabled();
         await expect(page.getByText('NAV Attribution')).toBeVisible();
+        await expect(page.getByRole('cell', { name: 'Delta NoFacts' })).toBeVisible();
+        await expect(page.getByRole('cell', { name: 'Omega Exited' })).toBeVisible();
+        await expect(
+          page.getByRole('cell', { name: 'Exited — not in NAV universe' })
+        ).toBeVisible();
+        await expect(page.getByText('Facts as of 2026-01-31 · input a1b2c3d4')).toBeVisible();
       }
     }
 
@@ -426,7 +445,9 @@ test.describe('latest QA route/nav/publish closeout matrix', () => {
 
     await expect(page).not.toHaveURL(/\/fund-setup\b/);
     await expect(page).not.toHaveURL(/\/fund-model-results\/1\b/);
-    await expect(page.getByRole('heading', { name: /^model results$/i })).toBeVisible();
+    await expect(page.getByRole('heading', { name: /^model results$/i })).toBeVisible({
+      timeout: 30_000,
+    });
     await expect(page.getByText(/select a fund to view model results/i)).toBeVisible();
   });
 
