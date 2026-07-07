@@ -49,6 +49,7 @@ export default [
       'dist/**',
       'coverage/**',
       '.vite/**',
+      '.cache/**', // Vite dep-optimizer output; flat config does not read .gitignore
       '.vercel/**',
       '.claude/**',
       '.tmp/**',
