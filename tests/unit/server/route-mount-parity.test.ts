@@ -22,10 +22,25 @@ import { describe, expect, it } from 'vitest';
 const DYNAMIC_IMPORT = /import\(\s*['"](\.\/routes\/[^'"]+)['"]\s*\)/g;
 const STATIC_IMPORT = /import\s+[^;]*?\s+from\s+['"](\.\/routes\/[^'"]+)['"]/g;
 
+// Strip comments before scanning so a commented-out import does NOT read as a live mount.
+// Otherwise removing a router from app.ts but leaving its old import in a comment would
+// false-GREEN the #1032 guard -- the exact regression this test exists to catch. Block
+// comments first, then line comments.
+//
+// BOUNDARY: string literals are NOT stripped. The module specifiers we extract live INSIDE
+// string literals (import('./routes/x.js')), so stripping strings would delete the very
+// target we scan for. A complete `import('./routes/x')` embedded in an unrelated string
+// literal would still be miscounted; closing that edge needs an AST, disproportionate for a
+// source-scan guard. The realistic accidental vector is a comment, and that is closed here.
+export function stripComments(source: string): string {
+  return source.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/[^\n]*/g, '');
+}
+
 export function extractRouteModulePaths(source: string): Set<string> {
+  const src = stripComments(source);
   const found = new Set<string>();
   for (const re of [DYNAMIC_IMPORT, STATIC_IMPORT]) {
-    for (const m of source.matchAll(re)) found.add(m[1]!);
+    for (const m of src.matchAll(re)) found.add(m[1]!);
   }
   return found;
 }
@@ -90,6 +105,28 @@ describe('route-mount-parity: pure diff logic (synthetic)', () => {
     expect(findStaleExemptions(routesFixture, appFixture, ['./routes/shared.js'])).toEqual([
       './routes/shared.js',
     ]);
+  });
+
+  it('does NOT count a commented-out import as route presence (finding 1)', () => {
+    const appWithCommentedImports = `
+      import sharedRouter from './routes/shared.js';
+      // import alphaRouter from './routes/alpha.js';   // unmounted, left in a line comment
+      /* app.use(await import('./routes/beta.js')); */
+      app.use('/api', sharedRouter);
+    `;
+    const makeApp = extractRouteModulePaths(appWithCommentedImports);
+    expect(makeApp.has('./routes/shared.js')).toBe(true);
+    expect(makeApp.has('./routes/alpha.js')).toBe(false); // line comment stripped
+    expect(makeApp.has('./routes/beta.js')).toBe(false); // block comment stripped
+  });
+
+  it('still flags a Docker-only module whose only makeApp import is commented out (#1032)', () => {
+    // The false-green: alpha was unmounted from makeApp but its import survives as a
+    // comment. The guard must STILL report alpha as an unexempted Docker-only gap.
+    const appOnlyComment = `// import('./routes/alpha.js');`;
+    expect(findUnexemptedDockerOnly(routesFixture, appOnlyComment, [])).toContain(
+      './routes/alpha.js'
+    );
   });
 });
 
@@ -181,9 +218,16 @@ const DOCKER_ONLY_EXEMPTIONS: Record<string, { kind: ExemptionKind; reason: stri
   './routes/lp-health.js': { kind: 'gap-pending', reason: 'GET /api/lp/health; verify caller' },
 };
 
-// gap-pending ratchet (R4): may only DECREASE. A new gap-pending must come with a
-// lowered ceiling or a mount. Current live count (routes.ts - app.ts, gap-pending) = 12.
-const GAP_PENDING_CEILING = 12;
+// gap-pending pin (R4): exact count of gap-pending exemptions, pinned to the committed
+// ledger. Any ledger change -- a burn-down mount (count down) or a newly-discovered gap
+// (count up) -- forces a deliberate edit to this constant in the SAME PR, visible in the
+// diff and reviewable. Burn-down edits it strictly downward.
+//
+// LIMIT: a self-contained unit test cannot see git history, so it cannot mathematically
+// forbid raising this number. The exact pin is the strongest available substitute: it
+// removes the 12->11->12 slack a `<=` ceiling allowed (a silent re-add after a burn-down
+// passes a ceiling but fails this pin until the constant is edited back up, in view).
+const GAP_PENDING_COUNT = 12;
 
 // -- Real-source parity assertions (the actual guard) -------------------------
 describe('route-mount-parity: routes.ts <-> makeApp (real sources)', () => {
@@ -213,11 +257,11 @@ describe('route-mount-parity: routes.ts <-> makeApp (real sources)', () => {
     expect(findStaleExemptions(routesSrc, appSrc, exemptions)).toEqual([]);
   });
 
-  it('gap-pending exemption count only ratchets down', () => {
+  it('gap-pending count is pinned to the committed ledger (edit downward on burn-down)', () => {
     const gapPending = Object.values(DOCKER_ONLY_EXEMPTIONS).filter(
       (e) => e.kind === 'gap-pending'
     );
-    expect(gapPending.length).toBeLessThanOrEqual(GAP_PENDING_CEILING);
+    expect(gapPending.length).toBe(GAP_PENDING_COUNT);
   });
 
   it('pins the createServer -> registerRoutes delegation (keeps the guard 2-way)', () => {
