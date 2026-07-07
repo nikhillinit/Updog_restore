@@ -1,5 +1,4 @@
 import { test, expect, type Page } from '@playwright/test';
-import { makeDashboardSummaryFixture } from './fixtures/dashboard-summary';
 
 const ROUTE_READY_TIMEOUT_MS = 60_000;
 
@@ -258,14 +257,12 @@ async function installSmokeApiStubs(page: Page) {
       await route.fulfill({
         status: 200,
         contentType: 'application/json',
-        body: JSON.stringify(
-          makeDashboardSummaryFixture({
-            fund: SMOKE_FUND,
-            metrics: { totalValue: 0, irr: 0, tvpi: 0, dpi: 0 },
-            deploymentRate: 0,
-            portfolioCompanies: [],
-          })
-        ),
+        body: JSON.stringify({
+          fund: SMOKE_FUND,
+          metrics: { totalValue: 0, irr: 0, tvpi: 0, dpi: 0 },
+          summary: { deploymentRate: 0, companiesCount: 0, targetCompanies: 20 },
+          portfolioCompanies: [],
+        }),
       });
       return;
     }
