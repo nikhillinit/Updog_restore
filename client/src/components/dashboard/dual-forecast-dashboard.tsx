@@ -14,7 +14,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { TrendingUp, DollarSign, Target, PieChart } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import type { NameType, ValueType } from 'recharts/types/component/DefaultTooltipContent';
-import type { DashboardSummary } from '@/types/fund';
+import type { DashboardKpiEvidence, DashboardSummary } from '@/types/fund';
 import { useFundContext } from '@/contexts/FundContext';
 import { useDualForecast } from '@/hooks/useDualForecast';
 import { presson } from '@/theme/presson.tokens';
@@ -68,6 +68,71 @@ function parseNumericValue(value: string | number | null | undefined): number {
 
 function formatSeriesName(name: NameType | undefined): string {
   return name === 'value' ? 'Recorded Value' : 'Investment';
+}
+
+function formatEvidenceDate(value: string | null | undefined): string | null {
+  if (!value) {
+    return null;
+  }
+
+  return value.slice(0, 10);
+}
+
+function evidenceTimestampSegment(evidence: DashboardKpiEvidence): string {
+  const asOfDate = formatEvidenceDate(evidence.asOfDate);
+  if (asOfDate) {
+    return `as of ${asOfDate}`;
+  }
+
+  const calculatedAt = formatEvidenceDate(evidence.calculatedAt);
+  if (calculatedAt) {
+    return `calculated ${calculatedAt}`;
+  }
+
+  if (evidence.freshness === 'source_unavailable') {
+    return 'source unavailable';
+  }
+
+  return 'timestamp unavailable';
+}
+
+function KpiEvidenceLine({ evidence }: { evidence: DashboardKpiEvidence }) {
+  const needsNote = evidence.status !== 'available' || evidence.freshness !== 'timestamped';
+
+  return (
+    <div className="mt-2 space-y-0.5 text-[11px] leading-snug text-charcoal-600">
+      <p>
+        {evidence.source} · fund {evidence.fundId} · {evidenceTimestampSegment(evidence)}
+      </p>
+      <p>
+        {evidence.readModel} · {evidence.sourceEndpoint}
+        {needsNote ? ` · ${evidence.note}` : ''}
+      </p>
+    </div>
+  );
+}
+
+function PortfolioAllocationEvidenceRail({
+  evidence,
+}: {
+  evidence: DashboardSummary['evidence']['portfolioAllocation'];
+}) {
+  return (
+    <div
+      role="note"
+      aria-label="Portfolio allocation evidence"
+      className="mb-4 rounded-md border border-beige-200 bg-beige-50 px-3 py-2 text-xs leading-relaxed text-charcoal-700"
+    >
+      <p>
+        Source: {evidence.source} · fund {evidence.fundId} · {evidence.companyCount} companies ·{' '}
+        {evidence.valuedCompanyCount} valued
+      </p>
+      <p>Valuation freshness unavailable: {evidence.valuationFreshness.reason}</p>
+      <p>
+        {evidence.readModel} · {evidence.sourceEndpoint}
+      </p>
+    </div>
+  );
 }
 
 function formatRechartsMillionValue(value: ValueType | undefined): string {
@@ -308,8 +373,9 @@ export default function DualForecastDashboard() {
 
   // Transform real data for forecasting charts
   const currentMetrics = dashboardData?.metrics;
-  const baseValue = parseNumericValue(currentMetrics?.totalValue);
-  const currentIRR = parseNumericValue(currentMetrics?.irr);
+  const baseValue =
+    currentMetrics?.totalValue != null ? parseNumericValue(currentMetrics.totalValue) : null;
+  const currentIRR = currentMetrics?.irr != null ? parseNumericValue(currentMetrics.irr) : null;
   const latestDrift = getLatestForecastDrift(forecastData);
   const navAnchoring = dualForecast?.navAnchoring ?? null;
   const noFactsCount = countNoFactsRows(attributionRows);
@@ -345,7 +411,10 @@ export default function DualForecastDashboard() {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm font-medium text-muted-foreground">Current AUM</p>
-                  <p className="text-2xl font-bold">${(baseValue / MILLION).toFixed(1)}M</p>
+                  <p className="text-2xl font-bold">
+                    {baseValue === null ? 'Unavailable' : `$${(baseValue / MILLION).toFixed(1)}M`}
+                  </p>
+                  <KpiEvidenceLine evidence={dashboardData.evidence.kpis.currentAum} />
                 </div>
                 <DollarSign className="h-8 w-8 text-charcoal-600" />
               </div>
@@ -356,8 +425,11 @@ export default function DualForecastDashboard() {
             <CardContent className="pt-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-medium text-muted-foreground">IRR</p>
-                  <p className="text-2xl font-bold">{(currentIRR * 100).toFixed(1)}%</p>
+                  <p className="text-sm font-medium text-muted-foreground">Dashboard IRR</p>
+                  <p className="text-2xl font-bold">
+                    {currentIRR === null ? 'Unavailable' : `${(currentIRR * 100).toFixed(1)}%`}
+                  </p>
+                  <KpiEvidenceLine evidence={dashboardData.evidence.kpis.irr} />
                 </div>
                 <TrendingUp className="h-8 w-8 text-charcoal-600" />
               </div>
@@ -370,6 +442,7 @@ export default function DualForecastDashboard() {
                 <div>
                   <p className="text-sm font-medium text-muted-foreground">Portfolio Cos</p>
                   <p className="text-2xl font-bold">{dashboardData.portfolioCompanies.length}</p>
+                  <KpiEvidenceLine evidence={dashboardData.evidence.kpis.portfolioCompanies} />
                 </div>
                 <PieChart className="h-8 w-8 text-charcoal-600" />
               </div>
@@ -384,6 +457,7 @@ export default function DualForecastDashboard() {
                   <p className="text-2xl font-bold">
                     {dashboardData.summary.deploymentRate.toFixed(0)}%
                   </p>
+                  <KpiEvidenceLine evidence={dashboardData.evidence.kpis.deployment} />
                 </div>
                 <Target className="h-8 w-8 text-charcoal-600" />
               </div>
@@ -481,6 +555,9 @@ export default function DualForecastDashboard() {
               </CardDescription>
             </CardHeader>
             <CardContent>
+              <PortfolioAllocationEvidenceRail
+                evidence={dashboardData.evidence.portfolioAllocation}
+              />
               <ResponsiveContainer width="100%" height={300}>
                 <BarChart data={portfolioData}>
                   <CartesianGrid strokeDasharray="3 3" />
