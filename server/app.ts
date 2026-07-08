@@ -22,6 +22,7 @@ import timelineRouter from './routes/timeline.js';
 import { sharesRouter, publicSharesRouter } from './routes/shares.js';
 import capitalAllocationRouter from './routes/capital-allocation.js';
 import liquidityRouter from './routes/liquidity.js';
+import graduationRouter from './routes/graduation.js';
 import reallocationRouter from './routes/reallocation.js';
 import cashFlowEventsRouter from './routes/cash-flow-events.js';
 import operatingObjectTasksRouter from './routes/operating-object-tasks.js';
@@ -259,6 +260,11 @@ export function makeApp() {
   // Vercel/makeApp surface matches the Docker routes.ts mount; without it /api/liquidity 404s in prod.
   // Closes the parity 404 gap; does NOT by itself restore the prod client flow (hook sends no Bearer).
   app.use('/api/liquidity', liquidityRouter);
+  // Graduation API (#1036 burn-down). Pure deterministic compute (no DB, no fund-scope, no
+  // route-local auth) — protected only by the global /api auth boundary above. Mounted here so the
+  // Vercel/makeApp surface matches the Docker routes.ts mount; without it /api/graduation 404s in prod.
+  // Closes the parity 404 gap; does NOT by itself restore the prod client flow (hook sends no Bearer).
+  app.use('/api/graduation', graduationRouter);
 
   // Reallocation API (Phase 1b) - mounted at root; the router self-defines its
   // full /api/funds/:fundId/reallocation/* paths (mirrors the registerRoutes mount).
