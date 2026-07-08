@@ -91,6 +91,7 @@ const MAKEAPP_ROUTE_INVENTORY: Record<string, { kind: MountKind; tables?: string
   // snapshots -- none are in C1_MOUNTED_TABLES.
   sharesRouter: { kind: 'other-table' },
   publicSharesRouter: { kind: 'other-table' },
+  capitalAllocationRouter: { kind: 'non-table' },
   investmentsRouter: { kind: 'c1', tables: ['investment_rounds'] },
   varianceRouter: { kind: 'other-table' },
   registerFundConfigRoutes: { kind: 'other-table' },
