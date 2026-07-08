@@ -31,6 +31,7 @@ import fundsRouter from './routes/funds.js';
 import fundMetricsRouter from './routes/fund-metrics.js';
 import investmentsRouter from './routes/investments.js';
 import portfolioCompaniesRouter from './routes/portfolio-companies.js';
+import portfolioOverviewRouter from './routes/portfolio-overview.js';
 import varianceRouter from './routes/variance.js';
 import { registerFundConfigRoutes } from './routes/fund-config.js';
 import { dealPipelineRouter } from './routes/deal-pipeline.js';
@@ -233,6 +234,14 @@ export function makeApp() {
   // the Docker routes.ts mount; without it /api/portfolio-companies 404s in prod. Closes the parity
   // 404 gap; does NOT by itself restore the prod client flow (apiRequest sends cookies, not Bearer).
   app.use('/api', portfolioCompaniesRouter);
+  // Portfolio Overview API (#1036 burn-down). Fund-scoped server-computed overview (KPIs + per-company
+  // MOIC) read from funds/portfolio_companies via IStorage; protected by the global /api auth boundary
+  // above + per-request enforceProvidedFundScope. Mounted at the bare /api root (route self-defines the
+  // relative /portfolio-overview path), mirroring the Docker routes.ts mount; without it
+  // /api/portfolio-overview 404s in prod (live: /portfolio -> PortfolioTabs -> OverviewTab ->
+  // usePortfolioOverview). Closes the parity 404 gap; does NOT by itself restore the prod client flow
+  // (apiRequest sends cookies, not Bearer).
+  app.use('/api', portfolioOverviewRouter);
   app.use('/api', portfolioLotsRouter);
   app.use(performanceApiRouter);
   app.use('/', varianceRouter);
