@@ -92,6 +92,7 @@ const MAKEAPP_ROUTE_INVENTORY: Record<string, { kind: MountKind; tables?: string
   sharesRouter: { kind: 'other-table' },
   publicSharesRouter: { kind: 'other-table' },
   capitalAllocationRouter: { kind: 'non-table' },
+  liquidityRouter: { kind: 'non-table' },
   investmentsRouter: { kind: 'c1', tables: ['investment_rounds'] },
   varianceRouter: { kind: 'other-table' },
   registerFundConfigRoutes: { kind: 'other-table' },

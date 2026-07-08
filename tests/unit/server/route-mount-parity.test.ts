@@ -194,10 +194,6 @@ const DOCKER_ONLY_EXEMPTIONS: Record<string, { kind: ExemptionKind; reason: stri
     kind: 'gap-pending',
     reason: 'client use-moic.ts hits /api/moic; /moic-analysis page may be retired',
   },
-  './routes/liquidity.js': {
-    kind: 'gap-pending',
-    reason: 'client use-liquidity + CashflowDashboard',
-  },
   './routes/graduation.js': { kind: 'gap-pending', reason: 'client use-graduation.ts' },
   './routes/portfolio-companies.js': {
     kind: 'gap-pending',
@@ -215,7 +211,7 @@ const DOCKER_ONLY_EXEMPTIONS: Record<string, { kind: ExemptionKind; reason: stri
 // forbid raising this number. The exact pin is the strongest available substitute: it
 // removes the 12->11->12 slack a `<=` ceiling allowed (a silent re-add after a burn-down
 // passes a ceiling but fails this pin until the constant is edited back up, in view).
-const GAP_PENDING_COUNT = 9;
+const GAP_PENDING_COUNT = 8;
 
 // -- Real-source parity assertions (the actual guard) -------------------------
 describe('route-mount-parity: routes.ts <-> makeApp (real sources)', () => {
@@ -230,11 +226,11 @@ describe('route-mount-parity: routes.ts <-> makeApp (real sources)', () => {
     expect(makeApp.has('./routes/funds.js')).toBe(true);
   });
 
-  it('a known gap-pending router (liquidity) is Docker-only today', () => {
+  it('a known gap-pending router (graduation) is Docker-only today', () => {
     const docker = extractRouteModulePaths(routesSrc);
     const makeApp = extractRouteModulePaths(appSrc);
-    expect(docker.has('./routes/liquidity.js')).toBe(true);
-    expect(makeApp.has('./routes/liquidity.js')).toBe(false);
+    expect(docker.has('./routes/graduation.js')).toBe(true);
+    expect(makeApp.has('./routes/graduation.js')).toBe(false);
   });
 
   it('every Docker-only router is mounted on makeApp OR exempted (the #1032 guard)', () => {
