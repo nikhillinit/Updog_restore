@@ -18,6 +18,7 @@ import allocationScenariosRouter from './routes/allocation-scenarios.js';
 import planningFmvOverridesRouter from './routes/planning-fmv-overrides.js';
 import fundScenarioSetsRouter from './routes/fund-scenario-sets.js';
 import fundMoicRouter from './routes/fund-moic.js';
+import timelineRouter from './routes/timeline.js';
 import reallocationRouter from './routes/reallocation.js';
 import cashFlowEventsRouter from './routes/cash-flow-events.js';
 import operatingObjectTasksRouter from './routes/operating-object-tasks.js';
@@ -232,6 +233,11 @@ export function makeApp() {
   app.use('/api', planningFmvOverridesRouter);
   app.use('/api', fundScenarioSetsRouter);
   app.use('/api', fundMoicRouter);
+  // Timeline / time-travel API (#1036 burn-down). Mounted here so the
+  // Vercel/makeApp surface matches the Docker routes.ts mount; without it the
+  // client's /api/timeline calls 404 in prod. /events/latest self-gates with
+  // requireAuth()+requireRole('admin') inside the router (cross-surface safe).
+  app.use('/api/timeline', timelineRouter);
 
   // Reallocation API (Phase 1b) - mounted at root; the router self-defines its
   // full /api/funds/:fundId/reallocation/* paths (mirrors the registerRoutes mount).

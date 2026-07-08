@@ -93,6 +93,18 @@ vi.mock('../../../server/db', () => ({
   },
 }));
 
+// Inject an admin user so the /events/latest admin gate passes; this file
+// verifies response format only. The real auth boundary (401/403) is proven in
+// tests/unit/routes/timeline-makeapp-surface.contract.test.ts with real tokens.
+vi.mock('../../../server/lib/auth/jwt', () => ({
+  requireAuth: () => (req: any, _res: any, next: any) => {
+    req.user = { id: '1', role: 'admin', roles: ['admin'], fundIds: [] };
+    next();
+  },
+  requireRole: (role: string) => (req: any, res: any, next: any) =>
+    req.user?.role === role ? next() : res.sendStatus(403),
+}));
+
 // Import the router and mock instance after mocking
 import { db } from '../../../server/db';
 import timelineRouter from '../../../server/routes/timeline';

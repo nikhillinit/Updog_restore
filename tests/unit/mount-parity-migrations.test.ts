@@ -84,6 +84,9 @@ const MAKEAPP_ROUTE_INVENTORY: Record<string, { kind: MountKind; tables?: string
   backtestingRouter: { kind: 'other-table' },
   fundsRouter: { kind: 'other-table' },
   fundMetricsRouter: { kind: 'other-table' },
+  // TimeTravelAnalyticsService reads fund_events, fund_snapshots, funds; also
+  // funds in POST /:fundId/snapshot. None are in C1_MOUNTED_TABLES.
+  timelineRouter: { kind: 'other-table' },
   investmentsRouter: { kind: 'c1', tables: ['investment_rounds'] },
   varianceRouter: { kind: 'other-table' },
   registerFundConfigRoutes: { kind: 'other-table' },
