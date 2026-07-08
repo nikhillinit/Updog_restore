@@ -20,6 +20,7 @@ import { asyncHandler } from '../middleware/async';
 import { validateRequest } from '../middleware/validation';
 import { TimeTravelAnalyticsService, type Cache } from '../services/time-travel-analytics';
 import { enforceProvidedFundScope } from '../lib/auth/provided-fund-scope';
+import { requireAuth, requireRole } from '../lib/auth/jwt';
 
 const timelineReadLimiter = rateLimit({
   windowMs: 60_000,
@@ -301,6 +302,8 @@ export function createTimelineRouter(service: TimeTravelAnalyticsService) {
    */
   router.get(
     '/events/latest',
+    requireAuth(),
+    requireRole('admin'),
     timelineReadLimiter,
     validateRequest({
       query: z.object({

@@ -15,6 +15,30 @@ vi.mock('../../../server/lib/auth/provided-fund-scope', () => ({
   enforceProvidedFundScope: fundScopeState.enforceProvidedFundScope,
 }));
 
+const authState = vi.hoisted(() => ({
+  user: { id: '1', role: 'admin', roles: ['admin'], fundIds: [] } as {
+    id: string;
+    role: string;
+    roles: string[];
+    fundIds: number[];
+  } | null,
+}));
+
+vi.mock('../../../server/lib/auth/jwt', () => ({
+  requireAuth: () => (req: Request, _res: Response, next: () => void) => {
+    (req as unknown as { user: unknown }).user = authState.user;
+    next();
+  },
+  requireRole: (role: string) => (req: Request, res: Response, next: () => void) => {
+    const user = (req as unknown as { user?: { role?: string } }).user;
+    if (!user || user.role !== role) {
+      res.status(403).json({ error: 'Forbidden' });
+      return;
+    }
+    next();
+  },
+}));
+
 vi.mock('../../../server/db', () => ({
   db: { query: { funds: { findFirst: dbState.findFirst } } },
 }));
@@ -77,6 +101,7 @@ describe('timeline route contracts', () => {
     dbState.findFirst.mockReset();
     dbState.findFirst.mockResolvedValue(null);
     service = makeService();
+    authState.user = { id: '1', role: 'admin', roles: ['admin'], fundIds: [] };
   });
 
   it('GET /:fundId rejects non-canonical fundId before scope check and event read', async () => {
@@ -146,5 +171,18 @@ describe('timeline route contracts', () => {
       1
     );
     expect(service.getTimelineEvents).toHaveBeenCalledTimes(1);
+  });
+
+  it('GET /events/latest rejects a non-admin before reading events', async () => {
+    authState.user = { id: '9', role: 'user', roles: ['user'], fundIds: [] };
+    const res = await request(makeApp(service)).get('/api/timeline/events/latest');
+    expect(res.status).toBe(403);
+    expect(service.getLatestEvents).not.toHaveBeenCalled();
+  });
+
+  it('GET /events/latest returns events for an admin', async () => {
+    const res = await request(makeApp(service)).get('/api/timeline/events/latest?limit=5');
+    expect(res.status).toBe(200);
+    expect(service.getLatestEvents).toHaveBeenCalledWith(5, undefined);
   });
 });
