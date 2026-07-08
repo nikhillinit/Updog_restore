@@ -20,6 +20,7 @@ import fundScenarioSetsRouter from './routes/fund-scenario-sets.js';
 import fundMoicRouter from './routes/fund-moic.js';
 import timelineRouter from './routes/timeline.js';
 import { sharesRouter, publicSharesRouter } from './routes/shares.js';
+import capitalAllocationRouter from './routes/capital-allocation.js';
 import reallocationRouter from './routes/reallocation.js';
 import cashFlowEventsRouter from './routes/cash-flow-events.js';
 import operatingObjectTasksRouter from './routes/operating-object-tasks.js';
@@ -246,6 +247,12 @@ export function makeApp() {
   // bypass the global /api auth). Placed AFTER the global /api auth boundary.
   app.use('/api/shares', sharesRouter);
   app.use('/api/public/shares', publicSharesRouter);
+  // Capital-allocation API (#1036 burn-down). Pure deterministic compute (no DB, no fund-scope,
+  // no route-local auth) — protected only by the global /api auth boundary above. Mounted here so
+  // the Vercel/makeApp surface matches the Docker routes.ts mount; without it /api/capital-allocation
+  // 404s in prod. This closes the parity 404 gap; it does NOT by itself restore the prod client flow
+  // (the client hook sends no Bearer token — see the handoff TODO).
+  app.use('/api/capital-allocation', capitalAllocationRouter);
 
   // Reallocation API (Phase 1b) - mounted at root; the router self-defines its
   // full /api/funds/:fundId/reallocation/* paths (mirrors the registerRoutes mount).
