@@ -30,6 +30,7 @@ import backtestingRouter from './routes/backtesting.js';
 import fundsRouter from './routes/funds.js';
 import fundMetricsRouter from './routes/fund-metrics.js';
 import investmentsRouter from './routes/investments.js';
+import portfolioCompaniesRouter from './routes/portfolio-companies.js';
 import varianceRouter from './routes/variance.js';
 import { registerFundConfigRoutes } from './routes/fund-config.js';
 import { dealPipelineRouter } from './routes/deal-pipeline.js';
@@ -226,6 +227,12 @@ export function makeApp() {
   app.use('/api', fundsRouter);
   app.use(fundMetricsRouter);
   app.use('/api', investmentsRouter);
+  // Portfolio Companies API (#1036 burn-down). Fund-scoped reads/writes of portfolio_companies via
+  // IStorage; protected by the global /api auth boundary above + per-request enforceProvidedFundScope.
+  // Mounted at the bare /api root (routes self-define relative /portfolio-companies paths), mirroring
+  // the Docker routes.ts mount; without it /api/portfolio-companies 404s in prod. Closes the parity
+  // 404 gap; does NOT by itself restore the prod client flow (apiRequest sends cookies, not Bearer).
+  app.use('/api', portfolioCompaniesRouter);
   app.use('/api', portfolioLotsRouter);
   app.use(performanceApiRouter);
   app.use('/', varianceRouter);
