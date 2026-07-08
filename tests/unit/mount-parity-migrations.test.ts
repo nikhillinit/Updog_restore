@@ -87,6 +87,10 @@ const MAKEAPP_ROUTE_INVENTORY: Record<string, { kind: MountKind; tables?: string
   // TimeTravelAnalyticsService reads fund_events, fund_snapshots, funds; also
   // funds in POST /:fundId/snapshot. None are in C1_MOUNTED_TABLES.
   timelineRouter: { kind: 'other-table' },
+  // Shares management + anonymous public snapshot. Reads/writes shares, shareAnalytics, and share
+  // snapshots -- none are in C1_MOUNTED_TABLES.
+  sharesRouter: { kind: 'other-table' },
+  publicSharesRouter: { kind: 'other-table' },
   investmentsRouter: { kind: 'c1', tables: ['investment_rounds'] },
   varianceRouter: { kind: 'other-table' },
   registerFundConfigRoutes: { kind: 'other-table' },
