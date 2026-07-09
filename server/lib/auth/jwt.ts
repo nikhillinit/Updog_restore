@@ -11,7 +11,6 @@
 
 import type { Algorithm, JwtPayload } from 'jsonwebtoken';
 import jwt from 'jsonwebtoken';
-import jwksClient from 'jwks-rsa';
 import type { Request, Response, NextFunction } from 'express';
 import { parseFundIdParam } from '@shared/number';
 import { getConfig } from '../../config';
@@ -33,12 +32,19 @@ function getJwtConfig() {
 }
 
 // JWKS client singleton for RS256 (lazy initialized)
-let jwksClientInstance: jwksClient.JwksClient | null = null;
+type JwksClientInstance = import('jwks-rsa').JwksClient;
+type JwksClientFactory = (options: import('jwks-rsa').Options) => JwksClientInstance;
 
-function getJwksClient(): jwksClient.JwksClient {
+let jwksClientInstance: JwksClientInstance | null = null;
+
+async function getJwksClient(): Promise<JwksClientInstance> {
   const cfg = getJwtConfig();
   if (!jwksClientInstance && cfg.JWT_JWKS_URL) {
-    jwksClientInstance = jwksClient({
+    const jwksRsaModule = (await import('jwks-rsa')) as unknown as {
+      default?: JwksClientFactory;
+    } & JwksClientFactory;
+    const createJwksClient = jwksRsaModule.default ?? jwksRsaModule;
+    jwksClientInstance = createJwksClient({
       jwksUri: cfg.JWT_JWKS_URL,
       cache: true,
       cacheMaxAge: 600000, // 10 minutes
@@ -56,7 +62,7 @@ function getJwksClient(): jwksClient.JwksClient {
  * Get signing key from JWKS endpoint for RS256 verification
  */
 async function getSigningKey(kid: string): Promise<string> {
-  const client = getJwksClient();
+  const client = await getJwksClient();
   const key = await client.getSigningKey(kid);
   return key.getPublicKey();
 }
