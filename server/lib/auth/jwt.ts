@@ -11,7 +11,6 @@
 
 import type { Algorithm, JwtPayload } from 'jsonwebtoken';
 import jwt from 'jsonwebtoken';
-import jwksClient from 'jwks-rsa';
 import type { Request, Response, NextFunction } from 'express';
 import { parseFundIdParam } from '@shared/number';
 import { getConfig } from '../../config';
@@ -33,30 +32,49 @@ function getJwtConfig() {
 }
 
 // JWKS client singleton for RS256 (lazy initialized)
-let jwksClientInstance: jwksClient.JwksClient | null = null;
+type JwksClientInstance = import('jwks-rsa').JwksClient;
+type JwksClientOptions = import('jwks-rsa').Options;
+type JwksClientFactory = (options: JwksClientOptions) => JwksClientInstance;
+type JwksRsaModule = {
+  default?: JwksClientFactory;
+} & JwksClientFactory;
 
-function getJwksClient(): jwksClient.JwksClient {
-  const cfg = getJwtConfig();
-  if (!jwksClientInstance && cfg.JWT_JWKS_URL) {
-    jwksClientInstance = jwksClient({
-      jwksUri: cfg.JWT_JWKS_URL,
-      cache: true,
-      cacheMaxAge: 600000, // 10 minutes
-      rateLimit: true,
-      jwksRequestsPerMinute: 10,
-    });
+let jwksClientPromise: Promise<JwksClientInstance> | null = null;
+
+async function createJwksClient(jwksUri: string): Promise<JwksClientInstance> {
+  const jwksRsaModule = (await import('jwks-rsa')) as unknown as JwksRsaModule;
+  const createJwksClientInstance = jwksRsaModule.default ?? jwksRsaModule;
+  return createJwksClientInstance({
+    jwksUri,
+    cache: true,
+    cacheMaxAge: 600000, // 10 minutes
+    rateLimit: true,
+    jwksRequestsPerMinute: 10,
+  });
+}
+
+function getJwksClient(): Promise<JwksClientInstance> {
+  if (jwksClientPromise) {
+    return jwksClientPromise;
   }
-  if (!jwksClientInstance) {
+
+  const cfg = getJwtConfig();
+  if (!cfg.JWT_JWKS_URL) {
     throw new Error('JWKS client not initialized - JWT_JWKS_URL required for RS256');
   }
-  return jwksClientInstance;
+
+  jwksClientPromise = createJwksClient(cfg.JWT_JWKS_URL).catch((err: unknown) => {
+    jwksClientPromise = null;
+    throw err;
+  });
+  return jwksClientPromise;
 }
 
 /**
  * Get signing key from JWKS endpoint for RS256 verification
  */
 async function getSigningKey(kid: string): Promise<string> {
-  const client = getJwksClient();
+  const client = await getJwksClient();
   const key = await client.getSigningKey(kid);
   return key.getPublicKey();
 }
