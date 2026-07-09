@@ -33,29 +33,41 @@ function getJwtConfig() {
 
 // JWKS client singleton for RS256 (lazy initialized)
 type JwksClientInstance = import('jwks-rsa').JwksClient;
-type JwksClientFactory = (options: import('jwks-rsa').Options) => JwksClientInstance;
+type JwksClientOptions = import('jwks-rsa').Options;
+type JwksClientFactory = (options: JwksClientOptions) => JwksClientInstance;
+type JwksRsaModule = {
+  default?: JwksClientFactory;
+} & JwksClientFactory;
 
-let jwksClientInstance: JwksClientInstance | null = null;
+let jwksClientPromise: Promise<JwksClientInstance> | null = null;
 
-async function getJwksClient(): Promise<JwksClientInstance> {
-  const cfg = getJwtConfig();
-  if (!jwksClientInstance && cfg.JWT_JWKS_URL) {
-    const jwksRsaModule = (await import('jwks-rsa')) as unknown as {
-      default?: JwksClientFactory;
-    } & JwksClientFactory;
-    const createJwksClient = jwksRsaModule.default ?? jwksRsaModule;
-    jwksClientInstance = createJwksClient({
-      jwksUri: cfg.JWT_JWKS_URL,
-      cache: true,
-      cacheMaxAge: 600000, // 10 minutes
-      rateLimit: true,
-      jwksRequestsPerMinute: 10,
-    });
+async function createJwksClient(jwksUri: string): Promise<JwksClientInstance> {
+  const jwksRsaModule = (await import('jwks-rsa')) as unknown as JwksRsaModule;
+  const createJwksClientInstance = jwksRsaModule.default ?? jwksRsaModule;
+  return createJwksClientInstance({
+    jwksUri,
+    cache: true,
+    cacheMaxAge: 600000, // 10 minutes
+    rateLimit: true,
+    jwksRequestsPerMinute: 10,
+  });
+}
+
+function getJwksClient(): Promise<JwksClientInstance> {
+  if (jwksClientPromise) {
+    return jwksClientPromise;
   }
-  if (!jwksClientInstance) {
+
+  const cfg = getJwtConfig();
+  if (!cfg.JWT_JWKS_URL) {
     throw new Error('JWKS client not initialized - JWT_JWKS_URL required for RS256');
   }
-  return jwksClientInstance;
+
+  jwksClientPromise = createJwksClient(cfg.JWT_JWKS_URL).catch((err: unknown) => {
+    jwksClientPromise = null;
+    throw err;
+  });
+  return jwksClientPromise;
 }
 
 /**
