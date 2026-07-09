@@ -175,23 +175,29 @@ const DOCKER_ONLY_EXEMPTIONS: Record<string, { kind: ExemptionKind; reason: stri
     reason: 'extracted into dedicated modules (routes.ts)',
   },
   './routes/monte-carlo.js': {
-    kind: 'gap-pending',
-    reason: 'no client caller found; MC may run via BullMQ -- verify then reclassify',
+    kind: 'permanent-serverless-incompatible',
+    reason:
+      'no client caller (client MC runs in a web worker, analytics.worker.ts); server API is BullMQ-queued + SSE (/jobs/:id/stream) + heavy multi-thousand-run sim, unfit for Vercel functions',
   },
   './routes/performance-metrics.js': {
-    kind: 'gap-pending',
-    reason: 'no client caller found; verify internal-only then reclassify',
+    kind: 'permanent-infra',
+    reason:
+      'dev-dashboard/monitoring; reads the in-process performance-monitor EventEmitter (per-invocation-meaningless on serverless) + SSE /realtime; no client caller',
   },
   './routes/activities.js': {
-    kind: 'gap-pending',
-    reason: 'POST /activities; confirm no live client writer',
+    kind: 'permanent-superseded',
+    reason:
+      'activity feed read served by dashboard-summary (on makeApp) via recentActivities; RecentActivity component unrendered; no client caller/writer of /api/activities (only tests)',
   },
   './routes/moic.js': {
     kind: 'permanent-superseded',
     reason:
       'superseded by fund-moic.js (/api/funds/:id/moic/rankings, on makeApp); its only callers useMOICCalculation/useMOICRanking are dead exports; /moic-analysis page retired (#997)',
   },
-  './routes/lp-health.js': { kind: 'gap-pending', reason: 'GET /api/lp/health; verify caller' },
+  './routes/lp-health.js': {
+    kind: 'permanent-infra',
+    reason: 'LP feature health check for load balancers/monitoring; no client caller',
+  },
 };
 
 // gap-pending pin (R4): exact count of gap-pending exemptions, pinned to the committed
@@ -203,7 +209,13 @@ const DOCKER_ONLY_EXEMPTIONS: Record<string, { kind: ExemptionKind; reason: stri
 // forbid raising this number. The exact pin is the strongest available substitute: it
 // removes the 12->11->12 slack a `<=` ceiling allowed (a silent re-add after a burn-down
 // passes a ceiling but fails this pin until the constant is edited back up, in view).
-const GAP_PENDING_COUNT = 4;
+//
+// BURN-DOWN COMPLETE (#1036): reached 0. The final four (monte-carlo, performance-metrics,
+// activities, lp-health) were each traced to zero live client callers and reclassified to
+// permanent-* rather than mounted (see their exemption reasons). A future Docker-only router
+// must now either mount on makeApp or land a permanent-* exemption -- this pin stays at 0 and
+// any new gap-pending entry forces a deliberate, diff-visible bump here.
+const GAP_PENDING_COUNT = 0;
 
 // -- Real-source parity assertions (the actual guard) -------------------------
 describe('route-mount-parity: routes.ts <-> makeApp (real sources)', () => {
@@ -218,7 +230,10 @@ describe('route-mount-parity: routes.ts <-> makeApp (real sources)', () => {
     expect(makeApp.has('./routes/funds.js')).toBe(true);
   });
 
-  it('a known gap-pending router (lp-health) is Docker-only today', () => {
+  it('a permanent Docker-only router (lp-health) is seen as Docker-only, not on makeApp', () => {
+    // Canary that the extractor still distinguishes the two surfaces now that the gap-pending
+    // burn-down reached zero: lp-health stays intentionally Docker-only (permanent-infra), so a
+    // real Docker-only module is still read as present in routes.ts and absent from makeApp.
     const docker = extractRouteModulePaths(routesSrc);
     const makeApp = extractRouteModulePaths(appSrc);
     expect(docker.has('./routes/lp-health.js')).toBe(true);
