@@ -189,11 +189,6 @@ const DOCKER_ONLY_EXEMPTIONS: Record<string, { kind: ExemptionKind; reason: stri
     reason:
       'activity feed read served by dashboard-summary (on makeApp) via recentActivities; RecentActivity component unrendered; no client caller/writer of /api/activities (only tests)',
   },
-  './routes/moic.js': {
-    kind: 'permanent-superseded',
-    reason:
-      'superseded by fund-moic.js (/api/funds/:id/moic/rankings, on makeApp); its only callers useMOICCalculation/useMOICRanking are dead exports; /moic-analysis page retired (#997)',
-  },
   './routes/lp-health.js': {
     kind: 'permanent-infra',
     reason: 'LP feature health check for load balancers/monitoring; no client caller',
