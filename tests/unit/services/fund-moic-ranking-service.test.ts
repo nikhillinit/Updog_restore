@@ -15,8 +15,8 @@ vi.mock('../../../server/db', () => ({
   },
 }));
 
-vi.mock('../../../server/routes/moic', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('../../../server/routes/moic')>();
+vi.mock('../../../server/lib/moic-mapper', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../../server/lib/moic-mapper')>();
 
   dbToMOICInvestment.mockImplementation(actual.dbToMOICInvestment);
 

@@ -1,7 +1,7 @@
 import { db } from '../db';
 import { MOICCalculator } from '../../shared/core/moic/MOICCalculator.js';
 import type { Investment as MOICInvestment } from '../../shared/core/moic/MOICCalculator.js';
-import { dbToMOICInvestment } from '../routes/moic.js';
+import { dbToMOICInvestment } from '../lib/moic-mapper.js';
 import type { FundMoicRankingsResponseV1 } from '../../shared/contracts/fund-moic-v1.contract.js';
 import { canonicalSha256 } from '../../shared/lib/canonical-hash';
 

@@ -1,35 +1,13 @@
 /**
- * MOIC Calculator API Routes
+ * MOIC input mapper.
  *
- * Endpoints for portfolio MOIC calculations.
+ * Relocated from server/routes/moic.ts (#1036 burn-down): the /api/moic router
+ * was a superseded, uncalled Docker-only route and was removed, but this DB-row
+ * adapter is a live dependency of fund-moic-ranking-service (the on-makeApp
+ * /api/funds/:id/moic/rankings path), so it lives here as a plain lib helper.
  */
 
-import { Router } from 'express';
-import type { Request, Response } from 'express';
-import { z } from 'zod';
-import { asyncHandler } from '../middleware/async.js';
-import { MOICCalculator } from '../../shared/core/moic/MOICCalculator.js';
 import type { Investment as MOICInvestment } from '../../shared/core/moic/MOICCalculator.js';
-
-const router = Router();
-
-// Request validation schema
-const investmentSchema = z.object({
-  id: z.string(),
-  name: z.string(),
-  initialInvestment: z.number(),
-  followOnInvestment: z.number(),
-  currentValuation: z.number(),
-  projectedExitValue: z.number(),
-  exitProbability: z.number(),
-  plannedReserves: z.number(),
-  reserveExitMultiple: z.number(),
-  investmentDate: z.coerce.date(),
-});
-
-const moicCalculationSchema = z.object({
-  investments: z.array(investmentSchema),
-});
 
 /**
  * Canonical adapter: database portfolio company / investment row → MOIC input.
@@ -77,33 +55,3 @@ export function dbToMOICInvestment(row: {
     investmentDate: row.investmentDate ? new Date(row.investmentDate) : new Date(),
   };
 }
-
-/**
- * POST /api/moic/calculate
- * Calculate portfolio MOIC summary for given investments
- */
-router.post(
-  '/calculate',
-  asyncHandler(async (req: Request, res: Response) => {
-    const { investments } = moicCalculationSchema.parse(req.body);
-
-    const result = MOICCalculator.generatePortfolioSummary(investments);
-    res.json(result);
-  })
-);
-
-/**
- * POST /api/moic/rank
- * Rank investments by reserves MOIC
- */
-router.post(
-  '/rank',
-  asyncHandler(async (req: Request, res: Response) => {
-    const { investments } = moicCalculationSchema.parse(req.body);
-
-    const result = MOICCalculator.rankByReservesMOIC(investments);
-    res.json(result);
-  })
-);
-
-export default router;
