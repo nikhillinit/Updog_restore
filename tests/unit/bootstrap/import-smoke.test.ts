@@ -1,3 +1,5 @@
+import { readFile } from 'node:fs/promises';
+import { resolve } from 'node:path';
 import { describe, it, expect } from 'vitest';
 
 /**
@@ -29,6 +31,12 @@ describe('import-smoke: side-effect-free module loading', () => {
     expect(typeof mod.verifyAccessTokenAsync).toBe('function');
     expect(typeof mod.signToken).toBe('function');
     expect(typeof mod.requireAuth).toBe('function');
+  });
+
+  it('lib/auth/jwt does not statically import jwks-rsa', async () => {
+    const source = await readFile(resolve(process.cwd(), 'server/lib/auth/jwt.ts'), 'utf8');
+
+    expect(source).not.toMatch(/^import(?!\s+type\b)[^;]*['"]jwks-rsa['"];?/m);
   });
 
   it('lib/secure-context exports types and functions without DB access', async () => {
