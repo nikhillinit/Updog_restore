@@ -83,8 +83,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     // Backtesting routes (Monte Carlo validation)
     { mountPath: '/api/backtesting', load: () => import('./routes/backtesting.js') },
     { mountPath: '/api', load: () => import('./routes/sensitivity.js') },
-    // MOIC Calculator routes
-    { mountPath: '/api/moic', load: () => import('./routes/moic.js') },
     // Fund-scoped MOIC follow-on rankings (authenticated, fund-scoped)
     { mountPath: '/api', load: () => import('./routes/fund-moic.js') },
     // Graduation Rate Engine routes
