@@ -1,6 +1,6 @@
 ---
 status: ACTIVE
-last_updated: 2026-07-04
+last_updated: 2026-07-10
 owner: Core Team
 review_cadence: P90D
 ---
@@ -9,6 +9,16 @@ review_cadence: P90D
 
 This file documents key architectural and technical decisions made during the
 development of the Press On Ventures fund modeling platform.
+
+> **Ledger home-of-record.** This file is the primary, chronological ADR ledger
+> for the platform (ADR-009 onward). The `docs/adr/` directory is a **separate,
+> standalone collection of expanded ADRs with its own independent numbering** —
+> a `docs/adr/ADR-NNN` file does NOT correspond to the same-numbered entry here
+> (e.g. `ADR-018` here is "Phase 3C Truthful Rich Results"; `docs/adr/ADR-018`
+> is "Stage Normalization"). Cite `docs/adr/` entries by file path and title,
+> never by number alone. The sole shared number is **ADR-033**, which continues
+> this ledger's sequence but is authored as a full file under `docs/adr/` (see
+> the ADR-033 entry below).
 
 ## Table of Contents
 
@@ -36,6 +46,7 @@ development of the Press On Ventures fund modeling platform.
 - [ADR-030: Trust Blending Keyed by the Provenance Envelope (PRD #1020 D2)](#adr-030-trust-blending-keyed-by-the-provenance-envelope-prd-1020-d2)
 - [ADR-031: Dual-Forecast Response Contract and Invalidation Seam (PRD #1020 D3)](#adr-031-dual-forecast-response-contract-and-invalidation-seam-prd-1020-d3)
 - [ADR-032: Currency Blocks Contribute No Facts-Derived Money (PRD #1020 D4)](#adr-032-currency-blocks-contribute-no-facts-derived-money-prd-1020-d4)
+- [ADR-033: Marginal Next-Dollar Reserve MOIC Model (expanded in docs/adr/)](#adr-033-marginal-next-dollar-reserve-moic-model-expanded-in-docsadr)
 
 ---
 
@@ -5609,3 +5620,23 @@ rewrite when it lands.
 
 Full draft with verified evidence: issue #1020 comment 4894518091 (amended
 2026-07-06).
+
+---
+
+## ADR-033: Marginal Next-Dollar Reserve MOIC Model (expanded in docs/adr/)
+
+**Date:** 2026-07-10 **Status:** Proposed
+
+This ledger entry continues the DECISIONS.md sequence (...032 -> 033). To keep
+its evolving design in one place, the full ADR is authored as an expanded file
+rather than inline here.
+
+- **Home:**
+  [`docs/adr/ADR-033-marginal-next-dollar-reserve-moic.md`](docs/adr/ADR-033-marginal-next-dollar-reserve-moic.md)
+- **Summary:** the current planned-reserves MOIC path ranks planned reserves by
+  reserve exit multiple x exit probability; it is not a marginal next-dollar
+  opportunity-cost model (no incremental ownership, dilution, subsequent rounds,
+  staged probabilities, or delta expected proceeds). ADR-033 proposes that
+  model.
+- **Implementation plan:** tracked in GitHub issue #1056, kept separate from the
+  facts/provenance work in #1021.
