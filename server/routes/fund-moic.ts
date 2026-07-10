@@ -6,12 +6,19 @@ import {
   FundMoicRankingsResponseV2Schema,
   type FundMoicRankingsResponseV2,
 } from '../../shared/contracts/fund-moic-v2.contract.js';
+import { logger } from '../lib/logger.js';
 import { FundIdParamSchema } from '../../shared/schemas/portfolio-route.js';
 import {
   assessMoicMateriality,
   MOIC_MATERIALITY_EPSILON,
 } from '../services/fund-moic-materiality.js';
-import { getFundMoicRankingSources } from '../services/fund-moic-ranking-service.js';
+import {
+  getFundMoicRankingSources,
+  summarizeMoicActualsProvenance,
+} from '../services/fund-moic-ranking-service.js';
+import {
+  buildFundCompanyActualsFacts,
+} from '../services/fund-actuals/fund-company-actuals-facts-service.js';
 import {
   getLatestCompletedMoicReconciliation,
   MoicReconciliationConflictError,
@@ -135,6 +142,49 @@ router.get(
       getLatestCompletedMoicReconciliation(fundId),
       buildRoundsToModelEvidence({ fundId }),
     ]);
+    // TODO(perf): this loads the full company-actuals facts corpus (~6 queries + hash in
+    // fund-company-actuals-facts-service) only to tally trustState counts; per-company facts
+    // are not used in ranking values. MOIC analysis is a low-frequency GP page today, so ship
+    // as-is, but memoize per (fundId, asOfDate) or expose a count-only facts helper if this page
+    // becomes polled or the corpus grows. Tracked as a separate low-priority GitHub perf issue.
+    const actualsAsOfDate = new Date().toISOString().slice(0, 10);
+    const sourceCompanyCount = sources.legacy.provenance.sourceRecordCount;
+    let actualsProvenanceSummary: ReturnType<typeof summarizeMoicActualsProvenance>;
+
+    try {
+      const actualsFacts = await buildFundCompanyActualsFacts({
+        fundId,
+        asOfDate: actualsAsOfDate,
+      });
+      actualsProvenanceSummary = summarizeMoicActualsProvenance({
+        factsStatus: 'available',
+        factsInputHash: actualsFacts.inputHash,
+        trustStates: actualsFacts.facts.map((fact) => fact.provenance.trustState),
+        defaultedEconomicInputCount:
+          sources.moicInputSummary.defaultedExitProbabilityCount +
+          sources.moicInputSummary.defaultedReserveExitMultipleCount,
+      });
+    } catch (error) {
+      // Disclosed to the client via warnings, but not silent server-side: operators need the reason.
+      logger.warn(
+        {
+          fundId,
+          asOfDate: actualsAsOfDate,
+          error: error instanceof Error ? error.message : String(error),
+        },
+        'fund-moic v2 actuals facts load failed; returning UNAVAILABLE provenance summary'
+      );
+      actualsProvenanceSummary = summarizeMoicActualsProvenance({
+        factsStatus: 'failed',
+        factsInputHash: null,
+        trustStates: Array.from({ length: sourceCompanyCount }, () => 'UNAVAILABLE'),
+        defaultedEconomicInputCount:
+          sources.moicInputSummary.defaultedExitProbabilityCount +
+          sources.moicInputSummary.defaultedReserveExitMultipleCount,
+        warnings: ['actuals_facts_failed'],
+      });
+    }
+
     const modePreview = await resolveFundCalculationMode({ fundId, sources });
     const actionability = await resolveMoicActionability({ fundId, sources, evidence });
     const usingCandidateRankings =
@@ -174,6 +224,7 @@ router.get(
       },
       modePreview,
       moicInputSummary: sources.moicInputSummary,
+      actualsProvenanceSummary,
       roundEvidenceSummary: roundEvidenceSummary(evidence.coverage),
       generatedAt: new Date().toISOString(),
     };
