@@ -11,7 +11,8 @@ import {
   FUND_SCENARIOS_CONTRACT_VERSION,
   SCENARIO_INPUT_HASH_VERSION,
 } from '@shared/lib/scenarios/scenario-input-envelope';
-import { buildReservePortfolioInputForClient } from './reserve-input-builder';
+import { buildReservePortfolioInputForClientWithProvenance } from './reserve-input-builder';
+import type { ReserveInputTrustSummary } from '../../shared/contracts/reserve-input-provenance.contract';
 import { buildScenarioReserveSummary } from './fund-scenario-reserve-summary';
 import {
   FUND_SCENARIO_CALC_VERSION,
@@ -38,7 +39,9 @@ type ReserveScenarioVariant = Extract<
   FundScenarioCalculationPayloadV1['variants'][number],
   { overrideType: 'reserve_allocation' }
 >;
-type ReserveScenarioPortfolio = Awaited<ReturnType<typeof buildReservePortfolioInputForClient>>;
+type ReserveScenarioPortfolio = Awaited<
+  ReturnType<typeof buildReservePortfolioInputForClientWithProvenance>
+>['portfolio'];
 
 interface SourceConfigRow {
   id: number;
@@ -73,6 +76,7 @@ interface ReserveScenarioCalculationData {
   variants: ReserveScenarioVariant[];
   warningCount: number;
   payload: FundScenarioCalculationPayloadV1;
+  reserveInputTrustSummary: ReserveInputTrustSummary;
 }
 
 export interface ReserveScenarioCalculationIdentity {
@@ -473,7 +477,8 @@ async function buildReserveScenarioCalculationData(
   input: RunReserveScenarioCalculationInput,
   context: ReserveScenarioRunContext
 ): Promise<ReserveScenarioCalculationData> {
-  const portfolio = await buildReservePortfolioInputForClient(client, input.fundId);
+  const { portfolio, reserveInputTrustSummary } =
+    await buildReservePortfolioInputForClientWithProvenance(client, input.fundId);
   const fundSizeCents = await loadFundSizeCents(client, input.fundId);
   const variants = buildReserveScenarioVariants({
     fundId: input.fundId,
@@ -490,7 +495,7 @@ async function buildReserveScenarioCalculationData(
     variants,
   });
 
-  return { portfolio, variants, warningCount, payload };
+  return { portfolio, variants, warningCount, payload, reserveInputTrustSummary };
 }
 
 async function persistReserveScenarioCalculation(
@@ -510,6 +515,7 @@ async function persistReserveScenarioCalculation(
     variantCount: data.variants.length,
     companyCount: data.portfolio.length,
     warningCount: data.warningCount,
+    reserveInputTrustSummary: data.reserveInputTrustSummary,
   });
 
   await recordCalculatedReserveScenarioEvent(client, input, {

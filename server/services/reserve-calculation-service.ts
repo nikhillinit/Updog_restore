@@ -3,7 +3,7 @@ import { fundSnapshots } from '@shared/schema';
 import { generateReserveSummary } from '@shared/core/reserves/ReserveEngine';
 import { resolveMoicActionability, toH9SnapshotColumns } from './fund-calculation-mode-service';
 import { markCalcRunCompletedIfReady } from './calc-run-tracking';
-import { buildReservePortfolioInput } from './reserve-input-builder';
+import { buildReservePortfolioInputWithProvenance } from './reserve-input-builder';
 
 const MAX_RETRIES = 3;
 const RETRY_DELAY_MS = 1000;
@@ -57,7 +57,10 @@ export async function runReserveCalculation({
     throw new Error(`Fund ${fundId} not found`);
   }
 
-  const portfolio = await retryWithBackoff(() => buildReservePortfolioInput(fundId));
+  const {
+    portfolio,
+    reserveInputTrustSummary,
+  } = await retryWithBackoff(() => buildReservePortfolioInputWithProvenance(fundId));
 
   const reserves = generateReserveSummary(fundId, portfolio);
   // H9: stamp the actionability fingerprint onto the authoritative snapshot so
@@ -81,6 +84,7 @@ export async function runReserveCalculation({
       metadata: {
         portfolioCount: portfolio.length,
         engineRuntime: performance.now() - startTime,
+        reserveInputTrustSummary,
       },
     })
     .returning();
