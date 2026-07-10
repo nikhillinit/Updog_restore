@@ -252,7 +252,16 @@ jobs:
               npm run test:integration
               ;;
             e2e)
-              npm run test:e2e:smoke || npm run test:smoke
+              # Selector/preflight problems may fall back to the self-contained
+              # smoke harness, but once the smoke tests actually run, a test
+              # FAILURE must fail the job (no masking fallback). `--list` loads
+              # the smoke project without running tests, so it isolates a
+              # selector/preflight failure from a real test failure.
+              if npm run test:e2e:smoke -- --list >/dev/null 2>&1; then
+                npm run test:e2e:smoke
+              else
+                npm run test:smoke
+              fi
               ;;
             validate-core)
               npm run validate:core
