@@ -11,23 +11,15 @@ import {
   ADMIN_GATED_ROUTES,
   APP_ROUTES,
   ARCHIVED_PLACEHOLDER_ROUTES,
-  CashV2,
-  CompanyV2,
-  ExitsV2,
-  InsightsV2,
   LEGACY_REDIRECT_ROUTES,
   LP_INDEX_REDIRECT_PATH,
   LP_INDEX_REDIRECT_TARGET,
   LP_ROUTES,
   NotFound,
   PageLoadingFallback,
-  PartnersV2,
   PortalAccessDenied,
-  PortfolioV2,
   PUBLIC_ENTRY_ROUTES,
-  ScenariosV2,
   SharedDashboard,
-  TodayV2,
   UICatalog,
   type AppRouteEntry,
   type ArchivedPlaceholderRouteEntry,
@@ -169,34 +161,7 @@ function Router() {
   );
 }
 
-/**
- * Press On v2 reference screens render full-screen and supply their own chrome
- * (sidebar, command palette, topbar). They must bypass AppLayout so the existing
- * dashboard chrome doesn't double up on them.
- */
 export function AppRouter() {
-  const [location] = useLocation();
-  const isV2 = location.startsWith('/v2');
-
-  if (isV2) {
-    return (
-      <Suspense fallback={<PageLoadingFallback />}>
-        <Switch>
-          <Route path="/v2" component={() => <Redirect to="/v2/today" />} />
-          <Route path="/v2/today" component={TodayV2} />
-          <Route path="/v2/portfolio" component={PortfolioV2} />
-          <Route path="/v2/companies/:id" component={CompanyV2} />
-          <Route path="/v2/scenarios" component={ScenariosV2} />
-          <Route path="/v2/cash" component={CashV2} />
-          <Route path="/v2/exits" component={ExitsV2} />
-          <Route path="/v2/insights" component={InsightsV2} />
-          <Route path="/v2/partners" component={PartnersV2} />
-          <Route path="/v2/:rest*" component={() => <Redirect to="/v2/today" />} />
-        </Switch>
-      </Suspense>
-    );
-  }
-
   return (
     <AppLayout>
       <Router />

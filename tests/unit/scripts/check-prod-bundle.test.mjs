@@ -62,3 +62,21 @@ describe('mock-route quarantine extension', () => {
     expect(hits.map((h) => h.needle).sort()).toEqual([...newlyQuarantined].sort());
   });
 });
+
+describe('v2 reference-screen quarantine', () => {
+  it('quarantines the pages/v2 reference screens', () => {
+    expect(QUARANTINED_MODULES).toContain('pages/v2/');
+  });
+
+  it('flags a v2 reference page in the manifest', () => {
+    const manifest = {
+      'client/src/pages/v2/today.tsx': {
+        file: 'assets/today-abc123.js',
+        src: 'client/src/pages/v2/today.tsx',
+        isDynamicEntry: true,
+      },
+    };
+    const hits = findForbiddenModules(manifest, QUARANTINED_MODULES);
+    expect(hits.map((h) => h.needle)).toContain('pages/v2/');
+  });
+});
