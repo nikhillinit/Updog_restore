@@ -396,3 +396,23 @@ describe('CI Workflow Regression - Fix #4', () => {
     });
   });
 });
+
+describe('CI e2e smoke: no test-failure masking (Task 6)', () => {
+  const workflowPath = path.join(process.cwd(), '.github/workflows/ci-unified.yml');
+
+  it('does not mask a smoke test failure with an unconditional fallback', async () => {
+    const content = await fs.readFile(workflowPath, 'utf-8');
+    // The naive "A || B" retries via a different harness and can green a real
+    // test failure. It must be gone.
+    expect(content).not.toContain('npm run test:e2e:smoke || npm run test:smoke');
+  });
+
+  it('gates the fallback behind a selector/preflight probe', async () => {
+    const content = await fs.readFile(workflowPath, 'utf-8');
+    // Preflight probe decides whether the smoke project is runnable here; only
+    // then does the real run happen, and its failure propagates.
+    expect(content).toContain('test:e2e:smoke -- --list');
+    // The self-contained fallback stays available for preflight failures.
+    expect(content).toContain('npm run test:smoke');
+  });
+});
