@@ -25,6 +25,28 @@ export interface FundMoicRankingSources {
   moicSourceInputHash: string;
 }
 
+export function summarizeMoicActualsProvenance(input: {
+  factsStatus: 'available' | 'failed';
+  factsInputHash: string | null;
+  trustStates: Array<'LIVE' | 'PARTIAL' | 'UNAVAILABLE' | 'FAILED'>;
+  defaultedEconomicInputCount: number;
+  warnings?: Array<'actuals_facts_failed'>;
+}) {
+  return {
+    factsStatus: input.factsStatus,
+    factsInputHash: input.factsInputHash,
+    companyCount: input.trustStates.length,
+    trustStateCounts: {
+      LIVE: input.trustStates.filter((state) => state === 'LIVE').length,
+      PARTIAL: input.trustStates.filter((state) => state === 'PARTIAL').length,
+      UNAVAILABLE: input.trustStates.filter((state) => state === 'UNAVAILABLE').length,
+      FAILED: input.trustStates.filter((state) => state === 'FAILED').length,
+    },
+    defaultedEconomicInputCount: input.defaultedEconomicInputCount,
+    warnings: input.warnings ?? [],
+  };
+}
+
 type PortfolioCompanyMoicSourceRow = {
   id: number;
   fundId?: number | null;

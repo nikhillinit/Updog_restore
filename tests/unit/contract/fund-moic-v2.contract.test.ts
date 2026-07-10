@@ -52,6 +52,14 @@ const makeValidV2 = (): FundMoicRankingsResponseV2 => ({
     defaultedReserveExitMultipleCount: 0,
     activationBlockingDefaultedReserveExitMultipleCount: 0,
   },
+  actualsProvenanceSummary: {
+    factsStatus: 'available',
+    factsInputHash: 'facts-hash',
+    companyCount: 1,
+    trustStateCounts: { LIVE: 1, PARTIAL: 0, UNAVAILABLE: 0, FAILED: 0 },
+    defaultedEconomicInputCount: 1,
+    warnings: [],
+  },
   roundEvidenceSummary: { activeRoundCount: 0, activeOverrideCount: 0, warningCodes: [] },
   generatedAt: '2026-06-24T00:00:00.000Z',
 });
@@ -72,6 +80,7 @@ describe('FundMoicRankingsResponseV2 contract — allowlist', () => {
         'materiality',
         'modePreview',
         'moicInputSummary',
+        'actualsProvenanceSummary',
         'provenance',
         'rankings',
         'roundEvidenceSummary',
@@ -141,6 +150,23 @@ describe('FundMoicRankingsResponseV2 contract — allowlist', () => {
     );
   });
 
+  it('pins the EXACT actualsProvenanceSummary key set', () => {
+    const parsed = FundMoicRankingsResponseV2Schema.parse(makeValidV2());
+    expect(Object.keys(parsed.actualsProvenanceSummary).sort()).toEqual(
+      [
+        'companyCount',
+        'defaultedEconomicInputCount',
+        'factsInputHash',
+        'factsStatus',
+        'trustStateCounts',
+        'warnings',
+      ].sort()
+    );
+    expect(Object.keys(parsed.actualsProvenanceSummary.trustStateCounts).sort()).toEqual(
+      ['FAILED', 'LIVE', 'PARTIAL', 'UNAVAILABLE'].sort()
+    );
+  });
+
   it('pins the EXACT roundEvidenceSummary key set', () => {
     const parsed = FundMoicRankingsResponseV2Schema.parse(makeValidV2());
     expect(Object.keys(parsed.roundEvidenceSummary).sort()).toEqual(
@@ -157,6 +183,11 @@ describe('FundMoicRankingsResponseV2 contract — forbidden-field rejection', ()
 
   it('rejects monetary leakage smuggled at top level', () => {
     const bad = { ...makeValidV2(), totalReservesUsd: 1_000_000 };
+    expect(FundMoicRankingsResponseV2Schema.safeParse(bad).success).toBe(false);
+  });
+
+  it('rejects raw actuals facts rows smuggled at top level', () => {
+    const bad = { ...makeValidV2(), actualsFacts: [{ companyId: 1, trustState: 'LIVE' }] };
     expect(FundMoicRankingsResponseV2Schema.safeParse(bad).success).toBe(false);
   });
 
@@ -178,6 +209,20 @@ describe('FundMoicRankingsResponseV2 contract — forbidden-field rejection', ()
     const bad = makeValidV2();
     // @ts-expect-error injecting a forbidden key
     bad.roundEvidenceSummary.roundIds = ['r1', 'r2'];
+    expect(FundMoicRankingsResponseV2Schema.safeParse(bad).success).toBe(false);
+  });
+
+  it('rejects raw monetary values on actualsProvenanceSummary', () => {
+    const bad = makeValidV2();
+    // @ts-expect-error injecting a forbidden key
+    bad.actualsProvenanceSummary.totalCurrentValuationCents = 1_000_000_00;
+    expect(FundMoicRankingsResponseV2Schema.safeParse(bad).success).toBe(false);
+  });
+
+  it('rejects per-company actuals leakage on actualsProvenanceSummary', () => {
+    const bad = makeValidV2();
+    // @ts-expect-error injecting a forbidden key
+    bad.actualsProvenanceSummary.companies = [{ companyId: 1, trustState: 'LIVE' }];
     expect(FundMoicRankingsResponseV2Schema.safeParse(bad).success).toBe(false);
   });
 

@@ -152,6 +152,13 @@ const reserveSnapshotInput = {
   variantCount: 1,
   companyCount: 1,
   warningCount: 0,
+  reserveInputTrustSummary: {
+    trustedForActivation: true,
+    defaultedInputCount: 0,
+    unavailableInputCount: 0,
+    defaultedFields: [],
+    unavailableFields: [],
+  },
 };
 
 const calculationIdentity = {
