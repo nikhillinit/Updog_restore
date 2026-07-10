@@ -22,7 +22,7 @@ function readClientSource(): string {
 
 describe('MOIC dead surface source guards', () => {
   it('keeps the retired V1 MOIC route archived and non-financial', () => {
-    const routeDefinitions = read('client/src/app/app-route-definitions.ts');
+    const routeDefinitions = read('shared/routes/app-route-definitions.ts');
     expect(routeDefinitions).toContain("path: '/moic-analysis'");
     expect(routeDefinitions).toContain('V1 MOIC analysis retired (#997)');
 
