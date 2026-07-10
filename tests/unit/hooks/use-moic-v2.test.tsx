@@ -47,6 +47,14 @@ function makeV2Response(fundId: number): FundMoicRankingsResponseV2 {
       defaultedReserveExitMultipleCount: 0,
       activationBlockingDefaultedReserveExitMultipleCount: 0,
     },
+    actualsProvenanceSummary: {
+      factsStatus: 'available',
+      factsInputHash: 'facts-hash',
+      companyCount: 1,
+      trustStateCounts: { LIVE: 1, PARTIAL: 0, UNAVAILABLE: 0, FAILED: 0 },
+      defaultedEconomicInputCount: 0,
+      warnings: [],
+    },
     roundEvidenceSummary: { activeRoundCount: 0, activeOverrideCount: 0, warningCodes: [] },
     generatedAt: '2026-06-24T00:00:00.000Z',
   };
@@ -88,6 +96,13 @@ describe('useFundMoicRankingsV2', () => {
 
     expect(result.current.data?.contractVersion).toBe('2.1.0');
     expect(result.current.data?.materiality.status).toBe('not_run');
+    expect(result.current.data?.actualsProvenanceSummary).toMatchObject({
+      factsStatus: 'available',
+      factsInputHash: 'facts-hash',
+      trustStateCounts: { LIVE: 1, PARTIAL: 0, UNAVAILABLE: 0, FAILED: 0 },
+      defaultedEconomicInputCount: 0,
+    });
+    expect(JSON.stringify(result.current.data)).not.toMatch(/marginal next-dollar/i);
     expect(fetchSpy).toHaveBeenCalledWith('/api/funds/5/moic/rankings?contract=v2', {
       credentials: 'include',
     });

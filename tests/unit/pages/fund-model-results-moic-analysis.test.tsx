@@ -78,6 +78,14 @@ const canonicalFixture = {
     defaultedReserveExitMultipleCount: 3,
     activationBlockingDefaultedReserveExitMultipleCount: 3,
   },
+  actualsProvenanceSummary: {
+    factsStatus: 'available',
+    factsInputHash: 'facts-hash',
+    companyCount: 4,
+    trustStateCounts: { LIVE: 2, PARTIAL: 1, UNAVAILABLE: 1, FAILED: 0 },
+    defaultedEconomicInputCount: 5,
+    warnings: [],
+  },
   roundEvidenceSummary: {
     activeRoundCount: 3,
     activeOverrideCount: 1,
@@ -157,6 +165,17 @@ describe('FundModelResultsMoicAnalysisPage', () => {
     expect(screen.getByText('Created: 2026-06-24T00:00:00.000Z')).toBeInTheDocument();
     expect(screen.getByText('Inputs changed')).toBeInTheDocument();
     expect(screen.getByText('Fingerprint changed')).toBeInTheDocument();
+    expect(screen.getByText('Facts status')).toBeInTheDocument();
+    expect(screen.getByText('available')).toBeInTheDocument();
+    expect(screen.getByText('Facts input hash')).toBeInTheDocument();
+    expect(screen.getByText('facts-hash')).toBeInTheDocument();
+    expect(screen.getByText('Facts trust')).toBeInTheDocument();
+    expect(
+      screen.getByText('LIVE 2, PARTIAL 1, UNAVAILABLE 1, FAILED 0')
+    ).toBeInTheDocument();
+    expect(screen.getByText('Defaulted economic inputs')).toBeInTheDocument();
+    expect(screen.getByText('5')).toBeInTheDocument();
+    expect(screen.queryByText(/marginal next-dollar/i)).not.toBeInTheDocument();
     expect(screen.getByText('Acme Corp')).toBeInTheDocument();
   });
 
@@ -202,6 +221,14 @@ describe('FundModelResultsMoicAnalysisPage', () => {
     fixture.roundEvidenceSummary.warningCodes = [];
     fixture.latestReconciliation = null;
     fixture.materiality.status = 'not_run';
+    fixture.actualsProvenanceSummary.factsStatus = 'failed';
+    fixture.actualsProvenanceSummary.factsInputHash = null;
+    fixture.actualsProvenanceSummary.trustStateCounts = {
+      LIVE: 0,
+      PARTIAL: 0,
+      UNAVAILABLE: 1,
+      FAILED: 0,
+    };
 
     mockHook({
       data: FundMoicRankingsResponseV2Schema.parse(fixture),
@@ -214,6 +241,8 @@ describe('FundModelResultsMoicAnalysisPage', () => {
     expect(screen.getByText('Not run')).toBeInTheDocument();
     expect(screen.getAllByText('0')).toHaveLength(2);
     expect(screen.getAllByText('None').length).toBeGreaterThanOrEqual(3);
+    expect(screen.getByText('failed')).toBeInTheDocument();
+    expect(screen.getByText('unavailable')).toBeInTheDocument();
     expect(screen.getByText('No reconciliation recorded')).toBeInTheDocument();
   });
 

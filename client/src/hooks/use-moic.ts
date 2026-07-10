@@ -10,6 +10,9 @@ import {
   type FundMoicRankingsResponseV2,
 } from '@shared/contracts/fund-moic-v2.contract';
 
+export type FundMoicActualsProvenanceSummary =
+  FundMoicRankingsResponseV2['actualsProvenanceSummary'];
+
 export type FundMoicRankingsHookError = Error & {
   code?: 'CONTRACT_PARSE_ERROR';
   status?: number;

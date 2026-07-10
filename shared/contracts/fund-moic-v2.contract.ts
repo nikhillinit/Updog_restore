@@ -40,6 +40,24 @@ const MoicInputSummarySchema = z
   })
   .strict();
 
+const ActualsProvenanceSummarySchema = z
+  .object({
+    factsStatus: z.enum(['available', 'failed']),
+    factsInputHash: z.string().min(1).nullable(),
+    companyCount: z.number().int().nonnegative(),
+    trustStateCounts: z
+      .object({
+        LIVE: z.number().int().nonnegative(),
+        PARTIAL: z.number().int().nonnegative(),
+        UNAVAILABLE: z.number().int().nonnegative(),
+        FAILED: z.number().int().nonnegative(),
+      })
+      .strict(),
+    defaultedEconomicInputCount: z.number().int().nonnegative(),
+    warnings: z.array(z.enum(['actuals_facts_failed'])),
+  })
+  .strict();
+
 export const FundMoicRankingsResponseV2Schema = z
   .object({
     contractVersion: z.literal('2.1.0'),
@@ -66,6 +84,7 @@ export const FundMoicRankingsResponseV2Schema = z
       .strict(),
     modePreview: ModePreviewSchema,
     moicInputSummary: MoicInputSummarySchema,
+    actualsProvenanceSummary: ActualsProvenanceSummarySchema,
     roundEvidenceSummary: z
       .object({
         activeRoundCount: z.number().int().nonnegative(),

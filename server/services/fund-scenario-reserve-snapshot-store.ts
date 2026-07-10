@@ -6,6 +6,8 @@ import {
   type FundScenarioCalculationResponseV1,
   type FundScenarioResultStalenessStateV1,
 } from '@shared/contracts/fund-scenario-sets-v1.contract';
+import { canonicalSha256 } from '../../shared/lib/canonical-hash';
+import type { ReserveInputTrustSummary } from '../../shared/contracts/reserve-input-provenance.contract';
 import { createHttpError } from './fund-scenario-set-service.js';
 
 export const ASYNC_RESERVE_TIMEOUT_MS = 300_000;
@@ -69,6 +71,7 @@ export interface ReserveScenarioSnapshotInput {
   variantCount: number;
   companyCount: number;
   warningCount: number;
+  reserveInputTrustSummary: ReserveInputTrustSummary;
 }
 
 function parseJsonPayload(value: unknown): unknown {
@@ -90,6 +93,11 @@ function responseFromSnapshot(row: SnapshotRow): FundScenarioCalculationResponse
 }
 
 function reserveScenarioSnapshotMetadata(input: ReserveScenarioSnapshotInput) {
+  const reserveInputTrustSummaryHash = canonicalSha256({
+    kind: 'reserve_input_trust_summary',
+    summary: input.reserveInputTrustSummary,
+  });
+
   return {
     input_hash: input.inputHash,
     calculation_mode: 'async_reserve_allocation',
@@ -98,6 +106,8 @@ function reserveScenarioSnapshotMetadata(input: ReserveScenarioSnapshotInput) {
     company_count: input.companyCount,
     warning_count: input.warningCount,
     override_type: 'reserve_allocation',
+    reserve_input_trust_summary: input.reserveInputTrustSummary,
+    reserve_input_trust_summary_hash: reserveInputTrustSummaryHash,
   };
 }
 

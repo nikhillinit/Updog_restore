@@ -20,6 +20,7 @@ type FundIdParseResult =
 
 type FundMoicRankingV2 = FundMoicRankingsResponseV2['rankings'][number];
 type LatestReconciliationV2 = FundMoicRankingsResponseV2['latestReconciliation'];
+type ActualsProvenanceSummaryV2 = FundMoicRankingsResponseV2['actualsProvenanceSummary'];
 
 const ACTIVATION_BLOCKER_LABELS: Record<string, string> = {
   accepted_reconciliation_required: 'Accepted reconciliation required',
@@ -83,6 +84,20 @@ function formatUnreconciledEdits(hasUnreconciledEdits: boolean): string {
 
 function formatBlockingCount(count: number, label: string): string {
   return count > 0 ? `${count} blocking (${label})` : '0';
+}
+
+function formatFactsInputHash(summary: ActualsProvenanceSummaryV2): string {
+  return summary.factsInputHash ?? 'unavailable';
+}
+
+function formatFactsTrust(summary: ActualsProvenanceSummaryV2): string {
+  const counts = summary.trustStateCounts;
+  return [
+    `LIVE ${counts.LIVE}`,
+    `PARTIAL ${counts.PARTIAL}`,
+    `UNAVAILABLE ${counts.UNAVAILABLE}`,
+    `FAILED ${counts.FAILED}`,
+  ].join(', ');
 }
 
 function formatMappedCode(code: string, labels: Record<string, string>): string {
@@ -210,6 +225,7 @@ function ProvenanceStrip({ data }: { data: FundMoicRankingsResponseV2 }) {
     data.moicInputSummary.activationBlockingDefaultedExitProbabilityCount;
   const reserveMultipleCount =
     data.moicInputSummary.activationBlockingDefaultedReserveExitMultipleCount;
+  const actualsSummary = data.actualsProvenanceSummary;
 
   return (
     <Card className="border-beige-200 bg-pov-white">
@@ -219,6 +235,24 @@ function ProvenanceStrip({ data }: { data: FundMoicRankingsResponseV2 }) {
           <p className="font-semibold text-pov-charcoal">
             {formatRankingsSource(data.provenance.mode)}
           </p>
+        </div>
+
+        <div className="grid gap-3 rounded-md border border-beige-200 bg-pov-gray p-3 md:grid-cols-4">
+          <StatusField
+            label="Facts status"
+            value={actualsSummary.factsStatus}
+            tone={actualsSummary.factsStatus === 'failed' ? 'warning' : 'default'}
+          />
+          <StatusField label="Facts input hash" value={formatFactsInputHash(actualsSummary)} />
+          <StatusField
+            label="Facts trust"
+            value={formatFactsTrust(actualsSummary)}
+            tone={actualsSummary.trustStateCounts.FAILED > 0 ? 'warning' : 'default'}
+          />
+          <StatusField
+            label="Defaulted economic inputs"
+            value={String(actualsSummary.defaultedEconomicInputCount)}
+          />
         </div>
 
         {data.modePreview.killSwitchActive ? (

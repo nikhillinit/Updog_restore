@@ -29,6 +29,7 @@ vi.mock('../../../server/lib/moic-mapper', async (importOriginal) => {
 import {
   buildMoicRankingSourcesFromCompanies,
   buildMoicRankingsFromInvestments,
+  summarizeMoicActualsProvenance,
 } from '../../../server/services/fund-moic-ranking-service';
 import { FundMoicRankingsResponseV1Schema } from '../../../shared/contracts/fund-moic-v1.contract';
 import type { Investment } from '../../../shared/core/moic/MOICCalculator';
@@ -216,6 +217,27 @@ describe('fund MOIC ranking service', () => {
     expect(result.moicInputSummary.activationBlockingDefaultedReserveExitMultipleCount).toBe(0);
   });
 
+  it('keeps candidate rankings on facts/provenance integration and does not claim marginal next-dollar MOIC', () => {
+    const result = buildMoicRankingSourcesFromCompanies(10, [
+      {
+        id: 1,
+        fundId: 10,
+        name: 'Acme',
+        investmentAmount: 500_000,
+        currentValuation: 1_500_000,
+        plannedReservesCents: 300_000_00,
+        exitMoicBps: 25000,
+        exitProbability: null,
+        investmentDate: new Date('2022-01-01T00:00:00.000Z'),
+      },
+    ]);
+
+    expect(result.moicInputSummary.defaultedExitProbabilityCount).toBe(1);
+    expect(result.legacy.provenance.calculation).toBe('reserves_moic_rankings');
+    expect(result.legacy.provenance.metricBasis).toBe('planned_reserves');
+    expect(JSON.stringify(result)).not.toMatch(/marginal|next-dollar|incremental ownership/i);
+  });
+
   it('falls missing reserve multiples back to 1x and blocks activation without double-counting probability', () => {
     const result = buildMoicRankingSourcesFromCompanies(10, [
       {
@@ -321,5 +343,22 @@ describe('fund MOIC ranking service', () => {
       r.rankings.map((x) => [x.investmentId, x.rank, x.reservesMoic.value]);
 
     expect(project(after)).toEqual(project(before));
+  });
+
+  it('counts trust states and preserves warnings', () => {
+    const summary = summarizeMoicActualsProvenance({
+      factsStatus: 'available',
+      factsInputHash: 'h',
+      trustStates: ['LIVE', 'LIVE', 'PARTIAL', 'UNAVAILABLE'],
+      defaultedEconomicInputCount: 3,
+    });
+    expect(summary.companyCount).toBe(4);
+    expect(summary.trustStateCounts).toEqual({
+      LIVE: 2,
+      PARTIAL: 1,
+      UNAVAILABLE: 1,
+      FAILED: 0,
+    });
+    expect(summary.warnings).toEqual([]);
   });
 });

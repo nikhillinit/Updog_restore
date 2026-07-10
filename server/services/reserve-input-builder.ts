@@ -1,6 +1,10 @@
 import type { PoolClient } from 'pg';
 import { db } from '../db';
 import type { ReserveCompanyInput } from '@shared/types';
+import type {
+  ReserveCompanyInputWithProvenance,
+  ReserveInputTrustSummary,
+} from '../../shared/contracts/reserve-input-provenance.contract';
 
 interface InvestmentPortfolioRow {
   id: number;
@@ -31,61 +35,175 @@ function toNumber(value: string | number | null | undefined, fallback = 0): numb
   return fallback;
 }
 
-function investmentRowToPortfolio(row: InvestmentPortfolioRow): ReserveCompanyInput {
+export interface ReservePortfolioInputWithTrust {
+  portfolio: ReserveCompanyInput[];
+  provenancePortfolio: ReserveCompanyInputWithProvenance[];
+  reserveInputTrustSummary: ReserveInputTrustSummary;
+}
+
+export function buildReservePortfolioInputWithProvenanceFromRows(input: {
+  investments: InvestmentPortfolioRow[];
+  companies: PortfolioCompanyRow[];
+}): ReserveCompanyInputWithProvenance[] {
+  if (input.investments.length > 0) {
+    return input.investments.map(investmentRowToPortfolioWithProvenance);
+  }
+  return input.companies.map(companyRowToPortfolioWithProvenance);
+}
+
+export function buildReserveInputTrustSummary(
+  portfolio: ReserveCompanyInputWithProvenance[]
+): ReserveInputTrustSummary {
+  const fields = portfolio.flatMap((company) => Object.entries(company.provenance));
+  const defaultedFields = fields
+    .filter(([, provenance]) => provenance.status === 'defaulted')
+    .map(([field]) => field as 'invested' | 'ownership' | 'stage' | 'sector');
+  const unavailableFields = fields
+    .filter(([, provenance]) => provenance.status === 'unavailable')
+    .map(([field]) => field as 'invested' | 'ownership' | 'stage' | 'sector');
+
   return {
-    id: row.company_id ?? row.id,
-    invested: toNumber(row.amount),
-    ownership: toNumber(row.ownership_percentage, 0.15),
-    stage: row.round ?? 'seed',
-    sector: row.sector ?? 'unknown',
+    trustedForActivation: defaultedFields.length === 0 && unavailableFields.length === 0,
+    defaultedInputCount: defaultedFields.length,
+    unavailableInputCount: unavailableFields.length,
+    defaultedFields: [...new Set(defaultedFields)].sort(),
+    unavailableFields: [...new Set(unavailableFields)].sort(),
   };
 }
 
-function companyRowToPortfolio(row: PortfolioCompanyRow): ReserveCompanyInput {
+function fieldProvenance(
+  status: 'observed' | 'approved_assumption' | 'estimated' | 'defaulted' | 'unavailable',
+  source: string,
+  reason: string | null
+) {
+  return { status, source, reason };
+}
+
+function investmentRowToPortfolioWithProvenance(
+  row: InvestmentPortfolioRow
+): ReserveCompanyInputWithProvenance {
+  const ownershipMissing = row.ownership_percentage == null;
+  const stageMissing = row.round == null || row.round.trim().length === 0;
+  const sectorMissing = row.sector == null || row.sector.trim().length === 0;
+
+  return {
+    id: row.company_id ?? row.id,
+    invested: toNumber(row.amount),
+    ownership: ownershipMissing ? 0.15 : toNumber(row.ownership_percentage),
+    stage: row.round != null && row.round.trim().length > 0 ? row.round : 'seed',
+    sector: row.sector != null && row.sector.trim().length > 0 ? row.sector : 'unknown',
+    provenance: {
+      invested: fieldProvenance('observed', 'investments.amount', null),
+      ownership: ownershipMissing
+        ? fieldProvenance('defaulted', 'system_default_ownership', 'Missing ownership percentage uses 0.15 legacy default')
+        : fieldProvenance('observed', 'investments.ownership_percentage', null),
+      stage: stageMissing
+        ? fieldProvenance('defaulted', 'system_default_stage', 'Missing round uses seed legacy default')
+        : fieldProvenance('observed', 'investments.round', null),
+      sector: sectorMissing
+        ? fieldProvenance('defaulted', 'system_default_sector', 'Missing sector uses unknown legacy default')
+        : fieldProvenance('observed', 'portfolio_companies.sector', null),
+    },
+  };
+}
+
+function companyRowToPortfolioWithProvenance(
+  row: PortfolioCompanyRow
+): ReserveCompanyInputWithProvenance {
+  const investedMissing = row.investment_amount == null;
+  const stageMissing = row.stage == null || row.stage.trim().length === 0;
+  const sectorMissing = row.sector == null || row.sector.trim().length === 0;
+
   return {
     id: row.id,
     invested: toNumber(row.investment_amount),
     ownership: 0.15,
-    stage: row.stage ?? 'seed',
-    sector: row.sector ?? 'unknown',
+    stage: row.stage != null && row.stage.trim().length > 0 ? row.stage : 'seed',
+    sector: row.sector != null && row.sector.trim().length > 0 ? row.sector : 'unknown',
+    provenance: {
+      invested: investedMissing
+        ? fieldProvenance('defaulted', 'system_default_invested', 'Missing investment amount uses 0 legacy default')
+        : fieldProvenance('observed', 'portfolio_companies.investment_amount', null),
+      ownership: fieldProvenance('defaulted', 'system_default_ownership', 'portfolioCompanies rows do not provide actuals-grade ownership; legacy fallback is 0.15'),
+      stage: stageMissing
+        ? fieldProvenance('defaulted', 'system_default_stage', 'Missing stage uses seed legacy default')
+        : fieldProvenance('observed', 'portfolio_companies.stage', null),
+      sector: sectorMissing
+        ? fieldProvenance('defaulted', 'system_default_sector', 'Missing sector uses unknown legacy default')
+        : fieldProvenance('observed', 'portfolio_companies.sector', null),
+    },
   };
 }
 
-export async function buildReservePortfolioInput(fundId: number): Promise<ReserveCompanyInput[]> {
+function toLegacyReservePortfolio(
+  provenancePortfolio: ReserveCompanyInputWithProvenance[]
+): ReserveCompanyInput[] {
+  return provenancePortfolio.map(({ id, invested, ownership, stage, sector }) => ({
+    id,
+    invested,
+    ownership,
+    stage,
+    sector,
+  }));
+}
+
+function buildReservePortfolioInputWithTrustFromRows(input: {
+  investments: InvestmentPortfolioRow[];
+  companies: PortfolioCompanyRow[];
+}): ReservePortfolioInputWithTrust {
+  const provenancePortfolio = buildReservePortfolioInputWithProvenanceFromRows(input);
+  return {
+    portfolio: toLegacyReservePortfolio(provenancePortfolio),
+    provenancePortfolio,
+    reserveInputTrustSummary: buildReserveInputTrustSummary(provenancePortfolio),
+  };
+}
+
+export async function buildReservePortfolioInputWithProvenance(
+  fundId: number
+): Promise<ReservePortfolioInputWithTrust> {
   const investments = await db.query.investments.findMany({
     where: (inv, { eq }) => eq(inv.fundId, fundId),
-    with: {
-      company: true,
-    },
+    with: { company: true },
   });
 
   if (investments.length > 0) {
-    return investments.map((inv) => ({
-      id: inv.companyId || inv.id,
-      invested: toNumber(inv.amount),
-      ownership: inv.ownershipPercentage ? toNumber(inv.ownershipPercentage) : 0.15,
-      stage: inv.round || 'seed',
-      sector: getInvestmentSector(inv),
-    }));
+    return buildReservePortfolioInputWithTrustFromRows({
+      investments: investments.map((inv) => ({
+        id: inv.id,
+        company_id: inv.companyId ?? null,
+        amount: inv.amount,
+        ownership_percentage: inv.ownershipPercentage ?? null,
+        round: inv.round ?? null,
+        sector: getInvestmentSector(inv),
+      })),
+      companies: [],
+    });
   }
 
   const portfolioCompanies = await db.query.portfolioCompanies.findMany({
     where: (companies, { eq }) => eq(companies.fundId, fundId),
   });
 
-  return portfolioCompanies.map((company) => ({
-    id: company.id,
-    invested: toNumber(company.investmentAmount),
-    ownership: 0.15,
-    stage: company.stage,
-    sector: company.sector,
-  }));
+  return buildReservePortfolioInputWithTrustFromRows({
+    investments: [],
+    companies: portfolioCompanies.map((company) => ({
+      id: company.id,
+      investment_amount: company.investmentAmount,
+      stage: company.stage,
+      sector: company.sector,
+    })),
+  });
 }
 
-export async function buildReservePortfolioInputForClient(
+export async function buildReservePortfolioInput(fundId: number): Promise<ReserveCompanyInput[]> {
+  return (await buildReservePortfolioInputWithProvenance(fundId)).portfolio;
+}
+
+export async function buildReservePortfolioInputForClientWithProvenance(
   client: PoolClient,
   fundId: number
-): Promise<ReserveCompanyInput[]> {
+): Promise<ReservePortfolioInputWithTrust> {
   const investments = await client.query<InvestmentPortfolioRow>(
     `SELECT
        i.id,
@@ -102,7 +220,10 @@ export async function buildReservePortfolioInputForClient(
   );
 
   if (investments.rows.length > 0) {
-    return investments.rows.map(investmentRowToPortfolio);
+    return buildReservePortfolioInputWithTrustFromRows({
+      investments: investments.rows,
+      companies: [],
+    });
   }
 
   const companies = await client.query<PortfolioCompanyRow>(
@@ -113,5 +234,15 @@ export async function buildReservePortfolioInputForClient(
     [fundId]
   );
 
-  return companies.rows.map(companyRowToPortfolio);
+  return buildReservePortfolioInputWithTrustFromRows({
+    investments: [],
+    companies: companies.rows,
+  });
+}
+
+export async function buildReservePortfolioInputForClient(
+  client: PoolClient,
+  fundId: number
+): Promise<ReserveCompanyInput[]> {
+  return (await buildReservePortfolioInputForClientWithProvenance(client, fundId)).portfolio;
 }

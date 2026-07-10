@@ -39,7 +39,17 @@ vi.mock('../../../server/db', () => ({
 }));
 
 vi.mock('../../../server/services/reserve-input-builder', () => ({
-  buildReservePortfolioInput: vi.fn(async () => []),
+  buildReservePortfolioInputWithProvenance: vi.fn(async () => ({
+    portfolio: [],
+    provenancePortfolio: [],
+    reserveInputTrustSummary: {
+      trustedForActivation: false,
+      defaultedInputCount: 2,
+      unavailableInputCount: 0,
+      defaultedFields: ['ownership', 'stage'],
+      unavailableFields: [],
+    },
+  })),
 }));
 
 vi.mock('@shared/core/reserves/ReserveEngine', () => ({
@@ -112,6 +122,13 @@ describe('runReserveCalculation H9 stamp', () => {
       h9FingerprintHash: 'fingerprint-hash',
       h9PolicyVersion: 'h9-policy-v1',
       h9ActionabilityStatus: 'actionable',
+    });
+    expect(captured.values?.metadata).toMatchObject({
+      reserveInputTrustSummary: {
+        trustedForActivation: false,
+        defaultedInputCount: 2,
+        defaultedFields: ['ownership', 'stage'],
+      },
     });
   });
 

@@ -37,6 +37,24 @@ describe('fund-moic route contract', () => {
     expect(source).toContain('FundMoicRankingsResponseV2Schema.parse');
   });
 
+  it('reports companyCount from facts on success and from source record count on failure', async () => {
+    const source = await readRepoFile('server/routes/fund-moic.ts');
+    expect(source).toContain('buildFundCompanyActualsFacts({');
+    expect(source).toContain('asOfDate: actualsAsOfDate');
+    expect(source).toContain("factsStatus: 'available'");
+    expect(source).toContain(
+      'trustStates: actualsFacts.facts.map((fact) => fact.provenance.trustState)'
+    );
+    expect(source).toContain(
+      'const sourceCompanyCount = sources.legacy.provenance.sourceRecordCount'
+    );
+    expect(source).toContain("factsStatus: 'failed'");
+    expect(source).toContain(
+      "trustStates: Array.from({ length: sourceCompanyCount }, () => 'UNAVAILABLE')"
+    );
+    expect(source).toContain("warnings: ['actuals_facts_failed']");
+  });
+
   it('exposes the admin reconciliation POST with role + idempotency guards', async () => {
     const source = await readRepoFile('server/routes/fund-moic.ts');
     expect(source).toContain('/admin/funds/:fundId/moic/reconciliations');

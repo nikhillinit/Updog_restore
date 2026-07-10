@@ -21,7 +21,10 @@ vi.mock('../../../server/services/rounds-to-model-evidence-service', () => ({
   buildRoundsToModelEvidence,
 }));
 
-import { createMoicActionabilityResolver } from '../../../server/services/fund-calculation-mode-service';
+import {
+  createMoicActionabilityResolver,
+  resolveFundCalculationMode,
+} from '../../../server/services/fund-calculation-mode-service';
 
 type ReconciliationRow = {
   id: number;
@@ -118,6 +121,12 @@ function makeDatabase(rows: ReconciliationRow[]) {
   };
 }
 
+function makeModeDatabase() {
+  return {
+    execute: vi.fn(async () => ({ rows: [] })),
+  };
+}
+
 function hasResolve(value: unknown): value is { resolve: ResolveByParams } {
   return (
     typeof value === 'object' &&
@@ -211,5 +220,27 @@ describe('fund MOIC actionability resolver', () => {
     expect(early.sourceFingerprint?.fingerprintHash).toBe(
       late.sourceFingerprint?.fingerprintHash
     );
+  });
+
+  it('keeps defaulted exit probability and reserve multiple blockers visible', async () => {
+    const sources = {
+      ...sourceBundle,
+      moicInputSummary: {
+        ...sourceBundle.moicInputSummary,
+        defaultedExitProbabilityCount: 1,
+        activationBlockingDefaultedExitProbabilityCount: 1,
+        defaultedReserveExitMultipleCount: 1,
+        activationBlockingDefaultedReserveExitMultipleCount: 1,
+      },
+    };
+    const preview = await resolveFundCalculationMode({
+      fundId: 7,
+      database: makeModeDatabase() as never,
+      now,
+      sources: sources as never,
+    });
+
+    expect(preview.blockers).toContain('exit_probability_source_incomplete');
+    expect(preview.blockers).toContain('reserve_exit_multiple_source_incomplete');
   });
 });
