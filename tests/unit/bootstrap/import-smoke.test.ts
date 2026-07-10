@@ -35,8 +35,14 @@ describe('import-smoke: side-effect-free module loading', () => {
 
   it('lib/auth/jwt does not statically import jwks-rsa', async () => {
     const source = await readFile(resolve(process.cwd(), 'server/lib/auth/jwt.ts'), 'utf8');
+    const staticImportStatements = source.match(/^\s*import[\s\S]*?;$/gm) ?? [];
+    const runtimeJwksImports = staticImportStatements.filter(
+      (statement) => !/^\s*import\s+type\b/.test(statement) && /['"]jwks-rsa['"]/.test(statement)
+    );
+    const runtimeJwksRequires = source.match(/\brequire\(\s*['"]jwks-rsa['"]\s*\)/g) ?? [];
 
-    expect(source).not.toMatch(/^import(?!\s+type\b)[^;]*['"]jwks-rsa['"];?/m);
+    expect(runtimeJwksImports).toEqual([]);
+    expect(runtimeJwksRequires).toEqual([]);
   });
 
   it('lib/secure-context exports types and functions without DB access', async () => {
