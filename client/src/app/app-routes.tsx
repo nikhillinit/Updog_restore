@@ -67,16 +67,6 @@ export const UICatalog = React.lazy(() => import('@/pages/admin/ui-catalog'));
 // Portal pages (LP Portal scaffolding)
 export const PortalAccessDenied = React.lazy(() => import('@/pages/portal/access-denied'));
 
-// Press On Ventures v2 design philosophy reference screens (full-screen, bypasses AppLayout)
-export const TodayV2 = React.lazy(() => import('@/pages/v2/today'));
-export const PortfolioV2 = React.lazy(() => import('@/pages/v2/portfolio'));
-export const CompanyV2 = React.lazy(() => import('@/pages/v2/company'));
-export const ScenariosV2 = React.lazy(() => import('@/pages/v2/scenarios'));
-export const CashV2 = React.lazy(() => import('@/pages/v2/cash'));
-export const ExitsV2 = React.lazy(() => import('@/pages/v2/exits'));
-export const InsightsV2 = React.lazy(() => import('@/pages/v2/insights'));
-export const PartnersV2 = React.lazy(() => import('@/pages/v2/partners'));
-
 export interface AppRouteEntry extends AppRouteDefinition {
   component: React.ComponentType<Record<string, unknown>>;
 }

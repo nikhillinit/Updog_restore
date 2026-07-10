@@ -21,6 +21,8 @@ export const QUARANTINED_MODULES = [
   'cash-management',
   'portfolio-analytics',
   'CapTables',
+  // Press On v2 mock-data reference screens: reference/dev only, never ship to prod.
+  'pages/v2/',
 ];
 
 /** Pure: return manifest entries whose key/src/file matches a forbidden substring. */
