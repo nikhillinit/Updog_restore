@@ -1,0 +1,76 @@
+{
+  "name": "M6-h9-actionability",
+  "order": 6,
+  "description": "H9 actionability columns/constraints on existing persistence tables (drift-covered).",
+  "missingTablePolicy": "existing_table_required",
+  "sqlFiles": ["migrations/0029_h9_actionability_reconcile_drift.sql"],
+  "allowedCreateTables": [],
+  "expectedTables": [
+    {
+      "name": "fund_snapshots",
+      "columns": [
+        { "name": "h9_moic_source_input_hash", "nullable": true },
+        { "name": "h9_round_evidence_input_hash", "nullable": true },
+        { "name": "h9_round_evidence_assumptions_hash", "nullable": true },
+        { "name": "h9_fingerprint_hash", "nullable": true },
+        { "name": "h9_policy_version", "nullable": true },
+        { "name": "h9_actionability_status", "nullable": true }
+      ],
+      "constraints": [
+        "fund_snapshots_h9_actionability_status_check",
+        "fund_snapshots_h9_actionable_fingerprint_check"
+      ],
+      "indexes": []
+    },
+    {
+      "name": "fund_calculation_modes",
+      "sharedTable": true,
+      "columns": [
+        { "name": "h9_moic_source_input_hash", "nullable": true },
+        { "name": "h9_round_evidence_input_hash", "nullable": true },
+        { "name": "h9_round_evidence_assumptions_hash", "nullable": true },
+        { "name": "h9_fingerprint_hash", "nullable": true },
+        { "name": "h9_policy_version", "nullable": true },
+        { "name": "h9_actionability_status", "nullable": true }
+      ],
+      "constraints": [
+        "fund_calculation_modes_h9_actionability_status_check",
+        "fund_calculation_modes_h9_actionable_fingerprint_check"
+      ],
+      "indexes": []
+    },
+    {
+      "name": "lp_report_packages",
+      "sharedTable": true,
+      "columns": [
+        { "name": "h9_moic_source_input_hash", "nullable": true },
+        { "name": "h9_round_evidence_input_hash", "nullable": true },
+        { "name": "h9_round_evidence_assumptions_hash", "nullable": true },
+        { "name": "h9_fingerprint_hash", "nullable": true },
+        { "name": "h9_policy_version", "nullable": true },
+        { "name": "h9_actionability_status", "nullable": true }
+      ],
+      "constraints": [
+        "lp_report_packages_h9_actionability_status_check",
+        "lp_report_packages_h9_actionable_fingerprint_check"
+      ],
+      "indexes": []
+    },
+    {
+      "name": "pacing_history",
+      "columns": [
+        { "name": "h9_moic_source_input_hash", "nullable": true },
+        { "name": "h9_round_evidence_input_hash", "nullable": true },
+        { "name": "h9_round_evidence_assumptions_hash", "nullable": true },
+        { "name": "h9_fingerprint_hash", "nullable": true },
+        { "name": "h9_policy_version", "nullable": true },
+        { "name": "h9_actionability_status", "nullable": true }
+      ],
+      "constraints": [
+        "pacing_history_h9_actionability_status_check",
+        "pacing_history_h9_actionable_fingerprint_check"
+      ],
+      "indexes": []
+    }
+  ]
+}
