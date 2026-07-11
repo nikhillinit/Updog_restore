@@ -170,6 +170,7 @@
     "ajv": "8.20.0",
     "ajv-formats": "^3.0.1",
     "baseline-browser-mapping": "2.10.42",
+    "bcryptjs": "3.0.3",
     "body-parser": "^2.3.0",
     "bullmq": "5.79.2",
     "chalk": "^5.6.2",

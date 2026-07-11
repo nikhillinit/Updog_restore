@@ -61,6 +61,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   await mountDefaultRoutes(app, [
     // Health and metrics routes
     { mountPath: '/', load: () => import('./routes/health.js') },
+    // Auth: login endpoint (router self-defines /api/auth/login). Parity with makeApp.
+    { mountPath: '/', load: () => import('./routes/auth.js') },
     { mountPath: '/api', load: () => import('./routes/dashboard-summary.js') },
     { mountPath: '/api', load: () => import('./routes/investments.js') },
     { mountPath: '/api', load: () => import('./routes/portfolio-companies.js') },

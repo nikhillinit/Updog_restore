@@ -54,6 +54,7 @@ import { cspDirectives, securityHeaders } from './config/csp.js';
 import { requireAuth } from './lib/auth/jwt.js';
 import { isPublicApiPath } from './lib/public-api-boundary.js';
 import { errorHandler } from './errors.js';
+import authRouter from './routes/auth.js';
 
 export function makeApp() {
   const app = express();
@@ -198,6 +199,10 @@ export function makeApp() {
 
     return requireApiAuth(req, res, next);
   });
+
+  // Auth: login endpoint. Router self-defines /api/auth/login; mounted at the bare
+  // root AFTER the /api guard, which lets it through via isPublicApiPath(POST /auth/login).
+  app.use(authRouter);
 
   // Feature flags API
   app.use('/api/flags', flagsRouter);
