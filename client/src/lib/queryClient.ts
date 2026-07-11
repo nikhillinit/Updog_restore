@@ -1,5 +1,6 @@
 import type { QueryFunction } from '@tanstack/react-query';
 import { QueryClient } from '@tanstack/react-query';
+import { getToken, clearToken } from './auth-token';
 
 /**
  * Structured API error that preserves server response details.
@@ -41,6 +42,20 @@ interface ApiRequestOptions {
   headers?: Record<string, string>;
 }
 
+function authHeaders(): Record<string, string> {
+  const token = getToken();
+  return token ? { Authorization: `Bearer ${token}` } : {};
+}
+
+/** On an unexpected 401, drop the (expired/invalid) token and bounce to /login.
+ *  Guarded so it never loops when already on the login page. */
+function handleUnauthorized(): void {
+  clearToken();
+  if (typeof window !== 'undefined' && window.location.pathname !== '/login') {
+    window.location.assign('/login');
+  }
+}
+
 async function throwIfResNotOk(res: Response) {
   if (!res.ok) {
     const text = (await res.text()) || res.statusText;
@@ -66,6 +81,7 @@ export async function apiRequest<TResponse = unknown>(
     method,
     headers: {
       'Content-Type': 'application/json',
+      ...authHeaders(),
       ...requestOptions.headers,
     },
     credentials: 'include',
@@ -78,6 +94,9 @@ export async function apiRequest<TResponse = unknown>(
   const response = await fetch(url, options);
 
   if (!response.ok) {
+    if (response.status === 401 && url !== '/api/auth/login') {
+      handleUnauthorized();
+    }
     type ErrorBody = {
       message?: string;
       error?: string;
@@ -100,10 +119,14 @@ export function getQueryFn<T>(options: { on401: UnauthorizedBehavior }): QueryFu
   return async ({ queryKey }) => {
     const res = await fetch(queryKey.join('/') as string, {
       credentials: 'include',
+      headers: { ...authHeaders() },
     });
 
-    if (options.on401 === 'returnNull' && res.status === 401) {
-      return null;
+    if (res.status === 401) {
+      if (options.on401 === 'returnNull') {
+        return null;
+      }
+      handleUnauthorized();
     }
 
     await throwIfResNotOk(res);
