@@ -148,8 +148,16 @@ export const rumLimiter = rateLimit({
  * Privacy guard to strip PII from RUM payloads
  */
 export function rumPrivacyGuard(req: Request, res: Response, next: NextFunction) {
-  // Set no-store cache control
+  // Set no-store cache control (applies to every response; keep unconditional).
   res.setHeader('Cache-Control', 'no-store');
+
+  // Only mutate RUM beacon payloads. This guard runs on metricsRumRouter, which is
+  // mounted at the bare root, so without this gate it strips password/token/email/
+  // userName (and lowercased `username`) from EVERY request body — e.g. it empties
+  // POST /api/auth/login. Mirrors the isRumRequest gate in rumOriginGuard/rumSamplingGuard.
+  if (!isRumRequest(req)) {
+    return next();
+  }
 
   // Strip accidental PII fields from body
   const body = getRumBody(req);

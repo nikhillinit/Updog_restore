@@ -1,7 +1,15 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */ // Database seeding utilities
 
 import { db } from '../server/db';
-import { funds, portfolioCompanies, investments, fundMetrics, activities } from '@shared/schema';
+import {
+  funds,
+  portfolioCompanies,
+  investments,
+  fundMetrics,
+  activities,
+  users,
+} from '@shared/schema';
+import { buildSeedUsers } from '../server/lib/seed-users';
 
 // Self-executing script when run directly
 if (import.meta.url === `file://${process.argv[1]!}`) {
@@ -20,6 +28,17 @@ export async function seedDatabase() {
   console.log('[SEED] Seeding database with sample data...');
 
   try {
+    // Seed test-only login users (idempotent upsert on username). Shared source:
+    // server/lib/seed-users.ts. Consumed by POST /api/auth/login.
+    const seedUsers = buildSeedUsers();
+    for (const seedUser of seedUsers) {
+      await db
+        .insert(users)
+        .values(seedUser)
+        .onConflictDoUpdate({ target: users.username, set: { password: seedUser.password } });
+    }
+    console.log('[DONE] Seeded login users:', seedUsers.length);
+
     // Insert sample fund
     const fundData = {
       name: 'Press On Ventures Fund I',
