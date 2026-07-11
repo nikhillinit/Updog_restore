@@ -81,13 +81,15 @@ function namesSurvivingSql(sqlFiles: string[]): Set<string> {
 describe('prod-schema manifest sentinels', () => {
   const manifests = loadManifestFiles();
 
-  it('finds the four PR-1 manifests plus the s8.1 operator-seam manifest', () => {
+  it('finds the four PR-1 manifests, the operator-seam manifest, and the H9 + allocation-scenario manifests', () => {
     expect(manifests.map((entry) => entry.file)).toEqual([
       '01-cohort.json',
       '02-fund-moic.json',
       '03-operating-tasks.json',
       '04-lp-reporting.json',
       '05-operator-seam.json',
+      '06-h9-actionability.json',
+      '07-allocation-scenarios.json',
     ]);
   });
 
@@ -97,6 +99,21 @@ describe('prod-schema manifest sentinels', () => {
         expect(fs.existsSync(path.join(repoRoot, sqlFile)), `${file} -> ${sqlFile}`).toBe(true);
       }
     }
+  });
+
+  it('every manifest SQL file begins with a -- @generated or -- @drift-patch marker', () => {
+    const offenders: string[] = [];
+
+    for (const { file, manifest } of manifests) {
+      for (const sqlFile of manifest.sqlFiles ?? []) {
+        const sql = fs.readFileSync(path.join(repoRoot, sqlFile), 'utf8');
+        if (!/^--\s*@(generated|drift-patch)\b/m.test(sql)) {
+          offenders.push(`${file} -> ${sqlFile}`);
+        }
+      }
+    }
+
+    expect(offenders).toEqual([]);
   });
 
   it('every sentinel name SURVIVES the manifest own SQL sequence (63-byte aware)', () => {

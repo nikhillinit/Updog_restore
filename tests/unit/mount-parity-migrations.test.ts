@@ -5,6 +5,7 @@ import { describe, expect, it } from 'vitest';
 import { readJournaledMigrationFiles } from '../../scripts/migration-ledger';
 
 const APP_SOURCE_FILE = path.resolve(process.cwd(), 'server', 'app.ts');
+const PROD_SCHEMA_MANIFEST_DIR = path.resolve(process.cwd(), 'scripts', 'prod-schema-manifests');
 
 const C1_MOUNTED_TABLES = [
   'cohort_definitions',
@@ -36,6 +37,16 @@ const C1_MOUNTED_TABLES = [
 ] as const;
 
 type MountKind = 'c1' | 'non-table' | 'other-table';
+
+interface ProdSchemaExpectedTable {
+  name: string;
+  sharedTable?: boolean;
+}
+
+interface ProdSchemaManifest {
+  name: string;
+  expectedTables?: ProdSchemaExpectedTable[];
+}
 
 const MAKEAPP_ROUTE_INVENTORY: Record<string, { kind: MountKind; tables?: string[] }> = {
   reservesV1Router: { kind: 'other-table' },
@@ -149,6 +160,19 @@ function makeAppSource(): string {
   return fs.readFileSync(APP_SOURCE_FILE, 'utf8');
 }
 
+function loadProdSchemaManifestFiles(): Array<{ file: string; manifest: ProdSchemaManifest }> {
+  return fs
+    .readdirSync(PROD_SCHEMA_MANIFEST_DIR)
+    .filter((file) => file.endsWith('.json'))
+    .sort()
+    .map((file) => ({
+      file,
+      manifest: JSON.parse(
+        fs.readFileSync(path.join(PROD_SCHEMA_MANIFEST_DIR, file), 'utf8')
+      ) as ProdSchemaManifest,
+    }));
+}
+
 function extractMakeAppRouteImportIdentifiers(appSource: string): string[] {
   const identifiers = new Set<string>();
   const importPattern = /^\s*import\s+(.+?)\s+from\s+['"](\.\/routes\/[^'"]+)['"];?/gm;
@@ -194,6 +218,46 @@ function parseImportClauseIdentifiers(importClause: string): string[] {
 }
 
 describe('makeApp mount parity with journaled migrations', () => {
+  it('every C1 mounted table is covered by at least one prod-schema manifest expectedTables', () => {
+    const manifests = loadProdSchemaManifestFiles();
+    const covered = new Set<string>();
+
+    for (const { manifest } of manifests) {
+      for (const table of manifest.expectedTables ?? []) {
+        covered.add(table.name);
+      }
+    }
+
+    const missing = C1_MOUNTED_TABLES.filter((tableName) => !covered.has(tableName));
+
+    expect(missing).toEqual([]);
+  });
+
+  it('no table is owned by more than one manifest unless marked sharedTable', () => {
+    const manifests = loadProdSchemaManifestFiles();
+    const ownership = new Map<string, string[]>();
+
+    for (const { file, manifest } of manifests) {
+      const ownedTableNames = new Set(
+        (manifest.expectedTables ?? [])
+          .filter((table) => table.sharedTable !== true)
+          .map((table) => table.name)
+      );
+
+      for (const tableName of [...ownedTableNames].sort()) {
+        const owners = ownership.get(tableName) ?? [];
+        owners.push(file);
+        ownership.set(tableName, owners);
+      }
+    }
+
+    const collisions = [...ownership.entries()]
+      .filter(([, files]) => files.length > 1)
+      .map(([tableName, files]) => `${tableName} in ${files.join(',')}`);
+
+    expect(collisions).toEqual([]);
+  });
+
   it('has CREATE TABLE coverage for every C1 mounted table', () => {
     const sql = migrationSql();
     const missingCreateTables = C1_MOUNTED_TABLES.filter(
