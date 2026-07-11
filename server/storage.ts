@@ -119,6 +119,20 @@ export interface IStorage {
   createActivity(_activity: InsertActivity): Promise<Activity>;
 }
 
+function materializeMemoryUser(insertUser: InsertUser, id: number): User {
+  const now = new Date();
+
+  return {
+    ...insertUser,
+    id,
+    role: insertUser.role ?? 'viewer',
+    isActive: insertUser.isActive ?? true,
+    passwordUpdatedAt: insertUser.passwordUpdatedAt ?? now,
+    createdAt: insertUser.createdAt ?? now,
+    updatedAt: insertUser.updatedAt ?? now,
+  };
+}
+
 type NormalizedInsertPortfolioCompany = {
   fundId?: number | null;
   name: string;
@@ -353,7 +367,7 @@ export class MemStorage implements IStorage {
     const seedUsers = buildSeedUsers();
     seedUsers.forEach((seedUser, index) => {
       const id = index + 1;
-      this.users.set(id, { ...seedUser, id });
+      this.users.set(id, materializeMemoryUser(seedUser, id));
     });
     this.currentUserId = seedUsers.length + 1;
   }
@@ -369,7 +383,7 @@ export class MemStorage implements IStorage {
 
   async createUser(insertUser: InsertUser): Promise<User> {
     const id = this.currentUserId++;
-    const user: User = { ...insertUser, id };
+    const user = materializeMemoryUser(insertUser, id);
     this.users.set(id, user);
     return user;
   }

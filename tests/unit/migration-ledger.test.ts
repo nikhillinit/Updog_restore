@@ -41,6 +41,7 @@ const expectedJournaledDriftPatchFiles = [
   '0028_operator_seam_drift.sql',
   '0029_h9_actionability_reconcile_drift.sql',
   '0030_allocation_scenarios_reconcile_drift.sql',
+  '0031_user_identity_grants_revocation.sql',
 ].sort();
 
 afterEach(() => {
