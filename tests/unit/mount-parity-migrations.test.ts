@@ -126,6 +126,9 @@ const MAKEAPP_ROUTE_INVENTORY: Record<string, { kind: MountKind; tables?: string
   metricsRouter: { kind: 'non-table' },
   metricsRumRouter: { kind: 'non-table' },
   installRumIngressGuards: { kind: 'non-table' },
+  // Login endpoint. Reads the `users` table via verifyCredentials -> storage.getUserByUsername.
+  // `users` is not in C1_MOUNTED_TABLES, so other-table (same posture as fundsRouter).
+  authRouter: { kind: 'other-table' },
 };
 
 function migrationSql(): string {

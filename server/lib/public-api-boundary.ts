@@ -32,5 +32,10 @@ export function isPublicApiPath(method: string, mountRelativePath: string): bool
     return true;
   }
 
+  // Login must be reachable without a prior token. Path is mount-relative to /api.
+  if (normalizedMethod === 'POST' && normalizedPath === '/auth/login') {
+    return true;
+  }
+
   return false;
 }
