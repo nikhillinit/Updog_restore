@@ -5,8 +5,10 @@ import { LPProvider } from '@/contexts/LPContext';
 import { useFundContext } from '@/contexts/FundContext';
 import { resolveRouteControlFlag } from '@/app/route-control-flags';
 import { requiresFundContextRecovery } from '@/lib/fund-routes';
+import { getToken } from '@/lib/auth-token';
 import { queryClient } from '@/lib/queryClient';
 import { AppLayout } from '@/app/app-layout';
+import LoginPage from '@/pages/login';
 import {
   ADMIN_GATED_ROUTES,
   APP_ROUTES,
@@ -162,6 +164,18 @@ function Router() {
 }
 
 export function AppRouter() {
+  const [location] = useLocation();
+
+  // Public login route renders chrome-free (no AppLayout / fund-context queries).
+  if (location === '/login') {
+    return <LoginPage />;
+  }
+
+  // Prod requires a Bearer token; dev keeps the server dev-bypass (tokenless).
+  if (import.meta.env.PROD && !getToken()) {
+    return <Redirect to="/login" />;
+  }
+
   return (
     <AppLayout>
       <Router />
