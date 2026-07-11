@@ -6,6 +6,11 @@ import './styles/brand-tokens.css'; // Phase 1: Brand consistency (Inter/Poppins
 import { installFetchTap } from './debug/fetch-tap';
 import { checkEmergencyRollback } from './debug/emergency-rollback';
 import { bootstrapMonitoring } from './monitoring/bootstrap';
+import { installAuthFetch } from './lib/install-auth-fetch';
+
+// Attach Bearer token to same-origin /api/* requests (all envs). Fixes prod 401s
+// on hooks that call fetch('/api/...') raw and bypass apiRequest/getQueryFn (#1072).
+installAuthFetch();
 
 if (import.meta.env.DEV) {
   installFetchTap();
