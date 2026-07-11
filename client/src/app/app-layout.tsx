@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Link, useLocation } from 'wouter';
 import { Menu, X } from 'lucide-react';
 import Sidebar from '@/components/layout/sidebar';
+import { getToken, clearToken } from '@/lib/auth-token';
 import {
   getActiveNavigationId,
   getFooterNavigationItems,
@@ -90,9 +91,7 @@ function MobileNavigationItem({
   const href = resolveNavigationHref(item, navigationContext);
   const isActive = activeModule === item.id;
   const isDisabled = !isNavigationItemEnabled(item, navigationContext);
-  const disabledReasonId = isDisabled
-    ? `mobile-navigation-disabled-reason-${item.id}`
-    : undefined;
+  const disabledReasonId = isDisabled ? `mobile-navigation-disabled-reason-${item.id}` : undefined;
 
   if (!href || isDisabled) {
     return <DisabledMobileNavigationItem item={item} disabledReasonId={disabledReasonId} />;
@@ -165,10 +164,27 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
   const [isMobileNavigationOpen, setIsMobileNavigationOpen] = useState(false);
   const activeModule = getActiveNavigationId(location);
   const isFundSetupRoute = location.startsWith('/fund-setup');
+  const handleLogout = () => {
+    clearToken();
+    if (typeof window !== 'undefined') {
+      window.location.assign('/login');
+    }
+  };
 
   return (
     <div className="flex min-h-screen flex-col overflow-x-hidden bg-pov-gray font-poppins text-charcoal">
       {isFundSetupRoute ? <FundConstructionKpiHeader /> : <DynamicFundHeader />}
+      {getToken() && (
+        <div className="flex justify-end border-b border-beige-200 bg-pov-white px-4 py-1">
+          <button
+            type="button"
+            onClick={handleLogout}
+            className="text-sm text-charcoal/70 transition-colors hover:text-charcoal focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-beige focus-visible:ring-offset-2"
+          >
+            Log out
+          </button>
+        </div>
+      )}
       <MobileNavigationToggle
         isOpen={isMobileNavigationOpen}
         onToggle={() => setIsMobileNavigationOpen((isOpen) => !isOpen)}

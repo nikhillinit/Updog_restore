@@ -27,6 +27,7 @@ import {
   getStorageConfigurationError,
   resolveStorageBootMode,
 } from './storage-runtime-policy';
+import { buildSeedUsers } from './lib/seed-users';
 
 // Round and performance case types (simplified versions without schema definition)
 export interface InvestmentRound {
@@ -346,6 +347,15 @@ export class MemStorage implements IStorage {
     };
     this.fundMetrics.set(1, sampleMetrics);
     this.currentMetricsId = 2;
+
+    // Seed test-only login users so POST /api/auth/login works under MemStorage
+    // (ALLOW_MEMORY_STORAGE=1 dev + unit tests). Source: server/lib/seed-users.ts.
+    const seedUsers = buildSeedUsers();
+    seedUsers.forEach((seedUser, index) => {
+      const id = index + 1;
+      this.users.set(id, { ...seedUser, id });
+    });
+    this.currentUserId = seedUsers.length + 1;
   }
 
   // User methods

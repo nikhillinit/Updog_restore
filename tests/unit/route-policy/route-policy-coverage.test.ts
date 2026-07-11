@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import { FinancialProvenanceSchema } from '../../../shared/contracts/financial-provenance.contract';
 import type { RoutePolicyEntry } from '../../../shared/contracts/route-policy.contract';
-import { ROUTE_GOVERNANCE_REGISTRY } from '../../../client/src/app/route-governance-registry';
+import { ROUTE_GOVERNANCE_REGISTRY } from '../../../shared/routes/route-governance-registry';
 import {
   ACTIVE_FINANCIAL_GOVERNANCE_ENTRIES,
   API_ROUTE_POLICY_REGISTRY,
