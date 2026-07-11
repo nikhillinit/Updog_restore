@@ -1,6 +1,6 @@
 ---
 status: ACTIVE
-last_updated: 2026-07-10
+last_updated: 2026-07-11
 owner: Core Team
 review_cadence: P90D
 ---
@@ -47,6 +47,7 @@ development of the Press On Ventures fund modeling platform.
 - [ADR-031: Dual-Forecast Response Contract and Invalidation Seam (PRD #1020 D3)](#adr-031-dual-forecast-response-contract-and-invalidation-seam-prd-1020-d3)
 - [ADR-032: Currency Blocks Contribute No Facts-Derived Money (PRD #1020 D4)](#adr-032-currency-blocks-contribute-no-facts-derived-money-prd-1020-d4)
 - [ADR-033: Marginal Next-Dollar Reserve MOIC Model (expanded in docs/adr/)](#adr-033-marginal-next-dollar-reserve-moic-model-expanded-in-docsadr)
+- [ADR-034: Browser Auth Contract (Bearer HS256, 7-Day Token, localStorage, Task 7)](#adr-034-browser-auth-contract-bearer-hs256-7-day-token-localstorage-task-7)
 
 ---
 
@@ -5640,3 +5641,71 @@ rather than inline here.
   model.
 - **Implementation plan:** tracked in GitHub issue #1056, kept separate from the
   facts/provenance work in #1021.
+
+---
+
+## ADR-034: Browser Auth Contract (Bearer HS256, 7-Day Token, localStorage, Task 7)
+
+**Date:** 2026-07-11 **Status:** [IMPLEMENTED] Implemented **Decision:** Browser
+auth is a single 7-day Bearer JWT (HS256), issued by `POST /api/auth/login`
+against the existing `users` table (bcrypt), stored client-side in localStorage
+(`updog.authToken`) and attached as `Authorization: Bearer` on every `/api`
+request. No refresh, no rotation, no CSRF. Every identity is admin with empty
+`fundIds` (unrestricted). Right-sized for an internal team-of-5 tool in testing,
+not an LP-facing surface.
+
+### Context
+
+The server is Bearer-native: `requireAuth()` (`server/lib/auth/jwt.ts`) reads
+`Authorization: Bearer` only, and prod verifies HS256 (`JWT_SECRET` present, no
+`JWT_JWKS_URL`). The client `queryClient` historically sent cookies
+(`credentials:'include'`) and never a Bearer header, so every authenticated prod
+`/api` route 401'd - login was impossible in prod. The audience is an internal
+Press On Ventures tool for a team of ~5 in testing (see the scale/right-sizing
+decision), with no real or LP-visible data, so the cheapest correct auth that
+unblocks login wins over defense-in-depth that this scale does not warrant.
+
+### Decision
+
+- **Transport = Bearer token (HS256).** Chosen over HttpOnly-cookie+CSRF because
+  the server is already Bearer-native and needs no CSRF machinery - smallest
+  server change.
+- **Lifetime = one 7-day access JWT.** No refresh, rotation, or CSRF.
+- **Credential source (A) = reuse the existing `users` table as-is;** bcrypt
+  hash in the existing `password` column. No schema migration.
+- **Token storage (C) = client localStorage (`updog.authToken`).**
+  XSS-exfiltration is an accepted risk at this scale (KISS/YAGNI).
+- **Scope = every issued identity is admin with empty `fundIds` = unrestricted**
+  (internal tool); per-fund/non-admin scoping is out of scope.
+
+### Alternatives Considered
+
+- **HttpOnly cookie + CSRF:** correct for a public surface, but adds server
+  surface (CSRF tokens, SameSite policy) the server does not currently carry,
+  for a threat this audience does not face.
+- **Argon2id + rotating refresh token + in-memory access token:** the textbook
+  posture, over-engineered for team-of-5 testing with no real data.
+
+### Consequences
+
+- Real prod login stays blocked until testers are provisioned into **prod
+  Postgres**; `scripts/seed-db.ts` is dev-only (it also inserts non-idempotent
+  sample portfolio data - never run it against prod). A separate users-only
+  provisioning step is required.
+- The fail-closed fund-scope route migration stays **deferred**: because every
+  token is admin/empty-`fundIds`, per-fund enforcement is a no-op today. The
+  #1064 safety net's empty-`fundIds` "allow" assertion flips to 403 only once
+  per-fund/non-admin scoping is introduced.
+- Passwords used for provisioning are committed in the repo; acceptable ONLY
+  because the audience is internal and pre-real-data.
+- **Upgrade trigger (YAGNI, not now):** the moment prod carries real or
+  LP-visible data, revisit token lifetime + refresh, storage posture (HttpOnly
+  cookie), per-fund/non-admin scoping, and rotate to distinct uncommitted prod
+  credentials at a higher bcrypt cost.
+
+**Implementation:** PR-7a #1063 (fail-closed `RequestPrincipal` +
+`resolveFundScope` primitives), #1064 (fund-scope acceptance safety net),
+PR-7b-i #1066 (`POST /api/auth/login` + bcrypt user seed in
+`server/lib/seed-users.ts`), PR-7b-ii #1067 (client localStorage token + Bearer
+attach in `apiRequest` / `getQueryFn` + `/login` page + logout + PROD-only route
+gate).
