@@ -39,6 +39,8 @@ const expectedJournaledDriftPatchFiles = [
   '0026_reserve_decisions_index_resync_drift.sql',
   '0027_investment_rounds_journal_drift.sql',
   '0028_operator_seam_drift.sql',
+  '0029_h9_actionability_reconcile_drift.sql',
+  '0030_allocation_scenarios_reconcile_drift.sql',
 ].sort();
 
 afterEach(() => {

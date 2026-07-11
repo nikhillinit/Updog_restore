@@ -25,11 +25,31 @@ export const RECONCILE_LOCK_ID = 20260628;
 export const ACTION_SKIP = 'SKIP';
 export const ACTION_APPLY_MISSING_DDL = 'APPLY-MISSING-DDL';
 export const ACTION_REFUSE_FOR_HUMAN = 'REFUSE-FOR-HUMAN';
+export const MISSING_TABLE_POLICY_CREATE_OR_REPAIR = 'create_or_repair';
+export const MISSING_TABLE_POLICY_EXISTING_REQUIRED = 'existing_table_required';
+
+/** @typedef {'create_or_repair' | 'existing_table_required'} MissingTablePolicy */
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const SAFE_IDENTIFIER_PATTERN = /^[a-z_][a-z0-9_]*$/;
 const FORBIDDEN_SQL_PATTERN = /\b(?:neon_auth|drizzle_migrations)\b/i;
 const MIGRATION_MARKER_PATTERN = /^\s*--\s*@(generated|drift-patch)\b/m;
+const KNOWN_MANIFEST_KEYS = new Set([
+  'name',
+  'order',
+  'description',
+  'sqlFiles',
+  'allowedCreateTables',
+  'expectedTables',
+  'dropObjects',
+  'missingTablePolicy',
+  'manifestPath',
+]);
+const MISSING_TABLE_POLICIES = new Set([
+  MISSING_TABLE_POLICY_CREATE_OR_REPAIR,
+  MISSING_TABLE_POLICY_EXISTING_REQUIRED,
+]);
+const warnedMissingTablePolicyManifests = new Set();
 
 export class ReconcileError extends Error {
   constructor(message, details = {}) {
@@ -141,6 +161,59 @@ export function manifestChecksum(manifest, sqlFiles) {
   );
 }
 
+function manifestLabel(manifest) {
+  return String(manifest?.manifestPath ?? manifest?.name ?? '<unknown>');
+}
+
+function validateManifestKeys(manifest) {
+  for (const key of Object.keys(manifest ?? {})) {
+    if (!KNOWN_MANIFEST_KEYS.has(key)) {
+      throw new ReconcileError(`Manifest ${manifestLabel(manifest)} has unsupported top-level key ${key}`, {
+        kind: 'unknown-manifest-key',
+        manifest: manifestLabel(manifest),
+        key,
+      });
+    }
+  }
+}
+
+function validateMissingTablePolicyValue(manifest) {
+  if (manifest?.missingTablePolicy === undefined) {
+    return;
+  }
+  if (!MISSING_TABLE_POLICIES.has(manifest.missingTablePolicy)) {
+    throw new ReconcileError(
+      `Manifest ${manifestLabel(manifest)} has invalid missingTablePolicy ${String(manifest.missingTablePolicy)}`,
+      {
+        kind: 'invalid-missing-table-policy',
+        manifest: manifestLabel(manifest),
+        missingTablePolicy: manifest.missingTablePolicy,
+      }
+    );
+  }
+}
+
+function validateManifest(manifest) {
+  validateManifestKeys(manifest);
+  validateMissingTablePolicyValue(manifest);
+}
+
+function resolveMissingTablePolicy(manifest) {
+  validateManifest(manifest);
+  if (manifest?.missingTablePolicy !== undefined) {
+    return manifest.missingTablePolicy;
+  }
+
+  const label = manifestLabel(manifest);
+  if (!warnedMissingTablePolicyManifests.has(label)) {
+    warnedMissingTablePolicyManifests.add(label);
+    console.warn(
+      `Manifest ${label} has no missingTablePolicy; defaulting to ${MISSING_TABLE_POLICY_CREATE_OR_REPAIR} (deprecated)`
+    );
+  }
+  return MISSING_TABLE_POLICY_CREATE_OR_REPAIR;
+}
+
 export function statementHashes(sqlFiles, extraStatements = []) {
   return [
     ...sqlFiles.flatMap((file) =>
@@ -159,6 +232,7 @@ export function statementHashes(sqlFiles, extraStatements = []) {
 }
 
 export function validateDropObjects(manifest) {
+  validateManifest(manifest);
   for (const drop of manifest.dropObjects ?? []) {
     if (drop.kind !== 'index' && drop.kind !== 'constraint') {
       throw new ReconcileError(
@@ -209,6 +283,7 @@ export function dropStatements(manifest) {
 }
 
 export function validateManifestSql(manifest, sqlFiles) {
+  validateManifest(manifest);
   const allowedCreates = new Set([
     ...(manifest.allowedCreateTables ?? []),
     ...(manifest.expectedTables ?? []).map((table) => table.name),
@@ -256,12 +331,14 @@ export function extractCreateTableNames(sql) {
 }
 
 export async function auditManifest(client, manifest) {
+  const missingTablePolicy = resolveMissingTablePolicy(manifest);
   const expectedTables = manifest.expectedTables ?? [];
   const dropObjects = manifest.dropObjects ?? [];
   const tableNames = expectedTables.map((table) => table.name);
   if (tableNames.length === 0 && dropObjects.length === 0) {
     return {
       manifest: manifest.name,
+      missingTablePolicy,
       action: ACTION_SKIP,
       objects: [],
     };
@@ -284,6 +361,7 @@ export async function auditManifest(client, manifest) {
           columns: columns.get(expectedTable.name) ?? new Map(),
           constraints,
           indexes,
+          missingTablePolicy,
         })
       );
     }
@@ -295,6 +373,7 @@ export async function auditManifest(client, manifest) {
 
   return {
     manifest: manifest.name,
+    missingTablePolicy,
     action: summarizeAction(objects.map((object) => object.action)),
     objects,
   };
@@ -351,8 +430,11 @@ async function loadPresentDropConstraints(client, constraintDrops) {
   return new Set(result.rows.map((row) => row.conname));
 }
 
-export function decideObjectAction({ tablePresent, deltas, populated }) {
+export function decideObjectAction({ tablePresent, deltas, populated, missingTablePolicy }) {
   if (!tablePresent) {
+    if (missingTablePolicy === MISSING_TABLE_POLICY_EXISTING_REQUIRED) {
+      return ACTION_REFUSE_FOR_HUMAN;
+    }
     return ACTION_APPLY_MISSING_DDL;
   }
 
@@ -377,7 +459,9 @@ export function formatAuditReport({ identity, privilegePrecheck, audits, apply }
   ];
 
   for (const audit of audits) {
-    lines.push(`${audit.manifest}: ${audit.action}`);
+    lines.push(
+      `${audit.manifest}: ${audit.action} (missingTablePolicy=${audit.missingTablePolicy ?? MISSING_TABLE_POLICY_CREATE_OR_REPAIR})`
+    );
     for (const object of audit.objects) {
       const deltaSummary =
         object.deltas.length === 0
@@ -559,17 +643,31 @@ export async function runReconcileCli({ argv = process.argv.slice(2), env = proc
   }
 }
 
-async function auditTable({ client, expectedTable, tablePresent, columns, constraints, indexes }) {
+async function auditTable({
+  client,
+  expectedTable,
+  tablePresent,
+  columns,
+  constraints,
+  indexes,
+  missingTablePolicy,
+}) {
   const deltas = [];
 
   if (!tablePresent) {
     deltas.push({ kind: 'missing-table', name: expectedTable.name, additiveSafe: true });
+    const action = decideObjectAction({
+      tablePresent,
+      deltas,
+      populated: false,
+      missingTablePolicy,
+    });
     return {
       table: expectedTable.name,
       present: false,
       populated: false,
       deltas,
-      action: ACTION_APPLY_MISSING_DDL,
+      action,
     };
   }
 
@@ -631,7 +729,7 @@ async function auditTable({ client, expectedTable, tablePresent, columns, constr
   const populated =
     deltas.some((delta) => delta.additiveSafe === false) &&
     (await hasRows(client, expectedTable.name));
-  const action = decideObjectAction({ tablePresent, deltas, populated });
+  const action = decideObjectAction({ tablePresent, deltas, populated, missingTablePolicy });
 
   return {
     table: expectedTable.name,

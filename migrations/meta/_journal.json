@@ -211,6 +211,20 @@
       "when": 1783022913852,
       "tag": "0028_operator_seam_drift",
       "breakpoints": true
+    },
+    {
+      "idx": 30,
+      "version": "7",
+      "when": 1783790526019,
+      "tag": "0029_h9_actionability_reconcile_drift",
+      "breakpoints": true
+    },
+    {
+      "idx": 31,
+      "version": "7",
+      "when": 1783791316672,
+      "tag": "0030_allocation_scenarios_reconcile_drift",
+      "breakpoints": true
     }
   ]
 }
