@@ -20,7 +20,7 @@
         { "name": "notes", "nullable": true },
         { "name": "source_allocation_version", "nullable": true },
         { "name": "company_count", "nullable": false },
-        { "name": "total_planned_cents", "nullable": false },
+        { "name": "total_planned_cents", "type": "bigint", "nullable": false },
         { "name": "created_at", "nullable": false },
         { "name": "updated_at", "nullable": false },
         { "name": "last_applied_at", "nullable": true },

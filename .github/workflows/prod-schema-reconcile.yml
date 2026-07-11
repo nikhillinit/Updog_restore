@@ -1,0 +1,231 @@
+name: Production Schema Reconcile
+
+on:
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: Audit production or apply additive-safe reconciliation
+        type: choice
+        options:
+          - audit
+          - apply
+        default: audit
+      expected_sha:
+        description: Full commit SHA expected to be checked out
+        type: string
+        required: true
+
+permissions:
+  contents: read
+
+concurrency:
+  group: prod-schema-reconcile
+  cancel-in-progress: false
+
+jobs:
+  reconcile:
+    name: Reconcile Production Schema
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment: production-schema
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Verify expected commit SHA
+        env:
+          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+          EXPECTED_SHA: ${{ inputs.expected_sha }}
+        run: |
+          ACTUAL_SHA="$(git rev-parse HEAD)"
+          if [ "$GITHUB_REF" != "refs/heads/$DEFAULT_BRANCH" ]; then
+            echo "Production reconciliation must run from the default branch."
+            exit 1
+          fi
+          if [ "$ACTUAL_SHA" != "$EXPECTED_SHA" ] || [ "$GITHUB_SHA" != "$EXPECTED_SHA" ]; then
+            echo "Checked-out SHA does not match expected_sha."
+            exit 1
+          fi
+
+      - name: Setup Node.js 20
+        uses: actions/setup-node@v6
+        with:
+          node-version: '20.19.0'
+          cache: 'npm'
+
+      - name: Align npm with packageManager
+        run: npm install -g npm@10.9.2
+
+      - name: Install dependencies
+        run: npm ci --prefer-offline --no-audit
+
+      - name: Run pre-apply audit
+        env:
+          DATABASE_URL: ${{ secrets.PRODUCTION_DATABASE_URL }}
+        run: |
+          mkdir -p reports
+          set +e
+          node scripts/reconcile-prod-schema.mjs > reports/pre-apply-audit.raw 2>&1
+          STATUS=$?
+          set -e
+          sed -E \
+            -e 's/^Target database: .* user=.*/Target database: [REDACTED] user=[REDACTED]/' \
+            -e 's#postgres(ql)?://[^[:space:]]+#[REDACTED_DATABASE_URL]#g' \
+            reports/pre-apply-audit.raw > reports/pre-apply-audit.txt
+          rm reports/pre-apply-audit.raw
+          exit "$STATUS"
+
+      - name: Require additive-safe apply decision
+        if: inputs.mode == 'apply'
+        run: |
+          node <<'NODE'
+          const fs = require('node:fs');
+          const path = require('node:path');
+
+          const manifestDir = 'scripts/prod-schema-manifests';
+          const manifests = fs
+            .readdirSync(manifestDir)
+            .filter((file) => file.endsWith('.json'))
+            .map((file) => JSON.parse(fs.readFileSync(path.join(manifestDir, file), 'utf8')));
+          const report = fs.readFileSync('reports/pre-apply-audit.txt', 'utf8');
+          const decisionPattern =
+            /^([^\s:][^:]*): (SKIP|APPLY-MISSING-DDL|REFUSE-FOR-HUMAN) \(missingTablePolicy=[^)]+\)$/gm;
+          const decisions = [...report.matchAll(decisionPattern)].map((match) => ({
+            manifest: match[1],
+            action: match[2],
+          }));
+
+          const fail = (message) => {
+            console.error(message);
+            process.exit(1);
+          };
+          if (
+            decisions.length !== manifests.length ||
+            manifests.some(
+              ({ name }) => decisions.filter((decision) => decision.manifest === name).length !== 1
+            )
+          ) {
+            fail('Pre-apply audit did not contain exactly one recognized decision per manifest.');
+          }
+          if (decisions.some(({ action }) => action === 'REFUSE-FOR-HUMAN')) {
+            fail('Pre-apply audit requires human review; apply is blocked.');
+          }
+          if (!decisions.some(({ action }) => action === 'APPLY-MISSING-DDL')) {
+            fail('Pre-apply audit did not report additive-safe work to apply.');
+          }
+
+          const applyingManifests = new Set(
+            decisions
+              .filter(({ action }) => action === 'APPLY-MISSING-DDL')
+              .map(({ manifest }) => manifest)
+          );
+          const destructiveSqlPattern = /\b(?:DROP|TRUNCATE)\b|\bDELETE\s+FROM\b/i;
+          const destructiveSqlFiles = manifests
+            .filter(({ name }) => applyingManifests.has(name))
+            .flatMap((manifest) => manifest.sqlFiles ?? [])
+            .filter((file) => {
+              const sql = fs
+                .readFileSync(file, 'utf8')
+                .replace(/--.*$/gm, '')
+                .replace(/\/\*[\s\S]*?\*\//g, '');
+              return destructiveSqlPattern.test(sql);
+            });
+          if (destructiveSqlFiles.length > 0) {
+            fail('Pre-apply audit selected manifest SQL containing destructive statements.');
+          }
+
+          const escapeRegExp = (value) => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+          const dropDecisions = manifests.flatMap((manifest) =>
+            (manifest.dropObjects ?? []).map((drop) => {
+              const objectLabel = drop.table ?? drop.name;
+              const dropDecisionPattern = new RegExp(
+                `^  ${escapeRegExp(objectLabel)}: (SKIP \\(shape-ok\\)|APPLY-MISSING-DDL \\(${escapeRegExp(drop.name)}\\))$`,
+                'gm'
+              );
+              const matches = [...report.matchAll(dropDecisionPattern)];
+              if (matches.length !== 1) {
+                fail('Pre-apply audit did not contain exactly one recognized decision per dropObject.');
+              }
+              return matches[0][1].startsWith('APPLY-MISSING-DDL') ? 'APPLY' : 'SKIP';
+            })
+          );
+          if (dropDecisions.includes('APPLY')) {
+            fail('Pre-apply audit contains destructive dropObjects; apply is blocked.');
+          }
+          NODE
+
+      - name: Apply additive-safe reconciliation
+        id: apply
+        if: inputs.mode == 'apply'
+        env:
+          DATABASE_URL: ${{ secrets.PRODUCTION_DATABASE_URL }}
+        run: |
+          set +e
+          node scripts/reconcile-prod-schema.mjs --apply --yes > reports/apply.raw 2>&1
+          STATUS=$?
+          set -e
+          sed -E \
+            -e 's/^Target database: .* user=.*/Target database: [REDACTED] user=[REDACTED]/' \
+            -e 's#postgres(ql)?://[^[:space:]]+#[REDACTED_DATABASE_URL]#g' \
+            reports/apply.raw > reports/apply.txt
+          rm reports/apply.raw
+          exit "$STATUS"
+
+      - name: Run post-apply audit
+        id: post_audit
+        if: ${{ !cancelled() && inputs.mode == 'apply' && (steps.apply.outcome == 'success' || steps.apply.outcome == 'failure') }}
+        env:
+          DATABASE_URL: ${{ secrets.PRODUCTION_DATABASE_URL }}
+        run: |
+          set +e
+          node scripts/reconcile-prod-schema.mjs > reports/post-apply-audit.raw 2>&1
+          STATUS=$?
+          set -e
+          sed -E \
+            -e 's/^Target database: .* user=.*/Target database: [REDACTED] user=[REDACTED]/' \
+            -e 's#postgres(ql)?://[^[:space:]]+#[REDACTED_DATABASE_URL]#g' \
+            reports/post-apply-audit.raw > reports/post-apply-audit.txt
+          rm reports/post-apply-audit.raw
+          exit "$STATUS"
+
+      - name: Require clean post-apply audit
+        if: ${{ !cancelled() && inputs.mode == 'apply' && (steps.post_audit.outcome == 'success' || steps.post_audit.outcome == 'failure') }}
+        run: |
+          node <<'NODE'
+          const fs = require('node:fs');
+          const path = require('node:path');
+
+          const manifestDir = 'scripts/prod-schema-manifests';
+          const manifests = fs
+            .readdirSync(manifestDir)
+            .filter((file) => file.endsWith('.json'))
+            .map((file) => JSON.parse(fs.readFileSync(path.join(manifestDir, file), 'utf8')));
+          const report = fs.readFileSync('reports/post-apply-audit.txt', 'utf8');
+          const decisionPattern =
+            /^([^\s:][^:]*): (SKIP|APPLY-MISSING-DDL|REFUSE-FOR-HUMAN) \(missingTablePolicy=[^)]+\)$/gm;
+          const decisions = [...report.matchAll(decisionPattern)].map((match) => ({
+            manifest: match[1],
+            action: match[2],
+          }));
+          const complete =
+            decisions.length === manifests.length &&
+            manifests.every(
+              ({ name }) =>
+                decisions.filter(
+                  (decision) => decision.manifest === name && decision.action === 'SKIP'
+                ).length === 1
+            );
+          if (!complete) {
+            console.error('Post-apply audit did not report exactly one clean decision per manifest.');
+            process.exit(1);
+          }
+          NODE
+
+      - name: Upload redacted reconciliation reports
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: prod-schema-reconcile-${{ github.run_id }}-${{ inputs.mode }}
+          path: reports/*.txt
+          if-no-files-found: warn
+          retention-days: 14

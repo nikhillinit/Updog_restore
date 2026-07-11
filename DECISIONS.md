@@ -48,6 +48,7 @@ development of the Press On Ventures fund modeling platform.
 - [ADR-032: Currency Blocks Contribute No Facts-Derived Money (PRD #1020 D4)](#adr-032-currency-blocks-contribute-no-facts-derived-money-prd-1020-d4)
 - [ADR-033: Marginal Next-Dollar Reserve MOIC Model (expanded in docs/adr/)](#adr-033-marginal-next-dollar-reserve-moic-model-expanded-in-docsadr)
 - [ADR-034: Browser Auth Contract (Bearer HS256, 7-Day Token, localStorage, Task 7)](#adr-034-browser-auth-contract-bearer-hs256-7-day-token-localstorage-task-7)
+- [ADR-035: Ordered Manifests as the Executable Production Schema Contract](#adr-035-ordered-manifests-as-the-executable-production-schema-contract)
 
 ---
 
@@ -5709,3 +5710,52 @@ PR-7b-i #1066 (`POST /api/auth/login` + bcrypt user seed in
 `server/lib/seed-users.ts`), PR-7b-ii #1067 (client localStorage token + Bearer
 attach in `apiRequest` / `getQueryFn` + `/login` page + logout + PROD-only route
 gate).
+
+---
+
+## ADR-035: Ordered Manifests as the Executable Production Schema Contract
+
+**Date:** 2026-07-11 **Status:** [IMPLEMENTED] Implemented **Decision:** Treat
+the ordered `scripts/prod-schema-manifests` set as the executable production
+schema contract. Audit is the default; apply is available only through the
+protected production-schema workflow and only for additive-safe reconciliation.
+
+### Context
+
+Production can carry partial drift that a clean journal replay or a final-shape
+comparison does not repair. Historical journaled migrations are immutable, so
+production reconciliation needs an ordered, replay-safe contract that can
+distinguish repairable additive gaps from states requiring an operator decision.
+
+### Decision
+
+- `create_or_repair` manifests may create missing tables or repair additive
+  shape gaps. `existing_table_required` manifests refuse when their base table
+  is absent, and non-additive drift refuses for human review.
+- Schema drift is closed with new replay-safe `@drift-patch` migrations. Never
+  edit a historical journaled migration to make current production converge.
+- `release:check` proves manifest/reconciler coverage in its static server
+  surface and partial-drift repair in its DB-backed Testcontainers surface.
+- Production audit and apply remain separate deployment gates in the protected
+  `.github/workflows/prod-schema-reconcile.yml` workflow. An authenticated
+  deployed smoke remains a separate post-deployment gate.
+
+### Alternatives Considered
+
+- **Treat journal replay as the complete production contract:** rejected because
+  it cannot repair a database that has only part of a later schema surface.
+- **Edit historical migrations to match production:** rejected because it makes
+  replay depend on when the migration was consumed and destroys ledger
+  immutability.
+- **Run production apply inside `release:check`:** rejected because local
+  release proof must not mutate production or bypass the protected environment
+  gate.
+
+### Consequences
+
+- Manifest coverage and partial-drift repair now block full local release proof.
+- `--skip-db` remains diagnostic-only because it omits the partial-drift proof.
+- A full release still requires an audit reporting exactly one `SKIP` decision
+  per manifest and an authenticated deployed smoke. Audit workflow success alone
+  does not prove clean schema state, and a green `release:check` does not claim
+  either deployment result.
