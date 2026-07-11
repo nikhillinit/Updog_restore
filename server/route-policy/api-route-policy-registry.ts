@@ -1,7 +1,7 @@
 import {
   ROUTE_GOVERNANCE_REGISTRY,
   type RouteGovernanceEntry,
-} from '../../client/src/app/route-governance-registry';
+} from '../../shared/routes/route-governance-registry';
 import {
   RoutePolicyEntrySchema,
   type FinancialSurface,

@@ -10,7 +10,7 @@ import {
 import {
   getRouteGovernanceEntry,
   type RouteGovernanceEntry,
-} from '../../../client/src/app/route-governance-registry';
+} from '../../../shared/routes/route-governance-registry';
 import { verifyRoutePolicy } from '../../../scripts/verify-route-policy';
 
 const CANONICAL = '/fund-model-results/:fundId/moic-analysis';
