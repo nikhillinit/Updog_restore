@@ -4,7 +4,7 @@ import {
   LP_ROUTE_DEFINITIONS,
   type AppRouteDefinition,
   type LPRouteDefinition,
-} from './app-route-definitions';
+} from '@shared/routes/app-route-definitions';
 
 export {
   ADMIN_GATED_ROUTES,
@@ -13,8 +13,8 @@ export {
   LP_INDEX_REDIRECT_PATH,
   LP_INDEX_REDIRECT_TARGET,
   PUBLIC_ENTRY_ROUTES,
-} from './app-route-definitions';
-export type { ArchivedPlaceholderRouteEntry } from './app-route-definitions';
+} from '@shared/routes/app-route-definitions';
+export type { ArchivedPlaceholderRouteEntry } from '@shared/routes/app-route-definitions';
 
 // Page components - Heavy routes lazy loaded for bundle optimization
 const Dashboard = React.lazy(() => import('@/pages/dashboard'));

@@ -1,9 +1,9 @@
 import { useMemo } from 'react';
 import { ALL_FLAG_KEYS, type FlagKey } from '@shared/generated/flag-types';
 import { FLAG_DEFINITIONS, resolveFlagWithDependencies } from '@shared/generated/flag-defaults';
-import type { RouteControlFlag } from './app-route-definitions';
+import type { RouteControlFlag } from '@shared/routes/app-route-definitions';
 
-export type { RouteControlFlag } from './app-route-definitions';
+export type { RouteControlFlag } from '@shared/routes/app-route-definitions';
 export type AdminRouteFlag = 'ui_catalog';
 
 type RuntimeEnvironment = 'development' | 'staging' | 'production';

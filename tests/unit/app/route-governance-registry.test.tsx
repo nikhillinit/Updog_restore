@@ -12,7 +12,7 @@ import {
   CORE_LIVE_GOVERNED_PATHS,
   ROUTE_GOVERNANCE_REGISTRY,
   getRouteGovernanceEntry,
-} from '@/app/route-governance-registry';
+} from '../../../shared/routes/route-governance-registry';
 
 function sorted(values: Iterable<string>): string[] {
   return [...values].sort((left, right) => left.localeCompare(right));
