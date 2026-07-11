@@ -14,20 +14,28 @@
     {
       "name": "allocation_scenarios",
       "columns": [
-        { "name": "id", "nullable": false },
-        { "name": "fund_id", "nullable": false },
-        { "name": "name", "nullable": false },
-        { "name": "notes", "nullable": true },
-        { "name": "source_allocation_version", "nullable": true },
-        { "name": "company_count", "nullable": false },
+        { "name": "id", "type": "uuid", "nullable": false },
+        { "name": "fund_id", "type": "integer", "nullable": false },
+        { "name": "name", "type": "varchar", "nullable": false },
+        { "name": "notes", "type": "text", "nullable": true },
+        {
+          "name": "source_allocation_version",
+          "type": "integer",
+          "nullable": true
+        },
+        { "name": "company_count", "type": "integer", "nullable": false },
         { "name": "total_planned_cents", "type": "bigint", "nullable": false },
-        { "name": "created_at", "nullable": false },
-        { "name": "updated_at", "nullable": false },
-        { "name": "last_applied_at", "nullable": true },
-        { "name": "last_applied_by", "nullable": true },
-        { "name": "last_applied_allocation_version", "nullable": true },
-        { "name": "last_synced_at", "nullable": true },
-        { "name": "last_synced_by", "nullable": true }
+        { "name": "created_at", "type": "timestamptz", "nullable": false },
+        { "name": "updated_at", "type": "timestamptz", "nullable": false },
+        { "name": "last_applied_at", "type": "timestamptz", "nullable": true },
+        { "name": "last_applied_by", "type": "text", "nullable": true },
+        {
+          "name": "last_applied_allocation_version",
+          "type": "integer",
+          "nullable": true
+        },
+        { "name": "last_synced_at", "type": "timestamptz", "nullable": true },
+        { "name": "last_synced_by", "type": "text", "nullable": true }
       ],
       "constraints": ["allocation_scenarios_fund_id_fkey"],
       "indexes": ["allocation_scenarios_fund_updated_idx"]
@@ -35,13 +43,17 @@
     {
       "name": "allocation_scenario_items",
       "columns": [
-        { "name": "scenario_id", "nullable": false },
-        { "name": "company_id", "nullable": false },
-        { "name": "planned_reserves_cents", "nullable": false },
-        { "name": "allocation_cap_cents", "nullable": true },
-        { "name": "allocation_reason", "nullable": true },
-        { "name": "created_at", "nullable": false },
-        { "name": "updated_at", "nullable": false }
+        { "name": "scenario_id", "type": "uuid", "nullable": false },
+        { "name": "company_id", "type": "integer", "nullable": false },
+        {
+          "name": "planned_reserves_cents",
+          "type": "bigint",
+          "nullable": false
+        },
+        { "name": "allocation_cap_cents", "type": "bigint", "nullable": true },
+        { "name": "allocation_reason", "type": "text", "nullable": true },
+        { "name": "created_at", "type": "timestamptz", "nullable": false },
+        { "name": "updated_at", "type": "timestamptz", "nullable": false }
       ],
       "constraints": [
         "allocation_scenario_items_scenario_id_fkey",
@@ -55,17 +67,25 @@
     {
       "name": "allocation_scenario_events",
       "columns": [
-        { "name": "id", "nullable": false },
-        { "name": "scenario_id", "nullable": false },
-        { "name": "fund_id", "nullable": false },
-        { "name": "event_type", "nullable": false },
-        { "name": "actor_user_id", "nullable": true },
-        { "name": "actor_label", "nullable": true },
-        { "name": "note", "nullable": true },
-        { "name": "source_allocation_version", "nullable": true },
-        { "name": "resulting_allocation_version", "nullable": true },
-        { "name": "change_summary_json", "nullable": false },
-        { "name": "created_at", "nullable": false }
+        { "name": "id", "type": "uuid", "nullable": false },
+        { "name": "scenario_id", "type": "uuid", "nullable": false },
+        { "name": "fund_id", "type": "integer", "nullable": false },
+        { "name": "event_type", "type": "varchar", "nullable": false },
+        { "name": "actor_user_id", "type": "integer", "nullable": true },
+        { "name": "actor_label", "type": "text", "nullable": true },
+        { "name": "note", "type": "text", "nullable": true },
+        {
+          "name": "source_allocation_version",
+          "type": "integer",
+          "nullable": true
+        },
+        {
+          "name": "resulting_allocation_version",
+          "type": "integer",
+          "nullable": true
+        },
+        { "name": "change_summary_json", "type": "jsonb", "nullable": false },
+        { "name": "created_at", "type": "timestamptz", "nullable": false }
       ],
       "constraints": [
         "allocation_scenario_events_scenario_id_fkey",
@@ -81,22 +101,38 @@
     {
       "name": "allocation_scenario_ic_decisions",
       "columns": [
-        { "name": "id", "nullable": false },
-        { "name": "scenario_id", "nullable": false },
-        { "name": "fund_id", "nullable": false },
-        { "name": "company_id", "nullable": false },
-        { "name": "decision_type", "nullable": false },
-        { "name": "decision_status", "nullable": false },
-        { "name": "rationale", "nullable": false },
-        { "name": "proposed_planned_reserves_cents", "nullable": true },
-        { "name": "final_planned_reserves_cents", "nullable": true },
-        { "name": "decided_by_user_id", "nullable": true },
-        { "name": "decided_by_label", "nullable": true },
-        { "name": "decided_at", "nullable": true },
-        { "name": "source_allocation_version", "nullable": true },
-        { "name": "live_allocation_version", "nullable": true },
-        { "name": "created_at", "nullable": false },
-        { "name": "updated_at", "nullable": false }
+        { "name": "id", "type": "uuid", "nullable": false },
+        { "name": "scenario_id", "type": "uuid", "nullable": false },
+        { "name": "fund_id", "type": "integer", "nullable": false },
+        { "name": "company_id", "type": "integer", "nullable": false },
+        { "name": "decision_type", "type": "varchar", "nullable": false },
+        { "name": "decision_status", "type": "varchar", "nullable": false },
+        { "name": "rationale", "type": "text", "nullable": false },
+        {
+          "name": "proposed_planned_reserves_cents",
+          "type": "bigint",
+          "nullable": true
+        },
+        {
+          "name": "final_planned_reserves_cents",
+          "type": "bigint",
+          "nullable": true
+        },
+        { "name": "decided_by_user_id", "type": "integer", "nullable": true },
+        { "name": "decided_by_label", "type": "text", "nullable": true },
+        { "name": "decided_at", "type": "timestamptz", "nullable": true },
+        {
+          "name": "source_allocation_version",
+          "type": "integer",
+          "nullable": true
+        },
+        {
+          "name": "live_allocation_version",
+          "type": "integer",
+          "nullable": true
+        },
+        { "name": "created_at", "type": "timestamptz", "nullable": false },
+        { "name": "updated_at", "type": "timestamptz", "nullable": false }
       ],
       "constraints": [
         "allocation_scenario_ic_decisions_scenario_id_fkey",
