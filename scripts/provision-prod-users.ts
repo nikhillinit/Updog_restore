@@ -1,5 +1,5 @@
 /**
- * Provision login users into a target Postgres (users table ONLY).
+ * Provision login users into a target Neon Postgres (users table ONLY).
  *
  * Why this exists (do NOT use scripts/seed-db.ts for prod):
  *   seed-db.ts upserts the login users idempotently, but then ALSO inserts a
@@ -10,6 +10,11 @@
  *
  * What it does: idempotent upsert (on username) of the shared seed identities
  *   (server/lib/seed-users.ts). Safe to re-run. No schema change.
+ *
+ * Driver: uses the Neon HTTP driver (HTTPS, matches prod on Vercel) rather than
+ *   importing the app's server/db, whose driver selection picks a WebSocket pool
+ *   for remote hosts -- that WS upgrade is commonly blocked on local networks.
+ *   HTTP over 443 is the reliable path for a one-off ops run.
  *
  * Credentials (ADR-034): reuses TEST_LOGIN_CREDENTIALS via buildSeedUsers().
  *   The passwords are committed in the repo -- acceptable ONLY because the
@@ -22,8 +27,9 @@
  * NEVER db:push / db:migrate against prod -- this is a data upsert only.
  */
 
+import { neon } from '@neondatabase/serverless';
+import { drizzle } from 'drizzle-orm/neon-http';
 import { sql } from 'drizzle-orm';
-import { db, closeDatabasePool } from '../server/db';
 import { users } from '@shared/schema';
 import { buildSeedUsers } from '../server/lib/seed-users';
 
@@ -35,6 +41,12 @@ async function provisionProdUsers(): Promise<number> {
     );
   }
 
+  const connectionString = process.env['DATABASE_URL'] ?? process.env['NEON_DATABASE_URL'];
+  if (!connectionString) {
+    throw new Error('DATABASE_URL (or NEON_DATABASE_URL) is required.');
+  }
+
+  const db = drizzle(neon(connectionString));
   const seedUsers = buildSeedUsers();
 
   for (const seedUser of seedUsers) {
@@ -45,7 +57,8 @@ async function provisionProdUsers(): Promise<number> {
   }
 
   // Verify the rows are present (count is idempotent across re-runs).
-  const [{ count }] = await db.select({ count: sql<number>`count(*)::int` }).from(users);
+  const [row] = await db.select({ count: sql<number>`count(*)::int` }).from(users);
+  const count = row?.count ?? 0;
 
   console.log(
     `[DONE] Provisioned ${seedUsers.length} login user(s); users table now has ${count} row(s).`
@@ -54,12 +67,8 @@ async function provisionProdUsers(): Promise<number> {
 }
 
 provisionProdUsers()
-  .then(async () => {
-    await closeDatabasePool();
-    process.exit(0);
-  })
-  .catch(async (error: unknown) => {
+  .then(() => process.exit(0))
+  .catch((error: unknown) => {
     console.error('[FAIL] User provisioning failed:', error);
-    await closeDatabasePool();
     process.exit(1);
   });
