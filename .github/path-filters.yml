@@ -171,6 +171,7 @@ schema:
   - 'scripts/db-push.mjs'
   - 'scripts/db-push-core.mjs'
   - 'drizzle.config.ts'
+  - '.github/workflows/prod-schema-reconcile.yml'
 
 pr_security:
   - 'package.json'
@@ -285,6 +286,7 @@ test_quarantine:
 # workflow, and this filter file itself (so edits to this group must run the
 # proof they gate). Keep in sync with the vitest include list.
 schema_tests:
+  - 'migrations/**'
   - 'tests/helpers/apply-investment-round-constraints.ts'
   - 'tests/integration/migrations/**'
   - 'server/migrations/**'
@@ -301,4 +303,7 @@ schema_tests:
   - 'tests/integration/prod-schema-clone.test.ts'
   - 'tests/integration/investment-scenario-capability.test.ts'
   - 'scripts/audit-prod-operator-seam.mjs'
+  - 'scripts/reconcile-prod-schema.mjs'
   - 'scripts/prod-schema-manifests/**'
+  - 'tests/integration/prod-schema-reconcile-partial-drift.test.ts'
+  - '.github/workflows/prod-schema-reconcile.yml'
