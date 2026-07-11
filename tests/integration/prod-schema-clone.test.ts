@@ -62,6 +62,22 @@ const LP_CORE_MANIFEST_TABLES = [
   'report_templates',
   'lp_audit_log',
 ] as const;
+// M6 (06-h9-actionability): H9 actionability columns live on these existing tables.
+// fund_calculation_modes + lp_report_packages are also owned by M2/M4 (sharedTable),
+// so the manifest union now contains them twice - compare as a Set.
+const H9_MANIFEST_TABLES = [
+  'fund_snapshots',
+  'fund_calculation_modes',
+  'lp_report_packages',
+  'pacing_history',
+] as const;
+// M7 (07-allocation-scenarios): live allocation scenario tables are manifest-owned.
+const ALLOCATION_SCENARIO_MANIFEST_TABLES = [
+  'allocation_scenarios',
+  'allocation_scenario_items',
+  'allocation_scenario_events',
+  'allocation_scenario_ic_decisions',
+] as const;
 const SHAPE_ONLY_NOT_JOURNALED = [
   'flag_changes',
   'flags_state',
@@ -676,8 +692,14 @@ describe.skipIf(skipIfNoDocker)('prod schema synthetic clone', () => {
       )
       .map(pgIdentifier);
 
-    expect([...expectedTables].sort()).toEqual(
-      [...C1_MOUNTED_TABLES, ...SEAM_MANIFEST_TABLES, ...LP_CORE_MANIFEST_TABLES].sort()
+    expect(new Set(expectedTables)).toEqual(
+      new Set([
+        ...C1_MOUNTED_TABLES,
+        ...SEAM_MANIFEST_TABLES,
+        ...LP_CORE_MANIFEST_TABLES,
+        ...H9_MANIFEST_TABLES,
+        ...ALLOCATION_SCENARIO_MANIFEST_TABLES,
+      ])
     );
 
     const migratedTables = await publicTables(pool!, expectedTables);
@@ -786,116 +808,105 @@ describe.skipIf(skipIfNoDocker)('prod schema synthetic clone', () => {
     // alert_evaluation_executions, job_outbox.dedupe_key, idx_job_outbox_job_type_dedupe, performance_alerts_open_incident_unique, backtest_results.scenario_comparison_summary are in BOTH the journal and shape source -> proven by the sentinel intersection diff above; asserting them here would be vacuous (the journal pre-supplies them).
   });
 
-  it(
-    'smoke-runs the s8.1 operator-seam audit script against the journal clone',
-    async () => {
-      expect(postgres).toBeDefined();
-      const outPath = path.join(
-        os.tmpdir(),
-        `s81-audit-smoke-${process.pid}-${Date.now()}.json`
-      );
+  it('smoke-runs the s8.1 operator-seam audit script against the journal clone', async () => {
+    expect(postgres).toBeDefined();
+    const outPath = path.join(os.tmpdir(), `s81-audit-smoke-${process.pid}-${Date.now()}.json`);
 
-      await execFileAsync('node', ['scripts/audit-prod-operator-seam.mjs', '--out', outPath], {
-        cwd: process.cwd(),
-        env: { ...process.env, DATABASE_URL: postgres!.getConnectionUri() },
-      });
+    await execFileAsync('node', ['scripts/audit-prod-operator-seam.mjs', '--out', outPath], {
+      cwd: process.cwd(),
+      env: { ...process.env, DATABASE_URL: postgres!.getConnectionUri() },
+    });
 
-      const artifact = JSON.parse(await readFile(outPath, 'utf8')) as {
-        completed: boolean;
-        query_count: number;
-        results: {
-          old_global_indexes: Array<{ index_name: string; absent?: boolean }>;
-          scoped_indexes: Array<{
-            index_name: string;
-            absent?: boolean;
-            is_valid?: boolean;
-            is_ready?: boolean;
-          }>;
-          fund_snapshot_fks: Array<{ constraint_name: string; absent?: boolean }>;
-          outbox_status_checks: Array<{ constraint_name: string }>;
-          orphan_counts: {
-            fund_snapshots_run_id_orphans: number;
-            fund_snapshots_config_id_orphans: number;
-          };
-          row_counts: Record<string, number>;
+    const artifact = JSON.parse(await readFile(outPath, 'utf8')) as {
+      completed: boolean;
+      query_count: number;
+      results: {
+        old_global_indexes: Array<{ index_name: string; absent?: boolean }>;
+        scoped_indexes: Array<{
+          index_name: string;
+          absent?: boolean;
+          is_valid?: boolean;
+          is_ready?: boolean;
+        }>;
+        fund_snapshot_fks: Array<{ constraint_name: string; absent?: boolean }>;
+        outbox_status_checks: Array<{ constraint_name: string }>;
+        orphan_counts: {
+          fund_snapshots_run_id_orphans: number;
+          fund_snapshots_config_id_orphans: number;
         };
+        row_counts: Record<string, number>;
       };
+    };
 
-      // Positive control on the detection queries, pinned to post-0028 DB-A truth:
-      // the three old GLOBAL idempotency indexes are DROPPED by 0028 (the script
-      // must report them absent, not error), while the scoped indexes (0024),
-      // fund_snapshots FKs (0002), and job_outbox_status_check (0005) remain
-      // present. This proves detection in BOTH directions before an operator
-      // session relies on it.
-      expect(artifact.completed).toBe(true);
-      expect(artifact.query_count).toBeGreaterThan(0);
-      expect(
-        artifact.results.old_global_indexes
-          .filter((entry) => entry.absent)
-          .map((entry) => entry.index_name)
-          .sort()
-      ).toEqual([
-        'forecast_snapshots_idempotency_unique_idx',
-        'investment_lots_idempotency_unique_idx',
-        'reserve_allocations_idempotency_unique_idx',
-      ]);
-      expect(
-        artifact.results.scoped_indexes.filter(
-          (entry) => entry.absent || !entry.is_valid || !entry.is_ready
-        )
-      ).toEqual([]);
-      const foundFks = artifact.results.fund_snapshot_fks
-        .filter((entry) => !entry.absent)
-        .map((entry) => entry.constraint_name)
-        .sort();
-      expect(foundFks).toEqual([
-        'fund_snapshots_config_id_fundconfigs_id_fk',
-        'fund_snapshots_run_id_calc_runs_id_fk',
-      ]);
-      expect(
-        artifact.results.outbox_status_checks.map((entry) => entry.constraint_name)
-      ).toContain('job_outbox_status_check');
-      expect(artifact.results.orphan_counts.fund_snapshots_run_id_orphans).toBe(0);
-      expect(artifact.results.orphan_counts.fund_snapshots_config_id_orphans).toBe(0);
-      expect(Object.keys(artifact.results.row_counts)).toHaveLength(7);
-    },
-    60_000
-  );
+    // Positive control on the detection queries, pinned to post-0028 DB-A truth:
+    // the three old GLOBAL idempotency indexes are DROPPED by 0028 (the script
+    // must report them absent, not error), while the scoped indexes (0024),
+    // fund_snapshots FKs (0002), and job_outbox_status_check (0005) remain
+    // present. This proves detection in BOTH directions before an operator
+    // session relies on it.
+    expect(artifact.completed).toBe(true);
+    expect(artifact.query_count).toBeGreaterThan(0);
+    expect(
+      artifact.results.old_global_indexes
+        .filter((entry) => entry.absent)
+        .map((entry) => entry.index_name)
+        .sort()
+    ).toEqual([
+      'forecast_snapshots_idempotency_unique_idx',
+      'investment_lots_idempotency_unique_idx',
+      'reserve_allocations_idempotency_unique_idx',
+    ]);
+    expect(
+      artifact.results.scoped_indexes.filter(
+        (entry) => entry.absent || !entry.is_valid || !entry.is_ready
+      )
+    ).toEqual([]);
+    const foundFks = artifact.results.fund_snapshot_fks
+      .filter((entry) => !entry.absent)
+      .map((entry) => entry.constraint_name)
+      .sort();
+    expect(foundFks).toEqual([
+      'fund_snapshots_config_id_fundconfigs_id_fk',
+      'fund_snapshots_run_id_calc_runs_id_fk',
+    ]);
+    expect(artifact.results.outbox_status_checks.map((entry) => entry.constraint_name)).toContain(
+      'job_outbox_status_check'
+    );
+    expect(artifact.results.orphan_counts.fund_snapshots_run_id_orphans).toBe(0);
+    expect(artifact.results.orphan_counts.fund_snapshots_config_id_orphans).toBe(0);
+    expect(Object.keys(artifact.results.row_counts)).toHaveLength(7);
+  }, 60_000);
 
-  it(
-    'every manifest audits clean (SKIP) against the journal clone',
-    async () => {
-      expect(pool).toBeDefined();
-      const manifests = await loadManifests();
-      const failures: Array<{
-        manifest: string;
-        table: string;
-        action: string;
-        deltas: unknown[];
-      }> = [];
+  it('every manifest audits clean (SKIP) against the journal clone', async () => {
+    expect(pool).toBeDefined();
+    const manifests = await loadManifests();
+    const failures: Array<{
+      manifest: string;
+      table: string;
+      action: string;
+      deltas: unknown[];
+    }> = [];
 
-      for (const manifest of manifests) {
-        const audit = await auditManifest(pool!, manifest);
-        expect(audit.action, `${audit.manifest} manifest-level action`).toBe(ACTION_SKIP);
-        for (const object of audit.objects) {
-          if (object.deltas.length > 0 || object.action !== ACTION_SKIP) {
-            failures.push({
-              manifest: audit.manifest,
-              table: object.table,
-              action: object.action,
-              deltas: object.deltas,
-            });
-          }
+    for (const manifest of manifests) {
+      const audit = await auditManifest(pool!, manifest);
+      expect(audit.action, `${audit.manifest} manifest-level action`).toBe(ACTION_SKIP);
+      for (const object of audit.objects) {
+        if (object.deltas.length > 0 || object.action !== ACTION_SKIP) {
+          failures.push({
+            manifest: audit.manifest,
+            table: object.table,
+            action: object.action,
+            deltas: object.deltas,
+          });
         }
       }
+    }
 
-      // Declaration-vs-catalog agreement: the replayed journal materializes
-      // every manifest table/constraint/index (and 0028 already dropped the
-      // seam dropObjects targets), so any delta here is a WRONG MANIFEST
-      // DECLARATION - the bug class that rolled back the first slice-4
-      // operator apply (company_overrides.canonical_sector_id nullability).
-      expect(failures).toEqual([]);
-    },
-    120_000
-  );
+    // Declaration-vs-catalog agreement: the replayed journal materializes
+    // every manifest table/constraint/index (and 0028 already dropped the
+    // seam dropObjects targets), so any delta here is a WRONG MANIFEST
+    // DECLARATION - the bug class that rolled back the first slice-4
+    // operator apply (company_overrides.canonical_sector_id nullability).
+    expect(failures).toEqual([]);
+  }, 120_000);
 });

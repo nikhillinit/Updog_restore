@@ -1,15 +1,16 @@
-
 // Default import on purpose: node-setup.ts vi.mock('fs') stubs the NAMED
 // readFileSync export, but its ...actual spread preserves `default` as the
 // real fs module - same pattern as the sibling ledger/sentinel tests.
 import fs from 'node:fs';
 
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 import {
   ACTION_APPLY_MISSING_DDL,
   ACTION_REFUSE_FOR_HUMAN,
   ACTION_SKIP,
+  MISSING_TABLE_POLICY_CREATE_OR_REPAIR,
+  MISSING_TABLE_POLICY_EXISTING_REQUIRED,
   ReconcileError,
   assertApplyConfirmation,
   assertDirectDatabaseUrl,
@@ -161,7 +162,10 @@ function createMockClient(options: MockClientOptions = {}) {
         return { rows: [], rowCount: 0 };
       }
 
-      if (text.includes('CREATE TABLE IF NOT EXISTS') || text.includes('CREATE UNIQUE INDEX IF NOT EXISTS')) {
+      if (
+        text.includes('CREATE TABLE IF NOT EXISTS') ||
+        text.includes('CREATE UNIQUE INDEX IF NOT EXISTS')
+      ) {
         return { rows: [], rowCount: 0 };
       }
 
@@ -184,6 +188,7 @@ function createMockClient(options: MockClientOptions = {}) {
 
 const manifest = {
   name: 'fixture',
+  missingTablePolicy: MISSING_TABLE_POLICY_CREATE_OR_REPAIR,
   expectedTables: [
     {
       name: 'tasks',
@@ -299,6 +304,7 @@ describe('reconcile-prod-schema shape decisions', () => {
     const audit = await auditManifest(client, manifest);
 
     expect(audit.action).toBe(ACTION_SKIP);
+    expect(audit.missingTablePolicy).toBe(MISSING_TABLE_POLICY_CREATE_OR_REPAIR);
     expect(audit.objects[0]?.deltas).toEqual([]);
   });
 
@@ -367,6 +373,7 @@ describe('reconcile-prod-schema shape decisions', () => {
     });
 
     expect(output.join('')).toContain('Audit-only mode');
+    expect(output.join('')).toContain('missingTablePolicy=create_or_repair');
     expect(
       client.calls.some((call) => /\bBEGIN\b|INSERT INTO|CREATE TABLE|COMMIT/.test(call.text))
     ).toBe(false);
@@ -390,9 +397,85 @@ describe('reconcile-prod-schema shape decisions', () => {
   });
 });
 
+describe('missing-table policy', () => {
+  it('refuses a missing base table for existing_table_required', () => {
+    expect(
+      decideObjectAction({
+        tablePresent: false,
+        deltas: [],
+        populated: false,
+        missingTablePolicy: MISSING_TABLE_POLICY_EXISTING_REQUIRED,
+      })
+    ).toBe(ACTION_REFUSE_FOR_HUMAN);
+  });
+
+  it('applies an additive create for create_or_repair', () => {
+    expect(
+      decideObjectAction({
+        tablePresent: false,
+        deltas: [],
+        populated: false,
+        missingTablePolicy: MISSING_TABLE_POLICY_CREATE_OR_REPAIR,
+      })
+    ).toBe(ACTION_APPLY_MISSING_DDL);
+  });
+
+  it('defaults absent policy to create_or_repair with a deprecation warning', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    try {
+      const audit = await auditManifest(createMockClient(), {
+        name: 'missing-policy-fixture',
+        expectedTables: [{ name: 'tasks', columns: [] }],
+      });
+
+      expect(
+        decideObjectAction({
+          tablePresent: false,
+          deltas: [],
+          populated: false,
+        })
+      ).toBe(ACTION_APPLY_MISSING_DDL);
+      expect(audit.missingTablePolicy).toBe(MISSING_TABLE_POLICY_CREATE_OR_REPAIR);
+      expect(audit.action).toBe(ACTION_APPLY_MISSING_DDL);
+      expect(warn).toHaveBeenCalledTimes(1);
+      expect(warn).toHaveBeenCalledWith(expect.stringContaining('missing-policy-fixture'));
+      expect(warn).toHaveBeenCalledWith(expect.stringContaining('defaulting to create_or_repair'));
+    } finally {
+      warn.mockRestore();
+    }
+  });
+
+  it('rejects an unknown policy value', async () => {
+    await expect(
+      auditManifest(createMockClient(), {
+        name: 'bad-policy-fixture',
+        missingTablePolicy: 'nonsense',
+        expectedTables: [],
+      })
+    ).rejects.toMatchObject({
+      details: { kind: 'invalid-missing-table-policy' },
+    });
+  });
+
+  it('rejects an unknown manifest key', () => {
+    expect(() =>
+      validateManifestSql(
+        {
+          name: 'bad-key-fixture',
+          missingTablePolicy: MISSING_TABLE_POLICY_CREATE_OR_REPAIR,
+          expectedTables: [],
+          unexpectedKey: true,
+        },
+        []
+      )
+    ).toThrow(ReconcileError);
+  });
+});
+
 describe('reconcile-prod-schema dropObjects path (s8.1 slice 3.5)', () => {
   const dropManifest = {
     name: 'seam-fixture',
+    missingTablePolicy: MISSING_TABLE_POLICY_CREATE_OR_REPAIR,
     dropObjects: [
       {
         kind: 'index',
@@ -456,9 +539,7 @@ describe('reconcile-prod-schema dropObjects path (s8.1 slice 3.5)', () => {
       { kind: 'index', name: `x${'y'.repeat(70)}`, reason: 'r', reverseSql: 's' },
     ];
     for (const drop of bad) {
-      expect(() => validateDropObjects({ name: 'm', dropObjects: [drop] })).toThrow(
-        ReconcileError
-      );
+      expect(() => validateDropObjects({ name: 'm', dropObjects: [drop] })).toThrow(ReconcileError);
     }
     expect(() => validateDropObjects(dropManifest)).not.toThrow();
   });
