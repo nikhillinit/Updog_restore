@@ -50,7 +50,7 @@ Authoritative product surface:
 npm run check
 npm run validate:core
 npm run build && npm run build:verify
-npm run release:check   # canonical release gate (Docker/WSL2; --skip-db for a fast subset)
+npm run release:check   # canonical release gate (Docker/WSL2; --skip-db is diagnostic only)
 ```
 
 `npm run build:verify` executes `scripts/check-prod-bundle.mjs`; it must fail if
@@ -60,7 +60,20 @@ emitted without `VITE_SOURCEMAP=true`.
 `npm run release:check` (`scripts/release-check.mjs`) is the authoritative
 end-to-end release gate — build, typecheck, prod-bundle verifier, and a
 Testcontainers Postgres proof. CI green is baseline health, not release proof;
-it needs Docker (WSL2 on Windows), and `--skip-db` runs the non-DB subset.
+it needs Docker (WSL2 on Windows). The `--skip-db` subset is diagnostic only and
+is not release proof.
+
+## Production Schema Audit Gate
+
+The production schema audit is a separate deployment gate run through the
+protected `.github/workflows/prod-schema-reconcile.yml` workflow dispatch and
+its `production-schema` environment. The workflow defaults to audit; apply is
+explicitly gated and is not part of `release:check`.
+
+A full release requires a green, non-skipped `release:check` (including the
+DB-backed partial-drift reconciliation proof), a clean production schema audit
+(exactly one `SKIP` decision per manifest; workflow success alone is
+insufficient), and an authenticated smoke against the deployed application.
 
 ## Surface Status
 

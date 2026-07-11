@@ -25,6 +25,10 @@ const serverSurfaceTests = [
   'tests/unit/routes/backtesting.contract.test.ts',
   'tests/unit/queues/resolve-fund-id.test.ts',
   'tests/unit/routes/lp-api.contract.test.ts',
+  'tests/unit/prod-schema-manifest-sentinels.test.ts',
+  'tests/unit/mount-parity-migrations.test.ts',
+  'tests/unit/reconcile-prod-schema.test.ts',
+  'tests/unit/migration-drift-patches.test.ts',
   'tests/regressions/ci-unified-playwright-install.test.ts',
   'tests/unit/scripts/db-push.test.mjs',
 ];
@@ -33,12 +37,14 @@ const releaseOwnedPaths = [
   'docs/release',
   'migrations',
   'shared/migrations',
+  'scripts/prod-schema-manifests',
   'scripts/release-check.mjs',
   'scripts/db-push.mjs',
   'scripts/db-push-core.mjs',
   'tests/integration/fund-lifecycle-db.test.ts',
   'tests/integration/migration-drift.test.ts',
   'tests/integration/prod-schema-clone.test.ts',
+  'tests/integration/prod-schema-reconcile-partial-drift.test.ts',
   'vitest.config.testcontainers.ts',
 ];
 
@@ -111,6 +117,11 @@ if (skipDbProof) {
     name: 'Production schema clone proof',
     command:
       'cross-env TZ=UTC vitest run -c vitest.config.testcontainers.ts tests/integration/prod-schema-clone.test.ts',
+  });
+  steps.push({
+    name: 'Production partial-drift reconciliation proof',
+    command:
+      'cross-env TZ=UTC vitest run -c vitest.config.testcontainers.ts tests/integration/prod-schema-reconcile-partial-drift.test.ts',
   });
 }
 
