@@ -9,6 +9,7 @@
  * Uses unified Express.User interface from types/express.d.ts
  */
 
+import { randomUUID } from 'node:crypto';
 import type { Algorithm, JwtPayload } from 'jsonwebtoken';
 import jwt from 'jsonwebtoken';
 import type { Request, Response, NextFunction } from 'express';
@@ -322,5 +323,6 @@ export function signToken(data: string | Buffer | object): string {
     expiresIn: '7d',
     issuer: cfg.JWT_ISSUER,
     audience: cfg.JWT_AUDIENCE,
+    jwtid: randomUUID(),
   });
 }
