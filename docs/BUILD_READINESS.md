@@ -1,6 +1,6 @@
 ---
 status: ACTIVE
-last_updated: 2026-07-05
+last_updated: 2026-07-11
 ---
 
 # Build Readiness Verification Report
@@ -29,6 +29,10 @@ Authoritative product surface:
 - `/portal/:rest*` remains an intentional public entrypoint that currently
   resolves to access denied
 - Compass is unmounted and experimental, not part of build readiness
+- Plan 2's identity slice is implemented: the ADR-034 Bearer transport now has
+  `jti` revocation, per-user roles and explicit fund grants, and external
+  production provisioning. Login still mints admin/empty tokens pending the
+  follow-up that wires persisted roles and grants into claims; see ADR-036.
 - Investment round create/list/read routes enforce fund scope through the parent
   investment before returning round data
 - LP dashboard/profile widget routes are mounted in both active server surfaces
