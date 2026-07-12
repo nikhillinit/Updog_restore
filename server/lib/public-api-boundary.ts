@@ -37,5 +37,9 @@ export function isPublicApiPath(method: string, mountRelativePath: string): bool
     return true;
   }
 
+  if (normalizedMethod === 'GET' && normalizedPath === '/auth/csrf') {
+    return true;
+  }
+
   return false;
 }

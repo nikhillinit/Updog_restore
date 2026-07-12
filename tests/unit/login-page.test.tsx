@@ -3,17 +3,21 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import LoginPage from '@/pages/login';
-import { getToken, clearToken } from '@/lib/auth-token';
+import { AUTH_SESSION_QUERY_KEY, type AuthSession } from '@/lib/auth-session';
 
 const { navigateMock } = vi.hoisted(() => ({ navigateMock: vi.fn() }));
 vi.mock('wouter', () => ({
   useLocation: () => ['/login', navigateMock],
 }));
 
-function wrap(ui: React.ReactElement) {
+function makeRender(ui: React.ReactElement) {
   const qc = new QueryClient({ defaultOptions: { mutations: { retry: false } } });
-  return React.createElement(QueryClientProvider, { client: qc }, ui);
+  return { qc, tree: React.createElement(QueryClientProvider, { client: qc }, ui) };
 }
+
+const session: AuthSession = {
+  user: { id: 'user-1', email: 'admin@example.com', role: 'admin', fundIds: [] },
+};
 
 describe('LoginPage', () => {
   beforeEach(() => {
@@ -22,25 +26,25 @@ describe('LoginPage', () => {
   });
   afterEach(() => {
     vi.restoreAllMocks();
-    clearToken();
   });
 
-  it('submits, stores the token, and redirects home', async () => {
+  it('submits, publishes the cookie-backed session, and redirects home', async () => {
     vi.stubGlobal(
       'fetch',
       vi.fn().mockResolvedValue({
         ok: true,
         status: 200,
-        json: async () => ({ token: 'jwt-home' }),
+        json: async () => session,
       } as Response)
     );
-    render(wrap(React.createElement(LoginPage)));
+    const { qc, tree } = makeRender(React.createElement(LoginPage));
+    render(tree);
     fireEvent.change(screen.getByLabelText(/username/i), { target: { value: 'admin' } });
     fireEvent.change(screen.getByLabelText(/password/i), {
       target: { value: 'admin-dev-2026' },
     });
     fireEvent.click(screen.getByRole('button', { name: /sign in/i }));
-    await waitFor(() => expect(getToken()).toBe('jwt-home'));
+    await waitFor(() => expect(qc.getQueryData(AUTH_SESSION_QUERY_KEY)).toEqual(session));
     expect(navigateMock).toHaveBeenCalledWith('/');
   });
 });

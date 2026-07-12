@@ -28,10 +28,11 @@ Current secondary-surface exposure is intentionally narrow:
 - Compass remains experimental and unmounted on the server
 - MOIC rankings must come from the live fund-scoped contract with provenance;
   sample rankings are not a production fallback
-- Auth remains a 7-day HS256 Bearer JWT in localStorage, extended by Plan 2 with
-  a named-identity and explicit-grant schema, fail-closed provided-fund checks,
-  and `jti` revocation; login claim wiring remains pending. See ADR-034 and
-  ADR-036 in [DECISIONS.md](DECISIONS.md)
+- Browser auth uses a 24-hour HS256 JWT in a host-only HttpOnly cookie with a
+  signed, jti-bound CSRF token. Plan 2's named identities, explicit grants,
+  fail-closed fund checks, deactivation, and jti revocation remain enforced.
+  Machine/service Bearer JWTs remain supported; mixed credentials are rejected.
+  See ADR-036 and ADR-037 in [DECISIONS.md](DECISIONS.md)
 - Investment round routes enforce fund scope on create, list, and read; the
   `enable_investment_rounds` flag remains off for production until explicit
   readiness gates are accepted

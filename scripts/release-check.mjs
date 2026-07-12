@@ -14,6 +14,10 @@ const clientSurfaceTests = [
   'tests/unit/components/layout/sidebar-navigation.test.tsx',
   'tests/unit/app/route-perimeter-governance.test.tsx',
   'tests/unit/pages/fund-model-results.test.tsx',
+  'tests/unit/app/auth-session-gate.test.tsx',
+  'tests/unit/app/app-layout-logout.test.tsx',
+  'tests/unit/auth-session.test.tsx',
+  'tests/unit/install-auth-fetch.test.tsx',
 ];
 
 const serverSurfaceTests = [
@@ -31,9 +35,17 @@ const serverSurfaceTests = [
   'tests/unit/migration-drift-patches.test.ts',
   'tests/regressions/ci-unified-playwright-install.test.ts',
   'tests/unit/scripts/db-push.test.mjs',
+  'tests/unit/auth/request-credentials.test.ts',
+  'tests/unit/auth/csrf.test.ts',
+  'tests/unit/auth/csrf-middleware.test.ts',
+  'tests/unit/auth/cookie-auth-makeapp.test.ts',
+  'tests/unit/routes/auth-login.test.ts',
+  'tests/unit/openapi/auth-transport-contract.test.ts',
 ];
 
 const releaseOwnedPaths = [
+  'client/src/lib/auth-session.ts',
+  'docs/superpowers/plans/2026-07-12-d4-cookie-session-csrf-handoff.md',
   'docs/release',
   'migrations',
   'shared/migrations',
@@ -41,10 +53,24 @@ const releaseOwnedPaths = [
   'scripts/release-check.mjs',
   'scripts/db-push.mjs',
   'scripts/db-push-core.mjs',
+  'server/lib/auth/csrf.ts',
+  'server/lib/auth/request-credentials.ts',
+  'tests/helpers/browser-auth.ts',
+  'tests/e2e/cookie-session-csrf.spec.ts',
+  'tests/integration/cookie-session-auth-runtime.test.ts',
   'tests/integration/fund-lifecycle-db.test.ts',
   'tests/integration/migration-drift.test.ts',
   'tests/integration/prod-schema-clone.test.ts',
   'tests/integration/prod-schema-reconcile-partial-drift.test.ts',
+  'tests/unit/app/auth-session-gate.test.tsx',
+  'tests/unit/app/app-layout-logout.test.tsx',
+  'tests/unit/auth-session.test.tsx',
+  'tests/unit/auth/cookie-auth-makeapp.test.ts',
+  'tests/unit/auth/csrf-middleware.test.ts',
+  'tests/unit/auth/csrf.test.ts',
+  'tests/unit/auth/request-credentials.test.ts',
+  'tests/unit/install-auth-fetch.test.tsx',
+  'tests/unit/openapi/auth-transport-contract.test.ts',
   'vitest.config.testcontainers.ts',
 ];
 
@@ -93,8 +119,18 @@ const steps = [
     command: ['cross-env TZ=UTC vitest run', ...clientSurfaceTests, '--project=client'].join(' '),
   },
   {
+    name: 'Cookie-session browser lifecycle',
+    command:
+      'cross-env CI=1 TZ=UTC PORT=4199 playwright test tests/e2e/cookie-session-csrf.spec.ts --project=d4-auth',
+  },
+  {
     name: 'Lean release server and CI surface lock',
     command: ['cross-env TZ=UTC vitest run', ...serverSurfaceTests, '--project=server'].join(' '),
+  },
+  {
+    name: 'Cookie-auth runtime parity',
+    command:
+      'cross-env TZ=UTC vitest run -c vitest.config.int.ts tests/integration/cookie-session-auth-runtime.test.ts',
   },
 ];
 

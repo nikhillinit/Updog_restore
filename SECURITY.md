@@ -61,8 +61,9 @@ When reporting a vulnerability, please include:
 - **SQL Injection Protection**: Parameterized queries via Drizzle ORM
 - **XSS Protection**: React's built-in XSS protection + CSP
 - **Rate Limiting**: API rate limiting per IP and per user
-- **Authentication**: Bearer JWT (HS256, 7-day) in localStorage; no cookies or
-  sessions (ADR-034)
+- **Authentication**: 24-hour HS256 browser JWT in a host-only HttpOnly cookie,
+  signed jti-bound CSRF protection, and retained machine Bearer compatibility
+  (ADR-037)
 - **Dependency Scanning**: Automated via GitHub Dependabot and OWASP
   Dependency-Check
 - **Container Scanning**: Trivy scanning for Docker images
@@ -70,7 +71,7 @@ When reporting a vulnerability, please include:
 
 ### Authentication & Authorization
 
-Plan 2 adds per-user roles and explicit fund grants to the ADR-034 Bearer
+Plan 2 adds per-user roles and explicit fund grants to the authentication
 contract. `enforceProvidedFundScope` fails closed: a non-admin identity with no
 grants receives 403. `requireFundAccess` and `getVerifiedFundScope` use the same
 role-aware fail-closed contract; admin/service roles remain unrestricted with
@@ -79,8 +80,11 @@ persisted role plus explicit grants for non-admin/service identities. Tokens
 carry a `jti` and are individually revocable through the denylist on logout;
 per-request `is_active` checks make later user deactivation effective on the
 next verified request. Production identities come from an external, untracked
-file, reject repository-defined dev passwords, and use bcrypt cost 12. Cookie
-sessions and CSRF remain deferred; see ADR-034 and ADR-036 in
+file, reject repository-defined dev passwords, and use bcrypt cost 12. Browser
+login never returns the JWT: it sets a 24-hour HttpOnly cookie and a readable,
+signed CSRF token bound to the JWT jti. Cookie-authenticated unsafe requests
+must provide the matching `X-CSRF-Token`; machine Bearer JWTs remain supported,
+and mixed credentials fail closed. See ADR-036 and ADR-037 in
 [DECISIONS.md](DECISIONS.md).
 
 ### Security Headers Configuration

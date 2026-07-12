@@ -97,6 +97,7 @@ vi.mock('../../../server/db', () => ({
 // verifies response format only. The real auth boundary (401/403) is proven in
 // tests/unit/routes/timeline-makeapp-surface.contract.test.ts with real tokens.
 vi.mock('../../../server/lib/auth/jwt', () => ({
+  verifyRequestCredential: vi.fn(async () => null),
   requireAuth: () => (req: any, _res: any, next: any) => {
     req.user = { id: '1', role: 'admin', roles: ['admin'], fundIds: [] };
     next();

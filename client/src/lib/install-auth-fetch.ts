@@ -1,16 +1,15 @@
 /**
- * Global fetch interceptor: attaches the Bearer auth token to same-origin /api/*
- * requests. Fixes the prod gap where hooks calling fetch('/api/...') raw bypass
- * queryClient's apiRequest/getQueryFn wrappers and 401 at the global /api auth
- * boundary (requireAuth, Bearer-only; ADR-034). Installed in all environments.
+ * Same-origin API fetch boundary for cookie sessions.
  *
- * Scope guards:
- * - Same-origin AND path starts with /api/ -> never leaks the token cross-origin.
- * - Only when a token exists (getToken()).
- * - Never overrides an Authorization header the caller already set, so
- *   apiRequest/getQueryFn (which set it explicitly) are untouched.
+ * Browser credentials remain ambient HttpOnly cookies. Unsafe requests receive
+ * the readable double-submit token, bootstrapping it once when necessary. Raw
+ * fetch callers and queryClient wrappers therefore share the same protection.
  */
-import { getToken } from './auth-token';
+
+const CSRF_COOKIE_NAME = 'updog.csrf';
+const CSRF_HEADER_NAME = 'X-CSRF-Token';
+const CSRF_BOOTSTRAP_PATH = '/api/auth/csrf';
+const UNSAFE_METHODS = new Set(['POST', 'PUT', 'PATCH', 'DELETE']);
 
 type AuthFetchWindow = Window & {
   __auth_fetch_installed?: boolean;
@@ -31,9 +30,26 @@ function isSameOriginApi(url: string): boolean {
   }
 }
 
-function hasAuthHeader(input: RequestInfo | URL, init?: RequestInit): boolean {
-  const source = init?.headers ?? (input instanceof Request ? input.headers : undefined);
-  return new Headers(source).has('Authorization');
+function getRequestMethod(input: RequestInfo | URL, init?: RequestInit): string {
+  return (init?.method ?? (input instanceof Request ? input.method : 'GET')).toUpperCase();
+}
+
+function requestHeaders(input: RequestInfo | URL, init?: RequestInit): Headers {
+  return new Headers(init?.headers ?? (input instanceof Request ? input.headers : undefined));
+}
+
+function readCookie(name: string): string | null {
+  const matches = document.cookie
+    .split(';')
+    .map((part) => part.trim())
+    .filter((part) => part.startsWith(`${name}=`));
+  if (matches.length !== 1) return null;
+
+  try {
+    return decodeURIComponent(matches[0]!.slice(name.length + 1));
+  } catch {
+    return null;
+  }
 }
 
 export function installAuthFetch(): void {
@@ -44,17 +60,53 @@ export function installAuthFetch(): void {
   authFetchWindow.__auth_fetch_installed = true;
 
   const originalFetch = window.fetch.bind(window);
-  window.fetch = (input: RequestInfo | URL, init?: RequestInit) => {
-    if (isSameOriginApi(getRequestUrl(input)) && !hasAuthHeader(input, init)) {
-      const token = getToken();
-      if (token) {
-        const headers = new Headers(
-          init?.headers ?? (input instanceof Request ? input.headers : undefined)
-        );
-        headers.set('Authorization', `Bearer ${token}`);
-        init = { ...init, headers };
-      }
+  let csrfBootstrap: Promise<string> | null = null;
+
+  async function bootstrapCsrfToken(): Promise<string> {
+    const response = await originalFetch(CSRF_BOOTSTRAP_PATH, {
+      method: 'GET',
+      credentials: 'include',
+      headers: { Accept: 'application/json' },
+    });
+    if (!response.ok) {
+      throw new Error(`Unable to initialize CSRF protection (${response.status})`);
     }
-    return originalFetch(input, init);
+
+    const payload = (await response.json().catch(() => null)) as { csrfToken?: unknown } | null;
+    if (typeof payload?.csrfToken === 'string' && payload.csrfToken) return payload.csrfToken;
+    const token = readCookie(CSRF_COOKIE_NAME);
+    if (token) return token;
+    throw new Error('CSRF bootstrap did not issue a token');
+  }
+
+  async function getCsrfToken(): Promise<string> {
+    const existing = readCookie(CSRF_COOKIE_NAME);
+    if (existing) return existing;
+
+    csrfBootstrap ??= bootstrapCsrfToken().finally(() => {
+      csrfBootstrap = null;
+    });
+    return csrfBootstrap;
+  }
+
+  window.fetch = async (input: RequestInfo | URL, init?: RequestInit) => {
+    const requestUrl = getRequestUrl(input);
+    if (!isSameOriginApi(requestUrl)) {
+      return originalFetch(input, init);
+    }
+
+    const headers = requestHeaders(input, init);
+    if (UNSAFE_METHODS.has(getRequestMethod(input, init)) && !headers.has(CSRF_HEADER_NAME)) {
+      const resolved = new URL(requestUrl, window.location.origin);
+      const token =
+        resolved.pathname === '/api/auth/login' ? await bootstrapCsrfToken() : await getCsrfToken();
+      headers.set(CSRF_HEADER_NAME, token);
+    }
+
+    return originalFetch(input, {
+      ...init,
+      credentials: 'include',
+      headers,
+    });
   };
 }
