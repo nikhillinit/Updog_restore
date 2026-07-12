@@ -489,13 +489,24 @@ describe('getVerifiedFundScope', () => {
     }
   });
 
-  it('maps an empty-scope token to unrestricted', async () => {
+  it('maps an admin token to unrestricted', async () => {
     setJwtEnv();
-    const token = signToken({ fundIds: [] });
+    const token = signToken({ role: 'admin', fundIds: [] });
     const { getVerifiedFundScope } = await import('@/server/lib/auth/provided-fund-scope');
 
     await expect(getVerifiedFundScope(makeRequest(`Bearer ${token}`))).resolves.toEqual({
       unrestricted: true,
+      fundIds: [],
+    });
+  });
+
+  it('maps a non-admin token with empty grants to restricted empty scope', async () => {
+    setJwtEnv();
+    const token = signToken({ role: 'analyst', fundIds: [] });
+    const { getVerifiedFundScope } = await import('@/server/lib/auth/provided-fund-scope');
+
+    await expect(getVerifiedFundScope(makeRequest(`Bearer ${token}`))).resolves.toEqual({
+      unrestricted: false,
       fundIds: [],
     });
   });
@@ -553,6 +564,46 @@ describe('getVerifiedFundScope', () => {
     await expect(getVerifiedFundScope(req)).resolves.toEqual({
       unrestricted: false,
       fundIds: [99],
+    });
+  });
+
+  it('treats an upstream admin as unrestricted when no token is present in test mode', async () => {
+    setJwtEnv();
+    const { getVerifiedFundScope } = await import('@/server/lib/auth/provided-fund-scope');
+    const req = makeRequest(undefined, {
+      id: 'upstream-admin',
+      sub: 'upstream-admin',
+      email: 'admin@example.com',
+      role: 'admin',
+      roles: ['admin'],
+      fundIds: [],
+      ip: '127.0.0.1',
+      userAgent: 'vitest',
+    });
+
+    await expect(getVerifiedFundScope(req)).resolves.toEqual({
+      unrestricted: true,
+      fundIds: [],
+    });
+  });
+
+  it('treats an upstream non-admin with empty grants as restricted in test mode', async () => {
+    setJwtEnv();
+    const { getVerifiedFundScope } = await import('@/server/lib/auth/provided-fund-scope');
+    const req = makeRequest(undefined, {
+      id: 'upstream-analyst',
+      sub: 'upstream-analyst',
+      email: 'analyst@example.com',
+      role: 'analyst',
+      roles: ['analyst'],
+      fundIds: [],
+      ip: '127.0.0.1',
+      userAgent: 'vitest',
+    });
+
+    await expect(getVerifiedFundScope(req)).resolves.toEqual({
+      unrestricted: false,
+      fundIds: [],
     });
   });
 

@@ -161,8 +161,8 @@ describe('fund MOIC calculation mode route - behavioral state machine', () => {
     expect(svc.updateFundMoicCalculationMode).not.toHaveBeenCalled();
   });
 
-  it('403 for an admin without fund access, with zero service work', async () => {
-    authState.user = { id: 101, role: 'admin', fundIds: [999] };
+  it('403 for a non-admin without fund access, with zero service work', async () => {
+    authState.user = { id: 103, role: 'analyst', fundIds: [999] };
     const res = await put(1, { key: 'm-access' });
 
     expect(res.status).toBe(403);

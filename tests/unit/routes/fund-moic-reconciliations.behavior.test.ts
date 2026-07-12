@@ -226,8 +226,8 @@ describe('fund MOIC reconciliation route - behavioral state machine', () => {
     expectZeroDownstream();
   });
 
-  it('403 for an admin WITHOUT fund access (isolates requireFundAccess), zero downstream', async () => {
-    authState.user = { id: 101, role: 'admin', fundIds: [999] };
+  it('403 for a non-admin WITHOUT fund access (isolates requireFundAccess), zero downstream', async () => {
+    authState.user = { id: 103, role: 'analyst', fundIds: [999] };
     const res = await post(1, 'key-403-access');
     expect(res.status).toBe(403);
     expect(res.body).toEqual({ error: 'Forbidden', message: 'You do not have access to fund 1' });

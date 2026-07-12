@@ -5765,7 +5765,7 @@ distinguish repairable additive gaps from states requiring an operator decision.
 
 ## ADR-036: Named Identities, Explicit Fund Grants, and jti Revocation (Plan 2)
 
-**Date:** 2026-07-11 **Status:** [IMPLEMENTED] Implemented **Decision:** Extend
+**Date:** 2026-07-12 **Status:** [IMPLEMENTED] Implemented **Decision:** Extend
 the ADR-034 Bearer contract with per-person identities (roles plus explicit fund
 grants) and make Bearer tokens individually revocable via a `jti` denylist,
 without introducing cookie sessions or CSRF. ADR-034's transport stays in force
@@ -5823,9 +5823,10 @@ actionable while keeping the Bearer transport.
   token has a `jti`.
 - Login now mints each active user's persisted role and, for non-admin/service
   identities, their explicit fund grants. Admin/service tokens intentionally
-  carry empty `fundIds` because those roles are unrestricted. Residual
-  `empty == unrestricted` logic remains in `requireFundAccess` and
-  `getVerifiedFundScope`; cookie sessions (D4) remain a deferred TODO.
+  carry empty `fundIds` because those roles are unrestricted.
+  `requireFundAccess` and `getVerifiedFundScope` are role-aware and fail closed
+  for non-admin callers with empty grants. Only cookie sessions and CSRF (D4)
+  remain deferred.
 
 **Implementation:** PR #1077 (migration 0031; tasks 2.1 schema, 2.2 external
 provisioning, `jti` minting, 2.4 revocation plus principal, and 2.6 fail-closed

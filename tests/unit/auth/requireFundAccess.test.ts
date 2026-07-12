@@ -51,16 +51,17 @@ describe('requireFundAccess Middleware', () => {
       expect(statusMock).not.toHaveBeenCalled();
     });
 
-    it('should grant access to any fund when user has empty fundIds array (admin)', () => {
+    it('should grant an admin access to any fund', () => {
       req.params = { fundId: '99999' };
       req.user = {
         id: 'admin-1',
         sub: 'admin-1',
         email: 'admin@example.com',
+        role: 'admin',
         roles: ['admin'],
         ip: '127.0.0.1',
         userAgent: 'test',
-        fundIds: [], // Empty array means admin access to all funds
+        fundIds: [],
       };
 
       requireFundAccess(req as Request, res as Response, next);
@@ -287,18 +288,17 @@ describe('requireFundAccess Middleware', () => {
   });
 
   describe('Edge Cases - Null/Undefined User', () => {
-    it('should treat undefined req.user as empty fundIds array (admin access)', () => {
+    it('should deny access when req.user is undefined', () => {
       req.params = { fundId: '123' };
-      req.user = undefined; // No user attached to request
+      req.user = undefined;
 
       requireFundAccess(req as Request, res as Response, next);
 
-      // With empty fundIds (from undefined user), it grants admin access
-      expect(next).toHaveBeenCalledOnce();
-      expect(statusMock).not.toHaveBeenCalled();
+      expect(statusMock).toHaveBeenCalledWith(403);
+      expect(next).not.toHaveBeenCalled();
     });
 
-    it('should treat user without fundIds property as empty array (admin access)', () => {
+    it('should deny a non-admin user without fund grants', () => {
       req.params = { fundId: '123' };
       req.user = {
         id: 'user-1',
@@ -307,17 +307,15 @@ describe('requireFundAccess Middleware', () => {
         roles: ['user'],
         ip: '127.0.0.1',
         userAgent: 'test',
-        // fundIds property is missing
       };
 
       requireFundAccess(req as Request, res as Response, next);
 
-      // With missing fundIds property, it defaults to [] and grants admin access
-      expect(next).toHaveBeenCalledOnce();
-      expect(statusMock).not.toHaveBeenCalled();
+      expect(statusMock).toHaveBeenCalledWith(403);
+      expect(next).not.toHaveBeenCalled();
     });
 
-    it('should handle user with null fundIds as empty array (admin access)', () => {
+    it('should deny a non-admin user with malformed null fund grants', () => {
       req.params = { fundId: '123' };
       req.user = {
         id: 'user-1',
@@ -326,14 +324,13 @@ describe('requireFundAccess Middleware', () => {
         roles: ['user'],
         ip: '127.0.0.1',
         userAgent: 'test',
-        fundIds: null as any, // Explicitly set to null
+        fundIds: null as unknown as number[],
       };
 
       requireFundAccess(req as Request, res as Response, next);
 
-      // null fundIds gets coerced to [] via || operator
-      expect(next).toHaveBeenCalledOnce();
-      expect(statusMock).not.toHaveBeenCalled();
+      expect(statusMock).toHaveBeenCalledWith(403);
+      expect(next).not.toHaveBeenCalled();
     });
   });
 
