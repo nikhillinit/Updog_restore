@@ -47,6 +47,10 @@ function getFileSize(filePath, gzip) {
   return gzip ? zlib.gzipSync(content).length : content.length;
 }
 
+function toReportPath(filePath) {
+  return path.relative(ROOT, filePath).split(path.sep).join('/');
+}
+
 function collectManifestEntryClosure(manifest, entryKey) {
   const visited = new Set();
   const files = new Set();
@@ -128,6 +132,9 @@ function measureGlobSum(budget) {
   }
 
   const files = expandGlob(budget.path);
+  if (files.length === 0) {
+    throw new Error(`Budget "${budget.name}" matched no files: ${budget.path}`);
+  }
 
   const size = files.reduce((sum, filePath) => {
     return sum + getFileSize(filePath, Boolean(budget.gzip));
@@ -135,7 +142,31 @@ function measureGlobSum(budget) {
 
   return {
     size,
-    files: files.map((filePath) => path.relative(ROOT, filePath)),
+    files: files.map(toReportPath),
+  };
+}
+
+function measureGlobMax(budget) {
+  if (typeof budget.path !== 'string' || budget.path.length === 0) {
+    throw new Error(`Budget "${budget.name}" requires a path`);
+  }
+
+  const files = expandGlob(budget.path);
+  if (files.length === 0) {
+    throw new Error(`Budget "${budget.name}" matched no files: ${budget.path}`);
+  }
+
+  const measurements = files.map((filePath) => ({
+    filePath,
+    size: getFileSize(filePath, Boolean(budget.gzip)),
+  }));
+  const largest = measurements.reduce((current, candidate) =>
+    candidate.size > current.size ? candidate : current
+  );
+
+  return {
+    size: largest.size,
+    files: [toReportPath(largest.filePath)],
   };
 }
 
@@ -150,6 +181,10 @@ function measureBudget(budget, manifest) {
 
   if (strategy === 'glob-sum') {
     return measureGlobSum(budget);
+  }
+
+  if (strategy === 'glob-max') {
+    return measureGlobMax(budget);
   }
 
   throw new Error(`Unsupported strategy "${strategy}" for budget "${budget.name}"`);
@@ -205,6 +240,7 @@ function main() {
       size: measurement.size,
       sizeLimit,
       passed: measurement.size <= sizeLimit,
+      files: measurement.files,
     };
   });
 

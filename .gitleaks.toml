@@ -1,0 +1,8 @@
+[extend]
+useDefault = true
+
+[[rules]]
+id = "updog-negative-control-token"
+description = "Updog secret-scanner negative control"
+regex = '''UPDOG_NEGATIVE_CONTROL_TOKEN\s*=\s*updog_test_secret_[0-9a-f]{32}'''
+keywords = ["updog_test_secret_"]

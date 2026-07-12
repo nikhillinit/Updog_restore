@@ -1,0 +1,178 @@
+name: Release Production
+
+on:
+  workflow_dispatch:
+    inputs:
+      expected_sha:
+        description: Exact current main SHA to release
+        type: string
+        required: true
+      deployment_url:
+        description: Staged Vercel production deployment URL for expected_sha
+        type: string
+        required: true
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-production
+  cancel-in-progress: false
+
+jobs:
+  validate-target:
+    name: Validate Production Target
+    runs-on: ubuntu-latest
+    steps:
+      - name: Require exact current main SHA
+        env:
+          EXPECTED_SHA: ${{ inputs.expected_sha }}
+        run: |
+          if [[ "$GITHUB_REF" != "refs/heads/main" ]]; then
+            echo "Production release must be dispatched from main."
+            exit 1
+          fi
+          if [[ ! "$EXPECTED_SHA" =~ ^[0-9a-f]{40}$ || "$GITHUB_SHA" != "$EXPECTED_SHA" ]]; then
+            echo "expected_sha must equal the exact current main SHA."
+            exit 1
+          fi
+
+  release-proof:
+    name: Full Release Proof
+    needs: validate-target
+    uses: ./.github/workflows/release-proof.yml
+    with:
+      expected_sha: ${{ inputs.expected_sha }}
+
+  schema-audit:
+    name: Clean Production Schema Audit
+    needs: release-proof
+    uses: ./.github/workflows/prod-schema-reconcile.yml
+    with:
+      mode: audit
+      expected_sha: ${{ inputs.expected_sha }}
+    secrets: inherit
+
+  staged-smoke:
+    name: Authenticated Staged Production Smoke
+    needs: schema-audit
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment: Production
+    steps:
+      - name: Checkout exact release commit
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          ref: ${{ inputs.expected_sha }}
+
+      - name: Setup Node environment
+        uses: ./.github/actions/setup-node-env
+
+      - name: Require non-skippable smoke credentials
+        env:
+          PRODUCTION_URL: ${{ inputs.deployment_url }}
+          HEALTH_KEY: ${{ secrets.HEALTH_KEY }}
+          METRICS_KEY: ${{ secrets.METRICS_KEY }}
+          PROD_SMOKE_USERNAME: ${{ secrets.PROD_SMOKE_USERNAME }}
+          PROD_SMOKE_PASSWORD: ${{ secrets.PROD_SMOKE_PASSWORD }}
+        run: |
+          : "${PRODUCTION_URL:?PRODUCTION_URL is required}"
+          : "${HEALTH_KEY:?HEALTH_KEY is required}"
+          : "${METRICS_KEY:?METRICS_KEY is required}"
+          : "${PROD_SMOKE_USERNAME:?PROD_SMOKE_USERNAME is required}"
+          : "${PROD_SMOKE_PASSWORD:?PROD_SMOKE_PASSWORD is required}"
+
+      - name: Install Playwright Chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: Run authenticated staged smoke
+        env:
+          PRODUCTION_URL: ${{ inputs.deployment_url }}
+          HEALTH_KEY: ${{ secrets.HEALTH_KEY }}
+          METRICS_KEY: ${{ secrets.METRICS_KEY }}
+          PROD_SMOKE_USERNAME: ${{ secrets.PROD_SMOKE_USERNAME }}
+          PROD_SMOKE_PASSWORD: ${{ secrets.PROD_SMOKE_PASSWORD }}
+        run: npx playwright test tests/smoke/production-boundaries.spec.ts --project=production --reporter=line
+
+  promote:
+    name: Promote Staged Vercel Deployment
+    needs: staged-smoke
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment: Production
+    steps:
+      - name: Verify deployment identity
+        env:
+          DEPLOYMENT_URL: ${{ inputs.deployment_url }}
+          EXPECTED_SHA: ${{ inputs.expected_sha }}
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_ORG_ID: ${{ vars.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ vars.VERCEL_PROJECT_ID }}
+        run: |
+          : "${VERCEL_TOKEN:?VERCEL_TOKEN is required}"
+          : "${VERCEL_ORG_ID:?VERCEL_ORG_ID is required}"
+          : "${VERCEL_PROJECT_ID:?VERCEL_PROJECT_ID is required}"
+          curl --fail --silent --show-error \
+            --header "Authorization: Bearer ${VERCEL_TOKEN}" \
+            "https://api.vercel.com/v13/deployments/${DEPLOYMENT_URL#https://}?teamId=${VERCEL_ORG_ID}" \
+            --output "$RUNNER_TEMP/vercel-deployment.json"
+          node <<'NODE'
+          const fs = require('node:fs');
+          const deployment = JSON.parse(
+            fs.readFileSync(`${process.env.RUNNER_TEMP}/vercel-deployment.json`, 'utf8')
+          );
+          const valid =
+            deployment.readyState === 'READY' &&
+            deployment.target === 'production' &&
+            deployment.projectId === process.env.VERCEL_PROJECT_ID &&
+            deployment.meta?.githubCommitSha === process.env.EXPECTED_SHA &&
+            deployment.meta?.githubCommitRef === 'main';
+          if (!valid) {
+            console.error('Staged deployment does not match the exact production release target.');
+            process.exit(1);
+          }
+          console.log('Staged deployment identity verified.');
+          NODE
+
+      - name: Promote verified deployment
+        env:
+          DEPLOYMENT_URL: ${{ inputs.deployment_url }}
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_ORG_ID: ${{ vars.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ vars.VERCEL_PROJECT_ID }}
+        run: >-
+          npx --yes vercel@55.0.0 promote "$DEPLOYMENT_URL" --yes --timeout=5m
+          --token="$VERCEL_TOKEN"
+
+  post-promotion-smoke:
+    name: Authenticated Post-promotion Smoke
+    needs: promote
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment: Production
+    steps:
+      - name: Checkout exact release commit
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          ref: ${{ inputs.expected_sha }}
+
+      - name: Setup Node environment
+        uses: ./.github/actions/setup-node-env
+
+      - name: Install Playwright Chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: Run authenticated production smoke
+        env:
+          PRODUCTION_URL: ${{ vars.PRODUCTION_URL }}
+          HEALTH_KEY: ${{ secrets.HEALTH_KEY }}
+          METRICS_KEY: ${{ secrets.METRICS_KEY }}
+          PROD_SMOKE_USERNAME: ${{ secrets.PROD_SMOKE_USERNAME }}
+          PROD_SMOKE_PASSWORD: ${{ secrets.PROD_SMOKE_PASSWORD }}
+        run: |
+          : "${PRODUCTION_URL:?PRODUCTION_URL is required}"
+          : "${HEALTH_KEY:?HEALTH_KEY is required}"
+          : "${METRICS_KEY:?METRICS_KEY is required}"
+          : "${PROD_SMOKE_USERNAME:?PROD_SMOKE_USERNAME is required}"
+          : "${PROD_SMOKE_PASSWORD:?PROD_SMOKE_PASSWORD is required}"
+          npx playwright test tests/smoke/production-boundaries.spec.ts --project=production --reporter=line
