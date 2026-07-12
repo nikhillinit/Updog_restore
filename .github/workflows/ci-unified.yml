@@ -351,6 +351,9 @@ jobs:
       - name: Setup Node environment
         uses: ./.github/actions/setup-node-env
 
+      - name: Install Playwright Chromium for browser diagnostic
+        run: npx playwright install --with-deps chromium
+
       - name: Run static release diagnostic (not release proof)
         env:
           CI: 'true'

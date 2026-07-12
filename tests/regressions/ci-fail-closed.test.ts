@@ -106,6 +106,7 @@ describe('required CI fails closed', () => {
       jobs: { release: ciWorkflow.jobs?.['release-static'] ?? {} },
     });
     expect(staticScripts.join('\n')).toContain('npm run release:check -- --skip-db');
+    expect(staticScripts.join('\n')).toContain('npx playwright install --with-deps chromium');
 
     const gateNeeds = ciWorkflow.jobs?.gate?.needs;
     const normalizedNeeds = typeof gateNeeds === 'string' ? [gateNeeds] : (gateNeeds ?? []);
