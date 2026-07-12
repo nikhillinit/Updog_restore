@@ -20,3 +20,7 @@ export async function verifyCredentials(username: string, password: string): Pro
   }
   return user;
 }
+
+export async function getUserFundGrants(userId: number): Promise<number[]> {
+  return storage.getUserFundGrants(userId);
+}
