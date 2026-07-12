@@ -144,6 +144,13 @@ export default defineConfig({
       use: {
         ...devices['Desktop Chrome'],
         baseURL: process.env.PROD_URL || process.env.BASE_URL,
+        ...(process.env.VERCEL_AUTOMATION_BYPASS_SECRET
+          ? {
+              extraHTTPHeaders: {
+                'x-vercel-protection-bypass': process.env.VERCEL_AUTOMATION_BYPASS_SECRET,
+              },
+            }
+          : {}),
       },
     },
 
