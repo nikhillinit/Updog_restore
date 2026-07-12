@@ -97,10 +97,17 @@ async function walkTestFiles(root, relativeDirectory) {
 }
 
 async function findDirectlyAffectedTests(root, changedFiles) {
-  const changedStems = new Set(changedFiles.map(pathStem));
+  const changesByStem = new Map();
+  for (const changedFile of changedFiles) {
+    const stem = pathStem(changedFile);
+    const files = changesByStem.get(stem) ?? [];
+    files.push(changedFile);
+    changesByStem.set(stem, files);
+  }
   const selected = new Set(
     changedFiles.filter((file) => TEST_FILE_PATTERN.test(file) && existsSync(path.join(root, file)))
   );
+  const mappedChanges = new Set(selected);
   const testFiles = (
     await Promise.all(
       ['tests/unit', 'tests/perf', 'tests/regressions'].map((directory) =>
@@ -114,16 +121,27 @@ async function findDirectlyAffectedTests(root, changedFiles) {
       continue;
     }
     const source = await readFile(path.join(root, testFile), 'utf8');
-    const importsChangedFile = extractImportSpecifiers(source).some((specifier) => {
+    let importsChangedFile = false;
+    for (const specifier of extractImportSpecifiers(source)) {
       const importStem = resolveImportStem(testFile, specifier);
-      return importStem !== undefined && changedStems.has(importStem);
-    });
+      const importedChanges = importStem === undefined ? undefined : changesByStem.get(importStem);
+      if (importedChanges === undefined) {
+        continue;
+      }
+      importsChangedFile = true;
+      for (const changedFile of importedChanges) {
+        mappedChanges.add(changedFile);
+      }
+    }
     if (importsChangedFile) {
       selected.add(testFile);
     }
   }
 
-  return [...selected].sort();
+  return {
+    tests: [...selected].sort(),
+    mappedChanges,
+  };
 }
 
 export async function createAffectedTestPlan({
@@ -176,7 +194,21 @@ export async function createAffectedTestPlan({
     };
   }
 
-  const selectedTests = await findDirectlyAffectedTests(root, normalizedChanges);
+  const { tests: selectedTests, mappedChanges } = await findDirectlyAffectedTests(
+    root,
+    normalizedChanges
+  );
+  const uncoveredChange = normalizedChanges.find(
+    (changedFile) => !isDocumentationPath(changedFile) && !mappedChanges.has(changedFile)
+  );
+  if (uncoveredChange !== undefined) {
+    return {
+      ...metadata,
+      mode: 'full_fallback',
+      tests: [],
+      reason: `No direct test mapping was proven for ${uncoveredChange}; fail closed to the full unit suite.`,
+    };
+  }
   if (selectedTests.length === 0 || selectedTests.length > MAX_SELECTED_TESTS) {
     return {
       ...metadata,

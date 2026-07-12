@@ -53,6 +53,25 @@ describe('affected-test planning', () => {
     expect(plan.tests).toEqual(['tests/unit/example.test.ts']);
   });
 
+  it('falls back when a selected test covers only part of the changed source set', async () => {
+    const root = await makeRoot();
+    await write(root, 'server/covered.ts', 'export const covered = 1;');
+    await write(root, 'server/uncovered.ts', 'export const uncovered = 2;');
+    await write(
+      root,
+      'tests/unit/covered.test.ts',
+      "import { covered } from '../../server/covered.js';\nvoid covered;"
+    );
+
+    const plan = await createAffectedTestPlan({
+      root,
+      changedFiles: ['server/covered.ts', 'server/uncovered.ts'],
+    });
+
+    expect(plan).toMatchObject({ version: 1, mode: 'full_fallback', tests: [] });
+    expect(plan.reason).toContain('server/uncovered.ts');
+  });
+
   it.each([['shared/schema.ts'], ['package-lock.json'], ['.github/workflows/ci-unified.yml']])(
     'falls back to the full unit suite for broad-impact change %s',
     async (changedFile) => {
