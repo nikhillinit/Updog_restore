@@ -28,7 +28,6 @@ async function postLedgerImportCommit(
   const res = await fetch(`/api/funds/${fundId}/imports/ledger/commit`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    credentials: 'include',
     body: JSON.stringify(body),
   });
 

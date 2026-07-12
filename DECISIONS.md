@@ -5773,6 +5773,12 @@ without introducing cookie sessions or CSRF. ADR-034's transport stays in force
 (HS256, 7-day, localStorage, no refresh). The cookie-session plus CSRF transport
 (decision D4) remains deferred.
 
+> **D4 deferral resolved (2026-07-12):** the deferred cookie-session + CSRF
+> transport (decision D4) was subsequently implemented in
+> [ADR-037](#adr-037-browser-httponly-jwt-cookie-and-signed-csrf-contract-d4),
+> which supersedes ADR-034's browser transport. The identity, fund-grant, and
+> jti-revocation model recorded here remains in force unchanged.
+
 ### Context
 
 ADR-034 shipped Bearer auth but deferred per-fund/non-admin scoping, left every

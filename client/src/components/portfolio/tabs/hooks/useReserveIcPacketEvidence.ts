@@ -4,9 +4,7 @@ import type { FundResultsReadV1 } from '@shared/contracts/fund-results-v1.contra
 import { useFundContext } from '@/contexts/FundContext';
 
 async function readJsonOrNull<T>(url: string): Promise<T | null> {
-  const response = await fetch(url, {
-    credentials: 'include',
-  });
+  const response = await fetch(url);
 
   if (response.status === 404) {
     return null;

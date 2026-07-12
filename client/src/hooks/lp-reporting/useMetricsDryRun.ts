@@ -226,7 +226,6 @@ async function postMetricsDryRun(
     {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      credentials: 'include',
       body: JSON.stringify(body),
     },
     MetricRunDryRunResponseSchema,
@@ -245,7 +244,6 @@ async function postMetricRunCommit(
     {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      credentials: 'include',
       body: JSON.stringify(body),
     },
     MetricRunCommitResponseSchema,
@@ -374,7 +372,6 @@ async function getLatestMetricRun(
   });
   const res = await fetch(`/api/funds/${fundId}/metric-runs/latest?${params.toString()}`, {
     method: 'GET',
-    credentials: 'include',
   });
 
   return readContractResponse(
@@ -390,7 +387,6 @@ async function getMetricRunDetail(
 ): Promise<MetricRunDetailResponse> {
   const res = await fetch(`/api/funds/${fundId}/metric-runs/${metricRunId}`, {
     method: 'GET',
-    credentials: 'include',
   });
 
   return readContractResponse(
@@ -406,7 +402,6 @@ async function getMetricRunEvidenceList(
 ): Promise<MetricRunEvidenceListResponse> {
   const res = await fetch(`/api/funds/${fundId}/metric-runs/${metricRunId}/evidence-records`, {
     method: 'GET',
-    credentials: 'include',
   });
 
   return readContractResponse(
@@ -422,7 +417,6 @@ async function getMetricRunNarrativeList(
 ): Promise<NarrativeRunListResponse> {
   const res = await fetch(`/api/funds/${fundId}/metric-runs/${metricRunId}/narrative-runs`, {
     method: 'GET',
-    credentials: 'include',
   });
 
   return readContractResponse(
@@ -441,7 +435,6 @@ async function getMetricRunNarrativeDetail(
     `/api/funds/${fundId}/metric-runs/${metricRunId}/narrative-runs/${narrativeRunId}`,
     {
       method: 'GET',
-      credentials: 'include',
     }
   );
 
@@ -458,7 +451,6 @@ async function getMetricRunReportPackage(
 ): Promise<ReportPackageGetResponse> {
   const res = await fetch(`/api/funds/${fundId}/metric-runs/${metricRunId}/report-package`, {
     method: 'GET',
-    credentials: 'include',
   });
 
   return readContractResponse(
@@ -476,7 +468,6 @@ async function getMetricRunReportPackageRenderModel(
     `/api/funds/${fundId}/metric-runs/${metricRunId}/report-package/render-model`,
     {
       method: 'GET',
-      credentials: 'include',
     }
   );
 
@@ -495,7 +486,6 @@ async function getMetricRunReportPackageJsonExport(
     `/api/funds/${fundId}/metric-runs/${metricRunId}/report-package/export/json`,
     {
       method: 'GET',
-      credentials: 'include',
     }
   );
 
@@ -510,7 +500,6 @@ async function getMetricRunReportPackageStoredJsonExport(
     `/api/funds/${fundId}/metric-runs/${metricRunId}/report-package/exports/json`,
     {
       method: 'GET',
-      credentials: 'include',
     }
   );
 
@@ -529,7 +518,6 @@ async function getMetricRunReportPackageStoredJsonArtifact(
     `/api/funds/${fundId}/metric-runs/${metricRunId}/report-package/exports/json/artifact`,
     {
       method: 'GET',
-      credentials: 'include',
     }
   );
 
@@ -548,7 +536,6 @@ async function getMetricRunReportPackageStoredCsvExport(
     `/api/funds/${fundId}/metric-runs/${metricRunId}/report-package/exports/csv`,
     {
       method: 'GET',
-      credentials: 'include',
     }
   );
 
@@ -567,7 +554,6 @@ async function getMetricRunReportPackageStoredCsvArtifact(
     `/api/funds/${fundId}/metric-runs/${metricRunId}/report-package/exports/csv/artifact`,
     {
       method: 'GET',
-      credentials: 'include',
     }
   );
 
@@ -587,7 +573,6 @@ async function createMetricRunReportPackageStoredJsonExport(
     {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      credentials: 'include',
       body: JSON.stringify({}),
     }
   );
@@ -608,7 +593,6 @@ async function createMetricRunReportPackageStoredCsvExport(
     {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      credentials: 'include',
       body: JSON.stringify({}),
     }
   );
@@ -630,7 +614,6 @@ async function postMetricRunApprove(
   const res = await fetch(`/api/funds/${fundId}/metric-runs/${metricRunId}/approve`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    credentials: 'include',
     body: JSON.stringify(body),
   });
 
@@ -651,7 +634,6 @@ async function postMetricRunLock(
   const res = await fetch(`/api/funds/${fundId}/metric-runs/${metricRunId}/lock`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    credentials: 'include',
     body: JSON.stringify(body),
   });
 
@@ -672,7 +654,6 @@ async function postMetricRunEvidence(
   const res = await fetch(`/api/funds/${fundId}/metric-runs/${metricRunId}/evidence-records`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    credentials: 'include',
     body: JSON.stringify(body),
   });
 
@@ -693,7 +674,6 @@ async function postMetricRunNarrative(
   const res = await fetch(`/api/funds/${fundId}/metric-runs/${metricRunId}/narrative-runs`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    credentials: 'include',
     body: JSON.stringify(body),
   });
 
@@ -717,7 +697,6 @@ async function patchMetricRunNarrative(
     {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
-      credentials: 'include',
       body: JSON.stringify(body),
     }
   );
@@ -742,7 +721,6 @@ async function postMetricRunNarrativeReview(
     {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      credentials: 'include',
       body: JSON.stringify(body),
     }
   );
@@ -767,7 +745,6 @@ async function postMetricRunNarrativeApprove(
     {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      credentials: 'include',
       body: JSON.stringify(body),
     }
   );
@@ -789,7 +766,6 @@ async function postMetricRunReportPackage(
   const res = await fetch(`/api/funds/${fundId}/metric-runs/${metricRunId}/report-package`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    credentials: 'include',
     body: JSON.stringify(body),
   });
 
