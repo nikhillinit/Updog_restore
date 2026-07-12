@@ -54,8 +54,11 @@ async function makeScopedFundsApp(fundIds: number[]) {
       id: 'contract-user',
       sub: 'contract-user',
       email: 'contract@example.com',
-      role: 'admin',
-      roles: ['admin'],
+      // Non-admin so enforceProvidedFundScope honors the explicit grant: an admin
+      // principal bypasses fund scope by role, which would defeat this cross-scope
+      // deny assertion (see Plan 2 Task 2.6 resolveFundScope migration).
+      role: 'analyst',
+      roles: ['analyst'],
       fundIds,
       ip: '127.0.0.1',
       userAgent: 'vitest',
