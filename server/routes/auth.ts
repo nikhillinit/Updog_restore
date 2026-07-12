@@ -1,7 +1,7 @@
 import { Router, type Request, type Response } from 'express';
 import jwt from 'jsonwebtoken';
 import { z } from 'zod';
-import { verifyCredentials } from '../lib/auth/credentials';
+import { getUserFundGrants, verifyCredentials } from '../lib/auth/credentials';
 import { signToken } from '../lib/auth/jwt';
 import { revokeToken } from '../lib/auth/revocation';
 import { getAuthToken } from '../lib/headers-helper';
@@ -25,17 +25,19 @@ authRouter.post('/api/auth/login', async (req: Request, res: Response) => {
   const { username, password } = parsed.data;
   const user = await verifyCredentials(username, password);
 
-  // Uniform 401 for unknown-user and bad-password: no user enumeration.
-  if (!user) {
+  // Uniform 401 for unknown-user, bad-password, and inactive users: no user enumeration.
+  if (!user || !user.isActive) {
     return res.status(401).json({ error: 'invalid_credentials' });
   }
 
-  // Internal tool: every identity is admin (empty fundIds = unrestricted scope).
+  const role = user.role;
+  const fundIds = role === 'admin' || role === 'service' ? [] : await getUserFundGrants(user.id);
+
   const token = signToken({
     sub: String(user.id),
     email: user.username,
-    role: 'admin',
-    fundIds: [],
+    role,
+    fundIds,
   });
 
   return res.json({ token });

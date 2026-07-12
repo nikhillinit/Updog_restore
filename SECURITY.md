@@ -1,6 +1,6 @@
 ---
 status: ACTIVE
-last_updated: 2026-07-11
+last_updated: 2026-07-12
 ---
 
 # Security Policy
@@ -73,13 +73,14 @@ When reporting a vulnerability, please include:
 Plan 2 adds per-user roles and explicit fund grants to the ADR-034 Bearer
 contract. `enforceProvidedFundScope` fails closed: a non-admin identity with no
 grants receives 403. Legacy `requireFundAccess` and `getVerifiedFundScope`
-retain empty-as-unrestricted behavior, and login still mints admin/empty claims;
-wiring persisted roles and grants into login remains follow-up work. Tokens
+retain empty-as-unrestricted behavior. Login rejects inactive users and mints
+each active user's persisted role plus explicit grants for non-admin/service
+identities; admin/service roles remain unrestricted with empty `fundIds`. Tokens
 carry a `jti` and are individually revocable through the denylist on logout;
-per-request `is_active` checks make user deactivation effective on the next
-verified request. Production identities come from an external, untracked file,
-reject repository-defined dev passwords, and use bcrypt cost 12. Cookie sessions
-and CSRF remain deferred; see ADR-034 and ADR-036 in
+per-request `is_active` checks make later user deactivation effective on the
+next verified request. Production identities come from an external, untracked
+file, reject repository-defined dev passwords, and use bcrypt cost 12. Cookie
+sessions and CSRF remain deferred; see ADR-034 and ADR-036 in
 [DECISIONS.md](DECISIONS.md).
 
 ### Security Headers Configuration

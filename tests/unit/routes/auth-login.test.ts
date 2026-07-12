@@ -1,7 +1,8 @@
-import { beforeAll, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import request from 'supertest';
 import bcrypt from 'bcryptjs';
 import type { Express } from 'express';
+import type { User } from '@shared/schema';
 
 let makeApp: typeof import('../../../server/app').makeApp;
 let storage: typeof import('../../../server/storage').storage;
@@ -11,10 +12,16 @@ let app: Express;
 const TEST_USERNAME = 'analyst';
 const TEST_PASSWORD = 'analyst-dev-2026';
 
-const mockUser = () => ({
+const mockUser = (overrides: Partial<User> = {}): User => ({
   id: 3,
   username: TEST_USERNAME,
   password: bcrypt.hashSync(TEST_PASSWORD, 8),
+  role: 'analyst',
+  isActive: true,
+  passwordUpdatedAt: new Date('2026-07-11T00:00:00.000Z'),
+  createdAt: new Date('2026-07-11T00:00:00.000Z'),
+  updatedAt: new Date('2026-07-11T00:00:00.000Z'),
+  ...overrides,
 });
 
 describe('POST /api/auth/login', () => {
@@ -23,6 +30,10 @@ describe('POST /api/auth/login', () => {
     ({ storage } = await import('../../../server/storage'));
     ({ verifyAccessTokenAsync } = await import('../../../server/lib/auth/jwt'));
     app = makeApp();
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
   });
 
   it('is reachable without a token (public path; 401 from handler, not the /api guard)', async () => {
@@ -59,8 +70,9 @@ describe('POST /api/auth/login', () => {
     expect(res.body).toEqual({ error: 'invalid_request' });
   });
 
-  it('good creds -> 200 with a verifiable admin token (fundIds [], 7d expiry)', async () => {
-    vi.spyOn(storage, 'getUserByUsername').mockResolvedValue(mockUser());
+  it('admin creds -> 200 with an unrestricted admin token (fundIds [], 7d expiry)', async () => {
+    vi.spyOn(storage, 'getUserByUsername').mockResolvedValue(mockUser({ role: 'admin' }));
+    const getGrants = vi.spyOn(storage, 'getUserFundGrants');
     const res = await request(app)
       .post('/api/auth/login')
       .send({ username: TEST_USERNAME, password: TEST_PASSWORD });
@@ -72,10 +84,39 @@ describe('POST /api/auth/login', () => {
     expect(claims.email).toBe(TEST_USERNAME);
     expect(claims.role).toBe('admin');
     expect(claims.fundIds).toEqual([]);
+    expect(getGrants).not.toHaveBeenCalled();
     expect(claims.exp).toBeDefined();
     expect(claims.iat).toBeDefined();
     if (claims.exp && claims.iat) {
       expect(claims.exp - claims.iat).toBe(7 * 24 * 60 * 60);
     }
+  });
+
+  it('non-admin creds -> 200 with the persisted role and explicit fund grants', async () => {
+    vi.spyOn(storage, 'getUserByUsername').mockResolvedValue(mockUser());
+    const getGrants = vi.spyOn(storage, 'getUserFundGrants').mockResolvedValue([1, 2]);
+
+    const res = await request(app)
+      .post('/api/auth/login')
+      .send({ username: TEST_USERNAME, password: TEST_PASSWORD });
+
+    expect(res.status).toBe(200);
+    const claims = await verifyAccessTokenAsync(res.body.token);
+    expect(claims.role).toBe('analyst');
+    expect(claims.fundIds).toEqual([1, 2]);
+    expect(getGrants).toHaveBeenCalledWith(3);
+  });
+
+  it('inactive user with valid credentials -> 401 invalid_credentials', async () => {
+    vi.spyOn(storage, 'getUserByUsername').mockResolvedValue(mockUser({ isActive: false }));
+    const getGrants = vi.spyOn(storage, 'getUserFundGrants');
+
+    const res = await request(app)
+      .post('/api/auth/login')
+      .send({ username: TEST_USERNAME, password: TEST_PASSWORD });
+
+    expect(res.status).toBe(401);
+    expect(res.body).toEqual({ error: 'invalid_credentials' });
+    expect(getGrants).not.toHaveBeenCalled();
   });
 });
