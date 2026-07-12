@@ -34,6 +34,12 @@ permissions:
   security-events: write
 
 jobs:
+  secret-scan:
+    name: Secret Scan
+    uses: ./.github/workflows/secret-scan.yml
+    permissions:
+      contents: read
+
   changes:
     name: Detect Changes
     runs-on: ubuntu-latest
@@ -119,7 +125,7 @@ jobs:
               npm run lint
               ;;
             unit-fast)
-              npm run test:unit -- --bail=1 --reporter=dot || npm run test:quick
+              npm run test:unit -- --bail=1 --reporter=dot
               ;;
           esac
 
@@ -172,15 +178,44 @@ jobs:
       - name: Install Playwright
         run: npx playwright install --with-deps chromium
 
+      - name: Plan affected tests
+        run: npm run test:affected:plan
+        env:
+          BASE_REF: ${{ github.event.pull_request.base.sha }}
+
       - name: Run affected tests
         run: |
-          npm run test:affected || npm run test:smart || npm run test:quick
+          MODE="$(node -e "const fs=require('node:fs'); const plan=JSON.parse(fs.readFileSync('artifacts/affected-plan.json','utf8')); process.stdout.write(String(plan.mode));")"
+          case "$MODE" in
+            selected)
+              npm run test:affected:run
+              ;;
+            no_affected_tests)
+              npm run validate:core
+              ;;
+            full_fallback)
+              npm run test:unit
+              ;;
+            *)
+              echo "Unknown affected-test plan mode: $MODE"
+              exit 1
+              ;;
+          esac
           npm run test:scenario-release-gate
         env:
           DATABASE_URL: postgresql://postgres:postgres@localhost:5432/test
           NODE_ENV: test
           REDIS_URL: redis://localhost:6379
           TZ: UTC
+
+      - name: Upload affected-test plan
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v4.6.2
+        with:
+          name: affected-test-plan-${{ github.run_id }}
+          path: artifacts/affected-plan.json
+          if-no-files-found: error
+          retention-days: 7
 
   test-full:
     name: Test ${{ matrix.group }}
@@ -299,7 +334,32 @@ jobs:
         run: npm run build:verify
 
       - name: Bundle size check
-        run: npm run bundle:check || true
+        run: npm run bundle:check
+
+  release-static:
+    name: Static Release Diagnostic
+    needs: [changes, check]
+    if: |
+      needs.changes.outputs.heavy_ci_relevant == 'true' ||
+      github.event.inputs.run_full_suite == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+
+      - name: Setup Node environment
+        uses: ./.github/actions/setup-node-env
+
+      - name: Install Playwright Chromium for browser diagnostic
+        run: npx playwright install --with-deps chromium
+
+      - name: Run static release diagnostic (not release proof)
+        env:
+          CI: 'true'
+          NODE_OPTIONS: --max-old-space-size=4096
+          TZ: UTC
+        run: npm run release:check -- --skip-db
 
   dependency-validation:
     name: Dependency Validation (Linux)
@@ -339,7 +399,7 @@ jobs:
       github.event.inputs.enable_security == 'true' ||
       (needs.changes.outputs.auto_docs_only != 'true' && needs.changes.outputs.pr_security == 'true')
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 25
     steps:
       - name: Checkout repository
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
@@ -353,10 +413,23 @@ jobs:
         run: npm audit --omit=dev --audit-level=high
 
       - name: Trivy filesystem scan
-        uses: aquasecurity/trivy-action@master
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
         with:
           scan-type: fs
           scan-ref: .
+          format: table
+          severity: CRITICAL,HIGH
+          exit-code: '1'
+          ignore-unfixed: true
+
+      - name: Build container image for vulnerability scan
+        run: docker build -t updog-pr:${{ github.sha }} .
+
+      - name: Trivy container scan
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          scan-type: image
+          image-ref: updog-pr:${{ github.sha }}
           format: table
           severity: CRITICAL,HIGH
           exit-code: '1'
@@ -528,7 +601,6 @@ jobs:
         run: |
           PR_LABELS='${{ toJson(github.event.pull_request.labels.*.name) }}' \
           node scripts/flags-guard.mjs
-        continue-on-error: true
 
       - name: Check for perf budget changes
         id: perf-files
@@ -651,11 +723,13 @@ jobs:
       - test-affected
       - test-full
       - build
+      - release-static
       - dependency-validation
       - pr-light-security
       - security-tests
       - memory-mode
       - guards
+      - secret-scan
     if: always()
     runs-on: ubuntu-latest
     steps:
@@ -675,11 +749,13 @@ jobs:
           docs_link_result="${{ needs.docs-link-check.result }}"
           check_result="${{ needs.check.result }}"
           build_result="${{ needs.build.result }}"
+          release_static_result="${{ needs.release-static.result }}"
           guards_result="${{ needs.guards.result }}"
           dependency_result="${{ needs.dependency-validation.result }}"
           pr_security_result="${{ needs.pr-light-security.result }}"
           security_tests_result="${{ needs.security-tests.result }}"
           memory_result="${{ needs.memory-mode.result }}"
+          secret_scan_result="${{ needs.secret-scan.result }}"
 
           heavy_expected=false
           if [[ "$heavy_ci_relevant" == "true" || "$run_full_suite" == "true" || "$enable_security" == "true" || "$enable_memory_mode" == "true" ]]; then
@@ -688,6 +764,7 @@ jobs:
 
           check_expected="$heavy_expected"
           build_expected="$heavy_expected"
+          release_static_expected="${{ needs.changes.outputs.heavy_ci_relevant == 'true' || github.event.inputs.run_full_suite == 'true' }}"
 
           if [[ "${{ github.event_name }}" == "pull_request" && "$run_full_suite" != "true" ]]; then
             test_result="${{ needs.test-affected.result }}"
@@ -738,11 +815,13 @@ jobs:
             require_result "Test (full integration)" "${{ needs.test-full.result }}" "$schema_changed"
           fi
           require_result "Build" "$build_result" "$build_expected"
+          require_result "Static release diagnostic" "$release_static_result" "$release_static_expected"
           require_result "Guards" "$guards_result" "$guards_expected"
           require_result "Dependency validation" "$dependency_result" "$dependency_expected"
           require_result "PR light security" "$pr_security_result" "$pr_security_expected"
           require_result "Security tests" "$security_tests_result" "$security_tests_expected"
           require_result "Memory mode" "$memory_result" "$memory_expected"
+          require_result "Secret scan" "$secret_scan_result" "true"
 
           {
             echo "## CI Gate Inputs"
@@ -754,11 +833,13 @@ jobs:
             echo "| tests | $test_result | $test_expected |"
             echo "| tests-full (schema gate) | ${{ needs.test-full.result }} | $schema_changed |"
             echo "| build | $build_result | $build_expected |"
+            echo "| release-static | $release_static_result | $release_static_expected |"
             echo "| guards | $guards_result | $guards_expected |"
             echo "| dependency-validation | $dependency_result | $dependency_expected |"
             echo "| pr-light-security | $pr_security_result | $pr_security_expected |"
             echo "| security-tests | $security_tests_result | $security_tests_expected |"
             echo "| memory-mode | $memory_result | $memory_expected |"
+            echo "| secret-scan | $secret_scan_result | true |"
             echo "| heavy-ci-relevant | $heavy_ci_relevant | informational |"
             echo "| auto-docs-only | $auto_docs_only | informational |"
           } >> "$GITHUB_STEP_SUMMARY"
@@ -786,11 +867,13 @@ jobs:
             | Affected tests | ${{ needs.test-affected.result }} |
             | Full tests | ${{ needs.test-full.result }} |
             | Build | ${{ needs.build.result }} |
+            | Static release diagnostic | ${{ needs.release-static.result }} |
             | Dependency validation | ${{ needs.dependency-validation.result }} |
             | PR light security | ${{ needs.pr-light-security.result }} |
             | Security tests | ${{ needs.security-tests.result }} |
             | Memory mode | ${{ needs.memory-mode.result }} |
             | Guards | ${{ needs.guards.result }} |
+            | Secret scan | ${{ needs.secret-scan.result }} |
 
             Gate result: ${{ steps.status.outputs.result }}`;
             const { data: comments } = await github.rest.issues.listComments({

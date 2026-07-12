@@ -134,38 +134,42 @@ const steps = [
   },
 ];
 
+const dbBackedSteps = [
+  {
+    name: 'Fund lifecycle DB proof',
+    command:
+      'cross-env TZ=UTC vitest run -c vitest.config.testcontainers.ts tests/integration/fund-lifecycle-db.test.ts',
+  },
+  {
+    name: 'Migration drift guard',
+    command:
+      'cross-env TZ=UTC vitest run -c vitest.config.testcontainers.ts tests/integration/migration-drift.test.ts',
+  },
+  {
+    name: 'Production schema clone proof',
+    command:
+      'cross-env TZ=UTC vitest run -c vitest.config.testcontainers.ts tests/integration/prod-schema-clone.test.ts',
+  },
+  {
+    name: 'Production partial-drift reconciliation proof',
+    command:
+      'cross-env TZ=UTC vitest run -c vitest.config.testcontainers.ts tests/integration/prod-schema-reconcile-partial-drift.test.ts',
+  },
+  {
+    name: 'Scenario release gate',
+    command: 'npm run test:scenario-release-gate',
+  },
+];
+
 if (skipDbProof) {
   console.warn(
     '[release:check] skipping container-backed lifecycle proof; this is diagnostic only and is not release proof'
   );
 } else {
-  steps.push({
-    name: 'Fund lifecycle DB proof',
-    command:
-      'cross-env TZ=UTC vitest run -c vitest.config.testcontainers.ts tests/integration/fund-lifecycle-db.test.ts',
-  });
-  steps.push({
-    name: 'Migration drift guard',
-    command:
-      'cross-env TZ=UTC vitest run -c vitest.config.testcontainers.ts tests/integration/migration-drift.test.ts',
-  });
-  steps.push({
-    name: 'Production schema clone proof',
-    command:
-      'cross-env TZ=UTC vitest run -c vitest.config.testcontainers.ts tests/integration/prod-schema-clone.test.ts',
-  });
-  steps.push({
-    name: 'Production partial-drift reconciliation proof',
-    command:
-      'cross-env TZ=UTC vitest run -c vitest.config.testcontainers.ts tests/integration/prod-schema-reconcile-partial-drift.test.ts',
-  });
+  steps.push(...dbBackedSteps);
 }
 
 steps.push(
-  {
-    name: 'Scenario release gate',
-    command: 'npm run test:scenario-release-gate',
-  },
   {
     name: 'Core validation wrapper',
     command: 'npm run validate:core',

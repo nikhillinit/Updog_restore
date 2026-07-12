@@ -1,117 +1,403 @@
 #!/usr/bin/env node
-/**
- * Smart test runner: runs only tests related to changed files
- * No ML - just smart file-based logic
- */
 
-import { execSync } from 'node:child_process';
+import { execFileSync, spawnSync } from 'node:child_process';
 import { existsSync } from 'node:fs';
+import { mkdir, readFile, readdir, rename, stat, writeFile } from 'node:fs/promises';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 
-const base = process.env.BASE_REF || 'origin/main';
-const maxFiles = 200; // Skip heavy checks if too many changes
-const listOnly = process.argv.includes('--list-only');
+const PLAN_VERSION = 1;
+const DEFAULT_BASE_REF = process.env.BASE_REF || 'origin/main';
+const DEFAULT_PLAN_PATH = 'artifacts/affected-plan.json';
+const MAX_CHANGED_FILES = 200;
+const MAX_SELECTED_TESTS = 100;
+const TEST_FILE_PATTERN = /\.(?:test|spec)\.(?:[cm]?[jt]sx?)$/i;
+const BROAD_IMPACT_PATTERNS = [
+  /^(?:shared|migrations|scripts)\//,
+  /^\.github\//,
+  /^(?:package(?:-lock)?\.json|tsconfig[^/]*\.json|vite\.config\.|vitest\.config\.)/,
+  /^Dockerfile/,
+];
 
-try {
-  const changed = execSync(`git diff --name-only ${base}`)
-    .toString().trim().split('\n').filter(Boolean);
+function normalizeRepoPath(value) {
+  return value.split(path.sep).join('/').replace(/^\.\//, '');
+}
 
-  if (changed.length === 0) {
-    if (listOnly) {
-      console.log('smoke');
-      process.exit(0);
+function isDocumentationPath(value) {
+  return /\.(?:md|mdx|txt)$/i.test(value) || value.startsWith('docs/');
+}
+
+function isBroadImpactPath(value) {
+  return BROAD_IMPACT_PATTERNS.some((pattern) => pattern.test(value));
+}
+
+function pathStem(value) {
+  return normalizeRepoPath(value)
+    .replace(/\.(?:[cm]?[jt]sx?)$/i, '')
+    .replace(/\/index$/i, '');
+}
+
+function resolveImportStem(testPath, specifier) {
+  const cleanSpecifier = specifier.split(/[?#]/, 1)[0];
+  if (cleanSpecifier.startsWith('@/')) {
+    return pathStem(`client/src/${cleanSpecifier.slice(2)}`);
+  }
+  if (cleanSpecifier.startsWith('@shared/')) {
+    return pathStem(`shared/${cleanSpecifier.slice('@shared/'.length)}`);
+  }
+  if (!cleanSpecifier.startsWith('.')) {
+    return undefined;
+  }
+  return pathStem(
+    path.posix.normalize(path.posix.join(path.posix.dirname(testPath), cleanSpecifier))
+  );
+}
+
+function extractImportSpecifiers(source) {
+  const specifiers = new Set();
+  const patterns = [
+    /\bfrom\s+['"]([^'"]+)['"]/g,
+    /\bimport\s*\(\s*['"]([^'"]+)['"]\s*\)/g,
+    /\brequire\s*\(\s*['"]([^'"]+)['"]\s*\)/g,
+    /\bimport\s+['"]([^'"]+)['"]/g,
+  ];
+  for (const pattern of patterns) {
+    for (const match of source.matchAll(pattern)) {
+      specifiers.add(match[1]);
     }
-    console.log('[INFO] No changes detected, running smoke tests only');
-    execSync('npm run test:smoke', { stdio: 'inherit' });
-    process.exit(0);
+  }
+  return [...specifiers];
+}
+
+async function walkTestFiles(root, relativeDirectory) {
+  const absoluteDirectory = path.join(root, relativeDirectory);
+  if (!existsSync(absoluteDirectory)) {
+    return [];
   }
 
-  if (changed.length > maxFiles) {
-    if (listOnly) {
-      console.log('all');
-      process.exit(0);
+  let entries;
+  try {
+    entries = await readdir(absoluteDirectory, { withFileTypes: true });
+  } catch (error) {
+    if (error.code === 'ENOENT') {
+      return [];
     }
-    console.log(`[WARN] Large changeset (${changed.length} files), running full test suite`);
-    execSync('npm run test', { stdio: 'inherit' });
-    process.exit(0);
+    throw error;
+  }
+  const files = [];
+  for (const entry of entries) {
+    const relativePath = normalizeRepoPath(path.join(relativeDirectory, entry.name));
+    if (entry.isDirectory()) {
+      files.push(...(await walkTestFiles(root, relativePath)));
+    } else if (entry.isFile() && TEST_FILE_PATTERN.test(entry.name)) {
+      files.push(relativePath);
+    }
+  }
+  return files;
+}
+
+async function findDirectlyAffectedTests(root, changedFiles) {
+  const changesByStem = new Map();
+  for (const changedFile of changedFiles) {
+    const stem = pathStem(changedFile);
+    const files = changesByStem.get(stem) ?? [];
+    files.push(changedFile);
+    changesByStem.set(stem, files);
+  }
+  const selected = new Set(
+    changedFiles.filter((file) => TEST_FILE_PATTERN.test(file) && existsSync(path.join(root, file)))
+  );
+  const mappedChanges = new Set(selected);
+  const testFiles = (
+    await Promise.all(
+      ['tests/unit', 'tests/perf', 'tests/regressions'].map((directory) =>
+        walkTestFiles(root, directory)
+      )
+    )
+  ).flat();
+
+  for (const testFile of testFiles) {
+    if (selected.has(testFile)) {
+      continue;
+    }
+    const source = await readFile(path.join(root, testFile), 'utf8');
+    let importsChangedFile = false;
+    for (const specifier of extractImportSpecifiers(source)) {
+      const importStem = resolveImportStem(testFile, specifier);
+      const importedChanges = importStem === undefined ? undefined : changesByStem.get(importStem);
+      if (importedChanges === undefined) {
+        continue;
+      }
+      importsChangedFile = true;
+      for (const changedFile of importedChanges) {
+        mappedChanges.add(changedFile);
+      }
+    }
+    if (importsChangedFile) {
+      selected.add(testFile);
+    }
   }
 
-  // Categorize changes
-  const categories = {
-    client: changed.filter(f => f.startsWith('client/')),
-    server: changed.filter(f => f.startsWith('server/')),
-    shared: changed.filter(f => f.startsWith('shared/')),
-    tests: changed.filter(f => f.includes('test') || f.includes('spec')),
-    config: changed.filter(f => f.match(/\.(json|yml|yaml|js|ts)$/) && 
-                                 f.match(/(package|vite|playwright|tsconfig)/)),
-    docs: changed.filter(f => f.match(/\.(md|txt)$/))
+  return {
+    tests: [...selected].sort(),
+    mappedChanges,
+  };
+}
+
+export async function createAffectedTestPlan({
+  root = process.cwd(),
+  changedFiles,
+  baseSha,
+  headSha,
+  maxFiles = MAX_CHANGED_FILES,
+} = {}) {
+  if (!Array.isArray(changedFiles)) {
+    throw new Error('changedFiles must be an array');
+  }
+  const normalizedChanges = [
+    ...new Set(changedFiles.map(normalizeRepoPath).filter(Boolean)),
+  ].sort();
+  const metadata = {
+    version: PLAN_VERSION,
+    baseSha,
+    headSha,
   };
 
-  // In list-only mode, output affected test categories
-  if (listOnly) {
-    const affected = [];
-    if (categories.server.length > 0) affected.push('server');
-    if (categories.client.length > 0) affected.push('client');
-    if (categories.shared.length > 0) affected.push('all');
-    if (categories.config.length > 0) affected.push('config');
-    console.log(affected.length > 0 ? affected.join(',') : 'smoke');
-    process.exit(0);
+  if (normalizedChanges.length === 0 || normalizedChanges.every(isDocumentationPath)) {
+    return {
+      ...metadata,
+      mode: 'no_affected_tests',
+      tests: [],
+      reason:
+        normalizedChanges.length === 0
+          ? 'The diff contains no changed files.'
+          : 'The diff contains documentation only.',
+    };
   }
 
-  console.log(`[SMART] Test selection for ${changed.length} changed files:`);
-
-  const commands = [];
-
-  // Always run smoke tests
-  commands.push('npm run test:smoke');
-
-  // Server changes -> API tests
-  if (categories.server.length > 0) {
-    console.log(`  [SERVER] ${categories.server.length} changes -> API tests`);
-    commands.push('npm run test -- server/ --run');
+  if (normalizedChanges.length > maxFiles) {
+    return {
+      ...metadata,
+      mode: 'full_fallback',
+      tests: [],
+      reason: `The diff contains ${normalizedChanges.length} files, above the ${maxFiles}-file selection limit.`,
+    };
   }
 
-  // Client changes -> relevant client tests
-  if (categories.client.length > 0) {
-    console.log(`  [CLIENT] ${categories.client.length} changes -> Client tests`);
-    commands.push('npm run test -- client/ --run');
+  const broadImpactFile = normalizedChanges.find(isBroadImpactPath);
+  if (broadImpactFile !== undefined) {
+    return {
+      ...metadata,
+      mode: 'full_fallback',
+      tests: [],
+      reason: `Broad-impact change requires the full unit suite: ${broadImpactFile}`,
+    };
   }
 
-  // Shared changes -> everything (since shared affects both)
-  if (categories.shared.length > 0) {
-    console.log(`  [SHARED] ${categories.shared.length} changes -> Full test suite`);
-    commands.push('npm run test');
-    execSync('npm run test', { stdio: 'inherit' });
-    process.exit(0);
+  const { tests: selectedTests, mappedChanges } = await findDirectlyAffectedTests(
+    root,
+    normalizedChanges
+  );
+  const uncoveredChange = normalizedChanges.find(
+    (changedFile) => !isDocumentationPath(changedFile) && !mappedChanges.has(changedFile)
+  );
+  if (uncoveredChange !== undefined) {
+    return {
+      ...metadata,
+      mode: 'full_fallback',
+      tests: [],
+      reason: `No direct test mapping was proven for ${uncoveredChange}; fail closed to the full unit suite.`,
+    };
+  }
+  if (selectedTests.length === 0 || selectedTests.length > MAX_SELECTED_TESTS) {
+    return {
+      ...metadata,
+      mode: 'full_fallback',
+      tests: [],
+      reason:
+        selectedTests.length === 0
+          ? 'No direct test mapping was proven; fail closed to the full unit suite.'
+          : `Selection produced ${selectedTests.length} tests, above the ${MAX_SELECTED_TESTS}-test limit.`,
+    };
   }
 
-  // Config changes -> type check + build
-  if (categories.config.length > 0) {
-    console.log(`  [CONFIG] ${categories.config.length} changes -> Build validation`);
-    commands.push('npm run check');
-    commands.push('npm run build');
+  return {
+    ...metadata,
+    mode: 'selected',
+    tests: selectedTests,
+    reason: 'Selected existing tests that changed directly or import a changed source file.',
+  };
+}
+
+export async function validateAffectedTestPlan(plan, { root = process.cwd() } = {}) {
+  if (plan === null || typeof plan !== 'object' || Array.isArray(plan)) {
+    throw new Error('Affected test plan must be an object.');
+  }
+  if (plan.version !== PLAN_VERSION) {
+    throw new Error(`Unsupported affected test plan version: ${String(plan.version)}`);
+  }
+  if (!['selected', 'no_affected_tests', 'full_fallback'].includes(plan.mode)) {
+    throw new Error(`Unsupported affected test plan mode: ${String(plan.mode)}`);
+  }
+  if (typeof plan.reason !== 'string' || plan.reason.trim() === '') {
+    throw new Error('Affected test plan requires a reason.');
+  }
+  if (!Array.isArray(plan.tests) || !plan.tests.every((test) => typeof test === 'string')) {
+    throw new Error('Affected test plan tests must be an array of strings.');
+  }
+  if (plan.mode !== 'selected' && plan.tests.length !== 0) {
+    throw new Error(`${plan.mode} plans must not contain selected tests.`);
+  }
+  if (plan.mode === 'selected' && plan.tests.length === 0) {
+    throw new Error('Selected plans must contain at least one test.');
   }
 
-  // Docs only -> skip tests
-  if (categories.docs.length === changed.length) {
-    if (listOnly) {
-      console.log('docs');
-      process.exit(0);
+  for (const test of plan.tests) {
+    const normalized = normalizeRepoPath(test);
+    if (
+      normalized !== test ||
+      path.isAbsolute(test) ||
+      normalized.split('/').includes('..') ||
+      !TEST_FILE_PATTERN.test(normalized)
+    ) {
+      throw new Error(`Invalid selected test path: ${test}`);
     }
-    console.log(`  [DOCS] Documentation only -> Skipping tests`);
-    process.exit(0);
+    const absolutePath = path.resolve(root, normalized);
+    const relativeToRoot = path.relative(path.resolve(root), absolutePath);
+    if (relativeToRoot.startsWith('..') || path.isAbsolute(relativeToRoot)) {
+      throw new Error(`Selected test escapes the repository: ${test}`);
+    }
+    let selectedStat;
+    try {
+      selectedStat = await stat(absolutePath);
+    } catch (error) {
+      if (error.code === 'ENOENT') {
+        throw new Error(`Selected test does not exist: ${test}`);
+      }
+      throw error;
+    }
+    if (!selectedStat.isFile()) {
+      throw new Error(`Selected test does not exist: ${test}`);
+    }
   }
 
-  // Execute selected commands
-  for (const cmd of [...new Set(commands)]) {
-    console.log(`\n-> Running: ${cmd}`);
-    execSync(cmd, { stdio: 'inherit' });
+  return plan;
+}
+
+function npmExecutable() {
+  return process.platform === 'win32' ? 'npm.cmd' : 'npm';
+}
+
+function runNpm(args, { root = process.cwd(), spawn = spawnSync } = {}) {
+  const result = spawn(npmExecutable(), args, {
+    cwd: root,
+    env: process.env,
+    stdio: 'inherit',
+    windowsHide: true,
+  });
+  return typeof result.status === 'number' ? result.status : 1;
+}
+
+export async function executeSelectedPlan(plan, { root = process.cwd(), spawn = spawnSync } = {}) {
+  await validateAffectedTestPlan(plan, { root });
+  if (plan.mode !== 'selected') {
+    throw new Error(`Cannot execute selected tests for plan mode ${plan.mode}.`);
+  }
+  return runNpm(['run', 'test:unit', '--', ...plan.tests], { root, spawn });
+}
+
+function gitOutput(args, root) {
+  return execFileSync('git', args, {
+    cwd: root,
+    encoding: 'utf8',
+    stdio: ['ignore', 'pipe', 'pipe'],
+  }).trim();
+}
+
+async function createPlanFromGit(root, baseRef) {
+  const baseSha = gitOutput(['rev-parse', baseRef], root);
+  const headSha = gitOutput(['rev-parse', 'HEAD'], root);
+  const committedDiff = gitOutput(['diff', '--name-only', `${baseSha}...${headSha}`], root);
+  const workingDiff = gitOutput(['diff', '--name-only', 'HEAD'], root);
+  const untracked = gitOutput(['ls-files', '--others', '--exclude-standard'], root);
+  const changedFiles = [committedDiff, workingDiff, untracked]
+    .filter(Boolean)
+    .flatMap((output) => output.split(/\r?\n/));
+  return createAffectedTestPlan({ root, changedFiles, baseSha, headSha });
+}
+
+async function writePlan(planPath, plan, root) {
+  const absolutePath = path.resolve(root, planPath);
+  await mkdir(path.dirname(absolutePath), { recursive: true });
+  const temporaryPath = `${absolutePath}.${process.pid}.tmp`;
+  await writeFile(temporaryPath, `${JSON.stringify(plan, null, 2)}\n`, 'utf8');
+  await rename(temporaryPath, absolutePath);
+}
+
+async function readPlan(planPath, root) {
+  const source = await readFile(path.resolve(root, planPath), 'utf8');
+  return JSON.parse(source);
+}
+
+function argumentValue(args, name) {
+  const prefix = `${name}=`;
+  const inline = args.find((argument) => argument.startsWith(prefix));
+  if (inline !== undefined) {
+    return inline.slice(prefix.length);
+  }
+  const index = args.indexOf(name);
+  return index >= 0 ? args[index + 1] : undefined;
+}
+
+async function main(args = process.argv.slice(2), root = process.cwd()) {
+  const planPath = argumentValue(args, '--plan-json');
+  const runPlanPath = argumentValue(args, '--run-plan');
+  const baseRef = argumentValue(args, '--base-ref') || DEFAULT_BASE_REF;
+
+  if (planPath !== undefined && runPlanPath !== undefined) {
+    throw new Error('--plan-json and --run-plan are mutually exclusive.');
   }
 
-  console.log('\n[PASS] Smart tests completed');
+  if (runPlanPath !== undefined) {
+    const plan = await readPlan(runPlanPath, root);
+    await validateAffectedTestPlan(plan, { root });
+    const currentHead = gitOutput(['rev-parse', 'HEAD'], root);
+    if (typeof plan.headSha === 'string' && plan.headSha !== currentHead) {
+      throw new Error(
+        `Affected test plan is stale: planned ${plan.headSha}, current ${currentHead}.`
+      );
+    }
+    process.exitCode = await executeSelectedPlan(plan, { root });
+    return;
+  }
 
-} catch (error) {
-  console.error('[FAIL] Smart test runner failed:', error.message);
-  console.log('[FALLBACK] Falling back to smoke tests');
-  execSync('npm run test:smoke', { stdio: 'inherit' });
-  process.exit(1);
+  const plan = await createPlanFromGit(root, baseRef);
+  if (planPath !== undefined) {
+    await writePlan(planPath || DEFAULT_PLAN_PATH, plan, root);
+    console.log(`[PLAN] ${plan.mode}: ${plan.reason}`);
+    return;
+  }
+
+  if (args.includes('--list-only')) {
+    console.log(plan.mode === 'selected' ? plan.tests.join(',') : plan.mode);
+    return;
+  }
+
+  console.log(`[PLAN] ${plan.mode}: ${plan.reason}`);
+  if (plan.mode === 'selected') {
+    process.exitCode = await executeSelectedPlan(plan, { root });
+  } else if (plan.mode === 'no_affected_tests') {
+    process.exitCode = runNpm(['run', 'validate:core'], { root });
+  } else {
+    process.exitCode = runNpm(['run', 'test:unit'], { root });
+  }
+}
+
+const invokedPath = process.argv[1] ? path.resolve(process.argv[1]) : '';
+const modulePath = path.resolve(fileURLToPath(import.meta.url));
+if (invokedPath.toLowerCase() === modulePath.toLowerCase()) {
+  main().catch((error) => {
+    console.error(`[FAIL] Affected test planning or execution failed: ${error.message}`);
+    process.exitCode = 1;
+  });
 }
