@@ -255,8 +255,11 @@ describe('fund scenario reserve worker integration', () => {
     await runtime?.workerHarness.close();
     await runtime?.queue?.close();
     if (runtime) {
-      const { closePool } = await import('../../server/db/pg-circuit');
-      await Promise.all([closePool(), runtime.pool.end()]);
+      const [{ closePool }, { closeDatabasePool }] = await Promise.all([
+        import('../../server/db/pg-circuit'),
+        import('../../server/db'),
+      ]);
+      await Promise.all([closePool(), closeDatabasePool(), runtime.pool.end()]);
     }
     await runtime?.redis.stop();
     await runtime?.postgres.stop();
