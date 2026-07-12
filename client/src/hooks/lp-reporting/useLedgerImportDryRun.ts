@@ -31,7 +31,6 @@ async function postLedgerImportDryRun(
   const res = await fetch(`/api/funds/${fundId}/imports/ledger/dry-run`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    credentials: 'include',
     body: JSON.stringify(body),
   });
 
