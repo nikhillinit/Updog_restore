@@ -98,6 +98,20 @@ declare global {
       user?: User;
       /** Fail-closed authorization identity derived from the verified user */
       principal?: RequestPrincipal;
+      /** Canonical verified user-JWT credential and its transport source */
+      authCredential?: {
+        source: 'bearer' | 'cookie';
+        token: string;
+        claims: {
+          sub: string;
+          jti?: string | undefined;
+          exp?: number | undefined;
+          email?: string | undefined;
+          role?: string | undefined;
+          fundIds?: number[] | undefined;
+          [claim: string]: unknown;
+        };
+      };
       /** Session data (optional, for JWT middleware) */
       session?: {
         id: string;

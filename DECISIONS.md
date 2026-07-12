@@ -50,6 +50,7 @@ development of the Press On Ventures fund modeling platform.
 - [ADR-034: Browser Auth Contract (Bearer HS256, 7-Day Token, localStorage, Task 7)](#adr-034-browser-auth-contract-bearer-hs256-7-day-token-localstorage-task-7)
 - [ADR-035: Ordered Manifests as the Executable Production Schema Contract](#adr-035-ordered-manifests-as-the-executable-production-schema-contract)
 - [ADR-036: Named Identities, Explicit Fund Grants, and jti Revocation (Plan 2)](#adr-036-named-identities-explicit-fund-grants-and-jti-revocation-plan-2)
+- [ADR-037: Browser HttpOnly JWT Cookie and Signed CSRF Contract (D4)](#adr-037-browser-httponly-jwt-cookie-and-signed-csrf-contract-d4)
 
 ---
 
@@ -5831,3 +5832,82 @@ actionable while keeping the Bearer transport.
 **Implementation:** PR #1077 (migration 0031; tasks 2.1 schema, 2.2 external
 provisioning, `jti` minting, 2.4 revocation plus principal, and 2.6 fail-closed
 fund scope).
+
+---
+
+## ADR-037: Browser HttpOnly JWT Cookie and Signed CSRF Contract (D4)
+
+**Date:** 2026-07-12 **Status:** [IMPLEMENTED] Implemented **Decision:**
+Supersede ADR-034's browser transport with a 24-hour HS256 JWT held only in a
+host-only HttpOnly cookie. Protect cookie-authenticated unsafe requests with a
+signed double-submit CSRF token bound to the JWT `jti`. Retain Bearer JWT
+support for machine/service clients, but reject requests that present both
+transports.
+
+### Context
+
+ADR-034 deliberately accepted localStorage token exposure for a small internal
+testing audience. ADR-036 then added named identities, explicit fund grants,
+per-token revocation, and deactivation checks while deferring browser cookie and
+CSRF work as D4. The D4 execution was explicitly requested on 2026-07-12; that
+directive is the GO basis and does not itself claim that production contains
+real or LP-visible data.
+
+Moving a JWT into an ambient browser cookie closes JavaScript token exfiltration
+but creates a CSRF obligation. Authentication was also extracted in several
+independent places, so a transport change limited to `requireAuth` would leave
+the Docker secure-context path, provided-fund-scope checks, logout, and flag
+targeting inconsistent.
+
+### Decision
+
+- Browser user auth uses `updog.session`: HttpOnly, host-only, Path=/,
+  SameSite=Lax, Secure outside local development/test, and Max-Age 24 hours.
+  Login never returns the JWT to browser JavaScript.
+- Browser login uses a dedicated 24-hour token. The generic seven-day signer
+  remains compatible for existing machine/test callers; no refresh-token or
+  server-side session store is added in D4.
+- Machine/service user JWTs may continue using Authorization Bearer. A request
+  containing both the session cookie and Bearer credential is rejected rather
+  than applying precedence. Metrics-key Bearer auth is a separate operational
+  boundary and is unchanged.
+- `updog.csrf` plus `X-CSRF-Token` implements signed double-submit CSRF. Tokens
+  use a random nonce and a domain-separated HMAC-SHA256 signature under
+  `SESSION_SECRET`; authenticated tokens are bound to the verified JWT `jti`.
+  Cookie-authenticated POST, PUT, PATCH, and DELETE requests require validation.
+  Bearer requests are exempt because the credential is not ambient.
+- Login obtains a pre-auth token from `GET /api/auth/csrf`; login rotates it to
+  a jti-bound token. `GET /api/auth/session` is the browser's non-secret auth
+  bootstrap. Logout validates CSRF for cookie auth, revokes the verified jti,
+  and clears both cookies.
+- One canonical credential extractor/verifier is used by both runtime surfaces
+  and route-level authorization helpers. Targeted cache responses vary on both
+  Cookie and Authorization while both transports remain supported.
+
+### Alternatives considered
+
+- **Keep localStorage Bearer indefinitely:** rejected for this execution because
+  D4 was explicitly requested and the JWT remains directly readable to XSS.
+- **Remove Bearer support globally:** rejected because current machine proofs
+  and operator clients use non-ambient Bearer credentials. Browser code is still
+  cookie-only.
+- **Server-side session or rotating refresh-token store:** rejected as broader
+  than D4. The existing jti denylist and per-request active-user check already
+  provide revocation without a new session table.
+- **Unsigned double-submit token:** rejected because an injected cookie must not
+  become a valid CSRF credential. Binding the signature to jti also prevents
+  reuse across browser sessions.
+
+### Consequences
+
+- Browser auth state becomes asynchronous; protected UI providers wait for the
+  session bootstrap rather than inspecting localStorage.
+- Raw browser mutations require centralized same-origin CSRF injection, so the
+  global fetch wrapper is retained with new security semantics rather than
+  deleted.
+- Both `makeApp` and `createServer`/`registerRoutes` must mount CSRF after auth
+  and before protected routes. Cross-surface tests are release-owned proof.
+- A future public/LP product decision may still add refresh rotation, shorter
+  idle timeouts, or tracked concurrent sessions; those are not implied by D4.
+
+**Implementation:** D4 Ralph execution on `codex/d4-cookie-csrf`.

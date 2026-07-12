@@ -1,23 +1,18 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { getToken, setToken, clearToken } from '@/lib/auth-token';
+import { LEGACY_AUTH_TOKEN_KEY, purgeLegacyAuthToken } from '@/lib/auth-token';
 
 describe('auth-token', () => {
   beforeEach(() => {
     window.localStorage.clear();
   });
 
-  it('returns null when no token is stored', () => {
-    expect(getToken()).toBeNull();
-  });
+  it('removes the retired browser credential without exposing a read/write API', () => {
+    window.localStorage.setItem(LEGACY_AUTH_TOKEN_KEY, 'jwt-legacy');
+    window.localStorage.setItem('unrelated', 'keep');
 
-  it('stores and reads a token', () => {
-    setToken('abc');
-    expect(getToken()).toBe('abc');
-  });
+    purgeLegacyAuthToken();
 
-  it('clears a stored token', () => {
-    setToken('abc');
-    clearToken();
-    expect(getToken()).toBeNull();
+    expect(window.localStorage.getItem(LEGACY_AUTH_TOKEN_KEY)).toBeNull();
+    expect(window.localStorage.getItem('unrelated')).toBe('keep');
   });
 });

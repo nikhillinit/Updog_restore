@@ -57,11 +57,16 @@ function signToken(
   );
 }
 
-function makeRequest(authorization?: string, user?: Express.User): Request {
+function makeRequest(authorization?: string, user?: Express.User, cookie?: string): Request {
   return {
+    headers: {
+      ...(authorization !== undefined ? { authorization } : {}),
+      ...(cookie !== undefined ? { cookie } : {}),
+    },
     header: vi.fn((name: string) => {
       const normalized = name.toLowerCase();
       if (normalized === 'authorization') return authorization;
+      if (normalized === 'cookie') return cookie;
       if (normalized === 'user-agent') return 'vitest';
       return undefined;
     }),
@@ -139,24 +144,22 @@ describe('enforceProvidedFundScope', () => {
     });
   });
 
-  it('throws on missing bearer tokens in production mode', async () => {
+  it('fails closed on missing user credentials in production mode', async () => {
     setJwtEnv('production');
     const { enforceProvidedFundScope } = await import('@/server/lib/auth/provided-fund-scope');
-    const { res } = makeResponse();
+    const { res, status } = makeResponse();
 
-    await expect(enforceProvidedFundScope(makeRequest(), res, 77)).rejects.toThrow(
-      'Missing bearer token while enforcing provided fund scope in production'
-    );
+    await expect(enforceProvidedFundScope(makeRequest(), res, 77)).resolves.toBe(false);
+    expect(status).toHaveBeenCalledWith(401);
   });
 
-  it('throws on missing bearer tokens in staging mode', async () => {
+  it('fails closed on missing user credentials in staging mode', async () => {
     setJwtEnv('staging');
     const { enforceProvidedFundScope } = await import('@/server/lib/auth/provided-fund-scope');
-    const { res } = makeResponse();
+    const { res, status } = makeResponse();
 
-    await expect(enforceProvidedFundScope(makeRequest(), res, 77)).rejects.toThrow(
-      'Missing bearer token while enforcing provided fund scope in staging'
-    );
+    await expect(enforceProvidedFundScope(makeRequest(), res, 77)).resolves.toBe(false);
+    expect(status).toHaveBeenCalledWith(401);
   });
 
   it('allows scoped bearer tokens for listed funds', async () => {
@@ -173,6 +176,39 @@ describe('enforceProvidedFundScope', () => {
       email: 'scope-test@example.com',
       fundIds: [77],
     });
+  });
+
+  it('allows a scoped browser session cookie for a listed fund', async () => {
+    setJwtEnv();
+    const token = signToken({ fundIds: [77] });
+    const { enforceProvidedFundScope } = await import('@/server/lib/auth/provided-fund-scope');
+    const { res, status } = makeResponse();
+    const req = makeRequest(undefined, undefined, `updog.session=${token}`);
+
+    await expect(enforceProvidedFundScope(req, res, 77)).resolves.toBe(true);
+    expect(status).not.toHaveBeenCalled();
+    expect(req.user).toMatchObject({
+      id: 'scope-test-user',
+      email: 'scope-test@example.com',
+      fundIds: [77],
+    });
+  });
+
+  it('rejects simultaneous browser cookie and Bearer credentials', async () => {
+    setJwtEnv();
+    const token = signToken({ fundIds: [77] });
+    const { enforceProvidedFundScope } = await import('@/server/lib/auth/provided-fund-scope');
+    const { res, status, json } = makeResponse();
+
+    await expect(
+      enforceProvidedFundScope(
+        makeRequest(`Bearer ${token}`, undefined, `updog.session=${token}`),
+        res,
+        77
+      )
+    ).resolves.toBe(false);
+    expect(status).toHaveBeenCalledWith(401);
+    expect(json).toHaveBeenCalledWith({ error: 'ambiguous_credentials' });
   });
 
   it('treats empty fundIds as unrestricted admin scope', async () => {
@@ -236,7 +272,7 @@ describe('enforceProvidedFundScope', () => {
     expect(status).toHaveBeenCalledWith(401);
     expect(json).toHaveBeenCalledWith({
       error: 'Unauthorized',
-      message: 'Invalid authorization token',
+      message: 'Invalid authentication credential',
     });
   });
 
@@ -253,7 +289,7 @@ describe('enforceProvidedFundScope', () => {
     expect(status).toHaveBeenCalledWith(401);
     expect(json).toHaveBeenCalledWith({
       error: 'Unauthorized',
-      message: 'Invalid authorization token',
+      message: 'Invalid authentication credential',
     });
   });
 
@@ -522,6 +558,19 @@ describe('getVerifiedFundScope', () => {
     });
   });
 
+  it('maps a scoped browser session cookie to its fund list', async () => {
+    setJwtEnv();
+    const token = signToken({ fundIds: [1, 2] });
+    const { getVerifiedFundScope } = await import('@/server/lib/auth/provided-fund-scope');
+
+    await expect(
+      getVerifiedFundScope(makeRequest(undefined, undefined, `updog.session=${token}`))
+    ).resolves.toEqual({
+      unrestricted: false,
+      fundIds: [1, 2],
+    });
+  });
+
   it('returns null for an invalid (wrong-secret) token', async () => {
     setJwtEnv();
     const token = signToken({ fundIds: [1] }, { secret: OTHER_SECRET });
@@ -607,12 +656,10 @@ describe('getVerifiedFundScope', () => {
     });
   });
 
-  it('throws on a missing token outside development/test (production)', async () => {
+  it('returns null for missing user credentials outside development/test', async () => {
     setJwtEnv('production');
     const { getVerifiedFundScope } = await import('@/server/lib/auth/provided-fund-scope');
 
-    await expect(getVerifiedFundScope(makeRequest())).rejects.toThrow(
-      'Missing bearer token while enforcing provided fund scope in production'
-    );
+    await expect(getVerifiedFundScope(makeRequest())).resolves.toBeNull();
   });
 });

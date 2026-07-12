@@ -1,25 +1,22 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiRequest, type ApiError } from '@/lib/queryClient';
-import { setToken } from '@/lib/auth-token';
+import { purgeLegacyAuthToken } from '@/lib/auth-token';
+import { AUTH_SESSION_QUERY_KEY, type AuthSession } from '@/lib/auth-session';
 
 interface LoginRequest {
   username: string;
   password: string;
 }
 
-interface LoginResponse {
-  token: string;
-}
-
-/** POST /api/auth/login -> store JWT in localStorage and refetch authed data. */
+/** Establish the HttpOnly cookie session and publish its sanitized identity. */
 export function useLogin() {
   const queryClient = useQueryClient();
 
-  return useMutation<LoginResponse, ApiError, LoginRequest>({
-    mutationFn: (credentials) => apiRequest<LoginResponse>('POST', '/api/auth/login', credentials),
+  return useMutation<AuthSession, ApiError, LoginRequest>({
+    mutationFn: (credentials) => apiRequest<AuthSession>('POST', '/api/auth/login', credentials),
     onSuccess: (data) => {
-      setToken(data.token);
-      void queryClient.invalidateQueries();
+      purgeLegacyAuthToken();
+      queryClient.setQueryData(AUTH_SESSION_QUERY_KEY, data);
     },
   });
 }

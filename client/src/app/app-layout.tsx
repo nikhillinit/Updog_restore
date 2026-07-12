@@ -2,7 +2,9 @@ import React, { useState } from 'react';
 import { Link, useLocation } from 'wouter';
 import { Menu, X } from 'lucide-react';
 import Sidebar from '@/components/layout/sidebar';
-import { getToken, clearToken } from '@/lib/auth-token';
+import { useQueryClient } from '@tanstack/react-query';
+import { ApiError, apiRequest } from '@/lib/queryClient';
+import { AUTH_SESSION_QUERY_KEY, type AuthSession } from '@/lib/auth-session';
 import {
   getActiveNavigationId,
   getFooterNavigationItems,
@@ -159,32 +161,69 @@ function MobileNavigationToggle({ isOpen, onToggle }: { isOpen: boolean; onToggl
   );
 }
 
-export function AppLayout({ children }: { children: React.ReactNode }) {
-  const [location] = useLocation();
+export function AppLayout({
+  children,
+  session,
+}: {
+  children: React.ReactNode;
+  session: AuthSession;
+}) {
+  const [location, navigate] = useLocation();
+  const queryClient = useQueryClient();
   const [isMobileNavigationOpen, setIsMobileNavigationOpen] = useState(false);
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
+  const [logoutError, setLogoutError] = useState<string | null>(null);
   const activeModule = getActiveNavigationId(location);
   const isFundSetupRoute = location.startsWith('/fund-setup');
-  const handleLogout = () => {
-    clearToken();
-    if (typeof window !== 'undefined') {
-      window.location.assign('/login');
+  const finishLocalLogout = () => {
+    queryClient.setQueryData(AUTH_SESSION_QUERY_KEY, null);
+    queryClient.removeQueries({
+      predicate: (query) => query.queryKey[0] !== AUTH_SESSION_QUERY_KEY[0],
+    });
+    navigate('/login');
+  };
+  const handleLogout = async () => {
+    if (isLoggingOut) return;
+    setLogoutError(null);
+    setIsLoggingOut(true);
+    try {
+      await apiRequest<void>('POST', '/api/auth/logout');
+      finishLocalLogout();
+    } catch (error) {
+      if (
+        error instanceof ApiError &&
+        error.status === 503 &&
+        error.errorCode === 'logout_incomplete'
+      ) {
+        finishLocalLogout();
+        return;
+      }
+      setLogoutError(
+        'Logout failed. Your session is still active; retry when the API is reachable.'
+      );
+      setIsLoggingOut(false);
     }
   };
 
   return (
     <div className="flex min-h-screen flex-col overflow-x-hidden bg-pov-gray font-poppins text-charcoal">
       {isFundSetupRoute ? <FundConstructionKpiHeader /> : <DynamicFundHeader />}
-      {getToken() && (
-        <div className="flex justify-end border-b border-beige-200 bg-pov-white px-4 py-1">
-          <button
-            type="button"
-            onClick={handleLogout}
-            className="text-sm text-charcoal/70 transition-colors hover:text-charcoal focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-beige focus-visible:ring-offset-2"
-          >
-            Log out
-          </button>
-        </div>
-      )}
+      <div className="flex justify-end border-b border-beige-200 bg-pov-white px-4 py-1">
+        {logoutError && (
+          <p id="logout-error" role="alert" className="mr-4 text-sm text-error-dark">
+            {logoutError}
+          </p>
+        )}
+        <button
+          type="button"
+          onClick={() => void handleLogout()}
+          disabled={isLoggingOut || !session.user}
+          aria-describedby={logoutError ? 'logout-error' : undefined}
+          className="text-sm text-charcoal/70 transition-colors hover:text-charcoal focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-beige focus-visible:ring-offset-2"
+        >
+          {isLoggingOut ? 'Logging out...' : 'Log out'}
+        </button>
+      </div>
       <MobileNavigationToggle
         isOpen={isMobileNavigationOpen}
         onToggle={() => setIsMobileNavigationOpen((isOpen) => !isOpen)}

@@ -3,10 +3,10 @@ info:
   title: POVC Fund Management Platform API
   description: |
     Comprehensive API for the POVC Quantitative Fund Management Platform (Updog_restore).
-    
+
     This API provides endpoints for managing venture capital funds, portfolio companies, investments, 
     and advanced analytics engines for reserve allocation and pacing strategies.
-    
+
     ## Key Features
     - **Fund Management**: Create and manage VC funds with detailed metrics
     - **Portfolio Tracking**: Monitor portfolio companies and their performance
@@ -14,12 +14,12 @@ info:
     - **Reserve Engine**: ML-enhanced reserve allocation with confidence scoring
     - **Pacing Engine**: Market-aware deployment pacing strategies
     - **Dashboard Analytics**: Comprehensive fund performance dashboards
-    
+
     ## Algorithm Modes
     The system supports both rule-based (cold-start) and ML-enhanced algorithms:
     - `ALG_RESERVE=true`: Enable ML-enhanced reserve allocation
     - `ALG_PACING=true`: Enable ML-optimized deployment pacing
-    
+
   version: 1.0.0
   contact:
     name: POVC Development Team
@@ -35,6 +35,24 @@ servers:
     description: Production server
 
 paths:
+  /auth/logout:
+    post:
+      summary: End the current authenticated session
+      description: Cookie-authenticated requests require both updog.session and X-CSRF-Token; machine Bearer requests are CSRF-exempt.
+      security:
+        - cookieAuth: []
+          csrfToken: []
+        - bearerAuth: []
+      responses:
+        '204':
+          description: Session cookies cleared and token revocation recorded
+        '401':
+          description: Missing, invalid, or ambiguous credentials
+        '403':
+          description: Cookie-authenticated request failed CSRF validation
+        '503':
+          description: Cookies cleared but durable token revocation failed
+
   # Fund Management Endpoints
   /funds:
     get:
@@ -56,6 +74,10 @@ paths:
 
     post:
       summary: Create a new fund
+      security:
+        - cookieAuth: []
+          csrfToken: []
+        - bearerAuth: []
       description: Create a new venture capital fund with initial configuration
       tags:
         - Funds
@@ -129,6 +151,10 @@ paths:
 
     post:
       summary: Create portfolio company
+      security:
+        - cookieAuth: []
+          csrfToken: []
+        - bearerAuth: []
       description: Add a new portfolio company to the fund
       tags:
         - Portfolio Companies
@@ -178,12 +204,12 @@ paths:
       summary: Get reserve allocations for fund
       description: |
         Generate reserve allocations for all portfolio companies in the specified fund.
-        
+
         Uses either rule-based (cold-start) or ML-enhanced algorithms based on:
         - Environment variable `ALG_RESERVE=true`
         - Data availability and confidence thresholds
         - Historical performance data
-        
+
         Returns comprehensive reserve summary with confidence scores.
       tags:
         - Reserve Engine
@@ -210,7 +236,7 @@ paths:
         - Fund size and deployment timeline
         - Market conditions (bull, bear, neutral)
         - Algorithm mode (rule-based vs ML-enhanced)
-        
+
         Supports customizable parameters for fund-specific optimization.
       tags:
         - Pacing Engine
@@ -309,6 +335,10 @@ paths:
 
     post:
       summary: Create new investment
+      security:
+        - cookieAuth: []
+          csrfToken: []
+        - bearerAuth: []
       description: Record a new investment transaction
       tags:
         - Investments
@@ -405,6 +435,10 @@ paths:
 
     post:
       summary: Create activity log entry
+      security:
+        - cookieAuth: []
+          csrfToken: []
+        - bearerAuth: []
       description: Record a new activity or event
       tags:
         - Activities
@@ -457,13 +491,13 @@ components:
           type: string
           minLength: 1
           description: Investment stage
-          example: "Series A"
+          example: 'Series A'
           enum: [Seed, Series A, Series B, Series C, Growth]
         sector:
           type: string
           minLength: 1
           description: Company sector
-          example: "SaaS"
+          example: 'SaaS'
           enum: [SaaS, Fintech, Healthcare, Analytics, Infrastructure, Enterprise]
 
     ReserveOutput:
@@ -488,7 +522,7 @@ components:
           type: string
           minLength: 1
           description: Human-readable explanation of allocation logic
-          example: "Series A stage, SaaS sector (ML-enhanced allocation)"
+          example: 'Series A stage, SaaS sector (ML-enhanced allocation)'
 
     ReserveSummary:
       type: object
@@ -530,7 +564,7 @@ components:
           type: string
           format: date-time
           description: Timestamp when allocations were calculated
-          example: "2024-01-15T10:30:00.000Z"
+          example: '2024-01-15T10:30:00.000Z'
 
     PacingInput:
       type: object
@@ -553,7 +587,7 @@ components:
           type: string
           enum: [bull, bear, neutral]
           description: Current market condition
-          example: "bull"
+          example: 'bull'
 
     PacingOutput:
       type: object
@@ -576,7 +610,7 @@ components:
           type: string
           minLength: 1
           description: Strategy note explaining deployment logic
-          example: "bull market pacing (early-stage focus)"
+          example: 'bull market pacing (early-stage focus)'
 
     PacingSummary:
       type: object
@@ -607,7 +641,7 @@ components:
           type: string
           enum: [bull, bear, neutral]
           description: Market condition used for pacing
-          example: "bull"
+          example: 'bull'
         deployments:
           type: array
           items:
@@ -617,7 +651,7 @@ components:
           type: string
           format: date-time
           description: Timestamp when pacing was calculated
-          example: "2024-01-15T10:30:00.000Z"
+          example: '2024-01-15T10:30:00.000Z'
 
     # Business Entity Types
     Fund:
@@ -635,11 +669,11 @@ components:
         name:
           type: string
           minLength: 1
-          example: "POVC Growth Fund I"
+          example: 'POVC Growth Fund I'
         size:
           type: string
           description: Fund size in USD (stored as string for precision)
-          example: "100000000"
+          example: '100000000'
         vintage:
           type: integer
           minimum: 2000
@@ -649,16 +683,16 @@ components:
         deployedCapital:
           type: string
           description: Total deployed capital in USD
-          example: "45000000"
+          example: '45000000'
         strategy:
           type: string
           maxLength: 256
           description: Investment strategy
-          example: "Growth-stage B2B SaaS"
+          example: 'Growth-stage B2B SaaS'
         createdAt:
           type: string
           format: date-time
-          example: "2023-01-01T00:00:00.000Z"
+          example: '2023-01-01T00:00:00.000Z'
 
     PortfolioCompany:
       type: object
@@ -676,7 +710,7 @@ components:
         name:
           type: string
           minLength: 1
-          example: "TechCorp Inc"
+          example: 'TechCorp Inc'
         fundId:
           type: integer
           minimum: 1
@@ -684,15 +718,15 @@ components:
         sector:
           type: string
           maxLength: 256
-          example: "SaaS"
+          example: 'SaaS'
         stage:
           type: string
           maxLength: 256
-          example: "Series B"
+          example: 'Series B'
         totalInvested:
           type: string
           description: Total amount invested
-          example: "2500000"
+          example: '2500000'
         ownershipPct:
           type: number
           minimum: 0
@@ -702,7 +736,7 @@ components:
         valuation:
           type: string
           description: Current valuation
-          example: "25000000"
+          example: '25000000'
         foundedYear:
           type: integer
           minimum: 1900
@@ -729,26 +763,26 @@ components:
         amount:
           type: string
           description: Investment amount in USD
-          example: "1500000"
+          example: '1500000'
         round:
           type: string
           maxLength: 256
           description: Investment round
-          example: "Series A"
+          example: 'Series A'
         date:
           type: string
           format: date
           description: Investment date
-          example: "2023-06-15"
+          example: '2023-06-15'
         valuation:
           type: string
           description: Company valuation at investment
-          example: "15000000"
+          example: '15000000'
         notes:
           type: string
           maxLength: 256
           description: Investment notes
-          example: "Lead investor with board seat"
+          example: 'Lead investor with board seat'
 
     FundMetrics:
       type: object
@@ -772,23 +806,23 @@ components:
           type: string
           format: date
           description: Metrics calculation date
-          example: "2024-01-01"
+          example: '2024-01-01'
         irr:
           type: string
           description: Internal Rate of Return
-          example: "0.24"
+          example: '0.24'
         multiple:
           type: string
           description: Investment multiple (TVPI)
-          example: "2.1"
+          example: '2.1'
         dpi:
           type: string
           description: Distributions to Paid-in capital ratio
-          example: "0.35"
+          example: '0.35'
         rvpi:
           type: string
           description: Residual Value to Paid-in capital ratio
-          example: "1.75"
+          example: '1.75'
 
     Activity:
       type: object
@@ -810,18 +844,18 @@ components:
         type:
           type: string
           description: Activity type
-          example: "investment"
+          example: 'investment'
           enum: [investment, exit, follow_on, board_meeting, milestone]
         description:
           type: string
           minLength: 1
           maxLength: 256
           description: Activity description
-          example: "Series B investment in TechCorp"
+          example: 'Series B investment in TechCorp'
         amount:
           type: string
           description: Associated monetary amount
-          example: "2500000"
+          example: '2500000'
         companyId:
           type: integer
           description: Related portfolio company ID
@@ -830,7 +864,7 @@ components:
           type: string
           format: date-time
           description: When the activity occurred
-          example: "2024-01-15T14:30:00.000Z"
+          example: '2024-01-15T14:30:00.000Z'
 
     DashboardSummary:
       type: object
@@ -889,12 +923,12 @@ components:
           type: string
           minLength: 1
           maxLength: 200
-          example: "POVC Growth Fund II"
+          example: 'POVC Growth Fund II'
         size:
           type: string
           pattern: '^[0-9]+$'
           description: Fund size in USD
-          example: "150000000"
+          example: '150000000'
         vintage:
           type: integer
           minimum: 2000
@@ -904,7 +938,7 @@ components:
           type: string
           maxLength: 256
           maxLength: 500
-          example: "Early to growth-stage enterprise software"
+          example: 'Early to growth-stage enterprise software'
 
     CreatePortfolioCompanyRequest:
       type: object
@@ -918,7 +952,7 @@ components:
           type: string
           minLength: 1
           maxLength: 200
-          example: "DataFlow Analytics"
+          example: 'DataFlow Analytics'
         fundId:
           type: integer
           minimum: 1
@@ -927,12 +961,12 @@ components:
           type: string
           maxLength: 256
           minLength: 1
-          example: "Analytics"
+          example: 'Analytics'
         stage:
           maxLength: 256
           type: string
           minLength: 1
-          example: "Series A"
+          example: 'Series A'
         foundedYear:
           type: integer
           minimum: 1900
@@ -954,20 +988,20 @@ components:
         amount:
           type: string
           pattern: '^[0-9]+$'
-          example: "3000000"
+          example: '3000000'
         round:
           type: string
           maxLength: 256
           minLength: 1
-          example: "Series B"
+          example: 'Series B'
         date:
           type: string
           format: date
-          example: "2024-03-15"
+          example: '2024-03-15'
         valuation:
           type: string
           pattern: '^[0-9]+$'
-          example: "30000000"
+          example: '30000000'
         notes:
           type: string
           maxLength: 256
@@ -988,17 +1022,17 @@ components:
         type:
           type: string
           enum: [investment, exit, follow_on, board_meeting, milestone]
-          example: "investment"
+          example: 'investment'
         description:
           type: string
           minLength: 1
           maxLength: 256
           maxLength: 500
-          example: "Completed Series B round"
+          example: 'Completed Series B round'
         amount:
           type: string
           pattern: '^[0-9]+$'
-          example: "5000000"
+          example: '5000000'
         companyId:
           type: integer
           minimum: 1
@@ -1006,7 +1040,7 @@ components:
         activityDate:
           type: string
           format: date-time
-          example: "2024-03-15T16:00:00.000Z"
+          example: '2024-03-15T16:00:00.000Z'
 
     # Error Response Types
     ApiError:
@@ -1018,11 +1052,11 @@ components:
         error:
           type: string
           description: Error type identifier
-          example: "Invalid fund ID"
+          example: 'Invalid fund ID'
         message:
           type: string
           description: Human-readable error message
-          example: "Fund ID must be a positive integer, received: abc"
+          example: 'Fund ID must be a positive integer, received: abc'
         code:
           type: integer
           description: Specific error code
@@ -1032,9 +1066,9 @@ components:
           description: Additional error context
           additionalProperties: true
           example:
-            field: "fundId"
-            received: "abc"
-            expected: "positive integer"
+            field: 'fundId'
+            received: 'abc'
+            expected: 'positive integer'
 
     ValidationError:
       allOf:
@@ -1095,8 +1129,8 @@ components:
           schema:
             $ref: '#/components/schemas/ApiError'
           example:
-            error: "Database operation failed"
-            message: "An unexpected error occurred while processing the request"
+            error: 'Database operation failed'
+            message: 'An unexpected error occurred while processing the request'
 
     ValidationError:
       description: Request validation failed
@@ -1105,13 +1139,13 @@ components:
           schema:
             $ref: '#/components/schemas/ValidationError'
           example:
-            error: "Invalid fund data"
-            message: "Fund validation failed"
+            error: 'Invalid fund data'
+            message: 'Fund validation failed'
             details:
               validationErrors:
-                - field: "size"
-                  message: "Size must be a positive number"
-                  code: "invalid_type"
+                - field: 'size'
+                  message: 'Size must be a positive number'
+                  code: 'invalid_type'
 
     InvalidIdError:
       description: Invalid ID parameter
@@ -1120,8 +1154,8 @@ components:
           schema:
             $ref: '#/components/schemas/ApiError'
           example:
-            error: "Invalid fund ID"
-            message: "Fund ID must be a positive integer, received: abc"
+            error: 'Invalid fund ID'
+            message: 'Fund ID must be a positive integer, received: abc'
 
     FundNotFound:
       description: Fund not found
@@ -1130,8 +1164,8 @@ components:
           schema:
             $ref: '#/components/schemas/ApiError'
           example:
-            error: "Fund not found"
-            message: "No fund exists with ID: 999"
+            error: 'Fund not found'
+            message: 'No fund exists with ID: 999'
 
     CompanyNotFound:
       description: Portfolio company not found
@@ -1140,8 +1174,8 @@ components:
           schema:
             $ref: '#/components/schemas/ApiError'
           example:
-            error: "Company not found"
-            message: "No portfolio company exists with ID: 999"
+            error: 'Company not found'
+            message: 'No portfolio company exists with ID: 999'
 
     InvestmentNotFound:
       description: Investment not found
@@ -1150,8 +1184,8 @@ components:
           schema:
             $ref: '#/components/schemas/ApiError'
           example:
-            error: "Investment not found"
-            message: "No investment exists with ID: 999"
+            error: 'Investment not found'
+            message: 'No investment exists with ID: 999'
 
     InvalidPacingParameters:
       description: Invalid pacing engine parameters
@@ -1160,7 +1194,7 @@ components:
           schema:
             $ref: '#/components/schemas/ApiError'
           example:
-            error: "Invalid market condition"
+            error: 'Invalid market condition'
             message: "Market condition must be 'bull', 'bear', or 'neutral', received: invalid-condition"
 
     EngineError:
@@ -1170,19 +1204,29 @@ components:
           schema:
             $ref: '#/components/schemas/ApiError'
           example:
-            error: "Reserve engine processing failed"
-            message: "Unable to calculate allocations due to insufficient data"
+            error: 'Reserve engine processing failed'
+            message: 'Unable to calculate allocations due to insufficient data'
             details:
               fundId: 1
-              reason: "portfolio_data_unavailable"
+              reason: 'portfolio_data_unavailable'
 
   # Security Schemes (for future authentication)
   securitySchemes:
+    cookieAuth:
+      type: apiKey
+      in: cookie
+      name: updog.session
+      description: Browser HttpOnly JWT cookie; unsafe requests also require X-CSRF-Token.
+    csrfToken:
+      type: apiKey
+      in: header
+      name: X-CSRF-Token
+      description: Signed jti-bound CSRF token for cookie-authenticated unsafe requests.
     bearerAuth:
       type: http
       scheme: bearer
       bearerFormat: JWT
-      description: JWT token-based authentication
+      description: Machine/service JWT transport; browser code must not use this scheme.
 
 tags:
   - name: Funds

@@ -18,6 +18,7 @@ import {
   type FlagValue,
 } from '../lib/flags.js';
 import { requireAuth, requireRole } from '../lib/auth/jwt.js';
+import { extractRequestCredential } from '../lib/auth/request-credentials.js';
 import { z } from 'zod';
 import { firstString } from '../lib/request-values';
 import { createRouteLogger } from '../lib/route-logger.js';
@@ -25,18 +26,24 @@ import { createRouteLogger } from '../lib/route-logger.js';
 const routeLog = createRouteLogger('flags');
 
 /**
- * Best-effort user identity from bearer token (no 401 on failure).
- * Used for flag targeting without requiring authentication.
+ * Best-effort user identity from the canonical optional user credential.
+ * Invalid tokens remain anonymous for this public route, but structurally
+ * invalid or ambiguous sources are rejected instead of applying precedence.
  */
-async function deriveUserFromToken(req: Request): Promise<{ id: string } | undefined> {
-  const authHeader = req.headers['authorization'];
-  if (!authHeader || !authHeader.startsWith('Bearer ')) return undefined;
+async function deriveUserFromCredential(
+  req: Request
+): Promise<{ user?: { id: string }; credentialError?: string }> {
+  const credential = extractRequestCredential(req);
+  if (credential.kind === 'none') return {};
+  if (credential.kind === 'ambiguous') return { credentialError: 'ambiguous_credentials' };
+  if (credential.kind === 'invalid') return { credentialError: 'invalid_credentials' };
+
   try {
     const { verifyAccessTokenAsync } = await import('../lib/auth/jwt.js');
-    const claims = await verifyAccessTokenAsync(authHeader.slice(7));
-    return claims.sub ? { id: claims.sub } : undefined;
+    const claims = await verifyAccessTokenAsync(credential.token);
+    return claims.sub ? { user: { id: claims.sub } } : {};
   } catch {
-    return undefined;
+    return {};
   }
 }
 
@@ -46,9 +53,13 @@ async function deriveUserFromToken(req: Request): Promise<{ id: string } | undef
 function registerClientFlagRoutes(router: Router): void {
   router['get']('/', async (req: Request, res: Response) => {
     try {
-      // Derive user identity from bearer token (best-effort, no 401 on failure)
+      // Derive user identity from a cookie or Bearer credential.
       // x-user-id header is deliberately ignored to prevent spoofing
-      const userContext = await deriveUserFromToken(req);
+      const derived = await deriveUserFromCredential(req);
+      if (derived.credentialError) {
+        return res.status(401).json({ error: derived.credentialError });
+      }
+      const userContext = derived.user;
       const isTargeted = !!userContext;
 
       const result = await getClientFlags(userContext);
@@ -69,7 +80,7 @@ function registerClientFlagRoutes(router: Router): void {
       // Targeted: private cache with Vary; Anonymous: public shared cache
       if (isTargeted) {
         res.setHeader('Cache-Control', 'private, max-age=15, must-revalidate');
-        res.setHeader('Vary', 'Authorization');
+        res.setHeader('Vary', 'Cookie, Authorization');
       } else {
         res.setHeader('Cache-Control', 'max-age=15, must-revalidate');
       }

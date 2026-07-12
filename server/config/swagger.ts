@@ -19,30 +19,43 @@ export const swaggerOptions: swaggerJSDoc.Options = {
       `,
       contact: {
         name: 'POVC Engineering Team',
-        url: 'https://github.com/nikhillinit/Updog_restore'
+        url: 'https://github.com/nikhillinit/Updog_restore',
       },
       license: {
         name: 'MIT',
-        url: 'https://opensource.org/licenses/MIT'
-      }
+        url: 'https://opensource.org/licenses/MIT',
+      },
     },
     servers: [
       {
         url: 'http://localhost:3001',
-        description: 'Development server'
+        description: 'Development server',
       },
       {
         url: 'https://api.povc.fund',
-        description: 'Production server'
-      }
+        description: 'Production server',
+      },
     ],
     components: {
       securitySchemes: {
         bearerAuth: {
           type: 'http',
           scheme: 'bearer',
-          bearerFormat: 'JWT'
-        }
+          bearerFormat: 'JWT',
+          description: 'Machine/service JWT transport. Browser code must not use this scheme.',
+        },
+        cookieAuth: {
+          type: 'apiKey',
+          in: 'cookie',
+          name: 'updog.session',
+          description: 'Browser HttpOnly JWT cookie. Unsafe requests also require X-CSRF-Token.',
+        },
+        csrfToken: {
+          type: 'apiKey',
+          in: 'header',
+          name: 'X-CSRF-Token',
+          description: 'Signed jti-bound token required for cookie-authenticated unsafe requests.',
+        },
       },
       schemas: {
         Error: {
@@ -50,19 +63,19 @@ export const swaggerOptions: swaggerJSDoc.Options = {
           properties: {
             error: {
               type: 'string',
-              description: 'Error type identifier'
+              description: 'Error type identifier',
             },
             message: {
               type: 'string',
-              description: 'Human-readable error message'
+              description: 'Human-readable error message',
             },
             rid: {
               type: 'string',
               format: 'uuid',
-              description: 'Request ID for tracing'
-            }
+              description: 'Request ID for tracing',
+            },
           },
-          required: ['error']
+          required: ['error'],
         },
         ValidationError: {
           allOf: [
@@ -77,13 +90,13 @@ export const swaggerOptions: swaggerJSDoc.Options = {
                     properties: {
                       path: { type: 'array', items: { type: 'string' } },
                       message: { type: 'string' },
-                      code: { type: 'string' }
-                    }
-                  }
-                }
-              }
-            }
-          ]
+                      code: { type: 'string' },
+                    },
+                  },
+                },
+              },
+            },
+          ],
         },
         ReserveInput: {
           type: 'object',
@@ -91,7 +104,7 @@ export const swaggerOptions: swaggerJSDoc.Options = {
             totalReserve: {
               type: 'number',
               minimum: 0,
-              description: 'Total reserve amount to allocate'
+              description: 'Total reserve amount to allocate',
             },
             allocations: {
               type: 'array',
@@ -100,24 +113,24 @@ export const swaggerOptions: swaggerJSDoc.Options = {
                 properties: {
                   category: {
                     type: 'string',
-                    description: 'Allocation category'
+                    description: 'Allocation category',
                   },
                   amount: {
                     type: 'number',
                     minimum: 0,
-                    description: 'Amount to allocate'
+                    description: 'Amount to allocate',
                   },
                   priority: {
                     type: 'integer',
                     minimum: 1,
-                    description: 'Allocation priority (1 = highest)'
-                  }
+                    description: 'Allocation priority (1 = highest)',
+                  },
                 },
-                required: ['category', 'amount', 'priority']
-              }
-            }
+                required: ['category', 'amount', 'priority'],
+              },
+            },
           },
-          required: ['totalReserve', 'allocations']
+          required: ['totalReserve', 'allocations'],
         },
         ReserveOutput: {
           type: 'object',
@@ -129,38 +142,57 @@ export const swaggerOptions: swaggerJSDoc.Options = {
                 properties: {
                   category: { type: 'string' },
                   allocated: { type: 'number' },
-                  requested: { type: 'number' }
-                }
-              }
+                  requested: { type: 'number' },
+                },
+              },
             },
             totalAllocated: {
               type: 'number',
-              description: 'Total amount allocated'
+              description: 'Total amount allocated',
             },
             remaining: {
               type: 'number',
-              description: 'Remaining unallocated reserve'
+              description: 'Remaining unallocated reserve',
             },
             rid: {
               type: 'string',
               format: 'uuid',
-              description: 'Request ID for tracing'
-            }
+              description: 'Request ID for tracing',
+            },
           },
-          required: ['allocations', 'totalAllocated', 'remaining', 'rid']
-        }
-      }
+          required: ['allocations', 'totalAllocated', 'remaining', 'rid'],
+        },
+      },
+    },
+    paths: {
+      '/api/auth/logout': {
+        post: {
+          summary: 'End the current authenticated session',
+          description:
+            'Cookie-authenticated requests require both the HttpOnly session cookie and X-CSRF-Token. Machine Bearer requests do not require CSRF.',
+          security: [{ cookieAuth: [], csrfToken: [] }, { bearerAuth: [] }],
+          responses: {
+            204: { description: 'Session cookies cleared and token revocation recorded' },
+            401: { description: 'Missing, invalid, or ambiguous credentials' },
+            403: { description: 'Cookie-authenticated request failed CSRF validation' },
+            503: { description: 'Cookies cleared but durable token revocation failed' },
+          },
+        },
+      },
     },
     security: [
       {
-        bearerAuth: []
-      }
-    ]
+        cookieAuth: [],
+      },
+      {
+        bearerAuth: [],
+      },
+    ],
   },
   apis: [
-    './server/routes/**/*.ts',  // Include route files
-    './server/app.ts'           // Include main app file
-  ]
+    './server/routes/**/*.ts', // Include route files
+    './server/app.ts', // Include main app file
+  ],
 };
 
 export const swaggerSpec = swaggerJSDoc(swaggerOptions);

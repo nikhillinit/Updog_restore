@@ -55,6 +55,7 @@ import { requireAuth } from './lib/auth/jwt.js';
 import { isPublicApiPath } from './lib/public-api-boundary.js';
 import { errorHandler } from './errors.js';
 import authRouter from './routes/auth.js';
+import { requireCsrf } from './lib/auth/csrf.js';
 
 export function makeApp() {
   const app = express();
@@ -110,7 +111,7 @@ export function makeApp() {
       res.setHeader('Access-Control-Allow-Credentials', 'true');
       res.setHeader(
         'Access-Control-Allow-Headers',
-        'content-type, authorization, x-request-id, if-match, idempotency-key'
+        'content-type, authorization, x-csrf-token, x-request-id, if-match, idempotency-key'
       );
       res.setHeader('Access-Control-Allow-Methods', 'GET,POST,PUT,PATCH,DELETE,OPTIONS');
     }
@@ -199,6 +200,11 @@ export function makeApp() {
 
     return requireApiAuth(req, res, next);
   });
+
+  // Cookie credentials are ambient. Enforce their jti-bound CSRF token after
+  // authentication has identified the credential source and before any route.
+  // Public unauthenticated routes pass here; login has its own pre-auth token.
+  app.use('/api', requireCsrf);
 
   // Auth: login endpoint. Router self-defines /api/auth/login; mounted at the bare
   // root AFTER the /api guard, which lets it through via isPublicApiPath(POST /auth/login).

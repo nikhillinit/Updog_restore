@@ -1,6 +1,5 @@
 import { QueryClientProvider } from '@tanstack/react-query';
 import { TooltipProvider } from '@/components/ui/tooltip';
-import { FundProvider } from '@/contexts/FundContext';
 import { FeatureFlagProvider } from '@/providers/FeatureFlagProvider';
 import { StagingRibbon } from '@/components/StagingRibbon';
 import { ErrorBoundary } from './components/ui/error-boundary';
@@ -12,11 +11,7 @@ import './styles/demo-animations.css';
 
 export { AppRouter } from '@/app/app-router';
 export { MobileNavigation } from '@/app/app-layout';
-export type {
-  AppRouteEntry,
-  ArchivedPlaceholderRouteEntry,
-  LPRouteEntry,
-} from '@/app/app-routes';
+export type { AppRouteEntry, ArchivedPlaceholderRouteEntry, LPRouteEntry } from '@/app/app-routes';
 export {
   ADMIN_GATED_ROUTES,
   APP_ROUTES,
@@ -35,14 +30,12 @@ function App() {
         <FeatureFlagProvider>
           <BrandChartThemeProvider>
             <StagingRibbon />
-            <FundProvider>
-              <TooltipProvider>
-                <DeferredDemoBanner />
-                <DeferredToaster />
-                <DeferredGuidedTour />
-                <AppRouter />
-              </TooltipProvider>
-            </FundProvider>
+            <TooltipProvider>
+              <DeferredDemoBanner />
+              <DeferredToaster />
+              <DeferredGuidedTour />
+              <AppRouter />
+            </TooltipProvider>
           </BrandChartThemeProvider>
         </FeatureFlagProvider>
       </QueryClientProvider>

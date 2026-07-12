@@ -1,6 +1,6 @@
 /**
  * Secure Context Management
- * Derives user context from JWT claims only, never trusts client headers
+ * Derives user context from verified JWT claims only, never trusts client headers
  */
 
 import type { Request, Response, NextFunction } from 'express';
@@ -8,6 +8,7 @@ import { db } from '../db.js';
 import { sql } from 'drizzle-orm';
 import { firstString } from './request-values';
 import { principalFromUser } from './auth/principal';
+import { RequestCredentialError } from './auth/request-credentials';
 
 export interface UserContext {
   userId: string; // JWT 'sub' claim
@@ -29,23 +30,17 @@ export interface JWTClaims {
 }
 
 /**
- * Extract and verify user context from JWT
+ * Extract and verify user context from the canonical request credential
  * NEVER trust X-User-Id or similar headers from client
  */
-import { getAuthToken } from './headers-helper';
-
 export async function extractUserContext(req: Request): Promise<UserContext | null> {
   // Lazy import to avoid circular dependency issues at module load time
-  const { userFromClaims, verifyAccessTokenAsync } = await import('./auth/jwt');
-  const token = getAuthToken(req.headers);
-
-  if (!token) {
-    return null;
-  }
+  const { userFromClaims, verifyRequestCredential } = await import('./auth/jwt');
 
   try {
-    // Verify JWT (supports both HS256 sync and RS256 async via JWKS)
-    const verifiedClaims = await verifyAccessTokenAsync(token);
+    const verifiedCredential = await verifyRequestCredential(req);
+    if (!verifiedCredential) return null;
+    const verifiedClaims = verifiedCredential.claims;
     const claims = verifiedClaims as JWTClaims;
     req.principal = principalFromUser(userFromClaims(req, verifiedClaims));
 
@@ -66,6 +61,7 @@ export async function extractUserContext(req: Request): Promise<UserContext | nu
 
     return context;
   } catch (error) {
+    if (error instanceof RequestCredentialError) throw error;
     console.error(
       'JWT verification failed:',
       error instanceof Error ? error.message : 'Unknown error'
@@ -109,6 +105,10 @@ export async function requireSecureContext(
     req.context = context;
     next();
   } catch (err) {
+    if (err instanceof RequestCredentialError) {
+      res.status(401).json({ error: err.code });
+      return;
+    }
     next(err);
   }
 }
@@ -256,8 +256,8 @@ export function getFlagsCacheHeaders(_context: UserContext): Record<string, stri
   };
 
   // Build Vary header based on actual context sources
-  // Since context comes from JWT, vary on Authorization
-  headers['Vary'] = 'Authorization';
+  // User context may come from the browser cookie or a machine Bearer JWT.
+  headers['Vary'] = 'Cookie, Authorization';
 
   return headers;
 }

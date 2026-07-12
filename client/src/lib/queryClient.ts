@@ -1,6 +1,6 @@
 import type { QueryFunction } from '@tanstack/react-query';
 import { QueryClient } from '@tanstack/react-query';
-import { getToken, clearToken } from './auth-token';
+import { AUTH_SESSION_QUERY_KEY } from './auth-session';
 
 /**
  * Structured API error that preserves server response details.
@@ -42,18 +42,9 @@ interface ApiRequestOptions {
   headers?: Record<string, string>;
 }
 
-function authHeaders(): Record<string, string> {
-  const token = getToken();
-  return token ? { Authorization: `Bearer ${token}` } : {};
-}
-
-/** On an unexpected 401, drop the (expired/invalid) token and bounce to /login.
- *  Guarded so it never loops when already on the login page. */
+/** Make an unexpected 401 visible to the session-gated application shell. */
 function handleUnauthorized(): void {
-  clearToken();
-  if (typeof window !== 'undefined' && window.location.pathname !== '/login') {
-    window.location.assign('/login');
-  }
+  queryClient.setQueryData(AUTH_SESSION_QUERY_KEY, null);
 }
 
 async function throwIfResNotOk(res: Response) {
@@ -81,7 +72,6 @@ export async function apiRequest<TResponse = unknown>(
     method,
     headers: {
       'Content-Type': 'application/json',
-      ...authHeaders(),
       ...requestOptions.headers,
     },
     credentials: 'include',
@@ -111,6 +101,7 @@ export async function apiRequest<TResponse = unknown>(
     throw new ApiError(response.status, errorMessage, errorCode, errorData.issues);
   }
 
+  if (response.status === 204) return undefined as TResponse;
   return response.json() as Promise<TResponse>;
 }
 
@@ -119,7 +110,6 @@ export function getQueryFn<T>(options: { on401: UnauthorizedBehavior }): QueryFu
   return async ({ queryKey }) => {
     const res = await fetch(queryKey.join('/') as string, {
       credentials: 'include',
-      headers: { ...authHeaders() },
     });
 
     if (res.status === 401) {
@@ -130,6 +120,7 @@ export function getQueryFn<T>(options: { on401: UnauthorizedBehavior }): QueryFu
     }
 
     await throwIfResNotOk(res);
+    if (res.status === 204) return undefined as T;
     return (await res.json()) as unknown as T;
   };
 }

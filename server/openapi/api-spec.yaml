@@ -16,14 +16,26 @@ servers:
     description: Production server
 
 security:
+  - cookieAuth: []
   - bearerAuth: []
 
 components:
   securitySchemes:
+    cookieAuth:
+      type: apiKey
+      in: cookie
+      name: updog.session
+      description: Browser HttpOnly JWT cookie; unsafe requests also require X-CSRF-Token.
+    csrfToken:
+      type: apiKey
+      in: header
+      name: X-CSRF-Token
+      description: Signed jti-bound CSRF token for cookie-authenticated unsafe requests.
     bearerAuth:
       type: http
       scheme: bearer
       bearerFormat: JWT
+      description: Machine/service JWT transport; browser code must not use this scheme.
 
   parameters:
     IfMatchHeader:
@@ -33,7 +45,7 @@ components:
         type: string
       required: true
       description: ETag value for optimistic concurrency control
-    
+
     IfNoneMatchHeader:
       in: header
       name: If-None-Match
@@ -41,7 +53,7 @@ components:
         type: string
       required: false
       description: ETag value for conditional GET
-    
+
     IdempotencyKeyHeader:
       in: header
       name: Idempotency-Key
@@ -49,7 +61,7 @@ components:
         type: string
       required: true
       description: Unique key for idempotent request processing
-    
+
     FundId:
       in: path
       name: fundId
@@ -333,9 +345,31 @@ components:
         ml.enabled: false
 
 paths:
+  /auth/logout:
+    post:
+      summary: End the current authenticated session
+      description: Cookie-authenticated requests require both updog.session and X-CSRF-Token; machine Bearer requests are CSRF-exempt.
+      security:
+        - cookieAuth: []
+          csrfToken: []
+        - bearerAuth: []
+      responses:
+        '204':
+          description: Session cookies cleared and token revocation recorded
+        '401':
+          description: Missing, invalid, or ambiguous credentials
+        '403':
+          description: Cookie-authenticated request failed CSRF validation
+        '503':
+          description: Cookies cleared but durable token revocation failed
+
   /reserves/calculate:
     post:
       summary: Calculate optimal reserve allocations
+      security:
+        - cookieAuth: []
+          csrfToken: []
+        - bearerAuth: []
       operationId: calculateReserves
       tags:
         - Reserves
@@ -385,6 +419,10 @@ paths:
   /reserves/calculate-protected:
     post:
       summary: Calculate reserves with approval guard
+      security:
+        - cookieAuth: []
+          csrfToken: []
+        - bearerAuth: []
       operationId: calculateReservesProtected
       tags:
         - Reserves
@@ -529,6 +567,10 @@ paths:
 
     post:
       summary: Sign an approval
+      security:
+        - cookieAuth: []
+          csrfToken: []
+        - bearerAuth: []
       operationId: signApproval
       tags:
         - Approvals
