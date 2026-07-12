@@ -52,6 +52,12 @@ export default defineConfig({
 
   /* Configure projects for major browsers */
   projects: [
+    {
+      name: 'd4-auth',
+      testMatch: '**/cookie-session-csrf.spec.ts',
+      use: { ...devices['Desktop Chrome'] },
+    },
+
     // Smoke tests - fastest, run first
     {
       name: 'smoke',

@@ -12,6 +12,10 @@ const engine = new ConstrainedReserveEngine();
  * /api/v1/reserves/calculate:
  *   post:
  *     summary: Calculate reserve allocations
+ *     security:
+ *       - cookieAuth: []
+ *         csrfToken: []
+ *       - bearerAuth: []
  *     description: |
  *       Calculates optimal reserve allocations based on input constraints.
  *       Uses the ConstrainedReserveEngine to distribute reserves across

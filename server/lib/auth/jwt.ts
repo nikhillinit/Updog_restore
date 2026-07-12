@@ -10,7 +10,7 @@
  */
 
 import { randomUUID } from 'node:crypto';
-import type { Algorithm, JwtPayload } from 'jsonwebtoken';
+import type { Algorithm, JwtPayload, SignOptions } from 'jsonwebtoken';
 import jwt from 'jsonwebtoken';
 import type { Request, Response, NextFunction } from 'express';
 import { parseFundIdParam } from '@shared/number';
@@ -19,6 +19,12 @@ import { authMetrics } from '../../telemetry';
 import { firstString } from '../request-values';
 import { resolveFundScope } from './fund-scope';
 import { principalFromUser } from './principal';
+import {
+  extractRequestCredential,
+  requestCredentialError,
+  RequestCredentialError,
+  type VerifiedRequestCredential,
+} from './request-credentials';
 
 export type JWTClaims = JwtPayload & {
   sub: string;
@@ -137,6 +143,32 @@ export async function verifyAccessTokenAsync(token: string): Promise<JWTClaims> 
   return claims;
 }
 
+/**
+ * Verify the canonical request credential once and cache the verified result on
+ * the request for downstream fund-scope, logout, CSRF, and targeting consumers.
+ */
+export async function verifyRequestCredential(
+  req: Request
+): Promise<VerifiedRequestCredential | null> {
+  if (req.authCredential) return req.authCredential as VerifiedRequestCredential;
+
+  const credential = extractRequestCredential(req);
+  if (credential.kind === 'none') return null;
+  if (credential.kind === 'invalid' || credential.kind === 'ambiguous') {
+    throw requestCredentialError(credential);
+  }
+
+  const claims = await verifyAccessTokenAsync(credential.token);
+  const verified: VerifiedRequestCredential = {
+    source: credential.kind,
+    token: credential.token,
+    claims,
+  };
+  // eslint-disable-next-line require-atomic-updates -- req is unique per Express request
+  req.authCredential = verified;
+  return verified;
+}
+
 type FundIdsParseResult = { valid: true; fundIds: number[] } | { valid: false; reason: string };
 
 function parseFundIds(value: unknown): FundIdsParseResult {
@@ -244,27 +276,28 @@ function assignDevelopmentUser(req: Request): void {
 
 export const requireAuth = () => async (req: Request, res: Response, next: NextFunction) => {
   const cfg = getJwtConfig();
-  const h = req.header('authorization') || '';
-  const token = h.startsWith('Bearer ') ? h.slice(7) : undefined;
-
-  if (cfg.NODE_ENV === 'development' && !cfg.REQUIRE_AUTH && !token) {
-    assignDevelopmentUser(req);
-    req.principal = principalFromUser(req.user);
-    return next();
-  }
-
-  if (!token) {
-    authMetrics.jwtMissingToken.inc?.();
-    return res.sendStatus(401);
-  }
 
   try {
-    // Use async verification to support both HS256 and RS256
-    const claims = await verifyAccessTokenAsync(token);
-    assignUserFromClaims(req, claims);
+    const verified = await verifyRequestCredential(req);
+    if (!verified) {
+      if (cfg.NODE_ENV === 'development' && !cfg.REQUIRE_AUTH) {
+        assignDevelopmentUser(req);
+        req.principal = principalFromUser(req.user);
+        return next();
+      }
+
+      authMetrics.jwtMissingToken.inc?.();
+      return res.sendStatus(401);
+    }
+
+    assignUserFromClaims(req, verified.claims);
     req.principal = principalFromUser(req.user);
     next();
   } catch (err: unknown) {
+    if (err instanceof RequestCredentialError) {
+      authMetrics.jwtVerificationFailed.inc?.();
+      return res.status(401).json({ error: err.code });
+    }
     console.warn('JWT verification failed', getJwtErrorDetails(err));
     authMetrics.jwtVerificationFailed.inc?.();
     return res.sendStatus(401);
@@ -326,13 +359,24 @@ export const requireExportFundGrant = (req: Request, res: Response, next: NextFu
   return next();
 };
 
-export function signToken(data: string | Buffer | object): string {
+function signTokenWithExpiry(
+  data: string | Buffer | object,
+  expiresIn: NonNullable<SignOptions['expiresIn']>
+): string {
   const cfg = getJwtConfig();
   return jwt.sign(data, cfg.JWT_SECRET!, {
     algorithm: 'HS256' as Algorithm,
-    expiresIn: '7d',
+    expiresIn,
     issuer: cfg.JWT_ISSUER,
     audience: cfg.JWT_AUDIENCE,
     jwtid: randomUUID(),
   });
+}
+
+export function signToken(data: string | Buffer | object): string {
+  return signTokenWithExpiry(data, '7d');
+}
+
+export function signBrowserSessionToken(data: string | Buffer | object): string {
+  return signTokenWithExpiry(data, '24h');
 }

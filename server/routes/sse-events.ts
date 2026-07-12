@@ -74,9 +74,8 @@ router['get']('/api/events/fund/:fundId', async (req: Request, res: Response) =>
   }
 
   // Authenticate and fund-scope before establishing the stream. Native
-  // EventSource cannot send a bearer token, so browser consumers are deferred to
-  // a future transport (query-token/cookie) decision; until then these routes are
-  // protected, not publicly streamable.
+  // EventSource uses the same-origin HttpOnly browser cookie; machine clients
+  // may continue using Bearer authentication.
   const scope = await resolveStreamScope(req, res);
   if (!scope) {
     return;

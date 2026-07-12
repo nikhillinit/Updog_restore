@@ -33,6 +33,7 @@ import { metricsRouter } from './routes/metrics-endpoint.js';
 import { installRumIngressGuards } from './routes/metrics-rum-ingress.js';
 import type { Providers } from './providers.js';
 import { isPublicApiPath } from './lib/public-api-boundary.js';
+import { requireCsrf } from './lib/auth/csrf.js';
 
 export { isPublicApiPath } from './lib/public-api-boundary.js';
 
@@ -114,6 +115,14 @@ export async function createServer(
     cors({
       origin: corsOrigins,
       credentials: true,
+      allowedHeaders: [
+        'Content-Type',
+        'Authorization',
+        'X-CSRF-Token',
+        'X-Request-ID',
+        'If-Match',
+        'Idempotency-Key',
+      ],
       exposedHeaders: ['X-Request-ID', 'RateLimit-Limit', 'RateLimit-Remaining', 'RateLimit-Reset'],
     })
   );
@@ -256,11 +265,21 @@ export async function createServer(
     requireSecureContext(req, res, next);
   });
 
+  // Match makeApp: authenticate first so the middleware can distinguish
+  // ambient cookie auth from non-ambient Bearer, then enforce before routes.
+  app.use('/api', requireCsrf);
+
   // Apply RLS transaction middleware to protected data routes
   app.use('/api', (req: Request, res: Response, next: NextFunction) => {
     // Skip for public endpoints (mount-relative paths)
     // /flags and /flags/status are public; /flags/admin/* requires auth+RLS
     if (isPublicApiPath(req.method, req.path)) {
+      return next();
+    }
+
+    // Logout has already passed authentication and CSRF. It revokes the
+    // credential itself and does not read or write fund-scoped data.
+    if (req.method === 'POST' && req.path === '/auth/logout') {
       return next();
     }
 

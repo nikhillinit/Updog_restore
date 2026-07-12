@@ -3,18 +3,14 @@ import type { NextFunction, Request, Response } from 'express';
 import { parseFundIdParam } from '@shared/number';
 
 import { resolveFundScope } from './fund-scope';
-import { userFromClaims, verifyAccessTokenAsync } from './jwt';
+import { userFromClaims, verifyRequestCredential } from './jwt';
 import { principalFromUser } from './principal';
-
-function bearerToken(req: Request): string | undefined {
-  const header = req.header('authorization') || '';
-  return header.startsWith('Bearer ') ? header.slice(7) : undefined;
-}
+import { RequestCredentialError } from './request-credentials';
 
 function assertTokenRequiredOutsideDevelopment(): void {
   const nodeEnv = process.env['NODE_ENV'] ?? 'development';
   if (nodeEnv !== 'development' && nodeEnv !== 'test') {
-    throw new Error(`Missing bearer token while enforcing provided fund scope in ${nodeEnv}`);
+    throw new Error(`Missing auth credential while enforcing provided fund scope in ${nodeEnv}`);
   }
 }
 
@@ -31,20 +27,19 @@ export async function enforceProvidedFundScope(
   res: Response,
   fundId: number
 ): Promise<boolean> {
-  const token = bearerToken(req);
-  if (token === undefined) {
-    assertTokenRequiredOutsideDevelopment();
-    if (req.user && resolveFundScope(principalFromUser(req.user), fundId) === 'deny') {
-      denyFundAccess(res, fundId);
-      return false;
-    }
-    return true;
-  }
-
   try {
-    const claims = await verifyAccessTokenAsync(token);
+    const verified = await verifyRequestCredential(req);
+    if (verified === null) {
+      assertTokenRequiredOutsideDevelopment();
+      if (req.user && resolveFundScope(principalFromUser(req.user), fundId) === 'deny') {
+        denyFundAccess(res, fundId);
+        return false;
+      }
+      return true;
+    }
+
     const existingUser = req.user;
-    const verifiedUser = userFromClaims(req, claims);
+    const verifiedUser = userFromClaims(req, verified.claims);
 
     req.user = {
       ...existingUser,
@@ -57,13 +52,52 @@ export async function enforceProvidedFundScope(
     }
 
     return true;
-  } catch {
+  } catch (error) {
+    if (error instanceof RequestCredentialError) {
+      res.status(401).json({ error: error.code });
+      return false;
+    }
     res.status(401).json({
       error: 'Unauthorized',
-      message: 'Invalid authorization token',
+      message: 'Invalid authentication credential',
     });
     return false;
   }
+}
+
+/*
+ * The no-credential development fallback is intentionally retained for direct
+ * route tests and the configured local bypass. Production remains fail-closed.
+ */
+function developmentVerifiedFundScope(req: Request): VerifiedFundScope {
+  if (req.user) {
+    const fundIds = req.user.fundIds ?? [];
+    const principal = principalFromUser(req.user);
+    const unrestricted = principal.kind === 'admin' || principal.kind === 'service';
+    return { unrestricted, fundIds };
+  }
+  return { unrestricted: true, fundIds: [] };
+}
+
+/*
+ * Keep the implementation below close to enforceProvidedFundScope so both
+ * callers share the exact credential verifier and role-aware user projection.
+ */
+async function verifiedFundScopeFromCredential(
+  req: Request
+): Promise<VerifiedFundScope | null | undefined> {
+  const verified = await verifyRequestCredential(req);
+  if (verified === null) {
+    assertTokenRequiredOutsideDevelopment();
+    return developmentVerifiedFundScope(req);
+  }
+
+  const verifiedUser = userFromClaims(req, verified.claims);
+  req.user = { ...req.user, ...verifiedUser };
+  const fundIds = verifiedUser.fundIds ?? [];
+  const principal = principalFromUser(verifiedUser);
+  const unrestricted = principal.kind === 'admin' || principal.kind === 'service';
+  return { unrestricted, fundIds };
 }
 
 /**
@@ -85,10 +119,10 @@ function parseProvidedFundId(raw: unknown): number | null {
 
 /**
  * Middleware: read fundId from req.body or req.query and enforce fund scope via
- * enforceProvidedFundScope, which re-verifies the bearer token and builds its own
+ * enforceProvidedFundScope, which verifies the request credential and builds its own
  * req.user. It deliberately never delegates to requireFundAccess: on the
  * registerRoutes surface global auth sets req.context (not req.user), so this
- * middleware must verify the bearer token itself before making a role-aware
+ * middleware must verify the request credential itself before making a role-aware
  * fund-scope decision.
  */
 export function requireProvidedFundScopeFrom(source: 'body' | 'query') {
@@ -115,7 +149,7 @@ export interface VerifiedFundScope {
 }
 
 /**
- * Return the caller's VERIFIED fund scope by re-verifying the bearer token; never
+ * Return the caller's VERIFIED fund scope by verifying the request credential; never
  * trusts an upstream-set req.user for a restricted decision. Mirrors
  * enforceProvidedFundScope's no-token contract: throws outside development/test,
  * and in development/test falls back to the upstream user (or an unrestricted dev
@@ -124,29 +158,8 @@ export interface VerifiedFundScope {
  * role; a non-admin with empty grants is not unrestricted and is denied.
  */
 export async function getVerifiedFundScope(req: Request): Promise<VerifiedFundScope | null> {
-  const token = bearerToken(req);
-  if (token === undefined) {
-    assertTokenRequiredOutsideDevelopment();
-    if (req.user) {
-      const fundIds = req.user.fundIds ?? [];
-      const principal = principalFromUser(req.user);
-      const unrestricted = principal.kind === 'admin' || principal.kind === 'service';
-      return { unrestricted, fundIds };
-    }
-    return { unrestricted: true, fundIds: [] };
-  }
-
   try {
-    const claims = await verifyAccessTokenAsync(token);
-    const verifiedUser = userFromClaims(req, claims);
-    req.user = {
-      ...req.user,
-      ...verifiedUser,
-    };
-    const fundIds = verifiedUser.fundIds ?? [];
-    const principal = principalFromUser(verifiedUser);
-    const unrestricted = principal.kind === 'admin' || principal.kind === 'service';
-    return { unrestricted, fundIds };
+    return (await verifiedFundScopeFromCredential(req)) ?? null;
   } catch {
     return null;
   }

@@ -7,9 +7,10 @@ import { installFetchTap } from './debug/fetch-tap';
 import { checkEmergencyRollback } from './debug/emergency-rollback';
 import { bootstrapMonitoring } from './monitoring/bootstrap';
 import { installAuthFetch } from './lib/install-auth-fetch';
+import { purgeLegacyAuthToken } from './lib/auth-token';
 
-// Attach Bearer token to same-origin /api/* requests (all envs). Fixes prod 401s
-// on hooks that call fetch('/api/...') raw and bypass apiRequest/getQueryFn (#1072).
+purgeLegacyAuthToken();
+// Include cookie credentials and protect raw same-origin API mutations with CSRF.
 installAuthFetch();
 
 if (import.meta.env.DEV) {

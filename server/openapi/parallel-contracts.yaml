@@ -10,10 +10,21 @@ servers:
 
 components:
   securitySchemes:
+    CookieAuth:
+      type: apiKey
+      in: cookie
+      name: updog.session
+      description: Browser HttpOnly JWT cookie; unsafe requests also require X-CSRF-Token.
+    CsrfToken:
+      type: apiKey
+      in: header
+      name: X-CSRF-Token
+      description: Signed jti-bound CSRF token for cookie-authenticated unsafe requests.
     BearerAuth:
       type: http
       scheme: bearer
       bearerFormat: JWT
+      description: Machine/service JWT transport; browser code must not use this scheme.
 
   parameters:
     IfMatch:
@@ -23,7 +34,7 @@ components:
       schema:
         type: string
       description: Row version for optimistic concurrency control
-    
+
     IdempotencyKey:
       name: Idempotency-Key
       in: header
@@ -31,7 +42,7 @@ components:
       schema:
         type: string
       description: Unique key for idempotent operations
-    
+
     XOrgId:
       name: X-Org-Id
       in: header
@@ -40,7 +51,7 @@ components:
         type: string
         format: uuid
       description: Organization context for RLS
-    
+
     XFundId:
       name: X-Fund-Id
       in: header
@@ -187,13 +198,35 @@ components:
           format: date-time
 
 paths:
+  /auth/logout:
+    post:
+      summary: End the current authenticated session
+      description: Cookie-authenticated requests require both updog.session and X-CSRF-Token; machine Bearer requests are CSRF-exempt.
+      security:
+        - CookieAuth: []
+          CsrfToken: []
+        - BearerAuth: []
+      responses:
+        '204':
+          description: Session cookies cleared and token revocation recorded
+        '401':
+          description: Missing, invalid, or ambiguous credentials
+        '403':
+          description: Cookie-authenticated request failed CSRF validation
+        '503':
+          description: Cookies cleared but durable token revocation failed
+
   # ==========================================================
   # CONCURRENCY ENDPOINTS (Step 2)
   # ==========================================================
-  
+
   /funds/{fundId}/config:
     patch:
       summary: Update fund configuration with optimistic locking
+      security:
+        - CookieAuth: []
+          CsrfToken: []
+        - BearerAuth: []
       parameters:
         - $ref: '#/components/parameters/IfMatch'
         - name: fundId
@@ -225,7 +258,7 @@ paths:
   # ==========================================================
   # MULTI-TENANCY ENDPOINTS (Step 3)
   # ==========================================================
-  
+
   /flags:
     get:
       summary: Get resolved feature flags for current context
@@ -262,6 +295,8 @@ paths:
     patch:
       summary: Update feature flag value
       security:
+        - CookieAuth: []
+          CsrfToken: []
         - BearerAuth: [admin]
       parameters:
         - name: key
@@ -297,7 +332,7 @@ paths:
   # ==========================================================
   # VERSIONING ENDPOINTS (Step 4)
   # ==========================================================
-  
+
   /calc-versions:
     get:
       summary: List available calculation versions
@@ -325,6 +360,10 @@ paths:
   /reserves/calculate:
     post:
       summary: Calculate reserves with versioning and protection
+      security:
+        - CookieAuth: []
+          CsrfToken: []
+        - BearerAuth: []
       parameters:
         - $ref: '#/components/parameters/IdempotencyKey'
         - $ref: '#/components/parameters/XOrgId'
@@ -375,6 +414,10 @@ paths:
   /reserves/compare:
     post:
       summary: Compare results across versions
+      security:
+        - CookieAuth: []
+          CsrfToken: []
+        - BearerAuth: []
       requestBody:
         required: true
         content:
@@ -406,10 +449,14 @@ paths:
   # ==========================================================
   # APPROVAL ENDPOINTS
   # ==========================================================
-  
+
   /approvals:
     post:
       summary: Create approval request
+      security:
+        - CookieAuth: []
+          CsrfToken: []
+        - BearerAuth: []
       requestBody:
         required: true
         content:
@@ -427,6 +474,10 @@ paths:
   /approvals/{approvalId}/sign:
     post:
       summary: Add signature to approval
+      security:
+        - CookieAuth: []
+          CsrfToken: []
+        - BearerAuth: []
       parameters:
         - name: approvalId
           in: path
@@ -452,7 +503,7 @@ paths:
   # ==========================================================
   # AUDIT ENDPOINTS (Step 6)
   # ==========================================================
-  
+
   /audit/events:
     get:
       summary: Query audit trail
@@ -510,7 +561,7 @@ paths:
   # ==========================================================
   # METRICS ENDPOINT (Step 7)
   # ==========================================================
-  
+
   /metrics:
     get:
       summary: Prometheus metrics endpoint
