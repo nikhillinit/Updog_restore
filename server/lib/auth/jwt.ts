@@ -17,6 +17,7 @@ import { parseFundIdParam } from '@shared/number';
 import { getConfig } from '../../config';
 import { authMetrics } from '../../telemetry';
 import { firstString } from '../request-values';
+import { principalFromUser } from './principal';
 
 export type JWTClaims = JwtPayload & {
   sub: string;
@@ -108,24 +109,31 @@ export function verifyAccessToken(token: string): JWTClaims {
  */
 export async function verifyAccessTokenAsync(token: string): Promise<JWTClaims> {
   const cfg = getJwtConfig();
+  let claims: JWTClaims;
+
   if (cfg.JWT_ALG === 'HS256') {
-    return verifyAccessToken(token);
+    claims = verifyAccessToken(token);
+  } else {
+    // RS256: Decode header to get kid, then fetch public key
+    const decoded = jwt.decode(token, { complete: true });
+    if (!decoded || typeof decoded === 'string' || !decoded.header.kid) {
+      throw new Error('Invalid token: missing kid in header');
+    }
+
+    const publicKey = await getSigningKey(decoded.header.kid);
+    const verified = jwt.verify(token, publicKey, {
+      algorithms: ['RS256' as Algorithm],
+      issuer: cfg.JWT_ISSUER,
+      audience: cfg.JWT_AUDIENCE,
+    });
+    claims = verified as JWTClaims;
   }
 
-  // RS256: Decode header to get kid, then fetch public key
-  const decoded = jwt.decode(token, { complete: true });
-  if (!decoded || typeof decoded === 'string' || !decoded.header.kid) {
-    throw new Error('Invalid token: missing kid in header');
-  }
-
-  const publicKey = await getSigningKey(decoded.header.kid);
-  const verified = jwt.verify(token, publicKey, {
-    algorithms: ['RS256' as Algorithm],
-    issuer: cfg.JWT_ISSUER,
-    audience: cfg.JWT_AUDIENCE,
-  });
-
-  return verified as JWTClaims;
+  // Keep the sync verifier crypto-only while every production enforcement
+  // surface inherits revocation and identity-state checks from this async path.
+  const { assertTokenUsable } = await import('./revocation');
+  await assertTokenUsable(claims);
+  return claims;
 }
 
 type FundIdsParseResult = { valid: true; fundIds: number[] } | { valid: false; reason: string };
@@ -241,6 +249,7 @@ export const requireAuth = () => async (req: Request, res: Response, next: NextF
 
   if (cfg.NODE_ENV === 'development' && !cfg.REQUIRE_AUTH && !token) {
     assignDevelopmentUser(req);
+    req.principal = principalFromUser(req.user);
     return next();
   }
 
@@ -253,6 +262,7 @@ export const requireAuth = () => async (req: Request, res: Response, next: NextF
     // Use async verification to support both HS256 and RS256
     const claims = await verifyAccessTokenAsync(token);
     assignUserFromClaims(req, claims);
+    req.principal = principalFromUser(req.user);
     next();
   } catch (err: unknown) {
     console.warn('JWT verification failed', getJwtErrorDetails(err));
