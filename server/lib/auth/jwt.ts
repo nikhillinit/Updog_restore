@@ -17,6 +17,7 @@ import { parseFundIdParam } from '@shared/number';
 import { getConfig } from '../../config';
 import { authMetrics } from '../../telemetry';
 import { firstString } from '../request-values';
+import { resolveFundScope } from './fund-scope';
 import { principalFromUser } from './principal';
 
 export type JWTClaims = JwtPayload & {
@@ -167,13 +168,12 @@ function fundIdsFromClaims(value: unknown): number[] {
 }
 
 /**
- * JWT fund-scope contract:
- * - Missing or empty fundIds means unrestricted admin/service access.
- * - Non-empty fundIds restrict access to the listed fund IDs only.
+ * Legacy compatibility helper that preserves the historical
+ * empty-fundIds-is-unrestricted contract for direct consumers.
  *
- * Empty scope is privileged. Issuers must mint fundIds: [] only for trusted
- * admin or service identities, and every route helper must call this function
- * instead of reimplementing the empty-array branch locally.
+ * Do not use this helper in production authorization guards. Role-aware guards
+ * must resolve principalFromUser(...) through resolveFundScope(...), which
+ * denies anonymous and non-admin callers with empty grants.
  */
 export function hasFundAccess(fundIds: unknown, fundId: number): boolean {
   const result = parseFundIds(fundIds);
@@ -299,7 +299,7 @@ export const requireFundAccess = (req: Request, res: Response, next: NextFunctio
     });
   }
 
-  if (hasFundAccess(req.user?.fundIds, fundId)) {
+  if (resolveFundScope(principalFromUser(req.user), fundId) === 'allow') {
     return next();
   }
 

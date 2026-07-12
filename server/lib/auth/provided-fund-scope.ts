@@ -87,9 +87,9 @@ function parseProvidedFundId(raw: unknown): number | null {
  * Middleware: read fundId from req.body or req.query and enforce fund scope via
  * enforceProvidedFundScope, which re-verifies the bearer token and builds its own
  * req.user. It deliberately never delegates to requireFundAccess: on the
- * registerRoutes surface global auth sets req.context (not req.user), so a guard
- * that reads req.user?.fundIds sees undefined and hasFundAccess(undefined, ...)
- * returns true -- a silent fail-open.
+ * registerRoutes surface global auth sets req.context (not req.user), so this
+ * middleware must verify the bearer token itself before making a role-aware
+ * fund-scope decision.
  */
 export function requireProvidedFundScopeFrom(source: 'body' | 'query') {
   return async (req: Request, res: Response, next: NextFunction): Promise<void> => {
@@ -120,8 +120,8 @@ export interface VerifiedFundScope {
  * enforceProvidedFundScope's no-token contract: throws outside development/test,
  * and in development/test falls back to the upstream user (or an unrestricted dev
  * bypass when none is present). Returns null only for an invalid or expired token
- * so the caller can respond 401. unrestricted === true means empty fundIds
- * (privileged admin/service scope).
+ * so the caller can respond 401. unrestricted === true means an admin/service
+ * role; a non-admin with empty grants is not unrestricted and is denied.
  */
 export async function getVerifiedFundScope(req: Request): Promise<VerifiedFundScope | null> {
   const token = bearerToken(req);
@@ -129,7 +129,9 @@ export async function getVerifiedFundScope(req: Request): Promise<VerifiedFundSc
     assertTokenRequiredOutsideDevelopment();
     if (req.user) {
       const fundIds = req.user.fundIds ?? [];
-      return { unrestricted: fundIds.length === 0, fundIds };
+      const principal = principalFromUser(req.user);
+      const unrestricted = principal.kind === 'admin' || principal.kind === 'service';
+      return { unrestricted, fundIds };
     }
     return { unrestricted: true, fundIds: [] };
   }
@@ -142,7 +144,9 @@ export async function getVerifiedFundScope(req: Request): Promise<VerifiedFundSc
       ...verifiedUser,
     };
     const fundIds = verifiedUser.fundIds ?? [];
-    return { unrestricted: fundIds.length === 0, fundIds };
+    const principal = principalFromUser(verifiedUser);
+    const unrestricted = principal.kind === 'admin' || principal.kind === 'service';
+    return { unrestricted, fundIds };
   } catch {
     return null;
   }
