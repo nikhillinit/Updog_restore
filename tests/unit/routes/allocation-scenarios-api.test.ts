@@ -252,7 +252,9 @@ describe('Allocation scenarios API', () => {
         id: '17',
         sub: '17',
         email: 'analyst@example.com',
+        role: 'analyst',
         roles: ['analyst'],
+        fundIds: [1],
         ip: '127.0.0.1',
         userAgent: 'vitest',
       };

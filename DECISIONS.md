@@ -49,6 +49,7 @@ development of the Press On Ventures fund modeling platform.
 - [ADR-033: Marginal Next-Dollar Reserve MOIC Model (expanded in docs/adr/)](#adr-033-marginal-next-dollar-reserve-moic-model-expanded-in-docsadr)
 - [ADR-034: Browser Auth Contract (Bearer HS256, 7-Day Token, localStorage, Task 7)](#adr-034-browser-auth-contract-bearer-hs256-7-day-token-localstorage-task-7)
 - [ADR-035: Ordered Manifests as the Executable Production Schema Contract](#adr-035-ordered-manifests-as-the-executable-production-schema-contract)
+- [ADR-036: Named Identities, Explicit Fund Grants, and jti Revocation (Plan 2)](#adr-036-named-identities-explicit-fund-grants-and-jti-revocation-plan-2)
 
 ---
 
@@ -5759,3 +5760,72 @@ distinguish repairable additive gaps from states requiring an operator decision.
   per manifest and an authenticated deployed smoke. Audit workflow success alone
   does not prove clean schema state, and a green `release:check` does not claim
   either deployment result.
+
+---
+
+## ADR-036: Named Identities, Explicit Fund Grants, and jti Revocation (Plan 2)
+
+**Date:** 2026-07-11 **Status:** [IMPLEMENTED] Implemented **Decision:** Extend
+the ADR-034 Bearer contract with per-person identities (roles plus explicit fund
+grants) and make Bearer tokens individually revocable via a `jti` denylist,
+without introducing cookie sessions or CSRF. ADR-034's transport stays in force
+(HS256, 7-day, localStorage, no refresh). The cookie-session plus CSRF transport
+(decision D4) remains deferred.
+
+### Context
+
+ADR-034 shipped Bearer auth but deferred per-fund/non-admin scoping, left every
+token an unrestricted admin, and did not make tokens individually revocable.
+Plan 2 adds the identity and revocation slice that makes those deferrals
+actionable while keeping the Bearer transport.
+
+### Decision
+
+- Identity schema (migration 0031, additive/replay-safe): `users` gains `role`,
+  `is_active`, and password/created/updated timestamps; `user_fund_grants`
+  records explicit per-user fund access; `revoked_tokens` is a `jti` denylist.
+  There is no `auth_sessions` table.
+- Every minted token carries a random `jti` (`signToken` `jwtid`).
+  `verifyAccessTokenAsync` -- the primitive used by both runtime surfaces and
+  route-level verification -- performs a fail-closed `assertTokenUsable` check:
+  a denylisted `jti` or an explicitly inactive user is rejected, and any
+  denylist/identity query error denies. Logout and user deactivation take effect
+  on the next verified request.
+- `enforceProvidedFundScope` decides with role-aware
+  `resolveFundScope(principalFromUser(...))`: admin/service are unrestricted; a
+  non-admin caller with empty grants is denied (403). This is proven on both the
+  `makeApp` and `registerRoutes` surfaces.
+- Production provisioning consumes an external, untracked, validated identity
+  file; no repository-defined dev password authenticates in production; bcrypt
+  cost is 12 in production.
+
+### Alternatives Considered
+
+- **Build the deferred cookie-session/CSRF system now (D4):** rejected for this
+  slice -- the useful, low-cost revocation capability is a `jti` denylist,
+  achievable without cookie transport.
+- **Redis-backed denylist:** rejected -- a plain indexed table with a
+  per-request lookup is right-sized for a team of about five users.
+- **Enumerate and revoke a user's tokens on deactivation:** rejected -- no
+  session store exists; the per-request `is_active` check makes deactivation
+  effective without tracking outstanding `jti` values.
+
+### Consequences
+
+- Amends ADR-034's deferred consequences: the fail-closed fund-scope migration
+  is now implemented (the empty-`fundIds` "allow" safety net flips to 403 for
+  non-admin callers), and an identity schema now exists. ADR-034's Bearer
+  transport and storage are unchanged. External production provisioning also
+  supersedes ADR-034's acceptance of repository-defined provisioning passwords:
+  dev-seed passwords are now rejected for production identities.
+- The `jti` transition is handled by `JWT_SECRET` rotation (a Plan 0 operation):
+  pre-rotation tokens have no `jti` and skip the denylist; after rotation every
+  token has a `jti`.
+- Residual `empty == unrestricted` logic remains in `requireFundAccess` and
+  `getVerifiedFundScope` (latent because login still mints admin/empty for every
+  user); wiring real per-user roles and grants into the login token is a
+  follow-up. Cookie sessions (D4) remain a deferred TODO.
+
+**Implementation:** PR #1077 (migration 0031; tasks 2.1 schema, 2.2 external
+provisioning, `jti` minting, 2.4 revocation plus principal, and 2.6 fail-closed
+fund scope).

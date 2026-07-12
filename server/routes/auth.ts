@@ -1,7 +1,10 @@
 import { Router, type Request, type Response } from 'express';
+import jwt from 'jsonwebtoken';
 import { z } from 'zod';
 import { verifyCredentials } from '../lib/auth/credentials';
 import { signToken } from '../lib/auth/jwt';
+import { revokeToken } from '../lib/auth/revocation';
+import { getAuthToken } from '../lib/headers-helper';
 
 const loginSchema = z.object({
   username: z.string().min(1),
@@ -36,6 +39,28 @@ authRouter.post('/api/auth/login', async (req: Request, res: Response) => {
   });
 
   return res.json({ token });
+});
+
+authRouter.post('/api/auth/logout', async (req: Request, res: Response) => {
+  const token = getAuthToken(req.headers);
+  if (!token) {
+    return res.sendStatus(204);
+  }
+
+  // The global /api boundary has already verified this exact Bearer token.
+  const claims = jwt.decode(token);
+  if (!claims || typeof claims === 'string' || typeof claims.jti !== 'string' || !claims.jti) {
+    return res.sendStatus(204);
+  }
+
+  await revokeToken({
+    jti: claims.jti,
+    userId: Number(claims.sub),
+    expiresAt: new Date((claims.exp ?? 0) * 1000),
+    reason: 'logout',
+  });
+
+  return res.sendStatus(204);
 });
 
 export default authRouter;

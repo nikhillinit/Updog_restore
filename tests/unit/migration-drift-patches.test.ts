@@ -6,6 +6,7 @@ import { describe, expect, it } from 'vitest';
 const repoRoot = process.cwd();
 const h9MigrationTag = '0029_h9_actionability_reconcile_drift';
 const allocationScenarioMigrationTag = '0030_allocation_scenarios_reconcile_drift';
+const identityMigrationTag = '0031_user_identity_grants_revocation';
 const journalPath = path.join(repoRoot, 'migrations', 'meta', '_journal.json');
 const allocationScenarioTables = [
   'allocation_scenarios',
@@ -41,6 +42,13 @@ const allocationScenarioConstraintNames = [
   'allocation_scenario_ic_decisions_status_check',
   'allocation_scenario_ic_decisions_proposed_non_negative',
   'allocation_scenario_ic_decisions_final_non_negative',
+] as const;
+const identityTableNames = ['user_fund_grants', 'revoked_tokens'] as const;
+const identityConstraintNames = [
+  'users_role_check',
+  'user_fund_grants_user_id_users_id_fk',
+  'user_fund_grants_fund_id_funds_id_fk',
+  'revoked_tokens_user_id_users_id_fk',
 ] as const;
 
 type JournalEntry = {
@@ -194,6 +202,83 @@ describe('Allocation scenario reconcile drift patch migration', () => {
       breakpoints: true,
     });
     expect(entries[0]?.when).toBeGreaterThan(1783790526019);
+  });
+});
+
+describe('Identity reconcile drift patch migration', () => {
+  it('marks 0031 as a drift patch on the first line', () => {
+    expect(fs.existsSync(migrationPath(identityMigrationTag))).toBe(true);
+
+    const firstLine = readMigrationSql(identityMigrationTag).split(/\r?\n/, 1)[0];
+
+    expect(firstLine).toBe('-- @drift-patch');
+  });
+
+  it('uses replay-safe guards for table, column, and index changes', () => {
+    const sql = readMigrationSql(identityMigrationTag);
+    const createTableIfNotExists = sql.match(/\bCREATE\s+TABLE\s+IF\s+NOT\s+EXISTS\b/gi) ?? [];
+    const bareCreateTable = sql.match(/\bCREATE\s+TABLE\b(?!\s+IF\s+NOT\s+EXISTS\b)/gi) ?? [];
+    const addColumnIfNotExists = sql.match(/\bADD\s+COLUMN\s+IF\s+NOT\s+EXISTS\b/gi) ?? [];
+    const bareAddColumn = sql.match(/\bADD\s+COLUMN\b(?!\s+IF\s+NOT\s+EXISTS\b)/gi) ?? [];
+    const createIndexIfNotExists = sql.match(/\bCREATE\s+INDEX\s+IF\s+NOT\s+EXISTS\b/gi) ?? [];
+    const bareCreateIndex = sql.match(/\bCREATE\s+INDEX\b(?!\s+IF\s+NOT\s+EXISTS\b)/gi) ?? [];
+
+    expect(createTableIfNotExists).toHaveLength(identityTableNames.length);
+    expect(bareCreateTable).toEqual([]);
+    expect(addColumnIfNotExists).toHaveLength(5);
+    expect(bareAddColumn).toEqual([]);
+    expect(createIndexIfNotExists).toHaveLength(1);
+    expect(bareCreateIndex).toEqual([]);
+
+    for (const tableName of identityTableNames) {
+      expect(sql).toMatch(
+        new RegExp(`CREATE\\s+TABLE\\s+IF\\s+NOT\\s+EXISTS\\s+"${tableName}"`, 'i')
+      );
+    }
+    expect(sql).toContain('CREATE INDEX IF NOT EXISTS "revoked_tokens_expires_at_idx"');
+  });
+
+  it('guards every identity constraint addition inside pg_constraint-aware DO blocks', () => {
+    const sql = readMigrationSql(identityMigrationTag);
+    const doBlocks = sql.match(/DO\s+\$\$[\s\S]*?END\s*\$\$;/gi) ?? [];
+    const addConstraintBlocks = doBlocks.filter((block) => /\bADD\s+CONSTRAINT\b/i.test(block));
+    const topLevelSql = sql.replace(/DO\s+\$\$[\s\S]*?END\s*\$\$;/gi, '');
+
+    expect(addConstraintBlocks).toHaveLength(identityConstraintNames.length);
+    expect(topLevelSql).not.toMatch(/\bADD\s+CONSTRAINT\b/i);
+
+    for (const block of addConstraintBlocks) {
+      expect(block).toMatch(/\bNOT\s+EXISTS\s*\(\s*SELECT\s+1\s+FROM\s+pg_constraint\b/i);
+    }
+
+    for (const constraintName of identityConstraintNames) {
+      expect(
+        addConstraintBlocks.some(
+          (block) => block.includes(`"${constraintName}"`) || block.includes(`'${constraintName}'`)
+        )
+      ).toBe(true);
+    }
+  });
+
+  it('does not contain destructive operations or the deferred cookie-session table', () => {
+    const sql = readMigrationSql(identityMigrationTag);
+
+    expect(sql).not.toMatch(/\bDROP\s+/i);
+    expect(sql).not.toMatch(/\bRENAME\s+/i);
+    expect(sql).not.toContain('auth_sessions');
+  });
+
+  it('journals 0031 exactly once at idx 32', () => {
+    const entries = readJournalEntries().filter((entry) => entry.tag === identityMigrationTag);
+
+    expect(entries).toHaveLength(1);
+    expect(entries[0]).toMatchObject({
+      idx: 32,
+      version: '7',
+      tag: identityMigrationTag,
+      breakpoints: true,
+    });
+    expect(entries[0]?.when).toBeGreaterThan(1783791316672);
   });
 });
 

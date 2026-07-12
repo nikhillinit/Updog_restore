@@ -225,6 +225,13 @@
       "when": 1783791316672,
       "tag": "0030_allocation_scenarios_reconcile_drift",
       "breakpoints": true
+    },
+    {
+      "idx": 32,
+      "version": "7",
+      "when": 1783806971283,
+      "tag": "0031_user_identity_grants_revocation",
+      "breakpoints": true
     }
   ]
 }

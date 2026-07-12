@@ -1,6 +1,6 @@
 ---
 status: ACTIVE
-last_updated: 2026-06-22
+last_updated: 2026-07-11
 ---
 
 # POVC Fund-Modeling Platform
@@ -28,6 +28,10 @@ Current secondary-surface exposure is intentionally narrow:
 - Compass remains experimental and unmounted on the server
 - MOIC rankings must come from the live fund-scoped contract with provenance;
   sample rankings are not a production fallback
+- Auth remains a 7-day HS256 Bearer JWT in localStorage, extended by Plan 2 with
+  a named-identity and explicit-grant schema, fail-closed provided-fund checks,
+  and `jti` revocation; login claim wiring remains pending. See ADR-034 and
+  ADR-036 in [DECISIONS.md](DECISIONS.md)
 - Investment round routes enforce fund scope on create, list, and read; the
   `enable_investment_rounds` flag remains off for production until explicit
   readiness gates are accepted

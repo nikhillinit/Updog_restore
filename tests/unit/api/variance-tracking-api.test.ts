@@ -125,7 +125,16 @@ describe('Variance Tracking API', () => {
 
     // Mock authentication middleware
     app.use((req: any, res, next) => {
-      req.user = { id: '1' };
+      req.user = {
+        id: '1',
+        sub: '1',
+        email: 'analyst@example.com',
+        role: 'analyst',
+        roles: ['analyst'],
+        fundIds: [1],
+        ip: '127.0.0.1',
+        userAgent: 'vitest',
+      };
       next();
     });
 

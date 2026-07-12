@@ -2,7 +2,9 @@ import type { NextFunction, Request, Response } from 'express';
 
 import { parseFundIdParam } from '@shared/number';
 
-import { hasFundAccess, userFromClaims, verifyAccessTokenAsync } from './jwt';
+import { resolveFundScope } from './fund-scope';
+import { userFromClaims, verifyAccessTokenAsync } from './jwt';
+import { principalFromUser } from './principal';
 
 function bearerToken(req: Request): string | undefined {
   const header = req.header('authorization') || '';
@@ -32,7 +34,7 @@ export async function enforceProvidedFundScope(
   const token = bearerToken(req);
   if (token === undefined) {
     assertTokenRequiredOutsideDevelopment();
-    if (req.user && !hasFundAccess(req.user.fundIds, fundId)) {
+    if (req.user && resolveFundScope(principalFromUser(req.user), fundId) === 'deny') {
       denyFundAccess(res, fundId);
       return false;
     }
@@ -49,7 +51,7 @@ export async function enforceProvidedFundScope(
       ...verifiedUser,
     };
 
-    if (!hasFundAccess(req.user.fundIds, fundId)) {
+    if (resolveFundScope(principalFromUser(req.user), fundId) !== 'allow') {
       denyFundAccess(res, fundId);
       return false;
     }

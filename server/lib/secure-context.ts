@@ -7,6 +7,7 @@ import type { Request, Response, NextFunction } from 'express';
 import { db } from '../db.js';
 import { sql } from 'drizzle-orm';
 import { firstString } from './request-values';
+import { principalFromUser } from './auth/principal';
 
 export interface UserContext {
   userId: string; // JWT 'sub' claim
@@ -35,7 +36,7 @@ import { getAuthToken } from './headers-helper';
 
 export async function extractUserContext(req: Request): Promise<UserContext | null> {
   // Lazy import to avoid circular dependency issues at module load time
-  const { verifyAccessTokenAsync } = await import('./auth/jwt');
+  const { userFromClaims, verifyAccessTokenAsync } = await import('./auth/jwt');
   const token = getAuthToken(req.headers);
 
   if (!token) {
@@ -44,7 +45,9 @@ export async function extractUserContext(req: Request): Promise<UserContext | nu
 
   try {
     // Verify JWT (supports both HS256 sync and RS256 async via JWKS)
-    const claims = (await verifyAccessTokenAsync(token)) as JWTClaims;
+    const verifiedClaims = await verifyAccessTokenAsync(token);
+    const claims = verifiedClaims as JWTClaims;
+    req.principal = principalFromUser(userFromClaims(req, verifiedClaims));
 
     // Build context from verified JWT claims only
     const context: UserContext = {
