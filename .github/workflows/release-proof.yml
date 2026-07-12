@@ -1,0 +1,57 @@
+name: Full Release Proof
+
+on:
+  workflow_call:
+    inputs:
+      expected_sha:
+        description: Exact commit SHA to prove
+        type: string
+        required: true
+  workflow_dispatch:
+    inputs:
+      expected_sha:
+        description: Exact commit SHA to prove
+        type: string
+        required: true
+  merge_group:
+  schedule:
+    - cron: '30 6 * * 1'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: full-release-proof-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  full-release-proof:
+    name: Full DB-backed Release Proof
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - name: Checkout exact release commit
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          ref: ${{ inputs.expected_sha || github.sha }}
+          fetch-depth: 0
+
+      - name: Verify requested commit
+        env:
+          EXPECTED_SHA: ${{ inputs.expected_sha }}
+        run: |
+          ACTUAL_SHA="$(git rev-parse HEAD)"
+          if [[ -n "$EXPECTED_SHA" && "$ACTUAL_SHA" != "$EXPECTED_SHA" ]]; then
+            echo "Checked-out SHA does not match expected_sha."
+            exit 1
+          fi
+
+      - name: Setup Node environment
+        uses: ./.github/actions/setup-node-env
+
+      - name: Run full DB-backed release proof
+        env:
+          CI: 'true'
+          NODE_OPTIONS: --max-old-space-size=4096
+          TZ: UTC
+        run: npm run release:check

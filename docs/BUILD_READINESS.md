@@ -68,17 +68,38 @@ Testcontainers Postgres proof. CI green is baseline health, not release proof;
 it needs Docker (WSL2 on Windows). The `--skip-db` subset is diagnostic only and
 is not release proof.
 
+CI exposes those contracts as two deliberately different lanes:
+
+- `Static Release Diagnostic` runs `release:check -- --skip-db` for code PRs and
+  is required by `CI Gate Status`, but its name and summary never call it
+  release proof.
+- `.github/workflows/release-proof.yml` runs the unmodified DB-backed command
+  for merge groups, weekly main verification, and protected production releases.
+
 ## Production Schema Audit Gate
 
 The production schema audit is a separate deployment gate run through the
-protected `.github/workflows/prod-schema-reconcile.yml` workflow dispatch and
-its `production-schema` environment. The workflow defaults to audit; apply is
-explicitly gated and is not part of `release:check`.
+reusable `.github/workflows/prod-schema-reconcile.yml` workflow and its
+`production-schema` environment. Audit mode now fails unless every manifest has
+exactly one clean `SKIP` decision. Apply remains explicit, operator-gated, and
+outside `release:check`.
 
 A full release requires a green, non-skipped `release:check` (including the
 DB-backed partial-drift reconciliation proof), a clean production schema audit
 (exactly one `SKIP` decision per manifest; workflow success alone is
 insufficient), and an authenticated smoke against the deployed application.
+
+`.github/workflows/release-production.yml` enforces the order against one exact
+main SHA: full release proof, clean production schema audit, authenticated smoke
+against the staged production deployment, Vercel promotion, then authenticated
+smoke against the canonical production URL. Both smoke passes require health,
+metrics, and dedicated login credentials before Playwright starts, so missing
+credentials cannot produce a skipped green run.
+
+Vercel's `Auto-assign Custom Production Domains` setting must remain disabled;
+otherwise the Git integration can bypass this workflow and serve a main-branch
+build before the schema audit. `Production` holds the promotion token and smoke
+credentials, while `production-schema` holds only `PRODUCTION_DATABASE_URL`.
 
 ## Surface Status
 

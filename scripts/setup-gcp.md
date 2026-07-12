@@ -5,17 +5,20 @@
 Replace `YOUR_PROJECT_ID` with your actual project ID in all commands below.
 
 ### 1. Install gcloud CLI (if not installed)
+
 - Windows: Download from https://cloud.google.com/sdk/docs/install
 - Mac: `brew install google-cloud-sdk`
 - Linux: `curl https://sdk.cloud.google.com | bash`
 
 ### 2. Initialize and Set Project
+
 ```bash
 gcloud auth login
 gcloud config set project YOUR_PROJECT_ID
 ```
 
 ### 3. Enable Required APIs
+
 ```bash
 gcloud services enable \
   run.googleapis.com \
@@ -28,6 +31,7 @@ gcloud services enable \
 ```
 
 ### 4. Create Service Account
+
 ```bash
 # Create the service account
 gcloud iam service-accounts create github-deploy \
@@ -37,9 +41,11 @@ gcloud iam service-accounts create github-deploy \
 gcloud iam service-accounts list --filter="displayName:GitHub Deploy"
 ```
 
-Your `GCP_SERVICE_ACCOUNT` will be: `github-deploy@YOUR_PROJECT_ID.iam.gserviceaccount.com`
+Your `GCP_SERVICE_ACCOUNT` will be:
+`github-deploy@YOUR_PROJECT_ID.iam.gserviceaccount.com`
 
 ### 5. Grant Permissions
+
 ```bash
 # Cloud Run Admin
 gcloud projects add-iam-policy-binding YOUR_PROJECT_ID \
@@ -63,6 +69,7 @@ gcloud projects add-iam-policy-binding YOUR_PROJECT_ID \
 ```
 
 ### 6. Set up Workload Identity Federation
+
 ```bash
 # Get your project number
 PROJECT_NUMBER=$(gcloud projects describe YOUR_PROJECT_ID --format="value(projectNumber)")
@@ -90,6 +97,7 @@ gcloud iam service-accounts add-iam-policy-binding \
 ```
 
 ### 7. Create Artifact Registry
+
 ```bash
 gcloud artifacts repositories create fund-calc \
   --repository-format=docker \
@@ -98,6 +106,7 @@ gcloud artifacts repositories create fund-calc \
 ```
 
 ### 8. Create Secrets
+
 ```bash
 # Create secrets in Secret Manager
 echo -n "27f3efc05f8feda4da2eede2331e130b6c4bf804c0757aff872a7b4a8ae9ac88" | \
@@ -135,13 +144,14 @@ GCP_REGION: us-central1
 GCP_SERVICE_NAME: fund-calc-staging
 STAGING_URL: (will be generated after first deployment)
 STAGING_REDIS_URL: (optional - use memory:// for testing)
-METRICS_KEY: 27f3efc05f8feda4da2eede2331e130b6c4bf804c0757aff872a7b4a8ae9ac88
-HEALTH_KEY: c56d0dca2d9147256da1b0f5c6a7235085789ba222f69a7b45cb47cfafc0658f
+METRICS_KEY: <generate-a-unique-64-character-hex-key>
+HEALTH_KEY: <generate-a-different-64-character-hex-key>
 ```
 
 ## Alternative: Use Local Development Only
 
 If you don't want to set up GCP right now, you can:
+
 1. Use the memory mode locally: `REDIS_URL=memory:// npm run dev`
 2. Test with local k6: `npm run test:baseline`
 3. The PR will still provide value with the resilience improvements
@@ -149,7 +159,9 @@ If you don't want to set up GCP right now, you can:
 ## Need a Redis Instance?
 
 For `STAGING_REDIS_URL`, you have options:
-1. **GCP Memorystore**: Create via console.cloud.google.com → Memorystore → Redis
+
+1. **GCP Memorystore**: Create via console.cloud.google.com → Memorystore →
+   Redis
 2. **Redis Cloud**: Free tier at https://redis.com/try-free/
 3. **Upstash**: Serverless Redis at https://upstash.com/
 4. **Memory Mode**: Use `REDIS_URL=memory://` for testing without Redis

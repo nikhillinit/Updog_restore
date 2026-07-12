@@ -5,6 +5,8 @@ const PRODUCTION_URL =
   process.env.PRODUCTION_URL ?? process.env.PROD_URL ?? process.env.BASE_URL ?? '';
 const HEALTH_KEY = process.env.HEALTH_KEY ?? '';
 const METRICS_KEY = process.env.METRICS_KEY ?? '';
+const PROD_SMOKE_USERNAME = process.env.PROD_SMOKE_USERNAME ?? '';
+const PROD_SMOKE_PASSWORD = process.env.PROD_SMOKE_PASSWORD ?? '';
 const RUM_BODY = {
   name: 'LCP',
   value: 123,
@@ -111,6 +113,37 @@ test.describe('production boundary smoke', () => {
 
     expectNotSpaRewrite(response);
     expect([401, 403]).toContain(response.status());
+  });
+
+  test('production login reaches an authenticated read-only fund route', async ({ request }) => {
+    // SKIP: authenticated login proof requires dedicated production smoke credentials.
+    test.skip(
+      !PROD_SMOKE_USERNAME || !PROD_SMOKE_PASSWORD,
+      'Set PROD_SMOKE_USERNAME and PROD_SMOKE_PASSWORD to verify production login'
+    );
+
+    const csrfResponse = await request.get(`${PRODUCTION_URL}/api/auth/csrf`);
+    expectNotSpaRewrite(csrfResponse);
+    expect(csrfResponse.status()).toBe(200);
+    const csrfBody = await expectJsonObject(csrfResponse);
+    expect(csrfBody['csrfToken']).toEqual(expect.any(String));
+
+    const loginResponse = await request.post(`${PRODUCTION_URL}/api/auth/login`, {
+      headers: {
+        'X-CSRF-Token': String(csrfBody['csrfToken']),
+      },
+      data: {
+        username: PROD_SMOKE_USERNAME,
+        password: PROD_SMOKE_PASSWORD,
+      },
+    });
+    expectNotSpaRewrite(loginResponse);
+    expect(loginResponse.status()).toBe(200);
+
+    const guardedResponse = await request.get(`${PRODUCTION_URL}/api/timeline/1`);
+    expectNotSpaRewrite(guardedResponse);
+    expect(guardedResponse.status()).toBe(200);
+    expectContentTypeStartsWith(guardedResponse, 'application/json');
   });
 
   test('rum lookalike origin is rejected', async ({ request }) => {
