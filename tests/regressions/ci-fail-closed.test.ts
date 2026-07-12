@@ -114,6 +114,7 @@ describe('required CI fails closed', () => {
 
     const fullWorkflow = await readWorkflow('release-proof.yml');
     const fullScripts = allRunScripts(fullWorkflow).join('\n');
+    expect(fullScripts).toContain('npx playwright install --with-deps chromium');
     expect(fullScripts).toContain('npm run release:check');
     expect(fullScripts).not.toContain('release:check -- --skip-db');
 
