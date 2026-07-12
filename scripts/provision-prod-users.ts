@@ -1,41 +1,61 @@
 /**
- * Provision login users into a target Neon Postgres (users table ONLY).
+ * Provision externally defined login users and fund grants into Neon Postgres.
  *
- * Why this exists (do NOT use scripts/seed-db.ts for prod):
- *   seed-db.ts upserts the login users idempotently, but then ALSO inserts a
- *   sample fund + portfolio companies + investments + metrics + activities that
- *   are NON-idempotent (re-running stacks duplicate funds). Running it against
- *   prod would pollute prod with fake portfolio data. This script upserts the
- *   users table and touches nothing else.
- *
- * What it does: idempotent upsert (on username) of the shared seed identities
- *   (server/lib/seed-users.ts). Safe to re-run. No schema change.
- *
- * Driver: uses the Neon HTTP driver (HTTPS, matches prod on Vercel) rather than
- *   importing the app's server/db, whose driver selection picks a WebSocket pool
- *   for remote hosts -- that WS upgrade is commonly blocked on local networks.
- *   HTTP over 443 is the reliable path for a one-off ops run.
- *
- * Credentials (ADR-034): reuses TEST_LOGIN_CREDENTIALS via buildSeedUsers().
- *   The passwords are committed in the repo -- acceptable ONLY because the
- *   audience is an internal team-of-5 in testing with no real/LP data. Rotate to
- *   distinct, uncommitted credentials the moment prod carries real data.
+ * The identity file must live outside this repository and is validated in full
+ * before any write. Dev/test seeding remains owned by scripts/seed-db.ts and
+ * server/storage.ts.
  *
  * Usage (run locally against the target DB, never from CI):
- *   DATABASE_URL="<prod-neon-url>" PROVISION_PROD=1 npx tsx scripts/provision-prod-users.ts
+ *   NODE_ENV=production DATABASE_URL="<prod-neon-url>" PROVISION_PROD=1 \
+ *     IDENTITY_FILE="<absolute-path>" npx tsx scripts/provision-prod-users.ts [--dry-run]
  *
  * NEVER db:push / db:migrate against prod -- this is a data upsert only.
  */
 
+import { existsSync } from 'node:fs';
+import { readFile } from 'node:fs/promises';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
+
 import { neon } from '@neondatabase/serverless';
+import { eq, sql } from 'drizzle-orm';
 import { drizzle } from 'drizzle-orm/neon-http';
-import { sql } from 'drizzle-orm';
-import { users } from '@shared/schema';
-import { buildSeedUsers } from '../server/lib/seed-users';
+import bcrypt from 'bcryptjs';
+
+import { funds, userFundGrants, users } from '@shared/schema';
+import {
+  assertFundIdsExist,
+  assertIdentityFileOutsideRepo,
+  getProdIdentityBcryptCost,
+  parseProdIdentityFile,
+  ProdIdentityValidationError,
+} from '../server/lib/prod-identity';
+
+class ProvisioningInputError extends Error {
+  override readonly name = 'ProvisioningInputError';
+}
+
+function findRepoRoot(startDirectory: string): string {
+  let candidate = startDirectory;
+
+  while (true) {
+    if (existsSync(join(candidate, 'package.json'))) {
+      return candidate;
+    }
+
+    const parent = dirname(candidate);
+    if (parent === candidate) {
+      throw new ProvisioningInputError(
+        'Could not locate repository root from the provisioning script path.'
+      );
+    }
+    candidate = parent;
+  }
+}
 
 async function provisionProdUsers(): Promise<number> {
   if (process.env['PROVISION_PROD'] !== '1') {
-    throw new Error(
+    throw new ProvisioningInputError(
       'Refusing to run without PROVISION_PROD=1 (guards against accidental execution). ' +
         'Set PROVISION_PROD=1 and a DATABASE_URL pointing at the target DB.'
     );
@@ -43,32 +63,110 @@ async function provisionProdUsers(): Promise<number> {
 
   const connectionString = process.env['DATABASE_URL'] ?? process.env['NEON_DATABASE_URL'];
   if (!connectionString) {
-    throw new Error('DATABASE_URL (or NEON_DATABASE_URL) is required.');
+    throw new ProvisioningInputError('DATABASE_URL (or NEON_DATABASE_URL) is required.');
   }
+
+  const cliArgs = process.argv.slice(2);
+  const identityFileInput =
+    process.env['IDENTITY_FILE'] ?? cliArgs.find((argument) => !argument.startsWith('--'));
+  if (!identityFileInput) {
+    throw new ProvisioningInputError('IDENTITY_FILE or the first CLI path argument is required.');
+  }
+
+  const scriptDirectory = dirname(fileURLToPath(import.meta.url));
+  const repoRoot = findRepoRoot(scriptDirectory);
+  const identityFilePath = assertIdentityFileOutsideRepo(identityFileInput, repoRoot);
+  let identityFileContents: string;
+  try {
+    identityFileContents = await readFile(identityFilePath, 'utf8');
+  } catch {
+    throw new ProvisioningInputError('Could not read IDENTITY_FILE.');
+  }
+  const identities = parseProdIdentityFile(identityFileContents);
 
   const db = drizzle(neon(connectionString));
-  const seedUsers = buildSeedUsers();
+  const existingFunds = await db.select({ id: funds.id }).from(funds);
+  assertFundIdsExist(identities, new Set(existingFunds.map(({ id }) => id)));
 
-  for (const seedUser of seedUsers) {
-    await db
-      .insert(users)
-      .values(seedUser)
-      .onConflictDoUpdate({ target: users.username, set: { password: seedUser.password } });
+  const isDryRun = cliArgs.includes('--dry-run') || process.env['DRY_RUN'] === '1';
+  if (isDryRun) {
+    for (const { username, role, fundIds } of identities) {
+      console.log(
+        `[DONE] DRY RUN username=${JSON.stringify(username)} role=${role} grants=${fundIds.length}`
+      );
+    }
+    return identities.length;
   }
 
-  // Verify the rows are present (count is idempotent across re-runs).
-  const [row] = await db.select({ count: sql<number>`count(*)::int` }).from(users);
-  const count = row?.count ?? 0;
-
-  console.log(
-    `[DONE] Provisioned ${seedUsers.length} login user(s); users table now has ${count} row(s).`
+  const bcryptCost = getProdIdentityBcryptCost(process.env['NODE_ENV']);
+  const preparedIdentities = await Promise.all(
+    identities.map(async (identity) => ({
+      identity,
+      passwordHash: await bcrypt.hash(identity.password, bcryptCost),
+    }))
   );
-  return seedUsers.length;
+
+  for (const { identity, passwordHash } of preparedIdentities) {
+    const { username, role, fundIds } = identity;
+    const upsertUser = db
+      .insert(users)
+      .values({
+        username,
+        password: passwordHash,
+        role,
+        isActive: true,
+        passwordUpdatedAt: sql`now()`,
+        updatedAt: sql`now()`,
+      })
+      .onConflictDoUpdate({
+        target: users.username,
+        set: {
+          password: passwordHash,
+          role,
+          isActive: true,
+          passwordUpdatedAt: sql`now()`,
+          updatedAt: sql`now()`,
+        },
+      });
+
+    const userIdByUsername = sql<number>`(
+      SELECT ${users.id}
+      FROM ${users}
+      WHERE ${users.username} = ${username}
+    )`;
+    const deleteExistingGrants = db
+      .delete(userFundGrants)
+      .where(eq(userFundGrants.userId, userIdByUsername));
+
+    // neon-http's callback transaction API throws at runtime; batch delegates
+    // these statements to the Neon client's atomic one-shot transaction.
+    if (fundIds.length > 0) {
+      const insertReplacementGrants = db.insert(userFundGrants).values(
+        fundIds.map((fundId) => ({
+          userId: userIdByUsername,
+          fundId,
+        }))
+      );
+      await db.batch([upsertUser, deleteExistingGrants, insertReplacementGrants]);
+    } else {
+      await db.batch([upsertUser, deleteExistingGrants]);
+    }
+
+    console.log(
+      `[DONE] username=${JSON.stringify(username)} role=${role} grants=${fundIds.length}`
+    );
+  }
+
+  return identities.length;
 }
 
 provisionProdUsers()
   .then(() => process.exit(0))
   .catch((error: unknown) => {
-    console.error('[FAIL] User provisioning failed:', error);
+    if (error instanceof ProvisioningInputError || error instanceof ProdIdentityValidationError) {
+      console.error(`[FAIL] User provisioning failed: ${error.message}`);
+    } else {
+      console.error('[FAIL] User provisioning failed; database/driver details were suppressed.');
+    }
     process.exit(1);
   });

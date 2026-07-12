@@ -14,6 +14,10 @@ export const TEST_LOGIN_CREDENTIALS: ReadonlyArray<{ username: string; password:
   { username: 'viewer', password: 'viewer-dev-2026' },
 ];
 
+export const DEV_SEED_PASSWORDS: ReadonlySet<string> = new Set(
+  TEST_LOGIN_CREDENTIALS.map(({ password }) => password)
+);
+
 // Low cost factor: throwaway test creds, not real secrets. Hashing runs once at
 // MemStorage construction / seed time.
 const SEED_BCRYPT_COST = 8;

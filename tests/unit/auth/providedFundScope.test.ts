@@ -175,9 +175,9 @@ describe('enforceProvidedFundScope', () => {
     });
   });
 
-  it('treats empty fundIds as unrestricted admin or service scope', async () => {
+  it('treats empty fundIds as unrestricted admin scope', async () => {
     setJwtEnv();
-    const token = signToken({ fundIds: [] });
+    const token = signToken({ role: 'admin', fundIds: [] });
     const { enforceProvidedFundScope } = await import('@/server/lib/auth/provided-fund-scope');
     const { res, status } = makeResponse();
 
@@ -185,6 +185,24 @@ describe('enforceProvidedFundScope', () => {
       true
     );
     expect(status).not.toHaveBeenCalled();
+  });
+
+  it('returns 403 for a non-admin token with empty fund grants', async () => {
+    setJwtEnv();
+    const token = signToken({ role: 'analyst', fundIds: [] });
+    const { enforceProvidedFundScope } = await import('@/server/lib/auth/provided-fund-scope');
+    const { res, status, json } = makeResponse();
+
+    await expect(enforceProvidedFundScope(makeRequest(`Bearer ${token}`), res, 999)).resolves.toBe(
+      false
+    );
+
+    expect(status).toHaveBeenCalledWith(403);
+    expect(json).toHaveBeenCalledWith({
+      error: 'Forbidden',
+      code: 'FUND_ACCESS_DENIED',
+      message: 'You do not have access to fund 999',
+    });
   });
 
   it('returns 403 for tokens scoped to a different fund', async () => {
@@ -416,7 +434,7 @@ describe('requireProvidedFundScopeFrom', () => {
 
   it('calls next for an empty-scope (admin) token', async () => {
     setJwtEnv();
-    const token = signToken({ fundIds: [] });
+    const token = signToken({ role: 'admin', fundIds: [] });
     const { requireProvidedFundScopeFrom } = await import('@/server/lib/auth/provided-fund-scope');
     const { res, status } = makeResponse();
     const next = vi.fn();

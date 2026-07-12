@@ -8,6 +8,7 @@
  *   - server/middleware/audit.ts (id, email, orgId)
  */
 import 'express-serve-static-core';
+import type { RequestPrincipal } from '../server/lib/auth/principal';
 
 interface RequestLogger {
   info: (_obj: unknown, msg?: string) => void;
@@ -95,6 +96,8 @@ declare global {
     interface Request {
       /** Authenticated user (populated by auth middleware) */
       user?: User;
+      /** Fail-closed authorization identity derived from the verified user */
+      principal?: RequestPrincipal;
       /** Session data (optional, for JWT middleware) */
       session?: {
         id: string;
