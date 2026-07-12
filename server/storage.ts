@@ -5,6 +5,7 @@ import {
   fundMetrics,
   activities,
   users,
+  userFundGrants,
   fundConfigs,
   type Fund,
   type FundConfig as StoredFundConfig,
@@ -84,6 +85,7 @@ export interface IStorage {
   // User methods
   getUser(_id: number): Promise<User | undefined>;
   getUserByUsername(_username: string): Promise<User | undefined>;
+  getUserFundGrants(_userId: number): Promise<number[]>;
   createUser(_user: InsertUser): Promise<User>;
 
   // Fund methods
@@ -381,6 +383,10 @@ export class MemStorage implements IStorage {
     return Array.from(this.users.values()).find((user) => user.username === username);
   }
 
+  async getUserFundGrants(_userId: number): Promise<number[]> {
+    return [];
+  }
+
   async createUser(insertUser: InsertUser): Promise<User> {
     const id = this.currentUserId++;
     const user = materializeMemoryUser(insertUser, id);
@@ -590,6 +596,16 @@ export class DatabaseStorage implements IStorage {
   async getUserByUsername(username: string): Promise<User | undefined> {
     const [user] = await db.select().from(users).where(eq(users.username, username));
     return user || undefined;
+  }
+
+  async getUserFundGrants(userId: number): Promise<number[]> {
+    const grants = await db
+      .select({ fundId: userFundGrants.fundId })
+      .from(userFundGrants)
+      .where(eq(userFundGrants.userId, userId))
+      .orderBy(userFundGrants.fundId);
+
+    return grants.map(({ fundId }) => fundId);
   }
 
   async createUser(insertUser: InsertUser): Promise<User> {

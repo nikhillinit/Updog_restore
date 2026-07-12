@@ -1,6 +1,6 @@
 ---
 status: ACTIVE
-last_updated: 2026-07-11
+last_updated: 2026-07-12
 owner: Core Team
 review_cadence: P90D
 ---
@@ -5821,10 +5821,11 @@ actionable while keeping the Bearer transport.
 - The `jti` transition is handled by `JWT_SECRET` rotation (a Plan 0 operation):
   pre-rotation tokens have no `jti` and skip the denylist; after rotation every
   token has a `jti`.
-- Residual `empty == unrestricted` logic remains in `requireFundAccess` and
-  `getVerifiedFundScope` (latent because login still mints admin/empty for every
-  user); wiring real per-user roles and grants into the login token is a
-  follow-up. Cookie sessions (D4) remain a deferred TODO.
+- Login now mints each active user's persisted role and, for non-admin/service
+  identities, their explicit fund grants. Admin/service tokens intentionally
+  carry empty `fundIds` because those roles are unrestricted. Residual
+  `empty == unrestricted` logic remains in `requireFundAccess` and
+  `getVerifiedFundScope`; cookie sessions (D4) remain a deferred TODO.
 
 **Implementation:** PR #1077 (migration 0031; tasks 2.1 schema, 2.2 external
 provisioning, `jti` minting, 2.4 revocation plus principal, and 2.6 fail-closed

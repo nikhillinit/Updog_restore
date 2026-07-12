@@ -28,16 +28,8 @@ export async function seedDatabase() {
   console.log('[SEED] Seeding database with sample data...');
 
   try {
-    // Seed test-only login users (idempotent upsert on username). Shared source:
-    // server/lib/seed-users.ts. Consumed by POST /api/auth/login.
-    const seedUsers = buildSeedUsers();
-    for (const seedUser of seedUsers) {
-      await db
-        .insert(users)
-        .values(seedUser)
-        .onConflictDoUpdate({ target: users.username, set: { password: seedUser.password } });
-    }
-    console.log('[DONE] Seeded login users:', seedUsers.length);
+    const loginUsersSeeded = await seedLoginUsers();
+    console.log('[DONE] Seeded login users:', loginUsersSeeded);
 
     // Insert sample fund
     const fundData = {
@@ -210,4 +202,21 @@ export async function seedDatabase() {
     console.error('[FAIL] Error seeding database:', error);
     throw error;
   }
+}
+
+export async function seedLoginUsers(): Promise<number> {
+  // Seed test-only login users (idempotent upsert on username). Shared source:
+  // server/lib/seed-users.ts. Consumed by POST /api/auth/login.
+  const seedUsers = buildSeedUsers();
+  for (const seedUser of seedUsers) {
+    await db
+      .insert(users)
+      .values(seedUser)
+      .onConflictDoUpdate({
+        target: users.username,
+        set: { password: seedUser.password, role: seedUser.role },
+      });
+  }
+
+  return seedUsers.length;
 }
