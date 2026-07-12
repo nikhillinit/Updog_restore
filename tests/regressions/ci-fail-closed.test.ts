@@ -5,6 +5,7 @@ import { describe, expect, it } from 'vitest';
 import YAML from 'yaml';
 
 type WorkflowStep = {
+  env?: Record<string, unknown>;
   name?: string;
   run?: string;
   uses?: string;
@@ -69,16 +70,22 @@ describe('required CI fails closed', () => {
   });
 
   it('makes critical and high Trivy findings blocking', async () => {
-    const workflow = await readWorkflow('security-scan.yml');
-    const trivySteps = Object.values(workflow.jobs ?? {}).flatMap((job) =>
-      (job.steps ?? []).filter((step) => step.uses?.includes('aquasecurity/trivy-action'))
+    const workflow = await readWorkflow('ci-unified.yml');
+    const requiredSecurityJob = workflow.jobs?.['pr-light-security'];
+    const trivySteps = (requiredSecurityJob?.steps ?? []).filter((step) =>
+      step.uses?.includes('aquasecurity/trivy-action')
     );
 
-    expect(trivySteps).not.toHaveLength(0);
+    expect(trivySteps).toHaveLength(2);
+    expect(trivySteps.map((step) => step.with?.['scan-type'])).toEqual(['fs', 'image']);
     for (const step of trivySteps) {
       expect(String(step.with?.severity)).toBe('CRITICAL,HIGH');
       expect(String(step.with?.['exit-code'])).toBe('1');
     }
+
+    const gateNeeds = workflow.jobs?.gate?.needs;
+    const normalizedNeeds = typeof gateNeeds === 'string' ? [gateNeeds] : (gateNeeds ?? []);
+    expect(normalizedNeeds).toContain('pr-light-security');
   });
 
   it('runs secret scanning inside the required CI aggregator', async () => {
@@ -130,6 +137,24 @@ describe('required CI fails closed', () => {
     expect(releaseWorkflow.jobs?.['schema-audit']?.uses).toBe(
       './.github/workflows/prod-schema-reconcile.yml'
     );
+    const stagedSmoke = releaseWorkflow.jobs?.['staged-smoke'];
+    const stagedNeeds =
+      typeof stagedSmoke?.needs === 'string' ? [stagedSmoke.needs] : (stagedSmoke?.needs ?? []);
+    expect(stagedNeeds).toContain('validate-deployment');
+    const stagedSmokeStep = stagedSmoke?.steps?.find(
+      (step) => step.name === 'Run authenticated staged smoke'
+    );
+    expect(stagedSmokeStep?.env?.PRODUCTION_URL).toBe(
+      '${{ needs.validate-deployment.outputs.deployment_url }}'
+    );
+
+    const identityScripts = allRunScripts({
+      jobs: { identity: releaseWorkflow.jobs?.['validate-deployment'] ?? {} },
+    }).join('\n');
+    expect(identityScripts).toContain('api.vercel.com/v13/deployments');
+    expect(identityScripts).toContain('githubCommitSha');
+    expect(identityScripts).toContain('GITHUB_OUTPUT');
+
     const releaseScripts = allRunScripts(releaseWorkflow).join('\n');
     expect(releaseScripts).toContain('vercel@55.0.0 promote');
     expect(releaseScripts).toContain('tests/smoke/production-boundaries.spec.ts');

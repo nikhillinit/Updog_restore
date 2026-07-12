@@ -53,9 +53,79 @@ jobs:
       expected_sha: ${{ inputs.expected_sha }}
     secrets: inherit
 
+  validate-deployment:
+    name: Validate Staged Deployment Identity
+    needs: schema-audit
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    environment: Production
+    outputs:
+      deployment_url: ${{ steps.verify.outputs.deployment_url }}
+    steps:
+      - name: Normalize and verify exact staged deployment
+        id: verify
+        env:
+          DEPLOYMENT_URL: ${{ inputs.deployment_url }}
+          EXPECTED_SHA: ${{ inputs.expected_sha }}
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_ORG_ID: ${{ vars.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ vars.VERCEL_PROJECT_ID }}
+        run: |
+          : "${VERCEL_TOKEN:?VERCEL_TOKEN is required}"
+          : "${VERCEL_ORG_ID:?VERCEL_ORG_ID is required}"
+          : "${VERCEL_PROJECT_ID:?VERCEL_PROJECT_ID is required}"
+          node <<'NODE'
+          const fs = require('node:fs');
+          const url = new URL(process.env.DEPLOYMENT_URL);
+          const host = url.hostname.toLowerCase();
+          const validHost = /^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\.vercel\.app$/.test(host);
+          const validUrl =
+            url.protocol === 'https:' &&
+            url.username === '' &&
+            url.password === '' &&
+            url.port === '' &&
+            url.pathname === '/' &&
+            url.search === '' &&
+            url.hash === '' &&
+            validHost;
+          if (!validUrl) {
+            console.error('deployment_url must be a bare HTTPS vercel.app deployment URL.');
+            process.exit(1);
+          }
+          fs.writeFileSync(`${process.env.RUNNER_TEMP}/vercel-deployment-host.txt`, host);
+          NODE
+          DEPLOYMENT_HOST="$(cat "$RUNNER_TEMP/vercel-deployment-host.txt")"
+          curl --fail --silent --show-error \
+            --header "Authorization: Bearer ${VERCEL_TOKEN}" \
+            "https://api.vercel.com/v13/deployments/${DEPLOYMENT_HOST}?teamId=${VERCEL_ORG_ID}" \
+            --output "$RUNNER_TEMP/vercel-deployment.json"
+          node <<'NODE'
+          const fs = require('node:fs');
+          const deployment = JSON.parse(
+            fs.readFileSync(`${process.env.RUNNER_TEMP}/vercel-deployment.json`, 'utf8')
+          );
+          const requestedHost = fs
+            .readFileSync(`${process.env.RUNNER_TEMP}/vercel-deployment-host.txt`, 'utf8')
+            .trim();
+          const deploymentHost = String(deployment.url ?? '').toLowerCase();
+          const valid =
+            deployment.readyState === 'READY' &&
+            deployment.target === 'production' &&
+            deployment.projectId === process.env.VERCEL_PROJECT_ID &&
+            deployment.meta?.githubCommitSha === process.env.EXPECTED_SHA &&
+            deployment.meta?.githubCommitRef === 'main' &&
+            deploymentHost === requestedHost;
+          if (!valid) {
+            console.error('Staged deployment does not match the exact production release target.');
+            process.exit(1);
+          }
+          fs.appendFileSync(process.env.GITHUB_OUTPUT, `deployment_url=https://${deploymentHost}\n`);
+          console.log('Staged deployment identity verified.');
+          NODE
+
   staged-smoke:
     name: Authenticated Staged Production Smoke
-    needs: schema-audit
+    needs: validate-deployment
     runs-on: ubuntu-latest
     timeout-minutes: 15
     environment: Production
@@ -70,7 +140,7 @@ jobs:
 
       - name: Require non-skippable smoke credentials
         env:
-          PRODUCTION_URL: ${{ inputs.deployment_url }}
+          PRODUCTION_URL: ${{ needs.validate-deployment.outputs.deployment_url }}
           HEALTH_KEY: ${{ secrets.HEALTH_KEY }}
           METRICS_KEY: ${{ secrets.METRICS_KEY }}
           PROD_SMOKE_USERNAME: ${{ secrets.PROD_SMOKE_USERNAME }}
@@ -87,7 +157,7 @@ jobs:
 
       - name: Run authenticated staged smoke
         env:
-          PRODUCTION_URL: ${{ inputs.deployment_url }}
+          PRODUCTION_URL: ${{ needs.validate-deployment.outputs.deployment_url }}
           HEALTH_KEY: ${{ secrets.HEALTH_KEY }}
           METRICS_KEY: ${{ secrets.METRICS_KEY }}
           PROD_SMOKE_USERNAME: ${{ secrets.PROD_SMOKE_USERNAME }}
@@ -96,47 +166,14 @@ jobs:
 
   promote:
     name: Promote Staged Vercel Deployment
-    needs: staged-smoke
+    needs: [staged-smoke, validate-deployment]
     runs-on: ubuntu-latest
     timeout-minutes: 10
     environment: Production
     steps:
-      - name: Verify deployment identity
-        env:
-          DEPLOYMENT_URL: ${{ inputs.deployment_url }}
-          EXPECTED_SHA: ${{ inputs.expected_sha }}
-          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
-          VERCEL_ORG_ID: ${{ vars.VERCEL_ORG_ID }}
-          VERCEL_PROJECT_ID: ${{ vars.VERCEL_PROJECT_ID }}
-        run: |
-          : "${VERCEL_TOKEN:?VERCEL_TOKEN is required}"
-          : "${VERCEL_ORG_ID:?VERCEL_ORG_ID is required}"
-          : "${VERCEL_PROJECT_ID:?VERCEL_PROJECT_ID is required}"
-          curl --fail --silent --show-error \
-            --header "Authorization: Bearer ${VERCEL_TOKEN}" \
-            "https://api.vercel.com/v13/deployments/${DEPLOYMENT_URL#https://}?teamId=${VERCEL_ORG_ID}" \
-            --output "$RUNNER_TEMP/vercel-deployment.json"
-          node <<'NODE'
-          const fs = require('node:fs');
-          const deployment = JSON.parse(
-            fs.readFileSync(`${process.env.RUNNER_TEMP}/vercel-deployment.json`, 'utf8')
-          );
-          const valid =
-            deployment.readyState === 'READY' &&
-            deployment.target === 'production' &&
-            deployment.projectId === process.env.VERCEL_PROJECT_ID &&
-            deployment.meta?.githubCommitSha === process.env.EXPECTED_SHA &&
-            deployment.meta?.githubCommitRef === 'main';
-          if (!valid) {
-            console.error('Staged deployment does not match the exact production release target.');
-            process.exit(1);
-          }
-          console.log('Staged deployment identity verified.');
-          NODE
-
       - name: Promote verified deployment
         env:
-          DEPLOYMENT_URL: ${{ inputs.deployment_url }}
+          DEPLOYMENT_URL: ${{ needs.validate-deployment.outputs.deployment_url }}
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
           VERCEL_ORG_ID: ${{ vars.VERCEL_ORG_ID }}
           VERCEL_PROJECT_ID: ${{ vars.VERCEL_PROJECT_ID }}
