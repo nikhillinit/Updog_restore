@@ -3,6 +3,7 @@ import type {
   ReserveIcDecisionRecordV1,
   UpdateReserveIcDecisionV1,
 } from '@shared/contracts/reserve-ic-decision-v1.contract';
+import type { AllocationCompanyActualsDriftV1 } from '@shared/contracts/allocations/allocation-actuals-drift-v1.contract';
 
 /**
  * TypeScript types for Fund Allocation Management
@@ -21,8 +22,18 @@ export interface AllocationCompany {
   allocation_reason: string | null;
   allocation_version: number;
   last_allocation_at: string | null;
+  actuals_drift: AllocationCompanyActualsDriftV1;
   allocation_facts_missing?: boolean;
   missing_allocation_fields?: string[];
+}
+
+export interface AllocationActualsDriftSummary {
+  facts_status: 'available' | 'failed';
+  drifted_company_count: number;
+  material_company_count: number;
+  degraded_company_count: number;
+  facts_input_hash: string | null;
+  as_of_date: string;
 }
 
 export interface AllocationMetadata {
@@ -31,6 +42,7 @@ export interface AllocationMetadata {
   companies_count: number;
   allocation_facts_missing_count?: number;
   last_updated_at: string | null;
+  actuals_drift_summary: AllocationActualsDriftSummary;
 }
 
 export interface AllocationsResponse {

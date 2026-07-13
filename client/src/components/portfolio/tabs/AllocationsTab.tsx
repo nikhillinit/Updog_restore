@@ -2,7 +2,7 @@
  * Allocations Tab Component
  * Displays allocation state for all companies in a fund
  */
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { Fragment, useCallback, useEffect, useMemo, useState } from 'react';
 import {
   Table,
   TableBody,
@@ -42,12 +42,14 @@ import { AddCompanyDialog } from './AddCompanyDialog';
 import { EditAllocationDialog } from './EditAllocationDialog';
 import { FmvOverrideDialog } from './FmvOverrideDialog';
 import { ReserveIcPacketCard } from './ReserveIcPacketCard';
+import { AllocationActualsDisclosure } from './AllocationActualsDisclosure';
 import { createAllocationsColumns, type ColumnDef } from './allocations-table-columns';
 import { formatCents } from '@/lib/units';
 import { buildReserveIcPacket } from './reserve-ic-packet';
 import { useLatestPlanningFmvOverrides } from './hooks/usePlanningFmvOverrides';
 import type {
   AllocationCompany,
+  AllocationActualsDriftSummary,
   AllocationScenarioCollaborationContext,
   AllocationScenarioCollaborationContextEvent,
   AllocationScenarioChangeSummary,
@@ -336,6 +338,75 @@ function CollaborationContextEventCard({
   );
 }
 
+function ActualsDriftSummarySkeleton() {
+  return (
+    <section
+      aria-label="Actuals drift summary"
+      aria-busy="true"
+      className="border-y border-beige-200 bg-white px-4 py-3"
+    >
+      <p className="text-sm font-medium text-pov-charcoal">Loading actuals drift disclosure</p>
+      <div className="mt-2 grid gap-3 sm:grid-cols-3">
+        {['Drifted', 'Material', 'Degraded'].map((label) => (
+          <div key={label} className="flex items-center gap-2 text-xs text-charcoal-500">
+            <Skeleton className="h-5 w-8 tabular-nums motion-reduce:animate-none" />
+            <span>{label}</span>
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function ActualsDriftSummaryRail({ summary }: { summary: AllocationActualsDriftSummary }) {
+  const metrics = [
+    { label: 'drifted', value: summary.drifted_company_count },
+    { label: 'material', value: summary.material_company_count },
+    { label: 'degraded', value: summary.degraded_company_count },
+  ];
+  const noDriftDisclosed =
+    summary.facts_status === 'available' && metrics.every((metric) => metric.value === 0);
+
+  return (
+    <section
+      aria-label="Actuals drift summary"
+      className="border-y border-beige-200 bg-white px-4 py-3"
+    >
+      <div className="flex flex-col gap-1 sm:flex-row sm:items-baseline sm:justify-between">
+        <p className="font-medium text-pov-charcoal">
+          {summary.facts_status === 'failed'
+            ? 'Facts unavailable'
+            : noDriftDisclosed
+              ? 'No drift disclosed'
+              : 'Actuals drift disclosure'}
+        </p>
+        <p className="text-xs tabular-nums text-charcoal-500">As of {summary.as_of_date}</p>
+      </div>
+      {summary.facts_status === 'failed' ? (
+        <p className="mt-1 inline-flex items-center gap-1.5 text-xs text-charcoal-500">
+          <span
+            aria-hidden="true"
+            className="h-2 w-2 rounded-full border border-charcoal-400 bg-transparent"
+          />
+          <span>Facts unavailable; company plan values remain visible.</span>
+        </p>
+      ) : null}
+      <div className="mt-2 grid gap-3 sm:grid-cols-3">
+        {metrics.map((metric) => (
+          <div key={metric.label} className="flex items-center gap-1.5 text-sm text-charcoal-500">
+            {metric.value > 0 ? (
+              <span aria-hidden="true" className="h-2 w-2 rounded-full bg-warning" />
+            ) : null}
+            <span className="tabular-nums text-pov-charcoal">
+              {metric.value} {metric.label}
+            </span>
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+}
+
 export function AllocationsTab() {
   const { toast } = useToast();
   const { fundId } = useFundContext();
@@ -351,6 +422,9 @@ export function AllocationsTab() {
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [isFmvDialogOpen, setIsFmvDialogOpen] = useState(false);
   const [isAddCompanyDialogOpen, setIsAddCompanyDialogOpen] = useState(false);
+  const [expandedActualsCompanyIds, setExpandedActualsCompanyIds] = useState<Set<number>>(
+    () => new Set()
+  );
   const [searchQuery, setSearchQuery] = useState('');
   const [sectorFilter, setSectorFilter] = useState<string>('all');
   const [statusFilter, setStatusFilter] = useState<string>('all');
@@ -412,6 +486,10 @@ export function AllocationsTab() {
     previewApplyMutation.isPending ||
     syncScenarioMutation.isPending ||
     applyScenarioMutation.isPending;
+
+  useEffect(() => {
+    setExpandedActualsCompanyIds(new Set());
+  }, [fundId]);
 
   useEffect(() => {
     if (liveCompanies.length === 0 || activeScenarioId) {
@@ -529,6 +607,18 @@ export function AllocationsTab() {
     setIsEditDialogOpen(true);
   }, []);
 
+  const handleToggleActualsDisclosure = useCallback((companyId: number) => {
+    setExpandedActualsCompanyIds((current) => {
+      const next = new Set(current);
+      if (next.has(companyId)) {
+        next.delete(companyId);
+      } else {
+        next.add(companyId);
+      }
+      return next;
+    });
+  }, []);
+
   const handleFmvOverride = useCallback((company: AllocationCompany) => {
     setSelectedFmvCompanyId(company.company_id);
     setIsFmvDialogOpen(true);
@@ -551,7 +641,10 @@ export function AllocationsTab() {
   }, []);
 
   const columns = useMemo(() => {
-    const baseColumns = createAllocationsColumns(handleEdit);
+    const baseColumns = createAllocationsColumns(handleEdit, {
+      expandedCompanyIds: expandedActualsCompanyIds,
+      onToggle: handleToggleActualsDisclosure,
+    });
     if (!planningFmvEnabled) {
       return baseColumns;
     }
@@ -590,7 +683,14 @@ export function AllocationsTab() {
     return actionColumn
       ? [...leadingColumns, currentFmvColumn, actionColumn]
       : [...leadingColumns, currentFmvColumn];
-  }, [handleEdit, handleFmvOverride, planningFmvByCompanyId, planningFmvEnabled]);
+  }, [
+    expandedActualsCompanyIds,
+    handleEdit,
+    handleFmvOverride,
+    handleToggleActualsDisclosure,
+    planningFmvByCompanyId,
+    planningFmvEnabled,
+  ]);
 
   const reservePlanCount = useMemo(
     () => displayedCompanies.filter((company) => company.planned_reserves_cents > 0).length,
@@ -1154,6 +1254,7 @@ export function AllocationsTab() {
   if (isLoading) {
     return (
       <div className="space-y-4">
+        <ActualsDriftSummarySkeleton />
         <Skeleton className="h-12 w-full" />
         <Skeleton className="h-64 w-full" />
       </div>
@@ -1163,6 +1264,9 @@ export function AllocationsTab() {
   if (displayedCompanies.length === 0) {
     return (
       <>
+        {data?.metadata.actuals_drift_summary ? (
+          <ActualsDriftSummaryRail summary={data.metadata.actuals_drift_summary} />
+        ) : null}
         <Card>
           <CardHeader>
             <CardTitle>Company Allocations</CardTitle>
@@ -1233,6 +1337,10 @@ export function AllocationsTab() {
             missing reserve values until allocation facts are recorded.
           </AlertDescription>
         </Alert>
+      ) : null}
+
+      {data?.metadata.actuals_drift_summary ? (
+        <ActualsDriftSummaryRail summary={data.metadata.actuals_drift_summary} />
       ) : null}
 
       <Card className="border-presson-info/20 bg-presson-info/10">
@@ -1939,17 +2047,40 @@ export function AllocationsTab() {
                 </TableRow>
               ) : (
                 filteredAndSortedCompanies.map((company) => (
-                  <TableRow key={company.company_id}>
-                    {enrichedColumns.map((column) => (
-                      <TableCell key={`${company.company_id}-${column.id}`}>
-                        {column.cell
-                          ? column.cell({ row: { original: company } })
-                          : column.accessorKey
-                            ? String(company[column.accessorKey])
-                            : null}
+                  <Fragment key={company.company_id}>
+                    <TableRow>
+                      {enrichedColumns.map((column) => (
+                        <TableCell key={`${company.company_id}-${column.id}`}>
+                          {column.cell
+                            ? column.cell({ row: { original: company } })
+                            : column.accessorKey
+                              ? String(company[column.accessorKey])
+                              : null}
+                        </TableCell>
+                      ))}
+                    </TableRow>
+                    <TableRow
+                      className={
+                        expandedActualsCompanyIds.has(company.company_id)
+                          ? 'border-0 hover:bg-transparent'
+                          : 'hidden'
+                      }
+                    >
+                      <TableCell colSpan={enrichedColumns.length} className="p-0">
+                        <div
+                          id={`allocation-actuals-disclosure-${company.company_id}`}
+                          aria-hidden={!expandedActualsCompanyIds.has(company.company_id)}
+                        >
+                          {expandedActualsCompanyIds.has(company.company_id) ? (
+                            <AllocationActualsDisclosure
+                              drift={company.actuals_drift}
+                              companyName={company.company_name}
+                            />
+                          ) : null}
+                        </div>
                       </TableCell>
-                    ))}
-                  </TableRow>
+                    </TableRow>
+                  </Fragment>
                 ))
               )}
             </TableBody>

@@ -5,7 +5,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { formatCents } from '@/lib/units';
 import { formatDistanceToNow } from 'date-fns';
-import { ArrowUpDown, Pencil } from 'lucide-react';
+import { ArrowUpDown, ChevronRight, Pencil } from 'lucide-react';
 import type { AllocationCompany } from './types';
 
 export interface ColumnDef<T> {
@@ -20,15 +20,126 @@ export interface Column {
   toggleSorting: () => void;
 }
 
+export interface AllocationActualsDisclosureColumnOptions {
+  expandedCompanyIds: ReadonlySet<number>;
+  onToggle: (companyId: number) => void;
+}
+
 function hasMissingAllocationField(company: AllocationCompany, field: string) {
   return Boolean(
     company.allocation_facts_missing && company.missing_allocation_fields?.includes(field)
   );
 }
 
+interface ActualsDriftIndicatorState {
+  kind: 'exact' | 'caveated' | 'material' | 'unavailable';
+  label: string;
+}
+
+function getActualsDriftIndicator(company: AllocationCompany): ActualsDriftIndicatorState {
+  const drift = company.actuals_drift;
+  const hasUnavailableComparison = drift.comparisons.some(
+    (comparison) => comparison.state === 'unavailable'
+  );
+  const hasMaterialDrift = drift.comparisons.some((comparison) => comparison.material);
+  const hasDrift = drift.comparisons.some((comparison) => comparison.state === 'drifted');
+
+  if (
+    drift.trustState === 'FAILED' ||
+    drift.trustState === 'UNAVAILABLE' ||
+    hasUnavailableComparison
+  ) {
+    const label =
+      drift.currencyStatus === 'mismatch_blocked'
+        ? 'currency blocked'
+        : drift.trustState === 'FAILED'
+          ? 'facts unavailable'
+          : 'unavailable';
+
+    return { kind: 'unavailable', label };
+  }
+
+  if (hasMaterialDrift) {
+    return { kind: 'material', label: 'material drift' };
+  }
+
+  if (hasDrift) {
+    return { kind: 'caveated', label: 'drift disclosed' };
+  }
+
+  if (drift.trustState === 'PARTIAL') {
+    return { kind: 'caveated', label: 'degraded' };
+  }
+
+  return { kind: 'exact', label: 'no drift' };
+}
+
+function ActualsDriftIndicator({ indicator }: { indicator: ActualsDriftIndicatorState }) {
+  if (indicator.kind === 'unavailable') {
+    return (
+      <span className="inline-flex items-center gap-1.5 text-xs text-charcoal-500">
+        <span
+          aria-hidden="true"
+          className="h-2 w-2 rounded-full border border-charcoal-400 bg-transparent"
+        />
+        <span>{indicator.label}</span>
+      </span>
+    );
+  }
+
+  if (indicator.kind === 'material') {
+    return (
+      <span className="inline-flex items-center gap-1.5 text-xs font-medium text-pov-charcoal">
+        <span aria-hidden="true" className="h-2 w-2 rounded-full bg-warning" />
+        <span>{indicator.label}</span>
+      </span>
+    );
+  }
+
+  if (indicator.kind === 'caveated') {
+    return (
+      <span className="inline-flex items-center gap-1.5 text-xs text-charcoal-500">
+        <span aria-hidden="true" className="h-2 w-2 rounded-full bg-warning" />
+        <span>{indicator.label}</span>
+      </span>
+    );
+  }
+
+  return <span className="text-xs font-medium text-pov-charcoal">{indicator.label}</span>;
+}
+
 export const createAllocationsColumns = (
-  onEdit: (company: AllocationCompany) => void
+  onEdit: (company: AllocationCompany) => void,
+  disclosure: AllocationActualsDisclosureColumnOptions
 ): ColumnDef<AllocationCompany>[] => [
+  {
+    id: 'actuals_drift',
+    header: 'Plan vs actual',
+    cell: ({ row }) => {
+      const company = row.original;
+      const isExpanded = disclosure.expandedCompanyIds.has(company.company_id);
+      const indicator = getActualsDriftIndicator(company);
+
+      return (
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          className="h-auto min-w-[132px] justify-start gap-1.5 px-1.5 py-1 text-left hover:bg-pov-gray motion-reduce:transition-none"
+          aria-expanded={isExpanded}
+          aria-controls={`allocation-actuals-disclosure-${company.company_id}`}
+          aria-label={`${isExpanded ? 'Collapse' : 'Expand'} Plan vs actual for ${company.company_name}. Status: ${indicator.label}`}
+          onClick={() => disclosure.onToggle(company.company_id)}
+        >
+          <ChevronRight
+            aria-hidden="true"
+            className={`h-4 w-4 flex-none text-charcoal-500 transition-transform duration-200 motion-reduce:transition-none ${isExpanded ? 'rotate-90' : ''}`}
+          />
+          <ActualsDriftIndicator indicator={indicator} />
+        </Button>
+      );
+    },
+  },
   {
     id: 'company_name',
     accessorKey: 'company_name',
