@@ -4,48 +4,11 @@ import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
 import crypto from 'node:crypto';
 import { reservesV1Router } from './routes/v1/reserves.js';
-import { flagsRouter } from './routes/flags.js';
 import cashflowRouter from './routes/cashflow.js';
 import healthRouter from './routes/health.js';
 import calculationsRouter from './routes/calculations.js';
 import aiRouter from './routes/ai.js';
 import scenarioAnalysisRouter from './routes/scenario-analysis.js';
-import dualForecastRouter from './routes/dual-forecast.js';
-import dashboardSummaryRouter from './routes/dashboard-summary.js';
-import fundActualsRouter from './routes/fund-actuals.js';
-import allocationsRouter from './routes/allocations.js';
-import allocationScenariosRouter from './routes/allocation-scenarios.js';
-import planningFmvOverridesRouter from './routes/planning-fmv-overrides.js';
-import fundScenarioSetsRouter from './routes/fund-scenario-sets.js';
-import fundMoicRouter from './routes/fund-moic.js';
-import timelineRouter from './routes/timeline.js';
-import { sharesRouter, publicSharesRouter } from './routes/shares.js';
-import capitalAllocationRouter from './routes/capital-allocation.js';
-import liquidityRouter from './routes/liquidity.js';
-import graduationRouter from './routes/graduation.js';
-import reallocationRouter from './routes/reallocation.js';
-import cashFlowEventsRouter from './routes/cash-flow-events.js';
-import operatingObjectTasksRouter from './routes/operating-object-tasks.js';
-import backtestingRouter from './routes/backtesting.js';
-import fundsRouter from './routes/funds.js';
-import fundMetricsRouter from './routes/fund-metrics.js';
-import investmentsRouter from './routes/investments.js';
-import portfolioCompaniesRouter from './routes/portfolio-companies.js';
-import portfolioOverviewRouter from './routes/portfolio-overview.js';
-import varianceRouter from './routes/variance.js';
-import { registerFundConfigRoutes } from './routes/fund-config.js';
-import { dealPipelineRouter } from './routes/deal-pipeline.js';
-import cohortAnalysisRouter from './routes/cohort-analysis.js';
-import sensitivityRouter from './routes/sensitivity.js';
-import portfolioLotsRouter from './routes/portfolio/lots.js';
-import performanceApiRouter from './routes/performance-api.js';
-import lpApiRouter from './routes/lp-api.js';
-import lpCapitalCallsRouter from './routes/lp-capital-calls.js';
-import lpDistributionsRouter from './routes/lp-distributions.js';
-import lpDocumentsRouter from './routes/lp-documents.js';
-import lpNotificationsRouter from './routes/lp-notifications.js';
-import lpReportingImportsRouter from './routes/lp-reporting/imports.js';
-import lpReportingMetricRunsRouter from './routes/lp-reporting/metric-runs.js';
 import metricsRouter from './routes/metrics-endpoint.js';
 import { installRumIngressGuards } from './routes/metrics-rum-ingress.js';
 import { metricsRumRouter } from './routes/metrics-rum.js';
@@ -54,8 +17,8 @@ import { cspDirectives, securityHeaders } from './config/csp.js';
 import { requireAuth } from './lib/auth/jwt.js';
 import { isPublicApiPath } from './lib/public-api-boundary.js';
 import { errorHandler } from './errors.js';
-import authRouter from './routes/auth.js';
 import { requireCsrf } from './lib/auth/csrf.js';
+import { mountCommonRoutes } from './routes/mount-common-routes.js';
 
 export function makeApp() {
   const app = express();
@@ -206,12 +169,7 @@ export function makeApp() {
   // Public unauthenticated routes pass here; login has its own pre-auth token.
   app.use('/api', requireCsrf);
 
-  // Auth: login endpoint. Router self-defines /api/auth/login; mounted at the bare
-  // root AFTER the /api guard, which lets it through via isPublicApiPath(POST /auth/login).
-  app.use(authRouter);
-
-  // Feature flags API
-  app.use('/api/flags', flagsRouter);
+  mountCommonRoutes(app, { surface: 'make_app', group: 'pre_runtime' });
 
   // Versioned API
   app.use('/api/v1/reserves', reservesV1Router);
@@ -227,102 +185,8 @@ export function makeApp() {
 
   // Scenario Analysis API (Construction vs Current, deal modeling)
   app.use('/api', scenarioAnalysisRouter);
-  app.use('/api', dualForecastRouter);
-  // Dashboard header KPI cards + Portfolio Allocation read model (#1032). Mounted
-  // here so the Vercel/makeApp surface matches the Docker routes.ts mount; without
-  // it the endpoint 404s in prod and the KPI provenance envelope stays invisible.
-  app.use('/api', dashboardSummaryRouter);
-  app.use('/api', fundActualsRouter);
 
-  // Keep the makeApp/serverless surface aligned with the canonical fund routes
-  // used by the wizard bootstrap flow.
-  app.use('/api', fundsRouter);
-  app.use(fundMetricsRouter);
-  app.use('/api', investmentsRouter);
-  // Portfolio Companies API (#1036 burn-down). Fund-scoped reads/writes of portfolio_companies via
-  // IStorage; protected by the global /api auth boundary above + per-request enforceProvidedFundScope.
-  // Mounted at the bare /api root (routes self-define relative /portfolio-companies paths), mirroring
-  // the Docker routes.ts mount; without it /api/portfolio-companies 404s in prod. Closes the parity
-  // 404 gap; does NOT by itself restore the prod client flow (apiRequest sends cookies, not Bearer).
-  app.use('/api', portfolioCompaniesRouter);
-  // Portfolio Overview API (#1036 burn-down). Fund-scoped server-computed overview (KPIs + per-company
-  // MOIC) read from funds/portfolio_companies via IStorage; protected by the global /api auth boundary
-  // above + per-request enforceProvidedFundScope. Mounted at the bare /api root (route self-defines the
-  // relative /portfolio-overview path), mirroring the Docker routes.ts mount; without it
-  // /api/portfolio-overview 404s in prod (live: /portfolio -> PortfolioTabs -> OverviewTab ->
-  // usePortfolioOverview). Closes the parity 404 gap; does NOT by itself restore the prod client flow
-  // (apiRequest sends cookies, not Bearer).
-  app.use('/api', portfolioOverviewRouter);
-  app.use('/api', portfolioLotsRouter);
-  app.use(performanceApiRouter);
-  app.use('/', varianceRouter);
-  registerFundConfigRoutes(app);
-
-  // Fund Allocation Management API (Phase 1b - Reserve allocations with optimistic locking)
-  app.use('/api', allocationsRouter);
-  app.use('/api', allocationScenariosRouter);
-  app.use('/api', planningFmvOverridesRouter);
-  app.use('/api', fundScenarioSetsRouter);
-  app.use('/api', fundMoicRouter);
-  // Timeline / time-travel API (#1036 burn-down). Mounted here so the
-  // Vercel/makeApp surface matches the Docker routes.ts mount; without it the
-  // client's /api/timeline calls 404 in prod. /events/latest self-gates with
-  // requireAuth()+requireRole('admin') inside the router (cross-surface safe).
-  app.use('/api/timeline', timelineRouter);
-  // Shares API (#1036 burn-down). Mounted here so the Vercel/makeApp surface matches the Docker
-  // routes.ts mount; without it /api/shares and /api/public/shares 404 in prod. Management
-  // self-gates per-handler (requireAuthenticatedUser + canManageFund); the public routes stay
-  // anonymous via isPublicApiPath (GET /public/shares/:id and POST /public/shares/:id/verify
-  // bypass the global /api auth). Placed AFTER the global /api auth boundary.
-  app.use('/api/shares', sharesRouter);
-  app.use('/api/public/shares', publicSharesRouter);
-  // Capital-allocation API (#1036 burn-down). Pure deterministic compute (no DB, no fund-scope,
-  // no route-local auth) — protected only by the global /api auth boundary above. Mounted here so
-  // the Vercel/makeApp surface matches the Docker routes.ts mount; without it /api/capital-allocation
-  // 404s in prod. This closes the parity 404 gap; it does NOT by itself restore the prod client flow
-  // (the client hook sends no Bearer token — see the handoff TODO).
-  app.use('/api/capital-allocation', capitalAllocationRouter);
-  // Liquidity API (#1036 burn-down). Pure deterministic compute (no DB, NOT fund-scoped, no
-  // route-local auth) — protected only by the global /api auth boundary above. Mounted here so the
-  // Vercel/makeApp surface matches the Docker routes.ts mount; without it /api/liquidity 404s in prod.
-  // Closes the parity 404 gap; does NOT by itself restore the prod client flow (hook sends no Bearer).
-  app.use('/api/liquidity', liquidityRouter);
-  // Graduation API (#1036 burn-down). Pure deterministic compute (no DB, no fund-scope, no
-  // route-local auth) — protected only by the global /api auth boundary above. Mounted here so the
-  // Vercel/makeApp surface matches the Docker routes.ts mount; without it /api/graduation 404s in prod.
-  // Closes the parity 404 gap; does NOT by itself restore the prod client flow (hook sends no Bearer).
-  app.use('/api/graduation', graduationRouter);
-
-  // Reallocation API (Phase 1b) - mounted at root; the router self-defines its
-  // full /api/funds/:fundId/reallocation/* paths (mirrors the registerRoutes mount).
-  app.use(reallocationRouter);
-
-  // Cash-flow-events API (Candidate C, Phase 1) - mounted at root; the router
-  // self-defines its full /api/funds/:fundId/cash-flow-events paths (mirrors reallocation).
-  app.use(cashFlowEventsRouter);
-
-  // Operating-object Tasks API (backend-first; minimal create/list) - mounted at
-  // root; the router self-defines /api/funds/:fundId/tasks (mirrors cash-flow-events).
-  app.use(operatingObjectTasksRouter);
-
-  // Deal Pipeline API (Sprint 1 - Deal tracking, DD, scoring)
-  app.use('/api/deals', dealPipelineRouter);
-
-  // Cohort Analysis API (Advanced cohort analysis with sector/vintage normalization)
-  app.use('/api/cohorts', cohortAnalysisRouter);
-
-  // Sensitivity Analysis API (Phase 1A - one-way sweeps; fund-scoped)
-  app.use('/api', sensitivityRouter);
-  app.use(lpApiRouter);
-  app.use(lpCapitalCallsRouter);
-  app.use(lpDistributionsRouter);
-  app.use('/api/lp', lpDocumentsRouter);
-  app.use('/api/lp', lpNotificationsRouter);
-  app.use(lpReportingImportsRouter);
-  app.use(lpReportingMetricRunsRouter);
-
-  // Backtesting API (Monte Carlo validation)
-  app.use('/api/backtesting', backtestingRouter);
+  mountCommonRoutes(app, { surface: 'make_app', group: 'post_runtime' });
 
   // API version endpoint for deployment verification
   app['get']('/api/version', (_req: Request, res: Response) =>

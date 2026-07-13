@@ -218,11 +218,21 @@ describe('route-mount-parity: routes.ts <-> makeApp (real sources)', () => {
   const appSrc = read('app.ts');
   const exemptions = Object.keys(DOCKER_ONLY_EXEMPTIONS);
 
-  it('extractor sanity: a known shared router (funds) is on BOTH surfaces', () => {
-    const docker = extractRouteModulePaths(routesSrc);
-    const makeApp = extractRouteModulePaths(appSrc);
-    expect(docker.has('./routes/funds.js')).toBe(true);
-    expect(makeApp.has('./routes/funds.js')).toBe(true);
+  it('sanity: a known shared router (funds) reaches BOTH surfaces via the common map', () => {
+    // Post common-manifest convergence (#1090), shared routers are no longer imported
+    // directly by either entrypoint: each surface makes surface-specific
+    // mountCommonRoutes() calls and the route imports live in
+    // server/routes/mount-common-routes.ts. The sanity anchor therefore proves the
+    // delegation chain (comment-stripped, same discipline as the extractor).
+    // BOUNDARY: exhaustive common membership/group completeness is owned by
+    // tests/unit/server/common-route-manifest.test.ts; this guard retains
+    // direct/runtime-specific import extraction and the exemption ledger below.
+    expect(stripComments(routesSrc)).toContain(
+      "mountCommonRoutes(app, { surface: 'register_routes'"
+    );
+    expect(stripComments(appSrc)).toContain("mountCommonRoutes(app, { surface: 'make_app'");
+    const commonMapSrc = stripComments(read('routes/mount-common-routes.ts'));
+    expect(commonMapSrc).toContain("from './funds.js'");
   });
 
   it('a permanent Docker-only router (lp-health) is seen as Docker-only, not on makeApp', () => {

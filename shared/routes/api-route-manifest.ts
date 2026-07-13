@@ -3,13 +3,15 @@ export type AuthBoundary = 'public' | 'global_authenticated' | 'router_local';
 export type FundScope = 'none' | 'path' | 'query' | 'body' | 'router_defined';
 export type ApiRouteOwner = 'platform' | 'gp-team' | 'analytics' | 'lp-reporting';
 export type CommonRouteMountStage = 'core' | 'post_response_metrics';
+export type MigrationParity =
+  { kind: 'c1'; tables: readonly string[] } | { kind: 'other-table' } | { kind: 'non-table' };
 
 export interface RouteProbe {
   method: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
   path: string;
   expectedStatus: number;
   body?: unknown;
-  authenticated?: boolean;
+  authenticated: boolean;
 }
 
 export interface CommonApiRouteManifestEntry {
@@ -20,6 +22,7 @@ export interface CommonApiRouteManifestEntry {
   authBoundary: AuthBoundary;
   fundScope: FundScope;
   financial: boolean;
+  migrationParity: MigrationParity;
   schemaTables: readonly string[];
   owner: ApiRouteOwner;
   probe: RouteProbe;
@@ -33,9 +36,10 @@ export const COMMON_API_ROUTE_MANIFEST = [
     authBoundary: 'router_local',
     fundScope: 'none',
     financial: false,
+    migrationParity: { kind: 'other-table' },
     schemaTables: ['users', 'user_fund_grants'],
     owner: 'platform',
-    probe: { method: 'GET', path: '/api/auth/csrf', expectedStatus: 200 },
+    probe: { method: 'GET', path: '/api/auth/csrf', expectedStatus: 200, authenticated: false },
   },
   {
     id: 'flags',
@@ -44,9 +48,10 @@ export const COMMON_API_ROUTE_MANIFEST = [
     authBoundary: 'router_local',
     fundScope: 'none',
     financial: false,
+    migrationParity: { kind: 'other-table' },
     schemaTables: ['flag_changes', 'flags_state'],
     owner: 'platform',
-    probe: { method: 'GET', path: '/api/flags/status', expectedStatus: 200 },
+    probe: { method: 'GET', path: '/api/flags/status', expectedStatus: 200, authenticated: false },
   },
   {
     id: 'dual-forecast',
@@ -55,6 +60,7 @@ export const COMMON_API_ROUTE_MANIFEST = [
     authBoundary: 'router_local',
     fundScope: 'path',
     financial: true,
+    migrationParity: { kind: 'other-table' },
     schemaTables: [
       'funds',
       'fundconfigs',
@@ -66,7 +72,12 @@ export const COMMON_API_ROUTE_MANIFEST = [
       'valuation_marks',
     ],
     owner: 'analytics',
-    probe: { method: 'GET', path: '/api/funds/abc/dual-forecast', expectedStatus: 401 },
+    probe: {
+      method: 'GET',
+      path: '/api/funds/abc/dual-forecast',
+      expectedStatus: 400,
+      authenticated: true,
+    },
   },
   {
     id: 'dashboard-summary',
@@ -75,9 +86,15 @@ export const COMMON_API_ROUTE_MANIFEST = [
     authBoundary: 'global_authenticated',
     fundScope: 'path',
     financial: true,
+    migrationParity: { kind: 'other-table' },
     schemaTables: ['funds', 'portfoliocompanies', 'fund_metrics'],
     owner: 'gp-team',
-    probe: { method: 'GET', path: '/api/dashboard-summary/abc', expectedStatus: 400 },
+    probe: {
+      method: 'GET',
+      path: '/api/dashboard-summary/abc',
+      expectedStatus: 400,
+      authenticated: true,
+    },
   },
   {
     id: 'fund-actuals',
@@ -86,6 +103,10 @@ export const COMMON_API_ROUTE_MANIFEST = [
     authBoundary: 'router_local',
     fundScope: 'path',
     financial: true,
+    migrationParity: {
+      kind: 'c1',
+      tables: ['valuation_marks', 'investment_rounds', 'investment_round_model_overrides'],
+    },
     schemaTables: [
       'funds',
       'portfoliocompanies',
@@ -95,7 +116,12 @@ export const COMMON_API_ROUTE_MANIFEST = [
       'valuation_marks',
     ],
     owner: 'gp-team',
-    probe: { method: 'GET', path: '/api/funds/abc/actuals/facts', expectedStatus: 401 },
+    probe: {
+      method: 'GET',
+      path: '/api/funds/abc/actuals/facts',
+      expectedStatus: 400,
+      authenticated: true,
+    },
   },
   {
     id: 'funds',
@@ -104,9 +130,10 @@ export const COMMON_API_ROUTE_MANIFEST = [
     authBoundary: 'global_authenticated',
     fundScope: 'router_defined',
     financial: true,
+    migrationParity: { kind: 'other-table' },
     schemaTables: ['funds', 'fundconfigs', 'fund_events'],
     owner: 'gp-team',
-    probe: { method: 'GET', path: '/api/funds/abc', expectedStatus: 400 },
+    probe: { method: 'GET', path: '/api/funds/abc', expectedStatus: 400, authenticated: true },
   },
   {
     id: 'fund-metrics',
@@ -115,6 +142,7 @@ export const COMMON_API_ROUTE_MANIFEST = [
     authBoundary: 'router_local',
     fundScope: 'path',
     financial: true,
+    migrationParity: { kind: 'other-table' },
     schemaTables: [
       'funds',
       'fundconfigs',
@@ -123,7 +151,12 @@ export const COMMON_API_ROUTE_MANIFEST = [
       'fund_distributions',
     ],
     owner: 'analytics',
-    probe: { method: 'GET', path: '/api/funds/abc/metrics', expectedStatus: 401 },
+    probe: {
+      method: 'GET',
+      path: '/api/funds/abc/metrics',
+      expectedStatus: 400,
+      authenticated: true,
+    },
   },
   {
     id: 'investments',
@@ -132,9 +165,10 @@ export const COMMON_API_ROUTE_MANIFEST = [
     authBoundary: 'global_authenticated',
     fundScope: 'router_defined',
     financial: true,
+    migrationParity: { kind: 'c1', tables: ['investment_rounds'] },
     schemaTables: ['investments', 'investment_rounds'],
     owner: 'gp-team',
-    probe: { method: 'GET', path: '/api/investments', expectedStatus: 400 },
+    probe: { method: 'GET', path: '/api/investments', expectedStatus: 400, authenticated: true },
   },
   {
     id: 'portfolio-companies',
@@ -143,9 +177,15 @@ export const COMMON_API_ROUTE_MANIFEST = [
     authBoundary: 'global_authenticated',
     fundScope: 'router_defined',
     financial: true,
+    migrationParity: { kind: 'other-table' },
     schemaTables: ['portfoliocompanies', 'fund_events', 'fund_snapshots'],
     owner: 'gp-team',
-    probe: { method: 'GET', path: '/api/portfolio-companies', expectedStatus: 400 },
+    probe: {
+      method: 'GET',
+      path: '/api/portfolio-companies',
+      expectedStatus: 400,
+      authenticated: true,
+    },
   },
   {
     id: 'portfolio-overview',
@@ -154,9 +194,15 @@ export const COMMON_API_ROUTE_MANIFEST = [
     authBoundary: 'global_authenticated',
     fundScope: 'query',
     financial: true,
+    migrationParity: { kind: 'other-table' },
     schemaTables: ['funds', 'portfoliocompanies', 'fund_events', 'fund_snapshots'],
     owner: 'gp-team',
-    probe: { method: 'GET', path: '/api/portfolio-overview', expectedStatus: 400 },
+    probe: {
+      method: 'GET',
+      path: '/api/portfolio-overview',
+      expectedStatus: 400,
+      authenticated: true,
+    },
   },
   {
     id: 'portfolio-lots',
@@ -165,6 +211,7 @@ export const COMMON_API_ROUTE_MANIFEST = [
     authBoundary: 'global_authenticated',
     fundScope: 'path',
     financial: true,
+    migrationParity: { kind: 'other-table' },
     schemaTables: ['investments', 'investment_lots'],
     owner: 'gp-team',
     probe: {
@@ -172,6 +219,7 @@ export const COMMON_API_ROUTE_MANIFEST = [
       path: '/api/funds/1/portfolio/lots',
       expectedStatus: 400,
       body: {},
+      authenticated: true,
     },
   },
   {
@@ -182,6 +230,7 @@ export const COMMON_API_ROUTE_MANIFEST = [
     authBoundary: 'router_local',
     fundScope: 'path',
     financial: true,
+    migrationParity: { kind: 'other-table' },
     schemaTables: [
       'fund_metrics',
       'pacing_history',
@@ -205,6 +254,7 @@ export const COMMON_API_ROUTE_MANIFEST = [
     authBoundary: 'global_authenticated',
     fundScope: 'router_defined',
     financial: true,
+    migrationParity: { kind: 'other-table' },
     schemaTables: [
       'fund_baselines',
       'fund_metrics',
@@ -219,7 +269,12 @@ export const COMMON_API_ROUTE_MANIFEST = [
       'performance_alerts',
     ],
     owner: 'gp-team',
-    probe: { method: 'GET', path: '/api/funds/abc/variance-dashboard', expectedStatus: 400 },
+    probe: {
+      method: 'GET',
+      path: '/api/funds/abc/variance-dashboard',
+      expectedStatus: 400,
+      authenticated: true,
+    },
   },
   {
     id: 'fund-config',
@@ -229,9 +284,15 @@ export const COMMON_API_ROUTE_MANIFEST = [
     authBoundary: 'global_authenticated',
     fundScope: 'router_defined',
     financial: true,
+    migrationParity: { kind: 'other-table' },
     schemaTables: ['funds', 'fundconfigs', 'fund_events', 'fund_snapshots'],
     owner: 'gp-team',
-    probe: { method: 'GET', path: '/api/funds/abc/results', expectedStatus: 400 },
+    probe: {
+      method: 'GET',
+      path: '/api/funds/abc/results',
+      expectedStatus: 400,
+      authenticated: true,
+    },
   },
   {
     id: 'allocations',
@@ -240,9 +301,15 @@ export const COMMON_API_ROUTE_MANIFEST = [
     authBoundary: 'global_authenticated',
     fundScope: 'path',
     financial: true,
+    migrationParity: { kind: 'other-table' },
     schemaTables: ['funds', 'portfoliocompanies', 'fund_events'],
     owner: 'gp-team',
-    probe: { method: 'GET', path: '/api/funds/abc/companies', expectedStatus: 400 },
+    probe: {
+      method: 'GET',
+      path: '/api/funds/abc/companies',
+      expectedStatus: 400,
+      authenticated: true,
+    },
   },
   {
     id: 'allocation-scenarios',
@@ -251,6 +318,15 @@ export const COMMON_API_ROUTE_MANIFEST = [
     authBoundary: 'global_authenticated',
     fundScope: 'path',
     financial: true,
+    migrationParity: {
+      kind: 'c1',
+      tables: [
+        'allocation_scenarios',
+        'allocation_scenario_items',
+        'allocation_scenario_ic_decisions',
+        'allocation_scenario_events',
+      ],
+    },
     schemaTables: [
       'funds',
       'portfoliocompanies',
@@ -262,7 +338,12 @@ export const COMMON_API_ROUTE_MANIFEST = [
       'fund_events',
     ],
     owner: 'gp-team',
-    probe: { method: 'GET', path: '/api/funds/abc/allocation-scenarios', expectedStatus: 400 },
+    probe: {
+      method: 'GET',
+      path: '/api/funds/abc/allocation-scenarios',
+      expectedStatus: 400,
+      authenticated: true,
+    },
   },
   {
     id: 'planning-fmv-overrides',
@@ -271,12 +352,17 @@ export const COMMON_API_ROUTE_MANIFEST = [
     authBoundary: 'router_local',
     fundScope: 'path',
     financial: true,
+    migrationParity: {
+      kind: 'c1',
+      tables: ['valuation_marks', 'planning_fmv_override_requests'],
+    },
     schemaTables: ['planning_fmv_override_requests', 'valuation_marks', 'portfoliocompanies'],
     owner: 'lp-reporting',
     probe: {
       method: 'GET',
       path: '/api/funds/abc/planning/fmv-overrides/latest',
-      expectedStatus: 401,
+      expectedStatus: 400,
+      authenticated: true,
     },
   },
   {
@@ -286,6 +372,7 @@ export const COMMON_API_ROUTE_MANIFEST = [
     authBoundary: 'router_local',
     fundScope: 'path',
     financial: true,
+    migrationParity: { kind: 'other-table' },
     schemaTables: [
       'funds',
       'fundconfigs',
@@ -298,7 +385,12 @@ export const COMMON_API_ROUTE_MANIFEST = [
       'portfoliocompanies',
     ],
     owner: 'gp-team',
-    probe: { method: 'GET', path: '/api/funds/abc/scenario-sets', expectedStatus: 401 },
+    probe: {
+      method: 'GET',
+      path: '/api/funds/abc/scenario-sets',
+      expectedStatus: 400,
+      authenticated: true,
+    },
   },
   {
     id: 'fund-moic',
@@ -307,6 +399,15 @@ export const COMMON_API_ROUTE_MANIFEST = [
     authBoundary: 'router_local',
     fundScope: 'path',
     financial: true,
+    migrationParity: {
+      kind: 'c1',
+      tables: [
+        'fund_calculation_modes',
+        'reconciliation_runs',
+        'investment_rounds',
+        'investment_round_model_overrides',
+      ],
+    },
     schemaTables: [
       'funds',
       'portfoliocompanies',
@@ -321,7 +422,12 @@ export const COMMON_API_ROUTE_MANIFEST = [
       'fund_calculation_mode_requests',
     ],
     owner: 'analytics',
-    probe: { method: 'GET', path: '/api/funds/abc/moic/rankings', expectedStatus: 401 },
+    probe: {
+      method: 'GET',
+      path: '/api/funds/abc/moic/rankings',
+      expectedStatus: 400,
+      authenticated: true,
+    },
   },
   {
     id: 'timeline',
@@ -331,9 +437,10 @@ export const COMMON_API_ROUTE_MANIFEST = [
     authBoundary: 'global_authenticated',
     fundScope: 'path',
     financial: true,
+    migrationParity: { kind: 'other-table' },
     schemaTables: ['funds', 'fund_events', 'fund_snapshots'],
     owner: 'gp-team',
-    probe: { method: 'GET', path: '/api/timeline/abc', expectedStatus: 400 },
+    probe: { method: 'GET', path: '/api/timeline/abc', expectedStatus: 400, authenticated: true },
   },
   {
     id: 'shares',
@@ -343,6 +450,7 @@ export const COMMON_API_ROUTE_MANIFEST = [
     authBoundary: 'router_local',
     fundScope: 'router_defined',
     financial: true,
+    migrationParity: { kind: 'other-table' },
     schemaTables: [
       'shares',
       'share_snapshots',
@@ -352,7 +460,7 @@ export const COMMON_API_ROUTE_MANIFEST = [
       'fund_metrics',
     ],
     owner: 'lp-reporting',
-    probe: { method: 'GET', path: '/api/shares', expectedStatus: 401 },
+    probe: { method: 'GET', path: '/api/shares', expectedStatus: 400, authenticated: true },
   },
   {
     id: 'public-shares',
@@ -362,6 +470,7 @@ export const COMMON_API_ROUTE_MANIFEST = [
     authBoundary: 'public',
     fundScope: 'none',
     financial: true,
+    migrationParity: { kind: 'other-table' },
     schemaTables: ['shares', 'share_snapshots', 'share_analytics'],
     owner: 'lp-reporting',
     probe: {
@@ -369,6 +478,7 @@ export const COMMON_API_ROUTE_MANIFEST = [
       path: '/api/public/shares/probe/verify',
       expectedStatus: 400,
       body: {},
+      authenticated: false,
     },
   },
   {
@@ -378,6 +488,7 @@ export const COMMON_API_ROUTE_MANIFEST = [
     authBoundary: 'global_authenticated',
     fundScope: 'none',
     financial: true,
+    migrationParity: { kind: 'non-table' },
     schemaTables: [],
     owner: 'analytics',
     probe: {
@@ -385,6 +496,7 @@ export const COMMON_API_ROUTE_MANIFEST = [
       path: '/api/capital-allocation/calculate',
       expectedStatus: 400,
       body: {},
+      authenticated: true,
     },
   },
   {
@@ -394,9 +506,16 @@ export const COMMON_API_ROUTE_MANIFEST = [
     authBoundary: 'global_authenticated',
     fundScope: 'none',
     financial: true,
+    migrationParity: { kind: 'non-table' },
     schemaTables: [],
     owner: 'gp-team',
-    probe: { method: 'POST', path: '/api/liquidity/analyze', expectedStatus: 500, body: {} },
+    probe: {
+      method: 'POST',
+      path: '/api/liquidity/analyze',
+      expectedStatus: 500,
+      body: {},
+      authenticated: true,
+    },
   },
   {
     id: 'graduation',
@@ -405,9 +524,15 @@ export const COMMON_API_ROUTE_MANIFEST = [
     authBoundary: 'global_authenticated',
     fundScope: 'none',
     financial: true,
+    migrationParity: { kind: 'non-table' },
     schemaTables: [],
     owner: 'analytics',
-    probe: { method: 'GET', path: '/api/graduation/defaults', expectedStatus: 200 },
+    probe: {
+      method: 'GET',
+      path: '/api/graduation/defaults',
+      expectedStatus: 200,
+      authenticated: true,
+    },
   },
   {
     id: 'reallocation',
@@ -416,6 +541,7 @@ export const COMMON_API_ROUTE_MANIFEST = [
     authBoundary: 'global_authenticated',
     fundScope: 'path',
     financial: true,
+    migrationParity: { kind: 'other-table' },
     schemaTables: ['funds', 'portfoliocompanies', 'reallocation_audit'],
     owner: 'gp-team',
     probe: {
@@ -423,6 +549,41 @@ export const COMMON_API_ROUTE_MANIFEST = [
       path: '/api/funds/abc/reallocation/preview',
       expectedStatus: 400,
       body: {},
+      authenticated: true,
+    },
+  },
+  {
+    id: 'cash-flow-events',
+    sourceModule: './routes/cash-flow-events.js',
+    mountPath: null,
+    authBoundary: 'global_authenticated',
+    fundScope: 'path',
+    financial: true,
+    migrationParity: { kind: 'c1', tables: ['cash_flow_events'] },
+    schemaTables: ['cash_flow_events', 'funds'],
+    owner: 'gp-team',
+    probe: {
+      method: 'GET',
+      path: '/api/funds/abc/cash-flow-events',
+      expectedStatus: 400,
+      authenticated: true,
+    },
+  },
+  {
+    id: 'operating-object-tasks',
+    sourceModule: './routes/operating-object-tasks.js',
+    mountPath: null,
+    authBoundary: 'global_authenticated',
+    fundScope: 'path',
+    financial: true,
+    migrationParity: { kind: 'c1', tables: ['tasks'] },
+    schemaTables: ['tasks', 'funds'],
+    owner: 'gp-team',
+    probe: {
+      method: 'GET',
+      path: '/api/funds/abc/tasks',
+      expectedStatus: 400,
+      authenticated: true,
     },
   },
   {
@@ -432,6 +593,7 @@ export const COMMON_API_ROUTE_MANIFEST = [
     authBoundary: 'global_authenticated',
     fundScope: 'router_defined',
     financial: true,
+    migrationParity: { kind: 'other-table' },
     schemaTables: [
       'deal_opportunities',
       'due_diligence_items',
@@ -444,6 +606,7 @@ export const COMMON_API_ROUTE_MANIFEST = [
       method: 'GET',
       path: '/api/deals/opportunities?cursor=not-a-cursor',
       expectedStatus: 400,
+      authenticated: true,
     },
   },
   {
@@ -453,6 +616,16 @@ export const COMMON_API_ROUTE_MANIFEST = [
     authBoundary: 'router_local',
     fundScope: 'router_defined',
     financial: true,
+    migrationParity: {
+      kind: 'c1',
+      tables: [
+        'cohort_definitions',
+        'sector_taxonomy',
+        'sector_mappings',
+        'company_overrides',
+        'investment_overrides',
+      ],
+    },
     schemaTables: [
       'cohort_definitions',
       'portfoliocompanies',
@@ -478,9 +651,15 @@ export const COMMON_API_ROUTE_MANIFEST = [
     authBoundary: 'global_authenticated',
     fundScope: 'path',
     financial: true,
+    migrationParity: { kind: 'other-table' },
     schemaTables: ['sensitivity_runs', 'fundconfigs'],
     owner: 'gp-team',
-    probe: { method: 'GET', path: '/api/funds/abc/sensitivity/runs', expectedStatus: 400 },
+    probe: {
+      method: 'GET',
+      path: '/api/funds/abc/sensitivity/runs',
+      expectedStatus: 400,
+      authenticated: true,
+    },
   },
   {
     id: 'lp-api',
@@ -490,6 +669,7 @@ export const COMMON_API_ROUTE_MANIFEST = [
     authBoundary: 'router_local',
     fundScope: 'router_defined',
     financial: true,
+    migrationParity: { kind: 'c1', tables: ['vehicles', 'valuation_marks'] },
     schemaTables: [
       'limited_partners',
       'lp_fund_commitments',
@@ -501,9 +681,11 @@ export const COMMON_API_ROUTE_MANIFEST = [
       'lp_reports',
       'funds',
       'lp_audit_log',
+      'vehicles',
+      'valuation_marks',
     ],
     owner: 'lp-reporting',
-    probe: { method: 'GET', path: '/api/lp/profile', expectedStatus: 401 },
+    probe: { method: 'GET', path: '/api/lp/profile', expectedStatus: 403, authenticated: true },
   },
   {
     id: 'lp-capital-calls',
@@ -513,9 +695,15 @@ export const COMMON_API_ROUTE_MANIFEST = [
     authBoundary: 'router_local',
     fundScope: 'router_defined',
     financial: true,
+    migrationParity: { kind: 'other-table' },
     schemaTables: ['lp_capital_calls', 'lp_payment_submissions', 'funds', 'lp_audit_log'],
     owner: 'lp-reporting',
-    probe: { method: 'GET', path: '/api/lp/capital-calls', expectedStatus: 401 },
+    probe: {
+      method: 'GET',
+      path: '/api/lp/capital-calls',
+      expectedStatus: 403,
+      authenticated: true,
+    },
   },
   {
     id: 'lp-distributions',
@@ -525,9 +713,15 @@ export const COMMON_API_ROUTE_MANIFEST = [
     authBoundary: 'router_local',
     fundScope: 'router_defined',
     financial: true,
+    migrationParity: { kind: 'other-table' },
     schemaTables: ['lp_distribution_details', 'funds', 'lp_audit_log'],
     owner: 'lp-reporting',
-    probe: { method: 'GET', path: '/api/lp/distributions', expectedStatus: 401 },
+    probe: {
+      method: 'GET',
+      path: '/api/lp/distributions',
+      expectedStatus: 403,
+      authenticated: true,
+    },
   },
   {
     id: 'lp-documents',
@@ -537,9 +731,15 @@ export const COMMON_API_ROUTE_MANIFEST = [
     authBoundary: 'router_local',
     fundScope: 'router_defined',
     financial: true,
+    migrationParity: { kind: 'other-table' },
     schemaTables: ['lp_documents', 'funds', 'lp_audit_log'],
     owner: 'lp-reporting',
-    probe: { method: 'GET', path: '/api/lp/documents', expectedStatus: 401 },
+    probe: {
+      method: 'GET',
+      path: '/api/lp/documents',
+      expectedStatus: 403,
+      authenticated: true,
+    },
   },
   {
     id: 'lp-notifications',
@@ -549,9 +749,15 @@ export const COMMON_API_ROUTE_MANIFEST = [
     authBoundary: 'router_local',
     fundScope: 'router_defined',
     financial: true,
+    migrationParity: { kind: 'other-table' },
     schemaTables: ['lp_notifications', 'lp_notification_preferences', 'lp_audit_log'],
     owner: 'lp-reporting',
-    probe: { method: 'GET', path: '/api/lp/notifications', expectedStatus: 401 },
+    probe: {
+      method: 'GET',
+      path: '/api/lp/notifications',
+      expectedStatus: 403,
+      authenticated: true,
+    },
   },
   {
     id: 'lp-reporting-imports',
@@ -561,6 +767,10 @@ export const COMMON_API_ROUTE_MANIFEST = [
     authBoundary: 'router_local',
     fundScope: 'path',
     financial: true,
+    migrationParity: {
+      kind: 'c1',
+      tables: ['evidence_records', 'lp_report_packages', 'lp_report_package_exports'],
+    },
     schemaTables: [
       'cash_flow_events',
       'valuation_marks',
@@ -568,13 +778,17 @@ export const COMMON_API_ROUTE_MANIFEST = [
       'portfoliocompanies',
       'users',
       'lp_fund_commitments',
+      'evidence_records',
+      'lp_report_packages',
+      'lp_report_package_exports',
     ],
     owner: 'lp-reporting',
     probe: {
       method: 'POST',
       path: '/api/funds/abc/imports/ledger/dry-run',
-      expectedStatus: 401,
+      expectedStatus: 400,
       body: {},
+      authenticated: true,
     },
   },
   {
@@ -585,6 +799,7 @@ export const COMMON_API_ROUTE_MANIFEST = [
     authBoundary: 'router_local',
     fundScope: 'path',
     financial: true,
+    migrationParity: { kind: 'c1', tables: ['lp_metric_runs', 'narrative_runs'] },
     schemaTables: [
       'cash_flow_events',
       'valuation_marks',
@@ -600,8 +815,9 @@ export const COMMON_API_ROUTE_MANIFEST = [
     probe: {
       method: 'POST',
       path: '/api/funds/abc/metric-runs/dry-run',
-      expectedStatus: 401,
+      expectedStatus: 400,
       body: {},
+      authenticated: true,
     },
   },
   {
@@ -611,6 +827,7 @@ export const COMMON_API_ROUTE_MANIFEST = [
     authBoundary: 'router_local',
     fundScope: 'router_defined',
     financial: true,
+    migrationParity: { kind: 'other-table' },
     schemaTables: [
       'backtest_results',
       'fund_baselines',
@@ -618,7 +835,13 @@ export const COMMON_API_ROUTE_MANIFEST = [
       'fund_state_snapshots',
     ],
     owner: 'analytics',
-    probe: { method: 'POST', path: '/api/backtesting/run', expectedStatus: 401, body: {} },
+    probe: {
+      method: 'POST',
+      path: '/api/backtesting/run',
+      expectedStatus: 400,
+      body: {},
+      authenticated: true,
+    },
   },
 ] as const satisfies readonly CommonApiRouteManifestEntry[];
 
@@ -636,6 +859,10 @@ function assertUniqueManifestIds(entries: readonly CommonApiRouteManifestEntry[]
 assertUniqueManifestIds(COMMON_API_ROUTE_MANIFEST);
 
 export type CommonApiRouteId = (typeof COMMON_API_ROUTE_MANIFEST)[number]['id'];
+export type FinancialCommonApiRouteId = Extract<
+  (typeof COMMON_API_ROUTE_MANIFEST)[number],
+  { financial: true }
+>['id'];
 
 export function getCommonRouteMountStage(
   entry: CommonApiRouteManifestEntry

@@ -64,22 +64,6 @@ export const API_RUNTIME_SPECIFIC_MANIFEST = [
     reason: 'The scenario analysis router is currently exposed only by makeApp.',
   },
   {
-    id: 'make-app-cash-flow-events',
-    sourceModule: './routes/cash-flow-events.js',
-    surface: 'make_app',
-    classification: 'runtime_specific',
-    mountPaths: [null],
-    reason: 'The cash-flow event lifecycle API is currently exposed only by makeApp.',
-  },
-  {
-    id: 'make-app-operating-object-tasks',
-    sourceModule: './routes/operating-object-tasks.js',
-    surface: 'make_app',
-    classification: 'runtime_specific',
-    mountPaths: [null],
-    reason: 'The operating-object task API is currently exposed only by makeApp.',
-  },
-  {
     id: 'make-app-rum-ingress',
     sourceModule: './routes/metrics-rum-ingress.js',
     surface: 'make_app',
