@@ -1,7 +1,9 @@
 import express from 'express';
 import type { Request, Response } from 'express';
+import { join } from 'node:path';
 import request from 'supertest';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import type { FundCompanyActualsFact } from '../../../shared/contracts/fund-actuals/fund-company-actuals-fact.contract';
 
 type QueryChain = PromiseLike<unknown[]> & {
   from: ReturnType<typeof vi.fn>;
@@ -55,6 +57,10 @@ const storageState = vi.hoisted(() => ({
   getPortfolioCompanies: vi.fn(async (): Promise<unknown[]> => []),
 }));
 
+const factsState = vi.hoisted(() => ({
+  buildFundCompanyActualsFacts: vi.fn(),
+}));
+
 vi.mock('../../../server/db', () => ({ db: dbState.db }));
 
 vi.mock('../../../server/db/pg-circuit', () => ({
@@ -64,6 +70,20 @@ vi.mock('../../../server/db/pg-circuit', () => ({
 vi.mock('../../../server/services/allocation-write-service.js', () => ({
   applyAllocationUpdates: writeState.applyAllocationUpdates,
 }));
+
+vi.mock(
+  '../../../server/services/fund-actuals/fund-company-actuals-facts-service.js',
+  async (importOriginal) => {
+    const actual =
+      await importOriginal<
+        typeof import('../../../server/services/fund-actuals/fund-company-actuals-facts-service')
+      >();
+    return {
+      ...actual,
+      buildFundCompanyActualsFacts: factsState.buildFundCompanyActualsFacts,
+    };
+  }
+);
 
 vi.mock('../../../server/lib/auth/provided-fund-scope', () => ({
   enforceProvidedFundScope: fundScopeState.enforceProvidedFundScope,
@@ -92,6 +112,49 @@ vi.mock('../../../server/storage', () => ({
 }));
 
 import allocationsRouter from '../../../server/routes/allocations';
+
+const FACT_INPUT_HASH = 'a'.repeat(64);
+const RESPONSE_INPUT_HASH = 'c'.repeat(64);
+
+function actualsFact(overrides: Partial<FundCompanyActualsFact> = {}): FundCompanyActualsFact {
+  return {
+    fundId: 1,
+    companyId: 11,
+    companyName: 'Alpha AI',
+    investmentIds: [21],
+    activeRoundIds: [31],
+    approvedPlanningFmvMarkId: 41,
+    planningFmvStatus: 'active',
+    initialInvestmentAmount: '750000.000000',
+    followOnInvestmentAmount: '250000.000000',
+    amountOnlyNonEquityAmount: '0.000000',
+    latestRoundDate: '2026-07-01',
+    latestRoundValuation: '20000000.000000',
+    latestPlanningFmvDate: '2026-07-01',
+    latestPlanningFmvValue: '21000000.000000',
+    currency: 'USD',
+    currencyStatus: 'base_currency',
+    supersedeLineage: [{ roundId: 31, supersedesRoundId: null }],
+    warnings: [],
+    provenance: {
+      trustState: 'LIVE',
+      core: {
+        sourceKind: 'computed',
+        actionability: 'actionable',
+        sourceEngine: 'rounds-to-model',
+        engineVersion: 'rounds-to-model-v1',
+        inputHash: FACT_INPUT_HASH,
+        assumptionsHash: 'b'.repeat(64),
+        generatedAt: '2026-07-13T00:00:00.000Z',
+        isFinanciallyActionable: true,
+        warnings: [],
+      },
+      structuredWarnings: [],
+    },
+    inputHash: FACT_INPUT_HASH,
+    ...overrides,
+  };
+}
 
 function makeApp() {
   const app = express();
@@ -125,6 +188,16 @@ function resetState() {
   storageState.kind = 'database';
   storageState.getPortfolioCompanies.mockReset();
   storageState.getPortfolioCompanies.mockResolvedValue([]);
+  factsState.buildFundCompanyActualsFacts.mockReset();
+  factsState.buildFundCompanyActualsFacts.mockImplementation(
+    async (input: { fundId: number; asOfDate: string }) => ({
+      fundId: input.fundId,
+      asOfDate: input.asOfDate,
+      facts: [actualsFact({ fundId: input.fundId })],
+      inputHash: RESPONSE_INPUT_HASH,
+      generatedAt: '2026-07-13T00:00:00.000Z',
+    })
+  );
 }
 
 function companyRow(overrides: Record<string, unknown> = {}) {
@@ -268,6 +341,7 @@ describe('allocations route contracts', () => {
     ]);
 
     const response = await request(makeApp()).get('/api/funds/1/allocations/latest');
+    const asOfDate = response.body.metadata.actuals_drift_summary.as_of_date;
 
     expect(response.status).toBe(200);
     expect(response.body).toEqual({
@@ -288,6 +362,44 @@ describe('allocations route contracts', () => {
           last_allocation_at: '2026-01-01T00:00:00.000Z',
           allocation_facts_missing: false,
           missing_allocation_fields: [],
+          actuals_drift: {
+            contractVersion: 'allocation-actuals-drift-v1',
+            companyId: 11,
+            asOfDate,
+            allocationVersion: 3,
+            lastAllocationAt: '2026-01-01T00:00:00.000Z',
+            factsInputHash: FACT_INPUT_HASH,
+            trustState: 'LIVE',
+            planningFmvStatus: 'active',
+            currencyStatus: 'base_currency',
+            activeRoundIds: [31],
+            supersedeLineage: [{ roundId: 31, supersedesRoundId: null }],
+            comparisons: [
+              {
+                basis: 'deployed_reserves_vs_observed_follow_on',
+                state: 'exact',
+                planCents: '25000000',
+                actualCents: '25000000',
+                deltaCents: '0',
+                relativeDelta: '0',
+                material: false,
+                subCentRemainder: null,
+                unavailableReason: null,
+              },
+              {
+                basis: 'legacy_invested_vs_observed_total',
+                state: 'exact',
+                planCents: '100000000',
+                actualCents: '100000000',
+                deltaCents: '0',
+                relativeDelta: '0',
+                material: false,
+                subCentRemainder: null,
+                unavailableReason: null,
+              },
+            ],
+            warnings: [],
+          },
         },
       ],
       metadata: {
@@ -296,8 +408,37 @@ describe('allocations route contracts', () => {
         companies_count: 1,
         allocation_facts_missing_count: 0,
         last_updated_at: '2026-01-01T00:00:00.000Z',
+        actuals_drift_summary: {
+          facts_status: 'available',
+          drifted_company_count: 0,
+          material_company_count: 0,
+          degraded_company_count: 0,
+          facts_input_hash: RESPONSE_INPUT_HASH,
+          as_of_date: asOfDate,
+        },
       },
     });
+    expect(factsState.buildFundCompanyActualsFacts).toHaveBeenCalledTimes(1);
+    expect(factsState.buildFundCompanyActualsFacts).toHaveBeenCalledWith({
+      fundId: 1,
+      asOfDate,
+    });
+  });
+
+  it('keeps the allocation read on the facts seam and strict response parser', async () => {
+    const { readFileSync } = await vi.importActual<typeof import('node:fs')>('node:fs');
+    const routeSource = readFileSync(join(process.cwd(), 'server/routes/allocations.ts'), 'utf8');
+    const driftSource = readFileSync(
+      join(process.cwd(), 'server/services/allocations/allocation-actuals-drift-service.ts'),
+      'utf8'
+    );
+    const forbiddenFactsTables =
+      /investmentRounds|valuationMarks|investment_rounds|valuation_marks/;
+
+    expect(routeSource).toContain('buildFundCompanyActualsFacts');
+    expect(routeSource).toContain('LatestAllocationResponseSchema.parse');
+    expect(routeSource).not.toMatch(forbiddenFactsTables);
+    expect(driftSource).not.toMatch(forbiddenFactsTables);
   });
 
   it('POST /api/funds/:fundId/allocations rejects invalid body with current error envelope', async () => {
