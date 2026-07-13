@@ -28,6 +28,11 @@ and source assumptions:
 - path B is the baseline without that decision and has its own future
   participation choices.
 
+Version one holds financing terms, valuations, and the company outcome tree
+fixed between paths. "Independent" means participation and ownership evolve
+separately; it does not claim that the investment decision causally changes the
+company's graduation, failure, or exit probabilities.
+
 The marginal return is:
 
 ```text
@@ -115,7 +120,10 @@ floor = max(USD 1,000, 1% * E[capital_W])
 - `unavailable`: `deltaExpectedCapital <= 0`, or
   `0 < deltaExpectedCapital < floor`. MOIC and IRR are both `null`. The latter
   condition emits `MIN_DENOMINATOR_FLOOR`. A numeric MOIC is never returned
-  below the floor.
+  below the floor. Floor comparisons use full-precision Decimal values before
+  six-place result serialization. A displayed denominator can therefore round
+  to the floor while status remains `unavailable`; the structured warning is
+  authoritative at that boundary.
 - `indicative`: a supported numeric result whose marginal MOIC is greater than
   `100`. It emits `IMPLAUSIBLE_MAGNITUDE` and is not actionable without source
   review.

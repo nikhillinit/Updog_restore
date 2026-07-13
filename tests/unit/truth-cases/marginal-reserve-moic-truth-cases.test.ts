@@ -1,10 +1,20 @@
 import { describe, expect, it } from 'vitest';
 import fc from 'fast-check';
+import Decimal from '@shared/lib/decimal-config';
 import { calculateMarginalReserveMoic } from '@shared/core/moic/MarginalReserveMoic';
 import type { MarginalReserveMoicInputV1 } from '@shared/contracts/marginal-reserve-moic-v1.contract';
 
 const FACTS_HASH = '1'.repeat(64);
 const ASSUMPTIONS_HASH = '2'.repeat(64);
+
+function requireMarginalMoic(
+  result: ReturnType<typeof calculateMarginalReserveMoic>
+): Decimal {
+  if (result.marginalMoic === null) {
+    throw new Error('Expected a numeric marginal MOIC');
+  }
+  return new Decimal(result.marginalMoic);
+}
 
 function anchorInput(): MarginalReserveMoicInputV1 {
   return {
@@ -134,6 +144,41 @@ describe('marginal reserve MOIC truth cases', () => {
     expect(result.marginalIrr).toBeNull();
     expect(result.warnings.map((warning) => warning.code)).toContain('MIN_DENOMINATOR_FLOOR');
   });
+
+  it('uses unrounded expected capital when enforcing the denominator floor', () => {
+    // Stage-two reach = 0.999999 and check = 1,000.001, so the exact expected
+    // delta capital is 999.999999999. It serializes to 1,000.000000 at six
+    // places but remains below the exact USD 1,000 policy floor.
+    const input = anchorInput();
+    input.stages[0] = {
+      ...input.stages[0]!,
+      exitProbability: '0.000001',
+      graduationProbability: '0.999999',
+      exitValuation: '0',
+      withDecision: { participate: false, checkAmount: '0' },
+    };
+    input.stages.push({
+      stage: 'series_a',
+      preMoneyValuation: '1000000',
+      roundSize: '2000',
+      monthsFromPriorStage: 12,
+      graduationProbability: '0',
+      exitProbability: '1',
+      exitValuation: '25000000',
+      withDecision: { participate: true, checkAmount: '1000.001' },
+      withoutDecision: { participate: false, checkAmount: '0' },
+    });
+
+    const result = calculateMarginalReserveMoic(input);
+
+    expect(result.deltaExpectedCapital).toBe('1000.000000');
+    expect(result.status).toBe('unavailable');
+    expect(result.marginalMoic).toBeNull();
+    expect(result.marginalIrr).toBeNull();
+    expect(result.warnings.map((warning) => warning.code)).toEqual([
+      'MIN_DENOMINATOR_FLOOR',
+    ]);
+  });
 });
 
 describe('marginal reserve MOIC properties', () => {
@@ -151,7 +196,7 @@ describe('marginal reserve MOIC properties', () => {
           const lower = calculateMarginalReserveMoic(lowerInput);
           const higher = calculateMarginalReserveMoic(higherInput);
 
-          expect(Number(higher.marginalMoic)).toBeGreaterThanOrEqual(Number(lower.marginalMoic));
+          expect(requireMarginalMoic(higher).gte(requireMarginalMoic(lower))).toBe(true);
         }
       ),
       { numRuns: 50 }
@@ -200,9 +245,9 @@ describe('marginal reserve MOIC properties', () => {
           const lessDilution = calculateWithLaterRound(firstRoundSize);
           const moreDilution = calculateWithLaterRound(firstRoundSize + extraDilution);
 
-          expect(Number(moreDilution.marginalMoic)).toBeLessThanOrEqual(
-            Number(lessDilution.marginalMoic)
-          );
+          expect(
+            requireMarginalMoic(moreDilution).lte(requireMarginalMoic(lessDilution))
+          ).toBe(true);
         }
       ),
       { numRuns: 50 }

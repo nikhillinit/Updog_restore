@@ -233,6 +233,25 @@ describe('MarginalReserveMoicResultV1Schema', () => {
       ).success
     ).toBe(true);
   });
+
+  it('enforces the 100x indicative threshold in both directions', () => {
+    expect(
+      MarginalReserveMoicResultV1Schema.safeParse(
+        makeResult({ status: 'actionable', marginalMoic: '101.000000' })
+      ).success
+    ).toBe(false);
+    expect(
+      MarginalReserveMoicResultV1Schema.safeParse(
+        makeResult({
+          status: 'indicative',
+          marginalMoic: '100.000000',
+          warnings: [
+            { code: 'IMPLAUSIBLE_MAGNITUDE', message: 'Marginal MOIC exceeds 100x' },
+          ],
+        })
+      ).success
+    ).toBe(false);
+  });
 });
 
 describe('MIN_DELTA_CAPITAL_FLOOR', () => {

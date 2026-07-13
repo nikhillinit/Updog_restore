@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { ZodError } from 'zod';
+import Decimal from '@shared/lib/decimal-config';
 import { calculateMarginalReserveMoic } from '@shared/core/moic/MarginalReserveMoic';
 import type { MarginalReserveMoicInputV1 } from '@shared/contracts/marginal-reserve-moic-v1.contract';
 
@@ -261,12 +262,12 @@ describe('calculateMarginalReserveMoic', () => {
 
     const result = calculateMarginalReserveMoic(input);
     const capitalSum = result.stageContributions.reduce(
-      (sum, stage) => sum + Number(stage.deltaExpectedCapital),
-      0
+      (sum, stage) => sum.plus(stage.deltaExpectedCapital),
+      new Decimal(0)
     );
     const proceedsSum = result.stageContributions.reduce(
-      (sum, stage) => sum + Number(stage.deltaExpectedProceeds),
-      0
+      (sum, stage) => sum.plus(stage.deltaExpectedProceeds),
+      new Decimal(0)
     );
 
     expect(capitalSum.toFixed(6)).toBe(result.deltaExpectedCapital);

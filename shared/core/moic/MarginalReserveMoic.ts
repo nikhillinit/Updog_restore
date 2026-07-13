@@ -36,6 +36,9 @@ interface ProjectedStage {
 }
 
 interface CounterfactualProjection {
+  exactExpectedProceeds: Decimal;
+  exactExpectedCapital: Decimal;
+  exactExpectedOwnershipAtExit: Decimal;
   expectedProceeds: Decimal;
   expectedCapital: Decimal;
   expectedOwnershipAtExit: Decimal;
@@ -113,12 +116,9 @@ function projectCounterfactual(
       checkAmount
     );
 
-    const expectedCapital = roundMetric(reachProbability.times(checkAmount));
-    const rawExpectedOwnershipAtExit = unconditionalExitProbability.times(ownership);
-    const expectedOwnershipAtExit = roundMetric(rawExpectedOwnershipAtExit);
-    const expectedProceeds = roundMetric(
-      rawExpectedOwnershipAtExit.times(new Decimal(stage.exitValuation))
-    );
+    const expectedCapital = reachProbability.times(checkAmount);
+    const expectedOwnershipAtExit = unconditionalExitProbability.times(ownership);
+    const expectedProceeds = expectedOwnershipAtExit.times(new Decimal(stage.exitValuation));
 
     stages.push({
       stage: stage.stage,
@@ -141,16 +141,28 @@ function projectCounterfactual(
   }
 
   return {
-    expectedProceeds: stages.reduce(
+    exactExpectedProceeds: stages.reduce(
       (total, stage) => total.plus(stage.contribution.expectedProceeds),
       ZERO
     ),
-    expectedCapital: stages.reduce(
+    exactExpectedCapital: stages.reduce(
       (total, stage) => total.plus(stage.contribution.expectedCapital),
       ZERO
     ),
-    expectedOwnershipAtExit: stages.reduce(
+    exactExpectedOwnershipAtExit: stages.reduce(
       (total, stage) => total.plus(stage.contribution.expectedOwnershipAtExit),
+      ZERO
+    ),
+    expectedProceeds: stages.reduce(
+      (total, stage) => total.plus(roundMetric(stage.contribution.expectedProceeds)),
+      ZERO
+    ),
+    expectedCapital: stages.reduce(
+      (total, stage) => total.plus(roundMetric(stage.contribution.expectedCapital)),
+      ZERO
+    ),
+    expectedOwnershipAtExit: stages.reduce(
+      (total, stage) => total.plus(roundMetric(stage.contribution.expectedOwnershipAtExit)),
       ZERO
     ),
     stages,
@@ -276,13 +288,23 @@ export function calculateMarginalReserveMoic(
   const parsedInput = MarginalReserveMoicInputV1Schema.parse(input);
   const withDecision = projectCounterfactual(parsedInput, 'withDecision');
   const withoutDecision = projectCounterfactual(parsedInput, 'withoutDecision');
-  const deltaExpectedProceeds = withDecision.expectedProceeds.minus(
+  const exactDeltaExpectedProceeds = withDecision.exactExpectedProceeds.minus(
+    withoutDecision.exactExpectedProceeds
+  );
+  const exactDeltaExpectedCapital = withDecision.exactExpectedCapital.minus(
+    withoutDecision.exactExpectedCapital
+  );
+  const displayedDeltaExpectedProceeds = withDecision.expectedProceeds.minus(
     withoutDecision.expectedProceeds
   );
-  const deltaExpectedCapital = withDecision.expectedCapital.minus(withoutDecision.expectedCapital);
+  const displayedDeltaExpectedCapital = withDecision.expectedCapital.minus(
+    withoutDecision.expectedCapital
+  );
   const denominatorFloor = Decimal.max(
     new Decimal(MIN_DELTA_CAPITAL_FLOOR.absoluteUsd),
-    withDecision.expectedCapital.times(MIN_DELTA_CAPITAL_FLOOR.withDecisionExpectedCapitalRatio)
+    withDecision.exactExpectedCapital.times(
+      MIN_DELTA_CAPITAL_FLOOR.withDecisionExpectedCapitalRatio
+    )
   );
 
   const warnings: StructuredWarning[] = [];
@@ -290,20 +312,20 @@ export function calculateMarginalReserveMoic(
   let marginalMoic: Decimal | null = null;
   let marginalIrr: Decimal | null = null;
 
-  if (deltaExpectedCapital.lte(0)) {
+  if (exactDeltaExpectedCapital.lte(0)) {
     status = 'unavailable';
     warnings.push({
       code: 'NON_POSITIVE_DELTA_CAPITAL',
       message: 'Delta expected capital must be positive',
     });
-  } else if (deltaExpectedCapital.lt(denominatorFloor)) {
+  } else if (exactDeltaExpectedCapital.lt(denominatorFloor)) {
     status = 'unavailable';
     warnings.push({
       code: 'MIN_DENOMINATOR_FLOOR',
-      message: `Delta expected capital is below the ${formatMetric(denominatorFloor)} floor`,
+      message: `Unrounded delta expected capital is below the ${formatMetric(denominatorFloor)} floor`,
     });
   } else {
-    marginalMoic = deltaExpectedProceeds.div(deltaExpectedCapital);
+    marginalMoic = exactDeltaExpectedProceeds.div(exactDeltaExpectedCapital);
     status = marginalMoic.gt(100) ? 'indicative' : 'actionable';
     if (status === 'indicative') {
       warnings.push({
@@ -377,10 +399,14 @@ export function calculateMarginalReserveMoic(
         expectedOwnershipAtExit: formatMetric(withoutStage.contribution.expectedOwnershipAtExit),
       },
       deltaExpectedProceeds: formatMetric(
-        withStage.contribution.expectedProceeds.minus(withoutStage.contribution.expectedProceeds)
+        roundMetric(withStage.contribution.expectedProceeds).minus(
+          roundMetric(withoutStage.contribution.expectedProceeds)
+        )
       ),
       deltaExpectedCapital: formatMetric(
-        withStage.contribution.expectedCapital.minus(withoutStage.contribution.expectedCapital)
+        roundMetric(withStage.contribution.expectedCapital).minus(
+          roundMetric(withoutStage.contribution.expectedCapital)
+        )
       ),
     };
   });
@@ -390,8 +416,8 @@ export function calculateMarginalReserveMoic(
     status,
     marginalMoic: marginalMoic === null ? null : formatMetric(marginalMoic),
     marginalIrr: marginalIrr === null ? null : formatMetric(marginalIrr),
-    deltaExpectedProceeds: formatMetric(deltaExpectedProceeds),
-    deltaExpectedCapital: formatMetric(deltaExpectedCapital),
+    deltaExpectedProceeds: formatMetric(displayedDeltaExpectedProceeds),
+    deltaExpectedCapital: formatMetric(displayedDeltaExpectedCapital),
     withDecision: {
       expectedProceeds: formatMetric(withDecision.expectedProceeds),
       expectedCapital: formatMetric(withDecision.expectedCapital),

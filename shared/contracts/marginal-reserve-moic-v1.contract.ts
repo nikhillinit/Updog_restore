@@ -216,6 +216,11 @@ export const MarginalReserveMoicResultV1Schema = z
   .strict()
   .superRefine((value, ctx) => {
     validateCanonicalStageOrder(value.stageContributions, ctx, 'stageContributions');
+    const hasMagnitudeWarning = value.warnings.some(
+      (warning) => warning.code === 'IMPLAUSIBLE_MAGNITUDE'
+    );
+    const exceedsMagnitudeThreshold =
+      value.marginalMoic !== null && new Decimal(value.marginalMoic).gt(100);
 
     if (value.status === 'unavailable' && (value.marginalMoic !== null || value.marginalIrr !== null)) {
       ctx.addIssue({
@@ -231,13 +236,31 @@ export const MarginalReserveMoicResultV1Schema = z
         path: ['marginalMoic'],
       });
     }
-    if (
-      value.status === 'indicative' &&
-      !value.warnings.some((warning) => warning.code === 'IMPLAUSIBLE_MAGNITUDE')
-    ) {
+    if (value.status === 'indicative' && !exceedsMagnitudeThreshold) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'Indicative results require marginalMoic above 100',
+        path: ['marginalMoic'],
+      });
+    }
+    if (value.status === 'indicative' && !hasMagnitudeWarning) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
         message: 'Indicative results require an IMPLAUSIBLE_MAGNITUDE warning',
+        path: ['warnings'],
+      });
+    }
+    if (exceedsMagnitudeThreshold && value.status !== 'indicative') {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'Marginal MOIC above 100 must be indicative',
+        path: ['status'],
+      });
+    }
+    if (!exceedsMagnitudeThreshold && hasMagnitudeWarning) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'IMPLAUSIBLE_MAGNITUDE is valid only when marginalMoic is above 100',
         path: ['warnings'],
       });
     }
