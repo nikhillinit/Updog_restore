@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   MIN_DELTA_CAPITAL_FLOOR,
   MarginalReserveMoicInputV1Schema,
+  MarginalReserveInputFailureSchema,
   MarginalReserveMoicResultV1Schema,
   MarginalReserveStageV1Schema,
 } from '@shared/contracts/marginal-reserve-moic-v1.contract';
@@ -44,6 +45,7 @@ function makeInput(overrides: Record<string, unknown> = {}) {
 function makeResult(overrides: Record<string, unknown> = {}) {
   return {
     contractVersion: 'marginal-reserve-moic-result-v1',
+    companyId: 2,
     status: 'actionable',
     marginalMoic: '5.000000',
     marginalIrr: null,
@@ -195,6 +197,33 @@ describe('MarginalReserveMoicInputV1Schema', () => {
       }).success
     ).toBe(false);
   });
+
+  it('represents stale assumptions as indicative input readiness', () => {
+    expect(
+      MarginalReserveMoicInputV1Schema.safeParse(
+        makeInput({
+          readiness: { status: 'indicative', reasons: ['STALE_ASSUMPTION'] },
+        })
+      ).success
+    ).toBe(true);
+    expect(
+      MarginalReserveMoicInputV1Schema.safeParse(
+        makeInput({ readiness: { status: 'actionable', reasons: ['STALE_ASSUMPTION'] } })
+      ).success
+    ).toBe(false);
+  });
+
+  it('requires explicit reasons for unavailable company inputs', () => {
+    expect(
+      MarginalReserveInputFailureSchema.parse({
+        companyId: 2,
+        reasons: ['MISSING_CURRENT_OWNERSHIP'],
+      })
+    ).toEqual({ companyId: 2, reasons: ['MISSING_CURRENT_OWNERSHIP'] });
+    expect(MarginalReserveInputFailureSchema.safeParse({ companyId: 2, reasons: [] }).success).toBe(
+      false
+    );
+  });
 });
 
 describe('MarginalReserveMoicResultV1Schema', () => {
@@ -226,9 +255,7 @@ describe('MarginalReserveMoicResultV1Schema', () => {
         makeResult({
           status: 'indicative',
           marginalMoic: '101.000000',
-          warnings: [
-            { code: 'IMPLAUSIBLE_MAGNITUDE', message: 'Marginal MOIC exceeds 100x' },
-          ],
+          warnings: [{ code: 'IMPLAUSIBLE_MAGNITUDE', message: 'Marginal MOIC exceeds 100x' }],
         })
       ).success
     ).toBe(true);
@@ -245,12 +272,22 @@ describe('MarginalReserveMoicResultV1Schema', () => {
         makeResult({
           status: 'indicative',
           marginalMoic: '100.000000',
-          warnings: [
-            { code: 'IMPLAUSIBLE_MAGNITUDE', message: 'Marginal MOIC exceeds 100x' },
-          ],
+          warnings: [{ code: 'IMPLAUSIBLE_MAGNITUDE', message: 'Marginal MOIC exceeds 100x' }],
         })
       ).success
     ).toBe(false);
+  });
+
+  it('accepts stale-assumption indicative results below 100x', () => {
+    expect(
+      MarginalReserveMoicResultV1Schema.safeParse(
+        makeResult({
+          status: 'indicative',
+          marginalMoic: '5.000000',
+          warnings: [{ code: 'STALE_ASSUMPTION', message: 'Approved assumptions are stale' }],
+        })
+      ).success
+    ).toBe(true);
   });
 });
 
