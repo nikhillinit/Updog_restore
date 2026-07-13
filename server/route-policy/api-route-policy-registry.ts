@@ -773,6 +773,30 @@ export const EXPLICIT_API_ROUTE_POLICY_ENTRIES: RoutePolicyEntry[] = [
       'Read-only Round/FMV-derived model-input facts; no export or UI actionability claim is introduced in this slice.',
   },
   {
+    id: 'api:post:/api/funds/:fundId/scenario-analysis/scenarios/:scenarioId/cases/from-seed',
+    method: 'POST',
+    path: '/api/funds/:fundId/scenario-analysis/scenarios/:scenarioId/cases/from-seed',
+    lifecycle: 'durable_crud',
+    governanceRef: '/fund-model-results/:fundId/scenarios',
+    surface: 'scenario-case-seed-creation-api',
+    owner: ownerForFinancialSurface('fund_modeling'),
+    telemetryKey: telemetryKeyForRoute(
+      'api.route',
+      '/api/funds/:fundId/scenario-analysis/scenarios/:scenarioId/cases/from-seed'
+    ),
+    financialSurface: 'fund_modeling',
+    apiAuthBoundary: 'require_auth_and_fund_access',
+    fundScopeMode: 'route_param_fund_id',
+    workflowRequirement: 'fund_scope_and_optimistic_lock_verified',
+    exportPolicy: 'not_exportable',
+    provenanceRequired: true,
+    staleBlocksExport: false,
+    humanReviewRequired: true,
+    performanceBudgetMs: null,
+    notes:
+      'Idempotent case creation preserves the selected actuals snapshot and requires optimistic locking on the parent scenario.',
+  },
+  {
     id: 'api:get:/api/funds/:fundId/metric-runs/:metricRunId/report-package/render-model',
     method: 'GET',
     path: '/api/funds/:fundId/metric-runs/:metricRunId/report-package/render-model',
