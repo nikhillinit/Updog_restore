@@ -13,6 +13,7 @@ const authState = vi.hoisted(() => ({
 
 const ranking = vi.hoisted(() => ({ getFundMoicRankingSources: vi.fn() }));
 const evidence = vi.hoisted(() => ({ buildRoundsToModelEvidence: vi.fn() }));
+const actuals = vi.hoisted(() => ({ buildFundCompanyActualsFacts: vi.fn() }));
 
 const dbHolder = vi.hoisted(() => {
   const state = {
@@ -62,6 +63,10 @@ vi.mock('../../../server/db', () => ({ db: dbHolder.db }));
 
 vi.mock('../../../server/services/rounds-to-model-evidence-service', () => ({
   buildRoundsToModelEvidence: evidence.buildRoundsToModelEvidence,
+}));
+
+vi.mock('../../../server/services/fund-actuals/fund-company-actuals-facts-service', () => ({
+  buildFundCompanyActualsFacts: actuals.buildFundCompanyActualsFacts,
 }));
 
 vi.mock('../../../server/services/fund-moic-ranking-service', async (importOriginal) => {
@@ -117,7 +122,7 @@ const sourceBundle = (overrides: Partial<FundMoicRankingSources> = {}): FundMoic
     rankings: [rankingItem('1', 2.8)],
   },
   moicInputSummary: {
-    sourceVersion: 'moic-exit-probability-v1',
+    sourceVersion: 'moic-round-fmv-facts-v2',
     explicitExitProbabilityCount: 1,
     defaultedExitProbabilityCount: 0,
     activationBlockingDefaultedExitProbabilityCount: 0,
@@ -169,12 +174,20 @@ beforeEach(() => {
     inserted: [],
   });
   ranking.getFundMoicRankingSources.mockResolvedValue(sourceBundle());
+  actuals.buildFundCompanyActualsFacts.mockResolvedValue({
+    fundId: 1,
+    asOfDate: '2026-07-13',
+    facts: [],
+    inputHash: 'f'.repeat(64),
+    generatedAt: '2026-07-13T00:00:00.000Z',
+  });
   evidence.buildRoundsToModelEvidence.mockResolvedValue({
     coverage: { activeRoundCount: 0, activeOverrideCount: 0, warningsByCode: {} },
   });
 });
 
 const expectZeroDownstream = () => {
+  expect(actuals.buildFundCompanyActualsFacts).not.toHaveBeenCalled();
   expect(ranking.getFundMoicRankingSources).not.toHaveBeenCalled();
   expect(evidence.buildRoundsToModelEvidence).not.toHaveBeenCalled();
   expect(dbHolder.state.selectCalls).toBe(0);

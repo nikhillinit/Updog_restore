@@ -71,7 +71,7 @@ const canonicalFixture = {
     version: 2,
   },
   moicInputSummary: {
-    sourceVersion: 'moic-exit-probability-v1',
+    sourceVersion: 'moic-round-fmv-facts-v2',
     explicitExitProbabilityCount: 1,
     defaultedExitProbabilityCount: 2,
     activationBlockingDefaultedExitProbabilityCount: 2,

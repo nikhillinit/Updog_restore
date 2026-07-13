@@ -30,7 +30,7 @@ const ModePreviewSchema = z
 
 const MoicInputSummarySchema = z
   .object({
-    sourceVersion: z.literal('moic-exit-probability-v1'),
+    sourceVersion: z.literal('moic-round-fmv-facts-v2'),
     explicitExitProbabilityCount: z.number().int().nonnegative(),
     defaultedExitProbabilityCount: z.number().int().nonnegative(),
     activationBlockingDefaultedExitProbabilityCount: z.number().int().nonnegative(),

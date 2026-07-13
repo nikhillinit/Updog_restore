@@ -47,7 +47,7 @@ function sourceBundle(overrides: Partial<FundMoicRankingSources> = {}): FundMoic
       rankings: [],
     },
     moicInputSummary: {
-      sourceVersion: 'moic-exit-probability-v1',
+      sourceVersion: 'moic-round-fmv-facts-v2',
       explicitExitProbabilityCount: 1,
       defaultedExitProbabilityCount: 0,
       activationBlockingDefaultedExitProbabilityCount: 0,

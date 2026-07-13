@@ -45,7 +45,7 @@ const makeValidV2 = (): FundMoicRankingsResponseV2 => ({
     version: 0,
   },
   moicInputSummary: {
-    sourceVersion: 'moic-exit-probability-v1',
+    sourceVersion: 'moic-round-fmv-facts-v2',
     explicitExitProbabilityCount: 1,
     defaultedExitProbabilityCount: 0,
     activationBlockingDefaultedExitProbabilityCount: 0,

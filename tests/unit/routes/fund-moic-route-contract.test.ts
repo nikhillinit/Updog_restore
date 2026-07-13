@@ -41,7 +41,9 @@ describe('fund-moic route contract', () => {
     const source = await readRepoFile('server/routes/fund-moic.ts');
     expect(source).toContain('buildFundCompanyActualsFacts({');
     expect(source).toContain('asOfDate: actualsAsOfDate');
-    expect(source).toContain('factsByCompanyId');
+    expect(source).toContain("{ status: 'available', response: actualsFacts }");
+    expect(source).toContain('FUND_MOIC_FACTS_ABSENT');
+    expect(source).not.toContain('factsByCompanyId');
     expect(source).toContain('sources.factsBasisByInvestmentId');
     expect(source).toContain('discloseFundMoicRankings');
     expect(source).toContain("factsStatus: 'available'");

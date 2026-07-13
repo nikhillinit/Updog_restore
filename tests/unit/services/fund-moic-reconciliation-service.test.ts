@@ -59,7 +59,7 @@ const sourceBundle = (overrides: Partial<FundMoicRankingSources> = {}): FundMoic
     rankings: [rankingItem('1', 2.8)],
   },
   moicInputSummary: {
-    sourceVersion: 'moic-exit-probability-v1',
+    sourceVersion: 'moic-round-fmv-facts-v2',
     explicitExitProbabilityCount: 1,
     defaultedExitProbabilityCount: 0,
     activationBlockingDefaultedExitProbabilityCount: 0,
@@ -169,29 +169,69 @@ describe('fund MOIC reconciliation service', () => {
     expect(capture.onConflictArg).toEqual({
       target: [reconciliationRuns.fundId, reconciliationRuns.idempotencyKey],
     });
+    expect(getFundMoicRankingSources).toHaveBeenCalledWith(7, database);
   });
 
-  it('replays an existing fund-scoped idempotency key with the same request hash', async () => {
-    getFundMoicRankingSources.mockResolvedValue(sourceBundle());
-    const existing = {
+  it('keeps a v1 row byte-identical while a fresh key inserts a separate v2 row', async () => {
+    const v1SourceHash = 'v1-source-hash';
+    const v2SourceHash = 'v2-source-hash';
+    getFundMoicRankingSources.mockResolvedValue(
+      sourceBundle({ moicSourceInputHash: v2SourceHash })
+    );
+    const existingV1 = {
       id: 321,
       requestedAt: new Date('2026-06-24T01:00:00.000Z'),
-      requestHash: requestHashFor(7, 'source-hash-a'),
+      requestHash: requestHashFor(7, v1SourceHash),
+      candidateInputHash: v1SourceHash,
     };
-    const database = makeDatabase({ selectResults: [[existing]] });
+    const existingBefore = structuredClone(existingV1);
+    const reusedKeyDatabase = makeDatabase({ selectResults: [[existingV1]] });
 
+    await expect(
+      recordMoicReconciliation({
+        fundId: 7,
+        idempotencyKey: 'v1-key',
+        requestedBy: 42,
+        database: reusedKeyDatabase as never,
+      })
+    ).rejects.toBeInstanceOf(MoicReconciliationConflictError);
+
+    expect(existingV1).toEqual(existingBefore);
+    expect(reusedKeyDatabase.insert).not.toHaveBeenCalled();
+
+    const capture: { insertValues?: unknown } = {};
+    const freshKeyDatabase = makeDatabase({
+      selectResults: [[]],
+      insertResult: [{ id: 654, requestedAt: new Date('2026-07-13T00:00:00.000Z') }],
+      capture,
+    });
     const result = await recordMoicReconciliation({
       fundId: 7,
-      idempotencyKey: 'idem-1',
+      idempotencyKey: 'v2-key',
       requestedBy: 42,
-      database: database as never,
+      database: freshKeyDatabase as never,
     });
 
     expect(result).toEqual({
-      run: { runId: '321', createdAt: '2026-06-24T01:00:00.000Z' },
-      replayed: true,
+      run: { runId: '654', createdAt: '2026-07-13T00:00:00.000Z' },
+      replayed: false,
     });
-    expect(database.insert).not.toHaveBeenCalled();
+    expect(capture.insertValues).toMatchObject({
+      idempotencyKey: 'v2-key',
+      candidateInputHash: v2SourceHash,
+    });
+
+    const simulatedPersistedRows = [existingV1, capture.insertValues];
+    expect(
+      simulatedPersistedRows.find(
+        (row) =>
+          typeof row === 'object' &&
+          row !== null &&
+          'candidateInputHash' in row &&
+          row.candidateInputHash === v1SourceHash
+      )
+    ).toEqual(existingBefore);
+    expect(simulatedPersistedRows).toHaveLength(2);
   });
 
   it('conflicts when an idempotency key is reused after MOIC source input changes', async () => {

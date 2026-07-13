@@ -175,7 +175,7 @@ function sourceBundle(overrides: Partial<FundMoicRankingSources> = {}): FundMoic
       rankings: [rankingItem('candidate-output-a', 2.4)],
     },
     moicInputSummary: {
-      sourceVersion: 'moic-exit-probability-v1',
+      sourceVersion: 'moic-round-fmv-facts-v2',
       explicitExitProbabilityCount: 1,
       defaultedExitProbabilityCount: 0,
       activationBlockingDefaultedExitProbabilityCount: 0,
@@ -290,7 +290,10 @@ describe('fund MOIC rankings route - behavioral state machine', () => {
     );
     expect(parsed.rankings.some((ranking) => ranking.factsBasis !== null)).toBe(true);
     expect(svc.buildFundCompanyActualsFacts).toHaveBeenCalledTimes(1);
-    expect(svc.getFundMoicRankingSources).toHaveBeenCalledWith(1, undefined, expect.any(Map));
+    expect(svc.getFundMoicRankingSources).toHaveBeenCalledWith(1, undefined, {
+      status: 'available',
+      response: expect.objectContaining({ inputHash: FACTS_INPUT_HASH }),
+    });
   });
 
   it.each([
@@ -317,8 +320,12 @@ describe('fund MOIC rankings route - behavioral state machine', () => {
         sourceBundle({
           factsBasisByInvestmentId: new Map([
             ['legacy-output-a', factsBasis()],
-            ['candidate-output-a', factsBasis()],
+            [
+              'candidate-output-a',
+              factsBasis({ rankability: 'indicative', reasons: ['planning_fmv_stale'] }),
+            ],
           ]),
+          candidateFactsBasisByInvestmentId: new Map([['candidate-output-a', factsBasis()]]),
         })
       );
       svc.resolveFundCalculationMode.mockResolvedValue(
@@ -340,6 +347,7 @@ describe('fund MOIC rankings route - behavioral state machine', () => {
         before[expectedSource].rankings
       );
       expect(parsed.rankings.some((ranking) => ranking.factsBasis !== null)).toBe(true);
+      expect(parsed.rankings[0]?.factsBasis?.rankability).toBe('actionable');
     }
   );
 
@@ -357,6 +365,30 @@ describe('fund MOIC rankings route - behavioral state machine', () => {
     });
     expect(parsed.rankings.every((ranking) => ranking.factsBasis === null)).toBe(true);
     expect(svc.buildFundCompanyActualsFacts).toHaveBeenCalledTimes(1);
+  });
+
+  it('never serves the candidate when the facts load fails, even if mode state is otherwise on', async () => {
+    svc.buildFundCompanyActualsFacts.mockRejectedValueOnce(new Error('facts backend down'));
+    svc.resolveFundCalculationMode.mockResolvedValue(
+      modePreview({ configuredMode: 'on', effectiveMode: 'on' })
+    );
+    svc.resolveMoicActionability.mockResolvedValue(
+      actionability({
+        sourceFingerprintMatches: true,
+        actionability: 'actionable',
+        actionabilityStatus: 'actionable',
+      })
+    );
+
+    const res = await getRankings();
+
+    expect(res.status).toBe(200);
+    const parsed = FundMoicRankingsResponseV2Schema.parse(res.body);
+    expect(parsed.provenance.mode).toBe('legacy');
+    expect(parsed.rankings[0]?.investmentId).toBe('legacy-output-a');
+    expect(svc.getFundMoicRankingSources).toHaveBeenCalledWith(1, undefined, {
+      status: 'absent',
+    });
   });
 
   it.each(['shadow', 'on'] as const)(

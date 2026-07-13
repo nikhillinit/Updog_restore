@@ -69,7 +69,7 @@ const assumptionsHash = canonicalSha256({
 const sourceBundle = {
   moicSourceInputHash,
   moicInputSummary: {
-    sourceVersion: 'moic-exit-probability-v1',
+    sourceVersion: 'moic-round-fmv-facts-v2',
     explicitExitProbabilityCount: 1,
     defaultedExitProbabilityCount: 0,
     activationBlockingDefaultedExitProbabilityCount: 0,
@@ -217,9 +217,7 @@ describe('fund MOIC actionability resolver', () => {
     expect(early.sourceFingerprint?.roundEvidenceAssumptionsHash).toBe(
       late.sourceFingerprint?.roundEvidenceAssumptionsHash
     );
-    expect(early.sourceFingerprint?.fingerprintHash).toBe(
-      late.sourceFingerprint?.fingerprintHash
-    );
+    expect(early.sourceFingerprint?.fingerprintHash).toBe(late.sourceFingerprint?.fingerprintHash);
   });
 
   it('keeps defaulted exit probability and reserve multiple blockers visible', async () => {
