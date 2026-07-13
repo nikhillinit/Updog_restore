@@ -5,6 +5,10 @@ import userEvent from '@testing-library/user-event';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { AllocationsTab } from '../../../../client/src/components/portfolio/tabs/AllocationsTab';
 import { EditAllocationDialog } from '../../../../client/src/components/portfolio/tabs/EditAllocationDialog';
+import {
+  AllocationCompanyActualsDriftV1Schema,
+  type AllocationCompanyActualsDriftV1,
+} from '@shared/contracts/allocations/allocation-actuals-drift-v1.contract';
 import type { ReserveIcDecisionRecordV1 } from '@shared/contracts/reserve-ic-decision-v1.contract';
 import type {
   AllocationCompany,
@@ -117,6 +121,62 @@ vi.mock('../../../../client/src/components/portfolio/tabs/hooks/useUpdateAllocat
   }),
 }));
 
+const FACTS_INPUT_HASH = 'b'.repeat(64);
+
+function buildActualsDrift(
+  companyId: number,
+  overrides: Partial<AllocationCompanyActualsDriftV1> = {}
+): AllocationCompanyActualsDriftV1 {
+  return AllocationCompanyActualsDriftV1Schema.parse({
+    contractVersion: 'allocation-actuals-drift-v1',
+    companyId,
+    asOfDate: '2026-07-11',
+    allocationVersion: 1,
+    lastAllocationAt: '2024-01-01T00:00:00.000Z',
+    factsInputHash: FACTS_INPUT_HASH,
+    trustState: 'LIVE',
+    planningFmvStatus: 'active',
+    currencyStatus: 'base_currency',
+    activeRoundIds: [companyId * 100],
+    supersedeLineage: [],
+    comparisons: [
+      {
+        basis: 'deployed_reserves_vs_observed_follow_on',
+        state: 'exact',
+        planCents: '50000000',
+        actualCents: '50000000',
+        deltaCents: '0',
+        relativeDelta: '0',
+        material: false,
+        subCentRemainder: null,
+        unavailableReason: null,
+      },
+      {
+        basis: 'legacy_invested_vs_observed_total',
+        state: 'exact',
+        planCents: '100000000',
+        actualCents: '100000000',
+        deltaCents: '0',
+        relativeDelta: '0',
+        material: false,
+        subCentRemainder: null,
+        unavailableReason: null,
+      },
+    ],
+    warnings: [],
+    ...overrides,
+  });
+}
+
+const mockActualsDriftSummary = {
+  facts_status: 'available' as const,
+  drifted_company_count: 1,
+  material_company_count: 1,
+  degraded_company_count: 1,
+  facts_input_hash: FACTS_INPUT_HASH,
+  as_of_date: '2026-07-11',
+};
+
 const mockAllocationsData: AllocationsResponse = {
   companies: [
     {
@@ -132,6 +192,7 @@ const mockAllocationsData: AllocationsResponse = {
       allocation_reason: 'Strong growth trajectory',
       allocation_version: 1,
       last_allocation_at: '2024-01-01T00:00:00Z',
+      actuals_drift: buildActualsDrift(1),
     },
     {
       company_id: 2,
@@ -146,6 +207,32 @@ const mockAllocationsData: AllocationsResponse = {
       allocation_reason: null,
       allocation_version: 1,
       last_allocation_at: null,
+      actuals_drift: buildActualsDrift(2, {
+        comparisons: [
+          {
+            basis: 'deployed_reserves_vs_observed_follow_on',
+            state: 'drifted',
+            planCents: '0',
+            actualCents: '25000000',
+            deltaCents: '25000000',
+            relativeDelta: null,
+            material: true,
+            subCentRemainder: null,
+            unavailableReason: null,
+          },
+          {
+            basis: 'legacy_invested_vs_observed_total',
+            state: 'exact',
+            planCents: '50000000',
+            actualCents: '50000000',
+            deltaCents: '0',
+            relativeDelta: '0',
+            material: false,
+            subCentRemainder: null,
+            unavailableReason: null,
+          },
+        ],
+      }),
     },
     {
       company_id: 3,
@@ -160,6 +247,42 @@ const mockAllocationsData: AllocationsResponse = {
       allocation_reason: 'Exited via acquisition',
       allocation_version: 2,
       last_allocation_at: '2024-02-15T00:00:00Z',
+      actuals_drift: buildActualsDrift(3, {
+        allocationVersion: 2,
+        trustState: 'PARTIAL',
+        planningFmvStatus: 'stale',
+        comparisons: [
+          {
+            basis: 'deployed_reserves_vs_observed_follow_on',
+            state: 'unavailable',
+            planCents: '100000000',
+            actualCents: null,
+            deltaCents: null,
+            relativeDelta: null,
+            material: false,
+            subCentRemainder: null,
+            unavailableReason: 'facts_missing',
+          },
+          {
+            basis: 'legacy_invested_vs_observed_total',
+            state: 'exact',
+            planCents: '200000000',
+            actualCents: '200000000',
+            deltaCents: '0',
+            relativeDelta: '0',
+            material: false,
+            subCentRemainder: null,
+            unavailableReason: null,
+          },
+        ],
+        warnings: [
+          {
+            code: 'DATA_STALE',
+            severity: 'warning',
+            message: 'Planning FMV is stale.',
+          },
+        ],
+      }),
     },
   ],
   metadata: {
@@ -167,6 +290,7 @@ const mockAllocationsData: AllocationsResponse = {
     total_deployed_cents: 150000000,
     companies_count: 3,
     last_updated_at: '2024-02-15T00:00:00Z',
+    actuals_drift_summary: mockActualsDriftSummary,
   },
 };
 
@@ -458,6 +582,11 @@ describe('portfolio reserve planning workspace', () => {
   it('renders the live reserve-planning workspace summary and saved scenario controls', () => {
     renderWithQuery(<AllocationsTab />);
 
+    for (const company of mockAllocationsData.companies) {
+      expect(AllocationCompanyActualsDriftV1Schema.parse(company.actuals_drift)).toEqual(
+        company.actuals_drift
+      );
+    }
     expect(screen.getByText('Reserve Planning Workspace')).toBeInTheDocument();
     expect(screen.getByText('Companies with plans')).toBeInTheDocument();
     expect(screen.getByText('Documented notes')).toBeInTheDocument();
@@ -472,6 +601,156 @@ describe('portfolio reserve planning workspace', () => {
     ).toBeInTheDocument();
   });
 
+  it('renders drift summary counts and toggles disclosure by keyboard without mutations', async () => {
+    const user = userEvent.setup();
+    renderWithQuery(<AllocationsTab />);
+
+    expect(screen.getByText('1 drifted')).toBeInTheDocument();
+    expect(screen.getByText('1 material')).toBeInTheDocument();
+    expect(screen.getByText('1 degraded')).toBeInTheDocument();
+
+    const expander = screen.getByRole('button', {
+      name: 'Expand Plan vs actual for TechCorp. Status: no drift',
+    });
+    const disclosure = document.getElementById('allocation-actuals-disclosure-1');
+
+    expect(expander).toHaveAttribute('aria-expanded', 'false');
+    expect(expander).toHaveAccessibleName('Expand Plan vs actual for TechCorp. Status: no drift');
+    expect(disclosure).toHaveAttribute('aria-hidden', 'true');
+
+    expander.focus();
+    await user.keyboard('{Enter}');
+
+    expect(expander).toHaveAttribute('aria-expanded', 'true');
+    expect(disclosure).toHaveAttribute('aria-hidden', 'false');
+    expect(screen.getByText('Deployed reserves vs observed follow-on')).toBeInTheDocument();
+    expect(screen.getByText('Legacy invested vs observed total')).toBeInTheDocument();
+
+    await user.keyboard(' ');
+
+    expect(expander).toHaveAttribute('aria-expanded', 'false');
+    expect(disclosure).toHaveAttribute('aria-hidden', 'true');
+    expect(liveAllocationMutateMock).not.toHaveBeenCalled();
+    expect(createScenarioMutateAsyncMock).not.toHaveBeenCalled();
+    expect(updateScenarioMutateAsyncMock).not.toHaveBeenCalled();
+    expect(previewScenarioMutateAsyncMock).not.toHaveBeenCalled();
+    expect(syncScenarioMutateAsyncMock).not.toHaveBeenCalled();
+    expect(applyScenarioMutateAsyncMock).not.toHaveBeenCalled();
+    expect(reserveIcDecisionCreateMutateAsyncMock).not.toHaveBeenCalled();
+    expect(reserveIcDecisionUpdateMutateAsyncMock).not.toHaveBeenCalled();
+  });
+
+  it('renders the disclosure loading rail with tabular placeholders', () => {
+    latestAllocationsHookMock.mockReturnValue({
+      data: undefined,
+      isLoading: true,
+      error: null,
+      refetch: mockRefetch,
+    });
+
+    renderWithQuery(<AllocationsTab />);
+
+    const rail = screen.getByLabelText('Actuals drift summary');
+    expect(rail).toHaveAttribute('aria-busy', 'true');
+    expect(screen.getByText('Loading actuals drift disclosure')).toBeInTheDocument();
+    expect(rail.querySelectorAll('.tabular-nums').length).toBeGreaterThanOrEqual(3);
+  });
+
+  it('renders the no-drift disclosure state with its as-of date', () => {
+    latestAllocationsHookMock.mockReturnValue({
+      data: {
+        ...mockAllocationsData,
+        metadata: {
+          ...mockAllocationsData.metadata,
+          actuals_drift_summary: {
+            ...mockActualsDriftSummary,
+            drifted_company_count: 0,
+            material_company_count: 0,
+            degraded_company_count: 0,
+          },
+        },
+      },
+      isLoading: false,
+      error: null,
+      refetch: mockRefetch,
+    });
+
+    renderWithQuery(<AllocationsTab />);
+
+    expect(screen.getByText('No drift disclosed')).toBeInTheDocument();
+    expect(screen.getByText('As of 2026-07-11')).toBeInTheDocument();
+  });
+
+  it('keeps plan values visible when the facts summary failed', () => {
+    const failedDrift = buildActualsDrift(1, {
+      factsInputHash: null,
+      trustState: 'FAILED',
+      planningFmvStatus: 'none',
+      currencyStatus: 'unknown',
+      comparisons: [
+        {
+          basis: 'deployed_reserves_vs_observed_follow_on',
+          state: 'unavailable',
+          planCents: '50000000',
+          actualCents: null,
+          deltaCents: null,
+          relativeDelta: null,
+          material: false,
+          subCentRemainder: null,
+          unavailableReason: 'facts_failed',
+        },
+        {
+          basis: 'legacy_invested_vs_observed_total',
+          state: 'unavailable',
+          planCents: '100000000',
+          actualCents: null,
+          deltaCents: null,
+          relativeDelta: null,
+          material: false,
+          subCentRemainder: null,
+          unavailableReason: 'facts_failed',
+        },
+      ],
+      warnings: [
+        {
+          code: 'ROUND_ADAPTER_FAILED',
+          severity: 'blocking',
+          message: 'Round facts adapter failed.',
+        },
+      ],
+    });
+    latestAllocationsHookMock.mockReturnValue({
+      data: {
+        companies: [{ ...mockAllocationsData.companies[0]!, actuals_drift: failedDrift }],
+        metadata: {
+          ...mockAllocationsData.metadata,
+          companies_count: 1,
+          actuals_drift_summary: {
+            facts_status: 'failed',
+            drifted_company_count: 0,
+            material_company_count: 0,
+            degraded_company_count: 1,
+            facts_input_hash: null,
+            as_of_date: '2026-07-11',
+          },
+        },
+      },
+      isLoading: false,
+      error: null,
+      refetch: mockRefetch,
+    });
+
+    renderWithQuery(<AllocationsTab />);
+    fireEvent.click(
+      screen.getByRole('button', {
+        name: 'Expand Plan vs actual for TechCorp. Status: facts unavailable',
+      })
+    );
+
+    expect(screen.getAllByText(/facts unavailable/i).length).toBeGreaterThan(0);
+    expect(screen.getAllByText('$500,000.00').length).toBeGreaterThan(0);
+  });
+
   it('renders a true empty state only when the fund has no portfolio companies', () => {
     latestAllocationsHookMock.mockReturnValue({
       data: {
@@ -482,6 +761,12 @@ describe('portfolio reserve planning workspace', () => {
           companies_count: 0,
           allocation_facts_missing_count: 0,
           last_updated_at: null,
+          actuals_drift_summary: {
+            ...mockActualsDriftSummary,
+            drifted_company_count: 0,
+            material_company_count: 0,
+            degraded_company_count: 0,
+          },
         },
       },
       isLoading: false,
@@ -491,6 +776,8 @@ describe('portfolio reserve planning workspace', () => {
 
     renderWithQuery(<AllocationsTab />);
 
+    expect(screen.getByText('No drift disclosed')).toBeInTheDocument();
+    expect(screen.getByText('As of 2026-07-11')).toBeInTheDocument();
     expect(screen.getByText('No portfolio companies found')).toBeInTheDocument();
     expect(
       screen.getByText(
@@ -511,6 +798,36 @@ describe('portfolio reserve planning workspace', () => {
             deployed_reserves_cents: 0,
             allocation_version: 0,
             allocation_facts_missing: true,
+            actuals_drift: buildActualsDrift(1, {
+              factsInputHash: null,
+              trustState: 'UNAVAILABLE',
+              planningFmvStatus: 'none',
+              currencyStatus: 'unknown',
+              comparisons: [
+                {
+                  basis: 'deployed_reserves_vs_observed_follow_on',
+                  state: 'unavailable',
+                  planCents: '0',
+                  actualCents: null,
+                  deltaCents: null,
+                  relativeDelta: null,
+                  material: false,
+                  subCentRemainder: null,
+                  unavailableReason: 'facts_missing',
+                },
+                {
+                  basis: 'legacy_invested_vs_observed_total',
+                  state: 'unavailable',
+                  planCents: '100000000',
+                  actualCents: null,
+                  deltaCents: null,
+                  relativeDelta: null,
+                  material: false,
+                  subCentRemainder: null,
+                  unavailableReason: 'facts_missing',
+                },
+              ],
+            }),
             missing_allocation_fields: [
               'planned_reserves_cents',
               'deployed_reserves_cents',
@@ -524,6 +841,13 @@ describe('portfolio reserve planning workspace', () => {
           companies_count: 1,
           allocation_facts_missing_count: 1,
           last_updated_at: null,
+          actuals_drift_summary: {
+            ...mockActualsDriftSummary,
+            drifted_company_count: 0,
+            material_company_count: 0,
+            degraded_company_count: 1,
+            facts_input_hash: null,
+          },
         },
       },
       isLoading: false,
@@ -580,6 +904,12 @@ describe('portfolio reserve planning workspace', () => {
     expect(screen.getByText('IC Reserve Packet')).toBeInTheDocument();
     expect(screen.getAllByText('follow on').length).toBeGreaterThanOrEqual(1);
     expect(screen.getAllByText('proposed').length).toBeGreaterThanOrEqual(1);
+    await user.click(
+      screen.getByRole('button', {
+        name: 'Expand Plan vs actual for TechCorp. Status: no drift',
+      })
+    );
+    expect(screen.getByText('Live fund company actuals facts')).toBeInTheDocument();
 
     const editButtons = screen.getAllByRole('button', { name: /edit/i });
     await user.click(editButtons[0]!);
