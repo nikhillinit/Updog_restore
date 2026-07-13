@@ -33,6 +33,7 @@ import {
 export * from './schema/fund';
 export * from './schema/portfolio';
 export * from './schema/scenario';
+export * from './schema/scenario-case-seed-provenance';
 export * from './schema/shares';
 export * from './schema/allocation-scenarios';
 export * from './schema/user';
@@ -2150,10 +2151,7 @@ export const backtestResults = pgTable(
       };
       modelQualityScore: number;
       calibrationStatus:
-        | 'well-calibrated'
-        | 'under-predicting'
-        | 'over-predicting'
-        | 'insufficient-data';
+        'well-calibrated' | 'under-predicting' | 'over-predicting' | 'insufficient-data';
       incalculableMetrics: string[];
     }>(),
 

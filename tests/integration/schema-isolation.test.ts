@@ -48,6 +48,7 @@ describe('Schema Isolation - Data Boundaries', () => {
       expect(SIMULATION_ONLY_TABLES).toContain('monte_carlo_simulations');
       expect(SIMULATION_ONLY_TABLES).toContain('backtest_results');
       expect(SIMULATION_ONLY_TABLES).toContain('scenarios');
+      expect(SIMULATION_ONLY_TABLES).toContain('scenario_case_seed_provenance');
     });
 
     it('should not retain retired saved-comparison table names', () => {
