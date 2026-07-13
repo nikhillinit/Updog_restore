@@ -180,12 +180,44 @@ jobs:
       - name: Promote verified deployment
         env:
           DEPLOYMENT_URL: ${{ needs.validate-deployment.outputs.deployment_url }}
+          PRODUCTION_URL: ${{ vars.PRODUCTION_URL }}
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
           VERCEL_ORG_ID: ${{ vars.VERCEL_ORG_ID }}
           VERCEL_PROJECT_ID: ${{ vars.VERCEL_PROJECT_ID }}
-        run: >-
-          npx --yes vercel@55.0.0 promote "$DEPLOYMENT_URL" --yes --timeout=5m
-          --token="$VERCEL_TOKEN"
+        # Vercel can auto-promote the merge-created deployment before this step runs
+        # (#1091); a bare `vercel promote` then 409s "already the current production
+        # deployment" and skips post-promotion smoke. Treat that case as a no-op
+        # success ONLY after independently confirming, via the Vercel API, that the
+        # deployment serving PRODUCTION_URL is the exact staged deployment this run
+        # verified. Any other promote failure stays fatal.
+        run: |
+          set -euo pipefail
+          if npx --yes vercel@55.0.0 promote "$DEPLOYMENT_URL" --yes --timeout=5m --token="$VERCEL_TOKEN"; then
+            echo "Promoted $DEPLOYMENT_URL"
+            exit 0
+          fi
+          echo "Promote failed; checking whether the staged deployment already serves production..."
+          deployment_id() {
+            local host="$1" id=""
+            id=$(curl -sf -H "Authorization: Bearer $VERCEL_TOKEN" \
+              "https://api.vercel.com/v13/deployments/${host}" | jq -r '.id // empty') || true
+            if [ -z "$id" ]; then
+              id=$(curl -sf -H "Authorization: Bearer $VERCEL_TOKEN" \
+                "https://api.vercel.com/v13/deployments/${host}?teamId=${VERCEL_ORG_ID}" | jq -r '.id // empty') || true
+            fi
+            echo "$id"
+          }
+          staged_host=$(echo "$DEPLOYMENT_URL" | sed -E 's#^https?://##; s#/.*$##')
+          prod_host=$(echo "$PRODUCTION_URL" | sed -E 's#^https?://##; s#/.*$##')
+          staged_id=$(deployment_id "$staged_host")
+          prod_id=$(deployment_id "$prod_host")
+          echo "staged deployment: ${staged_id:-<unresolved>} | current production: ${prod_id:-<unresolved>}"
+          if [ -n "$staged_id" ] && [ "$staged_id" = "$prod_id" ]; then
+            echo "Staged deployment is already the current production deployment; promote is a verified no-op."
+            exit 0
+          fi
+          echo "Current production does not match the verified staged deployment; promote failure is real."
+          exit 1
 
   post-promotion-smoke:
     name: Authenticated Post-promotion Smoke
