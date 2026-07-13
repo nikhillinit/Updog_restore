@@ -1,7 +1,7 @@
 import type { Express, Request, Response, NextFunction, Router } from 'express';
 import type { RequestListener } from 'http';
 import { createServer, type Server } from 'http';
-import { registerFundConfigRoutes } from './routes/fund-config.js';
+import { mountCommonRoutes } from './routes/mount-common-routes.js';
 import { recordHttpMetrics } from './metrics';
 import { monitor } from './middleware/performance-monitor.js';
 import { registerCompletionHandlers } from './services/calc-run-completion-handlers.js';
@@ -41,8 +41,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Performance monitoring middleware - track all API requests
   app.use('/api', monitor.middleware());
 
-  // Fund routes
-  await mountDefaultRoute(app, { mountPath: '/api', load: () => import('./routes/funds.js') });
+  mountCommonRoutes(app, { surface: 'register_routes', stage: 'core' });
 
   // Deal pipeline routes
   const dealPipelineRoutes = await import('./routes/deal-pipeline.js');
@@ -54,16 +53,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
     load: () => import('./routes/cohort-analysis.js'),
   });
 
-  // Feature flags routes
-  const flagsRoutes = await import('./routes/flags.js');
-  app.use('/api/flags', flagsRoutes.flagsRouter);
-
   await mountDefaultRoutes(app, [
     // Health and metrics routes
     { mountPath: '/', load: () => import('./routes/health.js') },
-    // Auth: login endpoint (router self-defines /api/auth/login). Parity with makeApp.
-    { mountPath: '/', load: () => import('./routes/auth.js') },
-    { mountPath: '/api', load: () => import('./routes/dashboard-summary.js') },
     { mountPath: '/api', load: () => import('./routes/investments.js') },
     { mountPath: '/api', load: () => import('./routes/portfolio-companies.js') },
     { mountPath: '/api', load: () => import('./routes/portfolio-overview.js') },
@@ -71,7 +63,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     { mountPath: '/api', load: () => import('./routes/allocation-scenarios.js') },
     { mountPath: '/api', load: () => import('./routes/planning-fmv-overrides.js') },
     { mountPath: '/api', load: () => import('./routes/fund-scenario-sets.js') },
-    { mountPath: '/api', load: () => import('./routes/fund-actuals.js') },
     { mountPath: '/api', load: () => import('./routes/allocations.js') },
     { mountPath: '/api', load: () => import('./routes/activities.js') },
     { mountPath: '/api', load: () => import('./routes/fund-metrics-legacy.js') },
@@ -103,12 +94,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
   const reallocationRoutes = await import('./routes/reallocation.js');
   app.use(reallocationRoutes.default);
 
-  // Unified Metrics Layer routes
-  await mountDefaultRoute(app, { load: () => import('./routes/fund-metrics.js') });
-
-  const dualForecastRoutes = await import('./routes/dual-forecast.js');
-  app.use('/api', dualForecastRoutes.default);
-
   // Register before the LP/shares route groups below so requests that finish
   // inside those routers still reach recordHttpMetrics on response finish.
   app.use((req: Request, res: Response, next: NextFunction) => {
@@ -124,6 +109,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
     next();
   });
+
+  mountCommonRoutes(app, { surface: 'register_routes', stage: 'post_response_metrics' });
 
   await mountDefaultRoutes(app, [
     // Performance Dashboard API routes (timeseries, breakdown, comparison)
@@ -150,9 +137,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Dashboard, investments, portfolio companies, activities, legacy fund
   // metrics, and engine summary routes have been extracted into dedicated
   // modules.
-
-  // Register fund configuration routes
-  registerFundConfigRoutes(app);
 
   await mountDefaultRoutes(app, [
     // Register variance tracking routes

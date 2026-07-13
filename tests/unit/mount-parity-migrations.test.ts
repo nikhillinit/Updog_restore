@@ -57,6 +57,7 @@ interface ProdSchemaManifest {
 }
 
 const MAKEAPP_ROUTE_INVENTORY: Record<string, { kind: MountKind; tables?: string[] }> = {
+  mountCommonRoutes: { kind: 'non-table' },
   reservesV1Router: { kind: 'other-table' },
   flagsRouter: { kind: 'other-table' },
   cashflowRouter: { kind: 'other-table' },

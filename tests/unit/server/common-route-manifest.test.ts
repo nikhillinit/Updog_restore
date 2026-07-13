@@ -12,6 +12,7 @@ import {
 import { API_RUNTIME_SPECIFIC_MANIFEST } from '../../../shared/routes/api-runtime-specific-manifest';
 import {
   COMMON_ROUTE_IMPLEMENTATIONS,
+  MIGRATED_COMMON_ROUTE_IDS,
   mountCommonRoutes,
 } from '../../../server/routes/mount-common-routes';
 
@@ -33,8 +34,13 @@ async function discoverSurfaceModules(
   const sourceText = await readFile(path.resolve(process.cwd(), relativePath), 'utf8');
   const sourceFile = ts.createSourceFile(relativePath, sourceText, ts.ScriptTarget.Latest, true);
   const discovered = new Set<SurfaceModule>();
+  let mountsCommonRoutes = false;
 
   function addModule(modulePath: string): void {
+    if (modulePath === './routes/mount-common-routes.js') {
+      mountsCommonRoutes = true;
+      return;
+    }
     if (isClassifiedLoader(modulePath)) {
       discovered.add(`${surface}:${modulePath}`);
     }
@@ -60,6 +66,14 @@ async function discoverSurfaceModules(
   }
 
   visit(sourceFile);
+  if (mountsCommonRoutes) {
+    const migratedRouteIds = new Set<string>(MIGRATED_COMMON_ROUTE_IDS);
+    for (const entry of COMMON_API_ROUTE_MANIFEST) {
+      if (migratedRouteIds.has(entry.id)) {
+        discovered.add(`${surface}:${entry.sourceModule}`);
+      }
+    }
+  }
   return [...discovered].sort();
 }
 
@@ -391,6 +405,6 @@ describe('canonical common API route manifest', () => {
   });
 
   it('mounts the manifest synchronously', () => {
-    expect(mountCommonRoutes(express())).toBeUndefined();
+    expect(mountCommonRoutes(express(), { surface: 'make_app' })).toBeUndefined();
   });
 });

@@ -3,6 +3,9 @@ import type { Express, Router } from 'express';
 import {
   COMMON_API_ROUTE_MANIFEST,
   type CommonApiRouteId,
+  type CommonRouteMountStage,
+  getCommonRouteMountStage,
+  type RuntimeSurface,
 } from '../../shared/routes/api-route-manifest.js';
 import allocationScenariosRouter from './allocation-scenarios.js';
 import allocationsRouter from './allocations.js';
@@ -96,10 +99,78 @@ export const COMMON_ROUTE_IMPLEMENTATIONS: Record<CommonApiRouteId, RouteMountIm
   backtesting: at('/api/backtesting', backtestingRouter),
 } satisfies Record<CommonApiRouteId, RouteMountImplementation>;
 
-export function mountCommonRoutes(app: Express): void {
-  // Order follows today's makeApp production mounts. Auth-boundary and
-  // observability adapters remain entrypoint-owned and are intentionally absent.
-  for (const entry of COMMON_API_ROUTE_MANIFEST) {
-    COMMON_ROUTE_IMPLEMENTATIONS[entry.id](app);
+export const MIGRATED_COMMON_ROUTE_IDS = [
+  'auth',
+  'flags',
+  'dual-forecast',
+  'dashboard-summary',
+  'fund-actuals',
+  'funds',
+  'fund-metrics',
+  'fund-config',
+] as const satisfies readonly CommonApiRouteId[];
+
+const REGISTER_ROUTES_COMMON_ORDER = [
+  'funds',
+  'deal-pipeline',
+  'cohort-analysis',
+  'flags',
+  'auth',
+  'dashboard-summary',
+  'investments',
+  'portfolio-companies',
+  'portfolio-overview',
+  'portfolio-lots',
+  'allocation-scenarios',
+  'planning-fmv-overrides',
+  'fund-scenario-sets',
+  'fund-actuals',
+  'allocations',
+  'backtesting',
+  'sensitivity',
+  'fund-moic',
+  'graduation',
+  'capital-allocation',
+  'liquidity',
+  'reallocation',
+  'fund-metrics',
+  'dual-forecast',
+  'performance-api',
+  'lp-api',
+  'lp-capital-calls',
+  'lp-distributions',
+  'lp-documents',
+  'lp-notifications',
+  'lp-reporting-imports',
+  'lp-reporting-metric-runs',
+  'shares',
+  'public-shares',
+  'fund-config',
+  'variance',
+  'timeline',
+] as const satisfies readonly CommonApiRouteId[];
+
+interface MountCommonRoutesOptions {
+  surface: RuntimeSurface;
+  stage?: CommonRouteMountStage;
+}
+
+export function mountCommonRoutes(app: Express, options: MountCommonRoutesOptions): void {
+  const migratedRouteIds = new Set<CommonApiRouteId>(MIGRATED_COMMON_ROUTE_IDS);
+  const routeOrder =
+    options.surface === 'make_app'
+      ? COMMON_API_ROUTE_MANIFEST.map(({ id }) => id)
+      : REGISTER_ROUTES_COMMON_ORDER;
+
+  for (const routeId of routeOrder) {
+    if (!migratedRouteIds.has(routeId)) continue;
+
+    const entry = COMMON_API_ROUTE_MANIFEST.find(({ id }) => id === routeId);
+    if (!entry) {
+      throw new Error(`Missing common API route manifest entry: ${routeId}`);
+    }
+    if (options.stage && getCommonRouteMountStage(entry) !== options.stage) continue;
+
+    COMMON_ROUTE_IMPLEMENTATIONS[routeId](app);
   }
 }

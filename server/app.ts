@@ -4,15 +4,11 @@ import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
 import crypto from 'node:crypto';
 import { reservesV1Router } from './routes/v1/reserves.js';
-import { flagsRouter } from './routes/flags.js';
 import cashflowRouter from './routes/cashflow.js';
 import healthRouter from './routes/health.js';
 import calculationsRouter from './routes/calculations.js';
 import aiRouter from './routes/ai.js';
 import scenarioAnalysisRouter from './routes/scenario-analysis.js';
-import dualForecastRouter from './routes/dual-forecast.js';
-import dashboardSummaryRouter from './routes/dashboard-summary.js';
-import fundActualsRouter from './routes/fund-actuals.js';
 import allocationsRouter from './routes/allocations.js';
 import allocationScenariosRouter from './routes/allocation-scenarios.js';
 import planningFmvOverridesRouter from './routes/planning-fmv-overrides.js';
@@ -27,13 +23,10 @@ import reallocationRouter from './routes/reallocation.js';
 import cashFlowEventsRouter from './routes/cash-flow-events.js';
 import operatingObjectTasksRouter from './routes/operating-object-tasks.js';
 import backtestingRouter from './routes/backtesting.js';
-import fundsRouter from './routes/funds.js';
-import fundMetricsRouter from './routes/fund-metrics.js';
 import investmentsRouter from './routes/investments.js';
 import portfolioCompaniesRouter from './routes/portfolio-companies.js';
 import portfolioOverviewRouter from './routes/portfolio-overview.js';
 import varianceRouter from './routes/variance.js';
-import { registerFundConfigRoutes } from './routes/fund-config.js';
 import { dealPipelineRouter } from './routes/deal-pipeline.js';
 import cohortAnalysisRouter from './routes/cohort-analysis.js';
 import sensitivityRouter from './routes/sensitivity.js';
@@ -54,8 +47,8 @@ import { cspDirectives, securityHeaders } from './config/csp.js';
 import { requireAuth } from './lib/auth/jwt.js';
 import { isPublicApiPath } from './lib/public-api-boundary.js';
 import { errorHandler } from './errors.js';
-import authRouter from './routes/auth.js';
 import { requireCsrf } from './lib/auth/csrf.js';
+import { mountCommonRoutes } from './routes/mount-common-routes.js';
 
 export function makeApp() {
   const app = express();
@@ -206,12 +199,7 @@ export function makeApp() {
   // Public unauthenticated routes pass here; login has its own pre-auth token.
   app.use('/api', requireCsrf);
 
-  // Auth: login endpoint. Router self-defines /api/auth/login; mounted at the bare
-  // root AFTER the /api guard, which lets it through via isPublicApiPath(POST /auth/login).
-  app.use(authRouter);
-
-  // Feature flags API
-  app.use('/api/flags', flagsRouter);
+  mountCommonRoutes(app, { surface: 'make_app' });
 
   // Versioned API
   app.use('/api/v1/reserves', reservesV1Router);
@@ -227,17 +215,6 @@ export function makeApp() {
 
   // Scenario Analysis API (Construction vs Current, deal modeling)
   app.use('/api', scenarioAnalysisRouter);
-  app.use('/api', dualForecastRouter);
-  // Dashboard header KPI cards + Portfolio Allocation read model (#1032). Mounted
-  // here so the Vercel/makeApp surface matches the Docker routes.ts mount; without
-  // it the endpoint 404s in prod and the KPI provenance envelope stays invisible.
-  app.use('/api', dashboardSummaryRouter);
-  app.use('/api', fundActualsRouter);
-
-  // Keep the makeApp/serverless surface aligned with the canonical fund routes
-  // used by the wizard bootstrap flow.
-  app.use('/api', fundsRouter);
-  app.use(fundMetricsRouter);
   app.use('/api', investmentsRouter);
   // Portfolio Companies API (#1036 burn-down). Fund-scoped reads/writes of portfolio_companies via
   // IStorage; protected by the global /api auth boundary above + per-request enforceProvidedFundScope.
@@ -256,7 +233,6 @@ export function makeApp() {
   app.use('/api', portfolioLotsRouter);
   app.use(performanceApiRouter);
   app.use('/', varianceRouter);
-  registerFundConfigRoutes(app);
 
   // Fund Allocation Management API (Phase 1b - Reserve allocations with optimistic locking)
   app.use('/api', allocationsRouter);
