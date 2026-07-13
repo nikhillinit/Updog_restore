@@ -59,6 +59,7 @@ export const SIMULATION_ONLY_TABLES = [
   'portfolio_scenarios',
   'scenarios',
   'scenario_cases',
+  'scenario_case_seed_provenance',
   'scenario_audit_logs',
 
   // Strategy modeling
