@@ -31,6 +31,55 @@ export const ProbabilityDecimalStringSchema = DecimalStringSchema.refine(
   { message: 'Expected a decimal string between 0 and 1' }
 );
 
+export const MarginalReserveInputReadinessReasonSchema = z.enum([
+  'MISSING_ACTUALS_FACTS',
+  'MISSING_CURRENT_OWNERSHIP',
+  'MISSING_PUBLISHED_ASSUMPTIONS',
+  'MISSING_STAGE_ASSUMPTION',
+  'MISSING_FOLLOW_ON_POLICY',
+  'MISSING_PLANNED_CHECK',
+  'PLANNED_CHECK_EXCEEDS_ROUND_SIZE',
+  'BLOCKED_CURRENCY',
+  'STALE_ASSUMPTION',
+  'ASSUMPTION_NOT_EFFECTIVE',
+  'CURRENT_STATE_DATE_MISMATCH',
+  'FACTS_SCOPE_MISMATCH',
+  'UNKNOWN_CURRENCY',
+  'MISSING_APPROVED_ALLOCATION',
+  'PLANNED_CHECK_EXCEEDS_APPROVED_ALLOCATION',
+]);
+
+export const MarginalReserveInputReadinessSchema = z
+  .object({
+    status: z.enum(['actionable', 'indicative']),
+    reasons: z.array(MarginalReserveInputReadinessReasonSchema),
+  })
+  .strict()
+  .superRefine((value, ctx) => {
+    const hasStaleAssumption = value.reasons.includes('STALE_ASSUMPTION');
+    if (value.status === 'actionable' && value.reasons.length > 0) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'Actionable inputs cannot have readiness reasons',
+        path: ['reasons'],
+      });
+    }
+    if (value.status === 'indicative' && !hasStaleAssumption) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'Indicative inputs require a stale-assumption reason',
+        path: ['reasons'],
+      });
+    }
+  });
+
+export const MarginalReserveInputFailureSchema = z
+  .object({
+    companyId: z.number().int().positive(),
+    reasons: z.array(MarginalReserveInputReadinessReasonSchema).min(1),
+  })
+  .strict();
+
 const ParticipationSchema = z
   .object({
     participate: z.boolean(),
@@ -79,9 +128,7 @@ export const MarginalReserveStageV1Schema = z
       });
     }
 
-    const probabilitySum = new Decimal(value.exitProbability).plus(
-      value.graduationProbability
-    );
+    const probabilitySum = new Decimal(value.exitProbability).plus(value.graduationProbability);
     if (probabilitySum.gt(1)) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
@@ -132,14 +179,14 @@ export const MarginalReserveMoicInputV1Schema = z
     factsInputHash: Sha256Schema,
     assumptionsHash: Sha256Schema,
     engineVersion: z.literal('marginal-reserve-moic-v1'),
+    readiness: MarginalReserveInputReadinessSchema.optional(),
   })
   .strict()
   .superRefine((value, ctx) => {
     validateCanonicalStageOrder(value.stages, ctx, 'stages');
 
     const hasCapitalDifference = value.stages.some(
-      (stage) =>
-        !new Decimal(stage.withDecision.checkAmount).eq(stage.withoutDecision.checkAmount)
+      (stage) => !new Decimal(stage.withDecision.checkAmount).eq(stage.withoutDecision.checkAmount)
     );
     if (!hasCapitalDifference) {
       ctx.addIssue({
@@ -222,7 +269,10 @@ export const MarginalReserveMoicResultV1Schema = z
     const exceedsMagnitudeThreshold =
       value.marginalMoic !== null && new Decimal(value.marginalMoic).gt(100);
 
-    if (value.status === 'unavailable' && (value.marginalMoic !== null || value.marginalIrr !== null)) {
+    if (
+      value.status === 'unavailable' &&
+      (value.marginalMoic !== null || value.marginalIrr !== null)
+    ) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
         message: 'Unavailable results cannot contain marginalMoic or marginalIrr',
@@ -266,10 +316,55 @@ export const MarginalReserveMoicResultV1Schema = z
     }
   });
 
+export const MarginalReserveRankingItemV1Schema = z
+  .object({
+    companyId: z.number().int().positive(),
+    status: z.enum(['actionable', 'indicative', 'unavailable']),
+    inputReadiness: MarginalReserveInputReadinessSchema,
+    result: MarginalReserveMoicResultV1Schema,
+  })
+  .strict()
+  .superRefine((value, ctx) => {
+    const expectedStatus =
+      value.result.status === 'actionable' && value.inputReadiness.status === 'indicative'
+        ? 'indicative'
+        : value.result.status;
+    if (value.status !== expectedStatus) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'Ranking status must reflect result status and input readiness',
+        path: ['status'],
+      });
+    }
+  });
+
+export const MarginalReserveRankingsResponseV1Schema = z
+  .object({
+    contractVersion: z.literal('marginal-reserve-rankings-v1'),
+    mode: z.literal('shadow'),
+    actionability: z.literal('non_actionable_shadow'),
+    fundId: z.number().int().positive(),
+    asOfDate: z.string().date(),
+    factsInputHash: Sha256Schema,
+    assumptionsHash: Sha256Schema,
+    rankings: z.array(MarginalReserveRankingItemV1Schema),
+    unavailable: z.array(MarginalReserveInputFailureSchema),
+  })
+  .strict();
+
 export type MarginalReserveStageV1 = z.infer<typeof MarginalReserveStageV1Schema>;
+export type MarginalReserveInputReadinessReason = z.infer<
+  typeof MarginalReserveInputReadinessReasonSchema
+>;
+export type MarginalReserveInputReadiness = z.infer<typeof MarginalReserveInputReadinessSchema>;
+export type MarginalReserveInputFailure = z.infer<typeof MarginalReserveInputFailureSchema>;
 export type MarginalReserveMoicInputV1 = z.infer<typeof MarginalReserveMoicInputV1Schema>;
 export type MarginalReserveWarningCode = z.infer<typeof MarginalReserveWarningCodeSchema>;
 export type StructuredWarning = z.infer<typeof StructuredWarningSchema>;
 export type CounterfactualSummary = z.infer<typeof CounterfactualSummarySchema>;
 export type StageContribution = z.infer<typeof StageContributionSchema>;
 export type MarginalReserveMoicResultV1 = z.infer<typeof MarginalReserveMoicResultV1Schema>;
+export type MarginalReserveRankingItemV1 = z.infer<typeof MarginalReserveRankingItemV1Schema>;
+export type MarginalReserveRankingsResponseV1 = z.infer<
+  typeof MarginalReserveRankingsResponseV1Schema
+>;

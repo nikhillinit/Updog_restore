@@ -28,7 +28,9 @@ type RoutePolicyDecision = Pick<
 >;
 
 type PortfolioIntelligenceRouteDecisionMap = {
-  [Route in PortfolioIntelligenceClassificationEntry as `${Route['method']} ${Route['path']}`]: RoutePolicyDecision;
+  [
+    Route in PortfolioIntelligenceClassificationEntry as `${Route['method']} ${Route['path']}`
+  ]: RoutePolicyDecision;
 };
 
 type PortfolioIntelligenceRouteKey = keyof PortfolioIntelligenceRouteDecisionMap & string;
@@ -705,6 +707,27 @@ export const EXPLICIT_API_ROUTE_POLICY_ENTRIES: RoutePolicyEntry[] = [
     performanceBudgetMs: null,
     notes:
       'H9 source-fingerprint actionability is enforced in the route before candidate MOIC rankings can be served.',
+  },
+  {
+    id: 'api:get:/api/funds/:fundId/moic/marginal-rankings',
+    method: 'GET',
+    path: '/api/funds/:fundId/moic/marginal-rankings',
+    lifecycle: 'durable_crud',
+    governanceRef: '/fund-model-results/:fundId/moic-analysis',
+    surface: 'marginal-reserve-moic-shadow-api',
+    owner: 'analytics',
+    telemetryKey: 'api.route.api.funds.fundId.moic.marginal.rankings',
+    financialSurface: 'moic_reserves',
+    apiAuthBoundary: 'require_auth_and_fund_access',
+    fundScopeMode: 'route_param_fund_id',
+    workflowRequirement: 'shadow_review_required',
+    exportPolicy: 'not_exportable',
+    provenanceRequired: true,
+    staleBlocksExport: true,
+    humanReviewRequired: true,
+    performanceBudgetMs: null,
+    notes:
+      'Server-only flag gates this non-persistent shadow ranking surface; investment-team review remains required.',
   },
   {
     id: 'api:get:/api/portfolio-overview',

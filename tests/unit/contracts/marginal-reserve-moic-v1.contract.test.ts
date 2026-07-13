@@ -2,7 +2,9 @@ import { describe, expect, it } from 'vitest';
 import {
   MIN_DELTA_CAPITAL_FLOOR,
   MarginalReserveMoicInputV1Schema,
+  MarginalReserveInputFailureSchema,
   MarginalReserveMoicResultV1Schema,
+  MarginalReserveRankingItemV1Schema,
   MarginalReserveStageV1Schema,
 } from '@shared/contracts/marginal-reserve-moic-v1.contract';
 
@@ -195,6 +197,33 @@ describe('MarginalReserveMoicInputV1Schema', () => {
       }).success
     ).toBe(false);
   });
+
+  it('represents stale assumptions as indicative input readiness', () => {
+    expect(
+      MarginalReserveMoicInputV1Schema.safeParse(
+        makeInput({
+          readiness: { status: 'indicative', reasons: ['STALE_ASSUMPTION'] },
+        })
+      ).success
+    ).toBe(true);
+    expect(
+      MarginalReserveMoicInputV1Schema.safeParse(
+        makeInput({ readiness: { status: 'actionable', reasons: ['STALE_ASSUMPTION'] } })
+      ).success
+    ).toBe(false);
+  });
+
+  it('requires explicit reasons for unavailable company inputs', () => {
+    expect(
+      MarginalReserveInputFailureSchema.parse({
+        companyId: 2,
+        reasons: ['MISSING_CURRENT_OWNERSHIP'],
+      })
+    ).toEqual({ companyId: 2, reasons: ['MISSING_CURRENT_OWNERSHIP'] });
+    expect(MarginalReserveInputFailureSchema.safeParse({ companyId: 2, reasons: [] }).success).toBe(
+      false
+    );
+  });
 });
 
 describe('MarginalReserveMoicResultV1Schema', () => {
@@ -226,9 +255,7 @@ describe('MarginalReserveMoicResultV1Schema', () => {
         makeResult({
           status: 'indicative',
           marginalMoic: '101.000000',
-          warnings: [
-            { code: 'IMPLAUSIBLE_MAGNITUDE', message: 'Marginal MOIC exceeds 100x' },
-          ],
+          warnings: [{ code: 'IMPLAUSIBLE_MAGNITUDE', message: 'Marginal MOIC exceeds 100x' }],
         })
       ).success
     ).toBe(true);
@@ -245,11 +272,37 @@ describe('MarginalReserveMoicResultV1Schema', () => {
         makeResult({
           status: 'indicative',
           marginalMoic: '100.000000',
-          warnings: [
-            { code: 'IMPLAUSIBLE_MAGNITUDE', message: 'Marginal MOIC exceeds 100x' },
-          ],
+          warnings: [{ code: 'IMPLAUSIBLE_MAGNITUDE', message: 'Marginal MOIC exceeds 100x' }],
         })
       ).success
+    ).toBe(false);
+  });
+
+  it('keeps stale readiness outside the strict V1 engine result', () => {
+    expect(
+      MarginalReserveMoicResultV1Schema.safeParse(
+        makeResult({
+          status: 'indicative',
+          marginalMoic: '5.000000',
+          warnings: [],
+        })
+      ).success
+    ).toBe(false);
+    expect(
+      MarginalReserveRankingItemV1Schema.safeParse({
+        companyId: 2,
+        status: 'indicative',
+        inputReadiness: { status: 'indicative', reasons: ['STALE_ASSUMPTION'] },
+        result: makeResult(),
+      }).success
+    ).toBe(true);
+    expect(
+      MarginalReserveRankingItemV1Schema.safeParse({
+        companyId: 2,
+        status: 'actionable',
+        inputReadiness: { status: 'indicative', reasons: ['STALE_ASSUMPTION'] },
+        result: makeResult(),
+      }).success
     ).toBe(false);
   });
 });

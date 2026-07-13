@@ -260,8 +260,10 @@ function calculateExpectedIrr(datedCashFlows: DatedDecimalCashFlow[]): Decimal |
 }
 
 function normalizeInputForHash(input: MarginalReserveMoicInputV1): unknown {
+  const hashInput = { ...input };
+  delete hashInput.readiness;
   return {
-    ...input,
+    ...hashInput,
     currentOwnership: formatMetric(new Decimal(input.currentOwnership)),
     stages: input.stages.map((stage) => ({
       ...stage,

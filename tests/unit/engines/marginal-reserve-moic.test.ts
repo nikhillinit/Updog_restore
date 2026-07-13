@@ -210,6 +210,20 @@ describe('calculateMarginalReserveMoic', () => {
     expect(result.warnings.map((warning) => warning.code)).toContain('IMPLAUSIBLE_MAGNITUDE');
   });
 
+  it('keeps source readiness from mutating the strict V1 engine result', () => {
+    const omittedReadiness = calculateMarginalReserveMoic(baseInput());
+    const actionableInput = baseInput();
+    actionableInput.readiness = { status: 'actionable', reasons: [] };
+    const staleInput = baseInput();
+    staleInput.readiness = { status: 'indicative', reasons: ['STALE_ASSUMPTION'] };
+
+    const actionableReadiness = calculateMarginalReserveMoic(actionableInput);
+    const staleReadiness = calculateMarginalReserveMoic(staleInput);
+
+    expect(actionableReadiness).toEqual(omittedReadiness);
+    expect(staleReadiness).toEqual(omittedReadiness);
+  });
+
   it('rejects an invalid probability sum before projection', () => {
     const input = baseInput();
     input.stages[0]!.exitProbability = '0.6';
