@@ -150,10 +150,14 @@ describe('required CI fails closed', () => {
       '${{ needs.validate-deployment.outputs.deployment_url }}'
     );
     expect(stagedSmokeStep?.env).toHaveProperty('VERCEL_AUTOMATION_BYPASS_SECRET');
+    // Staged smoke probes RUM origin layers with the canonical production
+    // origin — the ephemeral staged URL is correctly not allow-listed.
+    expect(stagedSmokeStep?.env?.RUM_ALLOWED_ORIGIN).toBe('${{ vars.PRODUCTION_URL }}');
     const stagedCredentialGuard = stagedSmoke?.steps?.find(
       (step) => step.name === 'Require non-skippable smoke credentials'
     );
     expect(stagedCredentialGuard?.run).toContain('VERCEL_AUTOMATION_BYPASS_SECRET is required');
+    expect(stagedCredentialGuard?.run).toContain('RUM_ALLOWED_ORIGIN is required');
 
     const postPromotionSmoke = releaseWorkflow.jobs?.['post-promotion-smoke'];
     expect(JSON.stringify(postPromotionSmoke?.steps ?? [])).not.toContain(

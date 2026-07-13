@@ -7,6 +7,7 @@ const HEALTH_KEY = process.env.HEALTH_KEY ?? '';
 const METRICS_KEY = process.env.METRICS_KEY ?? '';
 const PROD_SMOKE_USERNAME = process.env.PROD_SMOKE_USERNAME ?? '';
 const PROD_SMOKE_PASSWORD = process.env.PROD_SMOKE_PASSWORD ?? '';
+const RUM_ALLOWED_ORIGIN = process.env.RUM_ALLOWED_ORIGIN ?? '';
 const RUM_BODY = {
   name: 'LCP',
   value: 123,
@@ -38,6 +39,14 @@ async function expectJsonObject(response: APIResponse): Promise<JsonObject> {
 
 function productionOrigin(): string {
   return new URL(PRODUCTION_URL).origin;
+}
+
+// Origin used to probe the RUM allow-list layers. Against a staged deployment
+// the deployment's own ephemeral *.vercel.app origin is correctly NOT in the
+// allow-list, so staged runs pass the canonical production origin via
+// RUM_ALLOWED_ORIGIN — probing the exact allow-list the promoted domain uses.
+function rumProbeOrigin(): string {
+  return RUM_ALLOWED_ORIGIN ? new URL(RUM_ALLOWED_ORIGIN).origin : productionOrigin();
 }
 
 test.describe('production boundary smoke', () => {
@@ -149,7 +158,7 @@ test.describe('production boundary smoke', () => {
   test('rum lookalike origin is rejected', async ({ request }) => {
     const response = await request.post(`${PRODUCTION_URL}/api/metrics/rum`, {
       headers: {
-        Origin: `${productionOrigin()}.evil.example`,
+        Origin: `${rumProbeOrigin()}.evil.example`,
       },
       data: RUM_BODY,
     });
@@ -170,14 +179,14 @@ test.describe('production boundary smoke', () => {
   test('rum exact origin is not origin-blocked', async ({ request }) => {
     const response = await request.post(`${PRODUCTION_URL}/api/metrics/rum`, {
       headers: {
-        Origin: productionOrigin(),
+        Origin: rumProbeOrigin(),
       },
       data: RUM_BODY,
     });
 
     expectNotSpaRewrite(response);
 
-    // The exact deployed origin must never be rejected by any origin layer
+    // The canonical allowed origin must never be rejected by any origin layer
     // (strict-CORS perimeter or rumOriginGuard). Non-403 schema/validation
     // responses are acceptable; verified live as 204 on 2026-06-12.
     expect(response.status()).not.toBe(403);
