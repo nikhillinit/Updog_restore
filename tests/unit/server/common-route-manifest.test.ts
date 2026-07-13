@@ -100,7 +100,6 @@ describe('canonical common API route manifest', () => {
       )
     ).toMatchInlineSnapshot(`
       [
-        "health:<bare>",
         "auth:<bare>",
         "flags:/api/flags",
         "dual-forecast:/api",
@@ -152,6 +151,14 @@ describe('canonical common API route manifest', () => {
       }))
     ).toMatchInlineSnapshot(`
       [
+        {
+          "classification": "runtime_specific",
+          "id": "make-app-health",
+          "mountPaths": [
+            null,
+          ],
+          "surface": "make_app",
+        },
         {
           "classification": "runtime_specific",
           "id": "make-app-reserves-v1",
@@ -234,6 +241,14 @@ describe('canonical common API route manifest', () => {
             "/api",
           ],
           "surface": "make_app",
+        },
+        {
+          "classification": "runtime_specific",
+          "id": "register-routes-health",
+          "mountPaths": [
+            "/",
+          ],
+          "surface": "register_routes",
         },
         {
           "classification": "runtime_specific",
