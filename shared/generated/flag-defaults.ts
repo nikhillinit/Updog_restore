@@ -556,6 +556,22 @@ export const FLAG_DEFINITIONS: Record<FlagKey, FlagDefinition> = {
     expiresAt: null,
     aliases: ['ENABLE_PORTFOLIO_INTELLIGENCE'],
   },
+  enable_marginal_reserve_moic: {
+    default: false,
+    description: 'Gates shadow-only marginal reserve MOIC rankings for internal comparison',
+    owner: 'analytics',
+    risk: 'high',
+    exposeToClient: false,
+
+    environments: {
+      development: false,
+      staging: false,
+      production: false,
+    },
+    dependencies: [],
+    expiresAt: null,
+    aliases: ['ENABLE_MARGINAL_RESERVE_MOIC'],
+  },
   enable_faults: {
     default: false,
     description: 'Enable fault injection for testing',
@@ -769,6 +785,7 @@ export const FLAG_DEFAULTS: FlagRecord = {
   demo_mode: false,
   require_auth: false,
   enable_portfolio_intelligence: false,
+  enable_marginal_reserve_moic: false,
   enable_faults: false,
   enable_wizard_step_general: false,
   enable_wizard_step_sectors: false,
@@ -856,6 +873,7 @@ export const FLAG_ALIASES: Record<string, FlagKey> = {
   UI_CATALOG: 'ui_catalog',
   ONBOARDING_TOUR: 'onboarding_tour',
   ENABLE_PORTFOLIO_INTELLIGENCE: 'enable_portfolio_intelligence',
+  ENABLE_MARGINAL_RESERVE_MOIC: 'enable_marginal_reserve_moic',
   ENABLE_WIZARD_STEP_GENERAL: 'enable_wizard_step_general',
   ENABLE_WIZARD_STEP_SIZING: 'enable_wizard_step_sizing',
   ENABLE_WIZARD_STEP_SECTORS: 'enable_wizard_step_sizing',
