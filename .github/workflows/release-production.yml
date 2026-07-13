@@ -146,6 +146,7 @@ jobs:
           PROD_SMOKE_USERNAME: ${{ secrets.PROD_SMOKE_USERNAME }}
           PROD_SMOKE_PASSWORD: ${{ secrets.PROD_SMOKE_PASSWORD }}
           VERCEL_AUTOMATION_BYPASS_SECRET: ${{ secrets.VERCEL_AUTOMATION_BYPASS_SECRET }}
+          RUM_ALLOWED_ORIGIN: ${{ vars.PRODUCTION_URL }}
         run: |
           : "${PRODUCTION_URL:?PRODUCTION_URL is required}"
           : "${HEALTH_KEY:?HEALTH_KEY is required}"
@@ -153,6 +154,7 @@ jobs:
           : "${PROD_SMOKE_USERNAME:?PROD_SMOKE_USERNAME is required}"
           : "${PROD_SMOKE_PASSWORD:?PROD_SMOKE_PASSWORD is required}"
           : "${VERCEL_AUTOMATION_BYPASS_SECRET:?VERCEL_AUTOMATION_BYPASS_SECRET is required}"
+          : "${RUM_ALLOWED_ORIGIN:?RUM_ALLOWED_ORIGIN is required}"
 
       - name: Install Playwright Chromium
         run: npx playwright install --with-deps chromium
@@ -165,6 +167,7 @@ jobs:
           PROD_SMOKE_USERNAME: ${{ secrets.PROD_SMOKE_USERNAME }}
           PROD_SMOKE_PASSWORD: ${{ secrets.PROD_SMOKE_PASSWORD }}
           VERCEL_AUTOMATION_BYPASS_SECRET: ${{ secrets.VERCEL_AUTOMATION_BYPASS_SECRET }}
+          RUM_ALLOWED_ORIGIN: ${{ vars.PRODUCTION_URL }}
         run: npx playwright test tests/smoke/production-boundaries.spec.ts --project=production --reporter=line
 
   promote:
