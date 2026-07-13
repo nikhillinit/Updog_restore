@@ -30,6 +30,16 @@ import {
 import { setStageWarningHeaders } from '../middleware/deprecation-headers';
 import { enforceProvidedFundScope } from '../lib/auth/provided-fund-scope';
 import { storage } from '../storage';
+import { AllocationCompanyActualsDriftV1Schema } from '@shared/contracts/allocations/allocation-actuals-drift-v1.contract';
+import type { FundCompanyActualsFactsResponse } from '@shared/contracts/fund-actuals/fund-company-actuals-fact.contract';
+import {
+  buildAllocationActualsDrift,
+  buildFailedAllocationActualsDrift,
+} from '../services/allocations/allocation-actuals-drift-service.js';
+import {
+  buildFundCompanyActualsFacts,
+  FundActualsFactsServiceError,
+} from '../services/fund-actuals/fund-company-actuals-facts-service.js';
 
 // Custom error type for HTTP status codes
 interface HttpError extends Error {
@@ -77,6 +87,57 @@ const ALLOCATION_ERROR_MAPPINGS = [
 
 const COMPANY_LIST_CURSOR_BASE64URL_PATTERN = /^[A-Za-z0-9_-]+$/;
 const CompanyListSortBySchema = z.enum(['exit_moic_desc', 'planned_reserves_desc', 'name_asc']);
+
+const LatestAllocationActualsDriftSummarySchema = z
+  .object({
+    facts_status: z.enum(['available', 'failed']),
+    drifted_company_count: z.number().int().nonnegative(),
+    material_company_count: z.number().int().nonnegative(),
+    degraded_company_count: z.number().int().nonnegative(),
+    facts_input_hash: z
+      .string()
+      .regex(/^[a-f0-9]{64}$/)
+      .nullable(),
+    as_of_date: z.string().date(),
+  })
+  .strict();
+
+const LatestAllocationCompanySchema = z
+  .object({
+    company_id: z.number().int().positive(),
+    company_name: z.string(),
+    sector: z.string(),
+    stage: z.string(),
+    status: z.string(),
+    invested_amount_cents: z.number().int(),
+    planned_reserves_cents: z.number().int(),
+    deployed_reserves_cents: z.number().int(),
+    allocation_cap_cents: z.number().int().nullable(),
+    allocation_reason: z.string().nullable(),
+    allocation_version: z.number().int().nonnegative(),
+    last_allocation_at: z.string().datetime().nullable(),
+    allocation_facts_missing: z.boolean(),
+    missing_allocation_fields: z.array(z.string()),
+    actuals_drift: AllocationCompanyActualsDriftV1Schema,
+  })
+  .strict();
+
+const LatestAllocationResponseSchema = z
+  .object({
+    fund_id: z.number().int().positive(),
+    companies: z.array(LatestAllocationCompanySchema),
+    metadata: z
+      .object({
+        total_planned_cents: z.number().int(),
+        total_deployed_cents: z.number().int(),
+        companies_count: z.number().int().nonnegative(),
+        allocation_facts_missing_count: z.number().int().nonnegative(),
+        last_updated_at: z.string().datetime().nullable(),
+        actuals_drift_summary: LatestAllocationActualsDriftSummarySchema,
+      })
+      .strict(),
+  })
+  .strict();
 
 type CompanyListSortBy = z.infer<typeof CompanyListSortBySchema>;
 type CompanyListCursorKey = string | number | null;
@@ -168,33 +229,6 @@ const CompanyListQuerySchema = z
 // ============================================================================
 
 type _UpdateAllocationRequest = z.infer<typeof UpdateAllocationRequestSchema>;
-
-interface _LatestAllocationResponse {
-  fund_id: number;
-  companies: Array<{
-    company_id: number;
-    company_name: string;
-    sector: string;
-    stage: string;
-    status: string;
-    invested_amount_cents: number;
-    planned_reserves_cents: number;
-    deployed_reserves_cents: number;
-    allocation_cap_cents: number | null;
-    allocation_reason: string | null;
-    allocation_version: number;
-    last_allocation_at: string | null;
-    allocation_facts_missing: boolean;
-    missing_allocation_fields: string[];
-  }>;
-  metadata: {
-    total_planned_cents: number;
-    total_deployed_cents: number;
-    companies_count: number;
-    allocation_facts_missing_count: number;
-    last_updated_at: string | null;
-  };
-}
 
 interface _UpdateAllocationResponse {
   success: boolean;
@@ -319,6 +353,31 @@ function findAllocationErrorMapping(message: string): AllocationErrorMapping | u
 
 function allocationErrorMappingMessage(mapping: AllocationErrorMapping | undefined): string {
   return mapping?.message ?? DEFAULT_ALLOCATION_ERROR_MESSAGE;
+}
+
+async function loadAllocationActualsFacts(input: {
+  fundId: number;
+  asOfDate: string;
+  requestId: string;
+}): Promise<FundCompanyActualsFactsResponse | null> {
+  try {
+    return await buildFundCompanyActualsFacts({
+      fundId: input.fundId,
+      asOfDate: input.asOfDate,
+    });
+  } catch (error) {
+    logger.warn(
+      {
+        requestId: input.requestId,
+        fundId: input.fundId,
+        errorCode:
+          error instanceof FundActualsFactsServiceError ? error.code : 'unexpected_facts_error',
+        error: error instanceof Error ? error.message : String(error),
+      },
+      'actuals facts unavailable for latest allocation read'
+    );
+    return null;
+  }
 }
 
 function parseActorUserId(req: Request): number | null {
@@ -864,8 +923,41 @@ router['get'](
         .where(eq(portfolioCompanies.fundId, fundId))
         .orderBy(asc(portfolioCompanies.id));
 
+      const asOfDate = new Date().toISOString().slice(0, 10);
+      const actualsFacts = await loadAllocationActualsFacts({
+        fundId,
+        asOfDate,
+        requestId: req.rid ?? 'unknown',
+      });
+      const factsByCompanyId = new Map(
+        actualsFacts?.facts.map((fact) => [fact.companyId, fact]) ?? []
+      );
+
       const companies = rows.map((row) => {
         const missingFields = missingAllocationFields(row);
+        const plannedReservesCents =
+          row.planned_reserves_cents != null ? Number(row.planned_reserves_cents) : 0;
+        const deployedReservesCents =
+          row.deployed_reserves_cents != null ? Number(row.deployed_reserves_cents) : 0;
+        const allocationVersion = row.allocation_version ?? 0;
+        const driftAllocationVersion = allocationVersion > 0 ? allocationVersion : 1;
+        const driftInput = {
+          allocation: {
+            companyId: row.company_id,
+            deployedReservesCents,
+            investmentAmount: row.invested_amount || '0',
+            allocationVersion: driftAllocationVersion,
+            lastAllocationAt: row.last_allocation_at,
+          },
+          asOfDate,
+        };
+        const actualsDrift =
+          actualsFacts === null
+            ? buildFailedAllocationActualsDrift(driftInput)
+            : buildAllocationActualsDrift({
+                ...driftInput,
+                fact: factsByCompanyId.get(row.company_id) ?? null,
+              });
 
         return {
           company_id: row.company_id,
@@ -874,17 +966,16 @@ router['get'](
           stage: row.stage,
           status: row.status,
           invested_amount_cents: Math.round(parseFloat(row.invested_amount || '0') * 100),
-          planned_reserves_cents:
-            row.planned_reserves_cents != null ? Number(row.planned_reserves_cents) : 0,
-          deployed_reserves_cents:
-            row.deployed_reserves_cents != null ? Number(row.deployed_reserves_cents) : 0,
+          planned_reserves_cents: plannedReservesCents,
+          deployed_reserves_cents: deployedReservesCents,
           allocation_cap_cents:
             row.allocation_cap_cents != null ? Number(row.allocation_cap_cents) : null,
           allocation_reason: row.allocation_reason,
-          allocation_version: row.allocation_version ?? 0,
+          allocation_version: allocationVersion,
           last_allocation_at: row.last_allocation_at ? row.last_allocation_at.toISOString() : null,
           allocation_facts_missing: missingFields.length > 0,
           missing_allocation_fields: missingFields,
+          actuals_drift: actualsDrift,
         };
       });
 
@@ -897,7 +988,7 @@ router['get'](
           .sort()
           .reverse()[0] || null;
 
-      return res.status(200).json({
+      const response = LatestAllocationResponseSchema.parse({
         fund_id: fundId,
         companies,
         metadata: {
@@ -907,8 +998,24 @@ router['get'](
           allocation_facts_missing_count: companies.filter((c) => c.allocation_facts_missing)
             .length,
           last_updated_at,
+          actuals_drift_summary: {
+            facts_status: actualsFacts === null ? 'failed' : 'available',
+            drifted_company_count: companies.filter((company) =>
+              company.actuals_drift.comparisons.some((comparison) => comparison.state === 'drifted')
+            ).length,
+            material_company_count: companies.filter((company) =>
+              company.actuals_drift.comparisons.some((comparison) => comparison.material)
+            ).length,
+            degraded_company_count: companies.filter(
+              (company) => company.actuals_drift.trustState !== 'LIVE'
+            ).length,
+            facts_input_hash: actualsFacts?.inputHash ?? null,
+            as_of_date: asOfDate,
+          },
         },
       });
+
+      return res.status(200).json(response);
     } catch (error) {
       logger.warn(
         {
