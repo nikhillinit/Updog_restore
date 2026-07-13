@@ -10,7 +10,11 @@ import type { NextFunction, Request, Response } from 'express';
 import { isDeepStrictEqual } from 'node:util';
 import { z } from 'zod';
 import { db } from '../db';
-import { Sha256Schema } from '@shared/contracts/fund-actuals/fund-company-actuals-fact.contract';
+import {
+  FundCompanyActualsCurrencyStatusSchema,
+  Sha256Schema,
+} from '@shared/contracts/fund-actuals/fund-company-actuals-fact.contract';
+import { DatasetTrustStateSchema } from '@shared/contracts/provenance-envelope.contract';
 import { ScenarioCaseSeedV1Schema } from '@shared/contracts/scenarios/scenario-case-seed-v1.contract';
 import { DecimalStringSchema } from '@shared/contracts/lp-reporting/cash-flow-event.contract';
 import {
@@ -20,14 +24,14 @@ import {
   scenarioCaseSeedProvenance,
 } from '@shared/schema';
 import { FundIdParamSchema } from '@shared/schemas/portfolio-route';
-import { eq, and } from 'drizzle-orm';
+import { eq, and, inArray } from 'drizzle-orm';
 import {
   calculateWeightedSummary,
   validateProbabilities,
   normalizeProbabilities,
   addMOICToCases,
 } from '@shared/utils/scenario-math';
-import type { ScenarioAnalysisResponse, ScenarioCase } from '@shared/types/scenario';
+import type { ScenarioCase } from '@shared/types/scenario';
 import { requireAuth, requireFundAccess } from '../lib/auth/jwt';
 import { firstString } from '../lib/request-values';
 import { createRouteLogger } from '../lib/route-logger.js';
@@ -156,6 +160,67 @@ const CreateScenarioCaseFromSeedResponseSchema = z
     scenarioVersion: z.number().int(),
     seededAt: z.string().datetime(),
     replay: z.boolean(),
+  })
+  .strict();
+
+const ScenarioCaseSeedProvenanceReadSchema = z
+  .object({
+    facts_input_hash: Sha256Schema,
+    facts_as_of_date: z.string().date(),
+    seeded_at: z.string().datetime(),
+    trust_state: DatasetTrustStateSchema,
+    currency_status: FundCompanyActualsCurrencyStatusSchema,
+    staleness: z.enum(['current', 'stale', 'unknown']),
+  })
+  .strict();
+
+const ScenarioCaseReadSchema = z
+  .object({
+    id: z.string().optional(),
+    case_name: z.string(),
+    description: z.string().optional(),
+    probability: z.number(),
+    investment: z.number(),
+    follow_ons: z.number(),
+    exit_proceeds: z.number(),
+    exit_valuation: z.number(),
+    moic: z.number().optional(),
+    months_to_exit: z.number().optional(),
+    ownership_at_exit: z.number().optional(),
+    seed_provenance: ScenarioCaseSeedProvenanceReadSchema.optional(),
+  })
+  .strict();
+
+const ScenarioAnalysisReadResponseSchema = z
+  .object({
+    company_name: z.string(),
+    company_id: z.string(),
+    scenario: z
+      .object({
+        id: z.string(),
+        company_id: z.string(),
+        name: z.string(),
+        description: z.string().optional(),
+        version: z.number().int(),
+        is_default: z.boolean(),
+        locked_at: z.date().optional(),
+        created_by: z.string().optional(),
+        created_at: z.date(),
+        updated_at: z.date(),
+      })
+      .strict(),
+    cases: z.array(ScenarioCaseReadSchema),
+    weighted_summary: z
+      .object({
+        moic: z.number().nullable(),
+        investment: z.number(),
+        follow_ons: z.number(),
+        exit_proceeds: z.number(),
+        exit_valuation: z.number(),
+        months_to_exit: z.number().optional(),
+      })
+      .strict()
+      .optional(),
   })
   .strict();
 
@@ -500,6 +565,81 @@ router['get'](
           ? calculateWeightedSummary(casesWithMOIC)
           : undefined;
 
+      const seedProvenanceByCaseId = new Map<
+        string,
+        z.infer<typeof ScenarioCaseSeedProvenanceReadSchema>
+      >();
+      const caseIds = casesWithMOIC.flatMap((scenarioCase) =>
+        scenarioCase.id === undefined ? [] : [scenarioCase.id]
+      );
+      if (caseIds.length > 0) {
+        const provenanceRows = await db
+          .select({
+            scenarioCaseId: scenarioCaseSeedProvenance.scenarioCaseId,
+            fundId: scenarioCaseSeedProvenance.fundId,
+            companyId: scenarioCaseSeedProvenance.companyId,
+            factsInputHash: scenarioCaseSeedProvenance.factsInputHash,
+            factsAsOfDate: scenarioCaseSeedProvenance.factsAsOfDate,
+            seededAt: scenarioCaseSeedProvenance.seededAt,
+            trustState: scenarioCaseSeedProvenance.trustState,
+            currencyStatus: scenarioCaseSeedProvenance.currencyStatus,
+          })
+          .from(scenarioCaseSeedProvenance)
+          .where(inArray(scenarioCaseSeedProvenance.scenarioCaseId, caseIds));
+
+        if (provenanceRows.length > 0) {
+          const asOfDate = new Date().toISOString().slice(0, 10);
+          const fundId = provenanceRows[0]!.fundId;
+          let currentHashByCompanyId: Map<number, string> | null = null;
+          try {
+            const facts = await buildFundCompanyActualsFacts({ fundId, asOfDate });
+            if (facts.fundId === fundId && facts.asOfDate === asOfDate) {
+              currentHashByCompanyId = new Map(
+                facts.facts.map((fact) => [fact.companyId, fact.inputHash])
+              );
+            } else {
+              routeLog.error(
+                'Scenario seed staleness facts scope mismatch:',
+                new Error(
+                  `Requested fund ${fundId} as of ${asOfDate}, received fund ${facts.fundId} as of ${facts.asOfDate}`
+                )
+              );
+            }
+          } catch (error: unknown) {
+            routeLog.error('Scenario seed staleness facts load failed:', error);
+          }
+
+          for (const provenance of provenanceRows) {
+            const currentHash = currentHashByCompanyId?.get(provenance.companyId);
+            seedProvenanceByCaseId.set(
+              provenance.scenarioCaseId,
+              ScenarioCaseSeedProvenanceReadSchema.parse({
+                facts_input_hash: provenance.factsInputHash,
+                facts_as_of_date: provenance.factsAsOfDate,
+                seeded_at: provenance.seededAt.toISOString(),
+                trust_state: provenance.trustState,
+                currency_status: provenance.currencyStatus,
+                staleness:
+                  currentHash === undefined
+                    ? 'unknown'
+                    : currentHash === provenance.factsInputHash
+                      ? 'current'
+                      : 'stale',
+              })
+            );
+          }
+        }
+      }
+
+      const responseCases = casesWithMOIC.map((scenarioCase) => {
+        const seedProvenance =
+          scenarioCase.id === undefined ? undefined : seedProvenanceByCaseId.get(scenarioCase.id);
+        return {
+          ...scenarioCase,
+          ...(seedProvenance === undefined ? {} : { seed_provenance: seedProvenance }),
+        };
+      });
+
       // Get investment rounds if requested (commented out - investmentRounds not in schema)
       // let rounds = [];
       // if (include.includes('rounds')) {
@@ -509,7 +649,7 @@ router['get'](
       //   });
       // }
 
-      const response: ScenarioAnalysisResponse = {
+      const response = ScenarioAnalysisReadResponseSchema.parse({
         company_name: '', // TODO: fetch company name separately if needed
         company_id: companyId,
         scenario: {
@@ -524,10 +664,10 @@ router['get'](
           created_at: scenarioData.createdAt,
           updated_at: scenarioData.updatedAt,
         },
-        cases: casesWithMOIC,
+        cases: responseCases,
         ...(weighted_summary && { weighted_summary }),
         // rounds: undefined, // include.includes('rounds') ? rounds : undefined,
-      };
+      });
 
       res.json(response);
     } catch (error: unknown) {

@@ -69,6 +69,8 @@ const dbState = vi.hoisted(() => {
   selectChain['from'] = vi.fn(() => selectChain);
   selectChain['innerJoin'] = vi.fn(() => selectChain);
   selectChain['where'] = vi.fn(() => selectChain);
+  const selectThen = vi.fn((resolve: (value: unknown[]) => void) => resolve([]));
+  selectChain['then'] = selectThen;
   const selectLimit = vi.fn(async () => [] as unknown[]);
   selectChain['limit'] = selectLimit;
 
@@ -89,7 +91,7 @@ const dbState = vi.hoisted(() => {
   const remove = vi.fn(() => deleteChain);
   const transaction = vi.fn(async () => undefined);
   const findFirst = vi.fn(async () => undefined);
-  return { select, selectLimit, insert, update, remove, transaction, findFirst };
+  return { select, selectThen, selectLimit, insert, update, remove, transaction, findFirst };
 });
 
 vi.mock('../../../server/lib/auth/company-fund-scope', () => ({
@@ -127,6 +129,7 @@ import scenarioAnalysisRouter from '../../../server/routes/scenario-analysis';
 
 const SCENARIO_ID = '00000000-0000-4000-8000-000000000101';
 const SCENARIO_CASE_ID = '00000000-0000-4000-8000-000000000201';
+const UNSEEDED_CASE_ID = '00000000-0000-4000-8000-000000000202';
 
 function makeApp() {
   const app = express();
@@ -151,6 +154,8 @@ function resetState() {
   fundScopeState.resolveCompanyFundId.mockReset();
   fundScopeState.resolveCompanyFundId.mockResolvedValue(7);
   dbState.select.mockClear();
+  dbState.selectThen.mockReset();
+  dbState.selectThen.mockImplementation((resolve: (value: unknown[]) => void) => resolve([]));
   dbState.selectLimit.mockReset();
   dbState.selectLimit.mockResolvedValue([]);
   dbState.insert.mockClear();
@@ -319,6 +324,133 @@ function expectNoScenarioWrites() {
   expect(dbState.transaction).not.toHaveBeenCalled();
 }
 
+interface ScenarioCaseRowFixture {
+  id: string;
+  caseName: string;
+  description: string | null;
+  probability: string;
+  investment: string;
+  followOns: string;
+  exitProceeds: string;
+  exitValuation: string;
+  monthsToExit: number | null;
+  ownershipAtExit: string | null;
+}
+
+interface SeedProvenanceRowFixture {
+  scenarioCaseId: string;
+  fundId: number;
+  companyId: number;
+  factsInputHash: string;
+  factsAsOfDate: string;
+  seededAt: Date;
+  trustState: 'LIVE' | 'PARTIAL' | 'UNAVAILABLE' | 'FAILED';
+  currencyStatus: 'base_currency' | 'mismatch_blocked' | 'unknown';
+}
+
+function makeScenarioRow() {
+  return {
+    id: SCENARIO_ID,
+    companyId: 101,
+    name: 'Actuals-backed scenario',
+    description: null,
+    version: 4,
+    isDefault: false,
+    lockedAt: null,
+    createdBy: null,
+    createdAt: new Date('2026-07-01T10:00:00.000Z'),
+    updatedAt: new Date('2026-07-12T15:30:00.000Z'),
+  };
+}
+
+function makeScenarioCaseRow(
+  overrides: Partial<ScenarioCaseRowFixture> = {}
+): ScenarioCaseRowFixture {
+  return {
+    id: SCENARIO_CASE_ID,
+    caseName: 'Base case',
+    description: null,
+    probability: '0.40',
+    investment: '500000.000000',
+    followOns: '250000.000000',
+    exitProceeds: '1000000.000000',
+    exitValuation: '20000000.000000',
+    monthsToExit: 36,
+    ownershipAtExit: '0.20',
+    ...overrides,
+  };
+}
+
+function makeSeedProvenanceRow(
+  overrides: Partial<SeedProvenanceRowFixture> = {}
+): SeedProvenanceRowFixture {
+  return {
+    scenarioCaseId: SCENARIO_CASE_ID,
+    fundId: 7,
+    companyId: 101,
+    factsInputHash: 'c'.repeat(64),
+    factsAsOfDate: '2026-07-01',
+    seededAt: new Date('2026-07-01T11:00:00.000Z'),
+    trustState: 'LIVE',
+    currencyStatus: 'base_currency',
+    ...overrides,
+  };
+}
+
+function mockScenarioRead(
+  options: {
+    cases?: ScenarioCaseRowFixture[];
+    provenance?: unknown[];
+  } = {}
+) {
+  dbState.selectLimit.mockResolvedValueOnce([makeScenarioRow()]);
+  dbState.selectThen
+    .mockImplementationOnce((resolve: (value: unknown[]) => void) =>
+      resolve(options.cases ?? [makeScenarioCaseRow()])
+    )
+    .mockImplementationOnce((resolve: (value: unknown[]) => void) =>
+      resolve(options.provenance ?? [])
+    );
+}
+
+function currentScenarioReadResponse() {
+  return {
+    company_name: '',
+    company_id: '101',
+    scenario: {
+      id: SCENARIO_ID,
+      company_id: '101',
+      name: 'Actuals-backed scenario',
+      version: 4,
+      is_default: false,
+      created_at: '2026-07-01T10:00:00.000Z',
+      updated_at: '2026-07-12T15:30:00.000Z',
+    },
+    cases: [
+      {
+        id: SCENARIO_CASE_ID,
+        case_name: 'Base case',
+        probability: 0.4,
+        investment: 500000,
+        follow_ons: 250000,
+        exit_proceeds: 1000000,
+        exit_valuation: 20000000,
+        months_to_exit: 36,
+        ownership_at_exit: 0.2,
+        moic: 2,
+      },
+    ],
+    weighted_summary: {
+      moic: 2,
+      investment: 200000,
+      follow_ons: 100000,
+      exit_proceeds: 400000,
+      exit_valuation: 8000000,
+      months_to_exit: 14.4,
+    },
+  };
+}
+
 afterEach(() => vi.useRealTimers());
 
 describe('scenario-analysis route fund-scope contracts', () => {
@@ -406,6 +538,145 @@ describe('scenario-analysis route fund-scope contracts', () => {
     expect(res.body).toMatchObject({ error: 'Invalid company ID' });
     expect(fundScopeState.enforceCompanyFundScope).not.toHaveBeenCalled();
     expect(dbState.insert).not.toHaveBeenCalled();
+  });
+});
+
+describe('scenario-analysis read seed provenance disclosure', () => {
+  beforeEach(() => resetState());
+
+  it('keeps the existing response unchanged when no cases were seeded', async () => {
+    mockScenarioRead();
+
+    const res = await request(makeApp()).get(`/api/companies/101/scenarios/${SCENARIO_ID}`);
+
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual(currentScenarioReadResponse());
+    expect(factsState.buildFundCompanyActualsFacts).not.toHaveBeenCalled();
+    expectNoScenarioWrites();
+  });
+
+  it('marks a seeded case current using the per-company facts hash', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date('2026-07-13T23:59:59.000-07:00'));
+    mockScenarioRead({ provenance: [makeSeedProvenanceRow()] });
+    factsState.buildFundCompanyActualsFacts.mockResolvedValueOnce(factsResponse('2026-07-14'));
+
+    const res = await request(makeApp()).get(`/api/companies/101/scenarios/${SCENARIO_ID}`);
+
+    expect(res.status).toBe(200);
+    expect(res.body.cases[0].seed_provenance).toEqual({
+      facts_input_hash: 'c'.repeat(64),
+      facts_as_of_date: '2026-07-01',
+      seeded_at: '2026-07-01T11:00:00.000Z',
+      trust_state: 'LIVE',
+      currency_status: 'base_currency',
+      staleness: 'current',
+    });
+    expect(res.body.weighted_summary).toEqual(currentScenarioReadResponse().weighted_summary);
+    expect(factsState.buildFundCompanyActualsFacts).toHaveBeenCalledTimes(1);
+    expect(factsState.buildFundCompanyActualsFacts).toHaveBeenCalledWith({
+      fundId: 7,
+      asOfDate: '2026-07-14',
+    });
+    expectNoScenarioWrites();
+  });
+
+  it('marks a seeded case stale when its stored hash differs from current company facts', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date('2026-07-14T00:00:00.000Z'));
+    mockScenarioRead({
+      provenance: [makeSeedProvenanceRow({ factsInputHash: 'a'.repeat(64) })],
+    });
+    factsState.buildFundCompanyActualsFacts.mockResolvedValueOnce(factsResponse('2026-07-14'));
+
+    const res = await request(makeApp()).get(`/api/companies/101/scenarios/${SCENARIO_ID}`);
+
+    expect(res.status).toBe(200);
+    expect(res.body.cases[0].seed_provenance).toMatchObject({
+      facts_input_hash: 'a'.repeat(64),
+      staleness: 'stale',
+    });
+    expect(factsState.buildFundCompanyActualsFacts).toHaveBeenCalledTimes(1);
+    expectNoScenarioWrites();
+  });
+
+  it('returns 200 and marks staleness unknown when current facts cannot be loaded', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date('2026-07-14T00:00:00.000Z'));
+    mockScenarioRead({ provenance: [makeSeedProvenanceRow()] });
+    factsState.buildFundCompanyActualsFacts.mockRejectedValueOnce(new Error('facts unavailable'));
+
+    const res = await request(makeApp()).get(`/api/companies/101/scenarios/${SCENARIO_ID}`);
+
+    expect(res.status).toBe(200);
+    expect(res.body.cases[0].seed_provenance).toEqual({
+      facts_input_hash: 'c'.repeat(64),
+      facts_as_of_date: '2026-07-01',
+      seeded_at: '2026-07-01T11:00:00.000Z',
+      trust_state: 'LIVE',
+      currency_status: 'base_currency',
+      staleness: 'unknown',
+    });
+    expect(res.body.weighted_summary).toEqual(currentScenarioReadResponse().weighted_summary);
+    expect(factsState.buildFundCompanyActualsFacts).toHaveBeenCalledTimes(1);
+    expectNoScenarioWrites();
+  });
+
+  it('marks staleness unknown when current facts omit the seeded company', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date('2026-07-14T00:00:00.000Z'));
+    mockScenarioRead({ provenance: [makeSeedProvenanceRow()] });
+    factsState.buildFundCompanyActualsFacts.mockResolvedValueOnce({
+      ...factsResponse('2026-07-14'),
+      facts: [makeBlockedFact()],
+    });
+
+    const res = await request(makeApp()).get(`/api/companies/101/scenarios/${SCENARIO_ID}`);
+
+    expect(res.status).toBe(200);
+    expect(res.body.cases[0].seed_provenance.staleness).toBe('unknown');
+    expect(factsState.buildFundCompanyActualsFacts).toHaveBeenCalledTimes(1);
+    expectNoScenarioWrites();
+  });
+
+  it('discloses provenance only on seeded cases and loads current facts exactly once', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date('2026-07-14T00:00:00.000Z'));
+    mockScenarioRead({
+      cases: [
+        makeScenarioCaseRow(),
+        makeScenarioCaseRow({
+          id: UNSEEDED_CASE_ID,
+          caseName: 'Downside case',
+          probability: '0.60',
+          investment: '250000.000000',
+          followOns: '50000.000000',
+          exitProceeds: '750000.000000',
+          exitValuation: '10000000.000000',
+          monthsToExit: 24,
+          ownershipAtExit: '0.15',
+        }),
+      ],
+      provenance: [makeSeedProvenanceRow()],
+    });
+    factsState.buildFundCompanyActualsFacts.mockResolvedValueOnce(factsResponse('2026-07-14'));
+
+    const res = await request(makeApp()).get(`/api/companies/101/scenarios/${SCENARIO_ID}`);
+
+    expect(res.status).toBe(200);
+    expect(res.body.cases[0].seed_provenance.staleness).toBe('current');
+    expect(res.body.cases[1]).not.toHaveProperty('seed_provenance');
+    expect(res.body.weighted_summary).toEqual({
+      moic: 2.4285714285714284,
+      investment: 350000,
+      follow_ons: 130000,
+      exit_proceeds: 850000,
+      exit_valuation: 14000000,
+      months_to_exit: 28.8,
+    });
+    expect(dbState.select).toHaveBeenCalledTimes(3);
+    expect(factsState.buildFundCompanyActualsFacts).toHaveBeenCalledTimes(1);
+    expectNoScenarioWrites();
   });
 });
 
