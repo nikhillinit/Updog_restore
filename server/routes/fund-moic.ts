@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import type { Request, Response, NextFunction } from 'express';
 import { z } from 'zod';
+import Decimal from '../../shared/lib/decimal-config.js';
 import { requireAuth, requireFundAccess, requireRole } from '../lib/auth/jwt.js';
 import {
   FundMoicRankingsResponseV2Schema,
@@ -16,9 +17,7 @@ import {
   getFundMoicRankingSources,
   summarizeMoicActualsProvenance,
 } from '../services/fund-moic-ranking-service.js';
-import {
-  buildFundCompanyActualsFacts,
-} from '../services/fund-actuals/fund-company-actuals-facts-service.js';
+import { buildFundCompanyActualsFacts } from '../services/fund-actuals/fund-company-actuals-facts-service.js';
 import {
   getLatestCompletedMoicReconciliation,
   MoicReconciliationConflictError,
@@ -42,6 +41,13 @@ import {
 } from '../services/fund-calculation-mode-service.js';
 import { invalidateH9Artifacts } from '../services/h9-artifact-invalidation-service';
 import { buildRoundsToModelEvidence } from '../services/rounds-to-model-evidence-service.js';
+import { FEATURES } from '../config/features.js';
+import { calculateMarginalReserveMoic } from '../../shared/core/moic/MarginalReserveMoic.js';
+import {
+  MarginalReserveRankingsResponseV1Schema,
+  type MarginalReserveRankingItemV1,
+} from '../../shared/contracts/marginal-reserve-moic-v1.contract.js';
+import { buildMarginalReserveMoicInputs } from '../services/moic/marginal-reserve-moic-input-service.js';
 
 const router = Router();
 
@@ -61,6 +67,33 @@ const ModeUpdateBodySchema = z
     acceptedReconciliationRunId: z.number().int().positive().nullable().optional(),
   })
   .strict();
+const MarginalRankingsQuerySchema = z
+  .object({
+    asOfDate: z.string().date(),
+  })
+  .strict();
+
+const MARGINAL_STATUS_ORDER: Readonly<Record<MarginalReserveRankingItemV1['status'], number>> = {
+  actionable: 0,
+  indicative: 1,
+  unavailable: 2,
+};
+
+function sortMarginalRankings(
+  rankings: MarginalReserveRankingItemV1[]
+): MarginalReserveRankingItemV1[] {
+  return [...rankings].sort((left, right) => {
+    const statusOrder = MARGINAL_STATUS_ORDER[left.status] - MARGINAL_STATUS_ORDER[right.status];
+    if (statusOrder !== 0) return statusOrder;
+    if (left.result.marginalMoic === null && right.result.marginalMoic !== null) return 1;
+    if (left.result.marginalMoic !== null && right.result.marginalMoic === null) return -1;
+    if (left.result.marginalMoic !== null && right.result.marginalMoic !== null) {
+      const moicOrder = new Decimal(right.result.marginalMoic).comparedTo(left.result.marginalMoic);
+      if (moicOrder !== 0) return moicOrder;
+    }
+    return left.companyId - right.companyId;
+  });
+}
 
 function routeHandler(
   handler: (req: Request, res: Response, next: NextFunction) => Promise<unknown>
@@ -109,6 +142,63 @@ function roundEvidenceSummary(coverage: {
     warningCodes: Object.keys(coverage.warningsByCode).sort(),
   };
 }
+
+router.get(
+  '/funds/:fundId/moic/marginal-rankings',
+  requireAuth(),
+  requireFundAccess,
+  routeHandler(async (req: Request, res: Response) => {
+    const fundId = parseFundId(req, res);
+    if (fundId === null) return;
+
+    if (!FEATURES.marginalReserveMoic) {
+      return res.status(404).json({ error: 'not_found' });
+    }
+
+    const parsedQuery = MarginalRankingsQuerySchema.safeParse(req.query);
+    if (!parsedQuery.success) {
+      return res.status(400).json({
+        error: 'invalid_as_of_date',
+        message: 'asOfDate must be provided as YYYY-MM-DD',
+      });
+    }
+
+    const inputs = await buildMarginalReserveMoicInputs({
+      fundId,
+      asOfDate: parsedQuery.data.asOfDate,
+    });
+    const rankings = sortMarginalRankings(
+      inputs.ready.map((input) => {
+        const result = calculateMarginalReserveMoic(input);
+        const inputReadiness = input.readiness ?? { status: 'actionable' as const, reasons: [] };
+        return {
+          companyId: input.companyId,
+          status:
+            result.status === 'actionable' && inputReadiness.status === 'indicative'
+              ? 'indicative'
+              : result.status,
+          inputReadiness,
+          result,
+        };
+      })
+    );
+    return res.json(
+      MarginalReserveRankingsResponseV1Schema.parse({
+        contractVersion: 'marginal-reserve-rankings-v1',
+        mode: 'shadow',
+        actionability: 'non_actionable_shadow',
+        fundId,
+        asOfDate: parsedQuery.data.asOfDate,
+        factsInputHash: inputs.factsInputHash,
+        assumptionsHash: inputs.assumptionsHash,
+        rankings,
+        unavailable: [...inputs.unavailable].sort(
+          (left, right) => left.companyId - right.companyId
+        ),
+      })
+    );
+  })
+);
 
 router.get(
   '/funds/:fundId/moic/rankings',

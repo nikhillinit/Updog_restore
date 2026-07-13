@@ -17,6 +17,8 @@ export const FEATURES = {
   statGating: flag(process.env['ENABLE_STAT_GATING'], false),
   // Canonical declaration: flags/registry.yaml; intentionally enforced by this env var, not client flags.
   portfolioIntelligence: flag(process.env['ENABLE_PORTFOLIO_INTELLIGENCE'], false),
+  // Server-only shadow route; production remains fail-closed unless explicitly enabled.
+  marginalReserveMoic: flag(process.env['ENABLE_MARGINAL_RESERVE_MOIC'], false),
 };
 
 export type FeatureBag = typeof FEATURES;

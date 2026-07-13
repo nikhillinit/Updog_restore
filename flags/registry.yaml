@@ -502,6 +502,20 @@ flags:
     expiresAt: null
     aliases: ['ENABLE_PORTFOLIO_INTELLIGENCE']
 
+  enable_marginal_reserve_moic:
+    default: false
+    description: 'Gates shadow-only marginal reserve MOIC rankings for internal comparison'
+    owner: 'analytics'
+    risk: high
+    exposeToClient: false
+    environments:
+      development: false
+      staging: false
+      production: false
+    dependencies: []
+    expiresAt: null
+    aliases: ['ENABLE_MARGINAL_RESERVE_MOIC']
+
   enable_faults:
     default: false
     description: 'Enable fault injection for testing'
