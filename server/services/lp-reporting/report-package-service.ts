@@ -620,7 +620,7 @@ export async function assembleMetricRunReportPackage(
 
     const { createMoicActionabilityResolver, toH9SnapshotColumns } =
       await import('../fund-calculation-mode-service');
-    const h9Resolver = createMoicActionabilityResolver({ database: tx });
+    const h9Resolver = createMoicActionabilityResolver({ database: tx, reuseFactsSource: true });
     const h9 = await h9Resolver.resolveForFund(input.fundId);
     const h9Columns = toH9SnapshotColumns(h9);
 

@@ -6035,21 +6035,21 @@ fingerprint before an on-mode candidate can become actionable.
 - Candidate ordering is actionable, then indicative, then effectively
   non-actionable. Numeric rows sort by candidate MOIC within their tier, and
   retained non-actionable rows sort last with deterministic company-ID ties.
-- The candidate source hash includes the facts input hash, observed initial and
-  follow-on amounts, selected anchor kind/value/date, Planning FMV status,
-  currency status, and disclosed rankability. Monetary values in the hash row
-  are canonical decimal strings.
+- The candidate source hash includes the investment name, facts input hash,
+  observed initial and follow-on amounts, selected anchor kind/value/date,
+  Planning FMV status, currency status, and disclosed rankability. Monetary
+  values in the hash row are canonical decimal strings.
 - `moic-round-fmv-facts-v2` appears in both the response summary and every
   candidate hash row. The version change and basis switch are atomic.
-- Reconciliation history semantics remain unchanged. A new idempotency key can
-  record a new row in the v2 source regime; an old row is never updated or
-  backfilled, and replay/conflict semantics remain scoped to the original
-  `(fundId, idempotencyKey)` request. Task 6.6 must make reconciliation and mode
-  acceptance compute the same facts-backed fingerprint as the v2 read path
-  before mode-on activation.
-- V1 reads use the explicit absent-facts state and retain the legacy candidate
-  construction path. Off and shadow modes continue to serve legacy rankings;
-  this decision does not activate on mode.
+- Reconciliation, actionability, mode validation, and both V1 and V2 reads load
+  the same facts-backed source fingerprint. A new idempotency key can record a
+  new row in the v2 source regime; an old row is never updated or backfilled,
+  and replay/conflict semantics remain scoped to the original
+  `(fundId, idempotencyKey)` request. Facts-unavailable reconciliation is
+  rejected before a completed row can be recorded.
+- V1 reads use the same facts-backed sources as V2. If facts are unavailable, V1
+  serves legacy output and remains non-actionable. Off and shadow modes continue
+  to serve legacy rankings; this decision does not itself activate on mode.
 
 ### Alternatives Considered
 
@@ -6067,10 +6067,11 @@ fingerprint before an on-mode candidate can become actionable.
 ### Consequences
 
 - Every otherwise identical portfolio receives a new candidate source hash under
-  the v2 regime. Mode-on eligibility therefore requires a fresh accepted
-  reconciliation before Plan 6 task 6.6 can activate serving.
-- Existing v1 reconciliation rows remain byte-identical and replayable by their
-  original hashes, but they cannot satisfy the new v2 source fingerprint.
+  the v2 regime. Mode-on eligibility and candidate serving therefore require a
+  fresh accepted reconciliation under that source regime.
+- Existing v1 reconciliation rows remain byte-identical and auditable, but
+  reusing an old idempotency key under v2 conflicts because the current request
+  hash differs. A fresh key is required for the v2 source fingerprint.
 - Mode off is the rollback: legacy rankings remain served without changing or
   deleting reconciliation history. Shadow continues to compute the facts
   candidate and emit comparison telemetry while serving legacy output.
@@ -6079,4 +6080,5 @@ fingerprint before an on-mode candidate can become actionable.
   indicative. Activation-block counts continue to prevent that source from
   becoming actionable.
 
-**Implementation:** Plan 6 wave 2, Task 6.4 / PR 6B.
+**Implementation:** Plan 6 wave 2, Task 6.4 / PR 6B plus the facts-fingerprint
+unification fix.

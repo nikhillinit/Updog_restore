@@ -35,41 +35,53 @@ const rankingItem = (investmentId: string, value: number) => ({
   reservesMoic: { value, description: 'desc', formula: 'formula' },
 });
 
-const sourceBundle = (overrides: Partial<FundMoicRankingSources> = {}): FundMoicRankingSources => ({
-  legacy: {
-    fundId: 7,
-    provenance: {
-      source: 'portfolio_companies',
-      calculation: 'reserves_moic_rankings',
-      metricBasis: 'planned_reserves',
-      sourceRecordCount: 1,
+const sourceBundle = (overrides: Partial<FundMoicRankingSources> = {}): FundMoicRankingSources => {
+  return {
+    legacy: {
+      fundId: 7,
+      provenance: {
+        source: 'portfolio_companies',
+        calculation: 'reserves_moic_rankings',
+        metricBasis: 'planned_reserves',
+        sourceRecordCount: 1,
+      },
+      generatedAt: '2026-06-24T00:00:00.000Z',
+      rankings: [rankingItem('1', 0)],
     },
-    generatedAt: '2026-06-24T00:00:00.000Z',
-    rankings: [rankingItem('1', 0)],
-  },
-  candidate: {
-    fundId: 7,
-    provenance: {
-      source: 'portfolio_companies',
-      calculation: 'reserves_moic_rankings',
-      metricBasis: 'planned_reserves',
-      sourceRecordCount: 1,
+    candidate: {
+      fundId: 7,
+      provenance: {
+        source: 'portfolio_companies',
+        calculation: 'reserves_moic_rankings',
+        metricBasis: 'planned_reserves',
+        sourceRecordCount: 1,
+      },
+      generatedAt: '2026-06-24T00:00:00.000Z',
+      rankings: [rankingItem('1', 2.8)],
     },
-    generatedAt: '2026-06-24T00:00:00.000Z',
-    rankings: [rankingItem('1', 2.8)],
-  },
-  moicInputSummary: {
-    sourceVersion: 'moic-round-fmv-facts-v2',
-    explicitExitProbabilityCount: 1,
-    defaultedExitProbabilityCount: 0,
-    activationBlockingDefaultedExitProbabilityCount: 0,
-    explicitReserveExitMultipleCount: 1,
-    defaultedReserveExitMultipleCount: 0,
-    activationBlockingDefaultedReserveExitMultipleCount: 0,
-  },
-  moicSourceInputHash: 'source-hash-a',
-  ...overrides,
-});
+    moicInputSummary: {
+      sourceVersion: 'moic-round-fmv-facts-v2',
+      explicitExitProbabilityCount: 1,
+      defaultedExitProbabilityCount: 0,
+      activationBlockingDefaultedExitProbabilityCount: 0,
+      explicitReserveExitMultipleCount: 1,
+      defaultedReserveExitMultipleCount: 0,
+      activationBlockingDefaultedReserveExitMultipleCount: 0,
+    },
+    moicSourceInputHash: 'source-hash-a',
+    factsSource: {
+      status: 'available' as const,
+      response: {
+        fundId: 7,
+        asOfDate: '2026-07-13',
+        facts: [],
+        inputHash: 'f'.repeat(64),
+        generatedAt: '2026-07-13T00:00:00.000Z',
+      },
+    },
+    ...overrides,
+  };
+};
 
 function requestHashFor(fundId: number, moicSourceInputHash: string): string {
   return canonicalSha256({

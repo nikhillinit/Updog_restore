@@ -68,6 +68,16 @@ const assumptionsHash = canonicalSha256({
 
 const sourceBundle = {
   moicSourceInputHash,
+  factsSource: {
+    status: 'available' as const,
+    response: {
+      fundId: 7,
+      asOfDate: '2026-07-13',
+      facts: [],
+      inputHash: 'f'.repeat(64),
+      generatedAt: '2026-07-13T00:00:00.000Z',
+    },
+  },
   moicInputSummary: {
     sourceVersion: 'moic-round-fmv-facts-v2',
     explicitExitProbabilityCount: 1,
@@ -173,13 +183,48 @@ describe('fund MOIC actionability resolver', () => {
     expect(() => createMoicActionabilityResolver({ now })).toThrow();
   });
 
-  it('reports fresh when accepted candidate and evidence hashes match the current fingerprint', async () => {
+  it('reaches actionable when a facts-backed v2 reconciliation round-trips the current hash', async () => {
     const database = makeDatabase([reconciliationRow()]);
     const resolver = createMoicActionabilityResolver({ database, now });
 
     const result = await resolveForFund(resolver, 7);
 
     expect(result.sourceFingerprintMatches).toBe(true);
+    expect(actionabilityStatus(result)).toBe('actionable');
+    expect(getFundMoicRankingSources).toHaveBeenCalledWith(7, database, undefined, now);
+  });
+
+  it('keeps an absent-facts fingerprint non-actionable even when an accepted row matches it', async () => {
+    const unavailableSources = {
+      ...sourceBundle,
+      factsSource: { status: 'absent' as const },
+    };
+    getFundMoicRankingSources.mockResolvedValue(unavailableSources);
+    const database = makeDatabase([reconciliationRow()]);
+    const resolver = createMoicActionabilityResolver({ database, now });
+
+    const result = await resolveForFund(resolver, 7);
+
+    expect(result.sourceFingerprintMatches).toBe(false);
+    expect(actionabilityStatus(result)).toBe('non_actionable');
+  });
+
+  it('reuses one facts snapshot when a resolver intentionally rechecks source drift', async () => {
+    const database = makeDatabase([reconciliationRow()]);
+    const resolverOptions = { database, now, reuseFactsSource: true };
+    const resolver = createMoicActionabilityResolver(resolverOptions);
+
+    await resolveForFund(resolver, 7);
+    await resolveForFund(resolver, 7);
+
+    expect(getFundMoicRankingSources).toHaveBeenNthCalledWith(1, 7, database, undefined, now);
+    expect(getFundMoicRankingSources).toHaveBeenNthCalledWith(
+      2,
+      7,
+      database,
+      sourceBundle.factsSource,
+      now
+    );
   });
 
   it('reports stale when candidate hash matches but evidence hash differs', async () => {

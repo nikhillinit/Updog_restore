@@ -11,6 +11,7 @@ import { canonicalSha256 } from '../../shared/lib/canonical-hash';
 import {
   FUND_MOIC_CALCULATION_KEY,
   getFundMoicRankingSources,
+  type FundMoicFactsSource,
   type FundMoicRankingSources,
 } from './fund-moic-ranking-service';
 import { invalidateH9Artifacts } from './h9-artifact-invalidation-service';
@@ -28,6 +29,7 @@ export type FundCalculationModeBlocker =
   | 'accepted_reconciliation_not_found'
   | 'current_source_changed'
   | 'exit_probability_source_incomplete'
+  | 'facts_unavailable'
   | 'kill_switch_active'
   | 'reserve_exit_multiple_source_incomplete'
   | 'shadow_residency_pending';
@@ -289,18 +291,42 @@ function buildH9SourceFingerprint(params: {
   });
 }
 
-export function createMoicActionabilityResolver(params: { database?: unknown; now?: Date }) {
+export function createMoicActionabilityResolver(params: {
+  database?: unknown;
+  now?: Date;
+  reuseFactsSource?: boolean;
+}) {
   if (!params.database) {
     throw new Error('createMoicActionabilityResolver requires database');
   }
 
   const database = params.database;
+  const factsSourceByFund = new Map<number, FundMoicFactsSource>();
 
   async function resolve(input: MoicActionabilityResolveInput): Promise<MoicActionabilityResult> {
     const now = params.now ?? new Date();
-    const sources =
-      input.sources ??
-      (await getFundMoicRankingSources(input.fundId, database as FundCalculationModeDatabase));
+    let sources = input.sources;
+    if (!sources) {
+      const reusedFactsSource = params.reuseFactsSource
+        ? factsSourceByFund.get(input.fundId)
+        : undefined;
+      sources = reusedFactsSource
+        ? await getFundMoicRankingSources(
+            input.fundId,
+            database as FundCalculationModeDatabase,
+            reusedFactsSource,
+            now
+          )
+        : await getFundMoicRankingSources(
+            input.fundId,
+            database as FundCalculationModeDatabase,
+            undefined,
+            now
+          );
+      if (params.reuseFactsSource) {
+        factsSourceByFund.set(input.fundId, sources.factsSource);
+      }
+    }
     const evidence =
       input.evidence ??
       (await buildRoundsToModelEvidence({
@@ -314,11 +340,13 @@ export function createMoicActionabilityResolver(params: { database?: unknown; no
       roundEvidenceAssumptionsHash: buildRoundEvidenceAssumptionsHash(),
     });
     const accepted = await loadAcceptedMoicReconciliation({ database, fundId: input.fundId });
-    const sourceFingerprintMatches = Boolean(
-      accepted &&
-      acceptedCandidateInputHash(accepted) === sourceFingerprint.moicSourceInputHash &&
-      acceptedEvidenceInputHash(accepted) === sourceFingerprint.roundEvidenceInputHash
-    );
+    const sourceFingerprintMatches =
+      sources.factsSource.status === 'available' &&
+      Boolean(
+        accepted &&
+        acceptedCandidateInputHash(accepted) === sourceFingerprint.moicSourceInputHash &&
+        acceptedEvidenceInputHash(accepted) === sourceFingerprint.roundEvidenceInputHash
+      );
     const actionability: H9ActionabilityStatus = sourceFingerprintMatches
       ? 'actionable'
       : 'non_actionable';
@@ -455,6 +483,9 @@ function addDays(date: Date, days: number): Date {
 
 function sourceBlockers(sources: FundMoicRankingSources): FundCalculationModeBlocker[] {
   const blockers: FundCalculationModeBlocker[] = [];
+  if (sources.factsSource.status !== 'available') {
+    blockers.push('facts_unavailable');
+  }
   if (sources.moicInputSummary.activationBlockingDefaultedExitProbabilityCount > 0) {
     blockers.push('exit_probability_source_incomplete');
   }

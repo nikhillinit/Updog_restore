@@ -19,6 +19,7 @@ const ModePreviewSchema = z
         'accepted_reconciliation_not_found',
         'current_source_changed',
         'exit_probability_source_incomplete',
+        'facts_unavailable',
         'kill_switch_active',
         'reserve_exit_multiple_source_incomplete',
         'shadow_residency_pending',

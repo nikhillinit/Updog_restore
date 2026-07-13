@@ -184,6 +184,7 @@ function sourceBundle(overrides: Partial<FundMoicRankingSources> = {}): FundMoic
       activationBlockingDefaultedReserveExitMultipleCount: 0,
     },
     moicSourceInputHash: 'moic-source-input-a',
+    factsSource: { status: 'available' as const, response: actualsFactsResponse() },
     ...overrides,
   };
 }
@@ -289,11 +290,8 @@ describe('fund MOIC rankings route - behavioral state machine', () => {
       before.legacy.rankings
     );
     expect(parsed.rankings.some((ranking) => ranking.factsBasis !== null)).toBe(true);
-    expect(svc.buildFundCompanyActualsFacts).toHaveBeenCalledTimes(1);
-    expect(svc.getFundMoicRankingSources).toHaveBeenCalledWith(1, undefined, {
-      status: 'available',
-      response: expect.objectContaining({ inputHash: FACTS_INPUT_HASH }),
-    });
+    expect(svc.buildFundCompanyActualsFacts).not.toHaveBeenCalled();
+    expect(svc.getFundMoicRankingSources).toHaveBeenCalledWith(1);
   });
 
   it.each([
@@ -352,6 +350,9 @@ describe('fund MOIC rankings route - behavioral state machine', () => {
   );
 
   it('keeps HTTP behavior unchanged and returns null bases when the facts load fails', async () => {
+    svc.getFundMoicRankingSources.mockResolvedValue(
+      Object.assign(sourceBundle(), { factsSource: { status: 'absent' as const } })
+    );
     svc.buildFundCompanyActualsFacts.mockRejectedValueOnce(new Error('facts backend down'));
 
     const res = await getRankings();
@@ -364,10 +365,13 @@ describe('fund MOIC rankings route - behavioral state machine', () => {
       warnings: ['actuals_facts_failed'],
     });
     expect(parsed.rankings.every((ranking) => ranking.factsBasis === null)).toBe(true);
-    expect(svc.buildFundCompanyActualsFacts).toHaveBeenCalledTimes(1);
+    expect(svc.buildFundCompanyActualsFacts).not.toHaveBeenCalled();
   });
 
   it('never serves the candidate when the facts load fails, even if mode state is otherwise on', async () => {
+    svc.getFundMoicRankingSources.mockResolvedValue(
+      Object.assign(sourceBundle(), { factsSource: { status: 'absent' as const } })
+    );
     svc.buildFundCompanyActualsFacts.mockRejectedValueOnce(new Error('facts backend down'));
     svc.resolveFundCalculationMode.mockResolvedValue(
       modePreview({ configuredMode: 'on', effectiveMode: 'on' })
@@ -386,9 +390,7 @@ describe('fund MOIC rankings route - behavioral state machine', () => {
     const parsed = FundMoicRankingsResponseV2Schema.parse(res.body);
     expect(parsed.provenance.mode).toBe('legacy');
     expect(parsed.rankings[0]?.investmentId).toBe('legacy-output-a');
-    expect(svc.getFundMoicRankingSources).toHaveBeenCalledWith(1, undefined, {
-      status: 'absent',
-    });
+    expect(svc.getFundMoicRankingSources).toHaveBeenCalledWith(1);
   });
 
   it.each(['shadow', 'on'] as const)(
@@ -501,6 +503,9 @@ describe('fund MOIC rankings route - behavioral state machine', () => {
   });
 
   it('emits an unavailable comparison without leaking values when shadow facts fail', async () => {
+    svc.getFundMoicRankingSources.mockResolvedValue(
+      Object.assign(sourceBundle(), { factsSource: { status: 'absent' as const } })
+    );
     svc.buildFundCompanyActualsFacts.mockRejectedValueOnce(new Error('facts backend down'));
     svc.resolveFundCalculationMode.mockResolvedValue(
       modePreview({ configuredMode: 'shadow', effectiveMode: 'shadow' })
@@ -628,9 +633,17 @@ describe('fund MOIC rankings route - behavioral state machine', () => {
     expect(res.body).toMatchObject({ error: 'invalid_contract' });
   });
 
-  it('returns the unchanged V1 payload when no contract query is provided', async () => {
-    const sources = sourceBundle();
+  it('serves unchanged legacy V1 output when mode is on but facts are unavailable', async () => {
+    const sources = Object.assign(sourceBundle(), {
+      factsSource: { status: 'absent' as const },
+    });
     svc.getFundMoicRankingSources.mockResolvedValue(sources);
+    svc.resolveFundCalculationMode.mockResolvedValue(
+      modePreview({ configuredMode: 'on', effectiveMode: 'on' })
+    );
+    svc.resolveMoicActionability.mockResolvedValue(
+      actionability({ actionability: 'non_actionable', actionabilityStatus: 'non_actionable' })
+    );
 
     const res = await getRankings('/api/funds/1/moic/rankings');
 
@@ -644,6 +657,8 @@ describe('fund MOIC rankings route - behavioral state machine', () => {
     expect(res.body).not.toHaveProperty('latestReconciliation');
     expect(res.body).not.toHaveProperty('roundEvidenceSummary');
     expect(res.body.rankings[0]?.factsBasis).toBeNull();
+    expect(svc.getFundMoicRankingSources).toHaveBeenCalledWith(1);
+    expect(svc.resolveMoicActionability).toHaveBeenCalledWith({ fundId: 1, sources });
     expect(svc.buildFundCompanyActualsFacts).not.toHaveBeenCalled();
   });
 });

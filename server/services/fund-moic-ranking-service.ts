@@ -10,6 +10,8 @@ import type {
 import { canonicalSha256 } from '../../shared/lib/canonical-hash';
 import type { FundCompanyActualsFactsResponse } from '../../shared/contracts/fund-actuals/fund-company-actuals-fact.contract';
 import Decimal from '../../shared/lib/decimal-config';
+import { logger } from '../lib/logger.js';
+import { buildFundCompanyActualsFacts } from './fund-actuals/fund-company-actuals-facts-service.js';
 import { buildFundMoicFactsBasis } from './moic/fund-moic-facts-basis';
 
 export const MOIC_CANDIDATE_SOURCE_VERSION = 'moic-round-fmv-facts-v2';
@@ -35,6 +37,7 @@ export interface FundMoicRankingSources {
   candidate: FundMoicRankingSourceResponse;
   moicInputSummary: FundMoicInputSummary;
   moicSourceInputHash: string;
+  factsSource: FundMoicFactsSource;
   factsBasisByInvestmentId?: ReadonlyMap<string, FundMoicFactsBasisV1>;
   candidateFactsBasisByInvestmentId?: ReadonlyMap<string, FundMoicFactsBasisV1>;
 }
@@ -92,6 +95,7 @@ type CandidateInput = {
   hashRow: {
     companyId: number;
     fundId: number | null;
+    investmentName: string;
     plannedReservesCents: string;
     exitProbability: number | null;
     exitProbabilitySource: 'explicit' | 'defaulted';
@@ -233,6 +237,7 @@ function buildCandidateMoicInvestment(
     hashRow: {
       companyId: row.id,
       fundId: row.fundId ?? null,
+      investmentName: row.name,
       plannedReservesCents: parseDecimalString(row.plannedReservesCents) ?? '0',
       exitProbability: explicitExitProbability,
       exitProbabilitySource: hasExplicitExitProbability ? 'explicit' : 'defaulted',
@@ -430,6 +435,7 @@ export function buildMoicRankingSourcesFromCompanies(
       : buildMoicRankingSourceFromInvestments(fundId, candidateInvestments),
     moicInputSummary,
     moicSourceInputHash,
+    factsSource,
     ...(disclosedFactsBasisByInvestmentId !== undefined && {
       factsBasisByInvestmentId: disclosedFactsBasisByInvestmentId,
     }),
@@ -442,14 +448,33 @@ export function buildMoicRankingSourcesFromCompanies(
 export async function getFundMoicRankingSources(
   fundId: number,
   database: FundMoicRankingDatabase = db,
-  factsSource: FundMoicFactsSource = FUND_MOIC_FACTS_ABSENT
+  factsSource?: FundMoicFactsSource,
+  now: Date = new Date()
 ): Promise<FundMoicRankingSources> {
-  const companies = await database.query.portfolioCompanies.findMany({
-    where: (pc, { eq }) => eq(pc.fundId, fundId),
-    orderBy: (pc, { asc }) => [asc(pc.id)],
-  });
+  const asOfDate = now.toISOString().slice(0, 10);
+  const [companies, resolvedFactsSource] = await Promise.all([
+    database.query.portfolioCompanies.findMany({
+      where: (pc, { eq }) => eq(pc.fundId, fundId),
+      orderBy: (pc, { asc }) => [asc(pc.id)],
+    }),
+    factsSource
+      ? Promise.resolve(factsSource)
+      : buildFundCompanyActualsFacts({ fundId, asOfDate, database, now })
+          .then((response) => ({ status: 'available' as const, response }))
+          .catch((error: unknown) => {
+            logger.warn(
+              {
+                fundId,
+                asOfDate,
+                error: error instanceof Error ? error.message : String(error),
+              },
+              'fund-moic actuals facts load failed; using unavailable facts source'
+            );
+            return FUND_MOIC_FACTS_ABSENT;
+          }),
+  ]);
 
-  return buildMoicRankingSourcesFromCompanies(fundId, companies, factsSource);
+  return buildMoicRankingSourcesFromCompanies(fundId, companies, resolvedFactsSource);
 }
 
 export async function getFundMoicRankings(

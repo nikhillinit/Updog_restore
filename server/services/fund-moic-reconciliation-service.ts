@@ -30,6 +30,15 @@ export class MoicReconciliationConflictError extends Error {
   }
 }
 
+export class MoicReconciliationFactsUnavailableError extends Error {
+  readonly code = 'facts_unavailable';
+
+  constructor() {
+    super('Round/FMV facts are unavailable for MOIC reconciliation');
+    this.name = 'MoicReconciliationFactsUnavailableError';
+  }
+}
+
 export interface MoicReconciliationRunRef {
   runId: string;
   createdAt: string;
@@ -125,6 +134,9 @@ export async function recordMoicReconciliation(params: {
 }): Promise<{ run: MoicReconciliationRunRef; replayed: boolean }> {
   const database = params.database ?? db;
   const sources = await getFundMoicRankingSources(params.fundId, database);
+  if (sources.factsSource.status !== 'available') {
+    throw new MoicReconciliationFactsUnavailableError();
+  }
   const requestHash = requestHashFor({
     fundId: params.fundId,
     moicSourceInputHash: sources.moicSourceInputHash,

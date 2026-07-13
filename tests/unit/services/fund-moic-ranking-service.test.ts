@@ -1,6 +1,14 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-const { dbToMOICInvestment, findMany, investmentRoundsFindMany } = vi.hoisted(() => ({
+const {
+  buildFundCompanyActualsFacts,
+  buildRoundsToModelEvidence,
+  dbToMOICInvestment,
+  findMany,
+  investmentRoundsFindMany,
+} = vi.hoisted(() => ({
+  buildFundCompanyActualsFacts: vi.fn(),
+  buildRoundsToModelEvidence: vi.fn(),
   dbToMOICInvestment: vi.fn(),
   findMany: vi.fn(),
   investmentRoundsFindMany: vi.fn(),
@@ -26,12 +34,23 @@ vi.mock('../../../server/lib/moic-mapper', async (importOriginal) => {
   };
 });
 
+vi.mock('../../../server/services/fund-actuals/fund-company-actuals-facts-service', () => ({
+  buildFundCompanyActualsFacts,
+}));
+
+vi.mock('../../../server/services/rounds-to-model-evidence-service', () => ({
+  buildRoundsToModelEvidence,
+}));
+
 import {
   buildMoicRankingSourcesFromCompanies,
   buildMoicRankingsFromInvestments,
   discloseFundMoicRankings,
+  getFundMoicRankingSources,
   summarizeMoicActualsProvenance,
 } from '../../../server/services/fund-moic-ranking-service';
+import { recordMoicReconciliation } from '../../../server/services/fund-moic-reconciliation-service';
+import { createMoicActionabilityResolver } from '../../../server/services/fund-calculation-mode-service';
 import { FundMoicRankingsResponseV1Schema } from '../../../shared/contracts/fund-moic-v1.contract';
 import type {
   FundCompanyActualsFact,
@@ -115,6 +134,14 @@ function availableFacts(facts: FundCompanyActualsFact[] = [actualsFact()]) {
 describe('fund MOIC ranking service', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    buildFundCompanyActualsFacts.mockResolvedValue(actualsFactsResponse());
+    buildRoundsToModelEvidence.mockResolvedValue({
+      coverage: {
+        activeRoundCount: 1,
+        activeOverrideCount: 0,
+        warningsByCode: {},
+      },
+    });
   });
 
   it('ranks investments by reserves MOIC descending', () => {
@@ -210,6 +237,130 @@ describe('fund MOIC ranking service', () => {
     expect(result.provenance.source).toBe('portfolio_companies');
     expect(result.provenance.metricBasis).toBe('planned_reserves');
     expect(result.rankings).toHaveLength(1);
+  });
+
+  it('persists a facts-backed reconciliation hash that a later v2 read makes actionable', async () => {
+    findMany.mockResolvedValue([
+      {
+        id: 1,
+        fundId: 10,
+        name: 'Acme',
+        plannedReservesCents: 300_000_00,
+        exitMoicBps: 35000,
+        exitProbability: 0.8,
+      },
+    ]);
+    const now = new Date('2026-07-13T12:00:00.000Z');
+    let acceptedRow: Record<string, unknown> | null = null;
+    const findAccepted = vi.fn(async () => acceptedRow);
+    const database = {
+      query: {
+        portfolioCompanies: { findMany },
+        reconciliationRuns: { findFirst: findAccepted },
+      },
+      select: vi.fn(() => ({
+        from: vi.fn(() => ({
+          where: vi.fn(() => ({
+            limit: vi.fn(async () => []),
+          })),
+        })),
+      })),
+      insert: vi.fn(() => ({
+        values: vi.fn((values: unknown) => ({
+          onConflictDoNothing: vi.fn(() => ({
+            returning: vi.fn(async () => {
+              acceptedRow = {
+                ...(values as Record<string, unknown>),
+                id: 123,
+                requestedAt: now,
+              };
+              return [acceptedRow];
+            }),
+          })),
+        })),
+      })),
+    };
+
+    const firstV2Sources = await getFundMoicRankingSources(10, database as never, undefined, now);
+    await recordMoicReconciliation({
+      fundId: 10,
+      idempotencyKey: 'facts-round-trip',
+      requestedBy: 42,
+      database: database as never,
+    });
+    const laterV2Sources = await getFundMoicRankingSources(10, database as never, undefined, now);
+    const actionability = await createMoicActionabilityResolver({ database, now }).resolve({
+      fundId: 10,
+      sources: laterV2Sources,
+    });
+
+    expect(acceptedRow).toMatchObject({
+      candidateInputHash: firstV2Sources.moicSourceInputHash,
+      evidenceInputHash: canonicalSha256({
+        activeRoundCount: 1,
+        activeOverrideCount: 0,
+        warningsByCode: {},
+      }),
+      status: 'completed',
+    });
+    expect(laterV2Sources.moicSourceInputHash).toBe(firstV2Sources.moicSourceInputHash);
+    expect(laterV2Sources.factsSource.status).toBe('available');
+    expect(actionability).toMatchObject({
+      sourceFingerprintMatches: true,
+      actionability: 'actionable',
+    });
+    expect(buildFundCompanyActualsFacts).toHaveBeenCalledTimes(3);
+    expect(database.insert).toHaveBeenCalledOnce();
+    expect(findAccepted).toHaveBeenCalledOnce();
+  });
+
+  it('fails a rejected shared facts load closed for candidate actionability', async () => {
+    findMany.mockResolvedValue([
+      {
+        id: 1,
+        fundId: 10,
+        name: 'Acme',
+        plannedReservesCents: 300_000_00,
+        exitMoicBps: 35000,
+        exitProbability: 0.8,
+      },
+    ]);
+    buildFundCompanyActualsFacts.mockRejectedValueOnce(new Error('facts backend unavailable'));
+    const now = new Date('2026-07-13T12:00:00.000Z');
+    const evidenceInputHash = canonicalSha256({
+      activeRoundCount: 1,
+      activeOverrideCount: 0,
+      warningsByCode: {},
+    });
+    const database = {
+      query: {
+        portfolioCompanies: { findMany },
+        reconciliationRuns: {
+          findFirst: vi.fn(async () => ({
+            id: 456,
+            candidateInputHash: '',
+            evidenceInputHash,
+          })),
+        },
+      },
+    };
+
+    const sources = await getFundMoicRankingSources(10, database as never, undefined, now);
+    database.query.reconciliationRuns.findFirst.mockResolvedValue({
+      id: 456,
+      candidateInputHash: sources.moicSourceInputHash,
+      evidenceInputHash,
+    });
+    const actionability = await createMoicActionabilityResolver({ database, now }).resolve({
+      fundId: 10,
+      sources,
+    });
+
+    expect(sources.factsSource).toEqual({ status: 'absent' });
+    expect(actionability).toMatchObject({
+      sourceFingerprintMatches: false,
+      actionability: 'non_actionable',
+    });
   });
 
   it('keeps legacy/off rankings on the existing null-coerced probability path', async () => {
@@ -467,6 +618,26 @@ describe('fund MOIC ranking service', () => {
     expect(after.moicSourceInputHash).not.toBe(before.moicSourceInputHash);
   });
 
+  it('changes the source hash when only the investment name changes', () => {
+    const company = {
+      id: 1,
+      fundId: 10,
+      name: 'Acme',
+      plannedReservesCents: 300_000_00,
+      exitMoicBps: 35000,
+      exitProbability: 0.8,
+    };
+
+    const before = buildMoicRankingSourcesFromCompanies(10, [company], availableFacts());
+    const after = buildMoicRankingSourcesFromCompanies(
+      10,
+      [{ ...company, name: 'Acme Renamed' }],
+      availableFacts()
+    );
+
+    expect(after.moicSourceInputHash).not.toBe(before.moicSourceInputHash);
+  });
+
   it('changes the source hash when only the per-company facts input hash changes', () => {
     const companies = [
       {
@@ -551,6 +722,7 @@ describe('fund MOIC ranking service', () => {
           {
             companyId: 1,
             fundId: 10,
+            investmentName: 'Acme',
             plannedReservesCents: '30000000',
             exitProbability: 0.8,
             exitProbabilitySource: 'explicit',
@@ -701,6 +873,7 @@ describe('fund MOIC ranking service', () => {
           {
             companyId: 1,
             fundId: 10,
+            investmentName: 'Missing probability',
             plannedReservesCents: '100000',
             exitProbability: null,
             exitProbabilitySource: 'defaulted',
