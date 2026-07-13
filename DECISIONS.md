@@ -5629,7 +5629,7 @@ Full draft with verified evidence: issue #1020 comment 4894518091 (amended
 
 ## ADR-033: Marginal Next-Dollar Reserve MOIC Model (expanded in docs/adr/)
 
-**Date:** 2026-07-10 **Status:** Proposed
+**Date:** 2026-07-10 **Status:** [ACCEPTED] Accepted 2026-07-12
 
 This ledger entry continues the DECISIONS.md sequence (...032 -> 033). To keep
 its evolving design in one place, the full ADR is authored as an expanded file
@@ -5637,11 +5637,18 @@ rather than inline here.
 
 - **Home:**
   [`docs/adr/ADR-033-marginal-next-dollar-reserve-moic.md`](docs/adr/ADR-033-marginal-next-dollar-reserve-moic.md)
-- **Summary:** the current planned-reserves MOIC path ranks planned reserves by
-  reserve exit multiple x exit probability; it is not a marginal next-dollar
-  opportunity-cost model (no incremental ownership, dilution, subsequent rounds,
-  staged probabilities, or delta expected proceeds). ADR-033 proposes that
-  model.
+- **Ratification (2026-07-12):** marginal return is the difference in expected
+  proceeds divided by the difference in all probability-weighted capital across
+  paired with-decision and baseline paths. Priced rounds dilute existing
+  ownership and add independently purchased ownership in each path.
+- **Safety amendment (2026-07-12):** no numeric result is returned when delta
+  expected capital is non-positive or below
+  `max(USD 1,000, 1% of path W expected capital)`. Results above 100x are
+  preserved but downgraded to indicative with a structured warning.
+- **Boundary decisions:** v1 is USD-only; does not infer SAFE/note conversion;
+  does not invent terminal liquidation; uses explicit staged probabilities and
+  timing; and requires canonical source/version/result hashes plus shadow
+  acceptance before production actionability.
 - **Implementation plan:** tracked in GitHub issue #1056, kept separate from the
   facts/provenance work in #1021.
 
