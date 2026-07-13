@@ -382,15 +382,25 @@ describe('canonical common API route manifest', () => {
   });
 
   it('keeps probes concrete and mutation probes JSON-compatible', () => {
+    const unauthenticatedProbeIds: string[] = [];
+
     for (const entry of COMMON_API_ROUTE_MANIFEST) {
       expect(entry.probe.path).not.toMatch(/:[A-Za-z]/);
       expect(entry.probe.expectedStatus).toBeGreaterThanOrEqual(200);
       expect(entry.probe.expectedStatus).toBeLessThan(600);
+      expect(entry.probe.expectedStatus).not.toBe(401);
+      expect(typeof entry.probe.authenticated).toBe('boolean');
+
+      if (!entry.probe.authenticated) {
+        unauthenticatedProbeIds.push(entry.id);
+      }
 
       if (['POST', 'PUT', 'PATCH'].includes(entry.probe.method)) {
         expect(entry.probe).toHaveProperty('body');
       }
     }
+
+    expect(unauthenticatedProbeIds).toEqual(['auth', 'flags', 'public-shares']);
   });
 
   it('mounts the manifest synchronously', () => {
