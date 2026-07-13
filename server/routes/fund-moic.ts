@@ -49,6 +49,7 @@ import {
   type MarginalReserveRankingItemV1,
 } from '../../shared/contracts/marginal-reserve-moic-v1.contract.js';
 import { buildMarginalReserveMoicInputs } from '../services/moic/marginal-reserve-moic-input-service.js';
+import { emitFundMoicFactsShadowTelemetry } from '../services/moic/fund-moic-facts-shadow-telemetry.js';
 
 const router = Router();
 
@@ -228,6 +229,8 @@ router.get(
       });
     }
 
+    const factsShadowStartedAt = performance.now();
+
     // TODO(perf): this loads the full company-actuals facts corpus (~6 queries + hash in
     // fund-company-actuals-facts-service) for provenance and disclosure. Per-company facts
     // are not used in ranking values. MOIC analysis is a low-frequency GP page today, so ship
@@ -329,7 +332,16 @@ router.get(
       generatedAt: new Date().toISOString(),
     };
 
-    return res.json(FundMoicRankingsResponseV2Schema.parse(response));
+    const parsedResponse = FundMoicRankingsResponseV2Schema.parse(response);
+    if (modePreview.effectiveMode === 'shadow' || modePreview.effectiveMode === 'on') {
+      emitFundMoicFactsShadowTelemetry({
+        fundId,
+        factsInputHash: actualsProvenanceSummary.factsInputHash,
+        sources,
+        durationMs: performance.now() - factsShadowStartedAt,
+      });
+    }
+    return res.json(parsedResponse);
   })
 );
 
