@@ -123,6 +123,16 @@ export const MIGRATED_COMMON_ROUTE_IDS = [
   'cash-flow-events',
   'operating-object-tasks',
   'deal-pipeline',
+  'performance-api',
+  'shares',
+  'public-shares',
+  'lp-api',
+  'lp-capital-calls',
+  'lp-distributions',
+  'lp-documents',
+  'lp-notifications',
+  'lp-reporting-imports',
+  'lp-reporting-metric-runs',
 ] as const satisfies readonly CommonApiRouteId[];
 
 const REGISTER_ROUTES_COMMON_ORDER = [

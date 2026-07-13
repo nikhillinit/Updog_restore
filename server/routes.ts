@@ -98,26 +98,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   mountCommonRoutes(app, { surface: 'register_routes', stage: 'post_response_metrics' });
 
   await mountDefaultRoutes(app, [
-    // Performance Dashboard API routes (timeseries, breakdown, comparison)
-    { load: () => import('./routes/performance-api.js') },
-    // LP Reporting Dashboard API routes
-    { load: () => import('./routes/lp-api.js') },
     // LP Reporting Dashboard health check routes
     { load: () => import('./routes/lp-health.js') },
-    // LP dashboard widget routes
-    { load: () => import('./routes/lp-capital-calls.js') },
-    { load: () => import('./routes/lp-distributions.js') },
-    { mountPath: '/api/lp', load: () => import('./routes/lp-documents.js') },
-    { mountPath: '/api/lp', load: () => import('./routes/lp-notifications.js') },
-    // LP Reporting workflow routes
-    { load: () => import('./routes/lp-reporting/imports.js') },
-    { load: () => import('./routes/lp-reporting/metric-runs.js') },
   ]);
-
-  // Shares routes (fund sharing system)
-  const sharesRoutes = await import('./routes/shares.js');
-  app.use('/api/shares', sharesRoutes.sharesRouter);
-  app.use('/api/public/shares', sharesRoutes.publicSharesRouter);
 
   // Dashboard, investments, portfolio companies, activities, legacy fund
   // metrics, and engine summary routes have been extracted into dedicated

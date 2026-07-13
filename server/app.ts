@@ -12,7 +12,6 @@ import scenarioAnalysisRouter from './routes/scenario-analysis.js';
 import fundScenarioSetsRouter from './routes/fund-scenario-sets.js';
 import fundMoicRouter from './routes/fund-moic.js';
 import timelineRouter from './routes/timeline.js';
-import { sharesRouter, publicSharesRouter } from './routes/shares.js';
 import capitalAllocationRouter from './routes/capital-allocation.js';
 import liquidityRouter from './routes/liquidity.js';
 import graduationRouter from './routes/graduation.js';
@@ -20,14 +19,6 @@ import backtestingRouter from './routes/backtesting.js';
 import varianceRouter from './routes/variance.js';
 import cohortAnalysisRouter from './routes/cohort-analysis.js';
 import sensitivityRouter from './routes/sensitivity.js';
-import performanceApiRouter from './routes/performance-api.js';
-import lpApiRouter from './routes/lp-api.js';
-import lpCapitalCallsRouter from './routes/lp-capital-calls.js';
-import lpDistributionsRouter from './routes/lp-distributions.js';
-import lpDocumentsRouter from './routes/lp-documents.js';
-import lpNotificationsRouter from './routes/lp-notifications.js';
-import lpReportingImportsRouter from './routes/lp-reporting/imports.js';
-import lpReportingMetricRunsRouter from './routes/lp-reporting/metric-runs.js';
 import metricsRouter from './routes/metrics-endpoint.js';
 import { installRumIngressGuards } from './routes/metrics-rum-ingress.js';
 import { metricsRumRouter } from './routes/metrics-rum.js';
@@ -204,7 +195,6 @@ export function makeApp() {
 
   // Scenario Analysis API (Construction vs Current, deal modeling)
   app.use('/api', scenarioAnalysisRouter);
-  app.use(performanceApiRouter);
   app.use('/', varianceRouter);
 
   app.use('/api', fundScenarioSetsRouter);
@@ -214,13 +204,6 @@ export function makeApp() {
   // client's /api/timeline calls 404 in prod. /events/latest self-gates with
   // requireAuth()+requireRole('admin') inside the router (cross-surface safe).
   app.use('/api/timeline', timelineRouter);
-  // Shares API (#1036 burn-down). Mounted here so the Vercel/makeApp surface matches the Docker
-  // routes.ts mount; without it /api/shares and /api/public/shares 404 in prod. Management
-  // self-gates per-handler (requireAuthenticatedUser + canManageFund); the public routes stay
-  // anonymous via isPublicApiPath (GET /public/shares/:id and POST /public/shares/:id/verify
-  // bypass the global /api auth). Placed AFTER the global /api auth boundary.
-  app.use('/api/shares', sharesRouter);
-  app.use('/api/public/shares', publicSharesRouter);
   // Capital-allocation API (#1036 burn-down). Pure deterministic compute (no DB, no fund-scope,
   // no route-local auth) — protected only by the global /api auth boundary above. Mounted here so
   // the Vercel/makeApp surface matches the Docker routes.ts mount; without it /api/capital-allocation
@@ -243,14 +226,6 @@ export function makeApp() {
 
   // Sensitivity Analysis API (Phase 1A - one-way sweeps; fund-scoped)
   app.use('/api', sensitivityRouter);
-  app.use(lpApiRouter);
-  app.use(lpCapitalCallsRouter);
-  app.use(lpDistributionsRouter);
-  app.use('/api/lp', lpDocumentsRouter);
-  app.use('/api/lp', lpNotificationsRouter);
-  app.use(lpReportingImportsRouter);
-  app.use(lpReportingMetricRunsRouter);
-
   // Backtesting API (Monte Carlo validation)
   app.use('/api/backtesting', backtestingRouter);
 
