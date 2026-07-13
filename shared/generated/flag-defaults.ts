@@ -760,6 +760,22 @@ export const FLAG_DEFINITIONS: Record<FlagKey, FlagDefinition> = {
     expiresAt: null,
     aliases: ['ENABLE_WIZARD_STEP_RESULTS'],
   },
+  enable_scenario_seed_picker: {
+    default: false,
+    description: 'Create scenario cases from disclosed portfolio actuals seeds',
+    owner: 'product',
+    risk: 'medium',
+    exposeToClient: true,
+
+    environments: {
+      development: false,
+      staging: false,
+      production: false,
+    },
+    dependencies: [],
+    expiresAt: null,
+    aliases: ['ENABLE_SCENARIO_SEED_PICKER'],
+  },
 };
 
 /**
@@ -814,6 +830,7 @@ export const FLAG_DEFAULTS: FlagRecord = {
   enable_wizard_step_recycling: false,
   enable_wizard_step_waterfall: false,
   enable_wizard_step_results: false,
+  enable_scenario_seed_picker: false,
 };
 
 /**
@@ -902,6 +919,7 @@ export const FLAG_ALIASES: Record<string, FlagKey> = {
   ENABLE_WIZARD_STEP_WATERFALL: 'enable_wizard_step_waterfall',
   ENABLE_WIZARD_STEP_RECYCLING: 'enable_wizard_step_waterfall',
   ENABLE_WIZARD_STEP_RESULTS: 'enable_wizard_step_results',
+  ENABLE_SCENARIO_SEED_PICKER: 'enable_scenario_seed_picker',
 };
 
 /**

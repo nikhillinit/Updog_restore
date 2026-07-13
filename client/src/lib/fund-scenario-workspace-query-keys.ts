@@ -2,6 +2,10 @@ export function workspaceQueryKey(fundId: string) {
   return ['fund-scenario-workspace', fundId] as const;
 }
 
+export function fundScenarioSeedsQueryKey(fundId: string) {
+  return ['fund-scenario-analysis', fundId, 'seeds'] as const;
+}
+
 export function scenarioSetListQueryKey(fundId: string) {
   return [...workspaceQueryKey(fundId), 'scenario-sets'] as const;
 }

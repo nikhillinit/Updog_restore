@@ -684,6 +684,20 @@ flags:
     expiresAt: null
     aliases: ['ENABLE_WIZARD_STEP_RESULTS']
 
+  enable_scenario_seed_picker:
+    default: false
+    description: 'Create scenario cases from disclosed portfolio actuals seeds'
+    owner: 'product'
+    risk: medium
+    exposeToClient: true
+    environments:
+      development: false
+      staging: false
+      production: false
+    dependencies: []
+    expiresAt: null
+    aliases: ['ENABLE_SCENARIO_SEED_PICKER']
+
 # ============================================
 # DEPRECATED FLAGS (to be removed)
 # ============================================

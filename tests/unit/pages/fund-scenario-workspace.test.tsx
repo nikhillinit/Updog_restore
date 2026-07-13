@@ -34,6 +34,7 @@ describe('FundScenarioWorkspacePage', () => {
 
   afterEach(() => {
     vi.restoreAllMocks();
+    vi.unstubAllEnvs();
     vi.useRealTimers();
   });
 
@@ -122,6 +123,18 @@ describe('FundScenarioWorkspacePage', () => {
 
       if (method === 'GET' && url === '/api/funds/123/results') {
         return Promise.resolve(jsonResponse(fundResultsResponse()));
+      }
+
+      if (method === 'GET' && url === '/api/funds/123/scenario-analysis/seeds') {
+        return Promise.resolve(
+          jsonResponse({
+            fundId: 123,
+            asOfDate: '2026-07-13',
+            factsStatus: 'failed',
+            factsInputHash: null,
+            seeds: [],
+          })
+        );
       }
 
       if (method === 'GET' && url.endsWith('/comparison')) {
@@ -562,6 +575,37 @@ describe('FundScenarioWorkspacePage', () => {
         !url.includes('/calculate')
     );
     expect(createPosts).toHaveLength(0);
+  });
+
+  it('renders no seed-picker entry while the flag is off', async () => {
+    vi.stubEnv('VITE_ENABLE_SCENARIO_SEED_PICKER', 'false');
+    mockWorkspaceFetches();
+    renderWorkspace();
+
+    expect(await screen.findByText('Scenario Workspace')).toBeInTheDocument();
+    expect(
+      screen.queryByRole('button', { name: /start case from portfolio actuals/i })
+    ).not.toBeInTheDocument();
+  });
+
+  it('opens the flag-gated picker without issuing a case mutation', async () => {
+    vi.stubEnv('VITE_ENABLE_SCENARIO_SEED_PICKER', 'true');
+    mockWorkspaceFetches();
+    renderWorkspace();
+
+    fireEvent.click(
+      await screen.findByRole('button', { name: /start case from portfolio actuals/i })
+    );
+
+    expect(
+      await screen.findByRole('dialog', { name: /start case from portfolio actuals/i })
+    ).toBeInTheDocument();
+    expect(screen.getByText(/select a company scenario to create a case/i)).toBeInTheDocument();
+    const caseMutations = fetchSpy.mock.calls.filter(([input, init]) => {
+      const url = typeof input === 'string' ? input : input.toString();
+      return url.endsWith('/cases/from-seed') && (init?.method ?? 'GET') === 'POST';
+    });
+    expect(caseMutations).toHaveLength(0);
   });
 });
 
@@ -1013,10 +1057,7 @@ function syncCalculationPayload({
   name,
 }: {
   calculationMode:
-    | 'sync_fee_profile'
-    | 'sync_allocation'
-    | 'sync_sector_profile'
-    | 'sync_methodology';
+    'sync_fee_profile' | 'sync_allocation' | 'sync_sector_profile' | 'sync_methodology';
   scenarioSetId: string;
   variantId: string;
   overrideType: 'fee_profile' | 'allocation' | 'sector_profile' | 'methodology';

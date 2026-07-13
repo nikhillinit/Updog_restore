@@ -7,11 +7,18 @@
 
 import { Router } from 'express';
 import type { NextFunction, Request, Response } from 'express';
+import { isDeepStrictEqual } from 'node:util';
 import { z } from 'zod';
 import { db } from '../db';
 import { Sha256Schema } from '@shared/contracts/fund-actuals/fund-company-actuals-fact.contract';
 import { ScenarioCaseSeedV1Schema } from '@shared/contracts/scenarios/scenario-case-seed-v1.contract';
-import { scenarios, scenarioCases, scenarioAuditLogs } from '@shared/schema';
+import { DecimalStringSchema } from '@shared/contracts/lp-reporting/cash-flow-event.contract';
+import {
+  scenarios,
+  scenarioCases,
+  scenarioAuditLogs,
+  scenarioCaseSeedProvenance,
+} from '@shared/schema';
 import { FundIdParamSchema } from '@shared/schemas/portfolio-route';
 import { eq, and } from 'drizzle-orm';
 import {
@@ -24,12 +31,16 @@ import type { ScenarioAnalysisResponse, ScenarioCase } from '@shared/types/scena
 import { requireAuth, requireFundAccess } from '../lib/auth/jwt';
 import { firstString } from '../lib/request-values';
 import { createRouteLogger } from '../lib/route-logger.js';
-import { enforceCompanyFundScope } from '../lib/auth/company-fund-scope';
+import { enforceCompanyFundScope, resolveCompanyFundId } from '../lib/auth/company-fund-scope';
 import {
   buildFundCompanyActualsFacts,
   FundActualsFactsServiceError,
 } from '../services/fund-actuals/fund-company-actuals-facts-service';
 import { buildScenarioCaseSeed } from '../services/scenarios/scenario-case-seed-service';
+import {
+  createScenarioCaseFromSeed,
+  ScenarioCaseSeedPersistenceError,
+} from '../services/scenarios/scenario-case-seed-persistence-service';
 
 const routeLog = createRouteLogger('scenario-analysis');
 
@@ -107,6 +118,47 @@ const ScenarioSeedResponseSchema = z.discriminatedUnion('factsStatus', [
     .strict(),
 ]);
 
+const NonnegativeDecimalStringSchema = DecimalStringSchema.refine(
+  (value) => Number(value) >= 0,
+  'Must be a non-negative decimal string'
+);
+
+const FractionDecimalStringSchema = NonnegativeDecimalStringSchema.refine(
+  (value) => Number(value) <= 1,
+  'Must be between 0 and 1'
+);
+
+const ScenarioCaseSeedOverridesSchema = z
+  .object({
+    caseName: z.string().trim().min(1).max(255),
+    probability: FractionDecimalStringSchema,
+    exitValuation: NonnegativeDecimalStringSchema,
+    monthsToExit: z.number().int().positive(),
+    ownershipAtExit: FractionDecimalStringSchema,
+    investment: NonnegativeDecimalStringSchema.optional(),
+    followOns: NonnegativeDecimalStringSchema.optional(),
+    fmv: NonnegativeDecimalStringSchema.optional(),
+  })
+  .strict();
+
+const CreateScenarioCaseFromSeedRequestSchema = z
+  .object({
+    seed: ScenarioCaseSeedV1Schema,
+    overrides: ScenarioCaseSeedOverridesSchema,
+    expectedScenarioVersion: z.number().int(),
+  })
+  .strict();
+
+const CreateScenarioCaseFromSeedResponseSchema = z
+  .object({
+    scenarioCaseId: z.string().uuid(),
+    scenarioId: z.string().uuid(),
+    scenarioVersion: z.number().int(),
+    seededAt: z.string().datetime(),
+    replay: z.boolean(),
+  })
+  .strict();
+
 function failedScenarioSeedResponse(fundId: number, asOfDate: string) {
   return ScenarioSeedResponseSchema.parse({
     fundId,
@@ -126,6 +178,32 @@ function validateScenarioSeedFundId(req: Request, res: Response, next: NextFunct
     });
   }
   next();
+}
+
+function validateScenarioIdParam(req: Request, res: Response, next: NextFunction) {
+  const parsed = z.string().uuid().safeParse(req.params['scenarioId']);
+  if (!parsed.success) {
+    return res.status(400).json({
+      error: 'invalid_scenario_id',
+      message: 'Scenario ID must be a UUID',
+    });
+  }
+  next();
+}
+
+function statusForScenarioCaseSeedError(code: ScenarioCaseSeedPersistenceError['code']): number {
+  switch (code) {
+    case 'scenario_not_found':
+      return 404;
+    case 'scenario_locked':
+      return 423;
+    case 'version_conflict':
+    case 'idempotency_conflict':
+      return 409;
+    case 'missing_required_override':
+    case 'company_mismatch':
+      return 400;
+  }
 }
 
 // ============================================================================
@@ -217,6 +295,134 @@ router['get'](
         seeds: facts.facts.map((fact) => buildScenarioCaseSeed({ fundId, fact, asOfDate })),
       })
     );
+  }
+);
+
+router['post'](
+  '/funds/:fundId/scenario-analysis/scenarios/:scenarioId/cases/from-seed',
+  requireAuth(),
+  validateScenarioSeedFundId,
+  requireFundAccess,
+  validateScenarioIdParam,
+  async (req: Request, res: Response) => {
+    const { fundId } = FundIdParamSchema.parse(req.params);
+    const scenarioId = z.string().uuid().parse(req.params['scenarioId']);
+    const parsedBody = CreateScenarioCaseFromSeedRequestSchema.safeParse(req.body);
+    if (!parsedBody.success) {
+      return res.status(400).json({
+        error: 'invalid_request',
+        message: 'Request body does not match the from-seed case creation contract',
+      });
+    }
+
+    const idempotencyKey = req.get('Idempotency-Key')?.trim();
+    if (!idempotencyKey) {
+      return res.status(400).json({
+        error: 'missing_idempotency_key',
+        message: 'Idempotency-Key header is required',
+      });
+    }
+
+    const { seed, overrides, expectedScenarioVersion } = parsedBody.data;
+    if (seed.fundId !== fundId) {
+      return res.status(400).json({
+        error: 'seed_fund_mismatch',
+        message: 'Seed fund ID must match the route fund ID',
+      });
+    }
+
+    try {
+      const companyFundId = await resolveCompanyFundId(seed.companyId);
+      if (companyFundId !== fundId) {
+        return res.status(400).json({
+          error: 'company_mismatch',
+          message: 'Seed company must belong to the route fund',
+        });
+      }
+
+      const existingReplayRows = await db
+        .select({ scenarioId: scenarioCases.scenarioId })
+        .from(scenarioCaseSeedProvenance)
+        .innerJoin(scenarioCases, eq(scenarioCases.id, scenarioCaseSeedProvenance.scenarioCaseId))
+        .where(
+          and(
+            eq(scenarioCaseSeedProvenance.fundId, fundId),
+            eq(scenarioCaseSeedProvenance.idempotencyKey, idempotencyKey)
+          )
+        )
+        .limit(1);
+      const existingReplay = existingReplayRows[0];
+      if (existingReplay && existingReplay.scenarioId !== scenarioId) {
+        return res.status(409).json({
+          error: 'idempotency_conflict',
+          message: 'Idempotency-Key is already associated with another scenario',
+        });
+      }
+      if (!existingReplay) {
+        const facts = await buildFundCompanyActualsFacts({ fundId, asOfDate: seed.asOfDate });
+        const fact = facts.facts.find((candidate) => candidate.companyId === seed.companyId);
+        const canonicalSeed =
+          facts.fundId === fundId && facts.asOfDate === seed.asOfDate && fact
+            ? buildScenarioCaseSeed({ fundId, fact, asOfDate: seed.asOfDate })
+            : null;
+        if (!canonicalSeed || !isDeepStrictEqual(seed, canonicalSeed)) {
+          return res.status(409).json({
+            error: 'seed_conflict',
+            message: 'Seed no longer matches disclosed portfolio actuals. Refresh and try again.',
+          });
+        }
+      }
+
+      const actorUserId = (req as { user?: { id?: string } }).user?.id ?? null;
+      const persistenceOverrides = {
+        caseName: overrides.caseName,
+        probability: overrides.probability,
+        exitValuation: overrides.exitValuation,
+        monthsToExit: overrides.monthsToExit,
+        ownershipAtExit: overrides.ownershipAtExit,
+        ...(overrides.investment !== undefined ? { investment: overrides.investment } : {}),
+        ...(overrides.followOns !== undefined ? { followOns: overrides.followOns } : {}),
+        ...(overrides.fmv !== undefined ? { fmv: overrides.fmv } : {}),
+      };
+      const created = await createScenarioCaseFromSeed({
+        scenarioId,
+        expectedScenarioVersion,
+        seed,
+        overrides: persistenceOverrides,
+        actor: { userId: actorUserId },
+        idempotencyKey,
+      });
+      const currentScenario = await db.query.scenarios.findFirst({
+        where: eq(scenarios.id, scenarioId),
+        columns: { version: true },
+      });
+      if (!currentScenario) {
+        throw new Error('Scenario version unavailable after case creation');
+      }
+
+      return res.status(201).json(
+        CreateScenarioCaseFromSeedResponseSchema.parse({
+          scenarioCaseId: created.case.id,
+          scenarioId: created.case.scenarioId,
+          scenarioVersion: currentScenario.version,
+          seededAt: created.provenance.seededAt.toISOString(),
+          replay: created.replayed,
+        })
+      );
+    } catch (error: unknown) {
+      if (error instanceof ScenarioCaseSeedPersistenceError) {
+        return res.status(statusForScenarioCaseSeedError(error.code)).json({
+          error: error.code,
+          message: error.message,
+          ...(error.details !== undefined ? { details: error.details } : {}),
+        });
+      }
+      routeLog.error('Create scenario case from seed failed:', error);
+      return res.status(500).json({
+        error: 'internal_error',
+        message: 'Scenario case creation failed',
+      });
+    }
   }
 );
 

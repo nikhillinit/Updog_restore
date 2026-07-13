@@ -69,6 +69,7 @@ const CANONICAL_TO_LEGACY_ALIASES: Record<ClientFlagKey, string[]> = {
   enable_wizard_step_recycling: [],
   enable_wizard_step_waterfall: [],
   enable_wizard_step_results: [],
+  enable_scenario_seed_picker: [],
 };
 
 const overrideCache = new Map<ClientFlagKey, boolean>();

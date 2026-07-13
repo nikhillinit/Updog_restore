@@ -14,6 +14,8 @@ import { Link, useRoute } from 'wouter';
 import { ArrowLeft, RefreshCw } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { CreateMethodologyScenarioModal } from '@/components/scenarios/CreateMethodologyScenarioModal';
+import { ScenarioFactsSeedPicker } from '@/components/scenarios/ScenarioFactsSeedPicker';
+import { useFeatureFlag } from '@/core/flags/flagAdapter';
 import {
   type Query,
   useMutation,
@@ -493,7 +495,9 @@ function FundScenarioWorkspacePage() {
   const queryClient = useQueryClient();
   const [pendingScenarioSetId, setPendingScenarioSetId] = useState<string | null>(null);
   const [isCreateMethodologyOpen, setIsCreateMethodologyOpen] = useState(false);
+  const [isSeedPickerOpen, setIsSeedPickerOpen] = useState(false);
   const [highlightedScenarioSetId, setHighlightedScenarioSetId] = useState<string | null>(null);
+  const seedPickerEnabled = useFeatureFlag('enable_scenario_seed_picker');
 
   const scenarioSetsQuery = useQuery({
     queryKey: fundId ? scenarioSetListQueryKey(fundId) : ['fund-scenario-workspace', 'invalid'],
@@ -622,6 +626,11 @@ function FundScenarioWorkspacePage() {
             </Link>
           </Button>
           <div className="flex flex-wrap items-center gap-2">
+            {seedPickerEnabled && (
+              <Button variant="outline" size="sm" onClick={() => setIsSeedPickerOpen(true)}>
+                Start case from portfolio actuals
+              </Button>
+            )}
             <Button variant="outline" size="sm" onClick={() => setIsCreateMethodologyOpen(true)}>
               New methodology scenario
             </Button>
@@ -703,6 +712,13 @@ function FundScenarioWorkspacePage() {
         onOpenChange={setIsCreateMethodologyOpen}
         onSuccess={(created) => setHighlightedScenarioSetId(created.id)}
       />
+      {seedPickerEnabled && (
+        <ScenarioFactsSeedPicker
+          fundId={fundId}
+          open={isSeedPickerOpen}
+          onOpenChange={setIsSeedPickerOpen}
+        />
+      )}
     </div>
   );
 }

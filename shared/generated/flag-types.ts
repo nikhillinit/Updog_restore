@@ -57,7 +57,8 @@ export type FlagKey =
   | 'enable_wizard_step_fees'
   | 'enable_wizard_step_recycling'
   | 'enable_wizard_step_waterfall'
-  | 'enable_wizard_step_results';
+  | 'enable_wizard_step_results'
+  | 'enable_scenario_seed_picker';
 
 /**
  * Flags safe to expose to client
@@ -104,7 +105,8 @@ export type ClientFlagKey =
   | 'enable_wizard_step_fees'
   | 'enable_wizard_step_recycling'
   | 'enable_wizard_step_waterfall'
-  | 'enable_wizard_step_results';
+  | 'enable_wizard_step_results'
+  | 'enable_scenario_seed_picker';
 
 /**
  * Server-only flags (not exposed to client)
@@ -210,6 +212,7 @@ export const ALL_FLAG_KEYS: readonly FlagKey[] = [
   'enable_wizard_step_recycling',
   'enable_wizard_step_waterfall',
   'enable_wizard_step_results',
+  'enable_scenario_seed_picker',
 ] as const;
 
 /**
@@ -258,6 +261,7 @@ export const CLIENT_FLAG_KEYS: readonly ClientFlagKey[] = [
   'enable_wizard_step_recycling',
   'enable_wizard_step_waterfall',
   'enable_wizard_step_results',
+  'enable_scenario_seed_picker',
 ] as const;
 
 /**
