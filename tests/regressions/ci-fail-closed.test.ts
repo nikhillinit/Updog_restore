@@ -149,6 +149,16 @@ describe('required CI fails closed', () => {
     expect(stagedSmokeStep?.env?.PRODUCTION_URL).toBe(
       '${{ needs.validate-deployment.outputs.deployment_url }}'
     );
+    expect(stagedSmokeStep?.env).toHaveProperty('VERCEL_AUTOMATION_BYPASS_SECRET');
+    const stagedCredentialGuard = stagedSmoke?.steps?.find(
+      (step) => step.name === 'Require non-skippable smoke credentials'
+    );
+    expect(stagedCredentialGuard?.run).toContain('VERCEL_AUTOMATION_BYPASS_SECRET is required');
+
+    const postPromotionSmoke = releaseWorkflow.jobs?.['post-promotion-smoke'];
+    expect(JSON.stringify(postPromotionSmoke?.steps ?? [])).not.toContain(
+      'VERCEL_AUTOMATION_BYPASS_SECRET'
+    );
 
     const identityScripts = allRunScripts({
       jobs: { identity: releaseWorkflow.jobs?.['validate-deployment'] ?? {} },
