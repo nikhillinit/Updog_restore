@@ -294,7 +294,10 @@ describe('fund MOIC rankings route - behavioral state machine', () => {
     const res = await getRankings('/api/funds/1/moic/rankings');
 
     expect(res.status).toBe(200);
-    expect(res.body).toEqual(sources.legacy);
+    expect(res.body).toEqual({
+      ...sources.legacy,
+      rankings: sources.legacy.rankings.map((ranking) => ({ ...ranking, factsBasis: null })),
+    });
     expect(res.body).not.toHaveProperty('modePreview');
     expect(res.body).not.toHaveProperty('materiality');
     expect(res.body).not.toHaveProperty('latestReconciliation');

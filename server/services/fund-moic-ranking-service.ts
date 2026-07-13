@@ -2,7 +2,11 @@ import { db } from '../db';
 import { MOICCalculator } from '../../shared/core/moic/MOICCalculator.js';
 import type { Investment as MOICInvestment } from '../../shared/core/moic/MOICCalculator.js';
 import { dbToMOICInvestment } from '../lib/moic-mapper.js';
-import type { FundMoicRankingsResponseV1 } from '../../shared/contracts/fund-moic-v1.contract.js';
+import type {
+  FundMoicFactsBasisV1,
+  FundMoicRankingItemV1,
+  FundMoicRankingsResponseV1,
+} from '../../shared/contracts/fund-moic-v1.contract.js';
 import { canonicalSha256 } from '../../shared/lib/canonical-hash';
 
 export const MOIC_CANDIDATE_SOURCE_VERSION = 'moic-exit-probability-v1';
@@ -19,10 +23,19 @@ export interface FundMoicInputSummary {
 }
 
 export interface FundMoicRankingSources {
-  legacy: FundMoicRankingsResponseV1;
-  candidate: FundMoicRankingsResponseV1;
+  legacy: FundMoicRankingSourceResponse;
+  candidate: FundMoicRankingSourceResponse;
   moicInputSummary: FundMoicInputSummary;
   moicSourceInputHash: string;
+}
+
+export type FundMoicRankingSourceItem = Omit<FundMoicRankingItemV1, 'factsBasis'>;
+
+export interface FundMoicRankingSourceResponse extends Omit<
+  FundMoicRankingsResponseV1,
+  'rankings'
+> {
+  rankings: FundMoicRankingSourceItem[];
 }
 
 export function summarizeMoicActualsProvenance(input: {
@@ -47,7 +60,7 @@ export function summarizeMoicActualsProvenance(input: {
   };
 }
 
-type PortfolioCompanyMoicSourceRow = {
+export type PortfolioCompanyMoicSourceRow = {
   id: number;
   fundId?: number | null;
   name: string;
@@ -161,10 +174,10 @@ function buildCandidateMoicInvestment(row: PortfolioCompanyMoicSourceRow): Candi
   };
 }
 
-export function buildMoicRankingsFromInvestments(
+function buildMoicRankingSourceFromInvestments(
   fundId: number,
   investments: MOICInvestment[]
-): FundMoicRankingsResponseV1 {
+): FundMoicRankingSourceResponse {
   const ranked = MOICCalculator.rankByReservesMOIC(investments);
 
   return {
@@ -187,6 +200,26 @@ export function buildMoicRankingsFromInvestments(
       },
     })),
   };
+}
+
+export function discloseFundMoicRankings(
+  source: FundMoicRankingSourceResponse,
+  factsBasisByInvestmentId?: ReadonlyMap<string, FundMoicFactsBasisV1>
+): FundMoicRankingsResponseV1 {
+  return {
+    ...source,
+    rankings: source.rankings.map((ranking) => ({
+      ...ranking,
+      factsBasis: factsBasisByInvestmentId?.get(ranking.investmentId) ?? null,
+    })),
+  };
+}
+
+export function buildMoicRankingsFromInvestments(
+  fundId: number,
+  investments: MOICInvestment[]
+): FundMoicRankingsResponseV1 {
+  return discloseFundMoicRankings(buildMoicRankingSourceFromInvestments(fundId, investments));
 }
 
 export function buildMoicRankingSourcesFromCompanies(
@@ -226,8 +259,8 @@ export function buildMoicRankingSourcesFromCompanies(
   });
 
   return {
-    legacy: buildMoicRankingsFromInvestments(fundId, legacyInvestments),
-    candidate: buildMoicRankingsFromInvestments(fundId, candidateInvestments),
+    legacy: buildMoicRankingSourceFromInvestments(fundId, legacyInvestments),
+    candidate: buildMoicRankingSourceFromInvestments(fundId, candidateInvestments),
     moicInputSummary,
     moicSourceInputHash,
   };
@@ -250,5 +283,5 @@ export async function getFundMoicRankings(
   database: FundMoicRankingDatabase = db
 ): Promise<FundMoicRankingsResponseV1> {
   const sources = await getFundMoicRankingSources(fundId, database);
-  return sources.legacy;
+  return discloseFundMoicRankings(sources.legacy);
 }

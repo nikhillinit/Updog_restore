@@ -29,6 +29,7 @@ const canonicalFixture = {
       rank: 1,
       investmentId: '101',
       investmentName: 'Acme Corp',
+      factsBasis: null,
       reservesMoic: {
         value: 2.8,
         description: 'Expected return on planned reserves',
@@ -170,9 +171,7 @@ describe('FundModelResultsMoicAnalysisPage', () => {
     expect(screen.getByText('Facts input hash')).toBeInTheDocument();
     expect(screen.getByText('facts-hash')).toBeInTheDocument();
     expect(screen.getByText('Facts trust')).toBeInTheDocument();
-    expect(
-      screen.getByText('LIVE 2, PARTIAL 1, UNAVAILABLE 1, FAILED 0')
-    ).toBeInTheDocument();
+    expect(screen.getByText('LIVE 2, PARTIAL 1, UNAVAILABLE 1, FAILED 0')).toBeInTheDocument();
     expect(screen.getByText('Defaulted economic inputs')).toBeInTheDocument();
     expect(screen.getByText('5')).toBeInTheDocument();
     expect(screen.queryByText(/marginal next-dollar/i)).not.toBeInTheDocument();

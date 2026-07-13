@@ -14,6 +14,7 @@ import {
   MOIC_MATERIALITY_EPSILON,
 } from '../services/fund-moic-materiality.js';
 import {
+  discloseFundMoicRankings,
   getFundMoicRankingSources,
   summarizeMoicActualsProvenance,
 } from '../services/fund-moic-ranking-service.js';
@@ -217,7 +218,7 @@ router.get(
         modePreview.effectiveMode === 'on' && actionability.actionability === 'actionable'
           ? sources.candidate
           : sources.legacy;
-      return res.json(rankings);
+      return res.json(discloseFundMoicRankings(rankings));
     }
 
     if (contract !== 'v2') {
@@ -290,7 +291,7 @@ router.get(
     const response: FundMoicRankingsResponseV2 = {
       contractVersion: '2.1.0',
       fundId,
-      rankings: rankings.rankings,
+      rankings: discloseFundMoicRankings(rankings).rankings,
       provenance: {
         mode: usingCandidateRankings ? 'candidate' : 'legacy',
         warnings: modePreview.blockers,
