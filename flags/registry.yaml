@@ -516,6 +516,20 @@ flags:
     expiresAt: null
     aliases: ['ENABLE_MARGINAL_RESERVE_MOIC']
 
+  enable_facts_sourced_reserve_inputs:
+    default: false
+    description: 'Gates eligibility-filtered reserve engine inputs sourced from actuals facts'
+    owner: 'analytics'
+    risk: high
+    exposeToClient: false
+    environments:
+      development: false
+      staging: false
+      production: false
+    dependencies: []
+    expiresAt: null
+    aliases: ['ENABLE_FACTS_SOURCED_RESERVE_INPUTS']
+
   enable_faults:
     default: false
     description: 'Enable fault injection for testing'
