@@ -41,6 +41,9 @@ describe('fund-moic route contract', () => {
     const source = await readRepoFile('server/routes/fund-moic.ts');
     expect(source).toContain('buildFundCompanyActualsFacts({');
     expect(source).toContain('asOfDate: actualsAsOfDate');
+    expect(source).toContain('factsByCompanyId');
+    expect(source).toContain('sources.factsBasisByInvestmentId');
+    expect(source).toContain('discloseFundMoicRankings');
     expect(source).toContain("factsStatus: 'available'");
     expect(source).toContain(
       'trustStates: actualsFacts.facts.map((fact) => fact.provenance.trustState)'
@@ -53,6 +56,13 @@ describe('fund-moic route contract', () => {
       "trustStates: Array.from({ length: sourceCompanyCount }, () => 'UNAVAILABLE')"
     );
     expect(source).toContain("warnings: ['actuals_facts_failed']");
+  });
+
+  it('gates facts-basis comparison telemetry on effective shadow or on mode', async () => {
+    const source = await readRepoFile('server/routes/fund-moic.ts');
+    expect(source).toContain("modePreview.effectiveMode === 'shadow'");
+    expect(source).toContain("modePreview.effectiveMode === 'on'");
+    expect(source).toContain('emitFundMoicFactsShadowTelemetry({');
   });
 
   it('exposes the admin reconciliation POST with role + idempotency guards', async () => {
