@@ -124,12 +124,14 @@ describe('marginal reserve MOIC shadow route', () => {
 
     expect(response.status).toBe(200);
     const parsed = MarginalReserveRankingsResponseV1Schema.parse(response.body);
+    expect(parsed).toMatchObject({ mode: 'shadow', actionability: 'non_actionable_shadow' });
     expect(parsed.rankings.map((ranking) => [ranking.companyId, ranking.status])).toEqual([
       [1, 'actionable'],
       [4, 'actionable'],
       [2, 'indicative'],
     ]);
     expect(parsed.unavailable).toEqual([{ companyId: 3, reasons: ['MISSING_CURRENT_OWNERSHIP'] }]);
+    expect(parsed.rankings[0]?.result).not.toHaveProperty('companyId');
     expect(inputService.build).toHaveBeenCalledWith({ fundId: 1, asOfDate: '2026-07-12' });
   });
 

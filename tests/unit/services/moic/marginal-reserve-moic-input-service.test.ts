@@ -88,26 +88,26 @@ function publishedConfig(overrides: Record<string, unknown> = {}) {
           {
             id: 'seed',
             name: 'Seed',
-            roundSize: 2000000,
-            valuation: 8000000,
+            roundSize: 2,
+            valuation: 8,
             valuationType: 'pre',
             esopPct: 10,
             graduationRate: 40,
             exitRate: 10,
-            exitValuation: 30000000,
+            exitValuation: 30,
             monthsToGraduate: 12,
             monthsToExit: 48,
           },
           {
             id: 'series-a',
             name: 'Series A',
-            roundSize: 5000000,
-            valuation: 20000000,
+            roundSize: 5,
+            valuation: 20,
             valuationType: 'pre',
             esopPct: 10,
             graduationRate: 30,
             exitRate: 20,
-            exitValuation: 75000000,
+            exitValuation: 75,
             monthsToGraduate: 18,
             monthsToExit: 48,
           },
@@ -122,6 +122,7 @@ function sources(
   overrides: Partial<MarginalReserveInputSources> = {}
 ): MarginalReserveInputSources {
   return {
+    sourceSnapshotDate: '2026-07-12',
     baseCurrency: 'USD',
     facts: facts(),
     companies: [
@@ -132,6 +133,18 @@ function sources(
         sector: 'SaaS',
         currentOwnership: '0.125',
         plannedReservesCents: 100_000_000,
+        allocationVersion: 3,
+      },
+    ],
+    approvedAllocations: [
+      {
+        companyId: 11,
+        decisionType: 'follow_on',
+        decisionStatus: 'approved',
+        finalPlannedReservesCents: 100_000_000,
+        liveAllocationVersion: 3,
+        decidedAt: new Date('2026-07-10T00:00:00.000Z'),
+        updatedAt: new Date('2026-07-10T00:00:00.000Z'),
       },
     ],
     publishedAssumptions: {
@@ -161,7 +174,7 @@ describe('marginal reserve MOIC input assembly', () => {
     expect(result.ready[0]).toMatchObject({
       companyId: 11,
       currentOwnership: '0.125',
-      factsInputHash: HASH,
+      factsInputHash: expect.stringMatching(/^[a-f0-9]{64}$/),
       readiness: { status: 'actionable', reasons: [] },
       stages: [
         {
@@ -192,12 +205,13 @@ describe('marginal reserve MOIC input assembly', () => {
             {
               id: 'series-a',
               name: 'Series A',
-              roundSize: 5000000,
-              valuation: 20000000,
+              roundSize: 5,
+              valuation: 20,
               valuationType: 'pre',
               esopPct: 10,
               graduationRate: 30,
-              exitRate: 20,
+              exitRate: 101,
+              exitValuation: 0,
               monthsToGraduate: 18,
               monthsToExit: 48,
             },
@@ -215,7 +229,7 @@ describe('marginal reserve MOIC input assembly', () => {
     });
 
     expect(result.ready).toEqual([]);
-    expect(result.unavailable[0]?.reasons).toContain('MISSING_PUBLISHED_ASSUMPTIONS');
+    expect(result.unavailable[0]?.reasons).toContain('MISSING_STAGE_ASSUMPTION');
   });
 
   it('returns every applicable readiness reason for unavailable companies', () => {
@@ -229,7 +243,8 @@ describe('marginal reserve MOIC input assembly', () => {
           currentStage: 'Seed',
           sector: 'SaaS',
           currentOwnership: null,
-          plannedReservesCents: 0,
+          plannedReservesCents: 100_000_000,
+          allocationVersion: 3,
         },
       ],
       publishedAssumptions: null,
@@ -254,23 +269,50 @@ describe('marginal reserve MOIC input assembly', () => {
   it('hashes facts and assumptions separately and deterministically', () => {
     const first = assemble();
     const same = assemble();
-    const changed = assemble({
+    const changedAssumption = assemble({
+      publishedAssumptions: {
+        configId: 7,
+        version: 4,
+        publishedAt: new Date('2026-07-01T00:00:00.000Z'),
+        config: publishedConfig({
+          capitalPlanAllocations: [
+            {
+              id: 'saas-seed',
+              name: 'SaaS Seed',
+              sectorProfileId: 'saas',
+              entryRound: 'Seed',
+              capitalAllocationPct: 100,
+              initialCheckStrategy: 'amount',
+              initialCheckAmount: 500000,
+              followOnStrategy: 'amount',
+              followOnAmount: 2000000,
+              followOnParticipationPct: 100,
+              investmentHorizonMonths: 60,
+            },
+          ],
+        }),
+      },
+    });
+    const changedFact = assemble({
       companies: [
         {
           companyId: 11,
           stage: 'Seed',
           currentStage: 'Seed',
           sector: 'SaaS',
-          currentOwnership: '0.125',
-          plannedReservesCents: 200_000_000,
+          currentOwnership: '0.25',
+          plannedReservesCents: 100_000_000,
+          allocationVersion: 3,
         },
       ],
     });
 
     expect(first.factsInputHash).toBe(same.factsInputHash);
     expect(first.assumptionsHash).toBe(same.assumptionsHash);
-    expect(changed.factsInputHash).toBe(first.factsInputHash);
-    expect(changed.assumptionsHash).not.toBe(first.assumptionsHash);
+    expect(changedAssumption.factsInputHash).toBe(first.factsInputHash);
+    expect(changedAssumption.assumptionsHash).not.toBe(first.assumptionsHash);
+    expect(changedFact.factsInputHash).not.toBe(first.factsInputHash);
+    expect(changedFact.assumptionsHash).toBe(first.assumptionsHash);
   });
 
   it('marks ready inputs indicative when the published assumptions are stale', () => {
@@ -298,7 +340,119 @@ describe('marginal reserve MOIC input assembly', () => {
     expect(result.unavailable[0]?.reasons).toContain('BLOCKED_CURRENCY');
   });
 
+  it('reports unknown currency separately from an explicit mismatch block', () => {
+    const result = assemble({ facts: facts({ currencyStatus: 'unknown' }) });
+
+    expect(result.ready).toEqual([]);
+    expect(result.unavailable[0]?.reasons).toContain('UNKNOWN_CURRENCY');
+    expect(result.unavailable[0]?.reasons).not.toContain('BLOCKED_CURRENCY');
+  });
+
+  it('does not mislabel missing facts as a known currency mismatch', () => {
+    const missingFacts = facts();
+    missingFacts.facts = [];
+    const result = assemble({ facts: missingFacts });
+
+    expect(result.unavailable[0]?.reasons).toContain('MISSING_ACTUALS_FACTS');
+    expect(result.unavailable[0]?.reasons).not.toContain('BLOCKED_CURRENCY');
+  });
+
+  it('builds the complete supported future stage path from approved assumptions', () => {
+    const config = publishedConfig();
+    const pipeline = config.pipelineProfiles?.[0];
+    if (!pipeline) throw new Error('Expected fixture pipeline');
+    pipeline.stages.push({
+      id: 'series-b',
+      name: 'Series B',
+      roundSize: 10,
+      valuation: 40,
+      valuationType: 'pre',
+      esopPct: 10,
+      graduationRate: 0,
+      exitRate: 100,
+      exitValuation: 150,
+      monthsToGraduate: 24,
+      monthsToExit: 36,
+    });
+    const result = assemble({
+      publishedAssumptions: {
+        configId: 7,
+        version: 3,
+        publishedAt: new Date('2026-07-01T00:00:00.000Z'),
+        config,
+      },
+    });
+
+    expect(result.unavailable).toEqual([]);
+    expect(result.ready[0]?.stages.map((stage) => stage.stage)).toEqual(['series_a', 'series_b']);
+    expect(result.ready[0]?.stages.map((stage) => stage.withDecision.checkAmount)).toEqual([
+      '1000000',
+      '0',
+    ]);
+    expect(result.ready[0]?.stages.map((stage) => stage.monthsFromPriorStage)).toEqual([12, 18]);
+  });
+
   it('rejects a planned check that exceeds the approved prospective round size', () => {
+    const result = assemble({
+      publishedAssumptions: {
+        configId: 7,
+        version: 3,
+        publishedAt: new Date('2026-07-01T00:00:00.000Z'),
+        config: publishedConfig({
+          capitalPlanAllocations: [
+            {
+              id: 'saas-seed',
+              name: 'SaaS Seed',
+              sectorProfileId: 'saas',
+              entryRound: 'Seed',
+              capitalAllocationPct: 100,
+              initialCheckStrategy: 'amount',
+              initialCheckAmount: 500000,
+              followOnStrategy: 'amount',
+              followOnAmount: 6000000,
+              followOnParticipationPct: 100,
+              investmentHorizonMonths: 60,
+            },
+          ],
+        }),
+      },
+    });
+
+    expect(result.ready).toEqual([]);
+    expect(result.unavailable[0]?.reasons).toContain('PLANNED_CHECK_EXCEEDS_ROUND_SIZE');
+  });
+
+  it('fails closed when current portfolio state does not match the requested date', () => {
+    const result = assemble({ sourceSnapshotDate: '2026-07-13' });
+
+    expect(result.ready).toEqual([]);
+    expect(result.unavailable[0]?.reasons).toContain('CURRENT_STATE_DATE_MISMATCH');
+  });
+
+  it('fails closed when assumptions were published after the requested date', () => {
+    const result = assemble({
+      publishedAssumptions: {
+        configId: 7,
+        version: 3,
+        publishedAt: new Date('2026-07-13T00:00:00.000Z'),
+        config: publishedConfig(),
+      },
+    });
+
+    expect(result.ready).toEqual([]);
+    expect(result.unavailable[0]?.reasons).toContain('ASSUMPTION_NOT_EFFECTIVE');
+  });
+
+  it('fails closed when facts do not match the requested fund and date', () => {
+    const mismatchedFacts = facts();
+    mismatchedFacts.asOfDate = '2026-07-11';
+    const result = assemble({ facts: mismatchedFacts });
+
+    expect(result.ready).toEqual([]);
+    expect(result.unavailable[0]?.reasons).toContain('FACTS_SCOPE_MISMATCH');
+  });
+
+  it('requires ownership to use the explicit fractional 0-to-1 contract', () => {
     const result = assemble({
       companies: [
         {
@@ -306,14 +460,22 @@ describe('marginal reserve MOIC input assembly', () => {
           stage: 'Seed',
           currentStage: 'Seed',
           sector: 'SaaS',
-          currentOwnership: '0.125',
-          plannedReservesCents: 600_000_000,
+          currentOwnership: '12.5',
+          plannedReservesCents: 100_000_000,
+          allocationVersion: 3,
         },
       ],
     });
 
     expect(result.ready).toEqual([]);
-    expect(result.unavailable[0]?.reasons).toContain('PLANNED_CHECK_EXCEEDS_ROUND_SIZE');
+    expect(result.unavailable[0]?.reasons).toContain('MISSING_CURRENT_OWNERSHIP');
+  });
+
+  it('requires a current approved company follow-on allocation', () => {
+    const result = assemble({ approvedAllocations: [] });
+
+    expect(result.ready).toEqual([]);
+    expect(result.unavailable[0]?.reasons).toContain('MISSING_APPROVED_ALLOCATION');
   });
 
   it('does not import or query raw rounds or valuation marks', async () => {

@@ -4,6 +4,7 @@ import {
   MarginalReserveMoicInputV1Schema,
   MarginalReserveInputFailureSchema,
   MarginalReserveMoicResultV1Schema,
+  MarginalReserveRankingItemV1Schema,
   MarginalReserveStageV1Schema,
 } from '@shared/contracts/marginal-reserve-moic-v1.contract';
 
@@ -45,7 +46,6 @@ function makeInput(overrides: Record<string, unknown> = {}) {
 function makeResult(overrides: Record<string, unknown> = {}) {
   return {
     contractVersion: 'marginal-reserve-moic-result-v1',
-    companyId: 2,
     status: 'actionable',
     marginalMoic: '5.000000',
     marginalIrr: null,
@@ -278,16 +278,32 @@ describe('MarginalReserveMoicResultV1Schema', () => {
     ).toBe(false);
   });
 
-  it('accepts stale-assumption indicative results below 100x', () => {
+  it('keeps stale readiness outside the strict V1 engine result', () => {
     expect(
       MarginalReserveMoicResultV1Schema.safeParse(
         makeResult({
           status: 'indicative',
           marginalMoic: '5.000000',
-          warnings: [{ code: 'STALE_ASSUMPTION', message: 'Approved assumptions are stale' }],
+          warnings: [],
         })
       ).success
+    ).toBe(false);
+    expect(
+      MarginalReserveRankingItemV1Schema.safeParse({
+        companyId: 2,
+        status: 'indicative',
+        inputReadiness: { status: 'indicative', reasons: ['STALE_ASSUMPTION'] },
+        result: makeResult(),
+      }).success
     ).toBe(true);
+    expect(
+      MarginalReserveRankingItemV1Schema.safeParse({
+        companyId: 2,
+        status: 'actionable',
+        inputReadiness: { status: 'indicative', reasons: ['STALE_ASSUMPTION'] },
+        result: makeResult(),
+      }).success
+    ).toBe(false);
   });
 });
 

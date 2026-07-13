@@ -210,15 +210,18 @@ describe('calculateMarginalReserveMoic', () => {
     expect(result.warnings.map((warning) => warning.code)).toContain('IMPLAUSIBLE_MAGNITUDE');
   });
 
-  it('downgrades a supported result when approved assumptions are stale', () => {
-    const input = baseInput();
-    input.readiness = { status: 'indicative', reasons: ['STALE_ASSUMPTION'] };
+  it('keeps source readiness from mutating the strict V1 engine result', () => {
+    const omittedReadiness = calculateMarginalReserveMoic(baseInput());
+    const actionableInput = baseInput();
+    actionableInput.readiness = { status: 'actionable', reasons: [] };
+    const staleInput = baseInput();
+    staleInput.readiness = { status: 'indicative', reasons: ['STALE_ASSUMPTION'] };
 
-    const result = calculateMarginalReserveMoic(input);
+    const actionableReadiness = calculateMarginalReserveMoic(actionableInput);
+    const staleReadiness = calculateMarginalReserveMoic(staleInput);
 
-    expect(result.status).toBe('indicative');
-    expect(result.marginalMoic).toBe('5.000000');
-    expect(result.warnings.map((warning) => warning.code)).toContain('STALE_ASSUMPTION');
+    expect(actionableReadiness).toEqual(omittedReadiness);
+    expect(staleReadiness).toEqual(omittedReadiness);
   });
 
   it('rejects an invalid probability sum before projection', () => {

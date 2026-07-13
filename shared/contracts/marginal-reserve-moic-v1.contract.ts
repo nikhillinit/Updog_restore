@@ -41,6 +41,12 @@ export const MarginalReserveInputReadinessReasonSchema = z.enum([
   'PLANNED_CHECK_EXCEEDS_ROUND_SIZE',
   'BLOCKED_CURRENCY',
   'STALE_ASSUMPTION',
+  'ASSUMPTION_NOT_EFFECTIVE',
+  'CURRENT_STATE_DATE_MISMATCH',
+  'FACTS_SCOPE_MISMATCH',
+  'UNKNOWN_CURRENCY',
+  'MISSING_APPROVED_ALLOCATION',
+  'PLANNED_CHECK_EXCEEDS_APPROVED_ALLOCATION',
 ]);
 
 export const MarginalReserveInputReadinessSchema = z
@@ -196,7 +202,6 @@ export const MarginalReserveWarningCodeSchema = z.enum([
   'MIN_DENOMINATOR_FLOOR',
   'IMPLAUSIBLE_MAGNITUDE',
   'IRR_UNAVAILABLE',
-  'STALE_ASSUMPTION',
 ]);
 
 export const StructuredWarningSchema = z
@@ -242,7 +247,6 @@ export const StageContributionSchema = z
 export const MarginalReserveMoicResultV1Schema = z
   .object({
     contractVersion: z.literal('marginal-reserve-moic-result-v1'),
-    companyId: z.number().int().positive(),
     status: z.enum(['actionable', 'indicative', 'unavailable']),
     marginalMoic: DecimalStringSchema.nullable(),
     marginalIrr: DecimalStringSchema.nullable(),
@@ -261,9 +265,6 @@ export const MarginalReserveMoicResultV1Schema = z
     validateCanonicalStageOrder(value.stageContributions, ctx, 'stageContributions');
     const hasMagnitudeWarning = value.warnings.some(
       (warning) => warning.code === 'IMPLAUSIBLE_MAGNITUDE'
-    );
-    const hasStaleAssumptionWarning = value.warnings.some(
-      (warning) => warning.code === 'STALE_ASSUMPTION'
     );
     const exceedsMagnitudeThreshold =
       value.marginalMoic !== null && new Decimal(value.marginalMoic).gt(100);
@@ -285,14 +286,14 @@ export const MarginalReserveMoicResultV1Schema = z
         path: ['marginalMoic'],
       });
     }
-    if (value.status === 'indicative' && !exceedsMagnitudeThreshold && !hasStaleAssumptionWarning) {
+    if (value.status === 'indicative' && !exceedsMagnitudeThreshold) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
-        message: 'Indicative results require a magnitude or stale-assumption warning',
+        message: 'Indicative results require marginalMoic above 100',
         path: ['marginalMoic'],
       });
     }
-    if (value.status === 'indicative' && exceedsMagnitudeThreshold && !hasMagnitudeWarning) {
+    if (value.status === 'indicative' && !hasMagnitudeWarning) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
         message: 'Indicative results require an IMPLAUSIBLE_MAGNITUDE warning',
@@ -313,10 +314,25 @@ export const MarginalReserveMoicResultV1Schema = z
         path: ['warnings'],
       });
     }
-    if (value.status === 'actionable' && hasStaleAssumptionWarning) {
+  });
+
+export const MarginalReserveRankingItemV1Schema = z
+  .object({
+    companyId: z.number().int().positive(),
+    status: z.enum(['actionable', 'indicative', 'unavailable']),
+    inputReadiness: MarginalReserveInputReadinessSchema,
+    result: MarginalReserveMoicResultV1Schema,
+  })
+  .strict()
+  .superRefine((value, ctx) => {
+    const expectedStatus =
+      value.result.status === 'actionable' && value.inputReadiness.status === 'indicative'
+        ? 'indicative'
+        : value.result.status;
+    if (value.status !== expectedStatus) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
-        message: 'Stale assumptions cannot produce an actionable result',
+        message: 'Ranking status must reflect result status and input readiness',
         path: ['status'],
       });
     }
@@ -325,11 +341,13 @@ export const MarginalReserveMoicResultV1Schema = z
 export const MarginalReserveRankingsResponseV1Schema = z
   .object({
     contractVersion: z.literal('marginal-reserve-rankings-v1'),
+    mode: z.literal('shadow'),
+    actionability: z.literal('non_actionable_shadow'),
     fundId: z.number().int().positive(),
     asOfDate: z.string().date(),
     factsInputHash: Sha256Schema,
     assumptionsHash: Sha256Schema,
-    rankings: z.array(MarginalReserveMoicResultV1Schema),
+    rankings: z.array(MarginalReserveRankingItemV1Schema),
     unavailable: z.array(MarginalReserveInputFailureSchema),
   })
   .strict();
@@ -346,6 +364,7 @@ export type StructuredWarning = z.infer<typeof StructuredWarningSchema>;
 export type CounterfactualSummary = z.infer<typeof CounterfactualSummarySchema>;
 export type StageContribution = z.infer<typeof StageContributionSchema>;
 export type MarginalReserveMoicResultV1 = z.infer<typeof MarginalReserveMoicResultV1Schema>;
+export type MarginalReserveRankingItemV1 = z.infer<typeof MarginalReserveRankingItemV1Schema>;
 export type MarginalReserveRankingsResponseV1 = z.infer<
   typeof MarginalReserveRankingsResponseV1Schema
 >;

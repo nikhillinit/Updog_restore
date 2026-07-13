@@ -1,7 +1,7 @@
 import type { FundMoicRankingItemV1 } from '../../../shared/contracts/fund-moic-v1.contract';
 import type {
   MarginalReserveInputFailure,
-  MarginalReserveMoicResultV1,
+  MarginalReserveRankingItemV1,
 } from '../../../shared/contracts/marginal-reserve-moic-v1.contract';
 import Decimal from '../../../shared/lib/decimal-config';
 import { logger } from '../../lib/logger';
@@ -23,6 +23,16 @@ export interface MarginalReserveShadowAnnotation {
   plannedRanks: [number, number];
   marginalRanks: [number, number];
   annotation: string;
+  reviewedBy: string | null;
+  reviewerRole: 'investment_team' | null;
+  reviewedAt: string | null;
+}
+
+export interface MarginalReserveShadowAnnotationInput {
+  annotation: string;
+  reviewedBy: string;
+  reviewerRole: 'investment_team';
+  reviewedAt: string;
 }
 
 export interface MarginalReserveMoicShadowArtifact {
@@ -36,9 +46,9 @@ export interface MarginalReserveMoicShadowArtifact {
 export interface MarginalReserveMoicShadowInput {
   fundId: number;
   plannedRankings: readonly FundMoicRankingItemV1[];
-  marginalRankings: readonly MarginalReserveMoicResultV1[];
+  marginalRankings: readonly MarginalReserveRankingItemV1[];
   unavailable: readonly MarginalReserveInputFailure[];
-  annotationsByInversionId?: Readonly<Record<string, string>>;
+  annotationsByInversionId?: Readonly<Record<string, MarginalReserveShadowAnnotationInput>>;
 }
 
 interface ActionableRanking {
@@ -90,16 +100,19 @@ function plannedActionableRankings(
 }
 
 function marginalActionableRankings(
-  rankings: readonly MarginalReserveMoicResultV1[]
+  rankings: readonly MarginalReserveRankingItemV1[]
 ): ActionableRanking[] {
   const seen = new Set<number>();
   return [...rankings]
     .filter(
-      (ranking): ranking is MarginalReserveMoicResultV1 & { marginalMoic: string } =>
-        ranking.status === 'actionable' && ranking.marginalMoic !== null
+      (
+        ranking
+      ): ranking is MarginalReserveRankingItemV1 & {
+        result: MarginalReserveRankingItemV1['result'] & { marginalMoic: string };
+      } => ranking.status === 'actionable' && ranking.result.marginalMoic !== null
     )
     .sort((left, right) => {
-      const moicOrder = new Decimal(right.marginalMoic).comparedTo(left.marginalMoic);
+      const moicOrder = new Decimal(right.result.marginalMoic).comparedTo(left.result.marginalMoic);
       return moicOrder !== 0 ? moicOrder : left.companyId - right.companyId;
     })
     .filter((ranking) => {
@@ -110,7 +123,7 @@ function marginalActionableRankings(
     .map((ranking, index) => ({
       companyId: ranking.companyId,
       position: index + 1,
-      moic: new Decimal(ranking.marginalMoic),
+      moic: new Decimal(ranking.result.marginalMoic),
     }));
 }
 
@@ -202,6 +215,18 @@ function inversionId(inversion: RankInversion): string {
   return [...inversion.companyIds].sort((left, right) => left - right).join(':');
 }
 
+function validInvestmentTeamAnnotation(
+  annotation: MarginalReserveShadowAnnotationInput | undefined
+): annotation is MarginalReserveShadowAnnotationInput {
+  return Boolean(
+    annotation &&
+    annotation.annotation.trim() &&
+    annotation.reviewedBy.trim() &&
+    annotation.reviewerRole === 'investment_team' &&
+    !Number.isNaN(Date.parse(annotation.reviewedAt))
+  );
+}
+
 export function buildMarginalReserveMoicShadowArtifact(
   input: MarginalReserveMoicShadowInput
 ): MarginalReserveMoicShadowArtifact {
@@ -218,12 +243,17 @@ export function buildMarginalReserveMoicShadowArtifact(
     .filter((inversion) => inversion.companyIds.some((companyId) => topFiveIds.has(companyId)))
     .map((inversion) => {
       const id = inversionId(inversion);
+      const supplied = input.annotationsByInversionId?.[id];
+      const accepted = validInvestmentTeamAnnotation(supplied) ? supplied : null;
       return {
         inversionId: id,
         companyIds: inversion.companyIds,
         plannedRanks: inversion.plannedRanks,
         marginalRanks: inversion.marginalRanks,
-        annotation: input.annotationsByInversionId?.[id]?.trim() ?? '',
+        annotation: accepted?.annotation.trim() ?? '',
+        reviewedBy: accepted?.reviewedBy.trim() ?? null,
+        reviewerRole: accepted?.reviewerRole ?? null,
+        reviewedAt: accepted?.reviewedAt ?? null,
       };
     });
   const metrics: MarginalReserveShadowMetrics = {
@@ -245,7 +275,13 @@ export function buildMarginalReserveMoicShadowArtifact(
   return {
     artifactVersion: 'marginal-reserve-moic-shadow-v1',
     fundId: input.fundId,
-    status: annotations.every((annotation) => annotation.annotation.length > 0)
+    status: annotations.every(
+      (annotation) =>
+        annotation.annotation.length > 0 &&
+        annotation.reviewedBy !== null &&
+        annotation.reviewerRole === 'investment_team' &&
+        annotation.reviewedAt !== null
+    )
       ? 'approved'
       : 'annotation_required',
     metrics,

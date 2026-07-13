@@ -45,7 +45,7 @@ import { FEATURES } from '../config/features.js';
 import { calculateMarginalReserveMoic } from '../../shared/core/moic/MarginalReserveMoic.js';
 import {
   MarginalReserveRankingsResponseV1Schema,
-  type MarginalReserveMoicResultV1,
+  type MarginalReserveRankingItemV1,
 } from '../../shared/contracts/marginal-reserve-moic-v1.contract.js';
 import { buildMarginalReserveMoicInputs } from '../services/moic/marginal-reserve-moic-input-service.js';
 
@@ -73,22 +73,22 @@ const MarginalRankingsQuerySchema = z
   })
   .strict();
 
-const MARGINAL_STATUS_ORDER: Readonly<Record<MarginalReserveMoicResultV1['status'], number>> = {
+const MARGINAL_STATUS_ORDER: Readonly<Record<MarginalReserveRankingItemV1['status'], number>> = {
   actionable: 0,
   indicative: 1,
   unavailable: 2,
 };
 
 function sortMarginalRankings(
-  rankings: MarginalReserveMoicResultV1[]
-): MarginalReserveMoicResultV1[] {
+  rankings: MarginalReserveRankingItemV1[]
+): MarginalReserveRankingItemV1[] {
   return [...rankings].sort((left, right) => {
     const statusOrder = MARGINAL_STATUS_ORDER[left.status] - MARGINAL_STATUS_ORDER[right.status];
     if (statusOrder !== 0) return statusOrder;
-    if (left.marginalMoic === null && right.marginalMoic !== null) return 1;
-    if (left.marginalMoic !== null && right.marginalMoic === null) return -1;
-    if (left.marginalMoic !== null && right.marginalMoic !== null) {
-      const moicOrder = new Decimal(right.marginalMoic).comparedTo(left.marginalMoic);
+    if (left.result.marginalMoic === null && right.result.marginalMoic !== null) return 1;
+    if (left.result.marginalMoic !== null && right.result.marginalMoic === null) return -1;
+    if (left.result.marginalMoic !== null && right.result.marginalMoic !== null) {
+      const moicOrder = new Decimal(right.result.marginalMoic).comparedTo(left.result.marginalMoic);
       if (moicOrder !== 0) return moicOrder;
     }
     return left.companyId - right.companyId;
@@ -167,10 +167,26 @@ router.get(
       fundId,
       asOfDate: parsedQuery.data.asOfDate,
     });
-    const rankings = sortMarginalRankings(inputs.ready.map(calculateMarginalReserveMoic));
+    const rankings = sortMarginalRankings(
+      inputs.ready.map((input) => {
+        const result = calculateMarginalReserveMoic(input);
+        const inputReadiness = input.readiness ?? { status: 'actionable' as const, reasons: [] };
+        return {
+          companyId: input.companyId,
+          status:
+            result.status === 'actionable' && inputReadiness.status === 'indicative'
+              ? 'indicative'
+              : result.status,
+          inputReadiness,
+          result,
+        };
+      })
+    );
     return res.json(
       MarginalReserveRankingsResponseV1Schema.parse({
         contractVersion: 'marginal-reserve-rankings-v1',
+        mode: 'shadow',
+        actionability: 'non_actionable_shadow',
         fundId,
         asOfDate: parsedQuery.data.asOfDate,
         factsInputHash: inputs.factsInputHash,

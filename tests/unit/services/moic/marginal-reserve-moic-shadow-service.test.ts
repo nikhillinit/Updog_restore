@@ -5,7 +5,10 @@ import { fileURLToPath } from 'node:url';
 import { describe, expect, it, vi } from 'vitest';
 
 import type { FundMoicRankingItemV1 } from '../../../../shared/contracts/fund-moic-v1.contract';
-import type { MarginalReserveMoicInputV1 } from '../../../../shared/contracts/marginal-reserve-moic-v1.contract';
+import type {
+  MarginalReserveMoicInputV1,
+  MarginalReserveRankingItemV1,
+} from '../../../../shared/contracts/marginal-reserve-moic-v1.contract';
 import { calculateMarginalReserveMoic } from '../../../../shared/core/moic/MarginalReserveMoic';
 import {
   buildMarginalReserveMoicShadowArtifact,
@@ -41,7 +44,7 @@ function marginal(
     status: 'actionable',
     reasons: [],
   }
-) {
+): MarginalReserveRankingItemV1 {
   const input: MarginalReserveMoicInputV1 = {
     contractVersion: 'marginal-reserve-moic-input-v1',
     fundId: 1,
@@ -67,7 +70,16 @@ function marginal(
     engineVersion: 'marginal-reserve-moic-v1',
     readiness,
   };
-  return calculateMarginalReserveMoic(input);
+  const result = calculateMarginalReserveMoic(input);
+  return {
+    companyId,
+    status:
+      result.status === 'actionable' && readiness.status === 'indicative'
+        ? 'indicative'
+        : result.status,
+    inputReadiness: readiness,
+    result,
+  };
 }
 
 function fixture(
@@ -131,6 +143,9 @@ describe('marginal reserve MOIC shadow comparison', () => {
         plannedRanks: [1, 2],
         marginalRanks: [2, 1],
         annotation: '',
+        reviewedBy: null,
+        reviewerRole: null,
+        reviewedAt: null,
       },
       {
         inversionId: '4:5',
@@ -138,6 +153,9 @@ describe('marginal reserve MOIC shadow comparison', () => {
         plannedRanks: [4, 5],
         marginalRanks: [5, 4],
         annotation: '',
+        reviewedBy: null,
+        reviewerRole: null,
+        reviewedAt: null,
       },
     ]);
   });
@@ -146,8 +164,18 @@ describe('marginal reserve MOIC shadow comparison', () => {
     const artifact = buildMarginalReserveMoicShadowArtifact(
       fixture({
         annotationsByInversionId: {
-          '1:2': 'Investment team prefers company 2 at the margin.',
-          '4:5': 'Known timing difference in the approved stage path.',
+          '1:2': {
+            annotation: 'Investment team prefers company 2 at the margin.',
+            reviewedBy: 'reviewer-1',
+            reviewerRole: 'investment_team',
+            reviewedAt: '2026-07-12T20:00:00.000Z',
+          },
+          '4:5': {
+            annotation: 'Known timing difference in the approved stage path.',
+            reviewedBy: 'reviewer-2',
+            reviewerRole: 'investment_team',
+            reviewedAt: '2026-07-12T20:05:00.000Z',
+          },
         },
       })
     );

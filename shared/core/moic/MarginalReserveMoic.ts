@@ -260,8 +260,10 @@ function calculateExpectedIrr(datedCashFlows: DatedDecimalCashFlow[]): Decimal |
 }
 
 function normalizeInputForHash(input: MarginalReserveMoicInputV1): unknown {
+  const hashInput = { ...input };
+  delete hashInput.readiness;
   return {
-    ...input,
+    ...hashInput,
     currentOwnership: formatMetric(new Decimal(input.currentOwnership)),
     stages: input.stages.map((stage) => ({
       ...stage,
@@ -308,12 +310,6 @@ export function calculateMarginalReserveMoic(
   );
 
   const warnings: StructuredWarning[] = [];
-  if (parsedInput.readiness?.status === 'indicative') {
-    warnings.push({
-      code: 'STALE_ASSUMPTION',
-      message: 'One or more approved assumptions are stale',
-    });
-  }
   let status: MarginalReserveMoicResultV1['status'];
   let marginalMoic: Decimal | null = null;
   let marginalIrr: Decimal | null = null;
@@ -332,12 +328,8 @@ export function calculateMarginalReserveMoic(
     });
   } else {
     marginalMoic = exactDeltaExpectedProceeds.div(exactDeltaExpectedCapital);
-    const exceedsMagnitudeThreshold = marginalMoic.gt(100);
-    status =
-      exceedsMagnitudeThreshold || parsedInput.readiness?.status === 'indicative'
-        ? 'indicative'
-        : 'actionable';
-    if (exceedsMagnitudeThreshold) {
+    status = marginalMoic.gt(100) ? 'indicative' : 'actionable';
+    if (status === 'indicative') {
       warnings.push({
         code: 'IMPLAUSIBLE_MAGNITUDE',
         message: 'Marginal MOIC exceeds 100x',
@@ -423,7 +415,6 @@ export function calculateMarginalReserveMoic(
 
   const resultWithoutHash: Omit<MarginalReserveMoicResultV1, 'resultHash'> = {
     contractVersion: 'marginal-reserve-moic-result-v1',
-    companyId: parsedInput.companyId,
     status,
     marginalMoic: marginalMoic === null ? null : formatMetric(marginalMoic),
     marginalIrr: marginalIrr === null ? null : formatMetric(marginalIrr),
