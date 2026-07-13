@@ -1,0 +1,53 @@
+{
+  "name": "scenario-case-seed-provenance",
+  "order": 8,
+  "description": "Immutable snapshots of the facts and overrides used to create scenario cases.",
+  "missingTablePolicy": "create_or_repair",
+  "sqlFiles": ["migrations/0032_scenario_case_seed_provenance.sql"],
+  "allowedCreateTables": ["scenario_case_seed_provenance"],
+  "expectedTables": [
+    {
+      "name": "scenario_case_seed_provenance",
+      "columns": [
+        { "name": "scenario_case_id", "type": "uuid", "nullable": false },
+        { "name": "fund_id", "type": "integer", "nullable": false },
+        { "name": "company_id", "type": "integer", "nullable": false },
+        { "name": "idempotency_key", "type": "text", "nullable": false },
+        { "name": "facts_input_hash", "type": "character", "nullable": false },
+        { "name": "facts_as_of_date", "type": "date", "nullable": false },
+        { "name": "seeded_at", "type": "timestamptz", "nullable": false },
+        { "name": "trust_state", "type": "varchar", "nullable": false },
+        { "name": "currency_status", "type": "varchar", "nullable": false },
+        { "name": "seeded_investment", "type": "numeric", "nullable": false },
+        { "name": "seeded_follow_ons", "type": "numeric", "nullable": false },
+        { "name": "seeded_fmv", "type": "numeric", "nullable": true },
+        { "name": "investment_source", "type": "varchar", "nullable": false },
+        { "name": "follow_ons_source", "type": "varchar", "nullable": false },
+        { "name": "fmv_source", "type": "varchar", "nullable": true },
+        {
+          "name": "latest_round_valuation_reference",
+          "type": "numeric",
+          "nullable": true
+        },
+        {
+          "name": "latest_round_date_reference",
+          "type": "date",
+          "nullable": true
+        }
+      ],
+      "constraints": [
+        "scenario_case_seed_provenance_pkey",
+        "scenario_case_seed_provenance_scenario_case_id_fkey",
+        "scenario_case_seed_provenance_fund_id_fkey",
+        "scenario_case_seed_provenance_company_id_fkey",
+        "scenario_case_seed_provenance_fund_idempotency_key_unique",
+        "scenario_case_seed_provenance_trust_state_check",
+        "scenario_case_seed_provenance_currency_status_check"
+      ],
+      "indexes": [
+        "scenario_case_seed_provenance_fund_idx",
+        "scenario_case_seed_provenance_company_idx"
+      ]
+    }
+  ]
+}

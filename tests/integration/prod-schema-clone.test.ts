@@ -78,6 +78,7 @@ const ALLOCATION_SCENARIO_MANIFEST_TABLES = [
   'allocation_scenario_events',
   'allocation_scenario_ic_decisions',
 ] as const;
+const SCENARIO_CASE_SEED_PROVENANCE_MANIFEST_TABLES = ['scenario_case_seed_provenance'] as const;
 const SHAPE_ONLY_NOT_JOURNALED = [
   'flag_changes',
   'flags_state',
@@ -699,6 +700,7 @@ describe.skipIf(skipIfNoDocker)('prod schema synthetic clone', () => {
         ...LP_CORE_MANIFEST_TABLES,
         ...H9_MANIFEST_TABLES,
         ...ALLOCATION_SCENARIO_MANIFEST_TABLES,
+        ...SCENARIO_CASE_SEED_PROVENANCE_MANIFEST_TABLES,
       ])
     );
 
