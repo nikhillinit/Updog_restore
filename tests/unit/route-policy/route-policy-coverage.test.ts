@@ -161,6 +161,19 @@ describe('route policy coverage', () => {
     expect(policy.provenanceRequired).toBe(true);
   });
 
+  it('classifies from-seed case creation as a fund-scoped provenance mutation', () => {
+    const policy = expectPolicy(
+      'POST /api/funds/:fundId/scenario-analysis/scenarios/:scenarioId/cases/from-seed'
+    );
+
+    expect(policy.governanceRef).toBe('/fund-model-results/:fundId/scenarios');
+    expect(policy.financialSurface).toBe('fund_modeling');
+    expect(policy.apiAuthBoundary).toBe('require_auth_and_fund_access');
+    expect(policy.fundScopeMode).toBe('route_param_fund_id');
+    expect(policy.exportPolicy).toBe('not_exportable');
+    expect(policy.provenanceRequired).toBe(true);
+  });
+
   it('covers PRD #996 Surface-A report-package exports with role-gated fund access', () => {
     for (const key of LP_REPORT_PACKAGE_EXPORT_POLICY_KEYS) {
       const policyEntry = expectPolicy(key);

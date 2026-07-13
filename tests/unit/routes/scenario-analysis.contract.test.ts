@@ -7,9 +7,14 @@ import {
   FundCompanyActualsFactSchema,
   type FundCompanyActualsFact,
 } from '../../../shared/contracts/fund-actuals/fund-company-actuals-fact.contract';
+import {
+  ScenarioCaseSeedV1Schema,
+  type ScenarioCaseSeedV1,
+} from '../../../shared/contracts/scenarios/scenario-case-seed-v1.contract';
 
 const fundScopeState = vi.hoisted(() => ({
   enforceCompanyFundScope: vi.fn(async (_req: Request, _res: Response, _companyId: number) => true),
+  resolveCompanyFundId: vi.fn(async (_companyId: number) => 7 as number | null | undefined),
 }));
 
 const fundAccessState = vi.hoisted(() => ({
@@ -35,14 +40,37 @@ const factsState = vi.hoisted(() => {
   };
 });
 
+const persistenceState = vi.hoisted(() => {
+  class ScenarioCaseSeedPersistenceError extends Error {
+    readonly status: number;
+    readonly code: string;
+    readonly details?: unknown;
+
+    constructor(status: number, code: string, message: string, details?: unknown) {
+      super(message);
+      this.name = 'ScenarioCaseSeedPersistenceError';
+      this.status = status;
+      this.code = code;
+      this.details = details;
+    }
+  }
+
+  return {
+    createScenarioCaseFromSeed: vi.fn(),
+    ScenarioCaseSeedPersistenceError,
+  };
+});
+
 // Chain-safe db stub: every builder method is a spy; terminal awaits resolve to
 // empty/benign values so a neutered guard (negative control) falls through to a
 // harmless 404 instead of throwing mid-chain before the assertion runs.
 const dbState = vi.hoisted(() => {
   const selectChain: Record<string, unknown> = {};
   selectChain['from'] = vi.fn(() => selectChain);
+  selectChain['innerJoin'] = vi.fn(() => selectChain);
   selectChain['where'] = vi.fn(() => selectChain);
-  selectChain['limit'] = vi.fn(async () => [] as unknown[]);
+  const selectLimit = vi.fn(async () => [] as unknown[]);
+  selectChain['limit'] = selectLimit;
 
   const insertChain: Record<string, unknown> = {};
   insertChain['values'] = vi.fn(() => insertChain);
@@ -61,11 +89,12 @@ const dbState = vi.hoisted(() => {
   const remove = vi.fn(() => deleteChain);
   const transaction = vi.fn(async () => undefined);
   const findFirst = vi.fn(async () => undefined);
-  return { select, insert, update, remove, transaction, findFirst };
+  return { select, selectLimit, insert, update, remove, transaction, findFirst };
 });
 
 vi.mock('../../../server/lib/auth/company-fund-scope', () => ({
   enforceCompanyFundScope: fundScopeState.enforceCompanyFundScope,
+  resolveCompanyFundId: fundScopeState.resolveCompanyFundId,
 }));
 
 vi.mock('../../../server/lib/auth/jwt', () => ({
@@ -76,6 +105,11 @@ vi.mock('../../../server/lib/auth/jwt', () => ({
 vi.mock('../../../server/services/fund-actuals/fund-company-actuals-facts-service', () => ({
   buildFundCompanyActualsFacts: factsState.buildFundCompanyActualsFacts,
   FundActualsFactsServiceError: factsState.FundActualsFactsServiceError,
+}));
+
+vi.mock('../../../server/services/scenarios/scenario-case-seed-persistence-service', () => ({
+  createScenarioCaseFromSeed: persistenceState.createScenarioCaseFromSeed,
+  ScenarioCaseSeedPersistenceError: persistenceState.ScenarioCaseSeedPersistenceError,
 }));
 
 vi.mock('../../../server/db', () => ({
@@ -91,7 +125,8 @@ vi.mock('../../../server/db', () => ({
 
 import scenarioAnalysisRouter from '../../../server/routes/scenario-analysis';
 
-const SCENARIO_ID = '00000000-0000-0000-0000-000000000101';
+const SCENARIO_ID = '00000000-0000-4000-8000-000000000101';
+const SCENARIO_CASE_ID = '00000000-0000-4000-8000-000000000201';
 
 function makeApp() {
   const app = express();
@@ -113,7 +148,11 @@ function denyOnce() {
 function resetState() {
   fundScopeState.enforceCompanyFundScope.mockReset();
   fundScopeState.enforceCompanyFundScope.mockResolvedValue(true);
+  fundScopeState.resolveCompanyFundId.mockReset();
+  fundScopeState.resolveCompanyFundId.mockResolvedValue(7);
   dbState.select.mockClear();
+  dbState.selectLimit.mockReset();
+  dbState.selectLimit.mockResolvedValue([]);
   dbState.insert.mockClear();
   dbState.update.mockClear();
   dbState.remove.mockClear();
@@ -124,6 +163,7 @@ function resetState() {
     (_req: Request, _res: Response, next: NextFunction) => next()
   );
   factsState.buildFundCompanyActualsFacts.mockReset();
+  persistenceState.createScenarioCaseFromSeed.mockReset();
 }
 
 function denyFundAccessOnce() {
@@ -216,6 +256,59 @@ function factsResponse(asOfDate = '2026-07-13') {
     facts: [makeFact(), makeBlockedFact()],
     inputHash: '9'.repeat(64),
     generatedAt: '2026-07-13T00:00:00.000Z',
+  };
+}
+
+function makeSeed(overrides: Partial<ScenarioCaseSeedV1> = {}): ScenarioCaseSeedV1 {
+  return ScenarioCaseSeedV1Schema.parse({
+    contractVersion: 'scenario-case-seed-v1',
+    fundId: 7,
+    companyId: 101,
+    asOfDate: '2026-07-13',
+    factsInputHash: 'c'.repeat(64),
+    trustState: 'LIVE',
+    currencyStatus: 'base_currency',
+    fields: {
+      investment: {
+        status: 'seeded',
+        value: '500000.000000',
+        source: 'facts.initialInvestmentAmount',
+      },
+      followOns: {
+        status: 'seeded',
+        value: '250000.000000',
+        source: 'facts.followOnInvestmentAmount',
+      },
+      fmv: {
+        status: 'seeded',
+        value: '14000000.000000',
+        source: 'facts.latestPlanningFmvValue',
+      },
+      exitValuation: {
+        status: 'user_required',
+        value: null,
+        marketReference: '12000000.000000',
+      },
+      probability: { status: 'user_required', value: null },
+      ownershipAtExit: { status: 'user_required', value: null },
+    },
+    warnings: [],
+    ...overrides,
+  });
+}
+
+function validFromSeedBody(overrides: Record<string, unknown> = {}) {
+  return {
+    seed: makeSeed(),
+    overrides: {
+      caseName: 'Base case',
+      probability: '0.40',
+      exitValuation: '20000000.000000',
+      monthsToExit: 36,
+      ownershipAtExit: '0.20',
+    },
+    expectedScenarioVersion: 4,
+    ...overrides,
   };
 }
 
@@ -454,5 +547,245 @@ describe('scenario-analysis actuals-backed seed suggestions', () => {
     });
     expect(factsState.buildFundCompanyActualsFacts).toHaveBeenCalledTimes(1);
     expectNoScenarioWrites();
+  });
+});
+
+describe('scenario-analysis from-seed case creation', () => {
+  beforeEach(() => {
+    resetState();
+    factsState.buildFundCompanyActualsFacts.mockResolvedValue(factsResponse());
+  });
+
+  it('rejects an invalid fund before fund access and persistence', async () => {
+    const res = await request(makeApp())
+      .post(`/api/funds/07/scenario-analysis/scenarios/${SCENARIO_ID}/cases/from-seed`)
+      .set('Idempotency-Key', 'seed-create-1')
+      .send(validFromSeedBody());
+
+    expect(res.status).toBe(400);
+    expect(res.body.error).toBe('invalid_fund_id');
+    expect(fundAccessState.requireFundAccess).not.toHaveBeenCalled();
+    expect(persistenceState.createScenarioCaseFromSeed).not.toHaveBeenCalled();
+  });
+
+  it('enforces fund access before scenario and body validation', async () => {
+    denyFundAccessOnce();
+
+    const res = await request(makeApp())
+      .post('/api/funds/7/scenario-analysis/scenarios/not-a-uuid/cases/from-seed')
+      .send({});
+
+    expect(res.status).toBe(403);
+    expect(persistenceState.createScenarioCaseFromSeed).not.toHaveBeenCalled();
+  });
+
+  it('rejects an invalid scenario id before body validation', async () => {
+    const res = await request(makeApp())
+      .post('/api/funds/7/scenario-analysis/scenarios/not-a-uuid/cases/from-seed')
+      .send({});
+
+    expect(res.status).toBe(400);
+    expect(res.body.error).toBe('invalid_scenario_id');
+    expect(persistenceState.createScenarioCaseFromSeed).not.toHaveBeenCalled();
+  });
+
+  it('validates the strict body before requiring an idempotency key', async () => {
+    const res = await request(makeApp())
+      .post(`/api/funds/7/scenario-analysis/scenarios/${SCENARIO_ID}/cases/from-seed`)
+      .send({ ...validFromSeedBody(), unexpected: true });
+
+    expect(res.status).toBe(400);
+    expect(res.body.error).toBe('invalid_request');
+    expect(persistenceState.createScenarioCaseFromSeed).not.toHaveBeenCalled();
+  });
+
+  it('requires the Idempotency-Key header', async () => {
+    const res = await request(makeApp())
+      .post(`/api/funds/7/scenario-analysis/scenarios/${SCENARIO_ID}/cases/from-seed`)
+      .send(validFromSeedBody());
+
+    expect(res.status).toBe(400);
+    expect(res.body.error).toBe('missing_idempotency_key');
+    expect(persistenceState.createScenarioCaseFromSeed).not.toHaveBeenCalled();
+  });
+
+  it('rejects a seed from another fund before calling persistence', async () => {
+    const res = await request(makeApp())
+      .post(`/api/funds/7/scenario-analysis/scenarios/${SCENARIO_ID}/cases/from-seed`)
+      .set('Idempotency-Key', 'seed-create-2')
+      .send(validFromSeedBody({ seed: makeSeed({ fundId: 8 }) }));
+
+    expect(res.status).toBe(400);
+    expect(res.body.error).toBe('seed_fund_mismatch');
+    expect(persistenceState.createScenarioCaseFromSeed).not.toHaveBeenCalled();
+  });
+
+  it('rejects a seed whose company belongs to another fund before calling persistence', async () => {
+    fundScopeState.resolveCompanyFundId.mockResolvedValueOnce(8);
+
+    const res = await request(makeApp())
+      .post(`/api/funds/7/scenario-analysis/scenarios/${SCENARIO_ID}/cases/from-seed`)
+      .set('Idempotency-Key', 'seed-create-company-scope')
+      .send(validFromSeedBody());
+
+    expect(res.status).toBe(400);
+    expect(res.body.error).toBe('company_mismatch');
+    expect(fundScopeState.resolveCompanyFundId).toHaveBeenCalledWith(101);
+    expect(persistenceState.createScenarioCaseFromSeed).not.toHaveBeenCalled();
+  });
+
+  it('rejects a structurally valid seed that differs from server-generated actuals', async () => {
+    const seed = makeSeed();
+    const tamperedSeed = ScenarioCaseSeedV1Schema.parse({
+      ...seed,
+      fields: {
+        ...seed.fields,
+        investment: {
+          ...seed.fields.investment,
+          value: '999999.000000',
+        },
+      },
+    });
+
+    const res = await request(makeApp())
+      .post(`/api/funds/7/scenario-analysis/scenarios/${SCENARIO_ID}/cases/from-seed`)
+      .set('Idempotency-Key', 'seed-create-tampered')
+      .send(validFromSeedBody({ seed: tamperedSeed }));
+
+    expect(res.status).toBe(409);
+    expect(res.body.error).toBe('seed_conflict');
+    expect(factsState.buildFundCompanyActualsFacts).toHaveBeenCalledWith({
+      fundId: 7,
+      asOfDate: '2026-07-13',
+    });
+    expect(persistenceState.createScenarioCaseFromSeed).not.toHaveBeenCalled();
+  });
+
+  it('creates a case and returns the strict route response', async () => {
+    const seededAt = new Date('2026-07-13T19:53:05.111Z');
+    const body = validFromSeedBody();
+    persistenceState.createScenarioCaseFromSeed.mockResolvedValueOnce({
+      case: { id: SCENARIO_CASE_ID, scenarioId: SCENARIO_ID },
+      provenance: { seededAt },
+      replayed: false,
+    });
+    dbState.findFirst.mockResolvedValueOnce({ version: 5 });
+
+    const res = await request(makeApp())
+      .post(`/api/funds/7/scenario-analysis/scenarios/${SCENARIO_ID}/cases/from-seed`)
+      .set('Idempotency-Key', 'seed-create-3')
+      .send(body);
+
+    expect(res.status).toBe(201);
+    expect(res.body).toEqual({
+      scenarioCaseId: SCENARIO_CASE_ID,
+      scenarioId: SCENARIO_ID,
+      scenarioVersion: 5,
+      seededAt: seededAt.toISOString(),
+      replay: false,
+    });
+    expect(persistenceState.createScenarioCaseFromSeed).toHaveBeenCalledWith({
+      scenarioId: SCENARIO_ID,
+      expectedScenarioVersion: 4,
+      seed: body.seed,
+      overrides: body.overrides,
+      actor: { userId: null },
+      idempotencyKey: 'seed-create-3',
+    });
+  });
+
+  it('returns the original replay after facts drift following a successful create', async () => {
+    const seededAt = new Date('2026-07-13T19:53:05.111Z');
+    const body = validFromSeedBody();
+    dbState.selectLimit
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([{ scenarioId: SCENARIO_ID }]);
+    persistenceState.createScenarioCaseFromSeed
+      .mockResolvedValueOnce({
+        case: { id: SCENARIO_CASE_ID, scenarioId: SCENARIO_ID },
+        provenance: { seededAt },
+        replayed: false,
+      })
+      .mockResolvedValueOnce({
+        case: { id: SCENARIO_CASE_ID, scenarioId: SCENARIO_ID },
+        provenance: { seededAt },
+        replayed: true,
+      });
+    dbState.findFirst.mockResolvedValueOnce({ version: 5 }).mockResolvedValueOnce({ version: 17 });
+
+    const first = await request(makeApp())
+      .post(`/api/funds/7/scenario-analysis/scenarios/${SCENARIO_ID}/cases/from-seed`)
+      .set('Idempotency-Key', 'seed-create-replay')
+      .send(body);
+
+    expect(first.status).toBe(201);
+    expect(first.body.replay).toBe(false);
+
+    factsState.buildFundCompanyActualsFacts.mockResolvedValueOnce({
+      ...factsResponse(),
+      facts: [
+        makeFact({
+          initialInvestmentAmount: '600000.000000',
+          inputHash: 'd'.repeat(64),
+        }),
+      ],
+      inputHash: '8'.repeat(64),
+    });
+
+    const res = await request(makeApp())
+      .post(`/api/funds/7/scenario-analysis/scenarios/${SCENARIO_ID}/cases/from-seed`)
+      .set('Idempotency-Key', 'seed-create-replay')
+      .send(body);
+
+    expect(res.status).toBe(201);
+    expect(res.body.replay).toBe(true);
+    expect(res.body.scenarioVersion).toBe(17);
+    expect(factsState.buildFundCompanyActualsFacts).toHaveBeenCalledTimes(1);
+  });
+
+  it('rejects an idempotency key already associated with another scenario', async () => {
+    dbState.selectLimit.mockResolvedValueOnce([
+      { scenarioId: '00000000-0000-4000-8000-000000000102' },
+    ]);
+
+    const res = await request(makeApp())
+      .post(`/api/funds/7/scenario-analysis/scenarios/${SCENARIO_ID}/cases/from-seed`)
+      .set('Idempotency-Key', 'seed-create-other-scenario')
+      .send(validFromSeedBody());
+
+    expect(res.status).toBe(409);
+    expect(res.body.error).toBe('idempotency_conflict');
+    expect(factsState.buildFundCompanyActualsFacts).not.toHaveBeenCalled();
+    expect(persistenceState.createScenarioCaseFromSeed).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ['scenario_not_found', 404, 404],
+    ['scenario_locked', 409, 423],
+    ['version_conflict', 409, 409],
+    ['missing_required_override', 422, 400],
+    ['company_mismatch', 422, 400],
+    ['idempotency_conflict', 409, 409],
+  ])('maps %s to HTTP %i', async (code, serviceStatus, expectedStatus) => {
+    persistenceState.createScenarioCaseFromSeed.mockRejectedValueOnce(
+      new persistenceState.ScenarioCaseSeedPersistenceError(
+        serviceStatus,
+        code,
+        `Persistence rejected ${code}`,
+        { code }
+      )
+    );
+
+    const res = await request(makeApp())
+      .post(`/api/funds/7/scenario-analysis/scenarios/${SCENARIO_ID}/cases/from-seed`)
+      .set('Idempotency-Key', `seed-create-${code}`)
+      .send(validFromSeedBody());
+
+    expect(res.status).toBe(expectedStatus);
+    expect(res.body).toEqual({
+      error: code,
+      message: `Persistence rejected ${code}`,
+      details: { code },
+    });
   });
 });
