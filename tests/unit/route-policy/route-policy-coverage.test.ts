@@ -226,4 +226,64 @@ describe('route policy coverage', () => {
       'Missing explicit portfolio-intelligence route policy override: GET /api/portfolio/synthetic'
     );
   });
+
+  it('fails verification when a financial common route loses policy coverage', () => {
+    const errors = verifyRoutePolicy({
+      ...defaultRoutePolicyVerificationInput,
+      commonRoutePolicyIds: {
+        ...defaultRoutePolicyVerificationInput.commonRoutePolicyIds,
+        'fund-moic': [],
+      },
+    });
+
+    expect(errors).toContain('Missing route policy coverage for common financial route: fund-moic');
+  });
+
+  it('fails verification when common-route coverage references a missing policy id', () => {
+    const errors = verifyRoutePolicy({
+      ...defaultRoutePolicyVerificationInput,
+      commonRoutePolicyIds: {
+        ...defaultRoutePolicyVerificationInput.commonRoutePolicyIds,
+        'fund-moic': ['api:get:/api/funds/:fundId/moic/missing'],
+      },
+    });
+
+    expect(errors).toContain(
+      'Common route fund-moic references missing route policy id: api:get:/api/funds/:fundId/moic/missing'
+    );
+  });
+
+  it('fails verification when a C1 table is absent from production schema manifests', () => {
+    const errors = verifyRoutePolicy({
+      ...defaultRoutePolicyVerificationInput,
+      commonApiRoutes: defaultRoutePolicyVerificationInput.commonApiRoutes.map((entry) =>
+        entry.id === 'fund-moic'
+          ? {
+              ...entry,
+              migrationParity: {
+                kind: 'c1' as const,
+                tables: [...entry.migrationParity.tables, 'missing_route_table'],
+              },
+            }
+          : entry
+      ),
+    });
+
+    expect(errors).toContain(
+      'Common route fund-moic references production schema table missing from manifests: missing_route_table'
+    );
+  });
+
+  it('fails verification when a runtime-specific route loses its reason', () => {
+    const [firstRoute, ...remainingRoutes] =
+      defaultRoutePolicyVerificationInput.runtimeSpecificRoutes;
+    if (!firstRoute) throw new Error('Expected at least one runtime-specific route');
+
+    const errors = verifyRoutePolicy({
+      ...defaultRoutePolicyVerificationInput,
+      runtimeSpecificRoutes: [{ ...firstRoute, reason: '' }, ...remainingRoutes],
+    });
+
+    expect(errors).toContain(`Runtime-specific route ${firstRoute.id} is missing a reason`);
+  });
 });
