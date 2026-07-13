@@ -11,6 +11,7 @@ import allocationScenariosRouter from './allocation-scenarios.js';
 import allocationsRouter from './allocations.js';
 import authRouter from './auth.js';
 import backtestingRouter from './backtesting.js';
+import cashFlowEventsRouter from './cash-flow-events.js';
 import capitalAllocationRouter from './capital-allocation.js';
 import cohortAnalysisRouter from './cohort-analysis.js';
 import dashboardSummaryRouter from './dashboard-summary.js';
@@ -33,6 +34,7 @@ import lpDocumentsRouter from './lp-documents.js';
 import lpNotificationsRouter from './lp-notifications.js';
 import lpReportingImportsRouter from './lp-reporting/imports.js';
 import lpReportingMetricRunsRouter from './lp-reporting/metric-runs.js';
+import operatingObjectTasksRouter from './operating-object-tasks.js';
 import performanceApiRouter from './performance-api.js';
 import planningFmvOverridesRouter from './planning-fmv-overrides.js';
 import portfolioLotsRouter from './portfolio/lots.js';
@@ -86,6 +88,8 @@ export const COMMON_ROUTE_IMPLEMENTATIONS: Record<CommonApiRouteId, RouteMountIm
   liquidity: at('/api/liquidity', liquidityRouter),
   graduation: at('/api/graduation', graduationRouter),
   reallocation: at(null, reallocationRouter),
+  'cash-flow-events': at(null, cashFlowEventsRouter),
+  'operating-object-tasks': at(null, operatingObjectTasksRouter),
   'deal-pipeline': at('/api/deals', dealPipelineRouter),
   'cohort-analysis': at('/api/cohorts', cohortAnalysisRouter),
   sensitivity: at('/api', sensitivityRouter),
@@ -108,6 +112,17 @@ export const MIGRATED_COMMON_ROUTE_IDS = [
   'funds',
   'fund-metrics',
   'fund-config',
+  'investments',
+  'portfolio-companies',
+  'portfolio-overview',
+  'portfolio-lots',
+  'allocations',
+  'allocation-scenarios',
+  'planning-fmv-overrides',
+  'reallocation',
+  'cash-flow-events',
+  'operating-object-tasks',
+  'deal-pipeline',
 ] as const satisfies readonly CommonApiRouteId[];
 
 const REGISTER_ROUTES_COMMON_ORDER = [
@@ -133,6 +148,8 @@ const REGISTER_ROUTES_COMMON_ORDER = [
   'capital-allocation',
   'liquidity',
   'reallocation',
+  'cash-flow-events',
+  'operating-object-tasks',
   'fund-metrics',
   'dual-forecast',
   'performance-api',

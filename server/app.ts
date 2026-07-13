@@ -9,9 +9,6 @@ import healthRouter from './routes/health.js';
 import calculationsRouter from './routes/calculations.js';
 import aiRouter from './routes/ai.js';
 import scenarioAnalysisRouter from './routes/scenario-analysis.js';
-import allocationsRouter from './routes/allocations.js';
-import allocationScenariosRouter from './routes/allocation-scenarios.js';
-import planningFmvOverridesRouter from './routes/planning-fmv-overrides.js';
 import fundScenarioSetsRouter from './routes/fund-scenario-sets.js';
 import fundMoicRouter from './routes/fund-moic.js';
 import timelineRouter from './routes/timeline.js';
@@ -19,18 +16,10 @@ import { sharesRouter, publicSharesRouter } from './routes/shares.js';
 import capitalAllocationRouter from './routes/capital-allocation.js';
 import liquidityRouter from './routes/liquidity.js';
 import graduationRouter from './routes/graduation.js';
-import reallocationRouter from './routes/reallocation.js';
-import cashFlowEventsRouter from './routes/cash-flow-events.js';
-import operatingObjectTasksRouter from './routes/operating-object-tasks.js';
 import backtestingRouter from './routes/backtesting.js';
-import investmentsRouter from './routes/investments.js';
-import portfolioCompaniesRouter from './routes/portfolio-companies.js';
-import portfolioOverviewRouter from './routes/portfolio-overview.js';
 import varianceRouter from './routes/variance.js';
-import { dealPipelineRouter } from './routes/deal-pipeline.js';
 import cohortAnalysisRouter from './routes/cohort-analysis.js';
 import sensitivityRouter from './routes/sensitivity.js';
-import portfolioLotsRouter from './routes/portfolio/lots.js';
 import performanceApiRouter from './routes/performance-api.js';
 import lpApiRouter from './routes/lp-api.js';
 import lpCapitalCallsRouter from './routes/lp-capital-calls.js';
@@ -215,29 +204,9 @@ export function makeApp() {
 
   // Scenario Analysis API (Construction vs Current, deal modeling)
   app.use('/api', scenarioAnalysisRouter);
-  app.use('/api', investmentsRouter);
-  // Portfolio Companies API (#1036 burn-down). Fund-scoped reads/writes of portfolio_companies via
-  // IStorage; protected by the global /api auth boundary above + per-request enforceProvidedFundScope.
-  // Mounted at the bare /api root (routes self-define relative /portfolio-companies paths), mirroring
-  // the Docker routes.ts mount; without it /api/portfolio-companies 404s in prod. Closes the parity
-  // 404 gap; does NOT by itself restore the prod client flow (apiRequest sends cookies, not Bearer).
-  app.use('/api', portfolioCompaniesRouter);
-  // Portfolio Overview API (#1036 burn-down). Fund-scoped server-computed overview (KPIs + per-company
-  // MOIC) read from funds/portfolio_companies via IStorage; protected by the global /api auth boundary
-  // above + per-request enforceProvidedFundScope. Mounted at the bare /api root (route self-defines the
-  // relative /portfolio-overview path), mirroring the Docker routes.ts mount; without it
-  // /api/portfolio-overview 404s in prod (live: /portfolio -> PortfolioTabs -> OverviewTab ->
-  // usePortfolioOverview). Closes the parity 404 gap; does NOT by itself restore the prod client flow
-  // (apiRequest sends cookies, not Bearer).
-  app.use('/api', portfolioOverviewRouter);
-  app.use('/api', portfolioLotsRouter);
   app.use(performanceApiRouter);
   app.use('/', varianceRouter);
 
-  // Fund Allocation Management API (Phase 1b - Reserve allocations with optimistic locking)
-  app.use('/api', allocationsRouter);
-  app.use('/api', allocationScenariosRouter);
-  app.use('/api', planningFmvOverridesRouter);
   app.use('/api', fundScenarioSetsRouter);
   app.use('/api', fundMoicRouter);
   // Timeline / time-travel API (#1036 burn-down). Mounted here so the
@@ -268,21 +237,6 @@ export function makeApp() {
   // Vercel/makeApp surface matches the Docker routes.ts mount; without it /api/graduation 404s in prod.
   // Closes the parity 404 gap; does NOT by itself restore the prod client flow (hook sends no Bearer).
   app.use('/api/graduation', graduationRouter);
-
-  // Reallocation API (Phase 1b) - mounted at root; the router self-defines its
-  // full /api/funds/:fundId/reallocation/* paths (mirrors the registerRoutes mount).
-  app.use(reallocationRouter);
-
-  // Cash-flow-events API (Candidate C, Phase 1) - mounted at root; the router
-  // self-defines its full /api/funds/:fundId/cash-flow-events paths (mirrors reallocation).
-  app.use(cashFlowEventsRouter);
-
-  // Operating-object Tasks API (backend-first; minimal create/list) - mounted at
-  // root; the router self-defines /api/funds/:fundId/tasks (mirrors cash-flow-events).
-  app.use(operatingObjectTasksRouter);
-
-  // Deal Pipeline API (Sprint 1 - Deal tracking, DD, scoring)
-  app.use('/api/deals', dealPipelineRouter);
 
   // Cohort Analysis API (Advanced cohort analysis with sector/vintage normalization)
   app.use('/api/cohorts', cohortAnalysisRouter);

@@ -140,6 +140,8 @@ describe('canonical common API route manifest', () => {
         "liquidity:/api/liquidity",
         "graduation:/api/graduation",
         "reallocation:<bare>",
+        "cash-flow-events:<bare>",
+        "operating-object-tasks:<bare>",
         "deal-pipeline:/api/deals",
         "cohort-analysis:/api/cohorts",
         "sensitivity:/api",
@@ -210,22 +212,6 @@ describe('canonical common API route manifest', () => {
           "id": "make-app-scenario-analysis",
           "mountPaths": [
             "/api",
-          ],
-          "surface": "make_app",
-        },
-        {
-          "classification": "runtime_specific",
-          "id": "make-app-cash-flow-events",
-          "mountPaths": [
-            null,
-          ],
-          "surface": "make_app",
-        },
-        {
-          "classification": "runtime_specific",
-          "id": "make-app-operating-object-tasks",
-          "mountPaths": [
-            null,
           ],
           "surface": "make_app",
         },

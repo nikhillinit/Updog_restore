@@ -43,10 +43,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   mountCommonRoutes(app, { surface: 'register_routes', stage: 'core' });
 
-  // Deal pipeline routes
-  const dealPipelineRoutes = await import('./routes/deal-pipeline.js');
-  app.use('/api/deals', dealPipelineRoutes.dealPipelineRouter);
-
   // Cohort Analysis routes
   await mountDefaultRoute(app, {
     mountPath: '/api/cohorts',
@@ -56,14 +52,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   await mountDefaultRoutes(app, [
     // Health and metrics routes
     { mountPath: '/', load: () => import('./routes/health.js') },
-    { mountPath: '/api', load: () => import('./routes/investments.js') },
-    { mountPath: '/api', load: () => import('./routes/portfolio-companies.js') },
-    { mountPath: '/api', load: () => import('./routes/portfolio-overview.js') },
-    { mountPath: '/api', load: () => import('./routes/portfolio/lots.js') },
-    { mountPath: '/api', load: () => import('./routes/allocation-scenarios.js') },
-    { mountPath: '/api', load: () => import('./routes/planning-fmv-overrides.js') },
     { mountPath: '/api', load: () => import('./routes/fund-scenario-sets.js') },
-    { mountPath: '/api', load: () => import('./routes/allocations.js') },
     { mountPath: '/api', load: () => import('./routes/activities.js') },
     { mountPath: '/api', load: () => import('./routes/fund-metrics-legacy.js') },
     { mountPath: '/api', load: () => import('./routes/engine-summaries.js') },
@@ -89,10 +78,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     // Server-Sent Events (SSE) routes for real-time updates
     { mountPath: '/', load: () => import('./routes/sse-events.js') },
   ]);
-
-  // Reallocation routes (Phase 1b)
-  const reallocationRoutes = await import('./routes/reallocation.js');
-  app.use(reallocationRoutes.default);
 
   // Register before the LP/shares route groups below so requests that finish
   // inside those routers still reach recordHttpMetrics on response finish.

@@ -637,11 +637,12 @@ describe('route surface inventory', () => {
       readRepoFile('server/server.ts'),
     ]);
 
-    expect(routesTs).toContain("app.use('/api/deals', dealPipelineRoutes.dealPipelineRouter)");
-    expect(appTs).toContain("app.use('/api/deals', dealPipelineRouter)");
-
-    expect(routesTs).toContain('app.use(reallocationRoutes.default)');
-    expect(appTs).toContain('app.use(reallocationRouter)');
+    expect(routesTs).toContain("mountCommonRoutes(app, { surface: 'register_routes'");
+    expect(appTs).toContain("mountCommonRoutes(app, { surface: 'make_app' })");
+    expect(routesTs).not.toContain("app.use('/api/deals', dealPipelineRoutes.dealPipelineRouter)");
+    expect(appTs).not.toContain("app.use('/api/deals', dealPipelineRouter)");
+    expect(routesTs).not.toContain('app.use(reallocationRoutes.default)');
+    expect(appTs).not.toContain('app.use(reallocationRouter)');
 
     expect(appTs).toContain("app['get']('/api-docs'");
     expect(routesTs).not.toContain('/api-docs');
