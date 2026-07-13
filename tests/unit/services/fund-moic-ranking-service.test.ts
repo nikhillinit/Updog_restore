@@ -29,10 +29,13 @@ vi.mock('../../../server/lib/moic-mapper', async (importOriginal) => {
 import {
   buildMoicRankingSourcesFromCompanies,
   buildMoicRankingsFromInvestments,
+  discloseFundMoicRankings,
   summarizeMoicActualsProvenance,
 } from '../../../server/services/fund-moic-ranking-service';
 import { FundMoicRankingsResponseV1Schema } from '../../../shared/contracts/fund-moic-v1.contract';
+import type { FundCompanyActualsFact } from '../../../shared/contracts/fund-actuals/fund-company-actuals-fact.contract';
 import type { Investment } from '../../../shared/core/moic/MOICCalculator';
+import { canonicalSha256 } from '../../../shared/lib/canonical-hash';
 
 const makeInvestment = (overrides: Partial<Investment> = {}): Investment => ({
   id: '1',
@@ -47,6 +50,48 @@ const makeInvestment = (overrides: Partial<Investment> = {}): Investment => ({
   investmentDate: new Date('2022-01-01'),
   ...overrides,
 });
+
+const FACTS_HASH = 'a'.repeat(64);
+
+function actualsFact(overrides: Partial<FundCompanyActualsFact> = {}): FundCompanyActualsFact {
+  return {
+    fundId: 10,
+    companyId: 1,
+    companyName: 'Acme',
+    investmentIds: [101],
+    activeRoundIds: [201],
+    approvedPlanningFmvMarkId: 301,
+    planningFmvStatus: 'active',
+    initialInvestmentAmount: '500000',
+    followOnInvestmentAmount: '125000',
+    amountOnlyNonEquityAmount: '0',
+    latestRoundDate: '2026-06-30',
+    latestRoundValuation: '9000000',
+    latestPlanningFmvDate: '2026-07-01',
+    latestPlanningFmvValue: '1500000',
+    currency: 'USD',
+    currencyStatus: 'base_currency',
+    supersedeLineage: [{ roundId: 201, supersedesRoundId: null }],
+    warnings: [],
+    provenance: {
+      trustState: 'LIVE',
+      core: {
+        sourceKind: 'computed',
+        actionability: 'actionable',
+        sourceEngine: 'rounds-to-model',
+        engineVersion: 'rounds-to-model-v1',
+        inputHash: FACTS_HASH,
+        assumptionsHash: 'b'.repeat(64),
+        generatedAt: '2026-07-13T00:00:00.000Z',
+        isFinanciallyActionable: true,
+        warnings: [],
+      },
+      structuredWarnings: [],
+    },
+    inputHash: FACTS_HASH,
+    ...overrides,
+  };
+}
 
 describe('fund MOIC ranking service', () => {
   beforeEach(() => {
@@ -312,6 +357,65 @@ describe('fund MOIC ranking service', () => {
 
     expect(forward.moicSourceInputHash).toBe(reverse.moicSourceInputHash);
     expect(edited.moicSourceInputHash).not.toBe(forward.moicSourceInputHash);
+  });
+
+  it('attaches facts basis without changing internal rankings or the source hash', () => {
+    const companies = [
+      {
+        id: 1,
+        fundId: 10,
+        name: 'Acme',
+        investmentAmount: 500_000,
+        currentValuation: 1_500_000,
+        plannedReservesCents: 300_000_00,
+        exitMoicBps: 35000,
+        exitProbability: 0.8,
+        investmentDate: new Date('2022-01-01T00:00:00.000Z'),
+      },
+    ];
+    const before = buildMoicRankingSourcesFromCompanies(10, companies);
+    const after = buildMoicRankingSourcesFromCompanies(
+      10,
+      companies,
+      new Map([[1, actualsFact()]])
+    );
+    const disclosed = discloseFundMoicRankings(after.legacy, after.factsBasisByInvestmentId);
+
+    expect(after.legacy.rankings).toEqual(before.legacy.rankings);
+    expect(after.candidate.rankings).toEqual(before.candidate.rankings);
+    expect(after.moicSourceInputHash).toBe(before.moicSourceInputHash);
+    expect(canonicalSha256(after.legacy.rankings)).toBe(canonicalSha256(before.legacy.rankings));
+    expect(canonicalSha256(after.candidate.rankings)).toBe(
+      canonicalSha256(before.candidate.rankings)
+    );
+    expect(disclosed.rankings.map(({ factsBasis: _factsBasis, ...ranking }) => ranking)).toEqual(
+      before.legacy.rankings
+    );
+    expect(disclosed.rankings.some((ranking) => ranking.factsBasis !== null)).toBe(true);
+  });
+
+  it('discloses FACTS_MISSING when a successful facts response omits a company', () => {
+    const sources = buildMoicRankingSourcesFromCompanies(
+      10,
+      [
+        {
+          id: 1,
+          fundId: 10,
+          name: 'Acme',
+          currentValuation: '1500000',
+          plannedReservesCents: 300_000_00,
+          exitMoicBps: 35000,
+          exitProbability: 0.8,
+        },
+      ],
+      new Map()
+    );
+
+    expect(sources.factsBasisByInvestmentId?.get('1')).toMatchObject({
+      rankability: 'indicative',
+      factsInputHash: null,
+      warnings: [{ code: 'FACTS_MISSING' }],
+    });
   });
 
   it('characterizes follow-on/initial-only changes as no-ops for reserves MOIC value and rank', () => {
