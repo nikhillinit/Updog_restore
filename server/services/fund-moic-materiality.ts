@@ -1,6 +1,8 @@
 /** No-op/materiality detector for MOIC reconciliation using epsilon-based rank-or-value sensitivity. */
 import type { FundMoicRankingItemV1 } from '../../shared/contracts/fund-moic-v1.contract';
 
+type MaterialityRankingItem = Pick<FundMoicRankingItemV1, 'investmentId' | 'rank' | 'reservesMoic'>;
+
 export const MOIC_MATERIALITY_EPSILON = 1e-8;
 
 export interface MoicMaterialityResult {
@@ -12,8 +14,8 @@ export interface MoicMaterialityResult {
 }
 
 export function assessMoicMateriality(
-  legacy: readonly FundMoicRankingItemV1[],
-  candidate: readonly FundMoicRankingItemV1[],
+  legacy: readonly MaterialityRankingItem[],
+  candidate: readonly MaterialityRankingItem[],
   epsilon: number = MOIC_MATERIALITY_EPSILON
 ): MoicMaterialityResult {
   const candidateById = new Map(candidate.map((item) => [item.investmentId, item]));

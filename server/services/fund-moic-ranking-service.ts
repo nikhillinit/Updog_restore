@@ -2,8 +2,14 @@ import { db } from '../db';
 import { MOICCalculator } from '../../shared/core/moic/MOICCalculator.js';
 import type { Investment as MOICInvestment } from '../../shared/core/moic/MOICCalculator.js';
 import { dbToMOICInvestment } from '../lib/moic-mapper.js';
-import type { FundMoicRankingsResponseV1 } from '../../shared/contracts/fund-moic-v1.contract.js';
+import type {
+  FundMoicFactsBasisV1,
+  FundMoicRankingItemV1,
+  FundMoicRankingsResponseV1,
+} from '../../shared/contracts/fund-moic-v1.contract.js';
 import { canonicalSha256 } from '../../shared/lib/canonical-hash';
+import type { FundCompanyActualsFact } from '../../shared/contracts/fund-actuals/fund-company-actuals-fact.contract';
+import { buildFundMoicFactsBasis } from './moic/fund-moic-facts-basis';
 
 export const MOIC_CANDIDATE_SOURCE_VERSION = 'moic-exit-probability-v1';
 export const FUND_MOIC_CALCULATION_KEY = 'fund_moic_rankings_exit_probability';
@@ -19,10 +25,20 @@ export interface FundMoicInputSummary {
 }
 
 export interface FundMoicRankingSources {
-  legacy: FundMoicRankingsResponseV1;
-  candidate: FundMoicRankingsResponseV1;
+  legacy: FundMoicRankingSourceResponse;
+  candidate: FundMoicRankingSourceResponse;
   moicInputSummary: FundMoicInputSummary;
   moicSourceInputHash: string;
+  factsBasisByInvestmentId?: ReadonlyMap<string, FundMoicFactsBasisV1>;
+}
+
+export type FundMoicRankingSourceItem = Omit<FundMoicRankingItemV1, 'factsBasis'>;
+
+export interface FundMoicRankingSourceResponse extends Omit<
+  FundMoicRankingsResponseV1,
+  'rankings'
+> {
+  rankings: FundMoicRankingSourceItem[];
 }
 
 export function summarizeMoicActualsProvenance(input: {
@@ -47,7 +63,7 @@ export function summarizeMoicActualsProvenance(input: {
   };
 }
 
-type PortfolioCompanyMoicSourceRow = {
+export type PortfolioCompanyMoicSourceRow = {
   id: number;
   fundId?: number | null;
   name: string;
@@ -161,10 +177,10 @@ function buildCandidateMoicInvestment(row: PortfolioCompanyMoicSourceRow): Candi
   };
 }
 
-export function buildMoicRankingsFromInvestments(
+function buildMoicRankingSourceFromInvestments(
   fundId: number,
   investments: MOICInvestment[]
-): FundMoicRankingsResponseV1 {
+): FundMoicRankingSourceResponse {
   const ranked = MOICCalculator.rankByReservesMOIC(investments);
 
   return {
@@ -189,9 +205,30 @@ export function buildMoicRankingsFromInvestments(
   };
 }
 
+export function discloseFundMoicRankings(
+  source: FundMoicRankingSourceResponse,
+  factsBasisByInvestmentId?: ReadonlyMap<string, FundMoicFactsBasisV1>
+): FundMoicRankingsResponseV1 {
+  return {
+    ...source,
+    rankings: source.rankings.map((ranking) => ({
+      ...ranking,
+      factsBasis: factsBasisByInvestmentId?.get(ranking.investmentId) ?? null,
+    })),
+  };
+}
+
+export function buildMoicRankingsFromInvestments(
+  fundId: number,
+  investments: MOICInvestment[]
+): FundMoicRankingsResponseV1 {
+  return discloseFundMoicRankings(buildMoicRankingSourceFromInvestments(fundId, investments));
+}
+
 export function buildMoicRankingSourcesFromCompanies(
   fundId: number,
-  companies: PortfolioCompanyMoicSourceRow[]
+  companies: PortfolioCompanyMoicSourceRow[],
+  factsByCompanyId?: ReadonlyMap<number, FundCompanyActualsFact>
 ): FundMoicRankingSources {
   const sortedCompanies = [...companies].sort((a, b) => a.id - b.id);
   const legacyInvestments = sortedCompanies.map(buildLegacyMoicInvestment);
@@ -224,25 +261,38 @@ export function buildMoicRankingSourcesFromCompanies(
     rows: candidateInputs.map((input) => input.hashRow),
     sourceVersion: MOIC_CANDIDATE_SOURCE_VERSION,
   });
+  const factsBasisByInvestmentId = factsByCompanyId
+    ? new Map(
+        sortedCompanies.map((company) => [
+          String(company.id),
+          buildFundMoicFactsBasis({
+            company,
+            fact: factsByCompanyId.get(company.id) ?? null,
+          }),
+        ])
+      )
+    : undefined;
 
   return {
-    legacy: buildMoicRankingsFromInvestments(fundId, legacyInvestments),
-    candidate: buildMoicRankingsFromInvestments(fundId, candidateInvestments),
+    legacy: buildMoicRankingSourceFromInvestments(fundId, legacyInvestments),
+    candidate: buildMoicRankingSourceFromInvestments(fundId, candidateInvestments),
     moicInputSummary,
     moicSourceInputHash,
+    ...(factsBasisByInvestmentId !== undefined && { factsBasisByInvestmentId }),
   };
 }
 
 export async function getFundMoicRankingSources(
   fundId: number,
-  database: FundMoicRankingDatabase = db
+  database: FundMoicRankingDatabase = db,
+  factsByCompanyId?: ReadonlyMap<number, FundCompanyActualsFact>
 ): Promise<FundMoicRankingSources> {
   const companies = await database.query.portfolioCompanies.findMany({
     where: (pc, { eq }) => eq(pc.fundId, fundId),
     orderBy: (pc, { asc }) => [asc(pc.id)],
   });
 
-  return buildMoicRankingSourcesFromCompanies(fundId, companies);
+  return buildMoicRankingSourcesFromCompanies(fundId, companies, factsByCompanyId);
 }
 
 export async function getFundMoicRankings(
@@ -250,5 +300,5 @@ export async function getFundMoicRankings(
   database: FundMoicRankingDatabase = db
 ): Promise<FundMoicRankingsResponseV1> {
   const sources = await getFundMoicRankingSources(fundId, database);
-  return sources.legacy;
+  return discloseFundMoicRankings(sources.legacy);
 }

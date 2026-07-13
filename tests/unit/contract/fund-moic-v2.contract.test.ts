@@ -8,8 +8,8 @@ import {
 /**
  * Structural allowlist tests for the V2 read contract.
  *
- * PR-E's whole point is that the V2 surface leaks NO ranking values, monetary
- * amounts, raw diffs, or per-investment shadow comparisons. A test that only
+ * The V2 surface permits only the declared ranking values and decimal-string
+ * facts basis; it still rejects raw diffs and shadow comparisons. A test that only
  * checks "a valid payload parses" is vacuous against that goal. So every object
  * here is pinned to an EXACT allowed key set, and `.strict()` is proven to
  * reject an injected forbidden field on each nested object.
@@ -24,6 +24,7 @@ const makeValidV2 = (): FundMoicRankingsResponseV2 => ({
       investmentId: 'inv-a',
       investmentName: 'Acme',
       reservesMoic: { value: 1.5, description: 'desc', formula: 'formula' },
+      factsBasis: null,
     },
   ],
   provenance: { mode: 'legacy', warnings: [] },

@@ -16,6 +16,7 @@ export const WarningCodeSchema = z.enum([
   'INVALID_ROUND_AMOUNT',
   'NON_EQUITY_AMOUNT_ONLY',
   'EMPTY_FUND',
+  'FACTS_MISSING',
 ]);
 
 export const StructuredWarningSchema = z

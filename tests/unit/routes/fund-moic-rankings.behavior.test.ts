@@ -3,6 +3,7 @@ import request from 'supertest';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { FundMoicRankingsResponseV2Schema } from '../../../shared/contracts/fund-moic-v2.contract';
+import type { FundMoicFactsBasisV1 } from '../../../shared/contracts/fund-moic-v1.contract';
 import type { FundMoicRankingSources } from '../../../server/services/fund-moic-ranking-service';
 import type {
   FundCalculationModePreview,
@@ -13,12 +14,18 @@ const authState = vi.hoisted(() => ({
   user: null as null | { id: number | string; sub?: string; role: string; fundIds: number[] },
 }));
 
+const log = vi.hoisted(() => ({
+  info: vi.fn(),
+  warn: vi.fn(),
+}));
+
 const svc = vi.hoisted(() => ({
   getFundMoicRankingSources: vi.fn(),
   getLatestCompletedMoicReconciliation: vi.fn(),
   resolveFundCalculationMode: vi.fn(),
   resolveMoicActionability: vi.fn(),
   buildRoundsToModelEvidence: vi.fn(),
+  buildFundCompanyActualsFacts: vi.fn(),
 }));
 
 vi.mock('../../../server/services/fund-moic-ranking-service', async (importOriginal) => {
@@ -56,6 +63,20 @@ vi.mock('../../../server/services/rounds-to-model-evidence-service', async (impo
   return { ...actual, buildRoundsToModelEvidence: svc.buildRoundsToModelEvidence };
 });
 
+vi.mock(
+  '../../../server/services/fund-actuals/fund-company-actuals-facts-service',
+  async (importOriginal) => {
+    const actual =
+      await importOriginal<
+        typeof import('../../../server/services/fund-actuals/fund-company-actuals-facts-service')
+      >();
+    return {
+      ...actual,
+      buildFundCompanyActualsFacts: svc.buildFundCompanyActualsFacts,
+    };
+  }
+);
+
 vi.mock('../../../server/lib/auth/jwt', async (importOriginal) => {
   const actual = await importOriginal<typeof import('../../../server/lib/auth/jwt')>();
   return {
@@ -68,14 +89,61 @@ vi.mock('../../../server/lib/auth/jwt', async (importOriginal) => {
   };
 });
 
+vi.mock('../../../server/lib/logger', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../../server/lib/logger')>();
+  const mockedLogger = Object.create(actual.logger) as typeof actual.logger;
+  mockedLogger.info = log.info;
+  mockedLogger.warn = log.warn;
+  return {
+    ...actual,
+    logger: mockedLogger,
+  };
+});
+
 import fundMoicRouter from '../../../server/routes/fund-moic';
 
 const generatedAt = '2026-06-24T00:00:00.000Z';
 const USER = { id: 101, role: 'admin', fundIds: [1] };
+const FACTS_INPUT_HASH = 'f'.repeat(64);
 
-function rankingItem(investmentId: string, value: number) {
+function factsBasis(overrides: Partial<FundMoicFactsBasisV1> = {}): FundMoicFactsBasisV1 {
   return {
-    rank: 1,
+    rankability: 'actionable' as const,
+    reasons: ['planning_fmv_active' as const],
+    observedInitialInvestment: '500000',
+    observedFollowOnInvestment: '125000',
+    observedTotalInvestment: '625000',
+    valuationAnchor: {
+      kind: 'planning_fmv' as const,
+      value: '1500000',
+      asOfDate: '2026-07-01',
+    },
+    planningFmvStatus: 'active' as const,
+    currencyStatus: 'base_currency' as const,
+    factsInputHash: FACTS_INPUT_HASH,
+    warnings: [],
+    ...overrides,
+  };
+}
+
+function actualsFactsResponse() {
+  return {
+    fundId: 1,
+    asOfDate: '2026-07-13',
+    inputHash: FACTS_INPUT_HASH,
+    generatedAt: '2026-07-13T00:00:00.000Z',
+    facts: [
+      {
+        companyId: 1,
+        provenance: { trustState: 'LIVE' as const },
+      },
+    ],
+  };
+}
+
+function rankingItem(investmentId: string, value: number, rank = 1) {
+  return {
+    rank,
     investmentId,
     investmentName: investmentId,
     reservesMoic: { value, description: 'desc', formula: 'formula' },
@@ -190,6 +258,7 @@ beforeEach(() => {
   svc.resolveFundCalculationMode.mockResolvedValue(modePreview());
   svc.resolveMoicActionability.mockResolvedValue(actionability());
   svc.buildRoundsToModelEvidence.mockResolvedValue(roundsEvidence());
+  svc.buildFundCompanyActualsFacts.mockResolvedValue(actualsFactsResponse());
 });
 
 describe('fund MOIC rankings route - behavioral state machine', () => {
@@ -200,6 +269,246 @@ describe('fund MOIC rankings route - behavioral state machine', () => {
     const parsed = FundMoicRankingsResponseV2Schema.parse(res.body);
     expect(parsed.provenance.mode).toBe('legacy');
     expect(parsed.rankings[0]?.investmentId).toBe('legacy-output-a');
+  });
+
+  it('attaches available facts basis without changing ranking values or order', async () => {
+    const before = sourceBundle();
+    const after = sourceBundle({
+      factsBasisByInvestmentId: new Map([
+        ['legacy-output-a', factsBasis()],
+        ['candidate-output-a', factsBasis()],
+      ]),
+    });
+    svc.getFundMoicRankingSources.mockResolvedValue(after);
+
+    const res = await getRankings();
+
+    expect(res.status).toBe(200);
+    const parsed = FundMoicRankingsResponseV2Schema.parse(res.body);
+    expect(parsed.rankings.map(({ factsBasis: _factsBasis, ...ranking }) => ranking)).toEqual(
+      before.legacy.rankings
+    );
+    expect(parsed.rankings.some((ranking) => ranking.factsBasis !== null)).toBe(true);
+    expect(svc.buildFundCompanyActualsFacts).toHaveBeenCalledTimes(1);
+    expect(svc.getFundMoicRankingSources).toHaveBeenCalledWith(1, undefined, expect.any(Map));
+  });
+
+  it.each([
+    {
+      mode: 'off' as const,
+      actionability: 'non_actionable' as const,
+      expectedSource: 'legacy' as const,
+    },
+    {
+      mode: 'shadow' as const,
+      actionability: 'non_actionable' as const,
+      expectedSource: 'legacy' as const,
+    },
+    {
+      mode: 'on' as const,
+      actionability: 'actionable' as const,
+      expectedSource: 'candidate' as const,
+    },
+  ])(
+    'keeps $mode mode ranking values identical while adding disclosure',
+    async ({ mode, actionability: actionabilityStatus, expectedSource }) => {
+      const before = sourceBundle();
+      svc.getFundMoicRankingSources.mockResolvedValue(
+        sourceBundle({
+          factsBasisByInvestmentId: new Map([
+            ['legacy-output-a', factsBasis()],
+            ['candidate-output-a', factsBasis()],
+          ]),
+        })
+      );
+      svc.resolveFundCalculationMode.mockResolvedValue(
+        modePreview({ configuredMode: mode, effectiveMode: mode })
+      );
+      svc.resolveMoicActionability.mockResolvedValue(
+        actionability({
+          actionability: actionabilityStatus,
+          actionabilityStatus,
+          sourceFingerprintMatches: actionabilityStatus === 'actionable',
+        })
+      );
+
+      const res = await getRankings();
+
+      expect(res.status).toBe(200);
+      const parsed = FundMoicRankingsResponseV2Schema.parse(res.body);
+      expect(parsed.rankings.map(({ factsBasis: _factsBasis, ...ranking }) => ranking)).toEqual(
+        before[expectedSource].rankings
+      );
+      expect(parsed.rankings.some((ranking) => ranking.factsBasis !== null)).toBe(true);
+    }
+  );
+
+  it('keeps HTTP behavior unchanged and returns null bases when the facts load fails', async () => {
+    svc.buildFundCompanyActualsFacts.mockRejectedValueOnce(new Error('facts backend down'));
+
+    const res = await getRankings();
+
+    expect(res.status).toBe(200);
+    const parsed = FundMoicRankingsResponseV2Schema.parse(res.body);
+    expect(parsed.actualsProvenanceSummary).toMatchObject({
+      factsStatus: 'failed',
+      factsInputHash: null,
+      warnings: ['actuals_facts_failed'],
+    });
+    expect(parsed.rankings.every((ranking) => ranking.factsBasis === null)).toBe(true);
+    expect(svc.buildFundCompanyActualsFacts).toHaveBeenCalledTimes(1);
+  });
+
+  it.each(['shadow', 'on'] as const)(
+    'emits one privacy-bounded facts-basis comparison when effective mode is %s',
+    async (mode) => {
+      const base = sourceBundle();
+      const legacyRankings = [1, 2, 3, 4, 5, 6].map((companyId) =>
+        rankingItem(String(companyId), companyId, companyId)
+      );
+      const candidateRankings = legacyRankings.map((ranking) => ({
+        ...ranking,
+        reservesMoic: { ...ranking.reservesMoic, value: (ranking.reservesMoic.value ?? 0) + 10 },
+      }));
+      svc.getFundMoicRankingSources.mockResolvedValue(
+        sourceBundle({
+          legacy: {
+            ...base.legacy,
+            provenance: { ...base.legacy.provenance, sourceRecordCount: 6 },
+            rankings: legacyRankings,
+          },
+          candidate: {
+            ...base.candidate,
+            provenance: { ...base.candidate.provenance, sourceRecordCount: 6 },
+            rankings: candidateRankings,
+          },
+          moicInputSummary: {
+            ...base.moicInputSummary,
+            defaultedExitProbabilityCount: 2,
+            defaultedReserveExitMultipleCount: 1,
+          },
+          factsBasisByInvestmentId: new Map([
+            ['1', factsBasis({ rankability: 'indicative', reasons: ['planning_fmv_stale'] })],
+            ['2', factsBasis()],
+            [
+              '3',
+              factsBasis({
+                rankability: 'not_actionable',
+                reasons: ['currency_blocked'],
+                currencyStatus: 'mismatch_blocked',
+                valuationAnchor: { kind: 'none', value: null, asOfDate: null },
+              }),
+            ],
+            ['4', factsBasis()],
+            ['5', factsBasis({ rankability: 'indicative', reasons: ['planning_fmv_stale'] })],
+            ['6', factsBasis()],
+          ]),
+        })
+      );
+      svc.resolveFundCalculationMode.mockResolvedValue(
+        modePreview({ configuredMode: mode, effectiveMode: mode })
+      );
+      svc.resolveMoicActionability.mockResolvedValue(
+        actionability({
+          actionability: mode === 'on' ? 'actionable' : 'non_actionable',
+          actionabilityStatus: mode === 'on' ? 'actionable' : 'non_actionable',
+          sourceFingerprintMatches: mode === 'on',
+        })
+      );
+
+      const res = await getRankings();
+
+      expect(res.status).toBe(200);
+      expect(log.info).toHaveBeenCalledTimes(1);
+      const [bindings, message] = log.info.mock.calls[0] ?? [];
+      expect(Object.keys(bindings ?? {}).sort()).toEqual(
+        [
+          'actionableCount',
+          'companyCount',
+          'currencyBlockedCount',
+          'defaultedExitProbabilityCount',
+          'defaultedReserveExitMultipleCount',
+          'durationMs',
+          'factsEligibleTopCompanyId',
+          'factsInputHash',
+          'fundId',
+          'indicativeCount',
+          'legacyTopCompanyId',
+          'notActionableCount',
+          'topNOverlap',
+        ].sort()
+      );
+      expect(bindings).toMatchObject({
+        fundId: 1,
+        factsInputHash: 'ffffffffffff',
+        companyCount: 6,
+        actionableCount: 3,
+        indicativeCount: 2,
+        notActionableCount: 1,
+        legacyTopCompanyId: 1,
+        factsEligibleTopCompanyId: 2,
+        topNOverlap: 2,
+        defaultedExitProbabilityCount: 2,
+        defaultedReserveExitMultipleCount: 1,
+        currencyBlockedCount: 1,
+        durationMs: expect.any(Number),
+      });
+      expect(bindings?.durationMs).toBeGreaterThanOrEqual(0);
+      expect(message).toBe('fund-moic facts-basis shadow comparison generated');
+      expect(JSON.stringify(bindings)).not.toMatch(
+        /legacy-output|candidate-output|Acme|observed|valuationAnchor|reservesMoic/
+      );
+    }
+  );
+
+  it('emits no facts-basis comparison when effective mode is off', async () => {
+    const res = await getRankings();
+
+    expect(res.status).toBe(200);
+    expect(log.info).not.toHaveBeenCalled();
+  });
+
+  it('emits an unavailable comparison without leaking values when shadow facts fail', async () => {
+    svc.buildFundCompanyActualsFacts.mockRejectedValueOnce(new Error('facts backend down'));
+    svc.resolveFundCalculationMode.mockResolvedValue(
+      modePreview({ configuredMode: 'shadow', effectiveMode: 'shadow' })
+    );
+
+    const res = await getRankings();
+
+    expect(res.status).toBe(200);
+    expect(log.info).toHaveBeenCalledWith(
+      {
+        fundId: 1,
+        factsInputHash: null,
+        companyCount: 1,
+        actionableCount: 0,
+        indicativeCount: 0,
+        notActionableCount: 0,
+        legacyTopCompanyId: null,
+        factsEligibleTopCompanyId: null,
+        topNOverlap: 0,
+        defaultedExitProbabilityCount: 0,
+        defaultedReserveExitMultipleCount: 0,
+        currencyBlockedCount: 0,
+        durationMs: expect.any(Number),
+      },
+      'fund-moic facts-basis shadow comparison generated'
+    );
+  });
+
+  it('keeps the response successful when facts-basis telemetry logging throws', async () => {
+    svc.resolveFundCalculationMode.mockResolvedValue(
+      modePreview({ configuredMode: 'shadow', effectiveMode: 'shadow' })
+    );
+    log.info.mockImplementationOnce(() => {
+      throw new Error('logger unavailable');
+    });
+
+    const res = await getRankings();
+
+    expect(res.status).toBe(200);
+    expect(log.info).toHaveBeenCalledTimes(1);
   });
 
   it('returns candidate rankings when mode is on and actionability is actionable', async () => {
@@ -294,10 +603,15 @@ describe('fund MOIC rankings route - behavioral state machine', () => {
     const res = await getRankings('/api/funds/1/moic/rankings');
 
     expect(res.status).toBe(200);
-    expect(res.body).toEqual(sources.legacy);
+    expect(res.body).toEqual({
+      ...sources.legacy,
+      rankings: sources.legacy.rankings.map((ranking) => ({ ...ranking, factsBasis: null })),
+    });
     expect(res.body).not.toHaveProperty('modePreview');
     expect(res.body).not.toHaveProperty('materiality');
     expect(res.body).not.toHaveProperty('latestReconciliation');
     expect(res.body).not.toHaveProperty('roundEvidenceSummary');
+    expect(res.body.rankings[0]?.factsBasis).toBeNull();
+    expect(svc.buildFundCompanyActualsFacts).not.toHaveBeenCalled();
   });
 });

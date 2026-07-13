@@ -6,6 +6,8 @@ import type {
 import Decimal from '../../../shared/lib/decimal-config';
 import { logger } from '../../lib/logger';
 
+type PlannedRankingItem = Pick<FundMoicRankingItemV1, 'investmentId' | 'rank' | 'reservesMoic'>;
+
 export interface MarginalReserveShadowMetrics {
   top_3_overlap: number;
   top_5_overlap: number;
@@ -45,7 +47,7 @@ export interface MarginalReserveMoicShadowArtifact {
 
 export interface MarginalReserveMoicShadowInput {
   fundId: number;
-  plannedRankings: readonly FundMoicRankingItemV1[];
+  plannedRankings: readonly PlannedRankingItem[];
   marginalRankings: readonly MarginalReserveRankingItemV1[];
   unavailable: readonly MarginalReserveInputFailure[];
   annotationsByInversionId?: Readonly<Record<string, MarginalReserveShadowAnnotationInput>>;
@@ -73,9 +75,7 @@ function positiveCompanyId(value: string): number | null {
   return Number.isSafeInteger(companyId) ? companyId : null;
 }
 
-function plannedActionableRankings(
-  rankings: readonly FundMoicRankingItemV1[]
-): ActionableRanking[] {
+function plannedActionableRankings(rankings: readonly PlannedRankingItem[]): ActionableRanking[] {
   const seen = new Set<number>();
   const ordered = [...rankings].sort((left, right) => {
     const rankOrder = left.rank - right.rank;

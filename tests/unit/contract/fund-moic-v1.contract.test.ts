@@ -18,6 +18,7 @@ function makeValidResponse() {
         rank: 1,
         investmentId: '101',
         investmentName: 'Acme Corp',
+        factsBasis: null,
         reservesMoic: {
           value: 3.5,
           description: 'Expected return on planned reserves',
@@ -91,6 +92,20 @@ describe('FundMoicRankingsResponseV1 contract', () => {
     };
 
     expect(FundMoicRankingsResponseV1Schema.safeParse(withExtraRanking).success).toBe(false);
+  });
+
+  it('requires factsBasis while accepting an explicit null disclosure', () => {
+    const response = makeValidResponse();
+    const [ranking] = response.rankings;
+    const { factsBasis: _factsBasis, ...withoutFactsBasis } = ranking;
+
+    expect(FundMoicRankingsResponseV1Schema.safeParse(response).success).toBe(true);
+    expect(
+      FundMoicRankingsResponseV1Schema.safeParse({
+        ...response,
+        rankings: [withoutFactsBasis],
+      }).success
+    ).toBe(false);
   });
 
   it('rejects unknown reservesMoic keys', () => {
