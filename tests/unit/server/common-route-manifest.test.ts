@@ -376,6 +376,9 @@ describe('canonical common API route manifest', () => {
     expect(Object.keys(COMMON_ROUTE_IMPLEMENTATIONS)).toEqual(
       COMMON_API_ROUTE_MANIFEST.map(({ id }) => id)
     );
+    expect([...MIGRATED_COMMON_ROUTE_IDS].sort()).toEqual(
+      COMMON_API_ROUTE_MANIFEST.map(({ id }) => id).sort()
+    );
   });
 
   it('keeps probes concrete and mutation probes JSON-compatible', () => {

@@ -9,16 +9,6 @@ import healthRouter from './routes/health.js';
 import calculationsRouter from './routes/calculations.js';
 import aiRouter from './routes/ai.js';
 import scenarioAnalysisRouter from './routes/scenario-analysis.js';
-import fundScenarioSetsRouter from './routes/fund-scenario-sets.js';
-import fundMoicRouter from './routes/fund-moic.js';
-import timelineRouter from './routes/timeline.js';
-import capitalAllocationRouter from './routes/capital-allocation.js';
-import liquidityRouter from './routes/liquidity.js';
-import graduationRouter from './routes/graduation.js';
-import backtestingRouter from './routes/backtesting.js';
-import varianceRouter from './routes/variance.js';
-import cohortAnalysisRouter from './routes/cohort-analysis.js';
-import sensitivityRouter from './routes/sensitivity.js';
 import metricsRouter from './routes/metrics-endpoint.js';
 import { installRumIngressGuards } from './routes/metrics-rum-ingress.js';
 import { metricsRumRouter } from './routes/metrics-rum.js';
@@ -195,40 +185,6 @@ export function makeApp() {
 
   // Scenario Analysis API (Construction vs Current, deal modeling)
   app.use('/api', scenarioAnalysisRouter);
-  app.use('/', varianceRouter);
-
-  app.use('/api', fundScenarioSetsRouter);
-  app.use('/api', fundMoicRouter);
-  // Timeline / time-travel API (#1036 burn-down). Mounted here so the
-  // Vercel/makeApp surface matches the Docker routes.ts mount; without it the
-  // client's /api/timeline calls 404 in prod. /events/latest self-gates with
-  // requireAuth()+requireRole('admin') inside the router (cross-surface safe).
-  app.use('/api/timeline', timelineRouter);
-  // Capital-allocation API (#1036 burn-down). Pure deterministic compute (no DB, no fund-scope,
-  // no route-local auth) — protected only by the global /api auth boundary above. Mounted here so
-  // the Vercel/makeApp surface matches the Docker routes.ts mount; without it /api/capital-allocation
-  // 404s in prod. This closes the parity 404 gap; it does NOT by itself restore the prod client flow
-  // (the client hook sends no Bearer token — see the handoff TODO).
-  app.use('/api/capital-allocation', capitalAllocationRouter);
-  // Liquidity API (#1036 burn-down). Pure deterministic compute (no DB, NOT fund-scoped, no
-  // route-local auth) — protected only by the global /api auth boundary above. Mounted here so the
-  // Vercel/makeApp surface matches the Docker routes.ts mount; without it /api/liquidity 404s in prod.
-  // Closes the parity 404 gap; does NOT by itself restore the prod client flow (hook sends no Bearer).
-  app.use('/api/liquidity', liquidityRouter);
-  // Graduation API (#1036 burn-down). Pure deterministic compute (no DB, no fund-scope, no
-  // route-local auth) — protected only by the global /api auth boundary above. Mounted here so the
-  // Vercel/makeApp surface matches the Docker routes.ts mount; without it /api/graduation 404s in prod.
-  // Closes the parity 404 gap; does NOT by itself restore the prod client flow (hook sends no Bearer).
-  app.use('/api/graduation', graduationRouter);
-
-  // Cohort Analysis API (Advanced cohort analysis with sector/vintage normalization)
-  app.use('/api/cohorts', cohortAnalysisRouter);
-
-  // Sensitivity Analysis API (Phase 1A - one-way sweeps; fund-scoped)
-  app.use('/api', sensitivityRouter);
-  // Backtesting API (Monte Carlo validation)
-  app.use('/api/backtesting', backtestingRouter);
-
   // API version endpoint for deployment verification
   app['get']('/api/version', (_req: Request, res: Response) =>
     res.json({

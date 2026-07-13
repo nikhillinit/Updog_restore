@@ -133,6 +133,16 @@ export const MIGRATED_COMMON_ROUTE_IDS = [
   'lp-notifications',
   'lp-reporting-imports',
   'lp-reporting-metric-runs',
+  'variance',
+  'fund-scenario-sets',
+  'fund-moic',
+  'timeline',
+  'capital-allocation',
+  'liquidity',
+  'graduation',
+  'cohort-analysis',
+  'sensitivity',
+  'backtesting',
 ] as const satisfies readonly CommonApiRouteId[];
 
 const REGISTER_ROUTES_COMMON_ORDER = [

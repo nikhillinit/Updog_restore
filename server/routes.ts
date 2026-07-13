@@ -43,16 +43,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   mountCommonRoutes(app, { surface: 'register_routes', stage: 'core' });
 
-  // Cohort Analysis routes
-  await mountDefaultRoute(app, {
-    mountPath: '/api/cohorts',
-    load: () => import('./routes/cohort-analysis.js'),
-  });
-
   await mountDefaultRoutes(app, [
     // Health and metrics routes
     { mountPath: '/', load: () => import('./routes/health.js') },
-    { mountPath: '/api', load: () => import('./routes/fund-scenario-sets.js') },
     { mountPath: '/api', load: () => import('./routes/activities.js') },
     { mountPath: '/api', load: () => import('./routes/fund-metrics-legacy.js') },
     { mountPath: '/api', load: () => import('./routes/engine-summaries.js') },
@@ -62,17 +55,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     { mountPath: '/api/monte-carlo', load: () => import('./routes/monte-carlo.js') },
     // Cache monitoring & management routes
     { mountPath: '/api/cache', load: () => import('./routes/cache.js') },
-    // Backtesting routes (Monte Carlo validation)
-    { mountPath: '/api/backtesting', load: () => import('./routes/backtesting.js') },
-    { mountPath: '/api', load: () => import('./routes/sensitivity.js') },
-    // Fund-scoped MOIC follow-on rankings (authenticated, fund-scoped)
-    { mountPath: '/api', load: () => import('./routes/fund-moic.js') },
-    // Graduation Rate Engine routes
-    { mountPath: '/api/graduation', load: () => import('./routes/graduation.js') },
-    // Capital Allocation Engine routes
-    { mountPath: '/api/capital-allocation', load: () => import('./routes/capital-allocation.js') },
-    // Liquidity Engine routes
-    { mountPath: '/api/liquidity', load: () => import('./routes/liquidity.js') },
     // Performance monitoring routes
     { mountPath: '/api/performance', load: () => import('./routes/performance-metrics.js') },
     // Server-Sent Events (SSE) routes for real-time updates
@@ -105,13 +87,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Dashboard, investments, portfolio companies, activities, legacy fund
   // metrics, and engine summary routes have been extracted into dedicated
   // modules.
-
-  await mountDefaultRoutes(app, [
-    // Register variance tracking routes
-    { mountPath: '/', load: () => import('./routes/variance.js') },
-    // Register timeline routes for event-sourced architecture
-    { mountPath: '/api/timeline', load: () => import('./routes/timeline.js') },
-  ]);
 
   // Admin routes for engine management (non-prod only)
   const { engineAdminRoutes } = await import('./routes/admin/engine.js');
