@@ -6,10 +6,13 @@
  */
 
 import { Router } from 'express';
-import type { Request, Response } from 'express';
+import type { NextFunction, Request, Response } from 'express';
 import { z } from 'zod';
 import { db } from '../db';
+import { Sha256Schema } from '@shared/contracts/fund-actuals/fund-company-actuals-fact.contract';
+import { ScenarioCaseSeedV1Schema } from '@shared/contracts/scenarios/scenario-case-seed-v1.contract';
 import { scenarios, scenarioCases, scenarioAuditLogs } from '@shared/schema';
+import { FundIdParamSchema } from '@shared/schemas/portfolio-route';
 import { eq, and } from 'drizzle-orm';
 import {
   calculateWeightedSummary,
@@ -18,10 +21,15 @@ import {
   addMOICToCases,
 } from '@shared/utils/scenario-math';
 import type { ScenarioAnalysisResponse, ScenarioCase } from '@shared/types/scenario';
-import { requireAuth } from '../lib/auth/jwt';
+import { requireAuth, requireFundAccess } from '../lib/auth/jwt';
 import { firstString } from '../lib/request-values';
 import { createRouteLogger } from '../lib/route-logger.js';
 import { enforceCompanyFundScope } from '../lib/auth/company-fund-scope';
+import {
+  buildFundCompanyActualsFacts,
+  FundActualsFactsServiceError,
+} from '../services/fund-actuals/fund-company-actuals-facts-service';
+import { buildScenarioCaseSeed } from '../services/scenarios/scenario-case-seed-service';
 
 const routeLog = createRouteLogger('scenario-analysis');
 
@@ -72,6 +80,54 @@ const ReserveSuggestionsSchema = z.object({
   scenario_id: z.string(),
 });
 
+const ScenarioSeedQuerySchema = z
+  .object({
+    asOfDate: z.string().date().optional(),
+  })
+  .strict();
+
+const ScenarioSeedResponseSchema = z.discriminatedUnion('factsStatus', [
+  z
+    .object({
+      fundId: z.number().int().positive(),
+      asOfDate: z.string().date(),
+      factsStatus: z.literal('available'),
+      factsInputHash: Sha256Schema,
+      seeds: z.array(ScenarioCaseSeedV1Schema),
+    })
+    .strict(),
+  z
+    .object({
+      fundId: z.number().int().positive(),
+      asOfDate: z.string().date(),
+      factsStatus: z.literal('failed'),
+      factsInputHash: z.null(),
+      seeds: z.array(ScenarioCaseSeedV1Schema).max(0),
+    })
+    .strict(),
+]);
+
+function failedScenarioSeedResponse(fundId: number, asOfDate: string) {
+  return ScenarioSeedResponseSchema.parse({
+    fundId,
+    asOfDate,
+    factsStatus: 'failed',
+    factsInputHash: null,
+    seeds: [],
+  });
+}
+
+function validateScenarioSeedFundId(req: Request, res: Response, next: NextFunction) {
+  const parsed = FundIdParamSchema.safeParse(req.params);
+  if (!parsed.success) {
+    return res.status(400).json({
+      error: 'invalid_fund_id',
+      message: 'Fund ID must be a positive integer',
+    });
+  }
+  next();
+}
+
 // ============================================================================
 // Middleware: User tracking for audit
 // ============================================================================
@@ -114,6 +170,55 @@ async function auditLog(params: {
 // ============================================================================
 // Scenario CRUD (Deal-Level)
 // ============================================================================
+
+router['get'](
+  '/funds/:fundId/scenario-analysis/seeds',
+  requireAuth(),
+  validateScenarioSeedFundId,
+  requireFundAccess,
+  async (req: Request, res: Response) => {
+    const { fundId } = FundIdParamSchema.parse(req.params);
+    const parsedQuery = ScenarioSeedQuerySchema.safeParse(req.query);
+    if (!parsedQuery.success) {
+      return res.status(400).json({
+        error: 'invalid_as_of_date',
+        message: 'asOfDate must be YYYY-MM-DD when provided',
+      });
+    }
+    const asOfDate = parsedQuery.data.asOfDate ?? new Date().toISOString().slice(0, 10);
+
+    let facts: Awaited<ReturnType<typeof buildFundCompanyActualsFacts>>;
+    try {
+      facts = await buildFundCompanyActualsFacts({ fundId, asOfDate });
+    } catch (error: unknown) {
+      if (error instanceof FundActualsFactsServiceError && error.status === 404) {
+        return res.status(404).json({ error: error.code, message: error.message });
+      }
+      routeLog.error('Scenario seed facts load failed:', error);
+      return res.json(failedScenarioSeedResponse(fundId, asOfDate));
+    }
+
+    if (facts.fundId !== fundId || facts.asOfDate !== asOfDate) {
+      routeLog.error(
+        'Scenario seed facts scope mismatch:',
+        new Error(
+          `Requested fund ${fundId} as of ${asOfDate}, received fund ${facts.fundId} as of ${facts.asOfDate}`
+        )
+      );
+      return res.json(failedScenarioSeedResponse(fundId, asOfDate));
+    }
+
+    return res.json(
+      ScenarioSeedResponseSchema.parse({
+        fundId,
+        asOfDate,
+        factsStatus: 'available',
+        factsInputHash: facts.inputHash,
+        seeds: facts.facts.map((fact) => buildScenarioCaseSeed({ fundId, fact, asOfDate })),
+      })
+    );
+  }
+);
 
 /**
  * GET /api/companies/:companyId/scenarios/:scenarioId

@@ -1,13 +1,10 @@
 import { z } from 'zod';
 
 import { DecimalStringSchema } from '../lp-reporting/cash-flow-event.contract';
-import {
-  ProvenanceEnvelopeSchema,
-  StructuredWarningSchema,
-} from '../provenance-envelope.contract';
+import { ProvenanceEnvelopeSchema, StructuredWarningSchema } from '../provenance-envelope.contract';
 
 const PositiveIdSchema = z.number().int().positive();
-const Sha256Schema = z.string().regex(/^[a-f0-9]{64}$/);
+export const Sha256Schema = z.string().regex(/^[a-f0-9]{64}$/);
 const IsoDateSchema = z.string().date();
 const CurrencyCodeSchema = z.string().regex(/^[A-Z]{3}$/);
 
@@ -79,9 +76,5 @@ export type FundCompanyActualsPlanningFmvStatus = z.infer<
 export type FundCompanyActualsCurrencyStatus = z.infer<
   typeof FundCompanyActualsCurrencyStatusSchema
 >;
-export type FundCompanyActualsFact = z.infer<
-  typeof FundCompanyActualsFactSchema
->;
-export type FundCompanyActualsFactsResponse = z.infer<
-  typeof FundCompanyActualsFactsResponseSchema
->;
+export type FundCompanyActualsFact = z.infer<typeof FundCompanyActualsFactSchema>;
+export type FundCompanyActualsFactsResponse = z.infer<typeof FundCompanyActualsFactsResponseSchema>;
