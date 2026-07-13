@@ -14,6 +14,7 @@ import {
   MOIC_MATERIALITY_EPSILON,
 } from '../services/fund-moic-materiality.js';
 import {
+  discloseFundMoicRankings,
   getFundMoicRankingSources,
   summarizeMoicActualsProvenance,
 } from '../services/fund-moic-ranking-service.js';
@@ -48,6 +49,7 @@ import {
   type MarginalReserveRankingItemV1,
 } from '../../shared/contracts/marginal-reserve-moic-v1.contract.js';
 import { buildMarginalReserveMoicInputs } from '../services/moic/marginal-reserve-moic-input-service.js';
+import { emitFundMoicFactsShadowTelemetry } from '../services/moic/fund-moic-facts-shadow-telemetry.js';
 
 const router = Router();
 
@@ -217,7 +219,7 @@ router.get(
         modePreview.effectiveMode === 'on' && actionability.actionability === 'actionable'
           ? sources.candidate
           : sources.legacy;
-      return res.json(rankings);
+      return res.json(discloseFundMoicRankings(rankings));
     }
 
     if (contract !== 'v2') {
@@ -227,32 +229,20 @@ router.get(
       });
     }
 
-    const [sources, latestReconciliation, evidence] = await Promise.all([
-      getFundMoicRankingSources(fundId),
-      getLatestCompletedMoicReconciliation(fundId),
-      buildRoundsToModelEvidence({ fundId }),
-    ]);
+    const factsShadowStartedAt = performance.now();
+
     // TODO(perf): this loads the full company-actuals facts corpus (~6 queries + hash in
-    // fund-company-actuals-facts-service) only to tally trustState counts; per-company facts
+    // fund-company-actuals-facts-service) for provenance and disclosure. Per-company facts
     // are not used in ranking values. MOIC analysis is a low-frequency GP page today, so ship
     // as-is, but memoize per (fundId, asOfDate) or expose a count-only facts helper if this page
     // becomes polled or the corpus grows. Tracked as a separate low-priority GitHub perf issue.
     const actualsAsOfDate = new Date().toISOString().slice(0, 10);
-    const sourceCompanyCount = sources.legacy.provenance.sourceRecordCount;
-    let actualsProvenanceSummary: ReturnType<typeof summarizeMoicActualsProvenance>;
+    let actualsFacts: Awaited<ReturnType<typeof buildFundCompanyActualsFacts>> | null = null;
 
     try {
-      const actualsFacts = await buildFundCompanyActualsFacts({
+      actualsFacts = await buildFundCompanyActualsFacts({
         fundId,
         asOfDate: actualsAsOfDate,
-      });
-      actualsProvenanceSummary = summarizeMoicActualsProvenance({
-        factsStatus: 'available',
-        factsInputHash: actualsFacts.inputHash,
-        trustStates: actualsFacts.facts.map((fact) => fact.provenance.trustState),
-        defaultedEconomicInputCount:
-          sources.moicInputSummary.defaultedExitProbabilityCount +
-          sources.moicInputSummary.defaultedReserveExitMultipleCount,
       });
     } catch (error) {
       // Disclosed to the client via warnings, but not silent server-side: operators need the reason.
@@ -264,6 +254,29 @@ router.get(
         },
         'fund-moic v2 actuals facts load failed; returning UNAVAILABLE provenance summary'
       );
+    }
+
+    const factsByCompanyId = actualsFacts
+      ? new Map(actualsFacts.facts.map((fact) => [fact.companyId, fact] as const))
+      : undefined;
+    const [sources, latestReconciliation, evidence] = await Promise.all([
+      getFundMoicRankingSources(fundId, undefined, factsByCompanyId),
+      getLatestCompletedMoicReconciliation(fundId),
+      buildRoundsToModelEvidence({ fundId }),
+    ]);
+    const sourceCompanyCount = sources.legacy.provenance.sourceRecordCount;
+    let actualsProvenanceSummary: ReturnType<typeof summarizeMoicActualsProvenance>;
+
+    if (actualsFacts) {
+      actualsProvenanceSummary = summarizeMoicActualsProvenance({
+        factsStatus: 'available',
+        factsInputHash: actualsFacts.inputHash,
+        trustStates: actualsFacts.facts.map((fact) => fact.provenance.trustState),
+        defaultedEconomicInputCount:
+          sources.moicInputSummary.defaultedExitProbabilityCount +
+          sources.moicInputSummary.defaultedReserveExitMultipleCount,
+      });
+    } else {
       actualsProvenanceSummary = summarizeMoicActualsProvenance({
         factsStatus: 'failed',
         factsInputHash: null,
@@ -290,7 +303,7 @@ router.get(
     const response: FundMoicRankingsResponseV2 = {
       contractVersion: '2.1.0',
       fundId,
-      rankings: rankings.rankings,
+      rankings: discloseFundMoicRankings(rankings, sources.factsBasisByInvestmentId).rankings,
       provenance: {
         mode: usingCandidateRankings ? 'candidate' : 'legacy',
         warnings: modePreview.blockers,
@@ -319,7 +332,16 @@ router.get(
       generatedAt: new Date().toISOString(),
     };
 
-    return res.json(FundMoicRankingsResponseV2Schema.parse(response));
+    const parsedResponse = FundMoicRankingsResponseV2Schema.parse(response);
+    if (modePreview.effectiveMode === 'shadow' || modePreview.effectiveMode === 'on') {
+      emitFundMoicFactsShadowTelemetry({
+        fundId,
+        factsInputHash: actualsProvenanceSummary.factsInputHash,
+        sources,
+        durationMs: performance.now() - factsShadowStartedAt,
+      });
+    }
+    return res.json(parsedResponse);
   })
 );
 

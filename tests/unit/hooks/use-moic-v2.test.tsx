@@ -14,6 +14,7 @@ function makeV2Response(fundId: number): FundMoicRankingsResponseV2 {
         rank: 1,
         investmentId: '101',
         investmentName: 'Acme Corp',
+        factsBasis: null,
         reservesMoic: {
           value: 0,
           description: 'Expected return on planned reserves',
