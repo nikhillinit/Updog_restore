@@ -64,13 +64,20 @@ describe('fund-moic route contract', () => {
   });
 
   it('mounts the fund MOIC router on both server boot surfaces', async () => {
+    // Post common-manifest convergence (#1090) both entrypoints mount shared routers
+    // through server/routes/mount-common-routes.ts, so the proof is the delegation
+    // chain: the common map carries fund-moic at /api, and each surface invokes its
+    // surface-specific mountCommonRoutes call. Group membership/order completeness is
+    // owned by tests/unit/server/common-route-manifest.test.ts.
+    const commonMapSource = await readRepoFile('server/routes/mount-common-routes.ts');
+    expect(commonMapSource).toContain("import fundMoicRouter from './fund-moic.js'");
+    expect(commonMapSource).toMatch(/'fund-moic':\s*at\(\s*'\/api'\s*,\s*fundMoicRouter\s*\)/);
+
     const appSource = await readRepoFile('server/app.ts');
-    expect(appSource).toMatch(/app\.use\(\s*['"]\/api['"]\s*,\s*fundMoicRouter\s*\)/);
+    expect(appSource).toContain("mountCommonRoutes(app, { surface: 'make_app'");
 
     const routesSource = await readRepoFile('server/routes.ts');
-    expect(routesSource).toMatch(
-      /\{\s*mountPath:\s*['"]\/api['"]\s*,\s*load:\s*\(\)\s*=>\s*import\(['"]\.\/routes\/fund-moic\.js['"]\)\s*\}/s
-    );
+    expect(routesSource).toContain("mountCommonRoutes(app, { surface: 'register_routes'");
   });
 
   it('maps the idempotency lifecycle to 428 (missing key), 409 (conflict), 201/200 (new/replay)', async () => {
