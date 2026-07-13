@@ -132,10 +132,10 @@ source/version/hash and shadow criteria are also met.
 Inputs and results use literal version identifiers. Facts and assumptions carry
 separate lower-case SHA-256 hashes. The engine validates and normalizes the
 input, preserves both source hashes, and computes the result hash from the
-canonical output payload excluding `resultHash`. Object keys are canonicalized;
-stage arrays retain their unique canonical stage order because order is model
-semantics. A changed fact, assumption, engine version, or ordered stage path
-therefore produces a distinguishable evidence record.
+canonical normalized input and output payloads, excluding `resultHash`. Object
+keys are canonicalized; stage arrays retain their unique canonical stage order
+because order is model semantics. A changed fact, assumption, engine version, or
+ordered stage path therefore produces a distinguishable evidence record.
 
 ### Shadow acceptance criteria
 
