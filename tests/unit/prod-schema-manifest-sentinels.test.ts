@@ -81,7 +81,7 @@ function namesSurvivingSql(sqlFiles: string[]): Set<string> {
 describe('prod-schema manifest sentinels', () => {
   const manifests = loadManifestFiles();
 
-  it('finds the four PR-1 manifests, the operator-seam manifest, and the H9 + allocation-scenario manifests', () => {
+  it('finds the four PR-1 manifests and all additive production manifests through scenario seed provenance', () => {
     expect(manifests.map((entry) => entry.file)).toEqual([
       '01-cohort.json',
       '02-fund-moic.json',
@@ -90,6 +90,7 @@ describe('prod-schema manifest sentinels', () => {
       '05-operator-seam.json',
       '06-h9-actionability.json',
       '07-allocation-scenarios.json',
+      '08-scenario-case-seed-provenance.json',
     ]);
   });
 

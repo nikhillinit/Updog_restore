@@ -312,4 +312,5 @@ schema_tests:
   - 'scripts/reconcile-prod-schema.mjs'
   - 'scripts/prod-schema-manifests/**'
   - 'tests/integration/prod-schema-reconcile-partial-drift.test.ts'
+  - 'tests/integration/scenarios/scenario-case-seed-persistence.test.ts'
   - '.github/workflows/prod-schema-reconcile.yml'
