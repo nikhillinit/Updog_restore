@@ -25,7 +25,21 @@ import { users } from '@shared/schema/user';
 const { createMoicActionabilityResolver, resolveForFund } = vi.hoisted(() => {
   const resolveForFund = vi.fn();
   return {
-    createMoicActionabilityResolver: vi.fn(() => ({ resolveForFund })),
+    createMoicActionabilityResolver: vi.fn((params: { reuseFactsSource?: boolean }) => {
+      let cachedResult: unknown;
+      return {
+        resolveForFund: vi.fn((fundId: number) => {
+          if (params.reuseFactsSource && cachedResult !== undefined) {
+            return cachedResult;
+          }
+          const result: unknown = resolveForFund(fundId);
+          if (params.reuseFactsSource) {
+            cachedResult = result;
+          }
+          return result;
+        }),
+      };
+    }),
     resolveForFund,
   };
 });
@@ -372,12 +386,12 @@ describe('assembleMetricRunReportPackage', () => {
     });
     expect(createMoicActionabilityResolver).toHaveBeenCalledWith({
       database: expect.anything(),
-      reuseFactsSource: true,
+      reuseFactsSource: false,
     });
     expect(resolveForFund).toHaveBeenCalledWith(1);
   });
 
-  it('aborts assembly with H9_SOURCE_CHANGED_DURING_ASSEMBLY when the fingerprint drifts mid-assembly', async () => {
+  it('bypasses the facts cache and aborts assembly when the H9 fingerprint drifts mid-assembly', async () => {
     resolveForFund.mockResolvedValueOnce(H9_RESULT).mockResolvedValueOnce({
       ...H9_RESULT,
       sourceFingerprint: { ...H9_RESULT.sourceFingerprint, fingerprintHash: 'f'.repeat(64) },

@@ -9,6 +9,7 @@ import {
 } from '../../../shared/contracts/reserve-input-provenance.contract';
 import Decimal from '../../../shared/lib/decimal-config';
 import { buildFundCompanyActualsFacts } from '../fund-actuals/fund-company-actuals-facts-service';
+import type { FundMoicFactsSource } from '../fund-moic-ranking-service';
 import { buildReservePortfolioInputWithProvenance } from '../reserve-input-builder';
 
 export type { FactsReserveCandidate } from '../../../shared/contracts/reserve-input-provenance.contract';
@@ -40,13 +41,19 @@ function eligibleInputIsTrusted(input: ReserveCompanyInputWithProvenance): boole
 export async function buildFactsReserveCandidates(input: {
   fundId: number;
   asOfDate: string;
+  factsSource?: FundMoicFactsSource;
 }): Promise<{
   candidates: FactsReserveCandidate[];
   factsInputHash: string | null;
   trustSummary: ReserveInputTrustSummary;
 }> {
   const legacy = await buildReservePortfolioInputWithProvenance(input.fundId);
-  const facts = await buildFundCompanyActualsFacts(input).catch(() => null);
+  const factsSource =
+    input.factsSource ??
+    (await buildFundCompanyActualsFacts({ fundId: input.fundId, asOfDate: input.asOfDate })
+      .then((response) => ({ status: 'available' as const, response }))
+      .catch(() => ({ status: 'absent' as const })));
+  const facts = factsSource.status === 'available' ? factsSource.response : null;
   const factsByCompany = new Map(
     (facts?.facts ?? []).map((fact) => [fact.companyId, fact] as const)
   );
