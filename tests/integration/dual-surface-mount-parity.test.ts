@@ -39,17 +39,13 @@ const CORPUS: CorpusEntry[] = [
 describe('dual-surface mount parity (makeApp vs registerRoutes)', () => {
   beforeAll(async () => {
     const { makeApp } = await import('../../server/app');
-    const { createInProcessRouteHarness } = await import('./in-process-route-harness');
+    const { createInProcessRouteHarness, createSyntheticAdminAuth } =
+      await import('./in-process-route-harness');
     const { signToken } = await import('../../server/lib/auth/jwt');
 
     makeAppSurface = makeApp();
-    dockerHarness = await createInProcessRouteHarness();
-    adminAuth = `Bearer ${signToken({
-      sub: '1',
-      email: 'dual-surface-parity@example.com',
-      role: 'admin',
-      fundIds: [],
-    })}`;
+    dockerHarness = await createInProcessRouteHarness({ normalizeAuthForMountProbes: true });
+    adminAuth = createSyntheticAdminAuth(signToken);
   }, 60_000);
 
   afterAll(async () => {

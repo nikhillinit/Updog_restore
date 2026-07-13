@@ -8,6 +8,7 @@ import {
   type RoutePolicyEntry,
 } from '../../shared/contracts/route-policy.contract';
 import { portfolioIntelligenceRouteClassifications } from '../../tests/fixtures/portfolio-intelligence-route-classification';
+import type { FinancialCommonApiRouteId } from '../../shared/routes/api-route-manifest';
 
 type PortfolioIntelligenceClassificationEntry =
   (typeof portfolioIntelligenceRouteClassifications)[number];
@@ -1060,3 +1061,43 @@ const routePolicyEntries: RoutePolicyEntry[] = [
 
 export const API_ROUTE_POLICY_REGISTRY: RoutePolicyEntry[] =
   RoutePolicyEntrySchema.array().parse(routePolicyEntries);
+
+export const COMMON_API_ROUTE_POLICY_IDS = {
+  'dual-forecast': ['client:/forecasting'],
+  'dashboard-summary': ['client:/dashboard'],
+  'fund-actuals': ['api:get:/api/funds/:fundId/actuals/facts'],
+  funds: ['client:/fund-setup'],
+  'fund-metrics': ['client:/dashboard'],
+  investments: ['client:/portfolio'],
+  'portfolio-companies': ['client:/portfolio/company/:id'],
+  'portfolio-overview': ['api:get:/api/portfolio-overview'],
+  'portfolio-lots': ['client:/portfolio'],
+  'performance-api': ['client:/performance'],
+  variance: ['client:/variance-tracking'],
+  'fund-config': ['client:/fund-setup'],
+  allocations: ['client:/portfolio'],
+  'allocation-scenarios': ['client:/fund-model-results/:fundId/scenarios'],
+  'planning-fmv-overrides': ['client:/lp-reporting/valuations'],
+  'fund-scenario-sets': ['client:/fund-model-results/:fundId/scenarios'],
+  'fund-moic': ['api:get:/api/funds/:fundId/moic/rankings'],
+  timeline: ['client:/fund-model-results/:fundId'],
+  shares: ['client:/shared/:shareId'],
+  'public-shares': ['client:/shared/:shareId'],
+  'capital-allocation': ['client:/fund-model-results/:fundId/moic-analysis'],
+  liquidity: ['client:/financial-modeling'],
+  graduation: ['client:/performance'],
+  reallocation: ['client:/portfolio'],
+  'cash-flow-events': ['client:/lp-reporting/ledger'],
+  'operating-object-tasks': ['client:/dashboard'],
+  'deal-pipeline': ['client:/pipeline'],
+  'cohort-analysis': ['client:/portfolio'],
+  sensitivity: ['client:/sensitivity-analysis'],
+  'lp-api': ['client:/lp/dashboard'],
+  'lp-capital-calls': ['client:/lp/capital-account'],
+  'lp-distributions': ['client:/lp/capital-account'],
+  'lp-documents': ['client:/lp/reports'],
+  'lp-notifications': ['client:/lp/settings'],
+  'lp-reporting-imports': ['client:/lp-reporting/imports'],
+  'lp-reporting-metric-runs': ['client:/lp-reporting/metrics'],
+  backtesting: ['client:/performance'],
+} as const satisfies Record<FinancialCommonApiRouteId, readonly string[]>;

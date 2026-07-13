@@ -11,7 +11,9 @@ import {
 } from '../../../shared/routes/api-route-manifest';
 import { API_RUNTIME_SPECIFIC_MANIFEST } from '../../../shared/routes/api-runtime-specific-manifest';
 import {
+  COMMON_ROUTE_GROUPS,
   COMMON_ROUTE_IMPLEMENTATIONS,
+  COMMON_ROUTE_SURFACE_ORDER,
   mountCommonRoutes,
 } from '../../../server/routes/mount-common-routes';
 
@@ -33,8 +35,13 @@ async function discoverSurfaceModules(
   const sourceText = await readFile(path.resolve(process.cwd(), relativePath), 'utf8');
   const sourceFile = ts.createSourceFile(relativePath, sourceText, ts.ScriptTarget.Latest, true);
   const discovered = new Set<SurfaceModule>();
+  let mountsCommonRoutes = false;
 
   function addModule(modulePath: string): void {
+    if (modulePath === './routes/mount-common-routes.js') {
+      mountsCommonRoutes = true;
+      return;
+    }
     if (isClassifiedLoader(modulePath)) {
       discovered.add(`${surface}:${modulePath}`);
     }
@@ -60,6 +67,11 @@ async function discoverSurfaceModules(
   }
 
   visit(sourceFile);
+  if (mountsCommonRoutes) {
+    for (const entry of COMMON_API_ROUTE_MANIFEST) {
+      discovered.add(`${surface}:${entry.sourceModule}`);
+    }
+  }
   return [...discovered].sort();
 }
 
@@ -126,6 +138,8 @@ describe('canonical common API route manifest', () => {
         "liquidity:/api/liquidity",
         "graduation:/api/graduation",
         "reallocation:<bare>",
+        "cash-flow-events:<bare>",
+        "operating-object-tasks:<bare>",
         "deal-pipeline:/api/deals",
         "cohort-analysis:/api/cohorts",
         "sensitivity:/api",
@@ -196,22 +210,6 @@ describe('canonical common API route manifest', () => {
           "id": "make-app-scenario-analysis",
           "mountPaths": [
             "/api",
-          ],
-          "surface": "make_app",
-        },
-        {
-          "classification": "runtime_specific",
-          "id": "make-app-cash-flow-events",
-          "mountPaths": [
-            null,
-          ],
-          "surface": "make_app",
-        },
-        {
-          "classification": "runtime_specific",
-          "id": "make-app-operating-object-tasks",
-          "mountPaths": [
-            null,
           ],
           "surface": "make_app",
         },
@@ -373,24 +371,44 @@ describe('canonical common API route manifest', () => {
   });
 
   it('keeps manifest IDs and implementation IDs exact in both directions', () => {
-    expect(Object.keys(COMMON_ROUTE_IMPLEMENTATIONS)).toEqual(
-      COMMON_API_ROUTE_MANIFEST.map(({ id }) => id)
-    );
+    const manifestIds = COMMON_API_ROUTE_MANIFEST.map(({ id }) => id);
+
+    expect(Object.keys(COMMON_ROUTE_IMPLEMENTATIONS)).toEqual(manifestIds);
+
+    for (const surface of ['make_app', 'register_routes'] as const) {
+      const groups = COMMON_ROUTE_GROUPS[surface];
+      const groupedIds = Object.values(groups).flat();
+      expect(groupedIds).toHaveLength(new Set(groupedIds).size);
+      expect(groupedIds).toEqual(COMMON_ROUTE_SURFACE_ORDER[surface]);
+      expect([...groupedIds].sort()).toEqual([...manifestIds].sort());
+    }
   });
 
   it('keeps probes concrete and mutation probes JSON-compatible', () => {
+    const unauthenticatedProbeIds: string[] = [];
+
     for (const entry of COMMON_API_ROUTE_MANIFEST) {
       expect(entry.probe.path).not.toMatch(/:[A-Za-z]/);
       expect(entry.probe.expectedStatus).toBeGreaterThanOrEqual(200);
       expect(entry.probe.expectedStatus).toBeLessThan(600);
+      expect(entry.probe.expectedStatus).not.toBe(401);
+      expect(typeof entry.probe.authenticated).toBe('boolean');
+
+      if (!entry.probe.authenticated) {
+        unauthenticatedProbeIds.push(entry.id);
+      }
 
       if (['POST', 'PUT', 'PATCH'].includes(entry.probe.method)) {
         expect(entry.probe).toHaveProperty('body');
       }
     }
+
+    expect(unauthenticatedProbeIds).toEqual(['auth', 'flags', 'public-shares']);
   });
 
   it('mounts the manifest synchronously', () => {
-    expect(mountCommonRoutes(express())).toBeUndefined();
+    const app = express();
+    expect(mountCommonRoutes(app, { surface: 'make_app', group: 'pre_runtime' })).toBeUndefined();
+    expect(mountCommonRoutes(app, { surface: 'make_app', group: 'post_runtime' })).toBeUndefined();
   });
 });

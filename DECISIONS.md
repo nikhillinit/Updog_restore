@@ -5924,3 +5924,77 @@ targeting inconsistent.
   idle timeouts, or tracked concurrent sessions; those are not implied by D4.
 
 **Implementation:** D4 Ralph execution on `codex/d4-cookie-csrf`.
+
+---
+
+## ADR-038: Canonical Common-Route Manifest Mount Convergence
+
+**Date:** 2026-07-12 **Status:** [IMPLEMENTED] Implemented **Decision:** Mount
+every route shared by the Vercel `makeApp` runtime and the Docker
+`registerRoutes` runtime through one typed implementation map backed by the
+canonical common API-route manifest. Keep intentional one-surface routes in a
+separate manifest with a required reason.
+
+### Context
+
+The two production entrypoints accumulated independent import and mount lists.
+That allowed a router to work in the long-running Docker runtime while returning
+404 from Vercel, where `makeApp` is the live production surface. Source scans
+could identify some gaps but did not prove handler reachability and could drift
+from schema and financial-policy coverage.
+
+Mount order is observable Express behavior. The entrypoints also have different
+established order and middleware boundaries: `registerRoutes` installs response
+metrics between its core and post-response route groups, while `makeApp` remains
+synchronous behind its authentication and CSRF boundary.
+
+### Decision
+
+- `shared/routes/api-route-manifest.ts` is the source of truth for common route
+  identity, source module, mount path and stage, auth/fund posture,
+  deterministic probe, owner, financial classification, schema dependencies, and
+  migration parity.
+- `server/routes/mount-common-routes.ts` is the only common router-to-Express
+  implementation map. It mounts synchronously, preserves the manifest order for
+  `makeApp`, and preserves the established Docker order and response-metrics
+  stage for `registerRoutes`.
+- Both runtimes execute every common manifest probe with the same explicit admin
+  fixture, except the declared public probes. Exact non-401 statuses prove that
+  protected requests reached route-level guards rather than stopping at the
+  outer authentication boundary.
+- Financial common routes map by stable common-route ID to route-policy IDs. C1
+  migration tables derive from discriminated manifest metadata and remain
+  subject to journal and production-schema-manifest coverage.
+- Routes that intentionally exist on one runtime remain in
+  `api-runtime-specific-manifest.ts` with a non-empty reason. Client route
+  governance remains separate from server mount governance.
+
+### Alternatives Considered
+
+- **Keep parallel mount lists plus a source-scan parity test:** rejected because
+  two mutable lists remain able to drift, and source presence does not prove a
+  mounted handler is reachable.
+- **Mount in one manifest order on both runtimes:** rejected because Docker has
+  an established route order and a response-metrics middleware boundary that
+  must remain intact.
+- **Use unauthenticated 401 probes for protected routes:** rejected because a
+  missing `makeApp` mount still returns 401 at the global API auth boundary,
+  creating a false green.
+- **Infer C1 coverage by intersecting route dependencies with production
+  manifests:** rejected because the proof becomes circular and silently drops
+  dependencies when the production manifest is incomplete.
+
+### Consequences
+
+- Adding a common route requires one manifest entry, one typed implementation,
+  an exact dual-surface probe, and financial policy/schema metadata when
+  applicable. Type and policy checks fail when those obligations drift.
+- Entry points retain only runtime-specific mounts and calls into the common
+  dispatcher; they no longer duplicate common router lists.
+- The two flag-gated investment-round tables retain their existing explicit
+  production-manifest exemption while remaining journal- and C1-covered.
+- The TypeScript integration config requires a non-native config loader on the
+  pinned Windows Node 20 toolchain; this environment limit does not change the
+  runtime or probe contract.
+
+**Implementation:** Plan 4 wave 2 common-mount convergence, Tasks 4.3-4.6.
