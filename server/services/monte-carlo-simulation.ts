@@ -20,6 +20,30 @@ import type { PowerLawDistribution } from './power-law-distribution';
 import { createVCPowerLawDistribution, type InvestmentStage } from './power-law-distribution';
 import { Decimal, toDecimal } from '@shared/lib/decimal-utils';
 import { PRNG } from '@shared/utils/prng';
+import { isFlagEnabled } from '@shared/flags/getFlag';
+import type { FactsMonteCarloInputV1 } from '@shared/contracts/monte-carlo/facts-input-v1.contract';
+import { logger } from '../lib/logger';
+
+const MONTE_CARLO_ACTUALS_CALCULATION_KEY = 'monte_carlo_actuals_inputs';
+
+type MonteCarloActualsCalculationMode = 'off' | 'shadow' | 'on';
+type ActiveMonteCarloActualsMode = Exclude<MonteCarloActualsCalculationMode, 'off'>;
+
+interface MonteCarloActualsFactsMetadata {
+  factsInputHash: string;
+  sourceFactsInputHash: string;
+  mode: ActiveMonteCarloActualsMode;
+}
+
+interface MonteCarloActualsWarning {
+  code: 'ACTUALS_MONEY_BLOCKED';
+  blockedCompanyCount: number;
+  message: string;
+}
+
+interface MonteCarloActualsFactsProvenance extends MonteCarloActualsFactsMetadata {
+  warnings?: MonteCarloActualsWarning[];
+}
 
 /**
  * Core Monte Carlo simulation parameters
@@ -134,6 +158,10 @@ export interface MonteCarloForecast {
     worstCase: Record<string, number>; // 10th percentile outcomes
     stressTest: Record<string, number>; // 5th percentile outcomes
   };
+
+  provenance?: {
+    actualsFacts: MonteCarloActualsFactsProvenance;
+  };
 }
 
 /**
@@ -202,9 +230,170 @@ interface ReserveScenario {
 /**
  * Portfolio company with optional investments relation
  */
-type PortfolioCompanyWithInvestments = PortfolioCompany & {
-  investments?: unknown[];
+type PortfolioCompanyWithInvestments = Pick<PortfolioCompany, 'id'> & {
+  stage: string | null;
+  sector: string | null;
+  investmentAmount?: string | null;
+  investments?: ReadonlyArray<{ amount: string }>;
 };
+
+interface ActualsMonteCarloCompanyState {
+  companies: PortfolioCompanyWithInvestments[];
+  usableMoneyCount: number;
+  blockedCount: number;
+}
+
+interface LoadedActualsMonteCarloCompanyState extends ActualsMonteCarloCompanyState {
+  factsInputHash: string;
+  sourceFactsInputHash: string;
+  legacyCompanyCount: number;
+}
+
+async function resolveMonteCarloActualsCalculationMode(
+  fundId: number
+): Promise<MonteCarloActualsCalculationMode> {
+  const mode = await db.query.fundCalculationModes.findFirst({
+    columns: { configuredMode: true, killSwitchActive: true },
+    where: (row, { and: andWhere, eq: eqWhere }) =>
+      andWhere(
+        eqWhere(row.fundId, fundId),
+        eqWhere(row.calculationKey, MONTE_CARLO_ACTUALS_CALCULATION_KEY)
+      ),
+  });
+  if (mode?.killSwitchActive) return 'off';
+  return mode?.configuredMode === 'shadow' || mode?.configuredMode === 'on'
+    ? mode.configuredMode
+    : 'off';
+}
+
+export function buildActualsMonteCarloCompanyState(
+  factsInput: FactsMonteCarloInputV1
+): ActualsMonteCarloCompanyState {
+  let usableMoneyCount = 0;
+  let blockedCount = 0;
+  const companies = factsInput.companies.map((company) => {
+    const initialInvestment = company.observedInitialInvestment;
+    const followOnInvestment = company.observedFollowOnInvestment;
+
+    if (initialInvestment === null || followOnInvestment === null) {
+      blockedCount += 1;
+      // Keep the company for count/stage/sector analysis, but provide no money
+      // rows so monetary consumers cannot accidentally aggregate blocked facts.
+      return {
+        id: company.companyId,
+        stage: company.stage,
+        sector: company.sector,
+        investmentAmount: null,
+        investments: [],
+      };
+    }
+
+    usableMoneyCount += 1;
+    return {
+      id: company.companyId,
+      stage: company.stage,
+      sector: company.sector,
+      investmentAmount: toDecimal(initialInvestment).plus(followOnInvestment).toString(),
+      investments: [{ amount: initialInvestment }, { amount: followOnInvestment }],
+    };
+  });
+
+  return { companies, usableMoneyCount, blockedCount };
+}
+
+async function loadPortfolioCompanyMetadata(
+  fundId: number
+): Promise<PortfolioCompanyWithInvestments[]> {
+  return db.query.portfolioCompanies.findMany({
+    where: eq(portfolioCompanies.fundId, fundId),
+    with: { investments: true },
+  });
+}
+
+async function buildActualsCompanyStateFromMetadata(input: {
+  fundId: number;
+  asOfDate: string;
+  portfolioRows: PortfolioCompanyWithInvestments[];
+}): Promise<LoadedActualsMonteCarloCompanyState> {
+  const { buildFundCompanyActualsFacts } =
+    await import('./fund-actuals/fund-company-actuals-facts-service');
+  const facts = await buildFundCompanyActualsFacts({
+    fundId: input.fundId,
+    asOfDate: input.asOfDate,
+  });
+  const { buildFactsMonteCarloInput } =
+    await import('./monte-carlo/facts-monte-carlo-input-adapter');
+  const companyMetadata = new Map(
+    input.portfolioRows.map((company) => [
+      company.id,
+      { stage: company.stage, sector: company.sector },
+    ])
+  );
+  const factsInput = buildFactsMonteCarloInput({
+    fundId: input.fundId,
+    asOfDate: input.asOfDate,
+    facts,
+    companyMetadata,
+  });
+
+  return {
+    ...buildActualsMonteCarloCompanyState(factsInput),
+    factsInputHash: factsInput.factsInputHash,
+    sourceFactsInputHash: factsInput.sourceFactsInputHash,
+    legacyCompanyCount: input.portfolioRows.length,
+  };
+}
+
+function actualsMetadata(
+  input: LoadedActualsMonteCarloCompanyState,
+  mode: ActiveMonteCarloActualsMode
+): MonteCarloActualsFactsMetadata {
+  return {
+    factsInputHash: input.factsInputHash,
+    sourceFactsInputHash: input.sourceFactsInputHash,
+    mode,
+  };
+}
+
+function actualsProvenance(
+  input: LoadedActualsMonteCarloCompanyState,
+  mode: ActiveMonteCarloActualsMode
+): MonteCarloActualsFactsProvenance {
+  const metadata = actualsMetadata(input, mode);
+  if (mode !== 'on' || input.blockedCount === 0) return metadata;
+
+  const noun = input.blockedCount === 1 ? 'company' : 'companies';
+  return {
+    ...metadata,
+    warnings: [
+      {
+        code: 'ACTUALS_MONEY_BLOCKED',
+        blockedCompanyCount: input.blockedCount,
+        message: `${input.blockedCount} ${noun} retained for count-based analysis and excluded from monetary aggregates`,
+      },
+    ],
+  };
+}
+
+function snapshotMetadata(
+  forecast: MonteCarloForecast,
+  factsMetadata?: MonteCarloActualsFactsMetadata
+): Record<string, unknown> {
+  return {
+    baselineId: forecast.baselineId,
+    scenarios: forecast.parameters.scenarios,
+    timeHorizon: forecast.parameters.timeHorizonYears,
+    ...(factsMetadata !== undefined && { actualsFacts: factsMetadata }),
+  };
+}
+
+function logMonteCarloActualsShadowEvent(event: Record<string, unknown>): void {
+  try {
+    logger.info(event, 'monte carlo actuals-input shadow comparison generated');
+  } catch {
+    return;
+  }
+}
 
 /**
  * Main Monte Carlo Simulation Service
@@ -225,6 +414,19 @@ export class MonteCarloSimulationService {
   async generateForecast(params: SimulationParameters): Promise<MonteCarloForecast> {
     const _startTime = Date.now();
     const simulationId = uuidv4();
+    const actualsMode = isFlagEnabled('enable_monte_carlo_actuals_inputs')
+      ? await resolveMonteCarloActualsCalculationMode(params.fundId)
+      : 'off';
+    let actualsState: LoadedActualsMonteCarloCompanyState | undefined;
+
+    if (actualsMode === 'on') {
+      const portfolioRows = await loadPortfolioCompanyMetadata(params.fundId);
+      actualsState = await buildActualsCompanyStateFromMetadata({
+        fundId: params.fundId,
+        asOfDate: new Date().toISOString().slice(0, 10),
+        portfolioRows,
+      });
+    }
 
     // Get baseline data
     const baseline = await this.getBaselineData(params.fundId, params.baselineId);
@@ -236,13 +438,19 @@ export class MonteCarloSimulationService {
     const distributions = await this.generateDistributions(variancePatterns);
 
     // Run Monte Carlo simulations
-    const simulationResults = await this.runSimulations(params, baseline, distributions);
+    const simulationResults = await this.runSimulations(
+      params,
+      baseline,
+      distributions,
+      actualsState?.companies
+    );
 
     // Analyze portfolio metrics
     const portfolioMetrics = await this.analyzePortfolioScenarios(
       params,
       baseline,
-      simulationResults
+      simulationResults,
+      actualsState?.companies
     );
 
     // Optimize reserve allocation
@@ -280,10 +488,27 @@ export class MonteCarloSimulationService {
       reserveOptimization,
       riskMetrics,
       scenarioAnalysis,
+      ...(actualsState !== undefined && {
+        provenance: { actualsFacts: actualsProvenance(actualsState, 'on') },
+      }),
     };
 
     // Store forecast results
-    await this.storeForecast(forecast);
+    const snapshotId = await this.storeForecast(
+      forecast,
+      actualsState === undefined ? undefined : actualsMetadata(actualsState, 'on'),
+      actualsMode === 'shadow'
+    );
+
+    if (actualsMode === 'shadow') {
+      if (snapshotId === undefined) {
+        throw new Error('Missing persisted Monte Carlo snapshot id for shadow provenance');
+      }
+      const shadowProvenance = await this.runActualsShadow(forecast, snapshotId);
+      if (shadowProvenance !== undefined) {
+        forecast.provenance = { actualsFacts: shadowProvenance };
+      }
+    }
 
     return forecast;
   }
@@ -433,7 +658,8 @@ export class MonteCarloSimulationService {
   private async runSimulations(
     params: SimulationParameters,
     baseline: FundBaseline,
-    distributions: Record<string, DistributionParams>
+    distributions: Record<string, DistributionParams>,
+    portfolioCompanyState?: PortfolioCompanyWithInvestments[]
   ) {
     const scenarios = params.scenarios || 10000;
     interface SimulationResultArrays {
@@ -458,7 +684,10 @@ export class MonteCarloSimulationService {
     }
 
     // Get portfolio stage distribution
-    const stageDistribution = await this.getPortfolioStageDistribution(params.fundId);
+    const stageDistribution = await this.getPortfolioStageDistribution(
+      params.fundId,
+      portfolioCompanyState
+    );
 
     // Run simulation scenarios
     for (let i = 0; i < scenarios; i++) {
@@ -623,13 +852,16 @@ export class MonteCarloSimulationService {
   private async analyzePortfolioScenarios(
     params: SimulationParameters,
     _baseline: FundBaseline,
-    _simulationResults: Record<string, SimulationResult>
+    _simulationResults: Record<string, SimulationResult>,
+    portfolioCompanyState?: PortfolioCompanyWithInvestments[]
   ) {
     // Get portfolio composition
-    const portfolioCompaniesData = await db.query.portfolioCompanies.findMany({
-      where: eq(portfolioCompanies.fundId, params.fundId),
-      with: { investments: true },
-    });
+    const portfolioCompaniesData =
+      portfolioCompanyState ??
+      (await db.query.portfolioCompanies.findMany({
+        where: eq(portfolioCompanies.fundId, params.fundId),
+        with: { investments: true },
+      }));
 
     // Generate portfolio-specific scenarios
     const expectedExits = this.generateExitScenarios(
@@ -643,7 +875,13 @@ export class MonteCarloSimulationService {
 
     // Analyze sector performance
     const sectorPerformance: Record<string, SimulationResult> = {};
-    const sectors = [...new Set(portfolioCompaniesData.map((c) => c.sector).filter(Boolean))];
+    const sectors = [
+      ...new Set(
+        portfolioCompaniesData
+          .map((company) => company.sector)
+          .filter((sector): sector is string => Boolean(sector))
+      ),
+    ];
 
     for (const sector of sectors) {
       const sectorScenarios = this.generateSectorScenarios(
@@ -659,7 +897,13 @@ export class MonteCarloSimulationService {
 
     // Analyze stage performance
     const stagePerformance: Record<string, SimulationResult> = {};
-    const stages = [...new Set(portfolioCompaniesData.map((c) => c.stage).filter(Boolean))];
+    const stages = [
+      ...new Set(
+        portfolioCompaniesData
+          .map((company) => company.stage)
+          .filter((stage): stage is string => Boolean(stage))
+      ),
+    ];
 
     for (const stage of stages) {
       const stageScenarios = this.generateStageScenarios(
@@ -948,22 +1192,99 @@ export class MonteCarloSimulationService {
   /**
    * Store forecast results for future reference
    */
-  private async storeForecast(forecast: MonteCarloForecast): Promise<void> {
+  private async storeForecast(
+    forecast: MonteCarloForecast,
+    factsMetadata?: MonteCarloActualsFactsMetadata,
+    returnSnapshotId: boolean = false
+  ): Promise<number | undefined> {
     // Store in fund snapshots for integration with existing infrastructure
     // ADR-022: authoritative-only writer. scenario_set_id intentionally omitted (defaults to NULL).
-    await db.insert(fundSnapshots).values({
+    const insertQuery = db.insert(fundSnapshots).values({
       fundId: forecast.fundId,
       type: 'MONTE_CARLO',
       payload: forecast,
       calcVersion: 'mc-v1.0',
       correlationId: forecast.simulationId,
       snapshotTime: forecast.createdAt,
-      metadata: {
-        baselineId: forecast.baselineId,
-        scenarios: forecast.parameters.scenarios,
-        timeHorizon: forecast.parameters.timeHorizonYears,
-      },
+      metadata: snapshotMetadata(forecast, factsMetadata),
     });
+    if (!returnSnapshotId) {
+      await insertQuery;
+      return undefined;
+    }
+
+    const insertedSnapshots = await insertQuery.returning({ id: fundSnapshots.id });
+    if (insertedSnapshots.length !== 1) {
+      throw new Error(
+        `Expected one persisted Monte Carlo snapshot, received ${insertedSnapshots.length}`
+      );
+    }
+    return insertedSnapshots[0]?.id;
+  }
+
+  private async runActualsShadow(
+    forecast: MonteCarloForecast,
+    snapshotId: number
+  ): Promise<MonteCarloActualsFactsProvenance | undefined> {
+    const startedAt = performance.now();
+    let legacyCompanyCount = 0;
+
+    try {
+      const portfolioRows = await loadPortfolioCompanyMetadata(forecast.fundId);
+      legacyCompanyCount = portfolioRows.length;
+      const actualsState = await buildActualsCompanyStateFromMetadata({
+        fundId: forecast.fundId,
+        asOfDate: new Date().toISOString().slice(0, 10),
+        portfolioRows,
+      });
+      const metadata = actualsMetadata(actualsState, 'shadow');
+
+      // The authoritative legacy payload is already inserted. Compare against
+      // its expected metadata so this idempotent provenance stamp cannot clobber
+      // a concurrent writer even though fund_snapshots has no version column.
+      const legacyMetadata = snapshotMetadata(forecast);
+      const updatedSnapshots = await db
+        .update(fundSnapshots)
+        .set({ metadata: snapshotMetadata(forecast, metadata) })
+        .where(
+          and(
+            eq(fundSnapshots.id, snapshotId),
+            eq(fundSnapshots.fundId, forecast.fundId),
+            eq(fundSnapshots.metadata, legacyMetadata)
+          )
+        )
+        .returning({ id: fundSnapshots.id });
+      if (updatedSnapshots.length !== 1) {
+        throw new Error(
+          `Expected one Monte Carlo snapshot provenance update, received ${updatedSnapshots.length}`
+        );
+      }
+
+      logMonteCarloActualsShadowEvent({
+        eventName: 'monte_carlo_actuals_shadow',
+        fundId: forecast.fundId,
+        factsInputHash: actualsState.factsInputHash.slice(0, 12),
+        companyCount: actualsState.companies.length,
+        usableMoneyCount: actualsState.usableMoneyCount,
+        blockedCount: actualsState.blockedCount,
+        legacyCompanyCount: actualsState.legacyCompanyCount,
+        durationMs: performance.now() - startedAt,
+      });
+      return actualsProvenance(actualsState, 'shadow');
+    } catch {
+      logMonteCarloActualsShadowEvent({
+        eventName: 'monte_carlo_actuals_shadow',
+        fundId: forecast.fundId,
+        factsInputHash: null,
+        companyCount: 0,
+        usableMoneyCount: 0,
+        blockedCount: 0,
+        legacyCompanyCount,
+        durationMs: performance.now() - startedAt,
+        warningCode: 'SHADOW_BUILD_FAILED',
+      });
+      return undefined;
+    }
   }
 
   // Statistical utility functions
@@ -1175,10 +1496,15 @@ export class MonteCarloSimulationService {
   /**
    * Get portfolio stage distribution for power law sampling
    */
-  private async getPortfolioStageDistribution(fundId: number): Promise<Record<string, number>> {
-    const portfolioCompaniesData = await db.query.portfolioCompanies.findMany({
-      where: eq(portfolioCompanies.fundId, fundId),
-    });
+  private async getPortfolioStageDistribution(
+    fundId: number,
+    portfolioCompanyState?: PortfolioCompanyWithInvestments[]
+  ): Promise<Record<string, number>> {
+    const portfolioCompaniesData =
+      portfolioCompanyState ??
+      (await db.query.portfolioCompanies.findMany({
+        where: eq(portfolioCompanies.fundId, fundId),
+      }));
 
     if (portfolioCompaniesData.length === 0) {
       // Default to seed stage if no portfolio data

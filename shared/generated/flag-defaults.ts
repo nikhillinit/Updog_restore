@@ -588,6 +588,22 @@ export const FLAG_DEFINITIONS: Record<FlagKey, FlagDefinition> = {
     expiresAt: null,
     aliases: ['ENABLE_FACTS_SOURCED_RESERVE_INPUTS'],
   },
+  enable_monte_carlo_actuals_inputs: {
+    default: false,
+    description: 'Gates facts-backed company-state inputs for Monte Carlo forecasts',
+    owner: 'analytics',
+    risk: 'high',
+    exposeToClient: false,
+
+    environments: {
+      development: false,
+      staging: false,
+      production: false,
+    },
+    dependencies: [],
+    expiresAt: null,
+    aliases: ['ENABLE_MONTE_CARLO_ACTUALS_INPUTS'],
+  },
   enable_faults: {
     default: false,
     description: 'Enable fault injection for testing',
@@ -819,6 +835,7 @@ export const FLAG_DEFAULTS: FlagRecord = {
   enable_portfolio_intelligence: false,
   enable_marginal_reserve_moic: false,
   enable_facts_sourced_reserve_inputs: false,
+  enable_monte_carlo_actuals_inputs: false,
   enable_faults: false,
   enable_wizard_step_general: false,
   enable_wizard_step_sectors: false,
@@ -909,6 +926,7 @@ export const FLAG_ALIASES: Record<string, FlagKey> = {
   ENABLE_PORTFOLIO_INTELLIGENCE: 'enable_portfolio_intelligence',
   ENABLE_MARGINAL_RESERVE_MOIC: 'enable_marginal_reserve_moic',
   ENABLE_FACTS_SOURCED_RESERVE_INPUTS: 'enable_facts_sourced_reserve_inputs',
+  ENABLE_MONTE_CARLO_ACTUALS_INPUTS: 'enable_monte_carlo_actuals_inputs',
   ENABLE_WIZARD_STEP_GENERAL: 'enable_wizard_step_general',
   ENABLE_WIZARD_STEP_SIZING: 'enable_wizard_step_sizing',
   ENABLE_WIZARD_STEP_SECTORS: 'enable_wizard_step_sizing',
