@@ -40,9 +40,43 @@ export const ReserveInputTrustSummarySchema = z
   })
   .strict();
 
+export const FactsReserveCandidateExclusionReasonSchema = z.enum([
+  'missing_ownership',
+  'missing_stage',
+  'missing_sector',
+  'currency_blocked',
+  'facts_unavailable',
+]);
+
+export const FactsReserveCandidateSchema = z.discriminatedUnion('status', [
+  z
+    .object({
+      status: z.literal('eligible'),
+      companyId: z.number().int().positive(),
+      input: ReserveCompanyInputWithProvenanceSchema,
+      factsInputHash: z.string().regex(/^[a-f0-9]{64}$/),
+    })
+    .strict(),
+  z
+    .object({
+      status: z.literal('excluded'),
+      companyId: z.number().int().positive(),
+      reasons: z.array(FactsReserveCandidateExclusionReasonSchema).min(1),
+      factsInputHash: z
+        .string()
+        .regex(/^[a-f0-9]{64}$/)
+        .nullable(),
+    })
+    .strict(),
+]);
+
 export type ReserveInputSourceStatus = z.infer<typeof ReserveInputSourceStatusSchema>;
 export type ReserveInputFieldProvenance = z.infer<typeof ReserveInputFieldProvenanceSchema>;
 export type ReserveCompanyInputWithProvenance = z.infer<
   typeof ReserveCompanyInputWithProvenanceSchema
 >;
 export type ReserveInputTrustSummary = z.infer<typeof ReserveInputTrustSummarySchema>;
+export type FactsReserveCandidateExclusionReason = z.infer<
+  typeof FactsReserveCandidateExclusionReasonSchema
+>;
+export type FactsReserveCandidate = z.infer<typeof FactsReserveCandidateSchema>;
