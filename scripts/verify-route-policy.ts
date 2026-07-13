@@ -4,6 +4,12 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 
+import { getTableName, is } from 'drizzle-orm';
+import { PgTable } from 'drizzle-orm/pg-core';
+
+import * as coreSchema from '../shared/schema';
+import * as lpReportingSchema from '../shared/schema-lp-reporting';
+import * as lpSprint3Schema from '../shared/schema-lp-sprint3';
 import { FinancialProvenanceSchema } from '../shared/contracts/financial-provenance.contract';
 import type { RoutePolicyEntry } from '../shared/contracts/route-policy.contract';
 import {
@@ -55,7 +61,8 @@ export interface RoutePolicyVerificationInput {
   runtimeSpecificRoutes: readonly ApiRuntimeSpecificManifestEntry[];
   commonRoutePolicyIds: Readonly<Record<string, readonly string[]>>;
   productionSchemaTables: ReadonlySet<string>;
-  productionSchemaTableExemptions: ReadonlySet<string>;
+  productionReconciliationTables: ReadonlySet<string>;
+  productionSchemaTableExemptions: Readonly<Record<string, string>>;
 }
 
 type PrototypeRouteKey = `${string} ${string}`;
@@ -81,7 +88,7 @@ interface ProductionSchemaManifest {
   expectedTables?: Array<{ name: string }>;
 }
 
-function loadProductionSchemaTables(): ReadonlySet<string> {
+function loadProductionReconciliationTables(): ReadonlySet<string> {
   const manifestDirectory = path.resolve(process.cwd(), 'scripts', 'prod-schema-manifests');
   const tableNames = new Set<string>();
 
@@ -97,6 +104,27 @@ function loadProductionSchemaTables(): ReadonlySet<string> {
   return tableNames;
 }
 
+function loadProductionSchemaTables(): ReadonlySet<string> {
+  const tableNames = new Set<string>();
+
+  for (const schemaModule of [coreSchema, lpReportingSchema, lpSprint3Schema]) {
+    for (const exportedValue of Object.values(schemaModule)) {
+      if (is(exportedValue, PgTable)) {
+        tableNames.add(getTableName(exportedValue));
+      }
+    }
+  }
+
+  return tableNames;
+}
+
+export const PRODUCTION_SCHEMA_TABLE_EXEMPTIONS = {
+  investment_round_model_overrides:
+    'Dormant investment-round modeling remains flag-gated and outside production reconciliation manifests',
+  investment_rounds:
+    'Dormant investment-round modeling remains flag-gated and outside production reconciliation manifests',
+} as const satisfies Readonly<Record<string, string>>;
+
 export const defaultRoutePolicyVerificationInput: RoutePolicyVerificationInput = {
   activeFinancialGovernanceEntries: ACTIVE_FINANCIAL_GOVERNANCE_ENTRIES,
   routeGovernanceRegistry: ROUTE_GOVERNANCE_REGISTRY,
@@ -109,10 +137,8 @@ export const defaultRoutePolicyVerificationInput: RoutePolicyVerificationInput =
   runtimeSpecificRoutes: API_RUNTIME_SPECIFIC_MANIFEST,
   commonRoutePolicyIds: COMMON_API_ROUTE_POLICY_IDS,
   productionSchemaTables: loadProductionSchemaTables(),
-  productionSchemaTableExemptions: new Set([
-    'investment_rounds',
-    'investment_round_model_overrides',
-  ]),
+  productionReconciliationTables: loadProductionReconciliationTables(),
+  productionSchemaTableExemptions: PRODUCTION_SCHEMA_TABLE_EXEMPTIONS,
 };
 
 function isFinancial(entry: RoutePolicyEntry): boolean {
@@ -202,6 +228,7 @@ export function verifyRoutePolicy(
       route,
     ])
   );
+  const referencedC1Tables = new Set<string>();
 
   for (const policyEntry of input.policyEntries) {
     const key = routePolicyKey(policyEntry);
@@ -244,18 +271,49 @@ export function verifyRoutePolicy(
       }
     }
 
+    for (const table of entry.schemaTables) {
+      if (
+        !input.productionSchemaTables.has(table) &&
+        input.productionSchemaTableExemptions[table] === undefined
+      ) {
+        fail(
+          errors,
+          `Common route ${entry.id} references table missing from the production schema registry: ${table}`
+        );
+      }
+    }
+
     if (entry.migrationParity.kind === 'c1') {
       for (const table of entry.migrationParity.tables) {
+        referencedC1Tables.add(table);
+        if (!entry.schemaTables.includes(table)) {
+          fail(
+            errors,
+            `Common route ${entry.id} C1 table is missing from route schema metadata: ${table}`
+          );
+        }
         if (
-          !input.productionSchemaTables.has(table) &&
-          !input.productionSchemaTableExemptions.has(table)
+          !input.productionReconciliationTables.has(table) &&
+          input.productionSchemaTableExemptions[table] === undefined
         ) {
           fail(
             errors,
-            `Common route ${entry.id} references production schema table missing from manifests: ${table}`
+            `Common route ${entry.id} C1 table is missing from production reconciliation manifests: ${table}`
           );
         }
       }
+    }
+  }
+
+  for (const [table, reason] of Object.entries(input.productionSchemaTableExemptions)) {
+    if (!reason.trim()) {
+      fail(errors, `Production schema table exemption is missing a reason: ${table}`);
+    }
+    if (!referencedC1Tables.has(table)) {
+      fail(errors, `Stale production schema table exemption: ${table}`);
+    }
+    if (input.productionReconciliationTables.has(table)) {
+      fail(errors, `Redundant production schema table exemption: ${table}`);
     }
   }
 

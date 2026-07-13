@@ -41,11 +41,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Performance monitoring middleware - track all API requests
   app.use('/api', monitor.middleware());
 
-  mountCommonRoutes(app, { surface: 'register_routes', stage: 'core' });
+  mountCommonRoutes(app, { surface: 'register_routes', group: 'pre_deal' });
+  mountCommonRoutes(app, { surface: 'register_routes', group: 'pre_health' });
+
+  await mountDefaultRoute(app, { mountPath: '/', load: () => import('./routes/health.js') });
+
+  mountCommonRoutes(app, { surface: 'register_routes', group: 'post_health' });
 
   await mountDefaultRoutes(app, [
-    // Health and metrics routes
-    { mountPath: '/', load: () => import('./routes/health.js') },
     { mountPath: '/api', load: () => import('./routes/activities.js') },
     { mountPath: '/api', load: () => import('./routes/fund-metrics-legacy.js') },
     { mountPath: '/api', load: () => import('./routes/engine-summaries.js') },
@@ -55,11 +58,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
     { mountPath: '/api/monte-carlo', load: () => import('./routes/monte-carlo.js') },
     // Cache monitoring & management routes
     { mountPath: '/api/cache', load: () => import('./routes/cache.js') },
+  ]);
+
+  mountCommonRoutes(app, { surface: 'register_routes', group: 'post_cache' });
+
+  await mountDefaultRoutes(app, [
     // Performance monitoring routes
     { mountPath: '/api/performance', load: () => import('./routes/performance-metrics.js') },
     // Server-Sent Events (SSE) routes for real-time updates
     { mountPath: '/', load: () => import('./routes/sse-events.js') },
   ]);
+
+  mountCommonRoutes(app, { surface: 'register_routes', group: 'post_runtime' });
 
   // Register before the LP/shares route groups below so requests that finish
   // inside those routers still reach recordHttpMetrics on response finish.
@@ -77,12 +87,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
     next();
   });
 
-  mountCommonRoutes(app, { surface: 'register_routes', stage: 'post_response_metrics' });
+  mountCommonRoutes(app, { surface: 'register_routes', group: 'post_response_metrics' });
 
   await mountDefaultRoutes(app, [
     // LP Reporting Dashboard health check routes
     { load: () => import('./routes/lp-health.js') },
   ]);
+
+  mountCommonRoutes(app, { surface: 'register_routes', group: 'post_lp_health' });
 
   // Dashboard, investments, portfolio companies, activities, legacy fund
   // metrics, and engine summary routes have been extracted into dedicated

@@ -681,6 +681,8 @@ export const COMMON_API_ROUTE_MANIFEST = [
       'lp_reports',
       'funds',
       'lp_audit_log',
+      'vehicles',
+      'valuation_marks',
     ],
     owner: 'lp-reporting',
     probe: { method: 'GET', path: '/api/lp/profile', expectedStatus: 403, authenticated: true },
@@ -776,6 +778,9 @@ export const COMMON_API_ROUTE_MANIFEST = [
       'portfoliocompanies',
       'users',
       'lp_fund_commitments',
+      'evidence_records',
+      'lp_report_packages',
+      'lp_report_package_exports',
     ],
     owner: 'lp-reporting',
     probe: {

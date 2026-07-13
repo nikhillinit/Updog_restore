@@ -11,8 +11,9 @@ import {
 } from '../../../shared/routes/api-route-manifest';
 import { API_RUNTIME_SPECIFIC_MANIFEST } from '../../../shared/routes/api-runtime-specific-manifest';
 import {
+  COMMON_ROUTE_GROUPS,
   COMMON_ROUTE_IMPLEMENTATIONS,
-  MIGRATED_COMMON_ROUTE_IDS,
+  COMMON_ROUTE_SURFACE_ORDER,
   mountCommonRoutes,
 } from '../../../server/routes/mount-common-routes';
 
@@ -67,11 +68,8 @@ async function discoverSurfaceModules(
 
   visit(sourceFile);
   if (mountsCommonRoutes) {
-    const migratedRouteIds = new Set<string>(MIGRATED_COMMON_ROUTE_IDS);
     for (const entry of COMMON_API_ROUTE_MANIFEST) {
-      if (migratedRouteIds.has(entry.id)) {
-        discovered.add(`${surface}:${entry.sourceModule}`);
-      }
+      discovered.add(`${surface}:${entry.sourceModule}`);
     }
   }
   return [...discovered].sort();
@@ -373,12 +371,17 @@ describe('canonical common API route manifest', () => {
   });
 
   it('keeps manifest IDs and implementation IDs exact in both directions', () => {
-    expect(Object.keys(COMMON_ROUTE_IMPLEMENTATIONS)).toEqual(
-      COMMON_API_ROUTE_MANIFEST.map(({ id }) => id)
-    );
-    expect([...MIGRATED_COMMON_ROUTE_IDS].sort()).toEqual(
-      COMMON_API_ROUTE_MANIFEST.map(({ id }) => id).sort()
-    );
+    const manifestIds = COMMON_API_ROUTE_MANIFEST.map(({ id }) => id);
+
+    expect(Object.keys(COMMON_ROUTE_IMPLEMENTATIONS)).toEqual(manifestIds);
+
+    for (const surface of ['make_app', 'register_routes'] as const) {
+      const groups = COMMON_ROUTE_GROUPS[surface];
+      const groupedIds = Object.values(groups).flat();
+      expect(groupedIds).toHaveLength(new Set(groupedIds).size);
+      expect(groupedIds).toEqual(COMMON_ROUTE_SURFACE_ORDER[surface]);
+      expect([...groupedIds].sort()).toEqual([...manifestIds].sort());
+    }
   });
 
   it('keeps probes concrete and mutation probes JSON-compatible', () => {
@@ -404,6 +407,8 @@ describe('canonical common API route manifest', () => {
   });
 
   it('mounts the manifest synchronously', () => {
-    expect(mountCommonRoutes(express(), { surface: 'make_app' })).toBeUndefined();
+    const app = express();
+    expect(mountCommonRoutes(app, { surface: 'make_app', group: 'pre_runtime' })).toBeUndefined();
+    expect(mountCommonRoutes(app, { surface: 'make_app', group: 'post_runtime' })).toBeUndefined();
   });
 });

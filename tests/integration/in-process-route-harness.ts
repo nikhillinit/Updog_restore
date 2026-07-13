@@ -45,14 +45,17 @@ async function closeServer(server: Server) {
 }
 
 interface InProcessRouteHarnessOptions {
-  authenticateApi?: boolean;
+  normalizeAuthForMountProbes?: boolean;
 }
 
 export async function createInProcessRouteHarness(options: InProcessRouteHarnessOptions = {}) {
   const app = express();
   app.use(express.json({ limit: '1mb' }));
 
-  if (options.authenticateApi) {
+  if (options.normalizeAuthForMountProbes) {
+    // These integration probes compare route reachability, not entrypoint auth
+    // composition. Hold both secure-context and JWT prerequisites constant so
+    // a route-local guard cannot masquerade as a missing mount.
     const authenticate = requireAuth();
     app.use('/api', (req, res, next) => {
       if (isPublicApiPath(req.method, req.path)) return next();

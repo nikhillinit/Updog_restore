@@ -44,7 +44,7 @@ describe('dual-surface mount parity (makeApp vs registerRoutes)', () => {
     const { signToken } = await import('../../server/lib/auth/jwt');
 
     makeAppSurface = makeApp();
-    dockerHarness = await createInProcessRouteHarness({ authenticateApi: true });
+    dockerHarness = await createInProcessRouteHarness({ normalizeAuthForMountProbes: true });
     adminAuth = createSyntheticAdminAuth(signToken);
   }, 60_000);
 

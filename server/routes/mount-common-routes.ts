@@ -3,9 +3,6 @@ import type { Express, Router } from 'express';
 import {
   COMMON_API_ROUTE_MANIFEST,
   type CommonApiRouteId,
-  type CommonRouteMountStage,
-  getCommonRouteMountStage,
-  type RuntimeSurface,
 } from '../../shared/routes/api-route-manifest.js';
 import allocationScenariosRouter from './allocation-scenarios.js';
 import allocationsRouter from './allocations.js';
@@ -103,111 +100,121 @@ export const COMMON_ROUTE_IMPLEMENTATIONS: Record<CommonApiRouteId, RouteMountIm
   backtesting: at('/api/backtesting', backtestingRouter),
 } satisfies Record<CommonApiRouteId, RouteMountImplementation>;
 
-export const MIGRATED_COMMON_ROUTE_IDS = [
-  'auth',
-  'flags',
-  'dual-forecast',
-  'dashboard-summary',
-  'fund-actuals',
-  'funds',
-  'fund-metrics',
-  'fund-config',
-  'investments',
-  'portfolio-companies',
-  'portfolio-overview',
-  'portfolio-lots',
-  'allocations',
-  'allocation-scenarios',
-  'planning-fmv-overrides',
-  'reallocation',
-  'cash-flow-events',
-  'operating-object-tasks',
-  'deal-pipeline',
-  'performance-api',
-  'shares',
-  'public-shares',
-  'lp-api',
-  'lp-capital-calls',
-  'lp-distributions',
-  'lp-documents',
-  'lp-notifications',
-  'lp-reporting-imports',
-  'lp-reporting-metric-runs',
-  'variance',
-  'fund-scenario-sets',
-  'fund-moic',
-  'timeline',
-  'capital-allocation',
-  'liquidity',
-  'graduation',
-  'cohort-analysis',
-  'sensitivity',
-  'backtesting',
-] as const satisfies readonly CommonApiRouteId[];
+export const COMMON_ROUTE_SURFACE_ORDER = {
+  make_app: COMMON_API_ROUTE_MANIFEST.map(({ id }) => id),
+  register_routes: [
+    'funds',
+    'deal-pipeline',
+    'cohort-analysis',
+    'flags',
+    'auth',
+    'dashboard-summary',
+    'investments',
+    'portfolio-companies',
+    'portfolio-overview',
+    'portfolio-lots',
+    'allocation-scenarios',
+    'planning-fmv-overrides',
+    'fund-scenario-sets',
+    'fund-actuals',
+    'allocations',
+    'backtesting',
+    'sensitivity',
+    'fund-moic',
+    'graduation',
+    'capital-allocation',
+    'liquidity',
+    'reallocation',
+    'cash-flow-events',
+    'operating-object-tasks',
+    'fund-metrics',
+    'dual-forecast',
+    'performance-api',
+    'lp-api',
+    'lp-capital-calls',
+    'lp-distributions',
+    'lp-documents',
+    'lp-notifications',
+    'lp-reporting-imports',
+    'lp-reporting-metric-runs',
+    'shares',
+    'public-shares',
+    'fund-config',
+    'variance',
+    'timeline',
+  ] as const satisfies readonly CommonApiRouteId[],
+} as const;
 
-const REGISTER_ROUTES_COMMON_ORDER = [
-  'funds',
-  'deal-pipeline',
-  'cohort-analysis',
-  'flags',
-  'auth',
-  'dashboard-summary',
-  'investments',
-  'portfolio-companies',
-  'portfolio-overview',
-  'portfolio-lots',
-  'allocation-scenarios',
-  'planning-fmv-overrides',
-  'fund-scenario-sets',
-  'fund-actuals',
-  'allocations',
-  'backtesting',
-  'sensitivity',
-  'fund-moic',
-  'graduation',
-  'capital-allocation',
-  'liquidity',
-  'reallocation',
-  'cash-flow-events',
-  'operating-object-tasks',
-  'fund-metrics',
-  'dual-forecast',
-  'performance-api',
-  'lp-api',
-  'lp-capital-calls',
-  'lp-distributions',
-  'lp-documents',
-  'lp-notifications',
-  'lp-reporting-imports',
-  'lp-reporting-metric-runs',
-  'shares',
-  'public-shares',
-  'fund-config',
-  'variance',
-  'timeline',
-] as const satisfies readonly CommonApiRouteId[];
-
-interface MountCommonRoutesOptions {
-  surface: RuntimeSurface;
-  stage?: CommonRouteMountStage;
+function sliceRouteOrder(
+  routeOrder: readonly CommonApiRouteId[],
+  firstId: CommonApiRouteId,
+  lastId: CommonApiRouteId
+): CommonApiRouteId[] {
+  const firstIndex = routeOrder.indexOf(firstId);
+  const lastIndex = routeOrder.indexOf(lastId);
+  if (firstIndex < 0 || lastIndex < firstIndex) {
+    throw new Error(`Invalid common route group boundary: ${firstId}..${lastId}`);
+  }
+  return routeOrder.slice(firstIndex, lastIndex + 1);
 }
 
-export function mountCommonRoutes(app: Express, options: MountCommonRoutesOptions): void {
-  const migratedRouteIds = new Set<CommonApiRouteId>(MIGRATED_COMMON_ROUTE_IDS);
-  const routeOrder =
-    options.surface === 'make_app'
-      ? COMMON_API_ROUTE_MANIFEST.map(({ id }) => id)
-      : REGISTER_ROUTES_COMMON_ORDER;
+export const COMMON_ROUTE_GROUPS = {
+  make_app: {
+    pre_runtime: sliceRouteOrder(COMMON_ROUTE_SURFACE_ORDER.make_app, 'auth', 'flags'),
+    post_runtime: sliceRouteOrder(
+      COMMON_ROUTE_SURFACE_ORDER.make_app,
+      'dual-forecast',
+      'backtesting'
+    ),
+  },
+  register_routes: {
+    pre_deal: sliceRouteOrder(COMMON_ROUTE_SURFACE_ORDER.register_routes, 'funds', 'funds'),
+    pre_health: sliceRouteOrder(
+      COMMON_ROUTE_SURFACE_ORDER.register_routes,
+      'deal-pipeline',
+      'flags'
+    ),
+    post_health: sliceRouteOrder(COMMON_ROUTE_SURFACE_ORDER.register_routes, 'auth', 'allocations'),
+    post_cache: sliceRouteOrder(
+      COMMON_ROUTE_SURFACE_ORDER.register_routes,
+      'backtesting',
+      'liquidity'
+    ),
+    post_runtime: sliceRouteOrder(
+      COMMON_ROUTE_SURFACE_ORDER.register_routes,
+      'reallocation',
+      'dual-forecast'
+    ),
+    post_response_metrics: sliceRouteOrder(
+      COMMON_ROUTE_SURFACE_ORDER.register_routes,
+      'performance-api',
+      'lp-api'
+    ),
+    post_lp_health: sliceRouteOrder(
+      COMMON_ROUTE_SURFACE_ORDER.register_routes,
+      'lp-capital-calls',
+      'timeline'
+    ),
+  },
+} as const;
 
-  for (const routeId of routeOrder) {
-    if (!migratedRouteIds.has(routeId)) continue;
-
-    const entry = COMMON_API_ROUTE_MANIFEST.find(({ id }) => id === routeId);
-    if (!entry) {
-      throw new Error(`Missing common API route manifest entry: ${routeId}`);
+type MountCommonRoutesOptions =
+  | {
+      surface: 'make_app';
+      group: keyof (typeof COMMON_ROUTE_GROUPS)['make_app'];
     }
-    if (options.stage && getCommonRouteMountStage(entry) !== options.stage) continue;
+  | {
+      surface: 'register_routes';
+      group: keyof (typeof COMMON_ROUTE_GROUPS)['register_routes'];
+    };
 
+export function mountCommonRoutes(app: Express, options: MountCommonRoutesOptions): void {
+  const routeIds =
+    options.surface === 'make_app'
+      ? COMMON_ROUTE_GROUPS.make_app[options.group]
+      : COMMON_ROUTE_GROUPS.register_routes[options.group];
+
+  for (const routeId of routeIds) {
     COMMON_ROUTE_IMPLEMENTATIONS[routeId](app);
   }
 }

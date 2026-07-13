@@ -7,10 +7,16 @@ import { COMMON_API_ROUTE_MANIFEST } from '../../shared/routes/api-route-manifes
 
 const PROD_SCHEMA_MANIFEST_DIR = path.resolve(process.cwd(), 'scripts', 'prod-schema-manifests');
 
+const C1_PARITY_TABLE_NAMES = new Set(
+  COMMON_API_ROUTE_MANIFEST.flatMap((entry) =>
+    entry.migrationParity.kind === 'c1' ? entry.migrationParity.tables : []
+  )
+);
+
 const C1_MOUNTED_TABLES = [
   ...new Set(
     COMMON_API_ROUTE_MANIFEST.flatMap((entry) =>
-      entry.migrationParity.kind === 'c1' ? entry.migrationParity.tables : []
+      entry.schemaTables.filter((table) => C1_PARITY_TABLE_NAMES.has(table))
     )
   ),
 ].sort();
@@ -120,11 +126,8 @@ describe('makeApp mount parity with journaled migrations', () => {
   });
 
   it('derives every C1 table from common-route schema metadata', () => {
-    const manifestSchemaTables = new Set(
-      COMMON_API_ROUTE_MANIFEST.flatMap((entry) => entry.schemaTables)
-    );
-    const missingSchemaDependencies = C1_MOUNTED_TABLES.filter(
-      (tableName) => !manifestSchemaTables.has(tableName)
+    const missingSchemaDependencies = [...C1_PARITY_TABLE_NAMES].filter(
+      (tableName) => !C1_MOUNTED_TABLES.includes(tableName)
     );
     const nonTableRoutesWithSchemaDependencies = COMMON_API_ROUTE_MANIFEST.filter(
       (entry) => entry.migrationParity.kind === 'non-table' && entry.schemaTables.length > 0

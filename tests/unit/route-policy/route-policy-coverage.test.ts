@@ -253,7 +253,25 @@ describe('route policy coverage', () => {
     );
   });
 
-  it('fails verification when a C1 table is absent from production schema manifests', () => {
+  it('fails verification when route schema metadata names an uncovered table', () => {
+    const errors = verifyRoutePolicy({
+      ...defaultRoutePolicyVerificationInput,
+      commonApiRoutes: defaultRoutePolicyVerificationInput.commonApiRoutes.map((entry) =>
+        entry.id === 'fund-moic'
+          ? {
+              ...entry,
+              schemaTables: [...entry.schemaTables, 'missing_route_table'],
+            }
+          : entry
+      ),
+    });
+
+    expect(errors).toContain(
+      'Common route fund-moic references table missing from the production schema registry: missing_route_table'
+    );
+  });
+
+  it('fails verification when a C1 table is absent from route schema metadata', () => {
     const errors = verifyRoutePolicy({
       ...defaultRoutePolicyVerificationInput,
       commonApiRoutes: defaultRoutePolicyVerificationInput.commonApiRoutes.map((entry) =>
@@ -270,7 +288,23 @@ describe('route policy coverage', () => {
     });
 
     expect(errors).toContain(
-      'Common route fund-moic references production schema table missing from manifests: missing_route_table'
+      'Common route fund-moic C1 table is missing from route schema metadata: missing_route_table'
+    );
+  });
+
+  it('fails verification when a C1 table loses reconciliation-manifest coverage', () => {
+    const productionReconciliationTables = new Set(
+      defaultRoutePolicyVerificationInput.productionReconciliationTables
+    );
+    productionReconciliationTables.delete('reconciliation_runs');
+
+    const errors = verifyRoutePolicy({
+      ...defaultRoutePolicyVerificationInput,
+      productionReconciliationTables,
+    });
+
+    expect(errors).toContain(
+      'Common route fund-moic C1 table is missing from production reconciliation manifests: reconciliation_runs'
     );
   });
 

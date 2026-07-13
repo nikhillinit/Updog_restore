@@ -42,7 +42,7 @@ describe('common route probe parity', () => {
     const { signToken } = await import('../../server/lib/auth/jwt');
 
     makeAppSurface = makeApp();
-    dockerHarness = await createInProcessRouteHarness({ authenticateApi: true });
+    dockerHarness = await createInProcessRouteHarness({ normalizeAuthForMountProbes: true });
     adminAuth = createSyntheticAdminAuth(signToken);
   }, 60_000);
 

@@ -638,7 +638,7 @@ describe('route surface inventory', () => {
     ]);
 
     expect(routesTs).toContain("mountCommonRoutes(app, { surface: 'register_routes'");
-    expect(appTs).toContain("mountCommonRoutes(app, { surface: 'make_app' })");
+    expect(appTs).toContain("mountCommonRoutes(app, { surface: 'make_app'");
     expect(routesTs).not.toContain("app.use('/api/deals', dealPipelineRoutes.dealPipelineRouter)");
     expect(appTs).not.toContain("app.use('/api/deals', dealPipelineRouter)");
     expect(routesTs).not.toContain('app.use(reallocationRoutes.default)');
@@ -647,6 +647,46 @@ describe('route surface inventory', () => {
     expect(appTs).toContain("app['get']('/api-docs'");
     expect(routesTs).not.toContain('/api-docs');
     expect(serverTs).not.toContain('/api-docs');
+  });
+
+  it('preserves common-route order around runtime-specific mount seams', async () => {
+    const [routesTs, appTs] = await Promise.all([
+      readRepoFile('server/routes.ts'),
+      readRepoFile('server/app.ts'),
+    ]);
+
+    const makeAppOrder = [
+      "group: 'pre_runtime'",
+      "app.use('/api/v1/reserves', reservesV1Router)",
+      "app.use('/api/cashflow', cashflowRouter)",
+      "app.use('/api/calculations', calculationsRouter)",
+      "app.use('/api/ai', aiRouter)",
+      "app.use('/api', scenarioAnalysisRouter)",
+      "group: 'post_runtime'",
+    ];
+    for (let index = 0; index < makeAppOrder.length - 1; index += 1) {
+      expectFragmentBefore(appTs, makeAppOrder[index]!, makeAppOrder[index + 1]!);
+    }
+
+    const registerRoutesOrder = [
+      "group: 'pre_deal'",
+      "group: 'pre_health'",
+      "import('./routes/health.js')",
+      "group: 'post_health'",
+      "import('./routes/activities.js')",
+      "import('./routes/cache.js')",
+      "group: 'post_cache'",
+      "import('./routes/performance-metrics.js')",
+      "import('./routes/sse-events.js')",
+      "group: 'post_runtime'",
+      'app.use((req: Request, res: Response, next: NextFunction)',
+      "group: 'post_response_metrics'",
+      "import('./routes/lp-health.js')",
+      "group: 'post_lp_health'",
+    ];
+    for (let index = 0; index < registerRoutesOrder.length - 1; index += 1) {
+      expectFragmentBefore(routesTs, registerRoutesOrder[index]!, registerRoutesOrder[index + 1]!);
+    }
   });
 
   it('matches telemetry alias inventory to source files and consumer evidence', async () => {

@@ -169,7 +169,7 @@ export function makeApp() {
   // Public unauthenticated routes pass here; login has its own pre-auth token.
   app.use('/api', requireCsrf);
 
-  mountCommonRoutes(app, { surface: 'make_app' });
+  mountCommonRoutes(app, { surface: 'make_app', group: 'pre_runtime' });
 
   // Versioned API
   app.use('/api/v1/reserves', reservesV1Router);
@@ -185,6 +185,9 @@ export function makeApp() {
 
   // Scenario Analysis API (Construction vs Current, deal modeling)
   app.use('/api', scenarioAnalysisRouter);
+
+  mountCommonRoutes(app, { surface: 'make_app', group: 'post_runtime' });
+
   // API version endpoint for deployment verification
   app['get']('/api/version', (_req: Request, res: Response) =>
     res.json({
