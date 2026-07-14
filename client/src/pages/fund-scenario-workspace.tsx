@@ -9,12 +9,13 @@
  * @module client/pages/fund-scenario-workspace
  */
 
-import React, { useMemo, useState } from 'react';
-import { Link, useRoute } from 'wouter';
-import { ArrowLeft, RefreshCw } from 'lucide-react';
+import React, { useEffect, useMemo, useState } from 'react';
+import { useRoute, useSearch } from 'wouter';
+import { RefreshCw } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { CreateMethodologyScenarioModal } from '@/components/scenarios/CreateMethodologyScenarioModal';
 import { ScenarioFactsSeedPicker } from '@/components/scenarios/ScenarioFactsSeedPicker';
+import { WorkspaceBasisIndicator, WorkspaceNav } from '@/pages/fund-model-results/workspace-nav';
 import { useFeatureFlag } from '@/core/flags/flagAdapter';
 import {
   type Query,
@@ -141,6 +142,36 @@ function useWorkspaceFundId() {
   const [, params] = useRoute(FUND_SCENARIO_WORKSPACE_ROUTE);
   const fundId = params?.fundId ?? null;
   return fundId && /^\d+$/.test(fundId) ? fundId : null;
+}
+
+export type SeedDeepLinkResolution =
+  | { kind: 'none' }
+  | { kind: 'open'; seedCompanyId: string | null }
+  | { kind: 'notice'; reason: string };
+
+/**
+ * Plan 9 Wave 9B1 deep link: `?seedPicker=1&seedCompany=<id>` opens the
+ * flag-gated seed picker. Validation mirrors the existing picker entry:
+ * flag-off or an invalid company reference lands with the picker closed and
+ * a muted inline notice (D-C deep-link failure state).
+ */
+export function resolveSeedDeepLink(
+  search: string,
+  seedPickerEnabled: boolean
+): SeedDeepLinkResolution {
+  const params = new URLSearchParams(search);
+  if (params.get('seedPicker') !== '1') {
+    return { kind: 'none' };
+  }
+  if (!seedPickerEnabled) {
+    return { kind: 'notice', reason: 'the scenario seed picker is not enabled' };
+  }
+  const seedCompany = params.get('seedCompany');
+  // Review P2-3: strict positive-integer idiom (rejects 0 and leading zeros).
+  if (seedCompany !== null && !/^[1-9]\d*$/.test(seedCompany)) {
+    return { kind: 'notice', reason: 'invalid company reference' };
+  }
+  return { kind: 'open', seedCompanyId: seedCompany };
 }
 
 function scenarioPayloadFromResults(results: FundResultsReadV1 | undefined) {
@@ -498,6 +529,21 @@ function FundScenarioWorkspacePage() {
   const [isSeedPickerOpen, setIsSeedPickerOpen] = useState(false);
   const [highlightedScenarioSetId, setHighlightedScenarioSetId] = useState<string | null>(null);
   const seedPickerEnabled = useFeatureFlag('enable_scenario_seed_picker');
+  const search = useSearch();
+  const seedDeepLink = useMemo(
+    () => resolveSeedDeepLink(search, seedPickerEnabled),
+    [search, seedPickerEnabled]
+  );
+
+  useEffect(() => {
+    if (seedDeepLink.kind === 'open') {
+      setIsSeedPickerOpen(true);
+    } else {
+      // Review P3-6: an in-place transition to an invalid/flag-off deep link
+      // (or away from the deep link) explicitly closes the picker.
+      setIsSeedPickerOpen(false);
+    }
+  }, [seedDeepLink]);
 
   const scenarioSetsQuery = useQuery({
     queryKey: fundId ? scenarioSetListQueryKey(fundId) : ['fund-scenario-workspace', 'invalid'],
@@ -590,26 +636,49 @@ function FundScenarioWorkspacePage() {
     [comparisonQueries]
   );
 
+  // Review P3-7: the workspace row stays mounted through invalid, loading,
+  // and error states so hub navigation survives a failing spoke (D-C:
+  // partial context renders what is known plus disabled items).
+  const partialStateNav = (
+    <WorkspaceNav
+      fundId={fundId}
+      fundLabel={fundId !== null ? `Fund ${fundId}` : 'No fund'}
+      active="scenarios"
+      indicator={<WorkspaceBasisIndicator mode="construction" />}
+    />
+  );
+
   if (!fundId) {
     return (
-      <WorkspaceErrorState
-        title="Invalid scenario workspace route"
-        message="Use /fund-model-results/:fundId/scenarios with a numeric fund ID."
-      />
+      <div className="mx-auto max-w-6xl space-y-8 px-6 py-8">
+        {partialStateNav}
+        <WorkspaceErrorState
+          title="Invalid scenario workspace route"
+          message="Use /fund-model-results/:fundId/scenarios with a numeric fund ID."
+        />
+      </div>
     );
   }
 
   if (scenarioSetsQuery.isLoading || resultsQuery.isLoading) {
-    return <WorkspaceLoadingState />;
+    return (
+      <div className="mx-auto max-w-6xl space-y-8 px-6 py-8">
+        {partialStateNav}
+        <WorkspaceLoadingState />
+      </div>
+    );
   }
 
   if (scenarioSetsQuery.isError || resultsQuery.isError) {
     return (
-      <WorkspaceErrorState
-        title="Scenario workspace unavailable"
-        message="Scenario workspace data could not be loaded."
-        onRetry={() => queryClient.invalidateQueries({ queryKey: workspaceQueryKey(fundId) })}
-      />
+      <div className="mx-auto max-w-6xl space-y-8 px-6 py-8">
+        {partialStateNav}
+        <WorkspaceErrorState
+          title="Scenario workspace unavailable"
+          message="Scenario workspace data could not be loaded."
+          onRetry={() => queryClient.invalidateQueries({ queryKey: workspaceQueryKey(fundId) })}
+        />
+      </div>
     );
   }
 
@@ -617,14 +686,19 @@ function FundScenarioWorkspacePage() {
 
   return (
     <div className="mx-auto max-w-6xl space-y-8 px-6 py-8">
+      {/* Workspace row (D-F.2/D-F.5): the nav supersedes the removed
+          Back-to-Results button. Scenario sets are built on the published
+          (construction) configuration; the saved-scenario overlay control is
+          deferred until a surface-level scenario selection exists (D-E
+          fallback ordering). */}
+      <WorkspaceNav
+        fundId={fundId}
+        fundLabel={fund ? fund.name : `Fund ${fundId}`}
+        active="scenarios"
+        indicator={<WorkspaceBasisIndicator mode="construction" />}
+      />
       <header className="space-y-4">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <Button asChild variant="outline" size="sm">
-            <Link href={`/fund-model-results/${fundId}`}>
-              <ArrowLeft className="h-4 w-4" />
-              Back to Results
-            </Link>
-          </Button>
+        <div className="flex flex-wrap items-center justify-end gap-3">
           <div className="flex flex-wrap items-center gap-2">
             {seedPickerEnabled && (
               <Button variant="outline" size="sm" onClick={() => setIsSeedPickerOpen(true)}>
@@ -674,6 +748,11 @@ function FundScenarioWorkspacePage() {
             </span>
           </p>
         </div>
+        {seedDeepLink.kind === 'notice' && (
+          <p className="text-sm text-presson-textMuted" data-testid="seed-source-unavailable">
+            Seed source unavailable: {seedDeepLink.reason}
+          </p>
+        )}
       </header>
 
       <ScenarioActionList
@@ -717,6 +796,9 @@ function FundScenarioWorkspacePage() {
           fundId={fundId}
           open={isSeedPickerOpen}
           onOpenChange={setIsSeedPickerOpen}
+          {...(seedDeepLink.kind === 'open' && seedDeepLink.seedCompanyId !== null
+            ? { initialSelectedCompanyId: seedDeepLink.seedCompanyId }
+            : {})}
         />
       )}
     </div>

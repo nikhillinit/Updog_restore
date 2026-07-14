@@ -19,9 +19,11 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { Link } from 'wouter';
 import { useToast } from '@/hooks/use-toast';
 import { useFundContext } from '@/contexts/FundContext';
 import { useFlag } from '@/shared/useFlags';
+import { useFeatureFlag } from '@/core/flags/flagAdapter';
 import { format } from 'date-fns';
 import { AlertCircle, ArrowLeft, Banknote, Plus, RefreshCw, Save, Search } from 'lucide-react';
 import { useLatestAllocations } from './hooks/useLatestAllocations';
@@ -411,6 +413,9 @@ export function AllocationsTab() {
   const { toast } = useToast();
   const { fundId } = useFundContext();
   const planningFmvEnabled = useFlag('enable_planning_fmv_overrides');
+  // Generated-registry flag (not in ALL_FLAGS): resolve via the flag adapter,
+  // matching the scenario workspace's own gate for the same feature.
+  const seedPickerEnabled = useFeatureFlag('enable_scenario_seed_picker');
   const { data, isLoading, error, refetch } = useLatestAllocations();
   const {
     data: scenarioListData,
@@ -2072,10 +2077,38 @@ export function AllocationsTab() {
                           aria-hidden={!expandedActualsCompanyIds.has(company.company_id)}
                         >
                           {expandedActualsCompanyIds.has(company.company_id) ? (
-                            <AllocationActualsDisclosure
-                              drift={company.actuals_drift}
-                              companyName={company.company_name}
-                            />
+                            <>
+                              <AllocationActualsDisclosure
+                                drift={company.actuals_drift}
+                                companyName={company.company_name}
+                              />
+                              {/* Plan 9 Wave 9B1: scenario seed deep link lives
+                                  INSIDE the expanded disclosure only (collapsed
+                                  rows stay chrome-free); flag-off renders
+                                  disabled with reason (D-C). */}
+                              <div className="border-t border-beige-200 bg-white px-4 py-2 text-sm">
+                                {seedPickerEnabled && fundId ? (
+                                  <Link
+                                    href={`/fund-model-results/${fundId}/scenarios?seedPicker=1&seedCompany=${company.company_id}`}
+                                    data-testid={`allocation-seed-link-${company.company_id}`}
+                                    className="text-pov-charcoal underline underline-offset-4"
+                                  >
+                                    Start scenario from this company&apos;s actuals
+                                  </Link>
+                                ) : (
+                                  <span
+                                    aria-disabled="true"
+                                    data-testid={`allocation-seed-link-${company.company_id}-disabled`}
+                                    className="text-presson-textMuted"
+                                  >
+                                    Start scenario from this company&apos;s actuals —{' '}
+                                    {fundId
+                                      ? 'the scenario seed picker is not enabled'
+                                      : 'select a fund first'}
+                                  </span>
+                                )}
+                              </div>
+                            </>
                           ) : null}
                         </div>
                       </TableCell>
