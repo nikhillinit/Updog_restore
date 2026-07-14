@@ -75,15 +75,18 @@ export function PortfolioTabs({
     (value: string) => {
       const tabValue = value as PortfolioTabValue;
 
-      // Update URL if syncing is enabled
+      // Update URL if syncing is enabled. Preserve every other query param
+      // (fundId, etc.) — review P2-4: tab switching must not drop fund scope.
       if (syncWithUrl) {
-        setLocation(`/portfolio?tab=${tabValue}`, { replace: true });
+        const nextParams = new URLSearchParams(searchParams);
+        nextParams.set('tab', tabValue);
+        setLocation(`/portfolio?${nextParams.toString()}`, { replace: true });
       }
 
       // Fire callback
       onTabChange?.(tabValue);
     },
-    [syncWithUrl, setLocation, onTabChange]
+    [syncWithUrl, searchParams, setLocation, onTabChange]
   );
 
   return (

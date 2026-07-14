@@ -32,6 +32,7 @@ const FundScenarioWorkspace = React.lazy(() => import('@/pages/fund-scenario-wor
 const FundModelResultsMoicAnalysis = React.lazy(
   () => import('@/pages/fund-model-results-moic-analysis')
 );
+const FundModelResultsReports = React.lazy(() => import('@/pages/fund-model-results-reports'));
 const FinancialModelingPage = React.lazy(() => import('@/pages/financial-modeling'));
 const ForecastingPage = React.lazy(() => import('@/pages/forecasting'));
 const ModelResultsPage = React.lazy(() => import('@/pages/model-results'));
@@ -85,6 +86,7 @@ const APP_ROUTE_COMPONENTS: Record<
   '/model-results': ModelResultsPage,
   '/fund-model-results/:fundId/scenarios': FundScenarioWorkspace,
   '/fund-model-results/:fundId/moic-analysis': FundModelResultsMoicAnalysis,
+  '/fund-model-results/:fundId/reports': FundModelResultsReports,
   '/fund-model-results/:fundId': FundModelResults,
   '/sensitivity-analysis': SensitivityAnalysisPage,
   '/reports': Reports,

@@ -2,11 +2,23 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import DualForecastDashboard from '@/components/dashboard/dual-forecast-dashboard';
 import { ErrorBoundary } from '@/components/ui/error-boundary';
+import { useFundContext } from '@/contexts/FundContext';
+import { WorkspaceBasisIndicator, WorkspaceNav } from '@/pages/fund-model-results/workspace-nav';
 
 export default function FinancialModeling() {
+  const { fundId, currentFund } = useFundContext();
+
   return (
     <main className="flex-1 overflow-y-auto p-6 custom-scrollbar">
-      <div className="mb-8">
+      {/* Workspace row (D-F.2). Comparison surface: Construction and Current
+          render side by side by nature, and the indicator reflects that (D-E). */}
+      <WorkspaceNav
+        fundId={fundId !== null ? String(fundId) : null}
+        fundLabel={currentFund?.name ?? 'No fund selected'}
+        active="forecast"
+        indicator={<WorkspaceBasisIndicator mode="side-by-side" />}
+      />
+      <div className="mb-8 mt-6">
         <h1 className="text-3xl font-bold">Financial Modeling & Forecasting</h1>
         <p className="text-muted-foreground mt-2">
           Fund-scoped forecasts from current fund inputs. Forward-looking values are labeled as

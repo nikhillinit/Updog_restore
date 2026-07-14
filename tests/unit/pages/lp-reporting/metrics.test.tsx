@@ -20,6 +20,7 @@ import React from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { render, screen, fireEvent, waitFor, cleanup, within } from '@testing-library/react';
+import type { QualificationSnapshot } from '@/components/lp-reporting/GpQualificationStrip';
 
 const fundContextMock = vi.hoisted(() => ({
   fundId: 7 as number | null,
@@ -63,7 +64,9 @@ import {
   type ReportPackageRenderModelResponse,
 } from '@shared/contracts/lp-reporting';
 
-function renderPage() {
+type QualificationSnapshotCallback = (snapshot: QualificationSnapshot) => void;
+
+function renderPage(onQualificationSnapshot?: QualificationSnapshotCallback) {
   const queryClient = new QueryClient({
     defaultOptions: {
       queries: { retry: false, gcTime: 0 },
@@ -72,7 +75,7 @@ function renderPage() {
   });
   return render(
     <QueryClientProvider client={queryClient}>
-      <LpReportingMetricsPage />
+      <LpReportingMetricsPage onQualificationSnapshot={onQualificationSnapshot} />
     </QueryClientProvider>
   );
 }
@@ -125,17 +128,24 @@ function makeDryRunResponse(): MetricRunDryRunResponse {
   };
 }
 
-function makeCommitResponse(): MetricRunCommitResponse {
+function makeCommitResponse(
+  overrides: Partial<MetricRunCommitResponse> = {}
+): MetricRunCommitResponse {
   return {
     metricRunId: 17,
     status: 'draft',
     inputsHash: 'a'.repeat(64),
     previewHash: 'b'.repeat(64),
     inserted: true,
+    ...overrides,
   };
 }
 
-function makeEvidenceRecord() {
+function makeEvidenceRecord(overrides: Partial<ReturnType<typeof makeEvidenceRecordBase>> = {}) {
+  return { ...makeEvidenceRecordBase(), ...overrides };
+}
+
+function makeEvidenceRecordBase() {
   return {
     id: 1000,
     fundId: 7,
@@ -221,10 +231,11 @@ function makeLifecycleResponse(
   };
 }
 
-function makeApprovedNarratives(): NarrativeRunRecord[] {
+function makeApprovedNarratives(metricRunId = 17): NarrativeRunRecord[] {
   return [
     makeNarrativeRecord({
       narrativeRunId: 41,
+      metricRunId,
       narrativeType: 'no_dpi',
       editedText: 'Approved no DPI copy.',
       status: 'approved',
@@ -234,6 +245,7 @@ function makeApprovedNarratives(): NarrativeRunRecord[] {
     }),
     makeNarrativeRecord({
       narrativeRunId: 42,
+      metricRunId,
       narrativeType: 'methodology',
       editedText: 'Approved methodology copy.',
       status: 'approved',
@@ -243,6 +255,7 @@ function makeApprovedNarratives(): NarrativeRunRecord[] {
     }),
     makeNarrativeRecord({
       narrativeRunId: 43,
+      metricRunId,
       narrativeType: 'portfolio_update',
       editedText: 'Approved portfolio copy.',
       status: 'approved',
@@ -252,6 +265,7 @@ function makeApprovedNarratives(): NarrativeRunRecord[] {
     }),
     makeNarrativeRecord({
       narrativeRunId: 44,
+      metricRunId,
       narrativeType: 'risk_disclosure',
       editedText: 'Approved risk copy.',
       status: 'approved',
@@ -276,8 +290,11 @@ const H9_STAMP = {
   actionabilityStatus: H9_METADATA.actionabilityStatus,
 };
 
-function makeReportPackageRecord(): ReportPackageRecord {
-  const narrativeRows = makeApprovedNarratives().map((record) => {
+function makeReportPackageRecord(
+  overrides: Partial<ReportPackageRecord> = {}
+): ReportPackageRecord {
+  const metricRunId = overrides.metricRunId ?? 17;
+  const narrativeRows = makeApprovedNarratives(metricRunId).map((record) => {
     const ref = {
       narrativeType: record.narrativeType,
       narrativeRunId: record.narrativeRunId,
@@ -295,7 +312,7 @@ function makeReportPackageRecord(): ReportPackageRecord {
     };
   });
   const narrativeRefs = narrativeRows.map((row) => row.ref);
-  return ReportPackageRecordSchema.parse({
+  const record = ReportPackageRecordSchema.parse({
     reportPackageId: 501,
     fundId: 7,
     metricRunId: 17,
@@ -321,10 +338,12 @@ function makeReportPackageRecord(): ReportPackageRecord {
     createdAt: '2026-05-10T03:00:00.000Z',
     updatedAt: '2026-05-10T03:00:00.000Z',
   });
+  return { ...record, ...overrides };
 }
 
-function makeReportPackageRenderModelResponse(): ReportPackageRenderModelResponse {
-  const record = makeReportPackageRecord();
+function makeReportPackageRenderModelResponse(
+  record = makeReportPackageRecord()
+): ReportPackageRenderModelResponse {
   return ReportPackageRenderModelResponseSchema.parse({
     renderModel: {
       renderModelVersion: 1,
@@ -446,7 +465,9 @@ function makeReportPackageJsonExportResponse(): ReportPackageJsonExportResponse 
   });
 }
 
-function makeReportPackageStoredExportRecord(): ReportPackageExportRecord {
+function makeReportPackageStoredExportRecord(
+  overrides: Partial<ReportPackageExportRecord> = {}
+): ReportPackageExportRecord {
   return {
     reportPackageExportId: 4100,
     fundId: 7,
@@ -462,6 +483,7 @@ function makeReportPackageStoredExportRecord(): ReportPackageExportRecord {
     readyAt: '2026-05-10T04:00:00.000Z',
     createdAt: '2026-05-10T04:00:00.000Z',
     updatedAt: '2026-05-10T04:00:00.000Z',
+    ...overrides,
   };
 }
 
@@ -472,10 +494,11 @@ function makeReportPackageStoredExportGetResponse(
 }
 
 function makeReportPackageStoredExportResponse(
-  inserted = true
+  inserted = true,
+  record = makeReportPackageStoredExportRecord()
 ): ReportPackageJsonStoredExportResponse {
   return {
-    record: makeReportPackageStoredExportRecord(),
+    record,
     inserted,
   };
 }
@@ -487,13 +510,16 @@ function makeReportPackageStoredArtifactResponse(): ReportPackageJsonStoredArtif
   });
 }
 
-function makeReportPackageStoredCsvExportRecord(): ReportPackageExportRecord {
+function makeReportPackageStoredCsvExportRecord(
+  overrides: Partial<ReportPackageExportRecord> = {}
+): ReportPackageExportRecord {
   return {
     ...makeReportPackageStoredExportRecord(),
     reportPackageExportId: 4101,
     format: 'csv',
     contentHash: 'e'.repeat(64),
     artifactSizeBytes: 321,
+    ...overrides,
   };
 }
 
@@ -511,10 +537,11 @@ function makeReportPackageStoredCsvExportGetResponse(
 }
 
 function makeReportPackageStoredCsvExportResponse(
-  inserted = true
+  inserted = true,
+  record = makeReportPackageStoredCsvExportRecord()
 ): ReportPackageCsvStoredExportResponse {
   return {
-    record: makeReportPackageStoredCsvExportRecord(),
+    record,
     inserted,
     sourceJsonExportId: 4100,
     sourceJsonContentHash: 'c'.repeat(64),
@@ -536,6 +563,117 @@ function makeReportPackageStoredCsvArtifactResponse(): ReportPackageCsvStoredArt
       csv: 'section,field,value\nPackage,Fund ID,7\n',
     },
   };
+}
+
+interface QualificationPipelineOptions {
+  scope?: () => QualificationPipelineScope;
+  storedJsonRecord?: ReportPackageExportRecord | null;
+  storedCsvRecord?: ReportPackageExportRecord | null;
+  jsonExport?: (scope: QualificationPipelineScope) => Response;
+  storedJsonCreate?: (scope: QualificationPipelineScope) => Response;
+  storedCsvCreate?: (scope: QualificationPipelineScope) => Response;
+}
+
+interface QualificationPipelineScope {
+  metricRunId: number;
+  reportPackageId: number;
+}
+
+function jsonResponse(body: unknown, status = 200): Response {
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: { 'Content-Type': 'application/json' },
+  });
+}
+
+function mockQualificationPipelineFetch(options: QualificationPipelineOptions = {}) {
+  return vi.spyOn(globalThis, 'fetch').mockImplementation(async (input, init) => {
+    const url = String(input);
+    const scope = options.scope?.() ?? { metricRunId: 17, reportPackageId: 501 };
+    const { metricRunId, reportPackageId } = scope;
+    const metricRunPath = `/metric-runs/${metricRunId}`;
+    const locked = makeMetricRunDetail({
+      metricRunId,
+      status: 'locked',
+      evidenceCount: 1,
+      lockedBy: 7,
+      lockedAt: '2026-05-10T02:00:00.000Z',
+      version: 4,
+    });
+    const approvedNarratives = makeApprovedNarratives(metricRunId);
+    const reportPackage = makeReportPackageRecord({ metricRunId, reportPackageId });
+    if (url.endsWith('/metric-runs/dry-run')) {
+      return jsonResponse(makeDryRunResponse());
+    }
+    if (url.endsWith('/metric-runs/commit')) {
+      return jsonResponse(makeCommitResponse({ metricRunId }), 201);
+    }
+    if (url.includes('/metric-runs/latest')) {
+      return jsonResponse({ metricRun: locked });
+    }
+    if (url.endsWith(metricRunPath)) {
+      return jsonResponse(locked);
+    }
+    if (url.endsWith(`${metricRunPath}/evidence-records`)) {
+      return jsonResponse({
+        records: [
+          makeEvidenceRecord({
+            metricRunId,
+            idempotencyKey: `metric-run-${metricRunId}-evidence-0`,
+          }),
+        ],
+      });
+    }
+    if (url.endsWith(`${metricRunPath}/narrative-runs`)) {
+      return jsonResponse({ records: approvedNarratives });
+    }
+    if (url.endsWith(`${metricRunPath}/report-package/render-model`)) {
+      return jsonResponse(makeReportPackageRenderModelResponse(reportPackage));
+    }
+    if (url.endsWith(`${metricRunPath}/report-package/export/json`)) {
+      return options.jsonExport?.(scope) ?? jsonResponse({ error: 'UNEXPECTED_JSON_EXPORT' }, 500);
+    }
+    if (url.endsWith(`${metricRunPath}/report-package/exports/json`) && init?.method === 'POST') {
+      return (
+        options.storedJsonCreate?.(scope) ??
+        jsonResponse({ error: 'UNEXPECTED_STORED_JSON_CREATE' }, 500)
+      );
+    }
+    if (url.endsWith(`${metricRunPath}/report-package/exports/json`)) {
+      return jsonResponse(
+        makeReportPackageStoredExportGetResponse(options.storedJsonRecord ?? null)
+      );
+    }
+    if (url.endsWith(`${metricRunPath}/report-package/exports/csv`) && init?.method === 'POST') {
+      return (
+        options.storedCsvCreate?.(scope) ??
+        jsonResponse({ error: 'UNEXPECTED_STORED_CSV_CREATE' }, 500)
+      );
+    }
+    if (url.endsWith(`${metricRunPath}/report-package/exports/csv`)) {
+      return jsonResponse(
+        makeReportPackageStoredCsvExportGetResponse(options.storedCsvRecord ?? null)
+      );
+    }
+    if (url.endsWith(`${metricRunPath}/report-package`)) {
+      return jsonResponse({ record: reportPackage });
+    }
+    return jsonResponse({ error: 'UNEXPECTED_URL' }, 500);
+  });
+}
+
+async function loadQualificationPipeline(onQualificationSnapshot: QualificationSnapshotCallback) {
+  renderPage(onQualificationSnapshot);
+
+  fireEvent.click(screen.getByRole('button', { name: /run metrics/i }));
+  await waitFor(() => {
+    expect(screen.getByTestId('metrics-commit-button')).toBeEnabled();
+  });
+  fireEvent.click(screen.getByTestId('metrics-commit-button'));
+
+  await waitFor(() => {
+    expect(screen.getByTestId('metric-run-report-package-render-preview')).toBeInTheDocument();
+  });
 }
 
 describe('LpReportingMetricsPage', () => {
@@ -1498,6 +1636,255 @@ describe('LpReportingMetricsPage', () => {
     expect(screen.getByTestId('metric-run-report-package-readiness').textContent).toMatch(
       /reviewed/i
     );
+  });
+
+  it('publishes structured CSV blockers through the production qualification callback', async () => {
+    mockQualificationPipelineFetch({
+      storedCsvCreate: () =>
+        jsonResponse(
+          {
+            error: 'REPORT_PACKAGE_JSON_EXPORT_BLOCKED',
+            message: 'Stored CSV export is blocked by readiness checks.',
+            blockers: [
+              {
+                code: 'EVIDENCE_REDACTION_REQUIRED',
+                message: 'Evidence requires redaction before the CSV handoff can be stored.',
+                evidenceRecordId: 1000,
+              },
+            ],
+          },
+          409
+        ),
+    });
+    const onQualificationSnapshot = vi.fn<QualificationSnapshotCallback>();
+    await loadQualificationPipeline(onQualificationSnapshot);
+
+    fireEvent.click(screen.getByTestId('metric-run-report-package-store-csv'));
+
+    await waitFor(() => {
+      expect(onQualificationSnapshot.mock.calls.at(-1)?.[0]).toMatchObject({
+        exportBlockers: [
+          {
+            code: 'EVIDENCE_REDACTION_REQUIRED',
+            message: 'Evidence requires redaction before the CSV handoff can be stored.',
+          },
+        ],
+        exportProven: false,
+        gateErrorReason: null,
+      });
+    });
+  });
+
+  it('publishes an unstructured gate error without inventing blockers', async () => {
+    mockQualificationPipelineFetch({
+      jsonExport: () =>
+        jsonResponse(
+          {
+            error: 'REPORT_PACKAGE_EXPORT_UNAVAILABLE',
+            message: 'The export gate could not verify the current package.',
+          },
+          503
+        ),
+    });
+    const onQualificationSnapshot = vi.fn<QualificationSnapshotCallback>();
+    await loadQualificationPipeline(onQualificationSnapshot);
+
+    fireEvent.click(screen.getByTestId('metric-run-report-package-export-json'));
+
+    await waitFor(() => {
+      expect(onQualificationSnapshot.mock.calls.at(-1)?.[0]).toMatchObject({
+        exportBlockers: [],
+        exportProven: false,
+        gateErrorReason: 'The export gate could not verify the current package.',
+      });
+    });
+  });
+
+  it('publishes stored exports as history without treating them as current proof', async () => {
+    const historicalJsonExport = makeReportPackageStoredExportRecord();
+    const historicalCsvExport = {
+      ...makeReportPackageStoredCsvExportRecord(),
+      readyAt: '2026-05-11T05:00:00.000Z',
+      createdAt: '2026-05-11T05:00:00.000Z',
+      updatedAt: '2026-05-11T05:00:00.000Z',
+    };
+    mockQualificationPipelineFetch({
+      storedJsonRecord: historicalJsonExport,
+      storedCsvRecord: historicalCsvExport,
+    });
+    const onQualificationSnapshot = vi.fn<QualificationSnapshotCallback>();
+    await loadQualificationPipeline(onQualificationSnapshot);
+
+    await waitFor(() => {
+      expect(onQualificationSnapshot.mock.calls.at(-1)?.[0]).toMatchObject({
+        exportBlockers: [],
+        exportProven: false,
+        gateErrorReason: null,
+        lastStoredExportAt: '2026-05-11T05:00:00.000Z',
+      });
+    });
+  });
+
+  it.each([
+    {
+      format: 'JSON',
+      buttonTestId: 'metric-run-report-package-store-json',
+      options: {
+        storedJsonCreate: () => jsonResponse(makeReportPackageStoredExportResponse(true), 201),
+      },
+    },
+    {
+      format: 'CSV',
+      buttonTestId: 'metric-run-report-package-store-csv',
+      options: {
+        storedCsvCreate: () => jsonResponse(makeReportPackageStoredCsvExportResponse(true), 201),
+      },
+    },
+  ])(
+    'publishes a current-session $format create as export proof',
+    async ({ buttonTestId, options }) => {
+      mockQualificationPipelineFetch(options);
+      const onQualificationSnapshot = vi.fn<QualificationSnapshotCallback>();
+      await loadQualificationPipeline(onQualificationSnapshot);
+
+      await waitFor(() => {
+        expect(onQualificationSnapshot.mock.calls.at(-1)?.[0]?.exportProven).toBe(false);
+      });
+
+      fireEvent.click(screen.getByTestId(buttonTestId));
+
+      await waitFor(() => {
+        expect(onQualificationSnapshot.mock.calls.at(-1)?.[0]).toMatchObject({
+          exportBlockers: [],
+          exportProven: true,
+          gateErrorReason: null,
+          lastStoredExportAt: '2026-05-10T04:00:00.000Z',
+        });
+      });
+    }
+  );
+
+  it('does not carry a stored-export proof into a different metric run and package', async () => {
+    let scope: QualificationPipelineScope = { metricRunId: 17, reportPackageId: 501 };
+    mockQualificationPipelineFetch({
+      scope: () => scope,
+      storedJsonCreate: (currentScope) =>
+        jsonResponse(
+          makeReportPackageStoredExportResponse(
+            true,
+            makeReportPackageStoredExportRecord({
+              metricRunId: currentScope.metricRunId,
+              reportPackageId: currentScope.reportPackageId,
+            })
+          ),
+          201
+        ),
+    });
+    const onQualificationSnapshot = vi.fn<QualificationSnapshotCallback>();
+    await loadQualificationPipeline(onQualificationSnapshot);
+
+    fireEvent.click(screen.getByTestId('metric-run-report-package-store-json'));
+    await waitFor(() => {
+      expect(onQualificationSnapshot.mock.calls.at(-1)?.[0]).toMatchObject({
+        metricRun: { metricRunId: 17 },
+        exportProven: true,
+      });
+    });
+
+    scope = { metricRunId: 18, reportPackageId: 502 };
+    fireEvent.click(screen.getByRole('button', { name: /run metrics/i }));
+    await waitFor(() => {
+      expect(screen.getByTestId('metrics-commit-button')).toBeEnabled();
+    });
+    fireEvent.click(screen.getByTestId('metrics-commit-button'));
+
+    await waitFor(() => {
+      expect(onQualificationSnapshot.mock.calls.at(-1)?.[0]).toMatchObject({
+        metricRun: { metricRunId: 18 },
+        reportPackage: { status: 'assembled' },
+        exportProven: false,
+        lastStoredExportAt: null,
+      });
+    });
+  });
+
+  it('does not carry an export-gate error into a different metric run and package', async () => {
+    let scope: QualificationPipelineScope = { metricRunId: 17, reportPackageId: 501 };
+    mockQualificationPipelineFetch({
+      scope: () => scope,
+      storedCsvCreate: () =>
+        jsonResponse(
+          {
+            error: 'REPORT_PACKAGE_JSON_EXPORT_BLOCKED',
+            message: 'Stored CSV export is blocked by readiness checks.',
+            blockers: [
+              {
+                code: 'EVIDENCE_REDACTION_REQUIRED',
+                message: 'Evidence requires redaction before the CSV handoff can be stored.',
+                evidenceRecordId: 1000,
+              },
+            ],
+          },
+          409
+        ),
+    });
+    const onQualificationSnapshot = vi.fn<QualificationSnapshotCallback>();
+    await loadQualificationPipeline(onQualificationSnapshot);
+
+    fireEvent.click(screen.getByTestId('metric-run-report-package-store-csv'));
+    await waitFor(() => {
+      expect(onQualificationSnapshot.mock.calls.at(-1)?.[0]).toMatchObject({
+        metricRun: { metricRunId: 17 },
+        exportBlockers: [{ code: 'EVIDENCE_REDACTION_REQUIRED' }],
+        exportProven: false,
+      });
+    });
+
+    scope = { metricRunId: 18, reportPackageId: 502 };
+    fireEvent.click(screen.getByRole('button', { name: /run metrics/i }));
+    await waitFor(() => {
+      expect(screen.getByTestId('metrics-commit-button')).toBeEnabled();
+    });
+    fireEvent.click(screen.getByTestId('metrics-commit-button'));
+
+    await waitFor(() => {
+      expect(onQualificationSnapshot.mock.calls.at(-1)?.[0]).toMatchObject({
+        metricRun: { metricRunId: 18 },
+        reportPackage: { status: 'assembled' },
+        exportBlockers: [],
+        exportProven: false,
+        gateErrorReason: null,
+      });
+    });
+  });
+
+  it('publishes a fresh deterministic JSON export as current scoped proof', async () => {
+    mockQualificationPipelineFetch({
+      jsonExport: () => jsonResponse(makeReportPackageJsonExportResponse()),
+    });
+    const onQualificationSnapshot = vi.fn<QualificationSnapshotCallback>();
+    Object.defineProperty(URL, 'createObjectURL', {
+      configurable: true,
+      value: vi.fn().mockReturnValue('blob:qualification-json'),
+    });
+    Object.defineProperty(URL, 'revokeObjectURL', {
+      configurable: true,
+      value: vi.fn(),
+    });
+    vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => undefined);
+    await loadQualificationPipeline(onQualificationSnapshot);
+
+    fireEvent.click(screen.getByTestId('metric-run-report-package-export-json'));
+
+    await waitFor(() => {
+      expect(onQualificationSnapshot.mock.calls.at(-1)?.[0]).toMatchObject({
+        metricRun: { metricRunId: 17 },
+        reportPackage: { status: 'assembled' },
+        exportBlockers: [],
+        exportProven: true,
+        gateErrorReason: null,
+      });
+    });
   });
 
   it('renders JSON export blockers inside the report package card', async () => {

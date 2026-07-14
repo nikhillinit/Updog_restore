@@ -106,6 +106,9 @@ vi.mock('@/pages/help', () => ({ default: () => <div>Help Page</div> }));
 vi.mock('@/pages/fund-model-results', () => ({
   default: () => <div>Fund Model Results Page</div>,
 }));
+vi.mock('@/pages/fund-model-results-reports', () => ({
+  default: () => <div>Fund Model Results Reports Page</div>,
+}));
 vi.mock('@/pages/model-results', () => ({
   default: () => <div>Model Results Compatibility Page</div>,
 }));
@@ -164,6 +167,9 @@ describe('route perimeter governance', () => {
     ['/settings', 'Settings Page'],
     ['/help', 'Help Page'],
     ['/fund-model-results/42', 'Fund Model Results Page'],
+    // Plan 9 Wave 9B1 (D-F.3): fund-scoped reports destination is a governed,
+    // deliberately mounted route.
+    ['/fund-model-results/42/reports', 'Fund Model Results Reports Page'],
   ])('keeps mounted route %s live', async (path, expectedText) => {
     await renderAt(path);
 

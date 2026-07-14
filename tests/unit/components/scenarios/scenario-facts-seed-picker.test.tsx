@@ -125,6 +125,7 @@ function jsonResponse(body: unknown, status = 200) {
 interface RenderPickerOptions {
   scenario?: { id: string; version: number; locked_at?: string | null } | null;
   createdFromFactsHash?: string;
+  initialSelectedCompanyId?: string;
 }
 
 function renderPicker(options: RenderPickerOptions = {}) {
@@ -138,7 +139,7 @@ function renderPicker(options: RenderPickerOptions = {}) {
       ? { id: SCENARIO_ID, version: 4, locked_at: null }
       : options.scenario;
 
-  const result = render(
+  const picker = () => (
     <QueryClientProvider client={queryClient}>
       <ScenarioFactsSeedPicker
         fundId="7"
@@ -146,11 +147,21 @@ function renderPicker(options: RenderPickerOptions = {}) {
         onOpenChange={onOpenChange}
         scenario={scenario ?? undefined}
         createdFromFactsHash={options.createdFromFactsHash}
+        {...(options.initialSelectedCompanyId !== undefined
+          ? { initialSelectedCompanyId: options.initialSelectedCompanyId }
+          : {})}
       />
     </QueryClientProvider>
   );
+  const result = render(picker());
 
-  return { ...result, queryClient, invalidateSpy, onOpenChange };
+  return {
+    ...result,
+    queryClient,
+    invalidateSpy,
+    onOpenChange,
+    rerenderPicker: () => result.rerender(picker()),
+  };
 }
 
 async function selectLiveSeedAndFillRequiredInputs(user: ReturnType<typeof userEvent.setup>) {
@@ -181,6 +192,58 @@ describe('ScenarioFactsSeedPicker', () => {
     expect(ScenarioCaseSeedV1Schema.parse(makeCurrencyBlockedSeed()).currencyStatus).toBe(
       'mismatch_blocked'
     );
+  });
+
+  it('preselects the deep-linked company once its seed is disclosed (review P2-3)', async () => {
+    const response = availableResponse([makeLiveSeed(), makePartialSeed()]);
+    pickerState.hookResult = { seeds: response.seeds, response, isLoading: false, error: null };
+    renderPicker({ initialSelectedCompanyId: '102' });
+
+    await waitFor(() => {
+      expect(screen.getByRole('radio', { name: /company 102/i })).toBeChecked();
+    });
+    expect(screen.getByRole('radio', { name: /company 101/i })).not.toBeChecked();
+  });
+
+  it('ignores a deep-linked company that is not among the disclosed seeds', async () => {
+    const response = availableResponse([makeLiveSeed(), makePartialSeed()]);
+    pickerState.hookResult = { seeds: response.seeds, response, isLoading: false, error: null };
+    renderPicker({ initialSelectedCompanyId: '999' });
+
+    expect(
+      await screen.findByRole('dialog', { name: /start case from portfolio actuals/i })
+    ).toBeVisible();
+    expect(screen.getByRole('radio', { name: /company 101/i })).not.toBeChecked();
+    expect(screen.getByRole('radio', { name: /company 102/i })).not.toBeChecked();
+  });
+
+  it('does not override a manual choice when the deep-linked seed arrives after a refetch', async () => {
+    const firstResponse = availableResponse([makeLiveSeed()]);
+    pickerState.hookResult = {
+      seeds: firstResponse.seeds,
+      response: firstResponse,
+      isLoading: false,
+      error: null,
+    };
+    const user = userEvent.setup();
+    const { rerenderPicker } = renderPicker({ initialSelectedCompanyId: '102' });
+
+    await user.click(screen.getByRole('radio', { name: /company 101/i }));
+    expect(screen.getByRole('radio', { name: /company 101/i })).toBeChecked();
+
+    const refetchedResponse = availableResponse([makeLiveSeed(), makePartialSeed()]);
+    pickerState.hookResult = {
+      seeds: refetchedResponse.seeds,
+      response: refetchedResponse,
+      isLoading: false,
+      error: null,
+    };
+    rerenderPicker();
+
+    await waitFor(() => {
+      expect(screen.getByRole('radio', { name: /company 101/i })).toBeChecked();
+    });
+    expect(screen.getByRole('radio', { name: /company 102/i })).not.toBeChecked();
   });
 
   it('renders disclosed LIVE facts, market-reference copy, and snapshot provenance', () => {

@@ -1,5 +1,5 @@
 import React from 'react';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
@@ -533,6 +533,10 @@ function setControlValue(control: HTMLElement, value: string) {
 }
 
 describe('portfolio reserve planning workspace', () => {
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
   beforeEach(() => {
     vi.clearAllMocks();
 
@@ -638,6 +642,47 @@ describe('portfolio reserve planning workspace', () => {
     expect(applyScenarioMutateAsyncMock).not.toHaveBeenCalled();
     expect(reserveIcDecisionCreateMutateAsyncMock).not.toHaveBeenCalled();
     expect(reserveIcDecisionUpdateMutateAsyncMock).not.toHaveBeenCalled();
+  });
+
+  // -- Plan 9 Wave 9B1: scenario seed deep link inside the expanded disclosure --
+
+  it('deep-links to the scenario seed picker from an expanded row while the flag is on', async () => {
+    vi.stubEnv('VITE_ENABLE_SCENARIO_SEED_PICKER', 'true');
+    const user = userEvent.setup();
+    renderWithQuery(<AllocationsTab />);
+
+    // Collapsed rows stay chrome-free.
+    expect(screen.queryByTestId('allocation-seed-link-1')).not.toBeInTheDocument();
+
+    const expander = screen.getByRole('button', {
+      name: 'Expand Plan vs actual for TechCorp. Status: no drift',
+    });
+    expander.focus();
+    await user.keyboard('{Enter}');
+
+    const seedLink = screen.getByTestId('allocation-seed-link-1');
+    expect(seedLink).toHaveTextContent("Start scenario from this company's actuals");
+    expect(seedLink).toHaveAttribute(
+      'href',
+      '/fund-model-results/1/scenarios?seedPicker=1&seedCompany=1'
+    );
+  });
+
+  it('renders the seed link disabled with a reason while the flag is off', async () => {
+    vi.stubEnv('VITE_ENABLE_SCENARIO_SEED_PICKER', 'false');
+    const user = userEvent.setup();
+    renderWithQuery(<AllocationsTab />);
+
+    const expander = screen.getByRole('button', {
+      name: 'Expand Plan vs actual for TechCorp. Status: no drift',
+    });
+    expander.focus();
+    await user.keyboard('{Enter}');
+
+    const disabled = screen.getByTestId('allocation-seed-link-1-disabled');
+    expect(disabled).toHaveAttribute('aria-disabled', 'true');
+    expect(disabled).toHaveTextContent('the scenario seed picker is not enabled');
+    expect(screen.queryByTestId('allocation-seed-link-1')).not.toBeInTheDocument();
   });
 
   it('renders the disclosure loading rail with tabular placeholders', () => {

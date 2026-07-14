@@ -16,6 +16,7 @@ export const APP_ROUTE_DEFINITIONS = [
   { path: '/model-results', isProtected: true },
   { path: '/fund-model-results/:fundId/scenarios', isProtected: true },
   { path: '/fund-model-results/:fundId/moic-analysis', isProtected: true },
+  { path: '/fund-model-results/:fundId/reports', isProtected: true },
   { path: '/fund-model-results/:fundId', isProtected: true },
   { path: '/sensitivity-analysis', isProtected: true },
   { path: '/reports', isProtected: true },

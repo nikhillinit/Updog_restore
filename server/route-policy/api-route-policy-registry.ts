@@ -65,6 +65,12 @@ export function getFinancialSurfaceForGovernanceEntry(
     return 'lp_reporting';
   }
 
+  // Plan 9 Wave 9B1 (D-F.3): the fund-scoped reports destination hosts the LP
+  // reporting metrics pipeline, not fund modeling.
+  if (entry.path === '/fund-model-results/:fundId/reports') {
+    return 'lp_reporting';
+  }
+
   if (entry.path === '/shared/:shareId') {
     return 'lp_reporting';
   }
@@ -271,6 +277,22 @@ const GOVERNANCE_ROUTE_POLICY_DECISIONS: Readonly<Record<string, RoutePolicyDeci
     exportPolicy: 'not_exportable',
     provenanceRequired: true,
     staleBlocksExport: true,
+    humanReviewRequired: true,
+    performanceBudgetMs: null,
+  },
+  // Plan 9 Wave 9B1 (D-F.3): fund-scoped reports destination hosting the LP
+  // reporting metrics pipeline. Client-route posture mirrors the
+  // /lp-reporting/metrics compatibility route; the qualified_exportable
+  // gates stay on the API export routes themselves.
+  '/fund-model-results/:fundId/reports': {
+    lifecycle: 'durable_crud',
+    financialSurface: 'lp_reporting',
+    apiAuthBoundary: 'require_auth_and_fund_access',
+    fundScopeMode: 'route_param_fund_id',
+    workflowRequirement: 'fund_scope_verified',
+    exportPolicy: 'not_exportable',
+    provenanceRequired: false,
+    staleBlocksExport: false,
     humanReviewRequired: true,
     performanceBudgetMs: null,
   },
