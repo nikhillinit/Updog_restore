@@ -13,6 +13,7 @@ import { z } from 'zod';
 
 import { db } from '../../db';
 import {
+  CURRENT_REPORT_PACKAGE_RENDER_MODEL_VERSION,
   ReportPackagePayloadSchema,
   ReportPackageRecordSchema,
   ReportPackageRenderModelResponseSchema,
@@ -390,7 +391,7 @@ export async function getMetricRunReportPackageRenderModel(
 
   return ReportPackageRenderModelResponseSchema.parse({
     renderModel: {
-      renderModelVersion: 1,
+      renderModelVersion: CURRENT_REPORT_PACKAGE_RENDER_MODEL_VERSION,
       source: {
         reportPackageId: reportPackage.reportPackageId,
         fundId: reportPackage.fundId,

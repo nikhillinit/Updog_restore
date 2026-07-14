@@ -253,6 +253,7 @@ describe('getMetricRunReportPackageRenderModel', () => {
       { database: makeDatabase() }
     );
 
+    expect(response.renderModel.renderModelVersion).toBe(2);
     expect(response.renderModel.source.reportPackageId).toBe(501);
     expect(response.renderModel.fundDisplay).toEqual({
       fundId: 1,

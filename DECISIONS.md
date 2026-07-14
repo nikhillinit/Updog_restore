@@ -6137,7 +6137,9 @@ approval, lock, narrative, evidence, or package-assembly lifecycle routes.
   structured H9 error.
 - Stored JSON and CSV status GETs remain role-and-export-grant-gated readiness
   metadata. They re-check workflow state but intentionally defer H9 to creation
-  and authoritative artifact serving.
+  and authoritative artifact serving. The route-policy registry declares them as
+  `not_exportable` readiness metadata without a stale-blocks-export assertion,
+  matching that runtime posture.
 - Read/lifecycle surfaces remain H9-independent under ADR-028's
   disclose-not-block rule. Qualification-state disclosure does not display
   unqualified numeric values in the current client: the package record is used
@@ -6152,7 +6154,10 @@ approval, lock, narrative, evidence, or package-assembly lifecycle routes.
 - `POST /funds/:fundId/scenario-analysis/scenarios/:scenarioId/cases/from-seed`
   is gated on the server by `ENABLE_SCENARIO_SEED_PICKER`, default off. When
   disabled, the route returns 404 before body validation, idempotency,
-  provenance lookup, or persistence.
+  provenance lookup, or persistence. The 404 is auth-first: it is only reached
+  after authentication and fund-access middleware succeed, matching the
+  marginal-rankings precedent, so anonymous callers still receive 401 while the
+  flag is off and no idempotency or provenance row is ever written.
 
 ### Evidence
 
@@ -6163,8 +6168,9 @@ approval, lock, narrative, evidence, or package-assembly lifecycle routes.
   `report-package-render-model-service.ts`, and the stored JSON/CSV export
   services enforce the workflow/H9 ordering and stored-artifact boundaries.
 - `tests/unit/lp-reporting/report-qualification-characterization.test.ts` pins
-  the role matrix, H9 failure codes, status-GET exception, marginal-MOIC
-  exclusion, and production gate wiring.
+  the role matrix, H9 failure codes, status-GET exception, and marginal-MOIC
+  exclusion by executing the real H9 gates and services through `makeApp`
+  routes, mocking only the database rows and the actionability resolver.
 - `tests/unit/services/lp-reporting/report-package-render-model-service.test.ts`
   pins that workflow and H9 failures occur before metric values are built.
 - `client/src/pages/lp-reporting/metrics.tsx` renders numeric sections from the
@@ -6200,6 +6206,23 @@ approval, lock, narrative, evidence, or package-assembly lifecycle routes.
 - A future lifecycle role redesign must be explicit. This decision records the
   current fund-scope-only lifecycle middleware and does not infer export rights
   for viewer, analyst, or operator.
+- Per-metric provenance bumped the render-model version to 2. Stored-export
+  replay compares content hashes only within the same render-model version: a
+  stored row whose artifact carries an older render-model version replays
+  against its own bytes/hash instead of conflicting with the current renderer
+  output, while same-version drift still fails with
+  `EXPORT_CONTENT_HASH_CONFLICT`.
+
+### Accepted residuals
+
+- The H9 revalidation check and the stored CSV insert/replay run as separate
+  autocommit operations, so H9 can go stale in the window between the check and
+  the write (TOCTOU). This is accepted at the current ~5-user internal scale
+  because the artifact GET re-validates H9 at delivery and fails closed,
+  bounding the worst case to an inert stored metadata row that can never serve
+  artifact bytes. Serializing H9 writers is not warranted for this deployment.
+  The backstop is pinned by the stored-CSV service test that makes H9 stale
+  after CSV creation and asserts the artifact GET still blocks.
 
 ### Follow-ups
 
@@ -6207,6 +6230,10 @@ approval, lock, narrative, evidence, or package-assembly lifecycle routes.
   evidence panel.
 - Retitle the `/reports` page `Variance Reports`.
 - Clean stale LP-reporting `placeholder` comments in Wave 9F.
+- Add request-hash comparison to evidence-record idempotency replay: today it is
+  key-only deduplication, so a different body with a reused Idempotency-Key is
+  silently accepted and returns the stored record; a mismatched request hash
+  should return 409.
 
 **Implementation:** Plan 9 Wave 9D report-qualification characterization and
 named server-side gap fills.

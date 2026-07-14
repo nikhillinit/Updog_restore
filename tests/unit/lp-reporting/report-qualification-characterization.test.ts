@@ -11,19 +11,6 @@ const actionabilityState = vi.hoisted(() => ({
   resolveForFund: vi.fn(),
 }));
 
-const reportServiceState = vi.hoisted(() => ({
-  getReportPackage: vi.fn(),
-  assembleReportPackage: vi.fn(),
-  getRenderModel: vi.fn(),
-  getJsonExport: vi.fn(),
-  createStoredJsonExport: vi.fn(),
-  getStoredJsonExport: vi.fn(),
-  getStoredJsonArtifact: vi.fn(),
-  createStoredCsvExport: vi.fn(),
-  getStoredCsvExport: vi.fn(),
-  getStoredCsvArtifact: vi.fn(),
-}));
-
 vi.mock('../../../server/services/fund-calculation-mode-service', async (importOriginal) => ({
   ...(await importOriginal<
     typeof import('../../../server/services/fund-calculation-mode-service')
@@ -33,43 +20,92 @@ vi.mock('../../../server/services/fund-calculation-mode-service', async (importO
   }),
 }));
 
-vi.mock('../../../server/services/lp-reporting/report-package-service', () => ({
-  getMetricRunReportPackage: reportServiceState.getReportPackage,
-  assembleMetricRunReportPackage: reportServiceState.assembleReportPackage,
+/**
+ * Data-layer fake (repo pattern). The production LP-reporting routes, services,
+ * workflow gate, and H9 export gates all execute for real through makeApp;
+ * only the database rows they read and write are supplied by this table-keyed
+ * stub. The MOIC actionability resolver above is the only other mocked seam
+ * because it is a DB-heavy resolver input.
+ */
+const dbState = vi.hoisted(() => ({
+  tables: {} as Record<string, Array<Record<string, unknown>>>,
+  exportInsertAttempts: 0,
+  insertedExportRows: [] as Array<Record<string, unknown>>,
+  metricRunStatusUpdates: [] as Array<Record<string, unknown>>,
+  nextId: 9000,
 }));
 
-vi.mock('../../../server/services/lp-reporting/report-package-render-model-service', () => ({
-  getMetricRunReportPackageRenderModel: reportServiceState.getRenderModel,
-}));
+vi.mock('../../../server/db', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../../server/db')>();
+  const { getTableName } = await import('drizzle-orm');
 
-vi.mock('../../../server/services/lp-reporting/report-package-json-export-service', () => ({
-  getMetricRunReportPackageJsonExport: reportServiceState.getJsonExport,
-  ReportPackageJsonExportBlockedError: class ReportPackageJsonExportBlockedError extends Error {},
-}));
+  function rowsFor(table: unknown): Array<Record<string, unknown>> {
+    return dbState.tables[getTableName(table as never)] ?? [];
+  }
 
-vi.mock('../../../server/services/lp-reporting/report-package-json-stored-export-service', () => ({
-  createMetricRunReportPackageStoredJsonExport: reportServiceState.createStoredJsonExport,
-  getMetricRunReportPackageStoredJsonExport: reportServiceState.getStoredJsonExport,
-  getMetricRunReportPackageStoredJsonArtifact: reportServiceState.getStoredJsonArtifact,
-  reportPackageExportContentHashConflictBody: vi.fn(),
-  reportPackageExportNotFoundBody: vi.fn(),
-  ReportPackageExportContentHashConflictError: class ReportPackageExportContentHashConflictError extends Error {},
-  ReportPackageExportNotFoundError: class ReportPackageExportNotFoundError extends Error {},
-}));
+  function queryResult(rows: Array<Record<string, unknown>>) {
+    const promise = Promise.resolve(rows) as Promise<Array<Record<string, unknown>>> & {
+      limit: (count: number) => Promise<Array<Record<string, unknown>>>;
+    };
+    promise.limit = () => Promise.resolve(rows);
+    return promise;
+  }
 
-vi.mock('../../../server/services/lp-reporting/report-package-csv-stored-export-service', () => ({
-  createMetricRunReportPackageStoredCsvExport: reportServiceState.createStoredCsvExport,
-  getMetricRunReportPackageStoredCsvExport: reportServiceState.getStoredCsvExport,
-  getMetricRunReportPackageStoredCsvArtifact: reportServiceState.getStoredCsvArtifact,
-  reportPackageCsvExportContentHashConflictBody: vi.fn(),
-  reportPackageCsvExportNotFoundBody: vi.fn(),
-  reportPackageCsvSourceJsonExportRequiredBody: vi.fn(),
-  ReportPackageCsvExportContentHashConflictError: class ReportPackageCsvExportContentHashConflictError extends Error {},
-  ReportPackageCsvExportNotFoundError: class ReportPackageCsvExportNotFoundError extends Error {},
-  ReportPackageCsvSourceJsonExportRequiredError: class ReportPackageCsvSourceJsonExportRequiredError extends Error {},
-}));
+  const fakeDb = {
+    select: () => ({
+      from: (table: unknown) => ({
+        where: () => queryResult(rowsFor(table)),
+      }),
+    }),
+    insert: (table: unknown) => ({
+      values: (row: Record<string, unknown>) => ({
+        onConflictDoNothing: () => ({
+          returning: async () => {
+            const name = getTableName(table as never);
+            if (name !== 'lp_report_package_exports') return [];
+            dbState.exportInsertAttempts += 1;
+            const rows = rowsFor(table);
+            const duplicate = rows.find(
+              (candidate) =>
+                candidate['reportPackageId'] === row['reportPackageId'] &&
+                candidate['format'] === row['format'] &&
+                candidate['exportVersion'] === row['exportVersion']
+            );
+            if (duplicate) return [];
+            const stored = { id: dbState.nextId++, ...row };
+            rows.push(stored);
+            dbState.insertedExportRows.push(stored);
+            return [stored];
+          },
+        }),
+      }),
+    }),
+    update: (table: unknown) => ({
+      set: (values: Record<string, unknown>) => ({
+        where: () => ({
+          returning: async () => {
+            const name = getTableName(table as never);
+            if (name !== 'lp_metric_runs') return [];
+            const current = rowsFor(table).find((candidate) => candidate['status'] === 'locked');
+            if (!current) return [];
+            Object.assign(current, values);
+            dbState.metricRunStatusUpdates.push(values);
+            return [current];
+          },
+        }),
+      }),
+    }),
+    execute: async () => [],
+  };
 
-import { assertH9ExportActionable } from '../../../server/services/lp-reporting/h9-export-gate';
+  return { ...actual, db: fakeDb as never };
+});
+
+import { createHash } from 'node:crypto';
+
+import { buildReportPackageCsv } from '../../../server/services/lp-reporting/report-package-csv-stored-export-service';
+import { sha256CanonicalJson } from '../../../server/services/lp-reporting/report-package-json-export-service';
+import { ReportPackageJsonExportArtifactSchema } from '@shared/contracts/lp-reporting';
 
 const EXPORT_ROUTES = [
   ['GET', '/api/funds/1/metric-runs/11/report-package/render-model'],
@@ -130,7 +166,7 @@ const READ_AND_LIFECYCLE_PROBES = [
   {
     route: ['GET', '/api/funds/1/metric-runs/11/report-package'],
     expectedStatus: 200,
-    expectedBody: { record: null },
+    expectedBody: { record: { reportPackageId: 501, metricRunId: 11, status: 'assembled' } },
   },
 ] as const;
 
@@ -242,41 +278,240 @@ const renderModel = {
   },
 } as const;
 
-const jsonExport = {
+/**
+ * A stored export row created BEFORE per-metric provenance existed:
+ * render-model version 1 metric sections without provenance fields. Its
+ * content hash is the real hash of its own bytes, so replays must succeed
+ * against the stored row even though the current renderer output differs.
+ */
+const legacyJsonArtifact = ReportPackageJsonExportArtifactSchema.parse({
   exportVersion: 1,
   format: 'json',
   source,
   renderModel,
-  contentHashAlgorithm: 'sha256',
-  contentHash: 'a'.repeat(64),
+});
+const STORED_JSON_CONTENT_HASH = sha256CanonicalJson(legacyJsonArtifact);
+const STORED_CSV_STRING = buildReportPackageCsv(legacyJsonArtifact);
+const STORED_CSV_CONTENT_HASH = createHash('sha256')
+  .update(STORED_CSV_STRING, 'utf8')
+  .digest('hex');
+const METRIC_RUN_INPUTS_HASH = '0123456789abcdef'.repeat(4);
+
+const validXirrDiagnostic = {
+  convergence: 'converged',
+  iterations: 5,
+  method: 'newton',
+  boundHit: null,
+  failureReason: null,
 } as const;
 
-const exportRecord = {
-  reportPackageExportId: 601,
-  fundId: 1,
-  metricRunId: 11,
-  reportPackageId: 501,
-  format: 'json',
-  exportVersion: 1,
-  status: 'ready',
-  contentHashAlgorithm: 'sha256',
-  contentHash: 'a'.repeat(64),
-  artifactSizeBytes: 512,
-  createdBy: 7,
-  readyAt: '2026-05-10T04:00:00.000Z',
-  createdAt: '2026-05-10T04:00:00.000Z',
-  updatedAt: '2026-05-10T04:00:00.000Z',
-} as const;
+function reportPackagePayload() {
+  const narratives = [
+    ['no_dpi', 100, 'Approved no DPI copy.'],
+    ['methodology', 101, 'Approved methodology copy.'],
+    ['portfolio_update', 102, 'Approved portfolio update copy.'],
+    ['risk_disclosure', 103, 'Approved risk disclosure copy.'],
+  ] as const;
 
-const csvExport = {
-  exportVersion: 1,
-  format: 'csv',
-  sourceJsonExportId: 601,
-  sourceJsonContentHash: jsonExport.contentHash,
-  contentType: 'text/csv; charset=utf-8',
-  filename: 'lp-report-package-1-11-csv-v1.csv',
-  csv: 'section,field,value\nperformance,moic,1.500000\n',
-} as const;
+  return {
+    payloadVersion: 1,
+    results: {
+      asOfDate: '2026-03-31',
+      currency: 'USD',
+      dpi: '0.450000',
+      rvpi: '1.250000',
+      tvpi: '1.700000',
+      moic: '1.700000',
+      netIrr: '0.150000',
+      grossIrr: '0.180000',
+      xirrDiagnostic: {
+        net: validXirrDiagnostic,
+        gross: validXirrDiagnostic,
+      },
+      contributionsTotal: '50000000.000000',
+      distributionsTotal: '22500000.000000',
+      currentNav: '62500000.000000',
+      markConfidenceMix: { high: 8, medium: 3, low: 1 },
+    },
+    diagnostics: {
+      engineVersion: 'lp-reporting-engine@1.2.0',
+      decimalPrecision: 6,
+      excludedFutureMarks: [],
+      warnings: [],
+    },
+    sourceEventIds: [101, 102],
+    sourceMarkIds: [201],
+    evidenceRecordIds: [300, 301],
+    narratives: narratives.map(([narrativeType, narrativeRunId, effectiveText]) => ({
+      narrativeType,
+      narrativeRunId,
+      narrativeVersion: 3,
+      approvedBy: 7,
+      approvedAt: '2026-05-10T02:30:00.000Z',
+      textHash: 'a'.repeat(64),
+      effectiveText,
+    })),
+  };
+}
+
+function metricRunRow(): Record<string, unknown> {
+  return {
+    id: 11,
+    fundId: 1,
+    vehicleId: null,
+    asOfDate: '2026-03-31',
+    runType: 'quarterly_report',
+    perspective: 'lp_net',
+    status: 'locked',
+    inputsHash: METRIC_RUN_INPUTS_HASH,
+    sourceEventIds: [101, 102],
+    sourceMarkIds: [201],
+    sourceEvidenceIds: [300, 301],
+    resultsJson: {},
+    diagnosticsJson: {},
+    methodologyVersion: 'lp-reporting-methodology-v1',
+    calculationVersion: 'lp-reporting-metrics-engine-1.0.0',
+    generatedBy: 7,
+    approvedBy: 7,
+    approvedAt: new Date('2026-05-10T01:00:00Z'),
+    lockedBy: 7,
+    lockedAt: new Date('2026-05-10T02:00:00Z'),
+    exportedAt: null,
+    version: 4,
+    createdAt: new Date('2026-05-10T00:00:00Z'),
+    updatedAt: new Date('2026-05-10T02:00:00Z'),
+  };
+}
+
+function fundRow(): Record<string, unknown> {
+  return {
+    id: 1,
+    name: 'Qualification Test Fund',
+    size: '100000000.000000',
+    deployedCapital: '0',
+    managementFee: '0.0200',
+    carryPercentage: '0.2000',
+    vintageYear: 2024,
+    establishmentDate: null,
+    status: 'active',
+    isActive: true,
+    engineResults: null,
+    createdAt: new Date('2026-01-01T00:00:00Z'),
+  };
+}
+
+function reportPackageRow(): Record<string, unknown> {
+  const payload = reportPackagePayload();
+  return {
+    id: 501,
+    fundId: 1,
+    metricRunId: 11,
+    status: 'assembled',
+    asOfDate: '2026-03-31',
+    metricRunVersion: 4,
+    metricRunLockedBy: 7,
+    metricRunLockedAt: new Date('2026-05-10T02:00:00Z'),
+    narrativeRefs: payload.narratives.map((narrative) => ({
+      narrativeType: narrative.narrativeType,
+      narrativeRunId: narrative.narrativeRunId,
+      narrativeVersion: narrative.narrativeVersion,
+      approvedBy: narrative.approvedBy,
+      approvedAt: narrative.approvedAt,
+      textHash: narrative.textHash,
+    })),
+    payload,
+    h9MoicSourceInputHash: 'a'.repeat(64),
+    h9RoundEvidenceInputHash: 'b'.repeat(64),
+    h9RoundEvidenceAssumptionsHash: 'c'.repeat(64),
+    h9FingerprintHash: H9_FINGERPRINT,
+    h9PolicyVersion: H9_POLICY_VERSION,
+    h9ActionabilityStatus: 'actionable',
+    assembledBy: 7,
+    assembledAt: new Date('2026-05-10T03:00:00Z'),
+    version: 1,
+    createdAt: new Date('2026-05-10T03:00:00Z'),
+    updatedAt: new Date('2026-05-10T03:00:00Z'),
+  };
+}
+
+function evidenceRow(id: number): Record<string, unknown> {
+  return {
+    id,
+    fundId: 1,
+    metricRunId: 11,
+    confidentiality: 'internal',
+    redactionRequired: false,
+  };
+}
+
+function storedJsonExportRow(): Record<string, unknown> {
+  return {
+    id: 601,
+    fundId: 1,
+    metricRunId: 11,
+    reportPackageId: 501,
+    format: 'json',
+    exportVersion: 1,
+    status: 'ready',
+    contentHashAlgorithm: 'sha256',
+    contentHash: STORED_JSON_CONTENT_HASH,
+    artifactPayload: legacyJsonArtifact,
+    artifactSizeBytes: 1000,
+    createdBy: 7,
+    readyAt: new Date('2026-05-10T04:00:00Z'),
+    createdAt: new Date('2026-05-10T04:00:00Z'),
+    updatedAt: new Date('2026-05-10T04:00:00Z'),
+  };
+}
+
+function storedCsvExportRow(): Record<string, unknown> {
+  return {
+    id: 602,
+    fundId: 1,
+    metricRunId: 11,
+    reportPackageId: 501,
+    format: 'csv',
+    exportVersion: 1,
+    status: 'ready',
+    contentHashAlgorithm: 'sha256',
+    contentHash: STORED_CSV_CONTENT_HASH,
+    artifactPayload: {
+      exportVersion: 1,
+      format: 'csv',
+      sourceJsonExportId: 601,
+      sourceJsonContentHash: STORED_JSON_CONTENT_HASH,
+      contentType: 'text/csv; charset=utf-8',
+      filename: 'lp-report-package-1-11-csv-v1.csv',
+      csv: STORED_CSV_STRING,
+    },
+    artifactSizeBytes: Buffer.byteLength(STORED_CSV_STRING, 'utf8'),
+    createdBy: 7,
+    readyAt: new Date('2026-05-10T05:00:00Z'),
+    createdAt: new Date('2026-05-10T05:00:00Z'),
+    updatedAt: new Date('2026-05-10T05:00:00Z'),
+  };
+}
+
+function seedDatabaseFixtures(): void {
+  dbState.tables = {
+    funds: [fundRow()],
+    users: [{ id: 1 }, { id: 7 }],
+    lp_metric_runs: [metricRunRow()],
+    lp_report_packages: [reportPackageRow()],
+    lp_report_package_exports: [storedJsonExportRow(), storedCsvExportRow()],
+    evidence_records: [evidenceRow(300), evidenceRow(301)],
+  };
+  dbState.exportInsertAttempts = 0;
+  dbState.insertedExportRows = [];
+  dbState.metricRunStatusUpdates = [];
+  dbState.nextId = 9000;
+}
+
+function setStoredPackageH9(overrides: Record<string, unknown>): void {
+  const [pkg] = dbState.tables['lp_report_packages'] ?? [];
+  if (!pkg) throw new Error('lp_report_packages fixture row is missing');
+  Object.assign(pkg, overrides);
+}
 
 function configureTestEnv(): void {
   for (const key of ENV_KEYS) originalEnv.set(key, process.env[key]);
@@ -318,65 +553,6 @@ function restoreTestEnv(): void {
   originalEnv.clear();
 }
 
-function configureReportServiceFixtures(): void {
-  reportServiceState.getReportPackage.mockResolvedValue({ record: null });
-  reportServiceState.getRenderModel.mockImplementation(async () => {
-    await assertFixtureH9('render_model');
-    return { renderModel };
-  });
-  reportServiceState.getJsonExport.mockImplementation(async () => {
-    await assertFixtureH9('live_json_export');
-    return { export: jsonExport };
-  });
-  reportServiceState.createStoredJsonExport.mockImplementation(async () => {
-    await assertFixtureH9('live_json_export');
-    return {
-      record: exportRecord,
-      inserted: false,
-    };
-  });
-  reportServiceState.getStoredJsonExport.mockResolvedValue({ record: exportRecord });
-  reportServiceState.getStoredJsonArtifact.mockImplementation(async () => {
-    await assertFixtureH9('stored_json_export');
-    return {
-      record: exportRecord,
-      export: jsonExport,
-    };
-  });
-
-  const csvRecord = {
-    ...exportRecord,
-    reportPackageExportId: 602,
-    format: 'csv',
-    contentHash: 'b'.repeat(64),
-  } as const;
-  const csvMetadata = {
-    sourceJsonExportId: csvExport.sourceJsonExportId,
-    sourceJsonContentHash: csvExport.sourceJsonContentHash,
-    contentType: csvExport.contentType,
-    filename: csvExport.filename,
-  } as const;
-  reportServiceState.createStoredCsvExport.mockImplementation(async () => {
-    await assertFixtureH9('stored_csv_export');
-    return {
-      record: csvRecord,
-      inserted: false,
-      ...csvMetadata,
-    };
-  });
-  reportServiceState.getStoredCsvExport.mockResolvedValue({
-    record: csvRecord,
-    ...csvMetadata,
-  });
-  reportServiceState.getStoredCsvArtifact.mockImplementation(async () => {
-    await assertFixtureH9('stored_csv_export');
-    return {
-      record: csvRecord,
-      csv: csvExport,
-    };
-  });
-}
-
 let nextAuthorizationUserId = 100;
 
 async function authorizationHeader(role: string, fundIds: number[]): Promise<string> {
@@ -396,31 +572,6 @@ function sendRoute(
 ): Test {
   const [method, routePath] = route;
   return method === 'POST' ? request(app).post(routePath).send({}) : request(app).get(routePath);
-}
-
-function storedH9(overrides: Record<string, unknown> = {}) {
-  return {
-    h9MoicSourceInputHash: 'a'.repeat(64),
-    h9RoundEvidenceInputHash: 'b'.repeat(64),
-    h9RoundEvidenceAssumptionsHash: 'c'.repeat(64),
-    h9FingerprintHash: H9_FINGERPRINT,
-    h9PolicyVersion: H9_POLICY_VERSION,
-    h9ActionabilityStatus: 'actionable',
-    ...overrides,
-  };
-}
-
-let storedH9Fixture = storedH9();
-
-async function assertFixtureH9(
-  surface: Parameters<typeof assertH9ExportActionable>[0]['surface']
-): Promise<void> {
-  await assertH9ExportActionable({
-    surface,
-    fundId: 1,
-    stored: storedH9Fixture as never,
-    database: {} as never,
-  });
 }
 
 function productionSourceFile(relativePath: string): ts.SourceFile {
@@ -561,7 +712,6 @@ let app: Awaited<ReturnType<(typeof import('../../../server/app'))['makeApp']>>;
 
 beforeAll(async () => {
   configureTestEnv();
-  configureReportServiceFixtures();
   const appModule = await import('../../../server/app');
   app = appModule.makeApp();
 }, 60_000);
@@ -571,7 +721,7 @@ afterAll(() => {
 });
 
 beforeEach(() => {
-  storedH9Fixture = storedH9();
+  seedDatabaseFixtures();
   actionabilityState.resolveForFund.mockReset();
   actionabilityState.resolveForFund.mockResolvedValue({
     actionability: 'actionable',
@@ -635,13 +785,16 @@ describe('LP report export authorization', () => {
           issues: expect.any(Array),
         });
       } else {
-        expect(response.body, probe.route.join(' ')).toEqual(probe.expectedBody);
+        expect(response.body, probe.route.join(' ')).toMatchObject(probe.expectedBody);
       }
     }
   });
 });
 
 describe('H9 export qualification', () => {
+  // These tests execute the REAL production gates (assertH9ExportActionable /
+  // assertH9PackageExportable) through real makeApp routes and real services;
+  // only the database rows and the MOIC actionability resolver are stubbed.
   async function expectH9BlockAcrossCurrentExportRoutes(code: string): Promise<void> {
     const authorization = await authorizationHeader('partner', [1]);
     for (const route of CURRENT_H9_GATED_EXPORT_ROUTES) {
@@ -649,15 +802,19 @@ describe('H9 export qualification', () => {
       expect(response.status, route.join(' ')).toBe(409);
       expect(response.body, route.join(' ')).toMatchObject({ error: code });
     }
+    // While the real gate blocks, neither export-creation POST may attempt a
+    // persistence write (gate-before-insert ordering, proven behaviorally).
+    expect(dbState.exportInsertAttempts).toBe(0);
+    expect(dbState.insertedExportRows).toHaveLength(0);
   }
 
   it('blocks missing stored H9 metadata across every currently H9-gated export route', async () => {
-    storedH9Fixture = storedH9({ h9ActionabilityStatus: null, h9FingerprintHash: null });
+    setStoredPackageH9({ h9ActionabilityStatus: null, h9FingerprintHash: null });
     await expectH9BlockAcrossCurrentExportRoutes('H9_METADATA_MISSING');
   });
 
   it('blocks stored H9 that is not actionable across every currently H9-gated export route', async () => {
-    storedH9Fixture = storedH9({ h9ActionabilityStatus: 'non_actionable' });
+    setStoredPackageH9({ h9ActionabilityStatus: 'non_actionable' });
     await expectH9BlockAcrossCurrentExportRoutes('H9_NOT_ACTIONABLE');
   });
 
@@ -678,7 +835,7 @@ describe('H9 export qualification', () => {
   });
 
   it('keeps stored-export status GETs role-and-grant gated without invoking H9', async () => {
-    storedH9Fixture = storedH9({ h9ActionabilityStatus: null, h9FingerprintHash: null });
+    setStoredPackageH9({ h9ActionabilityStatus: null, h9FingerprintHash: null });
     actionabilityState.resolveForFund.mockRejectedValue(new Error('resolver unavailable'));
     const authorization = await authorizationHeader('partner', [1]);
 
@@ -689,77 +846,46 @@ describe('H9 export qualification', () => {
     expect(actionabilityState.resolveForFund).not.toHaveBeenCalled();
   });
 
-  it('pins the production service call chain for all six H9-gated routes', () => {
-    const renderModelBody = productionFunctionBody(
-      'server/services/lp-reporting/report-package-render-model-service.ts',
-      'getMetricRunReportPackageRenderModel'
-    );
-    expect(renderModelBody).toContain('await assertH9ExportActionable({');
-    expect(renderModelBody).toContain("surface: options.h9Surface ?? 'render_model'");
+  it('serves per-metric provenance and render-model version 2 on live export surfaces', async () => {
+    const authorization = await authorizationHeader('partner', [1]);
 
-    const liveJsonBody = productionFunctionBody(
-      'server/services/lp-reporting/report-package-json-export-service.ts',
-      'getMetricRunReportPackageJsonExport'
+    const renderModelResponse = await sendRoute(app, EXPORT_ROUTES[0]).set(
+      'Authorization',
+      authorization
     );
-    expect(liveJsonBody).toContain(
-      'options.renderModelService ?? getMetricRunReportPackageRenderModel'
-    );
-    expect(liveJsonBody).toContain("h9Surface: 'live_json_export'");
+    expect(renderModelResponse.status).toBe(200);
+    const { renderModel: liveRenderModel } = renderModelResponse.body;
+    expect(liveRenderModel.renderModelVersion).toBe(2);
+    expect(liveRenderModel.metricSections.length).toBeGreaterThan(0);
+    for (const section of liveRenderModel.metricSections) {
+      expect(section.inputsHash).toBe(METRIC_RUN_INPUTS_HASH);
+      expect(section.inputsHashShort).toBe(METRIC_RUN_INPUTS_HASH.slice(0, 12));
+      expect(section.inputsHashShort).toHaveLength(12);
+      expect(section.methodologyVersion).toBe('lp-reporting-methodology-v1');
+      expect(section.calculationVersion).toBe('lp-reporting-metrics-engine-1.0.0');
+    }
 
-    const storedJsonCreateBody = productionFunctionBody(
-      'server/services/lp-reporting/report-package-json-stored-export-service.ts',
-      'createMetricRunReportPackageStoredJsonExport'
+    const liveExportResponse = await sendRoute(app, EXPORT_ROUTES[1]).set(
+      'Authorization',
+      authorization
     );
-    expect(storedJsonCreateBody).toContain(
-      'options.jsonExportService ?? getMetricRunReportPackageJsonExport'
-    );
-    const liveGateCall = storedJsonCreateBody.indexOf('const live = await jsonExportService(');
-    const firstPersistence = storedJsonCreateBody.indexOf('.insert(lpReportPackageExports)');
-    expect(liveGateCall).toBeGreaterThanOrEqual(0);
-    expect(firstPersistence).toBeGreaterThan(liveGateCall);
-
-    const storedJsonArtifactBody = productionFunctionBody(
-      'server/services/lp-reporting/report-package-json-stored-export-service.ts',
-      'getMetricRunReportPackageStoredJsonArtifact'
-    );
-    expect(storedJsonArtifactBody).toContain('await assertH9PackageExportable({');
-    expect(storedJsonArtifactBody).toContain("surface: 'stored_json_export'");
-
-    const storedCsvCreateBody = productionFunctionBody(
-      'server/services/lp-reporting/report-package-csv-stored-export-service.ts',
-      'createMetricRunReportPackageStoredCsvExport'
-    );
-    const storedCsvCreateGate = storedCsvCreateBody.indexOf('await assertH9PackageExportable({');
-    const storedCsvFirstPersistence = storedCsvCreateBody.indexOf(
-      '.insert(lpReportPackageExports)'
-    );
-    expect(storedCsvCreateGate).toBeGreaterThanOrEqual(0);
-    expect(storedCsvFirstPersistence).toBeGreaterThan(storedCsvCreateGate);
-
-    const storedCsvArtifactBody = productionFunctionBody(
-      'server/services/lp-reporting/report-package-csv-stored-export-service.ts',
-      'getMetricRunReportPackageStoredCsvArtifact'
-    );
-    expect(storedCsvArtifactBody).toContain('await assertH9PackageExportable({');
-    expect(storedCsvArtifactBody).toContain("surface: 'stored_csv_export'");
+    expect(liveExportResponse.status).toBe(200);
+    expect(liveExportResponse.body.export.renderModel.renderModelVersion).toBe(2);
+    for (const section of liveExportResponse.body.export.renderModel.metricSections) {
+      expect(section.inputsHashShort).toHaveLength(12);
+    }
   });
 
-  it('pins both production stored-export status functions as workflow-gated but H9-independent', () => {
-    const statusFunctions = [
-      productionFunctionBody(
-        'server/services/lp-reporting/report-package-json-stored-export-service.ts',
-        'getMetricRunReportPackageStoredJsonExport'
-      ),
-      productionFunctionBody(
-        'server/services/lp-reporting/report-package-csv-stored-export-service.ts',
-        'getMetricRunReportPackageStoredCsvExport'
-      ),
-    ];
+  it('replays a pre-provenance stored JSON export without a content-hash conflict', async () => {
+    const authorization = await authorizationHeader('partner', [1]);
 
-    for (const functionBody of statusFunctions) {
-      expect(functionBody).toContain('await assertMetricRunExportWorkflowState({');
-      expect(functionBody).not.toMatch(/assertH9(?:ExportActionable|PackageExportable)/);
-    }
+    const response = await sendRoute(app, EXPORT_ROUTES[2]).set('Authorization', authorization);
+
+    expect(response.status).toBe(200);
+    expect(response.body.inserted).toBe(false);
+    expect(response.body.record.reportPackageExportId).toBe(601);
+    expect(response.body.record.contentHash).toBe(STORED_JSON_CONTENT_HASH);
+    expect(dbState.insertedExportRows).toHaveLength(0);
   });
 });
 

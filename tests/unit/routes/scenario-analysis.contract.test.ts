@@ -21,6 +21,13 @@ const fundAccessState = vi.hoisted(() => ({
   requireFundAccess: vi.fn((_req: Request, _res: Response, next: NextFunction) => next()),
 }));
 
+// Default authenticated; individual tests flip this to prove the production
+// route chain runs requireAuth() before any handler-level flag or param logic.
+const authState = vi.hoisted(() => ({
+  authenticated: true,
+  requireAuthCalls: 0,
+}));
+
 const featureState = vi.hoisted(() => ({ scenarioSeedPicker: false }));
 
 const factsState = vi.hoisted(() => {
@@ -102,7 +109,14 @@ vi.mock('../../../server/lib/auth/company-fund-scope', () => ({
 }));
 
 vi.mock('../../../server/lib/auth/jwt', () => ({
-  requireAuth: () => (_req: Request, _res: Response, next: () => void) => next(),
+  requireAuth: () => (_req: Request, res: Response, next: () => void) => {
+    authState.requireAuthCalls += 1;
+    if (!authState.authenticated) {
+      res.status(401).json({ error: 'Unauthorized' });
+      return;
+    }
+    next();
+  },
   requireFundAccess: fundAccessState.requireFundAccess,
 }));
 
@@ -180,6 +194,8 @@ function resetState() {
   fundAccessState.requireFundAccess.mockImplementation(
     (_req: Request, _res: Response, next: NextFunction) => next()
   );
+  authState.authenticated = true;
+  authState.requireAuthCalls = 0;
   factsState.buildFundCompanyActualsFacts.mockReset();
   persistenceState.createScenarioCaseFromSeed.mockReset();
 }
@@ -853,6 +869,33 @@ describe('scenario-analysis from-seed case creation', () => {
 
     expect(res.status).toBe(404);
     expect(res.body).toEqual({ error: 'not_found' });
+    // Auth-first ordering (ADR-040, marginal-rankings precedent): the flag-off
+    // 404 is only reached AFTER requireAuth and requireFundAccess have run.
+    expect(authState.requireAuthCalls).toBe(1);
+    expect(fundAccessState.requireFundAccess).toHaveBeenCalledTimes(1);
+    // No idempotency, provenance, facts, or persistence side effects: no row
+    // is written and no lookup runs while the flag is off.
+    expect(fundScopeState.resolveCompanyFundId).not.toHaveBeenCalled();
+    expect(dbState.select).not.toHaveBeenCalled();
+    expect(dbState.findFirst).not.toHaveBeenCalled();
+    expect(factsState.buildFundCompanyActualsFacts).not.toHaveBeenCalled();
+    expect(persistenceState.createScenarioCaseFromSeed).not.toHaveBeenCalled();
+    expectNoScenarioWrites();
+  });
+
+  it('returns 401 for anonymous callers even while the seed picker is disabled', async () => {
+    featureState.scenarioSeedPicker = false;
+    authState.authenticated = false;
+
+    const res = await request(makeApp())
+      .post(`/api/funds/7/scenario-analysis/scenarios/${SCENARIO_ID}/cases/from-seed`)
+      .set('Idempotency-Key', 'seed-create-anon')
+      .send(validFromSeedBody());
+
+    expect(res.status).toBe(401);
+    expect(authState.requireAuthCalls).toBe(1);
+    // Auth rejected before fund access, the flag-off 404, and any side effect.
+    expect(fundAccessState.requireFundAccess).not.toHaveBeenCalled();
     expect(fundScopeState.resolveCompanyFundId).not.toHaveBeenCalled();
     expect(dbState.select).not.toHaveBeenCalled();
     expect(dbState.findFirst).not.toHaveBeenCalled();

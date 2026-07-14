@@ -466,14 +466,17 @@ const PROTOTYPE_ROUTE_NOTE = 'Prototype route must return 501 with non_actionabl
 const LP_REPORT_PACKAGE_EXPORT_WORKFLOW_REQUIREMENT = 'metric_run_locked_or_exported';
 const LP_REPORT_PACKAGE_EXPORT_NOTE =
   'PRD #996 AC-1, AC-2, AC-3, D1, D2, and D3: Surface-A report-package export requires partner/admin role, denies empty-fundIds non-admin exports, requires metric-run workflow state locked or exported, and scopes visual watermarking out by ADR-027 because h9Stamp plus contentHash provide JSON/CSV hash attestation.';
+const LP_REPORT_PACKAGE_EXPORT_STATUS_NOTE =
+  'Readiness-metadata status GET (in-code Finding 8, ADR-040): partner/admin role, export-grant, and workflow-state gated, but intentionally H9-independent and non-exportable. It serves stored-export metadata only; the authoritative artifact GET re-validates H9 before any artifact bytes are served.';
 
 type LpReportingRoutePolicyGroup = Pick<
   RoutePolicyEntry,
   'workflowRequirement' | 'exportPolicy' | 'provenanceRequired'
-> & {
-  governanceRef: '/lp-reporting/metrics' | '/lp-reporting/imports';
-  routes: ReadonlyArray<readonly [method: string, path: string]>;
-};
+> &
+  Partial<Pick<RoutePolicyEntry, 'notes'>> & {
+    governanceRef: '/lp-reporting/metrics' | '/lp-reporting/imports';
+    routes: ReadonlyArray<readonly [method: string, path: string]>;
+  };
 
 const LP_REPORTING_ADDITIONAL_ROUTE_POLICY_GROUPS = [
   {
@@ -528,9 +531,11 @@ const LP_REPORTING_ADDITIONAL_ROUTE_POLICY_GROUPS = [
   {
     governanceRef: '/lp-reporting/metrics',
     routes: [['POST', '/api/funds/:fundId/metric-runs/:metricRunId/evidence-records']],
-    workflowRequirement: 'draft_metric_run_and_idempotency_verified',
+    workflowRequirement: 'draft_metric_run_and_idempotency_key_dedup',
     exportPolicy: 'not_exportable',
     provenanceRequired: true,
+    notes:
+      'Idempotency on this route is key-only deduplication: a replayed Idempotency-Key returns the stored evidence record without comparing the request body, so a different body with the same key is silently accepted (metric-run-evidence-service). Request-hash comparison returning 409 is an ADR-040 follow-up.',
   },
   {
     governanceRef: '/lp-reporting/metrics',
@@ -1030,12 +1035,12 @@ export const EXPLICIT_API_ROUTE_POLICY_ENTRIES: RoutePolicyEntry[] = [
     apiAuthBoundary: 'require_auth_fund_access_and_role',
     fundScopeMode: 'route_param_fund_id',
     workflowRequirement: LP_REPORT_PACKAGE_EXPORT_WORKFLOW_REQUIREMENT,
-    exportPolicy: 'qualified_exportable',
+    exportPolicy: 'not_exportable',
     provenanceRequired: true,
-    staleBlocksExport: true,
+    staleBlocksExport: false,
     humanReviewRequired: true,
     performanceBudgetMs: null,
-    notes: LP_REPORT_PACKAGE_EXPORT_NOTE,
+    notes: LP_REPORT_PACKAGE_EXPORT_STATUS_NOTE,
   },
   {
     id: 'api:get:/api/funds/:fundId/metric-runs/:metricRunId/report-package/exports/json/artifact',
@@ -1099,12 +1104,12 @@ export const EXPLICIT_API_ROUTE_POLICY_ENTRIES: RoutePolicyEntry[] = [
     apiAuthBoundary: 'require_auth_fund_access_and_role',
     fundScopeMode: 'route_param_fund_id',
     workflowRequirement: LP_REPORT_PACKAGE_EXPORT_WORKFLOW_REQUIREMENT,
-    exportPolicy: 'qualified_exportable',
+    exportPolicy: 'not_exportable',
     provenanceRequired: true,
-    staleBlocksExport: true,
+    staleBlocksExport: false,
     humanReviewRequired: true,
     performanceBudgetMs: null,
-    notes: LP_REPORT_PACKAGE_EXPORT_NOTE,
+    notes: LP_REPORT_PACKAGE_EXPORT_STATUS_NOTE,
   },
   {
     id: 'api:get:/api/funds/:fundId/metric-runs/:metricRunId/report-package/exports/csv/artifact',

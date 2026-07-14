@@ -61,6 +61,19 @@ const LP_REPORT_PACKAGE_EXPORT_POLICY_KEYS = [
   'GET /api/funds/:fundId/metric-runs/:metricRunId/report-package/exports/csv/artifact',
 ] as const;
 
+// The two stored-export status GETs are readiness metadata: role/grant/workflow
+// gated but intentionally H9-independent and non-exportable (in-code Finding 8,
+// ADR-040). They share the export perimeter's auth posture, not its export policy.
+const LP_REPORT_PACKAGE_STATUS_GET_POLICY_KEYS = [
+  'GET /api/funds/:fundId/metric-runs/:metricRunId/report-package/exports/json',
+  'GET /api/funds/:fundId/metric-runs/:metricRunId/report-package/exports/csv',
+] as const;
+
+const LP_REPORT_PACKAGE_AUTHORITATIVE_EXPORT_POLICY_KEYS =
+  LP_REPORT_PACKAGE_EXPORT_POLICY_KEYS.filter(
+    (key) => !(LP_REPORT_PACKAGE_STATUS_GET_POLICY_KEYS as readonly string[]).includes(key)
+  );
+
 const LP_REPORTING_ROUTE_POLICY_KEYS = [
   'POST /api/funds/:fundId/metric-runs/dry-run',
   'POST /api/funds/:fundId/metric-runs/commit',
@@ -163,7 +176,10 @@ const LP_REPORTING_ADDITIONAL_POLICY_GROUPS: ReadonlyArray<{
   {
     keys: ['POST /api/funds/:fundId/metric-runs/:metricRunId/evidence-records'],
     expected: {
-      workflowRequirement: 'draft_metric_run_and_idempotency_verified',
+      // Key-only deduplication: a replayed Idempotency-Key returns the stored
+      // record without comparing the request body (request-hash comparison is
+      // an ADR-040 follow-up).
+      workflowRequirement: 'draft_metric_run_and_idempotency_key_dedup',
       exportPolicy: 'not_exportable',
       provenanceRequired: true,
     },
@@ -342,7 +358,9 @@ describe('route policy coverage', () => {
   });
 
   it('covers PRD #996 Surface-A report-package exports with role-gated fund access', () => {
-    for (const key of LP_REPORT_PACKAGE_EXPORT_POLICY_KEYS) {
+    expect(LP_REPORT_PACKAGE_AUTHORITATIVE_EXPORT_POLICY_KEYS).toHaveLength(6);
+
+    for (const key of LP_REPORT_PACKAGE_AUTHORITATIVE_EXPORT_POLICY_KEYS) {
       const policyEntry = expectPolicy(key);
 
       expect(policyEntry.apiAuthBoundary, key).toBe('require_auth_fund_access_and_role');
@@ -352,6 +370,21 @@ describe('route policy coverage', () => {
       expect(policyEntry.provenanceRequired, key).toBe(true);
       expect(policyEntry.staleBlocksExport, key).toBe(true);
       expect(policyEntry.workflowRequirement, key).toBe('metric_run_locked_or_exported');
+    }
+  });
+
+  it('classifies stored-export status GETs as non-exportable readiness metadata', () => {
+    for (const key of LP_REPORT_PACKAGE_STATUS_GET_POLICY_KEYS) {
+      const policyEntry = expectPolicy(key);
+
+      expect(policyEntry.apiAuthBoundary, key).toBe('require_auth_fund_access_and_role');
+      expect(policyEntry.financialSurface, key).toBe('lp_reporting');
+      expect(policyEntry.fundScopeMode, key).toBe('route_param_fund_id');
+      expect(policyEntry.exportPolicy, key).toBe('not_exportable');
+      expect(policyEntry.provenanceRequired, key).toBe(true);
+      expect(policyEntry.staleBlocksExport, key).toBe(false);
+      expect(policyEntry.workflowRequirement, key).toBe('metric_run_locked_or_exported');
+      expect(policyEntry.notes, key).toMatch(/H9-independent/);
     }
   });
 
