@@ -36,6 +36,7 @@ const H9_STAMP = {
   policyVersion: H9_COLUMNS.h9PolicyVersion,
   actionabilityStatus: H9_COLUMNS.h9ActionabilityStatus,
 };
+const METRIC_RUN_INPUTS_HASH = '0123456789abcdef'.repeat(4);
 
 const validXirrDiagnostic = {
   convergence: 'converged',
@@ -70,7 +71,7 @@ function metricRunRow(overrides: Partial<LpMetricRun> = {}): LpMetricRun {
     runType: 'quarterly_report',
     perspective: 'lp_net',
     status: 'locked',
-    inputsHash: 'a'.repeat(64),
+    inputsHash: METRIC_RUN_INPUTS_HASH,
     sourceEventIds: [101, 102],
     sourceMarkIds: [201],
     sourceEvidenceIds: [301],
@@ -264,6 +265,24 @@ describe('getMetricRunReportPackageRenderModel', () => {
       'capital',
       'mark_confidence',
     ]);
+    expect(
+      response.renderModel.metricSections.map((section) => ({
+        inputsHash: section.inputsHash,
+        inputsHashShort: section.inputsHashShort,
+        methodologyVersion: section.methodologyVersion,
+        calculationVersion: section.calculationVersion,
+      }))
+    ).toEqual(
+      Array.from({ length: 3 }, () => ({
+        inputsHash: METRIC_RUN_INPUTS_HASH,
+        inputsHashShort: METRIC_RUN_INPUTS_HASH.slice(0, 12),
+        methodologyVersion: 'lp-reporting-methodology-v1',
+        calculationVersion: 'lp-reporting-metrics-engine-1.0.0',
+      }))
+    );
+    for (const section of response.renderModel.metricSections) {
+      expect(section.inputsHashShort).toHaveLength(12);
+    }
     expect(response.renderModel.narrativeSections.map((section) => section.sectionId)).toEqual([
       'no_dpi',
       'methodology',

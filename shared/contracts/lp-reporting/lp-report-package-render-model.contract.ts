@@ -100,6 +100,10 @@ export const ReportPackageRenderMetricSectionSchema = z
   .object({
     sectionId: ReportPackageRenderMetricSectionIdSchema,
     title: z.string().min(1),
+    inputsHash: z.string().min(1).max(128).optional(),
+    inputsHashShort: z.string().length(12).optional(),
+    methodologyVersion: z.string().min(1).max(64).optional(),
+    calculationVersion: z.string().min(1).max(64).optional(),
     rows: z.array(ReportPackageRenderMetricRowSchema),
   })
   .strict();
