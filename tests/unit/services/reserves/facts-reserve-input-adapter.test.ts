@@ -165,7 +165,12 @@ describe('buildFactsReserveCandidates', () => {
   });
 
   it('builds an eligible engine input from facts money and trusted builder fields', async () => {
-    const result = await buildFactsReserveCandidates({ fundId: 7, asOfDate: '2026-07-13' });
+    const preloadedFacts = facts(11);
+    const result = await buildFactsReserveCandidates({
+      fundId: 7,
+      asOfDate: '2026-07-13',
+      factsSource: { status: 'available', response: preloadedFacts },
+    });
 
     expect(result).toMatchObject({
       factsInputHash: FUND_FACTS_HASH,
@@ -201,10 +206,7 @@ describe('buildFactsReserveCandidates', () => {
         unavailableFields: [],
       },
     });
-    expect(buildFundCompanyActualsFacts).toHaveBeenCalledWith({
-      fundId: 7,
-      asOfDate: '2026-07-13',
-    });
+    expect(buildFundCompanyActualsFacts).not.toHaveBeenCalled();
   });
 
   it('excludes missing ownership instead of substituting the legacy 15 percent default', async () => {

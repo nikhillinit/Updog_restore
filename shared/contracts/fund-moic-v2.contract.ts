@@ -19,6 +19,7 @@ const ModePreviewSchema = z
         'accepted_reconciliation_not_found',
         'current_source_changed',
         'exit_probability_source_incomplete',
+        'facts_unavailable',
         'kill_switch_active',
         'reserve_exit_multiple_source_incomplete',
         'shadow_residency_pending',
@@ -30,7 +31,7 @@ const ModePreviewSchema = z
 
 const MoicInputSummarySchema = z
   .object({
-    sourceVersion: z.literal('moic-exit-probability-v1'),
+    sourceVersion: z.literal('moic-round-fmv-facts-v2'),
     explicitExitProbabilityCount: z.number().int().nonnegative(),
     defaultedExitProbabilityCount: z.number().int().nonnegative(),
     activationBlockingDefaultedExitProbabilityCount: z.number().int().nonnegative(),

@@ -7,6 +7,11 @@ import type { ReserveCompanyInput, ReserveSummary } from '@shared/types';
 import Decimal from '@shared/lib/decimal-config';
 import { logger } from '../lib/logger';
 import { resolveMoicActionability, toH9SnapshotColumns } from './fund-calculation-mode-service';
+import {
+  getFundMoicRankingSources,
+  type FundMoicFactsSource,
+  type FundMoicRankingSources,
+} from './fund-moic-ranking-service';
 import { markCalcRunCompletedIfReady } from './calc-run-tracking';
 import { buildReservePortfolioInputWithProvenance } from './reserve-input-builder';
 import {
@@ -97,6 +102,7 @@ function logReserveFactsShadowEvent(event: Record<string, unknown>): void {
 async function emitReserveFactsShadowComparison(input: {
   fundId: number;
   asOfDate: string;
+  factsSource: FundMoicFactsSource;
   legacyCompanyCount: number;
   legacySummary: ReserveSummary;
 }): Promise<void> {
@@ -105,6 +111,7 @@ async function emitReserveFactsShadowComparison(input: {
     const facts = await buildFactsReserveCandidates({
       fundId: input.fundId,
       asOfDate: input.asOfDate,
+      factsSource: input.factsSource,
     });
     const factsPortfolio = eligibleInputs(facts.candidates);
     const factsSummary = generateReserveSummary(input.fundId, factsPortfolio);
@@ -192,11 +199,17 @@ export async function runReserveCalculation({
   let reserveInputTrustSummary: ReserveInputTrustSummary;
   let factsBasis: FactsBasisMetadata | undefined;
   let factsInputsTrustedForActivation = true;
+  let moicSources: FundMoicRankingSources | undefined;
+  let factsAsOfDate: string | undefined;
 
   if (reserveFactsMode === 'on') {
+    const factsNow = new Date();
+    factsAsOfDate = factsNow.toISOString().slice(0, 10);
+    moicSources = await getFundMoicRankingSources(fundId, db, undefined, factsNow);
     const facts = await buildFactsReserveCandidates({
       fundId,
-      asOfDate: new Date().toISOString().slice(0, 10),
+      asOfDate: factsAsOfDate,
+      factsSource: moicSources.factsSource,
     });
     portfolio = eligibleInputs(facts.candidates);
     reserveInputTrustSummary = facts.trustSummary;
@@ -216,9 +229,17 @@ export async function runReserveCalculation({
   }
 
   const reserves = generateReserveSummary(fundId, portfolio);
+  if (reserveFactsMode === 'shadow') {
+    const factsNow = new Date();
+    factsAsOfDate = factsNow.toISOString().slice(0, 10);
+    moicSources = await getFundMoicRankingSources(fundId, db, undefined, factsNow);
+  }
   // H9: stamp the actionability fingerprint onto the authoritative snapshot so
   // downstream reuse/cache/export can gate on it. Display reads are unaffected.
-  const actionability = await resolveMoicActionability({ fundId });
+  const actionability = await resolveMoicActionability({
+    fundId,
+    ...(moicSources !== undefined && { sources: moicSources }),
+  });
   const h9Columns = toH9SnapshotColumns(actionability);
   if (reserveFactsMode === 'on' && !factsInputsTrustedForActivation) {
     h9Columns.h9ActionabilityStatus = 'non_actionable';
@@ -256,10 +277,11 @@ export async function runReserveCalculation({
     await markCalcRunCompletedIfReady(runId);
   }
 
-  if (reserveFactsMode === 'shadow') {
+  if (reserveFactsMode === 'shadow' && moicSources !== undefined && factsAsOfDate !== undefined) {
     await emitReserveFactsShadowComparison({
       fundId,
-      asOfDate: new Date().toISOString().slice(0, 10),
+      asOfDate: factsAsOfDate,
+      factsSource: moicSources.factsSource,
       legacyCompanyCount: portfolio.length,
       legacySummary: reserves,
     });

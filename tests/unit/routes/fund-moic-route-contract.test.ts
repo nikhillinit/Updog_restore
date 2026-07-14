@@ -39,9 +39,13 @@ describe('fund-moic route contract', () => {
 
   it('reports companyCount from facts on success and from source record count on failure', async () => {
     const source = await readRepoFile('server/routes/fund-moic.ts');
-    expect(source).toContain('buildFundCompanyActualsFacts({');
-    expect(source).toContain('asOfDate: actualsAsOfDate');
-    expect(source).toContain('factsByCompanyId');
+    const rankingSource = await readRepoFile('server/services/fund-moic-ranking-service.ts');
+    expect(rankingSource).toContain('buildFundCompanyActualsFacts({');
+    expect(rankingSource).toContain('asOfDate');
+    expect(source).not.toContain('buildFundCompanyActualsFacts');
+    expect(source).not.toContain('FUND_MOIC_FACTS_ABSENT');
+    expect(source).toContain('sources.factsSource');
+    expect(source).not.toContain('factsByCompanyId');
     expect(source).toContain('sources.factsBasisByInvestmentId');
     expect(source).toContain('discloseFundMoicRankings');
     expect(source).toContain("factsStatus: 'available'");

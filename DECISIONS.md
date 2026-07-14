@@ -1,6 +1,6 @@
 ---
 status: ACTIVE
-last_updated: 2026-07-12
+last_updated: 2026-07-13
 owner: Core Team
 review_cadence: P90D
 ---
@@ -51,6 +51,7 @@ development of the Press On Ventures fund modeling platform.
 - [ADR-035: Ordered Manifests as the Executable Production Schema Contract](#adr-035-ordered-manifests-as-the-executable-production-schema-contract)
 - [ADR-036: Named Identities, Explicit Fund Grants, and jti Revocation (Plan 2)](#adr-036-named-identities-explicit-fund-grants-and-jti-revocation-plan-2)
 - [ADR-037: Browser HttpOnly JWT Cookie and Signed CSRF Contract (D4)](#adr-037-browser-httponly-jwt-cookie-and-signed-csrf-contract-d4)
+- [ADR-039: Planned-reserve MOIC candidate basis moves to Round/FMV facts (moic-round-fmv-facts-v2)](#adr-039-planned-reserve-moic-candidate-basis-moves-to-roundfmv-facts-moic-round-fmv-facts-v2)
 
 ---
 
@@ -5998,3 +5999,86 @@ synchronous behind its authentication and CSRF boundary.
   runtime or probe contract.
 
 **Implementation:** Plan 4 wave 2 common-mount convergence, Tasks 4.3-4.6.
+
+---
+
+## ADR-039: Planned-reserve MOIC candidate basis moves to Round/FMV facts (moic-round-fmv-facts-v2)
+
+**Date:** 2026-07-13 **Status:** [IMPLEMENTED] Implemented **Decision:** Move
+the mode-gated planned-reserve MOIC candidate from legacy portfolio-company
+amounts and defaulted economics to the canonical Round/FMV facts basis, and
+identify the new source regime as `moic-round-fmv-facts-v2`.
+
+### Context
+
+Plan 6 wave 1 disclosed the Round/FMV facts basis beside each ranking while
+intentionally freezing candidate values, ordering, source hashes, and
+reconciliation behavior. The candidate still used the legacy investment amount
+and current valuation and substituted `1` when exit probability or reserve exit
+multiple was missing. That was safe for disclosure, but it was too permissive
+for serving a facts-derived reserve recommendation.
+
+The existing mode machinery already keeps the candidate default-off and serves
+legacy output in off and shadow modes. It also requires an accepted source
+fingerprint before an on-mode candidate can become actionable.
+
+### Decision
+
+- A facts-backed candidate uses observed initial and follow-on investment from
+  the company facts response and the valuation anchor selected by the existing
+  facts-basis ladder. Latest financing-round valuation remains evidence and is
+  never substituted for position FMV.
+- Planned reserves come only from explicit `plannedReservesCents`; exit
+  probability and reserve exit multiple are explicit-only. Missing economics, a
+  currency block, no valuation anchor, or zero planned reserves retains the
+  company but produces no numeric candidate MOIC.
+- Candidate ordering is actionable, then indicative, then effectively
+  non-actionable. Numeric rows sort by candidate MOIC within their tier, and
+  retained non-actionable rows sort last with deterministic company-ID ties.
+- The candidate source hash includes the investment name, facts input hash,
+  observed initial and follow-on amounts, selected anchor kind/value/date,
+  Planning FMV status, currency status, and disclosed rankability. Monetary
+  values in the hash row are canonical decimal strings.
+- `moic-round-fmv-facts-v2` appears in both the response summary and every
+  candidate hash row. The version change and basis switch are atomic.
+- Reconciliation, actionability, mode validation, and both V1 and V2 reads load
+  the same facts-backed source fingerprint. A new idempotency key can record a
+  new row in the v2 source regime; an old row is never updated or backfilled,
+  and replay/conflict semantics remain scoped to the original
+  `(fundId, idempotencyKey)` request. Facts-unavailable reconciliation is
+  rejected before a completed row can be recorded.
+- V1 reads use the same facts-backed sources as V2. If facts are unavailable, V1
+  serves legacy output and remains non-actionable. Off and shadow modes continue
+  to serve legacy rankings; this decision does not itself activate on mode.
+
+### Alternatives Considered
+
+- **Keep the Wave 1 disclosure-only candidate:** rejected because the served
+  candidate would continue to ignore observed Round/FMV inputs and fabricate
+  missing economics with `1`.
+- **Re-derive the valuation ladder in the ranking service:** rejected because it
+  would create a second source of truth for Planning FMV staleness, fallback,
+  and currency blocking.
+- **Rewrite reconciliation history in place:** rejected because accepted rows
+  are immutable audit evidence and the new source regime must be explicit.
+- **Hide non-actionable companies:** rejected because missing or blocked inputs
+  are decision-relevant disclosure, not a reason to remove portfolio rows.
+
+### Consequences
+
+- Every otherwise identical portfolio receives a new candidate source hash under
+  the v2 regime. Mode-on eligibility and candidate serving therefore require a
+  fresh accepted reconciliation under that source regime.
+- Existing v1 reconciliation rows remain byte-identical and auditable, but
+  reusing an old idempotency key under v2 conflicts because the current request
+  hash differs. A fresh key is required for the v2 source fingerprint.
+- Mode off is the rollback: legacy rankings remain served without changing or
+  deleting reconciliation history. Shadow continues to compute the facts
+  candidate and emit comparison telemetry while serving legacy output.
+- Missing explicit economics can no longer create a numeric candidate ranking,
+  even though the Wave 1 disclosure may still classify an anchored row as
+  indicative. Activation-block counts continue to prevent that source from
+  becoming actionable.
+
+**Implementation:** Plan 6 wave 2, Task 6.4 / PR 6B plus the facts-fingerprint
+unification fix.

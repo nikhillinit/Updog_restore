@@ -7,7 +7,6 @@ import {
   FundMoicRankingsResponseV2Schema,
   type FundMoicRankingsResponseV2,
 } from '../../shared/contracts/fund-moic-v2.contract.js';
-import { logger } from '../lib/logger.js';
 import { FundIdParamSchema } from '../../shared/schemas/portfolio-route.js';
 import {
   assessMoicMateriality,
@@ -18,10 +17,10 @@ import {
   getFundMoicRankingSources,
   summarizeMoicActualsProvenance,
 } from '../services/fund-moic-ranking-service.js';
-import { buildFundCompanyActualsFacts } from '../services/fund-actuals/fund-company-actuals-facts-service.js';
 import {
   getLatestCompletedMoicReconciliation,
   MoicReconciliationConflictError,
+  MoicReconciliationFactsUnavailableError,
   recordMoicReconciliation,
 } from '../services/fund-moic-reconciliation-service.js';
 import {
@@ -216,7 +215,9 @@ router.get(
       const modePreview = await resolveFundCalculationMode({ fundId, sources });
       const actionability = await resolveMoicActionability({ fundId, sources });
       const rankings =
-        modePreview.effectiveMode === 'on' && actionability.actionability === 'actionable'
+        sources.factsSource.status === 'available' &&
+        modePreview.effectiveMode === 'on' &&
+        actionability.actionability === 'actionable'
           ? sources.candidate
           : sources.legacy;
       return res.json(discloseFundMoicRankings(rankings));
@@ -231,39 +232,13 @@ router.get(
 
     const factsShadowStartedAt = performance.now();
 
-    // TODO(perf): this loads the full company-actuals facts corpus (~6 queries + hash in
-    // fund-company-actuals-facts-service) for provenance and disclosure. Per-company facts
-    // are not used in ranking values. MOIC analysis is a low-frequency GP page today, so ship
-    // as-is, but memoize per (fundId, asOfDate) or expose a count-only facts helper if this page
-    // becomes polled or the corpus grows. Tracked as a separate low-priority GitHub perf issue.
-    const actualsAsOfDate = new Date().toISOString().slice(0, 10);
-    let actualsFacts: Awaited<ReturnType<typeof buildFundCompanyActualsFacts>> | null = null;
-
-    try {
-      actualsFacts = await buildFundCompanyActualsFacts({
-        fundId,
-        asOfDate: actualsAsOfDate,
-      });
-    } catch (error) {
-      // Disclosed to the client via warnings, but not silent server-side: operators need the reason.
-      logger.warn(
-        {
-          fundId,
-          asOfDate: actualsAsOfDate,
-          error: error instanceof Error ? error.message : String(error),
-        },
-        'fund-moic v2 actuals facts load failed; returning UNAVAILABLE provenance summary'
-      );
-    }
-
-    const factsByCompanyId = actualsFacts
-      ? new Map(actualsFacts.facts.map((fact) => [fact.companyId, fact] as const))
-      : undefined;
     const [sources, latestReconciliation, evidence] = await Promise.all([
-      getFundMoicRankingSources(fundId, undefined, factsByCompanyId),
+      getFundMoicRankingSources(fundId),
       getLatestCompletedMoicReconciliation(fundId),
       buildRoundsToModelEvidence({ fundId }),
     ]);
+    const actualsFacts =
+      sources.factsSource.status === 'available' ? sources.factsSource.response : null;
     const sourceCompanyCount = sources.legacy.provenance.sourceRecordCount;
     let actualsProvenanceSummary: ReturnType<typeof summarizeMoicActualsProvenance>;
 
@@ -291,7 +266,9 @@ router.get(
     const modePreview = await resolveFundCalculationMode({ fundId, sources });
     const actionability = await resolveMoicActionability({ fundId, sources, evidence });
     const usingCandidateRankings =
-      modePreview.effectiveMode === 'on' && actionability.actionability === 'actionable';
+      sources.factsSource.status === 'available' &&
+      modePreview.effectiveMode === 'on' &&
+      actionability.actionability === 'actionable';
     const rankings = usingCandidateRankings ? sources.candidate : sources.legacy;
     const materiality = assessMoicMateriality(sources.legacy.rankings, sources.candidate.rankings);
     const latestCurrentMatches =
@@ -303,7 +280,12 @@ router.get(
     const response: FundMoicRankingsResponseV2 = {
       contractVersion: '2.1.0',
       fundId,
-      rankings: discloseFundMoicRankings(rankings, sources.factsBasisByInvestmentId).rankings,
+      rankings: discloseFundMoicRankings(
+        rankings,
+        usingCandidateRankings
+          ? sources.candidateFactsBasisByInvestmentId
+          : sources.factsBasisByInvestmentId
+      ).rankings,
       provenance: {
         mode: usingCandidateRankings ? 'candidate' : 'legacy',
         warnings: modePreview.blockers,
@@ -377,6 +359,12 @@ router.post(
         replayed,
       });
     } catch (error) {
+      if (error instanceof MoicReconciliationFactsUnavailableError) {
+        return res.status(409).json({
+          error: error.code,
+          message: error.message,
+        });
+      }
       if (error instanceof MoicReconciliationConflictError) {
         return res.status(409).json({
           error: 'idempotency_conflict',

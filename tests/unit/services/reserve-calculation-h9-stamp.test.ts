@@ -3,13 +3,19 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { MoicActionabilityResult } from '../../../server/services/fund-calculation-mode-service';
 
 // Mock only resolveMoicActionability; keep the real toH9SnapshotColumns (pure mapper under test).
-const { buildFactsReserveCandidates, isFlagEnabled, modeFindFirst, resolveMoicActionability } =
-  vi.hoisted(() => ({
-    buildFactsReserveCandidates: vi.fn(),
-    isFlagEnabled: vi.fn(),
-    modeFindFirst: vi.fn(),
-    resolveMoicActionability: vi.fn(),
-  }));
+const {
+  buildFactsReserveCandidates,
+  getFundMoicRankingSources,
+  isFlagEnabled,
+  modeFindFirst,
+  resolveMoicActionability,
+} = vi.hoisted(() => ({
+  buildFactsReserveCandidates: vi.fn(),
+  getFundMoicRankingSources: vi.fn(),
+  isFlagEnabled: vi.fn(),
+  modeFindFirst: vi.fn(),
+  resolveMoicActionability: vi.fn(),
+}));
 
 vi.mock('../../../server/services/fund-calculation-mode-service', async (importOriginal) => {
   const actual =
@@ -18,6 +24,12 @@ vi.mock('../../../server/services/fund-calculation-mode-service', async (importO
     ...actual,
     resolveMoicActionability,
   };
+});
+
+vi.mock('../../../server/services/fund-moic-ranking-service', async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import('../../../server/services/fund-moic-ranking-service')>();
+  return { ...actual, getFundMoicRankingSources };
 });
 
 // Capture the values handed to db.insert(...).values(...).
@@ -88,6 +100,24 @@ function actionabilityResult(status: 'actionable' | 'non_actionable'): MoicActio
     },
     acceptedReconciliationRunId: status === 'actionable' ? 42 : null,
   } as MoicActionabilityResult;
+}
+
+function moicSources(factsInputHash: string | null) {
+  return {
+    factsSource:
+      factsInputHash === null
+        ? ({ status: 'absent' } as const)
+        : {
+            status: 'available' as const,
+            response: {
+              fundId: 7,
+              asOfDate: '2026-07-13',
+              facts: [],
+              inputHash: factsInputHash,
+              generatedAt: '2026-07-13T00:00:00.000Z',
+            },
+          },
+  };
 }
 
 describe('toH9SnapshotColumns', () => {
@@ -188,10 +218,14 @@ describe('runReserveCalculation H9 stamp', () => {
         unavailableFields: [],
       },
     });
+    const sources = moicSources('a'.repeat(64));
+    getFundMoicRankingSources.mockResolvedValue(sources);
     resolveMoicActionability.mockResolvedValue(actionabilityResult('actionable'));
 
     await runReserveCalculation({ fundId: 7, correlationId: 'corr-facts-on' });
 
+    expect(getFundMoicRankingSources).toHaveBeenCalledOnce();
+    expect(resolveMoicActionability).toHaveBeenCalledWith({ fundId: 7, sources });
     expect(captured.values).toMatchObject({
       h9MoicSourceInputHash: 'moic-src-hash',
       h9RoundEvidenceInputHash: 'round-evidence-hash',
@@ -235,10 +269,13 @@ describe('runReserveCalculation H9 stamp', () => {
         unavailableFields: ['invested'],
       },
     });
+    const sources = moicSources(null);
+    getFundMoicRankingSources.mockResolvedValue(sources);
     resolveMoicActionability.mockResolvedValue(actionabilityResult('actionable'));
 
     await runReserveCalculation({ fundId: 7, correlationId: 'corr-facts-unavailable' });
 
+    expect(resolveMoicActionability).toHaveBeenCalledWith({ fundId: 7, sources });
     expect(captured.values).toMatchObject({
       h9FingerprintHash: 'fingerprint-hash',
       h9ActionabilityStatus: 'non_actionable',
